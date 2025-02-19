@@ -1,0 +1,200 @@
+KiCad documentation translation
+===============================
+
+== Starting a translation from scratch
+
+To start translating the KiCad documentation in a new language, follow these steps:
+
+1) read the README.adoc for the preliminary requirements
+
+2) create your language addendum. Do a:
+
+ cp src/YOUR-CHOSEN-MANUAL/po/addendum.template src/YOUR-CHOSEN-MANUAL/po/addendum.NN
+
+where NN is the i18n language code and YOUR-CHOSEN-MANUAL is the name of
+the manual dir. For example, for "Getting Started in KiCad" in German do:
+
+ cp src/getting_started_in_kicad/po/addendum.template src/getting_started_in_kicad/po/addendum.de
+
+Edit, translate and add your name to the nationalized addendum for your
+credit as a translator.
+
+3) then, for creating your language template, you _should_ do this:
+
+ touch src/YOUR-CHOSEN-MANUAL/po/NN.po
+ mkdir build
+ cd build
+ cmake ..
+ make YOUR-CHOSEN-MANUAL_updatepo_NN
+
+where, again, YOUR-CHOSEN-MANUAL is the name of the manual dir, for
+example "getting_started_in_kicad" and NN is your i18n language code.
+
+If last command should not work for any reason, it is still possible
+to use the old scripts procedure:
+
+ rm -rf build/*
+ cd src/YOUR-CHOSEN-MANUAL
+ make -f ../../utils/old-build-scripts/Makefile po/NN.po
+ cd ../../build
+ cmake ..
+
+Edit the resulting ../src/YOUR-CHOSEN-MANUAL/po/NN.po file, starting from
+the headers, using a specialized po editor of your choice like poedit,
+gtranslator, virtaal, lokalize, emacs, vi, or others.
+For example do:
+
+ poedit ../src/getting_started_in_kicad/po/de.po
+
+4) try your translation with a:
+
+ make YOUR-CHOSEN-MANUAL_html_NN
+
+For example:
+
+ make cvpcb_html_it
+
+And see the results with a browser:
+
+ firefox src/cvpcb/it/cvpcb.html
+
+NOTE: you can try other formats like pdf or epub as well. HTML is just
+the fastest to build.
+
+NOTE: before commit any result it is recommended to try the other
+formats like pdf and epub. These formats sometimes trigger errors that
+the other build processes may not see. These errors should never reach
+the repository since they may block the site automatic compilation of
+the different formats.
+
+5) when you reach 100% of the translation, or simply when you think you
+   have done enough work, test your work trying to compile it in the
+   various formats. When there are no errors, create a patch with:
+
+ cd ..
+ git add src/YOUR-CHOSEN-MANUAL/po/addendum.NN src/YOUR-CHOSEN-MANUAL/po/NN.po
+ git commit -m "Added translation for LANGUAGE"
+ git format-patch HEAD^
+
+and submit a pull-request on Github.
+
+[NOTE]
+====
+To do the equivalent of a "make clean" just delete recursively the
+content of the build dir with:
+
+ rm -rf build/*
+
+====
+
+
+== Translating more than one doc branch at a time
+
+With the new branching policy of KiCad documentation, life could be
+hard, especially if the stable branch of the documentation in your
+tongue is not already completed.
+
+
+In this case you would want to translate the stable branch of the
+documentation and add all unupdated strings and screenshots to the
+development ``rolling'' branch.
+
+Git has this beautiful command that is ``cherry-pick''. This command
+enable the user to pick a commit from a branch and apply this commit to
+another.
+
+What we want to do is to translate and commit the translation update on
+the stable branch of the documentation and then pick this commit and
+apply it to the new dev branch of the documentation. 
+
+Then, let the gettext suite commands purge the modified strings but
+keeping the unchanged ones.
+
+This is all wonderful but sadly the merge command does not work well with 
+`.po` files due to the large percent of comments that change with trivial
+changes in source making the merge conflicts something neare a nightmare.
+
+Again, the flexibility of git saves our days of works letting to
+customize the merge in a file-type per file-type basis.
+
+All we have to do is to tell git to use a special po aware merge command
+instead of the classic one: this is what po-merge is for. po-merge is
+part of the https://github.com/mezis/git-whistles[git-whistles] and under
+Linux is installable with just:
+
+ sudo gem install git-whistles
+
+[NOTE]
+====
+
+Please note that (actual stable, at the time of writing) 1.1.3 version of
+git-whistles have a small but fastidious bug. If you see a message like
+this:
+
+ git merge-po
+ trap: ERR: bad trap
+
+then what you all have to do is to change the first line of 
+
+ /var/lib/gems/2.3.0/gems/git-whistles-1.1.3/libexec/git-merge-po.sh 
+
+from
+
+ #!/bin/sh
+
+to
+
+ #!/bin/bash
+
+====
+
+If some errors arise, try updating gem first:
+
+ sudo gem update --system
+
+and then retry the installation. Then you will have a new command:
+
+ git merge-po <ancestor> <left> <right>
+
+But you don't have to call this directly, you just have to configure your
+git environment: add this to your .git/config:
+
+  [merge "pofile"]
+    name = Gettext merge driver
+    driver = git merge-po %O %A %B
+
+and add this to .gitattributes or .git/info/attributes:
+
+  *.po   merge=pofile
+  *.pot  merge=pofile
+
+Or globally
+
+Add to ~/.gitconfig:
+
+  [core]
+    attributesfile = ~/.gitattributes
+  [merge "pofile"]
+    name = Gettext merge driver
+    driver = git merge-po %O %A %B
+
+Create ~/.gitattributes:
+
+  *.po   merge=pofile
+  *.pot  merge=pofile
+
+Then try:
+
+ git checkout 4.0
+ git add ...
+ git commit -m "Translation update..." 
+
+write down the commit hash or check it with `git log`
+
+ git push
+ git checkout master
+ git cherry-pick <commit>
+
+Done!
+
+Happy translation!

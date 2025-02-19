@@ -1,0 +1,745 @@
+# SOME DESCRIPTIVE TITLE
+# Copyright (C) YEAR Free Software Foundation, Inc.
+# This file is distributed under the same license as the PACKAGE package.
+# Jim Jiang <jim@lotlab.org>, 2018.
+# taotieren <admin@taotieren.com>, 2019, 2020, 2021.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: GerbView_Manual_zh_CN\n"
+"POT-Creation-Date: 2023-01-18 01:17+0800\n"
+"PO-Revision-Date: 2023-01-18 01:21+0800\n"
+"Last-Translator: taotieren <admin@taotieren.com>\n"
+"Language-Team: admin@taotieren.com\n"
+"Language: zh\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Poedit 3.2.2\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+
+#. type: Title =
+#: gerbview.adoc:6
+#, no-wrap
+msgid "Gerber Viewer"
+msgstr "Gerber 浏览器"
+
+#. type: Plain text
+#: gerbview.adoc:9
+msgid "_Reference manual_"
+msgstr "_参考手册_"
+
+#. type: Plain text
+#: gerbview.adoc:12
+#, no-wrap
+msgid "*Copyright*\n"
+msgstr "*版权*\n"
+
+#. type: Plain text
+#: gerbview.adoc:18
+msgid ""
+"This document is Copyright (C) 2010-2021 by its contributors as listed below. You "
+"may distribute it and/or modify it under the terms of either the GNU General "
+"Public License (https://www.gnu.org/licenses/gpl.html), version 3 or later, or "
+"the Creative Commons Attribution License (https://creativecommons.org/licenses/"
+"by/3.0/), version 3.0 or later."
+msgstr ""
+"本文件的版权 (C) 2010-2021 由下列贡献者拥有。您可以根据GNU通用公共许可证（https://"
+"www.gnu.org/licenses/gpl.html）第 3 版或更高版本，或知识共享署名许可证（https://"
+"creativecommons.org/licenses/by/3.0/）第 3.0 版或更高版本的条款发布它和/或修改它。"
+
+#. type: Plain text
+#: gerbview.adoc:20
+msgid "All trademarks within this guide belong to their legitimate owners."
+msgstr "本文档中出现的所有商标归其持有人所有。"
+
+#. type: Plain text
+#: gerbview.adoc:23
+#, no-wrap
+msgid "*Contributors*\n"
+msgstr "*贡献者*\n"
+
+#. type: Plain text
+#: gerbview.adoc:25
+msgid "The KiCad Team."
+msgstr "KiCad 团队。"
+
+#. type: Plain text
+#: gerbview.adoc:28
+#, no-wrap
+msgid "*Feedback*\n"
+msgstr "*反馈*\n"
+
+#. type: Plain text
+#: gerbview.adoc:32
+msgid ""
+"The KiCad project welcomes feedback, bug reports, and suggestions related to the "
+"software or its documentation.  For more information on how to sumbit feedback or "
+"report an issue, please see the instructions at https://www.kicad.org/help/report-"
+"an-issue/"
+msgstr ""
+"KiCad  项目欢迎与本软件或其文档相关的反馈、错误报告和建议。  关于如何提交反馈意见"
+"或报告问题的更多信息，请参见 https://www.kicad.org/help/report-an-issue/ 的说明"
+
+#. Since docbook "article" is more compact, I have to separate this page
+#. type: Plain text
+#: gerbview.adoc:35
+msgid "<<<<"
+msgstr "<<<<"
+
+#. type: Title ==
+#: gerbview.adoc:36
+#, no-wrap
+msgid "Introduction to GerbView"
+msgstr "Gerber 浏览器介绍"
+
+#. type: Plain text
+#: gerbview.adoc:40
+msgid ""
+"GerbView is a Gerber file (RS-274X format) and Excellon drill file viewer. Up to "
+"32 files can be displayed at once."
+msgstr ""
+"Gerber 浏览器是一个 Gerber 文件（RS-274X 格式）与 Excellon 钻孔文件的查看器，其最"
+"多可以一次性显示32个文件。"
+
+#. type: Plain text
+#: gerbview.adoc:45
+msgid ""
+"For more information about the Gerber file format please read http://www.ucamco."
+"com/files/downloads/file/81/the_gerber_file_format_specification.pdf[the Gerber "
+"File Format Specification].  Details about drill file format can be found at "
+"http://web.archive.org/web/20071030075236/http://www.excellon.com/manuals/program."
+"htm[the Excellon format description]."
+msgstr ""
+"关于 Gerber 文件的更多信息，可以阅读 http://www.ucamco.com/files/downloads/"
+"file/81/the_gerber_file_format_specification.pdf[Gerber文件格式规范] 文档。关于钻"
+"孔文件格式的信息，可以阅读 http://web.archive.org/web/20071030075236/ http://www."
+"excellon.com/manuals/program.htm[Excellon格式描述] 文档。"
+
+#. type: Title ==
+#: gerbview.adoc:46
+#, no-wrap
+msgid "Interface"
+msgstr "界面"
+
+#. type: Title ===
+#: gerbview.adoc:48
+#, no-wrap
+msgid "Main window"
+msgstr "主窗口"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: gerbview.adoc:50
+#, no-wrap
+msgid "gerbview_main_screen_png"
+msgstr "gerbview_main_screen_png"
+
+#. type: Target for macro image
+#: gerbview.adoc:50
+#, no-wrap
+msgid "images/gerbview_main_screen.png"
+msgstr "images/zh/gerbview_main_screen.png"
+
+#. type: Plain text
+#: gerbview.adoc:53 gerbview.adoc:106 gerbview.adoc:161
+msgid "<<<<<"
+msgstr "<<<<<"
+
+#. type: Title ===
+#: gerbview.adoc:54
+#, no-wrap
+msgid "Top toolbar"
+msgstr "顶部工具栏"
+
+#. type: Table
+#: gerbview.adoc:103
+#, no-wrap
+msgid ""
+"|image:images/icons/delete_gerber_24.png[delete_gerber_png]\n"
+"|Clear all layers\n"
+"\n"
+"|image:images/icons/load_gerber_24.png[load_gerber_png]\n"
+"|Load Gerber files\n"
+"\n"
+"|image:images/icons/load_drill_24.png[gerbview_drill_file_png]\n"
+"|Load Excellon drill files\n"
+"\n"
+"|image:images/icons/sheetset_24.png[sheetset_png]\n"
+"|Set page size\n"
+"\n"
+"|image:images/icons/print_button_24.png[print_button_png]\n"
+"|Print\n"
+"\n"
+"|image:images/icons/refresh_24.png[zoom_redraw_png]\n"
+"|Redraw view\n"
+"\n"
+"|image:images/icons/zoom_in_24.png[zoom_in_png]\n"
+"image:images/icons/zoom_out_24.png[zoom_out_png]\n"
+"|Zoom in or out\n"
+"\n"
+"|image:images/icons/zoom_fit_in_page_24.png[zoom_fit_in_page_png]\n"
+"|Zoom to fit page\n"
+"\n"
+"|image:images/icons/zoom_area_24.png[zoom_area_png]\n"
+"|Zoom to selection\n"
+"\n"
+"|image:images/gerbview_top_layer.png[scaledwidth=\"70%\",alt=\"gerbview_top_layer_png\"]\n"
+"|Select active layer\n"
+"\n"
+"|image:images/gerbview_top_info.png[scaledwidth=\"70%\",alt=\"gerbview_top_info_png\"]\n"
+"|Display info about active layer\n"
+"\n"
+"|image:images/gerbview_x2_component.png[scaledwidth=\"70%\",alt=\"gerbview_x2_component_png\"]\n"
+"|Highlight items belonging to selected component (Gerber X2)\n"
+"\n"
+"|image:images/gerbview_x2_net.png[scaledwidth=\"70%\",alt=\"gerbview_x2_net_png\"]\n"
+"|Highlight items belonging to selected net (Gerber X2)\n"
+"\n"
+"|image:images/gerbview_x2_attribute.png[scaledwidth=\"70%\",alt=\"gerbview_x2_attributeo_png\"]\n"
+"|Highlight items with the selected attribute (Gerber X2)\n"
+"\n"
+"|image:images/gerbview_top_dcode.png[scaledwidth=\"60%\",alt=\"gerbview_top_dcode_png\"]\n"
+"|Highlight items of selected D Code on the active layer\n"
+msgstr ""
+"|image:images/icons/delete_gerber_24.png[delete_gerber_png]\n"
+"|清除所有图层\n"
+"\n"
+"|image:images/icons/load_gerber_24.png[load_gerber_png]\n"
+"|加载 Gerber 文件\n"
+"\n"
+"|image:images/icons/load_drill_24.png[gerbview_drill_file_png]\n"
+"|加载 Excellon 钻孔文件\n"
+"\n"
+"|image:images/icons/sheetset_24.png[sheetset_png]\n"
+"|设置页面尺寸\n"
+"\n"
+"|image:images/icons/print_button_24.png[print_button_png]\n"
+"|打印\n"
+"\n"
+"|image:images/icons/refresh_24.png[zoom_redraw_png]\n"
+"|重绘视图\n"
+"\n"
+"|image:images/icons/zoom_in_24.png[zoom_in_png]\n"
+"image:images/icons/zoom_out_24.png[zoom_out_png]\n"
+"|放大或缩小\n"
+"\n"
+"|image:images/icons/zoom_fit_in_page_24.png[zoom_fit_in_page_png]\n"
+"|自动缩放（缩放适合）\n"
+"\n"
+"|image:images/icons/zoom_area_24.png[zoom_area_png]\n"
+"|缩放至选择\n"
+"\n"
+"|image:images/zh/gerbview_top_layer.png[scaledwidth=\"70%\",alt=\"gerbview_top_layer_png\"]\n"
+"|选择活动图层\n"
+"\n"
+"|image:images/zh/gerbview_top_info.png[scaledwidth=\"70%\",alt=\"gerbview_top_info_png\"]\n"
+"|显示有关活动图层的信息\n"
+"\n"
+"|image:images/zh/gerbview_x2_component.png[scaledwidth=\"70%\",alt=\"gerbview_x2_component_png\"]\n"
+"|高亮显示属于所选元件的项目（Gerber X2）\n"
+"\n"
+"|image:images/zh/gerbview_x2_net.png[scaledwidth=\"70%\",alt=\"gerbview_x2_net_png\"]\n"
+"|高亮显示属于所选网络的项目（Gerber X2）\n"
+"\n"
+"|image:images/zh/gerbview_x2_attribute.png[scaledwidth=\"70%\",alt=\"gerbview_x2_attributeo_png\"]\n"
+"|高亮显示具有所选属性的项目（Gerber X2）\n"
+"\n"
+"|image:images/zh/gerbview_top_dcode.png[scaledwidth=\"60%\",alt=\"gerbview_top_dcode_png\"]\n"
+"|高亮显示活动图层上所选 D码的项目\n"
+
+#. type: Title ===
+#: gerbview.adoc:107
+#, no-wrap
+msgid "Left toolbar"
+msgstr "左方工具栏"
+
+#. type: Table
+#: gerbview.adoc:158
+#, no-wrap
+msgid ""
+"|image:images/icons/cursor_24.png[cursor_png]\n"
+"|Select items\n"
+"\n"
+"|image:images/icons/measurement_24.png[measurement_png]\n"
+"|Measure between two points\n"
+"\n"
+"|image:images/icons/grid_24.png[grid_png]\n"
+"|Toggle grid visibility\n"
+"\n"
+"|image:images/icons/polar_coord_24.png[polar_coord_png]\n"
+"|Toggle polar coordinates display\n"
+"\n"
+"|image:images/icons/unit_inch_24.png[unit_inch_png]\n"
+"image:images/icons/unit_mil_24.png[unit_mm_png]\n"
+"image:images/icons/unit_mm_24.png[unit_mm_png]\n"
+"|Select inch, mils, or millimeter units\n"
+"\n"
+"|image:images/icons/cursor_shape_24.png[cursor_shape_png]\n"
+"|Toggle full-screen cursor\n"
+"\n"
+"|image:images/icons/pad_sketch_24.png[pad_sketch_png]\n"
+"|Display flashed items in sketch (outline) mode\n"
+"\n"
+"|image:images/icons/showtrack_24.png[track_sketch_png]\n"
+"|Display lines in sketch (outline) mode\n"
+"\n"
+"|image:images/icons/opt_show_polygon_24.png[opt_show_polygon_png]\n"
+"|Display polygons in sketch (outline) mode\n"
+"\n"
+"|image:images/icons/gerbview_show_negative_objects_24.png[gerbview_show_negative_objects_png]\n"
+"|Show negative objects in ghost color\n"
+"\n"
+"|image:images/icons/show_dcodenumber_24.png[show_dcodenumber_png]\n"
+"|Show/hide D Codes\n"
+"\n"
+"|image:images/icons/gbr_select_mode2_24.png[gbr_select_mode2_png]\n"
+"|Display layers in diff (compare) mode\n"
+"\n"
+"|image:images/icons/contrast_mode_24.png[contrast_mode_png]\n"
+"|Toggle inactive layers between normal and dimmed display\n"
+"\n"
+"|image:images/icons/layers_manager_24.png[layers_manager_png]\n"
+"|Show/hide layer manager\n"
+"\n"
+"|image:images/icons/flip_board_24.png[flip_board_24]\n"
+"|Show Gerbers as mirror image\n"
+"\n"
+msgstr ""
+"|image:images/icons/cursor_24.png[cursor_png]\n"
+"|选择项目\n"
+"\n"
+"|image:images/icons/measurement_24.png[measurement_png]\n"
+"|测量两点之间\n"
+"\n"
+"|image:images/icons/grid_24.png[grid_png]\n"
+"|切换网格可见性\n"
+"\n"
+"|image:images/icons/polar_coord_24.png[polar_coord_png]\n"
+"|切换极坐标显示\n"
+"\n"
+"|image:images/icons/unit_inch_24.png[unit_inch_png]\n"
+"image:images/icons/unit_mil_24.png[unit_mm_png]\n"
+"image:images/icons/unit_mm_24.png[unit_mm_png]\n"
+"|选择英寸、密尔或毫米单位\n"
+"\n"
+"|image:images/icons/cursor_shape_24.png[cursor_shape_png]\n"
+"|切换全屏光标\n"
+"\n"
+"|image:images/icons/pad_sketch_24.png[pad_sketch_png]\n"
+"|以草图（边框）模式显示闪烁的项目\n"
+"\n"
+"|image:images/icons/showtrack_24.png[track_sketch_png]\n"
+"|以草图（边框）模式显示线条\n"
+"\n"
+"|image:images/icons/opt_show_polygon_24.png[opt_show_polygon_png]\n"
+"|以草图（边框）模式显示多边形\n"
+"\n"
+"|image:images/icons/gerbview_show_negative_objects_24.png[gerbview_show_negative_objects_png]\n"
+"|以灰色显示负片对象\n"
+"\n"
+"|image:images/icons/show_dcodenumber_24.png[show_dcodenumber_png]\n"
+"|显示/隐藏 D码\n"
+"\n"
+"|image:images/icons/gbr_select_mode2_24.png[gbr_select_mode2_png]\n"
+"|以差异（比较）模式显示图层\n"
+"\n"
+"|image:images/icons/contrast_mode_24.png[contrast_mode_png]\n"
+"|在高对比度模式下显示当前图层\n"
+"\n"
+"|image:images/icons/layers_manager_24.png[layers_manager_png]\n"
+"|显示/隐藏图层管理器\n"
+"\n"
+"|image:images/icons/flip_board_24.png[flip_board_24]\n"
+"|将 Gerbers 显示为镜像\n"
+"\n"
+
+#. type: Title ===
+#: gerbview.adoc:162
+#, no-wrap
+msgid "Layers Manager"
+msgstr "层管理器"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: gerbview.adoc:164
+#, no-wrap
+msgid "gerbview_layer_manager_png"
+msgstr "gerbview_layer_manager_png"
+
+#. type: Target for macro image
+#: gerbview.adoc:164
+#, no-wrap
+msgid "images/gerbview_layer_manager.png"
+msgstr "images/zh/gerbview_layer_manager.png"
+
+#. type: Plain text
+#: gerbview.adoc:169
+msgid ""
+"The Layers Manager controls and displays visibility of all layers. An arrow "
+"indicates the active layer, and each layer can be shown or hidden with the "
+"checkboxes."
+msgstr ""
+"层管理器管理着所有图层的显示。左方的三角形箭头指示着当前的活动层，而每一层都可以使"
+"用复选框来开启或关闭显示。"
+
+#. type: Plain text
+#: gerbview.adoc:171
+msgid "Mouse button assignments:"
+msgstr "鼠标按钮作用："
+
+#. type: Plain text
+#: gerbview.adoc:173
+msgid "Left click: select the active layer"
+msgstr "左键点击：选择活动层"
+
+#. type: Plain text
+#: gerbview.adoc:174
+msgid "Right click: show/hide/sort layers options"
+msgstr "右键点击：显示/隐藏/排序层选项"
+
+#. type: Plain text
+#: gerbview.adoc:175
+msgid "Middle click or double click (on color swatch): select the layer color"
+msgstr "中键点击或在颜色标识上双击：选择层的颜色"
+
+#. type: Plain text
+#: gerbview.adoc:179
+msgid ""
+"The Layers tab allows you to control the visibility and color of all loaded "
+"Gerber and drill layers.  The Items tab allows you to control the color and "
+"display of the grid, D Codes, and negative objects."
+msgstr ""
+"在层标签页中，你可以控制各个图层的颜色和可见性。在项目标签页中，你可以控制网格、D"
+"码以及负片物体的颜色和可见性。"
+
+#. type: Title ==
+#: gerbview.adoc:180
+#, no-wrap
+msgid "Commands in menu bar"
+msgstr "菜单栏命令"
+
+#. type: Title ===
+#: gerbview.adoc:182
+#, no-wrap
+msgid "File menu"
+msgstr "文件菜单"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: gerbview.adoc:184
+#, no-wrap
+msgid "gerbview_file_menu_png"
+msgstr "gerbview_file_menu_png"
+
+#. type: Target for macro image
+#: gerbview.adoc:184
+#, no-wrap
+msgid "images/gerbview_file_menu.png"
+msgstr "images/zh/gerbview_file_menu.png"
+
+#. type: Plain text
+#: gerbview.adoc:190
+#, no-wrap
+msgid ""
+"*Export to PCB Editor* is a limited capability to export Gerber files into a KiCad PCB. The final\n"
+"result depends on what features of the RS-274X format are used in the original Gerber files:\n"
+"rasterized items cannot be converted (typically negative objects), flashed items are converted to\n"
+"vias, lines are converted to track segments (or graphic lines for non-copper layers).\n"
+msgstr ""
+"*导出到 PCB 编辑器* 是将 Gerber 文件导出到 KiCad PCB 的有限功能。\n"
+"最终结果取决于原始 Gerber 文件中使用的 RS-274X 格式的哪些功能：\n"
+"无法转换栅格化的项目 (通常为负值对象)，将完成的项目转换为过孔、线条转换为布线段 (或非铜层的图形线)。\n"
+
+#. type: Title ===
+#: gerbview.adoc:191
+#, no-wrap
+msgid "Tools menu"
+msgstr "工具菜单"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: gerbview.adoc:193
+#, no-wrap
+msgid "gerbview_tools_menu_png"
+msgstr "gerbview_tools_menu_png"
+
+#. type: Target for macro image
+#: gerbview.adoc:193
+#, no-wrap
+msgid "images/gerbview_tools_menu.png"
+msgstr "images/zh/gerbview_tools_menu.png"
+
+#. type: Plain text
+#: gerbview.adoc:196
+#, no-wrap
+msgid "*List DCodes* shows the D Code information for all layers.\n"
+msgstr "*D 码列表* 单可以显示所有层中的 D 码信息。\n"
+
+#. type: Plain text
+#: gerbview.adoc:197
+#, no-wrap
+msgid "*Show Source* displays the Gerber file contents of the active layer in a text editor.\n"
+msgstr "*显示源文件* 在一个文本编辑器中显示活动层的 Gerber 文件内容。\n"
+
+#. type: Plain text
+#: gerbview.adoc:198
+#, no-wrap
+msgid "*Measure Tool* allows measuring the distance between two points.\n"
+msgstr "*测量工具* 可以测量两点之间的距离。\n"
+
+#. type: Plain text
+#: gerbview.adoc:199
+#, no-wrap
+msgid "*Clear Current Layer* erases the contents of the active layer.\n"
+msgstr "*清除当前层* 菜单可以擦除活动层中的内容。\n"
+
+#. type: Title ==
+#: gerbview.adoc:200
+#, no-wrap
+msgid "Printing"
+msgstr "打印"
+
+#. type: Plain text
+#: gerbview.adoc:205
+msgid ""
+"To print layers, use the image:images/icons/print_button_24.png[print_button_png] "
+"icon or the *File -> Print* menu."
+msgstr ""
+"要打印图层，请使用 image:images/icons/print_button_24.png[print_button_png] 图标"
+"或 *文件 -> 打印* 菜单。"
+
+#. type: delimited block =
+#: gerbview.adoc:211
+msgid ""
+"Be sure items are inside the printable area. Use image:images/icons/sheetset_24."
+"png[sheetset_png] to select a suitable page format."
+msgstr ""
+"请确保项目在可打印区域内。使用 image:images/icons/sheetset_24.png[sheetet_png] 来"
+"选择一个合适的页面格式。"
+
+#. type: delimited block =
+#: gerbview.adoc:215
+msgid ""
+"Note that many photoplotters support a large plottable area, much bigger than the "
+"page sizes used by most printers. Moving the entire layer set may be required."
+msgstr ""
+"需要注意的是，大多数的光电绘图仪都支持很大的打印区域，一般都会大于通常的打印机。故"
+"可能需要移动整层来适应光电绘图仪。"
+
+#~ msgid "Please direct any bug reports, suggestions or new versions to here:"
+#~ msgstr "请直接在此处报告 Bug、提出建议以及更新版本："
+
+#~ msgid "About KiCad document: https://gitlab.com/kicad/services/kicad-doc/issues"
+#~ msgstr "关于 KiCad 文档：https://gitlab.com/kicad/services/kicad-doc/issues"
+
+#~ msgid "About KiCad software: https://gitlab.com/kicad/code/kicad/issues"
+#~ msgstr "关于 KiCad 软件本体：https://gitlab.com/kicad/code/kicad/issues"
+
+#~ msgid ""
+#~ "About KiCad software i18n: https://gitlab.com/kicad/code/kicad-i18n/issues"
+#~ msgstr "关于 KiCad 软件翻译：https://gitlab.com/kicad/code/kicad-i18n/issues"
+
+#, no-wrap
+#~ msgid "*Publication date and software version*\n"
+#~ msgstr "*文档发布日期与软件版本*\n"
+
+#~ msgid "Published on February 24, 2018."
+#~ msgstr "发布于 2018 年 2 月 24 日。"
+
+#, no-wrap
+#~ msgid "gerbview_top_toolbar_png"
+#~ msgstr "gerbview_top_toolbar_png"
+
+#, no-wrap
+#~ msgid "images/gerbview_top_toolbar.png"
+#~ msgstr "images/zh/gerbview_top_toolbar.png"
+
+#, no-wrap
+#~ msgid "14+^.^|image:images/gerbview_left_toolbar.png[gerbview_left_toolbar_png]"
+#~ msgstr "14+^.^|image:images/gerbview_left_toolbar.png[gerbview_left_toolbar_png]"
+
+#, no-wrap
+#~ msgid "Preferences menu"
+#~ msgstr "设置菜单"
+
+#, no-wrap
+#~ msgid "gerbview_preferences_menu_png"
+#~ msgstr "gerbview_preferences_menu_png"
+
+#, no-wrap
+#~ msgid "images/gerbview_preferences_menu.png"
+#~ msgstr "images/zh/gerbview_preferences_menu.png"
+
+#~ msgid ""
+#~ "GerbView now supports the modern graphics toolset that is available in "
+#~ "PcbNew.  Enabling the modern toolset brings new features and better "
+#~ "performance.  You can select which toolset to use in the preferences menu.  "
+#~ "Using the Modern (Accelerated)  toolset is recommended if your graphics card "
+#~ "supports it (requires OpenGL 2.0).  If your graphics card does not support the "
+#~ "Accelerated toolset, you can still use the new features by selecting the "
+#~ "Modern (Fallback) toolset."
+#~ msgstr ""
+#~ "Gerber 浏览器现在已经支持 Pcbnew 中所使用的现代图形工具集了。启用现代图形工具集"
+#~ "可以带给你更多的功能以及更好的性能。你可以随时在设置菜单中更改使用的工具集。如"
+#~ "果你的显卡支持 OpenGL2.0，那么我们建议启用现代（加速）工具集。如果你的显卡不支"
+#~ "持加速工具集，你依旧可以通过使用现代（回退）工具集来使用新的功能。"
+
+#~ msgid ""
+#~ "Using the Legacy toolset is only recommended if you notice that the Modern "
+#~ "toolset does not support a feature you need or if it does not render a Gerber "
+#~ "file correctly.  If you notice such a problem, please notify the KiCad "
+#~ "developers so that it can be fixed in a future release."
+#~ msgstr ""
+#~ "我们建议仅在现代图形工具集无法支持你需要的功能或显示不正常时使用传统图形工具"
+#~ "集。如果你遇到了上述的问题，请告诉我们 KiCad 开发者，以便我们在后续版本中修复"
+#~ "它。"
+
+#~ msgid "The Legacy toolset will be removed in a future version of GerbView."
+#~ msgstr "传统图形工具集将会在以后的版本中移除。"
+
+#, no-wrap
+#~ msgid "Miscellaneous menu"
+#~ msgstr "其他菜单"
+
+#, no-wrap
+#~ msgid "gerbview_misc_menu_png"
+#~ msgstr "gerbview_misc_menu_png"
+
+#, no-wrap
+#~ msgid "images/gerbview_misc_menu.png"
+#~ msgstr "images/zh/gerbview_misc_menu.png"
+
+#, no-wrap
+#~ msgid "*Set Text Editor...* allows you to choose which program to show source with.\n"
+#~ msgstr "“设置文本编辑器” 菜单可以设置用于查看 Gerber 菜单文本的源码。\n"
+
+#, no-wrap
+#~ msgid "Display modes"
+#~ msgstr "显示模式"
+
+#~ msgid ""
+#~ "GerbView has three display modes which are useful for different situations or "
+#~ "requirements."
+#~ msgstr "Gerber 浏览器有3种显示模式，他们在不同的状况和需求下有不同的作用。"
+
+#~ msgid ""
+#~ "Stacked mode and Transparency mode provide a better graphical experience, but "
+#~ "may be slower then Raw mode on some computers."
+#~ msgstr ""
+#~ "使用层叠模式和透明模式可以带来更好的图形体验，但在某些电脑上可能会比原始模式"
+#~ "慢。"
+
+#, no-wrap
+#~ msgid "Raw mode"
+#~ msgstr "原始模式"
+
+#~ msgid ""
+#~ "This mode is selected by image:images/icons/gbr_select_mode0."
+#~ "png[gbr_select_mode0_png].  Each file and each item in the file are drawn in "
+#~ "the order files are loaded. However, the active layer is drawn last."
+#~ msgstr ""
+#~ "这个模式可以通过 image:images/icons/gbr_select_mode0.png[gbr_select_mode0_png] "
+#~ "来选择。每个文件，以及文件中的物体将会以加载顺序绘制，但活动层总是最后绘制（也"
+#~ "就是总在最上层）。"
+
+#~ msgid ""
+#~ "When Gerber files have negative items (drawn in black), artifacts may be "
+#~ "visible on already-drawn layers."
+#~ msgstr ""
+#~ "当 Gerber 文件中有负片物体（绘制成黑色）时，已有的层上可能会出现一些瑕疵痕迹。"
+
+#, no-wrap
+#~ msgid "gerbview_mode_raw_stack_png"
+#~ msgstr "gerbview_mode_raw_stack_png"
+
+#, no-wrap
+#~ msgid "images/gerbview_mode_raw_stack.png"
+#~ msgstr "images/gerbview_mode_raw_stack.png"
+
+#, no-wrap
+#~ msgid "Stacked mode"
+#~ msgstr "层叠模式"
+
+#~ msgid ""
+#~ "Invoked by image:images/icons/gbr_select_mode1.png[gbr_select_mode1_png], each "
+#~ "file is drawn in the order files are loaded. Again, the active layer is drawn "
+#~ "last."
+#~ msgstr ""
+#~ "通过 image:images/icons/gbr_select_mode1.png[gbr_select_mode1_png] 切换。每个文"
+#~ "件按照加载顺序进行绘制，当前活动层最后绘制。"
+
+#~ msgid ""
+#~ "When Gerber files have negative items (drawn in black) there are no artifacts "
+#~ "on already-drawn layers because this mode draws each file in a local buffer "
+#~ "before it is shown on screen."
+#~ msgstr ""
+#~ "当 Gerber 文件中有负片物体（绘制成黑色）时，已有的层上不会出现瑕疵痕迹。没有瑕"
+#~ "疵的原因是因为在绘制到屏幕之前，它们会被绘制到一个缓冲区中。"
+
+#, no-wrap
+#~ msgid "Transparency mode"
+#~ msgstr "透明模式"
+
+#~ msgid ""
+#~ "Use image:images/icons/gbr_select_mode2.png[gbr_select_mode2_png] to display "
+#~ "in this mode, where no artifacts are present and layers are blended together "
+#~ "with the active layer on top."
+#~ msgstr ""
+#~ "使用 image:images/icons/gbr_select_mode2.png[gbr_select_mode2_png] 来切换到这个"
+#~ "模式。在这个模式下，所有层都会被混合到一起，因此也不会产生绘制瑕疵。"
+
+#, no-wrap
+#~ msgid "gerbview_mode_transparency_png"
+#~ msgstr "gerbview_mode_transparency_png"
+
+#, no-wrap
+#~ msgid "images/gerbview_mode_transparency.png"
+#~ msgstr "images/gerbview_mode_transparency.png"
+
+#, no-wrap
+#~ msgid "Layer occlusion"
+#~ msgstr "层遮挡"
+
+#~ msgid ""
+#~ "In raw or stacked mode, the active layer will be on top of other layers and "
+#~ "hide items below it."
+#~ msgstr "在原始模式或者层叠模式中，顶部的层会遮挡下面的层。"
+
+#~ msgid ""
+#~ "Here, layer 1 (green) is the active layer (note the triangle next to it)  and "
+#~ "so it is drawn on top of layer 2 (blue):"
+#~ msgstr ""
+#~ "注意层1（绿色），它是一个活动层（注意左边的三角形箭头），故它在层2（蓝色）上面"
+#~ "绘制："
+
+#, no-wrap
+#~ msgid "gerbview_layer_select_1_png"
+#~ msgstr "gerbview_layer_select_1_png"
+
+#, no-wrap
+#~ msgid "images/gerbview_layer_select_1.png"
+#~ msgstr "images/gerbview_layer_select_1.png"
+
+#~ msgid "Making layer 2 (blue) the active layer brings it to the top:"
+#~ msgstr "如果我们把层2（蓝色）设为活动层，它将在顶部显示："
+
+#, no-wrap
+#~ msgid "gerbview_layer_select_2_png"
+#~ msgstr "gerbview_layer_select_2_png"
+
+#, no-wrap
+#~ msgid "images/gerbview_layer_select_2.png"
+#~ msgstr "images/gerbview_layer_select_2.png"
+
+#, no-wrap
+#~ msgid "Moving items"
+#~ msgstr "移动物体"
+
+#~ msgid ""
+#~ "When using the legacy toolset, items may be selected by holding down the left "
+#~ "mouse button and drawing a rectangle. Releasing the button picks up the "
+#~ "items.  A click of the left mouse button places the items."
+#~ msgstr ""
+#~ "在使用传统图形工具集时，物体可以通过按住鼠标左键画出正方形来选中。松开左键可以"
+#~ "拿起这些物体，然后再次按下左键可以将这些物体放下。"
+
+#~ msgid "This behavior is deprecated and not available in the modern toolsets."
+#~ msgstr "这个行为已经被废弃了，并且无法在现代图形工具集中使用。"

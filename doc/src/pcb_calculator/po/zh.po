@@ -1,0 +1,528 @@
+# Copyright (C) YEAR Free Software Foundation, Inc.
+# This file is distributed under the same license as the PACKAGE package.
+# taotieren <admin@taotieren.com>, 2019, 2020, 2021.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: pcb_calculator_zh_CN\n"
+"POT-Creation-Date: 2023-01-18 15:11+0800\n"
+"PO-Revision-Date: 2023-01-18 15:17+0800\n"
+"Last-Translator: taotieren <admin@taotieren.com>\n"
+"Language-Team: admin@taotieren.com\n"
+"Language: zh\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Poedit 3.2.2\n"
+"X-Poedit-Basepath: .\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+
+#. type: Title =
+#: pcb_calculator.adoc:7
+#, no-wrap
+msgid "Calculator Tools"
+msgstr "PCB 计算器"
+
+#. type: Plain text
+#: pcb_calculator.adoc:10
+msgid "_Reference manual_"
+msgstr "_参考手册_"
+
+#. type: Plain text
+#: pcb_calculator.adoc:13
+#, no-wrap
+msgid "*Copyright*\n"
+msgstr "*版权*\n"
+
+#. type: Plain text
+#: pcb_calculator.adoc:20
+msgid "This document is Copyright (C) 2019-2021 by its contributors as listed below.  You may distribute it and/or modify it under the terms of either the GNU General Public License (http://www.gnu.org/licenses/gpl.html), version 3 or later, or the Creative Commons Attribution License (http://creativecommons.org/licenses/by/3.0/), version 3.0 or later."
+msgstr "本文件的版权（C）2019-2021 年由下列贡献者所拥有。 您可以根据 GNU 通用公共许可证（http://www.gnu.org/licenses/gpl.html）第 3 版或更高版本，或知识共享署名许可证（http://creativecommons.org/licenses/by/3.0/）第 3.0 版或更高版本的条款发布它和/或修改它。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:23
+#, no-wrap
+msgid "*Contributors*\n"
+msgstr "*贡献者*\n"
+
+#. type: Plain text
+#: pcb_calculator.adoc:26
+msgid "Heitor de Bittencourt.  Mathias Neumann"
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:29
+#, no-wrap
+msgid "*Feedback*\n"
+msgstr "*反馈*\n"
+
+#. type: Plain text
+#: pcb_calculator.adoc:33
+msgid "The KiCad project welcomes feedback, bug reports, and suggestions related to the software or its documentation.  For more information on how to sumbit feedback or report an issue, please see the instructions at https://www.kicad.org/help/report-an-issue/"
+msgstr "KiCad  项目欢迎与本软件或其文档相关的反馈、错误报告和建议。  关于如何提交反馈意见或报告问题的更多信息，请参见 https://www.kicad.org/help/report-an-issue/ 的说明"
+
+#. type: Title ==
+#: pcb_calculator.adoc:35
+#, no-wrap
+msgid "Introduction"
+msgstr "介绍"
+
+#. type: Plain text
+#: pcb_calculator.adoc:40
+msgid "The KiCad PCB Calculator is a set of utilities to help you find the values of components or other parameters of a layout. The Calculator has the following tools:"
+msgstr "KiCad PCB 计算器是一组实用程序，可帮助您查找布局的元件或其他参数的值。计算器具有以下工具："
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: pcb_calculator.adoc:42 pcb_calculator.adoc:54 pcb_calculator.adoc:59 pcb_calculator.adoc:64 pcb_calculator.adoc:69
+#, no-wrap
+msgid "Regulators"
+msgstr "稳压器"
+
+#. type: Title ===
+#: pcb_calculator.adoc:43 pcb_calculator.adoc:163
+#, no-wrap
+msgid "Track Width"
+msgstr "布线宽度"
+
+#. type: Title ===
+#: pcb_calculator.adoc:44 pcb_calculator.adoc:173
+#, no-wrap
+msgid "Electrical Spacing"
+msgstr "电气间距"
+
+#. type: Plain text
+#: pcb_calculator.adoc:45
+msgid "Trans Line"
+msgstr "传输线"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: pcb_calculator.adoc:46 pcb_calculator.adoc:90
+#, no-wrap
+msgid "RF Attenuators"
+msgstr "射频衰减器"
+
+#. type: Plain text
+#: pcb_calculator.adoc:47
+msgid "Color Code"
+msgstr "色环电阻"
+
+#. type: Plain text
+#: pcb_calculator.adoc:48
+msgid "Board Classes"
+msgstr "电路板类型"
+
+#. type: Title ==
+#: pcb_calculator.adoc:51
+#, no-wrap
+msgid "Calculators"
+msgstr "计算器"
+
+#. type: Plain text
+#: pcb_calculator.adoc:58
+msgid "This calculator helps with the task of finding the values of the resistors needed for linear and low-dropout voltage regulators."
+msgstr "该计算器有助于找到线性和低压差稳压器所需的电阻值。"
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:59
+#, no-wrap
+msgid "images/en/regulators.png"
+msgstr "images/zh/regulators.png"
+
+#. type: Plain text
+#: pcb_calculator.adoc:63
+msgid "For the _Standard Type_, the output voltage Vout as a function of the reference voltage Vref and resistors R1 and R2 is given by:"
+msgstr "对于 _标准型_，输出电压 Vout 作为参考电压 Vref 和电阻 R1 和 R2 的函数，由以下公式给出："
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:64
+#, no-wrap
+msgid "images/Calculation1.png"
+msgstr "images/Calculation1.png"
+
+#. type: Plain text
+#: pcb_calculator.adoc:68
+msgid "For the _3 terminal type_, there is a correction factor due to the quiescent current Iadj flowing from the adjust pin:"
+msgstr "对于_3 端子类型_，由于从调整引脚流过的静态电流 Iadj，有一个校正系数："
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:69
+#, no-wrap
+msgid "images/Calculation2.png"
+msgstr "images/Calculation2.png"
+
+#. type: Plain text
+#: pcb_calculator.adoc:73
+msgid "This current is typically below 100 uA and can be neglected with caution."
+msgstr "该电流通常低于 100uA，可以谨慎忽略。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:75
+msgid "To use this calculator, enter the parameters of the regulator _Type_, _Vref_ and, if needed, _Iadj_, select the field you want to calculate (one of the resistors or the output voltage) and enter the other two values."
+msgstr "要使用这个计算器，请输入稳压器的参数 _Type_、_Vref_，如果需要，请输入 _Iadj_，选择你要计算的字段（其中一个电阻或输出电压），并输入其他两个值。"
+
+#. type: Title ===
+#: pcb_calculator.adoc:77
+#, no-wrap
+msgid "RF-Attenuators"
+msgstr "RF 衰减器"
+
+#. type: Plain text
+#: pcb_calculator.adoc:81
+msgid "With the RF Attenuator utility you can calculate the values of the resistors needed for different types of attenuators:"
+msgstr "利用射频 (RF) 衰减器工具，你可以计算出不同类型衰减器所需的电阻值："
+
+#. type: Plain text
+#: pcb_calculator.adoc:83
+msgid "PI"
+msgstr "PI（π）型"
+
+#. type: Plain text
+#: pcb_calculator.adoc:84
+msgid "Tee"
+msgstr "T 型"
+
+#. type: Plain text
+#: pcb_calculator.adoc:85
+msgid "Bridged Tee"
+msgstr "桥式三通"
+
+#. type: Plain text
+#: pcb_calculator.adoc:86
+msgid "Resistive Splitter"
+msgstr "电阻分压型"
+
+#. type: Plain text
+#: pcb_calculator.adoc:89
+msgid "To use this tool, first select the type of attenuator you need, then enter the desired attenuation (in dB) and input/output impedances (in Ohms)."
+msgstr "要使用这个工具，首先选择你需要的衰减器类型，然后输入所需的衰减（单位：dB）和输入/输出阻抗（单位：欧姆）。"
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:90
+#, no-wrap
+msgid "images/en/rfattenuators.png"
+msgstr "images/zh/rfattenuators.png"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: pcb_calculator.adoc:93 pcb_calculator.adoc:98
+#, no-wrap
+msgid "E-Series"
+msgstr "E 系列"
+
+#. type: Plain text
+#: pcb_calculator.adoc:97
+msgid "This calculator helps to identify combinations of standard E-series resistors that meet a required resistance, optionally excluding several resistor values that are not available."
+msgstr "这个计算器可以帮助确定满足所需电阻的标准 E 系列电阻的组合，可以选择排除几个没有的电阻值。"
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:98
+#, no-wrap
+msgid "images/en/eseries.png"
+msgstr "images/zh/eseries.png"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: pcb_calculator.adoc:101 pcb_calculator.adoc:109
+#, no-wrap
+msgid "Color-Code"
+msgstr "色环"
+
+#. type: Plain text
+#: pcb_calculator.adoc:104
+msgid "This calculator helps translating the color bars from the resistor to its value. To use it, first select the _tolerance_ of the resistor: 10%, 5% or equal or smaller than 2%. For example:"
+msgstr "此计算器有助于将电阻器的颜色条转换为其值。 要使用它，首先选择电阻的 _公差_ ：10％，5％ 或等于或小于 2％。 例如："
+
+#. type: Plain text
+#: pcb_calculator.adoc:106
+msgid "Yellow Violet Red Gold: 4 7 x100 ±5% = 4700 Ohm, 5% tolerance"
+msgstr "黄 紫 红 金：4 7 x 100 ±5％ = 4700Ω，5％ 公差"
+
+#. type: Plain text
+#: pcb_calculator.adoc:107
+msgid "1kOhm, 1% tolerance: Brown Black Black Brown Brown"
+msgstr "1kΩ，1％ 公差：棕 黑 棕 棕"
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:109
+#, no-wrap
+msgid "images/en/colorcode.png"
+msgstr "images/zh/colorcode.png"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: pcb_calculator.adoc:112 pcb_calculator.adoc:151
+#, no-wrap
+msgid "TransLine"
+msgstr "传输线"
+
+#. type: Plain text
+#: pcb_calculator.adoc:115
+msgid "Transmission line theory is a cornerstone in the teaching of RF and microwave engineering."
+msgstr "传输线理论是射频和微波工程教学的一个基石。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:117
+msgid "In the calculator you can choose different sorts of Line Types and their special parameters. The models implemented are frequency-dependent, so they disagree with simpler models at high _enough_ frequencies."
+msgstr "在计算器中，您可以选择不同种类的线类型及其特殊参数。实现的模型依赖于频率,因此它们不同意在高（足够）频率下更简单的模型。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:119
+msgid "This calculator is heavilly based on http://transcalc.sourceforge.net/[Transcalc]."
+msgstr "这个计算器在很大程度上是基于 http://transcalc.sourceforge.net/[Transcalc]。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:121
+msgid "The transmission line types and the reference of their mathematical models are listed below:"
+msgstr "传输线路类型及其数学模型的参考如下："
+
+#. type: Plain text
+#: pcb_calculator.adoc:123
+msgid "Microstrip line:"
+msgstr "微带线："
+
+#. type: Plain text
+#: pcb_calculator.adoc:125 pcb_calculator.adoc:139
+msgid "H. A. Atwater, “Simplified Design Equations for Microstrip Line Parameters”, Microwave Journal, pp. 109-115, November 1989."
+msgstr "H. A. Atwater，“Simplified Design Equations for Microstrip Line Parameters”(微带线参数简化设计方程),《微波杂志》,第 109-115 页,1989 年 11 月。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:127
+msgid "Coplanar wave guide."
+msgstr "共面波导。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:129
+msgid "Coplanar wave guide with ground plane."
+msgstr "具有地平面的共面波导。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:131
+msgid "Rectangular waveguide:"
+msgstr "矩形波导:"
+
+#. type: Plain text
+#: pcb_calculator.adoc:133
+msgid "S. Ramo, J. R. Whinnery and T. van Duzer, \"Fields and Waves in Communication Electronics\", Wiley-India, 2008, ISBN: 9788126515257."
+msgstr "S. Ramo, J. R. Whinnery 和 T. van Duzer, \"Fields and Waves in Communication Electronics\"（通信电子学中的场和波）, Wiley-India, 2008, ISBN: 9788126515257。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:135
+msgid "Coaxial line."
+msgstr "同轴线。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:137
+msgid "Coupled microstrip line:"
+msgstr "耦合微带线:"
+
+#. type: Plain text
+#: pcb_calculator.adoc:141
+msgid "M. Kirschning and R. H. Jansen, \"Accurate Wide-Range Design Equations for the Frequency-Dependent Characteristic of Parallel Coupled Microstrip Lines,\" in IEEE Transactions on Microwave Theory and Techniques, vol. 32, no. 1, pp. 83-90, Jan. 1984. doi: 10.1109/TMTT.1984.1132616."
+msgstr "M. Kirschning 和 R. H. Jansen,\"Accurate Wide-Range Design Equations for the Frequency-Dependent Characteristic of Parallel Coupled Microstrip Lines,\"（平行耦合微带线频率依赖特性的精确广范围设计方程）,在 IEEE 微波理论与技术汇刊，第 32 卷，第 1 卷，第 83-90 页,1984 年 1 月。doi:10.1109/TMTT.1984.1132616。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:143
+msgid "Rolf Jansen, \"High-Speed Computation of Single and Coupled Microstrip Parameters Including Dispersion, High-Order Modes, Loss and Finite Strip Thickness\", IEEE Trans. MTT, vol. 26, no. 2, pp. 75-82, Feb. 1978."
+msgstr "Rolf Jansen, \"High-Speed Computation of Single and Coupled Microstrip Parameters Including Dispersion, High-Order Modes, Loss and Finite Strip Thickness\"（单和耦合微带参数的高速计算,包括分散、高阶模式、损耗和有限条带厚度）,IEEE 汇刊。 MTT,第 26 卷,第 2 期,第 75-82 页,1978 年 2 月。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:145
+msgid "S. March, \"Microstrip Packaging: Watch the Last Step\", Microwaves, vol. 20, no. 13, pp. 83.94, Dec. 1981."
+msgstr "S. March, \"Microstrip Packaging: Watch the Last Step\"（微带封装：看最后一步）,微波,第 20 卷,第 13 页,第 83.94 页,1981 年 12 月。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:147
+msgid "Stripline."
+msgstr "带状线。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:149
+msgid "Twisted pair."
+msgstr "双绞线。"
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:151
+#, no-wrap
+msgid "images/en/transline.png"
+msgstr "images/zh/transline.png"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: pcb_calculator.adoc:154 pcb_calculator.adoc:159
+#, no-wrap
+msgid "Via Size"
+msgstr "过孔外径"
+
+#. type: Plain text
+#: pcb_calculator.adoc:158
+msgid "The Via Size tool calculates the electrical and thermal properties of a given plated through-hole pad or via."
+msgstr "过孔尺寸工具可计算给定电镀化过孔或过孔的电气和热性能。"
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:159
+#, no-wrap
+msgid "images/en/viasize.png"
+msgstr "images/zh/viasize.png"
+
+#. type: Plain text
+#: pcb_calculator.adoc:167
+msgid "The Track Width tool calculates the trace width for printed circuit board conductors for a given current and temperature rise.  It uses formulas from IPC-2221 (formerly IPC-D-275)."
+msgstr "布线宽度工具计算出在给定电流和温升下印刷电路板导体的布线宽度。  它使用 IPC-2221（以前是 IPC-D-275）的公式。"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: pcb_calculator.adoc:169
+#, no-wrap
+msgid "Track-Width"
+msgstr "布线宽度"
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:169
+#, no-wrap
+msgid "images/en/trackwidth.png"
+msgstr "images/zh/trackwidth.png"
+
+#. type: Plain text
+#: pcb_calculator.adoc:176
+msgid "This table helps finding the minimum clearance between conductors."
+msgstr "该表有助于找到导体之间的最小间隙。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:181
+msgid "Each line of the table has a minimum recomended distance between conductors for a given voltage (DC or AC peaks) range. If you need the values for voltages higher than 500V, enter the value in the box in the left corner and press _Update Values_."
+msgstr "表格的每一行都有一个给定电压（直流 (DC) 或交流 (AC) 峰值）范围的导体之间的最小建议距离。如果你需要高于 500V 的电压值，请在左角的方框中输入数值并按 _更新数值_。"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: pcb_calculator.adoc:182
+#, no-wrap
+msgid "Electrical-Spacing"
+msgstr "电气间距"
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:182
+#, no-wrap
+msgid "images/en/electricalspacing.png"
+msgstr "images/zh/electricalspacing.png"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: pcb_calculator.adoc:186 pcb_calculator.adoc:221
+#, no-wrap
+msgid "Board-Classes"
+msgstr "电路板类型"
+
+#. type: Title ====
+#: pcb_calculator.adoc:188
+#, no-wrap
+msgid "Performance Classes"
+msgstr "性能等级"
+
+#. type: Plain text
+#: pcb_calculator.adoc:191
+msgid "In IPC-6011 have been three performance classes established"
+msgstr "在 IPC-6011 中，已经建立了三个性能等级"
+
+#. type: Plain text
+#: pcb_calculator.adoc:194
+#, no-wrap
+#| msgid "Class 1 General Electronic Products Includes consumer products, some computer and computer peripherals suitable for applications where cosmetic imperfections are not important and the major requirement is function of the completed printed board."
+msgid ""
+"*Class 1 General Electronic Products*:\n"
+"Includes consumer products, some computer and computer peripherals suitable for applications where cosmetic imperfections are not important and the major requirement is function of the completed printed board.\n"
+msgstr "*第 1 类普通电子产品*: 包括消费产品，一些计算机和计算机外围设备，适用于外观缺陷不重要，主要要求是完成 PCB 的功能的应用。\n"
+
+#. type: Plain text
+#: pcb_calculator.adoc:197
+#, no-wrap
+#| msgid "Class 2 Dedicated Service Electronic Products Includes communications equipment, sophisticated business machines, instruments where high performance and extended life is required and for which uninterrupted service is desired but not critical. Certain cosmetic imperfections are allowed."
+msgid ""
+"*Class 2 Dedicated Service Electronic Products*:\n"
+"Includes communications equipment, sophisticated business machines, instruments where high performance and extended life is required and for which uninterrupted service is desired but not critical. Certain cosmetic imperfections are allowed.\n"
+msgstr "*第 2 类专门服务的电子产品*: 包括通信设备、复杂的商业机器、需要高性能和延长寿命的仪器，以及需要不间断服务但不是关键的仪器。允许有某些外观上的瑕疵。\n"
+
+#. type: Plain text
+#: pcb_calculator.adoc:200
+#, no-wrap
+#| msgid "Class 3 High Reliability Electronic Products Includes the equipment and products where continued performance or performance on demand is critical. Equipment downtime cannot be tolerated and must function when required suchas in life support items or flight control systems. Printed boards in this class are suitable for applications where high levels of assurance are required and service is essential."
+msgid ""
+"*Class 3 High Reliability Electronic Products*:\n"
+"Includes the equipment and products where continued performance or performance on demand is critical. Equipment downtime cannot be tolerated and must function when required suchas in life support items or flight control systems. Printed boards in this class are suitable for applications where high levels of assurance are required and service is essential.\n"
+msgstr "*第 3 类高可靠性电子产品*: 包括持续性能或按需性能至关重要的设备和产品。设备停机是不能容忍的，必须在需要时发挥作用，如在生命支持项目或飞行控制系统。这类 PCB 适用于需要高水平保证和服务的应用。\n"
+
+#. type: Title ====
+#: pcb_calculator.adoc:201
+#, no-wrap
+msgid "PCB Types"
+msgstr "PCB 类型"
+
+#. type: Plain text
+#: pcb_calculator.adoc:204
+msgid "In IPC-6012B there are also 6 Types of PCB defined:"
+msgstr "在 IPC-6012B 中，还定义了 6 种类型的 PCB："
+
+#. type: Plain text
+#: pcb_calculator.adoc:206
+msgid "Printed Boards without plated through holes (1)"
+msgstr "无电镀通孔的电路板 (1)"
+
+#. type: Plain text
+#: pcb_calculator.adoc:208
+msgid "1 Single-Sided Board"
+msgstr "1 单面板"
+
+#. type: Plain text
+#: pcb_calculator.adoc:210
+msgid "And Boards with plated through holes (2-6)"
+msgstr "和带电镀通孔的电路板（2-6）"
+
+#. type: Plain text
+#: pcb_calculator.adoc:212
+msgid "2 Double-Sided Board"
+msgstr "2 双面板"
+
+#. type: Plain text
+#: pcb_calculator.adoc:214
+msgid "3 Multilayer board without blind or buried vias"
+msgstr "3 无盲孔或埋孔的多层板"
+
+#. type: Plain text
+#: pcb_calculator.adoc:216
+msgid "4 Multilayer board with blind and/or buried vias"
+msgstr "4 带有盲孔和/或埋孔的多层板"
+
+#. type: Plain text
+#: pcb_calculator.adoc:218
+msgid "5 Multilayer metal core board without blind orburied vias"
+msgstr "5 无盲孔或埋孔的多层金属芯板"
+
+#. type: Plain text
+#: pcb_calculator.adoc:220
+msgid "6 Multilayer metal core board with blind and/orburied vias"
+msgstr "6 带有盲孔和/或埋孔的多层金属芯板"
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:221
+#, no-wrap
+msgid "images/en/boardclasses.png"
+msgstr "images/zh/boardclasses.png"
+
+#, no-wrap
+#~ msgid "PCB Calculator"
+#~ msgstr "PCB 计算器"
+
+#~ msgid "Please direct any bug reports, suggestions or new versions to here:"
+#~ msgstr "请将任何错误报告，建议或新版本指向此处："
+
+#~ msgid "About KiCad document: https://gitlab.com/kicad/services/kicad-doc/issues"
+#~ msgstr "关于 KiCad 文档: https://gitlab.com/kicad/services/kicad-doc/issues"
+
+#~ msgid "About KiCad software: https://gitlab.com/kicad/code/kicad/issues"
+#~ msgstr "关于 KiCad 软件: https://gitlab.com/kicad/code/kicad/issues"
+
+#~ msgid "About KiCad software i18n: https://gitlab.com/kicad/code/kicad-i18n/issues"
+#~ msgstr "关于 KiCad 软件国际化: https://gitlab.com/kicad/code/kicad-i18n/issues"
+
+#, no-wrap
+#~ msgid "*Publication date and software version*\n"
+#~ msgstr "*出版日期和软件版本*\n"
+
+#~ msgid "March 05 2020"
+#~ msgstr "2020 年 3 月 5 日"
+
+#~ msgid "july 17, 2019"
+#~ msgstr "2019 年 7 月 17 日"

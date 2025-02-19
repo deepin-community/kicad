@@ -1,0 +1,537 @@
+# GerbView User Manual Italian Translation
+# Copyright (C) The KiCad Translation Team.
+# This file is distributed under the same license as the KiCad package.
+# Marco Ciampa <ciampix@posteo.net>, 2014-2022.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: 0.1\n"
+"POT-Creation-Date: 2022-03-09 23:31+0100\n"
+"PO-Revision-Date: 2022-03-09 23:35+0100\n"
+"Last-Translator: Marco Ciampa <ciampix@posteo.net>\n"
+"Language-Team: Italian <it@li.org>\n"
+"Language: it\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. type: Title =
+#: gerbview.adoc:6
+#, no-wrap
+msgid "Gerber Viewer"
+msgstr "Visualizzatore Gerber"
+
+#. type: Plain text
+#: gerbview.adoc:9
+msgid "_Reference manual_"
+msgstr "_Manuale di riferimento_"
+
+#. type: Plain text
+#: gerbview.adoc:12
+#, no-wrap
+msgid "*Copyright*\n"
+msgstr "*Copyright*\n"
+
+#. type: Plain text
+#: gerbview.adoc:18
+msgid ""
+"This document is Copyright (C) 2010-2021 by its contributors as listed "
+"below. You may distribute it and/or modify it under the terms of either the "
+"GNU General Public License (https://www.gnu.org/licenses/gpl.html), version "
+"3 or later, or the Creative Commons Attribution License (https://"
+"creativecommons.org/licenses/by/3.0/), version 3.0 or later."
+msgstr ""
+"Questo documento è coperto dal Copyright (C) 2010-2021 dei suoi autori come "
+"elencati in seguito. È possibile distribuirlo e/o modificarlo nei termini "
+"sia della GNU General Public License (https://www.gnu.org/licenses/gpl."
+"html), versione 3 o successive, che della Creative Commons Attribution "
+"License (https://creativecommons.org/licenses/by/3.0/), versione 3.0 o "
+"successive."
+
+#. type: Plain text
+#: gerbview.adoc:20
+msgid "All trademarks within this guide belong to their legitimate owners."
+msgstr ""
+"Tutti i marchi registrati all'interno di questa guida appartengono ai loro "
+"legittimi proprietari."
+
+#. type: Plain text
+#: gerbview.adoc:23
+#, no-wrap
+msgid "*Contributors*\n"
+msgstr "*Collaboratori*\n"
+
+#. type: Plain text
+#: gerbview.adoc:25
+msgid "The KiCad Team."
+msgstr "Il Team di KiCad."
+
+#. type: Plain text
+#: gerbview.adoc:28
+#, no-wrap
+msgid "*Feedback*\n"
+msgstr "*Feedback*\n"
+
+#. type: Plain text
+#: gerbview.adoc:32
+msgid ""
+"The KiCad project welcomes feedback, bug reports, and suggestions related to "
+"the software or its documentation.  For more information on how to sumbit "
+"feedback or report an issue, please see the instructions at https://www."
+"kicad.org/help/report-an-issue/"
+msgstr ""
+"Il progetto KiCad accoglie commenti, segnalazioni di errori e suggerimenti "
+"relativi al software o alla sua documentazione. Per ulteriori informazioni "
+"su come inviare commenti o segnalare un problema, consultare le istruzioni "
+"su https://www.kicad.org/help/report-an-issue/"
+
+#. Since docbook "article" is more compact, I have to separate this page
+#. type: Plain text
+#: gerbview.adoc:35
+msgid "<<<<"
+msgstr "<<<<"
+
+#. type: Title ==
+#: gerbview.adoc:36
+#, no-wrap
+msgid "Introduction to GerbView"
+msgstr "Introduzione a GerbView"
+
+#. type: Plain text
+#: gerbview.adoc:40
+msgid ""
+"GerbView is a Gerber file (RS-274X format) and Excellon drill file viewer. "
+"Up to 32 files can be displayed at once."
+msgstr ""
+"GerbView è un visualizzatore di file in formato Gerber (formato RS 274 X), "
+"ed è anche in grado di visualizzare i file forature generati da Pcbnew (in "
+"formato Excellon)."
+
+#. type: Plain text
+#: gerbview.adoc:45
+msgid ""
+"For more information about the Gerber file format please read http://www."
+"ucamco.com/files/downloads/file/81/the_gerber_file_format_specification."
+"pdf[the Gerber File Format Specification].  Details about drill file format "
+"can be found at http://web.archive.org/web/20071030075236/http://www."
+"excellon.com/manuals/program.htm[the Excellon format description]."
+msgstr ""
+"Per ulteriori informazioni sul formato file Gerber consultare http://www."
+"ucamco.com/files/downloads/file/81/the_gerber_file_format_specification."
+"pdf[Le specifiche del formato file Gerber - Ucamco]."
+
+#. type: Title ==
+#: gerbview.adoc:46
+#, no-wrap
+msgid "Interface"
+msgstr "Interfaccia"
+
+#. type: Title ===
+#: gerbview.adoc:48
+#, no-wrap
+msgid "Main window"
+msgstr "Finestra principale"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: gerbview.adoc:50
+#, no-wrap
+msgid "gerbview_main_screen_png"
+msgstr "gerbview_main_screen_png"
+
+#. type: Target for macro image
+#: gerbview.adoc:50
+#, no-wrap
+msgid "images/gerbview_main_screen.png"
+msgstr "images/gerbview_main_screen.png"
+
+#. type: Plain text
+#: gerbview.adoc:53 gerbview.adoc:106 gerbview.adoc:161
+msgid "<<<<<"
+msgstr "<<<<<"
+
+#. type: Title ===
+#: gerbview.adoc:54
+#, no-wrap
+msgid "Top toolbar"
+msgstr "Barra superiore"
+
+#. type: Table
+#: gerbview.adoc:103
+#, no-wrap
+msgid ""
+"|image:images/icons/delete_gerber_24.png[delete_gerber_png]\n"
+"|Clear all layers\n"
+"\n"
+"|image:images/icons/load_gerber_24.png[load_gerber_png]\n"
+"|Load Gerber files\n"
+"\n"
+"|image:images/icons/load_drill_24.png[gerbview_drill_file_png]\n"
+"|Load Excellon drill files\n"
+"\n"
+"|image:images/icons/sheetset_24.png[sheetset_png]\n"
+"|Set page size\n"
+"\n"
+"|image:images/icons/print_button_24.png[print_button_png]\n"
+"|Print\n"
+"\n"
+"|image:images/icons/refresh_24.png[zoom_redraw_png]\n"
+"|Redraw view\n"
+"\n"
+"|image:images/icons/zoom_in_24.png[zoom_in_png]\n"
+"image:images/icons/zoom_out_24.png[zoom_out_png]\n"
+"|Zoom in or out\n"
+"\n"
+"|image:images/icons/zoom_fit_in_page_24.png[zoom_fit_in_page_png]\n"
+"|Zoom to fit page\n"
+"\n"
+"|image:images/icons/zoom_area_24.png[zoom_area_png]\n"
+"|Zoom to selection\n"
+"\n"
+"|image:images/gerbview_top_layer.png[scaledwidth=\"70%\",alt=\"gerbview_top_layer_png\"]\n"
+"|Select active layer\n"
+"\n"
+"|image:images/gerbview_top_info.png[scaledwidth=\"70%\",alt=\"gerbview_top_info_png\"]\n"
+"|Display info about active layer\n"
+"\n"
+"|image:images/gerbview_x2_component.png[scaledwidth=\"70%\",alt=\"gerbview_x2_component_png\"]\n"
+"|Highlight items belonging to selected component (Gerber X2)\n"
+"\n"
+"|image:images/gerbview_x2_net.png[scaledwidth=\"70%\",alt=\"gerbview_x2_net_png\"]\n"
+"|Highlight items belonging to selected net (Gerber X2)\n"
+"\n"
+"|image:images/gerbview_x2_attribute.png[scaledwidth=\"70%\",alt=\"gerbview_x2_attributeo_png\"]\n"
+"|Highlight items with the selected attribute (Gerber X2)\n"
+"\n"
+"|image:images/gerbview_top_dcode.png[scaledwidth=\"60%\",alt=\"gerbview_top_dcode_png\"]\n"
+"|Highlight items of selected D Code on the active layer\n"
+msgstr ""
+"|image:images/icons/delete_gerber_24.png[delete_gerber_png]\n"
+"|Cancella tutti gli strati\n"
+"\n"
+"|image:images/icons/load_gerber_24.png[load_gerber_png]\n"
+"|Carica file Gerber\n"
+"\n"
+"|image:images/icons/load_drill_24.png[gerbview_drill_file_png]\n"
+"|Carica file forature Excellon\n"
+"\n"
+"|image:images/icons/sheetset_24.png[sheetset_png]\n"
+"|Imposta dimensione pagina\n"
+"\n"
+"|image:images/icons/print_button_24.png[print_button_png]\n"
+"|Stampa\n"
+"\n"
+"|image:images/icons/refresh_24.png[zoom_redraw_png]\n"
+"|Ridisegna vista\n"
+"\n"
+"|image:images/icons/zoom_in_24.png[zoom_in_png]\n"
+"image:images/icons/zoom_out_24.png[zoom_out_png]\n"
+"|Zoom in o out\n"
+"\n"
+"|image:images/icons/zoom_fit_in_page_24.png[zoom_fit_in_page_png]\n"
+"|Zoom giusto alla pagina\n"
+"\n"
+"|image:images/icons/zoom_area_24.png[zoom_area_png]\n"
+"|Zoom alla selezione\n"
+"\n"
+"|image:images/gerbview_top_layer.png[scaledwidth=\"70%\",alt=\"gerbview_top_layer_png\"]\n"
+"|Seleziona strato attivo\n"
+"\n"
+"|image:images/gerbview_top_info.png[scaledwidth=\"70%\",alt=\"gerbview_top_info_png\"]\n"
+"|Mostra info sullo strato attivo\n"
+"\n"
+"|image:images/gerbview_x2_component.png[scaledwidth=\"70%\",alt=\"gerbview_x2_component_png\"]\n"
+"|Evidenzia elementi appartenenti al componente selezionato (Gerber X2)\n"
+"\n"
+"|image:images/gerbview_x2_net.png[scaledwidth=\"70%\",alt=\"gerbview_x2_net_png\"]\n"
+"|Evidenzia elementi appartenenti al collegamento selezionato (Gerber X2)\n"
+"\n"
+"|image:images/gerbview_x2_attribute.png[scaledwidth=\"70%\",alt=\"gerbview_x2_attributeo_png\"]\n"
+"|Evidenzia elementi con l'attributo selezionato (Gerber X2)\n"
+"\n"
+"|image:images/gerbview_top_dcode.png[scaledwidth=\"60%\",alt=\"gerbview_top_dcode_png\"]\n"
+"|Evidenzia elementi del D Code selezionato sullo strato attivo\n"
+
+#. type: Title ===
+#: gerbview.adoc:107
+#, no-wrap
+msgid "Left toolbar"
+msgstr "Barra strumenti sinistra"
+
+#. type: Table
+#: gerbview.adoc:158
+#, no-wrap
+msgid ""
+"|image:images/icons/cursor_24.png[cursor_png]\n"
+"|Select items\n"
+"\n"
+"|image:images/icons/measurement_24.png[measurement_png]\n"
+"|Measure between two points\n"
+"\n"
+"|image:images/icons/grid_24.png[grid_png]\n"
+"|Toggle grid visibility\n"
+"\n"
+"|image:images/icons/polar_coord_24.png[polar_coord_png]\n"
+"|Toggle polar coordinates display\n"
+"\n"
+"|image:images/icons/unit_inch_24.png[unit_inch_png]\n"
+"image:images/icons/unit_mil_24.png[unit_mm_png]\n"
+"image:images/icons/unit_mm_24.png[unit_mm_png]\n"
+"|Select inch, mils, or millimeter units\n"
+"\n"
+"|image:images/icons/cursor_shape_24.png[cursor_shape_png]\n"
+"|Toggle full-screen cursor\n"
+"\n"
+"|image:images/icons/pad_sketch_24.png[pad_sketch_png]\n"
+"|Display flashed items in sketch (outline) mode\n"
+"\n"
+"|image:images/icons/showtrack_24.png[track_sketch_png]\n"
+"|Display lines in sketch (outline) mode\n"
+"\n"
+"|image:images/icons/opt_show_polygon_24.png[opt_show_polygon_png]\n"
+"|Display polygons in sketch (outline) mode\n"
+"\n"
+"|image:images/icons/gerbview_show_negative_objects_24.png[gerbview_show_negative_objects_png]\n"
+"|Show negative objects in ghost color\n"
+"\n"
+"|image:images/icons/show_dcodenumber_24.png[show_dcodenumber_png]\n"
+"|Show/hide D Codes\n"
+"\n"
+"|image:images/icons/gbr_select_mode2_24.png[gbr_select_mode2_png]\n"
+"|Display layers in diff (compare) mode\n"
+"\n"
+"|image:images/icons/contrast_mode_24.png[contrast_mode_png]\n"
+"|Toggle inactive layers between normal and dimmed display\n"
+"\n"
+"|image:images/icons/layers_manager_24.png[layers_manager_png]\n"
+"|Show/hide layer manager\n"
+"\n"
+"|image:images/icons/flip_board_24.png[flip_board_24]\n"
+"|Show Gerbers as mirror image\n"
+"\n"
+msgstr ""
+"|image:images/icons/cursor_24.png[cursor_png]\n"
+"|Elementi selezionati\n"
+"\n"
+"|image:images/icons/measurement_24.png[measurement_png]\n"
+"|Misura tra due punti\n"
+"\n"
+"|image:images/icons/grid_24.png[grid_png]\n"
+"|Commuta visibilità griglia\n"
+"\n"
+"|image:images/icons/polar_coord_24.png[polar_coord_png]\n"
+"|Commuta la visualizzazione coordinate polari\n"
+"\n"
+"|image:images/icons/unit_inch_24.png[unit_inch_png]\n"
+"image:images/icons/unit_mil_24.png[unit_mm_png]\n"
+"image:images/icons/unit_mm_24.png[unit_mm_png]\n"
+"|Seleziona unità in pollici, mils, o millimetri\n"
+"\n"
+"|image:images/icons/cursor_shape_24.png[cursor_shape_png]\n"
+"|Commuta il puntatore a pieno schermo\n"
+"\n"
+"|image:images/icons/pad_sketch_24.png[pad_sketch_png]\n"
+"|Mostra elementi flash(-ati) in modalità schizzo (contorno)\n"
+"\n"
+"|image:images/icons/showtrack_24.png[track_sketch_png]\n"
+"|Mostra linee in modalità schizzo (contorno)\n"
+"\n"
+"|image:images/icons/opt_show_polygon_24.png[opt_show_polygon_png]\n"
+"|Display polygons in sketch (outline) mode\n"
+"\n"
+"|image:images/icons/gerbview_show_negative_objects_24.png[gerbview_show_negative_objects_png]\n"
+"|Mostra gli oggetti negativi in colore fantasma\n"
+"\n"
+"|image:images/icons/show_dcodenumber_24.png[show_dcodenumber_png]\n"
+"|Mostra/nascondi D Code\n"
+"\n"
+"|image:images/icons/gbr_select_mode2_24.png[gbr_select_mode2_png]\n"
+"|Mostra strati in modalità diff (compara)\n"
+"\n"
+"|image:images/icons/contrast_mode_24.png[contrast_mode_png]\n"
+"|Commuta strati inattivi tra vista normale e attenuata\n"
+"\n"
+"|image:images/icons/layers_manager_24.png[layers_manager_png]\n"
+"|Mostra/nascondi la gestione strati\n"
+"\n"
+"|image:images/icons/flip_board_24.png[flip_board_24]\n"
+"|Mostra Gerber come immagine speculare\n"
+"\n"
+
+#. type: Title ===
+#: gerbview.adoc:162
+#, no-wrap
+msgid "Layers Manager"
+msgstr "Gestione strati"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: gerbview.adoc:164
+#, no-wrap
+msgid "gerbview_layer_manager_png"
+msgstr "gerbview_layer_manager_png"
+
+#. type: Target for macro image
+#: gerbview.adoc:164
+#, no-wrap
+msgid "images/gerbview_layer_manager.png"
+msgstr "images/gerbview_layer_manager.png"
+
+#. type: Plain text
+#: gerbview.adoc:169
+msgid ""
+"The Layers Manager controls and displays visibility of all layers. An arrow "
+"indicates the active layer, and each layer can be shown or hidden with the "
+"checkboxes."
+msgstr ""
+"La gestione strati controlla la visibilità di tutti gli strati. Una freccia "
+"indica lo strato attivo, ed ogni strato può essere mostrato o nascosto "
+"tramite le caselle a spunta."
+
+#. type: Plain text
+#: gerbview.adoc:171
+msgid "Mouse button assignments:"
+msgstr "Assegnazione pulsanti del mouse:"
+
+#. type: Plain text
+#: gerbview.adoc:173
+msgid "Left click: select the active layer"
+msgstr "Clic sinistro del mouse: seleziona lo strato attivo"
+
+#. type: Plain text
+#: gerbview.adoc:174
+msgid "Right click: show/hide/sort layers options"
+msgstr "Clic destro: opzioni mostra/nascondi/ordina strati"
+
+#. type: Plain text
+#: gerbview.adoc:175
+msgid "Middle click or double click (on color swatch): select the layer color"
+msgstr ""
+"Clic centrale del mouse o doppio clic (su un campione di colore): seleziona "
+"il colore dello strato"
+
+#. type: Plain text
+#: gerbview.adoc:179
+msgid ""
+"The Layers tab allows you to control the visibility and color of all loaded "
+"Gerber and drill layers.  The Items tab allows you to control the color and "
+"display of the grid, D Codes, and negative objects."
+msgstr ""
+"La scheda strati permette di controllare la visibilità ed i colori di tutti "
+"gli strati Gerber e forature caricati.  La scheda elementi permette di "
+"controllare il colore e la visibilità della griglia, Codici D, e oggetti "
+"negativi."
+
+#. type: Title ==
+#: gerbview.adoc:180
+#, no-wrap
+msgid "Commands in menu bar"
+msgstr "Comandi nella barra del menu"
+
+#. type: Title ===
+#: gerbview.adoc:182
+#, no-wrap
+msgid "File menu"
+msgstr "Menu file"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: gerbview.adoc:184
+#, no-wrap
+msgid "gerbview_file_menu_png"
+msgstr "gerbview_file_menu_png"
+
+#. type: Target for macro image
+#: gerbview.adoc:184
+#, no-wrap
+msgid "images/gerbview_file_menu.png"
+msgstr "images/gerbview_file_menu.png"
+
+#. type: Plain text
+#: gerbview.adoc:190
+#, no-wrap
+msgid ""
+"*Export to PCB Editor* is a limited capability to export Gerber files into a KiCad PCB. The final\n"
+"result depends on what features of the RS-274X format are used in the original Gerber files:\n"
+"rasterized items cannot be converted (typically negative objects), flashed items are converted to\n"
+"vias, lines are converted to track segments (or graphic lines for non-copper layers).\n"
+msgstr ""
+"*Esporta all'editor di C.S.* possiede una limitata capacità di esportazione di file Gerber in KiCad. Il risultato\n"
+"finale dipende da che caratteristiche del formato RS-274X vengono usate nei file Gerber originali: gli elementi\n"
+"raster non possono essere convertiti (tipicamente oggetti negativi), gli elementi flash vengono convertiti in via,\n"
+"le linee vengono convertite in segmenti di piste (o linee grafiche per gli strati non-rame).\n"
+
+#. type: Title ===
+#: gerbview.adoc:191
+#, no-wrap
+msgid "Tools menu"
+msgstr "Menu strumenti"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: gerbview.adoc:193
+#, no-wrap
+msgid "gerbview_tools_menu_png"
+msgstr "gerbview_tools_menu_png"
+
+#. type: Target for macro image
+#: gerbview.adoc:193
+#, no-wrap
+msgid "images/gerbview_tools_menu.png"
+msgstr "images/gerbview_tools_menu.png"
+
+#. type: Plain text
+#: gerbview.adoc:196
+#, no-wrap
+msgid "*List DCodes* shows the D Code information for all layers.\n"
+msgstr "*Lista Dcode* mostra le informazioni sui Dcode per tutti gli strati.\n"
+
+#. type: Plain text
+#: gerbview.adoc:197
+#, no-wrap
+msgid "*Show Source* displays the Gerber file contents of the active layer in a text editor.\n"
+msgstr "*Mostra sorgente* visualizza i contenuti del file Gerber dello strato attivo in un editor di testo.\n"
+
+#. type: Plain text
+#: gerbview.adoc:198
+#, no-wrap
+msgid "*Measure Tool* allows measuring the distance between two points.\n"
+msgstr "*Strumento di misura* permette di misurare la distanza tra due punti.\n"
+
+#. type: Plain text
+#: gerbview.adoc:199
+#, no-wrap
+msgid "*Clear Current Layer* erases the contents of the active layer.\n"
+msgstr "*Pulisci strato corrente* cancella i contenuti dello strato attivo.\n"
+
+#. type: Title ==
+#: gerbview.adoc:200
+#, no-wrap
+msgid "Printing"
+msgstr "Stampa"
+
+#. type: Plain text
+#: gerbview.adoc:205
+msgid ""
+"To print layers, use the image:images/icons/print_button_24."
+"png[print_button_png] icon or the *File -> Print* menu."
+msgstr ""
+"Per stampare gli strati, usare l'icona image:images/icons/print_button_24."
+"png[print_button_png] o il menu *File -> Stampa*."
+
+#. type: delimited block =
+#: gerbview.adoc:211
+msgid ""
+"Be sure items are inside the printable area. Use image:images/icons/"
+"sheetset_24.png[sheetset_png] to select a suitable page format."
+msgstr ""
+"Assicurarsi che gli elementi siano all'interno dell'area stampabile. Usare "
+"image:images/icons/sheetset_24.png[sheetset_png] per selezionare un formato "
+"pagina adatto."
+
+#. type: delimited block =
+#: gerbview.adoc:215
+msgid ""
+"Note that many photoplotters support a large plottable area, much bigger "
+"than the page sizes used by most printers. Moving the entire layer set may "
+"be required."
+msgstr ""
+"Si noti che diversi photoplotter supportano un area di disegno molto ampia, "
+"molto più ampia delle dimensioni pagina usate dalla maggior parte delle "
+"stampanti. Può rendersi necessario spostare l'intero insieme di strati."

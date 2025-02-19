@@ -1,0 +1,1356 @@
+:author: The KiCad Team
+:doctype: book
+:toc:
+:ascii-ids:
+:experimental:
+
+= KiCad Command-Line Interface
+
+_Reference manual_
+
+[[copyright]]
+*Copyright*
+
+This document is Copyright (C) 2023-2024 by its contributors as listed
+below. You may distribute it and/or modify it under the terms of either
+the GNU General Public License (http://www.gnu.org/licenses/gpl.html),
+version 3 or later, or the Creative Commons Attribution License
+(http://creativecommons.org/licenses/by/3.0/), version 3.0 or later.
+
+All trademarks within this guide belong to their legitimate owners.
+
+[[contributors]]
+*Contributors*
+
+Graham Keeth
+
+[[feedback]]
+*Feedback*
+
+The KiCad project welcomes feedback, bug reports, and suggestions related to the software or its
+documentation. For more information on how to submit feedback or report an issue, please see the
+instructions at https://www.kicad.org/help/report-an-issue/
+
+== Introduction to the KiCad Command-Line Interface
+
+KiCad provides a command-line interface, which is available by running the
+`kicad-cli` binary. With the command-line interface, you can perform a number of
+actions on schematics, PCBs, symbols, and footprints in an automated fashion,
+such as plotting Gerber files from a PCB design or upgrading a symbol library
+from a legacy file format to a modern format.
+
+NOTE: On macOS, the `kicad-cli` executable is located at
+      `/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli`.
+
+The `kicad-cli` command has 5 subcommands: `fp`, `pcb`, `sch`, `sym`, and
+`version`. Each subcommand may have its own subcommands and arguments. For
+example, to export Gerber files from a PCB you could run
+`kicad-cli pcb export gerbers example.kicad_pcb`.
+
+You can add the `--help` or `-h` flag to see information about each
+subcommand. For example, running `kicad-cli pcb -h` prints usage information
+about the `pcb` subcommand, and `kicad-cli pcb export gerbers -h` prints usage
+information specifically for the `pcb export gerbers` subcommand.
+
+== Footprint commands
+
+The `fp` subcommand exports footprints to another format or upgrades the
+footprint libraries to the current version of the KiCad footprint file format.
+
+=== Footprint export
+
+The `fp export svg` command exports one or more footprints from the specified
+library into SVG files.
+
+Usage: `kicad-cli fp export svg [--help] [--output OUTPUT_FILE] [--layers LAYER_LIST]
+[--define-var KEY=VALUE] [--theme VAR] [--footprint FOOTPRINT_NAME] [--black-and-white]
+INPUT_DIR`
+
+Positional arguments:
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_DIR`
+    | Footprint library directory to export (`.pretty`).
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the footprint SVG export command.
+| `-o <output dir>`, `--output <output dir>`
+    | The output directory for the exported files. When this argument is not
+      used, the files are exported to the current directory.
+| `-l <layer list>`, `--layers <layer list>`
+    | A comma-separated list of layer names to export from the footprint, such
+      as `F.Cu,B.Cu`. If no layers are given, all layers are exported.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `-t <theme name>`, `--theme <theme name>`
+    | The name of the theme to use for export. If no theme is given, the
+      footprint editor's currently selected theme is used.
+| `--fp <footprint>`, `--footprint <footprint>`
+    | The name of the specific footprint to export from the library. When this
+      argument is not used, all footprints in the library are exported.
+| `--black-and-white`
+    | Export footprints in black and white.
+|====
+
+=== Footprint upgrade
+
+The `fp upgrade` command upgrades the the specified footprint library from a
+legacy footprint format to the native format for the current version of KiCad.
+If the input library is already in the current file format, no action is taken.
+
+Usage: `kicad-cli fp upgrade [-h] [--output OUTPUT_DIR] [--force] INPUT_DIR`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_DIR`
+    | Footprint library directory to upgrade (`.pretty`).
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the footprint upgrade command.
+| `-o <output dir>`, `--output <output dir>`
+    | The output directory for the upgraded footprints. When this argument is
+      not used, the upgraded footprints are saved over the original footprints.
+| `--force`
+    | Re-save the input library even if it is already in the current file format.
+|====
+
+== PCB commands
+
+The `pcb` command runs a design rule check or exports a board to various other
+file formats, including fabrication and 3D files.
+
+=== PCB DRC
+
+The `pcb drc` command runs a design rule check on a board and generates a report.
+
+Usage: `kicad-cli pcb drc [--help] [--output OUTPUT_FILE] [--define-var KEY=VALUE]
+[--format FORMAT] [--all-track-errors] [--schematic-parity] [--units UNITS]
+[--severity-all] [--severity-error] [--severity-warning] [--severity-exclusions]
+[--exit-code-violations] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Board file to run DRC on.
+|====
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the DRC command.
+| `-o <output filename>, `--output <output filename>`
+    | Output filename for the generated DRC report. When this argument is not
+      used, the output filename will be the same as the input file, with the
+      `.rpt` or `.json` file extension, depending on the selected format.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `--format <format>`
+    | Report file format. Options are `report` (default) or `json`.
+| `--all-track-errors`
+    | Report all errors for each track.
+| `--schematic-parity`
+    | Test for parity between PCB and schematic.
+| `--units <unit>`
+    | Units to use in the report. Options are `mm` (default), `in`, or `mils`.
+| `--severity-all`
+    | Report all DRC violations. This is equivalent to using all of the other
+      DRC severity options.
+| `--severity-error`
+    | Report all error-level DRC violations. This can be combined with the other
+      DRC severity options.
+| `--severity-warning`
+    | Report all warning-level DRC violations. This can be combined with the
+      other DRC severity options.
+| `--severity-exclusions`
+    | Report all excluded DRC violations. This can be combined with the other
+      DRC severity options.
+| `--exit-code-violations`
+    | Return an exit code depending on whether or not DRC violations exist. The
+      exit code is 0 if no violations are found, and 5 if any violations are
+      found.
+|====
+
+=== PCB drill file export
+
+The `pcb export drill` command exports a drill file from a board.
+
+Usage: `kicad-cli pcb export drill [--help] [--output OUTPUT_DIR]
+[--format FORMAT] [--drill-origin DRILL_ORIGIN]
+[--excellon-zeros-format ZEROS_FORMAT] [--excellon-oval-format OVAL_FORMAT]
+[--excellon-units UNITS] [--excellon-mirror-y] [--excellon-min-header]
+[--excellon-separate-th] [--generate-map] [--map-format MAP_FORMAT]
+[--gerber-precision VAR] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Board file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the drill file export command.
+| `-o <output dir>`, `--output <output dir>`
+    | The output directory for the drill file. When this argument is not used,
+      the drill file is saved in the current directory.
+| `--format <format>`
+    | The drill file format. Options are `excellon` (default) or `gerber`.
+| `--drill-origin <origin>`
+    | The coordinate origin for the drill file. Options are `absolute` (default)
+      to use the board's absolute origin or `plot` to use the board's
+      drill/placement origin.
+| `--excellon-zeros-format <format>`
+    | The zeros format for the drill file. Options are `decimal` (default),
+      `suppressleading`, `suppresstrailing`, or `keep`. Only applies to Excellon
+      format drill files.
+| `--excellon-oval-format <format>`
+    | Control the oval holes drill mode. Options are `route` and `alternate`
+    (default). Only applies to Excellon format drill files.
+| `-u <units>`, `--excellon-units <units>`
+    | The units for the drill file. Options are `mm` (default) or `in`. Only
+      applies to Excellon format drill files.
+| `--excellon-mirror-y`
+    | Mirror the drill file in the Y direction. Only applies to Excellon format
+      drill files.
+| `--excellon-min-header`
+    | Use a minimal header in the drill file. Only applies to Excellon format
+      drill files.
+| `--excellon-separate-th`
+    | Generate separate drill files for plated and non-plated through holes.
+      Only applies to Excellon format drill files.
+| `--generate-map`
+    | Generate a map file in addition to the drill file.
+| `--map-format <format>`
+    | The map file format. Options are `pdf` (default), `gerberx2`, `ps`, `dxf`,
+      or `svg`.
+| `--gerber-precision <precision>`
+    | The precision (number of digits) for the drill file. Valid options are `5`
+      or `6` (default).  Only applies to Gerber format drill files.
+|====
+
+=== PCB DXF export
+
+The `pcb export dxf` command exports a board design to a DXF file.
+
+Usage: `kicad-cli pcb export dxf [--help] [--output OUTPUT_FILE]
+[--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE]
+[--exclude-refdes] [--exclude-value] [--use-contours] [--include-border-title]
+[--output-units UNITS] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Board file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the DXF export command.
+| `-o <output filename>`, `--output <output filename>`
+    | The output filename. When this argument is not used, the output filename
+      will be the same as the input file, with the `.dxf` file extension.
+| `--drawing-sheet <sheet path>`
+    | Path to drawing sheet to use in plot, overriding the drawing sheet
+      specified in the board file.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `-l <layer list>`, `--layers <layer list>`
+    | A comma-separated list of layer names to export from the footprint, such
+      as `F.Cu,B.Cu`. At least one layer must be given.
+| `--erd`, `--exclude-refdes`
+    | Exclude footprint reference designators from plot.
+| `--ev`, `--exclude-value`
+    | Exclude footprint values from plot.
+| `--uc`, `--use-contours`
+    | Plot graphic items using their contours.
+| `-ibt`, `--include-border-title`
+    | Include sheet border and title block in plot.
+| `--ou <unit>`, `--output-units <unit>`
+    | Output units. Options are `mm` or `in` (default).
+|====
+
+=== PCB Gerber export: one layer per file
+
+The `pcb export gerbers` command exports a board design to Gerber files, with
+one layer per file.
+
+NOTE: Be aware that there are two distinct Gerber export commands, `gerber` and
+      `gerbers`. The `gerber` command plots multiple PCB layers to a single
+      Gerber file, while the `gerbers` command plots multiple Gerber files, with
+      one PCB layer per file. The `gerbers` command is typically the correct
+      command to use for having a PCB fabricated.
+
+Usage: `kicad-cli pcb export gerbers [--help] [--output OUTPUT_FILE]
+[--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE]
+[--exclude-refdes] [--exclude-value] [--include-border-title] [--no-x2]
+[--no-netlist] [--subtract-soldermask] [--disable-aperture-macros]
+[--use-drill-file-origin] [--precision PRECISION] [--no-protel-ext]
+[--common-layers COMMON_LAYER_LIST] [--board-plot-params] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Board file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the Gerber export command.
+| `-o <output dir>`, `--output <output dir>`
+    | The output folder for the exported files. When this argument is not used,
+      the files are exported to the current directory.
+| `-l <layer list>`, `--layers <layer list>`
+    | A comma-separated list of layer names to plot from the board, such as
+      `F.Cu,B.Cu`. If this argument is not used, all layers will be plotted.
+| `--drawing-sheet <sheet path>`
+    | Path to drawing sheet to use in plot, overriding the drawing sheet
+      specified in the board file.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `--erd`, `--exclude-refdes`
+    | Exclude footprint reference designators from plot.
+| `--ev`, `--exclude-value`
+    | Exclude footprint values from plot.
+| `--ibt`, `--include-border-title`
+    | Include the sheet border and title block.
+| `--no-x2`
+    | Do not use the extended X2 format.
+| `--no-netlist`
+    | Do not include netlist attributes.
+| `--subtract-soldermask`
+    | Remove silkscreen from areas without soldermask.
+| `--disable-aperture-macros`
+    | Disable aperture macros.
+| `--use-drill-file-origin`
+    | Use drill/place file origin instead of absolute origin.
+| `--precision <precision>`
+    | The precision (number of digits) for the Gerber files. Valid options are
+      `5` or `6` (default).
+| `--no-protel-ext`
+    | Use `.gbr` file extension instead of Protel file extensions (`.gbl`,
+      `.gtl`, etc.).
+| `--cl <layer list>`, `--common-layers <layer list>`
+    | A comma-separated list of layer names to plot on all layers, such as
+      `F.Cu,B.Cu`.
+| `--board-plot-params`
+    | Use the Gerber plot settings already configured in the board file.
+|====
+
+=== PCB Gerber export: multiple layers per file
+
+The `pcb export gerber` command exports one or more board layers to a single
+Gerber file.
+
+NOTE: Be aware that there are two distinct Gerber export commands, `gerber` and
+      `gerbers`. The `gerber` command plots multiple PCB layers to a single
+      Gerber file, while the `gerbers` command plots multiple Gerber files, with
+      one PCB layer per file. The `gerbers` command is typically the correct
+      command to use for having a PCB fabricated.
+
+Usage: `kicad-cli pcb export gerber [--help] [--output OUTPUT_FILE]
+[--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE]
+[--exclude-refdes] [--exclude-value] [--include-border-title] [--no-x2]
+[--no-netlist] [--subtract-soldermask] [--disable-aperture-macros]
+[--use-drill-file-origin] [--precision PRECISION] [--no-protel-ext] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Board file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the Gerber export command.
+| `-o <output filename>`, `--output <output filename>`
+    | The output filename. When this argument is not used, the output filename
+      will be the same as the input file, with the `.gbr` file extension.
+| `-l <layer list>`, `--layers <layer list>`
+    | A comma-separated list of layer names to plot from the board, such as
+      `F.Cu,B.Cu`. All layers will be plotted in the output file. At least one
+      layer must be given.
+| `--drawing-sheet <sheet path>`
+    | Path to drawing sheet to use in plot, overriding the drawing sheet
+      specified in the board file.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `--erd`, `--exclude-refdes`
+    | Exclude footprint reference designators from plot.
+| `--ev`, `--exclude-value`
+    | Exclude footprint values from plot.
+| `--ibt`, `--include-border-title`
+    | Include the sheet border and title block.
+| `--no-x2`
+    | Do not use the extended X2 format.
+| `--no-netlist`
+    | Do not include netlist attributes.
+| `--subtract-soldermask`
+    | Remove silkscreen from areas without soldermask.
+| `--disable-aperture-macros`
+    | Disable aperture macros.
+| `--use-drill-file-origin`
+    | Use drill/place file origin instead of absolute origin.
+| `--precision <precision>`
+    | The precision (number of digits) for the Gerber files. Valid options are
+      `5` or `6` (default).
+| `--no-protel-ext`
+    | Use `.gbr` file extension instead of Protel file extensions (`.gbl`,
+      `.gtl`, etc.).
+|====
+
+=== PCB GLB export
+
+The `pcb export glb` command exports a board design to a GLB (binary GLTF) 3D
+file.
+
+Usage: `kicad-cli pcb export glb [--help] [--output OUTPUT_FILE]
+[--define-var KEY=VALUE] [--force] [--grid-origin] [--drill-origin]
+[--no-unspecified] [--no-dnp] [--subst-models] [--board-only] [--include-tracks]
+[--include-zones] [--min-distance MIN_DIST] [--user-origin VAR] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Board file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the GLB export command.
+| `-o <output filename>`, `--output <output filename>`
+    | The output filename. When this argument is not used, the output filename
+      will be the same as the input file, with the `.glb` file extension.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `-f`, `--force`
+    | Overwrite output file.
+| `--grid-origin`
+    | Use grid origin as origin of output file.
+| `--drill-origin`
+    | Use drill origin as origin of output file.
+| `--no-unspecified`
+    | Exclude 3D models of components with 'unspecified' footprint type.
+| `--no-dnp`
+    | Exclude 3D models of components with 'Do not populate' attribute.
+| `--subst-models`
+    | Replace VRML models in footprints with STEP models of the same name, if
+      they exist.
+| `--board-only`
+    | Only include the board itself in the generated model; exclude all
+      component models.
+| `--include-tracks`
+    | Include tracks in export (time consuming).
+| `--include-zones`
+    | Include zones in export (time consuming).
+| `--min-distance <min distance>`
+    | Tolerance for considering two points to be in the same location. Default:
+      `0.01mm`.
+| `--user-origin <output origin>`
+    | Specify a custom origin for the output file, with X and Y coordinates. For
+      example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is
+      millimeters.
+|====
+
+=== PCB IPC-2581 export
+
+The `pcb export ipc2581` command exports a board design in IPC-2581 format.
+
+Usage: `kicad-cli pcb export ipc2581 [--help] [--output OUTPUT_FILE]
+[--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--precision PRECISION]
+[--compress] [--version VAR] [--units VAR] [--bom-col-int-id FIELD_NAME]
+[--bom-col-mfg-pn FIELD_NAME] [--bom-col-mfg FIELD_NAME]
+[--bom-col-dist-pn FIELD_NAME] [--bom-col-dist FIELD_NAME] INPUT_FILE`
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Board file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the IPC-2581 export command.
+| `-o <output filename>`, `--output <output filename>`
+    | The output filename. When this argument is not used, the output filename
+      will be the same as the input file, with the `.xml` file extension.
+| `--drawing-sheet <sheet path>`
+    | Path to drawing sheet to use in plot, overriding the drawing sheet
+      specified in the board file.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `--precision <precision>`
+    | The precision (number of digits after the decimal separator) for the
+      exported file. The default is `3`.
+| `--compress`
+    | Compress output file as a ZIP file.
+| `--version <IPC-2581 standard version>`
+    | IPC-2581 standard version to use. Options are `B` or `C` (default).
+| `--units`
+    | Units to use in export. Options are `mm` (default) or `in`.
+| `--bom-col-int-id`
+    | Name of the part field to use for the Bill of Materials Internal ID
+      column. This can be any footprint field, or blank to omit this column.
+| `--bom-col-mfg-pn`
+    | Name of the part field to use for the Bill of Materials Manufacturer Part
+      Number column. This can be any footprint field, or blank to omit this
+      column.
+| `--bom-col-mfg`
+    | Name of the part field to use for the Bill of Materials Manufacturer
+      column. This can be any footprint field, or blank to omit this column.
+| `--bom-col-dist-pn`
+    | Name of the part field to use for the Bill of Materials Distributor Part
+      Number column. This can be any footprint field, or blank to omit this
+      column.
+| `--bom-col-dist`
+    | Name of the part field to use for the Bill of Materials Distributor
+      column. This can be any footprint field, or blank to omit this column.
+|====
+
+=== PCB PDF export
+
+The `pcb export pdf` command exports a board design to a PDF file.
+
+Usage: `kicad-cli pcb export pdf [--help] [--output OUTPUT_FILE]
+[--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE]
+[--mirror] [--exclude-refdes] [--exclude-value] [--include-border-title]
+[--negative] [--black-and-white] [--theme THEME_NAME] [--drill-shape-opt VAR]
+INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Board file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the PDF export command.
+| `-o <output filename>`, `--output <output filename>`
+    | The output filename. When this argument is not used, the output filename
+      will be the same as the input file, with the `.pdf` file extension.
+| `-l <layer list>`, `--layers <layer list>`
+    | A comma-separated list of layer names to export from the board, such as
+      `F.Cu,B.Cu`. At least one layer must be given.
+| `--drawing-sheet <sheet path>`
+    | Path to drawing sheet to use in plot, overriding the drawing sheet
+      specified in the board file.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `-m`, `--mirror`
+    | Mirror the board. This can be useful for showing bottom layers.
+| `--erd`, `--exclude-refdes`
+    | Exclude footprint reference designators from plot.
+| `--ev`, `--exclude-value`
+    | Exclude footprint values from plot.
+| `--ibt`, `--include-border-title`
+    | Include the sheet border and title block.
+| `-n`, `--negative`
+    | Plot in negative.
+| `--black-and-white`
+    | Plot in black and white.
+| `-t <theme name>`, `--theme <theme name>`
+    | The name of the theme to use for export. If no theme is given, the
+      board editor's currently selected theme is used.
+| `--drill-shape-opt`
+    | The shape of drill marks in the plot. Options are `0` for no drill marks,
+      `1` for small marks, or `2` for actual size marks (default).
+|====
+
+=== PCB position file export
+
+The `pcb export pos` command exports a position file from a board design.
+
+Usage: `kicad-cli pcb export pos [--help] [--output OUTPUT_FILE] [--side VAR]
+[--format FORMAT] [--units UNITS] [--bottom-negate-x] [--use-drill-file-origin]
+[--smd-only] [--exclude-fp-th] [--exclude-dnp] [--gerber-board-edge] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Board file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the position file export command.
+| `-o <output filename>`, `--output <output filename>`
+    | The output filename. When this argument is not used, the output filename
+      will be the same as the input file, with the `.pos` file extension.
+| `--side <side>`
+    | The side of the board to export. Options are `front`, `back`, or `both`
+      (default). Gerber format does not support `both`.
+| `--format <format>`
+    | The position file format. Options are `ascii` (default), `csv`, or
+      `gerber`.
+| `--units <unit>`
+    | Units for position file. Options are `in` (default) or `mm`. This option
+      has no effect for Gerber format.
+| `--bottom-negate-x`
+    | Use negative X coordinates for footprints on the bottom layer. This
+      option has no effect for Gerber format.
+| `--use-drill-file-origin`
+    | Use drill/place file origin instead of absolute origin. This option has no
+      effect for Gerber format.
+| `--smd-only`
+    | Include only surface-mount components. This option has no effect for
+      Gerber format.
+| `--exclude-fp-th`
+    | Exclude all footprints with through-hole pads. This option has no effect
+      for Gerber format.
+| `--exclude-dnp`
+    | Exclude all footprints with "Do not populate" attribute.
+| `--gerber-board-edge`
+    | Include board edge layer in export (Gerber format only).
+|====
+
+=== PCB STEP export
+
+The `pcb export step` command exports a board design to a STEP file.
+
+Usage: `kicad-cli pcb export step [--help] [--output OUTPUT_FILE]
+[--define-var KEY=VALUE] [--force] [--grid-origin] [--drill-origin]
+[--no-unspecified] [--no-dnp] [--subst-models] [--board-only] [--include-tracks]
+[--include-zones] [--min-distance MIN_DIST] [--no-optimize-step]
+[--user-origin VAR] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Board file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the STEP file export command.
+| `-o <output filename>`, `--output <output filename>`
+    | The output filename. When this argument is not used, the output filename
+      will be the same as the input file, with the `.step` file extension.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `-f`, `--force`
+    | Overwrite output file.
+| `--grid-origin`
+    | Use grid origin as origin of output file.
+| `--drill-origin`
+    | Use drill origin as origin of output file.
+| `--no-unspecified`
+    | Exclude 3D models of components with 'unspecified' footprint type.
+| `--no-dnp`
+    | Exclude 3D models of components with 'Do not populate' attribute.
+| `--subst-models`
+    | Replace VRML models in footprints with STEP models of the same name, if
+      they exist.
+| `--board-only`
+    | Only include the board itself in the generated model; exclude all
+      component models.
+| `--include-tracks`
+    | Include tracks in export (time consuming).
+| `--include-zones`
+    | Include zones in export (time consuming).
+| `--min-distance <min distance>`
+    | Tolerance for considering two points to be in the same location. Default:
+      `0.01mm`.
+| `--no-optimize-step`
+    | Do not optimize STEP file. This enables writing parametric curves, which
+      reduces file sizes and write/read times, but may reduce compatibility with
+      other software.
+| `--user-origin <output origin>`
+    | Specify a custom origin for the output file, with X and Y coordinates. For
+      example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is
+      millimeters.
+|====
+
+=== PCB SVG export
+
+The `pcb export svg` command exports a board design to an SVG file.
+
+Usage: `kicad-cli pcb export svg [--help] [--output OUTPUT_FILE]
+[--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE]
+[--mirror] [--theme THEME_NAME] [--negative] [--black-and-white]
+[--page-size-mode MODE] [--exclude-drawing-sheet]
+[--drill-shape-opt SHAPE_OPTION] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Board file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the SVG file export command.
+| `-o <output filename>`, `--output <output filename>`
+    | The output filename. When this argument is not used, the output filename
+      will be the same as the input file, with the `.svg` file extension.
+| `-l <layer list>`, `--layers <layer list>`
+    | A comma-separated list of layer names to export from the board, such as
+      `F.Cu,B.Cu`. At least one layer must be given.
+| `--drawing-sheet <sheet path>`
+    | Path to drawing sheet to use in plot, overriding the drawing sheet
+      specified in the board file.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `-m`, `--mirror`
+    | Mirror the board. This can be useful for showing bottom layers.
+| `-t <theme name>`, `--theme <theme name>`
+    | The name of the theme to use for export. If no theme is given, the
+      board editor's currently selected theme is used.
+| `-n`, `--negative`
+    | Plot in negative.
+| `--black-and-white`
+    | Plot in black and white.
+| `--page-size-mode <mode>`
+    | Set page sizing mode. Options are `0` (default), `1`, or `2`. `0` sets the
+      output page size to fit the entire sheet, including drawing sheet frame
+      and title block. `1` sets the output page size to match the current page
+      size. `2` sets the output page size to the size of the board itself.
+| `--exclude-drawing-sheet`
+    | Plot SVG without a drawing sheet.
+| `--drill-shape-opt`
+    | The shape of drill marks in the plot. Options are `0` for no drill marks,
+      `1` for small marks, or `2` for actual size marks (default).
+|====
+
+=== PCB VRML export
+
+The `pcb export vrml` command exports a board design to a VRML 3D file.
+
+Usage: `kicad-cli pcb export vrml [--help] [--output OUTPUT_FILE]
+[--define-var KEY=VALUE] [--force] [--user-origin VAR] [--units VAR]
+[--models-dir VAR] [--models-relative] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Board file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the VRML export command.
+| `-o <output filename>`, `--output <output filename>`
+    | The output filename. When this argument is not used, the output filename
+      will be the same as the input file, with the `.wrl` file extension.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `-f`, `--force`
+    | Overwrite output file.
+| `--user-origin <output origin>`
+    | Specify a custom origin for the output file, with X and Y coordinates. For
+      example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is
+      millimeters. If this option is not given, the board center is used.
+| `--units <units>`
+    | Units to use in the output file. Options are `mm`, `m`, `in` (default), or
+      `tenths` (tenths of an inch).
+| `--models-dir <output model directory>`
+    | Name of output directory to copy component models into. If not used,
+      component models are embedded into the output file.
+| `--models-relative`
+    | With `--models-dir`, use relative paths in the output file.
+|====
+
+== Schematic commands
+
+The `sch` command runs an electrical rule check, exports a schematic to
+various other file formats, or exports a bill of materials or netlist. Each
+subcommand has its own options.
+
+=== Schematic ERC
+
+The `sch erc` command runs an electrical rule check on a schematic and generates
+a report.
+
+Usage: `kicad-cli sch erc [--help] [--output OUTPUT_FILE]
+[--define-var KEY=VALUE] [--format VAR] [--units VAR] [--severity-all]
+[--severity-error] [--severity-warning] [--severity-exclusions]
+[--exit-code-violations] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Schematic file to run ERC on.
+|====
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the ERC command.
+| `-o <output filename>, `--output <output filename>`
+    | Output filename for the generated ERC report. When this argument is not
+      used, the output filename will be the same as the input file, with the
+      `.rpt` or `.json` file extension, depending on the selected format.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `--format <format>`
+    | Report file format. Options are `report` (default) or `json`.
+| `--units <unit>`
+    | Units to use in the report. Options are `mm` (default), `in`, or `mils`.
+| `--severity-all`
+    | Report all ERC violations. This is equivalent to using all of the other
+      ERC severity options.
+| `--severity-error`
+    | Report all error-level ERC violations. This can be combined with the other
+      ERC severity options.
+| `--severity-warning`
+    | Report all warning-level ERC violations. This can be combined with the
+      other ERC severity options.
+| `--severity-exclusions`
+    | Report all excluded ERC violations. This can be combined with the other
+      ERC severity options.
+| `--exit-code-violations`
+    | Return an exit code depending on whether or not ERC violations exist. The
+      exit code is 0 if no violations are found, and 5 if any violations are
+      found.
+|====
+
+=== Schematic bill of materials export
+
+The `sch export bom` command exports a BOM from a schematic.
+The BOM export has a number of options for controlling the format and included
+fields. This export method is equivalent to
+xref:../eeschema/eeschema.adoc#bom-export[exporting a BOM]
+from the symbol fields table.
+
+NOTE: To export a BOM using the legacy XML and Python BOM script workflow, use
+      the `sch export python-bom` command.
+
+Usage: `kicad-cli sch export bom [--help] [--output OUTPUT_FILE]
+[--preset PRESET] [--format-preset FMT_PRESET] [--fields FIELDS]
+[--labels LABELS] [--group-by GROUP_BY] [--sort-field SORT_BY] [--sort-asc]
+[--filter FILTER] [--exclude-dnp] [--field-delimiter FIELD_DELIM]
+[--string-delimiter STR_DELIM] [--ref-delimiter REF_DELIM]
+[--ref-range-delimiter REF_RANGE_DELIM] [--keep-tabs] [--keep-line-breaks]
+INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Schematic file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Shows help message and exits
+| `-o <output filename>`, `--output <output filename>`
+    | The output filename. When this argument is not used, the output filename
+      will be the same as the input file, with a `.csv` file extension.
+| `--preset <preset>`
+    | Use a named BOM preset setting from the schematic, e.g. `"Grouped By Value"`.
+| `--format-preset <format preset>`
+    | Use a named BOM format preset setting from the schematic, e.g. `CSV`.
+| `--fields <fields>`
+    | An ordered list of fields to export. `*` includes all fields. Special
+      symbol fields such as DNP or Exclude from board can be accessed with
+      `${DNP}` or `${EXCLUDE_FROM_BOARD}`, respectively (see the
+      xref:../eeschema/eeschema.adoc#text-variables[text variable documentation]
+      for a list of fields). Default: "Reference,Value,Footprint,${QUANTITY},${DNP}".
+| `--labels <labels>`
+    | An ordered list of labels to apply the exported fields (default:
+      "Refs,Value,Footprint,Qty,DNP").
+| `--group-by <fields>`
+    | Fields to group references by when field values match.
+| `--sort-field <fields>`
+    | Field name to sort by (default: "Reference").
+| `--sort-asc`
+    | If given, sort in ascending order. If not given, sort in descending order.
+| `--filter <filter>`
+    | Filter string to remove output lines.
+| `--exclude-dnp`
+    | Exclude symbols with the "Do not populate" attribute.
+| `--field-delimiter <delimiter>`
+    | Separator between output fields/columns (default: ",").
+| `--string-delimiter <delimiter>`
+    | Character to surround fields with (none by default).
+| `--ref-delimiter <delimiter>`
+    | Character to place between individual references (default: ",").
+| `--ref-range-delimiter <delimiter>`
+    | Character to place in ranges of references (default: "-"). Leave blank for
+      no ranges.
+| `--keep-tabs`
+    | Keep tab characters from input fields. Stripped by default.
+| `--keep-line-breaks`
+    | Keep line break characters from input fields. Stripped by default.
+|====
+
+=== Schematic DXF export
+
+The `sch export dxf` command exports a schematic to a DXF file. Each
+sheet in the design is exported to its own file.
+
+Usage: `kicad-cli sch export dxf [--help] [--output OUTPUT_DIR]
+[--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME]
+[--black-and-white] [--exclude-drawing-sheet] [--pages PAGE_LIST] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Schematic file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the DXF file export command.
+| `-o <output dir>`, `--output <output dir>`
+    | The output folder for the exported files. When this argument is not used,
+      the files are exported to the current directory.
+| `--drawing-sheet <sheet path>`
+    | Path to drawing sheet to use in plot, overriding the drawing sheet
+      specified in the schematic file.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `-t <theme name>`, `--theme <theme name>`
+    | The name of the theme to use for export. If no theme is given, the
+      schematic editor's currently selected theme is used.
+| `-b`, `--black-and-white`
+    | Export schematic in black and white.
+| `-e`, `--exclude-drawing-sheet`
+    | Plot DXF without a drawing sheet.
+| `--pages <page list>`
+    | Comma-separated list of pages to export. Blank or unspecified means all
+      pages. To plot specific pages, give the root sheet as `INPUT_FILE` and
+      specify the desired output pages with the `--pages` argument.
+|====
+
+=== Schematic HPGL export
+
+The `sch export hpgl` command exports a schematic to an HPGL file for a pen
+plotter. Each sheet in the design is exported to its own file.
+
+Usage: `kicad-cli sch export hpgl [--help] [--output OUTPUT_DIR]
+[--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-drawing-sheet]
+[--pages PAGE_LIST] [--pen-size PEN_SIZE] [--origin ORIGIN] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Schematic file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the HPGL file export command.
+| `-o <output dir>`, `--output <output dir>`
+    | The output folder for the exported files. When this argument is not used,
+      the files are exported to the current directory.
+| `--drawing-sheet <sheet path>`
+    | Path to drawing sheet to use in plot, overriding the drawing sheet
+      specified in the schematic file.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `-e`, `--exclude-drawing-sheet`
+    | Plot HPGL without a drawing sheet.
+| `--pages <page list>`
+    | Comma-separated list of pages to export. Blank or unspecified means all
+      pages. To plot specific pages, give the root sheet as `INPUT_FILE` and
+      specify the desired output pages with the `--pages` argument.
+| `-p <pen size>`, `--pen-size <pen size>`
+    | Set the pen width. The default pen size is 0.5 mm.
+| `-r <origin>`, `--origin <origin>`
+    | Set plotter origin and scale. Options are `0`, `1` (default), `2`, or `3`.
+      `0` sets the origin to the bottom left and uses plotter units. `1` sets
+      the origin to the center and uses plotter units. `2` scales to the page,
+      and `3` scales to the content within the page.
+|====
+
+=== Schematic netlist export
+
+The `sch export netlist` command exports a netlist in
+xref:../eeschema/eeschema.adoc#netlist-formats[various formats] from
+a schematic.
+
+Usage: `kicad-cli sch export netlist [--help] [--output OUTPUT_FILE]
+[--format FORMAT] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Schematic file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the netlist export command.
+| `-o <output filename>`, `--output <output filename>`
+    | The output filename. When this argument is not used, the output filename
+      will be the same as the input file, with a `.net` file extension.
+| `-f <format>`, `--format <format>`
+    | The netlist output format. Options are `kicadsexpr` (default), `kicadxml`,
+      `cadstar`, `orcadpcb2`, `spice`, or `spicemodel`.
+|====
+
+=== Schematic PDF export
+
+The `sch export pdf` command exports a schematic to a PDF file. Each sheet in
+the design is exported to its own page in the PDF file.
+
+Usage: `kicad-cli sch export pdf [--help] [--output OUTPUT_FILE]
+[--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME]
+[--black-and-white] [--exclude-drawing-sheet] [--exclude-pdf-property-popups]
+[--no-background-color] [--pages PAGE_LIST] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Schematic file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the PDF file export command.
+| `-o <output filename>`, `--output <output filename>`
+    | The output filename. When this argument is not used, the output filename
+      will be the same as the input file, with a `.pdf` file extension.
+| `--drawing-sheet <sheet path>`
+    | Path to drawing sheet to use in plot, overriding the drawing sheet
+      specified in the schematic file.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `-t <theme name>`, `--theme <theme name>`
+    | The name of the theme to use for export. If no theme is given, the
+      schematic editor's currently selected theme is used.
+| `-b`, `--black-and-white`
+    | Export schematic in black and white.
+| `-e`, `--exclude-drawing-sheet`
+    | Plot PDF without a drawing sheet.
+| `--exclude-pdf-property-popups`
+    | Do not generate property popups in PDF.
+| `-n`, `--no-background-color`
+    | Export schematic without a background color, regardless of theme.
+| `--pages <page list>`
+    | Comma-separated list of pages to export. Blank or unspecified means all
+      pages. To plot specific pages, give the root sheet as `INPUT_FILE` and
+      specify the desired output pages with the `--pages` argument.
+|====
+
+=== Schematic PostScript export
+
+The `sch export ps` command exports a schematic to a PostScript file. Each
+sheet in the design is exported to its own file.
+
+Usage: `kicad-cli sch export ps [--help] [--output OUTPUT_DIR]
+[--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME]
+[--black-and-white] [--exclude-drawing-sheet] [--no-background-color]
+[--pages PAGE_LIST] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_DIR`
+    | Schematic file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the PS file export command.
+| `-o <output dir>`, `--output <output dir>`
+    | The output folder for the exported files. When this argument is not used,
+      the files are exported to the current directory.
+| `--drawing-sheet <sheet path>`
+    | Path to drawing sheet to use in plot, overriding the drawing sheet
+      specified in the schematic file.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `-t <theme name>`, `--theme <theme name>`
+    | The name of the theme to use for export. If no theme is given, the
+      schematic editor's currently selected theme is used.
+| `-b`, `--black-and-white`
+    | Export schematic in black and white.
+| `-e`, `--exclude-drawing-sheet`
+    | Plot PS without a drawing sheet.
+| `-n`, `--no-background-color`
+    | Export schematic without a background color, regardless of theme.
+| `--pages <page list>`
+    | Comma-separated list of pages to export. Blank or unspecified means all
+      pages. To plot specific pages, give the root sheet as `INPUT_FILE` and
+      specify the desired output pages with the `--pages` argument.
+|====
+
+=== Schematic bill of materials export (legacy BOM scripts)
+
+The `sch export python-bom` command exports an XML BOM file from a schematic.
+The XML BOM file can then be processed into your desired BOM format using a
+custom script or one of the scripts described in the
+xref:../eeschema/eeschema.adoc#bom-export[schematic BOM
+export documentation].
+
+Usage: `kicad-cli sch export python-bom [--help] [--output OUTPUT_FILE] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Schematic file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the BOM export command.
+| `-o <output filename>`, `--output <output filename>`
+    | The output filename. When this argument is not used, the output filename
+      will be the same as the input file, with a `-bom.xml` suffix and file
+      extension.
+|====
+
+=== Schematic SVG export
+
+The `sch export svg` command export a schematic to an SVG file. Each sheet in
+the design is exported to its own file.
+
+Usage: `kicad-cli sch export svg [--help] [--output OUTPUT_DIR]
+[--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME]
+[--black-and-white] [--exclude-drawing-sheet] [--no-background-color]
+[--pages PAGE_LIST] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Schematic file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the SVG file export command.
+| `-o <output dir>`, `--output <output dir>`
+    | The output folder for the exported files. When this argument is not used,
+      the files are exported to the current directory.
+| `--drawing-sheet <sheet path>`
+    | Path to drawing sheet to use in plot, overriding the drawing sheet
+      specified in the schematic file.
+| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
+    | Add or override project variable definitions. Can be used multiple times
+      to define multiple variables.
+| `-t <theme name>`, `--theme <theme name>`
+    | The name of the theme to use for export. If no theme is given, the
+      schematic editor's currently selected theme is used.
+| `-b`, `--black-and-white`
+    | Export schematic in black and white.
+| `-e`, `--exclude-drawing-sheet`
+    | Plot SVG without a drawing sheet.
+| `-n`, `--no-background-color`
+    | Export schematic without a background color, regardless of theme.
+| `--pages <page list>`
+    | Comma-separated list of pages to export. Blank or unspecified means all
+      pages. To plot specific pages, give the root sheet as `INPUT_FILE` and
+      specify the desired output pages with the `--pages` argument.
+|====
+
+== Symbol commands
+
+The `sym` subcommand exports symbols to another format or upgrades symbol
+libraries to the current version of the KiCad symbol file format.
+
+=== Symbol export
+
+The `sym export svg` command exports one or more symbols from the specified
+library into SVG files.
+
+Usage: `kicad-cli sym export svg [--help] [--output OUTPUT_DIR]
+[--theme THEME_NAME] [--symbol SYMBOL] [--black-and-white]
+[--include-hidden-pins] [--include-hidden-fields] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Symbol library file to use for export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the symbol SVG export command.
+| `-o <output dir>`, `--output <output dir>`
+    | The output folder for the exported files. When this argument is not used,
+      the files are exported to the current directory.
+| `-t <theme name>`, `--theme <theme name>`
+    | The name of the theme to use for export. If no theme is given, the symbol
+      editor's currently selected theme is used.
+| `-s <symbol name>`, `--symbol <symbol name>`
+    | The specific symbol to export from the library. When this argument is
+      not used, all symbols in the library are exported.
+| `--black-and-white`
+    | Export symbols in black and white.
+| `--include-hidden-pins`
+    | Export hidden pins in the exported SVG.
+| `--include-hidden-fields`
+    | Export hidden symbol fields in the exported SVG.
+|====
+
+=== Symbol upgrade
+
+The `sym upgrade` command upgrades the the specified symbol library from a
+legacy symbol format to the native format for the current version of KiCad. If
+the input library is already in the current file format, no action is taken.
+
+Usage: `kicad-cli sym upgrade [--help] [--output OUTPUT_FILE] [--force] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Symbol library to upgrade.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the symbol upgrade command.
+| `-o <output filename>`, `--output <output filename>`
+    | The output filename for the upgraded symbol library. When this argument is
+      not used, the upgraded symbol library is saved over the original library.
+| `--force`
+    | Re-save the input library even if it is already in the current file format.
+|====
+
+== Version commands
+
+The `version` subcommand prints the KiCad version. Without any arguments, it
+simply prints the version number, for example `7.0.7`. You can print the version
+in several other formats using the `--format` argument.
+
+NOTE: Use `kicad-cli version --format about` for version information to include
+      when submitting bug reports or feature requests on Gitlab.
+
+Usage: `kicad-cli version [--help] [--format VAR]`
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `--format <format>`
+    | Format of the version number. Options are `plain` (default), `commit`, or
+      `about`. `plain` prints the version number (e.g. `7.0.7`), which is the
+      default if the `--format` argument is not used. `commit` prints the hash
+      of the git commit for the build of KiCad you are using. `about` prints the
+      full version information, including library versions and basic system
+      information. You can use the `about` version information in bug reports.
+|====

@@ -1,0 +1,2084 @@
+# KiCad Reference Manual Italian Traslation.
+# Copyright (C) The KiCad Translation Team
+# Marco Ciampa <ciampix@posteo.net>, 2014-2023.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: 0.1\n"
+"POT-Creation-Date: 2023-02-14 17:05+0100\n"
+"PO-Revision-Date: 2023-01-20 08:38+0100\n"
+"Last-Translator: Marco Ciampa <ciampix@posteo.net>\n"
+"Language-Team: Italian <it@li.org>\n"
+"Language: it\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 1.5.4\n"
+
+#. type: Title =
+#: kicad.adoc:6
+#, no-wrap
+msgid "KiCad"
+msgstr "KiCad"
+
+#. type: Plain text
+#: kicad.adoc:9
+msgid "_Reference manual_"
+msgstr "_Manuale di riferimento_"
+
+#. type: Plain text
+#: kicad.adoc:12
+#, no-wrap
+msgid "*Copyright*\n"
+msgstr "*Copyright*\n"
+
+#. type: Plain text
+#: kicad.adoc:17
+msgid ""
+"This document is Copyright (C) 2010-2023 by its contributors as listed "
+"below. You may distribute it and/or modify it under the terms of either the "
+"GNU General Public License (http://www.gnu.org/licenses/gpl.html), version 3 "
+"or later, or the Creative Commons Attribution License (http://"
+"creativecommons.org/licenses/by/3.0/), version 3.0 or later."
+msgstr ""
+"Questo documento è coperto dal Copyright (C) 2010-2023 dei suoi autori come "
+"elencati in seguito. È possibile distribuirlo e/o modificarlo nei termini "
+"sia della GNU General Public License (http://www.gnu.org/licenses/gpl.html), "
+"versione 3 o successive, che della Creative Commons Attribution License "
+"(http://creativecommons.org/licenses/by/3.0/), versione 3.0 o successive."
+
+#. type: Plain text
+#: kicad.adoc:19
+msgid "All trademarks within this guide belong to their legitimate owners."
+msgstr ""
+"Tutti i marchi registrati all'interno di questa guida appartengono ai loro "
+"legittimi proprietari."
+
+#. type: Plain text
+#: kicad.adoc:22
+#, no-wrap
+msgid "*Contributors*\n"
+msgstr "*Collaboratori*\n"
+
+#. type: Plain text
+#: kicad.adoc:24
+msgid "Jean-Pierre Charras, Fabrizio Tappero, Jon Evans."
+msgstr "Jean-Pierre Charras, Fabrizio Tappero, Jon Evans."
+
+#. type: Plain text
+#: kicad.adoc:27
+#, no-wrap
+msgid "*Feedback*\n"
+msgstr "*Commenti*\n"
+
+#. type: Plain text
+#: kicad.adoc:31
+msgid ""
+"The KiCad project welcomes feedback, bug reports, and suggestions related to "
+"the software or its documentation.  For more information on how to sumbit "
+"feedback or report an issue, please see the instructions at https://www."
+"kicad.org/help/report-an-issue/"
+msgstr ""
+"Il progetto KiCad accoglie commenti, segnalazioni di difetti e suggerimenti "
+"relativi al software o alla sua documentazione. Per ulteriori informazioni "
+"su come inviare commenti o segnalare un problema, consultare le istruzioni "
+"su https://www.kicad.org/help/report-an-issue/"
+
+#. type: Title ==
+#: kicad.adoc:32
+#, no-wrap
+msgid "Introduction"
+msgstr "Introduzione"
+
+#. type: Plain text
+#: kicad.adoc:40
+msgid ""
+"KiCad is an open-source software suite for creating electronic circuit "
+"schematics and printed circuit boards (PCBs).  KiCad supports an integrated "
+"design workflow in which a schematic and corresponding PCB are designed "
+"together, as well as standalone workflows for special uses.  KiCad also "
+"includes several utilities to help with circuit and PCB design, including a "
+"PCB calculator for determining electrical properties of circuit structures, "
+"a Gerber viewer for inspecting manufacturing files, and an integrated SPICE "
+"simulator for inspecting circuit behavior."
+msgstr ""
+"KiCad è una suite software open source per la creazione di schemi elettrici "
+"e circuiti stampati (PCB). KiCad supporta un flusso di lavoro di "
+"progettazione integrato in cui uno schema e un C.S. corrispondente sono "
+"progettati insieme, nonché flussi di lavoro autonomi per usi speciali. KiCad "
+"include anche diverse utilità per aiutare con la progettazione di circuiti e "
+"C.S., tra cui una calcolatrice per determinare le proprietà elettriche delle "
+"strutture dei circuiti, un visualizzatore di file Gerber per l'ispezione dei "
+"file di produzione e un simulatore SPICE integrato per la verifica del "
+"comportamento del circuito elettrico."
+
+#. type: Plain text
+#: kicad.adoc:45
+msgid ""
+"KiCad runs on all major operating systems and a wide range of computer "
+"hardware.  It supports PCBs with up to 32 copper layers and is suitable for "
+"creating designs of all complexities.  KiCad is developed by a volunteer "
+"team of software and electrical engineers around the world with a mission of "
+"creating free and open-source electronics design software suitable for "
+"professional designers."
+msgstr ""
+"KiCad funziona su tutti i principali sistemi operativi e su un'ampia gamma "
+"di computer. Supporta C.S. con un massimo di 32 strati di rame ed è adatto "
+"per creare progetti di ogni complessità. KiCad è sviluppato da un team di "
+"volontari di software ed ingegneri in tutto il mondo con la missione di "
+"creare software di progettazione elettronica gratuito e open source adatto a "
+"progettisti professionisti."
+
+#. type: Plain text
+#: kicad.adoc:47
+msgid ""
+"The latest version of this documentation is available at https://docs.kicad."
+"org."
+msgstr ""
+"L'ultima versione di questa documentazione è disponibile all'indirizzo "
+"https://docs.kicad.org."
+
+#. type: Title ===
+#: kicad.adoc:48
+#, no-wrap
+msgid "System Requirements"
+msgstr "Requisiti di sistema"
+
+#. type: Plain text
+#: kicad.adoc:53
+msgid ""
+"KiCad is capable of running on a wide variety of hardware and operating "
+"systems, but some tasks may be slower or more difficult on lower-end "
+"hardware.  For the best experience, a dedicated graphics card and display "
+"with 1920x1080 or higher resolution is recommended."
+msgstr ""
+"KiCad è in grado di funzionare su un'ampia varietà di macchine e di sistemi "
+"operativi, ma alcune attività potrebbero essere più lente o più difficili su "
+"dispositivi di fascia bassa. Per un'esperienza ottimale, si consiglia una "
+"scheda grafica e uno schermo dedicati con risoluzione 1920x1080 o superiore."
+
+#. type: Plain text
+#: kicad.adoc:56
+msgid ""
+"Please check the KiCad website for the latest system requirements: https://"
+"kicad.org/help/system-requirements/"
+msgstr ""
+"Controllare sul sito Web di KiCad per i requisiti di sistema più recenti: "
+"https://kicad.org/help/system-requirements/"
+
+#. type: Title ===
+#: kicad.adoc:57
+#, no-wrap
+msgid "KiCad files and folders"
+msgstr "Cartelle e file di KiCad"
+
+#. type: Plain text
+#: kicad.adoc:61
+msgid ""
+"KiCad creates and uses files with the following specific file extensions "
+"(and folders)  for schematic and board editing."
+msgstr ""
+"KiCad crea e usa file con le seguenti estensioni (e cartelle) per la "
+"modifica di schemi e schede."
+
+#. type: Title ====
+#: kicad.adoc:62
+#, no-wrap
+msgid "Project files"
+msgstr "File di progetto"
+
+#. type: Table
+#: kicad.adoc:68
+#, no-wrap
+msgid ""
+"|`*.kicad_pro` |Project file, containing settings that are shared between the schematic and PCB\n"
+"|`*.pro` |Legacy (KiCad 5.x and earlier) project file.\n"
+"Can be read and will be converted to a `.kicad_pro` file by the project manager.\n"
+msgstr ""
+"|`*.kicad_pro` |File di progetto, contenente le impostazioni condivise tra lo schema e il C.S.\n"
+"|`*.pro` |File di progetto obsoleti (KiCad 5.x e precedenti).\n"
+"Possono essere letti e verranno convertiti in un file `.kicad_pro` dal programma di gestione del progetto.\n"
+
+#. type: Title ====
+#: kicad.adoc:70
+#, no-wrap
+msgid "Schematic editor files"
+msgstr "File dell'editor degli schemi elettrici"
+
+#. type: Table
+#: kicad.adoc:83
+#, no-wrap
+msgid ""
+"|`*.kicad_sch` |Schematic files containing all info and the components themselves.\n"
+"|`*.kicad_sym` |Schematic symbol library file, containing the component descriptions: graphic shape, pins, fields.\n"
+"|`*.sch` |Legacy (KiCad 5.x and earlier) schematic file.\n"
+"Can be read and will be converted to a `.kicad_sch` file on write.\n"
+"|`*.lib` |Legacy (KiCad 5.x and earlier) schematic library file. Can be read but not written.\n"
+"|`*.dcm` |Legacy (KiCad 5.x and earlier) schematic library documentation. Can be read but not written.\n"
+"|`*-cache.lib` |Legacy (KiCad 5.x and earlier) schematic component library cache file.\n"
+"Required for proper loading of a legacy schematic (`.sch`) file.\n"
+"|`sym-lib-table` |Symbol library table:\n"
+"list of symbol libraries available in the schematic editor.\n"
+msgstr ""
+"|`*.kicad_sch` |File schemi elettrici, contenenti tutte le informazioni e i componenti stessi.\n"
+"|`*.kicad_sym` |File librerie di simboli elettrici, contenenti le descrizioni dei componenti: forma grafica, pin, campi.\n"
+"|`*.sch` |File schemi elettrici vecchio formato (KiCad 5.x e precedenti).\n"
+"Possono essere letti e vengono convertiti in file `.kicad_sch` alla prima scrittura.\n"
+"|`*.lib` |File librerie di simboli vecchio formato (KiCad 5.x e precedenti). Possono essere letti ma non scritti.\n"
+"|`*.dcm` |File documentazione librerie di componenti vecchio formato (KiCad 5.x e precedenti). Possono essere letti ma non scritti.\n"
+"|`*-cache.lib` |File cache librerie di componenti vecchio formato (KiCad 5.x e precedenti).\n"
+"Richiesti per il corretto caricamento di un vecchio schema elettrico (`.sch`).\n"
+"|`sym-lib-table` |Tabella librerie di simboli:\n"
+"elenco di librerie di simboli disponibili nell'editor degli schemi elettrici.\n"
+
+#. type: Title ====
+#: kicad.adoc:85
+#, no-wrap
+msgid "Board editor files and folders"
+msgstr "File e cartelle dell'editor schede"
+
+#. type: Table
+#: kicad.adoc:99
+#, no-wrap
+msgid ""
+"|`*.kicad_pcb` |Board file containing all info but the page layout.\n"
+"|`*.pretty` |Footprint library folders. The folder itself is the library.\n"
+"|`*.kicad_mod` |Footprint files, containing one footprint description each.\n"
+"|`*.kicad_dru` |Design rules file, containing custom design rules for a certain `.kicad_pcb` file.\n"
+"|`*.brd` |Legacy (KiCad 4.x and earlier) board file.\n"
+"Can be read, but not written, by the current board editor.\n"
+"|`*.mod` |Legacy (KiCad 4.x and earlier) footprint library file.\n"
+"Can be read by the footprint or the board editor, but not written.\n"
+"|`fp-lib-table` |Footprint library table: \n"
+"list of footprint libraries available in the board editor.\n"
+"|`fp-info-cache` |Cache to speed up loading of footprint libraries. Does not need to be distributed with the project or put under version control.\n"
+msgstr ""
+"|`*.kicad_pcb` |File scheda contenenti tutte le info a parte la disposizione pagina.\n"
+"|`*.pretty` |Cartelle librerie di impronte. Le cartelle sono in effetti le librerie.\n"
+"|`*.kicad_mod` |File impronte, contenenti una descrizione impronta per file.\n"
+"|`*.kicad_dru` |File regole di progettazione, contenente le regole di progettazione personalizzate per un certo file `.kicad_pcb`.\n"
+"|`*.brd` |File scheda vecchio formato (KiCad 4.x e precedenti).\n"
+"Vengono letti dall'editor di circuiti stampati corrente, ma non scritti.\n"
+"|`*.mod` |File librerie di impronte vecchio formato (KiCad 4.x e precedenti).\n"
+"Vengono letti dall'editor di impronte e di circuiti stampati, ma non scritti.\n"
+"|`fp-lib-table` |Tabella librerie di impronte: \n"
+"elenco di librerie di impronte disponibili nell'editor di circuiti stampati.\n"
+"|`fp-info-cache` |Cache per velocizzare il caricamento delle librerie di impronte. Non è necessario distribuirla con il progetto o sottoporla a controllo versionamento.\n"
+
+#. type: Title ====
+#: kicad.adoc:101
+#, no-wrap
+msgid "Common files"
+msgstr "File comuni"
+
+#. type: Table
+#: kicad.adoc:121
+#, no-wrap
+msgid ""
+"|`*.kicad_prl` |Local settings for the current project; helps Kicad remember\n"
+"the last used settings such as layer visibility or selection filter.\n"
+"May not need to be distributed with the project or put under version control.\n"
+"|`*.kicad_wks` |Page layout (drawing border and title block) description file\n"
+"|`*.net` |Netlist file created from the schematic, and read by the board editor.\n"
+"Note that the\n"
+"xref:../pcbnew/pcbnew_editing.adoc#forward-and-back-annotation[recommended\n"
+"workflow for transferring information from the schematic to the board] does not\n"
+"require the use of netlist files.\n"
+"|`*.cmp` |Association between components used in the schematic and their footprints.\n"
+"It can be created by the Board Editor and imported by the Schematic Editor.\n"
+"Its purpose is to import changes from the board to the schematic, for users\n"
+"who change footprints in the Board Editor (for instance using **Exchange\n"
+"Footprints** command) and want to import these changes back to the schematic.\n"
+"xref:../pcbnew/pcbnew_editing.adoc#forward-and-back-annotation[recommended\n"
+"workflow for transferring information from the board to the schematic] does not\n"
+"require the use of `.cmp` files.\n"
+msgstr ""
+"|`*.kicad_prl` |Impostazioni locali per il progetto corrente; aiuta Kicad a ricordare\n"
+"le ultime impostazioni utilizzate come la visibilità del livello o il filtro di selezione.\n"
+"Potrebbe non essere necessario distribuirlo con il progetto o metterlo sotto controllo versionamento.\n"
+"|`*.kicad_wks` |File di descrizione della disposizione pagina (bordo del disegno e riquadro iscrizioni).\n"
+"|`*.net` |File netlist creato dallo schema e letto dall'editor della scheda.\n"
+"Si noti che il xref:../pcbnew/pcbnew_editing.adoc#forward-and-back-annotation[flusso di lavoro consigliato per il trasferimento delle informazioni dallo schema elettrico alla scheda] non richiede l'uso di file netlist.\n"
+"|`*.cmp` |Associazione tra i componenti usati nello schema e le loro impronte.\n"
+"Può essere creato dall'editor circuiti stampati e importato dall'editor degli schemi elettrici.\n"
+"Il suo scopo è importare le modifiche dalla scheda nello schema, per gli utenti che modificano le impronte nell'editor scheda (ad esempio usando il comando **Scambia impronte**) e desiderano reimportare questi cambiamenti nello schema.\n"
+"Il xref:../pcbnew/pcbnew_editing.adoc#forward-and-back-annotation[flusso di lavoro consigliato per il trasferimento delle informazioni dalla scheda allo schema] non richiede l'uso di file `.cmp`.\n"
+
+#. type: Title ====
+#: kicad.adoc:124
+#, no-wrap
+msgid "Fabrication and documentation files"
+msgstr "File di fabbricazione e documentazione"
+
+#. type: Table
+#: kicad.adoc:136
+#, no-wrap
+msgid ""
+"|`*.gbr` |Gerber files, for fabrication.\n"
+"|`*.drl` |Drill files (Excellon format), for fabrication.\n"
+"|`*.pos` |Position files (ASCII format), for automatic insertion machines.\n"
+"|`*.rpt` |Report files (ASCII format), for documentation.\n"
+"|`*.ps`  |Plot files (Postscript), for documentation.\n"
+"|`*.pdf` |Plot files (PDF format), for documentation.\n"
+"|`*.svg` |Plot files (SVG format), for documentation.\n"
+"|`*.dxf` |Plot files (DXF format), for documentation.\n"
+"|`*.plt` |Plot files (HPGL format), for documentation.\n"
+msgstr ""
+"|`*.gbr` |File Gerber, per la fabbricazione\n"
+"|`*.drl` |File di foratura (formato Excellon), per la fabbricazione\n"
+"|`*.pos` |File di posizionamento (formato ASCII), per le macchine per l'inserzione automatica\n"
+"|`*.rpt` |File di rapporto (formato ASCII), per documentazione\n"
+"|`*.ps`  |File di tracciatura (formato Postscript), per documentazione\n"
+"|`*.pdf` |File di tracciatura (formato PDF), per documentazione\n"
+"|`*.svg` |File di tracciatura (formato SVG), per documentazione\n"
+"|`*.dxf` |File di tracciatura (formato DXF), per documentazione\n"
+"|`*.plt` |File di tracciatura (formato HPGL), per documentazione\n"
+
+#. type: Title ====
+#: kicad.adoc:138
+#, no-wrap
+msgid "Storing and sending KiCad files"
+msgstr "Memorizzazione e invio file KiCad"
+
+#. type: Plain text
+#: kicad.adoc:144
+msgid ""
+"KiCad schematic and board files contain all the schematic symbols and "
+"footprints used in the design, so you can back up or send these files by "
+"themselves with no issue.  Some important design information is stored in "
+"the project file (`.kicad_pro`), so if you are sending a complete design, "
+"make sure to include it."
+msgstr ""
+"I file di schemi elettrici e C.S. di KiCad contengono tutti i simboli schema "
+"e le impronte utilizzati nel progetto, quindi si può eseguire il salvataggio "
+"o inviare questi file senza problemi. Alcune importanti informazioni sul "
+"progetto sono memorizzate nel file di progetto (`.kicad_pro`), quindi se si "
+"sta inviando un progetto completo, bisogna assicurarsi di includerlo."
+
+#. type: Plain text
+#: kicad.adoc:149
+msgid ""
+"Some files, such as the project-local settings file (`.kicad_prl`) and the "
+"`fp-info-cache` file, are not necessary to send with your project.  If you "
+"use a version control system such as Git to keep track of your KiCad "
+"projects, you may want to add these files to the list of ignored files so "
+"that they are not tracked."
+msgstr ""
+"Alcuni file, come quello delle impostazioni locali del progetto (`."
+"kicad_prl`) e `fp-info-cache`, non serve includerli nel progetto da inviare. "
+"Se si usa un sistema di controllo versione come Git per tenere sotto "
+"controllo progetti KiCad, potrebbe essere utile aggiungere anche questi file "
+"all'elenco dei file ignorati in modo che non vengano considerati."
+
+#. type: Title ==
+#: kicad.adoc:151
+#, no-wrap
+msgid "Installing and Upgrading KiCad"
+msgstr "Installazione e aggiornamento KiCad"
+
+#. type: Title ===
+#: kicad.adoc:154
+#, no-wrap
+msgid "Importing settings"
+msgstr "Importazione impostazioni"
+
+#. type: Plain text
+#: kicad.adoc:159
+msgid ""
+"Each major release of KiCad has its own configuration, so that you may run "
+"multiple KiCad versions on the same computer without the configurations "
+"interfering.  The first time you run a new version of KiCad, you will be "
+"asked how to initialize the settings:"
+msgstr ""
+"Ogni versione principale di KiCad ha la propria configurazione, in modo che "
+"si possa eseguire più versioni di KiCad sullo stesso computer senza che le "
+"configurazioni interferiscano fra loro. La prima volta che si esegue una "
+"nuova versione di KiCad, verrà chiesto come inizializzare le impostazioni:"
+
+#. type: Target for macro image
+#: kicad.adoc:160
+#, no-wrap
+msgid "images/configure_settings.png"
+msgstr "images/it/configure_settings.png"
+
+#. type: Plain text
+#: kicad.adoc:165
+msgid ""
+"If a previous version of KiCad is detected, you will have the option to "
+"import the settings from that version.  The location of the previous "
+"configuration files is detected automatically, but you may override it to "
+"choose another location if desired."
+msgstr ""
+"Se viene rilevata una versione precedente di KiCad, si avrà la possibilità "
+"di importare le impostazioni da quella versione. La posizione dei file di "
+"configurazione precedenti viene rilevata automaticamente, ma è possibile "
+"ignorarla per scegliere un'altra posizione, se lo si desidera."
+
+#. type: Plain text
+#: kicad.adoc:168
+msgid ""
+"Please note that, the schematic symbol and footprint library tables from the "
+"previous version of KiCad will **not** be imported."
+msgstr ""
+"Si noti che **non** verranno importate le tabelle delle librerie di simboli "
+"e di impronte dalle precedenti versioni di KiCad."
+
+#. type: Plain text
+#: kicad.adoc:171
+msgid ""
+"You may also choose to start with default settings if you do not want to "
+"import settings from a previous version."
+msgstr ""
+"Si può anche scegliere di iniziare con le impostazioni predefinite se non si "
+"desidera importare le impostazioni da una versione precedente."
+
+#. type: Plain text
+#: kicad.adoc:176
+msgid ""
+"KiCad stores the settings files in a folder inside your user directory.  "
+"Each KiCad version will store its settings in a subfolder of that folder "
+"(except for KiCad 5.1 and earlier, which did not use subfolders).  Those "
+"folders are:"
+msgstr ""
+"KiCad memorizza i file delle impostazioni in una cartella all'interno della "
+"cartella utente principale. Ogni versione di KiCad memorizzerà le sue "
+"impostazioni in una sottocartella di quella cartella (ad eccezione di KiCad "
+"5.1 e precedenti, che non utilizzava le sottocartelle). Quelle cartelle sono:"
+
+#. type: Table
+#: kicad.adoc:182
+#, no-wrap
+msgid ""
+"|Windows |`%APPDATA%\\kicad`\n"
+"|Linux   |`~/.config/kicad`\n"
+"|macOS  |`/Users/<username>/Library/Preferences/kicad`\n"
+msgstr ""
+"|Windows |`%APPDATA%\\kicad`\n"
+"|Linux   |`~/.config/kicad`\n"
+"|macOS  |`/Users/<nomeutente>/Library/Preferences/kicad`\n"
+
+#. type: Title ===
+#: kicad.adoc:184
+#, no-wrap
+msgid "Migrating files from previous versions"
+msgstr "Migrazione di file da versioni precedenti"
+
+#. type: Plain text
+#: kicad.adoc:191
+msgid ""
+"Modern versions of KiCad can open files created in earlier versions, but can "
+"only write files in the latest formats.  This means that in general, there "
+"are no special steps to migrate files from a previous version besides "
+"opening the files.  In some cases, the file extension for a file has changed "
+"from one KiCad version to the next.  After opening these files, they will be "
+"saved in the new format with the new file extension.  The old files will not "
+"be deleted automatically."
+msgstr ""
+"Le versioni moderne di KiCad possono aprire file creati da versioni "
+"precedenti, ma possono solo scrivere file nei formati più recenti. Ciò "
+"significa che in generale non ci sono passaggi speciali per migrare i file "
+"da una versione precedente oltre all'apertura dei file. In alcuni casi, "
+"l'estensione di un file viene modificata da una versione di KiCad a quella "
+"successiva. Dopo aver aperto questi file, verranno salvati nel nuovo formato "
+"con la nuova estensione del file. I vecchi file non verranno eliminati "
+"automaticamente."
+
+#. type: Plain text
+#: kicad.adoc:196
+msgid ""
+"In general, files created or modified by one version of KiCad **cannot** be "
+"opened by older versions of KiCad.  For this reason, it is important to keep "
+"backup copies of your projects when testing a new KiCad release, until you "
+"are confident that you will not need to use the older KiCad version anymore."
+msgstr ""
+"In generale, i file creati o modificati da una versione di KiCad **non** "
+"possono essere aperti da versioni precedenti di KiCad. Per questo motivo, è "
+"importante conservare copie di salvataggio dei propri progetti durante le "
+"prove di una nuova versione di KiCad, finché non si è sicuri di non dover "
+"più utilizzare la versione precedente di KiCad."
+
+#. type: Plain text
+#: kicad.adoc:201
+#, no-wrap
+msgid ""
+"Hotkey configurations are not imported from previous versions at this time.  You can manually\n"
+"      import hotkey configurations by copying the various `*.hotkeys` files from the old version\n"
+"      configuration directory to the new one.  If you do so, please note that KiCad will not\n"
+"      automatically detect conflicts such as one key being assigned to multiple actions.\n"
+msgstr ""
+"Attualmente le configurazioni dei tasti di scelta rapida non vengono importate dalle versioni precedenti. Si\n"
+"       può manualmente importare le configurazioni dei tasti di scelta rapida copiando i vari file `*.hotkeys`\n"
+"       dalla cartella di configurazione della vecchia versione in quella nuova. Nel caso, tenere presente\n"
+"       che KiCad non rileva automaticamente i conflitti come l'assegnazione di un tasto a più azioni.\n"
+
+#. type: Title ==
+#: kicad.adoc:203
+#, no-wrap
+msgid "Using KiCad project manager"
+msgstr "Uso del gestore del progetto di KiCad"
+
+#. type: Plain text
+#: kicad.adoc:207
+msgid ""
+"KiCad project manager (kicad or kicad.exe) is a tool which can easily run "
+"the other tools (schematic and board editors, Gerber viewer and utility "
+"tools) when creating a design."
+msgstr ""
+"Il gestore del progetto di KiCad (il file kicad o kicad.exe) è uno strumento "
+"che serve semplificare l'esecuzione di altri strumenti (editor di schemi "
+"elettrici e di circuito stampato, visualizzatori di file gerber e strumenti "
+"di utilità) quando si crea un progetto."
+
+#. type: Plain text
+#: kicad.adoc:209
+msgid "Running the other tools from KiCad manager has some advantages:"
+msgstr ""
+"L'esecuzione degli altri strumenti dal gestore del progetto di KiCad ha "
+"alcuni vantaggi:"
+
+#. type: Plain text
+#: kicad.adoc:211
+msgid "cross probing between schematic editor and board editor."
+msgstr ""
+"controllo incrociato tra editor di schemi elettrici e editor di circuiti "
+"stampati."
+
+#. type: Plain text
+#: kicad.adoc:214
+msgid ""
+"synchronization of the design between the schematic editor and board editor "
+"(without creating netlist files)"
+msgstr ""
+"sincronizzazione del progetto tra l'editor dello schema e l'editor del C.S. "
+"(senza creare file netlist)"
+
+#. type: Plain text
+#: kicad.adoc:219
+msgid ""
+"KiCad currently only supports having one project open at a time.  When "
+"running the schematic and board editors from the KiCad project manager, you "
+"can only edit the schematics and board associated with the open project.  "
+"When these tools are run in _standalone_ mode, you can open any file in any "
+"project, but cross probing between tools can give strange results."
+msgstr ""
+"KiCad attualmente supporta solo l'apertura di un progetto alla volta. Quando "
+"si eseguono gli editor di schemi e schede dalla gestione del progetto di "
+"KiCad, è possibile modificare solo gli schemi e la scheda associati al "
+"progetto aperto. Quando questi strumenti vengono eseguiti in modalità "
+"_autonoma_, si può aprire qualsiasi file in qualsiasi progetto, ma il "
+"controllo incrociato tra strumenti può dare risultati inattesi."
+
+#. type: Title ===
+#: kicad.adoc:220
+#, no-wrap
+msgid "Project manager window"
+msgstr "Finestra del gestore progetti"
+
+#. type: Target for macro image
+#: kicad.adoc:222
+#, no-wrap
+msgid "images/main_window.png"
+msgstr "images/it/main_window.png[]"
+
+#. type: Plain text
+#: kicad.adoc:227
+msgid ""
+"The KiCad project manager window is composed of a tree view on the left "
+"showing the files associated with the open project, and a launcher on the "
+"right containing shortcuts to the various editors and tools."
+msgstr ""
+"La finestra del gestore progetti di KiCad è composta da una vista ad albero "
+"sulla sinistra che mostra i file associati al progetto aperto, e un pannello "
+"di avvio sulla destra contenente i pulsanti da usare per eseguire vari "
+"editor e strumenti software."
+
+#. type: Title ===
+#: kicad.adoc:228
+#, no-wrap
+msgid "Project tree view"
+msgstr "La vista ad albero del progetto"
+
+#. type: Plain text
+#: kicad.adoc:233
+msgid ""
+"The tree view shows a list of files inside the project folder.  Double-"
+"clicking on a file in the tree view will open it in the associated editor.  "
+"Right-clicking on a file will open a context menu with some file "
+"manipulation commands."
+msgstr ""
+"La vista ad albero mostra un elenco di file all'interno della cartella del "
+"progetto. Facendo doppio clic su un file nella vista ad albero lo si aprirà "
+"nell'editor associato. Facendo clic con il pulsante destro del mouse su un "
+"file, si aprirà un menu contestuale con alcuni comandi di elaborazione del "
+"file."
+
+#. type: Target for macro image
+#: kicad.adoc:234
+#, no-wrap
+msgid "images/project_tree.png"
+msgstr "images/project_tree.png[]"
+
+#. type: Plain text
+#: kicad.adoc:237
+msgid ""
+"Only files that KiCad understands how to open are displayed in the project "
+"tree view."
+msgstr ""
+"Solo i file che KiCad sa come aprire vengono visualizzati nella vista ad "
+"albero del progetto."
+
+#. type: Title ===
+#: kicad.adoc:238
+#, no-wrap
+msgid "Side toolbar"
+msgstr "Barra strumenti laterale"
+
+#. type: Plain text
+#: kicad.adoc:241
+msgid ""
+"The toolbar on the left side of the window provides shortcuts for common "
+"project operations:"
+msgstr ""
+"La barra degli strumenti sul lato sinistro della finestra fornisce "
+"scorciatoie per le operazioni di progetto comuni:"
+
+#. type: Table
+#: kicad.adoc:258
+#, no-wrap
+msgid ""
+"|image:images/icons/new_project_24.png[]\n"
+"|Create a new project.\n"
+"|image:images/icons/open_project_24.png[]\n"
+"|Open an existing project.\n"
+"|image:images/icons/zip_24.png[]\n"
+"|Create a zip archive of the whole project. This includes schematic\n"
+"files, libraries, PCB, etc.\n"
+"|image:images/icons/unzip_24.png[]\n"
+"|Extract a project zip archive into a directory. Files in the destination\n"
+"directory will be overwritten.\n"
+"|image:images/icons/reload_24.png[]\n"
+"|Refresh the tree view, to detect changes made on the filesystem.\n"
+"|image:images/icons/directory_browser_24.png[]\n"
+"|Open the project working directory in a file explorer.\n"
+msgstr ""
+"|image:images/icons/new_project_24.png[]\n"
+"|Crea un nuovo progetto.\n"
+"|image:images/icons/open_project_24.png[]\n"
+"|Apri un progetto esistente.\n"
+"|image:images/icons/zip_24.png[]\n"
+"|Crea un archivio zip dell'intero progetto. Questo includerà i file\n"
+"dello schema, librerie, C.S., ecc.\n"
+"|image:images/icons/unzip_24.png[]\n"
+"|Estrai un archivio zip di un progetto in una cartella. I file nella cartella\n"
+"di destinazione verranno sovrascritti.\n"
+"|image:images/icons/reload_24.png[]\n"
+"|Ricarica la vista ad albero, per rilevare cambiamenti fatti sul filesystem.\n"
+"|image:images/icons/directory_browser_24.png[]\n"
+"|Apre la cartella di lavoro del progetto nella gestione file.\n"
+
+#. type: Title ===
+#: kicad.adoc:260
+#, no-wrap
+msgid "Creating a new project"
+msgstr "Creazione di un nuovo progetto"
+
+#. type: Plain text
+#: kicad.adoc:266
+msgid ""
+"Most KiCad designs start with the creation of a project.  There are two ways "
+"to create a project from the KiCad project manager: you may create an empty "
+"project, or create a project based on an existing template.  This section "
+"will cover the creation of a new, empty project.  Creating projects from "
+"templates is covered in the <<project-templates,Project Templates>> section."
+msgstr ""
+"La maggior parte dei progetti KiCad si iniziano con la creazione di un "
+"progetto. Esistono due modi per creare un progetto dalla gestione progetti "
+"di KiCad: si può creare un progetto vuoto o creare un progetto basato su un "
+"modello esistente. Questa sezione tratterà la creazione di un nuovo progetto "
+"vuoto. La creazione di progetti da modelli è trattata nella sezione "
+"<<project-templates,Modelli di progetto>>."
+
+#. type: Plain text
+#: kicad.adoc:269
+msgid ""
+"To create a new project, use the **New Project...** command in the **File** "
+"menu, click the **New Project** button in the top toolbar, or use the "
+"keyboard shortcut (`Ctrl+N` by default)."
+msgstr ""
+"Per creare un nuovo progetto, usare il comando **Nuovo progetto...** nel "
+"menu **File**, fare clic sul pulsante **Nuovo progetto** nella barra degli "
+"strumenti in alto o usare la scorciatoia da tastiera (`Ctrl+N` per "
+"impostazione predefinita)."
+
+#. type: Plain text
+#: kicad.adoc:273
+msgid ""
+"You will be prompted for a name to give your project.  By default, a "
+"directory will be created for your project with the same name.  For example, "
+"if you enter the name `MyProject`, KiCad will create the directory "
+"`MyProject` and the project file `MyProject/MyProject.kicad_pro` inside it."
+msgstr ""
+"Ti verrà chiesto un nome da assegnare al progetto. Per impostazione "
+"predefinita, verrà creata una directory per il tuo progetto con lo stesso "
+"nome. Ad esempio, se si inserisce il nome `MioProgetto`, KiCad creerà la "
+"cartella `MioProgetto` e il file di progetto `MioProgetto/MioProgetto."
+"kicad_pro` al suo interno."
+
+#. type: Plain text
+#: kicad.adoc:276
+msgid ""
+"If you already have a directory to store your project files in, you can "
+"uncheck the _Create a new directory for the project_ checkbox in the **New "
+"Project** dialog."
+msgstr ""
+"Se si dispone già di una cartella in cui archiviare i file del progetto, si "
+"può deselezionare la casella di controllo _Crea una nuova cartella per il "
+"progetto_ nella finestra di dialogo **Nuovo progetto**."
+
+#. type: Plain text
+#: kicad.adoc:278
+msgid ""
+"It is strongly recommended that you store each KiCad project inside its own "
+"directory."
+msgstr ""
+"È fortemente raccomandato memorizzare ogni progetto KiCad dentro la "
+"corrispondente cartella."
+
+#. type: Plain text
+#: kicad.adoc:281
+msgid ""
+"Once you select the name of your project, KiCad will create the following "
+"files inside the project directory:"
+msgstr ""
+"Una volta selezionato il nome del progetto, KiCad creerà i seguenti file "
+"all'interno della cartella del progetto:"
+
+#. type: Table
+#: kicad.adoc:287
+#, no-wrap
+msgid ""
+"|`example.kicad_pro` |KiCad project file.\n"
+"|`example.kicad_sch` |Main schematic file.\n"
+"|`example.kicad_pcb` |Printed circuit board file.\n"
+msgstr ""
+"|`esempio.kicad_pro` |File progetto KiCad.\n"
+"|`esempio.kicad_sch` |File schema elettrico principale.\n"
+"|`esempio.kicad_pcb` |File del circuito stampato.\n"
+
+#. type: Title ===
+#: kicad.adoc:289
+#, no-wrap
+msgid "Importing a project from another EDA tool"
+msgstr "Importazione di un progetto da un altro strumento EDA"
+
+#. type: Plain text
+#: kicad.adoc:293
+msgid ""
+"KiCad is able to import files created by some other software packages. "
+"Currently the following types of project are supported:"
+msgstr ""
+"KiCad è in grado di importare file creati usando altri pacchetti software. "
+"Attualmente sono supportati i seguenti tipi di progetto:"
+
+#. type: Table
+#: kicad.adoc:298
+#, no-wrap
+msgid ""
+"|`\\*.sch`, `*.brd` |Eagle 6.x or newer (XML format)\n"
+"|`\\*.csa`, `*.cpa` |CADSTAR archive format\n"
+msgstr ""
+"|`\\*.sch`, `*.brd` |Eagle 6.x o più recente (formato XML)\n"
+"|`\\*.csa`, `*.cpa` |Formato archivio CADSTAR\n"
+
+#. type: Plain text
+#: kicad.adoc:302
+msgid ""
+"To import a project from one of these tools, choose the appropriate option "
+"from the **Import Non-KiCad Project** submenu of the **File** menu."
+msgstr ""
+"Per importare un progetto da uno di questi strumenti, scegliere l'opzione "
+"appropriata dal sottomenu **Importa progetto non KiCad** del menu **File**."
+
+#. type: Plain text
+#: kicad.adoc:307
+msgid ""
+"You will be prompted to select either a schematic or a board file in the "
+"import file browser dialog. The imported schematic and board files should "
+"have the same base file name (e.g.  project.sch and project.brd). Once the "
+"requested files are selected, you will be asked to select a directory to "
+"store the resulting KiCad project."
+msgstr ""
+"Verrà richiesto di selezionare un file di schema elettrico o di un circuito "
+"stampato nella finestra di dialogo della selezione dei file di importazione. "
+"I file dello schema e dello stampato devono avere lo stesso nome del file di "
+"base (ad es. progetto.sch e progetto.brd). Una volta selezionati i file "
+"richiesti, verrà chiesto di selezionare una cartella in cui memorizzare il "
+"progetto KiCad risultante."
+
+#. type: Title ==
+#: kicad.adoc:309
+#, no-wrap
+msgid "KiCad configuration"
+msgstr "Configurazione KiCad"
+
+#. type: Plain text
+#: kicad.adoc:315
+msgid ""
+"The KiCad preferences can always be accessed from the **Preferences** menu, "
+"or by using the hotkey (default `Ctrl+,`). The Preferences dialog is shared "
+"between the running KiCad tools.  Some preferences apply to all tools, and "
+"some are specific to a certain tool (such as the schematic or board editor)."
+msgstr ""
+"È sempre possibile accedere alle preferenze di KiCad dal menu **Preferenze** "
+"o utilizzando il tasto di scelta rapida (predefinito `Ctrl+,`). La finestra "
+"di dialogo Preferenze è condivisa tra gli strumenti di KiCad in esecuzione. "
+"Alcune preferenze si applicano a tutti gli strumenti e alcune sono "
+"specifiche per un determinato strumento (come l'editor schema o l'editor di "
+"schede)."
+
+#. type: Title ===
+#: kicad.adoc:316
+#, no-wrap
+msgid "Common preferences"
+msgstr "Preferenze comuni"
+
+#. type: Target for macro image
+#: kicad.adoc:318
+#, no-wrap
+msgid "images/preferences_common.png"
+msgstr "images/it/preferences_common.png"
+
+#. type: Plain text
+#: kicad.adoc:323
+#, no-wrap
+msgid ""
+"**Accelerated graphics antialising:** KiCad can use different methods to prevent aliasing\n"
+"(jagged lines) when rendering using a graphics card.  Different methods may look better on\n"
+"different hardware, so you may want to experiment to find the one that looks best to you.\n"
+msgstr ""
+"**Antialising grafico accelerato:** KiCad può utilizzare diversi metodi per prevenire l'aliasing (linee\n"
+"frastagliate) durante il rendering utilizzando una scheda grafica. Diversi metodi possono avere un aspetto\n"
+"migliore su hardware diverso, quindi è meglio sperimentare per trovare quello che sembra migliore.\n"
+
+#. type: Plain text
+#: kicad.adoc:326
+#, no-wrap
+msgid ""
+"**Fallback graphics antialiasing:** KiCad can also apply antialiasing when using the fallback\n"
+"graphics mode.  Enabling this feature may result in poor performance on some hardware.\n"
+msgstr ""
+"**Antialiasing grafica di ripiego:** KiCad può fare l'antialiasing anche in modalità grafica di ripiego.\n"
+"L'abilitazione di questa funzione però può comportare prestazioni scadenti su alcuni dispositivi.\n"
+
+#. type: Plain text
+#: kicad.adoc:328
+#, no-wrap
+msgid "**Text editor:** Choose a text editor to use when opening text files from the project tree view.\n"
+msgstr "**Editor di testo:** scegli un editor di testo da usare per aprire i file di testo dalla finestra dell'albero del progetto.\n"
+
+#. type: Plain text
+#: kicad.adoc:330
+#, no-wrap
+msgid "**PDF viewer:** Choose a program to use when opening PDF files.\n"
+msgstr "**Visualizzatore PDF:** scegli un programma da usare per aprire i file PDF.\n"
+
+#. type: Plain text
+#: kicad.adoc:332
+#, no-wrap
+msgid "**Show icons in menus:** Enables icons in drop-down menus throughout the KiCad user interface.\n"
+msgstr "**Mostra le icone nei menu:** abilita le icone nei menu a discesa in tutta l'interfaccia utente di KiCad.\n"
+
+#. type: Plain text
+#: kicad.adoc:334
+msgid "Icons in menus are not displayed on some operating systems."
+msgstr ""
+"Le icone nei menu non vengono comunque visualizzate in alcuni sistemi "
+"operativi."
+
+#. type: Plain text
+#: kicad.adoc:337
+#, fuzzy, no-wrap
+msgid ""
+"**Show scrollbars in editors:** When enabled, scrollbars are displayed next to the editing\n"
+"canvases in each tool. When disabled, scrollbars are not shown.\n"
+msgstr ""
+"**Mostra barre di scorrimento negli editor:** se abilitata, le barre di scorrimento verranno visualizzate\n"
+"accanto alla zona di lavoro in ogni strumento. Se disabilitata, le barre di scorrimento non vengono visualizzate."
+
+#. type: Plain text
+#: kicad.adoc:340
+#, no-wrap
+msgid ""
+"**Focus follows mouse between schematic and PCB editors:** When enabled, the window under the\n"
+"mouse cursor will automatically become focused.\n"
+msgstr ""
+"**Il focus segue il mouse tra gli editor dello schema e del C.S.:** Quando abilitata, la finestra sotto il\n"
+"puntatore del mouse prenderà il focus automaticamente.\n"
+
+#. type: Plain text
+#: kicad.adoc:344
+#, no-wrap
+msgid ""
+"**Icon scale:** Sets the size of the icons used in menus and buttons throughout KiCad.  Choose\n"
+"_Automatic_ to pick an appropriate icon scale automatically based on your operating system\n"
+"settings.\n"
+msgstr ""
+"**Scala icona:** imposta la dimensione delle icone usate nei menu e nei pulsanti in tutto KiCad.\n"
+"Scegliere _Automatico_ per fare in modo che scelga automaticamente una scala icone appropriata\n"
+"in base alle impostazioni del proprio sistema operativo.\n"
+
+#. type: Plain text
+#: kicad.adoc:348
+#, no-wrap
+msgid ""
+"**Icon theme:** Sets whether to use the icon theme designed for light window backgrounds or dark\n"
+"window backgrounds.  The default setting of Automatic will choose the theme based on the lightness\n"
+"of the operating system window theme.\n"
+msgstr ""
+"**Tema icone:** imposta se usare il tema icone progettato per gli sfondi finestre chiari o per\n"
+"quelli scuri. L'impostazione predefinita automatica sceglierà il tema in base alla luminosità\n"
+"del tema delle finestre del sistema operativo.\n"
+
+#. type: Plain text
+#: kicad.adoc:351
+#, no-wrap
+msgid ""
+"**High-contrast mode dimming factor:** Sets how much non-focused items are\n"
+"dimmed in high-contrast display mode.\n"
+msgstr ""
+"**Fattore di attenuazione modalità alto contrasto:** imposta la quantità di oscuramento\n"
+"degli elementi non a fuoco nella modalità di visualizzazione ad alto contrasto.\n"
+
+#. type: Plain text
+#: kicad.adoc:354
+#, no-wrap
+msgid ""
+"**Warp mouse to origin of moved object:** When enabled, the mouse cursor will be repositioned\n"
+"(warped) to the origin of an object when you start a move command on that object.\n"
+msgstr ""
+"**Sposta il mouse all'origine dell'oggetto spostato:** se abilitata, il cursore del mouse verrà\n"
+"riposizionato all'origine di un oggetto quando si avvia un comando di spostamento su quell'oggetto.\n"
+
+#. type: Plain text
+#: kicad.adoc:358
+#, no-wrap
+msgid ""
+"**First hotkey selects tool:** When disabled, pressing the hotkey for a command such as _Add Wire_\n"
+"will immediately start the command at the current cursor location.  When enabled, pressing the\n"
+"hotkey the first time will just select the _Add Wire_ tool but will not immediately begin a wire.\n"
+msgstr ""
+"**Il tasto seleziona la strumento:** se disabilitata, eseguendo un comando da tastiera come _Aggiungi filo_\n"
+"inizierà immediatamente il comando alla posizione corrente del puntatore. Se abilitata, premendo il comando\n"
+"la prima volta selezionerà solamente lo strumento _Aggiungi filo_ ma non comincerà immediatamente un filo.\n"
+
+#. type: Plain text
+#: kicad.adoc:361
+#, no-wrap
+msgid ""
+"**Remember open files for next project launch:** When enabled, KiCad will automatically re-open any\n"
+"files that were previously open when a project is re-opened.\n"
+msgstr ""
+"**Ricorda i file aperti per il prossimo lancio del progetto:** se abilitata, KiCad riaprirà\n"
+"automaticamente tutti i file che erano stati aperti in precedenza alla riapertura di un progetto.\n"
+
+#. type: Plain text
+#: kicad.adoc:364
+#, no-wrap
+msgid ""
+"**Auto save:** When editing schematics and board files, KiCad can automatically save your work\n"
+"periodically.  Set to `0` to disable this feature.\n"
+msgstr ""
+"**Salvataggio automatico:** durante la modifica di file schemi e schede, KiCad può salvare il lavoro\n"
+"periodicamente in automatico. Impostare su `0` per disabilitare questa funzione.\n"
+
+#. type: Plain text
+#: kicad.adoc:366
+#, no-wrap
+msgid "**File history size:** Configure the number of entries in the list of recently-opened files\n"
+msgstr "**Dimensione cronologia file:** configura il numero massimo di voci nell'elenco dei file aperti recentemente.\n"
+
+#. type: Plain text
+#: kicad.adoc:369
+#, no-wrap
+msgid ""
+"**3D cache file duration:** KiCad creates a cache of 3D models in order to speed up the 3D viewer.\n"
+"You can configure how long to keep this cache before deleting old files.\n"
+msgstr ""
+"**Durata file cache 3D:** KiCad crea una cache di modelli 3D per velocizzare il visualizzatore 3D.\n"
+"Si può configurare per quanto tempo conservare questa cache prima di eliminare i vecchi file.\n"
+
+#. type: Plain text
+#: kicad.adoc:373
+#, no-wrap
+msgid ""
+"**Automatically backup projects:** When enabled, KiCad projects will be archived to ZIP files\n"
+"automatically according to the settings below.  The archives will be stored in a subfolder of the\n"
+"project folder.  Backups are created when saving files in the project.\n"
+msgstr ""
+"**Backup automatico dei progetti:** se abilitata, i progetti KiCad verranno archiviati automaticamente in file ZIP\n"
+"in base alle impostazioni di seguito. Gli archivi verranno memorizzati in una sottocartella della cartella del progetto.\n"
+"I backup vengono creati quando si effettua il salvataggio dei file nel progetto.\n"
+
+#. type: Plain text
+#: kicad.adoc:377
+#, no-wrap
+msgid ""
+"**Create backups when auto save occurs:** When enabled, a backup will be created every time an\n"
+"automatic file save occurs (if the backup is permitted by the settings below).  This setting has\n"
+"no effect if the auto save interval is set to `0` (disabled).\n"
+msgstr ""
+"**Crea backup all'autosalvataggio:** se abilitata, verrà creato un backup ogni volta che si verifica un\n"
+"salvataggio automatico file (se il backup è consentito dalle impostazioni di seguito). Questa impostazione\n"
+"non ha effetto se l'intervallo di salvataggio automatico è impostato su `0` (disabilitato).\n"
+
+#. type: Plain text
+#: kicad.adoc:380
+#, no-wrap
+msgid ""
+"**Maximum backups to keep:** When creating a new backup, the oldest backup file will be deleted to\n"
+"keep the total number of backup files below this limit.\n"
+msgstr ""
+"**Numero max backup da tenere:** quando si crea un nuovo backup, il file di backup più vecchio verrà\n"
+"eliminato per mantenere il numero totale di file di backup al di sotto di questo limite.\n"
+
+#. type: Plain text
+#: kicad.adoc:383
+#, no-wrap
+msgid ""
+"**Maximum backups per day:** When creating a new backup, the oldest backup file created on the\n"
+"current day will be deleted to stay below this limit.\n"
+msgstr ""
+"**Numero max backup per giorno:** quando si crea un nuovo backup, il file di backup più vecchio\n"
+"creato nel giorno corrente verrà eliminato per rimanere al di sotto di questo limite.\n"
+
+#. type: Plain text
+#: kicad.adoc:386
+#, no-wrap
+msgid ""
+"**Minimum time between backups:** If backup is triggered (for example, by saving a board file),\n"
+"the backup will not be created if an existing backup file is newer than this limit.\n"
+msgstr ""
+"**Tempo minimo tra i backup:** Se il backup viene attivato (ad esempio, salvando un file scheda),\n"
+"il backup non verrà creato se un file di backup esistente è più recente di questo limite.\n"
+
+#. type: Plain text
+#: kicad.adoc:389
+#, no-wrap
+msgid ""
+"**Maximum total backup size:** When creating a new backup file, the oldest backup files will be\n"
+"deleted to keep the total size of the backup files directory below this limit.\n"
+msgstr ""
+"**Dimensione massima totale backup:** quando si crea un nuovo backup, i file di backup meno recenti verranno\n"
+"eliminati per mantenere la dimensione totale della cartella dei file di backup al di sotto di questo limite.\n"
+
+#. type: Title ===
+#: kicad.adoc:390
+#, no-wrap
+msgid "Mouse and touchpad preferences"
+msgstr "Preferenze di mouse e touchpad"
+
+#. type: Target for macro image
+#: kicad.adoc:392
+#, no-wrap
+msgid "images/preferences_mouse_and_touchpad.png"
+msgstr "images/it/preferences_mouse_and_touchpad.png"
+
+#. type: Plain text
+#: kicad.adoc:396
+#, no-wrap
+msgid ""
+"**Center and warp cursor on zoom:** When enabled, zooming using the hotkeys or mouse wheel will\n"
+"cause the view to be centered on the cursor location.\n"
+msgstr ""
+"**Centra e sposta il puntatore con lo zoom:** se abilitata, facendo zoom usando i comandi da tastiera\n"
+"o la rotellina del mouse, la vista verrà centrata sulla posizione del puntatore.\n"
+
+#. type: Plain text
+#: kicad.adoc:399
+#, no-wrap
+msgid ""
+"**Use zoom acceleration:** When enabled, scrolling the mouse wheel or touchpad faster will cause\n"
+"the zoom to change faster.\n"
+msgstr ""
+"**Usa accelerazione zoom:** se abilitata, lo scorrimento più veloce della rotellina del mouse\n"
+"o del touchpad farà cambiare lo zoom più velocemente.\n"
+
+#. type: Plain text
+#: kicad.adoc:402
+#, no-wrap
+msgid ""
+"**Zoom speed:** Controls how much the zoom changes for a given amount of scrolling the mouse wheel\n"
+"or touchpad.  Use _Automatic_ to set a default value depending on your operating system.\n"
+msgstr ""
+"**Velocità zoom:** controlla quanto cambia lo zoom per una determinata quantità di scorrimento della rotellina del\n"
+"mouse o del touchpad. Utilizzare _Automatico_ per impostare un valore predefinito a seconda del sistema operativo.\n"
+
+#. type: Plain text
+#: kicad.adoc:405
+#, no-wrap
+msgid ""
+"**Automatically pan while moving object:** When enabled, the view can be panned while moving an\n"
+"object by moving close to the edge of the canvas.\n"
+msgstr ""
+"**Pan automatico mentre si sposta un oggetto:** se abilitata, la vista può essere spostata (pan)\n"
+"mentre si sta spostando un oggetto in prossimità del bordo dell'area di disegno.\n"
+
+#. type: Plain text
+#: kicad.adoc:407
+#, no-wrap
+msgid "**Auto pan speed:** Controls how fast the canvas pans while moving an object.\n"
+msgstr "**Velocità autopan:** controlla la velocità di spostamento dell'area di disegno durante lo spostamento di un oggetto.\n"
+
+#. type: Plain text
+#: kicad.adoc:411
+#, no-wrap
+msgid ""
+"**Mouse buttons:** You can set the behavior of dragging the middle and right mouse buttons to zoom\n"
+"the view, pan the view, or have no effect.  You can also set the behavior of dragging the left\n"
+"mouse button depending on whether or not any objects are already selected in the editing canvas.\n"
+msgstr ""
+"**Pulsanti del mouse:** è possibile impostare il comportamento del trascinamento dei pulsanti centrale e destro del mouse\n"
+"per ingrandire la vista, eseguire una panoramica della vista o non avere alcun effetto. Si può anche impostare il comportamento\n"
+"del trascinamento del pulsante sinistro del mouse a seconda che nell'area di modifica siano già selezionati o meno oggetti.\n"
+
+#. type: Plain text
+#: kicad.adoc:413
+msgid ""
+"The left mouse button is always used for selecting and manipulating objects."
+msgstr ""
+"Il pulsante sinistro del mouse viene usato sempre per selezionare e gestire "
+"oggetti."
+
+#. type: Plain text
+#: kicad.adoc:416
+#, no-wrap
+msgid ""
+"**Mouse wheel and touchpad scrolling:** You can set the behavior of scrolling the mouse wheel or\n"
+"vertical motion of the touchpad while pressing certain modifier keys.\n"
+msgstr ""
+"**Rotellina del mouse e scorrimento touchpad:** si può impostare il comportamento della rotellina\n"
+"del mouse o del movimento verticale del touchpad durante la pressione di certi tasti modificatori.\n"
+
+#. type: Plain text
+#: kicad.adoc:419
+#, no-wrap
+msgid ""
+"**Pan left/right with horizontal movement:** When enabled, you can pan the view using the touchpad\n"
+"or horizontal scroll wheel (if present on your mouse).\n"
+msgstr ""
+"**Pan sinista/destra con movimento orizzontale:** se abilitata, si può ottenere lo scorrimento orizzontale\n"
+"della vista usando il touchpad o la rotellina di scorrimento orizzontale (se presente nel mouse).\n"
+
+#. type: Title ===
+#: kicad.adoc:420
+#, no-wrap
+msgid "Hotkey preferences"
+msgstr "Preferenze comandi da tastiera"
+
+#. type: Target for macro image
+#: kicad.adoc:422
+#, no-wrap
+msgid "images/preferences_hotkeys.png"
+msgstr "images/it/preferences_hotkeys.png"
+
+#. type: Plain text
+#: kicad.adoc:429
+msgid ""
+"You can use this dialog to customize the hotkeys used to control KiCad.  The "
+"hotkeys in the _Common_ section are shared between every KiCad program. "
+"Hotkeys for each specific KiCad program are shown when that program is "
+"running.  You can assign the same hotkey to a different action in different "
+"KiCad programs (for example, the schematic editor and the board editor), but "
+"you cannot assign a hotkey to more than one action in the same program."
+msgstr ""
+"Si può usare questa finestra di dialogo per personalizzare i comandi da "
+"tastiera usati per controllare KiCad. I comandi da tastiera nella sezione "
+"_Comuni_ sono condivisi tra ogni programma KiCad. I comandi da tastiera per "
+"ogni programma KiCad specifico vengono visualizzati quando quel programma è "
+"in esecuzione. Si può assegnare lo stesso tasto ad un'azione diversa in "
+"diversi programmi KiCad (ad esempio, l'editor di schemi e l'editor di "
+"schede), ma non si può assegnare lo stesso tasto a più di un'azione nello "
+"stesso programma."
+
+#. type: Plain text
+#: kicad.adoc:434
+msgid ""
+"There are many available commands, and so not all of them have a hotkey "
+"assigned by default.  You can add a hotkey to any command by double-clicking "
+"on the command in the list.  If you choose a hotkey that is already assigned "
+"to a different command, you can choose to use that hotkey on your chosen "
+"command, which will remove the hotkey assignment from the conflicting "
+"command."
+msgstr ""
+"Ci sono molti comandi disponibili e quindi non tutti hanno un tasto "
+"assegnato per impostazione predefinita. È possibile assegnare un tasto a un "
+"qualsiasi comando facendo doppio clic sul comando nell'elenco. Se si sceglie "
+"un tasto già assegnato a un comando diverso, si può scegliere di continuare "
+"a usare quel tasto sul comando scelto, rimuovendo l'assegnazione del tasto "
+"dal comando in conflitto."
+
+#. type: Plain text
+#: kicad.adoc:438
+msgid ""
+"Changes that you have made to hotkey assignments are shown with a `*` "
+"character at the end of the command name.  You can undo changes to a "
+"specific command by right-clicking that command and selecting **Undo "
+"Changes**, or you can undo all changes with the button below the command "
+"list."
+msgstr ""
+"Le modifiche apportate alle assegnazioni dei tasti vengono visualizzate con "
+"un carattere `*` alla fine del nome del comando. Si può annullare le "
+"modifiche a un comando specifico facendo clic con il pulsante destro del "
+"mouse su quel comando e selezionando **Annulla cambiamenti**, oppure si può "
+"annullare tutte le modifiche con il pulsante sotto l'elenco dei comandi."
+
+#. type: Plain text
+#: kicad.adoc:440
+#, no-wrap
+msgid "**Importing hotkeys**\n"
+msgstr "**Importazione comandi da tastiera**\n"
+
+#. type: Plain text
+#: kicad.adoc:445
+msgid ""
+"Hotkey preferences are stored in `.hotkeys` files in the KiCad settings "
+"directory (see the <<settings,Settings>> section for information about where "
+"the settings directory is on your operating system).  If you have configured "
+"KiCad hotkeys the way you like on one computer, you can transfer that "
+"configuration to another computer by importing the appropriate `.hotkeys` "
+"file(s)."
+msgstr ""
+"Le preferenze dei comandi da tastiera sono memorizzate in file `.hotkeys` "
+"nella cartella delle impostazioni di KiCad (consultare la sezione <<settings,"
+"Impostazioni>> per informazioni su dove si trova la cartella delle "
+"impostazioni sul proprio sistema operativo). Se si ha personalizzato i "
+"comandi da tastiera di KiCad come si preferisce su un computer, si può "
+"trasferire questa configurazione su un altro computer importando i file `."
+"hotkeys` appropriati."
+
+#. type: Title ===
+#: kicad.adoc:446
+#, no-wrap
+msgid "Paths configuration"
+msgstr "Configurazione percorsi"
+
+#. type: Plain text
+#: kicad.adoc:451
+msgid ""
+"In KiCad, one can define paths using an *environment variable*.  A few "
+"environment variables are internally defined by KiCad, and can be used to "
+"define paths for libraries, 3D shapes, etc."
+msgstr ""
+"In KiCad, si possono definire alcuni percorsi usando *variabili ambiente*.  "
+"Alcune variabili ambiente vengono definite internamente da KiCad, e possono "
+"essere usate per definire percorsi per librerie, forme 3D, eccetera."
+
+#. type: Plain text
+#: kicad.adoc:456
+msgid ""
+"This is useful when absolute paths are not known or are subject to change (e."
+"g.  when you transfer a project to a different computer), and also when one "
+"base path is shared by many similar items. Consider the following which may "
+"be installed in varying locations:"
+msgstr ""
+"Ciò è utile quando i percorsi assoluti non sono conosciuti o sono soggetti a "
+"cambiamenti (per es. quando si trasferisce un progetto su un altro "
+"computer), o anche quando un percorso base viene condiviso con altri simili. "
+"Si consideri per esempio i seguenti che possono essere installati in "
+"posizioni variabili:"
+
+#. type: Plain text
+#: kicad.adoc:458
+msgid "Schematic symbol libraries"
+msgstr "Librerie di simboli di schema elettrico"
+
+#. type: Plain text
+#: kicad.adoc:459
+msgid "Footprint libraries"
+msgstr "Librerie di impronte"
+
+#. type: Plain text
+#: kicad.adoc:460
+msgid "3D model files used in footprint definitions"
+msgstr "File modelli 3D usati nelle definizioni delle impronte"
+
+#. type: Plain text
+#: kicad.adoc:464
+#, fuzzy
+#| msgid ""
+#| "For instance, the path to the `connect.pretty` footprint library, when "
+#| "using the `KICAD6_FOOTPRINT_DIR` environment variable, would be defined "
+#| "as `$\\{KICAD6_FOOTPRINT_DIR\\}/connect.pretty`."
+msgid ""
+"For instance, the path to the `connect.pretty` footprint library, when using "
+"the `KICAD7_FOOTPRINT_DIR` environment variable, would be defined as `$"
+"\\{KICAD7_FOOTPRINT_DIR\\}/connect.pretty`."
+msgstr ""
+"Per esempio, il percorso della libreria di impronte `connect.pretty`, quando "
+"si usa la variabile ambiente `KICAD6_FOOTPRINT_DIR`, sarà definito come `$"
+"\\{KICAD6_FOOTPRINT_DIR\\}/connect.pretty`."
+
+#. type: Plain text
+#: kicad.adoc:468
+msgid ""
+"The *Preferences* -> *Configure Paths...* menu allows you to define paths "
+"for some built-in KiCad environment variables, and add your own environment "
+"variables to define personal paths, if needed."
+msgstr ""
+"Il menu *Preferenze* -> *Configura percorsi...* consente di definire "
+"percorsi per alcune variabili ambiente integrate in KiCad e di aggiungere le "
+"proprie variabili ambiente per definire percorsi personali, se necessario."
+
+#. type: Title ====
+#: kicad.adoc:470
+#, fuzzy, no-wrap
+#| msgid "*KiCad environment variables:*\n"
+msgid "KiCad environment variables"
+msgstr "*Variabili ambiente KiCad:*\n"
+
+#. type: Table
+#: kicad.adoc:483
+#, fuzzy, no-wrap
+#| msgid ""
+#| "|KICAD7_3DMODEL_DIR |Base path of 3D models used in footprints.\n"
+#| "|KICAD7_3RD_PARTY |Location for plugins, libraries, and color themes installed by the <<plugin-content-manager,Plugin and Content Manager>>.\n"
+#| "|KICAD7_FOOTPRINT_DIR |Base path of footprint library files.\n"
+#| "|KICAD7_SYMBOL_DIR |Base path of symbol library files.\n"
+#| "|KICAD7_TEMPLATE_DIR |Location of project templates installed with KiCad.\n"
+#| "|KICAD_USER_TEMPLATE_DIR |Location of personal project templates.\n"
+msgid ""
+"|KICAD7_3DMODEL_DIR |Base path of KiCad's standard 3D footprint model library files.\n"
+"|KICAD7_3RD_PARTY |Location for plugins, libraries, and color themes installed by the <<plugin-content-manager,Plugin and Content Manager>>.\n"
+"|KICAD7_FOOTPRINT_DIR |Base path of KiCad's standard footprint library files.\n"
+"|KICAD7_SYMBOL_DIR |Base path of KiCad's standard symbol library files.\n"
+"|KICAD7_TEMPLATE_DIR |Location of KiCad's standard project template library files.\n"
+"|KICAD_USER_TEMPLATE_DIR |Location of personal project templates.\n"
+"|SPICE_LIB_DIR\n"
+"  |Location of personal xref:../eeschema/eeschema.adoc#sim-library[simulation model libraries].\n"
+"  This variable is not defined by default.\n"
+msgstr ""
+"|KICAD7_3DMODEL_DIR |Percorso base dei modelli 3D usati nelle impronte.\n"
+"|KICAD7_3RD_PARTY |Posizione di plugin, librerie, e temi di colore installati dal <<plugin-content-manager,Gestore plugin e contenuti>>.\n"
+"|KICAD7_FOOTPRINT_DIR |Percorso base dei file di libreria impronte.\n"
+"|KICAD7_SYMBOL_DIR |Percorso base dei file di libreria simboli.\n"
+"|KICAD7_TEMPLATE_DIR |Posizione dei modelli di progetto installati con KiCad.\n"
+"|KICAD_USER_TEMPLATE_DIR |Posizione dei modelli di progetto personali.\n"
+
+#. type: Target for macro image
+#: kicad.adoc:485
+#, no-wrap
+msgid "images/configure_path_dlg.png"
+msgstr "images/it/configure_path_dlg.png"
+
+#. type: Plain text
+#: kicad.adoc:490
+msgid ""
+"Paths set in the Configure Paths dialog are internal to KiCad and are not "
+"visible as environment variables outside of KiCad. They are stored in "
+"<<config-file-location,KiCad's user configuration files>>."
+msgstr ""
+"I percorsi impostati nella finestra di dialogo Configura percorsi sono "
+"interni a KiCad e non sono visibili come variabili ambiente al di fuori di "
+"KiCad. Sono memorizzati nei <<config-file-location,file di configurazione "
+"utente di KiCad>>."
+
+#. type: Plain text
+#: kicad.adoc:493
+msgid ""
+"Paths can also be set as environment variables outside of KiCad, which will "
+"override any settings in the user's configuration."
+msgstr ""
+"I percorsi possono anche essere impostati come variabili ambiente al di "
+"fuori di KiCad; questi ignoreranno qualsiasi impostazione nella "
+"configurazione dell'utente."
+
+#. type: Plain text
+#: kicad.adoc:498
+#, no-wrap
+msgid ""
+"You cannot override an environment\n"
+"      variable that has been set outside of KiCad by using the Configure Paths dialog.\n"
+"      Any variable that has been set externally will be shown as read-only in the\n"
+"      dialog.\n"
+msgstr ""
+"Non è possibile riscrivere una variabile ambiente\n"
+"      che sia stata impostata al di fuori di KiCad usando la finestra di dialogo Configura percorsi.\n"
+"      Qualsiasi variabile impostata esternamente verrà mostrata come di sola lettura nella\n"
+"      finestra di dialogo.\n"
+
+#. type: Plain text
+#: kicad.adoc:501
+msgid ""
+"Note also that the environment variable `KIPRJMOD` is *always* internally "
+"defined by KiCad, and expands to the **current project absolute path**."
+msgstr ""
+"Si noti anche che la variabile `KIPRJMOD` è *sempre* internamente definita "
+"da KiCad, ed viene espansa nel **percorso assoluto del progetto corrente**."
+
+#. type: Plain text
+#: kicad.adoc:504
+msgid ""
+"For instance, `$\\{KIPRJMOD\\}/connect.pretty` is always the `connect."
+"pretty` folder (the footprint library) inside **the current project folder**."
+msgstr ""
+"Per esempio, `$\\{KIPRJMOD\\}/connect.pretty` è sempre la cartella `connect."
+"pretty` (libreria di impronte) dentro **la cartella del progetto corrente**."
+
+#. type: Plain text
+#: kicad.adoc:507
+msgid ""
+"The `KIPRJMOD` variable cannot be changed in the Configure Paths dialog or "
+"overridden by an external environment variable."
+msgstr ""
+"La variabile `KIPRJMOD` non può essere cambiata nella finestra di dialogo "
+"Configura percorsi o superata da una variabile ambiente esterna."
+
+#. type: Title ====
+#: kicad.adoc:508
+#, no-wrap
+msgid "Advanced environment variables"
+msgstr "Variabili ambiente avanzate"
+
+#. type: Plain text
+#: kicad.adoc:514
+msgid ""
+"Some advanced environment variables can be set to customize KiCad's "
+"behavior.  These variables are not shown in the environment variable "
+"configuration and cannot be used in path substitutions. They cannot be "
+"modified in the Configure Paths dialog, but they can be overridden by system "
+"environment variables."
+msgstr ""
+"È possibile impostare alcune variabili di ambiente avanzate per "
+"personalizzare il comportamento di KiCad. Queste variabili non vengono "
+"visualizzate nella configurazione delle variabile ambiente e non possono "
+"essere usate nella sostituzione dei percorsi. Non possono essere modificate "
+"nella finestra di dialogo Configura percorsi, ma possono essere superate "
+"dalle variabili ambiente di sistema."
+
+#. type: Plain text
+#: kicad.adoc:518
+msgid ""
+"Changing these variables will not result in KiCad moving any files from the "
+"default location to the new location, so if you change these variables you "
+"will need to copy any desired settings or files manually."
+msgstr ""
+"La modifica di queste variabili non comporterà lo spostamento di alcun file "
+"da parte di KiCad dalla posizione predefinita alla nuova posizione, quindi "
+"se si modificano queste variabili sarà necessario copiare manualmente le "
+"impostazioni o i file desiderati."
+
+#. type: Plain text
+#: kicad.adoc:520
+#, no-wrap
+msgid "*Additional environment variables:*\n"
+msgstr "*Variabili ambiente aggiuntive:*\n"
+
+#. type: Table
+#: kicad.adoc:528
+#, no-wrap
+msgid ""
+"|KICAD_CONFIG_HOME |Base path of KiCad configuration files. Subdirectories will be created\n"
+"    within this directory for each KiCad minor version.\n"
+"|KICAD_DOCUMENTS_HOME |Base path of KiCad user-modifiable documents, such as projects, templates,\n"
+"    Python scripts, libraries, etc. Subdirectories will be created within this directory for each\n"
+"    KiCad minor version. This directory is provided as a suggested user data location, but does\n"
+"    not need to be used.\n"
+msgstr ""
+"|KICAD_CONFIG_HOME |Percorso base dei file di configurazione di KiCad. Delle sottocartelle\n"
+"    verranno create all'interno di questa cartella per ogni versione minore di KiCad.\n"
+"|KICAD_DOCUMENTS_HOME |Percorso base dei documenti KiCad modificabili dall'utente, come progetti,\n"
+"    modelli, script Python, librerie, ecc. Delle sottocartelle verranno create all'interno di\n"
+"    questa cartella per ogni versione minore di KiCad. Questa cartella viene fornita come\n"
+"    posizione suggerita per i dati utente, ma non è necessario utilizzarla.\n"
+
+#. type: Plain text
+#: kicad.adoc:533
+msgid ""
+"If you modify the configuration of paths, please quit and restart KiCad to "
+"avoid any issues in path handling."
+msgstr ""
+"Se si modifica la configurazione dei percorsi, uscire e riavviare KiCad,\n"
+"per evitare qualsiasi problema nella gestione dei percorsi."
+
+#. type: Title ===
+#: kicad.adoc:535
+#, no-wrap
+msgid "Libraries configuration"
+msgstr "Configurazione librerie"
+
+#. type: Plain text
+#: kicad.adoc:540
+msgid ""
+"The *Preferences* -> *Manage Symbol Libraries...* menu lets you manage the "
+"list of symbol libraries (xref:../eeschema/eeschema_symbols_and_libraries."
+"adoc#managing-symbol-libraries[symbol library table])."
+msgstr ""
+"Il menu *Preferenze* -> *Gestione librerie simboli...* permette di gestire "
+"l'elenco delle librerie di simboli (xref:../eeschema/"
+"eeschema_symbols_and_libraries.adoc#managing-symbol-libraries[tabella "
+"librerie di simboli])."
+
+#. type: Plain text
+#: kicad.adoc:544
+msgid ""
+"Likewise, use the *Preferences* -> *Manage Footprint Libraries...* menu to "
+"manage the list of footprint libraries (xref:../pcbnew/"
+"pcbnew_footprints_and_libraries.adoc#managing-footprint-libraries[footprint "
+"library table])."
+msgstr ""
+"Analogamente, usare il menu *Preferenze* -> *Gestione librerie impronte...* "
+"per gestire l'elenco delle librerie di impronte (xref:../pcbnew/"
+"pcbnew_footprints_and_libraries.adoc#managing-footprint-libraries[tabella "
+"librerie di impronte])."
+
+#. type: Plain text
+#: kicad.adoc:551
+msgid ""
+"For each type of library (symbol and footprint), there are 2 library tables: "
+"global and project specific. The global library table is located in the "
+"<<config-file-location,user configuration directory>> and contains a list of "
+"libraries available to all projects. The project-specific library table is "
+"optional and contains a list of libraries specific to the project. It is "
+"located in the project directory."
+msgstr ""
+"Per ogni tipo di libreria (simboli e impronte), ci sono 2 tabelle di "
+"librerie: globali e specifiche del progetto. La tabella delle librerie "
+"globali si trova nella <<config-file-location,cartella di configurazione "
+"dell'utente>> e contiene l'elenco delle librerie disponibili per tutti i "
+"progetti. La tabella delle librerie specifiche del progetto è facoltativa, "
+"contiene appunto l'elenco delle librerie specifiche del progetto, e si trova "
+"nella cartella del progetto."
+
+#. type: Title ==
+#: kicad.adoc:554
+#, no-wrap
+msgid "Project templates"
+msgstr "Modelli di progetto"
+
+#. type: Plain text
+#: kicad.adoc:560
+msgid ""
+"Using a project template facilitates setting up a new project with "
+"predefined settings. Templates may contain pre-defined board outlines, "
+"connector positions, schematic elements, design rules, etc. Complete "
+"schematics and/or PCBs used as seed files for the new project may even be "
+"included."
+msgstr ""
+"L'uso di un modello di progetto facilita la creazione di un nuovo progetto, "
+"includendo alcune preimpostazioni. I modelli possono contenere: profili di "
+"scheda predefiniti, posizioni di connettori, elementi dello schema, regole "
+"di progettazione, ecc. Persino schemi elettrici o circuiti stampati completi "
+"possono venire inclusi come spunti per il nuovo progetto."
+
+#. type: Title ===
+#: kicad.adoc:561
+#, no-wrap
+msgid "Using templates"
+msgstr "Uso dei modelli"
+
+#. type: Plain text
+#: kicad.adoc:565
+msgid ""
+"The **File** -> **New Project from Template** menu will open the Project "
+"Template Selector dialog:"
+msgstr ""
+"Il menu *_File -> Nuovo progetto da modello_* aprirà la finestra di dialogo "
+"di selezione dei modelli:"
+
+#. type: Plain text
+#: kicad.adoc:570
+msgid ""
+"A single click on a template's icon will display the template information, "
+"and a further click on the OK button creates the new project. The template "
+"files will be copied to the new project location and renamed to reflect the "
+"new project's name."
+msgstr ""
+"Un singolo clic sull'icona di un modello mostrerà le informazioni del "
+"modello stesso, mentre un ulteriore clic sul pulsante OK farà partire la "
+"creazione del nuovo progetto. I file del modello verranno copiati nella "
+"posizione del nuovo progetto e rinominati per riflettere il nome del nuovo "
+"progetto."
+
+#. type: Target for macro image
+#: kicad.adoc:571
+#, no-wrap
+msgid "images/template_selected.png"
+msgstr "images/it/template_selected.png[]"
+
+#. type: Title ===
+#: kicad.adoc:574
+#, no-wrap
+msgid "Template locations"
+msgstr "Posizioni modelli"
+
+#. type: Plain text
+#: kicad.adoc:581
+msgid ""
+"KiCad looks for template files in the following paths: KiCad looks for "
+"system templates in the path defined in the `KICAD7_TEMPLATE_DIR` path "
+"variable, and user templates in the path defined in "
+"`KICAD_USER_TEMPLATE_DIR`. However, you can browse for templates in an "
+"arbitrary directory using the **Folder** control at the top of the dialog."
+msgstr ""
+"KiCad cerca i file modello nei seguenti percorsi: KiCad cerca i modelli di "
+"sistema nel percorso definito nella variabile di percorso "
+"`KICAD7_TEMPLATE_DIR` e i modelli utente nel percorso definito in "
+"`KICAD_USER_TEMPLATE_DIR`. Tuttavia, si può cercare i modelli in una "
+"cartella arbitraria utilizzando il controllo **Cartella** nella parte "
+"superiore della finestra di dialogo."
+
+#. type: Title ===
+#: kicad.adoc:582
+#, no-wrap
+msgid "Creating templates"
+msgstr "Creazione dei modelli"
+
+#. type: Plain text
+#: kicad.adoc:587
+msgid ""
+"The template name is the directory name where the template files are stored. "
+"The metadata directory is a subdirectory named `meta` containing files "
+"describing the template."
+msgstr ""
+"Il nome del modello è il nome della cartella dentro la quale sono "
+"memorizzati i file del modello. La cartella dei metadati è una sottocartella "
+"di nome `meta`, contenente i file che descrivono il modello."
+
+#. type: Plain text
+#: kicad.adoc:591
+msgid ""
+"The metadata consists of one required file, and may contain optional files.  "
+"All files must be created by the user using a text editor or previous KiCad "
+"project files, and placed into the required directory structure."
+msgstr ""
+"I metadati consistono in un file necessario e altri file opzionali. Tutti i "
+"file devono essere creati dall'utente, usando un editor di testo o usando "
+"file di progetto KiCad preesistenti, e devono essere stati sistemati nella "
+"necessaria struttura di cartelle."
+
+#. type: Plain text
+#: kicad.adoc:596
+msgid ""
+"All files and directories in a template are copied to the new project path "
+"when a project is created using a template, except `meta`.  Files and "
+"directories containing the template name will be renamed with the new "
+"project file name."
+msgstr ""
+"Tutti i file e cartelle di un modello vengono copiati nel nuovo percorso del "
+"progetto quando un progetto viene creato usando un modello, ad eccezione dei "
+"file `meta`. I file e le cartelle contenenti il nome del modello verranno "
+"rinominati con il nuovo nome del file del progetto."
+
+#. type: Plain text
+#: kicad.adoc:599
+msgid ""
+"For example, creating a project called `newproject` from a template named "
+"`example`:"
+msgstr ""
+"Ad esempio, creando un progetto chiamato `nuovoprogetto` da un modello "
+"denominato `esempio`:"
+
+#. type: Table
+#: kicad.adoc:620
+#, no-wrap
+msgid ""
+"|Files in template `example` directory\n"
+"|Files created in project `newproject` directory\n"
+"|\n"
+"`example.kicad_pro` +\n"
+"`example.kicad_sch` +\n"
+"`example.kicad_pcb` +\n"
+"`example-first.kicad_sch` +\n"
+"`second-example.kicad_sch` +\n"
+"`third.kicad_sch` +\n"
+"`third.kicad_pcb`\n"
+"|\n"
+"`*newproject.kicad_pro*` +\n"
+"`*newproject.kicad_sch*` +\n"
+"`*newproject.kicad_pcb*` +\n"
+"`*newproject-first.kicad_sch*` +\n"
+"`*second-newproject.kicad_sch*` +\n"
+"`third.kicad_sch` +\n"
+"`third.kicad_pcb`\n"
+msgstr ""
+"|File presenti nella cartella modello `esempio`\n"
+"|File creati nella cartella progetto `nuovoprogetto`\n"
+"|\n"
+"`esempio.kicad_pro` +\n"
+"`esempio.kicad_sch` +\n"
+"`esempio.kicad_pcb` +\n"
+"`esempio-primo.kicad_sch` +\n"
+"`secondo-esempio.kicad_sch` +\n"
+"`terzo.kicad_sch` +\n"
+"`terzo.kicad_pcb`\n"
+"|\n"
+"`*nuovoprogetto.kicad_pro*` +\n"
+"`*nuovoprogetto.kicad_sch*` +\n"
+"`*nuovoprogetto.kicad_pcb*` +\n"
+"`*nuovoprogetto-primo.kicad_sch*` +\n"
+"`*secondo-nuovoprogetto.kicad_sch*` +\n"
+"`terzo.kicad_sch` +\n"
+"`terzo.kicad_pcb`\n"
+
+#. type: Plain text
+#: kicad.adoc:625
+msgid ""
+"A template does not need to contain a complete project. If a required "
+"project file is missing, KiCad will create it using its default create "
+"project behavior:"
+msgstr ""
+"Non è necessario che un modello contenga un progetto completo. Se manca un "
+"file progetto richiesto, KiCad lo creerà usando il comportamento predefinito "
+"di creazione del progetto:"
+
+#. type: Table
+#: kicad.adoc:644
+#, no-wrap
+msgid ""
+"|Files in template `example` directory\n"
+"|Files created in `newproject` directory\n"
+"|\n"
+"`example.kicad_sch` +\n"
+"`first-example.kicad_sch` +\n"
+"`first-example.kicad_pcb` +\n"
+"`second-example.kicad_sch` +\n"
+"`second-example.kicad_pcb`\n"
+"|\n"
+"`*newproject.kicad_sch*` +\n"
+"`*first-newproject.kicad_sch*` +\n"
+"`*first-newproject.kicad_pcb*` +\n"
+"`*second-newproject.kicad_sch*` +\n"
+"`*second-newproject.kicad_pcb*` +\n"
+"`*newproject.kicad_pro*` (default) +\n"
+"`*newproject.kicad_pcb*` (default)\n"
+msgstr ""
+"|File nella cartella modelli `esempio`\n"
+"|File creati nella cartella `nuovoprogetto`\n"
+"|\n"
+"`esempio.kicad_sch` +\n"
+"`primo-esempio.kicad_sch` +\n"
+"`primo-esempio.kicad_pcb` +\n"
+"`secondo-esempio.kicad_sch` +\n"
+"`secondo-esempio.kicad_pcb`\n"
+"|\n"
+"`*nuovoprogetto.kicad_sch*` +\n"
+"`*primo-nuovoprogetto.kicad_sch*` +\n"
+"`*primo-nuovoprogetto.kicad_pcb*` +\n"
+"`*secondo-nuovoprogetto.kicad_sch*` +\n"
+"`*secondo-nuovoprogetto.kicad_pcb*` +\n"
+"`*nuovoprogetto.kicad_pro*` (predefinito) +\n"
+"`*nuovoprogetto.kicad_pcb*` (predefinito)\n"
+
+#. type: Plain text
+#: kicad.adoc:649
+msgid ""
+"As an exception to the template name renaming rule, if one project file (`."
+"kicad_pro`) exists and its name doesn't match the template name, KiCad will "
+"do the renaming based on that project file name instead:"
+msgstr ""
+"Come eccezione alla regola di rinomina del nome del modello, se esiste un "
+"file di progetto (`.kicad_pro`) e il suo nome non corrisponde al nome del "
+"modello, KiCad eseguirà invece la rinomina in base al nome del file del "
+"progetto:"
+
+#. type: Table
+#: kicad.adoc:670
+#, no-wrap
+msgid ""
+"|Files in template `example` directory\n"
+"|Files created in `newproject` directory\n"
+"|\n"
+"`example.kicad_sch` +\n"
+"`example.kicad_pcb` +\n"
+"`*first-example.kicad_pro*` +\n"
+"`first-example.kicad_sch` +\n"
+"`first-example.kicad_pcb` +\n"
+"`second-example.kicad_sch` +\n"
+"`second-example.kicad_pcb`\n"
+"|\n"
+"`example.kicad_sch` +\n"
+"`example.kicad_pcb` +\n"
+"`*newproject.kicad_pro*` +\n"
+"`*newproject.kicad_sch*` +\n"
+"`*newproject.kicad_pcb*` +\n"
+"`second-example.kicad_sch` +\n"
+"`second-example.kicad_pcb`\n"
+msgstr ""
+"|File nella cartella `esempio`\n"
+"|File creati nella cartella `nuovoprogetto`\n"
+"|\n"
+"`esempio.kicad_sch` +\n"
+"`esempio.kicad_pcb` +\n"
+"`*primo-esempio.kicad_pro*` +\n"
+"`primo-esempio.kicad_sch` +\n"
+"`primo-esempio.kicad_pcb` +\n"
+"`secondo-esempio.kicad_sch` +\n"
+"`secondo-esempio.kicad_pcb`\n"
+"|\n"
+"`esempio.kicad_sch` +\n"
+"`esempio.kicad_pcb` +\n"
+"`*nuovoprogetto.kicad_pro*` +\n"
+"`*nuovoprogetto.kicad_sch*` +\n"
+"`*nuovoprogetto.kicad_pcb*` +\n"
+"`secondo-esempio.kicad_sch` +\n"
+"`secondo-esempio.kicad_pcb`\n"
+
+#. type: Plain text
+#: kicad.adoc:673
+msgid "It is not recommended to create a template with multiple project files."
+msgstr "Non è consigliabile creare un modello con più di un file progetto."
+
+#. type: Title ====
+#: kicad.adoc:674
+#, no-wrap
+msgid "Template example"
+msgstr "Esempio di modello"
+
+#. type: Plain text
+#: kicad.adoc:677
+msgid ""
+"Here is an example showing project files for *raspberrypi-gpio* template:"
+msgstr ""
+"Ecco un esempio che mostra i file di progetto per il modello *raspberrypi-"
+"gpio*:"
+
+#. type: Target for macro image
+#: kicad.adoc:678
+#, no-wrap
+msgid "images/template_tree.png"
+msgstr "images/template_tree.png[]"
+
+#. type: Plain text
+#: kicad.adoc:681
+msgid "And the metadata files:"
+msgstr "E i file dei metadati:"
+
+#. type: Target for macro image
+#: kicad.adoc:682
+#, no-wrap
+msgid "images/template_tree_meta.png"
+msgstr "images/template_tree_meta.png[]"
+
+#. type: Title ====
+#: kicad.adoc:684
+#, no-wrap
+msgid "Required file"
+msgstr "File richiesto"
+
+#. type: Table
+#: kicad.adoc:689
+#, no-wrap
+msgid "|`meta/info.html` |HTML-formatted information describing the template.\n"
+msgstr "|`meta/info.html` |Informazioni di descrizione del modello in formato HTML.\n"
+
+#. type: Plain text
+#: kicad.adoc:694
+msgid ""
+"The `<title>` tag determines the actual name of the template that is exposed "
+"to the user for template selection. Note that the project template name will "
+"be cut off if it's too long."
+msgstr ""
+"La marcatura `<title>` determina in nome corrente del modello che viene "
+"presentato all'utente per la selezione del modello. Si noti che il modello "
+"del progetto verrà tagliato se troppo lungo."
+
+#. type: Plain text
+#: kicad.adoc:697
+msgid ""
+"Using HTML means that images can be easily in-lined without having to invent "
+"a new scheme. Only basic HTML tags can be used in this document."
+msgstr ""
+"Usare l'HTML significa che le immagini possono essere in linea senza doversi "
+"inventare un nuovo schema. Solo marcature HTML di base possono essere usate "
+"in questo documento."
+
+#. type: Plain text
+#: kicad.adoc:699
+msgid "Here is a sample `info.html` file:"
+msgstr "Ecco un file `info.html` di esempio:"
+
+#. type: delimited block -
+#: kicad.adoc:724
+#, no-wrap
+msgid ""
+"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\">\n"
+"<HTML>\n"
+"<HEAD>\n"
+"<META HTTP-EQUIV=\"CONTENT-TYPE\" CONTENT=\"text/html;\n"
+"charset=windows-1252\">\n"
+"<TITLE>Raspberry Pi - Expansion Board</TITLE>\n"
+"</HEAD>\n"
+"<BODY LANG=\"fr-FR\" DIR=\"LTR\">\n"
+"<P>This project template is the basis of an expansion board for the\n"
+"<A HREF=\"http://www.raspberrypi.org/\" TARGET=\"blank\">Raspberry Pi $25\n"
+"ARM board.</A> <BR><BR>This base project includes a PCB edge defined\n"
+"as the same size as the Raspberry-Pi PCB with the connectors placed\n"
+"correctly to align the two boards. All IO present on the Raspberry-Pi\n"
+"board is connected to the project through the 0.1&quot; expansion\n"
+"headers. <BR><BR>The board outline looks like the following:\n"
+"</P>\n"
+"<P><IMG SRC=\"brd.png\" NAME=\"brd\" ALIGN=BOTTOM WIDTH=680 HEIGHT=378\n"
+"BORDER=0><BR><BR><BR><BR>\n"
+"</P>\n"
+"<P>(c)2012 Brian Sidebotham<BR>(c)2012 KiCad Developers</P>\n"
+"</BODY>\n"
+"</HTML>\n"
+msgstr ""
+"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\">\n"
+"<HTML>\n"
+"<HEAD>\n"
+"<META HTTP-EQUIV=\"CONTENT-TYPE\" CONTENT=\"text/html;\n"
+"charset=windows-1252\">\n"
+"<TITLE>Raspberry Pi - Expansion Board</TITLE>\n"
+"</HEAD>\n"
+"<BODY LANG=\"fr-FR\" DIR=\"LTR\">\n"
+"<P>This project template is the basis of an expansion board for the\n"
+"<A HREF=\"http://www.raspberrypi.org/\" TARGET=\"blank\">Raspberry Pi $25\n"
+"ARM board.</A> <BR><BR>This base project includes a PCB edge defined\n"
+"as the same size as the Raspberry-Pi PCB with the connectors placed\n"
+"correctly to align the two boards. All IO present on the Raspberry-Pi\n"
+"board is connected to the project through the 0.1&quot; expansion\n"
+"headers. <BR><BR>The board outline looks like the following:\n"
+"</P>\n"
+"<P><IMG SRC=\"brd.png\" NAME=\"brd\" ALIGN=BOTTOM WIDTH=680 HEIGHT=378\n"
+"BORDER=0><BR><BR><BR><BR>\n"
+"</P>\n"
+"<P>(c)2012 Brian Sidebotham<BR>(c)2012 KiCad Developers</P>\n"
+"</BODY>\n"
+"</HTML>\n"
+
+#. type: Title ====
+#: kicad.adoc:726
+#, no-wrap
+msgid "Optional files"
+msgstr "File opzionali"
+
+#. type: Table
+#: kicad.adoc:732
+#, no-wrap
+msgid ""
+"|`meta/icon.png` |A 64 x 64 pixel PNG icon file which is used as a\n"
+"clickable icon in the template selection dialog.\n"
+msgstr ""
+"|`meta/icon.png` |Un file icona in formato PNG di 64 x 64 pixel usato come\n"
+"icona cliccabile nella finestra di dialogo di selezione dei modelli.\n"
+
+#. type: Plain text
+#: kicad.adoc:736
+msgid ""
+"Any other image files used by `meta/info.html`, such as the image of the "
+"board file in the dialog above, are placed in this folder as well."
+msgstr ""
+"Qualsiasi altro file immagine usato da `meta/info.html`, come il file "
+"immagine della scheda nella finestra di dialogo mostrata sopra, verrà "
+"piazzato anche'esso in questa cartella."
+
+#. type: Title ==
+#: kicad.adoc:738
+#, no-wrap
+msgid "Plugin and Content Manager"
+msgstr "Plugin e gestore contenuti"
+
+#. type: Plain text
+#: kicad.adoc:743
+#, no-wrap
+msgid ""
+"This section of the KiCad documentation has not yet been written.  We\n"
+"      appreciate your patience as our small team of volunteer documentation\n"
+"      writers work to update and expand the documentation.\n"
+msgstr ""
+
+#. type: Title ==
+#: kicad_projmgr_actions_reference.adoc:3
+#, no-wrap
+msgid "Actions reference"
+msgstr "Elenco di riferimento azioni"
+
+#. type: Plain text
+#: kicad_projmgr_actions_reference.adoc:6
+msgid ""
+"Below is a list of every available *action* in the KiCad Project Manager: a "
+"command that can be assigned to a hotkey."
+msgstr ""
+"Di seguito è riportato un elenco di tutte le *azioni* disponibili nella "
+"Gestione progetti di KiCad: un comando che può essere assegnato a un tasto "
+"comando."
+
+#. Note to translators: you do not need to translate this table by hand.
+#. It is generated from KiCad using the Dump Hotkeys button that is shown in the hotkeys editor if you
+#. add the line `HotkeysDumper=1` to your advanced config file (`kicad_advanced` file in the config
+#. directory)
+#. type: Title ===
+#: kicad_projmgr_actions_reference.adoc:15
+#, no-wrap
+msgid "KiCad Project Manager"
+msgstr "Gestore progetti di KiCad"
+
+#.  NOTE: this text between the section header and the table is *required* or
+#.  asciidoctor-web-pdf will not insert page breaks in the table correctly and
+#.  the PDF will be truncated.
+#. type: Plain text
+#: kicad_projmgr_actions_reference.adoc:22
+msgid ""
+"The actions below are available in the KiCad Project Manager. Hotkeys can be "
+"assigned to any of these actions in the **Hotkeys** section of the "
+"preferences."
+msgstr ""
+"Le azioni seguenti sono disponibili nella Gestione progetti di KiCad. I "
+"tasti comando possono essere assegnati a una qualsiasi di queste azioni "
+"nella sezione **Tasti comando** delle preferenze."
+
+#. type: Table
+#: kicad_projmgr_actions_reference.adoc:71
+#, no-wrap
+msgid ""
+"| Action | Default Hotkey | Description\n"
+"| Close Project\n"
+"  |\n"
+"  | Close the current project\n"
+"| Image Converter\n"
+"  | kbd:[Ctrl+B]\n"
+"  | Convert bitmap images to schematic or PCB components\n"
+"| Drawing Sheet Editor\n"
+"  | kbd:[Ctrl+Y]\n"
+"  | Edit drawing sheet borders and title block\n"
+"| Footprint Editor\n"
+"  | kbd:[Ctrl+F]\n"
+"  | Edit PCB footprints\n"
+"| PCB Editor\n"
+"  | kbd:[Ctrl+P]\n"
+"  | Edit PCB\n"
+"| Schematic Editor\n"
+"  | kbd:[Ctrl+E]\n"
+"  | Edit schematic\n"
+"| Symbol Editor\n"
+"  | kbd:[Ctrl+L]\n"
+"  | Edit schematic symbols\n"
+"| New Project from Template...\n"
+"  | kbd:[Ctrl+T]\n"
+"  | Create new project from template\n"
+"| New Project...\n"
+"  | kbd:[Ctrl+N]\n"
+"  | Create new blank project\n"
+"| Open Demo Project...\n"
+"  |\n"
+"  | Open a demo project\n"
+"| Open Project...\n"
+"  | kbd:[Ctrl+O]\n"
+"  | Open an existing project\n"
+"| Open Text Editor\n"
+"  |\n"
+"  | Launch preferred text editor\n"
+"| Plugin and Content Manager\n"
+"  | kbd:[Ctrl+M]\n"
+"  | Run Plugin and Content Manager\n"
+"| Calculator Tools\n"
+"  |\n"
+"  | Run component calculations, track width calculations, etc.\n"
+"| Gerber Viewer\n"
+"  | kbd:[Ctrl+G]\n"
+"  | Preview Gerber output files\n"
+msgstr ""
+
+#~ msgid "TODO: Write this section"
+#~ msgstr "DAFARE: scrivere questa sezione"

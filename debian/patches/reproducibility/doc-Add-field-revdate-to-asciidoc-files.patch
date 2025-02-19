@@ -1,0 +1,103 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Thu, 13 Oct 2016 21:08:18 +0200
+Subject: doc: Add field 'revdate' to asciidoc files
+
+For reproducibility we need to set up a date that's not depending on the
+current time and timezone. We add a extra asciidoc control field
+'revdate' and expand the variable behind that while building the package
+with the date from the changelog file.
+
+Note!
+Unfortunately using the modified files in the way it's originally
+intended breaks the build of the source by using dpkg-buildpackage twice
+in a row. Until this issue is solved the added fields are now commented
+out.
+
+Forwarded: Not-Needed
+---
+ doc/src/doc_writing_style_policy/doc_writing_style_policy.adoc | 1 +
+ doc/src/eeschema/eeschema.adoc                                 | 1 +
+ doc/src/gerbview/gerbview.adoc                                 | 1 +
+ doc/src/getting_started_in_kicad/getting_started_in_kicad.adoc | 1 +
+ doc/src/kicad/kicad.adoc                                       | 1 +
+ doc/src/pcbnew/pcbnew.adoc                                     | 1 +
+ doc/src/pl_editor/pl_editor.adoc                               | 1 +
+ 7 files changed, 7 insertions(+)
+
+diff --git a/doc/src/doc_writing_style_policy/doc_writing_style_policy.adoc b/doc/src/doc_writing_style_policy/doc_writing_style_policy.adoc
+index c852dc7..7bbad39 100644
+--- a/doc/src/doc_writing_style_policy/doc_writing_style_policy.adoc
++++ b/doc/src/doc_writing_style_policy/doc_writing_style_policy.adoc
+@@ -1,5 +1,6 @@
+ :author: The KiCad Team
+ :doctype: article
++//:revdate: @REVDATE@
+ :toc:
+ :ascii-ids:
+ 
+diff --git a/doc/src/eeschema/eeschema.adoc b/doc/src/eeschema/eeschema.adoc
+index d83800d..0939c38 100644
+--- a/doc/src/eeschema/eeschema.adoc
++++ b/doc/src/eeschema/eeschema.adoc
+@@ -1,5 +1,6 @@
+ :author: The KiCad Team
+ :doctype: book
++//:revdate: @REVDATE@
+ :toc:
+ :ascii-ids:
+ :experimental:
+diff --git a/doc/src/gerbview/gerbview.adoc b/doc/src/gerbview/gerbview.adoc
+index 255dc15..457fb9f 100644
+--- a/doc/src/gerbview/gerbview.adoc
++++ b/doc/src/gerbview/gerbview.adoc
+@@ -1,5 +1,6 @@
+ :author: The KiCad Team
+ :doctype: article
++//:revdate: @REVDATE@
+ :toc:
+ :ascii-ids:
+ 
+diff --git a/doc/src/getting_started_in_kicad/getting_started_in_kicad.adoc b/doc/src/getting_started_in_kicad/getting_started_in_kicad.adoc
+index 64fd7b9..c5584c2 100644
+--- a/doc/src/getting_started_in_kicad/getting_started_in_kicad.adoc
++++ b/doc/src/getting_started_in_kicad/getting_started_in_kicad.adoc
+@@ -1,5 +1,6 @@
+ :author: The KiCad Team
+ :doctype: book
++//:revdate: @REVDATE@
+ :toc:
+ :ascii-ids:
+ :experimental:
+diff --git a/doc/src/kicad/kicad.adoc b/doc/src/kicad/kicad.adoc
+index 80f1f9b..e3b5668 100644
+--- a/doc/src/kicad/kicad.adoc
++++ b/doc/src/kicad/kicad.adoc
+@@ -1,5 +1,6 @@
+ :author: The KiCad Team
+ :doctype: book
++//:revdate: @REVDATE@
+ :toc:
+ :ascii-ids:
+ :experimental:
+diff --git a/doc/src/pcbnew/pcbnew.adoc b/doc/src/pcbnew/pcbnew.adoc
+index 684c649..6ae6d49 100644
+--- a/doc/src/pcbnew/pcbnew.adoc
++++ b/doc/src/pcbnew/pcbnew.adoc
+@@ -1,5 +1,6 @@
+ :author: The KiCad Team
+ :doctype: book
++//:revdate: @REVDATE@
+ :toc:
+ :ascii-ids:
+ :figure-caption!:
+diff --git a/doc/src/pl_editor/pl_editor.adoc b/doc/src/pl_editor/pl_editor.adoc
+index e991f4b..5cd7685 100644
+--- a/doc/src/pl_editor/pl_editor.adoc
++++ b/doc/src/pl_editor/pl_editor.adoc
+@@ -1,5 +1,6 @@
+ :author: The KiCad Team
+ :doctype: article
++//:revdate: @REVDATE@
+ :toc:
+ :ascii-ids:
+ 

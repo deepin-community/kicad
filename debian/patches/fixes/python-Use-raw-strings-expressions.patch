@@ -1,0 +1,32 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Thu, 18 Jul 2024 16:50:22 +0200
+Subject: python: Use raw-strings expressions
+
+Python 3.12 is now more pedantic about the used string regexp syntax in
+re.* functions.
+---
+ eeschema/python_scripts/kicad_netlist_reader.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/eeschema/python_scripts/kicad_netlist_reader.py b/eeschema/python_scripts/kicad_netlist_reader.py
+index 1a4146e..5d105d6 100644
+--- a/eeschema/python_scripts/kicad_netlist_reader.py
++++ b/eeschema/python_scripts/kicad_netlist_reader.py
+@@ -745,7 +745,7 @@ class netlist():
+         # the normal sort would place 100 before 99 since it only would look at the first digit.
+         def sortKey( str ):
+             return [ int(t) if t.isdigit() else t.lower()
+-                    for t in re.split( '(\d+)', str ) ]
++                    for t in re.split( r'(\d+)', str ) ]
+ 
+         ret.sort(key=lambda g: sortKey(g.getRef()))
+ 
+@@ -791,7 +791,7 @@ class netlist():
+         # the normal sort would place 100 before 99 since it only would look at the first digit.
+         def sortKey( str ):
+             return [ int(t) if t.isdigit() else t.lower()
+-                    for t in re.split( '(\d+)', str ) ]
++                    for t in re.split( r'(\d+)', str ) ]
+ 
+         for g in groups:
+             #g = sorted(g, key=lambda g: sortKey(g.getRef()))

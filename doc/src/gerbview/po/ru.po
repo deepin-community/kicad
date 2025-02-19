@@ -1,0 +1,798 @@
+# GerbView Manual Russian Translation
+# Copyright (C) The KiCad Documentation Team
+# This file is distributed under the same license as the KiCad package.
+#
+# alex9 <gmdii@mail.ru>, 2016.
+# Baranovskiy Konstantin <baranovskiykonstantin@gmail.com>, 2018-2021.
+msgid ""
+msgstr ""
+"Project-Id-Version: Перевод\n"
+"POT-Creation-Date: 2021-12-19 15:15+0200\n"
+"PO-Revision-Date: 2021-12-19 15:16+0200\n"
+"Last-Translator: Baranovskiy Konstantin <baranovskiykonstantin@gmail.com>\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
+"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"X-Generator: vim 8.0\n"
+
+#. type: Title =
+#: gerbview.adoc:6
+#, no-wrap
+msgid "GerbView"
+msgstr "GerbView"
+
+#. type: Plain text
+#: gerbview.adoc:9
+msgid "_Reference manual_"
+msgstr "_Руководство пользователя_"
+
+#. type: Plain text
+#: gerbview.adoc:12
+#, no-wrap
+msgid "*Copyright*\n"
+msgstr "*Авторское право*\n"
+
+#. type: Plain text
+#: gerbview.adoc:18
+msgid ""
+"This document is Copyright (C) 2010-2021 by it's contributors as listed "
+"below. You may distribute it and/or modify it under the terms of either the "
+"GNU General Public License (https://www.gnu.org/licenses/gpl.html), version "
+"3 or later, or the Creative Commons Attribution License (https://"
+"creativecommons.org/licenses/by/3.0/), version 3.0 or later."
+msgstr ""
+"Авторские права © 2010-2021 на данный документ принадлежит его разработчикам "
+"(соавторам), перечисленным ниже. Документ можно распространять и/или "
+"изменять в соответствии с правилами лицензии GNU General Public License "
+"(http://www.gnu.org/licenses/gpl.html), версии 3 или более поздней, или "
+"лицензии типа Creative Commons Attribution License (http://creativecommons."
+"org/licenses/by/3.0/), версии 3.0 или более поздней."
+
+#. type: Plain text
+#: gerbview.adoc:20
+msgid "All trademarks within this guide belong to their legitimate owners."
+msgstr "Все торговые знаки этого руководства принадлежат его владельцам."
+
+#. type: Plain text
+#: gerbview.adoc:23
+#, no-wrap
+msgid "*Contributors*\n"
+msgstr "*Соавторы*\n"
+
+#. type: Plain text
+#: gerbview.adoc:25
+msgid "The KiCad Team."
+msgstr "The KiCad Team"
+
+#. type: Plain text
+#: gerbview.adoc:28
+#, no-wrap
+msgid "*Feedback*\n"
+msgstr "*Обратная связь*\n"
+
+#. type: Plain text
+#: gerbview.adoc:32
+msgid ""
+"The KiCad project welcomes feedback, bug reports, and suggestions related to "
+"the software or its documentation.  For more information on how to sumbit "
+"feedback or report an issue, please see the instructions at https://www."
+"kicad.org/help/report-an-issue/"
+msgstr ""
+"В проекте KiCad приветствуются отзывы, сообщения об ошибках и предложения по "
+"улучшению программного обеспечения и его документации. Получить больше "
+"информации о том как отправить отзыв или сообщить о проблеме можно в "
+"инструкции по адресу https://www.kicad.org/help/report-an-issue/"
+
+#. Since docbook "article" is more compact, I have to separate this page
+#. type: Plain text
+#: gerbview.adoc:35
+msgid "<<<<"
+msgstr "<<<<"
+
+#. type: Title ==
+#: gerbview.adoc:36
+#, no-wrap
+msgid "Introduction to GerbView"
+msgstr "Знакомство c GerbView"
+
+#. type: Plain text
+#: gerbview.adoc:40
+msgid ""
+"GerbView is a Gerber file (RS-274X format) and Excellon drill file viewer. "
+"Up to 32 files can be displayed at once."
+msgstr ""
+"GerbView предназначен для просмотра файлов в формате Gerber (RS 274 X) и "
+"отображения файлов сверловки из Pcbnew (в формате Excellon). Одновременно "
+"может быть показано до 32 файлов."
+
+#. type: Plain text
+#: gerbview.adoc:45
+msgid ""
+"For more information about the Gerber file format please read http://www."
+"ucamco.com/files/downloads/file/81/the_gerber_file_format_specification."
+"pdf[the Gerber File Format Specification].  Details about drill file format "
+"can be found at http://web.archive.org/web/20071030075236/http://www."
+"excellon.com/manuals/program.htm[the Excellon format description]."
+msgstr ""
+"Для получения дополнительной информации о формате файлов Gerber "
+"воспользуйтесь спецификацией http://www.ucamco.com/files/downloads/file/81/"
+"the_gerber_file_format_specification.pdf[the Gerber File Format "
+"Specification]. Информацию о формате файла сверловки можно получить здесь "
+"http://web.archive.org/web/20071030075236/http://www.excellon.com/manuals/"
+"program.htm[the Excellon format description]."
+
+#. type: Title ==
+#: gerbview.adoc:46
+#, no-wrap
+msgid "Interface"
+msgstr "Графический интерфейс"
+
+#. type: Title ===
+#: gerbview.adoc:48
+#, no-wrap
+msgid "Main window"
+msgstr "Основное окно"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: gerbview.adoc:50
+#, no-wrap
+msgid "gerbview_main_screen_png"
+msgstr "gerbview_main_screen_png"
+
+#. type: Target for macro image
+#: gerbview.adoc:50
+#, no-wrap
+msgid "images/gerbview_main_screen.png"
+msgstr "images/ru/gerbview_main_screen.png"
+
+#. type: Plain text
+#: gerbview.adoc:53 gerbview.adoc:106 gerbview.adoc:161
+msgid "<<<<<"
+msgstr "<<<<<"
+
+#. type: Title ===
+#: gerbview.adoc:54
+#, no-wrap
+msgid "Top toolbar"
+msgstr "Верхняя панель инструментов"
+
+#. type: Table
+#: gerbview.adoc:103
+#, no-wrap
+msgid ""
+"|image:images/icons/delete_gerber_24.png[delete_gerber_png]\n"
+"|Clear all layers\n"
+"\n"
+"|image:images/icons/load_gerber_24.png[load_gerber_png]\n"
+"|Load Gerber files\n"
+"\n"
+"|image:images/icons/load_drill_24.png[gerbview_drill_file_png]\n"
+"|Load Excellon drill files\n"
+"\n"
+"|image:images/icons/sheetset_24.png[sheetset_png]\n"
+"|Set page size\n"
+"\n"
+"|image:images/icons/print_button_24.png[print_button_png]\n"
+"|Print\n"
+"\n"
+"|image:images/icons/refresh_24.png[zoom_redraw_png]\n"
+"|Redraw view\n"
+"\n"
+"|image:images/icons/zoom_in_24.png[zoom_in_png]\n"
+"image:images/icons/zoom_out_24.png[zoom_out_png]\n"
+"|Zoom in or out\n"
+"\n"
+"|image:images/icons/zoom_fit_in_page_24.png[zoom_fit_in_page_png]\n"
+"|Zoom to fit page\n"
+"\n"
+"|image:images/icons/zoom_area_24.png[zoom_area_png]\n"
+"|Zoom to selection\n"
+"\n"
+"|image:images/gerbview_top_layer.png[scaledwidth=\"70%\",alt=\"gerbview_top_layer_png\"]\n"
+"|Select active layer\n"
+"\n"
+"|image:images/gerbview_top_info.png[scaledwidth=\"70%\",alt=\"gerbview_top_info_png\"]\n"
+"|Display info about active layer\n"
+"\n"
+"|image:images/gerbview_x2_component.png[scaledwidth=\"70%\",alt=\"gerbview_x2_component_png\"]\n"
+"|Highlight items belonging to selected component (Gerber X2)\n"
+"\n"
+"|image:images/gerbview_x2_net.png[scaledwidth=\"70%\",alt=\"gerbview_x2_net_png\"]\n"
+"|Highlight items belonging to selected net (Gerber X2)\n"
+"\n"
+"|image:images/gerbview_x2_attribute.png[scaledwidth=\"70%\",alt=\"gerbview_x2_attributeo_png\"]\n"
+"|Highlight items with the selected attribute (Gerber X2)\n"
+"\n"
+"|image:images/gerbview_top_dcode.png[scaledwidth=\"60%\",alt=\"gerbview_top_dcode_png\"]\n"
+"|Highlight items of selected D Code on the active layer\n"
+msgstr ""
+"|image:images/icons/delete_gerber_24.png[delete_gerber_png]\n"
+"|Очистить все слои\n"
+"\n"
+"|image:images/icons/load_gerber_24.png[load_gerber_png]\n"
+"|Загрузить файлы Gerber\n"
+"\n"
+"|image:images/icons/load_drill_24.png[gerbview_drill_file_png]\n"
+"|Загрузить файлы сверловки (формат Excellon из Pcbnew)\n"
+"\n"
+"|image:images/icons/sheetset_24.png[sheetset_png]\n"
+"|Выбрать рамку листа для печати и показать/скрыть границы страницы\n"
+"\n"
+"|image:images/icons/print_button_24.png[print_button_png]\n"
+"|Открыть диалог печати\n"
+"\n"
+"|image:images/icons/refresh_24.png[zoom_redraw_png]\n"
+"|Перерисовать\n"
+"\n"
+"|image:images/icons/zoom_in_24.png[zoom_in_png]\n"
+"image:images/icons/zoom_out_24.png[zoom_out_png]\n"
+"|Увеличение и уменьшение масштаба\n"
+"\n"
+"|image:images/icons/zoom_fit_in_page_24.png[zoom_fit_in_page_png]\n"
+"|Автомасштаб\n"
+"\n"
+"|image:images/icons/zoom_area_24.png[zoom_area_png]\n"
+"|Увеличить выделеное\n"
+"\n"
+"|image:images/gerbview_top_layer.png[scaledwidth=\"70%\",alt=\"gerbview_top_layer_png\"]\n"
+"|Выбор слоя\n"
+"\n"
+"|image:images/gerbview_top_info.png[scaledwidth=\"70%\",alt=\"gerbview_top_info_png\"]\n"
+"|Информация о свойствах файла Gerber, загруженного в выбранный слой\n"
+"\n"
+"|image:images/gerbview_x2_component.png[scaledwidth=\"70%\",alt=\"gerbview_x2_component_png\"]\n"
+"|Подсветить элементы, пренадлежащие выбранному компоненту (Gerber X2)\n"
+"\n"
+"|image:images/gerbview_x2_net.png[scaledwidth=\"70%\",alt=\"gerbview_x2_net_png\"]\n"
+"|Подсветить элементы, относящиеся к выбранной цепи (Gerber X2)\n"
+"\n"
+"|image:images/gerbview_x2_attribute.png[scaledwidth=\"70%\",alt=\"gerbview_x2_attributeo_png\"]\n"
+"|Подсветить элементы с указанным атрибутом (Gerber X2)\n"
+"\n"
+"|image:images/gerbview_top_dcode.png[scaledwidth=\"60%\",alt=\"gerbview_top_dcode_png\"]\n"
+"|Подсветить эелменты с указанным D-кодом на текущем слое\n"
+
+#. type: Title ===
+#: gerbview.adoc:107
+#, no-wrap
+msgid "Left toolbar"
+msgstr "Левая панель инструментов"
+
+#. type: Table
+#: gerbview.adoc:158
+#, no-wrap
+msgid ""
+"|image:images/icons/cursor_24.png[cursor_png]\n"
+"|Select items\n"
+"\n"
+"|image:images/icons/measurement_24.png[measurement_png]\n"
+"|Measure between two points\n"
+"\n"
+"|image:images/icons/grid_24.png[grid_png]\n"
+"|Toggle grid visibility\n"
+"\n"
+"|image:images/icons/polar_coord_24.png[polar_coord_png]\n"
+"|Toggle polar coordinates display\n"
+"\n"
+"|image:images/icons/unit_inch_24.png[unit_inch_png]\n"
+"image:images/icons/unit_mil_24.png[unit_mm_png]\n"
+"image:images/icons/unit_mm_24.png[unit_mm_png]\n"
+"|Select inch, mils, or millimeter units\n"
+"\n"
+"|image:images/icons/cursor_shape_24.png[cursor_shape_png]\n"
+"|Toggle full-screen cursor\n"
+"\n"
+"|image:images/icons/pad_sketch_24.png[pad_sketch_png]\n"
+"|Display flashed items in sketch (outline) mode\n"
+"\n"
+"|image:images/icons/showtrack_24.png[track_sketch_png]\n"
+"|Display lines in sketch (outline) mode\n"
+"\n"
+"|image:images/icons/opt_show_polygon_24.png[opt_show_polygon_png]\n"
+"|Display polygons in sketch (outline) mode\n"
+"\n"
+"|image:images/icons/gerbview_show_negative_objects_24.png[gerbview_show_negative_objects_png]\n"
+"|Show negative objects in ghost color\n"
+"\n"
+"|image:images/icons/show_dcodenumber_24.png[show_dcodenumber_png]\n"
+"|Show/hide D Codes\n"
+"\n"
+"|image:images/icons/gbr_select_mode2_24.png[gbr_select_mode2_png]\n"
+"|Display layers in diff (compare) mode\n"
+"\n"
+"|image:images/icons/contrast_mode_24.png[contrast_mode_png]\n"
+"|Toggle inactive layers between normal and dimmed display\n"
+"\n"
+"|image:images/icons/layers_manager_24.png[layers_manager_png]\n"
+"|Show/hide layer manager\n"
+"\n"
+"|image:images/icons/flip_board_24.png[flip_board_24]\n"
+"|Show Gerbers as mirror image\n"
+"\n"
+msgstr ""
+"|image:images/icons/cursor_24.png[cursor_png]\n"
+"|Выбор элементов\n"
+"\n"
+"|image:images/icons/measurement_24.png[measurement_png]\n"
+"|Измерение растояния между двумя точками\n"
+"\n"
+"|image:images/icons/grid_24.png[grid_png]\n"
+"|Показать/скрыть сетку\n"
+"\n"
+"|image:images/icons/polar_coord_24.png[polar_coord_png]\n"
+"|Использовать полярные координаты\n"
+"\n"
+"|image:images/icons/unit_inch_24.png[unit_inch_png]\n"
+"image:images/icons/unit_mil_24.png[unit_mm_png]\n"
+"image:images/icons/unit_mm_24.png[unit_mm_png]\n"
+"|Выбор единиц измерения\n"
+"\n"
+"|image:images/icons/cursor_shape_24.png[cursor_shape_png]\n"
+"|Изменить форму курсора\n"
+"\n"
+"|image:images/icons/pad_sketch_24.png[pad_sketch_png]\n"
+"|Отображать контактные площадки в контурном режиме\n"
+"\n"
+"|image:images/icons/showtrack_24.png[track_sketch_png]\n"
+"|Отображать линии в контурном режиме\n"
+"\n"
+"|image:images/icons/opt_show_polygon_24.png[opt_show_polygon_png]\n"
+"|Отображать полигоны в контурном режиме\n"
+"\n"
+"|image:images/icons/gerbview_show_negative_objects_24.png[gerbview_show_negative_objects_png]\n"
+"|Отображать негативные объекты в дополнительном цвете\n"
+"\n"
+"|image:images/icons/show_dcodenumber_24.png[show_dcodenumber_png]\n"
+"|Отображать значения D-кодов\n"
+"\n"
+"|image:images/icons/gbr_select_mode2_24.png[gbr_select_mode2_png]\n"
+"|Отображать слои в режиме сравнения (дифференциальный режим)\n"
+"\n"
+"|image:images/icons/contrast_mode_24.png[contrast_mode_png]\n"
+"|Отображать текущий слой в режиме высокой контрастности\n"
+"\n"
+"|image:images/icons/layers_manager_24.png[layers_manager_png]\n"
+"|Показать/скрыть менеджер слоёв\n"
+"\n"
+"|image:images/icons/flip_board_24.png[flip_board_24]\n"
+"|Показать слои в отраженном виде\n"
+"\n"
+
+#. type: Title ===
+#: gerbview.adoc:162
+#, no-wrap
+msgid "Layers Manager"
+msgstr "Менеджер слоёв"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: gerbview.adoc:164
+#, no-wrap
+msgid "gerbview_layer_manager_png"
+msgstr "gerbview_layer_manager_png"
+
+#. type: Target for macro image
+#: gerbview.adoc:164
+#, no-wrap
+msgid "images/gerbview_layer_manager.png"
+msgstr "images/ru/gerbview_layer_manager.png"
+
+#. type: Plain text
+#: gerbview.adoc:169
+msgid ""
+"The Layers Manager controls and displays visibility of all layers. An arrow "
+"indicates the active layer, and each layer can be shown or hidden with the "
+"checkboxes."
+msgstr ""
+"Менеджер слоёв позволяет управлять и контролировать видимость всех слоёв. "
+"Стрелка указывает на активный слой, а с помощью отметок можно скрыть или "
+"показать нужные слои."
+
+#. type: Plain text
+#: gerbview.adoc:171
+msgid "Mouse button assignments:"
+msgstr "Функции кнопок мыши:"
+
+#. type: Plain text
+#: gerbview.adoc:173
+msgid "Left click: select the active layer"
+msgstr "Щелчок левой кнопкой мыши на строке: выбор активного слоя."
+
+#. type: Plain text
+#: gerbview.adoc:174
+msgid "Right click: show/hide/sort layers options"
+msgstr ""
+"Щелчок правой кнопки мыши на менеджере слоёв: управление отображением сразу "
+"всех слоёв."
+
+#. type: Plain text
+#: gerbview.adoc:175
+msgid "Middle click or double click (on color swatch): select the layer color"
+msgstr ""
+"Щелчок средней кнопкой мыши или двойной щелчок (на индикаторе цвета): выбор "
+"цвета слоя."
+
+#. type: Plain text
+#: gerbview.adoc:179
+msgid ""
+"The Layers tab allows you to control the visibility and color of all loaded "
+"Gerber and drill layers.  The Items tab allows you to control the color and "
+"display of the grid, D Codes, and negative objects."
+msgstr ""
+"Вкладка Слои позволяет управлять отображением и цветом всех загруженных "
+"Gerber-слоёв или слоёв сверловки. Вкладка Элементы позволяет управлять "
+"отображением и цветом сетки, D-кодов и негативных объектов."
+
+#. type: Title ==
+#: gerbview.adoc:180
+#, no-wrap
+msgid "Commands in menu bar"
+msgstr "Команды меню"
+
+#. type: Title ===
+#: gerbview.adoc:182
+#, no-wrap
+msgid "File menu"
+msgstr "Меню Файл"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: gerbview.adoc:184
+#, no-wrap
+msgid "gerbview_file_menu_png"
+msgstr "gerbview_file_menu_png"
+
+#. type: Target for macro image
+#: gerbview.adoc:184
+#, no-wrap
+msgid "images/gerbview_file_menu.png"
+msgstr "images/ru/gerbview_file_menu.png"
+
+#. type: Plain text
+#: gerbview.adoc:190
+#, no-wrap
+msgid ""
+"*Export to PCB Editor* is a limited capability to export Gerber files into a KiCad PCB. The final\n"
+"result depends on what features of the RS-274X format are used in the original Gerber files:\n"
+"rasterized items cannot be converted (typically negative objects), flashed items are converted to\n"
+"vias, lines are converted to track segments (or graphic lines for non-copper layers).\n"
+msgstr ""
+"*Экспорт в Pcbnew* имеет ограниченные возможности для экспорта Gerber-файлов в печатную плату Pcbnew.\n"
+"Конечный результат зависит от того, какие особенности формата RS 274 X используются в Gerber-файлах:\n"
+"растровые элементы (в основном, негативные объекты), не могут быть преобразованы; элементы, заданные\n"
+"командой Gerber \"засветка\", преобразуются в переходные отверстия; элементы, заданные командой Gerber\n"
+"\"линия\", преобразуются в отрезки (или в графические линии для не медных слоев)\n"
+
+#. type: Title ===
+#: gerbview.adoc:191
+#, no-wrap
+msgid "Tools menu"
+msgstr "Меню Инструменты"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: gerbview.adoc:193
+#, no-wrap
+msgid "gerbview_tools_menu_png"
+msgstr "gerbview_tools_menu_png"
+
+#. type: Target for macro image
+#: gerbview.adoc:193
+#, no-wrap
+msgid "images/gerbview_tools_menu.png"
+msgstr "images/ru/gerbview_tools_menu.png"
+
+#. type: Plain text
+#: gerbview.adoc:196
+#, no-wrap
+msgid "*List DCodes* shows the D Code information for all layers.\n"
+msgstr "*Список D-кодов* показывает используемые D-коды и некоторые их параметры.\n"
+
+#. type: Plain text
+#: gerbview.adoc:197
+#, no-wrap
+msgid "*Show Source* displays the Gerber file contents of the active layer in a text editor.\n"
+msgstr ""
+"*Показать содержимое файла* отображает содержимое Gerber-файла\n"
+"активного слоя в текстовом редакторе.\n"
+
+#. type: Plain text
+#: gerbview.adoc:198
+#, no-wrap
+msgid "*Measure Tool* allows measuring the distance between two points.\n"
+msgstr "*Измерительный инструмент* позволяет измерять расстояния между двумя точками.\n"
+
+#. type: Plain text
+#: gerbview.adoc:199
+#, no-wrap
+msgid "*Clear Current Layer* erases the contents of the active layer.\n"
+msgstr "*Очистить текущий слой* стирает содержимое активного слоя.\n"
+
+#. type: Title ==
+#: gerbview.adoc:200
+#, no-wrap
+msgid "Printing"
+msgstr "Печать"
+
+#. type: Plain text
+#: gerbview.adoc:205
+msgid ""
+"To print layers, use the image:images/icons/print_button_24."
+"png[print_button_png] icon or the *File -> Print* menu."
+msgstr ""
+"Для печати слоёв используйте кнопку image:images/icons/print_button_24."
+"png[print_button_png] или меню *Файл -> Печать*."
+
+#. type: delimited block =
+#: gerbview.adoc:211
+msgid ""
+"Be sure items are inside the printable area. Use image:images/icons/"
+"sheetset_24.png[sheetset_png] to select a suitable page format."
+msgstr ""
+"Убедитесь, что элементы находятся внутри области печати. Выберите с помощью "
+"image:images/icons/sheetset_24.png[sheetset_png] подходящий формат страницы."
+
+#. type: delimited block =
+#: gerbview.adoc:215
+msgid ""
+"Note that many photoplotters support a large plottable area, much bigger "
+"than the page sizes used by most printers. Moving the entire layer set may "
+"be required."
+msgstr ""
+"Не забывайте, что фотоплоттеры могут использовать зону печати намного "
+"большую, чем размер страниц, используемых принтерами. Может потребоваться "
+"переместить весь набор слоёв."
+
+#~ msgid "Please direct any bug reports, suggestions or new versions to here:"
+#~ msgstr ""
+#~ "Оставить свои комментарии или замечания можно на следующих ресурсах:"
+
+#~ msgid ""
+#~ "About KiCad document: https://gitlab.com/kicad/services/kicad-doc/issues"
+#~ msgstr ""
+#~ "О документации KiCad: https://gitlab.com/kicad/services/kicad-doc/issues"
+
+#~ msgid "About KiCad software: https://gitlab.com/kicad/code/kicad/issues"
+#~ msgstr ""
+#~ "О программном обеспечении KiCad: https://gitlab.com/kicad/code/kicad/"
+#~ "issues"
+
+#~ msgid ""
+#~ "About KiCad software i18n: https://gitlab.com/kicad/code/kicad-i18n/issues"
+#~ msgstr ""
+#~ "О переводе программного обеспечения KiCad: https://gitlab.com/kicad/code/"
+#~ "kicad-i18n/issues"
+
+#, no-wrap
+#~ msgid "*Publication date and software version*\n"
+#~ msgstr "*Дата публикации*\n"
+
+#~ msgid "Published on February 24, 2018."
+#~ msgstr "24 февраля 2018 года."
+
+#, no-wrap
+#~ msgid "gerbview_top_toolbar_png"
+#~ msgstr "gerbview_top_toolbar_png"
+
+#, no-wrap
+#~ msgid "images/gerbview_top_toolbar.png"
+#~ msgstr "images/ru/gerbview_top_toolbar.png"
+
+#, no-wrap
+#~ msgid "14+^.^|image:images/gerbview_left_toolbar.png[gerbview_left_toolbar_png]"
+#~ msgstr "14+^.^|image:images/gerbview_left_toolbar.png[gerbview_left_toolbar_png]"
+
+#, no-wrap
+#~ msgid "Preferences menu"
+#~ msgstr "Меню \"Настройки\""
+
+#, no-wrap
+#~ msgid "gerbview_preferences_menu_png"
+#~ msgstr "gerbview_preferences_menu_png"
+
+#, no-wrap
+#~ msgid "images/gerbview_preferences_menu.png"
+#~ msgstr "images/ru/gerbview_preferences_menu.png"
+
+#~ msgid ""
+#~ "GerbView now supports the modern graphics toolset that is available in "
+#~ "PcbNew.  Enabling the modern toolset brings new features and better "
+#~ "performance.  You can select which toolset to use in the preferences "
+#~ "menu.  Using the Modern (Accelerated)  toolset is recommended if your "
+#~ "graphics card supports it (requires OpenGL 2.0).  If your graphics card "
+#~ "does not support the Accelerated toolset, you can still use the new "
+#~ "features by selecting the Modern (Fallback) toolset."
+#~ msgstr ""
+#~ "GerbView теперь поддерживает современный режим отображения грфики, "
+#~ "который используется в PcbNew. Активация данного режима позволяет "
+#~ "использовать новые инструменты и работать с лучшей производительностью. "
+#~ "Можно выбрать желаемый режим отображения через меню настроек. Если "
+#~ "видеоадаптер поддерживает OpenGL 2.0, рекомендуется использовать "
+#~ "Современный инструментарий (ускоренный). Если же ведеоадаптер не имеет "
+#~ "графического ускорителя, можно работать с новыми инструментами в режиме "
+#~ "Современноый инструментарий (запасной)."
+
+#~ msgid ""
+#~ "Using the Legacy toolset is only recommended if you notice that the "
+#~ "Modern toolset does not support a feature you need or if it does not "
+#~ "render a Gerber file correctly.  If you notice such a problem, please "
+#~ "notify the KiCad developers so that it can be fixed in a future release."
+#~ msgstr ""
+#~ "Использование Устаревшего инструментария рекомендуется только в том "
+#~ "случае, если современные режимы отображения не имеют небходимых "
+#~ "инструментов или содержимое Gerber-файлов отображается не корректно. Если "
+#~ "возникает подобная проблема, будьте добры, сообщите об этом "
+#~ "разработчиками KiCad, чтобы они смогли устранить это в будущих выпусках."
+
+#~ msgid "The Legacy toolset will be removed in a future version of GerbView."
+#~ msgstr ""
+#~ "Устаревший режим отображения в будщих версиях GerbView будет удалён."
+
+#, no-wrap
+#~ msgid "Miscellaneous menu"
+#~ msgstr "Меню \"Разное\""
+
+#, no-wrap
+#~ msgid "gerbview_misc_menu_png"
+#~ msgstr "gerbview_misc_menu_png"
+
+#, no-wrap
+#~ msgid "images/gerbview_misc_menu.png"
+#~ msgstr "images/ru/gerbview_misc_menu.png"
+
+#, no-wrap
+#~ msgid "*Set Text Editor...* allows you to choose which program to show source with.\n"
+#~ msgstr "*Выбор текстового редактора...* позволяет выбрать приложение для просмотра содержимого файлов.\n"
+
+#, no-wrap
+#~ msgid "Display modes"
+#~ msgstr "Режимы отображения слоёв"
+
+#~ msgid ""
+#~ "GerbView has three display modes which are useful for different "
+#~ "situations or requirements."
+#~ msgstr ""
+#~ "GerbView имеет три режима отображения, которые будут полезны в различных "
+#~ "ситуациях и при разных условиях."
+
+#~ msgid ""
+#~ "Stacked mode and Transparency mode provide a better graphical experience, "
+#~ "but may be slower then Raw mode on some computers."
+#~ msgstr ""
+#~ "\"Пакетный\" и \"прозрачный\" режимы обеспечивают наилучшее качество "
+#~ "отображения, но на некоторых компьютерах, могут работать медленнее чем "
+#~ "режим \"без обработки\"."
+
+#, no-wrap
+#~ msgid "Raw mode"
+#~ msgstr "Режим \"без обработки\""
+
+#~ msgid ""
+#~ "This mode is selected by image:images/icons/gbr_select_mode0."
+#~ "png[gbr_select_mode0_png].  Each file and each item in the file are drawn "
+#~ "in the order files are loaded. However, the active layer is drawn last."
+#~ msgstr ""
+#~ "Этот режим устанавливается с помощью кнопки image:images/icons/"
+#~ "gbr_select_mode0.png[gbr_select_mode0_png]. Каждый файл и каждый элемент "
+#~ "из этого файла будет выводится на экран в том порядке, в котором они были "
+#~ "загружены. Но при этом, активный слой будет выведен последним."
+
+#~ msgid ""
+#~ "When Gerber files have negative items (drawn in black), artifacts may be "
+#~ "visible on already-drawn layers."
+#~ msgstr ""
+#~ "Если Gerber-файлы имеют негативные элементы, то на уже нарисованных слоях "
+#~ "появятся артефакты."
+
+#, no-wrap
+#~ msgid "gerbview_mode_raw_stack_png"
+#~ msgstr "gerbview_mode_raw_stack_png"
+
+#, no-wrap
+#~ msgid "images/gerbview_mode_raw_stack.png"
+#~ msgstr "images/gerbview_mode_raw_stack.png"
+
+#, no-wrap
+#~ msgid "Stacked mode"
+#~ msgstr "\"Пакетный\" режим"
+
+#~ msgid ""
+#~ "Invoked by image:images/icons/gbr_select_mode1.png[gbr_select_mode1_png], "
+#~ "each file is drawn in the order files are loaded. Again, the active layer "
+#~ "is drawn last."
+#~ msgstr ""
+#~ "Устанавливается с помощью image:images/icons/gbr_select_mode1."
+#~ "png[gbr_select_mode1_png], каждый файл выводится на экран в том порядке, "
+#~ "в котором они были загружены. При этом, активный слой, тоже, будет "
+#~ "выведен последним."
+
+#~ msgid ""
+#~ "When Gerber files have negative items (drawn in black) there are no "
+#~ "artifacts on already-drawn layers because this mode draws each file in a "
+#~ "local buffer before it is shown on screen."
+#~ msgstr ""
+#~ "Если Gerber-файлы имеют негативные элементы, то на уже нарисованных слоях "
+#~ "артефакты не появляются, потому что каждый файл рисуется в локальном "
+#~ "буфере перед отображением на экране."
+
+#, no-wrap
+#~ msgid "Transparency mode"
+#~ msgstr "\"Прозрачный\" режим"
+
+#~ msgid ""
+#~ "Use image:images/icons/gbr_select_mode2.png[gbr_select_mode2_png] to "
+#~ "display in this mode, where no artifacts are present and layers are "
+#~ "blended together with the active layer on top."
+#~ msgstr ""
+#~ "Используйте кнопку image:images/icons/gbr_select_mode2."
+#~ "png[gbr_select_mode2_png] для отображения в этом режиме, в котором нет "
+#~ "никаких артефактов и слои смешиваются вместе с верхним активным слоем."
+
+#, no-wrap
+#~ msgid "gerbview_mode_transparency_png"
+#~ msgstr "gerbview_mode_transparency_png"
+
+#, no-wrap
+#~ msgid "images/gerbview_mode_transparency.png"
+#~ msgstr "images/gerbview_mode_transparency.png"
+
+#, no-wrap
+#~ msgid "Layer occlusion"
+#~ msgstr "Скрытые элементы нижних слоёв"
+
+#~ msgid ""
+#~ "In raw or stacked mode, the active layer will be on top of other layers "
+#~ "and hide items below it."
+#~ msgstr ""
+#~ "В режиме \"без обработки\" и \"пакетном\" режиме активный слой всегда "
+#~ "располагается вверху, над остальными слоями, и скрывает элементы под "
+#~ "собой."
+
+#~ msgid ""
+#~ "Here, layer 1 (green) is the active layer (note the triangle next to it)  "
+#~ "and so it is drawn on top of layer 2 (blue):"
+#~ msgstr ""
+#~ "Здесь слой 1 (зелёный) -- активный (заметьте, стрелка указывает на него)  "
+#~ "и он отображается поверх слоя 2 (синего):"
+
+#, no-wrap
+#~ msgid "gerbview_layer_select_1_png"
+#~ msgstr "gerbview_layer_select_1_png"
+
+#, no-wrap
+#~ msgid "images/gerbview_layer_select_1.png"
+#~ msgstr "images/ru/gerbview_layer_select_1.png"
+
+#~ msgid "Making layer 2 (blue) the active layer brings it to the top:"
+#~ msgstr "Сделав слой 2 (синий) активным, он переместиться наверх:"
+
+#, no-wrap
+#~ msgid "gerbview_layer_select_2_png"
+#~ msgstr "gerbview_layer_select_2_png"
+
+#, no-wrap
+#~ msgid "images/gerbview_layer_select_2.png"
+#~ msgstr "images/ru/gerbview_layer_select_2.png"
+
+#, no-wrap
+#~ msgid "Moving items"
+#~ msgstr "Перемещение элементов"
+
+#~ msgid ""
+#~ "When using the legacy toolset, items may be selected by holding down the "
+#~ "left mouse button and drawing a rectangle. Releasing the button picks up "
+#~ "the items.  A click of the left mouse button places the items."
+#~ msgstr ""
+#~ "При работе в устаревшем режиме отображения, элементы можно выделять с "
+#~ "помощью мыши, для этого нажимают левую кнопку и, не отпуская её, "
+#~ "перемещают курсор, формируя прямоугольник выделения. Отпустив кнопку, "
+#~ "элементы будут выделены и готовы к перемещению. Повторное, "
+#~ "кратковременное, нажатие левой кнопки мыши расположит элементы в новом "
+#~ "месте."
+
+#~ msgid ""
+#~ "This behavior is deprecated and not available in the modern toolsets."
+#~ msgstr ""
+#~ "Этот приём работы является устаревшим и не доступен в современных режимах "
+#~ "отображения."
