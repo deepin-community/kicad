@@ -1,0 +1,74 @@
+:experimental:
+
+== Actions reference
+Below is a list of every available *action* in the KiCad Project Manager: a command that can be
+assigned to a hotkey. 
+
+////
+Note to translators: you do not need to translate this table by hand.
+
+It is generated from KiCad using the Dump Hotkeys button that is shown in the hotkeys editor if you
+add the line `HotkeysDumper=1` to your advanced config file (`kicad_advanced` file in the config
+directory)
+////
+
+=== KiCad Project Manager
+
+// NOTE: this text between the section header and the table is *required* or
+// asciidoctor-web-pdf will not insert page breaks in the table correctly and
+// the PDF will be truncated.
+The actions below are available in the KiCad Project Manager. Hotkeys can be
+assigned to any of these actions in the **Hotkeys** section of the preferences.
+
+[width="100%",options="header",cols="20%,15%,65%"]
+|===
+| Action | Default Hotkey | Description
+| Close Project
+  |
+  | Close the current project
+| Image Converter
+  | kbd:[Ctrl+B]
+  | Convert bitmap images to schematic or PCB components
+| Drawing Sheet Editor
+  | kbd:[Ctrl+Y]
+  | Edit drawing sheet borders and title block
+| Footprint Editor
+  | kbd:[Ctrl+F]
+  | Edit PCB footprints
+| PCB Editor
+  | kbd:[Ctrl+P]
+  | Edit PCB
+| Schematic Editor
+  | kbd:[Ctrl+E]
+  | Edit schematic
+| Symbol Editor
+  | kbd:[Ctrl+L]
+  | Edit schematic symbols
+| Clone Project from Repository...
+  |
+  | Clone a project from an existing repository
+| New Project from Template...
+  | kbd:[Ctrl+T]
+  | Create new project from template
+| New Project...
+  | kbd:[Ctrl+N]
+  | Create new blank project
+| Open Demo Project...
+  |
+  | Open a demo project
+| Open Project...
+  | kbd:[Ctrl+O]
+  | Open an existing project
+| Open Text Editor
+  |
+  | Launch preferred text editor
+| Plugin and Content Manager
+  | kbd:[Ctrl+M]
+  | Run Plugin and Content Manager
+| Calculator Tools
+  |
+  | Run component calculations, track width calculations, etc.
+| Gerber Viewer
+  | kbd:[Ctrl+G]
+  | Preview Gerber output files
+|===

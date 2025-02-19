@@ -1,0 +1,625 @@
+# SOME DESCRIPTIVE TITLE
+# Copyright (C) YEAR Free Software Foundation, Inc.
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"POT-Creation-Date: 2021-10-31 15:45-0400\n"
+"PO-Revision-Date: 2019-04-07 12:02+0900\n"
+"Last-Translator: starfort_jp <starfort@nifty.com>\n"
+"Language-Team: \n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 2.2.1\n"
+
+#. type: Title =
+#: pcb_calculator.adoc:7
+#, no-wrap
+msgid "PCB Calculator"
+msgstr "PCB 電卓"
+
+#. type: Plain text
+#: pcb_calculator.adoc:10
+msgid "_Reference manual_"
+msgstr "_リファレンス・マニュアル_"
+
+#. type: Plain text
+#: pcb_calculator.adoc:13
+#, no-wrap
+msgid "*Copyright*\n"
+msgstr "*著作権*\n"
+
+#. type: Plain text
+#: pcb_calculator.adoc:20
+msgid ""
+"This document is Copyright (C) 2019 by it's contributors as listed below.  "
+"You may distribute it and/or modify it under the terms of either the GNU "
+"General Public License (http://www.gnu.org/licenses/gpl.html), version 3 or "
+"later, or the Creative Commons Attribution License (http://creativecommons."
+"org/licenses/by/3.0/), version 3.0 or later."
+msgstr ""
+"このドキュメントは以下の貢献者により著作権所有 (C) 2019 されています。あなた"
+"は、GNU General Public License ( http://www.gnu.org/licenses/gpl.html ) の"
+"バージョン 3 以降、あるいはクリエイティブ・コモンズ・ライセンス ( http://"
+"creativecommons.org/licenses/by/3.0/ ) のバージョン 3.0 以降のいずれかの条件"
+"の下で、配布または変更することができます。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:23
+#, no-wrap
+msgid "*Contributors*\n"
+msgstr "*貢献者*\n"
+
+#. type: Plain text
+#: pcb_calculator.adoc:26
+msgid "Heitor de Bittencourt.  Mathias Neumann"
+msgstr "Heitor de Bittencourt.  Mathias Neumann"
+
+#. type: Plain text
+#: pcb_calculator.adoc:29
+#, no-wrap
+msgid "*Feedback*\n"
+msgstr "*フィードバック*\n"
+
+#. type: Plain text
+#: pcb_calculator.adoc:31
+msgid "Please direct any bug reports, suggestions or new versions to here:"
+msgstr "バグ報告や提案はこちらへお知らせください:"
+
+#. type: Plain text
+#: pcb_calculator.adoc:33
+msgid ""
+"About KiCad document: https://gitlab.com/kicad/services/kicad-doc/issues"
+msgstr ""
+"KiCad のドキュメントについて : https://gitlab.com/kicad/services/kicad-doc/"
+"issues"
+
+#. type: Plain text
+#: pcb_calculator.adoc:35
+msgid "About KiCad software: https://gitlab.com/kicad/code/kicad/issues"
+msgstr ""
+"KiCad ソフトウェアについて : https://gitlab.com/kicad/code/kicad/issues"
+
+#. type: Plain text
+#: pcb_calculator.adoc:37
+msgid ""
+"About KiCad software i18n: https://gitlab.com/kicad/code/kicad-i18n/issues"
+msgstr ""
+"KiCad ソフトウェアの翻訳について : https://gitlab.com/kicad/code/kicad-i18n/"
+"issues"
+
+#. type: Plain text
+#: pcb_calculator.adoc:40
+#, no-wrap
+msgid "*Publication date and software version*\n"
+msgstr "*発行日とソフトウェアのバージョン*\n"
+
+#. type: Plain text
+#: pcb_calculator.adoc:42
+#, fuzzy
+#| msgid "march 04, 2019"
+msgid "March 05 2020"
+msgstr "2019年03月04日 発行"
+
+#. type: Title ==
+#: pcb_calculator.adoc:45
+#, no-wrap
+msgid "Introduction"
+msgstr "はじめに"
+
+#. type: Plain text
+#: pcb_calculator.adoc:50
+msgid ""
+"The KiCad PCB Calculator is a set of utilities to help you find the values "
+"of components or other parameters of a layout. The Calculator has the "
+"following tools:"
+msgstr ""
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: pcb_calculator.adoc:52 pcb_calculator.adoc:64 pcb_calculator.adoc:69
+#: pcb_calculator.adoc:74 pcb_calculator.adoc:79
+#, no-wrap
+msgid "Regulators"
+msgstr "レギュレーター"
+
+#. type: Plain text
+#: pcb_calculator.adoc:53
+msgid "Track Width"
+msgstr "配線幅"
+
+#. type: Plain text
+#: pcb_calculator.adoc:54
+msgid "Electrical Spacing"
+msgstr "導体間隔"
+
+#. type: Plain text
+#: pcb_calculator.adoc:55
+msgid "Trans Line"
+msgstr "伝送線路"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: pcb_calculator.adoc:56 pcb_calculator.adoc:167
+#, no-wrap
+msgid "RF Attenuators"
+msgstr "RF アッテネーター"
+
+#. type: Plain text
+#: pcb_calculator.adoc:57
+msgid "Color Code"
+msgstr "カラー コード"
+
+#. type: Plain text
+#: pcb_calculator.adoc:58
+msgid "Board Classes"
+msgstr "ボード クラス"
+
+#. type: Title ==
+#: pcb_calculator.adoc:61
+#, no-wrap
+msgid "Calculators"
+msgstr "レギュレーター"
+
+#. type: Plain text
+#: pcb_calculator.adoc:68
+msgid ""
+"This calculator helps with the task of finding the values of the resistors "
+"needed for linear and low-dropout voltage regulators."
+msgstr ""
+"この計算機は、リニア定電圧レギュレーターと低損失定電圧レギュレーターで使用さ"
+"れる抵抗の値を見つけるのに役立ちます。"
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:69
+#, no-wrap
+msgid "images/en/regulators.png"
+msgstr "images/ja/regulators.png"
+
+#. type: Plain text
+#: pcb_calculator.adoc:73
+#, fuzzy
+#| msgid ""
+#| "For the _Standard Type_, the output voltage V_out as a function of the "
+#| "reference voltage V_ref and resistors R_1 and R_2 is given by:"
+msgid ""
+"For the _Standard Type_, the output voltage Vout as a function of the "
+"reference voltage Vref and resistors R1 and R2 is given by:"
+msgstr ""
+" _標準タイプ_ の出力電圧 V_out は、基準電圧 V_ref と抵抗 R_1 と R_2 により下"
+"式で与えられます:"
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:74
+#, no-wrap
+msgid "images/Calculation1.png"
+msgstr "images/Calculation1.png"
+
+#. type: Plain text
+#: pcb_calculator.adoc:78
+#, fuzzy
+#| msgid ""
+#| "For the _3 terminal type_, there is a correction factor due to the "
+#| "quiescent current I_adj flowing from the adjust pin:"
+msgid ""
+"For the _3 terminal type_, there is a correction factor due to the quiescent "
+"current Iadj flowing from the adjust pin:"
+msgstr ""
+" _三端子タイプ_ では、アジャスト ピンから流れる静止電流 I_adj のため補正項が"
+"あります:"
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:79
+#, no-wrap
+msgid "images/Calculation2.png"
+msgstr "images/Calculation2.png"
+
+#. type: Plain text
+#: pcb_calculator.adoc:83
+msgid ""
+"This current is typically below 100 uA and can be neglected with caution."
+msgstr ""
+"この電流は一般的に 100 uA 以下であり、気をつけながら無視することができます。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:85
+#, fuzzy
+#| msgid ""
+#| "To use this calculator, enter the parameters of the regulator _Type_, "
+#| "_V_ref_ and, if needed, _I_adj_, select the field you want to calculate "
+#| "(one of the resistors or the output voltage) and enter the other two "
+#| "values."
+msgid ""
+"To use this calculator, enter the parameters of the regulator _Type_, _Vref_ "
+"and, if needed, _Iadj_, select the field you want to calculate (one of the "
+"resistors or the output voltage) and enter the other two values."
+msgstr ""
+"この計算機を使うには、レギュレーター _タイプ_ および _V_ref_ 、必要なら "
+"_I_adj_ のパラメーターを入力し、計算したいフィールド (抵抗または出力電圧のど"
+"ちらか) を選択して別の２つの値を入力します。"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: pcb_calculator.adoc:88 pcb_calculator.adoc:94
+#, no-wrap
+msgid "Track-Width"
+msgstr "配線幅"
+
+#. type: Plain text
+#: pcb_calculator.adoc:92
+#, fuzzy
+#| msgid ""
+#| "The Track Width calculator calculates the trace width for printed circuit "
+#| "board conductors for a given current.  It uses formulas from IPC-2221 "
+#| "(formerly IPC-D-275)."
+msgid ""
+"The Track Width tool calculates the trace width for printed circuit board "
+"conductors for a given current and temperature rise.  It uses formulas from "
+"IPC-2221 (formerly IPC-D-275)."
+msgstr ""
+"配線幅の計算機は、与えられた電流に対するプリント基板の導体の配線幅を計算しま"
+"す。 IPC-2221 (旧 IPC-D-275) の定義式を使用しています。"
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:94
+#, no-wrap
+msgid "images/en/trackwidth.png"
+msgstr "images/ja/trackwidth.png"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: pcb_calculator.adoc:98 pcb_calculator.adoc:107
+#, no-wrap
+msgid "Electrical-Spacing"
+msgstr "導体間隔"
+
+#. type: Plain text
+#: pcb_calculator.adoc:101
+msgid "This table helps finding the minimum clearance between conductors."
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:106
+msgid ""
+"Each line of the table has a minimum recomended distance between conductors "
+"for a given voltage (DC or AC peaks) range. If you need the values for "
+"voltages higher than 500V, enter the value in the box in the left corner and "
+"press _Update Values_."
+msgstr ""
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:107
+#, no-wrap
+msgid "images/en/electricalspacing.png"
+msgstr "images/ja/electricalspacing.png"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: pcb_calculator.adoc:111 pcb_calculator.adoc:150
+#, no-wrap
+msgid "TransLine"
+msgstr "伝送線路"
+
+#. type: Plain text
+#: pcb_calculator.adoc:114
+msgid ""
+"Transmission line theory is a cornerstone in the teaching of RF and "
+"microwave engineering."
+msgstr "伝送線路理論は、高周波とマイクロ波工学の授業における基本です。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:116
+#, fuzzy
+#| msgid ""
+#| "In the Calculator you can choose different sorts of Line Types and their "
+#| "special Parameters."
+msgid ""
+"In the calculator you can choose different sorts of Line Types and their "
+"special parameters. The models implemented are frequency-dependent, so they "
+"disagree with simpler models at high _enough_ frequencies."
+msgstr "計算機では、伝送線路のタイプとパラメーターを選択することができます。"
+
+#. type: Plain text
+#: pcb_calculator.adoc:118
+msgid ""
+"This calculator is heavilly based on http://transcalc.sourceforge.net/"
+"[Transcalc]."
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:120
+msgid ""
+"The transmission line types and the reference of their mathematical models "
+"are listed below:"
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:122
+msgid "Microstrip line:"
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:124 pcb_calculator.adoc:138
+msgid ""
+"H. A. Atwater, “Simplified Design Equations for Microstrip Line Parameters”, "
+"Microwave Journal, pp. 109-115, November 1989."
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:126
+msgid "Coplanar wave guide."
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:128
+msgid "Coplanar wave guide with ground plane."
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:130
+msgid "Rectangular waveguide:"
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:132
+msgid ""
+"S. Ramo, J. R. Whinnery and T. van Duzer, \"Fields and Waves in "
+"Communication Electronics\", Wiley-India, 2008, ISBN: 9788126515257."
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:134
+msgid "Coaxial line."
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:136
+msgid "Coupled microstrip line:"
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:140
+msgid ""
+"M. Kirschning and R. H. Jansen, \"Accurate Wide-Range Design Equations for "
+"the Frequency-Dependent Characteristic of Parallel Coupled Microstrip Lines,"
+"\" in IEEE Transactions on Microwave Theory and Techniques, vol. 32, no. 1, "
+"pp. 83-90, Jan. 1984. doi: 10.1109/TMTT.1984.1132616."
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:142
+msgid ""
+"Rolf Jansen, \"High-Speed Computation of Single and Coupled Microstrip "
+"Parameters Including Dispersion, High-Order Modes, Loss and Finite Strip "
+"Thickness\", IEEE Trans. MTT, vol. 26, no. 2, pp. 75-82, Feb. 1978."
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:144
+msgid ""
+"S. March, \"Microstrip Packaging: Watch the Last Step\", Microwaves, vol. "
+"20, no. 13, pp. 83.94, Dec. 1981."
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:146
+msgid "Stripline."
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:148
+msgid "Twisted pair."
+msgstr ""
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:150
+#, no-wrap
+msgid "images/en/transline.png"
+msgstr "images/ja/transline.png"
+
+#. type: Title ===
+#: pcb_calculator.adoc:154
+#, no-wrap
+msgid "RF-Attenuators"
+msgstr "RF アッテネーター"
+
+#. type: Plain text
+#: pcb_calculator.adoc:158
+#, fuzzy
+#| msgid ""
+#| "With the RF Attenuator you can calculate different things by choosing:"
+msgid ""
+"With the RF Attenuator utility you can calculate the values of the resistors "
+"needed for different types of attenuators:"
+msgstr "RF アッテネーターでは、以下の選択によって異なった式を計算できます:"
+
+#. type: Plain text
+#: pcb_calculator.adoc:160
+msgid "PI"
+msgstr "パイ型"
+
+#. type: Plain text
+#: pcb_calculator.adoc:161
+msgid "Tee"
+msgstr "T型"
+
+#. type: Plain text
+#: pcb_calculator.adoc:162
+msgid "Bridged Tee"
+msgstr "ブリッジ T 型"
+
+#. type: Plain text
+#: pcb_calculator.adoc:163
+msgid "Resistive Splitter"
+msgstr "抵抗分割型"
+
+#. type: Plain text
+#: pcb_calculator.adoc:166
+msgid ""
+"To use this tool, first select the type of attenuator you need, then enter "
+"the desired attenuation (in dB) and input/output impedances (in Ohms)."
+msgstr ""
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:167
+#, no-wrap
+msgid "images/en/rfattenuators.png"
+msgstr "images/ja/rfattenuators.png"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: pcb_calculator.adoc:171 pcb_calculator.adoc:179
+#, no-wrap
+msgid "Color-Code"
+msgstr "カラー コード"
+
+#. type: Plain text
+#: pcb_calculator.adoc:174
+msgid ""
+"This calculator helps translating the color bars from the resistor to its "
+"value. To use it, first select the _tolerance_ of the resistor: 10%, 5% or "
+"equal or smaller than 2%. For example:"
+msgstr ""
+"この計算機は、抵抗のカラー バーを抵抗値に翻訳するのを助けます。この機能を使う"
+"には、抵抗の _許容誤差_ (10%、5% または 2% 以下) を最初に選択します。例えば:"
+
+#. type: Plain text
+#: pcb_calculator.adoc:176
+msgid "Yellow Violet Red Gold: 4 7 x100 ±5% = 4700 Ohm, 5% tolerance"
+msgstr "黄 紫 赤 金: 4 7 x100 ±5% = 4700 Ω, 許容誤差 5%"
+
+#. type: Plain text
+#: pcb_calculator.adoc:177
+msgid "1kOhm, 1% tolerance: Brown Black Black Brown Brown"
+msgstr "1 kΩ, 許容誤差 1%: 茶 黒 黒 茶 茶"
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:179
+#, no-wrap
+msgid "images/en/colorcode.png"
+msgstr "images/ja/colorcode.png"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: pcb_calculator.adoc:183 pcb_calculator.adoc:218
+#, no-wrap
+msgid "Board-Classes"
+msgstr "ボード クラス"
+
+#. type: Title =====
+#: pcb_calculator.adoc:185
+#, fuzzy, no-wrap
+#| msgid "Board Classes"
+msgid "Performance Classes"
+msgstr "ボード クラス"
+
+#. type: Plain text
+#: pcb_calculator.adoc:188
+msgid "In IPC-6011 have been three performance classes established"
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:191
+msgid ""
+"Class 1 General Electronic Products Includes consumer products, some "
+"computer and computer peripherals suitable for applications where cosmetic "
+"imperfections are not important and the major requirement is function of the "
+"completed printed board."
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:194
+msgid ""
+"Class 2 Dedicated Service Electronic Products Includes communications "
+"equipment, sophisticated business machines, instruments where high "
+"performance and extended life is required and for which uninterrupted "
+"service is desired but not critical. Certain cosmetic imperfections are "
+"allowed."
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:197
+msgid ""
+"Class 3 High Reliability Electronic Products Includes the equipment and "
+"products where continued performance or performance on demand is critical. "
+"Equipment downtime cannot be tolerated and must function when required "
+"suchas in life support items or flight control systems. Printed boards in "
+"this class are suitable for applications where high levels of assurance are "
+"required and service is essential."
+msgstr ""
+
+#. type: Title =====
+#: pcb_calculator.adoc:198
+#, no-wrap
+msgid "PCB Types"
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:201
+msgid "In IPC-6012B there are also 6 Types of PCB defined:"
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:203
+msgid "Printed Boards without plated through holes (1)"
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:205
+msgid "1 Single-Sided Board"
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:207
+msgid "And Boards with plated through holes (2-6)"
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:209
+msgid "2 Double-Sided Board"
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:211
+msgid "3 Multilayer board without blind or buried vias"
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:213
+msgid "4 Multilayer board with blind and/or buried vias"
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:215
+msgid "5 Multilayer metal core board without blind orburied vias"
+msgstr ""
+
+#. type: Plain text
+#: pcb_calculator.adoc:217
+msgid "6 Multilayer metal core board with blind and/orburied vias"
+msgstr ""
+
+#. type: Target for macro image
+#: pcb_calculator.adoc:218
+#, no-wrap
+msgid "images/en/boardclasses.png"
+msgstr "images/ja/boardclasses.png"
+
+#~ msgid ""
+#~ "The Kicad Calculator gives you the Chance to calculate the most important "
+#~ "Things without leaving Kicad."
+#~ msgstr ""
+#~ "Kicad の PCB 電卓は、Kicad を離れることなく、多くの重要な計算を実行するこ"
+#~ "とができます。"
+
+#~ msgid "The Calculator consists the following Options:"
+#~ msgstr "電卓は、以下に示す機能を持つ選択可能な計算機から構成されています:"
+
+#~ msgid ""
+#~ "In the Picture you can see that you can edit the Voltage and the "
+#~ "Calculator gives you the correct Values."
+#~ msgstr ""
+#~ "この図のように電圧を編集することができ、計算機は正確な値を計算します。"
+
+#~ msgid "The minimal Values which orientatd at the IPC-2221 too."
+#~ msgstr "最小値も IPC-2221 に準拠しています。"
+
+#~ msgid "and change all their Parameters."
+#~ msgstr "また全てのパラメーターも変更となります。"

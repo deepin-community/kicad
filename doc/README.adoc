@@ -1,0 +1,158 @@
+KiCad Documentation
+===================
+
+This repository contains the official link:https://www.kicad.org/[KiCad] documentation.
+
+
+== Contributing
+
+To help the development of the documentation, add issues to the
+link:https://gitlab.com/kicad/services/kicad-doc/issues[issues page].
+
+To help in translating the documentation visit the link:translation_instructions.adoc[]. +
+
+To contribute code to the repository,
+link:https://gitlab.com/kicad/services/kicad-doc/-/forks/new[fork the project],
+commit changes to a branch on your fork, and
+link:https://gitlab.com/kicad/services/kicad-doc/-/merge_requests[submit a merge request]. +
+Submit your merge requests to the nightly docs branch `master`. If applicable,
+your changes will also be applied to the stable branch after merging.
+
+== Dependencies
+
+* https://asciidoctor.org/[Asciidoctor] >= 2.0 is both the language of the
+documentation and the tool used to generate the HTML outputs.
+
+* https://github.com/Mogztter/asciidoctor-web-pdf[asciidoctor-web-pdf] is used to generate the
+  PDF outputs.
+
+* https://www.po4a.org/[po4a] v0.44 < version < v0.55 is used to translate the English
+AsciiDoc documentation to other languages before the last compilation steps.
+* CMake >= 2.8
+* gettext >= 0.18
+
+=== Debian / Ubuntu
+
+To install the dependencies on Debian / Ubuntu run the following (requires
+about 1.5GiB of space):
+
+----
+
+sudo apt-get install cmake ruby npm ninja-build fontconfig \
+fonts-freefont-ttf fonts-wqy-microhei fonts-vlgothic gettext \
+git make po4a source-highlight libunicode-linebreak-perl
+
+sudo gem install asciidoctor
+
+sudo npm i -g @asciidoctor/core asciidoctor-pdf --unsafe-perm
+
+----
+
+=== Fedora
+
+To install the dependencies to build the documentation on Fedora, run the following:
+
+   sudo dnf install -y cmake fontconfig po4a rubygem-asciidoctor npm git wqy-microhei-fonts
+   sudo npm install -g puppeteer --unsafe-perm=true
+   sudo npm install -g @asciidoctor/core asciidoctor-web-pdf --unsafe-perm=true
+
+=== Arch/Manjaro Linux
+
+To install the dependencies on Arch/Manjaro run the following:
+
+    sudo pacman -S asciidoctor fontconfig po4a cmake gettext \
+        perl-unicode-linebreak source-highlight ttf-freefont wqy-microhei
+
+    yay -S asciidoctor-web-pdf ttf-vlgothic
+
+== Building the docs
+
+=== Windows
+
+Start with link:windows_dependencies.adoc[] then run:
+
+    cd kicad-doc
+    mkdir build
+    cd build
+    cmake -G "MinGW Makefiles" -DPDF_GENERATOR=FOP ../
+    make
+
+=== MacOS / Linux
+
+    cd kicad-doc
+    mkdir build
+    cd build
+    cmake ..
+    make
+
+or: Use ninja for accelerated compilation (Note: ninja needs to be installed)
+
+    cd kicad-doc
+    mkdir build
+    cd build
+    cmake -G Ninja ..
+    ninja
+
+=== Docker
+https://gitlab.com/kicad/kicad-ci/doc_containers contains the base docker image with the tools preinstalled
+to build the docs, if there is a need to update the base image, it must be done in that repo.
+
+This repo contains its own Dockerfile intended to base on the build tools docker image and generate an empty
+"archive" docker with just the generated files
+
+=== CMake Build Options
+
+==== BUILD_FORMATS
+
+By default **BUILD_FORMATS** is set to `"html;pdf"` to enable building all supported
+document formats.
+
+It's possible to set **BUILD_FORMATS** in order to build only a subset of formats,
+e.g. `-DBUILD_FORMATS=html`
+
+When only one build format is enabled the package name is transformed to include
+the format.
+
+==== LANGUAGES
+
+By default CMake will configure to build all languages available for each document.
+
+You can build just one or some of the languages by using the **LANGUAGES** option
+when configuring a build with CMake, e.g. `-DLANGUAGES="it;en;de"`, etc.
+
+Currently, the available languages are : `ca`, `de`, `en`, `es`, `fr`, `id`,
+`it`, `ja`, `pl`, `ru`  and `zh`, however, any language code can be selected.
+Only translated documents will be built, so for some languages there may only
+be a partial documentation output.
+
+==== SINGLE_LANGUAGE
+
+This option is deprecated, use **LANGUAGES** instead
+
+==== PDF_GENERATOR
+
+By default CMake will use `asciidoctor-web-pdf` for building PDFs.
+
+You can build PDFs however using either `DBLATEX` or `FOP` by using the
+**PDF_GENERATOR** option whilst configuring a CMake build.
+
+For example, use `-DPDF_GENERATOR=FOP` to use FOP to build the PDFs. If the
+**BUILD_FORMATS** option doesn't include `pdf`, the **PDF_GENERATOR** option
+will have no effect on the build.
+
+This option doesn't transform the built package name.
+
+== Packaging the docs
+
+The docs use CMake as mentioned earlier, so to install it as a packager use the
+normal CMake way, for example:
+
+    mkdir build; cd build
+    cmake -DCMAKE_INSTALL_PREFIX=/usr ..
+    make install
+
+And if on OS X you might want something like:
+
+    mkdir build; cd build
+    cmake -DCMAKE_INSTALL_PREFIX="/Library/Application Support/kicad" ..
+    make install

@@ -1,0 +1,1328 @@
+:experimental:
+
+[[pcbnew-actions-reference]]
+== Actions reference
+Below is a list of every available *action* in the PCB Editor: a command that can be assigned to a hotkey.
+
+////
+Note to translators: you do not need to translate this table by hand.
+
+It is generated from KiCad using the Dump Hotkeys button that is shown in the hotkeys editor if you
+add the line `HotkeysDumper=1` to your advanced config file (`kicad_advanced` file in the config
+directory)
+////
+
+=== PCB Editor
+
+// NOTE: this text between the section header and the table is *required* or
+// asciidoctor-web-pdf will not insert page breaks in the table correctly and
+// the PDF will be truncated.
+The actions below are available in the PCB Editor. Hotkeys can be assigned to any of
+these actions in the **Hotkeys** section of the preferences.
+
+[width="100%",options="header",cols="20%,15%,65%"]
+|===
+| Action | Default Hotkey | Description
+| Align to Bottom
+  |
+  | Aligns selected items to the bottom edge
+| Align to Horizontal Center
+  |
+  | Aligns selected items to the horizontal center
+| Align to Vertical Center
+  |
+  | Aligns selected items to the vertical center
+| Align to Left
+  |
+  | Aligns selected items to the left edge
+| Align to Right
+  |
+  | Aligns selected items to the right edge
+| Align to Top
+  |
+  | Aligns selected items to the top edge
+| Distribute Horizontally
+  |
+  | Distributes selected items along the horizontal axis
+| Distribute Vertically
+  |
+  | Distributes selected items along the vertical axis
+| Place Off-Board Footprints
+  |
+  | Performs automatic placement of components outside board area
+| Place Selected Footprints
+  |
+  | Performs automatic placement of selected components
+| Flip Board View
+  |
+  | View board from the opposite side
+| Sketch Graphic Items
+  |
+  | Show graphic items in outline mode
+| Decrease Layer Opacity
+  | kbd:[{]
+  | Make the current layer more transparent
+| Increase Layer Opacity
+  | kbd:[}]
+  | Make the current layer less transparent
+| Switch to Copper (B.Cu) Layer
+  | kbd:[PgDn]
+  | Switch to Copper (B.Cu) layer
+| Switch to Inner Layer 1
+  |
+  | Switch to Inner layer 1
+| Switch to Inner Layer 10
+  |
+  | Switch to Inner layer 10
+| Switch to Inner Layer 11
+  |
+  | Switch to Inner layer 11
+| Switch to Inner Layer 12
+  |
+  | Switch to Inner layer 12
+| Switch to Inner Layer 13
+  |
+  | Switch to Inner layer 13
+| Switch to Inner Layer 14
+  |
+  | Switch to Inner layer 14
+| Switch to Inner Layer 15
+  |
+  | Switch to Inner layer 15
+| Switch to Inner Layer 16
+  |
+  | Switch to Inner layer 16
+| Switch to Inner Layer 17
+  |
+  | Switch to Inner layer 17
+| Switch to Inner Layer 18
+  |
+  | Switch to Inner layer 18
+| Switch to Inner Layer 19
+  |
+  | Switch to Inner layer 19
+| Switch to Inner Layer 2
+  |
+  | Switch to Inner layer 2
+| Switch to Inner Layer 20
+  |
+  | Switch to Inner layer 20
+| Switch to Inner Layer 21
+  |
+  | Switch to Inner layer 21
+| Switch to Inner Layer 22
+  |
+  | Switch to Inner layer 22
+| Switch to Inner Layer 23
+  |
+  | Switch to Inner layer 23
+| Switch to Inner Layer 24
+  |
+  | Switch to Inner layer 24
+| Switch to Inner Layer 25
+  |
+  | Switch to Inner layer 25
+| Switch to Inner Layer 26
+  |
+  | Switch to Inner layer 26
+| Switch to Inner Layer 27
+  |
+  | Switch to Inner layer 27
+| Switch to Inner Layer 28
+  |
+  | Switch to Inner layer 28
+| Switch to Inner Layer 29
+  |
+  | Switch to Inner layer 29
+| Switch to Inner Layer 3
+  |
+  | Switch to Inner layer 3
+| Switch to Inner Layer 30
+  |
+  | Switch to Inner layer 30
+| Switch to Inner Layer 4
+  |
+  | Switch to Inner layer 4
+| Switch to Inner Layer 5
+  |
+  | Switch to Inner layer 5
+| Switch to Inner Layer 6
+  |
+  | Switch to Inner layer 6
+| Switch to Inner Layer 7
+  |
+  | Switch to Inner layer 7
+| Switch to Inner Layer 8
+  |
+  | Switch to Inner layer 8
+| Switch to Inner Layer 9
+  |
+  | Switch to Inner layer 9
+| Switch to Next Layer
+  | kbd:[+]
+  | Switch to Next Layer
+| Switch to Previous Layer
+  | kbd:[-]
+  | Switch to Previous Layer
+| Toggle Layer
+  | kbd:[V]
+  | Switch between layers in active layer pair
+| Switch to Component (F.Cu) layer
+  | kbd:[PgUp]
+  | Switch to Component (F.Cu) layer
+| Net Inspector
+  |
+  | Show the net inspector
+| Local Ratsnest
+  |
+  | Toggle ratsnest display of selected item(s)
+| Net Color Mode (3-state)
+  |
+  | Cycle between using net and netclass colors for all nets, just ratsnests, and none
+| Sketch Pads
+  |
+  | Show pads in outline mode
+| Curved Ratsnest Lines
+  |
+  | Show ratsnest with curved lines
+| Ratsnest Mode (3-state)
+  |
+  | Cycle between showing ratsnests for all layers, just visible layers, and none
+| Repair Board
+  |
+  | Run various diagnostics and attempt to repair board
+| Show Appearance Manager
+  |
+  | Show/hide the appearance manager
+| Show Pad Numbers
+  |
+  | Show pad numbers
+| Scripting Console
+  |
+  | Show the Python scripting console
+| Show Ratsnest
+  |
+  | Show board ratsnest
+| Sketch Text Items
+  |
+  | Show footprint texts in line mode
+| Sketch Tracks
+  | kbd:[K]
+  | Show tracks in outline mode
+| Sketch Vias
+  |
+  | Show vias in outline mode
+| Draw Zone Outlines
+  |
+  | Show only zone boundaries
+| Draw Zone Fills
+  |
+  | Show filled areas of zones
+| Toggle Zone Display
+  |
+  | Cycle between showing zone fills and just their outlines
+| Create Arc from Selection
+  |
+  | Creates an arc from the selected line segment
+| Create Rule Area from Selection...
+  |
+  | Creates a rule area from the selection
+| Create Lines from Selection...
+  |
+  | Creates graphic lines from the selection
+| Create Polygon from Selection...
+  |
+  | Creates a graphic polygon from the selection
+| Create Tracks from Selection
+  |
+  | Creates tracks from the selected graphic lines
+| Create Zone from Selection...
+  |
+  | Creates a copper zone from the selection
+| Design Rules Checker
+  |
+  | Show the design rules checker window
+| Open in Footprint Editor
+  | kbd:[Ctrl+E]
+  | Opens the selected footprint in the Footprint Editor
+| Edit Library Footprint…
+  | kbd:[Ctrl+Shift+E]
+  | Opens the selected footprint in the Footprint Editor
+| Append Board...
+  |
+  | Open another board and append its contents to this board
+| Assign Netclass...
+  |
+  | Assign a netclass to nets matching a pattern
+| Board Setup...
+  |
+  | Edit board setup including layers, design rules and various defaults
+| Clear Net Highlighting
+  | kbd:[~]
+  | Clear any existing net highlighting
+| Drill/Place File Origin
+  |
+  | Place origin point for drill files and component placement files
+| Reset Drill Origin
+  |
+  | 
+| Export Specctra DSN...
+  |
+  | Export Specctra DSN routing info
+| Bill of Materials...
+  |
+  | Create bill of materials from board
+| IPC-D-356 Netlist File…
+  |
+  | Generate IPC-D-356 netlist file
+| Drill Files (.drl)...
+  |
+  | Generate Excellon drill file(s)
+| Gerbers (.gbr)...
+  |
+  | Generate Gerbers for fabrication
+| IPC-2581 File (.xml)...
+  |
+  | Generate an IPC-2581 file
+| Component Placement (.pos, .gbr)...
+  |
+  | Generate component placement file(s) for pick and place
+| Footprint Report (.rpt)...
+  |
+  | Create report of all footprints from current board
+| Group Items
+  |
+  | Group the selected items so that they are treated as a single item
+| Enter Group
+  |
+  | Enter the group to edit items
+| Leave Group
+  |
+  | Leave the current group
+| Hide Net in Ratsnest
+  |
+  | Hide the selected net in the ratsnest of unconnected net lines/arcs
+| Highlight Net
+  | kbd:[`]
+  | Highlight net under cursor
+| Highlight Net
+  |
+  | Highlight all copper items on the selected net(s)
+| Import Netlist...
+  |
+  | Read netlist and update board connectivity
+| Import Specctra Session...
+  |
+  | Import routed Specctra session (*.ses) file
+| Lock
+  |
+  | Prevent items from being moved and/or resized on the canvas
+| Add Footprint
+  | kbd:[A]
+  | Add a footprint
+| Remove Items
+  |
+  | Remove items from group
+| Switch to Schematic Editor
+  |
+  | Open schematic in schematic editor
+| Show Net in Ratsnest
+  |
+  | Show the selected net in the ratsnest of unconnected net lines/arcs
+| Constrain to H, V, 45
+  | kbd:[Shift+Space]
+  | Limit actions to horizontal, vertical, or 45 degrees from the starting point
+| Toggle Last Net Highlight
+  |
+  | Toggle between last two highlighted nets
+| Toggle Lock
+  | kbd:[L]
+  | Lock or unlock selected items
+| Toggle Net Highlight
+  | kbd:[Alt+`]
+  | Toggle net highlighting
+| Switch Track Width to Previous
+  | kbd:[Shift+W]
+  | Change track width to previous pre-defined size
+| Switch Track Width to Next
+  | kbd:[W]
+  | Change track width to next pre-defined size
+| Ungroup Items
+  |
+  | Ungroup any selected groups
+| Unlock
+  |
+  | Allow items to be moved and/or resized on the canvas
+| Decrease Via Size
+  | kbd:[\]
+  | Change via size to previous pre-defined size
+| Increase Via Size
+  | kbd:[']
+  | Change via size to next pre-defined size
+| Duplicate Zone onto Layer…
+  |
+  | Duplicate zone outline onto a different layer
+| Merge Zones
+  |
+  | Merge zones
+| Rebuild All Generators
+  |
+  | Rebuilds geometry of all generators
+| Update All Tuning Patterns
+  |
+  | Attempt to re-tune existing tuning patterns within their bounds
+| Rebuild Selected Generators
+  |
+  | Rebuilds geometry of selected generator(s)
+| Generators Manager
+  |
+  | Show a manager dialog for Generator objects
+| Change Footprint…
+  |
+  | Assign a different footprint from the library
+| Change Footprints...
+  |
+  | Assign different footprints from the library
+| Cleanup Graphics...
+  |
+  | Cleanup redundant items, etc.
+| Cleanup Tracks & Vias...
+  |
+  | Cleanup redundant items, shorting items, etc.
+| Edit Teardrops...
+  |
+  | Add, remove or edit teardrops globally across board
+| Edit Text & Graphics Properties...
+  |
+  | Edit Text and graphics properties globally across board
+| Edit Track & Via Properties...
+  |
+  | Edit track and via properties globally across board
+| Global Deletions...
+  |
+  | Delete tracks, footprints and graphic items from board
+| Remove Unused Pads...
+  |
+  | Remove or restore the unconnected inner layers on through hole pads and vias
+| Swap Layers...
+  |
+  | Move tracks or drawings from one layer to another
+| Update Footprint…
+  |
+  | Update footprint to include any changes from the library
+| Update Footprints from Library...
+  |
+  | Update footprints to include any changes from the library
+| Compare Footprint with Library
+  |
+  | Show differences between board footprint and its library equivalent
+| Clearance Resolution
+  |
+  | Show clearance resolution for the active layer between two selected objects
+| Constraints Resolution
+  |
+  | Show constraints resolution for the selected object
+| Show Board Statistics
+  |
+  | Shows board statistics
+| Show Footprint Associations
+  |
+  | Show footprint library and schematic symbol associations
+| Add Aligned Dimension
+  | kbd:[Ctrl+Shift+H]
+  | Add an aligned linear dimension
+| Draw Arc
+  | kbd:[Ctrl+Shift+A]
+  | Draw an arc
+| Switch Arc Posture
+  | kbd:[/]
+  | Switch the arc posture
+| Add Center Dimension
+  |
+  | Add a center dimension
+| Draw Circle
+  | kbd:[Ctrl+Shift+C]
+  | Draw a circle
+| Close Outline
+  |
+  | Close the in progress outline
+| Decrease Line Width
+  | kbd:[Ctrl+-]
+  | Decrease the line width
+| Delete Last Point
+  | kbd:[Back]
+  | Delete the last point added to the current item
+| Draw Graphic Polygon
+  | kbd:[Ctrl+Shift+P]
+  | Draw a graphic polygon
+| Increase Line Width
+  | kbd:[Ctrl++]
+  | Increase the line width
+| Add Leader
+  |
+  | Add a leader dimension
+| Draw Line
+  | kbd:[Ctrl+Shift+L]
+  | Draw a line
+| Add Orthogonal Dimension
+  |
+  | Add an orthogonal dimension
+| Add Board Characteristics
+  |
+  | Add a board characteristics table on a graphic layer
+| Import Graphics...
+  | kbd:[Ctrl+Shift+F]
+  | Import 2D drawing file
+| Add Reference Image
+  |
+  | Add a bitmap image to be used as a reference (image will not be included in any output)
+| Add Stackup Table
+  |
+  | Add a board stackup table on a graphic layer
+| Add Radial Dimension
+  |
+  | Add a radial dimension
+| Draw Rectangle
+  |
+  | Draw a rectangle
+| Add Rule Area
+  | kbd:[Ctrl+Shift+K]
+  | Add a rule area (keepout)
+| Place the Footprint Anchor
+  | kbd:[Ctrl+Shift+N]
+  | Set the coordinate origin point (anchor) of the footprint
+| Add a Similar Zone
+  | kbd:[Ctrl+Shift+.]
+  | Add a zone with the same settings as an existing zone
+| Add Text
+  | kbd:[Ctrl+Shift+T]
+  | Add a text item
+| Add Text Box
+  |
+  | Add a wrapped text item
+| Add Vias
+  | kbd:[Ctrl+Shift+V]
+  | Add free-standing vias
+| Add Filled Zone
+  | kbd:[Ctrl+Shift+Z]
+  | Add a filled zone
+| Add a Zone Cutout
+  | kbd:[Shift+C]
+  | Add a cutout area of an existing zone
+| Get and Move Footprint
+  | kbd:[T]
+  | Selects a footprint by reference designator and places it under the cursor for moving
+| Chamfer Lines
+  |
+  | Cut away corners between selected lines
+| Change Track Width
+  |
+  | Updates selected track & via sizes
+| Create Array…
+  | kbd:[Ctrl+T]
+  | Create array
+| Delete Full Track
+  | kbd:[Shift+Del]
+  | Deletes selected item(s) and copper connections
+| Duplicate and Increment
+  | kbd:[Ctrl+Shift+D]
+  | Duplicates the selected item(s), incrementing pad numbers
+| Extend Lines to Meet
+  |
+  | Extend lines to meet each other
+| Fillet Lines...
+  |
+  | Adds arcs tangent to the selected lines
+| Fillet Tracks
+  |
+  | Adds arcs tangent to the selected straight track segments
+| Change Side / Flip
+  | kbd:[F]
+  | Flips selected item(s) to opposite side of board
+| Heal Shapes
+  |
+  | Connect shapes, possibly extending or cutting them, or adding extra geometry
+| Intersect Polygons
+  |
+  | Create the intersection of the selected polygons
+| Merge Polygons
+  |
+  | Merge selected polygons into a single polygon
+| Mirror Horizontally
+  |
+  | Mirrors selected item across the Y axis
+| Mirror Vertically
+  |
+  | Mirrors selected item across the X axis
+| Move Corner To...
+  |
+  | Move the active corner to an exact location
+| Move Exactly…
+  | kbd:[Shift+M]
+  | Moves the selected item(s) by an exact amount
+| Move Midpoint To...
+  |
+  | Move the active midpoint to an exact location
+| Pack and Move Footprints
+  | kbd:[P]
+  | Sorts selected footprints by reference, packs based on size and initiates movement
+| Properties…
+  | kbd:[E]
+  | Displays item properties dialog
+| Rotate Counterclockwise
+  | kbd:[R]
+  | Rotates selected item(s) counterclockwise
+| Rotate Clockwise
+  | kbd:[Shift+R]
+  | Rotates selected item(s) clockwise
+| Skip
+  | kbd:[Tab]
+  | Skip item
+| Subtract Polygons
+  |
+  | Subtract selected polygons from the last one selected
+| Swap
+  | kbd:[S]
+  | Swaps selected items' positions
+| Copy with Reference
+  |
+  | Copy selected item(s) to clipboard with a specified starting point
+| Move
+  | kbd:[M]
+  | Moves the selected item(s)
+| Move Individually
+  | kbd:[Ctrl+M]
+  | Moves the selected items one-by-one
+| Move with Reference
+  |
+  | Moves the selected item(s) with a specified starting point
+| Attempt Finish
+  | kbd:[F]
+  | Attempts to complete current route to nearest ratsnest end.
+| Attempt Finish Selected (Autoroute)
+  | kbd:[Shift+F]
+  | Sequentially attempt to automatically route all selected pads.
+| Break Track
+  |
+  | Splits the track segment into two segments connected at the cursor position.
+| Route From Other End
+  | kbd:[Ctrl+E]
+  | Commits current segments and starts next segment from nearest ratsnest end.
+| Custom Track/Via Size…
+  | kbd:[Q]
+  | Shows a dialog for changing the track width and via size.
+| Cycle Router Mode
+  |
+  | Cycle router to the next mode
+| Route Differential Pair
+  | kbd:[6]
+  | Route differential pairs
+| Differential Pair Dimensions...
+  |
+  | Open Differential Pair Dimension settings
+| Drag 45 Degree Mode
+  | kbd:[D]
+  | Drags the track segment while keeping connected tracks at 45 degrees.
+| Drag Free Angle
+  | kbd:[G]
+  | Drags the nearest joint in the track without restricting the track angle.
+| Router Highlight Mode
+  |
+  | Switch router to highlight mode
+| Place Blind/Buried Via
+  | kbd:[Alt+Shift+V]
+  | Adds a blind or buried via at the end of currently routed track.
+| Place Microvia
+  | kbd:[Ctrl+V]
+  | Adds a microvia at the end of currently routed track.
+| Place Through Via
+  | kbd:[V]
+  | Adds a through-hole via at the end of currently routed track.
+| Route Selected
+  | kbd:[Shift+X]
+  | Sequentially route selected items from ratsnest anchor.
+| Route Selected From Other End
+  | kbd:[Shift+E]
+  | Sequentially route selected items from other end of ratsnest anchor.
+| Select Layer and Place Blind/Buried Via…
+  | kbd:[Alt+<]
+  | Select a layer, then add a blind or buried via at the end of currently routed track.
+| Select Layer and Place Micro Via...
+  |
+  | Select a layer, then add a micro via at the end of currently routed track.
+| Select Layer and Place Through Via…
+  | kbd:[<]
+  | Select a layer, then add a through-hole via at the end of currently routed track.
+| Set Layer Pair...
+  |
+  | Change active layer pair for routing
+| Interactive Router Settings…
+  | kbd:[Ctrl+<]
+  | Open Interactive Router settings
+| Router Shove Mode
+  |
+  | Switch router to shove mode
+| Route Single Track
+  | kbd:[X]
+  | Route tracks
+| Switch Track Posture
+  | kbd:[/]
+  | Switches posture of the currently routed track.
+| Track Corner Mode
+  | kbd:[Ctrl+/]
+  | Switches between sharp/rounded and 45°/90° corners when routing tracks.
+| Undo Last Segment
+  | kbd:[Back]
+  | Walks the current track back one segment.
+| Router Walkaround Mode
+  |
+  | Switch router to walkaround mode
+| Deselect All Tracks in Net
+  |
+  | Deselects all tracks & vias belonging to the same net.
+| Filter Selected Items...
+  |
+  | Remove items from the selection by type
+| Grab Nearest Unconnected Footprints
+  | kbd:[Shift+O]
+  | Selects and initiates moving the nearest unconnected footprint on each selected net.
+| Select/Expand Connection
+  | kbd:[U]
+  | Selects a connection or expands an existing selection to junctions, pads, or entire connections
+| Select All Tracks in Net
+  |
+  | Selects all tracks & vias belonging to the same net.
+| Select on Schematic
+  |
+  | Selects corresponding items in Schematic editor
+| Sheet
+  |
+  | Selects all footprints and tracks in the schematic sheet
+| Items in Same Hierarchical Sheet
+  |
+  | Selects all footprints and tracks in the same schematic sheet
+| Select All Unconnected Footprints
+  | kbd:[O]
+  | Selects all unconnected footprints belonging to each selected net.
+| Unroute Selected
+  |
+  | Unroutes selected items to the nearest pad.
+| Tune Skew of a Differential Pair
+  | kbd:[9]
+  | Tune skew of a differential pair
+| Tune Length
+  | kbd:[7]
+  | Tune length of a single track or differential pair
+| Add Microwave Polygonal Shape
+  |
+  | Create a microwave polygonal shape from a list of vertices
+| Add Microwave Gap
+  |
+  | Create gap of specified length for microwave applications
+| Add Microwave Line
+  |
+  | Create line of specified length for microwave applications
+| Add Microwave Stub
+  |
+  | Create stub of specified length for microwave applications
+| Add Microwave Arc Stub
+  |
+  | Create stub (arc) of specified size for microwave applications
+| Footprint Checker
+  |
+  | Show the footprint checker window
+| Copy Footprint
+  |
+  | Copy Footprint
+| Create Footprint...
+  |
+  | Create a new footprint using the Footprint Wizard
+| Cut Footprint
+  |
+  | Cut Footprint
+| Delete Footprint from Library
+  |
+  | Delete Footprint from Library
+| Duplicate Footprint
+  |
+  | Make a copy of the selected footprint
+| Edit Footprint
+  |
+  | Show selected footprint on editor canvas
+| Export Current Footprint...
+  |
+  | Export edited footprint to file
+| Footprint Properties...
+  |
+  | Edit footprint properties
+| Hide Footprint Tree
+  |
+  | Hide Footprint Tree
+| Import Footprint...
+  |
+  | Import footprint from file
+| New Footprint...
+  | kbd:[Ctrl+N]
+  | Create a new, empty footprint
+| Paste Footprint
+  |
+  | Paste Footprint
+| Rename Footprint...
+  |
+  | Rename the selected footprint
+| Repair Footprint
+  |
+  | Run various diagnostics and attempt to repair footprint
+| Show Footprint Tree
+  |
+  | Show Footprint Tree
+| Paste Default Pad Properties to Selected
+  |
+  | Replace the current pad's properties with those copied earlier
+| Copy Pad Properties to Default
+  |
+  | Copy current pad's properties
+| Push Pad Properties to Other Pads...
+  |
+  | Copy the current pad's properties to other pads
+| Default Pad Properties…
+  |
+  | Edit the pad properties used when creating new pads
+| Renumber Pads…
+  |
+  | Renumber pads by clicking on them in the desired order
+| Edit Pad as Graphic Shapes
+  | kbd:[Ctrl+E]
+  | Ungroups a custom-shaped pad for editing as individual graphic shapes
+| Add Pad
+  |
+  | Add a pad
+| Finish Pad Edit
+  | kbd:[Ctrl+E]
+  | Regroups all touching graphic shapes into the edited pad
+| Create Corner
+  | kbd:[Ins]
+  | Create a corner
+| Keep Arc Center, Adjust Radius
+  |
+  | Switch arc editing mode to keep center, adjust radius and endpoints
+| Keep Arc Endpoints or Direction of Starting Point
+  |
+  | Switch arc editing mode to keep endpoints, or to keep direction of the other point
+| Remove Corner
+  |
+  | Remove corner
+| Position Relative To…
+  | kbd:[Shift+P]
+  | Positions the selected item(s) by an exact amount relative to another
+| Geographical Reannotate...
+  |
+  | Reannotate PCB in geographical order
+| Refresh Plugins
+  |
+  | Reload all python plugins and refresh plugin menus
+| Open Plugin Directory
+  |
+  | Opens the directory in the default system file manager
+| Draft Fill Selected Zone(s)
+  |
+  | Update copper fill of selected zone(s) without regard to other interacting zones
+| Fill All Zones
+  | kbd:[B]
+  | Update copper fill of all zones
+| Unfill Selected Zone(s)
+  |
+  | Remove copper fill from selected zone(s)
+| Unfill All Zones
+  | kbd:[Ctrl+B]
+  | Remove copper fill from all zones
+| Decrease Amplitude
+  | kbd:[4]
+  | Decrease tuning pattern amplitude by one step.
+| Increase Amplitude
+  | kbd:[3]
+  | Increase tuning pattern amplitude by one step.
+| Decrease Spacing
+  | kbd:[2]
+  | Decrease tuning pattern spacing by one step.
+| Increase Spacing
+  | kbd:[1]
+  | Increase tuning pattern spacing by one step.
+|===
+
+=== 3D Viewer
+
+// NOTE: this text between the section header and the table is *required* or
+// asciidoctor-web-pdf will not insert page breaks in the table correctly and
+// the PDF will be truncated.
+The actions below are available in the 3D Viewer. Hotkeys can be assigned to any
+of these actions in the **Hotkeys** section of the preferences.
+
+[width="100%",options="header",cols="20%,15%,65%"]
+|===
+| Action | Default Hotkey | Description
+| Show 3D Models marked DNP
+  | kbd:[D]
+  | Show 3D models even if marked 'Do Not Place'
+| Show 3D Models not in POS File
+  | kbd:[P]
+  | Show 3D models even if not found in .pos file
+| Show Unspecified 3D Models
+  | kbd:[V]
+  | Show 3D models for 'unspecified' type footprints
+| Show SMD 3D Models
+  | kbd:[S]
+  | Show 3D models for 'Surface mount' type footprints
+| Show Through Hole 3D Models
+  | kbd:[T]
+  | Show 3D models for 'Through hole' type footprints
+| Flip Board
+  | kbd:[F]
+  | Flip the board view
+| Home View
+  | kbd:[Home]
+  | Home view
+| Render CAD Colors
+  |
+  | Use a CAD color style based on the diffuse color of the material
+| Render Solid Colors
+  |
+  | Use only the diffuse color property from 3D model file
+| Render Realistic Materials
+  |
+  | Use all material properties from each 3D model file
+| Move Board Down
+  | kbd:[Down]
+  | Move board Down
+| Move Board Left
+  | kbd:[Left]
+  | Move board Left
+| Move Board Right
+  | kbd:[Right]
+  | Move board Right
+| Move Board Up
+  | kbd:[Up]
+  | Move board Up
+| No 3D Grid
+  |
+  | No 3D Grid
+| Set Pivot
+  | kbd:[Space]
+  | Place point around which the board will be rotated (middle mouse click)
+| Rotate X Clockwise
+  |
+  | Rotate X Clockwise
+| Rotate X Counterclockwise
+  |
+  | Rotate X Counterclockwise
+| Rotate Y Clockwise
+  |
+  | Rotate Y Clockwise
+| Rotate Y Counterclockwise
+  |
+  | Rotate Y Counterclockwise
+| Rotate Z Clockwise
+  |
+  | Rotate Z Clockwise
+| Rotate Z Counterclockwise
+  |
+  | Rotate Z Counterclockwise
+| 3D Grid 10mm
+  |
+  | 3D Grid 10mm
+| 3D Grid 1mm
+  |
+  | 3D Grid 1mm
+| 3D Grid 2.5mm
+  |
+  | 3D Grid 2.5mm
+| 3D Grid 5mm
+  |
+  | 3D Grid 5mm
+| Show 3D Axis
+  |
+  | Show 3D Axis
+| Show Model Bounding Boxes
+  |
+  | Show 3D model bounding boxes in realtime renderer
+| Show Appearance Manager
+  |
+  | Show/hide the appearance manager
+| Toggle Orthographic Projection
+  |
+  | Enable/disable orthographic projection
+| View Back
+  | kbd:[Shift+Y]
+  | View Back
+| View Bottom
+  | kbd:[Shift+Z]
+  | View Bottom
+| View Front
+  | kbd:[Y]
+  | View Front
+| View Left
+  | kbd:[Shift+X]
+  | View Left
+| View Right
+  | kbd:[X]
+  | View Right
+| View Top
+  | kbd:[Z]
+  | View Top
+|===
+
+=== Common
+
+// NOTE: this text between the section header and the table is *required* or
+// asciidoctor-web-pdf will not insert page breaks in the table correctly and
+// the PDF will be truncated.
+The actions below are available across KiCad, including in the PCB Editor. Hotkeys can
+be assigned to any of these actions in the **Hotkeys** section of the
+preferences.
+
+[width="100%",options="header",cols="20%,15%,65%"]
+|===
+| Action | Default Hotkey | Description
+| Exclude Marker
+  |
+  | Mark current violation in Checker window as an exclusion
+| Next Marker
+  |
+  | Go to next marker in Checker window
+| Previous Marker
+  |
+  | Go to previous marker in Checker window
+| Add Library…
+  |
+  | Add an existing library folder
+| Click
+  | kbd:[Return]
+  | Performs left mouse button click
+| Double-click
+  | kbd:[End]
+  | Performs left mouse button double-click
+| Cursor Down
+  | kbd:[Down]
+  | 
+| Cursor Down Fast
+  | kbd:[Ctrl+Down]
+  | 
+| Cursor Left
+  | kbd:[Left]
+  | 
+| Cursor Left Fast
+  | kbd:[Ctrl+Left]
+  | 
+| Cursor Right
+  | kbd:[Right]
+  | 
+| Cursor Right Fast
+  | kbd:[Ctrl+Right]
+  | 
+| Cursor Up
+  | kbd:[Up]
+  | 
+| Cursor Up Fast
+  | kbd:[Ctrl+Up]
+  | 
+| Grid Origin...
+  |
+  | Set the grid origin point
+| Edit Grids...
+  |
+  | Edit grid definitions
+| Switch to Fast Grid 1
+  | kbd:[Alt+1]
+  | 
+| Switch to Fast Grid 2
+  | kbd:[Alt+2]
+  | 
+| Cycle Fast Grid
+  | kbd:[Alt+4]
+  | 
+| Switch to Next Grid
+  | kbd:[N]
+  | 
+| Switch to Previous Grid
+  | kbd:[Shift+N]
+  | 
+| Reset Grid Origin
+  |
+  | 
+| Grid Origin
+  |
+  | Place the grid origin point
+| Inactive Layer View Mode
+  |
+  | Toggle inactive layers between normal and dimmed
+| Inactive Layer View Mode (3-state)
+  | kbd:[H]
+  | Cycle inactive layers between normal, dimmed, and hidden
+| Inches
+  |
+  | Use inches
+| Snap to Objects on the Active Layer Only
+  |
+  | Enables snapping to objects on the active layer only
+| Snap to Objects on All Layers
+  |
+  | Enables snapping to objects on all visible layers
+| Toggle Snapping Between Active and All Layers
+  | kbd:[Shift+S]
+  | Toggles between snapping on all visible layers and only the active area
+| Millimeters
+  |
+  | Use millimeters
+| Mils
+  |
+  | Use mils
+| New...
+  | kbd:[Ctrl+N]
+  | Create a new document in the editor
+| New Library…
+  |
+  | Create a new library folder
+| Open...
+  | kbd:[Ctrl+O]
+  | Open existing document
+| Page Settings...
+  |
+  | Settings for paper size and title block info
+| Pan Down
+  | kbd:[Shift+Down]
+  | 
+| Pan Left
+  | kbd:[Shift+Left]
+  | 
+| Pan Right
+  | kbd:[Shift+Right]
+  | 
+| Pan Up
+  | kbd:[Shift+Up]
+  | 
+| Pin Library
+  |
+  | Keep the library at the top of the list
+| Plot...
+  |
+  | Plot
+| Print...
+  | kbd:[Ctrl+P]
+  | Print
+| Quit
+  |
+  | Close the current editor
+| Redo Last Zoom
+  |
+  | Return zoom to level prior to last zoom undo
+| Reset Local Coordinates
+  | kbd:[Space]
+  | 
+| Revert
+  |
+  | Throw away changes
+| Save
+  | kbd:[Ctrl+S]
+  | Save changes
+| Save All
+  |
+  | Save all changes
+| Save As…
+  | kbd:[Ctrl+Shift+S]
+  | Save current document to another location
+| Save a Copy...
+  |
+  | Save a copy of the current document to another location
+| Select Columns...
+  |
+  | 
+| 3D Viewer
+  | kbd:[Alt+3]
+  | Show 3D viewer window
+| Show Context Menu
+  |
+  | Perform the right-mouse-button action
+| Footprint Library Browser
+  |
+  | Browse footprint libraries
+| Footprint Editor
+  |
+  | Create, delete and edit footprints
+| Switch to Project Manager
+  |
+  | Show project window
+| Show Properties Manager
+  |
+  | Show/hide the properties manager
+| Symbol Library Browser
+  |
+  | Browse symbol libraries
+| Symbol Editor
+  |
+  | Create, delete and edit symbols
+| Draw Bounding Boxes
+  |
+  | Draw Bounding Boxes
+| Always Show Cursor
+  | kbd:[Ctrl+Shift+X]
+  | Display crosshairs even in selection tool
+| Full-Window Crosshairs
+  |
+  | Switch display of full-window crosshairs
+| Show Grid
+  |
+  | Display background grid in the edit window
+| Grid Overrides
+  | kbd:[Ctrl+Shift+G]
+  | Enables item-specific grids that override the current grid
+| Polar Coordinates
+  |
+  | Switch between polar and cartesian coordinate systems
+| Switch units
+  | kbd:[Ctrl+U]
+  | Switch between imperial and metric units
+| Undo Last Zoom
+  |
+  | Return zoom to level prior to last zoom action
+| Unpin Library
+  |
+  | No longer keep the library at the top of the list
+| Update PCB from Schematic…
+  | kbd:[F8]
+  | Update PCB with changes made to schematic
+| Update Schematic from PCB...
+  |
+  | Update schematic with changes made to PCB
+| Center on Cursor
+  | kbd:[F4]
+  | Center on Cursor
+| Zoom to Objects
+  | kbd:[Ctrl+Home]
+  | Zoom to Objects
+| Zoom to Fit
+  | kbd:[Home]
+  | Zoom to Fit
+| Zoom In at Cursor
+  | kbd:[F1]
+  | Zoom In at Cursor
+| Zoom In
+  |
+  | Zoom In
+| Zoom Out at Cursor
+  | kbd:[F2]
+  | Zoom Out at Cursor
+| Zoom Out
+  |
+  | Zoom Out
+| Refresh
+  | kbd:[F5]
+  | Refresh
+| Zoom to Selection
+  | kbd:[Ctrl+F5]
+  | Zoom to Selection
+| Cancel
+  |
+  | Cancel current tool
+| Copy
+  | kbd:[Ctrl+C]
+  | Copy selected item(s) to clipboard
+| Cut
+  | kbd:[Ctrl+X]
+  | Cut selected item(s) to clipboard
+| Cycle Arc Editing Mode
+  | kbd:[Ctrl+Space]
+  | Switch to a different method of editing arcs
+| Delete
+  | kbd:[Del]
+  | Deletes selected item(s)
+| Interactive Delete Tool
+  |
+  | Delete clicked items
+| Duplicate
+  | kbd:[Ctrl+D]
+  | Duplicates the selected item(s)
+| Find
+  | kbd:[Ctrl+F]
+  | Find text
+| Find and Replace
+  | kbd:[Ctrl+Alt+F]
+  | Find and replace text
+| Find Next
+  | kbd:[F3]
+  | Find next match
+| Find Next Marker
+  | kbd:[Ctrl+Shift+F3]
+  | 
+| Find Previous
+  | kbd:[Shift+F3]
+  | Find previous match
+| Finish
+  | kbd:[End]
+  | Finish current tool
+| Paste
+  | kbd:[Ctrl+V]
+  | Paste item(s) from clipboard
+| Paste Special...
+  |
+  | Paste item(s) from clipboard with annotation options
+| Redo
+  | kbd:[Ctrl+Y]
+  | Redo last edit
+| Replace All
+  |
+  | Replace all matches
+| Replace and Find Next
+  |
+  | Replace current match and find next
+| Show Search Panel
+  | kbd:[Ctrl+G]
+  | Show/hide the search panel
+| Select All
+  | kbd:[Ctrl+A]
+  | Select all items on screen
+| Undo
+  | kbd:[Ctrl+Z]
+  | Undo last edit
+| Unselect All
+  | kbd:[Ctrl+Shift+A]
+  | Unselect all items on screen
+| Measure Tool
+  | kbd:[Ctrl+Shift+M]
+  | Interactively measure distance between points
+| Select item(s)
+  |
+  | Select item(s)
+| About KiCad
+  |
+  | Open about dialog
+| Configure Paths…
+  |
+  | Edit path configuration environment variables
+| Donate
+  |
+  | Open "Donate to KiCad" in a web browser
+| Get Involved
+  |
+  | Open "Contribute to KiCad" in a web browser
+| Getting Started with KiCad
+  |
+  | Open “Getting Started in KiCad” guide for beginners
+| Help
+  |
+  | Open product documentation in a web browser
+| List Hotkeys...
+  | kbd:[Ctrl+F1]
+  | Displays current hotkeys table and corresponding commands
+| Preferences...
+  | kbd:[Ctrl+,]
+  | Show preferences for all open tools
+| Report Bug
+  |
+  | Report a problem with KiCad
+| Manage Footprint Libraries...
+  |
+  | Edit the global and project footprint library lists
+| Manage Symbol Libraries…
+  |
+  | Edit the global and project symbol library lists
+|===

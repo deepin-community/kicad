@@ -1,0 +1,20 @@
+usr/share/kicad/demos/complex_hierarchy
+usr/share/kicad/demos/custom_pads_test
+usr/share/kicad/demos/ecc83
+usr/share/kicad/demos/flat_hierarchy
+usr/share/kicad/demos/interf_u
+usr/share/kicad/demos/kit-dev-coldfire-xilinx_5213
+
+usr/share/kicad/demos/microwave/microwave.kicad_pcb
+usr/share/kicad/demos/microwave/microwave.kicad_pro
+usr/share/kicad/demos/microwave/shape1.txt usr/share/doc/kicad-demos
+
+usr/share/kicad/demos/pic_programmer
+usr/share/kicad/demos/python_scripts_examples
+usr/share/kicad/demos/simulation
+usr/share/kicad/demos/sonde*
+usr/share/kicad/demos/stickhub
+usr/share/kicad/demos/test_pads_inside_pads
+usr/share/kicad/demos/test_xil_95108
+usr/share/kicad/demos/tiny_tapeout
+usr/share/kicad/demos/video

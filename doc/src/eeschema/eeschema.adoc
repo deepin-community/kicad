@@ -1,0 +1,60 @@
+:author: The KiCad Team
+:doctype: book
+:toc:
+:ascii-ids:
+:experimental:
+
+= Schematic Editor
+
+_Reference manual_
+
+NOTE: This manual is in the process of being revised to cover the latest stable
+      release version of KiCad.  It contains some sections that have not yet
+      been completed.  We ask for your patience while our volunteer technical
+      writers work on this task, and we welcome new contributors who would like
+      to help make KiCad's documentation better than ever.
+
+[[copyright]]
+*Copyright*
+
+This document is Copyright (C) 2010-2024 by its contributors as listed
+below. You may distribute it and/or modify it under the terms of either
+the GNU General Public License (http://www.gnu.org/licenses/gpl.html),
+version 3 or later, or the Creative Commons Attribution License
+(http://creativecommons.org/licenses/by/3.0/), version 3.0 or later.
+
+All trademarks within this guide belong to their legitimate owners.
+
+[[contributors]]
+*Contributors*
+
+Jean-Pierre Charras, Fabrizio Tappero, Wayne Stambaugh, Graham Keeth
+
+[[feedback]]
+*Feedback*
+
+The KiCad project welcomes feedback, bug reports, and suggestions related to the software or its
+documentation. For more information on how to submit feedback or report an issue, please see the
+instructions at https://www.kicad.org/help/report-an-issue/
+
+include::eeschema_introduction.adoc[po4a]
+
+include::eeschema_schematic_creation_and_editing.adoc[po4a]
+
+include::eeschema_hierarchical_schematics.adoc[po4a]
+
+include::eeschema_inspecting_a_schematic.adoc[po4a]
+
+include::eeschema_assigning_footprints.adoc[po4a]
+
+include::eeschema_schematic_to_pcb.adoc[po4a]
+
+include::eeschema_generating_outputs.adoc[po4a]
+
+include::eeschema_symbols_and_libraries.adoc[po4a]
+
+include::eeschema_simulator.adoc[po4a]
+
+include::eeschema_advanced.adoc[po4a]
+
+include::eeschema_actions_reference.adoc[po4a]

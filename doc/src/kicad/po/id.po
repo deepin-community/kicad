@@ -1,0 +1,2476 @@
+# Triyan W. Nugroho <triyan.wn@gmail.com>, 2018.
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"POT-Creation-Date: 2021-10-31 15:45-0400\n"
+"PO-Revision-Date: 2018-06-13 16:27+0700\n"
+"Last-Translator: Triyan W. Nugroho <triyan.wn@gmail.com>\n"
+"Language-Team: KiCad Indonesia\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Virtaal 0.7.1\n"
+
+#. type: Title =
+#: kicad.adoc:6
+#, no-wrap
+msgid "KiCad"
+msgstr "KiCad"
+
+#. type: Plain text
+#: kicad.adoc:9
+msgid "_Reference manual_"
+msgstr "_Panduan pengguna_"
+
+#. type: Plain text
+#: kicad.adoc:12
+#, no-wrap
+msgid "*Copyright*\n"
+msgstr "*Hak Cipta*\n"
+
+#. type: Plain text
+#: kicad.adoc:18
+msgid ""
+"This document is Copyright (C) 2010-2018 by its contributors as listed "
+"below. You may distribute it and/or modify it under the terms of either the "
+"GNU General Public License (http://www.gnu.org/licenses/gpl.html), version 3 "
+"or later, or the Creative Commons Attribution License (http://"
+"creativecommons.org/licenses/by/3.0/), version 3.0 or later."
+msgstr ""
+"_This document is Copyright (C) 2010-2018 by its contributors as listed "
+"below. You may distribute it and/or modify it under the terms of either the "
+"GNU General Public License (http://www.gnu.org/licenses/gpl.html), version 3 "
+"or later, or the Creative Commons Attribution License (http://"
+"creativecommons.org/licenses/by/3.0/), version 3.0 or later._"
+
+#. type: Plain text
+#: kicad.adoc:20
+msgid "All trademarks within this guide belong to their legitimate owners."
+msgstr "_All trademarks within this guide belong to their legitimate owners._"
+
+#. type: Plain text
+#: kicad.adoc:23
+#, no-wrap
+msgid "*Contributors*\n"
+msgstr "*Kontributor*\n"
+
+#. type: Plain text
+#: kicad.adoc:25
+msgid "Jean-Pierre Charras, Fabrizio Tappero."
+msgstr "Jean-Pierre Charras, Fabrizio Tappero."
+
+#. type: Plain text
+#: kicad.adoc:28
+#, no-wrap
+msgid "*Feedback*\n"
+msgstr "*Saran dan Komentar*\n"
+
+#. type: Plain text
+#: kicad.adoc:30
+msgid "Please direct any bug reports, suggestions or new versions to here:"
+msgstr "Kirimkan laporan kutu, saran atau versi baru ke alamat berikut:"
+
+#. type: Plain text
+#: kicad.adoc:32
+msgid ""
+"About KiCad document: https://gitlab.com/kicad/services/kicad-doc/issues"
+msgstr ""
+"Tentang dokumentasi KiCad: https://gitlab.com/kicad/services/kicad-doc/issues"
+
+#. type: Plain text
+#: kicad.adoc:34
+msgid "About KiCad software: https://gitlab.com/kicad/code/kicad/issues"
+msgstr ""
+"Tentang perangkat lunak KiCad: https://gitlab.com/kicad/code/kicad/issues"
+
+#. type: Plain text
+#: kicad.adoc:36
+msgid ""
+"About KiCad translation: https://gitlab.com/kicad/code/kicad-i18n/issues"
+msgstr ""
+"Tentang penerjemahan KiCad: https://gitlab.com/kicad/code/kicad-i18n/issues"
+
+#. type: Plain text
+#: kicad.adoc:39
+#, fuzzy, no-wrap
+#| msgid "*Publication date and software version*\n"
+msgid "*Software version*\n"
+msgstr "*Tanggal Publikasi*\n"
+
+#. type: Plain text
+#: kicad.adoc:41
+#, fuzzy
+#| msgid "KiCad"
+msgid "KiCad 6.0"
+msgstr "KiCad"
+
+#. type: Title ==
+#: kicad.adoc:42
+#, no-wrap
+msgid "Introduction"
+msgstr "Perkenalan"
+
+#. type: Plain text
+#: kicad.adoc:47
+msgid ""
+"KiCad is an open-source software tool for the creation of electronic "
+"schematic diagrams and PCB artwork. Beneath its singular surface, KiCad "
+"incorporates an elegant ensemble of the following software tools:"
+msgstr ""
+"KiCad adalah perangkat lunak sumber-terbuka (_open-source_) untuk membuat "
+"diagram skematik elektronika dan desain papan PCB (_Printed Circuit Board_). "
+"Di dalam tampilannya yang singular, KiCad sebenarnya terdiri dari "
+"serangkaian aplikasi berikut ini:"
+
+#. type: Plain text
+#: kicad.adoc:49
+#, no-wrap
+msgid "*KiCad*: Project manager\n"
+msgstr "*KiCad* : Manajer proyek\n"
+
+#. type: Plain text
+#: kicad.adoc:50
+#, no-wrap
+msgid "*Eeschema*: Schematic editor and component editor\n"
+msgstr "*Eeschema* : Editor skematik dan komponen\n"
+
+#. type: Plain text
+#: kicad.adoc:51
+#, no-wrap
+msgid "*Pcbnew*: Circuit board layout editor and footprint editor\n"
+msgstr "*Pcbnew* : Editor tata letak papan sirkuit dan _footprint_\n"
+
+#. type: Plain text
+#: kicad.adoc:52
+#, no-wrap
+msgid "*GerbView*: Gerber viewer\n"
+msgstr "*GerbView* : Penampil Gerber\n"
+
+#. type: Plain text
+#: kicad.adoc:54
+msgid "3 utility tools are also included:"
+msgstr ""
+"Bersama dengan perangkat lunak di atas, disertakan pula 3 buah peralatan "
+"berikut:"
+
+#. type: Plain text
+#: kicad.adoc:57
+#, no-wrap
+msgid ""
+"*Bitmap2Component*: Component maker for logos. It creates a schematic\n"
+"component or a footprint from a bitmap picture.\n"
+msgstr ""
+"*Bitmap2Component*: Pembuat komponen untuk logo. Aplikasi ini digunakan untuk membuat\n"
+"komponen skematik atau _footprint_ dari sebuah gambar bitmap.\n"
+
+#. type: Plain text
+#: kicad.adoc:60
+#, no-wrap
+msgid ""
+"*PcbCalculator*: A calculator that is helpful to calculate\n"
+"components for regulators, track width versus current, transmission\n"
+"lines, etc.\n"
+msgstr ""
+"*PcbCalculator*: Kalkulator untuk menghitung\n"
+"komponen untuk regulator, ukuran jalur terhadap arus, garis transmisi, dsb.\n"
+
+#. type: Plain text
+#: kicad.adoc:62
+#, no-wrap
+msgid ""
+"*Page Layout Editor*: A tool to create drawing templates (worksheets) to be used on schematics\n"
+"and PCBs.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:65
+msgid ""
+"These tools are usually run from the project manager, but can be also run as "
+"stand-alone tools."
+msgstr ""
+"Peralatan tersebut biasanya dijalankan dari manajer proyek, namun bisa juga "
+"dijalankan sebagai aplikasi yang berdiri sendiri."
+
+#. type: Plain text
+#: kicad.adoc:68
+#, fuzzy
+#| msgid ""
+#| "KiCad does not present any board-size limitation and it can handle up to "
+#| "32 copper layers, 14 technical layers and 4 auxiliary layers."
+msgid ""
+"KiCad does not present any board-size limitation and it can handle up to 32 "
+"copper layers, 14 technical layers and 13 auxiliary layers."
+msgstr ""
+"KiCad tidak memiliki batasan ukuran papan PCB, dan dapat dengan mudah "
+"menangani hingga 32 lapisan (_layer_) tembaga, 14 lapisan teknis, dan 4 "
+"lapisan pelengkap. "
+
+#. type: Plain text
+#: kicad.adoc:70
+msgid ""
+"KiCad can create all the files necessary for building printed circuit "
+"boards, including:"
+msgstr ""
+"Kicad mampu menghasilkan semua berkas yang dibutuhkan untuk membangun papan "
+"PCB, antara lain:"
+
+#. type: Plain text
+#: kicad.adoc:72
+msgid "Gerber files for photo-plotters"
+msgstr "Berkas Gerber untuk _photo-plotter_"
+
+#. type: Plain text
+#: kicad.adoc:73
+msgid "drilling files"
+msgstr "Berkas _drilling_"
+
+#. type: Plain text
+#: kicad.adoc:74
+msgid "component location files"
+msgstr "Berkas lokasi komponen"
+
+#. type: Plain text
+#: kicad.adoc:78
+msgid ""
+"Being open source (GPL licensed), KiCad represents the ideal tool for "
+"projects oriented towards the creation of electronic hardware with an open-"
+"source flavour."
+msgstr ""
+"Sebagai perangkat lunak sumber-terbuka yang berlisensi GPL, KiCad sangat "
+"ideal bagi pengguna yang berorientasi proyek dalam pembuatan perangkat keras "
+"elektronik dengan citarasa sumber-terbuka."
+
+#. type: Plain text
+#: kicad.adoc:80
+msgid "KiCad is available for Linux, Windows and Apple macOS."
+msgstr "KiCad tersedia untuk sistem operasi Linux, Windows, dan Apple macOS."
+
+#. type: Title ===
+#: kicad.adoc:81
+#, no-wrap
+msgid "System Requirements"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:86
+msgid ""
+"KiCad is capable of running on a wide variety of hardware and operating "
+"systems, but some tasks may be slower or more difficult on lower-end "
+"hardware.  For the best experience, a dedicated graphics card and display "
+"with 1920x1080 or higher resolution is recommended."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:89
+msgid ""
+"Please check the KiCad website for the latest system requirements: https://"
+"kicad.org/help/system-requirements/"
+msgstr ""
+
+#. type: Title ===
+#: kicad.adoc:90
+#, no-wrap
+msgid "KiCad files and folders"
+msgstr "Berkas dan Folder KiCad"
+
+#. type: Plain text
+#: kicad.adoc:94
+msgid ""
+"KiCad creates and uses files with the following specific file extensions "
+"(and folders)  for schematic and board editing."
+msgstr ""
+"KiCad menggunakan ekstensi berkas berikut dalam pembuatan skematik dan papan "
+"sirkut elektronik."
+
+#. type: Plain text
+#: kicad.adoc:96
+#, no-wrap
+msgid "*Project manager file:*\n"
+msgstr "*Berkas manajer proyek:*\n"
+
+#. type: Table
+#: kicad.adoc:101
+#, no-wrap
+msgid ""
+"|*.kicad_pro |Project file, containing settings that are shared between the schematic and PCB\n"
+"|*.pro |Legacy (KiCad 5.x and earlier) project file.\n"
+"Can be read and will be converted to a _.kicad_pro_ file by the project manager.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:104
+#, no-wrap
+msgid "*Schematic editor files:*\n"
+msgstr "*Berkas editor skematik:*\n"
+
+#. type: Table
+#: kicad.adoc:116
+#, fuzzy, no-wrap
+#| msgid ""
+#| "|*.sch |Schematic files, which do not contain the components themselves.\n"
+#| "|*.lib |Schematic component library files, containing the component descriptions: graphic shape, pins, fields.\n"
+#| "|*.dcm |Schematic component library documentation, containing some component descriptions:\n"
+#| "comments, keywords, reference to data sheets.\n"
+#| "|*_cache.lib |Schematic component library cache file, containing a copy of the components used in the schematic project.\n"
+#| "|sym-lib-table |Symbol library list (_symbol library table_):\n"
+#| "list of symbol libraries available in the schematic editor.\n"
+msgid ""
+"|*.kicad_sch |Schematic files containing all info and the components themselves.\n"
+"|*.kicad_sym |Schematic symbol library file, containing the component descriptions: graphic shape, pins, fields.\n"
+"|*.sch |Legacy (KiCad 5.x and earlier ) schematic file.\n"
+"Can be read and will be converted to a _.kicad_sch_ file on write.\n"
+"|*.lib |Legacy (KiCad 5.x and earlier ) schematic library file. Can be read but not written.\n"
+"|*.dcm |Legacy (KiCad 5.x and earlier ) schematic library documentation. Can be read but not written.\n"
+"|*-cache.lib |Legacy (KiCad 5.x and earlier ) schematic component library cache file.\n"
+"Required for proper loading of a legacy schematic (_.sch_) file.\n"
+"|sym-lib-table |Symbol library list (_symbol library table_):\n"
+"list of symbol libraries available in the schematic editor.\n"
+msgstr ""
+"|*.sch |Berkas skematik, berkas ini tidak menyertakan komponen di dalamnya.\n"
+"|*.lib |Berkas pustaka komponen skematik, berisi deskripsi komponen: bentuk grafis, pin, dan atribut.\n"
+"|*dcm |Dokumentasi pustaka komponen skematik, berisi beberapa deskripsi komponen:\n"
+"komentar, kata kunci, dan referensi ke lembar data (_datasheet_).\n"
+"|*_cache.lib |Berkas tembolok pustaka komponen skematik, berisi salinan dari komponen yang digunakan pada proyek skematik.\n"
+"|sym-lib-table |Daftar pustaka simbol (_symbol library table_):\n"
+"daftar pustaka simbol yang tersedia pada editor skematik.\n"
+
+#. type: Plain text
+#: kicad.adoc:119
+#, no-wrap
+msgid "*Board editor files and folders:*\n"
+msgstr "*Berkas dan folder editor papan sirkuit:*\n"
+
+#. type: Table
+#: kicad.adoc:132
+#, fuzzy, no-wrap
+#| msgid ""
+#| "|*.kicad_pcb |Board file containing all info but the page layout.\n"
+#| "|*.pretty |Footprint library folders. The folder itself is the library.\n"
+#| "|*.kicad_mod |Footprint files, containing one footprint description each.\n"
+#| "|*.brd |Board file in the legacy format.\n"
+#| "Can be read, but not written, by the current board editor.\n"
+#| "|*.mod |Footprint library in the legacy format.\n"
+#| "Can be read by the footprint or the board editor, but not written.\n"
+#| "|fp-lib-table |Footprint library list (_footprint library table_):\n"
+#| "list of footprint libraries (various formats) which are loaded\n"
+#| "by the board or the footprint editor or CvPcb.\n"
+msgid ""
+"|*.kicad_pcb |Board file containing all info but the page layout.\n"
+"|*.pretty |Footprint library folders. The folder itself is the library.\n"
+"|*.kicad_mod |Footprint files, containing one footprint description each.\n"
+"|*.kicad_dru |Design rules file, containing custom design rules for a certain _.kicad_pcb_ file.\n"
+"|*.brd |Legacy (KiCad 4.x and earlier ) board file.\n"
+"Can be read, but not written, by the current board editor.\n"
+"|*.mod |Legacy (KiCad 4.x and earlier ) footprint library file.\n"
+"Can be read by the footprint or the board editor, but not written.\n"
+"|fp-lib-table |Footprint library list (_footprint library table_):\n"
+"list of footprint libraries available in the board editor.\n"
+"|fp-info-cache |Cache to speed up loading of footprint libraries.\n"
+msgstr ""
+"|*.kicad_pcb |Berkas papan sirkuit yang berisi berbagai informasi kecuali tata letak halaman.\n"
+"|*.pretty |Folder pustaka untuk _footprint_. Folder itu sendiri adalah pustaka.\n"
+"|*.kicad_mod |Berkas _footprint_, berisi satu deskripsi _footprint_ pada setiap berkas.\n"
+"|*.brd |Berkas papan sirkuit dalam format lama.\n"
+"Dapat dibaca namun tidak dapat ditulis oleh editor papan sirkuit versi saat ini.\n"
+"|*.mod |Pustaka _footprint_ dalam format lama.\n"
+"Dapat dibaca oleh editor _footprint_ atau editor papan sirkuit, namun tidak dapat ditulis.\n"
+"|fp-lib-table |Daftar pustaka _footprint_ (_footprint library table_):\n"
+"daftar dari pustaka _footprint_ (dalam berbagai format) yang dimuat\n"
+"oleh papan sirkuit, editor _footprint_, atau CvPcb.\n"
+
+#. type: Plain text
+#: kicad.adoc:135
+#, no-wrap
+msgid "*Common files:*\n"
+msgstr "*Berkas-berkas umum:*\n"
+
+#. type: Table
+#: kicad.adoc:144
+#, fuzzy, no-wrap
+#| msgid ""
+#| "|*.kicad_wks |Page layout description files, for people who want a worksheet\n"
+#| "with a custom look.\n"
+#| "|*.net |Netlist file created by the schematic, and read by the board editor.\n"
+#| "This file is associated to the .cmp file, for users who prefer a separate file\n"
+#| "for the component/footprint association.\n"
+msgid ""
+"|*.kicad_wks |Page layout (drawing border and title block) description file\n"
+"|*.net |Netlist file created by the schematic, and read by the board editor.\n"
+"This file is associated to the .cmp file, for users who prefer a separate file\n"
+"for the component/footprint association.\n"
+"|*.kicad_prl |Local settings for the current project, helps Kicad remember\n"
+"the last used settings such as layer visibility or selection filter.\n"
+"May not need to be distributed with the project or put under version control.\n"
+msgstr ""
+"|*.kicad_wks |Berkas deskripsi tata letak halaman, untuk pengguna yang membutuhkan sebuah lembar kerja\n"
+"dengan tampilan kustom.\n"
+"|*.net |Berkas Netlist yang dibuat oleh skematik, dan dibaca oleh editor papan sirkuit.\n"
+"Berkas ini terhubung dengan berkas .cmp, untuk pengguna yang lebih suka menggunakan berkas yang terpisah untuk hubungan komponen/_footprint_.\n"
+
+#. type: Plain text
+#: kicad.adoc:147 kicad.adoc:157
+#, no-wrap
+msgid "*Other files:*\n"
+msgstr "*Berkas-berkas lain:*\n"
+
+#. type: Table
+#: kicad.adoc:154
+#, no-wrap
+msgid ""
+"|*.cmp |Association between components used in the schematic and their footprints.\n"
+"It can be created by Pcbnew and imported by Eeschema.\n"
+"Its purpose is to import changes from Pcbnew to Eeschema, for users\n"
+"who change footprints inside Pcbnew (for instance using _Exchange Footprints_ command)\n"
+"and want to import these changes in schematic.\n"
+msgstr ""
+"|*.cmp |Hubungan antara komponen-komponen yang digunakan pada skematik dan _footprint_.\n"
+"Berkas ini dapat dibuat oleh Pcbnew dan diimpor oleh Eeschema. \n"
+"Berkas ini digunakan untuk mengimpor perubahan dari Pcbnew ke Eeschema, bagi pengguna\n"
+"yang mengubah _footprint_ suatu komponen di dalam Pcbnew (misalnya dengan menggunakan perintah _Exchange Footprints_)\n"
+"dan ingin mengimpor perubahan tersebut ke skematik.\n"
+
+#. type: Plain text
+#: kicad.adoc:159
+msgid "They are generated by KiCad for fabrication or documentation."
+msgstr ""
+"Berkas-berkas berikut dibuat oleh KiCad untuk keperluan fabrikasi dan "
+"dokumentasi."
+
+#. type: Table
+#: kicad.adoc:170
+#, no-wrap
+msgid ""
+"|*.gbr |Gerber files, for fabrication.\n"
+"|*.drl |Drill files (Excellon format), for fabrication.\n"
+"|*.pos |Position files (ASCII format), for automatic insertion machines.\n"
+"|*.rpt |Report files (ASCII format), for documentation.\n"
+"|*.ps |Plot files (Postscript), for documentation.\n"
+"|*.pdf |Plot files (PDF format), for documentation.\n"
+"|*.svg |Plot files (SVG format), for documentation.\n"
+"|*.dxf |Plot files (DXF format), for documentation.\n"
+"|*.plt |Plot files (HPGL format), for documentation.\n"
+msgstr ""
+"|*.gbr |Berkas Gerber, untuk fabrikasi.\n"
+"|*.drl |Berkas _drill_ (format Excellon), untuk fabrikasi.\n"
+"|*.pos |Berkas posisi (format ASCII), untuk mesin pemasang komponen otomatis.\n"
+"|*.rpt |Berkas laporan (format ASCII), untuk dokumentasi.\n"
+"|*.ps |Berkas _plot_ (postscript), untuk dokumentasi.\n"
+"|*.pdf |Berkas _plot_ (format pdf), untuk dokumentasi.\n"
+"|*.svg |Berkas _plot_ (format SVG), untuk dokumentasi.\n"
+"|*.dxf |Berkas _plot_ (format DXF), untuk dokumentasi.\n"
+"|*.plt |Berkas _plot_ (format HPGL), untuk dokumentasi.\n"
+
+#. type: Plain text
+#: kicad.adoc:173
+#, no-wrap
+msgid "*Storing and and sending KiCad files*\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:178
+msgid ""
+"KiCad schematic and board files contain all the schematic symbols and "
+"footprints used in the design, so you can back up or send these files by "
+"themselves with no issue.  Some important design information is stored in "
+"the project file (_.kicad_pro_), so if you are sending a complete design, "
+"make sure to include it."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:183
+msgid ""
+"Some files, such as the project local settings file (_.kicad_prl_) and the "
+"_fp-info-cache_ file, are not necessary to send with your project.  If you "
+"use a version control system such as Git to keep track of your KiCad "
+"projects, you may want to add these files to the list of ignored files so "
+"that they are not tracked."
+msgstr ""
+
+#. type: Title ==
+#: kicad.adoc:185
+#, fuzzy, no-wrap
+#| msgid "Installation and configuration"
+msgid "Installing and Upgrading KiCad"
+msgstr "Instalasi dan Konfigurasi"
+
+#. type: Title ===
+#: kicad.adoc:188
+#, no-wrap
+msgid "Importing settings"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:193
+msgid ""
+"Each major release of KiCad has its own configuration, so that you may run "
+"multiple KiCad versions on the same computer without the configurations "
+"interfering.  The first time you run a new version of KiCad, you will be "
+"asked how to initialize the settings:"
+msgstr ""
+
+#. type: Target for macro image
+#: kicad.adoc:194
+#, fuzzy, no-wrap
+#| msgid "images/configure_path_dlg.png"
+msgid "images/configure_settings.png"
+msgstr "images/configure_path_dlg.png"
+
+#. type: Plain text
+#: kicad.adoc:199
+msgid ""
+"If a previous version of KiCad is detected, you will have the option to "
+"import the settings from that version.  The location of the previous "
+"configuration files is detected automatically, but you may override it to "
+"choose another location if desired."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:203
+msgid ""
+"By default, the schematic symbol and footprint library tables from the "
+"previous version of KiCad will also be imported.  If you would like to start "
+"with no library configuration, uncheck the **Import library configuration "
+"from previous version** checkbox."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:206
+msgid ""
+"You may also choose to start with default settings if you do not want to "
+"import settings from a previous version."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:210
+msgid ""
+"KiCad stores the settings files in a folder inside your user directory.  "
+"Each KiCad version will store its settings in a subfolder of that folder "
+"(except for KiCad 5.1 and earlier, which did not use subfolders).  Those "
+"folders are:"
+msgstr ""
+
+#. type: Table
+#: kicad.adoc:216
+#, no-wrap
+msgid ""
+"|Windows |`%APPDATA%\\kicad`\n"
+"|Linux   |`~/.config/kicad`\n"
+"|Mac OS  |`/Users/<username>/Library/Preferences/kicad`\n"
+msgstr ""
+
+#. type: Title ===
+#: kicad.adoc:218
+#, no-wrap
+msgid "Migrating files from previous versions"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:225
+msgid ""
+"Modern versions of KiCad can open files created in earlier versions, but can "
+"only write files in the latest formats.  This means that in general, there "
+"are no special steps to migrate files from a previous version besides "
+"opening the files.  In some cases, the file extension for a file has changed "
+"from one KiCad version to the next.  After opening these files, they will be "
+"saved in the new format with the new file extension.  The old files will not "
+"be deleted automatically."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:230
+msgid ""
+"In general, files created or modified by one version of KiCad **cannot** be "
+"opened by older versions of KiCad.  For this reason, it is important to keep "
+"backup copies of your projects when testing a new KiCad release, until you "
+"are confident that you will not need to use the older KiCad version anymore."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:235
+#, no-wrap
+msgid ""
+"Hotkey configurations are not imported from previous versions at this time.  You can manually\n"
+"      import hotkey configurations by copying the various `*.hotkeys` files from the old version\n"
+"      configuration directory to the new one.  If you do so, please note that KiCad will not\n"
+"      automatically detect conflicts such as one key being assigned to multiple actions.\n"
+msgstr ""
+
+#. type: Title ==
+#: kicad.adoc:237
+#, no-wrap
+msgid "Using KiCad project manager"
+msgstr "Menggunakan Manajer Proyek KiCad"
+
+#. type: Plain text
+#: kicad.adoc:241
+#, fuzzy
+#| msgid ""
+#| "KiCad project manager (kicad or kicad.exe) is a tool which can easily run "
+#| "the other tools (schematic and PCB editors, Gerber viewer and utility "
+#| "tools) when creating a design."
+msgid ""
+"KiCad project manager (kicad or kicad.exe) is a tool which can easily run "
+"the other tools (schematic and board editors, Gerber viewer and utility "
+"tools) when creating a design."
+msgstr ""
+"Manajer proyek KiCad (kicad atau kicad.exe) adalah sebuah aplikasi yang "
+"memudahkan kita menjalankan aplikasi lain (editor skematik dan PCB, penampil "
+"Gerber dan peralatan lainnya) saat membuat sebuah desain."
+
+#. type: Plain text
+#: kicad.adoc:243
+msgid "Running the other tools from KiCad manager has some advantages:"
+msgstr ""
+"Menjalankan aplikasi dari Manajer KiCad memiliki beberapa keuntungan, antara "
+"lain:"
+
+#. type: Plain text
+#: kicad.adoc:245
+msgid "cross probing between schematic editor and board editor."
+msgstr ""
+"menjaga saling keterkaitan antara editor skematik dan editor papan sirkuit."
+
+#. type: Plain text
+#: kicad.adoc:248
+msgid ""
+"synchronization of the design between the schematic editor and board editor "
+"(without creating netlist files)"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:253
+#, fuzzy
+#| msgid ""
+#| "However, you can only edit the current project files. When these tools "
+#| "are run in _stand alone_ mode, you can open any file in any project but "
+#| "cross probing between tools can give strange results."
+msgid ""
+"KiCad currently only supports having one project open at a time.  When "
+"running the schematic and board editors from the KiCad project manager, you "
+"can only edit the schematics and board associated with the open project.  "
+"When these tools are run in _stand alone_ mode, you can open any file in any "
+"project, but cross probing between tools can give strange results."
+msgstr ""
+"Bagaimanapun, Anda hanya mengedit berkas-berkas proyek yang saat ini dibuka. "
+"Ketika berbagai peralatan yang tersedia di KiCad dijalankan secara langsung "
+"secara _stand alone_ tanpa melalui manajer proyek KiCad, Anda dapat membuka "
+"berkas apapun di dalam semua proyek, namun keterkaitan antar aplikasi akan "
+"menjadi terganggu."
+
+#. type: Title ===
+#: kicad.adoc:254
+#, no-wrap
+msgid "Project manager window"
+msgstr "Jendela Manajer Proyek"
+
+#. type: Target for macro image
+#: kicad.adoc:256
+#, no-wrap
+msgid "images/main_window.png"
+msgstr "images/main_window.png"
+
+#. type: Plain text
+#: kicad.adoc:261
+#, fuzzy
+#| msgid ""
+#| "The main KiCad window is composed of a project tree view, a launch pane "
+#| "containing buttons used to run the various software tools, and a message "
+#| "window. The menu and the toolbar can be used to create, read and save "
+#| "project files."
+msgid ""
+"The KiCad project manager window is composed of a project tree view, a "
+"launch pane containing buttons used to run the various software tools, and a "
+"message window. The menu and the toolbar can be used to create, read and "
+"save project files."
+msgstr ""
+"Layar utama KiCad terdiri dari sebuah tampilan pohon proyek, sebuah jendela "
+"peluncur yang berisi tombol-tombol yang digunakan untuk menjalankan berbagai "
+"peralatan, dan sebuah layar pesan. Menu dan bilah alat dapat digunakan untuk "
+"membuat, membaca dan menyimpan berkas-berkas proyek."
+
+#. type: Title ===
+#: kicad.adoc:262
+#, no-wrap
+msgid "Tool launcher"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:266
+msgid ""
+"The tool launcher opens the different KiCad tools from the project manager.  "
+"When opening the schematic or board editor, the project files will "
+"automatically be loaded."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:268
+#, fuzzy
+#| msgid ""
+#| "The launch pane is made of the 8 buttons below that correspond to the "
+#| "following commands (1 to 8, from left to right):"
+msgid ""
+"The 8 buttons in the launcher correspond to the following commands (1 to 8, "
+"from left to right):"
+msgstr ""
+"Jendela peluncur terdiri dari 8 buah tombol yang akan menjalankan perintah-"
+"perintah berikut (1 sampai 8, dari kiri ke kanan):"
+
+#. type: Target for macro image
+#: kicad.adoc:269
+#, no-wrap
+msgid "images/launch_pane.png"
+msgstr "images/launch_pane.png"
+
+#. type: Table
+#: kicad.adoc:283
+#, fuzzy, no-wrap
+#| msgid ""
+#| "|1 |*Eeschema* |Schematic editor.\n"
+#| "|2 |*LibEdit* |Component editor and component library manager.\n"
+#| "|3 |*Pcbnew* |Board layout editor.\n"
+#| "|4 |*FootprintEditor* |Footprint editor and footprint library manager.\n"
+#| "|5 |*Gerbview* |Gerber file viewer. It can also display drill files.\n"
+#| "|6 |*Bitmap2component* |Tool to build a footprint or a component from\n"
+#| "a B&W bitmap image to create logos.\n"
+#| "|7 |*Pcb Calculator* |Tool to calculate track widths, and many other\n"
+#| "things.\n"
+#| "|8 |*Pl Editor* |Page layout editor, to create/customize frame\n"
+#| "references.\n"
+msgid ""
+"|1 |*Eeschema* |Schematic editor.\n"
+"|2 |*LibEdit* |Schematic symbol editor and symbol library manager.\n"
+"|3 |*Pcbnew* |Board layout editor.\n"
+"|4 |*FootprintEditor* |Footprint editor and footprint library manager.\n"
+"|5 |*Gerbview* |Gerber file viewer. It can also display drill files.\n"
+"|6 |*Bitmap2component* |Tool to build a footprint or a component from\n"
+"a B&W bitmap image to create logos.\n"
+"|7 |*Pcb Calculator* |Tool to calculate track widths, and many other things.\n"
+"|8 |*Page Layout Editor* |Page layout (drawing border and title block) editor\n"
+msgstr ""
+"|1 |*Eeschema* |Editor skematik.\n"
+"|2 |*LibEdit* |Editor komponen dan manajer pustaka komponen.\n"
+"|3 |*Pcbnew* |Editor tata letak papan sirkuit.\n"
+"|4 |*FootprintEditor* |Editor _footprint_ dan manajer pustaka _footprint_.\n"
+"|5 |*Gerbview* |Penampil berkas Gerber. Juga bisa menampilkan berkas _drill_.\n"
+"|6 |*Bitmap2component* |Alat untuk membuat _footprint_ atau komponen dari gambar bitmap hitam-putih untuk membuat logo.\n"
+"|7 |*Pcb Calculator* |Alat untuk menghitung lebar track dan lain-lain.\n"
+"|8 |*Pl Editor* |Editor layout halaman, untuk membuat/mengubah referensi bingkai halaman.\n"
+
+#. type: Title ===
+#: kicad.adoc:285
+#, no-wrap
+msgid "Project tree view"
+msgstr "Tampilan Pohon Proyek"
+
+#. type: Plain text
+#: kicad.adoc:288
+msgid "The tree view shows a list of files inside the project folder."
+msgstr ""
+
+#. type: Target for macro image
+#: kicad.adoc:289
+#, no-wrap
+msgid "images/project_tree.png"
+msgstr "images/project_tree.png"
+
+#. type: Plain text
+#: kicad.adoc:293
+#, fuzzy
+#| msgid ""
+#| "Double-clicking on the schematic file runs the schematic editor, in this "
+#| "case opening the file *pic_programmer.sch*."
+msgid ""
+"Double-clicking on the schematic file runs the schematic editor, in this "
+"case opening the file *pic_programmer.kicad_sch*."
+msgstr ""
+"Klik-ganda pada berkas skematik untuk menjalankan editor skematik, yang "
+"dalam contoh di atas akan membuka berkas *pic_programmer.sch*."
+
+#. type: Plain text
+#: kicad.adoc:296
+msgid ""
+"Double-clicking on the board file runs the layout editor, in this case "
+"opening the file *pic_programmer.kicad_pcb*."
+msgstr ""
+"Klik-ganda pada berkas PCB untuk menjalankan editor tata letak PCB, yang "
+"dalam contoh di atas akan membuka berkas *pic_programmer.kicad_pcb*."
+
+#. type: Plain text
+#: kicad.adoc:299
+msgid ""
+"Right clicking on any of the files in the project tree allows generic file "
+"manipulation."
+msgstr ""
+"Melakukan klik-kanan pada berkas yang ada di pohon proyek akan mengijinkan "
+"kita melakukan manipulasi berkas secara umum."
+
+#. type: Plain text
+#: kicad.adoc:301
+msgid ""
+"Only files that KiCad understands how to open are displayed in the project "
+"tree view."
+msgstr ""
+
+#. type: Title ===
+#: kicad.adoc:303
+#, no-wrap
+msgid "Top toolbar"
+msgstr "Bilah Alat Bagian Atas"
+
+#. type: Target for macro image
+#: kicad.adoc:305
+#, no-wrap
+msgid "images/main_toolbar.png"
+msgstr "images/main_toolbar.png"
+
+#. type: Plain text
+#: kicad.adoc:308
+msgid "KiCad top toolbar allows for some basic file operations:"
+msgstr ""
+"Kita dapat melakukan beberapa perintah berkas dasar dengan mengakses bilah "
+"alat bagian atas pada KiCad:"
+
+#. type: Table
+#: kicad.adoc:328
+#, fuzzy, no-wrap
+#| msgid ""
+#| "|image:images/icons/new_project.png[]\n"
+#| "|Create a new project. If the default template file (kicad.pro) is found in\n"
+#| "*kicad/template*, it is copied into the working directory.\n"
+#| "|image:images/icons/new_project_with_template.png[]\n"
+#| "|Create a new project from an existing template.\n"
+#| "|image:images/icons/open_project.png[]\n"
+#| "|Open an existing project.\n"
+#| "|image:images/icons/save_project.png[]\n"
+#| "|Update and save the current project tree.\n"
+#| "|image:images/icons/zip.png[]\n"
+#| "|Create a zip archive of the whole project. This includes schematic\n"
+#| "files, libraries, PCB, etc.\n"
+#| "|image:images/icons/reload.png[]\n"
+#| "|Refresh the tree view, sometimes needed after a tree change.\n"
+msgid ""
+"|image:images/icons/new_project.png[]\n"
+"|Create a new project. If the default template file (kicad.kicad_pro) is found in\n"
+"*kicad/template*, it is copied into the working directory.\n"
+"|image:images/icons/new_project_with_template.png[]\n"
+"|Create a new project from an existing template.\n"
+"|image:images/icons/open_project.png[]\n"
+"|Open an existing project.\n"
+"|image:images/icons/zip.png[]\n"
+"|Create a zip archive of the whole project. This includes schematic\n"
+"files, libraries, PCB, etc.\n"
+"|image:images/icons/unzip.png[]\n"
+"|Extract a project zip archive into a directory. Files in the destination\n"
+"directory will be overwritten.\n"
+"|image:images/icons/reload.png[]\n"
+"|Refresh the tree view, sometimes needed after a tree change.\n"
+"|image:images/icons/directory_browser.png[]\n"
+"|Open the project working directory in a file explorer.\n"
+msgstr ""
+"|image:images/icons/new_project.png[]\n"
+"|Membuat proyek baru. Jika di direktori *kicad/template* terdapat berkas templat (kicad.pro), maka berkas tersebut akan disalin ke dalam direktori kerja.\n"
+"|image:images/icons/new_project_with_template.png[]\n"
+"|Membuat sebuah proyek berdasarkan templat yang sudah ada.\n"
+"|image:images/icons/open_project.png[]\n"
+"|Membuka proyek yang sudah ada.\n"
+"|image:images/icons/save_project.png[]\n"
+"|Memperbarui dan menyimpan pohon proyek yang sedang dibuka.\n"
+"|image:images/icons/zip.png[]\n"
+"|Membuat sebuah arsip zip dari keseluruhan proyek, termasuk file skematik, pustaka, PCB, dsb.\n"
+"|image:images/icons/reload.png[]\n"
+"|Memuat kembali (_reload_) tampilan pohon, kadang perintah ini diperlukan setelah kita melakukan perubahan pada suatu pohon.\n"
+
+#. type: Title ===
+#: kicad.adoc:330
+#, no-wrap
+msgid "Creating a new project"
+msgstr "Membuat Proyek Baru"
+
+#. type: Plain text
+#: kicad.adoc:336
+msgid ""
+"Most KiCad designs start with the creation of a project.  There are two ways "
+"to create a project from the KiCad project manager: you may create an empty "
+"project, or create a project based on an existing template.  This section "
+"will cover the creation of a new, empty project.  Creating projects from "
+"templates is covered in the <<project-templates,Project Templates>> section."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:339
+msgid ""
+"To create a new project, use the **New Project...** command in the **File** "
+"menu, click the **New Project** button in the top toolbar, or use the "
+"keyboard shortcut (`Ctrl+N` by default)."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:343
+msgid ""
+"You will be prompted for a name to give your project.  By default, a "
+"directory will be created for your project with the same name.  For example, "
+"if you enter the name `MyProject`, KiCad will create the directory "
+"`MyProject` and the project file `MyProject/MyProject.kicad_pro` inside it."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:346
+msgid ""
+"If you already have a directory to store your project files in, you can "
+"uncheck the _Create a new directory for the project_ checkbox in the **New "
+"Project** dialog."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:348
+msgid ""
+"It is strongly recommended that you store each KiCad project inside its own "
+"directory."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:351
+msgid ""
+"Once you select the name of your project, KiCad will create the following "
+"files inside the project directory:"
+msgstr ""
+
+#. type: Table
+#: kicad.adoc:357
+#, no-wrap
+msgid ""
+"|example.kicad_pro |KiCad project file.\n"
+"|example.kicad_sch |Main schematic file.\n"
+"|example.kicad_pcb |Printed circuit board file.\n"
+msgstr ""
+
+#. type: Title ===
+#: kicad.adoc:359
+#, no-wrap
+msgid "Importing a project from another EDA tool"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:363
+#, fuzzy
+#| msgid ""
+#| "KiCad is able to import files created using other software packages. "
+#| "Currently only Eagle 6.x or newer (XML format) is supported."
+msgid ""
+"KiCad is able to import files created by some other software packages. "
+"Currently the following types of project are supported:"
+msgstr ""
+"KiCad mampu mengimpor berkas-berkas yang dibuat dengan paket perangkat lunak "
+"yang lain. Saat ini, KiCad baru mendukung berkas dari Eagle 6.x atau yang "
+"lebih baru (format XML)."
+
+#. type: Table
+#: kicad.adoc:368
+#, no-wrap
+msgid ""
+"|*.sch, *.brd |Eagle 6.x or newer (XML format)\n"
+"|*.csa, *.cpa |CADSTAR archive format\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:372
+msgid ""
+"To import a project from one of these tools, choose the appropriate option "
+"from the **Import Non-KiCad Project** submenu of the **File** menu."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:377
+#, fuzzy
+#| msgid ""
+#| "To import a foreign project, you need to select either a schematic or a "
+#| "board file in the import file browser dialog.  Imported schematic and "
+#| "board files should have the same base file name (e.g. project.sch and "
+#| "project.brd).  Once the requested files are selected, you will be asked "
+#| "to select a directory to store the imported files, which are going to be "
+#| "saved as a KiCad project."
+msgid ""
+"You will be prompted to select either a schematic or a board file in the "
+"import file browser dialog. The imported schematic and board files should "
+"have the same base file name (e.g.  project.sch and project.brd). Once the "
+"requested files are selected, you will be asked to select a directory to "
+"store the resulting KiCad project."
+msgstr ""
+"Untuk mengimpor sebuah proyek dari perangkat lunak lain, Anda harus memilih "
+"sebuah berkas skematik atau tata letak PCB pada tampilan dialog pemilih "
+"berkas yang akan diimpor. Berkas-berkas skematik dan tata letak PCB yang "
+"akan diimpor harus memiliki nama berkas yang sama (misalnya project.sch dan "
+"project.brd). Jika berkas yang akan diimpor sudah dipilih, Anda akan diminta "
+"untuk memilih sebuah direktori untuk menyimpan berkas-berkas hasil impor, "
+"yang akan disimpan sebagai sebuah proyek KiCad."
+
+#. type: Title ==
+#: kicad.adoc:379
+#, fuzzy, no-wrap
+#| msgid "Paths configuration"
+msgid "KiCad configuration"
+msgstr "Konfigurasi _Path_"
+
+#. type: Plain text
+#: kicad.adoc:385
+msgid ""
+"The KiCad preferences can always be accessed from the **Preferences** menu, "
+"or by using the hotkey (default `Ctrl+,`). The Preferences dialog is shared "
+"between the running KiCad tools.  Some preferences apply to all tools, and "
+"some are specific to a certain tool (such as the schematic or board editor)."
+msgstr ""
+
+#. type: Title ===
+#: kicad.adoc:386
+#, no-wrap
+msgid "Common preferences"
+msgstr ""
+
+#. type: Target for macro image
+#: kicad.adoc:388
+#, fuzzy, no-wrap
+#| msgid "images/preferences_menu.png"
+msgid "images/preferences_common.png"
+msgstr "images/preferences_menu.png"
+
+#. type: Plain text
+#: kicad.adoc:392
+#, no-wrap
+msgid ""
+"**Auto save:** When editing schematics and board files, KiCad can automatically save your work\n"
+"periodically.  Set to `0` to disable this feature.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:394
+#, no-wrap
+msgid "**File history size:** Configure the number of entries in the list of recently-opened files\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:397
+#, no-wrap
+msgid ""
+"**3D cache file duration:** KiCad creates a cache of 3D models in order to speed up the 3D viewer.\n"
+"You can configure how long to keep this cache before deleting old files.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:401
+#, no-wrap
+msgid ""
+"**Accelerated graphics antialising:** KiCad can use different methods to prevent aliasing\n"
+"(jagged lines) when rendering using a graphics card.  Different methods may look better on\n"
+"different hardware, so you may want to experiment to find the one that looks best to you.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:404
+#, no-wrap
+msgid ""
+"**Fallback graphics antialiasing:** KiCad can also apply antialiasing when using the fallback\n"
+"graphics mode.  Enabling this feature may result in poor performance on some hardware.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:406
+#, no-wrap
+msgid "**Text editor:** Choose a text editor to use when opening text files from the project tree view.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:408
+#, no-wrap
+msgid "**PDF viewer:** Choose a program to use when opening PDF files\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:412
+#, no-wrap
+msgid ""
+"**Icon scale:** Sets the size of the icons used in menus and buttons throughout KiCad.  Choose\n"
+"_Automatic_ to pick an appropriate icon scale automatically based on your operating system\n"
+"settings.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:416
+#, no-wrap
+msgid ""
+"**Canvas scale:** Sets the scale of the drawing canvas used in the KiCad editors.  Choose\n"
+"_Automatic_ to pick an appropriate canvas scale automatically based on your operating system\n"
+"settings.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:418
+#, no-wrap
+msgid "**Show icons in menus:** Enables icons in drop-down menus throughout the KiCad user interface.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:420
+msgid "Icons in menus are not displayed on some operating systems."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:424
+#, no-wrap
+msgid ""
+"**Prefer selection to dragging:** When enabled, clicking and dragging the mouse will always perform\n"
+"a selection operation, even when you start dragging on top of an object.  When disabled, clicking\n"
+"and dragging on top of an object that can be moved will perform a move operation.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:427
+#, no-wrap
+msgid ""
+"**Warp mouse to origin of moved object:** When enabled, the mouse cursor will be repositioned\n"
+"(warped) to the origin of an object when you start a move command on that object.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:431
+#, no-wrap
+msgid ""
+"**First hotkey selects tool:** When disabled, pressing the hotkey for a command such as _Add Wire_\n"
+"will immediately start the command at the current cursor location.  When enabled, pressing the\n"
+"hotkey the first time will just select the _Add Wire_ tool but will not immediately begin a wire.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:435
+#, no-wrap
+msgid ""
+"**Automatically backup projects:** When enabled, KiCad projects will be archived to ZIP files\n"
+"automatically according to the settings below.  The archives will be stored in a subfolder of the\n"
+"project folder.  Backups are created when saving files in the project.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:439
+#, no-wrap
+msgid ""
+"**Create backups when auto save occurs:** When enabled, a backup will be created every time an\n"
+"automatic file save occurs (if the backup is permitted by the settings below).  This setting has\n"
+"no effect if the auto save interval is set to `0` (disabled).\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:442
+#, no-wrap
+msgid ""
+"**Maximum backups to keep:** When creating a new backup, the oldest backup file will be deleted to\n"
+"keep the total number of backup files below this limit.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:445
+#, no-wrap
+msgid ""
+"**Maximum backups per day:** When creating a new backup, the oldest backup file created on the\n"
+"current day will be deleted to stay below this limit.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:448
+#, no-wrap
+msgid ""
+"**Minimum time between backups:** If backup is triggered (for example, by saving a board file),\n"
+"the backup will not be created if an existing backup file is newer than this limit.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:451
+#, no-wrap
+msgid ""
+"**Maximum total backup size:** When creating a new backup file, the oldest backup files will be\n"
+"deleted to keep the total size of the backup files directory below this limit.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:454
+#, no-wrap
+msgid ""
+"**Remember open files for next project launch:** When checked, KiCad will re-open the schematic and\n"
+"board editor if they were open the last time you closed the project manager.\n"
+msgstr ""
+
+#. type: Title ===
+#: kicad.adoc:455
+#, no-wrap
+msgid "Mouse and touchpad preferences"
+msgstr ""
+
+#. type: Target for macro image
+#: kicad.adoc:457
+#, fuzzy, no-wrap
+#| msgid "images/preferences_menu.png"
+msgid "images/preferences_mouse_and_touchpad.png"
+msgstr "images/preferences_menu.png"
+
+#. type: Plain text
+#: kicad.adoc:461
+#, no-wrap
+msgid ""
+"**Center and warp cursor on zoom:** When enabled, zooming using the hotkeys or mouse wheel will\n"
+"cause the view to be centered on the cursor location.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:464
+#, no-wrap
+msgid ""
+"**Use zoom acceleration:** When enabled, scrolling the mouse wheel or touchpad faster will cause\n"
+"the zoom to change faster.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:467
+#, no-wrap
+msgid ""
+"**Zoom speed:** Controls how much the zoom changes for a given amount of scrolling the mouse wheel\n"
+"or touchpad.  Use _Automatic_ to set a default value depending on your operating system.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:470
+#, no-wrap
+msgid ""
+"**Automatically pan while moving object:** When enabled, the view can be panned while moving an\n"
+"object by moving close to the edge of the canvas.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:472
+#, no-wrap
+msgid "**Auto pan speed:** Controls how fast the canvas pans while moving an object.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:475
+#, no-wrap
+msgid ""
+"**Mouse buttons:** You can set the behavior of dragging the middle and right mouse buttons to zoom\n"
+"the view, pan the view, or have no effect.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:477
+msgid ""
+"The left mouse button is always used for selecting and manipulating objects."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:480
+#, no-wrap
+msgid ""
+"**Mouse wheel and touchpad scrolling:** You can set the behavior of scrolling the mouse wheel or\n"
+"vertical motion of the touchpad while pressing certain modifier keys.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:483
+#, no-wrap
+msgid ""
+"**Pan lef/tright with horizontal touchpad or scroll wheel movement:** When enabled, you can pan the\n"
+"view using the touchpad or horizontal scroll wheel (if present on your mouse).\n"
+msgstr ""
+
+#. type: Title ===
+#: kicad.adoc:484
+#, no-wrap
+msgid "Hotkey preferences"
+msgstr ""
+
+#. type: Target for macro image
+#: kicad.adoc:486
+#, fuzzy, no-wrap
+#| msgid "images/preferences_menu.png"
+msgid "images/preferences_hotkeys.png"
+msgstr "images/preferences_menu.png"
+
+#. type: Plain text
+#: kicad.adoc:493
+msgid ""
+"You can use this dialog to customize the hotkeys used to control KiCad.  The "
+"hotkeys in the _Common_ section are shared between every KiCad program. "
+"Hotkeys for each specific KiCad program are shown when that program is "
+"running.  You can assign the same hotkey to a different action in different "
+"KiCad programs (for example, the schematic editor and the board editor), but "
+"you cannot assign a hotkey to more than one action in the same program."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:498
+msgid ""
+"There are many available commands, and so not all of them have a hotkey "
+"assigned by default.  You can add a hotkey to any command by double-clicking "
+"on the command in the list.  If you choose a hotkey that is already assigned "
+"to a different command, you can choose to use that hotkey on your chosen "
+"command, which will remove the hotkey assignment from the conflicting "
+"command."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:502
+msgid ""
+"Changes that you have made to hotkey assignments are shown with a `*` "
+"character at the end of the command name.  You can undo changes to a "
+"specific command by right-clicking that command and selecting _Undo "
+"Changes_, or you can undo all changes with the button below the command list."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:504
+#, no-wrap
+msgid "**Importing hotkeys**\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:509
+msgid ""
+"Hotkey preferences are stored in `.hotkeys` files in the KiCad settings "
+"directory (see the <<settings,Settings>> section for information about where "
+"the settings directory is on your operating system).  If you have configured "
+"KiCad hotkeys the way you like on one computer, you can transfer that "
+"configuration to another computer by importing the appropriate `.hotkeys` "
+"file(s)."
+msgstr ""
+
+#. type: Title ===
+#: kicad.adoc:510
+#, no-wrap
+msgid "Paths configuration"
+msgstr "Konfigurasi _Path_"
+
+#. type: Plain text
+#: kicad.adoc:515
+msgid ""
+"In KiCad, one can define paths using an __environment variable__.  A few "
+"environment variables are internally defined by KiCad, and can be used to "
+"define paths for libraries, 3D shapes, etc."
+msgstr ""
+"Di KiCad, kita bisa mendefinisikan beberapa _path_ dengan menggunakan "
+"__environment variable__. KiCad mendefinisikan beberapa _environment "
+"variable_ secara internal, dan bisa digunakan untuk mendefinisikan _path_ "
+"untuk pustaka, bentuk 3D, dan sebagainya."
+
+#. type: Plain text
+#: kicad.adoc:520
+msgid ""
+"This is useful when absolute paths are not known or are subject to change (e."
+"g.  when you transfer a project to a different computer), and also when one "
+"base path is shared by many similar items. Consider the following which may "
+"be installed in varying locations:"
+msgstr ""
+"Hal ini berguna ketika _path_ absolut tidak diketahui atau akan ada "
+"perubahan (misalnya saat Anda mentransfer sebuah proyek ke komputer lain), "
+"dan juga ketika satu _path_ dasar dibagi oleh item-item yang mirip. "
+"Pertimbangkan hal berikut yang bisa diinstal pada berbagai lokasi yang "
+"berbeda:"
+
+#. type: Plain text
+#: kicad.adoc:522
+#, fuzzy
+#| msgid "Eeschema component libraries"
+msgid "Schematic symbol libraries"
+msgstr "Pustaka komponen Eeschema"
+
+#. type: Plain text
+#: kicad.adoc:523
+#, fuzzy
+#| msgid "Pcbnew footprint libraries"
+msgid "Footprint libraries"
+msgstr "Pustaka _footprint_ Pcbnew"
+
+#. type: Plain text
+#: kicad.adoc:524
+msgid "3D shape files used in footprint definitions"
+msgstr "berkas-berkas bentuk 3D yang digunakan pada definisi _footprint_"
+
+#. type: Plain text
+#: kicad.adoc:528
+msgid ""
+"For instance, the path to the *_connect.pretty_* footprint library, when "
+"using the *KISYSMOD* environment variable, would be defined as *_$\\{KISYSMOD"
+"\\}/connect.pretty_*"
+msgstr ""
+"Sebagai contoh, _path_ dari pustaka _footprint_ *_connect.pretty_*, saat "
+"menggunakan _environment variable_ *KISYSMOD*, akan didefinisikan sebagai: *_"
+"$\\{KISYSMOD\\}/connect.pretty_*"
+
+#. type: Plain text
+#: kicad.adoc:532
+#, fuzzy
+#| msgid ""
+#| "This option allows you to define a path using an environment variable, "
+#| "and add your own environment variables to define personal paths, if "
+#| "needed."
+msgid ""
+"The *Preferences* -> *Configure Paths...* menu allows you to define paths "
+"for some built-in KiCad environment variables, and add your own environment "
+"variables to define personal paths, if needed."
+msgstr ""
+"Opsi berikut ini mengijinkan Anda mendefinisikan sebuah _path_ dengan "
+"menggunakan sebuah _environment variable_, dan menambahkan _environment "
+"variable_ Anda sendiri untuk mendefinisikan _path_-_path_ pribadi, jika "
+"diperlukan."
+
+#. type: Plain text
+#: kicad.adoc:534
+#, no-wrap
+msgid "*KiCad environment variables:*\n"
+msgstr "*Beberapa _environment variable_ KiCad:*\n"
+
+#. type: Table
+#: kicad.adoc:543
+#, no-wrap
+msgid ""
+"|KICAD6_SYMBOL_DIR |Base path of symbol library files.\n"
+"|KICAD6_FOOTPRINT_DIR |Base path of footprint library files.\n"
+"|KICAD6_3DMODEL_DIR |Base path of 3D models used in footprints.\n"
+"|KICAD6_TEMPLATE_DIR |Location of project templates installed with KiCad.\n"
+"|KICAD_USER_TEMPLATE_DIR |Location of personal project templates.\n"
+"|KICAD6_SCRIPTING_DIR |Location of Python scripts installed with KiCad.\n"
+"|KICAD6_USER_SCRIPTING_DIR |Location of personal Python scripts.\n"
+msgstr ""
+
+#. type: Target for macro image
+#: kicad.adoc:545
+#, no-wrap
+msgid "images/configure_path_dlg.png"
+msgstr "images/configure_path_dlg.png"
+
+#. type: Plain text
+#: kicad.adoc:551
+msgid ""
+"Some advanced environment variables can be set to customize KiCad's "
+"behavior. These variables are not shown in the environment variable "
+"configuration dialog by default.  Changing these variables will not result "
+"in KiCad moving any files from the default location to the new location, so "
+"if you change these variables you will need to copy any desired settings or "
+"files manually."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:553
+#, fuzzy, no-wrap
+#| msgid "*KiCad environment variables:*\n"
+msgid "*Additional environment variables:*\n"
+msgstr "*Beberapa _environment variable_ KiCad:*\n"
+
+#. type: Table
+#: kicad.adoc:560
+#, no-wrap
+msgid ""
+"|KICAD_CONFIG_HOME |Base path of KiCad configuration files. Subdirectories will be created\n"
+"    within this directory for each KiCad minor version.\n"
+"|KICAD_DOCUMENTS_HOME |Base path of KiCad user-modifiable documents, such as templates,\n"
+"    Python scripts, libraries, etc. Subdirectories will be created within this directory for each\n"
+"    KiCad minor version.\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:564
+msgid ""
+"Note also the environment variable *KIPRJMOD* is *always* internally defined "
+"by KiCad, and is the **current project absolute path**."
+msgstr ""
+"Ingat juga bahwa _environment variable_ *KIPRJMOD* *selalu* didefinisikan "
+"secara internal oleh KiCad, dan merupakan **_path_ absolut untuk proyek yang "
+"sedang dibuka**."
+
+#. type: Plain text
+#: kicad.adoc:567
+msgid ""
+"For instance, *_$\\{KIPRJMOD\\}/connect.pretty_* is always the *_connect."
+"pretty_* folder (the pretty footprint library) found inside **the current "
+"project folder**."
+msgstr ""
+"Sebagai contoh, *_$\\{KIPRJMOD\\}/connect.pretty_* selalu mengarah ke folder "
+"*_connect.pretty_* (pustaka _footprint_ pretty) yang berada **di dalam "
+"folder proyek yang sedang dibuka**."
+
+#. type: Plain text
+#: kicad.adoc:570
+#, no-wrap
+msgid ""
+"*If you modify the configuration of paths, please quit and restart KiCad\n"
+"to avoid any issues in path handling.*\n"
+msgstr "*Jika Anda memodifikasi konfigurasi _path_ , Anda harus menutup dan menjalankan kembali KiCad, untuk menghindari masalah dalam menangani _path_.*\n"
+
+#. type: Title ===
+#: kicad.adoc:572
+#, fuzzy, no-wrap
+#| msgid "Paths configuration"
+msgid "Libraries configuration"
+msgstr "Konfigurasi _Path_"
+
+#. type: Plain text
+#: kicad.adoc:576
+msgid ""
+"The *Preferences* -> *Manage Symbol Libraries...* menu let you manage the "
+"library list files called **symbol library table** (sym-lib-table)."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:579
+msgid ""
+"Likewise, use the *Preferences* -> *Manage Footprint Libraries...* menu to "
+"manage the library list files called **footprint library table** (fp-lib-"
+"table)."
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:583
+#, fuzzy
+#| msgid ""
+#| "Run Pcbnew via KiCad manager.  Modify and update the Pcbnew "
+#| "configuration, especially the footprint library list.  Pcbnew will create "
+#| "or update a library list file called **footprint library table**.  There "
+#| "are 2 library list files (named fp-lib-table): The first (located in the "
+#| "user home directory) is global for all projects and the second (located "
+#| "in the project directory) is optional and specific to the project."
+msgid ""
+"There are 2 library list files: the first (located in the user home "
+"directory) is global for all projects and the second (located in the project "
+"directory) is optional and specific to the project."
+msgstr ""
+"Jalankan Pcbnew melalui manajer KiCad. Lakukan pengaturan konfigurasi "
+"Pcbnew, khususnya pada daftar pustaka _footprint_. Pcbnew akan membuat atau "
+"memperbarui berkas daftar pustaka yang disebut **footprint library table**. "
+"Terdapat 2 berkas daftar pustaka (dinamai fp-lib-table): Berkas pertama "
+"(berada di direktori rumah pengguna) berfungsi secara global untuk semua "
+"proyek, dan berkas kedua (berada di direktori proyek) adalah opsional, dan "
+"berfungsi secara spesifik untuk proyek terkait."
+
+#. type: Title ==
+#: kicad.adoc:586
+#, no-wrap
+msgid "Project templates"
+msgstr "Templat Proyek"
+
+#. type: Plain text
+#: kicad.adoc:592
+msgid ""
+"Using a project template facilitates setting up a new project with "
+"predefined settings. Templates may contain pre-defined board outlines, "
+"connector positions, schematic elements, design rules, etc. Complete "
+"schematics and/or PCBs used as seed files for the new project may even be "
+"included."
+msgstr ""
+"Penggunaan templat proyek akan memudahkan kita dalam melakukan pengaturan "
+"sebuah proyek baru dengan pengaturan yang telah ditentukan sebelumnya. "
+"Templat mungkin berisi bentuk papan PCB yang sudah ditentukan, berbagai "
+"posisi konektor, elemen-elemen skematik, aturan desain, dan sebagainya. "
+"Dimungkinkan juga untuk memasukkan berkas skematik dan/atau PCB yang lengkap "
+"sebagai berkas-berkas awal proyek baru."
+
+#. type: Title ===
+#: kicad.adoc:593
+#, no-wrap
+msgid "Using templates"
+msgstr "Menggunakan Templat"
+
+#. type: Plain text
+#: kicad.adoc:597
+msgid ""
+"The *_File -> New Project -> New Project from Template_* menu will open the "
+"Project Template Selector dialog:"
+msgstr ""
+"Menu *_File -> New Project -> New Project from Template_* akan membuka "
+"dialog 'Project Template Selector':"
+
+#. type: Target for macro image
+#: kicad.adoc:598
+#, no-wrap
+msgid "images/template_selector.png"
+msgstr "images/template_selector.png"
+
+#. type: Plain text
+#: kicad.adoc:604
+msgid ""
+"A single click on a template's icon will display the template information, "
+"and a further click on the OK button creates the new project. The template "
+"files will be copied to the new project location and renamed to reflect the "
+"new project's name."
+msgstr ""
+"Klik pada sebuah ikon templat akan menampilkan informasi templat, dan klik "
+"OK untuk membuat proyek baru. Berkas-berkas templat akan disalin ke dalam "
+"lokasi proyek yang baru, dengan nama berkas yang sesuai dengan nama proyek "
+"yang baru. "
+
+#. type: Plain text
+#: kicad.adoc:606
+msgid "After selection of a template:"
+msgstr "Setelah memilih sebuah templat:"
+
+#. type: Target for macro image
+#: kicad.adoc:607
+#, no-wrap
+msgid "images/template_selected.png"
+msgstr "images/template_selected.png"
+
+#. type: Title ===
+#: kicad.adoc:610
+#, no-wrap
+msgid "Template Locations:"
+msgstr "Lokasi Templat:"
+
+#. type: Plain text
+#: kicad.adoc:613
+msgid "KiCad looks for template files in the following paths:"
+msgstr "KiCad akan mencari berkas-berkas templat pada _path_ berikut:"
+
+#. type: Plain text
+#: kicad.adoc:615
+msgid "path defined in the environment variable KICAD_USER_TEMPLATE_DIR"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:617
+msgid "path defined in the environment variable KICAD_TEMPLATE_DIR"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:620
+msgid "System templates: <kicad bin dir>/../share/kicad/template/"
+msgstr "Templat sistem: <kicad bin dir>/../share/kicad/template/"
+
+#. type: Plain text
+#: kicad.adoc:622
+msgid "User templates:"
+msgstr "Templat pengguna:"
+
+#. type: Plain text
+#: kicad.adoc:625
+#, fuzzy
+#| msgid "~/kicad/templates/\n"
+msgid "Unix: ~/kicad/template/"
+msgstr "~/kicad/templates/\n"
+
+#. type: Plain text
+#: kicad.adoc:629
+#, fuzzy
+#| msgid ""
+#| "C:\\Documents and Settings\\username\\My Documents\\kicad\\templates\n"
+msgid ""
+"Windows: C:\\Documents and Settings\\username\\My Documents\\kicad\\template "
+"or C:\\Users\\username\\Documents\\kicad\\template"
+msgstr "C:\\Documents and Settings\\username\\My Documents\\kicad\\templates\n"
+
+#. type: Plain text
+#: kicad.adoc:632
+#, fuzzy
+#| msgid "~/Documents/kicad/templates/\n"
+msgid "Mac: ~/Documents/kicad/template/"
+msgstr "~/Documents/kicad/templates/\n"
+
+#. type: Title ===
+#: kicad.adoc:633
+#, no-wrap
+msgid "Creating templates"
+msgstr "Membuat Templat"
+
+#. type: Plain text
+#: kicad.adoc:638
+msgid ""
+"The template name is the directory name where the template files are stored. "
+"The metadata directory is a subdirectory named *meta* containing files "
+"describing the template."
+msgstr ""
+"Nama templat adalah nama direktori penyimpanan berkas-berkas templat. "
+"Direktori metadata adalah sebuah subdirektori dengan nama *meta* yang berisi "
+"berkas-berkas yang menjelaskan templat tersebut."
+
+#. type: Plain text
+#: kicad.adoc:642
+msgid ""
+"The metadata consists of one required file, and may contain optional files.  "
+"All files must be created by the user using a text editor or previous KiCad "
+"project files, and placed into the required directory structure."
+msgstr ""
+"Metadata berisi satu buah berkas yang dibutuhkan, dan mungkin berisi "
+"beberapa berkas opsional. Seluruh berkas harus dibuat oleh pengguna dengan "
+"menggunakan editor teks atau berkas proyek KiCad sebelumnya, dan diletakkan "
+"di dalam struktur direktori yang diperlukan."
+
+#. type: Plain text
+#: kicad.adoc:647
+#, fuzzy
+#| msgid ""
+#| "All files and directories in a template are copied to the new project "
+#| "path when a project is created using a template, except *meta*."
+msgid ""
+"All files and directories in a template are copied to the new project path "
+"when a project is created using a template, except *meta*.  Files and "
+"directories containing the template name will be renamed with the new "
+"project file name."
+msgstr ""
+"Semua berkas dan direktori di dalam sebuah templat akan disalin ke _path_ "
+"proyek yang baru pada saat proyek tersebut dibuat dengan menggunakan "
+"templat, kecuali *meta*."
+
+#. type: Plain text
+#: kicad.adoc:650
+msgid ""
+"For example, creating a project called *newproject* from a template named "
+"*example*:"
+msgstr ""
+
+#. type: Table
+#: kicad.adoc:671
+#, no-wrap
+msgid ""
+"|Files in template *example* directory\n"
+"|Files created in project *newproject* directory\n"
+"|\n"
+"example.kicad_pro +\n"
+"example.kicad_sch +\n"
+"example.kicad_pcb +\n"
+"example-first.kicad_sch +\n"
+"second-example.kicad_sch +\n"
+"third.kicad_sch +\n"
+"third.kicad_pcb\n"
+"|\n"
+"*newproject.kicad_pro* +\n"
+"*newproject.kicad_sch* +\n"
+"*newproject.kicad_pcb* +\n"
+"*newproject-first.kicad_sch* +\n"
+"*second-newproject.kicad_sch* +\n"
+"third.kicad_sch +\n"
+"third.kicad_pcb\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:676
+msgid ""
+"A template does not need to contain a complete project, if a required "
+"project file is missing, KiCad will create it using its default create "
+"project behavior:"
+msgstr ""
+
+#. type: Table
+#: kicad.adoc:695
+#, no-wrap
+msgid ""
+"|Files in template *example* directory\n"
+"|Files created in *newproject* directory\n"
+"|\n"
+"example.kicad_sch +\n"
+"first-example.kicad_sch +\n"
+"first-example.kicad_pcb +\n"
+"second-example.kicad_sch +\n"
+"second-example.kicad_pcb\n"
+"|\n"
+"*newproject.kicad_sch* +\n"
+"*first-newproject.kicad_sch* +\n"
+"*first-newproject.kicad_pcb* +\n"
+"*second-newproject.kicad_sch* +\n"
+"*second-newproject.kicad_pcb* +\n"
+"*newproject.kicad_pro* (default) +\n"
+"*newproject.kicad_pcb* (default)\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:700
+msgid ""
+"As an exception to the template name renaming rule, if one project file (."
+"kicad_pro) exists and its name doesn't match the template name, KiCad will "
+"do the renaming based on that project file name instead:"
+msgstr ""
+
+#. type: Table
+#: kicad.adoc:721
+#, no-wrap
+msgid ""
+"|Files in template *example* directory\n"
+"|Files created in *newproject* directory\n"
+"|\n"
+"example.kicad_sch +\n"
+"example.kicad_pcb +\n"
+"*first-example.kicad_pro* +\n"
+"first-example.kicad_sch +\n"
+"first-example.kicad_pcb +\n"
+"second-example.kicad_sch +\n"
+"second-example.kicad_pcb\n"
+"|\n"
+"example.kicad_sch +\n"
+"example.kicad_pcb +\n"
+"*newproject.kicad_pro* +\n"
+"*newproject.kicad_sch* +\n"
+"*newproject.kicad_pcb* +\n"
+"second-example.kicad_sch +\n"
+"second-example.kicad_pcb\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:724
+msgid "It is not recommended to create a template with multiple project files."
+msgstr ""
+
+#. type: Title ====
+#: kicad.adoc:725
+#, fuzzy, no-wrap
+#| msgid "Templates"
+msgid "Template example"
+msgstr "Template"
+
+#. type: Plain text
+#: kicad.adoc:728
+msgid ""
+"Here is an example showing project files for *raspberrypi-gpio* template:"
+msgstr ""
+"Berikut adalah contoh berkas-berkas proyek untuk templat *raspberrypi-gpio*:"
+
+#. type: Target for macro image
+#: kicad.adoc:729
+#, no-wrap
+msgid "images/template_tree.png"
+msgstr "images/template_tree.png"
+
+#. type: Plain text
+#: kicad.adoc:732
+msgid "And the metadata files:"
+msgstr "Dan berkas-berkas metadata:"
+
+#. type: Target for macro image
+#: kicad.adoc:733
+#, no-wrap
+msgid "images/template_tree_meta.png"
+msgstr "images/template_tree_meta.png"
+
+#. type: Title ====
+#: kicad.adoc:735
+#, no-wrap
+msgid "Required File:"
+msgstr "Berkas yang Dibutuhkan:"
+
+#. type: Table
+#: kicad.adoc:740
+#, no-wrap
+msgid "|meta/info.html |HTML-formatted information describing the template.\n"
+msgstr "|meta/info.html |Informasi dalam format HTML berisi penjelasan templat.\n"
+
+#. type: Plain text
+#: kicad.adoc:745
+#, fuzzy
+#| msgid ""
+#| "The <title> tag determines the actual name of the template that is "
+#| "exposed to the user for template selection. Note that the project "
+#| "template name will be cut off if it's too long. Due to font kerning, "
+#| "typically 7 or 8 characters can be displayed."
+msgid ""
+"The <title> tag determines the actual name of the template that is exposed "
+"to the user for template selection. Note that the project template name will "
+"be cut off if it's too long."
+msgstr ""
+"Tag <title> menentukan nama aktual dari templat yang ditampilkan kepada "
+"pengguna pada saat memilih templat. Ingat bahwa nama templat proyek akan "
+"dipotong jika terlalu panjang. Dikarenakan batasan spasi pada fonta, hanya 7 "
+"atau 8 karakter saja yang bisa ditampilkan."
+
+#. type: Plain text
+#: kicad.adoc:748
+msgid ""
+"Using HTML means that images can be easily in-lined without having to invent "
+"a new scheme. Only basic HTML tags can be used in this document."
+msgstr ""
+"Penggunaan HTML berarti gambar bisa dengan mudah dimasukkan tanpa perlu "
+"membuat skema yang baru. Hanya tag-tag HTML dasar yang dapat digunakan pada "
+"dokumen ini."
+
+#. type: Plain text
+#: kicad.adoc:750
+msgid "Here is a sample *info.html* file:"
+msgstr "Berikut adalah contoh berkas *info.html*:"
+
+#. type: delimited block -
+#: kicad.adoc:775
+#, fuzzy, no-wrap
+#| msgid ""
+#| "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\">\n"
+#| "<HTML>\n"
+#| "<HEAD>\n"
+#| "<META HTTP-EQUIV=\"CONTENT-TYPE\" CONTENT=\"text/html;\n"
+#| "charset=windows-1252\">\n"
+#| "<TITLE>Raspberry Pi - Expansion Board</TITLE>\n"
+#| "<META NAME=\"GENERATOR\" CONTENT=\"LibreOffice 3.6 (Windows)\">\n"
+#| "<META NAME=\"CREATED\" CONTENT=\"0;0\">\n"
+#| "<META NAME=\"CHANGED\" CONTENT=\"20121015;19015295\">\n"
+#| "</HEAD>\n"
+#| "<BODY LANG=\"fr-FR\" DIR=\"LTR\">\n"
+#| "<P>This project template is the basis of an expansion board for the\n"
+#| "<A HREF=\"http://www.raspberrypi.org/\" TARGET=\"blank\">Raspberry Pi $25\n"
+#| "ARM board.</A> <BR><BR>This base project includes a PCB edge defined\n"
+#| "as the same size as the Raspberry-Pi PCB with the connectors placed\n"
+#| "correctly to align the two boards. All IO present on the Raspberry-Pi\n"
+#| "board is connected to the project through the 0.1&quot; expansion\n"
+#| "headers. <BR><BR>The board outline looks like the following:\n"
+#| "</P>\n"
+#| "<P><IMG SRC=\"brd.png\" NAME=\"brd\" ALIGN=BOTTOM WIDTH=680 HEIGHT=378\n"
+#| "BORDER=0><BR><BR><BR><BR>\n"
+#| "</P>\n"
+#| "<P>(c)2012 Brian Sidebotham<BR>(c)2012 KiCad Developers</P>\n"
+#| "</BODY>\n"
+#| "</HTML>\n"
+msgid ""
+"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\">\n"
+"<HTML>\n"
+"<HEAD>\n"
+"<META HTTP-EQUIV=\"CONTENT-TYPE\" CONTENT=\"text/html;\n"
+"charset=windows-1252\">\n"
+"<TITLE>Raspberry Pi - Expansion Board</TITLE>\n"
+"</HEAD>\n"
+"<BODY LANG=\"fr-FR\" DIR=\"LTR\">\n"
+"<P>This project template is the basis of an expansion board for the\n"
+"<A HREF=\"http://www.raspberrypi.org/\" TARGET=\"blank\">Raspberry Pi $25\n"
+"ARM board.</A> <BR><BR>This base project includes a PCB edge defined\n"
+"as the same size as the Raspberry-Pi PCB with the connectors placed\n"
+"correctly to align the two boards. All IO present on the Raspberry-Pi\n"
+"board is connected to the project through the 0.1&quot; expansion\n"
+"headers. <BR><BR>The board outline looks like the following:\n"
+"</P>\n"
+"<P><IMG SRC=\"brd.png\" NAME=\"brd\" ALIGN=BOTTOM WIDTH=680 HEIGHT=378\n"
+"BORDER=0><BR><BR><BR><BR>\n"
+"</P>\n"
+"<P>(c)2012 Brian Sidebotham<BR>(c)2012 KiCad Developers</P>\n"
+"</BODY>\n"
+"</HTML>\n"
+msgstr ""
+"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\">\n"
+"<HTML>\n"
+"<HEAD>\n"
+"<META HTTP-EQUIV=\"CONTENT-TYPE\" CONTENT=\"text/html;\n"
+"charset=windows-1252\">\n"
+"<TITLE>Raspberry Pi - Papan Ekspansi</TITLE>\n"
+"<META NAME=\"GENERATOR\" CONTENT=\"LibreOffice 3.6 (Windows)\">\n"
+"<META NAME=\"CREATED\" CONTENT=\"0;0\">\n"
+"<META NAME=\"CHANGED\" CONTENT=\"20121015;19015295\">\n"
+"</HEAD>\n"
+"<BODY LANG=\"fr-FR\" DIR=\"LTR\">\n"
+"<P>Template proyek ini digunakan sebagai dasar pembuatan papan ekspansi untuk\n"
+"<A HREF=\"http://www.raspberrypi.org/\" TARGET=\"blank\">Raspberry Pi, papan ARM seharga $25.</A> <BR><BR>Proyek dasar ini berisi bentuk PCB sesuai ukuran Raspberry-Pi dengan konektor yang diletakkan secara tepat agar sesuai dengan Raspberry-Pi. Semua IO yang ada pada papan Raspberry-Pi terhubung ke proyek melalui header ekspansi 0.1&quot;. <BR><BR>Bentuk papan PCB seperti berikut ini:\n"
+"</P>\n"
+"<P><IMG SRC=\"brd.png\" NAME=\"brd\" ALIGN=BOTTOM WIDTH=680 HEIGHT=378\n"
+"BORDER=0><BR><BR><BR><BR>\n"
+"</P>\n"
+"<P>(c)2012 Brian Sidebotham<BR>(c)2012 KiCad Developers</P>\n"
+"</BODY>\n"
+"</HTML>\n"
+
+#. type: Title ====
+#: kicad.adoc:777
+#, no-wrap
+msgid "Optional Files:"
+msgstr "Berkas-berkas Tambahan:"
+
+#. type: Table
+#: kicad.adoc:783
+#, no-wrap
+msgid ""
+"|meta/icon.png |A 64 x 64 pixel PNG icon file which is used as a\n"
+"clickable icon in the template selection dialog.\n"
+msgstr ""
+"|meta/icon.png |Ikon berformat PNG dengan ukuran 64 x 64 piksel yang digunakan sebagai\n"
+"ikon yang bisa di-klik pada kotak dialog pemilihan templat.\n"
+
+#. type: Plain text
+#: kicad.adoc:786
+msgid ""
+"Any other image files used by *meta/info.html*, such as the image of the "
+"board file in the dialog above, are placed in this folder as well."
+msgstr ""
+"Berkas-berkas gambar lain yang digunakan oleh *meta/info.html*, seperti "
+"gambar berkas papan PCB pada dialog di atas, juga diletakkan pada folder ini."
+
+#~ msgid "2015, May 21."
+#~ msgstr "21 Mei 2015."
+
+#~ msgid "*Pl Editor*: Page layout editor.\n"
+#~ msgstr "*Pl Editor*: Editor tata letak halaman.\n"
+
+#~ msgid "|*.pro |Small file containing a few parameters for the current project, including the component library list.\n"
+#~ msgstr "|*.pro|Berkas kecil yang berisi beberapa parameter untuk proyek yang sedang dikerjakan, termasuk daftar pustaka komponen.\n"
+
+#~ msgid "*Special file:*\n"
+#~ msgstr "*Berkas khusus:*\n"
+
+#~ msgid "Display options"
+#~ msgstr "Opsi Tampilan "
+
+#~ msgid ""
+#~ "Hardware accelerated renderer in Pcbnew and Gerbview requires video card "
+#~ "with support of OpenGL v2.1 or higher."
+#~ msgstr ""
+#~ "Perender dengan akselerasi perangkat keras pada Pcbnew dan Gerbview "
+#~ "membutuhkan kartu video yang mendukung OpenGL v2.1 atau lebih tinggi."
+
+#~ msgid "Initialization of the default configuration"
+#~ msgstr "Inisialisasi Konfigurasi _Default_"
+
+#~ msgid ""
+#~ "The default configuration file named *kicad.pro* is supplied in kicad/"
+#~ "template. It serves as a template for any new project and is used to set "
+#~ "the list of library files loaded by Eeschema.  A few other parameters for "
+#~ "Pcbnew (default text size, default line thickness, etc.) are also stored "
+#~ "here."
+#~ msgstr ""
+#~ "Berkas konfigurasi _default_ dengan nama *kicad.pro* berada pada "
+#~ "direktori `kicad/template`. Berkas ini digunakan sebagai templat bagi "
+#~ "setiap proyek yang baru dibuat dan digunakan untuk mengatur daftar berkas "
+#~ "pustaka yang dimuat oleh Eeschema. Beberapa parameter lain untuk Pcbnew "
+#~ "(ukuran teks _default_, ketebalan garis _default_, dsb.) juga disimpan di "
+#~ "sini.  "
+
+#~ msgid ""
+#~ "Another default configuration file named *fp-lib-table* may exist.  It "
+#~ "will be used only once to create a footprint library list; otherwise the "
+#~ "list will be created from scratch."
+#~ msgstr ""
+#~ "Mungkin ada juga berkas konfigurasi _default_ dengan nama *fp-lib-table*. "
+#~ "Berkas tersebut akan digunakan hanya satu kali saja untuk membuat daftar "
+#~ "pustaka _footprint_. Atau jika berkas tersebut tidak tersedia, maka "
+#~ "daftar pustaka _footprint_ akan dibuat dari awal."
+
+#~ msgid "Modifying the default configuration"
+#~ msgstr "Mengubah Konfigurasi _Default_"
+
+#~ msgid "The default *kicad.pro* file can be freely modified, if desired."
+#~ msgstr ""
+#~ "Jika diinginkan, berkas _default_ *kicad.pro* bebas untuk dimodifikasi."
+
+#~ msgid "Verify that you have write access to kicad/template/kicad.pro"
+#~ msgstr ""
+#~ "Pastikan bahwa Anda memiliki hak tulis ke `kicad/template/kicad.pro`"
+
+#~ msgid "Run KiCad and load *kicad.pro* project."
+#~ msgstr "Jalankan KiCad dan bukalah proyek *kicad.pro*."
+
+#~ msgid ""
+#~ "Run Eeschema via KiCad manager.  Modify and update the Eeschema "
+#~ "configuration, to set the list of libraries you want to use each time you "
+#~ "create new projects."
+#~ msgstr ""
+#~ "Jalankan Eeschema melalui manajer KiCad. Lakukan pengaturan konfigurasi "
+#~ "Eeschema, untuk mengatur daftar pustaka yang ingin Anda gunakan setiap "
+#~ "kali Anda membuat proyek baru."
+
+#~ msgid "Eeschema component libraries"
+#~ msgstr "Pustaka komponen Eeschema"
+
+#, fuzzy
+#~| msgid ""
+#~| "|KICAD_PTEMPLATES |Templates used during project creation.\n"
+#~| "If you are using this variable, it must be defined.\n"
+#~| "|KICAD_SYMBOL_DIR |Base path of symbol library files.\n"
+#~| "|KIGITHUB |Frequently used in example footprint lib tables.\n"
+#~| "If you are using this variable, it must be defined.\n"
+#~| "|KISYS3DMOD |Base path of 3D shapes files,\n"
+#~| "and must be defined because an absolute path is not usually used.\n"
+#~| "|KISYSMOD |Base path of footprint library folders,\n"
+#~| "and must be defined if an absolute path is not used in footprint library names.\n"
+#~ msgid ""
+#~ "|KICAD_PTEMPLATES |Templates used during project creation (DEPRECATED as of\n"
+#~ "version 5.0.0-rc2, use KICAD_TEMPLATE_DIR instead).\n"
+#~ "If you are using this variable, it must be defined.\n"
+#~ "|KICAD_SYMBOL_DIR |Base path of symbol library files.\n"
+#~ "|KIGITHUB |Frequently used in example footprint lib tables.\n"
+#~ "If you are using this variable, it must be defined.\n"
+#~ "|KISYS3DMOD |Base path of 3D shapes files,\n"
+#~ "and must be defined because an absolute path is not usually used.\n"
+#~ "|KISYSMOD |Base path of footprint library folders,\n"
+#~ "and must be defined if an absolute path is not used in footprint library names.\n"
+#~ "|KICAD_TEMPLATE_DIR |Location of templates installed with KiCad.\n"
+#~ "|KICAD_USER_TEMPLATE_DIR |Location of personal templates.\n"
+#~ msgstr ""
+#~ "|KICAD_PTEMPLATES |Templat-templat yang digunakan pada saat pembuatan proyek.\n"
+#~ "Jika Anda menggunakan variabel ini, maka variabel ini harus didefinisikan.\n"
+#~ "|KICAD_SYMBOL_DIR |_Path_ dasar untuk berkas-berkas pustaka simbol. \n"
+#~ "|KIGITHUB |Sering digunakan pada tabel contoh lib _footprint_.\n"
+#~ "Jika Anda menggunakan variabel ini, maka variabel ini harus didefinisikan.\n"
+#~ "|KISYS3DMOD |_Path_ dasar untuk berkas-berkas bentuk 3D,\n"
+#~ "dan harus didefinisikan karena _path_  absolut biasanya tidak digunakan.\n"
+#~ "|KISYSMOD |_Path_ dasar untuk folder pustaka _footprint_,\n"
+#~ "dan harus didefinisikan jika _path_ absolut tidak digunakan pada nama pustaka _footprint_.\n"
+
+#~ msgid "Initialization of external utilities"
+#~ msgstr "Inisialisasi Peralatan-peralatan Eksternal"
+
+#~ msgid ""
+#~ "You may define your favorite text editor and PDF viewer. These settings "
+#~ "are used whenever you want to open a text or PDF file."
+#~ msgstr ""
+#~ "Anda bisa memilih editor teks dan penampil PDF kesukaan Anda. Pengaturan "
+#~ "ini akan digunakan setiap Anda ingin membuka sebuah teks atau berkas PDF."
+
+#~ msgid "These settings are accessible from the Preference menu:"
+#~ msgstr "Pengaturannya dapat diakses melalui menu 'Preferences':"
+
+#~ msgid "Selection of text editor"
+#~ msgstr "Pemilihan Editor Teks"
+
+#~ msgid ""
+#~ "Before using a text editor to browse/edit files in the current project, "
+#~ "you must choose the text editor you want to use."
+#~ msgstr ""
+#~ "Sebelum bisa menggunakan editor teks untuk melihat/mengedit berkas-berkas "
+#~ "pada proyek yang sedang Anda kerjakan, Anda harus memilih editor teks "
+#~ "yang ingin Anda gunakan."
+
+#~ msgid ""
+#~ "Select *_Preferences -> Set Text Editor_* to set the text editor you want "
+#~ "to use."
+#~ msgstr ""
+#~ "Pilih *_Preferences -> Set Text Editor_* untuk memilih editor teks yang "
+#~ "ingin Anda gunakan."
+
+#~ msgid "Selection of PDF viewer"
+#~ msgstr "Pemilihan Penampil PDF"
+
+#~ msgid "You may use the default PDF viewer or choose your own."
+#~ msgstr ""
+#~ "Anda bisa menggunakan penampil PDF _default_ atau memilih penampil PDF "
+#~ "yang Anda sukai."
+
+#~ msgid ""
+#~ "To change from the default PDF viewer use *_Preferences -> PDF Viewer -> "
+#~ "Set PDF Viewer_* to choose the PDF viewer program, then select "
+#~ "*_Preferences -> PDF Viewer -> Favourite PDF Viewer_*."
+#~ msgstr ""
+#~ "Untuk mengganti penampil PDF _default_, gunakan *_Preferences -> PDF "
+#~ "Viewer -> Set PDF Viewer_* untuk memilih program penampil PDF, kemudian "
+#~ "pilih *_Preferences -> PDF Viewer -> Favourite PDF Viewer_*."
+
+#~ msgid ""
+#~ "On Linux the default PDF viewer is known to be fragile, so selecting your "
+#~ "own PDF viewer is recommended."
+#~ msgstr ""
+#~ "Pada sistem operasi Linux, penampil PDF _default_ seringkali menggunakan "
+#~ "aplikasi yang jarang kita gunakan, oleh karena itu lebih direkomendasikan "
+#~ "untuk memilih penampil PDF yang kita sukai."
+
+#~ msgid ""
+#~ "In order to manage a KiCad project consisting of schematic files, printed "
+#~ "circuit board files, supplementary libraries, manufacturing files for "
+#~ "photo-tracing, drilling and automatic component placement files, it is "
+#~ "recommended to create a project as follows:"
+#~ msgstr ""
+#~ "Dalam mengelola sebuah proyek KiCad yang berisi berkas-berkas skematik, "
+#~ "papan PCB, pustaka tambahan, berkas manufaktur untuk _photo-tracing_, "
+#~ "_drilling_ dan berkas peletakan komponen otomatis, direkomendasikan untuk "
+#~ "membuat sebuah proyek dengan langkah sebagai berikut:"
+
+#~ msgid ""
+#~ "*Create a working directory for the project* (using KiCad or by other\n"
+#~ "means).\n"
+#~ msgstr "*Membuat sebuah direktori kerja untuk proyek yang akan kita kerjakan* (melalui KiCad atau menggunakan cara yang lain).\n"
+
+#~ msgid ""
+#~ "*In this directory, use KiCad to create a project file* (file with\n"
+#~ "extension .pro) via the \"Create a new project\"\n"
+#~ "or \"Create a new project from template\" icon.\n"
+#~ msgstr "*Pada direktori ini, gunakan KiCad untuk membuat sebuah berkas proyek* (berkas dengan ekstensi .pro) melalui ikon \"_Create a new project_\" atau \"_Create a new project from template_\".\n"
+
+#~ msgid ""
+#~ "Use a unique directory for each KiCad project.  Do not combine multiple "
+#~ "projects into a single directory."
+#~ msgstr ""
+#~ "Gunakan sebuah direktori yang unik untuk setiap proyek KiCad. Jangan "
+#~ "memasukkan beberapa proyek ke dalam satu direktori."
+
+#~ msgid ""
+#~ "KiCad creates a file with a .pro extension that maintains a number of "
+#~ "parameters for project management (such as the list of libraries used in "
+#~ "the schematic). Default names of both main schematic file and printed "
+#~ "circuit board file are derived from the name of the project. Thus, if a "
+#~ "project called *example.pro* was created in a directory called *example*, "
+#~ "the default files will be created:"
+#~ msgstr ""
+#~ "KiCad membuat sebuah berkas dengan ekstensi .pro yang menyimpan sejumlah "
+#~ "parameter untuk manajemen proyek (misalnya daftar pustaka yang digunakan "
+#~ "di skematik). Nama _default_ berkas skematik utama dan berkas papan "
+#~ "sirkuit diambil dari nama proyek. Dengan demikian, jika kita membuat "
+#~ "sebuah proyek dengan nama *example.pro* di dalam sebuah direktori dengan "
+#~ "nama *example*, maka berkas-berkas _default_ berikut ini akan dibuat:"
+
+#~ msgid ""
+#~ "|example.pro |Project management file.\n"
+#~ "|example.sch |Main schematic file.\n"
+#~ "|example.kicad_pcb |Printed circuit board file.\n"
+#~ "|example.net |Netlist file.\n"
+#~ "|example.* |Various files created by the other utility programs.\n"
+#~ "|example-cache.lib|Library file automatically created and used by the\n"
+#~ "schematic editor containing a backup of the components used in the schematic.\n"
+#~ msgstr ""
+#~ "|example.pro |Berkas manajemen proyek.\n"
+#~ "|example.sch |Berkas skematik utama.\n"
+#~ "|example.kicad_pcb |Berkas papan PCB.\n"
+#~ "|example.net |Berkas Netlist.\n"
+#~ "|example.* |Aneka macam berkas yang dibuat oleh program-program lain.\n"
+#~ "|example-cache.lib|Berkas pustaka yang dibuat secara otomatis dan digunakan oleh\n"
+#~ "editor skematik yang berisi cadangan komponen yang digunakan di skematik.\n"
+
+#~ msgid "Importing a foreign project"
+#~ msgstr "Mengimpor Proyek"
+
+#~ msgid ""
+#~ "cross probing between schematic editor and footprint selector (CvPcb)."
+#~ msgstr ""
+#~ "menjaga saling keterkaitan antara editor skematik dan pemilih _footprint_ "
+#~ "(CvPcb)."
+
+#~ msgid "Utility launch pane"
+#~ msgstr "Jendela Peluncur Peralatan"
+
+#~ msgid ""
+#~ "KiCad allows you to run all standalone software tools that come with it."
+#~ msgstr ""
+#~ "Anda dapat menjalankan semua peralatan yang tersedia di KiCad secara "
+#~ "_standalone_."
+
+#~ msgid "** Unix:\n"
+#~ msgstr "** Unix:\n"
+
+#~ msgid "** Windows:\n"
+#~ msgstr "** Windows:\n"
+
+#~ msgid "** Mac:\n"
+#~ msgstr "** Mac:\n"
+
+#, fuzzy
+#~| msgid ""
+#~| "When the environment variable KICAD_PTEMPLATES is defined there is a "
+#~| "third tab, Portable Templates, which lists templates found at the "
+#~| "KICAD_PTEMPLATES path."
+#~ msgid ""
+#~ "When the environment variable KICAD_PTEMPLATES is defined there is a "
+#~ "third tab, Portable Templates, which lists templates found at the "
+#~ "KICAD_PTEMPLATES path (DEPRECATED)."
+#~ msgstr ""
+#~ "Jika _environment variable_ KICAD_PTEMPLATES didefinisikan, akan ada tab "
+#~ "ketiga: _Portable Templates_, yang menampilkan daftar templat yang "
+#~ "ditemukan pada _path_ KICAD_PTEMPLATES."
+
+#~ msgid ""
+#~ "When a new project is created from a template, all files and directories "
+#~ "starting with the template name will be renamed with the new project file "
+#~ "name, excluding the file extension."
+#~ msgstr ""
+#~ "Ketika sebuah proyek baru dibuat dari sebuah templat, semua berkas dan "
+#~ "direktori yang namanya dimulai dengan nama templat akan diganti dengan "
+#~ "nama berkas proyek yang baru, tidak termasuk ekstensi berkas."
+
+#~ msgid "*CvPcb* : footprint selector helper (always run from Eeschema)\n"
+#~ msgstr "*CvPcb* : pemilih footprint (selalu dijalankan melalui Eeschema)\n"
+
+#~ msgid ""
+#~ "At the time of writing, KiCad is considered mature and can be used for "
+#~ "the successful development and maintenance of complex electronic boards."
+#~ msgstr ""
+#~ "Saat ini KiCad sudah cukup matang untuk digunakan dalam pengembangan dan "
+#~ "perawatan papan sirkuit elektronika yang kompleks."
+
+#~ msgid "and a lot more."
+#~ msgstr "dan berbagai jenis file lainnya."
+
+#~ msgid ""
+#~ "|*.cmp |Stores the association between components used in the schematic "
+#~ "and their footprints.\n"
+#~ msgstr ""
+#~ "|*.cmp |Menyimpan hubungan antara komponen yang digunakan di skematik "
+#~ "dengan footprint yang terkait.\n"
+
+#~ msgid "It can be created by Pcbnew, and imported by Eeschema.\n"
+#~ msgstr "File ini dapat dibuat oleh Pcbnew, dan diimpor oleh Eeschema.\n"
+
+#~ msgid "Pcbnew needs the support of OpenGL v2.1 or more."
+#~ msgstr "Pcbnew membutuhkan dukungan OpenGL versi 2.1 atau yang lebih baru."
+
+#~ msgid ""
+#~ "A default configuration file named _kicad.pro_ is supplied in kicad/"
+#~ "template. It serves as a template for any new project."
+#~ msgstr ""
+#~ "File konfigurasi default dengan nama _kicad.pro_ tersedia di kicad/"
+#~ "template. File tersebut berfungsi sebagai template untuk proyek yang baru "
+#~ "dibuat."
+
+#~ msgid ""
+#~ "*The default file _kicad.pro_ can be freely modified if necessary,\n"
+#~ "mainly to set the list of library files loaded by Eeschema.*\n"
+#~ msgstr ""
+#~ "*File default _kicad.pro_ dapat dimodifikasi jika diperlukan,\n"
+#~ "terutama untuk mengatur daftar file library yang dimuat oleh Eeschema.*\n"
+
+#~ msgid ""
+#~ "A few other parameters (default text size, default line thickness, mainly "
+#~ "for Pcbnew) are stored here."
+#~ msgstr ""
+#~ "Beberapa parameter yang lain (ukuran teks default, ketebalan garis "
+#~ "default, terutama untuk Pcbnew) disimpan di sini."
+
+#~ msgid ""
+#~ "When using KiCad, a text editor and a PDF viewer are useful.  Setting "
+#~ "them is a good idea."
+#~ msgstr ""
+#~ "Saat menggunakan KiCad, kita akan memerlukan sebuah teks editor dan "
+#~ "penampil PDF. Kita perlu melakukan pengaturan teks editor dan penampil "
+#~ "PDF yang akan kita gunakan."
+
+#~ msgid "3 options are especially important:"
+#~ msgstr "Ada 3 opsi yang penting:"
+
+#~ msgid "Configure Paths"
+#~ msgstr "_Configure Paths_"
+
+#~ msgid "PDF Viewer"
+#~ msgstr "_PDF Viewer_"
+
+#~ msgid "Set Text Editor"
+#~ msgstr "_Set Text Editor_"
+
+#~ msgid "Configuration of paths"
+#~ msgstr "Konfigurasi Path"
+
+#~ msgid ""
+#~ "This is useful when absolute paths are not known or are subject to "
+#~ "change.  This is the case for ``official'' libraries built for KiCad:"
+#~ msgstr ""
+#~ "Hal ini berguna saat path absolut tidak diketahui atau dapat berubah "
+#~ "sewaktu-waktu. Ini yang terjadi pada library \"resmi\" KiCad:"
+
+#~ msgid "for the path of these libraries, when installed on your disk"
+#~ msgstr "untuk path library tersebut, saat terinstal pada harddisk Anda"
+
+#~ msgid ""
+#~ "Obviously, one can use a usual full path definition, if this full path is "
+#~ "well known, and never changes."
+#~ msgstr ""
+#~ "Jelasnya, kita bisa menggunakan definisi path lengkap seperti biasa, jika "
+#~ "path lengkap ini sudah umum diketahui, dan tidak akan pernah berubah."
+
+#~ msgid "_Preferences/SetText Editor_"
+#~ msgstr "_Preferences/Set Text Editor_"
+
+#~ msgid "allows you to set the text editor to use."
+#~ msgstr "untuk mengatur editor teks yang ingin digunakan."
+
+#~ msgid ""
+#~ "Select _Preferences/PDF Viewer/Favourite PDF Viewer_ to choose your "
+#~ "favourite (default) PDF Viewer."
+#~ msgstr ""
+#~ "Pilih _Preferences/PDF Viewer/Favourite PDF Viewer_ untuk memilih "
+#~ "penampil PDF yang Anda sukai (default)."
+
+#~ msgid ""
+#~ "Your own (non default) viewer is chosen by using the _Preferences/PDF "
+#~ "Viewer/SetPDF Viewer_ menu."
+#~ msgstr ""
+#~ "Penampil PDF non-default dipilih menggunakan menu _Preferences/PDF Viewer/"
+#~ "Set PDF Viewer_."
+
+#~ msgid "KiCad: principles of use"
+#~ msgstr "KiCad: Prinsip Penggunaan"
+
+#~ msgid "Use KiCad Manager"
+#~ msgstr "Menggunakan Manajer KiCad"
+
+#~ msgid "But you can only edit the current project files."
+#~ msgstr ""
+#~ "Namun Anda hanya dapat mengedit file proyek yang sedang Anda kerjakan "
+#~ "saat ini."
+
+#~ msgid "Main window"
+#~ msgstr "Layar Utama"
+
+#~ msgid "Definitions"
+#~ msgstr "Definisi"
+
+#~ msgid ""
+#~ "A template is a directory of files, which includes a directory of "
+#~ "metadata."
+#~ msgstr ""
+#~ "Template adalah sebuah direktori untuk file-file, termasuk pula direktori "
+#~ "untuk metadata."
+
+#~ msgid ""
+#~ "They facilitate the easy setup of projects which have common attributes "
+#~ "such as pre-defined board outlines, connector positions, schematic "
+#~ "elements, design rules, etc. ."
+#~ msgstr ""
+#~ "Template akan memudahkan pembuatan proyek yang memiliki atribut-atribut "
+#~ "yang umum, seperti garis luar papan PCB, posisi konektor, elemen-elemen "
+#~ "skematik, aturan desain, dsb."
+
+#~ msgid "Metadata"
+#~ msgstr "Metadata"
+
+#~ msgid ""
+#~ "A template's METADIR must contain the required files, and might "
+#~ "optionally contain any of the optional files."
+#~ msgstr ""
+#~ "METADIR pada sebuah template harus berisi file-file yang dibutuhkan, dan "
+#~ "bisa juga berisi file-file tambahan."
+
+#~ msgid ""
+#~ "Contains html formatted information about the template which is used by "
+#~ "the user to determine if the template is what they are after. The <title> "
+#~ "tag determines the actual name of the template that is exposed to the "
+#~ "user for template selection."
+#~ msgstr ""
+#~ "Berisi informasi dalam format HTML mengenai keterangan template, sehingga "
+#~ "pengguna dapat mengetahui apakah template tersebut sesuai dengan yang "
+#~ "dibutuhkan. Tag <title> menentukan nama sesungguhnya dari template "
+#~ "tersebut yang ditampilkan kepada pengguna pada saat melakukan pemilihan "
+#~ "template."
+
+#~ msgid "Only a basic HTML language can be used to format this document."
+#~ msgstr "Hanya format HTML dasar saja yang dapat digunakan pada dokumen ini."
+
+#~ msgid "Example:"
+#~ msgstr "Contoh:"
+
+#~ msgid "brd.png is an optional file."
+#~ msgstr "brd.png adalah file tambahan yang bersifat opsional."
+
+#~ msgid "Operation"
+#~ msgstr "Penggunaan"
+
+#~ msgid "The KiCad File menu New shows 2 option:"
+#~ msgstr ""
+#~ "Jika kita membuka _New Project_ pada menu File di KiCad, maka akan "
+#~ "ditampilkan dua pilihan:"
+
+#~ msgid ""
+#~ "*New Project* Create a blank project by just copying\n"
+#~ "template/kicad.pro to the current folder.\n"
+#~ msgstr ""
+#~ "*New Project* Membuat sebuah proyek kosong dengan hanya menyalin template/"
+#~ "kicad.pro ke folder yang akan digunakan.\n"
+
+#~ msgid ""
+#~ "*Project from Template* Opens the template selection dialog. The\n"
+#~ "template selection dialog has a list of icons, and a display window. A\n"
+#~ "single click on a template's icon on the top will load that template's\n"
+#~ "info.html metadata file and display it in the display window. A click on\n"
+#~ "the OK button starts the new project creation. The template will be\n"
+#~ "copied to the new project location (excluding METADIR as mentioned\n"
+#~ "earlier) and any files that match the string replacement rules will be\n"
+#~ "renamed to reflect the new project's name.\n"
+#~ msgstr ""
+#~ "*Project from Template* Membuka kotak dialog pemilihan template. Kotak "
+#~ "dialog ini memiliki sejumlah ikon dan layar penampil. Melakukan klik pada "
+#~ "salah satu ikon template di bagian atas akan membuka file metadata info."
+#~ "html dan menampilkannya pada layar penampil. Klik pada tombol OK akan "
+#~ "memulai pembuatan proyek baru. Template akan disalin ke lokasi proyek "
+#~ "yang baru (tidak termasuk METADIR seperti dijelaskan sebelumnya) dan "
+#~ "setiap file yang sesuai dengan aturan pergantian nama, akan diganti "
+#~ "namanya agar sesuai dengan nama proyek yang baru.\n"
+
+#~ msgid ""
+#~ "The list of available templates are gathered from the following sources:"
+#~ msgstr "Daftar template yang tersedia diambil dari sumber-sumber berikut:"

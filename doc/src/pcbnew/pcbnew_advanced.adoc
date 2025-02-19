@@ -1,0 +1,1840 @@
+:experimental:
+
+== Advanced topics
+
+[[configuration-and-customization]]
+=== Configuration and Customization
+
+The KiCad PCB Editor has a variety of preferences that can be configured through the Preferences dialog. Like
+all parts of KiCad, the preferences for the PCB Editor are stored in the user configuration directory and
+are independent between KiCad minor versions to allow multiple versions to run side-by-side with
+independent preferences.
+
+The first sections of the Preferences dialog (Common, Mouse and Touchpad, and Hotkeys) are shared
+between all KiCad programs. These sections are described in detail in the KiCad manual under the
+"Common preferences" section.
+
+==== Display options
+
+image::images/pcbnew_preferences_display.png[scaledwidth="50%"]
+
+**Rendering Engine:** Controls if Accelerated graphics or Fallback graphics are used.
+
+**Grid style:** Controls how the alignment grid is drawn.
+
+**Grid thickness:** Controls how thick grid lines or dots are drawn.
+
+**Min grid spacing:** Controls the minimum distance, in pixels, between two grid lines. Grid lines
+that violate this minimum spacing will not be drawn, regardless of the current grid setting.
+
+**Snap to grid:** Controls when drawing and editing operations will be snapped to coordinates on
+the active grid.  "Always" will enable snapping even when the grid is hidden; "When grid shown"
+will enable snapping only when the grid is visible.
+
+NOTE: Grid snapping can be temporarily disabled by holding down kbd:[Ctrl].
+
+**Cursor shape:** Controls whether the editing cursor is drawn as a small crosshair or a
+full-screen crosshair (a set of lines covering the entire drawing canvas).  The editing cursor
+shows where the next drawing or editing action will occur and will be snapped to a grid location
+if snapping is enabled.
+
+**Always show crosshairs:** Controls whether the editing cursor is shown all the time or only
+when an editing or drawing tool is active.
+
+**Net names:** Controls whether or not net name labels are drawn on copper objects. These labels
+are guides for editing only and do not appear in fabrication outputs.
+
+**Show pad numbers:** Controls whether or not pad number labels are drawn on footprint pads.
+
+**Show pad <no net> indicator:** Controls whether or not pads with no net are indicated with a
+special marker.
+
+**Track clearance:** Controls whether or not clearance outlines around tracks and vias are shown.
+Clearance outlines are shown as thin shapes around objects that indicate the minimum clearance to
+other objects, as defined by constraints and design rules.
+
+**Show pad clearance:** Controls whether or not clearance outlines around pads are shown.
+
+**Center view on cross-probed items:** When the Schematic and PCB Editors are
+both running, controls whether clicking a component or pin in Eeschema will
+center the PCB Editor view on the corresponding footprint or pad.
+
+**Zoom to fit cross-probed items:** Controls whether the view will be zoomed to show a
+cross-probed footprint or pad.
+
+**Highlight cross-probed nets:** Controls whether or not nets highlighted in Eeschema will be
+highlighted in the PCB Editor when the highlight tool is activated in both tools.
+
+==== Editing options
+
+image::images/pcbnew_preferences_editing.png[scaledwidth="50%"]
+
+**Flip board items L/R:** Controls the direction board items will be flipped when moving them
+between the top and bottom layers.  When checked, items are flipped Left-to-Right (about the
+Vertical axis); when unchecked, items are flipped Top-to-Bottom (about the Horizontal axis).
+
+**Step for rotate commands:** Controls how far the selected object(s) will be rotated each time the
+Rotate command is used.
+
+**Allow free pads:** Controls whether or not the pads of footprints can be unlocked and edited or
+moved separately from the footprint.
+
+**Magnetic points:** This section controls object snapping, also called magnetic points.  Object
+snapping takes precedence over grid snapping when it is enabled.  Object snapping only works to
+objects on the active layer. Hold kbd:[Shift] to temporarily disable object snapping.
+
+**Snap to pads:** Controls when the editing cursor will snap to pad origins.
+
+**Snap to tracks:** Controls when the editing cursor will snap to track segment endpoints.
+
+**Snap to graphics:** Controls when the editing cursor will snap to graphic shape points.
+
+**Always show selected ratsnest:** When enabled, the ratsnest for a selected footprint will always
+be shown even if the global ratsnest is hidden.
+
+**Show ratsnest with curved lines:** Controls whether ratsnest lines are drawn straight or curved.
+
+**Mouse drag track behavior:** Controls the action that will occur when you drag a track segment
+with the mouse: "Move" will move the track segment independent of any others.  "Drag (45 degree
+mode)" will invoke the push-and-shove router to drag the track, respecting design rules and keeping
+other track segments attached.  "Drag (free angle)" will move the nearest corner of the track
+segment, highlighting collisions with other objects but not moving them out of the way.
+
+**Limit actions to 45 degrees from start** Controls whether lines drawn with the graphic
+drawing tools can take on any angle. Note that this only affects drawing new lines: lines can be
+edited to take on any angle.
+
+**Show page limits:** Controls whether or not the page boundary is drawn as a rectangle.
+
+**Refill zones after Zone Properties dialog:** Controls whether or not zones are automatically
+refilled after editing the properties of any zone.  This may be disabled on complicated designs or
+slower computers to improve responsiveness.
+
+==== Colors
+
+image::images/pcbnew_preferences_colors.png[scaledwidth="50%"]
+
+KiCad supports switching between different color themes to match your preferences. Kicad 8.0
+comes with two built-in color themes: "KiCad Default" is a new theme designed to have good
+contrast and balance for most cases and is the default for new installations. "KiCad Classic" is
+the default theme from KiCad 5.1 and earlier versions. Neither of these built-in themes can be
+modified, but you can create new themes to customize the look of KiCad as well as install themes
+made by other users.
+
+Color themes are stored in JSON files located in the `colors` subdirectory of the KiCad
+configuration directory.  The "Open Theme Folder" button will open this location in your system
+file manager, making it easy to manage your installed themes. To install a new theme, place it in
+this folder and restart KiCad. The new theme will be available from the drop-down list of color
+themes if the file is a valid color theme file.
+
+To create a new color theme, choose New Theme... from the drop-down list of color themes.  Enter a
+name for your theme and then begin editing colors.  The colors in the new theme will be copied
+from whatever theme was selected before you created the new theme.
+
+To change a color, double-click or middle-click the color swatch in the list.  The "Reset to
+Default" button will reset that color to its corresponding entry in the "KiCad Default" color
+theme.
+
+Color themes are saved automatically; all changes are reflected immediately when you close the
+Preferences dialog.  The window on the right side of the dialog shows a preview of how the
+selected theme will look.
+
+==== Action plugins
+
+image::images/pcbnew_preferences_action_plugins.png[scaledwidth="50%"]
+
+The KiCad PCB editor supports plugins written in Python that can perform actions on the board being
+edited.  These plugins can be installed using the built-in Plugin and Content Manager (see the
+KiCad chapter for details) or by placing the plugin files inside the user plugins directory.  See
+the Scripting section below for details.
+
+Each plugin that is detected will be shown in a row on this preferences page.  Plugins may show a
+button on the top toolbar of the PCB editor.  If the "Show button" control is unchecked for a
+plugin, it may still be accessed from the Tools > External Plugins menu.
+
+The arrow controls at the bottom of the list allow changing the order that the plugins appear in
+the toolbar and menu.  The folder button will launch a file explorer to the plugin folder, to make
+installing new plugins easier.  The refresh button will scan the plugin folder for any new or
+removed plugins and update the list.
+
+==== Origin & axes
+
+image::images/pcbnew_preferences_origin_axes.png[scaledwidth="50%"]
+
+**Display origin:** Determines which coordinate origin is used for coordinate display in the
+editing canvas. The page origin is fixed at the corner of the page. The drill/place file origin and
+the grid origin can be moved by the user.
+
+**X axis:** Controls whether X-coordinates increase to the right or to the left.
+
+**Y axis:** Controls whether Y-coordinates increase upwards or downwards.
+
+[[text-variables]]
+=== Text variables
+
+KiCad supports text variables, which allow you to substitute the variable name
+with a defined text string. This substitution happens anywhere the variable name
+is used inside the variable replacement syntax of `${VARIABLENAME}`.
+
+You can define project text variables in the
+xref:../eeschema/eeschema.adoc#schematic-setup-text-variables[schematic] or
+<<board-setup-text-variables,board setup>> dialogs. Project text variables are
+defined for the whole project, so a project text variable defined in the
+Schematic Editor can also be used in the Board Editor.
+
+There are also a number of built-in system text variables. System text variables
+may be available in some contexts and not others. The following variables can be
+used in PCB text, footprint text, footprint fields, and drawing sheet fields.
+There are also a number of
+xref:../eeschema/eeschema.adoc#text-variables[variables that can be used in the Schematic Editor].
+
+[options="header",cols="20%,80%"]
+|====
+| Variable name | Description
+| `COMMENT1` - `COMMENT9`
+  | Contents of drawing sheet's `Comment<n>` field.
+| `COMPANY`
+  | Contents of drawing sheet's `Company` field.
+| `CURRENT_DATE`
+  | Today's date, in ISO format.
+| `FILENAME`
+  | Filename of the board, with a file extension.
+| `FILEPATH`
+  | Full file path of the board, with a file extension.
+| `ISSUE_DATE`
+  | Contents of drawing sheet's `Issue Date` field.
+| `KICAD_VERSION`
+  | Current version of KiCad. This variable is only available in drawing sheet fields.
+| `LAYER`
+  | Layer of the object. In footprint fields, this is the layer of the parent footprint.
+    In drawing sheet fields, this resolves to the plotted layer.
+| `PAPER`
+  | Current sheet's paper size. This variable is only available in drawing sheet fields.
+| `PROJECTNAME`
+  | Project name, without a file extension.
+| `REVISION`
+  | Contents of drawing sheet's `Revision` field.
+| `TITLE`
+  | Contents of drawing sheet's `Title` field.
+| `<variablename>`
+  | Contents of <<board-setup-text-variables,project text variable>>
+  `<variablename>`.
+| `<fieldname>`
+  | Contents of footprint field `<fieldname>`. Fields can only be
+    accessed from within their parent object, so footprint fields can be
+    accessed from other fields or text within the footprint.
+
+    Both built-in footprint fields and user-defined fields from the
+    corresponding symbol are available. Built-in footprint fields use all
+    uppercase letters: for example, to access a footprint's value, use
+    `${VALUE}`.
+
+    Built-in footprint fields are `FOOTPRINT_LIBRARY`, `FOOTPRINT_NAME`,
+    `LAYER`, `NET_CLASS(<pad_number>)`, `NET_NAME(<pad_number>)`,
+    `PIN_NAME(<pad_number>)`, `REFERENCE`, `SHORT_NET_NAME(<pad_number>)`,
+    `VALUE`.
+
+| `<refdes>:<fieldname>`
+  | Contents of field `<fieldname>` in footprint `<refdes>`.
+
+    Both built-in footprint fields and user-defined fields from the
+    corresponding symbol are available. Built-in footprint fields use all
+    uppercase letters: for example, to access the value of `U1`, use
+    `${U1:VALUE}`.
+
+    Built-in footprint fields are `FOOTPRINT_LIBRARY`, `FOOTPRINT_NAME`,
+    `LAYER`, `NET_CLASS(<pad_number>)`, `NET_NAME(<pad_number>)`,
+    `PIN_NAME(<pad_number>)`, `REFERENCE`, `SHORT_NET_NAME(<pad_number>)`,
+    `VALUE`.
+
+|====
+
+
+// anchor with underscores is needed for linking from Board Editor syntax help dialog
+[[custom-design-rules]]
+=== [[custom_design_rules]]Custom design rules
+
+KiCad's custom design rule system allows creating design rules that are more specific than the
+generic rules available in the Constraints page of the Board Setup dialog.  Custom design rules have
+many applications, but in general they are used to apply certain rules to a portion of the board,
+such as a specific net or netclass, a specific area, or a specific footprint.
+
+Custom design rules are stored in a separate file with the extension `kicad_dru`.  This file is
+created automatically when you start adding custom rules to a project.  If you are using custom
+rules in your project, make sure to save the `kicad_dru` file along with the `kicad_pcb` and
+`kicad_pro` files when making backups or committing to a version control system.
+
+NOTE: The `kicad_dru` file is managed automatically by KiCad and should not be edited with an
+      external text editor.  Always use the Custom Rules page of the Board Setup dialog to edit
+      custom design rules.
+
+==== The Custom Rules editor
+
+The custom rules editor is located in the Board Setup dialog and provides a text editor for
+entering custom rules, a syntax checker that will test your custom rules and note any errors, and
+a syntax help dialog that contains a quick reference to the custom rules language and some
+example rules.
+
+The custom rules editor also provides context-sensitive autocomplete to suggest valid keywords and
+properties. The autocomplete suggestion menu appears automatically, but it can also be opened
+manually by pressing kbd:[Ctrl+Space].
+
+It is a good idea to use the **Check rule syntax** button after editing custom rules to make sure
+there are no syntax errors.  Any errors in the custom rules will prevent the design rule checker
+from running.
+
+==== Custom rule syntax
+
+The custom design rule language is based on s-expressions and allows you to create design
+constraints that are not possible with the built-in constraints.  Each design rule generally
+contains a **condition** defining what objects to match and a **constraint** defining the rule to
+be applied to the matched objects.
+
+The language uses parentheses (`(` and `)`) to define clauses of related keywords and values.
+Parentheses must always be matched: for every `(` there must be a matching `)`.  Inside a clause,
+keywords and values are separated by whitespace (spaces, tabs, and newlines).  By convention, a single space is used, but any
+number of whitespace characters between keywords and values is acceptable.  In places where text strings are
+valid, strings without any whitespace may be quoted with `"` or `'`, or unquoted.  Strings that
+contain whitespace must always be quoted.  Newlines cannot be used within a quoted string.  Where nested quotes are required, a single level of
+nesting is possible by using `"` for the outer quote character and `'` for the inner (or vice
+versa).  Newlines between clauses are not required, but are typically used in examples for clarity.
+
+In the syntax descriptions below, items in `<angle brackets>` represent keywords or values that must be present
+and items in `[square brackets]` represent keywords or values that are optional or only sometimes required.
+
+The Custom Rules file must start with a version header defining the version of the rules language.
+As of KiCad 8.0, the version is `1`.  The syntax of the version header is `(version <number>)`. So
+in KiCad 8.0 the header should read:
+
+    (version 1)
+
+After the version header, you can enter any number of rules.  Rules are evaluated in reverse order,
+meaning the last rule in the file is checked first.  Once a matching rule is found for a given set
+objects being tested, no further rules will be checked. In practice, this means that more specific
+rules should be later in the file, so that they are evaluated before more general rules.
+
+For example, if you create one rule that limits the minimum clearance between tracks in the net
+`HV` and tracks in any other net and a second rule that limits the minimum clearance for all
+objects inside a certain rule area, make sure the first rule appears later in the custom rules file
+than the second rule.  Otherwise tracks in the `HV` net could have the wrong clearance if they fall
+inside the rule area.
+
+Each rule must have a name and one or more `constraint` clauses.  The name can be any string and is
+used to refer to the rule in DRC reports.  The `constraint` defines the behavior of the rule.
+Rules may also have a `condition` clause that determines which objects should have the
+rule applied, an optional `layer` clause which specifies which board layers the rule applies to,
+and an optional `severity` clause which specifies the severity of the resulting DRC violation.
+
+    (rule <name>
+        [(severity <severity>)]
+        [(layer <layer_name>)]
+        [(condition <expression>)]
+        (constraint <constraint_type> [constraint_arguments]))
+
+The custom rules file may also include comments to describe rules.  Comments are denoted by any
+line that begins with the `#` character (not including whitespace). You can press kbd:[Ctrl+/]
+to comment or uncomment lines automatically.
+
+   # Clearance for 400V nets to anything else
+   (rule HV
+       (condition "A.NetClass == 'HV'")
+       (constraint clearance (min 1.5mm)))
+
+===== Layer Clause
+
+The `layer` clause determines which layers the rule will work on.  While the layer of objects can
+be tested in the `condition` clause as described below, using the `layer` clause is more efficient.
+
+The value in the `layer` clause can be any board layer name, or the shortcut keywords `outer` to match the
+front and back copper layers (`F.Cu` and `B.Cu`) and `inner` to match any internal copper layers.
+
+If the `layer` clause is omitted, the rule will apply to all layers.
+
+Some examples:
+
+----
+# Do not allow footprints on back layer (no condition clause means this rule always applies)
+(rule "Top side footprints only"
+    (layer B.Cu)
+    (constraint disallow footprint))
+
+# This rule does the same thing, but is less efficient
+(rule "Top side footprints only"
+    (condition "A.Layer == 'B.Cu'")
+    (constraint disallow footprint))
+
+# Larger clearance on outer layers (inner layer clearance set by board minimum clearance)
+(rule "clearance_outer"
+    (layer outer)
+    (constraint clearance (min 0.25mm)))
+----
+
+===== Severity Clause
+
+The `severity` clause sets the DRC violation severity whenever the rule is violated.
+
+Possible values are `error`, `warning`, `ignore`, and `exclusion`. Ignored rules are not observed by
+the interactive router and violations are not shown in the DRC dialog. However, ignored rules are
+evaluated for matching and therefore can still override earlier rules. Errors, warnings, and excluded
+rules are all observed by the interactive router, and violations are displayed in the DRC dialog when
+the appropriate filters are selected.
+
+WARNING: Setting a rule's severity to `ignore` does not disable the rule; only the effects of the rule
+are disabled. The rule is still evaluated and can still override previous rules.
+
+===== Condition Clauses
+
+The `condition` clause determines which objects which objects the rule applies to. If a rule has a
+condition clause, the rule will apply to any objects that match the condition. If a rule
+does not have any condition clauses, it will apply unconditionally.
+
+The rule **condition** is an expression contained inside a text string (and therefore usually
+surrounded by quotes in order to allow whitespace for clarity).  The expression is evaluated
+against each pair of objects that is being tested by the design rule checker.  For example,
+when checking for clearance between copper objects, each copper object (track segment, pad, via,
+etc.) on each net is checked against other copper objects on other nets.  If a custom rule exists
+where the expression matches the two given copper objects and the constraint defines a copper
+clearance, this custom rule could be used to determine the required clearance between the two
+objects.
+
+The objects being tested are referred to as `A` and `B` in the expression language.  The order of
+the two objects is not important because the design rule checker will test both possible orderings.
+For example, you can write a rule that assumes that `A` is a track and `B` is a via.  There are
+some expression functions that test both objects together; these use `AB` as the object name.
+
+The expression in a condition must resolve to a boolean value (`true` or `false`).  If the
+expression resolves to `true`, the rule is applied to the given objects.
+
+Each object being tested has **properties** that can be compared, as well as **functions** that
+can be used to perform certain tests.  The syntax for using properties and functions is
+`<object>.<property>` and `<object>.<function>([arguments])` respectively.
+
+NOTE: When you type `<object>.` in the text editor (`A.`, `B.`, or `AB.`), an autocomplete list
+      will open that contains all the object properties that can be used.
+
+The object properties and functions are compared using **boolean** and **relational operators**
+to result in a boolean expression.  The following operators are supported:
+
+[cols="25%,75%"]
+|====
+| `==`      | Equal to
+| `!=`      | Not equal to
+| `>`, `>=` | Greater than, greater than or equal to
+| `<`, `\<=` | Less than, less than or equal to
+| `&&`      | And
+| `\|\|`      | Or
+| `!`       | Not (unary)
+|====
+
+For example, `A.NetClass == 'HV'` will apply to any objects that are part of the "HV" netclass and
+`A.NetClass != B.NetClass` will apply to any objects that are in different netclasses. Parentheses
+can be used to clarify the order of operations in complex expressions but they are not required.
+All the boolean operators have the same precedence and are evaluated in order from left to right.
+
+Some properties represent a physical measurement, such as a size, angle, length, position, etc.
+On these properties, **unit suffixes** can be used in the custom rules language to specify what
+units are being used.  If no unit suffix is used, the internal representation of the property will
+be used instead (nanometers for distances and degrees for most angles).  The following suffixes
+are supported:
+
+[cols="25%,75%"]
+|====
+| `mm`       | Millimeters
+| `mil`, `th` | Thousandths of an inch (mils)
+| `in`, `"`  | Inches
+| `deg`      | Degrees
+| `rad`      | Radians
+|====
+
+NOTE: The units used in custom design rules are independent of the display units in the PCB editor.
+
+Numeric conditions can use simple math expressions, for example
+`(condition "A.Hole_Size_X == 1.0mm + 0.1mm")`.
+
+===== Constraint Clauses
+
+The `constraint` clause of the rule defines the behavior of the rule on the objects that are
+matched by the condition.  Each constraint clause has a **constraint type** and one or more
+arguments that set the behavior of the constraint.  A single rule may have multiple constraint
+clauses, in order to set multiple constraints (for example, `clearance` and `track_width`) for
+objects that match the same rule conditions.
+
+Many constraints take arguments that specify a physical measurement or quantity.  These constraints
+support minimum, optimal, and maximum value specification (abbreviated "min/opt/max").  The
+**minimum** and **maximum** values are used for design rule checking: if the actual value is less
+than the minimum or is greater than the maximum value in the constraint, a DRC error is created.
+The **optimal** value is only used for some constraints, and informs KiCad of a "best" value to use
+by default.  For example, the optimal `diff_pair_gap` is used by the router when placing new
+differential pairs.  No errors will be created if the differential pair is later modified such that
+the gap between the pair is different from the optimal value, as long as the gap is between the
+minimum and maximum values (if these are specified).  In all cases where a min/opt/max value is
+accepted, any or all of the minimum, optimal, and maximum value can be specified.
+
+Min/opt/max values are specified as `(min <value>)`, `(opt <value>)`, and `(max <value>)`. For
+example, a track width constraint may be written as
+`(constraint track_width (min 0.5mm) (opt 0.5mm) (max 1.0mm))` or simply
+`(constraint track_width (min 0.5mm))` if only the minimum width is to be constrained.
+
+Numeric constraint values can use simple math expressions, for example
+`(constraint clearance (min 0.5mm + 0.1mm))`.
+
+[options="header",cols="20%,20%,60%"]
+|====
+| Constraint type | Argument type | Description
+| `annular_width` | min/opt/max   | Checks the width of annular rings on vias and pads.
+| `assertion` | boolean expression
+  | Checks that the boolean expression is true. If the expression is false, a DRC error will be
+    created. The expression can use any of the properties listed in the Object Properties section.
+| `clearance` | min
+  | Specifies the *electrical* clearance between copper objects of different nets.  (See
+    `physical_clearance` if you wish to specify clearance between objects regardless of net.)
+
+    To allow copper objects to overlap (collide), create a `clearance` constraint with the `min`
+    value less than zero (for example, `-1`).
+| `connection_width` | min
+  | Checks the width of connections between pads and zones. An error will be generated for each pad
+    connection that is narrower than the `min` value.
+| `courtyard_clearance` | min
+  | Checks the clearance between footprint courtyards and generates an error if any two courtyards
+    are closer than the `min` distance.  If a footprint does not have a courtyard shape, no errors
+    will be generated from this constraint.
+
+    To allow courtyard objects to overlap (collide), create a `courtyard_clearance` constraint with
+    the `min` value less than zero (for example, `-1`).
+| `diff_pair_gap` | min/opt/max
+  | Checks the gap between coupled tracks in a differential pair.  Coupled tracks are segments that
+    are parallel to each other.  Differential pair gap is not tested on uncoupled portions of a
+    differential pair (for example, the fanout from a component).
+| `diff_pair_uncoupled` | max
+  | Checks the distance that a differential pair track is routed uncoupled from the other polarity
+    track in the pair (for example, where the pair fans out from a component, or becomes uncoupled
+    to pass around another object such as a via).
+| `disallow`
+  | `track +
+     via +
+     micro_via +
+     buried_via +
+     pad +
+     zone +
+     text +
+     graphic +
+     hole +
+     footprint`
+  | Specify one or more object types to disallow, separated by spaces.  For example,
+    `(constraint disallow track)` or `(constraint disallow track via pad)`.  If an object of this
+    type matches the rule condition, a DRC error will be created.  This constraint is essentially
+    the same as a keepout rule area, but can be used to create more specific keepout restrictions.
+| `edge_clearance` | min/opt/max
+  | Checks the clearance between objects and the board edge.
+
+    This can also be thought of as the "milling tolerance" as the board edge will include all
+    graphical items on the `Edge.Cuts` layer as well as any *oval* pad holes.  (See
+    `physical_hole_clearance` for the drilling tolerance.)
+
+    To allow objects to overlap (collide) with the board edge, create an `edge_clearance`
+    constraint with the `min` value less than zero (for example, `-1`).
+| `hole_clearance` | min
+  | Checks the clearance between a drilled hole in a pad or via and copper objects on a different
+    net.  The clearance is measured from the diameter of the hole, not its center.
+| `hole_size` | min/max
+  | Checks the size (diameter) of a drilled hole in a pad or via.  For oval holes, the smaller
+    (minor) diameter will be tested against the `min` value (if specified) and the larger (major)
+    diameter will be tested against the `max` value (if specified).
+| `hole_to_hole` | min
+  | Checks the clearance between mechanically-drilled holes in pads and vias.  The clearance is
+    measured between the diameters of the holes, not between their centers.
+
+    This constraint is solely for the protection of drill bits.  The clearance between
+    *laser-drilled* (microvias) and other non-mechanically-drilled holes is not checked, nor is
+    the clearance between *milled* (oval-shaped) and other non-mechanically-drilled holes.
+| `length` | min/max
+  | Checks the total routed length for the nets that match the rule condition and generates an
+    error for each net that is below the `min` value (if specified) or above the `max` value (if
+    specified) of the constraint.
+    This constraint also sets a target length that is used by the
+    <<length-tuning,length tuning tool>> for any nets that match the rule condition.
+| `min_resolved_spokes`
+  | `0 +
+     1 +
+     2 +
+     3 +
+     4`
+  | Checks the total number of connections (spokes) to a pad. An error will be raised for each
+    pad that has fewer than the specified number of spokes.
+| `physical_clearance` | min
+  | Checks the clearance between two objects on a given layer (including non-copper layers).
+
+    While this can perform more general-purpose checks than `clearance`, it is much slower.  Use
+    `clearance` where possible.
+| `physical_hole_clearance` | min
+  | Checks the clearance between a drilled hole in a pad or via and another object, regardless of
+    net. The clearance is measured from the diameter of the hole, not its center.
+
+    This can also be thought of as the "drilling tolerance" as it only includes *round* holes
+    (see `edge_clearance` for the milling tolerance).
+| `silk_clearance` | min/opt/max
+  | Checks the clearance between objects on silkscreen layers and other objects.
+
+    To allow silkscreen objects to overlap (collide) with other objects, create a `silk_clearance`
+    constraint with the `min` value less than zero (for example, `-1`).
+| `skew` | min/opt/max
+  | Checks the total skew for the nets that match the rule condition, that is, the difference
+    between the length of each net and the average of all the lengths of each net that is matched
+    by the rule.  If the difference between that average and the length of any one net is above
+    the constraint `max` value, an error will be generated.
+    This constraint also sets a target skew that is used by the <<length-tuning,skew tuning tool>>
+    for any nets that match the rule condition. The target skew is the `opt` value, if specified,
+    or the `min` value if not. If neither `min` nor `opt` is specified, the target skew is `0`.
+| `text_height` | min/max
+  | Checks the height of text, including text boxes. An error will be generated for each text item
+    that has a height below the `min` value (if specified) or above the `max` value (if specified).
+| `text_thickness` | min/max
+  | Checks the thickness of text, including text boxes. An error will be generated for each text
+    item that has a thickness below the `min` value (if specified) or above the `max` value (if
+    specified).
+| `thermal_relief_gap` | min
+  | Specifies the width of the gap between a pad and a zone with a thermal-relief connection.
+| `thermal_spoke_width` | opt
+  | Specifies the width of the spokes connecting a pad to a zone with a thermal-relief connection.
+| `track_width` | min/opt/max
+  | Checks the width of track and arc segments.  An error will be generated for each segment that
+    has a width below the `min` value (if specified) or above the `max` value (if specified).
+| `via_count` | min/max
+  | Counts the number of vias on every net matched by the rule condition.  An error will be generated
+    for each net that has fewer vias than the `min` value (if specified) or more than the `max` value
+    (if specified).
+| `via_diameter` | min/max
+  | Checks the diameter of vias. An error will be generated for each via that has a diameter below
+    the `min` value (if specified) or above the `max` value (if specified).
+| `zone_connection`
+  | `solid +
+    thermal_reliefs +
+    none`
+  | Specifies the connection to be made between a zone and a pad.
+|====
+
+==== Object property and function reference
+
+The following properties can be tested in custom rule expressions:
+
+===== Common Properties
+
+These properties apply to all PCB objects.
+
+[options="header",cols="15%,15%,70%"]
+|====
+| Property    | Data type | Description
+| `Layer`       | string
+  | The board layer on which the object exists.  For objects that exist on more than one layer,
+    this property will return the first layer (for example, `F.Cu` for most through-hole
+    pads/vias).
+| `Locked` | boolean | True if the object is locked.
+| `Parent` | string | Returns the unique identifier of the parent object of this object.
+| `Position_X` | dimension
+  | The position of the object's origin in the X-axis. Note that the origin of an object is not
+    always the same as the center of the object's bounding box.  For example, the origin of a
+    footprint is the location of the (0, 0) coordinate of that footprint in the footprint editor,
+    but the footprint may have been designed such that this location is not in the center of the
+    courtyard shape.
+| `Position_Y` | dimension
+  | The position of the object's origin in the Y-axis.  Note that KiCad always uses Y-coordinates
+    that increase from the top to bottom of the screen internally, even if you have configured your
+    settings to show the Y-coordinates increasing from bottom to top.
+| `Type` | string
+  | One of "Bitmap", "Dimension", "Footprint", "Graphic", "Group", "Leader", "Pad",
+    "Target", "Text", "Text Box", "Track", "Via", or "Zone".
+|====
+
+===== Connected Object Properties
+
+These properties apply to copper objects that can have a net assigned (pads, vias, zones, tracks).
+
+[options="header",cols="15%,15%,70%"]
+|====
+| Property    | Data type | Description
+| `Net` | integer
+  | The net code of the copper object.
+
+    Note that net codes should not be relied upon to remain
+    constant: if you need to refer to a specific net in a rule, use `NetName` instead.  `Net` can
+    be used to compare the nets of two objects with better performance, for example
+    `A.Net == B.Net` is faster than `A.NetName == B.NetName`.
+| `NetClass` | string
+  | The name of the netclass for the copper object.
+  
+    Note: netclasses must be declared in the <<board-setup-net-classes,Board Setup dialog>> before
+    they can be used in DRC rules.
+| `NetName` | string | The name of the net for the copper object.
+| `Curve_Points`      | integer | Number of curve points on curved teardrops connected to the object.
+| `Enable_Teardrops`  | boolean | True if teardrops are enabled for the object.
+| `Prefer_Zone_Connections` | boolean | True if the "Prefer zone connections" property is set for the object.
+| `Allow_Teardrops_To_Span_Two_Tracks`  | boolean | True if the "Allow teardrops to span two tracks" property is set for the object.
+| `Best_Length_Ratio` | double | Best ratio of teardrop length to object size for teardrops connected to the object.
+| `Best_Width_Ratio`  | double | Best ratio of teardrop width to object size for teardrops connected to the object.
+| `Max_Length`  | dimension | Maximum length dimension for teardrops connected to the object.
+| `Max_Width`   | dimension | Maximum width dimension for teardrops connected to the object.
+| `Max_Width_Ratio`  | double | Maximum allowable ratio of object size to track width for teardrops connected to the object.
+|====
+
+===== Footprint Properties
+
+These properties apply to footprints.
+
+[options="header",cols="15%,15%,70%"]
+|====
+| Property    | Data type | Description
+| `Clearance_Override` | dimension | The copper clearance override set for the footprint.
+| `Do_not_Populate` | boolean | True if the footprint's "Do not populate" attribute is set.
+| `Exclude_From_Position_Files` | boolean
+  | True if the footprint's "Exclude from position files" attribute is set.
+| `Exclude_From_Bill_of_Materials` | boolean
+  | True if the footprint's "Exclude from bill of materials" attribute is set.
+| `Exempt_From_Courtyard_Requirement` | boolean
+  | True if the footprint's "Exempt from courtyard requirement" attribute is set.
+| `Keywords` | string | The "Keywords" from the library footprint.
+| `Library_Description` | string
+  | The link to the library footprint in `library_name:footprint_name` format.
+| `Library_Link` | string
+  | The link to the library footprint in `library_name:footprint_name` format.
+| `Not_in_Schematic` | boolean
+  | True if the footprint's "Not in schematic" attribute is set.
+| `Orientation` | double | The orientation (rotation) of the footprint in degrees.
+| `Reference` | string
+  | The reference designator of the footprint.
+
+    Note that while footprints have a `Reference` property, footprint child
+    objects (such as pads) do not. To check if an object belongs to a footprint
+    with a specific reference, use the `memberOfFootprint('x')` function.
+| `Solderpaste_Margin_Override` | dimension
+  | The solder paste margin override set for the footprint.
+| `Solderpaste_Margin_Ratio_Override` | dimension
+  | The solder paste margin ratio override set for the footprint.
+| `Thermal_Relief_Gap` | dimension | The thermal relief gap set for the footprint.
+| `Thermal_Relief_Width` | dimension | The thermal relief connection width set for the footprint.
+| `Value` | string | The contents of the "Value" field of the footprint.
+| `Zone_Connection_Style` | string | One of "Inherited", "None", "Thermal reliefs" or "Solid".
+|====
+
+===== Pad Properties
+
+These properties apply to footprint pads.
+
+[options="header",cols="15%,15%,70%"]
+|====
+| Property    | Data type | Description
+| `Clearance_Override` | dimension | The copper clearance override set for the pad.
+| `Fabrication_Property` | string
+  | One of "None", "BGA pad", "Fiducial, global to board", "Fiducial, local to footprint",
+    "Test point pad", "Heatsink pad", "Castellated pad".
+| `Hole_Size_X` | dimension | The size of the pad's drilled hole/slot in the X axis.
+| `Hole_Size_Y` | dimension | The size of the pad's drilled hole/slot in the Y axis.
+| `Orientation` | double | The orientation (rotation) of the pad in degrees.
+| `Pad_Number` | string | The "number" of a pad, which can be a string (for example "A1" in a BGA).
+| `Pad_Shape` | string
+  | One of "Circle", "Rectangle", "Oval", "Trapezoid", "Rounded rectangle", "Chamfered rectangle",
+    or "Custom".
+| `Pad_To_Die_Length` | dimension
+  | The value of the "pad to die length" property of a pad, which is additional length added to
+    the pad's net when calculating net length.
+| `Pad_Type` | string | One of "Through-hole", "SMD", "Edge connector", or "NPTH, mechanical".
+| `Pin_Name` | string
+  | The name of the pad (usually the name of the corresponding pin in the schematic).
+| `Pin_Type` | string
+  | The electrical type of the pad (usually taken from the corresponding pin in the schematic).
+    One of "Input", "Output", "Bidirectional", "Tri-state", "Passive", "Free", "Unspecified",
+    "Power input", "Power output", "Open collector", "Open emitter", or "Unconnected".
+
+    Pins with a no-connection flag on them will have a "+no_connect" suffix added to the pin type
+    string. For example, "passive+no_connect" will match a passive pin with a no-connection flag.
+    To match a pin type whether or not the pin has a no-connection flag, use a wildcard: "passive*"
+    will match passive pins with or without a no-connection flag.
+| `Corner_Radius_Ratio` | double
+  | For rounded rectangle pads, the ratio of radius to rectangle size.
+| `Size_X` | dimension | The size of the pad in the X-axis.
+| `Size_Y` | dimension | The size of the pad in the Y-axis.
+| `Soldermask_Margin_Override` | dimension | The solder mask margin override set for the pad.
+| `Solderpaste_Margin_Override` | dimension | The solder paste margin override set for the pad.
+| `Solderpaste_Margin_Ratio_Override` | dimension
+  | The solder paste margin ratio override set for the pad.
+| `Thermal_Relief_Gap` | dimension | The thermal relief gap set for the pad.
+| `Thermal_Relief_Spoke_Angle` | dimension | The thermal relief connection angle set for the pad.
+| `Thermal_Relief_Spoke_Width` | dimension | The thermal relief connection width set for the pad.
+| `Zone_Connection_Style` | string | One of "Inherited", "None", "Thermal reliefs" or "Solid".
+|====
+
+===== Track and Arc Properties
+
+These properties apply to tracks and arc tracks.
+
+[options="header",cols="15%,15%,70%"]
+|====
+| Property    | Data type | Description
+| `Origin_X`  | dimension | The x-coordinate of the start point.
+| `Origin_Y`  | dimension | The y-coordinate of the start point.
+| `End_X`     | dimension | The x-coordinate of the end point.
+| `End_Y`     | dimension | The y-coordinate of the end point.
+| `Width`     | dimension | The width of the track or arc.
+|====
+
+===== Via Properties
+
+These properties apply to vias.
+
+[options="header",cols="15%,15%,70%"]
+|====
+| Property    | Data type | Description
+| `Diameter`  | dimension | The diameter of the via's pad.
+| `Hole`      | dimension | The diameter of the via's finished hole.
+| `Layer_Bottom` | string | The last layer in the via stackup.
+| `Layer_Top`    | string | The first layer in the via stackup.
+| `Via_Type` | string | One of "Through", "Blind/buried",  or "Micro".
+|====
+
+===== Tuning Pattern Properties
+
+These properties apply to tuning patterns.
+
+[options="header",cols="15%,15%,70%"]
+|====
+| Property    | Data type | Description
+| `End_X`     | dimension | The x-coordinate of the end point.
+| `End_Y`     | dimension | The y-coordinate of the end point.
+| `Min_Amplitude`   | dimension | The minimum amplitude of the tuning pattern.
+| `Max_Amplitude`   | dimension | The maximum amplitude of the tuning pattern.
+| `Tuning_Mode`     | string | One of "Single track", "Differential pair", or "Diff pair skew".
+| `Initial_Side`    | string | One of "Left", "Right", or "Default".
+| `Min_Spacing`     | dimension | The minimum spacing of the tuning pattern..
+| `Corner_Radius_%` | integer | The corner radius percentage of the tuning pattern.
+| `Target_Length`   | dimension | The target length for the tuning pattern.
+| `Target_Skew`     | dimension | The target skew for the tuning pattern.
+| `Override_Custom_Rules` | boolean | True if the tuning pattern overrides custom DRC rules.
+| `Single-sided`    | boolean | True if the tuning pattern is single-sided.
+| `Rounded`   | boolean | True if the tuning pattern uses rounded meanders.
+|====
+
+===== Zone and Rule Area Properties
+
+These properties apply to copper and non-copper zones, and rule areas (formerly called keepouts).
+
+[options="header",cols="15%,15%,70%"]
+|====
+| Property    | Data type | Description
+| `Clearance_Override` | dimension | The copper clearance override set for the zone.
+| `Min_Width` | dimension | The minimum allowed width of filled areas in the zone.
+| `Name` | string | The user-specified name (blank by default).
+| `Pad_Connections` | string
+  | One of "Inherited", "None", "Thermal reliefs", "Solid", or "Thermal Reliefs for PTH".
+| `Priority` | integer | The priority level of the zone.
+| `Thermal_Relief_Gap` | dimension | The thermal relief gap set for the zone.
+| `Thermal_Relief_Width` | dimension | The thermal relief connection width set for the zone.
+|====
+
+===== Graphic Shape Properties
+
+These properties apply to graphic lines, arcs, circles, rectangles, and polygons.
+
+[options="header",cols="15%,15%,70%"]
+|====
+| Property     | Data type | Description
+| `Angle`      | dimension | The angle of an arc.
+| `End_X`      | dimension | The x-coordinate of the end point.
+| `End_Y`      | dimension | The y-coordinate of the end point.
+| `Filled`     | boolean   | True if the shape is filled.
+| `Line_Width` | dimension | Thickness of the strokes of the shape.
+| `Line_Style` | string
+  | One of "Solid", "Dashed", "Dotted", "Dash-Dot", "Dash-Dot-Dot".
+| `Shape`      | string
+  | One of "Segment", "Rectangle", "Arc", "Circle", "Polygon", or "Bezier".
+| `Start_X`    | dimension | The x-coordinate of the start point.
+| `Start_Y`    | dimension | The y-coordinate of the start point.
+|====
+
+===== Text Properties
+
+These properties apply to text objects (footprint fields, free text labels, etc).
+
+[options="header",cols="15%,15%,70%"]
+|====
+| Property    | Data type | Description
+| `Bold`      | boolean   | True if the text is bold.
+| `Height`    | dimension | Height of a character in the font.
+| `Horizontal_Justification` | string
+  | Horizontal text justification (alignment): one of "Left", "Center", or "Right".
+| `Italic` | boolean | True if the text is italic.
+| `Knockout` | boolean | True if the text has the knockout property set.
+| `Mirrored` | boolean | True if the text is mirrored.
+| `Text` | string | The contents of the text object.
+| `Thickness` | dimension | Thickness of the stroke of the font.
+| `Width` | dimension | Width of a character in the font.
+| `Vertical_Justification` | string
+  | Vertical text alignment: one of "Top", "Center", or "Bottom".
+| `Visible` | boolean | True if the text object is visible (displayed).
+|====
+
+===== Expression functions
+
+The following functions can be called on objects in custom rule expressions:
+
+[options="header",cols="20%,10%,70%"]
+|====
+| Function | Objects | Description
+| `enclosedByArea('x')` | `A` or `B`
+    | Returns true if all of the object is inside the named rule area or zone.  Note that
+      `enclosedByArea()` is slower than `intersectsArea(). Use `intersectsArea()` where possible. 
+| `existsOnLayer('layer_id')` | `A` or `B`
+    | Returns true if the object exists on the given board layer.  `layer_id` is a string
+      containing the name of a board layer.
+| `fromTo('x', 'y')` | `A` or `B`
+    | Returns true if the object exists on the copper path between the given pads.  `x` and `y` are
+      the full names of pads in the design, such as `'R1-Pad1'`.
+| `getField('x')` | `A` or `B`
+    | Returns the value of field `x` in the object. Note that only footprints have fields, so no field will
+      be returned unless the object is is a footprint.
+| `inDiffPair('x')` | `A` or `B`
+    | Returns true if the object is part of a differential pair and the base name of the pair
+      matches the given argument `x`.  For example, `inDiffPair('/USB_')` or `inDiffPair('/USB')` both return
+      `true` for objects in the nets `/USB_P` and `/USB_N`.  `\*` and `?` can be used as wildcards, so
+      `inDiffPair('/USB*')` matches `/USB1_P` and `/USB1_N` as well as `/USB2_P` and `/USB2_N`.  Note this
+      will always return false if the given net is not a diff pair, meaning that there isn't a matching net of
+      the opposite polarity.  So, on a board with a net named `/USB_P` but no net named `/USB_N`, this function
+      returns false.
+| `insideArea('x')` | `A` or `B`
+    | Returns true if any part of the object is inside the named rule area or zone.  Rule area and zone
+      names can be set in their respective properties dialogs.  If the given area is a filled copper zone, the
+      function tests if the given object is inside any of the filled copper regions of the zone,
+      not if the object is inside the zone's outline.
+
+    **Deprecated**; use `intersectsArea()` instead.
+| `insideCourtyard('x')`
+
+  `insideFrontCourtyard('x')`
+
+  `insideBackCourtyard('x')`
+  | `A` or `B`
+  | Returns true if the any part of the object is inside the courtyard of the given footprint.  The
+    first variant checks both the front or back courtyard and returns true if the object is inside
+    either one; the second and third variants check a courtyard on a specific layer.
+  
+    The footprint can be specified by reference designator or library ID in `<footprint_library>:<footprint_name>`
+    format.  The `\*` or `?` wildcards can be used in the argument: `insideCourtyard('R?')` will check all
+    footprints with references that contain `R` followed by a single character, while
+    `insideCourtyard('Resistor_SMD:*')` will check all footprints in the `Resistor_SMD` library.
+    
+    **Deprecated**; use `intersectsCourtyard()`, `intersectsFrontCourtyard()`, and `intersectsBackCourtyard()` instead.
+| `intersectsArea('x')` | `A` or `B`
+    | Returns true if any part of the object is inside the named rule area or zone.  Rule area and zone
+      names can be set in their respective properties dialogs.  If the given area is a filled copper zone, the
+      function tests if the given object is inside any of the filled copper regions of the zone,
+      not if the object is inside the zone's outline.
+| `intersectsCourtyard('x')`
+
+  `intersectsFrontCourtyard('x')`
+
+  `intersectsBackCourtyard('x')`
+  | `A` or `B`
+  | Returns true if any part of the object is inside the courtyard of the given footprint.  The
+    first variant checks both the front or back courtyard and returns true if the object is inside
+    either one; the second and third variants check a courtyard on a specific layer.
+  
+    The footprint can be specified by reference designator or library ID in `<footprint_library>:<footprint_name>`
+    format.  The `\*` or `?` wildcards can be used in the argument: `intersectsCourtyard('R?')` will check all
+    footprints with references that contain `R` followed by a single character, while
+    `intersectsCourtyard('Resistor_SMD:*')` will check all footprints in the `Resistor_SMD` library.
+| `isBlindBuriedVia()` | `A` or `B` | Returns true if the object is a blind/buried via.
+| `isCoupledDiffPair()` | `AB`
+  | Returns true if the two objects being tested are part of the same differential pair but are
+    opposite polarities.  For example, returns true if `A` is in net `/USB+` and `B` is in net
+    `/USB-`.
+| `isMicroVia()` | `A` or `B` | Returns true if the object is a microvia.
+| `isPlated()` | `A` or `B` | Returns true if the object is a plated hole (in a pad or via).
+| `memberOf('x')` | `A` or `B` | Returns true if the object is a member of the named group `x`.
+
+  **Deprecated**; use `memberOfGroup()` instead.
+| `memberOfGroup('x')` | `A` or `B` | Returns true if the object is a member of a group named `x`.
+| `memberOfFootprint('x')` | `A` or `B`
+  | Returns true if the object is a member of the given footprint.
+  
+    The footprint can be specified by reference designator or library ID in `<footprint_library>:<footprint_name>`
+    format.  The `\*` or `?` wildcards can be used in the argument: `memberOfFootprint('R?')` will check all
+    footprints with references that contain `R` followed by a single character, while
+    `memberOfFootprint('Resistor_SMD:*')` will check all footprints in the `Resistor_SMD` library.
+| `memberOfSheet('x')` |  `A` or `B` | Returns true if the object is a member of a schematic sheet
+named `x`.
+|====
+
+==== Custom design rule examples
+
+===== Basic examples
+----
+
+(rule RF_width
+    (layer outer)
+    (condition "A.NetClass == 'RF'")
+    (constraint track_width (min 0.35mm) (max 0.35mm)))
+
+(rule "BGA neckdown"
+    (constraint track_width (min 0.2mm) (opt 0.25mm))
+    (constraint clearance (min 0.05mm) (opt 0.08mm))
+    (condition "A.intersectsCourtyard('U3')"))
+
+# Specify an optimal gap for a particular differential pair
+(rule "Clock gap"
+    (condition "A.inDiffPair('/CLK')")
+    (constraint diff_pair_gap (opt 0.8mm)))
+
+# Specify a larger clearance between differential pairs and anything else
+(rule "Differential pair clearance"
+    (condition "A.inDiffPair('*') && !AB.isCoupledDiffPair()")
+    (constraint clearance (min 1.5mm)))
+
+(rule "copper keepout"
+    (constraint disallow track via zone)
+    (condition "A.intersectsArea('zone3')"))
+
+----
+
+===== Various clearances
+----
+
+(rule "Clearance between Pads of Different Nets"
+    (constraint clearance (min 3.0mm))
+    (condition "A.Type == 'Pad' && B.Type == 'Pad' && A.Net != B.Net"))
+
+(rule "Pad to Track Clearance"
+    (constraint clearance (min 0.2mm))
+    (condition "A.Type == 'Pad' && B.Type == 'Track'"))
+
+# Enforce a clearance around pads (and other copper objects) in a specific footprint
+(rule "Pad clearance in R1"
+    (constraint clearance (min 1mm))
+    (condition "A.memberOfFootprint('TP1')"))
+
+# Enforce a mechanical clearance between components and board edge
+(rule front_mechanical_board_edge_clearance
+    (layer "F.Courtyard")
+    (constraint physical_clearance (min 3mm))
+    (condition "B.Layer == 'Edge.Cuts'"))
+
+# This assumes that there is a cutout with 1mm thick lines
+(rule "Clearance to cutout"
+    (constraint edge_clearance (min 0.8mm))
+    (condition "A.Layer=='Edge.Cuts' && A.Line_Width == 1.0mm"))
+
+# prevent silk over tented vias
+(rule silk_over_via
+    (constraint silk_clearance (min 0.2mm))
+    (condition "A.Type == '*Text' && B.Type == 'Via'"))
+
+(rule "Allow connector silk to intersect board edge"
+    (constraint silk_clearance)
+    (severity ignore)
+    (condition "A.memberOfFootprint('J*') && B.Layer=='Edge.Cuts'"))
+
+(rule "Distance between Vias of Different Nets"
+    (constraint hole_to_hole (min 0.254mm))
+    (condition "A.Type == 'Via' && B.Type == 'Via' && A.Net != B.Net"))
+
+(rule "Via Hole to Track Clearance"
+    (constraint hole_clearance (min 0.254mm))
+    (condition "A.Type == 'Via' && B.Type == 'Track'"))
+
+(rule "Distance between test points"
+    (constraint courtyard_clearance (min 1.5mm))
+    (condition "A.Reference =='TP*' && B.Reference == 'TP*"))
+
+----
+
+===== High-current design rules
+----
+
+# Check current-carrying capacity
+(rule high-current
+    (constraint track_width (min 1.0mm))
+    (constraint connection_width (min 0.8mm))
+    (condition "A.NetClass == 'Power'"))
+
+# Don't use thermal reliefs on heatsink pads
+(rule heat_sink_pad
+    (constraint zone_connection solid)
+    (condition "A.Fabrication_Property == 'Heatsink pad'"))
+
+# Require all four thermal relief spokes to connect to parent zone
+(rule fully_spoked_pads
+    (constraint min_resolved_spokes 4))
+
+# Set thermal relief gap & spoke width for all zones
+(rule defined_relief
+    (constraint thermal_relief_gap (min 10mil))
+    (constraint thermal_spoke_width (min 12mil)))
+
+# Override thermal relief gap & spoke width for GND and PWR zones
+(rule defined_relief_pwr
+    (constraint thermal_relief_gap (min 10mil))
+    (constraint thermal_spoke_width (min 12mil))
+    (condition "A.Name == 'zone_GND' || A.Name == 'zone_PWR'"))
+
+# Prevent solder wicking from SMD pads
+(rule holes_in_pads
+    (constraint physical_hole_clearance (min 0.2mm))
+    (condition "B.Pad_Type == 'SMD'"))
+
+# Disallow solder mask margin overrides
+(rule "disallow solder mask margin overrides"
+    (constraint assertion "A.Soldermask_Margin_Override == 0mm")
+    (condition "A.Type == 'Pad'"))
+
+----
+
+===== Hole sizes
+----
+
+(rule "Max Drill Hole Size Mechanical"
+    (constraint hole_size (max 6.3mm))
+    (condition "A.Pad_Type == 'NPTH, mechanical'"))
+
+(rule "Max Drill Hole Size PTH"
+    (constraint hole_size (max 6.35mm))
+    (condition "A.Pad_Type == 'Through-hole'"))
+
+# Separate drill bit and milling cutter size constraints
+(rule "Plated through-hole size"
+    (constraint hole_size (min 0.2mm) (max 6.35mm))
+    (condition "A.isPlated() && A.Hole_Size_X == A.Hole_Size_Y"))
+
+(rule "Plated slot size"
+    (constraint hole_size (min 0.5mm))
+    (condition "A.isPlated() && A.Hole_Size_X != A.Hole_Size_Y"))
+
+----
+
+=== Scripting
+
+Scripting allows you to automate tasks within KiCad using the https://www.python.org/[Python]
+language. KiCad provides an API for editing PCBs that can be used interactively or in standalone
+scripts. Board Editor scripts can be organized as "action plugins", which are displayed as icons
+in the top toolbar of the Board Editor. There is also a separate Footprint Wizard API that can
+be used to create footprint creation plugins for the Footprint Editor.
+
+This manual covers general scripting concepts for the Board Editor's `pcbnew` API as well as for
+the footprint wizard API. Users wishing to write or modify scripts should also
+use the Doxygen documentation for these APIs located at
+https://docs.kicad.org/doxygen-python-8.0/namespaces.html[https://docs.kicad.org/doxygen-python-8.0/namespaces.html].
+
+KiCad 6 or newer requires Python 3 for scripting support. Python 2 is no longer supported.
+
+==== Using the scripting console
+
+The PCB Editor comes with a built-in Python console that can be used to inspect and interact with the
+board.  To launch the console, use the image:images/icons/py_script_24.png[Scripting console icon]
+button in the top toolbar. The PCB Editor Python API is not automatically loaded, so to load it,
+type `import pcbnew` into the console. The command `pcbnew.GetBoard()` will then return a
+reference to the board currently loaded in the PCB Editor, which can be inspected and modified
+through the console.
+
+==== Python script locations
+
+Plugin scripts (PCB action plugins and footprint wizards) can be installed automatically using
+the Plugin and Content Manager (PCM), or manually by copying the plugin to a folder.  Manually
+installed plugins should each be in their own folder within the `plugins` folder.  The location
+of the `plugins` folder is by default:
+
+[options="header",cols="20%,80%"]
+|====
+| Platform | Path
+| Linx     | `~/.local/share/kicad/8.0/scripting/plugins`
+| macOS    | `~/Documents/KiCad/8.0/scripting/plugins`
+| Windows  | `%HOME%\Documents\KiCad\8.0\scripting\plugins`
+|====
+
+NOTE: The type of plugin is determined by the Python class it inherits from. Inheriting from
+      `FootprintWizardBase.FootprintWizard` will create a footprint wizard plugin, and inheriting from
+      `pcbnew.ActionPlugin` will create an action plugin. Creating action plugins and footprint wizards
+      is described in more detail below.
+
+==== `pcbnew` API overview
+
+The scripting API reflects the internal object structure inside KiCad's Board Editor. It is provided
+by the `pcbnew` module in Python. 
+
+NOTE: Because the API is tightly coupled to KiCad's internals, the API will change over time and is not
+      considered stable. Consult the
+      https://docs.kicad.org/doxygen-python-8.0/namespaces.html[doxygen documentation]
+      for the most up-to-date API reference, and be sure to use the documentation for the appropriate
+      version of KiCad.
+
+Scripts, action plugins, and interactive scripting sessions often start with a call to `GetBoard()`,
+which returns a `BOARD` object representing the currently open board and its contents.
+
+`BOARD` has a set of properties and a set for each type of object in the board: footprints, zones, tracks,
+vias, text, etc. Each type of object has its own properties and holds its own objects: a footprint will likely
+have at least one pad, for example.
+
+The objects in the `BOARD` can be accessed using methods that each return an iterable list of the
+corresponding object type. A selection of these methods are listed below. Other methods are listed in
+the doxygen documentation.
+
+- `board.GetFootprints()`: returns a list of all of the footprints in the board.
+- `board.GetDrawings()`: returns a list of miscellaneous board objects in the board.
+- `board.GetTracks()`: returns a list of all of the tracks and vias in the board.
+- `board.GetZones()`: returns a list of all of the zones in the board.
+- `board.GetNetClasses():` returns a list of all net classes in the board's design rules.
+
+Boards can be loaded and saved from disk using the following functions:
+
+- `LoadBoard(filename)`:
+           loads a board from file, returning a `BOARD` object, using the file format that matches
+           the filename extension.
+- `SaveBoard(filename, board)`:
+           saves a `BOARD` object to file, using the file format that matches the filename extension.
+- `board.Save(filename)`:
+           the same as `SaveBoard()`, but a method of the `BOARD` object.
+
+===== Examples
+
+.Load a board, hide all values, and show all references.
+[source,python]
+----------
+#!/usr/bin/env python3
+import sys
+from pcbnew import LoadBoard
+
+filename = sys.argv[1]
+
+pcb = LoadBoard(filename)
+for fp in pcb.GetFootprints():
+    print(f"* Footprint: {fp.GetReference()}")
+    fp.Value().SetVisible(False)      # set Value as Hidden
+    fp.Reference().SetVisible(True)   # set Reference as Visible
+
+pcb.Save("mod_" + filename)
+----------
+
+.Change the paste mask margin for pins 1-14 of a footprint.
+[source,python]
+----------
+#!/usr/bin/env python3
+import sys
+from pcbnew import *
+
+filename=sys.argv[1]
+pcb = LoadBoard(filename)
+
+# Find module U304
+u304 = pcb.FindFootprintByReference('U304')
+pads = u304.Pads()
+
+#  Iterate over pads, printing solder paste margin
+for p in pads:
+    print(p.GetPadName(), ToMM(p.GetLocalSolderPasteMargin()))
+    id = int(p.GetPadName())
+    # Set margin to 0 for all but pad (pin) 15
+    if id<15: p.SetLocalSolderPasteMargin(0)
+
+pcb.Save("mod_"+filename)
+----------
+
+.Load a footprint library, list footprints in the library, and list pads in each footprint.
+[source,python]
+----------
+#!/usr/bin/env python3
+from pcbnew import *
+
+libpath = "/usr/share/kicad/footprints/Connector_PinSocket_2.54mm.pretty"
+print(f">> enumerate footprints, pads of {libpath}")
+
+# Load the suitable plugin to read/write the .pretty library
+src_type = PCB_IO_MGR.GuessPluginTypeFromLibPath( libpath );
+# We can force the plugin type by using IO_MGR.PluginFind( IO_MGR.KICAD )
+plugin = PCB_IO_MGR.PluginFind( src_type )
+
+# Print plugin type name: (Expecting "KiCad" for a .pretty library)
+print(f"Selected plugin type: {PCB_IO_MGR.ShowType(src_type)}")
+
+list_of_footprints = plugin.FootprintEnumerate(libpath)
+
+for name in list_of_footprints:
+    fp = plugin.FootprintLoad(libpath,name)
+    # print the short name of the footprint
+    print(name)
+    # followed by ref field, value field, and decription string:
+    # Remember ref and value texts are dummy text, replaced by the schematic values
+    # when reading a netlist.
+    print(f"  -> {fp.GetReference()} {fp.GetValue()} {fp.GetLibDescription()}")
+    for pad in fp.Pads():
+        print(
+            f"    pad [{pad.GetPadName()}] at "
+            f"pos ({ToMM(pad.GetPosition().x)}, {ToMM(pad.GetPosition().y)}) mm,",
+            f"shape offset ({ToMM(pad.GetOffset().x)}, {ToMM(pad.GetOffset().y)}) mm"
+        )
+    print()
+----------
+
+.Load a board and print information about each item in the board.
+[source,python]
+----------
+#!/usr/bin/env python
+import sys
+from pcbnew import *
+
+filename=sys.argv[1]
+pcb = LoadBoard(filename)
+
+print("Listing Tracks and Vias:")
+for item in pcb.GetTracks():
+    if type(item) is PCB_VIA:
+        pos = item.GetPosition()
+        drill = item.GetDrillValue()
+        width = item.GetWidth()
+        print(f" * Via:   {ToMM(pos)} - {ToMM(drill)}/{ToMM(width)}")
+    elif type(item) is PCB_TRACK:
+        start = item.GetStart()
+        end = item.GetEnd()
+        width = item.GetWidth()
+        print(f" * Track: {ToMM(start)} to {ToMM(end)}, width {ToMM(width)}")
+    else:
+        print(f"Unknown type    {type(item)}")
+
+print()
+print("Listing Text and Shapes:")
+for item in pcb.GetDrawings():
+    if type(item) is PCB_TEXT:
+        print(f"* Text:    '{item.GetText()}' at {ToMM(item.GetPosition())}")
+    elif type(item) is PCB_SHAPE:
+        print(f"* Drawing: {item.GetShapeStr()}")
+    else:
+        print(f"Unknown type    {type(item)}")
+
+print()
+print("Listing Footprints")
+for fp in pcb.GetFootprints():
+    print(f"* Footprint: {fp.GetReference()} at {ToMM(fp.GetPosition())}")
+
+print()
+print(f"Ratsnest count: {pcb.GetNetCount()}")
+print(f"Track width count: {len(pcb.GetTrackWidthList())}")
+print(f"Via size count: {len(pcb.GetViasDimensionsList())}")
+
+print()
+print(f"Listing Zones: {pcb.GetAreaCount()}")
+for idx in range(0, pcb.GetAreaCount()):
+    zone = pcb.GetArea(idx)
+    print(f"zone: {idx} priority: {zone.GetAssignedPriority()} netname: {zone.GetNetname()}")
+
+print()
+print(f"Netclasses: {len(pcb.GetAllNetClasses())}")
+
+----------
+
+==== Action plugins
+
+Action plugin associate a script with a button in the PCB Editor GUI. Clicking the button
+runs the script. Action plugins are shown in the **Tools** -> **External plugins** menu, and
+can also be shown in the toolbar if enabled in the **Action Plugins** page of the
+**Preferences** dialog.
+
+The example below is an action plugin that uses KiCad's `pcbnew` API to replace the string
+`$date$` with the current date in any text item.
+
+[source,python]
+----------
+import pcbnew
+import re
+import datetime
+
+class text_by_date(pcbnew.ActionPlugin):
+    """
+    test_by_date: A sample plugin as an example of ActionPlugin
+    Add the date to any text field of the board containing '$date$'
+    How to use:
+    - Add a text on your board with the content '$date$'
+    - Call the plugin
+    - The text will automatically be updated with the date (format YYYY-MM-DD)
+    """
+
+    def defaults(self):
+        """
+        Method defaults must be redefined
+        self.name should be the menu label to use
+        self.category should be the category (not yet used)
+        self.description should be a comprehensive description
+          of the plugin
+        """
+        self.name = "Add date on PCB"
+        self.category = "Modify PCB"
+        self.description = "Automatically add date on an existing PCB"
+
+    def Run(self):
+        pcb = pcbnew.GetBoard()
+        for item in pcb.GetDrawings():
+            if item.GetClass() == "PCB_TEXT":
+                txt = re.sub("\$date\$ [0-9]{4}-[0-9]{2}-[0-9]{2}",
+                                 "$date$", item.GetText())
+                if txt == "$date$":
+                    item.SetText("$date$ %s" % datetime.date.today())
+
+
+text_by_date().register()
+
+----------
+
+[[creating-footprint-wizards]]
+==== Footprint wizards
+
+Footprint wizards are Python scripts that can be accessed from the Footprint Editor. Each footprint wizard
+presents a selection of parameters defined in the Python script, and creates a footprint based on the
+parameter values.
+
+There are 3 minimum steps required to create a footprint wizard, which are described below. For examples
+of how to create footprint wizards, see the footprint wizards included with KiCad.
+
+1. Instantiate a Python class, inheriting from `FootprintWizardBase.FootprintWizard`.
+2. Define the 6 required functions: `GetName()`, `GetDescription()`, `GetValue()`, `GenerateParameterList()`,
+   `CheckParameters()`, and `BuildThisFootprint()`.
+3. Register the class by calling `{your_class_name}().register()`.
+
+The `GetName()`, `GetDescription()`, and `GetValue()` functions are there to provide strings to the UI.
+The only functionality needed is to return an appropriate string.
+
+The `GenerateParameterList()` function defines the parameters needed for the footprint.  Parameters are
+grouped into a `page` + `name` format.  For example, calling `self.AddParam("demo", "radius", self.uMM, 5)`
+would add a parameter named radius into the page named demo.  Retrieving that parameter data would be done
+with a call such as `self.footprint_radius = self.parameters["demo"]["radius"]`.
+
+The `CheckParameters()` function is available to perform any data validation on the parameters defined in
+`GenerateParameterList()`.  This function is also where the
+`self.footprint_radius = self.parameters["demo"]["radius"]` calls reside.
+
+The `BuildThisFootprint()` function is where the footprint building steps are called.  This function is where
+one creates the footprint.
+
+The required `{your_class_name}().register()` call can either be at the end of the Python file, or
+in an `\\__init__.py` file.  Both styles are supported by KiCad.
+
+NOTE: KiCad will not reload a plugin after it has raised an error (for example, the `NotImplementedError`).
+      One will need completely close out KiCad and restart it.  However, this doesn't apply to changes
+      which do not raise an error.
+
+[[idf-component-outlines]]
+=== IDF component outlines
+
+KiCad can <<idf-exporter,export an IDF representation of the board>> for use in
+mechanical CAD software. Below is some guidance on attaching IDF component
+outlines to footprints, creating new IDF component outlines, and a description
+of the IDF utilities included with KiCad.
+
+==== Specifying component models for use by the exporter
+
+IDF component models are attached to footprints using the
+<<footprint-3d-models,footprint's 3D model properties>>. The IDF exporter uses
+different filetypes than the 3D viewer and other 3D model exporters, so adding
+3D models for the IDF exporter does not conflict with 3D models added to a
+footprint for other purposes.
+
+To add an IDF model to a footprint in the footprint or PCB editors, edit the
+footprint's properties and click on the 3D Models tab.
+
+image::images/footprint_3d_model_options.png[scaledwidth="70%",alt="Footprint properties, 3D settings"]
+
+Click the image:images/icons/small_folder_16.png[folder icon] button and select
+the **IDF (\*.idf;*.IDF)** filetype filter. Browse to the desired outline file.
+
+image::images/idf_select.png[scaledwidth="70%",alt="IDF component outline selection"]
+
+Once the desired component outline file is selected, enter any necessary values
+for the offset and rotation. The offsets must be specified using the IDF board
+output units (mm or mils) and in the IDF coordinate system, which is a
+right-hand coordinate system with +Z pointing towards the viewer, +X to the
+viewer's right, and +Y towards the upper edge of the screen. The rotation must
+be in degrees; positive rotation is a counter-clockwise rotation as described in
+the IDFv3 specification.
+
+Multiple outlines may be combined with appropriate offsets to represent simple
+assemblies such as a DIP package in a socket.
+
+NOTE: Only the offset values and the Z rotation value are used by the IDF
+exporter; all other values are ignored.
+
+==== Creating a component outline file
+
+The component outline file (`*.idf`) consists of a single `.ELECTRICAL` or
+`.MECHANICAL` section as described in the specification document. The section
+may be preceded by any number of comment lines; the comment lines are copied by
+the exporter into the library file and can be used to track metadata such as
+references to the documents used to determine the component's outline and
+dimensions.
+
+The component outline section contains fields which are strings,
+integers, or floating point numbers. A string is a combination of
+characters which may include spaces; if a string contains spaces then it
+must be quoted. Quotation marks must not appear within a string.
+Floating point numbers may be represented using decimal or exponential
+notations but decimal notation is preferred for human readability. The
+decimal point must be a dot and not a comma. The IDF file must consist
+only of 7-bit ASCII characters; use of 8-bit characters will result in
+undefined behavior.
+
+An IDF file consists of SECTIONS which consist of RECORDS which consist of
+FIELDS. For the IDF outline files only one type of section may exist and must be
+one of `.ELECTRICAL` or `.MECHANICAL`. A record is a single line of text and may
+contain one or more fields. Fields are sequences of characters separated by one
+or more spaces which do not appear between quotation marks. All fields of a
+record must appear on a single line; records may not span lines.
+
+The section heading (`.ELECTRICAL` or `.MECHANICAL`) is considered the first
+record (Record 1) of the section. Record 1 must be followed by Record 2
+which has four fields:
+
+1.  Geometry Name: a string which in combination with the Part Number
+    must form a unique identifier for the component outline. For
+    standardized packages, the package name is a good value for the
+    geometry name, for example "SOT-23". For unique packages the
+    manufacturer's part number is a good choice for the geometry name.
+
+2.  Part Number: although obviously intended for the part number, for
+    example BS107, it is better to use this string to help describe the
+    package. For example if the geometry name is "TO-92", the part number
+    entry may be used to describe the layout of the pads or the
+    orientation of this particular TO-92 outline file.
+
+3.  IDF Unit: this must be one of `MM` or `THOU` and it applies only to the
+    units describing this single component outline.
+
+4.  Height: this is a floating point number representing the nominal
+    height of the component using units specified in Field 3.
+
+Record 2 must be followed by a number of Record 3 entries which specify
+the outline of the component. Record 3 consists of four fields:
+
+1.  Loop Index: `0` (outline points are specified in counter-clockwise
+    order) or `1` (outline points are specified in clockwise order)
+
+2.  X coordinate: a floating point number
+
+3.  Y coordinate: a floating point number
+
+4.  Included Angle: a floating point number. If the value is `0` then a
+    straight line segment is drawn from the previous point to this point.
+    If the value is `360` then the previous point specifies the center of a
+    circle and this point specifies a point on the circle; never specify
+    a circle using a value of `-360` as at least one major mechanical CAD
+    package does not behave well in that situation. If the value is
+    negative then a clockwise arc is drawn from the previous point to
+    this point and if the value is positive then a counter-clockwise
+    arc is drawn.
+
+Only one closed loop is permitted and it is not possible to specify a
+cutout. The last point specified must be the same as the first point
+unless the outline is a circle.
+
+Example IDF File 1:
+
+--------------------------------------------------------------------
+# a simple cylinder - this could represent an electrolytic capacitor
+.ELECTRICAL
+    "cylinder" "5mm OD, 5mm height" MM 5
+    0 0 0 0
+    0 2.5 0 360
+.END_ELECTRICAL
+--------------------------------------------------------------------
+
+Example IDF File 2:
+
+-------------------------------------------------
+# an upside-down T
+# a comment added for the sake of adding comments
+.ELECTRICAL
+    "Capital T" "5x8x10mm, upside down" MM 10
+    0 -0.5 8 0
+    0 -0.5 0.5 0
+    0 -2.5 0.5 0
+    0 -2.5 -0.5 180
+    0 2.5 -0.5 0
+    0 2.5 0.5 180
+    0 0.5 0.5 0
+    0 0.5 8 0
+    0 -0.5 8 180
+.END_ELECTRICAL
+-------------------------------------------------
+
+==== Guidelines for creating outlines
+
+When creating outlines, and especially when sharing the work with
+others, consistency in the design and naming of files helps people
+locate files quicker and place the components with minimal hassles.
+
+===== Package naming
+
+Try to make some information about the outline available in the filename
+to give the user a general idea of what the outline is. For example
+axial leaded cylindrical packages may represent some types of capacitors
+as well as some types of resistors, so it makes sense to identify an
+outline as a horizontal or vertical axial leaded device and to add some
+extra information on the relevant dimensions: diameter, length, and
+pitch are the most important. If a device has a unique outline, the
+manufacturer's part number and a prefix to indicate the class of device
+are adequate.
+
+===== Comments
+
+Use comments in the IDF file to give users more information about the
+outline, for example a reference to the source used for dimensional
+information.
+
+===== Geometry and Part Number entries
+
+Think carefully about the values to give to the Geometry and Part Number
+entries. Taken together, these strings act as a unique identifier for
+the MCAD system. The values of the strings will ideally have some
+meaning to a user, but this is not necessary: the values are primarily
+intended for the MCAD system to use as a unique ID. Ideally the values
+chosen will be unique within any large collection of outlines; choosing
+values well will result in fewer clashes especially in complex boards.
+
+===== Pin orientation and positioning
+
+Component outlines should be created to match the orientation and position of
+the corresponding footprints. This avoids the need to specify a non-zero
+rotation for the IDF component outline. Since the IDF exporter ignores the (X,
+Y) offset values, it is vital that you use the correct origin in the IDF
+component outline.
+
+image::images/idf_blobs.png[scaledwidth="90%",alt="Sample outlines"]
+
+The image above shows sample outlines generated by the programs `idfcyl` and
+`idfrect` and rendered in a mechanical CAD program. From left to right are (a)
+vertical radial leaded cylinder, (b) vertical axial leaded cylinder with wire on
+left, (c) vertical axial leaded cylinder with wire on right, (d) horizontal
+axial leaded cylinder, (e) horizontal radial leaded cylinder, (f) square
+outline, plain, (g) square outline with chamfer, (h) square outline with axial
+lead on right. The top outlines were specified in units of millimeters while the
+bottom outlines were specified in units of inches.
+
+===== Tips on dimensions
+
+The purpose served by the extruded outlines is to give the mechanical
+designer some idea of the location and physical space occupied by each
+component. In a typical scenario the mechanical designer will replace
+some of the crude outlines with more detailed mechanical models, for
+example when checking to ensure that a right-angle mounted LED will fit
+into a hole on a panel. In most situations the accuracy of an outline
+doesn't matter, but it is good practice to create outlines which convey
+the best mechanical information possible. In a few instances a user may
+wish to fit the component into a case with very little excess space, for
+example in a portable music player. In such a situation, if most
+extruded outlines are a good enough representation of components then
+the mechanical designer may only have to replace very few models while
+designing the case. If the outlines are not a reliable reflection of
+reality then the mechanical designer will waste a lot of time replacing
+models to ensure a good fit. After all, if you put garbage in you can
+expect garbage to come out. If you put in good information, you can be
+confident of good results.
+
+==== IDF Component Outline Tools
+
+A number of command-line tools are available to help generate IDF
+component outlines. The tools are:
+
+1.  `idfcyl:` creates an outline of a cylinder in vertical or horizontal
+    orientation and with axial or radial leads
+
+2.  `idfrect:` creates an outline of a rectangle which may have either
+    an axial lead or a chamfer in the top left corner
+
+3.  `dxf2idf:` converts a drawing in DXF format into an IDF component
+    outline
+
+===== idfcyl
+
+`idfcyl` generates outlines for cylindrical components.
+
+When `idfcyl` is invoked with no arguments it prints out a usage note
+and a summary of its inputs:
+
+------------------------------------
+idfcyl: This program generates an outline for a cylindrical component.
+    The cylinder may be horizontal or vertical.
+    A horizontal cylinder may have wires at one or both ends.
+    A vertical cylinder may have at most one wire which may be
+    placed on the left or right side.
+
+Input:
+    Unit: mm, in (millimeters or inches)
+    Orientation: V (vertical)
+    Lead type: X, R (axial, radial)
+    Diameter of body
+    Length of body
+    Board offset
+    *   Wire diameter
+    *   Pitch
+    **  Wire side: L, R (left, right)
+    *** Lead length
+    File name (must end in *.idf)
+
+    NOTES:
+        *   only required for horizontal orientation or
+            vertical orientation with axial leads
+
+        **  only required for vertical orientation with axial leads
+
+        *** only required for horizontal orientation with radial leads
+------------------------------------
+
+The notes can be suppressed by entering any arbitrary argument on the
+command line. A user can manually enter information at the command line
+or create scripts to generate outlines. The following script creates a
+single cylinder axial leaded outline with the lead on the right hand side:
+
+[source,bash]
+----------------------------------------------------------------
+#!/bin/bash
+# Generate a cylindrical IDF outline for test purposes
+# vertical 5mm cylinder,  nominal length 8mm + 3mm board offset,
+# axial wire on right,  0.8mm wire dia., 3.5mm pitch
+idfcyl - 1 > /dev/null <<  _EOF
+mm
+v
+x
+5
+8
+3
+0.8
+3.5
+r
+cylvmm_1R_D5_L8_Z3_WD0.8_P3.5.idf
+_EOF
+----------------------------------------------------------------
+
+===== idfrect
+
+`idfrect` generates outlines for rectangular components.
+
+When `idfrect` is invoked with no arguments it prints out a usage note
+and a summary of its inputs:
+
+-----------------------------------------------------------------------
+idfrect: This program generates an outline for a rectangular component.
+    The component may have a single lead (axial) or a chamfer on the
+    upper left corner.
+Input:
+    Unit: mm, in (millimeters or inches)
+    Width:
+    Length:
+    Height:
+    Chamfer: length of the 45 deg. chamfer
+    *  Leaded: Y,N (lead is always to the right)
+    ** Wire diameter
+    ** Pitch
+    File name (must end in *.idf)
+
+    NOTES:
+        *   only required if chamfer = 0
+
+        **  only required for leaded components
+-----------------------------------------------------------------------
+
+The notes can be suppressed by entering any arbitrary argument on the
+command line. A user can manually enter information at the command line
+or create scripts to generate outlines. The following script creates a
+chamfered rectangle and an axial leaded outline:
+
+[source,bash]
+-------------------------------------------------------------
+#!/bin/bash
+# Generate various rectangular IDF outlines for test purposes
+# 10x10, 1mm chamfer, 2mm height
+idfrect - 1 > /dev/null <<  _EOF
+mm
+10
+10
+2
+1
+rectMM_10x10x2_C0.5.idf
+_EOF
+# 10x10x12,  0.8mm lead on 6mm pitch
+idfrect - 1 > /dev/null <<  _EOF
+mm
+10
+10
+12
+0
+Y
+0.8
+6
+rectLMM_10x10x12_D0.8_P6.0.idf
+_EOF
+-------------------------------------------------------------
+
+===== dxf2idf
+
+`dxf2idf` creates an IDF component file from a DXF outline.
+
+The DXF file used to specify the component outline can be prepared with
+the free software http://librecad.org/[LibreCAD] for best compatibility.
+
+When `dxf2idf` is invoked with no arguments it prints out a usage note
+and a summary of its inputs:
+
+------------------------------------------------------------------
+dxf2idf: this program takes line, arc, and circle segments
+    from a DXF file and creates an IDF component outline file.
+
+Input:
+    DXF filename: the input file, must end in '.dxf'
+    Units: mm, in (millimeters or inches)
+    Geometry Name: string, as per IDF version 3.0 specification
+    Part Name: as per IDF version 3.0 specification of Part Number
+    Height: extruded height of the outline
+    Comments: all non-empty lines are comments to be added to
+        the IDF file. An empty line signifies the end of
+        the comment block.
+    File name: output filename, must end in '.idf'
+------------------------------------------------------------------
+
+The notes can be suppressed by entering any arbitrary argument on the
+command line. A user can manually enter information at the command line
+or create scripts to generate outlines. The following script creates a
+5mm high outline from a DXF file `test.dxf`:
+
+[source,bash]
+---------------------------------------------------------------
+#!/bin/bash
+# Generate an IDF outlines from a DXF file
+dxf2idf - 1 > /dev/null << _EOF
+test.dxf
+mm
+DXF TEST GEOMETRY
+DXF TEST PART
+5
+This is an IDF test file produced from the outline 'test.dxf'
+This is a second IDF comment to demonstrate multiple comments
+
+test_dxf2idf.idf
+_EOF
+---------------------------------------------------------------
+
+[[idf2vrml]]
+===== idf2vrml
+
+The `idf2vrml` tool reads a set of one IDF Board (`.emn`) and one IDF
+Component file (`.emp`) and produces a VRML file which can be viewed
+with a VRML viewer. This feature is useful for visualization of the
+board assembly in cases where the user does not have access to MCAD
+software. Invoking `idf2vrml` without any arguments will result in the
+display of a usage message:
+
+----------------------------------------------------------------------------------
+>./idf2vrml
+Usage: idf2vrml -f input_file.emn -s scale_factor {-k} {-d} {-z} {-m}
+flags:
+   -k: produce KiCad-friendly VRML output; default is compact VRML
+   -d: suppress substitution of default outlines
+   -z: suppress rendering of zero-height outlines
+   -m: print object mapping to stdout for debugging purposes
+example to produce a model for use by KiCad: idf2vrml -f input.emn -s 0.3937008 -k
+----------------------------------------------------------------------------------
+
+NOTE: The `idf2vrml` tool does not correctly render `OTHER_OUTLINE` entities in
+an `emn` file if that entity is specified on the back layer of the PCB; however
+you will not noticeable using files exported by KiCad because there is no
+mechanism to specify such an entity. This is only an issue if you render a third
+party emn file which does employ an entity on the back side of a board.

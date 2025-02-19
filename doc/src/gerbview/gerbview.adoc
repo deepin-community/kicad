@@ -1,0 +1,216 @@
+:author: The KiCad Team
+:doctype: article
+:toc:
+:ascii-ids:
+
+= Gerber Viewer
+
+_Reference manual_
+
+[[copyright]]
+*Copyright*
+
+This document is Copyright (C) 2010-2021 by its contributors as listed
+below. You may distribute it and/or modify it under the terms of either
+the GNU General Public License (https://www.gnu.org/licenses/gpl.html),
+version 3 or later, or the Creative Commons Attribution License
+(https://creativecommons.org/licenses/by/3.0/), version 3.0 or later.
+
+All trademarks within this guide belong to their legitimate owners.
+
+[[contributors]]
+*Contributors*
+
+The KiCad Team.
+
+[[feedback]]
+*Feedback*
+
+The KiCad project welcomes feedback, bug reports, and suggestions related to the software or its
+documentation.  For more information on how to submit feedback or report an issue, please see the
+instructions at https://www.kicad.org/help/report-an-issue/
+
+//Since docbook "article" is more compact, I have to separate this page
+<<<<
+
+== Introduction to GerbView
+
+GerbView is a Gerber file (RS-274X format) and Excellon drill file viewer. Up to 32 files can be
+displayed at once.
+
+For more information about the Gerber file format please read
+http://www.ucamco.com/files/downloads/file/81/the_gerber_file_format_specification.pdf[the Gerber File Format Specification].
+Details about drill file format can be found at
+http://web.archive.org/web/20071030075236/http://www.excellon.com/manuals/program.htm[the Excellon format description].
+
+== Interface
+
+=== Main window
+
+image::images/gerbview_main_screen.png[scaledwidth="95%",alt="gerbview_main_screen_png"]
+
+<<<<<
+
+=== Top toolbar
+
+[width="100%",cols="41%,59%",]
+|=======================================================================
+|image:images/icons/delete_gerber_24.png[delete_gerber_png]
+|Clear all layers
+
+|image:images/icons/load_gerber_24.png[load_gerber_png]
+|Load Gerber files
+
+|image:images/icons/load_drill_24.png[gerbview_drill_file_png]
+|Load Excellon drill files
+
+|image:images/icons/sheetset_24.png[sheetset_png]
+|Set page size
+
+|image:images/icons/print_button_24.png[print_button_png]
+|Print
+
+|image:images/icons/refresh_24.png[zoom_redraw_png]
+|Redraw view
+
+|image:images/icons/zoom_in_24.png[zoom_in_png]
+image:images/icons/zoom_out_24.png[zoom_out_png]
+|Zoom in or out
+
+|image:images/icons/zoom_fit_in_page_24.png[zoom_fit_in_page_png]
+|Zoom to fit page
+
+|image:images/icons/zoom_area_24.png[zoom_area_png]
+|Zoom to selection
+
+|image:images/gerbview_top_layer.png[scaledwidth="70%",alt="gerbview_top_layer_png"]
+|Select active layer
+
+|image:images/gerbview_top_info.png[scaledwidth="70%",alt="gerbview_top_info_png"]
+|Display info about active layer
+
+|image:images/gerbview_x2_component.png[scaledwidth="70%",alt="gerbview_x2_component_png"]
+|Highlight items belonging to selected component (Gerber X2)
+
+|image:images/gerbview_x2_net.png[scaledwidth="70%",alt="gerbview_x2_net_png"]
+|Highlight items belonging to selected net (Gerber X2)
+
+|image:images/gerbview_x2_attribute.png[scaledwidth="70%",alt="gerbview_x2_attributeo_png"]
+|Highlight items with the selected attribute (Gerber X2)
+
+|image:images/gerbview_top_dcode.png[scaledwidth="60%",alt="gerbview_top_dcode_png"]
+|Highlight items of selected D Code on the active layer
+|=======================================================================
+
+<<<<<
+
+=== Left toolbar
+
+[width="100%",cols="5%,95%",]
+|=======================================================================
+|image:images/icons/cursor_24.png[cursor_png]
+|Select items
+
+|image:images/icons/measurement_24.png[measurement_png]
+|Measure between two points
+
+|image:images/icons/grid_24.png[grid_png]
+|Toggle grid visibility
+
+|image:images/icons/polar_coord_24.png[polar_coord_png]
+|Toggle polar coordinates display
+
+|image:images/icons/unit_inch_24.png[unit_inch_png]
+image:images/icons/unit_mil_24.png[unit_mm_png]
+image:images/icons/unit_mm_24.png[unit_mm_png]
+|Select inch, mils, or millimeter units
+
+|image:images/icons/cursor_shape_24.png[cursor_shape_png]
+|Toggle full-screen cursor
+
+|image:images/icons/pad_sketch_24.png[pad_sketch_png]
+|Display flashed items in sketch (outline) mode
+
+|image:images/icons/showtrack_24.png[track_sketch_png]
+|Display lines in sketch (outline) mode
+
+|image:images/icons/opt_show_polygon_24.png[opt_show_polygon_png]
+|Display polygons in sketch (outline) mode
+
+|image:images/icons/gerbview_show_negative_objects_24.png[gerbview_show_negative_objects_png]
+|Show negative objects in ghost color
+
+|image:images/icons/show_dcodenumber_24.png[show_dcodenumber_png]
+|Show/hide D Codes
+
+|image:images/icons/gbr_select_mode2_24.png[gbr_select_mode2_png]
+|Display layers in diff (compare) mode
+
+|image:images/icons/contrast_mode_24.png[contrast_mode_png]
+|Toggle inactive layers between normal and dimmed display
+
+|image:images/icons/layers_manager_24.png[layers_manager_png]
+|Show/hide layer manager
+
+|image:images/icons/flip_board_24.png[flip_board_24]
+|Show Gerbers as mirror image
+
+|=======================================================================
+
+<<<<<
+
+=== Layers Manager
+
+image::images/gerbview_layer_manager.png[scaledwidth="40%",alt="gerbview_layer_manager_png"]
+
+The Layers Manager controls and displays visibility of all layers. An arrow
+indicates the active layer, and each layer can be shown or hidden with
+the checkboxes.
+
+Mouse button assignments:
+
+* Left click: select the active layer
+* Right click: show/hide/sort layers options
+* Middle click or double click (on color swatch): select the layer color
+
+The Layers tab allows you to control the visibility and color of all loaded
+Gerber and drill layers.  The Items tab allows you to control the color and
+display of the grid, D Codes, and negative objects.
+
+== Commands in menu bar
+
+=== File menu
+
+image::images/gerbview_file_menu.png[scaledwidth="45%",alt="gerbview_file_menu_png"]
+
+* *Export to PCB Editor* is a limited capability to export Gerber files into a KiCad PCB. The final
+  result depends on what features of the RS-274X format are used in the original Gerber files:
+  rasterized items cannot be converted (typically negative objects), flashed items are converted to
+  vias, lines are converted to track segments (or graphic lines for non-copper layers).
+
+=== Tools menu
+
+image::images/gerbview_tools_menu.png[scaledwidth="25%",alt="gerbview_tools_menu_png"]
+
+* *List DCodes* shows the D Code information for all layers.
+* *Show Source* displays the Gerber file contents of the active layer in a text editor.
+* *Measure Tool* allows measuring the distance between two points.
+* *Clear Current Layer* erases the contents of the active layer.
+
+== Printing
+
+To print layers, use the
+image:images/icons/print_button_24.png[print_button_png]
+icon or the *File -> Print* menu.
+
+[CAUTION]
+========================================
+Be sure items are inside the printable area. Use
+image:images/icons/sheetset_24.png[sheetset_png] to select a
+suitable page format.
+
+Note that many photoplotters support a large plottable area, much
+bigger than the page sizes used by most printers. Moving the entire
+layer set may be required.
+
+========================================

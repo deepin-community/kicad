@@ -1,0 +1,73 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "kicad",
+  "version": "7.99",
+  "license": "GPL-2.0+",
+  "dependencies": [
+    "boost-algorithm",
+    "boost-filesystem",
+    "boost-functional",
+    "boost-iterator",
+    "boost-locale",
+    "boost-optional",
+    "boost-property-tree",
+    "boost-ptr-container",
+    "boost-random",
+    "boost-range",
+    "boost-test",
+    "boost-uuid",
+    "cairo",
+    "wxwidgets",
+    "glew",
+    "curl",
+    {
+      "name": "gettext",
+      "features": [ "tools" ],
+      "host": true
+    },
+    "harfbuzz",
+    "glm",
+    {
+      "name": "opencascade",
+      "features": [ "rapidjson" ]
+    },
+    "opengl",
+    "python3",
+    "openssl",
+    {
+      "name": "sqlite3",
+      "features": [ "fts5", "fts4", "fts3", "rtree", "session" ]
+    },
+    "icu",
+    "ngspice",
+    "wxpython",
+    "libgit2"
+  ],
+  "overrides": [
+    {
+      "name": "glm",
+      "version": "0.9.9.8#2"
+    },
+    {
+      "name": "python3",
+      "version": "3.11.5#0"
+    },
+    {
+      "name": "wxwidgets",
+      "version": "3.2.6#1"
+    },
+    {
+      "name": "wxpython",
+      "version": "4.2.2#1"
+    },
+    {
+      "name": "ngspice",
+      "version": "44#1"
+    },
+    {
+      "name": "vcpkg-get-python-packages",
+      "version": "2024-01-24",
+      "$comment": "forces python 3.11 compat"
+    }
+  ]
+}

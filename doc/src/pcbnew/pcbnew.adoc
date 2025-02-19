@@ -1,0 +1,56 @@
+:author: The KiCad Team
+:doctype: book
+:toc:
+:ascii-ids:
+:figure-caption!:
+
+= PCB Editor
+
+_Reference manual_
+
+NOTE: This manual is in the process of being revised to cover the latest stable
+      release version of KiCad.  It contains some sections that have not yet
+      been completed.  We ask for your patience while our volunteer technical
+      writers work on this task, and we welcome new contributors who would like
+      to help make KiCad's documentation better than ever.
+
+[[copyright]]
+*Copyright*
+
+This document is Copyright (C) 2010-2024 by its contributors as listed
+below. You may distribute it and/or modify it under the terms of either
+the GNU General Public License  (http://www.gnu.org/licenses/gpl.html),
+version 3 or later, or the Creative Commons Attribution License
+(http://creativecommons.org/licenses/by/3.0/), version 3.0 or later.
+
+All trademarks within this guide belong to their legitimate owners.
+
+[[contributors]]
+*Contributors*
+
+Jean-Pierre Charras, Fabrizio Tappero, Wayne Stambaugh, Cirilo Bernardo, Jon Evans, Graham Keeth
+
+[[feedback]]
+*Feedback*
+
+The KiCad project welcomes feedback, bug reports, and suggestions related to the software or its
+documentation. For more information on how to submit feedback or report an issue, please see the
+instructions at https://www.kicad.org/help/report-an-issue/
+
+include::pcbnew_introduction.adoc[po4a]
+
+include::pcbnew_display_and_selection.adoc[po4a]
+
+include::pcbnew_create_board.adoc[po4a]
+
+include::pcbnew_editing.adoc[po4a]
+
+include::pcbnew_inspecting.adoc[po4a]
+
+include::pcbnew_generating_outputs.adoc[po4a]
+
+include::pcbnew_footprints_and_libraries.adoc[po4a]
+
+include::pcbnew_advanced.adoc[po4a]
+
+include::pcbnew_actions_reference.adoc[po4a]

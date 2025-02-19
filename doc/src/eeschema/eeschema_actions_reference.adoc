@@ -1,0 +1,915 @@
+:experimental:
+
+[[eeschema-actions-reference]]
+== Actions reference
+Below is a list of every available *action* in the KiCad Schematic Editor: a
+command that can be assigned to a hotkey.
+
+////
+Note to translators: you do not need to translate this table by hand.
+
+It is generated from KiCad using the Dump Hotkeys button that is shown in the hotkeys editor if you
+add the line `HotkeysDumper=1` to your advanced config file (`kicad_advanced` file in the config
+directory)
+////
+
+=== Schematic Editor
+
+// NOTE: this text between the section header and the table is *required* or
+// asciidoctor-web-pdf will not insert page breaks in the table correctly and
+// the PDF will be truncated.
+The actions below are available in the Schematic Editor. Hotkeys can be assigned
+to any of these actions in the **Hotkeys** section of the preferences.
+
+[width="100%",options="header",cols="20%,15%,65%"]
+|===
+| Action | Default Hotkey | Description
+| Align Elements to Grid
+  |
+  | 
+| Annotate Schematic...
+  |
+  | Fill in schematic symbol reference designators
+| Annotate Automatically
+  |
+  | Toggle automatic annotation of new symbols
+| Assign Footprints...
+  |
+  | Run footprint assignment tool
+| Clear Net Highlighting
+  | kbd:[~]
+  | Clear any existing net highlighting
+| Export Drawing to Clipboard
+  |
+  | Export drawing of current sheet to clipboard
+| Edit Library Symbol...
+  | kbd:[Ctrl+Shift+E]
+  | Open the library symbol in the Symbol Editor
+| Edit Sheet Page Number...
+  |
+  | Edit the page number of the current or selected sheet
+| Edit Symbol Fields...
+  |
+  | Bulk-edit fields of all symbols in schematic
+| Edit Symbol Library Links...
+  |
+  | Edit links between schematic and library symbols
+| Edit with Symbol Editor
+  | kbd:[Ctrl+E]
+  | Open the selected symbol in the Symbol Editor
+| Export Netlist...
+  |
+  | Export file containing netlist in one of several formats
+| Export Symbols to Library...
+  |
+  | Add symbols used in schematic to an existing symbol library
+(does not remove other symbols from this library)
+| Export Symbols to New Library...
+  |
+  | Create a new symbol library using the symbols used in the schematic
+(if the library already exists it will be replaced)
+| Generate Bill of Materials...
+  |
+  | Generate a bill of materials for the current schematic
+| Generate Bill of Materials (External)...
+  |
+  | Generate a bill of materials for the current schematic using external generator
+| Generate Legacy Bill of Materials...
+  |
+  | Generate a bill of materials for the current schematic (Legacy Generator)
+| Highlight Net
+  | kbd:[`]
+  | Highlight net under cursor
+| Highlight Nets
+  |
+  | Highlight wires and pins of a net
+| Import Footprint Assignments...
+  |
+  | Import symbol footprint assignments from .cmp file created by board editor
+| Import Graphics...
+  | kbd:[Ctrl+Shift+F]
+  | Import 2D drawing file
+| Line Mode for Wires and Buses
+  |
+  | Constrain drawing and dragging to horizontal, vertical, or 45-degree angle motions
+| Line Mode for Wires and Buses
+  |
+  | Draw and drag at any angle
+| Line Mode for Wires and Buses
+  | kbd:[Shift+Space]
+  | Switch to next line mode
+| Line Mode for Wires and Buses
+  |
+  | Constrain drawing and dragging to horizontal or vertical motions
+| Remap Legacy Library Symbols...
+  |
+  | Remap library symbol references in legacy schematics to the symbol library table
+| Repair Schematic
+  |
+  | Run various diagnostics and attempt to repair schematic
+| Rescue Symbols...
+  |
+  | Find old symbols in project and rename/rescue them
+| Save Current Sheet Copy As...
+  |
+  | Save a copy of the current sheet to another location or name
+| Schematic Setup...
+  |
+  | Edit schematic setup including annotation styles and electrical rules
+| Select on PCB
+  |
+  | Select corresponding items in PCB editor
+| Set Do Not Populate
+  |
+  | Set the do not populate attribute
+| Exclude from Bill of Materials
+  |
+  | Set the exclude from bill of materials attribute
+| Exclude from Board
+  |
+  | Set the exclude from board attribute
+| Exclude from Simulation
+  |
+  | Set the exclude from simulation attribute
+| Show Directive Labels
+  |
+  | Toggle display of directive labels
+| Show ERC Errors
+  |
+  | Show markers for electrical rules checker errors
+| Show ERC Exclusions
+  |
+  | Show markers for excluded electrical rules checker violations
+| Show ERC Warnings
+  |
+  | Show markers for electrical rules checker warnings
+| Show Hidden Fields
+  |
+  | Toggle display of hidden text fields
+| Show Hidden Pins
+  |
+  | Toggle display of hidden pins
+| Show Net Navigator
+  |
+  | Toggle the net navigator panel visibility
+| Show OP Currents
+  |
+  | Show operating point current data from simulation
+| Show OP Voltages
+  |
+  | Show operating point voltage data from simulation
+| Switch to PCB Editor
+  |
+  | Open PCB in board editor
+| Scripting Console
+  |
+  | Show the Python scripting console
+| Simulator
+  |
+  | Show simulation window for running SPICE or IBIS simulations.
+| Toggle Do Not Populate
+  | kbd:[Ctrl+Alt+X]
+  | Toggle the do not populate attribute
+| Toggle Exclude from Bill of Materials
+  |
+  | Toggle the exclude from bill of materials attribute
+| Toggle Exclude from Board
+  |
+  | Toggle the exclude from board attribute
+| Toggle Exclude from Simulation
+  |
+  | Toggle the exclude from simulation attribute
+| Unset Do Not Populate
+  |
+  | Clear the do not populate attribute
+| Include in Bill of Materials
+  |
+  | Clear the exclude from bill of materials attribute
+| Include on Board
+  |
+  | Clear the exclude from board attribute
+| Include in Simulation
+  |
+  | Clear the exclude from simulation attribute
+| Hierarchy Navigator
+  | kbd:[Ctrl+H]
+  | Show or hide the schematic sheet hierarchy navigator
+| Symbol Checker
+  |
+  | Show the symbol checker window
+| Compare Symbol with Library
+  |
+  | Show differences between schematic symbol and its library equivalent
+| Electrical Rules Checker
+  |
+  | Perform electrical rules check
+| Show Datasheet
+  | kbd:[D]
+  | Opens the datasheet in a browser
+| Add Arc
+  |
+  | Draw arcs
+| Add Circle
+  |
+  | Draw circles
+| Add Rectangle
+  |
+  | Draw rectangles
+| Add Sheet
+  | kbd:[S]
+  | Draw hierarchical sheets
+| Add Text Box
+  |
+  | Draw text box items
+| Import Sheet Pin
+  |
+  | Import hierarchical sheet pins
+| Add Wire to Bus Entry
+  | kbd:[Z]
+  | Add a wire entry to a bus
+| Add Net Class Directive
+  |
+  | Add net class directive labels
+| Add Global Label
+  | kbd:[Ctrl+L]
+  | Add global labels
+| Add Hierarchical Label
+  | kbd:[H]
+  | Add hierarchical labels
+| Add Image
+  |
+  | Add bitmap images
+| Add Junction
+  | kbd:[J]
+  | Draw junctions
+| Add Label
+  | kbd:[L]
+  | Draw net labels
+| Add No Connect Flag
+  | kbd:[Q]
+  | Draw no-connection flags
+| Add Power
+  | kbd:[P]
+  | Add power symbols
+| Add Text
+  | kbd:[T]
+  | Draw text items
+| Add Symbol
+  | kbd:[A]
+  | Add symbols
+| Add Bus
+  | kbd:[B]
+  | Add a bus
+| Add Lines
+  | kbd:[I]
+  | Draw graphic lines
+| Add Wire
+  | kbd:[W]
+  | Add a wire
+| Switch Segment Posture
+  | kbd:[/]
+  | Switches posture of the current segment.
+| Undo Last Segment
+  | kbd:[Back]
+  | Walks the current line back one segment.
+| Unfold from Bus
+  | kbd:[C]
+  | Break a wire out of a bus
+| Assign Netclass...
+  |
+  | Assign a netclass to nets matching a pattern
+| Autoplace Fields
+  | kbd:[O]
+  | Runs the automatic placement algorithm on the symbol or sheet's fields
+| Break
+  |
+  | Divide into connected segments
+| Change Symbol...
+  |
+  | Assign a different symbol from the library
+| Change Symbols...
+  |
+  | Assign different symbols from the library
+| Cleanup Sheet Pins
+  |
+  | Delete unreferenced sheet pins
+| Edit Footprint…
+  | kbd:[F]
+  | Displays footprint field dialog
+| Edit Reference Designator...
+  | kbd:[U]
+  | Displays reference designator dialog
+| Edit Text & Graphics Properties...
+  |
+  | Edit text and graphics properties globally across schematic
+| Edit Value…
+  | kbd:[V]
+  | Displays value field dialog
+| Mirror Horizontally
+  | kbd:[X]
+  | Flips selected item(s) from left to right
+| Mirror Vertically
+  | kbd:[Y]
+  | Flips selected item(s) from top to bottom
+| Pin Table...
+  |
+  | Displays pin table for bulk editing of pins
+| Properties…
+  | kbd:[E]
+  | Displays item properties dialog
+| Repeat Last Item
+  | kbd:[Ins]
+  | Duplicates the last drawn item
+| Rotate Counterclockwise
+  | kbd:[R]
+  | Rotates selected item(s) counter-clockwise
+| Rotate Clockwise
+  |
+  | Rotates selected item(s) clockwise
+| De Morgan Alternate
+  |
+  | Switch to alternate De Morgan representation
+| De Morgan Standard
+  |
+  | Switch to standard De Morgan representation
+| Slice
+  |
+  | Divide into unconnected segments
+| Swap
+  | kbd:[S]
+  | Swaps selected items' positions
+| Symbol Properties...
+  |
+  | Displays symbol properties dialog
+| Change to Directive Label
+  |
+  | Change existing item to a directive label
+| Change to Global Label
+  |
+  | Change existing item to a global label
+| Change to Hierarchical Label
+  |
+  | Change existing item to a hierarchical label
+| Change to Label
+  |
+  | Change existing item to a label
+| Change to Text
+  |
+  | Change existing item to a text comment
+| Change to Text Box
+  |
+  | Change existing item to a text box
+| De Morgan Conversion
+  |
+  | Switch between De Morgan representations
+| Update Symbol...
+  |
+  | Update symbol to include any changes from the library
+| Update Symbols from Library...
+  |
+  | Update symbols to include any changes from the library
+| Drag
+  | kbd:[G]
+  | Drags the selected item(s)
+| Move
+  | kbd:[M]
+  | Moves the selected item(s)
+| Select Connection
+  | kbd:[Alt+4]
+  | Select a complete connection
+| Select Node
+  | kbd:[Alt+3]
+  | Select a connection item under the cursor
+| Navigate Back
+  | kbd:[Alt+Left]
+  | Move backward in sheet navigation history
+| Change Sheet
+  |
+  | Change to provided sheet's contents in the schematic editor
+| Enter Sheet
+  |
+  | Display the selected sheet's contents in the schematic editor
+| Navigate Forward
+  | kbd:[Alt+Right]
+  | Move forward in sheet navigation history
+| Leave Sheet
+  | kbd:[Alt+Back]
+  | Display the parent sheet in the schematic editor
+| Next Sheet
+  | kbd:[PgDn]
+  | Move to next sheet by number
+| Previous Sheet
+  | kbd:[PgUp]
+  | Move to previous sheet by number
+| Navigate Up
+  | kbd:[Alt+Up]
+  | Navigate up one sheet in the hierarchy
+| Push Pin Length
+  |
+  | Copy pin length to other pins in symbol
+| Push Pin Name Size
+  |
+  | Copy pin name size to other pins in symbol
+| Push Pin Number Size
+  |
+  | Copy pin number size to other pins in symbol
+| Create Corner
+  |
+  | Create a corner
+| Remove Corner
+  |
+  | Remove corner
+| User-defined Signals...
+  |
+  | Add, edit or delete user-defined simulation signals
+| New Analysis Tab...
+  | kbd:[Ctrl+N]
+  | 
+| Open Workbook...
+  | kbd:[Ctrl+O]
+  | 
+| Probe Schematic...
+  | kbd:[P]
+  | Add a simulator probe
+| Run Simulation
+  | kbd:[R]
+  | 
+| Save Workbook
+  | kbd:[Ctrl+S]
+  | 
+| Save Workbook As...
+  | kbd:[Ctrl+Shift+S]
+  | 
+| Show SPICE Netlist
+  |
+  | 
+| Edit Analysis Tab...
+  |
+  | Edit the SPICE command and plot setup for the current analysis tab
+| Stop Simulation
+  |
+  | 
+| Add Tuned Value...
+  | kbd:[T]
+  | Select a value to be tuned
+| Export Current Plot as CSV...
+  |
+  | 
+| Export Current Plot as PNG...
+  |
+  | 
+| Dark Mode Plots
+  |
+  | Draw plots with a black background
+| Dotted Current/Phase
+  |
+  | Draw secondary signal trace (current or phase) with a dotted line
+| Show Legend
+  |
+  | 
+| Add Lines
+  |
+  | Add connected graphic lines
+| Add Polygon
+  |
+  | Draw polygons
+| Add Text Box
+  |
+  | Add a text box item
+| Move Symbol Anchor
+  |
+  | Specify a new location for the symbol anchor
+| Add Pin
+  | kbd:[P]
+  | Add a pin
+| Add Text
+  |
+  | Add a text item
+| Add Symbol to Schematic
+  |
+  | Add Symbol to Schematic
+| Copy
+  |
+  | 
+| Cut
+  |
+  | 
+| Delete Symbol
+  |
+  | Remove the selected symbol from its library
+| Derive from Existing Symbol
+  |
+  | Create a new symbol, derived from an existing symbol
+| Duplicate Symbol
+  |
+  | Make a copy of the selected symbol
+| Edit Symbol
+  |
+  | Show selected symbol on editor canvas
+| Export…
+  |
+  | Export a symbol to a new library file
+| Export Symbol as SVG…
+  |
+  | Create SVG file from the current symbol
+| Export View as PNG…
+  |
+  | Create PNG file from the current view
+| Hide Symbol Tree
+  |
+  | 
+| Import Symbol...
+  |
+  | Import a symbol to the current library
+| New Symbol...
+  | kbd:[Ctrl+N]
+  | Create a new symbol
+| Paste Symbol
+  |
+  | 
+| Rename Symbol...
+  |
+  | Rename the selected symbol
+| Save Library As...
+  | kbd:[Ctrl+Shift+S]
+  | Save the current library to a new file.
+| Save Copy As...
+  |
+  | Save a copy of the current symbol to a different library.
+| Set Unit Display Name...
+  |
+  | Set the display name for a unit
+| Show Pin Electrical Types
+  |
+  | Annotate pins with their electrical types
+| Show Pin Numbers
+  |
+  | Annotate pins with their numbers
+| Show Symbol Tree
+  |
+  | 
+| Synchronized Pins Mode
+  |
+  | Synchronized Pins Mode
+When enabled propagates all changes (except pin numbers) to other units.
+Enabled by default for multiunit parts with interchangeable units.
+| Update Symbol Fields...
+  |
+  | Update symbol to match changes made in parent symbol
+|===
+
+=== Common
+
+// NOTE: this text between the section header and the table is *required* or
+// asciidoctor-web-pdf will not insert page breaks in the table correctly and
+// the PDF will be truncated.
+The actions below are available across KiCad, including in the Schematic Editor.
+Hotkeys can be assigned to any of these actions in the **Hotkeys** section of
+the preferences.
+
+[width="100%",options="header",cols="20%,15%,65%"]
+|===
+| Action | Default Hotkey | Description
+| Exclude Marker
+  |
+  | Mark current violation in Checker window as an exclusion
+| Next Marker
+  |
+  | Go to next marker in Checker window
+| Previous Marker
+  |
+  | Go to previous marker in Checker window
+| Add Library…
+  |
+  | Add an existing library folder
+| Click
+  | kbd:[Return]
+  | Performs left mouse button click
+| Double-click
+  | kbd:[End]
+  | Performs left mouse button double-click
+| Cursor Down
+  | kbd:[Down]
+  | 
+| Cursor Down Fast
+  | kbd:[Ctrl+Down]
+  | 
+| Cursor Left
+  | kbd:[Left]
+  | 
+| Cursor Left Fast
+  | kbd:[Ctrl+Left]
+  | 
+| Cursor Right
+  | kbd:[Right]
+  | 
+| Cursor Right Fast
+  | kbd:[Ctrl+Right]
+  | 
+| Cursor Up
+  | kbd:[Up]
+  | 
+| Cursor Up Fast
+  | kbd:[Ctrl+Up]
+  | 
+| Grid Origin...
+  |
+  | Set the grid origin point
+| Edit Grids...
+  |
+  | Edit grid definitions
+| Switch to Fast Grid 1
+  | kbd:[Alt+1]
+  | 
+| Switch to Fast Grid 2
+  | kbd:[Alt+2]
+  | 
+| Cycle Fast Grid
+  | kbd:[Alt+4]
+  | 
+| Switch to Next Grid
+  | kbd:[N]
+  | 
+| Switch to Previous Grid
+  | kbd:[Shift+N]
+  | 
+| Reset Grid Origin
+  |
+  | 
+| Grid Origin
+  |
+  | Place the grid origin point
+| Inactive Layer View Mode
+  |
+  | Toggle inactive layers between normal and dimmed
+| Inactive Layer View Mode (3-state)
+  | kbd:[H]
+  | Cycle inactive layers between normal, dimmed, and hidden
+| Inches
+  |
+  | Use inches
+| Snap to Objects on the Active Layer Only
+  |
+  | Enables snapping to objects on the active layer only
+| Snap to Objects on All Layers
+  |
+  | Enables snapping to objects on all visible layers
+| Toggle Snapping Between Active and All Layers
+  | kbd:[Shift+S]
+  | Toggles between snapping on all visible layers and only the active area
+| Millimeters
+  |
+  | Use millimeters
+| Mils
+  |
+  | Use mils
+| New...
+  | kbd:[Ctrl+N]
+  | Create a new document in the editor
+| New Library…
+  |
+  | Create a new library folder
+| Open...
+  | kbd:[Ctrl+O]
+  | Open existing document
+| Page Settings...
+  |
+  | Settings for paper size and title block info
+| Pan Down
+  | kbd:[Shift+Down]
+  | 
+| Pan Left
+  | kbd:[Shift+Left]
+  | 
+| Pan Right
+  | kbd:[Shift+Right]
+  | 
+| Pan Up
+  | kbd:[Shift+Up]
+  | 
+| Pin Library
+  |
+  | Keep the library at the top of the list
+| Plot...
+  |
+  | Plot
+| Print...
+  | kbd:[Ctrl+P]
+  | Print
+| Quit
+  |
+  | Close the current editor
+| Redo Last Zoom
+  |
+  | Return zoom to level prior to last zoom undo
+| Reset Local Coordinates
+  | kbd:[Space]
+  | 
+| Revert
+  |
+  | Throw away changes
+| Save
+  | kbd:[Ctrl+S]
+  | Save changes
+| Save All
+  |
+  | Save all changes
+| Save As…
+  | kbd:[Ctrl+Shift+S]
+  | Save current document to another location
+| Save a Copy...
+  |
+  | Save a copy of the current document to another location
+| Select Columns...
+  |
+  | 
+| 3D Viewer
+  | kbd:[Alt+3]
+  | Show 3D viewer window
+| Show Context Menu
+  |
+  | Perform the right-mouse-button action
+| Footprint Library Browser
+  |
+  | Browse footprint libraries
+| Footprint Editor
+  |
+  | Create, delete and edit footprints
+| Switch to Project Manager
+  |
+  | Show project window
+| Show Properties Manager
+  |
+  | Show/hide the properties manager
+| Symbol Library Browser
+  |
+  | Browse symbol libraries
+| Symbol Editor
+  |
+  | Create, delete and edit symbols
+| Draw Bounding Boxes
+  |
+  | Draw Bounding Boxes
+| Always Show Cursor
+  | kbd:[Ctrl+Shift+X]
+  | Display crosshairs even in selection tool
+| Full-Window Crosshairs
+  |
+  | Switch display of full-window crosshairs
+| Show Grid
+  |
+  | Display background grid in the edit window
+| Grid Overrides
+  | kbd:[Ctrl+Shift+G]
+  | Enables item-specific grids that override the current grid
+| Polar Coordinates
+  |
+  | Switch between polar and cartesian coordinate systems
+| Switch units
+  | kbd:[Ctrl+U]
+  | Switch between imperial and metric units
+| Undo Last Zoom
+  |
+  | Return zoom to level prior to last zoom action
+| Unpin Library
+  |
+  | No longer keep the library at the top of the list
+| Update PCB from Schematic…
+  | kbd:[F8]
+  | Update PCB with changes made to schematic
+| Update Schematic from PCB...
+  |
+  | Update schematic with changes made to PCB
+| Center on Cursor
+  | kbd:[F4]
+  | Center on Cursor
+| Zoom to Objects
+  | kbd:[Ctrl+Home]
+  | Zoom to Objects
+| Zoom to Fit
+  | kbd:[Home]
+  | Zoom to Fit
+| Zoom In at Cursor
+  | kbd:[F1]
+  | Zoom In at Cursor
+| Zoom In
+  |
+  | Zoom In
+| Zoom Out at Cursor
+  | kbd:[F2]
+  | Zoom Out at Cursor
+| Zoom Out
+  |
+  | Zoom Out
+| Refresh
+  | kbd:[F5]
+  | Refresh
+| Zoom to Selection
+  | kbd:[Ctrl+F5]
+  | Zoom to Selection
+| Cancel
+  |
+  | Cancel current tool
+| Copy
+  | kbd:[Ctrl+C]
+  | Copy selected item(s) to clipboard
+| Cut
+  | kbd:[Ctrl+X]
+  | Cut selected item(s) to clipboard
+| Cycle Arc Editing Mode
+  | kbd:[Ctrl+Space]
+  | Switch to a different method of editing arcs
+| Delete
+  | kbd:[Del]
+  | Deletes selected item(s)
+| Interactive Delete Tool
+  |
+  | Delete clicked items
+| Duplicate
+  | kbd:[Ctrl+D]
+  | Duplicates the selected item(s)
+| Find
+  | kbd:[Ctrl+F]
+  | Find text
+| Find and Replace
+  | kbd:[Ctrl+Alt+F]
+  | Find and replace text
+| Find Next
+  | kbd:[F3]
+  | Find next match
+| Find Next Marker
+  | kbd:[Ctrl+Shift+F3]
+  | 
+| Find Previous
+  | kbd:[Shift+F3]
+  | Find previous match
+| Finish
+  | kbd:[End]
+  | Finish current tool
+| Paste
+  | kbd:[Ctrl+V]
+  | Paste item(s) from clipboard
+| Paste Special...
+  |
+  | Paste item(s) from clipboard with annotation options
+| Redo
+  | kbd:[Ctrl+Y]
+  | Redo last edit
+| Replace All
+  |
+  | Replace all matches
+| Replace and Find Next
+  |
+  | Replace current match and find next
+| Show Search Panel
+  | kbd:[Ctrl+G]
+  | Show/hide the search panel
+| Select All
+  | kbd:[Ctrl+A]
+  | Select all items on screen
+| Undo
+  | kbd:[Ctrl+Z]
+  | Undo last edit
+| Unselect All
+  | kbd:[Ctrl+Shift+A]
+  | Unselect all items on screen
+| Measure Tool
+  | kbd:[Ctrl+Shift+M]
+  | Interactively measure distance between points
+| Select item(s)
+  |
+  | Select item(s)
+| About KiCad
+  |
+  | Open about dialog
+| Configure Paths…
+  |
+  | Edit path configuration environment variables
+| Donate
+  |
+  | Open "Donate to KiCad" in a web browser
+| Get Involved
+  |
+  | Open "Contribute to KiCad" in a web browser
+| Getting Started with KiCad
+  |
+  | Open “Getting Started in KiCad” guide for beginners
+| Help
+  |
+  | Open product documentation in a web browser
+| List Hotkeys...
+  | kbd:[Ctrl+F1]
+  | Displays current hotkeys table and corresponding commands
+| Preferences...
+  | kbd:[Ctrl+,]
+  | Show preferences for all open tools
+| Report Bug
+  |
+  | Report a problem with KiCad
+| Manage Footprint Libraries...
+  |
+  | Edit the global and project footprint library lists
+| Manage Symbol Libraries…
+  |
+  | Edit the global and project symbol library lists
+|===
