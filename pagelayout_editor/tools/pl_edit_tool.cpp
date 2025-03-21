@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,6 +23,7 @@
  */
 
 #include <wx/log.h>
+#include <wx/msgdlg.h>
 #include <fmt/format.h>
 
 #include <tool/tool_manager.h>
@@ -31,11 +32,13 @@
 #include <drawing_sheet/ds_data_model.h>
 #include <drawing_sheet/ds_draw_item.h>
 #include <bitmaps.h>
+#include <clipboard.h>
 #include <confirm.h>
 #include <eda_item.h>
 #include <macros.h>
 #include <string_utils.h>
 #include <view/view.h>
+#include <view/view_controls.h>
 #include <math/util.h>      // for KiROUND
 
 #include "tools/pl_selection_tool.h"
@@ -64,7 +67,7 @@ bool PL_EDIT_TOOL::Init()
 
     wxASSERT_MSG( m_selectionTool, "plEditor.InteractiveSelection tool is not available" );
 
-    CONDITIONAL_MENU& ctxMenu = m_menu.GetMenu();
+    CONDITIONAL_MENU& ctxMenu = m_menu->GetMenu();
 
     // cancel current tool goes in main context menu at the top if present
     ctxMenu.AddItem( ACTIONS::cancelInteractive,     SELECTION_CONDITIONS::ShowAlways, 1 );
@@ -73,7 +76,7 @@ bool PL_EDIT_TOOL::Init()
     ctxMenu.AddItem( ACTIONS::doDelete,              SELECTION_CONDITIONS::NotEmpty, 200 );
 
     // Finally, add the standard zoom/grid items
-    m_frame->AddStandardSubMenus( m_menu );
+    m_frame->AddStandardSubMenus( *m_menu.get() );
 
     //
     // Add editing actions to the selection tool menu
@@ -140,7 +143,7 @@ int PL_EDIT_TOOL::Main( const TOOL_EVENT& aEvent )
         {
             m_frame->SaveCopyInUndoList();
         }
-        catch( const fmt::v10::format_error& exc )
+        catch( const fmt::format_error& exc )
         {
             wxLogWarning( wxS( "Exception \"%s\" serializing string ocurred." ),
                           exc.what() );
@@ -275,7 +278,7 @@ int PL_EDIT_TOOL::Main( const TOOL_EVENT& aEvent )
         //
         else if( evt->IsClick( BUT_RIGHT ) )
         {
-            m_menu.ShowContextMenu( m_selectionTool->GetSelection() );
+            m_menu->ShowContextMenu( m_selectionTool->GetSelection() );
         }
         //------------------------------------------------------------------------
         // Handle drop
@@ -530,7 +533,7 @@ int PL_EDIT_TOOL::Copy( const TOOL_EVENT& aEvent )
         wxMessageBox( ioe.What(), _( "Error writing objects to clipboard" ) );
     }
 
-    if( m_toolMgr->SaveClipboard( TO_UTF8( sexpr ) ) )
+    if( SaveClipboard( TO_UTF8( sexpr ) ) )
         return 0;
     else
         return -1;
@@ -541,11 +544,29 @@ int PL_EDIT_TOOL::Paste( const TOOL_EVENT& aEvent )
 {
     PL_SELECTION&  selection = m_selectionTool->GetSelection();
     DS_DATA_MODEL& model = DS_DATA_MODEL::GetTheInstance();
-    std::string    sexpr = m_toolMgr->GetClipboardUTF8();
+    bool           createdAnything = false;
 
-    m_selectionTool->ClearSelection();
+    if( std::unique_ptr<wxImage> clipImg = GetImageFromClipboard() )
+    {
+        auto image = std::make_unique<BITMAP_BASE>();
+        image->SetImage( *clipImg );
+        auto dataItem = std::make_unique<DS_DATA_ITEM_BITMAP>( image.release() );
+        model.Append( dataItem.release() );
 
-    model.SetPageLayout( sexpr.c_str(), true, wxT( "clipboard" ) );
+        createdAnything = true;
+    }
+    else
+    {
+        m_selectionTool->ClearSelection();
+
+        const std::string clipText = GetClipboardUTF8();
+        model.SetPageLayout( clipText.c_str(), true, wxT( "clipboard" ) );
+        createdAnything = true;
+    }
+
+    // Nothing pasteable
+    if( !createdAnything )
+        return 0;
 
     // Build out draw items and select the first of each data item
     for( DS_DATA_ITEM* dataItem : model.GetItems() )

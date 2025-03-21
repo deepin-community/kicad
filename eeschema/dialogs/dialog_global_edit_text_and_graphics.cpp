@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -66,8 +66,6 @@ static wxString   g_netFilter;
 static bool       g_filterSelected;
 
 
-#define DEFAULT_STYLE _( "Default" )
-
 class DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS : public DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS_BASE
 {
     SCH_EDIT_FRAME*        m_parent;
@@ -115,7 +113,6 @@ DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS( SCH_
 {
     m_parent = parent;
 
-    m_lineStyle->Append( DEFAULT_STYLE );
     m_lineStyle->Append( INDETERMINATE_ACTION );
 
     m_textColorSwatch->SetSwatchColor( COLOR4D::UNSPECIFIED, false );
@@ -335,12 +332,7 @@ void DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::processItem( SCH_COMMIT* aCommit,
             stroke.SetWidth( m_lineWidth.GetValue() );
 
         if( m_lineStyle->GetStringSelection() != INDETERMINATE_ACTION )
-        {
-            if( m_lineStyle->GetStringSelection() == DEFAULT_STYLE )
-                stroke.SetLineStyle( LINE_STYLE::DEFAULT );
-            else
-                stroke.SetLineStyle( (LINE_STYLE) m_lineStyle->GetSelection() );
-        }
+            stroke.SetLineStyle( (LINE_STYLE) m_lineStyle->GetSelection() );
 
         if( m_setColor->GetValue() )
             stroke.SetColor( m_colorSwatch->GetSwatchColor() );
@@ -418,6 +410,9 @@ void DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::visitItem( SCH_COMMIT* aCommit,
                 return;
         }
     }
+
+    static const std::vector<KICAD_T> wireLabelTypes = { SCH_LABEL_LOCATE_WIRE_T };
+    static const std::vector<KICAD_T> busLabelTypes = { SCH_LABEL_LOCATE_BUS_T };
 
     switch( aItem->Type() )
     {
@@ -508,10 +503,10 @@ void DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::visitItem( SCH_COMMIT* aCommit,
     case SCH_GLOBAL_LABEL_T:
     case SCH_HIER_LABEL_T:
     case SCH_DIRECTIVE_LABEL_T:
-        if( m_wires->GetValue() && aItem->IsType( { SCH_LABEL_LOCATE_WIRE_T } ) )
+        if( m_wires->GetValue() && aItem->IsType( wireLabelTypes ) )
             processItem( aCommit, aSheetPath, aItem );
 
-        if( m_buses->GetValue() && aItem->IsType( { SCH_LABEL_LOCATE_BUS_T } ) )
+        if( m_buses->GetValue() && aItem->IsType( busLabelTypes ) )
             processItem( aCommit, aSheetPath, aItem );
 
         if( m_globalLabels->GetValue() && aItem->Type() == SCH_GLOBAL_LABEL_T )
@@ -580,7 +575,7 @@ bool DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::TransferDataFromWindow()
     SCH_COMMIT     commit( m_parent );
 
     // Go through sheets
-    for( const SCH_SHEET_PATH& sheetPath : m_parent->Schematic().GetSheets() )
+    for( const SCH_SHEET_PATH& sheetPath : m_parent->Schematic().Hierarchy() )
     {
         SCH_SCREEN* screen = sheetPath.LastScreen();
 

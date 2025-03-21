@@ -4,7 +4,7 @@
  * Copyright (C) 2013-2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2008-2015 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2004-2022 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +29,7 @@
 
 #include <deque>
 
+#include <api/serializable.h>
 #include <core/typeinfo.h>
 #include <eda_item_flags.h>
 #include <eda_search_data.h>
@@ -51,6 +52,9 @@ enum class INSPECT_RESULT
 class UNITS_PROVIDER;
 class EDA_DRAW_FRAME;
 class MSG_PANEL_ITEM;
+class EMBEDDED_FILES;
+
+namespace google { namespace protobuf { class Any; } }
 
 
 /**
@@ -74,14 +78,14 @@ class MSG_PANEL_ITEM;
  */
 typedef std::function< INSPECT_RESULT ( EDA_ITEM* aItem, void* aTestData ) > INSPECTOR_FUNC;
 
-///< std::function passed to nested users by ref, avoids copying std::function.
+/// std::function passed to nested users by ref, avoids copying std::function.
 typedef const INSPECTOR_FUNC& INSPECTOR;
 
 
 /**
  * A base class for most all the KiCad significant classes used in schematics and boards.
  */
-class EDA_ITEM : public KIGFX::VIEW_ITEM
+class EDA_ITEM : public KIGFX::VIEW_ITEM, public SERIALIZABLE
 {
 public:
     virtual ~EDA_ITEM() { };
@@ -134,7 +138,7 @@ public:
         return m_flags & mask;
     }
 
-    void ClearEditFlags()
+    virtual void ClearEditFlags()
     {
         ClearFlags( GetEditFlags() );
     }
@@ -146,7 +150,7 @@ public:
         return m_flags & mask;
     }
 
-    void ClearTempFlags()
+    virtual void ClearTempFlags()
     {
         ClearFlags( GetTempFlags() );
     }
@@ -193,6 +197,7 @@ public:
     /**
      * Populate \a aList of #MSG_PANEL_ITEM objects with it's internal state for display
      * purposes.
+     *
      * @param aFrame is the EDA_DRAW_FRAME that displays the message panel
      * @param aList is the list to populate.
      */
@@ -240,7 +245,7 @@ public:
     virtual void     SetPosition( const VECTOR2I& aPos ){};
 
     /**
-     * Similar to GetPosition, but allows items to return their visual center rather
+     * Similar to GetPosition() but allows items to return their visual center rather
      * than their anchor.
      */
     virtual const VECTOR2I GetFocusPosition() const { return GetPosition(); }
@@ -294,9 +299,9 @@ public:
     {
         for( const auto& it : aList )
         {
-            if( static_cast<EDA_ITEM*>( it )->Visit( inspector,
-                                                     testData,
-                                                     scanTypes ) == INSPECT_RESULT::QUIT )
+            EDA_ITEM* item = static_cast<EDA_ITEM*>( it );
+
+            if( item && item->Visit( inspector, testData, scanTypes ) == INSPECT_RESULT::QUIT )
             {
                 return INSPECT_RESULT::QUIT;
             }
@@ -314,9 +319,9 @@ public:
     {
         for( const auto& it : aList )
         {
-            if( static_cast<EDA_ITEM*>( it )->Visit( inspector,
-                                                     testData,
-                                                     scanTypes ) == INSPECT_RESULT::QUIT )
+            EDA_ITEM* item = static_cast<EDA_ITEM*>( it );
+
+            if( item && item->Visit( inspector, testData, scanTypes ) == INSPECT_RESULT::QUIT )
             {
                 return INSPECT_RESULT::QUIT;
             }
@@ -344,9 +349,10 @@ public:
      * returns a string to indicate that it was not overridden to provide the object
      * specific text.
      *
+     * @param aLong indicates a long string is acceptable
      * @return The menu text string.
      */
-    virtual wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const;
+    virtual wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const;
 
     /**
      * Return a pointer to an image to be used in menus.
@@ -434,7 +440,9 @@ public:
 
     virtual const BOX2I ViewBBox() const override;
 
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    virtual std::vector<int> ViewGetLayers() const override;
+
+    virtual EMBEDDED_FILES* GetEmbeddedFiles() { return nullptr; }
 
 #if defined(DEBUG)
 
@@ -447,7 +455,7 @@ public:
      *                  of nesting of this object within the overall tree.
      * @param os The ostream& to output to.
      */
-    virtual void Show( int nestLevel, std::ostream& os ) const = 0;
+    virtual void Show( int nestLevel, std::ostream& os ) const { ShowDummy( os ); };
 
     void ShowDummy( std::ostream& os ) const;  ///< call this if you are a lazy developer
 
@@ -481,17 +489,18 @@ protected:
 public:
     const KIID  m_Uuid;
 
-protected:
-    EDA_ITEM*      m_parent; ///< Linked list: Link (parent struct)
-    bool           m_forceVisible;
-    EDA_ITEM_FLAGS m_flags;
-
 private:
     /**
-     * Run time identification, _keep private_ so it can never be changed after a ctor
-     * sets it.  See comment near SetType() regarding virtual functions.
+     * Run time identification, _keep private_ so it can never be changed after a ctor sets it.
+     *
+     * See comment near SetType() regarding virtual functions.
      */
-    KICAD_T       m_structType;
+    KICAD_T        m_structType;
+
+protected:
+    EDA_ITEM_FLAGS m_flags;
+    EDA_ITEM*      m_parent; ///< Linked list: Link (parent struct).
+    bool           m_forceVisible;
 };
 
 

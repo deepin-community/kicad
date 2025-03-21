@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020, 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,9 +17,11 @@
  * You should have received a copy of the GNU General Public License along
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <wx/aui/framemanager.h>    // ensure class wxAuiPaneInfo is defined for other includes
 
 #include "settings/kicad_settings.h"
 #include <nlohmann/json.hpp>
+#include <settings/aui_settings.h>
 #include <settings/parameters.h>
 
 
@@ -43,6 +45,9 @@ KICAD_SETTINGS::KICAD_SETTINGS() :
     m_params.emplace_back(
             new PARAM_LIST<wxString>( "system.open_projects", &m_OpenProjects, {} ) );
 
+    m_params.emplace_back( new PARAM<wxString>( "system.last_design_block_lib_dir",
+                                                &m_lastDesignBlockLibDir, "" ) );
+
     m_params.emplace_back(
             new PARAM<wxString>( "system.last_update_check_time", &m_lastUpdateCheckTime, "" ) );
 
@@ -51,6 +56,12 @@ KICAD_SETTINGS::KICAD_SETTINGS() :
 
     m_params.emplace_back( new PARAM<bool>( "system.check_for_kicad_updates", &m_KiCadUpdateCheck,
                                             true ) );
+
+    m_params.emplace_back( new PARAM<wxPoint>( "template.window.pos", &m_TemplateWindowPos,
+                                               wxDefaultPosition ) );
+
+    m_params.emplace_back( new PARAM<wxSize>( "template.window.size", &m_TemplateWindowSize,
+                                              wxDefaultSize ) );
 
     m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>(
             "pcm.repositories",

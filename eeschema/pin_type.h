@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2004-2021 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,8 +37,10 @@ enum class ELECTRICAL_PINTYPE
     PT_INPUT,         ///< usual pin input: must be connected
     PT_OUTPUT,        ///< usual output
     PT_BIDI,          ///< input or output (like port for a microprocessor)
-    PT_TRISTATE,      ///< tris state bus pin
-    PT_PASSIVE,       ///< pin for passive symbols: must be connected, and can be connected to any pin
+    PT_TRISTATE,      ///< tri state bus pin
+
+    /// pin for passive symbols: must be connected, and can be connected to any pin.
+    PT_PASSIVE,
     PT_NIC,           ///< not internally connected (may be connected to anything)
     PT_UNSPECIFIED,   ///< unknown electrical properties: creates always a warning when connected
     PT_POWER_IN,      ///< power input (GND, VCC for ICs). Must be connected to a power output.
@@ -47,7 +49,8 @@ enum class ELECTRICAL_PINTYPE
     PT_OPENEMITTER,   ///< pin type open emitter
     PT_NC,            ///< not connected (must be left open)
 
-    PT_LAST_OPTION = PT_NC ///< sentinel value, set to last usable enum option
+    PT_LAST_OPTION = PT_NC, ///< sentinel value, set to last usable enum option
+    PT_INHERIT
 };
 
 #define ELECTRICAL_PINTYPES_TOTAL ( static_cast<int>( ELECTRICAL_PINTYPE::PT_LAST_OPTION ) + 1 )
@@ -64,7 +67,8 @@ enum class GRAPHIC_PINSHAPE
     FALLING_EDGE_CLOCK,
     NONLOGIC,
 
-    LAST_OPTION = NONLOGIC ///< this is the sentinel value, must be set to last enum value
+    LAST_OPTION = NONLOGIC, ///< this is the sentinel value, must be set to last enum value
+    INHERIT
 };
 
 #define GRAPHIC_PINSHAPES_TOTAL ( static_cast<int>( GRAPHIC_PINSHAPE::LAST_OPTION ) + 1 )
@@ -72,11 +76,39 @@ enum class GRAPHIC_PINSHAPE
 /**
  *  The symbol library pin object orientations.
  */
-enum class PIN_ORIENTATION {
-    PIN_RIGHT = 'R',
-    PIN_LEFT  = 'L',
-    PIN_UP    = 'U',
-    PIN_DOWN  = 'D',
+enum class PIN_ORIENTATION
+{
+    /**
+     * The pin extends rightwards from the connection point.
+     * Probably on the left side of the symbol.
+     * x---|
+     */
+    PIN_RIGHT,
+
+    /**
+     * The pin extends leftwards from the connection point:
+     * Probably on the right side of the symbol.
+     * |---x
+     */
+    PIN_LEFT,
+
+    /**
+     * The pin extends upwards from the connection point:
+     * Probably on the bottom side of the symbol.
+     *  ___
+     *   |
+     *   x
+     */
+    PIN_UP,
+
+    /**
+     * The pin extends downwards from the connection:
+     * Probably on the top side of the symbol.
+     *   x
+     *  _|_
+     */
+    PIN_DOWN,
+    INHERIT
 };
 
 
@@ -88,8 +120,8 @@ BITMAPS PinShapeGetBitmap( GRAPHIC_PINSHAPE shape );
 wxString ElectricalPinTypeGetText( ELECTRICAL_PINTYPE );
 BITMAPS ElectricalPinTypeGetBitmap( ELECTRICAL_PINTYPE );
 
-wxString PinOrientationName( PIN_ORIENTATION aPinOrientation );
-BITMAPS PinOrientationGetBitmap( PIN_ORIENTATION aPinOrientation );
+wxString PinOrientationName( PIN_ORIENTATION aOrientation );
+BITMAPS PinOrientationGetBitmap( PIN_ORIENTATION aOrientation );
 PIN_ORIENTATION PinOrientationCode( size_t index );
 int PinOrientationIndex( PIN_ORIENTATION code );
 

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015-2017 Mario Luzeiro <mrluzeiro@ua.pt>
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -291,10 +291,10 @@ bool BBOX_3D::Intersect( const RAY& aRay, float* aOutHitt0, float* aOutHitt1 ) c
     if( ( tmin > tzmax ) || ( tzmin > tmax ) )
         return false;
 
-    tmin = (tzmin > tmin)? tzmin : tmin;
-    tmin = ( tmin < 0.0f)? 0.0f  : tmin;
+    tmin = ( tzmin > tmin ) ? tzmin : tmin;
+    tmin = ( tmin < 0.0f ) ? 0.0f : tmin;
 
-    tmax = (tzmax < tmax)? tzmax : tmax;
+    tmax = ( tzmax < tmax ) ? tzmax : tmax;
 
     *aOutHitt0 = tmin;
     *aOutHitt1 = tmax;

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,6 +21,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <algorithm>
+
 #include <board_design_settings.h>
 #include <board.h>
 #include <math/util.h>
@@ -30,6 +32,7 @@
 #include <widgets/paged_dialog.h>
 #include <wx/treebook.h>
 #include <bitmaps.h>
+#include <advanced_config.h>
 
 
 PANEL_SETUP_CONSTRAINTS::PANEL_SETUP_CONSTRAINTS( wxWindow* aParentWindow, PCB_EDIT_FRAME* aFrame ) :
@@ -46,6 +49,7 @@ PANEL_SETUP_CONSTRAINTS::PANEL_SETUP_CONSTRAINTS( wxWindow* aParentWindow, PCB_E
         m_holeClearance( aFrame, m_HoleClearanceLabel, m_HoleClearanceCtrl, m_HoleClearanceUnits ),
         m_edgeClearance( aFrame, m_EdgeClearanceLabel, m_EdgeClearanceCtrl, m_EdgeClearanceUnits ),
         m_silkClearance( aFrame, m_silkClearanceLabel, m_silkClearanceCtrl, m_silkClearanceUnits ),
+        m_minGrooveWidth( aFrame, m_minGrooveWidthLabel, m_minGrooveWidthCtrl, m_minGrooveWidthUnits ),
         m_minTextHeight( aFrame, m_textHeightLabel, m_textHeightCtrl, m_textHeightUnits ),
         m_minTextThickness( aFrame, m_textThicknessLabel, m_textThicknessCtrl, m_textThicknessUnits ),
         m_maxError( aFrame, m_maxErrorTitle, m_maxErrorCtrl, m_maxErrorUnits )
@@ -53,25 +57,32 @@ PANEL_SETUP_CONSTRAINTS::PANEL_SETUP_CONSTRAINTS( wxWindow* aParentWindow, PCB_E
     m_Frame = aFrame;
     m_BrdSettings = &m_Frame->GetBoard()->GetDesignSettings();
 
-    m_filletBitmap->SetBitmap( KiBitmapBundle( BITMAPS::zone_fillet ) );
-    m_spokeBitmap->SetBitmap( KiBitmapBundle( BITMAPS::thermal_spokes ) );
-    m_bitmapClearance->SetBitmap( KiBitmapBundle( BITMAPS::ps_diff_pair_gap ) );
-    m_bitmapMinTrackWidth->SetBitmap( KiBitmapBundle( BITMAPS::width_track ) );
-    m_bitmapMinConn->SetBitmap( KiBitmapBundle( BITMAPS::width_conn ) );
-    m_bitmapMinViaAnnulus->SetBitmap( KiBitmapBundle( BITMAPS::via_annulus ) );
-    m_bitmapMinViaDiameter->SetBitmap( KiBitmapBundle( BITMAPS::via_diameter ) );
-    m_bitmapMinViaDrill->SetBitmap( KiBitmapBundle( BITMAPS::via_hole_diameter ) );
-    m_bitmapMinuViaDiameter->SetBitmap( KiBitmapBundle( BITMAPS::via_diameter ) );
-    m_bitmapMinuViaDrill->SetBitmap( KiBitmapBundle( BITMAPS::via_hole_diameter ) );
-    m_bitmapHoleClearance->SetBitmap( KiBitmapBundle( BITMAPS::hole_to_copper_clearance ) );
-    m_bitmapMinHoleClearance->SetBitmap( KiBitmapBundle( BITMAPS::hole_to_hole_clearance ) );
-    m_bitmapEdgeClearance->SetBitmap( KiBitmapBundle( BITMAPS::edge_to_copper_clearance ) );
+    m_filletBitmap->SetBitmap( KiBitmapBundle( BITMAPS::zone_fillet, 24 ) );
+    m_spokeBitmap->SetBitmap( KiBitmapBundle( BITMAPS::thermal_spokes, 24 ) );
+    m_bitmapClearance->SetBitmap( KiBitmapBundle( BITMAPS::ps_diff_pair_gap, 24 ) );
+    m_bitmapMinTrackWidth->SetBitmap( KiBitmapBundle( BITMAPS::width_track, 24 ) );
+    m_bitmapMinConn->SetBitmap( KiBitmapBundle( BITMAPS::width_conn, 24 ) );
+    m_bitmapMinViaAnnulus->SetBitmap( KiBitmapBundle( BITMAPS::via_annulus, 24 ) );
+    m_bitmapMinViaDiameter->SetBitmap( KiBitmapBundle( BITMAPS::via_diameter, 24 ) );
+    m_bitmapMinViaDrill->SetBitmap( KiBitmapBundle( BITMAPS::via_hole_diameter, 24 ) );
+    m_bitmapMinuViaDiameter->SetBitmap( KiBitmapBundle( BITMAPS::via_diameter, 24 ) );
+    m_bitmapMinuViaDrill->SetBitmap( KiBitmapBundle( BITMAPS::via_hole_diameter, 24 ) );
+    m_bitmapHoleClearance->SetBitmap( KiBitmapBundle( BITMAPS::hole_to_copper_clearance, 24 ) );
+    m_bitmapMinHoleClearance->SetBitmap( KiBitmapBundle( BITMAPS::hole_to_hole_clearance, 24 ) );
+    m_bitmapEdgeClearance->SetBitmap( KiBitmapBundle( BITMAPS::edge_to_copper_clearance, 24 ) );
 
     m_stCircleToPolyWarning->SetFont( KIUI::GetInfoFont( this ) );
 
     wxSize ctrlSize = m_minResolvedSpokeCountCtrl->GetSize();
     ctrlSize.x = KIUI::GetTextSize( wxT( "XXX" ), m_minResolvedSpokeCountCtrl ).x;
     m_minResolvedSpokeCountCtrl->SetSize( ctrlSize );
+
+    if( !ADVANCED_CFG::GetCfg().m_EnableCreepageSlot )
+    {
+        m_minGrooveWidthCtrl->Show( false );
+        m_minGrooveWidthUnits->Show( false );
+        m_minGrooveWidthLabel->Show( false );
+    }
 }
 
 
@@ -95,6 +106,7 @@ bool PANEL_SETUP_CONSTRAINTS::TransferDataToWindow()
     m_viaMinSize.SetValue(m_BrdSettings->m_ViasMinSize );
     m_holeClearance.SetValue( m_BrdSettings->m_HoleClearance );
     m_edgeClearance.SetValue( m_BrdSettings->m_CopperEdgeClearance );
+    m_minGrooveWidth.SetValue( m_BrdSettings->m_MinGrooveWidth );
 
     m_throughHoleMin.SetValue( m_BrdSettings->m_MinThroughDrill );
     m_holeToHoleMin.SetValue( m_BrdSettings->m_HoleToHoleMin );
@@ -133,6 +145,9 @@ bool PANEL_SETUP_CONSTRAINTS::TransferDataFromWindow()
     if( !m_edgeClearance.Validate( 0, 10, EDA_UNITS::INCHES ) )
         return false;
 
+    if( !m_minGrooveWidth.Validate( 0, 10, EDA_UNITS::INCHES ) )
+        return false;
+
     if( !m_throughHoleMin.Validate( 2, 1000, EDA_UNITS::MILS ) )   // #107 to 1 inch
         return false;
 
@@ -143,9 +158,9 @@ bool PANEL_SETUP_CONSTRAINTS::TransferDataFromWindow()
 
     m_BrdSettings->m_UseHeightForLengthCalcs = m_useHeightForLengthCalcs->GetValue();
 
-    m_BrdSettings->m_MaxError = Clamp<int>( pcbIUScale.IU_PER_MM * MINIMUM_ERROR_SIZE_MM,
-                                            m_maxError.GetValue(),
-                                            pcbIUScale.IU_PER_MM * MAXIMUM_ERROR_SIZE_MM );
+    m_BrdSettings->m_MaxError = KiROUND( std::clamp( static_cast<double>( m_maxError.GetValue() ),
+                                            pcbIUScale.IU_PER_MM * MINIMUM_ERROR_SIZE_MM,
+                                            pcbIUScale.IU_PER_MM * MAXIMUM_ERROR_SIZE_MM ) );
 
     m_BrdSettings->m_ZoneKeepExternalFillets = m_allowExternalFilletsOpt->GetValue();
     m_BrdSettings->m_MinResolvedSpokes = m_minResolvedSpokeCountCtrl->GetValue();
@@ -157,6 +172,7 @@ bool PANEL_SETUP_CONSTRAINTS::TransferDataFromWindow()
     m_BrdSettings->m_ViasMinSize = m_viaMinSize.GetValue();
     m_BrdSettings->m_HoleClearance = m_holeClearance.GetValue();
     m_BrdSettings->m_CopperEdgeClearance = m_edgeClearance.GetValue();
+    m_BrdSettings->m_MinGrooveWidth = m_minGrooveWidth.GetValue();
 
     m_BrdSettings->m_MinThroughDrill = m_throughHoleMin.GetValue();
     m_BrdSettings->m_HoleToHoleMin = m_holeToHoleMin.GetValue();

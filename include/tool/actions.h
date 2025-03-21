@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2016 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -58,6 +58,8 @@ public:
     static TOOL_ACTION plot;
     static TOOL_ACTION quit;
     static TOOL_ACTION ddAddLibrary;    // for drag and drop lib
+    static TOOL_ACTION openWithTextEditor;
+    static TOOL_ACTION openDirectory;
 
     // Generic edit actions
     static TOOL_ACTION cancelInteractive;
@@ -67,6 +69,7 @@ public:
     static TOOL_ACTION redo;
     static TOOL_ACTION cut;
     static TOOL_ACTION copy;
+    static TOOL_ACTION copyAsText;
     static TOOL_ACTION paste;
     static TOOL_ACTION pasteSpecial;
     static TOOL_ACTION selectAll;
@@ -74,6 +77,32 @@ public:
     static TOOL_ACTION duplicate;
     static TOOL_ACTION doDelete;        // sadly 'delete' is a reserved word
     static TOOL_ACTION deleteTool;
+    static TOOL_ACTION leftJustify;
+    static TOOL_ACTION centerJustify;
+    static TOOL_ACTION rightJustify;
+    static TOOL_ACTION expandAll;
+    static TOOL_ACTION collapseAll;
+
+    // Incrementing
+    static TOOL_ACTION increment;
+    static TOOL_ACTION incrementPrimary;
+    static TOOL_ACTION decrementPrimary;
+    static TOOL_ACTION incrementSecondary;
+    static TOOL_ACTION decrementSecondary;
+
+    // Tables
+    static TOOL_ACTION selectRows;
+    static TOOL_ACTION selectColumns;
+    static TOOL_ACTION selectTable;
+    static TOOL_ACTION addRowAbove;
+    static TOOL_ACTION addRowBelow;
+    static TOOL_ACTION addColBefore;
+    static TOOL_ACTION addColAfter;
+    static TOOL_ACTION deleteRows;
+    static TOOL_ACTION deleteColumns;
+    static TOOL_ACTION mergeCells;
+    static TOOL_ACTION unmergeCells;
+    static TOOL_ACTION editTable;
 
     // Find and Replace
     static TOOL_ACTION showSearch;
@@ -97,14 +126,20 @@ public:
     static TOOL_ACTION zoomOut;
     static TOOL_ACTION zoomInCenter;
     static TOOL_ACTION zoomOutCenter;
+    static TOOL_ACTION zoomInHorizontally;
+    static TOOL_ACTION zoomOutHorizontally;
+    static TOOL_ACTION zoomInVertically;
+    static TOOL_ACTION zoomOutVertically;
     static TOOL_ACTION zoomCenter;
     static TOOL_ACTION zoomFitScreen;
     static TOOL_ACTION zoomFitObjects; // Zooms to bbox of items on screen (except page border)
+    static TOOL_ACTION zoomFitSelection;
     static TOOL_ACTION zoomPreset;
     static TOOL_ACTION zoomTool;
     static TOOL_ACTION zoomUndo;
     static TOOL_ACTION zoomRedo;
     static TOOL_ACTION centerContents;
+    static TOOL_ACTION centerSelection;
     static TOOL_ACTION toggleCursor;
     static TOOL_ACTION toggleCursorStyle;
     static TOOL_ACTION highContrastMode;
@@ -116,6 +151,9 @@ public:
 
     static TOOL_ACTION pinLibrary;
     static TOOL_ACTION unpinLibrary;
+    static TOOL_ACTION showLibraryTree;
+    static TOOL_ACTION hideLibraryTree;
+    static TOOL_ACTION libraryTreeSearch;
 
     /// Cursor control with keyboard
     static TOOL_ACTION cursorUp;
@@ -176,19 +214,21 @@ public:
     static TOOL_ACTION updatePcbFromSchematic;
     static TOOL_ACTION updateSchematicFromPcb;
     static TOOL_ACTION showProperties;
+    static TOOL_ACTION showDatasheet;
 
     // Internal
     static TOOL_ACTION updateMenu;
     static TOOL_ACTION activatePointEditor;
     static TOOL_ACTION cycleArcEditMode;
     static TOOL_ACTION updatePreferences;
-    static TOOL_ACTION selectColumns;
+    static TOOL_ACTION selectLibTreeColumns;
 
     // Suite
     static TOOL_ACTION openPreferences;
     static TOOL_ACTION configurePaths;
     static TOOL_ACTION showSymbolLibTable;
     static TOOL_ACTION showFootprintLibTable;
+    static TOOL_ACTION showDesignBlockLibTable;
     static TOOL_ACTION gettingStarted;
     static TOOL_ACTION help;
     static TOOL_ACTION about;
@@ -196,6 +236,14 @@ public:
     static TOOL_ACTION donate;
     static TOOL_ACTION getInvolved;
     static TOOL_ACTION reportBug;
+
+    // API
+    static TOOL_ACTION pluginsReload;
+
+    // Embedding Files
+    static TOOL_ACTION embeddedFiles;
+    static TOOL_ACTION extractFile;
+    static TOOL_ACTION removeFile;
 
     ///< Cursor control event types
     enum CURSOR_EVENT_TYPE
@@ -220,6 +268,16 @@ public:
         NORMAL = 0x00,
         ALT    = 0x01,
         CUT    = 0x02
+    };
+
+    ///< Increment event parameters
+    struct INCREMENT
+    {
+        // Amount to increment
+        int Delta;
+        // Which "thing" to increment
+        // (what this is depends on the action - a pin might be number, then name)
+        int Index;
     };
 };
 

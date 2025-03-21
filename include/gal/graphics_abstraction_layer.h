@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2012 Torsten Hueter, torstenhtr <at> gmx.de
- * Copyright (C) 2016-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * Graphics Abstraction Layer (GAL) - base class
  *
@@ -161,6 +161,9 @@ public:
      * DrawArcSegment() with fill *on* behaves like DrawArc() with fill *off*.
      * DrawArcSegment() with fill *off* draws the outline of what it would have drawn with fill on.
      *
+     * This has meaning only for back ends that can't draw a true arc, and use segments to
+     * approximate.
+     *
      * TODO: Unify Arc routines
      *
      * @param aCenterPoint  is the center point of the arc.
@@ -169,7 +172,6 @@ public:
      * @param aAngle        is the angle of the arc.
      * @param aWidth        is the thickness of the arc (pen size).
      * @param aMaxError     is the max allowed error to create segments to approximate a circle.
-     *  It has meaning only for back ends that can't draw a true arc, and use segments to approximate.
      */
     virtual void DrawArcSegment( const VECTOR2D& aCenterPoint, double aRadius,
                                  const EDA_ANGLE& aStartAngle, const EDA_ANGLE& aAngle,
@@ -210,7 +212,8 @@ public:
      */
     virtual void DrawPolygon( const std::deque<VECTOR2D>& aPointList ) {};
     virtual void DrawPolygon( const VECTOR2D aPointList[], int aListSize ) {};
-    virtual void DrawPolygon( const SHAPE_POLY_SET& aPolySet, bool aStrokeTriangulation = false ) {};
+    virtual void DrawPolygon( const SHAPE_POLY_SET& aPolySet,
+                              bool aStrokeTriangulation = false ) {};
     virtual void DrawPolygon( const SHAPE_LINE_CHAIN& aPolySet ) {};
 
     /**
@@ -287,6 +290,16 @@ public:
     }
 
     /**
+     * Get the fill status.
+     *
+     * @return true if fill is enabled, false otherwise.
+     */
+    inline bool GetIsFill() const
+    {
+        return m_isFillEnabled;
+    }
+
+    /**
      * Enable/disable stroked outlines.
      *
      * @param aIsStrokeEnabled is true, if the outline of an object should be stroked.
@@ -294,6 +307,16 @@ public:
     virtual void SetIsStroke( bool aIsStrokeEnabled )
     {
         m_isStrokeEnabled = aIsStrokeEnabled;
+    }
+
+    /**
+     * Get the stroke status.
+     *
+     * @return true if stroke is enabled, false otherwise.
+     */
+    inline bool GetIsStroke() const
+    {
+        return m_isStrokeEnabled;
     }
 
     /**
@@ -359,14 +382,31 @@ public:
     /**
      * Set the depth of the layer (position on the z-axis)
      *
-     * @param aLayerDepth the layer depth for the objects.
+     * If you do this, you should consider using a GAL_SCOPED_ATTR to ensure
+     * the depth is reset to the original value.
+     *
+     * @param aLayerDepth the layer depth for the objects. Smaller is closer to the viewer.
      */
     virtual void SetLayerDepth( double aLayerDepth )
     {
-        wxCHECK_MSG( aLayerDepth <= m_depthRange.y, /*void*/, wxT( "SetLayerDepth: below minimum" ) );
-        wxCHECK_MSG( aLayerDepth >= m_depthRange.x, /*void*/, wxT( "SetLayerDepth: above maximum" ) );
+        wxCHECK_MSG( aLayerDepth <= m_depthRange.y, /*void*/,
+                     wxT( "SetLayerDepth: below minimum" ) );
+        wxCHECK_MSG( aLayerDepth >= m_depthRange.x, /*void*/,
+                     wxT( "SetLayerDepth: above maximum" ) );
 
         m_layerDepth = aLayerDepth;
+    }
+
+    /**
+     * Change the current depth to deeper, so it is possible to draw objects right beneath
+     * other.
+     *
+     * If you do this, you should consider using a GAL_SCOPED_ATTR to ensure the depth
+     * is reset to the original value.
+     */
+    inline void AdvanceDepth()
+    {
+        SetLayerDepth( m_layerDepth - 0.1 );
     }
 
     // ----
@@ -925,32 +965,6 @@ public:
      */
     virtual void DrawCursor( const VECTOR2D& aCursorPosition ) {};
 
-    /**
-     * Change the current depth to deeper, so it is possible to draw objects right beneath
-     * other.
-     */
-    inline void AdvanceDepth()
-    {
-        m_layerDepth -= 0.1;
-    }
-
-    /**
-     * Store current drawing depth on the depth stack.
-     */
-    inline void PushDepth()
-    {
-        m_depthStack.push( m_layerDepth );
-    }
-
-    /**
-     * Restore previously stored drawing depth for the depth stack.
-     */
-    inline void PopDepth()
-    {
-        m_layerDepth = m_depthStack.top();
-        m_depthStack.pop();
-    }
-
     virtual void EnableDepthTest( bool aEnabled = false ) {};
 
     /**
@@ -998,7 +1012,7 @@ protected:
     }
 
     /**
-     * compute minimum grid spacing from the grid settings
+     * Compute minimum grid spacing from the grid settings.
      *
      * @return the minimum spacing to use for drawing the grid
      */
@@ -1012,7 +1026,7 @@ protected:
     static const int GRID_DEPTH;
 
     /**
-     * Get the actual cursor color to draw
+     * Get the actual cursor color to draw.
      */
     COLOR4D getCursorColor() const;
 
@@ -1034,11 +1048,25 @@ protected:
      */
     virtual bool updatedGalDisplayOptions( const GAL_DISPLAY_OPTIONS& aOptions );
 
+    /**
+     * Ensure that the first element is smaller than the second.
+     */
+    template <typename T>
+    void normalize( T &a, T &b )
+    {
+        if( a > b )
+        {
+            T tmp = a;
+            a = b;
+            b = tmp;
+        }
+    }
+
     GAL_DISPLAY_OPTIONS& m_options;
     UTIL::LINK           m_observerLink;
 
     std::stack<double>   m_depthStack;         ///< Stored depth values
-    VECTOR2I             m_screenSize;         ///< Screen size in screen coordinates
+    VECTOR2I             m_screenSize;         ///< Screen size in screen (wx logical) coordinates
 
     double               m_worldUnitLength;    ///< The unit length of the world coordinates [inch]
     double               m_screenDPI;          ///< The dots per inch of the screen
@@ -1089,7 +1117,15 @@ protected:
     KICURSOR             m_currentNativeCursor; ///< Current cursor
 
 private:
+
+    inline double getLayerDepth() const
+    {
+        return m_layerDepth;
+    }
+
     TEXT_ATTRIBUTES      m_attributes;
+
+    friend class GAL_SCOPED_ATTRS;
 };
 
 
@@ -1143,6 +1179,92 @@ public:
     {
         m_gal->EndDrawing();
     }
+};
+
+
+/**
+ * Attribute save/restore for GAL attributes.
+ */
+class GAL_SCOPED_ATTRS
+{
+public:
+    enum FLAGS
+    {
+        STROKE_WIDTH = 1,
+        STROKE_COLOR = 2,
+        IS_STROKE = 4,
+        FILL_COLOR = 8,
+        IS_FILL = 16,
+        LAYER_DEPTH = 32,
+
+        // It is not clear to me that GAL needs to save text attributes.
+        // Only BitmapText uses it, and maybe that should be passed in
+        // explicitly (like for Draw) - every caller of BitmapText sets
+        // the text attributes anyway.
+        // TEXT_ATTRS = 64,
+
+        // Convenience flags
+        STROKE = STROKE_WIDTH | STROKE_COLOR | IS_STROKE,
+        FILL = FILL_COLOR | IS_FILL,
+        STROKE_FILL = STROKE | FILL,
+
+        ALL_ATTRS = STROKE | FILL | LAYER_DEPTH,
+    };
+
+    /**
+     * Instantiate a GAL_SCOPED_ATTRS object, saving the current attributes of the GAL.
+     *
+     * Specify the flags to save/restore in aFlags.
+     */
+    GAL_SCOPED_ATTRS( KIGFX::GAL& aGal, int aFlags )
+        : m_gal( aGal ), m_flags( aFlags )
+    {
+        // Save what we need to restore later.
+        // These are all so cheap to copy, it's likely not worth if'ing
+        m_strokeWidth = aGal.GetLineWidth();
+        m_strokeColor = aGal.GetStrokeColor();
+        m_isStroke = aGal.GetIsStroke();
+        m_fillColor = aGal.GetFillColor();
+        m_isFill = aGal.GetIsFill();
+        m_layerDepth = aGal.getLayerDepth();
+    }
+
+    ~GAL_SCOPED_ATTRS()
+    {
+        // Restore the attributes that were saved
+        // based on the flags that were set.
+
+        if( m_flags & STROKE_WIDTH )
+            m_gal.SetLineWidth( m_strokeWidth );
+
+        if( m_flags & STROKE_COLOR )
+            m_gal.SetStrokeColor( m_strokeColor );
+
+        if( m_flags & IS_STROKE )
+            m_gal.SetIsStroke( m_isStroke );
+
+        if( m_flags & FILL_COLOR )
+            m_gal.SetFillColor( m_fillColor );
+
+        if( m_flags & IS_FILL )
+            m_gal.SetIsFill( m_isFill );
+
+        if( m_flags & LAYER_DEPTH )
+            m_gal.SetLayerDepth( m_layerDepth );
+    }
+
+private:
+    GAL& m_gal;
+    int  m_flags;
+
+    COLOR4D m_strokeColor;
+    double  m_strokeWidth;
+    bool    m_isStroke;
+
+    COLOR4D m_fillColor;
+    bool    m_isFill;
+
+    double m_layerDepth;
 };
 
 

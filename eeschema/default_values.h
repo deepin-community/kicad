@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2016-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,11 +26,14 @@
 #define DEFAULT_VALUES_H
 
 
-///< The size of the rectangle indicating an unconnected wire or label
+/// The size of the rectangle indicating an unconnected wire or label
 #define DANGLING_SYMBOL_SIZE 12
 
 ///< The size of the rectangle indicating a connected, unselected wire end
 #define UNSELECTED_END_SIZE 4
+
+///< The size of the rectangle indicating the anchor of a text object (including fields)
+#define TEXT_ANCHOR_SIZE 8
 
 ///< The default pin len value when creating pins(can be changed in preference menu)
 #define DEFAULT_PIN_LENGTH 100

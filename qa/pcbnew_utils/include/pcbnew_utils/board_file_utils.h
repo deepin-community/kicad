@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -57,6 +57,11 @@ std::string GetPcbnewTestDataDir();
  * @param aFilename the filename to write to
  */
 void DumpBoardToFile( BOARD& aBoard, const std::string& aFilename );
+
+/**
+ * Same as DumpBoardToFile, but for footprints
+ */
+void DumpFootprintToFile( const FOOTPRINT& aFootprint, const std::string& aLibraryPath );
 
 /**
  * Utility function to read a #BOARD_ITEM (probably a #FOOTPRINT or a #BOARD)

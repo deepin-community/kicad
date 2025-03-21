@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,22 +26,33 @@
  */
 #include <boost/test/unit_test.hpp>
 #include <kiplatform/app.h>
+#include <mock_pgm_base.h>
+#include <settings/settings_manager.h>
+#include <pcbnew_settings.h>
 
 #include <wx/image.h>
 #include <wx/init.h>
-
+#include <wx/app.h>
 
 bool init_unit_test()
 {
+    KI_TEST::SetMockConfigDir();
+    SetPgm( new MOCK_PGM_BASE() );
     KIPLATFORM::APP::Init();
     boost::unit_test::framework::master_test_suite().p_name.value = "Pcbnew module tests";
 
-    bool ok = wxInitialize();
+    wxApp::SetInstance( new wxAppConsole );
+
+    bool ok = wxInitialize( boost::unit_test::framework::master_test_suite().argc,
+                            boost::unit_test::framework::master_test_suite().argv );
 
     if( ok )
     {
-        // need these for library image functions
-        wxInitAllImageHandlers();
+        wxSetAssertHandler( &KI_TEST::wxAssertThrower );
+
+        Pgm().InitPgm( true, true, true );
+        Pgm().GetSettingsManager().RegisterSettings( new PCBNEW_SETTINGS, false );
+        Pgm().GetSettingsManager().Load();
     }
 
     return ok;

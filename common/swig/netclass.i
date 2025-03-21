@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 NBEE Embedded Systems, Miguel Angel Ajo <miguelangel@nbee.es>
- * Copyright (C) 1992-2017 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,6 +23,20 @@
  */
 
 %shared_ptr(NETCLASS)
+
+%ignore NETCLASS::SetClearance(std::optional<int>);
+%ignore NETCLASS::SetTrackWidth(std::optional<int>);
+%ignore NETCLASS::SetViaDiameter(std::optional<int>);
+%ignore NETCLASS::SetViaDrill(std::optional<int>);
+%ignore NETCLASS::SetuViaDiameter(std::optional<int>);
+%ignore NETCLASS::SetuViaDrill(std::optional<int>);
+%ignore NETCLASS::SetDiffPairWidth(std::optional<int>);
+%ignore NETCLASS::SetDiffPairGap(std::optional<int>);
+%ignore NETCLASS::SetDiffPairViaGap(std::optional<int>);
+%ignore NETCLASS::SetWireWidth(std::optional<int>);
+%ignore NETCLASS::SetBusWidth(std::optional<int>);
+%ignore NETCLASS::SetLineStyle(std::optional<int>);
+
 %include netclass.h
 
 %{

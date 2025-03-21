@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015-2017 Chris Pavlina <pavlina.chris@gmail.com>
- * Copyright (C) 2015-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,7 +29,9 @@
 #include <algorithm>
 
 // Helper to make the code cleaner when we want this operation
-#define CLAMPED_VAL_INT_MAX( x ) std::min( x, static_cast<size_t>( std::numeric_limits<int>::max() ) )
+#define CLAMPED_VAL_INT_MAX( x )                                                      \
+    std::min( x, static_cast<size_t>( std::numeric_limits<int>::max() ) )
+
 
 bool EDA_PATTERN_MATCH_SUBSTR::SetPattern( const wxString& aPattern )
 {
@@ -245,16 +247,18 @@ bool EDA_PATTERN_MATCH_WILDCARD_ANCHORED::SetPattern( const wxString& aPattern )
 
 bool EDA_PATTERN_MATCH_RELATIONAL::SetPattern( const wxString& aPattern )
 {
-    bool matches = m_regex_search.Matches( aPattern );
+    wxRegEx regex_search( R"(^(\w+)(<|<=|=|>=|>)([-+]?[\d.]*)(\w*)$)", wxRE_ADVANCED );
 
-    if( !matches || m_regex_search.GetMatchCount() < 5 )
+    bool matches = regex_search.IsValid() && regex_search.Matches( aPattern );
+
+    if( !matches || regex_search.GetMatchCount() < 5 )
         return false;
 
     m_pattern = aPattern;
-    wxString key = m_regex_search.GetMatch( aPattern, 1 );
-    wxString rel = m_regex_search.GetMatch( aPattern, 2 );
-    wxString val = m_regex_search.GetMatch( aPattern, 3 );
-    wxString unit = m_regex_search.GetMatch( aPattern, 4 );
+    wxString key = regex_search.GetMatch( aPattern, 1 );
+    wxString rel = regex_search.GetMatch( aPattern, 2 );
+    wxString val = regex_search.GetMatch( aPattern, 3 );
+    wxString unit = regex_search.GetMatch( aPattern, 4 );
 
     m_key = key.Lower();
 
@@ -326,16 +330,18 @@ EDA_PATTERN_MATCH::FIND_RESULT EDA_PATTERN_MATCH_RELATIONAL::Find( const wxStrin
 
 int EDA_PATTERN_MATCH_RELATIONAL::FindOne( const wxString& aCandidate ) const
 {
-    bool matches = m_regex_description.Matches( aCandidate );
+    wxRegEx regex_description( R"((\w+)[=:]([-+]?[\d.]+)(\w*))", wxRE_ADVANCED );
+
+    bool matches = regex_description.IsValid() && regex_description.Matches( aCandidate );
 
     if( !matches )
         return EDA_PATTERN_NOT_FOUND;
 
     size_t start, len;
-    m_regex_description.GetMatch( &start, &len, 0 );
-    wxString key = m_regex_description.GetMatch( aCandidate, 1 );
-    wxString val = m_regex_description.GetMatch( aCandidate, 2 );
-    wxString unit = m_regex_description.GetMatch( aCandidate, 3 );
+    regex_description.GetMatch( &start, &len, 0 );
+    wxString key = regex_description.GetMatch( aCandidate, 1 );
+    wxString val = regex_description.GetMatch( aCandidate, 2 );
+    wxString unit = regex_description.GetMatch( aCandidate, 3 );
 
     int istart = static_cast<int>( CLAMPED_VAL_INT_MAX( start ) );
 
@@ -365,10 +371,6 @@ int EDA_PATTERN_MATCH_RELATIONAL::FindOne( const wxString& aCandidate ) const
 }
 
 
-wxRegEx EDA_PATTERN_MATCH_RELATIONAL::m_regex_description(
-        R"((\w+)[=:]([-+]?[\d.]+)(\w*))", wxRE_ADVANCED );
-wxRegEx EDA_PATTERN_MATCH_RELATIONAL::m_regex_search(
-        R"(^(\w+)(<|<=|=|>=|>)([-+]?[\d.]*)(\w*)$)", wxRE_ADVANCED );
 const std::map<wxString, double> EDA_PATTERN_MATCH_RELATIONAL::m_units = {
     { wxS( "p" ),  1e-12 },
     { wxS( "n" ),  1e-9 },
@@ -396,8 +398,15 @@ EDA_COMBINED_MATCHER::EDA_COMBINED_MATCHER( const wxString& aPattern,
         AddMatcher( aPattern, std::make_unique<EDA_PATTERN_MATCH_REGEX>() );
         AddMatcher( aPattern, std::make_unique<EDA_PATTERN_MATCH_WILDCARD>() );
         AddMatcher( aPattern, std::make_unique<EDA_PATTERN_MATCH_RELATIONAL>() );
+
         // If any of the above matchers couldn't be created because the pattern
         // syntax does not match, the substring will try its best.
+        AddMatcher( aPattern, std::make_unique<EDA_PATTERN_MATCH_SUBSTR>() );
+        break;
+
+    case CTX_NET:
+        AddMatcher( aPattern, std::make_unique<EDA_PATTERN_MATCH_REGEX>() );
+        AddMatcher( aPattern, std::make_unique<EDA_PATTERN_MATCH_WILDCARD>() );
         AddMatcher( aPattern, std::make_unique<EDA_PATTERN_MATCH_SUBSTR>() );
         break;
 
@@ -479,8 +488,8 @@ int EDA_COMBINED_MATCHER::ScoreTerms( std::vector<SEARCH_TERM>& aWeightedTerms )
 
             // Don't cause KiCad to hang if someone accidentally pastes the PCB or schematic
             // into the search box.
-            if( term.Text.Length() > 5000 )
-                term.Text = term.Text.Left( 5000 );
+            if( term.Text.Length() > 1000 )
+                term.Text = term.Text.Left( 1000 );
 
             term.Normalized = true;
         }

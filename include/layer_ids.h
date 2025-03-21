@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2014 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2010 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2007-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -53,7 +53,7 @@
 /**
  * This is the definition of all layers used in Pcbnew.
  *
- * The PCB layer types are fixed at value 0 through LAYER_ID_COUNT to ensure compatibility
+ * The PCB layer types are fixed at value 0 through #LAYER_ID_COUNT to ensure compatibility
  * with legacy board files.
  */
 enum PCB_LAYER_ID: int
@@ -61,108 +61,142 @@ enum PCB_LAYER_ID: int
     UNDEFINED_LAYER = -1,
     UNSELECTED_LAYER = -2,
 
-    PCBNEW_LAYER_ID_START = 0,
-    F_Cu = PCBNEW_LAYER_ID_START,
-    In1_Cu,
-    In2_Cu,
-    In3_Cu,
-    In4_Cu,
-    In5_Cu,
-    In6_Cu,
-    In7_Cu,
-    In8_Cu,
-    In9_Cu,
-    In10_Cu,
-    In11_Cu,
-    In12_Cu,
-    In13_Cu,
-    In14_Cu,
-    In15_Cu,
-    In16_Cu,
-    In17_Cu,
-    In18_Cu,
-    In19_Cu,
-    In20_Cu,
-    In21_Cu,
-    In22_Cu,
-    In23_Cu,
-    In24_Cu,
-    In25_Cu,
-    In26_Cu,
-    In27_Cu,
-    In28_Cu,
-    In29_Cu,
-    In30_Cu,
-    B_Cu,           // 31
+    F_Cu = 0,
+    B_Cu = 2,
+    In1_Cu = 4,
+    In2_Cu = 6,
+    In3_Cu = 8,
+    In4_Cu = 10,
+    In5_Cu = 12,
+    In6_Cu = 14,
+    In7_Cu = 16,
+    In8_Cu = 18,
+    In9_Cu = 20,
+    In10_Cu = 22,
+    In11_Cu = 24,
+    In12_Cu = 26,
+    In13_Cu = 28,
+    In14_Cu = 30,
+    In15_Cu = 32,
+    In16_Cu = 34,
+    In17_Cu = 36,
+    In18_Cu = 38,
+    In19_Cu = 40,
+    In20_Cu = 42,
+    In21_Cu = 44,
+    In22_Cu = 46,
+    In23_Cu = 48,
+    In24_Cu = 50,
+    In25_Cu = 52,
+    In26_Cu = 54,
+    In27_Cu = 56,
+    In28_Cu = 58,
+    In29_Cu = 60,
+    In30_Cu = 62,
 
-    B_Adhes,
-    F_Adhes,
+    F_Mask = 1,
+    B_Mask = 3,
 
-    B_Paste,
-    F_Paste,
+    F_SilkS = 5,
+    B_SilkS = 7,
+    F_Adhes = 9,
+    B_Adhes = 11,
+    F_Paste = 13,
+    B_Paste = 15,
 
-    B_SilkS,
-    F_SilkS,
+    Dwgs_User = 17,
+    Cmts_User = 19,
+    Eco1_User = 21,
+    Eco2_User = 23,
 
-    B_Mask,
-    F_Mask,         // 39
+    Edge_Cuts = 25,
+    Margin = 27,
 
-    Dwgs_User,
-    Cmts_User,
-    Eco1_User,
-    Eco2_User,
-    Edge_Cuts,
-    Margin,         // 45
+    B_CrtYd = 29,
+    F_CrtYd = 31,
 
-    B_CrtYd,
-    F_CrtYd,
+    B_Fab = 33,
+    F_Fab = 35,
 
-    B_Fab,
-    F_Fab,          // 49
+    Rescue = 37,
 
     // User definable layers.
-    User_1,
-    User_2,
-    User_3,
-    User_4,
-    User_5,
-    User_6,
-    User_7,
-    User_8,
-    User_9,
+    User_1 = 39,
+    User_2 = 41,
+    User_3 = 43,
+    User_4 = 45,
+    User_5 = 47,
+    User_6 = 49,
+    User_7 = 51,
+    User_8 = 53,
+    User_9 = 55,
+    User_10 = 57,
+    User_11 = 59,
+    User_12 = 61,
+    User_13 = 63,
+    User_14 = 65,
+    User_15 = 67,
+    User_16 = 69,
+    User_17 = 71,
+    User_18 = 73,
+    User_19 = 75,
+    User_20 = 77,
+    User_21 = 79,
+    User_22 = 81,
+    User_23 = 83,
+    User_24 = 85,
+    User_25 = 87,
+    User_26 = 89,
+    User_27 = 91,
+    User_28 = 93,
+    User_29 = 95,
+    User_30 = 97,
+    User_31 = 99,
+    User_32 = 101,
+    User_33 = 103,
+    User_34 = 105,
+    User_35 = 107,
+    User_36 = 109,
+    User_37 = 111,
+    User_38 = 113,
+    User_39 = 115,
+    User_40 = 117,
+    User_41 = 119,
+    User_42 = 121,
+    User_43 = 123,
+    User_44 = 125,
+    User_45 = 127,
 
-    Rescue,         // 59
 
-    // Four reserved layers (60 - 63) for future expansion within the 64 bit integer limit.
-
-    PCB_LAYER_ID_COUNT
+    PCB_LAYER_ID_COUNT = 128
 };
 
-#define MAX_CU_LAYERS       (B_Cu - F_Cu + 1)
+constexpr PCB_LAYER_ID PCBNEW_LAYER_ID_START = F_Cu;
+
+#define MAX_CU_LAYERS           32
+#define MAX_USER_DEFINED_LAYERS 45
 
 /**
  * Enum used during connectivity building to ensure we do not query connectivity while building
- * the database
+ * the database.
  */
 enum class FLASHING
 {
-    DEFAULT,                // Flashing follows connectivity
-    ALWAYS_FLASHED,         // Always flashed for connectivity
-    NEVER_FLASHED,          // Never flashed for connectivity
+    DEFAULT,                ///< Flashing follows connectivity.
+    ALWAYS_FLASHED,         ///< Always flashed for connectivity.
+    NEVER_FLASHED,          ///< Never flashed for connectivity.
 };
 
-/// Dedicated layers for net names used in Pcbnew
+/// Dedicated layers for net names used in Pcbnew.
 enum NETNAMES_LAYER_ID: int
 {
 
     NETNAMES_LAYER_ID_START = PCB_LAYER_ID_COUNT,
 
-    /// Reserved space for board layer netnames
-
+    /// Reserved space for board layer netnames.
     NETNAMES_LAYER_ID_RESERVED = NETNAMES_LAYER_ID_START + PCB_LAYER_ID_COUNT,
 
-    /// Additional netnames layers (not associated with a PCB layer)
-
+    /// Additional netnames layers (not associated with a PCB layer).
     LAYER_PAD_FR_NETNAMES,
     LAYER_PAD_BK_NETNAMES,
     LAYER_PAD_NETNAMES,
@@ -172,91 +206,140 @@ enum NETNAMES_LAYER_ID: int
 };
 
 /// Macro for obtaining netname layer for a given PCB layer
-#define NETNAMES_LAYER_INDEX( layer )   ( NETNAMES_LAYER_ID_START + layer )
+#define NETNAMES_LAYER_INDEX( layer )   ( static_cast<int>( NETNAMES_LAYER_ID_START ) + layer )
 
 #define GAL_UI_LAYER_COUNT 10
 
 /**
  *  GAL layers are "virtual" layers, i.e. not tied into design data.
+ *
  *  Some layers here are shared between applications.
  *
- *  NOTE: Be very careful where you add new layers here.  Layers up to GAL_LAYER_ID_BITMASK_END
+ *  @note Be very careful where you add new layers here.  Layers up to #GAL_LAYER_ID_BITMASK_END
  *  must never be re-ordered and new layers must always be added after this value, because the
  *  layers before this value are mapped to bit locations in legacy board files.
  *
  *  The values in this enum that are used to store visibility state are explicitly encoded with an
- *  offset from GAL_LAYER_ID_START, which is explicitly encoded itself. The exact value of
- *  GAL_LAYER_ID_START is not that sensitive, but the offsets should never be changed or else any
+ *  offset from #GAL_LAYER_ID_START, which is explicitly encoded itself. The exact value of
+ *  #GAL_LAYER_ID_START is not that sensitive, but the offsets should never be changed or else any
  *  existing visibility settings will be disrupted.
  */
 enum GAL_LAYER_ID: int
 {
     GAL_LAYER_ID_START = NETNAMES_LAYER_ID_END,
 
-    LAYER_VIAS               = GAL_LAYER_ID_START +  0, ///< Meta control for all vias opacity/visibility
-    LAYER_VIA_MICROVIA       = GAL_LAYER_ID_START +  1, ///< to draw micro vias
-    LAYER_VIA_BBLIND         = GAL_LAYER_ID_START +  2, ///< to draw blind/buried vias
-    LAYER_VIA_THROUGH        = GAL_LAYER_ID_START +  3, ///< to draw usual through hole vias
-    LAYER_NON_PLATEDHOLES    = GAL_LAYER_ID_START +  4, ///< handle color for not plated holes (holes, not pads)
+     /// Meta control for all vias opacity/visibility.
+    LAYER_VIAS               = GAL_LAYER_ID_START +  0,
+    LAYER_VIA_MICROVIA       = GAL_LAYER_ID_START +  1, /// Draw micro vias.
+    LAYER_VIA_BBLIND         = GAL_LAYER_ID_START +  2, /// Draw blind/buried vias.
+    LAYER_VIA_THROUGH        = GAL_LAYER_ID_START +  3, /// Draw usual through hole vias.
+
+    /// Handle color for not plated holes (holes, not pads).
+    LAYER_NON_PLATEDHOLES    = GAL_LAYER_ID_START +  4,
     LAYER_FP_TEXT            = GAL_LAYER_ID_START +  5,
+
 //  LAYER_MOD_TEXT_BK deprecated                  +  6,
-    LAYER_HIDDEN_TEXT        = GAL_LAYER_ID_START +  7, ///< text marked as invisible
-    LAYER_ANCHOR             = GAL_LAYER_ID_START +  8, ///< anchor of items having an anchor point (texts, footprints)
-    LAYER_PADS_SMD_FR        = GAL_LAYER_ID_START +  9, ///< smd pads, front layer
-    LAYER_PADS_SMD_BK        = GAL_LAYER_ID_START + 10, ///< smd pads, back layer
+
+//  DEPRECATED, UNUSED SINCE 9.0. text marked as invisible.
+//  LAYER_HIDDEN_TEXT        = GAL_LAYER_ID_START +  7,
+
+    /// Anchor of items having an anchor point (texts, footprints).
+    LAYER_ANCHOR             = GAL_LAYER_ID_START +  8,
+
+//  LAYER_PADS_SMD_FR        = GAL_LAYER_ID_START +  9, // Deprecated since 9.0
+//  LAYER_PADS_SMD_BK        = GAL_LAYER_ID_START + 10, // Deprecated since 9.0
+
     LAYER_RATSNEST           = GAL_LAYER_ID_START + 11,
     LAYER_GRID               = GAL_LAYER_ID_START + 12,
     LAYER_GRID_AXES          = GAL_LAYER_ID_START + 13,
-//  LAYER_NO_CONNECTS deprecated                  + 14, ///< show a marker on pads with no nets
-    LAYER_FOOTPRINTS_FR      = GAL_LAYER_ID_START + 15, ///< show footprints on front
-    LAYER_FOOTPRINTS_BK      = GAL_LAYER_ID_START + 16, ///< show footprints on back
-    LAYER_FP_VALUES          = GAL_LAYER_ID_START + 17, ///< show footprints values (when texts are visible)
-    LAYER_FP_REFERENCES      = GAL_LAYER_ID_START + 18, ///< show footprints references (when texts are visible)
+
+//  LAYER_NO_CONNECTS deprecated                  + 14, // show a marker on pads with no nets
+
+    LAYER_FOOTPRINTS_FR      = GAL_LAYER_ID_START + 15, ///< Show footprints on front.
+    LAYER_FOOTPRINTS_BK      = GAL_LAYER_ID_START + 16, ///< Show footprints on back.
+
+    /// Show footprints values (when texts are visible).
+    LAYER_FP_VALUES          = GAL_LAYER_ID_START + 17,
+
+    /// Show footprints references (when texts are visible).
+    LAYER_FP_REFERENCES      = GAL_LAYER_ID_START + 18,
     LAYER_TRACKS             = GAL_LAYER_ID_START + 19,
-    LAYER_PADS_TH            = GAL_LAYER_ID_START + 20, ///< multilayer pads, usually with holes
+
+//  LAYER_PADS_TH            = GAL_LAYER_ID_START + 20, ///< Deprecated since 9.0
+
     LAYER_PAD_PLATEDHOLES    = GAL_LAYER_ID_START + 21, ///< to draw pad holes (plated)
-    LAYER_VIA_HOLES          = GAL_LAYER_ID_START + 22, ///< to draw via holes (pad holes do not use this layer)
-    LAYER_DRC_ERROR          = GAL_LAYER_ID_START + 23, ///< layer for drc markers with SEVERITY_ERROR
-    LAYER_DRAWINGSHEET       = GAL_LAYER_ID_START + 24, ///< drawingsheet frame and titleblock
-    LAYER_GP_OVERLAY         = GAL_LAYER_ID_START + 25, ///< general purpose overlay
-    LAYER_SELECT_OVERLAY     = GAL_LAYER_ID_START + 26, ///< currently selected items overlay
-    LAYER_PCB_BACKGROUND     = GAL_LAYER_ID_START + 27, ///< PCB background color
-    LAYER_CURSOR             = GAL_LAYER_ID_START + 28, ///< PCB cursor
-    LAYER_AUX_ITEMS          = GAL_LAYER_ID_START + 29, ///< Auxiliary items (guides, rule, etc)
-    LAYER_DRAW_BITMAPS       = GAL_LAYER_ID_START + 30, ///< to handle and draw images bitmaps
+
+    /// Draw via holes (pad holes do not use this layer).
+    LAYER_VIA_HOLES          = GAL_LAYER_ID_START + 22,
+
+     /// Layer for DRC markers with #SEVERITY_ERROR.
+    LAYER_DRC_ERROR          = GAL_LAYER_ID_START + 23,
+    LAYER_DRAWINGSHEET       = GAL_LAYER_ID_START + 24, ///< Sheet frame and title block.
+    LAYER_GP_OVERLAY         = GAL_LAYER_ID_START + 25, ///< General purpose overlay.
+    LAYER_SELECT_OVERLAY     = GAL_LAYER_ID_START + 26, ///< Selected items overlay.
+    LAYER_PCB_BACKGROUND     = GAL_LAYER_ID_START + 27, ///< PCB background color.
+    LAYER_CURSOR             = GAL_LAYER_ID_START + 28, ///< PCB cursor.
+    LAYER_AUX_ITEMS          = GAL_LAYER_ID_START + 29, ///< Auxiliary items (guides, rule, etc).
+    LAYER_DRAW_BITMAPS       = GAL_LAYER_ID_START + 30, ///< Draw images.
 
     /// This is the end of the layers used for visibility bit masks in legacy board files
     GAL_LAYER_ID_BITMASK_END = GAL_LAYER_ID_START + 31,
 
     // Layers in this section have visibility controls but were not present in legacy board files.
 
-    LAYER_PADS               = GAL_LAYER_ID_START + 32, ///< Meta control for all pads opacity/visibility (color ignored)
-    LAYER_ZONES              = GAL_LAYER_ID_START + 33, ///< Control for copper zone opacity/visibility (color ignored)
+    /// Meta control for all pads opacity/visibility (color ignored).
+    LAYER_PADS               = GAL_LAYER_ID_START + 32,
+
+    /// Control for copper zone opacity/visibility (color ignored).
+    LAYER_ZONES              = GAL_LAYER_ID_START + 33,
 
     LAYER_PAD_HOLEWALLS      = GAL_LAYER_ID_START + 34,
     LAYER_VIA_HOLEWALLS      = GAL_LAYER_ID_START + 35,
-    LAYER_DRC_WARNING        = GAL_LAYER_ID_START + 36, ///< layer for drc markers with SEVERITY_WARNING
-    LAYER_DRC_EXCLUSION      = GAL_LAYER_ID_START + 37, ///< layer for drc markers which have been individually excluded
-    LAYER_MARKER_SHADOWS     = GAL_LAYER_ID_START + 38, ///< shadows for drc markers
 
-    LAYER_LOCKED_ITEM_SHADOW = GAL_LAYER_ID_START + 39, ///< shadow layer for locked items
+    /// Layer for DRC markers with #SEVERITY_WARNING.
+    LAYER_DRC_WARNING        = GAL_LAYER_ID_START + 36,
 
-    LAYER_CONFLICTS_SHADOW   = GAL_LAYER_ID_START + 40, ///< shadow layer for items flagged conficting
+    /// Layer for DRC markers which have been individually excluded.
+    LAYER_DRC_EXCLUSION      = GAL_LAYER_ID_START + 37,
+    LAYER_MARKER_SHADOWS     = GAL_LAYER_ID_START + 38, ///< Shadows for DRC markers.
+
+    LAYER_LOCKED_ITEM_SHADOW = GAL_LAYER_ID_START + 39, ///< Shadow layer for locked items.
+
+    /// Shadow layer for items flagged conflicting.
+    LAYER_CONFLICTS_SHADOW   = GAL_LAYER_ID_START + 40,
+
+    /// Copper graphic shape opacity/visibility (color ignored).
+    LAYER_SHAPES             = GAL_LAYER_ID_START + 41,
+
+    LAYER_DRC_SHAPE1         = GAL_LAYER_ID_START + 42,  ///< Custom shape for DRC marker.
+    LAYER_DRC_SHAPE2         = GAL_LAYER_ID_START + 43,  ///< Custom shape for DRC marker.
 
     // Add layers below this point that do not have visibility controls, so don't need explicit
     // enum values
 
-    LAYER_DRAWINGSHEET_PAGE1,      ///< for drawingsheetEditor previewing
-    LAYER_DRAWINGSHEET_PAGEn,      ///< for drawingsheetEditor previewing
+    LAYER_DRAWINGSHEET_PAGE1,      ///< Sheet Editor previewing first page.
+    LAYER_DRAWINGSHEET_PAGEn,      ///< Sheet Editor previewing pages after first page.
 
-    LAYER_PAGE_LIMITS,             ///< color for drawing the page extents (visibility stored in
-                                   ///<   PCBNEW_SETTINGS::m_ShowPageLimits)
+    LAYER_PAGE_LIMITS,             ///< Color for drawing the page extents (visibility stored in
+                                   ///< PCBNEW_SETTINGS::m_ShowPageLimits)
 
-    /// Virtual layers for stacking zones and tracks on a given copper layer
+    /// Virtual layers for stacking zones and tracks on a given copper layer.
     LAYER_ZONE_START,
     LAYER_ZONE_END = LAYER_ZONE_START + PCB_LAYER_ID_COUNT,
 
-    /// Virtual layers for background images per board layer
+    /// Virtual layers for pad copper on a given copper layer.
+    LAYER_PAD_COPPER_START,
+    LAYER_PAD_COPPER_END = LAYER_PAD_COPPER_START + PCB_LAYER_ID_COUNT,
+
+    /// Virtual layers for via copper on a given copper layer.
+    LAYER_VIA_COPPER_START,
+    LAYER_VIA_COPPER_END = LAYER_VIA_COPPER_START + PCB_LAYER_ID_COUNT,
+
+    /// Virtual layers for pad/via/track clearance outlines for a given copper layer.
+    LAYER_CLEARANCE_START,
+    LAYER_CLEARANCE_END = LAYER_CLEARANCE_START + PCB_LAYER_ID_COUNT,
+
+    /// Virtual layers for background images per board layer.
     LAYER_BITMAP_START,
     LAYER_BITMAP_END = LAYER_BITMAP_START + PCB_LAYER_ID_COUNT,
 
@@ -267,12 +350,15 @@ enum GAL_LAYER_ID: int
     GAL_LAYER_ID_END
 };
 
-/// Use this macro to convert a GAL layer to a 0-indexed offset from LAYER_VIAS
+/// Use this macro to convert a #GAL layer to a 0-indexed offset from #LAYER_VIAS.
 #define GAL_LAYER_INDEX( x ) ( x - GAL_LAYER_ID_START )
 
-/// Macros for getting the extra layers for a given board layer
+/// Macros for getting the extra layers for a given board layer.
 #define BITMAP_LAYER_FOR( boardLayer ) ( LAYER_BITMAP_START + boardLayer )
 #define ZONE_LAYER_FOR( boardLayer ) ( LAYER_ZONE_START + boardLayer )
+#define PAD_COPPER_LAYER_FOR( boardLayer ) ( LAYER_PAD_COPPER_START + boardLayer )
+#define VIA_COPPER_LAYER_FOR( boardLayer ) ( LAYER_VIA_COPPER_START + boardLayer )
+#define CLEARANCE_LAYER_FOR( boardLayer ) ( LAYER_CLEARANCE_START + boardLayer )
 
 constexpr int GAL_LAYER_ID_COUNT = GAL_LAYER_ID_END - GAL_LAYER_ID_START;
 
@@ -288,7 +374,7 @@ inline GAL_LAYER_ID ToGalLayer( int aInteger )
     return static_cast<GAL_LAYER_ID>( aInteger );
 }
 
-/// Used for via types
+/// Used for via types.
 inline GAL_LAYER_ID operator+( const GAL_LAYER_ID& a, int b )
 {
     GAL_LAYER_ID t = GAL_LAYER_ID( int( a ) + b );
@@ -297,11 +383,11 @@ inline GAL_LAYER_ID operator+( const GAL_LAYER_ID& a, int b )
 }
 
 
-/// @brief Wraps a std::bitset
+/// Wraps a std::bitset.
 typedef std::bitset<GAL_LAYER_ID_COUNT> GAL_BASE_SET;
 
 
-/// Helper for storing and iterating over GAL_LAYER_IDs
+/// Helper for storing and iterating over GAL_LAYER_IDs.
 class KICOMMON_API GAL_SET : public GAL_BASE_SET
 {
 
@@ -347,8 +433,8 @@ public:
     static GAL_SET DefaultVisible();
 };
 
-/// Eeschema drawing layers
-enum SCH_LAYER_ID: int
+/// Eeschema drawing layers.
+enum SCH_LAYER_ID : int
 {
     SCH_LAYER_ID_START = GAL_LAYER_ID_END,
 
@@ -365,6 +451,7 @@ enum SCH_LAYER_ID: int
     LAYER_FIELDS,
     LAYER_INTERSHEET_REFS,
     LAYER_NETCLASS_REFS,
+    LAYER_RULE_AREAS,
     LAYER_DEVICE,
     LAYER_NOTES,
     LAYER_PRIVATE_NOTES,
@@ -381,6 +468,8 @@ enum SCH_LAYER_ID: int
     LAYER_ERC_WARN,
     LAYER_ERC_ERR,
     LAYER_ERC_EXCLUSION,
+    LAYER_EXCLUDED_FROM_SIM,
+    LAYER_SHAPES_BACKGROUND,
     LAYER_DEVICE_BACKGROUND,
     LAYER_SHEET_BACKGROUND,
     LAYER_SCHEMATIC_GRID,
@@ -390,6 +479,7 @@ enum SCH_LAYER_ID: int
     LAYER_HOVERED,
     LAYER_BRIGHTENED,
     LAYER_HIDDEN,
+    LAYER_NET_COLOR_HIGHLIGHT,
     LAYER_SELECTION_SHADOWS,
     LAYER_SCHEMATIC_DRAWINGSHEET,
     LAYER_SCHEMATIC_PAGE_LIMITS,
@@ -412,15 +502,15 @@ inline SCH_LAYER_ID operator++( SCH_LAYER_ID& a )
     return a;
 }
 
-// number of draw layers in Gerbview
-#define GERBER_DRAWLAYERS_COUNT PCB_LAYER_ID_COUNT
+/// Number of draw layers in Gerbview.
+#define GERBER_DRAWLAYERS_COUNT static_cast<int>( PCB_LAYER_ID_COUNT )
 
-/// GerbView draw layers
+/// Gerbview draw layers.
 enum GERBVIEW_LAYER_ID: int
 {
     GERBVIEW_LAYER_ID_START = SCH_LAYER_ID_END,
 
-    /// GerbView draw layers and d-code layers
+    /// Gerbview draw layers and d-code layers
     GERBVIEW_LAYER_ID_RESERVED = GERBVIEW_LAYER_ID_START + ( 2 * GERBER_DRAWLAYERS_COUNT ),
 
     LAYER_DCODES,
@@ -473,13 +563,14 @@ enum LAYER_3D_ID : int
         LAYER_3D_END
 };
 
-/// Must update this if you add any enums after GerbView!
+/// Must update this if you add any enums after Gerbview!
 #define LAYER_ID_COUNT LAYER_3D_END
 
 
 /**
- * Returns the string equivalent of a given layer
- * @param aLayer is a valid layer ID
+ * Return the string equivalent of a given layer.
+ *
+ * @param aLayer is a valid layer ID.
  */
 KICOMMON_API wxString LayerName( int aLayer );
 
@@ -495,361 +586,9 @@ KICOMMON_API wxString LayerName( int aLayer );
                                  ( 1 << GAL_LAYER_INDEX( LAYER_RATSNEST ) ) )
 
 
-/// A sequence of layers, a sequence provides a certain order.
-typedef std::vector<PCB_LAYER_ID>   BASE_SEQ;
-
-
-/**
- * LSEQ is a sequence (and therefore also a set) of PCB_LAYER_IDs.  A sequence provides
- * a certain order.
- * <p>
- * It can also be used as an iterator:
- * <code>
- *
- *      for( LSEQ cu_stack = aSet.CuStack();  cu_stack;  ++cu_stack )
- *      {
- *          layer_id = *cu_stack;
- *          :
- *          things to do with layer_id;
- *      }
- *
- * </code>
- */
-class KICOMMON_API LSEQ : public BASE_SEQ
-{
-    unsigned   m_index;
-
-public:
-
-    LSEQ() :
-        m_index( 0 )
-    {}
-
-    template <class InputIterator>
-    LSEQ( InputIterator aStart, InputIterator aEnd ) :
-        BASE_SEQ( aStart, aEnd ), m_index( 0 )
-    {}
-
-    LSEQ( std::initializer_list<PCB_LAYER_ID> aLayers ) :
-            BASE_SEQ( aLayers ), m_index( 0 )
-    {}
-
-    void Rewind()           { m_index = 0; }
-
-    void operator ++ ()     { ++m_index; }  // returns nothing, used in simple statements only.
-
-    void operator ++ (int)  { ++m_index; }
-
-    operator bool ()        { return m_index < size(); }
-
-    PCB_LAYER_ID operator * () const
-    {
-        return at( m_index );       // throws std::out_of_range
-    }
-
-    int TestLayers( PCB_LAYER_ID aRhs, PCB_LAYER_ID aLhs ) const
-    {
-        if( aRhs == aLhs )
-            return 0;
-
-        auto itRhs = std::find( begin(), end(), aRhs );
-        auto itLhs = std::find( begin(), end(), aLhs );
-
-        return std::distance( itRhs, itLhs );
-    }
-};
-
-
-typedef std::bitset<PCB_LAYER_ID_COUNT>     BASE_SET;
-
-
-/**
- * LSET is a set of PCB_LAYER_IDs.  It can be converted to numerous purpose LSEQs using
- * the various member functions, most of which are based on Seq(). The advantage
- * of converting to LSEQ using purposeful code, is it removes any dependency
- * on order/sequence inherent in this set.
- */
-class KICOMMON_API LSET : public BASE_SET
-{
-public:
-
-    // The constructor flavors are carefully chosen to prevent LSET( int ) from compiling.
-    // That excludes  "LSET s = 0;" and excludes "LSET s = -1;", etc.
-    // LSET s = 0;  needs to be removed from the code, this accomplishes that.
-    // Remember LSET( PCB_LAYER_ID(0) ) sets bit 0, so "LSET s = 0;" is illegal
-    // to prevent that surprise.  Therefore LSET's constructor suite is significantly
-    // different than the base class from which it is derived.
-
-    // Other member functions (non-constructor functions) are identical to the base
-    // class's and therefore are re-used from the base class.
-
-    /**
-     * Create an empty (cleared) set.
-     */
-    LSET() :
-        BASE_SET()  // all bits are set to zero in BASE_SET()
-    {
-    }
-
-    LSET( const BASE_SET& aOther ) :
-        BASE_SET( aOther )
-    {
-    }
-
-    /**
-     * Take a PCB_LAYER_ID and sets that bit.  This makes the following code into
-     * a bug:
-     *
-     * <code>   LSET s = 0;  </code>
-     *
-     * Instead use:
-     *
-     * <code>
-     *    LSET s;
-     * </code>
-     *
-     * for an empty set.
-     */
-    LSET( PCB_LAYER_ID aLayer ) :    // PCB_LAYER_ID deliberately excludes int and relatives
-        BASE_SET()
-    {
-        set( aLayer );
-    }
-
-    /**
-     * Create an array or LSEQ.
-     */
-    LSET( const PCB_LAYER_ID* aArray, unsigned aCount );
-
-    /**
-     * Take one or more PCB_LAYER_IDs in the argument list to construct the set.  Typically
-     * only used in static construction.
-     *
-     * @param aIdCount is the number of PCB_LAYER_IDs which follow.
-     * @param aFirst is the first included in @a aIdCount and must always be present, and can
-     *  be followed by any number of additional PCB_LAYER_IDs so long as @a aIdCount accurately
-     *  reflects the count.
-     *
-     *  Parameter is 'int' to avoid va_start undefined behavior.
-     */
-    LSET( unsigned aIdCount, int aFirst, ... ); // args chosen to prevent LSET( int ) from compiling
-
-    LSET( const LSEQ& aSeq );
-
-    /**
-     * See if the layer set contains a PCB layer.
-     *
-     * @param aLayer is the layer to check
-     * @return true if the layer is included
-     */
-    bool Contains( PCB_LAYER_ID aLayer )
-    {
-        try
-        {
-            return test( aLayer );
-        }
-        catch( std::out_of_range& )
-        {
-            return false;
-        }
-    }
-
-    /**
-     * Return the fixed name association with aLayerId.
-     */
-    static const wxChar* Name( PCB_LAYER_ID aLayerId );
-
-    /**
-     * Return a complete set of internal copper layers which is all Cu layers
-     * except F_Cu and B_Cu.
-     */
-    static LSET InternalCuMask();
-
-    /**
-     * Return a complete set of all top assembly layers which is all F_SilkS and F_Mask
-     */
-    static LSET FrontAssembly();
-
-    /**
-     * Return a complete set of all bottom assembly layers which is all B_SilkS and B_Mask
-     */
-    static LSET BackAssembly();
-
-    /**
-     * Return a mask holding the requested number of Cu PCB_LAYER_IDs.
-     */
-    static LSET AllCuMask( int aCuLayerCount = MAX_CU_LAYERS );
-
-    /**
-     * Return a mask holding the Front and Bottom layers.
-     */
-    static LSET ExternalCuMask();
-
-    /**
-     * Return a mask holding all layer minus CU layers.
-     */
-    static LSET AllNonCuMask();
-
-    static LSET AllLayersMask();
-
-    /**
-     * Return a mask holding all technical layers (no CU layer) on front side.
-     */
-    static LSET FrontTechMask();
-
-    /**
-     * Return a mask holding technical layers used in a board fabrication
-     * (no CU layer) on front side.
-     */
-    static LSET FrontBoardTechMask();
-
-    /**
-     * Return a mask holding all technical layers (no CU layer) on back side.
-     */
-    static LSET BackTechMask();
-
-    /**
-     * Return a mask holding technical layers used in a board fabrication
-     * (no CU layer) on Back side.
-     */
-    static LSET BackBoardTechMask();
-
-    /**
-     * Return a mask holding all technical layers (no CU layer) on both side.
-     */
-    static LSET AllTechMask();
-
-    /**
-     * Return a mask holding board technical layers (no CU layer) on both side.
-     */
-    static LSET AllBoardTechMask();
-
-    /**
-     * Return a mask holding all technical layers and the external CU layer on front side.
-     */
-    static LSET FrontMask();
-
-    /**
-     * Return a mask holding all technical layers and the external CU layer on back side.
-     */
-    static LSET BackMask();
-
-    static LSET SideSpecificMask();
-
-    static LSET UserMask();
-
-    /**
-     * Return a mask holding all layers which are physically realized.  Equivalent to the copper
-     * layers + the board tech mask.
-     */
-    static LSET PhysicalLayersMask();
-
-    /**
-     * Return a mask with all of the allowable user defined layers.
-     */
-    static LSET UserDefinedLayers();
-
-    /**
-     * Layers which are not allowed within footprint definitions.  Currently internal
-     * copper layers and Margin.
-     */
-
-    static LSET ForbiddenFootprintLayers();
-
-    /**
-     * Return a sequence of copper layers in starting from the front/top
-     * and extending to the back/bottom.  This specific sequence is depended upon
-     * in numerous places.
-     */
-    LSEQ CuStack() const;
-
-    /**
-     * Return a sequence of technical layers.  A sequence provides a certain order.
-     *
-     * @param aSubToOmit is the subset of the technical layers to omit, defaults to none.
-     */
-    LSEQ Technicals( LSET aSubToOmit = LSET() ) const;
-
-    /// *_User layers.
-    LSEQ Users() const;
-
-    /// Returns the technical and user layers in the order shown in layer widget
-    LSEQ TechAndUserUIOrder() const;
-
-    LSEQ UIOrder() const;
-
-    /**
-     * Return an LSEQ from the union of this LSET and a desired sequence.  The LSEQ
-     * element will be in the same sequence as aWishListSequence if they are present.
-     * @param aWishListSequence establishes the order of the returned LSEQ, and the LSEQ will only
-     * contain PCB_LAYER_IDs which are present in this set.
-     * @param aCount is the length of aWishListSequence array.
-     */
-    LSEQ Seq( const PCB_LAYER_ID* aWishListSequence, unsigned aCount ) const;
-
-    LSEQ Seq( const LSEQ& aSequence ) const;
-
-    /**
-     * Return a LSEQ from this LSET in ascending PCB_LAYER_ID order.  Each LSEQ
-     * element will be in the same sequence as in PCB_LAYER_ID and only present
-     * in the resultant LSEQ if present in this set.  Therefore the sequence is
-     * subject to change, use it only when enumeration and not order is important.
-     */
-    LSEQ Seq() const;
-
-    /**
-     * Generate a sequence of layers that represent a top to bottom stack of this set of layers.
-     *
-     * @param aSelectedLayer is the layer to put at the top of stack when defined.
-     *
-     * @return the top to bottom layer sequence.
-     */
-    LSEQ SeqStackupTop2Bottom( PCB_LAYER_ID aSelectedLayer = UNDEFINED_LAYER ) const;
-
-    /**
-     * Return the sequence that is typical for a bottom-to-top stack-up.
-     * For instance, to plot multiple layers in a single image, the top layers output last.
-     */
-    LSEQ SeqStackupForPlotting() const;
-
-    /**
-     * Return a hex string showing contents of this LSEQ.
-     */
-    std::string FmtHex() const;
-
-    /**
-     * Convert the output of FmtHex() and replaces this set's values
-     * with those given in the input string.  Parsing stops at the first
-     * non hex ASCII byte, except that marker bytes output from FmtHex are
-     * not terminators.
-     * @return int - number of bytes consumed
-     */
-    int ParseHex( const char* aStart, int aCount );
-
-    /**
-     * Return a binary string showing contents of this LSEQ.
-     */
-    std::string FmtBin() const;
-
-    /**
-     * Find the first set PCB_LAYER_ID. Returns UNDEFINED_LAYER if more
-     * than one is set or UNSELECTED_LAYER if none is set.
-     */
-    PCB_LAYER_ID ExtractLayer() const;
-
-private:
-
-    /// Take this off the market, it may not be used because of LSET( PCB_LAYER_ID ).
-    LSET( unsigned long __val )
-    {
-        // not usable, it's private.
-    }
-};
-
-
 /**
  * Test whether a given integer is a valid layer index, i.e. can
- * be safely put in a PCB_LAYER_ID
+ * be safely put in a #PCB_LAYER_ID.
  *
  * @param aLayerId = Layer index to test. It can be an int, so its useful during I/O
  * @return true if aLayerIndex is a valid layer index
@@ -871,14 +610,36 @@ inline bool IsPcbLayer( int aLayer )
 }
 
 /**
- * Tests whether a layer is a copper layer.
+ * Test whether a layer is a copper layer.
  *
  * @param aLayerId = Layer  to test
  * @return true if aLayer is a valid copper layer
  */
 inline bool IsCopperLayer( int aLayerId )
 {
-    return aLayerId >= F_Cu && aLayerId <= B_Cu;
+    return !( aLayerId & 1 ) && aLayerId < PCB_LAYER_ID_COUNT && aLayerId >= 0;
+}
+
+/**
+ * Test whether a layer is an external (#F_Cu or #B_Cu) copper layer.
+ *
+ * @param aLayerId = Layer  to test
+ * @return true if aLayer is a valid external copper layer
+ */
+inline bool IsExternalCopperLayer( int aLayerId )
+{
+    return aLayerId == F_Cu || aLayerId == B_Cu;
+}
+
+/**
+ * Test whether a layer is an inner (#In1_Cu to #In30_Cu) copper layer.
+ *
+ * @param aLayerId = Layer  to test
+ * @return true if aLayer is a valid inner copper layer
+ */
+inline bool IsInnerCopperLayer( int aLayerId )
+{
+    return IsCopperLayer( aLayerId ) && !IsExternalCopperLayer( aLayerId );
 }
 
 /**
@@ -889,12 +650,12 @@ inline bool IsCopperLayer( int aLayerId )
  */
 inline bool IsNonCopperLayer( int aLayerId )
 {
-    return aLayerId > B_Cu && aLayerId <= PCB_LAYER_ID_COUNT;
+    return ( aLayerId & 1 ) && aLayerId <= PCB_LAYER_ID_COUNT;
 }
 
 /**
- * Tests whether a layer is a copper layer, optionally including synthetic copper layers such
- * as LAYER_VIA_THROUGH, LAYER_PADS_SMD_FR, etc.
+ * Test whether a layer is a copper layer, optionally including synthetic copper layers such
+ * as #LAYER_VIA_THROUGH, #LAYER_PADS_SMD_FR, etc.
  *
  * @param aLayerId
  * @param aIncludeSyntheticCopperLayers
@@ -924,6 +685,11 @@ inline bool IsHoleLayer( int aLayer )
             || aLayer == LAYER_NON_PLATEDHOLES;
 }
 
+inline bool IsSolderMaskLayer( int aLayer )
+{
+    return aLayer == F_Mask || aLayer == B_Mask;
+}
+
 /**
  * Test whether a layer is a non copper and a non tech layer.
  *
@@ -932,7 +698,8 @@ inline bool IsHoleLayer( int aLayer )
  */
 inline bool IsUserLayer( PCB_LAYER_ID aLayerId )
 {
-    return aLayerId >= Dwgs_User && aLayerId <= Eco2_User;
+    return aLayerId == Dwgs_User || aLayerId == Cmts_User || aLayerId == Eco1_User
+           || aLayerId == Eco2_User || ( aLayerId >= User_1 && !IsCopperLayer( aLayerId ) );
 }
 
 
@@ -948,7 +715,7 @@ inline bool IsUserLayer( PCB_LAYER_ID aLayerId )
  */
 
 /**
- * Layer classification: check if it's a front layer
+ * Layer classification: check if it's a front layer.
  */
 inline bool IsFrontLayer( PCB_LAYER_ID aLayerId )
 {
@@ -971,7 +738,7 @@ inline bool IsFrontLayer( PCB_LAYER_ID aLayerId )
 
 
 /**
- * Layer classification: check if it's a back layer
+ * Layer classification: check if it's a back layer.
  */
 inline bool IsBackLayer( PCB_LAYER_ID aLayerId )
 {
@@ -992,43 +759,42 @@ inline bool IsBackLayer( PCB_LAYER_ID aLayerId )
 
 
 /**
+ * Return true if copper aLayerA is placed lower than aLayerB, false otherwise.
+ */
+inline bool IsCopperLayerLowerThan( PCB_LAYER_ID aLayerA, PCB_LAYER_ID aLayerB )
+{
+    if( aLayerA == aLayerB )
+        return false;
+
+    if( aLayerA == B_Cu )
+        return true;
+
+    if( aLayerB == B_Cu )
+        return false;
+
+    return aLayerA > aLayerB;
+}
+
+
+/**
+ * @param aLayerId = the PCB_LAYER_ID to flip
+ * @param aCopperLayersCount = the number of copper layers. if 0 (in fact if < 4 )
+ *  internal layers will be not flipped because the layer count is not known
  * @return the layer number after flipping an item
  * some (not all) layers: external copper, and paired layers( Mask, Paste, solder ... )
  * are swapped between front and back sides
  * internal layers are flipped only if the copper layers count is known
- * @param aLayerId = the PCB_LAYER_ID to flip
- * @param aCopperLayersCount = the number of copper layers. if 0 (in fact if < 4 )
- *  internal layers will be not flipped because the layer count is not known
  */
 KICOMMON_API PCB_LAYER_ID FlipLayer( PCB_LAYER_ID aLayerId, int aCopperLayersCount = 0 );
 
-/**
- * Calculate the mask layer when flipping a footprint.
- *
- * BACK and FRONT copper layers, mask, paste, solder layers are swapped
- * internal layers are flipped only if the copper layers count is known
- * @param aMask = the LSET to flip
- * @param aCopperLayersCount = the number of copper layers. if 0 (in fact if < 4 )
- *  internal layers will be not flipped because the layer count is not known
- */
-KICOMMON_API LSET FlipLayerMask( LSET aMask, int aCopperLayersCount = 0 );
-
 
 /**
- * Returns a netname layer corresponding to the given layer.
+ * Return a netname layer corresponding to the given layer.
  */
 inline int GetNetnameLayer( int aLayer )
 {
-    if( IsCopperLayer( aLayer ) )
+    if( IsCopperLayer( aLayer ) || IsViaPadLayer( aLayer ) )
         return NETNAMES_LAYER_INDEX( aLayer );
-    else if( aLayer == LAYER_PADS_TH )
-        return LAYER_PAD_NETNAMES;
-    else if( aLayer == LAYER_PADS_SMD_FR )
-        return LAYER_PAD_FR_NETNAMES;
-    else if( aLayer == LAYER_PADS_SMD_BK )
-        return LAYER_PAD_BK_NETNAMES;
-    else if( IsViaPadLayer( aLayer ) )
-        return LAYER_VIA_NETNAMES;
 
     // Fallback
     return Cmts_User;
@@ -1052,6 +818,24 @@ inline bool IsZoneFillLayer( int aLayer )
 }
 
 
+inline bool IsPadCopperLayer( int aLayer )
+{
+    return aLayer >= LAYER_PAD_COPPER_START && aLayer <= LAYER_PAD_COPPER_END;
+}
+
+
+inline bool IsViaCopperLayer( int aLayer )
+{
+    return aLayer >= LAYER_VIA_COPPER_START && aLayer <= LAYER_VIA_COPPER_END;
+}
+
+
+inline bool IsClearanceLayer( int aLayer )
+{
+    return aLayer >= LAYER_CLEARANCE_START && aLayer <= LAYER_CLEARANCE_END;
+}
+
+
 inline bool IsDCodeLayer( int aLayer )
 {
     return aLayer >= ( GERBVIEW_LAYER_ID_START + GERBER_DRAWLAYERS_COUNT )
@@ -1059,28 +843,24 @@ inline bool IsDCodeLayer( int aLayer )
 }
 
 
-/**
- * Checks if the given layer is "net copper", meaning it is eligible for net coloring.
- *
- * @param aLayer is the layer to test
- * @return true if the layer is one that participates in net coloring
- */
-inline bool IsNetCopperLayer( int aLayer )
+/// Converts KiCad copper layer enum to an ordinal between the front and back layers.
+inline size_t CopperLayerToOrdinal( PCB_LAYER_ID aLayer )
 {
-    static std::set<int> netCopperLayers =
-            {
-                LAYER_PADS_SMD_FR,
-                LAYER_PADS_SMD_BK,
-                LAYER_PADS_TH,
-                LAYER_PAD_HOLEWALLS,
-                LAYER_VIA_THROUGH,
-                LAYER_VIA_BBLIND,
-                LAYER_VIA_MICROVIA,
-                LAYER_VIA_HOLEWALLS
-            };
+    wxCHECK( IsCopperLayer( aLayer ), 0 );
 
-    return IsCopperLayer( aLayer ) || netCopperLayers.count( aLayer );
+    switch( aLayer )
+    {
+    case F_Cu:  return 0;
+    case B_Cu:  return MAX_CU_LAYERS - 1;
+    default:    return ( aLayer - B_Cu ) / 2;
+    }
 }
+
+
+/**
+ * Retrieve a layer ID from an integer converted from a legacy (pre-V9) enum value.
+ */
+KICOMMON_API PCB_LAYER_ID BoardLayerFromLegacyId( int aLegacyId );
 
 
 KICOMMON_API PCB_LAYER_ID ToLAYER_ID( int aLayer );

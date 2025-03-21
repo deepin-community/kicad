@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -95,6 +95,8 @@ public:
 
     void GetSubLibraryNames( std::vector<wxString>& aNames ) const;
 
+    wxString GetSubLibraryDescription( const wxString& aName ) const;
+
     /**
      * @see SCH_IO::GetAvailableSymbolFields
      */
@@ -144,7 +146,7 @@ private:
 class SYMBOL_LIB_TABLE : public LIB_TABLE
 {
 public:
-    KICAD_T Type() override { return SYMBOL_LIB_TABLE_T; }
+    PROJECT::ELEM ProjectElementType() override { return PROJECT::ELEM::SYMBOL_LIB_TABLE; }
 
     static const char* PropPowerSymsOnly;
     static const char* PropNonPowerSymsOnly;
@@ -317,7 +319,7 @@ public:
 
     static SYMBOL_LIB_TABLE& GetGlobalLibTable();
 
-    static const wxString& GetSymbolLibTableFileName();
+    static const wxString GetSymbolLibTableFileName();
 
    /**
      * Compares this table against another.

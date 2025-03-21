@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,11 +19,18 @@
  */
 
 #include <jobs/job_export_sch_pythonbom.h>
+#include <jobs/job_registry.h>
+#include <i18n_utility.h>
 
 
-JOB_EXPORT_SCH_PYTHONBOM::JOB_EXPORT_SCH_PYTHONBOM( bool aIsCli ) :
-        JOB( "pythonbom", aIsCli ),
-        m_filename(),
-        m_outputFile()
+JOB_EXPORT_SCH_PYTHONBOM::JOB_EXPORT_SCH_PYTHONBOM() :
+        JOB( "pythonbom", false ),
+        m_filename()
 {
+}
+
+
+wxString JOB_EXPORT_SCH_PYTHONBOM::GetDefaultDescription() const
+{
+    return wxString::Format( _( "Schematic PythonBOM export" ) );
 }

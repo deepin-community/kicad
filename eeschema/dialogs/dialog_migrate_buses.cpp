@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 CERN
- * Copyright (C) 2019-2022 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Jon Evans <jon@craftyjon.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -26,6 +26,7 @@
 #include <tool/actions.h>
 #include <dialog_migrate_buses.h>
 #include <sch_label.h>
+#include <view/view_controls.h>
 
 /**
  * Migrates buses using legacy multi-label joining behavior.

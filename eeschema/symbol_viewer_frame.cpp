@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2004-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -61,6 +61,7 @@
 #include <tools/ee_inspection_tool.h>
 #include <view/view_controls.h>
 #include <wx/srchctrl.h>
+#include <wx/log.h>
 
 #include <default_values.h>
 #include <string_utils.h>
@@ -179,8 +180,8 @@ SYMBOL_VIEWER_FRAME::SYMBOL_VIEWER_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_symbolFilter->SetMinSize( wxSize( -1, GetTextExtent( wxT( "qb" ) ).y + 10 ) );
 #endif
 
-    m_symbolList = new WX_LISTBOX( symbolPanel, ID_LIBVIEW_SYM_LIST, wxDefaultPosition, wxDefaultSize,
-                                   0, nullptr, wxLB_HSCROLL | wxNO_BORDER );
+    m_symbolList = new WX_LISTBOX( symbolPanel, ID_LIBVIEW_SYM_LIST, wxDefaultPosition,
+                                   wxDefaultSize, 0, nullptr, wxLB_HSCROLL | wxNO_BORDER );
     symbolSizer->Add( m_symbolList, 1, wxEXPAND, 5 );
 
     symbolPanel->SetSizer( symbolSizer );
@@ -280,8 +281,8 @@ void SYMBOL_VIEWER_FRAME::loadAllLibraries()
 
     std::unordered_map<wxString, std::vector<LIB_SYMBOL*>> loadedSymbols;
 
-    SYMBOL_ASYNC_LOADER loader( libraryNames, PROJECT_SCH::SchSymbolLibTable( &Prj() ), false, nullptr,
-                                progressReporter.get() );
+    SYMBOL_ASYNC_LOADER loader( libraryNames, PROJECT_SCH::SchSymbolLibTable( &Prj() ), false,
+                                nullptr, progressReporter.get() );
 
     LOCALE_IO toggle;
 
@@ -377,13 +378,13 @@ void SYMBOL_VIEWER_FRAME::setupUIConditions()
     auto demorganStandardCond =
             []( const SELECTION& )
             {
-                return m_bodyStyle == LIB_ITEM::BODY_STYLE::BASE;
+                return m_bodyStyle == BODY_STYLE::BASE;
             };
 
     auto demorganAlternateCond =
             []( const SELECTION& )
             {
-                return m_bodyStyle == LIB_ITEM::BODY_STYLE::DEMORGAN;
+                return m_bodyStyle == BODY_STYLE::DEMORGAN;
             };
 
     auto haveDatasheetCond =
@@ -393,7 +394,7 @@ void SYMBOL_VIEWER_FRAME::setupUIConditions()
                 return symbol && !symbol->GetDatasheetField().GetText().IsEmpty();
             };
 
-    mgr->SetConditions( EE_ACTIONS::showDatasheet,       ENABLE( haveDatasheetCond ) );
+    mgr->SetConditions( ACTIONS::showDatasheet,       ENABLE( haveDatasheetCond ) );
     mgr->SetConditions( EE_ACTIONS::showElectricalTypes, CHECK( electricalTypesShownCondition ) );
     mgr->SetConditions( EE_ACTIONS::showPinNumbers,      CHECK( pinNumbersShownCondition ) );
 
@@ -410,7 +411,7 @@ void SYMBOL_VIEWER_FRAME::setupUIConditions()
 void SYMBOL_VIEWER_FRAME::SetUnitAndBodyStyle( int aUnit, int aBodyStyle )
 {
     m_unit = aUnit > 0 ? aUnit : 1;
-    m_bodyStyle = aBodyStyle > 0 ? aBodyStyle : LIB_ITEM::BODY_STYLE::BASE;
+    m_bodyStyle = aBodyStyle > 0 ? aBodyStyle : BODY_STYLE::BASE;
     m_selection_changed = false;
 
     updatePreviewSymbol();
@@ -561,7 +562,9 @@ bool SYMBOL_VIEWER_FRAME::ReCreateLibList()
                 {
                     wxArrayString aliasNames;
 
-                    PROJECT_SCH::SchSymbolLibTable( &Prj() )->EnumerateSymbolLib( aLib, aliasNames, true );
+                    PROJECT_SCH::SchSymbolLibTable( &Prj() )->EnumerateSymbolLib( aLib,
+                                                                                  aliasNames,
+                                                                                  true );
 
                     if( aliasNames.IsEmpty() )
                         return;
@@ -626,7 +629,8 @@ bool SYMBOL_VIEWER_FRAME::ReCreateLibList()
         m_libList->Append( UnescapeString( name ) );
 
     // Search for a previous selection:
-    int index = m_libList->FindString( UnescapeString( m_currentSymbol.GetUniStringLibNickname() ) );
+    int index =
+            m_libList->FindString( UnescapeString( m_currentSymbol.GetUniStringLibNickname() ) );
 
     if( index != wxNOT_FOUND )
     {
@@ -640,7 +644,7 @@ bool SYMBOL_VIEWER_FRAME::ReCreateLibList()
                                         ? m_libList->GetBaseString( 0 ) : wxString( wxT( "" ) ) );
         m_currentSymbol.SetLibItemName( wxEmptyString );
         m_unit = 1;
-        m_bodyStyle = LIB_ITEM::BODY_STYLE::BASE;
+        m_bodyStyle = BODY_STYLE::BASE;
     }
 
     bool cmp_changed = ReCreateSymbolList();
@@ -669,7 +673,8 @@ bool SYMBOL_VIEWER_FRAME::ReCreateSymbolList()
     try
     {
         if( row )
-            PROJECT_SCH::SchSymbolLibTable( &Prj() )->LoadSymbolLib( symbols, libName, m_listPowerOnly );
+            PROJECT_SCH::SchSymbolLibTable( &Prj() )->LoadSymbolLib( symbols, libName,
+                                                                     m_listPowerOnly );
     }
     catch( const IO_ERROR& ) {}   // ignore, it is handled below
 
@@ -715,19 +720,20 @@ bool SYMBOL_VIEWER_FRAME::ReCreateSymbolList()
     if( m_symbolList->IsEmpty() )
     {
         SetSelectedSymbol( wxEmptyString );
-        m_bodyStyle = LIB_ITEM::BODY_STYLE::BASE;
+        m_bodyStyle = BODY_STYLE::BASE;
         m_unit    = 1;
         return true;
     }
 
-    int  index = m_symbolList->FindString( UnescapeString( m_currentSymbol.GetUniStringLibItemName() ) );
+    int index =
+            m_symbolList->FindString( UnescapeString( m_currentSymbol.GetUniStringLibItemName() ) );
     bool changed = false;
 
     if( index == wxNOT_FOUND )
     {
         // Select the first library entry when the previous entry name does not exist in
         // the current library.
-        m_bodyStyle = LIB_ITEM::BODY_STYLE::BASE;
+        m_bodyStyle = BODY_STYLE::BASE;
         m_unit      = 1;
         index       = -1;
         changed     = true;
@@ -827,7 +833,7 @@ void SYMBOL_VIEWER_FRAME::SetSelectedSymbol( const wxString& aSymbolName )
         if( m_selection_changed )
         {
             m_unit = 1;
-            m_bodyStyle = LIB_ITEM::BODY_STYLE::BASE;
+            m_bodyStyle = BODY_STYLE::BASE;
             m_selection_changed = false;
         }
 
@@ -844,7 +850,8 @@ void SYMBOL_VIEWER_FRAME::DClickOnSymbolList( wxCommandEvent& event )
 
 void SYMBOL_VIEWER_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
 {
-    auto cfg = Pgm().GetSettingsManager().GetAppSettings<EESCHEMA_SETTINGS>();
+    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
 
     SCH_BASE_FRAME::LoadSettings( cfg );
 
@@ -870,7 +877,8 @@ void SYMBOL_VIEWER_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
 
 void SYMBOL_VIEWER_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg)
 {
-    EESCHEMA_SETTINGS* cfg = Pgm().GetSettingsManager().GetAppSettings<EESCHEMA_SETTINGS>();
+    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
 
     SCH_BASE_FRAME::SaveSettings( cfg );
 
@@ -882,7 +890,7 @@ void SYMBOL_VIEWER_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg)
     cfg->m_LibViewPanel.lib_list_width = m_libListWidth;
     cfg->m_LibViewPanel.cmp_list_width = m_symbolListWidth;
 
-    if( KIGFX::SCH_RENDER_SETTINGS* renderSettings = GetRenderSettings() )
+    if( SCH_RENDER_SETTINGS* renderSettings = GetRenderSettings() )
     {
         cfg->m_LibViewPanel.show_pin_electrical_type = renderSettings->m_ShowPinsElectricalType;
         cfg->m_LibViewPanel.show_pin_numbers = renderSettings->m_ShowPinNumbers;
@@ -898,18 +906,19 @@ WINDOW_SETTINGS* SYMBOL_VIEWER_FRAME::GetWindowSettings( APP_SETTINGS_BASE* aCfg
 }
 
 
-void SYMBOL_VIEWER_FRAME::CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged )
+void SYMBOL_VIEWER_FRAME::CommonSettingsChanged( int aFlags )
 {
-    SCH_BASE_FRAME::CommonSettingsChanged( aEnvVarsChanged, aTextVarsChanged );
+    SCH_BASE_FRAME::CommonSettingsChanged( aFlags );
 
-    EESCHEMA_SETTINGS* cfg = Pgm().GetSettingsManager().GetAppSettings<EESCHEMA_SETTINGS>();
+    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
     GetGalDisplayOptions().ReadWindowSettings( cfg->m_LibViewPanel.window );
 
     GetCanvas()->GetGAL()->SetAxesColor( m_colorSettings->GetColor( LAYER_SCHEMATIC_GRID_AXES ) );
     GetCanvas()->GetGAL()->DrawGrid();
     GetCanvas()->ForceRefresh();
 
-    if( aEnvVarsChanged )
+    if( aFlags && ENVVARS_CHANGED )
         ReCreateLibList();
 }
 
@@ -1055,7 +1064,7 @@ void SYMBOL_VIEWER_FRAME::onSelectNextSymbol( wxCommandEvent& aEvent )
     int            ii = m_symbolList->GetSelection();
 
     // Select the next symbol or stop at the end of the list.
-    if( ii != wxNOT_FOUND && ii < (int)(m_symbolList->GetCount() - 1) )
+    if( ii != wxNOT_FOUND && ii < (int) ( m_symbolList->GetCount() - 1 ) )
         ii += 1;
 
     m_symbolList->SetSelection( ii );

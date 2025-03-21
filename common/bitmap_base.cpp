@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 jean-pierre.charras
- * Copyright (C) 2011-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,7 +22,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <bitmap_base.h>
+#include "bitmap_base.h"
+
 #include <gr_basic.h>
 #include <math/util.h>    // for KiROUND
 #include <memory>         // for make_unique, unique_ptr
@@ -106,20 +107,20 @@ void BITMAP_BASE::updatePPI()
 }
 
 
-void BITMAP_BASE::ImportData( BITMAP_BASE* aItem )
+void BITMAP_BASE::ImportData( BITMAP_BASE& aItem )
 {
-    *m_image  = *aItem->m_image;
-    *m_bitmap = *aItem->m_bitmap;
-    *m_originalImage = *aItem->m_originalImage;
-    m_imageId = aItem->m_imageId;
-    m_scale   = aItem->m_scale;
-    m_ppi     = aItem->m_ppi;
-    m_pixelSizeIu = aItem->m_pixelSizeIu;
-    m_isMirroredX = aItem->m_isMirroredX;
-    m_isMirroredY = aItem->m_isMirroredY;
-    m_rotation = aItem->m_rotation;
-    m_imageType = aItem->m_imageType;
-    m_imageData = aItem->m_imageData;
+    *m_image = *aItem.m_image;
+    *m_bitmap = *aItem.m_bitmap;
+    *m_originalImage = *aItem.m_originalImage;
+    m_imageId = aItem.m_imageId;
+    m_scale = aItem.m_scale;
+    m_ppi = aItem.m_ppi;
+    m_pixelSizeIu = aItem.m_pixelSizeIu;
+    m_isMirroredX = aItem.m_isMirroredX;
+    m_isMirroredY = aItem.m_isMirroredY;
+    m_rotation = aItem.m_rotation;
+    m_imageType = aItem.m_imageType;
+    m_imageData = aItem.m_imageData;
 }
 
 
@@ -138,18 +139,7 @@ bool BITMAP_BASE::ReadImageFile( wxInputStream& aInStream )
     if( !new_image->LoadFile( mem_stream ) )
         return false;
 
-    delete m_image;
-    m_imageType = new_image->GetType();
-    m_image = new_image.release();
-
-    // Create a new wxImage object from m_image
-    delete m_originalImage;
-    m_originalImage = new wxImage( *m_image );
-
-    rebuildBitmap();
-    updatePPI();
-
-    return true;
+    return SetImage( *new_image );
 }
 
 
@@ -166,18 +156,7 @@ bool BITMAP_BASE::ReadImageFile( wxMemoryBuffer& aBuf )
     if( !new_image->LoadFile( mem_stream ) )
         return false;
 
-    delete m_image;
-    m_imageType = new_image->GetType();
-    m_image = new_image.release();
-
-    // Create a new wxImage object from m_image
-    delete m_originalImage;
-    m_originalImage = new wxImage( *m_image );
-
-    rebuildBitmap();
-    updatePPI();
-
-    return true;
+    return SetImage( *new_image );
 }
 
 
@@ -193,12 +172,33 @@ bool BITMAP_BASE::ReadImageFile(const wxString& aFullFilename)
 }
 
 
+bool BITMAP_BASE::SetImage( const wxImage& aImage )
+{
+    if( !aImage.IsOk() || aImage.GetWidth() == 0 || aImage.GetHeight() == 0 )
+        return false;
+
+    delete m_image;
+    m_image = new wxImage( aImage );
+
+    // Create a new wxImage object from m_image
+    delete m_originalImage;
+    m_originalImage = new wxImage( *m_image );
+
+    rebuildBitmap();
+    updatePPI();
+
+    return true;
+}
+
+
 bool BITMAP_BASE::SaveImageData( wxOutputStream& aOutStream ) const
 {
     if( m_imageData.IsEmpty() )
     {
-        // If m_imageData is empty, use wxImage::Save() method to write m_image contents to the stream.
-        wxBitmapType type = m_imageType == wxBITMAP_TYPE_JPEG ? wxBITMAP_TYPE_JPEG : wxBITMAP_TYPE_PNG;
+        // If m_imageData is empty, use wxImage::Save() method to write m_image contents to
+        // the stream.
+        wxBitmapType type = m_imageType == wxBITMAP_TYPE_JPEG ? wxBITMAP_TYPE_JPEG
+                                                              : wxBITMAP_TYPE_PNG;
 
         if( !m_image->SaveFile( aOutStream, type ) )
         {
@@ -224,7 +224,7 @@ bool BITMAP_BASE::LoadLegacyData( LINE_READER& aLine, wxString& aErrorMsg )
     {
         if( !aLine.ReadLine() )
         {
-            aErrorMsg = wxT("Unexpected end of data");
+            aErrorMsg = wxT( "Unexpected end of data" );
             return false;
         }
 
@@ -239,7 +239,7 @@ bool BITMAP_BASE::LoadLegacyData( LINE_READER& aLine, wxString& aErrorMsg )
             m_image->LoadFile( istream, wxBITMAP_TYPE_ANY );
             m_bitmap = new wxBitmap( *m_image );
             m_originalImage = new wxImage( *m_image );
-            UpdateImageDataBuffer();
+            updateImageDataBuffer();
             break;
         }
 
@@ -275,7 +275,7 @@ const BOX2I BITMAP_BASE::GetBoundingBox() const
 
 
 void BITMAP_BASE::DrawBitmap( wxDC* aDC, const VECTOR2I& aPos,
-                              const KIGFX::COLOR4D& aBackgroundColor )
+                              const KIGFX::COLOR4D& aBackgroundColor ) const
 {
     if( m_bitmap == nullptr )
         return;
@@ -300,16 +300,16 @@ void BITMAP_BASE::DrawBitmap( wxDC* aDC, const VECTOR2I& aPos,
     // Now we have an issue on wxWidgets 3.1.6 to fix the clip area
     // and the bitmap position when using TransformMatrix
     // So for version == 3.1.6  do not use it
-    // Be carefull before changing the code.
+    // Be careful before changing the code.
     bool useTransform = aDC->CanUseTransformMatrix();
 
     wxAffineMatrix2D init_matrix = aDC->GetTransformMatrix();
 
     // Note: clipping bitmap area was made to fix a minor issue in old versions of
-    // Kicad/wxWidgets (5.1 / wx 3.0)
+    // KiCad/wxWidgets (5.1 / wx 3.0)
     // However SetClippingRegion creates a lot of issues (different ways to fix the
-    // position and size of the area, depending on wxWidget version)because it changes with
-    // each versions of wxWigets, so it is now disabled
+    // position and size of the area, depending on wxWidgets version)because it changes with
+    // each versions of wxWidgets, so it is now disabled
     // However the code is still here, just in case
     // #define USE_CLIP_AREA
 
@@ -321,6 +321,7 @@ void BITMAP_BASE::DrawBitmap( wxDC* aDC, const VECTOR2I& aPos,
         matrix.Translate( pos.x, pos.y );
         matrix.Scale( GetScalingFactor(), GetScalingFactor() );
         aDC->SetTransformMatrix( matrix );
+
         // Needed on wx <= 3.1.5, and this is strange...
         // Nevertheless, this code has problem (the bitmap is not seen)
         // with wx version > 3.1.5
@@ -343,10 +344,10 @@ void BITMAP_BASE::DrawBitmap( wxDC* aDC, const VECTOR2I& aPos,
         clipAreaPos.y = pos.y;
     }
 
-    #ifdef USE_CLIP_AREA
+#ifdef USE_CLIP_AREA
     aDC->DestroyClippingRegion();
     aDC->SetClippingRegion( clipAreaPos, wxSize( size.x, size.y ) );
-    #endif
+#endif
 
     if( aBackgroundColor != COLOR4D::UNSPECIFIED && m_bitmap->HasAlpha() )
     {
@@ -385,9 +386,9 @@ void BITMAP_BASE::DrawBitmap( wxDC* aDC, const VECTOR2I& aPos,
         aDC->SetLogicalOrigin( logicalOriginX, logicalOriginY );
     }
 
-    #ifdef USE_CLIP_AREA
+#ifdef USE_CLIP_AREA
     aDC->DestroyClippingRegion();
-    #endif
+#endif
 }
 
 
@@ -408,31 +409,31 @@ VECTOR2I BITMAP_BASE::GetSize() const
 }
 
 
-void BITMAP_BASE::Mirror( bool aVertically )
+void BITMAP_BASE::Mirror( FLIP_DIRECTION aFlipDirection )
 {
     if( m_image )
     {
         // wxImage::Mirror() clear some parameters of the original image.
         // We need to restore them, especially resolution and unit, to be
         // sure image parameters saved in file are the right parameters, not
-        // the defualt values
+        // the default values
         int resX = m_image->GetOptionInt( wxIMAGE_OPTION_RESOLUTIONX );
         int resY = m_image->GetOptionInt( wxIMAGE_OPTION_RESOLUTIONY );
         int unit = m_image->GetOptionInt( wxIMAGE_OPTION_RESOLUTIONUNIT );
 
-        *m_image = m_image->Mirror( not aVertically );
+        *m_image = m_image->Mirror( aFlipDirection == FLIP_DIRECTION::LEFT_RIGHT );
 
         m_image->SetOption( wxIMAGE_OPTION_RESOLUTIONUNIT , unit);
         m_image->SetOption( wxIMAGE_OPTION_RESOLUTIONX, resX);
         m_image->SetOption( wxIMAGE_OPTION_RESOLUTIONY, resY);
 
-        if( aVertically )
+        if( aFlipDirection == FLIP_DIRECTION::TOP_BOTTOM )
             m_isMirroredY = !m_isMirroredY;
         else
             m_isMirroredX = !m_isMirroredX;
 
         rebuildBitmap( false );
-        UpdateImageDataBuffer();
+        updateImageDataBuffer();
     }
 }
 
@@ -444,20 +445,20 @@ void BITMAP_BASE::Rotate( bool aRotateCCW )
         // wxImage::Rotate90() clear some parameters of the original image.
         // We need to restore them, especially resolution and unit, to be
         // sure image parameters saved in file are the right parameters, not
-        // the defualt values
+        // the default values
         int resX = m_image->GetOptionInt( wxIMAGE_OPTION_RESOLUTIONX );
         int resY = m_image->GetOptionInt( wxIMAGE_OPTION_RESOLUTIONY );
         int unit = m_image->GetOptionInt( wxIMAGE_OPTION_RESOLUTIONUNIT );
 
         *m_image = m_image->Rotate90( aRotateCCW );
 
-        m_image->SetOption( wxIMAGE_OPTION_RESOLUTIONUNIT , unit);
-        m_image->SetOption( wxIMAGE_OPTION_RESOLUTIONX, resX);
-        m_image->SetOption( wxIMAGE_OPTION_RESOLUTIONY, resY);
+        m_image->SetOption( wxIMAGE_OPTION_RESOLUTIONUNIT, unit );
+        m_image->SetOption( wxIMAGE_OPTION_RESOLUTIONX, resX );
+        m_image->SetOption( wxIMAGE_OPTION_RESOLUTIONY, resY );
 
-        m_rotation += ( aRotateCCW ? -ANGLE_90 : ANGLE_90 );
+        m_rotation += ( aRotateCCW ? ANGLE_90 : -ANGLE_90 );
         rebuildBitmap( false );
-        UpdateImageDataBuffer();
+        updateImageDataBuffer();
     }
 }
 
@@ -469,7 +470,7 @@ void BITMAP_BASE::ConvertToGreyscale()
         *m_image  = m_image->ConvertToGreyscale();
         *m_originalImage = m_originalImage->ConvertToGreyscale();
         rebuildBitmap();
-        UpdateImageDataBuffer();
+        updateImageDataBuffer();
     }
 }
 
@@ -489,12 +490,13 @@ void BITMAP_BASE::PlotImage( PLOTTER*       aPlotter, const VECTOR2I& aPos,
 }
 
 
-void BITMAP_BASE::UpdateImageDataBuffer()
+void BITMAP_BASE::updateImageDataBuffer()
 {
     if( m_image )
     {
         wxMemoryOutputStream stream;
-        wxBitmapType type = m_imageType == wxBITMAP_TYPE_JPEG ? wxBITMAP_TYPE_JPEG : wxBITMAP_TYPE_PNG;
+        wxBitmapType type = m_imageType == wxBITMAP_TYPE_JPEG ? wxBITMAP_TYPE_JPEG
+                                                              : wxBITMAP_TYPE_PNG;
 
         if( !m_image->SaveFile( stream, type ) )
             return;

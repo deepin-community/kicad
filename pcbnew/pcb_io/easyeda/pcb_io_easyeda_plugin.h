@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -48,19 +48,19 @@ public:
     bool CanReadLibrary( const wxString& aFileName ) const override;
 
     BOARD* LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
-                      const STRING_UTF8_MAP* aProperties = nullptr, PROJECT* aProject = nullptr ) override;
+                      const std::map<std::string, UTF8>* aProperties = nullptr, PROJECT* aProject = nullptr ) override;
 
     long long GetLibraryTimestamp( const wxString& aLibraryPath ) const override;
 
     void FootprintEnumerate( wxArrayString& aFootprintNames, const wxString& aLibraryPath,
                              bool                   aBestEfforts,
-                             const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                             const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     std::vector<FOOTPRINT*> GetImportedCachedLibraryFootprints() override;
 
     FOOTPRINT* FootprintLoad( const wxString& aLibraryPath, const wxString& aFootprintName,
                               bool                   aKeepUUID = false,
-                              const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                              const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     bool IsLibraryWritable( const wxString& aLibraryPath ) override { return false; }
 

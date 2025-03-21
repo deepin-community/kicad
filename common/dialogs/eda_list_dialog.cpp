@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2007 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,6 +32,7 @@
 // wxWidgets spends *far* too long calculating column widths (most of it, believe it or
 // not, in repeatedly creating/destroying a wxDC to do the measurement in).
 // Use default column widths instead.
+// Note, these are "standard DPI" widths
 static int DEFAULT_SINGLE_COL_WIDTH = 260;
 static int DEFAULT_COL_WIDTHS[] = { 200, 300 };
 
@@ -43,9 +44,17 @@ EDA_LIST_DIALOG::EDA_LIST_DIALOG( wxWindow* aParent, const wxString& aTitle,
     EDA_LIST_DIALOG_BASE( aParent, wxID_ANY, aTitle ),
     m_sortList( aSortList )
 {
+    // correct for wxfb not supporting FromDIP
+    m_listBox->SetMinSize( FromDIP( m_listBox->GetMinSize() ) );
     m_filterBox->SetHint( _( "Filter" ) );
 
     initDialog( aItemHeaders, aItemList, aPreselectText );
+
+    if( aItemList.size() > 16 )
+    {
+        m_listBox->SetMinSize( wxSize( m_listBox->GetMinWidth(),
+                                       KiROUND( m_listBox->GetMinHeight() * 1.66 ) ) );
+    }
 
     // DIALOG_SHIM needs a unique hash_key because classname is not sufficient
     // because so many dialogs share this same class, with different numbers of
@@ -90,21 +99,21 @@ void EDA_LIST_DIALOG::initDialog( const wxArrayString& aItemHeaders,
     if( aItemHeaders.Count() == 1 )
     {
         m_listBox->InsertColumn( 0, aItemHeaders.Item( 0 ), wxLIST_FORMAT_LEFT,
-                                 DEFAULT_SINGLE_COL_WIDTH );
+                                 FromDIP( DEFAULT_SINGLE_COL_WIDTH ) );
 
-        m_listBox->SetMinClientSize( wxSize( DEFAULT_SINGLE_COL_WIDTH, 200 ) );
-        SetMinClientSize( wxSize( DEFAULT_COL_WIDTHS[0], 220 ) );
+        m_listBox->SetMinClientSize( FromDIP( wxSize( DEFAULT_SINGLE_COL_WIDTH, 200 ) ) );
+        SetMinClientSize( FromDIP( wxSize( DEFAULT_COL_WIDTHS[0], 220 ) ) );
     }
     else if( aItemHeaders.Count() == 2 )
     {
         for( unsigned i = 0; i < aItemHeaders.Count(); i++ )
         {
             m_listBox->InsertColumn( i, aItemHeaders.Item( i ), wxLIST_FORMAT_LEFT,
-                                     DEFAULT_COL_WIDTHS[ i ] );
+                                     FromDIP( DEFAULT_COL_WIDTHS[ i ] ) );
         }
 
-        m_listBox->SetMinClientSize( wxSize( DEFAULT_COL_WIDTHS[0] * 3, 200 ) );
-        SetMinClientSize( wxSize( DEFAULT_COL_WIDTHS[0] * 2, 220 ) );
+        m_listBox->SetMinClientSize( FromDIP( wxSize( DEFAULT_COL_WIDTHS[0] * 3, 200 ) ) );
+        SetMinClientSize( FromDIP( wxSize( DEFAULT_COL_WIDTHS[0] * 2, 220 ) ) );
     }
 
     m_itemsList = aItemList;
@@ -120,7 +129,7 @@ void EDA_LIST_DIALOG::initDialog( const wxArrayString& aItemHeaders,
 
             // Set to a small size so EnsureVisible() won't be foiled by later additions.
             // ListBox will expand to fit later.
-            m_listBox->SetSize( m_listBox->GetSize().GetX(), 100 );
+            m_listBox->SetSize( m_listBox->GetSize().GetX(), FromDIP( 100 ) );
             m_listBox->EnsureVisible( sel );
         }
     }
@@ -224,7 +233,7 @@ void EDA_LIST_DIALOG::InsertItems( const std::vector< wxArrayString >& itemList,
             info.m_itemId = row + position;
             info.m_col = col;
             info.m_text = itemList[row].Item( col );
-            info.m_width = DEFAULT_COL_WIDTHS[ col ];
+            info.m_width = FromDIP( DEFAULT_COL_WIDTHS[ col ] );
             info.m_mask = wxLIST_MASK_TEXT | wxLIST_MASK_WIDTH;
 
             if( col == 0 )

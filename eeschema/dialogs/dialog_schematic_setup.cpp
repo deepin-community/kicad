@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,12 +27,15 @@
 #include <dialogs/panel_setup_buses.h>
 #include <panel_setup_formatting.h>
 #include <panel_setup_pinmap.h>
-#include <erc_item.h>
+#include <erc/erc_item.h>
 #include <panel_text_variables.h>
 #include <panel_bom_presets.h>
+#include <panel_embedded_files.h>
 #include <project/project_file.h>
 #include <project/net_settings.h>
+#include <sch_io/sch_io.h>
 #include <settings/settings_manager.h>
+#include <widgets/wx_progress_reporters.h>
 #include "dialog_schematic_setup.h"
 #include "panel_template_fieldnames.h"
 
@@ -115,11 +118,22 @@ DIALOG_SCHEMATIC_SETUP::DIALOG_SCHEMATIC_SETUP( SCH_EDIT_FRAME* aFrame ) :
                 return new PANEL_SETUP_BUSES( aParent, m_frame );
             }, _( "Bus Alias Definitions" ) );
 
+    m_textVarsPage = m_treebook->GetPageCount();
     m_treebook->AddLazySubPage(
             [this]( wxWindow* aParent ) -> wxWindow*
             {
                 return new PANEL_TEXT_VARIABLES( aParent, &Prj() );
             }, _( "Text Variables" ) );
+
+
+    m_treebook->AddPage( new wxPanel( GetTreebook() ), _( "Schematic Data" ) );
+
+    m_embeddedFilesPage = m_treebook->GetPageCount();
+    m_treebook->AddLazySubPage(
+            [this]( wxWindow* aParent ) -> wxWindow*
+            {
+                return new PANEL_EMBEDDED_FILES( aParent, &m_frame->Schematic() );
+            }, _( "Embedded Files" ) );
 
     for( size_t i = 0; i < m_treebook->GetPageCount(); ++i )
         m_treebook->ExpandNode( i );
@@ -228,6 +242,60 @@ void DIALOG_SCHEMATIC_SETUP::onAuxiliaryAction( wxCommandEvent& event )
     {
         static_cast<PANEL_BOM_PRESETS*>( m_treebook->ResolvePage( m_bomPresetsPage ) )
                 ->ImportBomFmtPresetsFrom( *file.m_SchematicSettings );
+    }
+
+    if( importDlg.m_BusAliasesOpt->GetValue() )
+    {
+        // The bus aliases are stored on individual sheets, so we have to load the whole
+        // schematic for this one.
+
+        wxFileName schematicFn( projectFn );
+        schematicFn.SetExt( FILEEXT::KiCadSchematicFileExtension );
+
+        wxString               fullFileName = schematicFn.GetFullPath();
+        wxString               msg;
+        IO_RELEASER<SCH_IO>    pi( SCH_IO_MGR::FindPlugin( SCH_IO_MGR::SCH_KICAD ) );
+        WX_PROGRESS_REPORTER   progressReporter( this, _( "Loading Bus Aliases" ), 1 );
+
+        pi->SetProgressReporter( &progressReporter );
+
+        try
+        {
+            wxBusyCursor busy;
+            otherSch.SetRoot( pi->LoadSchematicFile( fullFileName, &otherSch ) );
+
+            // Make ${SHEETNAME} work on the root sheet until we properly support
+            // naming the root sheet
+            otherSch.Root().SetName( _( "Root" ) );
+        }
+        catch( const FUTURE_FORMAT_ERROR& ffe )
+        {
+            msg.Printf( _( "Error fetching bus aliases.  Could not load schematic '%s'." ),
+                        fullFileName );
+            progressReporter.Hide();
+            DisplayErrorMessage( this, msg, ffe.Problem() );
+        }
+        catch( const IO_ERROR& ioe )
+        {
+            msg.Printf( _( "Error fetching bus aliases.  Could not load schematic '%s'." ),
+                        fullFileName );
+            progressReporter.Hide();
+            DisplayErrorMessage( this, msg, ioe.What() );
+        }
+
+        // This fixes a focus issue after the progress reporter is done on GTK.  It shouldn't
+        // cause any issues on macOS and Windows.  If it does, it will have to be conditionally
+        // compiled.
+        Raise();
+
+        static_cast<PANEL_SETUP_BUSES*>( m_treebook->ResolvePage( m_busesPage ) )
+                ->ImportSettingsFrom( otherSch );
+    }
+
+    if( importDlg.m_TextVarsOpt->GetValue() )
+    {
+        static_cast<PANEL_TEXT_VARIABLES*>( m_treebook->ResolvePage( m_textVarsPage ) )
+                ->ImportSettingsFrom( otherPrj );
     }
 
     if( !alreadyLoaded )

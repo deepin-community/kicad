@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014-2017 CERN
- * Copyright (C) 2014-2017 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Tomasz Włostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -55,7 +55,7 @@ public:
      *
      * Caller is also responsible for re-building connectivity afterwards.
      */
-    bool Fill( std::vector<ZONE*>& aZones, bool aCheck = false, wxWindow* aParent = nullptr );
+    bool Fill( const std::vector<ZONE*>& aZones, bool aCheck = false, wxWindow* aParent = nullptr );
 
     bool IsDebug() const { return m_debugZoneFiller; }
 
@@ -73,7 +73,7 @@ private:
                                  std::vector<PAD*>& aNoConnectionPads );
 
     void buildCopperItemClearances( const ZONE* aZone, PCB_LAYER_ID aLayer,
-                                    const std::vector<PAD*> aNoConnectionPads,
+                                    const std::vector<PAD*>& aNoConnectionPads,
                                     SHAPE_POLY_SET& aHoles );
 
     void subtractHigherPriorityZones( const ZONE* aZone, PCB_LAYER_ID aLayer,
@@ -103,6 +103,13 @@ private:
     void buildThermalSpokes( const ZONE* box, PCB_LAYER_ID aLayer,
                              const std::vector<PAD*>& aSpokedPadsList,
                              std::deque<SHAPE_LINE_CHAIN>& aSpokes );
+
+    /**
+     * Create strands of zero-width between elements of SHAPE_POLY_SET that are within
+     * aDistance of each other.  When we inflate these strands, they will create minimum
+     * width bands
+     */
+    void connect_nearby_polys( SHAPE_POLY_SET& aPolys, double aDistance );
 
     /**
      * Build the filled solid areas polygons from zone outlines (stored in m_Poly)

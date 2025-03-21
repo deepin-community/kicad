@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -49,6 +49,7 @@ public:
     BOARD_COMMIT( EDA_DRAW_FRAME* aFrame );
     BOARD_COMMIT( TOOL_BASE* aTool );
     BOARD_COMMIT( TOOL_MANAGER* aMgr );
+    BOARD_COMMIT( TOOL_MANAGER* aMgr, bool aIsBoardEditor );
 
     virtual ~BOARD_COMMIT() {}
 

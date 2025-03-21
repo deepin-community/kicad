@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,7 +36,7 @@ class TOOL_MANAGER;
 class GRAPHICS_CLEANER
 {
 public:
-    GRAPHICS_CLEANER( DRAWINGS& aDrawings, FOOTPRINT* aParentFootprint, BOARD_COMMIT& aCommit,
+    GRAPHICS_CLEANER( const DRAWINGS& aDrawings, FOOTPRINT* aParentFootprint, BOARD_COMMIT& aCommit,
                       TOOL_MANAGER* aToolManager );
 
     /**
@@ -60,7 +60,7 @@ private:
     void mergePads();
 
 private:
-    DRAWINGS&     m_drawings;
+    const DRAWINGS& m_drawings;
     FOOTPRINT*    m_parentFootprint;  // nullptr if not in Footprint Editor
     BOARD_COMMIT& m_commit;
     TOOL_MANAGER* m_toolMgr;

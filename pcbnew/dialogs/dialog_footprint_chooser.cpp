@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 CERN
- * Copyright (C) 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,7 +28,7 @@
 #include <pcb_base_frame.h>
 #include <widgets/panel_footprint_chooser.h>
 #include <3d_canvas/eda_3d_canvas.h>
-#include <common_ogl/ogl_attr_list.h>
+#include <board.h>
 #include <project_pcb.h>
 #include <board_design_settings.h>
 #include <pgm_base.h>
@@ -82,24 +82,28 @@ DIALOG_FOOTPRINT_CHOOSER::DIALOG_FOOTPRINT_CHOOSER( PCB_BASE_FRAME* aParent,
     // bSizerBottom shows all buttons to the bottom of window
     wxBoxSizer* bSizerBottom;
     bSizerBottom = new wxBoxSizer( wxHORIZONTAL );
-    // Add a spacer on the left
-    bSizerBottom->Add( 20, 0, 0, 0, 5 );
 
-	m_grButton3DView = new BITMAP_BUTTON( this, wxID_ANY,
-                                          wxNullBitmap, wxDefaultPosition, wxDefaultSize/*, wxBU_AUTODRAW|wxBORDER_NONE*/ );
+    bSizerBottom->Add( 0, 0, 1, 0, 5 );     // Add spacer to right-align buttons
+
+    BITMAP_BUTTON* separator = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap );
+    separator->SetIsSeparator();
+    bSizerBottom->Add( separator, 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 1 );
+
+	m_grButton3DView = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap );
     m_grButton3DView->SetIsRadioButton();
     m_grButton3DView->SetBitmap( KiBitmapBundle( BITMAPS::shape_3d ) );
     m_grButton3DView->Check( !m_showFpMode );
-	bSizerBottom->Add( m_grButton3DView, 0, wxALIGN_CENTER_VERTICAL, 5 );
+	bSizerBottom->Add( m_grButton3DView, 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 1 );
 
-	m_grButtonFpView = new BITMAP_BUTTON( this, wxID_ANY,
-                                          wxNullBitmap, wxDefaultPosition, wxDefaultSize/*, wxBU_AUTODRAW|wxBORDER_NONE*/ );
+	m_grButtonFpView = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap );
     m_grButtonFpView->SetIsRadioButton();
     m_grButtonFpView->SetBitmap( KiBitmapBundle( BITMAPS::module ) );
     m_grButtonFpView->Check( m_showFpMode );
-	bSizerBottom->Add( m_grButtonFpView, 0, wxALIGN_CENTER_VERTICAL, 5 );
+	bSizerBottom->Add( m_grButtonFpView, 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 1 );
 
-    bSizerBottom->Add( 0, 0, 1, wxEXPAND, 5 );
+    separator = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap );
+    separator->SetIsSeparator();
+    bSizerBottom->Add( separator, 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 1 );
 
     if( aPreselect.IsValid() )
         m_chooserPanel->SetPreselect( aPreselect );
@@ -114,6 +118,7 @@ DIALOG_FOOTPRINT_CHOOSER::DIALOG_FOOTPRINT_CHOOSER( PCB_BASE_FRAME* aParent,
     sdbSizer->AddButton( cancelButton );
     sdbSizer->Realize();
 
+    bSizerBottom->Add( 20, 0, 0, 0, 5 );     // Add spacer
     bSizerBottom->Add( sdbSizer, 0, wxEXPAND | wxALL, 5 );
 
     m_SizerTop->Add( bSizerBottom, 0, wxEXPAND, 5 );
@@ -129,14 +134,14 @@ DIALOG_FOOTPRINT_CHOOSER::DIALOG_FOOTPRINT_CHOOSER( PCB_BASE_FRAME* aParent,
 
     // Connect Events
     m_grButton3DView->Connect( wxEVT_COMMAND_BUTTON_CLICKED ,
-                         wxCommandEventHandler( DIALOG_FOOTPRINT_CHOOSER::on3DviewReq ),
-                         NULL, this );
+                               wxCommandEventHandler( DIALOG_FOOTPRINT_CHOOSER::on3DviewReq ),
+                               nullptr, this );
     m_grButtonFpView->Connect( wxEVT_COMMAND_BUTTON_CLICKED ,
-                             wxCommandEventHandler( DIALOG_FOOTPRINT_CHOOSER::onFpViewReq ),
-                             NULL, this );
+                               wxCommandEventHandler( DIALOG_FOOTPRINT_CHOOSER::onFpViewReq ),
+                               nullptr, this );
 
-    this->Connect( FP_SELECTION_EVENT,      // custom event fired by a PANEL_FOOTPRINT_CHOOSER
-                   wxCommandEventHandler( DIALOG_FOOTPRINT_CHOOSER::onFpChanged ), NULL, this );
+    Connect( FP_SELECTION_EVENT, wxCommandEventHandler( DIALOG_FOOTPRINT_CHOOSER::onFpChanged ),
+             nullptr, this );
 }
 
 
@@ -147,12 +152,14 @@ DIALOG_FOOTPRINT_CHOOSER::~DIALOG_FOOTPRINT_CHOOSER()
 
     // Disconnect Events
     m_grButton3DView->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED,
-                            wxCommandEventHandler( DIALOG_FOOTPRINT_CHOOSER::on3DviewReq ), NULL, this );
+                                  wxCommandEventHandler( DIALOG_FOOTPRINT_CHOOSER::on3DviewReq ),
+                                  nullptr, this );
     m_grButtonFpView->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED,
-                                wxCommandEventHandler( DIALOG_FOOTPRINT_CHOOSER::onFpViewReq ), NULL, this );
+                                  wxCommandEventHandler( DIALOG_FOOTPRINT_CHOOSER::onFpViewReq ),
+                                  nullptr, this );
 
-    this->Disconnect( FP_SELECTION_EVENT,
-                      wxCommandEventHandler( DIALOG_FOOTPRINT_CHOOSER::onFpChanged ), NULL, this );
+    Disconnect( FP_SELECTION_EVENT, wxCommandEventHandler( DIALOG_FOOTPRINT_CHOOSER::onFpChanged ),
+                nullptr, this );
 }
 
 
@@ -181,7 +188,8 @@ void DIALOG_FOOTPRINT_CHOOSER::build3DCanvas()
     // TODO(JE) use all control options
     m_boardAdapter.m_MousewheelPanning = settings->m_Input.scroll_modifier_zoom != 0;
 
-    auto* cfg = Pgm().GetSettingsManager().GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
+    SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
+    EDA_3D_VIEWER_SETTINGS* cfg = mgr.GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
 
     if( cfg )
     {
@@ -202,6 +210,7 @@ void DIALOG_FOOTPRINT_CHOOSER::build3DCanvas()
         cfg->m_Render.show_solderpaste = true;
         cfg->m_Render.show_zones = true;
         cfg->m_Render.show_board_body = true;
+        cfg->m_Render.use_board_editor_copper_colors = false;
     }
 
     m_chooserPanel->m_RightPanelSizer->Add( m_preview3DCanvas, 1, wxEXPAND, 5 );
@@ -226,6 +235,8 @@ LIB_ID DIALOG_FOOTPRINT_CHOOSER::GetSelectedLibId() const
 
 void DIALOG_FOOTPRINT_CHOOSER::onFpChanged( wxCommandEvent& event )
 {
+    m_chooserPanel->GetViewerPanel()->Refresh();
+
     if( m_showFpMode )      // the 3D viewer is not activated
         return;
 

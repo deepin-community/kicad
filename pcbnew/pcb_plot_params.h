@@ -3,7 +3,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,7 +41,7 @@ public:
     void        SetSkipPlotNPTH_Pads( bool aSkip ) { m_skipNPTH_Pads = aSkip; }
     bool        GetSkipPlotNPTH_Pads() const { return m_skipNPTH_Pads; }
 
-    void        Format( OUTPUTFORMATTER* aFormatter, int aNestLevel, int aControl=0 ) const;
+    void        Format( OUTPUTFORMATTER* aFormatter ) const;
     void        Parse( PCB_PLOT_PARAMS_PARSER* aParser );
 
     /**
@@ -70,6 +70,9 @@ public:
 
     void        SetPlotMode( OUTLINE_MODE aPlotMode ) { m_plotMode = aPlotMode; }
     OUTLINE_MODE GetPlotMode() const { return m_plotMode; }
+
+    void        SetPlotPadNumbers( bool aFlag ) { m_plotPadNumbers = aFlag; }
+    bool        GetPlotPadNumbers() const { return m_plotPadNumbers; }
 
     void        SetDXFPlotPolygonMode( bool aFlag ) { m_DXFPolygonMode = aFlag; }
     bool        GetDXFPlotPolygonMode() const { return m_DXFPolygonMode; }
@@ -101,6 +104,13 @@ public:
     void        SetSketchPadLineWidth( int aWidth ) { m_sketchPadLineWidth = aWidth; }
     int         GetSketchPadLineWidth() const { return m_sketchPadLineWidth; }
 
+    void        SetHideDNPFPsOnFabLayers( bool aFlag ) { m_hideDNPFPsOnFabLayers = aFlag; }
+    bool        GetHideDNPFPsOnFabLayers() const { return m_hideDNPFPsOnFabLayers; }
+    void        SetSketchDNPFPsOnFabLayers( bool aFlag ) { m_sketchDNPFPsOnFabLayers = aFlag; }
+    bool        GetSketchDNPFPsOnFabLayers() const { return m_sketchDNPFPsOnFabLayers; }
+    void        SetCrossoutDNPFPsOnFabLayers( bool aFlag ) { m_crossoutDNPFPsOnFabLayers = aFlag; }
+    bool        GetCrossoutDNPFPsOnFabLayers() const { return m_crossoutDNPFPsOnFabLayers; }
+
     void        SetPlotInvisibleText( bool aFlag ) { m_plotInvisibleText = aFlag; }
     bool        GetPlotInvisibleText() const { return m_plotInvisibleText; }
     void        SetPlotValue( bool aFlag ) { m_plotValue = aFlag; }
@@ -113,8 +123,7 @@ public:
     void        SetNegative( bool aFlag ) { m_negative = aFlag; }
     bool        GetNegative() const { return m_negative; }
 
-    void        SetPlotViaOnMaskLayer( bool aFlag ) { m_plotViaOnMaskLayer = aFlag; }
-    bool        GetPlotViaOnMaskLayer() const { return m_plotViaOnMaskLayer; }
+    std::optional<bool> GetLegacyPlotViaOnMaskLayer() const { return m_plotViaOnMaskLayer; }
 
     void        SetPlotFrameRef( bool aFlag ) { m_plotDrawingSheet = aFlag; }
     bool        GetPlotFrameRef() const { return m_plotDrawingSheet; }
@@ -192,6 +201,8 @@ public:
 public:
     bool        m_PDFFrontFPPropertyPopups;   ///< Generate PDF property popup menus for footprints
     bool        m_PDFBackFPPropertyPopups;    ///<   on front and/or back of board
+    bool        m_PDFMetadata;                ///< Generate PDF metadata for SUBJECT and AUTHOR
+    bool        m_PDFSingle;                  ///< Generate a single PDF file for all layers
 
 private:
     friend class PCB_PLOT_PARAMS_PARSER;
@@ -202,6 +213,7 @@ private:
 
     bool            m_skipNPTH_Pads;    /// Used to disable NPTH pads plotting on copper layers
     OUTLINE_MODE    m_plotMode;         /// FILLED or SKETCH for filled objects.
+    bool            m_plotPadNumbers;   /// Plot pad numbers when sketching pads on fab layers
     DRILL_MARKS     m_drillMarks;       /// Holes can be not plotted, have a small mark, or be
                                         ///   plotted in actual size
     PLOT_TEXT_MODE  m_textMode;
@@ -219,9 +231,8 @@ private:
     bool       m_blackAndWhite;         /// Plot in black and white only
     bool       m_plotDrawingSheet;
 
+    std::optional<bool> m_plotViaOnMaskLayer;    /// Deprecated; only used for reading legacy files
 
-    bool       m_plotViaOnMaskLayer;    /// True if vias are drawn on Mask layer (ie untented,
-                                        ///   *exposed* by mask)
     bool       m_subtractMaskFromSilk;  /// On gerbers 'scrape' away the solder mask from
                                         ///   silkscreen (trim silks)
 
@@ -267,6 +278,10 @@ private:
 
     bool       m_sketchPadsOnFabLayers; ///< Plots pads outlines on fab layers
     int        m_sketchPadLineWidth;
+
+    bool       m_hideDNPFPsOnFabLayers;
+    bool       m_sketchDNPFPsOnFabLayers;
+    bool       m_crossoutDNPFPsOnFabLayers;
 
     double     m_fineScaleAdjustX;      ///< Compensation for printer scale errors (and therefore
     double     m_fineScaleAdjustY;      ///<   expected to be very near 1.0).  Only X and Y

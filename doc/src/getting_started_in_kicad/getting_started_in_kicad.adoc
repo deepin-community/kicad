@@ -36,7 +36,7 @@ documentation. For more information on how to submit feedback or report an issue
 instructions at https://www.kicad.org/help/report-an-issue/
 
 [[introduction-to-kicad]]
-== Introduction to KiCad Version 8
+== Introduction to KiCad Version 9
 
 KiCad is an open-source software suite for creating electronic circuit schematics, printed
 circuit boards (PCBs), and associated part descriptions. KiCad supports an integrated design
@@ -52,7 +52,7 @@ developed by a volunteer team of software and electrical engineers around the wo
 of creating free and open-source electronics design software suitable for professional designers.
 
 The latest documentation for KiCad is available at https://docs.kicad.org. This
-document applies to KiCad version 8.0.
+document applies to KiCad version 9.0.
 
 [[download-and-install-kicad]]
 === Downloading and installing KiCad
@@ -140,7 +140,7 @@ connected; the board editor uses this information to make layout easier and to
 prevent mismatches between the schematic and PCB. The layout process requires
 careful placement of each footprint on the circuit board. After component
 placement, copper tracks are drawn between components based on the connections
-in the schematic as well as other electrical considerations, such as trace
+in the schematic as well as other electrical considerations, such as track
 resistance, controlled impedance requirements, crosstalk, etc.
 
 Often the schematic will need to be updated after layout has begun; the
@@ -207,7 +207,7 @@ The location of the default library table files depends on operating system and
 may vary based on installation location. Below are the defaults for each
 operating system:
 
-* Windows: `C:\Program Files\KiCad\8.0\share\kicad\template\`
+* Windows: `C:\Program Files\KiCad\9.0\share\kicad\template\`
 * Linux: `/usr/share/kicad/template/`
 * macOS: `/Applications/KiCad/KiCad.app/Contents/SharedSupport/template/`
 
@@ -292,11 +292,12 @@ image::images/symbols-placed.png["Schematic with Symbols Placed"]
 
 === Selecting and Moving Objects
 Next, position the symbols correctly relative to each other, as shown in the
-screenshot. Do this by selecting, moving, and rotating the symbols.
+screenshot. You will do this by selecting each symbol, then moving and rotating
+it.
 
 image::images/symbols-moved.png["Schematic with Symbols Moved and Rotated"]
 
-In KiCad 8.0, objects are selected by clicking on them while the selection tool
+In KiCad, objects are selected by clicking on them while the selection tool
 is active. The selection tool is the default tool when no other tool is active,
 so you can enter the selection tool by quitting any active tool (kbd:[Esc]) or
 by clicking the image:images/cursor_24.png["Select tool icon"] button in the
@@ -332,9 +333,9 @@ The symbol pins all have small circles on them, indicating that they are not
 connected. Fix that by drawing wires between symbol pins as shown in the
 screenshot. Click the **Add a Wire** button
 image:images/add_line_24.png[] on the right-hand toolbar or use the
-kbd:[W] hotkey. Click to start drawing a wire, and finish drawing the wire by
-clicking on a symbol pin or double clicking anywhere. Pressing Escape will
-cancel drawing the wire.
+kbd:[W] hotkey. Click and release to start drawing a wire, and finish drawing
+the wire by clicking on a symbol pin or double clicking anywhere. Pressing
+Escape will cancel drawing the wire.
 
 Another convenient method of drawing wires is to hover over an unconnected pin.
 The mouse cursor will change to indicate that a wire can be drawn starting from
@@ -372,7 +373,7 @@ to the existing one, even without wires visually connecting them.
 Each symbol needs a unique reference designator assigned to it. This process is
 also known as annotation.
 
-By default in KiCad 8.0, symbols are automatically annotated when they are added
+By default, symbols are automatically annotated when they are added
 to the schematic. Automatic annotation can be enabled or disabled using the
 image:images/annotate_24.png[] button in the left toolbar.
 
@@ -435,9 +436,18 @@ image::images/footprint-assignment-filters.png["Footprint Filter Buttons"]
   This filter is disabled when the box is empty.
 
 Using the filters, find each of the footprints shown in the central column in
-the screenshot above. Assign each footprint to a symbol by selecting the symbol
+the screenshot above. The footprints for each symbol are also listed in the
+table below. Assign each footprint to a symbol by selecting the symbol
 in the central column and then double clicking the appropriate footprint in the
 right column. Once all of the footprints have been assigned, click **OK**.
+
+[options="header",cols="30%,70%"]
+|====
+| Symbol Reference | Footprint to assign
+| `BT1` | `Battery:BatteryHolder_Keystone_1058_1x2032`
+| `D1`  | `LED_THT:LED_D5.0mm`
+| `R1`  | `Resistor_THT:R_Axial_DIN0309_L9.0mm_D3.2mm_P12.70mm_Horizontal`
+|====
 
 There are other ways to assign footprints; one way is through the symbol
 properties window. For more information on assigning footprints, see the
@@ -490,7 +500,7 @@ used in the project. Click **Tools** -> **Generate Bill of Materials...**.
 
 image::images/bom-generator.png["BOM Dialog"]
 
-KiCad 8.0 has a GUI for BOM export. You can configure which symbol metadata will
+KiCad has a GUI for BOM export. You can configure which symbol metadata will
 be exported, and how the symbols are grouped, in the **Edit** tab, and configure
 the output format in the **Export** tab. 
 
@@ -564,7 +574,7 @@ image::images/board-setup-constraints.png["Constraints"]
 Finally, open the **Design Rules** -> **Net Classes** page. A net class is a set
 of design rules associated with a specific group of nets. This page lists the
 design rules for each net class in the design and allows assigning nets to each
-net class.
+net class (nets can also be assigned to net classes in the schematic editor).
 
 image::images/board-setup-net-classes.png["Net Classes"]
 
@@ -576,8 +586,8 @@ In this design, no net classes are specified, so all nets will belong to the
 `Default` net class. The default design rules for this net class are
 acceptable for this project, but other designs may have multiple net classes,
 each with different design rules. For example a board might have a `High
-Current` netclass with wide traces, or a `50 ohm` netclass with specific width
-and clearance rules for 50 ohm controlled-impedance traces.
+Current` netclass with wide tracks, or a `50 ohm` netclass with specific width
+and clearance rules for 50 ohm controlled-impedance tracks.
 
 === Importing Changes From Schematic
 The schematic is complete, but there are not yet any components in the layout.
@@ -617,7 +627,8 @@ place the first corner, then click again to place the opposite corner so that
 the rectangle roughly surrounds the three footprints. The other graphic tools
 (line image:images/add_line_24.png[], arc image:images/add_arc_24.png[], circle
 image:images/add_circle_24.png[], polygon
-image:images/add_graphical_polygon_24.png[], or a combination of them) could
+image:images/add_graphical_polygon_24.png[], bezier
+image:images/add_bezier_24.png[], or a combination of them) could
 also be used to define the board outline; the only requirement is that the
 outline is a single closed shape that doesn't intersect itself.
 
@@ -633,7 +644,7 @@ In general, there are a several considerations for positioning footprints:
   Bypass capacitors should be close to the power pins of the associated IC and
   sensitive analog components should be far from digital interference.
 * Almost all components have a "Courtyard" (or two if both Front and Back are
-  defined). Generally Courtyards should not intersect.
+  defined). Generally courtyards should not intersect.
 * Otherwise components should be positioned for ease of routing. Connected
   components should generally be close together, and arranged to minimize
   routing complexity. The ratsnest (the thin lines indicating connections
@@ -666,21 +677,21 @@ screenshot below.
 image::images/footprints-positioned.png["Footprints positioned optimally"]
 
 === Routing Tracks
-With the components in place, it's time to connect the pads with copper traces.
+With the components in place, it's time to connect the pads with copper tracks.
 
-The first trace will be drawn on the front of the board, so change the active
+The first track will be drawn on the front of the board, so change the active
 layer to `F.Cu` in the Layers tab of the Appearance panel.
 
 Click **Route Tracks** image:images/add_tracks_24.png[] in the right-hand
-toolbar or press kbd:[X]. Click on the `led` pad of `D1`. The ratsnest line
-indicates there is an unrouted connection to the `led` pad of `R1`, so click on
-that pad to draw a trace connecting the two pads. Clicking on the second pad
-completes the trace. The ratsnest line between the `led` pins is no longer drawn
-because the connection has been made in copper.
+toolbar or press kbd:[X]. Click on the `led` pad of `D1` and release the mouse
+button. The ratsnest line indicates there is an unrouted connection to the `led`
+pad of `R1`, so click on that pad to draw a track connecting the two pads.
+Clicking on the second pad completes the track. The ratsnest line between the
+`led` pins is no longer drawn because the connection has been made in copper.
 
 image::images/route-first-connection.png["First connection routed"]
 
-Now draw a trace between the `GND` pads of `BT1` and `D1`, starting with the `BT1`
+Now draw a track between the `GND` pads of `BT1` and `D1`, starting with the `BT1`
 pad on the back of the board. Notice that the active layer automatically changed
 to `B.Cu` after clicking on the `BT1` pad. Click on the `D1` pad to finish the
 track.
@@ -689,7 +700,7 @@ While `BT1` has surface mount pads that are only on the bottom of the board,
 `D1` has through hole pads that can connect to tracks on both the front and
 back. Through hole pads are one way to make a connection between multiple
 layers. In this case, `D1` is a component on the front side of the board, but
-its through hole pads are used to connect to a trace on the back of the board.
+its through hole pads are used to connect to a track on the back of the board.
 
 Another way to make a connection across layers is with a via. Start routing at the
 `VCC` pad of `BT1` on the back of the board. Press kbd:[V] and click halfway
@@ -707,7 +718,7 @@ nets is given as 0.
 Copper zones are regions of copper with an associated net. Zones automatically
 connect to copper objects belonging to the same net and avoid objects belonging
 to other nets. Zones are often used for ground and power connections because they
-provide a lower impedance connection than traces.
+provide a lower impedance connection than tracks.
 
 Add a `GND` zone on the bottom of the board by switching to the bottom copper
 layer and clicking the **Add a filled zone** button
@@ -725,9 +736,9 @@ The zone outline is displayed on the canvas, but the zone is not yet filled --
 there is no copper in the zone area, and therefore the zone is not making any
 electrical connections. Fill the zone with **Edit** -> **Fill All Zones**
 (kbd:[B]). Copper has been added to the zone, but it doesn't connect to the
-`VCC` or `led` pads and traces, and is clipped by the board edge. It overlaps
-with the `GND` trace drawn earlier, and it connects to the `GND` pads through
-thin traces. These are thermal reliefs, which make the pads easier to solder.
+`VCC` or `led` pads and tracks, and is clipped by the board edge. It overlaps
+with the `GND` track drawn earlier, and it connects to the `GND` pads through
+thin tracks. These are thermal reliefs, which make the pads easier to solder.
 Thermal reliefs and other zone settings can be modified in the zone properties
 dialog.
 
@@ -753,8 +764,8 @@ Appearance Panel.
 Design Rule Checking is the layout equivalent of Electrical Rule Checking for
 the schematic. DRC looks for design mistakes like mismatches between the
 schematic and layout, copper regions that have insufficient clearance or are
-shorted together, and traces that do not connect to anything. Custom rules can
-also be written in KiCad 8.0. To view the full list of design rules that are
+shorted together, and tracks that do not connect to anything. You can also write
+custom DRC rules. To view the full list of design rules that are
 checked and to adjust their severity, go to **File** -> **Board Setup...** ->
 **Design Rules** -> **Violation Severity**. Running DRC and fixing all errors
 is strongly advised before generating <<fab,fabrication outputs>>.
@@ -766,7 +777,7 @@ window.
 
 Now intentionally cause a DRC error by moving the resistor footprint to overlap
 the filled area of the zone. Use kbd:[D] (Drag) to move the resistor footprint
-slightly while keeping the traces attached to its pads. This creates a clearance
+slightly while keeping the tracks attached to its pads. This creates a clearance
 violation because the `VCC` and `led` pads of the resistor are shorted to the
 `GND` zone fill. Ordinarily this would be fixed by refilling the zone, but don't
 refill the zone yet.
@@ -778,7 +789,7 @@ DRC** checkbox. DRC reports 6 violations: for each pad of `R1`, there is a
 clearance violation between the pad and the zone, another clearance violation
 between the pad's through hole and the zone, and a third violation where the
 pad's solder mask opening exposes the copper of two different nets (the `GND`
-fill and the trace connected to the pad). Arrows point to each violation in the
+fill and the track connected to the pad). Arrows point to each violation in the
 canvas. Clicking on each violation message zooms in on the respective
 violation.
 
@@ -887,10 +898,10 @@ files. Make a backup of the tables before deleting them.
 The location of the symbol and footprint library table files depends on
 operating system.
 
-* Windows: `%APPDATA%\kicad\8.0\sym-lib-table` and `%APPDATA%\kicad\8.0\fp-lib-table`
-* Linux: `~/.config/kicad/8.0/sym-lib-table` and `~/.config/kicad/8.0/fp-lib-table`
-* macOS: `~/Library/Preferences/kicad/8.0/sym-lib-table` and
-    `~/Library/Preferences/kicad/8.0/fp-lib-table`
+* Windows: `%APPDATA%\kicad\9.0\sym-lib-table` and `%APPDATA%\kicad\9.0\fp-lib-table`
+* Linux: `~/.config/kicad/9.0/sym-lib-table` and `~/.config/kicad/9.0/fp-lib-table`
+* macOS: `~/Library/Preferences/kicad/9.0/sym-lib-table` and
+    `~/Library/Preferences/kicad/9.0/fp-lib-table`
 
 === Creating New Global or Project Libraries
 
@@ -921,14 +932,22 @@ move the text away from the center of the symbol to get it out of the way.
 
 ==== Symbol Pins
 
-Start drawing the symbol by adding a pin. Click the **Add a pin** button
+Start drawing the symbol by adding a pin. This symbol will not have a pin 1, so
+we will start with a pin numbered 2. Click the **Add a pin** button
 image:images/pin_24.png[] on the right toolbar. The Pin Properties dialog will
-appear. Set **Pin name** to `A`, **Pin number** to `2`, **Electrical type** to
-`Passive`, and **Orientation** to `Right`. Set **X Position** to `-200 mils` and
-**Y Position** to `0`. Click **OK**, then click on the canvas to place the pin.
-If the pin moved after clicking **OK**, it might be necessary to edit the pin's
-properties again (double click the pin, or right click on the pin ->
-**Properties...**) to set the position correctly.
+appear. Set the pin properties as follows:
+
+* **Pin name**: `A`
+* **Pin number**: `2`
+* **Electrical type**: `Passive`
+* **Orientation**: `Right`
+* **X Position**: `-200 mils`
+* **Y Position**: `0`
+
+Click **OK**, then click on the canvas to place the pin. If the pin moved after
+clicking **OK**, it might be necessary to edit the pin's properties again
+(double click the pin, or right click on the pin -> **Properties...**) to set
+the position correctly.
 
 NOTE: It is strongly recommended to always use mils (or inches) in the Schematic
       Editor and Symbol Editor, particularly for symbol pins. Mixing imperial and
@@ -952,9 +971,22 @@ TIP: In many places in KiCad, pressing kbd:[Insert] will repeat the last action.
      with numbered labels. kbd:[Insert] can be useful in the Footprint and Board
      Editors as well.
 
-We want Pin 3 to be on the right side of the switch symbol, so edit the
-properties of pin 3 and change **X position** to `200 mils`, **Y position** to `0`,
-and **Orientation** to `Left`. Also, change **Pin name** to `B`.
+We want Pin 3 to be on the right side of the switch symbol, so we will edit its
+properties to change the location and orientation. Instead of using the Pin
+Properties dialog, this time we can use the Properties Panel. This is a docked
+panel on the left side of the editing canvas that lets you view and edit the
+properties of the selected object or objects. To show or hide the Properties
+Panel, use the image:images/tools_24.png[] button in the left toolbar.
+
+With pin 3 selected, use the Properties panel to set its properties as follows:
+
+* **Pin Name**: `B`
+* **Position X**: `200 mils`
+* **Position Y**: `0`
+* **Orientation**: `Left`
+
+NOTE: The Properties Panel is available in every KiCad editor (Schematic, Board,
+      Symbol, and Footprint).
 
 ==== Graphical Features
 
@@ -992,8 +1024,13 @@ Open the Footprint Editor and create a new project-specific footprint library
 named `getting-started.pretty` (**File** -> **New Library...**). As with symbol
 libraries, the new footprint library is added to the project library table. With
 the new library selected in the Libraries pane, create a new footprint (**File**
--> **New Footprint...**). Set the name to `Switch_Toggle_SPST_NKK_M2011S3A1x03`
-and the type to `Through hole`.
+-> **New Footprint...**). Edit the footprint's properties
+(image:images/module_options_24.png[] button in the top toolbar) and set the
+following properties:
+
+* **Footprint name**: `Switch_Toggle_SPST_NKK_M2011S3A1x03`
+* **Value**: `Switch_Toggle_SPST_NKK_M2011S3A1x03`
+* **Component type**: `Through hole`
 
 ==== Footprint Pads
 
@@ -1005,11 +1042,15 @@ button at the bottom. Set the new grid's X size to `4.7 mm`. Accept the dialog,
 go back to the editing canvas, and then switch to the new grid in the grid
 dropdown in the top toolbar, if it is not already selected.
 
-By convention, through-hole footprints have pin 1 located at (0,0) and are
+By convention, through-hole footprints have pin 1 located at `(0,0)` and are
 oriented with pin 1 in the top left. The SPST version of this switch does not
-have pin 1, so the footprint will leave (0,0) empty and place pads 2 and 3 at
-(0, 4.7 mm) and (0, 9.4 mm). Note that in KiCad's default coordinate system, the
-positive Y-axis is oriented downwards.
+have pin 1, so the footprint will leave `(0,0)` empty and place pads 2 and 3 at
+`(0, 4.7 mm)` and `(0, 9.4 mm)`. Note that in KiCad's default coordinate system,
+the positive Y-axis is oriented downwards.
+
+NOTE: The X and Y coordinates of the cursor are displayed in the status bar at
+      the bottom of the window. You can use this to check the coordinates when
+      you are drawing or placing something.
 
 Use the **Add a pad** tool image:images/pad_24.png[] in the right toolbar to
 place a pad one grid division below the origin, which is (0, 4.7 mm). Press
@@ -1022,7 +1063,7 @@ sufficient annular ring.
 
 image::images/pad-properties.png["pad properties"]
 
-Now use the **Add a pad** tool again to place the other pad at (0, 9.4 mm).
+Now use the **Add a pad** tool again to place the other pad at `(0, 9.4 mm)`.
 Notice that the pad number is automatically incremented and the properties
 including pad size and hole size are copied from the previous pad.
 
@@ -1052,19 +1093,29 @@ of the part, which is 7.9 mm wide and 13 mm tall. Use the line
 image:images/add_line_24.png[], rectangle image:images/add_rectangle_24.png[],
 or polygon image:images/add_graphical_polygon_24.png[] tools to draw the outline
 of the part as shown in the screenshot below. One way to precisely place the
-outline is to create a new grid with an X spacing of `7.9 mm` and a Y spacing of
-`13 mm`. Then adjust the grid origin by right-clicking the
-image:images/grid_24.png[] button and selecting **Grid Origin...**. Set the X
-origin is 7.9 mm / 2 = `3.95 mm` and the Y origin to 4.7 mm - (13 mm / 2) =
-`-1.8 mm`.
+outline is to create a new grid with the correct X and Y spacing, as we did for
+the pads. Make sure to uncheck the **Linked** checkbox in the Grid Settings
+dialog to allow unequal X and Y grid spacing. You can then adjust the grid
+origin by right clicking the image:images/grid_24.png[] button and selecting
+**Grid Origin...**.
+
+Configure the grid spacing and origin as follows:
+
+* X grid: `7.9 mm`
+* Y grid: `13 mm`
+* X origin: 7.9 mm / 2 = `3.95 mm`
+* Y origin: 4.7 mm - (13 mm / 2) = `-1.8 mm`.
+
+The completed fabrication drawing is shown below, with corner coordinates
+annotated.
 
 image::images/fab-outline.png["fab outline coordinates"]
 
-Next, switch to the `F.Silkscreen` layer. The silkscreen outline should be just
-outside of the part outline, so the silkscreen lines are moved outwards from the
-fabrication drawing by 0.11 mm (half of 0.10 mm fab line width, plus half of the
-0.12 mm silkscreen line width). The exact coordinates are shown in the
-screenshot below, and helpful grid settings are:
+Next, switch to the `F.Silkscreen` layer. We want the silkscreen outline to be just
+outside of the part outline, so the silkscreen lines will be drawn 0.11 mm to
+the outside of the lines on the fabrication layer (0.11 mm is half of the 0.10
+mm fab line width, plus half of the 0.12 mm silkscreen line width). The exact
+coordinates are shown in the screenshot below, and helpful grid settings are:
 
 * X grid: 7.9 mm + 2 * 0.11 mm = `8.12 mm`
 * Y grid: 13 mm + 2 * 0.11 mm = `13.22 mm`
@@ -1073,13 +1124,17 @@ screenshot below, and helpful grid settings are:
 
 image::images/silk-outline.png["silk outline coordinates"]
 
-Finally, select the `F.Courtyard` layer. The courtyard outline should surround
+Finally, select the `F.Courtyard` layer. We want the courtyard outline to surround
 the part with a 0.25 mm clearance.
 
-Use a different strategy to draw this layer. Switch to a 1mm grid instead of a
-custom grid, and draw a rectangle roughly surrounding the footprint. Double click
-on the rectangle to edit its properties, and enter the corner coordinates of the
-rectangle directly -- they are shown in the screenshot below.
+For variety, we can use a different strategy to draw the shape on this layer.
+Switch to a 1mm grid instead of a custom grid, and draw a rectangle roughly
+surrounding the footprint. Select the rectangle and press kbd:[E] to edit its
+properties, and enter the corner coordinates of the rectangle directly. The
+corner coordinates are:
+
+* Top left: `(-4.2, -2.05)`
+* Bottom right: `(4.2, 11.45)`
 
 image::images/courtyard-outline.png["courtyard outline coordinates"]
 
@@ -1128,19 +1183,20 @@ image::images/schematic-with-switch.png["schematic edited to include switch"]
 Make sure the schematic is saved, then open the Board Editor to add the symbol
 to the layout. Update the PCB with the schematic changes using **Tools** ->
 **Update PCB from Schematic...** and place the switch footprint onto the board
-as shown.
+as shown. If needed, resize the board outline and copper zone (the copper zone
+will unfill if it is resized, but you can re-fill it as necessary with kbd:[B]).
 
 image::images/board-with-switch-unrouted.png["board with switch added, before routing"]
 
 The ratsnest shows the new connections that need to be routed. Additionally, the
 connection between the battery and the resistor needs to be deleted.
 
-First, delete the unneeded traces. Select one of the traces between the battery
+First, delete the unneeded tracks. Select one of the tracks between the battery
 and the resistor -- it doesn't matter which. Press kbd:[U] several times to
 expand the selection to include all the segments between the battery and
 resistor. Press kbd:[Delete] to remove the connection.
 
-Route the new traces between the battery and the switch, and between the switch
+Route the new tracks between the battery and the switch, and between the switch
 and the resistor. Press kbd:[B] to refill the zones.
 
 Finally, re-run DRC to make sure the modified board doesn't violate any design

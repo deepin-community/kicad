@@ -2,7 +2,7 @@
  * This program source code file
  * is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -47,10 +47,7 @@ struct RESISTANCE
     double      value;
     std::string name;
 
-    RESISTANCE( double aValue = 0.0, std::string aName = "" ) :
-            value( aValue ), name( std::move( aName ) )
-    {
-    }
+    RESISTANCE( double aValue, const std::string& aName ) : value( aValue ), name( aName ) {}
 };
 
 
@@ -88,7 +85,7 @@ public:
     /**
      * Initialize next calculation, clear exclusion mask
      * and erase results from previous calculation.
-     * 
+     *
      * @param aTargetValue is the value (in Ohms) to be looked for
      */
     void NewCalc( double aTargetValue );

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,12 +22,14 @@
 #include <env_vars.h>
 #include <executable_names.h>
 #include <pgm_base.h>
+#include <pgm_kicad.h>
 #include <policy_keys.h>
 #include <kiway.h>
 #include <kicad_manager_frame.h>
 #include <kiplatform/policy.h>
+#include <kiplatform/secrets.h>
 #include <confirm.h>
-#include <eda_tools.h>
+#include <kidialog.h>
 #include <project/project_file.h>
 #include <project/project_local_settings.h>
 #include <settings/settings_manager.h>
@@ -36,19 +38,16 @@
 #include <tool/tool_event.h>
 #include <tools/kicad_manager_actions.h>
 #include <tools/kicad_manager_control.h>
+#include <dialogs/panel_design_block_lib_table.h>
 #include <dialogs/dialog_template_selector.h>
 #include <dialogs/git/dialog_git_repository.h>
 #include <git/git_clone_handler.h>
 #include <gestfich.h>
 #include <paths.h>
-#include <wx/checkbox.h>
 #include <wx/dir.h>
 #include <wx/filedlg.h>
+#include <design_block_lib_table.h>
 #include "dialog_pcm.h"
-#include <macros.h>
-#include <sch_io/sch_io_mgr.h>
-#include <pcb_io/pcb_io_mgr.h>
-#include <import_proj.h>
 
 #include "widgets/filedlg_new_project.h"
 
@@ -192,7 +191,7 @@ int KICAD_MANAGER_CONTROL::NewFromRepository( const TOOL_EVENT& aEvent )
     wxString dest = pro.GetPath() + wxFileName::GetPathSeparator() + projects.front();
     m_frame->LoadProject( dest );
 
-    Prj().GetLocalSettings().m_GitRepoPassword = dlg.GetPassword();
+    KIPLATFORM::SECRETS::StoreSecret( dlg.GetRepoURL(), dlg.GetUsername(), dlg.GetPassword() );
     Prj().GetLocalSettings().m_GitRepoUsername = dlg.GetUsername();
     Prj().GetLocalSettings().m_GitSSHKey = dlg.GetRepoSSHPath();
 
@@ -207,9 +206,29 @@ int KICAD_MANAGER_CONTROL::NewFromRepository( const TOOL_EVENT& aEvent )
 }
 
 
+int KICAD_MANAGER_CONTROL::NewJobsetFile( const TOOL_EVENT& aEvent )
+{
+    wxString     default_dir = wxFileName( Prj().GetProjectFullName() ).GetPathWithSep();
+    wxFileDialog dlg( m_frame, _( "Create New Jobset" ), default_dir, wxEmptyString,
+                      FILEEXT::JobsetFileWildcard(),
+                      wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
+
+    if( dlg.ShowModal() == wxID_CANCEL )
+        return -1;
+
+    wxFileName jobsetFn( dlg.GetPath() );
+
+    m_frame->OpenJobsFile( jobsetFn.GetFullPath(), true );
+
+    return 0;
+}
+
+
 int KICAD_MANAGER_CONTROL::NewFromTemplate( const TOOL_EVENT& aEvent )
 {
-    DIALOG_TEMPLATE_SELECTOR* ps = new DIALOG_TEMPLATE_SELECTOR( m_frame );
+    SETTINGS_MANAGER&              mgr = Pgm().GetSettingsManager();
+    KICAD_SETTINGS*                settings = mgr.GetAppSettings<KICAD_SETTINGS>( "kicad" );
+    std::map<wxString, wxFileName> titleDirMap;
 
     wxFileName  templatePath;
 
@@ -220,7 +239,7 @@ int KICAD_MANAGER_CONTROL::NewFromTemplate( const TOOL_EVENT& aEvent )
     if( v && !v->IsEmpty() )
     {
         templatePath.AssignDir( *v );
-        ps->AddTemplatesPage( _( "System Templates" ), templatePath );
+        titleDirMap.emplace( _( "System Templates" ), templatePath );
     }
 
     // User template path.
@@ -229,14 +248,22 @@ int KICAD_MANAGER_CONTROL::NewFromTemplate( const TOOL_EVENT& aEvent )
     if( it != Pgm().GetLocalEnvVariables().end() && it->second.GetValue() != wxEmptyString )
     {
         templatePath.AssignDir( it->second.GetValue() );
-        ps->AddTemplatesPage( _( "User Templates" ), templatePath );
+        titleDirMap.emplace( _( "User Templates" ), templatePath );
     }
 
+    DIALOG_TEMPLATE_SELECTOR ps( m_frame, settings->m_TemplateWindowPos,
+                                 settings->m_TemplateWindowSize, titleDirMap );
+
     // Show the project template selector dialog
-    if( ps->ShowModal() != wxID_OK )
+    int result = ps.ShowModal();
+
+    settings->m_TemplateWindowPos = ps.GetPosition();
+    settings->m_TemplateWindowSize = ps.GetSize();
+
+    if( result != wxID_OK )
         return -1;
 
-    if( !ps->GetSelectedTemplate() )
+    if( !ps.GetSelectedTemplate() )
     {
         wxMessageBox( _( "No project template was selected.  Cannot generate new project." ),
                       _( "Error" ), wxOK | wxICON_ERROR, m_frame );
@@ -304,7 +331,7 @@ int KICAD_MANAGER_CONTROL::NewFromTemplate( const TOOL_EVENT& aEvent )
     // Make sure we are not overwriting anything in the destination folder.
     std::vector< wxFileName > destFiles;
 
-    if( ps->GetSelectedTemplate()->GetDestinationFiles( fn, destFiles ) )
+    if( ps.GetSelectedTemplate()->GetDestinationFiles( fn, destFiles ) )
     {
         std::vector<wxFileName> overwrittenFiles;
 
@@ -338,7 +365,7 @@ int KICAD_MANAGER_CONTROL::NewFromTemplate( const TOOL_EVENT& aEvent )
 
     // The selected template widget contains the template we're attempting to use to
     // create a project
-    if( !ps->GetSelectedTemplate()->CreateProject( fn, &errorMsg ) )
+    if( !ps.GetSelectedTemplate()->CreateProject( fn, &errorMsg ) )
     {
         wxMessageDialog createDlg( m_frame,
                                    _( "A problem occurred creating new project from template." ),
@@ -393,6 +420,23 @@ int KICAD_MANAGER_CONTROL::OpenDemoProject( const TOOL_EVENT& aEvent )
 int KICAD_MANAGER_CONTROL::OpenProject( const TOOL_EVENT& aEvent )
 {
     return openProject( m_frame->GetMruPath() );
+}
+
+
+int KICAD_MANAGER_CONTROL::OpenJobsetFile( const TOOL_EVENT& aEvent )
+{
+    wxString     default_dir = wxFileName( Prj().GetProjectFullName() ).GetPathWithSep();
+    wxFileDialog dlg( m_frame, _( "Open Jobset" ), default_dir, wxEmptyString,
+                      FILEEXT::JobsetFileWildcard(), wxFD_OPEN | wxFD_FILE_MUST_EXIST );
+
+    if( dlg.ShowModal() == wxID_CANCEL )
+        return -1;
+
+    wxFileName jobsetFn( dlg.GetPath() );
+
+    m_frame->OpenJobsFile( jobsetFn.GetFullPath(), true );
+
+    return 0;
 }
 
 
@@ -490,7 +534,7 @@ public:
                  || ext == FILEEXT::LegacySymbolDocumentFileExtension
                  || ext == FILEEXT::KiCadSymbolLibFileExtension
                  || ext == FILEEXT::NetlistFileExtension
-               || destFile.GetName() == "sym-lib-table" )
+               || destFile.GetName() == FILEEXT::SymbolLibraryTableFileName )
         {
             KIFACE* eeschema = m_frame->Kiway().KiFACE( KIWAY::FACE_SCH );
             eeschema->SaveFileAs( m_projectDirPath, m_projectName, m_newProjectDirPath,
@@ -502,7 +546,7 @@ public:
                  || ext == FILEEXT::KiCadFootprintFileExtension
                  || ext == FILEEXT::LegacyFootprintLibPathExtension
                  || ext == FILEEXT::FootprintAssignmentFileExtension
-               || destFile.GetName() == "fp-lib-table" )
+               || destFile.GetName() == FILEEXT::FootprintLibraryTableFileName )
         {
             KIFACE* pcbnew = m_frame->Kiway().KiFACE( KIWAY::FACE_PCB );
             pcbnew->SaveFileAs( m_projectDirPath, m_projectName, m_newProjectDirPath,
@@ -808,7 +852,8 @@ int KICAD_MANAGER_CONTROL::ShowPlayer( const TOOL_EVENT& aEvent )
 
     // Save window state to disk now.  Don't wait around for a crash.
     if( Pgm().GetCommonSettings()->m_Session.remember_open_files
-            && !player->GetCurrentFileName().IsEmpty() )
+            && !player->GetCurrentFileName().IsEmpty()
+            && Prj().GetLocalSettings().ShouldAutoSave() )
     {
         wxFileName rfn( player->GetCurrentFileName() );
         rfn.MakeRelativeTo( Prj().GetProjectPath() );
@@ -915,20 +960,22 @@ int KICAD_MANAGER_CONTROL::ShowPluginManager( const TOOL_EVENT& aEvent )
 
     const std::unordered_set<PCM_PACKAGE_TYPE>& changed = pcm.GetChangedPackageTypes();
 
-    if( changed.count( PCM_PACKAGE_TYPE::PT_PLUGIN ) )
+    if( changed.count( PCM_PACKAGE_TYPE::PT_PLUGIN ) || changed.count( PCM_PACKAGE_TYPE::PT_FAB ) )
     {
         std::string payload = "";
         m_frame->Kiway().ExpressMail( FRAME_PCB_EDITOR, MAIL_RELOAD_PLUGINS, payload );
     }
 
-    KICAD_SETTINGS* settings = Pgm().GetSettingsManager().GetAppSettings<KICAD_SETTINGS>();
+    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+    KICAD_SETTINGS*   settings = mgr.GetAppSettings<KICAD_SETTINGS>( "kicad" );
 
     if( changed.count( PCM_PACKAGE_TYPE::PT_LIBRARY )
         && ( settings->m_PcmLibAutoAdd || settings->m_PcmLibAutoRemove ) )
     {
         // Reset project tables
-        Prj().SetElem( PROJECT::ELEM_SYMBOL_LIB_TABLE, nullptr );
-        Prj().SetElem( PROJECT::ELEM_FPTBL, nullptr );
+        Prj().SetElem( PROJECT::ELEM::SYMBOL_LIB_TABLE, nullptr );
+        Prj().SetElem( PROJECT::ELEM::FPTBL, nullptr );
+        Prj().SetElem( PROJECT::ELEM::DESIGN_BLOCK_LIB_TABLE, nullptr );
 
         KIWAY& kiway = m_frame->Kiway();
 
@@ -961,8 +1008,10 @@ void KICAD_MANAGER_CONTROL::setTransitions()
     Go( &KICAD_MANAGER_CONTROL::NewProject,         KICAD_MANAGER_ACTIONS::newProject.MakeEvent() );
     Go( &KICAD_MANAGER_CONTROL::NewFromTemplate,    KICAD_MANAGER_ACTIONS::newFromTemplate.MakeEvent() );
     Go( &KICAD_MANAGER_CONTROL::NewFromRepository,  KICAD_MANAGER_ACTIONS::newFromRepository.MakeEvent() );
+    Go( &KICAD_MANAGER_CONTROL::NewJobsetFile,        KICAD_MANAGER_ACTIONS::newJobsetFile.MakeEvent() );
     Go( &KICAD_MANAGER_CONTROL::OpenDemoProject,    KICAD_MANAGER_ACTIONS::openDemoProject.MakeEvent() );
     Go( &KICAD_MANAGER_CONTROL::OpenProject,        KICAD_MANAGER_ACTIONS::openProject.MakeEvent() );
+    Go( &KICAD_MANAGER_CONTROL::OpenJobsetFile,        KICAD_MANAGER_ACTIONS::openJobsetFile.MakeEvent() );
     Go( &KICAD_MANAGER_CONTROL::CloseProject,       KICAD_MANAGER_ACTIONS::closeProject.MakeEvent() );
     Go( &KICAD_MANAGER_CONTROL::SaveProjectAs,      ACTIONS::saveAs.MakeEvent() );
     Go( &KICAD_MANAGER_CONTROL::LoadProject,        KICAD_MANAGER_ACTIONS::loadProject.MakeEvent() );

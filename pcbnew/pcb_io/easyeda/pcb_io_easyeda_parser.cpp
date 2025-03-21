@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -286,9 +286,7 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
         }
         else if( elType == wxS( "CIRCLE" ) )
         {
-            std::unique_ptr<PCB_SHAPE> shape =
-                    std::make_unique<PCB_SHAPE>( aContainer, SHAPE_T::CIRCLE );
-
+            auto   shape = std::make_unique<PCB_SHAPE>( aContainer, SHAPE_T::CIRCLE );
             double width = ConvertSize( arr[4] );
             shape->SetWidth( width );
 
@@ -311,9 +309,7 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
         }
         else if( elType == wxS( "RECT" ) )
         {
-            std::unique_ptr<PCB_SHAPE> shape =
-                    std::make_unique<PCB_SHAPE>( aContainer, SHAPE_T::RECTANGLE );
-
+            auto   shape = std::make_unique<PCB_SHAPE>( aContainer, SHAPE_T::RECTANGLE );
             double width = ConvertSize( arr[8] );
             shape->SetWidth( width );
 
@@ -447,10 +443,8 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
             {
                 for( int segId = 0; segId < chain.SegmentCount(); segId++ )
                 {
-                    SEG seg = chain.CSegment( segId );
-
-                    std::unique_ptr<PCB_SHAPE> shape =
-                            std::make_unique<PCB_SHAPE>( aContainer, SHAPE_T::SEGMENT );
+                    SEG  seg = chain.CSegment( segId );
+                    auto shape = std::make_unique<PCB_SHAPE>( aContainer, SHAPE_T::SEGMENT );
 
                     shape->SetLayer( layer );
                     shape->SetWidth( lineWidth );
@@ -476,8 +470,7 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
             {
                 for( const SHAPE_POLY_SET::POLYGON& poly : polySet.CPolygons() )
                 {
-                    std::unique_ptr<PCB_SHAPE> shape =
-                            std::make_unique<PCB_SHAPE>( aContainer, SHAPE_T::POLY );
+                    auto shape = std::make_unique<PCB_SHAPE>( aContainer, SHAPE_T::POLY );
 
                     shape->SetLayer( Edge_Cuts );
                     shape->SetFilled( false );
@@ -532,11 +525,12 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
             zone->SetLayer( layer );
 
             wxString netname = arr[3];
+
             if( IsCopperLayer( layer ) )
                 zone->SetNet( getOrAddNetItem( netname ) );
 
             zone->SetLocalClearance( ConvertSize( arr[5] ) );
-            zone->SetThermalReliefGap( zone->GetLocalClearance() );
+            zone->SetThermalReliefGap( zone->GetLocalClearance().value() );
 
             wxString fillStyle = arr[5];
             if( fillStyle == wxS( "none" ) )
@@ -578,7 +572,7 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
                     }
                 }
 
-                fillPolySet.Fracture( SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+                fillPolySet.Fracture();
 
                 zone->SetFilledPolysList( layer, fillPolySet );
                 zone->SetIsFilled( true );
@@ -599,19 +593,20 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
             else
             {
                 // arr[1] is "stroke Width" per docs
-                int minThickness =
-                        std::max( pcbIUScale.mmToIU( 0.03 ), int( ConvertSize( arr[1] ) ) );
+                int minThickness = std::max( pcbIUScale.mmToIU( 0.03 ),
+                                             int( ConvertSize( arr[1] ) ) );
                 zone->SetMinThickness( minThickness );
             }
 
             if( arr.size() > 18 )
             {
-                zone->SetThermalReliefSpokeWidth(
-                        std::max( int( ConvertSize( arr[18] ) ), zone->GetMinThickness() ) );
+                zone->SetThermalReliefSpokeWidth( std::max( int( ConvertSize( arr[18] ) ),
+                                                            zone->GetMinThickness() ) );
             }
             else
             {
-                wxFAIL_MSG( wxString::Format( "COPPERAREA unexpected size %d: %s ", arr.size(),
+                wxFAIL_MSG( wxString::Format( "COPPERAREA unexpected size %d: %s ",
+                                              arr.size(),
                                               shape ) );
 
                 zone->SetThermalReliefSpokeWidth( zone->GetMinThickness() );
@@ -655,7 +650,7 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
 
                     if( euuid )
                     {
-                        PCB_FIELD field( footprint, footprint->GetFieldCount(),
+                        PCB_FIELD field( footprint, footprint->GetNextFieldId(),
                                          DIRECT_MODEL_UUID_KEY );
                         field.SetLayer( Cmts_User );
                         field.SetVisible( false );
@@ -665,7 +660,7 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
 
                     /*if( etransform )
                     {
-                        PCB_FIELD field( footprint, footprint->GetFieldCount(), "3D Transform" );
+                        PCB_FIELD field( footprint, footprint->GetNextFieldId(), "3D Transform" );
                         field.SetLayer( Cmts_User );
                         field.SetVisible( false );
                         field.SetText( *etransform );
@@ -681,7 +676,7 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
                         fitXmm = KiROUND( fitXmm / rounding ) * rounding;
                         fitYmm = KiROUND( fitYmm / rounding ) * rounding;
 
-                        PCB_FIELD field( footprint, footprint->GetFieldCount(), MODEL_SIZE_KEY );
+                        PCB_FIELD field( footprint, footprint->GetNextFieldId(), MODEL_SIZE_KEY );
                         field.SetLayer( Cmts_User );
                         field.SetVisible( false );
                         field.SetText( wxString::FromCDouble( fitXmm ) + wxS( " " )
@@ -759,8 +754,7 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
 
                         for( const SHAPE_POLY_SET::POLYGON& poly : polySet.CPolygons() )
                         {
-                            std::unique_ptr<PCB_SHAPE> shape =
-                                    std::make_unique<PCB_SHAPE>( aContainer, SHAPE_T::POLY );
+                            auto shape = std::make_unique<PCB_SHAPE>( aContainer, SHAPE_T::POLY );
 
                             shape->SetFilled( true );
                             shape->SetPolyShape( poly );
@@ -838,7 +832,7 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
             if( !font.IsEmpty() )
                 text->SetFont( KIFONT::FONT::GetFont( font ) );
 
-            TransformTextToBaseline( text, wxEmptyString, false );
+            TransformTextToBaseline( text, wxEmptyString );
 
             if( add )
                 aContainer->Add( text, ADD_MODE::APPEND );
@@ -856,9 +850,9 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
                 pad->SetPosition( center );
                 pad->SetLayerSet( PAD::PTHMask() );
                 pad->SetAttribute( PAD_ATTRIB::PTH );
-                pad->SetShape( PAD_SHAPE::CIRCLE );
-                pad->SetSize( VECTOR2I( kdia, kdia ) );
-                pad->SetDrillShape( PAD_DRILL_SHAPE_CIRCLE );
+                pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CIRCLE );
+                pad->SetSize( PADSTACK::ALL_LAYERS, VECTOR2I( kdia, kdia ) );
+                pad->SetDrillShape( PAD_DRILL_SHAPE::CIRCLE );
                 pad->SetDrillSize( VECTOR2I( kdrill, kdrill ) );
 
                 footprint->Add( pad.release(), ADD_MODE::APPEND );
@@ -869,7 +863,7 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
 
                 via->SetPosition( center );
 
-                via->SetWidth( kdia );
+                via->SetWidth( PADSTACK::ALL_LAYERS, kdia );
                 via->SetNet( getOrAddNetItem( arr[4] ) );
                 via->SetDrill( kdrill );
 
@@ -915,9 +909,9 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
             pad->SetPosition( center );
             pad->SetLayerSet( PAD::UnplatedHoleMask() );
             pad->SetAttribute( PAD_ATTRIB::NPTH );
-            pad->SetShape( PAD_SHAPE::CIRCLE );
-            pad->SetSize( VECTOR2I( kdia, kdia ) );
-            pad->SetDrillShape( PAD_DRILL_SHAPE_CIRCLE );
+            pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CIRCLE );
+            pad->SetSize( PADSTACK::ALL_LAYERS, VECTOR2I( kdia, kdia ) );
+            pad->SetDrillShape( PAD_DRILL_SHAPE::CIRCLE );
             pad->SetDrillSize( VECTOR2I( kdia, kdia ) );
 
             padContainer->Add( pad.release(), ADD_MODE::APPEND );
@@ -961,7 +955,7 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
             pad->SetNet( getOrAddNetItem( arr[7] ) );
             pad->SetNumber( arr[8] );
             pad->SetPosition( center );
-            pad->SetSize( size );
+            pad->SetSize( PADSTACK::ALL_LAYERS, size );
             pad->SetOrientationDegrees( Convert( arr[11] ) );
             pad->SetThermalSpokeAngle( ANGLE_0 );
 
@@ -979,7 +973,7 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
             else if( klayer == B_Cu )
             {
                 pad->SetLayer( B_Cu );
-                pad->SetLayerSet( FlipLayerMask( PAD::SMDMask() ) );
+                pad->SetLayerSet( PAD::SMDMask().Flip() );
                 pad->SetAttribute( PAD_ATTRIB::SMD );
             }
             else if( elayer == wxS( "11" ) )
@@ -990,31 +984,31 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
             else
             {
                 pad->SetLayer( klayer );
-                pad->SetLayerSet( LSET( 1, klayer ) );
+                pad->SetLayerSet( LSET( { klayer } ) );
                 pad->SetAttribute( PAD_ATTRIB::SMD );
             }
 
             wxString padType = arr[1];
             if( padType == wxS( "ELLIPSE" ) )
             {
-                pad->SetShape( PAD_SHAPE::OVAL );
+                pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::OVAL );
             }
             else if( padType == wxS( "RECT" ) )
             {
-                pad->SetShape( PAD_SHAPE::RECTANGLE );
+                pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::RECTANGLE );
             }
             else if( padType == wxS( "OVAL" ) )
             {
                 if( pad->GetSizeX() == pad->GetSizeY() )
-                    pad->SetShape( PAD_SHAPE::CIRCLE );
+                    pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CIRCLE );
                 else
-                    pad->SetShape( PAD_SHAPE::OVAL );
+                    pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::OVAL );
             }
             else if( padType == wxS( "POLYGON" ) )
             {
-                pad->SetShape( PAD_SHAPE::CUSTOM );
-                pad->SetAnchorPadShape( PAD_SHAPE::CIRCLE );
-                pad->SetSize( { 1, 1 } );
+                pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CUSTOM );
+                pad->SetAnchorPadShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CIRCLE );
+                pad->SetSize( PADSTACK::ALL_LAYERS, { 1, 1 } );
 
                 wxArrayString data = wxSplit( arr[10], ' ', '\0' );
 
@@ -1030,7 +1024,7 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
 
                 chain.Move( -center );
                 chain.Rotate( -pad->GetOrientation() );
-                pad->AddPrimitivePoly( chain, 0, true );
+                pad->AddPrimitivePoly( PADSTACK::ALL_LAYERS, chain, 0, true );
             }
 
             wxString holeDia = arr[9];
@@ -1045,7 +1039,7 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
 
                 if( holeL > 0 )
                 {
-                    pad->SetDrillShape( PAD_DRILL_SHAPE_OBLONG );
+                    pad->SetDrillShape( PAD_DRILL_SHAPE::OBLONG );
 
                     if( size.x < size.y )
                         pad->SetDrillSize( VECTOR2I( holeD, holeL ) );
@@ -1054,7 +1048,7 @@ void PCB_IO_EASYEDA_PARSER::ParseToBoardItemContainer(
                 }
                 else
                 {
-                    pad->SetDrillShape( PAD_DRILL_SHAPE_CIRCLE );
+                    pad->SetDrillShape( PAD_DRILL_SHAPE::CIRCLE );
                     pad->SetDrillSize( VECTOR2I( holeD, holeD ) );
                 }
             }

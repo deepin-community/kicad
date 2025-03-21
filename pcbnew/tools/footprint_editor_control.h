@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -40,7 +40,6 @@ class FOOTPRINT_EDITOR_CONTROL : public PCB_TOOL_BASE
 {
 public:
     FOOTPRINT_EDITOR_CONTROL();
-    ~FOOTPRINT_EDITOR_CONTROL() override;
 
     /// @copydoc TOOL_INTERACTIVE::Reset()
     void Reset( RESET_REASON aReason ) override;
@@ -56,6 +55,7 @@ public:
     int Revert( const TOOL_EVENT& aEvent );
 
     int EditFootprint( const TOOL_EVENT& aEvent );
+    int EditLibraryFootprint( const TOOL_EVENT& aEvent );
     int CutCopyFootprint( const TOOL_EVENT& aEvent );
     int PasteFootprint( const TOOL_EVENT& aEvent );
     int DuplicateFootprint( const TOOL_EVENT& aEvent );
@@ -63,10 +63,10 @@ public:
     int DeleteFootprint( const TOOL_EVENT& aEvent );
     int ImportFootprint( const TOOL_EVENT& aEvent );
     int ExportFootprint( const TOOL_EVENT& aEvent );
+    int OpenDirectory( const TOOL_EVENT& aEvent );
+    int OpenWithTextEditor( const TOOL_EVENT& aEvent );
+    int ShowDatasheet( const TOOL_EVENT& aEvent );
 
-    int PinLibrary( const TOOL_EVENT& aEvent );
-    int UnpinLibrary( const TOOL_EVENT& aEvent );
-    int ToggleFootprintTree( const TOOL_EVENT& aEvent );
     int ToggleLayersManager( const TOOL_EVENT& aEvent );
     int ToggleProperties( const TOOL_EVENT& aEvent );
     int Properties( const TOOL_EVENT& aEvent );
@@ -88,6 +88,11 @@ public:
 private:
     ///< Set up handlers for various events.
     void setTransitions() override;
+
+    /**
+     * Try to save the footprint in the library, if it is valid and writable.
+     */
+    void tryToSaveFootprintInLibrary( FOOTPRINT& aFootprint, const LIB_ID& aLibId );
 
     FOOTPRINT_EDIT_FRAME*      m_frame;
     DIALOG_FOOTPRINT_CHECKER*  m_checkerDialog;

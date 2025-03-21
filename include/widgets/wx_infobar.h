@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Ian McInerney <ian.s.mcinerney@ieee.org>
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -28,6 +28,7 @@
 #include <wx/timer.h>
 #include <wx/panel.h>
 #include <wx/sizer.h>
+#include <reporter.h>
 
 
 class wxAuiManager;
@@ -149,6 +150,8 @@ public:
 
     bool HasCloseButton() const;
 
+    wxBitmapButton* GetCloseButton() const;
+
     /**
      * Provide a callback to be called when the infobar is dismissed (either by user action
      * or timer).
@@ -235,6 +238,11 @@ protected:
     void onCloseButton( wxCommandEvent& aEvent );
 
     /**
+     * Event handler for the color theme change event.
+     */
+    void onThemeChange( wxSysColourChangedEvent& aEvent );
+
+    /**
      * Event handler for the automatic closing timer.
      */
     void onTimer( wxTimerEvent& aEvent );
@@ -254,6 +262,7 @@ protected:
     wxTimer*      m_showTimer;      ///< The timer counting the autoclose period
     wxAuiManager* m_auiManager;     ///< The AUI manager that contains this infobar
     MESSAGE_TYPE  m_type;           ///< The type of message being displayed
+    wxString      m_message;        ///< The original message without wrapping
 
     std::optional<std::function<void(void)>> m_callback;   ///< Optional callback made when closing infobar
 
@@ -304,4 +313,40 @@ protected:
     wxFlexGridSizer* m_mainSizer;
 };
 
+
+/**
+ * A wrapper for reporting to a #WX_INFOBAR UI element.
+ *
+ * The infobar is not updated until the @c Finalize() method is called. That method will
+ * queue either a show message or a dismiss event for the infobar - so this reporter is
+ * safe to use inside a paint event without causing an infinite paint event loop.
+ *
+ * No action is taken if no message is given to the reporter.
+ */
+class INFOBAR_REPORTER : public REPORTER
+{
+public:
+    INFOBAR_REPORTER( WX_INFOBAR* aInfoBar ) :
+            REPORTER(), m_messageSet( false ), m_infoBar( aInfoBar ),
+            m_severity( RPT_SEVERITY_UNDEFINED )
+    {
+    }
+
+    virtual ~INFOBAR_REPORTER() {};
+
+    REPORTER& Report( const wxString& aText, SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED ) override;
+
+    bool HasMessage() const override;
+
+    /**
+     * Update the infobar with the reported text.
+     */
+    void Finalize();
+
+private:
+    bool                      m_messageSet;
+    WX_INFOBAR*               m_infoBar;
+    std::unique_ptr<wxString> m_message;
+    SEVERITY                  m_severity;
+};
 #endif // INFOBAR_H_

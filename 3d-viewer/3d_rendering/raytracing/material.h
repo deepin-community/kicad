@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015-2016 Mario Luzeiro <mrluzeiro@ua.pt>
- * Copyright (C) 2015-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -345,22 +345,22 @@ protected:
     SFVEC3F m_specularColor;
     float   m_reflectivity;
 
-    ///< 1.0 is completely transparent, 0.0 completely opaque.
+    /// 1.0 is completely transparent, 0.0 completely opaque.
     float   m_transparency;
     float   m_absorbance;                     ///< absorbance factor for the transparent material.
     float   m_reflection;                     ///< 1.0 completely reflective, 0.0 no reflective.
     bool    m_castShadows;                    ///< true if this object will block the light.
 
-    ///< Number of rays that will be interpolated for this material if it is transparent.
+    /// Number of rays that will be interpolated for this material if it is transparent.
     unsigned int     m_refractionRayCount;
 
-    ///< Number of rays that will be interpolated for this material if it is reflective.
+    /// Number of rays that will be interpolated for this material if it is reflective.
     unsigned int     m_reflectionRayCount;
 
-    ///< Number of levels it allows for refraction recursiveness.
+    /// Number of levels it allows for refraction recursiveness.
     unsigned int     m_refractionRecursionCount;
 
-    ///< Number of levels it allows for reflection recursiveness.
+    /// Number of levels it allows for reflection recursiveness.
     unsigned int     m_reflectionRecursionCount;
 
     const MATERIAL_GENERATOR* m_generator;

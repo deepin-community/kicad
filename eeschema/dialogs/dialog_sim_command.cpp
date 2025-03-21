@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016-2022 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -29,6 +29,7 @@
 #include <sim/simulator_frame.h>
 #include <sim/sim_plot_tab.h>
 #include <confirm.h>
+#include <eda_pattern_match.h>
 
 #include <wx/tokenzr.h>
 
@@ -107,7 +108,7 @@ DIALOG_SIM_COMMAND::DIALOG_SIM_COMMAND( SIMULATOR_FRAME* aParent,
     // NoiseRef is optional
     m_noiseRef->Append( wxEmptyString );
 
-    for( const std::string& net : m_circuitModel->GetNets() )
+    for( const wxString& net : m_circuitModel->GetNets() )
     {
         m_pzInput->Append( net );
         m_pzInputRef->Append( net );
@@ -141,6 +142,7 @@ DIALOG_SIM_COMMAND::DIALOG_SIM_COMMAND( SIMULATOR_FRAME* aParent,
 
     SetupStandardButtons();
 }
+
 
 bool DIALOG_SIM_COMMAND::TransferDataToWindow()
 {
@@ -197,7 +199,7 @@ void DIALOG_SIM_COMMAND::SetPlotSettings( const SIM_TAB* aSimTab )
             m_lockY1->SetLabel( wxString::Format( m_lockY1->GetLabel(), plotTab->GetLabelY1() ) );
             m_y1Units->SetLabel( plotTab->GetUnitsY1() );
 
-            double min, max;
+            double min = 0.0, max = 0.0;
             bool   locked = plotTab->GetY1Scale( &min, &max );
             m_lockY1->SetValue( locked );
 
@@ -214,7 +216,7 @@ void DIALOG_SIM_COMMAND::SetPlotSettings( const SIM_TAB* aSimTab )
             m_lockY2->SetLabel( wxString::Format( m_lockY2->GetLabel(), plotTab->GetLabelY2() ) );
             m_y2Units->SetLabel( plotTab->GetUnitsY2() );
 
-            double min, max;
+            double min = 0.0, max = 0.0;
             bool   locked = plotTab->GetY2Scale( &min, &max );
             m_lockY2->SetValue( locked );
 
@@ -231,7 +233,7 @@ void DIALOG_SIM_COMMAND::SetPlotSettings( const SIM_TAB* aSimTab )
             m_lockY3->SetLabel( wxString::Format( m_lockY3->GetLabel(), plotTab->GetLabelY3() ) );
             m_y3Units->SetLabel( plotTab->GetUnitsY3() );
 
-            double min, max;
+            double min = 0.0, max = 0.0;
             bool   locked = plotTab->GetY3Scale( &min, &max );
             m_lockY3->SetValue( locked );
 
@@ -286,7 +288,7 @@ wxString DIALOG_SIM_COMMAND::evaluateDCControls( wxChoice* aDcSource, wxTextCtrl
 
     // pick device name from exporter when something different than temperature is selected
     if( dcSource.Cmp( "TEMP" ) )
-        dcSource = m_circuitModel->GetItemName( std::string( dcSource.ToUTF8() ) );
+        dcSource = m_circuitModel->GetItemName( dcSource );
 
     return wxString::Format( "%s %s %s %s", dcSource,
                              SPICE_VALUE( aDcStart->GetValue() ).ToSpiceString(),
@@ -422,7 +424,7 @@ bool DIALOG_SIM_COMMAND::TransferDataFromWindow()
         }
 
         if( !ref.IsEmpty() )
-            ref = wxS( "," ) + m_circuitModel->GetItemName( std::string( ref.ToUTF8() ) );
+            ref = wxS( "," ) + m_circuitModel->GetItemName( ref );
 
         m_simCommand.Printf( ".noise v(%s%s) %s %s %s %s %s %s",
                              output,
@@ -512,6 +514,9 @@ void DIALOG_SIM_COMMAND::ApplySettings( SIM_TAB* aTab )
 
     if( !m_saveAllDissipations->GetValue() )
         options &= ~NETLIST_EXPORTER_SPICE::OPTION_SAVE_ALL_DISSIPATIONS;
+
+    if( !m_saveAllEvents->GetValue() )
+        options &= ~NETLIST_EXPORTER_SPICE::OPTION_SAVE_ALL_EVENTS;
 
     aTab->SetSimOptions( options );
     m_simulatorFrame->ReloadSimulator( m_simCommand, options );
@@ -1004,7 +1009,8 @@ void DIALOG_SIM_COMMAND::OnFilterMouseMoved( wxMouseEvent& aEvent )
 
     if( m_inputSignalsFilter->IsSearchButtonVisible() && pos.x < buttonWidth )
         SetCursor( wxCURSOR_ARROW );
-    else if( m_inputSignalsFilter->IsCancelButtonVisible() && pos.x > ctrlRect.GetWidth() - buttonWidth )
+    else if( m_inputSignalsFilter->IsCancelButtonVisible()
+          && pos.x > ctrlRect.GetWidth() - buttonWidth )
         SetCursor( wxCURSOR_ARROW );
     else
         SetCursor( wxCURSOR_IBEAM );

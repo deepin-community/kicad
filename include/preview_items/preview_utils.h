@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
- * Copyright (C) 2017-2021 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -54,8 +54,8 @@ double PreviewOverlayDeemphAlpha( bool aDeemph = true );
  * Get a formatted string showing a dimension to a sane precision with an optional prefix and
  * unit suffix.
  */
-wxString DimensionLabel( const wxString& prefix, double aVal, const EDA_IU_SCALE& aIuScale, EDA_UNITS aUnits,
-                         bool aIncludeUnits = true );
+wxString DimensionLabel( const wxString& prefix, double aVal, const EDA_IU_SCALE& aIuScale,
+                         EDA_UNITS aUnits, bool aIncludeUnits = true );
 
 /**
  * Set the GAL glyph height to a constant scaled value, so that it always looks the same on screen.
@@ -72,16 +72,18 @@ COLOR4D GetShadowColor( const COLOR4D& aColor );
 /**
  * Draw strings next to the cursor.
  *
+ * The GAL attribute context will be restored to its original state after this function is called.
+ *
  * @param aGal the GAL to draw on.
  * @param aCursorPos the position of the cursor to draw next to.
  * @param aTextQuadrant a vector pointing to the quadrant to draw the text in.
  * @param aStrings list of strings to draw, top to bottom.
  */
 void DrawTextNextToCursor( KIGFX::VIEW* aView, const VECTOR2D& aCursorPos,
-                           const VECTOR2D& aTextQuadrant, const std::vector<wxString>& aStrings,
+                           const VECTOR2D& aTextQuadrant, const wxArrayString& aStrings,
                            bool aDrawingDropShadows );
 
-} // PREVIEW
-} // KIGFX
+} // namespace PREVIEW
+} // namespace KIGFX
 
 #endif  // PREVIEW_PREVIEW_UTILS__H_

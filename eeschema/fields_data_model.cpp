@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 <author>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -54,15 +54,26 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::updateDataStoreSymbolField( const SCH_SYMBOL
                                                                 const wxString&   aFieldName )
 {
     if( isAttribute( aFieldName ) )
+    {
         m_dataStore[aSymbol.m_Uuid][aFieldName] = getAttributeValue( aSymbol, aFieldName );
+    }
     else if( const SCH_FIELD* field = aSymbol.GetFieldByName( aFieldName ) )
-        m_dataStore[aSymbol.m_Uuid][aFieldName] = field->GetText();
-    // Handle fields with variables as names that are not present in the symbol
-    // by giving them the correct value
+    {
+        if( field->IsPrivate() )
+            m_dataStore[aSymbol.m_Uuid][aFieldName] = wxEmptyString;
+        else
+            m_dataStore[aSymbol.m_Uuid][aFieldName] = field->GetText();
+    }
     else if( IsTextVar( aFieldName ) )
+    {
+        // Handle fields with variables as names that are not present in the symbol
+        // by giving them the correct value
         m_dataStore[aSymbol.m_Uuid][aFieldName] = aFieldName;
+    }
     else
+    {
         m_dataStore[aSymbol.m_Uuid][aFieldName] = wxEmptyString;
+    }
 }
 
 
@@ -97,7 +108,7 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::RenameColumn( int aCol, const wxString& newN
 }
 
 
-int FIELDS_EDITOR_GRID_DATA_MODEL::GetFieldNameCol( wxString aFieldName )
+int FIELDS_EDITOR_GRID_DATA_MODEL::GetFieldNameCol( const wxString& aFieldName )
 {
     for( size_t i = 0; i < m_cols.size(); i++ )
     {
@@ -162,9 +173,11 @@ wxString FIELDS_EDITOR_GRID_DATA_MODEL::GetValue( int aRow, int aCol )
 wxString FIELDS_EDITOR_GRID_DATA_MODEL::GetValue( const DATA_MODEL_ROW& group, int aCol,
                                                   const wxString& refDelimiter,
                                                   const wxString& refRangeDelimiter,
-                                                  bool            resolveVars )
+                                                  bool            resolveVars,
+                                                  bool            listMixedValues )
 {
     std::vector<SCH_REFERENCE> references;
+    std::set<wxString>         mixedValues;
     wxString                   fieldValue;
 
     for( const SCH_REFERENCE& ref : group.m_Refs )
@@ -194,12 +207,31 @@ wxString FIELDS_EDITOR_GRID_DATA_MODEL::GetValue( const DATA_MODEL_ROW& group, i
                 refFieldValue = getFieldShownText( ref, m_cols[aCol].m_fieldName );
             }
             else
+            {
                 refFieldValue = m_dataStore[symbolID][m_cols[aCol].m_fieldName];
+            }
 
-            if( &ref == &group.m_Refs.front() )
+            if( listMixedValues )
+                mixedValues.insert( refFieldValue );
+            else if( &ref == &group.m_Refs.front() )
                 fieldValue = refFieldValue;
             else if( fieldValue != refFieldValue )
                 return INDETERMINATE_STATE;
+        }
+    }
+
+    if( listMixedValues )
+    {
+        fieldValue = wxEmptyString;
+
+        for( const wxString& value : mixedValues )
+        {
+            if( value.IsEmpty() )
+                continue;
+            else if( fieldValue.IsEmpty() )
+                fieldValue = value;
+            else
+                fieldValue += "," + value;
         }
     }
 
@@ -320,8 +352,8 @@ bool FIELDS_EDITOR_GRID_DATA_MODEL::cmp( const DATA_MODEL_ROW&          lhGroup,
 
     // Primary sort key is sortCol; secondary is always REFERENCE (column 0)
 
-    wxString lhs = dataModel->GetValue( (DATA_MODEL_ROW&) lhGroup, sortCol );
-    wxString rhs = dataModel->GetValue( (DATA_MODEL_ROW&) rhGroup, sortCol );
+    wxString lhs = dataModel->GetValue( lhGroup, sortCol ).Trim( true ).Trim( false );
+    wxString rhs = dataModel->GetValue( rhGroup, sortCol ).Trim( true ).Trim( false );
 
     if( lhs == rhs || sortCol == REFERENCE_FIELD )
     {
@@ -427,7 +459,9 @@ bool FIELDS_EDITOR_GRID_DATA_MODEL::groupMatch( const SCH_REFERENCE& lhRef,
             lh = getFieldShownText( lhRef, m_cols[i].m_fieldName );
         }
         else
+        {
             lh = m_dataStore[lhRefID][m_cols[i].m_fieldName];
+        }
 
         if( IsTextVar( m_cols[i].m_fieldName )
             || IsTextVar( m_dataStore[rhRefID][m_cols[i].m_fieldName] ) )
@@ -435,7 +469,9 @@ bool FIELDS_EDITOR_GRID_DATA_MODEL::groupMatch( const SCH_REFERENCE& lhRef,
             rh = getFieldShownText( rhRef, m_cols[i].m_fieldName );
         }
         else
+        {
             rh = m_dataStore[rhRefID][m_cols[i].m_fieldName];
+        }
 
         wxString fieldName = m_cols[i].m_fieldName;
 
@@ -455,7 +491,12 @@ wxString FIELDS_EDITOR_GRID_DATA_MODEL::getFieldShownText( const SCH_REFERENCE& 
     SCH_FIELD* field = aRef.GetSymbol()->GetFieldByName( aFieldName );
 
     if( field )
-        return field->GetShownText( &aRef.GetSheetPath(), false );
+    {
+        if( field->IsPrivate() )
+            return wxEmptyString;
+        else
+            return field->GetShownText( &aRef.GetSheetPath(), false );
+    }
 
     // Handle fields with variables as names that are not present in the symbol
     // by giving them the correct value by resolving against the symbol
@@ -555,11 +596,17 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::RebuildRows()
         if( !m_filter.IsEmpty() && !WildCompareString( m_filter, ref.GetFullRef(), false ) )
             continue;
 
-        if( m_excludeDNP && ref.GetSymbol()->GetDNP() )
+        if( m_excludeDNP && ( ref.GetSymbol()->GetDNP()
+                              || ref.GetSheetPath().GetDNP() ) )
+        {
             continue;
+        }
 
-        if( !m_includeExcluded && ref.GetSymbol()->GetExcludedFromBOM() )
+        if( !m_includeExcluded && ( ref.GetSymbol()->GetExcludedFromBOM()
+                                    || ref.GetSheetPath().GetExcludedFromBOM() ) )
+        {
             continue;
+        }
 
         // Check if the symbol if on the current sheet or, in the sheet path somewhere
         // depending on scope
@@ -738,9 +785,18 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::ApplyData(
             if( IsTextVar( srcName ) )
                 continue;
 
-            SCH_FIELD*      destField = symbol.FindField( srcName );
-            int             col = GetFieldNameCol( srcName );
-            bool            userAdded = ( col != -1 && m_cols[col].m_userAdded );
+            SCH_FIELD* destField = symbol.FindField( srcName );
+
+            if( destField && destField->IsPrivate() )
+            {
+                if( srcValue.IsEmpty() )
+                    continue;
+                else
+                    destField->SetPrivate( false );
+            }
+
+            int  col = GetFieldNameCol( srcName );
+            bool userAdded = ( col != -1 && m_cols[col].m_userAdded );
 
             // Add a not existing field if it has a value for this symbol
             bool createField = !destField && ( !srcValue.IsEmpty() || userAdded );
@@ -774,8 +830,11 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::ApplyData(
             }
         }
 
-        for( int ii = symbol.GetFields().size() - 1; ii >= MANDATORY_FIELDS; ii-- )
+        for( int ii = symbol.GetFields().size() - 1; ii >= 0; ii-- )
         {
+            if( symbol.GetFields()[ii].IsMandatory() || symbol.GetFields()[ii].IsPrivate() )
+                continue;
+
             if( fieldStore.count( symbol.GetFields()[ii].GetName() ) == 0 )
                 symbol.GetFields().erase( symbol.GetFields().begin() + ii );
         }
@@ -825,6 +884,10 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::ApplyBomPreset( const BOM_PRESET& aPreset )
     // Set columns that are present and shown
     for( BOM_FIELD field : aPreset.fieldsOrdered )
     {
+        // Ignore empty fields
+        if(!field.name)
+            continue;
+
         order.emplace_back( field.name );
 
         int col = GetFieldNameCol( field.name );
@@ -851,13 +914,14 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::ApplyBomPreset( const BOM_PRESET& aPreset )
     // Set our sorting
     int sortCol = GetFieldNameCol( aPreset.sortField );
 
-    if( sortCol != -1 )
-        SetSorting( sortCol, aPreset.sortAsc );
-    else
-        SetSorting( GetFieldNameCol( GetCanonicalFieldName( REFERENCE_FIELD ) ), aPreset.sortAsc );
+    if( sortCol == -1 )
+        sortCol = GetFieldNameCol( GetCanonicalFieldName( REFERENCE_FIELD ) );
+
+    SetSorting( sortCol, aPreset.sortAsc );
 
     SetFilter( aPreset.filterString );
     SetExcludeDNP( aPreset.excludeDNP );
+    SetIncludeExcludedFromBOM( aPreset.includeExcludedFromBOM );
 
     RebuildRows();
 }
@@ -873,6 +937,7 @@ BOM_PRESET FIELDS_EDITOR_GRID_DATA_MODEL::GetBomSettings()
     current.filterString = GetFilter();
     current.groupSymbols = GetGroupingEnabled();
     current.excludeDNP = GetExcludeDNP();
+    current.includeExcludedFromBOM = GetIncludeExcludedFromBOM();
 
     return current;
 }
@@ -898,26 +963,27 @@ wxString FIELDS_EDITOR_GRID_DATA_MODEL::Export( const BOM_FMT_PRESET& settings )
     if( last_col == -1 )
         return out;
 
-    auto formatField = [&]( wxString field, bool last ) -> wxString
-        {
-            if( !settings.keepLineBreaks )
+    auto formatField =
+            [&]( wxString field, bool last ) -> wxString
             {
-                field.Replace( wxS( "\r" ), wxS( "" ) );
-                field.Replace( wxS( "\n" ), wxS( "" ) );
-            }
+                if( !settings.keepLineBreaks )
+                {
+                    field.Replace( wxS( "\r" ), wxS( "" ) );
+                    field.Replace( wxS( "\n" ), wxS( "" ) );
+                }
 
-            if( !settings.keepTabs )
-            {
-                field.Replace( wxS( "\t" ), wxS( "" ) );
-            }
+                if( !settings.keepTabs )
+                {
+                    field.Replace( wxS( "\t" ), wxS( "" ) );
+                }
 
-            if( !settings.stringDelimiter.IsEmpty() )
-                field.Replace( settings.stringDelimiter,
-                               settings.stringDelimiter + settings.stringDelimiter );
+                if( !settings.stringDelimiter.IsEmpty() )
+                    field.Replace( settings.stringDelimiter,
+                                   settings.stringDelimiter + settings.stringDelimiter );
 
-            return settings.stringDelimiter + field + settings.stringDelimiter
-                   + ( last ? wxString( wxS( "\n" ) ) : settings.fieldDelimiter );
-        };
+                return settings.stringDelimiter + field + settings.stringDelimiter
+                       + ( last ? wxString( wxS( "\n" ) ) : settings.fieldDelimiter );
+            };
 
     // Column names
     for( size_t col = 0; col < m_cols.size(); col++ )
@@ -961,7 +1027,10 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::AddReferences( const SCH_REFERENCE_LIST& aRe
 
             // Update the fields of every reference
             for( const SCH_FIELD& field : ref.GetSymbol()->GetFields() )
-                m_dataStore[ref.GetSymbol()->m_Uuid][field.GetCanonicalName()] = field.GetText();
+            {
+                if( !field.IsPrivate() )
+                    m_dataStore[ref.GetSymbol()->m_Uuid][field.GetCanonicalName()] = field.GetText();
+            }
         }
     }
 }

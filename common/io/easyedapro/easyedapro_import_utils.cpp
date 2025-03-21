@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,7 +29,7 @@
 
 #include <ki_exception.h>
 #include <string_utils.h>
-#include <nlohmann/json.hpp>
+#include <json_common.h>
 #include <core/json_serializers.h>
 
 #include <wx/log.h>

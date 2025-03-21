@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -28,11 +28,11 @@
  * NESTED_SETTINGS is a JSON_SETTINGS that lives inside a JSON_SETTINGS.
  * Instead of being backed by a JSON file on disk, it loads and stores to its parent.
  */
-class NESTED_SETTINGS : public JSON_SETTINGS
+class KICOMMON_API NESTED_SETTINGS : public JSON_SETTINGS
 {
 public:
     NESTED_SETTINGS( const std::string& aName, int aSchemaVersion, JSON_SETTINGS* aParent,
-                     const std::string& aPath );
+                     const std::string& aPath, bool aLoadFromFile = true );
 
     virtual ~NESTED_SETTINGS();
 

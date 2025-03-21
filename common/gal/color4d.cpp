@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright 2012 Torsten Hueter, torstenhtr <at> gmx.de
- * Copyright 2017-2023 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  *
  * This program is free software; you can redistribute it and/or
@@ -576,10 +576,10 @@ EDA_COLOR_T COLOR4D::FindNearestLegacyColor( int aR, int aG, int aB )
 
 COLOR4D& COLOR4D::FromCSSRGBA( int aRed, int aGreen, int aBlue, double aAlpha )
 {
-    r = alg::clamp( 0, aRed, 255 ) / 255.0;
-    g = alg::clamp( 0, aGreen, 255 ) / 255.0;
-    b = alg::clamp( 0, aBlue, 255 ) / 255.0;
-    a = alg::clamp( 0.0, aAlpha, 1.0 );
+    r = std::clamp( aRed, 0, 255 ) / 255.0;
+    g = std::clamp( aGreen, 0, 255 ) / 255.0;
+    b = std::clamp( aBlue, 0, 255 ) / 255.0;
+    a = std::clamp( aAlpha, 0.0, 1.0 );
 
     return *this;
 }
@@ -600,4 +600,28 @@ int COLOR4D::Compare( const COLOR4D& aRhs ) const
         return ( a < aRhs.a ) ? -1 : 1;
 
     return 0;
+}
+
+
+double COLOR4D::RelativeLuminance() const
+{
+    // Formula from https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
+    double cr = ( r <= 0.04045 ) ? ( r / 12.92 ) : std::pow( ( r + 0.055 ) / 1.055, 2.4 );
+    double cg = ( g <= 0.04045 ) ? ( g / 12.92 ) : std::pow( ( g + 0.055 ) / 1.055, 2.4 );
+    double cb = ( b <= 0.04045 ) ? ( b / 12.92 ) : std::pow( ( b + 0.055 ) / 1.055, 2.4 );
+
+    return 0.2126 * cr + 0.7152 * cg + 0.0722 * cb;
+}
+
+
+double COLOR4D::ContrastRatio( const COLOR4D& aLeft, const COLOR4D& aRight )
+{
+    // Formula from https://www.w3.org/TR/WCAG21/#dfn-contrast-ratio
+    double aRL = aLeft.RelativeLuminance();
+    double bRL = aRight.RelativeLuminance();
+
+    if( aRL > bRL )
+        return ( aRL + 0.05 ) / ( bRL + 0.05 );
+    else
+        return ( bRL + 0.05 ) / ( aRL + 0.05 );
 }

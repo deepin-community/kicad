@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 <author>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -81,9 +81,15 @@ public:
     };
 
     FIELDS_EDITOR_GRID_DATA_MODEL( SCH_REFERENCE_LIST& aSymbolsList ) :
-            m_symbolsList( aSymbolsList ), m_edited( false ), m_sortColumn( 0 ),
-            m_sortAscending( false ), m_scope( SCOPE_ALL ), m_groupingEnabled( false ),
-            m_excludeDNP( false ), m_includeExcluded( false ), m_rebuildsEnabled( true )
+            m_symbolsList( aSymbolsList ),
+            m_edited( false ),
+            m_sortColumn( 0 ),
+            m_sortAscending( false ),
+            m_scope( SCOPE_ALL ),
+            m_groupingEnabled( false ),
+            m_excludeDNP( false ),
+            m_includeExcluded( false ),
+            m_rebuildsEnabled( true )
     {
         m_symbolsList.SplitReferences();
     }
@@ -100,13 +106,19 @@ public:
         wxCHECK_RET( aCol >= 0 && aCol < (int) m_cols.size(), "Invalid Column Number" );
 
         if( aCol == aNewPos )
+        {
             return;
+        }
         else if( aCol < aNewPos )
+        {
             std::rotate( std::begin( m_cols ) + aCol, std::begin( m_cols ) + aCol + 1,
                          std::begin( m_cols ) + aNewPos + 1 );
+        }
         else
+        {
             std::rotate( std::begin( m_cols ) + aNewPos, std::begin( m_cols ) + aCol,
                          std::begin( m_cols ) + aCol + 1 );
+        }
     }
 
     int GetNumberRows() override { return (int) m_rows.size(); }
@@ -131,7 +143,7 @@ public:
         return m_cols[aCol].m_fieldName;
     }
 
-    int      GetFieldNameCol( wxString aFieldName );
+    int GetFieldNameCol( const wxString& aFieldName );
 
     const std::vector<BOM_FIELD> GetFieldsOrdered();
     void                         SetFieldsOrder( const std::vector<wxString>& aNewOrder );
@@ -145,12 +157,13 @@ public:
     wxString GetValue( const DATA_MODEL_ROW& group, int aCol,
                        const wxString& refDelimiter = wxT( ", " ),
                        const wxString& refRangDelimiter = wxT( "-" ),
-                       bool resolveVars = false );
+                       bool resolveVars = false,
+                       bool listMixedValues = false );
 
     wxString GetExportValue( int aRow, int aCol, const wxString& refDelimiter,
                              const wxString& refRangeDelimiter )
     {
-        return GetValue( m_rows[aRow], aCol, refDelimiter, refRangeDelimiter, true );
+        return GetValue( m_rows[aRow], aCol, refDelimiter, refRangeDelimiter, true, true );
     }
 
     void     SetValue( int aRow, int aCol, const wxString& aValue ) override;

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,6 +26,7 @@
 
 #include <wx/accel.h>
 #include <wx/menu.h>
+#include <tool/action_menu.h>
 
 
 /**
@@ -52,6 +53,23 @@ public:
     {
         // Don't use the passed in accelerator table, create a new empty one
         wxMenuBar::SetAcceleratorTable( wxAcceleratorTable() );
+    }
+
+    wxString GetMenuLabelText( size_t aPos ) const override
+    {
+        if( ACTION_MENU* actionMenu = dynamic_cast<ACTION_MENU*>( GetMenu( aPos ) ) )
+        {
+            wxString title = actionMenu->GetTitle();
+
+            // Clear accelerator key markings
+            title.Replace( wxS( " & " ), wxS( " {amp} " ) );
+            title.Replace( wxS( "&" ), wxEmptyString );
+            title.Replace( wxS( "{amp}" ), wxS( "&" ) );
+
+            return title;
+        }
+
+        return wxMenuBar::GetMenuLabelText( aPos );
     }
 };
 

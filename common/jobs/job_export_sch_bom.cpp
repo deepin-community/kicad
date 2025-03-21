@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,12 +19,13 @@
  */
 
 #include <jobs/job_export_sch_bom.h>
+#include <jobs/job_registry.h>
+#include <i18n_utility.h>
 
 
-JOB_EXPORT_SCH_BOM::JOB_EXPORT_SCH_BOM( bool aIsCli ) :
-    JOB( "bom", aIsCli ),
+JOB_EXPORT_SCH_BOM::JOB_EXPORT_SCH_BOM() :
+    JOB( "bom", false),
     m_filename(),
-    m_outputFile(),
 
     m_fieldDelimiter(),
     m_stringDelimiter(),
@@ -39,6 +40,64 @@ JOB_EXPORT_SCH_BOM::JOB_EXPORT_SCH_BOM( bool aIsCli ) :
     m_sortField(),
     m_sortAsc( true ),
     m_filterString(),
-    m_excludeDNP( false )
+    m_excludeDNP( false ),
+    m_includeExcludedFromBOM( false )
 {
+    m_params.emplace_back( new JOB_PARAM<wxString>( "field_delimiter",
+                                                    &m_fieldDelimiter,
+                                                    m_fieldDelimiter ) );
+    m_params.emplace_back( new JOB_PARAM<wxString>( "string_delimiter",
+                                                    &m_stringDelimiter,
+                                                    m_stringDelimiter ) );
+    m_params.emplace_back( new JOB_PARAM<wxString>( "ref_delimiter",
+                                                    &m_refDelimiter,
+                                                    m_refDelimiter ) );
+    m_params.emplace_back( new JOB_PARAM<wxString>( "ref_range_delimiter",
+                                                    &m_refRangeDelimiter,
+                                                    m_refRangeDelimiter ) );
+    m_params.emplace_back( new JOB_PARAM<bool>( "keep_tabs", &m_keepTabs, m_keepTabs ) );
+    m_params.emplace_back( new JOB_PARAM<bool>( "keep_line_breaks",
+                                                &m_keepLineBreaks,
+                                                m_keepLineBreaks ) );
+    m_params.emplace_back( new JOB_PARAM_LIST<wxString>( "fields_ordered",
+                                                                 &m_fieldsOrdered,
+                                                                 m_fieldsOrdered ) );
+    m_params.emplace_back( new JOB_PARAM_LIST<wxString>( "fields_labels",
+                                                                 &m_fieldsLabels,
+                                                                 m_fieldsLabels ) );
+    m_params.emplace_back( new JOB_PARAM_LIST<wxString>( "fields_group_by",
+                                                                 &m_fieldsGroupBy,
+                                                                 m_fieldsGroupBy ) );
+    m_params.emplace_back( new JOB_PARAM<wxString>( "sort_field", &m_sortField, m_sortField ) );
+    m_params.emplace_back( new JOB_PARAM<bool>( "sort_asc", &m_sortAsc, m_sortAsc ) );
+    m_params.emplace_back( new JOB_PARAM<wxString>( "filter_string",
+                                                    &m_filterString,
+                                                    m_filterString ) );
+    m_params.emplace_back( new JOB_PARAM<bool>( "exclude_dnp", &m_excludeDNP, m_excludeDNP ) );
+    m_params.emplace_back( new JOB_PARAM<bool>( "include_excluded_from_bom",
+                                                &m_includeExcludedFromBOM,
+                                                m_includeExcludedFromBOM ) );
+
+    m_params.emplace_back( new JOB_PARAM<wxString>( "bom_preset_name",
+                                                    &m_bomPresetName,
+                                                    m_bomPresetName ) );
+    m_params.emplace_back( new JOB_PARAM<wxString>( "bom_format_preset_name",
+                                                    &m_bomFmtPresetName,
+                                                    m_bomFmtPresetName ) );
 }
+
+
+wxString JOB_EXPORT_SCH_BOM::GetDefaultDescription() const
+{
+    return wxString::Format( _( "Generate bill of materials" ) );
+}
+
+
+wxString JOB_EXPORT_SCH_BOM::GetSettingsDialogTitle() const
+{
+    return wxString::Format( _( "Generate Bill of Materials Job Settings" ) );
+}
+
+
+REGISTER_JOB( sch_export_bom, _HKI( "Schematic: Generate Bill of Materials" ), KIWAY::FACE_SCH,
+              JOB_EXPORT_SCH_BOM );

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -38,7 +38,7 @@ CLI::SCH_EXPORT_NETLIST_COMMAND::SCH_EXPORT_NETLIST_COMMAND() : COMMAND( "netlis
     m_argParser.add_argument( ARG_FORMAT )
             .default_value( std::string( "kicadsexpr" ) )
             .help( UTF8STDSTR( _( "Netlist output format, valid options: kicadsexpr, kicadxml, "
-                                  "cadstar, orcadpcb2, spice, spicemodel" ) ) )
+                                  "cadstar, orcadpcb2, spice, spicemodel, pads, allegro" ) ) )
             .metavar( "FORMAT" );
 }
 
@@ -46,10 +46,10 @@ CLI::SCH_EXPORT_NETLIST_COMMAND::SCH_EXPORT_NETLIST_COMMAND() : COMMAND( "netlis
 int CLI::SCH_EXPORT_NETLIST_COMMAND::doPerform( KIWAY& aKiway )
 {
     std::unique_ptr<JOB_EXPORT_SCH_NETLIST> netJob =
-            std::make_unique<JOB_EXPORT_SCH_NETLIST>( true );
+            std::make_unique<JOB_EXPORT_SCH_NETLIST>();
 
     netJob->m_filename = m_argInput;
-    netJob->m_outputFile = m_argOutput;
+    netJob->SetConfiguredOutputPath( m_argOutput );
 
     if( !wxFile::Exists( netJob->m_filename ) )
     {
@@ -81,6 +81,14 @@ int CLI::SCH_EXPORT_NETLIST_COMMAND::doPerform( KIWAY& aKiway )
     else if( format == "spicemodel" )
     {
         netJob->format = JOB_EXPORT_SCH_NETLIST::FORMAT::SPICEMODEL;
+    }
+    else if( format == "pads" )
+    {
+        netJob->format = JOB_EXPORT_SCH_NETLIST::FORMAT::PADS;
+    }
+    else if( format == "allegro" )
+    {
+        netJob->format = JOB_EXPORT_SCH_NETLIST::FORMAT::ALLEGRO;
     }
     else
     {

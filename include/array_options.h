@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,6 +31,7 @@
 
 /**
  * Options that govern the setup of an "array" of multiple item.
+ *
  * The base #ARRAY_OPTIONS do not encode a specific geometry or numbering
  * method, this is done by derived classes.
  */
@@ -54,7 +55,7 @@ public:
     virtual ~ARRAY_OPTIONS(){};
 
     /**
-     * Transform applied to an object by this array
+     * Transform applied to an object by this array.
      */
     struct TRANSFORM
     {
@@ -63,28 +64,29 @@ public:
     };
 
     /**
-     * Get the transform of the n-th point in the array
-     * @param  aN the index of the array point (0 is the original point)
-     * @param  aPos the existing item position
-     * @return  a transform (an offset and a rotation)
+     * Get the transform of the n-th point in the array.
+     *
+     * @param  aN the index of the array point (0 is the original point).
+     * @param  aPos the existing item position.
+     * @return a transform (an offset and a rotation)/
      */
     virtual TRANSFORM GetTransform( int aN, const VECTOR2I& aPos ) const = 0;
 
     /**
-     * The number of points in this array
+     * The number of points in this array.
      */
     virtual int GetArraySize() const = 0;
 
     /**
-     * Get the position number (name) for the n'th array point
-     * @param  n array point index, from 0 to GetArraySize() - 1
-     * @return   the point's name
+     * Get the position number (name) for the n'th array point.
+     *
+     * @param  n array point index, from 0 to GetArraySize() - 1.
+     * @return the point's name.
      */
     virtual wxString GetItemNumber( int n ) const = 0;
 
-    /*!
-     * @return are the items in this array numbered, or are all the
-     * items numbered the same?
+    /**
+     * @return are the items in this array numbered, or are all the items numbered the same?
      */
     bool ShouldNumberItems() const
     {
@@ -96,7 +98,7 @@ public:
         m_shouldNumber = aShouldNumber;
     }
 
-    /*!
+    /**
      * @return are the footprints in this array reannotated to be unique (true), or do they
      * keep the original annotation (false)?
      */
@@ -110,7 +112,7 @@ public:
         m_reannotateFootprints = aShouldReannotate;
     }
 
-    /*!
+    /**
      * @return is the numbering is enabled and should start at a point
      * specified in these options or is it implicit according to the calling
      * code?
@@ -145,6 +147,7 @@ struct KICOMMON_API ARRAY_GRID_OPTIONS : public ARRAY_OPTIONS
 {
     ARRAY_GRID_OPTIONS()
             : ARRAY_OPTIONS( ARRAY_GRID ),
+              m_centred( false ),
               m_nx( 0 ),
               m_ny( 0 ),
               m_horizontalThenVertical( true ),
@@ -155,6 +158,8 @@ struct KICOMMON_API ARRAY_GRID_OPTIONS : public ARRAY_OPTIONS
     {
     }
 
+    // Are the grid positions relative to item (0, 0), or the grid center?
+    bool             m_centred;
     long             m_nx, m_ny;
     bool             m_horizontalThenVertical, m_reverseNumberingAlternate;
     VECTOR2I         m_delta;
@@ -169,6 +174,7 @@ struct KICOMMON_API ARRAY_GRID_OPTIONS : public ARRAY_OPTIONS
     wxString  GetItemNumber( int n ) const override;
 
 private:
+    VECTOR2I gtItemPosRelativeToItem0( int n ) const;
     VECTOR2I getGridCoords( int n ) const;
 };
 
@@ -185,6 +191,7 @@ struct KICOMMON_API ARRAY_CIRCULAR_OPTIONS : public ARRAY_OPTIONS
 
     /// number of point in the array
     long             m_nPts;
+
     /// angle between points, or 0 for each point separated by this value (decideg)
     EDA_ANGLE        m_angle;
     VECTOR2I         m_centre;

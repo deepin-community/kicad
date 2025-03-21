@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,6 +27,7 @@
 #include <dialogs/panel_setup_severities.h>
 #include <wx/radiobut.h>
 #include <wx/scrolwin.h>
+#include <wx/sizer.h>
 #include <wx/stattext.h>
 #include "confirm.h"
 

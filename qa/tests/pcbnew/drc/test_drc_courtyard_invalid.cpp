@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2021 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -304,7 +304,8 @@ void DoCourtyardInvalidTest( const COURTYARD_INVALID_CASE& aCase,
     drcEngine.InitEngine( wxFileName() );
 
     drcEngine.SetViolationHandler(
-            [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2I aPos, int aLayer )
+            [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2I aPos, int aLayer,
+                 DRC_CUSTOM_MARKER_HANDLER* aCustomHandler )
             {
                 if(    aItem->GetErrorCode() == DRCE_OVERLAPPING_FOOTPRINTS
                     || aItem->GetErrorCode() == DRCE_MALFORMED_COURTYARD

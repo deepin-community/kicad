@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2022 Chetan Subhash Shinde<chetanshinde2001@gmail.com>
  * Copyright (C) 2023 CERN
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -29,15 +29,14 @@
 
 #include <sch_io/sch_io_mgr.h>
 #include <pin_type.h>
+#include <core/typeinfo.h>
 #include <layer_ids.h>
-#include <wx/filename.h>
 #include <plotters/plotter.h>
 #include <sch_io/ltspice/ltspice_schematic.h>
 
 
 class EDA_TEXT;
-class LIB_SHAPE;
-class LIB_PIN;
+class SCH_PIN;
 class SCH_LABEL_BASE;
 class SCH_SYMBOL;
 class SCH_TEXT;
@@ -81,7 +80,6 @@ public:
      */
     int ToKicadCoords( int aCoordinate );
     VECTOR2I ToKicadCoords( const VECTOR2I& aPos );
-    VECTOR2I ToInvertedKicadCoords( const VECTOR2I& aPos );
 
     VECTOR2I ToKicadFontSize( int aLTFontSize );
 
@@ -109,7 +107,7 @@ public:
      * @param aIndex index.
      */
     void CreateLines( LIB_SYMBOL* aSymbol, LTSPICE_SCHEMATIC::LT_SYMBOL& aLTSymbol, int aIndex,
-                      LIB_SHAPE* aShape );
+                      SCH_SHAPE* aShape );
 
     /**
      * Method for plotting Schematic Lines from Asy files
@@ -214,7 +212,7 @@ public:
     /**
      * Create schematic text.
      */
-    SCH_TEXT* CreateSCH_TEXT( VECTOR2I aOffset, const wxString& aText, int aFontSize,
+    SCH_TEXT* CreateSCH_TEXT( const VECTOR2I& aOffset, const wxString& aText, int aFontSize,
                           LTSPICE_SCHEMATIC::JUSTIFICATION aJustification );
 
     /**
@@ -244,7 +242,7 @@ public:
     /**
      * Create a symbol rect.
      */
-    void CreateRect( LTSPICE_SCHEMATIC::LT_SYMBOL& aLTSymbol, int aIndex, LIB_SHAPE* aRectangle );
+    void CreateRect( LTSPICE_SCHEMATIC::LT_SYMBOL& aLTSymbol, int aIndex, SCH_SHAPE* aRectangle );
 
     /**
      * Create a schematic rect.
@@ -254,12 +252,12 @@ public:
     /**
      * Create a pin from an asy file.
      */
-    void CreatePin( LTSPICE_SCHEMATIC::LT_SYMBOL& aLTSymbol, int aIndex, LIB_PIN* aPin );
+    void CreatePin( LTSPICE_SCHEMATIC::LT_SYMBOL& aLTSymbol, int aIndex, SCH_PIN* aPin );
 
     /**
      * Create a symbol arc.
      */
-    void CreateArc( LTSPICE_SCHEMATIC::LT_SYMBOL& aLTSymbol, int aIndex, LIB_SHAPE* aArc );
+    void CreateArc( LTSPICE_SCHEMATIC::LT_SYMBOL& aLTSymbol, int aIndex, SCH_SHAPE* aArc );
 
     /**
      * Create a schematic arc.
@@ -269,7 +267,7 @@ public:
     /**
      * Create a symbol circle.
      */
-    void CreateCircle( LTSPICE_SCHEMATIC::LT_SYMBOL& aLTSymbol, int aIndex, LIB_SHAPE* aCircle );
+    void CreateCircle( LTSPICE_SCHEMATIC::LT_SYMBOL& aLTSymbol, int aIndex, SCH_SHAPE* aCircle );
 
     /**
      * Create a schematic circle.

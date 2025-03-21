@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -58,17 +58,7 @@ bool PANEL_SETUP_TEARDROPS::TransferDataToWindow()
     m_spTeardropHDPercent->SetValue( prms->m_WidthtoSizeFilterRatio*100.0 );
     m_cbPreferZoneConnection->SetValue( !prms->m_TdOnPadsInZones );
     m_cbTeardropsUseNextTrack->SetValue( prms->m_AllowUseTwoTracks );
-
-    if( prms->IsCurved() )
-    {
-        m_rbCurved->SetValue( true );
-        m_curvePointsCtrl->SetValue( prms->m_CurveSegCount );
-    }
-    else
-    {
-        m_rbStraightLines->SetValue( true );
-        m_curvePointsCtrl->SetValue( 5 );
-    }
+    m_cbCurvedEdges->SetValue( prms->m_CurvedEdges );
 
     prms = prmsList->GetParameters( TARGET_RECT );
     m_teardropMaxLenRect.SetValue( prms->m_TdMaxLen );
@@ -78,17 +68,7 @@ bool PANEL_SETUP_TEARDROPS::TransferDataToWindow()
     m_spTeardropHDPercent1->SetValue( prms->m_WidthtoSizeFilterRatio*100.0 );
     m_cbPreferZoneConnection1->SetValue( !prms->m_TdOnPadsInZones );
     m_cbTeardropsUseNextTrack1->SetValue( prms->m_AllowUseTwoTracks );
-
-    if( prms->IsCurved() )
-    {
-        m_rbCurved1->SetValue( true );
-        m_curvePointsCtrl1->SetValue( prms->m_CurveSegCount );
-    }
-    else
-    {
-        m_rbStraightLines1->SetValue( true );
-        m_curvePointsCtrl1->SetValue( 5 );
-    }
+    m_cbCurvedEdges1->SetValue( prms->m_CurvedEdges );
 
     prms = prmsList->GetParameters( TARGET_TRACK );
     m_teardropMaxLenT2T.SetValue( prms->m_TdMaxLen );
@@ -97,17 +77,7 @@ bool PANEL_SETUP_TEARDROPS::TransferDataToWindow()
     m_spWidthPercent2->SetValue( prms->m_BestWidthRatio *100.0 );
     m_spTeardropHDPercent2->SetValue( prms->m_WidthtoSizeFilterRatio*100.0 );
     m_cbTeardropsUseNextTrack2->SetValue( prms->m_AllowUseTwoTracks );
-
-    if( prms->IsCurved() )
-    {
-        m_rbCurved2->SetValue( true );
-        m_curvePointsCtrl2->SetValue( prms->m_CurveSegCount );
-    }
-    else
-    {
-        m_rbStraightLines2->SetValue( true );
-        m_curvePointsCtrl2->SetValue( 5 );
-    }
+    m_cbCurvedEdges2->SetValue( prms->m_CurvedEdges );
 
     return true;
 }
@@ -122,7 +92,7 @@ bool PANEL_SETUP_TEARDROPS::TransferDataFromWindow()
     prms->m_BestWidthRatio = m_spWidthPercent->GetValue() / 100.0;
     prms->m_TdMaxLen = m_teardropMaxLenRound.GetIntValue();
     prms->m_TdMaxWidth = m_teardropMaxWidthRound.GetIntValue();
-    prms->m_CurveSegCount = m_rbStraightLines->GetValue() ?  0 : m_curvePointsCtrl->GetValue();
+    prms->m_CurvedEdges = m_cbCurvedEdges->GetValue();
     prms->m_WidthtoSizeFilterRatio = m_spTeardropHDPercent->GetValue() / 100.0;
     prms->m_TdOnPadsInZones = !m_cbPreferZoneConnection->GetValue();
     prms->m_AllowUseTwoTracks = m_cbTeardropsUseNextTrack->GetValue();
@@ -132,7 +102,7 @@ bool PANEL_SETUP_TEARDROPS::TransferDataFromWindow()
     prms->m_BestWidthRatio = m_spWidthPercent1->GetValue() / 100.0;
     prms->m_TdMaxLen = m_teardropMaxLenRect.GetIntValue();
     prms->m_TdMaxWidth = m_teardropMaxWidthRect.GetIntValue();
-    prms->m_CurveSegCount = m_rbStraightLines1->GetValue() ?  0 : m_curvePointsCtrl1->GetValue();
+    prms->m_CurvedEdges = m_cbCurvedEdges1->GetValue();
     prms->m_WidthtoSizeFilterRatio = m_spTeardropHDPercent1->GetValue() / 100.0;
     prms->m_TdOnPadsInZones = !m_cbPreferZoneConnection1->GetValue();
     prms->m_AllowUseTwoTracks = m_cbTeardropsUseNextTrack1->GetValue();
@@ -142,7 +112,7 @@ bool PANEL_SETUP_TEARDROPS::TransferDataFromWindow()
     prms->m_BestWidthRatio = m_spWidthPercent2->GetValue() / 100.0;
     prms->m_TdMaxLen = m_teardropMaxLenT2T.GetIntValue();
     prms->m_TdMaxWidth = m_teardropMaxWidthT2T.GetIntValue();
-    prms->m_CurveSegCount = m_rbStraightLines2->GetValue() ?  0 : m_curvePointsCtrl2->GetValue();
+    prms->m_CurvedEdges = m_cbCurvedEdges2->GetValue();
     prms->m_WidthtoSizeFilterRatio = m_spTeardropHDPercent2->GetValue() / 100.0;
     prms->m_AllowUseTwoTracks = m_cbTeardropsUseNextTrack2->GetValue();
 

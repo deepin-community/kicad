@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2007-2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2007-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,7 +32,7 @@
 */
 
 
-#include <confirm.h>            // DisplayError()
+#include <confirm.h>            // DisplayErrorMessage()
 #include <gestfich.h>           // EDA_FileSelector()
 #include <pcb_edit_frame.h>
 #include <locale_io.h>
@@ -66,14 +66,13 @@ bool PCB_EDIT_FRAME::ImportSpecctraSession( const wxString& fullFileName )
     {
         DSN::ImportSpecctraSession( GetBoard(), fullFileName );
     }
-
     catch( const IO_ERROR& ioe )
     {
         wxString msg = _( "Board may be corrupted, do not save it.\n Fix problem and try again" );
 
         wxString extra = ioe.What();
 
-        DisplayErrorMessage( this, msg, extra);
+        DisplayErrorMessage( this, msg, extra );
         return false;
     }
 
@@ -84,7 +83,7 @@ bool PCB_EDIT_FRAME::ImportSpecctraSession( const wxString& fullFileName )
         // Update footprint positions
 
         // add imported tracks (previous tracks are removed, therefore all are new)
-        for( auto track : GetBoard()->Tracks() )
+        for( PCB_TRACK* track : GetBoard()->Tracks() )
             GetCanvas()->GetView()->Add( track );
     }
 
@@ -154,8 +153,8 @@ PCB_TRACK* SPECCTRA_DB::makeTRACK( WIRE* wire, PATH* aPath, int aPointIndex, int
 
     PCB_TRACK* track = new PCB_TRACK( m_sessionBoard );
 
-    track->SetStart( mapPt( aPath->points[aPointIndex+0], m_routeResolution ) );
-    track->SetEnd( mapPt( aPath->points[aPointIndex+1], m_routeResolution ) );
+    track->SetStart( mapPt( aPath->points[aPointIndex + 0], m_routeResolution ) );
+    track->SetEnd( mapPt( aPath->points[aPointIndex + 1], m_routeResolution ) );
     track->SetLayer( m_pcbLayer2kicad[layerNdx] );
     track->SetWidth( scale( aPath->aperture_width, m_routeResolution ) );
     track->SetNetCode( aNetcode );
@@ -172,8 +171,40 @@ PCB_TRACK* SPECCTRA_DB::makeTRACK( WIRE* wire, PATH* aPath, int aPointIndex, int
 }
 
 
-PCB_VIA* SPECCTRA_DB::makeVIA( WIRE_VIA*aVia, PADSTACK* aPadstack, const POINT& aPoint, int aNetCode,
-                               int aViaDrillDefault )
+PCB_ARC* SPECCTRA_DB::makeARC( WIRE* wire, QARC* aQarc, int aNetcode )
+{
+    int layerNdx = findLayerName( aQarc->layer_id );
+
+    if( layerNdx == -1 )
+    {
+        THROW_IO_ERROR( wxString::Format( _( "Session file uses invalid layer id '%s'." ),
+                                          From_UTF8( aQarc->layer_id.c_str() ) ) );
+    }
+
+    PCB_ARC* arc = new PCB_ARC( m_sessionBoard );
+
+    arc->SetStart( mapPt( aQarc->vertex[0], m_routeResolution ) );
+    arc->SetEnd( mapPt( aQarc->vertex[1], m_routeResolution ) );
+    arc->SetMid( CalcArcMid(arc->GetStart(), arc->GetEnd(),
+                 mapPt( aQarc->vertex[2], m_routeResolution ) ) );
+    arc->SetLayer( m_pcbLayer2kicad[layerNdx] );
+    arc->SetWidth( scale( aQarc->aperture_width, m_routeResolution ) );
+    arc->SetNetCode( aNetcode );
+
+    // a track can be locked.
+    // However specctra as 4 types, none is exactly the same as our locked option
+    // wire->wire_type = T_fix, T_route, T_normal or T_protect
+    // fix and protect could be used as lock option
+    // but protect is returned for all tracks having initially the route or protect property
+    if( wire->m_wire_type == T_fix )
+        arc->SetLocked( true );
+
+    return arc;
+}
+
+
+PCB_VIA* SPECCTRA_DB::makeVIA( WIRE_VIA* aVia, PADSTACK* aPadstack, const POINT& aPoint,
+                               int aNetCode, int aViaDrillDefault )
 {
     PCB_VIA* via = nullptr;
     SHAPE*   shape;
@@ -199,7 +230,7 @@ PCB_VIA* SPECCTRA_DB::makeVIA( WIRE_VIA*aVia, PADSTACK* aPadstack, const POINT& 
 
             double drill_um = strtod( diam_txt.c_str(), nullptr );
 
-            drill_diam_iu = int( drill_um * ( pcbIUScale.IU_PER_MM / 1000.0 ) );
+            drill_diam_iu = static_cast<int>( drill_um * ( pcbIUScale.IU_PER_MM / 1000.0 ) );
 
             if( drill_diam_iu == aViaDrillDefault )
                 drill_diam_iu = UNDEFINED_DRILL_DIAMETER;
@@ -212,7 +243,7 @@ PCB_VIA* SPECCTRA_DB::makeVIA( WIRE_VIA*aVia, PADSTACK* aPadstack, const POINT& 
     }
     else if( shapeCount == 1 )
     {
-        shape = (SHAPE*) (*aPadstack)[0];
+        shape = static_cast<SHAPE*>( ( *aPadstack )[0] );
         DSN_T type = shape->shape->Type();
 
         if( type != T_circle )
@@ -221,19 +252,19 @@ PCB_VIA* SPECCTRA_DB::makeVIA( WIRE_VIA*aVia, PADSTACK* aPadstack, const POINT& 
                                               GetTokenString( type ) ) );
         }
 
-        CIRCLE* circle = (CIRCLE*) shape->shape;
+        CIRCLE* circle = static_cast<CIRCLE*>( shape->shape );
         int viaDiam = scale( circle->diameter, m_routeResolution );
 
         via = new PCB_VIA( m_sessionBoard );
         via->SetPosition( mapPt( aPoint, m_routeResolution ) );
         via->SetDrill( drill_diam_iu );
         via->SetViaType( VIATYPE::THROUGH );
-        via->SetWidth( viaDiam );
+        via->SetWidth( ::PADSTACK::ALL_LAYERS, viaDiam );
         via->SetLayerPair( F_Cu, B_Cu );
     }
     else if( shapeCount == copperLayerCount )
     {
-        shape = (SHAPE*) (*aPadstack)[0];
+        shape = static_cast<SHAPE*>( ( *aPadstack )[0] );
         DSN_T type = shape->shape->Type();
 
         if( type != T_circle )
@@ -242,14 +273,14 @@ PCB_VIA* SPECCTRA_DB::makeVIA( WIRE_VIA*aVia, PADSTACK* aPadstack, const POINT& 
                                               GetTokenString( type ) ) );
         }
 
-        CIRCLE* circle = (CIRCLE*) shape->shape;
+        CIRCLE* circle = static_cast<CIRCLE*>( shape->shape );
         int viaDiam = scale( circle->diameter, m_routeResolution );
 
         via = new PCB_VIA( m_sessionBoard );
         via->SetPosition( mapPt( aPoint, m_routeResolution ) );
         via->SetDrill( drill_diam_iu );
         via->SetViaType( VIATYPE::THROUGH );
-        via->SetWidth( viaDiam );
+        via->SetWidth( ::PADSTACK::ALL_LAYERS, viaDiam );
         via->SetLayerPair( F_Cu, B_Cu );
     }
     else    // VIA_MICROVIA or VIA_BLIND_BURIED
@@ -259,9 +290,9 @@ PCB_VIA* SPECCTRA_DB::makeVIA( WIRE_VIA*aVia, PADSTACK* aPadstack, const POINT& 
 
         int viaDiam = -1;
 
-        for( int i=0; i<shapeCount;  ++i )
+        for( int i = 0; i < shapeCount; ++i )
         {
-            shape = (SHAPE*) (*aPadstack)[i];
+            shape = static_cast<SHAPE*>( ( *aPadstack )[i] );
             DSN_T type = shape->shape->Type();
 
             if( type != T_circle )
@@ -270,9 +301,10 @@ PCB_VIA* SPECCTRA_DB::makeVIA( WIRE_VIA*aVia, PADSTACK* aPadstack, const POINT& 
                                                   GetTokenString( type ) ) );
             }
 
-            CIRCLE* circle = (CIRCLE*) shape->shape;
+            CIRCLE* circle = static_cast<CIRCLE*>( shape->shape );
 
             int layerNdx = findLayerName( circle->layer_id );
+
             if( layerNdx == -1 )
             {
                 wxString layerName = From_UTF8( circle->layer_id.c_str() );
@@ -295,7 +327,7 @@ PCB_VIA* SPECCTRA_DB::makeVIA( WIRE_VIA*aVia, PADSTACK* aPadstack, const POINT& 
         via->SetDrill( drill_diam_iu );
 
         if( ( topLayerNdx == 0 && botLayerNdx == 1 )
-                || ( topLayerNdx == copperLayerCount-2 && botLayerNdx == copperLayerCount-1 ) )
+            || ( topLayerNdx == copperLayerCount - 2 && botLayerNdx == copperLayerCount - 1 ) )
         {
             via->SetViaType( VIATYPE::MICROVIA );
         }
@@ -304,7 +336,9 @@ PCB_VIA* SPECCTRA_DB::makeVIA( WIRE_VIA*aVia, PADSTACK* aPadstack, const POINT& 
             via->SetViaType( VIATYPE::BLIND_BURIED );
         }
 
-        via->SetWidth( viaDiam );
+        wxCHECK2( topLayerNdx >= 0, topLayerNdx = 0 );
+
+        via->SetWidth( ::PADSTACK::ALL_LAYERS, viaDiam );
         via->SetLayerPair( m_pcbLayer2kicad[ topLayerNdx ], m_pcbLayer2kicad[ botLayerNdx ] );
     }
 
@@ -342,12 +376,11 @@ void SPECCTRA_DB::FromSESSION( BOARD* aBoard )
 
     // delete the old tracks and vias but save locked tracks/vias; they will be re-added later
     std::vector<PCB_TRACK*> locked;
+    TRACKS tracks = aBoard->Tracks();
+    aBoard->RemoveAll( { PCB_TRACE_T } );
 
-    while( !aBoard->Tracks().empty() )
+    for( PCB_TRACK* track : tracks )
     {
-        PCB_TRACK* track = aBoard->Tracks().back();
-        aBoard->Tracks().pop_back();
-
         if( track->IsLocked() )
         {
             locked.push_back( track );
@@ -367,7 +400,7 @@ void SPECCTRA_DB::FromSESSION( BOARD* aBoard )
 
     // Add locked tracks: because they are exported as Fix tracks, they are not
     // in .ses file.
-    for( PCB_TRACK* track: locked )
+    for( PCB_TRACK* track : locked )
         aBoard->Add( track );
 
     if( m_session->placement )
@@ -377,10 +410,11 @@ void SPECCTRA_DB::FromSESSION( BOARD* aBoard )
         // correct side of the board.
         COMPONENTS& components = m_session->placement->m_components;
 
-        for( COMPONENTS::iterator comp=components.begin();  comp!=components.end();  ++comp )
+        for( COMPONENTS::iterator comp = components.begin(); comp != components.end(); ++comp )
         {
             PLACES& places = comp->m_places;
-            for( unsigned i=0; i<places.size();  ++i )
+
+            for( unsigned i = 0; i < places.size(); ++i )
             {
                 PLACE* place = &places[i];  // '&' even though places[] holds a pointer!
 
@@ -410,7 +444,7 @@ void SPECCTRA_DB::FromSESSION( BOARD* aBoard )
                     if( footprint->GetLayer() != F_Cu )
                     {
                         // footprint is on copper layer (back)
-                        footprint->Flip( footprint->GetPosition(), false );
+                        footprint->Flip( footprint->GetPosition(), FLIP_DIRECTION::TOP_BOTTOM );
                     }
 
                     footprint->SetOrientation( orientation );
@@ -422,7 +456,7 @@ void SPECCTRA_DB::FromSESSION( BOARD* aBoard )
                     if( footprint->GetLayer() != B_Cu )
                     {
                         // footprint is on component layer (front)
-                        footprint->Flip( footprint->GetPosition(), false );
+                        footprint->Flip( footprint->GetPosition(), FLIP_DIRECTION::TOP_BOTTOM );
                     }
 
                     footprint->SetOrientation( orientation );
@@ -440,6 +474,7 @@ void SPECCTRA_DB::FromSESSION( BOARD* aBoard )
 
     // Walk the NET_OUTs and create tracks and vias anew.
     NET_OUTS& net_outs = m_session->route->net_outs;
+
     for( NET_OUTS::iterator net = net_outs.begin(); net!=net_outs.end(); ++net )
     {
         int netoutCode = 0;
@@ -455,12 +490,31 @@ void SPECCTRA_DB::FromSESSION( BOARD* aBoard )
         }
 
         WIRES& wires = net->wires;
+
         for( unsigned i = 0; i<wires.size(); ++i )
         {
             WIRE*   wire  = &wires[i];
             DSN_T   shape = wire->m_shape->Type();
 
-            if( shape != T_path )
+            if( shape == T_path )
+            {
+                PATH* path = static_cast<PATH*>( wire->m_shape );
+
+                for( unsigned pt = 0; pt < path->points.size() - 1; ++pt )
+                {
+                    PCB_TRACK* track;
+                    track = makeTRACK( wire, path, pt, netoutCode );
+                    aBoard->Add( track );
+                }
+            }
+            else if ( shape == T_qarc )
+            {
+                QARC* qarc = static_cast<QARC*>( wire->m_shape );
+
+                PCB_ARC* arc = makeARC( wire, qarc, netoutCode );
+                aBoard->Add( arc );
+            }
+            else
             {
                 /*
                  * shape == T_polygon is expected from freerouter if you have a zone on a non-
@@ -474,24 +528,14 @@ void SPECCTRA_DB::FromSESSION( BOARD* aBoard )
                                                     netId.GetData() ) );
                 */
             }
-            else
-            {
-                PATH*   path = (PATH*) wire->m_shape;
-
-                for( unsigned pt=0; pt < path->points.size()-1; ++pt )
-                {
-                    PCB_TRACK* track = makeTRACK( wire, path, pt, netoutCode );
-                    aBoard->Add( track );
-                }
-            }
         }
 
         WIRE_VIAS& wire_vias = net->wire_vias;
         LIBRARY& library = *m_session->route->library;
 
-        for( unsigned i=0;  i<wire_vias.size();  ++i )
+        for( unsigned i = 0; i < wire_vias.size(); ++i )
         {
-            int         netCode = 0;
+            int netCode = 0;
 
             // page 144 of spec says wire_via's net_id is optional
             if( net->net_id.size() )
@@ -508,6 +552,7 @@ void SPECCTRA_DB::FromSESSION( BOARD* aBoard )
             // example: (via Via_15:8_mil 149000 -71000 )
 
             PADSTACK* padstack = library.FindPADSTACK( wire_via->GetPadstackId() );
+
             if( !padstack )
             {
                 // Dick  Feb 29, 2008:
@@ -524,7 +569,7 @@ void SPECCTRA_DB::FromSESSION( BOARD* aBoard )
 
             std::shared_ptr<NET_SETTINGS>& netSettings = aBoard->GetDesignSettings().m_NetSettings;
 
-            int via_drill_default = netSettings->m_DefaultNetClass->GetViaDrill();
+            int via_drill_default = netSettings->GetDefaultNetclass()->GetViaDrill();
 
             for( unsigned v = 0; v < wire_via->m_vertexes.size(); ++v )
             {

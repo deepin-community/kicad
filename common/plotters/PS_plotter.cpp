@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -381,6 +381,9 @@ void PSLIKE_PLOTTER::computeTextParameters( const VECTOR2I&          aPos,
     case GR_TEXT_H_ALIGN_CENTER: dx = -tw / 2; break;
     case GR_TEXT_H_ALIGN_RIGHT:  dx = -tw;     break;
     case GR_TEXT_H_ALIGN_LEFT:   dx = 0;       break;
+    case GR_TEXT_H_ALIGN_INDETERMINATE:
+        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+        break;
     }
 
     switch( aV_justify )
@@ -388,6 +391,9 @@ void PSLIKE_PLOTTER::computeTextParameters( const VECTOR2I&          aPos,
     case GR_TEXT_V_ALIGN_CENTER: dy = th / 2; break;
     case GR_TEXT_V_ALIGN_TOP:    dy = th;     break;
     case GR_TEXT_V_ALIGN_BOTTOM: dy = 0;      break;
+    case GR_TEXT_V_ALIGN_INDETERMINATE:
+        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+        break;
     }
 
     RotatePoint( &dx, &dy, aOrient );
@@ -522,12 +528,6 @@ void PS_PLOTTER::Circle( const VECTOR2I& pos, int diametre, FILL_T fill, int wid
 }
 
 
-VECTOR2D mapCoords( const VECTOR2D& aSource )
-{
-    return VECTOR2D( aSource.x, aSource.y );
-}
-
-
 void PS_PLOTTER::Arc( const VECTOR2D& aCenter, const EDA_ANGLE& aStartAngle,
                       const EDA_ANGLE& aAngle, double aRadius, FILL_T aFill, int aWidth )
 {
@@ -545,8 +545,8 @@ void PS_PLOTTER::Arc( const VECTOR2D& aCenter, const EDA_ANGLE& aStartAngle,
 
     VECTOR2D  start_device = userToDeviceCoordinates( start );
     VECTOR2D  end_device = userToDeviceCoordinates( end );
-    EDA_ANGLE startAngle( mapCoords( start_device - center_device ) );
-    EDA_ANGLE endAngle( mapCoords( end_device - center_device ) );
+    EDA_ANGLE startAngle( start_device - center_device );
+    EDA_ANGLE endAngle( end_device - center_device );
 
     // userToDeviceCoordinates gets our start/ends out of order
     if( !m_plotMirror ^ ( aAngle < ANGLE_0 ) )
@@ -557,6 +557,7 @@ void PS_PLOTTER::Arc( const VECTOR2D& aCenter, const EDA_ANGLE& aStartAngle,
     fprintf( m_outputFile, "%g %g %g %g %g arc%d\n", center_device.x, center_device.y,
              radius_device, startAngle.AsDegrees(), endAngle.AsDegrees(), getFillId( aFill ) );
 }
+
 
 void PS_PLOTTER::PlotPoly( const std::vector<VECTOR2I>& aCornerList, FILL_T aFill, int aWidth,
                            void* aData )
@@ -898,7 +899,6 @@ bool PS_PLOTTER::EndPlot()
 
     return true;
 }
-
 
 
 void PS_PLOTTER::Text( const VECTOR2I&        aPos,

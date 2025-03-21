@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,28 +22,34 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "symbol_editor_edit_tool.h"
+
 #include <tool/picker_tool.h>
 #include <tools/ee_selection_tool.h>
+#include <tools/ee_tool_utils.h>
 #include <tools/symbol_editor_pin_tool.h>
 #include <tools/symbol_editor_drawing_tools.h>
 #include <tools/symbol_editor_move_tool.h>
+#include <clipboard.h>
 #include <ee_actions.h>
+#include <increment.h>
+#include <pin_layout_cache.h>
 #include <string_utils.h>
 #include <symbol_edit_frame.h>
 #include <sch_commit.h>
-#include <dialogs/dialog_lib_shape_properties.h>
-#include <dialogs/dialog_lib_text_properties.h>
-#include <dialogs/dialog_lib_textbox_properties.h>
+#include <dialogs/dialog_shape_properties.h>
+#include <dialogs/dialog_text_properties.h>
 #include <dialogs/dialog_field_properties.h>
 #include <dialogs/dialog_lib_symbol_properties.h>
 #include <dialogs/dialog_lib_edit_pin_table.h>
 #include <dialogs/dialog_update_symbol_fields.h>
+#include <view/view_controls.h>
+#include <richio.h>
 #include <sch_io/kicad_sexpr/sch_io_kicad_sexpr.h>
-#include <lib_text.h>
-#include <lib_textbox.h>
-#include "symbol_editor_edit_tool.h"
+#include <sch_textbox.h>
 #include <wx/textdlg.h>     // for wxTextEntryDialog
 #include <math/util.h>      // for KiROUND
+#include <io/kicad/kicad_io_utils.h>
 
 SYMBOL_EDITOR_EDIT_TOOL::SYMBOL_EDITOR_EDIT_TOOL() :
         EE_TOOL_BASE( "eeschema.SymbolEditTool" ),
@@ -64,30 +70,35 @@ bool SYMBOL_EDITOR_EDIT_TOOL::Init()
     auto haveSymbolCondition =
             [&]( const SELECTION& sel )
             {
-                return m_isSymbolEditor &&
-                       static_cast<SYMBOL_EDIT_FRAME*>( m_frame )->GetCurSymbol();
+                return m_isSymbolEditor && m_frame->GetCurSymbol();
             };
 
     auto canEdit =
             [&]( const SELECTION& sel )
             {
-                SYMBOL_EDIT_FRAME* editor = static_cast<SYMBOL_EDIT_FRAME*>( m_frame );
-                wxCHECK( editor, false );
-
-                if( !editor->IsSymbolEditable() )
+                if( !m_frame->IsSymbolEditable() )
                     return false;
 
-                if( editor->IsSymbolAlias() )
+                if( m_frame->IsSymbolAlias() )
                 {
                     for( EDA_ITEM* item : sel )
                     {
-                        if( item->Type() != LIB_FIELD_T )
+                        if( item->Type() != SCH_FIELD_T )
                             return false;
                     }
                 }
 
                 return true;
             };
+
+    const auto canCopyText = EE_CONDITIONS::OnlyTypes( {
+            SCH_TEXT_T,
+            SCH_TEXTBOX_T,
+            SCH_FIELD_T,
+            SCH_PIN_T,
+            SCH_TABLE_T,
+            SCH_TABLECELL_T,
+    } );
 
     // Add edit actions to the move tool menu
     if( moveTool )
@@ -100,11 +111,13 @@ bool SYMBOL_EDITOR_EDIT_TOOL::Init()
         moveMenu.AddItem( EE_ACTIONS::mirrorV,      canEdit && EE_CONDITIONS::NotEmpty, 200 );
         moveMenu.AddItem( EE_ACTIONS::mirrorH,      canEdit && EE_CONDITIONS::NotEmpty, 200 );
 
+        moveMenu.AddItem( EE_ACTIONS::swap,         canEdit && SELECTION_CONDITIONS::MoreThan( 1 ), 200);
         moveMenu.AddItem( EE_ACTIONS::properties,   canEdit && EE_CONDITIONS::Count( 1 ), 200 );
 
         moveMenu.AddSeparator( 300 );
         moveMenu.AddItem( ACTIONS::cut,             EE_CONDITIONS::IdleSelection, 300 );
         moveMenu.AddItem( ACTIONS::copy,            EE_CONDITIONS::IdleSelection, 300 );
+        moveMenu.AddItem( ACTIONS::copyAsText,      canCopyText && EE_CONDITIONS::IdleSelection, 300 );
         moveMenu.AddItem( ACTIONS::duplicate,       canEdit && EE_CONDITIONS::NotEmpty, 300 );
         moveMenu.AddItem( ACTIONS::doDelete,        canEdit && EE_CONDITIONS::NotEmpty, 200 );
 
@@ -132,11 +145,13 @@ bool SYMBOL_EDITOR_EDIT_TOOL::Init()
     selToolMenu.AddItem( EE_ACTIONS::mirrorV,       canEdit && EE_CONDITIONS::NotEmpty, 200 );
     selToolMenu.AddItem( EE_ACTIONS::mirrorH,       canEdit && EE_CONDITIONS::NotEmpty, 200 );
 
+    selToolMenu.AddItem( EE_ACTIONS::swap,          canEdit && SELECTION_CONDITIONS::MoreThan( 1 ), 200 );
     selToolMenu.AddItem( EE_ACTIONS::properties,    canEdit && EE_CONDITIONS::Count( 1 ), 200 );
 
     selToolMenu.AddSeparator( 300 );
     selToolMenu.AddItem( ACTIONS::cut,              EE_CONDITIONS::IdleSelection, 300 );
     selToolMenu.AddItem( ACTIONS::copy,             EE_CONDITIONS::IdleSelection, 300 );
+    selToolMenu.AddItem( ACTIONS::copyAsText,       canCopyText && EE_CONDITIONS::IdleSelection, 300 );
     selToolMenu.AddItem( ACTIONS::paste,            canEdit && EE_CONDITIONS::Idle, 300 );
     selToolMenu.AddItem( ACTIONS::duplicate,        canEdit && EE_CONDITIONS::NotEmpty, 300 );
     selToolMenu.AddItem( ACTIONS::doDelete,         canEdit && EE_CONDITIONS::NotEmpty, 300 );
@@ -158,7 +173,7 @@ int SYMBOL_EDITOR_EDIT_TOOL::Rotate( const TOOL_EVENT& aEvent )
 
     VECTOR2I    rotPoint;
     bool        ccw = ( aEvent.Matches( EE_ACTIONS::rotateCCW.MakeEvent() ) );
-    LIB_ITEM*   item = static_cast<LIB_ITEM*>( selection.Front() );
+    SCH_ITEM*   item = static_cast<SCH_ITEM*>( selection.Front() );
     SCH_COMMIT  localCommit( m_toolMgr );
     SCH_COMMIT* commit = dynamic_cast<SCH_COMMIT*>( aEvent.Commit() );
 
@@ -171,11 +186,11 @@ int SYMBOL_EDITOR_EDIT_TOOL::Rotate( const TOOL_EVENT& aEvent )
     if( selection.GetSize() == 1 )
         rotPoint = item->GetPosition();
     else
-        rotPoint = m_frame->GetNearestHalfGridPosition( mapCoords( selection.GetCenter() ) );
+        rotPoint = m_frame->GetNearestHalfGridPosition( selection.GetCenter() );
 
     for( unsigned ii = 0; ii < selection.GetSize(); ii++ )
     {
-        item = static_cast<LIB_ITEM*>( selection.GetItem( ii ) );
+        item = static_cast<SCH_ITEM*>( selection.GetItem( ii ) );
         item->Rotate( rotPoint, ccw );
         m_frame->UpdateItem( item, false, true );
     }
@@ -186,7 +201,6 @@ int SYMBOL_EDITOR_EDIT_TOOL::Rotate( const TOOL_EVENT& aEvent )
     }
     else
     {
-
         if( selection.IsHover() )
             m_toolMgr->RunAction( EE_ACTIONS::clearSelection );
 
@@ -207,7 +221,7 @@ int SYMBOL_EDITOR_EDIT_TOOL::Mirror( const TOOL_EVENT& aEvent )
 
     VECTOR2I  mirrorPoint;
     bool      xAxis = ( aEvent.Matches( EE_ACTIONS::mirrorV.MakeEvent() ) );
-    LIB_ITEM* item = static_cast<LIB_ITEM*>( selection.Front() );
+    SCH_ITEM* item = static_cast<SCH_ITEM*>( selection.Front() );
 
     if( !item->IsMoving() )
         saveCopyInUndoList( m_frame->GetCurSymbol(), UNDO_REDO::LIBEDIT );
@@ -218,23 +232,23 @@ int SYMBOL_EDITOR_EDIT_TOOL::Mirror( const TOOL_EVENT& aEvent )
 
         switch( item->Type() )
         {
-        case LIB_FIELD_T:
+        case SCH_FIELD_T:
         {
-            LIB_FIELD* field = static_cast<LIB_FIELD*>( item );
+            SCH_FIELD* field = static_cast<SCH_FIELD*>( item );
 
             if( xAxis )
-                field->SetVertJustify( TO_VJUSTIFY( -field->GetVertJustify() ) );
+                field->SetVertJustify( GetFlippedAlignment( field->GetVertJustify() ) );
             else
-                field->SetHorizJustify( TO_HJUSTIFY( -field->GetHorizJustify() ) );
+                field->SetHorizJustify( GetFlippedAlignment( field->GetHorizJustify() ) );
 
             break;
         }
 
         default:
             if( xAxis )
-                item->MirrorVertical( mirrorPoint );
+                item->MirrorVertically( mirrorPoint.y );
             else
-                item->MirrorHorizontal( mirrorPoint );
+                item->MirrorHorizontally( mirrorPoint.x );
 
             break;
         }
@@ -244,16 +258,16 @@ int SYMBOL_EDITOR_EDIT_TOOL::Mirror( const TOOL_EVENT& aEvent )
     }
     else
     {
-        mirrorPoint = m_frame->GetNearestHalfGridPosition( mapCoords( selection.GetCenter() ) );
+        mirrorPoint = m_frame->GetNearestHalfGridPosition( selection.GetCenter() );
 
         for( unsigned ii = 0; ii < selection.GetSize(); ii++ )
         {
-            item = static_cast<LIB_ITEM*>( selection.GetItem( ii ) );
+            item = static_cast<SCH_ITEM*>( selection.GetItem( ii ) );
 
             if( xAxis )
-                item->MirrorVertical( mirrorPoint );
+                item->MirrorVertically( mirrorPoint.y );
             else
-                item->MirrorHorizontal( mirrorPoint );
+                item->MirrorHorizontally( mirrorPoint.x );
 
             m_frame->UpdateItem( item, false, true );
         }
@@ -275,20 +289,102 @@ int SYMBOL_EDITOR_EDIT_TOOL::Mirror( const TOOL_EVENT& aEvent )
 }
 
 
+const std::vector<KICAD_T> swappableItems = {
+    LIB_SYMBOL_T, // Allows swapping the anchor
+    SCH_PIN_T,
+    SCH_SHAPE_T,
+    SCH_TEXT_T,
+    SCH_TEXTBOX_T,
+    SCH_FIELD_T,
+};
+
+
+int SYMBOL_EDITOR_EDIT_TOOL::Swap( const TOOL_EVENT& aEvent )
+{
+    EE_SELECTION&          selection = m_selectionTool->RequestSelection( swappableItems );
+    std::vector<EDA_ITEM*> sorted = selection.GetItemsSortedBySelectionOrder();
+
+    if( selection.Size() < 2 )
+        return 0;
+
+    EDA_ITEM* front = selection.Front();
+    bool      isMoving = front->IsMoving();
+
+    // Save copy for undo if not in edit (edit command already handle the save copy)
+    if( front->GetEditFlags() == 0 )
+        saveCopyInUndoList( front->GetParent(), UNDO_REDO::LIBEDIT );
+
+    for( size_t i = 0; i < sorted.size() - 1; i++ )
+    {
+        SCH_ITEM* a = static_cast<SCH_ITEM*>( sorted[i] );
+        SCH_ITEM* b = static_cast<SCH_ITEM*>( sorted[( i + 1 ) % sorted.size()] );
+
+        VECTOR2I aPos = a->GetPosition(), bPos = b->GetPosition();
+        std::swap( aPos, bPos );
+
+        a->SetPosition( aPos );
+        b->SetPosition( bPos );
+
+        // Special case some common swaps
+        if( a->Type() == b->Type() )
+        {
+            switch( a->Type() )
+            {
+            case SCH_PIN_T:
+            {
+                SCH_PIN* aPin = static_cast<SCH_PIN*>( a );
+                SCH_PIN* bBpin = static_cast<SCH_PIN*>( b );
+
+                PIN_ORIENTATION aOrient = aPin->GetOrientation();
+                PIN_ORIENTATION bOrient = bBpin->GetOrientation();
+
+                aPin->SetOrientation( bOrient );
+                bBpin->SetOrientation( aOrient );
+
+                break;
+            }
+            default: break;
+            }
+        }
+
+        m_frame->UpdateItem( a, false, true );
+        m_frame->UpdateItem( b, false, true );
+    }
+
+    // Update R-Tree for modified items
+    for( EDA_ITEM* selected : selection )
+        updateItem( selected, true );
+
+    if( isMoving )
+    {
+        m_toolMgr->PostAction( ACTIONS::refreshPreview );
+    }
+    else
+    {
+        if( selection.IsHover() )
+            m_toolMgr->RunAction( EE_ACTIONS::clearSelection );
+
+        m_frame->OnModify();
+    }
+
+    return 0;
+}
+
+
 static std::vector<KICAD_T> nonFields =
 {
     LIB_SYMBOL_T,
-    LIB_SHAPE_T,
-    LIB_TEXT_T,
-    LIB_TEXTBOX_T,
-    LIB_PIN_T
+    SCH_SHAPE_T,
+    SCH_TEXT_T,
+    SCH_TEXTBOX_T,
+    SCH_PIN_T
 };
 
 
 int SYMBOL_EDITOR_EDIT_TOOL::DoDelete( const TOOL_EVENT& aEvent )
 {
     LIB_SYMBOL*           symbol = m_frame->GetCurSymbol();
-    std::deque<EDA_ITEM*> items = m_selectionTool->RequestSelection( nonFields ).GetItems();
+    std::deque<EDA_ITEM*> items = m_selectionTool->RequestSelection().GetItems();
     SCH_COMMIT            commit( m_frame );
 
     if( items.empty() )
@@ -299,13 +395,15 @@ int SYMBOL_EDITOR_EDIT_TOOL::DoDelete( const TOOL_EVENT& aEvent )
 
     commit.Modify( symbol, m_frame->GetScreen() );
 
-    std::set<LIB_ITEM*> toDelete;
+    std::set<SCH_ITEM*> toDelete;
+    int                 fieldsHidden = 0;
+    int                 fieldsAlreadyHidden = 0;
 
     for( EDA_ITEM* item : items )
     {
-        if( item->Type() == LIB_PIN_T )
+        if( item->Type() == SCH_PIN_T )
         {
-            LIB_PIN*  curr_pin = static_cast<LIB_PIN*>( item );
+            SCH_PIN*  curr_pin = static_cast<SCH_PIN*>( item );
             VECTOR2I pos = curr_pin->GetPosition();
 
             toDelete.insert( curr_pin );
@@ -318,12 +416,7 @@ int SYMBOL_EDITOR_EDIT_TOOL::DoDelete( const TOOL_EVENT& aEvent )
 
                 got_unit[curr_pin->GetUnit()] = true;
 
-                int curr_bodyStyle = curr_pin->GetBodyStyle();
-                ELECTRICAL_PINTYPE etype = curr_pin->GetType();
-                wxString name = curr_pin->GetName();
-                std::vector<LIB_PIN*> pins = symbol->GetAllLibPins();
-
-                for( LIB_PIN* pin : pins )
+                for( SCH_PIN* pin : symbol->GetPins() )
                 {
                     if( got_unit[pin->GetUnit()] )
                         continue;
@@ -331,13 +424,13 @@ int SYMBOL_EDITOR_EDIT_TOOL::DoDelete( const TOOL_EVENT& aEvent )
                     if( pin->GetPosition() != pos )
                         continue;
 
-                    if( pin->GetBodyStyle() != curr_bodyStyle )
+                    if( pin->GetBodyStyle() != curr_pin->GetBodyStyle() )
                         continue;
 
-                    if( pin->GetType() != etype )
+                    if( pin->GetType() != curr_pin->GetType() )
                         continue;
 
-                    if( pin->GetName() != name )
+                    if( pin->GetName() != curr_pin->GetName() )
                         continue;
 
                     toDelete.insert( pin );
@@ -345,16 +438,44 @@ int SYMBOL_EDITOR_EDIT_TOOL::DoDelete( const TOOL_EVENT& aEvent )
                 }
             }
         }
-        else
+        else if( item->Type() == SCH_FIELD_T )
         {
-            toDelete.insert( (LIB_ITEM*) item );
+            SCH_FIELD* field = static_cast<SCH_FIELD*>( item );
+
+            // Hide "deleted" fields
+            if( field->IsVisible() )
+            {
+                field->SetVisible( false );
+                fieldsHidden++;
+            }
+            else
+            {
+                fieldsAlreadyHidden++;
+            }
+        }
+        else if( SCH_ITEM* schItem = dynamic_cast<SCH_ITEM*>( item ) )
+        {
+            toDelete.insert( schItem );
         }
     }
 
-    for( LIB_ITEM* item : toDelete )
+    for( SCH_ITEM* item : toDelete )
         symbol->RemoveDrawItem( item );
 
-    commit.Push( _( "Delete" ) );
+    if( toDelete.size() == 0 )
+    {
+        if( fieldsHidden == 1 )
+            commit.Push( _( "Hide Field" ) );
+        else if( fieldsHidden > 1 )
+            commit.Push( _( "Hide Fields" ) );
+        else if( fieldsAlreadyHidden > 0 )
+            m_frame->ShowInfoBarError( _( "Use the Symbol Properties dialog to remove fields." ) );
+    }
+    else
+    {
+        commit.Push( _( "Delete" ) );
+    }
+
     m_frame->RebuildView();
     return 0;
 }
@@ -449,7 +570,7 @@ int SYMBOL_EDITOR_EDIT_TOOL::Properties( const TOOL_EVENT& aEvent )
     }
     else if( selection.Size() == 1 )
     {
-        LIB_ITEM* item = (LIB_ITEM*) selection.Front();
+        SCH_ITEM* item = static_cast<SCH_ITEM*>( selection.Front() );
 
         // Save copy for undo if not in edit (edit command already handle the save copy)
         if( item->GetEditFlags() == 0 )
@@ -457,26 +578,39 @@ int SYMBOL_EDITOR_EDIT_TOOL::Properties( const TOOL_EVENT& aEvent )
 
         switch( item->Type() )
         {
-        case LIB_PIN_T:
+        case SCH_PIN_T:
+        {
+            SCH_PIN& pin = static_cast<SCH_PIN&>( *item );
+
+            // Mouse, not cursor, as grid points may well not be under any text
+            const VECTOR2I&   mousePos = m_toolMgr->GetMousePosition();
+            PIN_LAYOUT_CACHE& layout = pin.GetLayoutCache();
+
+            bool mouseOverNumber = false;
+            if( OPT_BOX2I numberBox = layout.GetPinNumberBBox() )
+            {
+                mouseOverNumber = numberBox->Contains( mousePos );
+            }
+
             if( SYMBOL_EDITOR_PIN_TOOL* pinTool = m_toolMgr->GetTool<SYMBOL_EDITOR_PIN_TOOL>() )
-                pinTool->EditPinProperties( (LIB_PIN*) item );
+                pinTool->EditPinProperties( &pin, mouseOverNumber );
 
             break;
-
-        case LIB_SHAPE_T:
-            editShapeProperties( static_cast<LIB_SHAPE*>( item ) );
+        }
+        case SCH_SHAPE_T:
+            editShapeProperties( static_cast<SCH_SHAPE*>( item ) );
             break;
 
-        case LIB_TEXT_T:
+        case SCH_TEXT_T:
             editTextProperties( item );
             break;
 
-        case LIB_TEXTBOX_T:
+        case SCH_TEXTBOX_T:
             editTextBoxProperties( item );
             break;
 
-        case LIB_FIELD_T:
-            editFieldProperties( (LIB_FIELD*) item );
+        case SCH_FIELD_T:
+            editFieldProperties( static_cast<SCH_FIELD*>( item ) );
             break;
 
         default:
@@ -492,9 +626,9 @@ int SYMBOL_EDITOR_EDIT_TOOL::Properties( const TOOL_EVENT& aEvent )
 }
 
 
-void SYMBOL_EDITOR_EDIT_TOOL::editShapeProperties( LIB_SHAPE* aShape )
+void SYMBOL_EDITOR_EDIT_TOOL::editShapeProperties( SCH_SHAPE* aShape )
 {
-    DIALOG_LIB_SHAPE_PROPERTIES dlg( m_frame, aShape );
+    DIALOG_SHAPE_PROPERTIES dlg( m_frame, aShape );
 
     if( dlg.ShowModal() != wxID_OK )
         return;
@@ -513,12 +647,12 @@ void SYMBOL_EDITOR_EDIT_TOOL::editShapeProperties( LIB_SHAPE* aShape )
 }
 
 
-void SYMBOL_EDITOR_EDIT_TOOL::editTextProperties( LIB_ITEM* aItem )
+void SYMBOL_EDITOR_EDIT_TOOL::editTextProperties( SCH_ITEM* aItem )
 {
-    if ( aItem->Type() != LIB_TEXT_T )
+    if ( aItem->Type() != SCH_TEXT_T )
         return;
 
-    DIALOG_LIB_TEXT_PROPERTIES dlg( m_frame, static_cast<LIB_TEXT*>( aItem ) );
+    DIALOG_TEXT_PROPERTIES dlg( m_frame, static_cast<SCH_TEXT*>( aItem ) );
 
     if( dlg.ShowModal() != wxID_OK )
         return;
@@ -529,12 +663,12 @@ void SYMBOL_EDITOR_EDIT_TOOL::editTextProperties( LIB_ITEM* aItem )
 }
 
 
-void SYMBOL_EDITOR_EDIT_TOOL::editTextBoxProperties( LIB_ITEM* aItem )
+void SYMBOL_EDITOR_EDIT_TOOL::editTextBoxProperties( SCH_ITEM* aItem )
 {
-    if ( aItem->Type() != LIB_TEXTBOX_T )
+    if ( aItem->Type() != SCH_TEXTBOX_T )
         return;
 
-    DIALOG_LIB_TEXTBOX_PROPERTIES dlg( m_frame, static_cast<LIB_TEXTBOX*>( aItem ) );
+    DIALOG_TEXT_PROPERTIES dlg( m_frame, static_cast<SCH_TEXTBOX*>( aItem ) );
 
     if( dlg.ShowModal() != wxID_OK )
         return;
@@ -545,21 +679,19 @@ void SYMBOL_EDITOR_EDIT_TOOL::editTextBoxProperties( LIB_ITEM* aItem )
 }
 
 
-void SYMBOL_EDITOR_EDIT_TOOL::editFieldProperties( LIB_FIELD* aField )
+void SYMBOL_EDITOR_EDIT_TOOL::editFieldProperties( SCH_FIELD* aField )
 {
     if( aField == nullptr )
         return;
 
-    wxString    caption;
-    LIB_SYMBOL* parent = aField->GetParent();
-    wxCHECK( parent, /* void */ );
+    wxString caption;
 
-    if( aField->GetId() >= 0 && aField->GetId() < MANDATORY_FIELDS )
+    if( aField->IsMandatory() )
         caption.Printf( _( "Edit %s Field" ), TitleCaps( aField->GetName() ) );
     else
         caption.Printf( _( "Edit '%s' Field" ), aField->GetName() );
 
-    DIALOG_LIB_FIELD_PROPERTIES dlg( m_frame, caption, aField );
+    DIALOG_FIELD_PROPERTIES dlg( m_frame, caption, aField );
 
     // The dialog may invoke a kiway player for footprint fields
     // so we must use a quasimodal dialog.
@@ -616,7 +748,7 @@ void SYMBOL_EDITOR_EDIT_TOOL::editSymbolProperties()
     }
 }
 
-void SYMBOL_EDITOR_EDIT_TOOL::handlePinDuplication( LIB_PIN* aOldPin, LIB_PIN* aNewPin,
+void SYMBOL_EDITOR_EDIT_TOOL::handlePinDuplication( SCH_PIN* aOldPin, SCH_PIN* aNewPin,
                                                     int& aSymbolLastPinNumber )
 {
     if( !aNewPin->GetNumber().IsEmpty() )
@@ -767,9 +899,9 @@ int SYMBOL_EDITOR_EDIT_TOOL::Copy( const TOOL_EVENT& aEvent )
     if( !symbol || !selection.GetSize() )
         return 0;
 
-    for( LIB_ITEM& item : symbol->GetDrawItems() )
+    for( SCH_ITEM& item : symbol->GetDrawItems() )
     {
-        if( item.Type() == LIB_FIELD_T )
+        if( item.Type() == SCH_FIELD_T )
             continue;
 
         wxASSERT( !item.HasFlag( STRUCT_DELETED ) );
@@ -785,13 +917,33 @@ int SYMBOL_EDITOR_EDIT_TOOL::Copy( const TOOL_EVENT& aEvent )
 
     delete partCopy;
 
-    for( LIB_ITEM& item : symbol->GetDrawItems() )
+    for( SCH_ITEM& item : symbol->GetDrawItems() )
         item.ClearFlags( STRUCT_DELETED );
 
-    if( m_toolMgr->SaveClipboard( formatter.GetString() ) )
+    std::string prettyData = formatter.GetString();
+    KICAD_FORMAT::Prettify( prettyData, true );
+
+    if( SaveClipboard( prettyData ) )
         return 0;
     else
         return -1;
+}
+
+
+int SYMBOL_EDITOR_EDIT_TOOL::CopyAsText( const TOOL_EVENT& aEvent )
+{
+    EE_SELECTION_TOOL* selTool = m_toolMgr->GetTool<EE_SELECTION_TOOL>();
+    EE_SELECTION&      selection = selTool->RequestSelection();
+
+    if( selection.Empty() )
+        return 0;
+
+    wxString itemsAsText = GetSelectedItemsAsText( selection );
+
+    if( selection.IsHover() )
+        m_toolMgr->RunAction( EE_ACTIONS::clearSelection );
+
+    return SaveClipboard( itemsAsText.ToStdString() );
 }
 
 
@@ -803,7 +955,7 @@ int SYMBOL_EDITOR_EDIT_TOOL::Paste( const TOOL_EVENT& aEvent )
     if( !symbol || symbol->IsAlias() )
         return 0;
 
-    std::string clipboardData = m_toolMgr->GetClipboardUTF8();
+    std::string clipboardData = GetClipboardUTF8();
 
     try
     {
@@ -826,8 +978,7 @@ int SYMBOL_EDITOR_EDIT_TOOL::Paste( const TOOL_EVENT& aEvent )
         if( pasteText.Length() > 5000 )
             pasteText = pasteText.Left( 5000 ) + wxT( "..." );
 
-        LIB_TEXT* newText = new LIB_TEXT( newPart );
-        newText->SetText( pasteText );
+        SCH_TEXT* newText = new SCH_TEXT( { 0, 0 }, pasteText, LAYER_DEVICE );
         newPart->AddDrawItem( newText );
     }
 
@@ -836,15 +987,15 @@ int SYMBOL_EDITOR_EDIT_TOOL::Paste( const TOOL_EVENT& aEvent )
     commit.Modify( symbol );
     m_selectionTool->ClearSelection();
 
-    for( LIB_ITEM& item : symbol->GetDrawItems() )
+    for( SCH_ITEM& item : symbol->GetDrawItems() )
         item.ClearFlags( IS_NEW | IS_PASTED | SELECTED );
 
-    for( LIB_ITEM& item : newPart->GetDrawItems() )
+    for( SCH_ITEM& item : newPart->GetDrawItems() )
     {
-        if( item.Type() == LIB_FIELD_T )
+        if( item.Type() == SCH_FIELD_T )
             continue;
 
-        LIB_ITEM* newItem = (LIB_ITEM*) item.Duplicate();
+        SCH_ITEM* newItem = item.Duplicate();
         newItem->SetParent( symbol );
         newItem->SetFlags( IS_NEW | IS_PASTED | SELECTED );
 
@@ -914,19 +1065,19 @@ int SYMBOL_EDITOR_EDIT_TOOL::Duplicate( const TOOL_EVENT& aEvent )
         cmp = LexicographicalCompare( a->GetPosition(), b->GetPosition() );
 
         if( cmp != 0 )
-            return cmp > 0;
+            return cmp < 0;
 
         return a->m_Uuid < b->m_Uuid;
     } );
 
     for( EDA_ITEM* item : oldItems )
     {
-        LIB_ITEM* oldItem = static_cast<LIB_ITEM*>( item );
-        LIB_ITEM* newItem = oldItem->Duplicate();
+        SCH_ITEM* oldItem = static_cast<SCH_ITEM*>( item );
+        SCH_ITEM* newItem = oldItem->Duplicate();
 
-        if( newItem->Type() == LIB_PIN_T )
+        if( newItem->Type() == SCH_PIN_T )
         {
-            LIB_PIN* newPin = static_cast<LIB_PIN*>( newItem );
+            SCH_PIN* newPin = static_cast<SCH_PIN*>( newItem );
 
             if( !newPin->GetNumber().IsEmpty() )
                 newPin->SetNumber( wxString::Format( wxT( "%i" ), symbol->GetMaxPinNumber() + 1 ) );
@@ -944,7 +1095,7 @@ int SYMBOL_EDITOR_EDIT_TOOL::Duplicate( const TOOL_EVENT& aEvent )
     m_toolMgr->RunAction( EE_ACTIONS::clearSelection );
     m_toolMgr->RunAction<EDA_ITEMS*>( EE_ACTIONS::addItemsToSel, &newItems );
 
-    selection.SetReferencePoint( mapCoords( getViewControls()->GetCursorPosition( true ) ) );
+    selection.SetReferencePoint( getViewControls()->GetCursorPosition( true ) );
 
     if( m_toolMgr->RunSynchronousAction( EE_ACTIONS::move, &commit ) )
         commit.Push( _( "Duplicate" ) );
@@ -955,12 +1106,125 @@ int SYMBOL_EDITOR_EDIT_TOOL::Duplicate( const TOOL_EVENT& aEvent )
 }
 
 
+int SYMBOL_EDITOR_EDIT_TOOL::Increment( const TOOL_EVENT& aEvent )
+{
+    const ACTIONS::INCREMENT incParam = aEvent.Parameter<ACTIONS::INCREMENT>();
+    EE_SELECTION& selection = m_selectionTool->RequestSelection( { SCH_PIN_T, SCH_TEXT_T } );
+
+    if( selection.Empty() )
+        return 0;
+
+    KICAD_T type = selection.Front()->Type();
+    bool    allSameType = true;
+    for( EDA_ITEM* item : selection )
+    {
+        if( item->Type() != type )
+        {
+            allSameType = false;
+            break;
+        }
+    }
+
+    // Incrementing multiple types at once seems confusing
+    // though it would work.
+    if( !allSameType )
+        return 0;
+
+    const VECTOR2I mousePosition = getViewControls()->GetMousePosition();
+
+    STRING_INCREMENTER incrementer;
+    incrementer.SetSkipIOSQXZ( true );
+
+    // If we're coming via another action like 'Move', use that commit
+    SCH_COMMIT  localCommit( m_toolMgr );
+    SCH_COMMIT* commit = dynamic_cast<SCH_COMMIT*>( aEvent.Commit() );
+
+    if( !commit )
+        commit = &localCommit;
+
+    const auto modifyItem = [&]( EDA_ITEM& aItem )
+    {
+        if( aItem.IsNew() )
+            m_toolMgr->PostAction( ACTIONS::refreshPreview );
+        else
+            commit->Modify( &aItem, m_frame->GetScreen() );
+    };
+
+    for( EDA_ITEM* item : selection )
+    {
+        switch( item->Type() )
+        {
+        case SCH_PIN_T:
+        {
+            SCH_PIN&          pin = static_cast<SCH_PIN&>( *item );
+            PIN_LAYOUT_CACHE& layout = pin.GetLayoutCache();
+
+            bool      found = false;
+            OPT_BOX2I bbox = layout.GetPinNumberBBox();
+
+            if( bbox && bbox->Contains( mousePosition ) )
+            {
+                std::optional<wxString> nextNumber =
+                        incrementer.Increment( pin.GetNumber(), incParam.Delta, incParam.Index );
+                if( nextNumber )
+                {
+                    modifyItem( pin );
+                    pin.SetNumber( *nextNumber );
+                }
+                found = true;
+            }
+
+            if( !found )
+            {
+                bbox = layout.GetPinNameBBox();
+
+                if( bbox && bbox->Contains( mousePosition ) )
+                {
+                    std::optional<wxString> nextName =
+                            incrementer.Increment( pin.GetName(), incParam.Delta, incParam.Index );
+                    if( nextName )
+                    {
+                        modifyItem( pin );
+                        pin.SetName( *nextName );
+                    }
+                    found = true;
+                }
+            }
+            break;
+        }
+        case SCH_TEXT_T:
+        {
+            SCH_TEXT& label = static_cast<SCH_TEXT&>( *item );
+
+            std::optional<wxString> newLabel =
+                    incrementer.Increment( label.GetText(), incParam.Delta, incParam.Index );
+            if( newLabel )
+            {
+                modifyItem( label );
+                label.SetText( *newLabel );
+            }
+            break;
+        }
+        default:
+            // No increment for other items
+            break;
+        }
+    }
+
+    commit->Push( _( "Increment" ) );
+
+    return 0;
+}
+
+
 void SYMBOL_EDITOR_EDIT_TOOL::setTransitions()
 {
+    // clang-format off
     Go( &SYMBOL_EDITOR_EDIT_TOOL::Undo,               ACTIONS::undo.MakeEvent() );
     Go( &SYMBOL_EDITOR_EDIT_TOOL::Redo,               ACTIONS::redo.MakeEvent() );
     Go( &SYMBOL_EDITOR_EDIT_TOOL::Cut,                ACTIONS::cut.MakeEvent() );
     Go( &SYMBOL_EDITOR_EDIT_TOOL::Copy,               ACTIONS::copy.MakeEvent() );
+    Go( &SYMBOL_EDITOR_EDIT_TOOL::CopyAsText,         ACTIONS::copyAsText.MakeEvent() );
     Go( &SYMBOL_EDITOR_EDIT_TOOL::Paste,              ACTIONS::paste.MakeEvent() );
     Go( &SYMBOL_EDITOR_EDIT_TOOL::Duplicate,          ACTIONS::duplicate.MakeEvent() );
 
@@ -968,12 +1232,20 @@ void SYMBOL_EDITOR_EDIT_TOOL::setTransitions()
     Go( &SYMBOL_EDITOR_EDIT_TOOL::Rotate,             EE_ACTIONS::rotateCCW.MakeEvent() );
     Go( &SYMBOL_EDITOR_EDIT_TOOL::Mirror,             EE_ACTIONS::mirrorV.MakeEvent() );
     Go( &SYMBOL_EDITOR_EDIT_TOOL::Mirror,             EE_ACTIONS::mirrorH.MakeEvent() );
+    Go( &SYMBOL_EDITOR_EDIT_TOOL::Swap,               EE_ACTIONS::swap.MakeEvent() );
     Go( &SYMBOL_EDITOR_EDIT_TOOL::DoDelete,           ACTIONS::doDelete.MakeEvent() );
     Go( &SYMBOL_EDITOR_EDIT_TOOL::InteractiveDelete,  ACTIONS::deleteTool.MakeEvent() );
+
+    Go( &SYMBOL_EDITOR_EDIT_TOOL::Increment,          ACTIONS::increment.MakeEvent() );
+    Go( &SYMBOL_EDITOR_EDIT_TOOL::Increment,          ACTIONS::incrementPrimary.MakeEvent() );
+    Go( &SYMBOL_EDITOR_EDIT_TOOL::Increment,          ACTIONS::decrementPrimary.MakeEvent() );
+    Go( &SYMBOL_EDITOR_EDIT_TOOL::Increment,          ACTIONS::incrementSecondary.MakeEvent() );
+    Go( &SYMBOL_EDITOR_EDIT_TOOL::Increment,          ACTIONS::decrementSecondary.MakeEvent() );
 
     Go( &SYMBOL_EDITOR_EDIT_TOOL::Properties,         EE_ACTIONS::properties.MakeEvent() );
     Go( &SYMBOL_EDITOR_EDIT_TOOL::Properties,         EE_ACTIONS::symbolProperties.MakeEvent() );
     Go( &SYMBOL_EDITOR_EDIT_TOOL::PinTable,           EE_ACTIONS::pinTable.MakeEvent() );
     Go( &SYMBOL_EDITOR_EDIT_TOOL::UpdateSymbolFields, EE_ACTIONS::updateSymbolFields.MakeEvent() );
     Go( &SYMBOL_EDITOR_EDIT_TOOL::SetUnitDisplayName, EE_ACTIONS::setUnitDisplayName.MakeEvent() );
+    // clang-format on
 }

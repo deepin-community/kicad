@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2004-2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2007 Dick Hollenbeck, dick@softplc.com
- * Copyright (C) 2019-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,6 +28,10 @@
 #define DRC_TEST_PROVIDER_CLEARANCE_BASE__H
 
 #include <drc/drc_test_provider.h>
+#include <settings/color_settings.h>
+#include <drc/drc_engine.h>
+#include <drc/drc_item.h>
+#include <drc/drc_creepage_utils.h>
 
 class BOARD;
 
@@ -49,6 +53,14 @@ public:
 protected:
     BOARD* m_board;
     bool   m_boardOutlineValid;
+
+    void ReportAndShowPathCuToCu( std::shared_ptr<DRC_ITEM>& aDrce, const VECTOR2I& aMarkerPos,
+                                  int aMarkerLayer, const BOARD_ITEM* aItem1,
+                                  const BOARD_ITEM* aItem2, PCB_LAYER_ID layer, int aDistance );
+
+    DRC_CUSTOM_MARKER_HANDLER GetGraphicsHandler( const std::vector<PCB_SHAPE>& aShapes,
+                                                  const VECTOR2I& aStart, const VECTOR2I& aEnd,
+                                                  int aLength );
 };
 
 

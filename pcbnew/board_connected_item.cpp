@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,6 +27,7 @@
 #include <board_connected_item.h>
 #include <board_design_settings.h>
 #include <connectivity/connectivity_data.h>
+#include <lset.h>
 #include <properties/property_validators.h>
 #include <string_utils.h>
 #include <i18n_utility.h>
@@ -100,7 +101,7 @@ NETCLASS* BOARD_CONNECTED_ITEM::GetEffectiveNetClass() const
     if( m_netinfo && m_netinfo->GetNetClass() )
         return m_netinfo->GetNetClass();
     else
-        return GetBoard()->GetDesignSettings().m_NetSettings->m_DefaultNetClass.get();
+        return GetBoard()->GetDesignSettings().m_NetSettings->GetDefaultNetclass().get();
 }
 
 
@@ -167,8 +168,8 @@ static struct BOARD_CONNECTED_ITEM_DESC
         {
             layerEnum.Undefined( UNDEFINED_LAYER );
 
-            for( LSEQ seq = LSET::AllLayersMask().Seq(); seq; ++seq )
-                layerEnum.Map( *seq, LSET::Name( *seq ) );
+            for( PCB_LAYER_ID layer : LSET::AllLayersMask().Seq() )
+                layerEnum.Map( layer, LSET::Name( layer ) );
         }
 
         PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
@@ -279,9 +280,9 @@ static struct BOARD_CONNECTED_ITEM_DESC
         maxWidth->SetAvailableFunc( supportsTeardrops );
         propMgr.AddProperty( maxWidth, groupTeardrops );
 
-        auto curvePts = new PROPERTY<BOARD_CONNECTED_ITEM, int>( _HKI( "Curve Points" ),
-                         &BOARD_CONNECTED_ITEM::SetTeardropCurvePts,
-                         &BOARD_CONNECTED_ITEM::GetTeardropCurvePts );
+        auto curvePts = new PROPERTY<BOARD_CONNECTED_ITEM, bool>( _HKI( "Curved Teardrops" ),
+                         &BOARD_CONNECTED_ITEM::SetTeardropCurved,
+                         &BOARD_CONNECTED_ITEM::GetTeardropCurved );
         curvePts->SetAvailableFunc( supportsTeardrops );
         propMgr.AddProperty( curvePts, groupTeardrops );
 

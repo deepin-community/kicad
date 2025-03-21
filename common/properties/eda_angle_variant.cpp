@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -66,7 +66,7 @@ bool EDA_ANGLE_VARIANT_DATA::Read( wxString& aString )
 
 bool EDA_ANGLE_VARIANT_DATA::Write( wxString& aString ) const
 {
-    aString = wxString::Format( wxT("%g\u00B0"), m_angle.AsDegrees() );
+    aString = wxString::Format( wxT( "%g\u00B0" ), m_angle.AsDegrees() );
     return true;
 }
 

@@ -4,7 +4,7 @@
  * Copyright (C) 2017 Chris Pavlina <pavlina.chris@gmail.com>
  * Copyright (C) 2014 Henner Zeller <h.zeller@acm.org>
  * Copyright (C) 2023 CERN
- * Copyright (C) 2014-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -26,6 +26,7 @@
 #include <eda_base_frame.h>
 #include <lib_id.h>
 #include <lib_tree_model.h>
+#include <settings/app_settings.h>
 #include <wx/hashmap.h>
 #include <wx/dataview.h>
 #include <wx/headerctrl.h>
@@ -92,7 +93,9 @@
  * - `HasDefaultCompare()` - whether sorted by default
  */
 
-class APP_SETTINGS_BASE;
+#include <project.h>
+
+;
 class TOOL_INTERACTIVE;
 class EDA_BASE_FRAME;
 
@@ -178,9 +181,14 @@ public:
      * @param aDesc        the description field of the parent node
      * @param aItemList    list of symbols
      */
-    void DoAddLibrary( const wxString& aNodeName, const wxString& aDesc,
-                       const std::vector<LIB_TREE_ITEM*>& aItemList,
-                       bool pinned, bool presorted );
+    LIB_TREE_NODE_LIBRARY& DoAddLibrary( const wxString& aNodeName, const wxString& aDesc,
+                                         const std::vector<LIB_TREE_ITEM*>& aItemList,
+                                         bool pinned, bool presorted );
+
+    /**
+     * Remove one of the system groups from the library.
+     */
+    void RemoveGroup( bool aRecentlyUsedGroup, bool aAlreadyPlacedGroup );
 
     std::vector<wxString> GetAvailableColumns() const { return m_availableColumns; }
 
@@ -308,10 +316,7 @@ public:
     void PinLibrary( LIB_TREE_NODE* aTreeNode );
     void UnpinLibrary( LIB_TREE_NODE* aTreeNode );
 
-    void ShowChangedLanguage()
-    {
-        recreateColumns();
-    }
+    void ShowChangedLanguage();
 
 protected:
     /**
@@ -329,8 +334,10 @@ protected:
      *
      * @param aParent is the parent frame
      * @param aPinnedKey is the key to load the pinned libraries list from the project file
+     * @param aSettingsStruct is the settings structure to load column visibility settings from
      */
-    LIB_TREE_MODEL_ADAPTER( EDA_BASE_FRAME* aParent, const wxString& aPinnedKey );
+    LIB_TREE_MODEL_ADAPTER( EDA_BASE_FRAME* aParent, const wxString& aPinnedKey,
+                            APP_SETTINGS_BASE::LIB_TREE& aSettingsStruct );
 
     LIB_TREE_NODE_LIBRARY& DoAddLibraryNode( const wxString& aNodeName, const wxString& aDesc,
                                              bool pinned );
@@ -390,7 +397,7 @@ protected:
                   unsigned int            aCol,
                   wxDataViewItemAttr&     aAttr ) const override;
 
-    virtual bool isSymbolModel() = 0;
+    virtual PROJECT::LIB_TYPE_T getLibType() = 0;
 
     void resortTree();
 
@@ -415,6 +422,7 @@ protected:
 
 private:
     EDA_BASE_FRAME*              m_parent;
+    APP_SETTINGS_BASE::LIB_TREE& m_cfg;
 
     SORT_MODE                    m_sort_mode;
     bool                         m_show_units;

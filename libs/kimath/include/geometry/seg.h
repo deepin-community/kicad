@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -181,6 +181,16 @@ public:
     const VECTOR2I NearestPoint( const SEG &aSeg ) const;
 
     /**
+      * Compute closest points between this segment and \a aSeg.
+      *
+      * @param aPtA point on this segment (output)
+      * @param aPtB point on the other segment (output)
+      * @param aDistSq squared distance between points (output)
+      * @return true if the operation was successful
+      */
+    bool NearestPoints( const SEG& aSeg, VECTOR2I& aPtA, VECTOR2I& aPtB, int64_t& aDistSq ) const;
+
+    /**
       * Reflect a point using this segment as axis.
       *
       * @return the reflected point
@@ -240,10 +250,7 @@ public:
      */
     int Distance( const SEG& aSeg ) const;
 
-    ecoord SquaredDistance( const VECTOR2I& aP ) const
-    {
-        return ( NearestPoint( aP ) - aP ).SquaredEuclideanNorm();
-    }
+    ecoord SquaredDistance( const VECTOR2I& aP ) const;
 
     /**
      * Compute minimum Euclidean distance to point \a aP.

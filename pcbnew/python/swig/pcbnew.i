@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 NBEE Embedded Systems, Miguel Angel Ajo <miguelangel@nbee.es>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +29,15 @@
 
 
 %module pcbnew
+
+%pythoncode
+{
+import warnings
+warnings.warn("The SWIG-based Python interface to the PCB editor is deprecated and will be removed "
+              "in a future version of KiCad.  Please plan to move to the new IPC API and/or make "
+              "use of the kicad-cli tool for your KiCad automation needs.",
+               category=DeprecationWarning)
+}
 
 %feature("autodoc", "1");
 #ifdef ENABLE_DOCSTRINGS_FROM_DOXYGEN

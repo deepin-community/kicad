@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2004-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2019 CERN
  *
  * This program is free software; you can redistribute it and/or
@@ -26,7 +26,6 @@
 #include <macros.h>
 #include <trace_helpers.h>
 #include <ee_collectors.h>
-#include <lib_item.h>
 #include <sch_bus_entry.h>
 #include <sch_symbol.h>
 #include <sch_line.h>
@@ -40,6 +39,7 @@ const std::vector<KICAD_T> EE_COLLECTOR::EditableItems = {
     SCH_SHAPE_T,
     SCH_TEXT_T,
     SCH_TEXTBOX_T,
+    SCH_TABLECELL_T,
     SCH_LABEL_T,
     SCH_GLOBAL_LABEL_T,
     SCH_HIER_LABEL_T,
@@ -51,7 +51,8 @@ const std::vector<KICAD_T> EE_COLLECTOR::EditableItems = {
     SCH_BITMAP_T,
     SCH_LINE_T,
     SCH_BUS_WIRE_ENTRY_T,
-    SCH_JUNCTION_T
+    SCH_JUNCTION_T,
+    SCH_RULE_AREA_T
 };
 
 
@@ -67,6 +68,8 @@ const std::vector<KICAD_T> EE_COLLECTOR::MovableItems =
     SCH_SHAPE_T,
     SCH_TEXT_T,
     SCH_TEXTBOX_T,
+    SCH_TABLE_T,
+    SCH_TABLECELL_T,    // will be promoted to parent table(s)
     SCH_LABEL_T,
     SCH_GLOBAL_LABEL_T,
     SCH_HIER_LABEL_T,
@@ -74,7 +77,8 @@ const std::vector<KICAD_T> EE_COLLECTOR::MovableItems =
     SCH_FIELD_T,
     SCH_SYMBOL_T,
     SCH_SHEET_PIN_T,
-    SCH_SHEET_T
+    SCH_SHEET_T,
+    SCH_RULE_AREA_T
 };
 
 
@@ -89,17 +93,17 @@ INSPECT_RESULT EE_COLLECTOR::Inspect( EDA_ITEM* aItem, void* aTestData )
 {
     if( m_Unit || m_BodyStyle )
     {
-        LIB_ITEM* lib_item = dynamic_cast<LIB_ITEM*>( aItem );
+        SCH_ITEM* schItem = dynamic_cast<SCH_ITEM*>( aItem );
 
         // Special selection rules apply to pins of different units when edited in synchronized
         // pins mode.  Leave it to EE_SELECTION_TOOL::Selectable() to decide what to do with them.
 
-        if( lib_item && lib_item->Type() != LIB_PIN_T )
+        if( schItem && schItem->Type() != SCH_PIN_T )
         {
-            if( m_Unit && lib_item->GetUnit() && lib_item->GetUnit() != m_Unit )
+            if( m_Unit && schItem->GetUnit() && schItem->GetUnit() != m_Unit )
                 return INSPECT_RESULT::CONTINUE;
 
-            if( m_BodyStyle && lib_item->GetBodyStyle() && lib_item->GetBodyStyle() != m_BodyStyle )
+            if( m_BodyStyle && schItem->GetBodyStyle() && schItem->GetBodyStyle() != m_BodyStyle )
                 return INSPECT_RESULT::CONTINUE;
         }
     }
@@ -148,7 +152,7 @@ void EE_COLLECTOR::Collect( LIB_ITEMS_CONTAINER& aItems, const std::vector<KICAD
     // remember where the snapshot was taken from and pass refPos to the Inspect() function.
     SetRefPos( aPos );
 
-    for( LIB_ITEM& item : aItems )
+    for( SCH_ITEM& item : aItems )
     {
         if( item.Visit( m_inspector, nullptr, m_scanTypes ) == INSPECT_RESULT::QUIT )
             break;

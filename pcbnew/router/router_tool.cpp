@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2017-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -20,7 +20,6 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "tool/tool_action.h"
 #include <wx/filedlg.h>
 #include <wx/hyperlink.h>
 #include <advanced_config.h>
@@ -35,6 +34,7 @@ using namespace std::placeholders;
 #include <board_design_settings.h>
 #include <board_item.h>
 #include <footprint.h>
+#include <geometry/geometry_utils.h>
 #include <pad.h>
 #include <zone.h>
 #include <pcb_edit_frame.h>
@@ -44,15 +44,18 @@ using namespace std::placeholders;
 #include <dialogs/dialog_track_via_size.h>
 #include <math/vector2wx.h>
 #include <paths.h>
+#include <confirm.h>
+#include <kidialog.h>
 #include <widgets/wx_infobar.h>
 #include <widgets/appearance_controls.h>
 #include <connectivity/connectivity_data.h>
 #include <connectivity/connectivity_algo.h>
-#include <confirm.h>
 #include <gal/graphics_abstraction_layer.h>
+#include <view/view_controls.h>
 #include <bitmaps.h>
 #include <string_utils.h>
 #include <gal/painter.h>
+#include <tool/tool_action.h>
 #include <tool/action_menu.h>
 #include <tool/tool_manager.h>
 #include <tool/tool_menu.h>
@@ -470,16 +473,16 @@ bool ROUTER_TOOL::Init()
 
     wxASSERT( frame );
 
-    auto& menu = m_menu.GetMenu();
+    auto& menu = m_menu->GetMenu();
     menu.SetTitle( _( "Interactive Router" ) );
 
     m_trackViaMenu = std::make_shared<TRACK_WIDTH_MENU>( *frame );
     m_trackViaMenu->SetTool( this );
-    m_menu.RegisterSubMenu( m_trackViaMenu );
+    m_menu->RegisterSubMenu( m_trackViaMenu );
 
     m_diffPairMenu = std::make_shared<DIFF_PAIR_MENU>( *frame );
     m_diffPairMenu->SetTool( this );
-    m_menu.RegisterSubMenu( m_diffPairMenu );
+    m_menu->RegisterSubMenu( m_diffPairMenu );
 
     auto haveHighlight =
             [&]( const SELECTION& sel )
@@ -524,6 +527,8 @@ bool ROUTER_TOOL::Init()
     menu.AddItem( PCB_ACTIONS::routerUndoLastSegment, SELECTION_CONDITIONS::ShowAlways );
     menu.AddItem( PCB_ACTIONS::routerContinueFromEnd, hasOtherEnd );
     menu.AddItem( PCB_ACTIONS::routerAttemptFinish,   hasOtherEnd );
+    menu.AddItem( PCB_ACTIONS::routerAutorouteSelected, notRoutingCond
+                                                            && SELECTION_CONDITIONS::NotEmpty );
     menu.AddItem( PCB_ACTIONS::breakTrack,            notRoutingCond );
 
     menu.AddItem( PCB_ACTIONS::drag45Degree,          notRoutingCond );
@@ -553,7 +558,7 @@ bool ROUTER_TOOL::Init()
 
     menu.AddSeparator();
 
-    frame->AddStandardSubMenus( m_menu );
+    frame->AddStandardSubMenus( *m_menu.get() );
 
     return true;
 }
@@ -601,7 +606,6 @@ void ROUTER_TOOL::saveRouterDebugLog()
 
     wxFileName fname_settings( fname_log );
     fname_settings.SetExt( "settings" );
-
 
     FILE* settings_f = wxFopen( fname_settings.GetAbsolutePath(), "wb" );
     std::string settingsStr = m_router->Settings().FormatAsString();
@@ -658,7 +662,7 @@ void ROUTER_TOOL::handleCommonEvents( TOOL_EVENT& aEvent )
     if( aEvent.Category() == TC_VIEW || aEvent.Category() == TC_MOUSE )
     {
         BOX2D viewAreaD = getView()->GetGAL()->GetVisibleWorldExtents();
-        m_router->SetVisibleViewArea( BOX2I( viewAreaD.GetOrigin(), viewAreaD.GetSize() ) );
+        m_router->SetVisibleViewArea( BOX2ISafe( viewAreaD ) );
     }
 
     if( !ADVANCED_CFG::GetCfg().m_EnableRouterDump )
@@ -680,18 +684,19 @@ void ROUTER_TOOL::handleCommonEvents( TOOL_EVENT& aEvent )
 }
 
 
-int ROUTER_TOOL::getStartLayer( const PNS::ITEM* aItem )
+PCB_LAYER_ID ROUTER_TOOL::getStartLayer( const PNS::ITEM* aItem )
 {
-    int tl = getView()->GetTopLayer();
+    PCB_LAYER_ID tl = static_cast<PCB_LAYER_ID>( getView()->GetTopLayer() );
 
     if( m_startItem )
     {
-        const LAYER_RANGE& ls = m_startItem->Layers();
+        int startLayer = m_iface->GetPNSLayerFromBoardLayer( tl );
+        const PNS_LAYER_RANGE& ls = m_startItem->Layers();
 
-        if( ls.Overlaps( tl ) )
+        if( ls.Overlaps( startLayer ) )
             return tl;
         else
-            return ls.Start();
+            return m_iface->GetBoardLayerFromPNSLayer( ls.Start() );
     }
 
     return tl;
@@ -700,7 +705,7 @@ int ROUTER_TOOL::getStartLayer( const PNS::ITEM* aItem )
 
 void ROUTER_TOOL::switchLayerOnViaPlacement()
 {
-    int activeLayer = frame()->GetActiveLayer();
+    int activeLayer = m_iface->GetPNSLayerFromBoardLayer( frame()->GetActiveLayer() );
     int currentLayer = m_router->GetCurrentLayer();
 
     if( currentLayer != activeLayer )
@@ -712,14 +717,15 @@ void ROUTER_TOOL::switchLayerOnViaPlacement()
         newLayer = m_router->Sizes().GetLayerTop();
 
     m_router->SwitchLayer( *newLayer );
-    m_lastTargetLayer = *newLayer;
+    m_lastTargetLayer = m_iface->GetBoardLayerFromPNSLayer( *newLayer );
 
-    updateSizesAfterRouterEvent( ToLAYER_ID( *newLayer ), m_endSnapPoint );
+    updateSizesAfterRouterEvent( *newLayer, m_endSnapPoint );
     UpdateMessagePanel();
 }
 
 
-void ROUTER_TOOL::updateSizesAfterRouterEvent( PCB_LAYER_ID targetLayer, const VECTOR2I& aPos )
+// N.B. aTargetLayer is a PNS layer, not a PCB_LAYER_ID
+void ROUTER_TOOL::updateSizesAfterRouterEvent( int aTargetLayer, const VECTOR2I& aPos )
 {
     std::vector<PNS::NET_HANDLE> nets = m_router->GetCurrentNets();
 
@@ -727,6 +733,7 @@ void ROUTER_TOOL::updateSizesAfterRouterEvent( PCB_LAYER_ID targetLayer, const V
     BOARD_DESIGN_SETTINGS&       bds       = board()->GetDesignSettings();
     std::shared_ptr<DRC_ENGINE>& drcEngine = bds.m_DRCEngine;
     DRC_CONSTRAINT               constraint;
+    PCB_LAYER_ID                 targetLayer = m_iface->GetBoardLayerFromPNSLayer( aTargetLayer );
 
     PCB_TRACK dummyTrack( board() );
     dummyTrack.SetFlags( ROUTER_TRANSIENT );
@@ -852,7 +859,8 @@ int ROUTER_TOOL::onViaCommand( const TOOL_EVENT& aEvent )
     else
     {
         m_router->ToggleViaPlacement();
-        frame()->SetActiveLayer( static_cast<PCB_LAYER_ID>( m_router->GetCurrentLayer() ) );
+        frame()->SetActiveLayer(
+                m_iface->GetBoardLayerFromPNSLayer( m_router->GetCurrentLayer() ) );
         updateEndItem( aEvent );
         m_router->Move( m_endSnapPoint, m_endItem );
     }
@@ -869,12 +877,18 @@ int ROUTER_TOOL::handleLayerSwitch( const TOOL_EVENT& aEvent, bool aForceVia )
     if( !IsToolActive() )
         return 0;
 
+    // Ensure PNS_KICAD_IFACE (m_iface) m_board member is up to date
+    // For some reason, this is not always the case
+    m_iface->SetBoard( board() );
+
     // First see if this is one of the switch layer commands
     BOARD*       brd           = board();
     LSET         enabledLayers = LSET::AllCuMask( brd->GetDesignSettings().GetCopperLayerCount() );
-    LSEQ         layers        = enabledLayers.Seq();
-    PCB_LAYER_ID currentLayer  = (PCB_LAYER_ID) m_router->GetCurrentLayer();
-    PCB_LAYER_ID targetLayer   = UNDEFINED_LAYER;
+    LSEQ         layers        = enabledLayers.UIOrder();
+
+    // These layers are in Board Layer UI order not PNS layer order
+    PCB_LAYER_ID currentLayer = m_iface->GetBoardLayerFromPNSLayer( m_router->GetCurrentLayer() );
+    PCB_LAYER_ID targetLayer  = UNDEFINED_LAYER;
 
     if( aEvent.IsAction( &PCB_ACTIONS::layerNext ) )
     {
@@ -883,10 +897,11 @@ int ROUTER_TOOL::handleLayerSwitch( const TOOL_EVENT& aEvent, bool aForceVia )
 
         size_t idx = 0;
         size_t target_idx = 0;
+        PCB_LAYER_ID lastTargetLayer = m_lastTargetLayer;
 
         for( size_t i = 0; i < layers.size(); i++ )
         {
-            if( layers[i] == m_lastTargetLayer )
+            if( layers[i] == lastTargetLayer )
             {
                 idx = i;
                 break;
@@ -898,7 +913,7 @@ int ROUTER_TOOL::handleLayerSwitch( const TOOL_EVENT& aEvent, bool aForceVia )
         // idx + 1 layer may be invisible, switches to next visible layer
         for( size_t i = 0; i < layers.size() - 1; i++ )
         {
-            if( brd->IsLayerVisible( static_cast<PCB_LAYER_ID>( layers[target_idx] ) ) )
+            if( brd->IsLayerVisible( layers[target_idx] ) )
             {
                 targetLayer = layers[target_idx];
                 break;
@@ -924,10 +939,11 @@ int ROUTER_TOOL::handleLayerSwitch( const TOOL_EVENT& aEvent, bool aForceVia )
 
         size_t idx = 0;
         size_t target_idx = 0;
+        PCB_LAYER_ID lastTargetLayer = m_lastTargetLayer;
 
         for( size_t i = 0; i < layers.size(); i++ )
         {
-            if( layers[i] == m_lastTargetLayer )
+            if( layers[i] == lastTargetLayer )
             {
                 idx = i;
                 break;
@@ -938,7 +954,7 @@ int ROUTER_TOOL::handleLayerSwitch( const TOOL_EVENT& aEvent, bool aForceVia )
 
         for( size_t i = 0; i < layers.size() - 1; i++ )
         {
-            if( brd->IsLayerVisible( static_cast<PCB_LAYER_ID>( layers[target_idx] ) ) )
+            if( brd->IsLayerVisible( layers[target_idx] ) )
             {
                 targetLayer = layers[target_idx];
                 break;
@@ -980,10 +996,10 @@ int ROUTER_TOOL::handleLayerSwitch( const TOOL_EVENT& aEvent, bool aForceVia )
         if( targetLayer == currentLayer )
             return 0;
 
-        if( !aForceVia && m_router && m_router->SwitchLayer( targetLayer ) )
+        if( !aForceVia && m_router && m_router->SwitchLayer( m_iface->GetPNSLayerFromBoardLayer( targetLayer ) ) )
         {
             updateEndItem( aEvent );
-            updateSizesAfterRouterEvent( targetLayer, m_endSnapPoint );
+            updateSizesAfterRouterEvent( m_iface->GetPNSLayerFromBoardLayer( targetLayer ), m_endSnapPoint );
             m_router->Move( m_endSnapPoint, m_endItem );        // refresh
             return 0;
         }
@@ -1011,6 +1027,12 @@ int ROUTER_TOOL::handleLayerSwitch( const TOOL_EVENT& aEvent, bool aForceVia )
         // ask the user for a target layer
         if( selectLayer )
         {
+            // When the currentLayer is undefined, trying to place a via does not work
+            // because it means there is no track in progress, and some other variables
+            // values are not defined like m_endSnapPoint. So do not continue.
+            if( currentLayer == UNDEFINED_LAYER )
+                return 0;
+
             wxPoint endPoint = ToWxPoint( view()->ToScreen( m_endSnapPoint ) );
             endPoint = frame()->GetCanvas()->ClientToScreen( endPoint );
 
@@ -1019,24 +1041,6 @@ int ROUTER_TOOL::handleLayerSwitch( const TOOL_EVENT& aEvent, bool aForceVia )
 
             if( viaType != VIATYPE::THROUGH )
                 not_allowed_ly.set( currentLayer );
-
-            if( viaType == VIATYPE::MICROVIA )
-            {
-                // Allows only the previous or the next layer from the current layer
-                int previous_layer = currentLayer == B_Cu ? layerCount - 2
-                                                          : currentLayer - 1;
-
-                int next_layer = currentLayer >= layerCount-2 ? B_Cu
-                                                              : currentLayer + 1;
-
-                not_allowed_ly = LSET::AllLayersMask();
-
-                if( previous_layer >= F_Cu && previous_layer != currentLayer )
-                    not_allowed_ly.reset( previous_layer );
-
-                if( next_layer != currentLayer )
-                    not_allowed_ly.reset( next_layer );
-            }
 
             targetLayer = frame()->SelectOneLayer( static_cast<PCB_LAYER_ID>( currentLayer ),
                                                    not_allowed_ly, endPoint );
@@ -1069,56 +1073,15 @@ int ROUTER_TOOL::handleLayerSwitch( const TOOL_EVENT& aEvent, bool aForceVia )
 
     if( targetLayer == UNDEFINED_LAYER )
     {
-        // Implicic layer selection
-
-        switch( viaType )
+        // Implicit layer selection
+        if( viaType == VIATYPE::THROUGH )
         {
-        case VIATYPE::THROUGH:
             // use the default layer pair
             currentLayer = pairTop;
             targetLayer = pairBottom;
-            break;
-
-        case VIATYPE::MICROVIA:
-            // Try to use the layer pair preset, if the layers are adjacent,
-            // because a microvia is usually restricted to 2 adjacent copper layers
-            if( pairTop > pairBottom ) std::swap( pairTop, pairBottom );
-
-            if( currentLayer == pairTop && pairBottom == pairTop+1 )
-            {
-                 targetLayer = pairBottom;
-            }
-            else if( currentLayer == pairBottom && pairBottom == pairTop+1 )
-            {
-                 targetLayer = pairTop;
-            }
-            else if( currentLayer == F_Cu || currentLayer == In1_Cu )
-            {
-                // front-side microvia
-                currentLayer = F_Cu;
-
-                if( layerCount > 2 )    // Ensure the inner layer In1_Cu exists
-                    targetLayer = In1_Cu;
-                else
-                    targetLayer = B_Cu;
-            }
-            else if( currentLayer == B_Cu || currentLayer == layerCount - 2 )
-            {
-                // back-side microvia
-                currentLayer = B_Cu,
-                targetLayer = (PCB_LAYER_ID) ( layerCount - 2 );
-            }
-            else
-            {
-                // This is not optimal: from an internal layer one can want to switch
-                // to the previous or the next internal layer
-                // but at this point we do not know what the user want.
-               targetLayer = PCB_LAYER_ID( currentLayer + 1 );
-            }
-
-            break;
-
-        case VIATYPE::BLIND_BURIED:
+        }
+        else
+        {
             if( currentLayer == pairTop || currentLayer == pairBottom )
             {
                 // the current layer is on the defined layer pair,
@@ -1137,18 +1100,11 @@ int ROUTER_TOOL::handleLayerSwitch( const TOOL_EVENT& aEvent, bool aForceVia )
             if( currentLayer == targetLayer )
             {
                 WX_INFOBAR* infobar = frame()->GetInfoBar();
-                infobar->ShowMessageFor( _( "Blind/buried via need 2 different layers." ),
+                infobar->ShowMessageFor( _( "Via needs 2 different layers." ),
                                          2000, wxICON_ERROR,
                                          WX_INFOBAR::MESSAGE_TYPE::DRC_VIOLATION );
                 return 0;
             }
-
-            break;
-
-        default:
-            wxFAIL_MSG( wxT( "unexpected via type" ) );
-            return 0;
-            break;
         }
     }
 
@@ -1185,7 +1141,8 @@ int ROUTER_TOOL::handleLayerSwitch( const TOOL_EVENT& aEvent, bool aForceVia )
     }
 
     sizes.SetViaType( viaType );
-    sizes.AddLayerPair( currentLayer, targetLayer );
+    sizes.AddLayerPair( m_iface->GetPNSLayerFromBoardLayer( currentLayer ),
+                        m_iface->GetPNSLayerFromBoardLayer( targetLayer ) );
 
     m_router->UpdateSizes( sizes );
 
@@ -1211,31 +1168,32 @@ int ROUTER_TOOL::handleLayerSwitch( const TOOL_EVENT& aEvent, bool aForceVia )
 bool ROUTER_TOOL::prepareInteractive( VECTOR2D aStartPosition )
 {
     PCB_EDIT_FRAME* editFrame = getEditFrame<PCB_EDIT_FRAME>();
-    int             routingLayer = getStartLayer( m_startItem );
+    PCB_LAYER_ID    pcbLayer = getStartLayer( m_startItem );
+    int             pnsLayer = m_iface->GetPNSLayerFromBoardLayer( pcbLayer );
 
-    if( !IsCopperLayer( routingLayer ) )
+    if( !::IsCopperLayer( pcbLayer ) )
     {
         editFrame->ShowInfoBarError( _( "Tracks on Copper layers only." ) );
         return false;
     }
 
     m_originalActiveLayer = editFrame->GetActiveLayer();
-    editFrame->SetActiveLayer( ToLAYER_ID( routingLayer ) );
+    editFrame->SetActiveLayer( pcbLayer );
 
-    if( !getView()->IsLayerVisible( routingLayer ) )
+    if( !getView()->IsLayerVisible( pcbLayer ) )
     {
-        editFrame->GetAppearancePanel()->SetLayerVisible( routingLayer, true );
+        editFrame->GetAppearancePanel()->SetLayerVisible( pcbLayer, true );
         editFrame->GetCanvas()->Refresh();
     }
 
     PNS::SIZES_SETTINGS sizes( m_router->Sizes() );
 
-    m_iface->SetStartLayer( routingLayer );
+    m_iface->SetStartLayerFromPCBNew( pcbLayer );
 
     frame()->GetBoard()->GetDesignSettings().m_TempOverrideTrackWidth = false;
     m_iface->ImportSizes( sizes, m_startItem, nullptr, aStartPosition );
-    sizes.AddLayerPair( frame()->GetScreen()->m_Route_Layer_TOP,
-                        frame()->GetScreen()->m_Route_Layer_BOTTOM );
+    sizes.AddLayerPair( m_iface->GetPNSLayerFromBoardLayer( frame()->GetScreen()->m_Route_Layer_TOP ),
+                        m_iface->GetPNSLayerFromBoardLayer( frame()->GetScreen()->m_Route_Layer_BOTTOM ) );
 
     m_router->UpdateSizes( sizes );
 
@@ -1254,7 +1212,7 @@ bool ROUTER_TOOL::prepareInteractive( VECTOR2D aStartPosition )
 
     controls()->SetAutoPan( true );
 
-    if( !m_router->StartRouting( m_startSnapPoint, m_startItem, routingLayer ) )
+    if( !m_router->StartRouting( m_startSnapPoint, m_startItem, pnsLayer ) )
     {
         // It would make more sense to leave the net highlighted as the higher-contrast mode
         // makes the router clearances more visible.  However, since we just started routing
@@ -1317,14 +1275,15 @@ void ROUTER_TOOL::performRouting( VECTOR2D aStartPosition )
     auto syncRouterAndFrameLayer =
             [&]()
             {
-                PCB_LAYER_ID    routingLayer = ToLAYER_ID( m_router->GetCurrentLayer() );
+                int             pnsLayer = m_router->GetCurrentLayer();
+                PCB_LAYER_ID    pcbLayer = m_iface->GetBoardLayerFromPNSLayer( pnsLayer );
                 PCB_EDIT_FRAME* editFrame = getEditFrame<PCB_EDIT_FRAME>();
 
-                editFrame->SetActiveLayer( routingLayer );
+                editFrame->SetActiveLayer( pcbLayer );
 
-                if( !getView()->IsLayerVisible( routingLayer ) )
+                if( !getView()->IsLayerVisible( pcbLayer ) )
                 {
-                    editFrame->GetAppearancePanel()->SetLayerVisible( routingLayer, true );
+                    editFrame->GetAppearancePanel()->SetLayerVisible( pcbLayer, true );
                     editFrame->GetCanvas()->Refresh();
                 }
             };
@@ -1423,7 +1382,7 @@ void ROUTER_TOOL::performRouting( VECTOR2D aStartPosition )
             bool forceFinish = evt->Modifier( MD_SHIFT );
             bool forceCommit = false;
 
-            if( m_router->FixRoute( m_endSnapPoint, m_endItem, forceFinish, forceCommit ) )
+            if( m_router->FixRoute( m_endSnapPoint, m_endItem, false, forceCommit ) )
                 break;
 
             if( needLayerSwitch )
@@ -1432,8 +1391,7 @@ void ROUTER_TOOL::performRouting( VECTOR2D aStartPosition )
             }
             else
             {
-                updateSizesAfterRouterEvent(
-                        static_cast<PCB_LAYER_ID>( m_router->GetCurrentLayer() ), m_endSnapPoint );
+                updateSizesAfterRouterEvent( m_router->GetCurrentLayer(), m_endSnapPoint );
             }
 
             // Synchronize the indicated layer
@@ -1495,7 +1453,7 @@ void ROUTER_TOOL::performRouting( VECTOR2D aStartPosition )
         }
         else if( evt->IsClick( BUT_RIGHT ) )
         {
-            m_menu.ShowContextMenu( selection() );
+            m_menu->ShowContextMenu( selection() );
         }
         // TODO: It'd be nice to be able to say "don't allow any non-trivial editing actions",
         // but we don't at present have that, so we just knock out some of the egregious ones.
@@ -1644,9 +1602,7 @@ int ROUTER_TOOL::RouteSelected( const TOOL_EVENT& aEvent )
     {
         if( item->Type() == PCB_FOOTPRINT_T )
         {
-            const PADS& fpPads = ( static_cast<FOOTPRINT*>( item ) )->Pads();
-
-            for( PAD* pad : fpPads )
+            for( PAD* pad : static_cast<FOOTPRINT*>( item )->Pads() )
                 itemList.push_back( pad );
         }
         else if( dynamic_cast<BOARD_CONNECTED_ITEM*>( item ) != nullptr )
@@ -1846,9 +1802,9 @@ int ROUTER_TOOL::MainLoop( const TOOL_EVENT& aEvent )
         }
         else if( evt->IsAction( &PCB_ACTIONS::layerChanged ) )
         {
-            m_router->SwitchLayer( frame->GetActiveLayer() );
+            m_router->SwitchLayer( m_iface->GetPNSLayerFromBoardLayer( frame->GetActiveLayer() ) );
             updateStartItem( *evt );
-            updateSizesAfterRouterEvent( frame->GetActiveLayer(), m_startSnapPoint );
+            updateSizesAfterRouterEvent( m_iface->GetPNSLayerFromBoardLayer( frame->GetActiveLayer() ), m_startSnapPoint );
         }
         else if( evt->IsKeyPressed() )
         {
@@ -1859,7 +1815,7 @@ int ROUTER_TOOL::MainLoop( const TOOL_EVENT& aEvent )
         }
         else if( evt->IsClick( BUT_RIGHT ) )
         {
-            m_menu.ShowContextMenu( selection() );
+            m_menu->ShowContextMenu( selection() );
         }
         else
         {
@@ -1974,7 +1930,7 @@ void ROUTER_TOOL::performDragging( int aMode )
         }
         else if( evt->IsClick( BUT_RIGHT ) )
         {
-            m_menu.ShowContextMenu( selection() );
+            m_menu->ShowContextMenu( selection() );
         }
         else if( evt->IsCancelInteractive() || evt->IsActivate() )
         {
@@ -2120,26 +2076,36 @@ bool ROUTER_TOOL::CanInlineDrag( int aDragMode )
                                                    NeighboringSegmentFilter );
     const PCB_SELECTION& selection = m_toolMgr->GetTool<PCB_SELECTION_TOOL>()->GetSelection();
 
-    const BOARD_ITEM* item = static_cast<const BOARD_ITEM*>( selection.Front() );
-
-    // Note: EDIT_TOOL::Drag temporarily handles items of type PCB_ARC_T on its own using
-    // DragArcTrack(), so PCB_ARC_T should never occur here.
-    if( item->IsType( GENERAL_COLLECTOR::DraggableItems ) )
+    if( selection.Size() == 1 )
+    {
+        return selection.Front()->IsType( GENERAL_COLLECTOR::DraggableItems );
+    }
+    else if( selection.CountType( PCB_FOOTPRINT_T ) == selection.Size() )
     {
         // Footprints cannot be dragged freely.
-        if( item->IsType( { PCB_FOOTPRINT_T } ) )
-            return !( aDragMode & PNS::DM_FREE_ANGLE );
-        else
-            return true;
+        return !( aDragMode & PNS::DM_FREE_ANGLE );
+    }
+    else if( selection.CountType( PCB_TRACE_T ) == selection.Size() )
+    {
+        return true;
     }
 
     return false;
 }
 
 
+void ROUTER_TOOL::restoreSelection( const PCB_SELECTION& aOriginalSelection )
+{
+    EDA_ITEMS selItems;
+    std::copy( aOriginalSelection.Items().begin(), aOriginalSelection.Items().end(), std::back_inserter( selItems ) );
+    m_toolMgr->RunAction<EDA_ITEMS*>( PCB_ACTIONS::selectItems, &selItems );
+}
+
+
 int ROUTER_TOOL::InlineDrag( const TOOL_EVENT& aEvent )
 {
-    const PCB_SELECTION& selection = m_toolMgr->GetTool<PCB_SELECTION_TOOL>()->GetSelection();
+    const PCB_SELECTION selection = m_toolMgr->GetTool<PCB_SELECTION_TOOL>()->GetSelection();
+
 
     if( selection.Empty() )
     {
@@ -2150,10 +2116,14 @@ int ROUTER_TOOL::InlineDrag( const TOOL_EVENT& aEvent )
     if( selection.Empty() )
         return 0;
 
+    // selection gets cleared in the next action, we need a copy of the selected items.
+    std::deque<EDA_ITEM*> selectedItems = selection.GetItems();
+
     BOARD_ITEM* item = static_cast<BOARD_ITEM*>( selection.Front() );
 
     if( item->Type() != PCB_TRACE_T
          && item->Type() != PCB_VIA_T
+         && item->Type() != PCB_ARC_T
          && item->Type() != PCB_FOOTPRINT_T )
     {
         return 0;
@@ -2165,11 +2135,8 @@ int ROUTER_TOOL::InlineDrag( const TOOL_EVENT& aEvent )
         footprints.insert( static_cast<FOOTPRINT*>( item ) );
 
     // We can drag multiple footprints, but not a grab-bag of items
-    if( selection.Size() > 1 )
+    if( selection.Size() > 1 && item->Type() == PCB_FOOTPRINT_T )
     {
-        if( item->Type() != PCB_FOOTPRINT_T )
-            return 0;
-
         for( int idx = 1; idx < selection.Size(); ++idx )
         {
             if( static_cast<BOARD_ITEM*>( selection.GetItem( idx ) )->Type() != PCB_FOOTPRINT_T )
@@ -2211,9 +2178,14 @@ int ROUTER_TOOL::InlineDrag( const TOOL_EVENT& aEvent )
     std::vector<BOARD_ITEM*>            dynamicItems;
     std::unique_ptr<CONNECTIVITY_DATA>  dynamicData = nullptr;
     VECTOR2I                            lastOffset;
+    std::vector<PNS::ITEM*>             leaderSegments;
+    bool                                singleFootprintDrag = false;
 
     if( !footprints.empty() )
     {
+        if( footprints.size() == 1 )
+            singleFootprintDrag = true;
+
         if( showCourtyardConflicts )
             courtyardClearanceDRC.Init( board() );
 
@@ -2235,10 +2207,19 @@ int ROUTER_TOOL::InlineDrag( const TOOL_EVENT& aEvent )
 
             for( ZONE* zone : footprint->Zones() )
             {
-                std::vector<PNS::ITEM*> solids = m_router->GetWorld()->FindItemsByZone( zone );
-
-                for( PNS::ITEM* solid : solids )
+                for( PNS::ITEM* solid : m_router->GetWorld()->FindItemsByParent( zone ) )
                     itemsToDrag.Add( solid );
+            }
+
+            for( BOARD_ITEM* shape : footprint->GraphicalItems() )
+            {
+                if( shape->GetLayer() == Edge_Cuts
+                    || shape->GetLayer() == Margin
+                    || IsCopperLayer( shape->GetLayer() ) )
+                {
+                    for( PNS::ITEM* solid : m_router->GetWorld()->FindItemsByParent( shape ) )
+                        itemsToDrag.Add( solid );
+                }
             }
 
             if( showCourtyardConflicts )
@@ -2251,28 +2232,50 @@ int ROUTER_TOOL::InlineDrag( const TOOL_EVENT& aEvent )
     }
     else
     {
-        startItem = m_router->GetWorld()->FindItemByParent( item );
+        for ( const EDA_ITEM* bitem : selectedItems )
+        {
+            PNS::ITEM* pitem = m_router->GetWorld()->FindItemByParent( static_cast<const BOARD_ITEM*>( bitem ) );
 
-        if( startItem )
-            itemsToDrag.Add( startItem );
+            if( !pitem )
+                continue;
+
+            if( pitem->OfKind( PNS::ITEM::SEGMENT_T ) || pitem->OfKind( PNS::ITEM::VIA_T ) || pitem->OfKind( PNS::ITEM::ARC_T ) )
+            {
+                itemsToDrag.Add( pitem );
+            }
+        }
     }
 
     GAL*     gal = m_toolMgr->GetView()->GetGAL();
-    VECTOR2I p0 = controls()->GetCursorPosition( false );
+    VECTOR2I p0 = GetClampedCoords( controls()->GetCursorPosition( false ), COORDS_PADDING );
     VECTOR2I p = p0;
 
     m_gridHelper->SetUseGrid( gal->GetGridSnapping() && !aEvent.DisableGridSnapping()  );
     m_gridHelper->SetSnap( !aEvent.Modifier( MD_SHIFT ) );
 
-    if( startItem )
-    {
-        p = snapToItem( startItem, p0 );
-        m_startItem = startItem;
+    std::set<PNS::NET_HANDLE> highlightNetcodes;
 
-        if( m_startItem->Net() )
-            highlightNets( true, { m_startItem->Net() } );
+    if( itemsToDrag.Count() >= 1 )
+    {
+        int layer = m_iface->GetPNSLayerFromBoardLayer( m_originalActiveLayer );
+
+        for( PNS::ITEM* pitem : itemsToDrag.Items() )
+        {
+            if( pitem->Shape( layer )->Collide( p0, 0 ) )
+            {
+                p = snapToItem( pitem, p0 );
+                m_startItem = pitem;
+
+                if( pitem->Net() )
+                    highlightNetcodes.insert( pitem->Net() );
+            }
+        }
+
+        if( highlightNetcodes.size() )
+            highlightNets( true, highlightNetcodes );
     }
-    else if( !footprints.empty() )
+
+    if( !footprints.empty() && singleFootprintDrag )
     {
         FOOTPRINT* footprint = static_cast<FOOTPRINT*>( item );
 
@@ -2285,7 +2288,8 @@ int ROUTER_TOOL::InlineDrag( const TOOL_EVENT& aEvent )
         if( editFrame->GetMoveWarpsCursor() )
             tweakedMousePos = footprint->GetPosition(); // Use footprint anchor to warp mouse
         else
-            tweakedMousePos = controls()->GetCursorPosition(); // Just use current mouse pos
+            tweakedMousePos = GetClampedCoords( controls()->GetCursorPosition(),
+                                                COORDS_PADDING ); // Just use current mouse pos
 
         // We tweak the mouse position using the value from above, and then use that as the
         // start position to prevent the footprint from jumping when we start dragging.
@@ -2312,6 +2316,7 @@ int ROUTER_TOOL::InlineDrag( const TOOL_EVENT& aEvent )
         // Clear temporary COURTYARD_CONFLICT flag and ensure the conflict shadow is cleared
         courtyardClearanceDRC.ClearConflicts( getView() );
 
+        restoreSelection( selection );
         controls()->ForceCursorPosition( false );
         frame()->PopTool( aEvent );
         highlightNets( false );
@@ -2337,12 +2342,13 @@ int ROUTER_TOOL::InlineDrag( const TOOL_EVENT& aEvent )
 
     // Set the initial visible area
     BOX2D viewAreaD = getView()->GetGAL()->GetVisibleWorldExtents();
-    m_router->SetVisibleViewArea( BOX2I( viewAreaD.GetOrigin(), viewAreaD.GetSize() ) );
+    m_router->SetVisibleViewArea( BOX2ISafe( viewAreaD ) );
 
     // Send an initial movement to prime the collision detection
     m_router->Move( p, nullptr );
 
     bool hasMouseMoved = false;
+    bool hasMultidragCancelled = false;
 
     while( TOOL_EVENT* evt = Wait() )
     {
@@ -2352,6 +2358,8 @@ int ROUTER_TOOL::InlineDrag( const TOOL_EVENT& aEvent )
         {
             if( wasLocked )
                 item->SetLocked( true );
+
+            hasMultidragCancelled = true;
 
             break;
         }
@@ -2454,6 +2462,8 @@ int ROUTER_TOOL::InlineDrag( const TOOL_EVENT& aEvent )
 
             updateEndItem( *evt );
             m_router->FixRoute( m_endSnapPoint, m_endItem, forceFinish, forceCommit );
+            leaderSegments = m_router->GetLastCommittedLeaderSegments();
+
             break;
         }
         else if( evt->IsUndoRedo() )
@@ -2509,11 +2519,11 @@ int ROUTER_TOOL::InlineDrag( const TOOL_EVENT& aEvent )
                 view()->Hide( pad, false );
         }
 
+        view()->ClearPreview();
+        view()->ShowPreview( false );
+
         connectivityData->ClearLocalRatsnest();
     }
-
-    view()->ClearPreview();
-    view()->ShowPreview( false );
 
     // Clear temporary COURTYARD_CONFLICT flag and ensure the conflict shadow is cleared
     courtyardClearanceDRC.ClearConflicts( getView() );
@@ -2521,12 +2531,29 @@ int ROUTER_TOOL::InlineDrag( const TOOL_EVENT& aEvent )
     if( m_router->RoutingInProgress() )
         m_router->StopRouting();
 
+
+    if( itemsToDrag.Size() && hasMultidragCancelled )
+    {
+        restoreSelection( selection );
+    }
+    else if( leaderSegments.size() )
+    {
+        std::vector<EDA_ITEM*> newItems;
+
+        for( auto lseg : leaderSegments )
+            newItems.push_back( lseg->Parent() );
+
+        m_toolMgr->RunAction<EDA_ITEMS*>( PCB_ACTIONS::selectItems, &newItems );
+    }
+
     m_gridHelper->SetAuxAxes( false );
     controls()->SetAutoPan( false );
     controls()->ForceCursorPosition( false );
     frame()->UndoRedoBlock( false );
     frame()->PopTool( aEvent );
     highlightNets( false );
+    view()->ClearPreview();
+    view()->ShowPreview( false );
 
     return 0;
 }
@@ -2665,10 +2692,11 @@ void ROUTER_TOOL::UpdateMessagePanel()
             NETCLASS* netclassA = netA->GetNetClass();
             NETCLASS* netclassB = netB->GetNetClass();
 
-            if( netclassA == netclassB )
-                netclass = netclassA->GetName();
+            if( *netclassA == *netclassB )
+                netclass = netclassA->GetHumanReadableName();
             else
-                netclass = netclassA->GetName() + wxT( ", " ) + netclassB->GetName();
+                netclass = netclassA->GetHumanReadableName() + wxT( ", " )
+                           + netclassB->GetHumanReadableName();
 
             secondary = wxString::Format( _( "Resolved Netclass: %s" ),
                                           UnescapeString( netclass ) );
@@ -2680,8 +2708,9 @@ void ROUTER_TOOL::UpdateMessagePanel()
             description = wxString::Format( _( "Routing Track: %s" ),
                                             net->GetNetname() );
 
-            secondary = wxString::Format( _( "Resolved Netclass: %s" ),
-                                          UnescapeString( net->GetNetClass()->GetName() ) );
+            secondary = wxString::Format(
+                    _( "Resolved Netclass: %s" ),
+                    UnescapeString( net->GetNetClass()->GetHumanReadableName() ) );
         }
         else
         {

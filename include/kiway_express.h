@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2014-202 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,6 +28,7 @@
 // @see http://wiki.wxwidgets.org/Custom_Events_Tutorial
 #include <frame_type.h>
 #include <mail_type.h>
+#include <kicommon.h>
 #include <wx/string.h>
 #include <wx/event.h>
 
@@ -35,7 +36,7 @@
 /**
  * Carry a payload from one #KIWAY_PLAYER to another within a #PROJECT.
  */
-class KIWAY_EXPRESS : public wxEvent
+class KICOMMON_API KIWAY_EXPRESS : public wxEvent
 {
 public:
     /**

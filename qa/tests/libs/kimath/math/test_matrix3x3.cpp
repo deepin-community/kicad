@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -42,8 +42,8 @@ BOOST_AUTO_TEST_CASE( test_equality_ops, *boost::unit_test::tolerance( 0.000001 
     MATRIX3x3D m2( VECTOR3I{ 6, 6, 6 }, { 1, 1, 1 }, { 3, 3, 3 } );
     MATRIX3x3D m3( VECTOR3I{ 1, 1, 1 }, { 2, 2, 2 }, { 3, 3, 3 } );
 
-    BOOST_CHECK( m1 == m3 );
-    BOOST_CHECK( m2 != m1 );
+    BOOST_TEST( m1 == m3 );
+    BOOST_TEST( m2 != m1 );
 }
 
 BOOST_AUTO_TEST_CASE( test_matrix_multiply_vector, *boost::unit_test::tolerance( 0.000001 ) )
@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE( test_matrix_multiply_vector, *boost::unit_test::tolerance(
 
     VECTOR3I expected( 15, 30, 45 );
 
-    BOOST_CHECK( res == expected );
+    BOOST_TEST( res == expected );
 }
 
 
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE( test_matrix_multiply_scalar, *boost::unit_test::tolerance(
 
     MATRIX3x3 expected( VECTOR3I{ 5, 5, 5 }, { 10, 10, 10 }, { 15, 15, 15 } );
 
-    BOOST_CHECK( res == expected );
+    BOOST_TEST( res == expected );
 }
 
 

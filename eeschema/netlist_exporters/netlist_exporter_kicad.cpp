@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1992-2013 jp.charras at wanadoo.fr
  * Copyright (C) 2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,13 +23,14 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "netlist_exporter_kicad.h"
 
 #include <algorithm>
 #include <confirm.h>
 
-#include <xnode.h>
 #include <connection_graph.h>
-#include "netlist_exporter_kicad.h"
+#include <richio.h>
+#include <xnode.h>
 
 
 bool NETLIST_EXPORTER_KICAD::WriteNetlist( const wxString& aOutFileName, unsigned aNetlistOptions,

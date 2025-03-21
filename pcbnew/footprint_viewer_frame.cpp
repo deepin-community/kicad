@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2012-2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2008-2016 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2004-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -193,7 +193,7 @@ FOOTPRINT_VIEWER_FRAME::FOOTPRINT_VIEWER_FRAME( KIWAY* aKiway, wxWindow* aParent
     // In viewer, the default net clearance is not known (it depends on the actual board).
     // So we do not show the default clearance, by setting it to 0
     // The footprint or pad specific clearance will be shown
-    GetBoard()->GetDesignSettings().m_NetSettings->m_DefaultNetClass->SetClearance( 0 );
+    GetBoard()->GetDesignSettings().m_NetSettings->GetDefaultNetclass()->SetClearance( 0 );
 
     // Don't show the default board solder mask clearance in the footprint viewer.  Only the
     // footprint or pad clearance setting should be shown if it is not 0.
@@ -779,7 +779,7 @@ void FOOTPRINT_VIEWER_FRAME::AddFootprintToPCB( wxCommandEvent& aEvent )
         // Put it on FRONT layer,
         // (Can be stored flipped if the lib is an archive built from a board)
         if( newFootprint->IsFlipped() )
-            newFootprint->Flip( newFootprint->GetPosition(), cfg->m_FlipLeftRight );
+            newFootprint->Flip( newFootprint->GetPosition(), cfg->m_FlipDirection );
 
         KIGFX::VIEW_CONTROLS* viewControls = pcbframe->GetCanvas()->GetViewControls();
         VECTOR2D              cursorPos = viewControls->GetCursorPosition();
@@ -790,7 +790,7 @@ void FOOTPRINT_VIEWER_FRAME::AddFootprintToPCB( wxCommandEvent& aEvent )
 
         newFootprint->SetPosition( VECTOR2I( 0, 0 ) );
         viewControls->SetCrossHairCursorPosition( cursorPos, false );
-        commit.Push( wxT( "Insert footprint" ) );
+        commit.Push( _( "Insert Footprint" ) );
 
         pcbframe->Raise();
         toolMgr->PostAction( PCB_ACTIONS::placeFootprint, newFootprint );
@@ -873,13 +873,13 @@ COLOR_SETTINGS* FOOTPRINT_VIEWER_FRAME::GetColorSettings( bool aForceRefresh ) c
 }
 
 
-void FOOTPRINT_VIEWER_FRAME::CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged )
+void FOOTPRINT_VIEWER_FRAME::CommonSettingsChanged( int aFlags )
 {
-    PCB_BASE_FRAME::CommonSettingsChanged( aEnvVarsChanged, aTextVarsChanged );
+    PCB_BASE_FRAME::CommonSettingsChanged( aFlags );
 
     GetCanvas()->ForceRefresh();
 
-    if( aEnvVarsChanged )
+    if( aFlags & ENVVARS_CHANGED )
         ReCreateLibraryList();
 }
 

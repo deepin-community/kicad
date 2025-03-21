@@ -164,13 +164,13 @@ The path to the file can be absolute, or relative to the project folder. The pat
 xref:../kicad/kicad.adoc#kicad-environment-variables[defined that path variable].
 The library filename is saved in the symbol's `Sim.Library` field.
 
-**Model** is the name of the desired model in the model file. A model file may contain multiple models, and if so they will all be listed in the dropdown. The selected model is listed in the symbol's `Sim.Name` field.
+**Model** is the name of the desired model in the model file. A model file may contain multiple models, and if so they will all be shown in the list. You can filter the list of models using the search box. The selected model is listed in the symbol's `Sim.Name` field.
 
 Parameters can be overridden (or additional parameters specified) using
-the **parameters** tab. All parameters specified in the selected model or the
-**parameters** tab are stored in the symbol's `Sim.Params` field.
+the **Parameters** tab. All parameters specified in the selected model or the
+**Parameters** tab are stored in the symbol's `Sim.Params` field.
 
-The **code** tab displays the generated SPICE model as it will be written to the
+The **Code** tab displays the generated SPICE model as it will be written to the
 SPICE netlist for simulation.
 
 [NOTE]
@@ -470,18 +470,29 @@ In order to remove a signal probe, clear its checkbox in the Signal list at the 
 
 ==== Tuning components
 
-It is possible to change the value of passive (R, L, C) simulation elements using sliders in order to graphically adjust them. Whenever the slider is set to a new position, the simulation is run
-with the new parameters and the current simulation plot is updated. In order to add a slider for a
-component, use **Simulation** -> **Add Tuned Value...**, the keyboard shortcut kbd:[T] or the
-image:images/icons/sim_tune_24.png[tune icon] button in the toolbar, and then
-click on the component to tune.
+It is possible to adjust the value of basic components in the schematic from
+within the simulation interface, which lets you conveniently adjust component
+values based on simulation results. Each time the component value is tuned, the
+simulation is re-run with the new component value. You can tune the value of
+passive resistors, inductors, and capacitors, or the voltage or current of DC
+voltage and current sources.
 
-* The top text field sets the maximum component value,
-* The middle text field sets the actual component value,
-* The bottom text field sets the minimum component value,
-* The slider allows the user to modify the component value,
-* The **Save** button modifies component value on the schematic to the value
-  selected with the slider,
+To tune a component, use **Simulation** -> **Add Tuned Value...**, the keyboard
+shortcut kbd:[T], or the image:images/icons/sim_tune_24.png[tune icon] button in
+the toolbar, and then click on the component to tune in the schematic. This adds
+a tuning control for that component in the bottom right corner of the simulator
+window. Multiple components can be tuned at once, with a separate tuning control
+per component.
+
+image::images/sim_tuner.png[]
+
+* The top text field sets the top end of the tuning range.
+* The bottom text field sets the bottom end of the tuning range.
+* The middle text field sets the actual component value that is used in the
+  simulation. This value can also be adjusted using the slider.
+* The **Save** button updates the schematic symbol with the tuned value. Until
+  you press the **Save** button, the schematic symbol will keep its original
+  value.
 * The image:images/icons/small_trash_16.png[trash icon] button removes the
   component from the Tune panel and restores its original value.
 
@@ -496,25 +507,28 @@ Simulation results from the TRAN, AC, DC, NOISE, SP and FFT analyses are visuali
 [NOTE]
 Simulation results from OP and PZ analyses do not generate plots. Instead, they present their results in the Simulator output command window and, in the case of OP, as labels added to the source schematic.
 
-====== Plot colors
+You can zoom and move a plot using the following gestures:
 
-Colors of individual plots may be set by clicking the Color field associated with each signal. You may choose from a predefined palette (**Defined Colors**), or select a custom color (**Color Picker**).
+* Scroll mouse wheel to zoom in/out. kbd:[Shift], kbd:[Ctrl], and kbd:[Alt] can
+  modify the scroll action depending on the configuration in the Simulator panel
+  in the Schematic Editor Preferences.
+* Right click to open a context menu to adjust the view.
+* Draw a selection rectangle to zoom in the selected area.
+* Drag a cursor to change its coordinates.
 
-====== Plot legends
+====== Plot appearance
 
-====== Plot grids
+Colors of individual signals may be set by clicking the **Color** field associated with each signal in the Signals pane. You may choose from a predefined palette (**Defined Colors**), or select a custom color (**Color Picker**).
 
-====== Plot backgrounds
+Plotted signals representing current or phase can be displayed with a dotted trace by selecting **View** -> **Dotted Current/Phase**. In AC simulations, this plots phases using dotted lines and gains using solid lines. In transient simulations, this plots currents using dotted lines and voltages using solid lines.
 
-Plots can be customized by toggling grid and legend visibility using
-the **View** menu. When a legend is visible, it can be dragged to
-change its position. You can toggle the plot background from dark to light with
-**View** -> **White Background** and switch current and phase plots to use
-dotted lines instead of solid with **View** -> **Dotted Current/Phase**.
+To show a grid behind the plotted signals, select **View** -> **Show Grid**. You can change the plot background color to either black or white using **View** -> **Dark Mode Plots**. When selected, the background color is black. When not selected, the background color is white.
+
+You can show a plot legend using **View** -> **Show Legend**. You can drag the legend to reposition it.
 
 ===== Cursors
 
-For precise measurement, cursors are available in the plot window. They are enabled and selected from within the signal pane on the right, using the checkboxes 'Cursor 1' and 'Cursor 2'. Each cursor is identified by a number in a triangular marker at the top of the plot pane. Cursors are moved and positioned within the plot window by clicking and dragging them.
+For precise measurement, cursors are available in the plot window. They are enabled and selected from within the signal pane on the right, using the checkboxes **Cursor 1** and **Cursor 2**. Each cursor is identified by a number in a triangular marker at the top of the plot pane. Cursors are moved and positioned within the plot window by clicking and dragging them.
 
 ===== Measurements
 
@@ -528,36 +542,15 @@ It is not necessary to have selected a signal for plotting (by selecting its Plo
 
 Predefined measurements associated with a signal are available by a right-click over a signal row which invokes a pop-up menu offering the following measurements:
 
-* Measure Min
-* Measure Max
-* Measure RMS
-* Measure Peak-to-peak
-* Measure Time-of-min
-* Measure Time-of-max
-* Measure Integral
+* **Measure Min**: measures the minimum value of the entire signal,
+* **Measure Max**: measures the minimum value of the entire signal,
+* **Measure RMS**: measures the root-mean-square value of the entire signal,
+* **Measure Peak-to-peak**: measures the peak-to-peak value of the entire signal,
+* **Measure Time-of-min**: measures the time at which the minimum value of the entire signal occurs,
+* **Measure Time-of-max**: measures the time at which the maximum value of the entire signal occurs,
+* **Measure Integral**: computes the time integral value of the entire signal.
 
 Measurement results are displayed in the Measurement pane at the lower right of the Simulator window. Multiple measurements will display as multiple rows in this area.
-
-**Measure Min** measures the minimum value of the entire signal,
-
-**Measure Max** measures the minimum value of the entire signal,
-
-**Measure RMS** measures the root-mean-square value of the entire signal,
-
-**Measure Peak-to-peak** measures the peak-to-peak value of the entire signal,
-
-**Measure Time-of-min** measures the time at which the minimum value of the entire signal occurs,
-
-**Measure Time-of-max** measures the time at which the maximum value of the entire signal occurs,
-
-**Measure Integral** computes the time integral value of the entire signal.
-
-The following interactions are possible with the plot panel:
-
-* scroll mouse wheel to zoom in/out,
-* right click to open a context menu to adjust the view,
-* draw a selection rectangle to zoom in the selected area,
-* drag a cursor to change its coordinates.
 
 ===== Numerical values
 

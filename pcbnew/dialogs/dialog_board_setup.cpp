@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -31,6 +31,7 @@
 #include <dialog_import_settings.h>
 #include <pcb_io/pcb_io.h>
 #include <pcb_io/pcb_io_mgr.h>
+#include <panel_embedded_files.h>
 #include <dialogs/panel_setup_severities.h>
 #include <dialogs/panel_setup_rules.h>
 #include <dialogs/panel_setup_teardrops.h>
@@ -45,9 +46,6 @@
 #include <wildcards_and_files_ext.h>
 
 #include "dialog_board_setup.h"
-
-
-std::mutex DIALOG_BOARD_SETUP::g_Mutex;
 
 
 #define RESOLVE_PAGE( T, pageIndex ) static_cast<T*>( m_treebook->ResolvePage( pageIndex ) )
@@ -202,6 +200,14 @@ DIALOG_BOARD_SETUP::DIALOG_BOARD_SETUP( PCB_EDIT_FRAME* aFrame ) :
                 return new PANEL_SETUP_SEVERITIES( aParent, DRC_ITEM::GetItemsWithSeverities(),
                                                    board->GetDesignSettings().m_DRCSeverities );
             }, _( "Violation Severity" ) );
+
+    m_treebook->AddPage( new wxPanel( GetTreebook() ), _( "Board Data" ) );
+    m_embeddedFilesPage = m_treebook->GetPageCount();
+    m_treebook->AddLazySubPage(
+            [this]( wxWindow* aParent ) -> wxWindow*
+            {
+                return new PANEL_EMBEDDED_FILES( aParent, m_frame->GetBoard() );
+            }, _( "Embedded Files" ) );
 
     for( size_t i = 0; i < m_treebook->GetPageCount(); ++i )
         m_treebook->ExpandNode( i );

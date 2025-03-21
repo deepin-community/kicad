@@ -1,7 +1,7 @@
 /*
 * This program source code file is part of KiCad, a free EDA CAD application.
 *
-* Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -28,6 +28,8 @@
 
 namespace IO_UTILS
 {
+    const std::vector<uint8_t> COMPOUND_FILE_HEADER = { 0xD0, 0xCF, 0x11, 0xE0,
+                                                        0xA1, 0xB1, 0x1A, 0xE1 };
 
 bool fileStartsWithPrefix( const wxString& aFilePath, const wxString& aPrefix,
                            bool aIgnoreWhitespace )

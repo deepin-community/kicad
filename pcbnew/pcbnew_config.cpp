@@ -4,7 +4,7 @@
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,8 +29,10 @@
 #include <tools/pcb_selection_tool.h>
 #include <board_design_settings.h>
 #include <drawing_sheet/ds_data_model.h>
+#include <filename_resolver.h>
 #include <pcbplot.h>
 #include <pcb_painter.h>
+#include <pgm_base.h>
 #include <project.h>
 #include <widgets/appearance_controls.h>
 #include <widgets/panel_selection_filter.h>
@@ -39,20 +41,33 @@
 #include <project/project_local_settings.h>
 
 
+void PCB_EDIT_FRAME::LoadDrawingSheet()
+{
+    PROJECT_FILE&           project       = Prj().GetProjectFile();
+
+    // Load the drawing sheet from the filename stored in the project
+    // If empty, or not existing, the default drawing sheet is loaded.
+    FILENAME_RESOLVER resolver;
+    resolver.SetProject( &Prj() );
+    resolver.SetProgramBase( &Pgm() );
+
+    wxString filename = resolver.ResolvePath( project.m_BoardDrawingSheetFile,
+                                              Prj().GetProjectPath(),
+                                              GetBoard()->GetEmbeddedFiles() );
+
+    wxString msg;
+
+    if( !DS_DATA_MODEL::GetTheInstance().LoadDrawingSheet( filename, &msg ) )
+        ShowInfoBarError( msg, true );
+
+}
+
 bool PCB_EDIT_FRAME::LoadProjectSettings()
 {
     PROJECT_FILE&           project       = Prj().GetProjectFile();
     PROJECT_LOCAL_SETTINGS& localSettings = Prj().GetLocalSettings();
 
     BASE_SCREEN::m_DrawingSheetFileName = project.m_BoardDrawingSheetFile;
-
-    // Load the drawing sheet from the filename stored in BASE_SCREEN::m_DrawingSheetFileName.
-    // If empty, or not existing, the default drawing sheet is loaded.
-    wxString filename = DS_DATA_MODEL::ResolvePath( BASE_SCREEN::m_DrawingSheetFileName,
-                                                    Prj().GetProjectPath());
-
-    if( !DS_DATA_MODEL::GetTheInstance().LoadDrawingSheet( filename ) )
-        ShowInfoBarError( _( "Error loading drawing sheet." ), true );
 
     // Load render settings that aren't stored in PCB_DISPLAY_OPTIONS
 
@@ -80,7 +95,7 @@ bool PCB_EDIT_FRAME::LoadProjectSettings()
     std::map<int, KIGFX::COLOR4D>& netColors = renderSettings->GetNetColorMap();
     netColors.clear();
 
-    for( const auto& [ netname, color ] : netSettings->m_NetColorAssignments )
+    for( const auto& [netname, color] : netSettings->GetNetColorAssignments() )
     {
         if( color != COLOR4D::UNSPECIFIED )
         {
@@ -89,19 +104,13 @@ bool PCB_EDIT_FRAME::LoadProjectSettings()
         }
     }
 
-    std::map<wxString, KIGFX::COLOR4D>& netclassColors = renderSettings->GetNetclassColorMap();
-    netclassColors.clear();
-
-    for( const auto& [ name, netclass ] : netSettings->m_NetClasses )
-        netclassColors[ name ] = netclass->GetPcbColor();
-
     m_appearancePanel->SetUserLayerPresets( project.m_LayerPresets );
     m_appearancePanel->SetUserViewports( project.m_Viewports );
 
     PCB_SELECTION_TOOL*       selTool = GetToolManager()->GetTool<PCB_SELECTION_TOOL>();
-    SELECTION_FILTER_OPTIONS& filterOpts = selTool->GetFilter();
+    PCB_SELECTION_FILTER_OPTIONS& filterOpts = selTool->GetFilter();
 
-    filterOpts = localSettings.m_SelectionFilter;
+    filterOpts = localSettings.m_PcbSelectionFilter;
     m_selectionFilterPanel->SetCheckboxesFromFilter( filterOpts );
 
     PCB_DISPLAY_OPTIONS opts   = GetDisplayOptions();
@@ -113,6 +122,7 @@ bool PCB_EDIT_FRAME::LoadProjectSettings()
     opts.m_ZoneOpacity         = localSettings.m_ZoneOpacity;
     opts.m_ZoneDisplayMode     = localSettings.m_ZoneDisplayMode;
     opts.m_ImageOpacity        = localSettings.m_ImageOpacity;
+    opts.m_FilledShapeOpacity        = localSettings.m_ShapeOpacity;
 
     // No refresh here: callers of LoadProjectSettings refresh later
     SetDisplayOptions( opts, false );
@@ -161,21 +171,12 @@ void PCB_EDIT_FRAME::SaveProjectLocalSettings()
     KIGFX::RENDER_SETTINGS*        rs = GetCanvas()->GetView()->GetPainter()->GetSettings();
     KIGFX::PCB_RENDER_SETTINGS*    renderSettings = static_cast<KIGFX::PCB_RENDER_SETTINGS*>( rs );
 
-    netSettings->m_NetColorAssignments.clear();
+    netSettings->ClearNetColorAssignments();
 
     for( const auto& [ netcode, color ] : renderSettings->GetNetColorMap() )
     {
         if( NETINFO_ITEM* net = nets.GetNetItem( netcode ) )
-            netSettings->m_NetColorAssignments[ net->GetNetname() ] = color;
-    }
-
-    std::map<wxString, KIGFX::COLOR4D>& netclassColors = renderSettings->GetNetclassColorMap();
-
-    // NOTE: this assumes netclasses will have already been updated, which I think is the case
-    for( const auto& [ name, netclass ] : netSettings->m_NetClasses )
-    {
-        if( netclassColors.count( name ) )
-            netclass->SetPcbColor( netclassColors.at( name ) );
+            netSettings->SetNetColorAssignment( net->GetNetname(), color );
     }
 
     /**
@@ -221,6 +222,7 @@ void PCB_EDIT_FRAME::saveProjectSettings()
     localSettings.m_ZoneOpacity         = displayOpts.m_ZoneOpacity;
     localSettings.m_ZoneDisplayMode     = displayOpts.m_ZoneDisplayMode;
     localSettings.m_ImageOpacity        = displayOpts.m_ImageOpacity;
+    localSettings.m_ShapeOpacity        = displayOpts.m_FilledShapeOpacity;
 
     // Save Design settings
     const BOARD_DESIGN_SETTINGS& bds = GetDesignSettings();
@@ -240,7 +242,7 @@ void PCB_EDIT_FRAME::saveProjectSettings()
     }
 
     PCB_SELECTION_TOOL*       selTool = GetToolManager()->GetTool<PCB_SELECTION_TOOL>();
-    SELECTION_FILTER_OPTIONS& filterOpts = selTool->GetFilter();
+    PCB_SELECTION_FILTER_OPTIONS& filterOpts = selTool->GetFilter();
 
-    localSettings.m_SelectionFilter = filterOpts;
+    localSettings.m_PcbSelectionFilter = filterOpts;
 }

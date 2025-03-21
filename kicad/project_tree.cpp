@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2004-2012 Jean-Pierre Charras
- * Copyright (C) 2004-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -50,7 +50,7 @@ PROJECT_TREE::PROJECT_TREE( PROJECT_TREE_PANE* parent ) :
         m_statusImageList( nullptr )
 {
     m_projectTreePane = parent;
-    m_gitCommon = new KIGIT_COMMON( nullptr );
+    m_gitCommon = std::make_unique<KIGIT_COMMON>( nullptr );
 
     // Make sure the GUI font scales properly on GTK
     SetFont( KIUI::GetControlFont( this ) );
@@ -102,6 +102,7 @@ void PROJECT_TREE::LoadIcons()
     images.push_back( KiBitmapBundle( BITMAPS::library ) );                // TREE_SEXPR_SYMBOL_LIB_FILE
     images.push_back( KiBitmapBundle( BITMAPS::editor ) );                 // DESIGN_RULES
     images.push_back( KiBitmapBundle( BITMAPS::zip ) );                    // ZIP_ARCHIVE
+    images.push_back( KiBitmapBundle( BITMAPS::editor ) );                 // JOBSET_FILE
     SetImages( images );
 
     wxVector<wxBitmapBundle> stateImages;
@@ -119,45 +120,69 @@ void PROJECT_TREE::LoadIcons()
     delete m_imageList;
 
     // Make an image list containing small icons
-    int size = 24;
+    int logicSize = 24 * GetDPIScaleFactor() / GetContentScaleFactor(); // Cross-platform way
+    int physSize = ToPhys( logicSize ); // aka *GetContentScaleFactor()
 
-    m_imageList = new wxImageList( size, size, true,
+    if( physSize >= 64 )
+        physSize = 64;
+    else if( physSize >= 48 )
+        physSize = 48;
+    else if( physSize >= 32 )
+        physSize = 32;
+    else
+        physSize = 24;
+
+    logicSize = std::min( logicSize, physSize );
+    int bmpsf = std::max( 1, physSize / logicSize );
+
+    logicSize = physSize / bmpsf;
+
+    auto toBitmap = [&]( BITMAPS aBmps )
+    {
+        wxBitmap bmp = KiBitmap( aBmps, physSize );
+        bmp.SetScaleFactor( bmpsf );
+        wxASSERT(bmp.IsOk());
+        return bmp;
+    };
+
+    m_imageList = new wxImageList( logicSize, logicSize, true,
                                    static_cast<int>( TREE_FILE_TYPE::MAX ) );
 
-    m_imageList->Add( KiBitmap( BITMAPS::project, size ) );                // TREE_LEGACY_PROJECT
-    m_imageList->Add( KiBitmap( BITMAPS::project_kicad, size ) );          // TREE_JSON_PROJECT
-    m_imageList->Add( KiBitmap( BITMAPS::icon_eeschema_24, size ) );       // TREE_LEGACY_SCHEMATIC
-    m_imageList->Add( KiBitmap( BITMAPS::icon_eeschema_24, size ) );       // TREE_SEXPR_SCHEMATIC
-    m_imageList->Add( KiBitmap( BITMAPS::icon_pcbnew_24, size ) );         // TREE_LEGACY_PCB
-    m_imageList->Add( KiBitmap( BITMAPS::icon_pcbnew_24, size ) );         // TREE_SEXPR_PCB
-    m_imageList->Add( KiBitmap( BITMAPS::icon_gerbview_24, size ) );       // TREE_GERBER
-    m_imageList->Add( KiBitmap( BITMAPS::file_gerber_job, size ) );        // TREE_GERBER_JOB_FILE (.gbrjob)
-    m_imageList->Add( KiBitmap( BITMAPS::file_html, size ) );              // TREE_HTML
-    m_imageList->Add( KiBitmap( BITMAPS::file_pdf, size ) );               // TREE_PDF
-    m_imageList->Add( KiBitmap( BITMAPS::editor, size ) );                 // TREE_TXT
-    m_imageList->Add( KiBitmap( BITMAPS::editor, size ) );                 // TREE_MD
-    m_imageList->Add( KiBitmap( BITMAPS::netlist, size ) );                // TREE_NET
-    m_imageList->Add( KiBitmap( BITMAPS::file_cir, size ) );               // TREE_NET_SPICE
-    m_imageList->Add( KiBitmap( BITMAPS::unknown, size ) );                // TREE_UNKNOWN
-    m_imageList->Add( KiBitmap( BITMAPS::directory, size ) );              // TREE_DIRECTORY
-    m_imageList->Add( KiBitmap( BITMAPS::icon_cvpcb_24, size ) );          // TREE_CMP_LINK
-    m_imageList->Add( KiBitmap( BITMAPS::tools, size ) );                  // TREE_REPORT
-    m_imageList->Add( KiBitmap( BITMAPS::file_pos, size ) );               // TREE_POS
-    m_imageList->Add( KiBitmap( BITMAPS::file_drl, size ) );               // TREE_DRILL
-    m_imageList->Add( KiBitmap( BITMAPS::file_drl, size ) );               // TREE_DRILL_NC (similar TREE_DRILL)
-    m_imageList->Add( KiBitmap( BITMAPS::file_drl, size ) );               // TREE_DRILL_XNC (similar TREE_DRILL)
-    m_imageList->Add( KiBitmap( BITMAPS::file_svg, size ) );               // TREE_SVG
-    m_imageList->Add( KiBitmap( BITMAPS::icon_pagelayout_editor_24, size ) ); // TREE_PAGE_LAYOUT_DESCR
-    m_imageList->Add( KiBitmap( BITMAPS::module, size ) );                 // TREE_FOOTPRINT_FILE
-    m_imageList->Add( KiBitmap( BITMAPS::library, size ) );                // TREE_SCHEMATIC_LIBFILE
-    m_imageList->Add( KiBitmap( BITMAPS::library, size ) );                // TREE_SEXPR_SYMBOL_LIB_FILE
-    m_imageList->Add( KiBitmap( BITMAPS::editor, size ) );                 // DESIGN_RULES
-    m_imageList->Add( KiBitmap( BITMAPS::zip, size ) );                    // ZIP_ARCHIVE
+    m_imageList->Add( toBitmap( BITMAPS::project ) );                // TREE_LEGACY_PROJECT
+    m_imageList->Add( toBitmap( BITMAPS::project_kicad ) );          // TREE_JSON_PROJECT
+    m_imageList->Add( toBitmap( BITMAPS::icon_eeschema_24 ) );       // TREE_LEGACY_SCHEMATIC
+    m_imageList->Add( toBitmap( BITMAPS::icon_eeschema_24 ) );       // TREE_SEXPR_SCHEMATIC
+    m_imageList->Add( toBitmap( BITMAPS::icon_pcbnew_24 ) );         // TREE_LEGACY_PCB
+    m_imageList->Add( toBitmap( BITMAPS::icon_pcbnew_24 ) );         // TREE_SEXPR_PCB
+    m_imageList->Add( toBitmap( BITMAPS::icon_gerbview_24 ) );       // TREE_GERBER
+    m_imageList->Add( toBitmap( BITMAPS::file_gerber_job ) );        // TREE_GERBER_JOB_FILE (.gbrjob)
+    m_imageList->Add( toBitmap( BITMAPS::file_html ) );              // TREE_HTML
+    m_imageList->Add( toBitmap( BITMAPS::file_pdf ) );               // TREE_PDF
+    m_imageList->Add( toBitmap( BITMAPS::editor ) );                 // TREE_TXT
+    m_imageList->Add( toBitmap( BITMAPS::editor ) );                 // TREE_MD
+    m_imageList->Add( toBitmap( BITMAPS::netlist ) );                // TREE_NET
+    m_imageList->Add( toBitmap( BITMAPS::file_cir ) );               // TREE_NET_SPICE
+    m_imageList->Add( toBitmap( BITMAPS::unknown ) );                // TREE_UNKNOWN
+    m_imageList->Add( toBitmap( BITMAPS::directory ) );              // TREE_DIRECTORY
+    m_imageList->Add( toBitmap( BITMAPS::icon_cvpcb_24 ) );          // TREE_CMP_LINK
+    m_imageList->Add( toBitmap( BITMAPS::tools ) );                  // TREE_REPORT
+    m_imageList->Add( toBitmap( BITMAPS::file_pos ) );               // TREE_POS
+    m_imageList->Add( toBitmap( BITMAPS::file_drl ) );               // TREE_DRILL
+    m_imageList->Add( toBitmap( BITMAPS::file_drl ) );               // TREE_DRILL_NC (similar TREE_DRILL)
+    m_imageList->Add( toBitmap( BITMAPS::file_drl ) );               // TREE_DRILL_XNC (similar TREE_DRILL)
+    m_imageList->Add( toBitmap( BITMAPS::file_svg ) );               // TREE_SVG
+    m_imageList->Add( toBitmap( BITMAPS::icon_pagelayout_editor_24 ) ); // TREE_PAGE_LAYOUT_DESCR
+    m_imageList->Add( toBitmap( BITMAPS::module ) );                 // TREE_FOOTPRINT_FILE
+    m_imageList->Add( toBitmap( BITMAPS::library ) );                // TREE_SCHEMATIC_LIBFILE
+    m_imageList->Add( toBitmap( BITMAPS::library ) );                // TREE_SEXPR_SYMBOL_LIB_FILE
+    m_imageList->Add( toBitmap( BITMAPS::editor ) );                 // DESIGN_RULES
+    m_imageList->Add( toBitmap( BITMAPS::zip ) );                    // ZIP_ARCHIVE
+    m_imageList->Add( toBitmap( BITMAPS::editor ) );                 // JOBSET_FILE
 
     SetImageList( m_imageList );
 
     // Make an image list containing small icons
-    size = 16;
+    int size = 16;
 
     wxBitmap blank_bitmap( size, size );
 

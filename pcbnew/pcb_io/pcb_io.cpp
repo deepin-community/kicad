@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2011-2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,7 +26,6 @@
 #include <pcb_io/pcb_io.h>
 #include <pcb_io/pcb_io_mgr.h>
 #include <ki_exception.h>
-#include <string_utf8_map.h>
 #include <wx/log.h>
 #include <wx/filename.h>
 #include <wx/translation.h>
@@ -73,7 +72,7 @@ bool PCB_IO::CanReadFootprint( const wxString& aFileName ) const
 
 
 BOARD* PCB_IO::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
-                          const STRING_UTF8_MAP* aProperties, PROJECT* aProject )
+                          const std::map<std::string, UTF8>* aProperties, PROJECT* aProject )
 {
     NOT_IMPLEMENTED( __FUNCTION__ );
 }
@@ -86,7 +85,7 @@ std::vector<FOOTPRINT*> PCB_IO::GetImportedCachedLibraryFootprints()
 
 
 void PCB_IO::SaveBoard( const wxString& aFileName, BOARD* aBoard,
-                        const STRING_UTF8_MAP* aProperties )
+                        const std::map<std::string, UTF8>* aProperties )
 {
     // not pure virtual so that plugins only have to implement subset of the PLUGIN interface.
     NOT_IMPLEMENTED( __FUNCTION__ );
@@ -94,20 +93,15 @@ void PCB_IO::SaveBoard( const wxString& aFileName, BOARD* aBoard,
 
 
 void PCB_IO::FootprintEnumerate( wxArrayString& aFootprintNames, const wxString& aLibraryPath,
-                                 bool aBestEfforts, const STRING_UTF8_MAP* aProperties )
+                                 bool aBestEfforts, const std::map<std::string, UTF8>* aProperties )
 {
     // not pure virtual so that plugins only have to implement subset of the PLUGIN interface.
     NOT_IMPLEMENTED( __FUNCTION__ );
 }
 
 
-void PCB_IO::PrefetchLib( const wxString&, const STRING_UTF8_MAP* )
-{
-}
-
-
 FOOTPRINT* PCB_IO::ImportFootprint( const wxString& aFootprintPath, wxString& aFootprintNameOut,
-                                    const STRING_UTF8_MAP* aProperties )
+                                    const std::map<std::string, UTF8>* aProperties )
 {
     wxArrayString footprintNames;
 
@@ -119,7 +113,9 @@ FOOTPRINT* PCB_IO::ImportFootprint( const wxString& aFootprintPath, wxString& aF
     if( footprintNames.size() > 1 )
     {
         wxLogWarning( _( "Selected file contains multiple footprints. Only the first one will be "
-                         "imported." ) );
+                         "imported.\nTo load all footprints, add it as a library using Preferences "
+                         "-> Manage Footprint "
+                         "Libraries..." ) );
     }
 
     aFootprintNameOut = footprintNames.front();
@@ -130,7 +126,7 @@ FOOTPRINT* PCB_IO::ImportFootprint( const wxString& aFootprintPath, wxString& aF
 
 const FOOTPRINT* PCB_IO::GetEnumeratedFootprint( const wxString& aLibraryPath,
                                                  const wxString& aFootprintName,
-                                                 const STRING_UTF8_MAP* aProperties )
+                                                 const std::map<std::string, UTF8>* aProperties )
 {
     // default implementation
     return FootprintLoad( aLibraryPath, aFootprintName, false, aProperties );
@@ -138,7 +134,7 @@ const FOOTPRINT* PCB_IO::GetEnumeratedFootprint( const wxString& aLibraryPath,
 
 
 bool PCB_IO::FootprintExists( const wxString& aLibraryPath, const wxString& aFootprintName,
-                              const STRING_UTF8_MAP* aProperties )
+                              const std::map<std::string, UTF8>* aProperties )
 {
     // default implementation
     return FootprintLoad( aLibraryPath, aFootprintName, true, aProperties ) != nullptr;
@@ -146,7 +142,7 @@ bool PCB_IO::FootprintExists( const wxString& aLibraryPath, const wxString& aFoo
 
 
 FOOTPRINT* PCB_IO::FootprintLoad( const wxString& aLibraryPath, const wxString& aFootprintName,
-                                  bool  aKeepUUID, const STRING_UTF8_MAP* aProperties )
+                                  bool  aKeepUUID, const std::map<std::string, UTF8>* aProperties )
 {
     // not pure virtual so that plugins only have to implement subset of the PLUGIN interface.
     NOT_IMPLEMENTED( __FUNCTION__ );
@@ -154,7 +150,7 @@ FOOTPRINT* PCB_IO::FootprintLoad( const wxString& aLibraryPath, const wxString& 
 
 
 void PCB_IO::FootprintSave( const wxString& aLibraryPath, const FOOTPRINT* aFootprint,
-                            const STRING_UTF8_MAP* aProperties )
+                            const std::map<std::string, UTF8>* aProperties )
 {
     // not pure virtual so that plugins only have to implement subset of the PLUGIN interface.
     NOT_IMPLEMENTED( __FUNCTION__ );
@@ -162,14 +158,14 @@ void PCB_IO::FootprintSave( const wxString& aLibraryPath, const FOOTPRINT* aFoot
 
 
 void PCB_IO::FootprintDelete( const wxString& aLibraryPath, const wxString& aFootprintName,
-                              const STRING_UTF8_MAP* aProperties )
+                              const std::map<std::string, UTF8>* aProperties )
 {
     // not pure virtual so that plugins only have to implement subset of the PLUGIN interface.
     NOT_IMPLEMENTED( __FUNCTION__ );
 }
 
 
-void PCB_IO::GetLibraryOptions( STRING_UTF8_MAP* aListToAppendTo ) const
+void PCB_IO::GetLibraryOptions( std::map<std::string, UTF8>* aListToAppendTo ) const
 {
     // Get base options first
     IO_BASE::GetLibraryOptions( aListToAppendTo );

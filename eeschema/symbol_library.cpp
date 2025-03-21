@@ -4,7 +4,7 @@
  * Copyright (C) 2004-2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
  * Copyright (C) 2022 CERN
- * Copyright (C) 2004-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,7 +34,6 @@
 #include <project/project_file.h>
 #include <project_rescue.h>
 #include <project_sch.h>
-#include <string_utf8_map.h>
 #include <widgets/app_progress_dialog.h>
 
 #include <symbol_library.h>
@@ -62,7 +61,7 @@ SYMBOL_LIB::SYMBOL_LIB( SCH_LIB_TYPE aType, const wxString& aFileName,
         fileName = "unnamed.lib";
 
     m_plugin.reset( SCH_IO_MGR::FindPlugin( m_pluginType ) );
-    m_properties = std::make_unique<STRING_UTF8_MAP>();
+    m_properties = std::make_unique<std::map<std::string, UTF8>>();
     m_mod_hash = 0;
 }
 
@@ -78,7 +77,7 @@ void SYMBOL_LIB::Save( bool aSaveDocFile )
                  wxString::Format( wxT( "no plugin defined for library `%s`." ),
                                    fileName.GetFullPath() ) );
 
-    STRING_UTF8_MAP props;
+    std::map<std::string, UTF8> props;
 
     if( !aSaveDocFile )
         props[ SCH_IO_KICAD_LEGACY::PropNoDocFile ] = "";
@@ -111,7 +110,7 @@ void SYMBOL_LIB::SetPluginType( SCH_IO_MGR::SCH_FILE_T aPluginType )
 
 bool SYMBOL_LIB::IsCache() const
 {
-    return m_properties->Exists( SCH_IO_KICAD_LEGACY::PropNoDocFile );
+    return m_properties->contains( SCH_IO_KICAD_LEGACY::PropNoDocFile );
 }
 
 
@@ -123,7 +122,7 @@ void SYMBOL_LIB::SetCache()
 
 bool SYMBOL_LIB::IsBuffering() const
 {
-    return m_properties->Exists( SCH_IO_KICAD_LEGACY::PropBuffering );
+    return m_properties->contains( SCH_IO_KICAD_LEGACY::PropBuffering );
 }
 
 
@@ -132,7 +131,7 @@ void SYMBOL_LIB::EnableBuffering( bool aEnable )
     if( aEnable )
         (*m_properties)[ SCH_IO_KICAD_LEGACY::PropBuffering ] = "";
     else
-        m_properties->Clear( SCH_IO_KICAD_LEGACY::PropBuffering );
+        m_properties->erase( SCH_IO_KICAD_LEGACY::PropBuffering );
 }
 
 
@@ -168,7 +167,7 @@ LIB_SYMBOL* SYMBOL_LIB::FindSymbol( const wxString& aName ) const
         if( !symbol->GetLib() )
             symbol->SetLib( const_cast<SYMBOL_LIB*>( this ) );
 
-        SIM_MODEL::MigrateSimModel<LIB_SYMBOL, LIB_FIELD>( *symbol, nullptr );
+        SIM_MODEL::MigrateSimModel<LIB_SYMBOL>( *symbol, nullptr );
     }
 
     return symbol;
@@ -312,11 +311,11 @@ SYMBOL_LIB* SYMBOL_LIBS::AddLibrary( const wxString& aFileName, SYMBOL_LIBS::ite
 
 bool SYMBOL_LIBS::ReloadLibrary( const wxString &aFileName )
 {
-    SYMBOL_LIB *lib;
-    wxFileName fn = aFileName;
+    wxFileName  fn = aFileName;
+    SYMBOL_LIB* lib = FindLibrary( fn.GetName() );
 
     // Check if the library already exists.
-    if( !( lib = FindLibrary( fn.GetName() ) ) )
+    if( !lib )
         return false;
 
     // Create a clone of the library pointer in case we need to re-add it
@@ -485,13 +484,20 @@ void SYMBOL_LIBS::SetLibNamesAndPaths( PROJECT* aProject, const wxString& aPaths
 
 const wxString SYMBOL_LIBS::CacheName( const wxString& aFullProjectFilename )
 {
-    wxFileName  name = aFullProjectFilename;
+    wxFileName filename( aFullProjectFilename );
+    wxString   name = filename.GetName();
 
-    name.SetName( name.GetName() + "-cache" );
-    name.SetExt( FILEEXT::LegacySymbolLibFileExtension );
+    filename.SetName( name + "-cache" );
+    filename.SetExt( FILEEXT::LegacySymbolLibFileExtension );
 
-    if( name.FileExists() )
-        return name.GetFullPath();
+    if( filename.FileExists() )
+        return filename.GetFullPath();
+
+    // Try the old (2007) cache name
+    filename.SetName( name + ".cache" );
+
+    if( filename.FileExists() )
+        return filename.GetFullPath();
 
     return wxEmptyString;
 }
@@ -537,6 +543,7 @@ void SYMBOL_LIBS::LoadAllLibraries( PROJECT* aProject, bool aShowProgress )
             // Remember lib_names[i] can contain a '.' in name, so using a wxFileName
             // before adding the extension can create incorrect full filename
             wxString fullname = lib_names[i] + "." + FILEEXT::LegacySymbolLibFileExtension;
+
             // Now the full name is set, we can use a wxFileName.
             wxFileName fn( fullname );
 

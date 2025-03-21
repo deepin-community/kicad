@@ -1,8 +1,8 @@
 (kicad_sch
-	(version 20231120)
+	(version 20240101)
 	(generator "eeschema")
-	(generator_version "8.0")
-	(uuid "5e4124ac-877c-4d6f-a16b-822110ac68a1")
+	(generator_version "8.99")
+	(uuid "9c07925a-2c60-43f0-9bac-88be11f9747d")
 	(paper "A4")
 	(lib_symbols
 		(symbol "Connector:TestPoint"
@@ -205,35 +205,34 @@
 		)
 	)
 	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 82.55 88.9 0)
+		(lib_id "power:GND")
+		(at 74.93 80.01 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "86891145-73fb-48da-aca6-492a4fb35190")
-		(property "Reference" "TP1"
-			(at 85.09 84.328 0)
+		(uuid "082ecf0a-cced-43cc-8685-ec8f3fcd6b19")
+		(property "Reference" "#PWR03"
+			(at 74.93 86.36 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(hide yes)
 			)
 		)
-		(property "Value" "TestPoint"
-			(at 85.09 86.868 0)
+		(property "Value" "GND"
+			(at 74.93 85.09 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
 			)
 		)
 		(property "Footprint" ""
-			(at 87.63 88.9 0)
+			(at 74.93 80.01 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -241,8 +240,8 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" "~"
-			(at 87.63 88.9 0)
+		(property "Datasheet" ""
+			(at 74.93 80.01 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -250,8 +249,8 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "test point"
-			(at 82.55 88.9 0)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 74.93 80.01 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -260,11 +259,145 @@
 			)
 		)
 		(pin "1"
-			(uuid "2bf2be02-e7d9-4e42-8e57-404647a392eb")
+			(uuid "57103d9d-4b3c-48c2-b977-d64a9baf31c7")
 		)
 		(instances
-			(project ""
-				(path "/5e4124ac-877c-4d6f-a16b-822110ac68a1"
+			(project "incremental_test"
+				(path "/9c07925a-2c60-43f0-9bac-88be11f9747d"
+					(reference "#PWR03")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 74.93 80.01 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "490aaa68-2909-49c0-8165-f5e94f598219")
+		(property "Reference" "TP2"
+			(at 77.47 75.4379 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 77.47 77.9779 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 80.01 80.01 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 80.01 80.01 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 74.93 80.01 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "359df8f3-a746-432e-ad86-18319a2f1165")
+		)
+		(instances
+			(project "incremental_test"
+				(path "/9c07925a-2c60-43f0-9bac-88be11f9747d"
+					(reference "TP2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 88.9 80.01 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "605caf70-d9c1-4338-a34f-cf180570b0fc")
+		(property "Reference" "TP1"
+			(at 91.44 75.4379 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 91.44 77.9779 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 93.98 80.01 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 93.98 80.01 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 88.9 80.01 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "394b88b9-3d9c-4d41-a369-21858416767b")
+		)
+		(instances
+			(project "incremental_test"
+				(path "/9c07925a-2c60-43f0-9bac-88be11f9747d"
 					(reference "TP1")
 					(unit 1)
 				)
@@ -273,16 +406,16 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 82.55 88.9 0)
+		(at 88.9 80.01 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "b9e595cb-65cf-4cf6-b2cb-772d3688abf0")
+		(uuid "8b732294-87ef-4a3e-b789-48fe9ba4760a")
 		(property "Reference" "#PWR01"
-			(at 82.55 95.25 0)
+			(at 88.9 86.36 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -291,7 +424,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 82.55 93.98 0)
+			(at 88.9 85.09 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -299,7 +432,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 82.55 88.9 0)
+			(at 88.9 80.01 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -308,7 +441,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 82.55 88.9 0)
+			(at 88.9 80.01 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -317,7 +450,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 82.55 88.9 0)
+			(at 88.9 80.01 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -326,145 +459,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "e434aab5-d764-4bd8-a761-696fb56ace19")
+			(uuid "82cebcce-03b4-4c68-bb1c-0460161b3f56")
 		)
 		(instances
-			(project ""
-				(path "/5e4124ac-877c-4d6f-a16b-822110ac68a1"
+			(project "incremental_test"
+				(path "/9c07925a-2c60-43f0-9bac-88be11f9747d"
 					(reference "#PWR01")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 99.06 88.9 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "d4520136-e0ab-467d-b271-26033a078cb6")
-		(property "Reference" "TP2"
-			(at 101.6 84.328 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "TestPoint"
-			(at 101.6 86.868 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" ""
-			(at 104.14 88.9 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 104.14 88.9 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "test point"
-			(at 99.06 88.9 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "2bf2be02-e7d9-4e42-8e57-404647a392eb")
-		)
-		(instances
-			(project ""
-				(path "/5e4124ac-877c-4d6f-a16b-822110ac68a1"
-					(reference "TP2")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 99.06 88.9 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "fa30dd75-0d78-423e-a304-836357e80e2f")
-		(property "Reference" "#PWR02"
-			(at 99.06 95.25 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Value" "GND"
-			(at 99.06 93.98 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 99.06 88.9 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 99.06 88.9 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 99.06 88.9 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "e434aab5-d764-4bd8-a761-696fb56ace19")
-		)
-		(instances
-			(project ""
-				(path "/5e4124ac-877c-4d6f-a16b-822110ac68a1"
-					(reference "#PWR02")
 					(unit 1)
 				)
 			)

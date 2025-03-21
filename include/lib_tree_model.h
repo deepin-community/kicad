@@ -4,7 +4,7 @@
  * Copyright (C) 2017 Chris Pavlina <pavlina.chris@gmail.com>
  * Copyright (C) 2014 Henner Zeller <h.zeller@acm.org>
  * Copyright (C) 2023 CERN
- * Copyright (C) 2014-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -111,7 +111,7 @@ public:
     LIB_TREE_NODE();
     virtual ~LIB_TREE_NODE() {}
 
-    enum TYPE
+    enum class TYPE
     {
         ROOT,
         LIBRARY,
@@ -147,6 +147,9 @@ public:
     LIB_ID      m_LibId;       // LIB_ID determined by the parent library nickname and alias name.
     int         m_Unit;        // Actual unit, or zero
     bool        m_IsRoot;      // Indicates if the symbol is a root symbol instead of an alias.
+
+    bool        m_IsRecentlyUsedGroup;
+    bool        m_IsAlreadyPlacedGroup;
 };
 
 
@@ -284,6 +287,16 @@ public:
      * Construct an empty library node, add it to the root, and return it.
      */
     LIB_TREE_NODE_LIBRARY& AddLib( wxString const& aName, wxString const& aDesc );
+
+    /**
+     * Remove a library node from the root.
+     */
+    void RemoveGroup( bool aRecentlyUsedGroup, bool aAlreadyPlacedGroup );
+
+    /**
+     * Clear the tree
+     */
+    void Clear();
 
     void UpdateScore( EDA_COMBINED_MATCHER* aMatcher, const wxString& aLib,
                       std::function<bool( LIB_TREE_NODE& aNode )>* aFilter ) override;

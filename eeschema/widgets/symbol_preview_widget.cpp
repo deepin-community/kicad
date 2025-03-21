@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,6 +23,7 @@
 #include <gal/graphics_abstraction_layer.h>
 #include <math/vector2wx.h>
 #include <symbol_lib_table.h>
+#include <lib_symbol.h>
 #include <sch_preview_panel.h>
 #include <pgm_base.h>
 #include <sch_painter.h>
@@ -44,8 +45,9 @@ SYMBOL_PREVIEW_WIDGET::SYMBOL_PREVIEW_WIDGET( wxWindow* aParent, KIWAY* aKiway, 
         m_statusSizer( nullptr ),
         m_previewItem( nullptr )
 {
-    auto common_settings = Pgm().GetCommonSettings();
-    auto app_settings = Pgm().GetSettingsManager().GetAppSettings<EESCHEMA_SETTINGS>();
+    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+    COMMON_SETTINGS*   common_settings = Pgm().GetCommonSettings();
+    EESCHEMA_SETTINGS* app_settings = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
 
     m_galDisplayOptions.ReadConfig( *common_settings, app_settings->m_Window, this );
     m_galDisplayOptions.m_forceDisplayCursor = false;
@@ -74,7 +76,7 @@ SYMBOL_PREVIEW_WIDGET::SYMBOL_PREVIEW_WIDGET( wxWindow* aParent, KIWAY* aKiway, 
     // Early initialization of the canvas background color,
     // before any OnPaint event is fired for the canvas using a wrong bg color
     KIGFX::VIEW* view = m_preview->GetView();
-    auto settings = static_cast<KIGFX::SCH_RENDER_SETTINGS*>( view->GetPainter()->GetSettings() );
+    auto settings = static_cast<SCH_RENDER_SETTINGS*>( view->GetPainter()->GetSettings() );
 
     if( auto* theme = Pgm().GetSettingsManager().GetColorSettings( app_settings->m_ColorTheme ) )
         settings->LoadColors( theme );
@@ -86,7 +88,10 @@ SYMBOL_PREVIEW_WIDGET::SYMBOL_PREVIEW_WIDGET( wxWindow* aParent, KIWAY* aKiway, 
 
     settings->m_ShowPinsElectricalType = app_settings->m_LibViewPanel.show_pin_electrical_type;
     settings->m_ShowPinNumbers = app_settings->m_LibViewPanel.show_pin_numbers;
-    settings->m_ShowHiddenLibFields = false;
+    settings->m_ShowHiddenPins = false;
+    settings->m_ShowHiddenFields = false;
+    settings->m_ShowPinAltIcons = false;
+    settings->m_ShowPinsElectricalType = false;
 
     m_outerSizer = new wxBoxSizer( wxVERTICAL );
 
@@ -187,7 +192,7 @@ void SYMBOL_PREVIEW_WIDGET::fitOnDrawArea()
 void SYMBOL_PREVIEW_WIDGET::DisplaySymbol( const LIB_ID& aSymbolID, int aUnit, int aBodyStyle )
 {
     KIGFX::VIEW* view = m_preview->GetView();
-    auto settings = static_cast<KIGFX::SCH_RENDER_SETTINGS*>( view->GetPainter()->GetSettings() );
+    auto settings = static_cast<SCH_RENDER_SETTINGS*>( view->GetPainter()->GetSettings() );
     std::unique_ptr< LIB_SYMBOL > symbol;
 
     try
@@ -217,18 +222,6 @@ void SYMBOL_PREVIEW_WIDGET::DisplaySymbol( const LIB_ID& aSymbolID, int aUnit, i
         // This will flatten derived parts so that the correct final symbol can be shown.
         m_previewItem = symbol.release();
 
-        // Hide fields that were added automatically by the library (for example, when using
-        // database libraries) as they don't have a valid position yet, and we don't support
-        // autoplacing fields on library symbols yet.
-        std::vector<LIB_FIELD*> previewFields;
-        m_previewItem->GetFields( previewFields );
-
-        for( LIB_FIELD* field : previewFields )
-        {
-            if( field->IsAutoAdded() )
-                field->SetVisible( false );
-        }
-
         // If unit isn't specified for a multi-unit part, pick the first.  (Otherwise we'll
         // draw all of them.)
         settings->m_ShowUnit = ( m_previewItem->IsMulti() && aUnit == 0 ) ? 1 : aUnit;
@@ -236,6 +229,15 @@ void SYMBOL_PREVIEW_WIDGET::DisplaySymbol( const LIB_ID& aSymbolID, int aUnit, i
         // For symbols having a De Morgan body style, use the first style
         settings->m_ShowBodyStyle =
                 ( m_previewItem->HasAlternateBodyStyle() && aBodyStyle == 0 ) ? 1 : aBodyStyle;
+
+        m_previewItem->SetPreviewUnit( settings->m_ShowUnit );
+        m_previewItem->SetPreviewBodyStyle( settings->m_ShowBodyStyle );
+
+        SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+        EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
+
+        if( cfg->m_AutoplaceFields.enable )
+            m_previewItem->AutoplaceFields( nullptr, AUTOPLACE_AUTO );
 
         view->Add( m_previewItem );
 
@@ -277,8 +279,7 @@ void SYMBOL_PREVIEW_WIDGET::DisplayPart( LIB_SYMBOL* aSymbol, int aUnit, int aBo
         m_previewItem = new LIB_SYMBOL( *aSymbol );
 
         // For symbols having a De Morgan body style, use the first style
-        auto settings =
-                static_cast<KIGFX::SCH_RENDER_SETTINGS*>( view->GetPainter()->GetSettings() );
+        auto settings = static_cast<SCH_RENDER_SETTINGS*>( view->GetPainter()->GetSettings() );
 
         // If unit isn't specified for a multi-unit part, pick the first.  (Otherwise we'll
         // draw all of them.)
@@ -286,6 +287,15 @@ void SYMBOL_PREVIEW_WIDGET::DisplayPart( LIB_SYMBOL* aSymbol, int aUnit, int aBo
 
         settings->m_ShowBodyStyle =
                 ( m_previewItem->HasAlternateBodyStyle() && aBodyStyle == 0 ) ? 1 : aBodyStyle;
+
+        m_previewItem->SetPreviewUnit( settings->m_ShowUnit );
+        m_previewItem->SetPreviewBodyStyle( settings->m_ShowBodyStyle );
+
+        SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+        EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
+
+        if( cfg->m_AutoplaceFields.enable )
+            m_previewItem->AutoplaceFields( nullptr, AUTOPLACE_AUTO );
 
         view->Add( m_previewItem );
 

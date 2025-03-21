@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015-2019 CERN
- * Copyright (C) 2015-2019 KiCad Developers, see CHANGELOG.txt for contributors.
+ * Copyright The KiCad Developers, see CHANGELOG.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -26,6 +26,7 @@
 #include <bitmaps.h>
 #include <tool/conditional_menu.h>
 #include <tool/action_menu.h>
+#include <tool/selection.h>
 #include <kiface_base.h>
 #include <widgets/ui_common.h>
 
@@ -151,43 +152,43 @@ void CONDITIONAL_MENU::Evaluate( const SELECTION& aSelection )
 
         switch( entry.Type() )
         {
-            case ENTRY::ACTION:
-                Add( *entry.Action(), entry.IsCheckmarkEntry() );
-                menu_count++;
-                break;
+        case ENTRY::ACTION:
+            Add( *entry.Action(), entry.IsCheckmarkEntry() );
+            menu_count++;
+            break;
 
-            case ENTRY::MENU:
-                entry.Menu()->UpdateTitle();
-                Add( entry.Menu()->Clone() );
-                menu_count++;
-                break;
+        case ENTRY::MENU:
+            entry.Menu()->UpdateTitle();
+            Add( entry.Menu()->Clone() );
+            menu_count++;
+            break;
 
-            case ENTRY::WXITEM:
-                menuItem = new wxMenuItem( this,
-                                           entry.wxItem()->GetId(),
-                                           wxGetTranslation( entry.wxItem()->GetItemLabel() ),
-                                           wxGetTranslation( entry.wxItem()->GetHelp() ),
-                                           entry.wxItem()->GetKind() );
+        case ENTRY::WXITEM:
+            menuItem = new wxMenuItem( this,
+                                       entry.wxItem()->GetId(),
+                                       wxGetTranslation( entry.wxItem()->GetItemLabel() ),
+                                       wxGetTranslation( entry.wxItem()->GetHelp() ),
+                                       entry.wxItem()->GetKind() );
 
-                if( !!entry.GetIcon() )
-                    KIUI::AddBitmapToMenuItem( menuItem, KiBitmap( entry.GetIcon() ) );
+            if( !!entry.GetIcon() )
+                KIUI::AddBitmapToMenuItem( menuItem, KiBitmap( entry.GetIcon() ) );
 
-                // the wxMenuItem must be append only after the bitmap is set:
-                Append( menuItem );
+            // the wxMenuItem must be append only after the bitmap is set:
+            Append( menuItem );
 
-                menu_count++;
-                break;
+            menu_count++;
+            break;
 
-            case ENTRY::SEPARATOR:
-                if( menu_count )
-                    AppendSeparator();
+        case ENTRY::SEPARATOR:
+            if( menu_count )
+                AppendSeparator();
 
-                menu_count = 0;
-                break;
+            menu_count = 0;
+            break;
 
-            default:
-                wxASSERT( false );
-                break;
+        default:
+            wxASSERT( false );
+            break;
         }
     }
 
@@ -230,9 +231,11 @@ CONDITIONAL_MENU::ENTRY::ENTRY( const ENTRY& aEntry )
     case ACTION:
         m_data.action = aEntry.m_data.action;
         break;
+
     case MENU:
         m_data.menu = aEntry.m_data.menu;
         break;
+
     case WXITEM:
         // We own the wxItem, so we need to make a new one for the new object
         m_data.wxItem = new wxMenuItem( nullptr,
@@ -241,13 +244,16 @@ CONDITIONAL_MENU::ENTRY::ENTRY( const ENTRY& aEntry )
                                         aEntry.m_data.wxItem->GetHelp(),
                                         aEntry.m_data.wxItem->GetKind() );
         break;
+
     case SEPARATOR:
         break; //No data to copy
     }
+
     m_condition        = aEntry.m_condition;
     m_order            = aEntry.m_order;
     m_isCheckmarkEntry = aEntry.m_isCheckmarkEntry;
 }
+
 
 CONDITIONAL_MENU::ENTRY::~ENTRY()
 {

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 1992-2013 Jean-Pierre Charras <jp.charras at wanadoo.fr>.
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  *
  * This program is free software; you can redistribute it and/or
@@ -42,9 +42,7 @@
 using namespace DRAWINGSHEET_T;
 
 /**
- * DRAWING_SHEET_PARSER
- * holds data and functions pertinent to parsing a S-expression file
- * for a DS_DATA_MODEL.
+ * Hold data and functions pertinent to parsing a S-expression file for a #DS_DATA_MODEL.
  */
 class DRAWING_SHEET_PARSER : public DRAWING_SHEET_LEXER
 {
@@ -296,6 +294,7 @@ void DRAWING_SHEET_PARSER::Parse( DS_DATA_MODEL* aLayout )
     }
 }
 
+
 void DRAWING_SHEET_PARSER::parseHeader( T aHeaderType )
 {
     // The older files had no versioning and their first token after the initial left parenthesis
@@ -327,6 +326,7 @@ void DRAWING_SHEET_PARSER::parseHeader( T aHeaderType )
         m_requiredVersion = 0;
     }
 }
+
 
 void DRAWING_SHEET_PARSER::parseSetup( DS_DATA_MODEL* aLayout )
 {
@@ -453,6 +453,7 @@ void DRAWING_SHEET_PARSER::parsePolygon( DS_DATA_ITEM_POLYGONS * aItem )
     aItem->SetBoundingBox();
 }
 
+
 void DRAWING_SHEET_PARSER::parsePolyOutline( DS_DATA_ITEM_POLYGONS * aItem )
 {
     VECTOR2D corner;
@@ -574,6 +575,7 @@ void DRAWING_SHEET_PARSER::parseBitmap( DS_DATA_ITEM_BITMAP * aItem )
     }
 }
 
+
 void DRAWING_SHEET_PARSER::readPngdata( DS_DATA_ITEM_BITMAP * aItem )
 {
     std::string tmp;
@@ -603,8 +605,7 @@ void DRAWING_SHEET_PARSER::readPngdata( DS_DATA_ITEM_BITMAP * aItem )
     wxString msg;
     STRING_LINE_READER str_reader( tmp, wxT("Png kicad_wks data") );
 
-    if( ! aItem->m_ImageBitmap->LoadLegacyData( str_reader, msg ) )
-        wxLogMessage(msg);
+    aItem->m_ImageBitmap->LoadLegacyData( str_reader, msg );
 }
 
 
@@ -616,7 +617,7 @@ void DRAWING_SHEET_PARSER::readOption( DS_DATA_ITEM * aItem )
         {
         case T_page1only:  aItem->SetPage1Option( FIRST_PAGE_ONLY );  break;
         case T_notonpage1: aItem->SetPage1Option( SUBSEQUENT_PAGES ); break;
-        default:           Unexpected( CurText() ); break;
+        default:           Unexpected( CurText() );                   break;
         }
     }
 }
@@ -627,7 +628,9 @@ void DRAWING_SHEET_PARSER::parseGraphic( DS_DATA_ITEM * aItem )
     for( T token = NextTok(); token != T_RIGHT && token != EOF; token = NextTok() )
     {
         if( token == T_LEFT )
+        {
             token = NextTok();
+        }
         else
         {
             // If another token than T_LEFT is read here, this is an error
@@ -791,7 +794,7 @@ void DRAWING_SHEET_PARSER::parseText( DS_DATA_ITEM_TEXT* aItem )
                     aItem->m_TextColor.r = parseInt( 0, 255 ) / 255.0;
                     aItem->m_TextColor.g = parseInt( 0, 255 ) / 255.0;
                     aItem->m_TextColor.b = parseInt( 0, 255 ) / 255.0;
-                    aItem->m_TextColor.a = Clamp( parseDouble(), 0.0, 1.0 );
+                    aItem->m_TextColor.a = std::clamp( parseDouble(), 0.0, 1.0 );
                     NeedRIGHT();
                     break;
 
@@ -857,7 +860,7 @@ void DRAWING_SHEET_PARSER::parseText( DS_DATA_ITEM_TEXT* aItem )
     }
 }
 
-// parse an expression like " 25 1 ltcorner)"
+
 void DRAWING_SHEET_PARSER::parseCoordinate( POINT_COORD& aCoord)
 {
     aCoord.m_Pos.x = parseDouble();
@@ -876,6 +879,7 @@ void DRAWING_SHEET_PARSER::parseCoordinate( POINT_COORD& aCoord)
     }
 }
 
+
 int DRAWING_SHEET_PARSER::parseInt()
 {
     T token = NextTok();
@@ -885,6 +889,7 @@ int DRAWING_SHEET_PARSER::parseInt()
 
     return atoi( CurText() );
 }
+
 
 int DRAWING_SHEET_PARSER::parseInt( int aMin, int aMax )
 {
@@ -910,23 +915,27 @@ double DRAWING_SHEET_PARSER::parseDouble()
     return DSNLEXER::parseDouble();
 }
 
+
 // defaultDrawingSheet is the default drawing sheet using the S expr.
 extern const char defaultDrawingSheet[];
+
 
 void DS_DATA_MODEL::SetDefaultLayout()
 {
     SetPageLayout( defaultDrawingSheet, false, wxT( "default page" ) );
 }
 
-// Returns defaultDrawingSheet as a string;
+
 wxString DS_DATA_MODEL::DefaultLayout()
 {
     return wxString( defaultDrawingSheet );
 }
 
+
 // emptyDrawingSheet is a "empty" drawing sheet using the S expr.
 // there is a 0 length line to fool something somewhere.
 extern const char emptyDrawingSheet[];
+
 
 void DS_DATA_MODEL::SetEmptyLayout()
 {
@@ -951,44 +960,41 @@ void DS_DATA_MODEL::SetPageLayout( const char* aPageLayout, bool Append, const w
     {
         parser.Parse( this );
     }
-    catch( const IO_ERROR& ioe )
+    catch( ... )
     {
-        wxLogMessage( ioe.What() );
-    }
-    catch( const std::bad_alloc& )
-    {
-        wxLogMessage( wxS( "Memory exhaustion reading drawing sheet" ) );
+        // best efforts
     }
 }
 
 
-bool DS_DATA_MODEL::LoadDrawingSheet( const wxString& aFullFileName, bool Append )
+bool DS_DATA_MODEL::LoadDrawingSheet( const wxString& aFullFileName, wxString* aMsg, bool aAppend )
 {
-    wxString fullFileName = aFullFileName;
-
-    if( !Append )
+    if( !aAppend )
     {
-        if( fullFileName.IsEmpty() )
+        if( aFullFileName.IsEmpty() )
         {
             SetDefaultLayout();
             return true; // we assume its fine / default init
         }
 
-        if( !wxFileExists( fullFileName ) )
+        if( !wxFileExists( aFullFileName ) )
         {
-            wxLogMessage( _( "Drawing sheet '%s' not found." ), fullFileName );
+            if( aMsg )
+                *aMsg = _( "File not found." );
+
             SetDefaultLayout();
             return false;
         }
     }
 
-    wxFFile wksFile( fullFileName, wxS( "rb" ) );
+    wxFFile wksFile( aFullFileName, wxS( "rb" ) );
 
     if( ! wksFile.IsOpened() )
     {
-        wxLogMessage( _( "Drawing sheet '%s' could not be opened." ), fullFileName );
+        if( aMsg )
+            *aMsg = _( "File could not be opened." );
 
-        if( !Append )
+        if( !aAppend )
             SetDefaultLayout();
 
         return false;
@@ -999,17 +1005,19 @@ bool DS_DATA_MODEL::LoadDrawingSheet( const wxString& aFullFileName, bool Append
 
     if( wksFile.Read( buffer.get(), filelen ) != filelen )
     {
-        wxLogMessage( _( "Drawing sheet '%s' was not fully read." ), fullFileName.GetData() );
+        if( aMsg )
+            *aMsg = _( "Drawing sheet was not fully read." );
+
         return false;
     }
     else
     {
         buffer[filelen]=0;
 
-        if( ! Append )
+        if( ! aAppend )
             ClearList();
 
-        DRAWING_SHEET_PARSER parser( buffer.get(), fullFileName );
+        DRAWING_SHEET_PARSER parser( buffer.get(), aFullFileName );
 
         try
         {
@@ -1017,12 +1025,16 @@ bool DS_DATA_MODEL::LoadDrawingSheet( const wxString& aFullFileName, bool Append
         }
         catch( const IO_ERROR& ioe )
         {
-            wxLogMessage( ioe.What() );
+            if( aMsg )
+                *aMsg = ioe.What();
+
             return false;
         }
         catch( const std::bad_alloc& )
         {
-            wxLogMessage( wxS( "Memory exhaustion reading drawing sheet" ) );
+            if( aMsg )
+                *aMsg = _( "Ran out of memory." );
+
             return false;
         }
     }

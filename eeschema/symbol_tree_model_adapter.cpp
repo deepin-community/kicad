@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2017 Chris Pavlina <pavlina.chris@gmail.com>
  * Copyright (C) 2014 Henner Zeller <h.zeller@acm.org>
- * Copyright (C) 2014-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,6 +19,8 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "symbol_tree_model_adapter.h"
+
 #include <wx/log.h>
 #include <wx/tokenzr.h>
 #include <wx/window.h>
@@ -27,14 +29,11 @@
 #include <project/project_file.h>
 #include <widgets/wx_progress_reporters.h>
 #include <dialogs/html_message_box.h>
-#include <eda_pattern_match.h>
 #include <generate_alias_info.h>
 #include <sch_base_frame.h>
 #include <locale_io.h>
-#include <lib_symbol.h>
 #include <symbol_async_loader.h>
 #include <symbol_lib_table.h>
-#include <symbol_tree_model_adapter.h>
 #include <string_utils.h>
 
 bool SYMBOL_TREE_MODEL_ADAPTER::m_show_progress = true;
@@ -43,15 +42,16 @@ bool SYMBOL_TREE_MODEL_ADAPTER::m_show_progress = true;
 
 
 wxObjectDataPtr<LIB_TREE_MODEL_ADAPTER>
-SYMBOL_TREE_MODEL_ADAPTER::Create( EDA_BASE_FRAME* aParent, LIB_TABLE* aLibs )
+SYMBOL_TREE_MODEL_ADAPTER::Create( SCH_BASE_FRAME* aParent, LIB_TABLE* aLibs )
 {
     auto* adapter = new SYMBOL_TREE_MODEL_ADAPTER( aParent, aLibs );
     return wxObjectDataPtr<LIB_TREE_MODEL_ADAPTER>( adapter );
 }
 
 
-SYMBOL_TREE_MODEL_ADAPTER::SYMBOL_TREE_MODEL_ADAPTER( EDA_BASE_FRAME* aParent, LIB_TABLE* aLibs ) :
-        LIB_TREE_MODEL_ADAPTER( aParent, "pinned_symbol_libs" ),
+SYMBOL_TREE_MODEL_ADAPTER::SYMBOL_TREE_MODEL_ADAPTER( SCH_BASE_FRAME* aParent, LIB_TABLE* aLibs ) :
+        LIB_TREE_MODEL_ADAPTER( aParent, "pinned_symbol_libs",
+                                aParent->GetViewerSettingsBase()->m_LibTree ),
         m_libs( (SYMBOL_LIB_TABLE*) aLibs )
 {
     // Symbols may have different value from name
@@ -158,10 +158,14 @@ bool SYMBOL_TREE_MODEL_ADAPTER::AddLibraries( const std::vector<wxString>& aNick
                     wxString suffix = lib.IsEmpty() ? wxString( wxT( "" ) )
                                                     : wxString::Format( wxT( " - %s" ), lib );
                     wxString name = wxString::Format( wxT( "%s%s" ), libNickname, suffix );
-                    wxString desc;
+                    wxString desc = row->GetSubLibraryDescription( lib );
 
                     if( !parentDesc.IsEmpty() )
-                        desc = wxString::Format( wxT( "%s (%s)" ), parentDesc, lib );
+                    {
+                        desc = wxString::Format( wxT( "%s (%s)" ),
+                                                 parentDesc,
+                                                 desc.IsEmpty() ? lib : desc );
+                    }
 
                     UTF8 utf8Lib( lib );
 

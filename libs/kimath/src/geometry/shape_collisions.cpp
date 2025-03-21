@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2015-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -471,7 +471,7 @@ static inline bool Collide( const SHAPE_RECT& aA, const SHAPE_SEGMENT& aB, int a
 
     bool rv = aA.Collide( aB.GetSeg(), aClearance + aB.GetWidth() / 2, aActual, aLocation );
 
-    if( aActual )
+    if( rv && aActual )
         *aActual = std::max( 0, *aActual - aB.GetWidth() / 2 );
 
     return rv;
@@ -487,7 +487,7 @@ static inline bool Collide( const SHAPE_SEGMENT& aA, const SHAPE_SEGMENT& aB, in
 
     bool rv = aA.Collide( aB.GetSeg(), aClearance + aB.GetWidth() / 2, aActual, aLocation );
 
-    if( aActual )
+    if( rv && aActual )
         *aActual = std::max( 0, *aActual - aB.GetWidth() / 2 );
 
     return rv;
@@ -503,7 +503,7 @@ static inline bool Collide( const SHAPE_LINE_CHAIN_BASE& aA, const SHAPE_SEGMENT
 
     bool rv = aA.Collide( aB.GetSeg(), aClearance + aB.GetWidth() / 2, aActual, aLocation );
 
-    if( aActual )
+    if( rv && aActual )
         *aActual = std::max( 0, *aActual - aB.GetWidth() / 2 );
 
     return rv;
@@ -530,32 +530,82 @@ static inline bool Collide( const SHAPE_RECT& aA, const SHAPE_RECT& aB, int aCle
 static inline bool Collide( const SHAPE_ARC& aA, const SHAPE_RECT& aB, int aClearance,
                             int* aActual, VECTOR2I* aLocation, VECTOR2I* aMTV )
 {
-    wxASSERT_MSG( !aMTV, wxString::Format( wxT( "MTV not implemented for %s : %s collisions" ),
-                                           aA.TypeName(),
-                                           aB.TypeName() ) );
+    if( aA.IsEffectiveLine() )
+    {
+        SHAPE_SEGMENT tmp( aA.GetP0(), aA.GetP1(), aA.GetWidth() );
+        bool retval = Collide( aB, tmp, aClearance, aActual, aLocation, aMTV );
 
-    const SHAPE_LINE_CHAIN lc( aA );
+        if( retval && aMTV )
+            *aMTV = - *aMTV;
 
-    bool rv = Collide( lc, aB.Outline(), aClearance + aA.GetWidth() / 2, aActual, aLocation, aMTV );
+        return retval;
+    }
 
-    if( rv && aActual )
-        *aActual = std::max( 0, *aActual - aA.GetWidth() / 2 );
+    VECTOR2I ptA, ptB;
+    int64_t  dist_sq = std::numeric_limits<int64_t>::max();
+    aA.NearestPoints( aB, ptA, ptB, dist_sq );
+    int half_width = ( aA.GetWidth() + 1 ) / 2;
+    int min_dist = aClearance + half_width;
 
-    return rv;
+    if( dist_sq < SEG::Square( min_dist ) )
+    {
+        if( aLocation )
+            *aLocation = ( ptA + ptB ) / 2;
+
+        if( aActual )
+            *aActual = std::max( 0, KiROUND( std::sqrt( dist_sq ) - half_width ) );
+
+        if( aMTV )
+        {
+            const VECTOR2I delta = ptB - ptA;
+            *aMTV = delta.Resize( min_dist - std::sqrt( dist_sq ) + 3 );
+        }
+
+        return true;
+    }
+
+    return false;
 }
 
 
 static inline bool Collide( const SHAPE_ARC& aA, const SHAPE_CIRCLE& aB, int aClearance,
                             int* aActual, VECTOR2I* aLocation, VECTOR2I* aMTV )
 {
-    const SHAPE_LINE_CHAIN lc( aA );
+    if( aA.IsEffectiveLine() )
+    {
+        SHAPE_SEGMENT tmp( aA.GetP0(), aA.GetP1(), aA.GetWidth() );
+        bool retval = Collide( aB, tmp, aClearance, aActual, aLocation, aMTV );
 
-    bool rv = Collide( aB, lc, aClearance + aA.GetWidth() / 2, aActual, aLocation, aMTV );
+        if( retval && aMTV )
+            *aMTV = - *aMTV;
 
-    if( rv && aActual )
-        *aActual = std::max( 0, *aActual - aA.GetWidth() / 2 );
+        return retval;
+    }
 
-    return rv;
+    VECTOR2I ptA, ptB;
+    int64_t  dist_sq = std::numeric_limits<int64_t>::max();
+    aA.NearestPoints( aB, ptA, ptB, dist_sq );
+    int half_width = ( aA.GetWidth() + 1 ) / 2;
+    int min_dist = aClearance + half_width;
+
+    if( dist_sq < SEG::Square( min_dist ) )
+    {
+        if( aLocation )
+            *aLocation = ( ptA + ptB ) / 2;
+
+        if( aActual )
+            *aActual = std::max( 0, KiROUND( std::sqrt( dist_sq ) - half_width ) );
+
+        if( aMTV )
+        {
+            const VECTOR2I delta = ptB - ptA;
+            *aMTV = delta.Resize( min_dist - std::sqrt( dist_sq ) + 3 );
+        }
+
+        return true;
+    }
+
+    return false;
 }
 
 
@@ -651,6 +701,13 @@ static inline bool Collide( const SHAPE_ARC& aA, const SHAPE_SEGMENT& aB, int aC
                                            aA.TypeName(),
                                            aB.TypeName() ) );
 
+    // If the arc radius is too large, it is effectively a line segment
+    if( aA.IsEffectiveLine() )
+    {
+        SHAPE_SEGMENT tmp( aA.GetP0(), aA.GetP1(), aA.GetWidth() );
+        return Collide( tmp, aB, aClearance, aActual, aLocation, aMTV );
+    }
+
     bool rv = aA.Collide( aB.GetSeg(), aClearance + aB.GetWidth() / 2, aActual, aLocation );
 
     if( rv && aActual )
@@ -663,6 +720,13 @@ static inline bool Collide( const SHAPE_ARC& aA, const SHAPE_SEGMENT& aB, int aC
 static inline bool Collide( const SHAPE_ARC& aA, const SHAPE_LINE_CHAIN_BASE& aB, int aClearance,
                             int* aActual, VECTOR2I* aLocation, VECTOR2I* aMTV )
 {
+    // If the arc radius is too large, it is effectively a line segment
+    if( aA.IsEffectiveLine() )
+    {
+        SHAPE_SEGMENT tmp( aA.GetP0(), aA.GetP1(), aA.GetWidth() );
+        return Collide( aB, tmp, aClearance, aActual, aLocation, aMTV );
+    }
+
     wxASSERT_MSG( !aMTV, wxString::Format( wxT( "MTV not implemented for %s : %s collisions" ),
                                            aA.TypeName(),
                                            aB.TypeName() ) );
@@ -720,88 +784,47 @@ static inline bool Collide( const SHAPE_ARC& aA, const SHAPE_LINE_CHAIN_BASE& aB
 static inline bool Collide( const SHAPE_ARC& aA, const SHAPE_ARC& aB, int aClearance,
                             int* aActual, VECTOR2I* aLocation, VECTOR2I* aMTV )
 {
-    wxASSERT_MSG( !aMTV, wxString::Format( wxT( "MTV not implemented for %s : %s collisions" ),
-                                           aA.TypeName(),
-                                           aB.TypeName() ) );
-
-    SEG mediatrix( aA.GetCenter(), aB.GetCenter() );
-
-    std::vector<VECTOR2I> ips;
-
-    // Basic case - arcs intersect
-    if( aA.Intersect( aB, &ips ) > 0 )
+    if( aA.IsEffectiveLine() )
     {
-        if( aActual )
-            *aActual = 0;
+        SHAPE_SEGMENT tmp( aA.GetP0(), aA.GetP1(), aA.GetWidth() );
+        bool retval = Collide( aB, tmp, aClearance, aActual, aLocation, aMTV );
 
+        if( retval && aMTV )
+            *aMTV = - *aMTV;
+
+        return retval;
+    }
+
+    if( aB.IsEffectiveLine() )
+    {
+        SHAPE_SEGMENT tmp( aB.GetP0(), aB.GetP1(), aB.GetWidth() );
+        return Collide( aA, tmp, aClearance, aActual, aLocation, aMTV );
+    }
+
+    VECTOR2I ptA, ptB;
+    int64_t  dist_sq = std::numeric_limits<int64_t>::max();
+    aA.NearestPoints( aB, ptA, ptB, dist_sq );
+    int dual_width = ( aA.GetWidth() + aB.GetWidth() ) / 2;
+    int min_dist = aClearance + dual_width;
+
+    if( dist_sq < SEG::Square( min_dist ) )
+    {
         if( aLocation )
-            *aLocation = ips[0]; // Pick the first intersection point
+            *aLocation = ( ptA + ptB ) / 2;
+
+        if( aActual )
+            *aActual = std::max( 0, KiROUND( std::sqrt( dist_sq ) - dual_width ) );
+
+        if( aMTV )
+        {
+            const VECTOR2I delta = ptB - ptA;
+            *aMTV = delta.Resize( min_dist - std::sqrt( dist_sq ) + 3 );
+        }
 
         return true;
     }
 
-    // Arcs don't intersect, build a list of points to check
-    std::vector<VECTOR2I> ptsA;
-    std::vector<VECTOR2I> ptsB;
-
-    bool cocentered = ( mediatrix.A == mediatrix.B );
-
-    // 1: Interior points of both arcs, which are on the line segment between the two centres
-    if( !cocentered )
-    {
-        aA.IntersectLine( mediatrix, &ptsA );
-        aB.IntersectLine( mediatrix, &ptsB );
-    }
-
-    // 2: Check arc end points
-    ptsA.push_back( aA.GetP0() );
-    ptsA.push_back( aA.GetP1() );
-    ptsB.push_back( aB.GetP0() );
-    ptsB.push_back( aB.GetP1() );
-
-    // 3: Endpoint of one and "projected" point on the other, which is on the
-    // line segment through that endpoint and the centre of the other arc
-    aA.IntersectLine( SEG( aB.GetP0(), aA.GetCenter() ), &ptsA );
-    aA.IntersectLine( SEG( aB.GetP1(), aA.GetCenter() ), &ptsA );
-
-    aB.IntersectLine( SEG( aA.GetP0(), aB.GetCenter() ), &ptsB );
-    aB.IntersectLine( SEG( aA.GetP1(), aB.GetCenter() ), &ptsB );
-
-    double minDist = std::numeric_limits<double>::max();
-    SEG    minDistSeg;
-    bool   rv = false;
-
-    int widths = ( aA.GetWidth() / 2 ) + ( aB.GetWidth() / 2 );
-
-    // @todo performance could be improved by only checking certain points (e.g only check end
-    // points against other end points or their corresponding "projected" points)
-    for( const VECTOR2I& ptA : ptsA )
-    {
-        for( const VECTOR2I& ptB : ptsB )
-        {
-            SEG candidateMinDist( ptA, ptB );
-            int dist = candidateMinDist.Length() - widths;
-
-            if( dist < aClearance )
-            {
-                if( !rv || dist < minDist )
-                {
-                    minDist = dist;
-                    minDistSeg = candidateMinDist;
-                }
-
-                rv = true;
-            }
-        }
-    }
-
-    if( rv && aActual )
-        *aActual = std::max( 0, minDistSeg.Length() - widths );
-
-    if( rv && aLocation )
-        *aLocation = minDistSeg.Center();
-
-    return rv;
+    return false;
 }
 
 

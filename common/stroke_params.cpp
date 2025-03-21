@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,16 +16,20 @@
  * You should have received a copy of the GNU General Public License along
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <macros.h>
+
+#include "stroke_params.h"
+#include "stroke_params_parser.h"
+
 #include <base_units.h>
 #include <charconv>
 #include <string_utils.h>
 #include <render_settings.h>
+#include <geometry/geometry_utils.h>
 #include <geometry/shape.h>
+#include <geometry/shape_rect.h>
 #include <geometry/shape_segment.h>
 #include <geometry/shape_simple.h>
-#include <geometry/geometry_utils.h>
-#include <stroke_params.h>
+#include <macros.h>
 #include <trigo.h>
 #include <widgets/msgpanel.h>
 
@@ -43,7 +47,8 @@ const std::map<LINE_STYLE, struct LINE_STYLE_DESC> lineTypeNames = {
 
 void STROKE_PARAMS::Stroke( const SHAPE* aShape, LINE_STYLE aLineStyle, int aWidth,
                             const KIGFX::RENDER_SETTINGS* aRenderSettings,
-                            std::function<void( const VECTOR2I& a, const VECTOR2I& b )> aStroker )
+                            const std::function<void( const VECTOR2I& a,
+                                                      const VECTOR2I& b )>& aStroker )
 {
     double strokes[6] = { aWidth * 1.0, aWidth * 1.0, aWidth * 1.0, aWidth * 1.0, aWidth * 1.0,
                           aWidth * 1.0 };
@@ -83,18 +88,33 @@ void STROKE_PARAMS::Stroke( const SHAPE* aShape, LINE_STYLE aLineStyle, int aWid
 
     switch( aShape->Type() )
     {
+    case SH_RECT:
+    {
+        SHAPE_LINE_CHAIN outline = static_cast<const SHAPE_RECT*>( aShape )->Outline();
+
+        for( int ii = 0; ii < outline.SegmentCount(); ++ii )
+        {
+            SEG seg = outline.GetSegment( ii );
+            SHAPE_SEGMENT line( seg.A, seg.B );
+            STROKE_PARAMS::Stroke( &line, aLineStyle, aWidth, aRenderSettings, aStroker );
+        }
+
+        break;
+    }
+
     case SH_SIMPLE:
     {
         const SHAPE_SIMPLE* poly = static_cast<const SHAPE_SIMPLE*>( aShape );
 
         for( size_t ii = 0; ii < poly->GetSegmentCount(); ++ii )
         {
-            SEG seg = poly->GetSegment( ii );
+            SEG seg = poly->GetSegment( (int) ii );
             SHAPE_SEGMENT line( seg.A, seg.B );
             STROKE_PARAMS::Stroke( &line, aLineStyle, aWidth, aRenderSettings, aStroker );
         }
-    }
+
         break;
+    }
 
     case SH_SEGMENT:
     {
@@ -102,7 +122,7 @@ void STROKE_PARAMS::Stroke( const SHAPE* aShape, LINE_STYLE aLineStyle, int aWid
 
         VECTOR2D start = line->GetSeg().A;
         VECTOR2D end = line->GetSeg().B;
-        BOX2I    clip( start, VECTOR2I( end.x - start.x, end.y - start.y ) );
+        BOX2I    clip( start, VECTOR2I( KiROUND( end.x - start.x ), KiROUND( end.y - start.y ) ) );
         clip.Normalize();
 
         double theta = atan2( end.y - start.y, end.x - start.x );
@@ -125,8 +145,9 @@ void STROKE_PARAMS::Stroke( const SHAPE* aShape, LINE_STYLE aLineStyle, int aWid
 
             start = next;
         }
-    }
+
         break;
+    }
 
     case SH_ARC:
     {
@@ -153,6 +174,8 @@ void STROKE_PARAMS::Stroke( const SHAPE* aShape, LINE_STYLE aLineStyle, int aWid
 
         wxASSERT( startAngle < arcEndAngle );
 
+        EDA_ANGLE angleIncrementInRadians = EDA_ANGLE( M_PI / ANGLE_360 );
+
         for( size_t i = 0; i < 10000 && startAngle < arcEndAngle; ++i )
         {
             EDA_ANGLE theta = ANGLE_360 * strokes[ i % wrapAround ] / C;
@@ -160,16 +183,46 @@ void STROKE_PARAMS::Stroke( const SHAPE* aShape, LINE_STYLE aLineStyle, int aWid
 
             if( i % 2 == 0 )
             {
-                VECTOR2I a( center.x + r * startAngle.Cos(), center.y + r * startAngle.Sin() );
-                VECTOR2I b( center.x + r * endAngle.Cos(),   center.y + r * endAngle.Sin() );
+                if( ( ( aLineStyle == LINE_STYLE::DASHDOT || aLineStyle == LINE_STYLE::DASHDOTDOT )
+                        && i % wrapAround == 0 )
+                    || aLineStyle == LINE_STYLE::DASH )
+                {
+                    for( EDA_ANGLE currentAngle = startAngle; currentAngle < endAngle;
+                         currentAngle += angleIncrementInRadians )
+                    {
+                        VECTOR2I a( center.x + KiROUND( r * currentAngle.Cos() ),
+                                    center.y + KiROUND( r * currentAngle.Sin() ) );
 
-                aStroker( a, b );
+                        // Calculate the next angle step, ensuring it doesn't exceed the endAngle
+                        EDA_ANGLE nextAngle = currentAngle + angleIncrementInRadians;
+
+                        if( nextAngle > endAngle )
+                        {
+                            nextAngle = endAngle; // Set nextAngle to endAngle if it exceeds
+                        }
+
+                        VECTOR2I b( center.x + KiROUND( r * nextAngle.Cos() ),
+                                    center.y + KiROUND( r * nextAngle.Sin() ) );
+
+                        aStroker( a, b ); // Draw the segment as an arc
+                    }
+                }
+                else
+                {
+                    VECTOR2I a( center.x + KiROUND( r * startAngle.Cos() ),
+                                center.y + KiROUND( r * startAngle.Sin() ) );
+                    VECTOR2I b( center.x + KiROUND( r * endAngle.Cos() ),
+                                center.y + KiROUND( r * endAngle.Sin() ) );
+
+                    aStroker( a, b );
+                }
             }
 
             startAngle = endAngle;
         }
-    }
+
         break;
+    }
 
     case SH_CIRCLE:
         // A circle is always filled; a ring is represented by a 360° arc.
@@ -205,18 +258,18 @@ void STROKE_PARAMS::GetMsgPanelInfo( UNITS_PROVIDER* aUnitsProvider,
 {
     if( aIncludeStyle )
     {
-        wxString lineStyle = _( "Default" );
+        wxString msg = _( "Default" );
 
-        for( const std::pair<const LINE_STYLE, LINE_STYLE_DESC>& typeEntry : lineTypeNames )
+        for( const auto& [ lineStyle, lineStyleDesc ] : lineTypeNames )
         {
-            if( typeEntry.first == GetLineStyle() )
+            if( lineStyle == GetLineStyle() )
             {
-                lineStyle = typeEntry.second.name;
+                msg = lineStyleDesc.name;
                 break;
             }
         }
 
-        aList.emplace_back( _( "Line Style" ), lineStyle );
+        aList.emplace_back( _( "Line Style" ), msg );
     }
 
     if( aIncludeWidth )
@@ -224,20 +277,19 @@ void STROKE_PARAMS::GetMsgPanelInfo( UNITS_PROVIDER* aUnitsProvider,
 }
 
 
-void STROKE_PARAMS::Format( OUTPUTFORMATTER* aFormatter, const EDA_IU_SCALE& aIuScale,
-                            int aNestLevel ) const
+void STROKE_PARAMS::Format( OUTPUTFORMATTER* aFormatter, const EDA_IU_SCALE& aIuScale ) const
 {
     wxASSERT( aFormatter != nullptr );
 
     if( GetColor() == KIGFX::COLOR4D::UNSPECIFIED )
     {
-        aFormatter->Print( aNestLevel, "(stroke (width %s) (type %s))",
+        aFormatter->Print( "(stroke (width %s) (type %s))",
                            EDA_UNIT_UTILS::FormatInternalUnits( aIuScale, GetWidth() ).c_str(),
                            TO_UTF8( GetLineStyleToken( GetLineStyle() ) ) );
     }
     else
     {
-        aFormatter->Print( aNestLevel, "(stroke (width %s) (type %s) (color %d %d %d %s))",
+        aFormatter->Print( "(stroke (width %s) (type %s) (color %d %d %d %s))",
                            EDA_UNIT_UTILS::FormatInternalUnits( aIuScale, GetWidth() ).c_str(),
                            TO_UTF8( GetLineStyleToken( GetLineStyle() ) ),
                            KiROUND( GetColor().r * 255.0 ),
@@ -260,7 +312,7 @@ void STROKE_PARAMS_PARSER::ParseStroke( STROKE_PARAMS& aStroke )
         switch( token )
         {
         case T_width:
-            aStroke.SetWidth( parseDouble( "stroke width" ) * m_iuPerMM );
+            aStroke.SetWidth( KiROUND( parseDouble( "stroke width" ) * m_iuPerMM ) );
             NeedRIGHT();
             break;
 
@@ -270,12 +322,12 @@ void STROKE_PARAMS_PARSER::ParseStroke( STROKE_PARAMS& aStroke )
 
             switch( token )
             {
-            case T_dash: aStroke.SetLineStyle( LINE_STYLE::DASH );       break;
-            case T_dot: aStroke.SetLineStyle( LINE_STYLE::DOT );        break;
-            case T_dash_dot: aStroke.SetLineStyle( LINE_STYLE::DASHDOT );    break;
+            case T_dash:         aStroke.SetLineStyle( LINE_STYLE::DASH );       break;
+            case T_dot:          aStroke.SetLineStyle( LINE_STYLE::DOT );        break;
+            case T_dash_dot:     aStroke.SetLineStyle( LINE_STYLE::DASHDOT );    break;
             case T_dash_dot_dot: aStroke.SetLineStyle( LINE_STYLE::DASHDOTDOT ); break;
-            case T_solid: aStroke.SetLineStyle( LINE_STYLE::SOLID );      break;
-            case T_default: aStroke.SetLineStyle( LINE_STYLE::DEFAULT );    break;
+            case T_solid:        aStroke.SetLineStyle( LINE_STYLE::SOLID );      break;
+            case T_default:      aStroke.SetLineStyle( LINE_STYLE::DEFAULT );    break;
             default:
                 Expecting( "solid, dash, dash_dot, dash_dot_dot, dot or default" );
             }
@@ -291,7 +343,7 @@ void STROKE_PARAMS_PARSER::ParseStroke( STROKE_PARAMS& aStroke )
             color.r = parseInt( "red" ) / 255.0;
             color.g = parseInt( "green" ) / 255.0;
             color.b = parseInt( "blue" ) / 255.0;
-            color.a = Clamp( parseDouble( "alpha" ), 0.0, 1.0 );
+            color.a = std::clamp( parseDouble( "alpha" ), 0.0, 1.0 );
 
             aStroke.SetColor( color );
             NeedRIGHT();

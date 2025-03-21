@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020-2021 CERN
- * Copyright (C) 2021-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Wayne Stambaugh <stambaughw@gmail.com>
  *
@@ -79,7 +79,8 @@ DIALOG_CHANGE_SYMBOLS::DIALOG_CHANGE_SYMBOLS( SCH_EDIT_FRAME* aParent, SCH_SYMBO
 
         m_newId->ChangeValue( UnescapeString( m_symbol->GetLibId().Format() ) );
         m_specifiedReference->ChangeValue( m_symbol->GetRef( currentSheet ) );
-        m_specifiedValue->ChangeValue( UnescapeString( m_symbol->GetField( VALUE_FIELD )->GetText() ) );
+        m_specifiedValue->ChangeValue(
+                UnescapeString( m_symbol->GetField( VALUE_FIELD )->GetText() ) );
         m_specifiedId->ChangeValue( UnescapeString( m_symbol->GetLibId().Format() ) );
     }
     else
@@ -100,9 +101,9 @@ DIALOG_CHANGE_SYMBOLS::DIALOG_CHANGE_SYMBOLS( SCH_EDIT_FRAME* aParent, SCH_SYMBO
     m_matchSizer->SetEmptyCellSize( wxSize( 0, 0 ) );
     m_matchSizer->Layout();
 
-    for( int i = 0; i < MANDATORY_FIELDS; ++i )
+    for( int i = 0; i < MANDATORY_FIELD_COUNT; ++i )
     {
-        m_fieldsBox->Append( TEMPLATE_FIELDNAME::GetDefaultFieldName( i, DO_TRANSLATE ) );
+        m_fieldsBox->Append( GetDefaultFieldName( i, DO_TRANSLATE ) );
 
         if( i == REFERENCE_FIELD )
             m_fieldsBox->Check( i, g_selectRefDes );
@@ -284,14 +285,12 @@ void DIALOG_CHANGE_SYMBOLS::updateFieldsList()
 
     wxCHECK( frame, /* void */ );
 
-    SCH_SHEET_LIST  hierarchy = frame->Schematic().GetSheets();
-
     // Load non-mandatory fields from all matching symbols and their library symbols
     std::vector<SCH_FIELD*> fields;
-    std::vector<LIB_FIELD*> libFields;
+    std::vector<SCH_FIELD*> libFields;
     std::set<wxString>      fieldNames;
 
-    for( SCH_SHEET_PATH& instance : hierarchy )
+    for( SCH_SHEET_PATH& instance : frame->Schematic().Hierarchy() )
     {
         SCH_SCREEN* screen = instance.LastScreen();
 
@@ -309,8 +308,11 @@ void DIALOG_CHANGE_SYMBOLS::updateFieldsList()
             fields.clear();
             symbol->GetFields( fields, false );
 
-            for( unsigned i = MANDATORY_FIELDS; i < fields.size(); ++i )
-                fieldNames.insert( fields[i]->GetName() );
+            for( SCH_FIELD* field : fields )
+            {
+                if( !field->IsMandatory() && !field->IsPrivate() )
+                    fieldNames.insert( field->GetName() );
+            }
 
             if( m_mode == MODE::UPDATE && symbol->GetLibId().IsValid() )
             {
@@ -322,8 +324,11 @@ void DIALOG_CHANGE_SYMBOLS::updateFieldsList()
 
                     flattenedSymbol->GetFields( libFields );
 
-                    for( unsigned i = MANDATORY_FIELDS; i < libFields.size(); ++i )
-                        fieldNames.insert( libFields[i]->GetName() );
+                    for( SCH_FIELD* libField : libFields )
+                    {
+                        if( !libField->IsMandatory() && !libField->IsPrivate() )
+                            fieldNames.insert( libField->GetName() );
+                    }
 
                     libFields.clear();  // flattenedSymbol is about to go out of scope...
                 }
@@ -348,8 +353,11 @@ void DIALOG_CHANGE_SYMBOLS::updateFieldsList()
 
                 flattenedSymbol->GetFields( libFields );
 
-                for( unsigned i = MANDATORY_FIELDS; i < libFields.size(); ++i )
-                    fieldNames.insert( libFields[i]->GetName() );
+                for( SCH_FIELD* libField : libFields )
+                {
+                    if( !libField->IsMandatory() && !libField->IsPrivate() )
+                        fieldNames.insert( libField->GetName() );
+                }
 
                 libFields.clear();  // flattenedSymbol is about to go out of scope...
             }
@@ -376,7 +384,7 @@ void DIALOG_CHANGE_SYMBOLS::updateFieldsList()
             allChecked = false;
     }
 
-    for( unsigned ii = m_fieldsBox->GetCount() - 1; ii >= MANDATORY_FIELDS; --ii )
+    for( unsigned ii = m_fieldsBox->GetCount() - 1; ii >= MANDATORY_FIELD_COUNT; --ii )
         m_fieldsBox->Delete( ii );
 
     for( const wxString& fieldName : fieldNames )
@@ -416,15 +424,10 @@ void DIALOG_CHANGE_SYMBOLS::onOkButtonClicked( wxCommandEvent& aEvent )
     {
         if( m_fieldsBox->IsChecked( i ) )
         {
-            if( i < MANDATORY_FIELDS )
-            {
-                LIB_FIELD dummy_field( i );
-                m_updateFields.insert( dummy_field.GetCanonicalName() );
-            }
+            if( i < MANDATORY_FIELD_COUNT )
+                m_updateFields.insert( GetCanonicalFieldName( i ) );
             else
-            {
                 m_updateFields.insert( m_fieldsBox->GetString( i ) );
-            }
         }
     }
 
@@ -437,13 +440,12 @@ void DIALOG_CHANGE_SYMBOLS::onOkButtonClicked( wxCommandEvent& aEvent )
 
 bool DIALOG_CHANGE_SYMBOLS::isMatch( SCH_SYMBOL* aSymbol, SCH_SHEET_PATH* aInstance )
 {
-    LIB_ID id;
-
-    wxCHECK( aSymbol, false );
-
     SCH_EDIT_FRAME* frame = dynamic_cast<SCH_EDIT_FRAME*>( GetParent() );
 
     wxCHECK( frame, false );
+
+    if( !aSymbol )
+        return false;
 
     if( m_matchAll->GetValue() )
     {
@@ -467,6 +469,8 @@ bool DIALOG_CHANGE_SYMBOLS::isMatch( SCH_SYMBOL* aSymbol, SCH_SHEET_PATH* aInsta
     }
     else if( m_matchById )
     {
+        LIB_ID id;
+
         id.Parse( getLibIdValue( m_specifiedId ) );
         return aSymbol->GetLibId() == id;
     }
@@ -481,11 +485,10 @@ int DIALOG_CHANGE_SYMBOLS::processMatchingSymbols( SCH_COMMIT* aCommit )
 
     wxCHECK( frame, false );
 
-    LIB_ID newId;
-    wxString msg;
-    int matchesProcessed = 0;
+    LIB_ID      newId;
+    wxString    msg;
+    int         matchesProcessed = 0;
     SCH_SYMBOL* symbol = nullptr;
-    SCH_SHEET_LIST hierarchy = frame->Schematic().GetSheets();
 
     if( m_mode == MODE::CHANGE )
     {
@@ -497,7 +500,7 @@ int DIALOG_CHANGE_SYMBOLS::processMatchingSymbols( SCH_COMMIT* aCommit )
 
     std::map<SCH_SYMBOL*, SYMBOL_CHANGE_INFO> symbols;
 
-    for( SCH_SHEET_PATH& instance : hierarchy )
+    for( SCH_SHEET_PATH& instance : frame->Schematic().Hierarchy() )
     {
         SCH_SCREEN* screen = instance.LastScreen();
 
@@ -561,7 +564,7 @@ int DIALOG_CHANGE_SYMBOLS::processSymbols( SCH_COMMIT* aCommit,
     std::map<SCH_SYMBOL*, SYMBOL_CHANGE_INFO>::iterator it = symbols.begin();
 
     // Remove all symbols that don't have a valid library symbol link or enough units to
-    // satify the library symbol update.
+    // satisfy the library symbol update.
     while( it != symbols.end() )
     {
         SCH_SYMBOL* symbol = it->first;
@@ -612,8 +615,8 @@ int DIALOG_CHANGE_SYMBOLS::processSymbols( SCH_COMMIT* aCommit,
 
         // When we replace the lib symbol below, we free the associated pins if the new symbol has
         // fewer than the original.  This will cause the connection graph to be out of date unless
-        // we replace references in the graph to the old symbol/pins with references to the ones stored
-        // in the undo stack.
+        // we replace references in the graph to the old symbol/pins with references to the ones
+        // stored in the undo stack.
         if( connectionGraph )
             connectionGraph->ExchangeItem( symbol, symbol_copy );
     }
@@ -641,6 +644,12 @@ int DIALOG_CHANGE_SYMBOLS::processSymbols( SCH_COMMIT* aCommit,
             symbol->SetExcludedFromBoard( symbol->GetLibSymbolRef()->GetExcludedFromBoard() );
         }
 
+        if( m_resetPinTextVisibility->GetValue() )
+        {
+            symbol->SetShowPinNames( symbol->GetLibSymbolRef()->GetShowPinNames() );
+            symbol->SetShowPinNumbers( symbol->GetLibSymbolRef()->GetShowPinNumbers() );
+        }
+
         bool removeExtras = m_removeExtraBox->GetValue();
         bool resetVis = m_resetFieldVisibilities->GetValue();
         bool resetEffects = m_resetFieldEffects->GetValue();
@@ -649,20 +658,25 @@ int DIALOG_CHANGE_SYMBOLS::processSymbols( SCH_COMMIT* aCommit,
         for( unsigned i = 0; i < symbol->GetFields().size(); ++i )
         {
             SCH_FIELD& field = symbol->GetFields()[i];
-            LIB_FIELD* libField = nullptr;
+            SCH_FIELD* libField = nullptr;
+            bool       doUpdate = field.IsPrivate();
 
             // Mandatory fields always exist in m_updateFields, but these names can be translated.
             // so use GetCanonicalName().
-            if( !alg::contains( m_updateFields, field.GetCanonicalName() ) )
+            doUpdate |= alg::contains( m_updateFields, field.GetCanonicalName() );
+
+            if( !doUpdate )
                 continue;
 
-            if( i < MANDATORY_FIELDS )
+            if( i < MANDATORY_FIELD_COUNT )
                 libField = symbol->GetLibSymbolRef()->GetFieldById( (int) i );
             else
                 libField = symbol->GetLibSymbolRef()->FindField( field.GetName() );
 
             if( libField )
             {
+                field.SetPrivate( libField->IsPrivate() );
+
                 bool resetText = libField->GetText().IsEmpty() ? m_resetEmptyFields->GetValue()
                                                                : m_resetFieldText->GetValue();
 
@@ -721,45 +735,56 @@ int DIALOG_CHANGE_SYMBOLS::processSymbols( SCH_COMMIT* aCommit,
                 if( resetPositions )
                     field.SetTextPos( symbol->GetPosition() + libField->GetTextPos() );
             }
-            else if( i >= MANDATORY_FIELDS && removeExtras )
+            else if( i >= MANDATORY_FIELD_COUNT && removeExtras )
             {
                 symbol->RemoveField( field.GetName() );
                 i--;
             }
         }
 
-        std::vector<LIB_FIELD*> libFields;
+        std::vector<SCH_FIELD*> libFields;
         symbol->GetLibSymbolRef()->GetFields( libFields );
 
-        for( unsigned i = MANDATORY_FIELDS; i < libFields.size(); ++i )
+        for( SCH_FIELD* libField : libFields )
         {
-            const LIB_FIELD& libField = *libFields[i];
-
-            if( !alg::contains( m_updateFields, libField.GetCanonicalName() ) )
+            if( libField->IsMandatory() )
                 continue;
 
-            if( !symbol->FindField( libField.GetName(), false ) )
+            if( !alg::contains( m_updateFields, libField->GetCanonicalName() ) )
+                continue;
+
+            if( !symbol->FindField( libField->GetName(), false ) )
             {
-                wxString   fieldName = libField.GetCanonicalName();
-                SCH_FIELD  newField( VECTOR2I( 0, 0 ), symbol->GetFieldCount(), symbol,
-                                     fieldName );
+                SCH_FIELD  newField( VECTOR2I( 0, 0 ), symbol->GetNextFieldId(), symbol,
+                                     libField->GetCanonicalName() );
                 SCH_FIELD* schField = symbol->AddField( newField );
 
                 // Careful: the visible bit and position are also set by SetAttributes()
-                schField->SetAttributes( libField );
-                schField->SetText( libField.GetText() );
-                schField->SetTextPos( symbol->GetPosition() + libField.GetTextPos() );
+                schField->SetAttributes( *libField );
+                schField->SetText( libField->GetText() );
+                schField->SetTextPos( symbol->GetPosition() + libField->GetTextPos() );
+                schField->SetPrivate( libField->IsPrivate() );
             }
 
             if( resetPositions && frame->eeconfig()->m_AutoplaceFields.enable )
-                symbol->AutoAutoplaceFields( screen );
+            {
+                AUTOPLACE_ALGO fieldsAutoplaced = symbol->GetFieldsAutoplaced();
+
+                if( fieldsAutoplaced == AUTOPLACE_AUTO || fieldsAutoplaced == AUTOPLACE_MANUAL )
+                    symbol->AutoplaceFields( screen, fieldsAutoplaced );
+            }
         }
 
         symbol->SetSchSymbolLibraryName( wxEmptyString );
         screen->Append( symbol );
 
         if( resetPositions )
-            symbol->AutoAutoplaceFields( screen );
+        {
+            AUTOPLACE_ALGO fieldsAutoplaced = symbol->GetFieldsAutoplaced();
+
+            if( fieldsAutoplaced == AUTOPLACE_AUTO || fieldsAutoplaced == AUTOPLACE_MANUAL )
+                symbol->AutoplaceFields( screen, fieldsAutoplaced );
+        }
 
         frame->GetCanvas()->GetView()->Update( symbol );
 
@@ -792,7 +817,7 @@ wxString DIALOG_CHANGE_SYMBOLS::getSymbolReferences( SCH_SYMBOL& aSymbol,
 
     wxCHECK( parent, msg );
 
-    SCH_SHEET_LIST sheets = parent->Schematic().GetSheets();
+    SCH_SHEET_LIST sheets = parent->Schematic().Hierarchy();
 
     for( const SCH_SYMBOL_INSTANCE& instance : aSymbol.GetInstances() )
     {

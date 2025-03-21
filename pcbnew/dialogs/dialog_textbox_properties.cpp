@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -56,18 +56,19 @@ DIALOG_TEXTBOX_PROPERTIES::DIALOG_TEXTBOX_PROPERTIES( PCB_BASE_EDIT_FRAME* aPare
 #endif
 
     m_scintillaTricks = new SCINTILLA_TRICKS( m_MultiLineText, wxT( "{}" ), false,
-            // onAccept handler
+            // onAcceptFn
             [this]( wxKeyEvent& aEvent )
             {
                 wxPostEvent( this, wxCommandEvent( wxEVT_COMMAND_BUTTON_CLICKED, wxID_OK ) );
             },
-            // onCharAdded handler
+            // onCharFn
             [this]( wxStyledTextEvent& aEvent )
             {
                 m_scintillaTricks->DoTextVarAutocomplete(
-                        [this]( const wxString& crossRef, wxArrayString* tokens )
+                        // getTokensFn
+                        [this]( const wxString& xRef, wxArrayString* tokens )
                         {
-                            m_frame->GetContextualTextVars( m_textBox,  crossRef, tokens );
+                            m_frame->GetContextualTextVars( m_textBox,  xRef, tokens );
                         } );
             } );
 
@@ -129,8 +130,6 @@ DIALOG_TEXTBOX_PROPERTIES::DIALOG_TEXTBOX_PROPERTIES( PCB_BASE_EDIT_FRAME* aPare
     for( const auto& [ lineStyle, lineStyleDesc ] : lineTypeNames )
         m_borderStyleCombo->Append( lineStyleDesc.name, KiBitmapBundle( lineStyleDesc.bitmap ) );
 
-    m_borderStyleCombo->Append( DEFAULT_STYLE );
-
     SetupStandardButtons();
 
     // wxTextCtrls fail to generate wxEVT_CHAR events when the wxTE_MULTILINE flag is set,
@@ -185,9 +184,10 @@ bool DIALOG_TEXTBOX_PROPERTIES::TransferDataToWindow()
 
     switch ( m_textBox->GetHorizJustify() )
     {
-    case GR_TEXT_H_ALIGN_LEFT:   m_alignLeft->Check( true );   break;
-    case GR_TEXT_H_ALIGN_CENTER: m_alignCenter->Check( true ); break;
-    case GR_TEXT_H_ALIGN_RIGHT:  m_alignRight->Check( true );  break;
+    case GR_TEXT_H_ALIGN_LEFT:          m_alignLeft->Check( true );   break;
+    case GR_TEXT_H_ALIGN_CENTER:        m_alignCenter->Check( true ); break;
+    case GR_TEXT_H_ALIGN_RIGHT:         m_alignRight->Check( true );  break;
+    case GR_TEXT_H_ALIGN_INDETERMINATE:                               break;
     }
 
     m_mirrored->Check( m_textBox->IsMirrored() );
@@ -335,7 +335,7 @@ bool DIALOG_TEXTBOX_PROPERTIES::TransferDataFromWindow()
     m_textBox->SetTextThickness( m_thickness.GetValue() );
 
     // Test for acceptable values for thickness and size and clamp if fails
-    int maxPenWidth = Clamp_Text_PenSize( m_textBox->GetTextThickness(), m_textBox->GetTextSize() );
+    int maxPenWidth = ClampTextPenSize( m_textBox->GetTextThickness(), m_textBox->GetTextSize() );
 
     if( m_textBox->GetTextThickness() > maxPenWidth )
     {
@@ -367,7 +367,7 @@ bool DIALOG_TEXTBOX_PROPERTIES::TransferDataFromWindow()
     std::advance( it, m_borderStyleCombo->GetSelection() );
 
     if( it == lineTypeNames.end() )
-        stroke.SetLineStyle( LINE_STYLE::DEFAULT );
+        stroke.SetLineStyle( LINE_STYLE::SOLID );
     else
         stroke.SetLineStyle( it->first );
 
@@ -377,7 +377,7 @@ bool DIALOG_TEXTBOX_PROPERTIES::TransferDataFromWindow()
     m_textBox->ClearRenderCache();
 
     if( pushCommit )
-        commit.Push( _( "Change text box properties" ) );
+        commit.Push( _( "Edit Text Box Properties" ) );
 
     return true;
 }

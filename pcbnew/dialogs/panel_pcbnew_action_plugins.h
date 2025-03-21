@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 Andrew Lutsenko, anlutsenko at gmail dot com
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,8 +20,13 @@
 
 #include "panel_pcbnew_action_plugins_base.h"
 
+class PLUGINS_GRID_TRICKS;
+
+
 class PANEL_PCBNEW_ACTION_PLUGINS : public PANEL_PCBNEW_ACTION_PLUGINS_BASE
 {
+    friend class PLUGINS_GRID_TRICKS;
+
 public:
     PANEL_PCBNEW_ACTION_PLUGINS ( wxWindow* aParent );
 
@@ -63,15 +68,14 @@ private:
 
     enum GRID_COLUMNS
     {
-        COLUMN_ICON,
+        COLUMN_ACTION_NAME,
         COLUMN_VISIBLE,
-        COLUMN_NAME,
-        COLUMN_CATEGORY,
+        COLUMN_PLUGIN_NAME,
         COLUMN_DESCRIPTION,
-        COLUMN_PATH
+        COLUMN_SETTINGS_IDENTIFIER,
     };
 
-    wxBitmap m_genericIcon;
+    wxBitmapBundle m_genericIcon;
 
     void SwapRows( int aRowA, int aRowB );
     void SelectRow( int aRow );

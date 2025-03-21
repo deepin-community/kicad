@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2015-2016 Mario Luzeiro <mrluzeiro@ua.pt>
  * Copyright (C) 2023 CERN
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,10 +34,12 @@
 #include "../3d_rendering/raytracing/shapes2D/round_segment_2d.h"
 #include "../3d_rendering/raytracing/shapes2D/triangle_2d.h"
 #include <board_adapter.h>
+#include <board.h>
 #include <footprint.h>
 #include <pad.h>
 #include <pcb_text.h>
 #include <pcb_textbox.h>
+#include <pcb_table.h>
 #include <board_design_settings.h>
 #include <pcb_painter.h>        // for PCB_RENDER_SETTINGS
 #include <zone.h>
@@ -217,9 +219,11 @@ void BOARD_ADAPTER::addFootprintShapes( const FOOTPRINT* aFootprint, CONTAINER_2
             {
                 if( !aVisibilityFlags.test( LAYER_FP_TEXT ) )
                     continue;
-                else if( text->GetText() == wxT( "${REFERENCE}" ) && !aVisibilityFlags.test( LAYER_FP_REFERENCES ) )
+                else if( text->GetText() == wxT( "${REFERENCE}" )
+                         && !aVisibilityFlags.test( LAYER_FP_REFERENCES ) )
                     continue;
-                else if( text->GetText() == wxT( "${VALUE}" ) && !aVisibilityFlags.test( LAYER_FP_VALUES ) )
+                else if( text->GetText() == wxT( "${VALUE}" )
+                         && !aVisibilityFlags.test( LAYER_FP_VALUES ) )
                     continue;
 
                 addText( text, aContainer, text );
@@ -233,12 +237,17 @@ void BOARD_ADAPTER::addFootprintShapes( const FOOTPRINT* aFootprint, CONTAINER_2
             PCB_TEXTBOX* textbox = static_cast<PCB_TEXTBOX*>( item );
 
             if( textbox->GetLayer() == aLayerId )
-            {
-                if( textbox->IsBorderEnabled() )
-                    addShape( textbox, aContainer, aFootprint );
+                addShape( textbox, aContainer, aFootprint );
 
-                addText( textbox, aContainer, aFootprint );
-            }
+            break;
+        }
+
+        case PCB_TABLE_T:
+        {
+            PCB_TABLE* table = static_cast<PCB_TABLE*>( item );
+
+            if( table->GetLayer() == aLayerId )
+                addTable( table, aContainer, aFootprint );
 
             break;
         }
@@ -261,8 +270,8 @@ void BOARD_ADAPTER::addFootprintShapes( const FOOTPRINT* aFootprint, CONTAINER_2
         {
             PCB_SHAPE* shape = static_cast<PCB_SHAPE*>( item );
 
-            if( shape->GetLayer() == aLayerId )
-                addShape( shape, aContainer, aFootprint );
+            if( shape->IsOnLayer( aLayerId ) )
+                addShape( shape, aContainer, aFootprint, aLayerId );
 
             break;
         }
@@ -274,18 +283,9 @@ void BOARD_ADAPTER::addFootprintShapes( const FOOTPRINT* aFootprint, CONTAINER_2
 }
 
 
-void BOARD_ADAPTER::createViaWithMargin( const PCB_TRACK* aTrack, CONTAINER_2D_BASE* aDstContainer,
-                                         int aMargin )
-{
-    SFVEC2F     start3DU = TO_SFVEC2F( aTrack->GetStart() );
-    SFVEC2F     end3DU = TO_SFVEC2F( aTrack->GetEnd() );
-    const float radius3DU = TO_3DU( ( aTrack->GetWidth() / 2.0 ) + aMargin );
-
-    addFILLED_CIRCLE_2D( aDstContainer, start3DU, radius3DU, *aTrack );
-}
-
-
-void BOARD_ADAPTER::createTrack( const PCB_TRACK* aTrack, CONTAINER_2D_BASE* aDstContainer )
+void BOARD_ADAPTER::createTrackWithMargin( const PCB_TRACK*   aTrack,
+                                           CONTAINER_2D_BASE* aDstContainer, PCB_LAYER_ID aLayer,
+                                           int aMargin )
 {
     SFVEC2F start3DU = TO_SFVEC2F( aTrack->GetStart() );
     SFVEC2F end3DU = TO_SFVEC2F( aTrack->GetEnd() );
@@ -293,8 +293,13 @@ void BOARD_ADAPTER::createTrack( const PCB_TRACK* aTrack, CONTAINER_2D_BASE* aDs
     switch( aTrack->Type() )
     {
     case PCB_VIA_T:
-        addFILLED_CIRCLE_2D( aDstContainer, start3DU, TO_3DU( aTrack->GetWidth() / 2.0 ), *aTrack );
+    {
+        const PCB_VIA* via = static_cast<const PCB_VIA*>( aTrack );
+        float          width3DU = TO_3DU( via->GetWidth( aLayer ) + aMargin * 2 );
+
+        addFILLED_CIRCLE_2D( aDstContainer, start3DU, width3DU / 2.0, *aTrack );
         break;
+    }
 
     case PCB_ARC_T:
     {
@@ -309,7 +314,7 @@ void BOARD_ADAPTER::createTrack( const PCB_TRACK* aTrack, CONTAINER_2D_BASE* aDs
             track.SetWidth( arc->GetWidth() );
             track.SetLayer( arc->GetLayer() );
 
-            createTrack( &track, aDstContainer );
+            createTrackWithMargin( &track, aDstContainer, aLayer, aMargin );
             return;
         }
 
@@ -332,17 +337,19 @@ void BOARD_ADAPTER::createTrack( const PCB_TRACK* aTrack, CONTAINER_2D_BASE* aDs
         else
         {
             circlesegcount = KiROUND( arcsegcount * 360.0 / std::abs( arc_angle.AsDegrees() ) );
-            circlesegcount = alg::clamp( 1, circlesegcount, 128 );
+            circlesegcount = std::clamp( circlesegcount, 1, 128 );
         }
 
-        createArcSegments( center, arc->GetStart(), arc_angle, circlesegcount, arc->GetWidth(),
+        createArcSegments( center, arc->GetStart(), arc_angle, circlesegcount,
+                           arc->GetWidth() + aMargin * 2,
                            aDstContainer, *arc );
         break;
     }
 
     case PCB_TRACE_T:    // Track is a usual straight segment
     {
-        addROUND_SEGMENT_2D( aDstContainer, start3DU, end3DU, TO_3DU( aTrack->GetWidth() ), *aTrack );
+        float width3DU = TO_3DU( aTrack->GetWidth() + aMargin * 2 );
+        addROUND_SEGMENT_2D( aDstContainer, start3DU, end3DU, width3DU, *aTrack );
         break;
     }
 
@@ -367,22 +374,22 @@ void BOARD_ADAPTER::createPadWithMargin( const PAD* aPad, CONTAINER_2D_BASE* aCo
     // is only the size of the anchor), so for those we punt and just use aMargin.x.
 
     if( ( clearance.x < 0 || clearance.x != clearance.y )
-            && aPad->GetShape() != PAD_SHAPE::CUSTOM )
+            && aPad->GetShape( aLayer ) != PAD_SHAPE::CUSTOM )
     {
-        VECTOR2I dummySize = VECTOR2I( aPad->GetSize() ) + clearance + clearance;
+        VECTOR2I dummySize = VECTOR2I( aPad->GetSize( aLayer ) ) + clearance + clearance;
 
         if( dummySize.x <= 0 || dummySize.y <= 0 )
             return;
 
         PAD dummy( *aPad );
-        dummy.SetSize( VECTOR2I( dummySize.x, dummySize.y ) );
+        dummy.SetSize( aLayer, VECTOR2I( dummySize.x, dummySize.y ) );
         dummy.TransformShapeToPolygon( poly, aLayer, 0, maxError, ERROR_INSIDE );
         clearance = { 0, 0 };
 
         // Remove group membership from dummy item before deleting
         dummy.SetParentGroup( nullptr );
     }
-    else if( aPad->GetShape() == PAD_SHAPE::CUSTOM )
+    else if( aPad->GetShape( aLayer ) == PAD_SHAPE::CUSTOM )
     {
         // A custom pad can have many complex subshape items. To avoid issues, use its
         // final polygon shape, not its basic shape set. One cannot apply the clearance
@@ -391,7 +398,8 @@ void BOARD_ADAPTER::createPadWithMargin( const PAD* aPad, CONTAINER_2D_BASE* aCo
     }
     else
     {
-        auto padShapes = std::static_pointer_cast<SHAPE_COMPOUND>( aPad->GetEffectiveShape() );
+        auto padShapes =
+                std::static_pointer_cast<SHAPE_COMPOUND>( aPad->GetEffectiveShape( aLayer ) );
 
         for( const SHAPE* shape : padShapes->Shapes() )
         {
@@ -478,7 +486,7 @@ void BOARD_ADAPTER::createPadWithMargin( const PAD* aPad, CONTAINER_2D_BASE* aCo
 
 
 void BOARD_ADAPTER::createPadWithHole( const PAD* aPad, CONTAINER_2D_BASE* aDstContainer,
-                                             int aInflateValue )
+                                       int aInflateValue )
 {
     if( !aPad->HasHole() )
     {
@@ -541,13 +549,13 @@ void BOARD_ADAPTER::addPads( const FOOTPRINT* aFootprint, CONTAINER_2D_BASE* aCo
 
         case F_Mask:
         case B_Mask:
-            margin.x += pad->GetSolderMaskExpansion();
-            margin.y += pad->GetSolderMaskExpansion();
+            margin.x += pad->GetSolderMaskExpansion( aLayerId );
+            margin.y += pad->GetSolderMaskExpansion( aLayerId );
             break;
 
         case F_Paste:
         case B_Paste:
-            margin += pad->GetSolderPasteMargin();
+            margin += pad->GetSolderPasteMargin( aLayerId );
             break;
 
         default:
@@ -609,10 +617,22 @@ void BOARD_ADAPTER::createArcSegments( const VECTOR2I& aCentre, const VECTOR2I& 
 
 
 void BOARD_ADAPTER::addShape( const PCB_SHAPE* aShape, CONTAINER_2D_BASE* aContainer,
-                              const BOARD_ITEM* aOwner )
+                              const BOARD_ITEM* aOwner, PCB_LAYER_ID aLayer )
 {
     // The full width of the lines to create
-    const float    linewidth3DU = TO_3DU( aShape->GetWidth() );
+    int linewidth = aShape->GetWidth();
+    int margin = 0;
+
+    if( IsSolderMaskLayer( aLayer )
+        && aShape->HasSolderMask()
+        && IsExternalCopperLayer( aShape->GetLayer() ) )
+    {
+        margin = aShape->GetSolderMaskExpansion();
+        linewidth += margin * 2;
+    }
+
+    float linewidth3DU = TO_3DU( linewidth );
+
     LINE_STYLE     lineStyle = aShape->GetStroke().GetLineStyle();
 
     if( lineStyle <= LINE_STYLE::FIRST_TYPE )
@@ -641,7 +661,13 @@ void BOARD_ADAPTER::addShape( const PCB_SHAPE* aShape, CONTAINER_2D_BASE* aConta
                 aShape->TransformShapeToPolygon( polyList, UNDEFINED_LAYER, 0, ARC_HIGH_DEF,
                                                  ERROR_INSIDE );
 
-                polyList.Simplify( SHAPE_POLY_SET::PM_FAST );
+                polyList.Simplify();
+
+                if( margin != 0 )
+                {
+                    polyList.Inflate( margin, CORNER_STRATEGY::ROUND_ALL_CORNERS,
+                                      GetBoard()->GetDesignSettings().m_MaxError );
+                }
 
                 ConvertPolygonToTriangles( polyList, *aContainer, m_biuTo3Dunits, *aOwner );
             }
@@ -665,7 +691,7 @@ void BOARD_ADAPTER::addShape( const PCB_SHAPE* aShape, CONTAINER_2D_BASE* aConta
             unsigned int segCount = GetCircleSegmentCount( aShape->GetBoundingBox().GetSizeMax() );
 
             createArcSegments( aShape->GetCenter(), aShape->GetStart(), aShape->GetArcAngle(),
-                               segCount, aShape->GetWidth(), aContainer, *aOwner );
+                               segCount, linewidth, aContainer, *aOwner );
             break;
         }
 
@@ -683,12 +709,20 @@ void BOARD_ADAPTER::addShape( const PCB_SHAPE* aShape, CONTAINER_2D_BASE* aConta
                                              ERROR_INSIDE );
 
             // Some polygons can be a bit complex (especially when coming from a
-            // picture ot a text converted to a polygon
+            // picture of a text converted to a polygon
             // So call Simplify before calling ConvertPolygonToTriangles, just in case.
-            polyList.Simplify( SHAPE_POLY_SET::PM_FAST );
+            polyList.Simplify();
 
             if( polyList.IsEmpty() ) // Just for caution
                 break;
+
+            if( margin != 0 )
+            {
+                CORNER_STRATEGY cornerStr = margin >= 0 ? CORNER_STRATEGY::ROUND_ALL_CORNERS
+                                                        : CORNER_STRATEGY::ALLOW_ACUTE_CORNERS;
+
+                polyList.Inflate( margin, cornerStr, GetBoard()->GetDesignSettings().m_MaxError );
+            }
 
             ConvertPolygonToTriangles( polyList, *aContainer, m_biuTo3Dunits, *aOwner );
             break;
@@ -741,16 +775,29 @@ void BOARD_ADAPTER::addShape( const PCB_TEXTBOX* aTextBox, CONTAINER_2D_BASE* aC
     // So for polygon, we use PCB_SHAPE::TransformShapeToPolygon
 
     if( aTextBox->GetShape() == SHAPE_T::RECTANGLE )
-        addShape( static_cast<const PCB_SHAPE*>( aTextBox ), aContainer, aOwner );
+    {
+        addShape( static_cast<const PCB_SHAPE*>( aTextBox ), aContainer, aOwner, UNDEFINED_LAYER );
+    }
     else
     {
         SHAPE_POLY_SET polyList;
 
-        aTextBox->PCB_SHAPE::TransformShapeToPolygon( polyList, UNDEFINED_LAYER, 0,
-                                                      ARC_HIGH_DEF, ERROR_INSIDE );
+        aTextBox->PCB_SHAPE::TransformShapeToPolygon( polyList, UNDEFINED_LAYER, 0, ARC_HIGH_DEF,
+                                                      ERROR_INSIDE );
 
         ConvertPolygonToTriangles( polyList, *aContainer, m_biuTo3Dunits, *aOwner );
     }
+}
+
+
+void BOARD_ADAPTER::addTable( const PCB_TABLE* aTable, CONTAINER_2D_BASE* aContainer,
+                              const BOARD_ITEM* aOwner )
+{
+    // JEY TODO: tables
+    // add borders
+
+    for( PCB_TABLECELL* cell : aTable->GetCells() )
+        addText( cell, aContainer, aOwner );
 }
 
 
@@ -763,13 +810,13 @@ void BOARD_ADAPTER::addSolidAreasShapes( const ZONE* aZone, CONTAINER_2D_BASE* a
 }
 
 
-void BOARD_ADAPTER::buildPadOutlineAsSegments( const PAD* aPad, CONTAINER_2D_BASE* aContainer,
-                                               int aWidth )
+void BOARD_ADAPTER::buildPadOutlineAsSegments( const PAD* aPad, PCB_LAYER_ID aLayer,
+                                               CONTAINER_2D_BASE* aContainer, int aWidth )
 {
-    if( aPad->GetShape() == PAD_SHAPE::CIRCLE )    // Draw a ring
+    if( aPad->GetShape( aLayer ) == PAD_SHAPE::CIRCLE )    // Draw a ring
     {
-        const SFVEC2F center3DU = TO_SFVEC2F( aPad->ShapePos() );
-        const int     radius = aPad->GetSize().x / 2;
+        const SFVEC2F center3DU = TO_SFVEC2F( aPad->ShapePos( aLayer ) );
+        const int     radius = aPad->GetSize( aLayer ).x / 2;
         const float   inner_radius3DU = TO_3DU( radius - aWidth / 2.0 );
         const float   outer_radius3DU = TO_3DU( radius + aWidth / 2.0 );
 
@@ -778,7 +825,8 @@ void BOARD_ADAPTER::buildPadOutlineAsSegments( const PAD* aPad, CONTAINER_2D_BAS
     else
     {
         // For other shapes, add outlines as thick segments in polygon buffer
-        const std::shared_ptr<SHAPE_POLY_SET>& corners = aPad->GetEffectivePolygon( ERROR_INSIDE );
+        const std::shared_ptr<SHAPE_POLY_SET>& corners = aPad->GetEffectivePolygon( aLayer,
+                                                                                    ERROR_INSIDE );
         const SHAPE_LINE_CHAIN&                path = corners->COutline( 0 );
 
         for( int j = 0; j < path.PointCount(); j++ )

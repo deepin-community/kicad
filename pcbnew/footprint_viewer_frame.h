@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jap.charras at wanadoo.fr
- * Copyright (C) 2004-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -138,7 +138,7 @@ private:
 
     WINDOW_SETTINGS* GetWindowSettings( APP_SETTINGS_BASE* aCfg ) override;
 
-    void CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged ) override;
+    void CommonSettingsChanged( int aFlags ) override;
 
     /**
      * Called when the frame frame is activate to reload the libraries and component lists

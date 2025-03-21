@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2007 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
  * Copyright (C) 2009 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -49,9 +49,11 @@ void SYMBOL_EDIT_FRAME::doReCreateMenuBar()
     fileMenu->Add( ACTIONS::addLibrary );
     fileMenu->Add( EE_ACTIONS::saveLibraryAs );
     fileMenu->Add( EE_ACTIONS::newSymbol );
+    fileMenu->Add( EE_ACTIONS::editLibSymbolWithLibEdit );
 
     fileMenu->AppendSeparator();
     fileMenu->Add( ACTIONS::save );
+    fileMenu->Add( EE_ACTIONS::saveSymbolAs );
     fileMenu->Add( EE_ACTIONS::saveSymbolCopyAs );
 
     if( !IsSymbolFromSchematic() )
@@ -74,7 +76,6 @@ void SYMBOL_EDIT_FRAME::doReCreateMenuBar()
     ACTION_MENU* submenuExport = new ACTION_MENU( false, selTool );
     submenuExport->SetTitle( _( "Export" ) );
     submenuExport->SetIcon( BITMAPS::export_file );
-    submenuExport->Add( EE_ACTIONS::exportSymbol,      ACTION_MENU::NORMAL, _( "Symbol..." ) );
     submenuExport->Add( EE_ACTIONS::exportSymbolView,  ACTION_MENU::NORMAL, _( "View as PNG..." ) );
     submenuExport->Add( EE_ACTIONS::exportSymbolAsSVG, ACTION_MENU::NORMAL, _( "Symbol as SVG..." ) );
     fileMenu->Add( submenuExport );
@@ -96,6 +97,7 @@ void SYMBOL_EDIT_FRAME::doReCreateMenuBar()
     editMenu->AppendSeparator();
     editMenu->Add( ACTIONS::cut );
     editMenu->Add( ACTIONS::copy );
+    editMenu->Add( ACTIONS::copyAsText );
     editMenu->Add( ACTIONS::paste );
     editMenu->Add( ACTIONS::doDelete );
     editMenu->Add( ACTIONS::duplicate );
@@ -114,8 +116,14 @@ void SYMBOL_EDIT_FRAME::doReCreateMenuBar()
     //
     ACTION_MENU* viewMenu = new ACTION_MENU( false, selTool );
 
+    ACTION_MENU* showHidePanels = new ACTION_MENU( false, selTool );
+    showHidePanels->SetTitle( _( "Panels" ) );
+    showHidePanels->Add( ACTIONS::showProperties,  ACTION_MENU::CHECK );
+    showHidePanels->Add( ACTIONS::showLibraryTree, ACTION_MENU::CHECK );
+    viewMenu->Add( showHidePanels );
+    viewMenu->AppendSeparator();
+
     viewMenu->Add( ACTIONS::showSymbolBrowser );
-    viewMenu->Add( ACTIONS::showProperties, ACTION_MENU::CHECK );
 
     viewMenu->AppendSeparator();
     viewMenu->Add( ACTIONS::zoomInCenter );
@@ -125,9 +133,9 @@ void SYMBOL_EDIT_FRAME::doReCreateMenuBar()
     viewMenu->Add( ACTIONS::zoomRedraw );
 
     viewMenu->AppendSeparator();
-    viewMenu->Add( EE_ACTIONS::showSymbolTree,        ACTION_MENU::CHECK );
-    viewMenu->Add( EE_ACTIONS::showHiddenLibPins,     ACTION_MENU::CHECK );
-    viewMenu->Add( EE_ACTIONS::showHiddenLibFields,   ACTION_MENU::CHECK );
+    viewMenu->Add( EE_ACTIONS::showHiddenPins,   ACTION_MENU::CHECK );
+    viewMenu->Add( EE_ACTIONS::showHiddenFields, ACTION_MENU::CHECK );
+    viewMenu->Add( EE_ACTIONS::togglePinAltIcons,ACTION_MENU::CHECK );
 
 
     //-- Place menu -----------------------------------------------
@@ -140,6 +148,7 @@ void SYMBOL_EDIT_FRAME::doReCreateMenuBar()
     placeMenu->Add( EE_ACTIONS::drawRectangle );
     placeMenu->Add( EE_ACTIONS::drawCircle );
     placeMenu->Add( EE_ACTIONS::drawArc );
+    placeMenu->Add( EE_ACTIONS::drawBezier );
     placeMenu->Add( EE_ACTIONS::drawSymbolLines );
     placeMenu->Add( EE_ACTIONS::drawSymbolPolygon );
 
@@ -148,7 +157,7 @@ void SYMBOL_EDIT_FRAME::doReCreateMenuBar()
     //
     ACTION_MENU* inspectMenu = new ACTION_MENU( false, selTool );
 
-    inspectMenu->Add( EE_ACTIONS::showDatasheet );
+    inspectMenu->Add( ACTIONS::showDatasheet );
 
     inspectMenu->AppendSeparator();
     inspectMenu->Add( EE_ACTIONS::checkSymbol );

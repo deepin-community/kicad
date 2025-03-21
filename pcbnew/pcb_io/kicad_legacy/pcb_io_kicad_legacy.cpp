@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2007-2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2019 Jean-Pierre Charras, jp.charras@wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -73,7 +73,6 @@
 #include <string_utils.h>
 #include <locale_io.h>
 #include <macros.h>
-#include <string_utf8_map.h>
 #include <filter_reader.h>
 #include <zones.h>
 
@@ -285,14 +284,16 @@ static GR_TEXT_V_ALIGN_T vertJustify( const char* vertical )
 
 
 /// Count the number of set layers in the mask
-inline int layerMaskCountSet( LEG_MASK aMask )
+int layerMaskCountSet( LEG_MASK aMask )
 {
     int count = 0;
 
-    for( int i = 0;  aMask;  ++i, aMask >>= 1 )
+    while( aMask )
     {
         if( aMask & 1 )
             ++count;
+
+        aMask >>= 1;
     }
 
     return count;
@@ -328,7 +329,7 @@ PCB_LAYER_ID PCB_IO_KICAD_LEGACY::leg_layer2new( int cu_count, int aLayerNum )
         }
         else
         {
-            newid = cu_count - 1 - old;
+            newid = BoardLayerFromLegacyId( cu_count - 1 - old );
             wxASSERT( newid >= 0 );
 
             // This is of course incorrect, but at least it avoid crashing pcbnew:
@@ -466,7 +467,7 @@ bool PCB_IO_KICAD_LEGACY::CanReadFootprint( const wxString& aFileName ) const
 
 
 BOARD* PCB_IO_KICAD_LEGACY::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
-                                 const STRING_UTF8_MAP* aProperties, PROJECT* aProject )
+                                 const std::map<std::string, UTF8>* aProperties, PROJECT* aProject )
 {
     LOCALE_IO   toggle;     // toggles on, then off, the C locale.
 
@@ -906,7 +907,7 @@ void PCB_IO_KICAD_LEGACY::loadSETUP()
 {
     BOARD_DESIGN_SETTINGS&    bds             = m_board->GetDesignSettings();
     ZONE_SETTINGS             zoneSettings    = bds.GetDefaultZoneSettings();
-    std::shared_ptr<NETCLASS> defaultNetclass = bds.m_NetSettings->m_DefaultNetClass;
+    std::shared_ptr<NETCLASS> defaultNetclass = bds.m_NetSettings->GetDefaultNetclass();
     char*                     line;
     char*                     saveptr;
 
@@ -926,6 +927,13 @@ void PCB_IO_KICAD_LEGACY::loadSETUP()
             plot_opts.Parse( &parser );
 
             m_board->SetPlotOptions( plot_opts );
+
+            if( plot_opts.GetLegacyPlotViaOnMaskLayer().has_value() )
+            {
+                bool tent = *plot_opts.GetLegacyPlotViaOnMaskLayer();
+                m_board->GetDesignSettings().m_TentViasFront = tent;
+                m_board->GetDesignSettings().m_TentViasBack = tent;
+            }
         }
 
         else if( TESTLINE( "AuxiliaryAxisOrg" ) )
@@ -1091,7 +1099,7 @@ void PCB_IO_KICAD_LEGACY::loadSETUP()
             BIU x = biuParse( line + SZ( "PadSize" ), &data );
             BIU y = biuParse( data );
 
-            bds.m_Pad_Master->SetSize( VECTOR2I( x, y ) );
+            bds.m_Pad_Master->SetSize( PADSTACK::ALL_LAYERS, VECTOR2I( x, y ) );
         }
         else if( TESTLINE( "PadDrill" ) )
         {
@@ -1341,7 +1349,7 @@ void PCB_IO_KICAD_LEGACY::loadFOOTPRINT( FOOTPRINT* aFootprint )
         else if( TESTLINE( ".ZoneConnection" ) )
         {
             int tmp = intParse( line + SZ( ".ZoneConnection" ) );
-            aFootprint->SetZoneConnection((ZONE_CONNECTION) tmp );
+            aFootprint->SetLocalZoneConnection((ZONE_CONNECTION) tmp );
         }
         else if( TESTLINE( ".ThermalWidth" ) )
         {
@@ -1436,9 +1444,9 @@ void PCB_IO_KICAD_LEGACY::loadPAD( FOOTPRINT* aFootprint )
             // chances are both were ASCII, but why take chances?
 
             pad->SetNumber( padNumber );
-            pad->SetShape( static_cast<PAD_SHAPE>( padshape ) );
-            pad->SetSize( VECTOR2I( size_x, size_y ) );
-            pad->SetDelta( VECTOR2I( delta_x, delta_y ) );
+            pad->SetShape( PADSTACK::ALL_LAYERS, static_cast<PAD_SHAPE>( padshape ) );
+            pad->SetSize( PADSTACK::ALL_LAYERS, VECTOR2I( size_x, size_y ) );
+            pad->SetDelta( PADSTACK::ALL_LAYERS, VECTOR2I( delta_x, delta_y ) );
             pad->SetOrientation( orient );
         }
         else if( TESTLINE( "Dr" ) )         // (Dr)ill
@@ -1449,7 +1457,7 @@ void PCB_IO_KICAD_LEGACY::loadPAD( FOOTPRINT* aFootprint )
             BIU offs_x  = biuParse( data, &data );
             BIU offs_y  = biuParse( data, &data );
 
-            PAD_DRILL_SHAPE_T drShape = PAD_DRILL_SHAPE_CIRCLE;
+            PAD_DRILL_SHAPE drShape = PAD_DRILL_SHAPE::CIRCLE;
 
             data = strtok_r( (char*) data, delims, &saveptr );
 
@@ -1457,7 +1465,7 @@ void PCB_IO_KICAD_LEGACY::loadPAD( FOOTPRINT* aFootprint )
             {
                 if( data[0] == 'O' )
                 {
-                    drShape = PAD_DRILL_SHAPE_OBLONG;
+                    drShape = PAD_DRILL_SHAPE::OBLONG;
 
                     data    = strtok_r( nullptr, delims, &saveptr );
                     drill_x = biuParse( data );
@@ -1468,7 +1476,7 @@ void PCB_IO_KICAD_LEGACY::loadPAD( FOOTPRINT* aFootprint )
             }
 
             pad->SetDrillShape( drShape );
-            pad->SetOffset( VECTOR2I( offs_x, offs_y ) );
+            pad->SetOffset( PADSTACK::ALL_LAYERS, VECTOR2I( offs_x, offs_y ) );
             pad->SetDrillSize( VECTOR2I( drill_x, drill_y ) );
         }
         else if( TESTLINE( "At" ) )         // (At)tribute
@@ -1554,17 +1562,17 @@ void PCB_IO_KICAD_LEGACY::loadPAD( FOOTPRINT* aFootprint )
         else if( TESTLINE( ".ZoneConnection" ) )
         {
             int tmp = intParse( line + SZ( ".ZoneConnection" ) );
-            pad->SetZoneConnection( (ZONE_CONNECTION) tmp );
+            pad->SetLocalZoneConnection( (ZONE_CONNECTION) tmp );
         }
         else if( TESTLINE( ".ThermalWidth" ) )
         {
             BIU tmp = biuParse( line + SZ( ".ThermalWidth" ) );
-            pad->SetThermalSpokeWidth( tmp );
+            pad->SetLocalThermalSpokeWidthOverride( tmp );
         }
         else if( TESTLINE( ".ThermalGap" ) )
         {
             BIU tmp = biuParse( line + SZ( ".ThermalGap" ) );
-            pad->SetThermalGap( tmp );
+            pad->SetLocalThermalGapOverride( tmp );
         }
         else if( TESTLINE( "$EndPAD" ) )
         {
@@ -2223,12 +2231,11 @@ void PCB_IO_KICAD_LEGACY::loadTrackList( int aStructType )
         newTrack->SetPosition( VECTOR2I( start_x, start_y ) );
         newTrack->SetEnd( VECTOR2I( end_x, end_y ) );
 
-        newTrack->SetWidth( width );
-
         if( makeType == PCB_VIA_T )     // Ensure layers are OK when possible:
         {
             PCB_VIA *via = static_cast<PCB_VIA*>( newTrack );
             via->SetViaType( viatype );
+            via->SetWidth( PADSTACK::ALL_LAYERS, width );
 
             if( drill < 0 )
                 via->SetDrillDefault();
@@ -2258,6 +2265,8 @@ void PCB_IO_KICAD_LEGACY::loadTrackList( int aStructType )
         }
         else
         {
+            newTrack->SetWidth( width );
+
             // A few legacy boards can have tracks on non existent layers, because
             // reducing the number of layers does not remove tracks on removed layers
             // If happens, skip them
@@ -2304,11 +2313,8 @@ void PCB_IO_KICAD_LEGACY::loadNETCLASS()
             ReadDelimitedText( buf, line + SZ( "AddNet" ), sizeof(buf) );
             netname = ConvertToNewOverbarNotation( From_UTF8( buf ) );
 
-            m_board->GetDesignSettings().m_NetSettings->m_NetClassPatternAssignments.push_back(
-                    {
-                        std::make_unique<EDA_COMBINED_MATCHER>( netname, CTX_NETCLASS ),
-                        nc->GetName()
-                    } );
+            m_board->GetDesignSettings().m_NetSettings->SetNetclassPatternAssignment(
+                    netname, nc->GetName() );
         }
         else if( TESTLINE( "Clearance" ) )
         {
@@ -2352,7 +2358,7 @@ void PCB_IO_KICAD_LEGACY::loadNETCLASS()
         }
         else if( TESTLINE( "$EndNCLASS" ) )
         {
-            if( m_board->GetDesignSettings().m_NetSettings->m_NetClasses.count( nc->GetName() ) )
+            if( m_board->GetDesignSettings().m_NetSettings->HasNetclass( nc->GetName() ) )
             {
                 // Must have been a name conflict, this is a bad board file.
                 // User may have done a hand edit to the file.
@@ -2364,7 +2370,7 @@ void PCB_IO_KICAD_LEGACY::loadNETCLASS()
             }
             else
             {
-                m_board->GetDesignSettings().m_NetSettings->m_NetClasses[ nc->GetName() ] = nc;
+                m_board->GetDesignSettings().m_NetSettings->SetNetclass( nc->GetName(), nc );
             }
 
             return;     // preferred exit
@@ -2621,8 +2627,7 @@ void PCB_IO_KICAD_LEGACY::loadZONE_CONTAINER()
 
                 inflatedFill.InflateWithLinkedHoles( zc->GetMinThickness() / 2,
                                                      CORNER_STRATEGY::ROUND_ALL_CORNERS,
-                                                     ARC_HIGH_DEF / 2,
-                                                     SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+                                                     ARC_HIGH_DEF / 2 );
 
                 zc->SetFilledPolysList( layer, inflatedFill );
             }
@@ -2905,7 +2910,7 @@ EDA_ANGLE PCB_IO_KICAD_LEGACY::degParse( const char* aValue, const char** nptrpt
 }
 
 
-void PCB_IO_KICAD_LEGACY::init( const STRING_UTF8_MAP* aProperties )
+void PCB_IO_KICAD_LEGACY::init( const std::map<std::string, UTF8>* aProperties )
 {
     m_loading_format_version = 0;
     m_cu_count = 16;
@@ -3191,7 +3196,7 @@ void PCB_IO_KICAD_LEGACY::cacheLib( const wxString& aLibraryPath )
 
 
 void PCB_IO_KICAD_LEGACY::FootprintEnumerate( wxArrayString& aFootprintNames, const wxString& aLibPath,
-                                        bool aBestEfforts, const STRING_UTF8_MAP* aProperties )
+                                        bool aBestEfforts, const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO toggle;     // toggles on, then off, the C locale.
     wxString  errorMsg;
@@ -3220,7 +3225,7 @@ void PCB_IO_KICAD_LEGACY::FootprintEnumerate( wxArrayString& aFootprintNames, co
 
 FOOTPRINT* PCB_IO_KICAD_LEGACY::FootprintLoad( const wxString& aLibraryPath,
                                          const wxString& aFootprintName, bool aKeepUUID,
-                                         const STRING_UTF8_MAP* aProperties )
+                                         const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO   toggle;     // toggles on, then off, the C locale.
 
@@ -3244,7 +3249,7 @@ FOOTPRINT* PCB_IO_KICAD_LEGACY::FootprintLoad( const wxString& aLibraryPath,
 
 
 bool PCB_IO_KICAD_LEGACY::DeleteLibrary( const wxString& aLibraryPath,
-                                         const STRING_UTF8_MAP* aProperties )
+                                         const std::map<std::string, UTF8>* aProperties )
 {
     wxFileName fn = aLibraryPath;
 
@@ -3271,9 +3276,6 @@ bool PCB_IO_KICAD_LEGACY::DeleteLibrary( const wxString& aLibraryPath,
 
 bool PCB_IO_KICAD_LEGACY::IsLibraryWritable( const wxString& aLibraryPath )
 {
-#if 0   // no support for 32 Cu layers in legacy format
-    return false;
-#else
     LOCALE_IO   toggle;
 
     init( nullptr );
@@ -3281,7 +3283,6 @@ bool PCB_IO_KICAD_LEGACY::IsLibraryWritable( const wxString& aLibraryPath )
     cacheLib( aLibraryPath );
 
     return m_cache->m_writable;
-#endif
 }
 
 

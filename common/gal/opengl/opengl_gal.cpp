@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2012 Torsten Hueter, torstenhtr <at> gmx.de
- * Copyright (C) 2012-2024 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2013-2017 CERN
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -43,13 +43,14 @@
 #include <bitmap_base.h>
 #include <bezier_curves.h>
 #include <math/util.h> // for KiROUND
+#include <pgm_base.h>
 #include <trace_helpers.h>
 
 #include <wx/frame.h>
 
 #include <macros.h>
 #include <geometry/geometry_utils.h>
-#include <core/thread_pool.h>
+#include <thread_pool.h>
 
 #include <core/profile.h>
 #include <trace_helpers.h>
@@ -72,8 +73,15 @@ using namespace KIGFX;
 #include <glsl_kicad_vert.h>
 using namespace KIGFX::BUILTIN_FONT;
 
-static void      InitTesselatorCallbacks( GLUtesselator* aTesselator );
-static const int glAttributes[] = { WX_GL_RGBA, WX_GL_DOUBLEBUFFER, WX_GL_DEPTH_SIZE, 8, 0 };
+static void InitTesselatorCallbacks( GLUtesselator* aTesselator );
+
+static wxGLAttributes getGLAttribs()
+{
+    wxGLAttributes attribs;
+    attribs.RGBA().DoubleBuffer().Depth( 8 ).EndList();
+
+    return attribs;
+}
 
 wxGLContext* OPENGL_GAL::m_glMainContext = nullptr;
 int          OPENGL_GAL::m_instanceCounter = 0;
@@ -301,12 +309,13 @@ GLuint GL_BITMAP_CACHE::cacheBitmap( const BITMAP_BASE* aBitmap )
     return textureID;
 }
 
+
 OPENGL_GAL::OPENGL_GAL( const KIGFX::VC_SETTINGS& aVcSettings, GAL_DISPLAY_OPTIONS& aDisplayOptions,
                         wxWindow* aParent,
                         wxEvtHandler* aMouseListener, wxEvtHandler* aPaintListener,
                         const wxString& aName ) :
         GAL( aDisplayOptions ),
-        HIDPI_GL_CANVAS( aVcSettings, aParent, wxID_ANY, (int*) glAttributes, wxDefaultPosition,
+        HIDPI_GL_CANVAS( aVcSettings, aParent, getGLAttribs(), wxID_ANY, wxDefaultPosition,
                          wxDefaultSize,
                          wxEXPAND, aName ),
         m_mouseListener( aMouseListener ),
@@ -324,7 +333,7 @@ OPENGL_GAL::OPENGL_GAL( const KIGFX::VC_SETTINGS& aVcSettings, GAL_DISPLAY_OPTIO
 {
     if( m_glMainContext == nullptr )
     {
-        m_glMainContext = GL_CONTEXT_MANAGER::Get().CreateCtx( this );
+        m_glMainContext = Pgm().GetGLContextManager()->CreateCtx( this );
 
         if( !m_glMainContext )
             throw std::runtime_error( "Could not create the main OpenGL context" );
@@ -333,7 +342,7 @@ OPENGL_GAL::OPENGL_GAL( const KIGFX::VC_SETTINGS& aVcSettings, GAL_DISPLAY_OPTIO
     }
     else
     {
-        m_glPrivContext = GL_CONTEXT_MANAGER::Get().CreateCtx( this, m_glMainContext );
+        m_glPrivContext = Pgm().GetGLContextManager()->CreateCtx( this, m_glMainContext );
 
         if( !m_glPrivContext )
             throw std::runtime_error( "Could not create a private OpenGL context" );
@@ -380,9 +389,13 @@ OPENGL_GAL::OPENGL_GAL( const KIGFX::VC_SETTINGS& aVcSettings, GAL_DISPLAY_OPTIO
     Connect( wxEVT_AUX2_DCLICK, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
     Connect( wxEVT_MOUSEWHEEL, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
     Connect( wxEVT_MAGNIFY, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
+
 #if defined _WIN32 || defined _WIN64
     Connect( wxEVT_ENTER_WINDOW, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
 #endif
+
+    Bind( wxEVT_GESTURE_ZOOM, &OPENGL_GAL::skipGestureEvent, this );
+    Bind( wxEVT_GESTURE_PAN, &OPENGL_GAL::skipGestureEvent, this );
 
     SetSize( aParent->GetClientSize() );
     m_screenSize = ToVECTOR2I( GetNativePixelSize() );
@@ -410,7 +423,9 @@ OPENGL_GAL::OPENGL_GAL( const KIGFX::VC_SETTINGS& aVcSettings, GAL_DISPLAY_OPTIO
 
 OPENGL_GAL::~OPENGL_GAL()
 {
-    GL_CONTEXT_MANAGER::Get().LockCtx( m_glPrivContext, this );
+
+    GL_CONTEXT_MANAGER* gl_mgr = Pgm().GetGLContextManager();
+    gl_mgr->LockCtx( m_glPrivContext, this );
 
     --m_instanceCounter;
     glFlush();
@@ -427,19 +442,19 @@ OPENGL_GAL::~OPENGL_GAL()
         delete m_tempManager;
     }
 
-    GL_CONTEXT_MANAGER::Get().UnlockCtx( m_glPrivContext );
+    gl_mgr->UnlockCtx( m_glPrivContext );
 
     // If it was the main context, then it will be deleted
     // when the last OpenGL GAL instance is destroyed (a few lines below)
     if( m_glPrivContext != m_glMainContext )
-        GL_CONTEXT_MANAGER::Get().DestroyCtx( m_glPrivContext );
+        gl_mgr->DestroyCtx( m_glPrivContext );
 
     delete m_shader;
 
     // Are we destroying the last GAL instance?
     if( m_instanceCounter == 0 )
     {
-        GL_CONTEXT_MANAGER::Get().LockCtx( m_glMainContext, this );
+        gl_mgr->LockCtx( m_glMainContext, this );
 
         if( m_isBitmapFontLoaded )
         {
@@ -447,8 +462,8 @@ OPENGL_GAL::~OPENGL_GAL()
             m_isBitmapFontLoaded = false;
         }
 
-        GL_CONTEXT_MANAGER::Get().UnlockCtx( m_glMainContext );
-        GL_CONTEXT_MANAGER::Get().DestroyCtx( m_glMainContext );
+        gl_mgr->UnlockCtx( m_glMainContext );
+        gl_mgr->DestroyCtx( m_glMainContext );
         m_glMainContext = nullptr;
     }
 }
@@ -687,7 +702,7 @@ void OPENGL_GAL::BeginDrawing()
     m_shader->SetParameter( ufm_antialiasingOffset, renderingOffset );
     m_shader->Deactivate();
 
-    // Something betreen BeginDrawing and EndDrawing seems to depend on
+    // Something between BeginDrawing and EndDrawing seems to depend on
     // this texture unit being active, but it does not assure it itself.
     glActiveTexture( GL_TEXTURE0 );
 
@@ -706,14 +721,15 @@ void OPENGL_GAL::EndDrawing()
 {
     wxASSERT_MSG( m_isContextLocked, "What happened to the context lock?" );
 
-    PROF_TIMER cntTotal("gl-end-total");
-    PROF_TIMER cntEndCached("gl-end-cached");
-    PROF_TIMER cntEndNoncached("gl-end-noncached");
-    PROF_TIMER cntEndOverlay("gl-end-overlay");
-    PROF_TIMER cntComposite("gl-composite");
-    PROF_TIMER cntSwap("gl-swap");
+    PROF_TIMER cntTotal( "gl-end-total" );
+    PROF_TIMER cntEndCached( "gl-end-cached" );
+    PROF_TIMER cntEndNoncached( "gl-end-noncached" );
+    PROF_TIMER cntEndOverlay( "gl-end-overlay" );
+    PROF_TIMER cntComposite( "gl-composite" );
+    PROF_TIMER cntSwap( "gl-swap" );
 
     cntTotal.Start();
+
     // Cached & non-cached containers are rendered to the same buffer
     m_compositor->SetBuffer( m_mainBuffer );
 
@@ -734,6 +750,7 @@ void OPENGL_GAL::EndDrawing()
     cntEndOverlay.Stop();
 
     cntComposite.Start();
+
     // Be sure that the framebuffer is not colorized (happens on specific GPU&drivers combinations)
     glColor4d( 1.0, 1.0, 1.0, 1.0 );
 
@@ -766,7 +783,7 @@ void OPENGL_GAL::LockContext( int aClientCookie )
     m_isContextLocked = true;
     m_lockClientCookie = aClientCookie;
 
-    GL_CONTEXT_MANAGER::Get().LockCtx( m_glPrivContext, this );
+    Pgm().GetGLContextManager()->LockCtx( m_glPrivContext, this );
 }
 
 
@@ -775,12 +792,13 @@ void OPENGL_GAL::UnlockContext( int aClientCookie )
     wxASSERT_MSG( m_isContextLocked, "Context not locked.  A GAL_CONTEXT_LOCKER RAII object must "
                                      "be stacked rather than making separate lock/unlock calls." );
 
-    wxASSERT_MSG( m_lockClientCookie == aClientCookie, "Context was locked by a different client. "
-                                                       "Should not be possible with RAII objects." );
+    wxASSERT_MSG( m_lockClientCookie == aClientCookie,
+                  "Context was locked by a different client. "
+                  "Should not be possible with RAII objects." );
 
     m_isContextLocked = false;
 
-    GL_CONTEXT_MANAGER::Get().UnlockCtx( m_glPrivContext );
+    Pgm().GetGLContextManager()->UnlockCtx( m_glPrivContext );
 }
 
 
@@ -854,8 +872,8 @@ void OPENGL_GAL::drawSegment( const VECTOR2D& aStartPoint, const VECTOR2D& aEndP
     else
     {
         EDA_ANGLE lineAngle( startEndVector );
-        // Outlined tracks
 
+        // Outlined tracks
         SetLineWidth( 1.0 );
         m_currentManager->Color( m_strokeColor.r, m_strokeColor.g, m_strokeColor.b,
                                  m_strokeColor.a );
@@ -916,6 +934,7 @@ void OPENGL_GAL::drawCircle( const VECTOR2D& aCenterPoint, double aRadius, bool 
         m_currentManager->Shader( SHADER_FILLED_CIRCLE, 3.0, aRadius );
         m_currentManager->Vertex( aCenterPoint.x, aCenterPoint.y, m_layerDepth );
     }
+
     if( m_isStrokeEnabled )
     {
         if( aReserve )
@@ -959,7 +978,7 @@ void OPENGL_GAL::DrawArc( const VECTOR2D& aCenterPoint, double aRadius,
     double endAngle = startAngle + aAngle.AsRadians();
 
     // Normalize arc angles
-    SWAP( startAngle, >, endAngle );
+    normalize( startAngle, endAngle );
 
     const double alphaIncrement = calcAngleStep( aRadius );
 
@@ -1047,7 +1066,7 @@ void OPENGL_GAL::DrawArcSegment( const VECTOR2D& aCenterPoint, double aRadius,
     double endAngle = startAngle + aAngle.AsRadians();
 
     // Swap the angles, if start angle is greater than end angle
-    SWAP( startAngle, >, endAngle );
+    normalize( startAngle, endAngle );
 
     // Calculate the seg count to approximate the arc with aMaxError or less
     int segCount360 = GetArcToSegmentCount( aRadius, aMaxError, FULL_CIRCLE );
@@ -1202,7 +1221,9 @@ void OPENGL_GAL::DrawRectangle( const VECTOR2D& aStartPoint, const VECTOR2D& aEn
         // DrawLine (and DrawPolyline )
         // has problem with 0 length lines so enforce minimum
         if( aStartPoint == aEndPoint )
+        {
             DrawLine( aStartPoint + VECTOR2D( 1.0, 0.0 ), aEndPoint );
+        }
         else
         {
             std::deque<VECTOR2D> pointList;
@@ -1406,9 +1427,7 @@ void OPENGL_GAL::drawTriangulatedPolyset( const SHAPE_POLY_SET& aPolySet,
 
     if( aStrokeTriangulation )
     {
-        COLOR4D oldStrokeColor = m_strokeColor;
-        double  oldLayerDepth = m_layerDepth;
-
+        GAL_SCOPED_ATTRS( *this, GAL_SCOPED_ATTRS::STROKE_COLOR | GAL_SCOPED_ATTRS::LAYER_DEPTH );
         SetLayerDepth( m_layerDepth - 1 );
 
         for( unsigned int j = 0; j < aPolySet.TriangulatedPolyCount(); ++j )
@@ -1424,9 +1443,6 @@ void OPENGL_GAL::drawTriangulatedPolyset( const SHAPE_POLY_SET& aPolySet,
                 DrawLine( c, a );
             }
         }
-
-        SetStrokeColor( oldStrokeColor );
-        SetLayerDepth( oldLayerDepth );
     }
 }
 
@@ -1614,6 +1630,10 @@ void OPENGL_GAL::BitmapText( const wxString& aText, const VECTOR2I& aPosition,
         //if( IsTextMirrored() )
         //Translate( VECTOR2D( -textSize.x, 0 ) );
         break;
+
+    case GR_TEXT_H_ALIGN_INDETERMINATE:
+        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+        break;
     }
 
     switch( GetVerticalJustify() )
@@ -1629,6 +1649,10 @@ void OPENGL_GAL::BitmapText( const wxString& aText, const VECTOR2I& aPosition,
     case GR_TEXT_V_ALIGN_BOTTOM:
         Translate( VECTOR2D( 0, -textSize.y ) );
         overbarHeight = -textSize.y / 2.0;
+        break;
+
+    case GR_TEXT_V_ALIGN_INDETERMINATE:
+        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
         break;
     }
 
@@ -1772,9 +1796,9 @@ void OPENGL_GAL::DrawGrid()
     int gridStartY = KiROUND( ( worldStartPoint.y - m_gridOrigin.y ) / gridScreenSize.y );
     int gridEndY = KiROUND( ( worldEndPoint.y - m_gridOrigin.y ) / gridScreenSize.y );
 
-    // Ensure start coordinate > end coordinate
-    SWAP( gridStartX, >, gridEndX );
-    SWAP( gridStartY, >, gridEndY );
+    // Ensure start coordinate < end coordinate
+    normalize( gridStartX, gridEndX );
+    normalize( gridStartY, gridEndY );
 
     // Ensure the grid fills the screen
     --gridStartX;
@@ -2100,6 +2124,7 @@ bool OPENGL_GAL::HasTarget( RENDER_TARGET aTarget )
 void OPENGL_GAL::StartDiffLayer()
 {
     m_currentManager->EndDrawing();
+
     if( m_tempBuffer )
     {
         SetTarget( TARGET_TEMP );
@@ -2605,6 +2630,14 @@ void OPENGL_GAL::skipMouseEvent( wxMouseEvent& aEvent )
 }
 
 
+void OPENGL_GAL::skipGestureEvent( wxGestureEvent& aEvent )
+{
+    // Post the gesture event to the event listener registered in constructor, if any
+    if( m_mouseListener )
+        wxPostEvent( m_mouseListener, aEvent );
+}
+
+
 void OPENGL_GAL::blitCursor()
 {
     if( !IsCursorEnabled() )
@@ -2796,6 +2829,7 @@ static void InitTesselatorCallbacks( GLUtesselator* aTesselator )
     gluTessCallback( aTesselator, GLU_TESS_EDGE_FLAG, (void( CALLBACK* )()) EdgeCallback );
     gluTessCallback( aTesselator, GLU_TESS_ERROR, (void( CALLBACK* )()) ErrorCallback );
 }
+
 
 void OPENGL_GAL::EnableDepthTest( bool aEnabled )
 {

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -60,7 +60,7 @@ public:
      * The function is marked as virtual, so the plugins can implement extra
      * logic (e.g., enable warnings or checks)
      */
-    virtual void RegisterChooseProjectCallback( CHOOSE_PROJECT_HANDLER aChooseProjectHandler )
+    virtual void RegisterCallback( CHOOSE_PROJECT_HANDLER aChooseProjectHandler )
     {
         m_choose_project_handler = aChooseProjectHandler;
     }

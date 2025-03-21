@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2007-2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2007-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -40,6 +40,7 @@
 // all outside the DSN namespace:
 class BOARD;
 class PCB_TRACK;
+class PCB_ARC;
 class PCB_VIA;
 class NETCLASS;
 class FOOTPRINT;
@@ -443,7 +444,7 @@ public:
     {
     }
 
-    void SetLayerId( const char* aLayerId )
+    void SetLayerId( std::string& aLayerId )
     {
         layer_id = aLayerId;
     }
@@ -596,7 +597,7 @@ public:
 
     POINTS& GetPoints() {return points; }
 
-    void SetLayerId( const char* aLayerId )
+    void SetLayerId( const std::string& aLayerId )
     {
         layer_id = aLayerId;
     }
@@ -753,7 +754,7 @@ public:
             out->Print( 0, ")%s", newline );
     }
 
-    void SetLayerId( const char* aLayerId )
+    void SetLayerId( const std::string& aLayerId )
     {
         layer_id = aLayerId;
     }
@@ -801,7 +802,7 @@ public:
         out->Print( 0, ")%s", newline );
     }
 
-    void SetLayerId( const char* aLayerId )
+    void SetLayerId( std::string& aLayerId )
     {
         layer_id = aLayerId;
     }
@@ -3962,6 +3963,11 @@ private:
     PCB_TRACK* makeTRACK( WIRE* wire, PATH* aPath, int aPointIndex, int aNetcode );
 
     /**
+     * Create an #ARC form the #PATH and #BOARD info.
+     */
+    PCB_ARC* makeARC( WIRE* wire, QARC* aQarc, int aNetcode );
+
+    /**
      * Instantiate a KiCad #VIA on the heap and initializes it with internal
      * values consistent with the given #PADSTACK, #POINT, and netcode.
      */
@@ -3985,8 +3991,8 @@ private:
 
     STRINGS           m_layerIds;        ///< indexed by PCB layer number
 
-    std::vector<int>          m_kicadLayer2pcb;  ///< maps BOARD layer number to PCB layer numbers
-    std::vector<PCB_LAYER_ID> m_pcbLayer2kicad;  ///< maps PCB layer number to BOARD layer numbers
+    std::map<PCB_LAYER_ID, int> m_kicadLayer2pcb; ///< maps BOARD layer number to PCB layer numbers
+    std::map<int, PCB_LAYER_ID> m_pcbLayer2kicad;  ///< maps PCB layer number to BOARD layer numbers
 
     /// used during FromSESSION() only, memory for it is not owned here.
     UNIT_RES*         m_routeResolution;

@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2021 Ola Rinta-Koski
- * Copyright (C) 2021-2023 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * Outline font class
  *
@@ -36,10 +36,11 @@
 #endif
 #include FT_FREETYPE_H
 #include FT_OUTLINE_H
-//#include <gal/opengl/opengl_freetype.h>
+
 #include <font/font.h>
 #include <font/glyph.h>
 #include <font/outline_decomposer.h>
+#include <embedded_files.h>
 
 #include <mutex>
 
@@ -51,6 +52,16 @@ namespace KIFONT
 class GAL_API OUTLINE_FONT : public FONT
 {
 public:
+
+    enum class EMBEDDING_PERMISSION
+    {
+        INSTALLABLE,
+        EDITABLE,
+        PRINT_PREVIEW_ONLY,
+        RESTRICTED,
+        INVALID
+    };
+
     OUTLINE_FONT();
 
     bool IsOutline() const override { return true; }
@@ -75,16 +86,23 @@ public:
         m_fakeItal = true;
     }
 
+    const wxString& GetFileName() const { return m_fontFileName; }
+
+    EMBEDDING_PERMISSION GetEmbeddingPermission() const;
+
     /**
      * Load an outline font. TrueType (.ttf) and OpenType (.otf) are supported.
+     *
      * @param aFontFileName is the (platform-specific) fully qualified name of the font file
      */
     static OUTLINE_FONT* LoadFont( const wxString& aFontFileName, bool aBold, bool aItalic,
+                                   const std::vector<wxString>* aEmbeddedFiles,
                                    bool aForDrawingSheet );
 
     /**
-     * Compute the distance (interline) between 2 lines of text (for multiline texts).  This is
-     * the distance between baselines, not the space between line bounding boxes.
+     * Compute the distance (interline) between 2 lines of text (for multiline texts).
+     *
+     * This is the distance between baselines, not the space between line bounding boxes.
      */
     double GetInterline( double aGlyphHeight, const METRICS& aFontMetrics ) const override;
 
@@ -166,6 +184,7 @@ private:
     {
         return aSize * m_charSizeScaler * m_outlineFontSizeCompensation;
     };
+
     int faceSize() const { return faceSize( m_faceSize ); }
 
     // also for superscripts

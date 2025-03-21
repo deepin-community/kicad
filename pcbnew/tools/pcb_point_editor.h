@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2021-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -36,6 +36,7 @@
 
 
 class PCB_SELECTION_TOOL;
+class POINT_EDIT_BEHAVIOR;
 class SHAPE_POLY_SET;
 
 /**
@@ -70,20 +71,10 @@ private:
     ///< Set up handlers for various events.
     void setTransitions() override;
 
-    void buildForPolyOutline( std::shared_ptr<EDIT_POINTS> points, const SHAPE_POLY_SET* aOutline );
-
     std::shared_ptr<EDIT_POINTS> makePoints( EDA_ITEM* aItem );
 
     ///< Update item's points with edit points.
-    void updateItem( BOARD_COMMIT* aCommit );
-
-    /**
-     * Validate a polygon and displays a popup warning if invalid.
-     *
-     * @param aModified is the polygon to be checked.
-     * @return True if polygon is valid.
-     */
-    bool validatePolygon( SHAPE_POLY_SET& aModified ) const;
+    void updateItem( BOARD_COMMIT& aCommit );
 
     ///< Update edit points with item's points.
     void updatePoints();
@@ -111,21 +102,11 @@ private:
         return m_editedPoint == &aPoint;
     }
 
-    void pinEditedCorner( VECTOR2I& aTopLeft, VECTOR2I& aTopRight, VECTOR2I& aBotLeft,
-                          VECTOR2I& aBotRight, const VECTOR2I& aHole = { 0, 0 },
-                          const VECTOR2I& aHoleSize = { 0, 0 } ) const;
-
     ///< Set up an alternative constraint (typically enabled upon a modifier key being pressed).
     void setAltConstraint( bool aEnabled );
 
     ///< Return a point that should be used as a constrainer for 45 degrees mode.
     EDIT_POINT get45DegConstrainer() const;
-
-    ///< Condition to display "Create corner" context menu entry.
-    static bool addCornerCondition( const SELECTION& aSelection );
-
-    ///< Determine if the tool can currently add a corner to the given item
-    static bool canAddCorner( const EDA_ITEM& aItem );
 
     ///< Condition to display "Remove corner" context menu entry.
     bool removeCornerCondition( const SELECTION& aSelection );
@@ -134,46 +115,14 @@ private:
     int movePoint( const TOOL_EVENT& aEvent );
     int addCorner( const TOOL_EVENT& aEvent );
     int removeCorner( const TOOL_EVENT& aEvent );
+    int chamferCorner( const TOOL_EVENT& aEvent );
     int modifiedSelection( const TOOL_EVENT& aEvent );
-
-    /**
-     * Move an end point of the arc, while keeping the tangent at the other endpoint.
-     */
-    void editArcEndpointKeepTangent( PCB_SHAPE* aArc, const VECTOR2I& aCenter,
-                                     const VECTOR2I& aStart, const VECTOR2I& aMid,
-                                     const VECTOR2I& aEnd, const VECTOR2I& aCursor ) const;
-
-    /**
-     * Move an end point of the arc around the circumference.
-     */
-    void editArcEndpointKeepCenter( PCB_SHAPE* aArc, const VECTOR2I& aCenter,
-                                    const VECTOR2I& aStart, const VECTOR2I& aMid,
-                                    const VECTOR2I& aEnd, const VECTOR2I& aCursor ) const;
-
-    /**
-     * Move the arc center but keep endpoint locations.
-     */
-    void editArcCenterKeepEndpoints( PCB_SHAPE* aArc, const VECTOR2I& aCenter,
-                                     const VECTOR2I& aStart, const VECTOR2I& aMid,
-                                     const VECTOR2I& aEnd ) const;
-
-    /**
-     * Move the mid point of the arc, while keeping the two endpoints.
-     */
-    void editArcMidKeepEndpoints( PCB_SHAPE* aArc, const VECTOR2I& aStart, const VECTOR2I& aEnd,
-                                  const VECTOR2I& aCursor ) const;
-
-    /**
-     * Move the mid point of the arc, while keeping the angle.
-     */
-    void editArcMidKeepCenter( PCB_SHAPE* aArc, const VECTOR2I& aCenter, const VECTOR2I& aStart,
-                               const VECTOR2I& aMid, const VECTOR2I& aEnd,
-                               const VECTOR2I& aCursor ) const;
 
     ///< Change the edit method for arcs.
     int changeArcEditMode( const TOOL_EVENT& aEvent );
 
 private:
+    PCB_BASE_FRAME*               m_frame;
     PCB_SELECTION_TOOL*           m_selectionTool;
     std::shared_ptr<EDIT_POINTS>  m_editPoints;
 
@@ -191,6 +140,10 @@ private:
     EDIT_POINT                                   m_altConstrainer;
 
     bool                          m_inPointEditorTool; // Re-entrancy guard
+
+    // This handles the edit process for a specific tpye of item (not
+    // just C++ type, because PCB_SHAPE is one type that has many subtypes)
+    std::unique_ptr<POINT_EDIT_BEHAVIOR> m_editorBehavior;
 
     static const unsigned int COORDS_PADDING; // Padding from coordinates limits for this tool
 };

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,32 +24,39 @@
 #include <kicommon.h>
 #include <kicommon.h>
 #include <layer_ids.h>
+#include <lseq.h>
 #include <wx/string.h>
-#include "job.h"
+#include <jobs/job_export_pcb_plot.h>
 
-class KICOMMON_API JOB_EXPORT_PCB_PDF : public JOB
+
+class KICOMMON_API JOB_EXPORT_PCB_PDF : public JOB_EXPORT_PCB_PLOT
 {
 public:
-    JOB_EXPORT_PCB_PDF( bool aIsCli );
+    JOB_EXPORT_PCB_PDF();
+    wxString GetDefaultDescription() const override;
+    wxString GetSettingsDialogTitle() const override;
 
-    wxString m_filename;
-    wxString m_outputFile;
-    wxString m_colorTheme;
-    wxString m_drawingSheet;
+    bool m_pdfFrontFPPropertyPopups;
+    bool m_pdfBackFPPropertyPopups;
+    bool m_pdfMetadata;
 
-    bool m_mirror;
-    bool m_blackAndWhite;
-    bool m_negative;
-    bool m_plotFootprintValues;
-    bool m_plotRefDes;
-    bool m_plotBorderTitleBlocks;
+    bool m_pdfSingle;
 
-    LSEQ m_printMaskLayer;
+    ///< This is a hack to deal with cli having the wrong behavior
+    ///< We will deprecate out the wrong behavior, at which point this enum
+    ///< can be replaced with a bool
+    enum class GEN_MODE
+    {
+        ///< DEPRECATED MODE
+        ALL_LAYERS_ONE_FILE,
+        ///< "Single Document" mode
+        ONE_PAGE_PER_LAYER_ONE_FILE,
+        ///< The most traditional output mode KiCad has had
+        ALL_LAYERS_SEPARATE_FILE
+    };
 
-    // How holes in pads/vias are plotted:
-    // 0 = no hole, 1 = small shape, 2 = actual shape
-    // Not used in some plotters (Gerber)
-    int m_drillShapeOption;
+    ///< uused by the cli, will be removed when the other behavior is deprecated
+    GEN_MODE m_pdfGenMode;
 };
 
 #endif

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -62,6 +62,11 @@ private:
     void onSizeGrid( wxSizeEvent& event ) override;
     void onGridCellLeftClickHandler( wxGridEvent& event );
 
+    void onPageChange( wxBookCtrlEvent& event ) override;
+    void onReset( wxCommandEvent& event ) override;
+
+    void setupGrid( WX_GRID* aGrid );
+
     void adjustPathSubsGridColumns( int aWidth );
 
     /// Populate the readonly environment variable table with names and values
@@ -91,6 +96,7 @@ private:
     wxString         m_projectBasePath;
 
     DIALOG_EDIT_LIBRARY_TABLES* m_parent;
+    wxArrayString               m_pluginChoices;
 
     WX_GRID*         m_cur_grid;      // changed based on tab choice
     static size_t    m_pageNdx;       // Remember last notebook page selected during a session

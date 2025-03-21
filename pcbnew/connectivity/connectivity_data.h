@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2018-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -37,6 +37,7 @@
 
 #include <math/vector2d.h>
 #include <geometry/shape_poly_set.h>
+#include <project/net_settings.h>
 #include <zone.h>
 
 class FROM_TO_CACHE;
@@ -211,8 +212,7 @@ public:
      */
     const std::vector<BOARD_CONNECTED_ITEM*>
     GetConnectedItemsAtAnchor( const BOARD_CONNECTED_ITEM* aItem, const VECTOR2I& aAnchor,
-                               const std::initializer_list<KICAD_T>& aTypes,
-                               const int& aMaxError = 0 ) const;
+                               const std::vector<KICAD_T>& aTypes, const int& aMaxError = 0 ) const;
 
     void RunOnUnconnectedEdges( std::function<bool( CN_EDGE& )> aFunc );
 
@@ -248,8 +248,7 @@ public:
      * @param aTypes allows one to filter by item types.
      */
     const std::vector<BOARD_CONNECTED_ITEM*>
-    GetConnectedItems( const BOARD_CONNECTED_ITEM* aItem,
-                       const std::initializer_list<KICAD_T>& aTypes,
+    GetConnectedItems( const BOARD_CONNECTED_ITEM* aItem, const std::vector<KICAD_T>& aTypes,
                        bool aIgnoreNetcodes = false ) const;
 
     /**
@@ -259,7 +258,7 @@ public:
      * @param aTypes allows one to filter by item types.
      */
     const std::vector<BOARD_CONNECTED_ITEM*>
-    GetNetItems( int aNetCode, const std::initializer_list<KICAD_T>& aTypes ) const;
+    GetNetItems( int aNetCode, const std::vector<KICAD_T>& aTypes ) const;
 
     void BlockRatsnestItems( const std::vector<BOARD_ITEM*>& aItems );
 
@@ -272,7 +271,13 @@ public:
 
     void SetProgressReporter( PROGRESS_REPORTER* aReporter );
 
-    const std::map<int, wxString>& GetNetclassMap() const { return m_netclassMap; }
+    const NET_SETTINGS* GetNetSettings() const;
+
+    bool            HasNetNameForNetCode( int nc ) const { return m_netcodeMap.count( nc ) > 0; }
+    const wxString& GetNetNameForNetCode( int nc ) const { return m_netcodeMap.at( nc ); }
+
+    /// @brief Refresh the map of netcodes to net names
+    void RefreshNetcodeMap( BOARD* aBoard );
 
 #ifndef SWIG
     const std::vector<CN_EDGE> GetRatsnestForItems( const std::vector<BOARD_ITEM*>& aItems );
@@ -308,10 +313,13 @@ private:
 
     KISPINLOCK                      m_lock;
 
-    /// Map of netcode -> netclass the net is a member of; used for ratsnest painting
-    std::map<int, wxString>         m_netclassMap;
-
     PROGRESS_REPORTER*              m_progressReporter;
+
+    /// @brief Used to get netclass data when drawing ratsnests
+    std::weak_ptr<NET_SETTINGS> m_netSettings;
+
+    /// @brief Used to map netcode to net name
+    std::map<int, wxString> m_netcodeMap;
 };
 
 #endif

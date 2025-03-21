@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -49,7 +49,7 @@
 
 #include <background_jobs_monitor.h>
 
-#include <core/thread_pool.h>
+#include <thread_pool.h>
 
 #include <build_version.h>
 
@@ -83,6 +83,19 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE( UPDATE_RESPONSE, version, release_date, deta
 
 UPDATE_MANAGER::UPDATE_MANAGER() : m_working( false )
 {
+}
+
+
+UPDATE_MANAGER::~UPDATE_MANAGER()
+{
+    if( m_updateBackgroundJob )
+    {
+        if( m_updateBackgroundJob->m_reporter )
+            m_updateBackgroundJob->m_reporter->Cancel();
+
+        if( m_updateTask.valid() )
+            m_updateTask.wait();
+    }
 }
 
 
@@ -165,12 +178,14 @@ void UPDATE_MANAGER::CheckForUpdate( wxWindow* aNoticeParent )
 
     auto update_check = [aNoticeParent, this]() -> void
     {
+        std::shared_ptr<BACKGROUND_JOB_REPORTER> reporter = m_updateBackgroundJob->m_reporter;
+
         std::stringstream update_json_stream;
         std::stringstream request_json_stream;
 
         wxString aUrl = UPDATE_QUERY_ENDPOINT;
-        m_updateBackgroundJob->m_reporter->SetNumPhases( 1 );
-        m_updateBackgroundJob->m_reporter->Report( _( "Requesting update info" ) );
+        reporter->SetNumPhases( 1 );
+        reporter->Report( _( "Requesting update info" ) );
 
         UPDATE_REQUEST requestContent;
 
@@ -201,15 +216,16 @@ void UPDATE_MANAGER::CheckForUpdate( wxWindow* aNoticeParent )
         requestContent.current_version = verString;
         requestContent.lang = Pgm().GetLanguageTag();
 
-        KICAD_SETTINGS* settings = Pgm().GetSettingsManager().GetAppSettings<KICAD_SETTINGS>();
+        SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+        KICAD_SETTINGS*   settings = mgr.GetAppSettings<KICAD_SETTINGS>( "kicad" );
 
         requestContent.last_check = settings->m_lastUpdateCheckTime;
 
         nlohmann::json requestJson = nlohmann::json( requestContent );
         request_json_stream << requestJson;
 
-        int responseCode =
-                PostRequest( aUrl, request_json_stream.str(), &update_json_stream, NULL, 20480 );
+        int responseCode = PostRequest( aUrl, request_json_stream.str(), &update_json_stream,
+                                        reporter.get(), 20480 );
 
         // Check that the response is 200 (content provided)
         // We can also return 204 for no update
@@ -239,9 +255,9 @@ void UPDATE_MANAGER::CheckForUpdate( wxWindow* aNoticeParent )
                                 {
                                     // basically saving the last received update prevents us from
                                     // prompting again
-                                    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-                                    KICAD_SETTINGS*   settings = mgr.GetAppSettings<KICAD_SETTINGS>();
-                                    settings->m_lastReceivedUpdate = response.version;
+                                    SETTINGS_MANAGER& set_mgr = Pgm().GetSettingsManager();
+                                    KICAD_SETTINGS*   cfg     = set_mgr.GetAppSettings<KICAD_SETTINGS>( "kicad" );
+                                    cfg->m_lastReceivedUpdate = response.version;
                                 }
                             } );
                 }
@@ -261,5 +277,5 @@ void UPDATE_MANAGER::CheckForUpdate( wxWindow* aNoticeParent )
     };
 
     thread_pool& tp = GetKiCadThreadPool();
-    tp.push_task( update_check );
+    m_updateTask = tp.submit( update_check );
 }

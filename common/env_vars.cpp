@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -29,12 +29,11 @@
 
 using STRING_MAP = std::map<wxString, wxString>;
 
-/*
- * List of pre-defined environment variables
+/**
+ * List of pre-defined environment variables.
  *
- * TODO - Instead of defining these values here,
- * extract them from elsewhere in the program
- * (where they are originally defined)
+ * @todo Instead of defining these values here, extract them from elsewhere in the program
+ * (where they are originally defined).
  */
 static const ENV_VAR::ENV_VAR_LIST predefinedEnvVars = {
     wxS( "KIPRJMOD" ),
@@ -46,6 +45,7 @@ static const ENV_VAR::ENV_VAR_LIST predefinedEnvVars = {
     wxS( "KICAD_PTEMPLATES" ),
     ENV_VAR::GetVersionedEnvVarName( wxS( "3RD_PARTY" ) ),
 };
+
 
 const wxRegEx versionedEnvVarRegex( wxS( "KICAD[0-9]+_[A-Z0-9_]+(_DIR)?" ) );
 
@@ -131,14 +131,15 @@ static void initialiseEnvVarHelp( STRING_MAP& aMap )
         _( "A directory containing user-specific scripts installed with KiCad" );
 
     // Deprecated vars
+#define DEP( var ) wxString::Format( _( "Deprecated version of %s." ), var )
+
     aMap[wxS( "KICAD_PTEMPLATES" )] =
-        _( "Deprecated version of KICAD_TEMPLATE_DIR.");
-    aMap[wxS( "KISYS3DMOD" )] =
-        _( "Deprecated version of KICAD7_3DMODEL_DIR." );
-    aMap[wxS( "KISYSMOD" )] =
-        _( "Deprecated version of KICAD7_FOOTPRINT_DIR." );
-    aMap[wxS( "KICAD_SYMBOL_DIR" )] =
-        _( "Deprecated version of KICAD_SYMBOL_DIR.");
+            DEP( ENV_VAR::GetVersionedEnvVarName( wxS( "TEMPLATE_DIR" ) ) );
+    aMap[wxS( "KISYS3DMOD" )] = DEP( ENV_VAR::GetVersionedEnvVarName( wxS( "3DMODEL_DIR" ) ) );
+    aMap[wxS( "KISYSMOD" )] = DEP( ENV_VAR::GetVersionedEnvVarName( wxS( "FOOTPRINT_DIR" ) ) );
+    aMap[wxS( "KICAD_SYMBOL_DIR" )] = DEP( ENV_VAR::GetVersionedEnvVarName( wxS( "SYMBOL_DIR" ) ) );
+
+#undef DEP
 }
 
 

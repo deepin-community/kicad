@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2009-2016 Dick Hollenbeck, dick@softplc.com
- * Copyright (C) 2004-2023, 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,27 +41,32 @@
 #include <wildcards_and_files_ext.h>
 #include <pcb_marker.h>
 #include <pgm_base.h>
+#include <wx/app.h>
 #include <wx/filedlg.h>
+#include <wx/msgdlg.h>
 #include <wx/wupdlock.h>
 #include <widgets/appearance_controls.h>
 #include <widgets/ui_common.h>
 #include <widgets/progress_reporter_base.h>
 #include <widgets/wx_html_report_box.h>
 #include <dialogs/panel_setup_rules_base.h>
+#include <dialogs/dialog_text_entry.h>
 #include <tools/drc_tool.h>
 #include <tools/zone_filler_tool.h>
 #include <tools/board_inspection_tool.h>
 #include <kiplatform/ui.h>
+#include <advanced_config.h>
 
 // wxWidgets spends *far* too long calcuating column widths (most of it, believe it or
 // not, in repeatedly creating/destroying a wxDC to do the measurement in).
 // Use default column widths instead.
 static int DEFAULT_SINGLE_COL_WIDTH = 660;
 
-static BOARD*                g_lastDRCBoard = nullptr;
-static bool                  g_lastDRCRun = false;
-static bool                  g_lastFootprintTestsRun = false;
-static std::vector<wxString> g_lastIgnored;
+static BOARD*  g_lastDRCBoard = nullptr;
+static bool    g_lastDRCRun = false;
+static bool    g_lastFootprintTestsRun = false;
+
+static std::vector<std::pair<wxString, int>> g_lastIgnored;
 
 
 DIALOG_DRC::DIALOG_DRC( PCB_EDIT_FRAME* aEditorFrame, wxWindow* aParent ) :
@@ -116,8 +121,15 @@ DIALOG_DRC::DIALOG_DRC( PCB_EDIT_FRAME* aEditorFrame, wxWindow* aParent ) :
         m_drcRun = g_lastDRCRun;
         m_footprintTestsRun = g_lastFootprintTestsRun;
 
-        for( const wxString& str : g_lastIgnored )
-            m_ignoredList->InsertItem( m_ignoredList->GetItemCount(), str );
+        for( const auto& [ str, code ] : g_lastIgnored )
+        {
+            wxListItem listItem;
+            listItem.SetId( m_ignoredList->GetItemCount() );
+            listItem.SetText( str );
+            listItem.SetData( code );
+
+            m_ignoredList->InsertItem( listItem );
+        }
     }
 
     m_Notebook->SetSelection( 0 );
@@ -160,7 +172,10 @@ DIALOG_DRC::~DIALOG_DRC()
     g_lastIgnored.clear();
 
     for( int ii = 0; ii < m_ignoredList->GetItemCount(); ++ii )
-        g_lastIgnored.push_back( m_ignoredList->GetItemText( ii ) );
+    {
+        g_lastIgnored.push_back( { m_ignoredList->GetItemText( ii ),
+                                   m_ignoredList->GetItemData( ii ) } );
+    }
 
     PCBNEW_SETTINGS* cfg = nullptr;
 
@@ -209,7 +224,7 @@ void DIALOG_DRC::OnActivateDlg( wxActivateEvent& aEvent )
 
 bool DIALOG_DRC::updateUI()
 {
-    double cur = alg::clamp( 0.0, (double) m_progress.load() / m_maxProgress, 1.0 );
+    double cur = std::clamp( (double) m_progress.load() / m_maxProgress, 0.0, 1.0 );
 
     int newValue = KiROUND( cur * 1000.0 );
     m_gauge->SetValue( newValue );
@@ -312,8 +327,12 @@ void DIALOG_DRC::OnRunDRCClick( wxCommandEvent& aEvent )
     {
         if( bds().GetSeverity( item.get().GetErrorCode() ) == RPT_SEVERITY_IGNORE )
         {
-            m_ignoredList->InsertItem( m_ignoredList->GetItemCount(),
-                                       wxT( " • " ) + item.get().GetErrorText() );
+            wxListItem listItem;
+            listItem.SetId( m_ignoredList->GetItemCount() );
+            listItem.SetText( wxT( " • " ) + item.get().GetErrorText() );
+            listItem.SetData( item.get().GetErrorCode() );
+
+            m_ignoredList->InsertItem( listItem );
         }
     }
 
@@ -409,6 +428,20 @@ void DIALOG_DRC::OnDRCItemSelected( wxDataViewEvent& aEvent )
                 }
             };
 
+    auto isOverlapping =
+            []( BOARD_ITEM* aSelectedMarkerItem, BOARD_ITEM* aUnSelectedMarkerItem ) -> bool
+            {
+                VECTOR2D selectedItemPos = aSelectedMarkerItem->GetPosition() / PCB_IU_PER_MM;
+                VECTOR2D unSelectedItemPos = aUnSelectedMarkerItem->GetPosition() / PCB_IU_PER_MM;
+
+                double dist = selectedItemPos.Distance( unSelectedItemPos );
+
+                double minimumMarkerSeparationDistance =
+                        ADVANCED_CFG::GetCfg().m_MinimumMarkerSeparationDistance;
+
+                return dist <= minimumMarkerSeparationDistance;
+            };
+
     if( !node )
     {
         // list is being freed; don't do anything with null ptrs
@@ -492,7 +525,7 @@ void DIALOG_DRC::OnDRCItemSelected( wxDataViewEvent& aEvent )
 
     WINDOW_THAWER thawer( m_frame );
 
-    if( principalLayer > UNDEFINED_LAYER && ( violationLayers & board->GetVisibleLayers() ) == 0 )
+    if( principalLayer > UNDEFINED_LAYER && ( violationLayers & board->GetVisibleLayers() ).none() )
         m_frame->GetAppearancePanel()->SetLayerVisible( principalLayer, true );
 
     if( principalLayer > UNDEFINED_LAYER && board->GetVisibleLayers().test( principalLayer ) )
@@ -578,7 +611,25 @@ void DIALOG_DRC::OnDRCItemSelected( wxDataViewEvent& aEvent )
     }
     else
     {
-        m_frame->FocusOnItem( item, principalLayer );
+        if( item->Type() == PCB_MARKER_T )
+        {
+            std::vector<BOARD_ITEM*> items;
+
+            for( BOARD_ITEM* boardMarkerItem : board->Markers() )
+            {
+                if( item->m_Uuid != boardMarkerItem->m_Uuid && isOverlapping( item, boardMarkerItem ) )
+                {
+                    items.push_back( boardMarkerItem );
+                }
+            }
+
+            items.push_back( item );
+            m_frame->FocusOnItems( items, principalLayer );
+        }
+        else
+        {
+            m_frame->FocusOnItem( item, principalLayer );
+        }
     }
 
     aEvent.Skip();
@@ -602,7 +653,9 @@ void DIALOG_DRC::OnDRCItemDClick( wxDataViewEvent& aEvent )
 
 void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
 {
-    RC_TREE_NODE* node = RC_TREE_MODEL::ToNode( aEvent.GetItem() );
+    TOOL_MANAGER*          toolMgr = m_frame->GetToolManager();
+    BOARD_INSPECTION_TOOL* inspectionTool = toolMgr->GetTool<BOARD_INSPECTION_TOOL>();
+    RC_TREE_NODE*          node = RC_TREE_MODEL::ToNode( aEvent.GetItem() );
 
     if( !node )
         return;
@@ -612,7 +665,6 @@ void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
     std::shared_ptr<CONNECTIVITY_DATA> conn = m_currentBoard->GetConnectivity();
     wxString                           listName;
     wxMenu                             menu;
-    wxString                           msg;
 
     switch( bds().m_DRCSeverities[ rcItem->GetErrorCode() ] )
     {
@@ -621,94 +673,124 @@ void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
     default:                   listName = _( "appropriate" ); break;
     }
 
+    enum MENU_IDS
+    {
+        ID_EDIT_EXCLUSION_COMMENT = 4467,
+        ID_REMOVE_EXCLUSION,
+        ID_REMOVE_EXCLUSION_ALL,
+        ID_ADD_EXCLUSION,
+        ID_ADD_EXCLUSION_WITH_COMMENT,
+        ID_ADD_EXCLUSION_ALL,
+        ID_INSPECT_VIOLATION,
+        ID_SET_SEVERITY_TO_ERROR,
+        ID_SET_SEVERITY_TO_WARNING,
+        ID_SET_SEVERITY_TO_IGNORE,
+        ID_EDIT_SEVERITIES
+    };
+
     if( rcItem->GetParent()->IsExcluded() )
     {
-        menu.Append( 1, _( "Remove exclusion for this violation" ),
+        menu.Append( ID_REMOVE_EXCLUSION,
+                     _( "Remove exclusion for this violation" ),
                      wxString::Format( _( "It will be placed back in the %s list" ), listName ) );
+
+        menu.Append( ID_EDIT_EXCLUSION_COMMENT,
+                     _( "Edit exclusion comment..." ) );
 
         if( drcItem->GetViolatingRule() && !drcItem->GetViolatingRule()->m_Implicit )
         {
-            msg.Printf( _( "Remove all exclusions for violations of rule '%s'" ),
-                        drcItem->GetViolatingRule()->m_Name );
-            menu.Append( 11, msg );
+            menu.Append( ID_REMOVE_EXCLUSION_ALL,
+                         wxString::Format( _( "Remove all exclusions for violations of rule '%s'" ),
+                                           drcItem->GetViolatingRule()->m_Name ),
+                         wxString::Format( _( "They will be placed back in the %s list" ), listName ) );
         }
     }
     else
     {
-        menu.Append( 2, _( "Exclude this violation" ),
+        menu.Append( ID_ADD_EXCLUSION,
+                     _( "Exclude this violation" ),
+                     wxString::Format( _( "It will be excluded from the %s list" ), listName ) );
+
+        menu.Append( ID_ADD_EXCLUSION_WITH_COMMENT,
+                     _( "Exclude with comment..." ),
                      wxString::Format( _( "It will be excluded from the %s list" ), listName ) );
 
         if( drcItem->GetViolatingRule() && !drcItem->GetViolatingRule()->m_Implicit )
         {
-            msg.Printf( _( "Exclude all violations of rule '%s'" ),
-                        drcItem->GetViolatingRule()->m_Name );
-            menu.Append( 21, msg );
+            menu.Append( ID_ADD_EXCLUSION_ALL,
+                         wxString::Format( _( "Exclude all violations of rule '%s'..." ),
+                                           drcItem->GetViolatingRule()->m_Name ),
+                         wxString::Format( _( "They will be excluded from the %s list" ), listName ) );
         }
     }
 
-    if( rcItem->GetErrorCode() == DRCE_CLEARANCE
-            || rcItem->GetErrorCode() == DRCE_EDGE_CLEARANCE
-            || rcItem->GetErrorCode() == DRCE_HOLE_CLEARANCE
-            || rcItem->GetErrorCode() == DRCE_DRILLED_HOLES_TOO_CLOSE )
-    {
-        menu.Append( 3, _( "Run Inspect > Clearance Resolution" ) );
-    }
-    else if( rcItem->GetErrorCode() == DRCE_TEXT_HEIGHT
-            || rcItem->GetErrorCode() == DRCE_TEXT_THICKNESS
-            || rcItem->GetErrorCode() == DRCE_DIFF_PAIR_UNCOUPLED_LENGTH_TOO_LONG
-            || rcItem->GetErrorCode() == DRCE_TRACK_WIDTH
-            || rcItem->GetErrorCode() == DRCE_VIA_DIAMETER
-            || rcItem->GetErrorCode() == DRCE_ANNULAR_WIDTH
-            || rcItem->GetErrorCode() == DRCE_DRILL_OUT_OF_RANGE
-            || rcItem->GetErrorCode() == DRCE_MICROVIA_DRILL_OUT_OF_RANGE
-            || rcItem->GetErrorCode() == DRCE_CONNECTION_WIDTH
-            || rcItem->GetErrorCode() == DRCE_ASSERTION_FAILURE )
-    {
-        menu.Append( 3, _( "Run Inspect > Constraints Resolution" ) );
-    }
-    else if( rcItem->GetErrorCode() == DRCE_LIB_FOOTPRINT_MISMATCH )
-    {
-        menu.Append( 3, _( "Run Inspect > Compare Footprint with Library" ) );
-    }
+    wxString inspectDRCErrorMenuText = inspectionTool->InspectDRCErrorMenuText( rcItem );
+
+    if( !inspectDRCErrorMenuText.IsEmpty() )
+        menu.Append( ID_INSPECT_VIOLATION, inspectDRCErrorMenuText );
 
     menu.AppendSeparator();
 
     if( bds().m_DRCSeverities[ rcItem->GetErrorCode() ] == RPT_SEVERITY_WARNING )
     {
-        msg.Printf( _( "Change severity to Error for all '%s' violations" ),
-                    rcItem->GetErrorText(),
-                    _( "Violation severities can also be edited in the Board Setup... dialog" ) );
-        menu.Append( 4, msg );
+        menu.Append( ID_SET_SEVERITY_TO_ERROR,
+                     wxString::Format( _( "Change severity to Error for all '%s' violations" ),
+                                       rcItem->GetErrorText() ),
+                     _( "Violation severities can also be edited in the Board Setup... dialog" ) );
     }
     else
     {
-        msg.Printf( _( "Change severity to Warning for all '%s' violations" ),
-                    rcItem->GetErrorText(),
-                    _( "Violation severities can also be edited in the Board Setup... dialog" ) );
-        menu.Append( 5, msg );
+        menu.Append( ID_SET_SEVERITY_TO_WARNING,
+                     wxString::Format( _( "Change severity to Warning for all '%s' violations" ),
+                                       rcItem->GetErrorText() ),
+                     _( "Violation severities can also be edited in the Board Setup... dialog" ) );
     }
 
-    msg.Printf( _( "Ignore all '%s' violations" ),
-                rcItem->GetErrorText(),
-                _( "Violations will not be checked or reported" ) );
-    menu.Append( 6, msg );
+    menu.Append( ID_SET_SEVERITY_TO_IGNORE,
+                 wxString::Format( _( "Ignore all '%s' violations" ), rcItem->GetErrorText() ),
+                 _( "Violations will not be checked or reported" ) );
 
     menu.AppendSeparator();
 
-    menu.Append( 7, _( "Edit violation severities..." ), _( "Open the Board Setup... dialog" ) );
+    menu.Append( ID_EDIT_SEVERITIES,
+                 _( "Edit violation severities..." ),
+                 _( "Open the Board Setup... dialog" ) );
 
     bool modified = false;
+    int  command = GetPopupMenuSelectionFromUser( menu );
 
-    switch( GetPopupMenuSelectionFromUser( menu ) )
+    switch( command )
     {
-    case 1:
-    {
-        PCB_MARKER* marker = dynamic_cast<PCB_MARKER*>( rcItem->GetParent() );
+    case ID_EDIT_EXCLUSION_COMMENT:
+        if( PCB_MARKER* marker = dynamic_cast<PCB_MARKER*>( node->m_RcItem->GetParent() ) )
+        {
+            WX_TEXT_ENTRY_DIALOG dlg( this, wxEmptyString, _( "Exclusion Comment" ),
+                                      marker->GetComment(), true );
 
-        if( marker )
+            if( dlg.ShowModal() == wxID_CANCEL )
+                break;
+
+            marker->SetExcluded( true, dlg.GetValue() );
+
+            wxString serialized = marker->SerializeToString();
+            bds().m_DrcExclusions.insert( serialized );
+            bds().m_DrcExclusionComments[serialized] = dlg.GetValue();
+
+            // Update view
+            static_cast<RC_TREE_MODEL*>( aEvent.GetModel() )->ValueChanged( node );
+            modified = true;
+        }
+
+        break;
+
+    case ID_REMOVE_EXCLUSION:
+        if( PCB_MARKER* marker = dynamic_cast<PCB_MARKER*>( rcItem->GetParent() ) )
         {
             marker->SetExcluded( false );
-            m_frame->GetDesignSettings().m_DrcExclusions.erase( marker->Serialize() );
+
+            wxString serialized = marker->SerializeToString();
+            bds().m_DrcExclusions.erase( serialized );
+            bds().m_DrcExclusionComments.erase( serialized );
 
             if( rcItem->GetErrorCode() == DRCE_UNCONNECTED_ITEMS )
             {
@@ -726,16 +808,29 @@ void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
         }
 
         break;
-    }
 
-    case 2:
-    {
-        PCB_MARKER* marker = dynamic_cast<PCB_MARKER*>( rcItem->GetParent() );
-
-        if( marker )
+    case ID_ADD_EXCLUSION:
+    case ID_ADD_EXCLUSION_WITH_COMMENT:
+        if( PCB_MARKER* marker = dynamic_cast<PCB_MARKER*>( rcItem->GetParent() ) )
         {
-            marker->SetExcluded( true );
-            m_frame->GetDesignSettings().m_DrcExclusions.insert( marker->Serialize() );
+            wxString comment;
+
+            if( command == ID_ADD_EXCLUSION_WITH_COMMENT )
+            {
+                WX_TEXT_ENTRY_DIALOG dlg( this, wxEmptyString, _( "Exclusion Comment" ),
+                                          wxEmptyString, true );
+
+                if( dlg.ShowModal() == wxID_CANCEL )
+                    break;
+
+                comment = dlg.GetValue();
+            }
+
+            marker->SetExcluded( true, comment );
+
+            wxString serialized = marker->SerializeToString();
+            bds().m_DrcExclusions.insert( serialized );
+            bds().m_DrcExclusionComments[serialized] = comment;
 
             if( rcItem->GetErrorCode() == DRCE_UNCONNECTED_ITEMS )
             {
@@ -757,10 +852,8 @@ void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
         }
 
         break;
-    }
 
-    case 11:
-    {
+    case ID_REMOVE_EXCLUSION_ALL:
         for( PCB_MARKER* marker : m_frame->GetBoard()->Markers() )
         {
             DRC_ITEM* candidateDrcItem = static_cast<DRC_ITEM*>( marker->GetRCItem().get() );
@@ -768,7 +861,10 @@ void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
             if( candidateDrcItem->GetViolatingRule() == drcItem->GetViolatingRule() )
             {
                 marker->SetExcluded( false );
-                m_frame->GetDesignSettings().m_DrcExclusions.erase( marker->Serialize() );
+
+                wxString serialized = marker->SerializeToString();
+                bds().m_DrcExclusions.erase( serialized );
+                bds().m_DrcExclusionComments.erase( serialized );
             }
         }
 
@@ -776,10 +872,8 @@ void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
         static_cast<RC_TREE_MODEL*>( aEvent.GetModel() )->Update( m_markersProvider, m_severities );
         modified = true;
         break;
-    }
 
-    case 21:
-    {
+    case ID_ADD_EXCLUSION_ALL:
         for( PCB_MARKER* marker : m_frame->GetBoard()->Markers() )
         {
             DRC_ITEM* candidateDrcItem = static_cast<DRC_ITEM*>( marker->GetRCItem().get() );
@@ -787,7 +881,9 @@ void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
             if( candidateDrcItem->GetViolatingRule() == drcItem->GetViolatingRule() )
             {
                 marker->SetExcluded( true );
-                m_frame->GetDesignSettings().m_DrcExclusions.insert( marker->Serialize() );
+
+                wxString serialized = marker->SerializeToString();
+                bds().m_DrcExclusions.insert( serialized );
             }
         }
 
@@ -795,18 +891,12 @@ void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
         static_cast<RC_TREE_MODEL*>( aEvent.GetModel() )->Update( m_markersProvider, m_severities );
         modified = true;
         break;
-    }
 
-    case 3:
-    {
-        TOOL_MANAGER*          toolMgr = m_frame->GetToolManager();
-        BOARD_INSPECTION_TOOL* inspectionTool = toolMgr->GetTool<BOARD_INSPECTION_TOOL>();
-
+    case ID_INSPECT_VIOLATION:
         inspectionTool->InspectDRCError( node->m_RcItem );
         break;
-    }
 
-    case 4:
+    case ID_SET_SEVERITY_TO_ERROR:
         bds().m_DRCSeverities[ rcItem->GetErrorCode() ] = RPT_SEVERITY_ERROR;
 
         for( PCB_MARKER* marker : m_frame->GetBoard()->Markers() )
@@ -820,7 +910,7 @@ void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
         modified = true;
         break;
 
-    case 5:
+    case ID_SET_SEVERITY_TO_WARNING:
         bds().m_DRCSeverities[ rcItem->GetErrorCode() ] = RPT_SEVERITY_WARNING;
 
         for( PCB_MARKER* marker : m_frame->GetBoard()->Markers() )
@@ -834,27 +924,34 @@ void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
         modified = true;
         break;
 
-    case 6:
+    case ID_SET_SEVERITY_TO_IGNORE:
     {
         bds().m_DRCSeverities[ rcItem->GetErrorCode() ] = RPT_SEVERITY_IGNORE;
 
-        m_ignoredList->InsertItem( m_ignoredList->GetItemCount(),
-                                   wxT( " • " ) + rcItem->GetErrorText() );
+        wxListItem listItem;
+        listItem.SetId( m_ignoredList->GetItemCount() );
+        listItem.SetText( wxT( " • " ) + rcItem->GetErrorText() );
+        listItem.SetData( rcItem->GetErrorCode() );
 
-        std::vector<PCB_MARKER*>& markers = m_frame->GetBoard()->Markers();
+        m_ignoredList->InsertItem( listItem );
 
-        for( unsigned i = 0; i < markers.size(); )
+        BOARD* board = m_frame->GetBoard();
+
+        std::vector<BOARD_ITEM*> toRemove;
+
+        for( PCB_MARKER* marker : board->Markers() )
         {
-            if( markers[i]->GetRCItem()->GetErrorCode() == rcItem->GetErrorCode() )
+            if( marker->GetRCItem()->GetErrorCode() == rcItem->GetErrorCode() )
             {
-                m_frame->GetCanvas()->GetView()->Remove( markers.at( i ) );
-                markers.erase( markers.begin() + i );
-            }
-            else
-            {
-                ++i;
+                m_frame->GetCanvas()->GetView()->Remove( marker );
+                toRemove.emplace_back( marker );
             }
         }
+
+        for( BOARD_ITEM* marker : toRemove )
+            board->Remove( marker, REMOVE_MODE::BULK );
+
+        board->FinalizeBulkRemove( toRemove );
 
         if( rcItem->GetErrorCode() == DRCE_UNCONNECTED_ITEMS )
             m_frame->GetCanvas()->RedrawRatsnest();
@@ -865,7 +962,7 @@ void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
         break;
     }
 
-    case 7:
+    case ID_EDIT_SEVERITIES:
         m_frame->ShowBoardSetupDialog( _( "Violation Severity" ) );
         break;
     }
@@ -875,6 +972,33 @@ void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
         updateDisplayedCounts();
         refreshEditor();
         m_frame->OnModify();
+    }
+}
+
+
+void DIALOG_DRC::OnIgnoredItemRClick( wxListEvent& event )
+{
+    int    errorCode = (int) event.m_item.GetData();
+    wxMenu menu;
+
+    menu.Append( RPT_SEVERITY_ERROR,   _( "Error" ),   wxEmptyString, wxITEM_CHECK );
+    menu.Append( RPT_SEVERITY_WARNING, _( "Warning" ), wxEmptyString, wxITEM_CHECK );
+    menu.Append( RPT_SEVERITY_IGNORE,  _( "Ignore" ),  wxEmptyString, wxITEM_CHECK );
+
+    menu.Check( bds().GetSeverity( errorCode ), true );
+
+    int severity = GetPopupMenuSelectionFromUser( menu );
+
+    if( severity > 0 )
+    {
+        if( bds().m_DRCSeverities[ errorCode ] != severity )
+        {
+            bds().m_DRCSeverities[ errorCode ] = (SEVERITY) severity;
+
+            updateDisplayedCounts();
+            refreshEditor();
+            m_frame->OnModify();
+        }
     }
 }
 
@@ -1008,10 +1132,10 @@ void DIALOG_DRC::PrevMarker()
     {
         switch( m_Notebook->GetSelection() )
         {
-        case 0: m_markersTreeModel->PrevMarker();           break;
-        case 1: m_unconnectedTreeModel->PrevMarker();       break;
-        case 2: m_fpWarningsTreeModel->PrevMarker(); break;
-        case 3:                                             break;
+        case 0: m_markersTreeModel->PrevMarker();      break;
+        case 1: m_unconnectedTreeModel->PrevMarker();  break;
+        case 2: m_fpWarningsTreeModel->PrevMarker();   break;
+        case 3:                                        break;
         }
     }
 }
@@ -1023,10 +1147,10 @@ void DIALOG_DRC::NextMarker()
     {
         switch( m_Notebook->GetSelection() )
         {
-        case 0: m_markersTreeModel->NextMarker();           break;
-        case 1: m_unconnectedTreeModel->NextMarker();       break;
-        case 2: m_fpWarningsTreeModel->NextMarker(); break;
-        case 3:                                             break;
+        case 0: m_markersTreeModel->NextMarker();      break;
+        case 1: m_unconnectedTreeModel->NextMarker();  break;
+        case 2: m_fpWarningsTreeModel->NextMarker();   break;
+        case 3:                                        break;
         }
     }
 }
@@ -1046,7 +1170,7 @@ void DIALOG_DRC::SelectMarker( const PCB_MARKER* aMarker )
         m_markersTreeModel->SelectMarker( aMarker );
 
         CallAfter(
-                [=]
+                [this, aMarker]
                 {
                     m_markersTreeModel->CenterMarker( aMarker );
                 } );
@@ -1065,7 +1189,7 @@ void DIALOG_DRC::ExcludeMarker()
     if( marker && marker->GetSeverity() != RPT_SEVERITY_EXCLUSION )
     {
         marker->SetExcluded( true );
-        m_frame->GetDesignSettings().m_DrcExclusions.insert( marker->Serialize() );
+        bds().m_DrcExclusions.insert( marker->SerializeToString() );
         m_frame->GetCanvas()->GetView()->Update( marker );
 
         // Update view
@@ -1084,6 +1208,7 @@ void DIALOG_DRC::ExcludeMarker()
 void DIALOG_DRC::deleteAllMarkers( bool aIncludeExclusions )
 {
     // Clear current selection list to avoid selection of deleted items
+    Freeze();
     m_frame->GetToolManager()->RunAction( PCB_ACTIONS::selectionClear );
 
     m_markersTreeModel->DeleteItems( false, aIncludeExclusions, false );
@@ -1091,6 +1216,7 @@ void DIALOG_DRC::deleteAllMarkers( bool aIncludeExclusions )
     m_fpWarningsTreeModel->DeleteItems( false, aIncludeExclusions, false );
 
     m_frame->GetBoard()->DeleteMARKERs( true, aIncludeExclusions );
+    Thaw();
 }
 
 
@@ -1158,7 +1284,6 @@ void DIALOG_DRC::OnDeleteAllClick( wxCommandEvent& aEvent )
 
 void DIALOG_DRC::updateDisplayedCounts()
 {
-    BOARD_DESIGN_SETTINGS& bds = m_frame->GetDesignSettings();
     DRC_TOOL*              drcTool = m_frame->GetToolManager()->GetTool<DRC_TOOL>();
     DRC_ENGINE*            drcEngine = drcTool->GetDRCEngine().get();
 
@@ -1206,36 +1331,39 @@ void DIALOG_DRC::updateDisplayedCounts()
 
     for( int ii = DRCE_FIRST; ii < DRCE_LAST; ++ii )
     {
+        const SEVERITY severity = bds().GetSeverity( ii );
+
         if( drcEngine->IsErrorLimitExceeded( ii ) )
         {
-            if( bds.GetSeverity( ii ) == RPT_SEVERITY_ERROR )
+            if( severity == RPT_SEVERITY_ERROR )
                 errorsOverflowed = true;
-            else if( bds.GetSeverity( ii ) == RPT_SEVERITY_WARNING )
+            else if( severity == RPT_SEVERITY_WARNING )
                 warningsOverflowed = true;
 
             if( ii == DRCE_UNCONNECTED_ITEMS )
             {
-                if( showWarnings && bds.GetSeverity( ii ) == RPT_SEVERITY_WARNING )
+                if( showWarnings && severity == RPT_SEVERITY_WARNING )
                     unconnectedOverflowed = true;
-                else if( showErrors && bds.GetSeverity( ii ) == RPT_SEVERITY_ERROR )
+                else if( showErrors && severity == RPT_SEVERITY_ERROR )
                     unconnectedOverflowed = true;
             }
             else if(    ii == DRCE_MISSING_FOOTPRINT
                      || ii == DRCE_DUPLICATE_FOOTPRINT
                      || ii == DRCE_EXTRA_FOOTPRINT
                      || ii == DRCE_NET_CONFLICT
-                     || ii == DRCE_SCHEMATIC_PARITY_ISSUES )
+                     || ii == DRCE_SCHEMATIC_PARITY
+                     || ii == DRCE_FOOTPRINT_FILTERS )
             {
-                if( showWarnings && bds.GetSeverity( ii ) == RPT_SEVERITY_WARNING )
+                if( showWarnings && severity == RPT_SEVERITY_WARNING )
                     footprintsOverflowed = true;
-                else if( showErrors && bds.GetSeverity( ii ) == RPT_SEVERITY_ERROR )
+                else if( showErrors && severity == RPT_SEVERITY_ERROR )
                     footprintsOverflowed = true;
             }
             else
             {
-                if( showWarnings && bds.GetSeverity( ii ) == RPT_SEVERITY_WARNING )
+                if( showWarnings && severity == RPT_SEVERITY_WARNING )
                     markersOverflowed = true;
-                else if( showErrors && bds.GetSeverity( ii ) == RPT_SEVERITY_ERROR )
+                else if( showErrors && severity == RPT_SEVERITY_ERROR )
                     markersOverflowed = true;
             }
         }

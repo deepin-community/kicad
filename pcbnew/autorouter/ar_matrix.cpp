@@ -5,7 +5,7 @@
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@verizon.net>
  *
- * Copyright (C) 1992-2022 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,6 +26,7 @@
  */
 
 #include "ar_matrix.h"
+#include <lset.h>
 #include <math/util.h>      // for KiROUND
 #include <math_for_graphics.h>
 #include <trigo.h>
@@ -48,7 +49,7 @@ AR_MATRIX::AR_MATRIX()
     m_GridRouting        = 0;
     m_RouteCount         = 0;
     m_routeLayerBottom   = B_Cu;
-    m_routeLayerTop      = F_Cu;
+    m_routeLayerTop      = PADSTACK::ALL_LAYERS;
 }
 
 
@@ -900,24 +901,25 @@ void AR_MATRIX::CreateKeepOutRectangle(
 void AR_MATRIX::PlacePad( PAD* aPad, int color, int marge, AR_MATRIX::CELL_OP op_logic )
 {
     int     dx, dy;
-    VECTOR2I shape_pos = aPad->ShapePos();
+    VECTOR2I shape_pos = aPad->ShapePos( PADSTACK::ALL_LAYERS );
 
-    dx = aPad->GetSize().x / 2;
+    // TODO(JE) padstacks
+    dx = aPad->GetSize( PADSTACK::ALL_LAYERS ).x / 2;
     dx += marge;
 
-    if( aPad->GetShape() == PAD_SHAPE::CIRCLE )
+    if( aPad->GetShape( PADSTACK::ALL_LAYERS ) == PAD_SHAPE::CIRCLE )
     {
         traceFilledCircle( shape_pos.x, shape_pos.y, dx, aPad->GetLayerSet(), color, op_logic );
         return;
     }
 
-    dy = aPad->GetSize().y / 2;
+    dy = aPad->GetSize( PADSTACK::ALL_LAYERS ).y / 2;
     dy += marge;
 
-    if( aPad->GetShape() == PAD_SHAPE::TRAPEZOID )
+    if( aPad->GetShape( PADSTACK::ALL_LAYERS ) == PAD_SHAPE::TRAPEZOID )
     {
-        dx += abs( aPad->GetDelta().y ) / 2;
-        dy += abs( aPad->GetDelta().x ) / 2;
+        dx += abs( aPad->GetDelta( PADSTACK::ALL_LAYERS ).y ) / 2;
+        dy += abs( aPad->GetDelta( PADSTACK::ALL_LAYERS ).x ) / 2;
     }
 
     // The pad is a rectangle ( horizontal or vertical )

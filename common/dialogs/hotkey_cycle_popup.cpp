@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -52,7 +52,8 @@ HOTKEY_CYCLE_POPUP::HOTKEY_CYCLE_POPUP( EDA_DRAW_FRAME* aParent ) :
     m_listBox->SetName( KIUI::s_FocusStealableInputName );
 
 #ifdef __WXOSX__
-    m_listBox->Bind( wxEVT_CHAR_HOOK, [=]( wxKeyEvent& aEvent )
+    m_listBox->Bind( wxEVT_CHAR_HOOK,
+                     [=, this]( wxKeyEvent& aEvent )
                      {
                          aEvent.SetEventType( wxEVT_CHAR );
                          m_drawFrame->GetCanvas()->SetFocus();

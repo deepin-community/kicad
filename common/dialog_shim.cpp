@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2023 CERN
- * Copyright (C) 2012-2023, 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -63,6 +63,18 @@ public:
             m_win->Enable();
             m_win->Raise(); // let's focus back on the parent window
         }
+    }
+
+    void SuspendForTrueModal()
+    {
+        if( m_win )
+            m_win->Enable();
+    }
+
+    void ResumeAfterTrueModal()
+    {
+        if( m_win )
+            m_win->Disable();
     }
 };
 
@@ -397,7 +409,8 @@ void DIALOG_SHIM::SelectAllInTextCtrls( wxWindowList& children )
         else if( wxStyledTextCtrl* scintilla = dynamic_cast<wxStyledTextCtrl*>( child ) )
         {
             m_beforeEditValues[ scintilla ] = scintilla->GetText();
-            scintilla->Connect( wxEVT_SET_FOCUS, wxFocusEventHandler( DIALOG_SHIM::onChildSetFocus ),
+            scintilla->Connect( wxEVT_SET_FOCUS,
+                                wxFocusEventHandler( DIALOG_SHIM::onChildSetFocus ),
                                 nullptr, this );
 
             if( !scintilla->GetSelectedText().IsEmpty() )
@@ -465,6 +478,12 @@ void DIALOG_SHIM::OnModify()
 }
 
 
+void DIALOG_SHIM::ClearModify()
+{
+    if( GetTitle().StartsWith( wxS( "*" ) ) )
+        SetTitle( GetTitle().AfterFirst( '*' ) );
+}
+
 int DIALOG_SHIM::ShowModal()
 {
     // Apple in its infinite wisdom will raise a disabled window before even passing
@@ -476,7 +495,6 @@ int DIALOG_SHIM::ShowModal()
     // Call the base class ShowModal() method
     return wxDialog::ShowModal();
 }
-
 
 /*
     Quasi-Modal Mode Explained:
@@ -539,7 +557,7 @@ int DIALOG_SHIM::ShowQuasiModal()
 
     m_qmodal_showing = true;
 
-    WX_EVENT_LOOP event_loop;
+    wxGUIEventLoop event_loop;
 
     m_qmodal_loop = &event_loop;
 
@@ -551,6 +569,20 @@ int DIALOG_SHIM::ShowQuasiModal()
         parent->SetFocus();
 
     return GetReturnCode();
+}
+
+
+void DIALOG_SHIM::PrepareForModalSubDialog()
+{
+    if( m_qmodal_parent_disabler )
+        m_qmodal_parent_disabler->SuspendForTrueModal();
+}
+
+
+void DIALOG_SHIM::CleanupAfterModalSubDialog()
+{
+    if( m_qmodal_parent_disabler )
+        m_qmodal_parent_disabler->ResumeAfterTrueModal();
 }
 
 

@@ -1,12 +1,11 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
 ///////////////////////////////////////////////////////////////////////////
 
 #include "widgets/std_bitmap_button.h"
-#include "widgets/text_ctrl_eval.h"
 #include "widgets/wx_grid.h"
 
 #include "dialog_footprint_properties_base.h"
@@ -19,7 +18,7 @@ DIALOG_FOOTPRINT_PROPERTIES_BASE::DIALOG_FOOTPRINT_PROPERTIES_BASE( wxWindow* pa
 
 	m_GeneralBoxSizer = new wxBoxSizer( wxVERTICAL );
 
-	m_NoteBook = new wxNotebook( this, ID_NOTEBOOK, wxDefaultPosition, wxDefaultSize, 0 );
+	m_NoteBook = new wxNotebook( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0 );
 	m_PanelGeneral = new wxPanel( m_NoteBook, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
 	wxBoxSizer* m_PanelPropertiesBoxSizer;
 	m_PanelPropertiesBoxSizer = new wxBoxSizer( wxVERTICAL );
@@ -266,7 +265,7 @@ DIALOG_FOOTPRINT_PROPERTIES_BASE::DIALOG_FOOTPRINT_PROPERTIES_BASE( wxWindow* pa
 	wxStaticBoxSizer* sbSizerLocalProperties;
 	sbSizerLocalProperties = new wxStaticBoxSizer( new wxStaticBox( m_PanelClearances, wxID_ANY, _("Clearances") ), wxVERTICAL );
 
-	m_staticTextInfo = new wxStaticText( sbSizerLocalProperties->GetStaticBox(), wxID_ANY, _("Set values to 0 to use Board Setup values."), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextInfo = new wxStaticText( sbSizerLocalProperties->GetStaticBox(), wxID_ANY, _("Leave values blank to use Board Setup values."), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticTextInfo->Wrap( -1 );
 	sbSizerLocalProperties->Add( m_staticTextInfo, 0, wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 
@@ -324,8 +323,8 @@ DIALOG_FOOTPRINT_PROPERTIES_BASE::DIALOG_FOOTPRINT_PROPERTIES_BASE( wxWindow* pa
 
 	gbSizer2->Add( m_PasteMarginRatioLabel, wxGBPosition( 6, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 
-	m_PasteMarginRatioCtrl = new TEXT_CTRL_EVAL( sbSizerLocalProperties->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
-	gbSizer2->Add( m_PasteMarginRatioCtrl, wxGBPosition( 6, 1 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxBOTTOM, 5 );
+	m_PasteMarginRatioCtrl = new wxTextCtrl( sbSizerLocalProperties->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	gbSizer2->Add( m_PasteMarginRatioCtrl, wxGBPosition( 6, 1 ), wxGBSpan( 1, 1 ), 0, 5 );
 
 	m_PasteMarginRatioUnits = new wxStaticText( sbSizerLocalProperties->GetStaticBox(), wxID_ANY, _("%"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_PasteMarginRatioUnits->Wrap( -1 );
@@ -414,14 +413,32 @@ DIALOG_FOOTPRINT_PROPERTIES_BASE::DIALOG_FOOTPRINT_PROPERTIES_BASE( wxWindow* pa
 	// Connect Events
 	this->Connect( wxEVT_INIT_DIALOG, wxInitDialogEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnInitDlg ) );
 	this->Connect( wxEVT_UPDATE_UI, wxUpdateUIEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnUpdateUI ) );
-	m_NoteBook->Connect( wxEVT_COMMAND_NOTEBOOK_PAGE_CHANGED, wxNotebookEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnPageChange ), NULL, this );
+	m_NoteBook->Connect( wxEVT_COMMAND_NOTEBOOK_PAGE_CHANGING, wxNotebookEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnPageChanging ), NULL, this );
 	m_itemsGrid->Connect( wxEVT_SIZE, wxSizeEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnGridSize ), NULL, this );
 	m_bpAdd->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnAddField ), NULL, this );
 	m_bpDelete->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnDeleteField ), NULL, this );
+	m_ModPositionX->Connect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnText ), NULL, this );
+	m_ModPositionY->Connect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnText ), NULL, this );
+	m_orientationCtrl->Connect( wxEVT_COMMAND_COMBOBOX_SELECTED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnCombobox ), NULL, this );
+	m_orientationCtrl->Connect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnText ), NULL, this );
+	m_BoardSideCtrl->Connect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnChoice ), NULL, this );
+	m_cbLocked->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnCheckBox ), NULL, this );
+	m_componentType->Connect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnChoice ), NULL, this );
+	m_boardOnly->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnCheckBox ), NULL, this );
+	m_excludeFromPosFiles->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnCheckBox ), NULL, this );
+	m_excludeFromBOM->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnCheckBox ), NULL, this );
+	m_noCourtyards->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnCheckBox ), NULL, this );
+	m_cbDNP->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnCheckBox ), NULL, this );
 	m_buttonUpdate->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::UpdateFootprint ), NULL, this );
 	m_buttonExchange->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::ChangeFootprint ), NULL, this );
 	m_buttonModuleEditor->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::EditFootprint ), NULL, this );
 	m_button5->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::EditLibraryFootprint ), NULL, this );
+	m_NetClearanceCtrl->Connect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnText ), NULL, this );
+	m_SolderMaskMarginCtrl->Connect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnText ), NULL, this );
+	m_allowSolderMaskBridges->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnCheckBox ), NULL, this );
+	m_SolderPasteMarginCtrl->Connect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnText ), NULL, this );
+	m_PasteMarginRatioCtrl->Connect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnValuesChanged ), NULL, this );
+	m_ZoneConnectionChoice->Connect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnChoice ), NULL, this );
 }
 
 DIALOG_FOOTPRINT_PROPERTIES_BASE::~DIALOG_FOOTPRINT_PROPERTIES_BASE()
@@ -429,13 +446,31 @@ DIALOG_FOOTPRINT_PROPERTIES_BASE::~DIALOG_FOOTPRINT_PROPERTIES_BASE()
 	// Disconnect Events
 	this->Disconnect( wxEVT_INIT_DIALOG, wxInitDialogEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnInitDlg ) );
 	this->Disconnect( wxEVT_UPDATE_UI, wxUpdateUIEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnUpdateUI ) );
-	m_NoteBook->Disconnect( wxEVT_COMMAND_NOTEBOOK_PAGE_CHANGED, wxNotebookEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnPageChange ), NULL, this );
+	m_NoteBook->Disconnect( wxEVT_COMMAND_NOTEBOOK_PAGE_CHANGING, wxNotebookEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnPageChanging ), NULL, this );
 	m_itemsGrid->Disconnect( wxEVT_SIZE, wxSizeEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnGridSize ), NULL, this );
 	m_bpAdd->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnAddField ), NULL, this );
 	m_bpDelete->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnDeleteField ), NULL, this );
+	m_ModPositionX->Disconnect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnText ), NULL, this );
+	m_ModPositionY->Disconnect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnText ), NULL, this );
+	m_orientationCtrl->Disconnect( wxEVT_COMMAND_COMBOBOX_SELECTED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnCombobox ), NULL, this );
+	m_orientationCtrl->Disconnect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnText ), NULL, this );
+	m_BoardSideCtrl->Disconnect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnChoice ), NULL, this );
+	m_cbLocked->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnCheckBox ), NULL, this );
+	m_componentType->Disconnect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnChoice ), NULL, this );
+	m_boardOnly->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnCheckBox ), NULL, this );
+	m_excludeFromPosFiles->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnCheckBox ), NULL, this );
+	m_excludeFromBOM->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnCheckBox ), NULL, this );
+	m_noCourtyards->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnCheckBox ), NULL, this );
+	m_cbDNP->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnCheckBox ), NULL, this );
 	m_buttonUpdate->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::UpdateFootprint ), NULL, this );
 	m_buttonExchange->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::ChangeFootprint ), NULL, this );
 	m_buttonModuleEditor->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::EditFootprint ), NULL, this );
 	m_button5->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::EditLibraryFootprint ), NULL, this );
+	m_NetClearanceCtrl->Disconnect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnText ), NULL, this );
+	m_SolderMaskMarginCtrl->Disconnect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnText ), NULL, this );
+	m_allowSolderMaskBridges->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnCheckBox ), NULL, this );
+	m_SolderPasteMarginCtrl->Disconnect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnText ), NULL, this );
+	m_PasteMarginRatioCtrl->Disconnect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnValuesChanged ), NULL, this );
+	m_ZoneConnectionChoice->Disconnect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( DIALOG_FOOTPRINT_PROPERTIES_BASE::OnChoice ), NULL, this );
 
 }

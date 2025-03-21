@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2013 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2013 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,7 +41,8 @@
 #include <sch_commit.h>
 
 
-DIALOG_LABEL_PROPERTIES::DIALOG_LABEL_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_LABEL_BASE* aLabel ) :
+DIALOG_LABEL_PROPERTIES::DIALOG_LABEL_PROPERTIES( SCH_EDIT_FRAME* aParent,
+                                                  SCH_LABEL_BASE* aLabel ) :
         DIALOG_LABEL_PROPERTIES_BASE( aParent ),
         m_Parent( aParent ),
         m_currentLabel( aLabel ),
@@ -54,7 +55,7 @@ DIALOG_LABEL_PROPERTIES::DIALOG_LABEL_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_L
     COLOR_SETTINGS* colorSettings = m_Parent->GetColorSettings();
     COLOR4D         schematicBackground = colorSettings->GetColor( LAYER_SCHEMATIC_BACKGROUND );
 
-    m_fields = new FIELDS_GRID_TABLE<SCH_FIELD>( this, aParent, m_grid, m_currentLabel );
+    m_fields = new FIELDS_GRID_TABLE( this, aParent, m_grid, m_currentLabel );
     m_width = 100;  // Will be later set to a better value
     m_delayedFocusRow = -1;
     m_delayedFocusColumn = FDC_VALUE;
@@ -108,7 +109,7 @@ DIALOG_LABEL_PROPERTIES::DIALOG_LABEL_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_L
     m_grid->SetDefaultRowSize( m_grid->GetDefaultRowSize() + 4 );
 
     m_grid->SetTable( m_fields );
-    m_grid->PushEventHandler( new FIELDS_GRID_TRICKS( m_grid, this,
+    m_grid->PushEventHandler( new FIELDS_GRID_TRICKS( m_grid, this, nullptr,
                                                       [&]( wxCommandEvent& aEvent )
                                                       {
                                                           OnAddField( aEvent );
@@ -182,7 +183,8 @@ DIALOG_LABEL_PROPERTIES::DIALOG_LABEL_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_L
 
         m_formattingGB->Detach( m_fontCtrl );
         m_formattingGB->Detach( m_iconBar );
-        m_formattingGB->Add( m_iconBar, wxGBPosition( 0, 1 ), wxGBSpan( 1, 1 ), wxEXPAND|wxRIGHT, 5 );
+        m_formattingGB->Add( m_iconBar, wxGBPosition( 0, 1 ), wxGBSpan( 1, 1 ),
+                             wxEXPAND | wxRIGHT, 5 );
     }
     else
     {
@@ -285,7 +287,8 @@ bool DIALOG_LABEL_PROPERTIES::TransferDataToWindow()
                     // Ensure the symbol has the Power (i.e. equivalent to a global label
                     // before adding its value in list
                     if( power->IsSymbolLikePowerGlobalLabel() )
-                        existingLabels.insert( UnescapeString( power->GetField( VALUE_FIELD )->GetText() ) );
+                        existingLabels.insert(
+                                UnescapeString( power->GetField( VALUE_FIELD )->GetText() ) );
                 }
             }
 
@@ -317,7 +320,7 @@ bool DIALOG_LABEL_PROPERTIES::TransferDataToWindow()
     }
 
     // notify the grid
-    wxGridTableMessage msg( m_fields, wxGRIDTABLE_NOTIFY_ROWS_APPENDED, m_fields->size() );
+    wxGridTableMessage msg( m_fields, wxGRIDTABLE_NOTIFY_ROWS_APPENDED, (int) m_fields->size() );
     m_grid->ProcessTableMessage( msg );
     AdjustGridColumns( m_grid->GetRect().GetWidth() );
 
@@ -363,9 +366,6 @@ bool DIALOG_LABEL_PROPERTIES::TransferDataToWindow()
 }
 
 
-/*!
- * wxEVT_COMMAND_ENTER event handler for single-line control
- */
 void DIALOG_LABEL_PROPERTIES::OnEnterKey( wxCommandEvent& aEvent )
 {
     wxPostEvent( this, wxCommandEvent( wxEVT_COMMAND_BUTTON_CLICKED, wxID_OK ) );
@@ -407,7 +407,7 @@ static bool positioningChanged( const SCH_FIELD& a, const SCH_FIELD& b )
 }
 
 
-static bool positioningChanged( FIELDS_GRID_TABLE<SCH_FIELD>* a, std::vector<SCH_FIELD>& b )
+static bool positioningChanged( FIELDS_GRID_TABLE* a, std::vector<SCH_FIELD>& b )
 {
     for( size_t i = 0; i < a->size() && i < b.size(); ++i )
     {
@@ -462,8 +462,6 @@ bool DIALOG_LABEL_PROPERTIES::TransferDataFromWindow()
         m_currentLabel->SetText( text );
     }
 
-    bool doAutoplace = false;
-
     // change all field positions from relative to absolute
     for( SCH_FIELD& field : *m_fields )
     {
@@ -491,9 +489,7 @@ bool DIALOG_LABEL_PROPERTIES::TransferDataFromWindow()
     }
 
     if( positioningChanged( m_fields, m_currentLabel->GetFields() ) )
-        m_currentLabel->ClearFieldsAutoplaced();
-    else
-        doAutoplace = true;
+        m_currentLabel->SetFieldsAutoplaced( AUTOPLACE_NONE );
 
     for( int ii = m_fields->GetNumberRows() - 1; ii >= 0; ii-- )
     {
@@ -531,15 +527,24 @@ bool DIALOG_LABEL_PROPERTIES::TransferDataFromWindow()
 
     if( m_shapeSizer->AreAnyItemsShown() )
     {
-        if( m_bidirectional->GetValue() )  m_currentLabel->SetShape( LABEL_FLAG_SHAPE::L_BIDI );
-        else if( m_input->GetValue() )     m_currentLabel->SetShape( LABEL_FLAG_SHAPE::L_INPUT );
-        else if( m_output->GetValue() )    m_currentLabel->SetShape( LABEL_FLAG_SHAPE::L_OUTPUT );
-        else if( m_triState->GetValue() )  m_currentLabel->SetShape( LABEL_FLAG_SHAPE::L_TRISTATE );
-        else if( m_passive->GetValue() )   m_currentLabel->SetShape( LABEL_FLAG_SHAPE::L_UNSPECIFIED );
-        else if( m_dot->GetValue() )       m_currentLabel->SetShape( LABEL_FLAG_SHAPE::F_DOT );
-        else if( m_circle->GetValue() )    m_currentLabel->SetShape( LABEL_FLAG_SHAPE::F_ROUND );
-        else if( m_diamond->GetValue() )   m_currentLabel->SetShape( LABEL_FLAG_SHAPE::F_DIAMOND );
-        else if( m_rectangle->GetValue() ) m_currentLabel->SetShape( LABEL_FLAG_SHAPE::F_RECTANGLE );
+        if( m_bidirectional->GetValue() )
+            m_currentLabel->SetShape( LABEL_FLAG_SHAPE::L_BIDI );
+        else if( m_input->GetValue() )
+            m_currentLabel->SetShape( LABEL_FLAG_SHAPE::L_INPUT );
+        else if( m_output->GetValue() )
+            m_currentLabel->SetShape( LABEL_FLAG_SHAPE::L_OUTPUT );
+        else if( m_triState->GetValue() )
+            m_currentLabel->SetShape( LABEL_FLAG_SHAPE::L_TRISTATE );
+        else if( m_passive->GetValue() )
+            m_currentLabel->SetShape( LABEL_FLAG_SHAPE::L_UNSPECIFIED );
+        else if( m_dot->GetValue() )
+            m_currentLabel->SetShape( LABEL_FLAG_SHAPE::F_DOT );
+        else if( m_circle->GetValue() )
+            m_currentLabel->SetShape( LABEL_FLAG_SHAPE::F_ROUND );
+        else if( m_diamond->GetValue() )
+            m_currentLabel->SetShape( LABEL_FLAG_SHAPE::F_DIAMOND );
+        else if( m_rectangle->GetValue() )
+            m_currentLabel->SetShape( LABEL_FLAG_SHAPE::F_RECTANGLE );
     }
 
     if( m_fontCtrl->HaveFontSelection() )
@@ -549,9 +554,10 @@ bool DIALOG_LABEL_PROPERTIES::TransferDataFromWindow()
     }
 
     if( m_currentLabel->Type() == SCH_DIRECTIVE_LABEL_T )
-        static_cast<SCH_DIRECTIVE_LABEL*>( m_currentLabel )->SetPinLength( m_textSize.GetValue() );
-    else if( m_currentLabel->GetTextWidth() != m_textSize.GetValue() )
-        m_currentLabel->SetTextSize( VECTOR2I( m_textSize.GetValue(), m_textSize.GetValue() ) );
+        static_cast<SCH_DIRECTIVE_LABEL*>( m_currentLabel )->SetPinLength( m_textSize.GetIntValue() );
+    else if( m_currentLabel->GetTextWidth() != m_textSize.GetIntValue() )
+        m_currentLabel->SetTextSize( VECTOR2I( m_textSize.GetIntValue(),
+                                               m_textSize.GetIntValue() ) );
 
     // Must come after SetTextSize()
     m_currentLabel->SetBold( m_bold->IsChecked() );
@@ -583,8 +589,10 @@ bool DIALOG_LABEL_PROPERTIES::TransferDataFromWindow()
         m_currentLabel->SetSpinStyle( selectedSpinStyle );
     }
 
-    if( doAutoplace )
-        m_currentLabel->AutoAutoplaceFields( m_Parent->GetScreen() );
+    AUTOPLACE_ALGO fieldsAutoplaced = m_currentLabel->GetFieldsAutoplaced();
+
+    if( fieldsAutoplaced == AUTOPLACE_AUTO || fieldsAutoplaced == AUTOPLACE_MANUAL )
+        m_currentLabel->AutoplaceFields( m_Parent->GetScreen(), fieldsAutoplaced );
 
     if( !commit.Empty() )
         commit.Push( _( "Edit Label Properties" ) );
@@ -678,7 +686,10 @@ void DIALOG_LABEL_PROPERTIES::OnDeleteField( wxCommandEvent& event )
     m_grid->CommitPendingChanges( true /* quiet mode */ );
 
     // Reverse sort so deleting a row doesn't change the indexes of the other rows.
-    selectedRows.Sort( []( int* first, int* second ) { return *second - *first; } );
+    selectedRows.Sort( []( int* first, int* second )
+                       {
+                           return *second - *first;
+                       } );
 
     for( int row : selectedRows )
     {

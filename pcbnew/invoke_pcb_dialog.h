@@ -1,11 +1,7 @@
-/**
- * @file invoke_pcb_dialog.h
- */
-
 /* This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2013-2018 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -38,29 +34,10 @@
 // The actual InvokeDialog<class>() function is usually coded at the bottom of the
 // DIALOG_<class>.cpp file.
 
-
-#ifndef INVOKE_A_DIALOG_H_
-#define INVOKE_A_DIALOG_H_
-
+#pragma once
 
 class wxWindow;
-class wxPoint;
-class wxSize;
-class wxString;
-
-class BOARD;
-class FOOTPRINT;
-
-// Often this is not used in the prototypes, since wxFrame is good enough and would
-// represent maximum information hiding.
-class PCB_BASE_FRAME;
-class PCB_EDIT_FRAME;
-class FOOTPRINT_EDIT_FRAME;
-class FP_LIB_TABLE;
-class BOARD;
-class PCB_PLOT_PARAMS;
 class KIWAY;
-
 
 /**
  * Function InvokePcbLibTableEditor
@@ -71,14 +48,3 @@ class KIWAY;
  * @return true if either table changed.
  */
 void InvokePcbLibTableEditor( KIWAY* aKiway, wxWindow* aCaller );
-
-/**
- * Function InvokeExportSVG
- * shows the Export SVG dialog
- * @param aCaller is the PCB_EDIT_FRAME which is invoking the dialog.
- * @param aBoard is the currently edited board.
- * @return bool - true if user pressed OK (did not abort), else false.
- */
-bool InvokeExportSVG( PCB_EDIT_FRAME* aCaller, BOARD* aBoard );
-
-#endif  // INVOKE_A_DIALOG_H_

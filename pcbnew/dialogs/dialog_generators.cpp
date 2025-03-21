@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -120,7 +120,7 @@ void DIALOG_GENERATORS::RebuildModels()
     for( size_t i = 0; i < m_Notebook->GetPageCount(); i++ )
     {
         wxWindow* page = m_Notebook->GetPage( i );
-        
+
         if( dataMap.find(page->GetName()) == dataMap.end() )
         {
             toDelete.emplace_back( page->GetName() );
@@ -342,6 +342,15 @@ void DIALOG_GENERATORS::OnBoardItemsChanged( BOARD& aBoard, std::vector<BOARD_IT
 }
 
 
+void DIALOG_GENERATORS::OnBoardCompositeUpdate( BOARD&                    aBoard,
+                                                std::vector<BOARD_ITEM*>& aAddedItems,
+                                                std::vector<BOARD_ITEM*>& aRemovedItems,
+                                                std::vector<BOARD_ITEM*>& aChangedItems )
+{
+    RebuildModels();
+}
+
+
 DIALOG_GENERATORS::DIALOG_GENERATORS( PCB_EDIT_FRAME* aEditorFrame, wxWindow* aParent ) :
         DIALOG_GENERATORS_BASE( aParent )
 {
@@ -426,7 +435,7 @@ void DIALOG_GENERATORS::OnRebuildTypeClick( wxCommandEvent& event )
 {
     wxDataViewListStore* model = getCurrentModel();
     wxString             pageName = m_Notebook->GetCurrentPage()->GetName();
-    
+
     if( !model )
         return;
 

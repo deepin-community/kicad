@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -30,6 +30,7 @@
 #include <project/project_file.h>
 #include <settings/settings_manager.h>
 #include <widgets/std_bitmap_button.h>
+#include <jobs/job_export_pcb_ipc2581.h>
 
 #include <set>
 #include <vector>
@@ -38,7 +39,9 @@
 static wxString s_oemColumn = wxEmptyString;
 
 DIALOG_EXPORT_2581::DIALOG_EXPORT_2581( PCB_EDIT_FRAME* aParent ) :
-        DIALOG_EXPORT_2581_BASE( aParent ), m_parent( aParent )
+        DIALOG_EXPORT_2581_BASE( aParent ),
+        m_parent( aParent ),
+        m_job( nullptr )
 {
     m_browseButton->SetBitmap( KiBitmapBundle( BITMAPS::small_folder ) );
 
@@ -55,6 +58,29 @@ DIALOG_EXPORT_2581::DIALOG_EXPORT_2581( PCB_EDIT_FRAME* aParent ) :
     }
 
     m_outputFileName->SetValue( path );
+
+    m_textDistributor->SetSize( m_choiceDistPN->GetSize() );
+
+    // Fill wxChoice (and others) items with data before calling finishDialogSettings()
+    // to calculate suitable widgets sizes
+    Init();
+
+    // Now all widgets have the size fixed, call FinishDialogSettings
+    finishDialogSettings();
+}
+
+
+DIALOG_EXPORT_2581::DIALOG_EXPORT_2581( JOB_EXPORT_PCB_IPC2581* aJob, PCB_EDIT_FRAME* aEditFrame,
+                                        wxWindow* aParent ) :
+        DIALOG_EXPORT_2581_BASE( aParent ),
+        m_parent( aEditFrame ),
+        m_job( aJob )
+{
+    m_browseButton->Hide();
+
+    SetupStandardButtons();
+
+    m_outputFileName->SetValue( m_job->GetConfiguredOutputPath() );
 
     m_textDistributor->SetSize( m_choiceDistPN->GetSize() );
 
@@ -88,7 +114,10 @@ void DIALOG_EXPORT_2581::onBrowseClicked( wxCommandEvent& event )
 
 void DIALOG_EXPORT_2581::onOKClick( wxCommandEvent& event )
 {
-    m_parent->SetLastPath( LAST_PATH_2581, m_outputFileName->GetValue() );
+    if( !m_job )
+    {
+        m_parent->SetLastPath( LAST_PATH_2581, m_outputFileName->GetValue() );
+    }
 
     event.Skip();
 }
@@ -215,7 +244,8 @@ void DIALOG_EXPORT_2581::onDistPNChange( wxCommandEvent& event )
 
 bool DIALOG_EXPORT_2581::Init()
 {
-    PCBNEW_SETTINGS* cfg = Pgm().GetSettingsManager().GetAppSettings<PCBNEW_SETTINGS>();
+    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+    PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
 
     std::set<wxString> options;
     BOARD* board = m_parent->GetBoard();
@@ -226,10 +256,26 @@ bool DIALOG_EXPORT_2581::Init()
             options.insert( field->GetName() );
     }
 
-    m_choiceUnits->SetSelection( cfg->m_Export2581.units );
-    m_precision->SetValue( cfg->m_Export2581.precision );
-    m_versionChoice->SetSelection( cfg->m_Export2581.version );
-    m_cbCompress->SetValue( cfg->m_Export2581.compress );
+    if( !m_job )
+    {
+        m_choiceUnits->SetSelection( cfg->m_Export2581.units );
+        m_precision->SetValue( cfg->m_Export2581.precision );
+        m_versionChoice->SetSelection( cfg->m_Export2581.version );
+        m_cbCompress->SetValue( cfg->m_Export2581.compress );
+    }
+    else
+    {
+        SetTitle( m_job->GetSettingsDialogTitle() );
+
+        m_choiceUnits->SetSelection( m_job->m_units == JOB_EXPORT_PCB_IPC2581::IPC2581_UNITS::MILLIMETERS ? 0 : 1 );
+        m_precision->SetValue( static_cast<int>( m_job->m_precision ) );
+        m_versionChoice->SetSelection( m_job->m_version == JOB_EXPORT_PCB_IPC2581::IPC2581_VERSION::B ? 0 : 1 );
+        m_cbCompress->SetValue( m_job->m_compress );
+    }
+
+    // DIALOG_SHIM needs a unique hash_key because classname will be the same for both job and
+    // non-job versions (which have different sizes).
+    m_hash_key = TO_UTF8( GetTitle() );
 
     wxCommandEvent dummy;
     onCompressCheck( dummy );
@@ -244,14 +290,37 @@ bool DIALOG_EXPORT_2581::Init()
 
     PROJECT_FILE& prj = Prj().GetProjectFile();
 
-    if( !m_choiceMPN->SetStringSelection( prj.m_IP2581Bom.id ) )
+    wxString internalIdCol;
+    wxString mpnCol;
+    wxString distPnCol;
+    wxString mfgCol;
+    wxString distCol;
+
+    if( !m_job )
+    {
+        internalIdCol = prj.m_IP2581Bom.id;
+        mpnCol = prj.m_IP2581Bom.MPN;
+        distPnCol = prj.m_IP2581Bom.distPN;
+        mfgCol = prj.m_IP2581Bom.mfg;
+        distCol = prj.m_IP2581Bom.dist;
+    }
+    else
+    {
+        internalIdCol = m_job->m_colInternalId;
+        mpnCol = m_job->m_colMfgPn;
+        distPnCol = m_job->m_colDistPn;
+        mfgCol = m_job->m_colMfg;
+        distCol = m_job->m_colDist;
+    }
+
+    if( !m_choiceMPN->SetStringSelection( internalIdCol ) )
         m_choiceMPN->SetSelection( 0 );
 
-    if( m_choiceMPN->SetStringSelection( prj.m_IP2581Bom.MPN ) )
+    if( m_choiceMPN->SetStringSelection( mpnCol ) )
     {
         m_choiceMfg->Enable( true );
 
-        if( !m_choiceMfg->SetStringSelection( prj.m_IP2581Bom.mfg ) )
+        if( !m_choiceMfg->SetStringSelection( mfgCol ) )
             m_choiceMfg->SetSelection( 0 );
     }
     else
@@ -261,14 +330,14 @@ bool DIALOG_EXPORT_2581::Init()
         m_choiceMfg->Enable( false );
     }
 
-    if( m_choiceDistPN->SetStringSelection( prj.m_IP2581Bom.distPN ) )
+    if( m_choiceDistPN->SetStringSelection( distPnCol ) )
     {
         m_textDistributor->Enable( true );
 
         // The combo box selection can be fixed, so any value can be entered
         if( !prj.m_IP2581Bom.distPN.empty() )
         {
-            m_textDistributor->SetValue( prj.m_IP2581Bom.dist );
+            m_textDistributor->SetValue( distCol );
         }
         else
         {
@@ -288,22 +357,44 @@ bool DIALOG_EXPORT_2581::Init()
 
 bool DIALOG_EXPORT_2581::TransferDataFromWindow()
 {
-    PCBNEW_SETTINGS* cfg = Pgm().GetSettingsManager().GetAppSettings<PCBNEW_SETTINGS>();
+    if( !m_job )
+    {
+        SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+        PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
 
-    cfg->m_Export2581.units = m_choiceUnits->GetSelection();
-    cfg->m_Export2581.precision = m_precision->GetValue();
-    cfg->m_Export2581.version = m_versionChoice->GetSelection();
-    cfg->m_Export2581.compress = m_cbCompress->GetValue();
+        cfg->m_Export2581.units = m_choiceUnits->GetSelection();
+        cfg->m_Export2581.precision = m_precision->GetValue();
+        cfg->m_Export2581.version = m_versionChoice->GetSelection();
+        cfg->m_Export2581.compress = m_cbCompress->GetValue();
 
-    PROJECT_FILE& prj = Prj().GetProjectFile();
-    wxString empty;
+        PROJECT_FILE& prj = Prj().GetProjectFile();
+        wxString      empty;
 
-    prj.m_IP2581Bom.id = GetOEM();
-    prj.m_IP2581Bom.mfg = GetMfg();
-    prj.m_IP2581Bom.MPN = GetMPN();
-    prj.m_IP2581Bom.distPN = GetDistPN();
-    prj.m_IP2581Bom.dist = GetDist();
+        prj.m_IP2581Bom.id = GetOEM();
+        prj.m_IP2581Bom.mfg = GetMfg();
+        prj.m_IP2581Bom.MPN = GetMPN();
+        prj.m_IP2581Bom.distPN = GetDistPN();
+        prj.m_IP2581Bom.dist = GetDist();
 
-    s_oemColumn = m_oemRef->GetStringSelection();
+        s_oemColumn = m_oemRef->GetStringSelection();
+    }
+    else
+    {
+        m_job->SetConfiguredOutputPath( m_outputFileName->GetValue() );
+
+        m_job->m_colInternalId = GetOEM();
+        m_job->m_colDist = GetDist();
+        m_job->m_colDistPn = GetDistPN();
+        m_job->m_colMfg = GetMfg();
+        m_job->m_colMfgPn = GetMPN();
+
+        m_job->m_version = GetVersion() == 'B' ? JOB_EXPORT_PCB_IPC2581::IPC2581_VERSION::B
+											   : JOB_EXPORT_PCB_IPC2581::IPC2581_VERSION::C;
+        m_job->m_units = GetUnitsString() == wxT( "mm" ) ? JOB_EXPORT_PCB_IPC2581::IPC2581_UNITS::MILLIMETERS
+														  : JOB_EXPORT_PCB_IPC2581::IPC2581_UNITS::INCHES;
+        m_job->m_precision = m_precision->GetValue();
+        m_job->m_compress = GetCompress();
+    }
+
     return true;
 }

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -286,6 +286,7 @@ public:
         return NETLIST_EXPORTER_SPICE::OPTION_SAVE_ALL_VOLTAGES
                | NETLIST_EXPORTER_SPICE::OPTION_SAVE_ALL_CURRENTS
                | NETLIST_EXPORTER_SPICE::OPTION_SAVE_ALL_DISSIPATIONS
+               | NETLIST_EXPORTER_SPICE::OPTION_SAVE_ALL_EVENTS
                | NETLIST_EXPORTER_SPICE::OPTION_ADJUST_INCLUDE_PATHS
                | NETLIST_EXPORTER_SPICE::OPTION_SIM_COMMAND;
     }

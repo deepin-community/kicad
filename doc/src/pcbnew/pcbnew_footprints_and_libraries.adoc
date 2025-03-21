@@ -58,7 +58,13 @@ library, you must first convert it to KiCad format.
 The first time the PCB Editor (or any other KiCad tool that uses footprints) runs
 and the global footprint table file `fp-lib-table` is not found, KiCad will
 guide the user through setting up a new footprint library table. This process is
-described <<initial-configuration,above>>.
+described <<initial-configuration,above>>. You can re-run this process at any
+time by clicking the **Reset Libraries**.
+
+WARNING: Resetting your footprint library table will permanently change your
+         footprint library table on disk.
+
+
 
 ==== Managing Table Entries
 
@@ -126,6 +132,13 @@ Using path variables in the footprint library tables allows libraries to
 be relocated without breaking the footprint library tables, so long as the
 path variables are updated when the library location changes.
 
+NOTE: KiCad will automatically resolve versioned path variables from
+      older versions of KiCad to the value of the corresponding variable from
+      the current KiCad version, as long as the old variable is not explicitly
+      defined itself. For example, `$\{KICAD8_FOOTPRINT_DIR\}` will
+      automatically resolve to the value of `$\{KICAD9_FOOTPRINT_DIR\}` if there
+      is no `KICAD8_FOOTPRINT_DIR` variable defined.
+
 `${KIPRJMOD}` is a special path variable that always expands to the
 absolute path of the current project directory. `${KIPRJMOD}` allows libraries
 to be stored in the project folder without having to use an absolute path in the
@@ -186,7 +199,14 @@ KiCad provides a footprint editing tool that allows you to create footprint
 libraries; add, edit, delete, or transfer footprints between libraries; export
 footprints to files; and import footprints from files. The Footprint Editor can
 be launched from the KiCad Project Manager or from the Board Editor (**Tools**
--> **Footprint Editor**).
+-> **Footprint Editor**). You can also open the Footprint Editor from the
+<<board-editing-footprints,a footprint in the board>>; in this way you can edit either the library copy or the board copy of that footprint in the editor.
+
+NOTE: Editing the library version of a footprint will not affect any
+      copies of that footprint that have been added to a board until the board
+      copy is updated from the library. Conversely, editing the board version of
+      a footprint will not affect the library version of a footprint or any
+      other copies of that footprint in a board.
 
 The Footprint Editor main window is shown below. It has three toolbars for
 quick access to common features and a footprint viewing/editing canvas. Not all
@@ -237,16 +257,18 @@ layer/grid management controls.
 |image:images/icons/mirror_v_24.png[]
     |Mirror selected item(s) vertically.
 |image:images/icons/group_24.png[]
-    |Add the selected item(s) to a group.
+    |Add the selected item(s) to a <<groups,group>>.
 |image:images/icons/group_ungroup_24.png[]
-    |Remove the selected item(s) from a group.
+    |Remove the selected item(s) from a <<groups,group>>.
 
 |image:images/icons/module_options_24.png[]
-    |Edit the current footprint's properties.
+    |Edit the current <<footprint-editor-properties,footprint's properties>>.
 |image:images/icons/options_pad_24.png[]
-    |Edit the selected pad's properties.
+    |Edit the selected <<footprint-pad-properties,pad's properties>>.
+|image:images/icons/datasheet_24.png[]
+    |Open the current footprint's datasheet.
 |image:images/icons/erc_24.png[]
-    |Test the current footprint for design errors.
+    |Run the <<checking-footprints,footprint checker>> to test the current footprint for design errors.
 
 |image:images/icons/load_module_board_24.png[]
     |Edit a footprint in the current board in the footprint editor.
@@ -316,35 +338,41 @@ Placement and drawing tools are located in the right toolbar.
 | image:images/icons/cursor_24.png[]
     | Selection tool (the default tool).
 | image:images/icons/pad_24.png[]
-    | Pad placement tool: click on the board to place a pad.
+    | <<footprint-pads,Add pad>>: click on the board to place a pad.
 | image:images/icons/add_keepout_area_24.png[]
-    | Add rule area: Rule areas, formerly known as keepouts, can restrict the placement of items
+    | <<fp-rule-areas,Add rule area>>: Rule areas, formerly known as keepouts, can restrict the placement of items
       and the filling of zones and can also define named areas to apply specific custom design
       rules to.
 
 | image:images/icons/add_line_24.png[]
-    | Draw lines.
+    | <<fp-graphical-objects,Draw lines>>.
 
     *Note:* Lines are graphical objects and are not the same as tracks placed with the Route Tracks
           tool.  Graphical objects cannot be assigned to a net.
 | image:images/icons/add_arc_24.png[]
-    | Draw arcs: pick the center point of the arc, then the start and end points. By right clicking this button, you can change the arc editing mode between a mode that maintains the existing arc center and a mode that maintains the arc radius.
+    | <<fp-graphical-objects,Draw arcs>>: pick the center point of the arc, then the start and end points. By right clicking this button, you can change the arc editing mode between a mode that maintains the existing arc center and a mode that maintains the arc radius.
 | image:images/icons/add_rectangle_24.png[]
-    | Draw rectangles.  Rectangles can be filled or outlines.
+    | <<fp-graphical-objects,Draw rectangles>>.  Rectangles can be filled or outlines.
 | image:images/icons/add_circle_24.png[]
-    | Draw circles.  Circles can be filled or outlines.
+    | <<fp-graphical-objects,Draw circles>>.  Circles can be filled or outlines.
 | image:images/icons/add_graphical_polygon_24.png[]
-    | Draw graphical polygons.  Polygons can be filled or outlined.
+    | <<fp-graphical-objects,Draw graphical polygons>>.  Polygons can be filled or outlined.
 
     *Note:* Filled graphical polygons are not the same as filled zones: graphical polygons cannot
     be assigned to a net and will not keep clearance from other items.
+| image:images/icons/add_bezier_24.png[]
+    | <<fp-graphical-objects,Draw bezier curves>>: draw a bezier curve. Each curve is defined by its start and end points and
+    two control points. Subsequent curves start as tangent to the previous one. Use Backspace to
+    cancel the previous point.
 | image:images/icons/image_24.png[]
-    | Add bitmap image for reference. Reference images are not included in
+    | Add <<fp-reference-images,bitmap image>> for reference. Reference images are not included in
     fabrication outputs.
 | image:images/icons/text_24.png[]
-    | Add text.
+    | <<fp-graphical-objects,Add text>>.
 | image:images/icons/add_textbox_24.png[]
-    | Add a textbox.
+    | <<fp-graphical-objects,Add a textbox>>.
+| image:images/icons/table_24.png[]
+    | <<fp-graphical-objects,Add a table>>.
 | image:images/icons/add_aligned_dimension_24.png[]
 
   image:images/icons/add_orthogonal_dimension_24.png[]
@@ -354,15 +382,15 @@ Placement and drawing tools are located in the right toolbar.
   image:images/icons/add_radial_dimension_24.png[]
 
   image:images/icons/add_leader_24.png[]
-    | Add dimensions.  Dimension types are described in more detail below.
+    | <<fp-graphical-objects,Add dimensions>>.  Dimension types are described in more detail below.
 | image:images/icons/delete_cursor_24.png[]
     | Deletion tool: click objects to delete them.
 |image:images/icons/anchor_24.png[Anchor icon]
     | Anchor tool. Left-click to set the anchor position (origin) of the footprint.
 | image:images/icons/grid_select_axis_24.png[]
-    | Set grid origin.
+    | <<grids-and-snapping,Set grid origin>>.
 | image:images/icons/measurement_24.png[]
-    | Interactively measure the distance between two points.
+    | <<measurement-tool,Interactively measure>> the distance between two points.
 
 |====
 
@@ -388,6 +416,20 @@ To create a new file containing only the current footprint, click **File** ->
 **Export** -> **Footprint...**. This file will be a standard footprint library
 which will contain only one footprint.
 
+The editor can also open footprints from the board. To edit a footprint from the
+board, right click a footprint in the Board Editor and select
+**Open in Footprint Editor** (kbd:[Ctrl+E]). Alternatively, you can open a board
+footprint by pressing the image:images/icons/load_module_board_24.png[] button
+in the Footprint Editor top toolbar and selecting the desired footprint.
+
+Editing and saving the board copy of a footprint will only update that footprint
+in the board; it will not update other copies of that footprint in the board,
+and it will not change the original library copy of the footprint. When you open
+the board copy of a footprint, the Footprint Editor displays an info bar that
+warns you the library copy will not be modified. You can click the link in this
+info bar to open the library version of the footprint instead, or press
+kbd:[Ctrl+Shift+E].
+
 ==== Creating a new footprint library
 
 You can create a new footprint library by clicking **File** ->
@@ -407,29 +449,22 @@ location.
 
 To create a new footprint in the current footprint library, click the
 image:images/icons/new_footprint_24.png[New Footprint icon] button or click
-**File** -> **New Footprint...**. You will be prompted for new footprint's name
-and its footprint type.
+**File** -> **New Footprint...**. A new, untitled footprint will be created in
+the selected library.
 
-image::images/footprint_editor_new_footprint.png[]
-
+To set the name of the footprint, open its
+<<footprint-editor-properties,properties dialog>>
+(image:images/icons/module_options_24.png[] button or kbd:[E]).
 The name will set the name of the footprint, which is used when assigning a
 footprint to a symbol, and is also used as the filename of the footprint file on
 disk.
-
-The type can be *Through hole*, *SMD*, or *Other*. Footprint type should be set
-appropriately, as it has <<footprint-attributes,several effects>> on pad
-creation, board inspection, DRC, and output generation. The footprint type can
-be changed after the footprint is created, however.
-
-After clicking **OK**, a new footprint will be created in the selected
-library.
 
 The new footprint will be empty except for several default text items. The
 footprint contains two default (mandatory) footprint fields, `Reference` and
 `Value`. `Reference` contains the text `REF{asterisk}{asterisk}`, which will be
 replaced with the reference designator of the footprint's corresponding symbol
 when the <<starting-from-a-schematic,footprint is added to the board>>. `Value`
-initially contains the footprint's name, but this will also be updated with the
+is initially set to `Untitled`, which can be changed, but this will also be updated with the
 contents of the corresponding symbol's `Value` field when the footprint is added
 to the board. Finally, there is a footprint text item containing the string
 `${REFERENCE}`, which is a <<text-variable,text variable>> that will resolve to
@@ -512,18 +547,21 @@ Whether they are in the library footprint or not, these fields can then be
 edited on a per-footprint basis in the board. Symbol fields are also transferred
 to the board and added as fields in the corresponding footprint.
 
-NOTE: Footprint fields are different than graphic text. In addition to being
-      named, fields can be moved and edited in the board, while footprint text
-      can only be edited in the footprint editor. Before KiCad version 8.0,
-      footprints did not have fields, only graphic text, and this graphic text
-      could be edited directly in the board editor.
+NOTE: Footprint fields are different than graphic text. Fields are named, i.e.
+      they have both a name (`Reference`) and a value (`R101`), whereas
+      footprint text only has a value. Fields can be added to and deleted from
+      footprints in a board in the Footprint Properties dialog, while text items
+      can only be added to a footprint in the footprint editor. Fields are also
+      synced between footprints and their corresponding symbols in the
+      schematic. Before KiCad version 8.0, footprints did not have named fields,
+      only graphic text.
 
-All library footprints are defined with five default fields which correspond to
-the xref:../eeschema/eeschema.adoc#symbol-properties[five default fields in library symbols]:
-`Reference`, `Value`, `Footprint`, `Datasheet`, and `Description`. These default
+All library footprints are defined with four default fields which correspond to
+the xref:../eeschema/eeschema.adoc#symbol-properties[default fields in library symbols]:
+`Reference`, `Value`, `Datasheet`, and `Description`. These default
 fields cannot be deleted. The `Reference` field initially has the value `REF**`,
-while the `Footprint` and `Value` fields are initially set to the name of the
-footprint. In the board, the values of the five default fields will be set to
+while the `Value` field is initially set to the name of the
+footprint. In the board, the values of the four default fields will be set to
 the values of the matching fields in the footprint's corresponding symbol.
 
 NOTE: The `Description` footprint field is the description of the symbol, not
@@ -730,6 +768,23 @@ model's opacity can be adjusted using the **opacity** slider, and the model can
 be completely hidden by deselecting the **show** checkbox in the rightmost
 column of the model table.
 
+[[fp-embedding-files]]
+==== Embedding files in footprints
+
+External files can be embedded within a footprint.
+Embedding a file stores a copy of the file inside the footprint. The footprint
+can then refer to the embedded copy of the file instead of the external file,
+which makes the footprint more portable as it doesn't rely on an external file.
+In footprints this is especially useful for embedding 3D models. Files embedded
+in a footprint are deduplicated when the footprint is added to a board: if a
+file is embedded in a footprint, and multiple instances of that footprint are
+added to the board, only one copy of the file will be embedded, and all of the
+footprint instances will refer to the same embedded file. Files embedded in a
+footprint cannot be referred to in the parent board. File embedding is explained
+in more detail in the <<pcb-embedding-files,Board Setup documentation>>.
+
+image::images/fp_embedded_files.png[]
+
 [[footprint-pads]]
 ==== Footprint pads
 
@@ -741,6 +796,7 @@ New pads in SMD footprints are SMD by default, while new pads in Through Hole an
 footprints will be through hole. Each new pad will have its pad number incremented by 1 relative to
 the previous pad number.
 
+[[footprint-pad-properties]]
 ===== Pad properties
 
 You can edit a pad after adding it by opening the pad's properties dialog (kbd:[E]). These
@@ -755,19 +811,19 @@ image::images/pad_properties_general.png[scaledwidth="70%"]
 
 **Pad type:** this setting controls which features are enabled for the pad:
 
-**SMD** pads are electrically-connected and have no hole.  In other words, they exist on a single
-copper layer.
+* **SMD** pads are electrically-connected and have no hole.  In other words, they exist on a single
+  copper layer.
 
-**Through-hole** pads are electrically-connected and have a plated hole.  The hole exists on every
-layer, and the copper pad exists on multiple layers (see **Copper layers** setting below).
+* **Through-hole** pads are electrically-connected and have a plated hole.  The hole exists on every
+  layer, and the copper pad exists on multiple layers (see **Copper layers** setting below).
 
-**Edge Connector** pads are SMD pads that are allowed to overlap the board outline on the
-`Edge.Cuts` layer.
+* **Edge Connector** pads are SMD pads that are allowed to overlap the board outline on the
+  `Edge.Cuts` layer.
 
-**NPTH, Mechanical** pads are non-plated through holes that do not have an electrical connection.
+* **NPTH, Mechanical** pads are non-plated through holes that do not have an electrical connection.
 
-**SMD Aperture** pads are pads that have no hole and no electrical connection.  These can be used
-to add specific designs to a technical layer, for example a paste or solder mask aperture.
+* **SMD Aperture** pads are pads that have no hole and no electrical connection.  These can be used
+  to add specific designs to a technical layer, for example a paste or solder mask aperture.
 
 The **Copper layers** setting controls which copper layers will have a shape associated with the
 pad.
@@ -812,25 +868,30 @@ hole, but the pad can be offset relative to the hole if the **offset shape from 
 is enabled (circular pads cannot be offset from the hole).
 
 **Fabrication properties** are primarily used as metadata in Gerber X2 fabrication output, where
-the fabrication property is included as an aperture attribute for each pad. The following
-fabrication properties are available:
+the fabrication property is included as an aperture attribute for each pad. Some properties also
+affect DRC. The following fabrication properties are available:
 
-*BGA pad* can only be applied to SMD pads, and only affects Gerber X2 output.
+* *BGA pad* can only be applied to SMD pads, and only affects Gerber X2 output.
 
-*Fiducial, local to footprint* and *fiducial, global to board* only affect Gerber X2 output.
+* *Fiducial, local to footprint* and *fiducial, global to board* only affect Gerber X2 output.
 
-*Test point* can only be applied to SMD or through hole pads, can only be applied to pads on
-outer layers, and only affects Gerber X2 output.
+* *Test point* can only be applied to SMD or through hole pads, can only be applied to pads on
+  outer layers, and only affects Gerber X2 output.
 
-Pads with the *heatsink pad* property are always flashed on every copper layer and are allowed
-in SMD footprints (PTH pads without this property are not allowed in SMD footprints). It also
-affects Gerber X2 output.
+* Through hole pads with the *heatsink pad* property are allowed
+  in SMD footprints (PTH pads without this property cause a DRC violation when
+  they are used in SMD footprints). It also affects Gerber X2 output.
 
-Pads with the *castellated pad* property are allowed to intersect the board edge and still be
-routed (it is otherwise a DRC error for a pad to intersect the board edge, which makes routing
-impossible). It also affects Gerber X2 output.
+* Pads with the *castellated pad* property are allowed to intersect the board edge and still be
+  routed (it is otherwise a DRC error for a pad to intersect the board edge, which makes routing
+  impossible). It also affects Gerber X2 output.
 
-*None* is for pads for which none of the other fabrication properties apply. It has no effect.
+* Through hole pads with the *mechanical* property can be used in SMD footprints
+  without causing a DRC violation. This can be used for mounting pads or other
+  mechanical through hole pads in surface mount footprints. This is similar to the
+  *heatsink pad* property, but does not affect Gerber X2 output.
+
+* *None* is for pads for which none of the other fabrication properties apply. It has no effect.
 
 **Specify pad to die length:** This setting allows a length to be associated with this pad that
 will be added to the routed track length by the track length tuning tools and the Net Inspector.
@@ -1013,7 +1074,7 @@ pad, or that are on a different layer, will remain separate. If the base pad is
 a through hole pad, overlapping shapes on `F.Cu` will be combined in the custom
 pad. Because through hole pads have the same pad shape on all copper layers,
 this shape will become part of the custom pad on all copper layers, not just
-`F.Cu`. For convenience, Pad Edit Mode dims the color of other pads and all 
+`F.Cu`. For convenience, Pad Edit Mode dims the color of other pads and all
 shapes that are not contiguous with the base pad so that you can see which
 shapes will be included in the custom pad and which will not.
 
@@ -1058,7 +1119,8 @@ Thermal relief templates only determine the spoke location: spoke width and
 relief gap are still defined in the pad, footprint, and/or zone properties, as
 normal.
 
-==== Footprint graphics
+[[fp-graphical-objects]]
+==== Footprint graphics and text
 
 Footprints can contain graphic shapes, text, and dimensions. These objects can
 be placed on nonphysical layers, like `F.Fab` or `User.Drawings`, or they can be
@@ -1081,11 +1143,13 @@ The buttons on the right toolbar can be used to create:
 
 * Lines (image:images/icons/add_line_24.png[], default hotkey kbd:[Ctrl+Shift+L])
 * Arcs (image:images/icons/add_arc_24.png[], default hotkey kbd:[Ctrl+Shift+A])
+* Bezier curves (image:images/icons/add_bezier_24.png[], default hotkey kbd:[Ctrl+Shift+B])
 * Rectangles (image:images/icons/add_rectangle_24.png[])
 * Circles (image:images/icons/add_circle_24.png[], default hotkey kbd:[Ctrl+Shift+C])
 * Polygons (image:images/icons/add_graphical_polygon_24.png[], default hotkey kbd:[Ctrl+Shift+P])
 * Text (image:images/icons/text_24.png[], default hotkey kbd:[Ctrl+Shift+T])
 * Textboxes (image:images/icons/add_textbox_24.png[])
+* Tables (image:images/icons/table_24.png[])
 * Dimensions (image:images/icons/add_aligned_dimension_24.png[]), of which
   several types are available
 
@@ -1127,6 +1191,7 @@ Any changes that will be applied to the footprint are displayed at the bottom of
 the dialog. They are not applied until you press the **Update Footprint**
 button.
 
+[[fp-rule-areas]]
 ==== Rule areas
 
 Rule areas, also known as keepouts, are footprint regions that can have specific
@@ -1148,6 +1213,7 @@ double click to finish placing the rule area.
 Rule areas are described in more detail in the <<pcb-rule-areas,PCB editor>>
 documentation.
 
+[[fp-reference-images]]
 ==== Reference images
 
 Just like in the PCB Editor, you can use reference images in the Footprint
@@ -1201,16 +1267,22 @@ create your own. For more information about creating new footprint wizards, see
 the <<creating-footprint-wizards,Scripting section>> of the Advanced Topics
 chapter.
 
+[[checking-footprints]]
 ==== Checking footprints
 
 The Footprint Editor can check for common issues in your footprints. Run the
 footprint checker using the image:images/icons/erc_24.png[] button in the top
 toolbar.
 
-// TODO: screenshot
+image::images/footprint_checker.png[]
+
+Any footprint issues that are detected are listed in the dialog and displayed
+with arrow indicators in the editing canvas. Clicking on an issue in the dialog
+will focus on the issue in the canvas.
 
 The footprint checker checks for:
 
+* Malformed or missing courtyards
 * Pads that don't match the footprint's type: footprints without any through
   hole pads should be set to the surface mount footprint type
 * Through hole pads without a hole

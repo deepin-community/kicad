@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -124,7 +124,7 @@ bool NETLIST_EXPORTER_ALLEGRO::CompareSymbolRef( const wxString& aRefText1,
 }
 
 
-bool NETLIST_EXPORTER_ALLEGRO::CompareLibPin( const LIB_PIN* aPin1, const LIB_PIN* aPin2 )
+bool NETLIST_EXPORTER_ALLEGRO::CompareLibPin( const SCH_PIN* aPin1, const SCH_PIN* aPin2 )
 {
     // return "lhs < rhs"
     return StrNumCmp( aPin1->GetShownNumber(), aPin2->GetShownNumber(), true ) < 0;
@@ -136,18 +136,16 @@ void NETLIST_EXPORTER_ALLEGRO::extractComponentsInfo()
     m_referencesAlreadyFound.Clear();
     m_libParts.clear();
 
-    SCH_SHEET_LIST sheetList = m_schematic->GetSheets();
-
-    for( unsigned ii = 0; ii < sheetList.size(); ii++ )
+    for( const SCH_SHEET_PATH& sheet : m_schematic->Hierarchy() )
     {
-        SCH_SHEET_PATH sheet = sheetList[ii];
         m_schematic->SetCurrentSheet( sheet );
 
-        auto cmp = [sheet]( SCH_SYMBOL* a, SCH_SYMBOL* b )
-                   {
-                       return ( StrNumCmp( a->GetRef( &sheet, false ),
-                                           b->GetRef( &sheet, false ), true ) < 0 );
-                   };
+        auto cmp =
+                [sheet]( SCH_SYMBOL* a, SCH_SYMBOL* b )
+                {
+                    return ( StrNumCmp( a->GetRef( &sheet, false ),
+                                        b->GetRef( &sheet, false ), true ) < 0 );
+                };
 
         std::set<SCH_SYMBOL*, decltype( cmp )> ordered_symbols( cmp );
         std::multiset<SCH_SYMBOL*, decltype( cmp )> extra_units( cmp );
@@ -174,21 +172,13 @@ void NETLIST_EXPORTER_ALLEGRO::extractComponentsInfo()
 
         for( EDA_ITEM* item : ordered_symbols )
         {
-            SCH_SYMBOL* symbol = findNextSymbol( item, &sheet );
+            SCH_SYMBOL* symbol = findNextSymbol( item, sheet );
 
             if( !symbol || symbol->GetExcludedFromBoard() )
-            {
                 continue;
-            }
 
-            LIB_PINS pinList;
-            pinList.clear();
-            symbol->GetLibPins(pinList);
-
-            if( !pinList.size() )
-            {
+            if( symbol->GetLibPins().empty() )
                 continue;
-            }
 
             m_packageProperties.insert( std::pair<wxString,
                                         wxString>( sheet.PathHumanReadable(),
@@ -236,13 +226,11 @@ void NETLIST_EXPORTER_ALLEGRO::extractComponentsInfo()
             {
                 if( item->Type() == SCH_PIN_T )
                 {
-                    SCH_PIN*    pin = static_cast<SCH_PIN*>( item );
-                    SCH_SYMBOL* symbol = pin->GetParentSymbol();
+                    SCH_PIN* pin = static_cast<SCH_PIN*>( item );
+                    SYMBOL*  symbol = pin->GetParentSymbol();
 
                     if( !symbol || symbol->GetExcludedFromBoard() )
-                    {
                         continue;
-                    }
 
                     net_record->m_Nodes.emplace_back( pin, sheet, nc );
                 }
@@ -320,8 +308,8 @@ void NETLIST_EXPORTER_ALLEGRO::toAllegroPackages()
         for( auto it = m_orderedSymbolsSheetpath.begin(); it != m_orderedSymbolsSheetpath.end();
              ++it )
         {
-            if( it->first->GetValueFieldText( false, &it->second, false )
-                != first_ele.first->GetValueFieldText( false, &first_ele.second, false ) )
+            if( it->first->GetValue( false, &it->second, false )
+                != first_ele.first->GetValue( false, &first_ele.second, false ) )
             {
                 continue;
             }
@@ -369,7 +357,7 @@ void NETLIST_EXPORTER_ALLEGRO::toAllegroPackages()
         SCH_SYMBOL* sym = ( beginIter->second ).first;
         SCH_SHEET_PATH sheetPath = ( beginIter->second ).second;
 
-        wxString valueText = sym->GetValueFieldText( false, &sheetPath, false );
+        wxString valueText = sym->GetValue( false, &sheetPath, false );
         wxString footprintText = sym->GetFootprintFieldText( false, &sheetPath, false);
         wxString deviceType = valueText + wxString("_") + footprintText;
 
@@ -452,8 +440,7 @@ void NETLIST_EXPORTER_ALLEGRO::toAllegroPackages()
         fprintf( d, "PACKAGE '%s'\n", TO_UTF8( formatDevice( footprintText ) ) );
         fprintf( d, "CLASS IC\n" );
 
-        LIB_PINS pinList;
-        sym->GetLibSymbolRef()->GetPins( pinList, 0, 0 );
+        std::vector<SCH_PIN*> pinList = sym->GetLibSymbolRef()->GetPins();
 
         /*
          * We must erase redundant Pins references in pinList
@@ -586,7 +573,7 @@ wxString NETLIST_EXPORTER_ALLEGRO::formatText( wxString aString )
 }
 
 
-wxString NETLIST_EXPORTER_ALLEGRO::formatPin( const LIB_PIN& aPin )
+wxString NETLIST_EXPORTER_ALLEGRO::formatPin( const SCH_PIN& aPin )
 {
     wxString   pinName4Telesis = aPin.GetName() + wxString( "__" ) + aPin.GetNumber();
     std::regex reg( "[^A-Za-z0-9_+?/-]" );
@@ -594,7 +581,7 @@ wxString NETLIST_EXPORTER_ALLEGRO::formatPin( const LIB_PIN& aPin )
 }
 
 
-wxString NETLIST_EXPORTER_ALLEGRO::formatFunction( wxString aName, LIB_PINS aPinList )
+wxString NETLIST_EXPORTER_ALLEGRO::formatFunction( wxString aName, std::vector<SCH_PIN*> aPinList )
 {
     aName.MakeUpper();
     std::list<wxString> pinNameList;
@@ -664,7 +651,7 @@ wxString NETLIST_EXPORTER_ALLEGRO::getGroupField( int aGroupIndex, const wxArray
 
         for( const wxString& field : aFieldArray )
         {
-            if( LIB_FIELD* fld = sym->GetLibSymbolRef()->FindField( field, true ) )
+            if( SCH_FIELD* fld = sym->GetLibSymbolRef()->FindField( field, true ) )
             {
                 wxString fieldText = fld->GetShownText( false, 0 );
 

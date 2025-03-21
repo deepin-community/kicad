@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,7 +21,6 @@
 #ifndef KICAD_DIALOG_BOARD_SETUP_H
 #define KICAD_DIALOG_BOARD_SETUP_H
 
-#include <mutex>
 #include <widgets/paged_dialog.h>
 #include "panel_setup_formatting.h"
 
@@ -55,9 +54,6 @@ protected:
     PANEL_SETUP_BOARD_FINISH*  m_boardFinish;
     PANEL_SETUP_BOARD_STACKUP* m_physicalStackup;
 
-public:
-    static std::mutex g_Mutex;      // Mutex to prevent multiple windows opening
-
 private:
     size_t m_currentPage;              // the current page index
     size_t m_layersPage;
@@ -73,6 +69,7 @@ private:
     size_t m_netclassesPage;
     size_t m_customRulesPage;
     size_t m_severitiesPage;
+    size_t m_embeddedFilesPage;
 };
 
 

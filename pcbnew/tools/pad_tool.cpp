@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -84,6 +84,8 @@ void PAD_TOOL::Reset( RESET_REASON aReason )
 
 bool PAD_TOOL::Init()
 {
+    static const std::vector<KICAD_T> padTypes = { PCB_PAD_T };
+
     PCB_SELECTION_TOOL* selTool = m_toolMgr->GetTool<PCB_SELECTION_TOOL>();
 
     if( selTool )
@@ -93,7 +95,7 @@ bool PAD_TOOL::Init()
 
         SELECTION_CONDITION padSel = SELECTION_CONDITIONS::HasType( PCB_PAD_T );
         SELECTION_CONDITION singlePadSel = SELECTION_CONDITIONS::Count( 1 ) &&
-                                           SELECTION_CONDITIONS::OnlyTypes( { PCB_PAD_T } );
+                                           SELECTION_CONDITIONS::OnlyTypes( padTypes );
 
         auto explodeCondition =
                 [&]( const SELECTION& aSel )
@@ -121,7 +123,7 @@ bool PAD_TOOL::Init()
         menu.AddItem( PCB_ACTIONS::pushPadSettings,        singlePadSel, 400 );
     }
 
-    auto& ctxMenu = m_menu.GetMenu();
+    auto& ctxMenu = m_menu->GetMenu();
 
     // cancel current tool goes in main context menu at the top if present
     ctxMenu.AddItem( ACTIONS::cancelInteractive,           SELECTION_CONDITIONS::ShowAlways, 1 );
@@ -135,7 +137,7 @@ bool PAD_TOOL::Init()
     ctxMenu.AddItem( PCB_ACTIONS::properties,              SELECTION_CONDITIONS::ShowAlways );
 
     // Finally, add the standard zoom/grid items
-    getEditFrame<PCB_BASE_FRAME>()->AddStandardSubMenus( m_menu );
+    getEditFrame<PCB_BASE_FRAME>()->AddStandardSubMenus( *m_menu.get() );
 
     return true;
 }
@@ -207,7 +209,8 @@ static void doPushPadProperties( BOARD& board, const PAD& aSrcPad, BOARD_COMMIT&
 
         for( PAD* pad : footprint->Pads() )
         {
-            if( aPadShapeFilter && ( pad->GetShape() != aSrcPad.GetShape() ) )
+            // TODO(JE) padstacks
+            if( aPadShapeFilter && ( pad->GetShape( PADSTACK::ALL_LAYERS ) != aSrcPad.GetShape( PADSTACK::ALL_LAYERS ) ) )
                 continue;
 
             EDA_ANGLE padAngle = pad->GetOrientation() - footprint->GetOrientation();
@@ -308,11 +311,10 @@ int PAD_TOOL::EnumeratePads( const TOOL_EVENT& aEvent )
 
     GENERAL_COLLECTOR        collector;
     GENERAL_COLLECTORS_GUIDE guide = frame()->GetCollectorsGuide();
-    guide.SetIgnoreMTextsMarkedNoShow( true );
-    guide.SetIgnoreMTextsOnBack( true );
-    guide.SetIgnoreMTextsOnFront( true );
-    guide.SetIgnoreModulesVals( true );
-    guide.SetIgnoreModulesRefs( true );
+    guide.SetIgnoreFPTextOnBack( true );
+    guide.SetIgnoreFPTextOnFront( true );
+    guide.SetIgnoreFPValues( true );
+    guide.SetIgnoreFPReferences( true );
 
     const std::optional<SEQUENTIAL_PAD_ENUMERATION_PARAMS> params =
             GetSequentialPadNumberingParams( frame() );
@@ -336,9 +338,11 @@ int PAD_TOOL::EnumeratePads( const TOOL_EVENT& aEvent )
     bool              isFirstPoint = true;   // make sure oldMousePos is initialized at least once
     std::deque<PAD*>  pads = board()->GetFirstFootprint()->Pads();
     MAGNETIC_SETTINGS mag_settings;
+
     mag_settings.graphics = false;
     mag_settings.tracks = MAGNETIC_OPTIONS::NO_EFFECT;
     mag_settings.pads = MAGNETIC_OPTIONS::CAPTURE_ALWAYS;
+
     PCB_GRID_HELPER grid( m_toolMgr, &mag_settings );
 
     grid.SetSnap( true );
@@ -415,7 +419,7 @@ int PAD_TOOL::EnumeratePads( const TOOL_EVENT& aEvent )
         setCursor();
 
         VECTOR2I mousePos = getViewControls()->GetMousePosition();
-        VECTOR2I cursorPos = grid.AlignToNearestPad( mousePos, pads );
+        VECTOR2I cursorPos = grid.SnapToPad( mousePos, pads );
         getViewControls()->ForceCursorPosition( true, cursorPos );
 
         if( evt->IsCancelInteractive() )
@@ -428,7 +432,7 @@ int PAD_TOOL::EnumeratePads( const TOOL_EVENT& aEvent )
         }
         else if( evt->IsActivate() )
         {
-            commit.Push( _( "Renumber pads" ) );
+            commit.Push( _( "Renumber Pads" ) );
 
             frame()->PopTool( aEvent );
             break;
@@ -463,7 +467,7 @@ int PAD_TOOL::EnumeratePads( const TOOL_EVENT& aEvent )
                 {
                     PAD* pad = static_cast<PAD*>( collector[i] );
 
-                    if( !pad->IsAperturePad() )
+                    if( !pad->IsAperturePad() && checkVisibility( pad ) )
                         selectedPads.push_back( pad );
                 }
             }
@@ -531,13 +535,13 @@ int PAD_TOOL::EnumeratePads( const TOOL_EVENT& aEvent )
         }
         else if( evt->IsDblClick( BUT_LEFT ) )
         {
-            commit.Push( _( "Renumber pads" ) );
+            commit.Push( _( "Renumber Pads" ) );
             frame()->PopTool( aEvent );
             break;
         }
         else if( evt->IsClick( BUT_RIGHT ) )
         {
-            m_menu.ShowContextMenu( selection() );
+            m_menu->ShowContextMenu( selection() );
         }
         else
         {
@@ -581,10 +585,12 @@ int PAD_TOOL::PlacePad( const TOOL_EVENT& aEvent )
 
     struct PAD_PLACER : public INTERACTIVE_PLACER_BASE
     {
-        PAD_PLACER( PAD_TOOL* aPadTool )
+        PAD_PLACER( PAD_TOOL* aPadTool, PCB_BASE_EDIT_FRAME* aFrame ) :
+            m_padTool( aPadTool ),
+            m_frame( aFrame ),
+            m_gridHelper( aPadTool->GetManager(), aFrame->GetMagneticItemsSettings() )
         {
             neednewPadNumber = true;    // Use a new pad number when creatin a pad by default
-            m_padTool = aPadTool;
         }
 
         virtual ~PAD_PLACER()
@@ -593,6 +599,7 @@ int PAD_TOOL::PlacePad( const TOOL_EVENT& aEvent )
 
         std::unique_ptr<BOARD_ITEM> CreateItem() override
         {
+            // TODO(JE) padstacks
             PAD* pad = new PAD( m_board->GetFirstFootprint() );
             PAD* master = m_frame->GetDesignSettings().m_Pad_Master.get();
 
@@ -607,7 +614,7 @@ int PAD_TOOL::PlacePad( const TOOL_EVENT& aEvent )
                 if( pad->GetProperty() != PAD_PROP::HEATSINK )
                 {
                     pad->SetAttribute( PAD_ATTRIB::SMD );
-                    pad->SetShape( PAD_SHAPE::ROUNDRECT );
+                    pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::ROUNDRECT );
                     pad->SetSizeX( 1.5 * pad->GetSizeY() );
                     pad->SetLayerSet( PAD::SMDMask() );
                 }
@@ -616,12 +623,12 @@ int PAD_TOOL::PlacePad( const TOOL_EVENT& aEvent )
                     && master->GetAttribute() == PAD_ATTRIB::SMD )
             {
                 pad->SetAttribute( PAD_ATTRIB::PTH );
-                pad->SetShape( PAD_SHAPE::CIRCLE );
-                pad->SetSize( VECTOR2I( pad->GetSizeX(), pad->GetSizeX() ) );
+                pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CIRCLE );
+                pad->SetSize( PADSTACK::ALL_LAYERS, VECTOR2I( pad->GetSizeX(), pad->GetSizeX() ) );
 
                 // Gives an acceptable drill size: it cannot be 0, but from pad master
                 // it is currently 0, therefore change it:
-                pad->SetDrillShape( PAD_DRILL_SHAPE_CIRCLE );
+                pad->SetDrillShape( PAD_DRILL_SHAPE::CIRCLE );
                 int hole_size = pad->GetSizeX() / 2;
                 pad->SetDrillSize( VECTOR2I( hole_size, hole_size ) );
 
@@ -665,10 +672,43 @@ int PAD_TOOL::PlacePad( const TOOL_EVENT& aEvent )
             return false;
         }
 
-        PAD_TOOL* m_padTool;
+        void SnapItem( BOARD_ITEM *aItem ) override
+        {
+            m_gridHelper.SetSnap( !( m_modifiers & MD_SHIFT ) );
+            m_gridHelper.SetUseGrid( !( m_modifiers & MD_CTRL ) );
+
+            if( !m_gridHelper.GetSnap() )
+                return;
+
+            MAGNETIC_SETTINGS*       settings = m_frame->GetMagneticItemsSettings();
+            PAD*                     pad = static_cast<PAD*>( aItem );
+            VECTOR2I                 position = m_padTool->getViewControls()->GetMousePosition();
+            KIGFX::VIEW_CONTROLS*    viewControls = m_padTool->getViewControls();
+            std::vector<BOARD_ITEM*> ignored_items( 1, pad );
+
+            if( settings->pads == MAGNETIC_OPTIONS::NO_EFFECT )
+            {
+                PADS& pads = m_board->GetFirstFootprint()->Pads();
+                ignored_items.insert( ignored_items.end(), pads.begin(), pads.end() );
+            }
+
+            if( !settings->graphics )
+            {
+                DRAWINGS& graphics = m_board->GetFirstFootprint()->GraphicalItems();
+                ignored_items.insert( ignored_items.end(), graphics.begin(), graphics.end() );
+            }
+
+            VECTOR2I cursorPos = m_gridHelper.BestSnapAnchor( position, LSET::AllLayersMask(), GRID_CURRENT, ignored_items );
+            viewControls->ForceCursorPosition( true, cursorPos );
+            aItem->SetPosition( cursorPos );
+        }
+
+        PAD_TOOL*            m_padTool;
+        PCB_BASE_EDIT_FRAME* m_frame;
+        PCB_GRID_HELPER      m_gridHelper;
     };
 
-    PAD_PLACER placer( this );
+    PAD_PLACER placer( this, frame() );
 
     doInteractiveItemPlacement( aEvent, &placer, _( "Place pad" ),
                                 IPO_REPEAT | IPO_SINGLE_CLICK | IPO_ROTATE | IPO_FLIP );
@@ -840,23 +880,24 @@ void PAD_TOOL::explodePad( PAD* aPad, PCB_LAYER_ID* aLayer, BOARD_COMMIT& aCommi
     else if( aPad->IsOnLayer( B_Cu ) )
         *aLayer = B_Cu;
     else
-        *aLayer = *aPad->GetLayerSet().UIOrder();
+        *aLayer = aPad->GetLayerSet().UIOrder().front();
 
-    if( aPad->GetShape() == PAD_SHAPE::CUSTOM )
+    // TODO(JE) padstacks
+    if( aPad->GetShape( PADSTACK::ALL_LAYERS ) == PAD_SHAPE::CUSTOM )
     {
-        for( const std::shared_ptr<PCB_SHAPE>& primitive : aPad->GetPrimitives() )
+        for( const std::shared_ptr<PCB_SHAPE>& primitive : aPad->GetPrimitives( PADSTACK::ALL_LAYERS ) )
         {
             PCB_SHAPE* shape = static_cast<PCB_SHAPE*>( primitive->Duplicate() );
 
             shape->SetParent( board()->GetFirstFootprint() );
             shape->Rotate( VECTOR2I( 0, 0 ), aPad->GetOrientation() );
-            shape->Move( aPad->ShapePos() );
+            shape->Move( aPad->ShapePos( PADSTACK::ALL_LAYERS ) );
             shape->SetLayer( *aLayer );
 
             if( shape->IsProxyItem() && shape->GetShape() == SHAPE_T::SEGMENT )
             {
-                if( aPad->GetThermalSpokeWidth() )
-                    shape->SetWidth( aPad->GetThermalSpokeWidth() );
+                if( aPad->GetLocalThermalSpokeWidthOverride().has_value() )
+                    shape->SetWidth( aPad->GetLocalThermalSpokeWidthOverride().value() );
                 else
                     shape->SetWidth( pcbIUScale.mmToIU( ZONE_THERMAL_RELIEF_COPPER_WIDTH_MM ) );
             }
@@ -864,7 +905,8 @@ void PAD_TOOL::explodePad( PAD* aPad, PCB_LAYER_ID* aLayer, BOARD_COMMIT& aCommi
             aCommit.Add( shape );
         }
 
-        aPad->SetShape( aPad->GetAnchorPadShape() );
+        // TODO(JE) padstacks
+        aPad->SetShape( PADSTACK::ALL_LAYERS, aPad->GetAnchorPadShape( PADSTACK::ALL_LAYERS ) );
         aPad->DeletePrimitivesList();
     }
 

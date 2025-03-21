@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,6 +18,7 @@
  */
 
 #include <layer_ids.h>
+#include <magic_enum.hpp>
 #include <wx/translation.h>
 
 /**
@@ -35,76 +36,35 @@ wxString LayerName( int aLayer )
     case UNDEFINED_LAYER:   return _( "undefined" );
 
     // Copper
-    case F_Cu:              return wxT( "F.Cu" );
-    case In1_Cu:            return wxT( "In1.Cu" );
-    case In2_Cu:            return wxT( "In2.Cu" );
-    case In3_Cu:            return wxT( "In3.Cu" );
-    case In4_Cu:            return wxT( "In4.Cu" );
-    case In5_Cu:            return wxT( "In5.Cu" );
-    case In6_Cu:            return wxT( "In6.Cu" );
-    case In7_Cu:            return wxT( "In7.Cu" );
-    case In8_Cu:            return wxT( "In8.Cu" );
-    case In9_Cu:            return wxT( "In9.Cu" );
-    case In10_Cu:           return wxT( "In10.Cu" );
-    case In11_Cu:           return wxT( "In11.Cu" );
-    case In12_Cu:           return wxT( "In12.Cu" );
-    case In13_Cu:           return wxT( "In13.Cu" );
-    case In14_Cu:           return wxT( "In14.Cu" );
-    case In15_Cu:           return wxT( "In15.Cu" );
-    case In16_Cu:           return wxT( "In16.Cu" );
-    case In17_Cu:           return wxT( "In17.Cu" );
-    case In18_Cu:           return wxT( "In18.Cu" );
-    case In19_Cu:           return wxT( "In19.Cu" );
-    case In20_Cu:           return wxT( "In20.Cu" );
-    case In21_Cu:           return wxT( "In21.Cu" );
-    case In22_Cu:           return wxT( "In22.Cu" );
-    case In23_Cu:           return wxT( "In23.Cu" );
-    case In24_Cu:           return wxT( "In24.Cu" );
-    case In25_Cu:           return wxT( "In25.Cu" );
-    case In26_Cu:           return wxT( "In26.Cu" );
-    case In27_Cu:           return wxT( "In27.Cu" );
-    case In28_Cu:           return wxT( "In28.Cu" );
-    case In29_Cu:           return wxT( "In29.Cu" );
-    case In30_Cu:           return wxT( "In30.Cu" );
-    case B_Cu:              return wxT( "B.Cu" );
+    case PCB_LAYER_ID::F_Cu:              return wxT( "F.Cu" );
+    case PCB_LAYER_ID::B_Cu:              return wxT( "B.Cu" );
 
     // Technicals
-    case B_Adhes:           return wxT( "B.Adhesive" );
-    case F_Adhes:           return wxT( "F.Adhesive" );
-    case B_Paste:           return wxT( "B.Paste" );
-    case F_Paste:           return wxT( "F.Paste" );
-    case B_SilkS:           return wxT( "B.Silkscreen" );
-    case F_SilkS:           return wxT( "F.Silkscreen" );
-    case B_Mask:            return wxT( "B.Mask" );
-    case F_Mask:            return wxT( "F.Mask" );
+    case PCB_LAYER_ID::B_Adhes:           return wxT( "B.Adhesive" );
+    case PCB_LAYER_ID::F_Adhes:           return wxT( "F.Adhesive" );
+    case PCB_LAYER_ID::B_Paste:           return wxT( "B.Paste" );
+    case PCB_LAYER_ID::F_Paste:           return wxT( "F.Paste" );
+    case PCB_LAYER_ID::B_SilkS:           return wxT( "B.Silkscreen" );
+    case PCB_LAYER_ID::F_SilkS:           return wxT( "F.Silkscreen" );
+    case PCB_LAYER_ID::B_Mask:            return wxT( "B.Mask" );
+    case PCB_LAYER_ID::F_Mask:            return wxT( "F.Mask" );
 
     // Users
-    case Dwgs_User:         return wxT( "User.Drawings" );
-    case Cmts_User:         return wxT( "User.Comments" );
-    case Eco1_User:         return wxT( "User.Eco1" );
-    case Eco2_User:         return wxT( "User.Eco2" );
-    case Edge_Cuts:         return wxT( "Edge.Cuts" );
-    case Margin:            return wxT( "Margin" );
+    case PCB_LAYER_ID::Dwgs_User:         return wxT( "User.Drawings" );
+    case PCB_LAYER_ID::Cmts_User:         return wxT( "User.Comments" );
+    case PCB_LAYER_ID::Eco1_User:         return wxT( "User.Eco1" );
+    case PCB_LAYER_ID::Eco2_User:         return wxT( "User.Eco2" );
+    case PCB_LAYER_ID::Edge_Cuts:         return wxT( "Edge.Cuts" );
+    case PCB_LAYER_ID::Margin:            return wxT( "Margin" );
 
     // Footprint
-    case F_CrtYd:           return wxT( "F.Courtyard" );
-    case B_CrtYd:           return wxT( "B.Courtyard" );
-    case F_Fab:             return wxT( "F.Fab" );
-    case B_Fab:             return wxT( "B.Fab" );
-
-    // User definable layers.
-    case User_1:            return wxT( "User.1" );
-    case User_2:            return wxT( "User.2" );
-    case User_3:            return wxT( "User.3" );
-    case User_4:            return wxT( "User.4" );
-    case User_5:            return wxT( "User.5" );
-    case User_6:            return wxT( "User.6" );
-    case User_7:            return wxT( "User.7" );
-    case User_8:            return wxT( "User.8" );
-    case User_9:            return wxT( "User.9" );
+    case PCB_LAYER_ID::F_CrtYd:           return wxT( "F.Courtyard" );
+    case PCB_LAYER_ID::B_CrtYd:           return wxT( "B.Courtyard" );
+    case PCB_LAYER_ID::F_Fab:             return wxT( "F.Fab" );
+    case PCB_LAYER_ID::B_Fab:             return wxT( "B.Fab" );
 
     // Rescue
-    case Rescue:            return _( "Rescue" );
+    case PCB_LAYER_ID::Rescue:            return _( "Rescue" );
 
     // SCH_LAYER_ID
 
@@ -122,8 +82,10 @@ wxString LayerName( int aLayer )
     case LAYER_FIELDS:                  return _( "Symbol fields" );
     case LAYER_INTERSHEET_REFS:         return _( "Sheet references" );
     case LAYER_NETCLASS_REFS:           return _( "Net class references" );
+    case LAYER_RULE_AREAS:              return _( "Rule areas" );
     case LAYER_DEVICE:                  return _( "Symbol body outlines" );
     case LAYER_DEVICE_BACKGROUND:       return _( "Symbol body fills" );
+    case LAYER_SHAPES_BACKGROUND: return _( "Shape fills" );
     case LAYER_NOTES:                   return _( "Schematic text && graphics" );
     case LAYER_PRIVATE_NOTES:           return _( "Symbol private text && graphics" );
     case LAYER_NOTES_BACKGROUND:        return _( "Schematic text && graphics backgrounds" );
@@ -136,6 +98,7 @@ wxString LayerName( int aLayer )
     case LAYER_SHEETLABEL:              return _( "Sheet pins" );
     case LAYER_NOCONNECT:               return _( "No-connect symbols" );
     case LAYER_DNP_MARKER:              return _( "DNP markers" );
+    case LAYER_EXCLUDED_FROM_SIM:       return _( "Excluded-from-simulation markers" );
     case LAYER_ERC_WARN:                return _( "ERC warnings" );
     case LAYER_ERC_ERR:                 return _( "ERC errors" );
     case LAYER_ERC_EXCLUSION:           return _( "ERC exclusions" );
@@ -149,6 +112,7 @@ wxString LayerName( int aLayer )
     case LAYER_BRIGHTENED:              return _( "Highlighted items" );
     case LAYER_HIDDEN:                  return _( "Hidden items" );
     case LAYER_SELECTION_SHADOWS:       return _( "Selection highlight" );
+    case LAYER_NET_COLOR_HIGHLIGHT:     return _( "Net color highlight" );
     case LAYER_SCHEMATIC_DRAWINGSHEET:  return _( "Drawing sheet" );
     case LAYER_SCHEMATIC_PAGE_LIMITS:   return _( "Page limits" );
     case LAYER_OP_VOLTAGES:             return _( "Operating point voltages" );
@@ -161,10 +125,6 @@ wxString LayerName( int aLayer )
     case LAYER_FP_VALUES:               return _( "Values" );
     case LAYER_FP_REFERENCES:           return _( "Reference designators" );
     case LAYER_FP_TEXT:                 return _( "Footprint text" );
-    case LAYER_HIDDEN_TEXT:             return _( "Hidden text" );
-    case LAYER_PADS_SMD_FR:             return _( "SMD pads front" );
-    case LAYER_PADS_SMD_BK:             return _( "SMD pads back" );
-    case LAYER_PADS_TH:                 return _( "Through-hole pads" );
     case LAYER_TRACKS:                  return _( "Tracks" );
     case LAYER_VIA_THROUGH:             return _( "Through vias" );
     case LAYER_VIA_BBLIND:              return _( "Blind/Buried vias" );
@@ -177,6 +137,8 @@ wxString LayerName( int aLayer )
     case LAYER_RATSNEST:                return _( "Ratsnest" );
     case LAYER_DRC_WARNING:             return _( "DRC warnings" );
     case LAYER_DRC_ERROR:               return _( "DRC errors" );
+    case LAYER_DRC_SHAPE1:              return _( "DRC shape 1" );
+    case LAYER_DRC_SHAPE2:              return _( "DRC shape 2" );
     case LAYER_DRC_EXCLUSION:           return _( "DRC exclusions" );
     case LAYER_MARKER_SHADOWS:          return _( "DRC marker shadows" );
     case LAYER_ANCHOR:                  return _( "Anchors" );
@@ -190,8 +152,111 @@ wxString LayerName( int aLayer )
     case LAYER_SELECT_OVERLAY:          return _( "Selection highlight" );
     case LAYER_LOCKED_ITEM_SHADOW:      return _( "Locked item shadow" );
     case LAYER_CONFLICTS_SHADOW:        return _( "Courtyard collision shadow" );
+    case NETNAMES_LAYER_ID_START:       return _( "Track net names" );
+    case LAYER_PAD_NETNAMES:            return _( "Pad net names" );
+    case LAYER_VIA_NETNAMES:            return _( "Via net names" );
 
     default:
-        wxCHECK_MSG( false, wxEmptyString, wxString::Format( "Unknown layer ID %d", aLayer ) );
+        // Catch the general board layers that have numerically increasing names
+        if( aLayer > 0 && aLayer < PCB_LAYER_ID_COUNT && aLayer & 1 )
+            return wxString::Format( wxT( "User.%d" ), ( aLayer - PCB_LAYER_ID::User_1 ) / 2 + 1 );
+
+        return wxString::Format( wxT( "In%d.Cu" ), ( aLayer - PCB_LAYER_ID::In1_Cu ) / 2 + 1 );
+    }
+}
+
+
+PCB_LAYER_ID FlipLayer( PCB_LAYER_ID aLayerId, int aCopperLayersCount )
+{
+    switch( aLayerId )
+    {
+    case B_Cu:              return F_Cu;
+    case F_Cu:              return B_Cu;
+
+    case B_SilkS:           return F_SilkS;
+    case F_SilkS:           return B_SilkS;
+
+    case B_Adhes:           return F_Adhes;
+    case F_Adhes:           return B_Adhes;
+
+    case B_Mask:            return F_Mask;
+    case F_Mask:            return B_Mask;
+
+    case B_Paste:           return F_Paste;
+    case F_Paste:           return B_Paste;
+
+    case B_CrtYd:           return F_CrtYd;
+    case F_CrtYd:           return B_CrtYd;
+
+    case B_Fab:             return F_Fab;
+    case F_Fab:             return B_Fab;
+
+    default:    // change internal layer if aCopperLayersCount is >= 4
+        if( IsCopperLayer( aLayerId ) && aCopperLayersCount >= 4 )
+        {
+            // internal copper layers count is aCopperLayersCount-2
+            PCB_LAYER_ID fliplayer = PCB_LAYER_ID(aCopperLayersCount - 2 - ( aLayerId - In1_Cu ) );
+            // Ensure fliplayer has a value which does not crash Pcbnew:
+            if( fliplayer < F_Cu )
+                fliplayer = F_Cu;
+
+            if( fliplayer > B_Cu )
+                fliplayer = B_Cu;
+
+            return fliplayer;
+        }
+
+        // No change for the other layers
+        return aLayerId;
+    }
+}
+
+
+PCB_LAYER_ID BoardLayerFromLegacyId( int aLegacyId )
+{
+    switch( aLegacyId )
+    {
+    case 0:  return F_Cu;
+    case 31: return B_Cu;
+
+    default:
+        if( aLegacyId < 0 )
+            return magic_enum::enum_cast<PCB_LAYER_ID>( aLegacyId ).value_or( UNDEFINED_LAYER );
+
+        if( aLegacyId < 31 )
+            return static_cast<PCB_LAYER_ID>( In1_Cu + ( aLegacyId - 1 ) * 2 );
+
+        switch( aLegacyId )
+        {
+        case 32: return B_Adhes;
+        case 33: return F_Adhes;
+        case 34: return B_Paste;
+        case 35: return F_Paste;
+        case 36: return B_SilkS;
+        case 37: return F_SilkS;
+        case 38: return B_Mask;
+        case 39: return F_Mask;
+        case 40: return Dwgs_User;
+        case 41: return Cmts_User;
+        case 42: return Eco1_User;
+        case 43: return Eco2_User;
+        case 44: return Edge_Cuts;
+        case 45: return Margin;
+        case 46: return B_CrtYd;
+        case 47: return F_CrtYd;
+        case 48: return B_Fab;
+        case 49: return F_Fab;
+        case 50: return User_1;
+        case 51: return User_2;
+        case 52: return User_3;
+        case 53: return User_4;
+        case 54: return User_5;
+        case 55: return User_6;
+        case 56: return User_7;
+        case 57: return User_8;
+        case 58: return User_9;
+        case 59: return Rescue;
+        default: return UNDEFINED_LAYER;
+        }
     }
 }

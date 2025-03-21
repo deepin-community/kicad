@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -63,11 +63,12 @@ BOOST_FIXTURE_TEST_CASE( DRCCustomRuleSeverityTest, DRC_REGRESSION_TEST_FIXTURE 
     bds.m_DRCSeverities[ DRCE_FOOTPRINT_TYPE_MISMATCH ] = SEVERITY::RPT_SEVERITY_IGNORE;
 
     bds.m_DRCEngine->SetViolationHandler(
-            [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2I aPos, int aLayer )
+            [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2I aPos, int aLayer,
+                 DRC_CUSTOM_MARKER_HANDLER* aCustomHandler )
             {
                 PCB_MARKER temp( aItem, aPos );
 
-                if( bds.m_DrcExclusions.find( temp.Serialize() ) == bds.m_DrcExclusions.end() )
+                if( bds.m_DrcExclusions.find( temp.SerializeToString() ) == bds.m_DrcExclusions.end() )
                     violations.push_back( *aItem );
             } );
 

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2013 CERN
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- * Copyright (C) 2013-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,7 +27,6 @@
 #define __SHAPE_LINE_CHAIN
 
 
-#include <clipper.hpp>
 #include <clipper2/clipper.h>
 #include <geometry/seg.h>
 #include <geometry/shape.h>
@@ -37,7 +36,7 @@
 
 /**
  * Holds information on each point of a SHAPE_LINE_CHAIN that is retrievable
- * after an operation with ClipperLib
+ * after an operation with Clipper2Lib
  */
 struct CLIPPER_Z_VALUE
 {
@@ -81,11 +80,10 @@ struct CLIPPER_Z_VALUE
  */
 class SHAPE_LINE_CHAIN : public SHAPE_LINE_CHAIN_BASE
 {
-private:
+public:
     typedef std::vector<VECTOR2I>::iterator point_iter;
     typedef std::vector<VECTOR2I>::const_iterator point_citer;
 
-public:
     /**
      * Represent an intersection between two line segments
      */
@@ -177,10 +175,6 @@ public:
 
     SHAPE_LINE_CHAIN( const SHAPE_ARC& aArc, bool aClosed = false );
 
-    SHAPE_LINE_CHAIN( const ClipperLib::Path& aPath,
-                      const std::vector<CLIPPER_Z_VALUE>& aZValueBuffer,
-                      const std::vector<SHAPE_ARC>& aArcBuffer );
-
     SHAPE_LINE_CHAIN( const Clipper2Lib::Path64& aPath,
                       const std::vector<CLIPPER_Z_VALUE>& aZValueBuffer,
                       const std::vector<SHAPE_ARC>& aArcBuffer );
@@ -217,6 +211,40 @@ public:
      */
     virtual bool Collide( const SEG& aSeg, int aClearance = 0, int* aActual = nullptr,
                           VECTOR2I* aLocation = nullptr ) const override;
+
+    /**
+     * Finds closest points between this and the other line chain. Doesn't test segments or arcs.
+     *
+     * @param aOther the line chain to test against.
+     * @param aPt0 closest point on this line chain (output).
+     * @param aPt1 closest point on the other line chain (output).
+     * @param aDistance distance between points (output).
+     * @return true, if the operation was successful.
+     */
+    bool ClosestPoints( const SHAPE_LINE_CHAIN& aOther, VECTOR2I& aPt0, VECTOR2I& aPt1 ) const;
+
+    static bool ClosestPoints( const point_citer& aMyStart, const point_citer& aMyEnd,
+                               const point_citer& aOtherStart, const point_citer& aOtherEnd,
+                               VECTOR2I& aPt0, VECTOR2I& aPt1, int64_t& aDistSq );
+
+    static bool ClosestSegments( const VECTOR2I& aMyPrevPt, const point_citer& aMyStart,
+                                 const point_citer& aMyEnd, const VECTOR2I& aOtherPrevPt,
+                                 const point_citer& aOtherStart, const point_citer& aOtherEnd,
+                                 VECTOR2I& aPt0, VECTOR2I& aPt1, int64_t& aDistSq );
+
+    /**
+     * Finds closest points between segments of this and the other line chain. Doesn't guarantee
+     * that the points are the absolute closest (use ClosestSegments for that) as there might
+     * be edge cases, but it is much faster.
+     *
+     * @param aOther the line chain to test against.
+     * @param aPt0 closest point on this line chain (output).
+     * @param aPt1 closest point on the other line chain (output).
+     * @param aDistance distance between points (output).
+     * @return true, if the operation was successful.
+     */
+    bool ClosestSegmentsFast( const SHAPE_LINE_CHAIN& aOther, VECTOR2I& aPt0,
+                              VECTOR2I& aPt1 ) const;
 
     SHAPE_LINE_CHAIN& operator=( const SHAPE_LINE_CHAIN& ) = default;
 
@@ -310,6 +338,10 @@ public:
      * points must be exactly co-linear to be removed.
      */
     void Simplify( int aMaxError = 0 );
+
+    // legacy function, used by the router. Please do not remove until I'll figure out
+    // the root cause of rounding errors - Tom
+    SHAPE_LINE_CHAIN& Simplify2( bool aRemoveColinear = true );
 
     /**
      * Return the number of points (vertices) in this line chain.
@@ -648,11 +680,18 @@ public:
     bool CheckClearance( const VECTOR2I& aP, const int aDist) const;
 
     /**
-     * Check if the line chain is self-intersecting.
+     * Check if the line chain is self-intersecting. Only processes line segments (not arcs).
      *
      * @return (optional) first found self-intersection point.
      */
     const std::optional<INTERSECTION> SelfIntersecting() const;
+
+    /**
+     * Check if the line chain is self-intersecting. Also processes arcs. Might be slower.
+     *
+     * @return (optional) first found self-intersection point.
+     */
+    const std::optional<INTERSECTION> SelfIntersectingWithArcs() const;
 
     /**
      * Find the segment nearest the given point.
@@ -718,11 +757,10 @@ public:
     /**
      * Mirror the line points about y or x (or both).
      *
-     * @param aX If true, mirror about the y axis (flip X coordinate).
-     * @param aY If true, mirror about the x axis (flip Y coordinate).
      * @param aRef sets the reference point about which to mirror.
+     * @param aFlipDirection is the direction to mirror.
      */
-    void Mirror( bool aX = true, bool aY = false, const VECTOR2I& aRef = { 0, 0 } );
+    void Mirror( const VECTOR2I& aRef, FLIP_DIRECTION aFlipDirection );
 
     /**
      * Mirror the line points using an given axis.
@@ -876,13 +914,6 @@ protected:
         else
             return m_shapes[aSegment].second;
     }
-
-    /**
-     * Create a new Clipper path from the SHAPE_LINE_CHAIN in a given orientation
-     */
-    ClipperLib::Path convertToClipper( bool aRequiredOrientation,
-                                       std::vector<CLIPPER_Z_VALUE>& aZValueBuffer,
-                                       std::vector<SHAPE_ARC>&       aArcBuffer ) const;
 
     /**
      * Create a new Clipper2 path from the SHAPE_LINE_CHAIN in a given orientation

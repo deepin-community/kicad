@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -232,7 +232,7 @@ void GPCB_FPL_CACHE::Load()
     }
 
     wxString fullName;
-    wxString fileSpec = wxT( "*." ) + FILEEXT::GedaPcbFootprintLibFileExtension;
+    wxString fileSpec = wxT( "*." ) + wxString( FILEEXT::GedaPcbFootprintLibFileExtension );
 
     // wxFileName construction is egregiously slow.  Construct it once and just swap out
     // the filename thereafter.
@@ -303,7 +303,7 @@ bool GPCB_FPL_CACHE::IsModified()
 
 long long GPCB_FPL_CACHE::GetTimestamp( const wxString& aLibPath )
 {
-    wxString fileSpec = wxT( "*." ) + FILEEXT::GedaPcbFootprintLibFileExtension;
+    wxString fileSpec = wxT( "*." ) + wxString( FILEEXT::GedaPcbFootprintLibFileExtension );
 
     return TimestampDir( aLibPath, fileSpec );
 }
@@ -321,7 +321,6 @@ FOOTPRINT* GPCB_FPL_CACHE::parseFOOTPRINT( LINE_READER* aLineReader )
 
     // GPCB unit = 0.01 mils and Pcbnew 0.1.
     double                     conv_unit = NEW_GPCB_UNIT_CONV;
-    VECTOR2I                   textPos;
     wxString                   msg;
     wxArrayString              parameters;
     std::unique_ptr<FOOTPRINT> footprint = std::make_unique<FOOTPRINT>( nullptr );
@@ -508,10 +507,10 @@ FOOTPRINT* GPCB_FPL_CACHE::parseFOOTPRINT( LINE_READER* aLineReader )
 
             std::unique_ptr<PAD> pad = std::make_unique<PAD>( footprint.get() );
 
-            static const LSET pad_front( 3, F_Cu, F_Mask, F_Paste );
-            static const LSET pad_back(  3, B_Cu, B_Mask, B_Paste );
+            static const LSET pad_front( { F_Cu, F_Mask, F_Paste } );
+            static const LSET pad_back( { B_Cu, B_Mask, B_Paste } );
 
-            pad->SetShape( PAD_SHAPE::RECTANGLE );
+            pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::RECTANGLE );
             pad->SetAttribute( PAD_ATTRIB::SMD );
             pad->SetLayerSet( pad_front );
 
@@ -559,17 +558,17 @@ FOOTPRINT* GPCB_FPL_CACHE::parseFOOTPRINT( LINE_READER* aLineReader )
 
             VECTOR2I padPos( ( x1 + x2 ) / 2, ( y1 + y2 ) / 2 );
 
-            pad->SetSize( VECTOR2I( KiROUND( EuclideanNorm( delta ) ) + width, width ) );
+            pad->SetSize( PADSTACK::ALL_LAYERS, VECTOR2I( delta.EuclideanNorm() + width, width ) );
 
             padPos += footprint->GetPosition();
             pad->SetPosition( padPos );
 
             if( !testFlags( parameters[paramCnt-2], 0x0100, wxT( "square" ) ) )
             {
-                if( pad->GetSize().x == pad->GetSize().y )
-                    pad->SetShape( PAD_SHAPE::CIRCLE );
+                if( pad->GetSize( PADSTACK::ALL_LAYERS ).x == pad->GetSize( PADSTACK::ALL_LAYERS ).y )
+                    pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CIRCLE );
                 else
-                    pad->SetShape( PAD_SHAPE::OVAL );
+                    pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::OVAL );
             }
 
             if( pad->GetSizeX() > 0 && pad->GetSizeY() > 0 )
@@ -602,14 +601,14 @@ FOOTPRINT* GPCB_FPL_CACHE::parseFOOTPRINT( LINE_READER* aLineReader )
 
             PAD* pad = new PAD( footprint.get() );
 
-            pad->SetShape( PAD_SHAPE::CIRCLE );
+            pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CIRCLE );
 
-            static const LSET pad_set = LSET::AllCuMask() | LSET( 3, F_SilkS, F_Mask, B_Mask );
+            static const LSET pad_set = LSET::AllCuMask() | LSET( { F_SilkS, F_Mask, B_Mask } );
 
             pad->SetLayerSet( pad_set );
 
             if( testFlags( parameters[paramCnt-2], 0x0100, wxT( "square" ) ) )
-                pad->SetShape( PAD_SHAPE::RECTANGLE );
+                pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::RECTANGLE );
 
             // Set the pad name:
             // Pcbnew pad name is used for electrical connection calculations.
@@ -622,7 +621,7 @@ FOOTPRINT* GPCB_FPL_CACHE::parseFOOTPRINT( LINE_READER* aLineReader )
 
             int padSize = parseInt( parameters[4], conv_unit );
 
-            pad->SetSize( VECTOR2I( padSize, padSize ) );
+            pad->SetSize( PADSTACK::ALL_LAYERS, VECTOR2I( padSize, padSize ) );
 
             int drillSize = 0;
 
@@ -654,8 +653,11 @@ FOOTPRINT* GPCB_FPL_CACHE::parseFOOTPRINT( LINE_READER* aLineReader )
             padPos += footprint->GetPosition();
             pad->SetPosition( padPos );
 
-            if( pad->GetShape() == PAD_SHAPE::CIRCLE  &&  pad->GetSize().x != pad->GetSize().y )
-                pad->SetShape( PAD_SHAPE::OVAL );
+            if( pad->GetShape( PADSTACK::ALL_LAYERS ) == PAD_SHAPE::CIRCLE
+                && pad->GetSize( PADSTACK::ALL_LAYERS ).x != pad->GetSize( PADSTACK::ALL_LAYERS ).y )
+            {
+                pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::OVAL );
+            }
 
             footprint->Add( pad );
             continue;
@@ -818,7 +820,7 @@ PCB_IO_GEDA::~PCB_IO_GEDA()
 }
 
 
-void PCB_IO_GEDA::init( const STRING_UTF8_MAP* aProperties )
+void PCB_IO_GEDA::init( const std::map<std::string, UTF8>* aProperties )
 {
     m_props = aProperties;
 }
@@ -838,7 +840,7 @@ void PCB_IO_GEDA::validateCache( const wxString& aLibraryPath, bool checkModifie
 
 FOOTPRINT* PCB_IO_GEDA::ImportFootprint( const wxString&        aFootprintPath,
                                          wxString&              aFootprintNameOut,
-                                         const STRING_UTF8_MAP* aProperties )
+                                         const std::map<std::string, UTF8>* aProperties )
 {
     wxFileName fn( aFootprintPath );
 
@@ -861,7 +863,7 @@ FOOTPRINT* PCB_IO_GEDA::ImportFootprint( const wxString&        aFootprintPath,
 
 
 void PCB_IO_GEDA::FootprintEnumerate( wxArrayString& aFootprintNames, const wxString& aLibraryPath,
-                                      bool aBestEfforts, const STRING_UTF8_MAP* aProperties )
+                                      bool aBestEfforts, const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO toggle;     // toggles on, then off, the C locale.
     wxDir     dir( aLibraryPath );
@@ -902,7 +904,7 @@ void PCB_IO_GEDA::FootprintEnumerate( wxArrayString& aFootprintNames, const wxSt
 
 const FOOTPRINT* PCB_IO_GEDA::getFootprint( const wxString& aLibraryPath,
                                             const wxString& aFootprintName,
-                                            const STRING_UTF8_MAP* aProperties,
+                                            const std::map<std::string, UTF8>* aProperties,
                                             bool checkModified )
 {
     LOCALE_IO   toggle;     // toggles on, then off, the C locale.
@@ -925,7 +927,7 @@ const FOOTPRINT* PCB_IO_GEDA::getFootprint( const wxString& aLibraryPath,
 FOOTPRINT* PCB_IO_GEDA::FootprintLoad( const wxString& aLibraryPath,
                                        const wxString& aFootprintName,
                                        bool  aKeepUUID,
-                                       const STRING_UTF8_MAP* aProperties )
+                                       const std::map<std::string, UTF8>* aProperties )
 {
     fontconfig::FONTCONFIG::SetReporter( nullptr );
 
@@ -943,7 +945,7 @@ FOOTPRINT* PCB_IO_GEDA::FootprintLoad( const wxString& aLibraryPath,
 
 
 void PCB_IO_GEDA::FootprintDelete( const wxString& aLibraryPath, const wxString& aFootprintName,
-                                   const STRING_UTF8_MAP* aProperties )
+                                   const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO   toggle;     // toggles on, then off, the C locale.
 
@@ -961,7 +963,7 @@ void PCB_IO_GEDA::FootprintDelete( const wxString& aLibraryPath, const wxString&
 }
 
 
-bool PCB_IO_GEDA::DeleteLibrary( const wxString& aLibraryPath, const STRING_UTF8_MAP* aProperties )
+bool PCB_IO_GEDA::DeleteLibrary( const wxString& aLibraryPath, const std::map<std::string, UTF8>* aProperties )
 {
     wxFileName fn;
     fn.SetPath( aLibraryPath );

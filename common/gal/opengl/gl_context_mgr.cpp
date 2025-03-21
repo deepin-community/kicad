@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016 CERN
- * Copyright (C) 2017-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -25,14 +25,6 @@
 
 #include <gal/opengl/gl_context_mgr.h>
 #include <wx/debug.h>
-
-
-GL_CONTEXT_MANAGER& GL_CONTEXT_MANAGER::Get()
-{
-    static GL_CONTEXT_MANAGER instance;
-
-    return instance;
-}
 
 
 wxGLContext* GL_CONTEXT_MANAGER::CreateCtx( wxGLCanvas* aCanvas, const wxGLContext* aOther )
@@ -122,11 +114,5 @@ void GL_CONTEXT_MANAGER::UnlockCtx( wxGLContext* aContext )
         wxFAIL_MSG( wxString::Format( wxS( "Trying to unlock GL context mutex from "
                     "a wrong context: aContext %p m_glCtx %p" ), aContext, m_glCtx ) );
     }
-}
-
-
-GL_CONTEXT_MANAGER::GL_CONTEXT_MANAGER()
-    : m_glCtx( nullptr )
-{
 }
 

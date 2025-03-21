@@ -32,7 +32,7 @@ instructions at https://www.kicad.org/help/report-an-issue/
 [[publication_date]]
 *Publication date*
 
-2024-02-14
+2025-02-18
 
 
 [[welcome]]
@@ -44,67 +44,62 @@ plotting/data export to numerous formats. KiCad also includes a high-quality com
 featuring thousands of symbols, footprints, and 3D models. KiCad has minimal system requirements
 and runs on Linux, Windows, and macOS.
 
-KiCad 8.0 is the most recent major release.  It includes hundreds of new features and bug fixes.
+KiCad 9.0 is the most recent major release.  It includes hundreds of new features and bug fixes.
 Some of the most notable new features include:
 
-- A Properties Panel in the Schematic, Symbol, and Footprint editors, which lets
-  you quickly view and edit properties of selected objects. This works even when
-  multiple different types of objects are selected at once. This expands on the
-  Properties Panel in the PCB editor, which was introduced in version 7.0.
-- HTTP libraries, which allow connecting KiCad to a networked component database
-  or ERP system via a REST API. The REST endpoint can provide symbol and
-  footprint mappings and other metadata.
-- A search panel in the Schematic editor, which lets you search for symbols,
-  labels, and schematic text. This mirrors the search panel in the PCB editor,
-  which was added in version 7.0.
-- The Symbol Fields Table has been expanded and now includes a fully-featured
-  and customizable BOM export tool. The legacy BOM export tool, which uses
-  external scripts to generate a BOM in the desired format, is still available.
-- The SPICE simulator interface has been expanded and overhauled. The simulator
-  tool now supports several new analysis types (FFTs, noise simulations,
-  pole-zero simulations, and s-parameter analyses). The simulator result plots
-  can now include user-defined signals, including mathematical operations, and
-  the cursor and waveform measurement tools have been improved. Operating point
-  analysis results can be displayed on the schematic itself to show the
-  simulated operating point of each node.
-- The command-line interface has been expanded, and now includes support for
-  running ERC/DRC, exporting to more formats, and specifying text variables,
-  among other improvements.
-- A net navigator tool has been added in the Schematic editor, which displays
-  the locations of a highlighted net across a schematic hierarchy.
-- Grids can now be automatically overridden for specific object types, for
-  example to use a finer grid for moving text and a coarser grid for symbols.
-- Power symbols are now easier to work with, as their assigned net is now
-  determined by the symbol value rather than the pin name. Where before
-  changing a power symbol's net required editing the symbol in the symbol
-  editor, in version 8 you can change the net directly in the schematic.
-- A graphical comparison tool has been added to compare symbols and footprints
-  between libraries and the copies embedded in schematics and PCBs.
-- Board designs can be exported to the IPC-2581 format, which includes complete
-  fabrication and assembly information in a single file.
-- The interactive length tuning tools in the PCB editor have been overhauled.
-  Length tuning meanders are now persistent objects that can be easily modified
-  after they are initially created.
-- Symbol fields are now synced to footprints in the PCB, so schematic symbol
-  metadata is available in the board design.
-- Graphical polygons on copper PCB layers can now have nets assigned, which can
-  be useful for creating electrical structures with a precise shape.
-- "Pin helper" tools have been added to the Schematic editor to quickly break
-  out symbol pins to wires, nets, or no-connects.
-- The 3D Viewer now has an appearance panel that improves user control over how
-  board designs are visualized in 3D.
-- New importers and improvements to existing importers. Version 8 adds support
-  for importing EasyEDA (JLCEDA) Standard and Professional Edition projects and
-  libraries, CADSTAR symbol and footprint libraries, Solidworks PCB board files,
-  Altium Designer symbol and integrated libraries, EAGLE symbol libraries, and
-  LTSpice schematics.
-- New and improved exporters, including copper geometry in STEP exports and
-  Cadence Allegro netlist export.
-- Significant improvements to the Symbol, Footprint, and 3D Model libraries.
+- You can now define output jobsets, which can generate multiple output files
+  from your schematic and PCB design files at the click of a button. Jobsets
+  can be used to generate fabrication outputs, run ERC and DRC, and perform
+  other automated tasks. You can also reuse jobset definitions between projects.
+- The interactive router has been improved in many ways, including adding the
+  ability to drag multiple traces. Performance has also been improved.
+- Nets can now have multiple net classes assigned, with cascading properties
+  based on net class priority. 
+- Symbols can be assigned to component classes, which conceptually group related
+  components together. Component classes can be used in the PCB editor for
+  applying DRC rules to related components, or as part of multichannel
+  (repeated) layouts.
+- Padstacks have been added, allowing independent control over pad/via sizes and
+  and shapes for each board layer. Via tenting can also be controlled per-via
+  and per-side.
+- The PCB Editor now supports multichannel layouts, where the layout for one
+  section of a board can be repeated multiple times and applied to other parts
+  of the design that should be laid out in the same way.
+- The selection filter is now available in the Schematic and Symbol Editors.
+  This complements the selection filter in the PCB and Footprint Editors, which
+  were added in version 6.0.
+- External files, such as datasheets, drawing sheets, 3D models, and fonts, can
+  be embedded in a schematic or board file for greater portability.
+- New design rule checks have been added for creepage, differential pair skew,
+  and acute angles between tracks. Clearance and Creepage checks now display the
+  minimum clearance/creepage path visually.
+- Board designs can be exported in the ODB++ format, which includes complete
+  fabrication and assembly information in a single archive.
+- The 3D model exporter has been improved to support more formats. It also
+  supports modelling more copper details from the board and provides more
+  options to control which data is included.
+- The KiCad Project Manager now supports git operations for projects that are
+  version controlled using git.
+- The Schematic and PCB Editors can now draw and edit tables for displaying
+  tabular data.
+- A bezier curve tool has been added in all editors.
+- New positioning shape modification tools have been added in the PCB and
+  Footprint Editors, including an interactive positioning tool, an outset shape
+  tool, and a dogbone corner tool.
+- Improved snapping features have been added while editing shapes in the PCB and
+  Footprint Editors. You can snap to endpoints, intersections, and projections
+  from other snapping points. Graphical indicators are shown that describe the
+  active snapping point.
+- A new IPC API has been developed for creating PCB Editor plugins and scripts.
+  In version 9, this is only available in the PCB Editor. In future versions of
+  KiCad, this will also be available in the Schematic Editor. The legacy
+  SWIG-based plugin system still exists, but will be removed in a future version
+  of KiCad.
+- Significant improvements have been made to the Symbol, Footprint,
+  and 3D Model libraries.
 
-
-A full listing of new features and changes in KiCad 8.0 can be found
-https://www.kicad.org/blog/2024/02/Version-8.0.0-Released/[here].
+A full listing of new features and changes in KiCad 9.0 can be found
+https://www.kicad.org/blog/2025/02/Version-9.0.0-Released/[here].
 
 [[installing-and-upgrading]]
 == Installing and Upgrading KiCad
@@ -261,6 +256,7 @@ first press of kbd:[Esc] will cancel that action.  The next press of kbd:[Esc] w
 complely, returning to the default selection tool.  With the selection tool active, pressing
 kbd:[Esc] will clear the current selection, if one exists.
 
+////
 [[projects-and-files]]
 === KiCad Projects and Files
 
@@ -295,6 +291,7 @@ NOTE: This section of the KiCad documentation has not yet been written.  We
 - PCB Calculator
 - Bitmap2Component
 - Worksheet Editor (pl_editor)
+////
 
 
 [[further-reading]]

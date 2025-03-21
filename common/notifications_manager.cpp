@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,25 +31,29 @@
 #include <wx/settings.h>
 #include <wx/stattext.h>
 #include <wx/string.h>
+#include <wx/time.h>
 
 #include <paths.h>
 
 #include <notifications_manager.h>
 #include <widgets/kistatusbar.h>
+#include <widgets/ui_common.h>
+#include <json_common.h>
+#include <kiplatform/ui.h>
 
-#include "core/wx_stl_compat.h"
+#include <core/wx_stl_compat.h>
+#include <core/json_serializers.h>
+#include <core/kicad_algo.h>
 
 #include <algorithm>
 #include <fstream>
 #include <map>
-#include <nlohmann/json.hpp>
-#include <core/json_serializers.h>
 #include <optional>
-#include <string>
 #include <tuple>
 #include <vector>
-#include <wx/string.h>
 
+
+static long long g_last_closed_timer = 0;
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE( NOTIFICATION, title, description, href, key, date )
 
@@ -57,8 +61,7 @@ class NOTIFICATION_PANEL : public wxPanel
 {
 public:
     NOTIFICATION_PANEL( wxWindow* aParent, NOTIFICATIONS_MANAGER* aManager, NOTIFICATION* aNoti ) :
-            wxPanel( aParent, wxID_ANY, wxDefaultPosition, wxSize( -1, 75 ),
-                     wxBORDER_SIMPLE ),
+            wxPanel( aParent, wxID_ANY, wxDefaultPosition, wxSize( -1, 75 ), wxBORDER_SIMPLE ),
             m_hlDetails( nullptr ),
             m_notification( aNoti ),
             m_manager( aManager )
@@ -68,16 +71,17 @@ public:
         wxBoxSizer* mainSizer;
         mainSizer = new wxBoxSizer( wxVERTICAL );
 
-        SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_3DLIGHT ) );
+        wxColour fg, bg;
+        KIPLATFORM::UI::GetInfoBarColours( fg, bg );
+        SetBackgroundColour( bg );
+        SetForegroundColour( fg );
 
         m_stTitle = new wxStaticText( this, wxID_ANY, aNoti->title );
         m_stTitle->Wrap( -1 );
-        m_stTitle->SetFont( wxFont( wxNORMAL_FONT->GetPointSize(), wxFONTFAMILY_DEFAULT,
-                                        wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD, false, wxEmptyString ) );
+        m_stTitle->SetFont( KIUI::GetControlFont( this ).Bold() );
         mainSizer->Add( m_stTitle, 0, wxALL | wxEXPAND, 1 );
 
-        m_stDescription = new wxStaticText( this, wxID_ANY, aNoti->description, wxDefaultPosition,
-                                          wxDefaultSize, 0 );
+        m_stDescription = new wxStaticText( this, wxID_ANY, aNoti->description );
         m_stDescription->Wrap( -1 );
         mainSizer->Add( m_stDescription, 0, wxALL | wxEXPAND, 1 );
 
@@ -86,22 +90,17 @@ public:
 
         if( !aNoti->href.IsEmpty() )
         {
-            m_hlDetails =
-                    new wxHyperlinkCtrl( this, wxID_ANY, _( "View Details" ), aNoti->href,
-                                         wxDefaultPosition, wxDefaultSize, wxHL_DEFAULT_STYLE );
+            m_hlDetails = new wxHyperlinkCtrl( this, wxID_ANY, _( "View Details" ), aNoti->href );
             tailSizer->Add( m_hlDetails, 0, wxALL, 2 );
         }
 
-        m_hlDismiss = new wxHyperlinkCtrl( this, wxID_ANY, _( "Dismiss" ), aNoti->href,
-                                           wxDefaultPosition, wxDefaultSize, wxHL_DEFAULT_STYLE );
+        m_hlDismiss = new wxHyperlinkCtrl( this, wxID_ANY, _( "Dismiss" ), aNoti->href );
         tailSizer->Add( m_hlDismiss, 0, wxALL, 2 );
 
         mainSizer->Add( tailSizer, 1, wxEXPAND, 5 );
 
         if( m_hlDetails != nullptr )
-        {
             m_hlDetails->Bind( wxEVT_HYPERLINK, &NOTIFICATION_PANEL::onDetails, this );
-        }
 
         m_hlDismiss->Bind( wxEVT_HYPERLINK, &NOTIFICATION_PANEL::onDismiss, this );
 
@@ -132,18 +131,19 @@ private:
     void onDismiss( wxHyperlinkEvent& aEvent )
     {
         CallAfter(
-                [=]()
+                [this]()
                 {
                     // This will cause this panel to get deleted
                     m_manager->Remove( m_notification->key );
                 } );
     }
 
-    wxStaticText* m_stTitle;
-    wxStaticText* m_stDescription;
-    wxHyperlinkCtrl* m_hlDetails;
-    wxHyperlinkCtrl* m_hlDismiss;
-    NOTIFICATION* m_notification;
+private:
+    wxStaticText*          m_stTitle;
+    wxStaticText*          m_stDescription;
+    wxHyperlinkCtrl*       m_hlDetails;
+    wxHyperlinkCtrl*       m_hlDismiss;
+    NOTIFICATION*          m_notification;
     NOTIFICATIONS_MANAGER* m_manager;
 };
 
@@ -162,7 +162,12 @@ public:
         bSizer1 = new wxBoxSizer( wxVERTICAL );
 
         m_scrolledWindow = new wxScrolledWindow( this, wxID_ANY, wxDefaultPosition,
-                                                 wxSize( -1, -1 ), wxVSCROLL );
+                                                 wxSize( -1, -1 ), wxVSCROLL | wxBORDER_SIMPLE );
+        wxColour fg, bg;
+        KIPLATFORM::UI::GetInfoBarColours( fg, bg );
+        m_scrolledWindow->SetBackgroundColour( bg );
+        m_scrolledWindow->SetForegroundColour( fg );
+
         m_scrolledWindow->SetScrollRate( 5, 5 );
         m_contentSizer = new wxBoxSizer( wxVERTICAL );
 
@@ -171,9 +176,10 @@ public:
         m_contentSizer->Fit( m_scrolledWindow );
         bSizer1->Add( m_scrolledWindow, 1, wxEXPAND | wxALL, 0 );
 
-        m_noNotificationsText = new wxStaticText(
-                m_scrolledWindow, wxID_ANY, _( "There are no notifications available" ),
-                wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_HORIZONTAL );
+        m_noNotificationsText = new wxStaticText( m_scrolledWindow, wxID_ANY,
+                                                  _( "There are no notifications available" ),
+                                                  wxDefaultPosition, wxDefaultSize,
+                                                  wxALIGN_CENTER_HORIZONTAL );
         m_noNotificationsText->Wrap( -1 );
         m_contentSizer->Add( m_noNotificationsText, 1, wxALL | wxEXPAND, 5 );
 
@@ -189,9 +195,15 @@ public:
 
     void onFocusLoss( wxFocusEvent& aEvent )
     {
-        // check if a child like say, the hyperlink texts got focus
-        if( !IsDescendant( aEvent.GetWindow() ) )
+        if( IsDescendant( aEvent.GetWindow() ) )
+        {
+            // Child (such as the hyperlink texts) got focus
+        }
+        else
+        {
             Close( true );
+            g_last_closed_timer = wxGetLocalTimeMillis().GetValue();
+        }
 
         aEvent.Skip();
     }
@@ -206,7 +218,7 @@ public:
         m_scrolledWindow->Layout();
         m_contentSizer->Fit( m_scrolledWindow );
 
-        // call this at this window otherwise the child panels dont resize width properly
+        // call this at this window otherwise the child panels don't resize width properly
         Layout();
 
         m_panelMap[aNoti] = panel;
@@ -216,6 +228,7 @@ public:
     void Remove( NOTIFICATION* aNoti )
     {
         auto it = m_panelMap.find( aNoti );
+
         if( it != m_panelMap.end() )
         {
             NOTIFICATION_PANEL* panel = m_panelMap[aNoti];
@@ -237,11 +250,14 @@ public:
 
 private:
     wxScrolledWindow*                                      m_scrolledWindow;
-    ///< Inner content of the scrolled window, add panels here
+
+    /// Inner content of the scrolled window, add panels here.
     wxBoxSizer*                                            m_contentSizer;
     std::unordered_map<NOTIFICATION*, NOTIFICATION_PANEL*> m_panelMap;
     NOTIFICATIONS_MANAGER*                                 m_manager;
-    ///< Text to be displayed when no notifications are present, this gets a Show/Hide call as needed
+
+    /// Text to be displayed when no notifications are present, this gets a Show/Hide call as
+    /// needed.
     wxStaticText*                                          m_noNotificationsText;
 };
 
@@ -266,13 +282,13 @@ void NOTIFICATIONS_MANAGER::Load()
     }
     catch( std::exception& )
     {
-        // failed to load the json, which is fine, default to no notificaitons
+        // failed to load the json, which is fine, default to no notifications
     }
 
     if( wxGetEnv( wxT( "KICAD_TEST_NOTI" ), nullptr ) )
     {
         CreateOrUpdate( wxS( "test" ), wxS( "Test Notification" ), wxS( "Test please ignore" ),
-                wxS( "https://kicad.org" ) );
+                        wxS( "https://kicad.org" ) );
     }
 }
 
@@ -289,9 +305,9 @@ void NOTIFICATIONS_MANAGER::Save()
 
 
 void NOTIFICATIONS_MANAGER::CreateOrUpdate( const wxString& aKey,
-                                    const wxString& aTitle,
-                                    const wxString& aDescription,
-                                    const wxString& aHref )
+                                            const wxString& aTitle,
+                                            const wxString& aDescription,
+                                            const wxString& aHref )
 {
     wxCHECK_RET( !aKey.IsEmpty(), wxS( "Notification key must not be empty" ) );
 
@@ -319,15 +335,11 @@ void NOTIFICATIONS_MANAGER::CreateOrUpdate( const wxString& aKey,
     {
         // update dialogs
         for( NOTIFICATIONS_LIST* list : m_shownDialogs )
-        {
             list->Add( &m_notifications.back() );
-        }
     }
 
     for( KISTATUSBAR* statusBar : m_statusBars )
-    {
         statusBar->SetNotificationCount( m_notifications.size() );
-    }
 
     Save();
 }
@@ -342,18 +354,14 @@ void NOTIFICATIONS_MANAGER::Remove( const wxString& aKey )
                             } );
 
     if( it == m_notifications.end() )
-    {
         return;
-    }
 
     if( m_shownDialogs.size() > 0 )
     {
         // update dialogs
 
         for( NOTIFICATIONS_LIST* list : m_shownDialogs )
-        {
             list->Remove( &(*it) );
-        }
     }
 
     m_notifications.erase( it );
@@ -361,9 +369,7 @@ void NOTIFICATIONS_MANAGER::Remove( const wxString& aKey )
     Save();
 
     for( KISTATUSBAR* statusBar : m_statusBars )
-    {
         statusBar->SetNotificationCount( m_notifications.size() );
-    }
 }
 
 
@@ -371,11 +377,10 @@ void NOTIFICATIONS_MANAGER::onListWindowClosed( wxCloseEvent& aEvent )
 {
     NOTIFICATIONS_LIST* evtWindow = dynamic_cast<NOTIFICATIONS_LIST*>( aEvent.GetEventObject() );
 
-    m_shownDialogs.erase( std::remove_if( m_shownDialogs.begin(), m_shownDialogs.end(),
-                                          [&]( NOTIFICATIONS_LIST* dialog )
-                                          {
-                                              return dialog == evtWindow;
-                                          } ) );
+    alg::delete_if( m_shownDialogs, [&]( NOTIFICATIONS_LIST* dialog )
+                                    {
+                                        return dialog == evtWindow;
+                                    } );
 
     aEvent.Skip();
 }
@@ -383,12 +388,19 @@ void NOTIFICATIONS_MANAGER::onListWindowClosed( wxCloseEvent& aEvent )
 
 void NOTIFICATIONS_MANAGER::ShowList( wxWindow* aParent, wxPoint aPos )
 {
+    // Debounce clicking on the icon with a list already showing.  The button will get focus
+    // first, which will cause a focus-loss on the list (thereby closing it), and then we'd open
+    // it again without this guard.
+    if( wxGetLocalTimeMillis().GetValue() - g_last_closed_timer < 300 )
+    {
+        g_last_closed_timer = 0;
+        return;
+    }
+
     NOTIFICATIONS_LIST* list = new NOTIFICATIONS_LIST( this, aParent, aPos );
 
     for( NOTIFICATION& job : m_notifications )
-    {
         list->Add( &job );
-    }
 
     m_shownDialogs.push_back( list );
 
@@ -399,6 +411,7 @@ void NOTIFICATIONS_MANAGER::ShowList( wxWindow* aParent, wxPoint aPos )
     list->SetPosition( aPos - windowSize );
 
     list->Show();
+    KIPLATFORM::UI::ForceFocus( list );
 }
 
 
@@ -413,9 +426,8 @@ void NOTIFICATIONS_MANAGER::RegisterStatusBar( KISTATUSBAR* aStatusBar )
 
 void NOTIFICATIONS_MANAGER::UnregisterStatusBar( KISTATUSBAR* aStatusBar )
 {
-    m_statusBars.erase( std::remove_if( m_statusBars.begin(), m_statusBars.end(),
-                                        [&]( KISTATUSBAR* statusBar )
-                                          {
-                                            return statusBar == aStatusBar;
-                                          } ) );
+    alg::delete_if( m_statusBars, [&]( KISTATUSBAR* statusBar )
+                                  {
+                                      return statusBar == aStatusBar;
+                                  } );
 }

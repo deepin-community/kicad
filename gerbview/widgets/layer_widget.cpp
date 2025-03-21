@@ -3,7 +3,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2010 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2010-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,7 +39,9 @@
 #include <macros.h>
 #include <widgets/indicator_icon.h>
 #include <widgets/wx_ellipsized_static_text.h>
+#include <widgets/ui_common.h>
 #include <wx/checkbox.h>
+#include <wx/menu.h>
 
 #include <algorithm>
 
@@ -444,12 +446,14 @@ void LAYER_WIDGET::insertRenderRow( int aRow, const ROW& aSpec )
         bmb->SetToolTip( _( "Left double click or middle click for color change" ) );
         m_RenderFlexGridSizer->wxSizer::Insert( index+col, bmb, 0, flags );
 
-        bmb->Bind( wxEVT_RIGHT_DOWN, [this, bmb, renderName] ( wxMouseEvent& aEvt ) {
-            OnRightDownRender( aEvt, bmb, renderName );
-        } );
-        cb->Bind( wxEVT_RIGHT_DOWN, [this, bmb, renderName] ( wxMouseEvent& aEvt ) {
-            OnRightDownRender( aEvt, bmb, renderName );
-        } );
+        bmb->Bind( wxEVT_RIGHT_DOWN, [this, bmb, renderName] ( wxMouseEvent& aEvt )
+                                     {
+                                         OnRightDownRender( aEvt, bmb, renderName );
+                                     } );
+        cb->Bind( wxEVT_RIGHT_DOWN, [this, bmb, renderName] ( wxMouseEvent& aEvt )
+                                    {
+                                        OnRightDownRender( aEvt, bmb, renderName );
+                                    } );
 
         // could add a left click handler on the color button that toggles checkbox.
     }
@@ -486,13 +490,12 @@ LAYER_WIDGET::LAYER_WIDGET( wxWindow* aParent, wxWindow* aFocusOwner, wxWindowID
     wxPanel( aParent, id, pos, size, style ),
     m_smallestLayerString( wxT( "M...M" ) )
 {
-    int indicatorSize = ConvertDialogToPixels( wxSize( 6, 6 ) ).x;
-    m_IconProvider = new ROW_ICON_PROVIDER( indicatorSize );
+    m_IconProvider = new ROW_ICON_PROVIDER( KIUI::c_IndicatorSizeDIP, this );
 
     int pointSize = wxSystemSettings::GetFont( wxSYS_DEFAULT_GUI_FONT ).GetPointSize();
     int screenHeight = wxSystemSettings::GetMetric( wxSYS_SCREEN_Y );
 
-    if( screenHeight <= 900 && pointSize >= indicatorSize )
+    if( screenHeight <= 900 && pointSize >= FromDIP( KIUI::c_IndicatorSizeDIP ) )
         pointSize = pointSize * 8 / 10;
 
     m_PointSize = pointSize;

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -88,8 +88,8 @@ private:
     BITMAP2CMP_PANEL* m_panel;
     wxStatusBar*      m_statusBar;
 
-    wxString          m_bitmapFileName;
-    wxString          m_convertedFileName;
+    wxString          m_srcFileName;
+    wxString          m_outFileName;
 };
 
 #endif// BITMOP2CMP_GUI_H_

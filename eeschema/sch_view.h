@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,7 +34,7 @@
 class SCH_SHEET;
 class SCH_SCREEN;
 class LIB_SYMBOL;
-class LIB_PIN;
+class SCH_PIN;
 class SCH_BASE_FRAME;
 class DS_PROXY_VIEW_ITEM;
 
@@ -42,28 +42,45 @@ class DS_PROXY_VIEW_ITEM;
 // Eeschema 100nm as the internal units
 constexpr double SCH_WORLD_UNIT ( 1e-7 / 0.0254 );
 
-static const int SCH_LAYER_ORDER[] =
-{
-    LAYER_GP_OVERLAY, LAYER_SELECT_OVERLAY,
-    LAYER_ERC_ERR, LAYER_ERC_WARN, LAYER_ERC_EXCLUSION, LAYER_DANGLING,
-    LAYER_OP_VOLTAGES, LAYER_OP_CURRENTS,
-    LAYER_REFERENCEPART, LAYER_VALUEPART, LAYER_FIELDS,
-    LAYER_PINNUM, LAYER_PINNAM,
-    LAYER_INTERSHEET_REFS, LAYER_NETCLASS_REFS,
-    LAYER_BUS_JUNCTION, LAYER_JUNCTION, LAYER_NOCONNECT,
-    LAYER_HIERLABEL, LAYER_GLOBLABEL, LAYER_LOCLABEL,
-    LAYER_SHEETFILENAME, LAYER_SHEETNAME, LAYER_SHEETLABEL, LAYER_SHEETFIELDS,
-    LAYER_NOTES, LAYER_PRIVATE_NOTES,
-    LAYER_WIRE, LAYER_BUS,
-    LAYER_DEVICE,
-    LAYER_SHEET,
-    LAYER_SELECTION_SHADOWS,
-    LAYER_DRAW_BITMAPS,
-    LAYER_DEVICE_BACKGROUND,
-    LAYER_SHEET_BACKGROUND,
-    LAYER_NOTES_BACKGROUND,
-    LAYER_DRAWINGSHEET
-};
+static const int SCH_LAYER_ORDER[] = { LAYER_GP_OVERLAY,
+                                       LAYER_SELECT_OVERLAY,
+                                       LAYER_ERC_ERR,
+                                       LAYER_ERC_WARN,
+                                       LAYER_ERC_EXCLUSION,
+                                       LAYER_DANGLING,
+                                       LAYER_OP_VOLTAGES,
+                                       LAYER_OP_CURRENTS,
+                                       LAYER_REFERENCEPART,
+                                       LAYER_VALUEPART,
+                                       LAYER_FIELDS,
+                                       LAYER_PINNUM,
+                                       LAYER_PINNAM,
+                                       LAYER_INTERSHEET_REFS,
+                                       LAYER_NETCLASS_REFS,
+                                       LAYER_RULE_AREAS,
+                                       LAYER_BUS_JUNCTION,
+                                       LAYER_JUNCTION,
+                                       LAYER_NOCONNECT,
+                                       LAYER_HIERLABEL,
+                                       LAYER_GLOBLABEL,
+                                       LAYER_LOCLABEL,
+                                       LAYER_SHEETFILENAME,
+                                       LAYER_SHEETNAME,
+                                       LAYER_SHEETLABEL,
+                                       LAYER_SHEETFIELDS,
+                                       LAYER_NOTES,
+                                       LAYER_PRIVATE_NOTES,
+                                       LAYER_WIRE,
+                                       LAYER_BUS,
+                                       LAYER_DEVICE,
+                                       LAYER_SHEET,
+                                       LAYER_SELECTION_SHADOWS,
+                                       LAYER_DRAW_BITMAPS,
+                                       LAYER_SHAPES_BACKGROUND,
+                                       LAYER_DEVICE_BACKGROUND,
+                                       LAYER_SHEET_BACKGROUND,
+                                       LAYER_NOTES_BACKGROUND,
+                                       LAYER_DRAWINGSHEET };
 
 
 namespace KIGFX
@@ -80,7 +97,7 @@ class SCH_VIEW : public KIGFX::VIEW
 public:
     // Note: aFrame is used to know the sheet path name when drawing the drawing sheet.
     // It can be null.
-    SCH_VIEW( bool aIsDynamic, SCH_BASE_FRAME* aFrame );
+    SCH_VIEW( SCH_BASE_FRAME* aFrame );
     ~SCH_VIEW();
 
     void Cleanup();

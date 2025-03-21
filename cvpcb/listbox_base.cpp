@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -55,12 +55,12 @@ void ITEMS_LISTBOX_BASE::UpdateWidth( int aLine )
     if( aLine < 0 )
     {
         columnWidth = 0;
+
         for( int ii = 0; ii < itemCount; ii++ )
         {
             UpdateLineWidth( (unsigned)ii, dc );
         }
     }
-
     // Zero or above: update from a single line.
     else
     {
@@ -103,7 +103,7 @@ int ITEMS_LISTBOX_BASE::GetSelection()
 
 void ITEMS_LISTBOX_BASE::DeselectAll()
 {
-    for( int i = GetFirstSelected(); i >= 0; i = GetNextSelected(i))
+    for( int i = GetFirstSelected(); i >= 0; i = GetNextSelected( i ) )
     {
         Select( i, false );
     }

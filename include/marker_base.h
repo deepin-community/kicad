@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009-2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2009-2020 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -42,8 +42,8 @@ namespace KIGFX
 using KIGFX::RENDER_SETTINGS;
 
 
-/*
- * Marker are mainly used to show a DRC or ERC error or warning
+/**
+ * Marker are mainly used to show a DRC or ERC error or warning.
  */
 class MARKER_BASE
 {
@@ -96,7 +96,13 @@ public:
     enum MARKER_T GetMarkerType() const { return m_markerType; }
 
     bool IsExcluded() const { return m_excluded; }
-    void SetExcluded( bool aExcluded ) { m_excluded = aExcluded; }
+    void SetExcluded( bool aExcluded, const wxString& aComment = wxEmptyString )
+    {
+        m_excluded = aExcluded;
+        m_comment = aComment;
+    }
+
+    wxString GetComment() const { return m_comment; }
 
     virtual SEVERITY GetSeverity() const { return RPT_SEVERITY_UNDEFINED; }
 
@@ -106,16 +112,16 @@ public:
     std::shared_ptr<RC_ITEM> GetRCItem() const { return m_rcItem; }
 
     /**
-     * Test if the given VECTOR2I is within the bounds of this object.
+     * Test if the given #VECTOR2I is within the bounds of this object.
      *
-     * @param aHitPosition is the VECTOR2I to test (in internal units).
+     * @param aHitPosition is the #VECTOR2I to test (in internal units).
      * @return true if a hit, else false.
      */
     bool HitTestMarker( const VECTOR2I& aHitPosition, int aAccuracy ) const;
 
     /**
-    * Test if the given BOX2I intersects or contains the bounds of this object
-*/
+     * Test if the given #BOX2I intersects or contains the bounds of this object.
+     */
     bool HitTestMarker( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const;
 
     /**
@@ -131,18 +137,19 @@ protected:
     virtual KIGFX::COLOR4D getColor() const = 0;
 
 public:
-    VECTOR2I            m_Pos;                 ///< position of the marker
+    VECTOR2I            m_Pos;                 ///< Position of the marker.
 
 protected:
-    MARKER_T            m_markerType;          // The type of marker (useful to filter markers)
-    bool                m_excluded;            // User has excluded this specific error
+    MARKER_T            m_markerType;          ///< The type of marker.
+    bool                m_excluded;            ///< User has excluded this specific error.
+    wxString            m_comment;             ///< User supplied comment.
     std::shared_ptr<RC_ITEM> m_rcItem;
 
-    int                 m_scalingFactor;       // Scaling factor to convert corners coordinates
-                                               // to internal units coordinates
-    BOX2I               m_shapeBoundingBox;    // Bounding box of the graphic symbol, relative
-                                               // to the position of the shape, in marker shape
-                                               // units
+    int                 m_scalingFactor;       ///< Scaling factor to convert corners coordinates
+                                               ///< to internal units coordinates.
+    BOX2I               m_shapeBoundingBox;    ///< Bounding box of the graphic symbol relative
+                                               ///< to the position of the shape in marker shape
+                                               ///< units.
 };
 
 

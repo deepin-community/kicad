@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,6 +25,7 @@
 #define DIALOG_ASSIGN_NETCLASS_H
 
 #include <dialogs/dialog_assign_netclass_base.h>
+#include <set>
 
 
 class EDA_BASE_FRAME;

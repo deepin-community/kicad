@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -50,7 +50,7 @@ BOOST_FIXTURE_TEST_CASE( DRCCopperConn, DRC_REGRESSION_TEST_FIXTURE )
 
     std::vector<std::pair<wxString, int>> tests =
     {
-        { "issue9870",              13  },
+        { "issue9870",              12  },
         { "connection_width_rules",  3  },
         { "issue12831",              0  },
         { "issue14130",              0  }
@@ -80,7 +80,8 @@ BOOST_FIXTURE_TEST_CASE( DRCCopperConn, DRC_REGRESSION_TEST_FIXTURE )
         bds.m_DRCSeverities[ DRCE_CONNECTION_WIDTH ] = SEVERITY::RPT_SEVERITY_ERROR;
 
         bds.m_DRCEngine->SetViolationHandler(
-                [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2I aPos, int aLayer )
+                [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2I aPos, int aLayer,
+                     DRC_CUSTOM_MARKER_HANDLER* aCustomHandler )
                 {
                     if( bds.GetSeverity( aItem->GetErrorCode() ) == SEVERITY::RPT_SEVERITY_ERROR )
                         violations.push_back( *aItem );

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,6 +27,7 @@
 
 #include <array_options.h>
 #include <footprint.h>
+#include <board_commit.h>
 
 /**
  * Simple class that sequentially provides numbers from an #ARRAY_OPTIONS object, making sure

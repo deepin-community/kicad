@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2015 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,6 +23,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <advanced_config.h>
 #include <base_units.h>
 #include <pgm_base.h>
 #include <sch_edit_frame.h>
@@ -45,16 +46,15 @@
 #include <tools/sch_navigate_tool.h>
 #include <trigo.h>
 
-using KIGFX::SCH_RENDER_SETTINGS;
 
-
-SCH_TEXT::SCH_TEXT( const VECTOR2I& pos, const wxString& text, KICAD_T aType ) :
+SCH_TEXT::SCH_TEXT( const VECTOR2I& aPos, const wxString& aText, SCH_LAYER_ID aLayer,
+                    KICAD_T aType ) :
         SCH_ITEM( nullptr, aType ),
-        EDA_TEXT( schIUScale, text )
+        EDA_TEXT( schIUScale, aText )
 {
-    m_layer = LAYER_NOTES;
+    m_layer = aLayer;
 
-    SetTextPos( pos );
+    SetTextPos( aPos );
     SetMultilineAllowed( true );
 
     m_excludedFromSim = false;
@@ -76,28 +76,128 @@ VECTOR2I SCH_TEXT::GetSchematicTextOffset( const RENDER_SETTINGS* aSettings ) co
 }
 
 
+void SCH_TEXT::NormalizeJustification( bool inverse )
+{
+    if( GetHorizJustify() == GR_TEXT_H_ALIGN_CENTER && GetVertJustify() == GR_TEXT_V_ALIGN_CENTER )
+        return;
+
+    VECTOR2I delta( 0, 0 );
+    BOX2I    bbox = GetTextBox();
+
+    if( GetTextAngle().IsHorizontal() )
+    {
+        if( GetHorizJustify() == GR_TEXT_H_ALIGN_LEFT )
+            delta.x = bbox.GetWidth() / 2;
+        else if( GetHorizJustify() == GR_TEXT_H_ALIGN_RIGHT )
+            delta.x = - bbox.GetWidth() / 2;
+
+        if( GetVertJustify() == GR_TEXT_V_ALIGN_TOP )
+            delta.y = - bbox.GetHeight() / 2;
+        else if( GetVertJustify() == GR_TEXT_V_ALIGN_BOTTOM )
+            delta.y = bbox.GetHeight() / 2;
+    }
+    else
+    {
+        if( GetHorizJustify() == GR_TEXT_H_ALIGN_LEFT )
+            delta.y = bbox.GetWidth() / 2;
+        else if( GetHorizJustify() == GR_TEXT_H_ALIGN_RIGHT )
+            delta.y = - bbox.GetWidth() / 2;
+
+        if( GetVertJustify() == GR_TEXT_V_ALIGN_TOP )
+            delta.x = + bbox.GetHeight() / 2;
+        else if( GetVertJustify() == GR_TEXT_V_ALIGN_BOTTOM )
+            delta.x = - bbox.GetHeight() / 2;
+    }
+
+    if( inverse )
+        SetTextPos( GetTextPos() - delta );
+    else
+        SetTextPos( GetTextPos() + delta );
+}
+
+
 void SCH_TEXT::MirrorHorizontally( int aCenter )
 {
-    if( GetTextAngle() == ANGLE_HORIZONTAL )
-        FlipHJustify();
+    if( m_layer == LAYER_DEVICE )
+    {
+        NormalizeJustification( false );
+        int x = GetTextPos().x;
 
-    SetTextX( MIRRORVAL( GetTextPos().x, aCenter ) );
+        x -= aCenter;
+        x *= -1;
+        x += aCenter;
+
+        if( GetTextAngle().IsHorizontal() )
+        {
+            if( GetHorizJustify() == GR_TEXT_H_ALIGN_LEFT )
+                SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
+            else if( GetHorizJustify() == GR_TEXT_H_ALIGN_RIGHT )
+                SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
+        }
+        else
+        {
+            if( GetVertJustify() == GR_TEXT_V_ALIGN_TOP )
+                SetVertJustify( GR_TEXT_V_ALIGN_BOTTOM );
+            else if( GetVertJustify() == GR_TEXT_V_ALIGN_BOTTOM )
+                SetVertJustify( GR_TEXT_V_ALIGN_TOP );
+        }
+
+        SetTextX( x );
+        NormalizeJustification( true );
+    }
+    else
+    {
+        if( GetTextAngle() == ANGLE_HORIZONTAL )
+            FlipHJustify();
+
+        SetTextX( MIRRORVAL( GetTextPos().x, aCenter ) );
+    }
 }
 
 
 void SCH_TEXT::MirrorVertically( int aCenter )
 {
-    if( GetTextAngle() == ANGLE_VERTICAL )
-        FlipHJustify();
+    if( m_layer == LAYER_DEVICE )
+    {
+        NormalizeJustification( false );
+        int y = GetTextPos().y;
 
-    SetTextY( MIRRORVAL( GetTextPos().y, aCenter ) );
+        y -= aCenter;
+        y *= -1;
+        y += aCenter;
+
+        if( GetTextAngle().IsHorizontal() )
+        {
+            if( GetVertJustify() == GR_TEXT_V_ALIGN_TOP )
+                SetVertJustify( GR_TEXT_V_ALIGN_BOTTOM );
+            else if( GetVertJustify() == GR_TEXT_V_ALIGN_BOTTOM )
+                SetVertJustify( GR_TEXT_V_ALIGN_TOP );
+        }
+        else
+        {
+            if( GetHorizJustify() == GR_TEXT_H_ALIGN_LEFT )
+                SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
+            else if( GetHorizJustify() == GR_TEXT_H_ALIGN_RIGHT )
+                SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
+        }
+
+        SetTextY( y );
+        NormalizeJustification( true );
+    }
+    else
+    {
+        if( GetTextAngle() == ANGLE_VERTICAL )
+            FlipHJustify();
+
+        SetTextY( MIRRORVAL( GetTextPos().y, aCenter ) );
+    }
 }
 
 
-void SCH_TEXT::Rotate( const VECTOR2I& aCenter )
+void SCH_TEXT::Rotate( const VECTOR2I& aCenter, bool aRotateCCW )
 {
     VECTOR2I pt = GetTextPos();
-    RotatePoint( pt, aCenter, ANGLE_90 );
+    RotatePoint( pt, aCenter, aRotateCCW ? ANGLE_90 : ANGLE_270 );
     VECTOR2I offset = pt - GetTextPos();
 
     Rotate90( false );
@@ -196,34 +296,89 @@ KIFONT::FONT* SCH_TEXT::getDrawFont() const
 }
 
 
-void SCH_TEXT::Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset )
+void SCH_TEXT::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                      const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
 {
-    COLOR4D  color = GetTextColor();
-    bool     blackAndWhiteMode = GetGRForceBlackPenState();
-    VECTOR2I text_offset = aOffset + GetSchematicTextOffset( aSettings );
+    COLOR4D color = GetTextColor();
+    COLOR4D bg = aSettings->GetBackgroundColor();
+    bool    blackAndWhiteMode = GetGRForceBlackPenState();
 
     if( blackAndWhiteMode || color == COLOR4D::UNSPECIFIED )
         color = aSettings->GetLayerColor( m_layer );
+
+    if( bg == COLOR4D::UNSPECIFIED || GetGRForceBlackPenState() )
+        bg = COLOR4D::WHITE;
+
+    if( !IsVisible() )
+        bg = aSettings->GetLayerColor( LAYER_HIDDEN );
+
+    if( aDimmed )
+    {
+        color.Desaturate( );
+        color = color.Mix( bg, 0.5f );
+    }
 
     KIFONT::FONT* font = GetFont();
 
     if( !font )
         font = KIFONT::FONT::GetFont( aSettings->GetDefaultFont(), IsBold(), IsItalic() );
 
-    // Adjust text drawn in an outline font to more closely mimic the positioning of
-    // SCH_FIELD text.
-    if( font->IsOutline() )
+    if( m_layer == LAYER_DEVICE )
     {
-        BOX2I    firstLineBBox = GetTextBox( 0 );
-        int      sizeDiff = firstLineBBox.GetHeight() - GetTextSize().y;
-        int      adjust = KiROUND( sizeDiff * 0.4 );
-        VECTOR2I adjust_offset( 0, - adjust );
+        wxDC* DC = aSettings->GetPrintDC();
+        int   penWidth = std::max( GetEffectiveTextPenWidth(), aSettings->GetDefaultPenWidth() );
 
-        RotatePoint( adjust_offset, GetDrawRotation() );
-        text_offset += adjust_offset;
+        // Calculate the text orientation, according to the symbol orientation/mirror (needed when
+        // draw text in schematic)
+        EDA_ANGLE orient = GetTextAngle();
+
+        if( aSettings->m_Transform.y1 )  // Rotate symbol 90 degrees.
+        {
+            if( orient == ANGLE_HORIZONTAL )
+                orient = ANGLE_VERTICAL;
+            else
+                orient = ANGLE_HORIZONTAL;
+        }
+
+        /*
+         * Calculate the text justification, according to the symbol orientation/mirror.
+         * This is a bit complicated due to cumulative calculations:
+         * - numerous cases (mirrored or not, rotation)
+         * - the GRText function will also recalculate H and V justifications according to the text
+         *   orientation.
+         * - When a symbol is mirrored, the text is not mirrored and justifications are complicated
+         *   to calculate so the more easily way is to use no justifications (centered text) and
+         *   use GetBoundingBox to know the text coordinate considered as centered
+        */
+        BOX2I    bBox = GetBoundingBox();
+        VECTOR2I txtpos = bBox.Centre();
+
+        // Calculate pos according to mirror/rotation.
+        txtpos = aSettings->m_Transform.TransformCoordinate( txtpos ) + aOffset;
+
+        GRPrintText( DC, txtpos, color, GetShownText( true ), orient, GetTextSize(),
+                     GR_TEXT_H_ALIGN_CENTER, GR_TEXT_V_ALIGN_CENTER, penWidth, IsItalic(),
+                     IsBold(), font, GetFontMetrics() );
     }
+    else
+    {
+        VECTOR2I text_offset = aOffset + GetSchematicTextOffset( aSettings );
 
-    EDA_TEXT::Print( aSettings, text_offset, color );
+        // Adjust text drawn in an outline font to more closely mimic the positioning of
+        // SCH_FIELD text.
+        if( font->IsOutline() )
+        {
+            BOX2I    firstLineBBox = GetTextBox( 0 );
+            int      sizeDiff = firstLineBBox.GetHeight() - GetTextSize().y;
+            int      adjust = KiROUND( sizeDiff * 0.4 );
+            VECTOR2I adjust_offset( 0, - adjust );
+
+            RotatePoint( adjust_offset, GetDrawRotation() );
+            text_offset += adjust_offset;
+        }
+
+        EDA_TEXT::Print( aSettings, text_offset, color );
+    }
 }
 
 
@@ -278,7 +433,7 @@ wxString SCH_TEXT::GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraTe
     }
     else if( HasTextVars() )
     {
-        if( aDepth < 10 )
+        if( aDepth < ADVANCED_CFG::GetCfg().m_ResolveTextRecursionDepth )
             text = ExpandTextVars( text, &textResolver );
     }
 
@@ -296,9 +451,10 @@ void SCH_TEXT::DoHypertextAction( EDA_DRAW_FRAME* aFrame ) const
 }
 
 
-wxString SCH_TEXT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString SCH_TEXT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Graphic Text '%s'" ), KIUI::EllipsizeMenuText( GetText() ) );
+    return wxString::Format( _( "Graphic Text '%s'" ),
+                             aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
 }
 
 
@@ -318,8 +474,13 @@ bool SCH_TEXT::HitTest( const VECTOR2I& aPosition, int aAccuracy ) const
 
 bool SCH_TEXT::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) const
 {
+    if( m_flags & (STRUCT_DELETED | SKIP_STRUCT ) )
+        return false;
+
+    BOX2I rect = aRect;
     BOX2I bBox = GetBoundingBox();
-    bBox.Inflate( aAccuracy );
+
+    rect.Inflate( aAccuracy );
 
     if( aContained )
         return aRect.Contains( bBox );
@@ -328,71 +489,136 @@ bool SCH_TEXT::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) con
 }
 
 
-void SCH_TEXT::ViewGetLayers( int aLayers[], int& aCount ) const
+void SCH_TEXT::BeginEdit( const VECTOR2I& aPosition )
 {
-    aCount = 2;
-    aLayers[0] = m_layer;
-    aLayers[1] = LAYER_SELECTION_SHADOWS;
+    SetTextPos( aPosition );
 }
 
 
-void SCH_TEXT::Plot( PLOTTER* aPlotter, bool aBackground,
-                     const SCH_PLOT_SETTINGS& aPlotSettings ) const
+void SCH_TEXT::CalcEdit( const VECTOR2I& aPosition )
 {
-    if( aBackground )
+    SetTextPos( aPosition );
+}
+
+
+std::vector<int> SCH_TEXT::ViewGetLayers() const
+{
+    if( IsPrivate() )
+        return { LAYER_PRIVATE_NOTES, LAYER_SELECTION_SHADOWS };
+
+    return { m_layer, LAYER_SELECTION_SHADOWS };
+}
+
+
+void SCH_TEXT::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
+                     int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed )
+{
+    if( aBackground || IsPrivate() )
         return;
 
-    RENDER_SETTINGS* settings = aPlotter->RenderSettings();
-    SCH_CONNECTION*  connection = Connection();
-    int              layer = ( connection && connection->IsBus() ) ? LAYER_BUS : m_layer;
-    COLOR4D          color = GetTextColor();
-    int              penWidth = GetEffectiveTextPenWidth( settings->GetDefaultPenWidth() );
-    VECTOR2I         text_offset = GetSchematicTextOffset( aPlotter->RenderSettings() );
+    SCH_RENDER_SETTINGS* renderSettings = getRenderSettings( aPlotter );
+    COLOR4D              color = GetTextColor();
+    COLOR4D              bg = renderSettings->GetBackgroundColor();
 
     if( !aPlotter->GetColorMode() || color == COLOR4D::UNSPECIFIED )
-        color = settings->GetLayerColor( layer );
+    {
+        SCH_CONNECTION* connection = Connection();
 
-    penWidth = std::max( penWidth, settings->GetMinPenWidth() );
+        if( connection && connection->IsBus() )
+            color = renderSettings->GetLayerColor( LAYER_BUS );
+        else
+            color = renderSettings->GetLayerColor( m_layer );
+    }
+
+    if( !IsVisible() )
+        bg = renderSettings->GetLayerColor( LAYER_HIDDEN );
+    else if( bg == COLOR4D::UNSPECIFIED || !aPlotter->GetColorMode() )
+        bg = COLOR4D::WHITE;
+
+    if( aDimmed )
+    {
+        color.Desaturate( );
+        color = color.Mix( bg, 0.5f );
+    }
+
+    int penWidth = GetEffectiveTextPenWidth( renderSettings->GetDefaultPenWidth() );
+    penWidth = std::max( penWidth, renderSettings->GetMinPenWidth() );
     aPlotter->SetCurrentLineWidth( penWidth );
 
     KIFONT::FONT* font = GetFont();
 
     if( !font )
-        font = KIFONT::FONT::GetFont( settings->GetDefaultFont(), IsBold(), IsItalic() );
-
-    // Adjust text drawn in an outline font to more closely mimic the positioning of
-    // SCH_FIELD text.
-    if( font->IsOutline() )
-    {
-        BOX2I    firstLineBBox = GetTextBox( 0 );
-        int      sizeDiff = firstLineBBox.GetHeight() - GetTextSize().y;
-        int      adjust = KiROUND( sizeDiff * 0.4 );
-        VECTOR2I adjust_offset( 0, - adjust );
-
-        RotatePoint( adjust_offset, GetDrawRotation() );
-        text_offset += adjust_offset;
-    }
-
-    std::vector<VECTOR2I> positions;
-    wxArrayString strings_list;
-    wxStringSplit( GetShownText( true ), strings_list, '\n' );
-    positions.reserve( strings_list.Count() );
-
-    GetLinePositions( positions, (int) strings_list.Count() );
+        font = KIFONT::FONT::GetFont( renderSettings->GetDefaultFont(), IsBold(), IsItalic() );
 
     TEXT_ATTRIBUTES attrs = GetAttributes();
     attrs.m_StrokeWidth = penWidth;
-    attrs.m_Multiline = false;
 
-    for( unsigned ii = 0; ii < strings_list.Count(); ii++ )
+    if( m_layer == LAYER_DEVICE )
     {
-        VECTOR2I  textpos = positions[ii] + text_offset;
-        wxString& txt = strings_list.Item( ii );
-        aPlotter->PlotText( textpos, color, txt, attrs, font, GetFontMetrics() );
-    }
+        BOX2I bBox = GetBoundingBox();
 
-    if( HasHyperlink() )
-        aPlotter->HyperlinkBox( GetBoundingBox(), GetHyperlink() );
+        /*
+         * Calculate the text justification, according to the symbol orientation/mirror.  This is
+         * a bit complicated due to cumulative calculations:
+         *  - numerous cases (mirrored or not, rotation)
+         *  - the plotter's Text() function will also recalculate H and V justifications according
+         *    to the text orientation
+         *  - when a symbol is mirrored the text is not, and justifications become a nightmare
+         *
+         *  So the easier way is to use no justifications (centered text) and use GetBoundingBox to
+         *  know the text coordinate considered as centered.
+         */
+        VECTOR2I txtpos = bBox.Centre();
+        attrs.m_Halign = GR_TEXT_H_ALIGN_CENTER;
+        attrs.m_Valign = GR_TEXT_V_ALIGN_CENTER;
+
+        // The text orientation may need to be flipped if the transformation matrix causes xy
+        // axes to be flipped.
+        if( ( renderSettings->m_Transform.x1 != 0 ) ^ ( GetTextAngle() != ANGLE_HORIZONTAL ) )
+            attrs.m_Angle = ANGLE_HORIZONTAL;
+        else
+            attrs.m_Angle = ANGLE_VERTICAL;
+
+        aPlotter->PlotText( renderSettings->TransformCoordinate( txtpos ) + aOffset, color,
+                            GetText(), attrs, font, GetFontMetrics() );
+    }
+    else
+    {
+        SCH_SHEET_PATH* sheet = &Schematic()->CurrentSheet();
+        VECTOR2I        text_offset = GetSchematicTextOffset( aPlotter->RenderSettings() );
+
+        // Adjust text drawn in an outline font to more closely mimic the positioning of
+        // SCH_FIELD text.
+        if( font->IsOutline() )
+        {
+            BOX2I    firstLineBBox = GetTextBox( 0 );
+            int      sizeDiff = firstLineBBox.GetHeight() - GetTextSize().y;
+            int      adjust = KiROUND( sizeDiff * 0.4 );
+            VECTOR2I adjust_offset( 0, - adjust );
+
+            RotatePoint( adjust_offset, GetDrawRotation() );
+            text_offset += adjust_offset;
+        }
+
+        std::vector<VECTOR2I> positions;
+        wxArrayString strings_list;
+        wxStringSplit( GetShownText( sheet, true ), strings_list, '\n' );
+        positions.reserve( strings_list.Count() );
+
+        GetLinePositions( positions, (int) strings_list.Count() );
+
+        attrs.m_Multiline = false;
+
+        for( unsigned ii = 0; ii < strings_list.Count(); ii++ )
+        {
+            VECTOR2I  textpos = positions[ii] + text_offset;
+            wxString& txt = strings_list.Item( ii );
+            aPlotter->PlotText( textpos, color, txt, attrs, font, GetFontMetrics() );
+        }
+
+        if( HasHyperlink() )
+            aPlotter->HyperlinkBox( GetBoundingBox(), GetHyperlink() );
+    }
 }
 
 
@@ -401,7 +627,7 @@ void SCH_TEXT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_IT
     wxString msg;
 
     // Don't use GetShownText() here; we want to show the user the variable references
-    aList.emplace_back( _( "Graphic Text" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    aList.emplace_back( _( "Text" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
 
     if( m_excludedFromSim )
         aList.emplace_back( _( "Exclude from" ), _( "Simulation" ) );
@@ -416,13 +642,32 @@ void SCH_TEXT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_IT
 
     switch( GetHorizJustify() )
     {
-    case GR_TEXT_H_ALIGN_LEFT:   msg = _( "Align left" );   break;
-    case GR_TEXT_H_ALIGN_CENTER: msg = _( "Align center" ); break;
-    case GR_TEXT_H_ALIGN_RIGHT:  msg = _( "Align right" );  break;
+    case GR_TEXT_H_ALIGN_LEFT:          msg = _( "Align left" );   break;
+    case GR_TEXT_H_ALIGN_CENTER:        msg = _( "Align center" ); break;
+    case GR_TEXT_H_ALIGN_RIGHT:         msg = _( "Align right" );  break;
+    case GR_TEXT_H_ALIGN_INDETERMINATE: msg = INDETERMINATE_STATE; break;
     }
 
-    aList.emplace_back( _( "Justification" ), msg );
+    if( m_layer == LAYER_DEVICE )
+    {
+        aList.emplace_back( _( "H Justification" ), msg );
+
+        switch ( GetVertJustify() )
+        {
+        case GR_TEXT_V_ALIGN_TOP:           msg = _( "Top" );          break;
+        case GR_TEXT_V_ALIGN_CENTER:        msg = _( "Center" );       break;
+        case GR_TEXT_V_ALIGN_BOTTOM:        msg = _( "Bottom" );       break;
+        case GR_TEXT_V_ALIGN_INDETERMINATE: msg = INDETERMINATE_STATE; break;
+        }
+
+        aList.emplace_back( _( "V Justification" ), msg );
+    }
+    else
+    {
+        aList.emplace_back( _( "Justification" ), msg );
+    }
 }
+
 
 bool SCH_TEXT::operator==( const SCH_ITEM& aOther ) const
 {
@@ -443,12 +688,15 @@ bool SCH_TEXT::operator==( const SCH_ITEM& aOther ) const
 
 double SCH_TEXT::Similarity( const SCH_ITEM& aOther ) const
 {
+    if( m_Uuid == aOther.m_Uuid )
+        return 1.0;
+
     if( Type() != aOther.Type() )
         return 0.0;
 
     const SCH_TEXT* other = static_cast<const SCH_TEXT*>( &aOther );
 
-    double retval = 1.0;
+    double retval = SimilarityBase( aOther );
 
     if( GetLayer() != other->GetLayer() )
         retval *= 0.9;
@@ -459,6 +707,38 @@ double SCH_TEXT::Similarity( const SCH_ITEM& aOther ) const
     retval *= EDA_TEXT::Similarity( *other );
 
     return retval;
+}
+
+
+int SCH_TEXT::compare( const SCH_ITEM& aOther, int aCompareFlags ) const
+{
+    wxASSERT( aOther.Type() == SCH_TEXT_T );
+
+    int retv = SCH_ITEM::compare( aOther, aCompareFlags );
+
+    if( retv )
+        return retv;
+
+    const SCH_TEXT& tmp = static_cast<const SCH_TEXT&>( aOther );
+
+    int result = GetText().CmpNoCase( tmp.GetText() );
+
+    if( result != 0 )
+        return result;
+
+    if( GetTextPos().x != tmp.GetTextPos().x )
+        return GetTextPos().x - tmp.GetTextPos().x;
+
+    if( GetTextPos().y != tmp.GetTextPos().y )
+        return GetTextPos().y - tmp.GetTextPos().y;
+
+    if( GetTextWidth() != tmp.GetTextWidth() )
+        return GetTextWidth() - tmp.GetTextWidth();
+
+    if( GetTextHeight() != tmp.GetTextHeight() )
+        return GetTextHeight() - tmp.GetTextHeight();
+
+    return 0;
 }
 
 

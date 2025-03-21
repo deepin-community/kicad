@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Roberto Fernandez Bautista <roberto.fer.bau@gmail.com>
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -57,6 +57,10 @@ WX_PT_ENTRY_DIALOG::WX_PT_ENTRY_DIALOG( EDA_DRAW_FRAME* aParent, const wxString&
 {
     m_labelX->SetLabel( aLabelX );
     m_labelY->SetLabel( aLabelY );
+
+    m_unit_binder_x.SetCoordType( ORIGIN_TRANSFORMS::ABS_X_COORD );
+    m_unit_binder_y.SetCoordType( ORIGIN_TRANSFORMS::ABS_Y_COORD );
+
     m_unit_binder_x.SetValue( aDefaultValue.x );
     m_unit_binder_y.SetValue( aDefaultValue.y );
 

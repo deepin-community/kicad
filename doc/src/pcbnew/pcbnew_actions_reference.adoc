@@ -25,28 +25,37 @@ these actions in the **Hotkeys** section of the preferences.
 | Action | Default Hotkey | Description
 | Align to Bottom
   |
-  | Aligns selected items to the bottom edge
+  | Aligns selected items to the bottom edge of the item under the cursor
 | Align to Horizontal Center
   |
-  | Aligns selected items to the horizontal center
+  | Aligns selected items to the horizontal center of the item under the cursor
 | Align to Vertical Center
   |
-  | Aligns selected items to the vertical center
+  | Aligns selected items to the vertical center of the item under the cursor
 | Align to Left
   |
-  | Aligns selected items to the left edge
+  | Aligns selected items to the left edge of the item under the cursor
 | Align to Right
   |
-  | Aligns selected items to the right edge
+  | Aligns selected items to the right edge of the item under the cursor
 | Align to Top
   |
-  | Aligns selected items to the top edge
-| Distribute Horizontally
+  | Aligns selected items to the top edge of the item under the cursor
+| Distribute Horizontally by Centers
   |
-  | Distributes selected items along the horizontal axis
-| Distribute Vertically
+  | Distributes selected items between the left-most item and the right-most itemso that the item centers are equally distributed
+| Distribute Horizontally with Even Gaps
   |
-  | Distributes selected items along the vertical axis
+  | Distributes selected items between the left-most item and the right-most item so that the gaps between items are equal
+| Distribute Vertically by Centers
+  |
+  | Distributes selected items between the top-most item and the bottom-most item so that the item centers are equally distributed
+| Distribute Vertically with Even Gaps
+  |
+  | Distributes selected items between the top-most item and the bottom-most item so that the gaps between items are equal
+| Create Array…
+  | kbd:[Ctrl+T]
+  | 
 | Place Off-Board Footprints
   |
   | Performs automatic placement of components outside board area
@@ -67,112 +76,112 @@ these actions in the **Hotkeys** section of the preferences.
   | Make the current layer less transparent
 | Switch to Copper (B.Cu) Layer
   | kbd:[PgDn]
-  | Switch to Copper (B.Cu) layer
+  | 
 | Switch to Inner Layer 1
   |
-  | Switch to Inner layer 1
+  | 
 | Switch to Inner Layer 10
   |
-  | Switch to Inner layer 10
+  | 
 | Switch to Inner Layer 11
   |
-  | Switch to Inner layer 11
+  | 
 | Switch to Inner Layer 12
   |
-  | Switch to Inner layer 12
+  | 
 | Switch to Inner Layer 13
   |
-  | Switch to Inner layer 13
+  | 
 | Switch to Inner Layer 14
   |
-  | Switch to Inner layer 14
+  | 
 | Switch to Inner Layer 15
   |
-  | Switch to Inner layer 15
+  | 
 | Switch to Inner Layer 16
   |
-  | Switch to Inner layer 16
+  | 
 | Switch to Inner Layer 17
   |
-  | Switch to Inner layer 17
+  | 
 | Switch to Inner Layer 18
   |
-  | Switch to Inner layer 18
+  | 
 | Switch to Inner Layer 19
   |
-  | Switch to Inner layer 19
+  | 
 | Switch to Inner Layer 2
   |
-  | Switch to Inner layer 2
+  | 
 | Switch to Inner Layer 20
   |
-  | Switch to Inner layer 20
+  | 
 | Switch to Inner Layer 21
   |
-  | Switch to Inner layer 21
+  | 
 | Switch to Inner Layer 22
   |
-  | Switch to Inner layer 22
+  | 
 | Switch to Inner Layer 23
   |
-  | Switch to Inner layer 23
+  | 
 | Switch to Inner Layer 24
   |
-  | Switch to Inner layer 24
+  | 
 | Switch to Inner Layer 25
   |
-  | Switch to Inner layer 25
+  | 
 | Switch to Inner Layer 26
   |
-  | Switch to Inner layer 26
+  | 
 | Switch to Inner Layer 27
   |
-  | Switch to Inner layer 27
+  | 
 | Switch to Inner Layer 28
   |
-  | Switch to Inner layer 28
+  | 
 | Switch to Inner Layer 29
   |
-  | Switch to Inner layer 29
+  | 
 | Switch to Inner Layer 3
   |
-  | Switch to Inner layer 3
+  | 
 | Switch to Inner Layer 30
   |
-  | Switch to Inner layer 30
+  | 
 | Switch to Inner Layer 4
   |
-  | Switch to Inner layer 4
+  | 
 | Switch to Inner Layer 5
   |
-  | Switch to Inner layer 5
+  | 
 | Switch to Inner Layer 6
   |
-  | Switch to Inner layer 6
+  | 
 | Switch to Inner Layer 7
   |
-  | Switch to Inner layer 7
+  | 
 | Switch to Inner Layer 8
   |
-  | Switch to Inner layer 8
+  | 
 | Switch to Inner Layer 9
   |
-  | Switch to Inner layer 9
+  | 
 | Switch to Next Layer
   | kbd:[+]
-  | Switch to Next Layer
+  | 
+| Cycle Layer Pair Presets
+  | kbd:[Shift+V]
+  | Cycle between preset layer pairs
 | Switch to Previous Layer
   | kbd:[-]
-  | Switch to Previous Layer
+  | 
 | Toggle Layer
   | kbd:[V]
   | Switch between layers in active layer pair
 | Switch to Component (F.Cu) layer
   | kbd:[PgUp]
-  | Switch to Component (F.Cu) layer
-| Net Inspector
-  |
-  | Show the net inspector
+  | 
 | Local Ratsnest
   |
   | Toggle ratsnest display of selected item(s)
@@ -191,18 +200,21 @@ these actions in the **Hotkeys** section of the preferences.
 | Repair Board
   |
   | Run various diagnostics and attempt to repair board
-| Show Appearance Manager
+| Appearance
   |
   | Show/hide the appearance manager
+| Net Inspector
+  |
+  | Show/hide the net inspector
 | Show Pad Numbers
   |
-  | Show pad numbers
+  | 
 | Scripting Console
   |
   | Show the Python scripting console
 | Show Ratsnest
   |
-  | Show board ratsnest
+  | Show lines/arcs representing missing connections on the board
 | Sketch Text Items
   |
   | Show footprint texts in line mode
@@ -239,15 +251,18 @@ these actions in the **Hotkeys** section of the preferences.
 | Create Zone from Selection...
   |
   | Creates a copper zone from the selection
+| Create Outsets from Selection
+  |
+  | Create outset lines from the selected item
 | Design Rules Checker
   |
   | Show the design rules checker window
 | Open in Footprint Editor
   | kbd:[Ctrl+E]
-  | Opens the selected footprint in the Footprint Editor
+  | 
 | Edit Library Footprint…
   | kbd:[Ctrl+Shift+E]
-  | Opens the selected footprint in the Footprint Editor
+  | 
 | Append Board...
   |
   | Open another board and append its contents to this board
@@ -259,7 +274,7 @@ these actions in the **Hotkeys** section of the preferences.
   | Edit board setup including layers, design rules and various defaults
 | Clear Net Highlighting
   | kbd:[~]
-  | Clear any existing net highlighting
+  | 
 | Drill/Place File Origin
   |
   | Place origin point for drill files and component placement files
@@ -284,6 +299,9 @@ these actions in the **Hotkeys** section of the preferences.
 | IPC-2581 File (.xml)...
   |
   | Generate an IPC-2581 file
+| ODB++ Output File...
+  |
+  | Generate ODB++ output files
 | Component Placement (.pos, .gbr)...
   |
   | Generate component placement file(s) for pick and place
@@ -317,9 +335,9 @@ these actions in the **Hotkeys** section of the preferences.
 | Lock
   |
   | Prevent items from being moved and/or resized on the canvas
-| Add Footprint
+| Place Footprints
   | kbd:[A]
-  | Add a footprint
+  | 
 | Remove Items
   |
   | Remove items from group
@@ -340,7 +358,7 @@ these actions in the **Hotkeys** section of the preferences.
   | Lock or unlock selected items
 | Toggle Net Highlight
   | kbd:[Alt+`]
-  | Toggle net highlighting
+  | 
 | Switch Track Width to Previous
   | kbd:[Shift+W]
   | Change track width to previous pre-defined size
@@ -361,10 +379,10 @@ these actions in the **Hotkeys** section of the preferences.
   | Change via size to next pre-defined size
 | Duplicate Zone onto Layer…
   |
-  | Duplicate zone outline onto a different layer
+  | 
 | Merge Zones
   |
-  | Merge zones
+  | 
 | Rebuild All Generators
   |
   | Rebuilds geometry of all generators
@@ -428,102 +446,111 @@ these actions in the **Hotkeys** section of the preferences.
 | Show Footprint Associations
   |
   | Show footprint library and schematic symbol associations
-| Add Aligned Dimension
-  | kbd:[Ctrl+Shift+H]
-  | Add an aligned linear dimension
-| Draw Arc
+| Draw Aligned Dimensions
+  |
+  | 
+| Draw Arcs
   | kbd:[Ctrl+Shift+A]
-  | Draw an arc
+  | 
 | Switch Arc Posture
   | kbd:[/]
-  | Switch the arc posture
-| Add Center Dimension
+  | 
+| Draw Bezier Curve
+  | kbd:[Ctrl+Shift+B]
+  | 
+| Draw Center Dimensions
   |
-  | Add a center dimension
-| Draw Circle
+  | 
+| Switch Dimension Arrows
+  |
+  | Switch between inward and outward dimension arrows
+| Draw Circles
   | kbd:[Ctrl+Shift+C]
-  | Draw a circle
+  | 
 | Close Outline
   |
   | Close the in progress outline
 | Decrease Line Width
   | kbd:[Ctrl+-]
-  | Decrease the line width
+  | 
 | Delete Last Point
   | kbd:[Back]
   | Delete the last point added to the current item
-| Draw Graphic Polygon
+| Draw Tables
+  |
+  | 
+| Draw Polygons
   | kbd:[Ctrl+Shift+P]
-  | Draw a graphic polygon
+  | 
 | Increase Line Width
   | kbd:[Ctrl++]
-  | Increase the line width
-| Add Leader
+  | 
+| Draw Leaders
   |
-  | Add a leader dimension
-| Draw Line
+  | 
+| Draw Lines
   | kbd:[Ctrl+Shift+L]
-  | Draw a line
-| Add Orthogonal Dimension
-  |
-  | Add an orthogonal dimension
+  | 
+| Draw Orthogonal Dimensions
+  | kbd:[Ctrl+Shift+H]
+  | 
 | Add Board Characteristics
   |
   | Add a board characteristics table on a graphic layer
 | Import Graphics...
   | kbd:[Ctrl+Shift+F]
   | Import 2D drawing file
-| Add Reference Image
+| Place Reference Images
   |
-  | Add a bitmap image to be used as a reference (image will not be included in any output)
+  | Add bitmap images to be used as reference (images will not be included in any output)
 | Add Stackup Table
   |
   | Add a board stackup table on a graphic layer
-| Add Radial Dimension
+| Draw Radial Dimensions
   |
-  | Add a radial dimension
-| Draw Rectangle
+  | 
+| Draw Rectangles
   |
-  | Draw a rectangle
-| Add Rule Area
+  | 
+| Draw Rule Areas
   | kbd:[Ctrl+Shift+K]
-  | Add a rule area (keepout)
+  | 
 | Place the Footprint Anchor
   | kbd:[Ctrl+Shift+N]
-  | Set the coordinate origin point (anchor) of the footprint
+  | Set the anchor point of the footprint
 | Add a Similar Zone
   | kbd:[Ctrl+Shift+.]
   | Add a zone with the same settings as an existing zone
-| Add Text
+| Draw Text
   | kbd:[Ctrl+Shift+T]
-  | Add a text item
-| Add Text Box
+  | 
+| Draw Text Boxes
   |
-  | Add a wrapped text item
-| Add Vias
+  | 
+| Place Vias
   | kbd:[Ctrl+Shift+V]
-  | Add free-standing vias
-| Add Filled Zone
+  | Place free-standing vias
+| Draw Filled Zones
   | kbd:[Ctrl+Shift+Z]
-  | Add a filled zone
+  | 
 | Add a Zone Cutout
   | kbd:[Shift+C]
-  | Add a cutout area of an existing zone
+  | Add a cutout to an existing zone or rule area
 | Get and Move Footprint
   | kbd:[T]
   | Selects a footprint by reference designator and places it under the cursor for moving
-| Chamfer Lines
+| Chamfer Lines...
   |
   | Cut away corners between selected lines
 | Change Track Width
   |
   | Updates selected track & via sizes
-| Create Array…
-  | kbd:[Ctrl+T]
-  | Create array
 | Delete Full Track
   | kbd:[Shift+Del]
   | Deletes selected item(s) and copper connections
+| Dogbone Corners...
+  |
+  | Add dogbone corners to selected lines
 | Duplicate and Increment
   | kbd:[Ctrl+Shift+D]
   | Duplicates the selected item(s), incrementing pad numbers
@@ -550,10 +577,10 @@ these actions in the **Hotkeys** section of the preferences.
   | Merge selected polygons into a single polygon
 | Mirror Horizontally
   |
-  | Mirrors selected item across the Y axis
+  | Mirrors selected item(s) across the Y axis
 | Mirror Vertically
   |
-  | Mirrors selected item across the X axis
+  | Mirrors selected item(s) across the X axis
 | Move Corner To...
   |
   | Move the active corner to an exact location
@@ -568,28 +595,31 @@ these actions in the **Hotkeys** section of the preferences.
   | Sorts selected footprints by reference, packs based on size and initiates movement
 | Properties…
   | kbd:[E]
-  | Displays item properties dialog
+  | 
 | Rotate Counterclockwise
   | kbd:[R]
-  | Rotates selected item(s) counterclockwise
+  | 
 | Rotate Clockwise
   | kbd:[Shift+R]
-  | Rotates selected item(s) clockwise
+  | 
+| Simplify Polygons
+  |
+  | Simplify polygon outlines, removing superfluous points
 | Skip
   | kbd:[Tab]
-  | Skip item
+  | Skip to next item
 | Subtract Polygons
   |
   | Subtract selected polygons from the last one selected
 | Swap
-  | kbd:[S]
-  | Swaps selected items' positions
+  | kbd:[Alt+S]
+  | Swap positions of selected items
 | Copy with Reference
   |
   | Copy selected item(s) to clipboard with a specified starting point
 | Move
   | kbd:[M]
-  | Moves the selected item(s)
+  | 
 | Move Individually
   | kbd:[Ctrl+M]
   | Moves the selected items one-by-one
@@ -707,25 +737,28 @@ these actions in the **Hotkeys** section of the preferences.
 | Unroute Selected
   |
   | Unroutes selected items to the nearest pad.
+| Tune Length of a Differential Pair
+  | kbd:[8]
+  | 
 | Tune Skew of a Differential Pair
   | kbd:[9]
-  | Tune skew of a differential pair
-| Tune Length
+  | 
+| Tune Length of a Single Track
   | kbd:[7]
-  | Tune length of a single track or differential pair
-| Add Microwave Polygonal Shape
+  | 
+| Draw Microwave Polygonal Shapes
   |
   | Create a microwave polygonal shape from a list of vertices
-| Add Microwave Gap
+| Draw Microwave Gaps
   |
   | Create gap of specified length for microwave applications
-| Add Microwave Line
+| Draw Microwave Lines
   |
   | Create line of specified length for microwave applications
-| Add Microwave Stub
+| Draw Microwave Stubs
   |
   | Create stub of specified length for microwave applications
-| Add Microwave Arc Stub
+| Draw Microwave Arc Stubs
   |
   | Create stub (arc) of specified size for microwave applications
 | Footprint Checker
@@ -733,19 +766,19 @@ these actions in the **Hotkeys** section of the preferences.
   | Show the footprint checker window
 | Copy Footprint
   |
-  | Copy Footprint
+  | 
 | Create Footprint...
   |
   | Create a new footprint using the Footprint Wizard
 | Cut Footprint
   |
-  | Cut Footprint
+  | 
 | Delete Footprint from Library
   |
-  | Delete Footprint from Library
+  | 
 | Duplicate Footprint
   |
-  | Make a copy of the selected footprint
+  | 
 | Edit Footprint
   |
   | Show selected footprint on editor canvas
@@ -754,28 +787,28 @@ these actions in the **Hotkeys** section of the preferences.
   | Export edited footprint to file
 | Footprint Properties...
   |
-  | Edit footprint properties
-| Hide Footprint Tree
-  |
-  | Hide Footprint Tree
+  | 
 | Import Footprint...
   |
   | Import footprint from file
-| New Footprint...
+| New Footprint
   | kbd:[Ctrl+N]
   | Create a new, empty footprint
 | Paste Footprint
   |
-  | Paste Footprint
+  | 
 | Rename Footprint...
   |
-  | Rename the selected footprint
+  | 
 | Repair Footprint
   |
   | Run various diagnostics and attempt to repair footprint
-| Show Footprint Tree
+| Generate Placement Rule Areas...
   |
-  | Show Footprint Tree
+  | Creates best-fit placement rule areas
+| Repeat Layout...
+  |
+  | Clones placement & routing across multiple identical channels
 | Paste Default Pad Properties to Selected
   |
   | Replace the current pad's properties with those copied earlier
@@ -809,21 +842,27 @@ these actions in the **Hotkeys** section of the preferences.
 | Keep Arc Endpoints or Direction of Starting Point
   |
   | Switch arc editing mode to keep endpoints, or to keep direction of the other point
+| Chamfer Corner
+  |
+  | Chamfer corner
 | Remove Corner
   |
   | Remove corner
 | Position Relative To…
   | kbd:[Shift+P]
   | Positions the selected item(s) by an exact amount relative to another
+| Position Interactively...
+  |
+  | Positions the selected item(s) by an exact amount relative to another, interactively
 | Geographical Reannotate...
   |
   | Reannotate PCB in geographical order
-| Refresh Plugins
-  |
-  | Reload all python plugins and refresh plugin menus
 | Open Plugin Directory
   |
   | Opens the directory in the default system file manager
+| Edit Table...
+  | kbd:[Ctrl+E]
+  | 
 | Draft Fill Selected Zone(s)
   |
   | Update copper fill of selected zone(s) without regard to other interacting zones
@@ -881,7 +920,7 @@ of these actions in the **Hotkeys** section of the preferences.
   | Flip the board view
 | Home View
   | kbd:[Home]
-  | Home view
+  | Redraw at the home position and zoom
 | Render CAD Colors
   |
   | Use a CAD color style based on the diffuse color of the material
@@ -893,55 +932,55 @@ of these actions in the **Hotkeys** section of the preferences.
   | Use all material properties from each 3D model file
 | Move Board Down
   | kbd:[Down]
-  | Move board Down
+  | 
 | Move Board Left
   | kbd:[Left]
-  | Move board Left
+  | 
 | Move Board Right
   | kbd:[Right]
-  | Move board Right
+  | 
 | Move Board Up
   | kbd:[Up]
-  | Move board Up
+  | 
 | No 3D Grid
   |
-  | No 3D Grid
+  | 
 | Set Pivot
   | kbd:[Space]
   | Place point around which the board will be rotated (middle mouse click)
 | Rotate X Clockwise
   |
-  | Rotate X Clockwise
+  | 
 | Rotate X Counterclockwise
   |
-  | Rotate X Counterclockwise
+  | 
 | Rotate Y Clockwise
   |
-  | Rotate Y Clockwise
+  | 
 | Rotate Y Counterclockwise
   |
-  | Rotate Y Counterclockwise
+  | 
 | Rotate Z Clockwise
   |
-  | Rotate Z Clockwise
+  | 
 | Rotate Z Counterclockwise
   |
-  | Rotate Z Counterclockwise
+  | 
 | 3D Grid 10mm
   |
-  | 3D Grid 10mm
+  | 
 | 3D Grid 1mm
   |
-  | 3D Grid 1mm
+  | 
 | 3D Grid 2.5mm
   |
-  | 3D Grid 2.5mm
+  | 
 | 3D Grid 5mm
   |
-  | 3D Grid 5mm
+  | 
 | Show 3D Axis
   |
-  | Show 3D Axis
+  | 
 | Show Model Bounding Boxes
   |
   | Show 3D model bounding boxes in realtime renderer
@@ -953,22 +992,22 @@ of these actions in the **Hotkeys** section of the preferences.
   | Enable/disable orthographic projection
 | View Back
   | kbd:[Shift+Y]
-  | View Back
+  | 
 | View Bottom
   | kbd:[Shift+Z]
-  | View Bottom
+  | 
 | View Front
   | kbd:[Y]
-  | View Front
+  | 
 | View Left
   | kbd:[Shift+X]
-  | View Left
+  | 
 | View Right
   | kbd:[X]
-  | View Right
+  | 
 | View Top
   | kbd:[Z]
-  | View Top
+  | 
 |===
 
 === Common
@@ -983,18 +1022,30 @@ preferences.
 [width="100%",options="header",cols="20%,15%,65%"]
 |===
 | Action | Default Hotkey | Description
+| Refresh Plugins
+  |
+  | Reload all python plugins and refresh plugin menus
 | Exclude Marker
   |
   | Mark current violation in Checker window as an exclusion
 | Next Marker
   |
-  | Go to next marker in Checker window
+  | 
 | Previous Marker
   |
-  | Go to previous marker in Checker window
+  | 
 | Add Library…
   |
   | Add an existing library folder
+| Center Justify
+  |
+  | Center-justify fields and text items
+| Pan to Center Selected Objects
+  |
+  | 
+| Collapse All
+  |
+  | 
 | Click
   | kbd:[Return]
   | Performs left mouse button click
@@ -1031,6 +1082,9 @@ preferences.
 | Edit Grids...
   |
   | Edit grid definitions
+| Expand All
+  |
+  | 
 | Switch to Fast Grid 1
   | kbd:[Alt+1]
   | 
@@ -1052,6 +1106,9 @@ preferences.
 | Grid Origin
   |
   | Place the grid origin point
+| Hide Library Tree
+  |
+  | 
 | Inactive Layer View Mode
   |
   | Toggle inactive layers between normal and dimmed
@@ -1060,7 +1117,13 @@ preferences.
   | Cycle inactive layers between normal, dimmed, and hidden
 | Inches
   |
-  | Use inches
+  | 
+| Left Justify
+  |
+  | Left-justify fields and text items
+| Focus Library Tree Search Field
+  | kbd:[Ctrl+L]
+  | 
 | Snap to Objects on the Active Layer Only
   |
   | Enables snapping to objects on the active layer only
@@ -1072,10 +1135,10 @@ preferences.
   | Toggles between snapping on all visible layers and only the active area
 | Millimeters
   |
-  | Use millimeters
+  | 
 | Mils
   |
-  | Use mils
+  | 
 | New...
   | kbd:[Ctrl+N]
   | Create a new document in the editor
@@ -1085,6 +1148,12 @@ preferences.
 | Open...
   | kbd:[Ctrl+O]
   | Open existing document
+| Open in file explorer...
+  |
+  | Open a library file with system file explorer
+| Edit in a Text Editor...
+  |
+  | Open a library file with a text editor
 | Page Settings...
   |
   | Settings for paper size and title block info
@@ -1105,10 +1174,10 @@ preferences.
   | Keep the library at the top of the list
 | Plot...
   |
-  | Plot
+  | 
 | Print...
   | kbd:[Ctrl+P]
-  | Print
+  | 
 | Quit
   |
   | Close the current editor
@@ -1121,6 +1190,9 @@ preferences.
 | Revert
   |
   | Throw away changes
+| Right Justify
+  |
+  | Right-justify fields and text items
 | Save
   | kbd:[Ctrl+S]
   | Save changes
@@ -1142,30 +1214,36 @@ preferences.
 | Show Context Menu
   |
   | Perform the right-mouse-button action
+| Show Datasheet
+  | kbd:[D]
+  | Open the datasheet in a browser
 | Footprint Library Browser
   |
-  | Browse footprint libraries
+  | 
 | Footprint Editor
   |
-  | Create, delete and edit footprints
+  | Create, delete and edit board footprints
+| Library Tree
+  |
+  | 
 | Switch to Project Manager
   |
   | Show project window
-| Show Properties Manager
+| Properties
   |
   | Show/hide the properties manager
 | Symbol Library Browser
   |
-  | Browse symbol libraries
+  | 
 | Symbol Editor
   |
-  | Create, delete and edit symbols
+  | Create, delete and edit schematic symbols
 | Draw Bounding Boxes
   |
-  | Draw Bounding Boxes
-| Always Show Cursor
+  | 
+| Always Show Crosshairs
   | kbd:[Ctrl+Shift+X]
-  | Display crosshairs even in selection tool
+  | Display crosshairs even when not drawing objects
 | Full-Window Crosshairs
   |
   | Switch display of full-window crosshairs
@@ -1195,37 +1273,64 @@ preferences.
   | Update schematic with changes made to PCB
 | Center on Cursor
   | kbd:[F4]
-  | Center on Cursor
+  | 
 | Zoom to Objects
   | kbd:[Ctrl+Home]
-  | Zoom to Objects
+  | 
 | Zoom to Fit
   | kbd:[Home]
-  | Zoom to Fit
+  | 
+| Zoom to Selected Objects
+  |
+  | 
 | Zoom In at Cursor
   | kbd:[F1]
-  | Zoom In at Cursor
+  | 
 | Zoom In
   |
-  | Zoom In
+  | 
+| Zoom In Horizontally
+  |
+  | Zoom in horizontally the plot area
+| Zoom In Vertically
+  |
+  | Zoom in vertically the plot area
 | Zoom Out at Cursor
   | kbd:[F2]
-  | Zoom Out at Cursor
+  | 
 | Zoom Out
   |
-  | Zoom Out
+  | 
+| Zoom Out Horizontally
+  |
+  | Zoom out horizontally the plot area
+| Zoom Out Vertically
+  |
+  | Zoom out vertically the plot area
 | Refresh
   | kbd:[F5]
-  | Refresh
+  | 
 | Zoom to Selection
   | kbd:[Ctrl+F5]
-  | Zoom to Selection
+  | 
+| Embedded Files
+  |
+  | Manage embedded files
+| Extract File
+  |
+  | Extract an embedded file
+| Remove File
+  |
+  | Remove an embedded file
 | Cancel
   |
   | Cancel current tool
 | Copy
   | kbd:[Ctrl+C]
   | Copy selected item(s) to clipboard
+| Copy as Text
+  | kbd:[Ctrl+Shift+C]
+  | Copy selected item(s) to clipboard as text
 | Cut
   | kbd:[Ctrl+X]
   | Cut selected item(s) to clipboard
@@ -1234,7 +1339,7 @@ preferences.
   | Switch to a different method of editing arcs
 | Delete
   | kbd:[Del]
-  | Deletes selected item(s)
+  | Delete selected item(s)
 | Interactive Delete Tool
   |
   | Delete clicked items
@@ -1243,38 +1348,41 @@ preferences.
   | Duplicates the selected item(s)
 | Find
   | kbd:[Ctrl+F]
-  | Find text
+  | 
 | Find and Replace
   | kbd:[Ctrl+Alt+F]
-  | Find and replace text
+  | 
 | Find Next
   | kbd:[F3]
-  | Find next match
+  | 
 | Find Next Marker
   | kbd:[Ctrl+Shift+F3]
   | 
 | Find Previous
   | kbd:[Shift+F3]
-  | Find previous match
+  | 
 | Finish
   | kbd:[End]
   | Finish current tool
+| Measure Tool
+  | kbd:[Ctrl+Shift+M]
+  | Interactively measure distance between points
 | Paste
   | kbd:[Ctrl+V]
   | Paste item(s) from clipboard
 | Paste Special...
   |
-  | Paste item(s) from clipboard with annotation options
+  | Paste item(s) from clipboard with options
 | Redo
   | kbd:[Ctrl+Y]
-  | Redo last edit
+  | 
 | Replace All
   |
-  | Replace all matches
+  | 
 | Replace and Find Next
   |
-  | Replace current match and find next
-| Show Search Panel
+  | 
+| Search
   | kbd:[Ctrl+G]
   | Show/hide the search panel
 | Select All
@@ -1282,19 +1390,25 @@ preferences.
   | Select all items on screen
 | Undo
   | kbd:[Ctrl+Z]
-  | Undo last edit
+  | 
 | Unselect All
   | kbd:[Ctrl+Shift+A]
   | Unselect all items on screen
-| Measure Tool
-  | kbd:[Ctrl+Shift+M]
-  | Interactively measure distance between points
+| Select Row(s)
+  |
+  | Select complete row(s) containing the current selected cell(s)
+| Select Column(s)
+  |
+  | Select complete column(s) containing the current selected cell(s)
+| Select Table
+  |
+  | Select parent table of selected cell(s)
 | Select item(s)
   |
-  | Select item(s)
+  | 
 | About KiCad
   |
-  | Open about dialog
+  | 
 | Configure Paths…
   |
   | Edit path configuration environment variables
@@ -1319,10 +1433,37 @@ preferences.
 | Report Bug
   |
   | Report a problem with KiCad
+| Manage Design Block Libraries...
+  |
+  | Edit the global and project design block library lists
 | Manage Footprint Libraries...
   |
   | Edit the global and project footprint library lists
 | Manage Symbol Libraries…
   |
   | Edit the global and project symbol library lists
+| Add Column After
+  |
+  | Insert a new table column after the selected cell(s)
+| Add Column Before
+  |
+  | Insert a new table column before the selected cell(s)
+| Add Row Above
+  |
+  | Insert a new table row above the selected cell(s)
+| Add Row Below
+  |
+  | Insert a new table row below the selected cell(s)
+| Delete Column(s)
+  |
+  | Delete columns containing the currently selected cell(s)
+| Delete Row(s)
+  |
+  | Delete rows containing the currently selected cell(s)
+| Merge Cells
+  |
+  | Turn selected table cells into a single cell
+| Unmerge Cells
+  |
+  | Turn merged table cells back into separate cells.
 |===

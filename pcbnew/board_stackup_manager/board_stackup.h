@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2009-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +29,8 @@
 #include <vector>
 #include <wx/string.h>
 #include <layer_ids.h>
+#include <lset.h>
+#include <api/serializable.h>
 
 class BOARD;
 class BOARD_DESIGN_SETTINGS;
@@ -213,7 +215,7 @@ private:
  * @note There are a few other parameters related to the physical stackup like finish type,
  *       impedance control and a few others.
  */
-class BOARD_STACKUP
+class BOARD_STACKUP : public SERIALIZABLE
 {
 public:
     BOARD_STACKUP();
@@ -224,6 +226,10 @@ public:
     bool operator!=( const BOARD_STACKUP& aOther ) const { return !operator==( aOther ); }
 
     ~BOARD_STACKUP() { RemoveAll(); }
+
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     const std::vector<BOARD_STACKUP_ITEM*>& GetList() const { return m_list; }
 
@@ -236,7 +242,7 @@ public:
      */
     static LSET StackupAllowedBrdLayers()
     {
-        return LSET( 6, F_SilkS, F_Mask, F_Paste, B_SilkS, B_Mask, B_Paste )
+        return LSET( { F_SilkS, F_Mask, F_Paste, B_SilkS, B_Mask, B_Paste } )
                | LSET::ExternalCuMask() | LSET::InternalCuMask();
     }
 
@@ -277,10 +283,8 @@ public:
      * Write the stackup info on board file
      * @param aFormatter is the OUTPUTFORMATTER used to create the file
      * @param aBoard is the board
-     * @param aNestLevel is the index to nest level to indent the lines in file
      */
-    void FormatBoardStackup( OUTPUTFORMATTER* aFormatter,
-                             const BOARD* aBoard, int aNestLevel ) const;
+    void FormatBoardStackup( OUTPUTFORMATTER* aFormatter, const BOARD* aBoard ) const;
 
     /**
      * Calculate the distance (height) between the two given copper layers.

@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -23,16 +23,13 @@ DIALOG_PLOT_BASE::DIALOG_PLOT_BASE( wxWindow* parent, wxWindowID id, const wxStr
 
 	m_staticTextPlotFmt = new wxStaticText( this, wxID_ANY, _("Plot format:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticTextPlotFmt->Wrap( -1 );
-	bupperSizer->Add( m_staticTextPlotFmt, 0, wxALIGN_CENTER_VERTICAL|wxTOP|wxBOTTOM|wxLEFT, 5 );
+	bupperSizer->Add( m_staticTextPlotFmt, 0, wxALIGN_CENTER_VERTICAL|wxALL, 5 );
 
 	wxString m_plotFormatOptChoices[] = { _("Gerber"), _("Postscript"), _("SVG"), _("DXF"), _("HPGL"), _("PDF") };
 	int m_plotFormatOptNChoices = sizeof( m_plotFormatOptChoices ) / sizeof( wxString );
 	m_plotFormatOpt = new wxChoice( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, m_plotFormatOptNChoices, m_plotFormatOptChoices, 0 );
 	m_plotFormatOpt->SetSelection( 0 );
-	bupperSizer->Add( m_plotFormatOpt, 0, wxALL, 6 );
-
-
-	bupperSizer->Add( 0, 0, 0, wxEXPAND|wxRIGHT|wxLEFT, 10 );
+	bupperSizer->Add( m_plotFormatOpt, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT, 28 );
 
 	m_staticTextDir = new wxStaticText( this, wxID_ANY, _("Output directory:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticTextDir->Wrap( -1 );
@@ -44,7 +41,15 @@ DIALOG_PLOT_BASE::DIALOG_PLOT_BASE( wxWindow* parent, wxWindowID id, const wxStr
 	bupperSizer->Add( m_outputDirectoryName, 1, wxEXPAND|wxTOP|wxBOTTOM, 5 );
 
 	m_browseButton = new STD_BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( -1,-1 ), wxBU_AUTODRAW|0 );
-	bupperSizer->Add( m_browseButton, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT, 5 );
+	bupperSizer->Add( m_browseButton, 0, wxALIGN_CENTER_VERTICAL, 5 );
+
+	m_openDirButton = new STD_BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( -1,-1 ), wxBU_AUTODRAW|0 );
+	m_openDirButton->SetToolTip( _("Open output directory") );
+
+	bupperSizer->Add( m_openDirButton, 0, wxALIGN_CENTER_VERTICAL|wxLEFT, 5 );
+
+
+	bupperSizer->Add( 0, 0, 0, wxEXPAND|wxRIGHT, 5 );
 
 
 	m_MainSizer->Add( bupperSizer, 0, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 5 );
@@ -77,35 +82,34 @@ DIALOG_PLOT_BASE::DIALOG_PLOT_BASE( wxWindow* parent, wxWindowID id, const wxStr
 
 	gbSizer1->Add( m_plotSheetRef, wxGBPosition( 0, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_plotFootprintValues = new wxCheckBox( sbOptionsSizer->GetStaticBox(), wxID_ANY, _("Plot footprint values"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_plotFootprintValues->SetValue(true);
-	gbSizer1->Add( m_plotFootprintValues, wxGBPosition( 1, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
+	m_plotDNP = new wxCheckBox( sbOptionsSizer->GetStaticBox(), wxID_ANY, _("Indicate DNP on fabrication layers"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_plotDNP->SetToolTip( _("Hide or cross-out DNP footprints on fabrication layers") );
 
-	m_plotFootprintRefs = new wxCheckBox( sbOptionsSizer->GetStaticBox(), ID_PRINT_REF, _("Plot reference designators"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_plotFootprintRefs->SetValue(true);
-	gbSizer1->Add( m_plotFootprintRefs, wxGBPosition( 2, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
+	gbSizer1->Add( m_plotDNP, wxGBPosition( 2, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_plotFootprintText = new wxCheckBox( sbOptionsSizer->GetStaticBox(), wxID_ANY, _("Plot footprint text"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_plotFootprintText->SetValue(true);
-	gbSizer1->Add( m_plotFootprintText, wxGBPosition( 3, 0 ), wxGBSpan( 1, 1 ), 0, 5 );
+	m_hideDNP = new wxRadioButton( sbOptionsSizer->GetStaticBox(), wxID_ANY, _("Hide"), wxDefaultPosition, wxDefaultSize, wxRB_GROUP );
+	m_hideDNP->SetToolTip( _("Hide the footprint text and graphics") );
+
+	gbSizer1->Add( m_hideDNP, wxGBPosition( 3, 0 ), wxGBSpan( 1, 1 ), wxLEFT, 25 );
+
+	m_crossoutDNP = new wxRadioButton( sbOptionsSizer->GetStaticBox(), wxID_ANY, _("Cross-out"), wxDefaultPosition, wxDefaultSize, 0 );
+	gbSizer1->Add( m_crossoutDNP, wxGBPosition( 4, 0 ), wxGBSpan( 1, 1 ), wxLEFT, 25 );
 
 	m_plotInvisibleText = new wxCheckBox( sbOptionsSizer->GetStaticBox(), wxID_ANY, _("Force plotting of invisible values / refs"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_plotInvisibleText->SetToolTip( _("Force plot invisible footprint values and reference designators") );
 
-	gbSizer1->Add( m_plotInvisibleText, wxGBPosition( 4, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
+	gbSizer1->Add( m_plotInvisibleText, wxGBPosition( 1, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
 
 	m_sketchPadsOnFabLayers = new wxCheckBox( sbOptionsSizer->GetStaticBox(), ID_ALLOW_PRINT_PAD_ON_SILKSCREEN, _("Sketch pads on fabrication layers"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_sketchPadsOnFabLayers->SetToolTip( _("Include pad outlines on F.Fab and B.Fab layers when plotting") );
 
 	gbSizer1->Add( m_sketchPadsOnFabLayers, wxGBPosition( 5, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
 
+	m_plotPadNumbers = new wxCheckBox( sbOptionsSizer->GetStaticBox(), wxID_ANY, _("Include pad numbers"), wxDefaultPosition, wxDefaultSize, 0 );
+	gbSizer1->Add( m_plotPadNumbers, wxGBPosition( 6, 0 ), wxGBSpan( 1, 1 ), wxLEFT, 25 );
+
 	m_zoneFillCheck = new wxCheckBox( sbOptionsSizer->GetStaticBox(), wxID_ANY, _("Check zone fills before plotting"), wxDefaultPosition, wxDefaultSize, 0 );
-	gbSizer1->Add( m_zoneFillCheck, wxGBPosition( 6, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxRIGHT, 5 );
-
-	m_tentVias = new wxCheckBox( sbOptionsSizer->GetStaticBox(), wxID_ANY, _("Tent vias"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_tentVias->SetToolTip( _("Tented vias: not plotted on soldermask layer\nNot tented: vias are plotted on soldermask layer\n(Solder mask is a negative layer)") );
-
-	gbSizer1->Add( m_tentVias, wxGBPosition( 6, 1 ), wxGBSpan( 1, 2 ), wxALIGN_CENTER_VERTICAL|wxLEFT, 30 );
+	gbSizer1->Add( m_zoneFillCheck, wxGBPosition( 6, 1 ), wxGBSpan( 1, 2 ), wxALIGN_CENTER_VERTICAL|wxLEFT, 30 );
 
 	drillMarksLabel = new wxStaticText( sbOptionsSizer->GetStaticBox(), wxID_ANY, _("Drill marks:"), wxDefaultPosition, wxDefaultSize, 0 );
 	drillMarksLabel->Wrap( -1 );
@@ -156,7 +160,7 @@ DIALOG_PLOT_BASE::DIALOG_PLOT_BASE( wxWindow* parent, wxWindowID id, const wxStr
 
 	m_SizerSolderMaskAlert = new wxBoxSizer( wxHORIZONTAL );
 
-	m_bitmapAlert = new wxStaticBitmap( this, wxID_ANY, wxArtProvider::GetBitmap( wxART_WARNING, wxART_CMN_DIALOG ), wxDefaultPosition, wxDefaultSize, 0 );
+	m_bitmapAlert = new wxStaticBitmap( this, wxID_ANY, wxArtProvider::GetBitmap( wxASCII_STR(wxART_WARNING), wxASCII_STR(wxART_CMN_DIALOG) ), wxDefaultPosition, wxDefaultSize, 0 );
 	m_SizerSolderMaskAlert->Add( m_bitmapAlert, 0, wxEXPAND|wxTOP|wxBOTTOM|wxRIGHT, 5 );
 
 	wxBoxSizer* bSizerWarningText;
@@ -413,6 +417,14 @@ DIALOG_PLOT_BASE::DIALOG_PLOT_BASE( wxWindow* parent, wxWindowID id, const wxStr
 	m_backFPPropertyPopups = new wxCheckBox( m_PDFOptionsSizer->GetStaticBox(), wxID_ANY, _("Generate property popups for back footprints"), wxDefaultPosition, wxDefaultSize, 0 );
 	gbSizer4->Add( m_backFPPropertyPopups, wxGBPosition( 2, 0 ), wxGBSpan( 1, 2 ), wxRIGHT|wxLEFT, 5 );
 
+	m_pdfMetadata = new wxCheckBox( m_PDFOptionsSizer->GetStaticBox(), wxID_ANY, _("Generate metadata from AUTHOR && SUBJECT variables"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_pdfMetadata->SetToolTip( _("Generate PDF document properties from AUTHOR and SUBJECT text variables") );
+
+	gbSizer4->Add( m_pdfMetadata, wxGBPosition( 3, 0 ), wxGBSpan( 1, 2 ), wxLEFT|wxRIGHT, 5 );
+
+	m_pdfSingle = new wxCheckBox( m_PDFOptionsSizer->GetStaticBox(), wxID_ANY, _("Single document"), wxDefaultPosition, wxDefaultSize, 0 );
+	gbSizer4->Add( m_pdfSingle, wxGBPosition( 4, 0 ), wxGBSpan( 1, 2 ), wxBOTTOM|wxLEFT|wxRIGHT, 5 );
+
 
 	m_PDFOptionsSizer->Add( gbSizer4, 1, wxEXPAND|wxBOTTOM, 5 );
 
@@ -469,10 +481,10 @@ DIALOG_PLOT_BASE::DIALOG_PLOT_BASE( wxWindow* parent, wxWindowID id, const wxStr
 	// Connect Events
 	this->Connect( wxEVT_INIT_DIALOG, wxInitDialogEventHandler( DIALOG_PLOT_BASE::OnInitDialog ) );
 	m_plotFormatOpt->Connect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( DIALOG_PLOT_BASE::SetPlotFormat ), NULL, this );
-	m_browseButton->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::OnOutputDirectoryBrowseClicked ), NULL, this );
-	m_plotFootprintValues->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::onPlotFPValues ), NULL, this );
-	m_plotFootprintRefs->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::onPlotFPRefs ), NULL, this );
-	m_plotFootprintText->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::onPlotFPText ), NULL, this );
+	m_browseButton->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::onOutputDirectoryBrowseClicked ), NULL, this );
+	m_openDirButton->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::onOpenOutputDirectory ), NULL, this );
+	m_plotDNP->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::onDNPCheckbox ), NULL, this );
+	m_sketchPadsOnFabLayers->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::onSketchPads ), NULL, this );
 	m_scaleOpt->Connect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( DIALOG_PLOT_BASE::OnSetScaleOpt ), NULL, this );
 	m_boardSetup->Connect( wxEVT_COMMAND_HYPERLINK, wxHyperlinkEventHandler( DIALOG_PLOT_BASE::onBoardSetup ), NULL, this );
 	m_useGerberX2Format->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::OnGerberX2Checked ), NULL, this );
@@ -487,10 +499,10 @@ DIALOG_PLOT_BASE::~DIALOG_PLOT_BASE()
 	// Disconnect Events
 	this->Disconnect( wxEVT_INIT_DIALOG, wxInitDialogEventHandler( DIALOG_PLOT_BASE::OnInitDialog ) );
 	m_plotFormatOpt->Disconnect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( DIALOG_PLOT_BASE::SetPlotFormat ), NULL, this );
-	m_browseButton->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::OnOutputDirectoryBrowseClicked ), NULL, this );
-	m_plotFootprintValues->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::onPlotFPValues ), NULL, this );
-	m_plotFootprintRefs->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::onPlotFPRefs ), NULL, this );
-	m_plotFootprintText->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::onPlotFPText ), NULL, this );
+	m_browseButton->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::onOutputDirectoryBrowseClicked ), NULL, this );
+	m_openDirButton->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::onOpenOutputDirectory ), NULL, this );
+	m_plotDNP->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::onDNPCheckbox ), NULL, this );
+	m_sketchPadsOnFabLayers->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::onSketchPads ), NULL, this );
 	m_scaleOpt->Disconnect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( DIALOG_PLOT_BASE::OnSetScaleOpt ), NULL, this );
 	m_boardSetup->Disconnect( wxEVT_COMMAND_HYPERLINK, wxHyperlinkEventHandler( DIALOG_PLOT_BASE::onBoardSetup ), NULL, this );
 	m_useGerberX2Format->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_PLOT_BASE::OnGerberX2Checked ), NULL, this );

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,19 +22,17 @@
 #define _DIALOG_PLUGIN_OPTIONS_H_
 
 #include <dialog_plugin_options_base.h>
-#include <string_utf8_map.h>
+#include <core/utf8.h>
 
 /**
- * DIALOG_PLUGIN_OPTIONS
- * is an options editor in the form of a two column name/value
- * spreadsheet like (table) UI.
+ * An options editor in the form of a two column name/value spreadsheet like (table) UI.
  */
 class DIALOG_PLUGIN_OPTIONS : public DIALOG_PLUGIN_OPTIONS_BASE
 {
 public:
     DIALOG_PLUGIN_OPTIONS( wxWindow* aParent, const wxString& aNickname,
-                           const STRING_UTF8_MAP& aPluginOptions, const wxString& aFormattedOptions,
-                           wxString* aResult );
+                           const std::map<std::string, UTF8>& aPluginOptions,
+                           const wxString& aFormattedOptions, wxString* aResult );
 
     ~DIALOG_PLUGIN_OPTIONS() override;
 
@@ -45,7 +43,7 @@ public:
 private:
     const wxString& m_callers_options;
     wxString*       m_result;
-    STRING_UTF8_MAP m_choices;
+    std::map<std::string, UTF8> m_choices;
     wxString        m_initial_help;
     bool            m_grid_widths_dirty;
 

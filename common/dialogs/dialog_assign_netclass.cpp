@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,6 +26,7 @@
 #include <project.h>
 #include <project/project_file.h>
 #include <project/net_settings.h>
+#include <eda_base_frame.h>
 
 
 DIALOG_ASSIGN_NETCLASS::DIALOG_ASSIGN_NETCLASS( EDA_BASE_FRAME* aParent, const wxString aNetName,
@@ -40,7 +41,7 @@ DIALOG_ASSIGN_NETCLASS::DIALOG_ASSIGN_NETCLASS( EDA_BASE_FRAME* aParent, const w
 
     m_netclassCtrl->Append( NETCLASS::Default );
 
-    for( const auto& [ name, netclass ] : netSettings->m_NetClasses )
+    for( const auto& [name, netclass] : netSettings->GetNetclasses() )
         m_netclassCtrl->Append( name );
 
     if( m_netclassCtrl->GetCount() > 1 )
@@ -52,8 +53,10 @@ DIALOG_ASSIGN_NETCLASS::DIALOG_ASSIGN_NETCLASS( EDA_BASE_FRAME* aParent, const w
     m_matchingNets->SetFont( KIUI::GetInfoFont( this ) );
     m_info->SetFont( KIUI::GetInfoFont( this ).Italic() );
 
+    // @translate the string below.
     if( aParent->GetFrameType() == FRAME_PCB_EDITOR )
-        m_info->SetLabel( wxT( "Note: complete netclass assignments can be edited in Board Setup > Project." ) );
+        m_info->SetLabel( wxT( "Note: complete netclass assignments can be edited in Board "
+                               "Setup > Project." ) );
 
     SetupStandardButtons();
 
@@ -68,25 +71,8 @@ bool DIALOG_ASSIGN_NETCLASS::TransferDataFromWindow()
     if( m_patternCtrl->GetValue().IsEmpty() )
         return true;
 
-    // TODO: Rework when we support multiple netclass assignments
-    // Replace existing assignment if we have one
-    for( auto& assignment : netSettings->m_NetClassPatternAssignments )
-    {
-        if( assignment.first->GetPattern() == m_patternCtrl->GetValue() )
-        {
-            assignment.second = m_netclassCtrl->GetStringSelection();
-            return true;
-        }
-    }
-
-    // No assignment, add a new one
-    netSettings->m_NetClassPatternAssignments.push_back(
-            {
-                std::make_unique<EDA_COMBINED_MATCHER>( m_patternCtrl->GetValue(), CTX_NETCLASS ),
-                m_netclassCtrl->GetStringSelection()
-            } );
-
-    netSettings->m_NetClassPatternAssignmentCache.clear();
+    netSettings->SetNetclassPatternAssignment( m_patternCtrl->GetValue(),
+                                               m_netclassCtrl->GetStringSelection() );
 
     return true;
 }

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -112,7 +112,6 @@ void VIEW_GROUP::ViewDraw( int aLayer, VIEW* aView ) const
     bool        isSelection = m_layer == LAYER_SELECT_OVERLAY;
 
     const std::vector<VIEW_ITEM*> drawList = updateDrawList();
-    constexpr double              HIDE = std::numeric_limits<double>::max();
 
     std::map<int, std::vector<VIEW_ITEM*>> layer_item_map;
 
@@ -122,51 +121,62 @@ void VIEW_GROUP::ViewDraw( int aLayer, VIEW* aView ) const
         if( aView->IsHiddenOnOverlay( item ) )
             continue;
 
-        int item_layers[VIEW::VIEW_MAX_LAYERS], item_layers_count;
-        item->ViewGetLayers( item_layers, item_layers_count );
+        std::vector<int> layers = item->ViewGetLayers();
 
-        for( int i = 0; i < item_layers_count; i++ )
+        for( auto layer : layers )
         {
-            wxCHECK2_MSG( item_layers[i] <= LAYER_ID_COUNT, continue, wxT( "Invalid item layer" ) );
-            layer_item_map[ item_layers[i] ].push_back( item );
+            wxCHECK2_MSG( layer <= LAYER_ID_COUNT, continue, wxT( "Invalid item layer" ) );
+            layer_item_map[ layer ].push_back( item );
         }
     }
 
-    int layers[VIEW::VIEW_MAX_LAYERS] = { 0 };
-    int layers_count = 0;
-
-    for( const std::pair<const int, std::vector<VIEW_ITEM*>>& entry : layer_item_map )
-        layers[ layers_count++ ] = entry.first;
-
-    if( layers_count == 0 )
+    if( layer_item_map.empty() )
         return;
 
-    aView->SortLayers( layers, layers_count );
+    std::vector<int> layers;
+    layers.reserve( layer_item_map.size() );
+
+    for( const std::pair<const int, std::vector<VIEW_ITEM*>>& entry : layer_item_map )
+        layers.push_back( entry.first );
+
+    aView->SortLayers( layers );
 
     // Now draw the layers in sorted order
 
-    gal->PushDepth();
+    GAL_SCOPED_ATTRS scopedAttrs( *gal, GAL_SCOPED_ATTRS::LAYER_DEPTH );
 
-    for( int i = 0; i < layers_count; i++ )
+    for( int layer : layers )
     {
-        int  layer = layers[i];
+        bool draw = aView->IsLayerVisible( layer );
 
         if( IsZoneFillLayer( layer ) )
-            layer = layer - LAYER_ZONE_START;
-
-        bool draw = aView->IsLayerVisible( layer );
+        {
+            // The visibility of solid areas must follow the visiblility of the zone layer
+            int zone_main_layer = layer - LAYER_ZONE_START;
+            draw = aView->IsLayerVisible( zone_main_layer );
+        }
+        else if( IsPadCopperLayer( layer ) )
+        {
+            draw = aView->IsLayerVisible( layer - LAYER_PAD_COPPER_START );
+        }
+        else if( IsViaCopperLayer( layer ) )
+        {
+            draw = aView->IsLayerVisible( layer - LAYER_VIA_COPPER_START );
+        }
+        else if( IsClearanceLayer( layer ) )
+        {
+            draw = aView->IsLayerVisible( layer - LAYER_CLEARANCE_START );
+        }
 
         if( isSelection )
         {
             switch( layer )
             {
-            case LAYER_PADS_TH:
             case LAYER_PAD_PLATEDHOLES:
             case LAYER_PAD_HOLEWALLS:
-            case LAYER_PADS_SMD_FR:
-            case LAYER_PADS_SMD_BK:
                 draw = true;
                 break;
+
             default:
                 break;
             }
@@ -176,28 +186,25 @@ void VIEW_GROUP::ViewDraw( int aLayer, VIEW* aView ) const
         {
             gal->AdvanceDepth();
 
-            for( VIEW_ITEM* item : layer_item_map[ layers[i] ] )
+            for( VIEW_ITEM* item : layer_item_map[ layer ] )
             {
                 // Ignore LOD scale for selected items, but don't ignore things explicitly
                 // hidden.
-                if( item->ViewGetLOD( layer, aView ) == HIDE )
+                if( item->ViewGetLOD( layer, aView ) == LOD_HIDE )
                     continue;
 
-                if( !painter->Draw( item, layers[i] ) )
-                    item->ViewDraw( layers[i], aView ); // Alternative drawing method
+                if( !painter->Draw( item, layer ) )
+                    item->ViewDraw( layer, aView ); // Alternative drawing method
             }
         }
     }
-
-    gal->PopDepth();
 }
 
 
-void VIEW_GROUP::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> VIEW_GROUP::ViewGetLayers() const
 {
     // Everything is displayed on a single layer
-    aLayers[0] = m_layer;
-    aCount = 1;
+    return { m_layer };
 }
 
 

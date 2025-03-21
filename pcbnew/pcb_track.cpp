@@ -4,7 +4,7 @@
  * Copyright (C) 2012 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,18 +24,22 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "pcb_track.h"
+
 #include <pcb_base_frame.h>
 #include <core/mirror.h>
 #include <connectivity/connectivity_data.h>
 #include <board.h>
 #include <board_design_settings.h>
 #include <convert_basic_shapes_to_polygon.h>
-#include <pcb_track.h>
 #include <base_units.h>
+#include <layer_range.h>
+#include <lset.h>
 #include <string_utils.h>
 #include <view/view.h>
 #include <settings/color_settings.h>
 #include <settings/settings_manager.h>
+#include <geometry/geometry_utils.h>
 #include <geometry/seg.h>
 #include <geometry/shape_segment.h>
 #include <geometry/shape_circle.h>
@@ -44,13 +48,20 @@
 #include <pcb_painter.h>
 #include <trigo.h>
 
+#include <google/protobuf/any.pb.h>
+#include <api/api_enums.h>
+#include <api/api_utils.h>
+#include <api/api_pcb_utils.h>
+#include <api/board/board_types.pb.h>
+
 using KIGFX::PCB_PAINTER;
 using KIGFX::PCB_RENDER_SETTINGS;
 
 PCB_TRACK::PCB_TRACK( BOARD_ITEM* aParent, KICAD_T idtype ) :
     BOARD_CONNECTED_ITEM( aParent, idtype )
 {
-    m_Width = pcbIUScale.mmToIU( 0.2 );     // Gives a reasonable default width
+    m_width = pcbIUScale.mmToIU( 0.2 );     // Gives a reasonable default width
+    m_hasSolderMask = false;
 }
 
 
@@ -76,23 +87,32 @@ EDA_ITEM* PCB_ARC::Clone() const
 
 
 PCB_VIA::PCB_VIA( BOARD_ITEM* aParent ) :
-        PCB_TRACK( aParent, PCB_VIA_T )
+        PCB_TRACK( aParent, PCB_VIA_T ),
+        m_padStack( this )
 {
     SetViaType( VIATYPE::THROUGH );
-    m_bottomLayer = B_Cu;
+    Padstack().Drill().start = F_Cu;
+    Padstack().Drill().end = B_Cu;
     SetDrillDefault();
 
-    m_removeUnconnectedLayer = false;
-    m_keepStartEndLayer = true;
+    m_padStack.SetUnconnectedLayerMode( PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL );
 
-    m_zoneLayerOverrides.fill( ZLO_NONE );
+    // Padstack layerset is not used for vias right now
+    m_padStack.LayerSet().reset();
+
+    // For now, vias are always circles
+    m_padStack.SetShape( PAD_SHAPE::CIRCLE, PADSTACK::ALL_LAYERS );
+
+    for( PCB_LAYER_ID layer : LAYER_RANGE( F_Cu, B_Cu, BoardCopperLayerCount() ) )
+        m_zoneLayerOverrides[layer] = ZLO_NONE;
 
     m_isFree = false;
 }
 
 
 PCB_VIA::PCB_VIA( const PCB_VIA& aOther ) :
-        PCB_TRACK( aOther.GetParent(), PCB_VIA_T )
+        PCB_TRACK( aOther.GetParent(), PCB_VIA_T ),
+        m_padStack( this )
 {
     PCB_VIA::operator=( aOther );
 
@@ -105,15 +125,11 @@ PCB_VIA& PCB_VIA::operator=( const PCB_VIA &aOther )
 {
     BOARD_CONNECTED_ITEM::operator=( aOther );
 
-    m_Width = aOther.m_Width;
     m_Start = aOther.m_Start;
     m_End = aOther.m_End;
 
-    m_bottomLayer = aOther.m_bottomLayer;
     m_viaType = aOther.m_viaType;
-    m_drill = aOther.m_drill;
-    m_removeUnconnectedLayer = aOther.m_removeUnconnectedLayer;
-    m_keepStartEndLayer = aOther.m_keepStartEndLayer;
+    m_padStack = aOther.m_padStack;
     m_isFree = aOther.m_isFree;
 
     return *this;
@@ -126,7 +142,7 @@ EDA_ITEM* PCB_VIA::Clone() const
 }
 
 
-wxString PCB_VIA::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString PCB_VIA::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     wxString formatStr;
 
@@ -147,15 +163,25 @@ BITMAPS PCB_VIA::GetMenuImage() const
 }
 
 
-bool PCB_TRACK::operator==( const BOARD_ITEM& aOther ) const
+bool PCB_TRACK::operator==( const BOARD_ITEM& aBoardItem ) const
 {
-    if( aOther.Type() != Type() )
+    if( aBoardItem.Type() != Type() )
         return false;
 
-    const PCB_TRACK& other = static_cast<const PCB_TRACK&>( aOther );
+    const PCB_TRACK& other = static_cast<const PCB_TRACK&>( aBoardItem );
 
-    return m_Start == other.m_Start && m_End == other.m_End && m_layer == other.m_layer &&
-           m_Width == other.m_Width;
+    return *this == other;
+}
+
+
+bool PCB_TRACK::operator==( const PCB_TRACK& aOther ) const
+{
+    return m_Start == aOther.m_Start
+            && m_End == aOther.m_End
+            && m_layer == aOther.m_layer
+            && m_width == aOther.m_width
+            && m_hasSolderMask == aOther.m_hasSolderMask
+            && m_solderMaskMargin == aOther.m_solderMaskMargin;
 }
 
 
@@ -171,7 +197,7 @@ double PCB_TRACK::Similarity( const BOARD_ITEM& aOther ) const
     if( m_layer != other.m_layer )
         similarity *= 0.9;
 
-    if( m_Width != other.m_Width )
+    if( m_width != other.m_width )
         similarity *= 0.9;
 
     if( m_Start != other.m_Start )
@@ -180,19 +206,47 @@ double PCB_TRACK::Similarity( const BOARD_ITEM& aOther ) const
     if( m_End != other.m_End )
         similarity *= 0.9;
 
+    if( m_hasSolderMask != other.m_hasSolderMask )
+        similarity *= 0.9;
+
+    if( m_solderMaskMargin != other.m_solderMaskMargin )
+        similarity *= 0.9;
+
     return similarity;
 }
 
 
-bool PCB_ARC::operator==( const BOARD_ITEM& aOther ) const
+bool PCB_ARC::operator==( const BOARD_ITEM& aBoardItem ) const
+{
+    if( aBoardItem.Type() != Type() )
+        return false;
+
+    const PCB_ARC& other = static_cast<const PCB_ARC&>( aBoardItem );
+
+    return *this == other;
+}
+
+
+bool PCB_ARC::operator==( const PCB_TRACK& aOther ) const
 {
     if( aOther.Type() != Type() )
         return false;
 
     const PCB_ARC& other = static_cast<const PCB_ARC&>( aOther );
 
-    return m_Start == other.m_Start && m_End == other.m_End && m_Mid == other.m_Mid &&
-           m_layer == other.m_layer && m_Width == other.m_Width;
+    return *this == other;
+}
+
+
+bool PCB_ARC::operator==( const PCB_ARC& aOther ) const
+{
+    return m_Start == aOther.m_Start
+            && m_End == aOther.m_End
+            && m_Mid == aOther.m_Mid
+            && m_layer == aOther.m_layer
+            && GetWidth() == aOther.GetWidth()
+            && m_hasSolderMask == aOther.m_hasSolderMask
+            && m_solderMaskMargin == aOther.m_solderMaskMargin;
 }
 
 
@@ -208,7 +262,7 @@ double PCB_ARC::Similarity( const BOARD_ITEM& aOther ) const
     if( m_layer != other.m_layer )
         similarity *= 0.9;
 
-    if( m_Width != other.m_Width )
+    if( GetWidth() != other.GetWidth() )
         similarity *= 0.9;
 
     if( m_Start != other.m_Start )
@@ -220,23 +274,46 @@ double PCB_ARC::Similarity( const BOARD_ITEM& aOther ) const
     if( m_Mid != other.m_Mid )
         similarity *= 0.9;
 
+    if( m_hasSolderMask != other.m_hasSolderMask )
+        similarity *= 0.9;
+
+    if( m_solderMaskMargin != other.m_solderMaskMargin )
+        similarity *= 0.9;
+
     return similarity;
 }
 
 
-bool PCB_VIA::operator==( const BOARD_ITEM& aOther ) const
+bool PCB_VIA::operator==( const BOARD_ITEM& aBoardItem ) const
+{
+    if( aBoardItem.Type() != Type() )
+        return false;
+
+    const PCB_VIA& other = static_cast<const PCB_VIA&>( aBoardItem );
+
+    return *this == other;
+}
+
+
+bool PCB_VIA::operator==( const PCB_TRACK& aOther ) const
 {
     if( aOther.Type() != Type() )
         return false;
 
     const PCB_VIA& other = static_cast<const PCB_VIA&>( aOther );
 
-    return m_Start == other.m_Start && m_End == other.m_End && m_layer == other.m_layer &&
-           m_bottomLayer == other.m_bottomLayer && m_Width == other.m_Width &&
-           m_viaType == other.m_viaType && m_drill == other.m_drill &&
-           m_removeUnconnectedLayer == other.m_removeUnconnectedLayer &&
-           m_keepStartEndLayer == other.m_keepStartEndLayer &&
-           m_zoneLayerOverrides == other.m_zoneLayerOverrides;
+    return *this == other;
+}
+
+
+bool PCB_VIA::operator==( const PCB_VIA& aOther ) const
+{
+    return m_Start == aOther.m_Start
+            && m_End == aOther.m_End
+            && m_layer == aOther.m_layer
+            && m_padStack == aOther.m_padStack
+            && m_viaType == aOther.m_viaType
+            && m_zoneLayerOverrides == aOther.m_zoneLayerOverrides;
 }
 
 
@@ -252,28 +329,16 @@ double PCB_VIA::Similarity( const BOARD_ITEM& aOther ) const
     if( m_layer != other.m_layer )
         similarity *= 0.9;
 
-    if( m_Width != other.m_Width )
-        similarity *= 0.9;
-
     if( m_Start != other.m_Start )
         similarity *= 0.9;
 
     if( m_End != other.m_End )
         similarity *= 0.9;
 
-    if( m_bottomLayer != other.m_bottomLayer )
+    if( m_padStack != other.m_padStack )
         similarity *= 0.9;
 
     if( m_viaType != other.m_viaType )
-        similarity *= 0.9;
-
-    if( m_drill != other.m_drill )
-        similarity *= 0.9;
-
-    if( m_removeUnconnectedLayer != other.m_removeUnconnectedLayer )
-        similarity *= 0.9;
-
-    if( m_keepStartEndLayer != other.m_keepStartEndLayer )
         similarity *= 0.9;
 
     if( m_zoneLayerOverrides != other.m_zoneLayerOverrides )
@@ -283,18 +348,180 @@ double PCB_VIA::Similarity( const BOARD_ITEM& aOther ) const
 }
 
 
+void PCB_VIA::SetWidth( int aWidth )
+{
+    // This is present because of the parent class.  It should never be actually called on a via.
+    wxASSERT_MSG( false, "Warning: PCB_VIA::SetWidth called without a layer argument" );
+    m_padStack.SetSize( { aWidth, aWidth }, PADSTACK::ALL_LAYERS );
+}
+
+
+int PCB_VIA::GetWidth() const
+{
+    // This is present because of the parent class.  It should never be actually called on a via.
+    wxASSERT_MSG( false, "Warning: PCB_VIA::GetWidth called without a layer argument" );
+    return m_padStack.Size( PADSTACK::ALL_LAYERS ).x;
+}
+
+
+void PCB_VIA::SetWidth( PCB_LAYER_ID aLayer, int aWidth )
+{
+    m_padStack.SetSize( { aWidth, aWidth }, aLayer );
+}
+
+
+int PCB_VIA::GetWidth( PCB_LAYER_ID aLayer ) const
+{
+    return m_padStack.Size( aLayer ).x;
+}
+
+
+void PCB_TRACK::Serialize( google::protobuf::Any &aContainer ) const
+{
+    kiapi::board::types::Track track;
+
+    track.mutable_id()->set_value( m_Uuid.AsStdString() );
+    track.mutable_start()->set_x_nm( GetStart().x );
+    track.mutable_start()->set_y_nm( GetStart().y );
+    track.mutable_end()->set_x_nm( GetEnd().x );
+    track.mutable_end()->set_y_nm( GetEnd().y );
+    track.mutable_width()->set_value_nm( GetWidth() );
+    track.set_layer( ToProtoEnum<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( GetLayer() ) );
+    track.set_locked( IsLocked() ? kiapi::common::types::LockedState::LS_LOCKED
+                                 : kiapi::common::types::LockedState::LS_UNLOCKED );
+    track.mutable_net()->mutable_code()->set_value( GetNetCode() );
+    track.mutable_net()->set_name( GetNetname() );
+    // TODO m_hasSolderMask and m_solderMaskMargin
+
+    aContainer.PackFrom( track );
+}
+
+
+bool PCB_TRACK::Deserialize( const google::protobuf::Any &aContainer )
+{
+    kiapi::board::types::Track track;
+
+    if( !aContainer.UnpackTo( &track ) )
+        return false;
+
+    const_cast<KIID&>( m_Uuid ) = KIID( track.id().value() );
+    SetStart( VECTOR2I( track.start().x_nm(), track.start().y_nm() ) );
+    SetEnd( VECTOR2I( track.end().x_nm(), track.end().y_nm() ) );
+    SetWidth( track.width().value_nm() );
+    SetLayer( FromProtoEnum<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( track.layer() ) );
+    SetNetCode( track.net().code().value() );
+    SetLocked( track.locked() == kiapi::common::types::LockedState::LS_LOCKED );
+    // TODO m_hasSolderMask and m_solderMaskMargin
+
+    return true;
+}
+
+
+void PCB_ARC::Serialize( google::protobuf::Any &aContainer ) const
+{
+    kiapi::board::types::Arc arc;
+
+    arc.mutable_id()->set_value( m_Uuid.AsStdString() );
+    arc.mutable_start()->set_x_nm( GetStart().x );
+    arc.mutable_start()->set_y_nm( GetStart().y );
+    arc.mutable_mid()->set_x_nm( GetMid().x );
+    arc.mutable_mid()->set_y_nm( GetMid().y );
+    arc.mutable_end()->set_x_nm( GetEnd().x );
+    arc.mutable_end()->set_y_nm( GetEnd().y );
+    arc.mutable_width()->set_value_nm( GetWidth() );
+    arc.set_layer( ToProtoEnum<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( GetLayer() ) );
+    arc.set_locked( IsLocked() ? kiapi::common::types::LockedState::LS_LOCKED
+                               : kiapi::common::types::LockedState::LS_UNLOCKED );
+    arc.mutable_net()->mutable_code()->set_value( GetNetCode() );
+    arc.mutable_net()->set_name( GetNetname() );
+    // TODO m_hasSolderMask and m_solderMaskMargin
+
+    aContainer.PackFrom( arc );
+}
+
+
+bool PCB_ARC::Deserialize( const google::protobuf::Any &aContainer )
+{
+    kiapi::board::types::Arc arc;
+
+    if( !aContainer.UnpackTo( &arc ) )
+        return false;
+
+    const_cast<KIID&>( m_Uuid ) = KIID( arc.id().value() );
+    SetStart( VECTOR2I( arc.start().x_nm(), arc.start().y_nm() ) );
+    SetMid( VECTOR2I( arc.mid().x_nm(), arc.mid().y_nm() ) );
+    SetEnd( VECTOR2I( arc.end().x_nm(), arc.end().y_nm() ) );
+    SetWidth( arc.width().value_nm() );
+    SetLayer( FromProtoEnum<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( arc.layer() ) );
+    SetNetCode( arc.net().code().value() );
+    SetLocked( arc.locked() == kiapi::common::types::LockedState::LS_LOCKED );
+    // TODO m_hasSolderMask and m_solderMaskMargin
+
+    return true;
+}
+
+
+void PCB_VIA::Serialize( google::protobuf::Any &aContainer ) const
+{
+    kiapi::board::types::Via via;
+
+    via.mutable_id()->set_value( m_Uuid.AsStdString() );
+    via.mutable_position()->set_x_nm( GetPosition().x );
+    via.mutable_position()->set_y_nm( GetPosition().y );
+
+    PADSTACK padstack = Padstack();
+
+    google::protobuf::Any padStackWrapper;
+    padstack.Serialize( padStackWrapper );
+    padStackWrapper.UnpackTo( via.mutable_pad_stack() );
+
+    // PADSTACK::m_layerSet is not used by vias
+    via.mutable_pad_stack()->clear_layers();
+    kiapi::board::PackLayerSet( *via.mutable_pad_stack()->mutable_layers(), GetLayerSet() );
+
+    via.set_type( ToProtoEnum<VIATYPE, kiapi::board::types::ViaType>( GetViaType() ) );
+    via.set_locked( IsLocked() ? kiapi::common::types::LockedState::LS_LOCKED
+                               : kiapi::common::types::LockedState::LS_UNLOCKED );
+    via.mutable_net()->mutable_code()->set_value( GetNetCode() );
+    via.mutable_net()->set_name( GetNetname() );
+
+    aContainer.PackFrom( via );
+}
+
+
+bool PCB_VIA::Deserialize( const google::protobuf::Any &aContainer )
+{
+    kiapi::board::types::Via via;
+
+    if( !aContainer.UnpackTo( &via ) )
+        return false;
+
+    const_cast<KIID&>( m_Uuid ) = KIID( via.id().value() );
+    SetStart( VECTOR2I( via.position().x_nm(), via.position().y_nm() ) );
+    SetEnd( GetStart() );
+
+    google::protobuf::Any padStackWrapper;
+    padStackWrapper.PackFrom( via.pad_stack() );
+
+    if( !m_padStack.Deserialize( padStackWrapper ) )
+        return false;
+
+    // PADSTACK::m_layerSet is not used by vias
+    m_padStack.LayerSet().reset();
+
+    SetViaType( FromProtoEnum<VIATYPE>( via.type() ) );
+    SetNetCode( via.net().code().value() );
+    SetLocked( via.locked() == kiapi::common::types::LockedState::LS_LOCKED );
+
+    return true;
+}
+
+
 bool PCB_TRACK::ApproxCollinear( const PCB_TRACK& aTrack )
 {
     SEG a( m_Start, m_End );
     SEG b( aTrack.GetStart(), aTrack.GetEnd() );
     return a.ApproxCollinear( b );
-}
-
-
-int PCB_TRACK::GetLocalClearance( wxString* aSource ) const
-{
-    // Not currently implemented
-    return 0;
 }
 
 
@@ -385,8 +612,8 @@ int PCB_VIA::GetMinAnnulus( PCB_LAYER_ID aLayer, wxString* aSource ) const
 
 int PCB_VIA::GetDrillValue() const
 {
-    if( m_drill > 0 ) // Use the specific value.
-        return m_drill;
+    if( m_padStack.Drill().size.x > 0 ) // Use the specific value.
+        return m_padStack.Drill().size.x;
 
     // Use the default value from the Netclass
     NETCLASS* netclass = GetEffectiveNetClass();
@@ -403,7 +630,7 @@ EDA_ITEM_FLAGS PCB_TRACK::IsPointOnEnds( const VECTOR2I& point, int min_dist ) c
     EDA_ITEM_FLAGS result = 0;
 
     if( min_dist < 0 )
-        min_dist = m_Width / 2;
+        min_dist = m_width / 2;
 
     if( min_dist == 0 )
     {
@@ -415,14 +642,14 @@ EDA_ITEM_FLAGS PCB_TRACK::IsPointOnEnds( const VECTOR2I& point, int min_dist ) c
     }
     else
     {
-        double dist = GetLineLength( m_Start, point );
+        double dist = m_Start.Distance( point );
 
-        if( min_dist >= KiROUND( dist ) )
+        if( min_dist >= dist )
             result |= STARTPOINT;
 
-        dist = GetLineLength( m_End, point );
+        dist = m_End.Distance( point );
 
-        if( min_dist >= KiROUND( dist ) )
+        if( min_dist >= dist )
             result |= ENDPOINT;
     }
 
@@ -433,7 +660,7 @@ EDA_ITEM_FLAGS PCB_TRACK::IsPointOnEnds( const VECTOR2I& point, int min_dist ) c
 const BOX2I PCB_TRACK::GetBoundingBox() const
 {
     // end of track is round, this is its radius, rounded up
-    int radius = ( m_Width + 1 ) / 2;
+    int radius = ( m_width + 1 ) / 2;
     int ymax, xmax, ymin, xmin;
 
     if( Type() == PCB_VIA_T )
@@ -470,15 +697,39 @@ const BOX2I PCB_TRACK::GetBoundingBox() const
     xmin -= radius;
 
     // return a rectangle which is [pos,dim) in nature.  therefore the +1
-    BOX2I ret( VECTOR2I( xmin, ymin ), VECTOR2I( xmax - xmin + 1, ymax - ymin + 1 ) );
+    return BOX2ISafe( VECTOR2I( xmin, ymin ),
+                      VECTOR2L( (int64_t) xmax - xmin + 1, (int64_t) ymax - ymin + 1 ) );
+}
 
-    return ret;
+
+const BOX2I PCB_VIA::GetBoundingBox() const
+{
+    int radius = 0;
+
+    Padstack().ForEachUniqueLayer(
+        [&]( PCB_LAYER_ID aLayer )
+        {
+            radius = std::max( radius, GetWidth( aLayer ) );
+        } );
+
+    // via is round, this is its radius, rounded up
+    radius = ( radius + 1 ) / 2;
+
+    int ymax = m_Start.y + radius;
+    int xmax = m_Start.x + radius;
+
+    int ymin = m_Start.y - radius;
+    int xmin = m_Start.x - radius;
+
+    // return a rectangle which is [pos,dim) in nature.  therefore the +1
+    return BOX2ISafe( VECTOR2I( xmin, ymin ),
+                      VECTOR2L( (int64_t) xmax - xmin + 1, (int64_t) ymax - ymin + 1 ) );
 }
 
 
 double PCB_TRACK::GetLength() const
 {
-    return GetLineLength( m_Start, m_End );
+    return m_Start.Distance( m_End );
 }
 
 
@@ -497,41 +748,24 @@ void PCB_ARC::Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle )
 }
 
 
-void PCB_TRACK::Mirror( const VECTOR2I& aCentre, bool aMirrorAroundXAxis )
+void PCB_TRACK::Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
-    if( aMirrorAroundXAxis )
-    {
-        MIRROR( m_Start.y, aCentre.y );
-        MIRROR( m_End.y, aCentre.y );
-    }
-    else
-    {
-        MIRROR( m_Start.x, aCentre.x );
-        MIRROR( m_End.x, aCentre.x );
-    }
+    MIRROR( m_Start, aCentre, aFlipDirection );
+    MIRROR( m_End, aCentre, aFlipDirection );
 }
 
 
-void PCB_ARC::Mirror( const VECTOR2I& aCentre, bool aMirrorAroundXAxis )
+void PCB_ARC::Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
-    if( aMirrorAroundXAxis )
-    {
-        MIRROR( m_Start.y, aCentre.y );
-        MIRROR( m_End.y, aCentre.y );
-        MIRROR( m_Mid.y, aCentre.y );
-    }
-    else
-    {
-        MIRROR( m_Start.x, aCentre.x );
-        MIRROR( m_End.x, aCentre.x );
-        MIRROR( m_Mid.x, aCentre.x );
-    }
+    MIRROR( m_Start, aCentre, aFlipDirection );
+    MIRROR( m_End, aCentre, aFlipDirection );
+    MIRROR( m_Mid, aCentre, aFlipDirection );
 }
 
 
-void PCB_TRACK::Flip( const VECTOR2I& aCentre, bool aFlipLeftRight )
+void PCB_TRACK::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
-    if( aFlipLeftRight )
+    if( aFlipDirection == FLIP_DIRECTION::LEFT_RIGHT )
     {
         m_Start.x = aCentre.x - ( m_Start.x - aCentre.x );
         m_End.x   = aCentre.x - ( m_End.x - aCentre.x );
@@ -542,14 +776,13 @@ void PCB_TRACK::Flip( const VECTOR2I& aCentre, bool aFlipLeftRight )
         m_End.y   = aCentre.y - ( m_End.y - aCentre.y );
     }
 
-    int copperLayerCount = GetBoard()->GetCopperLayerCount();
-    SetLayer( FlipLayer( GetLayer(), copperLayerCount ) );
+    SetLayer( GetBoard()->FlipLayer( GetLayer() ) );
 }
 
 
-void PCB_ARC::Flip( const VECTOR2I& aCentre, bool aFlipLeftRight )
+void PCB_ARC::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
-    if( aFlipLeftRight )
+    if( aFlipDirection == FLIP_DIRECTION::LEFT_RIGHT )
     {
         m_Start.x = aCentre.x - ( m_Start.x - aCentre.x );
         m_End.x   = aCentre.x - ( m_End.x - aCentre.x );
@@ -562,23 +795,23 @@ void PCB_ARC::Flip( const VECTOR2I& aCentre, bool aFlipLeftRight )
         m_Mid.y = aCentre.y - ( m_Mid.y - aCentre.y );
     }
 
-    int copperLayerCount = GetBoard()->GetCopperLayerCount();
-    SetLayer( FlipLayer( GetLayer(), copperLayerCount ) );
+    SetLayer( GetBoard()->FlipLayer( GetLayer() ) );
 }
 
 
 bool PCB_ARC::IsCCW() const
 {
-    VECTOR2I start_end = m_End - m_Start;
-    VECTOR2I start_mid = m_Mid - m_Start;
+    VECTOR2L start = m_Start;
+    VECTOR2L start_end = m_End - start;
+    VECTOR2L start_mid = m_Mid - start;
 
     return start_end.Cross( start_mid ) < 0;
 }
 
 
-void PCB_VIA::Flip( const VECTOR2I& aCentre, bool aFlipLeftRight )
+void PCB_VIA::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
-    if( aFlipLeftRight )
+    if( aFlipDirection == FLIP_DIRECTION::LEFT_RIGHT )
     {
         m_Start.x = aCentre.x - ( m_Start.x - aCentre.x );
         m_End.x   = aCentre.x - ( m_End.x - aCentre.x );
@@ -591,12 +824,11 @@ void PCB_VIA::Flip( const VECTOR2I& aCentre, bool aFlipLeftRight )
 
     if( GetViaType() != VIATYPE::THROUGH )
     {
-        int          copperLayerCount = GetBoard()->GetCopperLayerCount();
         PCB_LAYER_ID top_layer;
         PCB_LAYER_ID bottom_layer;
         LayerPair( &top_layer, &bottom_layer );
-        top_layer    = FlipLayer( top_layer, copperLayerCount );
-        bottom_layer = FlipLayer( bottom_layer, copperLayerCount );
+        top_layer    = GetBoard()->FlipLayer( top_layer );
+        bottom_layer = GetBoard()->FlipLayer( bottom_layer );
         SetLayerPair( top_layer, bottom_layer );
     }
 }
@@ -620,16 +852,76 @@ INSPECT_RESULT PCB_TRACK::Visit( INSPECTOR inspector, void* testData,
 
 std::shared_ptr<SHAPE_SEGMENT> PCB_VIA::GetEffectiveHoleShape() const
 {
-    return std::make_shared<SHAPE_SEGMENT>( SEG( m_Start, m_Start ), m_drill );
+    return std::make_shared<SHAPE_SEGMENT>( SEG( m_Start, m_Start ), Padstack().Drill().size.x );
 }
 
 
-bool PCB_VIA::IsTented() const
+void PCB_VIA::SetFrontTentingMode( TENTING_MODE aMode )
 {
+    switch( aMode )
+    {
+    case TENTING_MODE::FROM_RULES: m_padStack.FrontOuterLayers().has_solder_mask.reset();  break;
+    case TENTING_MODE::TENTED:     m_padStack.FrontOuterLayers().has_solder_mask = true;   break;
+    case TENTING_MODE::NOT_TENTED: m_padStack.FrontOuterLayers().has_solder_mask = false;  break;
+    }
+}
+
+
+TENTING_MODE PCB_VIA::GetFrontTentingMode() const
+{
+    if( m_padStack.FrontOuterLayers().has_solder_mask.has_value() )
+    {
+        return *m_padStack.FrontOuterLayers().has_solder_mask ?
+            TENTING_MODE::TENTED : TENTING_MODE::NOT_TENTED;
+    }
+
+    return TENTING_MODE::FROM_RULES;
+}
+
+
+void PCB_VIA::SetBackTentingMode( TENTING_MODE aMode )
+{
+    switch( aMode )
+    {
+    case TENTING_MODE::FROM_RULES: m_padStack.BackOuterLayers().has_solder_mask.reset();  break;
+    case TENTING_MODE::TENTED:     m_padStack.BackOuterLayers().has_solder_mask = true;   break;
+    case TENTING_MODE::NOT_TENTED: m_padStack.BackOuterLayers().has_solder_mask = false;  break;
+    }
+}
+
+
+TENTING_MODE PCB_VIA::GetBackTentingMode() const
+{
+    if( m_padStack.BackOuterLayers().has_solder_mask.has_value() )
+    {
+        return *m_padStack.BackOuterLayers().has_solder_mask ?
+            TENTING_MODE::TENTED : TENTING_MODE::NOT_TENTED;
+    }
+
+    return TENTING_MODE::FROM_RULES;
+}
+
+
+bool PCB_VIA::IsTented( PCB_LAYER_ID aLayer ) const
+{
+    wxCHECK_MSG( IsFrontLayer( aLayer ) || IsBackLayer( aLayer ), true,
+                 "Invalid layer passed to IsTented" );
+
+    bool front = IsFrontLayer( aLayer );
+
+    if( front && m_padStack.FrontOuterLayers().has_solder_mask.has_value() )
+        return *m_padStack.FrontOuterLayers().has_solder_mask;
+
+    if( !front && m_padStack.BackOuterLayers().has_solder_mask.has_value() )
+        return *m_padStack.BackOuterLayers().has_solder_mask;
+
     if( const BOARD* board = GetBoard() )
-        return board->GetTentVias();
-    else
-        return true;
+    {
+        return front ? board->GetDesignSettings().m_TentViasFront
+                     : board->GetDesignSettings().m_TentViasBack;
+    }
+
+    return true;
 }
 
 
@@ -642,50 +934,124 @@ int PCB_VIA::GetSolderMaskExpansion() const
 }
 
 
-bool PCB_VIA::IsOnLayer( PCB_LAYER_ID aLayer ) const
+int PCB_TRACK::GetSolderMaskExpansion() const
 {
-#if 0
-    // Nice and simple, but raises its ugly head in performance profiles....
-    return GetLayerSet().test( aLayer );
-#endif
+    int margin = m_solderMaskMargin.value_or( 0 );
 
-    if( aLayer >= m_layer && aLayer <= m_bottomLayer )
-        return true;
-
-    if( !IsTented() )
+    // If no local margin is set, get the board's solder mask expansion value
+    if( !m_solderMaskMargin.has_value() )
     {
-        if( aLayer == F_Mask )
-            return IsOnLayer( F_Cu );
-        else if( aLayer == B_Mask )
-            return IsOnLayer( B_Cu );
+        const BOARD* board = GetBoard();
+
+        if( board )
+            margin = board->GetDesignSettings().m_SolderMaskExpansion;
+    }
+
+    // Ensure the resulting mask opening has a non-negative size
+    if( margin < 0 )
+        margin = std::max( margin, -m_width / 2 );
+
+    return margin;
+}
+
+
+bool PCB_TRACK::IsOnLayer( PCB_LAYER_ID aLayer ) const
+{
+    if( aLayer == m_layer )
+    {
+        return true;
+    }
+
+    if( m_hasSolderMask
+            && ( ( aLayer == F_Mask && m_layer == F_Cu )
+                       || ( aLayer == B_Mask && m_layer == B_Cu ) ) )
+    {
+        return true;
     }
 
     return false;
 }
 
 
-LSET PCB_VIA::GetLayerSet() const
+bool PCB_VIA::IsOnLayer( PCB_LAYER_ID aLayer ) const
 {
-    LSET layermask;
+#if 0
+    // Nice and simple, but raises its ugly head in performance profiles....
+    return GetLayerSet().test( aLayer );
+#endif
+    if( IsCopperLayer( aLayer ) &&
+        LAYER_RANGE::Contains( Padstack().Drill().start, Padstack().Drill().end, aLayer ) )
+    {
+        return true;
+    }
 
-    if( m_layer < PCBNEW_LAYER_ID_START )
-        return layermask;
+    // Test for via on mask layers: a via on on a mask layer if not tented and if
+    // it is on the corresponding external copper layer
+    if( aLayer == F_Mask )
+        return Padstack().Drill().start == F_Cu && !IsTented( F_Mask );
+    else if( aLayer == B_Mask )
+        return Padstack().Drill().end == B_Cu && !IsTented( B_Mask );
 
-    if( GetViaType() == VIATYPE::THROUGH )
-        layermask = LSET::AllCuMask();
-    else
-        wxASSERT( m_layer <= m_bottomLayer );
+    return false;
+}
 
-    // PCB_LAYER_IDs are numbered from front to back, this is top to bottom.
-    for( int id = m_layer; id <= m_bottomLayer; ++id )
-        layermask.set( id );
 
-    if( !IsTented() )
+bool PCB_VIA::HasValidLayerPair( int aCopperLayerCount )
+{
+    // return true if top and bottom layers are valid, depending on the copper layer count
+    // aCopperLayerCount is expected >= 2
+
+    int layer_id = aCopperLayerCount*2;
+
+    if( Padstack().Drill().start > B_Cu )
+    {
+        if( Padstack().Drill().start > layer_id )
+            return false;
+    }
+    if( Padstack().Drill().end > B_Cu )
+    {
+        if( Padstack().Drill().end > layer_id )
+            return false;
+    }
+
+    return true;
+}
+
+
+PCB_LAYER_ID PCB_VIA::GetLayer() const
+{
+    return Padstack().Drill().start;
+}
+
+
+void PCB_VIA::SetLayer( PCB_LAYER_ID aLayer )
+{
+     Padstack().Drill().start = aLayer;
+}
+
+
+void PCB_TRACK::SetLayerSet( const LSET& aLayerSet )
+{
+    aLayerSet.RunOnLayers(
+            [&]( PCB_LAYER_ID layer )
+            {
+                if( IsCopperLayer( layer ) )
+                    SetLayer( layer );
+                else if( IsSolderMaskLayer( layer ) )
+                    SetHasSolderMask( true );
+            } );
+}
+
+
+LSET PCB_TRACK::GetLayerSet() const
+{
+    LSET layermask( { m_layer } );
+
+    if( m_hasSolderMask )
     {
         if( layermask.test( F_Cu ) )
             layermask.set( F_Mask );
-
-        if( layermask.test( B_Cu ) )
+        else if( layermask.test( B_Cu ) )
             layermask.set( B_Mask );
     }
 
@@ -693,45 +1059,102 @@ LSET PCB_VIA::GetLayerSet() const
 }
 
 
-void PCB_VIA::SetLayerSet( LSET aLayerSet )
+LSET PCB_VIA::GetLayerSet() const
 {
-    bool first = true;
+    LSET layermask;
 
-    for( PCB_LAYER_ID layer : aLayerSet.Seq() )
+    if( Padstack().Drill().start < PCBNEW_LAYER_ID_START )
+        return layermask;
+
+    if( GetViaType() == VIATYPE::THROUGH )
     {
-        // m_layer and m_bottomLayer are copper layers, so consider only copper layers in aLayerSet
-        if( !IsCopperLayer( layer ) )
-            continue;
-
-        if( first )
-        {
-            m_layer = layer;
-            first = false;
-        }
-
-        m_bottomLayer = layer;
+        layermask = LSET::AllCuMask( BoardCopperLayerCount() );
     }
+    else
+    {
+        LAYER_RANGE range( Padstack().Drill().start, Padstack().Drill().end, BoardCopperLayerCount() );
+
+        int cnt = BoardCopperLayerCount();
+        // PCB_LAYER_IDs are numbered from front to back, this is top to bottom.
+        for( PCB_LAYER_ID id : range )
+        {
+            layermask.set( id );
+
+            if( --cnt <= 0 )
+                break;
+        }
+    }
+
+    if( !IsTented( F_Mask ) && layermask.test( F_Cu ) )
+        layermask.set( F_Mask );
+
+    if( !IsTented( B_Mask ) && layermask.test( B_Cu ) )
+        layermask.set( B_Mask );
+
+    return layermask;
+}
+
+
+void PCB_VIA::SetLayerSet( const LSET& aLayerSet )
+{
+    // Vias do not use a LSET, just a top and bottom layer pair
+    // So we need to set these 2 layers according to the allowed layers in aLayerSet
+
+    // For via through, only F_Cu and B_Cu are allowed. aLayerSet is ignored
+    if( GetViaType() == VIATYPE::THROUGH )
+    {
+        Padstack().Drill().start = F_Cu;
+        Padstack().Drill().end = B_Cu;
+        return;
+    }
+
+    // For blind buried vias, find the top and bottom layers
+    bool top_found = false;
+    bool bottom_found = false;
+
+    aLayerSet.RunOnLayers(
+            [&]( PCB_LAYER_ID layer )
+            {
+                // tpo layer and bottom Layer are copper layers, so consider only copper layers
+                if( IsCopperLayer( layer ) )
+                {
+                    // The top layer is the first layer found in list and
+                    // cannot the B_Cu
+                    if( !top_found && layer != B_Cu )
+                    {
+                        Padstack().Drill().start = layer;
+                        top_found = true;
+                    }
+
+                    // The bottom layer is the last layer found in list or B_Cu
+                    if( !bottom_found )
+                        Padstack().Drill().end = layer;
+
+                    if( layer == B_Cu )
+                        bottom_found = true;
+                }
+            } );
 }
 
 
 void PCB_VIA::SetLayerPair( PCB_LAYER_ID aTopLayer, PCB_LAYER_ID aBottomLayer )
 {
 
-    m_layer = aTopLayer;
-    m_bottomLayer = aBottomLayer;
+    Padstack().Drill().start = aTopLayer;
+    Padstack().Drill().end = aBottomLayer;
     SanitizeLayers();
 }
 
 
 void PCB_VIA::SetTopLayer( PCB_LAYER_ID aLayer )
 {
-    m_layer = aLayer;
+    Padstack().Drill().start = aLayer;
 }
 
 
 void PCB_VIA::SetBottomLayer( PCB_LAYER_ID aLayer )
 {
-    m_bottomLayer = aLayer;
+    Padstack().Drill().end = aLayer;
 }
 
 
@@ -742,10 +1165,10 @@ void PCB_VIA::LayerPair( PCB_LAYER_ID* top_layer, PCB_LAYER_ID* bottom_layer ) c
 
     if( GetViaType() != VIATYPE::THROUGH )
     {
-        b_layer = m_bottomLayer;
-        t_layer = m_layer;
+        b_layer = Padstack().Drill().end;
+        t_layer = Padstack().Drill().start;
 
-        if( b_layer < t_layer )
+        if( !IsCopperLayerLowerThan( b_layer, t_layer ) )
             std::swap( b_layer, t_layer );
     }
 
@@ -759,13 +1182,13 @@ void PCB_VIA::LayerPair( PCB_LAYER_ID* top_layer, PCB_LAYER_ID* bottom_layer ) c
 
 PCB_LAYER_ID PCB_VIA::TopLayer() const
 {
-    return m_layer;
+    return Padstack().Drill().start;
 }
 
 
 PCB_LAYER_ID PCB_VIA::BottomLayer() const
 {
-    return m_bottomLayer;
+    return Padstack().Drill().end;
 }
 
 
@@ -773,12 +1196,12 @@ void PCB_VIA::SanitizeLayers()
 {
     if( GetViaType() == VIATYPE::THROUGH )
     {
-        m_layer       = F_Cu;
-        m_bottomLayer = B_Cu;
+        Padstack().Drill().start = F_Cu;
+        Padstack().Drill().end = B_Cu;
     }
 
-    if( m_bottomLayer < m_layer )
-        std::swap( m_bottomLayer, m_layer );
+    if( !IsCopperLayerLowerThan( Padstack().Drill().end, Padstack().Drill().start) )
+        std::swap( Padstack().Drill().end, Padstack().Drill().start );
 }
 
 
@@ -813,20 +1236,60 @@ bool PCB_VIA::FlashLayer( int aLayer ) const
     if( !IsOnLayer( static_cast<PCB_LAYER_ID>( aLayer ) ) )
         return false;
 
-    if( !m_removeUnconnectedLayer || !IsCopperLayer( aLayer ) )
+    if( !IsCopperLayer( aLayer ) )
         return true;
 
-    if( m_keepStartEndLayer && ( aLayer == m_layer || aLayer == m_bottomLayer ) )
+    switch( Padstack().UnconnectedLayerMode() )
+    {
+    case PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL:
         return true;
+
+    case PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END:
+    {
+        if( aLayer == Padstack().Drill().start || aLayer == Padstack().Drill().end )
+            return true;
+
+        // Check for removal below
+        break;
+    }
+
+    case PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_ALL:
+        // Check for removal below
+        break;
+    }
 
     // Must be static to keep from raising its ugly head in performance profiles
     static std::initializer_list<KICAD_T> connectedTypes = { PCB_TRACE_T, PCB_ARC_T, PCB_VIA_T,
                                                              PCB_PAD_T };
 
-    if( m_zoneLayerOverrides[ aLayer ] == ZLO_FORCE_FLASHED )
+    if( GetZoneLayerOverride( static_cast<PCB_LAYER_ID>( aLayer ) ) == ZLO_FORCE_FLASHED )
         return true;
     else
-        return board->GetConnectivity()->IsConnectedOnLayer( this, aLayer, connectedTypes );
+        return board->GetConnectivity()->IsConnectedOnLayer( this, static_cast<PCB_LAYER_ID>( aLayer ), connectedTypes );
+}
+
+
+void PCB_VIA::ClearZoneLayerOverrides()
+{
+    std::unique_lock<std::mutex> cacheLock( m_zoneLayerOverridesMutex );
+
+    for( PCB_LAYER_ID layer : LAYER_RANGE( F_Cu, B_Cu, BoardCopperLayerCount() ) )
+        m_zoneLayerOverrides[layer] = ZLO_NONE;
+}
+
+
+const ZONE_LAYER_OVERRIDE& PCB_VIA::GetZoneLayerOverride( PCB_LAYER_ID aLayer ) const
+{
+    static const ZONE_LAYER_OVERRIDE defaultOverride = ZLO_NONE;
+    auto it = m_zoneLayerOverrides.find( aLayer );
+    return it != m_zoneLayerOverrides.end() ? it->second : defaultOverride;
+}
+
+
+void PCB_VIA::SetZoneLayerOverride( PCB_LAYER_ID aLayer, ZONE_LAYER_OVERRIDE aOverride )
+{
+    std::unique_lock<std::mutex> cacheLock( m_zoneLayerOverridesMutex );
+    m_zoneLayerOverrides[aLayer] = aOverride;
 }
 
 
@@ -843,7 +1306,7 @@ void PCB_VIA::GetOutermostConnectedLayers( PCB_LAYER_ID* aTopmost,
     {
         bool connected = false;
 
-        if( m_zoneLayerOverrides[ layer ] == ZLO_FORCE_FLASHED )
+        if( GetZoneLayerOverride( static_cast<PCB_LAYER_ID>( layer ) ) == ZLO_FORCE_FLASHED )
             connected = true;
         else if( GetBoard()->GetConnectivity()->IsConnectedOnLayer( this, layer, connectedTypes ) )
             connected = true;
@@ -860,38 +1323,51 @@ void PCB_VIA::GetOutermostConnectedLayers( PCB_LAYER_ID* aTopmost,
 }
 
 
-void PCB_TRACK::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> PCB_TRACK::ViewGetLayers() const
 {
     // Show the track and its netname on different layers
-    aLayers[0] = GetLayer();
-    aLayers[1] = GetNetnameLayer( aLayers[0] );
-    aCount = 2;
+    const PCB_LAYER_ID layer = GetLayer();
+    std::vector<int>   layers{
+        layer,
+        GetNetnameLayer( layer ),
+        LAYER_CLEARANCE_START + layer,
+    };
+
+    layers.reserve( 6 );
+
+    if( m_hasSolderMask )
+    {
+        if( m_layer == F_Cu )
+            layers.push_back( F_Mask );
+        else if( m_layer == B_Cu )
+            layers.push_back( B_Mask );
+    }
 
     if( IsLocked() )
-        aLayers[ aCount++ ] = LAYER_LOCKED_ITEM_SHADOW;
+        layers.push_back( LAYER_LOCKED_ITEM_SHADOW );
+
+    return layers;
 }
 
 
-double PCB_TRACK::ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const
+double PCB_TRACK::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
 {
-    constexpr double HIDE = std::numeric_limits<double>::max();
-
     PCB_PAINTER*         painter = static_cast<PCB_PAINTER*>( aView->GetPainter() );
     PCB_RENDER_SETTINGS* renderSettings = painter->GetSettings();
 
     if( !aView->IsLayerVisible( LAYER_TRACKS ) )
-        return HIDE;
+        return LOD_HIDE;
 
     if( IsNetnameLayer( aLayer ) )
     {
         if( GetNetCode() <= NETINFO_LIST::UNCONNECTED )
-            return HIDE;
+            return LOD_HIDE;
 
         // Hide netnames on dimmed tracks
         if( renderSettings->GetHighContrast() )
         {
             if( m_layer != renderSettings->GetPrimaryHighContrastLayer() )
-                return HIDE;
+                return LOD_HIDE;
         }
 
         VECTOR2I start( GetStart() );
@@ -901,35 +1377,35 @@ double PCB_TRACK::ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const
         SEG::ecoord nameSize = GetDisplayNetname().size() * GetWidth();
 
         if( VECTOR2I( end - start ).SquaredEuclideanNorm() < nameSize * nameSize )
-            return HIDE;
+            return LOD_HIDE;
 
         BOX2I clipBox = BOX2ISafe( aView->GetViewport() );
 
         ClipLine( &clipBox, start.x, start.y, end.x, end.y );
 
         if( VECTOR2I( end - start ).SquaredEuclideanNorm() == 0 )
-            return HIDE;
+            return LOD_HIDE;
 
         // Netnames will be shown only if zoom is appropriate
-        return ( double ) pcbIUScale.mmToIU( 4 ) / ( m_Width + 1 );
+        return lodScaleForThreshold( m_width, pcbIUScale.mmToIU( 4.0 ) );
     }
 
     if( aLayer == LAYER_LOCKED_ITEM_SHADOW )
     {
         // Hide shadow if the main layer is not shown
         if( !aView->IsLayerVisible( m_layer ) )
-            return HIDE;
+            return LOD_HIDE;
 
         // Hide shadow on dimmed tracks
         if( renderSettings->GetHighContrast() )
         {
             if( m_layer != renderSettings->GetPrimaryHighContrastLayer() )
-                return HIDE;
+                return LOD_HIDE;
         }
     }
 
     // Other layers are shown without any conditions
-    return 0.0;
+    return LOD_SHOW;
 }
 
 
@@ -946,51 +1422,66 @@ const BOX2I PCB_TRACK::ViewBBox() const
 }
 
 
-void PCB_VIA::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> PCB_VIA::ViewGetLayers() const
 {
-    aLayers[0] = LAYER_VIA_HOLES;
-    aLayers[1] = LAYER_VIA_HOLEWALLS;
-    aLayers[2] = LAYER_VIA_NETNAMES;
+    LAYER_RANGE layers( Padstack().Drill().start, Padstack().Drill().end, MAX_CU_LAYERS );
+    std::vector<int> ret_layers{ LAYER_VIA_HOLES, LAYER_VIA_HOLEWALLS, LAYER_VIA_NETNAMES };
+    ret_layers.reserve( MAX_CU_LAYERS + 6 );
 
-    // Just show it on common via & via holes layers
-    switch( GetViaType() )
+    // TODO(JE) Rendering order issue
+#if 0
+    // Blind/buried vias (and microvias) use a different net name layer
+    PCB_LAYER_ID layerTop, layerBottom;
+    LayerPair( &layerTop, &layerBottom );
+
+    bool isBlindBuried =
+            m_viaType == VIATYPE::BLIND_BURIED
+            || ( m_viaType == VIATYPE::MICROVIA && ( layerTop != F_Cu || layerBottom != B_Cu ) );
+#endif
+    LSET cuMask = LSET::AllCuMask();
+
+    if( const BOARD* board = GetBoard() )
+        cuMask = board->GetEnabledLayers();
+
+    for( PCB_LAYER_ID layer : layers )
     {
-    case VIATYPE::THROUGH:      aLayers[3] = LAYER_VIA_THROUGH;  break;
-    case VIATYPE::BLIND_BURIED: aLayers[3] = LAYER_VIA_BBLIND;   break;
-    case VIATYPE::MICROVIA:     aLayers[3] = LAYER_VIA_MICROVIA; break;
-    default:                    aLayers[3] = LAYER_GP_OVERLAY;   break;
+        if( !cuMask.Contains( layer ) )
+            continue;
+
+        ret_layers.push_back( LAYER_VIA_COPPER_START + layer );
+        ret_layers.push_back( LAYER_CLEARANCE_START + layer );
     }
 
-    aCount = 4;
-
     if( IsLocked() )
-        aLayers[ aCount++ ] = LAYER_LOCKED_ITEM_SHADOW;
+        ret_layers.push_back( LAYER_LOCKED_ITEM_SHADOW );
 
     // Vias can also be on a solder mask layer. They are on these layers or not,
     // depending on the plot and solder mask options
     if( IsOnLayer( F_Mask ) )
-        aLayers[ aCount++ ] = F_Mask;
+        ret_layers.push_back( F_Mask );
 
     if( IsOnLayer( B_Mask ) )
-        aLayers[ aCount++ ] = B_Mask;
+        ret_layers.push_back( B_Mask );
+
+    return ret_layers;
 }
 
 
-double PCB_VIA::ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const
+double PCB_VIA::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
 {
-    constexpr double HIDE = (double)std::numeric_limits<double>::max();
-
     PCB_PAINTER*         painter = static_cast<PCB_PAINTER*>( aView->GetPainter() );
     PCB_RENDER_SETTINGS* renderSettings = painter->GetSettings();
     LSET                 visible = LSET::AllLayersMask();
 
     // Meta control for hiding all vias
     if( !aView->IsLayerVisible( LAYER_VIAS ) )
-        return HIDE;
+        return LOD_HIDE;
 
     // Handle board visibility
     if( const BOARD* board = GetBoard() )
         visible = board->GetVisibleLayers() & board->GetEnabledLayers();
+
+    int width = GetWidth( ToLAYER_ID( aLayer ) );
 
     // In high contrast mode don't show vias that don't cross the high-contrast layer
     if( renderSettings->GetHighContrast() )
@@ -1002,24 +1493,36 @@ double PCB_VIA::ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const
         else if( LSET::BackTechMask().Contains( highContrastLayer ) )
             highContrastLayer = B_Cu;
 
-        if( !GetLayerSet().Contains( highContrastLayer ) )
-            return HIDE;
+        if( !IsCopperLayer( highContrastLayer ) )
+            return LOD_HIDE;
+
+        if( GetViaType() != VIATYPE::THROUGH )
+        {
+            if( IsCopperLayerLowerThan( Padstack().Drill().start, highContrastLayer  )
+                || IsCopperLayerLowerThan( highContrastLayer, Padstack().Drill().end ) )
+            {
+                return LOD_HIDE;
+            }
+        }
     }
 
     if( IsHoleLayer( aLayer ) )
     {
-        if( m_viaType == VIATYPE::BLIND_BURIED || m_viaType == VIATYPE::MICROVIA )
-        {
-            // Show a blind or micro via's hole if it crosses a visible layer
-            if( !( visible & GetLayerSet() ).any() )
-                return HIDE;
-        }
-        else
+        if( m_viaType == VIATYPE::THROUGH )
         {
             // Show a through via's hole if any physical layer is shown
             if( !( visible & LSET::PhysicalLayersMask() ).any() )
-                return HIDE;
+                return LOD_HIDE;
         }
+        else
+        {
+            // Show a blind or micro via's hole if it crosses a visible layer
+            if( !( visible & GetLayerSet() ).any() )
+                return LOD_HIDE;
+        }
+
+        // The hole won't be visible anyway at this scale
+        return (double) pcbIUScale.mmToIU( 0.25 ) / GetDrillValue();
     }
     else if( IsNetnameLayer( aLayer ) )
     {
@@ -1027,21 +1530,23 @@ double PCB_VIA::ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const
         {
             // Hide netnames unless via is flashed to a high-contrast layer
             if( !FlashLayer( renderSettings->GetPrimaryHighContrastLayer() ) )
-                return HIDE;
+                return LOD_HIDE;
         }
         else
         {
             // Hide netnames unless pad is flashed to a visible layer
             if( !FlashLayer( visible ) )
-                return HIDE;
+                return LOD_HIDE;
         }
 
         // Netnames will be shown only if zoom is appropriate
-        return m_Width == 0 ? HIDE : ( (double)pcbIUScale.mmToIU( 10 ) / m_Width );
+        return width == 0 ? LOD_HIDE : ( (double) pcbIUScale.mmToIU( 10 ) / width );
     }
 
-    // Passed all tests; show.
-    return 0.0;
+    if( !IsCopperLayer( aLayer ) )
+        return (double) pcbIUScale.mmToIU( 0.6 ) / width;
+
+    return LOD_SHOW;
 }
 
 
@@ -1068,7 +1573,7 @@ void PCB_TRACK::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
 
     aList.emplace_back( _( "Layer" ), layerMaskDescribe() );
 
-    aList.emplace_back( _( "Width" ), aFrame->MessageTextFromValue( m_Width ) );
+    aList.emplace_back( _( "Width" ), aFrame->MessageTextFromValue( m_width ) );
 
     if( Type() == PCB_ARC_T )
     {
@@ -1134,7 +1639,9 @@ void PCB_VIA::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITE
     GetMsgPanelInfoBase_Common( aFrame, aList );
 
     aList.emplace_back( _( "Layer" ), layerMaskDescribe() );
-    aList.emplace_back( _( "Diameter" ), aFrame->MessageTextFromValue( m_Width ) );
+    // TODO(JE) padstacks
+    aList.emplace_back( _( "Diameter" ),
+                        aFrame->MessageTextFromValue( GetWidth( PADSTACK::ALL_LAYERS ) ) );
     aList.emplace_back( _( "Hole" ), aFrame->MessageTextFromValue( GetDrillValue() ) );
 
     wxString  source;
@@ -1158,7 +1665,7 @@ void PCB_TRACK::GetMsgPanelInfoBase_Common( EDA_DRAW_FRAME* aFrame,
     aList.emplace_back( _( "Net" ), UnescapeString( GetNetname() ) );
 
     aList.emplace_back( _( "Resolved Netclass" ),
-                        UnescapeString( GetEffectiveNetClass()->GetName() ) );
+                        UnescapeString( GetEffectiveNetClass()->GetHumanReadableName() ) );
 
 #if 0   // Enable for debugging
     if( GetBoard() )
@@ -1193,24 +1700,23 @@ wxString PCB_VIA::layerMaskDescribe() const
 
 bool PCB_TRACK::HitTest( const VECTOR2I& aPosition, int aAccuracy ) const
 {
-    return TestSegmentHit( aPosition, m_Start, m_End, aAccuracy + ( m_Width / 2 ) );
+    return TestSegmentHit( aPosition, m_Start, m_End, aAccuracy + ( m_width / 2 ) );
 }
 
 
 bool PCB_ARC::HitTest( const VECTOR2I& aPosition, int aAccuracy ) const
 {
-    int max_dist = aAccuracy + ( m_Width / 2 );
+    double max_dist = aAccuracy + ( GetWidth() / 2.0 );
 
     // Short-circuit common cases where the arc is connected to a track or via at an endpoint
-    if( EuclideanNorm( GetStart() - aPosition ) <= max_dist ||
-            EuclideanNorm( GetEnd() - aPosition ) <= max_dist )
+    if( GetStart().Distance( aPosition ) <= max_dist || GetEnd().Distance( aPosition ) <= max_dist )
     {
         return true;
     }
 
-    VECTOR2I center = GetPosition();
-    VECTOR2I relpos = aPosition - center;
-    double dist = EuclideanNorm( relpos );
+    VECTOR2L center = GetPosition();
+    VECTOR2L relpos = aPosition - center;
+    int64_t dist = relpos.EuclideanNorm();
     double radius = GetRadius();
 
     if( std::abs( dist - radius ) > max_dist )
@@ -1235,12 +1741,25 @@ bool PCB_ARC::HitTest( const VECTOR2I& aPosition, int aAccuracy ) const
 
 bool PCB_VIA::HitTest( const VECTOR2I& aPosition, int aAccuracy ) const
 {
-    int max_dist = aAccuracy + ( m_Width / 2 );
+    bool hit = false;
 
-    // rel_pos is aPosition relative to m_Start (or the center of the via)
-    VECTOR2I rel_pos = aPosition - m_Start;
-    double dist = (double) rel_pos.x * rel_pos.x + (double) rel_pos.y * rel_pos.y;
-    return  dist <= (double) max_dist * max_dist;
+    Padstack().ForEachUniqueLayer(
+            [&]( PCB_LAYER_ID aLayer )
+            {
+                if( hit )
+                    return;
+
+                int max_dist = aAccuracy + ( GetWidth( aLayer ) / 2 );
+
+                // rel_pos is aPosition relative to m_Start (or the center of the via)
+                VECTOR2D rel_pos = aPosition - m_Start;
+                double dist = rel_pos.x * rel_pos.x + rel_pos.y * rel_pos.y;
+
+                if( dist <= static_cast<double>( max_dist ) * max_dist )
+                    hit = true;
+            } );
+
+    return hit;
 }
 
 
@@ -1279,17 +1798,28 @@ bool PCB_VIA::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) cons
     BOX2I arect = aRect;
     arect.Inflate( aAccuracy );
 
-    BOX2I box( GetStart() );
-    box.Inflate( GetWidth() / 2 );
+    bool hit = false;
 
-    if( aContained )
-        return arect.Contains( box );
-    else
-        return arect.IntersectsCircle( GetStart(), GetWidth() / 2 );
+    Padstack().ForEachUniqueLayer(
+            [&]( PCB_LAYER_ID aLayer )
+            {
+                if( hit )
+                    return;
+
+                BOX2I box( GetStart() );
+                box.Inflate( GetWidth( aLayer ) / 2 );
+
+                if( aContained )
+                    hit = arect.Contains( box );
+                else
+                    hit = arect.IntersectsCircle( GetStart(), GetWidth( aLayer ) / 2 );
+            } );
+
+    return hit;
 }
 
 
-wxString PCB_TRACK::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString PCB_TRACK::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     return wxString::Format( Type() == PCB_ARC_T ? _("Track (arc) %s on %s, length %s" )
                                                  : _("Track %s on %s, length %s" ),
@@ -1336,13 +1866,13 @@ VECTOR2I PCB_ARC::GetPosition() const
 double PCB_ARC::GetRadius() const
 {
     auto center = CalcArcCenter( m_Start, m_Mid , m_End );
-    return GetLineLength( center, m_Start );
+    return center.Distance( m_Start );
 }
 
 
 EDA_ANGLE PCB_ARC::GetAngle() const
 {
-    VECTOR2I  center = GetPosition();
+    VECTOR2D  center = GetPosition();
     EDA_ANGLE angle1 = EDA_ANGLE( m_Mid - center ) - EDA_ANGLE( m_Start - center );
     EDA_ANGLE angle2 = EDA_ANGLE( m_End - center ) - EDA_ANGLE( m_Mid - center );
 
@@ -1352,10 +1882,9 @@ EDA_ANGLE PCB_ARC::GetAngle() const
 
 EDA_ANGLE PCB_ARC::GetArcAngleStart() const
 {
-    VECTOR2I pos( GetPosition() );
-    VECTOR2D dir( (double) m_Start.x - pos.x, (double) m_Start.y - pos.y );
+    VECTOR2D  pos( GetPosition() );
+    EDA_ANGLE angleStart( m_Start - pos );
 
-    EDA_ANGLE angleStart( dir );
     return angleStart.Normalize();
 }
 
@@ -1363,10 +1892,9 @@ EDA_ANGLE PCB_ARC::GetArcAngleStart() const
 // Note: used in python tests.  Ignore CLion's claim that it's unused....
 EDA_ANGLE PCB_ARC::GetArcAngleEnd() const
 {
-    VECTOR2I pos( GetPosition() );
-    VECTOR2D dir( (double) m_End.x - pos.x, (double) m_End.y - pos.y );
+    VECTOR2D  pos( GetPosition() );
+    EDA_ANGLE angleEnd( m_End - pos );
 
-    EDA_ANGLE angleEnd( dir );
     return angleEnd.Normalize();
 }
 
@@ -1402,7 +1930,12 @@ bool PCB_TRACK::cmp_tracks::operator() ( const PCB_TRACK* a, const PCB_TRACK* b 
 
 std::shared_ptr<SHAPE> PCB_TRACK::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHING aFlash ) const
 {
-    return std::make_shared<SHAPE_SEGMENT>( m_Start, m_End, m_Width );
+    int width = m_width;
+
+    if( IsSolderMaskLayer( aLayer ) )
+        width += 2 * GetSolderMaskExpansion();
+
+    return std::make_shared<SHAPE_SEGMENT>( m_Start, m_End, width );
 }
 
 
@@ -1411,7 +1944,25 @@ std::shared_ptr<SHAPE> PCB_VIA::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHING
     if( aFlash == FLASHING::ALWAYS_FLASHED
             || ( aFlash == FLASHING::DEFAULT && FlashLayer( aLayer ) ) )
     {
-        return std::make_shared<SHAPE_CIRCLE>( m_Start, m_Width / 2 );
+        int width = 0;
+
+        if( aLayer == UNDEFINED_LAYER )
+        {
+            Padstack().ForEachUniqueLayer(
+                [&]( PCB_LAYER_ID layer )
+                {
+                    width = std::max( width, GetWidth( layer ) );
+                } );
+
+            width /= 2;
+        }
+        else
+        {
+            PCB_LAYER_ID cuLayer = m_padStack.EffectiveLayerFor( aLayer );
+            width = GetWidth( cuLayer ) / 2;
+        }
+
+        return std::make_shared<SHAPE_CIRCLE>( m_Start, width );
     }
     else
     {
@@ -1422,7 +1973,17 @@ std::shared_ptr<SHAPE> PCB_VIA::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHING
 
 std::shared_ptr<SHAPE> PCB_ARC::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHING aFlash ) const
 {
-    return std::make_shared<SHAPE_ARC>( GetStart(), GetMid(), GetEnd(), GetWidth() );
+    int width = GetWidth();
+
+    if( IsSolderMaskLayer( aLayer ) )
+        width += 2 * GetSolderMaskExpansion();
+
+    SHAPE_ARC arc( GetStart(), GetMid(), GetEnd(), width );
+
+    if( arc.IsEffectiveLine() )
+        return std::make_shared<SHAPE_SEGMENT>( GetStart(), GetEnd(), width );
+
+    return std::make_shared<SHAPE_ARC>( arc );
 }
 
 
@@ -1437,7 +1998,7 @@ void PCB_TRACK::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID a
     {
     case PCB_VIA_T:
     {
-        int radius = ( m_Width / 2 ) + aClearance;
+        int radius = ( static_cast<const PCB_VIA*>( this )->GetWidth( aLayer ) / 2 ) + aClearance;
         TransformCircleToPolygon( aBuffer, m_Start, radius, aError, aErrorLoc );
         break;
     }
@@ -1445,7 +2006,10 @@ void PCB_TRACK::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID a
     case PCB_ARC_T:
     {
         const PCB_ARC* arc = static_cast<const PCB_ARC*>( this );
-        int            width = m_Width + ( 2 * aClearance );
+        int            width = m_width + ( 2 * aClearance );
+
+        if( IsSolderMaskLayer( aLayer ) )
+            width += 2 * GetSolderMaskExpansion();
 
         TransformArcToPolygon( aBuffer, arc->GetStart(), arc->GetMid(), arc->GetEnd(), width,
                                aError, aErrorLoc );
@@ -1454,9 +2018,13 @@ void PCB_TRACK::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID a
 
     default:
     {
-        int width = m_Width + ( 2 * aClearance );
+        int width = m_width + ( 2 * aClearance );
+
+        if( IsSolderMaskLayer( aLayer ) )
+            width += 2 * GetSolderMaskExpansion();
 
         TransformOvalToPolygon( aBuffer, m_Start, m_End, width, aError, aErrorLoc );
+
         break;
     }
     }
@@ -1473,14 +2041,20 @@ static struct TRACK_VIA_DESC
             .Map( VIATYPE::BLIND_BURIED, _HKI( "Blind/buried" ) )
             .Map( VIATYPE::MICROVIA,     _HKI( "Micro" ) );
 
+        ENUM_MAP<TENTING_MODE>::Instance()
+            .Undefined( TENTING_MODE::FROM_RULES )
+            .Map( TENTING_MODE::FROM_RULES, _HKI( "From design rules" ) )
+            .Map( TENTING_MODE::TENTED,     _HKI( "Tented" ) )
+            .Map( TENTING_MODE::NOT_TENTED, _HKI( "Not tented" ) );
+
         ENUM_MAP<PCB_LAYER_ID>& layerEnum = ENUM_MAP<PCB_LAYER_ID>::Instance();
 
         if( layerEnum.Choices().GetCount() == 0 )
         {
             layerEnum.Undefined( UNDEFINED_LAYER );
 
-            for( LSEQ seq = LSET::AllLayersMask().Seq(); seq; ++seq )
-                layerEnum.Map( *seq, LSET::Name( *seq ) );
+            for( PCB_LAYER_ID layer : LSET::AllLayersMask().Seq() )
+                layerEnum.Map( layer, LSET::Name( layer ) );
         }
 
         PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
@@ -1506,6 +2080,25 @@ static struct TRACK_VIA_DESC
             &PCB_TRACK::SetEndY, &PCB_TRACK::GetEndY, PROPERTY_DISPLAY::PT_COORD,
             ORIGIN_TRANSFORMS::ABS_Y_COORD) );
 
+        const wxString groupTechLayers = _HKI( "Technical Layers" );
+
+        auto isExternalLayerTrack =
+            []( INSPECTABLE* aItem )
+            {
+                if( auto track = dynamic_cast<PCB_TRACK*>( aItem ) )
+                    return track->GetLayer() == F_Cu || track->GetLayer() == B_Cu;
+
+                return false;
+            };
+
+        propMgr.AddProperty( new PROPERTY<PCB_TRACK, bool>( _HKI( "Soldermask" ),
+            &PCB_TRACK::SetHasSolderMask, &PCB_TRACK::HasSolderMask ), groupTechLayers )
+            .SetAvailableFunc( isExternalLayerTrack );
+        propMgr.AddProperty( new PROPERTY<PCB_TRACK, std::optional<int>>( _HKI( "Soldermask Margin Override" ),
+            &PCB_TRACK::SetLocalSolderMaskMargin, &PCB_TRACK::GetLocalSolderMaskMargin,
+            PROPERTY_DISPLAY::PT_SIZE ), groupTechLayers )
+            .SetAvailableFunc( isExternalLayerTrack );
+
         // Arc
         REGISTER_TYPE( PCB_ARC );
         propMgr.InheritsAfter( TYPE_HASH( PCB_ARC ), TYPE_HASH( PCB_TRACK ) );
@@ -1519,19 +2112,22 @@ static struct TRACK_VIA_DESC
 
         propMgr.Mask( TYPE_HASH( PCB_VIA ), TYPE_HASH( BOARD_CONNECTED_ITEM ), _HKI( "Layer" ) );
 
-        propMgr.ReplaceProperty( TYPE_HASH( PCB_TRACK ), _HKI( "Width" ),
-            new PROPERTY<PCB_VIA, int, PCB_TRACK>( _HKI( "Diameter" ),
-            &PCB_VIA::SetWidth, &PCB_VIA::GetWidth, PROPERTY_DISPLAY::PT_SIZE ) );
+        propMgr.AddProperty( new PROPERTY<PCB_VIA, int>( _HKI( "Diameter" ),
+            &PCB_VIA::SetFrontWidth, &PCB_VIA::GetFrontWidth, PROPERTY_DISPLAY::PT_SIZE ), groupVia );
         propMgr.AddProperty( new PROPERTY<PCB_VIA, int>( _HKI( "Hole" ),
             &PCB_VIA::SetDrill, &PCB_VIA::GetDrillValue, PROPERTY_DISPLAY::PT_SIZE ), groupVia );
-        propMgr.ReplaceProperty( TYPE_HASH( BOARD_ITEM ), _HKI( "Layer" ),
-            new PROPERTY_ENUM<PCB_VIA, PCB_LAYER_ID, BOARD_ITEM>( _HKI( "Layer Top" ),
+        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, PCB_LAYER_ID>( _HKI( "Layer Top" ),
             &PCB_VIA::SetLayer, &PCB_VIA::GetLayer ), groupVia );
         propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, PCB_LAYER_ID>( _HKI( "Layer Bottom" ),
             &PCB_VIA::SetBottomLayer, &PCB_VIA::BottomLayer ), groupVia );
         propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, VIATYPE>( _HKI( "Via Type" ),
             &PCB_VIA::SetViaType, &PCB_VIA::GetViaType ), groupVia );
+        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, TENTING_MODE>( _HKI( "Front tenting" ),
+            &PCB_VIA::SetFrontTentingMode, &PCB_VIA::GetFrontTentingMode ), groupVia );
+        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, TENTING_MODE>( _HKI( "Back tenting" ),
+            &PCB_VIA::SetBackTentingMode, &PCB_VIA::GetBackTentingMode ), groupVia );
     }
 } _TRACK_VIA_DESC;
 
 ENUM_TO_WXANY( VIATYPE );
+ENUM_TO_WXANY( TENTING_MODE );

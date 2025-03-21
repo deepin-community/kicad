@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,6 +21,7 @@
 #define KICAD_PROJECT_ARCHIVER_H
 
 #include <wx/string.h>
+#include <kicommon.h>
 
 
 class PROJECT;
@@ -28,7 +29,7 @@ class REPORTER;
 class SETTINGS_MANAGER;
 
 
-class PROJECT_ARCHIVER
+class KICOMMON_API PROJECT_ARCHIVER
 {
 public:
     PROJECT_ARCHIVER();
@@ -36,27 +37,43 @@ public:
     ~PROJECT_ARCHIVER() = default;
 
     /**
-     * Creates an archive of the project
-     * @param aSrcFile is the full path to the project to be archived
-     * @param aDestFile is the full path to the zip file to be created
-     * @param aReporter is used to report status
-     * @param aVerbose controls the verbosity of reported status messages
-     * @param aIncludeExtraFiles if true will archive legacy and output files
-     * @return true if the archive was created successfully
+     * Compare the CRCs of all the files in zip archive to determine whether the archives are
+     * identical.
+     *
+     * @param aZipFileA is the full path to the first zip.
+     * @param aZipFileB is the full path to the second zip.
+     * @param aReporter is used to report status.
+     * @return true if the archives are identical.
      */
-    bool Archive( const wxString& aSrcDir, const wxString& aDestFile, REPORTER& aReporter,
-                  bool aVerbose = true, bool aIncludeExtraFiles = false );
+    static bool AreZipArchivesIdentical( const wxString& aZipFileA, const wxString& aZipFileB,
+                                         REPORTER& aReporter );
 
     /**
-     * Extracts an archive of the current project over existing files
-     * Warning: this will overwrite files in the project directory.  Use with care.  The caller is
-     * responsible for doing any reloading of state after taking this action.
-     * @param aSrcFile is the full path to the archive to extract
-     * @param aDestDir is the target directory to unarchive to
-     * @param aReporter is used to report status
-     * @return true if the archive was created successfully
+     * Create an archive of the project.
+     *
+     * @param aSrcFile is the full path to the project to be archived.
+     * @param aDestFile is the full path to the zip file to be created.
+     * @param aReporter is used to report status.
+     * @param aVerbose controls the verbosity of reported status messages.
+     * @param aIncludeExtraFiles if true will archive legacy and output files.
+     * @return true if the archive was created successfully.
      */
-    bool Unarchive( const wxString& aSrcFile, const wxString& aDestDir, REPORTER& aReporter );
+    static bool Archive( const wxString& aSrcDir, const wxString& aDestFile, REPORTER& aReporter,
+                         bool aVerbose = true, bool aIncludeExtraFiles = false );
+
+    /**
+     * Extract an archive of the current project over existing files.
+     *
+     * @warning This will overwrite files in the project directory.  Use with care.  The caller is
+     * responsible for doing any reloading of state after taking this action.
+     *
+     * @param aSrcFile is the full path to the archive to extract.
+     * @param aDestDir is the target directory to unarchive to.
+     * @param aReporter is used to report status.
+     * @return true if the archive was created successfully.
+     */
+    static bool Unarchive( const wxString& aSrcFile, const wxString& aDestDir,
+                           REPORTER& aReporter );
 };
 
 #endif // KICAD_PROJECT_ARCHIVER_H

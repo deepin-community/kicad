@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,18 +19,50 @@
  */
 
 #include <jobs/job_export_pcb_dxf.h>
+#include <jobs/job_registry.h>
+#include <i18n_utility.h>
 
+NLOHMANN_JSON_SERIALIZE_ENUM( JOB_EXPORT_PCB_DXF::GEN_MODE,
+                              {
+                                      { JOB_EXPORT_PCB_DXF::GEN_MODE::MULTI, "multi" },
+                                      { JOB_EXPORT_PCB_DXF::GEN_MODE::SINGLE, "single" },
+                              } )
 
-JOB_EXPORT_PCB_DXF::JOB_EXPORT_PCB_DXF( bool aIsCli ) :
-    JOB( "dxf", aIsCli ),
-    m_filename(),
-    m_outputFile(),
-    m_drawingSheet(),
-    m_plotFootprintValues( true ),
-    m_plotRefDes( true ),
+NLOHMANN_JSON_SERIALIZE_ENUM( JOB_EXPORT_PCB_DXF::DXF_UNITS,
+                              {
+                                      { JOB_EXPORT_PCB_DXF::DXF_UNITS::INCHES, "in" },
+                                      { JOB_EXPORT_PCB_DXF::DXF_UNITS::MILLIMETERS, "mm" },
+                              } )
+
+JOB_EXPORT_PCB_DXF::JOB_EXPORT_PCB_DXF() :
+    JOB_EXPORT_PCB_PLOT( JOB_EXPORT_PCB_PLOT::PLOT_FORMAT::DXF, "dxf", false ),
     m_plotGraphicItemsUsingContours( true ),
-    m_plotBorderTitleBlocks( false ),
+    m_polygonMode( true ),
     m_dxfUnits( DXF_UNITS::INCHES ),
-    m_printMaskLayer()
+    m_genMode( GEN_MODE::MULTI )
 {
+    m_plotDrawingSheet = false;
+
+    m_params.emplace_back(
+            new JOB_PARAM<bool>( "plot_footprint_values", &m_plotFootprintValues, m_plotFootprintValues ) );
+    m_params.emplace_back( new JOB_PARAM<bool>( "plot_graphic_items_using_contours", &m_plotGraphicItemsUsingContours,
+                                                m_plotGraphicItemsUsingContours ) );
+    m_params.emplace_back( new JOB_PARAM<DXF_UNITS>( "units", &m_dxfUnits, m_dxfUnits ) );
+    m_params.emplace_back( new JOB_PARAM<bool>( "polygon_mode", &m_polygonMode, m_polygonMode ) );
+    m_params.emplace_back( new JOB_PARAM<GEN_MODE>( "gen_mode", &m_genMode, m_genMode ) );
 }
+
+
+wxString JOB_EXPORT_PCB_DXF::GetDefaultDescription() const
+{
+    return _( "Export DXF" );
+}
+
+
+wxString JOB_EXPORT_PCB_DXF::GetSettingsDialogTitle() const
+{
+    return _( "Export DXF Job Settings" );
+}
+
+
+REGISTER_JOB( pcb_export_dxf, _HKI( "PCB: Export DXF" ), KIWAY::FACE_PCB, JOB_EXPORT_PCB_DXF );

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 Seth Hillbrand <hillbrand@ucdavis.edu>
- * Copyright (C) 2014-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -55,7 +55,7 @@ DIALOG_WIRE_BUS_PROPERTIES::DIALOG_WIRE_BUS_PROPERTIES( SCH_EDIT_FRAME* aParent,
     for( const auto& [ lineStyle, lineStyleDesc ] : lineTypeNames )
         m_typeCombo->Append( lineStyleDesc.name, KiBitmapBundle( lineStyleDesc.bitmap ) );
 
-    m_typeCombo->Append( DEFAULT_STYLE );
+    m_typeCombo->Append( DEFAULT_WIRE_STYLE_LABEL );
 
     SetupStandardButtons( { { wxID_APPLY, _( "Default" ) } } );
 
@@ -125,7 +125,7 @@ bool DIALOG_WIRE_BUS_PROPERTIES::TransferDataToWindow()
         int style = static_cast<int>( stroke.GetLineStyle() );
 
         if( style == -1 )
-            m_typeCombo->SetStringSelection( DEFAULT_STYLE );
+            m_typeCombo->SetStringSelection( DEFAULT_WIRE_STYLE_LABEL );
         else if( style < (int) lineTypeNames.size() )
             m_typeCombo->SetSelection( style );
         else
@@ -145,7 +145,9 @@ bool DIALOG_WIRE_BUS_PROPERTIES::TransferDataToWindow()
             } ) )
     {
         if( dotSize >=0 )
+        {
             m_junctionSize.SetValue( dotSize );
+        }
         else
         {
             // No junction found in selected items: disable m_junctionSize
@@ -166,7 +168,7 @@ void DIALOG_WIRE_BUS_PROPERTIES::resetDefaults( wxCommandEvent& event )
 {
     m_wireWidth.SetValue( 0 );
     m_colorSwatch->SetSwatchColor( COLOR4D::UNSPECIFIED, false );
-    m_typeCombo->SetStringSelection( DEFAULT_STYLE );
+    m_typeCombo->SetStringSelection( DEFAULT_WIRE_STYLE_LABEL );
     m_junctionSize.SetValue( 0 );
 
     Refresh();

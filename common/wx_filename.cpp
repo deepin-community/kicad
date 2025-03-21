@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -69,7 +69,6 @@ wxString WX_FILENAME::GetFullPath() const
 }
 
 
-// Write locally-cached values to the wxFileName.  MUST be called before using m_fn.
 void WX_FILENAME::resolve()
 {
     size_t dot = m_fullName.find_last_of( wxT( '.' ) );
@@ -88,7 +87,7 @@ long long WX_FILENAME::GetTimestamp()
     return 0;
 }
 
-// Resolve possible symlink(s) in aFileName to an absolute path
+
 void WX_FILENAME::ResolvePossibleSymlinks( wxFileName& aFilename )
 {
 #ifndef __WINDOWS__

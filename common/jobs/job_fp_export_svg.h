@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,13 +23,14 @@
 
 #include <kicommon.h>
 #include <layer_ids.h>
+#include <lseq.h>
 #include <wx/string.h>
 #include "job.h"
 
 class KICOMMON_API JOB_FP_EXPORT_SVG : public JOB
 {
 public:
-    JOB_FP_EXPORT_SVG( bool aIsCli );
+    JOB_FP_EXPORT_SVG();
 
     wxString m_libraryPath;
     wxString m_footprint;
@@ -39,6 +40,11 @@ public:
     wxString m_colorTheme;
 
     bool m_blackAndWhite;
+    bool m_sketchPadsOnFabLayers;
+    bool m_hideDNPFPsOnFabLayers;
+    bool m_sketchDNPFPsOnFabLayers;
+    bool m_crossoutDNPFPsOnFabLayers;
+
     LSEQ m_printMaskLayer;
 };
 

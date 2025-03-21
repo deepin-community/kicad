@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 1992-2016 <Jean-Pierre Charras>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -208,20 +208,20 @@ public:
 #endif
 
     /// @copydoc VIEW_ITEM::ViewGetLayers()
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    virtual std::vector<int> ViewGetLayers() const override;
 
     /// @copydoc VIEW_ITEM::ViewBBox()
     virtual const BOX2I ViewBBox() const override;
 
     /// @copydoc VIEW_ITEM::ViewGetLOD()
-    double ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const override;
+    double ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const override;
 
     ///< @copydoc EDA_ITEM::Visit()
     INSPECT_RESULT Visit( INSPECTOR inspector, void* testData,
                           const std::vector<KICAD_T>& aScanTypes ) override;
 
     ///< @copydoc EDA_ITEM::GetItemDescription()
-    virtual wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    virtual wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     ///< @copydoc EDA_ITEM::GetMenuImage()
     BITMAPS GetMenuImage() const override;

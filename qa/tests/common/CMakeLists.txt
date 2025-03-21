@@ -31,17 +31,23 @@ set( QA_COMMON_SRCS
     wximage_test_utils.cpp
 
     test_array_axis.cpp
+    test_base_set.cpp
     test_bitmap_base.cpp
     test_color4d.cpp
     test_coroutine.cpp
     test_eda_shape.cpp
     test_eda_text.cpp
+    test_embedded_file_compress.cpp
+    test_increment.cpp
+    test_ki_any.cpp
     test_lib_table.cpp
     test_markup_parser.cpp
     test_kicad_string.cpp
     test_kicad_stroke_font.cpp
     test_kiid.cpp
     test_layer_ids.cpp
+    test_layer_range.cpp
+    test_lset.cpp
     test_property.cpp
     test_refdes_utils.cpp
     test_richio.cpp
@@ -110,3 +116,5 @@ if( KICAD_TEST_DATABASE_LIBRARIES )
 endif()
 
 kicad_add_boost_test( qa_common qa_common )
+
+setup_qa_env( qa_common )

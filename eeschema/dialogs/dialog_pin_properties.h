@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2010 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2014-2023 KiCad Developers, see AUTHOR.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHOR.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,7 +33,7 @@
 
 #include <dialog_pin_properties_base.h>
 #include <widgets/unit_binder.h>
-#include <lib_pin.h>
+#include <sch_pin.h>
 #include <symbol_edit_frame.h>
 
 
@@ -53,12 +53,15 @@ class ALT_PIN_DATA_MODEL;
 class DIALOG_PIN_PROPERTIES : public DIALOG_PIN_PROPERTIES_BASE
 {
 public:
-    DIALOG_PIN_PROPERTIES( SYMBOL_EDIT_FRAME* parent, LIB_PIN* aPin );
+    DIALOG_PIN_PROPERTIES( SYMBOL_EDIT_FRAME* parent, SCH_PIN* aPin, bool aFocusPinNumber );
     ~DIALOG_PIN_PROPERTIES() override;
 
     bool TransferDataToWindow() override;
     bool TransferDataFromWindow() override;
 
+    /**
+     * Draw (on m_panelShowPin) the pin according to current settings in dialog.
+     */
     void OnPaintShowPanel( wxPaintEvent& event ) override;
     void OnPropertiesChange( wxCommandEvent& event ) override;
     void OnAddAlternate( wxCommandEvent& event ) override;
@@ -73,10 +76,10 @@ protected:
 
 private:
     SYMBOL_EDIT_FRAME*  m_frame;
-    LIB_PIN*            m_pin;
+    SCH_PIN*            m_pin;
 
     LIB_SYMBOL*         m_dummyParent;
-    LIB_PIN*            m_dummyPin;                   // a working copy used to show changes
+    SCH_PIN*            m_dummyPin;                   // a working copy used to show changes
 
     UNIT_BINDER         m_posX;
     UNIT_BINDER         m_posY;

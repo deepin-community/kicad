@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,8 +22,10 @@
  */
 
 #include <boost/test/unit_test.hpp>
+#include <boost/test/data/test_case.hpp>
 
 #include <qa_utils/wx_utils/unit_test_utils.h>
+#include <qa_utils/geometry/line_chain_construction.h>
 
 #include <geometry/shape_poly_set.h>
 #include <geometry/shape_line_chain.h>
@@ -32,14 +34,8 @@
 
 #include "geom_test_utils.h"
 
-struct FilletFixture
-{
-};
 
-/**
- * Declares the FilletFixture struct as the boost test fixture.
- */
-BOOST_FIXTURE_TEST_SUITE( Fillet, FilletFixture )
+BOOST_AUTO_TEST_SUITE( Fillet )
 
 /*
  * @brief check that a single segment of a fillet complies with the geometric
@@ -82,9 +78,9 @@ void TestSquareFillet( int aSquareSize, int aRadius, int aError )
 
     SHAPE_POLY_SET squarePolySet;
 
-    squarePolySet.AddOutline( MakeSquarePolyLine(aSquareSize, VECTOR2I(0, 0) ) );
+    squarePolySet.AddOutline( KI_TEST::BuildSquareChain( aSquareSize, VECTOR2I( 0, 0 ) ) );
 
-    SHAPE_POLY_SET filleted = FilletPolySet(squarePolySet, aRadius, aError);
+    SHAPE_POLY_SET filleted = FilletPolySet( squarePolySet, aRadius, aError );
 
     // expect a single filleted polygon
     BOOST_CHECK_EQUAL( filleted.OutlineCount(), 1 );
@@ -173,9 +169,15 @@ struct SquareFilletTestCase
     int squareSize;
     int radius;
     int error;
+
+    friend std::ostream& operator<<( std::ostream& os, const SquareFilletTestCase& testCase )
+    {
+        return os << "Square size: " << testCase.squareSize << ", Radius: " << testCase.radius
+                  << ", Error: " << testCase.error;
+    }
 };
 
-const std::vector<SquareFilletTestCase> squareFilletCases {
+const std::vector<SquareFilletTestCase> squareFilletCases{
     { 1000, 120, 10 },
     { 1000, 10, 1 },
 
@@ -190,20 +192,15 @@ const std::vector<SquareFilletTestCase> squareFilletCases {
  * Tests the SHAPE_POLY_SET::FilletPolygon method against certain geometric
  * constraints.
  */
-BOOST_AUTO_TEST_CASE( SquareFillet )
+BOOST_DATA_TEST_CASE( SquareFillet, boost::unit_test::data::make( squareFilletCases ), testCase )
 {
-    for ( const auto& testCase : squareFilletCases )
-    {
-        TestSquareFillet( testCase.squareSize, testCase.radius, testCase.error );
-    }
+    TestSquareFillet( testCase.squareSize, testCase.radius, testCase.error );
 }
 
-BOOST_AUTO_TEST_CASE( SquareConcaveFillet )
+BOOST_DATA_TEST_CASE( SquareConcaveFillet, boost::unit_test::data::make( squareFilletCases ),
+                      testCase )
 {
-    for ( const auto& testCase : squareFilletCases )
-    {
-        TestConcaveSquareFillet( testCase.squareSize, testCase.radius, testCase.error );
-    }
+    TestConcaveSquareFillet( testCase.squareSize, testCase.radius, testCase.error );
 }
 
 

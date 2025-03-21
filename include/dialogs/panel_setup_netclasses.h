@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,7 +39,7 @@ public:
     PANEL_SETUP_NETCLASSES( wxWindow* aParentWindow, EDA_DRAW_FRAME* aFrame,
                             std::shared_ptr<NET_SETTINGS> aSettings,
                             const std::set<wxString>& aNetNames, bool isEEschema );
-    ~PANEL_SETUP_NETCLASSES( ) override;
+    ~PANEL_SETUP_NETCLASSES() override;
 
     bool TransferDataToWindow() override;
     bool TransferDataFromWindow() override;
@@ -51,6 +51,9 @@ public:
 private:
     void OnAddNetclassClick( wxCommandEvent& event ) override;
     void OnRemoveNetclassClick( wxCommandEvent& event ) override;
+    void OnMoveNetclassUpClick( wxCommandEvent& event ) override;
+    void OnMoveNetclassDownClick( wxCommandEvent& event ) override;
+    void OnImportColorsClick( wxCommandEvent& event ) override;
     void OnSizeNetclassGrid( wxSizeEvent& event ) override;
 	void OnSizeAssignmentGrid( wxSizeEvent& event ) override;
     void OnAddAssignmentClick( wxCommandEvent& event ) override;
@@ -71,6 +74,8 @@ private:
     void loadNetclasses();
     void checkReload();
 
+    void setNetclassRowNullableEditors( int aRowId, bool aIsDefault );
+
 private:
     EDA_DRAW_FRAME*                 m_frame;
     bool                            m_isEEschema;
@@ -88,6 +93,7 @@ private:
     int                   m_hoveredCol;         // Column being hovered over, for tooltips
     wxString              m_lastPattern;
 
+    std::bitset<64>       m_shownColumns;
     int                   m_lastNetclassGridWidth;
 };
 

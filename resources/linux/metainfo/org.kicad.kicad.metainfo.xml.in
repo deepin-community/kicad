@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Copyright (C) 2016-2017 Lubomir Rintel <lkundrak@v3.sk> -->
 <!-- Copyright (C) 2016-2021 KiCad Developers, see AUTHORS.txt for contributors. -->
-<component type="desktop">
+<component type="desktop-application">
     <id>@KICAD_APP_NAME@</id>
+
     <name>KiCad</name>
 
     <launchable type="desktop-id">@KICAD_APP_NAME@.desktop</launchable>
@@ -13,6 +14,7 @@
     <summary>An EDA suite for schematic and circuit board design</summary>
 
     <provides>
+        <id>@KICAD_PROVIDES_APP_ID@</id>
         <binary>kicad</binary>
         <binary>eeschema</binary>
         <binary>pcbnew</binary>
@@ -35,7 +37,7 @@
         <keyword>PCB</keyword>
         <keyword>Schematic</keyword>
         <keyword>Circuit board</keyword>
-        <keyword>Gerber</keyword>
+        <keyword translate="no">Gerber</keyword>
         <keyword translate="no">PcbNew</keyword>
         <keyword translate="no">Eeschema</keyword>
     </keywords>
@@ -43,8 +45,6 @@
     <categories>
         <category>Electronics</category>
         <category>Engineering</category>
-        <category>Science</category>
-        <category>Electricity</category>
     </categories>
 
     <description>
@@ -56,33 +56,55 @@
     <screenshots>
         <screenshot type="default">
             <caption>KiCad Schematic Editor</caption>
-            <image width="1600" height="900">https://www.kicad.org/img/screenshots/appstream/eeschema_7.png</image>
+            <image width="1600" height="900">https://www.kicad.org/img/screenshots/appstream/eeschema_9.png</image>
         </screenshot>
 
         <screenshot>
             <caption>KiCad PCB Layout Editor</caption>
-            <image width="1600" height="900">https://www.kicad.org/img/screenshots/appstream/pcbnew_7.png</image>
+            <image width="1600" height="900">https://www.kicad.org/img/screenshots/appstream/pcbnew_9.png</image>
         </screenshot>
 
         <screenshot>
             <caption>KiCad 3D Viewer</caption>
-            <image width="1600" height="900">https://www.kicad.org/img/screenshots/appstream/3dviewer_7.png</image>
+            <image width="1600" height="900">https://www.kicad.org/img/screenshots/appstream/3dviewer_9.png</image>
         </screenshot>
     </screenshots>
 
     <url type="homepage">https://www.kicad.org/</url>
     <url type="bugtracker">https://go.kicad.org/issue</url>
-    <url type="help">https://go.kicad.org/docs/8.0</url>
+    <url type="help">https://go.kicad.org/docs/9</url>
     <url type="donation">https://go.kicad.org/donate</url>
     <url type="translate">https://go.kicad.org/translate</url>
+    <url type="contribute">https://go.kicad.org/contribute</url>
+    <url type="vcs-browser">https://gitlab.com/kicad/code/kicad</url>
 
     <update_contact>devlist@kicad.org</update_contact>
+
     <developer_name>The KiCad Developers</developer_name>
 
+
     <!-- This is actually a valid tag, but the utilities don't think so -->
-    <content_rating type="oars-1.1" />
+    <content_rating type="oars-1.1">
+        <!-- We allow opt-in diagnostic information -->
+        <content_attribute id="social-info">moderate</content_attribute>
+        <!-- We have a donation link in the application -->
+        <content_attribute id="money-purchasing">mild</content_attribute>
+    </content_rating>
 
     <releases>
         <release version="@KICAD_VERSION_FULL@" date="@KICAD_CONFIG_TIMESTAMP@" />
     </releases>
+
+    <!-- The supports/recommends tags are not recognized by older appstream-util
+         but they are valid.  Unfortunately, freedesktop does not publish a DTD
+         or version their metainfo files -->
+    <recommends>
+        <display_length compare="ge">1920</display_length>
+        <memory compare="ge">2048</memory>
+    </recommends>
+
+    <!-- KiCad supports running offline (but has online features available) -->
+    <supports>
+        <internet>offline-only</internet>
+    </supports>
 </component>

@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2014 CERN
- * Copyright (C) 2016-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -28,15 +28,15 @@
 /**
  * Represent a contiguous set of PCB layers.
  */
-class LAYER_RANGE
+class PNS_LAYER_RANGE
 {
 public:
-    LAYER_RANGE() :
+    PNS_LAYER_RANGE() :
         m_start( -1 ),
         m_end( -1 )
     {};
 
-    LAYER_RANGE( int aStart, int aEnd )
+    PNS_LAYER_RANGE( int aStart, int aEnd )
     {
         if( aStart > aEnd )
             std::swap( aStart, aEnd );
@@ -45,32 +45,36 @@ public:
         m_end = aEnd;
     }
 
-    LAYER_RANGE( int aLayer )
+    PNS_LAYER_RANGE( int aLayer )
     {
         m_start = m_end = aLayer;
     }
 
-    LAYER_RANGE( const LAYER_RANGE& aB ) :
+    PNS_LAYER_RANGE( const PNS_LAYER_RANGE& aB ) :
         m_start( aB.m_start ),
         m_end( aB.m_end )
     {}
 
-    ~LAYER_RANGE() {};
+    ~PNS_LAYER_RANGE() {};
 
-    LAYER_RANGE& operator=( const LAYER_RANGE& aB )
+    PNS_LAYER_RANGE& operator=( const PNS_LAYER_RANGE& aB )
     {
         m_start = aB.m_start;
         m_end = aB.m_end;
         return *this;
     }
 
-    bool Overlaps( const LAYER_RANGE& aOther ) const
+    bool Overlaps( const PNS_LAYER_RANGE& aOther ) const
     {
+        if ( m_start < 0 || m_end < 0 || aOther.m_start < 0 || aOther.m_end < 0 )
+            return false;
         return m_end >= aOther.m_start && m_start <= aOther.m_end;
     }
 
     bool Overlaps( const int aLayer ) const
     {
+        if ( m_start < 0 || m_end < 0 || aLayer < 0 )
+            return false;
         return aLayer >= m_start && aLayer <= m_end;
     }
 
@@ -89,7 +93,7 @@ public:
         return m_end;
     }
 
-    void Merge( const LAYER_RANGE& aOther )
+    void Merge( const PNS_LAYER_RANGE& aOther )
     {
         if( m_start < 0 || m_end < 0 )
         {
@@ -105,9 +109,9 @@ public:
             m_end = aOther.m_end;
     }
 
-    LAYER_RANGE Intersection( const LAYER_RANGE& aOther ) const
+    PNS_LAYER_RANGE Intersection( const PNS_LAYER_RANGE& aOther ) const
     {
-        LAYER_RANGE overlap;
+        PNS_LAYER_RANGE overlap;
 
         overlap.m_start = std::max( m_start, aOther.m_start );
 
@@ -122,17 +126,17 @@ public:
     }
 
     ///< Shortcut for comparisons/overlap tests
-    static LAYER_RANGE All()
+    static PNS_LAYER_RANGE All()
     {
-        return LAYER_RANGE( 0, 256 ); // fixme: use layer IDs header
+        return PNS_LAYER_RANGE( 0, 256 ); // fixme: use layer IDs header
     }
 
-    bool operator==( const LAYER_RANGE& aOther ) const
+    bool operator==( const PNS_LAYER_RANGE& aOther ) const
     {
         return ( m_start == aOther.m_start ) && ( m_end == aOther.m_end );
     }
 
-    bool operator!=( const LAYER_RANGE& aOther ) const
+    bool operator!=( const PNS_LAYER_RANGE& aOther ) const
     {
         return ( m_start != aOther.m_start ) || ( m_end != aOther.m_end );
     }

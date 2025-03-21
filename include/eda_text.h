@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2004-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,6 +32,7 @@
 #include <eda_search_data.h>
 #include <font/glyph.h>
 #include <font/text_attributes.h>
+#include <api/serializable.h>
 
 
 class OUTPUTFORMATTER;
@@ -75,7 +76,7 @@ using KIGFX::COLOR4D;
  * function names (accessors) that to not collide with function names likely to be seen
  * in the combined derived classes.
  */
-class EDA_TEXT
+class EDA_TEXT : public SERIALIZABLE
 {
 public:
     EDA_TEXT( const EDA_IU_SCALE& aIuScale, const wxString& aText = wxEmptyString );
@@ -85,6 +86,9 @@ public:
     virtual ~EDA_TEXT();
 
     EDA_TEXT& operator=( const EDA_TEXT& aItem );
+
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     /**
      * Return the string associated with the text object.
@@ -229,6 +233,9 @@ public:
     void SetFont( KIFONT::FONT* aFont );
     KIFONT::FONT* GetFont() const               { return m_attributes.m_Font; }
 
+    void SetUnresolvedFontName( const wxString& aFontName ) { m_unresolvedFontName = aFontName; }
+    bool ResolveFont( const std::vector<wxString>* aEmbeddedFonts );
+
     wxString GetFontName() const;
 
     void SetFontIndex( int aIdx );
@@ -307,12 +314,11 @@ public:
      * locate functions....)
      *
      * @param aLine The line of text to consider.  Pass -1 for all lines.
-     * @param aInvertY Invert the Y axis when calculating bounding box.
      * @return the rect containing the line of text (i.e. the position and the size of one line)
      *         this rectangle is calculated for 0 orient text.
      *         If orientation is not 0 the rect must be rotated to match the physical area
      */
-    BOX2I GetTextBox( int aLine = -1, bool aInvertY = false ) const;
+    BOX2I GetTextBox( int aLine = -1 ) const;
 
     /**
      * Return the distance between two lines of text.
@@ -351,11 +357,10 @@ public:
      * Output the object to \a aFormatter in s-expression form.
      *
      * @param aFormatter The #OUTPUTFORMATTER object to write to.
-     * @param aNestLevel The indentation next level.
      * @param aControlBits The control bit definition for object specific formatting.
      * @throw IO_ERROR on write error.
      */
-    virtual void Format( OUTPUTFORMATTER* aFormatter, int aNestLevel, int aControlBits ) const;
+    virtual void Format( OUTPUTFORMATTER* aFormatter, int aControlBits ) const;
 
     virtual EDA_ANGLE GetDrawRotation() const               { return GetTextAngle(); }
     virtual VECTOR2I GetDrawPos() const                     { return GetTextPos(); }
@@ -448,13 +453,16 @@ private:
     mutable VECTOR2I                                    m_render_cache_offset;
     mutable std::vector<std::unique_ptr<KIFONT::GLYPH>> m_render_cache;
 
-    mutable bool     m_bounding_box_cache_valid;
-    mutable VECTOR2I m_bounding_box_cache_pos;
-    mutable int      m_bounding_box_cache_line;
-    mutable bool     m_bounding_box_cache_inverted;
-    mutable BOX2I    m_bounding_box_cache;
+    struct BBOX_CACHE_ENTRY
+    {
+        VECTOR2I m_pos;
+        BOX2I    m_bbox;
+    };
+
+    mutable std::map<int, BBOX_CACHE_ENTRY> m_bbox_cache;
 
     TEXT_ATTRIBUTES  m_attributes;
+    wxString         m_unresolvedFontName;
     VECTOR2I         m_pos;
 };
 

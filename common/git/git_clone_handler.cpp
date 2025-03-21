@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,6 +31,7 @@
 GIT_CLONE_HANDLER::GIT_CLONE_HANDLER() :  KIGIT_COMMON( nullptr )
 {}
 
+
 GIT_CLONE_HANDLER::~GIT_CLONE_HANDLER()
 {
     if( m_repo )
@@ -46,12 +47,14 @@ bool GIT_CLONE_HANDLER::PerformClone()
     {
         if( !clonePath.Mkdir( wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL ) )
         {
-            AddErrorString( wxString::Format( _( "Could not create directory '%s'" ), m_clonePath ) );
+            AddErrorString( wxString::Format( _( "Could not create directory '%s'" ),
+                                              m_clonePath ) );
             return false;
         }
     }
 
-    git_clone_options cloneOptions = GIT_CLONE_OPTIONS_INIT;
+    git_clone_options cloneOptions;
+    git_clone_init_options( &cloneOptions, GIT_CLONE_OPTIONS_VERSION );
     cloneOptions.checkout_opts.checkout_strategy = GIT_CHECKOUT_SAFE;
     cloneOptions.checkout_opts.progress_cb = clone_progress_cb;
     cloneOptions.checkout_opts.progress_payload = this;
@@ -60,8 +63,10 @@ bool GIT_CLONE_HANDLER::PerformClone()
     cloneOptions.fetch_opts.callbacks.payload = this;
 
     m_testedTypes = 0;
+    ResetNextKey();
 
-    if( git_clone( &m_repo, m_URL.ToStdString().c_str(), m_clonePath.ToStdString().c_str(), &cloneOptions ) != 0 )
+    if( git_clone( &m_repo, m_URL.ToStdString().c_str(), m_clonePath.ToStdString().c_str(),
+                   &cloneOptions ) != 0 )
     {
         AddErrorString( wxString::Format( _( "Could not clone repository '%s'" ), m_URL ) );
         return false;

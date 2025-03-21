@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,6 +37,7 @@
 #include <wildcards_and_files_ext.h>
 
 #include <wx/filedlg.h>
+#include <wx/msgdlg.h>
 
 
 DIALOG_CONFIG_EQUFILES::DIALOG_CONFIG_EQUFILES( wxWindow* aParent ) :
@@ -246,8 +247,8 @@ void DIALOG_CONFIG_EQUFILES::OnAddFiles( wxCommandEvent& event )
         }
         else
         {
-            DisplayError( this, wxString::Format( _( "File '%s' already exists in list." ),
-                                                  filepath.GetData() ) );
+            DisplayErrorMessage( this, wxString::Format( _( "File '%s' already exists in list." ),
+                                                         filepath.GetData() ) );
         }
     }
 }

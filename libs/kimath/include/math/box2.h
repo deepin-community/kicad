@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2012-2023 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2013 CERN
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -43,35 +43,61 @@ template <class Vec>
 class BOX2
 {
 public:
-    typedef typename Vec::coord_type        coord_type;
-    typedef typename Vec::extended_type     ecoord_type;
-    typedef std::numeric_limits<coord_type> coord_limits;
+    typedef typename Vec::coord_type               coord_type;
+    typedef typename Vec::extended_type            size_type;
+    typedef typename Vec::extended_type            ecoord_type;
+    typedef VECTOR2<size_type>                     SizeVec;
+    typedef std::numeric_limits<coord_type>        coord_limits;
 
-    BOX2() :
+    constexpr BOX2() :
         m_Pos( 0, 0 ),
         m_Size( 0, 0 ),
         m_init( false )
     {};
 
-    BOX2( const Vec& aPos, const Vec& aSize = Vec(0, 0) ) :
+    constexpr BOX2( const Vec& aPos, const SizeVec& aSize = SizeVec(0, 0) ) :
         m_Pos( aPos ),
         m_Size( aSize ),
         m_init( true )
     {
+        // Range check
+        KiCheckedCast<ecoord_type, coord_type>( ecoord_type( m_Pos.x ) + m_Size.x );
+        KiCheckedCast<ecoord_type, coord_type>( ecoord_type( m_Pos.y ) + m_Size.y );
+
         Normalize();
     }
 
-    void SetMaximum()
+    static constexpr BOX2<Vec> ByCorners( const Vec& aCorner1, const Vec& aCorner2 )
     {
-        m_Pos.x  = m_Pos.y = coord_limits::lowest() / 2 + coord_limits::epsilon();
-        m_Size.x = m_Size.y = coord_limits::max() - coord_limits::epsilon();
+        return BOX2( aCorner1, aCorner2 - aCorner1 );
+    }
+
+    static constexpr BOX2<Vec> ByCenter( const Vec& aCenter, const SizeVec& aSize )
+    {
+        return BOX2( aCenter - aSize / 2, aSize );
+    }
+
+    constexpr void SetMaximum()
+    {
+        if constexpr( std::is_floating_point<coord_type>() )
+        {
+            m_Pos.x = m_Pos.y = coord_limits::lowest() / 2.0;
+            m_Size.x = m_Size.y = coord_limits::max();
+        }
+        else
+        {
+            // We want to be able to invert the box, so don't use lowest()
+            m_Pos.x = m_Pos.y = -coord_limits::max();
+            m_Size.x = m_Size.y = size_type( coord_limits::max() ) + coord_limits::max();
+        }
+
         m_init = true;
     }
 
-    Vec Centre() const
+    constexpr Vec Centre() const
     {
-        return Vec( m_Pos.x + ( m_Size.x / 2 ),
-                    m_Pos.y + ( m_Size.y / 2 ) );
+        return Vec( KiCheckedCast<ecoord_type, coord_type>( ecoord_type( m_Pos.x ) + m_Size.x / 2 ),
+                    KiCheckedCast<ecoord_type, coord_type>( ecoord_type( m_Pos.y ) + m_Size.y / 2 ) );
     }
 
     /**
@@ -109,7 +135,7 @@ public:
      *
      * @param aMoveVector is a point that is the value to move this rectangle.
      */
-    void Move( const Vec& aMoveVector )
+    constexpr void Move( const Vec& aMoveVector )
     {
         m_Pos += aMoveVector;
     }
@@ -117,18 +143,18 @@ public:
     /**
      * Ensure that the height and width are positive.
      */
-    BOX2<Vec>& Normalize()
+    constexpr BOX2<Vec>& Normalize()
     {
         if( m_Size.y < 0 )
         {
             m_Size.y = -m_Size.y;
-            m_Pos.y -= m_Size.y;
+            m_Pos.y = KiCheckedCast<ecoord_type, coord_type>( ecoord_type( m_Pos.y ) - m_Size.y );
         }
 
         if( m_Size.x < 0 )
         {
             m_Size.x = -m_Size.x;
-            m_Pos.x -= m_Size.x;
+            m_Pos.x = KiCheckedCast<ecoord_type, coord_type>( ecoord_type( m_Pos.x ) - m_Size.x );
         }
 
         return *this;
@@ -139,7 +165,7 @@ public:
      *
      * @return true if \a aPoint is inside the boundary box. A point on a edge is seen as inside.
      */
-    bool Contains( const Vec& aPoint ) const
+    constexpr bool Contains( const Vec& aPoint ) const
     {
         Vec rel_pos = aPoint - m_Pos;
         Vec size    = m_Size;
@@ -165,109 +191,124 @@ public:
      * @param y is the x coordinate of the point to test.
      * @return true if point is inside the boundary box. A point on a edge is seen as inside.
      */
-    bool Contains( coord_type x, coord_type y ) const { return Contains( Vec( x, y ) ); }
+    constexpr bool Contains( coord_type x, coord_type y ) const { return Contains( Vec( x, y ) ); }
 
     /**
      * @param aRect is the the area to test.
      *
      * @return true if \a aRect is contained. A common edge is seen as contained.
      */
-    bool Contains( const BOX2<Vec>& aRect ) const
+    constexpr bool Contains( const BOX2<Vec>& aRect ) const
     {
         return Contains( aRect.GetOrigin() ) && Contains( aRect.GetEnd() );
     }
 
-    const Vec& GetSize() const { return m_Size; }
-    coord_type GetX() const { return m_Pos.x; }
-    coord_type GetY() const { return m_Pos.y; }
+    constexpr const SizeVec& GetSize() const { return m_Size; }
+    constexpr coord_type GetX() const { return m_Pos.x; }
+    constexpr coord_type GetY() const { return m_Pos.y; }
 
-    const Vec& GetOrigin() const { return m_Pos; }
-    const Vec& GetPosition() const { return m_Pos; }
-    const Vec GetEnd() const { return Vec( GetRight(), GetBottom() ); }
+    constexpr const Vec& GetOrigin() const { return m_Pos; }
+    constexpr const Vec& GetPosition() const { return m_Pos; }
+    constexpr const Vec GetEnd() const { return Vec( GetRight(), GetBottom() ); }
 
-    coord_type GetWidth() const { return m_Size.x; }
-    coord_type GetHeight() const { return m_Size.y; }
-    coord_type GetRight() const { return m_Pos.x + m_Size.x; }
-    coord_type GetBottom() const { return m_Pos.y + m_Size.y; }
+    constexpr size_type GetWidth() const { return m_Size.x; }
+    constexpr size_type GetHeight() const { return m_Size.y; }
+
+    constexpr coord_type GetRight() const
+    {
+        return KiCheckedCast<ecoord_type, coord_type>( ecoord_type( m_Pos.x ) + m_Size.x );
+    }
+
+    constexpr coord_type GetBottom() const
+    {
+        return KiCheckedCast<ecoord_type, coord_type>( ecoord_type( m_Pos.y ) + m_Size.y );
+    }
 
     // Compatibility aliases
-    coord_type GetLeft() const { return GetX(); }
-    coord_type GetTop() const { return GetY(); }
-    const Vec GetCenter() const { return Centre(); }
+    constexpr coord_type GetLeft() const { return GetX(); }
+    constexpr coord_type GetTop() const { return GetY(); }
+    constexpr const Vec GetCenter() const { return Centre(); }
 
     /**
      * @return the width or height, whichever is greater.
      */
-    int GetSizeMax() const { return ( m_Size.x > m_Size.y ) ? m_Size.x : m_Size.y; }
+    constexpr int GetSizeMax() const { return ( m_Size.x > m_Size.y ) ? m_Size.x : m_Size.y; }
 
-    void SetOrigin( const Vec& pos )
+    constexpr void SetOrigin( const Vec& pos )
     {
         m_Pos = pos;
         m_init = true;
     }
 
-    void SetOrigin( coord_type x, coord_type y )
+    constexpr void SetOrigin( coord_type x, coord_type y )
     {
         SetOrigin( Vec( x, y ) );
     }
 
-    void SetSize( const Vec& size )
+    constexpr void SetSize( const SizeVec& size )
     {
         m_Size = size;
         m_init = true;
     }
 
-    void SetSize( coord_type w, coord_type h )
+    constexpr void SetSize( size_type w, size_type h )
     {
-        SetSize( Vec( w, h ) );
+        SetSize( SizeVec( w, h ) );
     }
 
-    void Offset( coord_type dx, coord_type dy )
+    constexpr void Offset( coord_type dx, coord_type dy )
     {
         m_Pos.x += dx;
         m_Pos.y += dy;
     }
 
-    void Offset( const Vec& offset )
+    constexpr void Offset( const Vec& offset )
     {
         Offset( offset.x, offset.y );
     }
 
-    void SetX( coord_type val )
+    constexpr BOX2<Vec> GetWithOffset( const Vec& aMoveVector ) const
+    {
+        BOX2<Vec> ret( *this );
+        ret.Move( aMoveVector );
+        return ret;
+    }
+
+    constexpr void SetX( coord_type val )
     {
         SetOrigin( val, m_Pos.y );
     }
 
-    void SetY( coord_type val )
+    constexpr void SetY( coord_type val )
     {
         SetOrigin( m_Pos.x, val );
     }
 
-    void SetWidth( coord_type val )
+    constexpr void SetWidth( size_type val )
     {
         SetSize( val, m_Size.y );
     }
 
-    void SetHeight( coord_type val )
+    constexpr void SetHeight( size_type val )
     {
         SetSize( m_Size.x, val );
     }
 
-    void SetEnd( coord_type x, coord_type y )
+    constexpr void SetEnd( coord_type x, coord_type y )
     {
         SetEnd( Vec( x, y ) );
     }
 
-    void SetEnd( const Vec& pos )
+    constexpr void SetEnd( const Vec& pos )
     {
-        SetSize( pos - m_Pos );
+        SetSize( SizeVec( pos ) - m_Pos );
     }
 
     /**
      * @return true if the argument rectangle intersects this rectangle.
      *         (i.e. if the 2 rectangles have at least a common point)
      */
-    bool Intersects( const BOX2<Vec>& aRect ) const
+    constexpr bool Intersects( const BOX2<Vec>& aRect ) const
     {
         // this logic taken from wxWidgets' geometry.cpp file:
         bool        rc;
@@ -278,13 +319,18 @@ public:
         rect.Normalize();       // ensure size is >= 0
 
         // calculate the left common area coordinate:
-        int  left   = std::max( me.m_Pos.x, rect.m_Pos.x );
+        ecoord_type left = std::max( me.m_Pos.x, rect.m_Pos.x );
+
         // calculate the right common area coordinate:
-        int  right  = std::min( me.m_Pos.x + me.m_Size.x, rect.m_Pos.x + rect.m_Size.x );
+        ecoord_type right = std::min( ecoord_type( me.m_Pos.x ) + me.m_Size.x,
+                                      ecoord_type( rect.m_Pos.x ) + rect.m_Size.x );
+
         // calculate the upper common area coordinate:
-        int  top    = std::max( me.m_Pos.y, rect.m_Pos.y );
+        ecoord_type top = std::max( me.m_Pos.y, rect.m_Pos.y );
+
         // calculate the lower common area coordinate:
-        int  bottom = std::min( me.m_Pos.y + me.m_Size.y, rect.m_Pos.y + rect.m_Size.y );
+        ecoord_type bottom = std::min( ecoord_type( me.m_Pos.y ) + me.m_Size.y,
+                                       ecoord_type( rect.m_Pos.y ) + rect.m_Size.y );
 
         // if a common area exists, it must have a positive (null accepted) size
         if( left <= right && top <= bottom )
@@ -298,7 +344,7 @@ public:
     /**
      * @return true if this rectangle intersects \a aRect.
      */
-    BOX2<Vec> Intersect( const BOX2<Vec>& aRect )
+    constexpr BOX2<Vec> Intersect( const BOX2<Vec>& aRect )
     {
         BOX2<Vec> me( *this );
         BOX2<Vec> rect( aRect );
@@ -307,15 +353,20 @@ public:
 
         Vec topLeft, bottomRight;
 
-        topLeft.x     = std::max( me.m_Pos.x, rect.m_Pos.x );
-        bottomRight.x = std::min( me.m_Pos.x + me.m_Size.x, rect.m_Pos.x + rect.m_Size.x );
-        topLeft.y     = std::max( me.m_Pos.y, rect.m_Pos.y );
-        bottomRight.y = std::min( me.m_Pos.y + me.m_Size.y, rect.m_Pos.y + rect.m_Size.y );
+        topLeft.x = std::max( me.m_Pos.x, rect.m_Pos.x );
 
-        if ( topLeft.x < bottomRight.x && topLeft.y < bottomRight.y )
-            return BOX2<Vec>( topLeft, bottomRight - topLeft );
+        bottomRight.x = std::min( size_type( me.m_Pos.x ) + me.m_Size.x,
+                                  size_type( rect.m_Pos.x ) + rect.m_Size.x );
+
+        topLeft.y = std::max( me.m_Pos.y, rect.m_Pos.y );
+
+        bottomRight.y = std::min( size_type( me.m_Pos.y ) + me.m_Size.y,
+                                  size_type( rect.m_Pos.y ) + rect.m_Size.y );
+
+        if( topLeft.x < bottomRight.x && topLeft.y < bottomRight.y )
+            return BOX2<Vec>( topLeft, SizeVec( bottomRight ) - topLeft );
         else
-            return BOX2<Vec>( Vec( 0, 0 ), Vec( 0, 0 ) );
+            return BOX2<Vec>( Vec( 0, 0 ), SizeVec( 0, 0 ) );
     }
 
     /**
@@ -400,10 +451,10 @@ public:
         VECTOR2I corners[4];
 
         /* Test A : Any corners exist in rotated rect? */
-        corners[0] = m_Pos;
-        corners[1] = m_Pos + VECTOR2I( m_Size.x, 0 );
-        corners[2] = m_Pos + VECTOR2I( m_Size.x, m_Size.y );
-        corners[3] = m_Pos + VECTOR2I( 0, m_Size.y );
+        corners[0] = VECTOR2I( GetLeft(), GetTop() );
+        corners[1] = VECTOR2I( GetRight(), GetTop() );
+        corners[2] = VECTOR2I( GetRight(), GetBottom() );
+        corners[3] = VECTOR2I( GetLeft(), GetBottom() );
 
         VECTOR2I rCentre = aRect.Centre();
 
@@ -418,8 +469,8 @@ public:
         }
 
         /* Test B : Any corners of rotated rect exist in this one? */
-        int w = aRect.GetWidth() / 2;
-        int h = aRect.GetHeight() / 2;
+        int w = KiCheckedCast<ecoord_type, coord_type>( aRect.GetWidth() / 2 );
+        int h = KiCheckedCast<ecoord_type, coord_type>( aRect.GetHeight() / 2 );
 
         // Construct corners around center of shape
         corners[0] = VECTOR2I( -w, -h );
@@ -455,7 +506,7 @@ public:
         if( !m_init )
             return false;
 
-        Vec closest = ClosestPointTo( aCenter );
+        Vec closest = NearestPoint( aCenter );
 
         double dx = static_cast<double>( aCenter.x ) - closest.x;
         double dy = static_cast<double>( aCenter.y ) - closest.y;
@@ -504,74 +555,67 @@ public:
      * Inflates the rectangle horizontally by \a dx and vertically by \a dy. If \a dx
      * and/or \a dy is negative the rectangle is deflated.
      */
-    BOX2<Vec>& Inflate( coord_type dx, coord_type dy )
+    constexpr BOX2<Vec>& Inflate( coord_type dx, coord_type dy )
     {
-        auto rangeCheck = []( ecoord_type aInput ) -> coord_type
-        {
-            return KiROUND<ecoord_type, coord_type>( aInput );
-        };
-
         if( m_Size.x >= 0 )
         {
-            if( m_Size.x / 2 < -dx )
+            if( m_Size.x < -2 * dx )
             {
                 // Don't allow deflate to eat more width than we have,
-                m_Pos.x += m_Size.x / 2;
+                m_Pos.x = KiCheckedCast<ecoord_type, coord_type>( ecoord_type( m_Pos.x ) + m_Size.x / 2 );
                 m_Size.x = 0;
             }
             else
             {
                 // The inflate is valid.
                 m_Pos.x  -= dx;
-                m_Size.x = rangeCheck( m_Size.x + ecoord_type( dx ) * 2 );
+                m_Size.x +=  2 * dx;
             }
         }
         else    // size.x < 0:
         {
-            if( m_Size.x / 2 > dx )
+            if( m_Size.x > 2 * dx )
             {
                 // Don't allow deflate to eat more width than we have,
-                m_Pos.x -= m_Size.x / 2;
+                m_Pos.x = KiCheckedCast<ecoord_type, coord_type>( ecoord_type( m_Pos.x ) - m_Size.x / 2 );
                 m_Size.x = 0;
             }
             else
             {
                 // The inflate is valid.
-                m_Pos.x += dx;
-                m_Size.x = rangeCheck( m_Size.x - ecoord_type( dx ) * 2 );
-                // m_Size.x <0: inflate when dx > 0
+                m_Pos.x  += dx;
+                m_Size.x -= 2 * dx; // m_Size.x <0: inflate when dx > 0
             }
         }
 
         if( m_Size.y >= 0 )
         {
-            if( m_Size.y / 2 < -dy )
+            if( m_Size.y < -2 * dy )
             {
                 // Don't allow deflate to eat more height than we have,
-                m_Pos.y += m_Size.y / 2;
+                m_Pos.y = KiCheckedCast<ecoord_type, coord_type>( ecoord_type( m_Pos.y ) + m_Size.y / 2 );
                 m_Size.y = 0;
             }
             else
             {
                 // The inflate is valid.
                 m_Pos.y  -= dy;
-                m_Size.y = rangeCheck( m_Size.y + ecoord_type( dy ) * 2 );
+                m_Size.y += 2 * dy;
             }
         }
         else    // size.y < 0:
         {
-            if( m_Size.y / 2 > dy )
+            if( m_Size.y > 2 * dy )
             {
                 // Don't allow deflate to eat more height than we have,
-                m_Pos.y -= m_Size.y / 2;
+                m_Pos.y = KiCheckedCast<ecoord_type, coord_type>( ecoord_type( m_Pos.y ) - m_Size.y / 2 );
                 m_Size.y = 0;
             }
             else
             {
                 // The inflate is valid.
                 m_Pos.y  += dy;
-                m_Size.y = rangeCheck( m_Size.y - ecoord_type( dy ) * 2 );
-                // m_Size.y <0: inflate when dy > 0
+                m_Size.y -= 2 * dy; // m_Size.y <0: inflate when dy > 0
             }
         }
 
@@ -582,10 +626,28 @@ public:
      * Inflate the rectangle horizontally and vertically by \a aDelta. If \a aDelta
      * is negative the rectangle is deflated.
      */
-    BOX2<Vec>& Inflate( int aDelta )
+    constexpr BOX2<Vec>& Inflate( coord_type aDelta )
     {
         Inflate( aDelta, aDelta );
         return *this;
+    }
+
+    /**
+     * Get a new rectangle that is this one, inflated by \a aDx and \a aDy.
+     */
+    constexpr BOX2<Vec> GetInflated( coord_type aDx, coord_type aDy ) const
+    {
+        BOX2<Vec> ret( *this );
+        ret.Inflate( aDx, aDy );
+        return ret;
+    }
+
+    /**
+     * Get a new rectangle that is this one, inflated by \a aDelta.
+     */
+    constexpr BOX2<Vec> GetInflated( coord_type aDelta ) const
+    {
+        return GetInflated( aDelta, aDelta );
     }
 
     /**
@@ -593,7 +655,7 @@ public:
      *
      * @param aRect is the rectangle to merge with this rectangle.
      */
-    BOX2<Vec>& Merge( const BOX2<Vec>& aRect )
+    constexpr BOX2<Vec>& Merge( const BOX2<Vec>& aRect )
     {
         if( !m_init )
         {
@@ -627,7 +689,7 @@ public:
      *
      * @param aPoint is the point to merge with the rectangle.
      */
-    BOX2<Vec>& Merge( const Vec& aPoint )
+    constexpr BOX2<Vec>& Merge( const Vec& aPoint )
     {
         if( !m_init )
         {
@@ -692,21 +754,11 @@ public:
     }
 
     /**
-     * Mirror the rectangle from the X axis (negate Y pos and size).
-     */
-    void RevertYAxis()
-    {
-        m_Pos.y  = -m_Pos.y;
-        m_Size.y = -m_Size.y;
-        Normalize();
-    }
-
-    /**
      * Return the area of the rectangle.
      *
      * @return The area of the rectangle.
      */
-    ecoord_type GetArea() const
+    constexpr ecoord_type GetArea() const
     {
         return (ecoord_type) GetWidth() * (ecoord_type) GetHeight();
     }
@@ -721,7 +773,17 @@ public:
         return m_Size.EuclideanNorm();
     }
 
-    ecoord_type SquaredDistance( const Vec& aP ) const
+    /**
+     * Return the square of the length of the diagonal of the rectangle.
+     *
+     * When all you need is a comparison, this is faster than Diagonal().
+     */
+    constexpr ecoord_type SquaredDiagonal() const
+    {
+        return m_Size.SquaredEuclideanNorm();
+    }
+
+    constexpr ecoord_type SquaredDistance( const Vec& aP ) const
     {
         ecoord_type x2 = m_Pos.x + m_Size.x;
         ecoord_type y2 = m_Pos.y + m_Size.y;
@@ -743,7 +805,7 @@ public:
      * @param aBox is the other box.
      * @return The distance squared from \a aBox.
      */
-    ecoord_type SquaredDistance( const BOX2<Vec>& aBox ) const
+    constexpr ecoord_type SquaredDistance( const BOX2<Vec>& aBox ) const
     {
         ecoord_type s = 0;
 
@@ -786,15 +848,15 @@ public:
     /**
      * Return the point in this rect that is closest to the provided point
      */
-    const Vec ClosestPointTo( const Vec& aPoint ) const
+    constexpr Vec NearestPoint( const Vec& aPoint ) const
     {
         BOX2<Vec> me( *this );
 
         me.Normalize(); // ensure size is >= 0
 
         // Determine closest point to the circle centre within this rect
-        coord_type nx = alg::clamp( me.GetLeft(), aPoint.x, me.GetRight() );
-        coord_type ny = alg::clamp( me.GetTop(), aPoint.y, me.GetBottom() );
+        const coord_type nx = std::clamp( aPoint.x, me.GetLeft(), me.GetRight() );
+        const coord_type ny = std::clamp( aPoint.y, me.GetTop(), me.GetBottom() );
 
         return Vec( nx, ny );
     }
@@ -802,7 +864,7 @@ public:
     /**
      * Return the point in this rect that is farthest from the provided point
      */
-    const Vec FarthestPointTo( const Vec& aPoint ) const
+    constexpr Vec FarthestPointTo( const Vec& aPoint ) const
     {
         BOX2<Vec> me( *this );
 
@@ -826,7 +888,7 @@ public:
         return Vec( fx, fy );
     }
 
-    bool operator==( const BOX2<Vec>& aOther ) const
+    constexpr bool operator==( const BOX2<Vec>& aOther ) const
     {
         auto t1 ( *this );
         auto t2 ( aOther );
@@ -835,7 +897,7 @@ public:
         return ( t1.m_Pos == t2.m_Pos && t1.m_Size == t2.m_Size );
     }
 
-    bool operator!=( const BOX2<Vec>& aOther ) const
+    constexpr bool operator!=( const BOX2<Vec>& aOther ) const
     {
         auto t1 ( *this );
         auto t2 ( aOther );
@@ -844,26 +906,27 @@ public:
         return ( t1.m_Pos != t2.m_Pos || t1.m_Size != t2.m_Size );
     }
 
-    bool IsValid() const
+    constexpr bool IsValid() const
     {
         return m_init;
     }
 
 private:
-    Vec  m_Pos;      // Rectangle Origin
-    Vec  m_Size;     // Rectangle Size
+    Vec     m_Pos;  // Rectangle Origin
+    SizeVec m_Size; // Rectangle Size
 
-    bool m_init;     // Is the rectangle initialized
+    bool m_init;    // Is the rectangle initialized
 };
 
 /* Default specializations */
 typedef BOX2<VECTOR2I>    BOX2I;
 typedef BOX2<VECTOR2D>    BOX2D;
+typedef BOX2<VECTOR2L>    BOX2L;
 
 typedef std::optional<BOX2I> OPT_BOX2I;
 
 
-inline BOX2I BOX2ISafe( const BOX2D& aInput )
+inline constexpr BOX2I BOX2ISafe( const BOX2D& aInput )
 {
     constexpr double high = std::numeric_limits<int>::max();
     constexpr double low = -std::numeric_limits<int>::max();
@@ -878,7 +941,22 @@ inline BOX2I BOX2ISafe( const BOX2D& aInput )
 }
 
 
-inline BOX2I BOX2ISafe( const VECTOR2D& aPos, const VECTOR2D& aSize )
+/**
+ * Check if a BOX2 is safe for use with BOX2D
+ * (probably BOX2D or BOX2L)
+ */
+template <typename Vec>
+inline constexpr bool IsBOX2Safe( const BOX2<Vec>& aInput )
+{
+    constexpr double high = std::numeric_limits<int>::max();
+    constexpr double low = -std::numeric_limits<int>::max();
+
+    return ( aInput.GetLeft() >= low && aInput.GetTop() >= low &&
+             aInput.GetRight() <= high && aInput.GetBottom() <= high );
+}
+
+
+inline constexpr BOX2I BOX2ISafe( const VECTOR2D& aPos, const VECTOR2D& aSize )
 {
     constexpr double high = std::numeric_limits<int>::max();
     constexpr double low = -std::numeric_limits<int>::max();
@@ -894,7 +972,7 @@ inline BOX2I BOX2ISafe( const VECTOR2D& aPos, const VECTOR2D& aSize )
 
 
 template <typename S, std::enable_if_t<std::is_integral<S>::value, int> = 0>
-inline BOX2I BOX2ISafe( const VECTOR2I& aPos, const VECTOR2<S>& aSize )
+inline constexpr BOX2I BOX2ISafe( const VECTOR2I& aPos, const VECTOR2<S>& aSize )
 {
     constexpr int64_t high = std::numeric_limits<int>::max();
     constexpr int64_t low = -std::numeric_limits<int>::max();
@@ -908,5 +986,10 @@ inline BOX2I BOX2ISafe( const VECTOR2I& aPos, const VECTOR2<S>& aSize )
     return BOX2I( aPos, VECTOR2L( right - aPos.x, bottom - aPos.y ) );
 }
 
+/* KiROUND specialization for double -> int boxes */
+inline constexpr BOX2I KiROUND( const BOX2D& aBoxD )
+{
+    return BOX2I( KiROUND( aBoxD.GetOrigin() ), KiROUND( aBoxD.GetSize() ) );
+}
 
 #endif

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 CERN
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,9 +32,7 @@ class BOARD_ADAPTER;
 
 
 /**
- * EDA_3D_CONTROLLER
- *
- * Handles view actions for various 3D canvases.
+ * Handle view actions for various 3D canvases.
  */
 
 class EDA_3D_CONTROLLER : public TOOL_INTERACTIVE
@@ -99,7 +97,7 @@ public:
     int ToggleLayersManager( const TOOL_EVENT& aEvent );
 
 private:
-    ///< Sets up handlers for various events.
+    /// Set up handlers for various events.
     void setTransitions() override;
 
     int doZoomInOut( bool aDirection, bool aCenterOnCursor );

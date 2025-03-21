@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 Thomas Pointhuber <thomas.pointhuber@gmx.at>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,13 +27,14 @@
 
 #include <pcb_io/pcb_io.h>
 #include <pcb_io/pcb_io_mgr.h>
+#include <pcb_io/common/plugin_common_layer_mapping.h>
 
 #include <map>
 #include <memory>
 
-class ALTIUM_COMPOUND_FILE;
+class ALTIUM_PCB_COMPOUND_FILE;
 
-class PCB_IO_ALTIUM_DESIGNER : public PCB_IO
+class PCB_IO_ALTIUM_DESIGNER : public PCB_IO, public LAYER_MAPPABLE_PLUGIN
 {
 public:
     // -----<PUBLIC PCB_IO API>--------------------------------------------------
@@ -52,16 +53,16 @@ public:
     bool CanReadLibrary( const wxString& aFileName ) const override;
 
     BOARD* LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
-                      const STRING_UTF8_MAP* aProperties, PROJECT* aProject = nullptr ) override;
+                      const std::map<std::string, UTF8>* aProperties, PROJECT* aProject = nullptr ) override;
 
     long long GetLibraryTimestamp( const wxString& aLibraryPath ) const override;
 
     void FootprintEnumerate( wxArrayString& aFootprintNames, const wxString& aLibraryPath,
-                             bool aBestEfforts, const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                             bool aBestEfforts, const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     FOOTPRINT* FootprintLoad( const wxString& aLibraryPath, const wxString& aFootprintName,
                               bool              aKeepUUID = false,
-                              const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                              const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     //bool FootprintExists( const wxString& aLibraryPath, const wxString& aFootprintName, const PROPERTIES* aProperties = nullptr );
 
@@ -74,8 +75,18 @@ public:
 
     static bool checkFileHeader( const wxString& aFileName );
 
+    /**
+     * Return the automapped layers.
+     *
+     * @param aInputLayerDescriptionVector
+     * @return Auto-mapped layers
+     */
+    static std::map<wxString, PCB_LAYER_ID> DefaultLayerMappingCallback(
+            const std::vector<INPUT_LAYER_DESC>& aInputLayerDescriptionVector );
+
 private:
-    std::map<wxString, std::vector<std::unique_ptr<ALTIUM_COMPOUND_FILE>>> m_fplibFiles;
+    std::map<wxString, std::vector<std::unique_ptr<ALTIUM_PCB_COMPOUND_FILE>>> m_fplibFiles;
+
 
     void loadAltiumLibrary( const wxString& aLibraryPath );
 };

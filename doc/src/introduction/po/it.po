@@ -6,7 +6,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: 0.1\n"
-"POT-Creation-Date: 2024-04-19 13:06+0200\n"
+"POT-Creation-Date: 2024-04-03 08:08+0200\n"
 "PO-Revision-Date: 2024-04-04 09:25+0200\n"
 "Last-Translator: Marco Ciampa <ciampix@posteo.net>\n"
 "Language-Team: Italian <it@li.org>\n"
@@ -32,21 +32,14 @@ msgid ""
 "This document is Copyright (C) 2021-2024 by its contributors as listed "
 "below. You may distribute it and/or modify it under the terms of either the "
 "GNU General Public License (http://www.gnu.org/licenses/gpl.html), version 3 "
-"or later, or the Creative Commons Attribution License (http://"
-"creativecommons.org/licenses/by/3.0/), version 3.0 or later."
-msgstr ""
-"Questo documento è coperto dal Copyright (C) 2021-2024 dei suoi autori come "
-"elencati in seguito. È possibile distribuirlo e/o modificarlo nei termini "
-"sia della GNU General Public License (http://www.gnu.org/licenses/gpl.html), "
-"versione 3 o successive, che della Creative Commons Attribution License "
-"(http://creativecommons.org/licenses/by/3.0/), versione 3.0 o successive."
+"or later, or the Creative Commons Attribution License "
+"(http://creativecommons.org/licenses/by/3.0/), version 3.0 or later."
+msgstr "Questo documento è coperto dal Copyright (C) 2021-2024 dei suoi autori come elencati in seguito. È possibile distribuirlo e/o modificarlo nei termini sia della GNU General Public License (http://www.gnu.org/licenses/gpl.html), versione 3 o successive, che della Creative Commons Attribution License (http://creativecommons.org/licenses/by/3.0/), versione 3.0 o successive."
 
 #. type: Plain text
 #: introduction.adoc:19
 msgid "All trademarks within this guide belong to their legitimate owners."
-msgstr ""
-"Tutti i marchi registrati in questa guida appartengono ai loro legittimi "
-"proprietari."
+msgstr "Tutti i marchi registrati in questa guida appartengono ai loro legittimi proprietari."
 
 #. type: Plain text
 #: introduction.adoc:22
@@ -68,13 +61,9 @@ msgstr "*Feedback*"
 msgid ""
 "The KiCad project welcomes feedback, bug reports, and suggestions related to "
 "the software or its documentation. For more information on how to submit "
-"feedback or report an issue, please see the instructions at https://www."
-"kicad.org/help/report-an-issue/"
-msgstr ""
-"Il progetto KiCad accoglie commenti, segnalazioni di difetti e suggerimenti "
-"relativi al software o alla sua documentazione. Per ulteriori informazioni "
-"su come inviare commenti o segnalare un problema, consultare le istruzioni "
-"su https://www.kicad.org/help/report-an-issue/"
+"feedback or report an issue, please see the instructions at "
+"https://www.kicad.org/help/report-an-issue/"
+msgstr "Il progetto KiCad accoglie commenti, segnalazioni di difetti e suggerimenti relativi al software o alla sua documentazione. Per ulteriori informazioni su come inviare commenti o segnalare un problema, consultare le istruzioni su https://www.kicad.org/help/report-an-issue/"
 
 #. type: Plain text
 #: introduction.adoc:34
@@ -95,30 +84,20 @@ msgstr "Banvenuti"
 #. type: Plain text
 #: introduction.adoc:46
 msgid ""
-"KiCad is a free and open-source electronics design automation (EDA) suite. "
-"It features schematic capture, integrated circuit simulation, printed "
+"KiCad is a free and open-source electronics design automation (EDA) "
+"suite. It features schematic capture, integrated circuit simulation, printed "
 "circuit board (PCB) layout, 3D rendering, and plotting/data export to "
 "numerous formats. KiCad also includes a high-quality component library "
 "featuring thousands of symbols, footprints, and 3D models. KiCad has minimal "
 "system requirements and runs on Linux, Windows, and macOS."
-msgstr ""
-"KiCad è una suite EDA (Electronic Design Automation) gratuita e open source. "
-"Consente la stesura di schemi elettrici integrando un simulatore di "
-"circuiti, permette la stesura di circuiti stampati (PCB), il rendering 3D e "
-"la stampa/esportazione in numerosi formati. KiCad include anche una libreria "
-"di componenti di alta qualità con migliaia di simboli, impronte e modelli "
-"3D. KiCad ha requisiti di sistema minimi e funziona su Linux, Windows e "
-"macOS."
+msgstr "KiCad è una suite EDA (Electronic Design Automation) gratuita e open source. Consente la stesura di schemi elettrici integrando un simulatore di circuiti, permette la stesura di circuiti stampati (PCB), il rendering 3D e la stampa/esportazione in numerosi formati. KiCad include anche una libreria di componenti di alta qualità con migliaia di simboli, impronte e modelli 3D. KiCad ha requisiti di sistema minimi e funziona su Linux, Windows e macOS."
 
 #. type: Plain text
 #: introduction.adoc:49
 msgid ""
 "KiCad 8.0 is the most recent major release.  It includes hundreds of new "
 "features and bug fixes.  Some of the most notable new features include:"
-msgstr ""
-"KiCad 8.0 è la versione principale più recente. Include centinaia di nuove "
-"funzionalità e correzioni di bug. Alcune delle nuove funzionalità più "
-"importanti includono:"
+msgstr "KiCad 8.0 è la versione principale più recente. Include centinaia di nuove funzionalità e correzioni di bug. Alcune delle nuove funzionalità più importanti includono:"
 
 #. type: Plain text
 #: introduction.adoc:54
@@ -128,12 +107,7 @@ msgid ""
 "even when multiple different types of objects are selected at once. This "
 "expands on the Properties Panel in the PCB editor, which was introduced in "
 "version 7.0."
-msgstr ""
-"Un pannello Proprietà negli editor dello Schema, dei Simboli e delle "
-"Impronte, che consente di visualizzare e modificare rapidamente le proprietà "
-"degli oggetti selezionati. Funziona anche quando vengono selezionati più "
-"tipi diversi di oggetti contemporaneamente. Ciò si è espanso nel pannello "
-"Proprietà nell'editor dei Circuiti Stampati, introdotto nella versione 7.0."
+msgstr "Un pannello Proprietà negli editor dello Schema, dei Simboli e delle Impronte, che consente di visualizzare e modificare rapidamente le proprietà degli oggetti selezionati. Funziona anche quando vengono selezionati più tipi diversi di oggetti contemporaneamente. Ciò si è espanso nel pannello Proprietà nell'editor dei Circuiti Stampati, introdotto nella versione 7.0."
 
 #. type: Plain text
 #: introduction.adoc:57
@@ -141,10 +115,7 @@ msgid ""
 "HTTP libraries, which allow connecting KiCad to a networked component "
 "database or ERP system via a REST API. The REST endpoint can provide symbol "
 "and footprint mappings and other metadata."
-msgstr ""
-"Librerie HTTP, che consentono di connettere KiCad a un database di "
-"componenti in rete o a un sistema ERP tramite un'API REST. L'endpoint REST "
-"può fornire mappature di simboli e impronte e altri metadati."
+msgstr "Librerie HTTP, che consentono di connettere KiCad a un database di componenti in rete o a un sistema ERP tramite un'API REST. L'endpoint REST può fornire mappature di simboli e impronte e altri metadati."
 
 #. type: Plain text
 #: introduction.adoc:60
@@ -152,24 +123,16 @@ msgid ""
 "A search panel in the Schematic editor, which lets you search for symbols, "
 "labels, and schematic text. This mirrors the search panel in the PCB editor, "
 "which was added in version 7.0."
-msgstr ""
-"Un pannello di ricerca nell'editor dello schema, che consente di cercare "
-"simboli, etichette e testo dello schema. Funzionalità che si riflette anche "
-"nel pannello di ricerca nell'editor di Circuiti Stampati (PCB), che è stato "
-"aggiunto nella versione 7.0."
+msgstr "Un pannello di ricerca nell'editor dello schema, che consente di cercare simboli, etichette e testo dello schema. Funzionalità che si riflette anche nel pannello di ricerca nell'editor di Circuiti Stampati (PCB), che è stato aggiunto nella versione 7.0."
 
 #. type: Plain text
 #: introduction.adoc:63
 msgid ""
 "The Symbol Fields Table has been expanded and now includes a fully-featured "
 "and customizable BOM export tool. The legacy BOM export tool, which uses "
-"external scripts to generate a BOM in the desired format, is still available."
-msgstr ""
-"La tabella dei campi dei simboli è stata ampliata e ora include uno "
-"strumento di esportazione della distinta base completo e personalizzabile. "
-"Lo strumento di esportazione della distinta base tradizionale, che usa "
-"script esterni per generare una distinta base nel formato desiderato, è "
-"ancora disponibile."
+"external scripts to generate a BOM in the desired format, is still "
+"available."
+msgstr "La tabella dei campi dei simboli è stata ampliata e ora include uno strumento di esportazione della distinta base completo e personalizzabile. Lo strumento di esportazione della distinta base tradizionale, che usa script esterni per generare una distinta base nel formato desiderato, è ancora disponibile."
 
 #. type: Plain text
 #: introduction.adoc:70
@@ -181,15 +144,7 @@ msgid ""
 "operations, and the cursor and waveform measurement tools have been "
 "improved. Operating point analysis results can be displayed on the schematic "
 "itself to show the simulated operating point of each node."
-msgstr ""
-"L'interfaccia del simulatore SPICE è stata ampliata e revisionata. Lo "
-"strumento di simulazione ora supporta diversi nuovi tipi di analisi (FFT, "
-"simulazioni di rumore, simulazioni di poli zero e analisi di parametri s). I "
-"grafici dei risultati del simulatore ora possono includere segnali definiti "
-"dall'utente, comprese operazioni matematiche, e gli strumenti di misurazione "
-"del cursore e della forma d'onda sono stati migliorati. I risultati "
-"dell'analisi del punto operativo possono essere visualizzati sullo schema "
-"stesso per mostrare il punto operativo simulato di ciascun nodo."
+msgstr "L'interfaccia del simulatore SPICE è stata ampliata e revisionata. Lo strumento di simulazione ora supporta diversi nuovi tipi di analisi (FFT, simulazioni di rumore, simulazioni di poli zero e analisi di parametri s). I grafici dei risultati del simulatore ora possono includere segnali definiti dall'utente, comprese operazioni matematiche, e gli strumenti di misurazione del cursore e della forma d'onda sono stati migliorati. I risultati dell'analisi del punto operativo possono essere visualizzati sullo schema stesso per mostrare il punto operativo simulato di ciascun nodo."
 
 #. type: Plain text
 #: introduction.adoc:73
@@ -197,30 +152,21 @@ msgid ""
 "The command-line interface has been expanded, and now includes support for "
 "running ERC/DRC, exporting to more formats, and specifying text variables, "
 "among other improvements."
-msgstr ""
-"L'interfaccia a riga di comando è stata ampliata e ora include il supporto "
-"per l'esecuzione di ERC/DRC, l'esportazione in più formati e la specifica di "
-"variabili di testo, tra vari altri miglioramenti."
+msgstr "L'interfaccia a riga di comando è stata ampliata e ora include il supporto per l'esecuzione di ERC/DRC, l'esportazione in più formati e la specifica di variabili di testo, tra vari altri miglioramenti."
 
 #. type: Plain text
 #: introduction.adoc:75
 msgid ""
 "A net navigator tool has been added in the Schematic editor, which displays "
 "the locations of a highlighted net across a schematic hierarchy."
-msgstr ""
-"È stato aggiunto uno strumento di navigazione dei collegamenti (net) "
-"nell'editor degli schemi, che mostra le posizioni di un collegamento "
-"evidenziato attraverso la gerarchia degli schemi."
+msgstr "È stato aggiunto uno strumento di navigazione dei collegamenti (net) nell'editor degli schemi, che mostra le posizioni di un collegamento evidenziato attraverso la gerarchia degli schemi."
 
 #. type: Plain text
 #: introduction.adoc:77
 msgid ""
 "Grids can now be automatically overridden for specific object types, for "
 "example to use a finer grid for moving text and a coarser grid for symbols."
-msgstr ""
-"Le griglie ora possono essere superate automaticamente per tipi di oggetti "
-"specifici, per esempio usando una griglia più stretta per spostare il testo "
-"e una più larga per i simboli."
+msgstr "Le griglie ora possono essere superate automaticamente per tipi di oggetti specifici, per esempio usando una griglia più stretta per spostare il testo e una più larga per i simboli."
 
 #. type: Plain text
 #: introduction.adoc:81
@@ -229,32 +175,21 @@ msgid ""
 "determined by the symbol value rather than the pin name. Where before "
 "changing a power symbol's net required editing the symbol in the symbol "
 "editor, in version 8 you can change the net directly in the schematic."
-msgstr ""
-"Ora è più facile lavorare con i simboli di potenza, poiché la rete assegnata "
-"loro è ora determinata dal valore del simbolo anziché dal nome del piedino. "
-"Laddove prima la modifica della rete di un simbolo di potenza richiedeva la "
-"modifica del simbolo nell'editor dei simboli, nella versione 8 è possibile "
-"modificare la rete direttamente nello schema."
+msgstr "Ora è più facile lavorare con i simboli di potenza, poiché la rete assegnata loro è ora determinata dal valore del simbolo anziché dal nome del piedino. Laddove prima la modifica della rete di un simbolo di potenza richiedeva la modifica del simbolo nell'editor dei simboli, nella versione 8 è possibile modificare la rete direttamente nello schema."
 
 #. type: Plain text
 #: introduction.adoc:83
 msgid ""
 "A graphical comparison tool has been added to compare symbols and footprints "
 "between libraries and the copies embedded in schematics and PCBs."
-msgstr ""
-"È stato aggiunto uno strumento di confronto grafico per confrontare simboli "
-"e impronte tra le librerie e le copie incorporate negli schemi e nei "
-"circuiti stampati."
+msgstr "È stato aggiunto uno strumento di confronto grafico per confrontare simboli e impronte tra le librerie e le copie incorporate negli schemi e nei circuiti stampati."
 
 #. type: Plain text
 #: introduction.adoc:85
 msgid ""
 "Board designs can be exported to the IPC-2581 format, which includes "
 "complete fabrication and assembly information in a single file."
-msgstr ""
-"I progetti delle schede possono essere esportati nel formato IPC-2581, che "
-"include informazioni complete sulla fabbricazione e sull'assemblaggio in un "
-"unico file."
+msgstr "I progetti delle schede possono essere esportati nel formato IPC-2581, che include informazioni complete sulla fabbricazione e sull'assemblaggio in un unico file."
 
 #. type: Plain text
 #: introduction.adoc:88
@@ -262,51 +197,35 @@ msgid ""
 "The interactive length tuning tools in the PCB editor have been overhauled.  "
 "Length tuning meanders are now persistent objects that can be easily "
 "modified after they are initially created."
-msgstr ""
-"Gli strumenti interattivi di regolazione della lunghezza nell'editor del C."
-"S. sono stati revisionati. I meandri di regolazione della lunghezza ora sono "
-"oggetti persistenti che possono essere facilmente modificati dopo la loro "
-"creazione iniziale."
+msgstr "Gli strumenti interattivi di regolazione della lunghezza nell'editor del C.S. sono stati revisionati. I meandri di regolazione della lunghezza ora sono oggetti persistenti che possono essere facilmente modificati dopo la loro creazione iniziale."
 
 #. type: Plain text
 #: introduction.adoc:90
 msgid ""
 "Symbol fields are now synced to footprints in the PCB, so schematic symbol "
 "metadata is available in the board design."
-msgstr ""
-"I campi dei simboli sono ora sincronizzati con le impronte nel C.S., quindi "
-"i metadati dei simboli degli schemi sono disponibili nella progettazione "
-"degli stampati."
+msgstr "I campi dei simboli sono ora sincronizzati con le impronte nel C.S., quindi i metadati dei simboli degli schemi sono disponibili nella progettazione degli stampati."
 
 #. type: Plain text
 #: introduction.adoc:92
 msgid ""
 "Graphical polygons on copper PCB layers can now have nets assigned, which "
 "can be useful for creating electrical structures with a precise shape."
-msgstr ""
-"Ai poligoni grafici sugli strati in rame ora possono essere assegnati dei "
-"collegamenti (net), che possono essere utili per creare strutture elettriche "
-"con una forma precisa."
+msgstr "Ai poligoni grafici sugli strati in rame ora possono essere assegnati dei collegamenti (net), che possono essere utili per creare strutture elettriche con una forma precisa."
 
 #. type: Plain text
 #: introduction.adoc:94
 msgid ""
 "\"Pin helper\" tools have been added to the Schematic editor to quickly "
 "break out symbol pins to wires, nets, or no-connects."
-msgstr ""
-"Gli strumenti di \"Assistenza pin\" sono stati aggiunti all'editor degli "
-"schemi per suddividere rapidamente i pin dei simboli in fili, collegamenti o "
-"non connessi."
+msgstr "Gli strumenti di \"Assistenza pin\" sono stati aggiunti all'editor degli schemi per suddividere rapidamente i pin dei simboli in fili, collegamenti o non connessi."
 
 #. type: Plain text
 #: introduction.adoc:96
 msgid ""
 "The 3D Viewer now has an appearance panel that improves user control over "
 "how board designs are visualized in 3D."
-msgstr ""
-"Il Visualizzatore 3D ora dispone di un pannello Aspetto che migliora il "
-"controllo dell'utente sul modo in cui i progetti delle schede vengono "
-"visualizzati in 3D."
+msgstr "Il Visualizzatore 3D ora dispone di un pannello Aspetto che migliora il controllo dell'utente sul modo in cui i progetti delle schede vengono visualizzati in 3D."
 
 #. type: Plain text
 #: introduction.adoc:101
@@ -316,38 +235,26 @@ msgid ""
 "and libraries, CADSTAR symbol and footprint libraries, Solidworks PCB board "
 "files, Altium Designer symbol and integrated libraries, EAGLE symbol "
 "libraries, and LTSpice schematics."
-msgstr ""
-"Nuovi importatori e miglioramenti agli importatori esistenti. La versione 8 "
-"aggiunge il supporto per l'importazione di progetti e librerie EasyEDA "
-"(JLCEDA) Standard e Professional Edition, librerie di simboli e impronte "
-"CADSTAR, file di schede C.S. Solidworks, librerie di simboli e integrate "
-"Altium Designer, librerie di simboli EAGLE e schemi LTSpice."
+msgstr "Nuovi importatori e miglioramenti agli importatori esistenti. La versione 8 aggiunge il supporto per l'importazione di progetti e librerie EasyEDA (JLCEDA) Standard e Professional Edition, librerie di simboli e impronte CADSTAR, file di schede C.S. Solidworks, librerie di simboli e integrate Altium Designer, librerie di simboli EAGLE e schemi LTSpice."
 
 #. type: Plain text
 #: introduction.adoc:103
 msgid ""
 "New and improved exporters, including copper geometry in STEP exports and "
 "Cadence Allegro netlist export."
-msgstr ""
-"Esportatori nuovi e migliorati, inclusa la geometria del rame nelle "
-"esportazioni STEP e nell'esportazione della netlist Cadence Allegro."
+msgstr "Esportatori nuovi e migliorati, inclusa la geometria del rame nelle esportazioni STEP e nell'esportazione della netlist Cadence Allegro."
 
 #. type: Plain text
 #: introduction.adoc:104
-msgid ""
-"Significant improvements to the Symbol, Footprint, and 3D Model libraries."
-msgstr ""
-"Miglioramenti significativi alle librerie Simboli, Impronte e Modelli 3D."
+msgid "Significant improvements to the Symbol, Footprint, and 3D Model libraries."
+msgstr "Miglioramenti significativi alle librerie Simboli, Impronte e Modelli 3D."
 
 #. type: Plain text
 #: introduction.adoc:108
 msgid ""
-"A full listing of new features and changes in KiCad 8.0 can be found https://"
-"www.kicad.org/blog/2024/02/Version-8.0.0-Released/[here]."
-msgstr ""
-"Un elenco completo delle nuove funzionalità e delle modifiche in KiCad 8.0 "
-"può essere trovato https://www.kicad.org/blog/2024/02/Version-8.0.0-Released/"
-"[qui]."
+"A full listing of new features and changes in KiCad 8.0 can be found "
+"https://www.kicad.org/blog/2024/02/Version-8.0.0-Released/[here]."
+msgstr "Un elenco completo delle nuove funzionalità e delle modifiche in KiCad 8.0 può essere trovato https://www.kicad.org/blog/2024/02/Version-8.0.0-Released/[qui]."
 
 #. type: Title ==
 #: introduction.adoc:110
@@ -363,28 +270,17 @@ msgid ""
 "platforms have specific installation or upgrade instructions. Always check "
 "https://www.kicad.org/download/ for the latest release information and "
 "instructions for your platform."
-msgstr ""
-"KiCad mantiene la compatibilità e il supporto con le versioni mantenute di "
-"Microsoft Windows, Apple macOS e numerose distribuzioni Linux. Alcune "
-"piattaforme hanno istruzioni specifiche per l'installazione o "
-"l'aggiornamento. Controllare sempre https://www.kicad.org/download/ per "
-"avere informazioni aggiornate sull'ultima versione e le istruzioni per la "
-"propria piattaforma."
+msgstr "KiCad mantiene la compatibilità e il supporto con le versioni mantenute di Microsoft Windows, Apple macOS e numerose distribuzioni Linux. Alcune piattaforme hanno istruzioni specifiche per l'installazione o l'aggiornamento. Controllare sempre https://www.kicad.org/download/ per avere informazioni aggiornate sull'ultima versione e le istruzioni per la propria piattaforma."
 
 #. type: Plain text
 #: introduction.adoc:121
 msgid ""
 "KiCad may compile and run on platforms that are not officially supported.  "
 "The KiCad development team makes no guarantees that KiCad will continue to "
-"work on these platforms in the future.  See https://www.kicad.org/help/"
-"system-requirements/ for more details on supported platforms and hardware "
-"requirements."
-msgstr ""
-"KiCad può essere compilato ed eseguito su piattaforme non ufficialmente "
-"supportate. Il team di sviluppo di KiCad non garantisce che KiCad continuerà "
-"a funzionare su queste piattaforme in futuro. Vedere https://www.kicad.org/"
-"help/system-requirements/ per maggiori dettagli sulle piattaforme supportate "
-"e sui requisiti hardware."
+"work on these platforms in the future.  See "
+"https://www.kicad.org/help/system-requirements/ for more details on "
+"supported platforms and hardware requirements."
+msgstr "KiCad può essere compilato ed eseguito su piattaforme non ufficialmente supportate. Il team di sviluppo di KiCad non garantisce che KiCad continuerà a funzionare su queste piattaforme in futuro. Vedere https://www.kicad.org/help/system-requirements/ per maggiori dettagli sulle piattaforme supportate e sui requisiti hardware."
 
 #. type: Plain text
 #: introduction.adoc:130
@@ -400,21 +296,7 @@ msgid ""
 "by older versions, but not forwards compatible: Once files are edited and "
 "saved by a new major version, these files will not be openable by the "
 "previous major version."
-msgstr ""
-"KiCad utilizza il formato della versione di rilascio \"maggiore.minore."
-"puntuale\". Le versioni maggiori apportano nuove funzionalità e altre "
-"modifiche significative al codice. Le versioni minori sono relativamente "
-"rare e in genere apportano correzioni difetti troppo complicate per una "
-"versione puntuale. I rilasci puntuali contengono solo correzioni. Gli utenti "
-"sono incoraggiati ad aggiornare tempestivamente all'ultima versione puntuale "
-"della versione maggiore.minore corrente, poiché queste versioni non "
-"interromperanno la compatibilità dei file. Le versioni principali vengono "
-"quasi sempre accompagnate da modifiche ai formati di file. KiCad è in "
-"generale sempre compatibile con le versioni precedenti con i file creati da "
-"versioni precedenti, ma non compatibile con le versioni successive: una "
-"volta che i file vengono modificati e salvati da una nuova versione "
-"maggiore, questi file non saranno apribili dalla versione maggiore "
-"precedente."
+msgstr "KiCad utilizza il formato della versione di rilascio \"maggiore.minore.puntuale\". Le versioni maggiori apportano nuove funzionalità e altre modifiche significative al codice. Le versioni minori sono relativamente rare e in genere apportano correzioni difetti troppo complicate per una versione puntuale. I rilasci puntuali contengono solo correzioni. Gli utenti sono incoraggiati ad aggiornare tempestivamente all'ultima versione puntuale della versione maggiore.minore corrente, poiché queste versioni non interromperanno la compatibilità dei file. Le versioni principali vengono quasi sempre accompagnate da modifiche ai formati di file. KiCad è in generale sempre compatibile con le versioni precedenti con i file creati da versioni precedenti, ma non compatibile con le versioni successive: una volta che i file vengono modificati e salvati da una nuova versione maggiore, questi file non saranno apribili dalla versione maggiore precedente."
 
 #. type: Title ===
 #: introduction.adoc:131
@@ -430,20 +312,16 @@ msgid ""
 "file.  More details about specific issues that may come up when migrating "
 "designs is covered in the Schematic Editor and PCB Editor chapters of the "
 "manual."
-msgstr ""
-"In generale, per migrare un progetto a una nuova versione di KiCad, è "
-"sufficiente aprire il progetto con la nuova versione, quindi aprire lo "
-"schema e il circuito stampato e salvare ciascun file. Maggiori dettagli su "
-"problemi specifici che potrebbero verificarsi durante la migrazione dei "
-"progetti sono trattati nei capitoli Editor degli schemi e Editor del "
-"circuito stampato del manuale."
+msgstr "In generale, per migrare un progetto a una nuova versione di KiCad, è sufficiente aprire il progetto con la nuova versione, quindi aprire lo schema e il circuito stampato e salvare ciascun file. Maggiori dettagli su problemi specifici che potrebbero verificarsi durante la migrazione dei progetti sono trattati nei capitoli Editor degli schemi e Editor del circuito stampato del manuale."
 
 #. type: Plain text
 #: introduction.adoc:141
 #, no-wrap
 msgid ""
-"Make sure to save a backup of your design before opening it with a new version of KiCad.\n"
-"      Once saved in a new major version of KiCad, designs can no longer be opened by previous\n"
+"Make sure to save a backup of your design before opening it with a new "
+"version of KiCad.\n"
+"      Once saved in a new major version of KiCad, designs can no longer be "
+"opened by previous\n"
 "      major versions.\n"
 msgstr ""
 "Assicurasi di salvare una copia del proprio progetto prima di aprirlo con una nuova versione di KiCad.\n"
@@ -458,13 +336,7 @@ msgid ""
 "migrated to the new format.  For details on this process, see the Schematic "
 "Editor chapter of the manual.  Symbol libraries that have not been migrated "
 "can still be opened and used in read-only mode."
-msgstr ""
-"Il formato della libreria dei simboli è cambiato in KiCad 6.0. Per "
-"continuare a modificare le librerie di simboli realizzate con una versione "
-"precedente di KiCad, queste librerie devono essere trasferite al nuovo "
-"formato. Per i dettagli su questo processo, vedere il capitolo Editor degli "
-"schemi del manuale. Le librerie di simboli che non sono state migrate "
-"possono ancora essere aperte e utilizzate in modalità di sola lettura."
+msgstr "Il formato della libreria dei simboli è cambiato in KiCad 6.0. Per continuare a modificare le librerie di simboli realizzate con una versione precedente di KiCad, queste librerie devono essere trasferite al nuovo formato. Per i dettagli su questo processo, vedere il capitolo Editor degli schemi del manuale. Le librerie di simboli che non sono state migrate possono ancora essere aperte e utilizzate in modalità di sola lettura."
 
 #. type: Title ==
 #: introduction.adoc:148
@@ -480,20 +352,18 @@ msgid ""
 "working that are not described here.  For more information about each of the "
 "steps described in this section, please see the later chapters in this "
 "manual."
-msgstr ""
-"Questa sezione presenta una panoramica di alto livello del tipico flusso di "
-"lavoro di KiCad. Tenere presente che KiCad è un sistema software flessibile "
-"ed esistono altri modi di lavorare che non sono qui descritti. Per ulteriori "
-"informazioni sui passaggi descritti in questa sezione, consultare i capitoli "
-"successivi di questo manuale."
+msgstr "Questa sezione presenta una panoramica di alto livello del tipico flusso di lavoro di KiCad. Tenere presente che KiCad è un sistema software flessibile ed esistono altri modi di lavorare che non sono qui descritti. Per ulteriori informazioni sui passaggi descritti in questa sezione, consultare i capitoli successivi di questo manuale."
 
 #. type: Plain text
 #: introduction.adoc:158
 #, no-wrap
 msgid ""
-"A number of tutorials and guided lessons in using KiCad have been created by community\n"
-"      members.  These resources can be a good way to learn KiCad for some new users.  See the\n"
-"      Further Reading section at the end of this chapter for more information.\n"
+"A number of tutorials and guided lessons in using KiCad have been created by "
+"community\n"
+"      members.  These resources can be a good way to learn KiCad for some "
+"new users.  See the\n"
+"      Further Reading section at the end of this chapter for more "
+"information.\n"
 msgstr ""
 "I membri della comunità hanno creato numerosi tutorial e lezioni guidate sull'uso di KiCad.\n"
 "      Queste risorse possono essere un buon modo per imparare KiCad per alcuni nuovi utenti.\n"
@@ -514,22 +384,14 @@ msgid ""
 "throughout KiCad's documentation and user interface.  Other terms that are "
 "more specific to a certain part of the KiCad workflow are defined later in "
 "this manual."
-msgstr ""
-"KiCad utilizza una serie di termini che sono abbastanza standard nell'area "
-"del software EDA (Electronic Design Automation) e alcuni che sono più "
-"specifici per KiCad. Questa sezione elenca alcuni dei termini più comuni "
-"utilizzati nella documentazione e nell'interfaccia utente di KiCad. Altri "
-"termini più specifici per una certa parte del flusso di lavoro di KiCad sono "
-"definiti più avanti in questo manuale."
+msgstr "KiCad utilizza una serie di termini che sono abbastanza standard nell'area del software EDA (Electronic Design Automation) e alcuni che sono più specifici per KiCad. Questa sezione elenca alcuni dei termini più comuni utilizzati nella documentazione e nell'interfaccia utente di KiCad. Altri termini più specifici per una certa parte del flusso di lavoro di KiCad sono definiti più avanti in questo manuale."
 
 #. type: Plain text
 #: introduction.adoc:169
 msgid ""
 "A **schematic** is a collection of one or more pages (sheets) of circuit "
 "schematic drawings.  Each KiCad schematic file represents a single sheet."
-msgstr ""
-"Uno **schema** è una raccolta di una o più pagine (fogli) di disegni di "
-"schema di circuiti. Ogni file schema di KiCad rappresenta un foglio singolo."
+msgstr "Uno **schema** è una raccolta di una o più pagine (fogli) di disegni di schema di circuiti. Ogni file schema di KiCad rappresenta un foglio singolo."
 
 #. type: Plain text
 #: introduction.adoc:174
@@ -539,12 +401,7 @@ msgid ""
 "must be a single **root sheet** at the top of the hierarchy.  Sheets within "
 "a hierarchy (other than the root sheet) may be used more than once, for "
 "example to create repeated copies of a subcircuit."
-msgstr ""
-"Uno **schema gerarchico** è uno schema costituito da più pagine annidate "
-"l'una nell'altra. KiCad supporta gli schemi gerarchici, ma deve esserci un "
-"singolo **foglio radice** in cima alla gerarchia. I fogli all'interno di una "
-"gerarchia (diversi dal foglio radice) possono essere utilizzati più di una "
-"volta, ad esempio per creare copie ripetute di un sottocircuito."
+msgstr "Uno **schema gerarchico** è uno schema costituito da più pagine annidate l'una nell'altra. KiCad supporta gli schemi gerarchici, ma deve esserci un singolo **foglio radice** in cima alla gerarchia. I fogli all'interno di una gerarchia (diversi dal foglio radice) possono essere utilizzati più di una volta, ad esempio per creare copie ripetute di un sottocircuito."
 
 #. type: Plain text
 #: introduction.adoc:182
@@ -557,17 +414,7 @@ msgid ""
 "to a distinct physical connection on the component (for example, a resistor "
 "symbol will have two pins, one for each terminal of the resistor).  Symbols "
 "are stored in **symbol libraries** so they can be used in many schematics."
-msgstr ""
-"Un **simbolo** è un elemento del circuito che può essere posizionato su uno "
-"schema. I simboli possono rappresentare componenti elettronici fisici, come "
-"un resistore o un microcontrollore, o concetti non fisici come una linea di "
-"alimentazione o di terra. I simboli hanno **piedini** (pin) che fungono da "
-"punti di connessione che possono essere collegati tra loro in uno schema. "
-"Per i componenti fisici, ciascun piedino corrisponde a una connessione "
-"fisica distinta sul componente (ad esempio, il simbolo di un resistore avrà "
-"due pin, uno per ciascun terminale del resistore). I simboli sono archiviati "
-"in **librerie di simboli** in modo che possano essere utilizzati in più "
-"schemi."
+msgstr "Un **simbolo** è un elemento del circuito che può essere posizionato su uno schema. I simboli possono rappresentare componenti elettronici fisici, come un resistore o un microcontrollore, o concetti non fisici come una linea di alimentazione o di terra. I simboli hanno **piedini** (pin) che fungono da punti di connessione che possono essere collegati tra loro in uno schema. Per i componenti fisici, ciascun piedino corrisponde a una connessione fisica distinta sul componente (ad esempio, il simbolo di un resistore avrà due pin, uno per ciascun terminale del resistore). I simboli sono archiviati in **librerie di simboli** in modo che possano essere utilizzati in più schemi."
 
 #. type: Plain text
 #: introduction.adoc:190
@@ -581,17 +428,7 @@ msgid ""
 "each **net**, or set of connected pins.  Netlists can be written to a "
 "**netlist file**, but in modern versions of KiCad, this is not necessary as "
 "part of the normal workflow."
-msgstr ""
-"Una **netlist** è una rappresentazione di uno schema usata per trasmettere "
-"informazioni a un altro programma. Esistono molti formati di netlist "
-"utilizzati da vari programmi EDA. KiCad ha il proprio formato netlist che "
-"viene utilizzato internamente per passare informazioni avanti e indietro tra "
-"gli editor di schemi e dei circuiti stampati. La netlist contiene (tra le "
-"altre cose) tutte le informazioni su quali piedini si collegano tra loro e "
-"quale nome dovrebbe essere dato a ciascun **collegamento** (net), o insieme "
-"di piedini connessi. Le netlist possono essere scritte in un **file "
-"netlist**, ma nelle versioni moderne di KiCad questo non è necessario nel "
-"normale flusso di lavoro."
+msgstr "Una **netlist** è una rappresentazione di uno schema usata per trasmettere informazioni a un altro programma. Esistono molti formati di netlist utilizzati da vari programmi EDA. KiCad ha il proprio formato netlist che viene utilizzato internamente per passare informazioni avanti e indietro tra gli editor di schemi e dei circuiti stampati. La netlist contiene (tra le altre cose) tutte le informazioni su quali piedini si collegano tra loro e quale nome dovrebbe essere dato a ciascun **collegamento** (net), o insieme di piedini connessi. Le netlist possono essere scritte in un **file netlist**, ma nelle versioni moderne di KiCad questo non è necessario nel normale flusso di lavoro."
 
 #. type: Plain text
 #: introduction.adoc:195
@@ -601,13 +438,7 @@ msgid ""
 "Each KiCad board file refers to a single PCB design.  There is no official "
 "support for creating arrays or panels of PCBs within KiCad, although some "
 "community-created add-ons provide this functionality."
-msgstr ""
-"Un **circuito stampato**, o C.S. o PCB, è un documento di progettazione che "
-"rappresenta l'implementazione fisica di uno schema (o tecnicamente, di una "
-"netlist). Ogni file scheda KiCad si riferisce a un singolo progetto di "
-"circuito stampato. Non esiste un supporto ufficiale per la pannellizzazione "
-"di C.S. all'interno di KiCad, sebbene alcuni componenti aggiuntivi creati "
-"dalla comunità forniscano questa funzionalità."
+msgstr "Un **circuito stampato**, o C.S. o PCB, è un documento di progettazione che rappresenta l'implementazione fisica di uno schema (o tecnicamente, di una netlist). Ogni file scheda KiCad si riferisce a un singolo progetto di circuito stampato. Non esiste un supporto ufficiale per la pannellizzazione di C.S. all'interno di KiCad, sebbene alcuni componenti aggiuntivi creati dalla comunità forniscano questa funzionalità."
 
 #. type: Plain text
 #: introduction.adoc:200
@@ -618,13 +449,7 @@ msgid ""
 "coils, etc.).  Footprints can have **pads** which represent copper areas "
 "that are electrically-connected.  The netlist will associate symbol pins "
 "with footprint pads."
-msgstr ""
-"Una **impronta** è un elemento del circuito che può essere posizionato su un "
-"circuito stampato. Le impronte spesso rappresentano componenti elettrici "
-"fisici, ma possono anche essere utilizzate come libreria di elementi di "
-"design (loghi serigrafati, antenne e bobine in rame, ecc.). Le impronte "
-"possono avere **piazzole** che rappresentano aree in rame collegate "
-"elettricamente. La netlist assocerà i piedini simbolici alle piazzole."
+msgstr "Una **impronta** è un elemento del circuito che può essere posizionato su un circuito stampato. Le impronte spesso rappresentano componenti elettrici fisici, ma possono anche essere utilizzate come libreria di elementi di design (loghi serigrafati, antenne e bobine in rame, ecc.). Le impronte possono avere **piazzole** che rappresentano aree in rame collegate elettricamente. La netlist assocerà i piedini simbolici alle piazzole."
 
 #. type: Plain text
 #: introduction.adoc:203
@@ -632,10 +457,7 @@ msgid ""
 "A **worksheet** is a drawing template, typically containing a title block "
 "and frame, that is used as the template for schematic sheets and PCB "
 "drawings."
-msgstr ""
-"Un **foglio di lavoro** è un modello di disegno, in genere contenente un "
-"cartiglio e una cornice, utilizzato come modello per fogli schematici e "
-"disegni di circuiti stampati."
+msgstr "Un **foglio di lavoro** è un modello di disegno, in genere contenente un cartiglio e una cornice, utilizzato come modello per fogli schematici e disegni di circuiti stampati."
 
 #. type: Plain text
 #: introduction.adoc:207
@@ -644,11 +466,7 @@ msgid ""
 "design.  These outputs may include machine-readable formats such as Gerber "
 "files or pick-and-place listings, as well as human-readable formats such as "
 "PDF drawings."
-msgstr ""
-"La **tracciatura** è il processo di creazione dei file per la produzione da "
-"un progetto. Questi risultati possono includere formati leggibili dalle "
-"macchine come file Gerber o elenchi per il posizionamento (pick-and-place), "
-"nonché formati leggibili dall'uomo come disegni PDF."
+msgstr "La **tracciatura** è il processo di creazione dei file per la produzione da un progetto. Questi risultati possono includere formati leggibili dalle macchine come file Gerber o elenchi per il posizionamento (pick-and-place), nonché formati leggibili dall'uomo come disegni PDF."
 
 #. type: Plain text
 #: introduction.adoc:211
@@ -657,11 +475,7 @@ msgid ""
 "Berkeley SPICE, that is integrated into KiCad's schematic editor.  By using "
 "symbols with attached SPICE models, you can run circuit simulations on KiCad "
 "schematics and plot the results graphically."
-msgstr ""
-"**Ngspice** è un simulatore di circuiti a segnali misti, originariamente "
-"basato sul sistema Berkeley SPICE, integrato nell'editor di schemi di KiCad. "
-"Utilizzando simboli con modelli SPICE allegati, è possibile eseguire "
-"simulazioni di circuiti su schemi KiCad e tracciare graficamente i risultati."
+msgstr "**Ngspice** è un simulatore di circuiti a segnali misti, originariamente basato sul sistema Berkeley SPICE, integrato nell'editor di schemi di KiCad. Utilizzando simboli con modelli SPICE allegati, è possibile eseguire simulazioni di circuiti su schemi KiCad e tracciare graficamente i risultati."
 
 #. type: Title ===
 #: introduction.adoc:213
@@ -685,45 +499,32 @@ msgid ""
 "refer to the old KiCad workflow of separate applications and netlist files, "
 "so be sure to check the version being used when looking at tutorials and "
 "other documentation."
-msgstr ""
-"KiCad è costituito da una serie di componenti software diversi, alcuni dei "
-"quali sono integrati insieme per facilitare il flusso di lavoro di "
-"progettazione del circuito stampato, mentre altri sono autonomi. Nelle prime "
-"versioni di KiCad c'era pochissima integrazione tra i componenti software. "
-"Ad esempio, l'editor di schemi (storicamente chiamato Eeschema) e l'editor "
-"dei C.S. (storicamente chiamato PcbNew) erano applicazioni separate che non "
-"avevano alcun collegamento diretto e per creare un C.S. basato su uno "
-"schema: gli utenti dovevano generare un file netlist in Eeschema e poi far "
-"leggere questo file netlist a PcbNew. Nelle versioni moderne di KiCad, "
-"l'editor di schemi e dei circuiti stampati sono integrati nel project "
-"manager di KiCad e non è più necessario utilizzare i file netlist. Esistono "
-"ancora molti tutorial che fanno riferimento al vecchio flusso di lavoro di "
-"KiCad con applicazioni separate e file di netlist, quindi è meglio "
-"assicurarsi di controllare la versione utilizzata quando si seguono tutorial "
-"o altra documentazione."
+msgstr "KiCad è costituito da una serie di componenti software diversi, alcuni dei quali sono integrati insieme per facilitare il flusso di lavoro di progettazione del circuito stampato, mentre altri sono autonomi. Nelle prime versioni di KiCad c'era pochissima integrazione tra i componenti software. Ad esempio, l'editor di schemi (storicamente chiamato Eeschema) e l'editor dei C.S. (storicamente chiamato PcbNew) erano applicazioni separate che non avevano alcun collegamento diretto e per creare un C.S. basato su uno schema: gli utenti dovevano generare un file netlist in Eeschema e poi far leggere questo file netlist a PcbNew. Nelle versioni moderne di KiCad, l'editor di schemi e dei circuiti stampati sono integrati nel project manager di KiCad e non è più necessario utilizzare i file netlist. Esistono ancora molti tutorial che fanno riferimento al vecchio flusso di lavoro di KiCad con applicazioni separate e file di netlist, quindi è meglio assicurarsi di controllare la versione utilizzata quando si seguono tutorial o altra documentazione."
 
 #. type: Plain text
 #: introduction.adoc:228
 msgid ""
 "The main KiCad components are usually started from the launcher buttons in "
 "the KiCad project manager window.  These components include:"
-msgstr ""
-"I componenti principali di KiCad vengono in generale avviati dai pulsanti di "
-"avvio nella finestra del gestore del progetto KiCad. Questi componenti "
-"includono:"
+msgstr "I componenti principali di KiCad vengono in generale avviati dai pulsanti di avvio nella finestra del gestore del progetto KiCad. Questi componenti includono:"
 
 #. type: Table
 #: introduction.adoc:240
 #, no-wrap
 msgid ""
 "|Component name|Description\n"
-"|Schematic Editor |Create and edit schematics; simulate circuits with SPICE; generate BOM files\n"
-"|Symbol Editor |Create and edit schematic symbols and manage symbol libraries\n"
-"|PCB Editor |Create and edit PCBs; export 2D and 3D files; generate fabrication output files\n"
-"|Footprint Editor |Create and edit PCB component footprints and manage footprint libraries\n"
+"|Schematic Editor |Create and edit schematics; simulate circuits with SPICE; "
+"generate BOM files\n"
+"|Symbol Editor |Create and edit schematic symbols and manage symbol "
+"libraries\n"
+"|PCB Editor |Create and edit PCBs; export 2D and 3D files; generate "
+"fabrication output files\n"
+"|Footprint Editor |Create and edit PCB component footprints and manage "
+"footprint libraries\n"
 "|GerbView |Gerber and drill file viewer\n"
 "|Bitmap2Component |Convert bitmap images to symbols or footprints\n"
-"|PCB Calculator |Calculator for components, track width, electrical spacing, color codes, etc.\n"
+"|PCB Calculator |Calculator for components, track width, electrical spacing, "
+"color codes, etc.\n"
 "|Page Layout Editor |Create and edit worksheet files\n"
 msgstr ""
 "|Nome componente |Descrizione\n"
@@ -748,10 +549,7 @@ msgid ""
 "KiCad has a number of user interface behaviors that are common to all the "
 "different editor windows.  Some of these behaviors are described in more "
 "detail in later chapters of this manual."
-msgstr ""
-"KiCad ha una serie di comportamenti dell'interfaccia utente, comuni a tutte "
-"le diverse finestre di editor. Alcuni di questi comportamenti sono descritti "
-"più dettagliatamente nei capitoli successivi di questo manuale."
+msgstr "KiCad ha una serie di comportamenti dell'interfaccia utente, comuni a tutte le diverse finestre di editor. Alcuni di questi comportamenti sono descritti più dettagliatamente nei capitoli successivi di questo manuale."
 
 #. type: Plain text
 #: introduction.adoc:253
@@ -763,16 +561,7 @@ msgid ""
 "certain modifier keys while clicking or dragging will change the selection "
 "behavior.  These keys are platform-specific and are described in the Editing "
 "Options section of the Preferences dialog."
-msgstr ""
-"Gli oggetti possono essere selezionati facendo clic su di essi o trascinando "
-"una finestra di selezione attorno ad essi. Trascinando da sinistra a destra "
-"si otterrà una selezione di tutti gli elementi che si trovano completamente "
-"all'interno della finestra. Trascinando da destra a sinistra si otterrà una "
-"selezione di tutti gli elementi che toccano la finestra. Premendo "
-"determinati tasti modificatori mentre si fa clic o si trascina si "
-"modificherà il comportamento della selezione. Questi tasti sono specifici "
-"della piattaforma e sono descritti nella sezione Opzioni di modifica della "
-"finestra di dialogo Preferenze."
+msgstr "Gli oggetti possono essere selezionati facendo clic su di essi o trascinando una finestra di selezione attorno ad essi. Trascinando da sinistra a destra si otterrà una selezione di tutti gli elementi che si trovano completamente all'interno della finestra. Trascinando da destra a sinistra si otterrà una selezione di tutti gli elementi che toccano la finestra. Premendo determinati tasti modificatori mentre si fa clic o si trascina si modificherà il comportamento della selezione. Questi tasti sono specifici della piattaforma e sono descritti nella sezione Opzioni di modifica della finestra di dialogo Preferenze."
 
 #. type: Plain text
 #: introduction.adoc:263
@@ -782,9 +571,9 @@ msgid ""
 "means that clicking will select objects under the mouse cursor.  There are "
 "also tools for placing new objects, inspecting existing objects, etc.  The "
 "active tool is highlighted in the toolbar, and the name of the active tool "
-"is shown in the bottom right of the editor in the status bar.  Pressing kbd:"
-"[Esc] always means \"cancel\" in KiCad: if a tool is in the middle of some "
-"action (for example, routing tracks), the first press of kbd:[Esc] will "
+"is shown in the bottom right of the editor in the status bar.  Pressing "
+"kbd:[Esc] always means \"cancel\" in KiCad: if a tool is in the middle of "
+"some action (for example, routing tracks), the first press of kbd:[Esc] will "
 "cancel that action.  The next press of kbd:[Esc] will exit the tool "
 "complely, returning to the default selection tool.  With the selection tool "
 "active, pressing kbd:[Esc] will clear the current selection, if one exists."
@@ -801,7 +590,8 @@ msgstr "Progetti e file di KiCad"
 #, no-wrap
 msgid ""
 "This section of the KiCad documentation has not yet been written.  We\n"
-"      appreciate your patience as our small team of volunteer documentation\n"
+"      appreciate your patience as our small team of volunteer "
+"documentation\n"
 "      writers work to update and expand the documentation.\n"
 msgstr ""
 "Questa sezione della documentazione di KiCad non è ancora stata scritta.\n"
@@ -826,9 +616,7 @@ msgstr "Flusso di lavoro schema <> circuito stampato"
 #. type: Plain text
 #: introduction.adoc:275
 msgid "Standalone vs. project mode for schematic and PCB editors"
-msgstr ""
-"Modalità standalone e modalità progetto per editor di schemi e di circuiti "
-"stampati"
+msgstr "Modalità standalone e modalità progetto per editor di schemi e di circuiti stampati"
 
 #. type: Title ===
 #: introduction.adoc:277
@@ -889,10 +677,7 @@ msgid ""
 "The latest version of this manual can be found in multiple languages at "
 "https://docs.kicad.org Manuals for previous versions of KiCad can also be "
 "found at that website."
-msgstr ""
-"L'ultima versione di questo manuale, tradotta in più lingue, si trova su "
-"https://docs.kicad.org dove sono presenti anche i manuali delle versioni "
-"precedenti di KiCad."
+msgstr "L'ultima versione di questo manuale, tradotta in più lingue, si trova su https://docs.kicad.org dove sono presenti anche i manuali delle versioni precedenti di KiCad."
 
 #. type: Plain text
 #: introduction.adoc:310
@@ -902,24 +687,13 @@ msgid ""
 "endorsed as a great way to find help with problems, learn tips and tricks, "
 "and share examples of KiCad projects.  A listing of community resources is "
 "available under the Community heading at https://www.kicad.org"
-msgstr ""
-"La comunità degli utenti di KiCad include una serie di forum e piattaforme "
-"di chat gestite indipendentemente dalla squadra di sviluppo di KiCad ma che "
-"sono da essa approvate come modo per trovare aiuto per problemi, apprendere "
-"suggerimenti e trucchi e condividere esempi di progetti KiCad. Un elenco "
-"delle risorse della comunità è disponibile nella sezione Comunità su https://"
-"www.kicad.org"
+msgstr "La comunità degli utenti di KiCad include una serie di forum e piattaforme di chat gestite indipendentemente dalla squadra di sviluppo di KiCad ma che sono da essa approvate come modo per trovare aiuto per problemi, apprendere suggerimenti e trucchi e condividere esempi di progetti KiCad. Un elenco delle risorse della comunità è disponibile nella sezione Comunità su https://www.kicad.org"
 
 #. type: Plain text
 #: introduction.adoc:313
 msgid ""
 "Users interested in compiling KiCad from source and/or contributing to KiCad "
-"development should visit our developer documentation site at https://dev-"
-"docs.kicad.org for instructions, policies and guidelines, and technical "
-"information about the KiCad codebase."
-msgstr ""
-"Gli utenti interessati a compilare KiCad dal sorgente e/o a contribuire allo "
-"sviluppo di KiCad dovrebbero visitare il nostro sito di documentazione per "
-"sviluppatori all'indirizzo https://dev-docs.kicad.org per istruzioni, "
-"politiche, linee guida e informazioni tecniche sulla base del codice di "
-"KiCad."
+"development should visit our developer documentation site at "
+"https://dev-docs.kicad.org for instructions, policies and guidelines, and "
+"technical information about the KiCad codebase."
+msgstr "Gli utenti interessati a compilare KiCad dal sorgente e/o a contribuire allo sviluppo di KiCad dovrebbero visitare il nostro sito di documentazione per sviluppatori all'indirizzo https://dev-docs.kicad.org per istruzioni, politiche, linee guida e informazioni tecniche sulla base del codice di KiCad."

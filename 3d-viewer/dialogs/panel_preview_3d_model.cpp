@@ -4,7 +4,7 @@
  * Copyright (C) 2016 Mario Luzeiro <mrluzeiro@ua.pt>
  * Copyright (C) 2015 Cirilo Bernardo <cirilo.bernardo@gmail.com>
  * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2015-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,11 +36,13 @@
 #include <board.h>
 #include <common_ogl/ogl_attr_list.h>
 #include <dpi_scaling_common.h>
+#include <lset.h>
 #include <pgm_base.h>
 #include <project_pcb.h>
 #include <settings/common_settings.h>
 #include <settings/settings_manager.h>
 #include <widgets/wx_infobar.h>
+#include <widgets/std_bitmap_button.h>
 #include <eda_3d_viewer_settings.h>
 #include <board_design_settings.h>
 
@@ -49,7 +51,7 @@
 PANEL_PREVIEW_3D_MODEL::PANEL_PREVIEW_3D_MODEL( wxWindow* aParent, PCB_BASE_FRAME* aFrame,
                                                 FOOTPRINT* aFootprint,
                                                 std::vector<FP_3DMODEL>* aParentModelList ) :
-        PANEL_PREVIEW_3D_MODEL_BASE( aParent, wxID_ANY ),
+        PANEL_PREVIEW_3D_MODEL_BASE( aParent, PANEL_PREVIEW_3D_MODEL_ID ),
         m_parentFrame( aFrame ),
         m_previewPane( nullptr ),
         m_infobar( nullptr ),
@@ -88,7 +90,7 @@ PANEL_PREVIEW_3D_MODEL::PANEL_PREVIEW_3D_MODEL( wxWindow* aParent, PCB_BASE_FRAM
     m_bpvRight->SetBitmap( KiBitmapBundle( BITMAPS::axis3d_right ) );
     m_bpvBottom->SetBitmap( KiBitmapBundle( BITMAPS::axis3d_bottom ) );
     m_bpvISO->SetBitmap( KiBitmapBundle( BITMAPS::ortho ) );
-    m_bpvBodyStyle->SetBitmap( KiBitmapBundle( BITMAPS::axis3d ) );
+    m_bpvBodyStyle->SetBitmap( KiBitmapBundle( BITMAPS::show_board_body ) );
     m_bpUpdate->SetBitmap( KiBitmapBundle( BITMAPS::reload ) );
     m_bpSettings->SetBitmap( KiBitmapBundle( BITMAPS::options_3drender ) );
 
@@ -115,7 +117,7 @@ PANEL_PREVIEW_3D_MODEL::PANEL_PREVIEW_3D_MODEL( wxWindow* aParent, PCB_BASE_FRAM
     // Ensure the footprint is shown like in Fp editor: rot 0, not flipped
     // to avoid mistakes when setting the3D shape position/rotation
     if( m_dummyFootprint->IsFlipped() )
-        m_dummyFootprint->Flip( m_dummyFootprint->GetPosition(), false );
+        m_dummyFootprint->Flip( m_dummyFootprint->GetPosition(), FLIP_DIRECTION::TOP_BOTTOM );
 
     m_dummyFootprint->SetOrientation( ANGLE_0 );
 
@@ -125,14 +127,24 @@ PANEL_PREVIEW_3D_MODEL::PANEL_PREVIEW_3D_MODEL( wxWindow* aParent, PCB_BASE_FRAM
     // Create the 3D canvas
     m_previewPane = new EDA_3D_CANVAS( this,
                                        OGL_ATT_LIST::GetAttributesList( ANTIALIASING_MODE::AA_8X ),
-                                       m_boardAdapter, m_currentCamera, PROJECT_PCB::Get3DCacheManager( &aFrame->Prj() ) );
+                                       m_boardAdapter, m_currentCamera,
+                                       PROJECT_PCB::Get3DCacheManager( &aFrame->Prj() ) );
 
-    m_spaceMouse = new NL_FOOTPRINT_PROPERTIES_PLUGIN( m_previewPane );
-    m_spaceMouse->SetFocus( true );
+    try
+    {
+        m_spaceMouse = std::make_unique<NL_FOOTPRINT_PROPERTIES_PLUGIN>( m_previewPane );
+        m_spaceMouse->SetFocus( true );
+    }
+    catch( const std::system_error& e )
+    {
+        wxLogTrace( wxT( "KI_TRACE_NAVLIB" ), e.what() );
+    }
 
     m_boardAdapter.SetBoard( m_dummyBoard );
     m_boardAdapter.m_IsBoardView = false;
-    m_boardAdapter.m_IsPreviewer = true;   // Force display 3D models, regardless the 3D viewer options
+
+    // Force display 3D models, regardless the 3D viewer options.
+    m_boardAdapter.m_IsPreviewer = true;
 
     loadSettings();
 
@@ -168,26 +180,6 @@ PANEL_PREVIEW_3D_MODEL::PANEL_PREVIEW_3D_MODEL( wxWindow* aParent, PCB_BASE_FRAM
                      nullptr, this );
 
     Bind( wxCUSTOM_PANEL_SHOWN_EVENT, &PANEL_PREVIEW_3D_MODEL::onPanelShownEvent, this );
-
-#ifdef __WXOSX__
-    // Call layout once to get the proper button sizes after the bitmaps have been set
-    Layout();
-
-    // The rounded-button style used has a small border on the left/right sides.
-    // This is automatically fixed in wx for buttons with a bitmap < 20, but not
-    // when the bitmap is set to be 26x26.
-    wxSize borderFix = wxSize( 4, 4 );
-
-    m_bpvTop->SetMinSize( m_bpvTop->GetSize() + borderFix );
-    m_bpvFront->SetMinSize( m_bpvFront->GetSize() + borderFix );
-    m_bpvBack->SetMinSize( m_bpvBack->GetSize() + borderFix );
-    m_bpvLeft->SetMinSize( m_bpvLeft->GetSize() + borderFix );
-    m_bpvRight->SetMinSize( m_bpvRight->GetSize() + borderFix );
-    m_bpvBottom->SetMinSize( m_bpvBottom->GetSize() + borderFix );
-    m_bpvISO->SetMinSize( m_bpvISO->GetSize() + borderFix );
-    m_bpUpdate->SetMinSize( m_bpUpdate->GetSize() + borderFix );
-    m_bpSettings->SetMinSize( m_bpSettings->GetSize() + borderFix );
-#endif
 }
 
 
@@ -197,7 +189,6 @@ PANEL_PREVIEW_3D_MODEL::~PANEL_PREVIEW_3D_MODEL()
     if( m_boardAdapter.m_Cfg )
         m_boardAdapter.m_Cfg->m_Render = m_initialRender;
 
-    delete m_spaceMouse;
     delete m_dummyBoard;
     delete m_previewPane;
 }
@@ -221,7 +212,8 @@ void PANEL_PREVIEW_3D_MODEL::loadSettings()
     // TODO(JE) use all control options
     m_boardAdapter.m_MousewheelPanning = settings->m_Input.scroll_modifier_zoom != 0;
 
-    auto* cfg = Pgm().GetSettingsManager().GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
+    SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
+    EDA_3D_VIEWER_SETTINGS* cfg = mgr.GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
 
     if( cfg )
     {
@@ -242,6 +234,7 @@ void PANEL_PREVIEW_3D_MODEL::loadSettings()
         cfg->m_Render.show_solderpaste = m_bodyStyleShowAll;
         cfg->m_Render.show_zones = m_bodyStyleShowAll;
         cfg->m_Render.show_board_body = m_bodyStyleShowAll;
+        cfg->m_Render.use_board_editor_copper_colors = false;
     }
 }
 
@@ -253,7 +246,8 @@ void PANEL_PREVIEW_3D_MODEL::loadSettings()
  */
 static double rotationFromString( const wxString& aValue )
 {
-    double rotation = EDA_UNIT_UTILS::UI::DoubleValueFromString( unityScale, EDA_UNITS::DEGREES, aValue );
+    double rotation = EDA_UNIT_UTILS::UI::DoubleValueFromString( unityScale, EDA_UNITS::DEGREES,
+                                                                 aValue );
 
     if( rotation > MAX_ROTATION )
     {
@@ -279,6 +273,10 @@ wxString PANEL_PREVIEW_3D_MODEL::formatScaleValue( double aValue )
 
 wxString PANEL_PREVIEW_3D_MODEL::formatRotationValue( double aValue )
 {
+    // Sigh.  Did we really need differentiated +/- 0.0?
+    if( aValue == -0.0 )
+        aValue = 0.0;
+
     return wxString::Format( wxT( "%.2f%s" ),
                              aValue,
                              EDA_UNIT_UTILS::GetText( EDA_UNITS::DEGREES ) );
@@ -312,9 +310,11 @@ void PANEL_PREVIEW_3D_MODEL::SetSelectedModel( int idx )
         yscale->ChangeValue( formatScaleValue( modelInfo.m_Scale.y ) );
         zscale->ChangeValue( formatScaleValue( modelInfo.m_Scale.z ) );
 
-        xrot->ChangeValue( formatRotationValue( modelInfo.m_Rotation.x ) );
-        yrot->ChangeValue( formatRotationValue( modelInfo.m_Rotation.y ) );
-        zrot->ChangeValue( formatRotationValue( modelInfo.m_Rotation.z ) );
+        // Rotation is stored in the file as positive-is-CW, but we use positive-is-CCW in the GUI
+        // to match the rest of KiCad
+        xrot->ChangeValue( formatRotationValue( -modelInfo.m_Rotation.x ) );
+        yrot->ChangeValue( formatRotationValue( -modelInfo.m_Rotation.y ) );
+        zrot->ChangeValue( formatRotationValue( -modelInfo.m_Rotation.z ) );
 
         xoff->ChangeValue( formatOffsetValue( modelInfo.m_Offset.x ) );
         yoff->ChangeValue( formatOffsetValue( modelInfo.m_Offset.y ) );
@@ -357,9 +357,11 @@ void PANEL_PREVIEW_3D_MODEL::updateOrientation( wxCommandEvent &event )
         modelInfo->m_Scale.z = EDA_UNIT_UTILS::UI::DoubleValueFromString(
                 pcbIUScale, EDA_UNITS::UNSCALED, zscale->GetValue() );
 
-        modelInfo->m_Rotation.x = rotationFromString( xrot->GetValue() );
-        modelInfo->m_Rotation.y = rotationFromString( yrot->GetValue() );
-        modelInfo->m_Rotation.z = rotationFromString( zrot->GetValue() );
+        // Rotation is stored in the file as positive-is-CW, but we use positive-is-CCW in the GUI
+        // to match the rest of KiCad
+        modelInfo->m_Rotation.x = -rotationFromString( xrot->GetValue() );
+        modelInfo->m_Rotation.y = -rotationFromString( yrot->GetValue() );
+        modelInfo->m_Rotation.z = -rotationFromString( zrot->GetValue() );
 
         modelInfo->m_Offset.x = EDA_UNIT_UTILS::UI::DoubleValueFromString( pcbIUScale, m_userUnits,
                                                                            xoff->GetValue() )
@@ -373,6 +375,7 @@ void PANEL_PREVIEW_3D_MODEL::updateOrientation( wxCommandEvent &event )
 
         // Update the dummy footprint for the preview
         UpdateDummyFootprint( false );
+        onModify();
     }
 }
 
@@ -388,13 +391,14 @@ void PANEL_PREVIEW_3D_MODEL::onOpacitySlider( wxCommandEvent& event )
 
         // Update the dummy footprint for the preview
         UpdateDummyFootprint( false );
+        onModify();
     }
 }
 
 
 void PANEL_PREVIEW_3D_MODEL::setBodyStyleView( wxCommandEvent& event )
 {
-    // turn ON or OFF options to show the board body if OFF, soder paste, soldermask
+    // turn ON or OFF options to show the board body if OFF, solder paste, soldermask
     // and board body are hidden, to allows a good view of the 3D model and its pads.
     EDA_3D_VIEWER_SETTINGS* cfg = m_boardAdapter.m_Cfg;
 
@@ -630,7 +634,7 @@ void PANEL_PREVIEW_3D_MODEL::onUnitsChanged( wxCommandEvent& aEvent )
 
 void PANEL_PREVIEW_3D_MODEL::onPanelShownEvent( wxCommandEvent& aEvent )
 {
-    if( m_spaceMouse != nullptr )
+    if( m_spaceMouse )
     {
         m_spaceMouse->SetFocus( static_cast<bool>( aEvent.GetInt() ) );
     }
@@ -653,4 +657,13 @@ void PANEL_PREVIEW_3D_MODEL::UpdateDummyFootprint( bool aReloadRequired )
         m_previewPane->ReloadRequest();
 
     m_previewPane->Request_refresh();
+}
+
+
+void PANEL_PREVIEW_3D_MODEL::onModify()
+{
+    KIWAY_HOLDER* kiwayHolder = dynamic_cast<KIWAY_HOLDER*>( wxGetTopLevelParent( this ) );
+
+    if( kiwayHolder && kiwayHolder->GetType() == KIWAY_HOLDER::DIALOG )
+        static_cast<DIALOG_SHIM*>( kiwayHolder )->OnModify();
 }

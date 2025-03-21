@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015-2020 Cirilo Bernardo <cirilo.bernardo@gmail.com>
- * Copyright (C) 2015-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,10 +27,12 @@
 #include <sstream>
 
 #include <wx/log.h>
+#include <wx/uri.h>
 #include <pgm_base.h>
 #include <trace_helpers.h>
 
 #include <common.h>
+#include <embedded_files.h>
 #include <env_vars.h>
 #include <filename_resolver.h>
 #include <confirm.h>
@@ -218,7 +220,7 @@ bool FILENAME_RESOLVER::createPathList()
     while( sPL != m_paths.end() )
     {
         wxLogTrace( MASK_3D_RESOLVER, wxS( "   + %s : '%s'\n" ), (*sPL).m_Alias.GetData(),
-            (*sPL).m_Pathexp.GetData() );
+                    (*sPL).m_Pathexp.GetData() );
         ++sPL;
     }
 #endif
@@ -241,7 +243,8 @@ bool FILENAME_RESOLVER::UpdatePathList( const std::vector< SEARCH_PATH >& aPathL
 }
 
 
-wxString FILENAME_RESOLVER::ResolvePath( const wxString& aFileName, const wxString& aWorkingPath )
+wxString FILENAME_RESOLVER::ResolvePath( const wxString& aFileName, const wxString& aWorkingPath,
+                                         const EMBEDDED_FILES* aFiles )
 {
     std::lock_guard<std::mutex> lock( mutex_resolver );
 
@@ -259,6 +262,32 @@ wxString FILENAME_RESOLVER::ResolvePath( const wxString& aFileName, const wxStri
     // then we will have a race condition since wxWidgets does not assure a threadsafe wrapper
     // for getenv().
     tname = ExpandEnvVarSubstitutions( tname, m_project );
+
+    // Check to see if the file is a URI for an embedded file.
+    if( tname.StartsWith( FILEEXT::KiCadUriPrefix + "://" ) )
+    {
+        if( !aFiles )
+        {
+            wxLogTrace( wxT( "KICAD_EMBED" ),
+                        wxT( "No EMBEDDED_FILES object provided for kicad_embed URI" ) );
+            return wxEmptyString;
+        }
+
+        wxString path = tname.Mid( 14 );
+        wxFileName temp_file = aFiles->GetTemporaryFileName( path );
+
+        if( !temp_file.IsOk() )
+        {
+            wxLogTrace( wxT( "KICAD_EMBED" ),
+                        wxT( "Failed to get temp file '%s' for kicad_embed URI" ), path );
+            return wxEmptyString;
+        }
+
+        wxLogTrace( wxT( "KICAD_EMBED" ), wxT( "Opening embedded file '%s' as '%s'" ),
+                    tname, temp_file.GetFullPath() );
+
+        return temp_file.GetFullPath();
+    }
 
     wxFileName tmpFN( tname );
 
@@ -284,7 +313,8 @@ wxString FILENAME_RESOLVER::ResolvePath( const wxString& aFileName, const wxStri
         if( !( m_errflags & ERRFLG_ENVPATH ) )
         {
             m_errflags |= ERRFLG_ENVPATH;
-            wxString errmsg = "[3D File Resolver] No such path; ensure the environment var is defined";
+            wxString errmsg = "[3D File Resolver] No such path; ensure the environment var is "
+                              "defined";
             errmsg.append( "\n" );
             errmsg.append( tname );
             errmsg.append( "\n" );
@@ -443,8 +473,9 @@ bool FILENAME_RESOLVER::addPath( const SEARCH_PATH& aPath )
                                        ENV_VAR::GetVersionedEnvVarName( wxS( "3DMODEL_DIR" ) ) );
 
         if( aPath.m_Pathvar == versionedPath
-                || aPath.m_Pathvar == wxS( "${KIPRJMOD}" ) || aPath.m_Pathvar == wxS( "$(KIPRJMOD)" )
-                || aPath.m_Pathvar == wxS( "${KISYS3DMOD}" ) || aPath.m_Pathvar == wxS( "$(KISYS3DMOD)" ) )
+          || aPath.m_Pathvar == wxS( "${KIPRJMOD}" ) || aPath.m_Pathvar == wxS( "$(KIPRJMOD)" )
+          || aPath.m_Pathvar == wxS( "${KISYS3DMOD}" )
+          || aPath.m_Pathvar == wxS( "$(KISYS3DMOD)" ) )
         {
             // suppress the message if the missing pathvar is a system variable
         }
@@ -464,7 +495,7 @@ bool FILENAME_RESOLVER::addPath( const SEARCH_PATH& aPath )
 
 #ifdef _WIN32
         while( tpath.m_Pathexp.EndsWith( wxT( "\\" ) ) )
-        tpath.m_Pathexp.erase( tpath.m_Pathexp.length() - 1 );
+            tpath.m_Pathexp.erase( tpath.m_Pathexp.length() - 1 );
 #else
         while( tpath.m_Pathexp.EndsWith( wxT( "/" ) ) && tpath.m_Pathexp.length() > 1 )
             tpath.m_Pathexp.erase( tpath.m_Pathexp.length() - 1 );
@@ -648,7 +679,6 @@ wxString FILENAME_RESOLVER::ShortenPath( const wxString& aFullPathName )
 }
 
 
-
 const std::list< SEARCH_PATH >* FILENAME_RESOLVER::GetPaths() const
 {
     return &m_paths;
@@ -688,10 +718,22 @@ bool FILENAME_RESOLVER::ValidateFileName( const wxString& aFileName, bool& hasAl
     //    ALIAS:relative/path
     // 2. ALIAS is a UTF string excluding wxT( "{}[]()%~<>\"='`;:.,&?/\\|$" )
     // 3. The relative path must be a valid relative path for the platform
+    // 4. We allow a URI for embedded files, but only if it has a name
+
     hasAlias = false;
 
     if( aFileName.empty() )
         return false;
+
+    if( aFileName.StartsWith( wxT( "file://" ) )
+        || aFileName.StartsWith( FILEEXT::KiCadUriPrefix + "://" ) )
+    {
+        size_t prefixLength = aFileName.StartsWith( wxT( "file://" ) ) ? 7 : 14;
+        if( aFileName.length() > prefixLength && aFileName[prefixLength] != '/' )
+            return true;
+        else
+            return false;
+    }
 
     wxString filename = aFileName;
     wxString lpath;
@@ -760,6 +802,7 @@ bool FILENAME_RESOLVER::ValidateFileName( const wxString& aFileName, bool& hasAl
     // '\'and '/' used here because lpath can be a full path.
     // So remove separators
     wxString lpath_no_sep = lpath;
+
 #ifdef __WINDOWS__
     lpath_no_sep.Replace( "/", " " );
     lpath_no_sep.Replace( "\\", " " );

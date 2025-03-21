@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b)
+// C++ code generated with wxFormBuilder (version 4.0.0-0-g0efcecf)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -13,7 +13,6 @@ DIALOG_RULE_AREA_PROPERTIES_BASE::DIALOG_RULE_AREA_PROPERTIES_BASE( wxWindow* pa
 {
 	this->SetSizeHints( wxSize( -1,-1 ), wxDefaultSize );
 
-	wxBoxSizer* bMainSizer;
 	bMainSizer = new wxBoxSizer( wxVERTICAL );
 
 	wxBoxSizer* bUpperSizer;
@@ -22,6 +21,7 @@ DIALOG_RULE_AREA_PROPERTIES_BASE::DIALOG_RULE_AREA_PROPERTIES_BASE( wxWindow* pa
 	wxBoxSizer* bLayersListSizer;
 	bLayersListSizer = new wxBoxSizer( wxVERTICAL );
 
+	bLayersListSizer->SetMinSize( wxSize( 240,560 ) );
 	m_staticTextLayerSelection = new wxStaticText( this, wxID_ANY, _("Layers:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticTextLayerSelection->Wrap( -1 );
 	bLayersListSizer->Add( m_staticTextLayerSelection, 0, wxALL, 4 );
@@ -30,10 +30,7 @@ DIALOG_RULE_AREA_PROPERTIES_BASE::DIALOG_RULE_AREA_PROPERTIES_BASE( wxWindow* pa
 	bLayersListSizer->Add( m_layers, 1, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 
 
-	bUpperSizer->Add( bLayersListSizer, 1, wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT, 5 );
-
-
-	bUpperSizer->Add( 0, 0, 0, wxEXPAND|wxRIGHT|wxLEFT, 5 );
+	bUpperSizer->Add( bLayersListSizer, 4, wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT, 5 );
 
 	wxBoxSizer* bSizerRight;
 	bSizerRight = new wxBoxSizer( wxVERTICAL );
@@ -41,11 +38,11 @@ DIALOG_RULE_AREA_PROPERTIES_BASE::DIALOG_RULE_AREA_PROPERTIES_BASE( wxWindow* pa
 	wxBoxSizer* bSizer6;
 	bSizer6 = new wxBoxSizer( wxVERTICAL );
 
-	m_staticText3 = new wxStaticText( this, wxID_ANY, _("Area name:"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_staticText3->Wrap( -1 );
-	m_staticText3->SetToolTip( _("A unique name for this rule area for use in DRC rules") );
+	m_nameLabel = new wxStaticText( this, wxID_ANY, _("Area name:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_nameLabel->Wrap( -1 );
+	m_nameLabel->SetToolTip( _("A unique name for this rule area for use in DRC rules") );
 
-	bSizer6->Add( m_staticText3, 0, wxRIGHT|wxLEFT, 5 );
+	bSizer6->Add( m_nameLabel, 0, wxRIGHT|wxLEFT, 5 );
 
 
 	bSizer6->Add( 0, 2, 0, 0, 5 );
@@ -59,53 +56,11 @@ DIALOG_RULE_AREA_PROPERTIES_BASE::DIALOG_RULE_AREA_PROPERTIES_BASE( wxWindow* pa
 	bSizer6->Add( m_cbLocked, 0, wxALL, 5 );
 
 
-	bSizerRight->Add( bSizer6, 0, wxEXPAND|wxBOTTOM, 5 );
+	bSizerRight->Add( bSizer6, 0, wxEXPAND, 5 );
 
-	wxFlexGridSizer* fgSizer2;
-	fgSizer2 = new wxFlexGridSizer( 0, 1, 3, 0 );
-	fgSizer2->SetFlexibleDirection( wxBOTH );
-	fgSizer2->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+	m_areaPropertiesNb = new wxNotebook( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0 );
 
-	m_staticTextBasicRules = new wxStaticText( this, wxID_ANY, _("Basic rules:"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_staticTextBasicRules->Wrap( -1 );
-	fgSizer2->Add( m_staticTextBasicRules, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
-
-	m_cbTracksCtrl = new wxCheckBox( this, wxID_ANY, _("Keep out tracks"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_cbTracksCtrl->SetToolTip( _("Prevent tracks from routing into this area") );
-
-	fgSizer2->Add( m_cbTracksCtrl, 0, wxEXPAND|wxRIGHT|wxLEFT, 5 );
-
-	m_cbViasCtrl = new wxCheckBox( this, wxID_ANY, _("Keep out vias"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_cbViasCtrl->SetToolTip( _("Prevent vias from being placed in this area") );
-
-	fgSizer2->Add( m_cbViasCtrl, 0, wxEXPAND|wxRIGHT|wxLEFT, 5 );
-
-	m_cbPadsCtrl = new wxCheckBox( this, wxID_ANY, _("Keep out pads"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_cbPadsCtrl->SetToolTip( _("Raise a DRC error if a pad overlaps this area") );
-
-	fgSizer2->Add( m_cbPadsCtrl, 0, wxRIGHT|wxLEFT, 5 );
-
-	m_cbCopperPourCtrl = new wxCheckBox( this, wxID_ANY, _("Keep out zone fills"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_cbCopperPourCtrl->SetToolTip( _("Zones will not fill copper into this area") );
-
-	fgSizer2->Add( m_cbCopperPourCtrl, 0, wxEXPAND|wxRIGHT|wxLEFT, 5 );
-
-	m_cbFootprintsCtrl = new wxCheckBox( this, wxID_ANY, _("Keep out footprints"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_cbFootprintsCtrl->SetToolTip( _("Raise a DRC error if a footprint courtyard overlaps this area") );
-
-	fgSizer2->Add( m_cbFootprintsCtrl, 0, wxRIGHT|wxLEFT, 5 );
-
-
-	bSizerRight->Add( fgSizer2, 0, wxEXPAND, 5 );
-
-
-	bSizerRight->Add( 0, 3, 0, wxEXPAND, 5 );
-
-
-	bSizerRight->Add( 0, 0, 0, wxEXPAND, 5 );
-
-
-	bSizerRight->Add( 0, 0, 0, wxEXPAND|wxBOTTOM, 5 );
+	bSizerRight->Add( m_areaPropertiesNb, 0, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 
 	wxGridBagSizer* gbSizer1;
 	gbSizer1 = new wxGridBagSizer( 3, 3 );
@@ -137,10 +92,13 @@ DIALOG_RULE_AREA_PROPERTIES_BASE::DIALOG_RULE_AREA_PROPERTIES_BASE( wxWindow* pa
 	gbSizer1->Add( m_outlineHatchUnits, wxGBPosition( 3, 2 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
 
 
-	bSizerRight->Add( gbSizer1, 1, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	bSizerRight->Add( gbSizer1, 0, wxEXPAND|wxALL, 5 );
 
 
-	bUpperSizer->Add( bSizerRight, 0, wxEXPAND|wxALL, 5 );
+	bSizerRight->Add( 0, 0, 0, wxEXPAND, 5 );
+
+
+	bUpperSizer->Add( bSizerRight, 7, wxEXPAND|wxALL, 5 );
 
 
 	bMainSizer->Add( bUpperSizer, 1, wxEXPAND|wxLEFT|wxRIGHT|wxTOP, 5 );

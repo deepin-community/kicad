@@ -4,7 +4,7 @@
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2015 Dick Hollenbeck, dick@softplc.com
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2004-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,6 +27,7 @@
 #include <panel_fp_properties_3d_model.h>
 
 #include <3d_viewer/eda_3d_viewer_frame.h>
+#include <dialogs/dialog_configure_paths.h>
 #include <env_vars.h>
 #include <bitmaps.h>
 #include <widgets/grid_icon_text_helpers.h>
@@ -35,17 +36,21 @@
 #include <widgets/std_bitmap_button.h>
 #include <footprint.h>
 #include <fp_lib_table.h>
+#include <footprint.h>
 #include <footprint_edit_frame.h>
 #include <footprint_editor_settings.h>
 #include <dialog_footprint_properties_fp_editor.h>
 #include "filename_resolver.h"
 #include <pgm_base.h>
 #include <kiplatform/ui.h>
-#include "dialogs/panel_preview_3d_model.h"
-#include "dialogs/3d_cache_dialogs.h"
+#include <dialogs/panel_preview_3d_model.h>
+#include <dialogs/dialog_select_3d_model.h>
+#include <dialogs/panel_embedded_files.h>
 #include <settings/settings_manager.h>
-#include <wx/defs.h>
 #include <project_pcb.h>
+
+#include <wx/defs.h>
+#include <wx/msgdlg.h>
 
 enum MODELS_TABLE_COLUMNS
 {
@@ -56,16 +61,24 @@ enum MODELS_TABLE_COLUMNS
 
 wxDEFINE_EVENT( wxCUSTOM_PANEL_SHOWN_EVENT, wxCommandEvent );
 
-PANEL_FP_PROPERTIES_3D_MODEL::PANEL_FP_PROPERTIES_3D_MODEL(
-        PCB_BASE_EDIT_FRAME* aFrame, FOOTPRINT* aFootprint, DIALOG_SHIM* aDialogParent,
-        wxWindow* aParent, wxWindowID aId, const wxPoint& aPos, const wxSize& aSize, long aStyle,
-        const wxString& aName ) :
-    PANEL_FP_PROPERTIES_3D_MODEL_BASE( aParent, aId, aPos, aSize, aStyle, aName ),
-    m_parentDialog( aDialogParent ),
-    m_frame( aFrame ),
-    m_footprint( aFootprint ),
-    m_inSelect( false )
+PANEL_FP_PROPERTIES_3D_MODEL::PANEL_FP_PROPERTIES_3D_MODEL( PCB_BASE_EDIT_FRAME* aFrame,
+                                                            FOOTPRINT* aFootprint,
+                                                            DIALOG_SHIM* aDialogParent,
+                                                            PANEL_EMBEDDED_FILES* aFilesPanel,
+                                                            wxWindow* aParent, wxWindowID aId,
+                                                            const wxPoint& aPos,
+                                                            const wxSize& aSize, long aStyle,
+                                                            const wxString& aName ) :
+        PANEL_FP_PROPERTIES_3D_MODEL_BASE( aParent, aId, aPos, aSize, aStyle, aName ),
+        m_parentDialog( aDialogParent ),
+        m_frame( aFrame ),
+        m_footprint( aFootprint ),
+        m_filesPanel( aFilesPanel ),
+        m_inSelect( false )
 {
+    m_splitter1->SetSashPosition( FromDIP( m_splitter1->GetSashPosition() ) );
+    m_splitter1->SetMinimumPaneSize( FromDIP( m_splitter1->GetMinimumPaneSize() ) );
+
     m_modelsGrid->SetDefaultRowSize( m_modelsGrid->GetDefaultRowSize() + 4 );
 
     GRID_TRICKS* trick = new GRID_TRICKS( m_modelsGrid, [this]( wxCommandEvent& aEvent )
@@ -77,7 +90,8 @@ PANEL_FP_PROPERTIES_3D_MODEL::PANEL_FP_PROPERTIES_3D_MODEL(
     m_modelsGrid->PushEventHandler( trick );
 
     // Get the last 3D directory
-    PCBNEW_SETTINGS* cfg = Pgm().GetSettingsManager().GetAppSettings<PCBNEW_SETTINGS>();
+    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+    PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
 
     if( cfg->m_lastFootprint3dDir.IsEmpty() )
     {
@@ -92,8 +106,9 @@ PANEL_FP_PROPERTIES_3D_MODEL::PANEL_FP_PROPERTIES_3D_MODEL(
 
     // Filename
     attr = new wxGridCellAttr;
-    attr->SetEditor( new GRID_CELL_PATH_EDITOR( m_parentDialog, m_modelsGrid, &cfg->m_lastFootprint3dDir,
-                                                wxT( "*.*" ), true, m_frame->Prj().GetProjectPath() ) );
+    attr->SetEditor( new GRID_CELL_PATH_EDITOR( m_parentDialog, m_modelsGrid,
+                                                &cfg->m_lastFootprint3dDir, wxT( "*.*" ), true,
+                                                m_frame->Prj().GetProjectPath() ) );
     m_modelsGrid->SetColAttr( COL_FILENAME, attr );
 
     // Show checkbox
@@ -106,7 +121,8 @@ PANEL_FP_PROPERTIES_3D_MODEL::PANEL_FP_PROPERTIES_3D_MODEL(
 
     PROJECT_PCB::Get3DCacheManager( &m_frame->Prj() )->GetResolver()->SetProgramBase( &Pgm() );
 
-    m_previewPane = new PANEL_PREVIEW_3D_MODEL( this, m_frame, m_footprint, &m_shapes3D_list );
+    m_previewPane = new PANEL_PREVIEW_3D_MODEL( m_lowerPanel, m_frame, m_footprint,
+                                                &m_shapes3D_list );
 
     m_LowerSizer3D->Add( m_previewPane, 1, wxEXPAND, 5 );
 
@@ -146,13 +162,7 @@ bool PANEL_FP_PROPERTIES_3D_MODEL::TransferDataToWindow()
 
 bool PANEL_FP_PROPERTIES_3D_MODEL::TransferDataFromWindow()
 {
-    // Only commit changes in the editor, not the models
-    // The container dialog is responsible for moving the new models into
-    // the footprint inside a commit.
-    if( !m_modelsGrid->CommitPendingChanges() )
-        return false;
-
-    return true;
+    return m_modelsGrid->CommitPendingChanges();
 }
 
 
@@ -267,6 +277,7 @@ void PANEL_FP_PROPERTIES_3D_MODEL::On3DModelCellChanged( wxGridEvent& aEvent )
     }
 
     m_previewPane->UpdateDummyFootprint();
+    onModify();
 }
 
 
@@ -283,12 +294,16 @@ void PANEL_FP_PROPERTIES_3D_MODEL::OnRemove3DModel( wxCommandEvent&  )
         // has a tendency to get its knickers in a knot....
         m_inSelect = true;
 
+        // Not all files are embedded but this will ignore the ones that are not
+        m_filesPanel->RemoveEmbeddedFile( m_shapes3D_list[ idx ].m_Filename );
         m_shapes3D_list.erase( m_shapes3D_list.begin() + idx );
         m_modelsGrid->DeleteRows( idx );
 
         select3DModel( idx );       // will clamp idx within bounds
         m_previewPane->UpdateDummyFootprint();
     }
+
+    onModify();
 }
 
 
@@ -299,14 +314,16 @@ void PANEL_FP_PROPERTIES_3D_MODEL::OnAdd3DModel( wxCommandEvent&  )
 
     int selected = m_modelsGrid->GetGridCursorRow();
 
-    PROJECT&   prj = m_frame->Prj();
-    FP_3DMODEL model;
+    PROJECT&           prj = m_frame->Prj();
+    FP_3DMODEL         model;
+    S3D_CACHE*         cache = PROJECT_PCB::Get3DCacheManager( &prj );
+    FILENAME_RESOLVER* res = cache->GetResolver();
 
     wxString initialpath = prj.GetRString( PROJECT::VIEWER_3D_PATH );
     wxString sidx = prj.GetRString( PROJECT::VIEWER_3D_FILTER_INDEX );
     int      filter = 0;
 
-    // If the PROJECT::VIEWER_3D_PATH hasn't been set yet, use the KICAD7_3DMODEL_DIR environment
+    // If the PROJECT::VIEWER_3D_PATH hasn't been set yet, use the 3DMODEL_DIR environment
     // variable and fall back to the project path if necessary.
     if( initialpath.IsEmpty() )
     {
@@ -326,8 +343,13 @@ void PANEL_FP_PROPERTIES_3D_MODEL::OnAdd3DModel( wxCommandEvent&  )
             filter = (int) tmp;
     }
 
-    if( !S3D::Select3DModel( m_parentDialog, PROJECT_PCB::Get3DCacheManager( &m_frame->Prj() ), initialpath, filter, &model )
-        || model.m_Filename.empty() )
+
+    DIALOG_SELECT_3DMODEL dm( m_parentDialog, cache, &model, initialpath, filter );
+
+    // Use QuasiModal so that Configure3DPaths (and its help window) will work
+    int retval = dm.ShowQuasiModal();
+
+    if( retval != wxID_OK || model.m_Filename.empty() )
     {
         if( selected >= 0 )
         {
@@ -338,10 +360,47 @@ void PANEL_FP_PROPERTIES_3D_MODEL::OnAdd3DModel( wxCommandEvent&  )
         return;
     }
 
+    if( dm.IsEmbedded3DModel() )
+    {
+        wxString libraryName = m_footprint->GetFPID().GetLibNickname();
+        const FP_LIB_TABLE_ROW* fpRow = nullptr;
+
+        wxString footprintBasePath = wxEmptyString;
+
+        try
+        {
+            fpRow = PROJECT_PCB::PcbFootprintLibs( &m_frame->Prj() )->FindRow( libraryName, false );
+
+            if( fpRow )
+                footprintBasePath = fpRow->GetFullURI( true );
+        }
+        catch( ... )
+        {
+            // if libraryName is not found in table, do nothing
+        }
+
+
+        wxString fullPath = res->ResolvePath( model.m_Filename, footprintBasePath, nullptr );
+        wxFileName fname( fullPath );
+
+        EMBEDDED_FILES::EMBEDDED_FILE* result = m_filesPanel->AddEmbeddedFile( fname.GetFullPath() );                                                                               ;
+
+        if( !result )
+        {
+
+            wxString msg = wxString::Format( _( "Error adding 3D model" ) );
+            wxMessageBox( msg, _( "Error" ), wxICON_ERROR | wxOK, this );
+            return;
+        }
+
+        model.m_Filename = result->GetLink();
+    }
+
+
     prj.SetRString( PROJECT::VIEWER_3D_PATH, initialpath );
     sidx = wxString::Format( wxT( "%i" ), filter );
     prj.SetRString( PROJECT::VIEWER_3D_FILTER_INDEX, sidx );
-    FILENAME_RESOLVER* res = PROJECT_PCB::Get3DCacheManager( &m_frame->Prj() )->GetResolver();
+
     wxString alias;
     wxString shortPath;
     wxString filename = model.m_Filename;
@@ -366,6 +425,7 @@ void PANEL_FP_PROPERTIES_3D_MODEL::OnAdd3DModel( wxCommandEvent&  )
     updateValidateStatus( idx );
 
     m_previewPane->UpdateDummyFootprint();
+    onModify();
 }
 
 
@@ -394,6 +454,7 @@ void PANEL_FP_PROPERTIES_3D_MODEL::OnAdd3DRow( wxCommandEvent&  )
     m_modelsGrid->ShowCellEditControl();
 
     updateValidateStatus( row );
+    onModify();
 }
 
 
@@ -471,7 +532,7 @@ MODEL_VALIDATE_ERRORS PANEL_FP_PROPERTIES_3D_MODEL::validateModelExists( const w
     if( fpRow )
         footprintBasePath = fpRow->GetFullURI( true );
 
-    wxString fullPath = resolv->ResolvePath( aFilename, footprintBasePath );
+    wxString fullPath = resolv->ResolvePath( aFilename, footprintBasePath, m_footprint );
 
     if( fullPath.IsEmpty() )
         return MODEL_VALIDATE_ERRORS::RESOLVE_FAIL;
@@ -485,7 +546,9 @@ MODEL_VALIDATE_ERRORS PANEL_FP_PROPERTIES_3D_MODEL::validateModelExists( const w
 
 void PANEL_FP_PROPERTIES_3D_MODEL::Cfg3DPath( wxCommandEvent& event )
 {
-    if( S3D::Configure3DPaths( this, PROJECT_PCB::Get3DCacheManager( &m_frame->Prj() )->GetResolver() ) )
+    DIALOG_CONFIGURE_PATHS dlg( this );
+
+    if( dlg.ShowQuasiModal() == wxID_OK )
         m_previewPane->UpdateDummyFootprint();
 }
 

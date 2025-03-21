@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015-2016 Mario Luzeiro <mrluzeiro@ua.pt>
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -38,9 +38,11 @@
 class WX_INFOBAR;
 class wxStatusBar;
 class BOARD;
-class RENDER_3D_RAYTRACE;
+class RENDER_3D_RAYTRACE_GL;
 class RENDER_3D_OPENGL;
 
+
+#define EDA_3D_CANVAS_ID wxID_HIGHEST + 1321
 
 /**
  *  Implement a canvas based on a wxGLCanvas
@@ -52,12 +54,12 @@ public:
      *  Create a new 3D Canvas with an attribute list.
      *
      *  @param aParent the parent creator of this canvas.
-     *  @param aAttribList a list of openGL options created by GetOpenGL_AttributesList.
+     *  @param aGLAttribs openGL attributes created by #OGL_ATT_LIST::GetAttributesList.
      *  @param aBoard The board.
      *  @param aSettings the settings options to be used by this canvas.
      */
-    EDA_3D_CANVAS( wxWindow* aParent, const int* aAttribList,
-                   BOARD_ADAPTER& aSettings, CAMERA& aCamera, S3D_CACHE* a3DCachePointer );
+    EDA_3D_CANVAS( wxWindow* aParent, const wxGLAttributes& aGLAttribs, BOARD_ADAPTER& aSettings,
+                   CAMERA& aCamera, S3D_CACHE* a3DCachePointer );
 
     ~EDA_3D_CANVAS();
 
@@ -97,7 +99,7 @@ public:
     }
 
     /**
-     * @return the current render ( a RENDER_3D_RAYTRACE* or a RENDER_3D_OPENGL* render )
+     * @return the current render ( a RENDER_3D_RAYTRACE_GL* or a RENDER_3D_OPENGL* render )
      */
     RENDER_3D_BASE* GetCurrentRender() const { return m_3d_render; }
 
@@ -107,16 +109,16 @@ public:
     void RenderRaytracingRequest();
 
     /**
-     *  Request a screenshot and output it to the \a aDstImage
+     *  Request a screenshot and output it to the \a aDstImage.
      *
-     *  @param aDstImage - Screenshot destination image
+     *  @param aDstImage - Screenshot destination image.
      */
     void GetScreenshot( wxImage& aDstImage );
 
     /**
-     * Select a specific 3D view or operation
+     * Select a specific 3D view or operation.
      *
-     * @param aRequestedView the view to move to
+     * @param aRequestedView the view to move to.
      * @return true if the view request was handled, false if no command found for this view.
      */
     bool SetView3D( VIEW3D_TYPE aRequestedView );
@@ -238,6 +240,10 @@ private:
     void OnResize( wxSizeEvent& event );
     void OnTimerTimeout_Redraw( wxTimerEvent& event );
 
+    void OnZoomGesture( wxZoomGestureEvent& event );
+    void OnPanGesture( wxPanGestureEvent& event );
+    void OnRotateGesture( wxRotateGestureEvent& event );
+
     DECLARE_EVENT_TABLE()
 
     /**
@@ -312,7 +318,7 @@ private:
 
     BOARD_ADAPTER&         m_boardAdapter;            // Pre-computed 3D info and settings
     RENDER_3D_BASE*        m_3d_render;
-    RENDER_3D_RAYTRACE*    m_3d_render_raytracing;
+    RENDER_3D_RAYTRACE_GL* m_3d_render_raytracing;
     RENDER_3D_OPENGL*      m_3d_render_opengl;
 
     bool                   m_opengl_supports_raytracing;
@@ -324,6 +330,10 @@ private:
 
     bool    m_render3dmousePivot = false; // Render the 3dmouse pivot
     SFVEC3F m_3dmousePivotPos;            // The position of the 3dmouse pivot
+
+    /// Used to track gesture events.
+    double   m_gestureLastZoomFactor = 1.0;
+    double   m_gestureLastAngle = 0.0;
 
     /**
      *  Trace mask used to enable or disable the trace output of this class.

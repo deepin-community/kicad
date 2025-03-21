@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2004-2023 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,7 +39,9 @@
     - DRCE_DISABLED_LAYER_ITEM,               ///< item on a disabled layer
     - DRCE_INVALID_OUTLINE,                   ///< invalid board outline
     - DRCE_UNRESOLVED_VARIABLE,
-    - DRCE_ASSERTION_FAILURE                  ///< user-defined assertions
+    - DRCE_ASSERTION_FAILURE,                 ///< user-defined assertions
+    - DRCE_GENERIC_WARNING                    ///< user-defined warnings
+    - DRCE_GENERIC_ERROR                      ///< user-defined errors
 */
 
 class DRC_TEST_PROVIDER_MISC : public DRC_TEST_PROVIDER
@@ -260,23 +262,23 @@ void DRC_TEST_PROVIDER_MISC::testAssertions()
     auto checkAssertions =
             [&]( BOARD_ITEM* item ) -> bool
             {
-                if( m_drcEngine->IsErrorLimitExceeded( DRCE_ASSERTION_FAILURE ) )
-                    return false;
-
                 if( !reportProgress( ii++, items, progressDelta ) )
                     return false;
 
-                m_drcEngine->ProcessAssertions( item,
-                        [&]( const DRC_CONSTRAINT* c )
-                        {
-                            auto drcItem = DRC_ITEM::Create( DRCE_ASSERTION_FAILURE );
-                            drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " (" )
-                                                        + c->GetName() + wxS( ")" ) );
-                            drcItem->SetItems( item );
-                            drcItem->SetViolatingRule( c->GetParentRule() );
+                if( !m_drcEngine->IsErrorLimitExceeded( DRCE_ASSERTION_FAILURE ) )
+                {
+                    m_drcEngine->ProcessAssertions( item,
+                            [&]( const DRC_CONSTRAINT* c )
+                            {
+                                auto drcItem = DRC_ITEM::Create( DRCE_ASSERTION_FAILURE );
+                                drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " (" )
+                                                            + c->GetName() + wxS( ")" ) );
+                                drcItem->SetItems( item );
+                                drcItem->SetViolatingRule( c->GetParentRule() );
 
-                            reportViolation( drcItem, item->GetPosition(), item->GetLayer() );
-                        } );
+                                reportViolation( drcItem, item->GetPosition(), item->GetLayer() );
+                            } );
+                }
 
                 return true;
             };
@@ -299,6 +301,55 @@ void DRC_TEST_PROVIDER_MISC::testTextVars()
         PCB_DIMENSION_T
     };
 
+    auto testAssertion =
+            [&]( BOARD_ITEM* item, const wxString& text, const VECTOR2I& pos, int layer )
+            {
+                static wxRegEx warningExpr( wxS( "^\\$\\{DRC_WARNING\\s*([^}]*)\\}(.*)$" ) );
+                static wxRegEx errorExpr( wxS( "^\\$\\{DRC_ERROR\\s*([^}]*)\\}(.*)$" ) );
+
+                if( warningExpr.Matches( text ) )
+                {
+                    if( !m_drcEngine->IsErrorLimitExceeded( DRCE_GENERIC_WARNING ) )
+                    {
+                        std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_GENERIC_WARNING );
+                        wxString                  drcText = warningExpr.GetMatch( text, 1 );
+
+                        if( item )
+                            drcItem->SetItems( item );
+                        else
+                            drcText += _( " (in drawing sheet)" );
+
+                        drcItem->SetErrorMessage( drcText );
+
+                        reportViolation( drcItem, pos, layer );
+                    }
+
+                    return true;
+                }
+
+                if( errorExpr.Matches( text ) )
+                {
+                    if( !m_drcEngine->IsErrorLimitExceeded( DRCE_GENERIC_ERROR ) )
+                    {
+                        std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_GENERIC_ERROR );
+                        wxString                  drcText = errorExpr.GetMatch( text, 1 );
+
+                        if( item )
+                            drcItem->SetItems( item );
+                        else
+                            drcText += _( " (in drawing sheet)" );
+
+                        drcItem->SetErrorMessage( drcText );
+
+                        reportViolation( drcItem, pos, layer );
+                    }
+
+                    return true;
+                }
+
+                return false;
+            };
+
     forEachGeometryItem( itemTypes, LSET::AllLayersMask(),
             [&]( BOARD_ITEM* item ) -> bool
             {
@@ -315,28 +366,27 @@ void DRC_TEST_PROVIDER_MISC::testTextVars()
                 if( !reportProgress( ii++, items, progressDelta ) )
                     return false;
 
-                BOARD_ITEM* boardItem = dynamic_cast<BOARD_ITEM*>( item );
-                EDA_TEXT*   textItem = dynamic_cast<EDA_TEXT*>( boardItem );
-
-                if( !textItem )
-                    return true;
-
-                wxString resolved = ExpandEnvVarSubstitutions( textItem->GetShownText( true ),
-                                                               nullptr /*project already done*/ );
-
-                if( resolved.Matches( wxT( "*${*}*" ) ) )
+                if( EDA_TEXT* textItem = dynamic_cast<EDA_TEXT*>( item ) )
                 {
-                    std::shared_ptr<DRC_ITEM>drcItem = DRC_ITEM::Create( DRCE_UNRESOLVED_VARIABLE );
-                    drcItem->SetItems( item );
+                    wxString result = ExpandEnvVarSubstitutions( textItem->GetShownText( true ),
+                                                                 nullptr /*project already done*/ );
 
-                    reportViolation( drcItem, boardItem->GetPosition(), boardItem->GetLayer() );
+                    if( result.Matches( wxT( "*${*}*" ) ) )
+                    {
+                        auto drcItem = DRC_ITEM::Create( DRCE_UNRESOLVED_VARIABLE );
+                        drcItem->SetItems( item );
+
+                        reportViolation( drcItem, item->GetPosition(), item->GetLayer() );
+                    }
+
+                    testAssertion( item, textItem->GetText(), item->GetPosition(), item->GetLayer() );
                 }
 
                 return true;
             } );
 
     DS_PROXY_VIEW_ITEM* drawingSheet = m_drcEngine->GetDrawingSheet();
-    DS_DRAW_ITEM_LIST   drawItems( pcbIUScale );
+    DS_DRAW_ITEM_LIST   drawItems( pcbIUScale, FOR_ERC_DRC );
 
     if( !drawingSheet || m_drcEngine->IsErrorLimitExceeded( DRCE_UNRESOLVED_VARIABLE ) )
         return;
@@ -357,14 +407,19 @@ void DRC_TEST_PROVIDER_MISC::testTextVars()
         if( m_drcEngine->IsCancelled() )
             return;
 
-        DS_DRAW_ITEM_TEXT* text = dynamic_cast<DS_DRAW_ITEM_TEXT*>( item );
-
-        if( text && text->GetShownText( true ).Matches( wxT( "*${*}*" ) ) )
+        if( DS_DRAW_ITEM_TEXT* text = dynamic_cast<DS_DRAW_ITEM_TEXT*>( item ) )
         {
-            std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_UNRESOLVED_VARIABLE );
-            drcItem->SetItems( drawingSheet );
+            if( testAssertion( nullptr, text->GetText(), text->GetPosition(), LAYER_DRAWINGSHEET ) )
+            {
+                // Don't run unresolved test
+            }
+            else if( text->GetShownText( true ).Matches( wxT( "*${*}*" ) ) )
+            {
+                std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_UNRESOLVED_VARIABLE );
+                drcItem->SetItems( drawingSheet );
 
-            reportViolation( drcItem, text->GetPosition(), LAYER_DRAWINGSHEET );
+                reportViolation( drcItem, text->GetPosition(), LAYER_DRAWINGSHEET );
+            }
         }
     }
 }
@@ -398,7 +453,9 @@ bool DRC_TEST_PROVIDER_MISC::Run()
         testTextVars();
     }
 
-    if( !m_drcEngine->IsErrorLimitExceeded( DRCE_ASSERTION_FAILURE ) )
+    if( !m_drcEngine->IsErrorLimitExceeded( DRCE_ASSERTION_FAILURE )
+            || !m_drcEngine->IsErrorLimitExceeded( DRCE_GENERIC_WARNING )
+            || !m_drcEngine->IsErrorLimitExceeded( DRCE_GENERIC_ERROR ) )
     {
         if( !reportPhase( _( "Checking assertions..." ) ) )
             return false;   // DRC cancelled

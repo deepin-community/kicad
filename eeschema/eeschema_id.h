@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2008-2023 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -84,6 +84,9 @@ enum id_eeschema_frm
     // ... leave room for MAX_UNIT_COUNT_PER_PACKAGE IDs ,
     // to select one unit among MAX_UNIT_COUNT_PER_PACKAGE in popup menu
     ID_POPUP_SCH_SELECT_UNIT_END = ID_POPUP_SCH_SELECT_UNIT1 + MAX_UNIT_COUNT_PER_PACKAGE,
+
+    ID_POPUP_SCH_SELECT_BASE,
+    ID_POPUP_SCH_SELECT_ALT,
 
     ID_POPUP_SCH_PIN_TRICKS_START,
     ID_POPUP_SCH_PIN_TRICKS_NO_CONNECT = ID_POPUP_SCH_PIN_TRICKS_START,

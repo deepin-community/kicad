@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2020 CERN
- * Copyright (C) 2021-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -143,7 +143,7 @@ bool COMPONENT_DRAGGER::Start( const VECTOR2I& aP, ITEM_SET& aPrimitives )
             {
                 LINKED_ITEM* li = static_cast<LINKED_ITEM*>( extraJoint->LinkList().front() );
 
-                if( li->Collide( solid, m_world ) )
+                if( li->Collide( solid, m_world, solid->Layer() ) )
                     addLinked( solid, extraJoint, li, extraJoint->Pos() - solid->Pos() );
             }
         }

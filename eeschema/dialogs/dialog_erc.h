@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2007 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,11 +26,9 @@
 #define _DIALOG_ERC_H_
 
 #include <wx/htmllbox.h>
-#include <lib_pin.h>        // For PINTYPE_COUNT definition
 
 #include <dialog_erc_base.h>
 #include <widgets/progress_reporter_base.h>
-#include <erc_settings.h>
 
 
 /**
@@ -79,6 +77,7 @@ private:
     void OnERCItemSelected( wxDataViewEvent& aEvent ) override;
     void OnERCItemDClick( wxDataViewEvent& aEvent ) override;
     void OnERCItemRClick( wxDataViewEvent& aEvent ) override;
+    void OnIgnoredItemRClick( wxListEvent& aEvent ) override;
     void OnEditViolationSeverities( wxHyperlinkEvent& aEvent ) override;
 
     void OnLinkClicked( wxHtmlLinkEvent& event ) override;

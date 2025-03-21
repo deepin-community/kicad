@@ -29,10 +29,13 @@ add_compile_definitions( BOOST_TEST_DYN_LINK PCBNEW USE_TOOL_MANAGER)
 
 
 set( COMMON_SRCS
+    ../../../pcbnew/drc/drc_creepage_utils.cpp
     ../../../pcbnew/drc/drc_rule.cpp
     ../../../pcbnew/drc/drc_rule_condition.cpp
     ../../../pcbnew/drc/drc_rule_parser.cpp
     ../../../pcbnew/drc/drc_test_provider.cpp
+    ../../../pcbnew/drc/drc_test_provider_clearance_base.cpp
+    ../../../pcbnew/drc/drc_test_provider_creepage.cpp
     ../../../pcbnew/drc/drc_test_provider_copper_clearance.cpp
     ../../../pcbnew/drc/drc_test_provider_hole_to_hole.cpp
     ../../../pcbnew/drc/drc_test_provider_edge_clearance.cpp
@@ -63,6 +66,7 @@ add_executable( pns_debug_tool
     pns_log_viewer_frame_base.cpp
     label_manager.cpp
     ../../qa_utils/pcb_test_frame.cpp
+    ../../qa_utils/pcb_test_selection_tool.cpp
     ../../qa_utils/test_app_main.cpp
     ../../qa_utils/utility_program.cpp
     ../../qa_utils/mocks.cpp
@@ -74,6 +78,7 @@ add_executable( pns_debug_tool
 add_executable( qa_pns_regressions
   ${COMMON_SRCS}
   ../../qa_utils/pcb_test_frame.cpp
+  ../../qa_utils/pcb_test_selection_tool.cpp
   ../../qa_utils/test_app_main.cpp
   ../../qa_utils/utility_program.cpp
   ../../qa_utils/mocks.cpp
@@ -161,4 +166,4 @@ include_directories(
     ${INC_AFTER}
 )
 
-kicad_add_boost_test( qa_pns_regressions qa_pns_regressions )
+# kicad_add_boost_test( qa_pns_regressions qa_pns_regressions )

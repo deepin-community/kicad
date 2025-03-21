@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,6 +22,8 @@
  */
 
 #include <qa_utils/wx_utils/unit_test_utils.h>
+#include <boost/test/data/test_case.hpp>
+
 #include <pcbnew_utils/board_test_utils.h>
 #include <board.h>
 #include <board_design_settings.h>
@@ -62,7 +64,10 @@ BOOST_FIXTURE_TEST_CASE( BasicZoneFills, ZONE_FILL_TEST_FIXTURE )
     for( PAD* pad : m_board->Footprints()[0]->Pads() )
     {
         if( pad->GetNumber() == "2" || pad->GetNumber() == "4" || pad->GetNumber() == "6" )
-            pad->SetSize( pad->GetSize() + VECTOR2I( delta, delta ) );
+        {
+            pad->SetSize( PADSTACK::ALL_LAYERS,
+                          pad->GetSize( PADSTACK::ALL_LAYERS ) + VECTOR2I( delta, delta ) );
+        }
     }
 
     int  ii = 0;
@@ -98,7 +103,8 @@ BOOST_FIXTURE_TEST_CASE( BasicZoneFills, ZONE_FILL_TEST_FIXTURE )
     bds.m_DRCEngine->InitEngine( wxFileName() );     // Just to be sure to be sure
 
     bds.m_DRCEngine->SetViolationHandler(
-            [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2I aPos, int aLayer )
+            [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2I aPos, int aLayer,
+                 DRC_CUSTOM_MARKER_HANDLER* aCustomHandler )
             {
                 if( aItem->GetErrorCode() == DRCE_CLEARANCE )
                 {
@@ -121,6 +127,7 @@ BOOST_FIXTURE_TEST_CASE( BasicZoneFills, ZONE_FILL_TEST_FIXTURE )
                     else if( trk_b && trk_b->m_Uuid == arc8 )     foundArc8Error = true;
                     else if( trk_b && trk_b->m_Uuid == arc12 )    foundArc12Error = true;
                     else                                          foundOtherError = true;
+
                 }
             } );
 
@@ -153,8 +160,7 @@ BOOST_FIXTURE_TEST_CASE( NotchedZones, ZONE_FILL_TEST_FIXTURE )
     {
         if( zone->GetLayerSet().Contains( F_Cu ) )
         {
-            frontCopper.BooleanAdd( *zone->GetFilledPolysList( F_Cu ),
-                                    SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+            frontCopper.BooleanAdd( *zone->GetFilledPolysList( F_Cu ) );
         }
     }
 
@@ -162,140 +168,181 @@ BOOST_FIXTURE_TEST_CASE( NotchedZones, ZONE_FILL_TEST_FIXTURE )
 }
 
 
-BOOST_FIXTURE_TEST_CASE( RegressionZoneFillTests, ZONE_FILL_TEST_FIXTURE )
+static const std::vector<wxString> RegressionZoneFillTests_tests = {
+    "issue18",
+    "issue2568",
+    "issue3812",
+    "issue5102",
+    "issue5313",
+    "issue5320",
+    "issue5567",
+    "issue5830",
+    "issue6039",
+    "issue6260",
+    "issue6284",
+    "issue7086",
+    "issue14294",   // Bad Clipper2 fill
+    "fill_bad"      // Missing zone clearance expansion
+};
+
+
+BOOST_DATA_TEST_CASE_F( ZONE_FILL_TEST_FIXTURE, RegressionZoneFillTests,
+                        boost::unit_test::data::make( RegressionZoneFillTests_tests ), relPath )
 {
-    std::vector<wxString> tests = { "issue18",
-                                    "issue2568",
-                                    "issue3812",
-                                    "issue5102",
-                                    "issue5313",
-                                    "issue5320",
-                                    "issue5567",
-                                    "issue5830",
-                                    "issue6039",
-                                    "issue6260",
-                                    "issue6284",
-                                    "issue7086",
-                                    "issue14294",   // Bad Clipper2 fill
-                                    "fill_bad"      // Missing zone clearance expansion
+    KI_TEST::LoadBoard( m_settingsManager, relPath, m_board );
+
+    BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
+
+    KI_TEST::FillZones( m_board.get() );
+
+    std::vector<DRC_ITEM> violations;
+
+    bds.m_DRCEngine->SetViolationHandler(
+            [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2I aPos, int aLayer,
+                    DRC_CUSTOM_MARKER_HANDLER* aCustomHandler )
+            {
+                if( aItem->GetErrorCode() == DRCE_CLEARANCE )
+                    violations.push_back( *aItem );
+            } );
+
+    bds.m_DRCEngine->RunTests( EDA_UNITS::MILLIMETRES, true, false );
+
+    if( violations.empty() )
+    {
+        BOOST_CHECK_EQUAL( 1, 1 );  // quiet "did not check any assertions" warning
+        BOOST_TEST_MESSAGE( (const char*)(wxString::Format( "Zone fill regression: %s passed", relPath ).utf8_str()) );
+    }
+    else
+    {
+        UNITS_PROVIDER unitsProvider( pcbIUScale, EDA_UNITS::INCHES );
+
+        std::map<KIID, EDA_ITEM*> itemMap;
+        m_board->FillItemMap( itemMap );
+
+        for( const DRC_ITEM& item : violations )
+        {
+            BOOST_TEST_MESSAGE( item.ShowReport( &unitsProvider, RPT_SEVERITY_ERROR,
+                                                    itemMap ) );
+        }
+
+        BOOST_ERROR( (const char*)(wxString::Format( "Zone fill regression: %s failed", relPath ).utf8_str()) );
+    }
+}
+
+
+static const std::vector<wxString> RegressionSliverZoneFillTests_tests = {
+    "issue16182"    // Slivers
+};
+
+
+BOOST_DATA_TEST_CASE_F( ZONE_FILL_TEST_FIXTURE, RegressionSliverZoneFillTests,
+                        boost::unit_test::data::make( RegressionSliverZoneFillTests_tests ), relPath )
+{
+    KI_TEST::LoadBoard( m_settingsManager, relPath, m_board );
+
+    BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
+
+    KI_TEST::FillZones( m_board.get() );
+
+    std::vector<DRC_ITEM> violations;
+
+    bds.m_DRCEngine->SetViolationHandler(
+            [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2I aPos, int aLayer,
+                    DRC_CUSTOM_MARKER_HANDLER* aCustomHandler )
+            {
+                if( aItem->GetErrorCode() == DRCE_COPPER_SLIVER )
+                    violations.push_back( *aItem );
+            } );
+
+    bds.m_DRCEngine->RunTests( EDA_UNITS::MILLIMETRES, true, false );
+
+    if( violations.empty() )
+    {
+        BOOST_CHECK_EQUAL( 1, 1 );  // quiet "did not check any assertions" warning
+        BOOST_TEST_MESSAGE( (const char*)(wxString::Format( "Zone fill copper sliver regression: %s passed", relPath ).utf8_str()) );
+    }
+    else
+    {
+        UNITS_PROVIDER unitsProvider( pcbIUScale, EDA_UNITS::INCHES );
+
+        std::map<KIID, EDA_ITEM*> itemMap;
+        m_board->FillItemMap( itemMap );
+
+        for( const DRC_ITEM& item : violations )
+        {
+            BOOST_TEST_MESSAGE( item.ShowReport( &unitsProvider, RPT_SEVERITY_ERROR,
+                                                    itemMap ) );
+        }
+
+        BOOST_ERROR( (const char*)(wxString::Format( "Zone fill copper sliver regression: %s failed", relPath ).utf8_str()) );
+    }
+}
+
+
+static const std::vector<std::pair<wxString,int>> RegressionTeardropFill_tests = {
+        { "teardrop_issue_JPC2", 5 },    // Arcs with teardrops connecting to pads
+};
+
+
+BOOST_DATA_TEST_CASE_F( ZONE_FILL_TEST_FIXTURE, RegressionTeardropFill,
+                        boost::unit_test::data::make( RegressionTeardropFill_tests ), test )
+{
+    const wxString& relPath = test.first;
+    const int count = test.second;
+
+    KI_TEST::LoadBoard( m_settingsManager, relPath, m_board );
+
+    BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
+
+    KI_TEST::FillZones( m_board.get() );
+
+    int zoneCount = 0;
+
+    for( ZONE* zone : m_board->Zones() )
+    {
+        if( zone->IsTeardropArea() )
+            zoneCount++;
+    }
+
+    BOOST_CHECK_MESSAGE( zoneCount == count, "Expected " << count << " teardrop zones in "
+                                                            << relPath << ", found "
+                                                            << zoneCount );
+}
+
+
+BOOST_FIXTURE_TEST_CASE( RegressionNetTie, ZONE_FILL_TEST_FIXTURE )
+{
+
+    std::vector<wxString> tests = { { "issue19956/issue19956" }    // Arcs with teardrops connecting to pads
                                 };
 
     for( const wxString& relPath : tests )
     {
         KI_TEST::LoadBoard( m_settingsManager, relPath, m_board );
-
         BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
-
         KI_TEST::FillZones( m_board.get() );
-
-        std::vector<DRC_ITEM> violations;
-
-        bds.m_DRCEngine->SetViolationHandler(
-                [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2I aPos, int aLayer )
-                {
-                    if( aItem->GetErrorCode() == DRCE_CLEARANCE )
-                        violations.push_back( *aItem );
-                } );
-
-        bds.m_DRCEngine->RunTests( EDA_UNITS::MILLIMETRES, true, false );
-
-        if( violations.empty() )
-        {
-            BOOST_CHECK_EQUAL( 1, 1 );  // quiet "did not check any assertions" warning
-            BOOST_TEST_MESSAGE( (const char*)(wxString::Format( "Zone fill regression: %s passed", relPath ).utf8_str()) );
-        }
-        else
-        {
-            UNITS_PROVIDER unitsProvider( pcbIUScale, EDA_UNITS::INCHES );
-
-            std::map<KIID, EDA_ITEM*> itemMap;
-            m_board->FillItemMap( itemMap );
-
-            for( const DRC_ITEM& item : violations )
-            {
-                BOOST_TEST_MESSAGE( item.ShowReport( &unitsProvider, RPT_SEVERITY_ERROR,
-                                                     itemMap ) );
-            }
-
-            BOOST_ERROR( (const char*)(wxString::Format( "Zone fill regression: %s failed", relPath ).utf8_str()) );
-        }
-    }
-}
-
-
-BOOST_FIXTURE_TEST_CASE( RegressionSliverZoneFillTests, ZONE_FILL_TEST_FIXTURE )
-{
-    std::vector<wxString> tests = { "issue16182"    // Slivers
-                                };
-
-    for( const wxString& relPath : tests )
-    {
-        KI_TEST::LoadBoard( m_settingsManager, relPath, m_board );
-
-        BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
-
-        KI_TEST::FillZones( m_board.get() );
-
-        std::vector<DRC_ITEM> violations;
-
-        bds.m_DRCEngine->SetViolationHandler(
-                [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2I aPos, int aLayer )
-                {
-                    if( aItem->GetErrorCode() == DRCE_COPPER_SLIVER )
-                        violations.push_back( *aItem );
-                } );
-
-        bds.m_DRCEngine->RunTests( EDA_UNITS::MILLIMETRES, true, false );
-
-        if( violations.empty() )
-        {
-            BOOST_CHECK_EQUAL( 1, 1 );  // quiet "did not check any assertions" warning
-            BOOST_TEST_MESSAGE( (const char*)(wxString::Format( "Zone fill copper sliver regression: %s passed", relPath ).utf8_str()) );
-        }
-        else
-        {
-            UNITS_PROVIDER unitsProvider( pcbIUScale, EDA_UNITS::INCHES );
-
-            std::map<KIID, EDA_ITEM*> itemMap;
-            m_board->FillItemMap( itemMap );
-
-            for( const DRC_ITEM& item : violations )
-            {
-                BOOST_TEST_MESSAGE( item.ShowReport( &unitsProvider, RPT_SEVERITY_ERROR,
-                                                     itemMap ) );
-            }
-
-            BOOST_ERROR( (const char*)(wxString::Format( "Zone fill copper sliver regression: %s failed", relPath ).utf8_str()) );
-        }
-    }
-}
-
-
-BOOST_FIXTURE_TEST_CASE( RegressionTeardropFill, ZONE_FILL_TEST_FIXTURE )
-{
-
-    std::vector<std::pair<wxString,int>> tests = { { "teardrop_issue_JPC2", 5 }    // Arcs with teardrops connecting to pads
-                                };
-
-    for( auto& [ relPath, count ] : tests )
-    {
-        KI_TEST::LoadBoard( m_settingsManager, relPath, m_board );
-
-        BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
-
-        KI_TEST::FillZones( m_board.get() );
-
-        int zoneCount = 0;
 
         for( ZONE* zone : m_board->Zones() )
         {
-            if( zone->IsTeardropArea() )
-                zoneCount++;
-        }
+            for( PCB_LAYER_ID layer : zone->GetLayerSet() )
+            {
+                std::shared_ptr<SHAPE> a_shape( zone->GetEffectiveShape( layer ) );
 
-        BOOST_CHECK_MESSAGE( zoneCount == count, "Expected " << count << " teardrop zones in "
-                                                             << relPath << ", found "
-                                                             << zoneCount );
+                for( PAD* pad : m_board->GetPads() )
+                {
+                    std::shared_ptr<SHAPE> pad_shape( pad->GetEffectiveShape( layer ) );
+                    int                    clearance = pad_shape->GetClearance( a_shape.get() );
+                    BOOST_CHECK_MESSAGE( pad->GetNetCode() == zone->GetNetCode() || clearance != 0,
+                                         "Pad " << pad->GetNumber() << " from Footprint "
+                                                << pad->GetParentFootprint()
+                                                           ->GetReferenceAsString()
+                                                           .ToStdString()
+                                                << " has net code "
+                                                << pad->GetNetname().ToStdString()
+                                                << " and is connected to zone with net code "
+                                                << zone->GetNetname().ToStdString() );
+                }
+            }
+        }
     }
 }
-

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -108,12 +108,14 @@ public:
     ///< Clipboard support.
     int Cut( const TOOL_EVENT& aEvent );
     int Copy( const TOOL_EVENT& aEvent );
+    int CopyAsText( const TOOL_EVENT& aEvent );
     int Paste( const TOOL_EVENT& aEvent );
     int Duplicate( const TOOL_EVENT& aEvent );
 
     int EditWithSymbolEditor( const TOOL_EVENT& aEvent );
     int ShowCvpcb( const TOOL_EVENT& aEvent );
     int Annotate( const TOOL_EVENT& aEvent );
+    int IncrementAnnotations( const TOOL_EVENT& aEvent );
     int EditSymbolFields( const TOOL_EVENT& aEvent );
     int EditSymbolLibraryLinks( const TOOL_EVENT& aEvent );
     int ShowPcbNew( const TOOL_EVENT& aEvent );
@@ -129,6 +131,7 @@ public:
     int ShowHierarchy( const TOOL_EVENT& aEvent );
     int ShowNetNavigator( const TOOL_EVENT& aEvent );
     int ToggleProperties( const TOOL_EVENT& aEvent );
+    int ToggleLibraryTree( const TOOL_EVENT& aEvent );
 
     int ToggleHiddenPins( const TOOL_EVENT& aEvent );
     int ToggleHiddenFields( const TOOL_EVENT& aEvent );
@@ -136,13 +139,16 @@ public:
     int ToggleERCWarnings( const TOOL_EVENT& aEvent );
     int ToggleERCErrors( const TOOL_EVENT& aEvent );
     int ToggleERCExclusions( const TOOL_EVENT& aEvent );
+    int MarkSimExclusions( const TOOL_EVENT& aEvent );
     int ToggleOPVoltages( const TOOL_EVENT& aEvent );
     int ToggleOPCurrents( const TOOL_EVENT& aEvent );
+    int TogglePinAltIcons( const TOOL_EVENT& aEvent );
     int ChangeLineMode( const TOOL_EVENT& aEvent );
     int NextLineMode( const TOOL_EVENT& aEvent );
     int ToggleAnnotateAuto( const TOOL_EVENT& aEvent );
     int ToggleAnnotateRecursive( const TOOL_EVENT& aEvent );
     int TogglePythonConsole( const TOOL_EVENT& aEvent );
+    int ReloadPlugins( const TOOL_EVENT& aEvent );
 
     int GridFeedback( const TOOL_EVENT& aEvent );
 

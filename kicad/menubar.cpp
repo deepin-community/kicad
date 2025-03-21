@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2009 Wayne Stambaugh <stambaughw@verizon.net>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2019 CERN
  *
  * This program is free software; you can redistribute it and/or
@@ -89,6 +89,10 @@ void KICAD_MANAGER_FRAME::doReCreateMenuBar()
     fileMenu->Add( KICAD_MANAGER_ACTIONS::openProject );
 
     wxMenuItem* item = fileMenu->Add( openRecentMenu->Clone() );
+
+    fileMenu->AppendSeparator();
+    fileMenu->Add( KICAD_MANAGER_ACTIONS::newJobsetFile );
+    fileMenu->Add( KICAD_MANAGER_ACTIONS::openJobsetFile );
 
     // Add the file menu condition here since it needs the item ID for the submenu
     ACTION_CONDITIONS cond;
@@ -210,6 +214,8 @@ void KICAD_MANAGER_FRAME::doReCreateMenuBar()
     prefsMenu->Add( ACTIONS::configurePaths );
     prefsMenu->Add( ACTIONS::showSymbolLibTable );
     prefsMenu->Add( ACTIONS::showFootprintLibTable );
+    if( ADVANCED_CFG::GetCfg().m_EnableDesignBlocks )
+        prefsMenu->Add( ACTIONS::showDesignBlockLibTable );
     prefsMenu->Add( ACTIONS::openPreferences );
 
     prefsMenu->AppendSeparator();
@@ -231,9 +237,9 @@ void KICAD_MANAGER_FRAME::doReCreateMenuBar()
 
 
 /**
- * @brief (Re)Create the horizontal toolbar
+ * @brief (Re)Create the left vertical toolbar
  */
-void KICAD_MANAGER_FRAME::RecreateBaseHToolbar()
+void KICAD_MANAGER_FRAME::RecreateBaseLeftToolbar()
 {
     if( m_mainToolBar )
     {

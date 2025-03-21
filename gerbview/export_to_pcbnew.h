@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2007-2014 Jean-Pierre Charras  jp.charras at wanadoo.fr
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -87,6 +87,21 @@ private:
      * @param aLayer is the technical layer to use.
      */
     void export_non_copper_item( const GERBER_DRAW_ITEM* aGbrItem, int aLayer );
+
+    /**
+     * Write a non copper arc to the board file.
+     *
+     * @param aGbrItem is the Gerber item (line, arc) to export.
+     * @param aLayer is the technical layer to use.
+     */
+    void export_non_copper_arc( const GERBER_DRAW_ITEM* aGbrItem, int aLayer );
+
+    /**
+     * Write the stroke info (thickness, line type) to the board file.
+     *
+     * @param aWidth is the line thickness gerber units).
+     */
+    void export_stroke_info( double aWidth );
 
     /**
      * Write a non-copper polygon to the board file.

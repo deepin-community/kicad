@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2007 Dick Hollenbeck, dick@softplc.com
- * Copyright (C) 2018-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,6 +41,7 @@ enum PCB_DRC_CODE {
     DRCE_ALLOWED_ITEMS,                  // a disallowed item has been used
     DRCE_TEXT_ON_EDGECUTS,               // text or dimension on Edge.Cuts layer
     DRCE_CLEARANCE,                      // items are too close together
+    DRCE_CREEPAGE,                       // items are too close together ( creepage )
     DRCE_TRACKS_CROSSING,                // tracks are crossing
     DRCE_EDGE_CLEARANCE,                 // a copper item is too close to the board edge
     DRCE_ZONES_INTERSECT,                // copper zone outlines intersect
@@ -52,6 +53,8 @@ enum PCB_DRC_CODE {
     DRCE_DRILLED_HOLES_COLOCATED,        // two holes at the same location
     DRCE_HOLE_CLEARANCE,                 //
     DRCE_TRACK_WIDTH,                    // Track width is too small or too large
+    DRCE_TRACK_ANGLE,                    // Angle between two connected tracks is too small or too large
+    DRCE_TRACK_SEGMENT_LENGTH,           // Track segment is too short or too long
     DRCE_ANNULAR_WIDTH,                  // Via size and drill leave annular ring too small
     DRCE_CONNECTION_WIDTH,               // Net connection too small
     DRCE_DRILL_OUT_OF_RANGE,             // Too small via or pad drill
@@ -72,7 +75,8 @@ enum PCB_DRC_CODE {
     DRCE_DUPLICATE_FOOTPRINT,            // more than one footprints found for netlist item
     DRCE_EXTRA_FOOTPRINT,                // netlist item not found for footprint
     DRCE_NET_CONFLICT,                   // pad net doesn't match netlist
-    DRCE_SCHEMATIC_PARITY_ISSUES,        // footprint attributes don't match symbol attributes
+    DRCE_SCHEMATIC_PARITY,               // footprint attributes don't match symbol attributes
+    DRCE_FOOTPRINT_FILTERS,              // footprint doesn't match symbol's footprint filters
 
     DRCE_FOOTPRINT_TYPE_MISMATCH,        // footprint attribute does not match actual pads
     DRCE_LIB_FOOTPRINT_ISSUES,           // footprint not found in active libraries
@@ -82,6 +86,8 @@ enum PCB_DRC_CODE {
 
     DRCE_UNRESOLVED_VARIABLE,
     DRCE_ASSERTION_FAILURE,              // user-defined (custom rule) assertion
+    DRCE_GENERIC_WARNING,                // generic warning
+    DRCE_GENERIC_ERROR,                  // generic error
 
     DRCE_COPPER_SLIVER,
     DRCE_SOLDERMASK_BRIDGE,              // failure to maintain min soldermask web thickness
@@ -100,7 +106,10 @@ enum PCB_DRC_CODE {
     DRCE_DIFF_PAIR_GAP_OUT_OF_RANGE,
     DRCE_DIFF_PAIR_UNCOUPLED_LENGTH_TOO_LONG,
 
-    DRCE_LAST = DRCE_DIFF_PAIR_UNCOUPLED_LENGTH_TOO_LONG
+    DRCE_MIRRORED_TEXT_ON_FRONT_LAYER,
+    DRCE_NONMIRRORED_TEXT_ON_BACK_LAYER,
+
+    DRCE_LAST = DRCE_NONMIRRORED_TEXT_ON_BACK_LAYER
 };
 
 
@@ -121,9 +130,34 @@ public:
      */
     static std::shared_ptr<DRC_ITEM> Create( const wxString& aErrorKey );
 
-    static std::vector<std::reference_wrapper<RC_ITEM>> GetItemsWithSeverities()
+    static std::vector<std::reference_wrapper<RC_ITEM>> GetItemsWithSeverities( bool aIncludeDeprecated = false )
     {
-        return allItemTypes;
+        static std::vector<std::reference_wrapper<RC_ITEM>> itemsWithSeveritiesAll;
+        static std::vector<std::reference_wrapper<RC_ITEM>> itemsWithSeveritiesDeprecated;
+
+        if( itemsWithSeveritiesAll.empty() )
+        {
+            for( RC_ITEM& item : allItemTypes )
+            {
+                if( &item == &heading_internal )
+                    break;
+
+                itemsWithSeveritiesAll.push_back( item );
+            }
+        }
+
+        if( itemsWithSeveritiesDeprecated.empty() )
+        {
+            for( RC_ITEM& item : allItemTypes )
+            {
+                if( &item == &heading_deprecated )
+                    break;
+
+                itemsWithSeveritiesDeprecated.push_back( item );
+            }
+        }
+
+        return aIncludeDeprecated ? itemsWithSeveritiesAll : itemsWithSeveritiesDeprecated;
     }
 
     void SetViolatingRule ( DRC_RULE *aRule ) { m_violatingRule = aRule; }
@@ -155,12 +189,15 @@ private:
     static DRC_ITEM heading_signal_integrity;
     static DRC_ITEM heading_readability;
     static DRC_ITEM heading_misc;
+    static DRC_ITEM heading_internal;
+    static DRC_ITEM heading_deprecated;
 
     static DRC_ITEM unconnectedItems;
     static DRC_ITEM shortingItems;
     static DRC_ITEM itemsNotAllowed;
     static DRC_ITEM textOnEdgeCuts;
     static DRC_ITEM clearance;
+    static DRC_ITEM creepage;
     static DRC_ITEM tracksCrossing;
     static DRC_ITEM edgeClearance;
     static DRC_ITEM zonesIntersect;
@@ -173,6 +210,8 @@ private:
     static DRC_ITEM holeClearance;
     static DRC_ITEM connectionWidth;
     static DRC_ITEM trackWidth;
+    static DRC_ITEM trackAngle;
+    static DRC_ITEM trackSegmentLength;
     static DRC_ITEM annularWidth;
     static DRC_ITEM drillTooSmall;
     static DRC_ITEM viaDiameter;
@@ -190,11 +229,14 @@ private:
     static DRC_ITEM missingFootprint;
     static DRC_ITEM extraFootprint;
     static DRC_ITEM netConflict;
-    static DRC_ITEM schematicParityIssues;
+    static DRC_ITEM schematicParity;
+    static DRC_ITEM footprintFilters;
     static DRC_ITEM libFootprintIssues;
     static DRC_ITEM libFootprintMismatch;
     static DRC_ITEM unresolvedVariable;
     static DRC_ITEM assertionFailure;
+    static DRC_ITEM genericWarning;
+    static DRC_ITEM genericError;
     static DRC_ITEM copperSliver;
     static DRC_ITEM silkClearance;
     static DRC_ITEM silkEdgeClearance;
@@ -210,6 +252,11 @@ private:
     static DRC_ITEM footprint;
     static DRC_ITEM footprintTypeMismatch;
     static DRC_ITEM footprintTHPadhasNoHole;
+    static DRC_ITEM mirroredTextOnFrontLayer;
+    static DRC_ITEM nonMirroredTextOnBackLayer;
+
+    /// Deprecated items
+    static DRC_ITEM holeNearHolev8;
 
 private:
     DRC_RULE*          m_violatingRule = nullptr;

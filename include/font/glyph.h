@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2021 Ola Rinta-Koski
- * Copyright (C) 2021-2024 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,8 +29,8 @@
 #include <memory>
 #include <math/box2.h>
 #include <geometry/shape_poly_set.h>
+#include <geometry/eda_angle.h>
 #include <wx/debug.h>
-#include "../../libs/kimath/include/geometry/eda_angle.h"
 
 #if defined( _MSC_VER )
 #pragma warning( push )
@@ -39,12 +39,6 @@
 
 namespace KIFONT
 {
-
-constexpr int GLYPH_DEFAULT_DPI = 72;  ///< FreeType default
-// The FreeType default of 72 DPI is not enough for outline decomposition;
-// so we'll use something larger than that.
-constexpr int GLYPH_RESOLUTION  = 288;
-constexpr double GLYPH_SIZE_SCALER = GLYPH_DEFAULT_DPI / (double) GLYPH_RESOLUTION;
 
 
 class GAL_API GLYPH
@@ -95,7 +89,8 @@ public:
      * Cache the triangulation for the glyph from a known set of triangle indexes.
      * (See GetTriangulationData() above for more info.)
      */
-    void CacheTriangulation( std::vector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>>& aHintData );
+    void CacheTriangulation(
+            std::vector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>>& aHintData );
 };
 
 

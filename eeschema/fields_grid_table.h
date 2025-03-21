@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,7 +24,6 @@
 #ifndef FIELDS_GRID_TABLE_H
 #define FIELDS_GRID_TABLE_H
 
-#include <sch_validators.h>
 #include <wx/grid.h>
 #include <sch_symbol.h>
 #include <grid_tricks.h>
@@ -32,28 +31,33 @@
 
 class SCH_BASE_FRAME;
 class DIALOG_SHIM;
+class EMBEDDED_FILES;
 class SCH_LABEL_BASE;
 
 
 class FIELDS_GRID_TRICKS : public GRID_TRICKS
 {
 public:
-    FIELDS_GRID_TRICKS( WX_GRID* aGrid, DIALOG_SHIM* aDialog,
+    FIELDS_GRID_TRICKS( WX_GRID* aGrid, DIALOG_SHIM* aDialog, EMBEDDED_FILES* aFiles,
                         std::function<void( wxCommandEvent& )> aAddHandler ) :
         GRID_TRICKS( aGrid, std::move( aAddHandler ) ),
-        m_dlg( aDialog )
+        m_dlg( aDialog ),
+        m_files( aFiles )
     {}
 
 protected:
-    virtual void showPopupMenu( wxMenu& menu, wxGridEvent& aEvent ) override;
-    virtual void doPopupSelection( wxCommandEvent& event ) override;
-    DIALOG_SHIM* m_dlg;
+    void showPopupMenu( wxMenu& menu, wxGridEvent& aEvent ) override;
+    void doPopupSelection( wxCommandEvent& event ) override;
+
+protected:
+    DIALOG_SHIM*    m_dlg;
+    EMBEDDED_FILES* m_files;
 };
 
 
 enum FIELDS_DATA_COL_ORDER
 {
-    FDC_NAME,
+    FDC_NAME = 0,
     FDC_VALUE,
     FDC_SHOWN,
     FDC_SHOW_NAME,
@@ -69,26 +73,31 @@ enum FIELDS_DATA_COL_ORDER
     FDC_COLOR,
     FDC_ALLOW_AUTOPLACE,
 
-    FDC_COUNT       // keep as last
+    FDC_SCH_EDIT_COUNT,
+
+    FDC_PRIVATE = FDC_SCH_EDIT_COUNT,
+
+    FDC_SYMBOL_EDITOR_COUNT
 };
 
 
-template <class T>
-class FIELDS_GRID_TABLE : public wxGridTableBase, public std::vector<T>
+class FIELDS_GRID_TABLE : public WX_GRID_TABLE_BASE, public std::vector<SCH_FIELD>
 {
 public:
     FIELDS_GRID_TABLE( DIALOG_SHIM* aDialog, SCH_BASE_FRAME* aFrame, WX_GRID* aGrid,
-                       LIB_SYMBOL* aSymbol );
+                       LIB_SYMBOL* aSymbol, EMBEDDED_FILES* aFiles = nullptr );
     FIELDS_GRID_TABLE( DIALOG_SHIM* aDialog, SCH_EDIT_FRAME* aFrame, WX_GRID* aGrid,
-                       SCH_SYMBOL* aSymbol );
+                       SCH_SYMBOL* aSymbol, EMBEDDED_FILES* aFiles = nullptr );
     FIELDS_GRID_TABLE( DIALOG_SHIM* aDialog, SCH_EDIT_FRAME* aFrame, WX_GRID* aGrid,
                        SCH_SHEET* aSheet );
     FIELDS_GRID_TABLE( DIALOG_SHIM* aDialog, SCH_EDIT_FRAME* aFrame, WX_GRID* aGrid,
                        SCH_LABEL_BASE* aLabel );
-    ~FIELDS_GRID_TABLE();
+    ~FIELDS_GRID_TABLE() override;
 
-    int GetNumberRows() override { return (int) this->size(); }
-    int GetNumberCols() override { return FDC_COUNT; }
+    int GetNumberRows() override { return getVisibleRowCount(); }
+    int GetNumberCols() override { return getColumnCount(); }
+
+    int GetMandatoryRowCount() const;
 
     wxString GetColLabelValue( int aCol ) override;
 
@@ -99,7 +108,7 @@ public:
 
     bool CanGetValueAs( int aRow, int aCol, const wxString& aTypeName ) override;
     bool CanSetValueAs( int aRow, int aCol, const wxString& aTypeName ) override;
-    wxGridCellAttr* GetAttr( int row, int col, wxGridCellAttr::wxAttrKind kind ) override;
+    wxGridCellAttr* GetAttr( int aRow, int aCol, wxGridCellAttr::wxAttrKind aKind ) override;
 
     wxString GetValue( int aRow, int aCol ) override;
     bool GetValueAsBool( int aRow, int aCol ) override;
@@ -108,21 +117,28 @@ public:
     void SetValueAsBool( int aRow, int aCol, bool aValue ) override;
 
     wxString StringFromBool( bool aValue ) const;
-    bool BoolFromString( wxString aValue ) const;
+    bool BoolFromString( const wxString& aValue ) const;
+
+    void DetachFields();
 
 protected:
     void initGrid( WX_GRID* aGrid );
 
     void onUnitsChanged( wxCommandEvent& aEvent );
 
+    int getColumnCount() const;
+    int getVisibleRowCount() const;
+
+    SCH_FIELD& getField( int aRow );
+
 private:
-    SCH_BASE_FRAME* m_frame;
-    DIALOG_SHIM*    m_dialog;
-    KICAD_T         m_parentType;
-    int             m_mandatoryFieldCount;
-    LIB_SYMBOL*     m_part;
-    wxString        m_symbolNetlist;
-    wxString        m_curdir;
+    SCH_BASE_FRAME*   m_frame;
+    DIALOG_SHIM*      m_dialog;
+    KICAD_T           m_parentType;
+    LIB_SYMBOL*       m_part;
+    EMBEDDED_FILES*   m_files;
+    wxString          m_symbolNetlist;
+    wxString          m_curdir;
 
     FIELD_VALIDATOR   m_fieldNameValidator;
     FIELD_VALIDATOR   m_referenceValidator;
@@ -131,21 +147,21 @@ private:
     FIELD_VALIDATOR   m_nonUrlValidator;
     FIELD_VALIDATOR   m_filepathValidator;
 
-    wxGridCellAttr*       m_readOnlyAttr;
-    wxGridCellAttr*       m_fieldNameAttr;
-    wxGridCellAttr*       m_referenceAttr;
-    wxGridCellAttr*       m_valueAttr;
-    wxGridCellAttr*       m_footprintAttr;
-    wxGridCellAttr*       m_urlAttr;
-    wxGridCellAttr*       m_nonUrlAttr;
-    wxGridCellAttr*       m_filepathAttr;
-    wxGridCellAttr*       m_boolAttr;
-    wxGridCellAttr*       m_vAlignAttr;
-    wxGridCellAttr*       m_hAlignAttr;
-    wxGridCellAttr*       m_orientationAttr;
-    wxGridCellAttr*       m_netclassAttr;
-    wxGridCellAttr*       m_fontAttr;
-    wxGridCellAttr*       m_colorAttr;
+    wxGridCellAttr*   m_readOnlyAttr;
+    wxGridCellAttr*   m_fieldNameAttr;
+    wxGridCellAttr*   m_referenceAttr;
+    wxGridCellAttr*   m_valueAttr;
+    wxGridCellAttr*   m_footprintAttr;
+    wxGridCellAttr*   m_urlAttr;
+    wxGridCellAttr*   m_nonUrlAttr;
+    wxGridCellAttr*   m_filepathAttr;
+    wxGridCellAttr*   m_boolAttr;
+    wxGridCellAttr*   m_vAlignAttr;
+    wxGridCellAttr*   m_hAlignAttr;
+    wxGridCellAttr*   m_orientationAttr;
+    wxGridCellAttr*   m_netclassAttr;
+    wxGridCellAttr*   m_fontAttr;
+    wxGridCellAttr*   m_colorAttr;
 
     std::unique_ptr<NUMERIC_EVALUATOR>        m_eval;
     std::map< std::pair<int, int>, wxString > m_evalOriginal;

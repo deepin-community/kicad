@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,7 +24,8 @@
 #ifndef PCBPLOT_H_
 #define PCBPLOT_H_
 
-#include <pad_shapes.h>         // for PAD_DRILL_SHAPE_T
+#include <lset.h>
+#include <padstack.h>         // for PAD_DRILL_SHAPE
 #include <pcb_plot_params.h>
 #include <settings/color_settings.h>
 #include <settings/settings_manager.h>
@@ -37,6 +38,7 @@ class PLOTTER;
 class PCB_TEXT;
 class PAD;
 class PCB_SHAPE;
+class PCB_TABLE;
 class PCB_DIMENSION_BASE;
 class FOOTPRINT;
 class PCB_TARGET;
@@ -89,8 +91,9 @@ public:
     void PlotPcbTarget( const PCB_TARGET* aMire );
     void PlotZone( const ZONE* aZone, PCB_LAYER_ID aLayer, const SHAPE_POLY_SET& aPolysList );
     void PlotText( const EDA_TEXT* aText, PCB_LAYER_ID aLayer, bool aIsKnockout,
-                   const KIFONT::METRICS& aFontMetrics );
+                   const KIFONT::METRICS& aFontMetrics, bool aStrikeout = false );
     void PlotShape( const PCB_SHAPE* aShape );
+    void PlotTableBorders( const PCB_TABLE* aTable );
 
     /**
      * Plot a pad.
@@ -98,7 +101,10 @@ public:
      * Unlike other items, a pad had not a specific color and be drawn as a non filled item
      * although the plot mode is filled color and plot mode are needed by this function.
      */
-    void PlotPad( const PAD* aPad, const COLOR4D& aColor, OUTLINE_MODE aPlotMode );
+    void PlotPad( const PAD* aPad, PCB_LAYER_ID aLayer, const COLOR4D& aColor,
+                  OUTLINE_MODE aPlotMode );
+
+    void PlotPadNumber( const PAD* aPad, const COLOR4D& aColor );
 
     /**
      * Plot items like text and graphics but not tracks and footprints.
@@ -124,12 +130,22 @@ public:
     COLOR4D getColor( int aLayer ) const;
 
 private:
+    bool hideDNPItems( PCB_LAYER_ID aLayer )
+    {
+        return GetHideDNPFPsOnFabLayers() && ( aLayer == F_Fab || aLayer == B_Fab );
+    }
+
+    bool crossoutDNPItems( PCB_LAYER_ID aLayer )
+    {
+        return GetCrossoutDNPFPsOnFabLayers() && ( aLayer == F_Fab || aLayer == B_Fab );
+    }
+
     /**
      * Helper function to plot a single drill mark.
      *
      * It compensate and clamp the drill mark size depending on the current plot options.
      */
-    void plotOneDrillMark( PAD_DRILL_SHAPE_T aDrillShape, const VECTOR2I& aDrillPos,
+    void plotOneDrillMark( PAD_DRILL_SHAPE aDrillShape, const VECTOR2I& aDrillPos,
                            const VECTOR2I& aDrillSize, const VECTOR2I& aPadSize,
                            const EDA_ANGLE& aOrientation, int aSmallDrill );
 
@@ -141,9 +157,15 @@ private:
 
 PLOTTER* StartPlotBoard( BOARD* aBoard, const PCB_PLOT_PARAMS* aPlotOpts, int aLayer,
                          const wxString& aLayerName, const wxString& aFullFileName,
-                         const wxString& aSheetName, const wxString& aSheetPath );
+                         const wxString& aSheetName, const wxString& aSheetPath,
+                         const wxString& aPageName = wxT( "1" ),
+                         const wxString& aPageNumber = wxEmptyString,
+                         const int aPageCount = 1);
 
-/**
+void setupPlotterNewPDFPage( PLOTTER* aPlotter, BOARD* aBoard, const PCB_PLOT_PARAMS* aPlotOpts,
+                             const wxString& aSheetName, const wxString& aSheetPath,
+                             const wxString& aPageNumber, int aPageCount );
+        /**
  * Plot a sequence of board layer IDs.
  *
  * @param aBoard is the board to plot.

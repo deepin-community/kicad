@@ -4,7 +4,7 @@
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2015 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2015 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
 *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -51,6 +51,7 @@ void FOOTPRINT_EDIT_FRAME::doReCreateMenuBar()
     fileMenu->Add( ACTIONS::addLibrary );
     fileMenu->Add( PCB_ACTIONS::newFootprint );
     fileMenu->Add( PCB_ACTIONS::createFootprint );
+    fileMenu->Add( PCB_ACTIONS::editLibFpInFpEditor );
 
     fileMenu->AppendSeparator();
 
@@ -119,6 +120,14 @@ void FOOTPRINT_EDIT_FRAME::doReCreateMenuBar()
     //
     ACTION_MENU* viewMenu = new ACTION_MENU( false, selTool );
 
+    ACTION_MENU* showHidePanels = new ACTION_MENU( false, selTool );
+    showHidePanels->SetTitle( _( "Panels" ) );
+    showHidePanels->Add( ACTIONS::showProperties,        ACTION_MENU::CHECK );
+    showHidePanels->Add( ACTIONS::showLibraryTree,       ACTION_MENU::CHECK );
+    showHidePanels->Add( PCB_ACTIONS::showLayersManager, ACTION_MENU::CHECK );
+    viewMenu->Add( showHidePanels );
+    viewMenu->AppendSeparator();
+
     viewMenu->Add( ACTIONS::showFootprintBrowser );
     viewMenu->Add( ACTIONS::show3DViewer );
 
@@ -152,11 +161,6 @@ void FOOTPRINT_EDIT_FRAME::doReCreateMenuBar()
 
     viewMenu->Add( PCB_ACTIONS::flipBoard,                  ACTION_MENU::CHECK );
 
-    viewMenu->AppendSeparator();
-    viewMenu->Add( ACTIONS::showProperties,                 ACTION_MENU::CHECK );
-    viewMenu->Add( PCB_ACTIONS::showFootprintTree,          ACTION_MENU::CHECK );
-    viewMenu->Add( PCB_ACTIONS::showLayersManager,          ACTION_MENU::CHECK );
-
 
     //-- Place menu -------------------------------------------------------
     //
@@ -171,13 +175,15 @@ void FOOTPRINT_EDIT_FRAME::doReCreateMenuBar()
     placeMenu->Add( PCB_ACTIONS::drawRectangle );
     placeMenu->Add( PCB_ACTIONS::drawCircle );
     placeMenu->Add( PCB_ACTIONS::drawPolygon );
+    placeMenu->Add( PCB_ACTIONS::drawBezier );
     placeMenu->Add( PCB_ACTIONS::placeReferenceImage );
     placeMenu->Add( PCB_ACTIONS::placeText );
     placeMenu->Add( PCB_ACTIONS::drawTextBox );
+    placeMenu->Add( PCB_ACTIONS::drawTable );
 
     placeMenu->AppendSeparator();
-    placeMenu->Add( PCB_ACTIONS::drawAlignedDimension );
     placeMenu->Add( PCB_ACTIONS::drawOrthogonalDimension );
+    placeMenu->Add( PCB_ACTIONS::drawAlignedDimension );
     placeMenu->Add( PCB_ACTIONS::drawCenterDimension );
     placeMenu->Add( PCB_ACTIONS::drawRadialDimension );
     placeMenu->Add( PCB_ACTIONS::drawLeader );
@@ -197,6 +203,9 @@ void FOOTPRINT_EDIT_FRAME::doReCreateMenuBar()
 
     inspectMenu->AppendSeparator();
     inspectMenu->Add( PCB_ACTIONS::checkFootprint );
+
+    inspectMenu->AppendSeparator();
+    inspectMenu->Add( PCB_ACTIONS::showDatasheet );
 
 
     //-- Tools menu --------------------------------------------------------

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,6 +25,7 @@
 #include <qa_utils/wx_utils/wx_assert.h>
 
 // Code under test
+#include <lib_symbol.h>
 #include <sch_pin.h>
 #include <sch_symbol.h>
 
@@ -36,14 +37,14 @@ public:
     {
         m_parent_part = new LIB_SYMBOL( "parent_part", nullptr );
 
-        m_lib_pin = new LIB_PIN( m_parent_part );
+        m_lib_pin = new SCH_PIN( m_parent_part );
         m_parent_part->AddDrawItem( m_lib_pin );
 
         // give the pin some kind of data we can use to test
         m_lib_pin->SetNumber( "42" );
         m_lib_pin->SetName( "pinname" );
         m_lib_pin->SetType( ELECTRICAL_PINTYPE::PT_INPUT );
-        m_lib_pin->SetPosition( VECTOR2I( 1, -2 ) ); // local coord system is upside-down
+        m_lib_pin->SetPosition( VECTOR2I( 1, 2 ) );
 
         SCH_SHEET_PATH path;
         m_parent_symbol = new SCH_SYMBOL( *m_parent_part, m_parent_part->GetLibId(), &path, 0, 0,
@@ -61,7 +62,7 @@ public:
     }
 
     LIB_SYMBOL* m_parent_part;
-    LIB_PIN*    m_lib_pin;
+    SCH_PIN*    m_lib_pin;
 
     SCH_SYMBOL* m_parent_symbol;
     SCH_PIN*    m_sch_pin;       // owned by m_parent_symbol, not us
@@ -80,8 +81,7 @@ BOOST_AUTO_TEST_CASE( DefaultProperties )
 {
     BOOST_CHECK_EQUAL( m_sch_pin->GetParentSymbol(), m_parent_symbol );
 
-    // Note: local coord system is upside-down; schematic coord system is not.
-    BOOST_CHECK_EQUAL( m_sch_pin->GetLocalPosition(), VECTOR2I( 1, -2 ) );
+    BOOST_CHECK_EQUAL( m_sch_pin->GetLocalPosition(), VECTOR2I( 1, 2 ) );
     BOOST_CHECK_EQUAL( m_sch_pin->GetPosition(), VECTOR2I( 2, 4 ) );
 
     BOOST_CHECK_EQUAL( m_sch_pin->IsVisible(), m_lib_pin->IsVisible() );
@@ -113,6 +113,13 @@ BOOST_AUTO_TEST_CASE( Copy )
 
     BOOST_CHECK_EQUAL( copied.GetParentSymbol(), m_parent_symbol );
     BOOST_CHECK_EQUAL( copied.GetNumber(), m_lib_pin->GetNumber() );
+    BOOST_CHECK_EQUAL( copied.GetAlt(), wxEmptyString );
+
+    // Set some non-default values
+    copied.SetAlt( "alt" );
+
+    SCH_PIN copied2( copied );
+    BOOST_CHECK_EQUAL( copied2.GetAlt(), "alt" );
 }
 
 /**

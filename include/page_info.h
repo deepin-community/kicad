@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2007-2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2008-2013 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2007-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -199,11 +199,9 @@ public:
      * Output the page class to \a aFormatter in s-expression form.
      *
      * @param aFormatter The #OUTPUTFORMATTER object to write to.
-     * @param aNestLevel The indentation next level.
-     * @param aControlBits The control bit definition for object specific formatting.
      * @throw IO_ERROR on write error.
      */
-    void Format( OUTPUTFORMATTER* aFormatter, int aNestLevel, int aControlBits ) const;
+    void Format( OUTPUTFORMATTER* aFormatter ) const;
 
 protected:
     // only the class implementation(s) may use this constructor

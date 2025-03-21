@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,6 +37,7 @@
 #include "tools/pl_actions.h"
 #include "tools/pl_editor_control.h"
 #include "tools/pl_selection_tool.h"
+#include <wx/msgdlg.h>
 
 
 bool PL_EDITOR_CONTROL::Init()
@@ -89,7 +90,7 @@ int PL_EDITOR_CONTROL::PageSetup( const TOOL_EVENT& aEvent )
 {
     m_frame->SaveCopyInUndoList();
 
-    DIALOG_PAGES_SETTINGS dlg( m_frame, drawSheetIUScale.IU_PER_MILS,
+    DIALOG_PAGES_SETTINGS dlg( m_frame, nullptr, drawSheetIUScale.IU_PER_MILS,
                                VECTOR2I( MAX_PAGE_SIZE_EESCHEMA_MILS,
                                          MAX_PAGE_SIZE_EESCHEMA_MILS ) );
     dlg.SetWksFileName( m_frame->GetCurrentFileName() );
@@ -152,9 +153,12 @@ int PL_EDITOR_CONTROL::UpdateMessagePanel( const TOOL_EVENT& aEvent )
 
     if( selection.GetSize() == 1 )
     {
-        EDA_ITEM* item = (EDA_ITEM*) selection.Front();
-
+        EDA_ITEM*                   item = (EDA_ITEM*) selection.Front();
         std::vector<MSG_PANEL_ITEM> msgItems;
+
+        if( std::optional<wxString> uuid = GetMsgPanelDisplayUuid( item->m_Uuid ) )
+            msgItems.emplace_back( _( "UUID" ), *uuid );
+
         item->GetMsgPanelInfo( m_frame, msgItems );
         m_frame->SetMsgPanel( msgItems );
 

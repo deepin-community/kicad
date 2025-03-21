@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -152,7 +152,7 @@ void IMPORT_PROJ_HELPER::ImportIndividualFile( KICAD_T aFT, int aImportedFileTyp
     ss << aImportedFileType << '\n' << TO_UTF8( appImportFile );
 
     for( const auto& [key, value] : m_properties )
-        ss << '\n' << key << '\n' << value;
+        ss << '\n' << key << '\n' << value.wx_str();
 
     std::string packet = ss.str();
     frame->Kiway().ExpressMail( frame_type, MAIL_IMPORT_FILE, packet, m_frame );
@@ -184,9 +184,7 @@ void IMPORT_PROJ_HELPER::EasyEDAProProjectHandler()
                 EASYEDAPRO::ProjectToSelectorDialog( project, false, false );
 
         if( toImport.size() > 1 )
-        {
-            toImport = DIALOG_IMPORT_CHOOSE_PROJECT::GetSelectionsModal( m_frame, toImport );
-        }
+            toImport = DIALOG_IMPORT_CHOOSE_PROJECT::RunModal( m_frame, toImport );
 
         if( toImport.size() == 1 )
         {

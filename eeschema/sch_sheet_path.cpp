@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023, 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,6 +24,7 @@
  */
 
 #include <refdes_utils.h>
+#include <hash.h>
 #include <sch_screen.h>
 #include <sch_item.h>
 #include <sch_marker.h>
@@ -37,13 +38,13 @@
 #include <template_fieldnames.h>
 #include <trace_helpers.h>
 
-#include <boost/functional/hash.hpp>
 #include <wx/filename.h>
 #include <wx/log.h>
 
 
 /**
  * A singleton item of this class is returned for a weak reference that no longer exists.
+ *
  * Its sole purpose is to flag the item as having been deleted.
  */
 class DELETED_SHEET_ITEM : public SCH_ITEM
@@ -53,7 +54,7 @@ public:
         SCH_ITEM( nullptr, NOT_USED )
     {}
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override
     {
         return _( "(Deleted Item)" );
     }
@@ -75,11 +76,10 @@ public:
 
     // pure virtuals:
     void SetPosition( const VECTOR2I& ) override {}
-    void Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset ) override {}
     void Move( const VECTOR2I& aMoveVector ) override {}
     void MirrorHorizontally( int aCenter ) override {}
     void MirrorVertically( int aCenter ) override {}
-    void Rotate( const VECTOR2I& aCenter ) override {}
+    void Rotate( const VECTOR2I& aCenter, bool aRotateCCW ) override {}
 
     double Similarity( const SCH_ITEM& aOther ) const override
     {
@@ -95,15 +95,6 @@ public:
     void Show( int , std::ostream&  ) const override {}
 #endif
 };
-
-
-bool SortSymbolInstancesByProjectUuid( const SCH_SYMBOL_INSTANCE& aLhs,
-                                       const SCH_SYMBOL_INSTANCE& aRhs )
-{
-    wxCHECK( !aLhs.m_Path.empty() && !aRhs.m_Path.empty(), false );
-
-    return aLhs.m_Path[0] < aRhs.m_Path[0];
-}
 
 
 namespace std
@@ -155,8 +146,9 @@ void SCH_SHEET_PATH::initFromOther( const SCH_SHEET_PATH& aOther )
     m_current_hash       = aOther.m_current_hash;
     m_cached_page_number = aOther.m_cached_page_number;
 
-    // Note: don't copy m_recursion_test_cache as it is slow and we want SCH_SHEET_PATHS to be
-    // very fast to construct for use in the connectivity algorithm.
+    // Note: don't copy m_recursion_test_cache as it is slow and we want
+    // std::vector<SCH_SHEET_PATH> to be very fast to construct for use in
+    // the connectivity algorithm.
 }
 
 
@@ -172,7 +164,7 @@ void SCH_SHEET_PATH::Rehash()
     m_current_hash = 0;
 
     for( SCH_SHEET* sheet : m_sheets )
-        boost::hash_combine( m_current_hash, sheet->m_Uuid.Hash() );
+        hash_combine( m_current_hash, sheet->m_Uuid.Hash() );
 }
 
 
@@ -184,7 +176,7 @@ int SCH_SHEET_PATH::Cmp( const SCH_SHEET_PATH& aSheetPathToTest ) const
     if( size() < aSheetPathToTest.size() )
         return -1;
 
-    //otherwise, same number of sheets.
+    // otherwise, same number of sheets.
     for( unsigned i = 0; i < size(); i++ )
     {
         if( at( i )->m_Uuid < aSheetPathToTest.at( i )->m_Uuid )
@@ -274,6 +266,54 @@ SCH_SCREEN* SCH_SHEET_PATH::LastScreen() const
 }
 
 
+bool SCH_SHEET_PATH::GetExcludedFromSim() const
+{
+    for( SCH_SHEET* sheet : m_sheets )
+    {
+        if( sheet->GetExcludedFromSim() )
+            return true;
+    }
+
+    return false;
+}
+
+
+bool SCH_SHEET_PATH::GetExcludedFromBOM() const
+{
+    for( SCH_SHEET* sheet : m_sheets )
+    {
+        if( sheet->GetExcludedFromBOM() )
+            return true;
+    }
+
+    return false;
+}
+
+
+bool SCH_SHEET_PATH::GetExcludedFromBoard() const
+{
+    for( SCH_SHEET* sheet : m_sheets )
+    {
+        if( sheet->GetExcludedFromBoard() )
+            return true;
+    }
+
+    return false;
+}
+
+
+bool SCH_SHEET_PATH::GetDNP() const
+{
+    for( SCH_SHEET* sheet : m_sheets )
+    {
+        if( sheet->GetDNP() )
+            return true;
+    }
+
+    return false;
+}
+
+
 wxString SCH_SHEET_PATH::PathAsString() const
 {
     wxString s;
@@ -351,7 +391,7 @@ void SCH_SHEET_PATH::UpdateAllScreenReferences() const
             SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
 
             symbol->GetField( REFERENCE_FIELD )->SetText( symbol->GetRef( this ) );
-            symbol->UpdateUnit( symbol->GetUnitSelection( this ) );
+            symbol->SetUnit( symbol->GetUnitSelection( this ) );
             LastScreen()->Update( item, false );
         }
         else if( item->Type() == SCH_GLOBAL_LABEL_T )
@@ -369,7 +409,7 @@ void SCH_SHEET_PATH::UpdateAllScreenReferences() const
                         && intersheetRefs.GetPosition() == VECTOR2I( 0, 0 )
                         && !intersheetRefs.IsVisible() )
                 {
-                    label->AutoplaceFields( LastScreen(), false );
+                    label->AutoplaceFields( LastScreen(), AUTOPLACE_AUTO );
                 }
 
                 intersheetRefs.SetVisible( label->Schematic()->Settings().m_IntersheetRefsShow );
@@ -378,7 +418,6 @@ void SCH_SHEET_PATH::UpdateAllScreenReferences() const
         }
     }
 }
-
 
 
 void SCH_SHEET_PATH::GetSymbols( SCH_REFERENCE_LIST& aReferences, bool aIncludePowerSymbols,
@@ -584,8 +623,8 @@ void SCH_SHEET_PATH::AddNewSymbolInstances( const SCH_SHEET_PATH& aPrefixSheetPa
         if( symbol->GetInstance( newSymbolInstance, Path(), true ) )
         {
             newSymbolInstance.m_ProjectName = aProjectName;
-            // Use an existing symbol instance for this path if it exists.
 
+            // Use an existing symbol instance for this path if it exists.
             newSymbolInstance.m_Path = newSheetPath.Path();
             symbol->AddHierarchicalReference( newSymbolInstance );
         }
@@ -650,7 +689,7 @@ void SCH_SHEET_PATH::CheckForMissingSymbolInstances( const wxString& aProjectNam
                         symbol->m_Uuid.AsString(), PathHumanReadable( false ) );
 
             // Legacy schematics that are not shared do not contain separate instance data.
-            // The symbol refrence and unit are saved in the reference field and unit entries.
+            // The symbol reference and unit are saved in the reference field and unit entries.
             if( ( LastScreen()->GetRefCount() <= 1 ) &&
                 ( LastScreen()->GetFileFormatVersionAtLoad() <= 20200310 ) )
             {
@@ -718,15 +757,10 @@ void SCH_SHEET_PATH::MakeFilePathRelativeToParentSheet()
 }
 
 
-SCH_SHEET_LIST::SCH_SHEET_LIST( SCH_SHEET* aSheet, bool aCheckIntegrity )
+SCH_SHEET_LIST::SCH_SHEET_LIST( SCH_SHEET* aSheet )
 {
     if( aSheet != nullptr )
-    {
-        BuildSheetList( aSheet, aCheckIntegrity );
-
-        if( aSheet->IsRootSheet() )
-            SortByPageNumbers();
-    }
+        BuildSheetList( aSheet, false );
 }
 
 
@@ -803,7 +837,7 @@ void SCH_SHEET_LIST::SortByPageNumbers( bool aUpdateVirtualPageNums )
             else if( a.GetVirtualPageNumber() > b.GetVirtualPageNumber() )
                 return false;
 
-            /// Enforce strict ordering.  If the page numbers are the same, use UUIDs
+            // Enforce strict ordering.  If the page numbers are the same, use UUIDs
             return a.GetCurrentHash() < b.GetCurrentHash();
         } );
 
@@ -1032,7 +1066,7 @@ void SCH_SHEET_LIST::GetSymbolsWithinPath( SCH_REFERENCE_LIST&   aReferences,
 }
 
 
-void SCH_SHEET_LIST::GetSheetsWithinPath( SCH_SHEET_PATHS&      aSheets,
+void SCH_SHEET_LIST::GetSheetsWithinPath( std::vector<SCH_SHEET_PATH>& aSheets,
                                           const SCH_SHEET_PATH& aSheetPath ) const
 {
     for( const SCH_SHEET_PATH& sheet : *this )
@@ -1064,7 +1098,7 @@ std::optional<SCH_SHEET_PATH> SCH_SHEET_LIST::GetSheetPathByKIIDPath( const KIID
 void SCH_SHEET_LIST::GetMultiUnitSymbols( SCH_MULTI_UNIT_REFERENCE_MAP &aRefList,
                                           bool aIncludePowerSymbols ) const
 {
-    for( SCH_SHEET_PATHS::const_iterator it = begin(); it != end(); ++it )
+    for( auto it = begin(); it != end(); ++it )
     {
         SCH_MULTI_UNIT_REFERENCE_MAP tempMap;
         ( *it ).GetMultiUnitSymbols( tempMap, aIncludePowerSymbols );
@@ -1427,4 +1461,20 @@ bool SCH_SHEET_LIST::ContainsSheet( const SCH_SHEET* aSheet ) const
     }
 
     return false;
+}
+
+
+std::optional<SCH_SHEET_PATH> SCH_SHEET_LIST::GetOrdinalPath( const SCH_SCREEN* aScreen ) const
+{
+    // Sheet paths with sheets that do not have a screen object are not valid.
+    if( !aScreen )
+        return std::nullopt;
+
+    for( const SCH_SHEET_PATH& path: *this )
+    {
+        if( path.LastScreen() == aScreen )
+            return std::optional<SCH_SHEET_PATH>( path );
+    }
+
+    return std::nullopt;
 }

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2022-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -51,7 +51,7 @@ SCH_IO_DATABASE::~SCH_IO_DATABASE()
 
 void SCH_IO_DATABASE::EnumerateSymbolLib( wxArrayString&    aSymbolNameList,
                                           const wxString&   aLibraryPath,
-                                          const STRING_UTF8_MAP* aProperties )
+                                          const std::map<std::string, UTF8>* aProperties )
 {
     std::vector<LIB_SYMBOL*> symbols;
     EnumerateSymbolLib( symbols, aLibraryPath, aProperties );
@@ -63,7 +63,7 @@ void SCH_IO_DATABASE::EnumerateSymbolLib( wxArrayString&    aSymbolNameList,
 
 void SCH_IO_DATABASE::EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList,
                                           const wxString&           aLibraryPath,
-                                          const STRING_UTF8_MAP*         aProperties )
+                                          const std::map<std::string, UTF8>*         aProperties )
 {
     wxCHECK_RET( m_libTable, "Database plugin missing library table handle!" );
     ensureSettings( aLibraryPath );
@@ -89,7 +89,7 @@ void SCH_IO_DATABASE::EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList,
 
 LIB_SYMBOL* SCH_IO_DATABASE::LoadSymbol( const wxString&   aLibraryPath,
                                          const wxString&   aAliasName,
-                                         const STRING_UTF8_MAP* aProperties )
+                                         const std::map<std::string, UTF8>* aProperties )
 {
     wxCHECK( m_libTable, nullptr );
     ensureSettings( aLibraryPath );
@@ -462,7 +462,9 @@ std::unique_ptr<LIB_SYMBOL>  SCH_IO_DATABASE::loadSymbolFromRow( const wxString&
         symbol->SetName( aSymbolName );
     }
 
-    symbol->LibId().SetSubLibraryName( aTable.name );
+    LIB_ID libId = symbol->GetLibId();
+    libId.SetSubLibraryName( aTable.name );;
+    symbol->SetLibId( libId );
 
     if( aRow.count( aTable.footprints_col ) )
     {
@@ -560,12 +562,12 @@ std::unique_ptr<LIB_SYMBOL>  SCH_IO_DATABASE::loadSymbolFromRow( const wxString&
         }
     }
 
-    std::vector<LIB_FIELD*> fields;
+    std::vector<SCH_FIELD*> fields;
     symbol->GetFields( fields );
 
-    std::unordered_map<wxString, LIB_FIELD*> fieldsMap;
+    std::unordered_map<wxString, SCH_FIELD*> fieldsMap;
 
-    for( LIB_FIELD* field : fields )
+    for( SCH_FIELD* field : fields )
         fieldsMap[field->GetName()] = field;
 
     static const wxString c_valueFieldName( wxS( "Value" ) );
@@ -594,7 +596,7 @@ std::unique_ptr<LIB_SYMBOL>  SCH_IO_DATABASE::loadSymbolFromRow( const wxString&
 
         if( mapping.name_wx == c_valueFieldName )
         {
-            LIB_FIELD& field = symbol->GetValueField();
+            SCH_FIELD& field = symbol->GetValueField();
             field.SetText( value );
 
             if( !mapping.inherit_properties )
@@ -606,7 +608,7 @@ std::unique_ptr<LIB_SYMBOL>  SCH_IO_DATABASE::loadSymbolFromRow( const wxString&
         }
         else if( mapping.name_wx == c_datasheetFieldName )
         {
-            LIB_FIELD& field = symbol->GetDatasheetField();
+            SCH_FIELD& field = symbol->GetDatasheetField();
             field.SetText( value );
 
             if( !mapping.inherit_properties )
@@ -621,7 +623,7 @@ std::unique_ptr<LIB_SYMBOL>  SCH_IO_DATABASE::loadSymbolFromRow( const wxString&
             continue;
         }
 
-        LIB_FIELD* field;
+        SCH_FIELD* field;
         bool isNew = false;
 
         if( fieldsMap.count( mapping.name_wx ) )
@@ -630,7 +632,7 @@ std::unique_ptr<LIB_SYMBOL>  SCH_IO_DATABASE::loadSymbolFromRow( const wxString&
         }
         else
         {
-            field = new LIB_FIELD( symbol->GetNextAvailableFieldId() );
+            field = new SCH_FIELD( nullptr, symbol->GetNextAvailableFieldId() );
             field->SetName( mapping.name_wx );
             isNew = true;
             fieldsMap[mapping.name_wx] = field;

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -64,23 +64,25 @@ struct VERTEX
     GLfloat shader[4];      // Shader type & params
 };
 
-static constexpr size_t VERTEX_SIZE   = sizeof(VERTEX);
-static constexpr size_t VERTEX_STRIDE = VERTEX_SIZE / sizeof(GLfloat);
+static constexpr size_t VERTEX_SIZE   = sizeof( VERTEX );
+static constexpr size_t VERTEX_STRIDE = VERTEX_SIZE / sizeof( GLfloat );
 
-static constexpr size_t COORD_OFFSET  = offsetof(VERTEX, x);
-static constexpr size_t COORD_SIZE    = sizeof(VERTEX::x) + sizeof(VERTEX::y) + sizeof(VERTEX::z);
-static constexpr size_t COORD_STRIDE  = COORD_SIZE / sizeof(GLfloat);
+static constexpr size_t COORD_OFFSET  = offsetof( VERTEX, x );
+static constexpr size_t COORD_SIZE    = sizeof( VERTEX::x ) + sizeof( VERTEX::y ) +
+                                        sizeof( VERTEX::z );
+static constexpr size_t COORD_STRIDE  = COORD_SIZE / sizeof( GLfloat );
 
-static constexpr size_t COLOR_OFFSET  = offsetof(VERTEX, r);
-static constexpr size_t COLOR_SIZE    = sizeof(VERTEX::r) + sizeof(VERTEX::g) + sizeof(VERTEX::b) + sizeof(VERTEX::a);
-static constexpr size_t COLOR_STRIDE  = COLOR_SIZE / sizeof(GLubyte);
+static constexpr size_t COLOR_OFFSET = offsetof( VERTEX, r );
+static constexpr size_t COLOR_SIZE = sizeof( VERTEX::r ) + sizeof( VERTEX::g ) +
+                                     sizeof( VERTEX::b ) + sizeof( VERTEX::a );
+static constexpr size_t COLOR_STRIDE = COLOR_SIZE / sizeof( GLubyte );
 
 // Shader attributes
-static constexpr size_t SHADER_OFFSET = offsetof(VERTEX, shader);
-static constexpr size_t SHADER_SIZE   = sizeof(VERTEX::shader);
-static constexpr size_t SHADER_STRIDE = SHADER_SIZE / sizeof(GLfloat);
+static constexpr size_t SHADER_OFFSET = offsetof( VERTEX, shader );
+static constexpr size_t SHADER_SIZE = sizeof( VERTEX::shader );
+static constexpr size_t SHADER_STRIDE = SHADER_SIZE / sizeof( GLfloat );
 
-static constexpr size_t INDEX_SIZE    = sizeof(GLuint);
+static constexpr size_t INDEX_SIZE = sizeof( GLuint );
 
 } // namespace KIGFX
 

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2022 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -52,7 +52,7 @@ const BOX2I ARC_ASSISTANT::ViewBBox() const
     if( m_constructMan.IsReset() )
         return tmp;
 
-    // this is an edit-time artefact; no reason to try and be smart with the bounding box
+    // this is an edit-time artifact; no reason to try and be smart with the bounding box
     // (besides, we can't tell the text extents without a view to know what the scale is)
     tmp.SetMaximum();
     return tmp;
@@ -79,7 +79,7 @@ void ARC_ASSISTANT::ViewDraw( int aLayer, KIGFX::VIEW* aView ) const
     preview_ctx.DrawLineWithAngleHighlight( origin, m_constructMan.GetStartRadiusEnd(),
                                             dimFirstLine );
 
-    std::vector<wxString> cursorStrings;
+    wxArrayString cursorStrings;
 
     if( m_constructMan.GetStep() == ARC_GEOM_MANAGER::SET_START )
     {
@@ -94,7 +94,8 @@ void ARC_ASSISTANT::ViewDraw( int aLayer, KIGFX::VIEW* aView ) const
 
         cursorStrings.push_back(
                 DimensionLabel( "r", m_constructMan.GetRadius(), m_iuScale, m_units ) );
-        cursorStrings.push_back( DimensionLabel( wxString::FromUTF8( "θ" ), initAngle.AsDegrees(), m_iuScale,
+        cursorStrings.push_back( DimensionLabel( wxString::FromUTF8( "θ" ),
+                                                 initAngle.AsDegrees(), m_iuScale,
                                                  EDA_UNITS::DEGREES ) );
     }
     else

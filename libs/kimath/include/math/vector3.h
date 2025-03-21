@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,6 +20,7 @@
 #ifndef VECTOR3_H_
 #define VECTOR3_H_
 
+#include <iostream>
 #include <stdint.h>
 #include <limits>
 #include <wx/debug.h>
@@ -98,6 +99,11 @@ public:
      */
     VECTOR3<T> Normalize();
 
+    /**
+     * Set all elements to \a val
+     */
+    VECTOR3<T> SetAll( T val );
+
     /// Equality operator
     bool operator==( const VECTOR3<T>& aVector ) const;
 
@@ -166,6 +172,17 @@ VECTOR3<T> VECTOR3<T>::Normalize()
 
 
 template <class T>
+VECTOR3<T> VECTOR3<T>::SetAll( T val )
+{
+    x = val;
+    y = val;
+    z = val;
+
+    return *this;
+}
+
+
+template <class T>
 bool VECTOR3<T>::operator==( VECTOR3<T> const& aVector ) const
 {
     return ( aVector.x == x ) && ( aVector.y == y ) && ( aVector.z == z );
@@ -198,6 +215,14 @@ VECTOR3<T>& VECTOR3<T>::operator/=( T aScalar )
     z = z / aScalar;
 
     return *this;
+}
+
+
+template <class T>
+std::ostream& operator<<( std::ostream& aStream, const VECTOR3<T>& aVector )
+{
+    aStream << "[ " << aVector.x << " | " << aVector.y << " | " << aVector.z << " ]";
+    return aStream;
 }
 
 

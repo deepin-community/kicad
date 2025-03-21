@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020, 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -26,11 +26,11 @@
 
 
 NESTED_SETTINGS::NESTED_SETTINGS( const std::string& aName, int aVersion, JSON_SETTINGS* aParent,
-                                  const std::string& aPath ) :
+                                  const std::string& aPath, bool aLoadFromFile ) :
         JSON_SETTINGS( aName, SETTINGS_LOC::NESTED, aVersion ),
         m_parent( aParent ), m_path( aPath )
 {
-    SetParent( aParent );
+    SetParent( aParent, aLoadFromFile );
 }
 
 
@@ -89,7 +89,18 @@ bool NESTED_SETTINGS::LoadFromFile( const wxString& aDirectory )
             wxLogTrace( traceSettings, wxT( "%s: attempting migration from version %d to %d" ),
                         m_filename, filever, m_schemaVersion );
 
-            if( !Migrate() )
+            bool migrated = false;
+
+            try
+            {
+                migrated = Migrate();
+            }
+            catch( ... )
+            {
+                success = false;
+            }
+
+            if( !migrated )
             {
                 wxLogTrace( traceSettings, wxT( "%s: migration failed!" ), GetFullFilename() );
                 success = false;

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 1992-2018 Jean-Pierre Charras <jp.charras at wanadoo.fr>.
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  *
  * This program is free software; you can redistribute it and/or
@@ -72,9 +72,7 @@ DS_DATA_MODEL::DS_DATA_MODEL() :
     m_bottomMargin = 10.0;  // the bottom page margin in mm
 }
 
-/*
- * static function: returns the instance of DS_DATA_MODEL used in the application
- */
+
 DS_DATA_MODEL& DS_DATA_MODEL::GetTheInstance()
 {
     if( wksAltInstance )
@@ -83,12 +81,7 @@ DS_DATA_MODEL& DS_DATA_MODEL::GetTheInstance()
         return wksTheInstance;
 }
 
-/**
- * static function: Set an alternate instance of DS_DATA_MODEL
- * mainly used in page setting dialog
- * @param aLayout = the alternate drawing sheet.
- * if null, restore the basic drawing sheet
- */
+
 void DS_DATA_MODEL::SetAltInstance( DS_DATA_MODEL* aLayout )
 {
     wksAltInstance = aLayout;
@@ -97,7 +90,7 @@ void DS_DATA_MODEL::SetAltInstance( DS_DATA_MODEL* aLayout )
 
 void DS_DATA_MODEL::SetupDrawEnvironment( const PAGE_INFO& aPageInfo, double aMilsToIU )
 {
-#define MILS_TO_MM (25.4/1000)
+#define MILS_TO_MM ( 25.4 / 1000 )
 
     m_WSunits2Iu = aMilsToIU / MILS_TO_MM;
 
@@ -145,33 +138,3 @@ DS_DATA_ITEM* DS_DATA_MODEL::GetItem( unsigned aIdx ) const
         return nullptr;
 }
 
-
-const wxString DS_DATA_MODEL::ResolvePath( const wxString& aPath, const wxString& aProjectPath )
-{
-    wxString fullFileName = ExpandEnvVarSubstitutions( aPath, nullptr );
-
-    if( fullFileName.IsEmpty() )
-        return fullFileName;
-
-    wxFileName fn = fullFileName;
-
-    if( fn.IsAbsolute() )
-        return fullFileName;
-
-    // the path is not absolute: search it in project path, and then in kicad valid paths
-    if( !aProjectPath.IsEmpty() )
-    {
-        fn.MakeAbsolute( aProjectPath );
-
-        if( wxFileExists( fn.GetFullPath() ) )
-            return fn.GetFullPath();
-    }
-
-    fn = fullFileName;
-    wxString name = Kiface().KifaceSearch().FindValidPath( fn.GetFullName() );
-
-    if( !name.IsEmpty() )
-        fullFileName = name;
-
-    return fullFileName;
-}

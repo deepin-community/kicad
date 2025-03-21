@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
 * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -25,6 +25,7 @@
 #include <footprint.h>
 #include <pad.h>
 #include <pcb_track.h>
+#include <richio.h>
 #include <locale_io.h>
 #include <macros.h>
 #include <hash_eda.h>
@@ -88,42 +89,6 @@ static std::string GenCADLayerName( int aCuCount, PCB_LAYER_ID aId )
 }
 
 
-static const PCB_LAYER_ID gc_seq[] = {
-    B_Cu,
-    In30_Cu,
-    In29_Cu,
-    In28_Cu,
-    In27_Cu,
-    In26_Cu,
-    In25_Cu,
-    In24_Cu,
-    In23_Cu,
-    In22_Cu,
-    In21_Cu,
-    In20_Cu,
-    In19_Cu,
-    In18_Cu,
-    In17_Cu,
-    In16_Cu,
-    In15_Cu,
-    In14_Cu,
-    In13_Cu,
-    In12_Cu,
-    In11_Cu,
-    In10_Cu,
-    In9_Cu,
-    In8_Cu,
-    In7_Cu,
-    In6_Cu,
-    In5_Cu,
-    In4_Cu,
-    In3_Cu,
-    In2_Cu,
-    In1_Cu,
-    F_Cu,
-};
-
-
 // flipped layer name for Gencad export (to make CAM350 imports correct)
 static std::string GenCADLayerNameFlipped( int aCuCount, PCB_LAYER_ID aId )
 {
@@ -144,7 +109,7 @@ static wxString escapeString( const wxString& aString )
 
 static std::string fmt_mask( LSET aSet )
 {
-    return StrPrintf( "%08x", (unsigned) ( aSet & LSET::AllCuMask() ).to_ulong() );
+    return ( aSet & LSET::AllCuMask() ).to_string();
 }
 
 
@@ -189,7 +154,7 @@ double GENCAD_EXPORTER::MapYTo( int aY )
 }
 
 
-bool GENCAD_EXPORTER::WriteFile( wxString& aFullFileName )
+bool GENCAD_EXPORTER::WriteFile( const wxString& aFullFileName )
 {
     componentShapes.clear();
     shapeNames.clear();
@@ -204,7 +169,7 @@ bool GENCAD_EXPORTER::WriteFile( wxString& aFullFileName )
 
     BOARD*  pcb = m_board;
     // Update some board data, to ensure a reliable gencad export
-    pcb->ComputeBoundingBox();
+    pcb->ComputeBoundingBox( false );
 
     /* Temporary modification of footprints that are flipped (i.e. on bottom
      * layer) to convert them to non flipped footprints.
@@ -219,7 +184,7 @@ bool GENCAD_EXPORTER::WriteFile( wxString& aFullFileName )
 
         if( footprint->GetLayer() == B_Cu )
         {
-            footprint->Flip( footprint->GetPosition(), false );
+            footprint->Flip( footprint->GetPosition(), FLIP_DIRECTION::TOP_BOTTOM );
             footprint->SetFlag( 1 );
         }
     }
@@ -253,7 +218,7 @@ bool GENCAD_EXPORTER::WriteFile( wxString& aFullFileName )
     {
         if( footprint->GetFlag() )
         {
-            footprint->Flip( footprint->GetPosition(), false );
+            footprint->Flip( footprint->GetPosition(), FLIP_DIRECTION::TOP_BOTTOM );
             footprint->SetFlag( 0 );
         }
     }
@@ -268,8 +233,8 @@ bool GENCAD_EXPORTER::WriteFile( wxString& aFullFileName )
 // Sort vias for uniqueness
 static bool ViaSort( const PCB_VIA* aPadref, const PCB_VIA* aPadcmp )
 {
-    if( aPadref->GetWidth() != aPadcmp->GetWidth() )
-        return aPadref->GetWidth() < aPadcmp->GetWidth();
+    if( aPadref->GetWidth( PADSTACK::ALL_LAYERS ) != aPadcmp->GetWidth( PADSTACK::ALL_LAYERS ) )
+        return aPadref->GetWidth( PADSTACK::ALL_LAYERS ) < aPadcmp->GetWidth( PADSTACK::ALL_LAYERS );
 
     if( aPadref->GetDrillValue() != aPadcmp->GetDrillValue() )
         return aPadref->GetDrillValue() < aPadcmp->GetDrillValue();
@@ -299,6 +264,9 @@ void GENCAD_EXPORTER::CreatePadsShapesSection()
     std::vector<PCB_VIA*> viastacks;
 
     padstacks.resize( 1 ); // We count pads from 1
+
+    LSEQ gc_seq = m_board->GetEnabledLayers().CuStack();
+    std::reverse(gc_seq.begin(), gc_seq.end());
 
     // The master layermask (i.e. the enabled layers) for padstack generation
     LSET    master_layermask = m_board->GetDesignSettings().GetEnabledLayers();
@@ -334,10 +302,10 @@ void GENCAD_EXPORTER::CreatePadsShapesSection()
     {
         viastacks.push_back( via );
         fprintf( m_file, "PAD V%d.%d.%s ROUND %g\nCIRCLE 0 0 %g\n",
-                 via->GetWidth(), via->GetDrillValue(),
+                 via->GetWidth( PADSTACK::ALL_LAYERS ), via->GetDrillValue(),
                  fmt_mask( via->GetLayerSet() & master_layermask ).c_str(),
                  via->GetDrillValue() / SCALE_FACTOR,
-                 via->GetWidth() / (SCALE_FACTOR * 2) );
+                 via->GetWidth( PADSTACK::ALL_LAYERS ) / (SCALE_FACTOR * 2) );
     }
 
     // Emit component pads
@@ -347,7 +315,7 @@ void GENCAD_EXPORTER::CreatePadsShapesSection()
     for( unsigned i = 0; i<pads.size(); ++i )
     {
         PAD* pad = pads[i];
-        const VECTOR2I& off = pad->GetOffset();
+        const VECTOR2I& off = pad->GetOffset( PADSTACK::ALL_LAYERS );
 
         pad->SetSubRatsnest( pad_name_number );
 
@@ -364,13 +332,13 @@ void GENCAD_EXPORTER::CreatePadsShapesSection()
         fprintf( m_file, "PAD P%d", pad->GetSubRatsnest() );
 
         padstacks.push_back( pad ); // Will have its own padstack later
-        int dx = pad->GetSize().x / 2;
-        int dy = pad->GetSize().y / 2;
+        int dx = pad->GetSize( PADSTACK::ALL_LAYERS ).x / 2;
+        int dy = pad->GetSize( PADSTACK::ALL_LAYERS ).y / 2;
 
-        switch( pad->GetShape() )
+        switch( pad->GetShape( PADSTACK::ALL_LAYERS ) )
         {
         default:
-            UNIMPLEMENTED_FOR( pad->ShowPadShape() );
+            UNIMPLEMENTED_FOR( pad->ShowPadShape( PADSTACK::ALL_LAYERS ) );
             KI_FALLTHROUGH;
 
         case PAD_SHAPE::CIRCLE:
@@ -381,7 +349,7 @@ void GENCAD_EXPORTER::CreatePadsShapesSection()
             fprintf( m_file, "CIRCLE %g %g %g\n",
                      off.x / SCALE_FACTOR,
                      -off.y / SCALE_FACTOR,
-                     pad->GetSize().x / (SCALE_FACTOR * 2) );
+                     pad->GetSize( PADSTACK::ALL_LAYERS ).x / (SCALE_FACTOR * 2) );
             break;
 
         case PAD_SHAPE::RECTANGLE:
@@ -398,12 +366,12 @@ void GENCAD_EXPORTER::CreatePadsShapesSection()
         case PAD_SHAPE::ROUNDRECT:
         case PAD_SHAPE::OVAL:
         {
-            const VECTOR2I& size = pad->GetSize();
+            const VECTOR2I& size = pad->GetSize( PADSTACK::ALL_LAYERS );
             int radius = std::min( size.x, size.y ) / 2;
 
-            if( pad->GetShape() == PAD_SHAPE::ROUNDRECT )
+            if( pad->GetShape( PADSTACK::ALL_LAYERS ) == PAD_SHAPE::ROUNDRECT )
             {
-                radius = pad->GetRoundRectCornerRadius();
+                radius = pad->GetRoundRectCornerRadius( PADSTACK::ALL_LAYERS );
             }
 
             int lineX = size.x / 2 - radius;
@@ -488,8 +456,8 @@ void GENCAD_EXPORTER::CreatePadsShapesSection()
         {
             fprintf( m_file, " POLYGON %g\n", pad->GetDrillSize().x / SCALE_FACTOR );
 
-            int  ddx = pad->GetDelta().x / 2;
-            int  ddy = pad->GetDelta().y / 2;
+            int  ddx = pad->GetDelta( PADSTACK::ALL_LAYERS ).x / 2;
+            int  ddy = pad->GetDelta( PADSTACK::ALL_LAYERS ).y / 2;
 
             VECTOR2I poly[4];
             poly[0] = VECTOR2I( -dx + ddy, dy + ddx );
@@ -518,12 +486,13 @@ void GENCAD_EXPORTER::CreatePadsShapesSection()
             int            maxError = m_board->GetDesignSettings().m_MaxError;
             VECTOR2I       padOffset( 0, 0 );
 
-            TransformRoundChamferedRectToPolygon( outline, padOffset, pad->GetSize(),
+            TransformRoundChamferedRectToPolygon( outline, padOffset,
+                                                  pad->GetSize( PADSTACK::ALL_LAYERS ),
                                                   pad->GetOrientation(),
-                                                  pad->GetRoundRectCornerRadius(),
-                                                  pad->GetChamferRectRatio(),
-                                                  pad->GetChamferPositions(), 0, maxError,
-                                                  ERROR_INSIDE );
+                                                  pad->GetRoundRectCornerRadius( PADSTACK::ALL_LAYERS ),
+                                                  pad->GetChamferRectRatio( PADSTACK::ALL_LAYERS ),
+                                                  pad->GetChamferPositions( PADSTACK::ALL_LAYERS ),
+                                                  0, maxError, ERROR_INSIDE );
 
             for( int jj = 0; jj < outline.OutlineCount(); ++jj )
             {
@@ -549,7 +518,7 @@ void GENCAD_EXPORTER::CreatePadsShapesSection()
             fprintf( m_file, " POLYGON %g\n", pad->GetDrillSize().x / SCALE_FACTOR );
 
             SHAPE_POLY_SET outline;
-            pad->MergePrimitivesAsPolygon( &outline );
+            pad->MergePrimitivesAsPolygon( F_Cu, &outline );
 
             for( int jj = 0; jj < outline.OutlineCount(); ++jj )
             {
@@ -585,16 +554,16 @@ void GENCAD_EXPORTER::CreatePadsShapesSection()
         LSET mask = via->GetLayerSet() & master_layermask;
 
         fprintf( m_file, "PADSTACK VIA%d.%d.%s %g\n",
-                 via->GetWidth(), via->GetDrillValue(),
+                 via->GetWidth( PADSTACK::ALL_LAYERS ),
+                 via->GetDrillValue(),
                  fmt_mask( mask ).c_str(),
                  via->GetDrillValue() / SCALE_FACTOR );
 
-        for( LSEQ seq = mask.Seq( gc_seq, arrayDim( gc_seq ) );  seq;  ++seq )
+        for( PCB_LAYER_ID layer : mask.Seq( gc_seq ) )
         {
-            PCB_LAYER_ID layer = *seq;
-
             fprintf( m_file, "PAD V%d.%d.%s %s 0 0\n",
-                    via->GetWidth(), via->GetDrillValue(),
+                    via->GetWidth( PADSTACK::ALL_LAYERS ),
+                    via->GetDrillValue(),
                     fmt_mask( mask ).c_str(),
                     GenCADLayerName( cu_count, layer ).c_str() );
         }
@@ -615,10 +584,8 @@ void GENCAD_EXPORTER::CreatePadsShapesSection()
         LSET pad_set = pad->GetLayerSet() & master_layermask;
 
         // the special gc_seq
-        for( LSEQ seq = pad_set.Seq( gc_seq, arrayDim( gc_seq ) );  seq;  ++seq )
+        for( PCB_LAYER_ID layer : pad_set.Seq( gc_seq ) )
         {
-            PCB_LAYER_ID layer = *seq;
-
             fprintf( m_file, "PAD P%u %s 0 0\n", i, GenCADLayerName( cu_count, layer ).c_str() );
         }
 
@@ -628,10 +595,8 @@ void GENCAD_EXPORTER::CreatePadsShapesSection()
             fprintf( m_file, "PADSTACK PAD%uF %g\n", i, pad->GetDrillSize().x / SCALE_FACTOR );
 
             // the normal PCB_LAYER_ID sequence is inverted from gc_seq[]
-            for( LSEQ seq = pad_set.Seq();  seq;  ++seq )
+            for( PCB_LAYER_ID layer : pad_set.Seq() )
             {
-                PCB_LAYER_ID layer = *seq;
-
                 fprintf( m_file, "PAD P%u %s 0 0\n", i,
                          GenCADLayerNameFlipped( cu_count, layer ).c_str() );
             }
@@ -649,7 +614,7 @@ static size_t hashFootprint( const FOOTPRINT* aFootprint )
     constexpr int flags = HASH_FLAGS::HASH_POS | HASH_FLAGS::REL_COORD
                             | HASH_FLAGS::HASH_ROT | HASH_FLAGS::HASH_LAYER;
 
-    for( PCB_FIELD* i : aFootprint->Fields() )
+    for( PCB_FIELD* i : aFootprint->GetFields() )
         ret += hash_fp_item( i, flags );
 
     for( BOARD_ITEM* i : aFootprint->GraphicalItems() )
@@ -1021,7 +986,7 @@ void GENCAD_EXPORTER::CreateRoutesSection()
             LSET vset = via->GetLayerSet() & master_layermask;
 
             fprintf( m_file, "VIA VIA%d.%d.%s %g %g ALL %g via%d\n",
-                     via->GetWidth(), via->GetDrillValue(),
+                     via->GetWidth( PADSTACK::ALL_LAYERS ), via->GetDrillValue(),
                      fmt_mask( vset ).c_str(),
                      MapXTo( via->GetStart().x ), MapYTo( via->GetStart().y ),
                      via->GetDrillValue() / SCALE_FACTOR, vianum++ );
@@ -1196,7 +1161,7 @@ void GENCAD_EXPORTER::FootprintWriteShape( FOOTPRINT* aFootprint, const wxString
 
             case SHAPE_T::CIRCLE:
             {
-                int radius = KiROUND( GetLineLength( end, start ) );
+                int radius = KiROUND( end.Distance( start ) );
 
                 fprintf( m_file, "CIRCLE %g %g %g\n",
                          start.x / SCALE_FACTOR,

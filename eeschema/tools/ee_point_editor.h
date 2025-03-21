@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,7 +30,9 @@
 #include <tool/selection.h>
 
 class EE_SELECTION_TOOL;
+class POINT_EDIT_BEHAVIOR;
 class SCH_BASE_FRAME;
+class SCH_COMMIT;
 
 /**
  * Tool that displays edit points allowing to modify items by dragging the points.
@@ -59,7 +61,11 @@ public:
 
 private:
     ///< Update item's points with edit points.
-    void updateParentItem( bool aSnapToGrid ) const;
+    void updateParentItem( bool aSnapToGrid, SCH_COMMIT& aCommit ) const;
+
+    ///< When dragging a graphics edge, update pins too.
+    void dragPinsOnEdge( const std::vector<SEG>& aOldEdges, const std::vector<VECTOR2I>& aMoveVecs,
+                         int aUnit, SCH_COMMIT& aCommit ) const;
 
     ///< Update edit points with item's points.
     void updatePoints();
@@ -102,6 +108,8 @@ private:
     int modifiedSelection( const TOOL_EVENT& aEvent );
 
 private:
+    void makePointsAndBehavior( EDA_ITEM* aItem );
+
     ///< Currently edited point, NULL if there is none.
     EDIT_POINT* m_editedPoint;
 
@@ -110,6 +118,9 @@ private:
 
     ///< Currently available edit points.
     std::shared_ptr<EDIT_POINTS> m_editPoints;
+
+    ///< Current item-specific edit behavior.
+    std::unique_ptr<POINT_EDIT_BEHAVIOR> m_editBehavior;
 };
 
 #endif  // EE_POINT_EDITOR_H

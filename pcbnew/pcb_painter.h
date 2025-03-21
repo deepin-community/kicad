@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
@@ -30,6 +30,7 @@
 
 #include <frame_type.h>
 #include <gal/painter.h>
+#include <padstack.h>   // PAD_DRILL_SHAPE
 #include <pcb_display_options.h>
 #include <math/vector2d.h>
 #include <memory>
@@ -52,6 +53,7 @@ class ZONE;
 class PCB_REFERENCE_IMAGE;
 class PCB_TEXT;
 class PCB_TEXTBOX;
+class PCB_TABLE;
 class PCB_DIMENSION_BASE;
 class PCB_TARGET;
 class PCB_MARKER;
@@ -92,16 +94,32 @@ public:
     /// @copydoc RENDER_SETTINGS::GetColor()
     COLOR4D GetColor( const VIEW_ITEM* aItem, int aLayer ) const override;
 
+    ///< Board-specific version
+    COLOR4D GetColor( const BOARD_ITEM* aItem, int aLayer ) const;
+
+    ///< nullptr version
+    COLOR4D GetColor( std::nullptr_t, int aLayer ) const
+    {
+        return GetColor( static_cast<const BOARD_ITEM*>( nullptr ), aLayer );
+    }
+
     bool GetShowPageLimits() const override;
 
     inline bool IsBackgroundDark() const override
     {
-        auto luma = m_layerColors[ LAYER_PCB_BACKGROUND ].GetBrightness();
+        auto it = m_layerColors.find( LAYER_PCB_BACKGROUND );
 
-        return luma < 0.5;
+        if( it == m_layerColors.end() )
+            return false;
+
+        return it->second.GetBrightness() < 0.5;
     }
 
-    const COLOR4D& GetBackgroundColor() const override { return m_layerColors[ LAYER_PCB_BACKGROUND ]; }
+    const COLOR4D& GetBackgroundColor() const override
+    {
+        auto it = m_layerColors.find( LAYER_PCB_BACKGROUND );
+        return it == m_layerColors.end() ? COLOR4D::BLACK : it->second;
+    }
 
     void SetBackgroundColor( const COLOR4D& aColor ) override
     {
@@ -114,8 +132,6 @@ public:
 
     NET_COLOR_MODE GetNetColorMode() const { return m_netColorMode; }
     void SetNetColorMode( NET_COLOR_MODE aMode ) { m_netColorMode = aMode; }
-
-    std::map<wxString, KIGFX::COLOR4D>& GetNetclassColorMap() { return m_netclassColors; }
 
     std::map<int, KIGFX::COLOR4D>& GetNetColorMap() { return m_netColors; }
 
@@ -153,6 +169,7 @@ protected:
     double m_padOpacity;       ///< Opacity override for SMD pads and PTHs
     double m_zoneOpacity;      ///< Opacity override for filled zones
     double m_imageOpacity;     ///< Opacity override for user images
+    double m_filledShapeOpacity;     ///< Opacity override for graphic shapes
 };
 
 
@@ -185,6 +202,7 @@ protected:
     void draw( const PCB_REFERENCE_IMAGE* aBitmap, int aLayer );
     void draw( const PCB_TEXT* aText, int aLayer );
     void draw( const PCB_TEXTBOX* aText, int aLayer );
+    void draw( const PCB_TABLE* aTable, int aLayer );
     void draw( const FOOTPRINT* aFootprint, int aLayer );
     void draw( const PCB_GROUP* aGroup, int aLayer );
     void draw( const ZONE* aZone, int aLayer );
@@ -203,7 +221,7 @@ protected:
     /**
      * Return drill shape of a pad.
      */
-    virtual int getDrillShape( const PAD* aPad ) const;
+    virtual PAD_DRILL_SHAPE getDrillShape( const PAD* aPad ) const;
 
     /**
      * Return hole shape for a pad (internal units).

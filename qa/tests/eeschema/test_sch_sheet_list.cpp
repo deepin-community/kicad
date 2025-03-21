@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,6 +20,7 @@
 #include <qa_utils/wx_utils/unit_test_utils.h>
 #include "eeschema_test_utils.h"
 
+#include <sch_io/sch_io.h>
 #include <sch_sheet_path.h>
 #include <wildcards_and_files_ext.h>
 
@@ -49,7 +50,7 @@ BOOST_AUTO_TEST_CASE( TestSheetListPageProperties )
 {
     LoadSchematic( "complex_hierarchy/complex_hierarchy" );
 
-    SCH_SHEET_LIST sheets = m_schematic.GetSheets();
+    SCH_SHEET_LIST sheets = m_schematic.BuildSheetListSortedByPageNumbers();
 
     BOOST_CHECK( sheets.AllSheetPageNumbersEmpty() );
 
@@ -69,7 +70,7 @@ BOOST_AUTO_TEST_CASE( TestEditPageNumbersInSharedDesign )
         // Check the Sub Sheet has the expected page numbers
         LoadSchematic( "complex_hierarchy_shared/ampli_ht/ampli_ht" );
 
-        SCH_SHEET_LIST sheets = m_schematic.GetSheets();
+        SCH_SHEET_LIST sheets = m_schematic.BuildSheetListSortedByPageNumbers();
 
         BOOST_CHECK_EQUAL( sheets.size(), 2 );
         BOOST_CHECK_EQUAL( sheets.at( 0 ).GetPageNumber(), "i" );
@@ -81,7 +82,7 @@ BOOST_AUTO_TEST_CASE( TestEditPageNumbersInSharedDesign )
         // Check the parent sheet has the expected page numbers
         LoadSchematic( "complex_hierarchy_shared/complex_hierarchy" );
 
-        SCH_SHEET_LIST sheets = m_schematic.GetSheets();
+        SCH_SHEET_LIST sheets = m_schematic.BuildSheetListSortedByPageNumbers();
 
         BOOST_CHECK_EQUAL( sheets.size(), 5 );
         BOOST_CHECK_EQUAL( sheets.at( 0 ).GetPageNumber(), "1" );
@@ -93,7 +94,7 @@ BOOST_AUTO_TEST_CASE( TestEditPageNumbersInSharedDesign )
 
     BOOST_TEST_CONTEXT( "Modify page numbers in root sheet" )
     {
-        SCH_SHEET_LIST sheets = m_schematic.GetSheets();
+        SCH_SHEET_LIST sheets = m_schematic.BuildSheetListSortedByPageNumbers();
 
         // Amend Page numbers
         sheets.at( 0 ).SetPageNumber( "A" );
@@ -129,7 +130,7 @@ BOOST_AUTO_TEST_CASE( TestEditPageNumbersInSharedDesign )
 
         LoadSchematic( "complex_hierarchy_shared/temp/complex_hierarchy" );
 
-        sheets = m_schematic.GetSheets();
+        sheets = m_schematic.BuildSheetListSortedByPageNumbers();
 
         BOOST_CHECK_EQUAL( sheets.size(), 5 );
         BOOST_CHECK_EQUAL( sheets.at( 0 ).GetPageNumber(), "A" );
@@ -154,7 +155,7 @@ BOOST_AUTO_TEST_CASE( TestEditPageNumbersInSharedDesign )
         // (This should not have been modified after editing the root sheet)
         LoadSchematic( "complex_hierarchy_shared/ampli_ht/ampli_ht" );
 
-        SCH_SHEET_LIST sheets = m_schematic.GetSheets();
+        SCH_SHEET_LIST sheets = m_schematic.BuildSheetListSortedByPageNumbers();
 
         BOOST_CHECK_EQUAL( sheets.size(), 2 );
         BOOST_CHECK_EQUAL( sheets.at( 0 ).GetPageNumber(), "i" );

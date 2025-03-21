@@ -5,7 +5,7 @@
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,6 +30,7 @@
 #include <widgets/msgpanel.h>
 #include <board.h>
 #include <footprint.h>
+#include <lset.h>
 #include <pcb_shape.h>
 #include <pad.h>
 #include <board_commit.h>
@@ -145,7 +146,7 @@ bool AR_AUTOPLACER::fillMatrix()
 
     // Create a single board outline:
     SHAPE_POLY_SET brd_shape = m_boardShape.CloneDropTriangulation();
-    brd_shape.Fracture( SHAPE_POLY_SET::PM_FAST );
+    brd_shape.Fracture();
     const SHAPE_LINE_CHAIN& outline = brd_shape.Outline(0);
     const BOX2I& rect = outline.BBox();
 
@@ -316,7 +317,7 @@ void AR_AUTOPLACER::buildFpAreas( FOOTPRINT* aFootprint, int aFpClearance )
     if( aFootprint->GetLayer() == B_Cu )
         layerMask.set( B_Cu );
 
-    BOX2I fpBBox = aFootprint->GetBoundingBox();
+    BOX2I fpBBox = aFootprint->GetBoundingBox( false );
 
     fpBBox.Inflate( ( m_matrix.m_GridRouting / 2 ) + aFpClearance );
 
@@ -332,11 +333,11 @@ void AR_AUTOPLACER::buildFpAreas( FOOTPRINT* aFootprint, int aFpClearance )
 }
 
 
-void AR_AUTOPLACER::genModuleOnRoutingMatrix( FOOTPRINT* Module )
+void AR_AUTOPLACER::genModuleOnRoutingMatrix( FOOTPRINT* aFootprint )
 {
     int   ox, oy, fx, fy;
     LSET  layerMask;
-    BOX2I fpBBox = Module->GetBoundingBox();
+    BOX2I fpBBox = aFootprint->GetBoundingBox( false );
 
     fpBBox.Inflate( m_matrix.m_GridRouting / 2 );
     ox  = fpBBox.GetX();
@@ -368,32 +369,32 @@ void AR_AUTOPLACER::genModuleOnRoutingMatrix( FOOTPRINT* Module )
     if( fy > m_matrix.m_BrdBox.GetBottom() )
         fy = m_matrix.m_BrdBox.GetBottom();
 
-    if( Module->GetLayer() == F_Cu )
+    if( aFootprint->GetLayer() == F_Cu )
         layerMask.set( F_Cu );
 
-    if( Module->GetLayer() == B_Cu )
+    if( aFootprint->GetLayer() == B_Cu )
         layerMask.set( B_Cu );
 
     m_matrix.TraceFilledRectangle( ox, oy, fx, fy, layerMask,
                                    CELL_IS_MODULE, AR_MATRIX::WRITE_OR_CELL );
 
     // Trace pads + clearance areas.
-    for( PAD* pad : Module->Pads() )
+    for( PAD* pad : aFootprint->Pads() )
     {
         int margin = (m_matrix.m_GridRouting / 2) + pad->GetOwnClearance( pad->GetLayer() );
         m_matrix.PlacePad( pad, CELL_IS_MODULE, margin, AR_MATRIX::WRITE_OR_CELL );
     }
 
     // Trace clearance.
-    int margin = ( m_matrix.m_GridRouting * Module->GetPadCount() ) / AR_GAIN;
+    int margin = ( m_matrix.m_GridRouting * aFootprint->GetPadCount() ) / AR_GAIN;
     m_matrix.CreateKeepOutRectangle( ox, oy, fx, fy, margin, AR_KEEPOUT_MARGIN , layerMask );
 
     // Build the footprint courtyard
-    buildFpAreas( Module, margin );
+    buildFpAreas( aFootprint, margin );
 
     // Substract the shape to free areas
-    m_topFreeArea.BooleanSubtract( m_fpAreaTop, SHAPE_POLY_SET::PM_FAST );
-    m_bottomFreeArea.BooleanSubtract( m_fpAreaBottom, SHAPE_POLY_SET::PM_FAST );
+    m_topFreeArea.BooleanSubtract( m_fpAreaTop );
+    m_bottomFreeArea.BooleanSubtract( m_fpAreaBottom );
 }
 
 
@@ -510,21 +511,17 @@ int AR_AUTOPLACER::testFootprintOnBoard( FOOTPRINT* aFootprint, bool TstOtherSid
         side = AR_SIDE_BOTTOM; otherside = AR_SIDE_TOP;
     }
 
-    BOX2I fpBBox = aFootprint->GetBoundingBox( false, false );
+    BOX2I fpBBox = aFootprint->GetBoundingBox( false );
     fpBBox.Move( -1*aOffset );
 
-    buildFpAreas( aFootprint, 0 );
-
-    int diag = //testModuleByPolygon( aFootprint, side, aOffset );
-        testRectangle( fpBBox, side );
+    int diag = testRectangle( fpBBox, side );
 
     if( diag != AR_FREE_CELL )
         return diag;
 
     if( TstOtherSide )
     {
-        diag = //testModuleByPolygon( aFootprint, otherside, aOffset );
-                testRectangle( fpBBox, otherside );
+        diag = testRectangle( fpBBox, otherside );
 
         if( diag != AR_FREE_CELL )
             return diag;
@@ -547,7 +544,7 @@ int AR_AUTOPLACER::getOptimalFPPlacement( FOOTPRINT* aFootprint )
     lastPosOK = m_matrix.m_BrdBox.GetOrigin();
 
     VECTOR2I fpPos = aFootprint->GetPosition();
-    BOX2I    fpBBox  = aFootprint->GetBoundingBox( false, false );
+    BOX2I    fpBBox = aFootprint->GetBoundingBox( false );
 
     // Move fpBBox to have the footprint position at (0,0)
     fpBBox.Move( -fpPos );
@@ -570,7 +567,7 @@ int AR_AUTOPLACER::getOptimalFPPlacement( FOOTPRINT* aFootprint )
 
     if( m_matrix.m_RoutingLayersCount > 1 )
     {
-        LSET other( aFootprint->GetLayer() == B_Cu ? F_Cu : B_Cu );
+        LSET other( { aFootprint->GetLayer() == B_Cu ? F_Cu : B_Cu } );
 
         for( PAD* pad : aFootprint->Pads() )
         {
@@ -801,7 +798,7 @@ void AR_AUTOPLACER::drawPlacementRoutingMatrix( )
     m_overlay->SetIsStroke( false );
 
     SHAPE_POLY_SET freeArea = m_topFreeArea.CloneDropTriangulation();
-    freeArea.Fracture( SHAPE_POLY_SET::PM_FAST );
+    freeArea.Fracture();
 
     // Draw the free polygon areas, top side:
     if( freeArea.OutlineCount() > 0 )
@@ -813,7 +810,7 @@ void AR_AUTOPLACER::drawPlacementRoutingMatrix( )
     }
 
     freeArea = m_bottomFreeArea;
-    freeArea.Fracture( SHAPE_POLY_SET::PM_FAST );
+    freeArea.Fracture();
 
     // Draw the free polygon areas, bottom side:
     if( freeArea.OutlineCount() > 0 )
@@ -880,9 +877,6 @@ AR_RESULT AR_AUTOPLACER::AutoplaceFootprints( std::vector<FOOTPRINT*>& aFootprin
             genModuleOnRoutingMatrix( footprint );
     }
 
-
-    int         cnt = 0;
-
     if( m_progressReporter )
     {
         m_progressReporter->Report( _( "Autoplacing components..." ) );
@@ -930,8 +924,6 @@ AR_RESULT AR_AUTOPLACER::AutoplaceFootprints( std::vector<FOOTPRINT*>& aFootprin
                 break;
             }
         }
-
-        cnt++;
     }
 
     m_curPosition = memopos;

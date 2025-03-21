@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
- * Copyright (C) 1992-2024 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -76,10 +76,10 @@ PANEL_HOTKEYS_EDITOR::PANEL_HOTKEYS_EDITOR( EDA_BASE_FRAME* aFrame, wxWindow* aW
     wxBoxSizer* bMargins = new wxBoxSizer( wxVERTICAL );
 
     m_filterSearch = CreateTextFilterBox( this, _( "Type filter text" ) );
-    bMargins->Add( m_filterSearch, 0, wxEXPAND, 0 );
+    bMargins->Add( m_filterSearch, 0, wxEXPAND | wxTOP | wxRIGHT, 5 );
 
     m_hotkeyListCtrl = new WIDGET_HOTKEY_LIST( this, m_hotkeyStore, m_readOnly );
-    bMargins->Add( m_hotkeyListCtrl, 1, wxEXPAND | wxTOP, 5 );
+    bMargins->Add( m_hotkeyListCtrl, 1, wxEXPAND | wxTOP | wxRIGHT, 5 );
 
     if( !m_readOnly )
         installButtons( bMargins );
@@ -160,7 +160,7 @@ void PANEL_HOTKEYS_EDITOR::installButtons( wxSizer* aSizer )
 
     auto btnPanel = std::make_unique<BUTTON_ROW_PANEL>( this, l_btn_defs, r_btn_defs );
 
-    aSizer->Add( btnPanel.release(), 0, wxEXPAND | wxALL, KIUI::GetStdMargin() * 2 );
+    aSizer->Add( btnPanel.release(), 0, wxEXPAND | wxALL, KIUI::GetStdMargin() );
 }
 
 

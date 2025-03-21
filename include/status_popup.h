@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014-2015 CERN
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -41,7 +41,6 @@ class EDA_DRAW_FRAME;
  * A tiny, headerless popup window used to display useful status (e.g. line length
  * tuning info) next to the mouse cursor.
  */
-
 class STATUS_POPUP: public wxPopupWindow
 {
 public:
@@ -67,7 +66,7 @@ protected:
 
     void onCharHook( wxKeyEvent& aEvent );
 
-    ///< Expire timer even handler
+    /// Expire timer even handler.
     void onExpire( wxTimerEvent& aEvent );
 
 protected:

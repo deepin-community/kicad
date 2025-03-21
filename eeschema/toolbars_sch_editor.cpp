@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2013 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2004-2019 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2019 CERN
  *
  * This program is free software; you can redistribute it and/or
@@ -25,16 +25,19 @@
  */
 
 #include <advanced_config.h>
+#include <api/api_plugin_manager.h>
 #include <sch_draw_panel.h>
 #include <sch_edit_frame.h>
 #include <kiface_base.h>
 #include <bitmaps.h>
 #include <eeschema_id.h>
+#include <pgm_base.h>
 #include <python_scripting.h>
 #include <tool/tool_manager.h>
 #include <tool/action_toolbar.h>
 #include <tools/ee_actions.h>
 #include <tools/ee_selection_tool.h>
+#include <widgets/design_block_pane.h>
 #include <widgets/hierarchy_pane.h>
 #include <widgets/wx_aui_utils.h>
 #include <widgets/sch_properties_panel.h>
@@ -52,7 +55,8 @@ void SCH_EDIT_FRAME::ReCreateHToolbar()
     {
         m_mainToolBar = new ACTION_TOOLBAR( this, ID_H_TOOLBAR,
                                             wxDefaultPosition, wxDefaultSize,
-                                            KICAD_AUI_TB_STYLE | wxAUI_TB_HORZ_LAYOUT | wxAUI_TB_HORIZONTAL );
+                                            KICAD_AUI_TB_STYLE | wxAUI_TB_HORZ_LAYOUT |
+                                            wxAUI_TB_HORIZONTAL );
         m_mainToolBar->SetAuiManager( &m_auimgr );
     }
 
@@ -119,11 +123,22 @@ void SCH_EDIT_FRAME::ReCreateHToolbar()
     m_mainToolBar->AddScaledSeparator( this );
     m_mainToolBar->Add( EE_ACTIONS::showPcbNew );
 
-    // Access to the scripting console
-    if( SCRIPTING::IsWxAvailable() )
+    // Add scripting console and API plugins
+    bool scriptingAvailable = SCRIPTING::IsWxAvailable();
+
+#ifdef KICAD_IPC_API
+    bool haveApiPlugins = Pgm().GetCommonSettings()->m_Api.enable_server &&
+            !Pgm().GetPluginManager().GetActionsForScope( PLUGIN_ACTION_SCOPE::SCHEMATIC ).empty();
+#else
+    bool haveApiPlugins = false;
+#endif
+
+    if( scriptingAvailable || haveApiPlugins )
     {
         m_mainToolBar->AddScaledSeparator( this );
-        m_mainToolBar->Add( EE_ACTIONS::showPythonConsole, ACTION_TOOLBAR::TOGGLE );
+
+        if( haveApiPlugins )
+            addApiPluginTools();
     }
 
     // after adding the tools to the toolbar, must call Realize() to reflect the changes
@@ -131,8 +146,6 @@ void SCH_EDIT_FRAME::ReCreateHToolbar()
 }
 
 
-/* Create Vertical Right Toolbar
- */
 void SCH_EDIT_FRAME::ReCreateVToolbar()
 {
     if( m_drawToolBar )
@@ -147,6 +160,7 @@ void SCH_EDIT_FRAME::ReCreateVToolbar()
     }
 
     // Set up toolbar
+    // clang-format off
     m_drawToolBar->Add( ACTIONS::selectionTool,             ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::highlightNetTool,       ACTION_TOOLBAR::TOGGLE );
 
@@ -160,20 +174,25 @@ void SCH_EDIT_FRAME::ReCreateVToolbar()
     m_drawToolBar->Add( EE_ACTIONS::placeJunction,          ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::placeLabel,             ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::placeClassLabel,        ACTION_TOOLBAR::TOGGLE );
+    m_drawToolBar->Add( EE_ACTIONS::drawRuleArea,           ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::placeGlobalLabel,       ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::placeHierLabel,         ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::drawSheet,              ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( EE_ACTIONS::importSheetPin,         ACTION_TOOLBAR::TOGGLE );
+    m_drawToolBar->Add( EE_ACTIONS::placeSheetPin,          ACTION_TOOLBAR::TOGGLE );
+    m_drawToolBar->Add( EE_ACTIONS::syncAllSheetsPins );
 
     m_drawToolBar->AddScaledSeparator( this );
     m_drawToolBar->Add( EE_ACTIONS::placeSchematicText,     ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::drawTextBox,            ACTION_TOOLBAR::TOGGLE );
+    m_drawToolBar->Add( EE_ACTIONS::drawTable,              ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::drawRectangle,          ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::drawCircle,             ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::drawArc,                ACTION_TOOLBAR::TOGGLE );
+    m_drawToolBar->Add( EE_ACTIONS::drawBezier,             ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::drawLines,              ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::placeImage,             ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( ACTIONS::deleteTool,                ACTION_TOOLBAR::TOGGLE );
+    // clang-format on
 
     m_drawToolBar->KiRealize();
 }
@@ -278,6 +297,8 @@ void SCH_EDIT_FRAME::ToggleProperties()
     wxAuiPaneInfo& propertiesPaneInfo = m_auimgr.GetPane( PropertiesPaneName() );
     propertiesPaneInfo.Show( show );
 
+    updateSelectionFilterVisbility();
+
     EESCHEMA_SETTINGS* settings = eeconfig();
 
     if( show )
@@ -302,6 +323,8 @@ void SCH_EDIT_FRAME::ToggleSchematicHierarchy()
     wxAuiPaneInfo&     hierarchy_pane = m_auimgr.GetPane( SchematicHierarchyPaneName() );
 
     hierarchy_pane.Show( !hierarchy_pane.IsShown() );
+
+    updateSelectionFilterVisbility();
 
     if( hierarchy_pane.IsShown() )
     {
@@ -328,6 +351,48 @@ void SCH_EDIT_FRAME::ToggleSchematicHierarchy()
         else
         {
             cfg->m_AuiPanels.hierarchy_panel_docked_width = m_hierarchy->GetSize().x;
+        }
+
+        m_auimgr.Update();
+    }
+}
+
+
+void SCH_EDIT_FRAME::ToggleLibraryTree()
+{
+    EESCHEMA_SETTINGS* cfg = eeconfig();
+
+    wxCHECK( cfg, /* void */ );
+
+    wxAuiPaneInfo& db_library_pane = m_auimgr.GetPane( DesignBlocksPaneName() );
+
+    db_library_pane.Show( !db_library_pane.IsShown() );
+
+    if( db_library_pane.IsShown() )
+    {
+        if( db_library_pane.IsFloating() )
+        {
+            db_library_pane.FloatingSize( cfg->m_AuiPanels.design_blocks_panel_float_width,
+                                          cfg->m_AuiPanels.design_blocks_panel_float_height );
+            m_auimgr.Update();
+        }
+        else if( cfg->m_AuiPanels.design_blocks_panel_docked_width > 0 )
+        {
+            // SetAuiPaneSize also updates m_auimgr
+            SetAuiPaneSize( m_auimgr, db_library_pane,
+                            cfg->m_AuiPanels.design_blocks_panel_docked_width, -1 );
+        }
+    }
+    else
+    {
+        if( db_library_pane.IsFloating() )
+        {
+            cfg->m_AuiPanels.design_blocks_panel_float_width  = db_library_pane.floating_size.x;
+            cfg->m_AuiPanels.design_blocks_panel_float_height = db_library_pane.floating_size.y;
+        }
+        else
+        {
+            cfg->m_AuiPanels.design_blocks_panel_docked_width = m_designBlocksPane->GetSize().x;
         }
 
         m_auimgr.Update();

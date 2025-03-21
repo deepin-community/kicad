@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,8 +17,8 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <wx/statline.h>
 #include <wx/button.h>
+#include <wx/sizer.h>
 
 #include <dialogs/dialog_edit_library_tables.h>
 
@@ -29,6 +29,7 @@ DIALOG_EDIT_LIBRARY_TABLES::DIALOG_EDIT_LIBRARY_TABLES( wxWindow* aParent,
                      wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER ),
         m_GlobalTableChanged( false ),
         m_ProjectTableChanged( false ),
+        m_infoBar( nullptr ),
         m_contentPanel( nullptr )
 {
     // Construction delayed until after panel is installed

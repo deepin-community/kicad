@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 CERN
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -27,6 +27,7 @@
 #include <hash.h>
 #include <footprint.h>
 #include <pcb_text.h>
+#include <pcb_table.h>
 #include <pcb_textbox.h>
 #include <pcb_shape.h>
 #include <pad.h>
@@ -34,6 +35,8 @@
 
 #include <macros.h>
 #include <functional>
+
+#include <wx/log.h>
 
 using namespace std;
 
@@ -43,7 +46,7 @@ static inline size_t hash_board_item( const BOARD_ITEM* aItem, int aFlags )
     size_t ret = 0;
 
     if( aFlags & HASH_LAYER )
-        ret = hash<unsigned long long>{}( aItem->GetLayerSet().to_ullong() );
+        ret = hash<BASE_SET>{}( aItem->GetLayerSet() );
 
     return ret;
 }
@@ -78,13 +81,17 @@ size_t hash_fp_item( const EDA_ITEM* aItem, int aFlags )
     case PCB_VIA_T:
     {
         const PCB_VIA* via = static_cast<const PCB_VIA*>( aItem );
-        ret = hash_val( via->GetWidth() );
-        hash_combine( ret, via->GetDrillValue() );
+
+        ret = hash<int>{}( via->GetDrillValue() );
         hash_combine( ret, via->TopLayer() );
         hash_combine( ret, via->BottomLayer() );
 
-        for( PCB_LAYER_ID layer : via->GetLayerSet().Seq() )
-            hash_combine( ret, via->FlashLayer( layer ) );
+        via->GetLayerSet().RunOnLayers(
+                [&]( PCB_LAYER_ID layer )
+                {
+                    hash_combine( ret, via->GetWidth( layer ) );
+                    hash_combine( ret, via->FlashLayer( layer ) );
+                } );
 
         break;
     }
@@ -93,47 +100,59 @@ size_t hash_fp_item( const EDA_ITEM* aItem, int aFlags )
     {
         const PAD* pad = static_cast<const PAD*>( aItem );
 
-        ret = hash<int>{}( static_cast<int>( pad->GetShape() ) );
+        ret = hash<int>{}( static_cast<int>( pad->GetAttribute() ) );
 
-        hash_combine( ret, pad->GetAttribute() );
+        auto hashPadLayer =
+            [&]( PCB_LAYER_ID aLayer )
+            {
+                hash_combine( ret, pad->GetShape( aLayer ) );
+                hash_combine( ret, pad->GetSize( aLayer ).x, pad->GetSize( aLayer ).y );
+                hash_combine( ret, pad->GetOffset( aLayer ).x, pad->GetOffset( aLayer ).y );
+
+                switch( pad->GetShape( PADSTACK::ALL_LAYERS ) )
+                {
+                case PAD_SHAPE::CHAMFERED_RECT:
+                    hash_combine( ret, pad->GetChamferPositions( aLayer ) );
+                    hash_combine( ret, pad->GetChamferRectRatio( aLayer ) );
+                    break;
+
+                case PAD_SHAPE::ROUNDRECT:
+                    hash_combine( ret, pad->GetRoundRectCornerRadius( aLayer ) );
+                    break;
+
+                case PAD_SHAPE::TRAPEZOID:
+                    hash_combine( ret, pad->GetDelta( aLayer ).x, pad->GetDelta( aLayer ).y );
+                    break;
+
+                case PAD_SHAPE::CUSTOM:
+                {
+                    auto poly = pad->GetEffectivePolygon( aLayer, ERROR_INSIDE );
+
+                    for( int ii = 0; ii < poly->VertexCount(); ++ii )
+                    {
+                        VECTOR2I point = poly->CVertex( ii ) - pad->GetPosition();
+                        hash_combine( ret, point.x, point.y );
+                    }
+
+                    break;
+                }
+                default:
+                    break;
+                }
+            };
+
+        pad->Padstack().ForEachUniqueLayer( hashPadLayer );
 
         if( pad->GetAttribute() == PAD_ATTRIB::PTH || pad->GetAttribute() == PAD_ATTRIB::NPTH )
         {
             hash_combine( ret, pad->GetDrillSizeX(), pad->GetDrillSizeY() );
             hash_combine( ret, pad->GetDrillShape() );
 
-            for( PCB_LAYER_ID layer : pad->GetLayerSet().Seq() )
-                hash_combine( ret, pad->FlashLayer( layer ) );
-        }
-
-        hash_combine( ret, pad->GetSize().x, pad->GetSize().y );
-        hash_combine( ret, pad->GetOffset().x, pad->GetOffset().y );
-
-        switch( pad->GetShape() )
-        {
-        case PAD_SHAPE::CHAMFERED_RECT:
-            hash_combine( ret, pad->GetChamferPositions() );
-            hash_combine( ret, pad->GetChamferRectRatio() );
-            break;
-        case PAD_SHAPE::ROUNDRECT:
-            hash_combine( ret, pad->GetRoundRectCornerRadius() );
-            break;
-        case PAD_SHAPE::TRAPEZOID:
-            hash_combine( ret, pad->GetDelta().x, pad->GetDelta().y );
-            break;
-        case PAD_SHAPE::CUSTOM:
-        {
-            auto poly = pad->GetEffectivePolygon( ERROR_INSIDE );
-
-            for( int ii = 0; ii < poly->VertexCount(); ++ii )
-            {
-                VECTOR2I point = poly->CVertex( ii ) - pad->GetPosition();
-                hash_combine( ret, point.x, point.y );
-            }
-            break;
-        }
-        default:
-            break;
+            pad->GetLayerSet().RunOnLayers(
+                    [&]( PCB_LAYER_ID layer )
+                    {
+                        hash_combine( ret, pad->FlashLayer( layer ) );
+                    } );
         }
 
         hash_combine( ret, hash_board_item( pad, aFlags ) );
@@ -251,6 +270,7 @@ size_t hash_fp_item( const EDA_ITEM* aItem, int aFlags )
     }
         break;
 
+    case PCB_TABLECELL_T:
     case PCB_TEXTBOX_T:
     {
         const PCB_TEXTBOX* textbox = static_cast<const PCB_TEXTBOX*>( aItem );
@@ -293,6 +313,30 @@ size_t hash_fp_item( const EDA_ITEM* aItem, int aFlags )
             hash_combine( ret, end.x );
             hash_combine( ret, end.y );
         }
+    }
+        break;
+
+    case PCB_TABLE_T:
+    {
+        const PCB_TABLE* table = static_cast<const PCB_TABLE*>( aItem );
+
+        ret = hash_board_item( table, aFlags );
+
+        hash_combine( ret, table->StrokeExternal() );
+        hash_combine( ret, table->StrokeHeader() );
+        hash_combine( ret, table->StrokeColumns() );
+        hash_combine( ret, table->StrokeRows() );
+
+        auto hash_stroke =
+                [&]( const STROKE_PARAMS& stroke )
+                {
+                    hash_combine( ret, stroke.GetColor() );
+                    hash_combine( ret, stroke.GetWidth() );
+                    hash_combine( ret, stroke.GetLineStyle() );
+                };
+
+        hash_stroke( table->GetSeparatorsStroke() );
+        hash_stroke( table->GetBorderStroke() );
     }
         break;
 

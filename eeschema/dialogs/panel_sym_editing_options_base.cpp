@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.0.0-0-g0efcecf)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -20,9 +20,6 @@ PANEL_SYM_EDITING_OPTIONS_BASE::PANEL_SYM_EDITING_OPTIONS_BASE( wxWindow* parent
 	m_defaultsLabel = new wxStaticText( this, wxID_ANY, _("Defaults for New Objects"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_defaultsLabel->Wrap( -1 );
 	leftColumn->Add( m_defaultsLabel, 0, wxTOP|wxRIGHT|wxLEFT, 13 );
-
-
-	leftColumn->Add( 0, 3, 0, wxEXPAND, 5 );
 
 	m_staticline1 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
 	leftColumn->Add( m_staticline1, 0, wxEXPAND|wxBOTTOM, 5 );
@@ -93,10 +90,7 @@ PANEL_SYM_EDITING_OPTIONS_BASE::PANEL_SYM_EDITING_OPTIONS_BASE( wxWindow* parent
 	gbSizer1->Add( m_pinNameSizeUnits, wxGBPosition( 6, 2 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
 
 
-	leftColumn->Add( gbSizer1, 0, wxEXPAND|wxTOP|wxBOTTOM|wxLEFT, 5 );
-
-	m_cbShowPinElectricalType = new wxCheckBox( this, wxID_ANY, _("Show pin &electrical type"), wxDefaultPosition, wxDefaultSize, 0 );
-	leftColumn->Add( m_cbShowPinElectricalType, 0, wxBOTTOM|wxLEFT, 10 );
+	leftColumn->Add( gbSizer1, 0, wxEXPAND|wxALL, 5 );
 
 
 	leftColumn->Add( 0, 15, 0, wxEXPAND, 5 );
@@ -104,9 +98,6 @@ PANEL_SYM_EDITING_OPTIONS_BASE::PANEL_SYM_EDITING_OPTIONS_BASE( wxWindow* parent
 	m_repeatLabel = new wxStaticText( this, wxID_ANY, _("Repeated Items"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_repeatLabel->Wrap( -1 );
 	leftColumn->Add( m_repeatLabel, 0, wxTOP|wxRIGHT|wxLEFT, 13 );
-
-
-	leftColumn->Add( 0, 3, 0, wxEXPAND, 5 );
 
 	m_staticline2 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
 	leftColumn->Add( m_staticline2, 0, wxEXPAND|wxBOTTOM, 5 );
@@ -138,7 +129,29 @@ PANEL_SYM_EDITING_OPTIONS_BASE::PANEL_SYM_EDITING_OPTIONS_BASE( wxWindow* parent
 	leftColumn->Add( gbSizer2, 1, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 5 );
 
 
-	p1mainSizer->Add( leftColumn, 0, wxEXPAND, 5 );
+	p1mainSizer->Add( leftColumn, 1, wxEXPAND|wxRIGHT, 5 );
+
+
+	p1mainSizer->Add( 25, 0, 0, 0, 5 );
+
+	wxBoxSizer* rightColumn;
+	rightColumn = new wxBoxSizer( wxVERTICAL );
+
+	m_generalOption1 = new wxStaticText( this, wxID_ANY, _("General Editing"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_generalOption1->Wrap( -1 );
+	rightColumn->Add( m_generalOption1, 0, wxLEFT|wxRIGHT|wxTOP, 13 );
+
+	m_staticline4 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
+	rightColumn->Add( m_staticline4, 0, wxEXPAND|wxBOTTOM, 5 );
+
+	m_dragPinsWithEdges = new wxCheckBox( this, wxID_ANY, _("Keep pins attached when dragging edges"), wxDefaultPosition, wxDefaultSize, 0 );
+	rightColumn->Add( m_dragPinsWithEdges, 0, wxALL, 5 );
+
+
+	rightColumn->Add( 0, 15, 1, wxEXPAND, 5 );
+
+
+	p1mainSizer->Add( rightColumn, 1, wxEXPAND|wxRIGHT, 5 );
 
 
 	this->SetSizer( p1mainSizer );

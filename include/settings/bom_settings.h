@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mike Williams <mike@mikebwilliams.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,7 +27,7 @@
 #include <i18n_utility.h>
 
 // A single field within a BOM, e.g. Reference, Value, Footprint
-struct BOM_FIELD
+struct KICOMMON_API BOM_FIELD
 {
     wxString name;
     wxString label;
@@ -37,16 +37,16 @@ struct BOM_FIELD
     bool operator==( const BOM_FIELD& rhs ) const;
 };
 
-bool operator!=( const BOM_FIELD& lhs, const BOM_FIELD& rhs );
-bool operator<( const BOM_FIELD& lhs, const BOM_FIELD& rhs );
+KICOMMON_API bool operator!=( const BOM_FIELD& lhs, const BOM_FIELD& rhs );
+KICOMMON_API bool operator<( const BOM_FIELD& lhs, const BOM_FIELD& rhs );
 
-void to_json( nlohmann::json& j, const BOM_FIELD& f );
-void from_json( const nlohmann::json& j, BOM_FIELD& f );
+KICOMMON_API void to_json( nlohmann::json& j, const BOM_FIELD& f );
+KICOMMON_API void from_json( const nlohmann::json& j, BOM_FIELD& f );
 
 
 // A complete preset defining a BOM "View" with a list of all the fields to show,
 // group by, order, filtering settings, etc.
-struct BOM_PRESET
+struct KICOMMON_API BOM_PRESET
 {
     wxString               name;
     bool                   readOnly = false;
@@ -56,9 +56,11 @@ struct BOM_PRESET
     wxString               filterString;
     bool                   groupSymbols = false;
     bool                   excludeDNP = false;
+    bool                   includeExcludedFromBOM = false;
 
     bool operator==( const BOM_PRESET& rhs ) const;
 
+    static BOM_PRESET DefaultEditing();
     static BOM_PRESET GroupedByValue();
     static BOM_PRESET GroupedByValueFootprint();
     static BOM_PRESET Attributes();
@@ -66,15 +68,15 @@ struct BOM_PRESET
     static std::vector<BOM_PRESET> BuiltInPresets();
 };
 
-bool operator!=( const BOM_PRESET& lhs, const BOM_PRESET& rhs );
-bool operator<( const BOM_PRESET& lhs, const BOM_PRESET& rhs );
+KICOMMON_API bool operator!=( const BOM_PRESET& lhs, const BOM_PRESET& rhs );
+KICOMMON_API bool operator<( const BOM_PRESET& lhs, const BOM_PRESET& rhs );
 
-void to_json( nlohmann::json& j, const BOM_PRESET& f );
-void from_json( const nlohmann::json& j, BOM_PRESET& f );
+KICOMMON_API void to_json( nlohmann::json& j, const BOM_PRESET& f );
+KICOMMON_API void from_json( const nlohmann::json& j, BOM_PRESET& f );
 
 
 // A formatting preset, like CSV (Comma Separated Values)
-struct BOM_FMT_PRESET
+struct KICOMMON_API BOM_FMT_PRESET
 {
     wxString name;
     bool     readOnly = false;
@@ -94,11 +96,18 @@ struct BOM_FMT_PRESET
     static std::vector<BOM_FMT_PRESET> BuiltInPresets();
 };
 
-bool operator!=( const BOM_FMT_PRESET& lhs, const BOM_FMT_PRESET& rhs );
-bool operator<( const BOM_FMT_PRESET& lhs, const BOM_FMT_PRESET& rhs );
+KICOMMON_API bool operator!=( const BOM_FMT_PRESET& lhs, const BOM_FMT_PRESET& rhs );
+KICOMMON_API bool operator<( const BOM_FMT_PRESET& lhs, const BOM_FMT_PRESET& rhs );
 
-void to_json( nlohmann::json& j, const BOM_FMT_PRESET& f );
-void from_json( const nlohmann::json& j, BOM_FMT_PRESET& f );
+KICOMMON_API void to_json( nlohmann::json& j, const BOM_FMT_PRESET& f );
+KICOMMON_API void from_json( const nlohmann::json& j, BOM_FMT_PRESET& f );
 
+#if defined( __MINGW32__ )
+template class KICOMMON_API PARAM_LIST<struct BOM_PRESET>;
+template class KICOMMON_API PARAM_LIST<struct BOM_FMT_PRESET>;
+#else
+extern template class APIVISIBLE PARAM_LIST<BOM_PRESET>;
+extern template class APIVISIBLE PARAM_LIST<BOM_FMT_PRESET>;
+#endif
 
 #endif

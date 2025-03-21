@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,30 +21,71 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <functional>
-#include <memory>
-using namespace std::placeholders;
+#include "tools/position_relative_tool.h"
 
+#include <board_commit.h>
+#include <collectors.h>
+#include <dialogs/dialog_position_relative.h>
+#include <dialogs/dialog_set_offset.h>
+#include <footprint.h>
+#include <footprint_editor_settings.h>
+#include <gal/graphics_abstraction_layer.h>
 #include <kiplatform/ui.h>
-#include <tools/position_relative_tool.h>
+#include <pad.h>
+#include <pcb_group.h>
+#include <preview_items/two_point_assistant.h>
+#include <preview_items/two_point_geom_manager.h>
+#include <pcb_painter.h>
+#include <pgm_base.h>
+#include <preview_items/ruler_item.h>
+#include <render_settings.h>
+#include <settings/settings_manager.h>
+#include <status_popup.h>
 #include <tools/pcb_actions.h>
+#include <tools/pcb_grid_helper.h>
 #include <tools/pcb_selection_tool.h>
 #include <tools/pcb_picker_tool.h>
-#include <dialogs/dialog_position_relative.h>
-#include <status_popup.h>
-#include <board_commit.h>
-#include <confirm.h>
-#include <collectors.h>
-#include <pad.h>
-#include <footprint.h>
-#include <pcb_group.h>
+#include <view/view_controls.h>
+
+
+/**
+ * Move each item in the selection by the given vector.
+ *
+ * If any pads are part of a footprint, the whole footprint is moved.
+ */
+static void moveSelectionBy( const PCB_SELECTION& aSelection, const VECTOR2I& aMoveVec,
+                             BOARD_COMMIT& commit )
+{
+    for( EDA_ITEM* item : aSelection )
+    {
+        if( !item->IsBOARD_ITEM() )
+            continue;
+
+        BOARD_ITEM* boardItem = static_cast<BOARD_ITEM*>( item );
+        commit.Modify( boardItem );
+        boardItem->Move( aMoveVec );
+    }
+}
+
+
+/**
+ * Position relative tools all use the same filter for selecting items.
+ */
+static void positionRelativeClientSelectionFilter( const VECTOR2I&     aPt,
+                                                   GENERAL_COLLECTOR&  aCollector,
+                                                   PCB_SELECTION_TOOL* sTool )
+{
+    sTool->FilterCollectorForHierarchy( aCollector, true );
+    sTool->FilterCollectorForMarkers( aCollector );
+    sTool->FilterCollectorForFreePads( aCollector, false );
+}
 
 
 POSITION_RELATIVE_TOOL::POSITION_RELATIVE_TOOL() :
     PCB_TOOL_BASE( "pcbnew.PositionRelative" ),
     m_dialog( nullptr ),
     m_selectionTool( nullptr ),
-    m_anchor_item( nullptr )
+    m_inInteractivePosition( false )
 {
 }
 
@@ -70,11 +111,7 @@ int POSITION_RELATIVE_TOOL::PositionRelative( const TOOL_EVENT& aEvent )
     PCB_BASE_FRAME* editFrame = getEditFrame<PCB_BASE_FRAME>();
 
     const auto& selection = m_selectionTool->RequestSelection(
-            []( const VECTOR2I& aPt, GENERAL_COLLECTOR& aCollector, PCB_SELECTION_TOOL* sTool )
-            {
-                sTool->FilterCollectorForHierarchy( aCollector, true );
-                sTool->FilterCollectorForMarkers( aCollector );
-            },
+            positionRelativeClientSelectionFilter,
             !m_isFootprintEditor /* prompt user regarding locked items */ );
 
     if( selection.Empty() )
@@ -120,31 +157,276 @@ int POSITION_RELATIVE_TOOL::PositionRelative( const TOOL_EVENT& aEvent )
     return 0;
 }
 
+int POSITION_RELATIVE_TOOL::PositionRelativeInteractively( const TOOL_EVENT& aEvent )
+{
+    if( m_inInteractivePosition )
+        return false;
+
+    REENTRANCY_GUARD guard( &m_inInteractivePosition );
+
+    // First, acquire the selection that we will be moving after
+    // we have the new offset vector.
+    const auto& selection = m_selectionTool->RequestSelection(
+            positionRelativeClientSelectionFilter,
+            !m_isFootprintEditor /* prompt user regarding locked items */ );
+
+    if( selection.Empty() )
+        return 0;
+
+    if( m_isFootprintEditor && !frame()->GetModel() )
+        return 0;
+
+    if( frame()->IsCurrentTool( ACTIONS::measureTool ) )
+        return 0;
+
+    auto& view = *getView();
+    auto& controls = *getViewControls();
+
+    frame()->PushTool( aEvent );
+
+    bool invertXAxis = displayOptions().m_DisplayInvertXAxis;
+    bool invertYAxis = displayOptions().m_DisplayInvertYAxis;
+
+    if( m_isFootprintEditor )
+    {
+        invertXAxis = frame()->GetFootprintEditorSettings()->m_DisplayInvertXAxis;
+        invertYAxis = frame()->GetFootprintEditorSettings()->m_DisplayInvertYAxis;
+    }
+
+    KIGFX::PREVIEW::TWO_POINT_GEOMETRY_MANAGER twoPtMgr;
+    PCB_GRID_HELPER            grid( m_toolMgr, frame()->GetMagneticItemsSettings() );
+    bool                       originSet = false;
+    EDA_UNITS                  units = frame()->GetUserUnits();
+    KIGFX::PREVIEW::RULER_ITEM ruler( twoPtMgr, pcbIUScale, units, invertXAxis, invertYAxis );
+    STATUS_TEXT_POPUP          statusPopup( frame() );
+
+    // Some colour to make it obviously not just a ruler
+    ruler.SetColor( view.GetPainter()->GetSettings()->GetLayerColor( LAYER_ANCHOR ) );
+    ruler.SetShowTicks( false );
+    ruler.SetShowEndArrowHead( true );
+
+    view.Add( &ruler );
+    view.SetVisible( &ruler, false );
+
+    auto setCursor =
+            [&]()
+            {
+                frame()->GetCanvas()->SetCurrentCursor( KICURSOR::MEASURE );
+            };
+
+    auto cleanup =
+            [&] ()
+            {
+                view.SetVisible( &ruler, false );
+                controls.SetAutoPan( false );
+                controls.CaptureCursor( false );
+                controls.ForceCursorPosition( false );
+                originSet = false;
+            };
+
+    const auto applyVector = [&]( const VECTOR2I& aMoveVec )
+    {
+        BOARD_COMMIT commit( frame() );
+        moveSelectionBy( selection, aMoveVec, commit );
+        commit.Push( _( "Set Relative Position Interactively" ) );
+    };
+
+    Activate();
+    // Must be done after Activate() so that it gets set into the correct context
+    controls.ShowCursor( true );
+    controls.SetAutoPan( false );
+    controls.CaptureCursor( false );
+    controls.ForceCursorPosition( false );
+
+    // Set initial cursor
+    setCursor();
+
+    const auto setInitialMsg = [&]()
+    {
+        statusPopup.SetText( _( "Select the reference point on the item to move." ) );
+    };
+
+    const auto setDragMsg = [&]()
+    {
+        statusPopup.SetText( _( "Select the point to define the new offset from." ) );
+    };
+
+    const auto setPopupPosition = [&]()
+    {
+        statusPopup.Move( KIPLATFORM::UI::GetMousePosition() + wxPoint( 20, -50 ) );
+    };
+
+    setInitialMsg();
+
+    setPopupPosition();
+    statusPopup.Popup();
+    canvas()->SetStatusPopup( statusPopup.GetPanel() );
+
+    while( TOOL_EVENT* evt = Wait() )
+    {
+        setCursor();
+        grid.SetSnap( !evt->Modifier( MD_SHIFT ) );
+        grid.SetUseGrid( view.GetGAL()->GetGridSnapping() && !evt->DisableGridSnapping() );
+        VECTOR2I cursorPos = evt->HasPosition() ? evt->Position() : controls.GetMousePosition();
+        cursorPos = grid.BestSnapAnchor( cursorPos, nullptr );
+        controls.ForceCursorPosition( true, cursorPos );
+        setPopupPosition();
+
+        if( evt->IsCancelInteractive() )
+        {
+            if( originSet )
+            {
+                cleanup();
+            }
+            else
+            {
+                frame()->PopTool( aEvent );
+                break;
+            }
+        }
+        else if( evt->IsActivate() )
+        {
+            if( originSet )
+                cleanup();
+
+            frame()->PopTool( aEvent );
+            break;
+        }
+        // click or drag starts
+        else if( !originSet && ( evt->IsDrag( BUT_LEFT ) || evt->IsClick( BUT_LEFT ) ) )
+        {
+            twoPtMgr.SetOrigin( cursorPos );
+            twoPtMgr.SetEnd( cursorPos );
+
+            setDragMsg();
+
+            controls.CaptureCursor( true );
+            controls.SetAutoPan( true );
+
+            originSet = true;
+        }
+        // second click or mouse up after drag ends
+        else if( originSet && ( evt->IsClick( BUT_LEFT ) || evt->IsMouseUp( BUT_LEFT ) ) )
+        {
+            // Hide the popup text so it doesn't get in the way
+            statusPopup.Hide();
+
+            // This is the forward vector from the ruler item
+            const VECTOR2I    origVector = twoPtMgr.GetEnd() - twoPtMgr.GetOrigin();
+            VECTOR2I          offsetVector = origVector;
+            // Start with the value of that vector in the dialog (will match the rule HUD)
+            DIALOG_SET_OFFSET dlg( *frame(), offsetVector, false );
+
+            int ret = dlg.ShowModal();
+
+            if( ret == wxID_OK )
+            {
+                const VECTOR2I move = origVector - offsetVector;
+
+                applyVector( move );
+
+                // Leave the arrow in place but update it
+                twoPtMgr.SetOrigin( twoPtMgr.GetOrigin() + move );
+                view.Update( &ruler, KIGFX::GEOMETRY );
+                canvas()->Refresh();
+            }
+
+            originSet = false;
+
+            setInitialMsg();
+
+            controls.SetAutoPan( false );
+            controls.CaptureCursor( false );
+
+            statusPopup.Popup();
+        }
+        // move or drag when origin set updates rules
+        else if( originSet && ( evt->IsMotion() || evt->IsDrag( BUT_LEFT ) ) )
+        {
+            SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+            bool              force45Deg;
+
+            if( frame()->IsType( FRAME_PCB_EDITOR ) )
+                force45Deg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" )->m_Use45DegreeLimit;
+            else
+                force45Deg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" )->m_Use45Limit;
+
+            twoPtMgr.SetAngleSnap( force45Deg );
+            twoPtMgr.SetEnd( cursorPos );
+
+            view.SetVisible( &ruler, true );
+            view.Update( &ruler, KIGFX::GEOMETRY );
+        }
+        else if( evt->IsAction( &ACTIONS::updateUnits ) )
+        {
+            if( frame()->GetUserUnits() != units )
+            {
+                units = frame()->GetUserUnits();
+                ruler.SwitchUnits( units );
+                view.Update( &ruler, KIGFX::GEOMETRY );
+                canvas()->ForceRefresh();
+            }
+
+            evt->SetPassEvent();
+        }
+        else if( evt->IsAction( &ACTIONS::updatePreferences ) )
+        {
+            invertXAxis = displayOptions().m_DisplayInvertXAxis;
+            invertYAxis = displayOptions().m_DisplayInvertYAxis;
+
+            if( m_isFootprintEditor )
+            {
+                invertXAxis = frame()->GetFootprintEditorSettings()->m_DisplayInvertXAxis;
+                invertYAxis = frame()->GetFootprintEditorSettings()->m_DisplayInvertYAxis;
+            }
+
+            ruler.UpdateDir( invertXAxis, invertYAxis );
+
+            view.Update( &ruler, KIGFX::GEOMETRY );
+            canvas()->Refresh();
+            evt->SetPassEvent();
+        }
+        else if( evt->IsClick( BUT_RIGHT ) )
+        {
+            // TODO: This does not work
+            PCB_SELECTION    dummy;
+            PCB_PICKER_TOOL* picker = m_toolMgr->GetTool<PCB_PICKER_TOOL>();
+            picker->GetToolMenu().ShowContextMenu( dummy );
+        }
+        else if( !evt->IsMouseAction() )
+        {
+            // Often this will end up changing the items we just moved, so the ruler will be
+            // in the wrong place. Clear it away and the user can restart
+            twoPtMgr.Reset();
+            view.SetVisible( &ruler, false );
+            view.Update( &ruler, KIGFX::GEOMETRY );
+
+            evt->SetPassEvent();
+        }
+        else
+        {
+            evt->SetPassEvent();
+        }
+    }
+
+    view.SetVisible( &ruler, false );
+    view.Remove( &ruler );
+
+    frame()->GetCanvas()->SetCurrentCursor( KICURSOR::ARROW );
+    controls.SetAutoPan( false );
+    controls.CaptureCursor( false );
+    controls.ForceCursorPosition( false );
+
+    canvas()->SetStatusPopup( nullptr );
+    return 0;
+}
+
 
 int POSITION_RELATIVE_TOOL::RelativeItemSelectionMove( const VECTOR2I& aPosAnchor,
                                                        const VECTOR2I& aTranslation )
 {
     VECTOR2I aggregateTranslation = aPosAnchor + aTranslation - GetSelectionAnchorPosition();
-
-    for( EDA_ITEM* item : m_selection )
-    {
-        if( !item->IsBOARD_ITEM() )
-            continue;
-
-        BOARD_ITEM* boardItem = static_cast<BOARD_ITEM*>( item );
-
-        // Don't move a pad by itself unless editing the footprint
-        if( boardItem->Type() == PCB_PAD_T
-            && !frame()->GetPcbNewSettings()->m_AllowFreePads
-            && frame()->IsType( FRAME_PCB_EDITOR ) )
-        {
-            boardItem = boardItem->GetParent();
-        }
-
-        m_commit->Modify( boardItem );
-        boardItem->Move( aggregateTranslation );
-    }
-
+    moveSelectionBy( m_selection, aggregateTranslation, *m_commit );
     m_commit->Push( _( "Position Relative" ) );
 
     if( m_selection.IsHover() )
@@ -157,83 +439,10 @@ int POSITION_RELATIVE_TOOL::RelativeItemSelectionMove( const VECTOR2I& aPosAncho
 }
 
 
-int POSITION_RELATIVE_TOOL::SelectPositionRelativeItem( const TOOL_EVENT& aEvent  )
-{
-    PCB_PICKER_TOOL*  picker = m_toolMgr->GetTool<PCB_PICKER_TOOL>();
-    STATUS_TEXT_POPUP statusPopup( frame() );
-    bool              done = false;
-
-    Activate();
-
-    statusPopup.SetText( _( "Click on reference item..." ) );
-
-    picker->SetClickHandler(
-        [&]( const VECTOR2D& aPoint ) -> bool
-        {
-            m_toolMgr->RunAction( PCB_ACTIONS::selectionClear );
-            const PCB_SELECTION& sel = m_selectionTool->RequestSelection(
-                    []( const VECTOR2I& aPt, GENERAL_COLLECTOR& aCollector,
-                        PCB_SELECTION_TOOL* sTool )
-                    {
-                    } );
-
-            if( sel.Empty() )
-                return true;    // still looking for an item
-
-            m_anchor_item = sel.Front();
-            statusPopup.Hide();
-
-            if( m_dialog )
-                m_dialog->UpdateAnchor( sel.Front() );
-
-            return false;       // got our item; don't need any more
-        } );
-
-    picker->SetMotionHandler(
-        [&] ( const VECTOR2D& aPos )
-        {
-            statusPopup.Move( KIPLATFORM::UI::GetMousePosition() + wxPoint( 20, -50 ) );
-        } );
-
-    picker->SetCancelHandler(
-        [&]()
-        {
-            statusPopup.Hide();
-
-            if( m_dialog )
-                m_dialog->UpdateAnchor( m_anchor_item );
-        } );
-
-    picker->SetFinalizeHandler(
-        [&]( const int& aFinalState )
-        {
-            done = true;
-        } );
-
-    statusPopup.Move( KIPLATFORM::UI::GetMousePosition() + wxPoint( 20, -50 ) );
-    statusPopup.Popup();
-    canvas()->SetStatusPopup( statusPopup.GetPanel() );
-
-    m_toolMgr->RunAction( ACTIONS::pickerTool, &aEvent );
-
-    while( !done )
-    {
-        // Pass events unless we receive a null event, then we must shut down
-        if( TOOL_EVENT* evt = Wait() )
-            evt->SetPassEvent();
-        else
-            break;
-    }
-
-    canvas()->SetStatusPopup( nullptr );
-
-    return 0;
-}
-
-
 void POSITION_RELATIVE_TOOL::setTransitions()
 {
-    Go( &POSITION_RELATIVE_TOOL::PositionRelative, PCB_ACTIONS::positionRelative.MakeEvent() );
-    Go( &POSITION_RELATIVE_TOOL::SelectPositionRelativeItem,
-        PCB_ACTIONS::selectpositionRelativeItem.MakeEvent() );
+    // clang-format off
+    Go( &POSITION_RELATIVE_TOOL::PositionRelative,              PCB_ACTIONS::positionRelative.MakeEvent() );
+    Go( &POSITION_RELATIVE_TOOL::PositionRelativeInteractively, PCB_ACTIONS::positionRelativeInteractively.MakeEvent() );
+    // clang-format on
 }

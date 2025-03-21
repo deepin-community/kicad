@@ -4,7 +4,7 @@
  * Copyright (C) 2013 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,6 +26,7 @@
 
 #include <stack>
 #include <wx/filefn.h>
+#include <wx/log.h>
 
 #include <eda_item.h>
 #include <id.h>
@@ -42,7 +43,8 @@
 
 #include <symbol_library.h>
 #include <connection_graph.h>
-#include <lib_pin.h>
+#include <junction_helpers.h>
+#include <sch_pin.h>
 #include <sch_symbol.h>
 #include <sch_junction.h>
 #include <sch_line.h>
@@ -51,6 +53,7 @@
 #include <sch_sheet_pin.h>
 #include <sch_text.h>
 #include <schematic.h>
+#include <symb_transforms_utils.h>
 #include <symbol_lib_table.h>
 #include <tool/common_tools.h>
 #include <sim/sim_model.h> // For V6 to V7 simulation model migration.
@@ -62,11 +65,13 @@
 #include <core/profile.h>
 #include "sch_bus_entry.h"
 
-/*
+/**
  * Flag to enable profiling of the TestDanglingEnds() function.
+ *
  * @ingroup trace_env_vars
  */
 static const wxChar DanglingProfileMask[] = wxT( "DANGLING_PROFILE" );
+
 
 SCH_SCREEN::SCH_SCREEN( EDA_ITEM* aParent ) :
     BASE_SCREEN( aParent, SCH_SCREEN_T ),
@@ -475,38 +480,46 @@ std::set<SCH_ITEM*> SCH_SCREEN::MarkConnections( SCH_LINE* aSegment, bool aSecon
 
 bool SCH_SCREEN::IsJunction( const VECTOR2I& aPosition ) const
 {
-    bool hasExplicitJunction;
-    bool hasBusEntry;
-    bool isJunction = doIsJunction( aPosition, false, &hasExplicitJunction, &hasBusEntry );
-
-    return isJunction;
+    const JUNCTION_HELPERS::POINT_INFO info =
+            JUNCTION_HELPERS::AnalyzePoint( Items(), aPosition, false );
+    return info.isJunction;
 }
 
 
 bool SCH_SCREEN::IsExplicitJunction( const VECTOR2I& aPosition ) const
 {
-    bool hasExplicitJunction;
-    bool hasBusEntry;
-    bool isJunction = doIsJunction( aPosition, false, &hasExplicitJunction, &hasBusEntry );
+    const JUNCTION_HELPERS::POINT_INFO info =
+            JUNCTION_HELPERS::AnalyzePoint( Items(), aPosition, false );
 
-    return isJunction && !hasBusEntry;
+    return info.isJunction && ( !info.hasBusEntry || info.hasBusEntryToMultipleWires );
 }
 
 
 bool SCH_SCREEN::IsExplicitJunctionNeeded( const VECTOR2I& aPosition ) const
 {
-    bool hasExplicitJunction;
-    bool hasBusEntry;
-    bool isJunction = doIsJunction( aPosition, false, &hasExplicitJunction, &hasBusEntry );
+    const JUNCTION_HELPERS::POINT_INFO info =
+            JUNCTION_HELPERS::AnalyzePoint( Items(), aPosition, false );
 
-    return isJunction && !hasBusEntry && !hasExplicitJunction;
+    return info.isJunction && ( !info.hasBusEntry || info.hasBusEntryToMultipleWires )
+           && !info.hasExplicitJunctionDot;
 }
+
+
+bool SCH_SCREEN::IsExplicitJunctionAllowed( const VECTOR2I& aPosition ) const
+{
+    const JUNCTION_HELPERS::POINT_INFO info =
+            JUNCTION_HELPERS::AnalyzePoint( Items(), aPosition, true );
+
+    return info.isJunction && (!info.hasBusEntry || info.hasBusEntryToMultipleWires );
+}
+
 
 SPIN_STYLE SCH_SCREEN::GetLabelOrientationForPoint( const VECTOR2I&       aPosition,
                                                     SPIN_STYLE            aDefaultOrientation,
                                                     const SCH_SHEET_PATH* aSheet ) const
 {
     auto ret = aDefaultOrientation;
+
     for( SCH_ITEM* item : Items().Overlapping( aPosition ) )
     {
         if( item->GetEditFlags() & STRUCT_DELETED )
@@ -519,7 +532,7 @@ SPIN_STYLE SCH_SCREEN::GetLabelOrientationForPoint( const VECTOR2I&       aPosit
             auto busEntry = static_cast<const SCH_BUS_WIRE_ENTRY*>( item );
             if( busEntry->m_connected_bus_item )
             {
-                // bus connected, take the bus direction into consideration ony if it is
+                // bus connected, take the bus direction into consideration only if it is
                 // vertical or horizontal
                 auto bus = static_cast<const SCH_LINE*>( busEntry->m_connected_bus_item );
                 if( bus->Angle().AsDegrees() == 90.0 )
@@ -575,240 +588,18 @@ SPIN_STYLE SCH_SCREEN::GetLabelOrientationForPoint( const VECTOR2I&       aPosit
             {
                 if( pin->GetPosition() == aPosition )
                 {
-                    if( pin->GetOrientation() == PIN_ORIENTATION::PIN_RIGHT )
-                        ret = SPIN_STYLE::LEFT;
-                    else if( pin->GetOrientation() == PIN_ORIENTATION::PIN_LEFT )
-                        ret = SPIN_STYLE::RIGHT;
-                    else if( pin->GetOrientation() == PIN_ORIENTATION::PIN_UP )
-                        ret = SPIN_STYLE::BOTTOM;
-                    else if( pin->GetOrientation() == PIN_ORIENTATION::PIN_DOWN )
-                        ret = SPIN_STYLE::UP;
-
-                    switch( static_cast<SYMBOL_ORIENTATION_T>(
-                            symbol->GetOrientation() & ( ~( SYM_MIRROR_X | SYM_MIRROR_Y ) ) ) )
-                    {
-                    case SYM_ROTATE_CLOCKWISE:
-                    case SYM_ORIENT_90:
-                        if( ret == SPIN_STYLE::UP )
-                            ret = SPIN_STYLE::LEFT;
-                        else if( ret == SPIN_STYLE::BOTTOM )
-                            ret = SPIN_STYLE::RIGHT;
-                        else if( ret == SPIN_STYLE::LEFT )
-                            ret = SPIN_STYLE::BOTTOM;
-                        else if( ret == SPIN_STYLE::RIGHT )
-                            ret = SPIN_STYLE::UP;
-
-                        if( symbol->GetOrientation() & SYM_MIRROR_X )
-                        {
-                            if( ret == SPIN_STYLE::UP )
-                                ret = SPIN_STYLE::BOTTOM;
-                            else if( ret == SPIN_STYLE::BOTTOM )
-                                ret = SPIN_STYLE::UP;
-                        }
-
-                        if( symbol->GetOrientation() & SYM_MIRROR_Y )
-                        {
-                            if( ret == SPIN_STYLE::LEFT )
-                                ret = SPIN_STYLE::RIGHT;
-                            else if( ret == SPIN_STYLE::RIGHT )
-                                ret = SPIN_STYLE::LEFT;
-                        }
-                        break;
-                    case SYM_ROTATE_COUNTERCLOCKWISE:
-                    case SYM_ORIENT_270:
-                        if( ret == SPIN_STYLE::UP )
-                            ret = SPIN_STYLE::RIGHT;
-                        else if( ret == SPIN_STYLE::BOTTOM )
-                            ret = SPIN_STYLE::LEFT;
-                        else if( ret == SPIN_STYLE::LEFT )
-                            ret = SPIN_STYLE::UP;
-                        else if( ret == SPIN_STYLE::RIGHT )
-                            ret = SPIN_STYLE::BOTTOM;
-
-                        if( symbol->GetOrientation() & SYM_MIRROR_X )
-                        {
-                            if( ret == SPIN_STYLE::UP )
-                                ret = SPIN_STYLE::BOTTOM;
-                            else if( ret == SPIN_STYLE::BOTTOM )
-                                ret = SPIN_STYLE::UP;
-                        }
-
-                        if( symbol->GetOrientation() & SYM_MIRROR_Y )
-                        {
-                            if( ret == SPIN_STYLE::LEFT )
-                                ret = SPIN_STYLE::RIGHT;
-                            else if( ret == SPIN_STYLE::RIGHT )
-                                ret = SPIN_STYLE::LEFT;
-                        }
-                        break;
-                    case SYM_ORIENT_180:
-                        if( ret == SPIN_STYLE::UP )
-                            ret = SPIN_STYLE::BOTTOM;
-                        else if( ret == SPIN_STYLE::BOTTOM )
-                            ret = SPIN_STYLE::UP;
-                        else if( ret == SPIN_STYLE::LEFT )
-                            ret = SPIN_STYLE::RIGHT;
-                        else if( ret == SPIN_STYLE::RIGHT )
-                            ret = SPIN_STYLE::LEFT;
-
-                        if( symbol->GetOrientation() & SYM_MIRROR_X )
-                        {
-                            if( ret == SPIN_STYLE::UP )
-                                ret = SPIN_STYLE::BOTTOM;
-                            else if( ret == SPIN_STYLE::BOTTOM )
-                                ret = SPIN_STYLE::UP;
-                        }
-
-                        if( symbol->GetOrientation() & SYM_MIRROR_Y )
-                        {
-                            if( ret == SPIN_STYLE::LEFT )
-                                ret = SPIN_STYLE::RIGHT;
-                            else if( ret == SPIN_STYLE::RIGHT )
-                                ret = SPIN_STYLE::LEFT;
-                        }
-                        break;
-                    case SYM_ORIENT_0:
-                    case SYM_NORMAL:
-                    default:
-                        if( symbol->GetOrientation() & SYM_MIRROR_X )
-                        {
-                            if( ret == SPIN_STYLE::UP )
-                                ret = SPIN_STYLE::BOTTOM;
-                            else if( ret == SPIN_STYLE::BOTTOM )
-                                ret = SPIN_STYLE::UP;
-                        }
-
-                        if( symbol->GetOrientation() & SYM_MIRROR_Y )
-                        {
-                            if( ret == SPIN_STYLE::LEFT )
-                                ret = SPIN_STYLE::RIGHT;
-                            else if( ret == SPIN_STYLE::RIGHT )
-                                ret = SPIN_STYLE::LEFT;
-                        }
-                        break;
-                    }
-
+                    ret = GetPinSpinStyle( *pin, *symbol );
                     break;
                 }
             }
         }
         break;
+
         default: break;
         }
     }
+
     return ret;
-}
-
-
-bool SCH_SCREEN::IsExplicitJunctionAllowed( const VECTOR2I& aPosition ) const
-{
-    bool hasExplicitJunction;
-    bool hasBusEntry;
-    bool isJunction = doIsJunction( aPosition, true, &hasExplicitJunction, &hasBusEntry );
-
-    return isJunction && !hasBusEntry;
-}
-
-
-
-bool SCH_SCREEN::doIsJunction( const VECTOR2I& aPosition, bool aBreakCrossings,
-                             bool* aHasExplicitJunctionDot, bool* aHasBusEntry ) const
-{
-    enum layers { WIRES = 0, BUSES };
-
-    *aHasExplicitJunctionDot = false;
-    *aHasBusEntry = false;
-
-    bool                          breakLines[ 2 ] = { false };
-    std::unordered_set<int>       exitAngles[ 2 ];
-    std::vector<const SCH_LINE*>  midPointLines[ 2 ];
-
-    // A pin at 90° still shouldn't match a line at 90° so just give pins unique numbers
-    int                           uniqueAngle = 10000;
-
-    for( const SCH_ITEM* item : Items().Overlapping( aPosition ) )
-    {
-        if( item->GetEditFlags() & STRUCT_DELETED )
-            continue;
-
-        switch( item->Type() )
-        {
-        case SCH_JUNCTION_T:
-            if( item->HitTest( aPosition, -1 ) )
-                *aHasExplicitJunctionDot = true;
-
-            break;
-
-        case SCH_LINE_T:
-        {
-            const SCH_LINE* line = static_cast<const SCH_LINE*>( item );
-            int             layer;
-
-            if( line->GetStartPoint() == line->GetEndPoint() )
-                break;
-            else if( line->GetLayer() == LAYER_WIRE )
-                layer = WIRES;
-            else if( line->GetLayer() == LAYER_BUS )
-                layer = BUSES;
-            else
-                break;
-
-            if( line->IsConnected( aPosition ) )
-            {
-                breakLines[ layer ] = true;
-                exitAngles[ layer ].insert( line->GetAngleFrom( aPosition ) );
-            }
-            else if( line->HitTest( aPosition, -1 ) )
-            {
-                if( aBreakCrossings )
-                    breakLines[ layer ] = true;
-
-                // Defer any line midpoints until we know whether or not we're breaking them
-                midPointLines[ layer ].push_back( line );
-            }
-        }
-            break;
-
-        case SCH_BUS_WIRE_ENTRY_T:
-            if( item->IsConnected( aPosition ) )
-            {
-                breakLines[ BUSES ] = true;
-                exitAngles[ BUSES ].insert( uniqueAngle++ );
-                breakLines[ WIRES ] = true;
-                exitAngles[ WIRES ].insert( uniqueAngle++ );
-                *aHasBusEntry = true;
-            }
-
-            break;
-
-        case SCH_SYMBOL_T:
-        case SCH_SHEET_T:
-            if( item->IsConnected( aPosition ) )
-            {
-                breakLines[ WIRES ] = true;
-                exitAngles[ WIRES ].insert( uniqueAngle++ );
-            }
-
-            break;
-
-        default:
-            break;
-        }
-    }
-
-    for( int layer : { WIRES, BUSES } )
-    {
-        if( breakLines[ layer ] )
-        {
-            for( const SCH_LINE* line : midPointLines[ layer ] )
-            {
-                exitAngles[ layer ].insert( line->GetAngleFrom( aPosition ) );
-                exitAngles[ layer ].insert( line->GetReverseAngleFrom( aPosition ) );
-            }
-        }
-    }
-
-    return exitAngles[ WIRES ].size() >= 3 || exitAngles[ BUSES ].size() >= 3;
 }
 
 
@@ -1065,7 +856,7 @@ void SCH_SCREEN::SetConnectivityDirty()
 }
 
 
-void SCH_SCREEN::Print( const RENDER_SETTINGS* aSettings )
+void SCH_SCREEN::Print( const SCH_RENDER_SETTINGS* aSettings )
 {
     // Ensure links are up to date, even if a library was reloaded for some reason:
     std::vector<SCH_ITEM*> junctions;
@@ -1085,7 +876,7 @@ void SCH_SCREEN::Print( const RENDER_SETTINGS* aSettings )
             other.push_back( item );
     }
 
-    /// Sort to ensure plot-order consistency with screen drawing
+    // Sort to ensure plot-order consistency with screen drawing.
     std::stable_sort( other.begin(), other.end(),
                []( const SCH_ITEM* a, const SCH_ITEM* b )
                {
@@ -1096,20 +887,20 @@ void SCH_SCREEN::Print( const RENDER_SETTINGS* aSettings )
                } );
 
     for( SCH_ITEM* item : bitmaps )
-        item->Print( aSettings, VECTOR2I( 0, 0 ) );
+        item->Print( aSettings, 0, 0, VECTOR2I( 0, 0 ), false, false );
 
     for( SCH_ITEM* item : other )
-        item->PrintBackground( aSettings, VECTOR2I( 0, 0 ) );
+        item->PrintBackground( aSettings, 0, 0, VECTOR2I( 0, 0 ), false );
 
     for( SCH_ITEM* item : other )
-        item->Print( aSettings, VECTOR2I( 0, 0 ) );
+        item->Print( aSettings, 0, 0, VECTOR2I( 0, 0 ), false, false );
 
     for( SCH_ITEM* item : junctions )
-        item->Print( aSettings, VECTOR2I( 0, 0 ) );
+        item->Print( aSettings, 0, 0, VECTOR2I( 0, 0 ), false, false );
 }
 
 
-void SCH_SCREEN::Plot( PLOTTER* aPlotter, const SCH_PLOT_SETTINGS& aPlotSettings ) const
+void SCH_SCREEN::Plot( PLOTTER* aPlotter, const SCH_PLOT_OPTS& aPlotOpts ) const
 {
     // Ensure links are up to date, even if a library was reloaded for some reason:
     std::vector<SCH_ITEM*>   junctions;
@@ -1155,42 +946,46 @@ void SCH_SCREEN::Plot( PLOTTER* aPlotter, const SCH_PLOT_SETTINGS& aPlotSettings
                     return a->Type() > b->Type();
                 } );
 
-    int defaultPenWidth = aPlotter->RenderSettings()->GetDefaultPenWidth();
+    auto* renderSettings = static_cast<SCH_RENDER_SETTINGS*>( aPlotter->RenderSettings() );
     constexpr bool background = true;
 
     // Bitmaps are drawn first to ensure they are in the background
     // This is particularly important for the wxPostscriptDC (used in *nix printers) as
     // the bitmap PS command clears the screen
-    for( const SCH_ITEM* item : bitmaps )
+    for( SCH_ITEM* item : bitmaps )
     {
-        aPlotter->SetCurrentLineWidth( std::max( item->GetPenWidth(), defaultPenWidth ) );
-        item->Plot( aPlotter, background, aPlotSettings );
+        aPlotter->SetCurrentLineWidth( item->GetEffectivePenWidth( renderSettings ) );
+        item->Plot( aPlotter, background, aPlotOpts, 0, 0, { 0, 0 }, false );
     }
 
     // Plot the background items
-    for( const SCH_ITEM* item : other )
+    for( SCH_ITEM* item : other )
     {
-        aPlotter->SetCurrentLineWidth( std::max( item->GetPenWidth(), defaultPenWidth ) );
-        item->Plot( aPlotter, background, aPlotSettings );
+        aPlotter->SetCurrentLineWidth( item->GetEffectivePenWidth( renderSettings ) );
+        item->Plot( aPlotter, background, aPlotOpts, 0, 0, { 0, 0 }, false );
     }
 
     // Plot the foreground items
-    for( const SCH_ITEM* item : other )
+    for( SCH_ITEM* item : other )
     {
-        aPlotter->SetCurrentLineWidth( std::max( item->GetPenWidth(), defaultPenWidth ) );
-        item->Plot( aPlotter, !background, aPlotSettings );
+        aPlotter->SetCurrentLineWidth( item->GetEffectivePenWidth( renderSettings ) );
+        item->Plot( aPlotter, !background, aPlotOpts, 0, 0, { 0, 0 }, false );
     }
 
     // After plotting the symbols as a group above (in `other`), we need to overplot the pins
     // and symbols to ensure that they are always visible
+    TRANSFORM savedTransform = renderSettings->m_Transform;
+
     for( const SCH_SYMBOL* sym :symbols )
     {
-        aPlotter->SetCurrentLineWidth( std::max( sym->GetPenWidth(), defaultPenWidth ) );
+        renderSettings->m_Transform = sym->GetTransform();
+        aPlotter->SetCurrentLineWidth( sym->GetEffectivePenWidth( renderSettings ) );
 
         for( SCH_FIELD field : sym->GetFields() )
         {
             field.ClearRenderCache();
-            field.Plot( aPlotter, false, aPlotSettings );
+            field.Plot( aPlotter, false, aPlotOpts, sym->GetUnit(), sym->GetBodyStyle(), { 0, 0 },
+                        sym->GetDNP() );
         }
 
         sym->PlotPins( aPlotter );
@@ -1199,10 +994,12 @@ void SCH_SCREEN::Plot( PLOTTER* aPlotter, const SCH_PLOT_SETTINGS& aPlotSettings
             sym->PlotDNP( aPlotter );
     }
 
-    for( const SCH_ITEM* item : junctions )
+    renderSettings->m_Transform = savedTransform;
+
+    for( SCH_ITEM* item : junctions )
     {
-        aPlotter->SetCurrentLineWidth( std::max( item->GetPenWidth(), defaultPenWidth ) );
-        item->Plot( aPlotter, !background, aPlotSettings );
+        aPlotter->SetCurrentLineWidth( item->GetEffectivePenWidth( renderSettings ) );
+        item->Plot( aPlotter, !background, aPlotOpts, 0, 0, { 0, 0 }, false );
     }
 }
 
@@ -1214,11 +1011,11 @@ void SCH_SCREEN::ClearDrawingState()
 }
 
 
-LIB_PIN* SCH_SCREEN::GetPin( const VECTOR2I& aPosition, SCH_SYMBOL** aSymbol,
+SCH_PIN* SCH_SCREEN::GetPin( const VECTOR2I& aPosition, SCH_SYMBOL** aSymbol,
                              bool aEndPointOnly ) const
 {
     SCH_SYMBOL*  candidate = nullptr;
-    LIB_PIN*     pin = nullptr;
+    SCH_PIN*     pin = nullptr;
 
     for( SCH_ITEM* item : Items().Overlapping( SCH_SYMBOL_T, aPosition ) )
     {
@@ -1231,10 +1028,7 @@ LIB_PIN* SCH_SCREEN::GetPin( const VECTOR2I& aPosition, SCH_SYMBOL** aSymbol,
             if( !candidate->GetLibSymbolRef() )
                 continue;
 
-            std::vector<LIB_PIN*> pins;
-            candidate->GetLibPins( pins );
-
-            for( LIB_PIN* test_pin : pins )
+            for( SCH_PIN* test_pin : candidate->GetLibPins() )
             {
                 if( candidate->GetPinPhysicalPosition( test_pin ) == aPosition )
                 {
@@ -1248,7 +1042,7 @@ LIB_PIN* SCH_SCREEN::GetPin( const VECTOR2I& aPosition, SCH_SYMBOL** aSymbol,
         }
         else
         {
-            pin = (LIB_PIN*) candidate->GetDrawItem( aPosition, LIB_PIN_T );
+            pin = static_cast<SCH_PIN*>( candidate->GetDrawItem( aPosition, SCH_PIN_T ) );
 
             if( pin )
                 break;
@@ -1324,9 +1118,13 @@ void SCH_SCREEN::EnsureAlternateReferencesExist()
 
 void SCH_SCREEN::GetHierarchicalItems( std::vector<SCH_ITEM*>* aItems ) const
 {
+    static const std::vector<KICAD_T> hierarchicalTypes = { SCH_SYMBOL_T,
+                                                            SCH_SHEET_T,
+                                                            SCH_LABEL_LOCATE_ANY_T };
+
     for( SCH_ITEM* item : Items() )
     {
-        if( item->IsType( { SCH_SYMBOL_T, SCH_SHEET_T, SCH_LABEL_LOCATE_ANY_T } ) )
+        if( item->IsType( hierarchicalTypes ) )
             aItems->push_back( item );
     }
 }
@@ -1338,21 +1136,21 @@ void SCH_SCREEN::GetSheets( std::vector<SCH_ITEM*>* aItems ) const
         aItems->push_back( item );
 
     std::sort( aItems->begin(), aItems->end(),
-            []( EDA_ITEM* a, EDA_ITEM* b ) -> bool
-            {
-                if( a->GetPosition().x == b->GetPosition().x )
-                {
-                    // Ensure deterministic sort
-                    if( a->GetPosition().y == b->GetPosition().y )
-                        return a->m_Uuid < b->m_Uuid;
+               []( EDA_ITEM* a, EDA_ITEM* b ) -> bool
+               {
+                   if( a->GetPosition().x == b->GetPosition().x )
+                   {
+                       // Ensure deterministic sort
+                       if( a->GetPosition().y == b->GetPosition().y )
+                           return a->m_Uuid < b->m_Uuid;
 
-                    return a->GetPosition().y < b->GetPosition().y;
-                }
-                else
-                {
-                    return a->GetPosition().x < b->GetPosition().x;
-                }
-            } );
+                       return a->GetPosition().y < b->GetPosition().y;
+                   }
+                   else
+                   {
+                       return a->GetPosition().x < b->GetPosition().x;
+                   }
+               } );
 }
 
 
@@ -1486,6 +1284,7 @@ std::vector<VECTOR2I> SCH_SCREEN::GetConnections() const
                {
                    return a.x < b.x || ( a.x == b.x && a.y < b.y );
                } );
+
     retval.erase( std::unique( retval.begin(), retval.end() ), retval.end() );
 
     return retval;
@@ -1581,6 +1380,60 @@ void SCH_SCREEN::AddLibSymbol( LIB_SYMBOL* aLibSymbol )
     }
 
     m_libSymbols[libSymbolName] = aLibSymbol;
+}
+
+
+void SCH_SCREEN::FixupEmbeddedData()
+{
+    SCHEMATIC* schematic = Schematic();
+
+    const std::vector<wxString>* embeddedFonts = schematic->GetEmbeddedFiles()->UpdateFontFiles();
+
+    for( auto& [name, libSym] : m_libSymbols )
+    {
+        for( auto& [filename, embeddedFile] : libSym->EmbeddedFileMap() )
+        {
+            EMBEDDED_FILES::EMBEDDED_FILE* file = schematic->GetEmbeddedFile( filename );
+
+            if( file )
+            {
+                embeddedFile->compressedEncodedData = file->compressedEncodedData;
+                embeddedFile->decompressedData = file->decompressedData;
+                embeddedFile->data_hash = file->data_hash;
+                embeddedFile->is_valid = file->is_valid;
+            }
+        }
+
+        libSym->RunOnChildren(
+                [&]( SCH_ITEM* aChild )
+                {
+                    if( EDA_TEXT* textItem = dynamic_cast<EDA_TEXT*>( aChild ) )
+                        textItem->ResolveFont( embeddedFonts );
+                } );
+    }
+
+    std::vector<SCH_ITEM*> items_to_update;
+
+    for( SCH_ITEM* item : Items() )
+    {
+        bool update = false;
+
+        if( EDA_TEXT* textItem = dynamic_cast<EDA_TEXT*>( item ) )
+            update |= textItem->ResolveFont( embeddedFonts );
+
+        item->RunOnChildren(
+                [&]( SCH_ITEM* aChild )
+                {
+                    if( EDA_TEXT* textItem = dynamic_cast<EDA_TEXT*>( aChild ) )
+                        update |= textItem->ResolveFont( embeddedFonts );
+                } );
+
+        if( update )
+            items_to_update.push_back( item );
+    }
+
+    for( SCH_ITEM* item : items_to_update )
+        Update( item );
 }
 
 
@@ -1881,7 +1734,7 @@ void SCH_SCREENS::ClearAnnotationOfNewSheetPaths( SCH_SHEET_LIST& aInitialSheetP
 
     // Search for new sheet paths, not existing in aInitialSheetPathList
     // and existing in sheetpathList
-    for( SCH_SHEET_PATH& sheetpath : sch->GetSheets() )
+    for( SCH_SHEET_PATH& sheetpath : sch->Hierarchy() )
     {
         bool path_exists = false;
 
@@ -1938,8 +1791,8 @@ int SCH_SCREENS::ReplaceDuplicateTimeStamps()
             const_cast<KIID&>( item->m_Uuid ) = KIID();
             count++;
 
-            // @todo If the item is a sheet, we need to decend the heirarchy from the sheet
-            //       and repace all instances of the changed UUID in sheet paths.  Otherwise,
+            // @todo If the item is a sheet, we need to descend the hierarchy from the sheet
+            //       and replace all instances of the changed UUID in sheet paths.  Otherwise,
             //       all instance paths with the sheet's UUID will get clobbered.
         }
     }
@@ -2021,7 +1874,7 @@ void SCH_SCREENS::UpdateSymbolLinks( REPORTER* aReporter )
 
     wxCHECK_RET( sch, "Null schematic in SCH_SCREENS::UpdateSymbolLinks" );
 
-    SCH_SHEET_LIST sheets = sch->GetSheets();
+    SCH_SHEET_LIST sheets = sch->Hierarchy();
 
     // All of the library symbols have been replaced with copies so the connection graph
     // pointers are stale.
@@ -2080,7 +1933,7 @@ int SCH_SCREENS::ChangeSymbolLibNickname( const wxString& aFrom, const wxString&
         {
             SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
 
-            if( symbol->GetLibId().GetLibNickname() != aFrom )
+            if( symbol->GetLibId().GetLibNickname().wx_str() != aFrom )
                 continue;
 
             LIB_ID id = symbol->GetLibId();
@@ -2120,7 +1973,7 @@ void SCH_SCREENS::BuildClientSheetPathList()
     for( SCH_SCREEN* curr_screen = GetFirst(); curr_screen; curr_screen = GetNext() )
         curr_screen->GetClientSheetPaths().clear();
 
-    for( SCH_SHEET_PATH& sheetpath : sch->GetSheets() )
+    for( SCH_SHEET_PATH& sheetpath : sch->Hierarchy() )
     {
         SCH_SCREEN* used_screen = sheetpath.LastScreen();
 
@@ -2161,7 +2014,7 @@ void SCH_SCREEN::MigrateSimModels()
     for( SCH_ITEM* item : Items().OfType( SCH_SYMBOL_T ) )
     {
         SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
-        SIM_MODEL::MigrateSimModel<SCH_SYMBOL, SCH_FIELD>( *symbol, &Schematic()->Prj() );
+        SIM_MODEL::MigrateSimModel<SCH_SYMBOL>( *symbol, &Schematic()->Prj() );
     }
 }
 

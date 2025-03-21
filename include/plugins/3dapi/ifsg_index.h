@@ -2,6 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 Cirilo Bernardo <cirilo.bernardo@gmail.com>
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,8 +35,7 @@
 
 
 /**
- * IFSG_INDEX
- * is the wrapper for SGINDEX
+ * The wrapper for SGINDEX.
  */
 class SGLIB_API IFSG_INDEX : public IFSG_NODE
 {
@@ -49,20 +49,18 @@ public:
     bool GetIndices( size_t& nIndices, int*& aIndexList );
 
     /**
-     * Function SetIndices
-     * sets the number of indices and creates a copy of the given index data.
+     * Set the number of indices and creates a copy of the given index data.
      *
-     * @param nIndices [in] the number of indices to be stored
-     * @param aIndexList [in] the index data
+     * @param nIndices is the number of indices to be stored.
+     * @param[in] aIndexList is the index data.
      */
     bool SetIndices( size_t nIndices, int* aIndexList );
 
 
     /**
-     * Function AddIndex
-     * adds a single index to the list
+     * Add a single index to the list.
      *
-     * @param aIndex is the new index to add
+     * @param aIndex is the new index to add.
      */
     bool AddIndex( int aIndex );
 };

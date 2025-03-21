@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2004 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -70,7 +70,7 @@ public:
 
     void Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle ) override;
 
-    void Flip( const VECTOR2I& aCentre, bool aFlipLeftRight ) override;
+    void Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
 
     wxString GetClass() const override
     {
@@ -86,7 +86,7 @@ public:
     std::shared_ptr<SHAPE>
     GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHING aFlash = FLASHING::DEFAULT ) const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -112,6 +112,7 @@ public:
 
     double Similarity( const BOARD_ITEM& aBoardItem ) const override;
 
+    bool operator==( const PCB_TARGET& aOther ) const;
     bool operator==( const BOARD_ITEM& aBoardItem ) const override;
 
 #if defined(DEBUG)

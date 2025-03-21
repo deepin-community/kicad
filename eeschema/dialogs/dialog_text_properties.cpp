@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2013 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2013 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,6 +24,7 @@
  */
 
 #include <sch_edit_frame.h>
+#include <symbol_edit_frame.h>
 #include <widgets/bitmap_button.h>
 #include <widgets/font_choice.h>
 #include <widgets/color_swatch.h>
@@ -36,10 +37,10 @@
 #include <dialogs/html_message_box.h>
 #include <scintilla_tricks.h>
 #include <dialog_text_properties.h>
-#include <gr_text.h>
+#include <string_utils.h>
 
 
-DIALOG_TEXT_PROPERTIES::DIALOG_TEXT_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_ITEM* aTextItem ) :
+DIALOG_TEXT_PROPERTIES::DIALOG_TEXT_PROPERTIES( SCH_BASE_FRAME* aParent, SCH_ITEM* aTextItem ) :
         DIALOG_TEXT_PROPERTIES_BASE( aParent ),
         m_frame( aParent ),
         m_currentItem( aTextItem ),
@@ -49,6 +50,8 @@ DIALOG_TEXT_PROPERTIES::DIALOG_TEXT_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_ITE
         m_scintillaTricks( nullptr ),
         m_helpWindow( nullptr )
 {
+    m_isSymbolEditor = dynamic_cast<SYMBOL_EDIT_FRAME*>( aParent ) != nullptr;
+
     COLOR_SETTINGS* colorSettings = m_frame->GetColorSettings();
     COLOR4D         schematicBackground = colorSettings->GetColor( LAYER_SCHEMATIC_BACKGROUND );
 
@@ -60,16 +63,14 @@ DIALOG_TEXT_PROPERTIES::DIALOG_TEXT_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_ITE
         m_borderColorSwatch->SetSwatchBackground( schematicBackground );
 
         for( const auto& [ lineStyle, lineStyleDesc ] : lineTypeNames )
-            m_borderStyleCombo->Append( lineStyleDesc.name,
-                                        KiBitmapBundle( lineStyleDesc.bitmap ) );
-
-        m_borderStyleCombo->Append( DEFAULT_STYLE );
+            m_borderStyleCombo->Append( lineStyleDesc.name, KiBitmapBundle( lineStyleDesc.bitmap ) );
 
         m_fillColorSwatch->SetDefaultColor( COLOR4D::UNSPECIFIED );
         m_fillColorSwatch->SetSwatchBackground( schematicBackground );
 
         if( m_frame->GetColorSettings()->GetOverrideSchItemColors() )
-            m_infoBar->ShowMessage( _( "Note: individual item colors overridden in Preferences." ) );
+            m_infoBar->ShowMessage( _( "Note: individual item colors overridden in "
+                                       "Preferences." ) );
     }
     else
     {
@@ -84,6 +85,11 @@ DIALOG_TEXT_PROPERTIES::DIALOG_TEXT_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_ITE
         m_filledCtrl->Show( false );
     }
 
+    // DIALOG_SHIM needs a unique hash_key because classname is not sufficient because the
+    // different text item types (and even whether or not we're within the symbol editor) cause
+    // different dialog layouts).
+    m_hash_key = TO_UTF8( GetTitle() + aParent->GetName() );
+
     m_textCtrl->SetEOLMode( wxSTC_EOL_LF );
 
 #ifdef _WIN32
@@ -94,19 +100,20 @@ DIALOG_TEXT_PROPERTIES::DIALOG_TEXT_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_ITE
 #endif
 
     m_scintillaTricks = new SCINTILLA_TRICKS( m_textCtrl, wxT( "{}" ), false,
-            // onAccept handler
+            // onAcceptFn
             [this]( wxKeyEvent& aEvent )
             {
                 wxPostEvent( this, wxCommandEvent( wxEVT_COMMAND_BUTTON_CLICKED, wxID_OK ) );
             },
 
-            // onCharAdded handler
+            // onCharFn
             [this]( wxStyledTextEvent& aEvent )
             {
                 m_scintillaTricks->DoTextVarAutocomplete(
-                        [this]( const wxString& crossRef, wxArrayString* tokens )
+                        // getTokensFn
+                        [this]( const wxString& xRef, wxArrayString* tokens )
                         {
-                            getContextualTextVars( crossRef, tokens );
+                            getContextualTextVars( xRef, tokens );
                         } );
             } );
 
@@ -132,6 +139,7 @@ DIALOG_TEXT_PROPERTIES::DIALOG_TEXT_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_ITE
     m_hAlignCenter->SetBitmap( KiBitmapBundle( BITMAPS::text_align_center ) );
     m_hAlignRight->SetIsRadioButton();
     m_hAlignRight->SetBitmap( KiBitmapBundle( BITMAPS::text_align_right ) );
+
     m_separator3->SetIsSeparator();
 
     m_vAlignTop->SetIsRadioButton();
@@ -150,23 +158,37 @@ DIALOG_TEXT_PROPERTIES::DIALOG_TEXT_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_ITE
 
     m_separator5->SetIsSeparator();
 
-    SCH_SHEET_LIST sheetList = m_frame->Schematic().GetUnorderedSheets();
-    sheetList.SortByPageNumbers( false );
+    m_fgSymbolEditor->Show( m_isSymbolEditor );
 
-    for( const SCH_SHEET_PATH& sheet : sheetList )
+    if( SCH_EDIT_FRAME* schematicEditor = dynamic_cast<SCH_EDIT_FRAME*>( m_frame ) )
     {
-        wxString sheetPageNum = sheet.GetPageNumber();
-        wxString sheetName = sheet.size() == 1 ? _( "<root sheet>" ) : sheet.Last()->GetName();
+        const SCHEMATIC& schematic = schematicEditor->Schematic();
 
-        m_hyperlinkCombo->Append( wxT( "#" ) + sheetPageNum,
-                                  wxString::Format( _( "Page %s (%s)" ), sheetPageNum, sheetName ) );
-        m_pageNumbers.push_back( sheetPageNum );
+        for( const SCH_SHEET_PATH& sheet : schematic.Hierarchy() )
+        {
+            wxString sheetPageNum = sheet.GetPageNumber();
+            wxString sheetName = sheet.size() == 1 ? _( "<root sheet>" )
+                                                   : sheet.Last()->GetName();
+
+            m_hyperlinkCombo->Append( wxT( "#" ) + sheetPageNum,
+                                      wxString::Format( _( "Page %s (%s)" ),
+                                                        sheetPageNum,
+                                                        sheetName ) );
+            m_pageNumbers.push_back( sheetPageNum );
+        }
+
+        m_hyperlinkCombo->Append( wxT( "---" ) );
+        m_hyperlinkCombo->Append( wxT( "file://" ), wxT( "file://..." ) );
+        m_hyperlinkCombo->Append( wxT( "http://" ), wxT( "http://..." ) );
+        m_hyperlinkCombo->Append( wxT( "https://" ), wxT( "https://..." ) );
     }
-
-    m_hyperlinkCombo->Append( wxT( "---" ) );
-    m_hyperlinkCombo->Append( wxT( "file://" ), wxT( "file://..." ) );
-    m_hyperlinkCombo->Append( wxT( "http://" ), wxT( "http://..." ) );
-    m_hyperlinkCombo->Append( wxT( "https://" ), wxT( "https://..." ) );
+    else
+    {
+        m_excludeFromSim->Hide();
+        m_syntaxHelp->Hide();
+        m_hyperlinkCb->Hide();
+        m_hyperlinkCombo->Hide();
+    }
 
     SetupStandardButtons();
     Layout();
@@ -197,22 +219,26 @@ DIALOG_TEXT_PROPERTIES::~DIALOG_TEXT_PROPERTIES()
 void DIALOG_TEXT_PROPERTIES::getContextualTextVars( const wxString& aCrossRef,
                                                     wxArrayString*  aTokens )
 {
+    SCHEMATIC* schematic = m_currentItem->Schematic();
+
     if( !aCrossRef.IsEmpty() )
     {
-        SCH_SHEET_LIST     sheets = m_frame->Schematic().GetSheets();
-        SCH_REFERENCE_LIST refs;
-        SCH_SYMBOL*        refSymbol = nullptr;
+        SCH_SYMBOL* refSymbol = nullptr;
 
-        sheets.GetSymbols( refs );
-
-        for( int jj = 0; jj < (int) refs.GetCount(); jj++ )
+        if( schematic )
         {
-            SCH_REFERENCE& ref = refs[jj];
+            SCH_REFERENCE_LIST refs;
+            schematic->Hierarchy().GetSymbols( refs );
 
-            if( ref.GetSymbol()->GetRef( &ref.GetSheetPath(), true ) == aCrossRef )
+            for( int jj = 0; jj < (int) refs.GetCount(); jj++ )
             {
-                refSymbol = ref.GetSymbol();
-                break;
+                SCH_REFERENCE& ref = refs[jj];
+
+                if( ref.GetSymbol()->GetRef( &ref.GetSheetPath(), true ) == aCrossRef )
+                {
+                    refSymbol = ref.GetSymbol();
+                    break;
+                }
             }
         }
 
@@ -221,8 +247,6 @@ void DIALOG_TEXT_PROPERTIES::getContextualTextVars( const wxString& aCrossRef,
     }
     else
     {
-        SCHEMATIC* schematic = m_currentItem->Schematic();
-
         if( schematic && schematic->CurrentSheet().Last() )
         {
             schematic->CurrentSheet().Last()->GetContextualTextVars( aTokens );
@@ -241,16 +265,20 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataToWindow()
     if( !wxDialog::TransferDataToWindow() )
         return false;
 
-    SCHEMATIC& schematic = m_frame->Schematic();
-
     m_hyperlinkCb->SetValue( m_currentText->HasHyperlink() );
     m_hyperlinkCombo->SetValue( m_currentText->GetHyperlink() );
 
+    wxString text = m_currentText->GetText();
+
     // show text variable cross-references in a human-readable format
-    m_textCtrl->SetValue( schematic.ConvertKIIDsToRefs( m_currentText->GetText() ) );
+    if( SCHEMATIC* schematic = m_currentItem->Schematic() )
+        text = schematic->ConvertKIIDsToRefs( text );
+
+    m_textCtrl->SetValue( text );
     m_textCtrl->EmptyUndoBuffer();
 
-    m_excludeFromSim->SetValue( m_currentItem->GetExcludedFromSim() );
+    if( !m_isSymbolEditor )
+        m_excludeFromSim->SetValue( m_currentItem->GetExcludedFromSim() );
 
     m_fontCtrl->SetFontSelection( m_currentText->GetFont() );
     m_textSize.SetValue( m_currentText->GetTextWidth() );
@@ -261,16 +289,18 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataToWindow()
 
     switch( m_currentText->GetHorizJustify() )
     {
-    case GR_TEXT_H_ALIGN_LEFT:   m_hAlignLeft->Check();   break;
-    case GR_TEXT_H_ALIGN_CENTER: m_hAlignCenter->Check(); break;
-    case GR_TEXT_H_ALIGN_RIGHT:  m_hAlignRight->Check();  break;
+    case GR_TEXT_H_ALIGN_LEFT:          m_hAlignLeft->Check();   break;
+    case GR_TEXT_H_ALIGN_CENTER:        m_hAlignCenter->Check(); break;
+    case GR_TEXT_H_ALIGN_RIGHT:         m_hAlignRight->Check();  break;
+    case GR_TEXT_H_ALIGN_INDETERMINATE:                          break;
     }
 
     switch( m_currentText->GetVertJustify() )
     {
-    case GR_TEXT_V_ALIGN_TOP:    m_vAlignTop->Check();    break;
-    case GR_TEXT_V_ALIGN_CENTER: m_vAlignCenter->Check(); break;
-    case GR_TEXT_V_ALIGN_BOTTOM: m_vAlignBottom->Check(); break;
+    case GR_TEXT_V_ALIGN_TOP:           m_vAlignTop->Check();    break;
+    case GR_TEXT_V_ALIGN_CENTER:        m_vAlignCenter->Check(); break;
+    case GR_TEXT_V_ALIGN_BOTTOM:        m_vAlignBottom->Check(); break;
+    case GR_TEXT_V_ALIGN_INDETERMINATE:                          break;
     }
 
     if( m_currentText->GetTextAngle() == ANGLE_VERTICAL )
@@ -291,12 +321,10 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataToWindow()
 
         int style = static_cast<int>( textBox->GetStroke().GetLineStyle() );
 
-        if( style == -1 )
-            m_borderStyleCombo->SetStringSelection( DEFAULT_STYLE );
-        else if( style < (int) lineTypeNames.size() )
+        if( style >= 0 && style < (int) lineTypeNames.size() )
             m_borderStyleCombo->SetSelection( style );
         else
-            wxFAIL_MSG( "Line type not found in the type lookup map" );
+            m_borderStyleCombo->SetSelection( 0 );
 
         m_borderWidth.Enable( textBox->GetWidth() >= 0 );
         m_borderColorLabel->Enable( textBox->GetWidth() >= 0 );
@@ -309,6 +337,18 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataToWindow()
 
         m_fillColorLabel->Enable( textBox->IsFilled() );
         m_fillColorSwatch->Enable( textBox->IsFilled() );
+    }
+
+    if( m_isSymbolEditor )
+    {
+        SYMBOL* symbol = m_currentItem->GetParentSymbol();
+
+        m_privateCheckbox->SetValue( m_currentItem->IsPrivate() );
+        m_commonToAllUnits->SetValue( symbol->IsMulti() && m_currentItem->GetUnit() == 0 );
+        m_commonToAllUnits->Enable( symbol->IsMulti() );
+        m_commonToAllBodyStyles->SetValue( symbol->HasAlternateBodyStyle()
+                                        && m_currentItem->GetBodyStyle() == 0 );
+        m_commonToAllBodyStyles->Enable( symbol->HasAlternateBodyStyle() );
     }
 
     return true;
@@ -412,7 +452,6 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataFromWindow()
         return false;
 
     SCH_COMMIT commit( m_frame );
-    wxString   text;
 
     /* save old text in undo list if not already in edit */
     if( m_currentItem->GetEditFlags() == 0 )
@@ -420,14 +459,17 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataFromWindow()
 
     m_frame->GetCanvas()->Refresh();
 
+    wxString text = m_textCtrl->GetValue();
+
     // convert any text variable cross-references to their UUIDs
-    text = m_frame->Schematic().ConvertRefsToKIIDs( m_textCtrl->GetValue() );
+    if( SCHEMATIC* schematic = m_currentItem->Schematic() )
+        text = schematic->ConvertRefsToKIIDs( text );
 
 #ifdef __WXMAC__
     // On macOS CTRL+Enter produces '\r' instead of '\n' regardless of EOL setting
     text.Replace( "\r", "\n" );
 #elif defined( __WINDOWS__ )
-    // On Windows, a new line is coded as \r\n.  We use only \n in kicad files and in
+    // On Windows, a new line is coded as \r\n.  We use only \n in KiCad files and in
     // drawing routines so strip the \r char.
     text.Replace( "\r", "" );
 #endif
@@ -450,7 +492,22 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataFromWindow()
 
     m_currentItem->SetExcludedFromSim( m_excludeFromSim->GetValue() );
 
-    if( !m_currentText->ValidateHyperlink( m_hyperlinkCombo->GetValue() ) )
+    if( SYMBOL_EDIT_FRAME* symbolEditor = dynamic_cast<SYMBOL_EDIT_FRAME*>( m_frame ) )
+    {
+        m_currentItem->SetPrivate( m_privateCheckbox->GetValue() );
+
+        if( !m_commonToAllUnits->GetValue() )
+            m_currentItem->SetUnit( symbolEditor->GetUnit() );
+        else
+            m_currentItem->SetUnit( 0 );
+
+        if( !m_commonToAllBodyStyles->GetValue() )
+            m_currentItem->SetBodyStyle( symbolEditor->GetBodyStyle() );
+        else
+            m_currentItem->SetBodyStyle( 0 );
+    }
+
+    if( !EDA_TEXT::ValidateHyperlink( m_hyperlinkCombo->GetValue() ) )
     {
         DisplayError( this, _( "Invalid hyperlink destination. Please enter either a valid URL "
                                "(e.g. file:// or http(s)://) or \"#<page number>\" to create "
@@ -463,7 +520,8 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataFromWindow()
     }
 
     if( m_currentText->GetTextWidth() != m_textSize.GetValue() )
-        m_currentText->SetTextSize( VECTOR2I( m_textSize.GetValue(), m_textSize.GetValue() ) );
+        m_currentText->SetTextSize( VECTOR2I( m_textSize.GetIntValue(),
+                                              m_textSize.GetIntValue() ) );
 
     if( m_fontCtrl->HaveFontSelection() )
     {
@@ -511,7 +569,7 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataFromWindow()
         std::advance( it, m_borderStyleCombo->GetSelection() );
 
         if( it == lineTypeNames.end() )
-            stroke.SetLineStyle( LINE_STYLE::DEFAULT );
+            stroke.SetLineStyle( LINE_STYLE::SOLID );
         else
             stroke.SetLineStyle( it->first );
 

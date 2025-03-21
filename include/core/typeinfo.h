@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 CERN
- * Copyright (C) 2004-2023 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -91,6 +91,8 @@ enum KICAD_T
     PCB_GENERATOR_T,         ///< class PCB_GENERATOR, generator on a layer
     PCB_TEXT_T,              ///< class PCB_TEXT, text on a layer
     PCB_TEXTBOX_T,           ///< class PCB_TEXTBOX, wrapped text on a layer
+    PCB_TABLE_T,             ///< class PCB_TABLE, table of PCB_TABLECELLs
+    PCB_TABLECELL_T,         ///< class PCB_TABLECELL, PCB_TEXTBOX for use in tables
     PCB_TRACE_T,             ///< class PCB_TRACK, a track segment (segment on a copper layer)
     PCB_VIA_T,               ///< class PCB_VIA, a via (like a track segment on a copper layer)
     PCB_ARC_T,               ///< class PCB_ARC, an arc track segment on a copper layer
@@ -135,6 +137,21 @@ enum KICAD_T
     PCB_SHAPE_LOCATE_POLY_T,
     PCB_SHAPE_LOCATE_BEZIER_T,
 
+    /*
+     * Draw items in library symbol.
+     *
+     * The order of these items effects the sort order for items inside the
+     * "DRAW/ENDDRAW" section of the symbol definition in a library file.
+     * If you add a new draw item, type, please make sure you add it so the
+     * sort order is logical.
+     */
+    LIB_SYMBOL_T,
+    SCH_SHAPE_T,
+    SCH_FIELD_T,
+    SCH_TEXT_T,
+    SCH_TEXTBOX_T,
+    SCH_PIN_T,
+
     // Schematic draw Items.  The order of these items effects the sort order.
     // It is currently ordered to mimic the old Eeschema locate behavior where
     // the smallest item is the selected item.
@@ -144,19 +161,17 @@ enum KICAD_T
     SCH_BUS_WIRE_ENTRY_T,
     SCH_BUS_BUS_ENTRY_T,
     SCH_LINE_T,
-    SCH_SHAPE_T,
     SCH_BITMAP_T,
-    SCH_TEXTBOX_T,
-    SCH_TEXT_T,
+    SCH_TABLE_T,
+    SCH_TABLECELL_T,
     SCH_LABEL_T,
     SCH_GLOBAL_LABEL_T,
     SCH_HIER_LABEL_T,
+    SCH_RULE_AREA_T,
     SCH_DIRECTIVE_LABEL_T,
-    SCH_FIELD_T,
     SCH_SYMBOL_T,
     SCH_SHEET_PIN_T,
     SCH_SHEET_T,
-    SCH_PIN_T,
 
     // Be prudent with these types:
     // they should be used only to locate a specific field type among SCH_FIELD_Ts
@@ -188,26 +203,6 @@ enum KICAD_T
     SCHEMATIC_T,
 
     /*
-     * Draw items in library symbol.
-     *
-     * The order of these items effects the sort order for items inside the
-     * "DRAW/ENDDRAW" section of the symbol definition in a library file.
-     * If you add a new draw item, type, please make sure you add it so the
-     * sort order is logical.
-     */
-    LIB_SYMBOL_T,
-    LIB_SHAPE_T,
-    LIB_TEXT_T,
-    LIB_TEXTBOX_T,
-    LIB_PIN_T,
-
-    /*
-     * Fields are not saved inside the "DRAW/ENDDRAW".  Add new draw item
-     * types before this line.
-     */
-    LIB_FIELD_T,
-
-    /*
      * For GerbView: item types:
      */
     GERBER_LAYOUT_T,
@@ -233,6 +228,7 @@ enum KICAD_T
      */
     SYMBOL_LIB_TABLE_T,
     FP_LIB_TABLE_T,
+    DESIGN_BLOCK_LIB_TABLE_T,
     SYMBOL_LIBS_T,
     SEARCH_STACK_T,
     S3D_CACHE_T,
@@ -379,9 +375,12 @@ constexpr bool IsEeschemaType( const KICAD_T aType )
     case SCH_BUS_BUS_ENTRY_T:
     case SCH_LINE_T:
     case SCH_SHAPE_T:
+    case SCH_RULE_AREA_T:
     case SCH_BITMAP_T:
     case SCH_TEXT_T:
     case SCH_TEXTBOX_T:
+    case SCH_TABLE_T:
+    case SCH_TABLECELL_T:
     case SCH_LABEL_T:
     case SCH_DIRECTIVE_LABEL_T:
     case SCH_GLOBAL_LABEL_T:
@@ -412,12 +411,6 @@ constexpr bool IsEeschemaType( const KICAD_T aType )
     case SCHEMATIC_T:
 
     case LIB_SYMBOL_T:
-    case LIB_SHAPE_T:
-    case LIB_TEXT_T:
-    case LIB_TEXTBOX_T:
-    case LIB_PIN_T:
-
-    case LIB_FIELD_T:
         return true;
 
     default:
@@ -438,6 +431,8 @@ constexpr bool IsPcbnewType( const KICAD_T aType )
     case PCB_FIELD_T:
     case PCB_TEXT_T:
     case PCB_TEXTBOX_T:
+    case PCB_TABLE_T:
+    case PCB_TABLECELL_T:
     case PCB_TRACE_T:
     case PCB_VIA_T:
     case PCB_ARC_T:
@@ -522,6 +517,7 @@ constexpr bool IsMiscType( const KICAD_T aType )
 
     case SYMBOL_LIB_TABLE_T:
     case FP_LIB_TABLE_T:
+    case DESIGN_BLOCK_LIB_TABLE_T:
     case SYMBOL_LIBS_T:
     case SEARCH_STACK_T:
     case S3D_CACHE_T:
@@ -540,42 +536,6 @@ constexpr bool IsTypeCorrect( KICAD_T aType )
         || IsGerbviewType( aType )
         || IsPageLayoutEditorType( aType )
         || IsMiscType( aType );
-}
-
-constexpr bool IsTypeAvailable( KICAD_T aType )
-{
-    if( !IsInstantiableType( aType ) )
-        return false;
-
-    if( IsEeschemaType( aType ) )
-    {
-#ifdef EESCHEMA
-        return true;
-#endif // EESCHEMA
-    }
-
-    if( IsPcbnewType( aType ) )
-    {
-#ifdef PCBNEW
-        return true;
-#endif // PCBNEW
-    }
-
-    if( IsGerbviewType( aType ) )
-    {
-#ifdef GERBVIEW
-        return true;
-#endif // GERBVIEW
-    }
-
-    if( IsPageLayoutEditorType( aType ) )
-    {
-#ifdef PL_EDITOR
-        return true;
-#endif // PL_EDITOR
-    }
-
-    return false;
 }
 
 #endif // __KICAD_TYPEINFO_H

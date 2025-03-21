@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 Henner Zeller <h.zeller@acm.org>
- * Copyright (C) 2014-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -51,9 +51,10 @@ public:
     ///< Flags to select extra widgets and options
     enum FLAGS
     {
-        NONE        = 0x00,
+        FLAGS_NONE  = 0x00,
         SEARCH      = 0x01,
-        DETAILS     = 0x02,
+        FILTERS     = 0x02,
+        DETAILS     = 0x04,
         ALL_WIDGETS = 0x0F,
         MULTISELECT = 0x10
     };
@@ -61,12 +62,12 @@ public:
     /**
      * Construct a symbol tree.
      *
-     * @param aParent parent window containing this tree widget
+     * @param aParent parent window containing this tree widget.
      * @param aRecentSearchesKey a key into a global map storing recent searches (usually "power",
-     *                           "symbols", or "footprints", but could be further differentiated)
-     * @param aLibTable table containing libraries and items to display
-     * @param aAdapter a LIB_TREE_MODEL_ADAPTER instance to use
-     * @param aFlags selection of sub-widgets to include and other options
+     *                           "symbols", or "footprints", but could be further differentiated).
+     * @param aLibTable table containing libraries and items to display.
+     * @param aAdapter a LIB_TREE_MODEL_ADAPTER instance to use.
+     * @param aFlags selection of sub-widgets to include and other options.
      * @param aDetails if not null, a custom HTML_WINDOW to hold symbol details. If null this
      *                 will be created inside the LIB_TREE.
      */
@@ -93,11 +94,12 @@ public:
     }
 
     /**
-     * Retrieves a list of selections for trees that allow multi-selection
+     * Retrieve a list of selections for trees that allow multi-selection.
+     *
      * @see GetSelectedLibId for details on how aUnit will be filled.
-     * @param aSelection will be filled with a list of selected LIB_IDs
-     * @param aUnit is an optional pointer to a list to fill with unit numbers
-     * @return the number of selected items
+     * @param aSelection will be filled with a list of selected LIB_IDs.
+     * @param aUnit is an optional pointer to a list to fill with unit numbers.
+     * @return the number of selected items.
      */
     int GetSelectedLibIds( std::vector<LIB_ID>& aSelection,
                            std::vector<int>* aUnit = nullptr ) const;
@@ -115,7 +117,7 @@ public:
     void CenterLibId( const LIB_ID& aLibId );
 
     /**
-     * Unselect currently selected item in wxDataViewCtrl
+     * Unselect currently selected item in wxDataViewCtrl.
      */
     void Unselect();
 
@@ -123,6 +125,9 @@ public:
      * Expand and item i the tree widget.
      */
     void ExpandLibId( const LIB_ID& aLibId );
+
+    void ExpandAll();
+    void CollapseAll();
 
     /**
      * Save/restore search string.
@@ -142,18 +147,25 @@ public:
     void Regenerate( bool aKeepState );
 
     /**
-     * Refreshes the tree (mainly to update highlighting and asterisking)
+     * Refresh the tree (mainly to update highlighting and asterisking)
      */
     void RefreshLibTree();
 
     wxWindow* GetFocusTarget();
 
+    wxSizer* GetFiltersSizer() { return m_filtersSizer; }
+
     /**
-     * Focus the search widget if it exists
+     * Focus the search widget if it exists.
      */
     void FocusSearchFieldIfExists();
 
     void ShowChangedLanguage();
+
+    void BlockPreview( bool aBlock )
+    {
+        m_previewDisabled = aBlock;
+    }
 
 protected:
     /**
@@ -177,7 +189,7 @@ protected:
     void postPreselectEvent();
 
     /**
-     * Post SYMBOL_SELECTED event to notify the selection handler that a part has been selected.
+     * Post #SYMBOL_SELECTED event to notify the selection handler that a part has been selected.
      */
     void postSelectEvent();
 
@@ -186,10 +198,10 @@ protected:
      */
     struct STATE
     {
-        ///< List of expanded nodes
+        /// List of expanded nodes.
         std::vector<wxDataViewItem> expanded;
 
-        ///< Current selection, might be not valid if nothing was selected
+        /// Current selection, might be not valid if nothing was selected.
         LIB_ID selection;
     };
 
@@ -239,6 +251,8 @@ protected:
 
     wxString           m_recentSearchesKey;
 
+    wxBoxSizer*        m_filtersSizer;
+
     bool               m_skipNextRightClick;
 
     wxPoint            m_hoverPos;
@@ -251,10 +265,10 @@ protected:
     bool               m_previewDisabled;
 };
 
-///< Custom event sent when an item is selected in the list
+/// Custom event sent when an item is selected in the list.
 wxDECLARE_EVENT( EVT_LIBITEM_SELECTED, wxCommandEvent );
 
-///< Custom event sent when an item is chosen (double-clicked)
+/// Custom event sent when an item is chosen (double-clicked).
 wxDECLARE_EVENT( EVT_LIBITEM_CHOSEN, wxCommandEvent );
 
 #endif /* LIB_TREE_H */

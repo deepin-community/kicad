@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,9 +23,9 @@
 
 #include <connection_graph.h>
 #include <schematic.h>
-#include <erc_settings.h>
-#include <erc.h>
-#include <erc_report.h>
+#include <erc/erc_settings.h>
+#include <erc/erc.h>
+#include <erc/erc_report.h>
 #include <settings/settings_manager.h>
 #include <locale_io.h>
 
@@ -61,6 +61,7 @@ BOOST_FIXTURE_TEST_CASE( ERCHierarchicalSchematics, ERC_REGRESSION_TEST_FIXTURE 
 
         // Skip the "Modified symbol" warning
         settings.m_ERCSeverities[ERCE_LIB_SYMBOL_ISSUES] = RPT_SEVERITY_IGNORE;
+        settings.m_ERCSeverities[ERCE_LIB_SYMBOL_MISMATCH] = RPT_SEVERITY_IGNORE;
 
         m_schematic->ConnectionGraph()->RunERC();
 

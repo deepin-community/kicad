@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015-2016 Mario Luzeiro <mrluzeiro@ua.pt>
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -49,9 +49,9 @@ public:
      *  Create a new 3D Canvas with a attribute list.
      *
      *  @param aParent the parent creator of this canvas.
-     *  @param aAttribList a list of openGL options created by #OGL_ATT_LIST::GetAttributesList.
+     *  @param aGLAttribs openGL attributes created by #OGL_ATT_LIST::GetAttributesList.
      */
-    EDA_3D_MODEL_VIEWER( wxWindow* aParent, const int* aAttribList  = nullptr,
+    EDA_3D_MODEL_VIEWER( wxWindow* aParent, const wxGLAttributes& aGLAttribs,
                          S3D_CACHE* aCacheManager = nullptr );
 
     ~EDA_3D_MODEL_VIEWER();
@@ -66,7 +66,9 @@ public:
     /**
      * Set this model to be displayed.
      *
-     * @param aModelPathName 3D model path name.
+     * N.B. This will not load a model from the internal cache.  Only from on disk.
+     *
+     * @param aModelPathName 3D model path name.  Must be a file on disk.
      */
     void Set3DModel( const wxString& aModelPathName );
 

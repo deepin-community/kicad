@@ -11,25 +11,33 @@ set( KIMATH_SRCS
     src/transform.cpp
     src/trigo.cpp
 
-	src/geometry/chamfer.cpp
-	src/geometry/eda_angle.cpp
-	src/geometry/ellipse.cpp
+    src/geometry/corner_operations.cpp
+    src/geometry/distribute.cpp
+    src/geometry/eda_angle.cpp
+    src/geometry/ellipse.cpp
     src/geometry/circle.cpp
     src/geometry/convex_hull.cpp
     src/geometry/direction_45.cpp
     src/geometry/geometry_utils.cpp
+    src/geometry/half_line.cpp
+    src/geometry/intersection.cpp
+    src/geometry/line.cpp
+    src/geometry/nearest.cpp
     src/geometry/oval.cpp
+    src/geometry/roundrect.cpp
     src/geometry/seg.cpp
     src/geometry/shape.cpp
     src/geometry/shape_arc.cpp
     src/geometry/shape_collisions.cpp
+    src/geometry/shape_compound.cpp
     src/geometry/shape_file_io.cpp
     src/geometry/shape_line_chain.cpp
     src/geometry/shape_poly_set.cpp
     src/geometry/shape_rect.cpp
-    src/geometry/shape_compound.cpp
     src/geometry/shape_segment.cpp
+    src/geometry/vector_utils.cpp
     src/geometry/shape_utils.cpp
+    src/geometry/vertex_set.cpp
 
 
     src/math/vector2.cpp
@@ -43,7 +51,6 @@ add_library( kimath STATIC
 
 target_link_libraries( kimath
     core
-    clipper
     clipper2
     othermath
     rtree

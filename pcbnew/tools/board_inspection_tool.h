@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,7 +24,6 @@
 #ifndef BOARD_INSPECTION_TOOL_H
 #define BOARD_INSPECTION_TOOL_H
 
-#include <dialogs/dialog_net_inspector.h>
 #include <dialogs/dialog_book_reporter.h>
 #include <drc/drc_rule.h>
 #include <drc/drc_engine.h>
@@ -74,14 +73,13 @@ public:
     ///< Show local ratsnest of a component.
     int LocalRatsnestTool( const TOOL_EVENT& aEvent );
 
-    int ListNets( const TOOL_EVENT& aEvent );
-
     ///< Hide the ratsnest for a given net.
     int HideNetInRatsnest( const TOOL_EVENT& aEvent );
 
     ///< Show the ratsnest for a given net.
     int ShowNetInRatsnest( const TOOL_EVENT& aEvent );
 
+    wxString InspectDRCErrorMenuText( const std::shared_ptr<RC_ITEM>& aDRCItem );
     void InspectDRCError( const std::shared_ptr<RC_ITEM>& aDRCItem );
 
     ///< Show the clearance resolution for two selected items.

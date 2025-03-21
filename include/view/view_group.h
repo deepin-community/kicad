@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2020-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -85,13 +85,8 @@ public:
      */
     virtual void ViewDraw( int aLayer, VIEW* aView ) const override;
 
-    /**
-     * Return all the layers used by the stored items.
-     *
-     * @param aLayers[] is the output layer index array.
-     * @param aCount is the number of layer indices in aLayers[].
-     */
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    ///@copydoc VIEW_ITEM::ViewGetLayers
+    std::vector<int> ViewGetLayers() const override;
 
     /**
      * Set layer used to draw the group.

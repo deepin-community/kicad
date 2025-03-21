@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2013 CERN (www.cern.ch)
- * Copyright (C) 2004-2023 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,8 +33,10 @@
 #include <background_jobs_monitor.h>
 #include <bitmaps.h>
 #include <build_version.h>
+#include <confirm.h>
 #include <dialogs/panel_kicad_launcher.h>
 #include <dialogs/dialog_update_check_prompt.h>
+#include <dialogs/panel_jobset.h>
 #include <eda_base_frame.h>
 #include <executable_names.h>
 #include <file_history.h>
@@ -67,7 +69,7 @@
 #include <wx/process.h>
 #include <atomic>
 #include <update_manager.h>
-
+#include <jobs/jobset.h>
 
 #include <../pcbnew/pcb_io/kicad_sexpr/pcb_io_kicad_sexpr.h>   // for SEXPR_BOARD_FILE_VERSION def
 
@@ -80,6 +82,11 @@
 #include "kicad_manager_frame.h"
 #include "settings/kicad_settings.h"
 
+#include <project/project_file.h>
+
+
+#define EDITORS_CAPTION _( "Editors" )
+#define PROJECT_FILES_CAPTION _( "Project Files" )
 
 #define SEP()   wxFileName::GetPathSeparator()
 
@@ -115,7 +122,6 @@ BEGIN_EVENT_TABLE( KICAD_MANAGER_FRAME, EDA_BASE_FRAME )
     EVT_DROP_FILES( KICAD_MANAGER_FRAME::OnDropFiles )
 
 END_EVENT_TABLE()
-
 
 // See below the purpose of this include
 #include <wx/xml/xml.h>
@@ -198,16 +204,14 @@ KICAD_MANAGER_FRAME::KICAD_MANAGER_FRAME( wxWindow* parent, const wxString& titl
     setupTools();
     setupUIConditions();
 
-    m_launcher = new PANEL_KICAD_LAUNCHER( this );
-
-    RecreateBaseHToolbar();
+    RecreateBaseLeftToolbar();
     ReCreateMenuBar();
 
     m_auimgr.SetManagedWindow( this );
     m_auimgr.SetFlags( wxAUI_MGR_LIVE_RESIZE );
 
-    m_auimgr.AddPane( m_mainToolBar, EDA_PANE().HToolbar().Name( "MainToolbar" ).Left()
-                      .Layer( 2 ) );
+    m_auimgr.AddPane( m_mainToolBar,
+                      EDA_PANE().VToolbar().Name( "MainToolbar" ).Left().Layer( 2 ) );
 
     // BestSize() does not always set the actual pane size of m_leftWin to the required value.
     // It happens when m_leftWin is too large (roughly > 1/3 of the kicad manager frame width.
@@ -215,23 +219,46 @@ KICAD_MANAGER_FRAME::KICAD_MANAGER_FRAME( wxWindow* parent, const wxString& titl
     // A trick is to use MinSize() to set the required pane width,
     // and after give a reasonable MinSize value
     m_auimgr.AddPane( m_leftWin, EDA_PANE().Palette().Name( "ProjectTree" ).Left().Layer( 1 )
-                      .Caption( _( "Project Files" ) ).PaneBorder( false )
+                      .Caption( PROJECT_FILES_CAPTION ).PaneBorder( false )
                       .MinSize( m_leftWinWidth, -1 ).BestSize( m_leftWinWidth, -1 ) );
 
-    m_auimgr.AddPane( m_launcher, EDA_PANE().Canvas().Name( "Launcher" ).Center()
-                      .Caption( _( "Editors" ) ).PaneBorder( false )
-                      .MinSize( m_launcher->GetBestSize() ) );
+    wxSize client_size = GetClientSize();
+    m_notebook = new wxAuiNotebook( this, wxID_ANY, wxPoint( client_size.x, client_size.y ),
+                                    FromDIP( wxSize( 700, 590 ) ),
+                                    wxAUI_NB_TOP | wxAUI_NB_CLOSE_ON_ALL_TABS | wxAUI_NB_TAB_MOVE
+                                            | wxAUI_NB_SCROLL_BUTTONS | wxNO_BORDER );
+
+    m_notebook->Bind( wxEVT_AUINOTEBOOK_PAGE_CLOSE,
+                      &KICAD_MANAGER_FRAME::onNotebookPageCloseRequest, this );
+    m_notebook->Bind( wxEVT_AUINOTEBOOK_PAGE_CLOSED,
+                      &KICAD_MANAGER_FRAME::onNotebookPageCountChanged, this );
+    m_launcher = new PANEL_KICAD_LAUNCHER( m_notebook );
+
+    m_notebook->Freeze();
+    m_launcher->SetClosable( false );
+    m_notebook->AddPage( m_launcher, EDITORS_CAPTION, false );
+    m_notebook->SetTabCtrlHeight( 0 );
+    m_notebook->Thaw();
+
+    m_auimgr.AddPane( m_notebook,
+                      EDA_PANE().Canvas().Name( "Editors" ).Center().Caption( EDITORS_CAPTION )
+                                .PaneBorder( false ).MinSize( m_notebook->GetBestSize() ) );
 
     m_auimgr.Update();
 
     // Now the actual m_leftWin size is set, give it a reasonable min width
     m_auimgr.GetPane( m_leftWin ).MinSize( defaultLeftWinWidth, -1 );
 
+
     wxSizer* mainSizer = GetSizer();
 
     // Only fit the initial window size the first time KiCad is run.
     if( mainSizer && config()->m_Window.state.size_x == 0 && config()->m_Window.state.size_y == 0 )
+    {
+        Layout();
         mainSizer->Fit( this );
+        Center();
+    }
 
     if( ADVANCED_CFG::GetCfg().m_HideVersionFromTitle )
         SetTitle( wxT( "KiCad" ) );
@@ -262,7 +289,12 @@ KICAD_MANAGER_FRAME::~KICAD_MANAGER_FRAME()
 {
     Unbind( wxEVT_CHAR, &TOOL_DISPATCHER::DispatchWxEvent, m_toolDispatcher );
     Unbind( wxEVT_CHAR_HOOK, &TOOL_DISPATCHER::DispatchWxEvent, m_toolDispatcher );
-    
+
+    m_notebook->Unbind( wxEVT_AUINOTEBOOK_PAGE_CLOSE,
+                        &KICAD_MANAGER_FRAME::onNotebookPageCloseRequest, this );
+    m_notebook->Unbind( wxEVT_AUINOTEBOOK_PAGE_CLOSED,
+                        &KICAD_MANAGER_FRAME::onNotebookPageCountChanged, this );
+
     Pgm().GetBackgroundJobMonitor().UnregisterStatusBar( (KISTATUSBAR*) GetStatusBar() );
     Pgm().GetNotificationsManager().UnregisterStatusBar( (KISTATUSBAR*) GetStatusBar() );
 
@@ -278,6 +310,46 @@ KICAD_MANAGER_FRAME::~KICAD_MANAGER_FRAME()
     delete m_toolDispatcher;
 
     m_auimgr.UnInit();
+}
+
+void KICAD_MANAGER_FRAME::HideTabsIfNeeded()
+{
+    if( m_notebook->GetPageCount() == 1 )
+        m_notebook->SetTabCtrlHeight( 0 );
+    else
+        m_notebook->SetTabCtrlHeight( -1 );
+}
+
+
+void KICAD_MANAGER_FRAME::onNotebookPageCountChanged( wxAuiNotebookEvent& evt )
+{
+    HideTabsIfNeeded();
+}
+
+
+void KICAD_MANAGER_FRAME::onNotebookPageCloseRequest( wxAuiNotebookEvent& evt )
+{
+    wxAuiNotebook* notebook = (wxAuiNotebook*) evt.GetEventObject();
+    wxWindow*      page = notebook->GetPage( evt.GetSelection() );
+
+    if( PANEL_NOTEBOOK_BASE* panel = dynamic_cast<PANEL_NOTEBOOK_BASE*>( page ) )
+    {
+        if( panel->GetClosable() )
+        {
+            if( !panel->GetCanClose() )
+                evt.Veto();
+
+            CallAfter(
+                    [this]()
+                    {
+                        SaveOpenJobSetsToLocalSettings();
+                    } );
+        }
+        else
+        {
+            evt.Veto();
+        }
+    }
 }
 
 
@@ -364,6 +436,8 @@ void KICAD_MANAGER_FRAME::setupUIConditions()
 
     manager->SetConditions( ACTIONS::saveAs,                       activeProjectCond );
     manager->SetConditions( KICAD_MANAGER_ACTIONS::closeProject,   activeProjectCond );
+    manager->SetConditions( KICAD_MANAGER_ACTIONS::newJobsetFile,  activeProjectCond );
+    manager->SetConditions( KICAD_MANAGER_ACTIONS::openJobsetFile, activeProjectCond );
 
     // These are just here for text boxes, search boxes, etc. in places such as the standard
     // file dialogs.
@@ -537,6 +611,17 @@ bool KICAD_MANAGER_FRAME::canCloseWindow( wxCloseEvent& aEvent )
     KICAD_SETTINGS* settings = kicadSettings();
     settings->m_OpenProjects = GetSettingsManager()->GetOpenProjects();
 
+    for( size_t i = 0; i < m_notebook->GetPageCount(); i++ )
+    {
+        wxWindow* page = m_notebook->GetPage( i );
+
+        if( PANEL_NOTEBOOK_BASE* panel = dynamic_cast<PANEL_NOTEBOOK_BASE*>( page ) )
+        {
+            if( !panel->GetCanClose() )
+                return false;
+        }
+    }
+
     // CloseProject will recursively ask all the open editors if they need to save changes.
     // If any of them cancel then we need to cancel closing the KICAD_MANAGER_FRAME.
     if( CloseProject( true ) )
@@ -574,6 +659,14 @@ void KICAD_MANAGER_FRAME::doCloseWindow()
     }
 #endif
 
+    for( size_t i = 0; i < m_notebook->GetPageCount(); i++ )
+    {
+        wxWindow* page = m_notebook->GetPage( i );
+
+        if( dynamic_cast<PANEL_NOTEBOOK_BASE*>( page ) )
+            m_notebook->DeletePage( i );
+    }
+
     m_leftWin->Show( false );
     Pgm().m_Quitting = true;
 
@@ -582,6 +675,29 @@ void KICAD_MANAGER_FRAME::doCloseWindow()
 #ifdef _WINDOWS_
     lock_close_event = 0;   // Reenable event management
 #endif
+}
+
+
+void KICAD_MANAGER_FRAME::SaveOpenJobSetsToLocalSettings( bool aIsExplicitUserSave )
+{
+    PROJECT_LOCAL_SETTINGS& cfg = Prj().GetLocalSettings();
+
+    if( !aIsExplicitUserSave && !cfg.ShouldAutoSave() )
+        return;
+
+    cfg.m_OpenJobSets.clear();
+
+    for( size_t i = 0; i < m_notebook->GetPageCount(); i++ )
+    {
+        if( PANEL_JOBSET* jobset = dynamic_cast<PANEL_JOBSET*>( m_notebook->GetPage( i ) ) )
+        {
+            wxFileName jobsetFn( jobset->GetFilePath() );
+            jobsetFn.MakeRelativeTo( Prj().GetProjectPath() );
+            cfg.m_OpenJobSets.emplace_back( jobsetFn.GetFullPath() );
+        }
+    }
+
+    cfg.SaveToFile( Prj().GetProjectPath() );
 }
 
 
@@ -596,15 +712,21 @@ bool KICAD_MANAGER_FRAME::CloseProject( bool aSave )
     if( !Kiway().PlayersClose( false ) )
         return false;
 
+    bool shouldSaveProject = Prj().GetLocalSettings().ShouldAutoSave()
+                             && Prj().GetProjectFile().ShouldAutoSave();
+
     // Save the project file for the currently loaded project.
     if( m_active_project )
     {
         SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
 
-        mgr.TriggerBackupIfNeeded( NULL_REPORTER::GetInstance() );
+        if( shouldSaveProject )
+        {
+            mgr.TriggerBackupIfNeeded( NULL_REPORTER::GetInstance() );
 
-        if( aSave )
-            mgr.SaveProject();
+            if( aSave )
+                mgr.SaveProject();
+        }
 
         m_active_project = false;
         mgr.UnloadProject( &Prj() );
@@ -612,9 +734,60 @@ bool KICAD_MANAGER_FRAME::CloseProject( bool aSave )
 
     SetStatusText( "" );
 
+    // Traverse pages in reverse order so deleting them doesn't mess up our iterator.
+    for( int i = (int) m_notebook->GetPageCount() - 1; i >= 0; i-- )
+    {
+        wxWindow* page = m_notebook->GetPage( i );
+
+        if( PANEL_NOTEBOOK_BASE* panel = dynamic_cast<PANEL_NOTEBOOK_BASE*>( page ) )
+        {
+            if( panel->GetProjectTied() )
+                m_notebook->DeletePage( i );
+        }
+    }
+
     m_leftWin->EmptyTreePrj();
+    HideTabsIfNeeded();
 
     return true;
+}
+
+
+void KICAD_MANAGER_FRAME::OpenJobsFile( const wxFileName& aFileName, bool aCreate,
+                                        bool aResaveProjectPreferences )
+{
+    for( size_t i = 0; i < m_notebook->GetPageCount(); i++ )
+    {
+        if( PANEL_JOBSET* panel = dynamic_cast<PANEL_JOBSET*>( m_notebook->GetPage( i ) ) )
+        {
+            if( aFileName.GetFullPath() == panel->GetFilePath() )
+            {
+                m_notebook->SetSelection( i );
+                return;
+            }
+        }
+    }
+
+    try
+    {
+        std::unique_ptr<JOBSET> jobsFile =
+                std::make_unique<JOBSET>( aFileName.GetFullPath().ToStdString() );
+
+        jobsFile->LoadFromFile();
+
+        PANEL_JOBSET* jobPanel = new PANEL_JOBSET( m_notebook, this, std::move( jobsFile ) );
+        jobPanel->SetProjectTied( true );
+        jobPanel->SetClosable( true );
+        m_notebook->AddPage( jobPanel, aFileName.GetFullName(), true );
+        HideTabsIfNeeded();
+
+        if( aResaveProjectPreferences )
+            SaveOpenJobSetsToLocalSettings();
+    }
+    catch( ... )
+    {
+        DisplayErrorMessage( this, _( "Error opening jobs file" ) );
+    }
 }
 
 
@@ -645,6 +818,18 @@ void KICAD_MANAGER_FRAME::LoadProject( const wxFileName& aProjectFileName )
     settings->SaveToFile( Pgm().GetSettingsManager().GetPathForSettingsFile( settings ) );
 
     m_leftWin->ReCreateTreePrj();
+
+    for( const wxString& jobset : Prj().GetLocalSettings().m_OpenJobSets )
+    {
+        wxFileName jobsetFn( jobset );
+        jobsetFn.MakeAbsolute( Prj().GetProjectPath() );
+
+        if( jobsetFn.Exists() )
+            OpenJobsFile( jobsetFn.GetFullPath(), false, false );
+    }
+
+    // Always start with the apps page
+    m_notebook->SetSelection( 0 );
 
     // Rebuild the list of watched paths.
     // however this is possible only when the main loop event handler is running,
@@ -798,21 +983,30 @@ void KICAD_MANAGER_FRAME::ShowChangedLanguage()
     EDA_BASE_FRAME::ShowChangedLanguage();
 
     // tooltips in toolbars
-    RecreateBaseHToolbar();
+    RecreateBaseLeftToolbar();
     m_launcher->CreateLaunchers();
+
+    // update captions
+    int pageId = m_notebook->FindPage( m_launcher );
+
+    if( pageId != wxNOT_FOUND )
+        m_notebook->SetPageText( pageId, EDITORS_CAPTION );
+
+    m_auimgr.GetPane( m_leftWin ).Caption( PROJECT_FILES_CAPTION );
+    m_auimgr.Update();
+
+    m_leftWin->FileWatcherReset();
 
     PrintPrjInfo();
 }
 
 
-void KICAD_MANAGER_FRAME::CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged )
+void KICAD_MANAGER_FRAME::CommonSettingsChanged( int aFlags )
 {
-    EDA_BASE_FRAME::CommonSettingsChanged( aEnvVarsChanged, aTextVarsChanged );
+    EDA_BASE_FRAME::CommonSettingsChanged( aFlags );
 
-    if( m_pcm && aEnvVarsChanged )
-    {
+    if( m_pcm && ( aFlags & ENVVARS_CHANGED ) )
         m_pcm->ReadEnvVar();
-    }
 
     COMMON_SETTINGS* settings = Pgm().GetCommonSettings();
 
@@ -1021,7 +1215,7 @@ void KICAD_MANAGER_FRAME::onToolbarSizeChanged()
     m_auimgr.DetachPane( m_mainToolBar );
     delete m_mainToolBar;
     m_mainToolBar = nullptr;
-    RecreateBaseHToolbar();
+    RecreateBaseLeftToolbar();
     m_auimgr.AddPane( m_mainToolBar, EDA_PANE().HToolbar().Name( "MainToolbar" ).Left()
                       .Layer( 2 ) );
 

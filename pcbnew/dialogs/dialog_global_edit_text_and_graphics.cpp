@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -67,8 +67,10 @@ enum
 
 static bool       g_modifyReferences;
 static bool       g_modifyValues;
-static bool       g_modifyOtherFields;
+static bool       g_modifyFootprintFields;
 static bool       g_modifyFootprintGraphics;
+static bool       g_modifyFootprintDimensions;
+static bool       g_modifyOtherFootprintTexts;
 static bool       g_modifyBoardText;
 static bool       g_modifyBoardGraphics;
 static bool       g_filterByLayer;
@@ -78,6 +80,7 @@ static wxString   g_referenceFilter;
 static bool       g_filterByFootprint;
 static wxString   g_footprintFilter;
 static bool       g_filterSelected = false;
+static bool       g_setToSpecifiedValues = true;
 
 
 class DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS : public DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS_BASE
@@ -135,7 +138,7 @@ DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS( PCB_
 
     if( !m_isBoardEditor )
     {
-        m_otherFields->SetLabel( _( "Other text items" ) );
+        m_otherFootprintTexts->SetLabel( _( "Other footprint text items" ) );
         m_footprintGraphics->SetLabel( _( "Graphic items" ) );
         m_footprintDimensions->SetLabel( _( "Dimension items" ) );
 
@@ -160,7 +163,13 @@ DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS( PCB_
     m_grid->SetCellHighlightPenWidth( 0 );
     m_grid->SetDefaultCellFont( KIUI::GetInfoFont( this ) );
 
-    SetupStandardButtons();
+    if( g_setToSpecifiedValues == true )
+        m_setToSpecifiedValues->SetValue( true );
+    else
+        m_setToLayerDefaults->SetValue( true );
+
+    SetupStandardButtons( { { wxID_OK, _( "Apply and Close" ) },
+                            { wxID_CANCEL, _( "Close" ) } } );
 
     finishDialogSettings();
 }
@@ -170,8 +179,10 @@ DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::~DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS()
 {
     g_modifyReferences = m_references->GetValue();
     g_modifyValues = m_values->GetValue();
-    g_modifyOtherFields = m_otherFields->GetValue();
+    g_modifyFootprintFields = m_footprintFields->GetValue();
     g_modifyFootprintGraphics = m_footprintGraphics->GetValue();
+    g_modifyFootprintDimensions = m_footprintDimensions->GetValue();
+    g_modifyOtherFootprintTexts = m_otherFootprintTexts->GetValue();
 
     if( m_isBoardEditor )
     {
@@ -191,6 +202,7 @@ DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::~DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS()
     }
 
     g_filterSelected = m_selectedItemsFilter->GetValue();
+    g_setToSpecifiedValues = m_setToSpecifiedValues->GetValue();
 }
 
 
@@ -201,8 +213,10 @@ bool DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::TransferDataToWindow()
 
     m_references->SetValue( g_modifyReferences );
     m_values->SetValue( g_modifyValues );
-    m_otherFields->SetValue( g_modifyOtherFields );
+    m_footprintFields->SetValue( g_modifyFootprintFields );
     m_footprintGraphics->SetValue( g_modifyFootprintGraphics );
+    m_footprintDimensions->SetValue( g_modifyFootprintDimensions );
+    m_otherFootprintTexts->SetValue( g_modifyOtherFootprintTexts );
 
     if( m_isBoardEditor )
     {
@@ -391,7 +405,8 @@ void DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::processItem( BOARD_COMMIT& aCommit, B
                 if( !text->GetFontName().IsEmpty() )
                 {
                     text->SetFont( KIFONT::FONT::GetFont( text->GetFontName(), text->IsBold(),
-                                                          text->IsItalic() ) );
+                                                          text->IsItalic(),
+                                                          m_parent->GetBoard()->GetEmbeddedFiles()->GetFontFiles() ) );
                 }
             }
 
@@ -534,14 +549,28 @@ bool DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::TransferDataFromWindow()
         if( m_values->GetValue() )
             visitItem( commit, &fp->Value() );
 
+        if( m_footprintFields->GetValue() )
+        {
+            for( PCB_FIELD* field : fp->GetFields() )
+            {
+                if( field->IsReference() )
+                    continue;
+
+                if( field->IsValue() )
+                    continue;
+
+                visitItem( commit, field );
+            }
+        }
+
         // Go through all other footprint items
         for( BOARD_ITEM* boardItem : fp->GraphicalItems() )
         {
             KICAD_T itemType = boardItem->Type();
 
-            if( itemType == PCB_FIELD_T || itemType == PCB_TEXT_T || itemType == PCB_TEXTBOX_T )
+            if( itemType == PCB_TEXT_T || itemType == PCB_TEXTBOX_T )
             {
-                if( m_otherFields->GetValue() )
+                if( m_otherFootprintTexts->GetValue() )
                     visitItem( commit, boardItem );
             }
             else if( BaseType( itemType ) == PCB_DIMENSION_T )
@@ -582,7 +611,7 @@ bool DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::TransferDataFromWindow()
         }
     }
 
-    commit.Push( wxT( "Edit text and graphics properties" ) );
+    commit.Push( _( "Edit Text and Graphics" ) );
     m_parent->GetCanvas()->Refresh();
 
     return true;

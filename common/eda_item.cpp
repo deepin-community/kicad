@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,29 +36,29 @@
 
 EDA_ITEM::EDA_ITEM( EDA_ITEM* parent, KICAD_T idType, bool isSCH_ITEM, bool isBOARD_ITEM ) :
         KIGFX::VIEW_ITEM( isSCH_ITEM, isBOARD_ITEM ),
-        m_parent( parent ),
-        m_forceVisible( false ),
+        m_structType( idType ),
         m_flags( 0 ),
-        m_structType( idType )
+        m_parent( parent ),
+        m_forceVisible( false )
 { }
 
 
 EDA_ITEM::EDA_ITEM( KICAD_T idType, bool isSCH_ITEM, bool isBOARD_ITEM ) :
         KIGFX::VIEW_ITEM( isSCH_ITEM, isBOARD_ITEM ),
-        m_parent( nullptr ),
-        m_forceVisible( false ),
+        m_structType( idType ),
         m_flags( 0 ),
-        m_structType( idType )
+        m_parent( nullptr ),
+        m_forceVisible( false )
 { }
 
 
 EDA_ITEM::EDA_ITEM( const EDA_ITEM& base ) :
         KIGFX::VIEW_ITEM( base.IsSCH_ITEM(), base.IsBOARD_ITEM() ),
         m_Uuid( base.m_Uuid ),
-        m_parent( base.m_parent ),
-        m_forceVisible( base.m_forceVisible ),
+        m_structType( base.m_structType ),
         m_flags( base.m_flags ),
-        m_structType( base.m_structType )
+        m_parent( base.m_parent ),
+        m_forceVisible( base.m_forceVisible )
 {
     SetForcedTransparency( base.GetForcedTransparency() );
 }
@@ -108,7 +108,7 @@ INSPECT_RESULT EDA_ITEM::Visit( INSPECTOR inspector, void* testData,
 }
 
 
-wxString EDA_ITEM::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString EDA_ITEM::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     wxFAIL_MSG( wxT( "GetItemDescription() was not overridden for schematic item type " ) +
                 GetClass() );
@@ -280,11 +280,11 @@ const BOX2I EDA_ITEM::ViewBBox() const
 }
 
 
-void EDA_ITEM::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> EDA_ITEM::ViewGetLayers() const
 {
     // Basic fallback
-    aCount      = 1;
-    aLayers[0]  = 0;
+    std::vector<int> layers{ 1 };
+    return layers;
 }
 
 
@@ -352,6 +352,8 @@ static struct EDA_ITEM_DESC
             .Map( PCB_FIELD_T,             _HKI( "Text" ) )
             .Map( PCB_TEXT_T,              _HKI( "Text" ) )
             .Map( PCB_TEXTBOX_T,           _HKI( "Text Box" ) )
+            .Map( PCB_TABLE_T,             _HKI( "Table" ) )
+            .Map( PCB_TABLECELL_T,         _HKI( "Table Cell" ) )
             .Map( PCB_TRACE_T,             _HKI( "Track" ) )
             .Map( PCB_ARC_T,               _HKI( "Track" ) )
             .Map( PCB_VIA_T,               _HKI( "Via" ) )
@@ -375,8 +377,11 @@ static struct EDA_ITEM_DESC
             .Map( SCH_LINE_T,              _HKI( "Line" ) )
             .Map( SCH_BITMAP_T,            _HKI( "Bitmap" ) )
             .Map( SCH_SHAPE_T,             _HKI( "Graphic" ) )
+            .Map( SCH_RULE_AREA_T,         _HKI( "Rule Area" ) )
             .Map( SCH_TEXT_T,              _HKI( "Text" ) )
             .Map( SCH_TEXTBOX_T,           _HKI( "Text Box" ) )
+            .Map( SCH_TABLE_T,             _HKI( "Table" ) )
+            .Map( SCH_TABLECELL_T,         _HKI( "Table Cell" ) )
             .Map( SCH_LABEL_T,             _HKI( "Net Label" ) )
             .Map( SCH_DIRECTIVE_LABEL_T,   _HKI( "Directive Label" ) )
             .Map( SCH_GLOBAL_LABEL_T,      _HKI( "Global Label" ) )
@@ -395,11 +400,6 @@ static struct EDA_ITEM_DESC
             .Map( SCH_SCREEN_T,            _HKI( "SCH Screen" ) )
 
             .Map( LIB_SYMBOL_T,            _HKI( "Symbol" ) )
-            .Map( LIB_SHAPE_T,             _HKI( "Graphic" ) )
-            .Map( LIB_TEXT_T,              _HKI( "Text" ) )
-            .Map( LIB_TEXTBOX_T,           _HKI( "Text Box" ) )
-            .Map( LIB_PIN_T,               _HKI( "Pin" ) )
-            .Map( LIB_FIELD_T,             _HKI( "Symbol Field" ) )
 
             .Map( GERBER_LAYOUT_T,         _HKI( "Gerber Layout" ) )
             .Map( GERBER_DRAW_ITEM_T,      _HKI( "Draw Item" ) )

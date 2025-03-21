@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -32,6 +32,7 @@
 #include <gerbview_draw_panel_gal.h>
 #include <gerbview_settings.h>
 #include <drawing_sheet/ds_proxy_view_item.h>
+#include <lset.h>
 #include <settings/settings_manager.h>
 #include <tool/tool_manager.h>
 #include <tool/action_toolbar.h>
@@ -47,6 +48,7 @@
 #include <tools/gerbview_control.h>
 #include <trigo.h>
 #include <view/view.h>
+#include <view/view_controls.h>
 #include <base_screen.h>
 #include <gerbview_painter.h>
 #include <wx/wupdlock.h>
@@ -86,7 +88,6 @@ GERBVIEW_FRAME::GERBVIEW_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_netText = nullptr;
     m_apertText = nullptr;
     m_dcodeText = nullptr;
-    m_displayMode = 0;
     m_aboutTitle = _HKI( "KiCad Gerber Viewer" );
 
     SHAPE_POLY_SET dummy;   // A ugly trick to force the linker to include
@@ -391,7 +392,7 @@ void GERBVIEW_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
 COLOR_SETTINGS* GERBVIEW_FRAME::GetColorSettings( bool aForceRefresh ) const
 {
     SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-    GERBVIEW_SETTINGS* cfg = mgr.GetAppSettings<GERBVIEW_SETTINGS>();
+    GERBVIEW_SETTINGS* cfg = mgr.GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" );
     wxString currentTheme = cfg->m_ColorTheme;
     return mgr.GetColorSettings( currentTheme );
 }
@@ -1163,10 +1164,10 @@ void GERBVIEW_FRAME::setupUIConditions()
             return gvconfig()->m_Appearance.show_dcodes;
         };
 
-    auto diffModeCond =
+    auto forceOpacityModeCond =
         [this] ( const SELECTION& )
         {
-            return gvconfig()->m_Display.m_DiffMode;
+            return gvconfig()->m_Display.m_ForceOpacityMode;
         };
 
     auto xorModeCond =
@@ -1198,7 +1199,7 @@ void GERBVIEW_FRAME::setupUIConditions()
     mgr->SetConditions( GERBVIEW_ACTIONS::polygonsDisplayOutlines, CHECK( polygonsFilledCond ) );
     mgr->SetConditions( GERBVIEW_ACTIONS::negativeObjectDisplay,   CHECK( negativeObjectsCond ) );
     mgr->SetConditions( GERBVIEW_ACTIONS::dcodeDisplay,            CHECK( dcodeCond ) );
-    mgr->SetConditions( GERBVIEW_ACTIONS::toggleDiffMode,          CHECK( diffModeCond ) );
+    mgr->SetConditions( GERBVIEW_ACTIONS::toggleForceOpacityMode,  CHECK( forceOpacityModeCond ) );
     mgr->SetConditions( GERBVIEW_ACTIONS::toggleXORMode,           CHECK( xorModeCond ) );
     mgr->SetConditions( GERBVIEW_ACTIONS::flipGerberView,          CHECK( flipGerberCond ) );
     mgr->SetConditions( ACTIONS::highContrastMode,                 CHECK( highContrastModeCond ) );
@@ -1209,12 +1210,14 @@ void GERBVIEW_FRAME::setupUIConditions()
 }
 
 
-void GERBVIEW_FRAME::CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged )
+void GERBVIEW_FRAME::CommonSettingsChanged( int aFlags )
 {
-    EDA_DRAW_FRAME::CommonSettingsChanged( aEnvVarsChanged, aTextVarsChanged );
+    EDA_DRAW_FRAME::CommonSettingsChanged( aFlags );
 
     // Update gal display options like cursor shape, grid options:
-    GERBVIEW_SETTINGS* cfg = Pgm().GetSettingsManager().GetAppSettings<GERBVIEW_SETTINGS>();
+    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+    GERBVIEW_SETTINGS* cfg = mgr.GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" );
+
     GetGalDisplayOptions().ReadWindowSettings( cfg->m_Window );
 
     SetPageSettings( PAGE_INFO( gvconfig()->m_Appearance.page_type ) );

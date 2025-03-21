@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -26,10 +26,12 @@
 #ifndef UI_COMMON_H
 #define UI_COMMON_H
 
+#include <kicommon.h>
 #include "report_severity.h"      // enum SEVERITY
 #include <wx/string.h>
 #include <wx/font.h>
 
+class wxBitmapBundle;
 class wxSize;
 class wxTextCtrl;
 class wxTextEntry;
@@ -47,24 +49,27 @@ class wxMenu;
 namespace KIUI
 {
 
+const int c_IndicatorSizeDIP = 10;
+
+
 /**
  * Get the standard margin around a widget in the KiCad UI
  * @return margin in pixels
  */
-int GetStdMargin();
+KICOMMON_API int GetStdMargin();
 
 /**
  * Return the size of @a aSingleLine of text when it is rendered in @a aWindow
  * using whatever font is currently set in that window.
  */
-wxSize GetTextSize( const wxString& aSingleLine, wxWindow* aWindow );
+KICOMMON_API wxSize GetTextSize( const wxString& aSingleLine, wxWindow* aWindow );
 
-wxFont GetMonospacedUIFont();
+KICOMMON_API wxFont GetMonospacedUIFont();
 
-wxFont GetControlFont( wxWindow* aWindow );
-wxFont GetInfoFont( wxWindow* aWindow );
-wxFont GetDockedPaneFont( wxWindow* aWindow );
-wxFont GetStatusFont( wxWindow* aWindow );
+KICOMMON_API wxFont GetControlFont( wxWindow* aWindow );
+KICOMMON_API wxFont GetInfoFont( wxWindow* aWindow );
+KICOMMON_API wxFont GetDockedPaneFont( wxWindow* aWindow );
+KICOMMON_API wxFont GetStatusFont( wxWindow* aWindow );
 
 /**
  * Set the minimum pixel width on a text control in order to make a text
@@ -80,33 +85,33 @@ wxFont GetStatusFont( wxWindow* aWindow );
  *   the text already within the control is used.
  * @return true if the \a aCtrl had its size changed, else false.
  */
-bool EnsureTextCtrlWidth( wxTextCtrl* aCtrl, const wxString* aString = nullptr );
+KICOMMON_API bool EnsureTextCtrlWidth( wxTextCtrl* aCtrl, const wxString* aString = nullptr );
 
 /**
  * Select the number (or "?") in a reference for ease of editing.
  */
-void SelectReferenceNumber( wxTextEntry* aTextEntry );
+KICOMMON_API void SelectReferenceNumber( wxTextEntry* aTextEntry );
 
 /**
  * Ellipsize text (at the end) to be no more than 1/3 of the window width.
  *
  * @return shortened text ending with an ellipsis.
  */
-wxString EllipsizeStatusText( wxWindow* aWindow, const wxString& aString );
+KICOMMON_API wxString EllipsizeStatusText( wxWindow* aWindow, const wxString& aString );
 
 /**
  * Ellipsize text (at the end) to be no more than 36 characters.
  *
  * @return shortened text ending with an ellipsis.
  */
-wxString EllipsizeMenuText( const wxString& aString );
+KICOMMON_API wxString EllipsizeMenuText( const wxString& aString );
 
 /**
  * Check if a input control has focus.
  *
  * @param aFocus Control that has focus, if null, wxWidgets will be queried
  */
-bool IsInputControlFocused( wxWindow* aFocus = nullptr );
+KICOMMON_API bool IsInputControlFocused( wxWindow* aFocus = nullptr );
 
 /**
  * Check if a input control has focus.
@@ -115,17 +120,17 @@ bool IsInputControlFocused( wxWindow* aFocus = nullptr );
  * @return True if control is input and editable OR control is not a input. False if control is
  *         input and not editable.
  */
-bool IsInputControlEditable( wxWindow* aControl );
+KICOMMON_API bool IsInputControlEditable( wxWindow* aControl );
 
-bool IsModalDialogFocused();
+KICOMMON_API bool IsModalDialogFocused();
 
 /**
  * Makes a window read-only.  Does some extra work over wxWindow::Disable() to make sure you
  * can still scroll around in sub-windows.
  */
-void Disable( wxWindow* aWindow );
+KICOMMON_API void Disable( wxWindow* aWindow );
 
-extern const wxString s_FocusStealableInputName;
+KICOMMON_API extern const wxString s_FocusStealableInputName;
 
 
 /**
@@ -138,7 +143,7 @@ extern const wxString s_FocusStealableInputName;
  * @param aMenu is the menuitem.
  * @param aImage is the icon to add to aMenu.
  */
-void AddBitmapToMenuItem( wxMenuItem* aMenu, const wxBitmap& aImage );
+KICOMMON_API void AddBitmapToMenuItem( wxMenuItem* aMenu, const wxBitmapBundle& aImage );
 
 
 /**
@@ -151,8 +156,9 @@ void AddBitmapToMenuItem( wxMenuItem* aMenu, const wxBitmap& aImage );
  * @param aType is the type of menu :wxITEM_NORMAL (default), wxITEM_CHECK ...
  * @return a pointer to the new created wxMenuItem.
  */
-wxMenuItem* AddMenuItem( wxMenu* aMenu, int aId, const wxString& aText, const wxBitmap& aImage,
-                         wxItemKind aType = wxITEM_NORMAL );
+KICOMMON_API wxMenuItem* AddMenuItem( wxMenu* aMenu, int aId, const wxString& aText,
+                                      const wxBitmapBundle& aImage,
+                                      wxItemKind            aType = wxITEM_NORMAL );
 
 
 /**
@@ -166,8 +172,9 @@ wxMenuItem* AddMenuItem( wxMenu* aMenu, int aId, const wxString& aText, const wx
  * @param aType is the type of menu :wxITEM_NORMAL (default), wxITEM_CHECK ...
  * @return a pointer to the new created wxMenuItem.
  */
-wxMenuItem* AddMenuItem( wxMenu* aMenu, int aId, const wxString& aText, const wxString& aHelpText,
-                         const wxBitmap& aImage, wxItemKind aType = wxITEM_NORMAL );
+KICOMMON_API wxMenuItem* AddMenuItem( wxMenu* aMenu, int aId, const wxString& aText,
+                                      const wxString& aHelpText, const wxBitmapBundle& aImage,
+                                      wxItemKind aType = wxITEM_NORMAL );
 
 
 /**
@@ -180,8 +187,8 @@ wxMenuItem* AddMenuItem( wxMenu* aMenu, int aId, const wxString& aText, const wx
  * @param aImage is the icon to add to the new menu item.
  * @return a pointer to the new created wxMenuItem,
  */
-wxMenuItem* AddMenuItem( wxMenu* aMenu, wxMenu* aSubMenu, int aId, const wxString& aText,
-                         const wxBitmap& aImage );
+KICOMMON_API wxMenuItem* AddMenuItem( wxMenu* aMenu, wxMenu* aSubMenu, int aId,
+                                      const wxString& aText, const wxBitmapBundle& aImage );
 
 
 /**
@@ -196,12 +203,13 @@ wxMenuItem* AddMenuItem( wxMenu* aMenu, wxMenu* aSubMenu, int aId, const wxStrin
  * @param aImage is the icon to add to the new menu item.
  * @return a pointer to the new created wxMenuItem.
  */
-wxMenuItem* AddMenuItem( wxMenu* aMenu, wxMenu* aSubMenu, int aId, const wxString& aText,
-                         const wxString& aHelpText, const wxBitmap& aImage );
+KICOMMON_API wxMenuItem* AddMenuItem( wxMenu* aMenu, wxMenu* aSubMenu, int aId,
+                                      const wxString& aText, const wxString& aHelpText,
+                                      const wxBitmapBundle& aImage );
 }
 
-SEVERITY SeverityFromString( const wxString& aSeverity );
+KICOMMON_API SEVERITY SeverityFromString( const wxString& aSeverity );
 
-wxString SeverityToString( const SEVERITY& aSeverity );
+KICOMMON_API wxString SeverityToString( const SEVERITY& aSeverity );
 
 #endif // UI_COMMON_H

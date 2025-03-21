@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 Ola Rinta-Koski <gitlab@rinta-koski.net>
- * Copyright (C) 2021-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -162,7 +162,8 @@ void OUTLINE_GLYPH::CacheTriangulation( bool aPartition, bool aSimplify )
 }
 
 
-std::vector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>> OUTLINE_GLYPH::GetTriangulationData() const
+std::vector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>>
+OUTLINE_GLYPH::GetTriangulationData() const
 {
     std::vector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>> data;
 
@@ -173,7 +174,8 @@ std::vector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>> OUTLINE_GLYPH
 }
 
 
-void OUTLINE_GLYPH::CacheTriangulation( std::vector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>>& aHintData )
+void OUTLINE_GLYPH::CacheTriangulation(
+        std::vector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>>& aHintData )
 {
     cacheTriangulation( false, false, &aHintData );
 }

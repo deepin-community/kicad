@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -47,8 +47,10 @@ public:
     int NewProject( const TOOL_EVENT& aEvent );
     int NewFromTemplate( const TOOL_EVENT& aEvent );
     int NewFromRepository( const TOOL_EVENT& aEvent );
+    int NewJobsetFile( const TOOL_EVENT& aEvent );
     int OpenProject( const TOOL_EVENT& aEvent );
     int OpenDemoProject( const TOOL_EVENT& aEvent );
+    int OpenJobsetFile( const TOOL_EVENT& aEvent );
     int CloseProject( const TOOL_EVENT& aEvent );
     int SaveProjectAs( const TOOL_EVENT& aEvent );
     int LoadProject( const TOOL_EVENT& aEvent );
@@ -65,6 +67,7 @@ public:
     int ShowPlayer( const TOOL_EVENT& aEvent );
     int Execute( const TOOL_EVENT& aEvent );
 
+    int ShowDesignBlockLibTable( const TOOL_EVENT& aEvent );
     int ShowPluginManager( const TOOL_EVENT& aEvent );
 
     ///< Set up handlers for various events.

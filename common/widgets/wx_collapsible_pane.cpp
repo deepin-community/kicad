@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -222,7 +222,7 @@ bool WX_COLLAPSIBLE_PANE_HEADER::Create( wxWindow* aParent, wxWindowID aId, cons
                                          const wxPoint& aPos, const wxSize& aSize, long aStyle,
                                          const wxValidator& aValidator, const wxString& aName )
 {
-    if ( !wxControl::Create( aParent, aId, aPos, aSize, aStyle, aValidator, aName ) )
+    if( !wxControl::Create( aParent, aId, aPos, aSize, aStyle, aValidator, aName ) )
         return false;
 
     SetLabel( aLabel );
@@ -395,7 +395,8 @@ void WX_COLLAPSIBLE_PANE_HEADER::onChar( wxKeyEvent& aEvent )
 
 void WX_COLLAPSIBLE_PANE_HEADER::drawArrow( wxDC& aDC, wxRect aRect, bool aIsActive )
 {
-    // The bottom corner of the triangle is located halfway across the area and 3/4 down from the top
+    // The bottom corner of the triangle is located halfway across the area and 3/4 down from
+    // the top
     wxPoint btmCorner( aRect.GetWidth() / 2, 3 * aRect.GetHeight() / 4 );
 
     // The right corner of the triangle is located halfway down from the top and 3/4 across the area

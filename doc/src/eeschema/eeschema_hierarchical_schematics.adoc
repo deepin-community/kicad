@@ -19,6 +19,7 @@ electrical connections between sheets. Connections can be made between nets in a
 subsheet and nets in the parent sheet using hierarchical pins and labels, or
 between any two nets in the hierarchy using global labels.
 
+[[drawing-hierarchical-sheets]]
 === Adding sheets to a design
 
 You can add a subsheet to a design with the Add Hierarchical Sheet tool
@@ -41,7 +42,8 @@ in the subsheet. For example, a net with the local label `net1` in the sheet
 `sheet1` would have a full net name of `/sheet1/net1`. The sheet name is also
 used to refer to the sheet in various places in the GUI, including the
 <<sheet-title-block,title block>> and the
-<<navigating-between-sheets,hierarchy navigator>>.
+<<navigating-between-sheets,hierarchy navigator>>. The sheet name can also be
+changed in the hierarchy navigator.
 
 The *sheet file* specifies the file that the new sheet will be saved to or
 loaded from. The path to the sheet file can be relative or absolute. It is
@@ -62,7 +64,15 @@ The sheet's *page number* is configurable here. The page number is displayed in
 the sheet <<sheet-title-block,title block>> and the
 <<navigating-between-sheets,hierarchy navigator>>, and sheets are sorted by page
 number in the hierarchy navigator and when
-<<generating-outputs,printing or plotting>>.
+<<generating-outputs,printing or plotting>>. The sheet number can also be
+changed in the hierarchy navigator or for the current page with
+**Edit** -> **Edit Sheet Page Number...**.
+
+Other attributes for sheets are **Exclude from simulation**,
+**Exclude from bill of materials**, **Exclude from board**, and
+**Do not populate**. When any of these attributes are set for a sheet, they are
+inherited by all symbols in that sheet,
+<<editing-symbol-properties,as if they were set on the symbols themselves>>.
 
 Several graphical options are also available. *Border width* sets the width of
 the border around the sheet shape. *Border color* and *Background fill* set the
@@ -101,12 +111,15 @@ the hierarchy navigator, click the
 image:images/icons/hierarchy_nav_24.png[Hierarchy navigator icon] button in the
 left toolbar. The hierarchy navigator docks at the left of the screen. Each
 sheet in the design is displayed as an item in the tree. Clicking a sheet name
-opens that sheet in the editing canvas.
+opens that sheet in the editing canvas. You can also use the hierarchy
+navigator to rename or renumber a sheet by right clicking on the sheet name and
+selecting **Edit page number** or **Rename**.
 
 image::images/hierarchy_navigator_pane.png[alt="hierarchy navigator",scaledwidth="50%"]
 
 === Electrical connections between sheets
 
+[[hierarchical-labels]]
 ==== Label overview
 
 Electrical connections between sheets are made with <<labels,labels>>. There are
@@ -122,9 +135,11 @@ several kinds of labels in KiCad, each with a different connection scope.
 
 * *Hierarchical labels* connect to *hierarchical sheet pins* accessible in the
   parent sheet. Hierarchical designs rely on hierarchical labels and pins to
-  make connections between parent sheets and child sheets; you can think of
-  hierarchical pins as defining the interface for a sheet. Hierarchical labels
-  are added with the
+  make connections between parent sheets and child sheets. You can think of
+  sheet pins as defining the interface for a sheet; hierarchical
+  labels within the child sheet connect to corresponding sheet pins which are
+  visible in the parent sheet. Hierarchical labels are added inside a child
+  sheet using the
   image:images/icons/add_hierarchical_label_24.png[Hierarchical Label icon]
   button.
 
@@ -138,26 +153,26 @@ NOTE: <<hidden-power-pins,Hidden power pins>> can also be considered global
 ==== Hierarchical sheet pins
 
 After placing hierarchical labels within the subsheet, matching *hierarchical
-pins* can be added to the subsheet symbol in the parent sheet. You can then make
-connections to the hierarchical pins with wires, labels, and buses. Hierarchical
-pins in a subsheet symbol are connected to the matching hierarchical labels in
-the subsheet itself.
+sheet pins* can be added to the subsheet symbol in the parent sheet. You can
+then make connections to the hierarchical pins with wires, labels, and buses.
+Hierarchical sheet pins in a subsheet symbol are connected to the matching
+hierarchical labels in the subsheet itself.
 
 NOTE: Hierarchical labels must be defined in the subsheet before the
       corresponding hierarchical sheet pin can be imported in the sheet symbol.
 
 image::images/hierarchical_sheet_pins.png[alt="hierarchical sheet symbol with pins",scaledwidth="70%"]
 
-For every hierarchical label in the subsheet, import the corresponding
-hierarchical pin into the sheet symbol by clicking the
-image:images/icons/import_hierarchical_label_24.png[Import Hierarchical Pin icon]
-button in the right toolbar, then clicking on the sheet symbol. A sheet
+For every hierarchical label in the subsheet, add the corresponding
+hierarchical pin onto the sheet symbol by clicking the
+image:images/icons/add_hierar_pin_24.png[Place Sheet Pins icon] button in the
+right toolbar, then clicking on the sheet symbol. A sheet
 pin for the first unmatched hierarchical label will be attached to the cursor,
 where it can be placed anywhere along the border of the sheet symbol. Clicking
-again with the tool will continue to import additional sheet pins until there
-are no more hierarchical pins to import from the subsheet. Sheet pins can
-also be imported by selecting **Import Sheet Pin** in a sheet symbol's
-right-click context menu.
+again with the tool will continue to add additional sheet pins until all of the
+hierarchical labels in the subsheet have a matching sheet pin on the sheet
+symbol. Sheet pins can also be imported by selecting **Place Sheet Pin** in a
+sheet symbol's right-click context menu.
 
 You can edit the properties of a sheet pin in the Sheet Pin Properties dialog.
 Open this dialog by double-clicking a sheet pin, selecting a sheet pin and using
@@ -168,13 +183,78 @@ image::images/sheet_pin_properties.png[Sheet Pin Properties dialog]
 
 The sheet pin's *name* can be edited in the textbox or by selecting from the
 dropdown list of hierarchical labels in the subsheet. A sheet pin's name has to
-match the corresponding hierarchical label in the subsheet, so if a pin name is
-changed the label must change as well.
+match the corresponding hierarchical label in the subsheet, so if you change a
+pin name you must change the label name as well.
 
 *Shape* changes the shape of the sheet pin, and has no electrical
 effect. It can be set to Input, Output, Bidirectional, Tri-state, or Passive.
 The pin's *font*, *text size*, *color*, and emphasis (bold or italic) can also
 be changed.
+
+[[syncing-sheet-pins]]
+==== Syncing sheet pins
+
+Another way to manage the connections between hierarchical labels and sheet pins
+is to use the Sync Sheet Pins tool. Launch this tool using the
+image:images/icons/import_hierarchical_label_24.png[Sync Sheet Pins icon]
+button in the right toolbar or with **Sync Sheet Pins** in a sheet symbol's
+right click context menu.
+
+image::images/sync_sheet_pins.png[]
+
+This dialog shows the hierarchical labels and hierarchical sheet pins for each
+hierarchical sheet. If the tool was launched from the context menu of a sheet
+symbol, only one tab will be available, with the labels and sheet pins for that
+specific sheet. If the tool was started globally, i.e. with the
+image:images/icons/import_hierarchical_label_24.png[] button or with **Place**
+-> **Sync Sheet Pins**, a tab will be shown for each hierarchical sheet.
+
+The icon in each tab indicates whether the hierarchical sheet pins on the sheet
+symbol are correctly matched with the hierarchical labels inside the sheet. If
+the tab has a image:images/icons/ercwarn_16.png[] icon, then there is a
+hierarchical label in the sheet without a matching sheet pin, or a sheet pin
+without a corresponding hierarchical label, or both. If the tab has a
+image:images/icons/erc_green_16.png[] icon, then the hierarchical labels and
+hierarchical sheet pins are matched up correctly. Sheet pins and labels are
+considered matching if they have the same name and the same graphic shape
+(input, output, bidirectional, tri-state, or passive).
+
+The column on the left lists sheet pins for the current sheet that do not have
+a corresponding hierarchical label in the sheet. The middle column lists
+hierarchical labels in the current sheet that do not have a corresponding
+hierarchical sheet pin on the sheet symbol. The right column lists pairs of
+matching sheet pins and hierarchical labels. The name of each pin or label is
+shown along with its graphic shape.
+
+If you click the **Add Hierarchical Labels** button, new hierarchical labels
+corresponding to the selected sheet pins will be created for you to place
+sequentially in the sheet. The selected sheet pins are then removed from the
+left column and added to to the right column for matching sheet pins and labels.
+Clicking **Delete Sheet Pins** will delete the selected sheet pins from the
+sheet symbol.
+
+If you click the **Add Sheet Pins** button, new sheet pins corresponding to the
+selected hierarchical labels will be created for you to place on the sheet
+symbol. The hierarchical labels are then removed from the middle column and 
+added to the right column for matching sheet pins and labels.
+Clicking **Delete Hierarchical Labels** will delete the selected hierarchical
+labels from inside the sheet.
+
+Clicking the image:images/icons/add_hierarchical_label_16.png[] button will
+match the selected sheet pin and hierarchical label by renaming the sheet pin to
+match the hierarchical label's name. Clicking the
+image:images/icons/add_hierar_pin_16.png[] button will do the opposite, matching
+the selected sheet pin and hierarchical label by renaming the label to match the
+sheet pin.
+
+Clicking the image:images/icons/left_16.png[] button will unmatch a matched
+pair, moving both the sheet pin and the hierarchical label back to their
+respective unmatched columns. The unmatched sheet pin and hierarchical label can
+then be edited or rematched as desired.
+
+Any changes made in the Sync Sheet Pins dialog are applied immediately, before
+the dialog is closed. To cancel a change made in the Sync Sheet Pins dialog, use
+Undo.
 
 === Hierarchical design examples
 

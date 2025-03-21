@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  *
  * This program is free software; you can redistribute it and/or
@@ -56,10 +56,10 @@ DS_RENDER_SETTINGS::DS_RENDER_SETTINGS()
 
 void DS_RENDER_SETTINGS::LoadColors( const COLOR_SETTINGS* aSettings )
 {
-    for( int layer = SCH_LAYER_ID_START; layer < SCH_LAYER_ID_END; layer ++)
+    for( int layer = SCH_LAYER_ID_START; layer < SCH_LAYER_ID_END; layer++ )
         m_layerColors[ layer ] = aSettings->GetColor( layer );
 
-    for( int layer = GAL_LAYER_ID_START; layer < GAL_LAYER_ID_END; layer ++)
+    for( int layer = GAL_LAYER_ID_START; layer < GAL_LAYER_ID_END; layer++ )
         m_layerColors[ layer ] = aSettings->GetColor( layer );
 
     m_backgroundColor = aSettings->GetColor( LAYER_SCHEMATIC_BACKGROUND );
@@ -110,8 +110,6 @@ void DS_DRAW_ITEM_LIST::GetTextVars( wxArrayString* aVars )
 }
 
 
-// Returns the full text corresponding to the aTextbase, after replacing any text variable
-// references.
 wxString DS_DRAW_ITEM_LIST::BuildFullText( const wxString& aTextbase )
 {
     std::function<bool( wxString* )> wsResolver =
@@ -156,11 +154,6 @@ wxString DS_DRAW_ITEM_LIST::BuildFullText( const wxString& aTextbase )
                     *token = fn.GetFullPath();
                     return true;
                 }
-                else if( token->IsSameAs( wxT( "PROJECTNAME" ) ) && m_project )
-                {
-                    *token = m_project->GetProjectName();
-                    return true;
-                }
                 else if( token->IsSameAs( wxT( "PAPER" ) ) )
                 {
                     *token = m_paperFormat;
@@ -173,7 +166,7 @@ wxString DS_DRAW_ITEM_LIST::BuildFullText( const wxString& aTextbase )
                 }
                 else if( m_titleBlock )
                 {
-                    if( m_titleBlock->TextVarResolver( token, m_project ) )
+                    if( m_titleBlock->TextVarResolver( token, m_project, m_flags ) )
                     {
                         // No need for tokenUpdated; TITLE_BLOCK::TextVarResolver() already goes
                         // up to the project.
@@ -185,7 +178,7 @@ wxString DS_DRAW_ITEM_LIST::BuildFullText( const wxString& aTextbase )
 
                         m_titleBlock = nullptr;
                         {
-                            *token = ExpandTextVars( *token, &wsResolver );
+                            *token = ExpandTextVars( *token, &wsResolver, m_flags );
                         }
                         m_titleBlock = savedTitleBlock;
 
@@ -200,7 +193,7 @@ wxString DS_DRAW_ITEM_LIST::BuildFullText( const wxString& aTextbase )
 
                 if( tokenUpdated )
                 {
-                   *token = ExpandTextVars( *token, m_project );
+                   *token = ExpandTextVars( *token, m_project, m_flags );
                    return true;
                 }
 
@@ -210,7 +203,7 @@ wxString DS_DRAW_ITEM_LIST::BuildFullText( const wxString& aTextbase )
                 return false;
             };
 
-    return ExpandTextVars( aTextbase, &wsResolver );
+    return ExpandTextVars( aTextbase, &wsResolver, m_flags );
 }
 
 
@@ -279,7 +272,7 @@ void KIGFX::DS_PAINTER::draw( const DS_DRAW_ITEM_TEXT* aItem, int aLayer ) const
     if( !font )
     {
         font = KIFONT::FONT::GetFont( m_renderSettings.GetDefaultFont(), aItem->IsBold(),
-                                      aItem->IsItalic(), true );
+                                      aItem->IsItalic(), nullptr, true );
     }
 
     const COLOR4D& color = m_renderSettings.GetColor( aItem, aLayer );
@@ -375,6 +368,7 @@ void KIGFX::DS_PAINTER::DrawBorder( const PAGE_INFO* aPageInfo, int aScaleFactor
                              aPageInfo->GetHeightMils() * aScaleFactor );
 
     m_gal->SetIsStroke( true );
+
     // Use a gray color for the border color
     m_gal->SetStrokeColor( m_renderSettings.m_pageBorderColor );
     m_gal->SetIsFill( false );

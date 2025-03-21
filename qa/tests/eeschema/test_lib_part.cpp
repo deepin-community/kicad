@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,8 +29,9 @@
 #include <qa_utils/wx_utils/unit_test_utils.h>
 
 // Code under test
-#include <lib_shape.h>
-#include <lib_pin.h>
+#include <sch_shape.h>
+#include <sch_pin.h>
+#include <lib_symbol.h>
 
 #include "lib_field_test_utils.h"
 
@@ -84,8 +85,8 @@ BOOST_AUTO_TEST_CASE( DefaultProperties )
 BOOST_AUTO_TEST_CASE( DefaultDrawings )
 {
     // default drawings exist
-    BOOST_CHECK_EQUAL( m_part_no_data.GetDrawItems().size(), MANDATORY_FIELDS );
-    BOOST_CHECK_EQUAL( m_part_no_data.GetAllLibPins().size(), 0 );
+    BOOST_CHECK_EQUAL( m_part_no_data.GetDrawItems().size(), MANDATORY_FIELD_COUNT );
+    BOOST_CHECK_EQUAL( m_part_no_data.GetPins().size(), 0 );
 }
 
 
@@ -94,14 +95,14 @@ BOOST_AUTO_TEST_CASE( DefaultDrawings )
  */
 BOOST_AUTO_TEST_CASE( DefaultFields )
 {
-    std::vector<LIB_FIELD> fields;
-    m_part_no_data.GetFields( fields );
+    std::vector<SCH_FIELD> fields;
+    m_part_no_data.CopyFields( fields );
 
     // Should get the 4 default fields
     BOOST_CHECK_PREDICATE( KI_TEST::AreDefaultFieldsCorrect, ( fields ) );
 
     // but no more (we didn't set them)
-    BOOST_CHECK_EQUAL( fields.size(), MANDATORY_FIELD_T::MANDATORY_FIELDS );
+    BOOST_CHECK_EQUAL( fields.size(), MANDATORY_FIELD_COUNT );
 
     // also check the default field accessors
     BOOST_CHECK_PREDICATE( KI_TEST::FieldNameIdMatches,
@@ -122,13 +123,13 @@ BOOST_AUTO_TEST_CASE( DefaultFields )
  */
 BOOST_AUTO_TEST_CASE( AddedFields )
 {
-    std::vector<LIB_FIELD> fields;
-    m_part_no_data.GetFields( fields );
+    std::vector<SCH_FIELD> fields;
+    m_part_no_data.CopyFields( fields );
 
     // Ctor takes non-const ref (?!)
     const std::string newFieldName = "new_field";
     wxString          nonConstNewFieldName = newFieldName;
-    fields.push_back( LIB_FIELD( 42, nonConstNewFieldName ) );
+    fields.push_back( SCH_FIELD( nullptr, 42, nonConstNewFieldName ) );
 
     // fairly roundabout way to add a field, but it is what it is
     m_part_no_data.SetFields( fields );
@@ -137,14 +138,14 @@ BOOST_AUTO_TEST_CASE( AddedFields )
     BOOST_CHECK_PREDICATE( KI_TEST::AreDefaultFieldsCorrect, ( fields ) );
 
     // and our new one
-    BOOST_REQUIRE_EQUAL( fields.size(), MANDATORY_FIELD_T::MANDATORY_FIELDS + 1 );
+    BOOST_REQUIRE_EQUAL( fields.size(), MANDATORY_FIELD_COUNT + 1 );
 
     BOOST_CHECK_PREDICATE( KI_TEST::FieldNameIdMatches,
-            ( fields[MANDATORY_FIELD_T::MANDATORY_FIELDS] )( newFieldName )( 42 ) );
+            ( fields[MANDATORY_FIELD_COUNT] )( newFieldName )( 42 ) );
 
     // Check by-id lookup
 
-    LIB_FIELD* gotNewField = m_part_no_data.GetFieldById( 42 );
+    SCH_FIELD* gotNewField = m_part_no_data.GetFieldById( 42 );
 
     BOOST_REQUIRE_NE( gotNewField, nullptr );
 
@@ -372,7 +373,7 @@ BOOST_AUTO_TEST_CASE( Compare )
     BOOST_CHECK_EQUAL( m_part_no_data.Compare( m_part_no_data ), 0 );
 
     // Test for identical LIB_SYMBOL.
-    BOOST_CHECK_EQUAL( m_part_no_data.Compare( testPart ), 0 );
+    BOOST_CHECK_EQUAL( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ), 0 );
 
     // Test name.
     testPart.SetName( "tart_name" );
@@ -409,36 +410,36 @@ BOOST_AUTO_TEST_CASE( Compare )
     m_part_no_data.SetNormal();
 
     // Draw item list size comparison tests.
-    testPart.AddDrawItem( new LIB_SHAPE( &testPart, SHAPE_T::RECTANGLE ) );
-    m_part_no_data.AddDrawItem( new LIB_SHAPE( &m_part_no_data, SHAPE_T::RECTANGLE ) );
-    BOOST_CHECK_EQUAL( m_part_no_data.Compare( testPart ), 0 );
-    m_part_no_data.RemoveDrawItem( &m_part_no_data.GetDrawItems()[LIB_SHAPE_T].front() );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) < 0 );
-    testPart.RemoveDrawItem( &testPart.GetDrawItems()[LIB_SHAPE_T].front() );
-    m_part_no_data.AddDrawItem( new LIB_SHAPE( &m_part_no_data, SHAPE_T::RECTANGLE ) );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) > 0 );
-    m_part_no_data.RemoveDrawItem( &m_part_no_data.GetDrawItems()[LIB_SHAPE_T].front() );
+    testPart.AddDrawItem( new SCH_SHAPE( SHAPE_T::RECTANGLE, LAYER_DEVICE ) );
+    m_part_no_data.AddDrawItem( new SCH_SHAPE( SHAPE_T::RECTANGLE, LAYER_DEVICE ) );
+    BOOST_CHECK_EQUAL( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ), 0 );
+    m_part_no_data.RemoveDrawItem( &m_part_no_data.GetDrawItems()[SCH_SHAPE_T].front() );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) < 0 );
+    testPart.RemoveDrawItem( &testPart.GetDrawItems()[SCH_SHAPE_T].front() );
+    m_part_no_data.AddDrawItem( new SCH_SHAPE( SHAPE_T::RECTANGLE, LAYER_DEVICE ) );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) > 0 );
+    m_part_no_data.RemoveDrawItem( &m_part_no_data.GetDrawItems()[SCH_SHAPE_T].front() );
 
     // Draw item list contents comparison tests.
-    testPart.AddDrawItem( new LIB_SHAPE( &testPart, SHAPE_T::RECTANGLE ) );
-    m_part_no_data.AddDrawItem( new LIB_SHAPE( &m_part_no_data, SHAPE_T::ARC ) );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) > 0 );
-    m_part_no_data.RemoveDrawItem( &m_part_no_data.GetDrawItems()[LIB_SHAPE_T].front() );
-    testPart.RemoveDrawItem( &testPart.GetDrawItems()[LIB_SHAPE_T].front() );
-    m_part_no_data.AddDrawItem( new LIB_PIN( &m_part_no_data ) );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) > 0 );
-    m_part_no_data.RemoveDrawItem( &m_part_no_data.GetDrawItems()[LIB_PIN_T].front() );
+    testPart.AddDrawItem( new SCH_SHAPE( SHAPE_T::RECTANGLE, LAYER_DEVICE ) );
+    m_part_no_data.AddDrawItem( new SCH_SHAPE( SHAPE_T::ARC, LAYER_DEVICE ) );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) > 0 );
+    m_part_no_data.RemoveDrawItem( &m_part_no_data.GetDrawItems()[SCH_SHAPE_T].front() );
+    testPart.RemoveDrawItem( &testPart.GetDrawItems()[SCH_SHAPE_T].front() );
+    m_part_no_data.AddDrawItem( new SCH_PIN( &m_part_no_data ) );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) > 0 );
+    m_part_no_data.RemoveDrawItem( &m_part_no_data.GetDrawItems()[SCH_PIN_T].front() );
 
     // Footprint filter array comparison tests.
     wxArrayString footPrintFilters;
     BOOST_CHECK( m_part_no_data.GetFPFilters() == footPrintFilters );
     footPrintFilters.Add( "b" );
     testPart.SetFPFilters( footPrintFilters );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) < 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) < 0 );
     m_part_no_data.SetFPFilters( footPrintFilters );
     footPrintFilters.Clear();
     testPart.SetFPFilters( footPrintFilters );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) > 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) > 0 );
     footPrintFilters.Clear();
     m_part_no_data.SetFPFilters( footPrintFilters );
     testPart.SetFPFilters( footPrintFilters );
@@ -446,77 +447,77 @@ BOOST_AUTO_TEST_CASE( Compare )
     // Description string tests.
     m_part_no_data.SetDescription( "b" );
     testPart.SetDescription( "b" );
-    BOOST_CHECK_EQUAL( m_part_no_data.Compare( testPart ), 0 );
+    BOOST_CHECK_EQUAL( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ), 0 );
     m_part_no_data.SetDescription( "a" );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) < 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) < 0 );
     m_part_no_data.SetDescription( "c" );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) > 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) > 0 );
     m_part_no_data.SetDescription( wxEmptyString );
     testPart.SetDescription( wxEmptyString );
 
     // Key word string tests.
     m_part_no_data.SetKeyWords( "b" );
     testPart.SetKeyWords( "b" );
-    BOOST_CHECK_EQUAL( m_part_no_data.Compare( testPart ), 0 );
+    BOOST_CHECK_EQUAL( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ), 0 );
     m_part_no_data.SetKeyWords( "a" );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) < 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) < 0 );
     m_part_no_data.SetKeyWords( "c" );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) > 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) > 0 );
     m_part_no_data.SetKeyWords( wxEmptyString );
     testPart.SetKeyWords( wxEmptyString );
 
     // Pin name offset comparison tests.
     testPart.SetPinNameOffset( testPart.GetPinNameOffset() + 1 );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) < 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) < 0 );
     testPart.SetPinNameOffset( testPart.GetPinNameOffset() - 2 );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) > 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) > 0 );
     testPart.SetPinNameOffset( testPart.GetPinNameOffset() + 1 );
 
     // Units locked flag comparison tests.
     testPart.LockUnits( true );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) < 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) < 0 );
     testPart.LockUnits( false );
     m_part_no_data.LockUnits( true );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) > 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) > 0 );
     m_part_no_data.LockUnits( false );
 
     // Include in BOM support tests.
     testPart.SetExcludedFromBOM( true );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) > 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) > 0 );
     testPart.SetExcludedFromBOM( false );
     m_part_no_data.SetExcludedFromBOM( true );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) < 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) < 0 );
     m_part_no_data.SetExcludedFromBOM( false );
 
     // Include on board support tests.
     testPart.SetExcludedFromBoard( true );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) > 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) > 0 );
     testPart.SetExcludedFromBoard( false );
     m_part_no_data.SetExcludedFromBoard( true );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) < 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) < 0 );
     m_part_no_data.SetExcludedFromBoard( false );
 
     // Show pin names flag comparison tests.
     m_part_no_data.SetShowPinNames( false );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) < 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) < 0 );
     m_part_no_data.SetShowPinNames( true );
     testPart.SetShowPinNames( false );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) > 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) > 0 );
     testPart.SetShowPinNames( true );
 
     // Show pin numbers flag comparison tests.
     m_part_no_data.SetShowPinNumbers( false );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) < 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) < 0 );
     m_part_no_data.SetShowPinNumbers( true );
     testPart.SetShowPinNumbers( false );
-    BOOST_CHECK( m_part_no_data.Compare( testPart ) > 0 );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) > 0 );
     testPart.SetShowPinNumbers( true );
 
     // Time stamp comparison tests.
 
     // Check to see if we broke the copy ctor.
-    LIB_SYMBOL* copy = new LIB_SYMBOL( testPart );
-    BOOST_CHECK( testPart.Compare( *copy ) == 0 );
+    LIB_SYMBOL copy( testPart );
+    BOOST_CHECK( testPart.Compare( copy ) == 0 );
 }
 
 
@@ -529,7 +530,7 @@ BOOST_AUTO_TEST_CASE( GetUnitItems )
     BOOST_CHECK( m_part_no_data.GetUnitDrawItems( 1, 1 ).size() == 0 );
 
     // A single unique unit with 1 pin common to all units and all body styles.
-    LIB_PIN* pin1 = new LIB_PIN( &m_part_no_data );
+    SCH_PIN* pin1 = new SCH_PIN( &m_part_no_data );
     m_part_no_data.AddDrawItem( pin1 );
     BOOST_CHECK( m_part_no_data.GetUnitDrawItems( 0, 0 ).size() == 1 );
 
@@ -543,7 +544,7 @@ BOOST_AUTO_TEST_CASE( GetUnitItems )
 
     // Two unique units with pin 1 assigned to unit 1 and body style 1 and pin 2 assigned to
     // unit 2 and body style 1.
-    LIB_PIN* pin2 = new LIB_PIN( &m_part_no_data );
+    SCH_PIN* pin2 = new SCH_PIN( &m_part_no_data );
     m_part_no_data.SetUnitCount( 2 );
     pin2->SetUnit( 2 );
     pin2->SetBodyStyle( 2 );
@@ -571,7 +572,7 @@ BOOST_AUTO_TEST_CASE( GetUnitDrawItems )
     BOOST_CHECK( m_part_no_data.GetUnitDrawItems().size() == 0 );
 
     // A single unique unit with 1 pin common to all units and all body styles.
-    LIB_PIN* pin1 = new LIB_PIN( &m_part_no_data );
+    SCH_PIN* pin1 = new SCH_PIN( &m_part_no_data );
     pin1->SetNumber( "1" );
     m_part_no_data.AddDrawItem( pin1 );
     std::vector<struct LIB_SYMBOL_UNIT> units = m_part_no_data.GetUnitDrawItems();
@@ -627,12 +628,12 @@ BOOST_AUTO_TEST_CASE( Inheritance )
     BOOST_CHECK( *parent == *ref );
 
     ref->SetName( "child" );
-    LIB_FIELD* field = new LIB_FIELD( MANDATORY_FIELDS, "Manufacturer" );
+    SCH_FIELD* field = new SCH_FIELD( nullptr, MANDATORY_FIELD_COUNT, "Manufacturer" );
     field->SetText( "KiCad" );
     child->AddField( field );
     field->SetParent( child.get() );
 
-    field = new LIB_FIELD( MANDATORY_FIELDS, "Manufacturer" );
+    field = new SCH_FIELD( nullptr, MANDATORY_FIELD_COUNT, "Manufacturer" );
     field->SetText( "KiCad" );
     ref->AddField( field );
     field->SetParent( ref.get() );
@@ -640,12 +641,12 @@ BOOST_AUTO_TEST_CASE( Inheritance )
     BOOST_CHECK( *ref == *child->Flatten() );
 
     ref->SetName( "grandchild" );
-    field = new LIB_FIELD( MANDATORY_FIELDS + 1, "MPN" );
+    field = new SCH_FIELD( nullptr, MANDATORY_FIELD_COUNT + 1, "MPN" );
     field->SetText( "123456" );
     grandChild->AddField( field );
     field->SetParent( grandChild.get() );
 
-    field = new LIB_FIELD( MANDATORY_FIELDS + 1, "MPN" );
+    field = new SCH_FIELD( nullptr, MANDATORY_FIELD_COUNT + 1, "MPN" );
     field->SetText( "123456" );
     ref->AddField( field );
     field->SetParent( ref.get() );
@@ -679,7 +680,7 @@ BOOST_AUTO_TEST_CASE( CopyConstructor )
 BOOST_AUTO_TEST_CASE( IsPowerTest )
 {
     std::unique_ptr<LIB_SYMBOL> symbol = std::make_unique<LIB_SYMBOL>( "power" );
-    LIB_PIN* pin = new LIB_PIN( symbol.get() );
+    SCH_PIN* pin = new SCH_PIN( symbol.get() );
     pin->SetNumber( "1" );
     pin->SetType( ELECTRICAL_PINTYPE::PT_POWER_IN );
     pin->SetVisible( false );

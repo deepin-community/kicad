@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
- * Copyright (C) 2019 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -83,7 +83,8 @@ void DS_PROXY_UNDO_ITEM::Restore( EDA_DRAW_FRAME* aFrame, KIGFX::VIEW* aView )
 
             dataItem->SyncDrawItems( nullptr, aView );
 
-            if( ii == m_selectedDataItem && m_selectedDrawItem < (int)dataItem->GetDrawItems().size() )
+            if( ii == m_selectedDataItem
+              && m_selectedDrawItem < (int)dataItem->GetDrawItems().size() )
             {
                 DS_DRAW_ITEM_BASE* drawItem = dataItem->GetDrawItems()[ m_selectedDrawItem ];
                 drawItem->SetSelected();

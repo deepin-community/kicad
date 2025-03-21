@@ -5,7 +5,7 @@
  * Copyright (C) 2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2013 Wayne Stambaugh <stambaughw@verizon.net>
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -137,7 +137,7 @@ void SpreadFootprints( std::vector<FOOTPRINT*>* aFootprints, VECTOR2I aTargetBox
         wxString path =
                 aGroupBySheet ? footprint->GetPath().AsString().BeforeLast( '/' ) : wxString( wxS( "" ) );
 
-        VECTOR2I size = footprint->GetBoundingBox( false, false ).GetSize();
+        VECTOR2I size = footprint->GetBoundingBox( false ).GetSize();
         size.x += aComponentGap;
         size.y += aComponentGap;
 
@@ -212,10 +212,10 @@ void SpreadFootprints( std::vector<FOOTPRINT*>* aFootprints, VECTOR2I aTargetBox
                     position.y += fpSize.y * ( i / optimalCountPerLine );
                 }
 
-                BOX2I old_fp_bbox = footprint->GetBoundingBox( false, false );
+                BOX2I old_fp_bbox = footprint->GetBoundingBox( false );
                 footprint->Move( position - old_fp_bbox.GetOrigin() );
 
-                BOX2I new_fp_bbox = footprint->GetBoundingBox( false, false );
+                BOX2I new_fp_bbox = footprint->GetBoundingBox( false );
                 new_fp_bbox.Inflate( aComponentGap / 2 );
                 block_bbox.Merge( new_fp_bbox );
             }
@@ -262,7 +262,7 @@ void SpreadFootprints( std::vector<FOOTPRINT*>* aFootprints, VECTOR2I aTargetBox
             for( FOOTPRINT* footprint : footprints )
             {
                 footprint->Move( target_pos - src_bbox.GetPosition() );
-                sheet_bbox.Merge( footprint->GetBoundingBox( false, false ) );
+                sheet_bbox.Merge( footprint->GetBoundingBox( false ) );
             }
 
             block_i++;
@@ -305,10 +305,10 @@ void SpreadFootprints( std::vector<FOOTPRINT*>* aFootprints, VECTOR2I aTargetBox
 
         // Avoid too large coordinates: Overlapping components
         // are better than out of screen components
-        if( (uint64_t) target_pos.x + (uint64_t) target_size.x > INT_MAX / 2 )
+        if( (int64_t) target_pos.x + (int64_t) target_size.x > INT_MAX / 2 )
             target_pos.x -= INT_MAX / 2;
 
-        if( (uint64_t) target_pos.y + (uint64_t) target_size.y > INT_MAX / 2 )
+        if( (int64_t) target_pos.y + (int64_t) target_size.y > INT_MAX / 2 )
             target_pos.y -= INT_MAX / 2;
 
         for( auto& [fpSize, fpPair] : sizeToFpMap )

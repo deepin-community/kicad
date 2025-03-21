@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009 Jean-Pierre Charras, jean-pierre.charras@ujf-grenoble.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2018 CERN
  * Author: Maciej Suminski <maciej.suminski@cern.ch>
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
@@ -29,6 +29,7 @@
 #include <board.h>
 #include <math/util.h>      // for KiROUND
 #include <gal/graphics_abstraction_layer.h>
+#include <lset.h>
 #include <pcb_painter.h>
 #include <pcbnew_settings.h>
 #include <view/view.h>
@@ -37,6 +38,7 @@
 #include <pad.h>
 
 #include <advanced_config.h>
+#include <pgm_base.h>
 
 PCBNEW_PRINTOUT_SETTINGS::PCBNEW_PRINTOUT_SETTINGS( const PAGE_INFO& aPageInfo ) :
         BOARD_PRINTOUT_SETTINGS( aPageInfo )
@@ -52,7 +54,10 @@ void PCBNEW_PRINTOUT_SETTINGS::Load( APP_SETTINGS_BASE* aConfig )
 {
     BOARD_PRINTOUT_SETTINGS::Load( aConfig );
 
-    if( PCBNEW_SETTINGS* cfg = dynamic_cast<PCBNEW_SETTINGS*>( aConfig ) )
+    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+    PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
+
+    if( cfg )
     {
         m_DrillMarks = static_cast<DRILL_MARKS>( cfg->m_Plot.pads_drill_mode );
         m_Pagination = static_cast<PAGINATION_T>( cfg->m_Plot.all_layers_on_one_page );
@@ -67,7 +72,10 @@ void PCBNEW_PRINTOUT_SETTINGS::Save( APP_SETTINGS_BASE* aConfig )
 {
     BOARD_PRINTOUT_SETTINGS::Save( aConfig );
 
-    if( PCBNEW_SETTINGS* cfg = dynamic_cast<PCBNEW_SETTINGS*>( aConfig ) )
+    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+    PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
+
+    if( cfg )
     {
         cfg->m_Plot.pads_drill_mode        = (int)m_DrillMarks;
         cfg->m_Plot.all_layers_on_one_page = m_Pagination;
@@ -104,7 +112,7 @@ bool PCBNEW_PRINTOUT::OnPrintPage( int aPage )
 
         // aPage starts at 1, not 0
         if( unsigned( aPage - 1 ) < seq.size() )
-            m_settings.m_LayerSet = LSET( seq[ aPage - 1] );
+            m_settings.m_LayerSet = LSET( { seq[aPage - 1] } );
     }
 
     if( !m_settings.m_LayerSet.any() )
@@ -146,6 +154,8 @@ void PCBNEW_PRINTOUT::setupViewLayers( KIGFX::VIEW& aView, const LSET& aLayerSet
 
         // Enable the corresponding zone layer (copper layers and other layers)
         aView.SetLayerVisible( LAYER_ZONE_START + layer, true );
+        aView.SetLayerVisible( LAYER_PAD_COPPER_START + layer, true );
+        aView.SetLayerVisible( LAYER_VIA_COPPER_START + layer, true );
     }
 
     RENDER_SETTINGS* renderSettings = aView.GetPainter()->GetSettings();
@@ -169,11 +179,7 @@ void PCBNEW_PRINTOUT::setupViewLayers( KIGFX::VIEW& aView, const LSET& aLayerSet
         setVisibility( LAYER_FP_VALUES );
         setVisibility( LAYER_FP_REFERENCES );
         setVisibility( LAYER_FP_TEXT );
-        setVisibility( LAYER_HIDDEN_TEXT );
         setVisibility( LAYER_PADS );
-        setVisibility( LAYER_PADS_SMD_FR );
-        setVisibility( LAYER_PADS_SMD_BK );
-        setVisibility( LAYER_PADS_TH );
 
         setVisibility( LAYER_TRACKS );
         setVisibility( LAYER_VIAS );
@@ -181,9 +187,12 @@ void PCBNEW_PRINTOUT::setupViewLayers( KIGFX::VIEW& aView, const LSET& aLayerSet
         setVisibility( LAYER_VIA_BBLIND );
         setVisibility( LAYER_VIA_THROUGH );
         setVisibility( LAYER_ZONES );
+        setVisibility( LAYER_SHAPES );
 
         setVisibility( LAYER_DRC_WARNING );
         setVisibility( LAYER_DRC_ERROR );
+        setVisibility( LAYER_DRC_SHAPE1 );
+        setVisibility( LAYER_DRC_SHAPE2 );
         setVisibility( LAYER_DRC_EXCLUSION );
         setVisibility( LAYER_ANCHOR );
         setVisibility( LAYER_DRAWINGSHEET );
@@ -191,18 +200,8 @@ void PCBNEW_PRINTOUT::setupViewLayers( KIGFX::VIEW& aView, const LSET& aLayerSet
     }
     else
     {
-        // Draw layers that must be not visible on printing are set to an invisible layer
-        // LAYER_PADS_SMD_FR, LAYER_PADS_SMD_BK and LAYER_PADS_TH must be enabled to print pads on
-        // technical layers, but not the pad on copper layer(s) if they are not enabled
-
-        if( !aLayerSet.test( F_Cu ) )
-            renderSettings->SetLayerColor( LAYER_PADS_SMD_FR, invisible_color );
-
-        if( !aLayerSet.test( B_Cu ) )
-            renderSettings->SetLayerColor( LAYER_PADS_SMD_BK, invisible_color );
-
         // Enable items on copper layers, but do not draw holes
-        for( GAL_LAYER_ID layer : { LAYER_PADS_TH, LAYER_VIA_THROUGH, LAYER_VIA_MICROVIA, LAYER_VIA_BBLIND } )
+        for( GAL_LAYER_ID layer : { LAYER_VIA_THROUGH, LAYER_VIA_MICROVIA, LAYER_VIA_BBLIND } )
         {
             if( ( aLayerSet & LSET::AllCuMask() ).any() )   // Items visible on any copper layer
                 aView.SetLayerVisible( layer, true );
@@ -218,8 +217,8 @@ void PCBNEW_PRINTOUT::setupViewLayers( KIGFX::VIEW& aView, const LSET& aLayerSet
                     LAYER_FP_TEXT, LAYER_FP_VALUES, LAYER_FP_REFERENCES,
                     LAYER_FOOTPRINTS_FR, LAYER_FOOTPRINTS_BK,
                     LAYER_TRACKS, LAYER_VIAS,
-                    LAYER_ZONES,
-                    LAYER_PADS, LAYER_PADS_SMD_FR, LAYER_PADS_SMD_BK, LAYER_PADS_TH
+                    LAYER_ZONES, LAYER_SHAPES,
+                    LAYER_PADS
                 };
 
         for( int layer : alwaysEnabled )
@@ -288,7 +287,7 @@ void PCBNEW_PRINTOUT::setupGal( KIGFX::GAL* aGal )
 
 BOX2I PCBNEW_PRINTOUT::getBoundingBox()
 {
-    return m_board->ComputeBoundingBox();
+    return m_board->ComputeBoundingBox( false );
 }
 
 
@@ -305,9 +304,9 @@ KIGFX::PCB_PRINT_PAINTER::PCB_PRINT_PAINTER( GAL* aGal ) :
 { }
 
 
-int KIGFX::PCB_PRINT_PAINTER::getDrillShape( const PAD* aPad ) const
+PAD_DRILL_SHAPE KIGFX::PCB_PRINT_PAINTER::getDrillShape( const PAD* aPad ) const
 {
-    return m_drillMarkReal ? KIGFX::PCB_PAINTER::getDrillShape( aPad ) : PAD_DRILL_SHAPE_CIRCLE;
+    return m_drillMarkReal ? KIGFX::PCB_PAINTER::getDrillShape( aPad ) : PAD_DRILL_SHAPE::CIRCLE;
 }
 
 

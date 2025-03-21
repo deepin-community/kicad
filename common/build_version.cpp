@@ -1,8 +1,8 @@
-/*
+﻿/*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2015-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -124,6 +124,7 @@ wxString GetMajorMinorPatchVersion()
     wxString msg = wxString::Format( wxT( "%s" ), wxT( KICAD_MAJOR_MINOR_PATCH_VERSION ) );
     return msg;
 }
+
 
 const std::tuple<int,int,int>& GetMajorMinorPatchTuple()
 {
@@ -286,13 +287,20 @@ wxString GetVersionInfoData( const wxString& aTitle, bool aHtml, bool aBrief )
     aMsg << " without C++ ABI" << eol;
 #endif
 
-    aMsg << eol;
-
     // Add build settings config (build options):
+#if defined( KICAD_USE_EGL ) || ! defined( NDEBUG )
+    aMsg << eol;
     aMsg << "Build settings:" << eol;
+#endif
 
 #ifdef KICAD_USE_EGL
     aMsg << indent4 << "KICAD_USE_EGL=" << ON;
+#endif
+
+#ifdef KICAD_IPC_API
+    aMsg << indent4 << "KICAD_IPC_API=" << ON;
+#else
+    aMsg << indent4 << "KICAD_IPC_API=" << OFF;
 #endif
 
 #ifndef NDEBUG
@@ -323,6 +331,48 @@ wxString GetVersionInfoData( const wxString& aTitle, bool aHtml, bool aBrief )
     aMsg << OFF;
 #endif
 #endif
+
+    wxLocale* locale = wxGetLocale();
+
+    if( locale )
+    {
+        aMsg << eol;
+        aMsg << "Locale: " << eol;
+        aMsg << indent4 << "Lang: " << locale->GetCanonicalName() << eol;
+        aMsg << indent4 << "Enc: " << locale->GetSystemEncodingName() << eol;
+        aMsg << indent4 << "Num: "
+             << wxString::Format( "%d%s%.1f", 1,
+                                  locale->GetInfo( wxLocaleInfo::wxLOCALE_THOUSANDS_SEP ), 234.5 )
+             << eol;
+
+        wxString testStr( wxS( "кΩ丈" ) );
+        wxString expectedUtf8Hex( wxS( "D0BACEA9E4B888" ) );
+        wxString sysHex, utf8Hex;
+        {
+            const char* asChar = testStr.c_str().AsChar();
+            size_t      length = strlen( asChar );
+
+            for( size_t i = 0; i < length; i++ )
+                sysHex << wxString::Format( "%02X", (unsigned int) (uint8_t) asChar[i] );
+        }
+        {
+            const char* asChar = testStr.utf8_str().data();
+            size_t      length = strlen( asChar );
+
+            for( size_t i = 0; i < length; i++ )
+                utf8Hex << wxString::Format( "%02X", (unsigned int) (uint8_t) asChar[i] );
+        }
+
+        aMsg << indent4 << "Encoded " << testStr << ": " << sysHex << " (sys), " << utf8Hex
+             << " (utf8)" << eol;
+
+        wxASSERT_MSG( utf8Hex == expectedUtf8Hex,
+                      wxString::Format( "utf8_str string %s encoding bad result: %s, expected "
+                                        "%s, system enc %s, lang %s",
+                                        testStr, utf8Hex, expectedUtf8Hex,
+                                        locale->GetSystemEncodingName(),
+                                        locale->GetCanonicalName() ) );
+    }
 
     return aMsg;
 }

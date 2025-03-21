@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2019 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  *
  * This program is free software; you can redistribute it and/or
@@ -98,15 +98,15 @@ bool DIALOG_TARGET_PROPERTIES::TransferDataFromWindow()
     bool pushCommit = ( m_Target->GetEditFlags() == 0 );
 
     if( m_Target->GetEditFlags() != 0 )         // other edit in progress (MOVE, NEW ..)
-        m_Target->SetFlags( IN_EDIT );          // set flag in edit to force
-    // undo/redo/abort proper operation
+        m_Target->SetFlags( IN_EDIT );          //   set flag IN_EDIT to force
+                                                //   undo/redo/abort proper operation
 
-    m_Target->SetWidth( m_Thickness.GetValue() );
-    m_Target->SetSize( m_Size.GetValue() );
+    m_Target->SetWidth( m_Thickness.GetIntValue() );
+    m_Target->SetSize( m_Size.GetIntValue() );
     m_Target->SetShape( m_TargetShape->GetSelection() ? 1 : 0 );
 
     if( pushCommit )
-        commit.Push( _( "Modified alignment target" ) );
+        commit.Push( _( "Edit Alignment Target" ) );
 
     return true;
 }

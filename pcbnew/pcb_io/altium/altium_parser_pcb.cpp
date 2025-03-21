@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Thomas Pointhuber <thomas.pointhuber@gmx.at>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -286,7 +286,7 @@ ABOARD6::ABOARD6( ALTIUM_BINARY_PARSER& aReader )
 
     for( size_t i = 1; i < std::numeric_limits<size_t>::max(); i++ )
     {
-        const wxString layeri    = wxT( "LAYER" ) + std::to_string( i );
+        const wxString layeri    = wxT( "LAYER" ) + wxString( std::to_string( i ) );
         const wxString layername = layeri + wxT( "NAME" );
 
         auto layernameit = props.find( layername );
@@ -334,7 +334,7 @@ ACLASS6::ACLASS6( ALTIUM_BINARY_PARSER& aReader )
 
     for( size_t i = 0; i < std::numeric_limits<size_t>::max(); i++ )
     {
-        auto mit = properties.find( wxT( "M" ) + std::to_string( i ) );
+        auto mit = properties.find( wxT( "M" ) + wxString( std::to_string( i ) ) );
 
         if( mit == properties.end() )
             break; // it doesn't seem like we know beforehand how many components are in the netclass
@@ -417,8 +417,9 @@ ADIMENSION6::ADIMENSION6( ALTIUM_BINARY_PARSER& aReader )
     for( int i = 0; i < refcount; i++ )
     {
         const std::string refi = "REFERENCE" + std::to_string( i ) + "POINT";
-        referencePoint.emplace_back( ALTIUM_PROPS_UTILS::ReadKicadUnit( props, refi + wxT( "X" ), wxT( "0mil" ) ),
-                                     -ALTIUM_PROPS_UTILS::ReadKicadUnit( props, refi + wxT( "Y" ), wxT( "0mil" ) ) );
+        const wxString ref( refi );
+        referencePoint.emplace_back( ALTIUM_PROPS_UTILS::ReadKicadUnit( props, ref + wxT( "X" ), wxT( "0mil" ) ),
+                                     -ALTIUM_PROPS_UTILS::ReadKicadUnit( props, ref + wxT( "Y" ), wxT( "0mil" ) ) );
     }
 
     for( size_t i = 1; i < std::numeric_limits<size_t>::max(); i++ )
@@ -460,6 +461,9 @@ AMODEL::AMODEL( ALTIUM_BINARY_PARSER& aReader )
     rotation.x = ALTIUM_PROPS_UTILS::ReadDouble( properties, wxT( "ROTX" ), 0. );
     rotation.y = ALTIUM_PROPS_UTILS::ReadDouble( properties, wxT( "ROTY" ), 0. );
     rotation.z = ALTIUM_PROPS_UTILS::ReadDouble( properties, wxT( "ROTZ" ), 0. );
+
+    z_offset = ALTIUM_PROPS_UTILS::ReadDouble( properties, wxT( "DZ" ), 0. );
+    checksum = ALTIUM_PROPS_UTILS::ReadInt( properties, wxT( "CHECKSUM" ), 0 );
 
     if( aReader.HasParsingError() )
         THROW_IO_ERROR( wxT( "Model stream was not parsed correctly" ) );
@@ -516,19 +520,6 @@ APOLYGON6::APOLYGON6( ALTIUM_BINARY_PARSER& aReader )
 
 ARULE6::ARULE6( ALTIUM_BINARY_PARSER& aReader )
 {
-    // Initialize all variables and make Coverity happy
-    minLimit                           = 0;
-    maxLimit                           = 0;
-    preferredWidth                     = 0;
-    soldermaskExpansion                = 0;
-    pastemaskExpansion                 = 0;
-    clearanceGap                       = 0;
-    planeclearanceClearance            = 0;
-    polygonconnectAirgapwidth          = 0;
-    polygonconnectReliefconductorwidth = 0;
-    polygonconnectReliefentries        = 0;
-    polygonconnectStyle                = ALTIUM_CONNECT_STYLE::UNKNOWN;
-
     aReader.Skip( 2 );
 
     std::map<wxString, wxString> props = aReader.ReadProperties();
@@ -703,7 +694,7 @@ ACOMPONENTBODY6::ACOMPONENTBODY6( ALTIUM_BINARY_PARSER& aReader )
 
     rotation = ALTIUM_PROPS_UTILS::ReadDouble( properties, wxT( "MODEL.2D.ROTATION" ), 0. );
 
-    bodyOpacity = ALTIUM_PROPS_UTILS::ReadDouble( properties, wxT( "BODYOPACITY3D" ), 1. );
+    body_opacity_3d = ALTIUM_PROPS_UTILS::ReadDouble( properties, wxT( "BODYOPACITY3D" ), 1. );
 
     aReader.SkipSubrecord();
 

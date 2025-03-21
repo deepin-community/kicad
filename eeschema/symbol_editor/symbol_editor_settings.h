@@ -1,7 +1,7 @@
 /*
 * This program source code file is part of KiCad, a free EDA CAD application.
 *
-* Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -21,10 +21,10 @@
 * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 */
 
-#ifndef SYMBOL_EDITOR_SETTINGS_H
-#define SYMBOL_EDITOR_SETTINGS_H
+#pragma once
 
 #include <settings/app_settings.h>
+#include <project/sch_project_settings.h>
 
 
 class SYMBOL_EDITOR_SETTINGS : public APP_SETTINGS_BASE
@@ -80,8 +80,12 @@ public:
     DIALOG_IMPORT_GRAPHICS m_ImportGraphics;
 
     bool m_ShowPinElectricalType;
-    bool m_ShowHiddenLibPins;
-    bool m_ShowHiddenLibFields;
+    bool m_ShowHiddenPins;
+    bool m_ShowHiddenFields;
+    bool m_ShowPinAltIcons;
+
+    ///< When true, dragging an outline edge will drag pins rooted on it
+    bool m_dragPinsAlongWithEdges;
 
     int m_LibWidth;
 
@@ -93,9 +97,9 @@ public:
 
     bool m_UseEeschemaColorSettings;
 
+    SCH_SELECTION_FILTER_OPTIONS m_SelectionFilter;
+
 protected:
 
     virtual std::string getLegacyFrameName() const override { return "LibeditFrame"; }
 };
-
-#endif

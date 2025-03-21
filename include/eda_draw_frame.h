@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2009 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,18 +26,22 @@
 #ifndef DRAW_FRAME_H_
 #define DRAW_FRAME_H_
 
+#include <api/api_plugin.h>
 #include <eda_base_frame.h>
+#include <eda_search_data.h>
 #include <kiway_player.h>
 #include <gal/gal_display_options.h>
 #include <gal_display_options_common.h>
 #include <gal/color4d.h>
 #include <class_draw_panel_gal.h>
 #include <kiid.h>
-#include "hotkeys_basic.h"
+#include <hotkeys_basic.h>
+#include <widgets/lib_tree.h>
 
 class EDA_ITEM;
 class wxSingleInstanceChecker;
 class ACTION_TOOLBAR;
+class GRID_HELPER;
 class COLOR_SETTINGS;
 class LOCKFILE;
 class TOOL_MENU;
@@ -46,6 +50,7 @@ class wxFindReplaceData;
 class SEARCH_PANE;
 class HOTKEY_CYCLE_POPUP;
 class PROPERTIES_PANEL;
+class NET_INSPECTOR_PANEL;
 enum class BITMAP_TYPE;
 
 namespace KIGFX
@@ -100,12 +105,12 @@ public:
     void ReleaseFile();
 
     /**
-     * Toggles the scripting console visibility
+     * Toggle the scripting console visibility.
      */
     void ScriptingConsoleEnableDisable();
 
     /**
-     * Gets the current visibility of the scripting console window
+     * Get the current visibility of the scripting console window.
      */
     bool IsScriptingConsoleVisible();
 
@@ -145,6 +150,8 @@ public:
      */
     virtual const VECTOR2I& GetGridOrigin() const = 0;
     virtual void            SetGridOrigin( const VECTOR2I& aPosition ) = 0;
+
+    virtual std::unique_ptr<GRID_HELPER> MakeGridHelper();
 
     /**
      * Return the nearest \a aGridSize location to \a aPosition.
@@ -189,7 +196,7 @@ public:
                              const wxString& ext, bool isDirectory = false, bool aIsGlobal = false,
                              const wxString& aGlobalPath = wxEmptyString );
 
-    void CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged ) override;
+    void CommonSettingsChanged( int aFlags ) override;
 
     virtual wxString GetScreenDesc() const;
     virtual wxString GetFullScreenDesc() const;
@@ -309,7 +316,7 @@ public:
     void AddStandardSubMenus( TOOL_MENU& aMenu );
 
     /**
-     * Prints the drawing-sheet (frame and title block).
+     * Print the drawing-sheet (frame and title block).
      *
      * @param aScreen screen to draw.
      * @param aProperties Optional properties for text variable resolution.
@@ -319,7 +326,8 @@ public:
      */
     void PrintDrawingSheet( const RENDER_SETTINGS* aSettings, BASE_SCREEN* aScreen,
                             const std::map<wxString, wxString>* aProperties, double aMils2Iu,
-                            const wxString& aFilename, const wxString& aSheetLayer = wxEmptyString );
+                            const wxString& aFilename,
+                            const wxString& aSheetLayer = wxEmptyString );
 
     void DisplayToolMsg( const wxString& msg ) override;
 
@@ -327,6 +335,7 @@ public:
 
     /**
      * Called when modifying the page settings.
+     *
      * In derived classes it can be used to modify parameters like draw area size,
      * and any other local parameter related to the page settings.
      */
@@ -393,6 +402,13 @@ public:
      */
     virtual void UpdateMsgPanel();
 
+    virtual LIB_TREE* GetLibTree() const { return nullptr; }
+    virtual LIB_ID GetTargetLibId() const { return LIB_ID(); }
+
+    virtual bool IsLibraryTreeShown() const { return false; }
+    virtual void ToggleLibraryTree() {};
+    virtual void FocusLibraryTreeInput() {};
+
     PROPERTIES_PANEL* GetPropertiesPanel() { return m_propertiesPanel; }
 
     void UpdateProperties();
@@ -400,6 +416,12 @@ public:
     virtual void ToggleProperties() {}
 
     static const wxString PropertiesPaneName() { return wxS( "PropertiesManager" ); }
+
+    static const wxString NetInspectorPanelName() { return wxS( "NetInspector" ); }
+
+    static const wxString DesignBlocksPaneName() { return wxS( "DesignBlocks" ); }
+
+    static const wxString AppearancePanelName() { return wxS( "LayersManager" ); }
 
     /**
      * Fetch an item by KIID.  Frame-type-specific implementation.
@@ -419,7 +441,7 @@ public:
     virtual void ActivateGalCanvas();
 
     /**
-     * Changes the current rendering backend.
+     * Change the current rendering backend.
      */
     virtual void SwitchCanvas( EDA_DRAW_PANEL_GAL::GAL_TYPE aCanvasType );
 
@@ -444,7 +466,7 @@ public:
     }
 
     /**
-     * Returns bbox of document with option to not include some items.
+     * Return bounding box of document with option to not include some items.
      *
      * Used most commonly by "Zoom to Fit" and "Zoom to Objects".  In Eeschema for "Zoom to Fit"
      * it's passed "true" to include drawing sheet border, and "false" by "Zoom To Objects" to
@@ -458,12 +480,12 @@ public:
     virtual const BOX2I GetDocumentExtents( bool aIncludeAllVisible = true ) const;
 
     /**
-     * Rebuild all toolbars, and update the checked state of check tools
+     * Rebuild all toolbars and update the checked state of check tools.
      */
     void RecreateToolbars();
 
     /**
-     * Update toolbars if desired toolbar icon changed
+     * Update toolbars if desired toolbar icon changed.
      */
     void OnToolbarSizeChanged();
 
@@ -487,6 +509,26 @@ public:
      */
     bool SaveCanvasImageToFile( const wxString& aFileName, BITMAP_TYPE aBitmapType );
 
+    /**
+     * Handler for activating an API plugin (via toolbar or menu).
+     */
+    virtual void OnApiPluginInvoke( wxCommandEvent& aEvent );
+
+    virtual PLUGIN_ACTION_SCOPE PluginActionScope() const { return PLUGIN_ACTION_SCOPE::INVALID; }
+
+    static bool IsPluginActionButtonVisible( const PLUGIN_ACTION& aAction,
+                                             APP_SETTINGS_BASE* aCfg );
+
+    /**
+     * Return ordered list of plugin actions for display in the toolbar.
+     *
+     * Must be static at the moment because this needs to be called from the preferences dialog,
+     * which can exist without the frame in question actually being created.
+     *
+     * @param aCfg is the settings to read the plugin ordering from.
+     */
+    static std::vector<const PLUGIN_ACTION*> GetOrderedPluginActions( PLUGIN_ACTION_SCOPE aScope,
+        APP_SETTINGS_BASE* aCfg );
 
     DECLARE_EVENT_TABLE()
 
@@ -497,22 +539,25 @@ protected:
 
     void setupUnits( APP_SETTINGS_BASE* aCfg );
 
+    void updateStatusBarWidths();
+
     std::vector<wxWindow*> findDialogs();
 
     /**
-     * Determines the Canvas type to load (with prompt if required) and initializes m_canvasType
+     * Determine the canvas type to load (with prompt if required) and initializes #m_canvasType.
      */
     virtual void resolveCanvasType();
 
     /**
-     * Returns the canvas type stored in the application settings.
+     * Return the canvas type stored in the application settings.
+     *
      * @param aCfg is the APP_SETTINGS_BASE config storing the canvas type.
      * If nullptr (default) the KifaceSettings() will be used
      */
     EDA_DRAW_PANEL_GAL::GAL_TYPE loadCanvasTypeSetting( APP_SETTINGS_BASE* aCfg = nullptr );
 
     /**
-     * Stores the canvas type in the application settings.
+     * Store the canvas type in the application settings.
      */
     bool saveCanvasTypeSetting( EDA_DRAW_PANEL_GAL::GAL_TYPE aCanvasType );
 
@@ -522,53 +567,60 @@ protected:
     virtual void handleActivateEvent( wxActivateEvent& aEvent );
     void onActivate( wxActivateEvent& aEvent );
 
+    /**
+     * Append actions from API plugins to the main toolbar
+     */
+    virtual void addApiPluginTools();
+
 
     wxSocketServer*             m_socketServer;
 
     ///< Prevents opening same file multiple times.
     std::unique_ptr<LOCKFILE> m_file_checker;
 
-    COLOR4D            m_gridColor;         // Grid color
-    COLOR4D            m_drawBgColor;       // The background color of the draw canvas; BLACK for
-                                            // Pcbnew, BLACK or WHITE for Eeschema
-    int                m_undoRedoCountMax;  // Default Undo/Redo command Max depth, to be handed
-                                            // to screens
-    bool               m_polarCoords;       // For those frames that support polar coordinates
+    COLOR4D              m_gridColor;         // Grid color
+    COLOR4D              m_drawBgColor;       // The background color of the draw canvas; BLACK for
+                                              // Pcbnew, BLACK or WHITE for Eeschema
+    int                  m_undoRedoCountMax;  // Default Undo/Redo command Max depth, to be handed
+                                              // to screens
+    bool                 m_polarCoords;       // For those frames that support polar coordinates
 
-    bool               m_showBorderAndTitleBlock;  // Show the drawing sheet (border & title block).
+    // Show the drawing sheet (border & title block).
+    bool                 m_showBorderAndTitleBlock;
 
-    wxChoice*          m_gridSelectBox;
-    wxChoice*          m_zoomSelectBox;
+    wxChoice*            m_gridSelectBox;
+    wxChoice*            m_zoomSelectBox;
 
-    ACTION_TOOLBAR*    m_mainToolBar;
-    ACTION_TOOLBAR*    m_auxiliaryToolBar;  // Additional tools under main toolbar
-    ACTION_TOOLBAR*    m_drawToolBar;       // Drawing tools (typically on right edge of window)
-    ACTION_TOOLBAR*    m_optionsToolBar;    // Options (typically on left edge of window)
+    ACTION_TOOLBAR*      m_mainToolBar;
+    ACTION_TOOLBAR*      m_auxiliaryToolBar;  // Additional tools under main toolbar
+    ACTION_TOOLBAR*      m_drawToolBar;       // Drawing tools (typically on right edge of window)
+    ACTION_TOOLBAR*      m_optionsToolBar;    // Options (typically on left edge of window)
 
     std::unique_ptr<EDA_SEARCH_DATA> m_findReplaceData;
-    wxArrayString      m_findStringHistoryList;
-    wxArrayString      m_replaceStringHistoryList;
+    wxArrayString        m_findStringHistoryList;
+    wxArrayString        m_replaceStringHistoryList;
 
-    EDA_MSG_PANEL*     m_messagePanel;
-    int                m_msgFrameHeight;
+    EDA_MSG_PANEL*       m_messagePanel;
+    int                  m_msgFrameHeight;
 
-    COLOR_SETTINGS*    m_colorSettings;
-    SEARCH_PANE*       m_searchPane;
-    PROPERTIES_PANEL*  m_propertiesPanel;
+    COLOR_SETTINGS*      m_colorSettings;
+    SEARCH_PANE*         m_searchPane;
+    PROPERTIES_PANEL*    m_propertiesPanel;
+    NET_INSPECTOR_PANEL* m_netInspectorPanel;
 
     HOTKEY_CYCLE_POPUP* m_hotkeyPopup;
 
-    ///< The current canvas type.
+    /// The current canvas type.
     EDA_DRAW_PANEL_GAL::GAL_TYPE    m_canvasType;
 
-    static bool m_openGLFailureOccured; ///< Has any failure occured when switching to OpenGL in
+    static bool m_openGLFailureOccured; ///< Has any failure occurred when switching to OpenGL in
                                         ///< any EDA_DRAW_FRAME?
 
 private:
     BASE_SCREEN*                m_currentScreen;      ///< current used SCREEN
     EDA_DRAW_PANEL_GAL*         m_canvas;
 
-    ///< This the frame's interface to setting GAL display options.
+    /// This the frame's interface to setting GAL display options.
     GAL_DISPLAY_OPTIONS_IMPL  m_galDisplayOptions;
 
     int m_lastToolbarIconSize;

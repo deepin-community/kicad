@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2018 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #include <widgets/unit_binder.h>
 
 class EDA_DRAW_FRAME;
+class APP_SETTINGS_BASE;
 struct PRINTOUT_SETTINGS;
 class wxPageSetupDialogData;
 class wxPrintout;

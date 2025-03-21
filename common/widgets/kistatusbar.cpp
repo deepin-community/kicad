@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -47,7 +47,7 @@ KISTATUSBAR::KISTATUSBAR( int aNumberFields, wxWindow* parent, wxWindowID id ) :
 {
 #ifdef __WXOSX__
     // we need +1 extra field on OSX to offset from the rounded corner on the right
-    // OSX doesnt use resize grippers like the other platforms and the statusbar field
+    // OSX doesn't use resize grippers like the other platforms and the statusbar field
     // includes the rounded part
     const int ExtraFields = 5;
 #else
@@ -75,6 +75,7 @@ KISTATUSBAR::KISTATUSBAR( int aNumberFields, wxWindow* parent, wxWindowID id ) :
 
 
     int* styles = new int[aNumberFields + ExtraFields];
+
     for( int i = 0; i < aNumberFields + ExtraFields; i++ )
         styles[i] = wxSB_FLAT;
 
@@ -211,6 +212,7 @@ void KISTATUSBAR::SetBackgroundStatusText( const wxString& aTxt )
 void KISTATUSBAR::SetNotificationCount(int aCount)
 {
     wxString cnt = "";
+
     if( aCount > 0 )
     {
         cnt = wxString::Format( "%d", aCount );
@@ -237,6 +239,7 @@ void KISTATUSBAR::SetEllipsedTextField( const wxString& aText, int aFieldId )
     if( width > 20 )
     {
         wxClientDC dc( this );
+
         // Gives a margin to the text to be sure it is not clamped at its end
         int margin = KIUI::GetTextSize( wxT( "XX" ), this ).x;
         etext = wxControl::Ellipsize( etext, dc, wxELLIPSIZE_MIDDLE, width - margin );

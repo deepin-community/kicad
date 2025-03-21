@@ -4,7 +4,7 @@
  * Copyright (C) 2013-2017 CERN
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
- * Copyright (C) 2017-2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -109,7 +109,7 @@ const std::vector<KIGFX::VIEW_ITEM*> PCB_SELECTION::updateDrawList() const
 }
 
 
-BOX2I PCB_SELECTION::GetBoundingBox( bool aOnlyVisible ) const
+BOX2I PCB_SELECTION::GetBoundingBox() const
 {
     BOX2I bbox;
 
@@ -119,7 +119,7 @@ BOX2I PCB_SELECTION::GetBoundingBox( bool aOnlyVisible ) const
         {
             FOOTPRINT* footprint = static_cast<FOOTPRINT*>( item );
 
-            bbox.Merge( footprint->GetBoundingBox( true, !aOnlyVisible ) );
+            bbox.Merge( footprint->GetBoundingBox( true ) );
         }
         else
         {

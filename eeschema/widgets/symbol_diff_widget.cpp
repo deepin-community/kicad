@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,14 +17,20 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <widgets/symbol_diff_widget.h>
+#include "widgets/symbol_diff_widget.h"
+
+#include <wx/bmpbuttn.h>
+#include <wx/sizer.h>
+#include <wx/slider.h>
+#include <wx/stattext.h>
+
+#include <bitmaps.h>
+#include <hotkeys_basic.h>
+#include <lib_symbol.h>
 #include <sch_painter.h>
 #include <eeschema_settings.h>
 #include <settings/settings_manager.h>
 #include <sch_view.h>
-#include <wx/sizer.h>
-#include <wx/stattext.h>
-#include <wx/slider.h>
 
 
 SYMBOL_DIFF_WIDGET::SYMBOL_DIFF_WIDGET( wxWindow* aParent,
@@ -43,10 +49,17 @@ SYMBOL_DIFF_WIDGET::SYMBOL_DIFF_WIDGET( wxWindow* aParent,
     bottomSizer->Add( m_slider, 1, wxLEFT | wxRIGHT | wxALIGN_BOTTOM, 30 );
     bottomSizer->Add( libLabel, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxALIGN_CENTRE_VERTICAL, 6 );
 
+    m_toggleButton = new wxBitmapButton( this, wxID_ANY, KiBitmapBundle( BITMAPS::swap ) );
+    wxString toggleTooltip = _( "Toggle between A and B display" );
+    toggleTooltip = AddHotkeyName( toggleTooltip, '/', HOTKEY_ACTION_TYPE::IS_COMMENT );
+    m_toggleButton->SetToolTip( toggleTooltip );
+
+    bottomSizer->Add( m_toggleButton, 0, wxLEFT | wxRIGHT | wxALIGN_CENTRE_VERTICAL, 6 );
+
     m_outerSizer->Add( bottomSizer, 0, wxTOP | wxLEFT | wxRIGHT | wxEXPAND, 10 );
 
     Layout();
-    
+
     m_slider->Bind( wxEVT_SCROLL_TOP, &SYMBOL_DIFF_WIDGET::onSlider, this );
    	m_slider->Bind( wxEVT_SCROLL_BOTTOM, &SYMBOL_DIFF_WIDGET::onSlider, this );
    	m_slider->Bind( wxEVT_SCROLL_LINEUP, &SYMBOL_DIFF_WIDGET::onSlider, this );
@@ -56,6 +69,14 @@ SYMBOL_DIFF_WIDGET::SYMBOL_DIFF_WIDGET( wxWindow* aParent,
    	m_slider->Bind( wxEVT_SCROLL_THUMBTRACK, &SYMBOL_DIFF_WIDGET::onSlider, this );
    	m_slider->Bind( wxEVT_SCROLL_THUMBRELEASE, &SYMBOL_DIFF_WIDGET::onSlider, this );
    	m_slider->Bind( wxEVT_SCROLL_CHANGED, &SYMBOL_DIFF_WIDGET::onSlider, this );
+
+    Bind( wxEVT_CHAR_HOOK, &SYMBOL_DIFF_WIDGET::onCharHook, this );
+
+    m_toggleButton->Bind( wxEVT_BUTTON,
+            [this]( wxCommandEvent& aEvent )
+            {
+                ToggleAB();
+            } );
 }
 
 
@@ -88,8 +109,7 @@ void SYMBOL_DIFF_WIDGET::DisplayDiff( LIB_SYMBOL* aSchSymbol, LIB_SYMBOL* aLibSy
         m_previewItem = aSchSymbol;
 
         // For symbols having a De Morgan body style, use the first style
-        auto settings =
-                static_cast<KIGFX::SCH_RENDER_SETTINGS*>( view->GetPainter()->GetSettings() );
+        auto settings = static_cast<SCH_RENDER_SETTINGS*>( view->GetPainter()->GetSettings() );
 
         settings->m_ShowUnit = ( m_previewItem->IsMulti() && !aUnit ) ? 1 : aUnit;
         settings->m_ShowBodyStyle = ( m_previewItem->HasAlternateBodyStyle() && !aConvert ) ? 1 : aConvert;
@@ -117,6 +137,20 @@ void SYMBOL_DIFF_WIDGET::DisplayDiff( LIB_SYMBOL* aSchSymbol, LIB_SYMBOL* aLibSy
 }
 
 
+void SYMBOL_DIFF_WIDGET::ToggleAB()
+{
+    const int val = m_slider->GetValue();
+
+    if( val == 0 )
+        m_slider->SetValue( 100 );
+    else
+        m_slider->SetValue( 0 );
+
+    wxScrollEvent dummy;
+    onSlider( dummy );
+}
+
+
 void SYMBOL_DIFF_WIDGET::onSlider( wxScrollEvent& aEvent )
 {
     KIGFX::VIEW* view = m_preview->GetView();
@@ -134,7 +168,7 @@ void SYMBOL_DIFF_WIDGET::onSlider( wxScrollEvent& aEvent )
         m_previewItem->SetForcedTransparency( val );
         view->Update( m_previewItem );
 
-        for( LIB_ITEM& child : m_previewItem->GetDrawItems() )
+        for( SCH_ITEM& child : m_previewItem->GetDrawItems() )
         {
             child.SetForcedTransparency( val );
             view->Update( &child );
@@ -153,7 +187,7 @@ void SYMBOL_DIFF_WIDGET::onSlider( wxScrollEvent& aEvent )
         m_libraryItem->SetForcedTransparency( val );
         view->Update( m_libraryItem );
 
-        for( LIB_ITEM& child : m_libraryItem->GetDrawItems() )
+        for( SCH_ITEM& child : m_libraryItem->GetDrawItems() )
         {
             child.SetForcedTransparency( val );
             view->Update( &child );
@@ -163,4 +197,17 @@ void SYMBOL_DIFF_WIDGET::onSlider( wxScrollEvent& aEvent )
     m_preview->ForceRefresh();
 
     aEvent.Skip();
+}
+
+
+void SYMBOL_DIFF_WIDGET::onCharHook( wxKeyEvent& aEvent )
+{
+    if( aEvent.GetKeyCode() == '/' )
+    {
+        ToggleAB();
+    }
+    else
+    {
+        aEvent.Skip();
+    }
 }

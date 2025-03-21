@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015-2016 Mario Luzeiro <mrluzeiro@ua.pt>
- * Copyright (C) 1992-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -71,7 +71,7 @@ GLuint OglLoadTexture( const IMAGE& aImage );
  */
 void OglGetScreenshot( wxImage& aDstImage );
 
-void OglDrawBackground( const SFVEC3F& aTopColor, const SFVEC3F& aBotColor );
+void OglDrawBackground( const SFVEC4F& aTopColor, const SFVEC4F& aBotColor );
 
 /**
  * Reset to default state the texture settings.

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -38,10 +38,6 @@ class NGSPICE_SETTINGS;
 
 
 /**
- * These settings were stored in SCH_BASE_FRAME previously.
- * The backing store is currently the project file.
- * They should likely move to a project settings file (JSON) once that framework exists.
- *
  * These are loaded from Eeschema settings but then overwritten by the project settings.
  * All of the values are stored in IU, but the backing file stores in mils.
  */
@@ -99,6 +95,7 @@ public:
     bool      m_SpiceSaveAllVoltages;
     bool      m_SpiceSaveAllCurrents;
     bool      m_SpiceSaveAllDissipations;
+    bool      m_SpiceSaveAllEvents;
     wxString  m_SpiceCommandString;      // A command string to run external spice
 
     bool      m_SpiceModelCurSheetAsRoot;

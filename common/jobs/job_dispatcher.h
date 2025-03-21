@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,6 +21,7 @@
 #ifndef JOB_DISPATCHER_H
 #define JOB_DISPATCHER_H
 
+#include <kicommon.h>
 #include <functional>
 #include <string>
 #include <map>
@@ -30,13 +31,16 @@
 class KIWAY;
 class REPORTER;
 class PROGRESS_REPORTER;
+class wxWindow;
 
-class JOB_DISPATCHER
+class KICOMMON_API JOB_DISPATCHER
 {
 public:
     JOB_DISPATCHER( KIWAY* aKiway );
-    void Register( const std::string& aJobTypeName, std::function<int( JOB* job )> aHandler );
-    int  RunJob( JOB* job );
+    void Register( const std::string& aJobTypeName, std::function<int( JOB* job )> aHandler,
+                         std::function<bool( JOB* job, wxWindow* aParent )> aConfigHandler );
+    int  RunJob( JOB* aJob, REPORTER* aReporter );
+    bool HandleJobConfig( JOB* aJob, wxWindow* aParent );
     void SetReporter( REPORTER* aReporter );
     void SetProgressReporter( PROGRESS_REPORTER* aReporter );
 
@@ -47,6 +51,8 @@ protected:
 
 private:
     std::map<std::string, std::function<int( JOB* job )>> m_jobHandlers;
+    std::map<std::string, std::function<bool( JOB* job, wxWindow* aParent )>>
+            m_jobConfigHandlers;
 
 };
 

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2010-2015 Jean-Pierre Charras, jean-pierre.charras at wanadoo.fr
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,13 +29,14 @@
 
 #include <dialog_footprint_properties_base.h>
 #include <wx/valnum.h>
-#include <fp_text_grid_table.h>
+#include <pcb_fields_grid_table.h>
 #include <footprint.h>
 #include <widgets/unit_binder.h>
 
 
 class PCB_EDIT_FRAME;
 class PANEL_FP_PROPERTIES_3D_MODEL;
+class PANEL_EMBEDDED_FILES;
 
 class DIALOG_FOOTPRINT_PROPERTIES: public DIALOG_FOOTPRINT_PROPERTIES_BASE
 {
@@ -72,7 +73,11 @@ private:
     void OnAddField( wxCommandEvent&  ) override;
     void OnDeleteField( wxCommandEvent&  ) override;
     void OnUpdateUI( wxUpdateUIEvent&  ) override;
-    void OnPageChange( wxNotebookEvent& event ) override;
+    void OnPageChanging( wxNotebookEvent& event ) override;
+    void OnCombobox( wxCommandEvent& event ) override;
+    void OnText( wxCommandEvent& event ) override;
+    void OnChoice( wxCommandEvent& event ) override;
+    void OnCheckBox( wxCommandEvent& event ) override;
 
     void adjustGridColumns();
 
@@ -82,7 +87,7 @@ private:
 
     static int                       m_page;       // remember the last open page during session
 
-    FP_TEXT_GRID_TABLE*              m_fields;
+    PCB_FIELDS_GRID_TABLE*           m_fields;
     UNIT_BINDER                      m_posX;
     UNIT_BINDER                      m_posY;
     UNIT_BINDER                      m_orientation;
@@ -106,6 +111,7 @@ private:
 
     wxSize                           m_gridSize;
     wxSize                           m_lastRequestedSize;
+    PANEL_EMBEDDED_FILES*            m_embeddedFiles;
 };
 
 

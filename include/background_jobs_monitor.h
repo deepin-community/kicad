@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,6 +25,7 @@
 #ifndef BACKGROUND_JOBS_MONITOR_H
 #define BACKGROUND_JOBS_MONITOR_H
 
+#include <kicommon.h>
 #include <widgets/progress_reporter_base.h>
 #include <functional>
 #include <memory>
@@ -41,7 +42,7 @@ class BACKGROUND_JOBS_MONITOR;
 class wxWindow;
 class wxCloseEvent;
 
-class BACKGROUND_JOB_REPORTER : public PROGRESS_REPORTER_BASE
+class KICOMMON_API BACKGROUND_JOB_REPORTER : public PROGRESS_REPORTER_BASE
 {
 public:
     BACKGROUND_JOB_REPORTER( BACKGROUND_JOBS_MONITOR*        aMonitor,
@@ -69,7 +70,7 @@ private:
 };
 
 
-struct BACKGROUND_JOB
+struct KICOMMON_API BACKGROUND_JOB
 {
 public:
     wxString m_name;
@@ -81,7 +82,7 @@ public:
 };
 
 
-class BACKGROUND_JOBS_MONITOR
+class KICOMMON_API BACKGROUND_JOBS_MONITOR
 {
     friend class BACKGROUND_JOB_REPORTER;
     friend class BACKGROUND_JOB_LIST;

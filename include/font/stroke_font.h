@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2012 Torsten Hueter, torstenhtr <at> gmx.de
  * Copyright (C) 2013 CERN
- * Copyright (C) 2016-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -66,8 +66,9 @@ public:
     static STROKE_FONT* LoadFont( const wxString& aFontName );
 
     /**
-     * Compute the distance (interline) between 2 lines of text (for multiline texts).  This is
-     * the distance between baselines, not the space between line bounding boxes.
+     * Compute the distance (interline) between 2 lines of text (for multiline texts).
+     *
+     * This is the distance between baselines, not the space between line bounding boxes.
      */
     double GetInterline( double aGlyphHeight, const METRICS& aFontMetrics ) const override;
 

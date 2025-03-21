@@ -1,8 +1,8 @@
-/*
+﻿/*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2019-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -76,7 +76,7 @@
  *    6. Blocks are virtual groups, blocks must be placed by a INSERT entity
  *    7. Blocks may be repeated multiple times
  *    8. There is no sane way to make text look perfect like the original CAD.
- *       DXF simply does mpt secifying text/font enough to make it portable.
+ *       DXF simply does mpt specifying text/font enough to make it portable.
  *       We however make do try to get it somewhat close/visually appealing.
  *    9. We silently drop the z coordinate on 3d polylines
  */
@@ -464,7 +464,8 @@ void DXF_IMPORT_PLUGIN::addVertex( const DL_VertexData& aData )
     if( std::abs( m_curr_entity.m_BulgeVertex ) < MIN_BULGE )
         insertLine( m_curr_entity.m_LastCoordinate, seg_end, lineWidth );
     else
-        insertArc( m_curr_entity.m_LastCoordinate, seg_end, m_curr_entity.m_BulgeVertex, lineWidth );
+        insertArc( m_curr_entity.m_LastCoordinate, seg_end, m_curr_entity.m_BulgeVertex,
+                   lineWidth );
 
     m_curr_entity.m_LastCoordinate = seg_end;
     m_curr_entity.m_BulgeVertex = vertex->bulge;
@@ -691,9 +692,10 @@ void DXF_IMPORT_PLUGIN::addText( const DL_TextData& aData )
 {
     MATRIX3x3D arbAxis = getArbitraryAxis( getExtrusion() );
     VECTOR3D refPointCoords    = ocsToWcs( arbAxis, VECTOR3D( aData.ipx, aData.ipy, aData.ipz ) );
-    VECTOR3D secPointCoords    = ocsToWcs( arbAxis, VECTOR3D( std::isnan( aData.apx ) ? 0 : aData.apx,
-                                                              std::isnan( aData.apy ) ? 0 : aData.apy,
-                                                              std::isnan( aData.apz ) ? 0 : aData.apz ) );
+    VECTOR3D   secPointCoords =
+            ocsToWcs( arbAxis, VECTOR3D( std::isnan( aData.apx ) ? 0 : aData.apx,
+                                         std::isnan( aData.apy ) ? 0 : aData.apy,
+                                         std::isnan( aData.apz ) ? 0 : aData.apz ) );
 
     VECTOR2D refPoint( mapX( refPointCoords.x ), mapY( refPointCoords.y ) );
     VECTOR2D secPoint( mapX( secPointCoords.x ), mapY( secPointCoords.y ) );
@@ -713,6 +715,7 @@ void DXF_IMPORT_PLUGIN::addText( const DL_TextData& aData )
     DXF_IMPORT_STYLE* style = getImportStyle( aData.style.c_str() );
 
     double textHeight = mapDim( aData.height );
+
     // The 0.9 factor gives a better height/width base ratio with our font
     double charWidth = textHeight * 0.9;
 
@@ -720,12 +723,12 @@ void DXF_IMPORT_PLUGIN::addText( const DL_TextData& aData )
         charWidth *= style->m_widthFactor;
 
     double textWidth = charWidth * text.length();   // Rough approximation
-    double textThickness = textHeight/8.0;          // Use a reasonable line thickness for this text
+    double textThickness = textHeight / 8.0;        // Use a reasonable line thickness for this text
 
-    VECTOR2D bottomLeft(0.0, 0.0);
-    VECTOR2D bottomRight(0.0, 0.0);
-    VECTOR2D topLeft(0.0, 0.0);
-    VECTOR2D topRight(0.0, 0.0);
+    VECTOR2D bottomLeft( 0.0, 0.0 );
+    VECTOR2D bottomRight( 0.0, 0.0 );
+    VECTOR2D topLeft( 0.0, 0.0 );
+    VECTOR2D topRight( 0.0, 0.0 );
 
     GR_TEXT_H_ALIGN_T hJustify = GR_TEXT_H_ALIGN_LEFT;
     GR_TEXT_V_ALIGN_T vJustify = GR_TEXT_V_ALIGN_BOTTOM;
@@ -804,6 +807,7 @@ void DXF_IMPORT_PLUGIN::addText( const DL_TextData& aData )
     // dxf_lib imports text angle in radians (although there are no comment about that.
     // So, for the moment, convert this angle to degrees
     double angle_degree = aData.angle * 180 / M_PI;
+
     // We also need the angle in radians. so convert angle_degree to radians
     // regardless the aData.angle unit
     double angleInRads = angle_degree * M_PI / 180.0;
@@ -840,10 +844,23 @@ void DXF_IMPORT_PLUGIN::addText( const DL_TextData& aData )
 }
 
 
+void DXF_IMPORT_PLUGIN::addMTextChunk( const std::string& text )
+{
+    // If the text string is greater than 250 characters, the string is divided into 250-character
+    // chunks, which appear in one or more group 3 codes. If group 3 codes are used, the last group
+    // is a group 1 and has fewer than 250 characters
+
+    m_mtextContent.append( text );
+}
+
+
 void DXF_IMPORT_PLUGIN::addMText( const DL_MTextData& aData )
 {
-    wxString          text = toNativeString( wxString::FromUTF8( aData.text.c_str() ) );
-    wxString          attrib;
+    m_mtextContent.append( aData.text );
+
+    // TODO: determine control codes applied to the whole text?
+    wxString text = toNativeString( wxString::FromUTF8( m_mtextContent.c_str() ) );
+
     DXF_IMPORT_STYLE* style = getImportStyle( aData.style.c_str() );
     double            textHeight = mapDim( aData.height );
 
@@ -860,30 +877,6 @@ void DXF_IMPORT_PLUGIN::addMText( const DL_MTextData& aData )
     VECTOR2D bottomRight(0.0, 0.0);
     VECTOR2D topLeft(0.0, 0.0);
     VECTOR2D topRight(0.0, 0.0);
-
-    /* Some texts start by '\' and have formatting chars (font name, font option...)
-     *  ending with ';'
-     *  Here are some mtext formatting codes:
-     *  Format code        Purpose
-     * \0...\o            Turns overline on and off
-     *  \L...\l            Turns underline on and off
-     * \~                 Inserts a nonbreaking space
-     \\                 Inserts a backslash
-     \\\{...\}            Inserts an opening and closing brace
-     \\ \File name;        Changes to the specified font file
-     \\ \Hvalue;           Changes to the text height specified in drawing units
-     \\ \Hvaluex;          Changes the text height to a multiple of the current text height
-     \\ \S...^...;         Stacks the subsequent text at the \, #, or ^ symbol
-     \\ \Tvalue;           Adjusts the space between characters, from.75 to 4 times
-     \\ \Qangle;           Changes oblique angle
-     \\ \Wvalue;           Changes width factor to produce wide text
-     \\ \A                 Sets the alignment value; valid values: 0, 1, 2 (bottom, center, top)    while( text.StartsWith( wxT("\\") ) )
-     */
-    while( text.StartsWith( wxT( "\\" ) ) )
-    {
-        attrib << text.BeforeFirst( ';' );
-        text = text.AfterFirst( ';' );
-    }
 
     MATRIX3x3D arbAxis = getArbitraryAxis( getExtrusion() );
     VECTOR3D   textposCoords = ocsToWcs( arbAxis, VECTOR3D( aData.ipx, aData.ipy, aData.ipz ) );
@@ -968,6 +961,7 @@ void DXF_IMPORT_PLUGIN::addMText( const DL_MTextData& aData )
     // dxf_lib imports text angle in radians (although there are no comment about that.
     // So, for the moment, convert this angle to degrees
     double angle_degree = aData.angle * 180/M_PI;
+
     // We also need the angle in radians. so convert angle_degree to radians
     // regardless the aData.angle unit
     double angleInRads = angle_degree * M_PI / 180.0;
@@ -1001,6 +995,8 @@ void DXF_IMPORT_PLUGIN::addMText( const DL_MTextData& aData )
     updateImageLimits( bottomRight );
     updateImageLimits( topLeft );
     updateImageLimits( topRight );
+
+    m_mtextContent.clear();
 }
 
 
@@ -1039,7 +1035,6 @@ double DXF_IMPORT_PLUGIN::getCurrentUnitScale()
 
     return scale;
 }
-
 
 
 void DXF_IMPORT_PLUGIN::setVariableInt( const std::string& key, int value, int code )
@@ -1165,55 +1160,170 @@ wxString DXF_IMPORT_PLUGIN::toDxfString( const wxString& aStr )
 
 wxString DXF_IMPORT_PLUGIN::toNativeString( const wxString& aData )
 {
-    wxString    res;
+    wxString res;
+    size_t   i = 0;
+    int      braces = 0;
+    int      overbarLevel = -1;
 
-    // Ignore font tags:
-    int         j = 0;
+    // For description, see:
+    // https://ezdxf.readthedocs.io/en/stable/dxfinternals/entities/mtext.html
+    // https://www.cadforum.cz/en/text-formatting-codes-in-mtext-objects-tip8640
 
-    for( unsigned i = 0; i < aData.length(); ++i )
+    for( i = 0; i < aData.length(); i++ )
     {
-        if( aData[ i ] == 0x7B )                                     // is '{' ?
+        switch( (wchar_t) aData[i] )
         {
-            if( aData[ i + 1 ] == 0x5c && aData[ i + 2 ] == 0x66 )    // is "\f" ?
-            {
-                // found font tag, append parsed part
-                res.append( aData.Mid( j, i - j ) );
+        case '{': // Text area influenced by the code
+            braces++;
+            break;
 
-                // skip to ';'
-                for( unsigned k = i + 3; k < aData.length(); ++k )
+        case '}':
+            if( overbarLevel == braces )
+            {
+                res << '}';
+                overbarLevel = -1;
+            }
+            braces--;
+            break;
+
+        case '^': // C0 control code
+            if( ++i >= aData.length() )
+                break;
+
+            switch( (wchar_t) aData[i] )
+            {
+            case 'I': res << '\t'; break;
+            case 'J': res << '\b'; break;
+            case ' ': res << '^'; break;
+            default: break;
+            }
+            break;
+
+        case '\\':
+        {
+            if( ++i >= aData.length() )
+                break;
+
+            switch( (wchar_t) aData[i] )
+            {
+            case 'P': // New paragraph (new line)
+            case 'X': // Paragraph wrap on the dimension line (only in dimensions)
+                res << '\n';
+                break;
+
+            case '~': // Non-wrapping space, hard space
+                res << L'\u00A0';
+                break;
+
+            case 'U': // Unicode character, e.g. \U+ff08
+            {
+                i += 2;
+                wxString codeHex;
+
+                for( ; codeHex.length() < 4 && i < aData.length(); i++ )
+                    codeHex << aData[i];
+
+                unsigned long codeVal = 0;
+
+                if( codeHex.ToCULong( &codeVal, 16 ) && codeVal != 0 )
+                    res << wxUniChar( codeVal );
+
+                i--;
+            }
+            break;
+
+            case 'S': // Stacking
+            {
+                i++;
+                wxString stacked;
+
+                for( ; i < aData.length(); i++ )
                 {
-                    if( aData[ k ] == 0x3B )
-                    {
-                        i = j = ++k;
+                    if( aData[i] == ';' )
                         break;
-                    }
+                    else
+                        stacked << aData[i];
                 }
 
-                // add to '}'
-                for( unsigned k = i; k < aData.length(); ++k )
+                if( stacked.Contains( wxS( "#" ) ) )
                 {
-                    if( aData[ k ] == 0x7D )
-                    {
-                        res.append( aData.Mid( i, k - i ) );
-                        i = j = ++k;
-                        break;
-                    }
+                    res << '^' << '{';
+                    res << stacked.BeforeFirst( '#' );
+                    res << '}' << '/' << '_' << '{';
+                    res << stacked.AfterFirst( '#' );
+                    res << '}';
+                }
+                else
+                {
+                    stacked.Replace( wxS( "^ " ), wxS( "/" ) );
+                    res << stacked;
                 }
             }
+            break;
+
+            case 'O': // Start overstrike
+                if( overbarLevel == -1 )
+                {
+                    res << '~' << '{';
+                    overbarLevel = braces;
+                }
+                break;
+            case 'o': // Stop overstrike
+                if( overbarLevel == braces )
+                {
+                    res << '}';
+                    overbarLevel = -1;
+                }
+                break;
+
+            case 'L': // Start underline
+            case 'l': // Stop underline
+            case 'K': // Start strike-through
+            case 'k': // Stop strike-through
+            case 'N': // New column
+                // Ignore
+                break;
+
+            case 'p': // Control codes for bullets, numbered paragraphs, tab stops and columns
+            case 'Q': // Slanting (obliquing) text by angle
+            case 'H': // Text height
+            case 'W': // Text width
+            case 'F': // Font selection
+            case 'f': // Font selection (alternative)
+            case 'A': // Alignment
+            case 'C': // Color change (ACI colors)
+            case 'c': // Color change (truecolor)
+            case 'T': // Tracking, char.spacing
+                // Skip to ;
+                for( ; i < aData.length(); i++ )
+                {
+                    if( aData[i] == ';' )
+                        break;
+                }
+                break;
+
+            default: // Escaped character
+                if( ++i >= aData.length() )
+                    break;
+
+                res << aData[i];
+                break;
+            }
+        }
+        break;
+
+        default: res << aData[i];
         }
     }
 
-    res.append( aData.Mid( j ) );
+    if( overbarLevel != -1 )
+    {
+        res << '}';
+        overbarLevel = -1;
+    }
 
 #if 1
     wxRegEx regexp;
-    // Line feed:
-    regexp.Compile( wxT( "\\\\P" ) );
-    regexp.Replace( &res, wxT( "\n" ) );
-
-    // Space:
-    regexp.Compile( wxT( "\\\\~" ) );
-    regexp.Replace( &res, wxT( " " ) );
 
     // diameter:
     regexp.Compile( wxT( "%%[cC]" ) );
@@ -1228,6 +1338,7 @@ wxString DXF_IMPORT_PLUGIN::toNativeString( const wxString& aData )
     // degree:
     regexp.Compile( wxT( "%%[dD]" ) );
     regexp.Replace( &res, wxChar( 0x00B0 ) );
+
     // plus/minus
     regexp.Compile( wxT( "%%[pP]" ) );
     regexp.Replace( &res, wxChar( 0x00B1 ) );
@@ -1304,10 +1415,13 @@ void DXF_IMPORT_PLUGIN::insertArc( const VECTOR2D& aSegStart, const VECTOR2D& aS
     // reflect the Y values to put everything in a RHCS
     VECTOR2D sp( aSegStart.x, -aSegStart.y );
     VECTOR2D ep( aSegEnd.x, -aSegEnd.y );
+
     // angle from end->start
     double offAng = atan2( ep.y - sp.y, ep.x - sp.x );
+
     // length of subtended segment = 1/2 distance between the 2 points
-    double d = 0.5 * sqrt( (sp.x - ep.x) * (sp.x - ep.x) + (sp.y - ep.y) * (sp.y - ep.y) );
+    double d = 0.5 * sqrt( ( sp.x - ep.x ) * ( sp.x - ep.x ) + ( sp.y - ep.y ) * ( sp.y - ep.y ) );
+
     // midpoint of the subtended segment
     double xm   = ( sp.x + ep.x ) * 0.5;
     double ym   = ( sp.y + ep.y ) * 0.5;
@@ -1371,11 +1485,11 @@ void DXF_IMPORT_PLUGIN::insertArc( const VECTOR2D& aSegStart, const VECTOR2D& aS
 void DXF_IMPORT_PLUGIN::insertSpline( double aWidth )
 {
 #if 0   // Debug only
-    wxLogMessage("spl deg %d kn %d ctr %d fit %d",
-         m_curr_entity.m_SplineDegree,
-         m_curr_entity.m_SplineKnotsList.size(),
-         m_curr_entity.m_SplineControlPointList.size(),
-         m_curr_entity.m_SplineFitPointList.size() );
+    wxLogMessage( "spl deg %d kn %d ctr %d fit %d",
+                  m_curr_entity.m_SplineDegree,
+                  m_curr_entity.m_SplineKnotsList.size(),
+                  m_curr_entity.m_SplineControlPointList.size(),
+                  m_curr_entity.m_SplineFitPointList.size() );
 #endif
 
     unsigned imax = m_curr_entity.m_SplineControlPointList.size();

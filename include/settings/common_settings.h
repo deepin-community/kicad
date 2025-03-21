@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020, 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -44,7 +44,7 @@ enum class ICON_THEME
 };
 
 
-class COMMON_SETTINGS : public JSON_SETTINGS
+class KICOMMON_API COMMON_SETTINGS : public JSON_SETTINGS
 {
 public:
     struct APPEARANCE
@@ -57,6 +57,7 @@ public:
         double     hicontrast_dimming_factor;
         int        text_editor_zoom;
         int        toolbar_icon_size;
+        bool       grid_striping;
     };
 
     struct AUTO_BACKUP
@@ -99,6 +100,7 @@ public:
         MOUSE_DRAG_ACTION drag_middle;
         MOUSE_DRAG_ACTION drag_right;
 
+        bool reverse_scroll_zoom;
         bool reverse_scroll_pan_h;
     };
 
@@ -113,12 +115,14 @@ public:
         bool remember_open_files;
         std::vector<wxString> pinned_symbol_libs;
         std::vector<wxString> pinned_fp_libs;
+        std::vector<wxString> pinned_design_block_libs;
     };
 
     struct SYSTEM
     {
         int autosave_interval;
         wxString text_editor;
+        wxString file_explorer;
         int file_history_size;
         wxString language;
         wxString pdf_viewer_name;
@@ -139,6 +143,8 @@ public:
     struct NETCLASS_PANEL
     {
         int sash_pos;
+        wxString eeschema_visible_columns;
+        wxString pcbnew_visible_columns;
     };
 
     struct PACKAGE_MANAGER
@@ -163,6 +169,12 @@ public:
         bool                        useDefaultAuthor;
         wxString                    authorName;
         wxString                    authorEmail;
+    };
+
+    struct API
+    {
+        wxString python_interpreter;
+        bool enable_server;
     };
 
     COMMON_SETTINGS();
@@ -216,6 +228,8 @@ public:
     PACKAGE_MANAGER m_PackageManager;
 
     GIT m_Git;
+
+    API m_Api;
 };
 
 #endif

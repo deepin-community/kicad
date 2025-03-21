@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,12 +26,14 @@
  */
 #include <boost/test/unit_test.hpp>
 #include <kiplatform/app.h>
+#include <mock_pgm_base.h>
 
 #include <wx/init.h>
 
 
 bool init_unit_test()
 {
+    SetPgm( new MOCK_PGM_BASE() );
     KIPLATFORM::APP::Init();
     boost::unit_test::framework::master_test_suite().p_name.value = "Gerbview module tests";
     return wxInitialize();

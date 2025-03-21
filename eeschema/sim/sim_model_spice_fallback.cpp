@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,7 +21,9 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <sim/sim_model_spice_fallback.h>
+#include "sim/sim_model_spice_fallback.h"
+
+#include <ki_exception.h>
 #include <fmt/format.h>
 
 
@@ -31,25 +33,25 @@ SIM_MODEL_SPICE_FALLBACK::SIM_MODEL_SPICE_FALLBACK( TYPE aType, const std::strin
     // Create the model we *should* have had to copy its parameter list
     std::unique_ptr<SIM_MODEL> model = SIM_MODEL::Create( aType );
 
-    for( const SIM_MODEL::PARAM& param : model->GetParams() )
-        AddParam( param.info );
+    for( int ii = 0; ii < GetParamCount(); ++ii )
+        AddParam( GetParam( ii ).info );
 
     m_spiceCode = aRawSpiceCode;
 }
 
 
-void SIM_MODEL_SPICE_FALLBACK::SetPinSymbolPinNumber( const std::string& aPinName,
-                                                      const std::string& aSymbolPinNumber )
+void SIM_MODEL_SPICE_FALLBACK::AssignSymbolPinNumberToModelPin( const std::string& aModelPinName,
+                                                                const wxString& aSymbolPinNumber )
 {
     try
     {
-        SIM_MODEL::SetPinSymbolPinNumber( aPinName, aSymbolPinNumber );
+        SIM_MODEL::AssignSymbolPinNumberToModelPin( aModelPinName, aSymbolPinNumber );
     }
     catch( IO_ERROR& )
     {
         // This is a fall-back, so we won't necessarily know the pin names.  If we didn't find
         // it, then just create a new pin.
-        m_pins.push_back( { aPinName, aSymbolPinNumber } );
+        m_modelPins.push_back( { aModelPinName, aSymbolPinNumber } );
     }
 }
 
@@ -64,15 +66,23 @@ std::vector<std::string> SIM_MODEL_SPICE_FALLBACK::GetPinNames() const
 
 int SIM_MODEL_SPICE_FALLBACK::doFindParam( const std::string& aParamName ) const
 {
-    // Special case to allow escaped model parameters (suffixed with "_")
-
-    std::vector<std::reference_wrapper<const PARAM>> params = GetParams();
-
-    for( int ii = 0; ii < (int) params.size(); ++ii )
+    for( int ii = 0; ii < GetParamCount(); ++ii )
     {
-        const PARAM& param = params[ii];
+        const SIM_MODEL::PARAM& param = GetParam( ii );
 
-        if( param.Matches( aParamName ) || param.Matches( aParamName + "_" ) )
+        if( param.Matches( aParamName ) )
+            return ii;
+    }
+
+    // Look for escaped param names as a second pass (as they're less common)
+    for( int ii = 0; ii < GetParamCount(); ++ii )
+    {
+        const SIM_MODEL::PARAM& param = GetParam( ii );
+
+        if( !param.info.name.ends_with( '_' ) )
+            continue;
+
+        if( param.Matches( aParamName + "_" ) )
             return ii;
     }
 

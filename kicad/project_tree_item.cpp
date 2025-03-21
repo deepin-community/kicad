@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,6 +36,7 @@
 #include <kiway.h>
 #include <tool/tool_manager.h>
 #include <tools/kicad_manager_actions.h>
+#include <wx/msgdlg.h>
 
 #include "kicad_manager_frame.h"
 #include "project_tree.h"
@@ -189,6 +190,11 @@ void PROJECT_TREE_ITEM::Activate( PROJECT_TREE_PANE* aTreePrjFrame )
         // Select a new project if this is not the current project:
         if( id != aTreePrjFrame->m_TreeProject->GetRootItem() )
             frame->LoadProject( fullFileName );
+
+        break;
+
+    case TREE_FILE_TYPE::JOBSET_FILE:
+        frame->OpenJobsFile( fullFileName );
 
         break;
 

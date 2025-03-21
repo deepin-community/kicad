@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,12 +21,15 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <dialogs/dialog_position_relative.h>
+#include "dialogs/dialog_position_relative.h"
+
 #include <math/util.h>      // for KiROUND
 #include <tools/pcb_actions.h>
 #include <widgets/tab_traversal.h>
 #include <pcb_edit_frame.h>
 #include <board_design_settings.h>
+#include <tools/pcb_picker_tool.h>
+#include <tools/position_relative_tool.h>
 #include <trigo.h>
 
 // initialise statics
@@ -60,8 +63,6 @@ DIALOG_POSITION_RELATIVE::DIALOG_POSITION_RELATIVE( PCB_BASE_FRAME* aParent ) :
     // and set up the entries according to the saved options
     m_polarCoords->SetValue( m_options.polarCoords );
     updateDialogControls( m_polarCoords->IsChecked() );
-
-    updateAnchorInfo( nullptr );
 
     m_xOffset.SetDoubleValue( m_options.entry1 );
     m_yOffset.SetDoubleValue( m_options.entry2 );
@@ -213,15 +214,31 @@ void DIALOG_POSITION_RELATIVE::OnSelectItemClick( wxCommandEvent& event )
 {
     event.Skip();
 
-    POSITION_RELATIVE_TOOL* posrelTool = m_toolMgr->GetTool<POSITION_RELATIVE_TOOL>();
-    wxASSERT( posrelTool );
-    m_toolMgr->RunAction( PCB_ACTIONS::selectpositionRelativeItem );
+    PCB_PICKER_TOOL* pickerTool = m_toolMgr->GetTool<PCB_PICKER_TOOL>();
+    wxCHECK( pickerTool, /* void */ );
+    m_toolMgr->RunAction(
+            PCB_ACTIONS::selectItemInteractively,
+            PCB_PICKER_TOOL::INTERACTIVE_PARAMS{ this, _( "Select reference item..." ) } );
 
     Hide();
 }
 
 
-void DIALOG_POSITION_RELATIVE::updateAnchorInfo( BOARD_ITEM* aItem )
+void DIALOG_POSITION_RELATIVE::OnSelectPointClick( wxCommandEvent& event )
+{
+    event.Skip();
+
+    PCB_PICKER_TOOL* pickerTool = m_toolMgr->GetTool<PCB_PICKER_TOOL>();
+    wxCHECK( pickerTool, /* void */ );
+    m_toolMgr->RunAction(
+            PCB_ACTIONS::selectPointInteractively,
+            PCB_PICKER_TOOL::INTERACTIVE_PARAMS{ this, _( "Select reference point..." ) } );
+
+    Hide();
+}
+
+
+void DIALOG_POSITION_RELATIVE::updateAnchorInfo( const BOARD_ITEM* aItem )
 {
     switch( m_options.anchorType )
     {
@@ -239,11 +256,18 @@ void DIALOG_POSITION_RELATIVE::updateAnchorInfo( BOARD_ITEM* aItem )
         wxString       msg = _( "<none selected>" );
 
         if( aItem )
-            msg = aItem->GetItemDescription( &unitsProvider );
+            msg = aItem->GetItemDescription( &unitsProvider, true );
 
         m_referenceInfo->SetLabel( wxString::Format( _( "Reference item: %s" ), msg ) );
         break;
     }
+
+    case ANCHOR_POINT:
+        m_referenceInfo->SetLabel( wxString::Format(
+            _( "Reference location: selected point (%s, %s)" ),
+            m_parentFrame->MessageTextFromValue( m_anchorItemPosition.x ),
+            m_parentFrame->MessageTextFromValue( m_anchorItemPosition.y ) ) );
+        break;
     }
 }
 
@@ -259,6 +283,7 @@ VECTOR2I DIALOG_POSITION_RELATIVE::getAnchorPos()
         return static_cast<PCB_BASE_FRAME*>( m_toolMgr->GetToolHolder() )->GetScreen()->m_LocalOrigin;
 
     case ANCHOR_ITEM:
+    case ANCHOR_POINT:
         return m_anchorItemPosition;
     }
 
@@ -281,18 +306,31 @@ void DIALOG_POSITION_RELATIVE::OnUseUserOriginClick( wxCommandEvent& event )
 }
 
 
-void DIALOG_POSITION_RELATIVE::UpdateAnchor( EDA_ITEM* aItem )
+void DIALOG_POSITION_RELATIVE::UpdatePickedItem( const EDA_ITEM* aItem )
 {
-    BOARD_ITEM* item = nullptr;
+    const BOARD_ITEM* item = nullptr;
 
     if( aItem && aItem->IsBOARD_ITEM() )
-        item = static_cast<BOARD_ITEM*>( aItem );
+        item = static_cast<const BOARD_ITEM*>( aItem );
 
     m_options.anchorType = ANCHOR_ITEM;
     updateAnchorInfo( item );
 
     if( item )
         m_anchorItemPosition = item->GetPosition();
+
+    Show( true );
+}
+
+
+void DIALOG_POSITION_RELATIVE::UpdatePickedPoint( const std::optional<VECTOR2I>& aPoint )
+{
+    m_options.anchorType = ANCHOR_POINT;
+
+    if( aPoint )
+        m_anchorItemPosition = *aPoint;
+
+    updateAnchorInfo( nullptr );
 
     Show( true );
 }

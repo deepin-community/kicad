@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2023, 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -103,14 +103,14 @@ CLI::PCB_EXPORT_DRILL_COMMAND::PCB_EXPORT_DRILL_COMMAND() : PCB_EXPORT_BASE_COMM
 
 int CLI::PCB_EXPORT_DRILL_COMMAND::doPerform( KIWAY& aKiway )
 {
-    std::unique_ptr<JOB_EXPORT_PCB_DRILL> drillJob( new JOB_EXPORT_PCB_DRILL( true ) );
+    std::unique_ptr<JOB_EXPORT_PCB_DRILL> drillJob( new JOB_EXPORT_PCB_DRILL() );
 
     drillJob->m_filename = m_argInput;
-    drillJob->m_outputDir = m_argOutput;
+    drillJob->SetConfiguredOutputPath( m_argOutput );
 
-    if( !drillJob->m_outputDir.IsEmpty() )
+    if( !drillJob->GetConfiguredOutputPath().IsEmpty() )
     {
-        wxFileName fn( drillJob->m_outputDir, wxEmptyString );
+        wxFileName fn( drillJob->GetConfiguredOutputPath(), wxEmptyString );
 
         if( !fn.IsDir() )
         {

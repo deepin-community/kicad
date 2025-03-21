@@ -5,7 +5,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2013-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,15 +25,26 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <mutex>
 #include <macros.h>
 #include <reporter.h>
 #include <string_utils.h>
 #include <widgets/wx_infobar.h>
-#include <widgets/wx_html_report_panel.h>
 #include <wx/crt.h>
 #include <wx/log.h>
 #include <wx/textctrl.h>
 #include <wx/statusbr.h>
+
+
+/**
+ * Flag to enable reporter debugging output.
+ *
+ * @ingroup trace_env_vars
+ */
+static const wxChar traceReporter[] = wxT( "KICAD_REPORTER" );
+
+static std::mutex g_logReporterMutex;
+
 
 REPORTER& REPORTER::Report( const char* aText, SEVERITY aSeverity )
 {
@@ -95,49 +106,6 @@ bool WX_STRING_REPORTER::HasMessage() const
 bool WX_STRING_REPORTER::HasMessageOfSeverity( int aSeverityMask ) const
 {
     return ( m_severityMask & aSeverityMask ) != 0;
-}
-
-
-REPORTER& WX_HTML_PANEL_REPORTER::Report( const wxString& aText, SEVERITY aSeverity )
-{
-    wxCHECK_MSG( m_panel != nullptr, *this,
-                 wxT( "No WX_HTML_REPORT_PANEL object defined in WX_HTML_PANEL_REPORTER." ) );
-
-    m_panel->Report( aText, aSeverity );
-    return *this;
-}
-
-
-REPORTER& WX_HTML_PANEL_REPORTER::ReportTail( const wxString& aText, SEVERITY aSeverity )
-{
-    wxCHECK_MSG( m_panel != nullptr, *this,
-                 wxT( "No WX_HTML_REPORT_PANEL object defined in WX_HTML_PANEL_REPORTER." ) );
-
-    m_panel->Report( aText, aSeverity, LOC_TAIL );
-    return *this;
-}
-
-
-REPORTER& WX_HTML_PANEL_REPORTER::ReportHead( const wxString& aText, SEVERITY aSeverity )
-{
-    wxCHECK_MSG( m_panel != nullptr, *this,
-                 wxT( "No WX_HTML_REPORT_PANEL object defined in WX_HTML_PANEL_REPORTER." ) );
-
-    m_panel->Report( aText, aSeverity, LOC_HEAD );
-    return *this;
-}
-
-
-bool WX_HTML_PANEL_REPORTER::HasMessage() const
-{
-    // Check just for errors and warnings for compatibility
-    return HasMessageOfSeverity( RPT_SEVERITY_ERROR | RPT_SEVERITY_WARNING );
-}
-
-
-bool WX_HTML_PANEL_REPORTER::HasMessageOfSeverity( int aSeverityMask ) const
-{
-    return m_panel->Count( aSeverityMask ) > 0;
 }
 
 
@@ -217,14 +185,14 @@ REPORTER& WXLOG_REPORTER::Report( const wxString& aMsg, SEVERITY aSeverity )
 {
     switch( aSeverity )
     {
-    case RPT_SEVERITY_ERROR:     wxLogError( aMsg );   break;
-    case RPT_SEVERITY_WARNING:   wxLogWarning( aMsg ); break;
-    case RPT_SEVERITY_UNDEFINED: wxLogMessage( aMsg ); break;
-    case RPT_SEVERITY_INFO:      wxLogInfo( aMsg );    break;
-    case RPT_SEVERITY_ACTION:    wxLogInfo( aMsg );    break;
-    case RPT_SEVERITY_DEBUG:     wxLogDebug( aMsg );   break;
-    case RPT_SEVERITY_EXCLUSION:                       break;
-    case RPT_SEVERITY_IGNORE:                          break;
+    case RPT_SEVERITY_ERROR:     wxLogError( aMsg );                  break;
+    case RPT_SEVERITY_WARNING:   wxLogWarning( aMsg );                break;
+    case RPT_SEVERITY_UNDEFINED: wxLogMessage( aMsg );                break;
+    case RPT_SEVERITY_INFO:      wxLogInfo( aMsg );                   break;
+    case RPT_SEVERITY_ACTION:    wxLogInfo( aMsg );                   break;
+    case RPT_SEVERITY_DEBUG:     wxLogTrace( traceReporter, aMsg );   break;
+    case RPT_SEVERITY_EXCLUSION:                                      break;
+    case RPT_SEVERITY_IGNORE:                                         break;
     }
 
     return *this;
@@ -234,6 +202,7 @@ REPORTER& WXLOG_REPORTER::Report( const wxString& aMsg, SEVERITY aSeverity )
 REPORTER& WXLOG_REPORTER::GetInstance()
 {
     static REPORTER* s_wxLogReporter = nullptr;
+    std::lock_guard lock( g_logReporterMutex );
 
     if( !s_wxLogReporter )
         s_wxLogReporter = new WXLOG_REPORTER();
@@ -257,59 +226,4 @@ bool STATUSBAR_REPORTER::HasMessage() const
         return !m_statusBar->GetStatusText( m_position ).IsEmpty();
 
     return false;
-}
-
-
-INFOBAR_REPORTER::~INFOBAR_REPORTER()
-{
-}
-
-
-REPORTER& INFOBAR_REPORTER::Report( const wxString& aText, SEVERITY aSeverity )
-{
-    m_message.reset( new wxString( aText ) );
-    m_severity   = aSeverity;
-    m_messageSet = true;
-
-    return *this;
-}
-
-
-bool INFOBAR_REPORTER::HasMessage() const
-{
-    return m_message && !m_message->IsEmpty();
-}
-
-
-void INFOBAR_REPORTER::Finalize()
-{
-    // Don't do anything if no message was ever given
-    if( !m_infoBar || !m_messageSet )
-        return;
-
-    // Short circuit if the message is empty and it is already hidden
-    if( !HasMessage() && !m_infoBar->IsShownOnScreen() )
-        return;
-
-    int icon = wxICON_NONE;
-
-    switch( m_severity )
-    {
-        case RPT_SEVERITY_UNDEFINED: icon = wxICON_INFORMATION; break;
-        case RPT_SEVERITY_INFO:      icon = wxICON_INFORMATION; break;
-        case RPT_SEVERITY_EXCLUSION: icon = wxICON_WARNING;     break;
-        case RPT_SEVERITY_ACTION:    icon = wxICON_WARNING;     break;
-        case RPT_SEVERITY_WARNING:   icon = wxICON_WARNING;     break;
-        case RPT_SEVERITY_ERROR:     icon = wxICON_ERROR;       break;
-        case RPT_SEVERITY_IGNORE:    icon = wxICON_INFORMATION; break;
-        case RPT_SEVERITY_DEBUG:     icon = wxICON_INFORMATION; break;
-    }
-
-    if( m_message->EndsWith( wxS( "\n" ) ) )
-        *m_message = m_message->Left( m_message->Length() - 1 );
-
-    if( HasMessage() )
-        m_infoBar->QueueShowMessage( *m_message, icon );
-    else
-        m_infoBar->QueueDismiss();
 }

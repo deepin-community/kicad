@@ -4,7 +4,7 @@
  * Copyright (C) 2016 Mario Luzeiro <mrluzeiro@ua.pt>
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2015 Dick Hollenbeck, dick@softplc.com
- * Copyright (C) 2004-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,6 +28,7 @@
 #include <bitmaps.h>
 #include <board_commit.h>
 #include <board_design_settings.h>
+#include <board.h>
 #include <footprint.h>
 #include <confirm.h>
 #include <dialogs/dialog_text_entry.h>
@@ -41,8 +42,8 @@
 #include <widgets/text_ctrl_eval.h>
 #include <widgets/std_bitmap_button.h>
 #include <settings/settings_manager.h>
+#include <panel_embedded_files.h>
 #include <panel_fp_properties_3d_model.h>
-#include <dialogs/3d_cache_dialogs.h>
 #include <dialogs/panel_preview_3d_model.h>
 #include <dialog_footprint_properties.h>
 
@@ -70,15 +71,18 @@ DIALOG_FOOTPRINT_PROPERTIES::DIALOG_FOOTPRINT_PROPERTIES( PCB_EDIT_FRAME* aParen
         m_gridSize( 0, 0 ),
         m_lastRequestedSize( 0, 0 )
 {
-    // Create the 3D models page
-    m_3dPanel = new PANEL_FP_PROPERTIES_3D_MODEL( m_frame, m_footprint, this, m_NoteBook );
+    // Create the extra panels.  Embedded files is referenced by the 3D model panel.
+    m_embeddedFiles = new PANEL_EMBEDDED_FILES( m_NoteBook, m_footprint );
+    m_3dPanel = new PANEL_FP_PROPERTIES_3D_MODEL( m_frame, m_footprint, this, m_embeddedFiles, m_NoteBook );
+
     m_NoteBook->AddPage( m_3dPanel, _("3D Models"), false );
+    m_NoteBook->AddPage( m_embeddedFiles, _( "Embedded Files" ) );
 
     // Configure display origin transforms
     m_posX.SetCoordType( ORIGIN_TRANSFORMS::ABS_X_COORD );
     m_posY.SetCoordType( ORIGIN_TRANSFORMS::ABS_Y_COORD );
 
-    m_fields = new FP_TEXT_GRID_TABLE( m_frame, this );
+    m_fields = new PCB_FIELDS_GRID_TABLE( m_frame, this, m_embeddedFiles->GetLocalFiles() );
 
     m_delayedErrorMessage = wxEmptyString;
     m_delayedFocusGrid = nullptr;
@@ -169,8 +173,13 @@ DIALOG_FOOTPRINT_PROPERTIES::DIALOG_FOOTPRINT_PROPERTIES( PCB_EDIT_FRAME* aParen
 
     SetupStandardButtons();
 
+    // The 3D model tab was added after the base dtor.  The final dialog size needs to be set
+    // accordingly.
+	SetSizer( m_GeneralBoxSizer );
+	Layout();
+	m_GeneralBoxSizer->Fit( this );
+
     finishDialogSettings();
-    m_initialized = true;
 }
 
 
@@ -260,6 +269,9 @@ bool DIALOG_FOOTPRINT_PROPERTIES::TransferDataToWindow()
     if( !m_3dPanel->TransferDataToWindow() )
         return false;
 
+    if( !m_embeddedFiles->TransferDataToWindow() )
+        return false;
+
     // Footprint Fields
     for( PCB_FIELD* srcField : m_footprint->GetFields() )
     {
@@ -304,13 +316,29 @@ bool DIALOG_FOOTPRINT_PROPERTIES::TransferDataToWindow()
 
     // Local Clearances
 
-    m_netClearance.SetValue( m_footprint->GetLocalClearance() );
-    m_solderMask.SetValue( m_footprint->GetLocalSolderMaskMargin() );
-    m_solderPaste.SetValue( m_footprint->GetLocalSolderPasteMargin() );
-    m_solderPasteRatio.SetDoubleValue( m_footprint->GetLocalSolderPasteMarginRatio() * 100.0 );
+    if( m_footprint->GetLocalClearance().has_value() )
+        m_netClearance.SetValue( m_footprint->GetLocalClearance().value() );
+    else
+        m_netClearance.SetValue( wxEmptyString );
+
+    if( m_footprint->GetLocalSolderMaskMargin().has_value() )
+        m_solderMask.SetValue( m_footprint->GetLocalSolderMaskMargin().value() );
+    else
+        m_solderMask.SetValue( wxEmptyString );
+
+    if( m_footprint->GetLocalSolderPasteMargin().has_value() )
+        m_solderPaste.SetValue( m_footprint->GetLocalSolderPasteMargin().value() );
+    else
+        m_solderPaste.SetValue( wxEmptyString );
+
+    if( m_footprint->GetLocalSolderPasteMarginRatio().has_value() )
+        m_solderPasteRatio.SetDoubleValue( m_footprint->GetLocalSolderPasteMarginRatio().value() * 100.0 );
+    else
+        m_solderPasteRatio.SetValue( wxEmptyString );
+
     m_allowSolderMaskBridges->SetValue( m_footprint->GetAttributes() & FP_ALLOW_SOLDERMASK_BRIDGES );
 
-    switch( m_footprint->GetZoneConnection() )
+    switch( m_footprint->GetLocalZoneConnection() )
     {
     default:
     case ZONE_CONNECTION::INHERITED: m_ZoneConnectionChoice->SetSelection( 0 ); break;
@@ -329,15 +357,15 @@ bool DIALOG_FOOTPRINT_PROPERTIES::TransferDataToWindow()
         // Adjust the column size.
         int col_size = m_itemsGrid->GetVisibleWidth( col );
 
-        if( col == FPT_LAYER )  // This one's a drop-down.  Check all possible values.
+        if( col == PFC_LAYER )  // This one's a drop-down.  Check all possible values.
         {
             BOARD* board = m_footprint->GetBoard();
 
             for( PCB_LAYER_ID layer : board->GetEnabledLayers().Seq() )
                 col_size = std::max( col_size, GetTextExtent( board->GetLayerName( layer ) ).x );
 
-            // And the swatch:
-            col_size += 20;
+            // Swatch and gaps:
+            col_size += KiROUND( 14 * GetDPIScaleFactor() ) + 12;
         }
 
         if( m_itemsGrid->IsColShown( col ) )
@@ -348,6 +376,7 @@ bool DIALOG_FOOTPRINT_PROPERTIES::TransferDataToWindow()
 
     Layout();
     adjustGridColumns();
+    m_initialized = true;
 
     return true;
 }
@@ -371,7 +400,7 @@ bool DIALOG_FOOTPRINT_PROPERTIES::Validate()
         {
             m_delayedFocusGrid = m_itemsGrid;
             m_delayedErrorMessage = wxString::Format( _( "Fields must have a name." ) );
-            m_delayedFocusColumn = FPT_NAME;
+            m_delayedFocusColumn = PFC_NAME;
             m_delayedFocusRow = i;
 
             return false;
@@ -379,18 +408,18 @@ bool DIALOG_FOOTPRINT_PROPERTIES::Validate()
 
         int minSize = pcbIUScale.mmToIU( TEXT_MIN_SIZE_MM );
         int maxSize = pcbIUScale.mmToIU( TEXT_MAX_SIZE_MM );
-        int width = m_frame->ValueFromString( m_itemsGrid->GetCellValue( i, FPT_WIDTH ) );
-        int height = m_frame->ValueFromString( m_itemsGrid->GetCellValue( i, FPT_HEIGHT ) );
+        int width = m_frame->ValueFromString( m_itemsGrid->GetCellValue( i, PFC_WIDTH ) );
+        int height = m_frame->ValueFromString( m_itemsGrid->GetCellValue( i, PFC_HEIGHT ) );
 
         if( width < minSize )
         {
             wxString min = m_frame->StringFromValue( minSize, true );
 
-            m_itemsGrid->SetCellValue( i, FPT_WIDTH, min );
+            m_itemsGrid->SetCellValue( i, PFC_WIDTH, min );
 
             m_delayedFocusGrid = m_itemsGrid;
             m_delayedErrorMessage = wxString::Format( _( "Text width must be at least %s." ), min );
-            m_delayedFocusColumn = FPT_WIDTH;
+            m_delayedFocusColumn = PFC_WIDTH;
             m_delayedFocusRow = i;
 
             return false;
@@ -399,11 +428,11 @@ bool DIALOG_FOOTPRINT_PROPERTIES::Validate()
         {
             wxString max = m_frame->StringFromValue( maxSize, true );
 
-            m_itemsGrid->SetCellValue( i, FPT_WIDTH, max );
+            m_itemsGrid->SetCellValue( i, PFC_WIDTH, max );
 
             m_delayedFocusGrid = m_itemsGrid;
             m_delayedErrorMessage = wxString::Format( _( "Text width must be at most %s." ), max );
-            m_delayedFocusColumn = FPT_WIDTH;
+            m_delayedFocusColumn = PFC_WIDTH;
             m_delayedFocusRow = i;
 
             return false;
@@ -413,11 +442,11 @@ bool DIALOG_FOOTPRINT_PROPERTIES::Validate()
         {
             wxString min = m_frame->StringFromValue( minSize, true );
 
-            m_itemsGrid->SetCellValue( i, FPT_HEIGHT, min );
+            m_itemsGrid->SetCellValue( i, PFC_HEIGHT, min );
 
             m_delayedFocusGrid = m_itemsGrid;
             m_delayedErrorMessage = wxString::Format( _( "Text height must be at least %s." ), min );
-            m_delayedFocusColumn = FPT_HEIGHT;
+            m_delayedFocusColumn = PFC_HEIGHT;
             m_delayedFocusRow = i;
 
             return false;
@@ -426,31 +455,31 @@ bool DIALOG_FOOTPRINT_PROPERTIES::Validate()
         {
             wxString max = m_frame->StringFromValue( maxSize, true );
 
-            m_itemsGrid->SetCellValue( i, FPT_HEIGHT, max );
+            m_itemsGrid->SetCellValue( i, PFC_HEIGHT, max );
 
             m_delayedFocusGrid = m_itemsGrid;
             m_delayedErrorMessage = wxString::Format( _( "Text height must be at most %s." ), max );
-            m_delayedFocusColumn = FPT_HEIGHT;
+            m_delayedFocusColumn = PFC_HEIGHT;
             m_delayedFocusRow = i;
 
             return false;
         }
 
         // Test for acceptable values for thickness and size and clamp if fails
-        int maxPenWidth = Clamp_Text_PenSize( field.GetTextThickness(), field.GetTextSize() );
+        int maxPenWidth = ClampTextPenSize( field.GetTextThickness(), field.GetTextSize() );
 
         if( field.GetTextThickness() > maxPenWidth )
         {
             wxString clamped = m_frame->StringFromValue( maxPenWidth, true );
 
-            m_itemsGrid->SetCellValue( i, FPT_THICKNESS, clamped );
+            m_itemsGrid->SetCellValue( i, PFC_THICKNESS, clamped );
 
             m_delayedFocusGrid = m_itemsGrid;
             m_delayedErrorMessage = wxString::Format( _( "Text thickness is too large for the "
                                                          "text size.\n"
                                                          "It will be clamped at %s." ),
                                                       clamped );
-            m_delayedFocusColumn = FPT_THICKNESS;
+            m_delayedFocusColumn = PFC_THICKNESS;
             m_delayedFocusRow = i;
 
             return false;
@@ -472,14 +501,45 @@ bool DIALOG_FOOTPRINT_PROPERTIES::TransferDataFromWindow()
     if( !m_itemsGrid->CommitPendingChanges() )
         return false;
 
-    // This only commits the editor, model updating is done below so it is inside
-    // the commit
-    if( !m_3dPanel->TransferDataFromWindow() )
-        return false;
-
     auto view = m_frame->GetCanvas()->GetView();
     BOARD_COMMIT commit( m_frame );
     commit.Modify( m_footprint );
+
+    // Make sure this happens inside a commit to capture any changed files
+    if( !m_3dPanel->TransferDataFromWindow() )
+        return false;
+
+    if( !m_embeddedFiles->TransferDataFromWindow() )
+        return false;
+
+    // Clear out embedded files that are no longer in use
+    std::set<wxString> files;
+    std::set<wxString> files_to_delete;
+
+    // Get the new files from the footprint fields
+    for( size_t ii = 0; ii < m_fields->size(); ++ii )
+    {
+        const wxString& name = m_fields->at( ii ).GetText();
+
+        if( name.StartsWith( FILEEXT::KiCadUriPrefix ) )
+            files.insert( name );
+    }
+
+    // Find any files referenced in the old fields that are not in the new fields
+    for( PCB_FIELD* field : m_footprint->GetFields() )
+    {
+        if( field->GetText().StartsWith( FILEEXT::KiCadUriPrefix ) )
+        {
+            if( files.find( field->GetText() ) == files.end() )
+                files_to_delete.insert( field->GetText() );
+        }
+    }
+
+    for( const wxString& file : files_to_delete )
+    {
+        wxString name = file.Mid( FILEEXT::KiCadUriPrefix.size() + 3 ); // Skip "kicad-embed://"
+        m_footprint->RemoveFile( name );
+    }
 
     // Update fields
     for( size_t ii = 0; ii < m_fields->size(); ++ii )
@@ -506,18 +566,33 @@ bool DIALOG_FOOTPRINT_PROPERTIES::TransferDataFromWindow()
     }
 
     // Initialize masks clearances
-    m_footprint->SetLocalClearance( m_netClearance.GetValue() );
-    m_footprint->SetLocalSolderMaskMargin( m_solderMask.GetValue() );
-    m_footprint->SetLocalSolderPasteMargin( m_solderPaste.GetValue() );
-    m_footprint->SetLocalSolderPasteMarginRatio( m_solderPasteRatio.GetDoubleValue() / 100.0 );
+    if( m_netClearance.IsNull() )
+        m_footprint->SetLocalClearance( {} );
+    else
+        m_footprint->SetLocalClearance( m_netClearance.GetValue() );
+
+    if( m_solderMask.IsNull() )
+        m_footprint->SetLocalSolderMaskMargin( {} );
+    else
+        m_footprint->SetLocalSolderMaskMargin( m_solderMask.GetValue() );
+
+    if( m_solderPaste.IsNull() )
+        m_footprint->SetLocalSolderPasteMargin( {} );
+    else
+        m_footprint->SetLocalSolderPasteMargin( m_solderPaste.GetValue() );
+
+    if( m_solderPasteRatio.IsNull() )
+        m_footprint->SetLocalSolderPasteMarginRatio( {} );
+    else
+        m_footprint->SetLocalSolderPasteMarginRatio( m_solderPasteRatio.GetDoubleValue() / 100.0 );
 
     switch( m_ZoneConnectionChoice->GetSelection() )
     {
     default:
-    case 0:  m_footprint->SetZoneConnection( ZONE_CONNECTION::INHERITED ); break;
-    case 1:  m_footprint->SetZoneConnection( ZONE_CONNECTION::FULL );      break;
-    case 2:  m_footprint->SetZoneConnection( ZONE_CONNECTION::THERMAL );   break;
-    case 3:  m_footprint->SetZoneConnection( ZONE_CONNECTION::NONE );      break;
+    case 0:  m_footprint->SetLocalZoneConnection( ZONE_CONNECTION::INHERITED ); break;
+    case 1:  m_footprint->SetLocalZoneConnection( ZONE_CONNECTION::FULL );      break;
+    case 2:  m_footprint->SetLocalZoneConnection( ZONE_CONNECTION::THERMAL );   break;
+    case 3:  m_footprint->SetLocalZoneConnection( ZONE_CONNECTION::NONE );      break;
     }
 
     // Set Footprint Position
@@ -570,7 +645,10 @@ bool DIALOG_FOOTPRINT_PROPERTIES::TransferDataFromWindow()
         change_layer = true;
 
     if( change_layer )
-        m_footprint->Flip( m_footprint->GetPosition(), m_frame->GetPcbNewSettings()->m_FlipLeftRight );
+    {
+        m_footprint->Flip( m_footprint->GetPosition(),
+                           m_frame->GetPcbNewSettings()->m_FlipDirection );
+    }
 
     // Copy the models from the panel to the footprint
     std::vector<FP_3DMODEL>& panelList = m_3dPanel->GetModelList();
@@ -580,7 +658,7 @@ bool DIALOG_FOOTPRINT_PROPERTIES::TransferDataFromWindow()
 
     // This is a simple edit, we must create an undo entry
     if( m_footprint->GetEditFlags() == 0 )    // i.e. not edited, or moved
-        commit.Push( _( "Modify footprint properties" ) );
+        commit.Push( _( "Edit Footprint Properties" ) );
 
     m_returnValue = FP_PROPS_OK;
     return true;
@@ -592,10 +670,8 @@ void DIALOG_FOOTPRINT_PROPERTIES::OnAddField( wxCommandEvent&  )
     if( !m_itemsGrid->CommitPendingChanges() )
         return;
 
-    int        fieldId = (int) m_fields->size();
-    PCB_FIELD  newField =
-            PCB_FIELD( m_footprint, m_fields->size(),
-                       TEMPLATE_FIELDNAME::GetDefaultFieldName( fieldId, DO_TRANSLATE ) );
+    PCB_FIELD newField( m_footprint, m_footprint->GetNextFieldId(),
+                        GetUserFieldName( m_fields->GetNumberRows(), DO_TRANSLATE ) );
 
     newField.SetVisible( false );
     newField.SetLayer( m_footprint->GetLayer() == F_Cu ? F_Fab : B_Fab );
@@ -614,6 +690,8 @@ void DIALOG_FOOTPRINT_PROPERTIES::OnAddField( wxCommandEvent&  )
 
     m_itemsGrid->EnableCellEditControl( true );
     m_itemsGrid->ShowCellEditControl();
+
+    OnModify();
 }
 
 
@@ -632,10 +710,11 @@ void DIALOG_FOOTPRINT_PROPERTIES::OnDeleteField( wxCommandEvent&  )
 
     for( int row : selectedRows )
     {
-        if( row < MANDATORY_FIELDS )
+
+        if( row < m_fields->GetMandatoryRowCount() )
         {
             DisplayError( this, wxString::Format( _( "The first %d fields are mandatory." ),
-                                                  MANDATORY_FIELDS ) );
+                                                  m_fields->GetMandatoryRowCount() ) );
             return;
         }
     }
@@ -660,6 +739,8 @@ void DIALOG_FOOTPRINT_PROPERTIES::OnDeleteField( wxCommandEvent&  )
             m_itemsGrid->SetGridCursor( std::max( 0, row-1 ), m_itemsGrid->GetGridCursorCol() );
         }
     }
+
+    OnModify();
 }
 
 
@@ -724,7 +805,7 @@ void DIALOG_FOOTPRINT_PROPERTIES::OnUpdateUI( wxUpdateUIEvent&  )
         {
             grid->SetGridCursor( row, col );
 
-            if( !( col == 0 && row < MANDATORY_FIELDS ) )
+            if( !( col == 0 && row < m_fields->GetMandatoryRowCount() ) )
                 grid->EnableCellEditControl( true );
 
             grid->ShowCellEditControl();
@@ -739,6 +820,7 @@ void DIALOG_FOOTPRINT_PROPERTIES::OnUpdateUI( wxUpdateUIEvent&  )
                 referenceEditor->DecRef();
             }
         }
+
         m_initialFocus = false;
     }
 }
@@ -778,13 +860,36 @@ void DIALOG_FOOTPRINT_PROPERTIES::OnGridSize( wxSizeEvent& aEvent )
 }
 
 
-void DIALOG_FOOTPRINT_PROPERTIES::OnPageChange( wxNotebookEvent& aEvent )
+void DIALOG_FOOTPRINT_PROPERTIES::OnPageChanging( wxNotebookEvent& aEvent )
 {
-    int page = aEvent.GetSelection();
-
-    // Shouldn't be necessary, but is on at least OSX
-    if( page >= 0 )
-        m_NoteBook->ChangeSelection( (unsigned) page );
+    if( !m_itemsGrid->CommitPendingChanges() )
+        aEvent.Veto();
 }
 
 
+void DIALOG_FOOTPRINT_PROPERTIES::OnCheckBox( wxCommandEvent& event )
+{
+    if( m_initialized )
+        OnModify();
+}
+
+
+void DIALOG_FOOTPRINT_PROPERTIES::OnCombobox( wxCommandEvent& event )
+{
+    if( m_initialized )
+        OnModify();
+}
+
+
+void DIALOG_FOOTPRINT_PROPERTIES::OnText( wxCommandEvent& event )
+{
+    if( m_initialized )
+        OnModify();
+}
+
+
+void DIALOG_FOOTPRINT_PROPERTIES::OnChoice( wxCommandEvent& event )
+{
+    if( m_initialized )
+        OnModify();
+}

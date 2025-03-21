@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mikolaj Wielgus
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,12 +22,13 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <sim/sim_model_subckt.h>
-#include <sim/spice_grammar.h>
+#include "sim/sim_model_subckt.h"
 
+#include <ki_exception.h>
 #include <fmt/core.h>
 #include <pegtl.hpp>
 #include <pegtl/contrib/parse_tree.hpp>
+#include <sim/spice_grammar.h>
 
 
 namespace SIM_MODEL_SUBCKT_SPICE_PARSER
@@ -59,8 +60,8 @@ std::vector<std::string> SPICE_GENERATOR_SUBCKT::CurrentNames( const SPICE_ITEM&
 {
     std::vector<std::string> currentNames;
 
-    for( const SIM_MODEL::PIN& pin : GetPins() )
-        currentNames.push_back( fmt::format( "I({}:{})", ItemName( aItem ), pin.name ) );
+    for( const SIM_MODEL_PIN& pin : GetPins() )
+        currentNames.push_back( fmt::format( "I({}:{})", ItemName( aItem ), pin.modelPinName ) );
 
     return currentNames;
 }
@@ -147,12 +148,12 @@ void SIM_MODEL_SUBCKT::SetBaseModel( const SIM_MODEL& aBaseModel )
     SIM_MODEL::SetBaseModel( aBaseModel );
 
     // Pins aren't constant for subcircuits, so they need to be copied from the base model.
-    for( const PIN& pin : GetBaseModel()->GetPins() )
+    for( const SIM_MODEL_PIN& pin : GetBaseModel()->GetPins() )
         AddPin( pin );
 
     // Same for parameters.
-    for( const PARAM& param : GetBaseModel()->GetParams() )
-        AddParam( param.info );
+    for( int ii = 0; ii < GetBaseModel()->GetParamCount(); ++ii )
+        AddParam( GetBaseModel()->GetParam( ii ).info );
 }
 
 

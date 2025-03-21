@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,22 +18,26 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "footprint_editor_settings.h"
+
 #include <common.h>
-#include <footprint_editor_settings.h>
 #include <layer_ids.h>
+#include <lset.h>
 #include <pgm_base.h>
 #include <eda_text.h>
+#include <pcb_dimension.h>
 #include <settings/common_settings.h>
 #include <settings/json_settings_internals.h>
 #include <settings/parameters.h>
 #include <settings/settings_manager.h>
-#include <wx/config.h>
 #include <base_units.h>
+
+#include <wx/config.h>
 #include <wx/log.h>
 
 
 ///! Update the schema version whenever a migration is required
-const int fpEditSchemaVersion = 2;
+const int fpEditSchemaVersion = 5;
 
 
 FOOTPRINT_EDITOR_SETTINGS::FOOTPRINT_EDITOR_SETTINGS() :
@@ -152,7 +156,7 @@ FOOTPRINT_EDITOR_SETTINGS::FOOTPRINT_EDITOR_SETTINGS() :
                 {
                     js.push_back( nlohmann::json( { item.m_Text.ToUTF8(),
                                                     item.m_Visible,
-                                                    item.m_Layer } ) );
+                                                    LSET::Name( item.m_Layer ) } ) );
                 }
 
                 return js;
@@ -173,16 +177,23 @@ FOOTPRINT_EDITOR_SETTINGS::FOOTPRINT_EDITOR_SETTINGS() :
 
                     textInfo.m_Text = entry.at(0).get<wxString>();
                     textInfo.m_Visible = entry.at(1).get<bool>();
-                    textInfo.m_Layer = entry.at(2).get<int>();
+                    wxString layerName = entry.at(2).get<wxString>();
+                    int candidateLayer = LSET::NameToLayer( layerName );
+                    textInfo.m_Layer = candidateLayer >= 0
+                                           ? static_cast<PCB_LAYER_ID>(candidateLayer)
+                                           : F_SilkS;
 
                     m_DesignSettings.m_DefaultFPTextItems.push_back( std::move( textInfo ) );
                 }
             },
             nlohmann::json::array( {
-                                       { "REF**", true, F_SilkS },
-                                       { "", true, F_Fab },
-                                       { "${REFERENCE}", true, F_Fab }
+                                       { "REF**", true, LSET::Name( F_SilkS ) },
+                                       { "", true, LSET::Name( F_Fab ) },
+                                       { "${REFERENCE}", true, LSET::Name( F_Fab ) }
                                    } ) ) );
+
+    m_params.emplace_back( new PARAM_MAP<wxString>( "design_settings.default_footprint_layer_names",
+                                                    &m_DesignSettings.m_UserLayerNames, {} ) );
 
     int minTextSize = pcbIUScale.mmToIU( TEXT_MIN_SIZE_MM );
     int maxTextSize = pcbIUScale.mmToIU( TEXT_MAX_SIZE_MM );
@@ -273,6 +284,42 @@ FOOTPRINT_EDITOR_SETTINGS::FOOTPRINT_EDITOR_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "design_settings.others_text_italic",
             &m_DesignSettings.m_TextItalic[ LAYER_CLASS_OTHERS ], false ) );
 
+
+    // ---------------------------------------------------------------------------------------------
+    // Dimension settings
+
+    m_params.emplace_back( new PARAM_ENUM<DIM_UNITS_MODE>( "design_settings.dimensions.units",
+            &m_DesignSettings.m_DimensionUnitsMode, DIM_UNITS_MODE::AUTOMATIC, DIM_UNITS_MODE::INCHES,
+            DIM_UNITS_MODE::AUTOMATIC ) );
+
+    m_params.emplace_back( new PARAM_ENUM<DIM_PRECISION>( "design_settings.dimensions.precision",
+            &m_DesignSettings.m_DimensionPrecision, DIM_PRECISION::X_XXXX, DIM_PRECISION::X, DIM_PRECISION::V_VVVVV ) );
+
+    m_params.emplace_back( new PARAM_ENUM<DIM_UNITS_FORMAT>( "design_settings.dimensions.units_format",
+            &m_DesignSettings.m_DimensionUnitsFormat, DIM_UNITS_FORMAT::NO_SUFFIX, DIM_UNITS_FORMAT::NO_SUFFIX,
+            DIM_UNITS_FORMAT::PAREN_SUFFIX ) );
+
+    m_params.emplace_back( new PARAM<bool>( "design_settings.dimensions.suppress_zeroes",
+            &m_DesignSettings.m_DimensionSuppressZeroes, true ) );
+
+    // NOTE: excluding DIM_TEXT_POSITION::MANUAL from the valid range here
+    m_params.emplace_back( new PARAM_ENUM<DIM_TEXT_POSITION>( "design_settings.dimensions.text_position",
+            &m_DesignSettings.m_DimensionTextPosition, DIM_TEXT_POSITION::OUTSIDE, DIM_TEXT_POSITION::OUTSIDE,
+            DIM_TEXT_POSITION::INLINE ) );
+
+    m_params.emplace_back( new PARAM<bool>( "design_settings.dimensions.keep_text_aligned",
+            &m_DesignSettings.m_DimensionKeepTextAligned, true ) );
+
+    m_params.emplace_back( new PARAM<int>( "design_settings.dimensions.arrow_length",
+            &m_DesignSettings.m_DimensionArrowLength,
+            pcbIUScale.MilsToIU( DEFAULT_DIMENSION_ARROW_LENGTH ) ) );
+
+    m_params.emplace_back( new PARAM<int>( "design_settings.dimensions.extension_offset",
+            &m_DesignSettings.m_DimensionExtensionOffset,
+            pcbIUScale.mmToIU( DEFAULT_DIMENSION_EXTENSION_OFFSET ) ) );
+
+    // ---------------------------------------------------------------------------------------------
+
     m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "editing.selection_filter",
             [&]() -> nlohmann::json
             {
@@ -331,6 +378,10 @@ FOOTPRINT_EDITOR_SETTINGS::FOOTPRINT_EDITOR_SETTINGS() :
                            // This is actually a migration for APP_SETTINGS_BASE::m_LibTree
                            return migrateLibTreeWidth();
                        } );
+
+    registerMigration( 2, 3, std::bind( &FOOTPRINT_EDITOR_SETTINGS::migrateSchema2To3, this ) );
+    registerMigration( 3, 4, std::bind( &FOOTPRINT_EDITOR_SETTINGS::migrateSchema3To4, this ) );
+    registerMigration( 4, 5, std::bind( &FOOTPRINT_EDITOR_SETTINGS::migrateSchema4To5, this ) );
 }
 
 
@@ -415,11 +466,9 @@ bool FOOTPRINT_EDITOR_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
     migrateLegacyColor( f + "Color4DAuxItems",           LAYER_AUX_ITEMS );
     migrateLegacyColor( f + "Color4DGrid",               LAYER_GRID );
     migrateLegacyColor( f + "Color4DNonPlatedEx",        LAYER_NON_PLATEDHOLES );
-    migrateLegacyColor( f + "Color4DPadThruHoleEx",      LAYER_PADS_TH );
     migrateLegacyColor( f + "Color4DPCBBackground",      LAYER_PCB_BACKGROUND );
     migrateLegacyColor( f + "Color4DPCBCursor",          LAYER_CURSOR );
     migrateLegacyColor( f + "Color4DRatsEx",             LAYER_RATSNEST );
-    migrateLegacyColor( f + "Color4DTxtInvisEx",         LAYER_HIDDEN_TEXT );
     migrateLegacyColor( f + "Color4DViaBBlindEx",        LAYER_VIA_BBLIND );
     migrateLegacyColor( f + "Color4DViaMicroEx",         LAYER_VIA_MICROVIA );
     migrateLegacyColor( f + "Color4DViaThruEx",          LAYER_VIA_THROUGH );
@@ -482,6 +531,93 @@ bool FOOTPRINT_EDITOR_SETTINGS::migrateSchema0to1()
             Set( theme_ptr, search );
             return true;
         }
+    }
+
+    return true;
+}
+
+
+/**
+ * Schema version 2: Bump for KiCad 9 layer numbering changes
+ * Migrate layer presets to use new enum values for copper layers
+ */
+bool FOOTPRINT_EDITOR_SETTINGS::migrateSchema2To3()
+{
+    auto p( "/pcb_display/layer_presets"_json_pointer );
+
+    if( !m_internals->contains( p ) || !m_internals->at( p ).is_array() )
+        return true;
+
+    nlohmann::json& presets = m_internals->at( p );
+
+    for( nlohmann::json& entry : presets )
+        PARAM_LAYER_PRESET::MigrateToV9Layers( entry );
+
+    return true;
+}
+
+
+/**
+ * Schema version 4: move layer presets to use named render layers
+ */
+bool FOOTPRINT_EDITOR_SETTINGS::migrateSchema3To4()
+{
+    auto p( "/pcb_display/layer_presets"_json_pointer );
+
+    if( !m_internals->contains( p ) || !m_internals->at( p ).is_array() )
+        return true;
+
+    nlohmann::json& presets = m_internals->at( p );
+
+    for( nlohmann::json& entry : presets )
+        PARAM_LAYER_PRESET::MigrateToNamedRenderLayers( entry );
+
+    return true;
+}
+
+
+/**
+ * Schema version 5: move text defaults to used named layers
+ */
+bool FOOTPRINT_EDITOR_SETTINGS::migrateSchema4To5   ()
+{
+    auto p( "/design_settings/default_footprint_text_items"_json_pointer );
+
+    if( !m_internals->contains( p ) || !m_internals->at( p ).is_array() )
+        return true;
+
+    nlohmann::json& defaults = m_internals->at( p );
+
+    bool reset = false;
+
+    for( nlohmann::json& entry : defaults )
+    {
+        TEXT_ITEM_INFO textInfo( wxT( "" ), true, F_SilkS );
+
+        textInfo.m_Text = entry.at(0).get<wxString>();
+        textInfo.m_Visible = entry.at(1).get<bool>();
+        textInfo.m_Layer = static_cast<PCB_LAYER_ID>( entry.at(2).get<int>() );
+
+        if( textInfo.m_Layer == Rescue || textInfo.m_Layer >= User_5 )
+        {
+            // KiCad pre-9.0 nightlies would write buggy preferences out with invalid layers.
+            // If we detect that, reset to defaults
+            reset = true;
+        }
+        else
+        {
+            // Coming from 8.0 or earlier, just migrate to named layers
+            entry.at(2) = LSET::Name( textInfo.m_Layer );
+        }
+    }
+
+    if( reset )
+    {
+        defaults = nlohmann::json::array( {
+                                       { "REF**", true, LSET::Name( F_SilkS ) },
+                                       { "", true, LSET::Name( F_Fab ) },
+                                       { "${REFERENCE}", true, LSET::Name( F_Fab ) }
+                                   } );
     }
 
     return true;

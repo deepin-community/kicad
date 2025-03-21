@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -31,9 +31,9 @@ PANEL_PL_EDITOR_COLOR_SETTINGS::PANEL_PL_EDITOR_COLOR_SETTINGS( wxWindow* aParen
 
 bool PANEL_PL_EDITOR_COLOR_SETTINGS::TransferDataToWindow()
 {
-    PL_EDITOR_SETTINGS* cfg = Pgm().GetSettingsManager().GetAppSettings<PL_EDITOR_SETTINGS>();
-
-    COLOR_SETTINGS* current = Pgm().GetSettingsManager().GetColorSettings( cfg->m_ColorTheme );
+    SETTINGS_MANAGER&   mgr = Pgm().GetSettingsManager();
+    PL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<PL_EDITOR_SETTINGS>( "pl_editor" );
+    COLOR_SETTINGS*     current = Pgm().GetSettingsManager().GetColorSettings( cfg->m_ColorTheme );
 
     int width    = 0;
     int height   = 0;
@@ -66,9 +66,11 @@ bool PANEL_PL_EDITOR_COLOR_SETTINGS::TransferDataFromWindow()
 
     if( sel >= 0 )
     {
-        SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-        COLOR_SETTINGS*   colors = static_cast<COLOR_SETTINGS*>( m_themes->GetClientData( sel ) );
-        mgr.GetAppSettings<PL_EDITOR_SETTINGS>()->m_ColorTheme = colors->GetFilename();
+        SETTINGS_MANAGER&   mgr = Pgm().GetSettingsManager();
+        PL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<PL_EDITOR_SETTINGS>( "pl_editor" );
+        COLOR_SETTINGS*     colors = static_cast<COLOR_SETTINGS*>( m_themes->GetClientData( sel ) );
+
+        cfg->m_ColorTheme = colors->GetFilename();
     }
 
     return true;

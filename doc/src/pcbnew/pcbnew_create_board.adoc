@@ -62,6 +62,7 @@ Before beginning your board design, use the Board Setup dialog to configure the 
 the board.  To open Board Setup, click the image:images/icons/options_board.png[] icon in the top
 toolbar or choose "Board Setup..." from the File menu.
 
+[[board-setup-stackup]]
 ==== Configuring board stackup and physical parameters
 
 There are two sections of Board Setup used to configure the stackup and layers of the board.  The
@@ -87,7 +88,8 @@ NOTE: KiCad currently only supports stackups with an even number of copper layer
 
 Next, if desired, use the Board Editor Layers section to rename layers or hide non-copper layers
 that you will not be using in the design.  For example, if you will not use a back silkscreen on
-the design, uncheck the box next to the `B.Silkscreen` layer.
+the design, uncheck the box next to the `B.Silkscreen` layer. Some layers, like `F.Cu` / `B.Cu` or
+`Edge.Cuts`, are required layers and therefore cannot be disabled.
 
 image::images/board_setup_board_editor_layers.png[scaledwidth="70%"]
 
@@ -95,10 +97,22 @@ NOTE: Copper layers can be designated as signal, power plane, mixed, or jumper i
       Layers section.  This designation is intended as a guide for the user only.  Tracks and zones
       can be routed on any copper layer, no matter what the type is configured to in this dialog.
 
+You can add additional user-defined layers (`User.1`, `User.2`, etc.) by clicking the
+**Add User Defined Layer...** button in the top right. User-defined layers can't be used for routing,
+but they can contain arbitrary graphics or other information. By default, user layers are **auxiliary**
+layers, meaning that whatever information they contain does not correspond to either the front or back
+of the board. User layers can instead be set to **Off-board, front** or **Off-board, back**, in which
+case they correspond to the selected side of the board. Items on such layers can be flipped from front
+to back in the same way as objects on physical front/back layers. Adjacent front/back layers are treated
+as paired: if `User.2` is defined as a front layer and `User.3` is defined as a back layer, flipping an
+object on `User.2` will move it to `User.3`, and vice versa.
+
 Some additional board stackup settings are found on the Board Finish and Solder Mask/Paste sections
 of the Board Setup dialog.  The Board Finish section has settings for defining the copper finish
 and special features such as castellations or edge plating.  Note that these settings only impact
 the board attributes output as part of Gerber job files at this time.
+
+image::images/board_setup_board_finish.png[scaledwidth="70%"]
 
 The Solder Mask/Paste section allow global adjustment of the clearance (positive or negative)
 between the copper shapes and solder mask / solder paste shapes of pads on the board.  These values
@@ -110,6 +124,8 @@ WARNING: Most commercial PCB fabricators expect these values to be zero and make
          adjustments to solder mask and paste openings as part of their CAM process.  It is usually
          best to leave these values at their default of zero unless you are making the PCB yourself
          or have specific advice from your fabricator to use different values.
+
+image::images/board_setup_solder_mask_paste.png[scaledwidth="70%"]
 
 [[board-setup-text-variables]]
 ==== Configuring default text and graphic settings
@@ -204,17 +220,18 @@ and vias in different nets (see below) but defining a list of sizes in this sect
 to step through these sizes while routing.  For example, you may want the default track width on a
 board to be 0.2 mm, but use 0.3 mm for some sections that carry more current, and 0.15 mm for some
 sections where space is limited.  You can define each of these track widths in the Board Setup
-dialog and then switch between them when routing traces.
+dialog and then switch between them when routing tracks.
 
 image::images/board_setup_predefined_sizes.png[scaledwidth="70%"]
 
+[[board-setup-teardrops]]
 ===== Teardrops
 
 The teardrops section lets you set default parameters for various types of teardrops. There are
 different settings for teardrop connections to round objects, rectangular objects, and teardrop
 connections between tracks. The default teardrop parameters can be overridden when teardrops are
 added, and also changed in the properties for individual connected items. See the
-<<editing-teardrops,teardrops documentation>> for more information.
+<<editing-teardrops,teardrops documentation>> for more information about each setting.
 
 image::images/board_setup_teardrops.png[scaledwidth="70%"]
 
@@ -230,9 +247,18 @@ image::images/board_setup_length_tuning_patterns.png[scaledwidth="70%"]
 [[board-setup-net-classes]]
 ===== Net Classes
 
-The Net Classes section allows you to configure routing and clearance rules for different classes
-of nets.  In KiCad, each net is part of exactly one net class.  If you do not add a net to a
-specific class, it will be part of the Default class, which always exists.
+The Net Classes section allows you to configure routing and clearance rules for
+different classes of nets.
+
+More than one net class can be assigned to a net. For nets with multiple net
+classes assigned, an effective aggregate net class is formed, taking any net
+class properties from the highest priority net class which has that property
+set. Net class priority is determined by the ordering in the Schematic or Board
+Setup dialogs. The `Default` net class is used as a fallback for any missing
+properties after all explicit net classes have been considered; this means that
+nets may be part of the `Default` net class even if they have other net classes
+explicitly assigned.
+
 xref:../eeschema/eeschema.adoc#schematic-setup-netclasses[Net classes may be created and edited]
 in either the Schematic or Board Setup dialogs.
 
@@ -254,6 +280,13 @@ considered the default, or optimal, sizes for that net class.  They are not mini
 values.  Manually changing the track width or via size to a different value from that defined in
 the Net Classes section will not result in a DRC violation.  To restrict track width or via size to
 specific values, use <<custom-design-rules,Custom Rules>>.
+
+Each net class can also have a color assigned to it. Depending on how net colors are configured
+in the <<appearance-panel,appearance panel>>, net class colors can override the default color for
+ratsnest lines or copper objects. In addition to arbitrary colors for each net class, you can set
+all net classes to use the same color as configured for them in the schematic editor by clicking
+the **Import colors from schematic** button. To use a layer's default color instead of overriding
+it with a custom net class color, set the net class color to transparent.
 
 The lower portion of the Net Classes section lists pattern-based net class
 assignments. Working with pattern-based net class assignments is explained in the
@@ -297,6 +330,48 @@ image::images/board_setup_violation_severity.png[scaledwidth="70%"]
 For descriptions of each violation type, and how to ignore individual violations without disabling
 all violations of that type, see the <<design-rule-checking,DRC documentation>>.
 
+[[pcb-embedding-files]]
+==== Embedding files
+
+External files can be embedded within a board file. Embedding a file stores a copy of the file
+inside the board file. The design can then refer to the embedded copy of the file instead of the
+external file, which makes the project more portable as it doesn't rely on an external file.
+Fonts, datasheets, drawing sheets, and 3D models can be embedded and used within KiCad. Other
+arbitrary files can also be embedded to store them in the project for later export, but they are
+not used by any KiCad functionality.
+
+image::images/embedded_files.png[]
+
+Embedded files are managed in the Embedded Files section of Board Setup. To embed a file inside a
+board, click the image:images/icons/small_folder_16.png[] button and select the file. The file is
+then embedded inside the PCB and is listed in the embedded files list along with its internal
+reference. The internal reference is a unique identifier for the embedded file that begins with
+`kicad-embed://`. You can use the internal reference elsewhere in the Board Editor to refer to the
+embedded file as if it were an external file path. You can copy the internal reference by right
+clicking and selecting **Copy Embedded Reference**. To remove an embedded file, click the
+image:images/icons/small_trash_16.png[] button. Any remaining links to the removed file will become
+invalid.
+
+To embed any fonts used in a board, check the **Embed fonts** checkbox. All fonts used in the board
+design will be embedded, so text using that font can be edited on any computer regardless of whether
+the font file is installed.
+
+You can also <<fp-embedding-files,embed files in a footprint>>, either in the board copy of a
+footprint or in a library. Such files will be available within the footprint instance but not within
+the larger board design or within other footprints. Files embedded in a footprint are deduplicated
+when the footprint is added to a board: if a file is embedded in a footprint, and multiple instances
+of that footprint are added to the board, only one copy of the file will be embedded, and all of the
+footprint instances will refer to the same embedded file.
+
+As an example, to embed a 3D model in a project and use it within several footprints, you could embed
+the model using the Board Setup dialog, copy the internal reference, and paste the internal reference
+as a 3D model path in each footprint that uses that model. Alternatively, you could embed the model
+within a single footprint, either in the board or in the source footprint library. In this case, the
+footprint itself is portable if you export the footprints from the board, and the model embedding is
+managed in the footprint's properties rather than Board Setup.
+
+Files can also be embedded in xref:../eeschema/eeschema.adoc#sch-embedding-files[schematics].
+
 ==== Importing settings
 
 You can import part or all of the board setup from an existing board.  This technique can be used
@@ -306,7 +381,21 @@ manually.
 
 image::images/board_setup_import_settings.png[scaledwidth="70%"]
 
-To import settings, click the Import Settings from Another Board... button at the bottom of the
+To import settings, click the **Import Settings from Another Board...** button at the bottom of the
 Board Setup dialog and then choose the `kicad_pcb` file you want to import from.  Select which
 settings you want to import and the current settings will be overwritten with the values from the
 chosen board.
+
+The settings that are available to import are:
+
+* Board layers and physical stackup
+* Solder mask/paste defaults
+* Text and graphics default properties
+* Text & graphics formatting
+* Design rule constraints
+* Predefined track & via dimensions
+* Teardrop defaults
+* Length-tuning pattern defaults
+* Net classes
+* Custom rules
+* Violation severities

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -153,6 +153,7 @@ public:
         wxString tooltip;
         bool     visible;
         bool     can_control_opacity;
+        bool     can_control_visibility;
         bool     spacer;
 
         wxPanel*        ctl_panel;
@@ -164,12 +165,14 @@ public:
 
         APPEARANCE_SETTING( const wxString& aLabel, int aId,
                             const wxString& aTooltip = wxEmptyString,
-                            bool aCanControlOpacity = false ) :
+                            bool aCanControlOpacity = false,
+                            bool aCanControlVisibility = true ) :
                 id( aId ),
                 label( aLabel ),
                 tooltip( aTooltip ),
                 visible( true ),
                 can_control_opacity( aCanControlOpacity ),
+                can_control_visibility( aCanControlVisibility ),
                 spacer( false ),
                 ctl_panel( nullptr ),
                 ctl_indicator( nullptr ),
@@ -184,6 +187,7 @@ public:
                 id( -1 ),
                 visible( false ),
                 can_control_opacity( false ),
+                can_control_visibility( true ),
                 spacer( true ),
                 ctl_panel( nullptr ),
                 ctl_indicator( nullptr ),
@@ -200,8 +204,6 @@ public:
 
     wxSize GetBestSize() const;
 
-    void OnLanguageChanged();
-
     ///< Update the panel contents from the application and board models.
     void OnBoardChanged();
 
@@ -212,6 +214,9 @@ public:
     void OnBoardItemsRemoved( BOARD& aBoard, std::vector<BOARD_ITEM*>& aItems ) override;
     void OnBoardItemChanged( BOARD& aBoard, BOARD_ITEM* aItem ) override;
     void OnBoardItemsChanged( BOARD& aBoard, std::vector<BOARD_ITEM*>& aItems ) override;
+    void OnBoardCompositeUpdate( BOARD& aBoard, std::vector<BOARD_ITEM*>& aAddedItems,
+                                 std::vector<BOARD_ITEM*>& aRemovedItems,
+                                 std::vector<BOARD_ITEM*>& aChangedItems ) override;
 
     ///< Update the colors on all the widgets from the new chosen color theme.
     void OnColorThemeChanged();
@@ -293,6 +298,7 @@ protected:
     void OnNetGridDoubleClick( wxGridEvent& event ) override;
     void OnNetGridRightClick( wxGridEvent& event ) override;
     void OnNetGridMouseEvent( wxMouseEvent& aEvent );
+    void OnLanguageChanged( wxCommandEvent& aEvent );
 
 private:
     void createControls();
@@ -470,6 +476,7 @@ private:
         ID_CHANGE_COLOR = wxID_HIGHEST,
         ID_SET_NET_COLOR,
         ID_CLEAR_NET_COLOR,
+        ID_USE_SCHEMATIC_NET_COLOR,
         ID_SHOW_ALL_NETS,
         ID_HIDE_OTHER_NETS,
         ID_HIGHLIGHT_NET,

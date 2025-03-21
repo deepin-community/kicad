@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,6 +23,7 @@
 #include <reporter.h>
 #include <wx/debug.h>
 
+class wxWindow;
 
 JOB_DISPATCHER::JOB_DISPATCHER( KIWAY* aKiway ) :
         m_kiway( aKiway )
@@ -33,20 +34,45 @@ JOB_DISPATCHER::JOB_DISPATCHER( KIWAY* aKiway ) :
 
 
 void JOB_DISPATCHER::Register( const std::string&             aJobTypeName,
-                               std::function<int( JOB* job )> aHandler )
+                               std::function<int( JOB* job )> aHandler,
+                               std::function<bool( JOB* aJob, wxWindow* aParent )> aConfigHandler )
 {
     m_jobHandlers.emplace( aJobTypeName, aHandler );
+    m_jobConfigHandlers.emplace( aJobTypeName, aConfigHandler );
 }
 
 
-int JOB_DISPATCHER::RunJob( JOB* job )
+int JOB_DISPATCHER::RunJob( JOB* job, REPORTER* aReporter )
 {
-    if( m_jobHandlers.count( job->GetType() ) )
+    int       result = CLI::EXIT_CODES::ERR_UNKNOWN;
+    REPORTER* existingReporter = m_reporter;
+
+    if( aReporter )
     {
-        return m_jobHandlers[job->GetType()]( job );
+        m_reporter = aReporter;
     }
 
-    return CLI::EXIT_CODES::ERR_UNKNOWN;
+    job->ClearExistingOutputs();
+
+    if( m_jobHandlers.count( job->GetType() ) )
+    {
+        result = m_jobHandlers[job->GetType()]( job );
+    }
+
+    m_reporter = existingReporter;
+
+    return result;
+}
+
+
+bool JOB_DISPATCHER::HandleJobConfig( JOB* job, wxWindow* aParent )
+{
+    if( m_jobConfigHandlers.count( job->GetType() ) )
+    {
+        return m_jobConfigHandlers[job->GetType()]( job, aParent );
+    }
+
+    return false;
 }
 
 

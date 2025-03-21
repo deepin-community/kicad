@@ -195,6 +195,7 @@ if( CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang" )
     # Suppress GCC warnings about unknown/unused attributes (e.g. cdecl, [[maybe_unused, etc)
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-attributes" )
+        set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-ignored-attributes" )
     endif()
 
     # Avoid ABI warnings, specifically one about an ABI change on ppc64el from gcc5 to gcc 6.
@@ -272,4 +273,12 @@ if( MSVC )
     string( APPEND WARN_FLAGS_CXX " /wd4668" )
     # disable "definition of implicit copy constructor for 'X' is deprecated because it has a user-provided destructor"
     string( APPEND WARN_FLAGS_CXX " /wd5267" )
+    # disable "reinterpret_cast used between related classes"
+    string( APPEND WARN_FLAGS_CXX " /wd4946" )
+    # disable throw() is interpreted as declspec(nothrow)
+    string( APPEND WARN_FLAGS_CXX " /wd4290" )
+    # disable non-bool is explicitly cast to bool, forcing value of 0 or 1
+    string( APPEND WARN_FLAGS_CXX " /wd4800" )
+    # disable volatile access of '<expression>' is subject to /volatile:[iso|ms] setting;
+    string( APPEND WARN_FLAGS_CXX " /wd4746" )
 endif()

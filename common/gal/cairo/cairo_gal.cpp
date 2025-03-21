@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2012 Torsten Hueter, torstenhtr <at> gmx.de
- * Copyright (C) 2012-2023 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2017-2018 CERN
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
@@ -156,7 +156,7 @@ void CAIRO_GAL_BASE::arc_angles_xform_and_normalize( double& aStartAngle, double
     }
 
     // Normalize arc angles
-    SWAP( startAngle, >, endAngle );
+    normalize( startAngle, endAngle );
 
     // now rotate arc according to the rotation transform matrix
     // Remark:
@@ -1368,9 +1368,13 @@ CAIRO_GAL::CAIRO_GAL( GAL_DISPLAY_OPTIONS& aDisplayOptions, wxWindow* aParent,
     Connect( wxEVT_AUX2_UP, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
     Connect( wxEVT_AUX2_DCLICK, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
     Connect( wxEVT_MOUSEWHEEL, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
+
 #if defined _WIN32 || defined _WIN64
     Connect( wxEVT_ENTER_WINDOW, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
 #endif
+
+    Bind( wxEVT_GESTURE_ZOOM, &CAIRO_GAL::skipGestureEvent, this );
+    Bind( wxEVT_GESTURE_PAN, &CAIRO_GAL::skipGestureEvent, this );
 
     SetSize( aParent->GetClientSize() );
     m_screenSize = ToVECTOR2I( aParent->GetClientSize() );
@@ -1435,6 +1439,7 @@ void CAIRO_GAL::EndDrawing()
             dst[1] = src[1];
             dst[2] = src[0];
 #endif
+
             dst += 3;
         }
 
@@ -1647,6 +1652,14 @@ void CAIRO_GAL::skipMouseEvent( wxMouseEvent& aEvent )
 }
 
 
+void CAIRO_GAL::skipGestureEvent( wxGestureEvent& aEvent )
+{
+    // Post the gesture event to the event listener registered in constructor, if any
+    if( m_mouseListener )
+        wxPostEvent( m_mouseListener, aEvent );
+}
+
+
 bool CAIRO_GAL::updatedGalDisplayOptions( const GAL_DISPLAY_OPTIONS& aOptions )
 {
     bool refresh = false;
@@ -1744,9 +1757,9 @@ void CAIRO_GAL_BASE::DrawGrid()
     int gridStartY = KiROUND( ( worldStartPoint.y - m_gridOrigin.y ) / gridScreenSize.y );
     int gridEndY = KiROUND( ( worldEndPoint.y - m_gridOrigin.y ) / gridScreenSize.y );
 
-    // Ensure start coordinate > end coordinate
-    SWAP( gridStartX, >, gridEndX );
-    SWAP( gridStartY, >, gridEndY );
+    // Ensure start coordinate < end coordinate
+    normalize( gridStartX, gridEndX );
+    normalize( gridStartY, gridEndY );
 
     // Ensure the grid fills the screen
     --gridStartX;
@@ -1828,7 +1841,7 @@ void CAIRO_GAL_BASE::DrawGlyph( const KIFONT::GLYPH& aGlyph, int aNth, int aTota
         for( const std::vector<VECTOR2D>& pointList : glyph )
             drawPoly( pointList );
     }
-else if( aGlyph.IsOutline() )
+    else if( aGlyph.IsOutline() )
     {
         const KIFONT::OUTLINE_GLYPH& glyph = static_cast<const KIFONT::OUTLINE_GLYPH&>( aGlyph );
 

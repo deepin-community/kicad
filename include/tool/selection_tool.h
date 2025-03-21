@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021-2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,8 +28,10 @@
 #include <math/vector2d.h>
 #include <tool/tool_interactive.h>
 #include <wx/timer.h>
+#include <eda_item.h>
 
 class COLLECTOR;
+class KIID;
 
 
 class SELECTION_TOOL : public TOOL_INTERACTIVE, public wxEvtHandler
@@ -73,6 +75,8 @@ public:
      */
     int SelectionMenu( const TOOL_EVENT& aEvent );
 
+    SELECTION& GetSelection() { return selection(); }
+
 protected:
     /**
      * Return a reference to the selection.
@@ -110,7 +114,8 @@ protected:
      * @param aHighlightMode should be either SELECTED or BRIGHTENED
      * @param aGroup is the group to remove the item from.
      */
-    virtual void unhighlight( EDA_ITEM* aItem, int aHighlightMode, SELECTION* aGroup = nullptr ) = 0;
+    virtual void unhighlight( EDA_ITEM* aItem, int aHighlightMode,
+                              SELECTION* aGroup = nullptr ) = 0;
 
     /**
      * Set the configuration of m_additive, m_subtractive, m_exclusive_or, m_skip_heuristics
@@ -124,29 +129,30 @@ protected:
     bool hasModifier();
 
     /**
-     * Determines if ctrl-click is highlight net or XOR selection.
+     * Determine if ctrl-click is highlight net or XOR selection.
      */
     virtual bool ctrlClickHighlights() { return false; }
 
     bool doSelectionMenu( COLLECTOR* aCollector );
 
 protected:
-    bool            m_additive;          // Items should be added to sel (instead of replacing)
-    bool            m_subtractive;       // Items should be removed from sel
-    bool            m_exclusive_or;      // Items' selection state should be toggled
-    bool            m_multiple;          // Multiple selection mode is active
-    bool            m_skip_heuristics;   // Show disambuguation menu for all items under the
-                                         // cursor rather than trying to narrow them down first
-                                         // using heuristics
-    bool            m_highlight_modifier;// select highlight net on left click
-    bool            m_drag_additive;     // Add multiple items to selection
-    bool            m_drag_subtractive;  // Remove multiple from selection
+    bool            m_additive;          ///< Items should be added to sel (instead of replacing).
+    bool            m_subtractive;       ///< Items should be removed from selection.
+    bool            m_exclusive_or;      ///< Items' selection state should be toggled.
+    bool            m_multiple;          ///< Multiple selection mode is active.
 
-    bool            m_canceledMenu;      // Sets to true if the disambiguation menu was cancelled
+    /// Show disambiguation menu for all items under the cursor rather than trying to narrow
+    /// them down first using heuristics.
+    bool            m_skip_heuristics;
+    bool            m_highlight_modifier;///< Select highlight net on left click.
+    bool            m_drag_additive;     ///< Add multiple items to selection.
+    bool            m_drag_subtractive;  ///< Remove multiple from selection.
 
-    wxTimer         m_disambiguateTimer; // Timer to show the disambiguate menu
+    bool            m_canceledMenu;      ///< Sets to true if the disambiguation menu was canceled.
 
-    VECTOR2I        m_originalCursor;    // Location of original cursor when starting click
+    wxTimer         m_disambiguateTimer; ///< Timer to show the disambiguate menu.
+
+    VECTOR2I        m_originalCursor;    ///< Location of original cursor when starting click.
 };
 
 #endif /* INCLUDE_TOOL_SELECTION_TOOL_H_ */

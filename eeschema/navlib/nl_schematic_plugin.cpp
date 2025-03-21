@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 3Dconnexion
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -30,15 +30,13 @@ NL_SCHEMATIC_PLUGIN::NL_SCHEMATIC_PLUGIN() : m_impl( nullptr )
     if( ADVANCED_CFG::GetCfg().m_Use3DConnexionDriver
         && KIPLATFORM::DRIVERS::Valid3DConnexionDriverVersion() )
     {
-        m_impl = new NL_SCHEMATIC_PLUGIN_IMPL();
+        m_impl = std::make_unique<NL_SCHEMATIC_PLUGIN_IMPL>();
     }
 }
 
 
 NL_SCHEMATIC_PLUGIN::~NL_SCHEMATIC_PLUGIN()
-{
-    delete m_impl;
-}
+{}
 
 
 void NL_SCHEMATIC_PLUGIN::SetFocus( bool focus )

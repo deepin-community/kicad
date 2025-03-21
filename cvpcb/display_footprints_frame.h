@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright (C) 2007-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,6 +32,7 @@
 #include <pcbnew_settings.h>
 
 class REPORTER;
+class COMPONENT;
 
 // The name (for wxWidgets) of the footprint viewer frame
 #define FOOTPRINTVIEWER_FRAME_NAME wxT( "FootprintViewerFrame" )
@@ -52,9 +53,10 @@ public:
     void    UpdateToolbarControlSizes() override;
 
     /**
-     * Refresh the full display for this frame:
-     * Set the title, the status line and redraw the canvas
-     * Must be called after the footprint to display is modified
+     * Refresh the full display for this frame.
+     *
+     * Set the title, the status line and redraw the canvas.
+     * Must be called after the footprint to display is modified.
      */
     void InitDisplay();
 
@@ -75,7 +77,7 @@ public:
 
     MAGNETIC_SETTINGS* GetMagneticItemsSettings() override;
 
-    ///< @copydoc EDA_DRAW_FRAME::UpdateMsgPanel()
+    /// @copydoc EDA_DRAW_FRAME::UpdateMsgPanel()
     void UpdateMsgPanel() override;
 
     COLOR_SETTINGS* GetColorSettings( bool aForceRefresh = false ) const override;

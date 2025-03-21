@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,7 +29,7 @@
  */
 enum KIFACE_ADDR_ID : int
 {
-    INVALID,
+    KIFACE_ID_INVALID,
 
     /**
      * Return a pointer to the global instance of FOOTPRINT_LIST from pcbnew.

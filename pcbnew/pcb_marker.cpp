@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -68,7 +68,8 @@ PCB_MARKER::PCB_MARKER( std::shared_ptr<RC_ITEM> aItem, const VECTOR2I& aPositio
             case DRCE_DUPLICATE_FOOTPRINT:
             case DRCE_EXTRA_FOOTPRINT:
             case DRCE_NET_CONFLICT:
-            case DRCE_SCHEMATIC_PARITY_ISSUES:
+            case DRCE_SCHEMATIC_PARITY:
+            case DRCE_FOOTPRINT_FILTERS:
                 SetMarkerType( MARKER_BASE::MARKER_PARITY );
                 break;
 
@@ -93,9 +94,11 @@ PCB_MARKER::~PCB_MARKER()
 }
 
 
-wxString PCB_MARKER::Serialize() const
+wxString PCB_MARKER::SerializeToString() const
 {
-    if( m_rcItem->GetErrorCode() == DRCE_COPPER_SLIVER )
+    if( m_rcItem->GetErrorCode() == DRCE_COPPER_SLIVER
+            || m_rcItem->GetErrorCode() == DRCE_GENERIC_WARNING
+            || m_rcItem->GetErrorCode() == DRCE_GENERIC_ERROR )
     {
         return wxString::Format( wxT( "%s|%d|%d|%s|%s" ),
                                  m_rcItem->GetSettingsKey(),
@@ -137,7 +140,7 @@ wxString PCB_MARKER::Serialize() const
 }
 
 
-PCB_MARKER* PCB_MARKER::Deserialize( const wxString& data )
+PCB_MARKER* PCB_MARKER::DeserializeFromString( const wxString& data )
 {
     auto getMarkerLayer =
             []( const wxString& layerName ) -> int
@@ -156,12 +159,14 @@ PCB_MARKER* PCB_MARKER::Deserialize( const wxString& data )
     VECTOR2I      markerPos( (int) strtol( props[1].c_str(), nullptr, 10 ),
                              (int) strtol( props[2].c_str(), nullptr, 10 ) );
 
-    std::shared_ptr<DRC_ITEM> drcItem =  DRC_ITEM::Create( props[0] );
+    std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( props[0] );
 
     if( !drcItem )
         return nullptr;
 
-    if( drcItem->GetErrorCode() == DRCE_COPPER_SLIVER )
+    if( drcItem->GetErrorCode() == DRCE_COPPER_SLIVER
+            || drcItem->GetErrorCode() == DRCE_GENERIC_WARNING
+            || drcItem->GetErrorCode() == DRCE_GENERIC_ERROR )
     {
         drcItem->SetItems( KIID( props[3] ) );
         markerLayer = getMarkerLayer( props[4] );
@@ -227,13 +232,16 @@ void PCB_MARKER::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
             auxItem = aFrame->GetItem( m_rcItem->GetAuxItemID() );
 
         if( mainItem )
-            mainText = mainItem->GetItemDescription( aFrame );
+            mainText = mainItem->GetItemDescription( aFrame, true );
 
         if( auxItem )
-            auxText = auxItem->GetItemDescription( aFrame );
+            auxText = auxItem->GetItemDescription( aFrame, true );
 
         aList.emplace_back( mainText, auxText );
     }
+
+    if( IsExcluded() )
+        aList.emplace_back( _( "Excluded" ), m_comment );
 }
 
 
@@ -243,7 +251,7 @@ void PCB_MARKER::Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle )
 }
 
 
-void PCB_MARKER::Flip( const VECTOR2I& aCentre, bool aFlipLeftRight )
+void PCB_MARKER::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
     // Marker geometry isn't user-editable
 }
@@ -257,11 +265,10 @@ std::shared_ptr<SHAPE> PCB_MARKER::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASH
 }
 
 
-wxString PCB_MARKER::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString PCB_MARKER::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    // m_rcItem->GetErrorMessage() could be used instead, but is probably too long
-    // for menu duty.
-    return wxString::Format( _( "Marker (%s)" ), m_rcItem->GetErrorText() );
+    return wxString::Format( _( "Marker (%s)" ),
+                             aFull ? m_rcItem->GetErrorMessage() : m_rcItem->GetErrorText() );
 }
 
 
@@ -277,6 +284,12 @@ SEVERITY PCB_MARKER::GetSeverity() const
         return RPT_SEVERITY_EXCLUSION;
 
     DRC_ITEM* item = static_cast<DRC_ITEM*>( m_rcItem.get() );
+
+    if( item->GetErrorCode() == DRCE_GENERIC_WARNING )
+        return RPT_SEVERITY_WARNING;
+    else if( item->GetErrorCode() == DRCE_GENERIC_ERROR )
+        return RPT_SEVERITY_ERROR;
+
     DRC_RULE* rule = item->GetViolatingRule();
 
     if( rule && rule->m_Severity != RPT_SEVERITY_UNDEFINED )
@@ -286,25 +299,24 @@ SEVERITY PCB_MARKER::GetSeverity() const
 }
 
 
-void PCB_MARKER::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> PCB_MARKER::ViewGetLayers() const
 {
     if( GetMarkerType() == MARKER_RATSNEST )
     {
-        aCount = 0;
-        return;
+        return {};
     }
 
-    aCount = 2;
-
-    aLayers[1] = LAYER_MARKER_SHADOWS;
+    std::vector<int> layers{ 0, LAYER_MARKER_SHADOWS, LAYER_DRC_SHAPE1, LAYER_DRC_SHAPE2 };
 
     switch( GetSeverity() )
     {
     default:
-    case SEVERITY::RPT_SEVERITY_ERROR:     aLayers[0] = LAYER_DRC_ERROR;     break;
-    case SEVERITY::RPT_SEVERITY_WARNING:   aLayers[0] = LAYER_DRC_WARNING;   break;
-    case SEVERITY::RPT_SEVERITY_EXCLUSION: aLayers[0] = LAYER_DRC_EXCLUSION; break;
+    case SEVERITY::RPT_SEVERITY_ERROR:     layers[0] = LAYER_DRC_ERROR;     break;
+    case SEVERITY::RPT_SEVERITY_WARNING:   layers[0] = LAYER_DRC_WARNING;   break;
+    case SEVERITY::RPT_SEVERITY_EXCLUSION: layers[0] = LAYER_DRC_EXCLUSION; break;
     }
+
+    return layers;
 }
 
 
@@ -335,7 +347,12 @@ void PCB_MARKER::SetZoom( double aZoomFactor )
 
 const BOX2I PCB_MARKER::GetBoundingBox() const
 {
-    return GetBoundingBoxMarker();
+    BOX2I box = GetBoundingBoxMarker();
+
+    for( auto& s : m_shapes1 )
+        box.Merge( s.GetBoundingBox() );
+
+    return box;
 }
 
 

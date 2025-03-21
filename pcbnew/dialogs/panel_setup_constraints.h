@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -60,6 +60,7 @@ public:
     UNIT_BINDER             m_holeClearance;
     UNIT_BINDER             m_edgeClearance;
     UNIT_BINDER             m_silkClearance;
+    UNIT_BINDER             m_minGrooveWidth;
     UNIT_BINDER             m_minTextHeight;
     UNIT_BINDER             m_minTextThickness;
     UNIT_BINDER             m_maxError;

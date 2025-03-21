@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 John Beard, john.j.beard@gmail.com
- * Copyright (C) 2018-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,6 +23,7 @@
  */
 
 #include <dialogs/dialog_move_exact.h>
+#include <math/box2.h>
 #include <math/util.h>      // for KiROUND
 #include <widgets/tab_traversal.h>
 #include <pcb_edit_frame.h>

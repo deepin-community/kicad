@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,7 +23,7 @@
 
 /**
  * @file
- * Test utils (e.g. print helpers and test predicates for LIB_FIELD objects
+ * Test utils (e.g. print helpers and test predicates for SCH_FIELD objects
  */
 
 #ifndef QA_EESCHEMA_LIB_FIELD_TEST_UTILS__H
@@ -32,29 +32,20 @@
 #include <qa_utils/wx_utils/unit_test_utils.h>
 
 #include <template_fieldnames.h>
+#include <sch_field.h>
 
 
-namespace BOOST_TEST_PRINT_NAMESPACE_OPEN
+std::ostream& boost_test_print_type( std::ostream& os, SCH_FIELD const& f )
 {
-template <>
-struct print_log_value<LIB_FIELD>
-{
-    inline void operator()( std::ostream& os, LIB_FIELD const& f )
-    {
-        os << "LIB_FIELD[ " << f.GetCanonicalName() << " ]";
-    }
-};
-
-template <>
-struct print_log_value<std::vector<LIB_FIELD>>
-{
-    inline void operator()( std::ostream& os, std::vector<LIB_FIELD> const& f )
-    {
-        os << "LIB_FIELDS[ " << f.size() << " ]";
-    }
-};
+    os << "SCH_FIELD[ " << f.GetCanonicalName() << " ]";
+    return os;
 }
-BOOST_TEST_PRINT_NAMESPACE_CLOSE
+
+std::ostream& boost_test_print_type( std::ostream& os, std::vector<SCH_FIELD> const& f )
+{
+    os << "SCH_FIELDS[ " << f.size() << " ]";
+    return os;
+}
 
 
 namespace KI_TEST
@@ -62,13 +53,12 @@ namespace KI_TEST
 
 /**
  * Predicate to check a field name is as expected
- * @param  aField    LIB_FIELD to check the name
+ * @param  aField SCH_FIELD to check the name
  * @param  aExpectedName the expected field name
  * @param  aExpectedId the expected field id
- * @return           true if match
+ * @return  true if match
  */
-bool FieldNameIdMatches( const LIB_FIELD& aField, const std::string& aExpectedName,
-                         int aExpectedId )
+bool FieldNameIdMatches( const SCH_FIELD& aField, const std::string& aExpectedName, int aExpectedId )
 {
     bool       ok = true;
     const auto gotName = aField.GetCanonicalName();
@@ -91,17 +81,15 @@ bool FieldNameIdMatches( const LIB_FIELD& aField, const std::string& aExpectedNa
 }
 
 /**
- * Predicate to check that the mandatory fields in a LIB_FIELDS object look sensible
- * @param  aFields the fields to check
- * @return         true if valid
+ * Predicate to check that the mandatory fields look sensible
  */
-bool AreDefaultFieldsCorrect( const std::vector<LIB_FIELD>& aFields )
+bool AreDefaultFieldsCorrect( const std::vector<SCH_FIELD>& aFields )
 {
-    const unsigned expectedCount = MANDATORY_FIELD_T::MANDATORY_FIELDS;
+    const unsigned expectedCount = MANDATORY_FIELD_T::MANDATORY_FIELD_COUNT;
+
     if( aFields.size() < expectedCount )
     {
-        BOOST_TEST_INFO(
-                "Expected at least " << expectedCount << " fields, got " << aFields.size() );
+        BOOST_TEST_INFO( "Expected at least " << expectedCount << " fields, got " << aFields.size() );
         return false;
     }
 

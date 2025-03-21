@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2014 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -34,12 +34,15 @@
 #include "pns_line.h"
 #include "pns_segment.h"
 #include "pns_via.h"
+#include "pns_kicad_iface.h"
 
 using namespace KIGFX;
 
 
-ROUTER_PREVIEW_ITEM::ROUTER_PREVIEW_ITEM( const PNS::ITEM* aItem, KIGFX::VIEW* aView, int aFlags ) :
+ROUTER_PREVIEW_ITEM::ROUTER_PREVIEW_ITEM( const PNS::ITEM* aItem, PNS::ROUTER_IFACE* aIface,
+                                          KIGFX::VIEW* aView, int aFlags ) :
         EDA_ITEM( NOT_USED ),
+        m_iface( aIface ),
         m_view( aView ),
         m_shape( nullptr ),
         m_hole( nullptr ),
@@ -48,17 +51,26 @@ ROUTER_PREVIEW_ITEM::ROUTER_PREVIEW_ITEM( const PNS::ITEM* aItem, KIGFX::VIEW* a
     BOARD_ITEM* boardItem = aItem ? aItem->BoardItem() : nullptr;
 
     // A PNS::SOLID for an edge-cut item must have 0 width for collision calculations, but when
-    // highlighting an edge we want to show it with its parent PCB_SHAPE's shape.
+    // highlighting an edge we want to show it with its true width
     if( boardItem && boardItem->IsOnLayer( Edge_Cuts ) )
     {
-        m_shape = boardItem->GetEffectiveShape()->Clone();
+        m_shape = aItem->Shape( -1 )->Clone();
+
+        switch( m_shape->Type() )
+        {
+        case SH_SEGMENT:    static_cast<SHAPE_SEGMENT*>( m_shape )->SetWidth( 0 );    break;
+        case SH_ARC:        static_cast<SHAPE_ARC*>( m_shape )->SetWidth( 0 );        break;
+        case SH_LINE_CHAIN: static_cast<SHAPE_LINE_CHAIN*>( m_shape )->SetWidth( 0 ); break;
+        default:            /* remaining shapes don't have width */                   break;
+        }
     }
     else if( aItem )
     {
-        m_shape = aItem->Shape()->Clone();
+        // TODO(JE) padstacks -- need to know the layer here
+        m_shape = aItem->Shape( -1 )->Clone();
 
-        if( aItem->Hole() )
-            m_hole = aItem->Hole()->Shape()->Clone();
+        if( aItem->HasHole() )
+            m_hole = aItem->Hole()->Shape( -1 )->Clone();
     }
 
     m_clearance = -1;
@@ -76,12 +88,13 @@ ROUTER_PREVIEW_ITEM::ROUTER_PREVIEW_ITEM( const PNS::ITEM* aItem, KIGFX::VIEW* a
 }
 
 
-ROUTER_PREVIEW_ITEM::ROUTER_PREVIEW_ITEM( const SHAPE& aShape, KIGFX::VIEW* aView ) :
+ROUTER_PREVIEW_ITEM::ROUTER_PREVIEW_ITEM( const SHAPE& aShape, PNS::ROUTER_IFACE* aIface,
+                                          KIGFX::VIEW* aView ) :
         EDA_ITEM( NOT_USED ),
+        m_iface( aIface ),
+        m_view( aView ),
         m_flags( 0 )
 {
-    m_view = aView;
-
     m_shape = aShape.Clone();
     m_hole = nullptr;
 
@@ -106,7 +119,7 @@ ROUTER_PREVIEW_ITEM::~ROUTER_PREVIEW_ITEM()
 
 void ROUTER_PREVIEW_ITEM::Update( const PNS::ITEM* aItem )
 {
-    m_originLayer = aItem->Layers().Start();
+    m_originLayer = m_iface->GetBoardLayerFromPNSLayer( aItem->Layers().Start() );
 
     if( const PNS::LINE* l = dyn_cast<const PNS::LINE*>( aItem ) )
     {
@@ -119,7 +132,8 @@ void ROUTER_PREVIEW_ITEM::Update( const PNS::ITEM* aItem )
             return;
     }
 
-    assert( m_originLayer >= 0 );
+    if( m_originLayer < 0 )
+        m_originLayer = 0;
 
     m_layer = m_originLayer;
     m_color = getLayerColor( m_originLayer );
@@ -144,25 +158,40 @@ void ROUTER_PREVIEW_ITEM::Update( const PNS::ITEM* aItem )
         break;
 
     case PNS::ITEM::VIA_T:
+    {
         m_originLayer = m_layer = LAYER_VIAS;
         m_type = PR_SHAPE;
         m_width = 0;
         m_color = COLOR4D( 0.7, 0.7, 0.7, 0.8 );
-        m_depth = m_originDepth - ( PCB_LAYER_ID_COUNT * LayerDepthFactor );
+        m_depth = m_originDepth - ( static_cast<double>( PCB_LAYER_ID_COUNT ) * LayerDepthFactor );
 
         delete m_shape;
         m_shape = nullptr;
 
-        if( aItem->Shape() )
-            m_shape = aItem->Shape()->Clone();
+        auto via = static_cast<const PNS::VIA*>( aItem );
+        int shapeLayer = -1;
+        int largestDiameter = 0;
+
+        for( int layer : via->UniqueShapeLayers() )
+        {
+            if( via->Diameter( layer ) > largestDiameter )
+            {
+                largestDiameter = via->Diameter( layer );
+                shapeLayer = layer;
+            }
+        }
+
+        if( aItem->Shape( shapeLayer ) )
+            m_shape = aItem->Shape( shapeLayer )->Clone();
 
         delete m_hole;
         m_hole = nullptr;
 
-        if( aItem->Hole() )
-            m_hole = aItem->Hole()->Shape()->Clone();
+        if( aItem->HasHole() )
+            m_hole = aItem->Hole()->Shape( -1 )->Clone();
 
         break;
+    }
 
     case PNS::ITEM::SOLID_T:
         m_type = PR_SHAPE;
@@ -256,7 +285,11 @@ void ROUTER_PREVIEW_ITEM::drawLineChain( const SHAPE_LINE_CHAIN_BASE* aL, KIGFX:
 void ROUTER_PREVIEW_ITEM::drawShape( const SHAPE* aShape, KIGFX::GAL* gal ) const
 {
     bool holeDrawn = false;
-    bool showClearance = m_showClearance || ( m_flags | PNS_COLLISION ) > 0;
+    bool showClearance = m_showClearance;
+
+    // Always show clearance when we're in collision, even if the preference is off
+    if( ( m_flags & PNS_COLLISION ) > 0 )
+        showClearance = true;
 
     switch( aShape->Type() )
     {

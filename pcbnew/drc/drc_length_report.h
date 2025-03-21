@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2004-2023 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -31,6 +31,7 @@ public:
     {
         int                             netcode;
         wxString                        netname;
+        NETINFO_ITEM*                   netinfo;
         BOARD_CONNECTED_ITEM*           fromItem;
         BOARD_CONNECTED_ITEM*           toItem;
         DRC_RULE*                       matchingRule;

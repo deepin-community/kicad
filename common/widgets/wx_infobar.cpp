@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Ian McInerney <ian.s.mcinerney@ieee.org>
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,12 +23,13 @@
 #include <widgets/wx_infobar.h>
 #include "wx/artprov.h"
 #include <wx/aui/framemanager.h>
+#include <wx/bmpbuttn.h>
 #include <wx/debug.h>
+#include <wx/hyperlink.h>
 #include <wx/infobar.h>
 #include <wx/sizer.h>
+#include <wx/stattext.h>
 #include <wx/timer.h>
-#include <wx/hyperlink.h>
-#include <wx/bmpbuttn.h>
 #include <eda_base_frame.h>
 
 #ifdef __WXMSW__
@@ -43,6 +44,7 @@ BEGIN_EVENT_TABLE( WX_INFOBAR, wxInfoBarGeneric )
     EVT_COMMAND( wxID_ANY, KIEVT_SHOW_INFOBAR,    WX_INFOBAR::onShowInfoBar )
     EVT_COMMAND( wxID_ANY, KIEVT_DISMISS_INFOBAR, WX_INFOBAR::onDismissInfoBar )
 
+    EVT_SYS_COLOUR_CHANGED( WX_INFOBAR::onThemeChange )
     EVT_BUTTON( ID_CLOSE_INFOBAR, WX_INFOBAR::onCloseButton )
     EVT_TIMER(  ID_CLOSE_INFOBAR, WX_INFOBAR::onTimer )
 END_EVENT_TABLE()
@@ -58,13 +60,12 @@ WX_INFOBAR::WX_INFOBAR( wxWindow* aParent, wxAuiManager* aMgr, wxWindowID aWinid
 {
     m_showTimer = new wxTimer( this, ID_CLOSE_INFOBAR );
 
-#ifdef __WXMAC__
-    // wxWidgets hard-codes wxSYS_COLOUR_INFOBK to { 0xFF, 0xFF, 0xD3 } on Mac.
-    if( KIPLATFORM::UI::IsDarkTheme() )
-        SetBackgroundColour( wxColour( 28, 27, 20 ) );
-    else
-        SetBackgroundColour( wxColour( 255, 249, 189 ) );
+    wxColour fg, bg;
+    KIPLATFORM::UI::GetInfoBarColours( fg, bg );
+    SetBackgroundColour( bg );
+    SetForegroundColour( fg );
 
+#ifdef __WXMAC__
     // Infobar is broken on Mac without the effects
     SetShowHideEffects( wxSHOW_EFFECT_ROLL_TO_BOTTOM, wxSHOW_EFFECT_ROLL_TO_TOP );
     SetEffectDuration( 200 );
@@ -72,7 +73,6 @@ WX_INFOBAR::WX_INFOBAR( wxWindow* aParent, wxAuiManager* aMgr, wxWindowID aWinid
     // Infobar freezes canvas on Windows with the effect, and GTK looks bad with it
     SetShowHideEffects( wxSHOW_EFFECT_NONE, wxSHOW_EFFECT_NONE );
 #endif
-
 
     // The infobar seems to start too small, so increase its height
     int sx, sy;
@@ -159,10 +159,10 @@ void WX_INFOBAR::ShowMessage( const wxString& aMessage, int aFlags )
 
     m_updateLock = true;
 
-    wxString msg = aMessage;
-    msg.Trim();
+    m_message = aMessage;
+    m_message.Trim();
 
-    wxInfoBarGeneric::ShowMessage( msg, aFlags );
+    wxInfoBarGeneric::ShowMessage( m_message, aFlags );
 
     if( m_auiManager )
         updateAuiLayout( true );
@@ -210,9 +210,37 @@ void WX_INFOBAR::Dismiss()
 }
 
 
+void WX_INFOBAR::onThemeChange( wxSysColourChangedEvent& aEvent )
+{
+    wxColour fg, bg;
+    KIPLATFORM::UI::GetInfoBarColours( fg, bg );
+    SetBackgroundColour( bg );
+    SetForegroundColour( fg );
+
+    if( wxBitmapButton* btn = GetCloseButton() )
+    {
+        wxString tooltip = btn->GetToolTipText();
+        RemoveAllButtons();
+        AddCloseButton( tooltip );
+    }
+}
+
+
 void WX_INFOBAR::onSize( wxSizeEvent& aEvent )
 {
     int barWidth = GetSize().GetWidth();
+    wxSizer* sizer = GetSizer();
+
+    if( !sizer )
+        return;
+
+    wxSizerItem* text = sizer->GetItem( 1 );
+
+    if( text )
+    {
+        if( auto textCtrl = dynamic_cast<wxStaticText*>( text->GetWindow() ) )
+            textCtrl->SetLabelText( m_message );
+    }
 
     // Calculate the horizontal size: because the infobar is shown on top of the draw canvas
     // it is adjusted to the canvas width.
@@ -224,9 +252,25 @@ void WX_INFOBAR::onSize( wxSizeEvent& aEvent )
     if( frame && frame->GetToolCanvas() )
         parentWidth = frame->GetToolCanvas()->GetSize().GetWidth();
 
-
     if( barWidth != parentWidth )
         SetSize( parentWidth, GetSize().GetHeight() );
+
+    if( text )
+    {
+        if( auto textCtrl = dynamic_cast<wxStaticText*>( text->GetWindow() ) )
+        {
+            // Re-wrap the text (this is done automatically later but we need it now)
+            // And count how many lines we need.  If we have embedded newlines, then
+            // multiply the number of lines by the text min height to find the correct
+            // min height for the control.  The min height of the text control will be the size
+            // of a single line of text.  This assumes that two lines of text are larger
+            // than the height of the icon for the bar.
+            textCtrl->Wrap( text->GetSize().GetWidth() );
+            wxString new_text = textCtrl->GetLabel();
+            int      height = ( new_text.Freq( '\n' ) + 1 ) * text->GetMinSize().GetHeight();
+            SetMinSize( wxSize( GetSize().GetWidth(), height ) );
+        }
+    }
 
     aEvent.Skip();
 }
@@ -271,7 +315,10 @@ void WX_INFOBAR::AddButton( wxButton* aButton )
     // smaller buttons look better in the (narrow) info bar under OS X
     aButton->SetWindowVariant( wxWINDOW_VARIANT_SMALL );
 #endif // __WXMAC__
-    sizer->Add( aButton, wxSizerFlags().Centre().Border( wxRIGHT ) );
+
+    auto element = sizer->Add( aButton, wxSizerFlags( 0 ).Centre().Border( wxRIGHT ) );
+
+    element->SetFlag( wxSTRETCH_MASK );
 
     if( IsShownOnScreen() )
         sizer->Layout();
@@ -284,7 +331,7 @@ void WX_INFOBAR::AddButton( wxHyperlinkCtrl* aHypertextButton )
 
     wxASSERT( aHypertextButton );
 
-    sizer->Add( aHypertextButton, wxSizerFlags().Centre().Border( wxRIGHT ) );
+    sizer->Add( aHypertextButton, wxSizerFlags().Centre().Border( wxRIGHT ).Shaped() );
 
     if( IsShownOnScreen() )
         sizer->Layout();
@@ -327,17 +374,26 @@ void WX_INFOBAR::RemoveAllButtons()
 
 bool WX_INFOBAR::HasCloseButton() const
 {
+    return GetCloseButton();
+}
+
+
+wxBitmapButton* WX_INFOBAR::GetCloseButton() const
+{
     wxSizer* sizer = GetSizer();
 
     if( sizer->GetItemCount() == 0 )
-        return false;
+        return nullptr;
 
     if( sizer->GetItem( sizer->GetItemCount() - 1 )->IsSpacer() )
-        return false;
+        return nullptr;
 
     wxSizerItem* item = sizer->GetItem( sizer->GetItemCount() - 1 );
 
-    return ( item->GetWindow()->GetId() == ID_CLOSE_INFOBAR );
+    if( item->GetWindow()->GetId() == ID_CLOSE_INFOBAR )
+        return static_cast<wxBitmapButton*>( item->GetWindow() );
+
+    return nullptr;
 }
 
 
@@ -403,4 +459,54 @@ void EDA_INFOBAR_PANEL::AddOtherItem( wxWindow* aOtherItem )
 
     m_mainSizer->AddGrowableRow( 1, 1 );
     m_mainSizer->Layout();
+}
+
+
+REPORTER& INFOBAR_REPORTER::Report( const wxString& aText, SEVERITY aSeverity )
+{
+    m_message.reset( new wxString( aText ) );
+    m_severity = aSeverity;
+    m_messageSet = true;
+
+    return *this;
+}
+
+
+bool INFOBAR_REPORTER::HasMessage() const
+{
+    return m_message && !m_message->IsEmpty();
+}
+
+
+void INFOBAR_REPORTER::Finalize()
+{
+    // Don't do anything if no message was ever given
+    if( !m_infoBar || !m_messageSet )
+        return;
+
+    // Short circuit if the message is empty and it is already hidden
+    if( !HasMessage() && !m_infoBar->IsShownOnScreen() )
+        return;
+
+    int icon = wxICON_NONE;
+
+    switch( m_severity )
+    {
+    case RPT_SEVERITY_UNDEFINED: icon = wxICON_INFORMATION; break;
+    case RPT_SEVERITY_INFO: icon = wxICON_INFORMATION; break;
+    case RPT_SEVERITY_EXCLUSION: icon = wxICON_WARNING; break;
+    case RPT_SEVERITY_ACTION: icon = wxICON_WARNING; break;
+    case RPT_SEVERITY_WARNING: icon = wxICON_WARNING; break;
+    case RPT_SEVERITY_ERROR: icon = wxICON_ERROR; break;
+    case RPT_SEVERITY_IGNORE: icon = wxICON_INFORMATION; break;
+    case RPT_SEVERITY_DEBUG: icon = wxICON_INFORMATION; break;
+    }
+
+    if( m_message->EndsWith( wxS( "\n" ) ) )
+        *m_message = m_message->Left( m_message->Length() - 1 );
+
+    if( HasMessage() )
+        m_infoBar->QueueShowMessage( *m_message, icon );
+    else
+        m_infoBar->QueueDismiss();
 }

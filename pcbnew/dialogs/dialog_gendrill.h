@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 1992-2019 Jean_Pierre Charras <jp.charras@ujf-grenoble.fr>
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,6 +28,8 @@
 #include <gendrill_file_writer_base.h>      // for DRILL_PRECISION definition
 #include <dialog_gendrill_base.h>
 
+class JOB_EXPORT_PCB_DRILL;
+
 class DIALOG_GENDRILL : public DIALOG_GENDRILL_BASE
 {
 public:
@@ -36,6 +38,7 @@ public:
      * @param aParent is the parent window caller ( the board edit frame or a dialog ).
      */
     DIALOG_GENDRILL( PCB_EDIT_FRAME* aPcbEditFrame, wxWindow* aParent );
+    DIALOG_GENDRILL( PCB_EDIT_FRAME* aPcbEditFrame, JOB_EXPORT_PCB_DRILL* aJob, wxWindow* aParent );
     ~DIALOG_GENDRILL();
 
     /**
@@ -43,15 +46,15 @@ public:
      */
     void             UpdateDrillParams();
 
+    bool TransferDataFromWindow() override;
+    bool TransferDataToWindow() override;
+
 private:
     void initDialog();
-    void InitDisplayParams();
 
     // event functions
-    void OnSelDrillUnitsSelected( wxCommandEvent& event ) override;
-    void OnSelZerosFmtSelected( wxCommandEvent& event ) override;
-    void OnGenDrillFile( wxCommandEvent& event ) override;
-    void OnGenMapFile( wxCommandEvent& event ) override;
+    void onSelDrillUnitsSelected( wxCommandEvent& event ) override;
+    void onSelZerosFmtSelected( wxCommandEvent& event ) override;
 	void onFileFormatSelection( wxCommandEvent& event ) override;
 
     // Called when closing the dialog: Update config.
@@ -59,13 +62,7 @@ private:
     // could happen too late for the caller.
 	void onCloseDlg( wxCloseEvent& event ) override
     {
-        UpdateConfig();
-        event.Skip();
-    }
-
-	void onQuitDlg( wxCommandEvent& event ) override
-    {
-        UpdateConfig();
+        updateConfig();
         event.Skip();
     }
 
@@ -74,9 +71,9 @@ private:
      *  for through holes, oblong holes, and for buried vias,
      *  drill values and drill count per layer pair
      */
-    void OnGenReportFile( wxCommandEvent& event ) override;
+    void onGenReportFile( wxCommandEvent& event ) override;
 
-    void OnOutputDirectoryBrowseClicked( wxCommandEvent& event ) override;
+    void onOutputDirectoryBrowseClicked( wxCommandEvent& event ) override;
 
     // Specific functions:
     /**
@@ -87,37 +84,36 @@ private:
      * plated through holes, and one file per layer pair, which have one or more holes, excluding
      * through holes, already in the first file.  One file for all Not Plated through holes.
      */
-    void GenDrillAndMapFiles( bool aGenDrill, bool aGenMap );
+    void genDrillAndMapFiles( bool aGenDrill, bool aGenMap );
 
-    void UpdatePrecisionOptions();
-    void UpdateConfig();
-
-public:
-    static int       m_UnitDrillIsInch;
-    static int       m_ZerosFormat;
-    static bool      m_MinimalHeader;
-    static bool      m_Mirror;
-    static bool      m_Merge_PTH_NPTH;
-    DRILL_PRECISION  m_Precision;                // Precision for drill files, in non decimal format
-    VECTOR2I         m_DrillFileOffset;          // Drill offset: 0,0 for absolute coordinates,
-                                                 // or origin of the auxiliary axis
-    static bool      m_UseRouteModeForOvalHoles; // True to use a G00 route command for oval holes
-                                                 // False to use a G85 canned mode for oval holes
+    void updatePrecisionOptions();
+    void updateConfig();
 
 private:
-    PCB_EDIT_FRAME*  m_pcbEditFrame;
-    BOARD*           m_board;
-    PCB_PLOT_PARAMS  m_plotOpts;
-    bool             m_drillOriginIsAuxAxis;     // Axis selection (main / auxiliary)
-                                                 // for drill origin coordinates
-    int              m_platedPadsHoleCount;
-    int              m_notplatedPadsHoleCount;
-    int              m_throughViasCount;
-    int              m_microViasCount;
-    int              m_blindOrBuriedViasCount;
+    static int              g_unitDrillIsInch;
+    static int              g_zerosFormat;
+    static bool             g_minimalHeader;
+    static bool             g_mirror;
+    static bool             g_merge_PTH_NPTH;
+    static bool             g_generateMap;
+    static DRILL_PRECISION  g_precision;                // Precision for drill files in non-decimal
+                                                        //   format
+    static VECTOR2I         g_drillFileOffset;          // Drill offset: 0,0 for absolute
+                                                        //   coordinates, or aux origin
+    static bool             g_useRouteModeForOvalHoles; // True to use a G00 route command for
+                                                        //   oval holes; false to use a G85 canned
+                                                        //   mode for oval holes
 
-    static int       m_mapFileType;              // format of map file: HPGL, PS ...
-    static int       m_drillFileType;            // for Excellon, Gerber
+private:
+    PCB_EDIT_FRAME*       m_pcbEditFrame;
+    BOARD*                m_board;
+    PCB_PLOT_PARAMS       m_plotOpts;
+    JOB_EXPORT_PCB_DRILL* m_job;
+
+    bool                  m_drillOriginIsAuxAxis;     // Axis selection (main / auxiliary)
+                                                      //   for drill origin coordinates
+    static int            g_mapFileType;              // format of map file: HPGL, PS ...
+    static int            g_drillFileType;            // for Excellon, Gerber
 };
 
 #endif      // DIALOG_GENDRILL_H_

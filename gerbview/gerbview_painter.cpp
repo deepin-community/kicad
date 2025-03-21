@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2017-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -37,7 +37,7 @@ using namespace KIGFX;
 
 GERBVIEW_SETTINGS* gvconfig()
 {
-    return Pgm().GetSettingsManager().GetAppSettings<GERBVIEW_SETTINGS>();
+    return Pgm().GetSettingsManager().GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" );
 }
 
 
@@ -62,8 +62,8 @@ void GERBVIEW_RENDER_SETTINGS::LoadColors( const COLOR_SETTINGS* aSettings )
     {
         COLOR4D baseColor = aSettings->GetColor( i );
 
-        if( gvconfig()->m_Display.m_DiffMode )
-            baseColor.a = 0.75;
+        if( gvconfig()->m_Display.m_ForceOpacityMode )
+            baseColor.a = gvconfig()->m_Display.m_OpacityModeAlphaValue;
 
         m_layerColors[i] = baseColor;
         m_layerColorsHi[i] = baseColor.Brightened( 0.5 );
@@ -108,46 +108,76 @@ COLOR4D GERBVIEW_RENDER_SETTINGS::GetColor( const VIEW_ITEM* aItem, int aLayer )
 
     // All DCODE layers stored under a single color setting
     if( IsDCodeLayer( aLayer ) )
-        return m_layerColors[ LAYER_DCODES ];
+    {
+        auto it = m_layerColors.find( LAYER_DCODES );
+        return it == m_layerColors.end() ? COLOR4D::WHITE : it->second;
+    }
 
     if( item && item->IsSelected() )
-        return m_layerColorsSel[aLayer];
+    {
+        auto it = m_layerColorsSel.find( aLayer );
+        return it == m_layerColorsSel.end() ? COLOR4D::WHITE : it->second;
+    }
 
     if( gbrItem && gbrItem->GetLayerPolarity() )
     {
         if( gvconfig()->m_Appearance.show_negative_objects )
-            return m_layerColors[LAYER_NEGATIVE_OBJECTS];
+        {
+            auto it = m_layerColors.find( LAYER_NEGATIVE_OBJECTS );
+            return it == m_layerColors.end() ? COLOR4D::WHITE : it->second;
+        }
         else
+        {
             return transparent;
+        }
     }
 
     if( !m_netHighlightString.IsEmpty() && gbrItem &&
         m_netHighlightString == gbrItem->GetNetAttributes().m_Netname )
-        return m_layerColorsHi[aLayer];
+    {
+        auto it = m_layerColorsHi.find( aLayer );
+        return it == m_layerColorsHi.end() ? COLOR4D::WHITE : it->second;
+    }
 
     if( !m_componentHighlightString.IsEmpty() && gbrItem &&
         m_componentHighlightString == gbrItem->GetNetAttributes().m_Cmpref )
-        return m_layerColorsHi[aLayer];
+    {
+        auto it = m_layerColorsHi.find( aLayer );
+        return it == m_layerColorsHi.end() ? COLOR4D::WHITE : it->second;
+    }
 
     if( !m_attributeHighlightString.IsEmpty() && gbrItem && gbrItem->GetDcodeDescr() &&
         m_attributeHighlightString == gbrItem->GetDcodeDescr()->m_AperFunction )
-        return m_layerColorsHi[aLayer];
+    {
+        auto it = m_layerColorsHi.find( aLayer );
+        return it == m_layerColorsHi.end() ? COLOR4D::WHITE : it->second;
+    }
 
     if( m_dcodeHighlightValue> 0 && gbrItem && gbrItem->GetDcodeDescr() &&
         m_dcodeHighlightValue == gbrItem->GetDcodeDescr()->m_Num_Dcode )
-        return m_layerColorsHi[aLayer];
+    {
+        auto it = m_layerColorsHi.find( aLayer );
+        return it == m_layerColorsHi.end() ? COLOR4D::WHITE : it->second;
+    }
 
     // Return grayish color for non-highlighted layers in the high contrast mode
     if( m_hiContrastEnabled && m_highContrastLayers.count( aLayer ) == 0)
-        return m_hiContrastColor[aLayer];
+    {
+        auto it = m_hiContrastColor.find( aLayer );
+        return it == m_hiContrastColor.end() ? COLOR4D::WHITE.Darkened( 0.25 ) : it->second;
+    }
 
     // Catch the case when highlight and high-contraste modes are enabled
     // and we are drawing a not highlighted track
     if( m_highlightEnabled )
-        return m_layerColorsDark[aLayer];
+    {
+        auto it = m_layerColorsDark.find( aLayer );
+        return it == m_layerColorsDark.end() ? COLOR4D::WHITE.Darkened( 0.5 ) : it->second;
+    }
 
     // No special modificators enabled
-    return m_layerColors[aLayer];
+    auto it = m_layerColors.find( aLayer );
+    return it == m_layerColors.end() ? COLOR4D::WHITE : it->second;
 }
 
 
@@ -297,7 +327,7 @@ void GERBVIEW_PAINTER::draw( /*const*/ GERBER_DRAW_ITEM* aItem, int aLayer )
     case GBR_CIRCLE:
     {
         isFilled = gvconfig()->m_Display.m_DisplayLinesFill;
-        double radius = GetLineLength( aItem->m_Start, aItem->m_End );
+        double radius = aItem->m_Start.Distance( aItem->m_End );
         m_gal->DrawCircle( start, radius );
         break;
     }
@@ -313,7 +343,7 @@ void GERBVIEW_PAINTER::draw( /*const*/ GERBER_DRAW_ITEM* aItem, int aLayer )
 
         // Gerber arcs are 3-point (start, center, end)
         // GAL needs center, radius, start angle, end angle
-        double   radius = GetLineLength( arcStart, aItem->m_ArcCentre );
+        double   radius = arcStart.Distance( aItem->m_ArcCentre );
         VECTOR2D center = aItem->GetABPosition( aItem->m_ArcCentre );
         VECTOR2D startVec = VECTOR2D( aItem->GetABPosition( arcStart ) ) - center;
         VECTOR2D endVec = VECTOR2D( aItem->GetABPosition( arcEnd ) ) - center;

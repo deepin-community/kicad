@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
 * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -39,7 +39,7 @@ public:
      * @param aFullFileName is the full filenam to create
      * @return true on success
      */
-    bool WriteFile( wxString& aFullFileName );
+    bool WriteFile( const wxString& aFullFileName );
 
     /// Set the coordinates offet when exporting items
     void SetPlotOffet( VECTOR2I aOffset ) { GencadOffset = aOffset; }

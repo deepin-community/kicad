@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -49,9 +49,16 @@ LINE::LINE( const LINE& aOther )
 
     if( aOther.m_via )
     {
-        m_via = aOther.m_via->Clone();
-        m_via->SetOwner( this );
-        m_via->SetNet( m_net );
+        if( aOther.m_via->BelongsTo( &aOther ) )
+        {
+            m_via = aOther.m_via->Clone();
+            m_via->SetOwner( this );
+            m_via->SetNet( m_net );
+        }
+        else
+        {
+            m_via = aOther.m_via;
+        }
     }
 
     m_marker = aOther.m_marker;
@@ -81,9 +88,16 @@ LINE& LINE::operator=( const LINE& aOther )
 
     if( aOther.m_via )
     {
-        m_via = aOther.m_via->Clone();
-        m_via->SetOwner( this );
-        m_via->SetNet( m_net );
+        if( aOther.m_via->BelongsTo( &aOther ) )
+        {
+            m_via = aOther.m_via->Clone();
+            m_via->SetOwner( this );
+            m_via->SetNet( m_net );
+        }
+        else
+        {
+            m_via = aOther.m_via;
+        }
     }
 
     m_marker = aOther.m_marker;
@@ -138,7 +152,7 @@ int LINE::Marker() const
 
 SEGMENT* SEGMENT::Clone() const
 {
-    SEGMENT* s = new SEGMENT;
+    SEGMENT* s = new SEGMENT( *this );
 
     s->m_seg = m_seg;
     s->m_net = m_net;
@@ -555,7 +569,7 @@ bool LINE::Walkaround( const SHAPE_LINE_CHAIN& aObstacle, SHAPE_LINE_CHAIN& aPat
 const SHAPE_LINE_CHAIN SEGMENT::Hull( int aClearance, int aWalkaroundThickness, int aLayer ) const
 {
     /*DEBUG_DECORATOR* debugDecorator = ROUTER::GetInstance()->GetInterface()->GetDebugDecorator();
-    
+
     PNS_DBG( debugDecorator, Message, wxString::Format( wxT( "seghull %d %d" ), aWalkaroundThickness, aClearance ) );
     PNS_DBG(debugDecorator, AddShape, &m_seg, RED, 0, wxT("theseg") );
         */
@@ -606,7 +620,7 @@ const LINE LINE::ClipToNearestObstacle( NODE* aNode ) const
 
 
 
-SHAPE_LINE_CHAIN dragCornerInternal( const SHAPE_LINE_CHAIN& aOrigin, const VECTOR2I& aP )
+SHAPE_LINE_CHAIN dragCornerInternal( const SHAPE_LINE_CHAIN& aOrigin, const VECTOR2I& aP, DIRECTION_45 aPreferredEndingDirection = DIRECTION_45() )
 {
     std::optional<SHAPE_LINE_CHAIN> picked;
     int i;
@@ -625,7 +639,8 @@ SHAPE_LINE_CHAIN dragCornerInternal( const SHAPE_LINE_CHAIN& aOrigin, const VECT
         return DIRECTION_45().BuildInitialTrace( aOrigin.CPoint( 0 ), aP, dir.IsDiagonal() );
     }
 
-    if( aOrigin.CSegment( -1 ).Length() > 100000 * 30 ) // fixme: constant/parameter?
+
+    //if( aOrigin.CSegment( -1 ).Length() > 100000 * 30 ) // fixme: constant/parameter?
         d = 1;
 
     for( i = aOrigin.SegmentCount() - d; i >= 0; i-- )
@@ -651,12 +666,28 @@ SHAPE_LINE_CHAIN dragCornerInternal( const SHAPE_LINE_CHAIN& aOrigin, const VECT
             ++dirCount;
         }
 
-        for( int j = 0; j < dirCount; j++ )
+        if( aPreferredEndingDirection != DIRECTION_45::UNDEFINED )
         {
-            if( dirs[j] == d_start )
+            for( int j = 0; j < dirCount; j++ )
             {
-                picked = paths[j];
-                break;
+                DIRECTION_45 endingDir( paths[j].CSegment(-1) );
+                if( endingDir == aPreferredEndingDirection )
+                {
+                    picked = paths[j];
+                    break;
+                }
+            }
+        }
+
+        if( !picked )
+        {
+            for( int j = 0; j < dirCount; j++ )
+            {
+                if( dirs[j] == d_start )
+                {
+                    picked = paths[j];
+                    break;
+                }
             }
         }
 
@@ -690,7 +721,7 @@ SHAPE_LINE_CHAIN dragCornerInternal( const SHAPE_LINE_CHAIN& aOrigin, const VECT
 }
 
 
-void LINE::dragCorner45( const VECTOR2I& aP, int aIndex )
+void LINE::dragCorner45( const VECTOR2I& aP, int aIndex, DIRECTION_45 aPreferredEndingDirection )
 {
     SHAPE_LINE_CHAIN path;
 
@@ -699,11 +730,11 @@ void LINE::dragCorner45( const VECTOR2I& aP, int aIndex )
 
     if( aIndex == 0 )
     {
-        path = dragCornerInternal( m_line.Reverse(), snapped ).Reverse();
+        path = dragCornerInternal( m_line.Reverse(), snapped, aPreferredEndingDirection ).Reverse();
     }
     else if( aIndex == m_line.SegmentCount() )
     {
-        path = dragCornerInternal( m_line, snapped );
+        path = dragCornerInternal( m_line, snapped, aPreferredEndingDirection );
     }
     else
     {
@@ -712,9 +743,9 @@ void LINE::dragCorner45( const VECTOR2I& aP, int aIndex )
             m_line.Insert( aIndex + 1, m_line.CPoint( aIndex + 1 ) );
 
         // fixme: awkward behaviour for "outwards" drags
-        path = dragCornerInternal( m_line.Slice( 0, aIndex ), snapped );
+        path = dragCornerInternal( m_line.Slice( 0, aIndex ), snapped, aPreferredEndingDirection );
         SHAPE_LINE_CHAIN path_rev =
-                dragCornerInternal( m_line.Slice( aIndex, -1 ).Reverse(), snapped ).Reverse();
+                dragCornerInternal( m_line.Slice( aIndex, -1 ).Reverse(), snapped, aPreferredEndingDirection ).Reverse();
         path.Append( path_rev );
     }
 
@@ -751,7 +782,7 @@ void LINE::dragCornerFree( const VECTOR2I& aP, int aIndex )
     m_line.Simplify();
 }
 
-void LINE::DragCorner( const VECTOR2I& aP, int aIndex, bool aFreeAngle )
+void LINE::DragCorner( const VECTOR2I& aP, int aIndex, bool aFreeAngle, DIRECTION_45 aPreferredEndingDirection )
 {
     wxCHECK_RET( aIndex >= 0, wxT( "Negative index passed to LINE::DragCorner" ) );
 
@@ -761,7 +792,7 @@ void LINE::DragCorner( const VECTOR2I& aP, int aIndex, bool aFreeAngle )
     }
     else
     {
-        dragCorner45( aP, aIndex );
+        dragCorner45( aP, aIndex, aPreferredEndingDirection );
     }
 }
 
@@ -1061,6 +1092,18 @@ void LINE::AppendVia( const VIA& aVia )
 }
 
 
+void LINE::LinkVia( VIA* aVia )
+{
+    if( m_line.PointCount() > 1 && aVia->Pos() == m_line.CPoint( 0 ) )
+    {
+        Reverse();
+    }
+
+    m_via = aVia;
+    Link( aVia );
+}
+
+
 void LINE::SetRank( int aRank )
 {
     m_rank = aRank;
@@ -1263,6 +1306,7 @@ bool LINE::HasLockedSegments() const
 
 void LINE::Clear()
 {
+    ClearLinks();
     RemoveVia();
     m_line.Clear();
 }
@@ -1270,8 +1314,13 @@ void LINE::Clear()
 
 void LINE::RemoveVia()
 {
-    if( m_via && m_via->BelongsTo( this ) )
-        delete m_via;
+    if( m_via )
+    {
+        if( ContainsLink( m_via ) )
+            Unlink( m_via );
+        if( m_via->BelongsTo( this ) )
+            delete m_via;
+    }
 
     m_via = nullptr;
 }
@@ -1283,6 +1332,19 @@ const std::string SEGMENT::Format( ) const
     ss << ITEM::Format() << " ";
     ss << m_seg.Format( false );
     return ss.str();
+}
+
+
+int LINE::FindSegment( const SEGMENT* aSeg ) const
+{
+    for( int i = 0; i < m_line.SegmentCount(); i++)
+    {
+        const SEG&s = m_line.CSegment(i);
+        if( s == aSeg->Seg() )
+            return i;
+    }
+
+    return -1;
 }
 
 }

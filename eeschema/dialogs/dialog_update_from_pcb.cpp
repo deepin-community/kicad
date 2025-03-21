@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 Alexander Shuklin <Jasuramme@gmail.com>
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -40,7 +40,7 @@ DIALOG_UPDATE_FROM_PCB::DIALOG_UPDATE_FROM_PCB( SCH_EDIT_FRAME* aParent )
           m_editorControl( m_frame->GetToolManager()->GetTool<SCH_EDITOR_CONTROL>() )
 
 {
-    m_messagePanel->SetLabel( _( "Changes To Be Applied" ) );
+    m_messagePanel->SetLabel( _( "Changes to Be Applied" ) );
     m_messagePanel->SetFileName( Prj().GetProjectPath() + wxT( "report.txt" ) );
     m_messagePanel->SetLazyUpdate( true );
     m_messagePanel->GetSizer()->SetSizeHints( this );

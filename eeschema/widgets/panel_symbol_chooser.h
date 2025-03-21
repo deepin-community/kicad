@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 Henner Zeller <h.zeller@acm.org>
- * Copyright (C) 2014-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,6 +33,7 @@ class wxPanel;
 class wxTimer;
 class wxSplitterWindow;
 
+class SYMBOL_LIBRARY_FILTER;
 class SYMBOL_PREVIEW_WIDGET;
 class FOOTPRINT_PREVIEW_WIDGET;
 class FOOTPRINT_SELECT_WIDGET;
@@ -43,18 +44,18 @@ struct PICKED_SYMBOL;
 class PANEL_SYMBOL_CHOOSER : public wxPanel
 {
 public:
-/**
- * Create dialog to choose symbol.
- *
- * @param aFrame  the parent frame (usually a SCH_EDIT_FRAME or SYMBOL_CHOOSER_FRAME)
- * @param aParent the parent window (usually a DIALOG_SHIM or SYMBOL_CHOOSER_FRAME)
- * @param aAllowFieldEdits  if false, all functions that allow the user to edit fields
- *                          (currently just footprint selection) will not be available.
- * @param aShowFootprints   if false, all footprint preview and selection features are
- *                          disabled. This forces aAllowFieldEdits false too.
- * @param aAcceptHandler a handler to be called on double-click of a footprint
- * @param aEscapeHandler a handler to be called on <ESC>
- */
+    /**
+     * Create dialog to choose symbol.
+     *
+     * @param aFrame  the parent frame (usually a SCH_EDIT_FRAME or SYMBOL_CHOOSER_FRAME)
+     * @param aParent the parent window (usually a DIALOG_SHIM or SYMBOL_CHOOSER_FRAME)
+     * @param aAllowFieldEdits  if false, all functions that allow the user to edit fields
+     *                          (currently just footprint selection) will not be available.
+     * @param aShowFootprints   if false, all footprint preview and selection features are
+     *                          disabled. This forces aAllowFieldEdits false too.
+     * @param aAcceptHandler a handler to be called on double-click of a footprint
+     * @param aEscapeHandler a handler to be called on <ESC>
+     */
     PANEL_SYMBOL_CHOOSER( SCH_BASE_FRAME* aFrame, wxWindow* aParent,
                           const SYMBOL_LIBRARY_FILTER* aFilter,
                           std::vector<PICKED_SYMBOL>& aHistoryList,
@@ -109,6 +110,12 @@ protected:
 
     void onFootprintSelected( wxCommandEvent& aEvent );
     void onSymbolSelected( wxCommandEvent& aEvent );
+
+    /**
+     * Handle parent frame menu events to block tree preview
+     */
+    void onMenuOpen( wxMenuEvent& aEvent );
+    void onMenuClose( wxMenuEvent& aEvent );
 
     /**
      * Handle the selection of an item. This is called when either the search box or the tree

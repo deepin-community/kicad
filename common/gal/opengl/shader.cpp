@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2012 Torsten Hueter, torstenhtr <at> gmx.de
- * Copyright (C) 2012-2021 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * Graphics Abstraction Layer (GAL) for OpenGL
  *
@@ -155,6 +155,7 @@ void SHADER::SetParameter( int parameterNumber, int value ) const
     glUniform1i( parameterLocation[parameterNumber], value );
 }
 
+
 void SHADER::SetParameter( int parameterNumber, float f0, float f1, float f2, float f3 ) const
 {
     assert( (unsigned) parameterNumber < parameterLocation.size() );
@@ -162,10 +163,12 @@ void SHADER::SetParameter( int parameterNumber, float f0, float f1, float f2, fl
     glUniform4fv( parameterLocation[parameterNumber], 1, arr );
 }
 
+
 void SHADER::SetParameter( int aParameterNumber, const VECTOR2D& aValue ) const
 {
     assert( (unsigned) aParameterNumber < parameterLocation.size() );
-    glUniform2f( parameterLocation[aParameterNumber], static_cast<GLfloat>( aValue.x ), static_cast<GLfloat>( aValue.y ) );
+    glUniform2f( parameterLocation[aParameterNumber], static_cast<GLfloat>( aValue.x ),
+                 static_cast<GLfloat>( aValue.y ) );
 }
 
 

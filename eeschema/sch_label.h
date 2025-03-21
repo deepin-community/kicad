@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,10 +30,13 @@
 #include <sch_field.h>
 #include <sch_connection.h>   // for CONNECTION_TYPE
 
+class SCH_RULE_AREA;
+
 
 /*
- * Spin style for labels of all kinds on schematics
- * Basically a higher level abstraction of rotation and justification of text
+ * Spin style for labels of all kinds on schematics.
+ *
+ * Basically a higher level abstraction of rotation and justification of text.
  */
 class SPIN_STYLE
 {
@@ -79,6 +82,11 @@ public:
      */
     SPIN_STYLE MirrorY();
 
+    /**
+     * Get CCW rotation needed to get to the given spin style.
+     */
+    unsigned CCWRotationsTo( const SPIN_STYLE& aOther ) const;
+
 private:
     SPIN m_spin;
 };
@@ -87,7 +95,7 @@ private:
 /*
  * Label and flag shapes used with text objects.
  */
-enum LABEL_FLAG_SHAPE
+enum LABEL_FLAG_SHAPE : unsigned int
 {
     L_INPUT,
     L_OUTPUT,
@@ -105,7 +113,7 @@ enum LABEL_FLAG_SHAPE
 /*
  * Specific enums for property manager (not used elsewhere)
  */
-enum LABEL_SHAPE
+enum LABEL_SHAPE : unsigned int
 {
     LABEL_INPUT    = L_INPUT,
     LABEL_OUTPUT   = L_OUTPUT,
@@ -114,13 +122,24 @@ enum LABEL_SHAPE
     LABEL_PASSIVE  = L_UNSPECIFIED
 };
 
-enum FLAG_SHAPE
+enum FLAG_SHAPE : unsigned int
 {
     FLAG_DOT       = F_DOT,
     FLAG_CIRCLE    = F_ROUND,
     FLAG_DIAMOND   = F_DIAMOND,
     FLAG_RECTANGLE = F_RECTANGLE
 };
+
+
+enum  GLOBALLABEL_FIELD_T
+{
+    INTERSHEET_REFS = 0,
+
+    /// The first 2 are mandatory, and must be instantiated in #SCH_SHEET.
+    GLOBALLABEL_MANDATORY_FIELD_COUNT
+};
+
+#define GLOBALLABEL_MANDATORY_FIELDS { INTERSHEET_REFS }
 
 
 class SCH_LABEL_BASE : public SCH_TEXT
@@ -215,14 +234,14 @@ public:
     }
 
     /**
-     * Increment the label text, if it ends with a number.
+     * Increment the label text if it ends with a number.
      *
      * @param aIncrement = the increment value to add to the number ending the text.
      */
     bool IncrementLabel( int aIncrement );
 
     void Move( const VECTOR2I& aMoveVector ) override;
-    void Rotate( const VECTOR2I& aCenter ) override;
+    void Rotate( const VECTOR2I& aCenter, bool aRotateCCW ) override;
     void Rotate90( bool aClockwise ) override;
 
     void MirrorSpinStyle( bool aLeftRight ) override;
@@ -232,13 +251,15 @@ public:
 
     void SetPosition( const VECTOR2I& aPosition ) override;
 
-    void AutoplaceFields( SCH_SCREEN* aScreen, bool aManual ) override;
+    void AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo ) override;
 
     /**
-     * Builds an array of { pageNumber, pageName } pairs.
+     * Build an array of { pageNumber, pageName } pairs.
+     *
      * @param pages [out] Array of { pageNumber, pageName } pairs.
      */
-    void GetIntersheetRefs( std::vector<std::pair<wxString, wxString>>* pages );
+    void GetIntersheetRefs( const SCH_SHEET_PATH* aPath,
+                            std::vector<std::pair<wxString, wxString>>* pages );
 
     /**
      * Return the list of system text vars & fields for this label.
@@ -316,32 +337,34 @@ public:
     bool IsDangling() const override { return m_isDangling; }
     void SetIsDangling( bool aIsDangling ) { m_isDangling = aIsDangling; }
 
-    void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    std::vector<int> ViewGetLayers() const override;
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 
-    void Plot( PLOTTER* aPlotter, bool aBackground,
-               const SCH_PLOT_SETTINGS& aPlotSettings ) const override;
+    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                const VECTOR2I& offset, bool aForceNoFill, bool aDimmed ) override;
 
-    void Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& offset ) override;
+    void PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                          const VECTOR2I& aOffset, bool aDimmed ) override {}
+
+    void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
+               int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override;
 
     /**
      * @brief autoRotateOnPlacement
-     * @return Returns true if the label rotation will be automatically set on the placement
+     * @return true if the label rotation will be automatically set on the placement.
      */
     bool AutoRotateOnPlacement() const;
 
     /**
-     * @brief setAutoRotateOnPlacement
      * @param autoRotate If set to true when the label is placed in the connection to a
-     * pin/net the direction will be automatically set according to the positioning of the net/pin
+     * pin/net the direction will be automatically set according to the positioning of the net/pin.
      */
     void SetAutoRotateOnPlacement( bool autoRotate = true );
 
     /**
-     * @brief AutoRotateOnPlacementSupported
      * @return true if the automated rotation of the label is supported after the placement
-     * At the moment it is supported for global and hierarchial labels
+     * At the moment it is supported for global and hierarchical labels
      */
     virtual bool AutoRotateOnPlacementSupported() const = 0;
 
@@ -376,6 +399,9 @@ public:
 
     ~SCH_LABEL() { }
 
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
         return aItem && SCH_LABEL_T == aItem->Type();
@@ -390,7 +416,7 @@ public:
 
     bool IsConnectable() const override { return true; }
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -425,6 +451,9 @@ public:
 
     ~SCH_DIRECTIVE_LABEL() { }
 
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
         return aItem && SCH_DIRECTIVE_LABEL_T == aItem->Type();
@@ -450,12 +479,13 @@ public:
 
     int GetPenWidth() const override;
 
-    void CreateGraphicShape( const RENDER_SETTINGS* aSettings, std::vector<VECTOR2I>& aPoints,
+    void CreateGraphicShape( const RENDER_SETTINGS* aSettings,
+                             std::vector<VECTOR2I>& aPoints,
                              const VECTOR2I& aPos ) const override;
 
-    void AutoplaceFields( SCH_SCREEN* aScreen, bool aManual ) override;
+    void AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo ) override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     bool IsConnectable() const override { return true; }
 
@@ -466,9 +496,24 @@ public:
     void MirrorHorizontally( int aCenter ) override;
     void MirrorVertically( int aCenter ) override;
 
+    /// @brief Adds an entry to the connected rule area cache
+    void AddConnectedRuleArea( SCH_RULE_AREA* aRuleArea );
+
+    /// @brief Removes all rule areas from the cache
+    void ClearConnectedRuleAreas();
+
+    /// @brief Removes a specific rule area from the cache
+    void RemoveConnectedRuleArea( SCH_RULE_AREA* aRuleArea );
+
+    /// @brief Determines dangling state from connectivity and cached connected rule areas
+    virtual bool IsDangling() const override;
+
 private:
     int       m_pinLength;
     int       m_symbolSize;
+
+    /// Cache of any rule areas with borders which this label connects to.
+    std::unordered_set<SCH_RULE_AREA*> m_connected_rule_areas;
 };
 
 
@@ -481,6 +526,9 @@ public:
     SCH_GLOBALLABEL( const SCH_GLOBALLABEL& aGlobalLabel );
 
     ~SCH_GLOBALLABEL() { }
+
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
@@ -503,16 +551,17 @@ public:
 
     VECTOR2I GetSchematicTextOffset( const RENDER_SETTINGS* aSettings ) const override;
 
-    void CreateGraphicShape( const RENDER_SETTINGS* aRenderSettings, std::vector<VECTOR2I>& aPoints,
+    void CreateGraphicShape( const RENDER_SETTINGS* aRenderSettings,
+                             std::vector<VECTOR2I>& aPoints,
                              const VECTOR2I& aPos ) const override;
 
     bool ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, int aDepth ) const override;
 
     bool IsConnectable() const override { return true; }
 
-    void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    std::vector<int> ViewGetLayers() const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -541,6 +590,9 @@ public:
 
     ~SCH_HIERLABEL() { }
 
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
         return aItem && SCH_HIER_LABEL_T == aItem->Type();
@@ -564,7 +616,7 @@ public:
 
     bool IsConnectable() const override { return true; }
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 

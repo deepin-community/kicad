@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -40,7 +40,7 @@ PANEL_EESCHEMA_DISPLAY_OPTIONS::PANEL_EESCHEMA_DISPLAY_OPTIONS( wxWindow* aParen
 {
     m_galOptsPanel = new GAL_OPTIONS_PANEL( this, aAppSettings );
 
-    m_galOptionsSizer->Add( m_galOptsPanel, 1, wxEXPAND|wxRIGHT, 15 );
+    m_galOptionsSizer->Add( m_galOptsPanel, 1, wxEXPAND|wxRIGHT, 0 );
 
     m_highlightColorNote->SetFont( KIUI::GetInfoFont( this ).Italic() );
 }
@@ -58,14 +58,18 @@ void PANEL_EESCHEMA_DISPLAY_OPTIONS::loadEEschemaSettings( EESCHEMA_SETTINGS* cf
     m_checkShowERCErrors->SetValue( cfg->m_Appearance.show_erc_errors );
     m_checkShowERCWarnings->SetValue( cfg->m_Appearance.show_erc_warnings );
     m_checkShowERCExclusions->SetValue( cfg->m_Appearance.show_erc_exclusions );
+    m_cbMarkSimExclusions->SetValue( cfg->m_Appearance.mark_sim_exclusions );
     m_checkShowOPVoltages->SetValue( cfg->m_Appearance.show_op_voltages );
-    m_checkShowOPCurrents->SetValue( cfg->m_Appearance.show_op_currents );
+    m_checkShowPinAltModeIcons->SetValue( cfg->m_Appearance.show_op_currents );
     m_checkPageLimits->SetValue( cfg->m_Appearance.show_page_limits );
 
     m_checkSelDrawChildItems->SetValue( cfg->m_Selection.draw_selected_children );
     m_checkSelFillShapes->SetValue( cfg->m_Selection.fill_shapes );
     m_selWidthCtrl->SetValue( cfg->m_Selection.selection_thickness );
     m_highlightWidthCtrl->SetValue( cfg->m_Selection.highlight_thickness );
+    m_highlightNetclassColors->SetValue( cfg->m_Selection.highlight_netclass_colors );
+    m_colHighlightThickness->SetValue( cfg->m_Selection.highlight_netclass_colors_thickness );
+    m_colHighlightTransparency->SetValue( cfg->m_Selection.highlight_netclass_colors_alpha * 100 );
 
     m_checkCrossProbeOnSelection->SetValue( cfg->m_CrossProbing.on_selection );
     m_checkCrossProbeCenter->SetValue( cfg->m_CrossProbing.center_on_items );
@@ -77,7 +81,7 @@ void PANEL_EESCHEMA_DISPLAY_OPTIONS::loadEEschemaSettings( EESCHEMA_SETTINGS* cf
 bool PANEL_EESCHEMA_DISPLAY_OPTIONS::TransferDataToWindow()
 {
     SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>();
+    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
 
     loadEEschemaSettings( cfg );
 
@@ -90,24 +94,31 @@ bool PANEL_EESCHEMA_DISPLAY_OPTIONS::TransferDataToWindow()
 bool PANEL_EESCHEMA_DISPLAY_OPTIONS::TransferDataFromWindow()
 {
     SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>();
+    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
 
     cfg->m_Appearance.default_font = m_defaultFontCtrl->GetSelection() <= 0
-                                        ? wxString( KICAD_FONT_NAME )   // This is a keyword. Do not translate
-                                        : m_defaultFontCtrl->GetStringSelection();
+                                     // This is a keyword. Do not translate.
+                                     ? wxString( KICAD_FONT_NAME )
+                                     : m_defaultFontCtrl->GetStringSelection();
     cfg->m_Appearance.show_hidden_pins = m_checkShowHiddenPins->GetValue();
     cfg->m_Appearance.show_hidden_fields = m_checkShowHiddenFields->GetValue();
     cfg->m_Appearance.show_erc_warnings = m_checkShowERCWarnings->GetValue();
     cfg->m_Appearance.show_erc_errors = m_checkShowERCErrors->GetValue();
     cfg->m_Appearance.show_erc_exclusions = m_checkShowERCExclusions->GetValue();
+    cfg->m_Appearance.mark_sim_exclusions = m_cbMarkSimExclusions->GetValue();
     cfg->m_Appearance.show_op_voltages = m_checkShowOPVoltages->GetValue();
     cfg->m_Appearance.show_op_currents = m_checkShowOPCurrents->GetValue();
+    cfg->m_Appearance.show_pin_alt_icons = m_checkShowPinAltModeIcons->GetValue();
     cfg->m_Appearance.show_page_limits = m_checkPageLimits->GetValue();
 
     cfg->m_Selection.draw_selected_children = m_checkSelDrawChildItems->GetValue();
     cfg->m_Selection.fill_shapes = m_checkSelFillShapes->GetValue();
     cfg->m_Selection.selection_thickness = KiROUND( m_selWidthCtrl->GetValue() );
     cfg->m_Selection.highlight_thickness = KiROUND( m_highlightWidthCtrl->GetValue() );
+    cfg->m_Selection.highlight_netclass_colors = m_highlightNetclassColors->GetValue();
+    cfg->m_Selection.highlight_netclass_colors_thickness = m_colHighlightThickness->GetValue();
+    cfg->m_Selection.highlight_netclass_colors_alpha =
+            m_colHighlightTransparency->GetValue() / 100.0;
 
     cfg->m_CrossProbing.on_selection = m_checkCrossProbeOnSelection->GetValue();
     cfg->m_CrossProbing.center_on_items = m_checkCrossProbeCenter->GetValue();

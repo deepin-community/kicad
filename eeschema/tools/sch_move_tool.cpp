@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -42,6 +42,7 @@
 #include <sch_edit_frame.h>
 #include <eeschema_id.h>
 #include <pgm_base.h>
+#include <view/view_controls.h>
 #include <settings/settings_manager.h>
 #include "sch_move_tool.h"
 
@@ -403,17 +404,8 @@ int SCH_MOVE_TOOL::Main( const TOOL_EVENT& aEvent )
 
 bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aCommit, bool aIsSlice )
 {
-    EESCHEMA_SETTINGS*    cfg = nullptr;
-
-    try
-    {
-        cfg = Pgm().GetSettingsManager().GetAppSettings<EESCHEMA_SETTINGS>();
-    }
-    catch( const std::runtime_error& e )
-    {
-        wxCHECK_MSG( false, false, e.what() );
-    }
-
+    SETTINGS_MANAGER&     mgr = Pgm().GetSettingsManager();
+    EESCHEMA_SETTINGS*    cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
     KIGFX::VIEW_CONTROLS* controls = getViewControls();
     EE_GRID_HELPER        grid( m_toolMgr );
     bool                  wasDragging = m_moveInProgress && m_isDrag;
@@ -456,9 +448,29 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
 
     REENTRANCY_GUARD guard( &m_inMoveTool );
 
+    EE_SELECTION& userSelection = m_selectionTool->GetSelection();
+
+    // If a single pin is selected, promote the move selection to its parent symbol
+    if( userSelection.GetSize() == 1 )
+    {
+        EDA_ITEM* selItem = userSelection.Front();
+
+        if( selItem->Type() == SCH_PIN_T )
+        {
+            EDA_ITEM* parent = selItem->GetParent();
+
+            if( parent->Type() == SCH_SYMBOL_T )
+            {
+                m_selectionTool->ClearSelection();
+                m_selectionTool->AddItemToSel( parent );
+            }
+        }
+    }
+
     // Be sure that there is at least one item that we can move. If there's no selection try
     // looking for the stuff under mouse cursor (i.e. Kicad old-style hover selection).
-    EE_SELECTION& selection = m_selectionTool->RequestSelection( EE_COLLECTOR::MovableItems );
+    EE_SELECTION& selection = m_selectionTool->RequestSelection( EE_COLLECTOR::MovableItems,
+                                                                 true );
     bool          unselect = selection.IsHover();
 
     // Keep an original copy of the starting points for cleanup after the move
@@ -854,6 +866,11 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
         {
             m_toolMgr->RunSynchronousAction( EE_ACTIONS::rotateCCW, aCommit );
         }
+        else if( evt->IsAction( &ACTIONS::increment ) )
+        {
+            m_toolMgr->RunSynchronousAction( ACTIONS::increment, aCommit,
+                                             evt->Parameter<ACTIONS::INCREMENT>() );
+        }
         else if( evt->Action() == TA_CHOICE_MENU_CHOICE )
         {
             if( *evt->GetCommandId() >= ID_POPUP_SCH_SELECT_UNIT
@@ -868,6 +885,18 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
                     m_toolMgr->PostAction( ACTIONS::refreshPreview );
                 }
             }
+            else if( *evt->GetCommandId() >= ID_POPUP_SCH_SELECT_BASE
+                     && *evt->GetCommandId() <= ID_POPUP_SCH_SELECT_ALT )
+            {
+                SCH_SYMBOL* symbol = dynamic_cast<SCH_SYMBOL*>( selection.Front() );
+                int bodyStyle = ( *evt->GetCommandId() - ID_POPUP_SCH_SELECT_BASE ) + 1;
+
+                if( symbol && symbol->GetBodyStyle() != bodyStyle )
+                {
+                    m_frame->FlipBodyStyle( symbol );
+                    m_toolMgr->PostAction( ACTIONS::refreshPreview );
+                }
+            }
         }
         else if( evt->IsAction( &EE_ACTIONS::highlightNet )
                     || evt->IsAction( &EE_ACTIONS::selectOnPCB ) )
@@ -879,7 +908,7 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
         //
         else if( evt->IsClick( BUT_RIGHT ) )
         {
-            m_menu.ShowContextMenu( m_selectionTool->GetSelection() );
+            m_menu->ShowContextMenu( m_selectionTool->GetSelection() );
         }
         //------------------------------------------------------------------------
         // Handle drop
@@ -1575,7 +1604,7 @@ void SCH_MOVE_TOOL::moveItem( EDA_ITEM* aItem, const VECTOR2I& aDelta )
 
         // If we're moving a field with respect to its parent then it's no longer auto-placed
         if( aItem->Type() == SCH_FIELD_T && parent && !parent->IsSelected() )
-            parent->ClearFieldsAutoplaced();
+            parent->SetFieldsAutoplaced( AUTOPLACE_NONE );
 
         break;
     }

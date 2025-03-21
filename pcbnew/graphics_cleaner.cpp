@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2004-2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@verizon.net>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,7 +36,7 @@
 #include <tool/tool_manager.h>
 #include <tools/pad_tool.h>
 
-GRAPHICS_CLEANER::GRAPHICS_CLEANER( DRAWINGS& aDrawings, FOOTPRINT* aParentFootprint,
+GRAPHICS_CLEANER::GRAPHICS_CLEANER( const DRAWINGS& aDrawings, FOOTPRINT* aParentFootprint,
                                     BOARD_COMMIT& aCommit, TOOL_MANAGER* aToolMgr ) :
         m_drawings( aDrawings ),
         m_parentFootprint( aParentFootprint ),
@@ -105,7 +105,7 @@ bool GRAPHICS_CLEANER::isNullShape( PCB_SHAPE* aShape )
         return aShape->GetPointCount() == 0;
 
     case SHAPE_T::BEZIER:
-        aShape->RebuildBezierToSegmentsPointsList( aShape->GetWidth() );
+        aShape->RebuildBezierToSegmentsPointsList( ARC_HIGH_DEF );
 
         // If the Bezier points list contains 2 points, it is equivalent to a segment
         if( aShape->GetBezierPoints().size() == 2 )

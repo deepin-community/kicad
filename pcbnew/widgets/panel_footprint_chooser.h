@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 CERN
- * Copyright (C) 2014-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -73,14 +73,11 @@ public:
 
     wxWindow* GetFocusTarget() const { return m_tree->GetFocusTarget(); }
 
+    wxSizer* GetFiltersSizer() const { return m_tree->GetFiltersSizer(); }
+
     void Regenerate() { m_tree->Regenerate( true ); }
 
     FOOTPRINT_PREVIEW_WIDGET* GetViewerPanel() const { return m_preview_ctrl; }
-
-    wxPanel* m_RightPanel;
-    wxBoxSizer* m_RightPanelSizer;
-
-    const FOOTPRINT* m_CurrFootprint;
 
 protected:
     static constexpr int DblClickDelay = 100; // milliseconds
@@ -88,6 +85,12 @@ protected:
     void OnDetailsCharHook( wxKeyEvent& aEvt );
     void onCloseTimer( wxTimerEvent& aEvent );
     void onOpenLibsTimer( wxTimerEvent& aEvent );
+
+    /**
+     * Handle parent frame menu events to block tree preview
+     */
+    void onMenuOpen( wxMenuEvent& aEvent );
+    void onMenuClose( wxMenuEvent& aEvent );
 
     void onFootprintSelected( wxCommandEvent& aEvent );
 
@@ -98,6 +101,12 @@ protected:
      * is a component, the component is picked.
      */
     void onFootprintChosen( wxCommandEvent& aEvent );
+
+public:
+    wxPanel*                  m_RightPanel;
+    wxBoxSizer*               m_RightPanelSizer;
+
+    const FOOTPRINT*          m_CurrFootprint;
 
 protected:
     wxTimer*                  m_dbl_click_timer;

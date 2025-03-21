@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -57,6 +57,8 @@
 #include <convert_basic_shapes_to_polygon.h>
 #include <project.h>
 #include <fix_board_shape.h>
+#include <pcb_reference_image.h>
+#include <core/mirror.h>
 
 
 static const wxString QUERY_MODEL_UUID_KEY = wxS( "JLC_3DModel_Q" );
@@ -211,7 +213,7 @@ void PCB_IO_EASYEDAPRO_PARSER::fillFootprintModelInfo( FOOTPRINT* footprint, con
 
     if( !modelUuid.IsEmpty() && !footprint->GetFieldByName( QUERY_MODEL_UUID_KEY ) )
     {
-        PCB_FIELD field( footprint, footprint->GetFieldCount(), QUERY_MODEL_UUID_KEY );
+        PCB_FIELD field( footprint, footprint->GetNextFieldId(), QUERY_MODEL_UUID_KEY );
         field.SetLayer( Cmts_User );
         field.SetVisible( false );
         field.SetText( modelUuid );
@@ -227,7 +229,7 @@ void PCB_IO_EASYEDAPRO_PARSER::fillFootprintModelInfo( FOOTPRINT* footprint, con
 
         if( fitXmm > 0.0 && fitYmm > 0.0 )
         {
-            PCB_FIELD field( footprint, footprint->GetFieldCount(), MODEL_SIZE_KEY );
+            PCB_FIELD field( footprint, footprint->GetNextFieldId(), MODEL_SIZE_KEY );
             field.SetLayer( Cmts_User );
             field.SetVisible( false );
             field.SetText( wxString::FromCDouble( fitXmm ) + wxS( " " )
@@ -235,8 +237,9 @@ void PCB_IO_EASYEDAPRO_PARSER::fillFootprintModelInfo( FOOTPRINT* footprint, con
             footprint->AddField( field );
         }
 
-        // TODO: other axes
         kmodelRotation.z = -Convert( arr[3] );
+        kmodelRotation.x = -Convert( arr[4] );
+        kmodelRotation.y = -Convert( arr[5] );
 
         kmodelOffset.x = pcbIUScale.IUTomm( ScaleSize( Convert( arr[6] ) ) );
         kmodelOffset.y = pcbIUScale.IUTomm( ScaleSize( Convert( arr[7] ) ) );
@@ -460,8 +463,6 @@ PCB_IO_EASYEDAPRO_PARSER::ParseContour( nlohmann::json polyData, bool aInFill,
     SHAPE_LINE_CHAIN result;
     VECTOR2D         prevPt;
 
-    double bezierMinSegLen = polyData.size() < 300 ? aArcAccuracy : aArcAccuracy * 10;
-
     for( int i = 0; i < polyData.size(); i++ )
     {
         nlohmann::json val = polyData.at( i );
@@ -552,7 +553,7 @@ PCB_IO_EASYEDAPRO_PARSER::ParseContour( nlohmann::json polyData, bool aInFill,
                 BEZIER_POLY           converter( ctrlPoints );
 
                 std::vector<VECTOR2I> bezierPoints;
-                converter.GetPoly( bezierPoints, bezierMinSegLen, 16 );
+                converter.GetPoly( bezierPoints, aArcAccuracy );
 
                 result.Append( bezierPoints );
 
@@ -623,7 +624,9 @@ std::unique_ptr<PAD> PCB_IO_EASYEDAPRO_PARSER::createPAD( FOOTPRINT*            
         if( line.at( 14 ).is_number() )
             drill_dir = line.at( 14 );
 
-        if( padHole.at( 0 ) == wxS( "ROUND" ) || padHole.at( 0 ) == wxS( "SLOT" ) )
+        wxString holeShape = padHole.at( 0 );
+
+        if( holeShape == wxS( "ROUND" ) || holeShape == wxS( "SLOT" ) )
         {
             VECTOR2D drill;
             drill.x = padHole.at( 1 );
@@ -634,9 +637,9 @@ std::unique_ptr<PAD> PCB_IO_EASYEDAPRO_PARSER::createPAD( FOOTPRINT*            
             if( std::abs( deg ) >= 45 )
                 std::swap( drill.x, drill.y ); // KiCad doesn't support arbitrary hole direction
 
-            if( padHole.at( 0 ) == wxS( "SLOT" ) )
+            if( holeShape == wxS( "SLOT" ) )
             {
-                pad->SetDrillShape( PAD_DRILL_SHAPE_OBLONG );
+                pad->SetDrillShape( PAD_DRILL_SHAPE::OBLONG );
             }
 
             pad->SetDrillSize( ScaleSize( drill ) );
@@ -652,7 +655,7 @@ std::unique_ptr<PAD> PCB_IO_EASYEDAPRO_PARSER::createPAD( FOOTPRINT*            
         }
         else if( klayer == B_Cu )
         {
-            pad->SetLayerSet( FlipLayerMask( PAD::SMDMask() ) );
+            pad->SetLayerSet( PAD::SMDMask().Flip() );
         }
 
         pad->SetAttribute( PAD_ATTRIB::SMD );
@@ -666,16 +669,16 @@ std::unique_ptr<PAD> PCB_IO_EASYEDAPRO_PARSER::createPAD( FOOTPRINT*            
         size.y = padShape.at( 2 );
         double cr_p = padShape.size() > 3 ? padShape.at( 3 ).get<double>() : 0;
 
-        pad->SetSize( ScaleSize( size ) );
+        pad->SetSize( PADSTACK::ALL_LAYERS, ScaleSize( size ) );
 
         if( cr_p == 0 )
         {
-            pad->SetShape( PAD_SHAPE::RECTANGLE );
+            pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::RECTANGLE );
         }
         else
         {
-            pad->SetShape( PAD_SHAPE::ROUNDRECT );
-            pad->SetRoundRectRadiusRatio( cr_p / 100 );
+            pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::ROUNDRECT );
+            pad->SetRoundRectRadiusRatio( PADSTACK::ALL_LAYERS, cr_p / 100 );
         }
     }
     else if( padSh == wxS( "ELLIPSE" ) )
@@ -684,8 +687,8 @@ std::unique_ptr<PAD> PCB_IO_EASYEDAPRO_PARSER::createPAD( FOOTPRINT*            
         size.x = padShape.at( 1 );
         size.y = padShape.at( 2 );
 
-        pad->SetSize( ScaleSize( size ) );
-        pad->SetShape( PAD_SHAPE::CIRCLE );
+        pad->SetSize( PADSTACK::ALL_LAYERS, ScaleSize( size ) );
+        pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CIRCLE );
     }
     else if( padSh == wxS( "OVAL" ) )
     {
@@ -693,14 +696,14 @@ std::unique_ptr<PAD> PCB_IO_EASYEDAPRO_PARSER::createPAD( FOOTPRINT*            
         size.x = padShape.at( 1 );
         size.y = padShape.at( 2 );
 
-        pad->SetSize( ScaleSize( size ) );
-        pad->SetShape( PAD_SHAPE::OVAL );
+        pad->SetSize( PADSTACK::ALL_LAYERS, ScaleSize( size ) );
+        pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::OVAL );
     }
     else if( padSh == wxS( "POLY" ) )
     {
-        pad->SetShape( PAD_SHAPE::CUSTOM );
-        pad->SetAnchorPadShape( PAD_SHAPE::CIRCLE );
-        pad->SetSize( { 1, 1 } );
+        pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CUSTOM );
+        pad->SetAnchorPadShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CIRCLE );
+        pad->SetSize( PADSTACK::ALL_LAYERS, { 1, 1 } );
 
         nlohmann::json polyData = padShape.at( 1 );
 
@@ -714,7 +717,7 @@ std::unique_ptr<PAD> PCB_IO_EASYEDAPRO_PARSER::createPAD( FOOTPRINT*            
 
             shape->Move( -pad->GetPosition() );
 
-            pad->AddPrimitive( shape.release() );
+            pad->AddPrimitive( PADSTACK::ALL_LAYERS, shape.release() );
         }
     }
 
@@ -734,7 +737,7 @@ FOOTPRINT* PCB_IO_EASYEDAPRO_PARSER::ParseFootprint( const nlohmann::json&      
     const VECTOR2I defaultTextSize( pcbIUScale.mmToIU( 1.0 ), pcbIUScale.mmToIU( 1.0 ) );
     const int      defaultTextThickness( pcbIUScale.mmToIU( 0.15 ) );
 
-    for( PCB_FIELD* field : footprint->Fields() )
+    for( PCB_FIELD* field : footprint->GetFields() )
     {
         field->SetTextSize( defaultTextSize );
         field->SetTextThickness( defaultTextThickness );
@@ -851,7 +854,7 @@ FOOTPRINT* PCB_IO_EASYEDAPRO_PARSER::ParseFootprint( const nlohmann::json&      
         else if( type == wxS( "REGION" ) )
         {
             wxString uuid = line.at( 1 );
-            
+
             // if( line.at( 2 ).is_number() )
             //     int unk = line.at( 2 ).get<int>();
             // else if( line.at( 2 ).is_string() )
@@ -878,7 +881,7 @@ FOOTPRINT* PCB_IO_EASYEDAPRO_PARSER::ParseFootprint( const nlohmann::json&      
                                                     true );
                 }
 
-                polySet.Simplify( SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+                polySet.Simplify();
 
                 std::unique_ptr<ZONE> zone = std::make_unique<ZONE>( footprint );
 
@@ -1061,7 +1064,7 @@ void PCB_IO_EASYEDAPRO_PARSER::ParseBoard(
 
                 via->SetPosition( ScalePos( center ) );
                 via->SetDrill( ScaleSize( drill ) );
-                via->SetWidth( ScaleSize( dia ) );
+                via->SetWidth( PADSTACK::ALL_LAYERS, ScaleSize( dia ) );
 
                 via->SetNet( aBoard->FindNet( netname ) );
 
@@ -1156,7 +1159,7 @@ void PCB_IO_EASYEDAPRO_PARSER::ParseBoard(
                     zoneFillPoly.AddOutline( contour );
 
                 zoneFillPoly.RebuildHolesFromContours();
-                zoneFillPoly.Fracture( SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+                zoneFillPoly.Fracture();
 
                 std::unique_ptr<ZONE> zone = std::make_unique<ZONE>( aBoard );
 
@@ -1322,7 +1325,7 @@ void PCB_IO_EASYEDAPRO_PARSER::ParseBoard(
         else if( type == wxS( "IMAGE" ) )
         {
             wxString uuid = line.at( 1 );
-            
+
             // if( line.at( 2 ).is_number() )
             //     int unk = line.at( 2 ).get<int>();
             // else if( line.at( 2 ).is_string() )
@@ -1389,7 +1392,12 @@ void PCB_IO_EASYEDAPRO_PARSER::ParseBoard(
                 shape->Rotate( ScalePos( start ), EDA_ANGLE( angle, DEGREES_T ) );
 
                 if( IsBackLayer( klayer ) ^ !!mirror )
-                    shape->Mirror( ScalePos( start ), !IsBackLayer( klayer ) );
+                {
+                    FLIP_DIRECTION flipDirection = IsBackLayer( klayer )
+                                                           ? FLIP_DIRECTION::TOP_BOTTOM
+                                                           : FLIP_DIRECTION::LEFT_RIGHT;
+                    shape->Mirror( ScalePos( start ), flipDirection );
+                }
 
                 if( group )
                     group->AddItem( shape.get() );
@@ -1400,10 +1408,95 @@ void PCB_IO_EASYEDAPRO_PARSER::ParseBoard(
             if( group )
                 aBoard->Add( group.release(), ADD_MODE::APPEND );
         }
+        else if( type == wxS( "OBJ" ) )
+        {
+            VECTOR2D start, size;
+            wxString mimeType, base64Data;
+            double   angle = 0;
+            int      flipped = 0;
+
+            if( !line.at( 3 ).is_number() )
+                continue;
+
+            int          layer = line.at( 3 ).get<int>();
+            PCB_LAYER_ID klayer = LayerToKi( layer );
+
+            start = VECTOR2D( line.at( 5 ), line.at( 6 ) );
+            size = VECTOR2D( line.at( 7 ), line.at( 8 ) );
+            angle = line.at( 9 );
+            flipped = line.at( 10 );
+
+            wxString imageUrl = line.at( 11 );
+
+            if( imageUrl.BeforeFirst( ':' ) == wxS( "blob" ) )
+            {
+                wxString objectId = imageUrl.AfterLast( ':' );
+
+                if( auto blob = get_opt( aBlobMap, objectId ) )
+                {
+                    wxString blobUrl = blob->url;
+
+                    if( blobUrl.BeforeFirst( ':' ) == wxS( "data" ) )
+                    {
+                        wxArrayString paramsArr =
+                                wxSplit( blobUrl.AfterFirst( ':' ).BeforeFirst( ',' ), ';', '\0' );
+
+                        base64Data = blobUrl.AfterFirst( ',' );
+
+                        if( paramsArr.size() > 0 )
+                            mimeType = paramsArr[0];
+                    }
+                }
+            }
+
+            VECTOR2D kstart = ScalePos( start );
+            VECTOR2D ksize = ScaleSize( size );
+
+            if( mimeType.empty() || base64Data.empty() )
+                continue;
+
+            wxMemoryBuffer buf = wxBase64Decode( base64Data );
+
+            if( mimeType == wxS( "image/svg+xml" ) )
+            {
+                // Not yet supported by EasyEDA
+            }
+            else
+            {
+                VECTOR2D kcenter = kstart + ksize / 2;
+
+                std::unique_ptr<PCB_REFERENCE_IMAGE> bitmap =
+                        std::make_unique<PCB_REFERENCE_IMAGE>( aBoard, kcenter, klayer );
+                REFERENCE_IMAGE& refImage = bitmap->GetReferenceImage();
+
+                wxImage::SetDefaultLoadFlags( wxImage::GetDefaultLoadFlags()
+                                              & ~wxImage::Load_Verbose );
+
+                if( refImage.ReadImageFile( buf ) )
+                {
+                    double scaleFactor = ScaleSize( size.x ) / refImage.GetSize().x;
+                    refImage.SetImageScale( scaleFactor );
+
+                    // TODO: support non-90-deg angles
+                    bitmap->Rotate( kstart, EDA_ANGLE( angle, DEGREES_T ) );
+
+                    if( flipped )
+                    {
+                        int x = bitmap->GetPosition().x;
+                        MIRROR( x, KiROUND( kstart.x ) );
+                        bitmap->SetX( x );
+
+                        refImage.MutableImage().Mirror( FLIP_DIRECTION::LEFT_RIGHT );
+                    }
+
+                    aBoard->Add( bitmap.release(), ADD_MODE::APPEND );
+                }
+            }
+        }
         else if( type == wxS( "STRING" ) )
         {
             wxString uuid = line.at( 1 );
-            
+
             // if( line.at( 2 ).is_number() )
             //     int unk = line.at( 2 ).get<int>();
             // else if( line.at( 2 ).is_string() )
@@ -1567,7 +1660,7 @@ void PCB_IO_EASYEDAPRO_PARSER::ParseBoard(
                 //std::map<wxString, wxString> props = line.at( 7 );
 
                 if( klayer == B_Cu )
-                    footprint->Flip( footprint->GetPosition(), false );
+                    footprint->Flip( footprint->GetPosition(), FLIP_DIRECTION::TOP_BOTTOM );
 
                 footprint->SetOrientationDegrees( orient );
                 footprint->SetPosition( ScalePos( center ) );
@@ -1679,7 +1772,7 @@ void PCB_IO_EASYEDAPRO_PARSER::ParseBoard(
 
                         // The contour can be self-intersecting
                         SHAPE_POLY_SET simple( contour );
-                        simple.Simplify( SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+                        simple.Simplify();
 
                         if( dataId == 0 )
                         {
@@ -1687,7 +1780,7 @@ void PCB_IO_EASYEDAPRO_PARSER::ParseBoard(
                         }
                         else
                         {
-                            thisPoly.BooleanSubtract( simple, SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+                            thisPoly.BooleanSubtract( simple );
                         }
                     }
                     else
@@ -1709,16 +1802,16 @@ void PCB_IO_EASYEDAPRO_PARSER::ParseBoard(
 
             if( !fillPolySet.IsEmpty() )
             {
-                fillPolySet.Simplify( SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+                fillPolySet.Simplify();
 
                 const int strokeWidth = pcbIUScale.MilsToIU( 8 ); // Seems to be 8 mils
 
                 fillPolySet.Inflate( strokeWidth / 2, CORNER_STRATEGY::ROUND_ALL_CORNERS,
                                      ARC_HIGH_DEF, false );
 
-                fillPolySet.BooleanAdd( thermalSpokes, SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+                fillPolySet.BooleanAdd( thermalSpokes );
 
-                fillPolySet.Fracture( SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+                fillPolySet.Fracture();
 
                 zone->SetFilledPolysList( zone->GetFirstLayer(), fillPolySet );
                 zone->SetNeedRefill( false );

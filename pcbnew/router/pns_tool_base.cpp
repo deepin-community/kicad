@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013  CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -24,8 +24,10 @@
 using namespace std::placeholders;
 
 #include <gal/graphics_abstraction_layer.h>
+#include <geometry/geometry_utils.h>
 #include <pcb_painter.h>
 #include <pcbnew_settings.h>
+#include <view/view_controls.h>
 
 #include <tools/pcb_grid_helper.h>
 #include <wx/log.h>
@@ -36,6 +38,7 @@ using namespace std::placeholders;
 #include "pns_solid.h"
 #include "pns_dragger.h"
 
+const unsigned int PNS::TOOL_BASE::COORDS_PADDING = pcbIUScale.mmToIU( 20 );
 
 using namespace KIGFX;
 
@@ -73,6 +76,14 @@ void TOOL_BASE::Reset( RESET_REASON aReason )
     delete m_router;
     delete m_iface; // Delete after m_router because PNS::NODE dtor needs m_ruleResolver
 
+    if( aReason == RESET_REASON::SHUTDOWN )
+    {
+        m_gridHelper = nullptr;
+        m_router = nullptr;
+        m_iface = nullptr;
+        return;
+    }
+
     m_iface = new PNS_KICAD_IFACE;
     m_iface->SetBoard( board() );
     m_iface->SetView( getView() );
@@ -99,7 +110,9 @@ void TOOL_BASE::Reset( RESET_REASON aReason )
 ITEM* TOOL_BASE::pickSingleItem( const VECTOR2I& aWhere, NET_HANDLE aNet, int aLayer,
                                  bool aIgnorePads, const std::vector<ITEM*> aAvoidItems )
 {
-    int tl = aLayer > 0 ? aLayer : getView()->GetTopLayer();
+    int tl = aLayer > 0 ? aLayer
+                        : m_router->GetInterface()->GetPNSLayerFromBoardLayer(
+                                  static_cast<PCB_LAYER_ID>( getView()->GetTopLayer() ) );
     int maxSlopRadius = std::max( m_gridHelper->GetGrid().x, m_gridHelper->GetGrid().y );
 
     static const int candidateCount = 5;
@@ -133,7 +146,7 @@ ITEM* TOOL_BASE::pickSingleItem( const VECTOR2I& aWhere, NET_HANDLE aNet, int aL
             if( !item->IsRoutable() )
                 continue;
 
-            if( !IsCopperLayer( item->Layers().Start() ) )
+            if( !m_iface->IsPNSCopperLayer( item->Layers().Start() ) )
                 continue;
 
             if( !m_iface->IsAnyLayerVisible( item->Layers() ) )
@@ -154,7 +167,7 @@ ITEM* TOOL_BASE::pickSingleItem( const VECTOR2I& aWhere, NET_HANDLE aNet, int aL
             {
                 if( item->OfKind( ITEM::VIA_T | ITEM::SOLID_T ) )
                 {
-                    SEG::ecoord d = ( item->Shape()->Centre() - aWhere ).SquaredEuclideanNorm();
+                    SEG::ecoord d = ( item->Shape( aLayer )->Centre() - aWhere ).SquaredEuclideanNorm();
 
                     if( d < dist[2] )
                     {
@@ -190,7 +203,7 @@ ITEM* TOOL_BASE::pickSingleItem( const VECTOR2I& aWhere, NET_HANDLE aNet, int aL
             else if( item->OfKind( ITEM::SOLID_T ) && item->IsFreePad() )
             {
                 // Allow free pads only when already inside pad
-                if( item->Shape()->Collide( aWhere ) )
+                if( item->Shape( -1 )->Collide( aWhere ) )
                 {
                     prioritized[0] = item;
                     dist[0] = 0;
@@ -317,9 +330,20 @@ bool TOOL_BASE::checkSnap( ITEM *aItem )
 
 void TOOL_BASE::updateStartItem( const TOOL_EVENT& aEvent, bool aIgnorePads )
 {
-    int      tl = getView()->GetTopLayer();
+    int tl = m_router->GetInterface()->GetPNSLayerFromBoardLayer(
+            static_cast<PCB_LAYER_ID>( getView()->GetTopLayer() ) );
     GAL*     gal = m_toolMgr->GetView()->GetGAL();
     VECTOR2I pos = aEvent.HasPosition() ? (VECTOR2I) aEvent.Position() : m_startSnapPoint;
+
+    pos = GetClampedCoords( pos, COORDS_PADDING );
+
+    if( aEvent.Modifier( MD_CTRL ) && aEvent.Modifier( MD_SHIFT ) )
+    {
+        m_startItem = nullptr;
+        m_startSnapPoint = controls()->GetMousePosition();
+        controls()->ForceCursorPosition( true, m_startSnapPoint );
+        return;
+    }
 
     controls()->ForceCursorPosition( false );
     m_gridHelper->SetUseGrid( gal->GetGridSnapping() && !aEvent.DisableGridSnapping()  );
@@ -345,7 +369,7 @@ void TOOL_BASE::updateEndItem( const TOOL_EVENT& aEvent )
 
     controls()->ForceCursorPosition( false );
 
-    VECTOR2I mousePos = controls()->GetMousePosition();
+    VECTOR2I mousePos = GetClampedCoords( controls()->GetMousePosition(), COORDS_PADDING );
 
     if( m_router->GetState() == ROUTER::ROUTE_TRACK && aEvent.IsDrag() )
     {
@@ -476,7 +500,7 @@ const VECTOR2I TOOL_BASE::snapToItem( ITEM* aItem, const VECTOR2I& aP )
         else if( aItem->Kind() == ITEM::ARC_T )
         {
             ARC* arc = static_cast<ARC*>( li );
-            return m_gridHelper->AlignToArc( aP, *static_cast<const SHAPE_ARC*>( arc->Shape() ) );
+            return m_gridHelper->AlignToArc( aP, *static_cast<const SHAPE_ARC*>( arc->Shape( -1 ) ) );
         }
 
         break;

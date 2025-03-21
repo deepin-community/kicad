@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 CERN
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Alejandro García Montoro <alejandro.garciamontoro@gmail.com>
  *
@@ -246,7 +246,7 @@ int polygon_triangulation_main( int argc, char *argv[] )
                     ignore_unused( poly );
 #if 0
                 PROF_TIMER unfrac("unfrac");
-                poly.Unfracture( SHAPE_POLY_SET::PM_FAST );
+                poly.Unfracture();
                 unfrac.Show();
 
                 PROF_TIMER triangulate("triangulate");

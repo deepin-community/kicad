@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,6 +28,7 @@
 #include <sch_item.h>
 #include <wx/pen.h>     // for wxPenStyle
 #include <list>         // for std::list
+#include <geometry/seg.h>
 
 class NETLIST_OBJECT_LIST;
 
@@ -50,6 +51,9 @@ public:
     SCH_LINE( const SCH_LINE& aLine );
 
     ~SCH_LINE() { }
+
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
@@ -92,7 +96,7 @@ public:
     int GetReverseAngleFrom( const VECTOR2I& aPoint ) const;
 
     /**
-     * Gets the angle between the start and end lines.
+     * Get the angle between the start and end lines.
      *
      * @return Line angle in radians.
      */
@@ -102,8 +106,10 @@ public:
     }
 
     /**
-     * Saves the current line angle. Useful when dragging a line and its important to
-     * be able to restart the line from length 0 in the correct direction.
+     * Save the current line angle.
+     *
+     * Useful when dragging a line and its important to be able to restart the line from length
+     * 0 in the correct direction.
      */
     inline void StoreAngle()
     {
@@ -114,14 +120,14 @@ public:
     inline void StoreAngle( const EDA_ANGLE& aAngle ) { m_storedAngle = aAngle; }
 
     /**
-     * Returns the angle stored by StoreAngle()
+     * Return the angle stored by StoreAngle().
      *
      * @return Stored angle in radians.
      */
     inline EDA_ANGLE GetStoredAngle() const { return m_storedAngle; }
 
     /**
-     * Checks if line is orthogonal (to the grid).
+     * Check if line is orthogonal (to the grid).
      *
      * @return True if orthogonal, false if not or the line is zero length.
      */
@@ -137,6 +143,14 @@ public:
     VECTOR2I GetEndPoint() const { return m_end; }
     void     SetEndPoint( const VECTOR2I& aPosition ) { m_end = aPosition; }
 
+    /**
+     * Get the geometric aspect of the wire as a SEG
+     */
+    SEG GetSeg() const
+    {
+        return SEG{ m_start, m_end };
+    }
+
     void SetLastResolvedState( const SCH_ITEM* aItem ) override
     {
         const SCH_LINE* aLine = dynamic_cast<const SCH_LINE*>( aItem );
@@ -151,18 +165,24 @@ public:
     }
 
     void       SetLineStyle( const LINE_STYLE aStyle );
-    void       SetLineStyle( const int aStyleId );
     LINE_STYLE GetLineStyle() const;
 
     /// @return the style that the line should be drawn in
     /// this might be set on the line or inherited from the line's netclass
     LINE_STYLE GetEffectiveLineStyle() const;
 
+    // Special Getter/Setters for properties panel.  Required because it uses #WIRE_STYLE instead
+    // of #LINE_STYLE.  (The two enums are identical, but we expose "default" in the #WIRE_STYLE
+    // property while we don't with the LINE_STYLE property.)
+    void       SetWireStyle( const WIRE_STYLE aStyle ) { SetLineStyle( (LINE_STYLE) aStyle ); }
+    WIRE_STYLE GetWireStyle() const { return (WIRE_STYLE) GetLineStyle(); }
+
+
     void SetLineColor( const COLOR4D& aColor );
 
     void SetLineColor( const double r, const double g, const double b, const double a );
 
-    /// Returns COLOR4D::UNSPECIFIED if a custom color hasn't been set for this line
+    /// Return #COLOR4D::UNSPECIFIED if a custom color hasn't been set for this line.
     COLOR4D GetLineColor() const;
 
     void SetLineWidth( const int aSize );
@@ -188,9 +208,9 @@ public:
                || ( style_a == LINE_STYLE::SOLID   && style_b == LINE_STYLE::DEFAULT );
     }
 
-    void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    std::vector<int> ViewGetLayers() const override;
 
-    double ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const override;
+    double ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const override;
 
     const BOX2I GetBoundingBox() const override;
 
@@ -198,8 +218,6 @@ public:
      * @return The length of the line segment.
      */
     double GetLength() const;
-
-    void Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset ) override;
 
     int GetPenWidth() const override;
 
@@ -209,9 +227,7 @@ public:
 
     void MirrorVertically( int aCenter ) override;
     void MirrorHorizontally( int aCenter ) override;
-    void Rotate( const VECTOR2I& aCenter ) override;
-    void RotateStart( const VECTOR2I& aCenter );
-    void RotateEnd( const VECTOR2I& aCenter );
+    void Rotate( const VECTOR2I& aCenter, bool aRotateCCW ) override;
 
     /**
      * Check line against \a aLine to see if it overlaps and merge if it does.
@@ -267,7 +283,7 @@ public:
 
     bool CanConnect( const SCH_ITEM* aItem ) const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -286,8 +302,14 @@ public:
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
 
-    void Plot( PLOTTER* aPlotter, bool aBackground,
-               const SCH_PLOT_SETTINGS& aPlotSettings ) const override;
+    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed ) override;
+
+    void PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                          const VECTOR2I& aOffset, bool aDimmed ) override {}
+
+    void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
+               int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override;
 
     EDA_ITEM* Clone() const override;
 
@@ -328,17 +350,6 @@ public:
     bool operator==( const SCH_ITEM& aOther ) const override;
 
 private:
-    /**
-     * @brief Recursively called function to travel through the connected wires and find a connected
-     * net name label
-     * @param line - the wire segment to start the recursive lookup
-     * @param checkedLines - a lsit containing the already checked wire segments, to prevent the
-     * infinite recursion in the case if someone draws a rectangle for e.g.
-     * @param aSheet - the sheet where the lookup is performed
-     * @return With the net name if a connected label found, otherwise with an empty string
-     */
-    wxString FindWireSegmentNetNameRecursive( SCH_LINE *line, std::list<const SCH_LINE*>& checkedLines,
-                                              const SCH_SHEET_PATH &aSheet ) const;
     bool doIsConnected( const VECTOR2I& aPosition ) const override;
 
 private:
@@ -358,6 +369,11 @@ private:
 
     wxString           m_operatingPoint;
 };
+
+
+#ifndef SWIG
+DECLARE_ENUM_TO_WXANY( WIRE_STYLE );
+#endif
 
 
 #endif    // _SCH_LINE_H_

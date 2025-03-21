@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,8 +24,8 @@
 #include <board_design_settings.h>
 #include <charconv>
 #include <layer_ids.h>
+#include <lset.h>
 #include <string_utils.h>
-#include <math/util.h> // for KiROUND
 #include <pcb_plot_params.h>
 #include <pcb_plot_params_parser.h>
 #include <plotters/plotter.h>
@@ -103,7 +103,6 @@ PCB_PLOT_PARAMS::PCB_PLOT_PARAMS()
     // we used 0.1mils for SVG step before, but nm precision is more accurate, so we use nm
     m_svgPrecision               = SVG_PRECISION_DEFAULT;
     m_plotDrawingSheet           = false;
-    m_plotViaOnMaskLayer         = false;
     m_plotMode                   = FILLED;
     m_DXFPolygonMode = true;
     m_DXFUnits = DXF_UNITS::INCHES;
@@ -118,6 +117,10 @@ PCB_PLOT_PARAMS::PCB_PLOT_PARAMS()
     m_plotFPText                 = true;
     m_plotInvisibleText          = false;
     m_sketchPadsOnFabLayers      = false;
+    m_hideDNPFPsOnFabLayers      = false;
+    m_sketchDNPFPsOnFabLayers    = true;
+    m_crossoutDNPFPsOnFabLayers  = true;
+    m_plotPadNumbers             = false;
     m_subtractMaskFromSilk       = false;
     m_format                     = PLOT_FORMAT::GERBER;
     m_mirror                     = false;
@@ -130,24 +133,26 @@ PCB_PLOT_PARAMS::PCB_PLOT_PARAMS()
     m_widthAdjust                = 0.;
     m_textMode                   = PLOT_TEXT_MODE::DEFAULT;
     m_outputDirectory.clear();
-    m_layerSelection             = LSET( 7, F_SilkS, B_SilkS, F_Mask, B_Mask,
-                                         F_Paste, B_Paste, Edge_Cuts )
+    m_layerSelection             = LSET( { F_SilkS, B_SilkS, F_Mask, B_Mask,
+                                         F_Paste, B_Paste, Edge_Cuts } )
                                          | LSET::AllCuMask();
 
     m_PDFFrontFPPropertyPopups   = true;
     m_PDFBackFPPropertyPopups    = true;
+    m_PDFMetadata                = true;
+    m_PDFSingle                  = false;
 
     // This parameter controls if the NPTH pads will be plotted or not
     // it is a "local" parameter
-    m_skipNPTH_Pads              = false;
+    m_skipNPTH_Pads                 = false;
 
     // line width to plot items in outline mode.
     m_sketchPadLineWidth         = pcbIUScale.mmToIU( 0.1 );
 
-    m_default_colors = std::make_shared<COLOR_SETTINGS>();
-    m_colors         = m_default_colors.get();
+    m_default_colors             = std::make_shared<COLOR_SETTINGS>();
+    m_colors                     = m_default_colors.get();
 
-    m_blackAndWhite = true;
+    m_blackAndWhite              = true;
 }
 
 
@@ -165,95 +170,78 @@ void PCB_PLOT_PARAMS::SetGerberPrecision( int aPrecision )
 
 void PCB_PLOT_PARAMS::SetSvgPrecision( unsigned aPrecision )
 {
-    m_svgPrecision = Clamp( SVG_PRECISION_MIN, aPrecision, SVG_PRECISION_MAX );
+    m_svgPrecision = std::clamp( aPrecision, SVG_PRECISION_MIN, SVG_PRECISION_MAX );
 }
 
 
-void PCB_PLOT_PARAMS::Format( OUTPUTFORMATTER* aFormatter,
-                              int aNestLevel, int aControl ) const
+void PCB_PLOT_PARAMS::Format( OUTPUTFORMATTER* aFormatter ) const
 {
-    aFormatter->Print( aNestLevel, "(pcbplotparams\n" );
+    aFormatter->Print( "(pcbplotparams" );
 
-    aFormatter->Print( aNestLevel+1, "(layerselection 0x%s)\n",
-                       m_layerSelection.FmtHex().c_str() );
+    aFormatter->Print( "(layerselection 0x%s)", m_layerSelection.FmtHex().c_str() );
 
-    aFormatter->Print( aNestLevel+1, "(plot_on_all_layers_selection 0x%s)\n",
+    aFormatter->Print( "(plot_on_all_layers_selection 0x%s)",
                        m_plotOnAllLayersSelection.FmtHex().c_str() );
 
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, "disableapertmacros",
-                              m_gerberDisableApertMacros );
-
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, "usegerberextensions",
-                              m_useGerberProtelExtensions );
-
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, "usegerberattributes",
-                              GetUseGerberX2format() );
-
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, "usegerberadvancedattributes",
-                              GetIncludeGerberNetlistInfo() );
-
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, "creategerberjobfile",
-                              GetCreateGerberJobFile() );
+    KICAD_FORMAT::FormatBool( aFormatter, "disableapertmacros", m_gerberDisableApertMacros );
+    KICAD_FORMAT::FormatBool( aFormatter, "usegerberextensions", m_useGerberProtelExtensions );
+    KICAD_FORMAT::FormatBool( aFormatter, "usegerberattributes", GetUseGerberX2format() );
+    KICAD_FORMAT::FormatBool( aFormatter, "usegerberadvancedattributes", GetIncludeGerberNetlistInfo() );
+    KICAD_FORMAT::FormatBool( aFormatter, "creategerberjobfile", GetCreateGerberJobFile() );
 
     // save this option only if it is not the default value,
     // to avoid incompatibility with older Pcbnew version
     if( m_gerberPrecision != gbrDefaultPrecision )
-        aFormatter->Print( aNestLevel+1, "(gerberprecision %d)\n", m_gerberPrecision );
+        aFormatter->Print( "(gerberprecision %d)", m_gerberPrecision );
 
-    aFormatter->Print( aNestLevel+1, "(dashed_line_dash_ratio %f)\n", GetDashedLineDashRatio() );
-    aFormatter->Print( aNestLevel+1, "(dashed_line_gap_ratio %f)\n", GetDashedLineGapRatio() );
+    aFormatter->Print( "(dashed_line_dash_ratio %f)", GetDashedLineDashRatio() );
+    aFormatter->Print( "(dashed_line_gap_ratio %f)", GetDashedLineGapRatio() );
 
     // SVG options
-    aFormatter->Print( aNestLevel+1, "(svgprecision %d)\n", m_svgPrecision );
+    aFormatter->Print( "(svgprecision %d)", m_svgPrecision );
 
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, "plotframeref", m_plotDrawingSheet );
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, "viasonmask", m_plotViaOnMaskLayer );
-    aFormatter->Print( aNestLevel+1, "(mode %d)\n", GetPlotMode() == SKETCH ? 2 : 1 );
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, "useauxorigin", m_useAuxOrigin );
+    KICAD_FORMAT::FormatBool( aFormatter, "plotframeref", m_plotDrawingSheet );
+    aFormatter->Print( "(mode %d)", GetPlotMode() == SKETCH ? 2 : 1 );
+    KICAD_FORMAT::FormatBool( aFormatter, "useauxorigin", m_useAuxOrigin );
 
     // HPGL options
-    aFormatter->Print( aNestLevel+1, "(hpglpennumber %d)\n", m_HPGLPenNum );
-    aFormatter->Print( aNestLevel+1, "(hpglpenspeed %d)\n", m_HPGLPenSpeed );
-    aFormatter->Print( aNestLevel+1, "(hpglpendiameter %f)\n", m_HPGLPenDiam );
+    aFormatter->Print( "(hpglpennumber %d)", m_HPGLPenNum );
+    aFormatter->Print( "(hpglpenspeed %d)", m_HPGLPenSpeed );
+    aFormatter->Print( "(hpglpendiameter %f)", m_HPGLPenDiam );
 
     // PDF options
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1,
-                              getTokenName( T_pdf_front_fp_property_popups ),
+    KICAD_FORMAT::FormatBool( aFormatter, getTokenName( T_pdf_front_fp_property_popups ),
                               m_PDFFrontFPPropertyPopups );
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1,
-                              getTokenName( T_pdf_back_fp_property_popups ),
+    KICAD_FORMAT::FormatBool( aFormatter, getTokenName( T_pdf_back_fp_property_popups ),
                               m_PDFBackFPPropertyPopups );
+    KICAD_FORMAT::FormatBool( aFormatter, getTokenName( T_pdf_metadata ), m_PDFMetadata );
+    KICAD_FORMAT::FormatBool( aFormatter, getTokenName( T_pdf_single_document ), m_PDFSingle );
 
     // DXF options
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, getTokenName( T_dxfpolygonmode ),
-                              m_DXFPolygonMode );
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, getTokenName( T_dxfimperialunits ),
+    KICAD_FORMAT::FormatBool( aFormatter, getTokenName( T_dxfpolygonmode ), m_DXFPolygonMode );
+    KICAD_FORMAT::FormatBool( aFormatter, getTokenName( T_dxfimperialunits ),
                               m_DXFUnits == DXF_UNITS::INCHES );
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, getTokenName( T_dxfusepcbnewfont ),
+    KICAD_FORMAT::FormatBool( aFormatter, getTokenName( T_dxfusepcbnewfont ),
                               m_textMode != PLOT_TEXT_MODE::NATIVE );
 
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, getTokenName( T_psnegative ),
-                              m_negative );
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, getTokenName( T_psa4output ),
-                              m_A4Output );
+    KICAD_FORMAT::FormatBool( aFormatter, getTokenName( T_psnegative ), m_negative );
+    KICAD_FORMAT::FormatBool( aFormatter, getTokenName( T_psa4output ), m_A4Output );
 
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, "plotreference", m_plotReference );
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, "plotvalue", m_plotValue );
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, "plotfptext", m_plotFPText );
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, "plotinvisibletext",
-                              m_plotInvisibleText );
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, "sketchpadsonfab",
-                              m_sketchPadsOnFabLayers );
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, "subtractmaskfromsilk",
-                              m_subtractMaskFromSilk );
-    aFormatter->Print( aNestLevel+1, "(outputformat %d)\n", static_cast<int>( m_format ) );
-    KICAD_FORMAT::FormatBool( aFormatter, aNestLevel + 1, "mirror", m_mirror );
-    aFormatter->Print( aNestLevel+1, "(drillshape %d)\n", (int)m_drillMarks );
-    aFormatter->Print( aNestLevel+1, "(scaleselection %d)\n", m_scaleSelection );
-    aFormatter->Print( aNestLevel+1, "(outputdirectory \"%s\")",
-                       (const char*) m_outputDirectory.utf8_str() );
-    aFormatter->Print( 0, "\n" );
-    aFormatter->Print( aNestLevel, ")\n" );
+    KICAD_FORMAT::FormatBool( aFormatter, getTokenName( T_plot_black_and_white ), m_blackAndWhite );
+
+    KICAD_FORMAT::FormatBool( aFormatter, "plotinvisibletext", m_plotInvisibleText );
+    KICAD_FORMAT::FormatBool( aFormatter, "sketchpadsonfab", m_sketchPadsOnFabLayers );
+    KICAD_FORMAT::FormatBool( aFormatter, "plotpadnumbers", m_plotPadNumbers );
+    KICAD_FORMAT::FormatBool( aFormatter, "hidednponfab", m_hideDNPFPsOnFabLayers );
+    KICAD_FORMAT::FormatBool( aFormatter, "sketchdnponfab", m_sketchDNPFPsOnFabLayers );
+    KICAD_FORMAT::FormatBool( aFormatter, "crossoutdnponfab", m_crossoutDNPFPsOnFabLayers );
+    KICAD_FORMAT::FormatBool( aFormatter, "subtractmaskfromsilk", m_subtractMaskFromSilk );
+    aFormatter->Print( "(outputformat %d)", static_cast<int>( m_format ) );
+    KICAD_FORMAT::FormatBool( aFormatter, "mirror", m_mirror );
+    aFormatter->Print( "(drillshape %d)", (int)m_drillMarks );
+    aFormatter->Print( "(scaleselection %d)", m_scaleSelection );
+    aFormatter->Print( "(outputdirectory %s)", aFormatter->Quotew( m_outputDirectory ).c_str() );
+    aFormatter->Print( ")" );
 }
 
 
@@ -298,9 +286,6 @@ bool PCB_PLOT_PARAMS::IsSameAs( const PCB_PLOT_PARAMS &aPcbPlotParams ) const
     if( m_plotDrawingSheet != aPcbPlotParams.m_plotDrawingSheet )
         return false;
 
-    if( m_plotViaOnMaskLayer != aPcbPlotParams.m_plotViaOnMaskLayer )
-        return false;
-
     if( m_plotMode != aPcbPlotParams.m_plotMode )
         return false;
 
@@ -334,6 +319,9 @@ bool PCB_PLOT_PARAMS::IsSameAs( const PCB_PLOT_PARAMS &aPcbPlotParams ) const
     if( m_PDFBackFPPropertyPopups != aPcbPlotParams.m_PDFBackFPPropertyPopups )
         return false;
 
+    if( m_PDFMetadata != aPcbPlotParams.m_PDFMetadata )
+        return false;
+
     if( m_A4Output != aPcbPlotParams.m_A4Output )
         return false;
 
@@ -350,6 +338,18 @@ bool PCB_PLOT_PARAMS::IsSameAs( const PCB_PLOT_PARAMS &aPcbPlotParams ) const
         return false;
 
     if( m_sketchPadsOnFabLayers != aPcbPlotParams.m_sketchPadsOnFabLayers )
+        return false;
+
+    if( m_plotPadNumbers != aPcbPlotParams.m_plotPadNumbers )
+        return false;
+
+    if( m_hideDNPFPsOnFabLayers != aPcbPlotParams.m_hideDNPFPsOnFabLayers )
+        return false;
+
+    if( m_sketchDNPFPsOnFabLayers != aPcbPlotParams.m_sketchDNPFPsOnFabLayers )
+        return false;
+
+    if( m_crossoutDNPFPsOnFabLayers != aPcbPlotParams.m_crossoutDNPFPsOnFabLayers )
         return false;
 
     if( m_subtractMaskFromSilk != aPcbPlotParams.m_subtractMaskFromSilk )
@@ -407,15 +407,180 @@ bool PCB_PLOT_PARAMS::SetHPGLPenSpeed( int aValue )
 }
 
 
-PCB_PLOT_PARAMS_PARSER::PCB_PLOT_PARAMS_PARSER( LINE_READER* aReader ) :
-    PCB_PLOT_PARAMS_LEXER( aReader )
+PCB_PLOT_PARAMS_PARSER::PCB_PLOT_PARAMS_PARSER( LINE_READER* aReader, int aBoardFileVersion ) :
+    PCB_PLOT_PARAMS_LEXER( aReader ),
+    m_boardFileVersion( aBoardFileVersion )
 {
 }
 
 
 PCB_PLOT_PARAMS_PARSER::PCB_PLOT_PARAMS_PARSER( char* aLine, const wxString& aSource ) :
-    PCB_PLOT_PARAMS_LEXER( aLine, aSource )
+    PCB_PLOT_PARAMS_LEXER( aLine, aSource ),
+    m_boardFileVersion( 0 )
 {
+}
+
+
+/**
+ * These are the layer IDs from before 5e0abadb23425765e164f49ee2f893e94ddb97fc,
+ * and are needed for mapping old PCB files to the new layer numbering.
+ */
+enum LEGACY_PCB_LAYER_ID: int
+{
+    LEGACY_UNDEFINED_LAYER = -1,
+    LEGACY_UNSELECTED_LAYER = -2,
+
+    LEGACY_F_Cu = 0,
+    LEGACY_In1_Cu,
+    LEGACY_In2_Cu,
+    LEGACY_In3_Cu,
+    LEGACY_In4_Cu,
+    LEGACY_In5_Cu,
+    LEGACY_In6_Cu,
+    LEGACY_In7_Cu,
+    LEGACY_In8_Cu,
+    LEGACY_In9_Cu,
+    LEGACY_In10_Cu,
+    LEGACY_In11_Cu,
+    LEGACY_In12_Cu,
+    LEGACY_In13_Cu,
+    LEGACY_In14_Cu,
+    LEGACY_In15_Cu,
+    LEGACY_In16_Cu,
+    LEGACY_In17_Cu,
+    LEGACY_In18_Cu,
+    LEGACY_In19_Cu,
+    LEGACY_In20_Cu,
+    LEGACY_In21_Cu,
+    LEGACY_In22_Cu,
+    LEGACY_In23_Cu,
+    LEGACY_In24_Cu,
+    LEGACY_In25_Cu,
+    LEGACY_In26_Cu,
+    LEGACY_In27_Cu,
+    LEGACY_In28_Cu,
+    LEGACY_In29_Cu,
+    LEGACY_In30_Cu,
+    LEGACY_B_Cu,           // 31
+
+    LEGACY_B_Adhes,
+    LEGACY_F_Adhes,
+
+    LEGACY_B_Paste,
+    LEGACY_F_Paste,
+
+    LEGACY_B_SilkS,
+    LEGACY_F_SilkS,
+
+    LEGACY_B_Mask,
+    LEGACY_F_Mask,         // 39
+
+    LEGACY_Dwgs_User,
+    LEGACY_Cmts_User,
+    LEGACY_Eco1_User,
+    LEGACY_Eco2_User,
+    LEGACY_Edge_Cuts,
+    LEGACY_Margin,         // 45
+
+    LEGACY_B_CrtYd,
+    LEGACY_F_CrtYd,
+
+    LEGACY_B_Fab,
+    LEGACY_F_Fab,          // 49
+
+    // User definable layers.
+    LEGACY_User_1,
+    LEGACY_User_2,
+    LEGACY_User_3,
+    LEGACY_User_4,
+    LEGACY_User_5,
+    LEGACY_User_6,
+    LEGACY_User_7,
+    LEGACY_User_8,
+    LEGACY_User_9,
+
+    LEGACY_Rescue,         // 59
+
+    // Four reserved layers (60 - 63) for future expansion within the 64 bit integer limit.
+
+    LEGACY_PCB_LAYER_ID_COUNT
+};
+
+/*
+ * Mapping to translate a legacy layer ID into the new PCB layer IDs.
+ */
+static const std::map<LEGACY_PCB_LAYER_ID, PCB_LAYER_ID> s_legacyLayerIdMap{
+    {LEGACY_F_Cu,      F_Cu},
+    {LEGACY_B_Cu,      B_Cu},
+    {LEGACY_In1_Cu,    In1_Cu},
+    {LEGACY_In2_Cu,    In2_Cu},
+    {LEGACY_In3_Cu,    In3_Cu},
+    {LEGACY_In4_Cu,    In4_Cu},
+    {LEGACY_In5_Cu,    In5_Cu},
+    {LEGACY_In6_Cu,    In6_Cu},
+    {LEGACY_In7_Cu,    In7_Cu},
+    {LEGACY_In8_Cu,    In8_Cu},
+    {LEGACY_In9_Cu,    In9_Cu},
+    {LEGACY_In10_Cu,   In10_Cu},
+    {LEGACY_In11_Cu,   In11_Cu},
+    {LEGACY_In12_Cu,   In12_Cu},
+    {LEGACY_In13_Cu,   In13_Cu},
+    {LEGACY_In14_Cu,   In14_Cu},
+    {LEGACY_In15_Cu,   In15_Cu},
+    {LEGACY_In16_Cu,   In16_Cu},
+    {LEGACY_In17_Cu,   In17_Cu},
+    {LEGACY_In18_Cu,   In18_Cu},
+    {LEGACY_In19_Cu,   In19_Cu},
+    {LEGACY_In20_Cu,   In20_Cu},
+    {LEGACY_In21_Cu,   In21_Cu},
+    {LEGACY_In22_Cu,   In22_Cu},
+    {LEGACY_In23_Cu,   In23_Cu},
+    {LEGACY_In24_Cu,   In24_Cu},
+    {LEGACY_In25_Cu,   In25_Cu},
+    {LEGACY_In26_Cu,   In26_Cu},
+    {LEGACY_In27_Cu,   In27_Cu},
+    {LEGACY_In28_Cu,   In28_Cu},
+    {LEGACY_In29_Cu,   In29_Cu},
+    {LEGACY_In30_Cu,   In30_Cu},
+    {LEGACY_F_Mask,    F_Mask},
+    {LEGACY_B_Mask,    B_Mask},
+    {LEGACY_F_SilkS,   F_SilkS},
+    {LEGACY_B_SilkS,   B_SilkS},
+    {LEGACY_F_Adhes,   F_Adhes},
+    {LEGACY_B_Adhes,   B_Adhes},
+    {LEGACY_F_Paste,   F_Paste},
+    {LEGACY_B_Paste,   B_Paste},
+    {LEGACY_Dwgs_User, Dwgs_User},
+    {LEGACY_Cmts_User, Cmts_User},
+    {LEGACY_Eco1_User, Eco1_User},
+    {LEGACY_Eco2_User, Eco2_User},
+    {LEGACY_Edge_Cuts, Edge_Cuts},
+    {LEGACY_Margin,    Margin},
+    {LEGACY_B_CrtYd,   B_CrtYd},
+    {LEGACY_F_CrtYd,   F_CrtYd},
+    {LEGACY_B_Fab,     B_Fab},
+    {LEGACY_F_Fab,     F_Fab},
+    {LEGACY_User_1,    User_1},
+    {LEGACY_User_2,    User_2},
+    {LEGACY_User_3,    User_3},
+    {LEGACY_User_4,    User_4},
+    {LEGACY_User_5,    User_5},
+    {LEGACY_User_6,    User_6},
+    {LEGACY_User_7,    User_7},
+    {LEGACY_User_8,    User_8},
+    {LEGACY_User_9,    User_9},
+    {LEGACY_Rescue,    Rescue},
+};
+
+
+LSET remapLegacyLayerLSET( const BASE_SET& aLegacyLSET )
+{
+    LSET newLayers;
+
+    for( const auto& [legacyLayer, newLayer] : s_legacyLayerIdMap )
+        newLayers[newLayer] = aLegacyLSET[legacyLayer];
+
+    return newLayers;
 }
 
 
@@ -450,12 +615,25 @@ void PCB_PLOT_PARAMS_PARSER::Parse( PCB_PLOT_PARAMS* aPcbPlotParams )
                 //  number without knowing the number or total Cu layers in the legacy board.
                 //  We do not have that information here, so simply set all layers ON.  User
                 //  can turn them off in the UI.
-                aPcbPlotParams->m_layerSelection = LSET( 2, F_SilkS, B_SilkS ) | LSET::AllCuMask();
+                aPcbPlotParams->m_layerSelection = LSET( { F_SilkS, B_SilkS } ) | LSET::AllCuMask();
             }
             else if( cur.find_first_of( "0x" ) == 0 ) // pretty ver. 4.
             {
-                // skip the leading 2 0x bytes.
-                aPcbPlotParams->m_layerSelection.ParseHex( cur.c_str() + 2, cur.size() - 2 );
+                // The layers were renumbered in 5e0abadb23425765e164f49ee2f893e94ddb97fc, but there wasn't
+                // a board file version change with it, so this value is the one immediately after that happened.
+                if( m_boardFileVersion < 20240819 )
+                {
+                    BASE_SET legacyLSET( LEGACY_PCB_LAYER_ID_COUNT );
+
+                    // skip the leading 2 0x bytes.
+                    legacyLSET.ParseHex( cur.c_str() + 2, cur.size() - 2 );
+                    aPcbPlotParams->SetLayerSelection( remapLegacyLayerLSET( legacyLSET ) );
+                }
+                else
+                {
+                    // skip the leading 2 0x bytes.
+                    aPcbPlotParams->m_layerSelection.ParseHex( cur.c_str() + 2, cur.size() - 2 );
+                }
             }
             else
             {
@@ -473,9 +651,22 @@ void PCB_PLOT_PARAMS_PARSER::Parse( PCB_PLOT_PARAMS* aPcbPlotParams )
 
             if( cur.find_first_of( "0x" ) == 0 )
             {
-                // skip the leading 2 0x bytes.
-                aPcbPlotParams->m_plotOnAllLayersSelection.ParseHex( cur.c_str() + 2,
-                                                                     cur.size() - 2 );
+                // The layers were renumbered in 5e0abadb23425765e164f49ee2f893e94ddb97fc, but there wasn't
+                // a board file version change with it, so this value is the one immediately after that happened.
+                if( m_boardFileVersion < 20240819 )
+                {
+                    BASE_SET legacyLSET( LEGACY_PCB_LAYER_ID_COUNT );
+
+                    // skip the leading 2 0x bytes.
+                    legacyLSET.ParseHex( cur.c_str() + 2, cur.size() - 2 );
+                    aPcbPlotParams->SetPlotOnAllLayersSelection( remapLegacyLayerLSET( legacyLSET ) );
+                }
+                else
+                {
+                    // skip the leading 2 0x bytes.
+                    aPcbPlotParams->m_plotOnAllLayersSelection.ParseHex( cur.c_str() + 2,
+                                                                         cur.size() - 2 );
+                }
             }
             else
             {
@@ -574,7 +765,15 @@ void PCB_PLOT_PARAMS_PARSER::Parse( PCB_PLOT_PARAMS* aPcbPlotParams )
             break;
 
         case T_pdf_back_fp_property_popups:
-            aPcbPlotParams->m_PDFFrontFPPropertyPopups = parseBool();
+            aPcbPlotParams->m_PDFBackFPPropertyPopups = parseBool();
+            break;
+
+        case T_pdf_metadata:
+            aPcbPlotParams->m_PDFMetadata = parseBool();
+            break;
+
+        case T_pdf_single_document:
+            aPcbPlotParams->m_PDFSingle = parseBool();
             break;
 
         case T_dxfpolygonmode:
@@ -599,16 +798,8 @@ void PCB_PLOT_PARAMS_PARSER::Parse( PCB_PLOT_PARAMS* aPcbPlotParams )
             aPcbPlotParams->m_negative = parseBool();
             break;
 
-        case T_plotreference:
-            aPcbPlotParams->m_plotReference = parseBool();
-            break;
-
-        case T_plotfptext:
-            aPcbPlotParams->m_plotFPText = parseBool();
-            break;
-
-        case T_plotvalue:
-            aPcbPlotParams->m_plotValue = parseBool();
+        case T_plot_black_and_white:
+            aPcbPlotParams->m_blackAndWhite = parseBool();
             break;
 
         case T_plotinvisibletext:
@@ -617,6 +808,22 @@ void PCB_PLOT_PARAMS_PARSER::Parse( PCB_PLOT_PARAMS* aPcbPlotParams )
 
         case T_sketchpadsonfab:
             aPcbPlotParams->m_sketchPadsOnFabLayers= parseBool();
+            break;
+
+        case T_plotpadnumbers:
+            aPcbPlotParams->m_plotPadNumbers = parseBool();
+            break;
+
+        case T_hidednponfab:
+            aPcbPlotParams->m_hideDNPFPsOnFabLayers = parseBool();
+            break;
+
+        case T_sketchdnponfab:
+            aPcbPlotParams->m_sketchDNPFPsOnFabLayers = parseBool();
+            break;
+
+        case T_crossoutdnponfab:
+            aPcbPlotParams->m_crossoutDNPFPsOnFabLayers = parseBool();
             break;
 
         case T_subtractmaskfromsilk:

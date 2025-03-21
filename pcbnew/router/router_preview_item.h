@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2014 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -42,6 +42,7 @@ namespace PNS {
 
 class ITEM;
 class ROUTER;
+class ROUTER_IFACE;
 
 }
 
@@ -72,11 +73,11 @@ public:
      * GAL layer stack into the space of one view group sublayer (which is
      * currently hard-coded via GAL::AdvanceDepth take a depth of 0.1)
      */
-    static constexpr double LayerDepthFactor = 0.0001;
-    static constexpr double PathOverlayDepth = LayerDepthFactor * LAYER_ZONE_END;
+    static constexpr double LayerDepthFactor = 0.001;
+    static constexpr double PathOverlayDepth = LayerDepthFactor * static_cast<double>( LAYER_ZONE_END );
 
-    ROUTER_PREVIEW_ITEM( const SHAPE& aShape, KIGFX::VIEW* aView = nullptr );
-    ROUTER_PREVIEW_ITEM( const PNS::ITEM* aItem = nullptr, KIGFX::VIEW* aView = nullptr,
+    ROUTER_PREVIEW_ITEM( const SHAPE& aShape, PNS::ROUTER_IFACE* aIface, KIGFX::VIEW* aView );
+    ROUTER_PREVIEW_ITEM( const PNS::ITEM* aItem, PNS::ROUTER_IFACE* aIface, KIGFX::VIEW* aView,
                          int aFlags = 0 );
     ~ROUTER_PREVIEW_ITEM();
 
@@ -107,10 +108,9 @@ public:
 
     virtual void ViewDraw( int aLayer, KIGFX::VIEW* aView ) const override;
 
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override
+    virtual std::vector<int> ViewGetLayers() const override
     {
-        aLayers[0] = m_layer;
-        aCount = 1;
+        return { m_layer };
     }
 
     void drawLineChain( const SHAPE_LINE_CHAIN_BASE* aL, KIGFX::GAL* aGal ) const;
@@ -122,6 +122,8 @@ private:
 
 private:
     KIGFX::VIEW*   m_view;
+
+    PNS::ROUTER_IFACE* m_iface;
 
     SHAPE*         m_shape;
     SHAPE*         m_hole;

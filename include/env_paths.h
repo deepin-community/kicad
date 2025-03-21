@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 Wayne Stambaugh <stambaughw@verizon.net>
- * Copyright (C) 2017-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2017 CERN
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
@@ -21,7 +21,10 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-///< Helper functions to substitute paths with environmental variables.
+/**
+ * @file env_paths.h
+ * @brief Helper functions to substitute paths with environmental variables.
+ */
 
 #ifndef ENV_PATHS_H
 #define ENV_PATHS_H
@@ -62,9 +65,9 @@ wxString NormalizePath( const wxFileName& aFilePath, const ENV_VAR_MAP* aEnvVars
  * @param aFileName is the name of the searched file. It might be a relative path.
  * @param aEnvVars is an optional map of environmental variables that can contain paths.
  * @param aProject is an optional project, to check the project path.
- * @return Full path (apth and file name) if the file was found in one of the paths, otherwise
+ * @return Full path (path and file name) if the file was found in one of the paths, otherwise
  *         an empty string.
-*/
+ */
 wxString ResolveFile( const wxString& aFileName, const ENV_VAR_MAP* aEnvVars,
                       const PROJECT* aProject );
 

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,6 +21,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "dialog_lib_symbol_properties.h"
+
+#include <pgm_base.h>
+#include <eeschema_settings.h>
 #include <bitmaps.h>
 #include <confirm.h>
 #include <dialogs/dialog_text_entry.h>
@@ -38,9 +42,13 @@
 #include <refdes_utils.h>
 #include <dialog_sim_model.h>
 
-#include <dialog_lib_symbol_properties.h>
+#include <panel_embedded_files.h>
 #include <settings/settings_manager.h>
 #include <symbol_editor_settings.h>
+#include <widgets/listbox_tricks.h>
+
+#include <wx/clipbrd.h>
+#include <wx/msgdlg.h>
 
 
 int DIALOG_LIB_SYMBOL_PROPERTIES::m_lastOpenedPage = 0;
@@ -58,13 +66,17 @@ DIALOG_LIB_SYMBOL_PROPERTIES::DIALOG_LIB_SYMBOL_PROPERTIES( SYMBOL_EDIT_FRAME* a
     m_delayedFocusGrid( nullptr ),
     m_delayedFocusRow( -1 ),
     m_delayedFocusColumn( -1 ),
-    m_delayedFocusPage( -1 )
+    m_delayedFocusPage( -1 ),
+    m_fpFilterTricks( std::make_unique<LISTBOX_TRICKS>( *this, *m_FootprintFilterListBox ) )
 {
+    m_embeddedFiles = new PANEL_EMBEDDED_FILES( m_NoteBook, m_libEntry );
+    m_NoteBook->AddPage( m_embeddedFiles, _( "Embedded Files" ) );
+
     // Give a bit more room for combobox editors
     m_grid->SetDefaultRowSize( m_grid->GetDefaultRowSize() + 4 );
-    m_fields = new FIELDS_GRID_TABLE<LIB_FIELD>( this, aParent, m_grid, m_libEntry );
+    m_fields = new FIELDS_GRID_TABLE( this, aParent, m_grid, m_libEntry, m_embeddedFiles->GetLocalFiles() );
     m_grid->SetTable( m_fields );
-    m_grid->PushEventHandler( new FIELDS_GRID_TRICKS( m_grid, this,
+    m_grid->PushEventHandler( new FIELDS_GRID_TRICKS( m_grid, this, aLibEntry,
                                                       [&]( wxCommandEvent& aEvent )
                                                       {
                                                           OnAddField( aEvent );
@@ -76,7 +88,8 @@ DIALOG_LIB_SYMBOL_PROPERTIES::DIALOG_LIB_SYMBOL_PROPERTIES( SYMBOL_EDIT_FRAME* a
     m_grid->ShowHideColumns( cfg->m_EditSymbolVisibleColumns );
 
     wxGridCellAttr* attr = new wxGridCellAttr;
-    attr->SetEditor( new GRID_CELL_URL_EDITOR( this, PROJECT_SCH::SchSearchS( &Prj() ) ) );
+    attr->SetEditor( new GRID_CELL_URL_EDITOR( this, PROJECT_SCH::SchSearchS( &Prj() ),
+                                               m_embeddedFiles->GetLocalFiles() ) );
     m_grid->SetAttr( DATASHEET_FIELD, FDC_VALUE, attr );
 
     m_SymbolNameCtrl->SetValidator( FIELD_VALIDATOR( VALUE_FIELD ) );
@@ -103,6 +116,21 @@ DIALOG_LIB_SYMBOL_PROPERTIES::DIALOG_LIB_SYMBOL_PROPERTIES( SYMBOL_EDIT_FRAME* a
     m_grid->Connect( wxEVT_GRID_CELL_CHANGING,
                      wxGridEventHandler( DIALOG_LIB_SYMBOL_PROPERTIES::OnGridCellChanging ),
                      nullptr, this );
+
+    // Forward the delete button to the tricks
+    m_deleteFilterButton->Bind( wxEVT_BUTTON,
+                                [&]( wxCommandEvent& aEvent )
+                                {
+                                    wxCommandEvent cmdEvent( EDA_EVT_LISTBOX_DELETE );
+                                    m_fpFilterTricks->ProcessEvent( cmdEvent );
+                                } );
+
+    // When the filter tricks modifies something, update ourselves
+    m_FootprintFilterListBox->Bind( EDA_EVT_LISTBOX_CHANGED,
+                                    [&]( wxCommandEvent& aEvent )
+                                    {
+                                        OnModify();
+                                    } );
 
     if( m_lastLayout != DIALOG_LIB_SYMBOL_PROPERTIES::LAST_LAYOUT::NONE )
     {
@@ -151,7 +179,36 @@ bool DIALOG_LIB_SYMBOL_PROPERTIES::TransferDataToWindow()
         return false;
 
     // Push a copy of each field into m_updateFields
-    m_libEntry->GetFields( *m_fields );
+    m_libEntry->CopyFields( *m_fields );
+
+    std::set<wxString> defined;
+
+    for( SCH_FIELD& field : *m_fields )
+        defined.insert( field.GetName() );
+
+    // Add in any template fieldnames not yet defined:
+    // Read global fieldname templates
+    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
+
+    if( cfg )
+    {
+        TEMPLATES templateMgr;
+
+        if( !cfg->m_Drawing.field_names.IsEmpty() )
+            templateMgr.AddTemplateFieldNames( cfg->m_Drawing.field_names );
+
+        for( const TEMPLATE_FIELDNAME& templateFieldname : templateMgr.GetTemplateFieldNames() )
+        {
+            if( defined.count( templateFieldname.m_Name ) <= 0 )
+            {
+                SCH_FIELD field( VECTOR2I( 0, 0 ), -1, m_libEntry, templateFieldname.m_Name );
+                field.SetVisible( templateFieldname.m_Visible );
+                m_fields->push_back( field );
+                m_addedTemplateFields.insert( templateFieldname.m_Name );
+            }
+        }
+    }
 
     // The Y axis for components in lib is from bottom to top while the screen axis is top
     // to bottom: we must change the y coord sign for editing
@@ -190,8 +247,8 @@ bool DIALOG_LIB_SYMBOL_PROPERTIES::TransferDataToWindow()
     m_excludeFromBomCheckBox->SetValue( m_libEntry->GetExcludedFromBOM() );
     m_excludeFromBoardCheckBox->SetValue( m_libEntry->GetExcludedFromBoard() );
 
-    m_ShowPinNumButt->SetValue( m_libEntry->ShowPinNumbers() );
-    m_ShowPinNameButt->SetValue( m_libEntry->ShowPinNames() );
+    m_ShowPinNumButt->SetValue( m_libEntry->GetShowPinNumbers() );
+    m_ShowPinNameButt->SetValue( m_libEntry->GetShowPinNames() );
     m_PinsNameInsideButt->SetValue( m_libEntry->GetPinNameOffset() != 0 );
     m_pinNameOffset.ChangeValue( m_libEntry->GetPinNameOffset() );
 
@@ -209,24 +266,34 @@ bool DIALOG_LIB_SYMBOL_PROPERTIES::TransferDataToWindow()
 
         m_Parent->GetLibManager().GetSymbolNames( libName, symbolNames );
 
+        // Sort the list of symbols for easier search
+        symbolNames.Sort(
+                []( const wxString& a, const wxString& b ) -> int
+                {
+                    return StrNumCmp( a, b, true );
+                } );
+
         // Do allow an inherited symbol to be derived from itself.
         symbolNames.Remove( m_libEntry->GetName() );
         m_inheritanceSelectCombo->Append( symbolNames );
 
-        LIB_SYMBOL_SPTR rootSymbol = m_libEntry->GetParent().lock();
+        if( LIB_SYMBOL_SPTR rootSymbol = m_libEntry->GetParent().lock() )
+        {
+            wxString parentName = UnescapeString( rootSymbol->GetName() );
+            int selection = m_inheritanceSelectCombo->FindString( parentName );
 
-        wxCHECK( rootSymbol, false );
+            if( selection == wxNOT_FOUND )
+                return false;
 
-        wxString parentName = UnescapeString( rootSymbol->GetName() );
-        int selection = m_inheritanceSelectCombo->FindString( parentName );
-
-        wxCHECK( selection != wxNOT_FOUND, false );
-        m_inheritanceSelectCombo->SetSelection( selection );
+            m_inheritanceSelectCombo->SetSelection( selection );
+        }
 
         m_lastOpenedPage = 0;
     }
 
     m_NoteBook->SetSelection( (unsigned) m_lastOpenedPage );
+
+    m_embeddedFiles->TransferDataToWindow();
 
     return true;
 }
@@ -254,10 +321,14 @@ bool DIALOG_LIB_SYMBOL_PROPERTIES::Validate()
     }
 
     // Check for missing field names.
-    for( int ii = MANDATORY_FIELDS; ii < (int) m_fields->size(); ++ii )
+    for( int ii = 0; ii < (int) m_fields->size(); ++ii )
     {
-        LIB_FIELD& field = m_fields->at( ii );
-        wxString   fieldName = field.GetName( false );
+        SCH_FIELD& field = m_fields->at( ii );
+
+        if( field.IsMandatory() )
+            continue;
+
+        wxString fieldName = field.GetName( false );
 
         if( fieldName.IsEmpty() && !field.GetText().IsEmpty() )
         {
@@ -357,15 +428,24 @@ bool DIALOG_LIB_SYMBOL_PROPERTIES::TransferDataFromWindow()
         m_fields->at( ii ).SetId( ii );
     }
 
-    for( int ii = m_fields->GetNumberRows() - 1; ii >= MANDATORY_FIELDS; ii-- )
+    for( int ii = m_fields->GetNumberRows() - 1; ii >= 0; ii-- )
     {
-        LIB_FIELD&      field = m_fields->at( ii );
+        SCH_FIELD& field = m_fields->at( ii );
+
+        if( field.IsMandatory() )
+            continue;
+
         const wxString& fieldName = field.GetCanonicalName();
 
-        if( fieldName.IsEmpty() && field.GetText().IsEmpty() )
-            m_fields->erase( m_fields->begin() + ii );
+        if( field.GetText().IsEmpty() )
+        {
+            if( fieldName.IsEmpty() || m_addedTemplateFields.contains( fieldName ) )
+                m_fields->erase( m_fields->begin() + ii );
+        }
         else if( fieldName.IsEmpty() )
+        {
             field.SetName( _( "untitled" ) );
+        }
     }
 
     m_libEntry->SetFields( *m_fields );
@@ -481,6 +561,8 @@ void DIALOG_LIB_SYMBOL_PROPERTIES::OnSymbolNameText( wxCommandEvent& event )
 {
     if( m_OptionPower->IsChecked() )
         m_grid->SetCellValue( VALUE_FIELD, FDC_VALUE, m_SymbolNameCtrl->GetValue() );
+
+    OnModify();
 }
 
 
@@ -512,10 +594,11 @@ void DIALOG_LIB_SYMBOL_PROPERTIES::OnAddField( wxCommandEvent& event )
 
     SYMBOL_EDITOR_SETTINGS* settings = m_Parent->GetSettings();
     int       fieldID = (int) m_fields->size();
-    LIB_FIELD newField( m_libEntry, fieldID );
+    SCH_FIELD newField( m_libEntry, fieldID );
 
     newField.SetTextSize( VECTOR2I( schIUScale.MilsToIU( settings->m_Defaults.text_size ),
                                     schIUScale.MilsToIU( settings->m_Defaults.text_size ) ) );
+    newField.SetVisible( false );
 
     m_fields->push_back( newField );
 
@@ -545,10 +628,10 @@ void DIALOG_LIB_SYMBOL_PROPERTIES::OnDeleteField( wxCommandEvent& event )
 
     for( int row : selectedRows )
     {
-        if( row < MANDATORY_FIELDS )
+        if( row < m_fields->GetMandatoryRowCount() )
         {
             DisplayError( this, wxString::Format( _( "The first %d fields are mandatory." ),
-                                                  MANDATORY_FIELDS ) );
+                                                  m_fields->GetMandatoryRowCount() ) );
             return;
         }
     }
@@ -585,9 +668,9 @@ void DIALOG_LIB_SYMBOL_PROPERTIES::OnMoveUp( wxCommandEvent& event )
 
     int i = m_grid->GetGridCursorRow();
 
-    if( i > MANDATORY_FIELDS )
+    if( i > m_fields->GetMandatoryRowCount() )
     {
-        LIB_FIELD tmp = m_fields->at( (unsigned) i );
+        SCH_FIELD tmp = m_fields->at( (unsigned) i );
         m_fields->erase( m_fields->begin() + i, m_fields->begin() + i + 1 );
         m_fields->insert( m_fields->begin() + i - 1, tmp );
         m_grid->ForceRefresh();
@@ -611,9 +694,9 @@ void DIALOG_LIB_SYMBOL_PROPERTIES::OnMoveDown( wxCommandEvent& event )
 
     int i = m_grid->GetGridCursorRow();
 
-    if( i >= MANDATORY_FIELDS && i + 1 < m_fields->GetNumberRows() )
+    if( i >= m_fields->GetMandatoryRowCount() && i + 1 < m_fields->GetNumberRows() )
     {
-        LIB_FIELD tmp = m_fields->at( (unsigned) i );
+        SCH_FIELD tmp = m_fields->at( (unsigned) i );
         m_fields->erase( m_fields->begin() + i, m_fields->begin() + i + 1 );
         m_fields->insert( m_fields->begin() + i + 1, tmp );
         m_grid->ForceRefresh();
@@ -635,9 +718,9 @@ void DIALOG_LIB_SYMBOL_PROPERTIES::OnEditSpiceModel( wxCommandEvent& event )
     if( !m_grid->CommitPendingChanges() )
         return;
 
-    std::vector<LIB_FIELD> fields;
+    std::vector<SCH_FIELD> fields;
 
-    for( const LIB_FIELD& field : *m_fields )
+    for( const SCH_FIELD& field : *m_fields )
         fields.emplace_back( field );
 
     DIALOG_SIM_MODEL dialog( this, m_parentFrame, *m_libEntry, fields );
@@ -646,11 +729,11 @@ void DIALOG_LIB_SYMBOL_PROPERTIES::OnEditSpiceModel( wxCommandEvent& event )
         return;
 
     // Add in any new fields
-    for( const LIB_FIELD& editedField : fields )
+    for( const SCH_FIELD& editedField : fields )
     {
         bool found = false;
 
-        for( LIB_FIELD& existingField : *m_fields )
+        for( SCH_FIELD& existingField : *m_fields )
         {
             if( existingField.GetName() == editedField.GetName() )
             {
@@ -671,10 +754,10 @@ void DIALOG_LIB_SYMBOL_PROPERTIES::OnEditSpiceModel( wxCommandEvent& event )
     // Remove any deleted fields
     for( int ii = (int) m_fields->size() - 1; ii >= 0; --ii )
     {
-        LIB_FIELD& existingField = m_fields->at( ii );
+        SCH_FIELD& existingField = m_fields->at( ii );
         bool       found = false;
 
-        for( LIB_FIELD& editedField : fields )
+        for( SCH_FIELD& editedField : fields )
         {
             if( editedField.GetName() == existingField.GetName() )
             {
@@ -696,9 +779,9 @@ void DIALOG_LIB_SYMBOL_PROPERTIES::OnEditSpiceModel( wxCommandEvent& event )
 }
 
 
-void DIALOG_LIB_SYMBOL_PROPERTIES::OnFilterDClick( wxMouseEvent& event )
+void DIALOG_LIB_SYMBOL_PROPERTIES::OnFpFilterDClick( wxMouseEvent& event )
 {
-    int idx = m_FootprintFilterListBox->HitTest( event.GetPosition() );
+    int            idx = m_FootprintFilterListBox->HitTest( event.GetPosition() );
     wxCommandEvent dummy;
 
     if( idx >= 0 )
@@ -728,7 +811,6 @@ void DIALOG_LIB_SYMBOL_PROPERTIES::OnAddFootprintFilter( wxCommandEvent& event )
     filterLine.Replace( wxT( " " ), wxT( "_" ) );
 
     // duplicate filters do no harm, so don't be a nanny.
-
     m_FootprintFilterListBox->Append( filterLine );
     m_FootprintFilterListBox->SetSelection( (int) m_FootprintFilterListBox->GetCount() - 1 );
 
@@ -736,31 +818,16 @@ void DIALOG_LIB_SYMBOL_PROPERTIES::OnAddFootprintFilter( wxCommandEvent& event )
 }
 
 
-void DIALOG_LIB_SYMBOL_PROPERTIES::OnDeleteFootprintFilter( wxCommandEvent& event )
-{
-    int ii = m_FootprintFilterListBox->GetSelection();
-
-    if( ii >= 0 )
-    {
-        m_FootprintFilterListBox->Delete( (unsigned) ii );
-
-        if( m_FootprintFilterListBox->GetCount() == 0 )
-            m_FootprintFilterListBox->SetSelection( wxNOT_FOUND );
-        else
-            m_FootprintFilterListBox->SetSelection( std::max( 0, ii - 1 ) );
-    }
-
-    OnModify();
-}
-
-
 void DIALOG_LIB_SYMBOL_PROPERTIES::OnEditFootprintFilter( wxCommandEvent& event )
 {
-    int idx = m_FootprintFilterListBox->GetSelection();
+    wxArrayInt selections;
+    int n = m_FootprintFilterListBox->GetSelections( selections );
 
-    if( idx >= 0 )
+    if( n > 0 )
     {
-        wxString filter = m_FootprintFilterListBox->GetStringSelection();
+        // Just edit the first one
+        int idx = selections[0];
+        wxString filter = m_FootprintFilterListBox->GetString( idx );
 
         WX_TEXT_ENTRY_DIALOG dlg( this, _( "Filter:" ), _( "Edit Footprint Filter" ), filter );
 
@@ -945,3 +1012,8 @@ void DIALOG_LIB_SYMBOL_PROPERTIES::OnSpinCtrlText( wxCommandEvent& event )
 }
 
 
+void DIALOG_LIB_SYMBOL_PROPERTIES::OnPageChanging( wxBookCtrlEvent& aEvent )
+{
+    if( !m_grid->CommitPendingChanges() )
+        aEvent.Veto();
+}

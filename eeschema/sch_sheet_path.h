@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023, 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -58,10 +58,6 @@ struct SCH_SYMBOL_INSTANCE
 };
 
 
-extern bool SortSymbolInstancesByProjectUuid( const SCH_SYMBOL_INSTANCE& aLhs,
-                                              const SCH_SYMBOL_INSTANCE& aRhs );
-
-
 /**
  * A simple container for sheet instance information.
  */
@@ -77,39 +73,35 @@ struct SCH_SHEET_INSTANCE
 
 
 /**
- * Complex hierarchies
+ * @defgroup hierarchical_schematics Hierarchical Schematics
  *
- * A hierarchical schematic uses sheets (hierarchical sheets) included in a given sheet.
- * Each sheet corresponds to a schematic drawing handled by a SCH_SCREEN structure.  A
- * SCH_SCREEN structure contains drawings, and have a filename to write its data.  Also a
- * SCH_SCREEN displays a sheet number and the name of the sheet.
+ * KiCad supports nesting schematics hierarchically to simplify the creation of complex
+ * schematics designs.  A hierarchical schematic uses hierarchical sheets (#SCH_SHEET objects)
+ * to reference a given schematic file (#SCH_SCREEN objects).  Each #SCH_SHEET corresponds to
+ * a schematic file handled by a #SCH_SCREEN object.  A #SCH_SCREEN object contains schematic
+ * drawings and has a filename to read/write its data.
  *
- * In simple (and flat) hierarchies a sheet is linked to a SCH_SCREEN, and a SCH_SCREEN is
- * used by the single hierarchical sheet.
+ * In simple hierarchies one #SCH_SHEET object is linked to one #SCH_SCREEN object.
  *
- * In complex hierarchies the same SCH_SCREEN (and its data) is shared by more than one sheet.
- * Therefore subsheets (like subsheets in a SCH_SCREEN shared by many sheets) can also be
- * shared. So the same SCH_SCREEN must handle different symbol references and unit selections
- * depending on which sheet is currently selected, and how a given subsheet is selected. Two
- * sheets share the same SCH_SCREEN (the same drawings) if they have the same filename.
+ * In complex hierarchies the a #SCH_SCREEN object shared by more than one #SCH_SHEET object.
+ * Therefore all sub-sheets can also be shared. So the same #SCH_SCREEN must handle different
+ * symbol references and unit selections depending on which sheet is currently selected, and
+ * how a given subsheet is selected. #SCH_SHEET objects share the same #SCH_SCREEN object if
+ * they have the same schematic file.
  *
- * In KiCad each symbol and sheet receives (when created) a uuid.  So each sheet has 2 id: its
- * uuid (which cannot change) and its name (that can be edited and therefore is not reliable
- * for strong identification).
- * A given sheet in a hierarchy is fully labeled by its path (or sheet path) that is the list
- * of uuids found to access it through the hierarchy.  The root sheet is /.  All  other sheets
- * have a path like /1234ABCD or /4567FEDC/AA2233DD/.  This path can be displayed as human
- * readable sheet name like: / or /sheet1/include_sheet/ or /sheet2/include_sheet/
+ * In KiCad each #SCH_SYMBOL and #SCH_SHEET receives a UUID when created.  These UUIDs are
+ * chained together to form #SCH_SHEET_PATH objects that allow access of instance data in the
+ * hierarchy.  The sheet paths have the form /ROOT_SHEET_UUID/SHEET_UUID/SUB_SHEET_UUID/...
  *
- * So to know for a given SCH_SCREEN (a given schematic drawings) we must:
- *   1) Handle all references possibilities.
- *   2) When acceded by a given selected sheet, display (update) the
- *      corresponding references and sheet path
+ * For a given #SCH_SCREEN #SCH_SHEET_PATH objects must:
+ *   1) Handle all #SCH_SYMBOL references and unit instance data.
+ *   2) Handle all #SCH_SHEET page number instance data.
+ *   2) Update the currently displayed sheet #SCH_SYMBOL references and #SCH_SHEET page numbers.
  *
- * The class SCH_SHEET_PATH handles paths used to access a sheet.  The class SCH_SHEET_LIST
+ * The class #SCH_SHEET_PATH handles paths used to access a sheet.  The class #SCH_SHEET_LIST
  * allows one to handle the full (or partial) list of sheets and their paths in a complex
- * hierarchy.  The class EDA_ScreenList allows one to handle the list of SCH_SCREEN. It is
- * useful  to clear or save data, but is not suitable to handle the full complex hierarchy
+ * hierarchy.  The class #SCH_SCREENS allows one to handle a list of #SCH_SCREEN objects. It is
+ * useful to clear or save data, but is not suitable to handle the full complex hierarchy
  * possibilities (usable in flat and simple hierarchies).
  */
 
@@ -270,6 +262,11 @@ public:
     ///< @copydoc SCH_SHEET_PATH::LastScreen()
     SCH_SCREEN* LastScreen() const;
 
+    bool GetExcludedFromSim() const;
+    bool GetExcludedFromBOM() const;
+    bool GetExcludedFromBoard() const;
+    bool GetDNP() const;
+
     /**
      * Fetch a SCH_ITEM by ID.
      */
@@ -425,7 +422,7 @@ protected:
     size_t                  m_current_hash;
     mutable wxString        m_cached_page_number;
 
-    int m_virtualPageNumber;           /// Page numbers are maintained by the sheet load order.
+    int m_virtualPageNumber;           ///< Page numbers are maintained by the sheet load order.
 
     std::map<std::pair<wxString, wxString>, bool> m_recursion_test_cache;
 };
@@ -456,10 +453,6 @@ struct SHEET_PATH_CMP
 };
 
 
-typedef std::vector< SCH_SHEET_PATH >            SCH_SHEET_PATHS;
-typedef SCH_SHEET_PATHS::iterator                SCH_SHEET_PATHS_ITER;
-
-
 /**
  * A container for handling #SCH_SHEET_PATH objects in a flattened hierarchy.
  *
@@ -468,7 +461,7 @@ typedef SCH_SHEET_PATHS::iterator                SCH_SHEET_PATHS_ITER;
  * be shared between these sheets and symbol references are specific to a sheet path.
  * When a sheet is entered, symbol references and sheet page number are updated.
  */
-class SCH_SHEET_LIST : public SCH_SHEET_PATHS
+class SCH_SHEET_LIST : public std::vector<SCH_SHEET_PATH>
 {
 public:
     /**
@@ -476,7 +469,7 @@ public:
      *
      * If aSheet == NULL, then this is an empty hierarchy which the user can populate.
      */
-    SCH_SHEET_LIST( SCH_SHEET* aSheet = nullptr, bool aCheckIntegrity = false );
+    SCH_SHEET_LIST( SCH_SHEET* aSheet = nullptr );
 
     ~SCH_SHEET_LIST() {}
 
@@ -490,7 +483,9 @@ public:
     void ClearModifyStatus();
 
     /**
-     * Fetch a SCH_ITEM by ID.  Also returns the sheet the item was found on in \a aPathOut.
+     * Fetch a SCH_ITEM by ID.
+     *
+     * Also returns the sheet the item was found on in \a aPathOut.
      */
     SCH_ITEM* GetItem( const KIID& aID, SCH_SHEET_PATH* aPathOut = nullptr ) const;
 
@@ -543,7 +538,8 @@ public:
      * @param aReferences List of sheets to populate.
      * @param aSheetPath Path to return sheets from
      */
-    void GetSheetsWithinPath( SCH_SHEET_PATHS& aSheets, const SCH_SHEET_PATH& aSheetPath ) const;
+    void GetSheetsWithinPath( std::vector<SCH_SHEET_PATH>& aSheets,
+                              const SCH_SHEET_PATH& aSheetPath ) const;
 
 
     /**
@@ -599,8 +595,8 @@ public:
      *
      * If \a aSheet is the root sheet, the full sheet path and sheet list are built.
      *
-     * The list will be ordered as per #SCH_SCREEN::GetSheets which results in sheets being ordered
-     * in the legacy way of using the X and Y positions of the sheets.
+     * The list will be ordered as per #SCH_SCREEN::BuildSheetList which results in sheets
+     * being ordered in the legacy way of using the X and Y positions of the sheets.
      *
      * @see #SortByPageNumbers to sort by page numbers
      *
@@ -634,7 +630,9 @@ public:
 
     /**
      * Update all of the symbol instance information using \a aSymbolInstances.
-     * WARNING: Do not call this on anything other than the full hierarchy.
+     *
+     * @warning Do not call this on anything other than the full hierarchy.
+     *
      * @param aSymbolInstances is the symbol path information loaded from the root schematic.
      */
     void UpdateSymbolInstanceData( const std::vector<SCH_SYMBOL_INSTANCE>& aSymbolInstances );
@@ -651,7 +649,7 @@ public:
     std::vector<KIID_PATH> GetPaths() const;
 
     /**
-     * Fetch the instance information for all of the sheets in the hiearchy.
+     * Fetch the instance information for all of the sheets in the hierarchy.
      *
      * @return all of the sheet instance data for the hierarchy.
      */
@@ -697,6 +695,17 @@ public:
     bool HasPath( const KIID_PATH& aPath ) const;
 
     bool ContainsSheet( const SCH_SHEET* aSheet ) const;
+
+    /**
+     * Return the ordinal sheet path of \a aScreen.
+     *
+     * @warning In order for this method to work correctly, the sheet list must be sorted by page
+     *          number.
+     *
+     * @return an optional #SCH_SHEET_PATH for the ordinal path of \a aScreen or an empty value
+     *         if \a aScreen has no ordinal sheet path in the list.
+     */
+    std::optional<SCH_SHEET_PATH> GetOrdinalPath( const SCH_SCREEN* aScreen ) const;
 
 private:
     SCH_SHEET_PATH  m_currentSheetPath;

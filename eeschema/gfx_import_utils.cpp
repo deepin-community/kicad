@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,7 +26,7 @@
 
 #include <stdint.h>
 #include <lib_symbol.h>
-#include <lib_shape.h>
+#include <sch_shape.h>
 #include <import_gfx/graphics_importer_lib_symbol.h>
 #include <import_gfx/svg_import_plugin.h>
 
@@ -91,7 +91,7 @@ std::unordered_map<uint32_t, SHAPE_POLY_SET> ConvertImageToPolygons( wxImage  im
 
     for( auto& [color, polySet] : colorPolys )
     {
-        polySet.Simplify( SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+        polySet.Simplify();
 
         for( int i = 0; i < polySet.OutlineCount(); i++ )
         {
@@ -114,12 +114,11 @@ void ConvertImageToLibShapes( LIB_SYMBOL* aSymbol, int unit, wxImage img, VECTOR
 
     for( auto& [color, polySet] : colorPolys )
     {
-        polySet.Fracture( SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+        polySet.Fracture();
 
         for( const SHAPE_POLY_SET::POLYGON& poly : polySet.CPolygons() )
         {
-            std::unique_ptr<LIB_SHAPE> shape =
-                    std::make_unique<LIB_SHAPE>( aSymbol, SHAPE_T::POLY );
+            auto shape = std::make_unique<SCH_SHAPE>( SHAPE_T::POLY, LAYER_DEVICE );
 
             shape->SetPolyShape( poly );
 
@@ -134,7 +133,7 @@ void ConvertImageToLibShapes( LIB_SYMBOL* aSymbol, int unit, wxImage img, VECTOR
 
             shape->SetUnit( unit );
 
-            shape->Offset( offset );
+            shape->Move( offset );
 
             aSymbol->AddDrawItem( shape.release(), false );
         }

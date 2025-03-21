@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mikolaj Wielgus
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -115,7 +115,12 @@ public:
     SIM_ENUM_PROPERTY( const wxString& aLabel, const wxString& aName, SIM_MODEL& aModel,
                        int aParamIndex, const wxArrayString& aValues );
 
+#if wxCHECK_VERSION( 3, 3, 0 )
+    bool IntToValue( wxVariant& aVariant, int aNumber,
+            wxPGPropValFormatFlags aArgFlags = wxPGPropValFormatFlags::Null ) const override;
+#else
     bool IntToValue( wxVariant& aVariant, int aNumber, int aArgFlags = 0 ) const override;
+#endif
 };
 
 #endif // SIM_PROPERTY_H

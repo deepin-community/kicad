@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,15 +27,24 @@
 WX_TEXT_ENTRY_DIALOG::WX_TEXT_ENTRY_DIALOG( wxWindow* aParent,
                                             const wxString& aFieldLabel,
                                             const wxString& aCaption,
-                                            const wxString& aDefaultValue ) :
+                                            const wxString& aDefaultValue,
+                                            bool aExtraWidth ) :
     WX_TEXT_ENTRY_DIALOG_BASE( aParent, wxID_ANY, aCaption, wxDefaultPosition, wxDefaultSize )
 {
-    m_label->SetLabel( aFieldLabel );
+    if( aFieldLabel.IsEmpty() )
+        m_label->Hide();
+    else
+        m_label->SetLabel( aFieldLabel );
+
     m_textCtrl->SetValue( aDefaultValue );
+    m_textCtrl->SetMinSize( FromDIP( aExtraWidth ? wxSize( 700, -1 ) : wxSize( 300, -1 ) ) );
 
     SetupStandardButtons();
 
     SetInitialFocus( m_textCtrl );
+
+    this->Layout();
+    m_mainSizer->Fit( this );
 }
 
 

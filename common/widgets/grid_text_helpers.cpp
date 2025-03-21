@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Jon Evans <jon@craftyjon.com>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -20,6 +20,7 @@
 
 #include <string_utils.h>
 #include <wx/stc/stc.h>
+#include <wx/dc.h>
 #include <widgets/grid_text_helpers.h>
 #include <widgets/wx_grid.h>
 #include <scintilla_tricks.h>
@@ -107,12 +108,12 @@ wxSize GRID_CELL_ESCAPED_TEXT_RENDERER::GetBestSize( wxGrid & aGrid, wxGridCellA
 //-------- GRID_CELL_STC_EDITOR -----------------------------------------------------------------
 //
 
-GRID_CELL_STC_EDITOR::GRID_CELL_STC_EDITOR( bool aIgnoreCase,
-                                            std::function<void( wxStyledTextEvent&,
-                                                                SCINTILLA_TRICKS* )> aOnChar ) :
-    m_scintillaTricks( nullptr ),
-    m_ignoreCase( aIgnoreCase ),
-    m_onChar( aOnChar )
+GRID_CELL_STC_EDITOR::GRID_CELL_STC_EDITOR(
+                        bool aIgnoreCase,
+                        std::function<void( wxStyledTextEvent&, SCINTILLA_TRICKS* )> onCharFn ) :
+        m_scintillaTricks( nullptr ),
+        m_ignoreCase( aIgnoreCase ),
+        m_onCharFn( std::move( onCharFn ) )
 { }
 
 
@@ -133,7 +134,7 @@ void GRID_CELL_STC_EDITOR::SetSize( const wxRect& aRect )
 
 void GRID_CELL_STC_EDITOR::Create( wxWindow* aParent, wxWindowID aId, wxEvtHandler* aEventHandler )
 {
-    m_control = new wxStyledTextCtrl( aParent, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+    m_control = new wxStyledTextCtrl( aParent, wxID_ANY, wxDefaultPosition, wxSize( 0, 0 ),
                                       wxBORDER_NONE );
 
     stc_ctrl()->SetTabIndents( false );
@@ -155,15 +156,17 @@ void GRID_CELL_STC_EDITOR::Create( wxWindow* aParent, wxWindowID aId, wxEvtHandl
 
     m_scintillaTricks = new SCINTILLA_TRICKS(
             stc_ctrl(), wxEmptyString, true,
-            // onAccept handler
+
+            // onAcceptFn
             [this]( wxKeyEvent& aEvent )
             {
                 HandleReturn( aEvent );
             },
-            // onCharAdded handler
+
+            // onCharFn
             [this]( wxStyledTextEvent& aEvent )
             {
-                m_onChar( aEvent, m_scintillaTricks );
+                m_onCharFn( aEvent, m_scintillaTricks );
             } );
 
     stc_ctrl()->Bind( wxEVT_KILL_FOCUS, &GRID_CELL_STC_EDITOR::onFocusLoss, this );
@@ -184,6 +187,44 @@ wxString GRID_CELL_STC_EDITOR::GetValue() const
 }
 
 
+void GRID_CELL_STC_EDITOR::StartingKey( wxKeyEvent& event )
+{
+    int ch;
+
+    bool isPrintable;
+
+#if wxUSE_UNICODE
+    ch = event.GetUnicodeKey();
+
+    if( ch != WXK_NONE )
+        isPrintable = true;
+    else
+#endif // wxUSE_UNICODE
+    {
+        ch = event.GetKeyCode();
+        isPrintable = ch >= WXK_SPACE && ch < WXK_START;
+    }
+
+    switch( ch )
+    {
+    case WXK_DELETE:
+        // Delete the initial character when starting to edit with DELETE.
+        stc_ctrl()->DeleteRange( 0, 1 );
+        break;
+
+    case WXK_BACK:
+        // Delete the last character when starting to edit with BACKSPACE.
+        stc_ctrl()->DeleteBack();
+        break;
+
+    default:
+        if( isPrintable )
+            stc_ctrl()->WriteText( static_cast<wxChar>( ch ) );
+        break;
+    }
+}
+
+
 void GRID_CELL_STC_EDITOR::Show( bool aShow, wxGridCellAttr* aAttr )
 {
     if( !aShow )
@@ -195,8 +236,7 @@ void GRID_CELL_STC_EDITOR::Show( bool aShow, wxGridCellAttr* aAttr )
 
 void GRID_CELL_STC_EDITOR::BeginEdit( int aRow, int aCol, wxGrid* aGrid )
 {
-    auto evtHandler = static_cast<wxGridCellEditorEvtHandler*>( m_control->GetEventHandler()
-                                                                );
+    auto evtHandler = static_cast<wxGridCellEditorEvtHandler*>( m_control->GetEventHandler() );
 
     // Don't immediately end if we get a kill focus event within BeginEdit
     evtHandler->SetInSetFocus( true );

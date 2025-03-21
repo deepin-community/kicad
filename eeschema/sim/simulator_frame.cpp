@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016-2023 CERN
- * Copyright (C) 2016-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -159,7 +159,7 @@ SIMULATOR_FRAME::SIMULATOR_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_reporter = new SIM_THREAD_REPORTER( this );
     m_simulator->SetReporter( m_reporter );
 
-    m_circuitModel = std::make_shared<SPICE_CIRCUIT_MODEL>( &m_schematicFrame->Schematic(), this );
+    m_circuitModel = std::make_shared<SPICE_CIRCUIT_MODEL>( &m_schematicFrame->Schematic() );
 
     setupTools();
     setupUIConditions();
@@ -276,6 +276,16 @@ void SIMULATOR_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
 }
 
 
+void SIMULATOR_FRAME::CommonSettingsChanged( int aFlags )
+{
+    KIWAY_PLAYER::CommonSettingsChanged( aFlags );
+
+    auto* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( m_toolManager->GetSettings() );
+    wxASSERT( cfg != nullptr );
+    m_ui->ApplyPreferences( cfg->m_Simulator.preferences );
+}
+
+
 WINDOW_SETTINGS* SIMULATOR_FRAME::GetWindowSettings( APP_SETTINGS_BASE* aCfg )
 {
     EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( aCfg );
@@ -333,7 +343,7 @@ void SIMULATOR_FRAME::UpdateTitle()
     if( unsaved )
         title += wxS( " " ) + _( "[Unsaved]" );
 
-    title += wxT( " \u2014 " ) + _( "Spice Simulator" );
+    title += wxT( " \u2014 " ) + _( "SPICE Simulator" );
 
     SetTitle( title );
 }
@@ -543,7 +553,7 @@ bool SIMULATOR_FRAME::LoadWorkbook( const wxString& aPath )
 
         // Successfully loading a workbook does not count as modifying it.  Clear the modified
         // flag after all the EVT_WORKBOOK_MODIFIED events have been processed.
-        CallAfter( [=]()
+        CallAfter( [this]()
                    {
                        m_workbookModified = false;
                    } );
@@ -733,6 +743,8 @@ void SIMULATOR_FRAME::setupUIConditions()
 
     mgr->SetConditions( EE_ACTIONS::exportPlotAsPNG,       ENABLE( havePlot ) );
     mgr->SetConditions( EE_ACTIONS::exportPlotAsCSV,       ENABLE( havePlot ) );
+    mgr->SetConditions( EE_ACTIONS::exportPlotToClipboard, ENABLE( havePlot ) );
+    mgr->SetConditions( EE_ACTIONS::exportPlotToSchematic, ENABLE( havePlot ) );
 
     mgr->SetConditions( ACTIONS::zoomUndo,                 ENABLE( haveZoomUndo ) );
     mgr->SetConditions( ACTIONS::zoomRedo,                 ENABLE( haveZoomRedo ) );

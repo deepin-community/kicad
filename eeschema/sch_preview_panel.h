@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,8 +28,9 @@
 #include <class_draw_panel_gal.h>
 
 
+class SCH_RENDER_SETTINGS;
+
 namespace KIGFX {
-    class SCH_RENDER_SETTINGS;
     class SCH_VIEW;
     namespace PREVIEW {
         class SELECTION_AREA;
@@ -52,7 +53,7 @@ public:
     /// @copydoc wxWindow::Refresh()
     void Refresh( bool aEraseBackground, const wxRect* aRect ) override;
 
-    KIGFX::SCH_RENDER_SETTINGS* GetRenderSettings() const;
+    SCH_RENDER_SETTINGS* GetRenderSettings() const;
 
 
 protected:

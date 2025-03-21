@@ -1,7 +1,7 @@
 /*
 * This program source code file is part of KiCad, a free EDA CAD application.
 *
-* Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -35,22 +35,16 @@ public:
 
     virtual bool MigrateFromLegacy( wxConfigBase* aLegacyConfig ) override;
 
+public:
     wxString m_BitmapFileName;
-
     wxString m_ConvertedFileName;
-
-    int m_Units;
-
-    int m_Threshold;
-
-    bool m_Negative;
-
-    int m_LastFormat;
-
-    int m_LastModLayer;
+    int      m_Units;
+    int      m_Threshold;
+    bool     m_Negative;
+    int      m_LastFormat;
+    int      m_LastLayer;
 
 protected:
-
     virtual std::string getLegacyFrameName() const override { return "Bmconverter_"; }
 };
 

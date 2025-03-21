@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 CERN
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -26,6 +26,7 @@
 #ifndef SEARCH_STACK_H_
 #define SEARCH_STACK_H_
 
+#include <kicommon.h>
 #include <wx/filefn.h>
 #include <wx/filename.h>
 #include <project.h>
@@ -38,10 +39,10 @@
  * reminder that anything you put in here means searching work at some point in time.
  * (An alternative is to simply know where something is.)
  */
-class SEARCH_STACK : public wxPathList, public PROJECT::_ELEM
+class KICOMMON_API SEARCH_STACK : public wxPathList, public PROJECT::_ELEM
 {
 public:
-    KICAD_T Type() override { return SEARCH_STACK_T; }
+    PROJECT::ELEM ProjectElementType() override { return PROJECT::ELEM::SEARCH_STACK; }
 
 #if defined(DEBUG)
     void Show( const wxString& aPrefix ) const;

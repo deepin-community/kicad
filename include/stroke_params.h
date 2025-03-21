@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,8 +21,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef STROKE_PARAMS_H
-#define STROKE_PARAMS_H
+#pragma once
 
 #include <map>
 #include <bitmaps.h>
@@ -30,9 +29,8 @@
 #include <gal/color4d.h>
 #include <wx/translation.h>
 #include <geometry/shape.h>
-#include <stroke_params_lexer.h>
 
-class STROKE_PARAMS_LEXER;
+class OUTPUTFORMATTER;
 class MSG_PANEL_ITEM;
 
 namespace KIGFX
@@ -64,13 +62,28 @@ struct LINE_STYLE_DESC
 };
 
 
-/*
- * Conversion map between LINE_STYLE values and style names displayed
+// A cover of LINE_STYLE for the properties manager (so that it can have different
+// strings from the normal LINE_STYLE)
+enum class WIRE_STYLE
+{
+    DEFAULT    = -1,
+    SOLID      = 0,
+    DASH,
+    DOT,
+    DASHDOT,
+    DASHDOTDOT
+};
+
+
+
+/**
+ * Conversion map between LINE_STYLE values and style names displayed.
  */
 extern const std::map<LINE_STYLE, struct LINE_STYLE_DESC> lineTypeNames;
 
 
-#define DEFAULT_STYLE _( "Default" )
+#define DEFAULT_LINE_STYLE_LABEL _( "Solid" )
+#define DEFAULT_WIRE_STYLE_LABEL _( "Default" )
 #define INDETERMINATE_STYLE _( "Leave unchanged" )
 
 
@@ -97,14 +110,14 @@ public:
     KIGFX::COLOR4D GetColor() const { return m_color; }
     void SetColor( const KIGFX::COLOR4D& aColor ) { m_color = aColor; }
 
-    bool operator!=( const STROKE_PARAMS& aOther )
+    bool operator!=( const STROKE_PARAMS& aOther ) const
     {
         return m_width != aOther.m_width
                 || m_lineStyle != aOther.m_lineStyle
                 || m_color != aOther.m_color;
     }
 
-    void Format( OUTPUTFORMATTER* out, const EDA_IU_SCALE& aIuScale, int nestLevel ) const;
+    void Format( OUTPUTFORMATTER* out, const EDA_IU_SCALE& aIuScale ) const;
 
     void GetMsgPanelInfo( UNITS_PROVIDER* aUnitsProvider, std::vector<MSG_PANEL_ITEM>& aList,
                           bool aIncludeStyle = true, bool aIncludeWidth = true );
@@ -115,33 +128,11 @@ public:
 
     static void Stroke( const SHAPE* aShape, LINE_STYLE aLineStyle, int aWidth,
                         const KIGFX::RENDER_SETTINGS* aRenderSettings,
-                        std::function<void( const VECTOR2I& a, const VECTOR2I& b )> aStroker );
+                        const std::function<void( const VECTOR2I& a,
+                                                  const VECTOR2I& b )>& aStroker );
 
 private:
     int            m_width;
     LINE_STYLE     m_lineStyle;
     KIGFX::COLOR4D m_color;
 };
-
-
-class STROKE_PARAMS_PARSER : public STROKE_PARAMS_LEXER
-{
-public:
-    STROKE_PARAMS_PARSER( LINE_READER* aReader, int iuPerMM ) :
-            STROKE_PARAMS_LEXER( aReader ),
-            m_iuPerMM( iuPerMM )
-    {
-    }
-
-    void ParseStroke( STROKE_PARAMS& aStroke );
-
-private:
-    int parseInt( const char* aText );
-    double parseDouble( const char* aText );
-
-private:
-    int  m_iuPerMM;
-};
-
-
-#endif  // STROKE_PARAMS_H

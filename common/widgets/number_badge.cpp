@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
- * Copyright (C) 2020 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -112,23 +112,16 @@ void NUMBER_BADGE::SetTextSize( int aSize )
 
 // OSX has prevalent badges in the application bar at the bottom of the screen so we try to
 // match those.  Other platforms may also need tweaks to spacing, fontweight, etc.
-#ifdef __WXMAC__
+#if defined( __WXMAC__ )
 #define BADGE_FONTWEIGHT wxFONTWEIGHT_NORMAL
 #define PLATFORM_FUDGE_X 0.92
 #define PLATFORM_FUDGE_Y 1.6
-#endif
-
-#ifdef __WXGTK__
+#else
 #define BADGE_FONTWEIGHT wxFONTWEIGHT_BOLD
 #define PLATFORM_FUDGE_X 1.0
 #define PLATFORM_FUDGE_Y 1.0
 #endif
 
-#ifdef __WXMSW__
-#define BADGE_FONTWEIGHT wxFONTWEIGHT_BOLD
-#define PLATFORM_FUDGE_X 1.0
-#define PLATFORM_FUDGE_Y 1.0
-#endif
 
 void NUMBER_BADGE::computeSize()
 {
@@ -190,5 +183,6 @@ void NUMBER_BADGE::onPaint( wxPaintEvent& aEvt )
 
     dc.SetFont( wxFont( m_textSize, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, BADGE_FONTWEIGHT ) );
     dc.SetTextForeground( m_textColour );
-    dc.DrawLabel( text, wxRect( wxPoint( 0, 0 ), clientSize ), wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL );
+    dc.DrawLabel( text, wxRect( wxPoint( 0, 0 ), clientSize ),
+                  wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL );
 }

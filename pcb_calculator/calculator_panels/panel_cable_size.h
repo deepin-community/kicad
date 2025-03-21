@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,10 +31,10 @@ class PCB_CALCULATOR_SETTINGS;
 class CABLE_SIZE_ENTRY
 {
 public:
-    CABLE_SIZE_ENTRY( wxString aName, double aRadius_meter );
+    CABLE_SIZE_ENTRY( const wxString& aName, double aRadius_meter );
 
-    wxString m_Name;
-    double   m_Radius;  // stored in meters
+    const wxString m_Name;
+    const double   m_Radius; // stored in meters
 };
 
 class PANEL_CABLE_SIZE : public PANEL_CABLE_SIZE_BASE

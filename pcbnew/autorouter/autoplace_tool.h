@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -40,7 +40,7 @@ public:
     void setTransitions() override;
 
 private:
-    int autoplace( std::vector<FOOTPRINT*>& aFootprints, bool aPlaceOffboard );
+    int autoplace( std::vector<FOOTPRINT*>& aFootprints );
 
     int autoplaceSelected( const TOOL_EVENT& aEvent );
     int autoplaceOffboard( const TOOL_EVENT& aEvent );

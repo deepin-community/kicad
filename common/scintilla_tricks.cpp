@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2023 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,6 +24,8 @@
 
 #include <string_utils.h>
 #include <scintilla_tricks.h>
+#include <widgets/wx_grid.h>
+#include <widgets/ui_common.h>
 #include <wx/stc/stc.h>
 #include <gal/color4d.h>
 #include <dialog_shim.h>
@@ -34,8 +36,8 @@
 
 SCINTILLA_TRICKS::SCINTILLA_TRICKS( wxStyledTextCtrl* aScintilla, const wxString& aBraces,
                                     bool aSingleLine,
-                                    std::function<void( wxKeyEvent& )> onAcceptHandler,
-                                    std::function<void( wxStyledTextEvent& )> onCharAddedHandler ) :
+                                    std::function<void( wxKeyEvent& )> onAcceptFn,
+                                    std::function<void( wxStyledTextEvent& )> onCharAddedFn ) :
         m_te( aScintilla ),
         m_braces( aBraces ),
         m_lastCaretPos( -1 ),
@@ -43,8 +45,8 @@ SCINTILLA_TRICKS::SCINTILLA_TRICKS( wxStyledTextCtrl* aScintilla, const wxString
         m_lastSelEnd( -1 ),
         m_suppressAutocomplete( false ),
         m_singleLine( aSingleLine ),
-        m_onAcceptHandler( onAcceptHandler ),
-        m_onCharAddedHandler( onCharAddedHandler )
+        m_onAcceptFn( std::move( onAcceptFn ) ),
+        m_onCharAddedFn( std::move( onCharAddedFn ) )
 {
     // Always use LF as eol char, regardless the platform
     m_te->SetEOLMode( wxSTC_EOL_LF );
@@ -148,16 +150,16 @@ bool isCtrlSlash( wxKeyEvent& aEvent )
     // OK, now the wxWidgets hacks start.
     // (We should abandon these if https://trac.wxwidgets.org/ticket/18911 gets resolved.)
 
-    // Many Latin America and European keyboars have have the / over the 7.  We know that
+    // Many Latin America and European keyboards have have the / over the 7.  We know that
     // wxWidgets messes this up and returns Shift+7 through GetUnicodeKey().  However, other
     // keyboards (such as France and Belgium) have 7 in the shifted position, so a Shift+7
     // *could* be legitimate.
 
     // However, we *are* checking Ctrl, so to assume any Shift+7 is a Ctrl-/ really only
     // disallows Ctrl+Shift+7 from doing something else, which is probably OK.  (This routine
-    // is only used in the Scintilla editor, not in the rest of Kicad.)
+    // is only used in the Scintilla editor, not in the rest of KiCad.)
 
-    // The other main shifted loation of / is over : (France and Belgium), so we'll sacrifice
+    // The other main shifted location of / is over : (France and Belgium), so we'll sacrifice
     // Ctrl+Shift+: too.
 
     if( aEvent.ShiftDown() && ( aEvent.GetUnicodeKey() == '7' || aEvent.GetUnicodeKey() == ':' ) )
@@ -173,7 +175,7 @@ bool isCtrlSlash( wxKeyEvent& aEvent )
 
 void SCINTILLA_TRICKS::onChar( wxStyledTextEvent& aEvent )
 {
-    m_onCharAddedHandler( aEvent );
+    m_onCharAddedFn( aEvent );
 }
 
 
@@ -215,7 +217,22 @@ void SCINTILLA_TRICKS::onCharHook( wxKeyEvent& aEvent )
         }
         else if( aEvent.GetKeyCode() == WXK_RETURN || aEvent.GetKeyCode() == WXK_NUMPAD_ENTER )
         {
+            int start = m_te->AutoCompPosStart();
+
             m_te->AutoCompComplete();
+
+            int finish = m_te->GetCurrentPos();
+
+            if( finish > start )
+            {
+                // Select the last substitution token (if any) in the autocompleted text
+
+                int selStart = m_te->FindText( finish, start, "<" );
+                int selEnd = m_te->FindText( finish, start, ">" );
+
+                if( selStart > start && selEnd <= finish && selEnd > selStart )
+                    m_te->SetSelection( selStart, selEnd + 1 );
+            }
         }
         else
         {
@@ -236,7 +253,7 @@ void SCINTILLA_TRICKS::onCharHook( wxKeyEvent& aEvent )
         wxStyledTextEvent event;
         event.SetKey( ' ' );
         event.SetModifiers( wxMOD_CONTROL );
-        m_onCharAddedHandler( event );
+        m_onCharAddedFn( event );
 
         return;
     }
@@ -247,7 +264,7 @@ void SCINTILLA_TRICKS::onCharHook( wxKeyEvent& aEvent )
     if( ( aEvent.GetKeyCode() == WXK_RETURN || aEvent.GetKeyCode() == WXK_NUMPAD_ENTER )
         && ( m_singleLine || aEvent.ShiftDown() ) )
     {
-        m_onAcceptHandler( aEvent );
+        m_onAcceptFn( aEvent );
     }
     else if( ConvertSmartQuotesAndDashes( &c ) )
     {
@@ -255,6 +272,11 @@ void SCINTILLA_TRICKS::onCharHook( wxKeyEvent& aEvent )
     }
     else if( aEvent.GetKeyCode() == WXK_TAB )
     {
+        wxWindow* ancestor = m_te->GetParent();
+
+        while( ancestor && !dynamic_cast<WX_GRID*>( ancestor ) )
+            ancestor = ancestor->GetParent();
+
         if( aEvent.ControlDown() )
         {
             int flags = 0;
@@ -262,13 +284,49 @@ void SCINTILLA_TRICKS::onCharHook( wxKeyEvent& aEvent )
             if( !aEvent.ShiftDown() )
                 flags |= wxNavigationKeyEvent::IsForward;
 
-            wxWindow* parent = m_te->GetParent();
+            if( DIALOG_SHIM* dlg = dynamic_cast<DIALOG_SHIM*>( wxGetTopLevelParent( m_te ) ) )
+                dlg->NavigateIn( flags );
+        }
+        else if( dynamic_cast<WX_GRID*>( ancestor ) )
+        {
+            WX_GRID* grid = static_cast<WX_GRID*>( ancestor );
+            int      row = grid->GetGridCursorRow();
+            int      col = grid->GetGridCursorCol();
 
-            while( parent && dynamic_cast<DIALOG_SHIM*>( parent ) == nullptr )
-                parent = parent->GetParent();
+            if( aEvent.ShiftDown() )
+            {
+                if( col > 0 )
+                {
+                    col--;
+                }
+                else if( row > 0 )
+                {
+                    col = (int) grid->GetNumberCols() - 1;
 
-            if( parent )
-                parent->NavigateIn( flags );
+                    if( row > 0 )
+                        row--;
+                    else
+                        row = (int) grid->GetNumberRows() - 1;
+                }
+            }
+            else
+            {
+                if( col < (int) grid->GetNumberCols() - 1 )
+                {
+                    col++;
+                }
+                else if( row < grid->GetNumberRows() - 1 )
+                {
+                    col = 0;
+
+                    if( row < grid->GetNumberRows() - 1 )
+                        row++;
+                    else
+                        row = 0;
+                }
+            }
+
+            grid->SetGridCursor( row, col );
         }
         else
         {
@@ -291,10 +349,22 @@ void SCINTILLA_TRICKS::onCharHook( wxKeyEvent& aEvent )
     else if( aEvent.GetModifiers() == wxMOD_CONTROL && aEvent.GetKeyCode() == 'X' )
     {
         m_te->Cut();
+
+        if( wxTheClipboard->Open() )
+        {
+            wxTheClipboard->Flush(); // Allow data to be available after closing KiCad
+            wxTheClipboard->Close();
+        }
     }
     else if( aEvent.GetModifiers() == wxMOD_CONTROL && aEvent.GetKeyCode() == 'C' )
     {
         m_te->Copy();
+
+        if( wxTheClipboard->Open() )
+        {
+            wxTheClipboard->Flush(); // Allow data to be available after closing KiCad
+            wxTheClipboard->Close();
+        }
     }
     else if( aEvent.GetModifiers() == wxMOD_CONTROL && aEvent.GetKeyCode() == 'V' )
     {
@@ -495,8 +565,8 @@ void SCINTILLA_TRICKS::onScintillaUpdateUI( wxStyledTextEvent& aEvent )
 }
 
 
-void SCINTILLA_TRICKS::DoTextVarAutocomplete( std::function<void( const wxString& crossRef,
-                                                                  wxArrayString* tokens )> aTokenProvider )
+void SCINTILLA_TRICKS::DoTextVarAutocomplete(
+        const std::function<void( const wxString& xRef, wxArrayString* tokens )>& getTokensFn )
 {
     wxArrayString autocompleteTokens;
     int           text_pos = m_te->GetCurrentPos();
@@ -506,7 +576,8 @@ void SCINTILLA_TRICKS::DoTextVarAutocomplete( std::function<void( const wxString
     auto textVarRef =
             [&]( int pos )
             {
-                return pos >= 2 && m_te->GetCharAt( pos-2 ) == '$' && m_te->GetCharAt( pos-1 ) == '{';
+                return pos >= 2 && m_te->GetCharAt( pos-2 ) == '$'
+                                && m_te->GetCharAt( pos-1 ) == '{';
             };
 
     // Check for cross-reference
@@ -517,13 +588,13 @@ void SCINTILLA_TRICKS::DoTextVarAutocomplete( std::function<void( const wxString
         if( textVarRef( refStart ) )
         {
             partial = m_te->GetRange( start, text_pos );
-            aTokenProvider( m_te->GetRange( refStart, start-1 ), &autocompleteTokens );
+            getTokensFn( m_te->GetRange( refStart, start-1 ), &autocompleteTokens );
         }
     }
     else if( textVarRef( start ) )
     {
         partial = m_te->GetTextRange( start, text_pos );
-        aTokenProvider( wxEmptyString, &autocompleteTokens );
+        getTokensFn( wxEmptyString, &autocompleteTokens );
     }
 
     DoAutocomplete( partial, autocompleteTokens );
@@ -555,7 +626,8 @@ void SCINTILLA_TRICKS::DoAutocomplete( const wxString& aPartial, const wxArraySt
                                 return first.CmpNoCase( second );
                             });
 
-        m_te->AutoCompShow( aPartial.size(), wxJoin( matchedTokens, m_te->AutoCompGetSeparator() ) );
+        m_te->AutoCompSetSeparator( '\t' );
+        m_te->AutoCompShow( aPartial.size(), wxJoin( matchedTokens, '\t' ) );
     }
 }
 

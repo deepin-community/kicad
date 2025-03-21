@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -68,14 +68,14 @@ public:
         m_isSymbolEditor = m_frame->IsType( FRAME_SCH_SYMBOL_EDITOR );
 
         // A basic context menu.  Many (but not all) tools will choose to override this.
-        auto& ctxMenu = m_menu.GetMenu();
+        auto& ctxMenu = m_menu->GetMenu();
 
         // cancel current tool goes in main context menu at the top if present
         ctxMenu.AddItem( ACTIONS::cancelInteractive, SELECTION_CONDITIONS::ShowAlways, 1 );
         ctxMenu.AddSeparator( 1 );
 
         // Finally, add the standard zoom/grid items
-        m_frame->AddStandardSubMenus( m_menu );
+        m_frame->AddStandardSubMenus( *m_menu.get() );
 
         return true;
     }
@@ -119,6 +119,7 @@ protected:
 
         case SCH_PIN_T:
         case SCH_FIELD_T:
+        case SCH_TABLECELL_T:
             getView()->Update( aItem );
             getView()->Update( aItem->GetParent() );
 
@@ -132,6 +133,8 @@ protected:
 
             if( aUpdateRTree && dynamic_cast<SCH_ITEM*>( aItem ) )
                 m_frame->GetScreen()->Update( static_cast<SCH_ITEM*>( aItem ) );
+
+            break;
         }
     }
 
@@ -198,21 +201,5 @@ protected:
     bool               m_isSymbolEditor;
 };
 
-
-// For LibEdit
-inline VECTOR2I mapCoords( const wxPoint& aCoord )
-{
-    return VECTOR2I( aCoord.x, -aCoord.y );
-}
-
-inline VECTOR2I mapCoords( const VECTOR2I& aCoord )
-{
-    return VECTOR2I( aCoord.x, -aCoord.y );
-}
-
-inline VECTOR2I mapCoords( const int x, const int y )
-{
-    return VECTOR2I( x, -y );
-}
 
 #endif

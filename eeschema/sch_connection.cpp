@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 CERN
- * Copyright (C) 2021-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Jon Evans <jon@craftyjon.com>
  *
@@ -85,7 +85,8 @@ SCH_CONNECTION::SCH_CONNECTION( CONNECTION_GRAPH* aGraph ) :
 
 
 SCH_CONNECTION::SCH_CONNECTION( SCH_CONNECTION& aOther ) :
-        m_parent( nullptr )
+        m_parent( nullptr ),
+        m_driver( nullptr )
 {
     Reset();
     Clone( aOther );
@@ -239,12 +240,15 @@ void SCH_CONNECTION::Reset()
 void SCH_CONNECTION::Clone( const SCH_CONNECTION& aOther )
 {
     m_graph = aOther.m_graph;
+
     // Note: m_lastDriver is not cloned as it needs to be the last driver of *this* connection
     m_driver = aOther.Driver();
     m_sheet  = aOther.Sheet();
+
     // Note: m_local_sheet is not cloned
     m_name   = aOther.m_name;
     m_type   = aOther.m_type;
+
     // Note: m_local_name is not cloned if not set yet
     if( m_local_name.IsEmpty() )
     {
@@ -253,12 +257,14 @@ void SCH_CONNECTION::Clone( const SCH_CONNECTION& aOther )
     }
 
     m_prefix       = aOther.Prefix();
+
     // m_bus_prefix is not cloned; only used for local names
     m_suffix       = aOther.Suffix();
     m_net_code     = aOther.NetCode();
     m_bus_code     = aOther.BusCode();
     m_vector_start = aOther.VectorStart();
     m_vector_end   = aOther.VectorEnd();
+
     // Note: m_vector_index is not cloned
     m_vector_prefix = aOther.VectorPrefix();
 
@@ -321,15 +327,19 @@ bool SCH_CONNECTION::IsDriver() const
     case SCH_HIER_LABEL_T:
     case SCH_SHEET_PIN_T:
     case SCH_SHEET_T:
-    case LIB_PIN_T:
         return true;
 
     case SCH_PIN_T:
     {
-        SCH_PIN* pin = static_cast<SCH_PIN*>( Parent() );
+        const SCH_PIN* pin = static_cast<const SCH_PIN*>( Parent() );
 
-        // Only annotated symbols should drive nets.
-        return pin->IsGlobalPower() || pin->GetParentSymbol()->IsAnnotated( &m_sheet );
+        if( const SCH_SYMBOL* symbol = dynamic_cast<const SCH_SYMBOL*>( pin->GetParentSymbol() ) )
+        {
+            // Only annotated symbols should drive nets.
+            return pin->IsGlobalPower() || symbol->IsAnnotated( &m_sheet );
+        }
+
+        return true;
     }
 
     default:
@@ -463,7 +473,9 @@ void SCH_CONNECTION::AppendInfoToMsgPanel( std::vector<MSG_PANEL_ITEM>& aList ) 
     {
         UNITS_PROVIDER unitsProvider( schIUScale, EDA_UNITS::MILLIMETRES );
 
-        msg.Printf( wxS( "%s at %p" ), driver->GetItemDescription( &unitsProvider ), driver );
+        msg.Printf( wxS( "%s at %p" ),
+                    driver->GetItemDescription( &unitsProvider, false ),
+                    driver );
         aList.emplace_back( wxT( "Connection Source" ), msg );
     }
 #endif
@@ -513,7 +525,6 @@ wxString SCH_CONNECTION::PrintBusForUI( const wxString& aGroup )
     size_t   groupLen = aGroup.length();
     size_t   i = 0;
     wxString ret;
-    int      braceNesting = 0;
 
     // Parse prefix
     //
@@ -521,13 +532,11 @@ wxString SCH_CONNECTION::PrintBusForUI( const wxString& aGroup )
     {
         if( isSuperSubOverbar( aGroup[i] ) && i + 1 < groupLen && aGroup[i+1] == '{' )
         {
-            braceNesting++;
             i++;
             continue;
         }
         else if( aGroup[i] == '}' )
         {
-            braceNesting--;
             continue;
         }
 
@@ -545,13 +554,11 @@ wxString SCH_CONNECTION::PrintBusForUI( const wxString& aGroup )
     {
         if( isSuperSubOverbar( aGroup[i] ) && i + 1 < groupLen && aGroup[i+1] == '{' )
         {
-            braceNesting++;
             i++;
             continue;
         }
         else if( aGroup[i] == '}' )
         {
-            braceNesting--;
             continue;
         }
 

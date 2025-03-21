@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.0.0-0-g0efcecf)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -33,7 +33,6 @@ class STD_BITMAP_BUTTON;
 
 ///////////////////////////////////////////////////////////////////////////
 
-
 ///////////////////////////////////////////////////////////////////////////////
 /// Class PANEL_GRID_SETTINGS_BASE
 ///////////////////////////////////////////////////////////////////////////////
@@ -45,6 +44,7 @@ class PANEL_GRID_SETTINGS_BASE : public RESETTABLE_PANEL
 		wxStaticText* m_gridsLabel;
 		wxListBox* m_currentGridCtrl;
 		STD_BITMAP_BUTTON* m_addGridButton;
+		STD_BITMAP_BUTTON* m_editGridButton;
 		STD_BITMAP_BUTTON* m_moveUpButton;
 		STD_BITMAP_BUTTON* m_moveDownButton;
 		STD_BITMAP_BUTTON* m_removeGridButton;
@@ -70,10 +70,15 @@ class PANEL_GRID_SETTINGS_BASE : public RESETTABLE_PANEL
 		wxChoice* m_gridOverrideGraphicsChoice;
 
 		// Virtual event handlers, override them in your derived class
+		virtual void OnEditGrid( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnAddGrid( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnUpdateEditGrid( wxUpdateUIEvent& event ) { event.Skip(); }
 		virtual void OnMoveGridUp( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnUpdateMoveUp( wxUpdateUIEvent& event ) { event.Skip(); }
 		virtual void OnMoveGridDown( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnUpdateMoveDown( wxUpdateUIEvent& event ) { event.Skip(); }
 		virtual void OnRemoveGrid( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnUpdateRemove( wxUpdateUIEvent& event ) { event.Skip(); }
 
 
 	public:

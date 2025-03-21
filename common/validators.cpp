@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2004-2019 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2018 CERN
  *
  * This program is free software; you can redistribute it and/or
@@ -221,7 +221,7 @@ bool REGEX_VALIDATOR::Validate( wxWindow* aParent )
     if( !valid )
     {
         m_validatorWindow->SetFocus();
-        DisplayError( aParent, wxString::Format( _( "Incorrect value: %s" ), value ) );
+        DisplayErrorMessage( aParent, wxString::Format( _( "Incorrect value: %s" ), value ) );
         return false;
     }
 
@@ -360,6 +360,7 @@ bool FIELD_VALIDATOR::Validate( wxWindow* aParent )
 
     return DoValidate( val, aParent );
 }
+
 
 bool FIELD_VALIDATOR::DoValidate( const wxString& aValue, wxWindow* aParent )
 {

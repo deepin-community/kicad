@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 Jean-Pierre Charras  jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -39,9 +39,11 @@ PANEL_GERBVIEW_EXCELLON_SETTINGS::PANEL_GERBVIEW_EXCELLON_SETTINGS( wxWindow* aP
 
 bool PANEL_GERBVIEW_EXCELLON_SETTINGS::TransferDataToWindow( )
 {
-    GERBVIEW_SETTINGS* config = Pgm().GetSettingsManager().GetAppSettings<GERBVIEW_SETTINGS>();
+    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+    GERBVIEW_SETTINGS* cfg = mgr.GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" );
     EXCELLON_DEFAULTS  curr_settings;
-    config->GetExcellonDefaults( curr_settings );
+
+    cfg->GetExcellonDefaults( curr_settings );
 
     applySettingsToPanel( curr_settings );
 
@@ -51,16 +53,17 @@ bool PANEL_GERBVIEW_EXCELLON_SETTINGS::TransferDataToWindow( )
 
 bool PANEL_GERBVIEW_EXCELLON_SETTINGS::TransferDataFromWindow()
 {
-    GERBVIEW_SETTINGS* config = Pgm().GetSettingsManager().GetAppSettings<GERBVIEW_SETTINGS>();
+    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+    GERBVIEW_SETTINGS* cfg = mgr.GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" );
 
-    config->m_ExcellonDefaults.m_UnitsMM = m_rbUnits->GetSelection() != 0;
-    config->m_ExcellonDefaults.m_LeadingZero = m_rbZeroFormat->GetSelection();
+    cfg->m_ExcellonDefaults.m_UnitsMM = m_rbUnits->GetSelection() != 0;
+    cfg->m_ExcellonDefaults.m_LeadingZero = m_rbZeroFormat->GetSelection();
     // The first value of these param is 2, not 0
     #define FIRST_VALUE 2
-    config->m_ExcellonDefaults.m_MmIntegerLen = m_choiceIntegerMM->GetSelection()+FIRST_VALUE;
-    config->m_ExcellonDefaults.m_MmMantissaLen = m_choiceMantissaMM->GetSelection()+FIRST_VALUE;
-    config->m_ExcellonDefaults.m_InchIntegerLen = m_choiceIntegerInch->GetSelection()+FIRST_VALUE;
-    config->m_ExcellonDefaults.m_InchMantissaLen = m_choiceMantissaInch->GetSelection()+FIRST_VALUE;
+    cfg->m_ExcellonDefaults.m_MmIntegerLen = m_choiceIntegerMM->GetSelection()+FIRST_VALUE;
+    cfg->m_ExcellonDefaults.m_MmMantissaLen = m_choiceMantissaMM->GetSelection()+FIRST_VALUE;
+    cfg->m_ExcellonDefaults.m_InchIntegerLen = m_choiceIntegerInch->GetSelection()+FIRST_VALUE;
+    cfg->m_ExcellonDefaults.m_InchMantissaLen = m_choiceMantissaInch->GetSelection()+FIRST_VALUE;
 
     return true;
 }

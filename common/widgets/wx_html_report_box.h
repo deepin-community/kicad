@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2022 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -35,6 +35,8 @@ public:
                         const wxPoint& pos = wxDefaultPosition,
                         const wxSize& size = wxSize( 500,300 ), long style = wxTAB_TRAVERSAL );
 
+    ~WX_HTML_REPORT_BOX();
+
     REPORTER& Report( const wxString& aText, SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED ) override;
 
     bool HasMessage() const override { return !m_messages.empty(); }
@@ -44,13 +46,15 @@ public:
 
     /**
      * In immediate mode, messages are flushed as they are added.
+     *
      * Required for progress-related reports, but can be very slow for larger reports.
      */
     void SetImmediateMode() { m_immediateMode = true; }
 
     /**
      * Build the HTML messages page.
-     * Call it if the immediate mode is not activated to be able to display them
+     *
+     * Call it if the immediate mode is not activated to be able to display them.
      */
     void Flush();
 
@@ -61,17 +65,19 @@ public:
 
 private:
     void onThemeChanged( wxSysColourChangedEvent &aEvent );
+    void onRightClick( wxMouseEvent& event );
+    void onMenuEvent( wxMenuEvent& event );
 
     wxString generateHtml( const wxString& aLine );
 
 private:
     EDA_UNITS             m_units;
 
-    ///< Indicates messages should be flushed as they are added.  Required for progress-related
-    ///< reports, but can be very slow for larger reports.
+    /// Indicates messages should be flushed as they are added.  Required for progress-related
+    /// reports, but can be very slow for larger reports.
     bool                  m_immediateMode;
 
-    ///< copy of the report, stored for filtering
+    /// copy of the report, stored for filtering.
     std::vector<wxString> m_messages;
 };
 

@@ -73,6 +73,13 @@ specified in the corresponding schematic symbol.
 
 If unchecked, footprints that are already in the PCB will not be changed, even
 if the schematic symbol is updated to specify a different footprint.
+
+| Delete/replace footprints even if locked
+| If checked, locking a footprint will not affect whether a footprint is deleted
+or replaced based on changes in the schematic.
+
+If unchecked, locked footprints will never be deleted or replaced even if they
+otherwise would be.
 |===
 
 [[backannotation]]

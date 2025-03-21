@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -54,6 +54,8 @@ PANEL_COMMON_SETTINGS::PANEL_COMMON_SETTINGS( wxWindow* aParent )
     m_antialiasingFallback->Show( false );
     m_antialiasingFallbackLabel->Show( false );
 #endif
+
+    ShowFileManagerWidgets( ADVANCED_CFG::GetCfg().m_EnableLibDir );
 
     m_textEditorBtn->SetBitmap( KiBitmapBundle( BITMAPS::small_folder ) );
     m_pdfViewerBtn->SetBitmap( KiBitmapBundle( BITMAPS::small_folder ) );
@@ -143,6 +145,8 @@ bool PANEL_COMMON_SETTINGS::TransferDataToWindow()
 
     applySettingsToPanel( *commonSettings );
 
+    m_textCtrlFileManager->SetValue( commonSettings->m_System.file_explorer );
+
     // TODO(JE) Move these into COMMON_SETTINGS probably
     m_textEditorPath->SetValue( Pgm().GetTextEditor( false ) );
     m_defaultPDFViewer->SetValue( Pgm().UseSystemPdfBrowser() );
@@ -157,6 +161,8 @@ bool PANEL_COMMON_SETTINGS::TransferDataToWindow()
 bool PANEL_COMMON_SETTINGS::TransferDataFromWindow()
 {
     COMMON_SETTINGS* commonSettings = Pgm().GetCommonSettings();
+
+    commonSettings->m_System.file_explorer = m_textCtrlFileManager->GetValue();
 
     commonSettings->m_System.autosave_interval = m_SaveTime->GetValue() * 60;
     commonSettings->m_System.file_history_size = m_fileHistorySize->GetValue();
@@ -189,6 +195,8 @@ bool PANEL_COMMON_SETTINGS::TransferDataFromWindow()
     commonSettings->m_Appearance.apply_icon_scale_to_fonts = m_scaleFonts->GetValue();
 
     commonSettings->m_Appearance.show_scrollbars = m_showScrollbars->GetValue();
+
+    commonSettings->m_Appearance.grid_striping = m_gridStriping->GetValue();
 
     double dimmingPercent = 80;
     m_highContrastCtrl->GetValue().ToDouble( &dimmingPercent );
@@ -276,6 +284,8 @@ void PANEL_COMMON_SETTINGS::applySettingsToPanel( COMMON_SETTINGS& aSettings )
     m_checkBoxIconsInMenus->SetValue( aSettings.m_Appearance.use_icons_in_menus );
     m_scaleFonts->SetValue( aSettings.m_Appearance.apply_icon_scale_to_fonts );
 
+    m_gridStriping->SetValue( aSettings.m_Appearance.grid_striping );
+
     double dimmingPercent = aSettings.m_Appearance.hicontrast_dimming_factor * 100.0f;
     m_highContrastCtrl->SetValue( wxString::Format( "%.0f", dimmingPercent ) );
 
@@ -328,6 +338,28 @@ void PANEL_COMMON_SETTINGS::OnTextEditorClick( wxCommandEvent& event )
     // value will be retained.
     if( !editorname.IsEmpty() )
         m_textEditorPath->SetValue( editorname );
+}
+
+
+void PANEL_COMMON_SETTINGS::ShowFileManagerWidgets( bool aBool )
+{
+    m_staticTextFileManager->Show( aBool );
+    m_textCtrlFileManager->Show( aBool );
+
+    if( aBool )
+    {
+#if defined( __WINDOWS__ )
+        wxString msg = _( "Default 'explorer.exe /n,/select,%F' for this OS." );
+        m_textCtrlFileManager->SetToolTip( msg );
+        wxString str = "%F";
+#else
+        wxString msg = _( "File explorer command.\nexample:" ) + wxS( " 'nemo -n %F'" );
+        m_textCtrlFileManager->SetToolTip( msg );
+        wxString str= " %F";
+#endif
+        msg = _( "Explorer command with mandatory '%s' suffix after last entered character." );
+        m_staticTextFileManager->SetToolTip( wxString::Format( msg, str ) );
+    }
 }
 
 

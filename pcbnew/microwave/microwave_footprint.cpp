@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -80,6 +80,7 @@ FOOTPRINT* MICROWAVE_TOOL::createFootprint( MICROWAVE_FOOTPRINT_SHAPE aFootprint
     wxString             value = editFrame->StringFromValue( gap_size );
     WX_TEXT_ENTRY_DIALOG dlg( editFrame, msg, _( "Create Microwave Footprint" ), value );
 
+    // TODO: why is this QuasiModal?
     if( dlg.ShowQuasiModal() != wxID_OK )
         return nullptr; // cancelled by user
 
@@ -94,6 +95,7 @@ FOOTPRINT* MICROWAVE_TOOL::createFootprint( MICROWAVE_FOOTPRINT_SHAPE aFootprint
         WX_TEXT_ENTRY_DIALOG angledlg( editFrame, _( "Angle in degrees:" ),
                                        _( "Create Microwave Footprint" ), msg );
 
+        // TODO: why is this QuasiModal?
         if( angledlg.ShowQuasiModal() != wxID_OK )
             return nullptr; // cancelled by user
 
@@ -126,28 +128,29 @@ FOOTPRINT* MICROWAVE_TOOL::createFootprint( MICROWAVE_FOOTPRINT_SHAPE aFootprint
     switch( aFootprintShape )
     {
     case MICROWAVE_FOOTPRINT_SHAPE::GAP:     //Gap :
-        offsetX = -( gap_size + pad->GetSize().x ) / 2;
+        offsetX = -( gap_size + pad->GetSize( PADSTACK::ALL_LAYERS ).x ) / 2;
 
         pad->SetX( pad->GetPosition().x + offsetX );
 
         pad = *( it + 1 );
 
-        pad->SetX( pad->GetPosition().x + offsetX + gap_size + pad->GetSize().x );
+        pad->SetX( pad->GetPosition().x + offsetX + gap_size + pad->GetSize( PADSTACK::ALL_LAYERS ).x );
         break;
 
     case MICROWAVE_FOOTPRINT_SHAPE::STUB:     //Stub :
         pad->SetNumber( wxT( "1" ) );
-        offsetY = -( gap_size + pad->GetSize().y ) / 2;
+        offsetY = -( gap_size + pad->GetSize( PADSTACK::ALL_LAYERS ).y ) / 2;
 
         pad = *( it + 1 );
-        pad->SetSize( VECTOR2I( pad->GetSize().x, gap_size ) );
+        pad->SetSize( PADSTACK::ALL_LAYERS,
+                      VECTOR2I( pad->GetSize( PADSTACK::ALL_LAYERS ).x, gap_size ) );
         pad->SetY( pad->GetPosition().y + offsetY );
         break;
 
     case MICROWAVE_FOOTPRINT_SHAPE::STUB_ARC:     // Arc Stub created by a polygonal approach:
     {
-        pad->SetShape( PAD_SHAPE::CUSTOM );
-        pad->SetAnchorPadShape( PAD_SHAPE::RECTANGLE );
+        pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CUSTOM );
+        pad->SetAnchorPadShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::RECTANGLE );
 
         int numPoints = ( angle.AsDegrees() / 5.0 ) + 3;
         std::vector<VECTOR2I> polyPoints;
@@ -172,7 +175,7 @@ FOOTPRINT* MICROWAVE_TOOL::createFootprint( MICROWAVE_FOOTPRINT_SHAPE aFootprint
         // Close the polygon:
         polyPoints.push_back( polyPoints[0] );
 
-        pad->AddPrimitivePoly( polyPoints, 0, true ); // add a polygonal basic shape
+        pad->AddPrimitivePoly( PADSTACK::ALL_LAYERS, polyPoints, 0, true ); // add a polygonal basic shape
         break;
     }
 
@@ -192,7 +195,7 @@ FOOTPRINT* MICROWAVE_TOOL::createBaseFootprint( const wxString& aValue,
 {
     PCB_EDIT_FRAME& editFrame = *getEditFrame<PCB_EDIT_FRAME>();
 
-    FOOTPRINT* footprint = editFrame.CreateNewFootprint( aValue, wxEmptyString, true );
+    FOOTPRINT* footprint = editFrame.CreateNewFootprint( aValue, wxEmptyString );
 
     footprint->SetAttributes( FP_EXCLUDE_FROM_POS_FILES | FP_EXCLUDE_FROM_BOM );
 
@@ -215,12 +218,12 @@ FOOTPRINT* MICROWAVE_TOOL::createBaseFootprint( const wxString& aValue,
         footprint->Add( pad, ADD_MODE::INSERT );
 
         int tw = editFrame.GetDesignSettings().GetCurrentTrackWidth();
-        pad->SetSize( VECTOR2I( tw, tw ) );
+        pad->SetSize( PADSTACK::ALL_LAYERS, VECTOR2I( tw, tw ) );
 
         pad->SetPosition( footprint->GetPosition() );
-        pad->SetShape( PAD_SHAPE::RECTANGLE );
+        pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::RECTANGLE );
         pad->SetAttribute( PAD_ATTRIB::SMD );
-        pad->SetLayerSet( F_Cu );
+        pad->SetLayerSet( { F_Cu } );
 
         pad->SetNumber( wxString::Format( wxT( "%d" ), pad_num ) );
         pad_num++;

@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.0-39-g3487c3cb)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -22,14 +22,14 @@ DIALOG_PLOT_SCHEMATIC_BASE::DIALOG_PLOT_SCHEMATIC_BASE( wxWindow* parent, wxWind
 	wxBoxSizer* bSizerDir;
 	bSizerDir = new wxBoxSizer( wxHORIZONTAL );
 
-	m_staticTextOutputDirectory = new wxStaticText( this, wxID_ANY, _("Output directory:"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_staticTextOutputDirectory->Wrap( -1 );
-	bSizerDir->Add( m_staticTextOutputDirectory, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5 );
+	m_outputPathLabel = new wxStaticText( this, wxID_ANY, _("Output directory:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_outputPathLabel->Wrap( -1 );
+	bSizerDir->Add( m_outputPathLabel, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_outputDirectoryName = new wxTextCtrl( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
-	m_outputDirectoryName->SetToolTip( _("Target directory for plot files. Can be absolute or relative to the schematic main file location.") );
+	m_outputPath = new wxTextCtrl( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	m_outputPath->SetToolTip( _("Target directory for plot files. Can be absolute or relative to the schematic main file location.") );
 
-	bSizerDir->Add( m_outputDirectoryName, 1, wxALIGN_CENTER_VERTICAL|wxLEFT, 4 );
+	bSizerDir->Add( m_outputPath, 1, wxALIGN_CENTER_VERTICAL|wxLEFT, 4 );
 
 	m_browseButton = new STD_BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|0 );
 	bSizerDir->Add( m_browseButton, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT, 5 );
@@ -116,7 +116,7 @@ DIALOG_PLOT_SCHEMATIC_BASE::DIALOG_PLOT_SCHEMATIC_BASE( wxWindow* parent, wxWind
 	sbOptions->Add( gbSizer1, 1, wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT, 5 );
 
 
-	m_optionsSizer->Add( sbOptions, 1, wxEXPAND|wxRIGHT|wxLEFT, 5 );
+	m_optionsSizer->Add( sbOptions, 0, wxEXPAND|wxRIGHT|wxLEFT, 5 );
 
 	wxBoxSizer* bOptionsRight;
 	bOptionsRight = new wxBoxSizer( wxVERTICAL );
@@ -164,10 +164,19 @@ DIALOG_PLOT_SCHEMATIC_BASE::DIALOG_PLOT_SCHEMATIC_BASE( wxWindow* parent, wxWind
 	m_plotPDFPropertyPopups->SetValue(true);
 	sbSizer4->Add( m_plotPDFPropertyPopups, 0, wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 
+	m_plotPDFHierarchicalLinks = new wxCheckBox( sbSizer4->GetStaticBox(), wxID_ANY, _("Generate clickable links for hierarchical elements"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_plotPDFHierarchicalLinks->SetValue(true);
+	sbSizer4->Add( m_plotPDFHierarchicalLinks, 0, wxBOTTOM|wxLEFT|wxRIGHT, 5 );
+
+	m_plotPDFMetadata = new wxCheckBox( sbSizer4->GetStaticBox(), wxID_ANY, _("Generate metadata from AUTHOR && SUBJECT variables"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_plotPDFMetadata->SetToolTip( _("Generate PDF document properties from AUTHOR and SUBJECT text variables") );
+
+	sbSizer4->Add( m_plotPDFMetadata, 0, wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+
 
 	bOptionsRight->Add( sbSizer4, 1, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 5 );
 
-	m_otherOptions = new wxStaticBoxSizer( new wxStaticBox( this, wxID_ANY, _("Other options") ), wxVERTICAL );
+	m_otherOptions = new wxStaticBoxSizer( new wxStaticBox( this, wxID_ANY, _("Other Options") ), wxVERTICAL );
 
 	m_openFileAfterPlot = new wxCheckBox( m_otherOptions->GetStaticBox(), wxID_ANY, _("Open file after plot"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_openFileAfterPlot->SetToolTip( _("Open output file with associated application after successful plot") );
@@ -213,7 +222,7 @@ DIALOG_PLOT_SCHEMATIC_BASE::DIALOG_PLOT_SCHEMATIC_BASE( wxWindow* parent, wxWind
 	// Connect Events
 	this->Connect( wxEVT_CLOSE_WINDOW, wxCloseEventHandler( DIALOG_PLOT_SCHEMATIC_BASE::OnCloseWindow ) );
 	this->Connect( wxEVT_UPDATE_UI, wxUpdateUIEventHandler( DIALOG_PLOT_SCHEMATIC_BASE::OnUpdateUI ) );
-	m_browseButton->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_PLOT_SCHEMATIC_BASE::OnOutputDirectoryBrowseClicked ), NULL, this );
+	m_browseButton->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_PLOT_SCHEMATIC_BASE::onOutputDirectoryBrowseClicked ), NULL, this );
 	m_plotFormatOpt->Connect( wxEVT_COMMAND_RADIOBOX_SELECTED, wxCommandEventHandler( DIALOG_PLOT_SCHEMATIC_BASE::OnPlotFormatSelection ), NULL, this );
 	m_paperSizeOption->Connect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( DIALOG_PLOT_SCHEMATIC_BASE::OnPageSizeSelected ), NULL, this );
 	m_sdbSizer1Apply->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_PLOT_SCHEMATIC_BASE::OnPlotCurrent ), NULL, this );
@@ -225,7 +234,7 @@ DIALOG_PLOT_SCHEMATIC_BASE::~DIALOG_PLOT_SCHEMATIC_BASE()
 	// Disconnect Events
 	this->Disconnect( wxEVT_CLOSE_WINDOW, wxCloseEventHandler( DIALOG_PLOT_SCHEMATIC_BASE::OnCloseWindow ) );
 	this->Disconnect( wxEVT_UPDATE_UI, wxUpdateUIEventHandler( DIALOG_PLOT_SCHEMATIC_BASE::OnUpdateUI ) );
-	m_browseButton->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_PLOT_SCHEMATIC_BASE::OnOutputDirectoryBrowseClicked ), NULL, this );
+	m_browseButton->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_PLOT_SCHEMATIC_BASE::onOutputDirectoryBrowseClicked ), NULL, this );
 	m_plotFormatOpt->Disconnect( wxEVT_COMMAND_RADIOBOX_SELECTED, wxCommandEventHandler( DIALOG_PLOT_SCHEMATIC_BASE::OnPlotFormatSelection ), NULL, this );
 	m_paperSizeOption->Disconnect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( DIALOG_PLOT_SCHEMATIC_BASE::OnPageSizeSelected ), NULL, this );
 	m_sdbSizer1Apply->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_PLOT_SCHEMATIC_BASE::OnPlotCurrent ), NULL, this );

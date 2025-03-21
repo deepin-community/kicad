@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015-2016 Mario Luzeiro <mrluzeiro@ua.pt>
- * Copyright (C) 1992-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -152,6 +152,5 @@ void ConvertPolygonToBlocks( const SHAPE_POLY_SET& aMainPath, CONTAINER_2D_BASE&
                             float aBiuTo3dUnitsScale, float aDivFactor,
                             const BOARD_ITEM& aBoardItem, int aPolyIndex );
 
-void Polygon2d_TestModule();
 
 #endif // _CPOLYGON2D_H_

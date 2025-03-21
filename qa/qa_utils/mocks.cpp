@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -108,12 +108,6 @@ DIALOG_FIND_BASE::DIALOG_FIND_BASE( wxWindow* parent, wxWindowID id, const wxStr
 
 DIALOG_FIND_BASE::~DIALOG_FIND_BASE()
 {
-}
-
-
-FOOTPRINT* PCB_BASE_FRAME::GetFootprintFromBoardByReference()
-{
-    return nullptr;
 }
 
 
@@ -513,8 +507,7 @@ PCB_SELECTION& PCB_TOOL_BASE::selection()
     return sel;
 }
 
-
-BOX2I PCB_SELECTION::GetBoundingBox( bool aOnlyVisible ) const
+BOX2I PCB_SELECTION::GetBoundingBox() const
 {
     return BOX2I();
 }

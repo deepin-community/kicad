@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 CERN
- * Copyright (C) 2020-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -28,6 +28,7 @@
 #define HASH_EDA_H_
 
 /**
+ * @file hash_eda.h
  * @brief Hashing functions for EDA_ITEMs.
  */
 
@@ -36,15 +37,19 @@
 
 class EDA_ITEM;
 
-///< Enables/disables properties that will be used for calculating the hash.
-///< The properties might be combined using the bitwise 'or' operator.
+/**
+ * Enable/disable properties that will be used for calculating the hash.
+ *
+ * The properties might be combined using the bitwise 'or' operator.
+ */
 enum HASH_FLAGS
 {
     HASH_POS    = 0x01,
 
-    ///< use coordinates relative to the parent object
+    /// Use coordinates relative to the parent object.
     REL_COORD   = 0x02,
-    ///< use coordinates relative to the shape position
+
+    /// Use coordinates relative to the shape position.
     REL_POS     = 0x04,
     HASH_ROT    = 0x08,
     HASH_LAYER  = 0x10,

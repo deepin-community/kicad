@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2004-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,6 +28,7 @@
 #include <kiface_base.h>
 #include <sch_edit_frame.h>
 #include <wildcards_and_files_ext.h>
+#include <sch_commit.h>
 #include <sch_sheet_path.h>
 #include <sch_symbol.h>
 #include <sch_reference_list.h>
@@ -44,12 +45,11 @@
 void SCH_EDITOR_CONTROL::AssignFootprints( const std::string& aChangedSetOfReferences )
 {
     // Build a flat list of symbols in schematic:
-    SCH_REFERENCE_LIST  refs;
-    SCH_SHEET_LIST      sheets    = m_frame->Schematic().GetSheets();
-    bool                isChanged = false;
-    bool                appendToUndoList = false;
+    SCH_REFERENCE_LIST refs;
+    SCH_COMMIT         commit( m_frame );
+    bool               isChanged = false;
 
-    sheets.GetSymbols( refs, false );
+    m_frame->Schematic().Hierarchy().GetSymbols( refs, false );
 
     DSNLEXER lexer( aChangedSetOfReferences, From_UTF8( __func__ ) );
     PTREE    doc;
@@ -65,12 +65,12 @@ void SCH_EDITOR_CONTROL::AssignFootprints( const std::string& aChangedSetOfRefer
         {
             wxASSERT( ref->first == "ref" );
 
-            wxString reference = (UTF8&) ref->second.front().first;
+            wxString reference = UTF8( ref->second.front().first );
 
             // Ensure the "fpid" node contains a footprint name, and get it if exists
             if( ref->second.get_child( "fpid" ).size() )
             {
-                wxString tmp = (UTF8&) ref->second.get_child( "fpid" ).front().first;
+                wxString tmp = UTF8( ref->second.get_child( "fpid" ).front().first );
                 footprint = tmp;
             }
             else
@@ -98,9 +98,7 @@ void SCH_EDITOR_CONTROL::AssignFootprints( const std::string& aChangedSetOfRefer
                         isChanged = true;
                         SCH_SCREEN* screen = refs[ii].GetSheetPath().LastScreen();
 
-                        m_frame->SaveCopyInUndoList( screen, symbol, UNDO_REDO::CHANGED,
-                                                     appendToUndoList, false );
-                        appendToUndoList = true;
+                        commit.Modify( symbol, screen );
 
                         symbol->SetFootprintFieldText( footprint );
                     }
@@ -117,8 +115,7 @@ void SCH_EDITOR_CONTROL::AssignFootprints( const std::string& aChangedSetOfRefer
     if( isChanged )
     {
         m_frame->SyncView();
-        m_frame->GetCanvas()->Refresh();
-        m_frame->OnModify();
+        commit.Push( wxS( "Assign Footprints" ) );
     }
 }
 
@@ -128,10 +125,8 @@ bool SCH_EDITOR_CONTROL::processCmpToFootprintLinkFile( const wxString& aFullFil
                                                         bool aVisibilityState )
 {
     // Build a flat list of symbols in schematic:
-    SCH_REFERENCE_LIST  referencesList;
-    SCH_SHEET_LIST      sheetList = m_frame->Schematic().GetSheets();
-
-    sheetList.GetSymbols( referencesList, false );
+    SCH_REFERENCE_LIST referencesList;
+    m_frame->Schematic().Hierarchy().GetSymbols( referencesList, false );
 
     FILE* cmpFile = wxFopen( aFullFilename, wxT( "rt" ) );
 

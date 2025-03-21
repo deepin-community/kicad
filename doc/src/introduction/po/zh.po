@@ -1,8 +1,13 @@
+# SOME DESCRIPTIVE TITLE
+# Copyright (C) YEAR Free Software Foundation, Inc.
+# This file is distributed under the same license as the PACKAGE package.
+# taotieren <admin@taotieren.com>, 2019-2024.
+#
 msgid ""
 msgstr ""
 "Project-Id-Version: \n"
-"POT-Creation-Date: 2023-01-23 17:47+0800\n"
-"PO-Revision-Date: 2023-01-23 17:48+0800\n"
+"POT-Creation-Date: 2024-08-03 17:53+0800\n"
+"PO-Revision-Date: 2024-08-03 22:08+0800\n"
 "Last-Translator: taotieren <admin@taotieren.com>\n"
 "Language-Team: \n"
 "Language: zh_CN\n"
@@ -10,7 +15,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Poedit 3.2.2\n"
+"X-Generator: Poedit 3.5\n"
 "X-Poedit-Basepath: .\n"
 "X-Poedit-SourceCharset: UTF-8\n"
 
@@ -22,23 +27,22 @@ msgstr "简介"
 
 #. type: Plain text
 #: introduction.adoc:11
-#, no-wrap
-msgid "*Copyright*\n"
-msgstr "*版权*\n"
+msgid "*Copyright*"
+msgstr "*版权*"
 
 #. type: Plain text
 #: introduction.adoc:17
 msgid ""
-"This document is Copyright (C) 2021-2023 by its contributors as listed "
+"This document is Copyright (C) 2021-2024 by its contributors as listed "
 "below. You may distribute it and/or modify it under the terms of either the "
 "GNU General Public License (http://www.gnu.org/licenses/gpl.html), version 3 "
 "or later, or the Creative Commons Attribution License (http://"
 "creativecommons.org/licenses/by/3.0/), version 3.0 or later."
 msgstr ""
-"本文件的版权为 (C) 2021-2023 年，由下面列出的贡献者拥有。您可以根据 GNU 通用"
-"公共许可证（http://www.gnu.org/licenses/gpl.html）第 3 版或更高版本，或知识共"
-"享署名许可证（http://creativecommons.org/licenses/by/3.0/）第 3.0 版或更高版"
-"本的条款发布它和/或修改它。"
+"本文档版权 (C) 2021-2024 年，作者如下。您可以根据 GNU 通用公共许可证 (http://"
+"www.gnu.org/licenses/gpl.html) 第 3 版或更高版本或知识共享署名许可证 (http://"
+"creativecommons.org/licenses/by/3.0/) 第 3.0 版或更高版本的条款分发和/或修改"
+"本文档。"
 
 #. type: Plain text
 #: introduction.adoc:19
@@ -47,43 +51,39 @@ msgstr "本指南中的所有商标均属于其合法所有者。"
 
 #. type: Plain text
 #: introduction.adoc:22
-#, no-wrap
-msgid "*Contributors*\n"
-msgstr "*贡献人员*\n"
+msgid "*Contributors*"
+msgstr "*贡献者*"
 
 #. type: Plain text
 #: introduction.adoc:24
-msgid "Jon Evans"
+msgid "Jon Evans, Graham Keeth"
 msgstr ""
 
 #. type: Plain text
 #: introduction.adoc:27
-#, no-wrap
-msgid "*Feedback*\n"
-msgstr "*反馈*\n"
+msgid "*Feedback*"
+msgstr "*反馈*"
 
 #. type: Plain text
 #: introduction.adoc:31
 msgid ""
 "The KiCad project welcomes feedback, bug reports, and suggestions related to "
-"the software or its documentation. For more information on how to sumbit "
+"the software or its documentation. For more information on how to submit "
 "feedback or report an issue, please see the instructions at https://www."
 "kicad.org/help/report-an-issue/"
 msgstr ""
-"KiCad 项目欢迎与本软件或其文档相关的反馈、错误报告和建议。关于如何提交反馈意"
-"见或报告问题的更多信息，请参见 https://www.kicad.org/help/report-an-issue/ 的"
-"说明"
+"KiCad 项目欢迎与软件或其文档相关的反馈、错误报告和建议。有关如何提交反馈或报"
+"告问题的更多信息，请参阅 https://www.kicad.org/help/report-an-issue/ 上的说明"
 
 #. type: Plain text
 #: introduction.adoc:34
-#, no-wrap
-msgid "*Publication date*\n"
-msgstr "*发布日期*\n"
+msgid "*Publication date*"
+msgstr "*出版日期*"
 
 #. type: Plain text
 #: introduction.adoc:36
-msgid "2021-05-09"
-msgstr "2021-05-09"
+msgid "2024-02-14"
+msgstr ""
 
 #. type: Title ==
 #: introduction.adoc:39
@@ -109,125 +109,218 @@ msgstr ""
 #. type: Plain text
 #: introduction.adoc:49
 msgid ""
-"KiCad 6.0 is the most recent major release.  It includes hundreds of new "
+"KiCad 8.0 is the most recent major release.  It includes hundreds of new "
 "features and bug fixes.  Some of the most notable new features include:"
 msgstr ""
-"KiCad 6.0 是最新的主要版本。  它包括数以百计的新功能和错误修复。  一些最值得"
-"注意的新功能包括："
+"KiCad 8.0 是最新的主要版本。 它包括数百个新功能和错误修复。 一些最值得注意的"
+"新功能包括："
 
 #. type: Plain text
-#: introduction.adoc:52
+#: introduction.adoc:54
 msgid ""
-"A new schematic file format that embeds schematic symbols that are used in a "
-"design, meaning there is no longer the need for a separate cache library "
-"file."
+"A Properties Panel in the Schematic, Symbol, and Footprint editors, which "
+"lets you quickly view and edit properties of selected objects. This works "
+"even when multiple different types of objects are selected at once. This "
+"expands on the Properties Panel in the PCB editor, which was introduced in "
+"version 7.0."
 msgstr ""
-"一种新的原理图文件格式，嵌入了设计中使用的原理图符号，意味着不再需要单独的缓"
-"存库文件。"
+"原理图、符号和封装编辑器中的属性面板，可让您快速查看和编辑所选对象的属性。即"
+"使一次选择多种不同类型的对象，这也有效。这在 PCB 编辑器的属性面板上进行了扩"
+"展，该面板是在 7.0 版本中引入的。"
 
 #. type: Plain text
-#: introduction.adoc:55
+#: introduction.adoc:57
 msgid ""
-"A new project file format that separates out display settings (such as which "
-"layers are visible in the PCB editor) so that these types of settings no "
-"longer cause changes to the board file or main project file, making KiCad "
-"easier to use with version control systems."
+"HTTP libraries, which allow connecting KiCad to a networked component "
+"database or ERP system via a REST API. The REST endpoint can provide symbol "
+"and footprint mappings and other metadata."
 msgstr ""
-"一种新的工程文件格式，将显示设置（如哪些层在 PCB 编辑器中可见）分离出来，因此"
-"这些类型的设置不再导致对电路板文件或主工程文件的更改，使 KiCad 更容易与版本控"
-"制系统配合使用。"
-
-#. type: Plain text
-#: introduction.adoc:58
-msgid ""
-"A major overhaul of the schematic editor bringing its behavior in line with "
-"the PCB editor and conventions used by most other graphical editing "
-"software.  Object selection and dragging now works the way most users expect "
-"when coming from other software."
-msgstr ""
-"对原理图编辑器进行了重构，使其行为与大多数其他图形编辑软件使用的 PCB 编辑器和"
-"惯例保持一致。  对象的选择和拖动现在可以按照大多数用户从其他软件来的方式工"
-"作。"
+"HTTP 库，允许通过 REST API 将 KiCad 连接到联网组件数据库或 ERP 系统。REST 端"
+"点可以提供符号和封装映射以及其他元数据。"
 
 #. type: Plain text
 #: introduction.adoc:60
 msgid ""
-"Support for buses of arbitrary signals, custom wire and junction colors per "
-"net, alternate pin functions, and many other new schematic features."
+"A search panel in the Schematic editor, which lets you search for symbols, "
+"labels, and schematic text. This mirrors the search panel in the PCB editor, "
+"which was added in version 7.0."
 msgstr ""
-"支持任意信号的总线、每个网络的自定义导线和结点颜色、替代引脚功能以及许多其他"
-"新的原理图功能。"
+"原理图编辑器中的搜索面板，可用于搜索符号、标签和原理图文本。这反映了 PCB 编辑"
+"器中的搜索面板，该面板是在 7.0 版本中添加的。"
 
 #. type: Plain text
-#: introduction.adoc:62
+#: introduction.adoc:63
 msgid ""
-"A new design rule system in the PCB editor supporting custom rules that can "
-"be used to constrain complex designs with high voltage, signal integrity, "
-"RF, or other specialty needs."
+"The Symbol Fields Table has been expanded and now includes a fully-featured "
+"and customizable BOM export tool. The legacy BOM export tool, which uses "
+"external scripts to generate a BOM in the desired format, is still available."
 msgstr ""
-"PCB 编辑器中的新设计规则系统支持自定义规则，可用于约束具有高电压、信号完整"
-"性、射频或其他特殊需求的复杂设计。"
-
-#. type: Plain text
-#: introduction.adoc:65
-msgid ""
-"A number of improvements to the PCB editor's capabilities, including support "
-"for rounded (arc)  track routing, hatched zone fills, rectangle primitives, "
-"new dimension styles, removing pad and via copper on unconnected layers, "
-"object grouping, locking, and much more."
-msgstr ""
-"对 PCB 编辑器功能进行了大量改进，包括支持圆形 (圆弧) 布线、阴影区域填充、矩形"
-"基元、新标注样式、移除未连接铜层上的焊盘和通孔、对象分组、锁定等。"
-
-#. type: Plain text
-#: introduction.adoc:67
-msgid ""
-"More flexible configuration of mouse behavior, hotkeys, color themes, "
-"coordinate systems, cross-probing behavior, interactive routing behavior, "
-"and much more."
-msgstr ""
-"更灵活地配置鼠标行为、热键、颜色主题、坐标系统、交叉探测行为、交互式布线行为"
-"等。"
+"符号字段表已扩展，现在包括功能完备且可自定义的 BOM 导出工具。传统的 BOM 导出"
+"工具（使用外部脚本生成所需格式的 BOM 表）仍然可用。"
 
 #. type: Plain text
 #: introduction.adoc:70
 msgid ""
-"A new side panel UI for the PCB editor featuring layer visibility presets, "
-"opacity control of different object types, per-net and per-netclass coloring "
-"and visibility, and a new selection filter to control what types of objects "
-"can be selected."
+"The SPICE simulator interface has been expanded and overhauled. The "
+"simulator tool now supports several new analysis types (FFTs, noise "
+"simulations, pole-zero simulations, and s-parameter analyses). The simulator "
+"result plots can now include user-defined signals, including mathematical "
+"operations, and the cursor and waveform measurement tools have been "
+"improved. Operating point analysis results can be displayed on the schematic "
+"itself to show the simulated operating point of each node."
 msgstr ""
-"PCB 编辑器的新的侧板用户界面，具有层的可见性预设，不同对象类型的不透明度控"
-"制，每个网和每个网类的着色和可见性，以及一个新的选择过滤器来控制可以选择哪些"
-"类型的对象。"
+"SPICE 仿真器接口已进行了扩展和大修。仿真器工具现在支持多种新的分析类型（FFT、"
+"噪声模拟、零极点模拟和 s 参数分析）。仿真器结果图现在可以包含用户定义的信号，"
+"包括数学运算，并且光标和波形测量工具也得到了改进。工作点分析结果可以显示在原"
+"理图本身上，以显示每个节点的模拟工作点。"
 
 #. type: Plain text
-#: introduction.adoc:72
+#: introduction.adoc:73
 msgid ""
-"A redesigned look and feel, including a new design language used for all "
-"tool icons, a new default color theme, and support for dark window themes on "
-"Linux and macOS."
+"The command-line interface has been expanded, and now includes support for "
+"running ERC/DRC, exporting to more formats, and specifying text variables, "
+"among other improvements."
 msgstr ""
-"重新设计的外观和感觉，包括用于所有工具图标的新设计语言，新的默认颜色主题，以"
-"及对 Linux 和 macOS 上深色窗口主题的支持。"
+"命令行界面已扩展，现在包括对运行 ERC/DRC、导出为更多格式和指定文本变量的支"
+"持，以及其他改进。"
 
 #. type: Plain text
 #: introduction.adoc:75
 msgid ""
-"A full listing of new features and changes in KiCad 6.0 can be found https://"
-"www.kicad.org/blog/2021/12/KiCad-6.0.0-Release/[here]."
+"A net navigator tool has been added in the Schematic editor, which displays "
+"the locations of a highlighted net across a schematic hierarchy."
 msgstr ""
-"KiCad 6.0 的新功能和变化的完整清单可以在 https://www.kicad.org/blog/2021/12/"
-"KiCad-6.0.0-Release/[这里]。"
+"原理图编辑器中添加了一个网络导航器工具，用于显示原理图层次结构中高亮显示的网"
+"络的位置。"
+
+#. type: Plain text
+#: introduction.adoc:77
+msgid ""
+"Grids can now be automatically overridden for specific object types, for "
+"example to use a finer grid for moving text and a coarser grid for symbols."
+msgstr ""
+"现在可以自动覆盖特定对象类型的网格，例如，使用更精细的网格来移动文本，使用更"
+"宽的网格来移动符号。"
+
+#. type: Plain text
+#: introduction.adoc:81
+msgid ""
+"Power symbols are now easier to work with, as their assigned net is now "
+"determined by the symbol value rather than the pin name. Where before "
+"changing a power symbol's net required editing the symbol in the symbol "
+"editor, in version 8 you can change the net directly in the schematic."
+msgstr ""
+"电源符号现在更易于使用，因为它们分配的网络现在由符号值而不是引脚名称确定。在"
+"更改电源符号的网络之前，需要在符号编辑器中编辑符号，而在版本 8 中，您可以直接"
+"在原理图中更改网络。"
+
+#. type: Plain text
+#: introduction.adoc:83
+msgid ""
+"A graphical comparison tool has been added to compare symbols and footprints "
+"between libraries and the copies embedded in schematics and PCBs."
+msgstr ""
+"添加了一个图形比较工具，用于比较库之间的符号和封装以及原理图和 PCB 中嵌入的副"
+"本。"
+
+#. type: Plain text
+#: introduction.adoc:85
+msgid ""
+"Board designs can be exported to the IPC-2581 format, which includes "
+"complete fabrication and assembly information in a single file."
+msgstr ""
+"电路板设计可以导出为 IPC-2581 格式，该格式在单个文件中包含完整的制造和组装信"
+"息。"
+
+#. type: Plain text
+#: introduction.adoc:88
+msgid ""
+"The interactive length tuning tools in the PCB editor have been overhauled.  "
+"Length tuning meanders are now persistent objects that can be easily "
+"modified after they are initially created."
+msgstr ""
+"PCB 编辑器中的交互式长度调整工具已经过全面改进。 长度调整蛇形走线现在是持久性"
+"对象，在最初创建后可以轻松修改。"
+
+#. type: Plain text
+#: introduction.adoc:90
+msgid ""
+"Symbol fields are now synced to footprints in the PCB, so schematic symbol "
+"metadata is available in the board design."
+msgstr ""
+"符号字段现在与 PCB 中的封装同步，因此电路板设计中可以使用原理图符号元数据。"
+
+#. type: Plain text
+#: introduction.adoc:92
+msgid ""
+"Graphical polygons on copper PCB layers can now have nets assigned, which "
+"can be useful for creating electrical structures with a precise shape."
+msgstr ""
+"PCB 铜层上的图形多边形现在可以分配网络， 这对于创建具有精确形状的电气结构非常"
+"有用。"
+
+#. type: Plain text
+#: introduction.adoc:94
+msgid ""
+"\"Pin helper\" tools have been added to the Schematic editor to quickly "
+"break out symbol pins to wires, nets, or no-connects."
+msgstr ""
+"原理图编辑器中添加了 `引脚助手` 工具，用于快速将符号引脚分解到电线、网络或无"
+"连接。"
+
+#. type: Plain text
+#: introduction.adoc:96
+msgid ""
+"The 3D Viewer now has an appearance panel that improves user control over "
+"how board designs are visualized in 3D."
+msgstr ""
+"3D 查看器现在具有一个外观面板，可提高用户对电路板设计在 3D 中可视化方式的控"
+"制。"
+
+#. type: Plain text
+#: introduction.adoc:101
+msgid ""
+"New importers and improvements to existing importers. Version 8 adds support "
+"for importing EasyEDA (JLCEDA) Standard and Professional Edition projects "
+"and libraries, CADSTAR symbol and footprint libraries, Solidworks PCB board "
+"files, Altium Designer symbol and integrated libraries, EAGLE symbol "
+"libraries, and LTSpice schematics."
+msgstr ""
+"新增导入程序并改进现有导入程序。第 8 版新增了对 EasyEDA (JLCEDA) 标准版和专业"
+"版项目和库、CADSTAR 符号和封装库、Solidworks PCB 板文件、Altium Designer 符号"
+"和集成库、EAGLE 符号库以及 LTSpice 原理图的导入支持。"
+
+#. type: Plain text
+#: introduction.adoc:103
+msgid ""
+"New and improved exporters, including copper geometry in STEP exports and "
+"Cadence Allegro netlist export."
+msgstr ""
+"全新改进的导出器，包括 STEP 导出和 Cadence Allegro 网表导出中的铜几何图形。"
+
+#. type: Plain text
+#: introduction.adoc:104
+msgid ""
+"Significant improvements to the Symbol, Footprint, and 3D Model libraries."
+msgstr "对符号、封装和 3D 模型库进行了重大改进。"
+
+#. type: Plain text
+#: introduction.adoc:108
+msgid ""
+"A full listing of new features and changes in KiCad 8.0 can be found https://"
+"www.kicad.org/blog/2024/02/Version-8.0.0-Released/[here]."
+msgstr ""
+"可以 https://www.kicad.org/blog/2024/02/Version-8.0.0-Released/[此处] 找到 "
+"KiCad 8.0 中的新功能和更改的完整列表。"
 
 #. type: Title ==
-#: introduction.adoc:77
+#: introduction.adoc:110
 #, no-wrap
 msgid "Installing and Upgrading KiCad"
 msgstr "安装和升级 KiCad"
 
 #. type: Plain text
-#: introduction.adoc:83
+#: introduction.adoc:116
 msgid ""
 "KiCad maintains compatibility and support with the maintained versions of "
 "Microsoft Windows, Apple macOS, and a number of Linux distributions.  Some "
@@ -240,7 +333,7 @@ msgstr ""
 "在平台的最新发布信息和说明。"
 
 #. type: Plain text
-#: introduction.adoc:88
+#: introduction.adoc:121
 msgid ""
 "KiCad may compile and run on platforms that are not officially supported.  "
 "The KiCad development team makes no guarantees that KiCad will continue to "
@@ -253,7 +346,7 @@ msgstr ""
 "https://www.kicad.org/help/system-requirements/ 。"
 
 #. type: Plain text
-#: introduction.adoc:97
+#: introduction.adoc:130
 msgid ""
 "KiCad uses a \"major.minor.point\" release version format.  Major releases "
 "bring new features and other significant changes to the code.  Minor "
@@ -275,13 +368,13 @@ msgstr ""
 "版本编辑并保存了文件，这些文件将无法由以前的主要版本打开。"
 
 #. type: Title ===
-#: introduction.adoc:98
+#: introduction.adoc:131
 #, no-wrap
 msgid "Migrating from Previous Versions"
 msgstr "从以前的版本迁移"
 
 #. type: Plain text
-#: introduction.adoc:104
+#: introduction.adoc:137
 msgid ""
 "In general, to migrate a design to a new version of KiCad, simply open the "
 "project with the new version, then open the schematic and PCB and save each "
@@ -294,33 +387,35 @@ msgstr ""
 "手册的原理图编辑器和 PCB 编辑器章节中讲述。"
 
 #. type: Plain text
-#: introduction.adoc:106
+#: introduction.adoc:141
+#, no-wrap
 msgid ""
-"Make sure to save a backup of your design before opening it with a new "
-"version of KiCad."
-msgstr "在用新版本的 KiCad 打开你的设计之前，请确保保存一个备份。"
+"Make sure to save a backup of your design before opening it with a new version of KiCad.\n"
+"      Once saved in a new major version of KiCad, designs can no longer be opened by previous\n"
+"      major versions.\n"
+msgstr "在使用新版本的 KiCad 打开设计之前，请务必保存设计的备份。一旦在新的 KiCad 主版本中保存了设计，以前的主版本就不能再打开了。\n"
 
 #. type: Plain text
-#: introduction.adoc:111
+#: introduction.adoc:146
 msgid ""
-"The symbol library format has changed in KiCad 6.0.  To continue editing "
-"symbol libraries made with a previous version of KiCad, these libraries need "
-"to be migrated to the new format.  For details on this process, see the "
-"Schematic Editor chapter of the manual.  Symbol libraries that have not been "
-"migrated can still be opened and used in read-only mode."
+"The symbol library format changed in KiCad 6.0.  To continue editing symbol "
+"libraries made with a previous version of KiCad, these libraries need to be "
+"migrated to the new format.  For details on this process, see the Schematic "
+"Editor chapter of the manual.  Symbol libraries that have not been migrated "
+"can still be opened and used in read-only mode."
 msgstr ""
-"符号库格式在 KiCad 6.0 中有所改变。  要继续编辑用以前版本的 KiCad 制作的符号"
-"库，需要将这些库迁移到新的格式。  有关这一过程的详细信息，请参见手册中的原理"
-"图编辑器章节。  没有被迁移的符号库仍然可以以只读模式打开和使用。"
+"符号库格式在 KiCad 6.0 中已更改。 要继续编辑使用早期版本的 KiCad 创建的符号"
+"库，需要将这些库迁移到新格式。 有关此过程的详细信息，请参阅手册的 **原理图编"
+"辑器** 一章。 尚未迁移的符号库仍然可以在只读模式下打开和使用。"
 
 #. type: Title ==
-#: introduction.adoc:113
+#: introduction.adoc:148
 #, no-wrap
 msgid "KiCad Workflow"
 msgstr "KiCad 工作流程"
 
 #. type: Plain text
-#: introduction.adoc:119
+#: introduction.adoc:154
 msgid ""
 "This section presents a high-level overview of the typical KiCad workflow.  "
 "Note that KiCad is a flexible software system, and there are other ways of "
@@ -333,7 +428,7 @@ msgstr ""
 "见本手册后面的章节。"
 
 #. type: Plain text
-#: introduction.adoc:123
+#: introduction.adoc:158
 #, no-wrap
 msgid ""
 "A number of tutorials and guided lessons in using KiCad have been created by community\n"
@@ -345,13 +440,13 @@ msgstr ""
 "      更多信息请参见本章末尾的进一步阅读部分。\n"
 
 #. type: Title ===
-#: introduction.adoc:125
+#: introduction.adoc:160
 #, no-wrap
 msgid "Basic Terminology"
 msgstr "基本术语"
 
 #. type: Plain text
-#: introduction.adoc:131
+#: introduction.adoc:166
 msgid ""
 "KiCad uses a number of terms that are fairly standard in the area of "
 "electronics design automation (EDA) software, and some that are more "
@@ -365,7 +460,7 @@ msgstr ""
 "针对 KiCad 工作流程的某一部分的术语将在本手册的后面进行定义。"
 
 #. type: Plain text
-#: introduction.adoc:134
+#: introduction.adoc:169
 msgid ""
 "A **schematic** is a collection of one or more pages (sheets) of circuit "
 "schematic drawings.  Each KiCad schematic file represents a single sheet."
@@ -374,7 +469,7 @@ msgstr ""
 "图文件代表一个单页。"
 
 #. type: Plain text
-#: introduction.adoc:139
+#: introduction.adoc:174
 msgid ""
 "A **hierarchical schematic** is a schematic consisting of multiple pages "
 "nested inside each other.  KiCad supports hierarchical schematics, but there "
@@ -387,7 +482,7 @@ msgstr ""
 "以被多次使用，例如，创建一个子电路的重复副本。"
 
 #. type: Plain text
-#: introduction.adoc:147
+#: introduction.adoc:182
 msgid ""
 "A **symbol** is a circuit element that can be placed on a schematic.  "
 "Symbols can represent physical electrical components, such as a resistor or "
@@ -405,7 +500,7 @@ msgstr ""
 "符号库** 中，因此它们可以在许多原理图中使用。"
 
 #. type: Plain text
-#: introduction.adoc:155
+#: introduction.adoc:190
 msgid ""
 "A **netlist** is a representation of a schematic that is used to convey "
 "information to another program.  There are many netlist formats used by "
@@ -424,7 +519,7 @@ msgstr ""
 "的 KiCad 中，作为正常工作流程的一部分，这并不是必须的。"
 
 #. type: Plain text
-#: introduction.adoc:160
+#: introduction.adoc:195
 msgid ""
 "A **printed circuit board**, or PCB, is a design document that represents "
 "the physical implementation of a schematic (or technically, a netlist).  "
@@ -437,7 +532,7 @@ msgstr ""
 "PCB 的阵列或面板，尽管一些社区创建的附加组件提供了这一功能。"
 
 #. type: Plain text
-#: introduction.adoc:165
+#: introduction.adoc:200
 msgid ""
 "A **footprint** is a circuit element that can be placed on a PCB.  "
 "Footprints often represent physical electrical components, but can also be "
@@ -451,7 +546,7 @@ msgstr ""
 "连接的铜区。  网表将把符号引脚与封装焊盘相关联。"
 
 #. type: Plain text
-#: introduction.adoc:168
+#: introduction.adoc:203
 msgid ""
 "A **worksheet** is a drawing template, typically containing a title block "
 "and frame, that is used as the template for schematic sheets and PCB "
@@ -461,33 +556,36 @@ msgstr ""
 "板。"
 
 #. type: Plain text
-#: introduction.adoc:172
-#, no-wrap
+#: introduction.adoc:207
 msgid ""
-"**Plotting** is the process of creating manufacturing outputs from a design.  These outputs may\n"
-"include machine-readable formats such as Gerber files or pick-and-place listings, as well as\n"
-"human-readable formats such as PDF drawings.\n"
-msgstr "**绘制** 是从设计创建制造输出的过程。这些输出可能包括机器可读的格式，如 Gerber 文件或拾取和放置列表，以及人类可读的格式，如 PDF 图纸。\n"
+"**Plotting** is the process of creating manufacturing outputs from a "
+"design.  These outputs may include machine-readable formats such as Gerber "
+"files or pick-and-place listings, as well as human-readable formats such as "
+"PDF drawings."
+msgstr ""
+"**绘制** 是从设计创建制造输出的过程。 这些输出可能包括机器可读的格式，如 "
+"Gerber 文件或拾取和放置列表，以及人类可读的格式，如 PDF 绘图。"
 
 #. type: Plain text
-#: introduction.adoc:176
-#, no-wrap
+#: introduction.adoc:211
 msgid ""
-"**Ngspice** is a mixed-signal circuit simulator, originally based on Berkeley SPICE, that is\n"
-"integrated into KiCad's schematic editor.  By using symbols with attached SPICE models, you can run\n"
-"circuit simulations on KiCad schematics and plot the results graphically.\n"
+"**Ngspice** is a mixed-signal circuit simulator, originally based on "
+"Berkeley SPICE, that is integrated into KiCad's schematic editor.  By using "
+"symbols with attached SPICE models, you can run circuit simulations on KiCad "
+"schematics and plot the results graphically."
 msgstr ""
-"**Ngspice** 是一个混合信号电路模拟器，最初基于伯克利 (Berkeley) SPICE，集成到 KiCad 的原理图编辑器中。\n"
-"通过将符号与附着的 SPICE 模型一起使用，可以在 KiCad 原理图上运行电路仿真，并以图形方式绘制结果。\n"
+"Ngspice 是一个混合信号电路模拟器，最初基于 Berkeley SPICE，已集成到 KiCad 的"
+"原理图编辑器中。 通过将符号与附加的 SPICE 模型结合使用，您可以在 KiCad 原理图"
+"上运行电路仿真，并以图形方式绘制结果。"
 
 #. type: Title ===
-#: introduction.adoc:178
+#: introduction.adoc:213
 #, no-wrap
 msgid "KiCad Components"
 msgstr "KiCad 组件"
 
 #. type: Plain text
-#: introduction.adoc:190
+#: introduction.adoc:225
 msgid ""
 "KiCad consists of a number of different software components, some of which "
 "are integrated together to facilitate the PCB design workflow, and some of "
@@ -513,7 +611,7 @@ msgstr ""
 "其他文档时，一定要检查正在使用的版本。"
 
 #. type: Plain text
-#: introduction.adoc:193
+#: introduction.adoc:228
 msgid ""
 "The main KiCad components are usually started from the launcher buttons in "
 "the KiCad project manager window.  These components include:"
@@ -522,7 +620,7 @@ msgstr ""
 "括："
 
 #. type: Table
-#: introduction.adoc:205
+#: introduction.adoc:240
 #, no-wrap
 msgid ""
 "|Component name|Description\n"
@@ -546,13 +644,13 @@ msgstr ""
 "|图框编辑器 |创建和编辑图框文件\n"
 
 #. type: Title ===
-#: introduction.adoc:208
+#: introduction.adoc:243
 #, no-wrap
 msgid "User Interface"
 msgstr "用户界面"
 
 #. type: Plain text
-#: introduction.adoc:212
+#: introduction.adoc:247
 msgid ""
 "KiCad has a number of user interface behaviors that are common to all the "
 "different editor windows.  Some of these behaviors are described in more "
@@ -562,7 +660,7 @@ msgstr ""
 "些行为在本手册后面的章节中有更详细的描述。"
 
 #. type: Plain text
-#: introduction.adoc:218
+#: introduction.adoc:253
 msgid ""
 "Objects can be selected by clicking on them or by dragging a selection "
 "window around them. Dragging from left to right will result in a selection "
@@ -578,115 +676,118 @@ msgstr ""
 "话框的编辑选项部分有描述。"
 
 #. type: Plain text
-#: introduction.adoc:228
+#: introduction.adoc:263
 msgid ""
 "KiCad editors have the concept of a **tool** which can be thought of as a "
 "mode that the editor is in.  The default tool is the selection tool, which "
-"means that clicking will select objects under the mouse cursor as described "
-"above.  There are also tools for placing new objects, inspecting existing "
-"objects, etc.  The active tool is highlighted in the toolbar, and the name "
-"of the active tool is shown in the bottom right of the editor in the status "
-"bar.  Pressing **Esc** always means \"cancel\" in KiCad: if a tool is in the "
-"middle of some action (for example, routing tracks), the first press of "
-"**Esc** will cancel that action.  The next press of **Esc** will exit the "
-"tool complely, returning to the default selection tool.  With the selection "
-"tool active, pressing **Esc** will clear the current selection, if one "
-"exists."
+"means that clicking will select objects under the mouse cursor.  There are "
+"also tools for placing new objects, inspecting existing objects, etc.  The "
+"active tool is highlighted in the toolbar, and the name of the active tool "
+"is shown in the bottom right of the editor in the status bar.  Pressing kbd:"
+"[Esc] always means \"cancel\" in KiCad: if a tool is in the middle of some "
+"action (for example, routing tracks), the first press of kbd:[Esc] will "
+"cancel that action.  The next press of kbd:[Esc] will exit the tool "
+"complely, returning to the default selection tool.  With the selection tool "
+"active, pressing kbd:[Esc] will clear the current selection, if one exists."
 msgstr ""
-"KiCad 编辑器有一个 **工具** 的概念，它可以被认为是编辑器所处的一种模式。  默"
-"认的工具是选择工具，这意味着如上所述，点击将选择鼠标光标下的对象。  还有一些"
-"工具用于放置新的对象，检查现有对象，等等。  活动的工具在工具栏中高亮显示，活"
-"动工具的名称在编辑器的右下方状态栏中显示。  在 KiCad 中，按 **Esc** 总是意味"
-"着 \"取消\"：如果一个工具正在进行某种操作（例如，布线），第一次按 **Esc** 将"
-"取消该操作。  下一次按 **Esc** 将完全退出该工具，返回到默认的选择工具。  在选"
-"择工具处于活动状态时，按 **Esc** 将清除当前的选择，如果存在的话。"
+"KiCad 编辑器有 **工具** 的概念，可以将其视为编辑器所处的一种模式。 默认工具是"
+"选择工具，这意味着单击将选择鼠标光标下的对象。 此外，还有用于放置新对象、检查"
+"现有对象等的工具。 活动工具会在工具栏中突出显示，活动工具的名称会显示在编辑器"
+"右下方的状态栏中。 在 KiCad 中，按下 kbd:[Esc] 总是表示 \"取消\"：如果工具正"
+"在执行某些操作（例如布线），第一次按下 kbd:[Esc] 将取消该操作。 下一次按下 "
+"kbd:[Esc] 将完全退出工具，返回默认的选择工具。 在选择工具处于激活状态时，如果"
+"存在当前选择，按下 kbd:[Esc] 将清除当前选择。"
 
 #. type: Title ===
-#: introduction.adoc:230
+#: introduction.adoc:265
 #, no-wrap
 msgid "KiCad Projects and Files"
 msgstr "KiCad 工程和文件"
 
 #. type: Plain text
-#: introduction.adoc:233 introduction.adoc:243 introduction.adoc:252
-msgid "TODO: Write this section"
-msgstr "TODO: 撰写本节"
+#: introduction.adoc:270 introduction.adoc:282 introduction.adoc:293
+#, no-wrap
+msgid ""
+"This section of the KiCad documentation has not yet been written.  We\n"
+"      appreciate your patience as our small team of volunteer documentation\n"
+"      writers work to update and expand the documentation.\n"
+msgstr "本节 KiCad 文档尚未编写完成。 我们的志愿文档编写小组正在努力更新和扩充文档，请您耐心等待。\n"
 
 #. type: Plain text
-#: introduction.adoc:235
+#: introduction.adoc:272
 msgid "File types and project structure"
 msgstr "文件类型和工程结构"
 
 #. type: Plain text
-#: introduction.adoc:236
+#: introduction.adoc:273
 msgid "Project workflow"
 msgstr "工程工作流程"
 
 #. type: Plain text
-#: introduction.adoc:237
+#: introduction.adoc:274
 msgid "Schematic <> PCB workflow"
-msgstr "原理图 <> PCB 工作流程"
+msgstr "原理图交互 PCB 工作流程"
 
 #. type: Plain text
-#: introduction.adoc:238
+#: introduction.adoc:275
 msgid "Standalone vs. project mode for schematic and PCB editors"
-msgstr "原理图和 PCB 编辑器的独立模式与工程模式"
+msgstr "原理图和 PCB 编辑器的单机模式与工程模式"
 
 #. type: Title ===
-#: introduction.adoc:240
+#: introduction.adoc:277
 #, no-wrap
 msgid "Symbol and Footprint Libraries"
 msgstr "符号和封装库"
 
 #. type: Plain text
-#: introduction.adoc:245
+#: introduction.adoc:284
 msgid "Relationship between libraries and design files"
 msgstr "库和设计文件之间的关系"
 
 #. type: Plain text
-#: introduction.adoc:246
+#: introduction.adoc:285
 msgid "Global vs project libraries"
 msgstr "全局库与工程库"
 
 #. type: Plain text
-#: introduction.adoc:247
+#: introduction.adoc:286
 msgid "The KiCad library project (built-in global libraries)"
 msgstr "KiCad 库工程（内置全局库）。"
 
 #. type: Title ===
-#: introduction.adoc:249
+#: introduction.adoc:288
 #, no-wrap
 msgid "Accessory Tools"
 msgstr "辅助工具"
 
 #. type: Plain text
-#: introduction.adoc:254
+#: introduction.adoc:295
 msgid "GerbView"
 msgstr "GerbView"
 
 #. type: Plain text
-#: introduction.adoc:255
+#: introduction.adoc:296
 msgid "PCB Calculator"
 msgstr "PCB 计算器"
 
 #. type: Plain text
-#: introduction.adoc:256
+#: introduction.adoc:297
 msgid "Bitmap2Component"
 msgstr "Bitmap2Component"
 
 #. type: Plain text
-#: introduction.adoc:257
+#: introduction.adoc:298
 msgid "Worksheet Editor (pl_editor)"
 msgstr "图框编辑器 (pl_editor)"
 
 #. type: Title ==
-#: introduction.adoc:260
+#: introduction.adoc:301
 #, no-wrap
 msgid "Further Reading"
 msgstr "扩展阅读"
 
 #. type: Plain text
-#: introduction.adoc:264
+#: introduction.adoc:305
 msgid ""
 "The latest version of this manual can be found in multiple languages at "
 "https://docs.kicad.org Manuals for previous versions of KiCad can also be "
@@ -696,7 +797,7 @@ msgstr ""
 "前版本的手册也可在该网站找到。"
 
 #. type: Plain text
-#: introduction.adoc:269
+#: introduction.adoc:310
 msgid ""
 "The KiCad user community includes a number of forums and chat platforms that "
 "are operated independently from the KiCad development team but are fully "
@@ -709,7 +810,7 @@ msgstr ""
 "可在社区标题下获得：https://www.kicad.org"
 
 #. type: Plain text
-#: introduction.adoc:272
+#: introduction.adoc:313
 msgid ""
 "Users interested in compiling KiCad from source and/or contributing to KiCad "
 "development should visit our developer documentation site at https://dev-"
@@ -719,6 +820,90 @@ msgstr ""
 "对从源代码编译 KiCad 和/或为 KiCad 开发做出贡献感兴趣的用户应访问我们的开发者"
 "文档网站：https://dev-docs.kicad.org，了解有关 KiCad 代码库的说明、政策和指南"
 "以及技术信息。"
+
+#~ msgid "2021-05-09"
+#~ msgstr "2021-05-09"
+
+#~ msgid ""
+#~ "A new schematic file format that embeds schematic symbols that are used "
+#~ "in a design, meaning there is no longer the need for a separate cache "
+#~ "library file."
+#~ msgstr ""
+#~ "一种新的原理图文件格式，嵌入了设计中使用的原理图符号，意味着不再需要单独的"
+#~ "缓存库文件。"
+
+#~ msgid ""
+#~ "A new project file format that separates out display settings (such as "
+#~ "which layers are visible in the PCB editor) so that these types of "
+#~ "settings no longer cause changes to the board file or main project file, "
+#~ "making KiCad easier to use with version control systems."
+#~ msgstr ""
+#~ "一种新的工程文件格式，将显示设置（如哪些层在 PCB 编辑器中可见）分离出来，"
+#~ "因此这些类型的设置不再导致对电路板文件或主工程文件的更改，使 KiCad 更容易"
+#~ "与版本控制系统配合使用。"
+
+#~ msgid ""
+#~ "A major overhaul of the schematic editor bringing its behavior in line "
+#~ "with the PCB editor and conventions used by most other graphical editing "
+#~ "software.  Object selection and dragging now works the way most users "
+#~ "expect when coming from other software."
+#~ msgstr ""
+#~ "对原理图编辑器进行了重构，使其行为与大多数其他图形编辑软件使用的 PCB 编辑"
+#~ "器和惯例保持一致。  对象的选择和拖动现在可以按照大多数用户从其他软件来的方"
+#~ "式工作。"
+
+#~ msgid ""
+#~ "Support for buses of arbitrary signals, custom wire and junction colors "
+#~ "per net, alternate pin functions, and many other new schematic features."
+#~ msgstr ""
+#~ "支持任意信号的总线、每个网络的自定义导线和结点颜色、替代引脚功能以及许多其"
+#~ "他新的原理图功能。"
+
+#~ msgid ""
+#~ "A new design rule system in the PCB editor supporting custom rules that "
+#~ "can be used to constrain complex designs with high voltage, signal "
+#~ "integrity, RF, or other specialty needs."
+#~ msgstr ""
+#~ "PCB 编辑器中的新设计规则系统支持自定义规则，可用于约束具有高电压、信号完整"
+#~ "性、射频或其他特殊需求的复杂设计。"
+
+#~ msgid ""
+#~ "A number of improvements to the PCB editor's capabilities, including "
+#~ "support for rounded (arc)  track routing, hatched zone fills, rectangle "
+#~ "primitives, new dimension styles, removing pad and via copper on "
+#~ "unconnected layers, object grouping, locking, and much more."
+#~ msgstr ""
+#~ "对 PCB 编辑器功能进行了大量改进，包括支持圆形 (圆弧) 布线、阴影区域填充、"
+#~ "矩形基元、新标注样式、移除未连接铜层上的焊盘和通孔、对象分组、锁定等。"
+
+#~ msgid ""
+#~ "More flexible configuration of mouse behavior, hotkeys, color themes, "
+#~ "coordinate systems, cross-probing behavior, interactive routing behavior, "
+#~ "and much more."
+#~ msgstr ""
+#~ "更灵活地配置鼠标行为、热键、颜色主题、坐标系统、交叉探测行为、交互式布线行"
+#~ "为等。"
+
+#~ msgid ""
+#~ "A new side panel UI for the PCB editor featuring layer visibility "
+#~ "presets, opacity control of different object types, per-net and per-"
+#~ "netclass coloring and visibility, and a new selection filter to control "
+#~ "what types of objects can be selected."
+#~ msgstr ""
+#~ "PCB 编辑器的新的侧板用户界面，具有层的可见性预设，不同对象类型的不透明度控"
+#~ "制，每个网和每个网类的着色和可见性，以及一个新的选择过滤器来控制可以选择哪"
+#~ "些类型的对象。"
+
+#~ msgid ""
+#~ "A redesigned look and feel, including a new design language used for all "
+#~ "tool icons, a new default color theme, and support for dark window themes "
+#~ "on Linux and macOS."
+#~ msgstr ""
+#~ "重新设计的外观和感觉，包括用于所有工具图标的新设计语言，新的默认颜色主题，"
+#~ "以及对 Linux 和 macOS 上深色窗口主题的支持。"
+
+#~ msgid "TODO: Write this section"
+#~ msgstr "TODO: 撰写本节"
 
 #~ msgid "TODO: Add link to release blog once it exists"
 #~ msgstr "TODO：在发布博客存在后添加链接"

@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2015 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -39,6 +39,13 @@ class DIFF_PAIR;
 class TOPOLOGY
 {
 public:
+
+    struct CLUSTER
+    {
+        const ITEM* m_key = nullptr;
+        std::set<ITEM*> m_items;
+    };
+
     typedef std::set<const JOINT*> JOINT_SET;
 
     TOPOLOGY( NODE* aNode ):
@@ -50,7 +57,7 @@ public:
     ITEM* NearestUnconnectedItem( const JOINT* aStart, int* aAnchor = nullptr,
                                   int aKindMask = ITEM::ANY_T );
 
-    bool NearestUnconnectedAnchorPoint( const LINE* aTrack, VECTOR2I& aPoint, LAYER_RANGE& aLayers,
+    bool NearestUnconnectedAnchorPoint( const LINE* aTrack, VECTOR2I& aPoint, PNS_LAYER_RANGE& aLayers,
                                         ITEM*& aItem );
     bool LeadingRatLine( const LINE* aTrack, SHAPE_LINE_CHAIN& aRatLine );
 
@@ -90,7 +97,7 @@ public:
 
     bool AssembleDiffPair( ITEM* aStart, DIFF_PAIR& aPair );
 
-    const std::set<ITEM*> AssembleCluster( ITEM* aStart, int aLayer );
+    const CLUSTER AssembleCluster( ITEM* aStart, int aLayer, double aAreaExpansionLimit = 0.0, NET_HANDLE aExcludedNet = nullptr );
 
 private:
     const int DP_PARALLELITY_THRESHOLD = 5;

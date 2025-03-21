@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2014-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,108 +22,177 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <algorithm>
 #include <bitset>                             // for bitset, __bitset<>::ref...
 #include <cassert>
 #include <cstdarg>
 #include <iostream>                           // for string, endl, basic_ost...
-#include <stddef.h>                           // for size_t
+#include <cstddef>                            // for size_t
+#include <map>
 
 #include <core/arraydim.h>
-#include <math/util.h>                        // for Clamp
-#include <layer_ids.h>                        // for LSET, PCB_LAYER_ID, LSEQ
+#include <layer_ids.h>                        // for PCB_LAYER_ID
+#include <layer_range.h>
+#include <lseq.h>
 #include <macros.h>                           // for arrayDim
 #include <wx/debug.h>                         // for wxASSERT, wxASSERT_MSG
 #include <wx/string.h>
 
+#include <lset.h>
 
-LSET::LSET( const PCB_LAYER_ID* aArray, unsigned aCount ) :
-    BASE_SET()
+
+LSET::LSET( std::initializer_list<PCB_LAYER_ID> aList ) :
+    LSET()
 {
-    for( unsigned i=0; i<aCount; ++i )
-        set( aArray[i] );
+    for( PCB_LAYER_ID layer : aList )
+    {
+        if( layer >= 0 )
+            set( layer );
+    }
 }
 
-
-LSET::LSET( unsigned aIdCount, int aFirst, ... ) :
-    BASE_SET()
+LSET::LSET( const std::vector<PCB_LAYER_ID>& aList ) :
+    LSET()
 {
-    // The constructor, without the mandatory aFirst argument, could have been confused
-    // by the compiler with the LSET( PCB_LAYER_ID ).  With aFirst, that ambiguity is not
-    // present.  Therefore aIdCount must always be >=1.
-    wxASSERT_MSG( aIdCount > 0, wxT( "aIdCount must be >= 1" ) );
-
-    set( aFirst );
-
-    if( --aIdCount )
+    for( PCB_LAYER_ID layer : aList )
     {
-        va_list ap;
-
-        va_start( ap, aFirst );
-
-        for( unsigned i=0;  i<aIdCount;  ++i )
-        {
-            PCB_LAYER_ID id = (PCB_LAYER_ID) va_arg( ap, int );
-
-            assert( unsigned( id ) < PCB_LAYER_ID_COUNT );
-
-            set( id );
-        }
-
-        va_end( ap );
+        if( layer >= 0 )
+            set( layer );
     }
 }
 
 
-LSET::LSET( const LSEQ& aSeq )
+LSET::LSET( const LSEQ& aSeq ) :
+    LSET()
 {
     for( PCB_LAYER_ID layer : aSeq )
-        set( layer );
+    {
+        if( layer >= 0 )
+            set( layer );
+    }
 }
 
 
-/**
- * NOTE: These names must not be translated or changed.  They are used as tokens in the board
- * file format because the ordinal value of the PCB_LAYER_ID enum was not stable over time.
- * @see LayerName() for what should be used to display the default name of a layer in the GUI.
- */
-const wxChar* LSET::Name( PCB_LAYER_ID aLayerId )
+LSET::LSET( const LAYER_RANGE& aRange )
 {
-    const wxChar* txt;
+    for( PCB_LAYER_ID layer : aRange )
+    {
+        if( layer >= 0 )
+            set( layer );
+    }
+}
+
+
+int LSET::LayerCount( PCB_LAYER_ID aStart, PCB_LAYER_ID aEnd, int aCopperLayerCount )
+{
+    int start = aStart;
+    int end = aEnd;
+
+    // Both layers need to be copper
+    wxCHECK( IsCopperLayer( aStart ) && IsCopperLayer( aEnd ), aCopperLayerCount );
+
+    if( aStart == B_Cu )
+        std::swap( start, end );
+
+    if( aStart == aEnd )
+        return 1;
+
+    if( aStart == F_Cu )
+    {
+        if ( aEnd == B_Cu )
+            return aCopperLayerCount;
+        else
+            return ( end - start ) / 2 - 1;
+    }
+    else if ( aEnd == B_Cu )
+    {
+        // Add 1 for the B_Cu layer
+        return aCopperLayerCount - start / 2 + 1;
+    }
+
+    return ( end - start ) / 2;
+}
+
+
+int LSET::NameToLayer( wxString& aName )
+{
+    std::map<wxString, PCB_LAYER_ID> layerMap = {
+        { "F.Cu", F_Cu },
+        { "B.Cu", B_Cu },
+        { "F.Adhes", F_Adhes },
+        { "B.Adhes", B_Adhes },
+        { "F.Paste", F_Paste },
+        { "B.Paste", B_Paste },
+        { "F.SilkS", F_SilkS },
+        { "B.SilkS", B_SilkS },
+        { "F.Mask", F_Mask },
+        { "B.Mask", B_Mask },
+        { "Dwgs.User", Dwgs_User },
+        { "Cmts.User", Cmts_User },
+        { "Eco1.User", Eco1_User },
+        { "Eco2.User", Eco2_User },
+        { "Edge.Cuts", Edge_Cuts },
+        { "Margin", Margin },
+        { "F.CrtYd", F_CrtYd },
+        { "B.CrtYd", B_CrtYd },
+        { "F.Fab", F_Fab },
+        { "B.Fab", B_Fab },
+        { "Rescue", Rescue },
+        { "B.Cu", B_Cu },
+    };
+
+    if( auto it = layerMap.find( aName ); it != layerMap.end() )
+        return static_cast<int>( it->second );
+
+    if( aName.StartsWith( "User." ) )
+    {
+        long offset;
+
+        if( aName.Mid( 5 ).ToLong( &offset ) && offset > 0 )
+            return static_cast<int>( User_1 ) + ( offset - 1 ) * 2;
+    }
+
+    if( aName.StartsWith( "In" ) )
+    {
+        long offset;
+        wxString str_num = aName.Mid( 2 );
+        str_num.RemoveLast( 3 ); // Removes .Cu
+
+        if( str_num.ToLong( &offset ) && offset > 0 )
+            return static_cast<int>( In1_Cu ) + ( offset - 1 ) * 2;
+    }
+
+    return -1;
+}
+
+
+bool LSET::IsBetween( PCB_LAYER_ID aStart, PCB_LAYER_ID aEnd, PCB_LAYER_ID aLayer )
+{
+    if( aLayer == aStart || aLayer == aEnd )
+        return true;
+
+    int start = std::min( aStart, aEnd );
+    int end = std::max( aStart, aEnd );
+    int layer = aLayer;
+
+    if( end == B_Cu )
+    {
+        //Reassign the end layer to the largest possible positive even number
+        end = std::numeric_limits<PCB_LAYER_ID>::max() & ~1;
+    }
+
+    return !( layer & 1 ) && ( layer >= start ) && ( layer <= end );
+}
+
+
+wxString LSET::Name( PCB_LAYER_ID aLayerId )
+{
+    wxString txt;
 
     // using a switch to explicitly show the mapping more clearly
     switch( aLayerId )
     {
     case F_Cu:              txt = wxT( "F.Cu" );            break;
-    case In1_Cu:            txt = wxT( "In1.Cu" );          break;
-    case In2_Cu:            txt = wxT( "In2.Cu" );          break;
-    case In3_Cu:            txt = wxT( "In3.Cu" );          break;
-    case In4_Cu:            txt = wxT( "In4.Cu" );          break;
-    case In5_Cu:            txt = wxT( "In5.Cu" );          break;
-    case In6_Cu:            txt = wxT( "In6.Cu" );          break;
-    case In7_Cu:            txt = wxT( "In7.Cu" );          break;
-    case In8_Cu:            txt = wxT( "In8.Cu" );          break;
-    case In9_Cu:            txt = wxT( "In9.Cu" );          break;
-    case In10_Cu:           txt = wxT( "In10.Cu" );         break;
-    case In11_Cu:           txt = wxT( "In11.Cu" );         break;
-    case In12_Cu:           txt = wxT( "In12.Cu" );         break;
-    case In13_Cu:           txt = wxT( "In13.Cu" );         break;
-    case In14_Cu:           txt = wxT( "In14.Cu" );         break;
-    case In15_Cu:           txt = wxT( "In15.Cu" );         break;
-    case In16_Cu:           txt = wxT( "In16.Cu" );         break;
-    case In17_Cu:           txt = wxT( "In17.Cu" );         break;
-    case In18_Cu:           txt = wxT( "In18.Cu" );         break;
-    case In19_Cu:           txt = wxT( "In19.Cu" );         break;
-    case In20_Cu:           txt = wxT( "In20.Cu" );         break;
-    case In21_Cu:           txt = wxT( "In21.Cu" );         break;
-    case In22_Cu:           txt = wxT( "In22.Cu" );         break;
-    case In23_Cu:           txt = wxT( "In23.Cu" );         break;
-    case In24_Cu:           txt = wxT( "In24.Cu" );         break;
-    case In25_Cu:           txt = wxT( "In25.Cu" );         break;
-    case In26_Cu:           txt = wxT( "In26.Cu" );         break;
-    case In27_Cu:           txt = wxT( "In27.Cu" );         break;
-    case In28_Cu:           txt = wxT( "In28.Cu" );         break;
-    case In29_Cu:           txt = wxT( "In29.Cu" );         break;
-    case In30_Cu:           txt = wxT( "In30.Cu" );         break;
     case B_Cu:              txt = wxT( "B.Cu" );            break;
 
     // Technicals
@@ -150,24 +219,25 @@ const wxChar* LSET::Name( PCB_LAYER_ID aLayerId )
     case F_Fab:             txt = wxT( "F.Fab" );           break;
     case B_Fab:             txt = wxT( "B.Fab" );           break;
 
-    // User definable layers.
-    case User_1:            txt = wxT( "User.1" );          break;
-    case User_2:            txt = wxT( "User.2" );          break;
-    case User_3:            txt = wxT( "User.3" );          break;
-    case User_4:            txt = wxT( "User.4" );          break;
-    case User_5:            txt = wxT( "User.5" );          break;
-    case User_6:            txt = wxT( "User.6" );          break;
-    case User_7:            txt = wxT( "User.7" );          break;
-    case User_8:            txt = wxT( "User.8" );          break;
-    case User_9:            txt = wxT( "User.9" );          break;
-
     // Rescue
     case Rescue:            txt = wxT( "Rescue" );          break;
 
     default:
-        std::cout << aLayerId << std::endl;
-        wxASSERT_MSG( 0, wxT( "aLayerId out of range" ) );
-                            txt = wxT( "BAD INDEX!" );      break;
+
+        if( aLayerId < 0 )
+            txt = wxT( "UNDEFINED" );
+        else if( static_cast<int>( aLayerId ) & 1 )
+        {
+            int offset = ( aLayerId - Rescue ) / 2;
+            txt = wxString::Format( wxT( "User.%d" ), offset );
+        }
+        else
+        {
+            int offset = ( aLayerId - B_Cu ) / 2;
+            txt = wxString::Format( wxT( "In%d.Cu" ), offset );
+        }
+
+
     }
 
     return txt;
@@ -176,98 +246,24 @@ const wxChar* LSET::Name( PCB_LAYER_ID aLayerId )
 
 LSEQ LSET::CuStack() const
 {
-    // desired sequence
-    static const PCB_LAYER_ID sequence[] = {
-        F_Cu,
-        In1_Cu,
-        In2_Cu,
-        In3_Cu,
-        In4_Cu,
-        In5_Cu,
-        In6_Cu,
-        In7_Cu,
-        In8_Cu,
-        In9_Cu,
-        In10_Cu,
-        In11_Cu,
-        In12_Cu,
-        In13_Cu,
-        In14_Cu,
-        In15_Cu,
-        In16_Cu,
-        In17_Cu,
-        In18_Cu,
-        In19_Cu,
-        In20_Cu,
-        In21_Cu,
-        In22_Cu,
-        In23_Cu,
-        In24_Cu,
-        In25_Cu,
-        In26_Cu,
-        In27_Cu,
-        In28_Cu,
-        In29_Cu,
-        In30_Cu,
-        B_Cu,           // 31
-    };
+    LSEQ ret;
 
-    return Seq( sequence, arrayDim( sequence ) );
-}
+    ret.reserve( 32 );
 
+    for( auto it = copper_layers_begin(); it != copper_layers_end(); ++it )
+        ret.push_back( *it );
 
-LSEQ LSET::Technicals( LSET aSetToOmit ) const
-{
-    // desired sequence
-    static const PCB_LAYER_ID sequence[] = {
-        F_Adhes,
-        B_Adhes,
-        F_Paste,
-        B_Paste,
-        F_SilkS,
-        B_SilkS,
-        F_Mask,
-        B_Mask,
-        F_CrtYd,
-        B_CrtYd,
-        F_Fab,
-        B_Fab,
-    };
-
-    LSET subset = ~aSetToOmit & *this;
-
-    return subset.Seq( sequence, arrayDim( sequence ) );
-}
-
-
-LSEQ LSET::Users() const
-{
-    // desired
-    static const PCB_LAYER_ID sequence[] = {
-        Dwgs_User,
-        Cmts_User,
-        Eco1_User,
-        Eco2_User,
-        Edge_Cuts,
-        Margin,
-        User_1,
-        User_2,
-        User_3,
-        User_4,
-        User_5,
-        User_6,
-        User_7,
-        User_8,
-        User_9
-   };
-
-   return Seq( sequence, arrayDim( sequence ) );
+    return ret;
 }
 
 
 LSEQ LSET::TechAndUserUIOrder() const
 {
-    static const PCB_LAYER_ID sequence[] = {
+    LSEQ ret;
+
+    ret.reserve( 32 );
+
+    ret = Seq( {
         F_Adhes,
         B_Adhes,
         F_Paste,
@@ -285,165 +281,14 @@ LSEQ LSET::TechAndUserUIOrder() const
         F_CrtYd,
         B_CrtYd,
         F_Fab,
-        B_Fab,
-        User_1,
-        User_2,
-        User_3,
-        User_4,
-        User_5,
-        User_6,
-        User_7,
-        User_8,
-        User_9
-   };
+        B_Fab
+    } );
 
-   return Seq( sequence, arrayDim( sequence ) );
-}
-
-
-std::string LSET::FmtBin() const
-{
-    std::string ret;
-
-    int     bit_count = size();
-
-    for( int bit=0;  bit<bit_count;  ++bit )
+    for( auto it = non_copper_layers_begin(); it != non_copper_layers_end(); ++it )
     {
-        if( bit )
-        {
-            if( !( bit % 8 ) )
-                ret += '|';
-            else if( !( bit % 4 ) )
-                ret += '_';
-        }
-
-        ret += (*this)[bit] ? '1' :  '0';
+        if( *it >= User_1 )
+            ret.push_back( *it );
     }
-
-    // reverse of string
-    return std::string( ret.rbegin(), ret.rend() );
-}
-
-
-std::string LSET::FmtHex() const
-{
-    std::string ret;
-
-    static const char hex[] = "0123456789abcdef";
-
-    size_t nibble_count = ( size() + 3 ) / 4;
-
-    for( size_t nibble = 0; nibble < nibble_count; ++nibble )
-    {
-        unsigned int ndx = 0;
-
-        // test 4 consecutive bits and set ndx to 0-15
-        for( size_t nibble_bit = 0; nibble_bit < 4; ++nibble_bit )
-        {
-            size_t nibble_pos = nibble_bit + ( nibble * 4 );
-            // make sure it's not extra bits that don't exist in the bitset but need to in the
-            // hex format
-            if( nibble_pos >= size() )
-                break;
-
-            if( ( *this )[nibble_pos] )
-                ndx |= ( 1 << nibble_bit );
-        }
-
-        if( nibble && !( nibble % 8 ) )
-            ret += '_';
-
-        assert( ndx < arrayDim( hex ) );
-
-        ret += hex[ndx];
-    }
-
-    // reverse of string
-    return std::string( ret.rbegin(), ret.rend() );
-}
-
-
-int LSET::ParseHex( const char* aStart, int aCount )
-{
-    LSET tmp;
-
-    const char* rstart = aStart + aCount - 1;
-    const char* rend   = aStart - 1;
-
-    const int bitcount = size();
-
-    int nibble_ndx = 0;
-
-    while( rstart > rend )
-    {
-        int cc = *rstart--;
-
-        if( cc == '_' )
-            continue;
-
-        int nibble;
-
-        if( cc >= '0' && cc <= '9' )
-            nibble = cc - '0';
-        else if( cc >= 'a' && cc <= 'f' )
-            nibble = cc - 'a' + 10;
-        else if( cc >= 'A' && cc <= 'F' )
-            nibble = cc - 'A' + 10;
-        else
-            break;
-
-        int bit = nibble_ndx * 4;
-
-        for( int ndx=0; bit<bitcount && ndx<4; ++bit, ++ndx )
-            if( nibble & (1<<ndx) )
-                tmp.set( bit );
-
-        if( bit >= bitcount )
-            break;
-
-        ++nibble_ndx;
-    }
-
-    int byte_count = aStart + aCount - 1 - rstart;
-
-    assert( byte_count >= 0 );
-
-    if( byte_count > 0 )
-        *this = tmp;
-
-    return byte_count;
-}
-
-
-LSEQ LSET::Seq( const PCB_LAYER_ID* aWishListSequence, unsigned aCount ) const
-{
-    LSEQ ret;
-
-#if defined(DEBUG) && 0
-    LSET    dup_detector;
-
-    for( unsigned i=0; i<aCount;  ++i )
-    {
-        PCB_LAYER_ID id = aWishListSequence[i];
-
-        if( test( id ) )
-        {
-            wxASSERT_MSG( !dup_detector[id], wxT( "Duplicate in aWishListSequence" ) );
-            dup_detector[id] = true;
-
-            ret.push_back( id );
-        }
-    }
-#else
-
-    for( unsigned i=0; i<aCount;  ++i )
-    {
-        PCB_LAYER_ID id = aWishListSequence[i];
-
-        if( test( id ) )
-            ret.push_back( id );
-    }
-#endif
 
     return ret;
 }
@@ -453,10 +298,10 @@ LSEQ LSET::Seq( const LSEQ& aSequence ) const
 {
     LSEQ ret;
 
-    for( LSEQ seq = aSequence; seq; ++seq )
+    for( PCB_LAYER_ID layer : aSequence )
     {
-        if( test( *seq ) )
-            ret.push_back( *seq );
+        if( test( layer ) )
+            ret.push_back( layer );
     }
 
     return ret;
@@ -481,69 +326,49 @@ LSEQ LSET::Seq() const
 
 LSEQ LSET::SeqStackupTop2Bottom( PCB_LAYER_ID aSelectedLayer ) const
 {
-    static const PCB_LAYER_ID sequence[] = {
+    LSEQ base_sequence = Seq( {
         Edge_Cuts,
         Margin,
         Dwgs_User,
         Cmts_User,
         Eco1_User,
-        Eco2_User,
-        User_1,
-        User_2,
-        User_3,
-        User_4,
-        User_5,
-        User_6,
-        User_7,
-        User_8,
-        User_9,
+        Eco2_User
+    } );
+
+    LSEQ top_tech_sequence = Seq( {
         F_Fab,
         F_SilkS,
         F_Paste,
         F_Adhes,
         F_Mask,
         F_CrtYd,
-        F_Cu,
-        In1_Cu,
-        In2_Cu,
-        In3_Cu,
-        In4_Cu,
-        In5_Cu,
-        In6_Cu,
-        In7_Cu,
-        In8_Cu,
-        In9_Cu,
-        In10_Cu,
-        In11_Cu,
-        In12_Cu,
-        In13_Cu,
-        In14_Cu,
-        In15_Cu,
-        In16_Cu,
-        In17_Cu,
-        In18_Cu,
-        In19_Cu,
-        In20_Cu,
-        In21_Cu,
-        In22_Cu,
-        In23_Cu,
-        In24_Cu,
-        In25_Cu,
-        In26_Cu,
-        In27_Cu,
-        In28_Cu,
-        In29_Cu,
-        In30_Cu,
-        B_Cu,
+    } );
+
+    LSEQ bottom_tech_sequence = Seq( {
         B_CrtYd,
         B_Mask,
         B_Adhes,
         B_Paste,
         B_SilkS,
         B_Fab,
-    };
+    } );
 
-    LSEQ seq = Seq( sequence, arrayDim( sequence ) );
+
+    LSEQ seq = Seq( base_sequence );
+
+    for( auto it = non_copper_layers_begin(); it != non_copper_layers_end(); ++it )
+    {
+        if( *it >= User_1 )
+            seq.push_back( *it );
+    }
+
+    std::copy( top_tech_sequence.begin(), top_tech_sequence.end(), std::back_inserter( seq ) );
+
+    for( auto it = copper_layers_begin(); it != copper_layers_end(); ++it )
+        seq.push_back( *it );
+
+    std::copy( bottom_tech_sequence.begin(), bottom_tech_sequence.end(),
+               std::back_inserter( seq ) );
 
     if( aSelectedLayer != UNDEFINED_LAYER )
     {
@@ -565,7 +390,7 @@ LSEQ LSET::SeqStackupForPlotting() const
     // bottom-to-top stack-up layers
     // Note that the bottom technical layers are flipped so that when plotting a bottom-side view,
     // they appear in the correct sequence.
-    static const PCB_LAYER_ID sequence[] = {
+    LSEQ bottom_tech_sequence = Seq( {
         B_Cu,
         B_Mask,
         B_Paste,
@@ -573,201 +398,120 @@ LSEQ LSET::SeqStackupForPlotting() const
         B_Adhes,
         B_CrtYd,
         B_Fab,
-        In30_Cu,
-        In29_Cu,
-        In28_Cu,
-        In27_Cu,
-        In26_Cu,
-        In25_Cu,
-        In24_Cu,
-        In23_Cu,
-        In22_Cu,
-        In21_Cu,
-        In20_Cu,
-        In19_Cu,
-        In18_Cu,
-        In17_Cu,
-        In16_Cu,
-        In15_Cu,
-        In14_Cu,
-        In13_Cu,
-        In12_Cu,
-        In11_Cu,
-        In10_Cu,
-        In9_Cu,
-        In8_Cu,
-        In7_Cu,
-        In6_Cu,
-        In5_Cu,
-        In4_Cu,
-        In3_Cu,
-        In2_Cu,
-        In1_Cu,
-        F_Cu,
+    } );
+
+    // Copper layers go here
+
+    LSEQ top_tech_sequence = Seq( {
         F_Mask,
         F_Paste,
         F_SilkS,
         F_Adhes,
         F_CrtYd,
         F_Fab,
+    } );
+
+    LSEQ user_sequence = Seq( {
         Dwgs_User,
         Cmts_User,
         Eco1_User,
         Eco2_User,
-        User_1,
-        User_2,
-        User_3,
-        User_4,
-        User_5,
-        User_6,
-        User_7,
-        User_8,
-        User_9,
+    } );
+
+    // User layers go here
+
+    LSEQ base_sequence = Seq( {
         Margin,
         Edge_Cuts,
+    } );
+
+
+
+    LSEQ seq = Seq( bottom_tech_sequence );
+
+    std::vector<PCB_LAYER_ID> temp_layers;
+
+    // We are going to reverse the copper layers and then add them to the sequence
+    // because the plotting order is bottom-to-top
+    for( auto it = copper_layers_begin(); it != copper_layers_end(); ++it )
+    {
+        // Skip B_Cu because it is already in the sequence (if it exists)
+        if( *it != B_Cu )
+            temp_layers.push_back( *it );
+    }
+
+    for( auto it = temp_layers.rbegin(); it != temp_layers.rend(); ++it )
+        seq.push_back( *it );
+
+    std::copy( top_tech_sequence.begin(), top_tech_sequence.end(), std::back_inserter( seq ) );
+
+    std::copy( user_sequence.begin(), user_sequence.end(), std::back_inserter( seq ) );
+
+    temp_layers.clear();
+
+    for( auto it = non_copper_layers_begin(); it != non_copper_layers_end(); ++it )
+    {
+        if( *it >= User_1 )
+            temp_layers.push_back( *it );
+    }
+
+    for( auto it = temp_layers.rbegin(); it != temp_layers.rend(); ++it )
+    {
+        seq.push_back( *it );
+    }
+
+    std::copy( base_sequence.begin(), base_sequence.end(), std::back_inserter( seq ) );
+
+    return seq;
+}
+
+
+LSET& LSET::Flip( int aCopperLayersCount )
+{
+    LSET oldMask = *this;
+
+    reset();
+
+    // Mapping for Copper and Non-Copper layers
+    const std::map<PCB_LAYER_ID, PCB_LAYER_ID> flip_map =
+    {
+        {F_Cu, B_Cu},
+        {B_Cu, F_Cu},
+        {F_SilkS, B_SilkS},
+        {B_SilkS, F_SilkS},
+        {F_Adhes, B_Adhes},
+        {B_Adhes, F_Adhes},
+        {F_Mask, B_Mask},
+        {B_Mask, F_Mask},
+        {F_Paste, B_Paste},
+        {B_Paste, F_Paste},
+        {F_CrtYd, B_CrtYd},
+        {B_CrtYd, F_CrtYd},
+        {F_Fab, B_Fab},
+        {B_Fab, F_Fab}
     };
 
-    return Seq( sequence, arrayDim( sequence ) );
-}
-
-
-PCB_LAYER_ID FlipLayer( PCB_LAYER_ID aLayerId, int aCopperLayersCount )
-{
-    switch( aLayerId )
+    for( const auto& pair : flip_map )
     {
-    case B_Cu:              return F_Cu;
-    case F_Cu:              return B_Cu;
-
-    case B_SilkS:           return F_SilkS;
-    case F_SilkS:           return B_SilkS;
-
-    case B_Adhes:           return F_Adhes;
-    case F_Adhes:           return B_Adhes;
-
-    case B_Mask:            return F_Mask;
-    case F_Mask:            return B_Mask;
-
-    case B_Paste:           return F_Paste;
-    case F_Paste:           return B_Paste;
-
-    case B_CrtYd:           return F_CrtYd;
-    case F_CrtYd:           return B_CrtYd;
-
-    case B_Fab:             return F_Fab;
-    case F_Fab:             return B_Fab;
-
-    default:    // change internal layer if aCopperLayersCount is >= 4
-        if( IsCopperLayer( aLayerId ) && aCopperLayersCount >= 4 )
-        {
-            // internal copper layers count is aCopperLayersCount-2
-            PCB_LAYER_ID fliplayer = PCB_LAYER_ID(aCopperLayersCount - 2 - ( aLayerId - In1_Cu ) );
-            // Ensure fliplayer has a value which does not crash Pcbnew:
-            if( fliplayer < F_Cu )
-                fliplayer = F_Cu;
-
-            if( fliplayer > B_Cu )
-                fliplayer = B_Cu;
-
-            return fliplayer;
-        }
-
-        // No change for the other layers
-        return aLayerId;
+        if( oldMask.test( pair.first ) )
+            set( pair.second );
     }
-}
 
-
-LSET FlipLayerMask( LSET aMask, int aCopperLayersCount )
-{
-    // layers on physical outside of a board:
-    const static LSET and_mask( 16,     // !! update count
-                B_Cu,       F_Cu,
-                B_SilkS,    F_SilkS,
-                B_Adhes,    F_Adhes,
-                B_Mask,     F_Mask,
-                B_Paste,    F_Paste,
-                B_Adhes,    F_Adhes,
-                B_CrtYd,    F_CrtYd,
-                B_Fab,      F_Fab
-                );
-
-    LSET newMask = aMask & ~and_mask;
-
-    if( aMask[B_Cu] )
-        newMask.set( F_Cu );
-
-    if( aMask[F_Cu] )
-        newMask.set( B_Cu );
-
-    if( aMask[B_SilkS] )
-        newMask.set( F_SilkS );
-
-    if( aMask[F_SilkS] )
-        newMask.set( B_SilkS );
-
-    if( aMask[B_Adhes] )
-        newMask.set( F_Adhes );
-
-    if( aMask[F_Adhes] )
-        newMask.set( B_Adhes );
-
-    if( aMask[B_Mask] )
-        newMask.set( F_Mask );
-
-    if( aMask[F_Mask] )
-        newMask.set( B_Mask );
-
-    if( aMask[B_Paste] )
-        newMask.set( F_Paste );
-
-    if( aMask[F_Paste] )
-        newMask.set( B_Paste );
-
-    if( aMask[B_Adhes] )
-        newMask.set( F_Adhes );
-
-    if( aMask[F_Adhes] )
-        newMask.set( B_Adhes );
-
-    if( aMask[B_CrtYd] )
-        newMask.set( F_CrtYd );
-
-    if( aMask[F_CrtYd] )
-        newMask.set( B_CrtYd );
-
-    if( aMask[B_Fab] )
-        newMask.set( F_Fab );
-
-    if( aMask[F_Fab] )
-        newMask.set( B_Fab );
-
-    if( aCopperLayersCount >= 4 )   // Internal layers exist
+    if( aCopperLayersCount >= 4 )
     {
-        LSET internalMask = aMask & LSET::InternalCuMask();
+        LSET internalMask = oldMask & InternalCuMask();
+        int  innerLayerCount = aCopperLayersCount - 2;
 
-        if( internalMask != LSET::InternalCuMask() )
+        for( int ii = 1; ii <= innerLayerCount; ii++ )
         {
-            // the mask does not include all internal layers. Therefore
-            // the flipped mask for internal copper layers must be built
-            int innerLayerCnt = aCopperLayersCount -2;
-
-            // the flipped mask is the innerLayerCnt bits rewritten in reverse order
-            // ( bits innerLayerCnt to 1 rewritten in bits 1 to innerLayerCnt )
-            for( int ii = 0; ii < innerLayerCnt; ii++ )
+            if( internalMask.test( ( innerLayerCount - ii + 1 ) * 2 + B_Cu ) )
             {
-                if( internalMask[innerLayerCnt - ii] )
-                {
-                    newMask.set( ii + In1_Cu );
-                }
-                else
-                {
-                    newMask.reset( ii + In1_Cu );
-                }
+                set( ii * 2 + B_Cu );
             }
         }
     }
 
-    return newMask;
+    return *this;
 }
 
 
@@ -794,88 +538,35 @@ PCB_LAYER_ID LSET::ExtractLayer() const
 
 LSET LSET::FrontAssembly()
 {
-    static const PCB_LAYER_ID front_assembly[] = {
-        F_SilkS,
-        F_Mask,
-        F_Fab,
-        F_CrtYd
-    };
-
-    static const LSET saved( front_assembly, arrayDim( front_assembly ) );
+    static const LSET saved( { F_SilkS, F_Mask, F_Fab, F_CrtYd } );
     return saved;
 }
 
 
 LSET LSET::BackAssembly()
 {
-    static const PCB_LAYER_ID back_assembly[] = {
-        B_SilkS,
-        B_Mask,
-        B_Fab,
-        B_CrtYd
-    };
-
-    static const LSET saved( back_assembly, arrayDim( back_assembly ) );
+    static const LSET saved( { B_SilkS, B_Mask, B_Fab, B_CrtYd } );
     return saved;
 }
 
 
 LSET LSET::InternalCuMask()
 {
-    static const PCB_LAYER_ID cu_internals[] = {
-        In1_Cu,
-        In2_Cu,
-        In3_Cu,
-        In4_Cu,
-        In5_Cu,
-        In6_Cu,
-        In7_Cu,
-        In8_Cu,
-        In9_Cu,
-        In10_Cu,
-        In11_Cu,
-        In12_Cu,
-        In13_Cu,
-        In14_Cu,
-        In15_Cu,
-        In16_Cu,
-        In17_Cu,
-        In18_Cu,
-        In19_Cu,
-        In20_Cu,
-        In21_Cu,
-        In22_Cu,
-        In23_Cu,
-        In24_Cu,
-        In25_Cu,
-        In26_Cu,
-        In27_Cu,
-        In28_Cu,
-        In29_Cu,
-        In30_Cu,
-    };
-
-    static const LSET saved( cu_internals, arrayDim( cu_internals ) );
+    static const LSET saved( { In1_Cu,  In2_Cu,  In3_Cu,  In4_Cu,  In5_Cu,  In6_Cu,
+                               In7_Cu,  In8_Cu,  In9_Cu,  In10_Cu, In11_Cu, In12_Cu,
+                               In13_Cu, In14_Cu, In15_Cu, In16_Cu, In17_Cu, In18_Cu,
+                               In19_Cu, In20_Cu, In21_Cu, In22_Cu, In23_Cu, In24_Cu,
+                               In25_Cu, In26_Cu, In27_Cu, In28_Cu, In29_Cu, In30_Cu } );
     return saved;
 }
 
 
 LSET LSET::AllCuMask( int aCuLayerCount )
 {
-    // retain all in static as the full set, which is a common case.
-    static const LSET  all = InternalCuMask().set( F_Cu ).set( B_Cu );
+    LSET ret;
 
-    if( aCuLayerCount == MAX_CU_LAYERS )
-        return all;
-
-    // subtract out some Cu layers not wanted in the mask.
-    LSET    ret = all;
-    int     clear_count = MAX_CU_LAYERS - aCuLayerCount;
-
-    clear_count = Clamp( 0, clear_count, MAX_CU_LAYERS - 2 );
-
-    for( int elem = In30_Cu;  clear_count; --elem, --clear_count )
-        ret.set( elem, false );
+    for( PCB_LAYER_ID layer : LAYER_RANGE( F_Cu, B_Cu, aCuLayerCount ) )
+        ret.set( layer );
 
     return ret;
 }
@@ -883,14 +574,18 @@ LSET LSET::AllCuMask( int aCuLayerCount )
 
 LSET LSET::AllNonCuMask()
 {
-    static const LSET saved = LSET().set() & ~AllCuMask();
+    LSET saved = LSET().set();
+
+    for( auto it = saved.copper_layers_begin(); it != saved.copper_layers_end(); ++it )
+        saved.reset( *it );
+
     return saved;
 }
 
 
 LSET LSET::ExternalCuMask()
 {
-    static const LSET saved( 2, F_Cu, B_Cu );
+    static const LSET saved( { F_Cu, B_Cu } );
     return saved;
 }
 
@@ -904,26 +599,28 @@ LSET LSET::AllLayersMask()
 
 LSET LSET::BackTechMask()
 {
-    static const LSET saved( 6, B_SilkS, B_Mask, B_Adhes, B_Paste, B_CrtYd, B_Fab );
+    static const LSET saved( { B_SilkS, B_Mask, B_Adhes, B_Paste, B_CrtYd, B_Fab } );
     return saved;
 }
+
 
 LSET LSET::BackBoardTechMask()
 {
-    static const LSET saved( 4, B_SilkS, B_Mask, B_Adhes, B_Paste );
+    static const LSET saved( { B_SilkS, B_Mask, B_Adhes, B_Paste } );
     return saved;
 }
 
+
 LSET LSET::FrontTechMask()
 {
-    static const LSET saved( 6, F_SilkS, F_Mask, F_Adhes, F_Paste, F_CrtYd, F_Fab );
+    static const LSET saved( { F_SilkS, F_Mask, F_Adhes, F_Paste, F_CrtYd, F_Fab } );
     return saved;
 }
 
 
 LSET LSET::FrontBoardTechMask()
 {
-    static const LSET saved( 4, F_SilkS, F_Mask, F_Adhes, F_Paste );
+    static const LSET saved( { F_SilkS, F_Mask, F_Adhes, F_Paste } );
     return saved;
 }
 
@@ -944,14 +641,7 @@ LSET LSET::AllBoardTechMask()
 
 LSET LSET::UserMask()
 {
-    static const LSET saved( 6,
-        Dwgs_User,
-        Cmts_User,
-        Eco1_User,
-        Eco2_User,
-        Edge_Cuts,
-        Margin
-        );
+    static const LSET saved( { Dwgs_User, Cmts_User, Eco1_User, Eco2_User, Edge_Cuts, Margin } );
 
     return saved;
 }
@@ -964,21 +654,21 @@ LSET LSET::PhysicalLayersMask()
 }
 
 
-LSET LSET::UserDefinedLayers()
+LSET LSET::UserDefinedLayersMask( int aUserDefinedLayerCount )
 {
-    static const LSET saved( 9,
-        User_1,
-        User_2,
-        User_3,
-        User_4,
-        User_5,
-        User_6,
-        User_7,
-        User_8,
-        User_9
-        );
+    LSET   ret;
+    size_t layer = User_1;
 
-    return saved;
+    for( int ulayer = 1; ulayer <= aUserDefinedLayerCount; ulayer++ )
+    {
+        if( layer > ret.size() )
+            break;
+
+        ret.set( layer );
+        layer += 2;
+    }
+
+    return ret;
 }
 
 
@@ -994,6 +684,7 @@ LSET LSET::BackMask()
     static const LSET saved = BackTechMask().set( B_Cu );
     return saved;
 }
+
 
 LSET LSET::SideSpecificMask()
 {
@@ -1013,6 +704,7 @@ LSEQ LSET::UIOrder() const
 {
     LSEQ order = CuStack();
     LSEQ techuser = TechAndUserUIOrder();
+
     order.insert( order.end(), techuser.begin(), techuser.end() );
 
     return order;
@@ -1021,6 +713,10 @@ LSEQ LSET::UIOrder() const
 
 PCB_LAYER_ID ToLAYER_ID( int aLayer )
 {
+    // We use std::numeric_limits<int>::max() to represent B_Cu for the connectivity_rtree
+    if( aLayer == std::numeric_limits<int>::max() )
+        return B_Cu;
+
     wxASSERT( aLayer < GAL_LAYER_ID_END );
     return PCB_LAYER_ID( aLayer );
 }
@@ -1054,10 +750,8 @@ GAL_SET GAL_SET::DefaultVisible()
         LAYER_VIA_MICROVIA,
         LAYER_VIA_BBLIND,
         LAYER_VIA_THROUGH,
-     // LAYER_HIDDEN_TEXT,    // Invisible text hidden by default
+        // LAYER_HIDDEN_TEXT,    // DEPCREATED SINCE 9.0. Invisible text hidden by default
         LAYER_ANCHOR,
-        LAYER_PADS_SMD_FR,
-        LAYER_PADS_SMD_BK,
         LAYER_RATSNEST,
         LAYER_GRID,
         LAYER_GRID_AXES,
@@ -1067,7 +761,6 @@ GAL_SET GAL_SET::DefaultVisible()
         LAYER_FP_VALUES,
         LAYER_FP_REFERENCES,
         LAYER_TRACKS,
-        LAYER_PADS_TH,
         LAYER_PAD_PLATEDHOLES,
         LAYER_NON_PLATEDHOLES,
         LAYER_PAD_HOLEWALLS,
@@ -1075,7 +768,9 @@ GAL_SET GAL_SET::DefaultVisible()
         LAYER_VIA_HOLEWALLS,
         LAYER_DRC_ERROR,
         LAYER_DRC_WARNING,
-     // LAYER_DRC_EXCLUSION,      // DRC exclusions hidden by default
+        LAYER_DRC_SHAPE1,
+        LAYER_DRC_SHAPE2,
+        // LAYER_DRC_EXCLUSION,      // DRC exclusions hidden by default
         LAYER_DRAWINGSHEET,
         LAYER_GP_OVERLAY,
         LAYER_SELECT_OVERLAY,
@@ -1085,6 +780,7 @@ GAL_SET GAL_SET::DefaultVisible()
         LAYER_DRAW_BITMAPS,
         LAYER_PADS,
         LAYER_ZONES,
+        LAYER_SHAPES,
         LAYER_LOCKED_ITEM_SHADOW,
         LAYER_CONFLICTS_SHADOW
     };
@@ -1092,3 +788,139 @@ GAL_SET GAL_SET::DefaultVisible()
     static const GAL_SET saved( visible, arrayDim( visible ) );
     return saved;
 }
+
+
+#ifndef SWIG // Skip SWIG generators for the iterators because it requires a default constructor
+// Custom iterators for Copper and Non-Copper layers
+
+LSET::copper_layers_iterator::copper_layers_iterator( const BASE_SET& set, size_t index ) :
+        BASE_SET::set_bits_iterator( set, index )
+{
+    m_index = ( index + 1 ) & ~1;
+    advance_to_next_set_copper_bit();
+}
+
+
+PCB_LAYER_ID LSET::copper_layers_iterator::operator*() const
+{
+    return static_cast<PCB_LAYER_ID>( m_index );
+}
+
+
+LSET::copper_layers_iterator& LSET::copper_layers_iterator::operator++()
+{
+    next_copper_layer();
+    advance_to_next_set_copper_bit();
+    return *this;
+}
+
+
+void LSET::copper_layers_iterator::next_copper_layer()
+{
+    if( m_index == F_Cu )
+    {
+        m_index += 4;
+    }
+    else if( m_index == B_Cu )
+    {
+        m_index = m_baseSet.size();
+        return;
+    }
+    else
+    {
+        m_index += 2;
+
+        if( m_index >= m_baseSet.size() )
+            m_index = B_Cu;
+    }
+}
+
+
+void LSET::copper_layers_iterator::advance_to_next_set_copper_bit()
+{
+    while( m_index < m_baseSet.size() && !m_baseSet.test( m_index ) )
+        next_copper_layer();
+}
+
+
+LSET::non_copper_layers_iterator::non_copper_layers_iterator( const BASE_SET& set, size_t index ) :
+        BASE_SET::set_bits_iterator( set, index )
+{
+    advance_to_next_set_non_copper_bit();
+}
+
+
+PCB_LAYER_ID LSET::non_copper_layers_iterator::operator*() const
+{
+    return static_cast<PCB_LAYER_ID>( m_index );
+}
+
+
+LSET::non_copper_layers_iterator& LSET::non_copper_layers_iterator::operator++()
+{
+    ++m_index;
+    advance_to_next_set_non_copper_bit();
+    return *this;
+}
+
+
+void LSET::non_copper_layers_iterator::advance_to_next_set_non_copper_bit()
+{
+    while( m_index < m_baseSet.size() && ( m_index % 2 != 1 || !m_baseSet.test( m_index ) ) )
+    {
+        ++m_index;
+    }
+}
+
+
+LSET::copper_layers_iterator LSET::copper_layers_begin() const
+{
+    return copper_layers_iterator( *this, 0 );
+}
+
+
+LSET::copper_layers_iterator LSET::copper_layers_end() const
+{
+    return copper_layers_iterator( *this, size() );
+}
+
+
+LSET::non_copper_layers_iterator LSET::non_copper_layers_begin() const
+{
+    return non_copper_layers_iterator( *this, 0 );
+}
+
+
+LSET::non_copper_layers_iterator LSET::non_copper_layers_end() const
+{
+    return non_copper_layers_iterator( *this, size() );
+}
+
+
+LSET& LSET::ClearCopperLayers()
+{
+    for( size_t ii = 0; ii < size(); ii += 2 )
+        reset( ii );
+
+    return *this;
+}
+
+
+LSET& LSET::ClearNonCopperLayers()
+{
+    for( size_t ii = 1; ii < size(); ii += 2 )
+        reset( ii );
+
+    return *this;
+}
+
+
+LSET& LSET::ClearUserDefinedLayers()
+{
+    for( size_t ii = User_1; ii < size(); ii += 2 )
+        reset( ii );
+
+    return *this;
+}
+
+#endif

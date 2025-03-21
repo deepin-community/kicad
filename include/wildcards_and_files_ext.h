@@ -4,7 +4,7 @@
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2007-2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -131,11 +131,15 @@ public:
     static const std::string CadstarSchematicFileExtension;
     static const std::string CadstarPartsLibraryFileExtension;
     static const std::string KiCadSchematicFileExtension;
+    static const std::string IbisFileExtension;
     static const std::string SpiceFileExtension;
+    static const std::string SpiceModelFileExtension;
+    static const std::string SpiceSubcircuitFileExtension;
     static const std::string CadstarNetlistFileExtension;
     static const std::string OrCadPcb2NetlistFileExtension;
     static const std::string NetlistFileExtension;
     static const std::string AllegroNetlistFileExtension;
+    static const std::string PADSNetlistFileExtension;
     static const std::string GerberFileExtension;
     static const std::string GerberJobFileExtension;
     static const std::string HtmlFileExtension;
@@ -175,6 +179,9 @@ public:
     static const std::string Ipc2581FileExtension;
     static const std::string WorkbookFileExtension;
 
+    static const std::string KiCadDesignBlockLibPathExtension;
+    static const std::string KiCadDesignBlockPathExtension;
+
     static const std::string PngFileExtension;
     static const std::string JpegFileExtension;
     static const std::string TextFileExtension;
@@ -182,12 +189,27 @@ public:
     static const std::string CsvFileExtension;
     static const std::string XmlFileExtension;
     static const std::string JsonFileExtension;
+    static const std::string PythonFileExtension;
 
     static const std::string StepFileExtension;
     static const std::string StepFileAbrvExtension;
     static const std::string GltfBinaryFileExtension;
+    static const std::string BrepFileExtension;
+    static const std::string XaoFileExtension;
+    static const std::string PlyFileExtension;
+    static const std::string StlFileExtension;
+
+    static const std::string GencadFileExtension;
+
+    static const std::string KiCadJobSetFileExtension;
 
     static const wxString GerberFileExtensionsRegex;
+
+    static const std::string FootprintLibraryTableFileName;
+    static const std::string SymbolLibraryTableFileName;
+    static const std::string DesignBlockLibraryTableFileName;
+
+    static const std::string KiCadUriPrefix;
 
     /**
      * @}
@@ -220,6 +242,7 @@ public:
     static wxString OrCadPcb2NetlistFileWildcard();
     static wxString NetlistFileWildcard();
     static wxString AllegroNetlistFileWildcard();
+    static wxString PADSNetlistFileWildcard();
     static wxString HtmlFileWildcard();
     static wxString CsvFileWildcard();
     static wxString PcbFileWildcard();
@@ -240,6 +263,8 @@ public:
     static wxString DocModulesFileName();
     static wxString KiCadFootprintLibFileWildcard();
     static wxString KiCadFootprintLibPathWildcard();
+    static wxString KiCadDesignBlockLibPathWildcard();
+    static wxString KiCadDesignBlockPathWildcard();
     static wxString TextFileWildcard();
     static wxString ModLegacyExportFileWildcard();
     static wxString ErcFileWildcard();
@@ -258,6 +283,7 @@ public:
     static wxString PngFileWildcard();
     static wxString JpegFileWildcard();
     static wxString HotkeyFileWildcard();
+    static wxString JobsetFileWildcard();
 
     /**
      * @}

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Jon Evans <jon@craftyjon.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -23,12 +23,14 @@
 #define _CONNECTION_GRAPH_H
 
 #include <mutex>
+#include <utility>
 #include <vector>
 
-#include <erc_settings.h>
+#include <erc/erc_settings.h>
 #include <sch_connection.h>
 #include <sch_item.h>
 #include <wx/treectrl.h>
+#include <advanced_config.h>
 
 
 #ifdef DEBUG
@@ -122,7 +124,10 @@ public:
     /// Return the candidate net name for a driver.
     const wxString& GetNameForDriver( SCH_ITEM* aItem ) const;
 
-    const wxString GetNetclassForDriver( SCH_ITEM* aItem ) const;
+    /// Return the resolved netclasses for the item, and the source item providing the netclass
+    /// @param aItem the item to query for netclass assignments
+    const std::vector<std::pair<wxString, SCH_ITEM*>>
+    GetNetclassesForDriver( SCH_ITEM* aItem ) const;
 
     /// Combine another subgraph on the same sheet into this one.
     void Absorb( CONNECTION_SUBGRAPH* aOther );
@@ -195,6 +200,12 @@ public:
     const SCH_SHEET_PATH& GetSheet() const
     {
         return m_sheet;
+    }
+
+    const std::unordered_map< std::shared_ptr<SCH_CONNECTION>,
+                        std::unordered_set<CONNECTION_SUBGRAPH*> >& GetBusParents() const
+    {
+        return m_bus_parents;
     }
 
     void RemoveItem( SCH_ITEM* aItem );
@@ -430,7 +441,7 @@ public:
 
     CONNECTION_SUBGRAPH* GetSubgraphForItem( SCH_ITEM* aItem ) const;
 
-    const std::vector<CONNECTION_SUBGRAPH*> GetAllSubgraphs( const wxString& aNetName ) const;
+    const std::vector<CONNECTION_SUBGRAPH*>& GetAllSubgraphs( const wxString& aNetName ) const;
 
     /**
      * Return the fully-resolved netname for a given subgraph.
@@ -475,7 +486,8 @@ public:
     */
     bool IsMinor() const
     {
-        return m_items.size() < 10000;
+        return static_cast<ssize_t>( m_items.size() )
+               < ADVANCED_CFG::GetCfg().m_MinorSchematicGraphSize;
     }
 
 private:
@@ -526,7 +538,8 @@ private:
      * and re-created.  Otherwise, we will preserve existing net classes that do not
      * conflict with the new net classes.
      */
-    void buildConnectionGraph( std::function<void( SCH_ITEM* )>* aChangedItemHandler, bool aUnconditional );
+    void buildConnectionGraph( std::function<void( SCH_ITEM* )>* aChangedItemHandler,
+                               bool aUnconditional );
 
     /**
      * Generate individual item subgraphs on a per-sheet basis.
@@ -634,8 +647,6 @@ private:
      */
     bool ercCheckMultipleDrivers( const CONNECTION_SUBGRAPH* aSubgraph );
 
-    bool ercCheckNetclassConflicts( const std::vector<CONNECTION_SUBGRAPH*>& subgraphs );
-
     /**
      * Check one subgraph for conflicting connections between net and bus labels.
      *
@@ -694,6 +705,16 @@ private:
     bool ercCheckFloatingWires( const CONNECTION_SUBGRAPH* aSubgraph );
 
     /**
+     * Check one subgraph for dangling wire endpoints.
+     *
+     * Will throw an error for any subgraph that has wires with only one endpoing
+     *
+     * @param  aSubgraph      is the subgraph to examine.
+     * @return                true for no errors, false for errors.
+     */
+    bool ercCheckDanglingWireEndpoints( const CONNECTION_SUBGRAPH* aSubgraph );
+
+    /**
      * Check one subgraph for proper connection of labels.
      *
      * Labels should be connected to something.
@@ -705,6 +726,13 @@ private:
     bool ercCheckLabels( const CONNECTION_SUBGRAPH* aSubgraph );
 
     /**
+     * Check directive labels should be connected to something.
+     *
+     * @return                the number of errors found.
+     */
+    int ercCheckDirectiveLabels();
+
+    /**
      * Check that a hierarchical sheet has at least one matching label inside the sheet for each
      * port on the parent sheet object.
      *
@@ -712,6 +740,11 @@ private:
      * @return                the number of errors found.
      */
     int ercCheckHierSheets();
+
+    /**
+     * Check that a global label is instantiated more that once across the schematic hierarchy
+     */
+    int ercCheckSingleGlobalLabel();
 
     /**
      * Get the number of pins in a given subgraph.

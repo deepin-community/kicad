@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2004-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -57,17 +57,21 @@ class EDA_BASE_FRAME;
 int KeyCodeFromKeyName( const wxString& keyname );
 
 /**
- * Return the user friendly key name (ie: "Ctrl+M") from the key code.
+ * Return the key name from the key code.
+ *
+ * Only some wxWidgets key values are handled for function key ( see hotkeyNameList[] )
  *
  * @param aKeycode key code (ASCII value, or wxWidgets value for function keys).
- * @param aIsFound a pointer to a bool to return true if found, or false.
+ * @param aIsFound a pointer to a bool to return true if found, or false. an be nullptr default).
+ * @return the key name in a wxString.
  */
 wxString KeyNameFromKeyCode( int aKeycode, bool* aIsFound = nullptr );
 
 /**
- * In menus we can add a hot key, or an accelerator, or sometimes just a comment.   Hot keys
- * can perform actions using the current mouse cursor position and accelerators perform the
- * same action as the associated menu.
+ * In menus we can add a hot key, or an accelerator, or sometimes just a comment.
+ *
+ * Hot keys can perform actions using the current mouse cursor position and accelerators perform
+ * the same action as the associated menu.
  *
  * A comment is used in tool tips for some tools (zoom ..) to show the hot key that performs
  * this action
@@ -84,8 +88,7 @@ enum HOTKEY_ACTION_TYPE
  * @param aStyle #IS_HOTKEY to add <tab><keyname> (shortcuts in menus, same as hotkeys).
  *               #IS_COMMENT to add <spaces><(keyname)> mainly in tool tips.
  */
-wxString AddHotkeyName(  const wxString& aText, int aHotKey,
-                         HOTKEY_ACTION_TYPE aStyle = IS_HOTKEY);
+wxString AddHotkeyName( const wxString& aText, int aHotKey, HOTKEY_ACTION_TYPE aStyle = IS_HOTKEY );
 
 /**
  * Display the current hotkey list.
@@ -97,7 +100,7 @@ wxString AddHotkeyName(  const wxString& aText, int aHotKey,
 void DisplayHotkeyList( EDA_BASE_FRAME* aFrame );
 
 /**
- * Reads a hotkey config file into a map.
+ * Read a hotkey config file into a map.
  *
  * If \a aFileName is empty it will read in the default hotkeys file.
  */
@@ -105,7 +108,7 @@ void ReadHotKeyConfig( const wxString&                             aFileName,
                        std::map<std::string, std::pair<int, int>>& aHotKeys );
 
 /**
- * Reads a hotkey config file into a list of actions
+ * Read a hotkey config file into a list of actions.
  *
  * If \a aFileName is empty it will read in the default hotkeys file.
  */

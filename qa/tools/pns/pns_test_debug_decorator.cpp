@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2021 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -206,7 +206,8 @@ void PNS_TEST_DEBUG_DECORATOR::AddItem( const PNS::ITEM* aItem, const KIGFX::COL
                                         int aOverrideWidth, const wxString& aName,
                                         const SRC_LOCATION_INFO& aSrcLoc )
 {
-    SHAPE*           sh = aItem->Shape()->Clone();
+    // TODO(JE) padstacks
+    SHAPE*           sh = aItem->Shape( -1 )->Clone();
     PNS_DEBUG_SHAPE* ent = new PNS_DEBUG_SHAPE();
 
     ent->m_shapes.push_back( sh );
@@ -244,6 +245,8 @@ void PNS_TEST_DEBUG_DECORATOR::Message( const wxString& msg, const SRC_LOCATION_
     ent->m_msg = msg.c_str();
     ent->m_srcLoc = aSrcLoc;
     addEntry( ent );
+
+    printf("PNS: %s\n", msg.c_str().AsChar() );
 
 #ifdef VERBOSE
     static wxString lastMsg;

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,18 +30,11 @@
 #include <sch_io/sch_io_mgr.h>
 #include <pin_type.h>
 #include <layer_ids.h>
-#include <wx/filename.h>
 #include <plotters/plotter.h>
 
 
 class EDA_TEXT;
-class LIB_SHAPE;
-class LIB_FIELD;
-class LIB_PIN;
-class SCH_LABEL_BASE;
 class SCH_SYMBOL;
-class SCH_TEXT;
-class SCH_SHAPE;
 
 namespace EASYEDAPRO
 {
@@ -96,7 +89,7 @@ public:
     template <typename T>
     static VECTOR2<T> ScalePosSym( VECTOR2<T> aValue )
     {
-        return VECTOR2<T>( ScaleSize( aValue.x ), ScaleSize( aValue.y ) );
+        return VECTOR2<T>( ScaleSize( aValue.x ), -ScaleSize( aValue.y ) );
     }
 
     double SizeToKi( wxString units );

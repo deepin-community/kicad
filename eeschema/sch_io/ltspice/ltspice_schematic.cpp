@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2022 Chetan Subhash Shinde<chetanshinde2001@gmail.com>
  * Copyright (C) 2023 CERN
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,7 +23,8 @@
  * @brief Loads the asc file and asy files.
  */
 
-#include <sch_io/ltspice/ltspice_schematic.h>
+#include "sch_io/ltspice/ltspice_schematic.h"
+
 #include <sch_io/ltspice/sch_io_ltspice_parser.h>
 #include <sch_screen.h>
 #include <wx/log.h>
@@ -31,6 +32,8 @@
 #include <wildcards_and_files_ext.h>
 #include <sch_sheet.h>
 #include <schematic.h>
+#include <project.h>
+#include <richio.h>
 
 
 void LTSPICE_SCHEMATIC::Load( SCHEMATIC* aSchematic, SCH_SHEET* aRootSheet,

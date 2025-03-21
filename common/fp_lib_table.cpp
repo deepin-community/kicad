@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2010-2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2012-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -46,9 +46,6 @@
 using namespace LIB_TABLE_T;
 
 
-static const wxChar global_tbl_name[] = wxT( "fp-lib-table" );
-
-
 bool FP_LIB_TABLE_ROW::operator==( const FP_LIB_TABLE_ROW& aRow ) const
 {
     return LIB_TABLE_ROW::operator == ( aRow ) && type == aRow.type;
@@ -62,7 +59,16 @@ void FP_LIB_TABLE_ROW::SetType( const wxString& aType )
     if( PCB_IO_MGR::PCB_FILE_T( -1 ) == type )
         type = PCB_IO_MGR::KICAD_SEXP;
 
-    plugin.release();
+    plugin.reset();
+}
+
+
+bool FP_LIB_TABLE_ROW::LibraryExists() const
+{
+    if( plugin )
+        return plugin->CanReadLibrary( GetFullURI( true ) );
+
+    return false;
 }
 
 
@@ -80,7 +86,7 @@ void FP_LIB_TABLE::Parse( LIB_TABLE_LEXER* in )
     wxString errMsg;    // to collect error messages
 
     // This table may be nested within a larger s-expression, or not.
-    // Allow for parser of that optional containing s-epression to have looked ahead.
+    // Allow for parser of that optional containing s-expression to have looked ahead.
     if( in->CurTok() != T_fp_lib_table )
     {
         in->NeedLEFT();
@@ -205,15 +211,15 @@ void FP_LIB_TABLE::Parse( LIB_TABLE_LEXER* in )
         if( !sawUri )
             in->Expecting( T_uri );
 
-        // all nickNames within this table fragment must be unique, so we do not
-        // use doReplace in InsertRow().  (However a fallBack table can have a
-        // conflicting nickName and ours will supercede that one since in
-        // FindLib() we search this table before any fall back.)
-        wxString nickname = row->GetNickName(); // store it to be able to used it
-                                                // after row deletion if an error occurs
+        // All nickNames within this table fragment must be unique, so we do not use doReplace
+        // in doInsertRow().  (However a fallBack table can have a conflicting nickName and ours
+        // will supersede that one since in FindLib() we search this table before any fall back.)
+        wxString       nickname = row->GetNickName();   // store it to be able to used it
+                                                        // after row deletion if an error occurs
+        bool           doReplace = false;
         LIB_TABLE_ROW* tmp = row.release();
 
-        if( !InsertRow( tmp ) )
+        if( !doInsertRow( tmp, doReplace ) )
         {
             delete tmp;     // The table did not take ownership of the row.
 
@@ -310,20 +316,9 @@ void FP_LIB_TABLE::FootprintEnumerate( wxArrayString& aFootprintNames, const wxS
 }
 
 
-void FP_LIB_TABLE::PrefetchLib( const wxString& aNickname )
-{
-    const FP_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
-    row->plugin->PrefetchLib( row->GetFullURI( true ), row->GetProperties() );
-}
-
-
 const FP_LIB_TABLE_ROW* FP_LIB_TABLE::FindRow( const wxString& aNickname, bool aCheckIfEnabled )
 {
-    // Do not optimize this code.  Is done this way specifically to fix a runtime
-    // error with clang 4.0.1.
-    LIB_TABLE_ROW* ltrow = findRow( aNickname, aCheckIfEnabled );
-    FP_LIB_TABLE_ROW* row = dynamic_cast< FP_LIB_TABLE_ROW* >( ltrow );
+    FP_LIB_TABLE_ROW* row = static_cast<FP_LIB_TABLE_ROW*>( findRow( aNickname, aCheckIfEnabled ) );
 
     if( !row )
     {
@@ -333,9 +328,8 @@ const FP_LIB_TABLE_ROW* FP_LIB_TABLE::FindRow( const wxString& aNickname, bool a
         THROW_IO_ERROR( msg );
     }
 
-    // We've been 'lazy' up until now, but it cannot be deferred any longer,
-    // instantiate a PCB_IO of the proper kind if it is not already in this
-    // FP_LIB_TABLE_ROW.
+    // We've been 'lazy' up until now, but it cannot be deferred any longer; instantiate a
+    // PCB_IO of the proper kind if it is not already in this FP_LIB_TABLE_ROW.
     if( !row->plugin )
         row->setPlugin( PCB_IO_MGR::PluginFind( row->type ) );
 
@@ -448,9 +442,21 @@ void FP_LIB_TABLE::FootprintDelete( const wxString& aNickname, const wxString& a
 
 bool FP_LIB_TABLE::IsFootprintLibWritable( const wxString& aNickname )
 {
-    const FP_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
-    return row->plugin->IsLibraryWritable( row->GetFullURI( true ) );
+    try
+    {
+        const FP_LIB_TABLE_ROW* row = FindRow( aNickname, true );
+
+        if( !row || !row->plugin )
+            return false;
+
+        return row->plugin->IsLibraryWritable( row->GetFullURI( true ) );
+    }
+    catch( ... )
+    {
+    }
+
+    // aNickname not found, so the library is not writable
+    return false;
 }
 
 
@@ -531,8 +537,8 @@ public:
         // it is under $KICADn_3RD_PARTY/footprints/<pkgid>/ i.e. has nested level of at least +3
         if( dirPath.EndsWith( wxS( ".pretty" ) ) && dir.GetDirCount() >= m_prefix_dir_count + 3 )
         {
-            wxString versionedPath = wxString::Format( wxS( "${%s}" ),
-                                       ENV_VAR::GetVersionedEnvVarName( wxS( "3RD_PARTY" ) ) );
+            wxString versionedPath = wxString::Format(
+                    wxS( "${%s}" ), ENV_VAR::GetVersionedEnvVarName( wxS( "3RD_PARTY" ) ) );
 
             wxArrayString parts = dir.GetDirs();
             parts.RemoveAt( 0, m_prefix_dir_count );
@@ -550,7 +556,8 @@ public:
                     int increment = 1;
                     do
                     {
-                        nickname = wxString::Format( wxS( "%s%s_%d" ), m_lib_prefix, name, increment );
+                        nickname = wxString::Format( wxS( "%s%s_%d" ), m_lib_prefix, name,
+                                                     increment );
                         increment++;
                     } while( m_lib_table.HasLibrary( nickname ) );
                 }
@@ -600,7 +607,7 @@ bool FP_LIB_TABLE::LoadGlobalTable( FP_LIB_TABLE& aTable )
         if( v && !v->IsEmpty() )
             ss.AddPaths( *v, 0 );
 
-        wxString fileName = ss.FindValidPath( global_tbl_name );
+        wxString fileName = ss.FindValidPath( FILEEXT::FootprintLibraryTableFileName );
 
         // The fallback is to create an empty global footprint table for the user to populate.
         if( fileName.IsEmpty() || !::wxCopyFile( fileName, fn.GetFullPath(), false ) )
@@ -611,11 +618,10 @@ bool FP_LIB_TABLE::LoadGlobalTable( FP_LIB_TABLE& aTable )
         }
     }
 
-    aTable.Clear();
     aTable.Load( fn.GetFullPath() );
 
     SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-    KICAD_SETTINGS*   settings = mgr.GetAppSettings<KICAD_SETTINGS>();
+    KICAD_SETTINGS*   settings = mgr.GetAppSettings<KICAD_SETTINGS>( "kicad" );
 
     const ENV_VAR_MAP& env = Pgm().GetLocalEnvVariables();
     wxString packagesPath;
@@ -666,7 +672,7 @@ wxString FP_LIB_TABLE::GetGlobalTableFileName()
     wxFileName fn;
 
     fn.SetPath( PATHS::GetUserSettingsPath() );
-    fn.SetName( global_tbl_name );
+    fn.SetName( FILEEXT::FootprintLibraryTableFileName );
 
     return fn.GetFullPath();
 }

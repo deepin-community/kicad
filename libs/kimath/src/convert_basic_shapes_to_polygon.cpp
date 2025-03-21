@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -42,12 +42,8 @@ void TransformCircleToPolygon( SHAPE_LINE_CHAIN& aBuffer, const VECTOR2I& aCente
     int     numSegs = GetArcToSegmentCount( aRadius, aError, FULL_CIRCLE );
     numSegs = std::max( aMinSegCount, numSegs );
 
-    // The shape will be built with a even number of segs. Reason: the horizontal
-    // diameter begins and ends to points on the actual circle, or circle
-    // expanded by aError if aErrorLoc == ERROR_OUTSIDE.
-    // This is used by Arc to Polygon shape convert.
-    if( numSegs & 1 )
-        numSegs++;
+    // Round up to 8 to make segment approximations align properly at 45-degrees
+    numSegs = ( numSegs + 7 ) / 8 * 8;
 
     EDA_ANGLE delta = ANGLE_360 / numSegs;
     int       radius = aRadius;
@@ -61,7 +57,7 @@ void TransformCircleToPolygon( SHAPE_LINE_CHAIN& aBuffer, const VECTOR2I& aCente
         radius += GetCircleToPolyCorrection( actual_delta_radius );
     }
 
-    for( EDA_ANGLE angle = ANGLE_0; angle < ANGLE_360; angle += delta )
+    for( EDA_ANGLE angle = delta / 2; angle < ANGLE_360; angle += delta )
     {
         corner_position.x = radius;
         corner_position.y = 0;
@@ -81,12 +77,8 @@ void TransformCircleToPolygon( SHAPE_POLY_SET& aBuffer, const VECTOR2I& aCenter,
     int      numSegs = GetArcToSegmentCount( aRadius, aError, FULL_CIRCLE );
     numSegs = std::max( aMinSegCount, numSegs );
 
-    // The shape will be built with a even number of segs. Reason: the horizontal
-    // diameter begins and ends to points on the actual circle, or circle
-    // expanded by aError if aErrorLoc == ERROR_OUTSIDE.
-    // This is used by Arc to Polygon shape convert.
-    if( numSegs & 1 )
-        numSegs++;
+    // Round up to 8 to make segment approximations align properly at 45-degrees
+    numSegs = ( numSegs + 7 ) / 8 * 8;
 
     EDA_ANGLE delta = ANGLE_360 / numSegs;
     int       radius = aRadius;
@@ -102,7 +94,7 @@ void TransformCircleToPolygon( SHAPE_POLY_SET& aBuffer, const VECTOR2I& aCenter,
 
     aBuffer.NewOutline();
 
-    for( EDA_ANGLE angle = ANGLE_0; angle < ANGLE_360; angle += delta )
+    for( EDA_ANGLE angle = delta / 2; angle < ANGLE_360; angle += delta )
     {
         corner_position.x = radius;
         corner_position.y = 0;
@@ -114,6 +106,7 @@ void TransformCircleToPolygon( SHAPE_POLY_SET& aBuffer, const VECTOR2I& aCenter,
     // Finish circle
     corner_position.x = radius;
     corner_position.y = 0;
+    RotatePoint( corner_position, delta / 2 );
     corner_position += aCenter;
     aBuffer.Append( corner_position.x, corner_position.y );
 }
@@ -163,7 +156,7 @@ void TransformOvalToPolygon( SHAPE_POLY_SET& aBuffer, const VECTOR2I& aStart, co
     }
 
     EDA_ANGLE delta_angle( endp );
-    int       seg_len = KiROUND( EuclideanNorm( endp ) );
+    int       seg_len = endp.EuclideanNorm();
 
     // Compute the outlines of the segment, and creates a polygon
     // Note: the polygonal shape is built from the equivalent horizontal
@@ -221,7 +214,7 @@ void TransformOvalToPolygon( SHAPE_POLY_SET& aBuffer, const VECTOR2I& aStart, co
     bbox.Append( corner.x, corner.y );
 
     // Now, clamp the shape
-    polyshape.BooleanIntersection( bbox, SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+    polyshape.BooleanIntersection( bbox );
     // Note the final polygon is a simple, convex polygon with no hole
     // due to the shape of initial polygons
 
@@ -670,6 +663,6 @@ void TransformRingToPolygon( SHAPE_POLY_SET& aBuffer, const VECTOR2I& aCentre, i
     TransformCircleToPolygon( buffer.Hole( 0, 0 ), aCentre, inner_radius,
                               aError, inner_err_loc );
 
-    buffer.Fracture( SHAPE_POLY_SET::PM_FAST );
+    buffer.Fracture();
     aBuffer.Append( buffer );
 }

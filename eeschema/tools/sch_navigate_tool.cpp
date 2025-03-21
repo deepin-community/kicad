@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 1992-2023, 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,7 +44,7 @@ void SCH_NAVIGATE_TOOL::CleanHistory()
 {
     wxCHECK( m_frame, /* void */ );
 
-    SCH_SHEET_LIST sheets = m_frame->Schematic().GetSheets();
+    SCH_SHEET_LIST sheets = m_frame->Schematic().Hierarchy();
 
     wxCHECK( !sheets.empty(), /* void */ );
 
@@ -67,7 +67,6 @@ void SCH_NAVIGATE_TOOL::CleanHistory()
             entry = m_navHistory.erase( entry );
         }
     }
-
     if( m_navHistory.size() <= 1 )
         m_navIndex = m_navHistory.begin();
     else
@@ -86,7 +85,7 @@ void SCH_NAVIGATE_TOOL::HypertextCommand( const wxString& href )
     }
     else if( EDA_TEXT::IsGotoPageHref( href, &destPage ) && !destPage.IsEmpty() )
     {
-        for( const SCH_SHEET_PATH& sheet : m_frame->Schematic().GetSheets() )
+        for( const SCH_SHEET_PATH& sheet : m_frame->Schematic().Hierarchy() )
         {
             if( sheet.GetPageNumber() == destPage )
             {
@@ -104,7 +103,7 @@ void SCH_NAVIGATE_TOOL::HypertextCommand( const wxString& href )
         menu.Append( 1, wxString::Format( _( "Open %s" ), href ) );
 
         if( m_frame->GetPopupMenuSelectionFromUser( menu ) == 1 )
-            GetAssociatedDocument( m_frame, href, &m_frame->Prj() );
+            GetAssociatedDocument( m_frame, href, &m_frame->Prj(), nullptr, &m_frame->Schematic() );
     }
 }
 
@@ -164,7 +163,7 @@ int SCH_NAVIGATE_TOOL::Previous( const TOOL_EVENT& aEvent )
     if( CanGoPrevious() )
     {
         int targetSheet = m_frame->GetCurrentSheet().GetVirtualPageNumber() - 1;
-        changeSheet( m_frame->Schematic().GetSheets().at( targetSheet - 1 ) );
+        changeSheet( m_frame->Schematic().Hierarchy().at( targetSheet - 1 ) );
     }
     else
     {
@@ -180,7 +179,7 @@ int SCH_NAVIGATE_TOOL::Next( const TOOL_EVENT& aEvent )
     if( CanGoNext() )
     {
         int targetSheet = m_frame->GetCurrentSheet().GetVirtualPageNumber() + 1;
-        changeSheet( m_frame->Schematic().GetSheets().at( targetSheet - 1 ) );
+        changeSheet( m_frame->Schematic().Hierarchy().at( targetSheet - 1 ) );
     }
     else
     {
@@ -218,7 +217,7 @@ bool SCH_NAVIGATE_TOOL::CanGoPrevious()
 bool SCH_NAVIGATE_TOOL::CanGoNext()
 {
     return m_frame->GetCurrentSheet().GetVirtualPageNumber()
-           < (int) m_frame->Schematic().GetUnorderedSheets().size();
+           < (int) m_frame->Schematic().Hierarchy().size();
 }
 
 

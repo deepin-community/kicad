@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021-2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +29,7 @@
 #include <tool/selection_tool.h>
 #include <view/view.h>
 #include <eda_draw_frame.h>
+#include <eda_item.h>
 
 
 SELECTION_TOOL::SELECTION_TOOL( const std::string& aName ) :
@@ -285,18 +286,18 @@ bool SELECTION_TOOL::doSelectionMenu( COLLECTOR* aCollector )
             {
 #ifdef __WXMAC__
                 menuText = wxString::Format( "%s\t%d",
-                                             item->GetItemDescription( unitsProvider ),
+                                             item->GetItemDescription( unitsProvider, false ),
                                              i + 1 );
 #else
                 menuText = wxString::Format( "&%d  %s\t%d",
                                              i + 1,
-                                             item->GetItemDescription( unitsProvider ),
+                                             item->GetItemDescription( unitsProvider, false ),
                                              i + 1 );
 #endif
             }
             else
             {
-                menuText = item->GetItemDescription( unitsProvider );
+                menuText = item->GetItemDescription( unitsProvider, false );
             }
 
             menu.Add( menuText, i + 1, item->GetMenuImage() );

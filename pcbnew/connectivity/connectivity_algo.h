@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
@@ -226,8 +226,7 @@ public:
     bool Remove( BOARD_ITEM* aItem );
     bool Add( BOARD_ITEM* aItem );
 
-    const CLUSTERS SearchClusters( CLUSTER_SEARCH_MODE aMode,
-                                   const std::initializer_list<KICAD_T>& aTypes,
+    const CLUSTERS SearchClusters( CLUSTER_SEARCH_MODE aMode, const std::vector<KICAD_T>& aTypes,
                                    int aSingleNet, CN_ITEM* rootItem = nullptr );
     const CLUSTERS SearchClusters( CLUSTER_SEARCH_MODE aMode );
 
@@ -298,6 +297,8 @@ private:
 
     bool                                                  m_isLocal;
     std::shared_ptr<CONNECTIVITY_DATA>                    m_globalConnectivityData;
+
+    std::mutex m_mutex;
 
     PROGRESS_REPORTER* m_progressReporter = nullptr;
 };

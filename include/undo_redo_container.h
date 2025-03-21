@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2009 jean-pierre.charras@gipsa-lab.inpg.fr
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2009-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -52,7 +52,7 @@ class BASE_SCREEN;
 
 
 /**
- * Type of undo/redo operations
+ * Type of undo/redo operations.
  *
  * Each type must be redo/undone by a specific operation.
  */
@@ -70,7 +70,8 @@ enum class UNDO_REDO {
     PAGESETTINGS,       // page settings or title block changes
     REGROUP,            // new group of items created (NB: can't use GROUP because of collision
                         // with a header on msys2)
-    UNGROUP             // existing group destroyed (items not destroyed)
+    UNGROUP,            // existing group destroyed (items not destroyed)
+    REPEAT_ITEM         // storage entry for the editor's global repeatItems list
 };
 
 
@@ -121,7 +122,8 @@ private:
                                         * duplicate) m_Item points the duplicate (i.e the old
                                         * copy of an active item) and m_Link points the active
                                         * item in schematic */
-    KIID           m_groupId;           /* Id of the group of items in case this is a group/ungroup command */
+    KIID           m_groupId;           /* Id of the group of items in case this is a
+                                         * group/ungroup command */
 
     BASE_SCREEN*   m_screen;           /* For new and deleted items the screen the item should
                                         * be added to/removed from. */

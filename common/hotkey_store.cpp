@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
- * Copyright (C) 1992-2019 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -49,7 +49,7 @@ static PSEUDO_ACTION* g_gesturePseudoActions[] = {
     new PSEUDO_ACTION( _( "Finish Drawing" ), PSEUDO_WXK_DBLCLICK ),
     new PSEUDO_ACTION( _( "Add to Selection" ), MD_SHIFT + PSEUDO_WXK_CLICK ),
     new PSEUDO_ACTION( _( "Highlight Net" ), MD_CTRL + PSEUDO_WXK_CLICK ),
-    new PSEUDO_ACTION( _( "Remove from Selection" ), MD_SHIFT + MD_CTRL + PSEUDO_WXK_CLICK ),
+    new PSEUDO_ACTION( _( "Remove from Selection" ), MD_CTRL + MD_SHIFT + PSEUDO_WXK_CLICK ),
     new PSEUDO_ACTION( _( "Ignore Grid Snaps" ), MD_CTRL ),
     new PSEUDO_ACTION( _( "Ignore Other Snaps" ), MD_SHIFT ),
 };

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -28,11 +28,6 @@
 class KICOMMON_API JOB_EXPORT_SCH_NETLIST : public JOB
 {
 public:
-    JOB_EXPORT_SCH_NETLIST( bool aIsCli );
-
-    wxString m_filename;
-    wxString m_outputFile;
-
     enum class FORMAT
     {
         KICADXML,
@@ -40,10 +35,26 @@ public:
         ORCADPCB2,
         CADSTAR,
         SPICE,
-        SPICEMODEL
+        SPICEMODEL,
+        PADS,
+        ALLEGRO
     };
 
+    static std::map<JOB_EXPORT_SCH_NETLIST::FORMAT, wxString>& GetFormatNameMap();
+
+public:
+    JOB_EXPORT_SCH_NETLIST();
+    wxString GetDefaultDescription() const override;
+    wxString GetSettingsDialogTitle() const override;
+
+    wxString m_filename;
+
     FORMAT format;
+
+    bool m_spiceSaveAllVoltages;
+    bool m_spiceSaveAllCurrents;
+    bool m_spiceSaveAllDissipations;
+    bool m_spiceSaveAllEvents;
 };
 
 #endif

@@ -2,6 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Andre F. K. Iwers <iwers11@gmail.com>
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -143,8 +144,15 @@ bool HTTP_LIB_CONNECTION::syncCategories()
         {
             HTTP_LIB_CATEGORY category;
 
-            category.id = item.value()["id"].get<std::string>();
-            category.name = item.value()["name"].get<std::string>();
+            auto& value = item.value();
+            category.id = value["id"].get<std::string>();
+            category.name = value["name"].get<std::string>();
+
+            if( value.contains( "description" ) )
+            {
+                category.description = value["description"].get<std::string>();
+                m_categoryDescriptions[category.name] = category.description;
+            }
 
             m_categories.push_back( category );
         }
@@ -179,18 +187,19 @@ bool HTTP_LIB_CONNECTION::SelectOne( const std::string& aPartID, HTTP_LIB_PART& 
     if( m_cachedParts.find( aPartID ) != m_cachedParts.end() )
     {
         // check if it's outdated, if so re-fetch
-        if( std::difftime( std::time( nullptr ), m_cachedParts[aPartID].lastCached ) < m_source.timeout_parts )
+        if( std::difftime( std::time( nullptr ), m_cachedParts[aPartID].lastCached )
+            < m_source.timeout_parts )
         {
             aFetchedPart = m_cachedParts[aPartID];
             return true;
         }
-
     }
 
     std::string res = "";
 
     std::unique_ptr<KICAD_CURL_EASY> curl = createCurlEasyObject();
-    curl->SetURL( m_source.root_url + fmt::format( http_endpoint_parts + "/{}.json", aPartID ) );
+    std::string url = m_source.root_url + fmt::format( "{}/{}.json", http_endpoint_parts, aPartID );
+    curl->SetURL( url );
 
     try
     {
@@ -203,7 +212,7 @@ bool HTTP_LIB_CONNECTION::SelectOne( const std::string& aPartID, HTTP_LIB_PART& 
             return false;
         }
 
-        nlohmann::json response = nlohmann::json::parse( res );
+        nlohmann::ordered_json response = nlohmann::ordered_json::parse( res );
         std::string    key = "";
         std::string    value = "";
 
@@ -252,6 +261,9 @@ bool HTTP_LIB_CONNECTION::SelectOne( const std::string& aPartID, HTTP_LIB_PART& 
             aFetchedPart.exclude_from_sim = boolFromString( exclude, false );
         }
 
+        // remove previously loaded fields
+        aFetchedPart.fields.clear();
+
         // Extract available fields
         for( const auto& field : response.at( "fields" ).items() )
         {
@@ -273,10 +285,8 @@ bool HTTP_LIB_CONNECTION::SelectOne( const std::string& aPartID, HTTP_LIB_PART& 
             }
 
             // Add field to fields list
-            if( key.length() )
-            {
-                aFetchedPart.fields[key] = std::make_tuple( value, visible );
-            }
+            aFetchedPart.fields.push_back(
+                    std::make_pair( key, std::make_tuple( value, visible ) ) );
         }
     }
     catch( const std::exception& e )
@@ -297,7 +307,7 @@ bool HTTP_LIB_CONNECTION::SelectOne( const std::string& aPartID, HTTP_LIB_PART& 
 }
 
 
-bool HTTP_LIB_CONNECTION::SelectAll( const HTTP_LIB_CATEGORY& aCategory,
+bool HTTP_LIB_CONNECTION::SelectAll( const HTTP_LIB_CATEGORY&    aCategory,
                                      std::vector<HTTP_LIB_PART>& aParts )
 {
     if( !IsValidEndpoint() )
@@ -309,8 +319,9 @@ bool HTTP_LIB_CONNECTION::SelectAll( const HTTP_LIB_CATEGORY& aCategory,
     std::string res = "";
 
     std::unique_ptr<KICAD_CURL_EASY> curl = createCurlEasyObject();
+
     curl->SetURL( m_source.root_url
-                    + fmt::format( http_endpoint_parts + "/category/{}.json", aCategory.id ) );
+                  + fmt::format( "{}/category/{}.json", http_endpoint_parts, aCategory.id ) );
 
     try
     {
@@ -319,8 +330,6 @@ bool HTTP_LIB_CONNECTION::SelectAll( const HTTP_LIB_CATEGORY& aCategory,
         res = curl->GetBuffer();
 
         nlohmann::json response = nlohmann::json::parse( res );
-        std::string    key = "";
-        std::string    value = "";
 
         for( nlohmann::json& item : response )
         {
@@ -332,7 +341,8 @@ bool HTTP_LIB_CONNECTION::SelectAll( const HTTP_LIB_CATEGORY& aCategory,
             if( item.contains( "description" ) )
             {
                 // At this point we don't display anything so just set it to false
-                part.fields["description"] = std::make_tuple( item.at( "description" ), false );
+                part.fields.push_back( std::make_pair(
+                        "description", std::make_tuple( item.at( "description" ), false ) ) );
             }
 
             // API might not want to return an optional name.
@@ -410,17 +420,7 @@ bool HTTP_LIB_CONNECTION::boolFromString( const std::any& aVal, bool aDefaultVal
     return aDefaultValue;
 }
 
-/*
-* HTTP response status codes indicate whether a specific HTTP request has been successfully completed.
-* Responses are grouped in five classes:
-*    Informational responses (100 ? 199)
-*    Successful responses (200 ? 299)
-*    Redirection messages (300 ? 399)
-*    Client error responses (400 ? 499)
-*    Server error responses (500 ? 599)
-*
-*    see: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
-*/
+
 wxString HTTP_LIB_CONNECTION::httpErrorCodeDescription( uint16_t aHttpCode )
 {
     auto codeDescription =
@@ -440,7 +440,7 @@ wxString HTTP_LIB_CONNECTION::httpErrorCodeDescription( uint16_t aHttpCode )
                 case 205: return wxS( "Reset Content" );
                 case 206: return wxS( "Partial Content" );
                 case 207: return wxS( "Multi-Status" );
-                case 208: return wxS( "Already Reporte" );
+                case 208: return wxS( "Already Reported" );
                 case 226: return wxS( "IM Used" );
 
                 case 300: return wxS( "Multiple Choices" );
@@ -472,7 +472,7 @@ wxString HTTP_LIB_CONNECTION::httpErrorCodeDescription( uint16_t aHttpCode )
                 case 417: return wxS( "Expectation Failed" );
                 case 418: return wxS( "I'm a teapot" );
                 case 421: return wxS( "Misdirected Request" );
-                case 422: return wxS( "Unprocessable Conten" );
+                case 422: return wxS( "Unprocessable Content" );
                 case 423: return wxS( "Locked" );
                 case 424: return wxS( "Failed Dependency" );
                 case 425: return wxS( "Too Early (Experimental)" );
@@ -489,8 +489,8 @@ wxString HTTP_LIB_CONNECTION::httpErrorCodeDescription( uint16_t aHttpCode )
                 case 504: return wxS( "Gateway Timeout" );
                 case 505: return wxS( "HTTP Version Not Supported" );
                 case 506: return wxS( "Variant Also Negotiates" );
-                case 507: return wxS( "Insufficient Storag" );
-                case 508: return wxS( "Loop Detecte" );
+                case 507: return wxS( "Insufficient Storage" );
+                case 508: return wxS( "Loop Detected" );
                 case 510: return wxS( "Not Extended" );
                 case 511: return wxS( "Network Authentication Required" );
                 default:  return wxS( "Unknown" );

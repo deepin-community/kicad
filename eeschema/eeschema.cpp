@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2004 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2004-2023 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,12 +33,16 @@
 #include "eeschema_helpers.h"
 #include <eeschema_settings.h>
 #include <sch_edit_frame.h>
+#include <design_block_lib_table.h>
 #include <symbol_edit_frame.h>
 #include <symbol_viewer_frame.h>
 #include <symbol_chooser_frame.h>
 #include <symbol_lib_table.h>
+#include <dialogs/dialog_global_design_block_lib_table_config.h>
 #include <dialogs/dialog_global_sym_lib_table_config.h>
 #include <dialogs/panel_grid_settings.h>
+#include <dialogs/panel_simulator_preferences.h>
+#include <dialogs/panel_design_block_lib_table.h>
 #include <dialogs/panel_sym_lib_table.h>
 #include <kiway.h>
 #include <settings/settings_manager.h>
@@ -72,13 +76,17 @@ SCH_SHEET*  g_RootSheet = nullptr;
 namespace SCH {
 
 
+// TODO: This should move out of this file
 static std::unique_ptr<SCHEMATIC> readSchematicFromFile( const std::string& aFilename )
 {
-    auto pi = SCH_IO_MGR::FindPlugin( SCH_IO_MGR::SCH_KICAD );
+    SCH_IO* pi = SCH_IO_MGR::FindPlugin( SCH_IO_MGR::SCH_KICAD );
     std::unique_ptr<SCHEMATIC> schematic = std::make_unique<SCHEMATIC>( nullptr );
 
-    auto &manager = Pgm().GetSettingsManager();
+    SETTINGS_MANAGER& manager = Pgm().GetSettingsManager();
 
+    // TODO: this must load the schematic's project, not a default project.  At the very minimum
+    // variable resolution won't work without the project, but there might also be issues with
+    // netclasses, etc.
     manager.LoadProject( "" );
     schematic->Reset();
     schematic->SetProject( &manager.Prj() );
@@ -90,14 +98,16 @@ static std::unique_ptr<SCHEMATIC> readSchematicFromFile( const std::string& aFil
     for( SCH_SCREEN* screen = screens.GetFirst(); screen; screen = screens.GetNext() )
         screen->UpdateLocalLibSymbolLinks();
 
-    SCH_SHEET_LIST sheets = schematic->GetSheets();
+    SCH_SHEET_LIST sheets = schematic->Hierarchy();
 
     // Restore all of the loaded symbol instances from the root sheet screen.
     sheets.UpdateSymbolInstanceData( schematic->RootScreen()->GetSymbolInstances() );
 
     if( schematic->RootScreen()->GetFileFormatVersionAtLoad() < 20230221 )
+    {
         for( SCH_SCREEN* screen = screens.GetFirst(); screen; screen = screens.GetNext() )
             screen->FixLegacyPowerSymbolMismatches();
+    }
 
     for( SCH_SCREEN* screen = screens.GetFirst(); screen; screen = screens.GetNext() )
         screen->MigrateSimModels();
@@ -108,8 +118,11 @@ static std::unique_ptr<SCHEMATIC> readSchematicFromFile( const std::string& aFil
     for( SCH_SHEET_PATH& sheet : sheets )
         sheet.UpdateAllScreenReferences();
 
-    // NOTE: SchematicCleanUp is not called; QA schematics must already be clean or else
-    // SchematicCleanUp must be freed from its UI dependencies.
+    // TODO: this must handle SchematicCleanup somehow.  The original version didn't because
+    // it knew that QA test cases were saved in a clean state.
+
+    // TODO: does this need to handle PruneOrphanedSymbolInstances() and
+    // PruneOrphanedSheetInstances()?
 
     schematic->ConnectionGraph()->Recalculate( sheets, true );
 
@@ -117,6 +130,7 @@ static std::unique_ptr<SCHEMATIC> readSchematicFromFile( const std::string& aFil
 }
 
 
+// TODO: This should move out of this file
 bool generateSchematicNetlist( const wxString& aFilename, std::string& aNetlist )
 {
     std::unique_ptr<SCHEMATIC> schematic = readSchematicFromFile( aFilename.ToStdString() );
@@ -194,10 +208,15 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
             // Dialog has completed; nothing to return.
             return nullptr;
 
+        case DIALOG_DESIGN_BLOCK_LIBRARY_TABLE:
+            InvokeEditDesignBlockLibTable( aKiway, aParent );
+            // Dialog has completed; nothing to return.
+            return nullptr;
+
         case PANEL_SYM_DISP_OPTIONS:
         {
             SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>();
+            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" );
 
             return new PANEL_SYM_DISPLAY_OPTIONS( aParent, cfg );
         }
@@ -205,7 +224,7 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
         case PANEL_SYM_EDIT_GRIDS:
         {
             SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>();
+            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" );
             EDA_BASE_FRAME*    frame = aKiway->Player( FRAME_SCH_SYMBOL_EDITOR, false );
 
             if( !frame )
@@ -242,7 +261,7 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
         case PANEL_SCH_DISP_OPTIONS:
         {
             SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>();
+            EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
 
             return new PANEL_EESCHEMA_DISPLAY_OPTIONS( aParent, cfg );
         }
@@ -250,7 +269,7 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
         case PANEL_SCH_GRIDS:
         {
             SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>();
+            EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
             EDA_BASE_FRAME*    frame = aKiway->Player( FRAME_SCH, false );
 
             if( !frame )
@@ -294,6 +313,9 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
         case PANEL_SCH_FIELD_NAME_TEMPLATES:
             return new PANEL_TEMPLATE_FIELDNAMES( aParent, nullptr );
 
+        case PANEL_SCH_SIMULATOR:
+            return new PANEL_SIMULATOR_PREFERENCES( aParent );
+
         default:
             return nullptr;
         }
@@ -330,10 +352,13 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
                      const wxString& aSrcFilePath, wxString& aErrors ) override;
 
 
-    int HandleJob( JOB* aJob ) override;
+    int HandleJob( JOB* aJob, REPORTER* aReporter ) override;
+
+    bool HandleJobConfig( JOB* aJob, wxWindow* aParent ) override;
 
 private:
     bool loadGlobalLibTable();
+    bool loadGlobalDesignBlockLibTable();
 
     std::unique_ptr<EESCHEMA_JOBS_HANDLER> m_jobHandler;
 
@@ -343,8 +368,6 @@ private:
 
 using namespace SCH;
 
-static PGM_BASE* process;
-
 
 KIFACE_BASE& Kiface() { return kiface; }
 
@@ -353,23 +376,7 @@ KIFACE_BASE& Kiface() { return kiface; }
 // KIFACE_GETTER will not have name mangling due to declaration in kiway.h.
 KIFACE_API KIFACE* KIFACE_GETTER(  int* aKIFACEversion, int aKiwayVersion, PGM_BASE* aProgram )
 {
-    process = aProgram;
     return &kiface;
-}
-
-
-PGM_BASE& Pgm()
-{
-    wxASSERT( process );    // KIFACE_GETTER has already been called.
-    return *process;
-}
-
-
-// Similar to PGM_BASE& Pgm(), but return nullptr when a *.ki_face is run from
-// a python script or something else.
-PGM_BASE* PgmOrNull()
-{
-    return process;
 }
 
 
@@ -392,7 +399,7 @@ bool IFACE::OnKifaceStart( PGM_BASE* aProgram, int aCtlBits, KIWAY* aKiway )
 
     start_common( aCtlBits );
 
-    if( !loadGlobalLibTable() )
+    if( !loadGlobalLibTable() || !loadGlobalDesignBlockLibTable() )
     {
         // we didnt get anywhere deregister the settings
         aProgram->GetSettingsManager().FlushAndRelease( symSettings, false );
@@ -456,6 +463,41 @@ bool IFACE::loadGlobalLibTable()
 
             DisplayErrorMessage( nullptr, msg, ioe.What() );
         }
+    }
+
+    return true;
+}
+
+
+bool IFACE::loadGlobalDesignBlockLibTable()
+{
+    try
+    {
+        wxFileName fn = DESIGN_BLOCK_LIB_TABLE::GetGlobalTableFileName();
+
+        if( !fn.FileExists() )
+        {
+            DESIGN_BLOCK_LIB_TABLE emptyTable;
+            emptyTable.Save( fn.GetFullPath() );
+        }
+
+        // The global table is not related to a specific project.  All projects
+        // will use the same global table.  So the KIFACE::OnKifaceStart() contract
+        // of avoiding anything project specific is not violated here.
+        if( !DESIGN_BLOCK_LIB_TABLE::LoadGlobalTable(
+                    DESIGN_BLOCK_LIB_TABLE::GetGlobalLibTable() ) )
+            return false;
+    }
+    catch( const IO_ERROR& ioe )
+    {
+        // if we are here, a incorrect global design block library table was found.
+        // Incorrect global design block library table is not a fatal error:
+        // the user just has to edit the (partially) loaded table.
+        wxString msg =
+                _( "An error occurred attempting to load the global design block library table.\n"
+                   "Please edit this global design block library table in Preferences menu." );
+
+        DisplayErrorMessage( nullptr, msg, ioe.What() );
     }
 
     return true;
@@ -609,7 +651,7 @@ void IFACE::SaveFileAs( const wxString& aProjectBasePath, const wxString& aProje
             aErrors += msg;
         }
     }
-    else if( destFile.GetName() == wxS( "sym-lib-table" ) )
+    else if( destFile.GetName() == FILEEXT::SymbolLibraryTableFileName )
     {
         SYMBOL_LIB_TABLE symbolLibTable;
         symbolLibTable.Load( aSrcFilePath );
@@ -651,7 +693,13 @@ void IFACE::SaveFileAs( const wxString& aProjectBasePath, const wxString& aProje
 }
 
 
-int IFACE::HandleJob( JOB* aJob )
+int IFACE::HandleJob( JOB* aJob, REPORTER* aReporter )
 {
-    return m_jobHandler->RunJob( aJob );
+    return m_jobHandler->RunJob( aJob, aReporter );
+}
+
+
+bool IFACE::HandleJobConfig( JOB* aJob, wxWindow* aParent )
+{
+    return m_jobHandler->HandleJobConfig( aJob, aParent );
 }

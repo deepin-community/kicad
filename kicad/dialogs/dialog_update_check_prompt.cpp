@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,13 +33,15 @@ DIALOG_UPDATE_CHECK_PROMPT::DIALOG_UPDATE_CHECK_PROMPT( wxWindow* aWindow ) :
 #ifndef KICAD_UPDATE_CHECK
     m_cbKiCadUpdates->Hide();
 #endif
+
+    m_sdbSizerOK->SetFocus();
 }
 
 
 bool DIALOG_UPDATE_CHECK_PROMPT::TransferDataFromWindow()
 {
     SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-    KICAD_SETTINGS*   settings = mgr.GetAppSettings<KICAD_SETTINGS>();
+    KICAD_SETTINGS*   settings = mgr.GetAppSettings<KICAD_SETTINGS>( "kicad" );
 
     settings->m_PcmUpdateCheck = m_cbPCMUpdates->GetValue();
 #ifndef KICAD_UPDATE_CHECK

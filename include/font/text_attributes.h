@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 Ola Rinta-Koski
- * Copyright (C) 2021-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -38,23 +38,81 @@ class FONT;
 // NB: values -1,0,1 are used in computations, do not change them
 //
 
+/// This is API surface mapped to common.types.HorizontalAlignment
 enum GR_TEXT_H_ALIGN_T
 {
     GR_TEXT_H_ALIGN_LEFT   = -1,
     GR_TEXT_H_ALIGN_CENTER = 0,
-    GR_TEXT_H_ALIGN_RIGHT  = 1
+    GR_TEXT_H_ALIGN_RIGHT  = 1,
+    GR_TEXT_H_ALIGN_INDETERMINATE
 };
 
+/// This is API surface mapped to common.types.VertialAlignment
 enum GR_TEXT_V_ALIGN_T
 {
     GR_TEXT_V_ALIGN_TOP    = -1,
     GR_TEXT_V_ALIGN_CENTER = 0,
-    GR_TEXT_V_ALIGN_BOTTOM = 1
+    GR_TEXT_V_ALIGN_BOTTOM = 1,
+    GR_TEXT_V_ALIGN_INDETERMINATE
 };
 
 
-#define TO_HJUSTIFY( x ) static_cast<GR_TEXT_H_ALIGN_T>( x )
-#define TO_VJUSTIFY( x ) static_cast<GR_TEXT_V_ALIGN_T>( x )
+/**
+ * Get the reverse alignment: left-right are swapped, others are unchanged.
+ */
+constexpr GR_TEXT_H_ALIGN_T GetFlippedAlignment( GR_TEXT_H_ALIGN_T aAlign )
+{
+    // Could use the -1/1 promise of the enum too.
+    switch( aAlign )
+    {
+    case GR_TEXT_H_ALIGN_LEFT:
+        return GR_TEXT_H_ALIGN_RIGHT;
+    case GR_TEXT_H_ALIGN_RIGHT:
+        return GR_TEXT_H_ALIGN_LEFT;
+    case GR_TEXT_H_ALIGN_CENTER:
+    case GR_TEXT_H_ALIGN_INDETERMINATE:
+        break;
+    }
+    return aAlign;
+};
+
+
+/**
+ * Get the reverse alignment: top-bottom are swapped, others are unchanged.
+ */
+constexpr GR_TEXT_V_ALIGN_T GetFlippedAlignment( GR_TEXT_V_ALIGN_T aAlign )
+{
+    switch( aAlign )
+    {
+    case GR_TEXT_V_ALIGN_BOTTOM:
+        return GR_TEXT_V_ALIGN_TOP;
+    case GR_TEXT_V_ALIGN_TOP:
+        return GR_TEXT_V_ALIGN_BOTTOM;
+    case GR_TEXT_V_ALIGN_CENTER:
+    case GR_TEXT_V_ALIGN_INDETERMINATE:
+        break;
+    }
+    return aAlign;
+};
+
+
+/**
+ * Convert an integral value to horizontal alignment.
+ *
+ *  * x < 0: Left align
+ *  * x == 0: Center
+ *  * x > 0: Right align
+ */
+constexpr GR_TEXT_H_ALIGN_T ToHAlignment( int x )
+{
+    if( x < 0 )
+
+        return GR_TEXT_H_ALIGN_LEFT;
+    else if( x > 0 )
+        return GR_TEXT_H_ALIGN_RIGHT;
+
+    return GR_TEXT_H_ALIGN_CENTER;
+}
 
 
 class GAL_API TEXT_ATTRIBUTES
@@ -89,7 +147,8 @@ public:
 };
 
 
-extern GAL_API std::ostream& operator<<( std::ostream& aStream, const TEXT_ATTRIBUTES& aAttributes );
+extern GAL_API std::ostream& operator<<( std::ostream& aStream,
+                                         const TEXT_ATTRIBUTES& aAttributes );
 
 
 template<>

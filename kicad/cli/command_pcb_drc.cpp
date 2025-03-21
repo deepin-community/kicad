@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -93,9 +93,9 @@ CLI::PCB_DRC_COMMAND::PCB_DRC_COMMAND() : COMMAND( "drc" )
 
 int CLI::PCB_DRC_COMMAND::doPerform( KIWAY& aKiway )
 {
-    std::unique_ptr<JOB_PCB_DRC> drcJob( new JOB_PCB_DRC( true ) );
+    std::unique_ptr<JOB_PCB_DRC> drcJob( new JOB_PCB_DRC() );
 
-    drcJob->m_outputFile = m_argOutput;
+    drcJob->SetConfiguredOutputPath( m_argOutput );
     drcJob->m_filename = m_argInput;
     drcJob->SetVarOverrides( m_argDefineVars );
     drcJob->m_reportAllTrackErrors = m_argParser.get<bool>( ARG_ALL_TRACK_ERRORS );

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,6 +27,7 @@
 
 #include <pcb_base_frame.h>
 #include <board.h>
+#include <lset.h>
 #include <settings/color_settings.h>
 #include <zones.h>
 
@@ -75,6 +76,7 @@ ZONE_SETTINGS::ZONE_SETTINGS()
     m_minIslandArea = 10 * pcbIUScale.IU_PER_MM * pcbIUScale.IU_PER_MM;
 
     SetIsRuleArea( false );
+    SetRuleAreaPlacementSourceType( RULE_AREA_PLACEMENT_SOURCE_TYPE::SHEETNAME );
     SetDoNotAllowCopperPour( false );
     SetDoNotAllowVias( true );
     SetDoNotAllowTracks( true );
@@ -82,6 +84,7 @@ ZONE_SETTINGS::ZONE_SETTINGS()
     SetDoNotAllowFootprints( false );
 
     m_TeardropType = TEARDROP_TYPE::TD_NONE;
+    m_ruleAreaPlacementEnabled = false;
 }
 
 
@@ -108,6 +111,10 @@ bool ZONE_SETTINGS::operator==( const ZONE_SETTINGS& aOther ) const
     if( m_cornerSmoothingType         != aOther.m_cornerSmoothingType ) return false;
     if( m_cornerRadius                != aOther.m_cornerRadius ) return false;
     if( m_isRuleArea                  != aOther.m_isRuleArea ) return false;
+    if( m_ruleAreaPlacementEnabled != aOther.m_ruleAreaPlacementEnabled )
+        return false;
+    if( m_ruleAreaPlacementSourceType != aOther.m_ruleAreaPlacementSourceType ) return false;
+    if( m_ruleAreaPlacementSource     != aOther.m_ruleAreaPlacementSource ) return false;
     if( m_keepoutDoNotAllowCopperPour != aOther.m_keepoutDoNotAllowCopperPour ) return false;
     if( m_keepoutDoNotAllowVias       != aOther.m_keepoutDoNotAllowVias ) return false;
     if( m_keepoutDoNotAllowTracks     != aOther.m_keepoutDoNotAllowTracks ) return false;
@@ -132,7 +139,7 @@ ZONE_SETTINGS& ZONE_SETTINGS::operator << ( const ZONE& aSource )
 {
     m_ZonePriority                = aSource.GetAssignedPriority();
     m_FillMode                    = aSource.GetFillMode();
-    m_ZoneClearance               = aSource.GetLocalClearance();
+    m_ZoneClearance               = aSource.GetLocalClearance().value();
     m_ZoneMinThickness            = aSource.GetMinThickness();
     m_HatchThickness              = aSource.GetHatchThickness();
     m_HatchGap                    = aSource.GetHatchGap();
@@ -151,6 +158,9 @@ ZONE_SETTINGS& ZONE_SETTINGS::operator << ( const ZONE& aSource )
     m_cornerSmoothingType         = aSource.GetCornerSmoothingType();
     m_cornerRadius                = aSource.GetCornerRadius();
     m_isRuleArea                  = aSource.GetIsRuleArea();
+    m_ruleAreaPlacementEnabled = aSource.GetRuleAreaPlacementEnabled();
+    m_ruleAreaPlacementSourceType = aSource.GetRuleAreaPlacementSourceType();
+    m_ruleAreaPlacementSource     = aSource.GetRuleAreaPlacementSource();
     m_keepoutDoNotAllowCopperPour = aSource.GetDoNotAllowCopperPour();
     m_keepoutDoNotAllowVias       = aSource.GetDoNotAllowVias();
     m_keepoutDoNotAllowTracks     = aSource.GetDoNotAllowTracks();
@@ -189,6 +199,9 @@ void ZONE_SETTINGS::ExportSetting( ZONE& aTarget, bool aFullExport ) const
     aTarget.SetCornerSmoothingType( m_cornerSmoothingType );
     aTarget.SetCornerRadius( m_cornerRadius );
     aTarget.SetIsRuleArea( GetIsRuleArea() );
+    aTarget.SetRuleAreaPlacementEnabled( GetRuleAreaPlacementEnabled() );
+    aTarget.SetRuleAreaPlacementSourceType( GetRuleAreaPlacementSourceType() );
+    aTarget.SetRuleAreaPlacementSource( GetRuleAreaPlacementSource() );
     aTarget.SetDoNotAllowCopperPour( GetDoNotAllowCopperPour() );
     aTarget.SetDoNotAllowVias( GetDoNotAllowVias() );
     aTarget.SetDoNotAllowTracks( GetDoNotAllowTracks() );
@@ -259,16 +272,17 @@ void ZONE_SETTINGS::SetupLayersList( wxDataViewListCtrl* aList, PCB_BASE_FRAME* 
     if( aFpEditorMode )
         aLayers.set( In1_Cu );
 
-    wxDataViewColumn* checkColumn = aList->AppendToggleColumn( wxEmptyString );
+    wxDataViewColumn* checkColumn = aList->AppendToggleColumn(
+            wxEmptyString, wxDATAVIEW_CELL_ACTIVATABLE, wxCOL_WIDTH_DEFAULT, wxALIGN_CENTER );
+
     wxDataViewColumn* layerColumn = aList->AppendIconTextColumn( wxEmptyString );
     wxDataViewColumn* layerIDColumn = aList->AppendTextColumn( wxEmptyString );
     layerIDColumn->SetHidden( true );
 
     int textWidth = 0;
 
-    for( LSEQ layer = aLayers.UIOrder(); layer; ++layer )
+    for( PCB_LAYER_ID layerID : aLayers.UIOrder() )
     {
-        PCB_LAYER_ID layerID = *layer;
         wxString layerName = board->GetLayerName( layerID );
 
         if( aFpEditorMode && layerID == In1_Cu )
@@ -293,22 +307,13 @@ void ZONE_SETTINGS::SetupLayersList( wxDataViewListCtrl* aList, PCB_BASE_FRAME* 
             aList->SetToggleValue( true, (unsigned) aList->GetItemCount() - 1, 0 );
     }
 
-    int checkColSize = 22;
-    int layerColSize = textWidth + LAYER_BITMAP_SIZE.x + 15;
-
-#ifdef __WXMAC__
-    // TODO: something in wxWidgets 3.1.x pads checkbox columns with extra space.  (It used to
-    // also be that the width of the column would get set too wide (to 30), but that's patched in
-    // our local wxWidgets fork.)
-    int checkColMargins = 40;
-#else
-    int checkColMargins = 0;
-#endif
+    int checkColSize = aList->FromDIP( 22 );
+    int layerColSize = textWidth + LAYER_BITMAP_SIZE.x + aList->FromDIP( 15 );
 
     // You'd think the fact that m_layers is a list would encourage wxWidgets not to save room
     // for the tree expanders... but you'd be wrong.  Force indent to 0.
     aList->SetIndent( 0 );
-    aList->SetMinClientSize( wxSize( checkColSize + checkColMargins + layerColSize,
+    aList->SetMinClientSize( wxSize( checkColSize + layerColSize,
                                      aList->GetMinClientSize().y ) );
 
     checkColumn->SetWidth( checkColSize );

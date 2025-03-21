@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -47,14 +47,14 @@ SCH_PREVIEW_PANEL::SCH_PREVIEW_PANEL( wxWindow* aParentWindow, wxWindowID aWindo
                                       KIGFX::GAL_DISPLAY_OPTIONS& aOptions, GAL_TYPE aGalType ) :
     EDA_DRAW_PANEL_GAL( aParentWindow, aWindowId, aPosition, aSize, aOptions, aGalType )
 {
-    m_view = new KIGFX::SCH_VIEW( true, nullptr );
+    m_view = new KIGFX::SCH_VIEW( nullptr );
     m_view->SetGAL( m_gal );
 
     m_gal->SetWorldUnitLength( SCH_WORLD_UNIT );
 
     m_painter.reset( new KIGFX::SCH_PAINTER( m_gal ) );
 
-    KIGFX::SCH_RENDER_SETTINGS* renderSettings = GetRenderSettings();
+    SCH_RENDER_SETTINGS* renderSettings = GetRenderSettings();
     renderSettings->LoadColors( Pgm().GetSettingsManager().GetColorSettings() );
     renderSettings->m_ShowPinsElectricalType = false;
     renderSettings->m_ShowPinNumbers = false;
@@ -90,9 +90,9 @@ SCH_PREVIEW_PANEL::~SCH_PREVIEW_PANEL()
 }
 
 
-KIGFX::SCH_RENDER_SETTINGS* SCH_PREVIEW_PANEL::GetRenderSettings() const
+SCH_RENDER_SETTINGS* SCH_PREVIEW_PANEL::GetRenderSettings() const
 {
-    return static_cast<KIGFX::SCH_RENDER_SETTINGS*>( m_painter->GetSettings() );
+    return static_cast<SCH_RENDER_SETTINGS*>( m_painter->GetSettings() );
 }
 
 

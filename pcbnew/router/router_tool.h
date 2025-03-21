@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2016 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * Author: Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -73,13 +73,16 @@ private:
     void performRouting( VECTOR2D aStartPosition );
     void performDragging( int aMode = PNS::DM_ANY );
     void breakTrack();
+    void restoreSelection( const PCB_SELECTION& aOriginalSelection );
 
     void handleCommonEvents( TOOL_EVENT& evt );
     int handleLayerSwitch( const TOOL_EVENT& aEvent, bool aForceVia );
 
-    int getStartLayer( const PNS::ITEM* aItem );
+    // Returns the board layer ID for the start layer of the router
+    PCB_LAYER_ID getStartLayer( const PNS::ITEM* aItem );
+
     void switchLayerOnViaPlacement();
-    void updateSizesAfterRouterEvent( PCB_LAYER_ID targetLayer, const VECTOR2I& aPos );
+    void updateSizesAfterRouterEvent( int targetLayer, const VECTOR2I& aPos );
 
     int onLayerCommand( const TOOL_EVENT& aEvent );
     int onViaCommand( const TOOL_EVENT& aEvent );
@@ -93,7 +96,9 @@ private:
     std::shared_ptr<ACTION_MENU> m_diffPairMenu;
     std::shared_ptr<ACTION_MENU> m_trackViaMenu;
 
-    int                          m_lastTargetLayer;
+    // Both of these are in board layer ID format and must be converted to PNS layer ID format
+    // when used with the PNS interface.
+    PCB_LAYER_ID                 m_lastTargetLayer;
     PCB_LAYER_ID                 m_originalActiveLayer;
 
     bool                         m_inRouterTool;         // Re-entrancy guard

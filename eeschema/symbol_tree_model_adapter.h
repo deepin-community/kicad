@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2017 Chris Pavlina <pavlina.chris@gmail.com>
  * Copyright (C) 2014 Henner Zeller <h.zeller@acm.org>
- * Copyright (C) 2014-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -32,7 +32,9 @@ class SYMBOL_TREE_MODEL_ADAPTER : public LIB_TREE_MODEL_ADAPTER
 {
 public:
     /**
-     * Destructor. Do NOT delete this class manually; it is reference-counted by wxObject.
+     * Destructor.
+     *
+     * @warning Do **not** delete this class manually.  It is reference-counted by wxObject.
      */
     ~SYMBOL_TREE_MODEL_ADAPTER();
 
@@ -41,16 +43,17 @@ public:
      *
      * @param aLibs library set from which parts will be loaded
      */
-    static wxObjectDataPtr<LIB_TREE_MODEL_ADAPTER> Create( EDA_BASE_FRAME* aParent,
+    static wxObjectDataPtr<LIB_TREE_MODEL_ADAPTER> Create( SCH_BASE_FRAME* aParent,
                                                            LIB_TABLE* aLibs );
 
     /**
      * Add all the libraries in a SYMBOL_LIB_TABLE to the model.
+     *
      * Displays a progress dialog attached to the parent frame the first time it is run.
      *
      * @param aNicknames is the list of library nicknames
      * @param aParent is the parent window to display the progress dialog
-     * @return false if loading was cancelled by the user
+     * @return false if loading was canceled by the user
      */
     bool AddLibraries( const std::vector<wxString>& aNicknames, SCH_BASE_FRAME* aFrame );
 
@@ -62,12 +65,13 @@ protected:
     /**
      * Constructor; takes a set of libraries to be included in the search.
      */
-    SYMBOL_TREE_MODEL_ADAPTER( EDA_BASE_FRAME* aParent, LIB_TABLE* aLibs );
+    SYMBOL_TREE_MODEL_ADAPTER( SCH_BASE_FRAME* aParent, LIB_TABLE* aLibs );
 
-    bool isSymbolModel() override { return true; }
+    PROJECT::LIB_TYPE_T getLibType() override { return PROJECT::LIB_TYPE_T::SYMBOL_LIB; }
 
 private:
     friend class SYMBOL_ASYNC_LOADER;
+
     /**
      * Flag to only show the symbol library table load progress dialog the first time.
      */

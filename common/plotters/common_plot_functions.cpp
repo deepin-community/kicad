@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  *
  * This program is free software; you can redistribute it and/or
@@ -75,7 +75,7 @@ void PlotDrawingSheet( PLOTTER* plotter, const PROJECT* aProject, const TITLE_BL
     drawList.SetPlotterMilsToIUfactor( iusPerMil );
     drawList.SetPageNumber( aSheetNumber );
     drawList.SetSheetCount( aSheetCount );
-    drawList.SetFileName( fn.GetFullName() );   // Print only the short filename
+    drawList.SetFileName( fn.GetFullPath() );
     drawList.SetSheetName( aSheetName );
     drawList.SetSheetPath( aSheetPath );
     drawList.SetSheetLayer( settings->GetLayerName() );
@@ -177,7 +177,7 @@ void PlotDrawingSheet( PLOTTER* plotter, const PROJECT* aProject, const TITLE_BL
             break;
 
         default:
-            wxFAIL_MSG( "PlotDrawingSheet(): Unknown drawing sheet item." );
+            wxFAIL_MSG( wxT( "PlotDrawingSheet(): Unknown drawing sheet item." ) );
             break;
         }
     }

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2011-2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,10 +26,7 @@
 #define LAYER_BOX_SELECTOR_H
 
 #include <wx/bmpcbox.h>
-#include <gal/color4d.h>
-#include <layer_ids.h>
 
-using KIGFX::COLOR4D;
 
 /**
  * Base class to build a layer list.
@@ -43,25 +40,15 @@ public:
 
     bool SetLayersHotkeys( bool value );
 
-    // Fill the layer bitmap aLayerbmp with the layer color
-    static void DrawColorSwatch( wxBitmap& aLayerbmp, const COLOR4D& aBackground,
-                                 const COLOR4D& aColor );
-
 protected:
-    // Return a color index from the layer id
-    virtual COLOR4D getLayerColor( int aLayer ) const = 0;
-
-    // Return the name of the layer id
-    virtual wxString getLayerName( int aLayer ) const = 0;
-
-    // Return true if the layer id is enabled (i.e. is it should be displayed)
+    /// Return true if the layer id is enabled (i.e. is it should be displayed).
     virtual bool isLayerEnabled( int aLayer ) const = 0;
 
     bool m_layerhotkeys;
 };
 
 
-/*
+/**
  * Display a layer list in a wxBitmapComboBox.
  */
 class LAYER_BOX_SELECTOR : public wxBitmapComboBox, public LAYER_SELECTOR
@@ -80,9 +67,6 @@ public:
     // Reload the Layers
     // Virtual pure function because GerbView uses its own functions in a derived class
     virtual void Resync() = 0;
-
-    // Reload the Layers bitmaps colors
-    void ResyncBitmapOnly();
 
 private:
 #ifdef __WXMAC__

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2011-2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -45,6 +45,10 @@
 #include <pcb_io/easyeda/pcb_io_easyeda_plugin.h>
 #include <pcb_io/easyedapro/pcb_io_easyedapro.h>
 #include <pcb_io/ipc2581/pcb_io_ipc2581.h>
+#include <pcb_io/odbpp/pcb_io_odbpp.h>
+#include <reporter.h>
+
+
 
 #define FMT_UNIMPLEMENTED   _( "Plugin \"%s\" does not implement the \"%s\" function." )
 #define FMT_NOTFOUND        _( "Plugin type \"%s\" is not found." )
@@ -154,7 +158,7 @@ PCB_IO_MGR::PCB_FILE_T PCB_IO_MGR::GuessPluginTypeFromLibPath( const wxString& a
 
 
 BOARD* PCB_IO_MGR::Load( PCB_FILE_T aFileType, const wxString& aFileName, BOARD* aAppendToMe,
-                     const STRING_UTF8_MAP* aProperties, PROJECT* aProject,
+                     const std::map<std::string, UTF8>* aProperties, PROJECT* aProject,
                      PROGRESS_REPORTER* aProgressReporter )
 {
     IO_RELEASER<PCB_IO> pi( PluginFind( aFileType ) );
@@ -170,7 +174,7 @@ BOARD* PCB_IO_MGR::Load( PCB_FILE_T aFileType, const wxString& aFileName, BOARD*
 
 
 void PCB_IO_MGR::Save( PCB_FILE_T aFileType, const wxString& aFileName, BOARD* aBoard,
-                   const STRING_UTF8_MAP* aProperties )
+                   const std::map<std::string, UTF8>* aProperties )
 {
     IO_RELEASER<PCB_IO> pi( PluginFind( aFileType ) );
 
@@ -184,14 +188,13 @@ void PCB_IO_MGR::Save( PCB_FILE_T aFileType, const wxString& aFileName, BOARD* a
 }
 
 
-bool PCB_IO_MGR::ConvertLibrary( STRING_UTF8_MAP* aOldFileProps, const wxString& aOldFilePath,
-                                 const wxString& aNewFilePath )
+bool PCB_IO_MGR::ConvertLibrary( std::map<std::string, UTF8>* aOldFileProps, const wxString& aOldFilePath,
+                                 const wxString& aNewFilePath, REPORTER* aReporter )
 {
     PCB_IO_MGR::PCB_FILE_T oldFileType = PCB_IO_MGR::GuessPluginTypeFromLibPath( aOldFilePath );
 
     if( oldFileType == PCB_IO_MGR::FILE_TYPE_NONE )
         return false;
-
 
     IO_RELEASER<PCB_IO> oldFilePI( PCB_IO_MGR::PluginFind( oldFileType ) );
     IO_RELEASER<PCB_IO> kicadPI( PCB_IO_MGR::PluginFind( PCB_IO_MGR::KICAD_SEXP ) );
@@ -213,13 +216,36 @@ bool PCB_IO_MGR::ConvertLibrary( STRING_UTF8_MAP* aOldFileProps, const wxString&
     {
         bool bestEfforts = false; // throw on first error
         oldFilePI->FootprintEnumerate( fpNames, aOldFilePath, bestEfforts, aOldFileProps );
+        std::map<std::string, UTF8> props { { "skip_cache_validation", "" } };
 
         for ( const wxString& fpName : fpNames )
         {
-            std::unique_ptr<const FOOTPRINT> fp( oldFilePI->GetEnumeratedFootprint( aOldFilePath, fpName, aOldFileProps ) );
-            kicadPI->FootprintSave( aNewFilePath, fp.get() );
-        }
+            std::unique_ptr<const FOOTPRINT> fp(
+                oldFilePI->GetEnumeratedFootprint( aOldFilePath, fpName, aOldFileProps ) );
 
+            try
+            {
+                kicadPI->FootprintSave( aNewFilePath, fp.get(), &props );
+            }
+            catch( ... )
+            {
+                // Footprints that cannot be saved are just skipped. This is not see
+                // as a fatal error.
+                // this can be just a illegal filename used for the footprint
+                if( aReporter )
+                    aReporter->Report( wxString::Format( "Footprint \"%s\" can't be saved. Skipped",
+                                                         fpName ),
+                                       SEVERITY::RPT_SEVERITY_WARNING );
+            }
+        }
+    }
+    catch( IO_ERROR& io_err )
+    {
+        if( aReporter )
+            aReporter->Report( wxString::Format( "Library '%s' Convert err: \"%s\"",
+                                             aOldFilePath, io_err.What() ),
+                                SEVERITY::RPT_SEVERITY_ERROR );
+        return false;
     }
     catch( ... )
     {
@@ -305,4 +331,9 @@ static PCB_IO_MGR::REGISTER_PLUGIN registerIPC2581Plugin(
         PCB_IO_MGR::IPC2581,
         wxT( "IPC-2581" ),
         []() -> PCB_IO* { return new PCB_IO_IPC2581; } );
+
+static PCB_IO_MGR::REGISTER_PLUGIN registerODBPPPlugin(
+        PCB_IO_MGR::ODBPP,
+        wxT( "ODB++" ),
+        []() -> PCB_IO* { return new PCB_IO_ODBPP; } );
 // clang-format on

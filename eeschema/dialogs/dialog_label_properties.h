@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -40,7 +40,12 @@ public:
     DIALOG_LABEL_PROPERTIES( SCH_EDIT_FRAME* parent, SCH_LABEL_BASE* aLabel );
     ~DIALOG_LABEL_PROPERTIES();
 
+    FIELDS_GRID_TABLE* GetFieldsGridTable() { return m_fields; }
+
 private:
+    /**
+     * wxEVT_COMMAND_ENTER event handler for single-line control.
+     */
     void OnEnterKey( wxCommandEvent& aEvent ) override;
     void OnValueCharHook( wxKeyEvent& aEvent ) override;
     void OnFormattingHelp( wxHyperlinkEvent& aEvent ) override;
@@ -61,21 +66,21 @@ private:
     bool TransferDataFromWindow() override;
 
 private:
-    SCH_EDIT_FRAME*               m_Parent;
-    int                           m_width;
-    int                           m_delayedFocusRow;
-    int                           m_delayedFocusColumn;
+    SCH_EDIT_FRAME*       m_Parent;
+    int                   m_width;
+    int                   m_delayedFocusRow;
+    int                   m_delayedFocusColumn;
 
-    SCH_LABEL_BASE*               m_currentLabel;
-    wxTextEntry*                  m_activeTextEntry;
-    SCH_NETNAME_VALIDATOR         m_netNameValidator;
+    SCH_LABEL_BASE*       m_currentLabel;
+    wxTextEntry*          m_activeTextEntry;
+    SCH_NETNAME_VALIDATOR m_netNameValidator;
 
-    FIELDS_GRID_TABLE<SCH_FIELD>* m_fields;
-    std::bitset<64>               m_shownColumns;
+    FIELDS_GRID_TABLE*    m_fields;
+    std::bitset<64>       m_shownColumns;
 
-    UNIT_BINDER                   m_textSize;
+    UNIT_BINDER           m_textSize;
 
-    HTML_MESSAGE_BOX*             m_helpWindow;
+    HTML_MESSAGE_BOX*     m_helpWindow;
 };
 
 

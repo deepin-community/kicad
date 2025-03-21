@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 Jean_Pierre Charras <jp.charras at wanadoo.fr>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -71,12 +71,12 @@ enum ONSIDE GERBER_JOBFILE_WRITER::hasSilkLayers()
 {
     int flag = SIDE_NONE;
 
-    for( unsigned ii = 0; ii < m_params.m_LayerId.size(); ii++ )
+    for( PCB_LAYER_ID layer : m_params.m_LayerId )
     {
-        if( m_params.m_LayerId[ii] == B_SilkS )
+        if( layer == B_SilkS )
             flag |= SIDE_BOTTOM;
 
-        if( m_params.m_LayerId[ii] == F_SilkS )
+        if( layer == F_SilkS )
             flag |= SIDE_TOP;
     }
 
@@ -88,12 +88,12 @@ enum ONSIDE GERBER_JOBFILE_WRITER::hasSolderMasks()
 {
     int flag = SIDE_NONE;
 
-    for( unsigned ii = 0; ii < m_params.m_LayerId.size(); ii++ )
+    for( PCB_LAYER_ID layer : m_params.m_LayerId )
     {
-        if( m_params.m_LayerId[ii] == B_Mask )
+        if( layer == B_Mask )
             flag |= SIDE_BOTTOM;
 
-        if( m_params.m_LayerId[ii] == F_Mask )
+        if( layer == F_Mask )
             flag |= SIDE_TOP;
     }
 
@@ -108,21 +108,10 @@ const char* GERBER_JOBFILE_WRITER::sideKeyValue( enum ONSIDE aValue )
 
     switch( aValue )
     {
-    case SIDE_NONE:
-        value = "No";
-        break;
-
-    case SIDE_TOP:
-        value = "TopOnly";
-        break;
-
-    case SIDE_BOTTOM:
-        value = "BotOnly";
-        break;
-
-    case SIDE_BOTH:
-        value = "Both";
-        break;
+    case SIDE_NONE:   value = "No";      break;
+    case SIDE_TOP:    value = "TopOnly"; break;
+    case SIDE_BOTTOM: value = "BotOnly"; break;
+    case SIDE_BOTH:   value = "Both";    break;
     }
 
     return value;
@@ -338,7 +327,7 @@ void GERBER_JOBFILE_WRITER::addJSONFilesAttributes()
 
         nlohmann::ordered_json file_json;
 
-        if( layer <= B_Cu )
+        if( IsCopperLayer( layer ) )
         {
             gbr_layer_id = wxT( "Copper,L" );
 
@@ -456,11 +445,11 @@ void GERBER_JOBFILE_WRITER::addJSONDesignRules()
     // Job file support a few design rules:
     std::shared_ptr<NET_SETTINGS>& netSettings = m_pcb->GetDesignSettings().m_NetSettings;
 
-    int  minclearanceOuter = netSettings->m_DefaultNetClass->GetClearance();
+    int  minclearanceOuter = netSettings->GetDefaultNetclass()->GetClearance();
     bool hasInnerLayers = m_pcb->GetCopperLayerCount() > 2;
 
     // Search a smaller clearance in other net classes, if any.
-    for( const auto& [ name, netclass ] : netSettings->m_NetClasses )
+    for( const auto& [name, netclass] : netSettings->GetNetclasses() )
         minclearanceOuter = std::min( minclearanceOuter, netclass->GetClearance() );
 
     // job file knows different clearance types.
@@ -470,8 +459,8 @@ void GERBER_JOBFILE_WRITER::addJSONDesignRules()
     // However, pads can have a specific clearance defined for a pad or a footprint,
     // and min clearance can be dependent on layers.
     // Search for a minimal pad clearance:
-    int minPadClearanceOuter = netSettings->m_DefaultNetClass->GetClearance();
-    int minPadClearanceInner = netSettings->m_DefaultNetClass->GetClearance();
+    int minPadClearanceOuter = netSettings->GetDefaultNetclass()->GetClearance();
+    int minPadClearanceInner = netSettings->GetDefaultNetclass()->GetClearance();
 
     for( FOOTPRINT* footprint : m_pcb->Footprints() )
     {
@@ -713,10 +702,16 @@ void GERBER_JOBFILE_WRITER::addJSONMaterialStackup()
                     }
                 }
 
-                PCB_LAYER_ID next_copper_layer = ( PCB_LAYER_ID )( last_copper_layer + 1 );
+                // Copper layers IDs use only even values like 0, 2, 4 ...
+                // and first layer = F_Cu = 0, last layer = B_Cu = 2
+                // inner layers Ids are 4, 6 , 8 ...
+                PCB_LAYER_ID next_copper_layer = ( PCB_LAYER_ID )( last_copper_layer + 2 );
+
+                if( last_copper_layer == F_Cu )
+                    next_copper_layer = In1_Cu;
 
                 // If the next_copper_layer is the last copper layer, the next layer id is B_Cu
-                if( next_copper_layer >= m_pcb->GetCopperLayerCount() - 1 )
+                if( next_copper_layer/2 >= m_pcb->GetCopperLayerCount() )
                     next_copper_layer = B_Cu;
 
                 wxString subLayerName;
@@ -725,9 +720,9 @@ void GERBER_JOBFILE_WRITER::addJSONMaterialStackup()
                     subLayerName.Printf( wxT( " (%d/%d)" ), sub_idx + 1, sub_layer_count );
 
                 wxString name = wxString::Format( wxT( "%s/%s%s" ),
-                        formatStringFromUTF32( m_pcb->GetLayerName( last_copper_layer ) ),
-                        formatStringFromUTF32( m_pcb->GetLayerName( next_copper_layer ) ),
-                        subLayerName );
+                                                  formatStringFromUTF32( m_pcb->GetLayerName( last_copper_layer ) ),
+                                                  formatStringFromUTF32( m_pcb->GetLayerName( next_copper_layer ) ),
+                                                  subLayerName );
 
                 layer_json["Name"] = name;
 
@@ -737,8 +732,8 @@ void GERBER_JOBFILE_WRITER::addJSONMaterialStackup()
                 note << wxString::Format( wxT( "Type: %s" ), layer_name.c_str() );
 
                 note << wxString::Format( wxT( " (from %s to %s)" ),
-                        formatStringFromUTF32( m_pcb->GetLayerName( last_copper_layer ) ),
-                        formatStringFromUTF32( m_pcb->GetLayerName( next_copper_layer ) ) );
+                                          formatStringFromUTF32( m_pcb->GetLayerName( last_copper_layer ) ),
+                                          formatStringFromUTF32( m_pcb->GetLayerName( next_copper_layer ) ) );
 
                 layer_json["Notes"] = note;
             }

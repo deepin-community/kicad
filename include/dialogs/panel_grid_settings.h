@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +29,7 @@
 #include <frame_type.h>
 
 class APP_SETTINGS_BASE;
+struct GRID;
 
 
 class PANEL_GRID_SETTINGS : public PANEL_GRID_SETTINGS_BASE
@@ -45,17 +46,27 @@ public:
 
 private:
     void OnAddGrid( wxCommandEvent& event ) override;
+    void OnEditGrid( wxCommandEvent& event ) override;
     void OnRemoveGrid( wxCommandEvent& event ) override;
     void OnMoveGridUp( wxCommandEvent& event ) override;
     void OnMoveGridDown( wxCommandEvent& event ) override;
 
+    void OnUpdateEditGrid( wxUpdateUIEvent& event ) override;
+    void OnUpdateMoveUp( wxUpdateUIEvent& event ) override;
+    void OnUpdateMoveDown( wxUpdateUIEvent& event ) override;
+    void OnUpdateRemove( wxUpdateUIEvent& event ) override;
+
     void RebuildGridSizes();
+
+    void onEditGrid();
 
 private:
     UNITS_PROVIDER*    m_unitsProvider;
     APP_SETTINGS_BASE* m_cfg;
     FRAME_T            m_frameType;
     wxWindow*          m_eventSource;
+
+    std::vector<GRID> m_grids;
 };
 
 #endif // PANEL_GRID_SETTINGS_H

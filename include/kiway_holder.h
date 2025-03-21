@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,6 +24,8 @@
 #ifndef KIWAY_HOLDER_H_
 #define KIWAY_HOLDER_H_
 
+#include <kicommon.h>
+
 class KIWAY;
 class PROJECT;
 class wxWindow;
@@ -33,7 +35,7 @@ class wxWindow;
  *
  * It allows calls to Kiway() and SetKiway().
  */
-class KIWAY_HOLDER
+class KICOMMON_API KIWAY_HOLDER
 {
 public:
     enum HOLDER_TYPE { DIALOG, FRAME, PANEL };

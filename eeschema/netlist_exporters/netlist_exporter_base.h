@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1992-2013 jp.charras at wanadoo.fr
  * Copyright (C) 2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,11 +26,11 @@
 #ifndef NETLIST_EXPORTER_H
 #define NETLIST_EXPORTER_H
 
-#include <lib_pin.h>
-#include <sch_symbol.h>
-#include <sch_label.h>
-#include <sch_sheet.h>
 #include <schematic.h>
+
+class SCH_SYMBOL;
+class LIB_SYMBOL;
+class REPORTER;
 
 /**
  * Track unique wxStrings and is useful in telling if a string has been seen before.
@@ -65,11 +65,7 @@ public:
 struct LIB_SYMBOL_LESS_THAN
 {
     // a "less than" test on two LIB_SYMBOLs (.m_name wxStrings)
-    bool operator()( LIB_SYMBOL* const& libsymbol1, LIB_SYMBOL* const& libsymbol2 ) const
-    {
-        // Use case specific GetName() wxString compare
-        return libsymbol1->GetLibId() < libsymbol2->GetLibId();
-    }
+    bool operator()( LIB_SYMBOL* const& libsymbol1, LIB_SYMBOL* const& libsymbol2 ) const;
 };
 
 
@@ -91,10 +87,6 @@ struct PIN_INFO
 class NETLIST_EXPORTER_BASE
 {
 public:
-    /**
-     * @param aMasterList we take ownership of this here.
-     * @param aLibTable is the symbol library table of the project.
-     */
     NETLIST_EXPORTER_BASE( SCHEMATIC_IFACE* aSchematic ) :
         m_schematic( aSchematic )
     {
@@ -155,7 +147,7 @@ protected:
      * if aKeepUnconnectedPins = false, unconnected pins will be removed from list
      * but usually we need all pins in netlists.
      */
-    std::vector<PIN_INFO> CreatePinList( SCH_SYMBOL* aSymbol, SCH_SHEET_PATH* aSheetPath,
+    std::vector<PIN_INFO> CreatePinList( SCH_SYMBOL* aSymbol, const SCH_SHEET_PATH& aSheetPath,
                                          bool aKeepUnconnectedPins );
 
     /**
@@ -167,7 +159,7 @@ protected:
      * @param aSheetPath is the sheet to check the symbol for
      * @return the symbol if it should be processed, or nullptr
      */
-    SCH_SYMBOL* findNextSymbol( EDA_ITEM* aItem, SCH_SHEET_PATH* aSheetPath );
+    SCH_SYMBOL* findNextSymbol( EDA_ITEM* aItem, const SCH_SHEET_PATH& aSheetPath );
 
     /**
      * Erase duplicate pins.
@@ -189,7 +181,7 @@ protected:
      * if aKeepUnconnectedPins = false, unconnected pins will be removed from list
      * but usually we need all pins in netlists.
      */
-    void findAllUnitsOfSymbol( SCH_SYMBOL* aSchSymbol, SCH_SHEET_PATH* aSheetPath,
+    void findAllUnitsOfSymbol( SCH_SYMBOL* aSchSymbol, const SCH_SHEET_PATH& aSheetPath,
                                std::vector<PIN_INFO>& aPins, bool aKeepUnconnectedPins );
 
     /// Used for "multiple symbols per package" symbols to avoid processing a lib symbol more than

@@ -1,7 +1,7 @@
 /*
 * This program source code file is part of KiCad, a free EDA CAD application.
 *
-* Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -20,6 +20,8 @@
 * or you may write to the Free Software Foundation, Inc.,
 * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 */
+
+#include <json_common.h>
 
 #include <settings/common_settings.h>
 #include <settings/parameters.h>
@@ -101,11 +103,17 @@ SYMBOL_EDITOR_SETTINGS::SYMBOL_EDITOR_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "show_pin_electrical_type",
                                             &m_ShowPinElectricalType, true ) );
 
+    m_params.emplace_back( new PARAM<bool>( "show_pin_alt_icons",
+                                            &m_ShowPinAltIcons, true ) );
+
     m_params.emplace_back( new PARAM<bool>( "show_hidden_lib_fields",
-                                            &m_ShowHiddenLibFields, true ) );
+                                            &m_ShowHiddenFields, true ) );
 
     m_params.emplace_back( new PARAM<bool>( "show_hidden_lib_pins",
-                                            &m_ShowHiddenLibPins, true ) );
+                                            &m_ShowHiddenPins, true ) );
+
+    m_params.emplace_back( new PARAM<bool>( "drag_pins_along_with_edges",
+                                            &m_dragPinsAlongWithEdges, true ) );
 
     m_params.emplace_back( new PARAM<int>( "lib_table_width",
                                            &m_LibWidth, 250 ) );
@@ -121,6 +129,50 @@ SYMBOL_EDITOR_SETTINGS::SYMBOL_EDITOR_SETTINGS() :
 
     m_params.emplace_back( new PARAM<bool>( "use_eeschema_color_settings",
                                             &m_UseEeschemaColorSettings, true ) );
+
+    m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "selection_filter",
+            [&]() -> nlohmann::json
+            {
+                nlohmann::json ret;
+
+                ret["lockedItems"] = m_SelectionFilter.lockedItems;
+                ret["symbols"]     = m_SelectionFilter.symbols;
+                ret["text"]        = m_SelectionFilter.text;
+                ret["wires"]       = m_SelectionFilter.wires;
+                ret["labels"]      = m_SelectionFilter.labels;
+                ret["pins"]        = m_SelectionFilter.pins;
+                ret["graphics"]    = m_SelectionFilter.graphics;
+                ret["images"]      = m_SelectionFilter.images;
+                ret["otherItems"]  = m_SelectionFilter.otherItems;
+
+                return ret;
+            },
+            [&]( const nlohmann::json& aVal )
+            {
+                if( aVal.empty() || !aVal.is_object() )
+                    return;
+
+                SetIfPresent( aVal, "lockedItems", m_SelectionFilter.lockedItems );
+                SetIfPresent( aVal, "symbols", m_SelectionFilter.symbols );
+                SetIfPresent( aVal, "text", m_SelectionFilter.text );
+                SetIfPresent( aVal, "wires", m_SelectionFilter.wires );
+                SetIfPresent( aVal, "labels", m_SelectionFilter.labels );
+                SetIfPresent( aVal, "pins", m_SelectionFilter.pins );
+                SetIfPresent( aVal, "graphics", m_SelectionFilter.graphics );
+                SetIfPresent( aVal, "images", m_SelectionFilter.images );
+                SetIfPresent( aVal, "otherItems", m_SelectionFilter.otherItems );
+            },
+            {
+                { "lockedItems", false },
+                { "symbols", true },
+                { "text", true },
+                { "wires", true },
+                { "labels", true },
+                { "pins", true },
+                { "graphics", true },
+                { "images", true },
+                { "otherItems", true }
+            } ) );
 
     registerMigration( 0, 1,
                        [&]() -> bool

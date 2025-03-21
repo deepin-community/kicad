@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -54,10 +54,12 @@ void GRID_CELL_COMBOBOX::Create( wxWindow* aParent, wxWindowID aId, wxEvtHandler
     wxGridCellEditor::Create(aParent, aId, aEventHandler);
 }
 
+
 wxString GRID_CELL_COMBOBOX::GetValue() const
 {
     return Combo()->GetValue();
 }
+
 
 void GRID_CELL_COMBOBOX::SetSize( const wxRect& aRect )
 {

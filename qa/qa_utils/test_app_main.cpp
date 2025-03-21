@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2014-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -65,7 +65,7 @@ static struct IFACE : public KIFACE_BASE
     void OnKifaceEnd() override {}
 
     wxWindow* CreateKiWindow( wxWindow* aParent, int aClassId, KIWAY* aKiway,
-                            int aCtlBits = 0 ) override
+                              int aCtlBits = 0 ) override
     {
         assert( false );
         return nullptr;
@@ -89,7 +89,7 @@ static struct IFACE : public KIFACE_BASE
 kiface( "pcb_test_frame", KIWAY::FACE_PCB );
 
 
-KIWAY    Kiway( &Pgm(), KFCTL_STANDALONE );
+KIWAY    Kiway( KFCTL_STANDALONE );
 
 
 static struct PGM_TEST_FRAME : public PGM_BASE
@@ -129,20 +129,6 @@ static struct PGM_TEST_FRAME : public PGM_BASE
 program;
 
 
-PGM_BASE& Pgm()
-{
-    return program;
-}
-
-
-// Similar to PGM_BASE& Pgm(), but return nullptr when a *.ki_face
-// is run from a python script, mot from a Kicad application
-PGM_BASE* PgmOrNull()
-{
-    return &program;
-}
-
-
 KIFACE_BASE& Kiface()
 {
     return kiface;
@@ -156,7 +142,9 @@ KIFACE_BASE& Kiface()
 struct APP_TEST : public wxApp
 {
     APP_TEST()
-    {}
+    {
+        SetPgm( &program );
+    }
 
     bool OnInit() override
     {

@@ -4,28 +4,25 @@
 win64_build:
   stage: build
   tags:
-    - kicad-windows-1809
+    - kicad-windows-ltsc2022
   interruptible: false
-  image: registry.gitlab.com/kicad/kicad-ci/windows-build-image/win1809-msvc:latest
+  image: registry.gitlab.com/kicad/kicad-ci/windows-build-image/ltsc2022-msvc:latest
   variables:
-    VCPKG_BINARY_SOURCES: 'nuget,kicad,readwrite'
     # Switch the compressor to fastzip and reduce the compression level
     FF_USE_FASTZIP: "true"
     CACHE_COMPRESSION_LEVEL: "fast"
   cache:
-    key: win64-vcpkg-"$CI_COMMIT_REF_SLUG"
+    key: win64-vcpkg-$CI_COMMIT_REF_SLUG
     paths:
       - build\windows\vcpkg_installed
       - .vcpkgCache
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
       when: never
-    - if: $CI_PROJECT_ROOT_NAMESPACE == "kicad" && $CI_COMMIT_REF_PROTECTED == "true"
+    - if: $CI_PROJECT_ROOT_NAMESPACE == "kicad"
   script:
     - C:\builder\build.ps1 -Env -Arch x64
     - $vcpkgCache=Join-Path -Path (Get-Location) -ChildPath ".vcpkgCache";$env:VCPKG_DEFAULT_BINARY_CACHE=$vcpkgCache;New-Item -ItemType Directory -Force -Path $vcpkgCache
-    - nuget.exe sources add -Name kicad -Source "https://nuget.kicad.org:443/v3/index.json"
-    - nuget.exe setapikey $env:KICAD_NUGET_KEY -Source "https://nuget.kicad.org:443/v3/index.json"
     - mkdir -p build/windows -Force
     - cd build/windows
     - cmake `
@@ -36,6 +33,7 @@ win64_build:
       -DKICAD_USE_OCC=ON `
       -DKICAD_BUILD_PNS_DEBUG_TOOL=ON `
       -DKICAD_USE_3DCONNEXION=ON `
+      -DVCPKG_BUILD_TYPE=debug `
       ../../
     - cmake --build . 2>&1 | tee compilation_log.txt
     - cd ../../

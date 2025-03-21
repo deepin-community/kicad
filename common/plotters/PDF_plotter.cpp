@@ -7,7 +7,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 1992-2012 Lorenzo Marcantonio, l.marcantonio@logossrl.com
- * Copyright (C) 1992-2023, 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -35,6 +35,7 @@
 #include <wx/zstream.h>
 #include <wx/wfstream.h>
 #include <wx/datstrm.h>
+#include <wx/tokenzr.h>
 
 #include <advanced_config.h>
 #include <common.h>               // ResolveUriByEnvVars
@@ -481,9 +482,10 @@ void PDF_PLOTTER::PlotImage( const wxImage& aImage, const VECTOR2I& aPos, double
             if( image.HasAlpha() != aCurrImage.HasAlpha() )
                 continue;
 
-            if( image.HasMask() != aCurrImage.HasMask() || image.GetMaskRed() != aCurrImage.GetMaskRed()
-                || image.GetMaskGreen() != aCurrImage.GetMaskGreen()
-                || image.GetMaskBlue() != aCurrImage.GetMaskBlue() )
+            if( image.HasMask() != aCurrImage.HasMask()
+              || image.GetMaskRed() != aCurrImage.GetMaskRed()
+              || image.GetMaskGreen() != aCurrImage.GetMaskGreen()
+              || image.GetMaskBlue() != aCurrImage.GetMaskBlue() )
                 continue;
 
             int pixCount = image.GetWidth() * image.GetHeight();
@@ -491,7 +493,8 @@ void PDF_PLOTTER::PlotImage( const wxImage& aImage, const VECTOR2I& aPos, double
             if( memcmp( image.GetData(), aCurrImage.GetData(), pixCount * 3 ) != 0 )
                 continue;
 
-            if( image.HasAlpha() && memcmp( image.GetAlpha(), aCurrImage.GetAlpha(), pixCount ) != 0 )
+            if( image.HasAlpha()
+              && memcmp( image.GetAlpha(), aCurrImage.GetAlpha(), pixCount ) != 0 )
                 continue;
 
             return imgHandle;
@@ -774,9 +777,21 @@ void PDF_PLOTTER::ClosePage()
     auto iuToPdfUserSpace =
             [&]( const VECTOR2I& aCoord ) -> VECTOR2D
             {
-                VECTOR2D retval = VECTOR2D( aCoord ) * PTsPERMIL / ( m_IUsPerDecimil * 10 );
+                VECTOR2D pos = VECTOR2D( aCoord ) * PTsPERMIL / ( m_IUsPerDecimil * 10 );
+
                 // PDF y=0 is at bottom of page, invert coordinate
-                retval.y = psPaperSize.y - retval.y;
+                VECTOR2D retval( pos.x, psPaperSize.y - pos.y );
+
+                // The pdf plot can be mirrored (from left to right). So mirror the
+                // x coordinate if m_plotMirror is set
+                if( m_plotMirror )
+                {
+                    if( m_mirrorIsHorizontal )
+                        retval.x = ( psPaperSize.x - pos.x );
+                    else
+                        retval.y = pos.y;
+                }
+
                 return retval;
             };
 
@@ -884,7 +899,6 @@ void PDF_PLOTTER::ClosePage()
     {
         pageOutlineName = wxString::Format( _( "%s (Page %s)" ), m_pageName, m_pageNumbers.back() );
     }
-
 
     int           actionHandle = emitGoToAction( pageHandle );
     OUTLINE_NODE* pageOutlineNode =
@@ -1109,7 +1123,9 @@ int PDF_PLOTTER::emitOutline()
 
 bool PDF_PLOTTER::EndPlot()
 {
-    wxASSERT( m_outputFile );
+    // We can end up here if there was nothing to plot
+    if( !m_outputFile )
+        return false;
 
     // Close the current page (often the only one)
     ClosePage();
@@ -1474,7 +1490,6 @@ function ShM(aEntries) {
             ">>\n", (long) m_pageHandles.size() );
     closePdfObject();
 
-
     // The info dictionary
     int infoDictHandle = startPdfObject();
     char date_buf[250];
@@ -1493,10 +1508,14 @@ function ShM(aEntries) {
              "/Producer (KiCad PDF)\n"
              "/CreationDate (%s)\n"
              "/Creator %s\n"
-             "/Title %s\n",
+             "/Title %s\n"
+             "/Author %s\n"
+             "/Subject %s\n",
              date_buf,
              encodeStringForPlotter( m_creator ).c_str(),
-             encodeStringForPlotter( m_title ).c_str() );
+             encodeStringForPlotter( m_title ).c_str(),
+             encodeStringForPlotter( m_author ).c_str(),
+             encodeStringForPlotter( m_subject ).c_str() );
 
     fputs( ">>\n", m_outputFile );
     closePdfObject();

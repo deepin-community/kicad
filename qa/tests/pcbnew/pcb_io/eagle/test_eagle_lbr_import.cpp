@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -90,7 +90,7 @@ BOOST_AUTO_TEST_CASE( EagleLbrLibImport )
                                                                 false, nullptr );
                 BOOST_CHECK( eagleFp );
 
-                BOOST_CHECK_EQUAL( wxT( "REF**" ), eagleFp->GetReference() );
+                BOOST_CHECK_EQUAL( "REF**", eagleFp->GetReference() );
                 BOOST_CHECK_EQUAL( footprintName, eagleFp->GetValue() );
 
                 FOOTPRINT* kicadFp = kicadPlugin.FootprintLoad( kicadLibraryPath, footprintName,

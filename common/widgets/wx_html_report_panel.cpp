@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 CERN
- * Copyright (C) 2015-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -193,7 +193,8 @@ wxString WX_HTML_REPORT_PANEL::generateHtml( const REPORT_LINE& aLine )
                    wxS( "<font size=3>" ) + aLine.message + wxS( "</font><br>" );
             break;
         case RPT_SEVERITY_WARNING:
-            retv = wxS( "<font size=3>" ) + _( "Warning:" ) + wxS( " " ) + aLine.message + wxS( "</font><br>" );
+            retv = wxS( "<font size=3>" ) + _( "Warning:" ) + wxS( " " ) + aLine.message
+                   + wxS( "</font><br>" );
             break;
         case RPT_SEVERITY_INFO:
             retv = wxS( "<font color=#909090 size=3>" ) + aLine.message + wxS( "</font><br>" );
@@ -214,7 +215,8 @@ wxString WX_HTML_REPORT_PANEL::generateHtml( const REPORT_LINE& aLine )
                    wxS( "<font size=3>" ) + aLine.message + wxS( "</font><br>" );
             break;
         case RPT_SEVERITY_WARNING:
-            retv = wxS( "<font size=3>" ) + _( "Warning:" ) + wxS( " " ) + aLine.message + wxS( "</font><br>" );
+            retv = wxS( "<font size=3>" ) + _( "Warning:" ) + wxS( " " ) + aLine.message
+                   + wxS( "</font><br>" );
             break;
         case RPT_SEVERITY_INFO:
             retv = wxS( "<font color=#808080 size=3>" ) + aLine.message + wxS(  "</font><br>" );
@@ -357,13 +359,13 @@ void WX_HTML_REPORT_PANEL::onBtnSaveToFile( wxCommandEvent& event )
     {
         fn = wxT( "report.txt" );
 
-        KIWAY_HOLDER* parent = dynamic_cast<KIWAY_HOLDER*>( m_parent );
-
-        if( parent )
+        if( KIWAY_HOLDER* parent = dynamic_cast<KIWAY_HOLDER*>( m_parent ) )
             fn.SetPath( parent->Prj().GetProjectPath() );
     }
     else
+    {
         fn = m_reportFileName;
+    }
 
     wxWindow* topLevelParent = wxGetTopLevelParent( this );
 
@@ -459,4 +461,47 @@ void WX_HTML_REPORT_PANEL::SetShowSeverity( SEVERITY aSeverity, bool aValue )
     case RPT_SEVERITY_WARNING: m_checkBoxShowWarnings->SetValue( aValue ); break;
     default:                   m_checkBoxShowErrors->SetValue( aValue );   break;
     }
+}
+
+
+REPORTER& WX_HTML_PANEL_REPORTER::Report( const wxString& aText, SEVERITY aSeverity )
+{
+    wxCHECK_MSG( m_panel != nullptr, *this,
+                 wxT( "No WX_HTML_REPORT_PANEL object defined in WX_HTML_PANEL_REPORTER." ) );
+
+    m_panel->Report( aText, aSeverity );
+    return *this;
+}
+
+
+REPORTER& WX_HTML_PANEL_REPORTER::ReportTail( const wxString& aText, SEVERITY aSeverity )
+{
+    wxCHECK_MSG( m_panel != nullptr, *this,
+                 wxT( "No WX_HTML_REPORT_PANEL object defined in WX_HTML_PANEL_REPORTER." ) );
+
+    m_panel->Report( aText, aSeverity, LOC_TAIL );
+    return *this;
+}
+
+
+REPORTER& WX_HTML_PANEL_REPORTER::ReportHead( const wxString& aText, SEVERITY aSeverity )
+{
+    wxCHECK_MSG( m_panel != nullptr, *this,
+                 wxT( "No WX_HTML_REPORT_PANEL object defined in WX_HTML_PANEL_REPORTER." ) );
+
+    m_panel->Report( aText, aSeverity, LOC_HEAD );
+    return *this;
+}
+
+
+bool WX_HTML_PANEL_REPORTER::HasMessage() const
+{
+    // Check just for errors and warnings for compatibility
+    return HasMessageOfSeverity( RPT_SEVERITY_ERROR | RPT_SEVERITY_WARNING );
+}
+
+
+bool WX_HTML_PANEL_REPORTER::HasMessageOfSeverity( int aSeverityMask ) const
+{
+    return m_panel->Count( aSeverityMask ) > 0;
 }

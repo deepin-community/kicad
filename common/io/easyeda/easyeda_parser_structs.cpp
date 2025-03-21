@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,7 +24,7 @@
 
 #include "easyeda_parser_structs.h"
 
-#include <nlohmann/json.hpp>
+#include <json_common.h>
 #include <core/json_serializers.h>
 
 
@@ -50,6 +50,7 @@
         d.name = j.at( #name ).get<double>();                                                      \
     }
 
+
 void EASYEDA::from_json( const nlohmann::json& j, EASYEDA::DOC_TYPE& d )
 {
     if( j.is_string() )
@@ -66,6 +67,7 @@ void EASYEDA::from_json( const nlohmann::json& j, EASYEDA::DOC_TYPE& d )
     }
 }
 
+
 void EASYEDA::from_json( const nlohmann::json& j, EASYEDA::HEAD& d )
 {
     PARSE_VALUE( docType );
@@ -81,6 +83,7 @@ void EASYEDA::from_json( const nlohmann::json& j, EASYEDA::HEAD& d )
     PARSE_TO_DOUBLE( y, 0 );
 }
 
+
 void EASYEDA::from_json( const nlohmann::json& j, EASYEDA::DOCUMENT& d )
 {
     PARSE_VALUE( docType );
@@ -92,6 +95,7 @@ void EASYEDA::from_json( const nlohmann::json& j, EASYEDA::DOCUMENT& d )
     PARSE_VALUE( dataStr );
 }
 
+
 void EASYEDA::from_json( const nlohmann::json& j, EASYEDA::DOCUMENT_PCB& d )
 {
     PARSE_VALUE( c_para );
@@ -101,15 +105,18 @@ void EASYEDA::from_json( const nlohmann::json& j, EASYEDA::DOCUMENT_PCB& d )
         d.DRCRULE = j.at( "DRCRULE" );
 }
 
+
 void EASYEDA::from_json( const nlohmann::json& j, EASYEDA::DOCUMENT_SYM& d )
 {
     PARSE_VALUE( c_para );
 }
 
+
 void EASYEDA::from_json( const nlohmann::json& j, EASYEDA::DOCUMENT_SCHEMATICS& d )
 {
     PARSE_VALUE( schematics );
 }
+
 
 void EASYEDA::from_json( const nlohmann::json& j, EASYEDA::C_PARA& d )
 {

@@ -27,7 +27,8 @@ find them. On some systems the KiCad libraries are installed as a separate packa
 * If you want to construct a new footprint library table from scratch, select
   the third option.
 
-Footprint library management is described in more detail <<managing-footprint-libraries,later>>.
+Footprint library management, including how to re-run this initial
+configuration, is described in more detail <<managing-footprint-libraries,later>>.
 
 === The PCB Editor user interface
 :experimental:

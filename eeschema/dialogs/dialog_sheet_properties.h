@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009 Wayne Stambaugh <stambaughw@verizon.net>
- * Copyright (C) 2014-2024 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,14 +37,14 @@ class SCH_EDIT_FRAME;
 class DIALOG_SHEET_PROPERTIES : public DIALOG_SHEET_PROPERTIES_BASE
 {
 public:
-    DIALOG_SHEET_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_SHEET* aSheet,
-                             bool* aClearAnnotationNewItems,
-                             bool* aUpdateHierarchyNavigator );
+    DIALOG_SHEET_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_SHEET* aSheet, bool* aIsUndoable,
+                             bool* aClearAnnotationNewItems, bool* aUpdateHierarchyNavigator,
+                             wxString* aSourceSheetFilename );
 
     ~DIALOG_SHEET_PROPERTIES() override;
 
 private:
-    bool onSheetFilenameChanged( const wxString& aNewFilename, bool* aIsUndoable );
+    bool onSheetFilenameChanged( const wxString& aNewFilename );
 
     bool TransferDataToWindow() override;
     bool TransferDataFromWindow() override;
@@ -64,21 +64,23 @@ private:
     void AdjustGridColumns();
 
 private:
-    SCH_EDIT_FRAME*               m_frame;
-    SCH_SHEET*                    m_sheet;
-    bool*                         m_clearAnnotationNewItems;
-    bool*                         m_updateHierarchyNavigator;
+    SCH_EDIT_FRAME*    m_frame;
+    SCH_SHEET*         m_sheet;
+    bool*              m_isUndoable;
+    bool*              m_clearAnnotationNewItems;
+    bool*              m_updateHierarchyNavigator;
+    wxString*          m_sourceSheetFilename;
 
-    wxSize                        m_size;
-    int                           m_delayedFocusRow;
-    int                           m_delayedFocusColumn;
-    std::bitset<64>               m_shownColumns;
+    wxSize             m_size;
+    int                m_delayedFocusRow;
+    int                m_delayedFocusColumn;
+    std::bitset<64>    m_shownColumns;
 
-    FIELDS_GRID_TABLE<SCH_FIELD>* m_fields;
-    UNIT_BINDER                   m_borderWidth;
+    FIELDS_GRID_TABLE* m_fields;
+    UNIT_BINDER        m_borderWidth;
 
-    SCH_SHEET                     m_dummySheet;
-    SCH_FIELD                     m_dummySheetNameField;
+    SCH_SHEET          m_dummySheet;
+    SCH_FIELD          m_dummySheetNameField;
 };
 
 #endif // DIALOG_SHEET_PROPERTIES_H

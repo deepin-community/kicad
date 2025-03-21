@@ -31,11 +31,10 @@ result in the design rule checker running more slowly.
 differences between the schematic and PCB in addition to testing the PCB design rules.  This option
 has no effect when running the PCB editor in standalone mode.
 
-After running DRC, any violations will be shown in the center part of the DRC Control window.
+After running DRC, any violations will be shown in the center part of the DRC window.
 Rule violations, unconnected items, and differences between the schematic and the PCB are shown in
-three different tabs.  The controls below the list of violations can be used to show or hide
-violations depending on their severity.  A report file in plain text format can be created after
-running DRC using the Save button.
+three different tabs.  A list of the ignored tests is shown in the fourth tab.
+A report file in plain text format can be created after running DRC using the **Save...** button.
 
 image::images/drc_violations.png[scaledwidth="70%"]
 
@@ -44,23 +43,54 @@ involved are listed below the violation.  Clicking on the violation in the list 
 the PCB Editor view so that the affected area is centered.  Clicking on one of the objects involved
 in a violation will highlight the object.
 
+Certain types of violations have contextual actions in the context
+menu. For example, clearance violations have an action to run the
+<<clearance-and-constraint-resolution,clearance resolution tool>> on the
+violating items, while custom rule violations have an action to run the
+<<clearance-and-constraint-resolution,constraint resolution tool>>. For board
+vs. library footprint mismatch violations, there is an action to run the
+<<comparing-footprints,Compare Footprint with Library>> tool. These
+actions can help to quickly identify the reason for a particular violation.
+
 The numbers at the bottom of the window show the number of errors, warnings, and
 exclusions. Each type of violation can be filtered from the list using the
-respective checkboxes. Clicking **Delete Markers** will clear all violations
-until DRC is run again.
+respective checkboxes. Clicking **Delete Marker** will clear the selected
+violation until DRC is run again, while clicking **Delete All Markers** will
+clear all violations until the next DRC run.
 
 Violations can be right-clicked in the dialog to ignore them or change their
 severity:
 
 * *Exclude this violation:* ignores this particular violation, but does not
-  affect any other violations.
+  affect any other violations. You can un-exclude a violation by right clicking
+  the excluded violation and selecting *Remove exclusion for this violation*.
+* *Exclude with comment...:* the same as *Exclude this violation*, but prompts
+  for a comment explaining the reason for the exclusion. When excluded
+  violations are unhidden (using the *Exclusions* checkbox), exclusion comments
+  are shown with the corresponding excluded violation. To edit an existing
+  exclusion comment or add a comment to an existing exclusion, right click an
+  excluded violation and select *Edit exclusion comment...*.
+* *Exclude all violations of rule:* the same as *Exclude this violation*, but
+  excludes _all_ violations caused by the same
+  <<custom-design-rules,custom DRC rule>>. This action only appears in the
+  context menu for violations caused by custom design rules. If you right click
+  on a custom design rule violation that is already excluded, you can instead
+  **Remove all exclusions for violations of rule**.
 * *Change severity:* changes a type of violation from warning to error, or error
   to warning. This affects all violations of a given type.
 * *Ignore all:* ignores all violations of a given type. This test will now
-  appear in the **Ignored Tests** tab rather than the **Violations** tab.
+  appear in the **Ignored Tests** tab rather than the **Violations** tab. You
+  can un-ignore the test again by right clicking the test in the
+  **Ignored Tests** tab, or in the 
+  <<board-setup-violation-severity,Violation Severity panel>> in Board Setup.
+* *Edit violation severities...:* opens the
+  <<board-setup-violation-severity,Violation Severity panel>> in Board Setup,
+  for editing the severities of all DRC violation types.
 
 Excluded and ignored violations are remembered between runs of the design rule
-checker.
+checker. Excluded violations are hidden unless the **Exclusions** checkbox is
+enabled. Ignored violations are not shown, but there is a list of ignored tests
+in the **Ignored Tests** tab.
 
 [[clearance-and-constraint-resolution]]
 ==== Clearance and constraint resolution
@@ -126,13 +156,25 @@ and clearance violations.
     <<board-setup-net-classes,net class settings>> for each net, or from
     <<custom-design-rules,custom rules>>. To see detailed information about the
     configured and actual clearances between two selected items, run the
-    <<clearance-and-constraint-resolution,clearance resolution>> tool.
+    <<clearance-and-constraint-resolution,clearance resolution>> tool, which is
+    available by right clicking the violation in the DRC window. The minimum
+    clearance path is highlighted in the editing canvas when a clearance
+    violation is selected in the DRC window.
 
     This violation is also reported when the distance between two items is
     smaller than the configured physical clearance for those two
     items. Physical clearance constraints are not configured by default; see the
     <<custom-design-rules,custom rule>> documentation for how to configure
     physical clearance.
+  | Error
+| Creepage violation
+  | This violation occurs when the creepage distance between two copper items
+    with different nets is smaller than the configured creepage for those nets.
+    Creepage paths are highlighted in the editing canvas when a creepage
+    violation is selected in the DRC window.
+
+    Creepage distances can be configured using a `creepage` constraint in
+    <<custom-design-rules,custom rules>>.
   | Error
 | Via is not connected or is connected on only one layer
   | This violation occurs when a via is connected to copper objects on only
@@ -241,6 +283,21 @@ problems.
     To see detailed information about the configured track width for a
     particular track, run the 
     <<clearance-and-constraint-resolution,constraints resolution>> tool.
+  | Error
+| Track angle
+  | This violation occurs when the angle between two connected track segments is
+    outside the configured range. 
+
+    Minimum and/or maximum allowable track angles can be configured using a 
+    `track_angle` constraint in <<custom-design-rules,custom rules>>.
+  | Error
+| Track segment length
+  | This violation occurs when the length of a track segment is outside the
+    configured range. 
+
+    Minimum and/or maximum allowable track segment lengths can be configured
+    using a `track_segment_length` constraint in
+    <<custom-design-rules,custom rules>>.
   | Error
 | Annular width
   | This violation occurs when a pad or via's annular width is outside of the
@@ -360,6 +417,11 @@ These DRC checks look for differences between the schematic and the board.
     and attributes, depending on whether the symbol or footprint, respectively,
     is correct.
   | Warning
+| Footprint doesn't match symbol's footprint filters
+  | This violation occurs when a footprint does not match footprint filters in
+    the corresponding symbol. If the symbol doesn't have any footprint filters,
+    no violation occurs.
+  | Ignore
 | Pad net doesn't match schematic
   | This violation occurs when a net does not match between a footprint pad
     and the corresponding symbol pin. This can be because the symbol pin's net
@@ -382,21 +444,22 @@ These DRC checks look for signal integrity issues in the board.
 | Violation
   | Description
   | Default Severity
-| Trace length out of range
-  | This violation occurs when a trace in a differential pair is too long or too
-    short compared to the configured minimum and maximum length for that trace.
-    The allowable trace length for different traces can be configured using the
+| Track length out of range
+  | This violation occurs when a track in a differential pair is too long or too
+    short compared to the configured minimum and maximum length for that track.
+    The allowable track length for different tracks can be configured using the
     `length` constraint in <<custom-design-rules,custom rules>>.
   | Error
-| Skew between traces out of range
-  | This violation occurs when the difference between the length of a trace and
-    the average length of all traces being considered is longer than the
-    configured maximum skew for that set of traces. For calculating the skew of
-    a differential pair (two traces), the skew therefore is calculated as half
-    the length difference between traces.
+| Skew between tracks out of range
+  | This violation occurs when the difference between the length of a track and
+    the maximum length of all tracks being considered is longer than the
+    configured maximum skew for that set of tracks. For calculating the skew of
+    a differential pair (two tracks), the skew therefore is calculated as the
+    length difference between tracks.
 
-    The allowable maximum skew for a set of traces can be configured using the
-    `skew` constraint in <<custom-design-rules,custom rules>>.
+    The allowable maximum skew for a set of tracks, as well as which tracks the
+    rule applies to, can be configured using the `skew` constraint in
+    <<custom-design-rules,custom rules>>.
   | Error
 | Too many or too few vias on a connection
   | This violation occurs when the number of vias assigned to a net is too low
@@ -405,7 +468,7 @@ These DRC checks look for signal integrity issues in the board.
     `via_count` constraint in <<custom-design-rules,custom rules>>.
   | Error
 | Differential pair gap out of range
-  | This violation occurs when the gap between the two traces in a differential
+  | This violation occurs when the gap between the two tracks in a differential
     pair is too small or too large compared to the configured minimum and
     maximum for that differential pair. The gap is only checked on coupled (i.e.
     parallel) portions of the differential pair.
@@ -493,6 +556,16 @@ silkscreen objects on the board.
     <<custom-design-rules,custom rules>>.
 
   | Warning
+| Mirrored text on front layer
+  | This violation occurs when a text object on a front layer has the
+    mirrored attribute set. When looking at the front of the board, the text
+    will therefore appear backwards.
+  | Ignore
+| Non-Mirrored text on back layer
+  | This violation occurs when a text object on a back layer doesn't have the
+    mirrored attribute set. When looking at the back of the board, the text will
+    therefore appear backwards.
+  | Ignore
 |=======================================================================
 
 ===== Miscellaneous DRC checks
@@ -584,8 +657,8 @@ These DRC checks look for other miscellaneous issues in the board.
     the library version of the footprint.
     
     You can compare between the board and library versions of the footprint
-    using the <<comparing-footprints,Compare Footprint with Library>> tool. If
-    desired, you can
+    using the <<comparing-footprints,Compare Footprint with Library>> tool,
+    which is available by right clicking the violation in the DRC window. If desired, you can
     <<updating_and_exchanging_footprints,update the board footprint>> to match
     the library footprint.
   | Warning
@@ -594,6 +667,25 @@ These DRC checks look for other miscellaneous issues in the board.
     hole.
   | Error
 |=======================================================================
+
+[[text-var-drc]]
+==== User-definable DRC violations
+
+You can manually trigger board DRC warnings or errors using special
+<<text-variables,text variables>>. These items will appear as errors or warnings
+when DRC runs. This can be useful to flag items for later followup or review.
+
+To cause a DRC violation, use the text variable `${DRC_ERROR <violation name>}`
+or `${DRC_WARNING <violation name>}` depending on whether an error or warning is
+desired. You can place this in a text item or text box on any board layer. When
+DRC runs, this will generate a DRC violation with the given violation name.
+These text variables resolve to an empty string in the board, and any text after
+the braces is included in the DRC violation's description. The text variable
+must be placed at the start of the text object in order to trigger a violation.
+
+For example, a text item containing `${DRC_ERROR TODO}Length match tracks` will
+appear in the board as just the text "Length match tracks", and will generate an
+ERC error named "TODO" with "Length matches tracks" in the description.
 
 ==== DRC report file
 
@@ -639,12 +731,19 @@ components, pads and vias; each by their own types as well as the overall board 
 
 image::images/Pcbnew_board_statistics.png[scaledwidth="70%"]
 
+[[measurement-tool]]
 === Measurement tool
 
 The measurement tool allows you to make distance and angle measurements between points on the PCB.
 To activate the tool, click the image:images/icons/measurement_24.png[] icon in the right toolbar,
 or use the hotkey kbd:[Ctrl + Shift + M].  Once the tool is active, click once to set the
 measurement start point, then click again to finish a measurement.
+
+image::images/measurement_tool.png[]
+
+The tool displays the total (radial) distance between the points, the distance
+in X and Y directions, and the measured angle from horizontal. In other words,
+both the Cartesian and radial (polar) distances are displayed.
 
 NOTE: The measurement tool is used for quick measurements that do not need to be displayed
       permanently.  Any measurement you make will only be shown while the tool is active.  To
@@ -663,9 +762,9 @@ The Find tool has several options:
 
 *Match case:* Selects whether the search is case-sensitive.
 
-*Words:* When selected, the search will only match the search term with complete
-words in the PCB. When unselected, the search will match if the search
-term is part of a larger word in the PCB.
+*Whole words only:* When selected, the search will only match the search term
+with complete words in the PCB. When unselected, the search will match if the
+search term is part of a larger word in the PCB.
 
 *Wildcards:* When selected, wildcards can be used in the search terms. `?`
 matches any single character, and `\*` matches any number of characters. Note
@@ -694,15 +793,21 @@ in the board.
 === Search panel
 
 The search panel is a docked panel that lists information about footprints,
-zones, nets, ratsnest lines (unrouted segments), and text from the PCB. You can
-optionally filter the list based on a search string. When no filter is used, all
-items in the design are listed in the corresponding tab.
+zones, nets, ratsnest lines (unrouted segments), and text from the PCB. Show or
+hide the search panel with **View** -> **Panels** -> **Search** or use the
+kbd:[Ctrl+G] shortcut.
 
 image::images/search_panel.png[alt="Search panel, with a footprint selected",scaledwidth=80%]
 
-Items are filtered based on their properties: footprints are filtered by their
-reference designator and value, zones by the zone name, net and ratsnest items
-by the net name, and text (text, textboxes, and dimensions) by the text content.
+You can optionally filter the list based on a search string. When no filter is
+used, all items in the design are listed in the corresponding tab. Items are
+filtered based on their properties:
+
+* Footprints are filtered by their reference designator and value
+* Zones are filtered by the zone name
+* Net and ratsnest items are filtered by the net name
+* Text (text, textboxes, and dimensions) is filtered by the text content
+
 You can sort the filtered results in ascending or descending order of the value
 in a particular column by clicking on that column header.
 
@@ -711,18 +816,20 @@ single character. You can also use
 http://docs.wxwidgets.org/3.2/overview_resyntax.html[regular expressions], such
 as `/footprint value/`.
 
-The displayed information depends on the item type. In addition to the item's
-name and/or value, physical items (footprints, zones, and text) list their layer
-and X/Y location. Text also displays the type of text object (text, textbox, or
-dimension.) Net and ratsnest items list their net name and net class.
+The displayed information depends on the item type:
+
+* All items list their name and/or value
+* Physical items (footprints, zones, and text) additionally list their layer and
+  X/Y location
+* Text additionally lists the type of text object (text, textbox, or dimension)
+* Net and ratsnest items additionally list their net name and net class
 
 When you click an item in the search panel, the item is selected in the editing
-canvas. Double-clicking an item in the search panel opens its properties dialog
-(for net and ratsnest items, the <<board-setup-net-classes,net classes dialog>>
-is opened instead).
-
-Show or hide the search panel with **View** -> **Show Search Panel** or use the
-kbd:[Ctrl+G] shortcut.
+canvas. Depending on what is configured in the image:images/icons/config_16.png[]
+menu, the board editor will also pan and/or zoom to the selected item in the
+editing canvas. Double-clicking an item in the search panel opens its properties
+dialog (for net and ratsnest items, the
+<<board-setup-net-classes,net classes dialog>> is opened instead).
 
 [[threed-viewer]]
 === 3D Viewer
@@ -818,7 +925,7 @@ Many viewing options are controlled with the top toolbar.
 |image:images/icons/copy_24.png[]
 |Copy 3D image to clipboard
 
-|image:images/icons/render_mode_24.png[]
+|image:images/icons/ray_tracing_24.png[]
 |Render current view using raytracing
 
 |image:images/icons/refresh_24.png[]
@@ -876,32 +983,83 @@ Many viewing options are controlled with the top toolbar.
 [[net-inspector]]
 === Net inspector
 
-The Net Inspector allows you to view statistics about all the nets in a board.  To open the
-inspector, click the image:images/icons/list_nets_24.png[] icon at the top of the Nets section of
-the Appearance panel, or select **Net Inspector** from the **Inspect** menu.
+The Net Inspector is a docked panel that allows you to view statistics about all the nets in a board.
+It also lets you add, remove, and rename nets.
+To open the inspector, click the image:images/icons/list_nets_24.png[] icon at the top of the Nets
+section of the Appearance panel, or select **View** -> **Panels** -> **Net Inspector**.
 
 image::images/net_inspector.png[scaledwidth="70%"]
 
-Clicking a net in the list will highlight that net on the board.  Clicking a column title allows
-you to sort the list of nets by that column.
+Double-clicking a net in the list will <<net-highlighting,highlight>> that net on the board.
+You can also highlight a net by right clicking it and selecting **Highlight Selected Net**.
+If multiple nets are selected, this lets you highlight all of them at once.
+You can remove the net highlighting by right clicking the net's row in the Net Inspector and
+selecting **Clear Net Highlighting**, in addition to the usual ways of <<net-highlighting,removing net highlighting>>.
 
-The **Group By** field allows you to combine different nets together and view the total length of the
-combined nets.  For example, if you have two nets named `DATA0` and `DATA0_EXT`, using a Group By
-value of `DATA0*` will create a group containing both nets.  More complicated groupings can be
-created by changing the Group By mode from Wildcard to RegEx (regular expressions).  The substring
-(Substr) variants of the Group By mode will create groups for each set of nets that matches the
-pattern differently.
+Clicking a column title allows you to sort the list of nets by that column. The Filter box lets you
+limit the listed nets to those that match the filter string. By default, the filter matches against
+both net names and net class names, but you can filter by just one or the other by selecting or
+deselecting **Filter by Net Name** or **Filter by Netclass** under the
+image:images/icons/options_generic_16_16.png[] menu.
 
-For example, if you have the nets `U1D+`, `U1D-`, `U2D+`, and `U2D-`, the grouping pattern `U*D`
-will match all four nets in Wildcard mode, creating a single group `U*D`.  In Wildcard Substr mode,
-it will match all four nets, but create two different groups: `U1D` and `U2D`.
+By default, nets with no connections and nets with no pads are not shown. You can choose to show them
+by selecting **Show Unconnected Nets** and **Show Zero Pad Nets** under the
+image:images/icons/options_generic_16_16.png[] menu.
 
-**Pad Count** and **Via Count** show the number of pads (surface mount and through hole) and vias
-on a net.  **Via Length** shows the total height of each via (not accounting for which copper
-layers the via connects to).  In other words, Via Length is equal to Via Count multiplied by the
-stackup height of the board.  **Track Length** shows the total length of all track segments in a
-net, not accounting for topology.  **Die length** shows the total of all Pad to Die Length values
-set for pads on the net.
+The Net Inspector shows the following statistics for each net:
+
+* **Pad Count** is the number of pads with that net, counting both surface mount and through hole pads.
+* **Via Count** is the number of vias with that net.
+* **Via Length** is the sum total length of all vias with that net. The full height of each via is always
+  counted, even if the connections to the via are such that the full via height is not electrically used.
+  In other words, Via Length is equal to Via Count multiplied by the stackup height of the board.
+* **Track Length** is the total length of all track segments in a net, not accounting for topology. For
+  example, in a branching net structure all branches are included in the total length.
+  The track length is also reported per copper layer.
+* **Die Length** is the total of all Pad to Die Length values set for pads on the net.
+
+Each column can be shown or hidden in the image:images/icons/options_generic_16_16.png[] -> **Show / Hide Columns**
+menu. You can save the Net Inspector statistics to a CSV file by clicking
+image:images/icons/options_generic_16_16.png[] -> **Save Net Inspector Report**. The generated report includes all
+nets and columns, even if they are currently filtered or hidden in the Net Inspector.
+
+==== Grouping nets
+You can group nets in the Net Inspector to organize them and view them more easily. Each group displays
+the total statistics for all its members, as if the group were a single net. For example, if you have a signal with
+a series resistor breaking the signal into two nets, you could create a group that contains both of these nets. This
+would allow you to analyze the total length of both nets, rather than each individually.
+
+You can group nets by their net class by clicking image:images/icons/options_generic_16_16.png[] ->
+**Group by netclass**. Alternatively, you can create custom groups based on net name patterns.
+To create a new custom group, click image:images/icons/options_generic_16_16.png[] ->
+**Add Custom Group**. Any nets that contain the specified pattern in their name will be shown as
+part of the group and not shown outside of the group. For example, the pattern `CAN` matches the
+nets `CAN_RX` and `CAN_TX`.
+
+The pattern can also use regular expressions to match nets if the pattern is surrounded in slashes.
+For example, the pattern `/^AN/` matches nets `AN0`, `AN1`, etc., but not `CAN`.
+
+To remove a group and release its members back into the full list of nets, click
+image:images/icons/options_generic_16_16.png[] -> **Remove Selected Custom Group**. This action is
+also available in the right click menu. To remove all groups at once, click
+image:images/icons/options_generic_16_16.png[] -> **Remove All Custom Groups**.
+
+==== Editing nets
+
+The Net Inspector allows you to create new nets in the board and remove or rename existing nets. To create
+a new net, right click in the Net Inspector and select **Add Net**, then provide a name for the new net.
+To delete a net, right click it in the list of nets and choose **Delete Selected Net**. If multiple nets
+are selected, they will all be deleted. To rename a net, right click it and choose **Rename Selected Net**,
+then provide a new name.
+
+NOTE: Nets are usually not edited in the board. Instead, it is recommended to define nets in the
+      schematic. Nets are typically managed in the board by creating or modifying a schematic and then
+      using the <<forward-annotation,Update PCB From Schematic>> tool to update the nets in the board
+      based on the schematic design. The Net Inspector can be used to manage nets in alternate workflows
+      that do not use a schematic.
+
+NOTE: Nets that are modified in the Board Editor will not effect the schematic until the
+      <<back-annotation,schematic is updated from the PCB>> through the back-annotation process.
 
 ==== Differences between Net Inspector and Length Tuner
 
@@ -918,7 +1076,7 @@ differences are as follows:
   in the total. The length tuner calculates a point-to-point length; if there are any branches, the
   length tuner will stop at the closest branch and report the length up to the branch.
 - The Net Inspector always includes the effective via height in its via length and total length
-  calculations. If a via connects to traces on both the top and bottom layers, the full via height is
+  calculations. If a via connects to tracks on both the top and bottom layers, the full via height is
   included in the length calculation. Otherwise, only the stackup height between the connected layers
   is included. The length tuner calculates effective via height in the same way as the Net Inspector,
   but via height is only included in the length calculation when the **use stackup height** setting is

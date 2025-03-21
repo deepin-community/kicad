@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,6 +21,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "tools/simulator_control.h"
+
+#define wxUSE_BASE64 1
+#include <wx/base64.h>
+
 #include <wx/ffile.h>
 #include <wx/filedlg.h>
 #include <wx_filename.h>
@@ -36,10 +41,14 @@
 #include <sim/sim_plot_tab.h>
 #include <tool/tool_manager.h>
 #include <tools/ee_actions.h>
-#include <tools/simulator_control.h>
 #include <scintilla_tricks.h>
 #include <sim/spice_circuit_model.h>
 #include <dialogs/dialog_user_defined_signals.h>
+#include <wx/clipbrd.h>
+#include <wx/dataobj.h>
+#include <wx/mstream.h>
+#include <richio.h>
+#include <string_utils.h>
 
 
 bool SIMULATOR_CONTROL::Init()
@@ -175,7 +184,88 @@ int SIMULATOR_CONTROL::ExportPlotAsPNG( const TOOL_EVENT& aEvent )
         if( saveDlg.ShowModal() == wxID_CANCEL )
             return -1;
 
-        plotTab->GetPlotWin()->SaveScreenshot( saveDlg.GetPath(), wxBITMAP_TYPE_PNG );
+        wxImage screenImage;
+        plotTab->GetPlotWin()->SaveScreenshot( screenImage );
+        screenImage.SaveFile( saveDlg.GetPath(), wxBITMAP_TYPE_PNG );
+    }
+
+    return 0;
+}
+
+
+int SIMULATOR_CONTROL::ExportPlotToClipboard( const TOOL_EVENT& aEvent )
+{
+    if( SIM_PLOT_TAB* plotTab = dynamic_cast<SIM_PLOT_TAB*>( getCurrentSimTab() ) )
+    {
+        wxImage screenImage;
+        plotTab->GetPlotWin()->SaveScreenshot( screenImage );
+
+        if( wxTheClipboard->Open() )
+        {
+            wxBitmap bm( screenImage );
+
+            wxTheClipboard->SetData( new wxBitmapDataObject( bm ) );
+            wxTheClipboard->Flush(); // Allow data to be available after closing KiCad
+            wxTheClipboard->Close();
+        }
+    }
+
+    return 0;
+}
+
+
+int SIMULATOR_CONTROL::ExportPlotToSchematic( const TOOL_EVENT& aEvent )
+{
+    if( m_schematicFrame == nullptr )
+        return -1;
+
+    if( SIM_PLOT_TAB* plotTab = dynamic_cast<SIM_PLOT_TAB*>( getCurrentSimTab() ) )
+    {
+        wxWindow* blocking_dialog = m_schematicFrame->Kiway().GetBlockingDialog();
+
+        if( blocking_dialog )
+            blocking_dialog->Close( true );
+
+        wxImage screenImage;
+        plotTab->GetPlotWin()->SaveScreenshot( screenImage );
+
+        if( wxTheClipboard->Open() )
+        {
+            // Build a PNG bitmap:
+            wxMemoryOutputStream stream;
+            screenImage.SaveFile( stream, wxBITMAP_TYPE_PNG );
+            stream.Close();
+
+            // Create a SCH_BITMAP data string
+            wxString string;
+            string << "(image (at 0 0)\n";
+            string << "  (data\n";
+
+            wxMemoryBuffer buff;
+            buff.GetWriteBuf( stream.GetLength() );
+            stream.CopyTo( buff.GetData(), stream.GetLength() );
+            buff.SetDataLen( stream.GetLength() );
+
+            wxString out;
+            out << wxBase64Encode( buff );
+
+            #define MIME_BASE64_LENGTH 76
+            size_t first = 0;
+
+            while( first < out.Length() )
+            {
+                string << "    \"" << TO_UTF8( out( first, MIME_BASE64_LENGTH ) );
+                string << "\"\n";
+                first += MIME_BASE64_LENGTH;
+            }
+            string << "  )\n)\n";
+
+            wxTheClipboard->SetData( new wxTextDataObject( string ) );
+            wxTheClipboard->Close();
+
+            m_schematicFrame->GetToolManager()->PostAction( ACTIONS::paste );
+            m_schematicFrame->Raise();
+        }
     }
 
     return 0;
@@ -254,18 +344,36 @@ int SIMULATOR_CONTROL::Zoom( const TOOL_EVENT& aEvent )
 {
     if( SIM_PLOT_TAB* plotTab = dynamic_cast<SIM_PLOT_TAB*>( getCurrentSimTab() ) )
     {
+        mpWindow* plot = plotTab->GetPlotWin();
+
         if( aEvent.IsAction( &ACTIONS::zoomInCenter ) )
         {
-            plotTab->GetPlotWin()->ZoomIn();
+            plot->ZoomIn();
         }
         else if( aEvent.IsAction( &ACTIONS::zoomOutCenter ) )
         {
-            plotTab->GetPlotWin()->ZoomOut();
+            plot->ZoomOut();
+        }
+        else if( aEvent.IsAction( &ACTIONS::zoomInHorizontally ) )
+        {
+            plot->ZoomIn( wxDefaultPosition, mpWindow::zoomIncrementalFactor, wxHORIZONTAL );
+        }
+        else if( aEvent.IsAction( &ACTIONS::zoomOutHorizontally ) )
+        {
+            plot->ZoomOut( wxDefaultPosition, mpWindow::zoomIncrementalFactor, wxHORIZONTAL );
+        }
+        else if( aEvent.IsAction( &ACTIONS::zoomInVertically ) )
+        {
+            plot->ZoomIn( wxDefaultPosition, mpWindow::zoomIncrementalFactor, wxVERTICAL );
+        }
+        else if( aEvent.IsAction( &ACTIONS::zoomOutVertically ) )
+        {
+            plot->ZoomOut( wxDefaultPosition, mpWindow::zoomIncrementalFactor, wxVERTICAL );
         }
         else if( aEvent.IsAction( &ACTIONS::zoomFitScreen ) )
         {
             wxCommandEvent dummy;
-            plotTab->GetPlotWin()->OnFit( dummy );
+            plot->OnFit( dummy );
         }
     }
 
@@ -486,6 +594,7 @@ int SIMULATOR_CONTROL::EditUserDefinedSignals( const TOOL_EVENT& aEvent )
 
     DIALOG_USER_DEFINED_SIGNALS dlg( m_simulatorFrame, &userSignals );
 
+    // QuasiModal required for syntax help and Scintilla auto-complete
     if( dlg.ShowQuasiModal() == wxID_OK )
         m_simulatorFrame->SetUserDefinedSignals( userSignals );
 
@@ -520,10 +629,17 @@ void SIMULATOR_CONTROL::setTransitions()
     Go( &SIMULATOR_CONTROL::SaveWorkbook,           EE_ACTIONS::saveWorkbookAs.MakeEvent() );
     Go( &SIMULATOR_CONTROL::ExportPlotAsPNG,        EE_ACTIONS::exportPlotAsPNG.MakeEvent() );
     Go( &SIMULATOR_CONTROL::ExportPlotAsCSV,        EE_ACTIONS::exportPlotAsCSV.MakeEvent() );
+    Go( &SIMULATOR_CONTROL::ExportPlotToClipboard,  EE_ACTIONS::exportPlotToClipboard.MakeEvent() );
+    Go( &SIMULATOR_CONTROL::ExportPlotToSchematic,  EE_ACTIONS::exportPlotToSchematic.MakeEvent() );
+
     Go( &SIMULATOR_CONTROL::Close,                  ACTIONS::quit.MakeEvent() );
 
     Go( &SIMULATOR_CONTROL::Zoom,                   ACTIONS::zoomInCenter.MakeEvent() );
     Go( &SIMULATOR_CONTROL::Zoom,                   ACTIONS::zoomOutCenter.MakeEvent() );
+    Go( &SIMULATOR_CONTROL::Zoom,                   ACTIONS::zoomInHorizontally.MakeEvent() );
+    Go( &SIMULATOR_CONTROL::Zoom,                   ACTIONS::zoomOutHorizontally.MakeEvent() );
+    Go( &SIMULATOR_CONTROL::Zoom,                   ACTIONS::zoomInVertically.MakeEvent() );
+    Go( &SIMULATOR_CONTROL::Zoom,                   ACTIONS::zoomOutVertically.MakeEvent() );
     Go( &SIMULATOR_CONTROL::Zoom,                   ACTIONS::zoomFitScreen.MakeEvent() );
     Go( &SIMULATOR_CONTROL::UndoZoom,               ACTIONS::zoomUndo.MakeEvent() );
     Go( &SIMULATOR_CONTROL::RedoZoom,               ACTIONS::zoomRedo.MakeEvent() );

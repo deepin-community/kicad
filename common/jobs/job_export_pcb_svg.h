@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,32 +23,28 @@
 
 #include <kicommon.h>
 #include <layer_ids.h>
+#include <lseq.h>
 #include <wx/string.h>
+#include <jobs/job_export_pcb_plot.h>
 #include "job.h"
 
-class KICOMMON_API JOB_EXPORT_PCB_SVG : public JOB
+class KICOMMON_API JOB_EXPORT_PCB_SVG : public JOB_EXPORT_PCB_PLOT
 {
 public:
-    JOB_EXPORT_PCB_SVG( bool aIsCli );
+    JOB_EXPORT_PCB_SVG();
+    wxString GetDefaultDescription() const override;
+    wxString GetSettingsDialogTitle() const override;
 
-    wxString m_filename;
-    wxString m_outputFile;
-    wxString m_colorTheme;
-    wxString m_drawingSheet;
-
-    bool m_mirror;
-    bool m_blackAndWhite;
-    bool m_negative;
-
-    bool m_plotDrawingSheet;
     int m_pageSizeMode;
+    unsigned int m_precision;
 
-    LSEQ m_printMaskLayer;
+    enum class GEN_MODE
+    {
+        SINGLE,
+        MULTI
+    };
 
-    // How holes in pads/vias are plotted:
-    // 0 = no hole, 1 = small shape, 2 = actual shape
-    // Not used in some plotters (Gerber)
-    int m_drillShapeOption;
+    GEN_MODE m_genMode;
 };
 
 #endif

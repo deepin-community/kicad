@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2007-2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2007-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -276,6 +276,9 @@ const char* DSNLEXER::Syntax( int aTok )
     case DSN_EOF:
         ret = "end of input";
         break;
+    case DSN_BAR:
+        ret = "|";
+        break;
     default:
         ret = "???";
     }
@@ -379,6 +382,15 @@ void DSNLEXER::NeedRIGHT()
 }
 
 
+void DSNLEXER::NeedBAR()
+{
+    int tok = NextTok();
+
+    if( tok != DSN_BAR )
+        Expecting( DSN_BAR );
+}
+
+
 int DSNLEXER::NeedSYMBOL()
 {
     int tok = NextTok();
@@ -449,10 +461,10 @@ inline bool isDigit( char cc )
 }
 
 
-///< @return true if @a cc is an s-expression separator character.
+/// @return true if @a cc is an s-expression separator character.
 inline bool isSep( char cc )
 {
-    return isSpace( cc ) || cc=='(' || cc==')';
+    return isSpace( cc ) || cc == '(' || cc == ')' || cc == '|';
 }
 
 
@@ -593,6 +605,14 @@ L_read:
     {
         curText = *cur;
         curTok = DSN_RIGHT;
+        head = cur+1;
+        goto exit;
+    }
+
+    if( *cur == '|' )
+    {
+        curText = *cur;
+        curTok = DSN_BAR;
         head = cur+1;
         goto exit;
     }
@@ -853,12 +873,14 @@ double DSNLEXER::parseDouble()
 
     return fval;
 #else
-    // Use std::from_chars which is designed to be locale independent and performance oriented for data interchange
+    // Use std::from_chars which is designed to be locale independent and performance oriented
+    // for data interchange
 
     const std::string& str = CurStr();
 
     // Offset any leading whitespace, this is one thing from_chars does not handle
     size_t woff = 0;
+
     while( std::isspace( str[woff] ) && woff < str.length() )
     {
         woff++;

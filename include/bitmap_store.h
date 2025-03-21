@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -26,6 +26,7 @@
 #include <wx/bmpbndl.h>
 
 #include <bitmaps/bitmap_info.h>
+#include <kicommon.h>
 
 class ASSET_ARCHIVE;
 class wxImage;
@@ -33,7 +34,7 @@ class wxImage;
 
 namespace std
 {
-    template<> struct hash<std::pair<BITMAPS, int>>
+    template<> struct KICOMMON_API hash<std::pair<BITMAPS, int>>
     {
         size_t operator()( const std::pair<BITMAPS, int>& aPair ) const;
     };
@@ -42,7 +43,7 @@ namespace std
 /**
  * Helper to retrieve bitmaps while handling icon themes and scaling
  */
-class BITMAP_STORE
+class KICOMMON_API BITMAP_STORE
 {
 public:
     BITMAP_STORE();
@@ -59,9 +60,13 @@ public:
     /**
      * Constructs and returns a bitmap bundle containing all available sizes of the given ID
      * @param aBitmapId is from the BITMAPS enum in bitmaps_list.h
+     * @param aMinHeight is the minimum height of the bitmaps to include in the bundle.
+     * This is important for uses of GetPreferredBitmap and more on wxBitmap bundles because
+     * wx assumes the smallest bitmap is the "original" intended size. This is a problem where
+     * some icons may be reused between controls at different intended sizes.
      */
-    wxBitmapBundle GetBitmapBundle( BITMAPS aBitmapId );
-
+    wxBitmapBundle GetBitmapBundle( BITMAPS aBitmapId, int aMinHeight = -1 );
+     
     /**
      * Constructs and returns a bitmap bundle for the given icon ID, with the bitmaps
      * converted to disabled state according to the current UI theme.

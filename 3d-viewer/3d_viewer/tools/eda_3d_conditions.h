@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Ian McInerney <ian.s.mcinerney at ieee.org>
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -54,11 +54,11 @@ public:
     SELECTION_CONDITION GridSize( GRID3D_TYPE aGridSize );
 
 private:
-    ///< Helper function used by GridDize()
+    /// Helper function used by GridDize().
     static bool gridSizeFunction( const SELECTION& aSelection, BOARD_ADAPTER* aAdapter,
                                   GRID3D_TYPE aGridSize );
 
-    ///< The board adapter to read the 3D viewer state from
+    /// The board adapter to read the 3D viewer state from.
     BOARD_ADAPTER* m_adapter;
 };
 

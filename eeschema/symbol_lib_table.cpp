@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2016 Wayne Stambaugh <stambaughw@gmail.com>
  * Copyright (C) 2022 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -45,10 +45,6 @@
 
 using namespace LIB_TABLE_T;
 
-
-static const wxString global_tbl_name( "sym-lib-table" );
-
-
 const char* SYMBOL_LIB_TABLE::PropPowerSymsOnly = "pwr_sym_only";
 const char* SYMBOL_LIB_TABLE::PropNonPowerSymsOnly = "non_pwr_sym_only";
 int SYMBOL_LIB_TABLE::m_modifyHash = 1;     // starts at 1 and goes up
@@ -73,7 +69,7 @@ void SYMBOL_LIB_TABLE_ROW::SetType( const wxString& aType )
     if( type == SCH_IO_MGR::SCH_FILE_UNKNOWN )
         type = SCH_IO_MGR::SCH_KICAD;
 
-    plugin.release();
+    plugin.reset();
 }
 
 
@@ -101,6 +97,15 @@ void SYMBOL_LIB_TABLE_ROW::GetSubLibraryNames( std::vector<wxString>& aNames ) c
         return;
 
     plugin->GetSubLibraryNames( aNames );
+}
+
+
+wxString SYMBOL_LIB_TABLE_ROW::GetSubLibraryDescription( const wxString& aName ) const
+{
+    if( !plugin )
+        return wxEmptyString;
+
+    return plugin->GetSubLibraryDescription( aName );
 }
 
 
@@ -136,7 +141,7 @@ void SYMBOL_LIB_TABLE::Parse( LIB_TABLE_LEXER* in )
     wxString errMsg;    // to collect error messages
 
     // This table may be nested within a larger s-expression, or not.
-    // Allow for parser of that optional containing s-epression to have looked ahead.
+    // Allow for parser of that optional containing s-expression to have looked ahead.
     if( in->CurTok() != T_sym_lib_table )
     {
         in->NeedLEFT();
@@ -263,15 +268,15 @@ void SYMBOL_LIB_TABLE::Parse( LIB_TABLE_LEXER* in )
         if( !sawUri )
             in->Expecting( T_uri );
 
-        // all nickNames within this table fragment must be unique, so we do not
-        // use doReplace in InsertRow().  (However a fallBack table can have a
-        // conflicting nickName and ours will supercede that one since in
-        // FindLib() we search this table before any fall back.)
-        wxString nickname = row->GetNickName(); // store it to be able to used it
-                                                // after row deletion if an error occurs
+        // All nickNames within this table fragment must be unique, so we do not use doReplace
+        // in doInsertRow().  (However a fallBack table can have a conflicting nickName and ours
+        // will supersede that one since in FindLib() we search this table before any fall back.)
+        wxString       nickname = row->GetNickName();   // store it to be able to used it
+                                                        // after row deletion if an error occurs
+        bool           doReplace = false;
         LIB_TABLE_ROW* tmp = row.release();
 
-        if( !InsertRow( tmp ) )
+        if( !doInsertRow( tmp, doReplace ) )
         {
             delete tmp;     // The table did not take ownership of the row.
 
@@ -431,7 +436,7 @@ LIB_SYMBOL* SYMBOL_LIB_TABLE::LoadSymbol( const wxString& aNickname, const wxStr
         id.SetLibNickname( row->GetNickName() );
         symbol->SetLibId( id );
 
-        SIM_MODEL::MigrateSimModel<LIB_SYMBOL, LIB_FIELD>( *symbol, nullptr );
+        SIM_MODEL::MigrateSimModel<LIB_SYMBOL>( *symbol, nullptr );
     }
 
     return symbol;
@@ -597,7 +602,8 @@ public:
 
                 m_lib_table.InsertRow(
                         new SYMBOL_LIB_TABLE_ROW( nickname, libPath, wxT( "KiCad" ), wxEmptyString,
-                                                  _( "Added by Plugin and Content Manager" ) ) );
+                                                  _( "Added by Plugin and Content Manager" ) ),
+                        false );
             }
         }
 
@@ -642,7 +648,7 @@ bool SYMBOL_LIB_TABLE::LoadGlobalTable( SYMBOL_LIB_TABLE& aTable )
         if( v && !v->IsEmpty() )
             ss.AddPaths( *v, 0 );
 
-        wxString fileName = ss.FindValidPath( global_tbl_name );
+        wxString fileName = ss.FindValidPath( FILEEXT::SymbolLibraryTableFileName );
 
         // The fallback is to create an empty global symbol table for the user to populate.
         if( fileName.IsEmpty() || !::wxCopyFile( fileName, fn.GetFullPath(), false ) )
@@ -653,11 +659,10 @@ bool SYMBOL_LIB_TABLE::LoadGlobalTable( SYMBOL_LIB_TABLE& aTable )
         }
     }
 
-    aTable.Clear();
     aTable.Load( fn.GetFullPath() );
 
     SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-    KICAD_SETTINGS*   settings = mgr.GetAppSettings<KICAD_SETTINGS>();
+    KICAD_SETTINGS*   settings = mgr.GetAppSettings<KICAD_SETTINGS>( "kicad" );
 
     wxCHECK( settings, false );
 
@@ -720,7 +725,8 @@ bool SYMBOL_LIB_TABLE::operator==( const SYMBOL_LIB_TABLE& aOther ) const
     for( i = 0; i < m_rows.size(); ++i )
     {
         const SYMBOL_LIB_TABLE_ROW& curr = static_cast<const SYMBOL_LIB_TABLE_ROW&>( m_rows[i] );
-        const SYMBOL_LIB_TABLE_ROW& curr_other = static_cast<const SYMBOL_LIB_TABLE_ROW&>( aOther.m_rows[i] );
+        const SYMBOL_LIB_TABLE_ROW& curr_other =
+                static_cast<const SYMBOL_LIB_TABLE_ROW&>( aOther.m_rows[i] );
 
         if( curr != curr_other )
             return false;
@@ -735,13 +741,13 @@ wxString SYMBOL_LIB_TABLE::GetGlobalTableFileName()
     wxFileName fn;
 
     fn.SetPath( PATHS::GetUserSettingsPath() );
-    fn.SetName( global_tbl_name );
+    fn.SetName( FILEEXT::SymbolLibraryTableFileName );
 
     return fn.GetFullPath();
 }
 
 
-const wxString& SYMBOL_LIB_TABLE::GetSymbolLibTableFileName()
+const wxString SYMBOL_LIB_TABLE::GetSymbolLibTableFileName()
 {
-    return global_tbl_name;
+    return FILEEXT::SymbolLibraryTableFileName;
 }

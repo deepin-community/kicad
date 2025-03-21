@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 Andrew Lutsenko, anlutsenko at gmail dot com
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -26,6 +26,7 @@
 #include "core/wx_stl_compat.h"
 #include <env_vars.h>
 #include <background_jobs_monitor.h>
+#include <json_schema_validator.h>
 #include "build_version.h"
 #include "paths.h"
 #include "pcm.h"
@@ -46,6 +47,14 @@
 #include <wx/zipstrm.h>
 
 
+/**
+ * Flag to enable PCM debugging output.
+ *
+ * @ingroup trace_env_vars
+ */
+static const wxChar tracePcm[] = wxT( "KICAD_PCM" );
+
+
 const std::tuple<int, int, int> PLUGIN_CONTENT_MANAGER::m_kicad_version =
         GetMajorMinorPatchTuple();
 
@@ -60,7 +69,7 @@ class THROWING_ERROR_HANDLER : public nlohmann::json_schema::error_handler
     }
 };
 
-
+#include <locale_io.h>
 PLUGIN_CONTENT_MANAGER::PLUGIN_CONTENT_MANAGER(
                                         std::function<void( int )> aAvailableUpdateCallback ) :
         m_dialog( nullptr ),
@@ -73,26 +82,7 @@ PLUGIN_CONTENT_MANAGER::PLUGIN_CONTENT_MANAGER(
     schema_file.Normalize( FN_NORMALIZE_FLAGS | wxPATH_NORM_ENV_VARS );
     schema_file.AppendDir( wxS( "schemas" ) );
 
-    std::ifstream  schema_stream( schema_file.GetFullPath().fn_str() );
-    nlohmann::json schema;
-
-    try
-    {
-        schema_stream >> schema;
-        m_schema_validator.set_root_schema( schema );
-    }
-    catch( std::exception& e )
-    {
-        if( !schema_file.FileExists() )
-        {
-            wxLogError( wxString::Format( _( "schema file '%s' not found" ),
-                                          schema_file.GetFullPath() ) );
-        }
-        else
-        {
-            wxLogError( wxString::Format( _( "Error loading schema: %s" ), e.what() ) );
-        }
-    }
+    m_schema_validator = std::make_unique<JSON_SCHEMA_VALIDATOR>( schema_file );
 
     // Load currently installed packages
     wxFileName f( PATHS::GetUserSettingsPath(), wxT( "installed_packages.json" ) );
@@ -263,12 +253,7 @@ bool PLUGIN_CONTENT_MANAGER::FetchRepository( const wxString& aUrl, PCM_REPOSITO
     aReporter->SetTitle( _( "Fetching repository" ) );
 
     if( !DownloadToStream( aUrl, &repository_stream, aReporter, 20480 ) )
-    {
-        if( m_dialog )
-            wxLogError( _( "Unable to load repository url" ) );
-
         return false;
-    }
 
     nlohmann::json repository_json;
 
@@ -284,7 +269,7 @@ bool PLUGIN_CONTENT_MANAGER::FetchRepository( const wxString& aUrl, PCM_REPOSITO
     {
         if( m_dialog )
         {
-            wxLogError( wxString::Format( _( "Unable to parse repository: %s" ), e.what() ) );
+            wxLogError( _( "Unable to parse repository: %s" ), e.what() );
             wxLogError( _( "The given repository URL does not look like a valid KiCad package "
                            "repository. Please double check the URL." ) );
         }
@@ -300,7 +285,7 @@ void PLUGIN_CONTENT_MANAGER::ValidateJson( const nlohmann::json&     aJson,
                                            const nlohmann::json_uri& aUri ) const
 {
     THROWING_ERROR_HANDLER error_handler;
-    m_schema_validator.validate( aJson, error_handler, aUri );
+    m_schema_validator->Validate( aJson, error_handler, aUri );
 }
 
 
@@ -558,7 +543,7 @@ void PLUGIN_CONTENT_MANAGER::updateInstalledPackagesMetadata( const wxString& aR
     }
     catch( ... )
     {
-        wxLogDebug( "Invalid/Missing repository " + aRepositoryId );
+        wxLogTrace( tracePcm, wxS( "Invalid/Missing repository " ) + aRepositoryId );
         return;
     }
 
@@ -664,13 +649,11 @@ void PLUGIN_CONTENT_MANAGER::PreparePackage( PCM_PACKAGE& aPackage )
             && parse_version_tuple( *ver.kicad_version_max, 999 ) < m_kicad_version )
             ver.compatible = false;
 
-#ifdef __WXMSW__
+#if defined( _WIN32 )
         wxString platform = wxT( "windows" );
-#endif
-#ifdef __WXOSX__
+#elif defined( __APPLE__ )
         wxString platform = wxT( "macos" );
-#endif
-#ifdef __WXGTK__
+#else
         wxString platform = wxT( "linux" );
 #endif
 
@@ -1116,7 +1099,6 @@ void PLUGIN_CONTENT_MANAGER::RunBackgroundUpdate()
     if( m_updateThread.joinable() )
         return;
 
-
     m_updateBackgroundJob = Pgm().GetBackgroundJobMonitor().Create( _( "PCM Update" ) );
 
     m_updateThread = std::thread(
@@ -1192,6 +1174,7 @@ void PLUGIN_CONTENT_MANAGER::StopBackgroundUpdate()
     {
         if( m_updateBackgroundJob )
             m_updateBackgroundJob->m_reporter->Cancel();
+
         m_updateThread.join();
     }
 }

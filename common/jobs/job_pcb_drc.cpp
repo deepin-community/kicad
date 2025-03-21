@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,16 +19,29 @@
  */
 
 #include <jobs/job_pcb_drc.h>
+#include <jobs/job_registry.h>
+#include <i18n_utility.h>
 
-
-JOB_PCB_DRC::JOB_PCB_DRC( bool aIsCli ) :
-    JOB( "drc", aIsCli ),
-    m_filename(),
+JOB_PCB_DRC::JOB_PCB_DRC() :
+    JOB_RC( "drc" ),
     m_reportAllTrackErrors( false ),
-    m_units( JOB_PCB_DRC::UNITS::MILLIMETERS ),
-    m_severity( RPT_SEVERITY_ERROR | RPT_SEVERITY_WARNING ),
-    m_format( OUTPUT_FORMAT::REPORT ),
-    m_exitCodeViolations( false ),
     m_parity( true )
 {
+    m_params.emplace_back( new JOB_PARAM<bool>( "parity", &m_parity, m_parity ) );
+    m_params.emplace_back( new JOB_PARAM<bool>( "report_all_track_errors", &m_reportAllTrackErrors, m_reportAllTrackErrors ) );
 }
+
+
+wxString JOB_PCB_DRC::GetDefaultDescription() const
+{
+    return _( "Perform DRC" );
+}
+
+
+wxString JOB_PCB_DRC::GetSettingsDialogTitle() const
+{
+    return _( "DRC Job Settings" );
+}
+
+
+REGISTER_JOB( pcb_drc, _HKI( "PCB: Perform DRC" ), KIWAY::FACE_PCB, JOB_PCB_DRC );

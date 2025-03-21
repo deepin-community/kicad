@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -52,6 +52,12 @@ public:
 protected:
     void onSymbolSelected( wxCommandEvent& aEvent );
     void onUpdateUI( wxUpdateUIEvent& aEvent );
+
+    /**
+     * Handle parent menu events to block preview updates while the menu is open.
+     */
+    void onMenuOpen( wxMenuEvent& aEvent );
+    void onMenuClose( wxMenuEvent& aEvent );
 
     SYMBOL_EDIT_FRAME*          m_symbolEditFrame;
     LIB_TREE*                   m_tree;             ///< symbol search tree widget

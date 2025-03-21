@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2004 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright (C) 2004-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,6 +36,7 @@
 void CVPCB_MAINFRAME::doReCreateMenuBar()
 {
     COMMON_CONTROL* tool = m_toolManager->GetTool<COMMON_CONTROL>();
+
     // wxWidgets handles the Mac Application menu behind the scenes, but that means
     // we always have to start from scratch with a new wxMenuBar.
     wxMenuBar*  oldMenuBar = GetMenuBar();

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -128,8 +128,8 @@ public:
 
     void DeleteTrackToTrackTeardrops( BOARD_COMMIT& aCommit );
 
-    static int GetWidth( BOARD_ITEM* aItem );
-    static bool IsRound( BOARD_ITEM* aItem );
+    static int GetWidth( BOARD_ITEM* aItem, PCB_LAYER_ID aLayer );
+    static bool IsRound( BOARD_ITEM* aItem, PCB_LAYER_ID aLayer );
 
 private:
     /**
@@ -144,7 +144,8 @@ private:
      * use m_m_heightRatio
      */
     void computeCurvedForRoundShape( const TEARDROP_PARAMETERS& aParams,
-                                     std::vector<VECTOR2I>& aPoly, int aTrackHalfWidth,
+                                     std::vector<VECTOR2I>& aPoly, PCB_LAYER_ID aLayer,
+                                     int aTrackHalfWidth,
                                      const VECTOR2D& aTrackDir, BOARD_ITEM* aOther,
                                      const VECTOR2I& aOtherPos, std::vector<VECTOR2I>& aPts ) const;
 
@@ -156,7 +157,8 @@ private:
      */
     void computeCurvedForRectShape( const TEARDROP_PARAMETERS& aParams,
                                     std::vector<VECTOR2I>& aPoly, int aTdWidth,
-                                    int aTrackHalfWidth, std::vector<VECTOR2I>& aPts ) const;
+                                    int aTrackHalfWidth, std::vector<VECTOR2I>& aPts,
+                                    const VECTOR2I& aIntersection ) const;
 
     /**
      * Compute all teardrop points of the polygon shape
@@ -214,6 +216,7 @@ private:
      * @return true if a point on a track can be found as anchor point of a teardrop
      * @param aStartPoint is the start point of the track found (always inside the teardrop)
      * @param aEndPoint is the start point of the track found (always outside the teardrop)
+     * @param aIntersection is the point where the track's centerline meets the pad/via edge
      * @param aTrack is the track connected to the pad/via used to search a anchor point
      *  this reference can be modified if a connected track to the initial track is selected
      * @param aOther is the via/pad/track used to build the teardrop
@@ -225,8 +228,9 @@ private:
      * m_lengthRatio is the length of teardrop (ratio pad/via size/teardrop len)
     */
     bool findAnchorPointsOnTrack( const TEARDROP_PARAMETERS& aParams, VECTOR2I& aStartPoint,
-                                  VECTOR2I& aEndPoint, PCB_TRACK*& aTrack, BOARD_ITEM* aOther,
-                                  const VECTOR2I& aOtherPos, int* aEffectiveTeardropLen ) const;
+                                  VECTOR2I& aEndPoint, VECTOR2I& aIntersection,
+                                  PCB_TRACK*& aTrack, BOARD_ITEM* aOther, const VECTOR2I& aOtherPos,
+                                  int* aEffectiveTeardropLen ) const;
 
     void buildTrackCaches();
 

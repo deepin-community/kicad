@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 Chris Pavlina <pavlina.chris@gmail.com>
- * Copyright (C) 2017-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -34,7 +34,8 @@ static const wxString DescriptionFormat = wxS(
     "__FIELDS__"
     "</table>" );
 
-static const wxString AliasOfFormat =   wxS( "<br><i>" ) + _( "Derived from" ) + wxS( " %s (%s)</i>" );
+static const wxString AliasOfFormat =   wxS( "<br><i>" ) + _( "Derived from" ) +
+                                        wxS( " %s (%s)</i>" );
 static const wxString DescFormat =      wxS( "<br>%s" );
 static const wxString KeywordsFormat =  wxS( "<br>" ) + _( "Keywords" ) + wxS( ": %s" );
 static const wxString FieldFormat = wxS(
@@ -126,12 +127,13 @@ protected:
             if( parent )
             {
                 root_name = parent->GetName();
-                root_desc = parent->GetDescription();
+                root_desc = parent->GetDesc();
             }
 
-            m_html.Replace( wxS( "__ALIASOF__" ), wxString::Format(  AliasOfFormat,
-                                                              EscapeHTML( UnescapeString( root_name ) ),
-                                                              EscapeHTML( root_desc ) ) );
+            m_html.Replace( wxS( "__ALIASOF__" ),
+                            wxString::Format(  AliasOfFormat,
+                                               EscapeHTML( UnescapeString( root_name ) ),
+                                               EscapeHTML( root_desc ) ) );
         }
     }
 
@@ -157,11 +159,12 @@ protected:
         if( keywords.empty() )
             m_html.Replace( wxS( "__KEY__" ), wxEmptyString );
         else
-            m_html.Replace( wxS( "__KEY__" ), wxString::Format( KeywordsFormat, EscapeHTML( keywords ) ) );
+            m_html.Replace( wxS( "__KEY__" ),
+                            wxString::Format( KeywordsFormat, EscapeHTML( keywords ) ) );
     }
 
 
-    wxString GetHtmlFieldRow( const LIB_FIELD& aField ) const
+    wxString GetHtmlFieldRow( const SCH_FIELD& aField ) const
     {
         wxString name = aField.GetCanonicalName();
         wxString text;
@@ -214,11 +217,11 @@ protected:
     void SetHtmlFieldTable()
     {
         wxString                fieldtable;
-        std::vector<LIB_FIELD*> fields;
+        std::vector<SCH_FIELD*> fields;
 
         m_symbol->GetFields( fields );
 
-        for( const LIB_FIELD* field: fields )
+        for( const SCH_FIELD* field: fields )
             fieldtable += GetHtmlFieldRow( *field );
 
         if( m_symbol->IsAlias() )
@@ -228,11 +231,11 @@ protected:
             // Append all of the unique parent fields if this is an alias.
             if( parent )
             {
-                std::vector<LIB_FIELD*> parentFields;
+                std::vector<SCH_FIELD*> parentFields;
 
                 parent->GetFields( parentFields );
 
-                for( const LIB_FIELD* parentField : parentFields )
+                for( const SCH_FIELD* parentField : parentFields )
                 {
                     if( m_symbol->FindField( parentField->GetCanonicalName() ) )
                         continue;

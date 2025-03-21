@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 CERN
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -25,6 +25,7 @@
 #include <pcb_textbox.h>
 #include <pcb_text.h>
 #include <pcb_dimension.h>
+#include <pcbnew_settings.h>
 #include <ratsnest/ratsnest_data.h>
 #include <string_utils.h>
 #include <tool/tool_manager.h>
@@ -42,23 +43,44 @@ void PCB_SEARCH_HANDLER::ActivateItem( long aItemRow )
 }
 
 
-void PCB_SEARCH_HANDLER::Sort( int aCol, bool aAscending )
+void PCB_SEARCH_HANDLER::Sort( int aCol, bool aAscending, std::vector<long>* aSelection )
 {
+    std::vector<BOARD_ITEM*> selection;
+
+    for( long i = 0; i < (long) m_hitlist.size(); ++i )
+    {
+        if( alg::contains( *aSelection, i ) )
+            selection.push_back( m_hitlist[i] );
+    }
+
+    int col = std::max( 0, aCol );  // Provide a stable order by sorting on first column if no
+                                    // sort column provided.
+
     std::sort( m_hitlist.begin(), m_hitlist.end(),
             [&]( BOARD_ITEM* a, BOARD_ITEM* b ) -> bool
             {
                 // N.B. To meet the iterator sort conditions, we cannot simply invert the truth
                 // to get the opposite sort.  i.e. ~(a<b) != (a>b)
                 if( aAscending )
-                    return StrNumCmp( getResultCell( a, aCol ), getResultCell( b, aCol ), true ) < 0;
+                    return StrNumCmp( getResultCell( a, col ), getResultCell( b, col ), true ) < 0;
                 else
-                    return StrNumCmp( getResultCell( b, aCol ), getResultCell( a, aCol ), true ) < 0;
+                    return StrNumCmp( getResultCell( b, col ), getResultCell( a, col ), true ) < 0;
             } );
+
+
+    aSelection->clear();
+
+    for( long i = 0; i < (long) m_hitlist.size(); ++i )
+    {
+        if( alg::contains( selection, m_hitlist[i] ) )
+            aSelection->push_back( i );
+    }
 }
 
 
 void PCB_SEARCH_HANDLER::SelectItems( std::vector<long>& aItemRows )
 {
+    APP_SETTINGS_BASE::SEARCH_PANE& settings = m_frame->config()->m_SearchPane;
     std::vector<EDA_ITEM*> selectedItems;
 
     for( long row : aItemRows )
@@ -70,7 +92,21 @@ void PCB_SEARCH_HANDLER::SelectItems( std::vector<long>& aItemRows )
     m_frame->GetToolManager()->RunAction( PCB_ACTIONS::selectionClear );
 
     if( selectedItems.size() )
+    {
         m_frame->GetToolManager()->RunAction( PCB_ACTIONS::selectItems, &selectedItems );
+
+        switch( settings.selection_zoom )
+        {
+        case APP_SETTINGS_BASE::SEARCH_PANE::SELECTION_ZOOM::PAN:
+            m_frame->GetToolManager()->RunAction( ACTIONS::centerSelection );
+            break;
+        case APP_SETTINGS_BASE::SEARCH_PANE::SELECTION_ZOOM::ZOOM:
+            m_frame->GetToolManager()->RunAction( ACTIONS::zoomFitSelection );
+            break;
+        case APP_SETTINGS_BASE::SEARCH_PANE::SELECTION_ZOOM::NONE:
+            break;
+        }
+    }
 
     m_frame->GetCanvas()->Refresh( false );
 }

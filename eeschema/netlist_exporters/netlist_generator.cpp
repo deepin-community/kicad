@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1992-2018 jp.charras at wanadoo.fr
  * Copyright (C) 2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2021 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,7 +32,8 @@
 #include <reporter.h>
 #include <confirm.h>
 #include <kiway.h>
-#include <erc.h>
+#include <erc/erc.h>
+#include <richio.h>
 
 #include <netlist.h>
 #include <netlist_exporter_base.h>
@@ -42,6 +43,7 @@
 #include <netlist_exporter_spice_model.h>
 #include <netlist_exporter_kicad.h>
 #include <netlist_exporter_allegro.h>
+#include <netlist_exporter_pads.h>
 #include <netlist_exporter_xml.h>
 
 
@@ -49,7 +51,7 @@ bool SCH_EDIT_FRAME::WriteNetListFile( int aFormat, const wxString& aFullFileNam
                                        unsigned aNetlistOptions, REPORTER* aReporter )
 {
     // Ensure all power symbols have a valid reference
-    Schematic().GetSheets().AnnotatePowerSymbols();
+    Schematic().Hierarchy().AnnotatePowerSymbols();
 
     if( !ReadyToNetlist( _( "Exporting netlist requires a fully annotated schematic." ) ) )
         return false;
@@ -91,7 +93,11 @@ bool SCH_EDIT_FRAME::WriteNetListFile( int aFormat, const wxString& aFullFileNam
 
     case NET_TYPE_ALLEGRO:
         helper = new NETLIST_EXPORTER_ALLEGRO( sch );
-        break;        
+        break;
+
+    case NET_TYPE_PADS:
+        helper = new NETLIST_EXPORTER_PADS( sch );
+        break;
 
     case NET_TYPE_BOM:
         // When generating the BOM, we have a bare filename so don't strip
@@ -155,7 +161,7 @@ bool SCH_EDIT_FRAME::WriteNetListFile( int aFormat, const wxString& aFullFileNam
             }
             else
             {
-                aReporter->ReportTail( _( "Success." ), RPT_SEVERITY_INFO );
+                aReporter->ReportTail( _( "Done." ), RPT_SEVERITY_INFO );
             }
 
             if( output.GetCount() )
@@ -187,7 +193,7 @@ bool SCH_EDIT_FRAME::WriteNetListFile( int aFormat, const wxString& aFullFileNam
 bool SCH_EDIT_FRAME::ReadyToNetlist( const wxString& aAnnotateMessage )
 {
     // Ensure all power symbols have a valid reference
-    Schematic().GetSheets().AnnotatePowerSymbols();
+    Schematic().Hierarchy().AnnotatePowerSymbols();
 
     // Symbols must be annotated
     if( CheckAnnotate( []( ERCE_T, const wxString&, SCH_REFERENCE*, SCH_REFERENCE* ) {} ) )

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 CERN
- * Copyright (C) 2021-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Jon Evans <jon@craftyjon.com>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -37,7 +37,7 @@ const int schSettingsSchemaVersion = 1;
 
 
 SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
-        NESTED_SETTINGS( "schematic", schSettingsSchemaVersion, aParent, aPath ),
+        NESTED_SETTINGS( "schematic", schSettingsSchemaVersion, aParent, aPath, false ),
         m_DefaultLineWidth( DEFAULT_LINE_WIDTH_MILS * schIUScale.IU_PER_MILS ),
         m_DefaultTextSize( DEFAULT_TEXT_SIZE * schIUScale.IU_PER_MILS ),
         m_LabelSizeRatio( DEFAULT_LABEL_SIZE_RATIO ),
@@ -62,29 +62,25 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
         m_SpiceSaveAllVoltages( false ),
         m_SpiceSaveAllCurrents( false ),
         m_SpiceSaveAllDissipations( false ),
+        m_SpiceSaveAllEvents( true ),
         m_SpiceModelCurSheetAsRoot( true ),
         m_NgspiceSettings( nullptr )
 {
-    EESCHEMA_SETTINGS* appSettings = Pgm().GetSettingsManager().GetAppSettings<EESCHEMA_SETTINGS>();
+    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
 
     int defaultLineThickness =
-            appSettings ? appSettings->m_Drawing.default_line_thickness : DEFAULT_LINE_WIDTH_MILS;
-    int defaultTextSize =
-            appSettings ? appSettings->m_Drawing.default_text_size : DEFAULT_TEXT_SIZE;
-    int defaultPinSymbolSize =
-            appSettings ? appSettings->m_Drawing.pin_symbol_size : DEFAULT_TEXT_SIZE / 2;
-    int defaultJunctionSizeChoice =
-            appSettings ? appSettings->m_Drawing.junction_size_choice : 3;
-    bool defaultIntersheetsRefShow =
-            appSettings ? appSettings->m_Drawing.intersheets_ref_show : false;
-    bool defaultIntersheetsRefOwnPage =
-            appSettings ? appSettings->m_Drawing.intersheets_ref_own_page : true;
-    bool defaultIntersheetsRefFormatShort =
-            appSettings ? appSettings->m_Drawing.intersheets_ref_short : false;
-    wxString defaultIntersheetsRefPrefix =
-            appSettings ? appSettings->m_Drawing.intersheets_ref_prefix : wxString( wxS( DEFAULT_IREF_PREFIX ) );
-    wxString defaultIntersheetsRefSuffix =
-            appSettings ? appSettings->m_Drawing.intersheets_ref_suffix : wxString( wxS( DEFAULT_IREF_SUFFIX ) );
+            cfg ? cfg->m_Drawing.default_line_thickness : DEFAULT_LINE_WIDTH_MILS;
+    int defaultTextSize = cfg ? cfg->m_Drawing.default_text_size : DEFAULT_TEXT_SIZE;
+    int defaultPinSymbolSize = cfg ? cfg->m_Drawing.pin_symbol_size : DEFAULT_TEXT_SIZE / 2;
+    int defaultJunctionSizeChoice = cfg ? cfg->m_Drawing.junction_size_choice : 3;
+    bool defaultIntersheetsRefShow = cfg ? cfg->m_Drawing.intersheets_ref_show : false;
+    bool defaultIntersheetsRefOwnPage = cfg ? cfg->m_Drawing.intersheets_ref_own_page : true;
+    bool defaultIntersheetsRefFormatShort = cfg ? cfg->m_Drawing.intersheets_ref_short : false;
+    wxString defaultIntersheetsRefPrefix = cfg ? cfg->m_Drawing.intersheets_ref_prefix
+                                               : wxString( wxS( DEFAULT_IREF_PREFIX ) );
+    wxString defaultIntersheetsRefSuffix = cfg ? cfg->m_Drawing.intersheets_ref_suffix
+                                               : wxString( wxS( DEFAULT_IREF_SUFFIX ) );
 
     m_params.emplace_back( new PARAM<bool>( "drawing.intersheets_ref_show",
             &m_IntersheetRefsShow, defaultIntersheetsRefShow ) );
@@ -190,17 +186,19 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
                 }
 
                 // Read global fieldname templates
-                auto* cfg = Pgm().GetSettingsManager().GetAppSettings<EESCHEMA_SETTINGS>();
+                SETTINGS_MANAGER&  curr_mgr = Pgm().GetSettingsManager();
+                EESCHEMA_SETTINGS* curr_cfg =
+                        curr_mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
 
-                if( cfg && !cfg->m_Drawing.field_names.IsEmpty() )
-                    m_TemplateFieldNames.AddTemplateFieldNames( cfg->m_Drawing.field_names );
+                if( curr_cfg && !curr_cfg->m_Drawing.field_names.IsEmpty() )
+                    m_TemplateFieldNames.AddTemplateFieldNames( curr_cfg->m_Drawing.field_names );
             }, {} ) );
 
     m_params.emplace_back( new PARAM<wxString>( "bom_export_filename",
-            &m_BomExportFileName, "" ) );
+            &m_BomExportFileName, "${PROJECTNAME}.csv" ) );
 
-    m_params.emplace_back( new PARAM<BOM_PRESET>( "bom_settings",
-            &m_BomSettings, BOM_PRESET::GroupedByValue() ) );
+    m_params.emplace_back(
+            new PARAM<BOM_PRESET>( "bom_settings", &m_BomSettings, BOM_PRESET::DefaultEditing() ) );
     m_params.emplace_back( new PARAM_LIST<BOM_PRESET>( "bom_presets",
             &m_BomPresets, {} ) );
 
@@ -229,6 +227,9 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
 
     m_params.emplace_back( new PARAM<bool>( "spice_save_all_dissipations",
             &m_SpiceSaveAllDissipations, false ) );
+
+    m_params.emplace_back( new PARAM<bool>( "space_save_all_events",
+            &m_SpiceSaveAllEvents, true ) );
 
     m_params.emplace_back( new PARAM<bool>( "spice_model_current_sheet_as_root",
             &m_SpiceModelCurSheetAsRoot, true ) );

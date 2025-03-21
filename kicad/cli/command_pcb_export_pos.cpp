@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -57,8 +57,8 @@ CLI::PCB_EXPORT_POS_COMMAND::PCB_EXPORT_POS_COMMAND() : PCB_EXPORT_BASE_COMMAND(
 
     m_argParser.add_argument( ARG_UNITS )
             .default_value( std::string( "in" ) )
-            .help( UTF8STDSTR(
-                    _( "Output units; ascii or csv format only; valid options: in,mm" ) ) )
+            .help( UTF8STDSTR( _( "Output units; ascii or csv format only; valid options: "
+                                  "in,mm" ) ) )
             .metavar( "UNITS" );
 
     m_argParser.add_argument( ARG_NEGATE_BOTTOM_X )
@@ -80,8 +80,7 @@ CLI::PCB_EXPORT_POS_COMMAND::PCB_EXPORT_POS_COMMAND() : PCB_EXPORT_BASE_COMMAND(
             .flag();
 
     m_argParser.add_argument( ARG_EXCLUDE_DNP )
-            .help( UTF8STDSTR(
-                    _( "Exclude all footprints with the Do Not Populate flag set" ) ) )
+            .help( UTF8STDSTR( _( "Exclude all footprints with the Do Not Populate flag set" ) ) )
             .flag();
 
     m_argParser.add_argument( ARG_GERBER_BOARD_EDGE )
@@ -93,13 +92,14 @@ CLI::PCB_EXPORT_POS_COMMAND::PCB_EXPORT_POS_COMMAND() : PCB_EXPORT_BASE_COMMAND(
 int CLI::PCB_EXPORT_POS_COMMAND::doPerform( KIWAY& aKiway )
 {
     int baseExit = PCB_EXPORT_BASE_COMMAND::doPerform( aKiway );
+
     if( baseExit != EXIT_CODES::OK )
         return baseExit;
 
-    std::unique_ptr<JOB_EXPORT_PCB_POS> aPosJob( new JOB_EXPORT_PCB_POS( true ) );
+    std::unique_ptr<JOB_EXPORT_PCB_POS> aPosJob( new JOB_EXPORT_PCB_POS() );
 
     aPosJob->m_filename = m_argInput;
-    aPosJob->m_outputFile = m_argOutput;
+    aPosJob->SetConfiguredOutputPath( m_argOutput );
 
     if( !wxFile::Exists( aPosJob->m_filename ) )
     {
@@ -108,6 +108,8 @@ int CLI::PCB_EXPORT_POS_COMMAND::doPerform( KIWAY& aKiway )
     }
 
     aPosJob->m_negateBottomX = m_argParser.get<bool>( ARG_NEGATE_BOTTOM_X );
+    aPosJob->m_singleFile = true;
+    aPosJob->m_nakedFilename = true;
     aPosJob->m_smdOnly = m_argParser.get<bool>( ARG_SMD_ONLY );
     aPosJob->m_excludeFootprintsWithTh = m_argParser.get<bool>( ARG_EXCLUDE_FOOTPRINTS_TH );
     aPosJob->m_useDrillPlaceFileOrigin = m_argParser.get<bool>( ARG_USE_DRILL_FILE_ORIGIN );
@@ -115,6 +117,7 @@ int CLI::PCB_EXPORT_POS_COMMAND::doPerform( KIWAY& aKiway )
     aPosJob->m_gerberBoardEdge = m_argParser.get<bool>( ARG_GERBER_BOARD_EDGE );
 
     wxString format = From_UTF8( m_argParser.get<std::string>( ARG_FORMAT ).c_str() );
+
     if( format == wxS( "ascii" ) )
     {
         aPosJob->m_format = JOB_EXPORT_PCB_POS::FORMAT::ASCII;

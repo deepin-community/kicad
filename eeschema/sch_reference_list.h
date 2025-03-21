@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1992-2011 jean-pierre Charras <jean-pierre.charras@gipsa-lab.inpg.fr>
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,7 +33,7 @@
 #include <sch_sheet_path.h>
 #include <sch_symbol.h>
 #include <sch_text.h>
-#include <erc_settings.h>
+#include <erc/erc_settings.h>
 
 
 /** Schematic annotation scope options. */
@@ -118,15 +118,15 @@ public:
     }
 
     /**
-     * @return the full patb of the symbol item
+     * @return the full path of the symbol item
      */
     const wxString GetFullPath() const
     {
         return m_sheetPath.PathAsString() + m_symbolUuid.AsString();
     }
 
-    /*
-     * Compares by full path to make std::set work
+    /**
+     * Compare by full path to make std::set work.
      */
     bool operator<( const SCH_REFERENCE& aRef ) const { return GetFullPath() < aRef.GetFullPath(); }
 
@@ -153,9 +153,9 @@ public:
     void Split();
 
     /**
-     * Determine if this reference needs to be split or if it likely already has been
+     * Determine if this reference needs to be split or if it likely already has been.
      *
-     * @return true if this reference hasn't been split yet
+     * @return true if this reference hasn't been split yet.
      */
     bool IsSplitNeeded();
 
@@ -165,7 +165,7 @@ public:
     void SetRefStr( const std::string& aReference ) { m_ref = aReference; }
     const char* GetRefStr() const { return m_ref.c_str(); }
 
-    ///< Return reference name with unit altogether
+    /// Return reference name with unit altogether.
     wxString GetFullRef() const
     {
         wxString refNum = m_numRefStr;
@@ -181,17 +181,10 @@ public:
 
     wxString GetRefNumber() const
     {
-        wxString ref;
-
         if( m_numRef < 0 )
             return wxT( "?" );
-
-        // To avoid a risk of duplicate, for power symbols the ref number is 0nnn instead of nnn.
-        // Just because sometimes only power symbols are annotated
-        if( GetLibPart() && GetLibPart()->IsPower() )
-            ref = wxT( "0" );
-
-        return ref << m_numRef;
+        else
+            return m_numRefStr;
     }
 
     int CompareValue( const SCH_REFERENCE& item ) const
@@ -232,6 +225,9 @@ public:
     }
 
 private:
+    wxString formatRefStr( int aNumber ) const;
+
+private:
     friend class SCH_REFERENCE_LIST;
 
     /// Symbol reference prefix, without number (for IC1, this is IC) )
@@ -248,7 +244,8 @@ private:
     int             m_sheetNum;          ///< The sheet number for the reference.
     KIID            m_symbolUuid;        ///< UUID of the symbol.
     int             m_numRef;            ///< The numeric part of the reference designator.
-    wxString        m_numRefStr;         ///< The numeric part in original string form (may have leading zeroes)
+    wxString        m_numRefStr;         ///< The numeric part in original string form (may have
+                                         ///< leading zeroes).
     int             m_flag;
 };
 
@@ -291,8 +288,8 @@ public:
 
     size_t GetCount() const { return m_flatList.size(); }
 
-    SCH_REFERENCE& GetItem( int aIdx ) { return m_flatList[aIdx]; }
-    const SCH_REFERENCE& GetItem( int aIdx ) const { return m_flatList[aIdx]; }
+    SCH_REFERENCE& GetItem( size_t aIdx ) { return m_flatList[aIdx]; }
+    const SCH_REFERENCE& GetItem( size_t aIdx ) const { return m_flatList[aIdx]; }
 
     void AddItem( const SCH_REFERENCE& aItem ) { m_flatList.push_back( aItem ); }
 
@@ -304,9 +301,10 @@ public:
     void RemoveItem( unsigned int aIndex );
 
     /**
-     * Return true if aItem exists in this list
-     * @param aItem Reference to check
-     * @return true if aItem exists in this list
+     * Return true if aItem exists in this list.
+     *
+     * @param aItem Reference to check.
+     * @return true if aItem exists in this list.
      */
     bool Contains( const SCH_REFERENCE& aItem ) const;
 
@@ -335,7 +333,8 @@ public:
     /**
      * Treat all symbols in this list as non-annotated. Does not update annotation state of the
      * symbols.
-     * @see SCH_REFERENCE_LIST::UpdateAnnotation
+     *
+     * @see SCH_REFERENCE_LIST::UpdateAnnotation()
      */
     void RemoveAnnotation()
     {
@@ -359,7 +358,7 @@ public:
     }
 
     /**
-     * @brief Forces reannotation of the provided references. Will also reannotate
+     * Forces reannotation of the provided references. Will also reannotate
      * associated multi-unit symbols.
      *
      * @param aSortOption Define the annotation order.  See #ANNOTATE_ORDER_T.
@@ -380,8 +379,9 @@ public:
                               SCH_SHEET_LIST*              aHierarchy );
 
     /**
-     * Convenience function for the Paste Unique functionality. Do not use as a general
-     * reannotation method.
+     * Convenience function for the Paste Unique functionality.
+     *
+     * @note Do not use as a general reannotation method.
      *
      * Replaces any duplicate reference designators with the next available number after the
      * present number regardless of configured annotation options.

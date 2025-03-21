@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,17 +34,13 @@ class GRID_CELL_READONLY_TEXT_EDITOR : public wxGridCellTextEditor
 public:
     GRID_CELL_READONLY_TEXT_EDITOR() {};
 
-    void Create(wxWindow* parent, wxWindowID id, wxEvtHandler* evtHandler) override
+    void Create( wxWindow* parent, wxWindowID id, wxEvtHandler* evtHandler ) override
     {
-        DoCreate(parent, id, evtHandler);
+        DoCreate( parent, id, evtHandler );
         Text()->SetEditable( false );
     }
 
 wxDECLARE_NO_COPY_CLASS( GRID_CELL_READONLY_TEXT_EDITOR );
 };
-
-
-
-
 
 #endif  // GRID_READONLY_TEXT_HELPERS_H

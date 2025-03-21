@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2004-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,19 +29,17 @@
 #include <widgets/msgpanel.h>
 #include <bitmaps.h>
 #include <eda_draw_frame.h>
-#include <general.h>
+#include <gr_basic.h>
 #include <schematic.h>
 #include <sch_shape.h>
-#include "plotters/plotter.h"
 
-// This is a horribly fix for a link issue
-extern template class wxAnyValueTypeImpl<FILL_T>;
 
-SCH_SHAPE::SCH_SHAPE( SHAPE_T aShape, int aLineWidth, FILL_T aFillType, KICAD_T aType ) :
+SCH_SHAPE::SCH_SHAPE( SHAPE_T aShape, SCH_LAYER_ID aLayer, int aLineWidth, FILL_T aFillType,
+                      KICAD_T aType ) :
     SCH_ITEM( nullptr, aType ),
     EDA_SHAPE( aShape, aLineWidth, aFillType )
 {
-    SetLayer( LAYER_NOTES );
+    SetLayer( aLayer );
 }
 
 
@@ -72,7 +70,7 @@ void SCH_SHAPE::SetFilled( bool aFilled )
 {
     if( !aFilled )
         m_fill = FILL_T::NO_FILL;
-    else if( GetParent()->IsType( { SCH_SYMBOL_T, LIB_SYMBOL_T } ) )
+    else if( GetParentSymbol() )
         m_fill = FILL_T::FILLED_SHAPE;
     else
         m_fill = FILL_T::FILLED_WITH_COLOR;
@@ -108,127 +106,162 @@ void SCH_SHAPE::Normalize()
 
 void SCH_SHAPE::MirrorHorizontally( int aCenter )
 {
-    flip( VECTOR2I( aCenter, 0 ), true );
+    flip( VECTOR2I( aCenter, 0 ), FLIP_DIRECTION::LEFT_RIGHT );
 }
 
 
 void SCH_SHAPE::MirrorVertically( int aCenter )
 {
-    flip( VECTOR2I( 0, aCenter ), false );
+    flip( VECTOR2I( 0, aCenter ), FLIP_DIRECTION::TOP_BOTTOM );
 }
 
 
-void SCH_SHAPE::Rotate( const VECTOR2I& aCenter )
+void SCH_SHAPE::Rotate( const VECTOR2I& aCenter, bool aRotateCCW )
 {
-    rotate( aCenter, ANGLE_90 );
+    rotate( aCenter, aRotateCCW ? ANGLE_90 : ANGLE_270 );
 }
 
 
-void SCH_SHAPE::Plot( PLOTTER* aPlotter, bool aBackground,
-                      const SCH_PLOT_SETTINGS& aPlotSettings ) const
+bool SCH_SHAPE::HitTest( const VECTOR2I& aPosition, int aAccuracy ) const
 {
-    int pen_size = GetPenWidth();
+    return hitTest( aPosition, aAccuracy );
+}
 
-    if( pen_size > 0 )
-        pen_size = std::max( pen_size, aPlotter->RenderSettings()->GetMinPenWidth() );
 
-    static std::vector<VECTOR2I> cornerList;
+bool SCH_SHAPE::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) const
+{
+    if( m_flags & (STRUCT_DELETED | SKIP_STRUCT ) )
+        return false;
+
+    return hitTest( aRect, aContained, aAccuracy );
+}
+
+
+void SCH_SHAPE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
+                      int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed )
+{
+    if( IsPrivate() )
+        return;
+
+    SCH_RENDER_SETTINGS* renderSettings = getRenderSettings( aPlotter );
+    int                  pen_size = GetEffectivePenWidth( renderSettings );
+
+    static std::vector<VECTOR2I> ptList;
 
     if( GetShape() == SHAPE_T::POLY )
     {
-        cornerList.clear();
+        ptList.clear();
 
         for( const VECTOR2I& pt : m_poly.Outline( 0 ).CPoints() )
-            cornerList.push_back( pt );
+            ptList.push_back( renderSettings->TransformCoordinate( pt ) + aOffset );
     }
+    else if( GetShape() == SHAPE_T::BEZIER )
+    {
+        ptList.clear();
+
+        for( const VECTOR2I& pt : m_bezierPoints )
+            ptList.push_back( renderSettings->TransformCoordinate( pt ) + aOffset );
+    }
+
+    COLOR4D    color = GetStroke().GetColor();
+    COLOR4D    bg = renderSettings->GetBackgroundColor();
+    LINE_STYLE lineStyle = GetStroke().GetLineStyle();
+    FILL_T     fill = m_fill;
 
     if( aBackground )
     {
         if( !aPlotter->GetColorMode() )
             return;
 
-        if( IsFilled() )
+        switch( m_fill )
         {
-            if( GetFillColor() != COLOR4D::UNSPECIFIED )
-                aPlotter->SetColor( GetFillColor() );
-            else
-                aPlotter->SetColor( aPlotter->RenderSettings()->GetLayerColor( LAYER_NOTES ) );
+        case FILL_T::FILLED_SHAPE:
+            return;
 
-            switch( GetShape() )
-            {
-            case SHAPE_T::ARC:
-                aPlotter->Arc( GetStart(), GetArcMid(), GetEnd(), m_fill, 0 );
-                break;
-
-            case SHAPE_T::CIRCLE:
-                aPlotter->Circle( getCenter(), GetRadius() * 2, m_fill, 0 );
-                break;
-
-            case SHAPE_T::RECTANGLE:
-                aPlotter->Rect( GetStart(), GetEnd(), m_fill, 0 );
-                break;
-
-            case SHAPE_T::POLY:
-                aPlotter->PlotPoly( cornerList, m_fill, 0 );
-                break;
-
-            case SHAPE_T::BEZIER:
-                aPlotter->PlotPoly( m_bezierPoints, m_fill, 0 );
-                break;
-
-            default:
-                UNIMPLEMENTED_FOR( SHAPE_T_asString() );
-            }
-        }
-    }
-    else /* if( aForeground ) */
-    {
-        if( aPlotter->GetColorMode() && GetStroke().GetColor() != COLOR4D::UNSPECIFIED )
-            aPlotter->SetColor( GetStroke().GetColor() );
-        else
-            aPlotter->SetColor( aPlotter->RenderSettings()->GetLayerColor( LAYER_NOTES ) );
-
-        aPlotter->SetCurrentLineWidth( pen_size );
-        aPlotter->SetDash( pen_size, GetEffectiveLineStyle() );
-
-        switch( GetShape() )
-        {
-        case SHAPE_T::ARC:
-            aPlotter->Arc( GetStart(), GetArcMid(), GetEnd(), FILL_T::NO_FILL, pen_size );
+        case FILL_T::FILLED_WITH_COLOR:
+            color = GetFillColor();
             break;
 
-        case SHAPE_T::CIRCLE:
-            aPlotter->Circle( getCenter(), GetRadius() * 2, FILL_T::NO_FILL, pen_size );
-            break;
-
-        case SHAPE_T::RECTANGLE:
-            aPlotter->Rect( GetStart(), GetEnd(), FILL_T::NO_FILL, pen_size );
-            break;
-
-        case SHAPE_T::POLY:
-            aPlotter->PlotPoly( cornerList, FILL_T::NO_FILL, pen_size );
-            break;
-
-        case SHAPE_T::BEZIER:
-            aPlotter->PlotPoly( m_bezierPoints, FILL_T::NO_FILL, pen_size );
+        case FILL_T::FILLED_WITH_BG_BODYCOLOR:
+            color = renderSettings->GetLayerColor( LAYER_DEVICE_BACKGROUND );
             break;
 
         default:
-            UNIMPLEMENTED_FOR( SHAPE_T_asString() );
+            return;
         }
 
-        aPlotter->SetDash( pen_size, LINE_STYLE::SOLID );
+        pen_size = 0;
+        lineStyle = LINE_STYLE::SOLID;
     }
+    else /* if( aForeground ) */
+    {
+        if( !aPlotter->GetColorMode() || color == COLOR4D::UNSPECIFIED )
+            color = renderSettings->GetLayerColor( m_layer );
+
+        if( lineStyle == LINE_STYLE::DEFAULT )
+            lineStyle = LINE_STYLE::SOLID;
+
+        if( m_fill == FILL_T::FILLED_SHAPE )
+            fill = m_fill;
+        else
+            fill = FILL_T::NO_FILL;
+
+        pen_size = GetEffectivePenWidth( renderSettings );
+    }
+
+    if( bg == COLOR4D::UNSPECIFIED || !aPlotter->GetColorMode() )
+        bg = COLOR4D::WHITE;
+
+    if( aDimmed )
+    {
+        color.Desaturate( );
+        color = color.Mix( bg, 0.5f );
+    }
+
+    aPlotter->SetColor( color );
+    aPlotter->SetCurrentLineWidth( pen_size );
+    aPlotter->SetDash( pen_size, lineStyle );
+
+    VECTOR2I start = renderSettings->TransformCoordinate( m_start ) + aOffset;
+    VECTOR2I end = renderSettings->TransformCoordinate( m_end ) + aOffset;
+    VECTOR2I mid, center;
+
+    switch( GetShape() )
+    {
+    case SHAPE_T::ARC:
+        mid = renderSettings->TransformCoordinate( GetArcMid() ) + aOffset;
+        aPlotter->Arc( start, mid, end, fill, pen_size );
+        break;
+
+    case SHAPE_T::CIRCLE:
+        center = renderSettings->TransformCoordinate( getCenter() ) + aOffset;
+        aPlotter->Circle( center, GetRadius() * 2, fill, pen_size );
+        break;
+
+    case SHAPE_T::RECTANGLE:
+        aPlotter->Rect( start, end, fill, pen_size );
+        break;
+
+    case SHAPE_T::POLY:
+    case SHAPE_T::BEZIER:
+        aPlotter->PlotPoly( ptList, fill, pen_size );
+        break;
+
+    default:
+        UNIMPLEMENTED_FOR( SHAPE_T_asString() );
+    }
+
+    aPlotter->SetDash( pen_size, LINE_STYLE::SOLID );
 }
 
 
-int SCH_SHAPE::GetPenWidth() const
+int SCH_SHAPE::GetEffectiveWidth() const
 {
-    if( m_stroke.GetWidth() > 0 )
-        return m_stroke.GetWidth();
+    if( GetPenWidth() > 0 )
+        return GetPenWidth();
 
     // Historically 0 meant "default width" and negative numbers meant "don't stroke".
-    if( GetWidth() < 0 )
+    if( GetPenWidth() < 0 )
         return 0;
 
     SCHEMATIC* schematic = Schematic();
@@ -240,31 +273,36 @@ int SCH_SHAPE::GetPenWidth() const
 }
 
 
-void SCH_SHAPE::PrintBackground( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset )
+const BOX2I SCH_SHAPE::GetBoundingBox() const
 {
+    return getBoundingBox();
+}
+
+
+void SCH_SHAPE::PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                                 const VECTOR2I& aOffset, bool aDimmed )
+{
+    if( IsPrivate() )
+        return;
+
     wxDC*    DC = aSettings->GetPrintDC();
     COLOR4D  color;
 
-    unsigned ptCount = 0;
-    VECTOR2I* buffer = nullptr;
+    static std::vector<VECTOR2I> ptList;
 
     if( GetShape() == SHAPE_T::POLY )
     {
-        SHAPE_LINE_CHAIN poly = m_poly.Outline( 0 );
+        ptList.clear();
 
-        ptCount = poly.GetPointCount();
-        buffer = new VECTOR2I[ptCount];
-
-        for( unsigned ii = 0; ii < ptCount; ++ii )
-            buffer[ii] = poly.CPoint( ii );
+        for( const VECTOR2I& pt : m_poly.Outline( 0 ).CPoints() )
+            ptList.push_back( aSettings->TransformCoordinate( pt ) + aOffset );
     }
     else if( GetShape() == SHAPE_T::BEZIER )
     {
-        ptCount = m_bezierPoints.size();
-        buffer = new VECTOR2I[ptCount];
+        ptList.clear();
 
-        for( size_t ii = 0; ii < ptCount; ++ii )
-            buffer[ii] = m_bezierPoints[ii];
+        for( const VECTOR2I& pt : m_bezierPoints )
+            ptList.push_back( aSettings->TransformCoordinate( pt ) + aOffset );
     }
 
     if( GetFillMode() == FILL_T::FILLED_WITH_COLOR )
@@ -289,57 +327,86 @@ void SCH_SHAPE::PrintBackground( const RENDER_SETTINGS* aSettings, const VECTOR2
             break;
 
         case SHAPE_T::POLY:
-            GRPoly( DC, ptCount, buffer, true, 0, color, color );
+            GRPoly( DC, (int) ptList.size(), ptList.data(), true, 0, color, color );
             break;
 
         case SHAPE_T::BEZIER:
-            GRPoly( DC, ptCount, buffer, true, 0, color, color );
+            GRPoly( DC, (int) ptList.size(), ptList.data(), true, 0, color, color );
             break;
 
         default:
             UNIMPLEMENTED_FOR( SHAPE_T_asString() );
         }
     }
-
-    delete[] buffer;
-
 }
 
 
-void SCH_SHAPE::Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset )
+void SCH_SHAPE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                       const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
 {
-    int      penWidth = GetPenWidth();
+    if( IsPrivate() )
+        return;
+
+    int      penWidth = GetEffectivePenWidth( aSettings );
     wxDC*    DC = aSettings->GetPrintDC();
     COLOR4D  color = GetStroke().GetColor();
+    COLOR4D  bg = aSettings->GetBackgroundColor();
 
     if( color == COLOR4D::UNSPECIFIED )
         color = aSettings->GetLayerColor( LAYER_NOTES );
 
-    COLOR4D bg = aSettings->GetBackgroundColor();
-
     if( bg == COLOR4D::UNSPECIFIED || GetGRForceBlackPenState() )
         bg = COLOR4D::WHITE;
 
-    unsigned ptCount = 0;
-    VECTOR2I* buffer = nullptr;
+    if( aDimmed )
+    {
+        color.Desaturate( );
+        color = color.Mix( bg, 0.5f );
+    }
+
+    static std::vector<VECTOR2I> ptList;
 
     if( GetShape() == SHAPE_T::POLY )
     {
-        SHAPE_LINE_CHAIN poly = m_poly.Outline( 0 );
+        ptList.clear();
 
-        ptCount = poly.GetPointCount();
-        buffer = new VECTOR2I[ptCount];
-
-        for( unsigned ii = 0; ii < ptCount; ++ii )
-            buffer[ii] = poly.CPoint( ii );
+        for( const VECTOR2I& pt : m_poly.Outline( 0 ).CPoints() )
+            ptList.push_back( aSettings->TransformCoordinate( pt ) + aOffset );
     }
     else if( GetShape() == SHAPE_T::BEZIER )
     {
-        ptCount = m_bezierPoints.size();
-        buffer = new VECTOR2I[ptCount];
+        ptList.clear();
 
-        for( size_t ii = 0; ii < ptCount; ++ii )
-            buffer[ii] = m_bezierPoints[ii];
+        for( const VECTOR2I& pt : m_bezierPoints )
+            ptList.push_back( aSettings->TransformCoordinate( pt ) + aOffset );
+    }
+
+    VECTOR2I start = GetStart();
+    VECTOR2I end = GetEnd();
+    VECTOR2I center = ( GetShape() == SHAPE_T::ARC ) ? getCenter() : VECTOR2I( 0, 0 );
+
+    if( aSettings->m_Transform != TRANSFORM() || aOffset != VECTOR2I() )
+    {
+        start = aSettings->TransformCoordinate( start ) + aOffset;
+        end = aSettings->TransformCoordinate( end ) + aOffset;
+
+        if( GetShape() == SHAPE_T::ARC )
+        {
+            center = aSettings->TransformCoordinate( center ) + aOffset;
+
+            EDA_ANGLE t1, t2;
+
+            CalcArcAngles( t1, t2 );
+
+            // N.B. The order of evaluation is critical here as MapAngles will modify t1, t2
+            // and the Normalize routine depends on these modifications for the correct output
+            bool transformed = aSettings->m_Transform.MapAngles( &t1, &t2 );
+            EDA_ANGLE arc_angle =  ( t1 - t2 ).Normalize180();
+            bool transformed2 = ( arc_angle > ANGLE_0 ) && ( arc_angle < ANGLE_180 );
+
+            if( transformed  != transformed2 )
+                std::swap( start, end );
+        }
     }
 
     COLOR4D fillColor = COLOR4D::UNSPECIFIED;
@@ -348,39 +415,45 @@ void SCH_SHAPE::Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset
         fillColor = color;
     else if( GetFillMode() == FILL_T::FILLED_WITH_COLOR )
         fillColor = GetFillColor();
+    else if( GetFillMode() == FILL_T::FILLED_WITH_BG_BODYCOLOR )
+        fillColor = aSettings->GetLayerColor( LAYER_DEVICE_BACKGROUND );
 
-    if( fillColor != COLOR4D::UNSPECIFIED )
+    if( fillColor != COLOR4D::UNSPECIFIED && !aForceNoFill )
     {
+        if( aDimmed )
+        {
+            fillColor.Desaturate( );
+            fillColor = fillColor.Mix( bg, 0.5f );
+        }
+
         switch( GetShape() )
         {
         case SHAPE_T::ARC:
-            GRFilledArc( DC, GetEnd(), GetStart(), getCenter(), 0, fillColor, fillColor );
+            GRFilledArc( DC, end, start, center, 0, fillColor, fillColor );
             break;
 
         case SHAPE_T::CIRCLE:
-            GRFilledCircle( DC, GetStart(), GetRadius(), 0, fillColor, fillColor );
+            GRFilledCircle( DC, start, GetRadius(), 0, fillColor, fillColor );
             break;
 
         case SHAPE_T::RECTANGLE:
-            GRFilledRect( DC, GetStart(), GetEnd(), 0, fillColor, fillColor );
+            GRFilledRect( DC, start, end, 0, fillColor, fillColor );
             break;
 
         case SHAPE_T::POLY:
-            GRPoly( DC, ptCount, buffer, true, 0, fillColor, fillColor );
+            GRPoly( DC, (int) ptList.size(), ptList.data(), true, 0, fillColor, fillColor );
             break;
 
         case SHAPE_T::BEZIER:
-            GRPoly( DC, ptCount, buffer, true, 0, fillColor, fillColor );
+            GRPoly( DC, (int) ptList.size(), ptList.data(), true, 0, fillColor, fillColor );
             break;
 
         default:
             UNIMPLEMENTED_FOR( SHAPE_T_asString() );
         }
     }
-    else
-    {
-        penWidth = std::max( penWidth, aSettings->GetMinPenWidth() );
-    }
+
+    penWidth = std::max( penWidth, aSettings->GetMinPenWidth() );
 
     if( penWidth > 0 )
     {
@@ -389,23 +462,23 @@ void SCH_SHAPE::Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset
             switch( GetShape() )
             {
             case SHAPE_T::ARC:
-                GRArc( DC, GetEnd(), GetStart(), getCenter(), penWidth, color );
+                GRArc( DC, end, start, center, penWidth, color );
                 break;
 
             case SHAPE_T::CIRCLE:
-                GRCircle( DC, GetStart(), GetRadius(), penWidth, color );
+                GRCircle( DC, start, GetRadius(), penWidth, color );
                 break;
 
             case SHAPE_T::RECTANGLE:
-                GRRect( DC, GetStart(), GetEnd(), penWidth, color );
+                GRRect( DC, start, end, penWidth, color );
                 break;
 
             case SHAPE_T::POLY:
-                GRPoly( DC, ptCount, buffer, false, penWidth, color, color );
+                GRPoly( DC, (int) ptList.size(), ptList.data(), false, penWidth, color, color );
                 break;
 
             case SHAPE_T::BEZIER:
-                GRPoly( DC, ptCount, buffer, false, penWidth, color, color );
+                GRPoly( DC, (int) ptList.size(), ptList.data(), false, penWidth, color, color );
                 break;
 
             default:
@@ -419,30 +492,33 @@ void SCH_SHAPE::Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset
             for( SHAPE* shape : shapes )
             {
                 STROKE_PARAMS::Stroke( shape, GetEffectiveLineStyle(), penWidth, aSettings,
-                                       [&]( const VECTOR2I& a, const VECTOR2I& b )
-                                       {
-                                           GRLine( DC, a.x, a.y, b.x, b.y, penWidth, color );
-                                       } );
+                        [&]( const VECTOR2I& a, const VECTOR2I& b )
+                        {
+                            VECTOR2I ptA = aSettings->TransformCoordinate( a ) + aOffset;
+                            VECTOR2I ptB = aSettings->TransformCoordinate( b ) + aOffset;
+                            GRLine( DC, ptA.x, ptA.y, ptB.x, ptB.y, penWidth, color );
+                        } );
             }
 
             for( SHAPE* shape : shapes )
                 delete shape;
         }
     }
-
-    delete[] buffer;
 }
 
 
 void SCH_SHAPE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    SCH_ITEM::GetMsgPanelInfo( aFrame, aList );
+    if( m_layer == LAYER_DEVICE )
+        getSymbolEditorMsgPanelInfo( aFrame, aList );
+    else
+        SCH_ITEM::GetMsgPanelInfo( aFrame, aList );
 
     ShapeGetMsgPanelInfo( aFrame, aList );
 }
 
 
-wxString SCH_SHAPE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString SCH_SHAPE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     switch( GetShape() )
     {
@@ -478,12 +554,12 @@ BITMAPS SCH_SHAPE::GetMenuImage() const
 {
     switch( GetShape() )
     {
-    case SHAPE_T::SEGMENT: return BITMAPS::add_line;
-    case SHAPE_T::ARC:     return BITMAPS::add_arc;
-    case SHAPE_T::CIRCLE:  return BITMAPS::add_circle;
-    case SHAPE_T::RECTANGLE:    return BITMAPS::add_rectangle;
-    case SHAPE_T::POLY:    return BITMAPS::add_graphical_segments;
-    case SHAPE_T::BEZIER:  return BITMAPS::add_bezier;
+    case SHAPE_T::SEGMENT:   return BITMAPS::add_line;
+    case SHAPE_T::ARC:       return BITMAPS::add_arc;
+    case SHAPE_T::CIRCLE:    return BITMAPS::add_circle;
+    case SHAPE_T::RECTANGLE: return BITMAPS::add_rectangle;
+    case SHAPE_T::POLY:      return BITMAPS::add_graphical_segments;
+    case SHAPE_T::BEZIER:    return BITMAPS::add_bezier;
 
     default:
         UNIMPLEMENTED_FOR( SHAPE_T_asString() );
@@ -492,12 +568,27 @@ BITMAPS SCH_SHAPE::GetMenuImage() const
 }
 
 
-void SCH_SHAPE::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> SCH_SHAPE::ViewGetLayers() const
 {
-    aCount     = 3;
-    aLayers[0] = LAYER_NOTES;
-    aLayers[1] = LAYER_NOTES_BACKGROUND;
-    aLayers[2] = LAYER_SELECTION_SHADOWS;
+    std::vector<int> layers( 3 );
+
+    layers[0] = IsPrivate() ? LAYER_PRIVATE_NOTES : m_layer;
+
+    if( m_layer == LAYER_DEVICE )
+    {
+        if( m_fill == FILL_T::FILLED_WITH_BG_BODYCOLOR )
+            layers[1] = LAYER_DEVICE_BACKGROUND;
+        else
+            layers[1] = LAYER_SHAPES_BACKGROUND;
+    }
+    else
+    {
+        layers[1] = LAYER_SHAPES_BACKGROUND;
+    }
+
+    layers[2] = LAYER_SELECTION_SHADOWS;
+
+    return layers;
 }
 
 
@@ -506,7 +597,10 @@ void SCH_SHAPE::AddPoint( const VECTOR2I& aPosition )
     if( GetShape() == SHAPE_T::POLY )
     {
         if( m_poly.IsEmpty() )
+        {
             m_poly.NewOutline();
+            m_poly.Outline( 0 ).SetClosed( false );
+        }
 
         m_poly.Outline( 0 ).Append( aPosition, true );
     }
@@ -524,20 +618,60 @@ bool SCH_SHAPE::operator==( const SCH_ITEM& aOther ) const
 
     const SCH_SHAPE& other = static_cast<const SCH_SHAPE&>( aOther );
 
-    return EDA_SHAPE::operator==( other );
+    return SCH_ITEM::operator==( aOther ) && EDA_SHAPE::operator==( other );
 }
 
 
 double SCH_SHAPE::Similarity( const SCH_ITEM& aOther ) const
 {
+    if( m_Uuid == aOther.m_Uuid )
+        return 1.0;
+
     if( aOther.Type() != Type() )
         return 0.0;
 
     const SCH_SHAPE& other = static_cast<const SCH_SHAPE&>( aOther );
 
-    double similarity = EDA_SHAPE::Similarity( other );
+    double similarity = SimilarityBase( other );
+
+    similarity *= EDA_SHAPE::Similarity( other );
 
     return similarity;
+}
+
+
+int SCH_SHAPE::compare( const SCH_ITEM& aOther, int aCompareFlags ) const
+{
+    int cmpFlags = aCompareFlags;
+
+    // The object UUIDs must be compared after the shape coordinates because shapes do not
+    // have immutable UUIDs.
+    if( !( cmpFlags & ( SCH_ITEM::COMPARE_FLAGS::EQUALITY | SCH_ITEM::COMPARE_FLAGS::ERC ) ) )
+        cmpFlags |= SCH_ITEM::COMPARE_FLAGS::EQUALITY;
+
+    int retv = SCH_ITEM::compare( aOther, cmpFlags );
+
+    if( retv )
+        return retv;
+
+    retv = EDA_SHAPE::Compare( &static_cast<const SCH_SHAPE&>( aOther ) );
+
+    if( retv )
+        return retv;
+
+    if( ( aCompareFlags & SCH_ITEM::COMPARE_FLAGS::EQUALITY )
+        || ( aCompareFlags & SCH_ITEM::COMPARE_FLAGS::ERC ) )
+    {
+        return 0;
+    }
+
+    if( m_Uuid < aOther.m_Uuid )
+        return -1;
+
+    if( m_Uuid > aOther.m_Uuid )
+        return 1;
+
+    return 0;
 }
 
 
@@ -545,6 +679,16 @@ static struct SCH_SHAPE_DESC
 {
     SCH_SHAPE_DESC()
     {
+        ENUM_MAP<FILL_T>& fillEnum = ENUM_MAP<FILL_T>::Instance();
+
+        if( fillEnum.Choices().GetCount() == 0 )
+        {
+            fillEnum.Map( FILL_T::NO_FILL, _HKI( "None" ) )
+                    .Map( FILL_T::FILLED_SHAPE, _HKI( "Body outline color" ) )
+                    .Map( FILL_T::FILLED_WITH_BG_BODYCOLOR, _HKI( "Body background color" ) )
+                    .Map( FILL_T::FILLED_WITH_COLOR, _HKI( "Fill color" ) );
+        }
+
         PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
         REGISTER_TYPE( SCH_SHAPE );
         propMgr.AddTypeCast( new TYPE_CAST<SCH_SHAPE, SCH_ITEM> );
@@ -586,7 +730,7 @@ static struct SCH_SHAPE_DESC
                 {
                     if( SCH_SHAPE* shape = dynamic_cast<SCH_SHAPE*>( aItem ) )
                     {
-                        if( shape->GetParent()->IsType( { SCH_SYMBOL_T, LIB_SYMBOL_T } ) )
+                        if( shape->GetParentSymbol() )
                             return shape->GetFillMode() == FILL_T::FILLED_WITH_COLOR;
                         else
                             return shape->IsFilled();
@@ -615,3 +759,5 @@ static struct SCH_SHAPE_DESC
                 .SetAvailableFunc( isSymbolItem );
     }
 } _SCH_SHAPE_DESC;
+
+ENUM_TO_WXANY( FILL_T );

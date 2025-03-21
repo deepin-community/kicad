@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +17,7 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <wx/dir.h>
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
 #include <wx/string.h>
@@ -57,17 +58,6 @@ wxString PATHS::GetUserPluginsPath()
     getUserDocumentPath( tmp );
 
     tmp.AppendDir( wxT( "plugins" ) );
-
-    return tmp.GetPath();
-}
-
-
-wxString PATHS::GetUserPlugins3DPath()
-{
-    wxFileName tmp;
-
-    tmp.AssignDir( PATHS::GetUserPluginsPath() );
-    tmp.AppendDir( wxT( "3d" ) );
 
     return tmp.GetPath();
 }
@@ -117,6 +107,17 @@ wxString PATHS::GetDefaultUserFootprintsPath()
 }
 
 
+wxString PATHS::GetDefaultUserDesignBlocksPath()
+{
+    wxFileName tmp;
+    getUserDocumentPath( tmp );
+
+    tmp.AppendDir( wxT( "blocks" ) );
+
+    return tmp.GetPath();
+}
+
+
 wxString PATHS::GetDefaultUser3DModelsPath()
 {
     wxFileName tmp;
@@ -126,6 +127,7 @@ wxString PATHS::GetDefaultUser3DModelsPath()
 
     return tmp.GetPath();
 }
+
 
 wxString PATHS::GetDefault3rdPartyPath()
 {
@@ -137,6 +139,7 @@ wxString PATHS::GetDefault3rdPartyPath()
     return tmp.GetPath();
 }
 
+
 wxString PATHS::GetDefaultUserProjectsPath()
 {
     wxFileName tmp;
@@ -145,6 +148,48 @@ wxString PATHS::GetDefaultUserProjectsPath()
     tmp.AppendDir( wxT( "projects" ) );
 
     return tmp.GetPath();
+}
+
+
+/**
+ * Get the CMake build root directory for the current executable
+ * (which assumes the executable is in a build directory).
+ *
+ * This is done because not all executable are located at the same
+ * depth in the build directory.
+ */
+static wxString getBuildDirectoryRoot()
+{
+    // We don't have a perfect way to spot a build directory (e.g. when archived as artifacts in
+    // CI) but we can assume that the build directory will have a schemas directory that contains
+    // JSON files, as that's one of the things that we use this path for.
+    const auto looksLikeBuildDir = []( const wxFileName& aPath ) -> bool
+    {
+        const wxDir schema_dir( aPath.GetPathWithSep() + wxT( "schemas" ) );
+
+        if( !schema_dir.IsOpened() )
+            return false;
+
+        wxString   filename;
+        const bool found = schema_dir.GetFirst( &filename, wxT( "*.json" ), wxDIR_FILES );
+        return found;
+    };
+
+    const wxString execPath = PATHS::GetExecutablePath();
+    wxFileName     fn = execPath;
+
+    // Climb the directory tree until we find a directory that looks like a build directory
+    // Normally we expect to climb one or two levels only.
+    while( fn.GetDirCount() > 0 && !looksLikeBuildDir( fn ) )
+    {
+        fn.RemoveLastDir();
+    }
+
+    wxASSERT_MSG(
+            fn.GetDirCount() > 0,
+            wxString::Format( wxT( "Could not find build root directory above %s" ), execPath ) );
+
+    return fn.GetPath();
 }
 
 
@@ -166,7 +211,7 @@ wxString PATHS::GetStockDataPath( bool aRespectRunFromBuildDir )
 #elif defined( __WXMSW__ )
         path = getWindowsKiCadRoot();
 #else
-        path = GetExecutablePath() + wxT( ".." );
+        path = getBuildDirectoryRoot();
 #endif
     }
     else if( wxGetEnv( wxT( "KICAD_STOCK_DATA_HOME" ), &path ) && !path.IsEmpty() )
@@ -188,14 +233,13 @@ wxString PATHS::GetStockDataPath( bool aRespectRunFromBuildDir )
 }
 
 
-#ifdef __WXMSW__
-/**
- * Gets the stock (install) data path, which is the base path for things like scripting, etc
- */
+#ifdef _WIN32
+
 wxString PATHS::GetWindowsBaseSharePath()
 {
     return getWindowsKiCadRoot() + wxT( "share\\" );
 }
+
 #endif
 
 
@@ -230,6 +274,16 @@ wxString PATHS::GetStockFootprintsPath()
     wxString path;
 
     path = GetStockEDALibraryPath() + wxT( "/footprints" );
+
+    return path;
+}
+
+
+wxString PATHS::GetStockDesignBlocksPath()
+{
+    wxString path;
+
+    path = GetStockEDALibraryPath() + wxT( "/blocks" );
 
     return path;
 }
@@ -399,17 +453,35 @@ wxString PATHS::GetInstanceCheckerPath()
 }
 
 
-bool PATHS::EnsurePathExists( const wxString& aPath )
+wxString PATHS::GetLogsPath()
 {
-    wxFileName path( aPath );
+    wxFileName tmp;
+    getUserDocumentPath( tmp );
+
+    tmp.AppendDir( wxT( "logs" ) );
+
+    return tmp.GetPath();
+}
+
+
+bool PATHS::EnsurePathExists( const wxString& aPath, bool aPathToFile )
+{
+    wxString   pathString = aPath;
+    if( !aPathToFile )
+    {
+        // ensures the path is treated fully as directory
+        pathString += wxFileName::GetPathSeparator();
+    }
+
+    wxFileName path( pathString );
     if( !path.MakeAbsolute() )
     {
         return false;
     }
 
-    if( !wxFileName::DirExists( aPath ) )
+    if( !wxFileName::DirExists( path.GetPath() ) )
     {
-        if( !wxFileName::Mkdir( aPath, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL ) )
+        if( !wxFileName::Mkdir( path.GetPath(), wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL ) )
         {
             return false;
         }
@@ -485,7 +557,7 @@ wxString PATHS::GetOSXKicadDataDir()
 #endif
 
 
-#ifdef __WXMSW__
+#ifdef _WIN32
 wxString PATHS::GetWindowsFontConfigDir()
 {
     wxFileName fn;

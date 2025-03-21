@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019-2020 Thomas Pointhuber <thomas.pointhuber@gmx.at>
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,17 +27,18 @@
 
 #include "altium_props_utils.h"
 
+#include <charconv>
 #include <map>
 #include <memory>
 #include <numeric>
+#include <string>
+#include <stdexcept>
+#include <vector>
 
 #include <wx/mstream.h>
 #include <wx/zstream.h>
 #include <math/vector2d.h>
-#include <vector>
-
-#include <string>
-#include <stdexcept>
+#include <math/vector3.h>
 
 namespace CFB
 {
@@ -53,8 +54,21 @@ struct COMPOUND_FILE_ENTRY;
 std::string FormatPath( const std::vector<std::string>& aVectorPath );
 
 
+class ALTIUM_SYMBOL_DATA
+{
+public:
+    const CFB::COMPOUND_FILE_ENTRY* m_symbol;
+    const CFB::COMPOUND_FILE_ENTRY* m_pinsFrac;
+    const CFB::COMPOUND_FILE_ENTRY* m_pinsWideText;
+    const CFB::COMPOUND_FILE_ENTRY* m_pinsTextData;
+    const CFB::COMPOUND_FILE_ENTRY* m_pinsSymbolLineWidth;
+};
+
+
 class ALTIUM_COMPOUND_FILE
 {
+    friend class ALTIUM_PCB_COMPOUND_FILE;
+
 public:
     /**
      * Open a CFB file. Constructor might throw an IO_ERROR.
@@ -80,13 +94,10 @@ public:
 
     std::unique_ptr<ALTIUM_COMPOUND_FILE> DecodeIntLibStream( const CFB::COMPOUND_FILE_ENTRY& cfe );
 
-    std::map<wxString, wxString> ListLibFootprints();
-
-    std::tuple<wxString, const CFB::COMPOUND_FILE_ENTRY*> FindLibFootprintDirName( const wxString& aFpUnicodeName );
-
     const CFB::COMPOUND_FILE_ENTRY* FindStream( const std::vector<std::string>& aStreamPath ) const;
 
-    const CFB::COMPOUND_FILE_ENTRY* FindStream( const CFB::COMPOUND_FILE_ENTRY* aStart, const std::vector<std::string>& aStreamPath ) const;
+    const CFB::COMPOUND_FILE_ENTRY* FindStream( const CFB::COMPOUND_FILE_ENTRY* aStart,
+                                                const std::vector<std::string>& aStreamPath ) const;
 
     const CFB::COMPOUND_FILE_ENTRY* FindStreamSingleLevel( const CFB::COMPOUND_FILE_ENTRY* aEntry,
                                                            const std::string               aName,
@@ -94,24 +105,20 @@ public:
 
     std::map<wxString, const CFB::COMPOUND_FILE_ENTRY*> EnumDir( const std::wstring& aDir ) const;
 
-    std::map<wxString, const CFB::COMPOUND_FILE_ENTRY*> GetLibSymbols( const CFB::COMPOUND_FILE_ENTRY* aStart ) const;
+    std::map<wxString, ALTIUM_SYMBOL_DATA> GetLibSymbols( const CFB::COMPOUND_FILE_ENTRY* aStart ) const;
 
 private:
 
-    void cacheLibFootprintNames();
-
     std::unique_ptr<CFB::CompoundFileReader> m_reader;
     std::vector<char>                        m_buffer;
-
-    std::map<wxString, const CFB::COMPOUND_FILE_ENTRY*> m_libFootprintNameCache;
-    std::map<wxString, wxString>                        m_libFootprintDirNameCache;
 };
 
 
 class ALTIUM_BINARY_PARSER
 {
 public:
-    ALTIUM_BINARY_PARSER( const ALTIUM_COMPOUND_FILE& aFile, const CFB::COMPOUND_FILE_ENTRY* aEntry );
+    ALTIUM_BINARY_PARSER( const ALTIUM_COMPOUND_FILE& aFile,
+                          const CFB::COMPOUND_FILE_ENTRY* aEntry );
     ALTIUM_BINARY_PARSER( std::unique_ptr<char[]>& aContent, size_t aSize );
     ~ALTIUM_BINARY_PARSER() = default;
 
@@ -119,6 +126,7 @@ public:
     Type Read()
     {
         const size_t remainingBytes = GetRemainingBytes();
+
         if( remainingBytes >= sizeof( Type ) )
         {
             Type val = *(Type*) ( m_pos );
@@ -147,9 +155,10 @@ public:
     wxScopedCharBuffer ReadCharBuffer()
     {
         uint8_t len = Read<uint8_t>();
+
         if( GetRemainingBytes() >= len )
         {
-            char* buf = new char[len];
+            char* buf = static_cast<char*>( malloc( len ) );
             memcpy( buf, m_pos, len );
             m_pos += len;
 
@@ -182,7 +191,9 @@ public:
             remaining -= 8;
 
             if( length <= 2 )
+            {
                 length = 0; // for empty strings, not even the null bytes are present
+            }
             else
             {
                 if( length > remaining )
@@ -358,9 +369,21 @@ public:
         return value;
     }
 
-    std::string ReadPascalString()
+    std::string ReadShortPascalString()
     {
         uint8_t length = ReadByte();
+
+        if( m_position + length > m_data.size() )
+            throw std::out_of_range( "ALTIUM_BINARY_READER: out of range" );
+
+        std::string pascalString( &m_data[m_position], &m_data[m_position + length] );
+        m_position += length;
+        return pascalString;
+    }
+
+    std::string ReadFullPascalString()
+    {
+        uint32_t length = ReadInt32();
 
         if( m_position + length > m_data.size() )
             throw std::out_of_range( "ALTIUM_BINARY_READER: out of range" );
@@ -381,40 +404,35 @@ public:
     ALTIUM_COMPRESSED_READER( const std::string& aData ) : ALTIUM_BINARY_READER( aData )
     {}
 
-    std::pair<int, std::string> ReadCompressedString()
+    std::pair<int, std::string*> ReadCompressedString()
     {
-        std::string result;
+        std::string* result;
         int id = -1;
 
-        while( true )
-        {
-            uint8_t byte = ReadByte();
-            if( byte != 0xD0 )
-                throw std::runtime_error( "ALTIUM_COMPRESSED_READER: invalid compressed string" );
+        uint8_t byte = ReadByte();
 
-            std::string str = ReadPascalString();
+        if( byte != 0xD0 )
+            throw std::runtime_error( "ALTIUM_COMPRESSED_READER: invalid compressed string" );
 
-            id = std::stoi( str );
+        std::string str = ReadShortPascalString();
+        std::from_chars( str.data(), str.data() + str.size(), id );
 
-            std::string data = ReadPascalString();
-
-            result = decompressData( data );
-        }
+        std::string data = ReadFullPascalString();
+        result = decompressData( data );
 
         return std::make_pair( id, result );
     }
 
 private:
-    std::string decompressData( std::string& aData )
+    std::string decompressedData;
+
+    std::string* decompressData( std::string& aData )
     {
         // Create a memory input stream with the buffer
         wxMemoryInputStream memStream( (void*) aData.data(), aData.length() );
 
         // Create a zlib input stream with the memory input stream
         wxZlibInputStream zStream( memStream );
-
-        // Prepare a string to hold decompressed data
-        std::string decompressedData;
 
         // Read decompressed data from the zlib input stream
         while( !zStream.Eof() )
@@ -425,7 +443,7 @@ private:
             decompressedData.append( buffer, bytesRead );
         }
 
-        return decompressedData;
+        return &decompressedData;
     }
 };
 

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2004-2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2004-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -47,6 +47,7 @@
 #include <systemdirsappend.h>
 #include <trace_helpers.h>
 #include <wildcards_and_files_ext.h>
+#include <confirm.h>
 
 #include <git2.h>
 #include <stdexcept>
@@ -57,6 +58,9 @@
 #include <kiplatform/app.h>
 #include <kiplatform/environment.h>
 
+#ifdef KICAD_IPC_API
+#include <api/api_server.h>
+#endif
 
 // a dummy to quiet linking with EDA_BASE_FRAME::config();
 #include <kiface_base.h>
@@ -72,20 +76,6 @@ KIFACE_BASE& Kiface()
 
 
 static PGM_KICAD program;
-
-
-PGM_BASE& Pgm()
-{
-    return program;
-}
-
-
-// Similar to PGM_BASE& Pgm(), but return nullptr when a *.ki_face is run from a python script.
-PGM_BASE* PgmOrNull()
-{
-    return &program;
-}
-
 
 PGM_KICAD& PgmTop()
 {
@@ -251,6 +241,12 @@ bool PGM_KICAD::OnPgmInit()
 
     KICAD_SETTINGS* settings = static_cast<KICAD_SETTINGS*>( PgmSettings() );
 
+#ifdef KICAD_IPC_API
+    m_api_server = std::make_unique<KICAD_API_SERVER>();
+    m_api_common_handler = std::make_unique<API_HANDLER_COMMON>();
+    m_api_server->RegisterHandler( m_api_common_handler.get() );
+#endif
+
     wxString projToLoad;
 
     HideSplash();
@@ -362,6 +358,10 @@ bool PGM_KICAD::OnPgmInit()
     frame->Show( true );
     frame->Raise();
 
+#ifdef KICAD_IPC_API
+    m_api_server->SetReadyToReply();
+#endif
+
     return true;
 }
 
@@ -375,6 +375,10 @@ int PGM_KICAD::OnPgmRun()
 void PGM_KICAD::OnPgmExit()
 {
     Kiway.OnKiwayEnd();
+
+#ifdef KICAD_IPC_API
+    m_api_server.reset();
+#endif
 
     if( m_settings_manager && m_settings_manager->IsOK() )
     {
@@ -414,7 +418,7 @@ void PGM_KICAD::Destroy()
 }
 
 
-KIWAY  Kiway( &Pgm(), KFCTL_CPP_PROJECT_SUITE );
+KIWAY  Kiway( KFCTL_CPP_PROJECT_SUITE );
 
 #ifdef NDEBUG
 // Define a custom assertion handler
@@ -435,6 +439,8 @@ struct APP_KICAD : public wxApp
 {
     APP_KICAD() : wxApp()
     {
+        SetPgm( &program );
+
         // Init the environment each platform wants
         KIPLATFORM::ENV::Init();
     }

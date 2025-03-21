@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2010-2015 Jean-Pierre Charras, jean-pierre.charras at wanadoo.fr
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,7 +26,7 @@
 #define DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR_H
 
 #include <vector>
-#include <fp_text_grid_table.h>
+#include <pcb_fields_grid_table.h>
 #include <widgets/unit_binder.h>
 #include <footprint.h>
 #include <dialog_footprint_properties_fp_editor_base.h>
@@ -34,9 +34,10 @@
 
 class FOOTPRINT_EDIT_FRAME;
 class PANEL_FP_PROPERTIES_3D_MODEL;
+class PANEL_EMBEDDED_FILES;
 
 
-class PRIVATE_LAYERS_GRID_TABLE : public wxGridTableBase, public std::vector<PCB_LAYER_ID>
+class PRIVATE_LAYERS_GRID_TABLE : public WX_GRID_TABLE_BASE, public std::vector<PCB_LAYER_ID>
 {
 public:
     PRIVATE_LAYERS_GRID_TABLE( PCB_BASE_FRAME* aFrame );
@@ -47,7 +48,7 @@ public:
 
     bool CanGetValueAs( int aRow, int aCol, const wxString& aTypeName ) override;
     bool CanSetValueAs( int aRow, int aCol, const wxString& aTypeName ) override;
-    wxGridCellAttr* GetAttr( int row, int col, wxGridCellAttr::wxAttrKind kind ) override;
+    wxGridCellAttr* GetAttr( int aRow, int aCol, wxGridCellAttr::wxAttrKind aKind ) override;
 
     wxString GetValue( int aRow, int aCol ) override;
     long GetValueAsLong( int aRow, int aCol ) override;
@@ -83,7 +84,6 @@ public:
 private:
     // virtual event functions
     void OnGridSize( wxSizeEvent& event ) override;
-    void OnFootprintNameText( wxCommandEvent& event ) override;
     void OnAddField( wxCommandEvent& event ) override;
     void OnDeleteField( wxCommandEvent& event ) override;
     void OnAddLayer( wxCommandEvent& event ) override;
@@ -91,6 +91,10 @@ private:
     void OnAddPadGroup( wxCommandEvent& event ) override;
     void OnRemovePadGroup( wxCommandEvent& event ) override;
     void OnUpdateUI( wxUpdateUIEvent& event ) override;
+    void OnPageChanging( wxNotebookEvent& event ) override;
+    void OnText( wxCommandEvent& event ) override;
+    void OnChoice( wxCommandEvent& event ) override;
+    void OnCheckBox( wxCommandEvent& event ) override;
 
     bool checkFootprintName( const wxString& aFootprintName );
 
@@ -99,10 +103,11 @@ private:
 private:
     FOOTPRINT_EDIT_FRAME*      m_frame;
     FOOTPRINT*                 m_footprint;
+    bool                       m_initialized;
 
     static NOTEBOOK_PAGES      m_page;       // remember the last open page during session
 
-    FP_TEXT_GRID_TABLE*        m_fields;
+    PCB_FIELDS_GRID_TABLE*     m_fields;
     PRIVATE_LAYERS_GRID_TABLE* m_privateLayers;
 
     UNIT_BINDER                m_netClearance;
@@ -122,6 +127,7 @@ private:
 
     wxSize                     m_gridSize;
     wxSize                     m_lastRequestedSize;
+    PANEL_EMBEDDED_FILES*      m_embeddedFiles;
 };
 
 

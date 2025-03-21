@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2004-2023 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,8 +23,6 @@
 
 #include <common.h>
 #include <board.h>
-#include <footprint.h>
-#include <pcb_shape.h>
 #include <pcb_track.h>
 #include <geometry/shape_segment.h>
 #include <geometry/seg.h>
@@ -135,16 +133,16 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
                 return true;
             };
 
-    forEachGeometryItem( s_allBasicItems, LSET( 2, F_SilkS, B_SilkS ), countItems );
+    forEachGeometryItem( s_allBasicItems, LSET( { F_SilkS, B_SilkS } ), countItems );
 
     forEachGeometryItem( s_allBasicItems,
-                         LSET::FrontMask() | LSET::BackMask() | LSET( 2, Edge_Cuts, Margin ),
+                         LSET::FrontMask() | LSET::BackMask() | LSET( { Edge_Cuts, Margin } ),
                          countItems );
 
-    forEachGeometryItem( s_allBasicItems, LSET( 2, F_SilkS, B_SilkS ), addToSilkTree );
+    forEachGeometryItem( s_allBasicItems, LSET( { F_SilkS, B_SilkS } ), addToSilkTree );
 
     forEachGeometryItem( s_allBasicItems,
-                         LSET::FrontMask() | LSET::BackMask() | LSET( 2, Edge_Cuts, Margin ),
+                         LSET::FrontMask() | LSET::BackMask() | LSET( { Edge_Cuts, Margin } ),
                          addToTargetTree );
 
     reportAux( wxT( "Testing %d silkscreen features against %d board items." ),
@@ -190,7 +188,7 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
                 if( isInvisibleText( refItem ) || isInvisibleText( testItem ) )
                     return true;
 
-                if( testItem->IsTented() )
+                if( testItem->IsTented( aLayers.first ) )
                 {
                     if( testItem->HasHole() )
                     {
@@ -224,6 +222,17 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
                          && refItem->GetParentFootprint() == testItem->GetParentFootprint() )
                 {
                     return true;
+                }
+
+                // Collide (and generate violations) based on a well-defined order so that
+                // exclusion checking against previously-generated violations will work.
+                if( aLayers.first == aLayers.second )
+                {
+                    if( refItem->m_Uuid > testItem->m_Uuid )
+                    {
+                        std::swap( refItem, testItem );
+                        std::swap( refShape, testShape );
+                    }
                 }
 
                 if( refShape->Collide( testShape, minClearance, &actual, &pos ) )

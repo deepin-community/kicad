@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,20 +27,13 @@
  * @brief a few functions useful in geometry calculations.
  */
 
-#ifndef GEOMETRY_UTILS_H
-#define GEOMETRY_UTILS_H
+#pragma once
 
+#include <algorithm>
 #include <math.h>           // for copysign
 #include <stdlib.h>         // for abs
 #include <math/box2.h>
 #include <geometry/eda_angle.h>
-
-/**
- * When approximating an arc or circle, should the error be placed on the outside
- * or inside of the curve?  (Generally speaking filled shape errors go on the inside
- * and knockout errors go on the outside.  This preserves minimum clearances.)
- */
-enum ERROR_LOC { ERROR_OUTSIDE = 0, ERROR_INSIDE };
 
 /**
  * @return the number of segments to approximate a arc by segments
@@ -152,26 +145,44 @@ VECTOR2<ret_type> GetClampedCoords( const VECTOR2<in_type>& aCoords, pad_type aP
 {
     typedef std::numeric_limits<int32_t> coord_limits;
 
-    long long max = static_cast<long long>( coord_limits::max() ) - aPadding;
-    long long min = -max;
-
     in_type x = aCoords.x;
     in_type y = aCoords.y;
 
-    if( x < min )
-        x = in_type( min );
-    else if( x > max )
-        x = in_type( max );
+    if constexpr( !std::is_floating_point_v<in_type> )
+    {
+        int64_t max = static_cast<int64_t>( coord_limits::max() ) - aPadding;
+        int64_t min = -max;
+        x = std::clamp<int64_t>( static_cast<int64_t>( x ), min, max );
+        y = std::clamp<int64_t>( static_cast<int64_t>( y ), min, max );
+    }
+    else
+    {
+        double max = static_cast<double>( coord_limits::max() ) - aPadding;
+        double min = -max;
+        x = std::clamp<double>( static_cast<double>( x ), min, max );
+        y = std::clamp<double>( static_cast<double>( y ), min, max );
+    }
 
-    if( y < min )
-        y = in_type( min );
-    else if( y > max )
-        y = in_type( max );
-
-    if( !std::is_integral<in_type>() && std::is_integral<ret_type>() )
-        return VECTOR2<ret_type>( KiROUND( x ), KiROUND( y ) );
+    if constexpr( !std::is_integral_v<in_type> && std::is_integral_v<ret_type> )
+    {
+        return VECTOR2<ret_type>( KiROUND<in_type, ret_type>( x, true ),
+                                  KiROUND<in_type, ret_type>( y, true ) );
+    }
 
     return VECTOR2<ret_type>( x, y );
+}
+
+
+/**
+ * Check if both coordinates of a vector are within the limits of the integer type.
+ */
+template <typename T>
+inline bool IsVec2SafeXY( const VECTOR2<T>& aVec )
+{
+    constexpr T min = std::numeric_limits<int>::min();
+    constexpr T max = std::numeric_limits<int>::max();
+
+    return aVec.x > min && aVec.x < max && aVec.y > min && aVec.y < max;
 }
 
 
@@ -191,5 +202,26 @@ VECTOR2<ret_type> GetClampedCoords( const VECTOR2<in_type>& aCoords, pad_type aP
 bool ClipLine( const BOX2I *aClipBox, int &x1, int &y1, int &x2, int &y2 );
 
 
-#endif  // #ifndef GEOMETRY_UTILS_H
+namespace KIGEOM
+{
+/**
+ * Perform a point-to-box hit test.
+ *
+ * @param aHitPoint - The point that is hitting the box
+ * @param aHittee - The box that is tested for hit.
+ * @param aAccuracy - The accuracy of the hit test.
+ */
+bool BoxHitTest( const VECTOR2I& aHitPoint, const BOX2I& aHittee, int aAccuracy );
 
+/**
+ * Perform a box-to-box hit test.
+ *
+ * @param aHitter - The box that is either hitting or containing the hittee.
+ * @param aHittee - The box that is either being hit or contained by the hitter
+ *                  (this is possibly an object's bounding box).
+ * @param aHitteeContained - True if the hittee is tested for total containment,
+ *                           false if it is tested for intersection.
+ * @param aAccuracy - The accuracy of the hit test.
+ */
+bool BoxHitTest( const BOX2I& aHitter, const BOX2I& aHittee, bool aHitteeContained, int aAccuracy );
+}; // namespace KIGEOM

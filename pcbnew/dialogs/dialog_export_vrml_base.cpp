@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.0.0-0-g0efcecf)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -9,7 +9,7 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
-DIALOG_EXPORT_3DFILE_BASE::DIALOG_EXPORT_3DFILE_BASE( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : DIALOG_SHIM( parent, id, title, pos, size, style )
+DIALOG_EXPORT_VRML_BASE::DIALOG_EXPORT_VRML_BASE( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : DIALOG_SHIM( parent, id, title, pos, size, style )
 {
 	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 
@@ -121,6 +121,12 @@ DIALOG_EXPORT_3DFILE_BASE::DIALOG_EXPORT_3DFILE_BASE( wxWindow* parent, wxWindow
 	wxBoxSizer* bSizer4;
 	bSizer4 = new wxBoxSizer( wxVERTICAL );
 
+	m_cbRemoveDNP = new wxCheckBox( this, wxID_ANY, _("Ignore 'Do not populate' components"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer4->Add( m_cbRemoveDNP, 0, wxALL, 5 );
+
+	m_cbRemoveUnspecified = new wxCheckBox( this, wxID_ANY, _("Ignore 'Unspecified' components"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer4->Add( m_cbRemoveUnspecified, 0, wxALL, 5 );
+
 	m_cbCopyFiles = new wxCheckBox( this, wxID_ANY, _("Copy 3D model files to 3D model path"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_cbCopyFiles->SetToolTip( _("If checked: copy 3D models to the destination folder\nIf not checked: Embed 3D models in the VRML board file") );
 
@@ -155,12 +161,12 @@ DIALOG_EXPORT_3DFILE_BASE::DIALOG_EXPORT_3DFILE_BASE( wxWindow* parent, wxWindow
 	bSizer1->Fit( this );
 
 	// Connect Events
-	m_cbUseRelativePaths->Connect( wxEVT_UPDATE_UI, wxUpdateUIEventHandler( DIALOG_EXPORT_3DFILE_BASE::OnUpdateUseRelativePath ), NULL, this );
+	m_cbUseRelativePaths->Connect( wxEVT_UPDATE_UI, wxUpdateUIEventHandler( DIALOG_EXPORT_VRML_BASE::OnUpdateUseRelativePath ), NULL, this );
 }
 
-DIALOG_EXPORT_3DFILE_BASE::~DIALOG_EXPORT_3DFILE_BASE()
+DIALOG_EXPORT_VRML_BASE::~DIALOG_EXPORT_VRML_BASE()
 {
 	// Disconnect Events
-	m_cbUseRelativePaths->Disconnect( wxEVT_UPDATE_UI, wxUpdateUIEventHandler( DIALOG_EXPORT_3DFILE_BASE::OnUpdateUseRelativePath ), NULL, this );
+	m_cbUseRelativePaths->Disconnect( wxEVT_UPDATE_UI, wxUpdateUIEventHandler( DIALOG_EXPORT_VRML_BASE::OnUpdateUseRelativePath ), NULL, this );
 
 }

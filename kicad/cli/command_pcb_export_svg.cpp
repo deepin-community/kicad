@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
  * Copyright (C) 2016 Cirilo Bernardo <cirilo.bernardo@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -29,13 +29,11 @@
 #include <regex>
 #include <wx/crt.h>
 
-#include <macros.h>
-#include <wx/tokenzr.h>
 
 #define ARG_EXCLUDE_DRAWING_SHEET "--exclude-drawing-sheet"
 #define ARG_PAGE_SIZE "--page-size-mode"
-#define ARG_DRILL_SHAPE_OPTION "--drill-shape-opt"
-
+#define ARG_MODE_SINGLE "--mode-single"
+#define ARG_MODE_MULTI "--mode-multi"
 
 CLI::PCB_EXPORT_SVG_COMMAND::PCB_EXPORT_SVG_COMMAND() : PCB_EXPORT_BASE_COMMAND( "svg" )
 {
@@ -62,6 +60,22 @@ CLI::PCB_EXPORT_SVG_COMMAND::PCB_EXPORT_SVG_COMMAND() : PCB_EXPORT_BASE_COMMAND(
             .help( UTF8STDSTR( _( ARG_BLACKANDWHITE_DESC ) ) )
             .flag();
 
+    m_argParser.add_argument( "--sp", ARG_SKETCH_PADS_ON_FAB_LAYERS )
+            .help( UTF8STDSTR( _( ARG_SKETCH_PADS_ON_FAB_LAYERS_DESC ) ) )
+            .flag();
+
+    m_argParser.add_argument( "--hdnp", ARG_HIDE_DNP_FPS_ON_FAB_LAYERS )
+            .help( UTF8STDSTR( _( ARG_HIDE_DNP_FPS_ON_FAB_LAYERS_DESC ) ) )
+            .flag();
+
+    m_argParser.add_argument( "--sdnp", ARG_SKETCH_DNP_FPS_ON_FAB_LAYERS )
+            .help( UTF8STDSTR( _( ARG_SKETCH_DNP_FPS_ON_FAB_LAYERS_DESC ) ) )
+            .flag();
+
+    m_argParser.add_argument( "--cdnp", ARG_CROSSOUT_DNP_FPS_ON_FAB_LAYERS )
+            .help( UTF8STDSTR( _( ARG_CROSSOUT_DNP_FPS_ON_FAB_LAYERS_DESC ) ) )
+            .flag();
+
     m_argParser.add_argument( ARG_PAGE_SIZE )
             .help( UTF8STDSTR( _( "Set page sizing mode (0 = page with frame and title block, 1 = "
                                 "current page size, 2 = board area only)" ) ) )
@@ -74,11 +88,37 @@ CLI::PCB_EXPORT_SVG_COMMAND::PCB_EXPORT_SVG_COMMAND() : PCB_EXPORT_BASE_COMMAND(
             .flag();
 
     m_argParser.add_argument( ARG_DRILL_SHAPE_OPTION )
-            .help( UTF8STDSTR( _( "Set pad/via drill shape option (0 = no shape, 1 = "
-                                  "small shape, 2 = actual shape)" ) ) )
+            .help( UTF8STDSTR( _( ARG_DRILL_SHAPE_OPTION_DESC ) ) )
             .scan<'i', int>()
             .default_value( 2 )
             .metavar( "SHAPE_OPTION" );
+
+    m_argParser.add_argument( "--cl", ARG_COMMON_LAYERS )
+            .default_value( std::string() )
+            .help( UTF8STDSTR(
+                    _( "Layers to include on each plot, comma separated list of untranslated "
+                       "layer names to include such as "
+                       "F.Cu,B.Cu" ) ) )
+            .metavar( "COMMON_LAYER_LIST" );
+
+
+    m_argParser.add_argument( ARG_MODE_SINGLE )
+            .help( UTF8STDSTR(
+                    _( "Generates a single file with the output arg path acting as the complete "
+                       "directory and filename path. COMMON_LAYER_LIST does not function in this "
+                       "mode. Instead LAYER_LIST controls all layers plotted." ) ) )
+            .flag();
+
+    m_argParser.add_argument( ARG_MODE_MULTI )
+            .help( UTF8STDSTR( _( "Generates one or more files with behavior similar to the KiCad "
+                                  "GUI plotting. The given output path specifies a directory in "
+                                  "which files may be output." ) ) )
+            .flag();
+
+
+    m_argParser.add_argument( ARG_PLOT_INVISIBLE_TEXT )
+            .help( UTF8STDSTR( _( ARG_PLOT_INVISIBLE_TEXT_DESC ) ) )
+            .flag();
 }
 
 
@@ -88,20 +128,30 @@ int CLI::PCB_EXPORT_SVG_COMMAND::doPerform( KIWAY& aKiway )
     if( baseExit != EXIT_CODES::OK )
         return baseExit;
 
-    std::unique_ptr<JOB_EXPORT_PCB_SVG> svgJob( new JOB_EXPORT_PCB_SVG( true ) );
+    std::unique_ptr<JOB_EXPORT_PCB_SVG> svgJob( new JOB_EXPORT_PCB_SVG() );
 
     svgJob->m_mirror = m_argParser.get<bool>( ARG_MIRROR );
     svgJob->m_blackAndWhite = m_argParser.get<bool>( ARG_BLACKANDWHITE );
     svgJob->m_pageSizeMode = m_argParser.get<int>( ARG_PAGE_SIZE );
     svgJob->m_negative = m_argParser.get<bool>( ARG_NEGATIVE );
-    svgJob->m_drillShapeOption = m_argParser.get<int>( ARG_DRILL_SHAPE_OPTION );
+    svgJob->m_sketchPadsOnFabLayers = m_argParser.get<bool>( ARG_SKETCH_PADS_ON_FAB_LAYERS );
+    svgJob->m_hideDNPFPsOnFabLayers = m_argParser.get<bool>( ARG_HIDE_DNP_FPS_ON_FAB_LAYERS );
+    svgJob->m_sketchDNPFPsOnFabLayers = m_argParser.get<bool>( ARG_SKETCH_DNP_FPS_ON_FAB_LAYERS );
+    svgJob->m_crossoutDNPFPsOnFabLayers = m_argParser.get<bool>( ARG_CROSSOUT_DNP_FPS_ON_FAB_LAYERS );
+    int drillShape = m_argParser.get<int>( ARG_DRILL_SHAPE_OPTION );
+    svgJob->m_drillShapeOption = static_cast<JOB_EXPORT_PCB_SVG::DRILL_MARKS>( drillShape );
     svgJob->m_drawingSheet = m_argDrawingSheet;
+    svgJob->m_plotInvisibleText = m_argParser.get<bool>( ARG_PLOT_INVISIBLE_TEXT );
 
     svgJob->m_filename = m_argInput;
-    svgJob->m_outputFile = m_argOutput;
+    svgJob->SetConfiguredOutputPath( m_argOutput );
     svgJob->m_colorTheme = From_UTF8( m_argParser.get<std::string>( ARG_THEME ).c_str() );
     svgJob->m_plotDrawingSheet = !m_argParser.get<bool>( ARG_EXCLUDE_DRAWING_SHEET );
     svgJob->SetVarOverrides( m_argDefineVars );
+
+    wxString layers = From_UTF8( m_argParser.get<std::string>( ARG_COMMON_LAYERS ).c_str() );
+    bool     blah = false;
+    svgJob->m_printMaskLayersToIncludeOnAllLayers = convertLayerStringList( layers, blah );
 
     if( !wxFile::Exists( svgJob->m_filename ) )
     {
@@ -110,6 +160,21 @@ int CLI::PCB_EXPORT_SVG_COMMAND::doPerform( KIWAY& aKiway )
     }
 
     svgJob->m_printMaskLayer = m_selectedLayers;
+
+    if( m_argParser.get<bool>( ARG_MODE_MULTI ) )
+        svgJob->m_genMode = JOB_EXPORT_PCB_SVG::GEN_MODE::MULTI;
+    else
+        svgJob->m_genMode = JOB_EXPORT_PCB_SVG::GEN_MODE::SINGLE;
+
+    if( svgJob->m_genMode == JOB_EXPORT_PCB_SVG::GEN_MODE::SINGLE )
+    {
+        wxFprintf( stdout, wxT( "\033[33;1m%s\033[0m\n" ),
+                   _( "This command has deprecated behavior as of KiCad 9.0, the default behavior "
+                      "of this command will change in a future release." ) );
+
+        wxFprintf( stdout, wxT( "\033[33;1m%s\033[0m\n" ),
+                   _( "The new behavior will match --mode-multi" ) );
+    }
 
     int exitCode = aKiway.ProcessJob( KIWAY::FACE_PCB, svgJob.get() );
 

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 Rafael Sokolowski <Rafael.Sokolowski@web.de>
- * Copyright (C) 2014-2021 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -96,9 +96,6 @@ public:
     void SetLicense( const wxString& text ) { license = text; }
     wxString& GetLicense() { return license; }
 
-    void SetCopyright( const wxString& text ) { copyright = text; }
-    wxString GetCopyright() { return copyright; }
-
     void SetAppName( const wxString& name ) { appName = name; }
     wxString& GetAppName() { return appName; }
 
@@ -114,7 +111,7 @@ public:
     void SetAppIcon( const wxIcon& aIcon ) { m_appIcon = aIcon; }
     wxIcon& GetAppIcon() { return m_appIcon; }
 
-    ///< Wrapper to manage memory allocation for bitmaps
+    /// Wrapper to manage memory allocation for bitmaps.
     wxBitmap* CreateKiBitmap( BITMAPS aBitmap )
     {
         m_bitmaps.emplace_back( KiBitmapNew( aBitmap ) );
@@ -132,7 +129,6 @@ private:
     wxString     description;
     wxString     license;
 
-    wxString     copyright;
     wxString     appName;
     wxString     buildVersion;
     wxString     buildDate;
@@ -140,7 +136,7 @@ private:
 
     wxIcon       m_appIcon;
 
-    ///< Bitmaps to be freed when the dialog is closed
+    /// Bitmaps to be freed when the dialog is closed.
     std::vector<std::unique_ptr<wxBitmap>> m_bitmaps;
 };
 
@@ -160,48 +156,27 @@ private:
 class CONTRIBUTOR
 {
 public:
-    CONTRIBUTOR( const wxString& aName,
-                 const wxString& aExtra = wxEmptyString,
-                 const wxString& aUrl = wxEmptyString,
-                 const wxString& aCategory = wxEmptyString,
-                 wxBitmap*       aIcon = NULL )
+    CONTRIBUTOR( const wxString& aName, const wxString& aCategory,
+                 const wxString& aUrl = wxEmptyString )
     {
         m_checked = false;
         m_name = aName;
         m_url = aUrl,
-        m_extra = aExtra;
         m_category = aCategory;
-        m_icon = aIcon;
-    }
-
-    CONTRIBUTOR( const wxString& aName,
-                 const wxString& aCategory,
-                 wxBitmap*       aIcon )
-    {
-        m_checked = false;
-        m_name = aName;
-        m_url = wxEmptyString,
-        m_extra = wxEmptyString;
-        m_category = aCategory;
-        m_icon = aIcon;
     }
 
     virtual ~CONTRIBUTOR() {}
 
     wxString& GetName()     { return m_name; }
-    wxString& GetExtra()    { return m_extra; }
     wxString& GetUrl()      { return m_url; }
     wxString& GetCategory() { return m_category; }
-    wxBitmap* GetIcon()     { return m_icon; }
     void SetChecked( bool status ) { m_checked = status; }
     bool IsChecked() { return m_checked; }
 
 private:
     wxString  m_name;
-    wxString  m_extra;
     wxString  m_url;
     wxString  m_category;
-    wxBitmap* m_icon;
     bool      m_checked;
 };
 

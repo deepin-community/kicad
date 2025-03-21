@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016-2022 CERN
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -24,11 +24,13 @@
  */
 
 #include "spice_circuit_model.h"
-#include <string_utils.h>
+
 #include <wx/regex.h>
 #include <wx/tokenzr.h>
-#include <locale_io.h>
 
+#include <locale_io.h>
+#include <richio.h>
+#include <string_utils.h>
 
 SIM_TRACE_TYPE SPICE_CIRCUIT_MODEL::VectorToSignal( const std::string& aVector,
                                                     wxString& aSignal ) const

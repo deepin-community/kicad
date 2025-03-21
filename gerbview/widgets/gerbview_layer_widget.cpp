@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2004-2010 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2010 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2018-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,6 +31,7 @@
 #include <gerbview_frame.h>
 #include <gerber_file_image_list.h>
 #include <core/arraydim.h>
+#include <lset.h>
 #include <view/view.h>
 #include <gerbview_painter.h>
 #include <gal/graphics_abstraction_layer.h>
@@ -339,7 +340,6 @@ void GERBER_LAYER_WIDGET::OnLayerColorChange( int aLayer, const COLOR4D& aColor 
     // NOTE: Active layer in GerbView is stored as 0-indexed, but layer color is
     //       stored according to the GERBER_DRAW_LAYER() offset.
     m_frame->SetLayerColor( GERBER_DRAW_LAYER( aLayer ), aColor );
-    m_frame->m_SelLayerBox->ResyncBitmapOnly();
 
     KIGFX::VIEW* view = m_frame->GetCanvas()->GetView();
     COLOR_SETTINGS* color_settings = m_frame->GetColorSettings();

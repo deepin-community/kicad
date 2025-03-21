@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 CERN
- * Copyright (C) 2021-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Jon Evans <jon@craftyjon.com>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -31,6 +31,7 @@
 class BOARD_DESIGN_SETTINGS;
 class ERC_SETTINGS;
 class NET_SETTINGS;
+class LAYER_PAIR_SETTINGS;
 class SCHEMATIC_SETTINGS;
 class TEMPLATES;
 
@@ -56,6 +57,7 @@ enum LAST_PATH_TYPE : unsigned int
     LAST_PATH_SVG,
     LAST_PATH_PLOT,
     LAST_PATH_2581,
+    LAST_PATH_ODBPP,
 
     LAST_PATH_SIZE
 };
@@ -66,7 +68,7 @@ enum LAST_PATH_TYPE : unsigned int
  * There is either zero or one PROJECT_FILE for every PROJECT
  * (you can have a dummy PROJECT that has no file)
  */
-class PROJECT_FILE : public JSON_SETTINGS
+class KICOMMON_API PROJECT_FILE : public JSON_SETTINGS
 {
 public:
     /**
@@ -103,6 +105,11 @@ public:
         return m_NetSettings;
     }
 
+    /**
+     * @return true if it should be safe to auto-save this file without user action
+     */
+    bool ShouldAutoSave() const { return !m_wasMigrated && !m_isFutureFormat; }
+
 protected:
     wxString getFileExt() const override;
 
@@ -121,6 +128,9 @@ public:
 
     /// The list of pinned footprint libraries
     std::vector<wxString> m_PinnedFootprintLibs;
+
+    /// The list of pinned design block libraries
+    std::vector<wxString> m_PinnedDesignBlockLibs;
 
     std::map<wxString, wxString> m_TextVars;
 
@@ -176,10 +186,23 @@ public:
     std::vector<LAYER_PRESET>     m_LayerPresets;   /// List of stored layer presets
     std::vector<VIEWPORT>         m_Viewports;      /// List of stored viewports (pos + zoom)
     std::vector<VIEWPORT3D>       m_Viewports3D;    /// List of stored 3D viewports (view matrixes)
+    std::vector<LAYER_PAIR_INFO>  m_LayerPairInfos; /// Layer pair list for the board
 
     struct IP2581_BOM             m_IP2581Bom;      /// IPC-2581 BOM settings
 
 private:
+    /**
+     * Schema version 2: Bump for KiCad 9 layer numbering changes.
+     *
+     * Migrate layer presets to use new enum values for copper layers.
+     */
+    bool migrateSchema1To2();
+
+    /**
+     * Schema version 3: move layer presets to use named render layers.
+     */
+    bool migrateSchema2To3();
+
     /// An list of schematic sheets in this project
     std::vector<FILE_INFO_PAIR> m_sheets;
 
@@ -188,6 +211,8 @@ private:
 
     /// A link to the owning PROJECT
     PROJECT* m_project;
+
+    bool m_wasMigrated;
 };
 
 // Specializations to allow directly reading/writing FILE_INFO_PAIRs from JSON

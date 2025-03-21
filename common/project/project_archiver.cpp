@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -32,13 +32,153 @@
 #include <wildcards_and_files_ext.h>
 #include <wxstream_helper.h>
 #include <wx/log.h>
+#include <kiplatform/io.h>
+
+#include <regex>
+#include <set>
 
 
 #define ZipFileExtension wxT( "zip" )
 
+class PROJECT_ARCHIVER_DIR_ZIP_TRAVERSER : public wxDirTraverser
+{
+public:
+    PROJECT_ARCHIVER_DIR_ZIP_TRAVERSER( const std::string& aExtRegex, const wxString& aPrjDir, wxZipOutputStream& aZipFileOutput,
+                                        REPORTER& aReporter, bool aVerbose ) :
+        m_zipFile( aZipFileOutput ),
+        m_prjDir( aPrjDir ),
+        m_fileExtRegex( aExtRegex, std::regex_constants::ECMAScript | std::regex_constants::icase ),
+        m_reporter( aReporter ),
+        m_errorOccurred( false ),
+        m_verbose( aVerbose )
+    {}
+
+    virtual wxDirTraverseResult OnFile( const wxString& aFilename ) override
+    {
+        if( std::regex_search( aFilename.ToStdString(), m_fileExtRegex ) )
+        {
+            addFileToZip( aFilename );
+
+            // Special processing for IBIS files to include the corresponding pkg file
+            if( aFilename.EndsWith( FILEEXT::IbisFileExtension ) )
+            {
+                wxFileName package( aFilename );
+                package.MakeRelativeTo( m_prjDir );
+                package.SetExt( wxS( "pkg" ) );
+
+                if( package.Exists() )
+                    addFileToZip( package.GetFullPath() );
+            }
+        }
+
+        return wxDIR_CONTINUE;
+    }
+
+    virtual wxDirTraverseResult OnDir( const wxString& aDirname ) override
+    {
+        return wxDIR_CONTINUE;
+    }
+
+    unsigned long GetUncompressedBytes() const
+    {
+        return m_uncompressedBytes;
+    }
+
+    bool GetErrorOccurred() const
+    {
+        return m_errorOccurred;
+    }
+
+private:
+    void addFileToZip( const wxString& aFilename)
+    {
+        wxString msg;
+        wxFileSystem fsfile;
+
+        wxFileName curr_fn( aFilename );
+        curr_fn.MakeRelativeTo( m_prjDir );
+
+        wxString currFilename = curr_fn.GetFullPath();
+
+        // Read input file and add it to the zip file:
+        wxFSFile* infile = fsfile.OpenFile( currFilename );
+
+        if( infile )
+        {
+            m_zipFile.PutNextEntry( currFilename, infile->GetModificationTime() );
+            infile->GetStream()->Read( m_zipFile );
+            m_zipFile.CloseEntry();
+
+            m_uncompressedBytes += infile->GetStream()->GetSize();
+
+            if( m_verbose )
+            {
+                msg.Printf( _( "Archived file '%s'." ), currFilename );
+                m_reporter.Report( msg, RPT_SEVERITY_INFO );
+            }
+
+            delete infile;
+        }
+        else
+        {
+            if( m_verbose )
+            {
+                msg.Printf( _( "Failed to archive file '%s'." ), currFilename );
+                m_reporter.Report( msg, RPT_SEVERITY_ERROR );
+            }
+
+            m_errorOccurred = true;
+        }
+    }
+
+private:
+    wxZipOutputStream& m_zipFile;
+
+    wxString       m_prjDir;
+    std::regex     m_fileExtRegex;
+    REPORTER&      m_reporter;
+
+    bool           m_errorOccurred;     // True if an error archiving the file
+    bool           m_verbose;           // True to enable verbose logging
+
+    // Keep track of how many bytes would have been used without compression
+    unsigned long m_uncompressedBytes = 0;
+};
 
 PROJECT_ARCHIVER::PROJECT_ARCHIVER()
 {
+}
+
+bool PROJECT_ARCHIVER::AreZipArchivesIdentical( const wxString& aZipFileA,
+                                                const wxString& aZipFileB, REPORTER& aReporter )
+{
+    wxFFileInputStream streamA( aZipFileA );
+    wxFFileInputStream streamB( aZipFileB );
+
+    if( !streamA.IsOk() || !streamB.IsOk() )
+    {
+        aReporter.Report( _( "Could not open archive file." ), RPT_SEVERITY_ERROR );
+        return false;
+    }
+
+    wxZipInputStream zipStreamA = wxZipInputStream( streamA );
+    wxZipInputStream zipStreamB = wxZipInputStream( streamB );
+
+    std::set<wxUint32> crcsA;
+    std::set<wxUint32> crcsB;
+
+
+    for( wxZipEntry* entry = zipStreamA.GetNextEntry(); entry; entry = zipStreamA.GetNextEntry() )
+    {
+        crcsA.insert( entry->GetCrc() );
+    }
+
+    for( wxZipEntry* entry = zipStreamB.GetNextEntry(); entry; entry = zipStreamB.GetNextEntry() )
+    {
+        crcsB.insert( entry->GetCrc() );
+    }
+
+    return crcsA == crcsB;
 }
 
 
@@ -111,51 +251,75 @@ bool PROJECT_ARCHIVER::Unarchive( const wxString& aSrcFile, const wxString& aDes
 bool PROJECT_ARCHIVER::Archive( const wxString& aSrcDir, const wxString& aDestFile,
                                 REPORTER& aReporter, bool aVerbose, bool aIncludeExtraFiles )
 {
+
+#define EXT( ext )              "\\." + ext + "|"
+#define NAME( name )            name + "|"
+#define EXT_NO_PIPE( ext )      "\\." + ext
+#define NAME_NO_PIPE( name )    name
+
     // List of file extensions that are always archived
-    static const wxChar* extensionList[] = {
-            wxT( "*.kicad_pro" ),
-            wxT( "*.kicad_prl" ),
-            wxT( "*.kicad_sch" ),
-            wxT( "*.kicad_sym" ),
-            wxT( "*.kicad_pcb" ),
-            wxT( "*.kicad_mod" ),
-            wxT( "*.kicad_dru" ),
-            wxT( "*.kicad_wks" ),
-            wxT( "*.wbk" ),
-            wxT( "fp-lib-table" ),
-            wxT( "sym-lib-table" )
-        };
+    std::string fileExtensionRegex = "("
+            EXT( FILEEXT::ProjectFileExtension )
+            EXT( FILEEXT::ProjectLocalSettingsFileExtension )
+            EXT( FILEEXT::KiCadSchematicFileExtension )
+            EXT( FILEEXT::KiCadSymbolLibFileExtension )
+            EXT( FILEEXT::KiCadPcbFileExtension )
+            EXT( FILEEXT::KiCadFootprintFileExtension )
+            EXT( FILEEXT::DesignRulesFileExtension )
+            EXT( FILEEXT::DrawingSheetFileExtension )
+            EXT( FILEEXT::KiCadJobSetFileExtension )
+            EXT( FILEEXT::JsonFileExtension )                  // for design blocks
+            EXT( FILEEXT::WorkbookFileExtension ) +
+            NAME( FILEEXT::FootprintLibraryTableFileName ) +
+            NAME( FILEEXT::SymbolLibraryTableFileName ) +
+            NAME_NO_PIPE( FILEEXT::DesignBlockLibraryTableFileName );
 
     // List of additional file extensions that are only archived when aIncludeExtraFiles is true
-    static const wxChar* extraExtensionList[] = {
-            wxT( "*.pro" ),                         // Legacy project files
-            wxT( "*.sch" ),                         // Legacy schematic files
-            wxT( "*.lib" ), wxT( "*.dcm" ),         // Legacy schematic library files
-            wxT( "*.cmp" ),
-            wxT( "*.brd" ),                         // Legacy PCB files
-            wxT( "*.mod" ),                         // Legacy footprint library files
-            wxT( "*.stp" ), wxT( "*.step" ),        // 3d files
-            wxT( "*.wrl" ),
-            wxT( "*.g?" ), wxT( "*.g??" ),          // Gerber files
-            wxT( "*.gm??"),                         // Some gerbers like .gm12 (from protel export)
-            wxT( "*.gbrjob" ),                      // Gerber job files
-            wxT( "*.pos" ),                         // our position files
-            wxT( "*.drl" ), wxT( "*.nc" ), wxT( "*.xnc" ),  // Fab drill files
-            wxT( "*.d356" ),
-            wxT( "*.rpt" ),
-            wxT( "*.net" ),
-            wxT( "*.py" ),
-            wxT( "*.pdf" ),
-            wxT( "*.txt" ),
-            wxT( "*.cir" ), wxT( "*.sub" ), wxT( "*.model" ),    // SPICE files
-            wxT( "*.ibs" )
-        };
+    if( aIncludeExtraFiles )
+    {
+        fileExtensionRegex += "|"
+            EXT( FILEEXT::LegacyProjectFileExtension )
+            EXT( FILEEXT::LegacySchematicFileExtension )
+            EXT( FILEEXT::LegacySymbolLibFileExtension )
+            EXT( FILEEXT::LegacySymbolDocumentFileExtension )
+            EXT( FILEEXT::FootprintAssignmentFileExtension )
+            EXT( FILEEXT::LegacyPcbFileExtension )
+            EXT( FILEEXT::LegacyFootprintLibPathExtension )
+            EXT( FILEEXT::StepFileAbrvExtension )                   // 3d files
+            EXT( FILEEXT::StepFileExtension )                       // 3d files
+            EXT( FILEEXT::VrmlFileExtension )                       // 3d files
+            EXT( FILEEXT::GerberFileExtensionsRegex )               // Gerber files (g?, g??, .gm12 (from protel export))
+            EXT( FILEEXT::GerberJobFileExtension )                  // Gerber job files
+            EXT( FILEEXT::FootprintPlaceFileExtension )             // Our position files
+            EXT( FILEEXT::DrillFileExtension )                      // Fab drill files
+            EXT( "nc" )                                             // Fab drill files
+            EXT( "xnc" )                                            // Fab drill files
+            EXT( FILEEXT::IpcD356FileExtension )
+            EXT( FILEEXT::ReportFileExtension )
+            EXT( FILEEXT::NetlistFileExtension )
+            EXT( FILEEXT::PythonFileExtension )
+            EXT( FILEEXT::PdfFileExtension )
+            EXT( FILEEXT::TextFileExtension )
+            EXT( FILEEXT::SpiceFileExtension )                      // SPICE files
+            EXT( FILEEXT::SpiceSubcircuitFileExtension )            // SPICE files
+            EXT( FILEEXT::SpiceModelFileExtension )                 // SPICE files
+            EXT_NO_PIPE( FILEEXT::IbisFileExtension );
+    }
+
+    fileExtensionRegex += ")";
+
+#undef EXT
+#undef NAME
+#undef EXT_NO_PIPE
+#undef NAME_NO_PIPE
 
     bool     success = true;
     wxString msg;
     wxString oldCwd = wxGetCwd();
 
-    wxSetWorkingDirectory( aSrcDir );
+    wxFileName sourceDir( aSrcDir );
+
+    wxSetWorkingDirectory( sourceDir.GetFullPath() );
 
     wxFFileOutputStream ostream( aDestFile );
 
@@ -168,114 +332,74 @@ bool PROJECT_ARCHIVER::Archive( const wxString& aSrcDir, const wxString& aDestFi
 
     wxZipOutputStream zipstream( ostream, -1, wxConvUTF8 );
 
-    // Build list of filenames to put in zip archive
-    wxString currFilename;
-
+    wxDir         projectDir( aSrcDir );
+    wxString      currFilename;
     wxArrayString files;
 
-    for( unsigned ii = 0; ii < arrayDim( extensionList ); ii++ )
-        wxDir::GetAllFiles( aSrcDir, &files, extensionList[ii], wxDIR_FILES | wxDIR_DIRS );
-
-    if( aIncludeExtraFiles )
+    if( !projectDir.IsOpened() )
     {
-        for( unsigned ii = 0; ii < arrayDim( extraExtensionList ); ii++ )
-            wxDir::GetAllFiles( aSrcDir, &files, extraExtensionList[ii], wxDIR_FILES | wxDIR_DIRS );
-    }
-
-    for( unsigned ii = 0; ii < files.GetCount(); ++ii )
-    {
-        if( files[ii].EndsWith( wxS( ".ibs" ) ) )
+        if( aVerbose )
         {
-            wxFileName package( files[ ii ] );
-            package.MakeRelativeTo( aSrcDir );
-            package.SetExt( wxS( "pkg" ) );
-
-            if( package.Exists() )
-                files.push_back( package.GetFullName() );
+            msg.Printf( _( "Error opening directory: '%s'." ), aSrcDir );
+            aReporter.Report( msg, RPT_SEVERITY_ERROR );
         }
+
+        wxSetWorkingDirectory( oldCwd );
+        return false;
     }
 
-    files.Sort();
-
-    unsigned long uncompressedBytes = 0;
-
-    // Our filename collector can store duplicate filenames. for instance *.gm2
-    // matches both *.g?? and *.gm??.
-    // So skip duplicate filenames (they are sorted, so it is easy.
-    wxString lastStoredFile;
-
-    for( unsigned ii = 0; ii < files.GetCount(); ii++ )
+    try
     {
-        if( lastStoredFile == files[ii] )   // duplicate name: already stored
-            continue;
+        PROJECT_ARCHIVER_DIR_ZIP_TRAVERSER traverser( fileExtensionRegex, aSrcDir, zipstream,
+                                                        aReporter, aVerbose );
 
-        lastStoredFile = files[ii];
+        projectDir.Traverse( traverser );
 
-        wxFileSystem fsfile;
+        success = !traverser.GetErrorOccurred();
 
-        wxFileName curr_fn( files[ii] );
-        curr_fn.MakeRelativeTo( aSrcDir );
-        currFilename = curr_fn.GetFullPath();
+        auto reportSize =
+                []( unsigned long aSize ) -> wxString
+                {
+                    constexpr float KB = 1024.0;
+                    constexpr float MB = KB * 1024.0;
 
-        // Read input file and add it to the zip file:
-        wxFSFile* infile = fsfile.OpenFile( wxFileSystem::FileNameToURL( curr_fn ) );
+                    if( aSize >= MB )
+                        return wxString::Format( wxT( "%0.2f MB" ), aSize / MB );
+                    else if( aSize >= KB )
+                        return wxString::Format( wxT( "%0.2f KB" ), aSize / KB );
+                    else
+                        return wxString::Format( wxT( "%lu bytes" ), aSize );
+                };
 
-        if( infile )
+        size_t        zipBytesCnt       = ostream.GetSize();
+        unsigned long uncompressedBytes = traverser.GetUncompressedBytes();
+
+        if( zipstream.Close() )
         {
-            zipstream.PutNextEntry( currFilename, infile->GetModificationTime() );
-            infile->GetStream()->Read( zipstream );
-            zipstream.CloseEntry();
-
-            uncompressedBytes += infile->GetStream()->GetSize();
-
-            if( aVerbose )
-            {
-                msg.Printf( _( "Archived file '%s'." ), currFilename );
-                aReporter.Report( msg, RPT_SEVERITY_INFO );
-            }
-
-            delete infile;
+            msg.Printf( _( "Zip archive '%s' created (%s uncompressed, %s compressed)." ),
+                        aDestFile,
+                        reportSize( uncompressedBytes ),
+                        reportSize( zipBytesCnt ) );
+            aReporter.Report( msg, RPT_SEVERITY_INFO );
         }
         else
         {
-            if( aVerbose )
-            {
-                msg.Printf( _( "Failed to archive file '%s'." ), currFilename );
-                aReporter.Report( msg, RPT_SEVERITY_ERROR );
-            }
-
+            msg.Printf( wxT( "Failed to create file '%s'." ), aDestFile );
+            aReporter.Report( msg, RPT_SEVERITY_ERROR );
             success = false;
         }
     }
-
-    auto reportSize =
-            []( unsigned long aSize ) -> wxString
-            {
-                constexpr float KB = 1024.0;
-                constexpr float MB = KB * 1024.0;
-
-                if( aSize >= MB )
-                    return wxString::Format( wxT( "%0.2f MB" ), aSize / MB );
-                else if( aSize >= KB )
-                    return wxString::Format( wxT( "%0.2f KB" ), aSize / KB );
-                else
-                    return wxString::Format( wxT( "%lu bytes" ), aSize );
-            };
-
-    size_t zipBytesCnt = ostream.GetSize();
-
-    if( zipstream.Close() )
+    catch( const std::regex_error& e )
     {
-        msg.Printf( _( "Zip archive '%s' created (%s uncompressed, %s compressed)." ),
-                    aDestFile,
-                    reportSize( uncompressedBytes ),
-                    reportSize( zipBytesCnt ) );
-        aReporter.Report( msg, RPT_SEVERITY_INFO );
-    }
-    else
-    {
-        msg.Printf( wxT( "Failed to create file '%s'." ), aDestFile );
-        aReporter.Report( msg, RPT_SEVERITY_ERROR );
+        // Something bad happened here with the regex
+        wxASSERT_MSG( false, e.what() );
+
+        if( aVerbose )
+        {
+            msg.Printf( _( "Error: '%s'." ), e.what() );
+            aReporter.Report( msg, RPT_SEVERITY_ERROR );
+        }
+
         success = false;
     }
 

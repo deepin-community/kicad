@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,19 +21,22 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <pgm_base.h>
-#include <settings/settings_manager.h>
-#include <pcbnew_settings.h>
-#include <footprint_editor_settings.h>
+#include "tools/pcb_viewer_tools.h"
+
+#include <wx/clipbrd.h>
+
 #include <3d_viewer/eda_3d_viewer_frame.h>
+#include <footprint_editor_settings.h>
 #include <gal/graphics_abstraction_layer.h>
 #include <kiplatform/ui.h>
 #include <pcb_base_frame.h>
+#include <pcbnew_settings.h>
 #include <preview_items/ruler_item.h>
+#include <pgm_base.h>
+#include <settings/settings_manager.h>
 #include <tool/actions.h>
 #include <tools/pcb_grid_helper.h>
 #include <tools/pcb_actions.h>
-#include <tools/pcb_viewer_tools.h>
 
 
 bool PCB_VIEWER_TOOLS::Init()
@@ -45,7 +48,7 @@ bool PCB_VIEWER_TOOLS::Init()
                 return !frame()->ToolStackIsEmpty();
             };
 
-    CONDITIONAL_MENU& ctxMenu = m_menu.GetMenu();
+    CONDITIONAL_MENU& ctxMenu = m_menu->GetMenu();
 
     // "Cancel" goes at the top of the context menu when a tool is active
     ctxMenu.AddItem( ACTIONS::cancelInteractive, activeToolCondition, 1 );
@@ -54,7 +57,10 @@ bool PCB_VIEWER_TOOLS::Init()
     ctxMenu.AddCheckItem( PCB_ACTIONS::toggleHV45Mode, activeToolCondition, 2 );
     ctxMenu.AddSeparator(                              activeToolCondition, 2 );
 
-    frame()->AddStandardSubMenus( m_menu );
+    ctxMenu.AddItem( ACTIONS::copy,     activeToolCondition, 3 );
+    ctxMenu.AddSeparator(               activeToolCondition, 3 );
+
+    frame()->AddStandardSubMenus( *m_menu.get() );
 
     return true;
 }
@@ -168,7 +174,7 @@ int PCB_VIEWER_TOOLS::TextOutlines( const TOOL_EVENT& aEvent )
 
     for( FOOTPRINT* fp : board()->Footprints() )
     {
-        for( PCB_FIELD* field : fp->Fields() )
+        for( PCB_FIELD* field : fp->GetFields() )
         {
             view()->Update( field, KIGFX::REPAINT );
         }
@@ -317,9 +323,9 @@ int PCB_VIEWER_TOOLS::MeasureTool( const TOOL_EVENT& aEvent )
             bool              force45Deg;
 
             if( frame()->IsType( FRAME_PCB_EDITOR ) )
-                force45Deg = mgr.GetAppSettings<PCBNEW_SETTINGS>()->m_Use45DegreeLimit;
+                force45Deg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" )->m_Use45DegreeLimit;
             else
-                force45Deg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>()->m_Use45Limit;
+                force45Deg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" )->m_Use45Limit;
 
             twoPtMgr.SetAngleSnap( force45Deg );
             twoPtMgr.SetEnd( cursorPos );
@@ -356,9 +362,23 @@ int PCB_VIEWER_TOOLS::MeasureTool( const TOOL_EVENT& aEvent )
             canvas()->Refresh();
             evt->SetPassEvent();
         }
+        else if( evt->IsAction( &ACTIONS::copy ) )
+        {
+            if( originSet )
+            {
+                wxArrayString cursorStrings = ruler.GetDimensionStrings();
+                wxString      text = wxJoin( cursorStrings, '\n' );
+
+                if( wxTheClipboard->Open() )
+                {
+                    wxTheClipboard->SetData( new wxTextDataObject( text ) );
+                    wxTheClipboard->Close();
+                }
+            }
+        }
         else if( evt->IsClick( BUT_RIGHT ) )
         {
-            m_menu.ShowContextMenu();
+            m_menu->ShowContextMenu();
         }
         else
         {
@@ -379,6 +399,7 @@ int PCB_VIEWER_TOOLS::MeasureTool( const TOOL_EVENT& aEvent )
 
 void PCB_VIEWER_TOOLS::setTransitions()
 {
+    // clang-format off
     Go( &PCB_VIEWER_TOOLS::Show3DViewer,      ACTIONS::show3DViewer.MakeEvent() );
 
     // Display modes
@@ -388,4 +409,5 @@ void PCB_VIEWER_TOOLS::setTransitions()
     Go( &PCB_VIEWER_TOOLS::TextOutlines,      PCB_ACTIONS::textOutlines.MakeEvent() );
 
     Go( &PCB_VIEWER_TOOLS::MeasureTool,       ACTIONS::measureTool.MakeEvent() );
+    // clang-format on
 }

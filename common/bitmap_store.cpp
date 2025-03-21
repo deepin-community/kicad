@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -121,13 +121,16 @@ wxBitmap BITMAP_STORE::GetBitmap( BITMAPS aBitmapId, int aHeight )
 }
 
 
-wxBitmapBundle BITMAP_STORE::GetBitmapBundle( BITMAPS aBitmapId )
+wxBitmapBundle BITMAP_STORE::GetBitmapBundle( BITMAPS aBitmapId, int aMinHeight )
 {
     wxVector<wxBitmap> bmps;
 
     for( const BITMAP_INFO& info : m_bitmapInfoCache[aBitmapId] )
     {
         if( info.theme != m_theme )
+            continue;
+
+        if( aMinHeight > 0 && info.height < aMinHeight )
             continue;
 
         bmps.push_back( wxBitmap( getImage( info.id, info.height ) ) );
@@ -220,7 +223,7 @@ void BITMAP_STORE::ThemeChanged()
     }
     else
     {
-        m_theme = wxT( "light" );
+        m_theme = KIPLATFORM::UI::IsDarkTheme() ? wxT( "dark" ) : wxT( "light" );
     }
 
     if( !oldTheme.IsSameAs( m_theme ) )

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,7 +32,10 @@
 #include <board_item_container.h>
 #include <board_item.h>
 #include <collectors.h>
+#include <component_class_manager.h>
+#include <embedded_files.h>
 #include <layer_ids.h> // ALL_LAYERS definition.
+#include <lset.h>
 #include <lib_id.h>
 #include <list>
 
@@ -54,6 +57,10 @@ class REPORTER;
 
 namespace KIGFX {
 class VIEW;
+}
+
+namespace KIFONT {
+class OUTLINE_FONT;
 }
 
 enum INCLUDE_NPTH_T
@@ -112,7 +119,7 @@ public:
 };
 
 
-class FOOTPRINT : public BOARD_ITEM_CONTAINER
+class FOOTPRINT : public BOARD_ITEM_CONTAINER, public EMBEDDED_FILES
 {
 public:
     FOOTPRINT( BOARD* parent );
@@ -126,6 +133,9 @@ public:
 
     FOOTPRINT& operator=( const FOOTPRINT& aOther );
     FOOTPRINT& operator=( FOOTPRINT&& aOther );
+
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
@@ -178,25 +188,21 @@ public:
      */
     SHAPE_POLY_SET GetBoundingHull() const;
 
+    bool TextOnly() const;
+
     // Virtual function
     const BOX2I GetBoundingBox() const override;
-    const BOX2I GetBoundingBox( bool aIncludeText, bool aIncludeInvisibleText ) const;
+    const BOX2I GetBoundingBox( bool aIncludeText ) const;
 
     /**
      * Return the bounding box of the footprint on a given set of layers
     */
     const BOX2I GetLayerBoundingBox( LSET aLayers ) const;
 
-    VECTOR2I GetCenter() const override
-    {
-        return GetBoundingBox( false, false ).GetCenter();
-    }
+    VECTOR2I GetCenter() const override { return GetBoundingBox( false ).GetCenter(); }
 
-    PCB_FIELDS& Fields()                   { return m_fields; }
-    const PCB_FIELDS& Fields() const       { return m_fields; }
-
-    PADS& Pads()                           { return m_pads; }
-    const PADS& Pads() const               { return m_pads; }
+    std::deque<PAD*>& Pads()               { return m_pads; }
+    const std::deque<PAD*>& Pads() const   { return m_pads; }
 
     DRAWINGS& GraphicalItems()             { return m_drawings; }
     const DRAWINGS& GraphicalItems() const { return m_drawings; }
@@ -264,28 +270,20 @@ public:
     wxString GetFilters() const { return m_filters; }
     void SetFilters( const wxString& aFilters ) { m_filters = aFilters; }
 
-    int GetLocalSolderMaskMargin() const { return m_localSolderMaskMargin; }
-    void SetLocalSolderMaskMargin( int aMargin ) { m_localSolderMaskMargin = aMargin; }
+    std::optional<int> GetLocalClearance() const                 { return m_clearance; }
+    void SetLocalClearance( std::optional<int> aClearance )      { m_clearance = aClearance; }
 
-    int GetLocalClearance() const { return m_localClearance; }
-    void SetLocalClearance( int aClearance ) { m_localClearance = aClearance; }
+    std::optional<int> GetLocalSolderMaskMargin() const          { return m_solderMaskMargin; }
+    void SetLocalSolderMaskMargin( std::optional<int> aMargin )  { m_solderMaskMargin = aMargin; }
 
-    int GetLocalClearance( wxString* aSource ) const
-    {
-        if( aSource )
-            *aSource = wxString::Format( _( "footprint %s" ), GetReference() );
+    std::optional<int> GetLocalSolderPasteMargin() const         { return m_solderPasteMargin; }
+    void SetLocalSolderPasteMargin( std::optional<int> aMargin ) { m_solderPasteMargin = aMargin; }
 
-        return m_localClearance;
-    }
+    std::optional<double> GetLocalSolderPasteMarginRatio() const { return m_solderPasteMarginRatio; }
+    void SetLocalSolderPasteMarginRatio( std::optional<double> aRatio ) { m_solderPasteMarginRatio = aRatio; }
 
-    int GetLocalSolderPasteMargin() const { return m_localSolderPasteMargin; }
-    void SetLocalSolderPasteMargin( int aMargin ) { m_localSolderPasteMargin = aMargin; }
-
-    double GetLocalSolderPasteMarginRatio() const { return m_localSolderPasteMarginRatio; }
-    void SetLocalSolderPasteMarginRatio( double aRatio ) { m_localSolderPasteMarginRatio = aRatio; }
-
-    void SetZoneConnection( ZONE_CONNECTION aType ) { m_zoneConnection = aType; }
-    ZONE_CONNECTION GetZoneConnection() const { return m_zoneConnection; }
+    void SetLocalZoneConnection( ZONE_CONNECTION aType )         { m_zoneConnection = aType; }
+    ZONE_CONNECTION GetLocalZoneConnection() const               { return m_zoneConnection; }
 
     int GetAttributes() const { return m_attributes; }
     void SetAttributes( int aAttributes ) { m_attributes = aAttributes; }
@@ -303,6 +301,33 @@ public:
         }
 
         return false;
+    }
+
+    std::optional<int> GetLocalClearance( wxString* aSource ) const
+    {
+        if( m_clearance.has_value() && aSource )
+            *aSource = wxString::Format( _( "footprint %s" ), GetReference() );
+
+        return m_clearance;
+    }
+
+    /**
+     * Return any local clearance overrides set in the "classic" (ie: pre-rule) system.
+     *
+     * @param aSource [out] optionally reports the source as a user-readable string.
+     * @return the clearance in internal units.
+     */
+    std::optional<int> GetClearanceOverrides( wxString* aSource ) const
+    {
+        return GetLocalClearance( aSource );
+    }
+
+    ZONE_CONNECTION GetZoneConnectionOverrides( wxString* aSource ) const
+    {
+        if( m_zoneConnection != ZONE_CONNECTION::INHERITED && aSource )
+            *aSource = wxString::Format( _( "footprint %s" ), GetReference() );
+
+        return m_zoneConnection;
     }
 
     /**
@@ -343,7 +368,7 @@ public:
 
     void Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle ) override;
 
-    void Flip( const VECTOR2I& aCentre, bool aFlipLeftRight ) override;
+    void Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
 
     /**
      * Move the reference point of the footprint.
@@ -450,8 +475,7 @@ public:
      *
      * @param aErrorHandler callback to handle the error messages generated
      */
-    void CheckShortingPads( const std::function<void( const PAD*,
-                                                      const PAD*,
+    void CheckShortingPads( const std::function<void( const PAD*, const PAD*, int aErrorCode,
                                                       const VECTOR2I& )>& aErrorHandler );
 
     /**
@@ -631,12 +655,10 @@ public:
     /// read/write accessors:
     PCB_FIELD& Value()           { return *GetField( VALUE_FIELD ); }
     PCB_FIELD& Reference()       { return *GetField( REFERENCE_FIELD ); }
-    PCB_FIELD& Footprint()       { return *GetField( FOOTPRINT_FIELD ); }
 
     /// The const versions to keep the compiler happy.
     const PCB_FIELD& Value() const     { return *GetField( VALUE_FIELD ); }
     const PCB_FIELD& Reference() const { return *GetField( REFERENCE_FIELD ); }
-    const PCB_FIELD& Footprint() const { return *GetField( FOOTPRINT_FIELD ); }
 
     //-----<Fields>-----------------------------------------------------------
 
@@ -684,13 +706,19 @@ public:
      * @param aVector is the vector to populate.
      * @param aVisibleOnly is used to add only the fields that are visible and contain text.
      */
-    void GetFields( std::vector<PCB_FIELD*>& aVector, bool aVisibleOnly );
+    void GetFields( std::vector<PCB_FIELD*>& aVector, bool aVisibleOnly ) const;
 
     /**
      * Return a vector of fields from the symbol
+     *
+     * @param aVisibleOnly is used to add only the fields that are visible and contain text.
      */
-    PCB_FIELDS        GetFields() { return m_fields; }
-    const PCB_FIELDS& GetFields() const { return m_fields; }
+    std::vector<PCB_FIELD*> GetFields( bool aVisibleOnly = false ) const;
+
+    /**
+     * Clears all fields from the footprint
+     */
+    void ClearFields() { m_fields.clear(); }
 
     /**
      * Add a field to the symbol.
@@ -709,9 +737,9 @@ public:
     void RemoveField( const wxString& aFieldName );
 
     /**
-     * Return the number of fields in this symbol.
+     * Return the next ID for a field for this footprint
      */
-    int GetFieldCount() const { return (int) m_fields.size(); }
+    int GetNextFieldId() const { return m_fields.size(); }
 
     /**
      * @brief Apply default board settings to the footprint field text properties.
@@ -870,7 +898,7 @@ public:
         return wxT( "FOOTPRINT" );
     }
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -883,9 +911,9 @@ public:
     void RunOnDescendants( const std::function<void( BOARD_ITEM* )>& aFunction,
                            int aDepth = 0 ) const override;
 
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    virtual std::vector<int> ViewGetLayers() const override;
 
-    double ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const override;
+    double ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const override;
 
     virtual const BOX2I ViewBBox() const override;
 
@@ -974,9 +1002,61 @@ public:
     std::shared_ptr<SHAPE> GetEffectiveShape( PCB_LAYER_ID aLayer = UNDEFINED_LAYER,
                                               FLASHING aFlash = FLASHING::DEFAULT ) const override;
 
+    EMBEDDED_FILES* GetEmbeddedFiles() override
+    {
+        return static_cast<EMBEDDED_FILES*>( this );
+    }
+
+    const EMBEDDED_FILES* GetEmbeddedFiles() const
+    {
+        return static_cast<const EMBEDDED_FILES*>( this );
+    }
+
+    /**
+     * Get a list of outline fonts referenced in the footprint
+     */
+    std::set<KIFONT::OUTLINE_FONT*> GetFonts() const override;
+
+    void EmbedFonts() override;
+
     double Similarity( const BOARD_ITEM& aOther ) const override;
 
+    /// Sets the component class object pointer for this footprint
+    void SetComponentClass( const COMPONENT_CLASS* aClass ) { m_componentClass = aClass; }
+
+    /**
+     * @brief Sets the transient component class names
+     *
+     * This is used during paste operations as we can't resolve the component classes immediately
+     * until we have the true board context once the pasted items have been placed
+     */
+    void SetTransientComponentClassNames( const std::unordered_set<wxString>& classNames )
+    {
+        m_transientComponentClassNames = classNames;
+    }
+
+    /// Gets the transient component class names
+    const std::unordered_set<wxString>& GetTransientComponentClassNames()
+    {
+        return m_transientComponentClassNames;
+    }
+
+    /// Remove the transient component class names
+    void ClearTransientComponentClassNames() { m_transientComponentClassNames.clear(); };
+
+    /// Resolves a set of component class names to this footprint's actual component class
+    void ResolveComponentClassNames( BOARD*                              aBoard,
+                                     const std::unordered_set<wxString>& aComponentClassNames );
+
+    /// Returns the component class for this footprint
+    const COMPONENT_CLASS* GetComponentClass() const { return m_componentClass; }
+
+    /// Used for display in the properties panel
+    wxString GetComponentClassAsString() const;
+
+
     bool operator==( const BOARD_ITEM& aOther ) const override;
+    bool operator==( const FOOTPRINT& aOther ) const;
 
 #if defined(DEBUG)
     virtual void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -991,12 +1071,13 @@ public:
     {
         bool operator()( const PAD* aFirst, const PAD* aSecond ) const;
     };
-
+  // TODO(JE) padstacks -- this code isn't used anywhere though
+#if 0
     struct cmp_padstack
     {
         bool operator()( const PAD* aFirst, const PAD* aSecond ) const;
     };
-
+#endif
     struct cmp_zones
     {
         bool operator()( const ZONE* aFirst, const ZONE* aSecond ) const;
@@ -1005,10 +1086,12 @@ public:
 protected:
     virtual void swapData( BOARD_ITEM* aImage ) override;
 
+    void addMandatoryFields();
+
 private:
     PCB_FIELDS      m_fields;
     DRAWINGS        m_drawings;          // BOARD_ITEMs for drawings on the board, owned by pointer.
-    PADS            m_pads;              // PAD items, owned by pointer
+    std::deque<PAD*> m_pads;              // PAD items, owned by pointer
     ZONES           m_zones;             // PCB_ZONE items, owned by pointer
     GROUPS          m_groups;            // PCB_GROUP items, owned by pointer
 
@@ -1031,8 +1114,6 @@ private:
     // fragile.
     mutable BOX2I          m_cachedBoundingBox;
     mutable int            m_boundingBoxCacheTimeStamp;
-    mutable BOX2I          m_cachedVisibleBBox;
-    mutable int            m_visibleBBoxCacheTimeStamp;
     mutable BOX2I          m_cachedTextExcludedBBox;
     mutable int            m_textExcludedBBoxCacheTimeStamp;
     mutable SHAPE_POLY_SET m_cachedHull;
@@ -1045,11 +1126,13 @@ private:
     // A list of 1:N footprint item to allowed net numbers
     std::map<const BOARD_ITEM*, std::set<int>> m_netTieCache;
 
-    ZONE_CONNECTION m_zoneConnection;
-    int             m_localClearance;
-    int             m_localSolderMaskMargin;       // Solder mask margin
-    int             m_localSolderPasteMargin;      // Solder paste margin absolute value
-    double          m_localSolderPasteMarginRatio; // Solder mask margin ratio value of pad size
+    // Optional overrides
+    ZONE_CONNECTION       m_zoneConnection;
+    std::optional<int>    m_clearance;
+    std::optional<int>    m_solderMaskMargin;       // Solder mask margin
+    std::optional<int>    m_solderPasteMargin;      // Solder paste margin absolute value
+    std::optional<double> m_solderPasteMarginRatio; // Solder mask margin ratio of pad size
+                                                    // The final margin is the sum of these 2 values
 
     wxString        m_libDescription;    // File name and path for documentation file.
     wxString        m_keywords;          // Search keywords to find footprint in library.
@@ -1066,10 +1149,14 @@ private:
     wxArrayString*                m_initial_comments;  // s-expression comments in the footprint,
                                                        // lazily allocated only if needed for speed
 
-    SHAPE_POLY_SET  m_courtyard_cache_front;  // Note that a footprint can have both front and back
-    SHAPE_POLY_SET  m_courtyard_cache_back;   // courtyards populated.
-    mutable int     m_courtyard_cache_timestamp;
-    mutable std::mutex      m_courtyard_cache_mutex;
+    SHAPE_POLY_SET   m_courtyard_cache_front; // Note that a footprint can have both front and back
+    SHAPE_POLY_SET   m_courtyard_cache_back;  // courtyards populated.
+    mutable HASH_128   m_courtyard_cache_front_hash;
+    mutable HASH_128   m_courtyard_cache_back_hash;
+    mutable std::mutex m_courtyard_cache_mutex;
+
+    const COMPONENT_CLASS* m_componentClass;
+    std::unordered_set<wxString> m_transientComponentClassNames;
 };
 
 #endif     // FOOTPRINT_H

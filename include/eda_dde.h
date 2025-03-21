@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2007-2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,13 +36,13 @@
 
 // TCP/IP ports used by Pcbnew and Eeschema respectively.
 
-///< Pcbnew listens on this port for commands from Eeschema
+/// Pcbnew listens on this port for commands from Eeschema.
 #define KICAD_PCB_PORT_SERVICE_NUMBER   4242
 
-///< Eeschema listens on this port for commands from Pcbnew
+/// Eeschema listens on this port for commands from Pcbnew.
 #define KICAD_SCH_PORT_SERVICE_NUMBER   4243
 
-///< Scripting window listens for commands for other apps
+/// Scripting window listens for commands for other apps.
 #define KICAD_PY_PORT_SERVICE_NUMBER    4244
 
 
@@ -51,7 +51,7 @@
 
 bool SendCommand( int aPort, const std::string& aMessage );
 
-///< Must be called to clean up the socket thread used by SendCommand
+/// Must be called to clean up the socket thread used by SendCommand.
 void SocketCleanup();
 
 #endif    // EDA_DDE_H_

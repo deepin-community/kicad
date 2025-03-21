@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2012 Torsten Hueter, torstenhtr <at> gmx.de
  * Copyright (C) 2013-2015 CERN
- * Copyright (C) 2012-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
@@ -73,16 +73,9 @@ static std::unique_ptr<ZOOM_CONTROLLER> GetZoomControllerForPlatform( bool aAcce
 
 
 WX_VIEW_CONTROLS::WX_VIEW_CONTROLS( VIEW* aView, EDA_DRAW_PANEL_GAL* aParentPanel ) :
-        VIEW_CONTROLS( aView ),
-        m_state( IDLE ),
-        m_parentPanel( aParentPanel ),
-        m_scrollScale( 1.0, 1.0 ),
-#ifdef __WXGTK3__
-        m_lastTimestamp( 0 ),
-#endif
-        m_cursorPos( 0, 0 ),
-        m_updateCursor( true ),
-        m_infinitePanWorks( false )
+        VIEW_CONTROLS( aView ), m_state( IDLE ), m_parentPanel( aParentPanel ),
+        m_scrollScale( 1.0, 1.0 ), m_cursorPos( 0, 0 ), m_updateCursor( true ),
+        m_infinitePanWorks( false ), m_gestureLastZoomFactor( 1.0 )
 {
     LoadSettings();
 
@@ -132,10 +125,23 @@ WX_VIEW_CONTROLS::WX_VIEW_CONTROLS( VIEW* aView, EDA_DRAW_PANEL_GAL* aParentPane
                             wxMouseEventHandler( WX_VIEW_CONTROLS::onCaptureLost ), nullptr, this );
 #endif
 
+#ifndef __WXOSX__
+    if( m_parentPanel->EnableTouchEvents( wxTOUCH_ZOOM_GESTURE | wxTOUCH_PAN_GESTURES ) )
+    {
+        m_parentPanel->Connect( wxEVT_GESTURE_ZOOM,
+                                wxZoomGestureEventHandler( WX_VIEW_CONTROLS::onZoomGesture ),
+                                nullptr, this );
+
+        m_parentPanel->Connect( wxEVT_GESTURE_PAN,
+                                wxPanGestureEventHandler( WX_VIEW_CONTROLS::onPanGesture ), nullptr,
+                                this );
+    }
+#endif
+
     m_cursorWarped = false;
 
     m_panTimer.SetOwner( this );
-    this->Connect( wxEVT_TIMER, wxTimerEventHandler( WX_VIEW_CONTROLS::onTimer ), nullptr, this );
+    Connect( wxEVT_TIMER, wxTimerEventHandler( WX_VIEW_CONTROLS::onTimer ), nullptr, this );
 
     m_settings.m_lastKeyboardCursorPositionValid = false;
     m_settings.m_lastKeyboardCursorPosition = { 0.0, 0.0 };
@@ -170,6 +176,7 @@ void WX_VIEW_CONTROLS::LoadSettings()
     m_settings.m_dragLeft              = cfg->m_Input.drag_left;
     m_settings.m_dragMiddle            = cfg->m_Input.drag_middle;
     m_settings.m_dragRight             = cfg->m_Input.drag_right;
+    m_settings.m_scrollReverseZoom     = cfg->m_Input.reverse_scroll_zoom;
     m_settings.m_scrollReversePanH     = cfg->m_Input.reverse_scroll_pan_h;
 
     m_zoomController.reset();
@@ -285,10 +292,14 @@ void WX_VIEW_CONTROLS::onMotion( wxMouseEvent& aEvent )
                     }
                 }
                 else
+                {
                     justWarped = false;
+                }
             }
             else
+            {
                 justWarped = false;
+            }
         }
         else if( m_state == DRAG_ZOOMING )
         {
@@ -330,7 +341,9 @@ void WX_VIEW_CONTROLS::onMotion( wxMouseEvent& aEvent )
                     justWarped = false;
             }
             else
+            {
                 justWarped = false;
+            }
         }
     }
 
@@ -345,16 +358,6 @@ void WX_VIEW_CONTROLS::onMotion( wxMouseEvent& aEvent )
 
 void WX_VIEW_CONTROLS::onWheel( wxMouseEvent& aEvent )
 {
-#ifdef __WXGTK3__
-    if( aEvent.GetTimestamp() == m_lastTimestamp )
-    {
-        aEvent.Skip( false );
-        return;
-    }
-
-    m_lastTimestamp = aEvent.GetTimestamp();
-#endif
-
     const double wheelPanSpeed = 0.001;
     const int    axis = aEvent.GetWheelAxis();
 
@@ -362,18 +365,37 @@ void WX_VIEW_CONTROLS::onWheel( wxMouseEvent& aEvent )
         return;
 
     // Pick the modifier, if any.  Shift beats control beats alt, we don't support more than one.
-    int modifiers =
-            aEvent.ShiftDown() ? WXK_SHIFT :
-            ( aEvent.ControlDown() ? WXK_CONTROL : ( aEvent.AltDown() ? WXK_ALT : 0 ) );
+    int nMods = 0;
+    int modifiers = 0;
 
-    // Restrict zoom handling to the vertical axis, otherwise horizontal
-    // scrolling events (e.g. touchpads and some mice) end up interpreted
-    // as vertical scroll events and confuse the user.
-    if( modifiers == m_settings.m_scrollModifierZoom )
+    if( aEvent.ShiftDown() )
     {
-        if ( axis == wxMOUSE_WHEEL_VERTICAL )
+        nMods += 1;
+        modifiers = WXK_SHIFT;
+    }
+
+    if( aEvent.ControlDown() )
+    {
+        nMods += 1;
+        modifiers = modifiers == 0 ? WXK_CONTROL : modifiers;
+    }
+
+    if( aEvent.AltDown() )
+    {
+        nMods += 1;
+        modifiers = modifiers == 0 ? WXK_ALT : modifiers;
+    }
+
+    // Zero or one modifier is view control
+    if( nMods <= 1 )
+    {
+        // Restrict zoom handling to the vertical axis, otherwise horizontal
+        // scrolling events (e.g. touchpads and some mice) end up interpreted
+        // as vertical scroll events and confuse the user.
+        if( modifiers == m_settings.m_scrollModifierZoom && axis == wxMOUSE_WHEEL_VERTICAL )
         {
-            const int    rotation  = aEvent.GetWheelRotation();
+            const int rotation =
+                    aEvent.GetWheelRotation() * ( m_settings.m_scrollReverseZoom ? -1 : 1 );
             const double zoomScale = m_zoomController->GetScaleForRotation( rotation );
 
             if( IsCursorWarpingEnabled() )
@@ -391,40 +413,45 @@ void WX_VIEW_CONTROLS::onWheel( wxMouseEvent& aEvent )
             // (mouse position has not changed, only the zoom level has changed):
             refreshMouse( true );
         }
+        else
+        {
+            // Scrolling
+            VECTOR2D scrollVec = m_view->ToWorld( m_view->GetScreenPixelSize(), false )
+                                 * ( (double) aEvent.GetWheelRotation() * wheelPanSpeed );
+            double scrollX = 0.0;
+            double scrollY = 0.0;
+            bool   hReverse = false;
+
+            if( axis != wxMOUSE_WHEEL_HORIZONTAL )
+                hReverse = m_settings.m_scrollReversePanH;
+
+            if( axis == wxMOUSE_WHEEL_HORIZONTAL || modifiers == m_settings.m_scrollModifierPanH )
+            {
+                if( hReverse )
+                    scrollX = scrollVec.x;
+                else
+                    scrollX = ( axis == wxMOUSE_WHEEL_HORIZONTAL ) ? scrollVec.x : -scrollVec.x;
+            }
+            else
+            {
+                scrollY = -scrollVec.y;
+            }
+
+            VECTOR2D delta( scrollX, scrollY );
+
+            m_view->SetCenter( m_view->GetCenter() + delta );
+            refreshMouse( true );
+        }
+
+        // Do not skip this event, otherwise wxWidgets will fire
+        // 3 wxEVT_SCROLLWIN_LINEUP or wxEVT_SCROLLWIN_LINEDOWN (normal wxWidgets behavior)
+        // and we do not want that.
     }
     else
     {
-        // Scrolling
-        VECTOR2D scrollVec = m_view->ToWorld( m_view->GetScreenPixelSize(), false ) *
-                             ( (double) aEvent.GetWheelRotation() * wheelPanSpeed );
-        double scrollX  = 0.0;
-        double scrollY  = 0.0;
-        bool   hReverse = false;
-
-        if( axis != wxMOUSE_WHEEL_HORIZONTAL )
-            hReverse = m_settings.m_scrollReversePanH;
-
-        if( axis == wxMOUSE_WHEEL_HORIZONTAL || modifiers == m_settings.m_scrollModifierPanH )
-        {
-            if( hReverse )
-                scrollX = scrollVec.x;
-            else
-                scrollX = ( axis == wxMOUSE_WHEEL_HORIZONTAL ) ? scrollVec.x : -scrollVec.x;
-        }
-        else
-        {
-            scrollY = -scrollVec.y;
-        }
-
-        VECTOR2D delta( scrollX, scrollY );
-
-        m_view->SetCenter( m_view->GetCenter() + delta );
-        refreshMouse( true );
+        // When we have multiple mods, forward it for tool handling
+        aEvent.Skip();
     }
-
-    // Do not skip this event, otherwise wxWidgets will fire
-    // 3 wxEVT_SCROLLWIN_LINEUP or wxEVT_SCROLLWIN_LINEDOWN (normal wxWidgets behavior)
-    // and we do not want that.
 }
 
 
@@ -442,6 +469,7 @@ void WX_VIEW_CONTROLS::setState( STATE aNewState )
 {
     m_state = aNewState;
 }
+
 
 void WX_VIEW_CONTROLS::onButton( wxMouseEvent& aEvent )
 {
@@ -510,9 +538,9 @@ void WX_VIEW_CONTROLS::onEnter( wxMouseEvent& aEvent )
     }
 
 #if defined( _WIN32 ) || defined( __WXGTK__ )
-    // Win32 and some *nix WMs transmit mouse move and wheel events to all controls below the mouse regardless
-    // of focus.  Forcing the focus here will cause the EDA FRAMES to immediately become the
-    // top level active window.
+    // Win32 and some *nix WMs transmit mouse move and wheel events to all controls below the
+    // mouse regardless of focus.  Forcing the focus here will cause the EDA FRAMES to immediately
+    // become the top level active window.
     if( m_parentPanel->GetParent() != nullptr )
     {
         // this assumes the parent panel's parent is the eda window
@@ -533,6 +561,7 @@ void WX_VIEW_CONTROLS::onLeave( wxMouseEvent& aEvent )
     onMotion( aEvent );
 #endif
 }
+
 
 void WX_VIEW_CONTROLS::onCaptureLost( wxMouseEvent& aEvent )
 {
@@ -557,7 +586,7 @@ void WX_VIEW_CONTROLS::onTimer( wxTimerEvent& aEvent )
             return;
         }
 
-        #ifdef __WXMSW__
+#ifdef __WXMSW__
         // Hackfix: It's possible for the mouse to leave the canvas
         // without triggering any leave events on windows
         // Use a MSW only wx function
@@ -567,7 +596,7 @@ void WX_VIEW_CONTROLS::onTimer( wxTimerEvent& aEvent )
             setState( IDLE );
             return;
         }
-        #endif
+#endif
 
         if( !m_parentPanel->HasFocus() && !m_parentPanel->StatusPopupHasFocus() )
         {
@@ -609,6 +638,40 @@ void WX_VIEW_CONTROLS::onTimer( wxTimerEvent& aEvent )
     case DRAG_ZOOMING:
         break;
     }
+}
+
+
+void WX_VIEW_CONTROLS::onZoomGesture( wxZoomGestureEvent& aEvent )
+{
+    if( aEvent.IsGestureStart() )
+    {
+        m_gestureLastZoomFactor = 1.0;
+        m_gestureLastPos = VECTOR2D( aEvent.GetPosition().x, aEvent.GetPosition().y );
+    }
+
+    VECTOR2D evtPos( aEvent.GetPosition().x, aEvent.GetPosition().y );
+    VECTOR2D deltaWorld = m_view->ToWorld( evtPos - m_gestureLastPos, false );
+
+    m_view->SetCenter( m_view->GetCenter() - deltaWorld );
+
+    m_view->SetScale( m_view->GetScale() * aEvent.GetZoomFactor() / m_gestureLastZoomFactor,
+                      m_view->ToWorld( evtPos ) );
+
+    m_gestureLastZoomFactor = aEvent.GetZoomFactor();
+    m_gestureLastPos = evtPos;
+
+    refreshMouse( true );
+}
+
+
+void WX_VIEW_CONTROLS::onPanGesture( wxPanGestureEvent& aEvent )
+{
+    VECTOR2I screenDelta( aEvent.GetDelta().x, aEvent.GetDelta().y );
+    VECTOR2D deltaWorld = m_view->ToWorld( screenDelta, false );
+
+    m_view->SetCenter( m_view->GetCenter() - deltaWorld );
+
+    refreshMouse( true );
 }
 
 
@@ -724,6 +787,7 @@ void WX_VIEW_CONTROLS::CancelDrag()
     if( m_state == DRAG_PANNING || m_state == DRAG_ZOOMING )
     {
         setState( IDLE );
+
 #if defined USE_MOUSE_CAPTURE
         if( !m_settings.m_cursorCaptured && m_parentPanel->HasCapture() )
             m_parentPanel->ReleaseMouse();
@@ -842,8 +906,8 @@ void WX_VIEW_CONTROLS::WarpMouseCursor( const VECTOR2D& aPosition, bool aWorldCo
         KIPLATFORM::UI::WarpPointer( m_parentPanel, aPosition.x, aPosition.y );
     }
 
-    // If we are not refreshing because of mouse movement, don't set the modifiers
-    // because we are refreshing for keyboard movement, which uses the same modifiers for other actions
+    // If we are not refreshing because of mouse movement, don't set the modifiers because we
+    // are refreshing for keyboard movement, which uses the same modifiers for other actions
     refreshMouse( m_updateCursor );
 }
 
@@ -851,7 +915,7 @@ void WX_VIEW_CONTROLS::WarpMouseCursor( const VECTOR2D& aPosition, bool aWorldCo
 void WX_VIEW_CONTROLS::CenterOnCursor()
 {
     const VECTOR2I& screenSize = m_view->GetGAL()->GetScreenPixelSize();
-    VECTOR2I screenCenter( screenSize / 2 );
+    VECTOR2D screenCenter( screenSize / 2 );
 
     if( GetMousePosition( false ) != screenCenter )
     {
@@ -1076,6 +1140,7 @@ void WX_VIEW_CONTROLS::UpdateScrollbars()
 #endif
     }
 }
+
 
 void WX_VIEW_CONTROLS::ForceCursorPosition( bool aEnabled, const VECTOR2D& aPosition )
 {

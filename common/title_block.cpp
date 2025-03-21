@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  *
  * This program is free software; you can redistribute it and/or
@@ -27,7 +27,8 @@
 #include <title_block.h>
 #include <core/kicad_algo.h>
 
-void TITLE_BLOCK::Format( OUTPUTFORMATTER* aFormatter, int aNestLevel, int aControlBits ) const
+
+void TITLE_BLOCK::Format( OUTPUTFORMATTER* aFormatter ) const
 {
     // Don't write the title block information if there is nothing to write.
     bool isempty = true;
@@ -42,34 +43,34 @@ void TITLE_BLOCK::Format( OUTPUTFORMATTER* aFormatter, int aNestLevel, int aCont
 
     if( !isempty  )
     {
-        aFormatter->Print( aNestLevel, "(title_block\n" );
+        aFormatter->Print( "(title_block" );
 
         if( !GetTitle().IsEmpty() )
-            aFormatter->Print( aNestLevel+1, "(title %s)\n",
-                               aFormatter->Quotew( GetTitle() ).c_str() );
+            aFormatter->Print( "(title %s)", aFormatter->Quotew( GetTitle() ).c_str() );
 
         if( !GetDate().IsEmpty() )
-            aFormatter->Print( aNestLevel+1, "(date %s)\n",
-                               aFormatter->Quotew( GetDate() ).c_str() );
+            aFormatter->Print( "(date %s)", aFormatter->Quotew( GetDate() ).c_str() );
 
         if( !GetRevision().IsEmpty() )
-            aFormatter->Print( aNestLevel+1, "(rev %s)\n",
-                               aFormatter->Quotew( GetRevision() ).c_str() );
+            aFormatter->Print( "(rev %s)", aFormatter->Quotew( GetRevision() ).c_str() );
 
         if( !GetCompany().IsEmpty() )
-            aFormatter->Print( aNestLevel+1, "(company %s)\n",
-                               aFormatter->Quotew( GetCompany() ).c_str() );
+            aFormatter->Print( "(company %s)", aFormatter->Quotew( GetCompany() ).c_str() );
 
         for( int ii = 0; ii < 9; ii++ )
         {
             if( !GetComment(ii).IsEmpty() )
-                aFormatter->Print( aNestLevel+1, "(comment %d %s)\n", ii+1,
-                                  aFormatter->Quotew( GetComment(ii) ).c_str() );
+            {
+                aFormatter->Print( "(comment %d %s)",
+                                   ii+1,
+                                   aFormatter->Quotew( GetComment(ii) ).c_str() );
+            }
         }
 
-        aFormatter->Print( aNestLevel, ")\n\n" );
+        aFormatter->Print( ")" );
     }
 }
+
 
 void TITLE_BLOCK::GetContextualTextVars( wxArrayString* aVars )
 {
@@ -93,22 +94,22 @@ void TITLE_BLOCK::GetContextualTextVars( wxArrayString* aVars )
 }
 
 
-bool TITLE_BLOCK::TextVarResolver( wxString* aToken, const PROJECT* aProject ) const
+wxString TITLE_BLOCK::GetCurrentDate()
+{
+    // We can choose different formats. Should probably be kept in sync with ISSUE_DATE
+    // formatting in DIALOG_PAGES_SETTINGS.
+    //
+    //  return wxDateTime::Now().Format( wxLocale::GetInfo( wxLOCALE_SHORT_DATE_FMT ) );
+    //  return wxDateTime::Now().Format( wxLocale::GetInfo( wxLOCALE_LONG_DATE_FMT ) );
+    //  return wxDateTime::Now().Format( wxT("%Y-%b-%d") );
+    return wxDateTime::Now().FormatISODate();
+};
+
+
+bool TITLE_BLOCK::TextVarResolver( wxString* aToken, const PROJECT* aProject, int aFlags ) const
 {
     bool tokenUpdated = false;
     wxString originalToken = *aToken;
-
-    auto getCurrentDate =
-            []() -> wxString
-            {
-                // We can choose different formats. Should probably be kept in sync with ISSUE_DATE
-                // formatting in DIALOG_PAGES_SETTINGS.
-                //
-                //  return wxDateTime::Now().Format( wxLocale::GetInfo( wxLOCALE_SHORT_DATE_FMT ) );
-                //  return wxDateTime::Now().Format( wxLocale::GetInfo( wxLOCALE_LONG_DATE_FMT ) );
-                //  return wxDateTime::Now().Format( wxT("%Y-%b-%d") );
-                return wxDateTime::Now().FormatISODate();
-            };
 
     if( aToken->IsSameAs( wxT( "ISSUE_DATE" ) ) )
     {
@@ -117,7 +118,7 @@ bool TITLE_BLOCK::TextVarResolver( wxString* aToken, const PROJECT* aProject ) c
     }
     else if( aToken->IsSameAs( wxT( "CURRENT_DATE" ) ) )
     {
-        *aToken = getCurrentDate();
+        *aToken = GetCurrentDate();
         tokenUpdated = true;
     }
     else if( aToken->IsSameAs( wxT( "REVISION" ) ) )
@@ -158,9 +159,9 @@ bool TITLE_BLOCK::TextVarResolver( wxString* aToken, const PROJECT* aProject ) c
     if( tokenUpdated )
     {
         if( aToken->IsSameAs( wxT( "CURRENT_DATE" ) ) )
-            *aToken = getCurrentDate();
+            *aToken = GetCurrentDate();
         else if( aProject )
-            *aToken = ExpandTextVars( *aToken, aProject );
+            *aToken = ExpandTextVars( *aToken, aProject, aFlags );
 
         // This is the default fallback, so don't claim we resolved it
         if( *aToken == wxT( "${" ) + originalToken + wxT( "}" ) )

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 Alexander Shuklin, jasuramme@gmail.com
- * Copyright (C) 2019-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -300,7 +300,7 @@ void DIALOG_BOARD_STATISTICS::getDataFromPCB()
             }
 
             DRILL_LINE_ITEM drill( via->GetDrillValue(), via->GetDrillValue(),
-                                   PAD_DRILL_SHAPE_CIRCLE, true, false, via->TopLayer(),
+                                   PAD_DRILL_SHAPE::CIRCLE, true, false, via->TopLayer(),
                                    via->BottomLayer() );
 
             auto it = m_drillTypes.begin();
@@ -488,8 +488,8 @@ void DIALOG_BOARD_STATISTICS::updateDrillGrid()
 
         switch( line.shape )
         {
-        case PAD_DRILL_SHAPE_CIRCLE: shapeStr = _( "Round" ); break;
-        case PAD_DRILL_SHAPE_OBLONG: shapeStr = _( "Slot" );  break;
+        case PAD_DRILL_SHAPE::CIRCLE: shapeStr = _( "Round" ); break;
+        case PAD_DRILL_SHAPE::OBLONG: shapeStr = _( "Slot" );  break;
         default:                     shapeStr = _( "???" );   break;
         }
 

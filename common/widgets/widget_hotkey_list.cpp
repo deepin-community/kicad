@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016 Chris Pavlina <pavlina.chris@gmail.com>
- * Copyright (C) 2016-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,6 +34,8 @@
 #include <wx/dcclient.h>
 #include <wx/menu.h>
 #include <wx/msgdlg.h>
+#include <wx/panel.h>
+#include <wx/sizer.h>
 #include <wx/statline.h>
 #include <wx/stattext.h>
 #include <wx/treelist.h>
@@ -103,13 +105,15 @@ public:
 
         mainSizer->Add( new wxStaticLine( this ), 0, wxALL | wxEXPAND, 2 );
 
-        wxPanel* panelDisplayCurrent = new wxPanel( this, wxID_ANY, wxDefaultPosition, wxDefaultSize );
+        wxPanel* panelDisplayCurrent = new wxPanel( this, wxID_ANY, wxDefaultPosition,
+                                                    wxDefaultSize );
         mainSizer->Add( panelDisplayCurrent, 0, wxALL | wxEXPAND, 5 );
 
         wxFlexGridSizer* fgsizer = new wxFlexGridSizer( 2 );
         panelDisplayCurrent->SetSizer( fgsizer );
 
-        wxStaticText* cmd_label_0 = new wxStaticText( panelDisplayCurrent, wxID_ANY, _( "Command:" ) );
+        wxStaticText* cmd_label_0 = new wxStaticText( panelDisplayCurrent, wxID_ANY,
+                                                      _( "Command:" ) );
         fgsizer->Add( cmd_label_0, 0, wxALL | wxALIGN_CENTRE_VERTICAL, 5 );
 
         wxStaticText* cmd_label_1 = new wxStaticText( panelDisplayCurrent, wxID_ANY, wxEmptyString );
@@ -117,7 +121,8 @@ public:
         cmd_label_1->SetLabel( aName );
         fgsizer->Add( cmd_label_1, 0, wxALL | wxALIGN_CENTRE_VERTICAL, 5 );
 
-        wxStaticText* key_label_0 = new wxStaticText( panelDisplayCurrent, wxID_ANY, _( "Current key:" ) );
+        wxStaticText* key_label_0 = new wxStaticText( panelDisplayCurrent, wxID_ANY,
+                                                      _( "Current key:" ) );
         fgsizer->Add( key_label_0, 0, wxALL | wxALIGN_CENTRE_VERTICAL, 5 );
 
         wxStaticText* key_label_1 = new wxStaticText( panelDisplayCurrent, wxID_ANY, wxEmptyString );
@@ -127,7 +132,8 @@ public:
 
         fgsizer->AddStretchSpacer();
 
-        wxButton* resetButton = new wxButton( this, wxID_ANY, _( "Clear assigned hotkey" ), wxDefaultPosition, wxDefaultSize, 0 );
+        wxButton* resetButton = new wxButton( this, wxID_ANY, _( "Clear assigned hotkey" ),
+                                              wxDefaultPosition, wxDefaultSize, 0 );
 
         mainSizer->Add( resetButton, 0, wxALL | wxALIGN_CENTRE_HORIZONTAL, 5 );
 
@@ -156,7 +162,9 @@ public:
         if( dialog.ShowModal() == wxID_OK )
         {
             if( dialog.m_resetkey )
+            {
                 return std::make_optional( 0 );
+            }
             else
             {
                 long key = WIDGET_HOTKEY_LIST::MapKeypressToKeycode( dialog.m_event );
@@ -267,7 +275,7 @@ public:
             return true;
 
         // Match in the (translated) filter string
-        const auto normedInfo = wxGetTranslation( aHotkey.m_Actions[ 0 ]->GetFriendlyName() ).Upper();
+        const auto normedInfo = wxGetTranslation( aHotkey.m_Actions[0]->GetFriendlyName() ).Upper();
 
         if( normedInfo.Contains( m_normalised_filter_str ) )
             return true;
@@ -363,8 +371,8 @@ void WIDGET_HOTKEY_LIST::editItem( wxTreeListItem aItem, int aEditId )
         return;
 
     wxString    name = GetItemText( aItem, 0 );
-    wxString    current_key =
-            aEditId == ID_EDIT_HOTKEY ? GetItemText( aItem, 1 ) : GetItemText( aItem, 2 );
+    wxString    current_key = aEditId == ID_EDIT_HOTKEY ? GetItemText( aItem, 1 )
+                                                        : GetItemText( aItem, 2 );
 
     std::optional<long> key = HK_PROMPT_DIALOG::PromptForKey( this, name, current_key );
 
@@ -404,9 +412,13 @@ void WIDGET_HOTKEY_LIST::resetItem( wxTreeListItem aItem, int aResetId )
         changeHotkey( changed_hk, changed_hk.m_Actions[0]->GetHotKey(), true );
     }
     else if( aResetId == ID_CLEAR )
+    {
         changeHotkey( changed_hk, 0, false );
+    }
     else if( aResetId == ID_CLEAR_ALT )
+    {
         changeHotkey( changed_hk, 0, true );
+    }
     else if( aResetId == ID_DEFAULT )
     {
         changeHotkey( changed_hk, changed_hk.m_Actions[0]->GetDefaultHotKey(), false );

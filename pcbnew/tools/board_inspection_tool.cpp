@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,7 +32,6 @@
 #include <drc/drc_engine.h>
 #include <dialogs/dialog_board_statistics.h>
 #include <dialogs/dialog_book_reporter.h>
-#include <dialogs/dialog_net_inspector.h>
 #include <dialogs/panel_setup_rules_base.h>
 #include <dialogs/dialog_footprint_associations.h>
 #include <string_utils.h>
@@ -46,6 +45,7 @@
 #include <drc/drc_item.h>
 #include <pad.h>
 #include <project_pcb.h>
+#include <view/view_controls.h>
 
 
 BOARD_INSPECTION_TOOL::BOARD_INSPECTION_TOOL() :
@@ -191,14 +191,15 @@ wxString BOARD_INSPECTION_TOOL::getItemDescription( BOARD_ITEM* aItem )
     if( !aItem )
         return wxString();
 
-    wxString msg = aItem->GetItemDescription( m_frame );
+    wxString msg = aItem->GetItemDescription( m_frame, true );
 
     if( aItem->IsConnected() && !isNPTHPad( aItem ) )
     {
         BOARD_CONNECTED_ITEM* cItem = static_cast<BOARD_CONNECTED_ITEM*>( aItem );
 
-        msg += wxS( " " ) + wxString::Format( _( "[netclass %s]" ),
-                                              cItem->GetEffectiveNetClass()->GetName() );
+        msg += wxS( " " )
+               + wxString::Format( _( "[netclass %s]" ),
+                                   cItem->GetEffectiveNetClass()->GetHumanReadableName() );
     }
 
     return msg;
@@ -269,21 +270,92 @@ wxString reportMax( PCB_BASE_FRAME* aFrame, DRC_CONSTRAINT& aConstraint )
 }
 
 
+wxString BOARD_INSPECTION_TOOL::InspectDRCErrorMenuText( const std::shared_ptr<RC_ITEM>& aDRCItem )
+{
+    auto menuDescription =
+            [&]( const TOOL_ACTION& aAction )
+            {
+                wxString   menuItemLabel = aAction.GetMenuLabel();
+                wxMenuBar* menuBar = m_frame->GetMenuBar();
+
+                for( size_t ii = 0; ii < menuBar->GetMenuCount(); ++ii )
+                {
+                    for( wxMenuItem* menuItem : menuBar->GetMenu( ii )->GetMenuItems() )
+                    {
+                        if( menuItem->GetItemLabelText() == menuItemLabel )
+                        {
+                            wxString menuTitleLabel = menuBar->GetMenuLabelText( ii );
+
+                            menuTitleLabel.Replace( wxS( "&" ), wxS( "&&" ) );
+                            menuItemLabel.Replace( wxS( "&" ), wxS( "&&" ) );
+
+                            return wxString::Format( _( "Run %s > %s" ),
+                                                     menuTitleLabel,
+                                                     menuItemLabel );
+                        }
+                    }
+                }
+
+                return wxString::Format( _( "Run %s" ), aAction.GetFriendlyName() );
+            };
+
+    if( aDRCItem->GetErrorCode() == DRCE_CLEARANCE
+            || aDRCItem->GetErrorCode() == DRCE_EDGE_CLEARANCE
+            || aDRCItem->GetErrorCode() == DRCE_HOLE_CLEARANCE
+            || aDRCItem->GetErrorCode() == DRCE_DRILLED_HOLES_TOO_CLOSE )
+    {
+        return menuDescription( PCB_ACTIONS::inspectClearance );
+    }
+    else if( aDRCItem->GetErrorCode() == DRCE_TEXT_HEIGHT
+            || aDRCItem->GetErrorCode() == DRCE_TEXT_THICKNESS
+            || aDRCItem->GetErrorCode() == DRCE_DIFF_PAIR_UNCOUPLED_LENGTH_TOO_LONG
+            || aDRCItem->GetErrorCode() == DRCE_TRACK_WIDTH
+            || aDRCItem->GetErrorCode() == DRCE_TRACK_ANGLE
+            || aDRCItem->GetErrorCode() == DRCE_TRACK_SEGMENT_LENGTH
+            || aDRCItem->GetErrorCode() == DRCE_VIA_DIAMETER
+            || aDRCItem->GetErrorCode() == DRCE_ANNULAR_WIDTH
+            || aDRCItem->GetErrorCode() == DRCE_DRILL_OUT_OF_RANGE
+            || aDRCItem->GetErrorCode() == DRCE_MICROVIA_DRILL_OUT_OF_RANGE
+            || aDRCItem->GetErrorCode() == DRCE_CONNECTION_WIDTH
+            || aDRCItem->GetErrorCode() == DRCE_ASSERTION_FAILURE )
+    {
+        return menuDescription( PCB_ACTIONS::inspectConstraints );
+    }
+    else if( aDRCItem->GetErrorCode() == DRCE_LIB_FOOTPRINT_MISMATCH )
+    {
+        return menuDescription( PCB_ACTIONS::diffFootprint );
+    }
+    else if( aDRCItem->GetErrorCode() == DRCE_DANGLING_TRACK
+             || aDRCItem->GetErrorCode() == DRCE_DANGLING_VIA )
+    {
+        return menuDescription( PCB_ACTIONS::cleanupTracksAndVias );
+    }
+
+    return wxEmptyString;
+}
+
+
 void BOARD_INSPECTION_TOOL::InspectDRCError( const std::shared_ptr<RC_ITEM>& aDRCItem )
 {
+    wxCHECK( m_frame, /* void */ );
+
     BOARD_ITEM*           a = m_frame->GetBoard()->GetItem( aDRCItem->GetMainItemID() );
     BOARD_ITEM*           b = m_frame->GetBoard()->GetItem( aDRCItem->GetAuxItemID() );
     BOARD_CONNECTED_ITEM* ac = dynamic_cast<BOARD_CONNECTED_ITEM*>( a );
     BOARD_CONNECTED_ITEM* bc = dynamic_cast<BOARD_CONNECTED_ITEM*>( b );
     PCB_LAYER_ID          layer = m_frame->GetActiveLayer();
 
-    wxCHECK( m_frame, /* void */ );
-
     if( aDRCItem->GetErrorCode() == DRCE_LIB_FOOTPRINT_MISMATCH )
     {
         if( FOOTPRINT* footprint = dynamic_cast<FOOTPRINT*>( a ) )
             DiffFootprint( footprint );
 
+        return;
+    }
+    else if( aDRCItem->GetErrorCode() == DRCE_DANGLING_TRACK
+             || aDRCItem->GetErrorCode() == DRCE_DANGLING_VIA )
+    {
+        m_toolMgr->RunAction( PCB_ACTIONS::cleanupTracksAndVias );
         return;
     }
 
@@ -368,6 +440,36 @@ void BOARD_INSPECTION_TOOL::InspectDRCError( const std::shared_ptr<RC_ITEM>& aDR
 
         r->Report( "" );
         r->Report( wxString::Format( _( "Resolved width constraints: min %s; max %s." ),
+                                     reportMin( m_frame, constraint ),
+                                     reportMax( m_frame, constraint ) ) );
+        break;
+
+    case DRCE_TRACK_ANGLE:
+        r = dialog->AddHTMLPage( _( "Track Angle" ) );
+        reportHeader( _( "Track Angle resolution for:" ), a, r );
+
+        if( compileError )
+            reportCompileError( r );
+
+        constraint = drcEngine->EvalRules( TRACK_ANGLE_CONSTRAINT, a, b, layer, r );
+
+        r->Report( "" );
+        r->Report( wxString::Format( _( "Resolved angle constraints: min %s; max %s." ),
+                                     reportMin( m_frame, constraint ),
+                                     reportMax( m_frame, constraint ) ) );
+        break;
+
+    case DRCE_TRACK_SEGMENT_LENGTH:
+        r = dialog->AddHTMLPage( _( "Track Segment Length" ) );
+        reportHeader( _( "Track segment length resolution for:" ), a, r );
+
+        if( compileError )
+            reportCompileError( r );
+
+        constraint = drcEngine->EvalRules( TRACK_SEGMENT_LENGTH_CONSTRAINT, a, b, layer, r );
+
+        r->Report( "" );
+        r->Report( wxString::Format( _( "Resolved segment length constraints: min %s; max %s." ),
                                      reportMin( m_frame, constraint ),
                                      reportMax( m_frame, constraint ) ) );
         break;
@@ -649,33 +751,24 @@ int BOARD_INSPECTION_TOOL::InspectClearance( const TOOL_EVENT& aEvent )
     }
 
     // a or b could be null after group tests above.
-    wxCHECK( a && b, 0 );
+    if( !a || !b )
+        return 0;
 
     auto checkFootprint =
             [&]( FOOTPRINT* footprint ) -> BOARD_ITEM*
             {
-                if( footprint->Pads().empty() )
-                {
-                    m_frame->ShowInfoBarError( _( "Cannot generate clearance report on footprint "
-                                                  "with no pads." ) );
-                    return nullptr;
-                }
-
                 PAD* foundPad = nullptr;
 
                 for( PAD* pad : footprint->Pads() )
                 {
                     if( !foundPad || pad->SameLogicalPadAs( foundPad ) )
-                    {
                         foundPad = pad;
-                    }
                     else
-                    {
-                        m_frame->ShowInfoBarError( _( "Cannot generate clearance report on footprint "
-                                                      "with multiple pads.  Select a single pad." ) );
-                        return nullptr;
-                    }
+                        return footprint;
                 }
+
+                if( !foundPad )
+                    return footprint;
 
                 return foundPad;
             };
@@ -687,7 +780,8 @@ int BOARD_INSPECTION_TOOL::InspectClearance( const TOOL_EVENT& aEvent )
         b = checkFootprint( static_cast<FOOTPRINT*>( b ) );
 
     // a or b could be null after footprint tests above.
-    wxCHECK( a && b, 0 );
+    if( !a || !b )
+        return 0;
 
     DIALOG_BOOK_REPORTER* dialog = m_frame->GetInspectClearanceDialog();
 
@@ -783,7 +877,7 @@ int BOARD_INSPECTION_TOOL::InspectClearance( const TOOL_EVENT& aEvent )
             r->Report( "" );
             reportHeader( _( "Zone clearance resolution for:" ), a, b, layer, r );
 
-            clearance = zone->GetLocalClearance();
+            clearance = zone->GetLocalClearance().value();
             r->Report( "" );
             r->Report( wxString::Format( _( "Zone clearance: %s." ),
                                          m_frame->StringFromValue( clearance, true ) ) );
@@ -946,7 +1040,7 @@ int BOARD_INSPECTION_TOOL::InspectClearance( const TOOL_EVENT& aEvent )
                 if( aItem->IsOnLayer( correspondingMask ) )
                     return true;
 
-                if( aItem->IsTented() && aItem->IsOnLayer( correspondingCopper ) )
+                if( aItem->IsTented( correspondingMask ) && aItem->IsOnLayer( correspondingCopper ) )
                 {
                     *aWarning = wxString::Format( _( "Note: %s is tented; clearance will only be "
                                                      "applied to holes." ),
@@ -1052,7 +1146,7 @@ int BOARD_INSPECTION_TOOL::InspectClearance( const TOOL_EVENT& aEvent )
             r->Flush();
         }
 
-        if( a->HasHole() && b->HasHole() )
+        if( a->HasDrilledHole() || b->HasDrilledHole() )
         {
             if( !pageAdded )
             {
@@ -1662,7 +1756,7 @@ int BOARD_INSPECTION_TOOL::HighlightItem( const TOOL_EVENT& aEvent )
 
         // Apply the active selection filter, except we want to allow picking locked items for
         // highlighting even if the user has disabled them for selection
-        SELECTION_FILTER_OPTIONS& filter = selectionTool->GetFilter();
+        PCB_SELECTION_FILTER_OPTIONS& filter = selectionTool->GetFilter();
 
         bool saved         = filter.lockedItems;
         filter.lockedItems = true;
@@ -1706,7 +1800,7 @@ int BOARD_INSPECTION_TOOL::HighlightItem( const TOOL_EVENT& aEvent )
     const std::set<int>& netcodes = settings->GetHighlightNetCodes();
 
     // Toggle highlight when the same net was picked
-    if( netcodes.count( net ) )
+    if( !aUseSelection && netcodes.size() == 1 && netcodes.contains( net ) )
         enableHighlight = !settings->IsHighlightEnabled();
 
     if( enableHighlight != settings->IsHighlightEnabled() || !netcodes.count( net ) )
@@ -1996,20 +2090,6 @@ void BOARD_INSPECTION_TOOL::calculateSelectionRatsnest( const VECTOR2I& aDelta )
 }
 
 
-int BOARD_INSPECTION_TOOL::ListNets( const TOOL_EVENT& aEvent )
-{
-    wxCHECK( m_frame, 0 );
-
-    DIALOG_NET_INSPECTOR* dialog = m_frame->GetNetInspectorDialog();
-
-    wxCHECK( dialog, 0 );
-
-    dialog->Raise();
-    dialog->Show( true );
-    return 0;
-}
-
-
 int BOARD_INSPECTION_TOOL::HideNetInRatsnest( const TOOL_EVENT& aEvent )
 {
     doHideRatsnestNet( aEvent.Parameter<int>(), true );
@@ -2067,7 +2147,6 @@ void BOARD_INSPECTION_TOOL::setTransitions()
     Go( &BOARD_INSPECTION_TOOL::HideLocalRatsnest,   PCB_ACTIONS::hideLocalRatsnest.MakeEvent() );
     Go( &BOARD_INSPECTION_TOOL::UpdateLocalRatsnest, PCB_ACTIONS::updateLocalRatsnest.MakeEvent() );
 
-    Go( &BOARD_INSPECTION_TOOL::ListNets,            PCB_ACTIONS::listNets.MakeEvent() );
     Go( &BOARD_INSPECTION_TOOL::ShowBoardStatistics, PCB_ACTIONS::boardStatistics.MakeEvent() );
     Go( &BOARD_INSPECTION_TOOL::InspectClearance,    PCB_ACTIONS::inspectClearance.MakeEvent() );
     Go( &BOARD_INSPECTION_TOOL::InspectConstraints,  PCB_ACTIONS::inspectConstraints.MakeEvent() );

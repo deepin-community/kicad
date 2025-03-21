@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 CERN
- * Copyright (C) 2012-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,6 +33,7 @@
 #include <core/wx_stl_compat.h>
 #include <hashtables.h>
 #include <layer_ids.h>     // PCB_LAYER_ID
+#include <lset.h>
 #include <pcb_lexer.h>
 #include <kiid.h>
 #include <math/box2.h>
@@ -52,9 +53,10 @@ class PCB_DIMENSION_BASE;
 class PCB_SHAPE;
 class PCB_REFERENCE_IMAGE;
 class EDA_TEXT;
-class FP_SHAPE;
 class PCB_TEXT;
 class PCB_TRACK;
+class PCB_TABLE;
+class PCB_TABLECELL;
 class FOOTPRINT;
 class PCB_GROUP;
 class PCB_TARGET;
@@ -74,6 +76,11 @@ class TEARDROP_PARAMETERS;
 class PCB_IO_KICAD_SEXPR_PARSER : public PCB_LEXER
 {
 public:
+
+    typedef std::unordered_map< std::string, PCB_LAYER_ID > LAYER_ID_MAP;
+    typedef std::unordered_map< std::string, LSET >         LSET_MAP;
+    typedef std::unordered_map< wxString, KIID >            KIID_MAP;
+
     PCB_IO_KICAD_SEXPR_PARSER( LINE_READER* aReader, BOARD* aAppendToMe,
                 std::function<bool( wxString, int, wxString, wxString )> aQueryUserCallback,
                 PROGRESS_REPORTER* aProgressReporter = nullptr, unsigned aLineCount = 0 ) :
@@ -207,11 +214,15 @@ private:
 
     void parseTEARDROP_PARAMETERS( TEARDROP_PARAMETERS* tdParams );
 
+    void parseTextBoxContent( PCB_TEXTBOX* aTextBox );
+
     PCB_SHAPE*           parsePCB_SHAPE( BOARD_ITEM* aParent );
-    PCB_TEXT*            parsePCB_TEXT( BOARD_ITEM* aParent );
-    void                 parsePCB_TEXT_effects( PCB_TEXT* aText );
+    PCB_TEXT*            parsePCB_TEXT( BOARD_ITEM* aParent, PCB_TEXT* aBaseText = nullptr );
+    void                 parsePCB_TEXT_effects( PCB_TEXT* aText, PCB_TEXT* aBaseText = nullptr );
     PCB_REFERENCE_IMAGE* parsePCB_REFERENCE_IMAGE( BOARD_ITEM* aParent );
     PCB_TEXTBOX*         parsePCB_TEXTBOX( BOARD_ITEM* aParent );
+    PCB_TABLECELL*       parsePCB_TABLECELL( BOARD_ITEM* aParent );
+    PCB_TABLE*           parsePCB_TABLE( BOARD_ITEM* aParent );
     PCB_DIMENSION_BASE*  parseDIMENSION( BOARD_ITEM* aParent );
 
     // Parse a footprint, but do not replace PARSE_ERROR with FUTURE_FORMAT_ERROR automatically.
@@ -221,10 +232,12 @@ private:
 
     // Parse only the (option ...) inside a pad description
     bool        parsePAD_option( PAD* aPad );
+    void        parsePadstack( PAD* aPad );
 
     PCB_ARC*    parseARC();
     PCB_TRACK*  parsePCB_TRACK();
     PCB_VIA*    parsePCB_VIA();
+    void        parseViastack( PCB_VIA* aVia );
     ZONE*       parseZONE( BOARD_ITEM_CONTAINER* aParent );
     PCB_TARGET* parsePCB_TARGET();
     BOARD*      parseBOARD();
@@ -243,8 +256,8 @@ private:
      * @throw IO_ERROR if the layer is not valid.
      * @throw PARSE_ERROR if the layer syntax is incorrect.
      */
-    template<class T, class M>
-    T lookUpLayer( const M& aMap );
+    PCB_LAYER_ID lookUpLayer( const LAYER_ID_MAP& aMap );
+    LSET lookUpLayerSet( const LSET_MAP& aMap );
 
     /**
      * Parse the layer definition of a #BOARD_ITEM object.
@@ -264,6 +277,16 @@ private:
      */
     LSET parseBoardItemLayersAsMask();
 
+     /**
+     * Parse the layers definition of a #BOARD_ITEM object
+     * that has a single copper layer and optional soldermask layer.
+     *
+     * @return The mask of layers the parsed #BOARD_ITEM is on.
+     * @throw IO_ERROR if any of the layers is not valid.
+     * @throw PARSE_ERROR if the layers syntax is incorrect.
+     */
+    LSET parseLayersForCuItemWithSoldermask();
+
     /**
      * Parse a coordinate pair (xy X Y) in board units (mm).
      *
@@ -277,6 +300,8 @@ private:
     VECTOR2I parseXY();
 
     void parseXY( int* aX, int* aY );
+
+    void parseMargins( int& aLeft, int& aTop, int& aRight, int& aBottom );
 
     std::pair<wxString, wxString> parseBoardProperty();
 
@@ -304,6 +329,8 @@ private:
      * @throw PARSE_ERROR if the text syntax is not valid.
      */
     void parseRenderCache( EDA_TEXT* text );
+
+    void parseTenting( PADSTACK& aPadstack );
 
     FP_3DMODEL* parse3DModel();
 
@@ -365,10 +392,6 @@ private:
      * lists.
      */
     void resolveGroups( BOARD_ITEM* aParent );
-
-    typedef std::unordered_map< std::string, PCB_LAYER_ID > LAYER_ID_MAP;
-    typedef std::unordered_map< std::string, LSET >         LSET_MAP;
-    typedef std::unordered_map< wxString, KIID >            KIID_MAP;
 
     ///< The type of progress bar timeout
     using TIMEOUT = std::chrono::milliseconds;

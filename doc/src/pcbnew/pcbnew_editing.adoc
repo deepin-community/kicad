@@ -18,67 +18,67 @@ mouse.  The palette will show the most recently used tool when it is closed.
 [width="100%",cols="5%,95%",]
 |====
 | image:images/icons/cursor_24.png[]
-    | Selection tool (the default tool).
+    | <<selection,Selection tool>> (the default tool).
 | image:images/icons/tool_ratsnest_24.png[]
     | Local ratsnest tool: when the board ratsnest is hidden, selecting footprints with this tool
       will show the ratsnest for the selected footprint only.  Selecting the same footprint again
       will hide its ratsnest.  The local ratsnest setting for each footprint will remain in effect
       even after the local ratsnest tool is no longer active.
 | image:images/icons/module_24.png[]
-    | Footprint placement tool: click on the board to open the footprint chooser, then click again
-      after choosing a footprint to confirm its location.
+    | <<working-with-footprints,Footprint placement tool>>: click on the board to open the
+      footprint chooser, then click again after choosing a footprint to confirm its location.
 | image:images/icons/add_tracks_24.png[]
 
   image:images/icons/ps_diff_pair_24.png[]
-    | Route tracks / route differential pairs: These tools activate the interactive router and
-      allow placing tracks and vias.  The interactive router is described in more detail in the
-      Routing Tracks section below.
+    | <<routing-tracks,Route tracks>> / <<routing-differential-pairs,route differential pairs>>:
+      These tools activate the interactive router and allow placing tracks and vias.
+      The interactive router is described in more detail in the <<routing-tracks,Routing Tracks>>
+      section.
 | image:images/icons/ps_tune_length_24.png[]
 
   image:images/icons/ps_diff_pair_tune_phase_24.png[]
-    | Tune length: These tools allow you to tune the length of single tracks or the length or
-    skew of differential pairs, after they have been routed.  See the
-    <<length-tuning,Routing Tracks>> section for details.
+    | <<length-tuning,Tune length>>: These tools allow you to tune the length of single tracks or
+      the length or skew of differential pairs, after they have been routed.
 | image:images/icons/add_via_24.png[]
-    | Add vias: allows placing vias without routing tracks.
-
-    Vias placed on top of tracks using this tool will take on the net of the closest track segment
-    and will become part of that track (the via net will be updated if the pads connected to the
-    tracks are updated).
-
-    Vias placed anywhere else will take on the net of a copper zone at that location, if one
-    exists.  These vias will not automatically take on a new net if the net of the copper zone is
-    changed.
+    | <<placing-free-vias,Add vias>>: place a standalone ("free") via without routing tracks.
 | image:images/icons/add_zone_24.png[]
-    | Add filled zone: Click to set the start point of a zone, then configure its properties before
-      drawing the rest of the zone outline.  Zone properties are described in more detail below.
+    | <<working-with-zones,Add filled zone>>: Click to set the start point of a zone, then
+      configure its properties before drawing the rest of the zone outline.
+      Zone properties are described in more detail below.
 | image:images/icons/add_keepout_area_24.png[]
-    | Add rule area: Rule areas, formerly known as keepouts, can restrict the placement of items
-      and the filling of zones and can also define named areas to apply specific custom design
-      rules to.
+    | <<pcb-rule-areas,Add rule area>>: Rule areas, formerly known as keepouts, can restrict
+      item placement and zone fills. You can also define named areas and apply specific custom
+      DRC rules to them.
 | image:images/icons/add_line_24.png[]
-    | Draw lines.
+    | <<graphical-shapes,Draw lines>>.
 
     *Note:* Lines are graphical objects and are not the same as tracks placed with the Route Tracks
           tool.
 | image:images/icons/add_arc_24.png[]
-    | Draw arcs: pick the center point of the arc, then the start and end points. By right clicking this button, you can change the arc editing mode between a mode that maintains the existing arc center and a mode that maintains the arc radius.
+    | <<graphical-shapes,Draw arcs>>: pick the center point of the arc, then the start and end
+      points. By right clicking this button, you can change the arc editing mode between a mode
+      that maintains the existing arc center and a mode that maintains the arc radius.
 | image:images/icons/add_rectangle_24.png[]
-    | Draw rectangles.  Rectangles can be filled or outlines.
+    | <<graphical-shapes,Draw rectangles>>.  Rectangles can be filled or outlines.
 | image:images/icons/add_circle_24.png[]
-    | Draw circles.  Circles can be filled or outlines.
+    | <<graphical-shapes,Draw circles>>.  Circles can be filled or outlines.
 | image:images/icons/add_graphical_polygon_24.png[]
-    | Draw graphical polygons.  Polygons can be filled or outlined.
+    | <<graphical-shapes,Draw graphical polygons>>.  Polygons can be filled or outlined.
 
     *Note:* Filled graphical polygons are not the same as filled zones: graphical polygons cannot
     be assigned to a net and will not keep clearance from other items.
+| image:images/icons/add_bezier_24.png[]
+    | <<graphical-shapes,Draw bezier curves>>. Each click alternates between fixing a curve
+      node and fixing the control handle for the node that was just placed.
 | image:images/icons/image_24.png[]
-    | Add bitmap image for reference. Reference images are not included in
-    fabrication outputs.
+    | <<pcb-reference-images,Add bitmap image>> for reference. Reference images are not included
+    in fabrication outputs.
 | image:images/icons/text_24.png[]
-    | Add text.
+    | <<text-objects,Add text>>.
 | image:images/icons/add_textbox_24.png[]
-    | Add a textbox.
+    | <<text-objects,Add a textbox>>.
+| image:images/icons/table_24.png[]
+    | <<tables,Add a table>>.
 | image:images/icons/add_aligned_dimension_24.png[]
 
   image:images/icons/add_orthogonal_dimension_24.png[]
@@ -88,22 +88,23 @@ mouse.  The palette will show the most recently used tool when it is closed.
   image:images/icons/add_radial_dimension_24.png[]
 
   image:images/icons/add_leader_24.png[]
-    | Add dimensions.  Dimension types are described in more detail below.
+    | <<dimensions,Add dimensions>>.
 | image:images/icons/delete_cursor_24.png[]
     | Deletion tool: click objects to delete them.
 | image:images/icons/grid_select_axis_24.png[]
 
   image:images/icons/set_origin_24.png[]
-    | Set grid origin or drill/place origin (used for fabrication outputs).
+    | <<grids-and-snapping,Set grid origin or drill/place origin (used for fabrication outputs)>>.
 | image:images/icons/measurement_24.png[]
-    | Interactively measure the distance between two points.
+    | <<measurement-tool,Interactively measure>> the distance between two points.
 
 |====
 
+[[grids-and-snapping]]
 === Grids and snapping
 
-When moving, dragging, and drawing board elements, the grid, pads, and other elements can have
-snapping points depending upon the settings in the user preferences.  In complex designs, snap
+When moving, dragging, and drawing board elements, you can make these operations
+snap to a grid or to snapping points on pads and other items.  In complex designs, snap
 points can be so close together that it makes the current tool action difficult.  Both grid and
 object snapping can be disabled while moving the mouse by using the modifier keys in the table
 below.
@@ -125,7 +126,46 @@ snapping to objects on the current layer by pressing kbd:[Shift+S].
 Snapping to different types of objects (pads, tracks, and graphics) can be
 configured in the Editing Options section of the PCB Editor preferences.
 
-You can adjust the grid size using the grid dropdown in the top toolbar or by
+==== Snapping to graphical shapes
+
+When working with <<graphical-shapes,graphic shapes>> like rectangles or arcs,
+such as when drawing shapes or when selecting a reference point for a move
+operation, many additional snapping points are available that let you snap to
+features of existing graphic shapes.
+
+Available snapping points for graphic shapes include:
+
+- Endpoints and corners
+- Midpoints
+- Centers
+- Intersection points
+
+When you hover over a snap point with a shape tool active, a graphical icon will
+be shown that indicates a snapping point is active and explains the type of
+snapping point. Clicking will use that snapping point. Some shapes display
+auxiliary snapping lines that appear when you snap to part of that object. For
+example, line segments display an auxiliary line that continues the segment
+beyond its endpoint, and arcs display an auxiliary circle that completes the
+arc's circumference. Auxiliary shapes can be used for snapping just like the
+original shape. An auxiliary line and circle are shown as a solid purple
+line in the screenshot below. The cursor indicates that the active snapping
+point is the endpoint of a line.
+
+image::images/snapping_point.png[]
+
+If you move the cursor away from the snapping point, a horizontal or vertical
+dashed line will appear, depending on the direction of motion. This indicates a
+horizontal or vertical projection from the snapping point, respectively.
+Following the line will maintain a position that is horizontally or vertically
+aligned to the original snap point. This projection is shown as a purple dashed
+line in the screenshot below.
+
+image::images/snapping_point_projection.png[]
+
+==== Grid settings
+
+Interactive editing operations are snapped to the active grid. You can adjust
+the grid size using the grid dropdown in the top toolbar or by
 right-clicking and selecting a new grid from the list in the **Grid** submenu.
 Pressing the kbd:[n] or kbd:[N] hotkeys will cycle to the next and previous grid
 in the list, respectively.
@@ -138,8 +178,11 @@ select **Edit Grids...**.
 image::images/grid_panel.png[grid settings dialog]
 
 In this dialog you can select an active grid from the list of grids, reorder the
-list of grids, and add or remove grids. Grids defined in this dialog can have
-unequal X and Y spacing as well as an optional name.
+list of grids (image:images/icons/small_up_16.png[] / image:images/icons/small_down_16.png[]),
+and add (image:images/icons/small_plus_16.png[]), remove (image:images/icons/small_trash_16.png[]),
+or edit (image:images/icons/small_edit_16.png[]) grids. Grids defined in this
+dialog can have unequal X and Y spacing as well as an optional name. The grid
+spacing and name are specified when you create or edit a grid.
 
 This dialog also lets you designate two grids from the list as "Fast Grids",
 which can be quickly selected using kbd:[Alt+1] and kbd:[Alt+2].
@@ -160,6 +203,16 @@ with the image:images/icons/grid_select_axis_24.png[grid origin button] button
 in the right toolbar. Alternatively, you can enter explicit coordinates for the
 grid origin with **Edit** -> **Grid Origin...**.
 
+NOTE: The grid origin is one of several different origins in KiCad, which aren't
+      necessarily set to the same point. The grid origin is the point that the
+      grid aligns to; shifting the grid origin also shifts every grid point. The
+      page origin is an absolute origin which is always the top left corner of
+      the drawing sheet. The drill/place file origin is a configurable point
+      that can be used for fabrication outputs (**Place** -> **Drill/Place File
+      Origin**). Finally, the local origin is a quickly settable relative origin
+      that current cursor location by pressing kbd:[Space]; the cursor
+      coordinates relative to the local origin are displayed in the status bar.
+
 The visual appearance of the grid can also be customized in several ways. You
 can change the thickness of the grid markings, switch their shape (dots, lines,
 or crosses), and set the minimum displayed spacing in the **Display Options**
@@ -176,8 +229,13 @@ grid to be disabled when it is hidden or even disable the grid entirely.
 === Editing object properties
 
 All objects have properties that are editable in a dialog.  Use the hotkey kbd:[E] or select
-**Properties** from the right-click context menu to edit the properties of selected item(s).  You can
-only open the properties dialog if all the items you have selected are of the same type.
+**Properties** from the right-click context menu to edit the properties of selected item(s).
+You can only open the properties dialog if all the items you have selected are of the same type.
+For many object types, like footprints, you can only edit the properties of a single item at one
+time. To edit the properties of multiple items at once, including items with different types,
+you can use the Properties Manager.
+
+image::images/footprint_properties.png[]
 
 You can also view and edit item properties using the Properties Manager. The
 Properties Manager is a docked panel that displays the properties of the
@@ -193,13 +251,13 @@ selected item individually, not to the whole selection as a group. For example,
 when changing the orientation of multiple items, each item is individually
 rotated around its own origin, not the group's origin.
 
-Show the Properties Manager with **View** -> **Show Properties Manager** or the
+Show the Properties Manager with **View** -> **Panels** -> **Properties** or the
 image:images/icons/tools_24.png[Properties Manager icon] button on the left toolbar.
 
 Several tools are available for editing properties of specific types of objects in bulk.
 For text and graphical items, you can use the
 <<pcbnew-edit-text-and-graphics-properties,Edit Text and Graphics Properties tool>>. Tracks and vias
-can be bulk-edited using the <<modifying-tracks,Edit Track and Via Properties tool>>.
+can be bulk-edited using the <<track-and-via-properties,Edit Track and Via Properties tool>>.
 Teardrop properties can be edited with the <<editing-teardrops,Edit Teardrops tool>>.
 
 In properties dialogs and many other dialogs, any field that contains a numeric
@@ -228,7 +286,7 @@ schematic symbol is added to the board if it is not already present, and each fo
 associated with the corresponding symbol pin's net. Symbol pins are matched to footprint pads by
 pin/pad number.
 
-When footprints are added to the board after an update from the schematic, they are grouped by
+When footprints are added to the board after an update from the schematic, they are clustered by
 schematic sheet and by geographical location in the schematic. They are initially attached to the
 cursor; you can place them by clicking in the desired location.
 
@@ -298,11 +356,35 @@ instead of Cartesian coordinates.
 image::images/pcbnew_move_exactly.png[alt="Move Exactly dialog"]
 
 To position a footprint relative to another object, you can use the Position Relative tool
-(kbd:[Shift+P]). With this tool, you select a reference point for the move, which can be the local
-origin, the grid origin, or another arbitrary point, such as a pad in another footprint. The
-selected footprint is moved to the specified offset from the reference point.
+(kbd:[Shift+P]). With this tool, you select a reference point for the move and specify an offset.
+The footprint is moved to the specified offset relative to the reference point. The reference
+point can be one of the following:
+
+* The local origin, which is set to the cursor position when you press kbd:[Space].
+* The grid origin, which is configured in the Grids dialog.
+* The location of an arbitrary item on the board, such as a specific pad in a footprint. After clicking the
+  **Select Item...** button, click on the desired board item in the canvas to set the reference point.
+* An arbitrary point in the canvas. After clicking the **Select Point...** button, click at the desired location
+  to set the reference point. You can use object snapping to select a specific point in an object, such as the
+  end of a graphic line.
 
 image::images/pcbnew_position_relative_to.png[alt="Position Relative To Reference Item dialog"]
+
+To position a footprint such that an arbitrary point in the footprint is positioned a certain
+distance from another arbitrary reference point, you can use the Position Interactively tool
+(right click a footprint -> **Positioning Tools** -> **Position Interactively...**).
+
+This tool lets you interactively select two points that form the start and end of a position
+vector. The first point is a reference point in the footprint, and will move along with the
+footprint. The second point is a fixed reference that will remain stationary when the footprint
+is moved. The vector from the first point to the second point is shown graphically in the
+editing canvas. You can then give new X and Y (or polar) dimensions for the vector, which will
+move the footprint reference relative to the fixed reference such that the fixed reference is
+the specified distance from the footprint reference point. The dialog initially contains the
+vector dimensions before any move is performed, or in other words the initial distance between
+the footprint reference point to the fixed reference.
+
+image::images/position_interactively.png[]
 
 You can swap the position of two selected footprints using the Swap command (kbd:[S]). The
 first footprint is assigned the location, rotation, and board side of the second footprint, and
@@ -361,37 +443,52 @@ or auto-place all footprints outside of the board outline with **Place** ->
 [[board-editing-footprints]]
 ==== Editing Footprints
 
-Footprints in the board can be individually edited. Editing a footprint in the
-board only affects that particular instance of the footprint; it does not affect
-any other copies of that footprint in the board, and it does not affect the
-library footprint.
+Footprints in the board can be individually edited, both in terms of their
+properties (fields, attributes, clearance settings, etc.) and in terms of their
+physical pads and graphics. Editing a footprint in the board only affects that
+particular instance of the footprint; it does not affect any other copies of
+that footprint in the board, and it does not affect the library footprint.
 
-To edit a footprint in the board, open its properties dialog (kbd:[E])
+To edit the properties of a footprint in the board, open its properties dialog (kbd:[E])
 
 image::images/footprint_properties.png[]
 
 The majority of the settings in this dialog are the same as in the
 <<footprint-editor-properties,footprint editor>>. You can edit the footprint's
-fields, attributes, clearance and zone connection settings, and 3D models, as in
+fields, attributes, clearance and zone connection settings, 3D models, and
+<<fp-embedding-files,embedded files>>, as in
 the footprint editor. However, here you can also set the footprint's position,
 orientation, and side. You can also update the footprint from the library,
 exchange it for a different footprint, or edit the footprint itself in the
 footprint editor.
 
-There are two options for editing the footprint in the footprint editor.
+To edit the footprint's physical form, i.e. its pads and graphics, you need to
+use the <<creating-and-editing-footprints,footprint editor>>. There are two buttons for opening a footprint in the
+editor, depending on whether you want to edit a single copy of a footprint in
+the board or a footprint's source copy in the library.
 
 * **Edit Footprint...** will open the specific instance of the footprint in the
   footprint editor. Editing this footprint will only affect this one instance of
   the footprint in the board. It will not affect other instances of the
   footprint in the board, and it will not affect the library copy of the
-  footprint.
+  footprint. You can also open a board footprint in the footprint editor by
+  right clicking the footprint in the board and selecting
+  **Open in footprint editor** (kbd:[Ctrl+E]).
 * **Edit Library Footprint...**  will open the library copy of the footprint in
   the footprint editor. Editing the library copy of the footprint will edit the
   footprint in the footprint library, but will not immediately affect any
   instances of that footprint in the board. To update footprints in the board
   with changes to the library footprint, use the
-  **Update Footprint from Library...** tool.
+  **Update Footprint from Library...** tool. Editing the library footprint in
+  this way is equivalent to opening the footprint editor, opening the
+  appropriate footprint in its library, and editing it.
 
+The **Update Footprint from Library...** button is used to update the board's
+copy of the footprint to match the copy in the library. The **Change Footprint...**
+button is used to swap the current footprint to a different
+footprint in the library. These functions are described
+<<updating-and-exchanging-footprints,later>>.
+  
 ==== Editing footprint fields
 
 An individual symbol text field can be edited directly with the kbd:[E] hotkey
@@ -412,6 +509,7 @@ NOTE: In versions of KiCad before version 8.0, footprint fields did not exist.
       KiCad 8.0, footprint text is not editable in the board editor and can only
       be edited in the footprint editor.
 
+[[updating-and-exchanging-footprints]]
 ==== Updating and exchanging footprints
 
 When a footprint is added to the board, KiCad embeds a copy of the library
@@ -440,7 +538,7 @@ matches any single character.
 
 The middle of the dialog has options to control what parts of the footprint will be
 updated. You can select specific fields to update or not update, which
-properties of the fields to update (text, visibility, size and style, and
+properties of the fields to update (text content, visibility, size and style, and
 position), and how to handle fields that are missing or empty in the library
 footprint. You can also choose whether to update footprint attributes, such as
 footprint type, **not in schematic**, **exclude from position files** /
@@ -488,6 +586,9 @@ library version more transparent). At the far right and left ends of the
 slider, the board and library versions of the footprint, respectively, are fully
 hidden. It may be helpful to drag the slider back and forth to see the changes
 more clearly.
+
+You can press the **A/B** button, or use the kbd:[/] hotkey, to quickly toggle
+back and forth between the board and library versions.
 
 The screenshot above shows a visual comparison with the board version of the
 footprint deemphasized. Looking at pad 1 on the left, you can see a large,
@@ -658,6 +759,34 @@ be specified, and islands below this threshold will be removed.
 NOTE: Regardless of the **remove islands** setting, islands are never removed
       from zones that are electrically unconnected. In other words, islands are
       only removed from zones that have at least one electrical connection.
+  
+
+==== Managing zones
+
+Instead of editing a single zone with the Zone Properties dialog, you can use the Zone Manager tool
+to you view, edit, and prioritize all zones in the board at once. To run the Zone Manager, click
+**Tools** -> **Zone Manager**.
+
+image::images/zone_manager.png[]
+
+The top left of the dialog shows a list of all zones in the board, displaying the name (if any), net, and
+layers for each zone. The order of the zones in the list reflects the priority of each zone: higher
+priority zones are higher in the list. To change the priority of a zone, use the
+image:images/icons/small_up_16.png[] and image:images/icons/small_down_16.png[] buttons to move it up or down in
+the list. You can filter the list of zones by typing into the filter box. The filter matches against the
+zones' name and/or net, depending on which filter options are enabled.
+
+Selecting a zone in the list shows a preview of that zone in the top right. If the selected zone spans
+multiple layers, each layer is shown individually. You can preview each layer by clicking the appropriate
+layer tab above the preview.
+
+The bottom part of the dialog shows the settings for the selected zone, which are explained
+<<working-with-zones,above>>.
+You can preview the new settings by clicking the **Update Displayed Zones** button, which updates
+the zone preview without affecting the board. Changing the properties of a zone in the Zone Manager
+will not update the board until you press **OK**. If the **Refill zones** option is enabled, all
+zones will be refilled when you accept the dialog. If **Refill zones** is not enabled, zones will
+not be refilled until you manually refill them.
 
 [[routing-tracks]]
 === Routing tracks
@@ -677,9 +806,10 @@ set in the design rules when determining where new tracks and vias can be placed
 to disable this behavior if desired by using the Highlight Collisions router mode and turning on
 the Allow DRC Violations option in the router settings (see below).
 
-The router has three modes that can be selected at any time.  The router mode is used for routing
-new tracks, but also when dragging existing tracks using the Drag (hotkey kbd:[D]) command.  These
-modes are:
+The router has three modes that can be selected at any time in the
+<<interactive-router-settings,Interactive Router Settings dialog>>.  The router mode is used for
+routing new tracks, but also when dragging existing tracks using the Drag (hotkey kbd:[D])
+command.  These modes are:
 
 - **Highlight Collisions**: in this mode, most of the router features are disabled and routing is
   fully manual.  When routing, _collisions_ (clearance violations) will be highlighted in green
@@ -698,7 +828,7 @@ the most efficient routing experience or Walk Around mode if you do not want the
 tracks that are not being routed.  Note that Shove and Walk Around modes always create horizontal,
 vertical, and 45-degree (H/V/45) track segments.  If you need to route tracks with angles other
 than H/V/45, you must use Highlight Collisions mode and enable the Free Angle Mode option in the
-Interactive Router Settings dialog.
+<<interactive-router-settings,Interactive Router Settings dialog>>.
 
 There are four main routing functions: Route Single Track, Route Differential Pair, Tune length
 of a single track, and Tune skew of a differential pair.  All
@@ -745,6 +875,52 @@ NOTE: Snapping to objects can also be disabled by changing the Magnetic Points p
       Editing Options section of the Preferences dialog.  We recommend that you leave object
       snapping enabled in general, so that you do not accidentally end tracks slightly off-center
       on a pad or via.
+
+[[interactive-router-settings]]
+==== Interactive router settings
+
+The interactive router settings can be accessed through the **Route** menu, or by right-clicking
+on the image:images/icons/add_tracks_24.png[Route Tracks icon] button in the toolbar.  These
+settings control the router behavior when routing tracks as well as when dragging existing tracks.
+
+image::images/pcbnew_interactive_router_settings.png[]
+
+[options="header",cols="25%,75%"]
+|====
+| Setting | Description
+| Mode    | Sets the operating mode of the router for creating new tracks and dragging existing
+            tracks.  <<routing-tracks,See the routing overview>> for more information.
+| Free angle mode | Allows routing tracks at any angle, instead of just at 45-degree increments.
+                    This option is only available if the router mode is set to Highlight
+                    collisions.
+| Allow DRC violations | Allow placing tracks and vias that violate DRC rules.  This option is only
+                         available if the router mode is set to Highlight collisions.
+| Shove vias | Allow the router to shove vias along with tracks. When this is disabled, vias cannot
+               be shoved. This option is only available if the router mode is set to Shove.
+| Jump over obstacles | Allow the router to attempt to move colliding tracks behind solid obstacles
+                        (such as pads). This option is only available if the router mode is set to
+                        Shove.
+| Remove redundant tracks | Automatically removes loops created in the currently-routed track,
+                            keeping only the most recently routed section of the loop.
+| Optimize pad connections | When this setting is enabled, the router attempts to avoid acute
+                             angles and other undesirable routing when exiting pads and vias.
+| Smooth dragged segments | When dragging tracks, attempts to combine track segments together to
+                            minimize direction changes.
+| Optimize entire track being dragged
+    | When enabled, dragging a track segment will result in KiCad optimizing the rest of the track
+      that is visible on the screen.  The optimization process removes unnecessary corners, avoids
+      acute angles, and generally tries to find the shortest path for the track.  When disabled,
+      no optimizations are performed to the track outside of the immediate section being dragged.
+| Use mouse path to set track posture
+    | Attempts to pick the track posture based on the mouse path from the routing start location.
+| Fix all segments on click
+    | When enabled, clicking while routing will fix the position of all the track segments that
+      have been routed, including the segment that ends at the mouse cursor.  A new segment will
+      be started from the mouse cursor location.  When disabled, the last segment (the one that
+      ends at the mouse cursor) will not be fixed in place and can be adjusted by further mouse
+      movement.
+
+|====
 
 [[track-posture]]
 ==== Track posture
@@ -814,6 +990,7 @@ in the middle of a track, you must end the route and then restart a new route fr
 previous route.  To change the width of the active route, use the hotkeys kbd:[W] and kbd:[Shift+W]
 to step through the track widths configured in the Board Setup dialog.
 
+[[placing-vias]]
 ==== Placing vias
 
 While routing tracks, switching layers will insert a through via at the end of the current
@@ -829,11 +1006,11 @@ ways to select a new layer and insert a via:
   to select the target layer.
 
 After using any of the above methods to add a via and change layer, but before clicking to fix the
-via and commit the current trace segment, you can cancel placing the via by pressing kbd:[V]. The
+via and commit the current track segment, you can cancel placing the via by pressing kbd:[V]. The
 via will be removed and routing will continue on the original layer.
 
-You can place a via and end the current trace, without changing layers, by pressing kbd:[V] and
-then double-clicking or kbd:[Shift]-clicking to place the via.
+You can place a via and end the current track, without changing layers, by pressing kbd:[V] and
+then double-clicking to place the via.
 
 The size of the via will be taken from the active Via Size setting, accessible from the drop-down
 in the top toolbar or the Increase Via Size (kbd:[']) and Decrease Via Size (kbd:[\ ]) hotkeys.
@@ -853,6 +1030,43 @@ creating stitching vias.  The automatic update of via nets can be disabled for s
 turning off the "automatically update via nets" checkbox in the via properties dialog.  Vias placed
 with the Add Free-standing Vias tool are created with this setting disabled.
 
+==== Layer Pairs
+
+The active layer is swapped with the other one in the current layer pair using the Place Via hotkey
+(kbd:[V]).
+
+You can define the active pair along with a list of "preset" layer pairs in the Set Layer Pair
+dialog, accessed from the two-color swatch on the toolbar. These pairs are stored in the project
+file.
+
+image:images/Pcbnew_layer_pair_dialog.png[scaledwidth="70%"]
+
+Each can be enabled or disabled, and given an optional user-friendly name.
+
+The enabled presets can be cycled using the Cycle Layer Pair Presets hotkey (kbd:[Shift+V]). If the
+last-used or current layer pair is not a preset, it is included in the list with the name "Manual".
+
+image:images/Pcbnew_layer_pair_cycle_dialog.png[]
+
+[[placing-free-vias]]
+==== Placing free vias
+
+In addition to <<placing-vias,placing vias while routing>>, you can also place standalone vias.
+These vias connect to items that they touch when they are placed. Free vias may be useful for via
+stitching, via shielding, thermal design, or other reasons.
+
+To place a free via, click the image:images/icons/add_via_24.png[] button or press kbd:[Ctrl+Shift+X],
+then click in the desired location in the editing canvas. If you place a via directly over a track, it
+will connect to that track as if it was placed while routing: it will take the track's net, it will
+create a joint in the track, and dragging the via will also drag the attached tracks.
+
+The net assigned to a free via depends on where the via was placed. If the via was placed over a track
+or pad, it will have the same net as the track, and its **Automatically update via nets** setting will
+be enabled so that its net changes with the track's net. Otherwise, the via will take the net of any
+zone under the via, if one exists, and its net will not update automatically. If there are multiple
+zones under the via, you will be prompted to choose which net to use. If there is no zone, the via will
+not have a net assigned.
+
 [[modifying-tracks]]
 ==== Modifying tracks
 
@@ -866,7 +1080,7 @@ Selecting tracks with this technique can be used to quickly delete an entire rou
 There are two different drag commands that can be used to reposition a track segment.  The Drag
 (45-degree mode) command, hotkey kbd:[D], is used to drag tracks using the router.  If the router
 mode is set to Shove, dragging with this command will shove nearby tracks.  If the router mode is
-set to Walk Around, dragging with this command will walk around or stop at obstacles.  The Drag
+set to Walk Around, dragging with this command will walk around or stop at obstacles.  Multiple traces can be dragged at once using this command. The Drag
 Free Angle command, hotkey kbd:[G], is used to split a track segment into two and drag the new
 corner to any location.  Drag Free Angle behaves like the Highlight Collisions router mode:
 obstacles will not be avoided or shoved, only highlighted.
@@ -881,12 +1095,15 @@ the selected track segments, ignoring any attached track segments or vias that a
 DRC checking is done when moving tracks using the Move command.
 
 It is also possible to move a footprint while keeping tracks attached to the footprint as it moves.
-To do so, use the drag command (kbd:[D]) with a footprint selected.  Any tracks that end at one of the
-footprint's pads will be dragged along with the footprint.  This feature has some limitations:
+To do so, use the drag command (kbd:[D]) with one or more footprints selected.  Any tracks that end at one of the
+footprint's pads will be dragged along with the footprints.  This feature has some limitations:
 it only operates in Highlight Collisions mode, so the tracks attached to footprints will not walk
-around obstacles or shove nearby tracks out of the way.  Additionally, only tracks that end at the
-origin of the footprint's pads will be dragged.  Tracks that simply pass through the pad or that
-end on the pad at a location other than the origin will not be dragged.
+around obstacles or shove nearby tracks out of the way.  Any DRC violations caused by the drag
+operation will be highlighted and will be prevent the footprint drag from being committed when
+you click. To ignore the violations and commit the drag anyway, use kbd:[Ctrl]+click.
+Additionally, only tracks that end at the origin of the footprint's pads will be dragged. 
+Tracks that simply pass through the pad or that end on the pad at a location other than the
+origin will not be dragged.
 
 To break a single track segment into two, use the Break tool (right click a track -> **Break Track**).
 The track will be broken into two connected track segments at the cursor location. Each track segment
@@ -894,6 +1111,7 @@ can then be selected, moved, and edited individually. To recombine the segments 
 drag the drack, or use the **merge co-linear tracks** option in the
 <<cleaning-up-tracks-and-vias,Cleanup Tracks and Vias dialog>>.
 
+[[track-and-via-properties]]
 ==== Editing track and via properties
 
 You can modify the width of tracks and the size of vias, without re-routing them, in the properties
@@ -913,15 +1131,68 @@ In the Tracks section, you can set the start and end position of the tracks and 
 on. You can also change the track width, either from a list of
 <<board-setup-pre-defined-sizes,pre-defined sizes>> or to an arbitrary value.
 
-In the Vias section, you can change the position of a via, the via's type (through, micro, or
-blind/buried), and which layers it spans. You can modify the via annulus and hole diameters, either
-from a list of <<board-setup-pre-defined-sizes,pre-defined sizes>> or to arbitrary values. You can
-also change the <<editing-teardrops,teardrop properties>> for vias here.
+You can remove the solder mask from on top of tracks on outer layers by enabling the **Solder mask**
+checkbox. When enabled, solder mask openings will be drawn for each of the selected tracks with the
+same shape as the source track. The **Expansion** textbox controls the size of the mask opening
+relative to the original track: the expansion value will be added to each side
+of the original track to form the mask shape. For example, a 1mm wide track with a 1mm expansion
+would result in a 3mm wide mask cutout, because the 1mm expansion is added to both sides of the track.
+
+In the Vias section you can change the properties of selected vias. You can change the position of a
+via, the via's type (through, micro, or blind/buried), and which layers it spans. Through vias always
+start and end on the front and back copper layers, but micro vias and blind/buried vias can start and
+end ony any layers.
+
+You can modify the via annulus and hole diameters, either
+from a list of <<board-setup-pre-defined-sizes,pre-defined sizes>> or to arbitrary values.
+A via's diameter and hole size can be defined on a per-layer basis. This
+is also known as defining the via's __padstack__. The **Padstack mode** controls whether the via
+shape is the same on all layers or whether individual layers are individually controlled.
+
+* In the **Normal** padstack mode, the via's diameter and hole size are the same on all layers.
+* In the **Front/Inner/Back** padstack mode, the via's diameter and hole size can be controlled
+  separately for the front layer, the back layer, and the inner layers (the inner layers will
+  have identical settings). The **Edit layer** dropdown controls which layer (or group of layers)
+  is currently being displayed and edited.
+* In the **Custom** padstack mode, the via's diameter and hole size can be controlled completely
+  independently on each layer. The **Edit layer** dropdown controls which layer is currently
+  being displayed and edited.
+
+The **Annular rings** setting controls which layers will have annular rings for the via.
+
+* When set to **All copper layers**, the via will have annular rings on every layer.
+* When set to **Start, end, and connected layers**, the via will have annular rings on its start and
+  end layers as well as any layer with a track or zone connection to the via. Any layer without track
+  or zone connections, other than the start and end layers, will not have an annular ring.
+* When set to **Connected layers only**, the via will have annular rings only on layers with a track
+  or zone connection to the via. Any layer without track or zone connections will not have an annular
+  ring.
+
+Annular rings can be removed or added in bulk using the
+<<bulk-editing-tracks-and-vias,Edit Track and Via Properties dialog>> or by
+running the <<removing-unused-pads,Unused Pads tool>>.
+
+The **Front tenting** and **Back Tenting** options control whether the via has front and back solder
+mask covering it.
+
+* When set to **From design rules**, the tenting settings are taken from the Solder Mask/Paste panel
+  in <<board-setup-stackup,Board Setup>>.
+* When set to **Tented**, the via will be covered in solder mask, regardless of the settings in Board Setup.
+* When set to **Not tented**, the via will not be covered with solder mask, regardless of the settings in
+  Board Setup.
+
+If the image:images/icons/edit_cmp_symb_links_16.png[] button is pressed, the front and rear tenting
+settings will be linked. If it is unpressed, they can be modified independently.
+
+You can also change the <<editing-teardrops,teardrop properties>> for vias in this dialog.
 
 NOTE: The properties of selected tracks and vias can also be modified using the
       <<editing-object-properties,Properties Manager>>.
 
-To modify tracks and vias in bulk you can use the **Edit Track and Via Properties** dialog
+[[bulk-editing-tracks-and-vias]]
+==== Bulk editing tracks and vias
+
+To modify tracks and vias in bulk you can use the Edit Track and Via Properties dialog
 (**Edit** -> **Edit Track & Via Properties...**)..
 
 image::images/pcbnew_edit_track_and_via_properties.png[scaledwidth="70%"]
@@ -936,24 +1207,48 @@ filters do not apply to tracks). If no filters are enabled, all objects in the
 selected scope will be modified. For filters with a text box, wildcards are
 supported: `*` matches any characters, and `?` matches any single character.
 
-*Filter items by net* filters to items assigned the specified net.
-*Filter items by netclass* filters to items assigned to the specified netclass.
-
-*Filter items by layer* filters to items on the specified board layer.
-
-*Filter tracks by width* filters to tracks with the specified track width.
-*Filter vias by size* filters to vias with the specified track width.
-
-*Selected items only* filters to the current selection.
+* *Filter items by net* filters to items assigned the specified net.
+* *Filter items by netclass* filters to items assigned to the specified netclass.
+* *Filter items by layer* filters to items on the specified board layer.
+* *Filter tracks by width* filters to tracks with the specified track width.
+* *Filter vias by size* filters to vias with the specified track width.
+* *Selected items only* filters to the current selection.
 
 Properties for filtered objects can be set to new values in the bottom part of the dialog.
 Properties can be set to arbitrary values by selecting *set to specified values* or set to
 the default value from the net class (or custom rule) by selecting
 *set to net class / custom rule values*.
 
-Drop-down lists can be set to `-- leave unchanged --` to preserve existing values, or set to
-a <<board-setup-pre-defined-sizes,pre-defined track or via size>> to change the filtered
-objects' size. You can also change the filtered objects' layer.
+When setting to specified values, you can choose `-- leave unchanged --` to preserve objects'
+existing values, or select a new value from the dropdown menu. For **Track width** and
+**Via size**, the options are the <<board-setup-pre-defined-sizes,pre-defined track or via sizes>>
+from Board Setup.
+
+[[removing-unused-pads]]
+==== Removing unused pads
+
+You can quickly remove unused annular rings from pads and vias using the Unused Pads tool
+(**Tools** -> **Remove Unused Pads...**). This will leave annular rings in place on layers
+where they are used and remove them on layers where they are not used. An annular ring is
+considered unused if there are no track or zone connections to the pad/via on that layer.
+
+image::images/unused_pads_tool.png[]
+
+The **Remove Unused Layers** button removes all unused annular rings from pads and vias
+that meet the selected filter settings. The **Restore All Layers** button restores all
+annular rings to the pads and vias that meet the selected filter settings.
+
+The checkboxes filter which objects will be modified (annular rings removed or restored) and
+which layers will be removed for those objects.
+
+* If the **Vias** checkbox is enabled, annular rings for vias will be modified.
+* If the **Pads** checkbox is enabled, annular rings for pads will be modified.
+* If the **Selected only** checkbox is enabled, only selected vias and pads will have their
+  annular rings modified. If it is disabled, annular rings for all vias and pads will be
+  modified. This setting applies in combination with the **Vias** and **Pads** checkboxes;
+  for example, a selected via will not be modified if the **Via** checkbox is disabled.
+* If the **Keep outside layers** checkbox is enabled, the pad or via's start and end
+  layers will remain, even if they are unused.
 
 [[cleaning-up-tracks-and-vias]]
 ==== Cleaning up tracks and vias
@@ -965,23 +1260,41 @@ image::images/pcbnew_cleanup_tracks_and_vias.png[Cleanup Tracks and Vias dialog]
 
 The following cleanup actions are available and will be performed when selected:
 
-*Delete tracks connecting different nets:* removes any track segments that short
+* *Refill zones before and after cleanup:* refills all zones both before and after
+  the cleanup operation. If unchecked, zone fills will not be changed.
+
+* *Delete tracks connecting different nets:* removes any track segments that short
 multiple nets.
 
-*Delete redundant vias:* remove vias that are redundant because they are located
+* *Delete redundant vias:* remove vias that are redundant because they are located
 on top of another via or on top of a through hole pad.
 
-*Delete vias connected on only one layer:* removes vias that are only connected
+* *Delete vias connected on only one layer:* removes vias that are only connected
 to copper on a single layer and are therefore unnecessary.
 
-*Merge co-linear tracks:* merges any track segments that are connected and
+* *Merge co-linear tracks:* merges any track segments that are connected and
 co-linear into a single equivalent track segment.
 
-*Delete tracks unconnected at one end:* removes track segments that have at
+* *Delete tracks unconnected at one end:* removes track segments that have at
 least one dangling end.
 
-*Delete tracks fully inside pads:* removes tracks that have both start and end
+* *Delete tracks fully inside pads:* removes tracks that have both start and end
 points within a pad and are therefore unnecessary.
+
+You can also filter the objects that will be cleaned up by net, netclass, layer,
+or selection.
+
+* **Filter items by net:** limits the cleanup to tracks and vias assigned to the
+specified net.
+
+* **Filter items by netclass:** limits the cleanup to tracks and vias in the
+specified netclass.
+
+* **Filter items by layer:** limits the cleanup to tracks and vias on the
+specified layer.
+
+* **Selected items only:** limits the cleanup to just the selected tracks and
+vias.
 
 Any changes that will be applied to the board are displayed at the bottom of the
 dialog after clicking the **Build Changes** button. After building the changes,
@@ -992,52 +1305,55 @@ you press the **Update PCB** button.
 
 KiCad offers several functions to make certain routing operations more convenient.
 
-If you need to route a number of traces from a set of pads, you can use the Route Selected tool to
+If you need to route a number of tracks from a set of pads, you can use the Route Selected tool to
 quickly route from each pad in sequence. Select the pads you want to use as starting points, then
-press kbd:[Shift+X] to route from each pad in sequence. The router will begin a trace from the first
-selected pad, which you can route as you would any other trace. When you complete the trace, the
-router will automatically begin a new trace from the next pad in the selection, in the same order
-that you selected the pads. Pads that already have traces attached are skipped. You can also skip
-routing the current trace and move on to the next pad by pressing kbd:[Esc]. You can also select
+right click and choose **Route Selected** (kbd:[Shift+X]) to route from each pad in sequence.
+The router will begin a track from the first
+selected pad, which you can route as you would any other track. When you complete the track, the
+router will automatically begin a new track from the next pad in the selection, in the same order
+that you selected the pads. Pads that already have tracks attached are skipped. You can also skip
+routing the current track and move on to the next pad by pressing kbd:[Esc]. You can also select
 footprints instead of pads; all unrouted pads in the selected footprints will be used as starting
 points.
 
-If you want to route a number of traces _to_ a set of pads, instead of _from_ the pads, you can use
+If you want to route a number of tracks _to_ a set of pads, instead of _from_ the pads, you can use
 the Route Selected From Other End tool (kbd:[Shift+E]). This tool works the same way as the Route
 Selected tool, except it uses each selected pad as an end point rather than a starting point. The
-starting point for each trace is the other end of the ratsnest line for each selected pad.
+starting point for each track is the other end of the ratsnest line for each selected pad.
 
-Routing from the other end is also possible while routing individual traces: press kbd:[Ctrl+E] while
-routing a trace to commit the current segment and begin routing from the other end of the in-progress
-trace's ratsnest line.
+Routing from the other end is also possible while routing individual tracks: press kbd:[Ctrl+E] while
+routing a track to commit the current segment and begin routing from the other end of the in-progress
+track's ratsnest line.
 
-Finally, you can quickly unroute traces connected to an object (footprint, pad, or trace) by
-selecting the object, right-clicking, and selecting **Unroute Selected**. Any traces connected to the
+Finally, you can quickly unroute tracks connected to an object (footprint, pad, or track) by
+selecting the object, right-clicking, and choosing **Unroute Selected**. Any tracks connected to the
 selected object will be removed, starting at the selected object and continuing until another pad is
 encountered.
 
-==== Automatically completing traces
+==== Automatically completing tracks
 
-KiCad's router can automatically route individual traces, based on the connections defined in the
-schematic. This can be thought of as a limited form of auto-routing that considers a single trace at
+KiCad's router can automatically route individual tracks, based on the connections defined in the
+schematic. This can be thought of as a limited form of auto-routing that considers a single track at
 a time. The router will only use the current layer; it will not use vias or change layers.
 
 While routing, press the kbd:[F] key to have the router attempt to automatically finish the current
-trace. The trace will be automatically routed from the end of the last fixed trace segment to the
-closest ratsnest anchor. If the router can't automatically finish the trace, it will allow you to
-complete the trace manually. This action can also be performed by clicking **Attempt Finish** in the
+track. The track will be automatically routed from the end of the last fixed track segment to the
+closest ratsnest anchor. If the router can't automatically finish the track, it will allow you to
+complete the track manually. This action can also be performed by clicking **Attempt Finish** in the
 context menu while routing.
 
-When the router is not the active tool, you can automatically route multiple traces by selecting
-footprints, pads, and traces to route from and pressing kbd:[Shift+F]. You do not need to select
+When the router is not the active tool, you can automatically route multiple tracks by selecting
+footprints, pads, and tracks to route from, right clicking, and choosing
+**Attempt Finish Selected (Autoroute)** (kbd:[Shift+F]). You do not need to select
 both ends of a desired connection; the router will route from the selected item to its nearest
 ratsnest anchor. If multiple items were selected, each item will be routed in sequence, in the order
 that they were selected. If a connection cannot be automatically completed, the tool will pause with
-the router active so that you can complete the trace manually. With the automatic completion paused
-for a manual connection, you can press kbd:[Esc] to skip routing the current trace. After manually
-completing the trace or skipping the connection, the tool will continue attempting to route the
+the router active so that you can complete the track manually. With the automatic completion paused
+for a manual connection, you can press kbd:[Esc] to skip routing the current track. After manually
+completing the track or skipping the connection, the tool will continue attempting to route the
 remaining connections.
 
+[[routing-differential-pairs]]
 ==== Routing differential pairs
 
 Differential pairs in KiCad are defined as nets with a common _base name_ and a positive and
@@ -1082,15 +1398,15 @@ tune the length of a track, first pick the appropriate tool.
 As with the Routing icons, the Tuning icons are found in both the **Route** menu dropdown from
 the top toolbar and the drawing toolbar on the right.
 
-When a tuning tool is active, you can hover over traces in the board to show a status window that
-displays their current length or skew as well as the target values. Click on the desired trace to
+When a tuning tool is active, you can hover over tracks in the board to show a status window that
+displays their current length or skew as well as the target values. Click on the desired track to
 start tuning it. As you move the mouse cursor along the track, meander shapes will be added
 interactively. If a target length has been set, meanders will stop being added when the target
 length is reached. You can set a target length with custom DRC rules or in the tuning shape
 properties; both methods are explained below. The popup window next to the cursor shows a live
 measure of the length or skew compared to the design targets. You can adjust the spacing (kbd:[1]
 to increase and kbd:[2] to decrease) and amplitude (kbd:[3] to increase and kbd:[4] to decrease)
-while you tune. When you are done, click again to commit the tuned shape. The tuned trace doesn't
+while you tune. When you are done, click again to commit the tuned shape. The tuned track doesn't
 need to be perfect because you can adjust the shape after committing it. You can also place multiple
 tuning shapes on the same track.
 
@@ -1111,20 +1427,20 @@ image::images/pcbnew_tuning_pattern.png[A tuning pattern, selected and showing e
 When a pattern is selected, editing handles appear, which let you adjust the pattern geometry.
 
 - Dragging the handles at the ends of the pattern will expand or contract the pattern along
-  the trace.
-- Dragging the corner handle towards or away from the trace will respectively decrease or
+  the track.
+- Dragging the corner handle towards or away from the track will respectively decrease or
   increase the maximum meander amplitude.
 - The final handle controls the meander spacing; dragging it towards the corner handle will
   increase the spacing, while dragging it away from the corner handle will increase the spacing.
 
 The selection box and editing handles represent the maximum allowable extents of the tuning pattern.
 Making the box smaller will reduce the size of the tuning pattern, even if this results in the tuned
-trace being shorter than the target length. When the box is enlarged, the tuning pattern will expand
+track being shorter than the target length. When the box is enlarged, the tuning pattern will expand
 to fill the box until the target length is reached.
 
 You can move a tuning pattern along its track by selecting it and dragging with the mouse, or
 using the Move tool (kbd:[M]). Deleting a tuning pattern (kbd:[Del]) removes the tuning pattern
-and restores the original untuned tracks. You can also ungroup the tuning pattern, which will
+and restores the original untuned tracks. You can also <<groups,ungroup>> the tuning pattern, which will
 decompose it into its component tracks. The basic tracks have the same shape as the tuning pattern
 but can be edited individually. Once ungrouped into tracks, a tuning pattern cannot be regrouped.
 
@@ -1182,7 +1498,7 @@ target skew is at most 0.1mm.
 
 ```
 (rule "target length and skew"
-      (condition "A.NetClass == 'high_speed'")
+      (condition "A.hasNetclass('high_speed')")
       (constraint length (min 95mm) (opt 100mm) (max 105mm))
       (constraint skew (max 0.1mm)))
 ```
@@ -1221,10 +1537,10 @@ discussed in more detail in the <<net-inspector,Net Inspector documentation>>.
 [[editing-teardrops]]
 ==== Teardrops
 
-Teardrops are areas of extra copper that smooth the transition between track
-and pads, vias, or other tracks. Teardrops are added to increase the mechanical
-robustness of a trace connection. They also reduce the risk of a misaligned
-drill hole disconnecting a trace from a drilled pad or via.
+Teardrops are areas of extra copper that smooth the transition between tracks
+and pads, vias, or other tracks with different width. Teardrops are added to
+increase the mechanical robustness of a track connection. They also reduce the
+risk of a misaligned drill hole disconnecting a track from a drilled pad or via.
 
 image::images/pcbnew_teardrop.png[teardrop on a through hole pad]
 
@@ -1240,38 +1556,47 @@ net class, and layer, or choose to act only on round pads, pre-existing
 teardrops, or the objects in your selection.
 
 The **Action** section controls whether to add or remove teardrops, as well as
-the size and shape of the new teardrops. Adding a teardrop to an object that
-already has a teardrop will update the existing teardrop with the new settings.
-When adding teardrops, you can choose to use the default teardrop settings from
-the Board Setup dialog, or choose specific values for the new teardrops.
+the size and shape of the new teardrops.
 
-**Prefer zone connection:** if selected, a teardrop will not be created if the
-object is also connected to a zone.
-**Allow teardrops to span 2 track segments:** if selected, the teardrop will be
-able to spread over a second track segment if the first segment is too short to
-support a full teardrop.
-**Maximum track width:** a teardrop will not be created for a track connection
-that is wider than this percentage of the pad width (minimum pad dimension).
-**Best length:** the ideal length of the teardrop, as a percentage of the width
-(smallest dimension) of the attached object.
-**Maximum length:** the maximum length of the teardrop, as an absolute length.
-**Best width:** the ideal width of the teardrop, as a percentage of the width
-(smallest dimension) of the attached object.
-**Maximum width:** the maximum width of the teardrop, as an absolute width.
-**Curved edges:** if selected, the teardrop edges will be curved instead of a
-straight line. If curved, **points** controls the number of points in the curve;
-more points will result in a smoother curve.
+**Remove Teardrops** will remove teardrops that match the scope and filtering
+options at the top of the dialog. **Remove All Teardrops** will remove all
+teardrops on the board, even if they do not match the scope and filters.
+
+**Add teardrops with default values for shape** will add teardrops with the
+configured default teardrop settings to every board object that matches the
+scope and filters. To configure the default teardrop settings, click the
+**Edit default values in Board Setup** link or manually open the **Teardrops**
+panel in <<board-setup-teardrops,Board Setup>>. The defaults are configured
+separately for teardrops connecting to round shapes, rectangular shapes, or
+between tracks. Instead of using the default values, you can provide custom
+teardrop settings by selecting **Add teardrops with specified values**.
+
+The available teardrop settings are:
+
+* **Prefer zone connection:** if selected, a teardrop will not be created if the
+  object is also connected to a zone.
+* **Allow teardrops to span 2 track segments:** if selected, the teardrop will be
+  able to spread over a second track segment if the first segment is too short to
+  support a full teardrop.
+* **Maximum track width:** a teardrop will not be created for a track connection
+  that is wider than this percentage of the pad width (minimum pad dimension).
+* **Best length:** the ideal length of the teardrop, as a percentage of the width
+  (smallest dimension) of the attached object.
+* **Maximum length:** the maximum length of the teardrop, as an absolute length.
+* **Best width:** the ideal width of the teardrop, as a percentage of the width
+  (smallest dimension) of the attached object.
+* **Maximum width:** the maximum width of the teardrop, as an absolute width.
+* **Curved edges:** if selected, the teardrop edges will be curved instead of a
+  straight line. 
+
+Adding a teardrop to an object that already has a teardrop will update the
+existing teardrop with the new settings. However, you can leave any existing
+teardrop setting in an object unchanged by setting the value to
+`-- leave unchanged --` in a textbox, or by selecting the third, indeterminate
+state for a checkbox. Any value set this way will not be updated in the targeted
+objects' teardrop settings.
 
 image::images/pcbnew_edit_teardrops.png[Edit Teardrops dialog]
-
-Default properties for teardrops can be configured in the Board Setup dialog.
-These defaults will be used in the Edit Teardrops dialog when
-**add teardrops with default values for shape** is selected in that dialog. The
-defaults are configured separately for teardrops connecting to round shapes,
-rectangular shapes, or between tracks. The available options for each type of
-teardrop are the same as in the Edit Teardrops dialog.
-
-image::images/board_setup_teardrops.png[Board Setup Teardrops panel]
 
 Rather than in bulk, you can add or edit teardrops for individual vias
 in the properties dialog for that via, or for individual pads in the
@@ -1289,100 +1614,106 @@ using the Unfill All Zones and Refill All Zones commands, running DRC,
 generating fabrication outputs, etc. Teardrops can be shown in filled or outline
 mode using the zone display controls in the left toolbar.
 
-==== Interactive router settings
-
-The interactive router settings can be accessed through the **Route** menu, or by right-clicking
-on the image:images/icons/add_tracks_24.png[Route Tracks icon] button in the toolbar.  These
-settings control the router behavior when routing tracks as well as when dragging existing tracks.
-
-image::images/pcbnew_interactive_router_settings.png[]
-
-[options="header",cols="25%,75%"]
-|====
-| Setting | Description
-| Mode    | Sets the operating mode of the router for creating new tracks and dragging existing
-            tracks.  <<See above>> for more information.
-| Free angle mode | Allows routing tracks at any angle, instead of just at 45-degree increments.
-                    This option is only available if the router mode is set to Highlight
-                    collisions.
-| Allow DRC violations | Allow placing tracks and vias that violate DRC rules.  This option is only
-                         available if the router mode is set to Highlight collisions.
-| Shove vias | Allow the router to shove vias along with tracks. When this is disabled, vias cannot
-               be shoved. This option is only available if the router mode is set to Shove.
-| Jump over obstacles | Allow the router to attempt to move colliding tracks behind solid obstacles
-                        (such as pads). This option is only available if the router mode is set to
-                        Shove.
-| Remove redundant tracks | Automatically removes loops created in the currently-routed track,
-                            keeping only the most recently routed section of the loop.
-| Optimize pad connections | When this setting is enabled, the router attempts to avoid acute
-                             angles and other undesirable routing when exiting pads and vias.
-| Smooth dragged segments | When dragging tracks, attempts to combine track segments together to
-                            minimize direction changes.
-| Optimize entire track being dragged
-    | When enabled, dragging a track segment will result in KiCad optimizing the rest of the track
-      that is visible on the screen.  The optimization process removes unnecessary corners, avoids
-      acute angles, and generally tries to find the shortest path for the track.  When disabled,
-      no optimizations are performed to the track outside of the immediate section being dragged.
-| Use mouse path to set track posture
-    | Attempts to pick the track posture based on the mouse path from the routing start location.
-| Fix all segments on click
-    | When enabled, clicking while routing will fix the position of all the track segments that
-      have been routed, including the segment that ends at the mouse cursor.  A new segment will
-      be started from the mouse cursor location.  When disabled, the last segment (the one that
-      ends at the mouse cursor) will not be fixed in place and can be adjusted by further mouse
-      movement.
-
-|====
+NOTE: Teardrops can be added to any type of pad, including custom pads. Some
+      custom pad shapes may produce undesirable teardrop shapes. In those cases,
+      it may be preferable to disable teardrop generation for those specific
+      pads.
 
 [[pcb-graphical-objects]]
-=== Graphical objects
+=== Graphics and text
 
-Graphical objects (lines, arcs, rectangles, circles, polygons, text, and dimensions) can exist on any layer. Unlike
-zones, the shape of a graphical object is exactly defined by its own properties, and is not affected by
-other objects. Shape properties include size, position, line width, and fill.
+Graphical objects (lines, arcs, rectangles, circles, polygons, text, tables, and dimensions) can exist
+on any layer. They exist primarily for aesthetics and documentation, although shapes on copper layers
+can make electrical connections and have nets assigned.
 
-Graphical objects on copper layers can be assigned nets and make connections to other copper objects,
-just like tracks and zones.
-
+[[graphical-shapes]]
 ==== Graphical shapes
+
+Graphical shapes are geometric objects that can be drawn on any board layer. 
+
+When they are drawn on copper layers, graphical objects can be assigned nets and make connections
+to other copper objects, much like tracks and zones. There are differences between copper shapes
+and tracks or zones, however:
+
+* The shape of a graphical object is exactly defined by its own properties (size, position, line
+  width, fill, etc.) and is not affected by other nearby objects. In contrast, a zone fills the area
+  within a specified outline, but avoids different-net copper items to automatically maintain a
+  specified clearance.
+* Graphic lines and arcs are edited as simple shapes; the <<routing-tracks,interactive router>> is not
+  used for drawing or modifying them. Therefore collisions with other items are not detected interactively
+  as they would be when routing tracks (although they will be detected by <<design-rule-checking,DRC>>).
 
 The buttons on the right toolbar can be used to create:
 
 * Lines (image:images/icons/add_line_24.png[], default hotkey kbd:[Ctrl+Shift+L])
 * Arcs (image:images/icons/add_arc_24.png[], default hotkey kbd:[Ctrl+Shift+A])
+* Bezier curves (image:images/icons/add_bezier_24.png[], default hotkey kbd:[Ctrl+Shift+B])
 * Rectangles (image:images/icons/add_rectangle_24.png[])
 * Circles (image:images/icons/add_circle_24.png[], default hotkey kbd:[Ctrl+Shift+C])
 * Polygons (image:images/icons/add_graphical_polygon_24.png[], default hotkey kbd:[Ctrl+Shift+P])
 
-Arcs have two editing modes, which are selectable in **Preferences** ->
+To place a shape, select the tool, then click in the canvas to place the shape's first point.
+Click again to place the shape's second point. For rectangles and circles, placing the
+second point will fully define the shape and finish drawing it. Some shapes require three or
+more points to be placed, however. Arcs require three points, while lines, polygons and bezier
+curves can accept an arbitrary number of points, and require a double click to complete.
+
+To modify an existing graphical object, select it, then drag its editing handles to change the
+shape. Moving a handle at the vertex of a shape will move that vertex. Moving a handle on the
+edge of a shape will move that edge while maintaining the edge's angle.
+
+Arcs have two vertex editing modes, which are selectable in **Preferences** ->
 **PCB Editor** -> **Editing Options** or by right clicking the
-image:images/icons/add_arc_24.png[] button on the right toolbar. The first mode
-(**keep arc center, adjust radius**) maintains the position of the arc center as
-as the arc endpoints or midpoint are dragged, changing the radius as necessary.
-The second mode (**keep arc endpoints or direction of starting point**)
-maintains the position of the arc endpoints and the arc's direction of curvature
-as the midpoint or center are dragged.
+image:images/icons/add_arc_24.png[] button on the right toolbar.
+
+* The first mode (**keep arc center, adjust radius**) maintains the position of the arc center as
+  as the arc endpoints or midpoint are dragged, changing the radius as necessary.
+* The second mode (**keep arc endpoints or direction of starting point**) maintains the position
+  of the arc endpoints and the arc's direction of curvature as the midpoint or center are dragged.
 
 Just like with tracks, you can expand a selection from one graphic line to include all other
 contiguous graphic lines by pressing kbd:[U].
 
 The properties of a graphic shape can be adjusted in the shape's properties dialog or with the
-<<editing-object-properties,Properties Manager>>. Rectangles, circles, and polygons can be filled
-shapes or outlines.  The **line width** option controls the width of the outline, even for filled
-objects.  The outline width extends on both sides of the "ideal" shape of the graphic object.
-For example, a graphic circle that is defined to have 2mm radius and 0.2mm line width will consist
-of a torus with an outer radius of 2.1mm and inner radius of 1.9mm.  If the **filled shape**
-option is enabled and the line width is set to 0, the shape will be a filled circle with 2mm
-radius. Several line styles are available: solid, dashed, dotted, dash-dot, and dash-dot-dot.
+<<editing-object-properties,Properties Manager>>.
 
 image::images/graphic_shape_properties.png[scaledwidth="70%"]
+
+* The top section contains controls for editing the object's location and shape. Some types
+  of objects can be edited in multiple ways, with each method in its own tab. For example, a
+  line segment can be edited by its start and end points, by its start point, length, and angle,
+  or by its start and mid points.
+
+* **Locked** controls whether or not the text object is <<locking,locked>>.  Locked objects may not be
+  manipulated or moved, and cannot be selected unless the **Locked Items** option is enabled in the
+  Selection Filter panel.
+
+* Closed shapes (rectangles, circles, and polygons) can be outlines or filled shapes, which is
+  controlled by the **Filled shape** checkbox.
+
+* The **Line width** option controls the width of the outline, even for filled
+  objects.  The outline width extends on both sides of the "ideal" shape of the graphic object.
+  For example, a graphic circle that is defined to have 2mm radius and 0.2mm line width will consist
+  of a torus with an outer radius of 2.1mm and inner radius of 1.9mm.  If the shape is filled
+  and the line width is set to 0, the shape will be a filled circle with 2mm radius. Several line
+  styles are available in the **Line style** dropdown: solid, dashed, dotted, dash-dot, and dash-dot-dot.
 
 NOTE: You can customize the default style of newly-created graphical shapes in the Text & Graphics
       Defaults section of the Board Setup dialog.
 
-Graphical shapes on copper layers can have a net assigned in their properties dialog. Copper
-shapes with a net make connections like tracks or zones. Unlike zones, copper graphical
-objects always maintain their shape and do not keep clearance to other copper objects.
+* The **Layer** dropdown controls which layer the shape is placed on. Graphical shapes on copper layers
+  can have a net assigned in their properties dialog. Copper shapes with a net make connections like tracks
+  or zones. Unlike zones, copper graphical objects always maintain their shape and do not keep clearance
+  to other copper objects.
+
+* When shapes are placed on outer copper layers, they can be configured to affect the corresponding solder
+  mask layer in addition to their primary copper layer by enabling the **Solder mask** checkbox. When enabled,
+  a shape on the front copper layer will also be drawn on the front solder mask layer, while a back copper shape
+  will also be drawn on the back solder mask layer. Because solder mask layers are negative, this will result in
+  a solder mask opening with the same shape as the copper shape. The **Expansion** textbox controls the size
+  of the mask opening relative to the original copper shape: the expansion value will be added to each side
+  of the original shape to form the mask shape. For example, a 1mm wide copper segment with a 1mm expansion
+  would result in a 3mm wide mask cutout, because the 1mm expansion is added to both sides of the segment.
 
 ===== Shape modification tools
 
@@ -1392,30 +1723,39 @@ used by selecting the shapes you want to modify, right clicking, and then
 choosing the relevant tool in the **Shape Modification** submenu. Different
 tools are available for different combinations of selected shapes.
 
-**Heal shapes** fixes a discontinuity between two lines or arcs. A new line
-segment is added to connect the ends of each shape together, up to a specified
-tolerance.
+* **Heal shapes** fixes a discontinuity between two lines or arcs. A new line
+  segment is added to connect the ends of each shape together, up to a specified
+  tolerance.
 
-**Fillet lines** adds an arc to round the corner between two connected lines
-with a specified radius. The two original lines are shortened to meet the
-endpoints of the arc.
+* **Fillet lines** adds an arc to round the corner between two connected lines
+  with a specified radius. The two original lines are shortened to meet the
+  endpoints of the arc.
 
-**Chamfer lines** adds a line segment to create a new edge between two connected
-lines with a specified setback. The two original lines are shortened to meet the
-endpoints of the new segment.
+* **Chamfer lines** adds a line segment to create a new edge between two
+  connected lines with a specified setback. The two original lines are shortened
+  to meet the endpoints of the new segment.
 
-**Extend lines to meet** lengthens two selected lines until they intersect each
-other. The two lines will share a coincident endpoint.
+* **Dogbone corners** adds circular reliefs to the corners of the selected shapes.
+  This is similar to filleting, but the modified shape is larger than the original,
+  with the added arcs intersecting the vertices of the original corners. In other
+  words, the added reliefs exactly enclose the original corners. This can be useful
+  for relieving the corners of interior cutouts so that they can be manufactured 
+  using a round cutting tool. There is an option to
+  **Add slots to acute corners**, which adds extended slots in corners that are
+  too narrow to reach with a cutting tool of the selected radius.
 
-**Merge polygons** combines two or more selected polygons into one new polygon
-that is the union of the original shapes.
+* **Extend lines to meet** lengthens two selected lines until they intersect
+  each other. The two lines will share a coincident endpoint.
 
-**Subtract polygons** subtracts one or more polygons from another polygon,
-resulting in a new polygon that is the difference of the original shapes. The
-first-selected polygon(s) are subtracted from the last-selected polygon.
+* **Merge polygons** combines two or more selected polygons into one new polygon
+  that is the union of the original shapes.
 
-**Intersect polygons** results in a new polygon that is the shape of the
-overlapping area between two or more selected polygons.
+* **Subtract polygons** subtracts one or more polygons from another polygon,
+  resulting in a new polygon that is the difference of the original shapes. The
+  first-selected polygon(s) are subtracted from the last-selected polygon.
+
+* **Intersect polygons** results in a new polygon that is the shape of the
+  overlapping area between two or more selected polygons.
 
 ===== Converting objects to and from graphic shapes
 
@@ -1475,6 +1815,25 @@ The following conversion types are available:
 * **Create Lines From Selection** converts a graphic polygon or rectangle into
   graphic lines that follow the source shape's outline. This can be used to
   convert a unified shape into its constituent outline segments.
+* **Create Outsets From Selection** converts the selected object (graphic
+  shapes, pads, etc.) into a rectangle that surrounds the original shape with
+  some spacing. This can be used to quickly create outlines, courtyards, etc.,
+  especially in combination with other shape modification tools.
+  ** The **Outset** distance specifies the minimum distance between the outset
+     and the original shape. There will always be at least this much space
+     between the two shapes.
+  ** If **Round corners (when possible)** is enabled, the outset will have
+     rounded corners rather than being a simple rectangle.
+  ** If **Round outwards to grid multiples (when possible)** is enabled, the
+     outset will be placed on the specified grid, rounding outwards when
+     necessary so that the specified outset distance is maintained.
+  ** If **Copy item layers** is enabled, the outset will be drawn on the same
+     layer as the original shape. If disabled, the outset will be drawn on the layer selected in the dropdown menu.
+  ** If **Copy item thickness (when possible)** is enabled, the outset will be
+     drawn with the original item's thickness if that item has a thickness, or
+     the specified thickness otherwise. Some source items, like pads, do not
+     have a thickness property. The specified thickness will always be used when
+     this option is disabled.
 * **Create Tracks From Selection** converts a graphic shape, zone, or rule area
   into tracks that follow the source shape's outline. If the source object is
   not on a copper layer, a dialog will be presented to specify the target copper
@@ -1486,6 +1845,7 @@ The following conversion types are available:
   thickness. The source segment is not removed following conversion, but remains
   selected so that it can be easily deleted if desired.
 
+[[text-objects]]
 ==== Text objects
 
 Graphical text may be placed by using the image:images/icons/text_24.png[] button in the right
@@ -1500,20 +1860,21 @@ left and bottom right corners of the box.
 
 image::images/text_properties_dialog.png[scaledwidth="70%"]
 
-**Locked** controls whether or not the text object is <<locking,locked>>.  Locked objects may not be
-manipulated or moved, and cannot be selected unless the **Locked Items** option is enabled in the
-Selection Filter panel.
+* **Locked** controls whether or not the text object is <<locking,locked>>.  Locked objects may not be
+  manipulated or moved, and cannot be selected unless the **Locked Items** option is enabled in the
+  Selection Filter panel.
 
-**Layer** controls the text's layer. Text may be placed on any layer, but note that text on
-copper layers cannot be associated with a net and cannot form connections to tracks or pads.
-Copper zones will fill around the rectangular bounding box of text objects.
+* **Layer** controls the text's layer. Text may be placed on any layer, but note that text on
+  copper layers cannot be associated with a net and cannot form connections to tracks or pads.
+  Copper zones will fill around the rectangular bounding box of text objects.
 
-There are several formatting options: text can be bolded, italicized, left/right/center aligned,
-and reversed. Regular text objects (not text boxes) can also have their vertical alignment
-adjusted. The **knockout** option, which is also limited to regular text objects, adds a solid
-rectangle surrounding the text and makes the text itself a negative cutout.
+* There are several formatting options: text can be bolded, italicized, left/right/center aligned,
+  and reversed. Regular text objects (not text boxes) can also have their vertical alignment
+  adjusted. The **knockout** option, which is also limited to regular text objects, adds a solid
+  rectangle surrounding the text and makes the text itself a negative cutout.
 
-The text itself can use any TTF font available on your system, or the built-in KiCad stroke font.
+* The **Font** dropdown lets you select a font for the text. You can use any TTF font available on
+  your system, or the built-in KiCad stroke font.
 
 NOTE: User fonts are not embedded in the project. If the project is opened on another computer
 that does not have the selected font installed, a different font will be substituted. For maximum
@@ -1522,17 +1883,21 @@ a project (right click a text object -> **Create from Selection** ->
 **Create Polygon from Selection...**). Text converted to polygons is not editable as text, but will
 render identically on any computer.
 
-You can adjust the text size with the **text width** and **text height** controls. When you are using
-the KiCad font, you can also adjust the stroke width with the **thickness** control.
+* You can adjust the text size with the **text width** and **text height** controls. When you are using
+  the KiCad font, you can also adjust the stroke width with the **thickness** control.
 
-**Position X** and **position Y** control the text object's location. These properties are not
-available for text boxes.
+* **Position X** and **position Y** control the text object's location. These properties are not
+  available for text boxes.
 
-**Orientation** is the rotation angle of the text object. You can select an angle in 90 degree
-increments from the dropdown, or type in an arbitrary angle.
+* **Orientation** is the rotation angle of the text object. You can select an angle in 90 degree
+  increments from the dropdown, or type in an arbitrary angle.
 
-Text boxes additionally have options controlling their border. The **border** checkbox makes the
-border visible or invisible. For visible borders, you can adjust the border's thickness with the **border width** control and the line style with the **border style** control (solid, dashed, dotted, dash-dot, or dash-dot-dot).
+* Text boxes additionally have options controlling their border. The **border** checkbox makes the
+    border visible or invisible. For visible borders, you can adjust the border's thickness with
+    the **border width** control and the line style with the **border style** control (solid, dashed,
+    dotted, dash-dot, or dash-dot-dot). You can also adjust the padding on each side of text in a
+    text box (padding can be set using the <<editing-object-properties,Properties Manager>>, but not
+    using the Text Box Properties dialog).
 
 NOTE: You can customize the default style of newly-created text objects in the Text & Graphics
       Defaults section of the Board Setup dialog.
@@ -1565,6 +1930,75 @@ NOTE: Variables must be defined in
       used. There are also a number of
       <<text-variables,built-in text variables>>.
 
+[[tables]]
+==== Tables
+
+You can use a table to organize text in a tabular format. Tables have customizable borders, cell sizes, and headers, and can be placed on any layer.
+
+image::images/table.png[]
+
+To place a table, use the image:images/icons/table_24.png[] button in the right toolbar. Click in the canvas to place the top left corner of the table, then click again to place the bottom right corner of the table and finish drawing the table. The bigger you draw the table, the more rows and columns will be added by default, but rows and columns can be added or deleted after the table is created.
+
+===== Editing table properties
+
+When you finish drawing a table, the Table Properties dialog appears. You can also open the Table Properties dialog in several other ways:
+
+- Select any cell in the table, right click, and select **Edit Table** (kbd:[Ctrl] + kbd:[E])
+- Select the entire table, right click, and select **Properties...** (kbd:[E]). You can select the entire table with a drag selection or by selecting a single cell, then right clicking and selecting **Select Table**.
+- Click the **Edit Table...** button in the Table Cell Properties dialog.
+
+image::images/table_properties.png[]
+
+This dialog lets you edit the properties of the entire table, including the text in each cell and the separators between cells. To change the formatting of text in a cell, edit the properties of individual cells, instead of the properties for the entire table.
+
+NOTE: The properties for a table can also be edited in the <<editing-object-properties,Properties Manager>> when the entire table is selected.
+
+The left side of the dialog displays an editable grid of the entire table. You can edit the contents of any cell by clicking on the cell in the grid. You can also edit the text in a cell by selecting the cell and using the Properties Manager.
+
+NOTE: Text in table cells supports the markup described in the <<text-objects,text objects section>> (superscripts, subscripts, strikethroughs, etc.).
+
+The right side of the dialog contains formatting options for the table.
+
+- The **Layer** dropdown controls which board layer the table is on.
+- The **Locked** checkbox controls whether or not the table is <<locking,locked>>. Locked objects may not be manipulated or moved, and cannot be selected unless the **Locked Items** option is enabled in the Selection Filter panel.
+- The **External border** and **Header border** checkboxes control whether there is a border drawn around the entire table and the cells in the top row, respectively. When **Header border** is enabled, the border below the cells in the top row is styled using these external border settings rather than the row/column line settings. The line width of the header borders is controlled by the **Width** field. The line style can be set to solid, dashed, dotted, dash-dot, or dash-dot-dot using the **Style** dropdown menu.
+- The **Row Lines** and **Column lines** checkboxes enable horizontal lines between rows and vertical lines between columns, respectively. These have the same formatting options as the external and header borders.
+
+===== Editing table cell properties
+
+Instead of editing the properties of an entire table, you can also edit the properties of individual cells. This modifies selected cells, but does not affect other cells. To open the Table Cell Properties dialog, double click on a cell, or select a cell, right click, and choose **Properties...** (kbd:[E]). If you select multiple cells, the properties dialog will act on all of them at once.
+
+NOTE: You can select multiple cells by clicking and dragging.
+
+NOTE: To select all cells in a row or column, select a cell in that row or column, right click, and choose **Select Row(s)** or **Select Column(s)**. You can select multiple rows or columns in this way by starting with multiple cells selected.
+
+image::images/table_cell_properties.png[]
+
+This dialog contains formatting options for the text in each cell.
+
+- **Horizontal alignment** and **Vertical alignment** control how text is positioned within the cell.
+- **Font** controls the text font used in the cell.
+- The **Bold** and **Italic** checkboxes bold and italicize the text, respectively. These are three-state checkboxes, which can be set to off, on, or no change. No change is useful when multiple cells with different bold/italic settings are being edited at the same time.
+- The **Text width**, **Text height**, and **Thickness** control the size and thickness of the text. **Thickness** only has an effect when the font is set to the KiCad Font.
+- The **Cell margins** textboxes control the amount of spacing around the top, bottom, left, and right of the text in the cell.
+
+You can click the **Edit Table...** button to open the properties dialog for the entire table.
+
+NOTE: The properties for a table cell can also be edited in the <<editing-object-properties,Properties Manager>> when one or more table cells is selected.
+
+===== Editing table layout
+
+The layout of a table (size and number of columns and rows) is initially set when you create a table, but you can also edit the layout after creation.
+
+To resize a row or column, select a cell in that row or column, then drag the handle on the right (to change the column width) or the bottom (to change the row height) to the desired size.
+
+To add rows or columns, select a cell next to where the new row or column should go, right click, then choose **Add Row Above**, **Add Row Below**, **Add Column Before**, or **Add Column After**, as desired.
+
+To delete rows or columns, select a cell in the row or column you want to delete, then right click and choose **Delete Row(s)** or **Delete Column(s)**. To delete multiple rows or columns, start with a selection that spans all the rows or columns you want to delete.
+
+You can merge multiple cells into a single cell by selecting all the cells you want to merge, right clicking, and choosing **Merge Cells**. To unmerge them, select the merged cell, right click, and choose **Unmerge Cells**.
+
+[[dimensions]]
 ==== Dimensions
 
 Dimensions are graphical objects used to show a measurement or other marking on a board design.
@@ -1572,26 +2006,26 @@ They may be added on any drawing layer, but are normally added to one of the Use
 currently supports five different types of dimension: aligned, orthogonal, center, radial, and
 leader.
 
-**Aligned** dimensions (image:images/icons/add_aligned_dimension_24.png[]) show a measurement of
-distance between two points.  The measurement axis is the line that connects those two points, and
-the dimension graphics are kept parallel to that axis.
+* **Aligned** dimensions (image:images/icons/add_aligned_dimension_24.png[]) show a measurement of
+  distance between two points.  The measurement axis is the line that connects those two points, and
+  the dimension graphics are kept parallel to that axis.
 
-**Orthogonal** dimensions (image:images/icons/add_orthogonal_dimension_24.png[]) also measure the
-distance between two points, but the measurement axis is either the X or Y axis.  In other words,
-these dimensions show the horizontal or vertical component of the distance between two points.
-When creating orthogonal dimensions, you can select which axis to use as the measurement axis based
-on where you place the dimension after selecting the two points to measure.
+* **Orthogonal** dimensions (image:images/icons/add_orthogonal_dimension_24.png[]) also measure the
+  distance between two points, but the measurement axis is either the X or Y axis.  In other words,
+  these dimensions show the horizontal or vertical component of the distance between two points.
+  When creating orthogonal dimensions, you can select which axis to use as the measurement axis based
+  on where you place the dimension after selecting the two points to measure.
 
-**Center** dimensions (image:images/icons/add_center_dimension_24.png[]) create a cross mark to
-indicate a point or the center of a circle or arc.
+* **Center** dimensions (image:images/icons/add_center_dimension_24.png[]) create a cross mark to
+  indicate a point or the center of a circle or arc.
 
-**Radial** dimensions (image:images/icons/add_radial_dimension_24.png[]) show a measurement between
-a center point and the outside of a circle or arc. The center point is indicated by a cross.
+* **Radial** dimensions (image:images/icons/add_radial_dimension_24.png[]) show a measurement between
+  a center point and the outside of a circle or arc. The center point is indicated by a cross.
 
-**Leader** dimensions (image:images/icons/add_leader_24.png[]) create an arrow with a leader line
-connected to a text field.  This text field can contain any text, and an optional circular or
-rectangular frame around the text.  This type of dimension is often used to call attention to parts
-of the design for reference in fabrication notes.
+* **Leader** dimensions (image:images/icons/add_leader_24.png[]) create an arrow with a leader line
+  connected to a text field.  This text field can contain any text, and an optional circular or
+  rectangular frame around the text.  This type of dimension is often used to call attention to parts
+  of the design for reference in fabrication notes.
 
 image::images/dimensions.png[scaledwidth="70%"]
 
@@ -1605,21 +2039,21 @@ image::images/dimensions_dialog.png[scaledwidth="70%"]
 
 ===== Dimension format options
 
-**Override value:** When enabled, you may enter a measurement value directly into the **Value**
-field that will be used instead of the actual measured value.
+* **Override value:** When enabled, you may enter a measurement value directly into the **Value**
+  field that will be used instead of the actual measured value.
 
-**Prefix:** Any text entered here will be shown before the measurement value.
+* **Prefix:** Any text entered here will be shown before the measurement value.
 
-**Suffix:** Any text entered here will be shown after the measurement value.
+* **Suffix:** Any text entered here will be shown after the measurement value.
 
-**Layer:** Selects which layer the dimension object exists on.
+* **Layer:** Selects which layer the dimension object exists on.
 
-**Units:** Selects which units to display the measured value in.  **Automatic** units will result
-in the dimension units changing when the display units of the board editor are changed.
+* **Units:** Selects which units to display the measured value in.  **Automatic** units will result
+  in the dimension units changing when the display units of the board editor are changed.
 
-**Units format:** Select from several built-in styles of unit display.
+* **Units format:** Select from several built-in styles of unit display.
 
-**Precision:** Select how many digits of precision to display.
+* **Precision:** Select how many digits of precision to display.
 
 ===== Dimension text options
 
@@ -1627,32 +2061,32 @@ Most of the dimension text options are identical to those options available for 
 text objects (see the Graphical Objects section above).  Some specific options for dimension text
 are also available:
 
-**Position mode:** Choose whether to position the dimension text manually, or to automatically keep
-it aligned with the dimension measurement lines.
+* **Position mode:** Choose whether to position the dimension text manually, or to automatically keep
+  it aligned with the dimension measurement lines.
 
-**Keep aligned with dimension:** When enabled, the orientation of the dimension text will be
-adjusted automatically to keep the text parallel with the measurement axis.
+* **Keep aligned with dimension:** When enabled, the orientation of the dimension text will be
+  adjusted automatically to keep the text parallel with the measurement axis.
 
 ===== Dimension line options
 
-**Line thickness:** Sets the thickness of the graphical lines that make up a dimension's shape.
+* **Line thickness:** Sets the thickness of the graphical lines that make up a dimension's shape.
 
-**Arrow length:** Sets the length of the arrow segments of the dimension's shape. A negative
-arrow length reverses the arrow direction.
+* **Arrow length:** Sets the length of the arrow segments of the dimension's shape. A negative
+  arrow length reverses the arrow direction.
 
-**Extension line offset:** Sets the distance from the measurement point to the start of the
-extension lines.
+* **Extension line offset:** Sets the distance from the measurement point to the start of the
+  extension lines.
 
-**Extension line overshoot:** Sets the distance from the dimension's line to the end of the
-extension lines.
+* **Extension line overshoot:** Sets the distance from the dimension's line to the end of the
+  extension lines.
 
 ===== Leader options
 
 image::images/dimensions_leader.png[scaledwidth="70%"]
 
-**Value:** Enter the text to show at the end of the leader line.
+* **Value:** Enter the text to show at the end of the leader line.
 
-**Text frame:** Select the desired border around the text (circle, rectangle, or none).
+* **Text frame:** Select the desired border around the text (circle, rectangle, or none).
 
 [[pcbnew-edit-text-and-graphics-properties]]
 ==== Bulk editing text and graphics
@@ -1675,14 +2109,14 @@ of changing graphic properties). If no filters are enabled, all objects in the
 selected scope will be modified. For filters with a text box, wildcards are
 supported: `*` matches any characters, and `?` matches any single character.
 
-*Filter items by layer* filters to items on the specified board layer.
+* *Filter items by layer* filters to items on the specified board layer.
 
-*Filter items by parent reference designator* filters to fields in the
-footprint with the specified reference designator. *Filter items by parent
-footprint library id* filters to fields in footprint with the specified library
-identifier.
+* *Filter items by parent reference designator* filters to fields in the
+  footprint with the specified reference designator. *Filter items by parent
+  footprint library id* filters to fields in footprint with the specified library
+  identifier.
 
-*Selected items only* filters to the current selection.
+* *Selected items only* filters to the current selection.
 
 ===== Action
 
@@ -1695,14 +2129,14 @@ Drop-down lists and text boxes can be set to `-- leave unchanged --` to preserve
 existing values. Checkboxes can be checked or unchecked to enable or disable a
 change, but can also be toggled to a third "leave unchanged" state.
 
-All items can have their *layer* set.
+* All items can have their *layer* set.
 
-Graphic items can have their *line thickness* modified.
+* Graphic items can have their *line thickness* modified.
 
-Text properties that can be modified are *font*, *text width*, *text height*,
-*text thickness* (KiCad font only), emphasis (*bold* and *italic*), orientation
-(*keep upright*), and alignment (*center on footprint*). Footprint text can also
-have its *visibility* set.
+* Text properties that can be modified are *font*, *text width*, *text height*,
+  *text thickness* (KiCad font only), emphasis (*bold* and *italic*), orientation
+  (*keep upright*), and alignment (*center on footprint*). Footprint text can also
+  have its *visibility* set.
 
 ==== Cleaning up graphics
 
@@ -1713,14 +2147,13 @@ image::images/cleanup_graphics.png[]
 
 The following cleanup actions are available and will be performed when selected:
 
-*Merge lines into rectangles:* combines individual graphic lines that together
-form a rectangle into a single rectangle shape object.
+* *Merge lines into rectangles:* combines individual graphic lines that together
+  form a rectangle into a single rectangle shape object.
 
-*Delete redundant graphics:* deletes graphics objects that are duplicated or
-degenerate.
+* *Delete redundant graphics:* deletes graphics objects that are duplicated or degenerate.
 
-*Fix discontinuities in board outlines:* modifies the existing board outline to
-fix any discontinuities that are within the specified tolerance.
+* *Fix discontinuities in board outlines:* modifies the existing board outline to
+  fix any discontinuities that are within the specified tolerance.
 
 Any changes that will be applied to the board are displayed at the bottom of the
 dialog. They are not applied until you press the **Update PCB** button.
@@ -1733,7 +2166,8 @@ rules defined for them. Some basic rules are available that will raise DRC
 errors if certain types of objects are within the bounds of the rule area, but
 rule areas can also be used together with
 <<custom-design-rules,custom DRC rules>> to define complex DRC behavior that
-only applies within the rule area.
+only applies within the rule area. Rule areas are also used to define channels
+for <<multichannel,multichannel layout>>.
 
 You can add a rule area by clicking the
 image:images/icons/add_keepout_area_24.png[] button on the right toolbar
@@ -1747,42 +2181,46 @@ image::images/rule_area.png[]
 
 The Rule Area Properties dialog has the following options:
 
-The **layers** list determines which layers the rule area applies to. The area
-only appears on these layers and the selected keepout rules only apply on these
-layers. At least one layer must be selected. By default, the active layer in
-the editing canvas is preselected in the rule area layer list.
+* The **layers** list determines which layers the rule area applies to. The area
+  only appears on these layers and the selected keepout rules only apply on these
+  layers. At least one layer must be selected. By default, the active layer in
+  the editing canvas is preselected in the rule area layer list.
 
-The **area name** field is optional and provides an identifier for the rule
-area. If it is provided, it is included in DRC violation messages to make them
-clearer. It can also be used in custom DRC rules to identify a particular rule
-area.
+* The **area name** field is optional and provides an identifier for the rule
+  area. If it is provided, it is included in DRC violation messages to make them
+  clearer. It can also be used in custom DRC rules to identify a particular rule
+  area.
 
-The **locked** checkbox determines if the rule area should be
-<<locking,locked>>. As with other objects, rule areas can also be locked or
-unlocked after they are created.
+* The **locked** checkbox determines if the rule area should be
+  <<locking,locked>>. As with other objects, rule areas can also be locked or
+  unlocked after they are created.
 
-Several **basic rules** are available to keep out various types of objects.  The
-basic rules can be configured to keep out tracks, vias, pads, zone fills, and/or
-footprints. If an object of one of the selected types is within the rule area, a
-DRC error will be raised. Additionally, zone fills will automatically avoid a
-rule area if the rule area is configured to keep out zones.
+* The **Keepouts** tab contains several basic rules to prevent various types of
+  objects from being placed within the rule area. The basic rules can be
+  configured to keep out tracks, vias, pads, zone fills, and/or footprints. If
+  an object of one of the selected types is within the rule area, a DRC error
+  will be raised. Additionally, zone fills will automatically avoid a rule area
+  if the rule area is configured to keep out zones.
 
 NOTE: Even with no basic rules selected, rule areas can still be used to define
       specific areas in which to apply <<custom-design-rules,custom DRC rules>>.
 
+* The **Placement** tab contains settings for
+  <<multichannel,multichannel layout>>, which are explained in that section.
 
-There are a few options for the **outline display** of the rule area. The area
-can be shown with a hatched outline, fully hatched throughout the area, or with
-just the outline with no hatching. The **outline hatch pitch** is also
-adjustable.
+* There are a few options for the **outline display** of the rule area. The area
+  can be shown with a hatched outline, fully hatched throughout the area, or with
+  just the outline with no hatching. The **outline hatch pitch** is also
+  adjustable.
 
 [[locking]]
 === Locking
 
 Most objects can be locked through their properties dialogs, by using the right-click context menu,
-or by using the Toggle Lock hotkey (kbd:[L]).  Locked objects cannot be selected unless the "Locked
-items" checkbox is enabled in the selection filter.  Attempting to move locked items will result in
-a warning dialog:
+or by using the Toggle Lock hotkey (kbd:[L]).  Locking an item makes it more difficult to select,
+move, or modify the object, which can prevent unintended modifications. Locked objects cannot be
+selected unless the "Locked items" checkbox is enabled in the selection filter.  Attempting to
+move locked items will result in a warning dialog:
 
 image::images/pcbnew_locked_items_dialog.png[]
 
@@ -1790,9 +2228,19 @@ Selecting "Override Locks" in this dialog will allow moving the locked items.  S
 allow you to move any unlocked items in the selection; leaving the locked items behind.  Selecting
 "Do not show again" will remember your choice for the rest of your session.
 
+NOTE: You can forget this choice and re-enable the lock override prompt for the
+      current session by unchecking
+      **Do not prompt for lock overrides for this session** in the
+      **Editing Options** panel of the PCB Editor Preferences dialog.
+
 Locked items are displayed with a colored shadow around them. This can be customized in your color
 scheme.
 
+NOTE: Locked objects can't be selected unless the **Locked items** checkbox is enabled in the
+      <<selection,selection filter>>. By default, this checkbox is disabled to exclude locked items
+      from selection.
+
+[[groups]]
 === Groups
 
 Groups let you treat multiple objects as a single object for the purposes of
@@ -1927,26 +2375,28 @@ vertical spacing setting. Every third column will be placed at the original
 spacing and offset. Offsets from the stagger settings are added to the previous
 horizontal and vertical offset settings.
 
+If the **grid position** option is set to **source items remain in place**, the
+original items will not be moved, and the grid extends with those items at one
+corner. If **center on source items** is chosen, the grid is offset so that the
+resulting grid is centered where the items used to be.
+
 image::images/create_array_circular.png[]
 
-**Circular Arrays** are described by a center point, an angular spacing, and a
-number of arrayed items. If **set center by position** is selected, the center
-point of the array will be defined by the absolute X/Y position you enter in
-**center pos X** and **center pos Y**. If **set center by radius** is selected,
-the center point of the array will be defined by the **array radius** and
-**array angle** parameters, which describe the position of the array center
-relative to the source object's position. The source object's position is
-displayed for reference as **ref point pos X** and **ref point pos Y**.
+**Circular Arrays** are described by a center point, an angular spacing, and,
+optionally, the number of arrayed items. If **set center by position** is
+selected, the center point of the array will be defined by the absolute X/Y
+position you enter in **center pos X** and **center pos Y**. You can also
+interatively select a point from the board using **Select Point...**, or
+select the origin point of another item using **Select Item...**.
 
 The **item count** field determines the number of objects in the array,
 including the source object. The **angle** field determines the angular spacing
 between items, with the center point at the center of the array. Positive angles
 result in a counter-clockwise rotation relative to the center point and the
-source item, while negative angles result in a clockwise rotation. An angle of
-`0` will result in a complete circle with objects evenly spaced to provide the
-specified number of objects. If the item count is too small to create a full
-circle with the specified spacing between objects, the array will not be a
-complete circle. When **rotate items** is selected, objects will be rotated
+source item, while negative angles result in a clockwise rotation. Select
+**full circle** to evenly space the entered number of items around the circle.
+
+When **rotate items** is selected, objects will be rotated
 around their origins as array sweeps around the center point. Otherwise, objects
 will maintain the same orientation as the source item.
 
@@ -1964,9 +2414,84 @@ NOTE: Creating an array of footprints will result in multiple copies of the
       will result in footprints that are not represented in the schematic, so
       careful syncing between the board and the schematic will be needed.
 
-After creating an array, the newly added objects remain selected (not including
-the original source object), which allows you to easily delete the array if the
-parameters need to be adjusted.
+[[multichannel]]
+=== Multichannel layout
+
+KiCad has a multichannel layout feature for easing designs that have multiple repetitive subcircuits, like an audio mixer with many identical channels. This feature lets you perform placement and routing for one portion of a circuit, then automatically reuse that placement and routing for the other repeated portions of the circuit.
+
+image::images/multichannel_layout.png[]
+
+Using the multichannel layout feature first requires you to designate which portions of the schematic represent the repeated parts of the circuit. You can either use xref:../eeschema/eeschema.adoc#hierarchical-schematics[hierarchical sheets], with a repeated hierarchical sheet for each channel, or xref:../eeschema/eeschema.adoc#component-classes[component classes] with a unique component class assigned to the symbols in each channel. Each channel will exactly correspond to the symbols (and their associated connections) in a single sheet or component class.
+
+For the layout, specially configured <<pcb-rule-areas,rule areas>> are drawn on the board and used to describe the physical location of each repeated channel. The automatic placement of footprints, routing, and other items is restricted to these placement rule areas. Each "channel" of the design corresponds to a single rule area. One rule area will be the _reference_ rule area, which will be manually placed and routed. The other rule areas are the _target_ rule areas, which will reuse the placement and routing from the reference rule area.
+
+After setting up the placement rule areas for each channel and manually routing the reference channel, the Repeat Layout tool is used to copy the placement and layout from the reference rule area to the target rule areas.
+
+NOTE: KiCad includes a demo project, called `multichannel`, that demonstrates the use of the multichannel layout feature.
+
+[[multichannel-schematic]]
+==== Multichannel design procedure: schematic
+
+Designing a multichannel layout begins in the schematic. You need to specify which components (symbols) belong to each channel. Each channel in the schematic must be equivalent to the other channels. This means channels must match each other in the following ways:
+
+- each matched channel needs to have the same number of symbols
+- corresponding symbols in each channel need to have the same reference designator prefix (e.g. `R` or `U`), although the full reference designators need to be unique as usual
+- corresponding symbols in each channel need to have the same footprint
+- connections between symbols need to be equivalent in each channel
+
+In the example schematic below, Channels 1, 2, 3, and 4 are equivalent and therefore can be used to share routing in a multichannel design. Even though the net connections are drawn differently in some channels, the underlying net connections are the same. The different symbols in Channel 2 and the different values in Channel 3 also do not break the equivalency. Footprint assignments are not shown in the image, but the symbols that correspond between channels must use the same footprints. In this example, this means that R1, R3, R5, and R7 each must use the same footprint, as must R2, R4, R6, and R8.
+
+In contrast, Channels A and B are not equivalent to Channels 1-4, nor to each other. Channel A contains an extra parallel resistor not present in the other channels, and Channel B is missing a connection between the two resistors.
+
+image::images/multichannel_equivalency.png[]
+
+You can assign symbols to channels in two ways, either using xref:../eeschema/eeschema.adoc#hierarchical-schematics[hierarchical sheets] or using xref:../eeschema/eeschema.adoc#component-classes[component classes].
+
+- When doing a multichannel design using hierarchical sheets, each channel is represented by a different sheet. Normally you will instantiate the same hierarchical sheet file multiple times, with one instantiation per channel. Each sheet instantiation needs to include all of the symbols for the corresponding channel, with no extra symbols.
+- When doing a multichannel design using component classes, each channel is represented by a different component class. Each component class needs to include all of the symbols for the corresponding channel, with no extra symbols. Component classes are shown in the previous schematic example.
+
+==== Multichannel design procedure: board
+
+In the board, each channel is represented with a <<pcb-rule-areas,rule area>> with its rules configured for placement. You need to add a rule area for each channel. One rule area will be the _reference_, containing manually placed and routed footprints. The other rule areas will have the reference placement and routing copied to them. Placement rule areas need the following settings configured in their properties:
+
+- The options in the **Placement** tab should be configured to select the hierarchical sheet or component class that contains the channel's components.
+- The options in the **Keepouts** tab should typically be unselected, unless there is a specific type of item that needs to be excluded from the rule area.
+- The rule area's **layers** should be set based on which layers are considered part of the channel. An item will be copied from the reference channel to a target channel only if the item's layer is enabled in both the reference and target rule areas.
+
+image::images/rule_area_placement.png[]
+
+Placement rule areas can be manually created like any <<pcb-rule-areas,rule area>>, or they can be automatically generated by selecting **Tools** -> **Multi-Channel** -> **Generate Placement Rule Areas...**. This tool can draw basic placement rule areas for any of the hierarchical sheets or component classes in the design, depending on which you select. 
+
+NOTE: The tool allows you to generate a placement rule area for *any* sheet or component class, even if it is not intended to represent a channel in a multichannel design. It is your responsibility to select only the desired sheets or component classes.
+
+image::images/multichannel_generate_rule_area.png[]
+
+The tool has several options:
+
+- **Replace existing placement rule areas**: if enabled, the newly generated rule area for each channel will replace any rule areas that already exist for that channel.
+- **Group footprints with their placement rule areas**: if enabled, the newly generated rule area for each channel will be added to a <<groups,group>> with all footprints associated with that rule area. This allows the target rule area and its associated items to be manipulated as a single entity.
+
+Automatically generated rule areas are preconfigured as placement rule areas with the appropriate source hierarchical sheet or component class selected. Their layers are set to just the front and back copper layers. They are drawn as the minimum size rectangle that encloses their constituent footprints, without extra space for routing or other items. After generating a rule area, you may want to change the configured layers to ensure all desired items in the reference channel get copied to the target channels. You also may want to edit the shape of the rule area, although rule areas for target channels will have their shapes automatically adjusted to match the reference rule area.
+
+NOTE: if generated rule areas are grouped with their footprints, you will need to enter the group (or ungroup the items) in order to edit the rule area.
+
+Once you have created rule areas for each channel and completed placing footprints and routing for the reference channel, you can use the Repeat Layout tool to copy the reference channel's layout to the other channels. Run this tool using **Tools** -> **Multi-Channel** -> **Repeat Layout...**.
+
+If a rule area is selected when the tool is run, that rule area will be used as the reference rule area. If no rule area is selected, you will be prompted to select a rule area. When the reference rule area is determined, a dialog will appear.
+
+image::images/multichannel_repeat_layout.png[]
+
+The table at the top of the dialog controls which target rule areas will receive the layout from the reference channel. Any target rule areas that are not selected will not be updated. The tool will only copy items to a target rule area if the target's status is listed as "OK". If the status is not "OK", the target channel's circuit topology cannot be matched to the reference channel; see the requirements for <<multichannel-schematic,how channels need to match in the schematic>> for more information.
+
+There are several options to control which items from the reference channel are copied to the selected target areas, and how those copied items are handled:
+
+- **Copy footprint placement**: if enabled, the placement of footprints in the reference rule area will be replicated for footprints associated with the target rule area(s). Footprints are copied if they are enclosed by or intersect the reference rule area; they are not copied if they are fully outside. Footprints will only be copied if they are on a layer that is enabled in both the reference and target rule areas.
+- **Copy routing**: if enabled, any tracks and vias in the reference rule area will be copied to the target rule area(s). Routing is copied if it is enclosed by or intersects the reference rule area; it is not copied if it is fully outside. Routing will only be copied if it is on a layer that is enabled in both the reference and target rule areas.
+- **Copy other items**: if enabled, any other items (zones, graphic objects) fully enclosed by the reference rule area will be copied to the target rule area(s). Items are copied if they are fully enclosed by the reference rule area; they are not copied if they are partially or fully outside. This means, for example, that a large copper zone that intersects a reference channel will not be copied to the target channels. Items will only be replicated if they are on a layer that is enabled in both the reference and target rule areas.
+- **Group items with their placement rule areas**: if enabled, the items copied to a target rule area will be added to a <<groups,group>> with that rule area. This allows the target rule area and its associated items to be manipulated as a single entity.
+- **Remove locked items from target rule areas**: if enabled, items associated with target rule areas will be updated even if they are <<locking,locked>>. If not enabled, locked items will not be updated to match the reference rule area.
+
+After clicking **OK**, the layout from the reference channel will be applied to the target channels. When the repeat layout is completed, each channel can be individually edited like any other part of the board design.
 
 === Importing vector drawings
 
@@ -2077,6 +2602,13 @@ specified in the corresponding schematic symbol.
 
 If unchecked, footprints that are already in the PCB will not be changed, even
 if the schematic symbol is updated to specify a different footprint.
+
+| Delete/replace footprints even if locked
+| If checked, locking a footprint will not affect whether a footprint is deleted
+or replaced based on changes in the schematic.
+
+If unchecked, locked footprints will never be deleted or replaced even if they
+otherwise would be.
 |===
 
 [[back-annotation]]

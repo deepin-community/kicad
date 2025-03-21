@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -71,7 +71,7 @@ void CALLBACK_GAL::DrawGlyph( const KIFONT::GLYPH& aGlyph, int aNth, int aTotal 
             KIFONT::OUTLINE_GLYPH glyph = static_cast<const KIFONT::OUTLINE_GLYPH&>( aGlyph );
 
             if( glyph.HasHoles() )
-                glyph.Fracture( SHAPE_POLY_SET::POLYGON_MODE::PM_FAST );
+                glyph.Fracture();
 
             for( int ii = 0; ii < glyph.OutlineCount(); ++ii )
                 m_outlineCallback( glyph.Outline( ii ) );

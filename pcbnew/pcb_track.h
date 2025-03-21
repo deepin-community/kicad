@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2004 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -43,6 +43,8 @@
 #include <geometry/shape_segment.h>
 #include <core/minoptmax.h>
 #include <core/arraydim.h>
+#include <lset.h>
+#include <padstack.h>
 
 class PCB_TRACK;
 class PCB_VIA;
@@ -67,6 +69,13 @@ enum class VIATYPE : int
     MICROVIA     = 1, /* this via which connect from an external layer
                        * to the near neighbor internal layer */
     NOT_DEFINED  = 0  /* not yet used */
+};
+
+enum class TENTING_MODE
+{
+    FROM_RULES = 0,
+    TENTED = 1,
+    NOT_TENTED = 2
 };
 
 #define UNDEFINED_DRILL_DIAMETER  -1       //< Undefined via drill diameter.
@@ -95,16 +104,16 @@ public:
 
     void Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle ) override;
 
-    virtual void Mirror( const VECTOR2I& aCentre, bool aMirrorAroundXAxis );
+    virtual void Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
 
-    void Flip( const VECTOR2I& aCentre, bool aFlipLeftRight ) override;
+    void Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
 
     void SetPosition( const VECTOR2I& aPos ) override { m_Start = aPos; }
     VECTOR2I GetPosition() const override             { return m_Start; }
     const VECTOR2I GetFocusPosition() const override  { return ( m_Start + m_End ) / 2; }
 
-    void SetWidth( int aWidth )             { m_Width = aWidth; }
-    int GetWidth() const                    { return m_Width; }
+    virtual void SetWidth( int aWidth )             { m_width = aWidth; }
+    virtual int GetWidth() const                    { return m_width; }
 
     void SetEnd( const VECTOR2I& aEnd )     { m_End = aEnd; }
     const VECTOR2I& GetEnd() const          { return m_End; }
@@ -133,7 +142,20 @@ public:
             return m_End;
     }
 
+    void SetHasSolderMask( bool aVal )      { m_hasSolderMask = aVal; }
+    bool HasSolderMask() const              { return m_hasSolderMask; }
+
+    void SetLocalSolderMaskMargin( std::optional<int> aMargin ) { m_solderMaskMargin = aMargin; }
+    std::optional<int> GetLocalSolderMaskMargin() const         { return m_solderMaskMargin; }
+
+    int GetSolderMaskExpansion() const;
+
     // Virtual function
+    bool IsOnLayer( PCB_LAYER_ID aLayer ) const override;
+
+    virtual LSET GetLayerSet() const override;
+    virtual void SetLayerSet( const LSET& aLayers ) override;
+
     const BOX2I GetBoundingBox() const override;
 
     /**
@@ -195,25 +217,17 @@ public:
         return wxT( "PCB_TRACK" );
     }
 
-    /**
-     * Return any local clearance overrides set in the "classic" (ie: pre-rule) system.
-     *
-     * @param aSource [out] optionally reports the source as a user-readable string
-     * @return int - the clearance in internal units.
-     */
-    int GetLocalClearance( wxString* aSource ) const override;
-
     virtual MINOPTMAX<int> GetWidthConstraint( wxString* aSource = nullptr ) const;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
     virtual EDA_ITEM* Clone() const override;
 
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    virtual std::vector<int> ViewGetLayers() const override;
 
-    double ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const override;
+    double ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const override;
 
     const BOX2I ViewBBox() const override;
 
@@ -228,11 +242,15 @@ public:
     virtual double Similarity( const BOARD_ITEM& aOther ) const override;
 
     virtual bool operator==( const BOARD_ITEM& aOther ) const override;
+    virtual bool operator==( const PCB_TRACK& aOther ) const;
 
     struct cmp_tracks
     {
         bool operator()( const PCB_TRACK* aFirst, const PCB_TRACK* aSecond ) const;
     };
+
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
 #if defined (DEBUG)
     virtual void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -245,9 +263,14 @@ protected:
                                      std::vector<MSG_PANEL_ITEM>& aList ) const;
 
 protected:
-    int      m_Width;        ///< Thickness of track, or via diameter
     VECTOR2I m_Start;        ///< Line start point
     VECTOR2I m_End;          ///< Line end point
+
+    bool               m_hasSolderMask;
+    std::optional<int> m_solderMaskMargin;
+
+private:
+    int      m_width;        ///< Thickness of track (or arc) -- no longer the width of a via
 };
 
 
@@ -274,9 +297,9 @@ public:
 
     void Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle ) override;
 
-    void Mirror( const VECTOR2I& aCentre, bool aMirrorAroundXAxis ) override;
+    void Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
 
-    void Flip( const VECTOR2I& aCentre, bool aFlipLeftRight ) override;
+    void Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
 
     void SetMid( const VECTOR2I& aMid ) { m_Mid = aMid; }
     const VECTOR2I& GetMid() const      { return m_Mid; }
@@ -330,12 +353,19 @@ public:
 
     double Similarity( const BOARD_ITEM& aOther ) const override;
 
-    bool operator==( const BOARD_ITEM& aOther ) const override;
+    bool operator==( const PCB_ARC& aOther ) const;
+    bool operator==( const BOARD_ITEM& aBoardItem ) const override;
+
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
 protected:
     virtual void swapData( BOARD_ITEM* aImage ) override;
 
 private:
+    // Silence GCC warning about overriding the base class method
+    bool operator==( const PCB_TRACK& aOther ) const override;
+
     VECTOR2I m_Mid; ///< Arc mid point, halfway between start and end
 };
 
@@ -371,12 +401,38 @@ public:
         return false;
     }
 
+    /**
+     * @return true if top and bottom layers are valid, depending on the copper layer count
+     */
+    bool HasValidLayerPair( int aCopperLayerCount );
+
     VIATYPE GetViaType() const { return m_viaType; }
     void SetViaType( VIATYPE aViaType ) { m_viaType = aViaType; }
+
+    const PADSTACK& Padstack() const              { return m_padStack; }
+    PADSTACK& Padstack()                          { return m_padStack; }
+    void SetPadstack( const PADSTACK& aPadstack ) { m_padStack = aPadstack; }
+
+    const BOX2I GetBoundingBox() const override;
+
+    void SetWidth( int aWidth ) override;
+    int GetWidth() const override;
+
+    void SetWidth( PCB_LAYER_ID aLayer, int aWidth );
+    int GetWidth( PCB_LAYER_ID aLayer ) const;
+
+    // For properties panel
+    void SetFrontWidth( int aWidth ) { SetWidth( F_Cu, aWidth ); }
+    int GetFrontWidth() const { return GetWidth( F_Cu ); }
 
     bool HasHole() const override
     {
         return true;
+    }
+
+    bool HasDrilledHole() const override
+    {
+        return m_viaType == VIATYPE::THROUGH || m_viaType == VIATYPE::BLIND_BURIED;
     }
 
     std::shared_ptr<SHAPE_SEGMENT> GetEffectiveHoleShape() const override;
@@ -384,8 +440,16 @@ public:
     MINOPTMAX<int> GetWidthConstraint( wxString* aSource = nullptr ) const override;
     MINOPTMAX<int> GetDrillConstraint( wxString* aSource = nullptr ) const;
 
-    bool IsTented() const override;
+    void SetFrontTentingMode( TENTING_MODE aMode );
+    TENTING_MODE GetFrontTentingMode() const;
+    void SetBackTentingMode( TENTING_MODE aMode );
+    TENTING_MODE GetBackTentingMode() const;
+
+    bool IsTented( PCB_LAYER_ID aLayer ) const override;
     int GetSolderMaskExpansion() const;
+
+    PCB_LAYER_ID GetLayer() const override;
+    void SetLayer( PCB_LAYER_ID aLayer ) override;
 
     bool IsOnLayer( PCB_LAYER_ID aLayer ) const override;
 
@@ -395,7 +459,7 @@ public:
      * Note SetLayerSet() initialize the first and last copper layers connected by the via.
      * So currently SetLayerSet ignore non copper layers
      */
-    virtual void SetLayerSet( LSET aLayers ) override;
+    virtual void SetLayerSet( const LSET& aLayers ) override;
 
     /**
      * For a via m_layer contains the top layer, the other layer is in m_bottomLayer/
@@ -439,17 +503,17 @@ public:
         return wxT( "PCB_VIA" );
     }
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
     EDA_ITEM* Clone() const override;
 
-    void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    std::vector<int> ViewGetLayers() const override;
 
-    double ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const override;
+    double ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const override;
 
-    void Flip( const VECTOR2I& aCentre, bool aFlipLeftRight ) override;
+    void Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
 
 #if defined (DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -458,25 +522,55 @@ public:
     int GetMinAnnulus( PCB_LAYER_ID aLayer, wxString* aSource ) const;
 
     /**
+     * @deprecated - use Padstack().SetUnconnectedLayerMode()
      * Sets the unconnected removal property.  If true, the copper is removed on zone fill
      * or when specifically requested when the via is not connected on a layer.
      */
-    void SetRemoveUnconnected( bool aSet )      { m_removeUnconnectedLayer = aSet; }
-    bool GetRemoveUnconnected() const           { return m_removeUnconnectedLayer; }
+    void SetRemoveUnconnected( bool aSet )
+    {
+        m_padStack.SetUnconnectedLayerMode( aSet
+                ? PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_ALL
+                : PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL );
+    }
+
+    bool GetRemoveUnconnected() const
+    {
+        return m_padStack.UnconnectedLayerMode() != PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL;
+    }
 
     /**
+     * @deprecated - use Padstack().SetUnconnectedLayerMode()
      * Sets whether we keep the start and end annular rings even if they are not connected
      */
-    void SetKeepStartEnd( bool aSet )      { m_keepStartEndLayer = aSet; }
-    bool GetKeepStartEnd() const           { return m_keepStartEndLayer; }
+    void SetKeepStartEnd( bool aSet )
+    {
+        m_padStack.SetUnconnectedLayerMode( aSet
+                ? PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END
+                : PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_ALL );
+    }
+
+    bool GetKeepStartEnd() const
+    {
+        return m_padStack.UnconnectedLayerMode()
+               == PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END;
+    }
 
     bool ConditionallyFlashed( PCB_LAYER_ID aLayer ) const
     {
-        if( !m_removeUnconnectedLayer )
+        switch( m_padStack.UnconnectedLayerMode() )
+        {
+        case PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL:
             return false;
 
-        if( m_keepStartEndLayer && ( aLayer == m_layer || aLayer == m_bottomLayer ) )
-            return false;
+        case PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_ALL:
+            return true;
+
+        case PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END:
+        {
+            if( aLayer == m_padStack.Drill().start || aLayer == m_padStack.Drill().end )
+                return false;
+        }
+        }
 
         return true;
     }
@@ -511,14 +605,17 @@ public:
      *
      * @param aDrill is the new drill diameter
      */
-    void SetDrill( int aDrill )             { m_drill = aDrill; }
+    void SetDrill( int aDrill )
+    {
+        m_padStack.Drill().size = { aDrill, aDrill };
+    }
 
     /**
      * Return the local drill setting for this PCB_VIA.
      *
      * @note Use GetDrillValue() to get the calculated value.
      */
-    int GetDrill() const                    { return m_drill; }
+    int GetDrill() const                    { return m_padStack.Drill().size.x; }
 
     /**
      * Calculate the drill value for vias (m_drill if > 0, or default drill value for the board).
@@ -530,7 +627,10 @@ public:
     /**
      * Set the drill value for vias to the default value #UNDEFINED_DRILL_DIAMETER.
      */
-    void SetDrillDefault()      { m_drill = UNDEFINED_DRILL_DIAMETER; }
+    void SetDrillDefault()
+    {
+        m_padStack.Drill().size = { UNDEFINED_DRILL_DIAMETER, UNDEFINED_DRILL_DIAMETER };
+    }
 
     /**
      * Check if the via is a free via (as opposed to one created on a track by the router).
@@ -546,25 +646,19 @@ public:
     std::shared_ptr<SHAPE> GetEffectiveShape( PCB_LAYER_ID aLayer = UNDEFINED_LAYER,
                                               FLASHING aFlash = FLASHING::DEFAULT ) const override;
 
-    void ClearZoneLayerOverrides()
-    {
-        m_zoneLayerOverrides.fill( ZLO_NONE );
-    }
+    void ClearZoneLayerOverrides();
 
-    const ZONE_LAYER_OVERRIDE& GetZoneLayerOverride( PCB_LAYER_ID aLayer ) const
-    {
-        return m_zoneLayerOverrides.at( aLayer );
-    }
+    const ZONE_LAYER_OVERRIDE& GetZoneLayerOverride( PCB_LAYER_ID aLayer ) const;
 
-    void SetZoneLayerOverride( PCB_LAYER_ID aLayer, ZONE_LAYER_OVERRIDE aOverride )
-    {
-        std::unique_lock<std::mutex> cacheLock( m_zoneLayerOverridesMutex );
-        m_zoneLayerOverrides.at( aLayer ) = aOverride;
-    }
+    void SetZoneLayerOverride( PCB_LAYER_ID aLayer, ZONE_LAYER_OVERRIDE aOverride );
 
     double Similarity( const BOARD_ITEM& aOther ) const override;
 
+    bool operator==( const PCB_VIA& aOther ) const;
     bool operator==( const BOARD_ITEM& aOther ) const override;
+
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
 protected:
     void swapData( BOARD_ITEM* aImage ) override;
@@ -572,19 +666,17 @@ protected:
     wxString layerMaskDescribe() const override;
 
 private:
-    /// The bottom layer of the via (the top layer is in m_layer)
-    PCB_LAYER_ID m_bottomLayer;
+    // Silence GCC warning about hiding the PCB_TRACK base method
+    bool operator==( const PCB_TRACK& aOther ) const override;
 
     VIATYPE      m_viaType;                  ///< through, blind/buried or micro
 
-    int          m_drill;                    ///< for vias: via drill (- 1 for default value)
+    PADSTACK     m_padStack;
 
-    bool         m_removeUnconnectedLayer;   ///< Remove annular rings on unconnected layers
-    bool         m_keepStartEndLayer;        ///< Keep the start and end annular rings
     bool         m_isFree;                   ///< "Free" vias don't get their nets auto-updated
 
-    std::mutex                                     m_zoneLayerOverridesMutex;
-    std::array<ZONE_LAYER_OVERRIDE, MAX_CU_LAYERS> m_zoneLayerOverrides;
+    std::mutex                                  m_zoneLayerOverridesMutex;
+    std::map<PCB_LAYER_ID, ZONE_LAYER_OVERRIDE> m_zoneLayerOverrides;
 };
 
 

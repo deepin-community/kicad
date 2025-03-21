@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -24,6 +24,7 @@
 #define __PNS_ITEM_H
 
 #include <memory>
+#include <set>
 #include <unordered_set>
 #include <math/vector2d.h>
 
@@ -108,7 +109,8 @@ public:
         VIA_T       =   32,
         DIFF_PAIR_T =   64,
         HOLE_T      =   128,
-        ANY_T       =   0xffff
+        ANY_T       =   0xffff,
+        LINKED_ITEM_MASK_T = SOLID_T | SEGMENT_T | ARC_T | VIA_T | HOLE_T
     };
 
     ITEM( PnsKind aKind )
@@ -154,6 +156,8 @@ public:
      *
      * @param aClearance defines how far from the body of the item the hull should be,
      * @param aWalkaroundThickness is the width of the line that walks around this hull.
+     * @param aLayer is the layer to build a hull for (the item may have different shapes on each
+     *               layer).  If aLayer is -1, the hull will be a merged hull from all layers.
      */
     virtual const SHAPE_LINE_CHAIN Hull( int aClearance = 0, int aWalkaroundThickness = 0,
                                          int aLayer = -1 ) const
@@ -193,10 +197,10 @@ public:
     void SetNet( NET_HANDLE aNet ) { m_net = aNet; }
     virtual NET_HANDLE Net() const { return m_net;  }
 
-    const LAYER_RANGE& Layers() const { return m_layers; }
-    void SetLayers( const LAYER_RANGE& aLayers ) { m_layers = aLayers; }
+    const PNS_LAYER_RANGE& Layers() const { return m_layers; }
+    void SetLayers( const PNS_LAYER_RANGE& aLayers ) { m_layers = aLayers; }
 
-    void SetLayer( int aLayer ) { m_layers = LAYER_RANGE( aLayer, aLayer ); }
+    void SetLayer( int aLayer ) { m_layers = PNS_LAYER_RANGE( aLayer, aLayer ); }
     virtual int Layer() const { return Layers().Start(); }
 
     /**
@@ -216,16 +220,31 @@ public:
      * @param aOther is the item to check collision against.
      * @return true, if a collision was found.
      */
-    bool Collide( const ITEM* aHead, const NODE* aNode,
+    bool Collide( const ITEM* aHead, const NODE* aNode, int aLayer,
                   COLLISION_SEARCH_CONTEXT* aCtx = nullptr ) const;
 
     /**
      * Return the geometrical shape of the item. Used for collision detection and spatial indexing.
+     * @param aLayer is the layer to query shape for (items may have different shapes on different layers)
      */
-    virtual const SHAPE* Shape() const
+    virtual const SHAPE* Shape( int aLayer ) const
     {
         return nullptr;
     }
+
+    /**
+     * Return a list of layers that have unique (potentially different) shapes
+     */
+    virtual std::vector<int> UniqueShapeLayers() const { return { -1 }; }
+
+    virtual bool HasUniqueShapeLayers() const { return false; }
+
+    /**
+     * Returns the set of layers on which either this or the other item can have a unique shape.
+     * Use this to loop over layers when hit-testing objects that can have different shapes on
+     * each layer (currently only VIA)
+     */
+    std::set<int> RelevantShapeLayers( const ITEM* aOther ) const;
 
     virtual void Mark( int aMarker ) const { m_marker = aMarker; }
     virtual void Unmark( int aMarker = -1 ) const { m_marker &= ~aMarker; }
@@ -278,14 +297,14 @@ public:
     virtual const NODE* OwningNode() const;
 
 private:
-    bool collideSimple( const ITEM* aHead, const NODE* aNode,
+    bool collideSimple( const ITEM* aHead, const NODE* aNode, int aLayer,
                         COLLISION_SEARCH_CONTEXT* aCtx ) const;
 
 protected:
     PnsKind       m_kind;
 
     BOARD_ITEM*   m_parent;
-    LAYER_RANGE   m_layers;
+    PNS_LAYER_RANGE   m_layers;
 
     bool          m_movable;
     NET_HANDLE    m_net;

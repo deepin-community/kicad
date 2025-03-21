@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 1992-2017 jean-pierre Charras jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -52,7 +52,7 @@ private:
     void OnClearAnnotationClick( wxCommandEvent& event ) override;
     void OnCloseClick( wxCommandEvent& event ) override;
     void OnClose( wxCloseEvent& event ) override;
-    void OnApplyClick( wxCommandEvent& event ) override;
+    void OnAnnotateClick( wxCommandEvent& event ) override;
 
     // User functions:
     bool GetResetItems();
@@ -212,7 +212,7 @@ void DIALOG_ANNOTATE::OnClose( wxCloseEvent& event )
 }
 
 
-void DIALOG_ANNOTATE::OnApplyClick( wxCommandEvent& event )
+void DIALOG_ANNOTATE::OnAnnotateClick( wxCommandEvent& event )
 {
     SCH_COMMIT commit( m_Parent );
 
@@ -225,26 +225,16 @@ void DIALOG_ANNOTATE::OnApplyClick( wxCommandEvent& event )
 
     commit.Push( _( "Annotate" ) );
 
-    m_MessageWindow->Flush( true );             // Now update to show all messages
-
-    m_sdbSizer1Cancel->SetDefault();
-
-    // Don't close dialog if there are things the user needs to address
-    if( reporter.HasMessageOfSeverity( RPT_SEVERITY_ERROR | RPT_SEVERITY_WARNING ) )
-        return;
-
-    if( m_infoBar->IsShown() )
-    {
-        // Close the dialog by calling the default handler for a wxID_OK event
-        event.SetId( wxID_OK );
-        event.Skip();
-    }
+    m_MessageWindow->Flush( true ); // Now update to show all messages
 }
 
 
 void DIALOG_ANNOTATE::OnClearAnnotationClick( wxCommandEvent& event )
 {
-    m_Parent->DeleteAnnotation( GetScope(), GetRecursive() );
+    m_MessageWindow->Clear();
+    m_Parent->DeleteAnnotation( GetScope(), GetRecursive(), m_MessageWindow->Reporter() );
+
+    m_MessageWindow->Flush( true ); // Now update to show all messages
 }
 
 
@@ -304,9 +294,10 @@ int DIALOG_ANNOTATE::GetStartNumber()
 }
 
 
-void SCH_EDIT_FRAME::OnAnnotate( wxCommandEvent& event )
+void SCH_EDIT_FRAME::OnAnnotate()
 {
-    DIALOG_ANNOTATE* dlg = static_cast<DIALOG_ANNOTATE*> ( wxWindow::FindWindowByName( DLG_WINDOW_NAME ) );
+    DIALOG_ANNOTATE* dlg =
+            static_cast<DIALOG_ANNOTATE*>( wxWindow::FindWindowByName( DLG_WINDOW_NAME ) );
 
     if( !dlg )
     {

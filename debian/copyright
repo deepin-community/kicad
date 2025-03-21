@@ -11,7 +11,7 @@ Comment: The source contains two PDF files were no source is available for
  ./thirdparty/sentry-native is filtered out.
 
 Files: *
-Copyright: (C) 2015-2024 KiCad Developers <kicad-developers@lists.launchpad.net>
+Copyright: (C) 2015-2025 KiCad Developers <kicad-developers@lists.launchpad.net>
 License: GPL-3+
 
 Files: 3d-viewer/*
@@ -529,10 +529,6 @@ Copyright: 2012, Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
  1992-2017, KiCad Developers, see AUTHORS.txt for contributors.
 License: GPL-2+
 
-Files: copyright.h
-Copyright: template / message which may be added to all source files at their top.
-License: GPL-3+
-
 Files: cvpcb/*
 Copyright: 1992-2018, KiCad Developers, see AUTHORS.txt for contributors.
 License: GPL-2+
@@ -630,8 +626,7 @@ Copyright: 2015-2018, KiCad Developers, see change_log.txt for contributors.
  2015, Chris Pavlina <pavlina.chris@gmail.com>
 License: GPL-2+
 
-Files: eeschema/lib_pin.cpp
- eeschema/menubar.cpp
+Files: eeschema/menubar.cpp
  eeschema/sch_sheet_path.cpp
  eeschema/sch_sheet_path.h
 Copyright: 2013, 2015-2018, Jean-Pierre Charras, jp.charras at wanadoo.fr
@@ -652,7 +647,6 @@ Copyright: 2008-2011, Wayne Stambaugh <stambaughw@verizon.net>
 License: GPL-2+
 
 Files: eeschema/eeschema_config.cpp
- eeschema/lib_text.cpp
 Copyright: 1992-2018, KiCad Developers, see AUTHORS.txt for contributors.
 License: GPL-2+
 
@@ -725,17 +719,10 @@ Copyright: 2008-2017, KiCad Developers, see change_log.txt for contributors.
  2008, Wayne Stambaugh <stambaughw@gmail.com>
 License: GPL-2+
 
-Files: eeschema/erc.cpp
- eeschema/sch_text.cpp
+Files: eeschema/sch_text.cpp
 Copyright: 2012-2018, Jean-Pierre Charras, jp.charras at wanadoo.fr
  2008-2017, Wayne Stambaugh <stambaughw@verizon.net>
  1992-2018, KiCad Developers, see AUTHORS.txt for contributors.
-License: GPL-2+
-
-Files: eeschema/erc.h
-Copyright: 2011, Wayne Stambaugh <stambaughw@verizon.net>
- 2009-2015, KiCad Developers, see change_log.txt for contributors.
- 2009, Jean-Pierre Charras, jp.charras at wanadoo.fr
 License: GPL-2+
 
 Files: eeschema/general.h
@@ -767,18 +754,10 @@ Copyright: 2007-2017, KiCad Developers, see change_log.txt for contributors.
  2007-2014, SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
 License: GPL-2+
 
-Files: eeschema/lib_field.h
- eeschema/lib_text.h
- eeschema/sch_bus_entry.h
+Files: eeschema/sch_bus_entry.h
  eeschema/schematic_undo_redo.cpp
 Copyright: 2004-2018, KiCad Developers, see change_log.txt for contributors.
  2001, 2004, Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
-License: GPL-2+
-
-Files: eeschema/lib_pin.h
-Copyright: 2015, Wayne Stambaugh <stambaughw@gmail.com>
- 2015, Jean-Pierre Charras, jaen-pierre.charras at wanadoo.fr
- 2004-2017, KiCad Developers, see change_log.txt for contributors.
 License: GPL-2+
 
 Files: eeschema/libarch.cpp
@@ -1261,10 +1240,6 @@ Copyright: 2010, vladimir uryvaev <vovanius@bk.ru>
  1992-2010, KiCad Developers, see change_log.txt for contributors.
 License: GPL-2+
 
-Files: include/pad_shapes.h
-Copyright: 1992-2017, KiCad Developers, see CHANGELOG.TXT for contributors.
-License: GPL-2+
-
 Files: include/page_info.h
 Copyright: 2008-2013, Wayne Stambaugh <stambaughw@verizon.net>
  2007-2013, SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
@@ -1513,8 +1488,6 @@ License: GPL-2+
 
 Files: pcbnew/action_plugin.cpp
  pcbnew/action_plugin.h
- pcbnew/array_creator.cpp
- pcbnew/array_creator.h
  pcbnew/board_design_settings.cpp
  pcbnew/footprint_editor_utils.cpp
  pcbnew/footprint_libraries_utils.cpp
@@ -2033,7 +2006,7 @@ License: GPL-2+
 Files: debian/*
 Copyright: (C) 2006-2010 Richard A Burton <richardaburton@gmail.com>
            (C) 2015-2016 Georges Khaznadar <georgesk@debian.org>
-           (C) 2016-2024 Carsten schoenert <c.schoenert@t-online.de>
+           (C) 2016-2025 Carsten schoenert <c.schoenert@t-online.de>
 License: GPL-2+
 
 Files: debian/kicad-packages-relations.dia

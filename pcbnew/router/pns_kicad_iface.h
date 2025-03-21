@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2016 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -52,15 +52,17 @@ class PNS_KICAD_IFACE_BASE : public PNS::ROUTER_IFACE
 {
 public:
     PNS_KICAD_IFACE_BASE();
-    ~PNS_KICAD_IFACE_BASE();
+    ~PNS_KICAD_IFACE_BASE() override;
 
     void EraseView() override {};
     void SetBoard( BOARD* aBoard );
     void SyncWorld( PNS::NODE* aWorld ) override;
-    bool IsAnyLayerVisible( const LAYER_RANGE& aLayer ) const override { return true; };
+    bool IsAnyLayerVisible( const PNS_LAYER_RANGE& aLayer ) const override { return true; };
     bool IsFlashedOnLayer( const PNS::ITEM* aItem, int aLayer ) const override;
-    bool IsFlashedOnLayer( const PNS::ITEM* aItem, const LAYER_RANGE& aLayer ) const override;
+    bool IsFlashedOnLayer( const PNS::ITEM* aItem, const PNS_LAYER_RANGE& aLayer ) const override;
     bool IsItemVisible( const PNS::ITEM* aItem ) const override { return true; };
+    bool IsPNSCopperLayer( int aPNSLayer ) const override;
+    bool IsKicadCopperLayer( PCB_LAYER_ID aPcbnewLayer ) const;
     void HideItem( PNS::ITEM* aItem ) override {}
     void DisplayItem( const PNS::ITEM* aItem, int aClearance, bool aEdit = false,
                       int aFlags = 0 ) override {}
@@ -81,7 +83,13 @@ public:
 
     void SetDebugDecorator( PNS::DEBUG_DECORATOR* aDec );
 
-    void SetStartLayer( int aLayer ) { m_startLayer = aLayer; }
+    PCB_LAYER_ID GetBoardLayerFromPNSLayer( int aLayer ) const override;
+    int GetPNSLayerFromBoardLayer( PCB_LAYER_ID aLayer ) const override;
+
+    void SetStartLayerFromPCBNew( PCB_LAYER_ID aLayer );
+    void SetStartLayerFromPNS( int aLayer ) { m_startLayer = aLayer; }
+
+    PNS_LAYER_RANGE SetLayersFromPCBNew( PCB_LAYER_ID aStartLayer, PCB_LAYER_ID aEndLayer );
 
     virtual PNS::NODE* GetWorld() const override { return m_world; };
 
@@ -96,7 +104,7 @@ protected:
     PNS_PCBNEW_RULE_RESOLVER* m_ruleResolver;
     PNS::DEBUG_DECORATOR* m_debugDecorator;
 
-    std::unique_ptr<PNS::SOLID>   syncPad( PAD* aPad );
+    std::vector<std::unique_ptr<PNS::SOLID>> syncPad( PAD* aPad );
     std::unique_ptr<PNS::SEGMENT> syncTrack( PCB_TRACK* aTrack );
     std::unique_ptr<PNS::ARC>     syncArc( PCB_ARC* aArc );
     std::unique_ptr<PNS::VIA>     syncVia( PCB_VIA* aVia );
@@ -108,20 +116,20 @@ protected:
 protected:
     PNS::NODE* m_world;
     BOARD*     m_board;
-    int        m_startLayer;
+    int        m_startLayer; // The starting layer, in PNS layer coordinates
 };
 
 class PNS_KICAD_IFACE : public PNS_KICAD_IFACE_BASE
 {
 public:
     PNS_KICAD_IFACE();
-    ~PNS_KICAD_IFACE();
+    ~PNS_KICAD_IFACE() override;
 
     virtual void SetHostTool( PCB_TOOL_BASE* aTool );
 
     void SetView( KIGFX::VIEW* aView );
     void EraseView() override;
-    bool IsAnyLayerVisible( const LAYER_RANGE& aLayer ) const override;
+    bool IsAnyLayerVisible( const PNS_LAYER_RANGE& aLayer ) const override;
     bool IsItemVisible( const PNS::ITEM* aItem ) const override;
     void HideItem( PNS::ITEM* aItem ) override;
     void DisplayItem( const PNS::ITEM* aItem, int aClearance, bool aEdit = false,

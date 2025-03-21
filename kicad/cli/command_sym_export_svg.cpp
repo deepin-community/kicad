@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -70,7 +70,7 @@ CLI::SYM_EXPORT_SVG_COMMAND::SYM_EXPORT_SVG_COMMAND() : COMMAND( "svg" )
 
 int CLI::SYM_EXPORT_SVG_COMMAND::doPerform( KIWAY& aKiway )
 {
-    std::unique_ptr<JOB_SYM_EXPORT_SVG> svgJob = std::make_unique<JOB_SYM_EXPORT_SVG>( true );
+    std::unique_ptr<JOB_SYM_EXPORT_SVG> svgJob = std::make_unique<JOB_SYM_EXPORT_SVG>();
 
     svgJob->m_libraryPath = m_argInput;
     svgJob->m_outputDirectory = m_argOutput;

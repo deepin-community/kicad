@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2004 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -77,6 +77,15 @@ enum class DIM_UNITS_MODE
 };
 
 /**
+* Used for dimension's arrow.
+*/
+enum class DIM_ARROW_DIRECTION
+{
+    INWARD,  ///< >-----<
+    OUTWARD, ///< <----->
+};
+
+/**
  * Frame to show around dimension text
  */
 enum class DIM_TEXT_BORDER
@@ -111,6 +120,9 @@ class PCB_DIMENSION_BASE : public PCB_TEXT
 public:
     PCB_DIMENSION_BASE( BOARD_ITEM* aParent, KICAD_T aType = PCB_DIMENSION_T );
 
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+
     /**
      * The dimension's origin is the first feature point for the dimension.  Every dimension has
      * one or more feature points, so every dimension has at least an origin.
@@ -135,7 +147,7 @@ public:
     {
         SetOverrideTextEnabled( true );
         SetOverrideText( aValue );
-        updateText();
+        Update();
     }
 
     int GetMeasuredValue() const { return m_measuredValue; }
@@ -150,17 +162,21 @@ public:
 
     /**
      * Update the dimension's cached text and geometry.
+     *
+     * Call this whenever you change something in the geometry
+     * definition, or the text (which can affect geometry, e.g. by
+     * a knockout of a crossbar line or similar)
      */
     void Update()
     {
+        // Calls updateText internally
         updateGeometry();
-        updateText();
     }
 
     void UpdateUnits()
     {
         SetUnitsMode( GetUnitsMode() );
-        updateText();
+        Update();
     }
 
     wxString GetPrefix() const { return m_prefix; }
@@ -169,7 +185,7 @@ public:
     void ChangePrefix( const wxString& aPrefix )
     {
         SetPrefix( aPrefix );
-        updateText();
+        Update();
     }
 
     wxString GetSuffix() const { return m_suffix; }
@@ -178,7 +194,20 @@ public:
     void ChangeSuffix( const wxString& aSuffix )
     {
         SetSuffix( aSuffix );
+        Update();
+    }
+
+    DIM_ARROW_DIRECTION GetArrowDirection() const { return m_arrowDirection; }
+    void                SetArrowDirection( const DIM_ARROW_DIRECTION& aDirection )
+    {
+        m_arrowDirection = aDirection;
+    }
+
+    void ChangeArrowDirection( const DIM_ARROW_DIRECTION& aDirection )
+    {
+        SetArrowDirection( aDirection );
         updateText();
+        updateGeometry();
     }
 
     EDA_UNITS GetUnits() const { return m_units; }
@@ -190,7 +219,7 @@ public:
     void ChangeUnitsMode( DIM_UNITS_MODE aMode )
     {
         SetUnitsMode( aMode );
-        updateText();
+        Update();
     }
 
     void SetAutoUnits( bool aAuto = true ) { m_autoUnits = aAuto; }
@@ -201,7 +230,7 @@ public:
     void ChangeUnitsFormat( const DIM_UNITS_FORMAT aFormat )
     {
         SetUnitsFormat( aFormat );
-        updateText();
+        Update();
     }
 
     DIM_PRECISION GetPrecision() const { return m_precision; }
@@ -210,7 +239,7 @@ public:
     void ChangePrecision( DIM_PRECISION aPrecision )
     {
         SetPrecision( aPrecision );
-        updateText();
+        Update();
     }
 
     bool GetSuppressZeroes() const { return m_suppressZeroes; }
@@ -219,11 +248,15 @@ public:
     void ChangeSuppressZeroes( bool aSuppress )
     {
         SetSuppressZeroes( aSuppress );
-        updateText();
+        Update();
     }
 
     bool GetKeepTextAligned() const { return m_keepTextAligned; }
     void SetKeepTextAligned( bool aKeepAligned ) { m_keepTextAligned = aKeepAligned; }
+
+    double GetTextAngleDegreesProp() const { return GetTextAngleDegrees(); }
+    void ChangeTextAngleDegrees( double aDegrees );
+    void ChangeKeepTextAligned( bool aKeepAligned );
 
     void SetTextPositionMode( DIM_TEXT_POSITION aMode ) { m_textPosition = aMode; }
     DIM_TEXT_POSITION GetTextPositionMode() const { return m_textPosition; }
@@ -246,7 +279,7 @@ public:
 
     void Move( const VECTOR2I& offset ) override;
     void Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle ) override;
-    void Flip( const VECTOR2I& aCentre, bool aFlipLeftRight ) override;
+    void Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
 
     /**
      * Mirror the dimension relative to a given horizontal axis.
@@ -256,7 +289,7 @@ public:
      *
      * @param axis_pos is the vertical axis position to mirror around.
      */
-    virtual void Mirror( const VECTOR2I& axis_pos, bool aMirrorLeftRight = false );
+    virtual void Mirror( const VECTOR2I& axis_pos, FLIP_DIRECTION aFlipDirection ) override;
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 
@@ -268,7 +301,7 @@ public:
     std::shared_ptr<SHAPE> GetEffectiveShape( PCB_LAYER_ID aLayer,
             FLASHING aFlash = FLASHING::DEFAULT ) const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     const BOX2I ViewBBox() const override;
 
@@ -280,7 +313,8 @@ public:
 
     double Similarity( const BOARD_ITEM& aOther ) const override;
 
-    bool operator==( const BOARD_ITEM& aOther ) const override;
+    bool operator==( const PCB_DIMENSION_BASE& aOther ) const;
+    bool operator==( const BOARD_ITEM& aBoardItem ) const override;
 
 #if defined(DEBUG)
     virtual void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -295,6 +329,9 @@ protected:
 
     /**
      * Update the text field value from the current geometry (called by updateGeometry normally).
+     *
+     * If you change the text, you should call updateGeometry which will call this,
+     * and also handle any text-dependent geoemtry handling (like a knockout)
      */
     virtual void updateText();
 
@@ -302,39 +339,38 @@ protected:
     void addShape( const ShapeType& aShape );
 
     /**
-     * Find the intersection between a given segment and polygon outline.
+     * Draws an arrow and updates the shape container.
+     * example arrow 0Deg tail:4  (---->)
      *
-     * @param aPoly is the polygon to collide.
-     * @param aSeg is the segment to collide.
-     * @param aStart if true will start from aSeg.A, otherwise aSeg.B.
-     * @return a point on aSeg that collides with aPoly closest to the start, if one exists.
+     * @param startPoint arrow point.
+     * @param anAngle arrow angle.
+     * @param aLength arrow tail length.
      */
-    static OPT_VECTOR2I segPolyIntersection( const SHAPE_POLY_SET& aPoly, const SEG& aSeg,
-                                             bool aStart = true );
-    static OPT_VECTOR2I segCircleIntersection( CIRCLE& aCircle, SEG& aSeg, bool aStart = true );
+    void drawAnArrow( VECTOR2I aStartPoint, EDA_ANGLE anAngle, int aLength );
 
     // Value format
-    bool              m_overrideTextEnabled;   ///< Manually specify the displayed measurement value
-    wxString          m_valueString;     ///< Displayed value when m_overrideValue = true
-    wxString          m_prefix;          ///< String prepended to the value
-    wxString          m_suffix;          ///< String appended to the value
-    EDA_UNITS         m_units;           ///< 0 = inches, 1 = mm
-    bool              m_autoUnits;       ///< If true, follow the currently selected UI units
-    DIM_UNITS_FORMAT  m_unitsFormat;     ///< How to render the units suffix
-    DIM_PRECISION     m_precision;       ///< Number of digits to display after decimal
-    bool              m_suppressZeroes;  ///< Suppress trailing zeroes
+    bool                    m_overrideTextEnabled;   ///< Manually specify the displayed measurement value
+    wxString                m_valueString;     ///< Displayed value when m_overrideValue = true
+    wxString                m_prefix;          ///< String prepended to the value
+    wxString                m_suffix;          ///< String appended to the value
+    EDA_UNITS               m_units;           ///< 0 = inches, 1 = mm
+    bool                    m_autoUnits;       ///< If true, follow the currently selected UI units
+    DIM_UNITS_FORMAT        m_unitsFormat;     ///< How to render the units suffix
+    DIM_ARROW_DIRECTION     m_arrowDirection;  ///< direction of dimension arrow.
+    DIM_PRECISION           m_precision;       ///< Number of digits to display after decimal
+    bool                    m_suppressZeroes;  ///< Suppress trailing zeroes
 
     // Geometry
-    int               m_lineThickness;    ///< Thickness used for all graphics in the dimension
-    int               m_arrowLength;      ///< Length of arrow shapes
-    int               m_extensionOffset;  ///< Distance from feature points to extension line start
-    DIM_TEXT_POSITION m_textPosition;     ///< How to position the text
-    bool              m_keepTextAligned;  ///< Calculate text orientation to match dimension
+    int                     m_lineThickness;    ///< Thickness used for all graphics in the dimension
+    int                     m_arrowLength;      ///< Length of arrow shapes
+    int                     m_extensionOffset;  ///< Distance from feature points to extension line start
+    DIM_TEXT_POSITION       m_textPosition;     ///< How to position the text
+    bool                    m_keepTextAligned;  ///< Calculate text orientation to match dimension
 
     // Internal
-    int               m_measuredValue;    ///< value of PCB dimensions
-    VECTOR2I          m_start;
-    VECTOR2I          m_end;
+    int                     m_measuredValue;    ///< value of PCB dimensions
+    VECTOR2I                m_start;
+    VECTOR2I                m_end;
 
     ///< Internal cache of drawn shapes
     std::vector<std::shared_ptr<SHAPE>> m_shapes;
@@ -380,6 +416,9 @@ public:
 
     ~PCB_DIM_ALIGNED() = default;
 
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
         return aItem && aItem->Type() == PCB_DIM_ALIGNED_T;
@@ -387,7 +426,7 @@ public:
 
     EDA_ITEM* Clone() const override;
 
-    void Mirror( const VECTOR2I& axis_pos, bool aMirrorLeftRight = false ) override;
+    void Mirror( const VECTOR2I& axis_pos, FLIP_DIRECTION aFlipDirection ) override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -406,7 +445,7 @@ public:
     void ChangeHeight( int aHeight )
     {
         SetHeight( aHeight );
-        updateGeometry();
+        Update();
     }
 
     /**
@@ -422,7 +461,7 @@ public:
     void ChangeExtensionHeight( int aHeight )
     {
         SetExtensionHeight( aHeight );
-        updateGeometry();
+        Update();
     }
 
     /**
@@ -478,6 +517,9 @@ public:
 
     ~PCB_DIM_ORTHOGONAL() = default;
 
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
         return aItem && aItem->Type() == PCB_DIM_ORTHOGONAL_T;
@@ -485,7 +527,7 @@ public:
 
     EDA_ITEM* Clone() const override;
 
-    void Mirror( const VECTOR2I& axis_pos, bool aMirrorLeftRight = false ) override;
+    void Mirror( const VECTOR2I& axis_pos, FLIP_DIRECTION aFlipDirection ) override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -542,6 +584,9 @@ class PCB_DIM_RADIAL : public PCB_DIMENSION_BASE
 public:
     PCB_DIM_RADIAL( BOARD_ITEM* aParent );
 
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
         return aItem && aItem->Type() == PCB_DIM_RADIAL_T;
@@ -555,7 +600,7 @@ public:
     void ChangeLeaderLength( int aLength )
     {
         SetLeaderLength( aLength );
-        updateGeometry();
+        Update();
     }
 
     // Returns the point (c).
@@ -575,7 +620,6 @@ protected:
     void updateGeometry() override;
 
 private:
-    bool m_isDiameter;
     int  m_leaderLength;
 };
 
@@ -598,6 +642,9 @@ class PCB_DIM_LEADER : public PCB_DIMENSION_BASE
 public:
     PCB_DIM_LEADER( BOARD_ITEM* aParent );
 
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
         return aItem && aItem->Type() == PCB_DIM_LEADER_T;
@@ -618,7 +665,7 @@ public:
     void ChangeTextBorder( DIM_TEXT_BORDER aBorder )
     {
         SetTextBorder( aBorder );
-        updateGeometry();
+        Update();
     }
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
@@ -644,6 +691,9 @@ class PCB_DIM_CENTER : public PCB_DIMENSION_BASE
 {
 public:
     PCB_DIM_CENTER( BOARD_ITEM* aParent );
+
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {

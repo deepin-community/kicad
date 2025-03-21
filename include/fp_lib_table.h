@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2010-2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2012 Wayne Stambaugh <stambaughw@verizon.net>
- * Copyright (C) 2012-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,11 +27,11 @@
 #define FP_LIB_TABLE_H_
 
 #include <lib_table_base.h>
-#include <pcb_io/pcb_io.h>
 #include <pcb_io/pcb_io_mgr.h>
 
 class FOOTPRINT;
 class FP_LIB_TABLE_GRID;
+class PCB_IO;
 
 
 /**
@@ -67,6 +67,8 @@ public:
      */
     void SetType( const wxString& aType ) override;
 
+    bool LibraryExists() const;
+
     PCB_IO_MGR::PCB_FILE_T GetFileType() { return type; }
 
 protected:
@@ -98,7 +100,7 @@ private:
 class FP_LIB_TABLE : public LIB_TABLE
 {
 public:
-    KICAD_T Type() override { return FP_LIB_TABLE_T; }
+    PROJECT::ELEM ProjectElementType() override { return PROJECT::ELEM::FPTBL; }
 
     virtual void Parse( LIB_TABLE_LEXER* aLexer ) override;
 
@@ -152,18 +154,6 @@ public:
      * by \a aNickname, or all libraries if \a aNickname is NULL.
      */
     long long GenerateTimestamp( const wxString* aNickname );
-
-    /**
-     * If possible, prefetches the specified library (e.g. performing downloads). Does not parse.
-     * Threadsafe.
-     *
-     * This is a no-op for libraries that cannot be prefetched.
-     *
-     * @param aNickname is a locator for the library; it is a name in LIB_TABLE_ROW.
-     *
-     * @throw IO_ERROR if there is an error prefetching the library.
-     */
-    void PrefetchLib( const wxString& aNickname );
 
     /**
      * Load a footprint having @a aFootprintName from the library given by @a aNickname.

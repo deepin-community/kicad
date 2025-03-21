@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021-2024 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,7 +28,7 @@
 #include <footprint.h>
 #include <pad.h>
 #include <pcb_track.h>
-#include <core/thread_pool.h>
+#include <thread_pool.h>
 
 #include <geometry/shape_line_chain.h>
 #include <geometry/shape_poly_set.h>

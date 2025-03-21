@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015-2017 Cirilo Bernardo <cirilo.bernardo@gmail.com>
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -476,7 +476,7 @@ SGVECTOR S3D::CalcTriNorm( const SGPOINT& p1, const SGPOINT& p2, const SGPOINT& 
 
     // normal
     tri = glm::cross( pts[1] - pts[0], pts[2] - pts[0] );
-    glm::normalize( tri );
+    (void)glm::normalize( tri );
 
     return SGVECTOR( tri.x, tri.y, tri.z );
 }

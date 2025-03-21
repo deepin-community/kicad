@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,35 +27,33 @@
 
 #include <eda_item.h>
 #include <sch_item.h>
-#include <lib_item.h>
 
 #include <sch_marker.h>
 #include <sch_junction.h>
 #include <sch_no_connect.h>
 #include <sch_bus_entry.h>
 #include <sch_line.h>
+#include <sch_rule_area.h>
 #include <sch_shape.h>
 #include <sch_bitmap.h>
 #include <sch_text.h>
 #include <sch_textbox.h>
+#include <sch_table.h>
+#include <sch_tablecell.h>
 #include <sch_field.h>
 #include <sch_symbol.h>
 #include <sch_sheet_pin.h>
 #include <sch_sheet.h>
+#include <sch_pin.h>
 
-#include <lib_shape.h>
-#include <lib_text.h>
-#include <lib_textbox.h>
-#include <lib_pin.h>
-
-#include <erc_settings.h>
+#include <erc/erc_settings.h>
 
 class TEST_EE_ITEM_FIXTURE
 {
 public:
     SCH_SHEET                 m_sheet;
     LIB_SYMBOL                m_symbol;
-    LIB_PIN                   m_pin;
+    SCH_PIN                   m_pin;
     std::shared_ptr<ERC_ITEM> m_ercItem;
 
     TEST_EE_ITEM_FIXTURE() :
@@ -84,10 +82,40 @@ public:
         case SCH_BUS_WIRE_ENTRY_T:  return new SCH_BUS_WIRE_ENTRY();
         case SCH_BUS_BUS_ENTRY_T:   return new SCH_BUS_BUS_ENTRY();
         case SCH_LINE_T:            return new SCH_LINE();
-        case SCH_SHAPE_T:           return new SCH_SHAPE( SHAPE_T::ARC );
+        case SCH_RULE_AREA_T:
+        {
+            SHAPE_POLY_SET ruleShape;
+
+            ruleShape.NewOutline();
+            auto& outline = ruleShape.Outline( 0 );
+            outline.Append( VECTOR2I( 20000, 20000) );
+            outline.Append( VECTOR2I( 22000, 20000) );
+            outline.Append( VECTOR2I( 22000, 22000) );
+            outline.Append( VECTOR2I( 20000, 22000) );
+            outline.SetClosed( true );
+            outline.Simplify( true );
+
+            SCH_RULE_AREA* ruleArea = new SCH_RULE_AREA();
+            ruleArea->SetPolyShape( ruleShape );
+
+            return ruleArea;
+        }
+        case SCH_SHAPE_T:           return new SCH_SHAPE( SHAPE_T::ARC, LAYER_NOTES );
         case SCH_BITMAP_T:          return new SCH_BITMAP();
         case SCH_TEXT_T:            return new SCH_TEXT( VECTOR2I( 0, 0 ), "test text" );
-        case SCH_TEXTBOX_T:         return new SCH_TEXTBOX( 0, FILL_T::NO_FILL, "test textbox" );
+        case SCH_TEXTBOX_T:         return new SCH_TEXTBOX( LAYER_NOTES, 0, FILL_T::NO_FILL, "test textbox" );
+        case SCH_TABLECELL_T:       return new SCH_TABLECELL();
+        case SCH_TABLE_T:
+        {
+            SCH_TABLE* table = new SCH_TABLE( schIUScale.mmToIU( 0.1 ) );
+
+            table->SetColCount( 2 );
+
+            for( int ii = 0; ii < 4; ++ii )
+                table->InsertCell( ii, new SCH_TABLECELL() );
+
+            return table;
+        }
         case SCH_LABEL_T:           return new SCH_LABEL( VECTOR2I( 0, 0 ), "test label" );
         case SCH_DIRECTIVE_LABEL_T: return new SCH_DIRECTIVE_LABEL( VECTOR2I( 0, 0 ) );
         case SCH_GLOBAL_LABEL_T:    return new SCH_GLOBALLABEL();
@@ -103,14 +131,9 @@ public:
                                       "test aPin" );
 
         case SCH_SHEET_T:           return new SCH_SHEET();
-        case LIB_SHAPE_T:           return new LIB_SHAPE( &m_symbol, SHAPE_T::ARC );
-        case LIB_TEXT_T:            return new LIB_TEXT( &m_symbol );
-        case LIB_TEXTBOX_T:         return new LIB_TEXTBOX( &m_symbol, 0, FILL_T::NO_FILL, "test" );
-        case LIB_PIN_T:             return new LIB_PIN( &m_symbol );
-        case LIB_FIELD_T:           return new LIB_FIELD( &m_symbol );
+        case SCH_PIN_T:             return new SCH_PIN( &m_symbol );
 
         case SCHEMATIC_T:
-        case SCH_PIN_T:
         case LIB_SYMBOL_T:          return nullptr;
 
         default:
@@ -161,7 +184,6 @@ BOOST_AUTO_TEST_CASE( Move )
                         VECTOR2I originalPos = item->GetPosition();
 
                         SCH_ITEM* schItem = dynamic_cast<SCH_ITEM*>( item.get() );
-                        LIB_ITEM* libItem = dynamic_cast<LIB_ITEM*>( item.get() );
 
                         // Move to a point, then go back.
                         // This has to be an identity transformation.
@@ -172,14 +194,6 @@ BOOST_AUTO_TEST_CASE( Move )
                             BOOST_CHECK_EQUAL( schItem->GetPosition(), originalPos + aRef );
 
                             schItem->Move( -aRef );
-                        }
-
-                        if( libItem != nullptr )
-                        {
-                            libItem->MoveTo( libItem->GetPosition() + aRef );
-                            BOOST_CHECK_EQUAL( libItem->GetPosition(), originalPos + aRef );
-
-                            libItem->MoveTo( libItem->GetPosition() - aRef );
                         }
 
                         CompareItems( item.get(), aOriginalItem );
@@ -210,24 +224,15 @@ BOOST_AUTO_TEST_CASE( Rotate )
                 auto newItem = std::unique_ptr<EDA_ITEM>( item->Clone() );
 
                 SCH_ITEM* schItem = dynamic_cast<SCH_ITEM*>( newItem.get() );
-                LIB_ITEM* libItem = dynamic_cast<LIB_ITEM*>( newItem.get() );
 
                 if( schItem != nullptr )
                 {
-                    schItem->ClearFieldsAutoplaced();
+                    schItem->SetFieldsAutoplaced( AUTOPLACE_NONE );
                     // Only rotating pins around the center of parent sheet works.
-                    schItem->Rotate( m_sheet.GetBodyBoundingBox().GetCenter() );
-                    schItem->Rotate( m_sheet.GetBodyBoundingBox().GetCenter() );
-                    schItem->Rotate( m_sheet.GetBodyBoundingBox().GetCenter() );
-                    schItem->Rotate( m_sheet.GetBodyBoundingBox().GetCenter() );
-                }
-
-                if( libItem != nullptr )
-                {
-                    libItem->Rotate( m_sheet.GetBodyBoundingBox().GetCenter() );
-                    libItem->Rotate( m_sheet.GetBodyBoundingBox().GetCenter() );
-                    libItem->Rotate( m_sheet.GetBodyBoundingBox().GetCenter() );
-                    libItem->Rotate( m_sheet.GetBodyBoundingBox().GetCenter() );
+                    schItem->Rotate( m_sheet.GetBodyBoundingBox().GetCenter(), false );
+                    schItem->Rotate( m_sheet.GetBodyBoundingBox().GetCenter(), false );
+                    schItem->Rotate( m_sheet.GetBodyBoundingBox().GetCenter(), false );
+                    schItem->Rotate( m_sheet.GetBodyBoundingBox().GetCenter(), false );
                 }
 
                 CompareItems( newItem.get(), item.get() );
@@ -241,23 +246,14 @@ BOOST_AUTO_TEST_CASE( Rotate )
                             auto item = std::unique_ptr<EDA_ITEM>( aOriginalItem->Clone() );
 
                             SCH_ITEM* schItem = dynamic_cast<SCH_ITEM*>( item.get() );
-                            LIB_ITEM* libItem = dynamic_cast<LIB_ITEM*>( item.get() );
 
                             if( schItem != nullptr )
                             {
-                                schItem->ClearFieldsAutoplaced();
-                                schItem->Rotate( aRef );
-                                schItem->Rotate( aRef );
-                                schItem->Rotate( aRef );
-                                schItem->Rotate( aRef );
-                            }
-
-                            if( libItem != nullptr )
-                            {
-                                libItem->Rotate( aRef );
-                                libItem->Rotate( aRef );
-                                libItem->Rotate( aRef );
-                                libItem->Rotate( aRef );
+                                schItem->SetFieldsAutoplaced( AUTOPLACE_NONE );
+                                schItem->Rotate( aRef, false );
+                                schItem->Rotate( aRef, false );
+                                schItem->Rotate( aRef, false );
+                                schItem->Rotate( aRef, false );
                             }
 
                             CompareItems( item.get(), aOriginalItem );
@@ -288,21 +284,14 @@ BOOST_AUTO_TEST_CASE( MirrorHorizontally )
                         auto item = std::unique_ptr<EDA_ITEM>( aOriginalItem->Clone() );
 
                         SCH_ITEM* schItem = dynamic_cast<SCH_ITEM*>( item.get() );
-                        LIB_ITEM* libItem = dynamic_cast<LIB_ITEM*>( item.get() );
 
                         // Two mirrorings are an identity
                         // (warning: only for text items having no autoplaced fields).
                         if( schItem != nullptr )
                         {
-                            schItem->ClearFieldsAutoplaced();
+                            schItem->SetFieldsAutoplaced( AUTOPLACE_NONE );
                             schItem->MirrorHorizontally( aRef.x );
                             schItem->MirrorHorizontally( aRef.x );
-                        }
-
-                        if( libItem != nullptr )
-                        {
-                            libItem->MirrorHorizontal( aRef );
-                            libItem->MirrorHorizontal( aRef );
                         }
 
                         CompareItems( item.get(), aOriginalItem );
@@ -332,22 +321,15 @@ BOOST_AUTO_TEST_CASE( MirrorVertically )
                         auto item = std::unique_ptr<EDA_ITEM>( aOriginalItem->Clone() );
 
                         SCH_ITEM* schItem = dynamic_cast<SCH_ITEM*>( item.get() );
-                        LIB_ITEM* libItem = dynamic_cast<LIB_ITEM*>( item.get() );
 
                         // Two mirrorings are an identity
                         // (warning only for text items having no autoplaced fields).
 
                         if( schItem != nullptr )
                         {
-                            schItem->ClearFieldsAutoplaced();
+                            schItem->SetFieldsAutoplaced( AUTOPLACE_NONE );
                             schItem->MirrorVertically( aRef.y );
                             schItem->MirrorVertically( aRef.y );
-                        }
-
-                        if( libItem != nullptr )
-                        {
-                            libItem->MirrorVertical( aRef );
-                            libItem->MirrorVertical( aRef );
                         }
 
                         CompareItems( item.get(), aOriginalItem );

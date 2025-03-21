@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -39,7 +39,9 @@ APP_SETTINGS_BASE::APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaV
         m_ColorPicker(),
         m_LibTree(),
         m_Printing(),
+        m_SearchPane(),
         m_System(),
+        m_Plugins(),
         m_Window(),
         m_appSettingsSchemaVersion( aSchemaVersion )
 {
@@ -133,6 +135,10 @@ APP_SETTINGS_BASE::APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaV
     m_params.emplace_back( new PARAM_LIST<int>( "printing.layers",
             &m_Printing.layers, {} ) );
 
+    m_params.emplace_back( new PARAM<int>( "search_pane.selection_zoom",
+            reinterpret_cast<int*>( &m_SearchPane.selection_zoom ),
+            static_cast<int>( SEARCH_PANE::SELECTION_ZOOM::PAN ) ) );
+
     m_params.emplace_back( new PARAM<bool>( "system.first_run_shown",
             &m_System.first_run_shown, false ) ); //@todo RFB remove? - not used
 
@@ -162,6 +168,39 @@ APP_SETTINGS_BASE::APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaV
 
     m_params.emplace_back( new PARAM<bool>( "system.show_import_issues",
                                             &m_System.show_import_issues, true ) );
+
+    m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "plugins.actions",
+            [&]() -> nlohmann::json
+            {
+                nlohmann::json js = nlohmann::json::array();
+
+                for( const auto& [identifier, visible] : m_Plugins.actions )
+                    js.push_back( nlohmann::json( { { identifier.ToUTF8(), visible } } ) );
+
+                return js;
+            },
+            [&]( const nlohmann::json& aObj )
+            {
+                m_Plugins.actions.clear();
+
+                if( !aObj.is_array() )
+                {
+                    return;
+                }
+
+                for( const auto& entry : aObj )
+                {
+                    if( entry.empty() || !entry.is_object() )
+                        continue;
+
+                    for( const auto& pair : entry.items() )
+                    {
+                        m_Plugins.actions.emplace_back( std::make_pair(
+                                wxString( pair.key().c_str(), wxConvUTF8 ), pair.value() ) );
+                    }
+                }
+            },
+            nlohmann::json::array() ) );
 
     m_params.emplace_back( new PARAM<wxString>( "appearance.color_theme",
             &m_ColorTheme, COLOR_SETTINGS::COLOR_BUILTIN_DEFAULT ) );
@@ -286,8 +325,10 @@ bool APP_SETTINGS_BASE::migrateWindowConfig( wxConfigBase* aCfg, const std::stri
     ret &= fromLegacy<int>(  aCfg, aFrame + "Pos_x",                aJsonPath + ".pos_x" );
     ret &= fromLegacy<int>(  aCfg, aFrame + "Pos_y",                aJsonPath + ".pos_y" );
 
-    ret &= fromLegacy<bool>( aCfg, frameGDO + "ForceDisplayCursor", cursorPath + ".always_show_cursor" );
-    ret &= fromLegacy<bool>( aCfg, frameGDO + "CursorFullscreen",   cursorPath + ".fullscreen_cursor" );
+    ret &= fromLegacy<bool>( aCfg, frameGDO + "ForceDisplayCursor",
+                             cursorPath + ".always_show_cursor" );
+    ret &= fromLegacy<bool>( aCfg, frameGDO + "CursorFullscreen",
+                             cursorPath + ".fullscreen_cursor" );
 
     ret &= fromLegacy<int>(  aCfg, aFrame + "_LastGridSize",        gridPath + ".last_size" );
 
@@ -396,7 +437,7 @@ void APP_SETTINGS_BASE::addParamsForWindow( WINDOW_SETTINGS* aWindow, const std:
     else
     {
         m_params.emplace_back( new PARAM<bool>( aJsonPath + ".grid.overrides_enabled",
-                                                &aWindow->grid.overrides_enabled, false ) );
+                                                &aWindow->grid.overrides_enabled, true ) );
         m_params.emplace_back( new PARAM<bool>( aJsonPath + ".grid.override_connected",
                                                 &aWindow->grid.override_connected, false ) );
         m_params.emplace_back( new PARAM<bool>( aJsonPath + ".grid.override_wires",

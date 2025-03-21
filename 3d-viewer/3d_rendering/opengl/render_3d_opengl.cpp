@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2015-2020 Mario Luzeiro <mrluzeiro@ua.pt>
  * Copyright (C) 2023 CERN
- * Copyright (C) 2015-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,9 +30,13 @@
 #include "render_3d_opengl.h"
 #include "opengl_utils.h"
 #include "common_ogl/ogl_utils.h"
+#include <board.h>
 #include <footprint.h>
+#include <gal/opengl/gl_context_mgr.h>
 #include <3d_math.h>
 #include <glm/geometric.hpp>
+#include <lset.h>
+#include <pgm_base.h>
 #include <math/util.h>      // for KiROUND
 #include <utility>
 #include <vector>
@@ -47,7 +51,8 @@
 
 RENDER_3D_OPENGL::RENDER_3D_OPENGL( EDA_3D_CANVAS* aCanvas, BOARD_ADAPTER& aAdapter,
                                     CAMERA& aCamera ) :
-        RENDER_3D_BASE( aCanvas, aAdapter, aCamera )
+        RENDER_3D_BASE( aAdapter, aCamera ),
+        m_canvas( aCanvas )
 {
     wxLogTrace( m_logTrace, wxT( "RENDER_3D_OPENGL::RENDER_3D_OPENGL" ) );
 
@@ -266,6 +271,20 @@ void RENDER_3D_OPENGL::setupMaterials()
 
 void RENDER_3D_OPENGL::setLayerMaterial( PCB_LAYER_ID aLayerID )
 {
+    EDA_3D_VIEWER_SETTINGS::RENDER_SETTINGS& cfg = m_boardAdapter.m_Cfg->m_Render;
+
+    if( cfg.use_board_editor_copper_colors && IsCopperLayer( aLayerID ) )
+    {
+        COLOR4D copper_color = m_boardAdapter.m_BoardEditorColors[aLayerID];
+        m_materials.m_Copper.m_Diffuse = SFVEC3F( copper_color.r, copper_color.g,
+                                                  copper_color.b );
+        OglSetMaterial( m_materials.m_Copper, 1.0f );
+        m_materials.m_NonPlatedCopper.m_Diffuse = m_materials.m_Copper.m_Diffuse;
+        OglSetMaterial( m_materials.m_NonPlatedCopper, 1.0f );
+
+        return;
+    }
+
     switch( aLayerID )
     {
     case F_Mask:
@@ -444,11 +463,17 @@ void RENDER_3D_OPENGL::renderBoardBody( bool aSkipRenderHoles )
 }
 
 
+static inline SFVEC4F premultiplyAlpha( const SFVEC4F& aInput )
+{
+    return SFVEC4F( aInput.r * aInput.a, aInput.g * aInput.a, aInput.b * aInput.a, aInput.a );
+}
+
+
 bool RENDER_3D_OPENGL::Redraw( bool aIsMoving, REPORTER* aStatusReporter,
                                REPORTER* aWarningReporter )
 {
     // Initialize OpenGL
-    if( !m_is_opengl_initialized )
+    if( !m_canvasInitialized )
     {
         if( !initializeOpenGL() )
             return false;
@@ -463,7 +488,13 @@ bool RENDER_3D_OPENGL::Redraw( bool aIsMoving, REPORTER* aStatusReporter,
         if( aStatusReporter )
             aStatusReporter->Report( _( "Loading..." ) );
 
-        reload( aStatusReporter, aWarningReporter );
+        // Careful here!
+        // We are in the middle of rendering and the reload method may show
+        // a dialog box that requires the opengl context for a redraw
+        Pgm().GetGLContextManager()->RunWithoutCtxLock( [this, aStatusReporter, aWarningReporter]()
+        {
+            reload( aStatusReporter, aWarningReporter );
+        } );
 
         // generate a new 3D grid as the size of the board may had changed
         m_lastGridType = static_cast<GRID3D_TYPE>( cfg.grid_type );
@@ -495,7 +526,7 @@ bool RENDER_3D_OPENGL::Redraw( bool aIsMoving, REPORTER* aStatusReporter,
         glEnable( GL_MULTISAMPLE );
 
     // clear color and depth buffers
-    glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
+    glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );
     glClearDepth( 1.0f );
     glClearStencil( 0x00 );
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT );
@@ -503,8 +534,8 @@ bool RENDER_3D_OPENGL::Redraw( bool aIsMoving, REPORTER* aStatusReporter,
     OglResetTextureState();
 
     // Draw the background ( rectangle with color gradient)
-    OglDrawBackground( SFVEC3F( m_boardAdapter.m_BgColorTop ),
-                       SFVEC3F( m_boardAdapter.m_BgColorBot ) );
+    OglDrawBackground( premultiplyAlpha( m_boardAdapter.m_BgColorTop ),
+                       premultiplyAlpha( m_boardAdapter.m_BgColorBot ) );
 
     glEnable( GL_DEPTH_TEST );
 
@@ -562,7 +593,6 @@ bool RENDER_3D_OPENGL::Redraw( bool aIsMoving, REPORTER* aStatusReporter,
         bool  isSilkLayer = layer == F_SilkS || layer == B_SilkS;
         bool  isMaskLayer = layer == F_Mask || layer == B_Mask;
         bool  isPasteLayer = layer == F_Paste || layer == B_Paste;
-        bool  isCopperLayer = layer >= F_Cu && layer <= B_Cu;
 
         // Mask layers are not processed here because they are a special case
         if( isMaskLayer )
@@ -575,7 +605,10 @@ bool RENDER_3D_OPENGL::Redraw( bool aIsMoving, REPORTER* aStatusReporter,
 
         if( layerFlags.test( LAYER_3D_BOARD ) && m_boardAdapter.m_BoardBodyColor.a > opacity_min )
         {
-            if( layer > F_Cu && layer < B_Cu )
+            // generating internal copper layers is time consuming. so skip them
+            // if the board body is masking them (i.e. if the opacity is near 1.0)
+            // B_Cu is layer 2 and all inner layers are higher values
+            if( layer > B_Cu && IsCopperLayer( layer ) )
                 continue;
         }
 
@@ -583,9 +616,9 @@ bool RENDER_3D_OPENGL::Redraw( bool aIsMoving, REPORTER* aStatusReporter,
 
         OPENGL_RENDER_LIST* pLayerDispList = static_cast<OPENGL_RENDER_LIST*>( ii->second );
 
-        if( isCopperLayer )
+        if( IsCopperLayer( layer ) )
         {
-            if( cfg.differentiate_plated_copper )
+            if( cfg.DifferentiatePlatedCopper() )
                 setCopperMaterial();
             else
                 setLayerMaterial( layer );
@@ -683,7 +716,8 @@ bool RENDER_3D_OPENGL::Redraw( bool aIsMoving, REPORTER* aStatusReporter,
         renderBoardBody( skipRenderHoles );
 
     // Display transparent mask layers
-    if( layerFlags.test( LAYER_3D_SOLDERMASK_TOP ) || layerFlags.test( LAYER_3D_SOLDERMASK_BOTTOM ) )
+    if( layerFlags.test( LAYER_3D_SOLDERMASK_TOP )
+      || layerFlags.test( LAYER_3D_SOLDERMASK_BOTTOM ) )
     {
         // add a depth buffer offset, it will help to hide some artifacts
         // on silkscreen where the SolderMask is removed
@@ -733,7 +767,9 @@ bool RENDER_3D_OPENGL::Redraw( bool aIsMoving, REPORTER* aStatusReporter,
     // Enables Texture Env so it can combine model transparency with each footprint opacity
     glEnable( GL_TEXTURE_2D );
     glActiveTexture( GL_TEXTURE0 );
-    glBindTexture( GL_TEXTURE_2D, m_circleTexture ); // Uses an existent texture so the glTexEnv operations will work
+
+    // Uses an existent texture so the glTexEnv operations will work.
+    glBindTexture( GL_TEXTURE_2D, m_circleTexture );
 
     glTexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE );
     glTexEnvf( GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_INTERPOLATE );
@@ -817,7 +853,7 @@ bool RENDER_3D_OPENGL::initializeOpenGL()
 
     // Use this mode if you want see the triangle lines (debug proposes)
     //glPolygonMode( GL_FRONT_AND_BACK,  GL_LINE );
-    m_is_opengl_initialized = true;
+    m_canvasInitialized = true;
 
     return true;
 }
@@ -952,7 +988,8 @@ void RENDER_3D_OPENGL::get3dModelsSelected( std::list<MODELTORENDER> &aDstRender
                 const bool isFlipped = fp->IsFlipped();
 
                 if( aGetTop == !isFlipped || aGetBot == isFlipped )
-                    get3dModelsFromFootprint( aDstRenderList, fp, aRenderTransparentOnly, highlight );
+                    get3dModelsFromFootprint( aDstRenderList, fp, aRenderTransparentOnly,
+                                              highlight );
             }
         }
     }
@@ -1013,9 +1050,10 @@ void RENDER_3D_OPENGL::get3dModelsFromFootprint( std::list<MODELTORENDER> &aDstR
                     glm::mat4 modelworldMatrix = fpMatrix;
 
                     const SFVEC3F offset = SFVEC3F( sM.m_Offset.x, sM.m_Offset.y, sM.m_Offset.z );
-                    const SFVEC3F rotation = SFVEC3F( sM.m_Rotation.x, sM.m_Rotation.y, sM.m_Rotation.z );
+                    const SFVEC3F rotation = SFVEC3F( sM.m_Rotation.x, sM.m_Rotation.y,
+                                                      sM.m_Rotation.z );
                     const SFVEC3F scale = SFVEC3F( sM.m_Scale.x, sM.m_Scale.y, sM.m_Scale.z );
-                    
+
                     std::vector<float> key = { offset.x, offset.y, offset.z,
                                                rotation.x, rotation.y, rotation.z,
                                                scale.x, scale.y, scale.z };
@@ -1128,7 +1166,7 @@ void RENDER_3D_OPENGL::renderTransparentModels( const glm::mat4 &aCameraViewMatr
         const SFVEC3F bBoxWorld = mtr.m_modelWorldMat * glm::vec4( bBoxCenter, 1.0f );
 
         const float distanceToCamera = glm::length( cameraPos - bBoxWorld );
-        
+
         transparentModelList.emplace_back( &mtr, distanceToCamera );
     }
 
@@ -1218,7 +1256,7 @@ void RENDER_3D_OPENGL::renderModel( const glm::mat4 &aCameraViewMatrix,
         aModelToRender.m_model->DrawBbox();
 
         glEnable( GL_LIGHTING );
-        
+
         if( !wasBlendEnabled )
             glDisable( GL_BLEND );
     }

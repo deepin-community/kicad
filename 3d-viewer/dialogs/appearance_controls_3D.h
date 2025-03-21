@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 CERN
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -114,8 +114,6 @@ public:
     ~APPEARANCE_CONTROLS_3D();
 
     wxSize GetBestSize() const;
-
-    void OnLanguageChanged();
     void OnDarkModeToggle();
     void OnLayerVisibilityChanged( int aLayer, bool isVisible );
 
@@ -127,10 +125,10 @@ public:
 
     const wxArrayString& GetLayerPresetsMRU() { return m_presetMRU; }
 
-    ///< Return a list of viewports created by the user.
+    /// Return a list of viewports created by the user.
     std::vector<VIEWPORT3D> GetUserViewports() const;
 
-    ///< Update the current viewports from those saved in the project file.
+    /// Update the current viewports from those saved in the project file.
     void SetUserViewports( std::vector<VIEWPORT3D>& aPresetList );
 
     void ApplyViewport( const wxString& aPresetName );
@@ -140,8 +138,11 @@ public:
 protected:
     void OnSetFocus( wxFocusEvent& aEvent ) override;
     void OnSize( wxSizeEvent& aEvent ) override;
+    void OnLanguageChanged( wxCommandEvent& aEvent );
 
 private:
+    void rebuildControls();
+
     void rebuildLayers();
 
     void rebuildLayerPresetsWidget();
@@ -186,6 +187,7 @@ private:
     wxColour                       m_layerPanelColour;
     GRID_BITMAP_TOGGLE_RENDERER*   m_toggleGridRenderer;
     wxCheckBox*                    m_cbUseBoardStackupColors;
+    wxCheckBox*                    m_cbUseBoardEditorCopperColors;
 };
 
 #endif

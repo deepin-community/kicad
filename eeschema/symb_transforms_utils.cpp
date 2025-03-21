@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Author Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,9 +17,11 @@
  * You should have received a copy of the GNU General Public License along
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "lib_symbol.h"
-#include "sch_symbol.h"
-#include "sch_pin.h"
+
+#include "symb_transforms_utils.h"
+
+#include <lib_symbol.h>
+#include <sch_symbol.h>
 
 struct ORIENT_MIRROR
 {
@@ -64,26 +66,22 @@ void OrientAndMirrorSymbolItems( LIB_SYMBOL* aSymbol, int aOrientation )
         }
     }
 
-    for( LIB_ITEM& item : aSymbol->GetDrawItems() )
+    for( SCH_ITEM& item : aSymbol->GetDrawItems() )
     {
         for( int i = 0; i < o.n_rots; i++ )
             item.Rotate( VECTOR2I( 0, 0 ), true );
 
         if( o.mirror_x )
-            item.MirrorVertical( VECTOR2I( 0, 0 ) );
+            item.MirrorVertically( 0 );
 
         if( o.mirror_y )
-            item.MirrorHorizontal( VECTOR2I( 0, 0 ) );
+            item.MirrorHorizontally( 0 );
     }
 }
 
 
 
-// Rotate and/or mirror a SCH_PIN according to aOrientMirror.
-// aOrientMirror is the orientation/mirror of the parent symbol.
-// The modified pin orientation is the actual pin orientation/mirror
-// when the parent symbol is drawn.
-void RotateAndMirrorPin( LIB_PIN& aPin, int aOrientMirror )
+void RotateAndMirrorPin( SCH_PIN& aPin, int aOrientMirror )
 {
     ORIENT_MIRROR o = symbols_orientations_list[ 0 ];
 
@@ -97,11 +95,139 @@ void RotateAndMirrorPin( LIB_PIN& aPin, int aOrientMirror )
     }
 
     for( int i = 0; i < o.n_rots; i++ )
-        aPin.Rotate( VECTOR2I( 0, 0 ), true );
+        aPin.RotatePin( VECTOR2I( 0, 0 ), true );
 
     if( o.mirror_x )
-        aPin.MirrorVertical( VECTOR2I( 0, 0 ) );
+        aPin.MirrorVerticallyPin( 0 );
 
     if( o.mirror_y )
-        aPin.MirrorHorizontal( VECTOR2I( 0, 0 ) );
+        aPin.MirrorHorizontallyPin( 0 );
+}
+
+
+SPIN_STYLE GetPinSpinStyle( const SCH_PIN& aPin, const SCH_SYMBOL& aSymbol )
+{
+    SPIN_STYLE ret = SPIN_STYLE::UP;
+
+    if( aPin.GetOrientation() == PIN_ORIENTATION::PIN_RIGHT )
+        ret = SPIN_STYLE::LEFT;
+    else if( aPin.GetOrientation() == PIN_ORIENTATION::PIN_LEFT )
+        ret = SPIN_STYLE::RIGHT;
+    else if( aPin.GetOrientation() == PIN_ORIENTATION::PIN_UP )
+        ret = SPIN_STYLE::BOTTOM;
+    else if( aPin.GetOrientation() == PIN_ORIENTATION::PIN_DOWN )
+        ret = SPIN_STYLE::UP;
+
+    switch( static_cast<SYMBOL_ORIENTATION_T>( aSymbol.GetOrientation()
+                                               & ( ~( SYM_MIRROR_X | SYM_MIRROR_Y ) ) ) )
+    {
+    case SYM_ROTATE_CLOCKWISE:
+    case SYM_ORIENT_90:
+        if( ret == SPIN_STYLE::UP )
+            ret = SPIN_STYLE::LEFT;
+        else if( ret == SPIN_STYLE::BOTTOM )
+            ret = SPIN_STYLE::RIGHT;
+        else if( ret == SPIN_STYLE::LEFT )
+            ret = SPIN_STYLE::BOTTOM;
+        else if( ret == SPIN_STYLE::RIGHT )
+            ret = SPIN_STYLE::UP;
+
+        if( aSymbol.GetOrientation() & SYM_MIRROR_X )
+        {
+            if( ret == SPIN_STYLE::UP )
+                ret = SPIN_STYLE::BOTTOM;
+            else if( ret == SPIN_STYLE::BOTTOM )
+                ret = SPIN_STYLE::UP;
+        }
+
+        if( aSymbol.GetOrientation() & SYM_MIRROR_Y )
+        {
+            if( ret == SPIN_STYLE::LEFT )
+                ret = SPIN_STYLE::RIGHT;
+            else if( ret == SPIN_STYLE::RIGHT )
+                ret = SPIN_STYLE::LEFT;
+        }
+
+        break;
+
+    case SYM_ROTATE_COUNTERCLOCKWISE:
+    case SYM_ORIENT_270:
+        if( ret == SPIN_STYLE::UP )
+            ret = SPIN_STYLE::RIGHT;
+        else if( ret == SPIN_STYLE::BOTTOM )
+            ret = SPIN_STYLE::LEFT;
+        else if( ret == SPIN_STYLE::LEFT )
+            ret = SPIN_STYLE::UP;
+        else if( ret == SPIN_STYLE::RIGHT )
+            ret = SPIN_STYLE::BOTTOM;
+
+        if( aSymbol.GetOrientation() & SYM_MIRROR_X )
+        {
+            if( ret == SPIN_STYLE::UP )
+                ret = SPIN_STYLE::BOTTOM;
+            else if( ret == SPIN_STYLE::BOTTOM )
+                ret = SPIN_STYLE::UP;
+        }
+
+        if( aSymbol.GetOrientation() & SYM_MIRROR_Y )
+        {
+            if( ret == SPIN_STYLE::LEFT )
+                ret = SPIN_STYLE::RIGHT;
+            else if( ret == SPIN_STYLE::RIGHT )
+                ret = SPIN_STYLE::LEFT;
+        }
+
+        break;
+
+    case SYM_ORIENT_180:
+        if( ret == SPIN_STYLE::UP )
+            ret = SPIN_STYLE::BOTTOM;
+        else if( ret == SPIN_STYLE::BOTTOM )
+            ret = SPIN_STYLE::UP;
+        else if( ret == SPIN_STYLE::LEFT )
+            ret = SPIN_STYLE::RIGHT;
+        else if( ret == SPIN_STYLE::RIGHT )
+            ret = SPIN_STYLE::LEFT;
+
+        if( aSymbol.GetOrientation() & SYM_MIRROR_X )
+        {
+            if( ret == SPIN_STYLE::UP )
+                ret = SPIN_STYLE::BOTTOM;
+            else if( ret == SPIN_STYLE::BOTTOM )
+                ret = SPIN_STYLE::UP;
+        }
+
+        if( aSymbol.GetOrientation() & SYM_MIRROR_Y )
+        {
+            if( ret == SPIN_STYLE::LEFT )
+                ret = SPIN_STYLE::RIGHT;
+            else if( ret == SPIN_STYLE::RIGHT )
+                ret = SPIN_STYLE::LEFT;
+        }
+
+        break;
+
+    case SYM_ORIENT_0:
+    case SYM_NORMAL:
+    default:
+        if( aSymbol.GetOrientation() & SYM_MIRROR_X )
+        {
+            if( ret == SPIN_STYLE::UP )
+                ret = SPIN_STYLE::BOTTOM;
+            else if( ret == SPIN_STYLE::BOTTOM )
+                ret = SPIN_STYLE::UP;
+        }
+
+        if( aSymbol.GetOrientation() & SYM_MIRROR_Y )
+        {
+            if( ret == SPIN_STYLE::LEFT )
+                ret = SPIN_STYLE::RIGHT;
+            else if( ret == SPIN_STYLE::RIGHT )
+                ret = SPIN_STYLE::LEFT;
+        }
+
+        break;
+    }
+
+    return ret;
 }

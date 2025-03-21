@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2020-2023 CERN
- * Copyright (C) 2021-2024 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -70,9 +70,13 @@ private:
 };
 
 
-wxAnyValueTypeScopedPtr wxAnyToSTD_OPTIONAL_INT_VARIANTRegistrationImpl::s_instance( new wxAnyValueTypeImpl<std::optional<int>>() );
+wxAnyValueTypeScopedPtr wxAnyToSTD_OPTIONAL_INT_VARIANTRegistrationImpl::s_instance(
+        new wxAnyValueTypeImpl<std::optional<int>>() );
 
-static wxAnyToSTD_OPTIONAL_INT_VARIANTRegistrationImpl s_wxAnyToSTD_OPTIONAL_INT_VARIANTRegistration( &STD_OPTIONAL_INT_VARIANT_DATA::VariantDataFactory );
+
+static wxAnyToSTD_OPTIONAL_INT_VARIANTRegistrationImpl
+        s_wxAnyToSTD_OPTIONAL_INT_VARIANTRegistration(
+                &STD_OPTIONAL_INT_VARIANT_DATA::VariantDataFactory );
 
 
 class wxAnyToSTD_OPTIONAL_DOUBLE_VARIANTRegistrationImpl : public wxAnyToVariantRegistration
@@ -108,9 +112,13 @@ private:
 };
 
 
-wxAnyValueTypeScopedPtr wxAnyToSTD_OPTIONAL_DOUBLE_VARIANTRegistrationImpl::s_instance( new wxAnyValueTypeImpl<std::optional<double>>() );
+wxAnyValueTypeScopedPtr wxAnyToSTD_OPTIONAL_DOUBLE_VARIANTRegistrationImpl::s_instance(
+        new wxAnyValueTypeImpl<std::optional<double>>() );
 
-static wxAnyToSTD_OPTIONAL_DOUBLE_VARIANTRegistrationImpl s_wxAnyToSTD_OPTIONAL_DOUBLE_VARIANTRegistration( &STD_OPTIONAL_DOUBLE_VARIANT_DATA::VariantDataFactory );
+
+static wxAnyToSTD_OPTIONAL_DOUBLE_VARIANTRegistrationImpl
+        s_wxAnyToSTD_OPTIONAL_DOUBLE_VARIANTRegistration(
+                &STD_OPTIONAL_DOUBLE_VARIANT_DATA::VariantDataFactory );
 
 
 class wxAnyToEDA_ANGLE_VARIANTRegistrationImpl : public wxAnyToVariantRegistration
@@ -146,9 +154,12 @@ private:
 };
 
 
-wxAnyValueTypeScopedPtr wxAnyToEDA_ANGLE_VARIANTRegistrationImpl::s_instance( new wxAnyValueTypeImpl<EDA_ANGLE>() );
+wxAnyValueTypeScopedPtr
+        wxAnyToEDA_ANGLE_VARIANTRegistrationImpl::s_instance( new wxAnyValueTypeImpl<EDA_ANGLE>() );
 
-static wxAnyToEDA_ANGLE_VARIANTRegistrationImpl s_wxAnyToEDA_ANGLE_VARIANTRegistration( &EDA_ANGLE_VARIANT_DATA::VariantDataFactory );
+
+static wxAnyToEDA_ANGLE_VARIANTRegistrationImpl
+        s_wxAnyToEDA_ANGLE_VARIANTRegistration( &EDA_ANGLE_VARIANT_DATA::VariantDataFactory );
 
 
 class wxAnyToCOLOR4D_VARIANTRegistrationImpl : public wxAnyToVariantRegistration
@@ -183,9 +194,13 @@ private:
     static wxAnyValueTypeScopedPtr s_instance;
 };
 
-wxAnyValueTypeScopedPtr wxAnyToCOLOR4D_VARIANTRegistrationImpl::s_instance( new wxAnyValueTypeImpl<KIGFX::COLOR4D>() );
 
-static wxAnyToCOLOR4D_VARIANTRegistrationImpl s_wxAnyToCOLOR4D_VARIANTRegistration( &COLOR4D_VARIANT_DATA::VariantDataFactory );
+wxAnyValueTypeScopedPtr wxAnyToCOLOR4D_VARIANTRegistrationImpl::s_instance(
+        new wxAnyValueTypeImpl<KIGFX::COLOR4D>() );
+
+
+static wxAnyToCOLOR4D_VARIANTRegistrationImpl
+        s_wxAnyToCOLOR4D_VARIANTRegistration( &COLOR4D_VARIANT_DATA::VariantDataFactory );
 
 
 wxPGProperty* PGPropertyFactory( const PROPERTY_BASE* aProperty, EDA_DRAW_FRAME* aFrame )
@@ -274,6 +289,7 @@ wxPGProperty* PGPropertyFactory( const PROPERTY_BASE* aProperty, EDA_DRAW_FRAME*
             ret = new wxPropertyCategory();
             ret->Enable( false );
         }
+
         break;
     }
     }
@@ -303,15 +319,25 @@ PGPROPERTY_DISTANCE::~PGPROPERTY_DISTANCE()
 }
 
 
+#if wxCHECK_VERSION( 3, 3, 0 )
 bool PGPROPERTY_DISTANCE::StringToDistance( wxVariant& aVariant, const wxString& aText,
-                                            int aArgFlags ) const
+                                            wxPGPropValFormatFlags aFlags ) const
+#else
+bool PGPROPERTY_DISTANCE::StringToDistance( wxVariant& aVariant, const wxString& aText,
+                                            int aFlags ) const
+#endif
 {
     // TODO(JE): Are there actual use cases for this?
     wxCHECK_MSG( false, false, wxS( "PGPROPERTY_DISTANCE::StringToDistance should not be used." ) );
 }
 
 
-wxString PGPROPERTY_DISTANCE::DistanceToString( wxVariant& aVariant, int aArgFlags ) const
+#if wxCHECK_VERSION( 3, 3, 0 )
+wxString PGPROPERTY_DISTANCE::DistanceToString( wxVariant& aVariant,
+                                                wxPGPropValFormatFlags aFlags ) const
+#else
+wxString PGPROPERTY_DISTANCE::DistanceToString( wxVariant& aVariant, int aFlags ) const
+#endif
 {
     long distanceIU;
 
@@ -349,15 +375,25 @@ PGPROPERTY_AREA::PGPROPERTY_AREA( EDA_DRAW_FRAME* aParentFrame ) :
 }
 
 
+#if wxCHECK_VERSION( 3, 3, 0 )
+bool PGPROPERTY_AREA::StringToValue( wxVariant& aVariant, const wxString& aText,
+                                     wxPGPropValFormatFlags aArgFlags ) const
+#else
 bool PGPROPERTY_AREA::StringToValue( wxVariant& aVariant, const wxString& aText,
                                     int aArgFlags ) const
+#endif
 {
     // TODO(JE): Are there actual use cases for this?
     wxCHECK_MSG( false, false, wxS( "PGPROPERTY_AREA::StringToValue should not be used." ) );
 }
 
 
+#if wxCHECK_VERSION( 3, 3, 0 )
+wxString PGPROPERTY_AREA::ValueToString( wxVariant& aVariant,
+                                         wxPGPropValFormatFlags aArgFlags ) const
+#else
 wxString PGPROPERTY_AREA::ValueToString( wxVariant& aVariant, int aArgFlags ) const
+#endif
 {
     wxCHECK( aVariant.GetType() == wxPG_VARIANT_TYPE_LONGLONG, wxEmptyString );
 
@@ -432,15 +468,25 @@ const wxPGEditor* PGPROPERTY_RATIO::DoGetEditorClass() const
 }
 
 
+#if wxCHECK_VERSION( 3, 3, 0 )
+bool PGPROPERTY_RATIO::StringToValue( wxVariant& aVariant, const wxString& aText,
+                                      wxPGPropValFormatFlags aArgFlags ) const
+#else
 bool PGPROPERTY_RATIO::StringToValue( wxVariant& aVariant, const wxString& aText,
                                       int aArgFlags ) const
+#endif
 {
     // TODO(JE): Are there actual use cases for this?
     wxCHECK_MSG( false, false, wxS( "PGPROPERTY_RATIO::StringToValue should not be used." ) );
 }
 
 
+#if wxCHECK_VERSION( 3, 3, 0 )
+wxString PGPROPERTY_RATIO::ValueToString( wxVariant& aVariant,
+                                          wxPGPropValFormatFlags aArgFlags ) const
+#else
 wxString PGPROPERTY_RATIO::ValueToString( wxVariant& aVariant, int aArgFlags ) const
+#endif
 {
     double value;
 
@@ -490,7 +536,13 @@ wxValidator* PGPROPERTY_RATIO::DoGetValidator() const
 }
 
 
-bool PGPROPERTY_ANGLE::StringToValue( wxVariant& aVariant, const wxString& aText, int aArgFlags ) const
+#if wxCHECK_VERSION( 3, 3, 0 )
+bool PGPROPERTY_ANGLE::StringToValue( wxVariant& aVariant, const wxString& aText,
+                                      wxPGPropValFormatFlags aArgFlags ) const
+#else
+bool PGPROPERTY_ANGLE::StringToValue( wxVariant& aVariant, const wxString& aText,
+                                      int aArgFlags ) const
+#endif
 {
     double value = 0.0;
 
@@ -512,11 +564,24 @@ bool PGPROPERTY_ANGLE::StringToValue( wxVariant& aVariant, const wxString& aText
 }
 
 
+#if wxCHECK_VERSION( 3, 3, 0 )
+wxString PGPROPERTY_ANGLE::ValueToString( wxVariant& aVariant,
+                                          wxPGPropValFormatFlags aArgFlags ) const
+#else
 wxString PGPROPERTY_ANGLE::ValueToString( wxVariant& aVariant, int aArgFlags ) const
+#endif
 {
-    if( aVariant.GetType() == wxPG_VARIANT_TYPE_DOUBLE )
+    if( aVariant.GetType() == wxT( "std::optional<double>" ) )
     {
-        // TODO(JE) Is this still needed?
+        auto* variantData = static_cast<STD_OPTIONAL_DOUBLE_VARIANT_DATA*>( aVariant.GetData() );
+
+        if( variantData->Value().has_value() )
+            return wxString::Format( wxS( "%g\u00B0" ), variantData->Value().value() / m_scale );
+        else
+            return wxEmptyString;
+    }
+    else if( aVariant.GetType() == wxPG_VARIANT_TYPE_DOUBLE )
+    {
         return wxString::Format( wxS( "%g\u00B0" ), aVariant.GetDouble() / m_scale );
     }
     else if( aVariant.GetType() == wxS( "EDA_ANGLE" ) )
@@ -540,8 +605,12 @@ wxValidator* PGPROPERTY_ANGLE::DoGetValidator() const
 
 wxSize PGPROPERTY_COLORENUM::OnMeasureImage( int aItem ) const
 {
-    // TODO(JE) calculate size from window metrics?
-    return wxSize( 16, 12 );
+    wxSize size( 16, -1 );
+
+    if( wxPropertyGrid* pg = GetGrid() )
+        size = pg->FromDIP( size );
+
+    return size;
 }
 
 
@@ -570,7 +639,12 @@ void PGPROPERTY_COLORENUM::OnCustomPaint( wxDC& aDC, const wxRect& aRect,
 }
 
 
+#if wxCHECK_VERSION( 3, 3, 0 )
+wxString PGPROPERTY_STRING::ValueToString( wxVariant& aValue,
+                                           wxPGPropValFormatFlags aFlags ) const
+#else
 wxString PGPROPERTY_STRING::ValueToString( wxVariant& aValue, int aFlags ) const
+#endif
 {
     if( aValue.GetType() != wxPG_VARIANT_TYPE_STRING )
         return wxEmptyString;
@@ -579,8 +653,13 @@ wxString PGPROPERTY_STRING::ValueToString( wxVariant& aValue, int aFlags ) const
 }
 
 
+#if wxCHECK_VERSION( 3, 3, 0 )
+bool PGPROPERTY_STRING::StringToValue( wxVariant& aVariant, const wxString& aString,
+                                       wxPGPropValFormatFlags aArgFlags ) const
+#else
 bool PGPROPERTY_STRING::StringToValue( wxVariant& aVariant, const wxString& aString,
                                        int aFlags ) const
+#endif
 {
     aVariant = EscapeString( aString, CTX_QUOTED_STR );
     return true;
@@ -608,19 +687,33 @@ PGPROPERTY_COLOR4D::PGPROPERTY_COLOR4D( const wxString& aLabel, const wxString& 
         m_backgroundColor( aBackgroundColor )
 {
     SetEditor( PG_COLOR_EDITOR::EDITOR_NAME );
+#if wxCHECK_VERSION( 3, 3, 0 )
+    SetFlag( wxPGPropertyFlags::NoEditor );
+#else
     SetFlag( wxPG_PROP_NOEDITOR );
+#endif
 }
 
 
+#if wxCHECK_VERSION( 3, 3, 0 )
+bool PGPROPERTY_COLOR4D::StringToValue( wxVariant& aVariant, const wxString& aString,
+                                        wxPGPropValFormatFlags aArgFlags ) const
+#else
 bool PGPROPERTY_COLOR4D::StringToValue( wxVariant& aVariant, const wxString& aString,
                                         int aFlags ) const
+#endif
 {
     aVariant.SetData( new COLOR4D_VARIANT_DATA( aString ) );
     return true;
 }
 
 
+#if wxCHECK_VERSION( 3, 3, 0 )
+wxString PGPROPERTY_COLOR4D::ValueToString( wxVariant& aValue,
+                                            wxPGPropValFormatFlags aFlags ) const
+#else
 wxString PGPROPERTY_COLOR4D::ValueToString( wxVariant& aValue, int aFlags ) const
+#endif
 {
     wxString ret;
 

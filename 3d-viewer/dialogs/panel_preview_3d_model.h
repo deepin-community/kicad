@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2016 Mario Luzeiro <mrluzeiro@ua.pt>
  * Copyright (C) 2015 Cirilo Bernardo <cirilo.bernardo@gmail.com>
- * Copyright (C) 2015-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -64,7 +64,9 @@ class BOARD_ADAPTER;
 class FOOTPRINT;
 class NL_FOOTPRINT_PROPERTIES_PLUGIN;
 
-class PANEL_PREVIEW_3D_MODEL: public EDA_3D_BOARD_HOLDER, public TOOLS_HOLDER, public PANEL_PREVIEW_3D_MODEL_BASE
+#define PANEL_PREVIEW_3D_MODEL_ID  wxID_HIGHEST + 1244
+
+class PANEL_PREVIEW_3D_MODEL: public TOOLS_HOLDER, public PANEL_PREVIEW_3D_MODEL_BASE
 {
 public:
     PANEL_PREVIEW_3D_MODEL( wxWindow* aParent, PCB_BASE_FRAME* aFrame, FOOTPRINT* aFootprint,
@@ -80,8 +82,8 @@ public:
 
     wxWindow* GetToolCanvas() const override { return m_previewPane; }
 
-    BOARD_ADAPTER& GetAdapter() override { return m_boardAdapter; }
-    CAMERA& GetCurrentCamera() override { return m_currentCamera; }
+    BOARD_ADAPTER& GetAdapter() { return m_boardAdapter; }
+    CAMERA& GetCurrentCamera() { return m_currentCamera; }
 
     /**
      * Set the currently selected index in the model list so that the scale/rotation/offset
@@ -94,6 +96,12 @@ public:
      * footprint that is on the preview dummy board.
      */
     void UpdateDummyFootprint( bool aRelaodRequired = true );
+
+    /**
+     * Get the dummy footprint that is used for previewing the 3D model.
+     * We use this to hold the temporary 3D model shapes.
+     */
+    FOOTPRINT* GetDummyFootprint() const { return m_dummyFootprint; }
 
 private:
     /**
@@ -197,6 +205,8 @@ private:
         m_previewPane->SetView3D( VIEW3D_TYPE::VIEW3D_BOTTOM );
     }
 
+    void onModify();
+
 private:
     PCB_BASE_FRAME*          m_parentFrame;
     EDA_3D_CANVAS*           m_previewPane;
@@ -216,7 +226,7 @@ private:
     /// The 3d viewer Render initial settings (must be saved and restored)
     EDA_3D_VIEWER_SETTINGS::RENDER_SETTINGS m_initialRender;
 
-    NL_FOOTPRINT_PROPERTIES_PLUGIN*     m_spaceMouse;
+    std::unique_ptr<NL_FOOTPRINT_PROPERTIES_PLUGIN>     m_spaceMouse;
 };
 
 #endif  // PANEL_PREVIEW_3D_MODEL_H

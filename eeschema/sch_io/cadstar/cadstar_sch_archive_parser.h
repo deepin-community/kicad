@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020-2021 Roberto Fernandez Bautista <roberto.fer.bau@gmail.com>
- * Copyright (C) 2020-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -35,16 +35,19 @@
 class CADSTAR_SCH_ARCHIVE_PARSER : public CADSTAR_ARCHIVE_PARSER
 {
 public:
-    explicit CADSTAR_SCH_ARCHIVE_PARSER( wxString aFilename ) :
-            CADSTAR_ARCHIVE_PARSER(), Filename( aFilename ), Header(), Assignments(),
-            KiCadUnitDivider( 10 ), m_rootNode( nullptr )
+    explicit CADSTAR_SCH_ARCHIVE_PARSER( const wxString& aFilename ) :
+            CADSTAR_ARCHIVE_PARSER(),
+            Filename( aFilename ),
+            Header(),
+            Assignments(),
+            KiCadUnitDivider( 10 ),
+            m_rootNode( nullptr )
     {
     }
 
     virtual ~CADSTAR_SCH_ARCHIVE_PARSER()
     {
-        if( m_rootNode )
-            delete m_rootNode;
+        delete m_rootNode;
     }
 
     /**

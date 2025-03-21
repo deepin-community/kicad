@@ -4,7 +4,7 @@
  * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2015 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2015 Wayne Stambaugh <stambaughw@verizon.net>
- * Copyright (C) 2017-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -38,6 +38,7 @@
 #include <pcb_target.h>
 #include <pcb_dimension.h>
 #include <pcb_textbox.h>
+#include <pcb_table.h>
 #include <pcb_shape.h>
 #include <dialog_drc.h>
 #include <connectivity/connectivity_data.h>
@@ -45,6 +46,7 @@
 #include <tools/pcb_actions.h>
 #include <tools/drc_tool.h>
 #include <dialogs/dialog_dimension_properties.h>
+#include <dialogs/dialog_table_properties.h>
 #include <pcb_layer_box_selector.h>
 
 // Handles the selection of command events.
@@ -92,21 +94,8 @@ void PCB_EDIT_FRAME::SwitchLayer( PCB_LAYER_ID layer )
     // enabled needs to be checked.
     if( IsCopperLayer( layer ) )
     {
-        // If only one copper layer is enabled, the only such layer that can be selected to is
-        // the "Back" layer (so the selection of any other copper layer is disregarded).
-        if( GetBoard()->GetCopperLayerCount() < 2 )
-        {
-            if( layer != B_Cu )
-                return;
-        }
-        // If more than one copper layer is enabled, the "Copper" and "Component" layers can be
-        // selected, but the total number of copper layers determines which internal layers are
-        // also capable of being selected.
-        else
-        {
-            if( layer != B_Cu && layer != F_Cu && layer >= GetBoard()->GetCopperLayerCount() - 1 )
-                return;
-        }
+        if( layer > GetBoard()->GetCopperLayerStackMaxId() )
+            return;
     }
 
     // Is yet more checking required? E.g. when the layer to be selected is a non-copper layer,
@@ -136,6 +125,15 @@ void PCB_EDIT_FRAME::OnEditItemRequest( BOARD_ITEM* aItem )
         ShowTextBoxPropertiesDialog( static_cast<PCB_TEXTBOX*>( aItem ) );
         break;
 
+    case PCB_TABLE_T:
+    {
+        DIALOG_TABLE_PROPERTIES dlg( this, static_cast<PCB_TABLE*>( aItem ) );
+
+        //QuasiModal required for Scintilla auto-complete
+        dlg.ShowQuasiModal();
+        break;
+    }
+
     case PCB_PAD_T:
         ShowPadPropertiesDialog( static_cast<PAD*>( aItem ) );
         break;
@@ -155,6 +153,8 @@ void PCB_EDIT_FRAME::OnEditItemRequest( BOARD_ITEM* aItem )
     case PCB_DIM_LEADER_T:
     {
         DIALOG_DIMENSION_PROPERTIES dlg( this, static_cast<PCB_DIMENSION_BASE*>( aItem ) );
+
+        // TODO: why is this QuasiModal?
         dlg.ShowQuasiModal();
         break;
     }

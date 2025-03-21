@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2019 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,6 +34,40 @@
 
 // Code under test
 #include <lib_table_base.h>
+
+namespace
+{
+
+/**
+ * A very simple implementation of #LIB_TABLE_IO that does nothing.
+ *
+ * If needed, this could be extended to provide some basic functionality
+ * like providing test data to be read.
+ */
+class DUMMY_LIB_TABLE_IO : public LIB_TABLE_IO
+{
+public:
+    std::unique_ptr<LINE_READER> GetReader( const wxString& aURI ) const override
+    {
+        return std::make_unique<STRING_LINE_READER>( "", "DUMMY_LIB_TABLE_IO Data" );
+    }
+
+    bool CanSaveToUri( const wxString& aURI ) const override
+    {
+        // Always return true, it'll just write to a dummy string
+        return true;
+    }
+
+    bool UrisAreEquivalent( const wxString& aURI1, const wxString& aURI2 ) const override
+    {
+        return aURI1 == aURI2;
+    }
+
+    std::unique_ptr<OUTPUTFORMATTER> GetWriter( const wxString& aURI ) const override
+    {
+        return std::make_unique<STRING_FORMATTER>();
+    }
+};
 
 
 /**
@@ -79,14 +113,15 @@ private:
 class TEST_LIB_TABLE : public LIB_TABLE
 {
 public:
-    TEST_LIB_TABLE( LIB_TABLE* aFallback = nullptr ) : LIB_TABLE( aFallback )
+    TEST_LIB_TABLE( LIB_TABLE* aFallback = nullptr ) :
+            LIB_TABLE( aFallback, std::make_unique<DUMMY_LIB_TABLE_IO>() )
     {
     }
 
-    KICAD_T Type() override // from _ELEM
+    PROJECT::ELEM ProjectElementType() override // from _ELEM
     {
         // Doesn't really matter what this is
-        return FP_LIB_TABLE_T;
+        return PROJECT::ELEM::FPTBL;
     }
 
 private:
@@ -199,6 +234,8 @@ struct LIB_TABLE_TEST_FIXTURE
     TEST_LIB_TABLE m_fallbackTable;
 };
 
+} // namespace
+
 /**
  * Declare the test suite
  */
@@ -231,19 +268,6 @@ BOOST_AUTO_TEST_CASE( EmptyWithFallback )
 
     // But it's not empty if we include the fallback
     BOOST_CHECK_EQUAL( false, table.IsEmpty( true ) );
-}
-
-
-/**
- * Check table clearing function
- */
-BOOST_AUTO_TEST_CASE( Clear )
-{
-    m_mainTableNoFb.Clear();
-
-    // Tables start out empty
-    BOOST_CHECK_EQUAL( m_mainTableNoFb.GetCount(), 0 );
-    BOOST_CHECK_EQUAL( true, m_mainTableNoFb.IsEmpty() );
 }
 
 

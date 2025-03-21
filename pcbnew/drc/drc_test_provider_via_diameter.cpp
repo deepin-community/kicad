@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2004-2023 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -91,7 +91,8 @@ bool DRC_TEST_PROVIDER_VIA_DIAMETER::Run()
                 bool fail_min = false;
                 bool fail_max = false;
                 int  constraintDiameter = 0;
-                int  actual = via->GetWidth();
+                // TODO(JE) padstacks
+                int  actual = via->GetWidth( PADSTACK::ALL_LAYERS );
 
                 if( constraint.GetSeverity() != RPT_SEVERITY_IGNORE )
                 {

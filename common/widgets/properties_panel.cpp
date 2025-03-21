@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2020-2023 CERN
- * Copyright (C) 2020-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -87,11 +87,11 @@ PROPERTIES_PANEL::PROPERTIES_PANEL( wxWindow* aParent, EDA_BASE_FRAME* aFrame ) 
 #endif
 
 #if wxCHECK_VERSION( 3, 3, 0 )
-    m_grid->AddActionTrigger( wxPGKeyboardActions::NextProperty, WXK_RETURN );
-    m_grid->AddActionTrigger( wxPGKeyboardActions::NextProperty, WXK_NUMPAD_ENTER );
-    m_grid->AddActionTrigger( wxPGKeyboardActions::NextProperty, WXK_DOWN );
-    m_grid->AddActionTrigger( wxPGKeyboardActions::PrevProperty, WXK_UP );
-    m_grid->AddActionTrigger( wxPGKeyboardActions::Edit, WXK_SPACE );
+    m_grid->AddActionTrigger( wxPGKeyboardAction::NextProperty, WXK_RETURN );
+    m_grid->AddActionTrigger( wxPGKeyboardAction::NextProperty, WXK_NUMPAD_ENTER );
+    m_grid->AddActionTrigger( wxPGKeyboardAction::NextProperty, WXK_DOWN );
+    m_grid->AddActionTrigger( wxPGKeyboardAction::PrevProperty, WXK_UP );
+    m_grid->AddActionTrigger( wxPGKeyboardAction::Edit, WXK_SPACE );
 #else
     m_grid->AddActionTrigger( wxPG_ACTION_NEXT_PROPERTY, WXK_RETURN );
     m_grid->AddActionTrigger( wxPG_ACTION_NEXT_PROPERTY, WXK_NUMPAD_ENTER );
@@ -121,8 +121,10 @@ PROPERTIES_PANEL::PROPERTIES_PANEL( wxWindow* aParent, EDA_BASE_FRAME* aFrame ) 
     m_grid->CenterSplitter();
 
     Connect( wxEVT_CHAR_HOOK, wxKeyEventHandler( PROPERTIES_PANEL::onCharHook ), nullptr, this );
-    Connect( wxEVT_PG_CHANGED, wxPropertyGridEventHandler( PROPERTIES_PANEL::valueChanged ), nullptr, this );
-    Connect( wxEVT_PG_CHANGING, wxPropertyGridEventHandler( PROPERTIES_PANEL::valueChanging ), nullptr, this );
+    Connect( wxEVT_PG_CHANGED, wxPropertyGridEventHandler( PROPERTIES_PANEL::valueChanged ),
+             nullptr, this );
+    Connect( wxEVT_PG_CHANGING, wxPropertyGridEventHandler( PROPERTIES_PANEL::valueChanging ),
+             nullptr, this );
     Connect( wxEVT_SHOW, wxShowEventHandler( PROPERTIES_PANEL::onShow ), nullptr, this );
 
     Bind( wxEVT_PG_COL_END_DRAG,
@@ -141,10 +143,18 @@ PROPERTIES_PANEL::PROPERTIES_PANEL( wxWindow* aParent, EDA_BASE_FRAME* aFrame ) 
                          } );
               aEvent.Skip();
           } );
+
+    m_frame->Bind( EDA_LANG_CHANGED, &PROPERTIES_PANEL::OnLanguageChanged, this );
 }
 
 
-void PROPERTIES_PANEL::OnLanguageChanged()
+PROPERTIES_PANEL::~PROPERTIES_PANEL()
+{
+    m_frame->Unbind( EDA_LANG_CHANGED, &PROPERTIES_PANEL::OnLanguageChanged, this );
+}
+
+
+void PROPERTIES_PANEL::OnLanguageChanged( wxCommandEvent& aEvent )
 {
     if( m_grid->IsEditorFocused() )
         m_grid->CommitChangesFromEditor();
@@ -153,6 +163,8 @@ void PROPERTIES_PANEL::OnLanguageChanged()
     m_displayed.clear();
 
     UpdateData();
+
+    aEvent.Skip();
 }
 
 
@@ -189,13 +201,14 @@ void PROPERTIES_PANEL::rebuildProperties( const SELECTION& aSelection )
     for( EDA_ITEM* item : aSelection )
         types.insert( TYPE_HASH( *item ) );
 
-    wxCHECK( !types.empty(), /* void */ );
+    wxCHECK( !types.empty(), /* void */ );  // already guarded above, but Coverity doesn't know that
 
     PROPERTY_MANAGER&        propMgr = PROPERTY_MANAGER::Instance();
     std::set<PROPERTY_BASE*> commonProps;
     const PROPERTY_LIST&     allProperties = propMgr.GetProperties( *types.begin() );
 
-    copy( allProperties.begin(), allProperties.end(), inserter( commonProps, commonProps.begin() ) );
+    copy( allProperties.begin(), allProperties.end(),
+          inserter( commonProps, commonProps.begin() ) );
 
     PROPERTY_DISPLAY_ORDER displayOrder = propMgr.GetDisplayOrder( *types.begin() );
 
@@ -235,7 +248,12 @@ void PROPERTIES_PANEL::rebuildProperties( const SELECTION& aSelection )
     }
 
     EDA_ITEM* firstItem = aSelection.Front();
-    bool isFootprintEditor = m_frame->IsType( FRAME_FOOTPRINT_EDITOR );
+
+    bool isLibraryEditor = m_frame->IsType( FRAME_FOOTPRINT_EDITOR )
+                        || m_frame->IsType( FRAME_SCH_SYMBOL_EDITOR );
+
+    bool isDesignEditor = m_frame->IsType( FRAME_PCB_EDITOR )
+                       || m_frame->IsType( FRAME_SCH );
 
     // Find a set of properties that is common to all selected items
     for( PROPERTY_BASE* property : commonProps )
@@ -243,7 +261,10 @@ void PROPERTIES_PANEL::rebuildProperties( const SELECTION& aSelection )
         if( property->IsHiddenFromPropertiesManager() )
             continue;
 
-        if( isFootprintEditor && property->IsHiddenFromLibraryEditors() )
+        if( isLibraryEditor && property->IsHiddenFromLibraryEditors() )
+            continue;
+
+        if( isDesignEditor && property->IsHiddenFromDesignEditors() )
             continue;
 
         if( propMgr.IsAvailableFor( TYPE_HASH( *firstItem ), property, firstItem ) )

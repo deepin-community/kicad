@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -63,6 +63,7 @@ enum class TREE_FILE_TYPE
     SEXPR_SYMBOL_LIB_FILE, // s-expression symbol library file (.kicad_sym)
     DESIGN_RULES,          // design rules (.kicad_dru)
     ZIP_ARCHIVE,           // .zip file
+    JOBSET_FILE,             // jobs (.kicad_jobs)
     MAX                    // Sentinel
 };
 

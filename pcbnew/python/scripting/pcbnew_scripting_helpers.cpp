@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 NBEE Embedded Systems, Miguel Angel Ajo <miguelangel@nbee.es>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,8 +44,10 @@
 #include <core/ignore.h>
 #include <pcb_io/pcb_io_mgr.h>
 #include <string_utils.h>
+#include <filename_resolver.h>
 #include <macros.h>
 #include <pcbnew_scripting_helpers.h>
+#include <pgm_base.h>
 #include <project.h>
 #include <project_pcb.h>
 #include <project/net_settings.h>
@@ -58,7 +60,6 @@
 #include <wx/app.h>
 #include <wx/crt.h>
 #include <wx/image.h>
-
 
 static PCB_EDIT_FRAME* s_PcbEditFrame = nullptr;
 static SETTINGS_MANAGER* s_SettingsManager = nullptr;
@@ -86,7 +87,7 @@ void ScriptingOnDestructPcbEditFrame( PCB_EDIT_FRAME* aPcbEditFrame )
 }
 
 
-BOARD* LoadBoard( wxString& aFileName, bool aSetActive )
+BOARD* LoadBoard( const wxString& aFileName, bool aSetActive )
 {
     if( aFileName.EndsWith( FILEEXT::KiCadPcbFileExtension ) )
         return LoadBoard( aFileName, PCB_IO_MGR::KICAD_SEXP, aSetActive );
@@ -98,7 +99,7 @@ BOARD* LoadBoard( wxString& aFileName, bool aSetActive )
 }
 
 
-BOARD* LoadBoard( wxString& aFileName )
+BOARD* LoadBoard( const wxString& aFileName )
 {
     return LoadBoard( aFileName, false );
 }
@@ -141,14 +142,13 @@ PROJECT* GetDefaultProject()
     return project;
 }
 
-
-BOARD* LoadBoard( wxString& aFileName, PCB_IO_MGR::PCB_FILE_T aFormat )
+BOARD* LoadBoard( const wxString& aFileName, PCB_IO_MGR::PCB_FILE_T aFormat )
 {
     return LoadBoard( aFileName, aFormat, false );
 }
 
 
-BOARD* LoadBoard( wxString& aFileName, PCB_IO_MGR::PCB_FILE_T aFormat, bool aSetActive )
+BOARD* LoadBoard( const wxString& aFileName, PCB_IO_MGR::PCB_FILE_T aFormat, bool aSetActive )
 {
     wxFileName pro = aFileName;
     pro.SetExt( FILEEXT::ProjectFileExtension );
@@ -159,6 +159,7 @@ BOARD* LoadBoard( wxString& aFileName, PCB_IO_MGR::PCB_FILE_T aFormat, bool aSet
     // using various formats.
     // By default only the BMP handler is available.
     wxInitAllImageHandlers();
+
 
     // Ensure the "C" locale is temporary set, before reading any file
     // It also avoid wxWidget alerts about locale issues, later, when using Python 3
@@ -187,31 +188,52 @@ BOARD* LoadBoard( wxString& aFileName, PCB_IO_MGR::PCB_FILE_T aFormat, bool aSet
 
     BASE_SCREEN::m_DrawingSheetFileName = project->GetProjectFile().m_BoardDrawingSheetFile;
 
-    // Load the drawing sheet from the filename stored in BASE_SCREEN::m_DrawingSheetFileName.
-    // If empty, or not existing, the default drawing sheet is loaded.
-    wxString filename = DS_DATA_MODEL::ResolvePath( BASE_SCREEN::m_DrawingSheetFileName,
-                                                    project->GetProjectPath() );
-
-    if( !DS_DATA_MODEL::GetTheInstance().LoadDrawingSheet( filename ) )
-        wxFprintf( stderr, _( "Error loading drawing sheet." ) );
-
-    BOARD* brd = PCB_IO_MGR::Load( aFormat, aFileName );
+    BOARD* brd = nullptr;
+    try
+    {
+        brd = PCB_IO_MGR::Load( aFormat, aFileName );
+    }
+    catch( ... )
+    {
+        brd = nullptr;
+    }
 
     if( brd )
     {
+        // Load the drawing sheet from the filename stored in BASE_SCREEN::m_DrawingSheetFileName.
+        // If empty, or not existing, the default drawing sheet is loaded.
+        FILENAME_RESOLVER resolver;
+        resolver.SetProject( project );
+
+        // a PGM_BASE* process can be nullptr when running from a python script
+        // So use PgmOrNull() instead of &Pgm() to initialize the resolver
+        resolver.SetProgramBase( PgmOrNull() );
+
+        wxString filename = resolver.ResolvePath( BASE_SCREEN::m_DrawingSheetFileName,
+                                              project->GetProjectPath(),
+                                              brd->GetEmbeddedFiles() );
+
+        wxString msg;
+
+        if( !DS_DATA_MODEL::GetTheInstance().LoadDrawingSheet( filename, &msg ) )
+        {
+            wxFprintf( stderr, _( "Error loading drawing sheet '%s': %s" ),
+                       BASE_SCREEN::m_DrawingSheetFileName, msg );
+        }
+
         // JEY TODO: move this global to the board
         ENUM_MAP<PCB_LAYER_ID>& layerEnum = ENUM_MAP<PCB_LAYER_ID>::Instance();
 
         layerEnum.Choices().Clear();
         layerEnum.Undefined( UNDEFINED_LAYER );
 
-        for( LSEQ seq = LSET::AllLayersMask().Seq(); seq; ++seq )
+        for( PCB_LAYER_ID layer : LSET::AllLayersMask().Seq() )
         {
             // Canonical name
-            layerEnum.Map( *seq, LSET::Name( *seq ) );
+            layerEnum.Map( layer, LSET::Name( layer ) );
 
             // User name
-            layerEnum.Map( *seq, brd->GetLayerName( *seq ) );
+            layerEnum.Map( layer, brd->GetLayerName( layer ) );
         }
 
         brd->SetProject( project );
@@ -242,7 +264,7 @@ BOARD* LoadBoard( wxString& aFileName, PCB_IO_MGR::PCB_FILE_T aFormat, bool aSet
 
         brd->BuildConnectivity();
         brd->BuildListOfNets();
-        brd->SynchronizeNetsAndNetClasses( false );
+        brd->SynchronizeNetsAndNetClasses( true );
         brd->UpdateUserUnits( brd, nullptr );
     }
 
@@ -405,12 +427,14 @@ bool ExportSpecctraDSN( BOARD* aBoard, wxString& aFullFilename )
 }
 
 
-bool ExportVRML( const wxString& aFullFileName, double aMMtoWRMLunit, bool aExport3DFiles,
+bool ExportVRML( const wxString& aFullFileName, double aMMtoWRMLunit, bool aIncludeUnspecified,
+                 bool aIncludeDNP, bool aExport3DFiles,
                  bool aUseRelativePaths, const wxString& a3D_Subdir, double aXRef, double aYRef )
 {
     if( s_PcbEditFrame )
     {
         bool ok = s_PcbEditFrame->ExportVRML_File( aFullFileName, aMMtoWRMLunit,
+                                                   aIncludeUnspecified, aIncludeDNP,
                                                    aExport3DFiles, aUseRelativePaths,
                                                    a3D_Subdir, aXRef, aYRef );
         return ok;
@@ -550,10 +574,9 @@ bool WriteDRCReport( BOARD* aBoard, const wxString& aFileName, EDA_UNITS aUnits,
 
     // Load the global fp-lib-table otherwise we can't check the libs parity
     wxFileName  fn_flp = FP_LIB_TABLE::GetGlobalTableFileName();
-    if( fn_flp.FileExists() ) {
-        GFootprintTable.Clear();
+
+    if( fn_flp.FileExists() )
         GFootprintTable.Load( fn_flp.GetFullPath() );
-    }
 
     wxString drcRulesPath = prj->AbsolutePath( fn.GetFullName() );
 
@@ -563,10 +586,10 @@ bool WriteDRCReport( BOARD* aBoard, const wxString& aFileName, EDA_UNITS aUnits,
     layerEnum.Choices().Clear();
     layerEnum.Undefined( UNDEFINED_LAYER );
 
-    for( LSEQ seq = LSET::AllLayersMask().Seq(); seq; ++seq )
+    for( PCB_LAYER_ID layer : LSET::AllLayersMask().Seq() )
     {
-        layerEnum.Map( *seq, LSET::Name( *seq ) );              // Add Canonical name
-        layerEnum.Map( *seq, aBoard->GetLayerName( *seq ) );    // Add User name
+        layerEnum.Map( layer, LSET::Name( layer ) );              // Add Canonical name
+        layerEnum.Map( layer, aBoard->GetLayerName( layer ) );    // Add User name
     }
 
     try
@@ -586,13 +609,15 @@ bool WriteDRCReport( BOARD* aBoard, const wxString& aFileName, EDA_UNITS aUnits,
     engine->SetProgressReporter( nullptr );
 
     engine->SetViolationHandler(
-            [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2D aPos, int aLayer )
+            [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2D aPos, int aLayer,
+                 DRC_CUSTOM_MARKER_HANDLER* aCustomHandler )
             {
                 if( aItem->GetErrorCode() == DRCE_MISSING_FOOTPRINT
                     || aItem->GetErrorCode() == DRCE_DUPLICATE_FOOTPRINT
                     || aItem->GetErrorCode() == DRCE_EXTRA_FOOTPRINT
                     || aItem->GetErrorCode() == DRCE_NET_CONFLICT
-                    || aItem->GetErrorCode() == DRCE_SCHEMATIC_PARITY_ISSUES )
+                    || aItem->GetErrorCode() == DRCE_SCHEMATIC_PARITY
+                    || aItem->GetErrorCode() == DRCE_FOOTPRINT_FILTERS )
                 {
                     footprints.push_back( aItem );
                 }

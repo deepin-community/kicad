@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2024 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -55,6 +55,7 @@ BOOST_FIXTURE_TEST_CASE( CheckNetCounts, CONNECTIVITY_TEST_FIXTURE )
     {
         KI_TEST::LoadSchematic( m_settingsManager, name, m_schematic );
 
+        SCH_SHEET_LIST sheets = m_schematic->BuildSheetListSortedByPageNumbers();
         CONNECTION_GRAPH* graph = m_schematic->ConnectionGraph();
 
         BOOST_CHECK( nets == graph->GetNetMap().size() );

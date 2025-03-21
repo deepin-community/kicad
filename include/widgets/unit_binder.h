@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014-2015 CERN
- * Copyright (C) 2020-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +25,8 @@
 
 #ifndef __UNIT_BINDER_H_
 #define __UNIT_BINDER_H_
+
+#include <span>
 
 #include <base_units.h>
 #include <units_provider.h>
@@ -130,11 +132,20 @@ public:
      * Return the current value in Internal Units.
      *
      * The returned value will be truncated according to the precision set by
-     * SetPrecision() (if not <= 0)
+     * SetPrecision() (if not <= 0).
      */
     virtual double GetDoubleValue();
 
     virtual EDA_ANGLE GetAngleValue();
+
+    /**
+     * Set the list of options for a combobox control.
+     *
+     * Doesn't affect the value of the control.
+     */
+    virtual void SetOptionsList( std::span<const long long int> aOptions );
+    virtual void SetDoubleOptionsList( std::span<const double> aOptions );
+
 
     /**
      * Return true if the control holds the indeterminate value (for instance, if it
@@ -146,13 +157,14 @@ public:
      * Return true if the control holds no value (ie: empty string, **not** 0).
      */
     bool IsNull() const;
+    void SetNull();
 
     /**
      * Validate the control against the given range, informing the user of any errors found.
      *
-     * @param aMin a minimum value for validation
-     * @param aMax a maximum value for validation
-     * @param aUnits the units of the min/max parameters (use UNSCALED for internal units)
+     * @param aMin a minimum value for validation.
+     * @param aMax a maximum value for validation.
+     * @param aUnits the units of the min/max parameters (use UNSCALED for internal units).
      * @return false on error.
      */
     virtual bool Validate( double aMin, double aMax, EDA_UNITS aUnits = EDA_UNITS::UNSCALED );
@@ -167,15 +179,15 @@ public:
     /**
      * Show/hide the label, widget and units label.
      *
-     * @param aShow called for the Show() routine in wx
-     * @param aResize if true, the element will be sized to 0 on hide and -1 on show
+     * @param aShow called for the Show() routine in wx.
+     * @param aResize if true, the element will be sized to 0 on hide and -1 on show.
      */
     void Show( bool aShow, bool aResize = false );
 
     /**
-     * Get the origin transforms coordinate type
+     * Get the origin transforms coordinate type.
      *
-     * @returns the origin transforms coordinate type
+     * @returns the origin transforms coordinate type.
      */
     ORIGIN_TRANSFORMS::COORD_TYPES_T GetCoordType() const
     {
@@ -183,7 +195,7 @@ public:
     }
 
     /**
-     * Set the current origin transform mode
+     * Set the current origin transform mode.
      */
     void SetCoordType( ORIGIN_TRANSFORMS::COORD_TYPES_T aCoordType )
     {
@@ -191,7 +203,7 @@ public:
     }
 
     /**
-     * Force the binder to evaluate the text
+     * Force the binder to evaluate the text.
      */
     void RequireEval()
     {
@@ -201,6 +213,7 @@ public:
 protected:
     void init( UNITS_PROVIDER* aProvider );
     void onClick( wxMouseEvent& aEvent );
+    void onComboBox( wxCommandEvent& aEvent );
 
     void onSetFocus( wxFocusEvent& aEvent );
     void onKillFocus( wxFocusEvent& aEvent );
@@ -219,22 +232,25 @@ protected:
      * and set to false if aValue is a internal unit value.
      * @return the "rounded" value.
      */
-    double setPrecision( double aValue, bool aValueUsesUserUnits );
+    double setPrecision( double aValue, bool aValueUsesUserUnits ) const;
+
+    wxString getTextForValue( long long int aValue ) const;
+    wxString getTextForDoubleValue( double aValue ) const;
 
 protected:
     bool                m_bindFocusEvent;
 
-    ///< The bound widgets
+    /// The bound widgets.
     wxStaticText*       m_label;
     wxWindow*           m_valueCtrl;
-    wxStaticText*       m_unitLabel;      ///< Can be nullptr
+    wxStaticText*       m_unitLabel;      ///< Can be nullptr.
 
-    ///< Currently used units.
+    /// Currently used units.
     const EDA_IU_SCALE* m_iuScale;
     EDA_UNITS           m_units;
     bool                m_negativeZero;   ///< Indicates "-0" should be displayed for 0.
     EDA_DATA_TYPE       m_dataType;
-    int                 m_precision;      ///< 0 to 6
+    int                 m_precision;      ///< 0 to 6.
 
     wxString            m_errorMessage;
 
@@ -242,21 +258,21 @@ protected:
     bool                m_allowEval;
     bool                m_needsEval;
 
-    long                m_selStart;       ///< Selection start and end of the original text
+    long                m_selStart;       ///< Selection start and end of the original text.
     long                m_selEnd;
 
-    bool                m_unitsInValue;   ///< Units label should be included in value text
+    bool                m_unitsInValue;   ///< Units label should be included in value text.
 
-    /// A reference to an ORIGIN_TRANSFORMS object
+    /// A reference to an #ORIGIN_TRANSFORMS object.
     ORIGIN_TRANSFORMS&  m_originTransforms;
 
-    /// Type of coordinate for display origin transforms
+    /// Type of coordinate for display origin transforms.
     ORIGIN_TRANSFORMS::COORD_TYPES_T m_coordType;
 };
 
 
 /**
- * Specialization for wxPropertyGrid, where we have no labels and units are displayed in the editor
+ * Specialization for wxPropertyGrid, where we have no labels and units are displayed in the editor.
  */
 class PROPERTY_EDITOR_UNIT_BINDER : public UNIT_BINDER
 {

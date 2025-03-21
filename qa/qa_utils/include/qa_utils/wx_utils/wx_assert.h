@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -61,6 +61,18 @@ public:
 
     std::string m_format_msg;
 };
+
+
+/*
+ * Simple function to handle a WX assertion and throw a real exception.
+ *
+ * This is useful when you want to check assertions fire in unit tests.
+ */
+inline void wxAssertThrower( const wxString& aFile, int aLine, const wxString& aFunc,
+                             const wxString& aCond, const wxString& aMsg )
+{
+    throw KI_TEST::WX_ASSERT_ERROR( aFile, aLine, aFunc, aCond, aMsg );
+}
 
 } // namespace KI_TEST
 

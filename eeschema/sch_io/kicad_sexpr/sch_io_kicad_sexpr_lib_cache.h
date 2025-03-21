@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Wayne Stambaugh <stambaughw@gmail.com>
  *
@@ -25,11 +25,9 @@
 #include "sch_io/sch_io_lib_cache.h"
 
 class FILE_LINE_READER;
-class LIB_FIELD;
-class LIB_ITEM;
-class LIB_PIN;
-class LIB_TEXT;
-class LIB_TEXTBOX;
+class SCH_PIN;
+class SCH_TEXT;
+class SCH_TEXTBOX;
 class LINE_READER;
 class SCH_IO_KICAD_SEXPR;
 
@@ -54,7 +52,7 @@ public:
     void DeleteSymbol( const wxString& aName ) override;
 
     static void SaveSymbol( LIB_SYMBOL* aSymbol, OUTPUTFORMATTER& aFormatter,
-                            int aNestLevel = 0, const wxString& aLibName = wxEmptyString );
+                            const wxString& aLibName = wxEmptyString, bool aIncludeData = true );
 
     void SetFileFormatVersionAtLoad( int aVersion ) { m_fileFormatVersionAtLoad = aVersion; }
     int GetFileFormatVersionAtLoad()  const { return m_fileFormatVersionAtLoad; }
@@ -64,16 +62,14 @@ private:
 
     int m_fileFormatVersionAtLoad;
 
-    static void saveSymbolDrawItem( LIB_ITEM* aItem, OUTPUTFORMATTER& aFormatter,
-                                    int aNestLevel );
-    static void saveField( LIB_FIELD* aField, OUTPUTFORMATTER& aFormatter, int aNestLevel );
-    static void savePin( LIB_PIN* aPin, OUTPUTFORMATTER& aFormatter, int aNestLevel = 0 );
-    static void saveText( LIB_TEXT* aText, OUTPUTFORMATTER& aFormatter, int aNestLevel = 0 );
-    static void saveTextBox( LIB_TEXTBOX* aTextBox, OUTPUTFORMATTER& aFormatter,
-                             int aNestLevel = 0 );
+    static void saveSymbolDrawItem( SCH_ITEM* aItem, OUTPUTFORMATTER& aFormatter );
+    static void saveField( SCH_FIELD* aField, OUTPUTFORMATTER& aFormatter );
+    static void savePin( SCH_PIN* aPin, OUTPUTFORMATTER& aFormatter );
+    static void saveText( SCH_TEXT* aText, OUTPUTFORMATTER& aFormatter );
+    static void saveTextBox( SCH_TEXTBOX* aTextBox, OUTPUTFORMATTER& aFormatter );
 
     static void saveDcmInfoAsFields( LIB_SYMBOL* aSymbol, OUTPUTFORMATTER& aFormatter,
-                                     int& aNextFreeFieldId, int aNestLevel );
+                                     int& aNextFreeFieldId );
 };
 
 #endif    // SCH_IO_KICAD_SEXPR_LIB_CACHE_H_

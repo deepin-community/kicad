@@ -2,6 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Andre F. K. Iwers <iwers11@gmail.com>
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -54,14 +55,16 @@ struct HTTP_LIB_PART
 
     std::time_t lastCached = 0;
 
-    std::map<std::string, std::tuple<std::string, bool>> fields; ///< additional generic fields
+    std::vector<std::pair<std::string, std::tuple<std::string, bool>>>
+            fields; ///< additional generic fields
 };
 
 
 struct HTTP_LIB_CATEGORY
 {
-    std::string id;   ///< id of category
-    std::string name; ///< name of category
+    std::string id;          ///< id of category
+    std::string name;        ///< name of category
+    std::string description; ///< description of category
 
     std::time_t lastCached = 0;
 

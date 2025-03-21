@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2007 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,10 +26,14 @@
 #define CLASS_BOARD_H_
 
 #include <board_item_container.h>
+#include <board_stackup_manager/board_stackup.h>
+#include <component_class_manager.h>
+#include <embedded_files.h>
 #include <common.h> // Needed for stl hash extensions
 #include <convert_shape_list_to_polygon.h> // for OUTLINE_ERROR_HANDLER
 #include <hash.h>
 #include <layer_ids.h>
+#include <lset.h>
 #include <netinfo.h>
 #include <pcb_item_containers.h>
 #include <pcb_plot_params.h>
@@ -61,6 +65,11 @@ class CONNECTIVITY_DATA;
 class COMPONENT;
 class PROJECT;
 class PROGRESS_REPORTER;
+namespace KIFONT
+{
+    class OUTLINE_FONT;
+}
+
 struct ISOLATED_ISLANDS;
 
 // The default value for m_outlinesChainingEpsilon to convert a board outlines to polygons
@@ -151,7 +160,10 @@ enum LAYER_T
     LT_SIGNAL,
     LT_POWER,
     LT_MIXED,
-    LT_JUMPER
+    LT_JUMPER,
+    LT_AUX,
+    LT_FRONT,
+    LT_BACK
 };
 
 
@@ -172,6 +184,7 @@ struct LAYER
         m_number  = 0;
         m_name.clear();
         m_userName.clear();
+        m_opposite = m_number;
     }
 
     /*
@@ -190,6 +203,7 @@ struct LAYER
     LAYER_T     m_type;      ///< The type of the layer. @see #LAYER_T
     bool        m_visible;
     int         m_number;    ///< The layer ID. @see PCB_LAYER_ID
+    int         m_opposite;  ///< Similar layer on opposite side of the board, if any.
 
     /**
      * Convert a #LAYER_T enum to a string representation of the layer type.
@@ -252,6 +266,11 @@ public:
     virtual void OnBoardItemsChanged( BOARD& aBoard, std::vector<BOARD_ITEM*>& aBoardItem ) { }
     virtual void OnBoardHighlightNetChanged( BOARD& aBoard ) { }
     virtual void OnBoardRatsnestChanged( BOARD& aBoard ) { }
+    virtual void OnBoardCompositeUpdate( BOARD& aBoard, std::vector<BOARD_ITEM*>& aAddedItems,
+                                         std::vector<BOARD_ITEM*>& aRemovedItems,
+                                         std::vector<BOARD_ITEM*>& aChangedItems )
+    {
+    }
 };
 
 /**
@@ -272,7 +291,7 @@ enum class BOARD_USE
 /**
  * Information pertinent to a Pcbnew printed circuit board.
  */
-class BOARD : public BOARD_ITEM_CONTAINER
+class BOARD : public BOARD_ITEM_CONTAINER, public EMBEDDED_FILES
 {
 public:
     static inline bool ClassOf( const EDA_ITEM* aItem )
@@ -312,23 +331,24 @@ public:
 
     const wxString &GetFileName() const { return m_fileName; }
 
-    TRACKS& Tracks() { return m_tracks; }
     const TRACKS& Tracks() const { return m_tracks; }
 
-    FOOTPRINTS& Footprints() { return m_footprints; }
     const FOOTPRINTS& Footprints() const { return m_footprints; }
 
-    DRAWINGS& Drawings() { return m_drawings; }
     const DRAWINGS& Drawings() const { return m_drawings; }
 
-    ZONES& Zones() { return m_zones; }
     const ZONES& Zones() const { return m_zones; }
 
-    GENERATORS&       Generators() { return m_generators; }
     const GENERATORS& Generators() const { return m_generators; }
 
-    MARKERS& Markers() { return m_markers; }
     const MARKERS& Markers() const { return m_markers; }
+
+    // SWIG requires non-const accessors for some reason to make the custom iterators in board.i
+    // work.  It would be good to remove this if we can figure out how to fix that.
+#ifdef SWIG
+    DRAWINGS& Drawings() { return m_drawings; }
+    TRACKS& Tracks() { return m_tracks; }
+#endif
 
     const BOARD_ITEM_SET GetItemSet();
 
@@ -340,7 +360,6 @@ public:
      *   - If a group specifies a name, it must be unique
      *   - The graph of groups containing subgroups must be cyclic.
      */
-    GROUPS& Groups() { return m_groups; }
     const GROUPS& Groups() const { return m_groups; }
 
     const std::vector<BOARD_CONNECTED_ITEM*> AllConnectedItems();
@@ -376,6 +395,9 @@ public:
 
     void Move( const VECTOR2I& aMoveVector ) override;
 
+    void RunOnDescendants( const std::function<void ( BOARD_ITEM* )>& aFunction,
+                           int aDepth = 0 ) const override;
+
     void SetFileFormatVersionAtLoad( int aVersion ) { m_fileFormatVersionAtLoad = aVersion; }
     int GetFileFormatVersionAtLoad() const { return m_fileFormatVersionAtLoad; }
 
@@ -390,6 +412,19 @@ public:
     void Remove( BOARD_ITEM* aBoardItem, REMOVE_MODE aMode = REMOVE_MODE::NORMAL ) override;
 
     /**
+     * An efficient way to remove all items of a certain type from the board.
+     * Because of how items are stored, this method has some limitations in order to preserve
+     * performance: tracks, vias, and arcs are all removed together by PCB_TRACE_T, and all graphics
+     * and text object types are removed together by PCB_SHAPE_T.  If you need something more
+     * granular than that, use BOARD::Remove.
+     * @param aTypes is a list of one or more types to remove, or leave default to remove all
+     */
+    void RemoveAll( std::initializer_list<KICAD_T> aTypes = { PCB_NETINFO_T, PCB_MARKER_T,
+                                                              PCB_GROUP_T, PCB_ZONE_T,
+                                                              PCB_GENERATOR_T, PCB_FOOTPRINT_T,
+                                                              PCB_TRACE_T, PCB_SHAPE_T } );
+
+    /**
      * Must be used if Add() is used using a BULK_x ADD_MODE to generate a change event for
      * listeners.
      */
@@ -400,6 +435,13 @@ public:
      * for listeners.
      */
     void FinalizeBulkRemove( std::vector<BOARD_ITEM*>& aRemovedItems );
+
+    /**
+     * After loading a file from disk, the footprints do not yet contain the full
+     * data for their embedded files, only a reference.  This iterates over all footprints
+     * in the board and updates them with the full embedded data.
+    */
+    void FixupEmbeddedData();
 
     void CacheTriangulation( PROGRESS_REPORTER* aReporter = nullptr,
                              const std::vector<ZONE*>& aZones = {} );
@@ -536,6 +578,17 @@ public:
     int  GetCopperLayerCount() const;
     void SetCopperLayerCount( int aCount );
 
+    int GetUserDefinedLayerCount() const;
+    void SetUserDefinedLayerCount( int aCount );
+
+    /**
+     * @return The copper layer max PCB_LAYER_ID in the BOARD.
+     * similar to GetCopperLayerCount(), but returns the max PCB_LAYER_ID
+     */
+    PCB_LAYER_ID  GetCopperLayerStackMaxId() const;
+
+    PCB_LAYER_ID FlipLayer( PCB_LAYER_ID aLayer ) const;
+
     int LayerDepth( PCB_LAYER_ID aStartLayer, PCB_LAYER_ID aEndLayer ) const;
 
     /**
@@ -642,10 +695,7 @@ public:
      */
     BOARD_DESIGN_SETTINGS& GetDesignSettings() const;
 
-    // Tented vias are vias covered by solder mask. So because the solder mask is a negative
-    // layer, tented vias are NOT plotted on solder mask layers
-    bool GetTentVias() const            { return !m_plotOptions.GetPlotViaOnMaskLayer(); }
-    void SetTentVias( bool aFlag )      { m_plotOptions.SetPlotViaOnMaskLayer( !aFlag ); }
+    BOARD_STACKUP GetStackupOrDefault() const;
 
     const PAGE_INFO& GetPageSettings() const                { return m_paper; }
     void SetPageSettings( const PAGE_INFO& aPageSettings )  { m_paper = aPageSettings; }
@@ -657,7 +707,7 @@ public:
     const TITLE_BLOCK& GetTitleBlock() const                { return m_titles; }
     void SetTitleBlock( const TITLE_BLOCK& aTitleBlock )    { m_titles = aTitleBlock; }
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     EDA_UNITS GetUserUnits()                                { return m_userUnits; }
     void SetUserUnits( EDA_UNITS aUnits )                   { m_userUnits = aUnits; }
@@ -1137,10 +1187,10 @@ public:
 
     /**
      * Map all nets in the given board to nets with the same name (if any) in the destination
-     * board.  This allows us to share layouts which came from the same hierarchical sheet in
-     * the schematic.
+     * board.  If there are missing nets in the destination board, they will be created.
+     *
      */
-    void MapNets( const BOARD* aDestBoard );
+    void MapNets( BOARD* aDestBoard );
 
     void SanitizeNetcodes();
 
@@ -1178,6 +1228,14 @@ public:
     void OnItemsChanged( std::vector<BOARD_ITEM*>& aItems );
 
     /**
+      * Notify the board and its listeners that items on the board have
+      * been modified in a composite operations
+      */
+    void OnItemsCompositeUpdate( std::vector<BOARD_ITEM*>& aAddedItems,
+                                 std::vector<BOARD_ITEM*>& aRemovedItems,
+                                 std::vector<BOARD_ITEM*>& aChangedItems );
+
+    /**
      * Notify the board and its listeners that the ratsnest has been recomputed.
      */
     void OnRatsnestChanged();
@@ -1213,6 +1271,24 @@ public:
 
     bool LegacyTeardrops() const { return m_legacyTeardrops; }
     void SetLegacyTeardrops( bool aFlag ) { m_legacyTeardrops = aFlag; }
+
+    EMBEDDED_FILES* GetEmbeddedFiles() override;
+    const EMBEDDED_FILES* GetEmbeddedFiles() const;
+
+    /**
+     * Get the list of all outline fonts used in the board
+     */
+    std::set<KIFONT::OUTLINE_FONT*> GetFonts() const override;
+
+    /**
+     * Finds all fonts used in the board and embeds them in the file if permissions allow
+    */
+    void EmbedFonts() override;
+
+    /**
+     * Gets the component class manager
+     */
+    COMPONENT_CLASS_MANAGER& GetComponentClassManager() { return m_componentClassManager; }
 
     // --------- Item order comparators ---------
 
@@ -1262,8 +1338,12 @@ private:
             ( l->*aFunc )( std::forward<Args>( args )... );
     }
 
+    // Refresh user layer opposites.
+    void recalcOpposites();
+
     friend class PCB_EDIT_FRAME;
 
+private:
     /// the max distance between 2 end point to see them connected when building the board outlines
     int                 m_outlinesChainingEpsilon;
 
@@ -1272,6 +1352,8 @@ private:
     int                 m_timeStamp;                // actually a modification counter
 
     wxString            m_fileName;
+
+    // These containers only have const accessors and must only be modified by Add()/Remove()
     MARKERS             m_markers;
     DRAWINGS            m_drawings;
     FOOTPRINTS          m_footprints;
@@ -1280,7 +1362,10 @@ private:
     ZONES               m_zones;
     GENERATORS          m_generators;
 
-    LAYER               m_layers[PCB_LAYER_ID_COUNT];
+    // Cache for fast access to items in the containers above by KIID, including children
+    std::unordered_map<KIID, BOARD_ITEM*> m_itemByIdCache;
+
+    std::map<int, LAYER> m_layers;                  // layer data
 
     HIGH_LIGHT_INFO     m_highLight;                // current high light data
     HIGH_LIGHT_INFO     m_highLightPrevious;        // a previously stored high light data
@@ -1318,6 +1403,10 @@ private:
     NETINFO_LIST                 m_NetInfo;         // net info list (name, design constraints...
 
     std::vector<BOARD_LISTENER*> m_listeners;
+
+    bool                         m_embedFonts;
+
+    COMPONENT_CLASS_MANAGER m_componentClassManager;
 };
 
 

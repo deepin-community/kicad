@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2023 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,11 +24,13 @@
 #ifndef DRC_RULE_H
 #define DRC_RULE_H
 
+#include <bitset>
 #include <kiid.h>
 #include <core/typeinfo.h>
 #include <optional>
 #include <core/minoptmax.h>
 #include <layer_ids.h>
+#include <lset.h>
 #include <netclass.h>
 #include <zones.h>
 #include <libeval_compiler/libeval_compiler.h>
@@ -45,6 +47,7 @@ enum DRC_CONSTRAINT_T
 {
     NULL_CONSTRAINT = 0,
     CLEARANCE_CONSTRAINT,
+    CREEPAGE_CONSTRAINT,
     HOLE_CLEARANCE_CONSTRAINT,
     HOLE_TO_HOLE_CONSTRAINT,
     EDGE_CLEARANCE_CONSTRAINT,
@@ -54,6 +57,7 @@ enum DRC_CONSTRAINT_T
     TEXT_HEIGHT_CONSTRAINT,
     TEXT_THICKNESS_CONSTRAINT,
     TRACK_WIDTH_CONSTRAINT,
+    TRACK_SEGMENT_LENGTH_CONSTRAINT,
     ANNULAR_WIDTH_CONSTRAINT,
     ZONE_CONNECTION_CONSTRAINT,
     THERMAL_RELIEF_GAP_CONSTRAINT,
@@ -70,7 +74,8 @@ enum DRC_CONSTRAINT_T
     PHYSICAL_CLEARANCE_CONSTRAINT,
     PHYSICAL_HOLE_CLEARANCE_CONSTRAINT,
     ASSERTION_CONSTRAINT,
-    CONNECTION_WIDTH_CONSTRAINT
+    CONNECTION_WIDTH_CONSTRAINT,
+    TRACK_ANGLE_CONSTRAINT
 };
 
 
@@ -134,6 +139,11 @@ public:
     {
     }
 
+    enum class OPTIONS : std::size_t
+    {
+        SKEW_WITHIN_DIFF_PAIRS = 0
+    };
+
     bool IsNull() const
     {
         return m_Type == NULL_CONSTRAINT;
@@ -168,6 +178,13 @@ public:
             return RPT_SEVERITY_UNDEFINED;
     }
 
+    void SetOption( OPTIONS option ) { m_options.set( static_cast<std::size_t>( option ), true ); }
+
+    bool GetOption( OPTIONS option ) const
+    {
+        return m_options.test( static_cast<std::size_t>( option ) );
+    }
+
 public:
     DRC_CONSTRAINT_T    m_Type;
     MINOPTMAX<int>      m_Value;
@@ -179,6 +196,8 @@ public:
 private:
     wxString            m_name;          // For just-in-time constraints
     DRC_RULE*           m_parentRule;    // For constraints found in rules
+    std::bitset<1>      m_options;       // Constraint-specific option bits
+                                         // (indexed from DRC_CONSTRAINT::OPTIONS)
 };
 
 

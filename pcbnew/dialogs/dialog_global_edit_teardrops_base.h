@@ -32,14 +32,11 @@ class PCB_LAYER_BOX_SELECTOR;
 #include <wx/image.h>
 #include <wx/icon.h>
 #include <wx/statbmp.h>
-#include <wx/spinctrl.h>
 #include <wx/button.h>
 #include <wx/dialog.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
-#define ID_SPECIFIED_NET_TO_NETCLASS_VALUES 1000
-#define ID_SPECIFIED_NET_TO_SPECIFIED_VALUES 1001
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class DIALOG_GLOBAL_EDIT_TEARDROPS_BASE
@@ -69,6 +66,7 @@ class DIALOG_GLOBAL_EDIT_TEARDROPS_BASE : public DIALOG_SHIM
 		wxCheckBox* m_existingFilter;
 		wxCheckBox* m_selectedItemsFilter;
 		wxRadioButton* m_removeTeardrops;
+		wxRadioButton* m_removeAllTeardrops;
 		wxRadioButton* m_addTeardrops;
 		wxHyperlinkCtrl* m_boardSetupLink;
 		wxRadioButton* m_specifiedValues;
@@ -90,10 +88,9 @@ class DIALOG_GLOBAL_EDIT_TEARDROPS_BASE : public DIALOG_SHIM
 		wxTextCtrl* m_tcMaxHeight;
 		wxStaticText* m_stMaxHeightUnits;
 		wxCheckBox* m_curvedEdges;
-		wxStaticText* m_curvePointsLabel;
-		wxSpinCtrl* m_curvePointsCtrl;
 		wxStdDialogButtonSizer* m_sdbSizer;
 		wxButton* m_sdbSizerOK;
+		wxButton* m_sdbSizerApply;
 		wxButton* m_sdbSizerCancel;
 
 		// Virtual event handlers, override them in your derived class
@@ -104,7 +101,6 @@ class DIALOG_GLOBAL_EDIT_TEARDROPS_BASE : public DIALOG_SHIM
 		virtual void OnExistingFilterSelect( wxCommandEvent& event ) { event.Skip(); }
 		virtual void onShowBoardSetup( wxHyperlinkEvent& event ) { event.Skip(); }
 		virtual void onSpecifiedValuesUpdateUi( wxUpdateUIEvent& event ) { event.Skip(); }
-		virtual void onCurvedEdgesUpdateUi( wxUpdateUIEvent& event ) { event.Skip(); }
 
 
 	public:

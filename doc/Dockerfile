@@ -1,4 +1,4 @@
-FROM registry.gitlab.com/kicad/kicad-ci/doc_containers:latest as doc-build-env
+FROM registry.gitlab.com/kicad/kicad-ci/doc_containers:latest AS doc-build-env
 
 WORKDIR /src
 COPY . .
@@ -9,8 +9,8 @@ RUN cmake -DBUILD_FORMATS="html;pdf" ../
 RUN make
 RUN cpack
 
-FROM busybox as b
-FROM scratch as output-image
+FROM busybox AS b
+FROM scratch AS output-image
 
 COPY --from=doc-build-env /src/build/src /src
 COPY --from=doc-build-env /src/build/*.tar.gz /archive/

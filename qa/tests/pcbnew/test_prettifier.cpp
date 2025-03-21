@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -90,7 +90,7 @@ BOOST_FIXTURE_TEST_CASE( BoardAndFootprintPrettifier, PRETTIFIER_TEST_FIXTURE )
                 BOOST_REQUIRE( original.get() );
             }
 
-            KICAD_FORMAT::Prettify( inData );
+            KICAD_FORMAT::Prettify( inData, false );
 
             // For diagnosis of test failures
             std::string tempPath = fmt::format( "{}/{}", tempLibPath, testCaseName );

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -33,6 +33,9 @@
 
 #define ARG_USE_CONTOURS "--use-contours"
 #define ARG_OUTPUT_UNITS "--output-units"
+#define ARG_USE_DRILL_ORIGIN "--use-drill-origin"
+#define ARG_MODE_SINGLE "--mode-single"
+#define ARG_MODE_MULTI "--mode-multi"
 
 CLI::PCB_EXPORT_DXF_COMMAND::PCB_EXPORT_DXF_COMMAND() : PCB_EXPORT_BASE_COMMAND( "dxf" )
 {
@@ -54,6 +57,10 @@ CLI::PCB_EXPORT_DXF_COMMAND::PCB_EXPORT_DXF_COMMAND() : PCB_EXPORT_BASE_COMMAND(
             .help( UTF8STDSTR( _( "Plot graphic items using their contours" ) ) )
             .flag();
 
+    m_argParser.add_argument( "--udo", ARG_USE_DRILL_ORIGIN )
+            .help( UTF8STDSTR( _( "Plot using the drill/place file origin" ) ) )
+            .flag();
+
     m_argParser.add_argument( "--ibt", ARG_INCLUDE_BORDER_TITLE )
             .help( UTF8STDSTR( _( "Include the border and title block" ) ) )
             .flag();
@@ -62,6 +69,36 @@ CLI::PCB_EXPORT_DXF_COMMAND::PCB_EXPORT_DXF_COMMAND() : PCB_EXPORT_BASE_COMMAND(
             .default_value( std::string( "in" ) )
             .help( UTF8STDSTR( _( "Output units, valid options: mm, in" ) ) )
             .metavar( "UNITS" );
+
+    m_argParser.add_argument( ARG_DRILL_SHAPE_OPTION )
+            .help( UTF8STDSTR( _( ARG_DRILL_SHAPE_OPTION_DESC ) ) )
+            .scan<'i', int>()
+            .default_value( 2 );
+
+    m_argParser.add_argument( "--cl", ARG_COMMON_LAYERS )
+            .default_value( std::string() )
+            .help( UTF8STDSTR(
+                    _( "Layers to include on each plot, comma separated list of untranslated "
+                       "layer names to include such as "
+                       "F.Cu,B.Cu" ) ) )
+            .metavar( "COMMON_LAYER_LIST" );
+
+    m_argParser.add_argument( ARG_MODE_SINGLE )
+            .help( UTF8STDSTR(
+                    _( "Generates a single file with the output arg path acting as the complete "
+                       "directory and filename path. COMMON_LAYER_LIST does not function in this "
+                       "mode. Instead LAYER_LIST controls all layers plotted." ) ) )
+            .flag();
+
+    m_argParser.add_argument( ARG_MODE_MULTI )
+            .help( UTF8STDSTR( _( "Generates one or more files with behavior similar to the KiCad "
+                                  "GUI plotting. The given output path specifies a directory in "
+                                  "which files may be output." ) ) )
+            .flag();
+
+    m_argParser.add_argument( ARG_PLOT_INVISIBLE_TEXT )
+            .help( UTF8STDSTR( _( ARG_PLOT_INVISIBLE_TEXT_DESC ) ) )
+            .flag();
 }
 
 
@@ -71,10 +108,10 @@ int CLI::PCB_EXPORT_DXF_COMMAND::doPerform( KIWAY& aKiway )
     if( baseExit != EXIT_CODES::OK )
         return baseExit;
 
-    std::unique_ptr<JOB_EXPORT_PCB_DXF> dxfJob( new JOB_EXPORT_PCB_DXF( true ) );
+    std::unique_ptr<JOB_EXPORT_PCB_DXF> dxfJob( new JOB_EXPORT_PCB_DXF() );
 
     dxfJob->m_filename = m_argInput;
-    dxfJob->m_outputFile = m_argOutput;
+    dxfJob->SetConfiguredOutputPath( m_argOutput );
     dxfJob->m_drawingSheet = m_argDrawingSheet;
     dxfJob->SetVarOverrides( m_argDefineVars );
 
@@ -87,7 +124,13 @@ int CLI::PCB_EXPORT_DXF_COMMAND::doPerform( KIWAY& aKiway )
     dxfJob->m_plotFootprintValues = m_argParser.get<bool>( ARG_EXCLUDE_VALUE );
     dxfJob->m_plotRefDes = !m_argParser.get<bool>( ARG_EXCLUDE_REFDES );
     dxfJob->m_plotGraphicItemsUsingContours = m_argParser.get<bool>( ARG_USE_CONTOURS );
-    dxfJob->m_plotBorderTitleBlocks = m_argParser.get<bool>( ARG_INCLUDE_BORDER_TITLE );
+    dxfJob->m_polygonMode = m_argParser.get<bool>( ARG_USE_CONTOURS );
+    dxfJob->m_useDrillOrigin = m_argParser.get<bool>( ARG_USE_DRILL_ORIGIN );
+    dxfJob->m_plotDrawingSheet = m_argParser.get<bool>( ARG_INCLUDE_BORDER_TITLE );
+    dxfJob->m_plotInvisibleText = m_argParser.get<bool>( ARG_PLOT_INVISIBLE_TEXT );
+
+    int drillShape = m_argParser.get<int>( ARG_DRILL_SHAPE_OPTION );
+    dxfJob->m_drillShapeOption = static_cast<JOB_EXPORT_PCB_DXF::DRILL_MARKS>( drillShape );
 
     wxString units = From_UTF8( m_argParser.get<std::string>( ARG_OUTPUT_UNITS ).c_str() );
 
@@ -106,6 +149,25 @@ int CLI::PCB_EXPORT_DXF_COMMAND::doPerform( KIWAY& aKiway )
     }
 
     dxfJob->m_printMaskLayer = m_selectedLayers;
+
+    wxString layers = From_UTF8( m_argParser.get<std::string>( ARG_COMMON_LAYERS ).c_str() );
+    bool     blah = false;
+    dxfJob->m_printMaskLayersToIncludeOnAllLayers = convertLayerStringList( layers, blah );
+
+    if( m_argParser.get<bool>( ARG_MODE_MULTI ) )
+        dxfJob->m_genMode = JOB_EXPORT_PCB_DXF::GEN_MODE::MULTI;
+    else if( m_argParser.get<bool>( ARG_MODE_SINGLE ) )
+        dxfJob->m_genMode = JOB_EXPORT_PCB_DXF::GEN_MODE::SINGLE;
+    else
+    {
+        wxFprintf( stdout, wxT( "\033[33;1m%s\033[0m\n" ),
+                   _( "This command has deprecated behavior as of KiCad 9.0, the default behavior "
+                      "of this command will change in a future release." ) );
+
+        wxFprintf( stdout, wxT( "\033[33;1m%s\033[0m\n" ),
+                   _( "The new behavior will match --mode-multi" ) );
+    }
+
 
     LOCALE_IO dummy;    // Switch to "C" locale
     int exitCode = aKiway.ProcessJob( KIWAY::FACE_PCB, dxfJob.get() );

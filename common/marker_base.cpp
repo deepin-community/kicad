@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2018-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -38,10 +38,12 @@
 #include "dialogs/dialog_display_html_text_base.h"
 
 
-/* The graphic shape of markers is a polygon.
+/**
+ * The graphic shape of markers is a polygon.
+ *
  * MarkerShapeCorners contains the coordinates of corners of the polygonal default shape
  * they are arbitrary units to make coding shape easy.
- * internal units coordinates are these values scaled by .m_ScalingFactor
+ * Internal units coordinates are these values scaled by .m_ScalingFactor
  */
 static const VECTOR2I MarkerShapeCorners[] =
 {
@@ -55,6 +57,7 @@ static const VECTOR2I MarkerShapeCorners[] =
     VECTOR2I( 1,  8 ),
     VECTOR2I( 0,  0 )
 };
+
 const unsigned CORNERS_COUNT = arrayDim( MarkerShapeCorners );
 
 
@@ -89,8 +92,7 @@ MARKER_BASE::~MARKER_BASE()
 
 bool MARKER_BASE::HitTestMarker( const VECTOR2I& aHitPosition, int aAccuracy ) const
 {
-    BOX2I bbox = GetBoundingBoxMarker();
-    bbox.Inflate( aAccuracy );
+    const BOX2I bbox = GetBoundingBoxMarker().GetInflated( aAccuracy );
 
     // Fast hit test using boundary box. A finer test will be made if requested
     bool hit = bbox.Contains( aHitPosition );
@@ -109,7 +111,7 @@ bool MARKER_BASE::HitTestMarker( const VECTOR2I& aHitPosition, int aAccuracy ) c
 
 bool MARKER_BASE::HitTestMarker( const BOX2I& aRect, bool aContained, int aAccuracy ) const
 {
-    const BOX2I bbox = GetBoundingBoxMarker().Inflate( aAccuracy );
+    const BOX2I bbox = GetBoundingBoxMarker().GetInflated( aAccuracy );
 
     if( aContained )
         return aRect.Contains( bbox );

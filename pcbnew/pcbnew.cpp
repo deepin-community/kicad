@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -51,7 +51,8 @@
 #include <dialog_global_fp_lib_table_config.h>
 #include <panel_pcb_display_options.h>
 #include <panel_edit_options.h>
-#include <panel_fp_editor_defaults.h>
+#include <panel_fp_editor_field_defaults.h>
+#include <panel_fp_editor_graphics_defaults.h>
 #include <panel_fp_editor_color_settings.h>
 #include <panel_pcbnew_color_settings.h>
 #include <panel_pcbnew_action_plugins.h>
@@ -135,7 +136,7 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
 
             // Use QuasiModal so that HTML help window will work
             if( dlg.ShowQuasiModal() == wxID_OK )
-                aKiway->CommonSettingsChanged( true, false );
+                aKiway->CommonSettingsChanged( ENVVARS_CHANGED );
 
             // Dialog has completed; nothing to return.
             return nullptr;
@@ -148,17 +149,17 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
 
         case PANEL_FP_DISPLAY_OPTIONS:
         {
-            SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>();
+            SETTINGS_MANAGER&          mgr = Pgm().GetSettingsManager();
+            FOOTPRINT_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" );
 
             return new PANEL_PCB_DISPLAY_OPTIONS( aParent, cfg );
         }
 
         case PANEL_FP_GRIDS:
         {
-            SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>();
-            EDA_BASE_FRAME*    frame = aKiway->Player( FRAME_FOOTPRINT_EDITOR, false );
+            SETTINGS_MANAGER&          mgr = Pgm().GetSettingsManager();
+            FOOTPRINT_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" );
+            EDA_BASE_FRAME*            frame = aKiway->Player( FRAME_FOOTPRINT_EDITOR, false );
 
             if( !frame )
                 frame = aKiway->Player( FRAME_FOOTPRINT_VIEWER, false );
@@ -174,8 +175,8 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
 
         case PANEL_FP_ORIGINS_AXES:
         {
-            SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>();
+            SETTINGS_MANAGER&          mgr = Pgm().GetSettingsManager();
+            FOOTPRINT_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" );
 
             return new PANEL_PCBNEW_DISPLAY_ORIGIN( aParent, cfg, FRAME_FOOTPRINT_EDITOR );
         }
@@ -196,7 +197,7 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
             return new PANEL_EDIT_OPTIONS( aParent, this, frame, true );
         }
 
-        case PANEL_FP_DEFAULT_VALUES:
+        case PANEL_FP_DEFAULT_FIELDS:
         {
             EDA_BASE_FRAME* frame = aKiway->Player( FRAME_FOOTPRINT_EDITOR, false );
 
@@ -209,7 +210,23 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
             if( frame )
                 SetUserUnits( frame->GetUserUnits() );
 
-            return new PANEL_FP_EDITOR_DEFAULTS( aParent, this );
+            return new PANEL_FP_EDITOR_FIELD_DEFAULTS( aParent, this );
+        }
+
+        case PANEL_FP_DEFAULT_GRAPHICS_VALUES:
+        {
+            EDA_BASE_FRAME* frame = aKiway->Player( FRAME_FOOTPRINT_EDITOR, false );
+
+            if( !frame )
+                frame = aKiway->Player( FRAME_FOOTPRINT_VIEWER, false );
+
+            if( !frame )
+                frame = aKiway->Player( FRAME_PCB_EDITOR, false );
+
+            if( frame )
+                SetUserUnits( frame->GetUserUnits() );
+
+            return new PANEL_FP_EDITOR_GRAPHICS_DEFAULTS( aParent, this );
         }
 
         case PANEL_FP_COLORS:
@@ -217,17 +234,17 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
 
         case PANEL_PCB_DISPLAY_OPTS:
         {
-            SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>();
+            SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+            PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
 
             return new PANEL_PCB_DISPLAY_OPTIONS( aParent, cfg );
         }
 
         case PANEL_PCB_GRIDS:
         {
-            SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>();
-            EDA_BASE_FRAME*    frame = aKiway->Player( FRAME_PCB_EDITOR, false );
+            SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+            PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
+            EDA_BASE_FRAME*   frame = aKiway->Player( FRAME_PCB_EDITOR, false );
 
             if( !frame )
                 frame = aKiway->Player( FRAME_FOOTPRINT_EDITOR, false );
@@ -243,8 +260,8 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
 
         case PANEL_PCB_ORIGINS_AXES:
         {
-            SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>();
+            SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+            PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
 
             return new PANEL_PCBNEW_DISPLAY_ORIGIN( aParent, cfg, FRAME_PCB_EDITOR );
         }
@@ -336,7 +353,9 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
                      const wxString& aNewProjectBasePath, const wxString& aNewProjectName,
                      const wxString& aSrcFilePath, wxString& aErrors ) override;
 
-    int HandleJob( JOB* aJob ) override;
+    int HandleJob( JOB* aJob, REPORTER* aReporter ) override;
+
+    bool HandleJobConfig( JOB* aJob, wxWindow* aParent ) override;
 
 private:
     bool loadGlobalLibTable();
@@ -351,9 +370,6 @@ private:
 using namespace PCB;
 
 
-static PGM_BASE* process;
-
-
 KIFACE_BASE& Kiface() { return kiface; }
 
 
@@ -361,25 +377,8 @@ KIFACE_BASE& Kiface() { return kiface; }
 // KIFACE_GETTER will not have name mangling due to declaration in kiway.h.
 KIFACE_API KIFACE* KIFACE_GETTER( int* aKIFACEversion, int aKiwayVersion, PGM_BASE* aProgram )
 {
-    process = aProgram;
     return &kiface;
 }
-
-
-#if defined( BUILD_KIWAY_DLL )
-PGM_BASE& Pgm()
-{
-    wxASSERT( process );    // KIFACE_GETTER has already been called.
-    return *process;
-}
-
-
-// Similar to PGM_BASE& Pgm(), but return nullptr when a *.ki_face is run from a python script.
-PGM_BASE* PgmOrNull()
-{
-    return process;
-}
-#endif
 
 
 /// The global footprint library table.  This is not dynamically allocated because
@@ -398,34 +397,31 @@ bool IFACE::OnKifaceStart( PGM_BASE* aProgram, int aCtlBits, KIWAY* aKiway )
     // This is process-level-initialization, not project-level-initialization of the DSO.
     // Do nothing in here pertinent to a project!
     InitSettings( new PCBNEW_SETTINGS );
-    aProgram->GetSettingsManager().RegisterSettings( new FOOTPRINT_EDITOR_SETTINGS );
-    aProgram->GetSettingsManager().RegisterSettings( new EDA_3D_VIEWER_SETTINGS );
+
+    SETTINGS_MANAGER& mgr = aProgram->GetSettingsManager();
+
+    mgr.RegisterSettings( new FOOTPRINT_EDITOR_SETTINGS );
+    mgr.RegisterSettings( new EDA_3D_VIEWER_SETTINGS );
 
     // We intentionally register KifaceSettings after FOOTPRINT_EDITOR_SETTINGS and EDA_3D_VIEWER_SETTINGS
     // In legacy configs, many settings were in a single editor config and the migration routine
     // for the main editor file will try and call into the now separate settings stores
     // to move the settings into them
-    aProgram->GetSettingsManager().RegisterSettings( KifaceSettings() );
+    mgr.RegisterSettings( KifaceSettings() );
 
     // Register the footprint editor settings as well because they share a KiFACE and need to be
     // loaded prior to use to avoid threading deadlocks
-    aProgram->GetSettingsManager().RegisterSettings( new CVPCB_SETTINGS );
+    mgr.RegisterSettings( new CVPCB_SETTINGS );
 
     start_common( aCtlBits );
 
     if( !loadGlobalLibTable() )
     {
-        // we didnt get anywhere deregister the
-        aProgram->GetSettingsManager().FlushAndRelease(
-                aProgram->GetSettingsManager().GetAppSettings<CVPCB_SETTINGS>(), false );
-
-        aProgram->GetSettingsManager().FlushAndRelease( KifaceSettings(), false );
-
-        aProgram->GetSettingsManager().FlushAndRelease(
-                aProgram->GetSettingsManager().GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>(), false );
-
-        aProgram->GetSettingsManager().FlushAndRelease(
-                aProgram->GetSettingsManager().GetAppSettings<EDA_3D_VIEWER_SETTINGS>(), false );
+        // we didnt get anywhere deregister the settings
+        mgr.FlushAndRelease( mgr.GetAppSettings<CVPCB_SETTINGS>( "cvpcb" ), false );
+        mgr.FlushAndRelease( KifaceSettings(), false );
+        mgr.FlushAndRelease( mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" ), false );
+        mgr.FlushAndRelease( mgr.GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" ), false );
 
         return false;
     }
@@ -551,7 +547,7 @@ void IFACE::SaveFileAs( const wxString& aProjectBasePath, const wxString& aSrcPr
         // name.
         KiCopyFile( aSrcFilePath, destFile.GetFullPath(), aErrors );
     }
-    else if( destFile.GetName() == wxT( "fp-lib-table" ) )
+    else if( destFile.GetName() == FILEEXT::FootprintLibraryTableFileName )
     {
         try
         {
@@ -589,7 +585,13 @@ void IFACE::SaveFileAs( const wxString& aProjectBasePath, const wxString& aSrcPr
 }
 
 
-int IFACE::HandleJob( JOB* aJob )
+int IFACE::HandleJob( JOB* aJob, REPORTER* aReporter )
 {
-    return m_jobHandler->RunJob( aJob );
+    return m_jobHandler->RunJob( aJob, aReporter );
+}
+
+
+bool IFACE::HandleJobConfig( JOB* aJob, wxWindow* aParent )
+{
+    return m_jobHandler->HandleJobConfig( aJob, aParent );
 }

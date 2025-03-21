@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 Jean-Pierre Charras, jean-pierre.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -69,7 +69,7 @@ bool PANEL_PCB_DISPLAY_OPTIONS::TransferDataToWindow()
     if( m_isPCBEdit )
     {
         SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-        PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>();
+        PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
 
         loadPCBSettings( cfg );
     }
@@ -89,7 +89,8 @@ bool PANEL_PCB_DISPLAY_OPTIONS::TransferDataFromWindow()
 
     if( m_isPCBEdit )
     {
-        PCBNEW_SETTINGS* cfg = Pgm().GetSettingsManager().GetAppSettings<PCBNEW_SETTINGS>();
+        SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+        PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
 
         int i = m_OptDisplayTracksClearance->GetSelection();
         cfg->m_Display.m_TrackClearance = UTIL::GetValFromConfig( clearanceModeMap, i );

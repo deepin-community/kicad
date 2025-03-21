@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2011-2018 Jean-Pierre Charras  jp.charras at wanadoo.fr
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,6 +30,7 @@
 #define DIALOG_LAYERS_SELECT_TO_PCB_H_
 
 #include <dialogs/dialog_layers_select_to_pcb_base.h>
+#include <layer_ids.h>
 
 class GERBVIEW_FRAME;
 

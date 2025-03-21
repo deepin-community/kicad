@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2010-2015 Jean-Pierre Charras, jean-pierre.charras at wanadoo.fr
- * Copyright (C) 1992-2015 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,6 +30,7 @@
 #include <vector>
 
 class DIALOG_SHIM;
+class PANEL_EMBEDDED_FILES;
 class PANEL_PREVIEW_3D_MODEL;
 class PCB_BASE_EDIT_FRAME;
 
@@ -46,10 +47,10 @@ class PANEL_FP_PROPERTIES_3D_MODEL : public PANEL_FP_PROPERTIES_3D_MODEL_BASE
 {
 
 public:
-
     PANEL_FP_PROPERTIES_3D_MODEL( PCB_BASE_EDIT_FRAME* aFrame, FOOTPRINT* aFootprint,
-                                  DIALOG_SHIM* aDialogParent, wxWindow* aParent,
-                                  wxWindowID aId = wxID_ANY,
+                                  DIALOG_SHIM* aDialogParent,
+                                  PANEL_EMBEDDED_FILES* aFilesPanel,
+                                  wxWindow* aParent, wxWindowID aId = wxID_ANY,
                                   const wxPoint& aPos = wxDefaultPosition,
                                   const wxSize& aSize = wxDefaultSize,
                                   long aStyle = wxTAB_TRAVERSAL,
@@ -102,6 +103,7 @@ private:
 
     std::vector<FP_3DMODEL> m_shapes3D_list;
     PANEL_PREVIEW_3D_MODEL* m_previewPane;
+    PANEL_EMBEDDED_FILES*   m_filesPanel;
 
     bool                    m_inSelect;
 };

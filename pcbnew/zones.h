@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2008-2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,6 +41,7 @@ struct CONVERT_SETTINGS;
 #define ZONE_BORDER_HATCH_MAXDIST_MM 2.0        // Maximum for ZONE_SETTINGS::m_BorderHatchPitch
 
 
+#define ZONE_MANAGER_REPOUR 1005 //Reported if repour option is checked while clicking OK
 /// How pads are covered by copper in zone
 enum class ZONE_CONNECTION
 {
@@ -69,6 +70,7 @@ inline wxString PrintZoneConnection( ZONE_CONNECTION aConnection )
 class ZONE;
 class ZONE_SETTINGS;
 class PCB_BASE_FRAME;
+class BOARD;
 
 /**
  * Function InvokeNonCopperZonesEditor
@@ -104,6 +106,6 @@ int InvokeCopperZonesEditor( PCB_BASE_FRAME* aCaller, ZONE_SETTINGS* aSettings,
  * @return int - tells if user aborted, changed only one zone, or all of them.
  */
 int InvokeRuleAreaEditor( PCB_BASE_FRAME* aCaller, ZONE_SETTINGS* aSettings,
-                          CONVERT_SETTINGS* aConvertSettings = nullptr );
+                          BOARD* aBoard = nullptr, CONVERT_SETTINGS* aConvertSettings = nullptr );
 
 #endif  // ZONES_H_

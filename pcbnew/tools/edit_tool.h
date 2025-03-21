@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2020 CERN
- * Copyright (C) 2013-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
@@ -105,6 +105,11 @@ public:
     static const std::vector<KICAD_T> MirrorableItems;
 
     /**
+     * Set the justification on any text items (or fields) in the current selection.
+     */
+    int JustifyText( const TOOL_EVENT& aEvent );
+
+    /**
      * Swap currently selected items' positions. Changes position of each item to the next.
      */
     int Swap( const TOOL_EVENT& aEvent );
@@ -133,6 +138,16 @@ public:
     int HealShapes( const TOOL_EVENT& aEvent );
 
     /**
+     * Simplify the outlines of selected polygon objects
+    */
+    int SimplifyPolygons( const TOOL_EVENT& aEvent );
+
+    /**
+     * Create outset items from selection
+     */
+    int OutsetItems( const TOOL_EVENT& aEvent );
+
+    /**
      * Modify selected polygons into a single polygon using boolean operations
      * such as merge (union) or subtract (difference)
      */
@@ -156,9 +171,9 @@ public:
     int MoveExact( const TOOL_EVENT& aEvent );
 
     /**
-     * Create an array of the selected items, invoking the array editor dialog to set the options.
+     * Increment some aspect of the selected items.q
      */
-    int CreateArray( const TOOL_EVENT& aEvent );
+    int Increment( const TOOL_EVENT& aEvent );
 
     /**
      * A selection filter which prunes the selection to contain only items of type #PCB_MODULE_T.
@@ -181,6 +196,11 @@ private:
      * see #AppendBoardFromClipboard for importing.
      */
     int copyToClipboard( const TOOL_EVENT& aEvent );
+
+    /**
+     * Send the current selection to the clipboard as text.
+     */
+    int copyToClipboardAsText( const TOOL_EVENT& aEvent );
 
     /**
      * Cut the current selection to the clipboard by formatting it as a fake pcb

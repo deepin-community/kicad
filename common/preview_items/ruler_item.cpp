@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2023 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -49,35 +49,6 @@ static int getShadowLayer( KIGFX::GAL* aGal )
         return LAYER_SELECT_OVERLAY;
     else
         return LAYER_GP_OVERLAY;
-}
-
-
-static void drawCursorStrings( KIGFX::VIEW* aView, const VECTOR2D& aCursor,
-                               const VECTOR2D& aRulerVec, const EDA_IU_SCALE& aIuScale, EDA_UNITS aUnits,
-                               bool aDrawingDropShadows, bool aFlipX, bool aFlipY )
-{
-    // draw the cursor labels
-    std::vector<wxString> cursorStrings;
-
-    VECTOR2D temp = aRulerVec;
-
-    if( aFlipX )
-        temp.x = -temp.x;
-
-    if( aFlipY )
-        temp.y = -temp.y;
-
-    cursorStrings.push_back( DimensionLabel( "x", temp.x, aIuScale, aUnits ) );
-    cursorStrings.push_back( DimensionLabel( "y", temp.y, aIuScale, aUnits ) );
-
-    cursorStrings.push_back( DimensionLabel( "r", aRulerVec.EuclideanNorm(), aIuScale, aUnits ) );
-
-    EDA_ANGLE angle = -EDA_ANGLE( aRulerVec );
-    cursorStrings.push_back( DimensionLabel( wxString::FromUTF8( "θ" ), angle.AsDegrees(), aIuScale,
-                                             EDA_UNITS::DEGREES ) );
-
-    temp = aRulerVec;
-    DrawTextNextToCursor( aView, aCursor, -temp, cursorStrings, aDrawingDropShadows );
 }
 
 
@@ -139,8 +110,8 @@ static TICK_FORMAT getTickFormatForScale( double aScale, double& aTickSpace, EDA
 
 
 /**
- * Draw labelled ticks on a line. Ticks are spaced according to a
- * maximum density. Minor ticks are not labelled.
+ * Draw labeled ticks on a line. Ticks are spaced according to a
+ * maximum density. Minor ticks are not labeled.
  *
  * @param aGal the GAL to draw on
  * @param aOrigin start of line to draw ticks on
@@ -148,7 +119,8 @@ static TICK_FORMAT getTickFormatForScale( double aScale, double& aTickSpace, EDA
  * @param aMinorTickLen length of minor ticks in IU
  */
 void drawTicksAlongLine( KIGFX::VIEW* aView, const VECTOR2D& aOrigin, const VECTOR2D& aLine,
-                         double aMinorTickLen, const EDA_IU_SCALE& aIuScale, EDA_UNITS aUnits, bool aDrawingDropShadows )
+                         double aMinorTickLen, const EDA_IU_SCALE& aIuScale, EDA_UNITS aUnits,
+                         bool aDrawingDropShadows )
 {
     KIGFX::GAL*   gal = aView->GetGAL();
     KIFONT::FONT* font = KIFONT::FONT::GetFont();
@@ -175,6 +147,7 @@ void drawTicksAlongLine( KIGFX::VIEW* aView, const VECTOR2D& aOrigin, const VECT
     {
         labelDims.StrokeWidth += 2 * labelDims.ShadowWidth;
         shadowXoffset = labelDims.ShadowWidth;
+
         // Due to the fact a shadow text is drawn left or right aligned,
         // it needs an offset = shadowXoffset to be drawn at the same place as normal text
         // But for some reason we need to slightly modify this offset
@@ -295,8 +268,8 @@ void drawBacksideTicks( KIGFX::VIEW* aView, const VECTOR2D& aOrigin, const VECTO
 }
 
 
-RULER_ITEM::RULER_ITEM( const TWO_POINT_GEOMETRY_MANAGER& aGeomMgr, const EDA_IU_SCALE& aIuScale, EDA_UNITS userUnits,
-        bool aFlipX, bool aFlipY )
+RULER_ITEM::RULER_ITEM( const TWO_POINT_GEOMETRY_MANAGER& aGeomMgr, const EDA_IU_SCALE& aIuScale,
+                        EDA_UNITS userUnits, bool aFlipX, bool aFlipY )
         : EDA_ITEM( NOT_USED ), // Never added to anything - just a preview
           m_geomMgr( aGeomMgr ),
           m_userUnits( userUnits ),
@@ -321,11 +294,10 @@ const BOX2I RULER_ITEM::ViewBBox() const
 }
 
 
-void RULER_ITEM::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> RULER_ITEM::ViewGetLayers() const
 {
-    aLayers[0] = LAYER_SELECT_OVERLAY;
-    aLayers[1] = LAYER_GP_OVERLAY;
-    aCount = 2;
+    std::vector<int> layers{ LAYER_SELECT_OVERLAY, LAYER_GP_OVERLAY };
+    return layers;
 }
 
 
@@ -335,7 +307,7 @@ void RULER_ITEM::ViewDraw( int aLayer, KIGFX::VIEW* aView ) const
     RENDER_SETTINGS* rs = aView->GetPainter()->GetSettings();
     bool             drawingDropShadows = ( aLayer == getShadowLayer( gal ) );
 
-    gal->PushDepth();
+    GAL_SCOPED_ATTRS scopedAttrs( *gal, GAL_SCOPED_ATTRS::ALL_ATTRS );
     gal->SetLayerDepth( gal->GetMinDepth() );
 
     VECTOR2D origin = m_geomMgr.GetOrigin();
@@ -343,9 +315,12 @@ void RULER_ITEM::ViewDraw( int aLayer, KIGFX::VIEW* aView ) const
 
     gal->SetIsStroke( true );
     gal->SetIsFill( false );
-
     gal->SetTextMirrored( false );
-    gal->SetStrokeColor( rs->GetLayerColor( LAYER_AUX_ITEMS ) );
+
+    if( m_color )
+        gal->SetStrokeColor( *m_color );
+    else
+        gal->SetStrokeColor( rs->GetLayerColor( LAYER_AUX_ITEMS ) );
 
     if( drawingDropShadows )
         gal->SetStrokeColor( GetShadowColor( gal->GetStrokeColor() ) );
@@ -359,18 +334,65 @@ void RULER_ITEM::ViewDraw( int aLayer, KIGFX::VIEW* aView ) const
 
     VECTOR2D rulerVec( end - origin );
 
-    drawCursorStrings( aView, end, rulerVec, m_iuScale, m_userUnits, drawingDropShadows, m_flipX,
-                       m_flipY );
+    wxArrayString cursorStrings = GetDimensionStrings();
+    DrawTextNextToCursor( aView, end, -rulerVec, cursorStrings, drawingDropShadows );
 
     // basic tick size
     const double minorTickLen = 5.0 / gal->GetWorldScale();
     const double majorTickLen = minorTickLen * majorTickLengthFactor;
 
-    drawTicksAlongLine( aView, origin, rulerVec, minorTickLen, m_iuScale, m_userUnits, drawingDropShadows );
+    if( m_showTicks )
+    {
+        drawTicksAlongLine( aView, origin, rulerVec, minorTickLen, m_iuScale, m_userUnits,
+                            drawingDropShadows );
 
-    drawBacksideTicks( aView, origin, rulerVec, majorTickLen, 2, drawingDropShadows );
+        drawBacksideTicks( aView, origin, rulerVec, majorTickLen, 2, drawingDropShadows );
+    }
 
-    // draw the back of the origin "crosshair"
-    gal->DrawLine( origin, origin + rulerVec.Resize( -minorTickLen * midTickLengthFactor ) );
-    gal->PopDepth();
+    if( m_showEndArrowHead )
+    {
+        const EDA_ANGLE arrowAngle{ 30.0 };
+        VECTOR2D        arrowHead = rulerVec;
+        RotatePoint( arrowHead, arrowAngle );
+        arrowHead = arrowHead.Resize( majorTickLen );
+
+        gal->DrawLine( end, end - arrowHead );
+
+        arrowHead = rulerVec;
+        RotatePoint( arrowHead, -arrowAngle );
+        arrowHead = arrowHead.Resize( majorTickLen );
+
+        gal->DrawLine( end, end - arrowHead );
+    }
+    else
+    {
+        // draw the back of the origin "crosshair"
+        gal->DrawLine( origin, origin + rulerVec.Resize( -minorTickLen * midTickLengthFactor ) );
+    }
+}
+
+
+wxArrayString RULER_ITEM::GetDimensionStrings() const
+{
+    const VECTOR2D rulerVec = m_geomMgr.GetEnd() - m_geomMgr.GetOrigin();
+    VECTOR2D       temp = rulerVec;
+
+    if( m_flipX )
+        temp.x = -temp.x;
+
+    if( m_flipY )
+        temp.y = -temp.y;
+
+    wxArrayString cursorStrings;
+
+    cursorStrings.push_back( DimensionLabel( "x", temp.x, m_iuScale, m_userUnits ) );
+    cursorStrings.push_back( DimensionLabel( "y", temp.y, m_iuScale, m_userUnits ) );
+
+    cursorStrings.push_back(
+            DimensionLabel( "r", rulerVec.EuclideanNorm(), m_iuScale, m_userUnits ) );
+
+    EDA_ANGLE angle = -EDA_ANGLE( rulerVec );
+    cursorStrings.push_back( DimensionLabel( wxString::FromUTF8( "θ" ), angle.AsDegrees(),
+                                             m_iuScale, EDA_UNITS::DEGREES ) );
+    return cursorStrings;
 }

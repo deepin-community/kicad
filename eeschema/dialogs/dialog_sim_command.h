@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016-2022 CERN
- * Copyright (C) 2021-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -60,10 +60,13 @@ public:
 
     void SetSimOptions( int aOptions )
     {
-        m_fixIncludePaths->SetValue( aOptions & NETLIST_EXPORTER_SPICE::OPTION_ADJUST_INCLUDE_PATHS );
+        m_fixIncludePaths->SetValue( aOptions &
+                                     NETLIST_EXPORTER_SPICE::OPTION_ADJUST_INCLUDE_PATHS );
         m_saveAllVoltages->SetValue( aOptions & NETLIST_EXPORTER_SPICE::OPTION_SAVE_ALL_VOLTAGES );
         m_saveAllCurrents->SetValue( aOptions & NETLIST_EXPORTER_SPICE::OPTION_SAVE_ALL_CURRENTS );
-        m_saveAllDissipations->SetValue( aOptions & NETLIST_EXPORTER_SPICE::OPTION_SAVE_ALL_DISSIPATIONS );
+        m_saveAllDissipations->SetValue( aOptions &
+                                         NETLIST_EXPORTER_SPICE::OPTION_SAVE_ALL_DISSIPATIONS );
+        m_saveAllEvents->SetValue( aOptions & NETLIST_EXPORTER_SPICE::OPTION_SAVE_ALL_EVENTS );
     }
 
     void SetPlotSettings( const SIM_TAB* aSimTab );
@@ -90,7 +93,7 @@ private:
         LINEAR
     };
 
-    ///< Generate events to update UI state.
+    /// Generate events to update UI state.
     void refreshUIControls()
     {
         wxQueueEvent( m_dcEnable2, new wxCommandEvent( wxEVT_CHECKBOX ) );

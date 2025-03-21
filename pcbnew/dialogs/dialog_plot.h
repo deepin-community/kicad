@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,6 +32,7 @@
 class wxRearrangeList;
 class wxBitmapButton;
 
+class JOB_EXPORT_PCB_PLOT;
 
 /**
  * A dialog to set the plot options and create plot files in various formats.
@@ -39,35 +40,38 @@ class wxBitmapButton;
 class DIALOG_PLOT : public DIALOG_PLOT_BASE
 {
 public:
-    DIALOG_PLOT( PCB_EDIT_FRAME* parent );
+    DIALOG_PLOT( PCB_EDIT_FRAME* aEditFrame );
+    DIALOG_PLOT( PCB_EDIT_FRAME* aEditFrame, wxWindow* aParent,
+                 JOB_EXPORT_PCB_PLOT* aJob = nullptr );
 
     virtual ~DIALOG_PLOT();
 
 private:
+
     // Event called functions
-    void        Plot( wxCommandEvent& event ) override;
-    void        OnOutputDirectoryBrowseClicked( wxCommandEvent& event ) override;
-    void        OnRightClickLayers( wxMouseEvent& event );
-    void        OnRightClickAllLayers( wxMouseEvent& event );
-    void        SetPlotFormat( wxCommandEvent& event ) override;
-    void        OnChangeDXFPlotMode( wxCommandEvent& event ) override;
-    void        OnSetScaleOpt( wxCommandEvent& event ) override;
-    void        CreateDrillFile( wxCommandEvent& event ) override;
-    void        OnGerberX2Checked( wxCommandEvent& event ) override;
-    void        onRunDRC( wxCommandEvent& event ) override;
-    void        onBoardSetup( wxHyperlinkEvent& aEvent ) override;
+    void Plot( wxCommandEvent& event ) override;
+    void onOutputDirectoryBrowseClicked( wxCommandEvent& event ) override;
+    void OnRightClickLayers( wxMouseEvent& event );
+    void OnRightClickAllLayers( wxMouseEvent& event );
+    void SetPlotFormat( wxCommandEvent& event ) override;
+    void OnChangeDXFPlotMode( wxCommandEvent& event ) override;
+    void OnSetScaleOpt( wxCommandEvent& event ) override;
+    void CreateDrillFile( wxCommandEvent& event ) override;
+    void OnGerberX2Checked( wxCommandEvent& event ) override;
+    void onRunDRC( wxCommandEvent& event ) override;
+    void onOpenOutputDirectory( wxCommandEvent& event ) override;
+    void onBoardSetup( wxHyperlinkEvent& aEvent ) override;
 
-    void        onPlotAllListMoveUp( wxCommandEvent& aEvent );
-    void        onPlotAllListMoveDown( wxCommandEvent& aEvent );
+    void onPlotAllListMoveUp( wxCommandEvent& aEvent );
+    void onPlotAllListMoveDown( wxCommandEvent& aEvent );
 
-    void        onPlotFPValues( wxCommandEvent& aEvent ) override;
-    void        onPlotFPRefs( wxCommandEvent& aEvent ) override;
-    void        onPlotFPText( wxCommandEvent& aEvent ) override;
+    void onDNPCheckbox( wxCommandEvent& event ) override;
+    void onSketchPads( wxCommandEvent& event ) override;
 
     // other functions
-    void        init_Dialog();      // main initialization
-    void        reInitDialog();     // initialization after calling drill dialog
-    void        applyPlotSettings();
+    void init_Dialog();      // main initialization
+    void reInitDialog();     // initialization after calling drill dialog
+    void applyPlotSettings();
     PLOT_FORMAT getPlotFormat();
 
     void setPlotModeChoiceSelection( OUTLINE_MODE aPlotMode )
@@ -76,9 +80,11 @@ private:
     }
 
     void arrangeAllLayersList( const LSEQ& aSeq );
+    void loadPlotParamsFromJob();
+    void transferPlotParamsToJob();
 
 private:
-    PCB_EDIT_FRAME*     m_parent;
+    PCB_EDIT_FRAME*     m_editFrame;
     LSEQ                m_layerList;                // List to hold CheckListBox layer numbers
     double              m_XScaleAdjust;             // X scale factor adjust to compensate
                                                     // plotter X scaling error
@@ -102,6 +108,8 @@ private:
 
     STD_BITMAP_BUTTON*  m_bpMoveUp;
     STD_BITMAP_BUTTON*  m_bpMoveDown;
+
+    JOB_EXPORT_PCB_PLOT* m_job;
 
     /// The plot layer set that last time the dialog was opened.
     static LSET         s_lastLayerSet;

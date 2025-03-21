@@ -12,6 +12,8 @@ target_include_directories( nlohmann_json_schema_validator
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
+target_include_directories( nlohmann_json_schema_validator INTERFACE ${CMAKE_CURRENT_SOURCE_DIR} )
+
 target_link_libraries( nlohmann_json_schema_validator
     PUBLIC nlohmann_json
 )

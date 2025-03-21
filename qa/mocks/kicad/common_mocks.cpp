@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,22 +28,6 @@
 
 #include <mock_kiface_base.h>
 #include <mock_pgm_base.h>
-
-
-PGM_BASE& Pgm()
-{
-    static MOCK_PGM_BASE program;
-    return program;
-}
-
-
-// Similar to PGM_BASE& Pgm(), but return nullptr when a *.ki_face is run from
-// a python script or something else.
-// Therefore here return always nullptr
-PGM_BASE* PgmOrNull()
-{
-    return nullptr;
-}
 
 
 KIFACE_BASE& Kiface()

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -57,29 +57,21 @@ FOOTPRINT_SELECT_WIDGET::FOOTPRINT_SELECT_WIDGET( EDA_DRAW_FRAME* aFrame, wxWind
 
 void FOOTPRINT_SELECT_WIDGET::Load( KIWAY& aKiway, PROJECT& aProject )
 {
-    try
+    m_fp_list = FOOTPRINT_LIST::GetInstance( aKiway );
+    wxCHECK_MSG( m_fp_list, /* void */, "Failed to get the footprint list from the KiWay" );
+
+    if( m_fp_list->GetCount() == 0 )
     {
-        m_fp_list = FOOTPRINT_LIST::GetInstance( aKiway );
+        // If the fp-info-cache is empty (or, more likely, hasn't been created in a new
+        // project yet), load footprints the hard way.
+        FP_LIB_TABLE*        fpTable = aProject.PcbFootprintLibs( aKiway );
+        WX_PROGRESS_REPORTER progressReporter( m_frame, _( "Loading Footprint Libraries" ), 1 );
+        FOOTPRINT_LIST_IMPL& fpList = static_cast<FOOTPRINT_LIST_IMPL&>( *m_fp_list );
 
-        if( m_fp_list->GetCount() == 0 )
-        {
-            // If the fp-info-cache is empty (or, more likely, hasn't been created in a new
-            // project yet), load footprints the hard way.
-            FP_LIB_TABLE*         fpTable = aProject.PcbFootprintLibs( aKiway );
-            WX_PROGRESS_REPORTER* progressReporter =
-                    new WX_PROGRESS_REPORTER( m_frame, _( "Loading Footprint Libraries" ), 3 );
-            static_cast<FOOTPRINT_LIST_IMPL*>( m_fp_list )
-                    ->ReadFootprintFiles( fpTable, nullptr, progressReporter );
-
-            delete progressReporter;
-        }
-
-        m_fp_filter.SetList( *m_fp_list );
+        fpList.ReadFootprintFiles( fpTable, nullptr, &progressReporter );
     }
-    catch( ... )
-    {
-        // no footprint libraries available
-    }
+
+    m_fp_filter.SetList( *m_fp_list );
 
     if( m_update )
         UpdateList();
@@ -143,7 +135,6 @@ bool FOOTPRINT_SELECT_WIDGET::UpdateList()
 
     // Be careful adding items! "Default" must occupy POS_DEFAULT,
     // "Other" must occupy POS_OTHER, and the separator must occupy POS_SEPARATOR.
-
     m_fp_sel_ctrl->Append( m_default_footprint.IsEmpty() ?
                                    _( "No default footprint" ) :
                                    wxS( "[" ) + _( "Default" ) + wxS( "] " ) + m_default_footprint,
@@ -153,7 +144,8 @@ bool FOOTPRINT_SELECT_WIDGET::UpdateList()
     {
         for( FOOTPRINT_INFO& fpinfo : m_fp_filter )
         {
-            wxString display_name( fpinfo.GetLibNickname() + wxS( ":" ) + fpinfo.GetFootprintName() );
+            wxString display_name( fpinfo.GetLibNickname() + wxS( ":" ) +
+                                   fpinfo.GetFootprintName() );
 
             m_fp_sel_ctrl->Append( display_name, new wxStringClientData( display_name ) );
             ++n_items;

@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2014 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -60,7 +60,7 @@ const SHAPE_LINE_CHAIN SOLID::Hull( int aClearance, int aWalkaroundThickness, in
                                                                 aWalkaroundThickness ) );
             }
 
-            hullSet.Simplify( SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+            hullSet.Simplify();
             return hullSet.Outline( 0 );
         }
     }

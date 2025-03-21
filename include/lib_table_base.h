@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2010-2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2012-2021 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,8 +32,8 @@
 #include <mutex>
 #include <shared_mutex>
 #include <project.h>
-#include <string_utf8_map.h>
 #include <richio.h>
+#include <kicommon.h>
 
 class OUTPUTFORMATTER;
 class LIB_TABLE_LEXER;
@@ -55,14 +55,73 @@ typedef LIB_TABLE_ROWS::const_iterator     LIB_TABLE_ROWS_CITER;
  * store pointers the data is cloned.  Copying and assigning pointers would cause ownership
  * issues if the standard C++ containers were used.
  */
-LIB_TABLE_ROW* new_clone( const LIB_TABLE_ROW& aRow );
+KICOMMON_API LIB_TABLE_ROW* new_clone( const LIB_TABLE_ROW& aRow );
+
+
+/**
+ * LIB_TABLE_IO abstracts the file I/O operations for the library table
+ * loading and saving.
+ *
+ * Normally, this is file-based-reading, but that's not a requirement.
+ */
+class KICOMMON_API LIB_TABLE_IO
+{
+public:
+    virtual ~LIB_TABLE_IO() = default;
+
+    /**
+     * Create a reader for the given URI.
+     *
+     * This can return nullptr, for example if the URI is not a file or
+     * is not readable.
+     */
+    virtual std::unique_ptr<LINE_READER> GetReader( const wxString& aURI ) const = 0;
+
+    /**
+     * Check if the given URI is writable.
+     */
+    virtual bool CanSaveToUri( const wxString& aURI ) const = 0;
+
+    /**
+     * Compare two URIs for equivalence.
+     *
+     * For example, two URIs that point to the same file should be considered equivalent,
+     * even if they are not string-wise equal (e.g. symlinks)
+     */
+    virtual bool UrisAreEquivalent( const wxString& aURI1, const wxString& aURI2 ) const = 0;
+
+    /**
+     * Save the given table to the given URI.
+     */
+    virtual std::unique_ptr<OUTPUTFORMATTER> GetWriter( const wxString& aURI ) const = 0;
+};
+
+
+/**
+ * Implementations of LIB_TABLE_IO for file-based I/O.
+ *
+ * This is the default implementation for real usage.
+ */
+class KICOMMON_API FILE_LIB_TABLE_IO : public LIB_TABLE_IO
+{
+public:
+    FILE_LIB_TABLE_IO() = default;
+
+    std::unique_ptr<LINE_READER> GetReader( const wxString& aURI ) const override;
+
+    bool CanSaveToUri( const wxString& aURI ) const override;
+
+    bool UrisAreEquivalent( const wxString& aURI1, const wxString& aURI2 ) const override;
+
+    std::unique_ptr<OUTPUTFORMATTER> GetWriter( const wxString& aURI ) const override;
+};
 
 
 /**
  * Hold a record identifying a library accessed by the appropriate plug in object in the
  * #LIB_TABLE.  This is an abstract base class from which to derive library specific rows.
  */
-class LIB_TABLE_ROW
+class KICOMMON_API LIB_TABLE_ROW
 {
 public:
     LIB_TABLE_ROW() :
@@ -190,7 +249,7 @@ public:
      * Return the constant #PROPERTIES for this library (#LIB_TABLE_ROW).  These are
      * the "options" in a table.
      */
-    const STRING_UTF8_MAP* GetProperties() const     { return properties.get(); }
+    const std::map<std::string, UTF8>* GetProperties() const     { return properties.get(); }
 
     /**
      * Serialize this object as utf8 text to an #OUTPUTFORMATTER, and tries to
@@ -219,7 +278,7 @@ protected:
         m_parent( aRow.m_parent )
     {
         if( aRow.properties )
-            properties = std::make_unique<STRING_UTF8_MAP>( *aRow.properties.get() );
+            properties = std::make_unique<std::map<std::string, UTF8>>( *aRow.properties.get() );
         else
             properties.reset();
     }
@@ -229,8 +288,9 @@ protected:
 private:
     virtual LIB_TABLE_ROW* do_clone() const = 0;
 
-    void setProperties( STRING_UTF8_MAP* aProperties );
+    void setProperties( std::map<std::string, UTF8>* aProperties );
 
+private:
     wxString          nickName;
     wxString          uri_user;           ///< what user entered from UI or loaded from disk
     wxString          options;
@@ -241,7 +301,7 @@ private:
     bool              m_loaded = false;   ///< Whether the LIB_TABLE_ROW is loaded
     LIB_TABLE*        m_parent;           ///< Pointer to the table this row lives in (maybe null)
 
-    std::unique_ptr<STRING_UTF8_MAP> properties;
+    std::unique_ptr<std::map<std::string, UTF8>> properties;
 
     std::mutex        m_loadMutex;
 };
@@ -292,7 +352,7 @@ private:
  *
  * @author Wayne Stambaugh
  */
-class LIB_TABLE : public PROJECT::_ELEM
+class KICOMMON_API LIB_TABLE : public PROJECT::_ELEM
 {
 public:
     /**
@@ -328,13 +388,13 @@ public:
      * @param aFallBackTable is another LIB_TABLE which is searched only when
      *                       a row is not found in this table.  No ownership is
      *                       taken of aFallBackTable.
+     * @param aTableIo is the I/O object to use for the table data. nullptr
+     *                 means use the default file-based I/O.
      */
-    LIB_TABLE( LIB_TABLE* aFallBackTable = nullptr );
+    LIB_TABLE( LIB_TABLE*                    aFallBackTable = nullptr,
+               std::unique_ptr<LIB_TABLE_IO> aTableIo = nullptr );
 
     virtual ~LIB_TABLE();
-
-    /// Delete all rows.
-    void Clear();
 
     /**
      * Compares this table against another.
@@ -504,7 +564,7 @@ public:
      * a library table, this formatting is handled for you.
      * </p>
      */
-    static STRING_UTF8_MAP* ParseOptions( const std::string& aOptionsList );
+    static std::map<std::string, UTF8>* ParseOptions( const std::string& aOptionsList );
 
     /**
      * Returns a list of options from the aProperties parameter.
@@ -516,7 +576,7 @@ public:
      * @param aProperties is the PROPERTIES to format or NULL.  If NULL the returned
      *                    string will be empty.
      */
-    static UTF8 FormatOptions( const STRING_UTF8_MAP* aProperties );
+    static UTF8 FormatOptions( const std::map<std::string, UTF8>* aProperties );
 
     /**
      * Returns the version number (0 if unset)
@@ -529,6 +589,11 @@ public:
     }
 
 protected:
+    /*
+     * Do not make this public.  It MUST be called with a lock already in place.
+     */
+    void clear();
+
     /**
      * Return a #LIB_TABLE_ROW if \a aNickname is found in this table or in any chained
      * fallBack table fragment, else NULL.
@@ -540,6 +605,11 @@ protected:
     LIB_TABLE_ROW* findRow( const wxString& aNickname, bool aCheckIfEnabled = false ) const;
 
     /**
+     * Performs the mechanics of inserting a row, but without locking or reindexing.
+     */
+    bool doInsertRow( LIB_TABLE_ROW* aRow, bool doReplace = false );
+
+    /**
      * Updates the env vars from older version of KiCad, provided they do not currently
      * resolve to anything
      *
@@ -547,9 +617,15 @@ protected:
      */
     bool migrate();
 
+    /*
+     * Do not make this public.  It MUST be called with a lock already in place.
+     */
     void reindex();
 
 protected:
+    // Injected I/O interface
+    std::unique_ptr<LIB_TABLE_IO> m_io;
+
     LIB_TABLE* m_fallBack;
 
     /// Versioning to handle importing old tables

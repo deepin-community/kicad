@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2018-2021 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -219,6 +219,34 @@ extern KICOMMON_API const wxChar* const traceGalProfile;
  * Use "KICAD2STEP" to enable.
  */
 extern KICOMMON_API const wxChar* const traceKiCad2Step;
+
+/**
+ * Flag to enable user interface profile tracing.
+ *
+ * Use "KICAD_UI_PROFILE" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceUiProfile;
+
+/**
+ * Flag to enable Git debugging output.
+ *
+ * Use "KICAD_GIT" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceGit;
+
+/*
+ * Flag to enable Eagle I/O debug tracing.
+ *
+ * Use "KICAD_EAGLE_IO" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceEagleIo;
+
+/*
+ * Flag to enable Design Block O debug tracing.
+ *
+ * Use "KICAD_EAGLE_IO" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceDesignBlocks;
 
 ///@}
 

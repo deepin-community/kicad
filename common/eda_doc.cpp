@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2014-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,13 +25,15 @@
 #include <pgm_base.h>
 #include <common.h>
 #include <confirm.h>
+#include <embedded_files.h>
 #include <gestfich.h>
 #include <settings/common_settings.h>
 
-#include <wx/mimetype.h>
-#include <wx/filename.h>
-#include <wx/uri.h>
 #include <wx/filedlg.h>
+#include <wx/filename.h>
+#include <wx/log.h>
+#include <wx/mimetype.h>
+#include <wx/uri.h>
 
 
 //  Mime type extensions (PDF files are not considered here)
@@ -57,7 +59,8 @@ static const wxFileTypeInfo EDAfallbacks[] =
 };
 
 
-bool GetAssociatedDocument( wxWindow* aParent, const wxString& aDocName, PROJECT* aProject, SEARCH_STACK* aPaths )
+bool GetAssociatedDocument( wxWindow* aParent, const wxString& aDocName, PROJECT* aProject,
+                            SEARCH_STACK* aPaths, EMBEDDED_FILES* aFiles )
 {
     wxString      docname;
     wxString      fullfilename;
@@ -65,26 +68,55 @@ bool GetAssociatedDocument( wxWindow* aParent, const wxString& aDocName, PROJECT
     wxString      command;
     bool          success = false;
 
-    // Is an internet url
-    static const std::vector<wxString> url_header =
-    {
-        wxT( "http:" ),
-        wxT( "https:" ),
-        wxT( "ftp:" ),
-        wxT( "www." ),
-        wxT( "file:" )
-    };
-
     // Replace before resolving as we might have a URL in a variable
     docname = ResolveUriByEnvVars( aDocName, aProject );
 
-    for( const wxString& proc : url_header)
+    // We don't want the wx error message about not being able to open the URI
     {
-        if( docname.StartsWith( proc ) )   // looks like an internet url
+        wxURI     uri( docname );
+        wxLogNull logNo; // Disable log messages
+
+        if( uri.HasScheme() )
         {
-            wxURI uri( docname );
-            wxLaunchDefaultBrowser( uri.BuildURI() );
-            return true;
+            wxString scheme = uri.GetScheme().Lower();
+
+            if( scheme != FILEEXT::KiCadUriPrefix )
+            {
+                if( wxLaunchDefaultBrowser( docname ) )
+                    return true;
+            }
+            else
+            {
+                if( !aFiles )
+                {
+                    wxLogTrace( wxT( "KICAD_EMBED" ),
+                                wxT( "No EMBEDDED_FILES object provided for kicad_embed URI" ) );
+                    return false;
+                }
+
+                if( !docname.starts_with( FILEEXT::KiCadUriPrefix + "://" ) )
+                {
+                    wxLogTrace( wxT( "KICAD_EMBED" ),
+                                wxT( "Invalid kicad_embed URI '%s'" ), docname );
+                    return false;
+                }
+
+                docname = docname.Mid( 14 );
+
+                wxFileName temp_file = aFiles->GetTemporaryFileName( docname );
+
+                if( !temp_file.IsOk() )
+                {
+                    wxLogTrace( wxT( "KICAD_EMBED" ),
+                                wxT( "Failed to get temp file '%s' for kicad_embed URI" ), docname );
+                    return false;
+                }
+
+                wxLogTrace( wxT( "KICAD_EMBED" ),
+                            wxT( "Opening embedded file '%s' as '%s'" ),
+                            docname, temp_file.GetFullPath() );
+                docname = temp_file.GetFullPath();
+            }
         }
     }
 
@@ -124,7 +156,7 @@ bool GetAssociatedDocument( wxWindow* aParent, const wxString& aDocName, PROJECT
     if( !wxFileExists( fullfilename ) )
     {
         msg.Printf( _( "Documentation file '%s' not found." ), docname );
-        DisplayError( aParent, msg );
+        DisplayErrorMessage( aParent, msg );
         return false;
     }
 
@@ -170,7 +202,7 @@ bool GetAssociatedDocument( wxWindow* aParent, const wxString& aDocName, PROJECT
     if( !success )
     {
         msg.Printf( _( "Unknown MIME type for documentation file '%s'" ), fullfilename );
-        DisplayError( aParent, msg );
+        DisplayErrorMessage( aParent, msg );
     }
 
     return success;

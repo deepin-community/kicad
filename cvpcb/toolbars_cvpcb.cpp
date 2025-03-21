@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@verizon.net>
- * Copyright (C) 2007-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -70,9 +70,11 @@ void CVPCB_MAINFRAME::ReCreateHToolbar()
     wxString msg_bold = _( "Footprint Filters:" );
     wxStaticText* text = new wxStaticText( m_mainToolBar, wxID_ANY, msg_bold );
 	text->SetFont( m_mainToolBar->GetFont().Bold() );
+
 #ifdef __WXGTK3__
     text->SetLabelMarkup( "<b>" + msg_bold + "</b>" );
 #endif
+
     m_mainToolBar->AddControl( text );
 
     m_mainToolBar->Add( CVPCB_ACTIONS::FilterFPbyFPFilters, ACTION_TOOLBAR::TOGGLE );

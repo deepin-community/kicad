@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,7 +21,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <drc/drc_engine.h>
 #include <drc/drc_item.h>
 #include <drc/drc_test_provider.h>
 #include <pcb_track.h>
@@ -44,8 +43,7 @@ DRC_TEST_PROVIDER_REGISTRY::~DRC_TEST_PROVIDER_REGISTRY()
 
 
 DRC_TEST_PROVIDER::DRC_TEST_PROVIDER() :
-        UNITS_PROVIDER( pcbIUScale, EDA_UNITS::MILLIMETRES ),
-        m_drcEngine( nullptr )
+        UNITS_PROVIDER( pcbIUScale, EDA_UNITS::MILLIMETRES ), m_drcEngine( nullptr )
 {
 }
 
@@ -73,14 +71,15 @@ const wxString DRC_TEST_PROVIDER::GetDescription() const { return wxEmptyString;
 
 
 void DRC_TEST_PROVIDER::reportViolation( std::shared_ptr<DRC_ITEM>& item,
-                                         const VECTOR2I& aMarkerPos, int aMarkerLayer )
+                                         const VECTOR2I& aMarkerPos, int aMarkerLayer,
+                                         DRC_CUSTOM_MARKER_HANDLER* aCustomHandler )
 {
     std::lock_guard<std::mutex> lock( m_statsMutex );
     if( item->GetViolatingRule() )
         accountCheck( item->GetViolatingRule() );
 
     item->SetViolatingTest( this );
-    m_drcEngine->ReportViolation( item, aMarkerPos, aMarkerLayer );
+    m_drcEngine->ReportViolation( item, aMarkerPos, aMarkerLayer, aCustomHandler );
 }
 
 
@@ -353,6 +352,22 @@ bool DRC_TEST_PROVIDER::isInvisibleText( const BOARD_ITEM* aItem ) const
 
 wxString DRC_TEST_PROVIDER::formatMsg( const wxString& aFormatString, const wxString& aSource,
                                        double aConstraint, double aActual )
+{
+    wxString constraint_str = MessageTextFromValue( aConstraint );
+    wxString actual_str = MessageTextFromValue( aActual );
+
+    if( constraint_str == actual_str )
+    {
+        // Use more precise formatting if the message-text strings were equal.
+        constraint_str = StringFromValue( aConstraint, true );
+        actual_str = StringFromValue( aActual, true );
+    }
+
+    return wxString::Format( aFormatString, aSource, constraint_str, actual_str );
+}
+
+wxString DRC_TEST_PROVIDER::formatMsg( const wxString& aFormatString, const wxString& aSource,
+                                       const EDA_ANGLE& aConstraint, const EDA_ANGLE& aActual )
 {
     wxString constraint_str = MessageTextFromValue( aConstraint );
     wxString actual_str = MessageTextFromValue( aActual );

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2017-2023, 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -146,7 +146,7 @@ double PLOTTER::GetDashGapLenIU( int aLineWidth ) const
     return userToDeviceSize( m_renderSettings->GetGapLength( aLineWidth ) );
 }
 
-#include <wx/log.h>
+
 void PLOTTER::Arc( const VECTOR2D& aStart, const VECTOR2D& aMid, const VECTOR2D& aEnd, FILL_T aFill,
                    int aWidth )
 {
@@ -232,8 +232,6 @@ void PLOTTER::BezierCurve( const VECTOR2I& aStart, const VECTOR2I& aControl1,
                            int aTolerance, int aLineThickness )
 {
     // Generic fallback: Quadratic Bezier curve plotted as a polyline
-    int minSegLen = aLineThickness;  // The segment min length to approximate a bezier curve
-
     std::vector<VECTOR2I> ctrlPoints;
     ctrlPoints.reserve( 4 );
 
@@ -245,7 +243,7 @@ void PLOTTER::BezierCurve( const VECTOR2I& aStart, const VECTOR2I& aControl1,
     BEZIER_POLY bezier_converter( ctrlPoints );
 
     std::vector<VECTOR2I> approxPoints;
-    bezier_converter.GetPoly( approxPoints, minSegLen );
+    bezier_converter.GetPoly( approxPoints, aTolerance );
 
     SetCurrentLineWidth( aLineThickness );
     MoveTo( aStart );
@@ -492,7 +490,7 @@ void PLOTTER::segmentAsOval( const VECTOR2I& start, const VECTOR2I& end, int aWi
     EDA_ANGLE orient( size );
     orient = -orient;       // this is due to our Y axis orientation
 
-    size.x = KiROUND( EuclideanNorm( size ) ) + aWidth;
+    size.x = size.EuclideanNorm() + aWidth;
     size.y = aWidth;
 
     FlashPadOval( center, size, orient, aTraceMode, nullptr );
@@ -595,7 +593,8 @@ void PLOTTER::ThickArc( const VECTOR2D& centre, const EDA_ANGLE& aStartAngle,
 }
 
 
-void PLOTTER::ThickArc( const EDA_SHAPE& aArcShape, OUTLINE_MODE aTraceMode, void* aData )
+void PLOTTER::ThickArc( const EDA_SHAPE& aArcShape, OUTLINE_MODE aTraceMode, void* aData,
+                        int aWidth )
 {
     VECTOR2D center = aArcShape.getCenter();
     VECTOR2D mid = aArcShape.GetArcMid();
@@ -616,7 +615,7 @@ void PLOTTER::ThickArc( const EDA_SHAPE& aArcShape, OUTLINE_MODE aTraceMode, voi
 
     double radius = ( start - center ).EuclideanNorm();
 
-    ThickArc( center, startAngle, angle, radius, aArcShape.GetWidth(), aTraceMode, aData );
+    ThickArc( center, startAngle, angle, radius, aWidth, aTraceMode, aData );
 }
 
 
@@ -631,9 +630,9 @@ void PLOTTER::ThickRect( const VECTOR2I& p1, const VECTOR2I& p2, int width,
     {
         SetCurrentLineWidth( -1 );
         VECTOR2I offsetp1( p1.x - ( width - m_currentPenWidth ) / 2,
-                           p1.y - (width - m_currentPenWidth) / 2 );
+                           p1.y - ( width - m_currentPenWidth ) / 2 );
         VECTOR2I offsetp2( p2.x + ( width - m_currentPenWidth ) / 2,
-                           p2.y + (width - m_currentPenWidth) / 2 );
+                           p2.y + ( width - m_currentPenWidth ) / 2 );
         Rect( offsetp1, offsetp2, FILL_T::NO_FILL, -1 );
         offsetp1.x += ( width - m_currentPenWidth );
         offsetp1.y += ( width - m_currentPenWidth );
@@ -750,6 +749,7 @@ void PLOTTER::Text( const VECTOR2I&       aPos,
 
     aFont->Draw( &callback_gal, aText, aPos, attributes, aFontMetrics );
 }
+
 
 void PLOTTER::PlotText( const VECTOR2I&        aPos,
                         const COLOR4D&         aColor,

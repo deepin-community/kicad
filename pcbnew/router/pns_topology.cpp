@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2015 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -95,7 +95,7 @@ const TOPOLOGY::JOINT_SET TOPOLOGY::ConnectedJoints( const JOINT* aStart )
 
 
 bool TOPOLOGY::NearestUnconnectedAnchorPoint( const LINE* aTrack, VECTOR2I& aPoint,
-                                              LAYER_RANGE& aLayers, ITEM*& aItem )
+                                              PNS_LAYER_RANGE& aLayers, ITEM*& aItem )
 {
     LINE track( *aTrack );
     VECTOR2I end;
@@ -104,6 +104,8 @@ bool TOPOLOGY::NearestUnconnectedAnchorPoint( const LINE* aTrack, VECTOR2I& aPoi
         return false;
 
     std::unique_ptr<NODE> tmpNode( m_world->Branch() );
+
+    track.ClearLinks();
     tmpNode->Add( track );
 
     const JOINT* jt = tmpNode->FindJoint( track.CPoint( -1 ), &track );
@@ -142,7 +144,7 @@ bool TOPOLOGY::LeadingRatLine( const LINE* aTrack, SHAPE_LINE_CHAIN& aRatLine )
 {
     VECTOR2I end;
     // Ratline doesn't care about the layer
-    LAYER_RANGE layers;
+    PNS_LAYER_RANGE layers;
     ITEM*       unusedItem;
 
     if( !NearestUnconnectedAnchorPoint( aTrack, end, layers, unusedItem ) )
@@ -369,9 +371,9 @@ const ITEM_SET TOPOLOGY::AssembleTuningPath( ITEM* aStart, SOLID** aStartPad, SO
         return initialPath;
 
     auto clipLineToPad =
-            []( SHAPE_LINE_CHAIN& aLine, PAD* aPad, bool aForward = true )
+            []( SHAPE_LINE_CHAIN& aLine, PAD* aPad, PCB_LAYER_ID aLayer, bool aForward = true )
             {
-                const auto& shape = aPad->GetEffectivePolygon( ERROR_INSIDE );
+                const auto& shape = aPad->GetEffectivePolygon( aLayer, ERROR_INSIDE );
 
                 int start = aForward ? 0 : aLine.PointCount() - 1;
                 int delta = aForward ? 1 : -1;
@@ -415,9 +417,9 @@ const ITEM_SET TOPOLOGY::AssembleTuningPath( ITEM* aStart, SOLID** aStartPad, SO
             };
 
     auto processPad =
-            [&]( const JOINT* aJoint, PAD* aPad )
+            [&]( const JOINT* aJoint, PAD* aPad, PCB_LAYER_ID aLayer )
             {
-                const auto& shape = aPad->GetEffectivePolygon( ERROR_INSIDE );
+                const auto& shape = aPad->GetEffectivePolygon( aLayer, ERROR_INSIDE );
 
                 for( int idx = 0; idx < initialPath.Size(); idx++ )
                 {
@@ -435,19 +437,20 @@ const ITEM_SET TOPOLOGY::AssembleTuningPath( ITEM* aStart, SOLID** aStartPad, SO
                         continue;
 
                     SHAPE_LINE_CHAIN& slc = line->Line();
+                    const PCB_LAYER_ID& layer = static_cast<PCB_LAYER_ID>( line->Layer() );
 
                     if( shape->Contains( slc.CPoint( 0 ) ) )
-                        clipLineToPad( slc, aPad, true );
+                        clipLineToPad( slc, aPad, layer, true );
                     else if( shape->Contains( slc.CPoint( -1 ) ) )
-                        clipLineToPad( slc, aPad, false );
+                        clipLineToPad( slc, aPad, layer, false );
                 }
             };
 
     if( padA )
-        processPad( joints.first, padA );
+        processPad( joints.first, padA, static_cast<PCB_LAYER_ID>( joints.first->Layer() ) );
 
     if( padB )
-        processPad( joints.second, padB );
+        processPad( joints.second, padB, static_cast<PCB_LAYER_ID>( joints.second->Layer() ) );
 
     return initialPath;
 }
@@ -501,7 +504,7 @@ bool TOPOLOGY::AssembleDiffPair( ITEM* aStart, DIFF_PAIR& aPair )
     LINKED_ITEM* coupledItem = nullptr;
     SEG::ecoord  minDist_sq = std::numeric_limits<SEG::ecoord>::max();
     SEG::ecoord  minDistTarget_sq = std::numeric_limits<SEG::ecoord>::max();
-    VECTOR2I     targetPoint = aStart->Shape()->Centre();
+    VECTOR2I     targetPoint = aStart->Shape( -1 )->Centre();
 
     auto findNItem = [&]( ITEM* p_item )
     {
@@ -549,7 +552,7 @@ bool TOPOLOGY::AssembleDiffPair( ITEM* aStart, DIFF_PAIR& aPair )
 
             if( dist_sq <= minDist_sq )
             {
-                SEG::ecoord distTarget_sq = n_item->Shape()->SquaredDistance( targetPoint );
+                SEG::ecoord distTarget_sq = n_item->Shape( -1 )->SquaredDistance( targetPoint );
                 if( distTarget_sq < minDistTarget_sq )
                 {
                     minDistTarget_sq = distTarget_sq;
@@ -619,9 +622,9 @@ bool TOPOLOGY::AssembleDiffPair( ITEM* aStart, DIFF_PAIR& aPair )
     return true;
 }
 
-const std::set<ITEM*> TOPOLOGY::AssembleCluster( ITEM* aStart, int aLayer )
+const TOPOLOGY::CLUSTER TOPOLOGY::AssembleCluster( ITEM* aStart, int aLayer, double aAreaExpansionLimit, NET_HANDLE aExcludedNet )
 {
-    std::set<ITEM*> visited;
+    CLUSTER cluster;
     std::deque<ITEM*> pending;
 
     COLLISION_SEARCH_OPTIONS opts;
@@ -631,6 +634,9 @@ const std::set<ITEM*> TOPOLOGY::AssembleCluster( ITEM* aStart, int aLayer )
 
     pending.push_back( aStart );
 
+    BOX2I clusterBBox = aStart->Shape( aLayer )->BBox();
+    int64_t initialArea = clusterBBox.GetArea();
+
     while( !pending.empty() )
     {
         NODE::OBSTACLES obstacles;
@@ -638,7 +644,7 @@ const std::set<ITEM*> TOPOLOGY::AssembleCluster( ITEM* aStart, int aLayer )
 
         pending.pop_front();
 
-        visited.insert( top );
+        cluster.m_items.insert( top );
 
         m_world->QueryColliding( top, obstacles, opts ); // only query touching objects
 
@@ -649,16 +655,35 @@ const std::set<ITEM*> TOPOLOGY::AssembleCluster( ITEM* aStart, int aLayer )
             if( trackOnTrack )
                 continue;
 
-            if( visited.find( obs.m_item ) == visited.end() &&
+            if( aExcludedNet && obs.m_item->Net() == aExcludedNet )
+                continue;
+
+            if( obs.m_item->OfKind( ITEM::SEGMENT_T | ITEM::ARC_T ) && obs.m_item->Layers().Overlaps( aLayer ) )
+            {
+                auto line = m_world->AssembleLine( static_cast<LINKED_ITEM*>(obs.m_item) );
+                clusterBBox.Merge( line.CLine().BBox() );
+            }
+            else
+            {
+                clusterBBox.Merge( obs.m_item->Shape( aLayer )->BBox() );
+            }
+
+            const int64_t currentArea = clusterBBox.GetArea();
+            const double areaRatio = (double) currentArea / (double) ( initialArea + 1 );
+
+            if( aAreaExpansionLimit > 0.0 && areaRatio > aAreaExpansionLimit )
+                break;
+
+            if( cluster.m_items.find( obs.m_item ) == cluster.m_items.end() &&
                 obs.m_item->Layers().Overlaps( aLayer ) && !( obs.m_item->Marker() & MK_HEAD ) )
             {
-                visited.insert( obs.m_item );
+                cluster.m_items.insert( obs.m_item );
                 pending.push_back( obs.m_item );
             }
         }
     }
 
-    return visited;
+    return cluster;
 }
 
 }

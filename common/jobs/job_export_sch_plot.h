@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -64,7 +64,6 @@ enum class JOB_PAGE_SIZE
 enum class SCH_PLOT_FORMAT
 {
     HPGL,
-    GERBER,
     POST,
     DXF,
     PDF,
@@ -75,11 +74,12 @@ enum class SCH_PLOT_FORMAT
 class KICOMMON_API JOB_EXPORT_SCH_PLOT : public JOB
 {
 public:
-    JOB_EXPORT_SCH_PLOT( bool aIsCli, SCH_PLOT_FORMAT aPlotFormat, wxString aFilename );
+    JOB_EXPORT_SCH_PLOT( bool aOutputIsDirectory );
 
     SCH_PLOT_FORMAT       m_plotFormat;
     wxString              m_filename;
     wxString              m_drawingSheet;
+    wxString              m_defaultFont;
 
     bool                  m_plotAll;
     bool                  m_plotDrawingSheet;
@@ -88,15 +88,60 @@ public:
     bool                  m_blackAndWhite;
     JOB_PAGE_SIZE         m_pageSizeSelect;
     bool                  m_useBackgroundColor;
+    int                   m_minPenWidth;
     double                m_HPGLPenSize; // for HPGL format only: pen size
     JOB_HPGL_PAGE_SIZE    m_HPGLPaperSizeSelect;
     bool                  m_PDFPropertyPopups;
+    bool                  m_PDFHierarchicalLinks;
+    bool                  m_PDFMetadata;
     wxString              m_theme;
 
-    wxString m_outputDirectory;
-    wxString m_outputFile;
-
     JOB_HPGL_PLOT_ORIGIN_AND_UNITS m_HPGLPlotOrigin;
+};
+
+
+class KICOMMON_API JOB_EXPORT_SCH_PLOT_PDF : public JOB_EXPORT_SCH_PLOT
+{
+public:
+    JOB_EXPORT_SCH_PLOT_PDF();
+    wxString GetDefaultDescription() const override;
+    wxString GetSettingsDialogTitle() const override;
+};
+
+
+class KICOMMON_API JOB_EXPORT_SCH_PLOT_DXF : public JOB_EXPORT_SCH_PLOT
+{
+public:
+    JOB_EXPORT_SCH_PLOT_DXF();
+    wxString GetDefaultDescription() const override;
+    wxString GetSettingsDialogTitle() const override;
+};
+
+
+class KICOMMON_API JOB_EXPORT_SCH_PLOT_SVG : public JOB_EXPORT_SCH_PLOT
+{
+public:
+    JOB_EXPORT_SCH_PLOT_SVG();
+    wxString GetDefaultDescription() const override;
+    wxString GetSettingsDialogTitle() const override;
+};
+
+
+class KICOMMON_API JOB_EXPORT_SCH_PLOT_PS : public JOB_EXPORT_SCH_PLOT
+{
+public:
+    JOB_EXPORT_SCH_PLOT_PS();
+    wxString GetDefaultDescription() const override;
+    wxString GetSettingsDialogTitle() const override;
+};
+
+
+class KICOMMON_API JOB_EXPORT_SCH_PLOT_HPGL : public JOB_EXPORT_SCH_PLOT
+{
+public:
+    JOB_EXPORT_SCH_PLOT_HPGL();
+    wxString GetDefaultDescription() const override;
+    wxString GetSettingsDialogTitle() const override;
 };
 
 #endif

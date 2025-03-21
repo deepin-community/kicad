@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2021-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -76,6 +76,16 @@ public:
         m_h( aH )
     {}
 
+    /**
+     * Create by two corners.
+     */
+    SHAPE_RECT( const VECTOR2I& aP0, const VECTOR2I& aP1 ) :
+        SHAPE( SH_RECT ),
+        m_p0( aP0 ),
+        m_w( aP1.x - aP0.x ),
+        m_h( aP1.y - aP0.y )
+    {}
+
     SHAPE_RECT( const SHAPE_RECT& aOther ) :
         SHAPE( SH_RECT ),
         m_p0( aOther.m_p0 ),
@@ -97,6 +107,19 @@ public:
     }
 
     /**
+     * Return a rectangle that is larger by aOffset in all directions,
+     * but still centered on the original rectangle.
+     */
+    SHAPE_RECT GetInflated( int aOffset ) const
+    {
+        return SHAPE_RECT{
+            m_p0 - VECTOR2I( aOffset, aOffset ),
+            m_w + 2 * aOffset,
+            m_h + 2 * aOffset,
+        };
+    }
+
+    /**
      * Return length of the diagonal of the rectangle.
      *
      * @return diagonal length
@@ -104,6 +127,16 @@ public:
     int Diagonal() const
     {
         return VECTOR2I( m_w, m_h ).EuclideanNorm();
+    }
+
+    int MajorDimension() const
+    {
+        return std::max( m_w, m_h );
+    }
+
+    int MinorDimension() const
+    {
+        return std::min( m_w, m_h );
     }
 
     bool Collide( const SHAPE* aShape, int aClearance, VECTOR2I* aMTV ) const override

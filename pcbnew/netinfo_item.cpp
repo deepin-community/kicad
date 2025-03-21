@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2012 Jean-Pierre Charras, jean-pierre.charras@ujf-grenoble.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -50,7 +50,7 @@ NETINFO_ITEM::NETINFO_ITEM( BOARD* aParent, const wxString& aNetName, int aNetCo
     m_parent = aParent;
 
     if( aParent )
-        m_netClass = aParent->GetDesignSettings().m_NetSettings->m_DefaultNetClass;
+        m_netClass = aParent->GetDesignSettings().m_NetSettings->GetDefaultNetclass();
     else
         m_netClass = std::make_shared<NETCLASS>( wxT( "Default" ) );
 }
@@ -65,7 +65,7 @@ NETINFO_ITEM::~NETINFO_ITEM()
 void NETINFO_ITEM::Clear()
 {
     wxCHECK( m_parent, /* void */ );
-    m_netClass = m_parent->GetDesignSettings().m_NetSettings->m_DefaultNetClass;
+    m_netClass = m_parent->GetDesignSettings().m_NetSettings->GetDefaultNetclass();
 }
 
 
@@ -76,7 +76,7 @@ void NETINFO_ITEM::SetNetClass( const std::shared_ptr<NETCLASS>& aNetClass )
     if( aNetClass )
         m_netClass = aNetClass;
     else
-        m_netClass = m_parent->GetDesignSettings().m_NetSettings->m_DefaultNetClass;
+        m_netClass = m_parent->GetDesignSettings().m_NetSettings->GetDefaultNetclass();
 }
 
 
@@ -151,14 +151,18 @@ bool NETINFO_ITEM::Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData )
 
 const BOX2I NETINFO_ITEM::GetBoundingBox() const
 {
+    static const std::vector<KICAD_T> netItemTypes = { PCB_TRACE_T,
+                                                       PCB_ARC_T,
+                                                       PCB_VIA_T,
+                                                       PCB_ZONE_T,
+                                                       PCB_PAD_T,
+                                                       PCB_SHAPE_T };
+
     std::shared_ptr<CONNECTIVITY_DATA> conn = GetBoard()->GetConnectivity();
     BOX2I                              bbox;
 
-    for( BOARD_ITEM* item : conn->GetNetItems( m_netCode, { PCB_TRACE_T, PCB_ARC_T, PCB_VIA_T,
-                                                            PCB_ZONE_T, PCB_PAD_T } ) )
-    {
+    for( BOARD_ITEM* item : conn->GetNetItems( m_netCode, netItemTypes ) )
         bbox.Merge( item->GetBoundingBox() );
-    }
 
     return bbox;
 }

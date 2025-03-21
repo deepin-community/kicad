@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2016 CERN
- * Copyright (C) 2020-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -41,7 +41,7 @@ namespace KIGFX {
 class ORIGIN_VIEWITEM : public EDA_ITEM
 {
 public:
-    ///< Marker symbol styles
+    /// Marker symbol styles.
     enum MARKER_STYLE
     {
         NO_GRAPHIC, CROSS, X, DOT, CIRCLE_CROSS, CIRCLE_X, CIRCLE_DOT, DASH_LINE
@@ -59,10 +59,9 @@ public:
 
     void ViewDraw( int aLayer, VIEW* aView ) const override;
 
-    void ViewGetLayers( int aLayers[], int& aCount ) const override
+    std::vector<int> ViewGetLayers() const override
     {
-        aLayers[0] = LAYER_GP_OVERLAY;
-        aCount = 1;
+        return { LAYER_GP_OVERLAY };
     }
 
 #if defined(DEBUG)
@@ -145,22 +144,22 @@ public:
     }
 
 protected:
-    ///< Marker coordinates.
+    /// Marker coordinates.
     VECTOR2D        m_position;
 
-    ///< Marker end position for markers that stretch between points
+    /// Marker end position for markers that stretch between points.
     VECTOR2D        m_end;
 
-    ///< Marker size (in pixels).
+    /// Marker size (in pixels).
     int             m_size;
 
-    ///< Marker color.
+    /// Marker color.
     COLOR4D         m_color;
 
-    ///< Marker symbol.
+    /// Marker symbol.
     MARKER_STYLE    m_style;
 
-    ///< If set, the marker will be drawn even if its position is 0,0
+    /// If set, the marker will be drawn even if its position is 0,0.
     bool            m_drawAtZero;
 };
 

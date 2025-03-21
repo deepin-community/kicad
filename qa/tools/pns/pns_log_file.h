@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2023 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -75,6 +75,7 @@ public:
     // Loads a P&S event log and the associated board file. These two always go together.
     bool Load( const wxFileName& logFileName, REPORTER* aRpt );
 
+    std::vector<BOARD_CONNECTED_ITEM*> ItemsById( const PNS::LOGGER::EVENT_ENTRY& evt );
     BOARD_CONNECTED_ITEM* ItemById( const PNS::LOGGER::EVENT_ENTRY& evt );
 
     std::vector<PNS::LOGGER::EVENT_ENTRY>& Events() { return m_events; }

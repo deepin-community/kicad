@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
- * Copyright (C) 2017 Kicad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -48,12 +48,10 @@ void SIMPLE_OVERLAY_ITEM::ViewDraw( int aLayer, KIGFX::VIEW* aView ) const
 }
 
 
-void SIMPLE_OVERLAY_ITEM::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> SIMPLE_OVERLAY_ITEM::ViewGetLayers() const
 {
-    static const int SelectionLayer = LAYER_GP_OVERLAY;
-
-    aLayers[0] = SelectionLayer;
-    aCount = 1;
+    std::vector<int> aLayers{ LAYER_GP_OVERLAY };
+    return aLayers;
 }
 
 

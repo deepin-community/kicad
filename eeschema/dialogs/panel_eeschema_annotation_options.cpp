@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mike Williams <mike@mikebwilliams.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -80,7 +80,7 @@ void PANEL_EESCHEMA_ANNOTATION_OPTIONS::loadEEschemaSettings( EESCHEMA_SETTINGS*
 bool PANEL_EESCHEMA_ANNOTATION_OPTIONS::TransferDataToWindow()
 {
     SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>();
+    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
 
     loadEEschemaSettings( cfg );
 
@@ -91,7 +91,7 @@ bool PANEL_EESCHEMA_ANNOTATION_OPTIONS::TransferDataToWindow()
 bool PANEL_EESCHEMA_ANNOTATION_OPTIONS::TransferDataFromWindow()
 {
     SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>();
+    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
 
     cfg->m_AnnotatePanel.automatic = m_checkAutoAnnotate->GetValue();
 
@@ -112,7 +112,8 @@ bool PANEL_EESCHEMA_ANNOTATION_OPTIONS::TransferDataFromWindow()
     if( schFrame )
     {
         SCHEMATIC_SETTINGS& projSettings = schFrame->Schematic().Settings();
-        projSettings.m_AnnotateStartNum = EDA_UNIT_UTILS::UI::ValueFromString( m_textNumberAfter->GetValue() );
+        projSettings.m_AnnotateStartNum =
+                EDA_UNIT_UTILS::UI::ValueFromString( m_textNumberAfter->GetValue() );
     }
 
     return true;

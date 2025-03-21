@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.0.0-0-g0efcecf)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -16,7 +16,7 @@ PANEL_SETUP_TUNING_PATTERNS_BASE::PANEL_SETUP_TUNING_PATTERNS_BASE( wxWindow* pa
 	wxBoxSizer* bMainSizer;
 	bMainSizer = new wxBoxSizer( wxVERTICAL );
 
-	m_singleTrackLabel = new wxStaticText( this, wxID_ANY, _("Default properties for single-track tuning:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_singleTrackLabel = new wxStaticText( this, wxID_ANY, _("Default Properties for Single Track Tuning"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_singleTrackLabel->Wrap( -1 );
 	bMainSizer->Add( m_singleTrackLabel, 0, wxTOP|wxRIGHT|wxLEFT, 8 );
 
@@ -145,7 +145,7 @@ PANEL_SETUP_TUNING_PATTERNS_BASE::PANEL_SETUP_TUNING_PATTERNS_BASE( wxWindow* pa
 
 	bMainSizer->Add( 0, 10, 0, wxEXPAND, 5 );
 
-	m_diffPairsLabel = new wxStaticText( this, wxID_ANY, _("Default properties for differential-pairs:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_diffPairsLabel = new wxStaticText( this, wxID_ANY, _("Default Properties for Differential Pairs"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_diffPairsLabel->Wrap( -1 );
 	bMainSizer->Add( m_diffPairsLabel, 0, wxTOP|wxRIGHT|wxLEFT, 8 );
 
@@ -274,7 +274,7 @@ PANEL_SETUP_TUNING_PATTERNS_BASE::PANEL_SETUP_TUNING_PATTERNS_BASE( wxWindow* pa
 
 	bMainSizer->Add( 0, 10, 0, wxEXPAND, 5 );
 
-	m_diffPairsLabel1 = new wxStaticText( this, wxID_ANY, _("Default properties for differential-pair skews:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_diffPairsLabel1 = new wxStaticText( this, wxID_ANY, _("Default Properties for Differential Pair Skews"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_diffPairsLabel1->Wrap( -1 );
 	bMainSizer->Add( m_diffPairsLabel1, 0, wxTOP|wxRIGHT|wxLEFT, 8 );
 
@@ -384,6 +384,15 @@ PANEL_SETUP_TUNING_PATTERNS_BASE::PANEL_SETUP_TUNING_PATTERNS_BASE( wxWindow* pa
 	m_skew_rUnits = new wxStaticText( this, wxID_ANY, _("%"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_skew_rUnits->Wrap( -1 );
 	fgSizer31->Add( m_skew_rUnits, 0, wxALIGN_CENTER_VERTICAL, 5 );
+
+
+	fgSizer31->Add( 0, 0, 1, wxEXPAND, 5 );
+
+	m_skew_singleSided = new wxCheckBox( this, wxID_ANY, _("Single-sided"), wxDefaultPosition, wxDefaultSize, 0 );
+	fgSizer31->Add( m_skew_singleSided, 0, wxALL, 5 );
+
+
+	fgSizer31->Add( 0, 0, 1, wxEXPAND, 5 );
 
 
 	skewSizer->Add( fgSizer31, 0, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 5 );

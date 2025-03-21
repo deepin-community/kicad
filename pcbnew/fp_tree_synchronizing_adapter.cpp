@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 CERN
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -64,7 +64,7 @@ TOOL_INTERACTIVE* FP_TREE_SYNCHRONIZING_ADAPTER::GetContextMenuTool()
 bool FP_TREE_SYNCHRONIZING_ADAPTER::IsContainer( const wxDataViewItem& aItem ) const
 {
     const LIB_TREE_NODE* node = ToNode( aItem );
-    return node ? node->m_Type == LIB_TREE_NODE::LIBRARY : true;
+    return node ? node->m_Type == LIB_TREE_NODE::TYPE::LIBRARY : true;
 }
 
 
@@ -79,16 +79,26 @@ void FP_TREE_SYNCHRONIZING_ADAPTER::Sync( FP_LIB_TABLE* aLibs )
     {
         const wxString& name = it->get()->m_Name;
 
-        // Remove the library if it no longer exists or it exists in both the global and the
-        // project library but the project library entry is disabled.
-        if( !m_libs->HasLibrary( name, true )
-                || m_libs->FindRow( name, true ) != m_libs->FindRow( name, false ) )
+        try
         {
+            // Remove the library if it no longer exists or it exists in both the global and the
+            // project library but the project library entry is disabled.
+            if( !m_libs->HasLibrary( name, true )
+                || m_libs->FindRow( name, true ) != m_libs->FindRow( name, false ) )
+            {
+                it = deleteLibrary( it );
+                continue;
+            }
+
+            updateLibrary( *(LIB_TREE_NODE_LIBRARY*) it->get() );
+        }
+        catch( ... )
+        {
+            // If the library isn't found, remove it
             it = deleteLibrary( it );
             continue;
         }
 
-        updateLibrary( *(LIB_TREE_NODE_LIBRARY*) it->get() );
         ++it;
     }
 
@@ -229,7 +239,7 @@ void FP_TREE_SYNCHRONIZING_ADAPTER::GetValue( wxVariant& aVariant, wxDataViewIte
         {
             node->m_Desc = m_frame->GetBoard()->GetFirstFootprint()->GetLibDescription();
         }
-        else if( node->m_Type == LIB_TREE_NODE::LIBRARY )
+        else if( node->m_Type == LIB_TREE_NODE::TYPE::LIBRARY )
         {
             try
             {
@@ -277,8 +287,8 @@ bool FP_TREE_SYNCHRONIZING_ADAPTER::GetAttr( wxDataViewItem const& aItem, unsign
 
     switch( node->m_Type )
     {
-    case LIB_TREE_NODE::LIBRARY:
-        if( node->m_Name == m_frame->GetLoadedFPID().GetLibNickname() )
+    case LIB_TREE_NODE::TYPE::LIBRARY:
+        if( node->m_Name == m_frame->GetLoadedFPID().GetLibNickname().wx_str() )
         {
             // mark the current library if it's collapsed
             if( !m_widget->IsExpanded( ToItem( node ) ) )
@@ -293,7 +303,7 @@ bool FP_TREE_SYNCHRONIZING_ADAPTER::GetAttr( wxDataViewItem const& aItem, unsign
         }
         break;
 
-    case LIB_TREE_NODE::ITEM:
+    case LIB_TREE_NODE::TYPE::ITEM:
         if( node->m_LibId == m_frame->GetLoadedFPID() )
         {
             // mark the current (on-canvas) part
@@ -319,7 +329,7 @@ bool FP_TREE_SYNCHRONIZING_ADAPTER::HasPreview( const wxDataViewItem& aItem )
     LIB_TREE_NODE* node = ToNode( aItem );
     wxCHECK( node, false );
 
-    return node->m_Type == LIB_TREE_NODE::ITEM && node->m_LibId != m_frame->GetLoadedFPID();
+    return node->m_Type == LIB_TREE_NODE::TYPE::ITEM && node->m_LibId != m_frame->GetLoadedFPID();
 }
 
 
@@ -330,8 +340,8 @@ void FP_TREE_SYNCHRONIZING_ADAPTER::ShowPreview( wxWindow* aParent, const wxData
     LIB_TREE_NODE* node = ToNode( aItem );
     wxCHECK( node, /* void */ );
 
-    FOOTPRINT_PREVIEW_PANEL* preview = dynamic_cast<FOOTPRINT_PREVIEW_PANEL*>(
-            wxWindow::FindWindowByName( c_previewName, aParent ) );
+    wxWindow* previewWindow = wxWindow::FindWindowByName( c_previewName, aParent );
+    FOOTPRINT_PREVIEW_PANEL* preview = dynamic_cast<FOOTPRINT_PREVIEW_PANEL*>( previewWindow );
 
     if( !preview )
     {

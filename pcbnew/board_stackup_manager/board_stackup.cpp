@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2009-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,7 +26,12 @@
 #include <board_design_settings.h>
 #include <board.h>
 #include <i18n_utility.h>       // For _HKI definition
+#include <io/kicad/kicad_io_utils.h>
 #include "stackup_predefined_prms.h"
+#include <richio.h>
+#include <google/protobuf/any.pb.h>
+#include <api/board/board.pb.h>
+#include <api/api_enums.h>
 
 
 bool DIELECTRIC_PRMS::operator==( const DIELECTRIC_PRMS& aOther ) const
@@ -418,6 +423,61 @@ bool BOARD_STACKUP::operator==( const BOARD_STACKUP& aOther ) const
 }
 
 
+void BOARD_STACKUP::Serialize( google::protobuf::Any& aContainer ) const
+{
+    using namespace kiapi::board;
+    BoardStackup stackup;
+
+    for( const BOARD_STACKUP_ITEM* item : m_list )
+    {
+        BoardStackupLayer* layer = stackup.mutable_layers()->Add();
+
+        layer->mutable_thickness()->set_value_nm( item->GetThickness() );
+        layer->set_layer( ToProtoEnum<PCB_LAYER_ID, types::BoardLayer>( item->GetBrdLayerId() ) );
+        layer->set_type(
+                ToProtoEnum<BOARD_STACKUP_ITEM_TYPE, BoardStackupLayerType>( item->GetType() ) );
+
+        switch( item->GetType() )
+        {
+        case BS_ITEM_TYPE_COPPER:
+        {
+            layer->set_material_name( "copper" );
+            // (no copper params yet...)
+            break;
+        }
+
+        case BS_ITEM_TYPE_DIELECTRIC:
+        {
+            BoardStackupDielectricLayer* dielectric = layer->mutable_dielectric()->New();
+
+            for( int i = 0; i < item->GetSublayersCount(); ++i )
+            {
+                BoardStackupDielectricProperties* props = dielectric->mutable_layer()->Add();
+                props->set_epsilon_r( item->GetEpsilonR( i ) );
+                props->set_loss_tangent( item->GetLossTangent( i ) );
+                props->set_material_name( item->GetMaterial( i ).ToUTF8() );
+                props->mutable_thickness()->set_value_nm( item->GetThickness( i ) );
+            }
+
+            break;
+        }
+
+        default:
+            break;
+        }
+    }
+
+    aContainer.PackFrom( stackup );
+}
+
+
+bool BOARD_STACKUP::Deserialize( const google::protobuf::Any& aContainer )
+{
+    // Read-only for now
+    return false;
+}
+
+
 void BOARD_STACKUP::RemoveAll()
 {
     for( BOARD_STACKUP_ITEM* item : m_list )
@@ -563,7 +623,7 @@ void BOARD_STACKUP::BuildDefaultStackupList( const BOARD_DESIGN_SETTINGS* aSetti
     // It will be used as this in files, and can be translated only in dialog
     // if aSettings == NULL, build a full stackup (with 32 copper layers)
     LSET enabledLayer = aSettings ? aSettings->GetEnabledLayers() : StackupAllowedBrdLayers();
-    int copperLayerCount = aSettings ? aSettings->GetCopperLayerCount() : B_Cu+1;
+    int copperLayerCount = aSettings ? aSettings->GetCopperLayerCount() : 32;
 
     // We need to calculate a suitable dielectric layer thickness.
     // If no settings, and if aActiveCopperLayersCount is given, use it
@@ -578,7 +638,7 @@ void BOARD_STACKUP::BuildDefaultStackupList( const BOARD_DESIGN_SETTINGS* aSetti
                          ( BOARD_STACKUP_ITEM::GetCopperDefaultThickness() * activeCuLayerCount );
 
     // Take in account the solder mask thickness:
-    int sm_count = ( enabledLayer & LSET( 2, F_Mask, B_Mask) ).count();
+    int sm_count = ( enabledLayer & LSET( { F_Mask, B_Mask } ) ).count();
     diel_thickness -= BOARD_STACKUP_ITEM::GetMaskDefaultThickness() * sm_count;
     diel_thickness /= std::max( 1, activeCuLayerCount - 1 );
 
@@ -610,18 +670,15 @@ void BOARD_STACKUP::BuildDefaultStackupList( const BOARD_DESIGN_SETTINGS* aSetti
     }
 
     // Add copper and dielectric layers
-    for( int ii = 0; ii < copperLayerCount; ii++ )
+    for( PCB_LAYER_ID layer : enabledLayer.CuStack() )
     {
         BOARD_STACKUP_ITEM* item = new BOARD_STACKUP_ITEM( BS_ITEM_TYPE_COPPER );
-        item->SetBrdLayerId( ( PCB_LAYER_ID )ii );
+        item->SetBrdLayerId( layer );
         item->SetTypeName( KEY_COPPER );
         Add( item );
 
-        if( ii == copperLayerCount-1 )
-        {
-            item->SetBrdLayerId( B_Cu );
+        if( layer == B_Cu )
             break;
-        }
 
         // Add the dielectric layer:
         item = new BOARD_STACKUP_ITEM( BS_ITEM_TYPE_DIELECTRIC );
@@ -682,16 +739,14 @@ void BOARD_STACKUP::BuildDefaultStackupList( const BOARD_DESIGN_SETTINGS* aSetti
 }
 
 
-void BOARD_STACKUP::FormatBoardStackup( OUTPUTFORMATTER* aFormatter,
-                                        const BOARD* aBoard, int aNestLevel ) const
+void BOARD_STACKUP::FormatBoardStackup( OUTPUTFORMATTER* aFormatter, const BOARD* aBoard ) const
 {
     // Board stackup is the ordered list from top to bottom of
     // physical layers and substrate used to build the board.
     if( m_list.empty() )
         return;
 
-    aFormatter->Print( aNestLevel, "(stackup\n" );
-    int nest_level = aNestLevel+1;
+    aFormatter->Print( "(stackup" );
 
     // Note:
     // Unspecified parameters are not stored in file.
@@ -704,73 +759,71 @@ void BOARD_STACKUP::FormatBoardStackup( OUTPUTFORMATTER* aFormatter,
         else
             layer_name = LSET::Name( item->GetBrdLayerId() );
 
-        aFormatter->Print( nest_level, "(layer %s (type %s)",
+        aFormatter->Print( "(layer %s (type %s)",
                            aFormatter->Quotew( layer_name ).c_str(),
                            aFormatter->Quotew( item->GetTypeName() ).c_str() );
 
-        // Output other parameters ( in sub layer list there is at least one item)
+        // Output other parameters (in sub layer list there is at least one item)
         for( int idx = 0; idx < item->GetSublayersCount(); idx++ )
         {
             if( idx )    // not for the main (first) layer.
-            {
-                aFormatter->Print( 0, "\n" );
-                aFormatter->Print( nest_level+1, "addsublayer" );
-            }
+                aFormatter->Print( " addsublayer" );
 
             if( item->IsColorEditable() && IsPrmSpecified( item->GetColor( idx ) ) )
             {
-                aFormatter->Print( 0, " (color %s)",
+                aFormatter->Print( "(color %s)",
                                    aFormatter->Quotew( item->GetColor( idx ) ).c_str() );
             }
 
             if( item->IsThicknessEditable() )
             {
+                aFormatter->Print( "(thickness %s",
+                                   EDA_UNIT_UTILS::FormatInternalUnits( pcbIUScale, item->GetThickness( idx ) ).c_str() );
+
                 if( item->GetType() == BS_ITEM_TYPE_DIELECTRIC && item->IsThicknessLocked( idx ) )
-                    aFormatter->Print( 0, " (thickness %s locked)",
-                                       EDA_UNIT_UTILS::FormatInternalUnits( pcbIUScale, item->GetThickness( idx ) ).c_str() );
-                else
-                    aFormatter->Print( 0, " (thickness %s)",
-                                       EDA_UNIT_UTILS::FormatInternalUnits( pcbIUScale, item->GetThickness( idx ) ).c_str() );
+                    aFormatter->Print( " locked" );
+
+                aFormatter->Print( ")" );
             }
 
             if( item->HasMaterialValue( idx ) )
-                aFormatter->Print( 0, " (material %s)",
+            {
+                aFormatter->Print( "(material %s)",
                                    aFormatter->Quotew( item->GetMaterial( idx ) ).c_str() );
+            }
 
             if( item->HasEpsilonRValue() && item->HasMaterialValue( idx ) )
-                aFormatter->Print( 0, " (epsilon_r %g)", item->GetEpsilonR( idx ) );
+                aFormatter->Print( "(epsilon_r %g)", item->GetEpsilonR( idx ) );
 
             if( item->HasLossTangentValue() && item->HasMaterialValue( idx ) )
-                aFormatter->Print( 0, " (loss_tangent %s)",
+            {
+                aFormatter->Print( "(loss_tangent %s)",
                                    FormatDouble2Str( item->GetLossTangent( idx ) ).c_str() );
+            }
         }
 
-        aFormatter->Print( 0, ")\n" );
+        aFormatter->Print( ")" );
     }
 
     // Other infos about board, related to layers and other fabrication specifications
     if( IsPrmSpecified( m_FinishType ) )
-    {
-        aFormatter->Print( nest_level, "(copper_finish %s)\n",
-                           aFormatter->Quotew( m_FinishType ).c_str() );
-    }
+        aFormatter->Print( "(copper_finish %s)", aFormatter->Quotew( m_FinishType ).c_str() );
 
-    aFormatter->Print( nest_level, "(dielectric_constraints %s)\n",
-                       m_HasDielectricConstrains ? "yes" : "no" );
+    KICAD_FORMAT::FormatBool( aFormatter, "dielectric_constraints", m_HasDielectricConstrains );
 
     if( m_EdgeConnectorConstraints > 0 )
     {
-        aFormatter->Print( nest_level, "(edge_connector %s)\n",
+        aFormatter->Print( "(edge_connector %s)",
                            m_EdgeConnectorConstraints > 1 ? "bevelled": "yes" );
     }
 
     if( m_CastellatedPads )
-        aFormatter->Print( nest_level, "(castellated_pads yes)\n" );
+        KICAD_FORMAT::FormatBool( aFormatter, "castellated_pads", true );
 
     if( m_EdgePlating )
-        aFormatter->Print( nest_level, "(edge_plating yes)\n" );
+        KICAD_FORMAT::FormatBool( aFormatter, "edge_plating", true );
 
-    aFormatter->Print( aNestLevel, ")\n" );
+    aFormatter->Print( ")" );
 }
 
 
@@ -781,7 +834,8 @@ int BOARD_STACKUP::GetLayerDistance( PCB_LAYER_ID aFirstLayer, PCB_LAYER_ID aSec
     if( aFirstLayer == aSecondLayer )
         return 0;
 
-    if( aSecondLayer < aFirstLayer )
+    // B_Cu is always the last copper layer but doesn't have the last numerical value
+    if( aSecondLayer != B_Cu && ( aSecondLayer < aFirstLayer || aFirstLayer == B_Cu ) )
         std::swap( aFirstLayer, aSecondLayer );
 
     int total = 0;
@@ -797,7 +851,7 @@ int BOARD_STACKUP::GetLayerDistance( PCB_LAYER_ID aFirstLayer, PCB_LAYER_ID aSec
             continue;   // Silk/mask layer
 
         // Reached the start copper layer?  Start counting the next dielectric after it
-        if( !start && ( layer != UNDEFINED_LAYER && layer >= aFirstLayer ) )
+        if( !start && ( layer != UNDEFINED_LAYER && layer == aFirstLayer ) )
         {
             start = true;
             half = true;
@@ -806,7 +860,7 @@ int BOARD_STACKUP::GetLayerDistance( PCB_LAYER_ID aFirstLayer, PCB_LAYER_ID aSec
             continue;
 
         // Reached the stop copper layer?  we're done
-        if( start && ( layer != UNDEFINED_LAYER && layer >= aSecondLayer ) )
+        if( start && ( layer != UNDEFINED_LAYER && layer == aSecondLayer ) )
             half = true;
 
         for( int sublayer = 0; sublayer < item->GetSublayersCount(); sublayer++ )
@@ -817,7 +871,7 @@ int BOARD_STACKUP::GetLayerDistance( PCB_LAYER_ID aFirstLayer, PCB_LAYER_ID aSec
 
         half = false;
 
-        if( layer != UNDEFINED_LAYER && layer >= aSecondLayer )
+        if( layer != UNDEFINED_LAYER && layer == aSecondLayer )
             break;
     }
 

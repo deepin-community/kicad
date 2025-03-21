@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,21 +25,26 @@
  * Main file for the libcommon tests to be compiled
  */
 #include <boost/test/unit_test.hpp>
+#include <mock_pgm_base.h>
 
 #include <wx/image.h>
 #include <wx/init.h>
 
+#include <locale_io.h>
 
 bool init_unit_test()
 {
+    KI_TEST::SetMockConfigDir();
+    SetPgm( new MOCK_PGM_BASE() );
+
+    // Ensure the "C" locale is used in tests
+    LOCALE_IO dummy;
+
     boost::unit_test::framework::master_test_suite().p_name.value = "Common library module tests";
     bool ok = wxInitialize();
 
     if( ok )
-    {
-        // need these for library image functions
-        wxInitAllImageHandlers();
-    }
+        Pgm().InitPgm( true, true, true );
 
     return ok;
 }

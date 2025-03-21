@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 CERN
- * Copyright (C) 2021-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Jon Evans <jon@craftyjon.com>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -31,7 +31,7 @@
 
 
 ///! Update the schema version whenever a migration is required
-const int projectFileSchemaVersion = 1;
+const int projectFileSchemaVersion = 3;
 
 
 PROJECT_FILE::PROJECT_FILE( const wxString& aFullPath ) :
@@ -41,7 +41,8 @@ PROJECT_FILE::PROJECT_FILE( const wxString& aFullPath ) :
         m_BoardSettings(),
         m_sheets(),
         m_boards(),
-        m_project( nullptr )
+        m_project( nullptr ),
+        m_wasMigrated( false )
 {
     // Keep old files around
     m_deleteLegacyAfterMigration = false;
@@ -124,6 +125,8 @@ PROJECT_FILE::PROJECT_FILE( const wxString& aFullPath ) :
 
     m_params.emplace_back( new PARAM_VIEWPORT3D( "board.3dviewports", &m_Viewports3D ) );
 
+    m_params.emplace_back( new PARAM_LAYER_PAIRS( "board.layer_pairs", m_LayerPairInfos ) );
+
     m_params.emplace_back( new PARAM<wxString>( "board.ipc2581.internal_id",
             &m_IP2581Bom.id, wxEmptyString ) );
 
@@ -138,6 +141,45 @@ PROJECT_FILE::PROJECT_FILE( const wxString& aFullPath ) :
 
     m_params.emplace_back( new PARAM<wxString>( "board.ipc2581.dist",
             &m_IP2581Bom.dist, wxEmptyString ) );
+
+    registerMigration( 1, 2, std::bind( &PROJECT_FILE::migrateSchema1To2, this ) );
+    registerMigration( 2, 3, std::bind( &PROJECT_FILE::migrateSchema2To3, this ) );
+}
+
+
+bool PROJECT_FILE::migrateSchema1To2()
+{
+    auto p( "/board/layer_presets"_json_pointer );
+
+    if( !m_internals->contains( p ) || !m_internals->at( p ).is_array() )
+        return true;
+
+    nlohmann::json& presets = m_internals->at( p );
+
+    for( nlohmann::json& entry : presets )
+        PARAM_LAYER_PRESET::MigrateToV9Layers( entry );
+
+    m_wasMigrated = true;
+
+    return true;
+}
+
+
+bool PROJECT_FILE::migrateSchema2To3()
+{
+    auto p( "/board/layer_presets"_json_pointer );
+
+    if( !m_internals->contains( p ) || !m_internals->at( p ).is_array() )
+        return true;
+
+    nlohmann::json& presets = m_internals->at( p );
+
+    for( nlohmann::json& entry : presets )
+        PARAM_LAYER_PRESET::MigrateToNamedRenderLayers( entry );
+
+    m_wasMigrated = true;
+
+    return true;
 }
 
 
@@ -277,7 +319,7 @@ bool PROJECT_FILE::MigrateFromLegacy( wxConfigBase* aCfg )
 
     fromLegacy<int>( aCfg, "JunctionSize",             "schematic.drawing.default_junction_size" );
 
-    fromLegacyString(   aCfg, "FieldNameTemplates",    "schematic.drawing.field_names" );
+    fromLegacyString( aCfg, "FieldNameTemplates",    "schematic.drawing.field_names" );
 
     if( !fromLegacy<double>( aCfg, "TextOffsetRatio",  "schematic.drawing.text_offset_ratio" ) )
     {
@@ -369,7 +411,8 @@ bool PROJECT_FILE::MigrateFromLegacy( wxConfigBase* aCfg )
     fromLegacy<bool>( aCfg, "CopperTextUpright",  bp + "defaults.copper_text_upright" );
 
     if( !fromLegacy<double>( aCfg, "EdgeCutLineWidth", bp + "defaults.board_outline_line_width" ) )
-        fromLegacy<double>( aCfg, "BoardOutlineThickness", bp + "defaults.board_outline_line_width" );
+        fromLegacy<double>( aCfg, "BoardOutlineThickness",
+                            bp + "defaults.board_outline_line_width" );
 
     fromLegacy<double>( aCfg, "CourtyardLineWidth",   bp + "defaults.courtyard_line_width" );
 
@@ -588,7 +631,14 @@ bool PROJECT_FILE::SaveToFile( const wxString& aDirectory, bool aForce )
 
     Set( "meta.filename", m_project->GetProjectName() + "." + FILEEXT::ProjectFileExtension );
 
-    return JSON_SETTINGS::SaveToFile( aDirectory, aForce );
+    // Even if parameters were not modified, we should resave after migration
+    bool force = aForce || m_wasMigrated;
+
+    // If we're actually going ahead and doing the save, the flag that keeps code from doing the
+    // save should be cleared at this.
+    m_wasMigrated = false;
+
+    return JSON_SETTINGS::SaveToFile( aDirectory, force );
 }
 
 
@@ -629,6 +679,10 @@ bool PROJECT_FILE::SaveAs( const wxString& aDirectory, const wxString& aFile )
     updatePathByPtr( "schematic.plot_directory" );
     updatePathByPtr( "schematic.ngspice.workbook_filename" );
     updatePathByPtr( "pcbnew.page_layout_descr_file" );
+
+    // If we're actually going ahead and doing the save, the flag that keeps code from doing the save
+    // should be cleared at this point
+    m_wasMigrated = false;
 
     // While performing Save As, we have already checked that we can write to the directory
     // so don't carry the previous flag

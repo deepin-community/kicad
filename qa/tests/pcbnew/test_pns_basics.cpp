@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -53,9 +53,10 @@ static bool isCopper( const PNS::ITEM* aItem )
         // round NPTH with a hole size >= pad size are not on a copper layer
         // All other NPTH are seen on copper layers
         // This is a basic criteria, but probably enough for a NPTH
-        if( pad->GetShape() == PAD_SHAPE::CIRCLE )
+        // TODO(JE) padstacks
+        if( pad->GetShape( PADSTACK::ALL_LAYERS ) == PAD_SHAPE::CIRCLE )
         {
-            if( pad->GetSize().x <= pad->GetDrillSize().x )
+            if( pad->GetSize( PADSTACK::ALL_LAYERS ).x <= pad->GetDrillSize().x )
                 return false;
         }
 
@@ -100,7 +101,7 @@ public:
     {
         PNS::CONSTRAINT constraint;
         int             rv = 0;
-        LAYER_RANGE     layers;
+        PNS_LAYER_RANGE     layers;
 
         if( !aB )
             layers = aA->Layers();
@@ -112,7 +113,7 @@ public:
             layers = aA->Layers().Intersection( aB->Layers() );
 
         // Normalize layer range (no -1 magic numbers)
-        layers = layers.Intersection( LAYER_RANGE( PCBNEW_LAYER_ID_START, PCB_LAYER_ID_COUNT - 1 ) );
+        layers = layers.Intersection( PNS_LAYER_RANGE( PCBNEW_LAYER_ID_START, PCB_LAYER_ID_COUNT - 1 ) );
 
         for( int layer = layers.Start(); layer <= layers.End(); ++layer )
         {
@@ -288,7 +289,7 @@ public:
         m_testFixture( aFixture )
     {}
 
-    ~MOCK_PNS_KICAD_IFACE() {}
+    ~MOCK_PNS_KICAD_IFACE() override {}
 
     void HideItem( PNS::ITEM* aItem ) override {};
     void DisplayItem( const PNS::ITEM* aItem, int aClearance, bool aEdit = false,
@@ -327,19 +328,22 @@ static void dumpObstacles( const PNS::NODE::OBSTACLES &obstacles )
 {
     for( const PNS::OBSTACLE& obs : obstacles )
     {
-        printf( "%p [%s] - %p [%s], clearance %d\n",
+        BOOST_TEST_MESSAGE( wxString::Format( "%p [%s] - %p [%s], clearance %d",
                 obs.m_head, obs.m_head->KindStr().c_str(),
                 obs.m_item, obs.m_item->KindStr().c_str(),
-                obs.m_clearance );
+                obs.m_clearance ) );
     }
 }
 
 BOOST_FIXTURE_TEST_CASE( PNSHoleCollisions, PNS_TEST_FIXTURE )
 {
-    PNS::VIA* v1 = new PNS::VIA( VECTOR2I( 0, 1000000 ), LAYER_RANGE( F_Cu, B_Cu ), 50000, 10000 );
-    PNS::VIA* v2 = new PNS::VIA( VECTOR2I( 0, 2000000 ), LAYER_RANGE( F_Cu, B_Cu ), 50000, 10000 );
+    PNS::VIA* v1 = new PNS::VIA( VECTOR2I( 0, 1000000 ), PNS_LAYER_RANGE( F_Cu, B_Cu ), 50000, 10000 );
+    PNS::VIA* v2 = new PNS::VIA( VECTOR2I( 0, 2000000 ), PNS_LAYER_RANGE( F_Cu, B_Cu ), 50000, 10000 );
 
     std::unique_ptr<PNS::NODE> world ( new PNS::NODE );
+
+    v1->SetNet( (PNS::NET_HANDLE) 1 );
+    v2->SetNet( (PNS::NET_HANDLE) 2 );
 
     world->SetMaxClearance( 10000000 );
     world->SetRuleResolver( &m_ruleResolver );

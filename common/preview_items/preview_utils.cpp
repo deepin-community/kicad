@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -117,10 +117,13 @@ KIGFX::COLOR4D KIGFX::PREVIEW::GetShadowColor( const KIGFX::COLOR4D& aColor )
 
 void KIGFX::PREVIEW::DrawTextNextToCursor( KIGFX::VIEW* aView, const VECTOR2D& aCursorPos,
                                            const VECTOR2D& aTextQuadrant,
-                                           const std::vector<wxString>& aStrings,
+                                           const wxArrayString& aStrings,
                                            bool aDrawingDropShadows )
 {
     KIGFX::GAL*      gal = aView->GetGAL();
+
+    GAL_SCOPED_ATTRS settings( *gal, GAL_SCOPED_ATTRS::STROKE_FILL );
+
     KIFONT::FONT*    font = KIFONT::FONT::GetFont();
 
     // constant text size on screen

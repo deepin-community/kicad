@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -72,11 +72,9 @@ void SCH_JUNCTION::SwapData( SCH_ITEM* aItem )
 }
 
 
-void SCH_JUNCTION::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> SCH_JUNCTION::ViewGetLayers() const
 {
-    aCount     = 2;
-    aLayers[0] = m_layer;
-    aLayers[1] = LAYER_SELECTION_SHADOWS;
+    return { m_layer, LAYER_SELECTION_SHADOWS };
 }
 
 
@@ -113,7 +111,8 @@ const BOX2I SCH_JUNCTION::GetBoundingBox() const
 }
 
 
-void SCH_JUNCTION::Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset )
+void SCH_JUNCTION::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                          const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
 {
     wxDC*   DC    = aSettings->GetPrintDC();
     COLOR4D color = GetJunctionColor();
@@ -139,9 +138,9 @@ void SCH_JUNCTION::MirrorHorizontally( int aCenter )
 }
 
 
-void SCH_JUNCTION::Rotate( const VECTOR2I& aCenter )
+void SCH_JUNCTION::Rotate( const VECTOR2I& aCenter, bool aRotateCCW )
 {
-    RotatePoint( m_pos, aCenter, ANGLE_90 );
+    RotatePoint( m_pos, aCenter, aRotateCCW ? ANGLE_90 : ANGLE_270 );
 }
 
 
@@ -164,8 +163,8 @@ void SCH_JUNCTION::Show( int nestLevel, std::ostream& os ) const
     // XML output:
     wxString s = GetClass();
 
-    NestedSpace( nestLevel, os ) << '<' << s.Lower().mb_str() << m_pos << wxS( ", " ) << m_diameter
-                                 << wxS( "/>\n" );
+    NestedSpace( nestLevel, os ) << '<' << s.Lower().mb_str() << m_pos << ", " << m_diameter
+                                 << "/>\n";
 }
 #endif
 
@@ -253,8 +252,8 @@ bool SCH_JUNCTION::doIsConnected( const VECTOR2I& aPosition ) const
 }
 
 
-void SCH_JUNCTION::Plot( PLOTTER* aPlotter, bool aBackground,
-                         const SCH_PLOT_SETTINGS& aPlotSettings ) const
+void SCH_JUNCTION::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
+                         int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed )
 {
     if( aBackground )
         return;
@@ -318,7 +317,7 @@ void SCH_JUNCTION::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANE
         if( !conn->IsBus() )
         {
             aList.emplace_back( _( "Resolved Netclass" ),
-                                UnescapeString( GetEffectiveNetClass()->GetName() ) );
+                                UnescapeString( GetEffectiveNetClass()->GetHumanReadableName() ) );
         }
     }
 }

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mikolaj Wielgus
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,6 +44,21 @@ std::string SPICE_GENERATOR_SOURCE::ModelLine( const SPICE_ITEM& aItem ) const
     return "";
 }
 
+std::string SPICE_GENERATOR_SOURCE::TunerCommand( const SPICE_ITEM& aItem, double aValue ) const
+{
+    std::string result = "";
+
+    switch( aItem.model->GetType() )
+    {
+    case SIM_MODEL::TYPE::V: // VDC/IDC: it is clear which parameter should be used
+    case SIM_MODEL::TYPE::I:
+        result = fmt::format( "alter @{}={:g}", aItem.model->SpiceGenerator().ItemName( aItem ),
+                              aValue );
+        break;
+    default: break; // other sources: unclear which parameter the user wants
+    }
+    return result;
+}
 
 std::string SPICE_GENERATOR_SOURCE::ItemLine( const SPICE_ITEM& aItem ) const
 {
@@ -175,8 +190,10 @@ std::string SPICE_GENERATOR_SOURCE::ItemLine( const SPICE_ITEM& aItem ) const
             break;
 
         default:
-            for( const SIM_MODEL::PARAM& param : m_model.GetParams() )
+            for( int ii = 0; ii < m_model.GetParamCount(); ++ii )
             {
+                const SIM_MODEL::PARAM& param = m_model.GetParam( ii );
+
                 if( ac != "" && ( param.Matches( "ac" ) || param.Matches( "ph" ) ) )
                     continue;
 
@@ -1204,4 +1221,15 @@ std::vector<std::string> SIM_MODEL_SOURCE::GetPinNames() const
         return { "+", "-", "C+", "C-" };
     else
         return { "+", "-" };
+}
+
+const SIM_MODEL::PARAM* SIM_MODEL_SOURCE::GetTunerParam() const
+{
+    switch( GetType() )
+    {
+    case SIM_MODEL::TYPE::V: // VDC/IDC: it is clear which parameter should be used
+    case SIM_MODEL::TYPE::I: return &GetParam( 0 ); break;
+    default: break; // other sources: unclear which parameter the user wants
+    }
+    return nullptr;
 }

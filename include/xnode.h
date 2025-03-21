@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2010 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,8 +25,6 @@
 #ifndef XNODE_H_
 #define XNODE_H_
 
-#include <richio.h>
-
 // quiet the deprecated warnings with 3 lines:
 #include <wx/defs.h>
 #undef wxDEPRECATED
@@ -34,6 +32,7 @@
 
 #include <wx/xml/xml.h>
 
+class OUTPUTFORMATTER;
 
 /**
  * Hold an XML or S-expression element.

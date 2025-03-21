@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2010-2014 Jean-Pierre Charras  jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -43,7 +43,8 @@ static const wxChar* gerberPageSizeList[] =
 PANEL_GERBVIEW_DISPLAY_OPTIONS::PANEL_GERBVIEW_DISPLAY_OPTIONS( wxWindow* aParent ) :
     PANEL_GERBVIEW_DISPLAY_OPTIONS_BASE( aParent, wxID_ANY )
 {
-    GERBVIEW_SETTINGS* cfg = Pgm().GetSettingsManager().GetAppSettings<GERBVIEW_SETTINGS>();
+    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+    GERBVIEW_SETTINGS* cfg = mgr.GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" );
 
     m_galOptsPanel = new GAL_OPTIONS_PANEL( this, cfg );
     m_galOptionsSizer->Add( m_galOptsPanel, 0, wxEXPAND|wxRIGHT, 15 );
@@ -59,6 +60,7 @@ void PANEL_GERBVIEW_DISPLAY_OPTIONS::loadSettings( GERBVIEW_SETTINGS* aCfg )
     m_OptDisplayLines->SetValue( !aCfg->m_Display.m_DisplayLinesFill );
     m_OptDisplayFlashedItems->SetValue( !aCfg->m_Display.m_DisplayFlashedItemsFill );
     m_OptDisplayDCodes->SetValue( aCfg->m_Appearance.show_dcodes );
+    m_spOpacityCtrl->SetValue( aCfg->m_Display.m_OpacityModeAlphaValue );
 
     for( unsigned i = 0;  i < arrayDim( gerberPageSizeList );  ++i )
     {
@@ -77,7 +79,8 @@ bool PANEL_GERBVIEW_DISPLAY_OPTIONS::TransferDataToWindow()
 {
     m_galOptsPanel->TransferDataToWindow();
 
-    GERBVIEW_SETTINGS* cfg = Pgm().GetSettingsManager().GetAppSettings<GERBVIEW_SETTINGS>();
+    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+    GERBVIEW_SETTINGS* cfg = mgr.GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" );
 
     loadSettings( cfg );
 
@@ -87,7 +90,8 @@ bool PANEL_GERBVIEW_DISPLAY_OPTIONS::TransferDataToWindow()
 
 bool PANEL_GERBVIEW_DISPLAY_OPTIONS::TransferDataFromWindow()
 {
-    GERBVIEW_SETTINGS* cfg = Pgm().GetSettingsManager().GetAppSettings<GERBVIEW_SETTINGS>();
+    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+    GERBVIEW_SETTINGS* cfg = mgr.GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" );
 
     m_galOptsPanel->TransferDataFromWindow();
 
@@ -98,6 +102,7 @@ bool PANEL_GERBVIEW_DISPLAY_OPTIONS::TransferDataFromWindow()
 
     cfg->m_Appearance.page_type = gerberPageSizeList[ m_PageSize->GetSelection() ];
     cfg->m_Display.m_DisplayPageLimits = m_ShowPageLimitsOpt->GetValue();
+    cfg->m_Display.m_OpacityModeAlphaValue = m_spOpacityCtrl->GetValue();
 
     return true;
 }

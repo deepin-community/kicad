@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2015-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -91,6 +91,8 @@ public:
     // they are keywords in place file
     static std::string GetFrontSideName() { return std::string( "top" ); }
     static std::string GetBackSideName() { return std::string( "bottom" ); }
+
+    static wxString DecorateFilename( const wxString& aBaseName, bool aFront, bool aBack );
 
 private:
     BOARD*   m_board;

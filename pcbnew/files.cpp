@@ -4,7 +4,7 @@
  * Copyright (C) 2004-2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
  * Copyright (C) 2023 CERN (www.cern.ch)
- * Copyright (C) 2016-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,8 +27,9 @@
 #include <string>
 
 #include <confirm.h>
+#include <kidialog.h>
 #include <core/arraydim.h>
-#include <core/thread_pool.h>
+#include <thread_pool.h>
 #include <dialog_HTML_reporter_base.h>
 #include <gestfich.h>
 #include <pcb_edit_frame.h>
@@ -50,7 +51,6 @@
 #include <widgets/wx_infobar.h>
 #include <widgets/wx_progress_reporters.h>
 #include <settings/settings_manager.h>
-#include <string_utf8_map.h>
 #include <paths.h>
 #include <pgm_base.h>
 #include <project/project_file.h>
@@ -62,7 +62,9 @@
 #include <pcb_io/cadstar/pcb_io_cadstar_archive.h>
 #include <pcb_io/kicad_sexpr/pcb_io_kicad_sexpr.h>
 #include <dialogs/dialog_export_2581.h>
-#include <dialogs/dialog_imported_layers.h>
+#include <dialogs/dialog_map_layers.h>
+#include <dialogs/dialog_export_odbpp.h>
+#include <jobs/job_export_pcb_odb.h>
 #include <dialogs/dialog_import_choose_project.h>
 #include <tools/pcb_actions.h>
 #include "footprint_info_impl.h"
@@ -80,6 +82,7 @@
 #include <wx/txtstrm.h>
 #include <wx/wfstream.h>
 #include <wx/zipstrm.h>
+#include <wx/dir.h>
 
 #include "widgets/filedlg_hook_save_project.h"
 
@@ -115,7 +118,7 @@ bool AskLoadBoardFileName( PCB_EDIT_FRAME* aParent, wxString* aFileName, int aCt
 
         const IO_BASE::IO_FILE_DESC& desc = pi->GetBoardFileDesc();
 
-        if( desc.m_FileExtensions.empty() )
+        if( desc.m_FileExtensions.empty() || !desc.m_CanRead )
             continue;
 
         descriptions.emplace_back( desc );
@@ -304,7 +307,7 @@ bool PCB_EDIT_FRAME::Files_io_from_id( int id )
         wxFileName currfn = Prj().AbsolutePath( GetBoard()->GetFileName() );
         wxFileName fn = currfn;
 
-        wxString rec_name = GetAutoSaveFilePrefix() + fn.GetName();
+        wxString rec_name = FILEEXT::AutoSaveFilePrefix + fn.GetName();
         fn.SetName( rec_name );
 
         if( !fn.FileExists() )
@@ -386,6 +389,7 @@ bool PCB_EDIT_FRAME::Files_io_from_id( int id )
             return false;
 
         LoadProjectSettings();
+        LoadDrawingSheet();
 
         onBoardLoaded();
 
@@ -491,7 +495,7 @@ int PCB_EDIT_FRAME::inferLegacyEdgeClearance( BOARD* aBoard, bool aShowUserMsg )
         DisplayInfoMessage( this,
                             _( "If the zones on this board are refilled the Copper Edge "
                                "Clearance setting will be used (see Board Setup > Design "
-                               "Rules > Constraints).\nThis may result in different fills "
+                               "Rules > Constraints).\n This may result in different fills "
                                "from previous KiCad versions which used the line thicknesses "
                                "of the board boundary on the Edge Cuts layer." ) );
     }
@@ -524,10 +528,9 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
 
     if( !lock->Valid() && lock->IsLockedByMe() )
     {
-        // If we cannot acquire the lock but we appear to be the one who
-        // locked it, check to see if there is another KiCad instance running.
-        // If there is not, then we can override the lock.  This could happen if
-        // KiCad crashed or was interrupted
+        // If we cannot acquire the lock but we appear to be the one who locked it, check to
+        // see if there is another KiCad instance running.  If not, then we can override the
+        // lock.  This could happen if KiCad crashed or was interrupted.
 
         if( !Pgm().SingleInstance()->IsAnotherRunning() )
             lock->OverrideLock();
@@ -535,8 +538,10 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
 
     if( !lock->Valid() )
     {
-        msg.Printf( _( "PCB '%s' is already open by '%s' at '%s'." ), wx_filename.GetFullName(),
-                lock->GetUsername(), lock->GetHostname() );
+        msg.Printf( _( "PCB '%s' is already open by '%s' at '%s'." ),
+                    wx_filename.GetFullName(),
+                    lock->GetUsername(),
+                    lock->GetHostname() );
 
         if( !AskOverrideLock( this, msg ) )
             return false;
@@ -561,7 +566,7 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
 
     bool is_new = !wxFileName::IsFileReadable( fullFileName );
 
-    // If its a non-existent schematic and caller thinks it exists
+    // If its a non-existent PCB and caller thinks it exists
     if( is_new && !( aCtl & KICTL_CREATE ) )
     {
         // notify user that fullFileName does not exist, ask if user wants to create it.
@@ -586,7 +591,11 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
         pluginType = PCB_IO_MGR::FindPluginTypeFromBoardPath( fullFileName, aCtl );
 
     if( pluginType == PCB_IO_MGR::FILE_TYPE_NONE )
+    {
+        progressReporter.Hide();
+        DisplayErrorMessage( this, _( "File format is not supported" ), wxEmptyString );
         return false;
+    }
 
     bool converted =  pluginType != PCB_IO_MGR::LEGACY && pluginType != PCB_IO_MGR::KICAD_SEXP;
 
@@ -616,9 +625,9 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
         mgr->LoadProject( pro.GetFullPath() );
 
         // Do not allow saving a project if one doesn't exist.  This normally happens if we are
-        // standalone and opening a board that has been moved from its project folder.
-        // For converted projects, we don't want to set the read-only flag because we want a project
-        // to be saved for the new file in case things like netclasses got migrated.
+        // opening a board that has been moved from its project folder.
+        // For converted projects, we don't want to set the read-only flag because we want a
+        // project to be saved for the new file in case things like netclasses got migrated.
         Prj().SetReadOnly( !pro.Exists() && !converted );
     }
 
@@ -639,21 +648,17 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
         BOARD*              loadedBoard = nullptr;   // it will be set to non-NULL if loaded OK
         IO_RELEASER<PCB_IO> pi( PCB_IO_MGR::PluginFind( pluginType ) );
 
-        LAYER_REMAPPABLE_PLUGIN* layerRemappableIO = dynamic_cast<LAYER_REMAPPABLE_PLUGIN*>( pi.get() );
-
-        if( layerRemappableIO )
+        if( LAYER_MAPPABLE_PLUGIN* mappable_pi = dynamic_cast<LAYER_MAPPABLE_PLUGIN*>( pi.get() ) )
         {
-            layerRemappableIO->RegisterLayerMappingCallback(
-                    std::bind( DIALOG_IMPORTED_LAYERS::GetMapModal, this, std::placeholders::_1 ) );
+            mappable_pi->RegisterCallback( std::bind( DIALOG_MAP_LAYERS::RunModal,
+                                                      this, std::placeholders::_1 ) );
         }
 
-        PROJECT_CHOOSER_PLUGIN* projectChooserIO = dynamic_cast<PROJECT_CHOOSER_PLUGIN*>( pi.get() );
-
-        if( projectChooserIO )
+        if( PROJECT_CHOOSER_PLUGIN* chooser_pi = dynamic_cast<PROJECT_CHOOSER_PLUGIN*>( pi.get() ) )
         {
-            projectChooserIO->RegisterChooseProjectCallback(
-                    std::bind( DIALOG_IMPORT_CHOOSE_PROJECT::GetSelectionsModal, this,
-                               std::placeholders::_1 ) );
+            chooser_pi->RegisterCallback( std::bind( DIALOG_IMPORT_CHOOSE_PROJECT::RunModal,
+                                                     this,
+                                                     std::placeholders::_1 ) );
         }
 
         if( ( aCtl & KICTL_REVERT ) )
@@ -677,7 +682,7 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
                 THROW_IO_ERROR( _( "File format is not supported" ) );
             }
 
-            STRING_UTF8_MAP props;
+            std::map<std::string, UTF8> props;
 
             if( m_importProperties )
                 props.insert( m_importProperties->begin(), m_importProperties->end() );
@@ -937,6 +942,7 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
 
     // Load project settings after setting up board; some of them depend on the nets list
     LoadProjectSettings();
+    LoadDrawingSheet();
 
     // Syncs the UI (appearance panel, etc) with the loaded board and project
     onBoardLoaded();
@@ -1094,7 +1100,7 @@ bool PCB_EDIT_FRAME::SavePcbFile( const wxString& aFileName, bool addToHistory,
     // Delete auto save file on successful save.
     wxFileName autoSaveFileName = pcbFileName;
 
-    autoSaveFileName.SetName( GetAutoSaveFilePrefix() + pcbFileName.GetName() );
+    autoSaveFileName.SetName( FILEEXT::AutoSaveFilePrefix + pcbFileName.GetName() );
 
     if( autoSaveFileName.FileExists() )
         wxRemoveFile( autoSaveFileName.GetFullPath() );
@@ -1116,14 +1122,17 @@ bool PCB_EDIT_FRAME::SavePcbFile( const wxString& aFileName, bool addToHistory,
 }
 
 
-bool PCB_EDIT_FRAME::SavePcbCopy( const wxString& aFileName, bool aCreateProject )
+bool PCB_EDIT_FRAME::SavePcbCopy( const wxString& aFileName, bool aCreateProject, bool aHeadless )
 {
     wxFileName pcbFileName( EnsureFileExtension( aFileName, FILEEXT::KiCadPcbFileExtension ) );
 
     if( !IsWritable( pcbFileName ) )
     {
-        DisplayError( this, wxString::Format( _( "Insufficient permissions to write file '%s'." ),
-                                              pcbFileName.GetFullPath() ) );
+        if( !aHeadless )
+        {
+            DisplayError( this, wxString::Format( _( "Insufficient permissions to write file '%s'." ),
+                                                  pcbFileName.GetFullPath() ) );
+        }
         return false;
     }
 
@@ -1143,9 +1152,12 @@ bool PCB_EDIT_FRAME::SavePcbCopy( const wxString& aFileName, bool aCreateProject
     }
     catch( const IO_ERROR& ioe )
     {
-        DisplayError( this, wxString::Format( _( "Error saving board file '%s'.\n%s" ),
-                                              pcbFileName.GetFullPath(),
-                                              ioe.What() ) );
+        if( !aHeadless )
+        {
+            DisplayError( this, wxString::Format( _( "Error saving board file '%s'.\n%s" ),
+                                                  pcbFileName.GetFullPath(),
+                                                  ioe.What() ) );
+        }
 
         return false;
     }
@@ -1165,14 +1177,17 @@ bool PCB_EDIT_FRAME::SavePcbCopy( const wxString& aFileName, bool aCreateProject
     if( aCreateProject && currentRules.FileExists() && !rulesFile.FileExists() )
         KiCopyFile( currentRules.GetFullPath(), rulesFile.GetFullPath(), msg );
 
-    if( !msg.IsEmpty() )
+    if( !msg.IsEmpty() && !aHeadless )
     {
         DisplayError( this, wxString::Format( _( "Error saving custom rules file '%s'." ),
                                               rulesFile.GetFullPath() ) );
     }
 
-    DisplayInfoMessage( this, wxString::Format( _( "Board copied to:\n%s" ),
-                                                pcbFileName.GetFullPath() ) );
+    if( !aHeadless )
+    {
+        DisplayInfoMessage( this, wxString::Format( _( "Board copied to:\n%s" ),
+                                                    pcbFileName.GetFullPath() ) );
+    }
 
     return true;
 }
@@ -1202,7 +1217,7 @@ bool PCB_EDIT_FRAME::doAutoSave()
     wxFileName autoSaveFileName = tmpFileName;
 
     // Auto save file name is the board file name prepended with autosaveFilePrefix string.
-    autoSaveFileName.SetName( GetAutoSaveFilePrefix() + autoSaveFileName.GetName() );
+    autoSaveFileName.SetName( FILEEXT::AutoSaveFilePrefix + autoSaveFileName.GetName() );
 
     if( !autoSaveFileName.IsOk() )
         return false;
@@ -1248,7 +1263,7 @@ bool PCB_EDIT_FRAME::doAutoSave()
 
 
 bool PCB_EDIT_FRAME::importFile( const wxString& aFileName, int aFileType,
-                                 const STRING_UTF8_MAP* aProperties )
+                                 const std::map<std::string, UTF8>* aProperties )
 {
     m_importProperties = aProperties;
 
@@ -1301,7 +1316,7 @@ void PCB_EDIT_FRAME::GenIPC2581File( wxCommandEvent& event )
     wxString   upperTxt;
     wxString   lowerTxt;
     WX_PROGRESS_REPORTER reporter( this, _( "Generating IPC2581 file" ), 5 );
-    STRING_UTF8_MAP props;
+    std::map<std::string, UTF8> props;
 
     props["units"] = dlg.GetUnitsString();
     props["sigfig"] = dlg.GetPrecision();
@@ -1312,30 +1327,31 @@ void PCB_EDIT_FRAME::GenIPC2581File( wxCommandEvent& event )
     props["dist"] = dlg.GetDist();
     props["distpn"] = dlg.GetDistPN();
 
-    auto saveFile = [&]() -> bool
-    {
-        try
-        {
-            IO_RELEASER<PCB_IO> pi( PCB_IO_MGR::PluginFind( PCB_IO_MGR::IPC2581 ) );
-            pi->SetProgressReporter( &reporter );
-            pi->SaveBoard( tempFile, GetBoard(), &props );
-            return true;
-        }
-        catch( const IO_ERROR& ioe )
-        {
-            DisplayError( this, wxString::Format( _( "Error generating IPC2581 file '%s'.\n%s" ),
-                                                  pcbFileName.GetFullPath(), ioe.What() ) );
+    auto saveFile =
+            [&]() -> bool
+            {
+                try
+                {
+                    IO_RELEASER<PCB_IO> pi( PCB_IO_MGR::PluginFind( PCB_IO_MGR::IPC2581 ) );
+                    pi->SetProgressReporter( &reporter );
+                    pi->SaveBoard( tempFile, GetBoard(), &props );
+                    return true;
+                }
+                catch( const IO_ERROR& ioe )
+                {
+                    DisplayError( this, wxString::Format( _( "Error generating IPC2581 file '%s'.\n%s" ),
+                                                          pcbFileName.GetFullPath(), ioe.What() ) );
 
-            lowerTxt.Printf( _( "Failed to create temporary file '%s'." ), tempFile );
+                    lowerTxt.Printf( _( "Failed to create temporary file '%s'." ), tempFile );
 
-            SetMsgPanel( upperTxt, lowerTxt );
+                    SetMsgPanel( upperTxt, lowerTxt );
 
-            // In case we started a file but didn't fully write it, clean up
-            wxRemoveFile( tempFile );
+                    // In case we started a file but didn't fully write it, clean up
+                    wxRemoveFile( tempFile );
 
-            return false;
-        }
-    };
+                    return false;
+                }
+            };
 
     thread_pool& tp = GetKiCadThreadPool();
     auto ret = tp.submit( saveFile );
@@ -1354,7 +1370,7 @@ void PCB_EDIT_FRAME::GenIPC2581File( wxCommandEvent& event )
         if( !ret.get() )
             return;
     }
-    catch(const std::exception& e)
+    catch( const std::exception& e )
     {
         wxLogError( "Exception in IPC2581 generation: %s", e.what() );
         GetScreen()->SetContentModified( false );
@@ -1371,14 +1387,14 @@ void PCB_EDIT_FRAME::GenIPC2581File( wxCommandEvent& event )
         wxFileName zipfn = tempFile;
         zipfn.SetExt( "zip" );
 
-        wxFFileOutputStream fnout( zipfn.GetFullPath() );
-        wxZipOutputStream zip( fnout );
-        wxFFileInputStream fnin( tempFile );
+        {
+            wxFFileOutputStream fnout( zipfn.GetFullPath() );
+            wxZipOutputStream   zip( fnout );
+            wxFFileInputStream  fnin( tempFile );
 
-        zip.PutNextEntry( tempfn.GetFullName() );
-        fnin.Read( zip );
-        zip.Close();
-        fnout.Close();
+            zip.PutNextEntry( tempfn.GetFullName() );
+            fnin.Read( zip );
+        }
 
         wxRemoveFile( tempFile );
         tempFile = zipfn.GetFullPath();
@@ -1399,4 +1415,31 @@ void PCB_EDIT_FRAME::GenIPC2581File( wxCommandEvent& event )
     }
 
     GetScreen()->SetContentModified( false );
+}
+
+
+void PCB_EDIT_FRAME::GenODBPPFiles( wxCommandEvent& event )
+{
+    DIALOG_EXPORT_ODBPP dlg( this );
+
+    if( dlg.ShowModal() != wxID_OK )
+        return;
+
+    JOB_EXPORT_PCB_ODB job;
+
+    job.SetConfiguredOutputPath( dlg.GetOutputPath() );
+    job.m_filename = GetBoard()->GetFileName();
+    job.m_compressionMode = static_cast<JOB_EXPORT_PCB_ODB::ODB_COMPRESSION>( dlg.GetCompressFormat() );
+
+    job.m_precision = dlg.GetPrecision();
+    job.m_units = dlg.GetUnitsString() == "mm" ? JOB_EXPORT_PCB_ODB::ODB_UNITS::MILLIMETERS
+                                               : JOB_EXPORT_PCB_ODB::ODB_UNITS::INCHES;
+
+    WX_PROGRESS_REPORTER progressReporter( this, _( "Generating ODB++ output files" ), 3, false );
+    WX_STRING_REPORTER reporter;
+
+    DIALOG_EXPORT_ODBPP::GenerateODBPPFiles( job, GetBoard(), this, &progressReporter, &reporter );
+
+    if( reporter.HasMessage() )
+        DisplayError( this, reporter.GetMessages() );
 }

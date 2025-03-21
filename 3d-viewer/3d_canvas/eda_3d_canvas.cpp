@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015-2016 Mario Luzeiro <mrluzeiro@ua.pt>
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,7 +29,7 @@
 #include "../common_ogl/ogl_utils.h"
 #include "eda_3d_canvas.h"
 #include <eda_3d_viewer_frame.h>
-#include <3d_rendering/raytracing/render_3d_raytrace.h>
+#include <3d_rendering/raytracing/render_3d_raytrace_gl.h>
 #include <3d_rendering/opengl/render_3d_opengl.h>
 #include <3d_viewer_id.h>
 #include <advanced_config.h>
@@ -73,6 +73,11 @@ BEGIN_EVENT_TABLE( EDA_3D_CANVAS, HIDPI_GL_3D_CANVAS )
     EVT_MOTION( EDA_3D_CANVAS::OnMouseMove )
     EVT_MAGNIFY( EDA_3D_CANVAS::OnMagnify )
 
+    // touch gesture events
+    EVT_GESTURE_ZOOM( wxID_ANY, EDA_3D_CANVAS::OnZoomGesture )
+    EVT_GESTURE_PAN( wxID_ANY, EDA_3D_CANVAS::OnPanGesture )
+    EVT_GESTURE_ROTATE( wxID_ANY, EDA_3D_CANVAS::OnRotateGesture )
+
     // other events
     EVT_ERASE_BACKGROUND( EDA_3D_CANVAS::OnEraseBackground )
     EVT_CUSTOM(wxEVT_REFRESH_CUSTOM_COMMAND, ID_CUSTOM_EVENT_1, EDA_3D_CANVAS::OnRefreshRequest )
@@ -82,11 +87,11 @@ BEGIN_EVENT_TABLE( EDA_3D_CANVAS, HIDPI_GL_3D_CANVAS )
 END_EVENT_TABLE()
 
 
-EDA_3D_CANVAS::EDA_3D_CANVAS( wxWindow* aParent, const int* aAttribList,
+EDA_3D_CANVAS::EDA_3D_CANVAS( wxWindow* aParent, const wxGLAttributes& aGLAttribs,
                               BOARD_ADAPTER& aBoardAdapter, CAMERA& aCamera,
                               S3D_CACHE* a3DCachePointer ) :
-        HIDPI_GL_3D_CANVAS( EDA_DRAW_PANEL_GAL::GetVcSettings(), aCamera, aParent, wxID_ANY,
-                            aAttribList, wxDefaultPosition,
+        HIDPI_GL_3D_CANVAS( EDA_DRAW_PANEL_GAL::GetVcSettings(), aCamera, aParent, aGLAttribs,
+                            EDA_3D_CANVAS_ID, wxDefaultPosition,
                             wxDefaultSize, wxFULL_REPAINT_ON_RESIZE ),
         m_eventDispatcher( nullptr ),
         m_parentStatusBar( nullptr ),
@@ -120,7 +125,7 @@ EDA_3D_CANVAS::EDA_3D_CANVAS( wxWindow* aParent, const int* aAttribList,
 
     m_is_currently_painting.clear();
 
-    m_3d_render_raytracing = new RENDER_3D_RAYTRACE( this, m_boardAdapter, m_camera );
+    m_3d_render_raytracing = new RENDER_3D_RAYTRACE_GL( this, m_boardAdapter, m_camera );
     m_3d_render_opengl = new RENDER_3D_OPENGL( this, m_boardAdapter, m_camera );
 
     wxASSERT( m_3d_render_raytracing != nullptr );
@@ -143,6 +148,12 @@ EDA_3D_CANVAS::EDA_3D_CANVAS( wxWindow* aParent, const int* aAttribList,
 
     wxASSERT( a3DCachePointer != nullptr );
     m_boardAdapter.Set3dCacheManager( a3DCachePointer );
+
+#if defined( __WXMSW__ )
+    EnableTouchEvents( wxTOUCH_ZOOM_GESTURE | wxTOUCH_ROTATE_GESTURE | wxTOUCH_PAN_GESTURES );
+#elif defined( __WXGTK__ )
+    EnableTouchEvents( wxTOUCH_ZOOM_GESTURE | wxTOUCH_ROTATE_GESTURE );
+#endif
 
     const wxEventType events[] =
     {
@@ -178,7 +189,8 @@ void EDA_3D_CANVAS::releaseOpenGL()
 {
     if( m_glRC )
     {
-        GL_CONTEXT_MANAGER::Get().LockCtx( m_glRC, this );
+        GL_CONTEXT_MANAGER* gl_mgr = Pgm().GetGLContextManager();
+        gl_mgr->LockCtx( m_glRC, this );
 
         delete m_3d_render_raytracing;
         m_3d_render_raytracing = nullptr;
@@ -189,8 +201,8 @@ void EDA_3D_CANVAS::releaseOpenGL()
         // This is just a copy of a pointer, can safely be set to NULL.
         m_3d_render = nullptr;
 
-        GL_CONTEXT_MANAGER::Get().UnlockCtx( m_glRC );
-        GL_CONTEXT_MANAGER::Get().DestroyCtx( m_glRC );
+        gl_mgr->UnlockCtx( m_glRC );
+        gl_mgr->DestroyCtx( m_glRC );
         m_glRC = nullptr;
     }
 }
@@ -336,7 +348,8 @@ void EDA_3D_CANVAS::DisplayStatus()
         m_parentStatusBar->SetStatusText( msg, static_cast<int>( EDA_3D_VIEWER_STATUSBAR::Y_POS ) );
 
         msg.Printf( wxT( "zoom %3.2f" ), 1 / m_camera.GetZoom() );
-        m_parentStatusBar->SetStatusText( msg, static_cast<int>( EDA_3D_VIEWER_STATUSBAR::ZOOM_LEVEL ) );
+        m_parentStatusBar->SetStatusText( msg,
+                                          static_cast<int>( EDA_3D_VIEWER_STATUSBAR::ZOOM_LEVEL ) );
     }
 }
 
@@ -370,10 +383,11 @@ void EDA_3D_CANVAS::DoRePaint()
     if( !GetParent()->GetParent()->IsShownOnScreen() )
         return; // The parent board editor frame is no more alive
 
-    wxString           err_messages;
-    INFOBAR_REPORTER   warningReporter( m_parentInfoBar );
-    STATUSBAR_REPORTER activityReporter( m_parentStatusBar, EDA_3D_VIEWER_STATUSBAR::ACTIVITY );
-    int64_t            start_time = GetRunningMicroSecs();
+    wxString            err_messages;
+    INFOBAR_REPORTER    warningReporter( m_parentInfoBar );
+    STATUSBAR_REPORTER  activityReporter( m_parentStatusBar, EDA_3D_VIEWER_STATUSBAR::ACTIVITY );
+    int64_t             start_time = GetRunningMicroSecs();
+    GL_CONTEXT_MANAGER* gl_mgr = Pgm().GetGLContextManager();
 
     // "Makes the OpenGL state that is represented by the OpenGL rendering
     //  context context current, i.e. it will be used by all subsequent OpenGL calls.
@@ -381,7 +395,7 @@ void EDA_3D_CANVAS::DoRePaint()
 
     // Explicitly create a new rendering context instance for this canvas.
     if( m_glRC == nullptr )
-        m_glRC = GL_CONTEXT_MANAGER::Get().CreateCtx( this );
+        m_glRC = gl_mgr->CreateCtx( this );
 
     // CreateCtx could and does fail per sentry crash events, lets be graceful
     if( m_glRC == nullptr )
@@ -392,7 +406,7 @@ void EDA_3D_CANVAS::DoRePaint()
         return;
     }
 
-    GL_CONTEXT_MANAGER::Get().LockCtx( m_glRC, this );
+    gl_mgr->LockCtx( m_glRC, this );
 
     // Set the OpenGL viewport according to the client size of this canvas.
     // This is done here rather than in a wxSizeEvent handler because our
@@ -409,7 +423,7 @@ void EDA_3D_CANVAS::DoRePaint()
     {
         if( !initializeOpenGL() )
         {
-            GL_CONTEXT_MANAGER::Get().UnlockCtx( m_glRC );
+            gl_mgr->UnlockCtx( m_glRC );
             m_is_currently_painting.clear();
 
             return;
@@ -431,7 +445,7 @@ void EDA_3D_CANVAS::DoRePaint()
 
         SwapBuffers();
 
-        GL_CONTEXT_MANAGER::Get().UnlockCtx( m_glRC );
+        gl_mgr->UnlockCtx( m_glRC );
         m_is_currently_painting.clear();
 
         return;
@@ -466,7 +480,7 @@ void EDA_3D_CANVAS::DoRePaint()
     if( m_camera_is_moving )
     {
         const int64_t curtime_delta = GetRunningMicroSecs() - m_strtime_camera_movement;
-        curtime_delta_s = (curtime_delta / 1e6) * m_camera_moving_speed;
+        curtime_delta_s = ( curtime_delta / 1e6 ) * m_camera_moving_speed;
         m_camera.Interpolate( curtime_delta_s );
 
         if( curtime_delta_s > 1.0f )
@@ -519,7 +533,7 @@ void EDA_3D_CANVAS::DoRePaint()
             m_is_opengl_version_supported = false;
             m_opengl_supports_raytracing  = false;
             m_is_opengl_initialized       = false;
-            GL_CONTEXT_MANAGER::Get().UnlockCtx( m_glRC );
+            gl_mgr->UnlockCtx( m_glRC );
             m_is_currently_painting.clear();
             return;
         }
@@ -544,7 +558,7 @@ void EDA_3D_CANVAS::DoRePaint()
     //  commands is displayed on the window."
     SwapBuffers();
 
-    GL_CONTEXT_MANAGER::Get().UnlockCtx( m_glRC );
+    gl_mgr->UnlockCtx( m_glRC );
 
     if( m_mouse_was_moved || m_camera_is_moving )
     {
@@ -631,6 +645,75 @@ void EDA_3D_CANVAS::OnMagnify( wxMouseEvent& event )
 }
 
 
+void EDA_3D_CANVAS::OnZoomGesture( wxZoomGestureEvent& aEvent )
+{
+    SetFocus();
+
+    if( aEvent.IsGestureStart() )
+    {
+        m_gestureLastZoomFactor = 1.0;
+        m_camera.SetCurMousePosition( aEvent.GetPosition() );
+    }
+
+    if( m_camera_is_moving )
+        return;
+
+    restart_editingTimeOut_Timer();
+
+    m_camera.Pan( aEvent.GetPosition() );
+    m_camera.SetCurMousePosition( aEvent.GetPosition() );
+
+    m_camera.Zoom( aEvent.GetZoomFactor() / m_gestureLastZoomFactor );
+
+    m_gestureLastZoomFactor = aEvent.GetZoomFactor();
+
+    DisplayStatus();
+    Request_refresh();
+}
+
+
+void EDA_3D_CANVAS::OnPanGesture( wxPanGestureEvent& aEvent )
+{
+    SetFocus();
+
+    if( aEvent.IsGestureStart() )
+        m_camera.SetCurMousePosition( aEvent.GetPosition() );
+
+    if( m_camera_is_moving )
+        return;
+
+    m_camera.Pan( aEvent.GetPosition() );
+    m_camera.SetCurMousePosition( aEvent.GetPosition() );
+
+    DisplayStatus();
+    Request_refresh();
+}
+
+
+void EDA_3D_CANVAS::OnRotateGesture( wxRotateGestureEvent& aEvent )
+{
+    SetFocus();
+
+    if( aEvent.IsGestureStart() )
+    {
+        m_gestureLastAngle = 0;
+        m_camera.SetCurMousePosition( aEvent.GetPosition() );
+
+        // We don't want to process the first angle
+        return;
+    }
+
+    if( m_camera_is_moving )
+        return;
+
+    m_camera.RotateScreen( m_gestureLastAngle - aEvent.GetRotationAngle() );
+    m_gestureLastAngle = aEvent.GetRotationAngle();
+
+    DisplayStatus();
+    Request_refresh();
+}
+
+
 void EDA_3D_CANVAS::OnMouseMove( wxMouseEvent& event )
 {
     if( m_3d_render && m_3d_render->IsReloadRequestPending() )
@@ -655,13 +738,11 @@ void EDA_3D_CANVAS::OnMouseMove( wxMouseEvent& event )
         RAY                mouseRay = getRayAtCurrentMousePosition();
         BOARD_ITEM*        rollOverItem = m_3d_render_raytracing->IntersectBoardItem( mouseRay );
 
-        auto printNetInfo =
-                []( BOARD_CONNECTED_ITEM* aItem )
-                {
-                    return wxString::Format( _( "Net %s\tNet class %s" ),
-                                             aItem->GetNet()->GetNetname(),
-                                             aItem->GetNet()->GetNetClass()->GetName() );
-                };
+        auto printNetInfo = []( BOARD_CONNECTED_ITEM* aItem )
+        {
+            return wxString::Format( _( "Net %s\tNet class %s" ), aItem->GetNet()->GetNetname(),
+                                     aItem->GetNet()->GetNetClass()->GetHumanReadableName() );
+        };
 
         if( rollOverItem )
         {
@@ -988,64 +1069,22 @@ bool EDA_3D_CANVAS::SetView3D( VIEW3D_TYPE aRequestedView )
         return true;
 
     case VIEW3D_TYPE::VIEW3D_RIGHT:
-        m_camera.SetInterpolateMode( CAMERA_INTERPOLATION::BEZIER );
-        m_camera.SetT0_and_T1_current_T();
-        m_camera.Reset_T1();
-        m_camera.RotateZ_T1( glm::radians( -90.0f ) );
-        m_camera.RotateX_T1( glm::radians( -90.0f ) );
-        request_start_moving_camera();
-        return true;
-
     case VIEW3D_TYPE::VIEW3D_LEFT:
-        m_camera.SetInterpolateMode( CAMERA_INTERPOLATION::BEZIER );
-        m_camera.SetT0_and_T1_current_T();
-        m_camera.Reset_T1();
-        m_camera.RotateZ_T1( glm::radians(  90.0f ) );
-        m_camera.RotateX_T1( glm::radians( -90.0f ) );
-        request_start_moving_camera();
-        return true;
-
     case VIEW3D_TYPE::VIEW3D_FRONT:
-        m_camera.SetInterpolateMode( CAMERA_INTERPOLATION::BEZIER );
-        m_camera.SetT0_and_T1_current_T();
-        m_camera.Reset_T1();
-        m_camera.RotateX_T1( glm::radians( -90.0f ) );
-        request_start_moving_camera();
-        return true;
-
     case VIEW3D_TYPE::VIEW3D_BACK:
+    case VIEW3D_TYPE::VIEW3D_FLIP:
         m_camera.SetInterpolateMode( CAMERA_INTERPOLATION::BEZIER );
         m_camera.SetT0_and_T1_current_T();
-        m_camera.Reset_T1();
-        m_camera.RotateX_T1( glm::radians( -90.0f ) );
-
-        // The rotation angle should be 180.
-        // We use 179.999 (180 - epsilon) to avoid a full 360 deg rotation when
-        // using 180 deg if the previous rotated position was already 180 deg
-        m_camera.RotateZ_T1( glm::radians( 179.999f ) );
+        m_camera.ViewCommand_T1( aRequestedView );
         request_start_moving_camera();
         return true;
 
     case VIEW3D_TYPE::VIEW3D_TOP:
-        m_camera.SetInterpolateMode( CAMERA_INTERPOLATION::BEZIER );
-        m_camera.SetT0_and_T1_current_T();
-        m_camera.Reset_T1();
-        request_start_moving_camera( glm::min( glm::max( m_camera.GetZoom(), 0.5f ), 1.125f ) );
-        return true;
-
     case VIEW3D_TYPE::VIEW3D_BOTTOM:
         m_camera.SetInterpolateMode( CAMERA_INTERPOLATION::BEZIER );
         m_camera.SetT0_and_T1_current_T();
-        m_camera.Reset_T1();
-        m_camera.RotateY_T1( glm::radians( 179.999f ) );    // Rotation = 180 - epsilon
+        m_camera.ViewCommand_T1( aRequestedView );
         request_start_moving_camera( glm::min( glm::max( m_camera.GetZoom(), 0.5f ), 1.125f ) );
-        return true;
-
-    case VIEW3D_TYPE::VIEW3D_FLIP:
-        m_camera.SetInterpolateMode( CAMERA_INTERPOLATION::BEZIER );
-        m_camera.SetT0_and_T1_current_T();
-        m_camera.RotateY_T1( glm::radians( 179.999f ) );
-        request_start_moving_camera();
         return true;
 
     default:
@@ -1057,7 +1096,7 @@ bool EDA_3D_CANVAS::SetView3D( VIEW3D_TYPE aRequestedView )
 void EDA_3D_CANVAS::RenderEngineChanged()
 {
     SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
-    EDA_3D_VIEWER_SETTINGS* cfg = mgr.GetAppSettings<EDA_3D_VIEWER_SETTINGS>();
+    EDA_3D_VIEWER_SETTINGS* cfg = mgr.GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
 
     switch( cfg->m_Render.engine )
     {

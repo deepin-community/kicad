@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,6 +23,7 @@
 #include <widgets/wx_panel.h>
 #include <widgets/paged_dialog.h>
 #include <widgets/wx_treebook.h>
+#include <widgets/ui_common.h>
 
 #include <wx/button.h>
 #include <wx/grid.h>
@@ -44,8 +45,9 @@ std::map<wxString, wxString> g_lastPage;
 std::map<wxString, wxString> g_lastParentPage;
 
 
-PAGED_DIALOG::PAGED_DIALOG( wxWindow* aParent, const wxString& aTitle, bool aShowReset, bool aShowOpenFolder,
-                            const wxString& aAuxiliaryAction, const wxSize& aInitialSize ) :
+PAGED_DIALOG::PAGED_DIALOG( wxWindow* aParent, const wxString& aTitle, bool aShowReset,
+                            bool aShowOpenFolder, const wxString& aAuxiliaryAction,
+                            const wxSize& aInitialSize ) :
         DIALOG_SHIM( aParent, wxID_ANY, aTitle, wxDefaultPosition, aInitialSize,
                      wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER ),
         m_auxiliaryButton( nullptr ),
@@ -91,7 +93,8 @@ PAGED_DIALOG::PAGED_DIALOG( wxWindow* aParent, const wxString& aTitle, bool aSho
 #else
         m_openPrefsDirButton = new wxButton( this, wxID_ANY, _( "Open Preferences Directory" ) );
 #endif
-        m_buttonsSizer->Add( m_openPrefsDirButton, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT | wxLEFT, 5 );
+        m_buttonsSizer->Add( m_openPrefsDirButton, 0,
+                             wxALIGN_CENTER_VERTICAL | wxRIGHT | wxLEFT, 5 );
     }
 
 
@@ -133,7 +136,8 @@ PAGED_DIALOG::PAGED_DIALOG( wxWindow* aParent, const wxString& aTitle, bool aSho
 
     if( m_openPrefsDirButton )
     {
-        m_openPrefsDirButton->Bind( wxEVT_COMMAND_BUTTON_CLICKED, &PAGED_DIALOG::onOpenPreferencesButton, this );
+        m_openPrefsDirButton->Bind( wxEVT_COMMAND_BUTTON_CLICKED,
+                                    &PAGED_DIALOG::onOpenPreferencesButton, this );
     }
 
     m_treebook->Bind( wxEVT_CHAR_HOOK, &PAGED_DIALOG::onCharHook, this );
@@ -203,7 +207,8 @@ PAGED_DIALOG::~PAGED_DIALOG()
 
     if( m_openPrefsDirButton )
     {
-        m_openPrefsDirButton->Unbind( wxEVT_COMMAND_BUTTON_CLICKED, &PAGED_DIALOG::onOpenPreferencesButton, this );
+        m_openPrefsDirButton->Unbind( wxEVT_COMMAND_BUTTON_CLICKED,
+                                      &PAGED_DIALOG::onOpenPreferencesButton, this );
     }
 
     m_treebook->Unbind( wxEVT_CHAR_HOOK, &PAGED_DIALOG::onCharHook, this );
@@ -333,8 +338,10 @@ void PAGED_DIALOG::UpdateResetButton( int aPage )
     {
         if( panel && ( panel->GetWindowStyle() & wxRESETTABLE ) )
         {
-            m_resetButton->SetLabel( wxString::Format( _( "Reset %s to Defaults" ),
-                                                       m_treebook->GetPageText( aPage ) ) );
+            wxString name = m_treebook->GetPageText( aPage );
+            name.Replace( wxT( "&" ), wxT( "&&" ) );
+
+            m_resetButton->SetLabel( wxString::Format( _( "Reset %s to Defaults" ), name ) );
             m_resetButton->SetToolTip( panel->GetHelpTextAtPoint( wxPoint( -INT_MAX, INT_MAX ),
                                                                   wxHelpEvent::Origin_Unknown ) );
             m_resetButton->Enable( true );

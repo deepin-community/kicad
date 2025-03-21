@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2016 CERN
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Janito V. Ferreira Filho
  *
  * This program is free software; you can redistribute it and/or
@@ -189,9 +189,25 @@ bool SVG_IMPORT_PLUGIN::Import()
 
         for( NSVGpath* path = shape->paths; path != nullptr; path = path->next )
         {
-            bool closed = path->closed || filled || rule == GRAPHICS_IMPORTER::PF_EVEN_ODD;
+            if( filled && !path->closed )
+            {
+                // KiCad doesn't support a single object representing a filled shape that is
+                // *not* closed so create a filled, closed shape for the fill, and an unfilled,
+                // open shape for the outline
+                static IMPORTED_STROKE noStroke( -1, LINE_STYLE::SOLID, COLOR4D::UNSPECIFIED );
+                DrawPath( path->pts, path->npts, true, noStroke, true, fillColor );
+                DrawPath( path->pts, path->npts, false, stroke, false, COLOR4D::UNSPECIFIED );
+            }
+            else
+            {
+                // Either the shape has fill and no stroke, so we implicitly close it (for no
+                // difference), or it's really closed.
+                // We could choose to import a not-filled, closed outline as splines to keep the
+                // original editability and control points, but currently we don't.
+                const bool closed = path->closed || filled;
 
-            DrawPath( path->pts, path->npts, closed, stroke, filled, fillColor );
+                DrawPath( path->pts, path->npts, closed, stroke, filled, fillColor );
+            }
         }
     }
 
@@ -252,24 +268,23 @@ BOX2D SVG_IMPORT_PLUGIN::GetImageBBox() const
 }
 
 
-void SVG_IMPORT_PLUGIN::DrawPath( const float* aPoints, int aNumPoints, bool aClosedPath,
-                                  const IMPORTED_STROKE& aStroke, bool aFilled,
-                                  const COLOR4D& aFillColor )
+static void GatherInterpolatedCubicBezierCurve( const float*           aPoints,
+                                                std::vector<VECTOR2D>& aGeneratedPoints )
 {
-    std::vector<VECTOR2D> collectedPathPoints;
+    auto start = getBezierPoint( aPoints, 0.0f );
+    auto end = getBezierPoint( aPoints, 1.0f );
+    auto segmentationThreshold = calculateBezierSegmentationThreshold( aPoints );
 
-    if( aNumPoints > 0 )
-        DrawCubicBezierPath( aPoints, aNumPoints, collectedPathPoints );
+    if( aGeneratedPoints.size() == 0 || aGeneratedPoints.back() != start )
+        aGeneratedPoints.push_back( start );
 
-    if( aClosedPath && collectedPathPoints.size() > 2 )
-        DrawPolygon( collectedPathPoints, aStroke, aFilled, aFillColor );
-    else
-        DrawLineSegments( collectedPathPoints, aStroke );
+    segmentBezierCurve( start, end, 0.0f, 0.5f, aPoints, segmentationThreshold, aGeneratedPoints );
+    aGeneratedPoints.push_back( end );
 }
 
 
-void SVG_IMPORT_PLUGIN::DrawCubicBezierPath( const float* aPoints, int aNumPoints,
-                                             std::vector<VECTOR2D>& aGeneratedPoints )
+static void GatherInterpolatedCubicBezierPath( const float* aPoints, int aNumPoints,
+                                               std::vector<VECTOR2D>& aGeneratedPoints )
 {
     const int    pointsPerSegment = 4;
     const int    curveSpecificPointsPerSegment = 3;
@@ -279,23 +294,66 @@ void SVG_IMPORT_PLUGIN::DrawCubicBezierPath( const float* aPoints, int aNumPoint
 
     while( remainingPoints >= pointsPerSegment )
     {
-        DrawCubicBezierCurve( currentPoints, aGeneratedPoints );
+        GatherInterpolatedCubicBezierCurve( currentPoints, aGeneratedPoints );
         currentPoints += curveSpecificCoordinatesPerSegment;
         remainingPoints -= curveSpecificPointsPerSegment;
     }
 }
 
 
-void SVG_IMPORT_PLUGIN::DrawCubicBezierCurve( const float*           aPoints,
-                                              std::vector<VECTOR2D>& aGeneratedPoints )
+void SVG_IMPORT_PLUGIN::DrawPath( const float* aPoints, int aNumPoints, bool aClosedPath,
+                                  const IMPORTED_STROKE& aStroke, bool aFilled,
+                                  const COLOR4D& aFillColor )
 {
-    auto start = getBezierPoint( aPoints, 0.0f );
-    auto end = getBezierPoint( aPoints, 1.0f );
-    auto segmentationThreshold = calculateBezierSegmentationThreshold( aPoints );
+    bool drewPolygon = false;
 
-    aGeneratedPoints.push_back( start );
-    segmentBezierCurve( start, end, 0.0f, 0.5f, aPoints, segmentationThreshold, aGeneratedPoints );
-    aGeneratedPoints.push_back( end );
+    if( aClosedPath )
+    {
+        // Closed paths are always polygons, which mean they need to be interpolated
+        std::vector<VECTOR2D> collectedPathPoints;
+
+        if( aNumPoints > 0 )
+            GatherInterpolatedCubicBezierPath( aPoints, aNumPoints, collectedPathPoints );
+
+        if( collectedPathPoints.size() > 2 )
+        {
+            DrawPolygon( collectedPathPoints, aStroke, aFilled, aFillColor );
+            drewPolygon = true;
+        }
+    }
+
+    if( !drewPolygon )
+    {
+        DrawSplinePath( aPoints, aNumPoints, aStroke );
+    }
+}
+
+
+void SVG_IMPORT_PLUGIN::DrawSplinePath( const float* aCoords, int aNumPoints,
+                                        const IMPORTED_STROKE& aStroke )
+{
+    // NanoSVG just gives us the points of the Bezier curves, so we have to
+    // decide whether to draw lines or splines based on the points we have.
+
+    const int    pointsPerSegment = 4;
+    const int    curveSpecificPointsPerSegment = 3;
+    const int    curveSpecificCoordinatesPerSegment = 2 * curveSpecificPointsPerSegment;
+    const float* currentCoords = aCoords;
+    int          remainingPoints = aNumPoints;
+
+    while( remainingPoints >= pointsPerSegment )
+    {
+        VECTOR2D start = getPoint( currentCoords );
+        VECTOR2D c1 = getPoint( currentCoords + 2 );
+        VECTOR2D c2 = getPoint( currentCoords + 4 );
+        VECTOR2D end = getPoint( currentCoords + 6 );
+
+        // Add as a spline and the importer will decide whether to draw it as a spline or as lines
+        m_internalImporter.AddSpline( start, c1, c2, end, aStroke );
+
+        currentCoords += curveSpecificCoordinatesPerSegment;
+        remainingPoints -= curveSpecificPointsPerSegment;
+    }
 }
 
 

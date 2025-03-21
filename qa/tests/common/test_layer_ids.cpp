@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,6 +20,8 @@
 
 #include <boost/test/unit_test.hpp>
 #include <layer_ids.h>
+#include <lset.h>
+#include <lseq.h>
 
 
 BOOST_AUTO_TEST_SUITE( LayerIds )
@@ -41,5 +43,28 @@ BOOST_AUTO_TEST_CASE( LseqTestLayers )
 }
 
 
-BOOST_AUTO_TEST_SUITE_END()
+BOOST_AUTO_TEST_CASE( CopperLayers )
+{
+    BOOST_TEST( IsCopperLayer( PCB_LAYER_ID::F_Cu ) );
+    BOOST_TEST( IsCopperLayer( PCB_LAYER_ID::B_Cu ) );
+    BOOST_TEST( IsCopperLayer( PCB_LAYER_ID::In1_Cu ) );
+    BOOST_TEST( !IsCopperLayer( PCB_LAYER_ID::UNSELECTED_LAYER ) );
+    BOOST_TEST( !IsCopperLayer( PCB_LAYER_ID::UNDEFINED_LAYER ) );
+    BOOST_TEST( !IsCopperLayer( PCB_LAYER_ID::F_SilkS ) );
+}
 
+
+BOOST_AUTO_TEST_CASE( FlipLset )
+{
+    LSET front( { F_Cu, In1_Cu, In2_Cu } );
+    LSET back( { B_Cu, In3_Cu, In4_Cu } );
+
+    front.Flip( 6 );
+    back.Flip( 6 );
+
+    BOOST_TEST( front.compare( LSET { B_Cu, In3_Cu, In4_Cu } ) == 0 );
+    BOOST_TEST( back.compare( LSET { F_Cu, In1_Cu, In2_Cu } ) == 0 );
+}
+
+
+BOOST_AUTO_TEST_SUITE_END()

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2004-2015 Jean-Pierre Charras
- * Copyright (C) 2004-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -90,9 +90,7 @@ void KICAD_MANAGER_FRAME::OnUnarchiveFiles( wxCommandEvent& event )
 
     STATUSBAR_REPORTER reporter( GetStatusBar(), 1 );
 
-    PROJECT_ARCHIVER archiver;
-
-    archiver.Unarchive( zipfiledlg.GetPath(), unzipDir, reporter );
+    PROJECT_ARCHIVER::Unarchive( zipfiledlg.GetPath(), unzipDir, reporter );
 
     if( unzipDir == Prj().GetProjectPath() )
     {

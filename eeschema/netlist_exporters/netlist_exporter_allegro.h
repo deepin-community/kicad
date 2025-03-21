@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1992-2013 jp.charras at wanadoo.fr
  * Copyright (C) 2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -67,13 +67,13 @@ public:
     static bool CompareSymbolRef( const wxString& aRefText1, const wxString& aRefText2 );
 
     /**
-     * Compare two LIB_PIN* variables.
+     * Compare two SCH_PIN* variables.
      *
      * @param aPin1
      * @param aPin2
      * @return bool value
      */
-    static bool CompareLibPin( const LIB_PIN* aPin1, const LIB_PIN* aPin2 );
+    static bool CompareLibPin( const SCH_PIN* aPin1, const SCH_PIN* aPin2 );
 
 private:
     void extractComponentsInfo();
@@ -132,7 +132,7 @@ private:
      * @param aPin
      * @return wxString
      */
-    wxString formatPin( const LIB_PIN& aPin );
+    wxString formatPin( const SCH_PIN& aPin );
 
     /**
      * Generate the definition of a function in Telesis format, which consists of
@@ -142,7 +142,7 @@ private:
      * @param aPinList
      * @return wxString
      */
-    wxString formatFunction( wxString aName, LIB_PINS aPinList );
+    wxString formatFunction( wxString aName, std::vector<SCH_PIN*> aPinList );
 
     /**
      * Look up a field for a component group, which may have mismatched case, or

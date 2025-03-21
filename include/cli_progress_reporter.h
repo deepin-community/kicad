@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,11 +26,12 @@
 
 #include <wx/string.h>
 #include <progress_reporter.h>
+#include <kicommon.h>
 
 /**
  * Reporter forwarding messages to stdout or stderr as appropriate
  */
-class CLI_PROGRESS_REPORTER : public PROGRESS_REPORTER
+class KICOMMON_API CLI_PROGRESS_REPORTER : public PROGRESS_REPORTER
 {
 public:
     CLI_PROGRESS_REPORTER() {}

@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2014 CERN
- * Copyright (C) 2016-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -42,6 +42,7 @@
 #include "pns_router.h"
 #include "pns_shove.h"
 #include "pns_dragger.h"
+#include "pns_multi_dragger.h"
 #include "pns_component_dragger.h"
 #include "pns_topology.h"
 #include "pns_diff_pair_placer.h"
@@ -134,7 +135,7 @@ const ITEM_SET ROUTER::QueryHoverItems( const VECTOR2I& aP, int aSlopRadius )
         COLLISION_SEARCH_OPTIONS opts;
 
         test.SetWidth( 1 );
-        test.SetLayers( LAYER_RANGE::All() );
+        test.SetLayers( PNS_LAYER_RANGE::All() );
 
         opts.m_differentNetsOnly = false;
         opts.m_overrideClearance = aSlopRadius;
@@ -155,12 +156,15 @@ const ITEM_SET ROUTER::QueryHoverItems( const VECTOR2I& aP, int aSlopRadius )
 
 bool ROUTER::StartDragging( const VECTOR2I& aP, ITEM* aItem, int aDragMode )
 {
+    m_leaderSegments.clear();
     return StartDragging( aP, ITEM_SET( aItem ), aDragMode );
 }
 
 
 bool ROUTER::StartDragging( const VECTOR2I& aP, ITEM_SET aStartItems, int aDragMode )
 {
+    m_leaderSegments.clear();
+
     if( aStartItems.Empty() )
         return false;
 
@@ -170,6 +174,12 @@ bool ROUTER::StartDragging( const VECTOR2I& aP, ITEM_SET aStartItems, int aDragM
     {
         m_dragger = std::make_unique<COMPONENT_DRAGGER>( this );
         m_state = DRAG_COMPONENT;
+    }
+    // more than 1 track segment or arc to drag? launch the multisegment dragger
+    else if( aStartItems.Count( ITEM::SEGMENT_T | ITEM::ARC_T ) > 1 )
+    {
+        m_dragger = std::make_unique<MULTI_DRAGGER>( this );
+        m_state = DRAG_SEGMENT;
     }
     else
     {
@@ -185,8 +195,13 @@ bool ROUTER::StartDragging( const VECTOR2I& aP, ITEM_SET aStartItems, int aDragM
     if( m_logger )
         m_logger->Clear();
 
-    if( m_logger && aStartItems.Size() )
-        m_logger->Log( LOGGER::EVT_START_DRAG, aP, aStartItems[0] );
+    if( m_logger )
+    {
+        if( aStartItems.Size() == 1 )
+            m_logger->Log( LOGGER::EVT_START_DRAG, aP, aStartItems[0] );
+        else if( aStartItems.Size() > 1 )
+            m_logger->LogM( LOGGER::EVT_START_MULTIDRAG, aP, aStartItems.Items() ); // fixme default args
+    }
 
     if( m_dragger->Start( aP, aStartItems ) )
     {
@@ -250,6 +265,9 @@ bool ROUTER::isStartingPointRoutable( const VECTOR2I& aWhere, ITEM* aStartItem, 
             case PCB_ZONE_T:
             {
                 ZONE* zone = static_cast<ZONE*>( parent );
+
+                if( !zone->HasKeepoutParametersSet() )
+                    break;
 
                 if( !zone->GetZoneName().IsEmpty() )
                 {
@@ -432,7 +450,7 @@ bool ROUTER::StartRouting( const VECTOR2I& aP, ITEM* aStartItem, int aLayer )
         if( m_logger )
         {
             m_logger->Clear();
-            m_logger->Log( LOGGER::EVT_START_ROUTE, aP, aStartItem, &m_sizes );
+            m_logger->Log( LOGGER::EVT_START_ROUTE, aP, aStartItem, &m_sizes, m_placer->CurrentLayer() );
         }
 
         return true;
@@ -471,7 +489,7 @@ bool ROUTER::Move( const VECTOR2I& aP, ITEM* endItem )
 }
 
 
-bool ROUTER::getNearestRatnestAnchor( VECTOR2I& aOtherEnd, LAYER_RANGE& aOtherEndLayers,
+bool ROUTER::getNearestRatnestAnchor( VECTOR2I& aOtherEnd, PNS_LAYER_RANGE& aOtherEndLayers,
                                       ITEM*& aOtherEndItem )
 {
     // Can't finish something with no connections
@@ -539,7 +557,7 @@ bool ROUTER::Finish()
 
     // Get our current line and position and nearest ratsnest to them if it exists
     VECTOR2I    otherEnd;
-    LAYER_RANGE otherEndLayers;
+    PNS_LAYER_RANGE otherEndLayers;
     ITEM*       otherEndItem = nullptr;
 
     // Get the anchor nearest to the end of the trace the user is routing
@@ -585,7 +603,7 @@ bool ROUTER::ContinueFromEnd( ITEM** aNewStartItem )
     int         currentLayer = GetCurrentLayer();
     VECTOR2I    currentEnd = placer->CurrentEnd();
     VECTOR2I    otherEnd;
-    LAYER_RANGE otherEndLayers;
+    PNS_LAYER_RANGE otherEndLayers;
     ITEM*       otherEndItem = nullptr;
 
     // Get the anchor nearest to the end of the trace the user is routing
@@ -615,6 +633,8 @@ bool ROUTER::moveDragging( const VECTOR2I& aP, ITEM* aEndItem )
 
     bool ret = m_dragger->Drag( aP );
     ITEM_SET dragged = m_dragger->Traces();
+
+    m_leaderSegments = m_dragger->GetLastCommittedLeaderSegments();
 
     updateView( m_dragger->CurrentNode(), dragged, true );
     return ret;
@@ -754,7 +774,7 @@ bool ROUTER::movePlacing( const VECTOR2I& aP, ITEM* aEndItem )
             if( via.HasHole() )
             {
                 int holeClearance = GetRuleResolver()->Clearance( via.Hole(), nullptr );
-                int annularWidth = std::max( 0, via.Diameter() - via.Drill() ) / 2;
+                int annularWidth = std::max( 0, via.Diameter( l->Layer() ) - via.Drill() ) / 2;
                 int excessHoleClearance = holeClearance - annularWidth;
 
                 if( excessHoleClearance > clearance )
@@ -879,6 +899,11 @@ bool ROUTER::FixRoute( const VECTOR2I& aP, ITEM* aEndItem, bool aForceFinish, bo
 
     return rv;
 }
+
+std::vector<PNS::ITEM*> ROUTER::GetLastCommittedLeaderSegments()
+{
+    return m_leaderSegments;
+};
 
 
 std::optional<VECTOR2I> ROUTER::UndoLastSegment()

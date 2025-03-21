@@ -2,7 +2,7 @@
     This file is part of libeval, a simple math expression evaluator
 
     Copyright (C) 2007 Michael Geselbracht, mgeselbracht3@gmail.com
-    Copyright (C) 2019-2020 KiCad Developers, see AUTHORS.txt for contributors.
+    Copyright The KiCad Developers, see AUTHORS.txt for contributors.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include <string>
 #include <stack>
 
+#include <kicommon.h>
 #include <base_units.h>
 #include <wx/intl.h>
 
@@ -69,7 +70,7 @@ enum COMPILATION_STAGE
     CST_RUNTIME
 };
 
-struct ERROR_STATUS
+struct KICOMMON_API  ERROR_STATUS
 {
     bool pendingError = false;
 
@@ -84,7 +85,8 @@ enum VAR_TYPE_T
     VT_STRING = 1,
     VT_NUMERIC,
     VT_UNDEFINED,
-    VT_PARSE_ERROR
+    VT_PARSE_ERROR,
+    VT_NULL
 };
 
 enum TOKEN_TYPE_T
@@ -107,7 +109,7 @@ class VAR_REF;
 
 typedef std::function<void( CONTEXT*, void* )> FUNC_CALL_REF;
 
-struct T_TOKEN_VALUE
+struct KICOMMON_API  T_TOKEN_VALUE
 {
     wxString* str;
     double    num;
@@ -118,7 +120,7 @@ struct T_TOKEN_VALUE
 constexpr T_TOKEN_VALUE defaultTokenValue = { nullptr, 0.0, 0 };
 
 
-struct T_TOKEN
+struct KICOMMON_API  T_TOKEN
 {
     int           token;
     T_TOKEN_VALUE value;
@@ -128,7 +130,7 @@ struct T_TOKEN
 constexpr T_TOKEN defaultToken = { TR_UNDEFINED, defaultTokenValue };
 
 
-class TREE_NODE
+class KICOMMON_API TREE_NODE
 {
 public:
     T_TOKEN_VALUE value;
@@ -151,7 +153,7 @@ public:
 TREE_NODE* newNode( LIBEVAL::COMPILER* compiler, int op,
                     const T_TOKEN_VALUE& value = defaultTokenValue );
 
-class UNIT_RESOLVER
+class KICOMMON_API UNIT_RESOLVER
 {
 public:
     UNIT_RESOLVER()
@@ -181,7 +183,7 @@ public:
 };
 
 
-class VALUE
+class KICOMMON_API VALUE
 {
 public:
     VALUE() :
@@ -208,6 +210,13 @@ public:
         m_isDeferredDbl( false ),
         m_isDeferredStr( false )
     {};
+
+    static VALUE* MakeNullValue()
+    {
+        VALUE* v = new VALUE();
+        v->m_type = VT_NULL;
+        return v;
+    }
 
     virtual ~VALUE()
     {};
@@ -289,7 +298,7 @@ private:
     std::function<wxString()> m_lambdaStr;
 };
 
-class VAR_REF
+class KICOMMON_API VAR_REF
 {
 public:
     VAR_REF() {};
@@ -300,7 +309,7 @@ public:
 };
 
 
-class CONTEXT
+class KICOMMON_API CONTEXT
 {
 public:
     CONTEXT() :
@@ -369,7 +378,7 @@ private:
 };
 
 
-class UCODE
+class KICOMMON_API UCODE
 {
 public:
     virtual ~UCODE();
@@ -398,7 +407,7 @@ protected:
 };
 
 
-class UOP
+class KICOMMON_API UOP
 {
 public:
     UOP( int op, std::unique_ptr<VALUE> value ) :
@@ -436,7 +445,7 @@ private:
     std::unique_ptr<VALUE>   m_value;
 };
 
-class TOKENIZER
+class KICOMMON_API TOKENIZER
 {
 public:
     void Restart( const wxString& aStr )
@@ -487,7 +496,7 @@ private:
 };
 
 
-class COMPILER
+class KICOMMON_API COMPILER
 {
 public:
     COMPILER();

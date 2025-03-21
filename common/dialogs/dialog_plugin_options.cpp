@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2013 CERN
- * Copyright (C) 2013-2023 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,12 +34,13 @@
 
 
 #define INITIAL_HELP    \
-    _(  "Select an <b>Option Choice</b> in the listbox above, and then click the <b>Append Selected Option</b> button." )
+    _(  "Select an <b>Option Choice</b> in the listbox above, and then click the " \
+        "<b>Append Selected Option</b> button." )
 
 
 DIALOG_PLUGIN_OPTIONS::DIALOG_PLUGIN_OPTIONS( wxWindow* aParent,
                         const wxString& aNickname,
-                        const STRING_UTF8_MAP& aPluginOptions,
+                        const std::map<std::string, UTF8>& aPluginOptions,
                         const wxString& aFormattedOptions,
                         wxString* aResult ) :
     DIALOG_PLUGIN_OPTIONS_BASE( aParent ),
@@ -64,8 +65,8 @@ DIALOG_PLUGIN_OPTIONS::DIALOG_PLUGIN_OPTIONS( wxWindow* aParent,
     {
         unsigned int row = 0;
 
-        for( STRING_UTF8_MAP::const_iterator it = m_choices.begin(); it != m_choices.end();
-                ++it, ++row )
+        for( std::map<std::string, UTF8>::const_iterator it = m_choices.begin();
+             it != m_choices.end(); ++it, ++row )
         {
             wxString item = From_UTF8( it->first.c_str() );
 
@@ -101,7 +102,7 @@ bool DIALOG_PLUGIN_OPTIONS::TransferDataToWindow()
     // Fill the grid with existing aOptions
     std::string options = TO_UTF8( m_callers_options );
 
-    STRING_UTF8_MAP* props = LIB_TABLE::ParseOptions( options );
+    std::map<std::string, UTF8>* props = LIB_TABLE::ParseOptions( options );
 
     if( props )
     {
@@ -110,7 +111,7 @@ bool DIALOG_PLUGIN_OPTIONS::TransferDataToWindow()
 
         int row = 0;
 
-        for( STRING_UTF8_MAP::const_iterator it = props->begin(); it != props->end();
+        for( std::map<std::string, UTF8>::const_iterator it = props->begin(); it != props->end();
                 ++it, ++row )
         {
             m_grid->SetCellValue( row, 0, From_UTF8( it->first.c_str() ) );
@@ -132,7 +133,7 @@ bool DIALOG_PLUGIN_OPTIONS::TransferDataFromWindow()
     if( !DIALOG_SHIM::TransferDataFromWindow() )
         return false;
 
-    STRING_UTF8_MAP props;
+    std::map<std::string, UTF8> props;
     const int   rowCount = m_grid->GetNumberRows();
 
     for( int row = 0;  row<rowCount;  ++row )
@@ -200,10 +201,9 @@ void DIALOG_PLUGIN_OPTIONS::onListBoxItemSelected( wxCommandEvent& event )
     if( event.IsSelection() )
     {
         std::string option = TO_UTF8( event.GetString() );
-        UTF8        help_text;
 
-        if( m_choices.Value( option.c_str(), &help_text ) )
-            m_html->SetPage( help_text );
+        if( auto it = m_choices.find( option ); it != m_choices.end() )
+            m_html->SetPage( it->second );
         else
             m_html->SetPage( m_initial_help );
     }

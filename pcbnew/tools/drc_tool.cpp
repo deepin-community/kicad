@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2022 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -172,13 +172,19 @@ void DRC_TOOL::RunTests( PROGRESS_REPORTER* aProgressReporter, bool aRefillZones
     m_drcEngine->SetProgressReporter( aProgressReporter );
 
     m_drcEngine->SetViolationHandler(
-            [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2I aPos, int aLayer )
+            [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2I aPos, int aLayer,
+                 DRC_CUSTOM_MARKER_HANDLER* aCustomHandler )
             {
                 PCB_MARKER* marker = new PCB_MARKER( aItem, aPos, aLayer );
+
+                if( aCustomHandler )
+                    ( *aCustomHandler )( marker );
+
                 commit.Add( marker );
             } );
 
-    m_drcEngine->RunTests( m_editFrame->GetUserUnits(), aReportAllTrackErrors, aTestFootprints );
+    m_drcEngine->RunTests( m_editFrame->GetUserUnits(), aReportAllTrackErrors, aTestFootprints,
+                           &commit );
 
     m_drcEngine->SetProgressReporter( nullptr );
     m_drcEngine->ClearViolationHandler();

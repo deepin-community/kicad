@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mikolaj Wielgus
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,11 +41,11 @@ public:
     virtual ~SPICE_LIBRARY_PARSER()
     {};
 
-    virtual void ReadFile( const wxString& aFilePath, REPORTER& aReporter );
+    virtual void ReadFile( const wxString& aFilePath, REPORTER& firstPass );
 
 protected:
-    void readFallbacks( const wxString& aFilePath, REPORTER& aReporter );
-    void parseFile( const wxString& aFilePath, REPORTER& aReporter );
+    void parseFile( const wxString& aFilePath, REPORTER& aReporter,
+                    std::vector<std::pair<std::string, std::string>>* aModelQueue );
 
 private:
     bool               m_forceFullParse;

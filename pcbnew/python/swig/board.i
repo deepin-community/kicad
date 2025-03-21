@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2012 NBEE Embedded Systems, Miguel Angel Ajo <miguelangel@nbee.es>
  * Copyright (C) 2016 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -59,6 +59,7 @@ HANDLE_EXCEPTIONS(BOARD::TracksInNetBetweenPoints)
 %include pcb_dimension.i
 %include pcb_marker.i
 %include pcb_target.i
+%include pcb_table.i
 %include netinfo.i
 %include netclass.i
 %include pcb_plot_params.i
@@ -154,7 +155,7 @@ HANDLE_EXCEPTIONS(BOARD::TracksInNetBetweenPoints)
         return SaveBoard(filename,self)
 
     def GetNetClasses(self):
-        return self.GetDesignSettings().m_NetSettings.m_NetClasses
+        return self.GetDesignSettings().m_NetSettings.GetNetclasses()
 
     def GetCurrentNetClassName(self):
         return self.GetDesignSettings().GetCurrentNetClassName()
@@ -194,7 +195,7 @@ HANDLE_EXCEPTIONS(BOARD::TracksInNetBetweenPoints)
         # Copy the NETCLASS_MAP so the one in the BOARD isn't modified
         # when we add the Default net class.
         netclassmap = {k:v for k,v in self.GetNetClasses().items()}
-        netclassmap['Default'] = self.GetDesignSettings().m_NetSettings.m_DefaultNetClass
+        netclassmap['Default'] = self.GetDesignSettings().m_NetSettings.GetDefaultNetclass()
         return netclassmap
     %}
 }

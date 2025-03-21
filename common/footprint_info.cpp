@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2011 Jean-Pierre Charras, <jp.charras@wanadoo.fr>
  * Copyright (C) 2013-2016 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -83,7 +83,7 @@ std::vector<SEARCH_TERM> FOOTPRINT_INFO::GetSearchTerms()
 
     // Also include keywords as one long string, just in case
     terms.emplace_back( SEARCH_TERM( GetKeywords(), 1 ) );
-    terms.emplace_back( SEARCH_TERM( GetDescription(), 1 ) );
+    terms.emplace_back( SEARCH_TERM( GetDesc(), 1 ) );
 
     return terms;
 }

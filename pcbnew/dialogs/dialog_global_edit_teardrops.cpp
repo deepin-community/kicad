@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,6 +21,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <algorithm>
+
 #include <widgets/unit_binder.h>
 #include <pcb_edit_frame.h>
 #include <board.h>
@@ -36,6 +38,13 @@
 #include <tools/global_edit_tool.h>
 #include "dialog_global_edit_teardrops_base.h"
 
+enum TEARDROP_ACTION
+{
+    REMOVE_TEARDROP_IN_SCOPE,
+    REMOVE_ALL_TEARDROPS,
+    ADD_TEARDROPS_DEFAULT,
+    ADD_TEARDROPS_WITH_SPEC_VALUES
+};
 
 // Globals to remember control settings during a session
 static bool         g_vias = true;
@@ -50,7 +59,7 @@ static bool         g_filterByLayer;
 static int          g_layerFilter;
 static bool         g_filterRoundPads = false;
 static bool         g_filterSelected = false;
-static int          g_action = 1;
+static int          g_action = ADD_TEARDROPS_DEFAULT;
 
 
 class DIALOG_GLOBAL_EDIT_TEARDROPS : public DIALOG_GLOBAL_EDIT_TEARDROPS_BASE
@@ -63,11 +72,6 @@ protected:
     void onSpecifiedValuesUpdateUi( wxUpdateUIEvent& event ) override
     {
         event.Enable( m_specifiedValues->GetValue() );
-    }
-    void onCurvedEdgesUpdateUi( wxUpdateUIEvent& event ) override
-    {
-        event.Enable( m_specifiedValues->GetValue()
-                        && m_curvedEdges->GetValue() == wxCHK_CHECKED );
     }
     void onFilterUpdateUi( wxUpdateUIEvent& event ) override
     {
@@ -116,7 +120,7 @@ protected:
     }
 
     void setSpecifiedParams( TEARDROP_PARAMETERS* targetParams );
-    void visitItem( BOARD_COMMIT* aCommit, BOARD_CONNECTED_ITEM* aItem );
+    void visitItem( BOARD_COMMIT* aCommit, BOARD_CONNECTED_ITEM* aItem,bool aSelectAlways );
     void processItem( BOARD_COMMIT* aCommit, BOARD_CONNECTED_ITEM* aItem );
 
     bool TransferDataToWindow() override;
@@ -164,9 +168,10 @@ DIALOG_GLOBAL_EDIT_TEARDROPS::DIALOG_GLOBAL_EDIT_TEARDROPS( PCB_EDIT_FRAME* aPar
 
     buildFilterLists();
 
-    SetupStandardButtons();
+    SetupStandardButtons( { { wxID_OK, _( "Apply and Close" ) },
+                            { wxID_CANCEL, _( "Close" ) } } );
 
-    m_netFilter->Connect( NET_SELECTED,
+    m_netFilter->Connect( FILTERED_ITEM_SELECTED,
                           wxCommandEventHandler( DIALOG_GLOBAL_EDIT_TEARDROPS::OnNetFilterSelect ),
                           nullptr, this );
 
@@ -190,13 +195,15 @@ DIALOG_GLOBAL_EDIT_TEARDROPS::~DIALOG_GLOBAL_EDIT_TEARDROPS()
     g_filterSelected = m_selectedItemsFilter->GetValue();
 
     if( m_removeTeardrops->GetValue() )
-        g_action = 0;
+        g_action = REMOVE_TEARDROP_IN_SCOPE;
+    else if( m_removeAllTeardrops->GetValue() )
+        g_action = REMOVE_ALL_TEARDROPS;
     else if( m_specifiedValues->GetValue() )
-        g_action = 2;
+        g_action = ADD_TEARDROPS_WITH_SPEC_VALUES;
     else
-        g_action = 1;
+        g_action = ADD_TEARDROPS_DEFAULT;
 
-    m_netFilter->Disconnect( NET_SELECTED,
+    m_netFilter->Disconnect( FILTERED_ITEM_SELECTED,
                              wxCommandEventHandler( DIALOG_GLOBAL_EDIT_TEARDROPS::OnNetFilterSelect ),
                              nullptr, this );
 }
@@ -215,9 +222,9 @@ void DIALOG_GLOBAL_EDIT_TEARDROPS::buildFilterLists()
     wxArrayString                  netclassNames;
     std::shared_ptr<NET_SETTINGS>& settings = m_brd->GetDesignSettings().m_NetSettings;
 
-    netclassNames.push_back( settings->m_DefaultNetClass->GetName() );
+    netclassNames.push_back( settings->GetDefaultNetclass()->GetName() );
 
-    for( const auto& [ name, netclass ] : settings->m_NetClasses )
+    for( const auto& [name, netclass] : settings->GetNetclasses() )
         netclassNames.push_back( name );
 
     m_netclassFilter->Set( netclassNames );
@@ -234,6 +241,17 @@ void DIALOG_GLOBAL_EDIT_TEARDROPS::buildFilterLists()
 
 bool DIALOG_GLOBAL_EDIT_TEARDROPS::TransferDataToWindow()
 {
+    BOARD_DESIGN_SETTINGS& bds = m_brd->GetDesignSettings();
+
+    g_vias = bds.m_TeardropParamsList.m_TargetVias;
+    g_pthPads = bds.m_TeardropParamsList.m_TargetPTHPads;
+    g_smdPads = bds.m_TeardropParamsList.m_TargetSMDPads;
+    g_trackToTrack = bds.m_TeardropParamsList.m_TargetTrack2Track;
+
+    #if 0   // I am not sure this is useful
+    g_filterRoundPads = bds.m_TeardropParamsList.m_UseRoundShapesOnly;
+    #endif
+
     PCB_SELECTION_TOOL* selTool = m_parent->GetToolManager()->GetTool<PCB_SELECTION_TOOL>();
     m_selection                 = selTool->GetSelection();
     BOARD_CONNECTED_ITEM* item  = dynamic_cast<BOARD_CONNECTED_ITEM*>( m_selection.Front() );
@@ -273,11 +291,13 @@ bool DIALOG_GLOBAL_EDIT_TEARDROPS::TransferDataToWindow()
     m_roundPadsFilter->SetValue( g_filterRoundPads );
     m_selectedItemsFilter->SetValue( g_filterSelected );
 
-    if( g_action == 0 )
+    if( g_action == REMOVE_TEARDROP_IN_SCOPE )
         m_removeTeardrops->SetValue( true );
-    else if( g_action == 1 )
+    else if( g_action == REMOVE_ALL_TEARDROPS )
+        m_removeAllTeardrops->SetValue( true );
+    else if( g_action == ADD_TEARDROPS_DEFAULT )
         m_addTeardrops->SetValue( true );
-    else
+    else    //ADD_TEARDROPS_WITH_SPEC_VALUES
         m_specifiedValues->SetValue( true );
 
     m_cbPreferZoneConnection->Set3StateValue( wxCHK_UNDETERMINED );
@@ -317,12 +337,7 @@ void DIALOG_GLOBAL_EDIT_TEARDROPS::setSpecifiedParams( TEARDROP_PARAMETERS* targ
         targetParams->m_TdMaxWidth = m_teardropMaxHeight.GetIntValue();
 
     if( m_curvedEdges->Get3StateValue() != wxCHK_UNDETERMINED )
-    {
-        if( m_curvedEdges->GetValue() )
-            targetParams->m_CurveSegCount = m_curvePointsCtrl->GetValue();
-        else
-            targetParams->m_CurveSegCount = 0;
-    }
+        targetParams->m_CurvedEdges = m_curvedEdges->GetValue();
 }
 
 
@@ -340,13 +355,14 @@ void DIALOG_GLOBAL_EDIT_TEARDROPS::processItem( BOARD_COMMIT* aCommit, BOARD_CON
 
     aCommit->Stage( aItem, CHT_MODIFY );
 
-    if( m_removeTeardrops->GetValue() )
+    if( m_removeTeardrops->GetValue() || m_removeAllTeardrops->GetValue() )
     {
         targetParams->m_Enabled = false;
     }
     else if( m_addTeardrops->GetValue() )
     {
-        if( TEARDROP_MANAGER::IsRound( aItem ) )
+        // NOTE: This ignores possible padstack shape variation.
+        if( TEARDROP_MANAGER::IsRound( aItem, PADSTACK::ALL_LAYERS ) )
             *targetParams = *brdSettings.GetTeadropParamsList()->GetParameters( TARGET_ROUND );
         else
             *targetParams = *brdSettings.GetTeadropParamsList()->GetParameters( TARGET_RECT );
@@ -363,7 +379,9 @@ void DIALOG_GLOBAL_EDIT_TEARDROPS::processItem( BOARD_COMMIT* aCommit, BOARD_CON
 }
 
 
-void DIALOG_GLOBAL_EDIT_TEARDROPS::visitItem( BOARD_COMMIT* aCommit, BOARD_CONNECTED_ITEM* aItem )
+void DIALOG_GLOBAL_EDIT_TEARDROPS::visitItem( BOARD_COMMIT* aCommit,
+                                              BOARD_CONNECTED_ITEM* aItem,
+                                              bool aSelectAlways )
 {
     if( m_selectedItemsFilter->GetValue() )
     {
@@ -379,6 +397,13 @@ void DIALOG_GLOBAL_EDIT_TEARDROPS::visitItem( BOARD_COMMIT* aCommit, BOARD_CONNE
         }
     }
 
+    if( aSelectAlways )
+    {
+        processItem( aCommit, aItem );
+        return;
+    }
+
+
     if( m_netFilterOpt->GetValue() && m_netFilter->GetSelectedNetcode() >= 0 )
     {
         if( aItem->GetNetCode() != m_netFilter->GetSelectedNetcode() )
@@ -387,7 +412,10 @@ void DIALOG_GLOBAL_EDIT_TEARDROPS::visitItem( BOARD_COMMIT* aCommit, BOARD_CONNE
 
     if( m_netclassFilterOpt->GetValue() && !m_netclassFilter->GetStringSelection().IsEmpty() )
     {
-        if( aItem->GetEffectiveNetClass()->GetName() != m_netclassFilter->GetStringSelection() )
+        wxString  filterNetclass = m_netclassFilter->GetStringSelection();
+        NETCLASS* netclass = aItem->GetEffectiveNetClass();
+
+        if( !netclass->ContainsNetclassWithName( filterNetclass ) )
             return;
     }
 
@@ -399,7 +427,8 @@ void DIALOG_GLOBAL_EDIT_TEARDROPS::visitItem( BOARD_COMMIT* aCommit, BOARD_CONNE
 
     if( m_roundPadsFilter->GetValue() )
     {
-        if( !TEARDROP_MANAGER::IsRound( aItem ) )
+        // TODO(JE) padstacks -- teardrops needs to support per-layer pad handling
+        if( !TEARDROP_MANAGER::IsRound( aItem, PADSTACK::ALL_LAYERS ) )
             return;
     }
 
@@ -428,12 +457,23 @@ bool DIALOG_GLOBAL_EDIT_TEARDROPS::TransferDataFromWindow()
     BOARD_COMMIT commit( m_parent );
     wxBusyCursor dummy;
 
-    if( m_vias->GetValue() )
+    // Save some dialog options
+    BOARD_DESIGN_SETTINGS& bds = m_brd->GetDesignSettings();
+
+    bds.m_TeardropParamsList.m_TargetVias = m_vias->GetValue();
+    bds.m_TeardropParamsList.m_TargetPTHPads = m_pthPads->GetValue();;
+    bds.m_TeardropParamsList.m_TargetSMDPads = m_smdPads->GetValue();
+    bds.m_TeardropParamsList.m_TargetTrack2Track = m_trackToTrack->GetValue();
+    bds.m_TeardropParamsList.m_UseRoundShapesOnly = m_roundPadsFilter->GetValue();
+
+    bool remove_all = m_removeAllTeardrops->GetValue();
+
+    if( m_vias->GetValue() || remove_all )
     {
         for( PCB_TRACK* track : m_brd->Tracks() )
         {
             if ( track->Type() == PCB_VIA_T )
-                visitItem( &commit, track );
+                visitItem( &commit, track, remove_all );
         }
     }
 
@@ -441,14 +481,20 @@ bool DIALOG_GLOBAL_EDIT_TEARDROPS::TransferDataFromWindow()
     {
         for( PAD* pad : footprint->Pads() )
         {
+            if( remove_all )
+            {
+                visitItem( &commit, pad, true );
+                continue;
+            }
+
             if( m_pthPads->GetValue() && pad->GetAttribute() == PAD_ATTRIB::PTH )
             {
-                visitItem( &commit, pad );
+                visitItem( &commit, pad, false );
             }
             else if( m_smdPads->GetValue() && ( pad->GetAttribute() == PAD_ATTRIB::SMD
                                                 || pad->GetAttribute() == PAD_ATTRIB::CONN ) )
             {
-                visitItem( &commit, pad );
+                visitItem( &commit, pad, false );
             }
         }
     }
@@ -461,7 +507,7 @@ bool DIALOG_GLOBAL_EDIT_TEARDROPS::TransferDataFromWindow()
 
         teardropManager.DeleteTrackToTrackTeardrops( commit );
 
-        if( m_removeTeardrops->GetValue() )
+        if( m_removeTeardrops->GetValue() || m_removeAllTeardrops->GetValue() )
         {
             targetParams->m_Enabled = false;    // JEY TODO: how does this get undone/redone?
         }
@@ -533,6 +579,7 @@ bool DIALOG_GLOBAL_EDIT_TEARDROPS::TransferDataFromWindow()
     }
 #endif
 
+    m_parent->Refresh();
     return true;
 }
 

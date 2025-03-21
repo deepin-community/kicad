@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -79,7 +79,7 @@ void TWO_POINT_ASSISTANT::ViewDraw( int aLayer, KIGFX::VIEW* aView ) const
 
     gal.ResetTextAttributes();
 
-    std::vector<wxString> cursorStrings;
+    wxArrayString cursorStrings;
 
     if( m_shape == GEOM_SHAPE::SEGMENT )
     {

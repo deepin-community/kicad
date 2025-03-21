@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2016 CERN
- * Copyright (C) 2018-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -29,11 +29,8 @@
 
 #include <import_gfx/graphics_importer.h>
 
-#include <layer_ids.h>
 
 class LIB_SYMBOL;
-class LIB_SHAPE;
-class LIB_TEXT;
 
 class GRAPHICS_IMPORTER_LIB_SYMBOL : public GRAPHICS_IMPORTER
 {

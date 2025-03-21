@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,12 +21,14 @@
 #ifndef LAUNCH_EXT_H
 #define LAUNCH_EXT_H
 
+#include <kicommon.h>
+
 class wxString;
 
 /**
  * Launches the given file or folder in the host OS
  * @param aPath is a path to a file or folder
  */
-bool LaunchExternal( const wxString& aPath );
+KICOMMON_API bool LaunchExternal( const wxString& aPath );
 
 #endif

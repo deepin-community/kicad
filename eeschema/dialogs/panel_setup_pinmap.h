@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2007 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,8 +25,8 @@
 #ifndef _PANEL_SETUP_PINMAP_H_
 #define _PANEL_SETUP_PINMAP_H_
 
-#include <lib_pin.h>        // For PINTYPE_COUNT definition
-#include <erc_settings.h>
+#include <sch_pin.h>        // For PINTYPE_COUNT definition
+#include <erc/erc_settings.h>
 #include "panel_setup_pinmap_base.h"
 
 

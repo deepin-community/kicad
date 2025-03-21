@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2014-2019 CERN
  * @author Maciej Suminski <maciej.suminski@cern.ch>
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -56,7 +56,7 @@ SCH_DRAW_PANEL::SCH_DRAW_PANEL( wxWindow* aParentWindow, wxWindowID aWindowId,
                                 KIGFX::GAL_DISPLAY_OPTIONS& aOptions, GAL_TYPE aGalType )
         : EDA_DRAW_PANEL_GAL( aParentWindow, aWindowId, aPosition, aSize, aOptions, aGalType )
 {
-    m_view = new KIGFX::SCH_VIEW( true, dynamic_cast<SCH_BASE_FRAME*>( GetParentEDAFrame() ) );
+    m_view = new KIGFX::SCH_VIEW( dynamic_cast<SCH_BASE_FRAME*>( GetParentEDAFrame() ) );
     m_view->SetGAL( m_gal );
 
     m_gal->SetWorldUnitLength( SCH_WORLD_UNIT );
@@ -74,6 +74,7 @@ SCH_DRAW_PANEL::SCH_DRAW_PANEL( wxWindow* aParentWindow, wxWindowID aWindowId,
     m_painter->GetSettings()->LoadColors( cs );
 
     m_view->SetPainter( m_painter.get() );
+
     // This fixes the zoom in and zoom out limits:
     m_view->SetScaleLimits( ZOOM_MAX_LIMIT_EESCHEMA, ZOOM_MIN_LIMIT_EESCHEMA );
     m_view->SetMirror( false, false );

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2016 Anil8735(https://stackoverflow.com/users/3659387/anil8753)
  *                    from https://stackoverflow.com/a/37274011
- * Copyright (C) 2020-2023 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -35,7 +35,8 @@
 
 SPLIT_BUTTON::SPLIT_BUTTON( wxWindow* aParent, wxWindowID aId, const wxString& aLabel,
                             const wxPoint& aPos, const wxSize& aSize ) :
-        wxPanel( aParent, aId, aPos, aSize, wxBORDER_NONE | wxTAB_TRAVERSAL, wxS( "DropDownButton" ) ),
+        wxPanel( aParent, aId, aPos, aSize, wxBORDER_NONE | wxTAB_TRAVERSAL,
+                 wxS( "DropDownButton" ) ),
         m_label( aLabel )
 {
     m_arrowButtonWidth = FromDIP( 20 ); // just a fixed eyeballed constant width
@@ -175,7 +176,7 @@ void SPLIT_BUTTON::OnLeftButtonUp( wxMouseEvent& aEvent )
         wxASSERT( pEventHandler );
 
         pEventHandler->CallAfter(
-                [=]()
+                [this]()
                 {
                     wxCommandEvent evt( wxEVT_BUTTON, GetId() );
                     evt.SetEventObject( this );
@@ -274,9 +275,10 @@ void SPLIT_BUTTON::OnPaint( wxPaintEvent& WXUNUSED( aEvent ) )
     // wxRendereNative doesn't handle dark mode on OSX.
     drawBackground( r1 );
 #else
-    #ifdef _WXMSW_
-        r1.width += 2;
-    #endif
+
+#ifdef _WXMSW_
+    r1.width += 2;
+#endif
 
     wxRendererNative::Get().DrawPushButton( this, dc, r1, m_stateButton );
 #endif

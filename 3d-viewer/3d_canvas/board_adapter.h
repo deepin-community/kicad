@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2015-2016 Mario Luzeiro <mrluzeiro@ua.pt>
  * Copyright (C) 2023 CERN
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,7 +32,7 @@
 #include "../3d_rendering/raytracing/accelerators/container_3d.h"
 #include "../3d_rendering/raytracing/shapes3D/bbox_3d.h"
 #include <gal/3d/camera.h>
-#include "../3d_enums.h"
+#include <3d_enums.h>
 #include "../3d_cache/3d_cache.h"
 #include "../common_ogl/ogl_attr_list.h"
 #include "../3d_viewer/eda_3d_viewer_settings.h"
@@ -42,6 +42,8 @@
 #include <pcb_track.h>
 #include <pcb_base_frame.h>
 #include <pcb_text.h>
+#include <pcb_textbox.h>
+#include <pcb_table.h>
 #include <pcb_shape.h>
 #include <pcb_dimension.h>
 #include <zone.h>
@@ -105,7 +107,16 @@ public:
 
     void ReloadColorSettings() noexcept;
 
+    /**
+     * Build a color list which is used to store colors layers
+     */
     std::map<int, COLOR4D> GetLayerColors() const;
+
+    /**
+     * Build the copper color list used by the board editor, and store it in m_BoardEditorColors
+     */
+    void GetBoardEditorCopperLayerColors( PCBNEW_SETTINGS* aCfg );
+
     std::map<int, COLOR4D> GetDefaultColors() const;
     void SetLayerColors( const std::map<int, COLOR4D>& aColors );
 
@@ -129,7 +140,7 @@ public:
     double BiuTo3dUnits() const noexcept { return m_biuTo3Dunits; }
 
     /**
-     * Get the board outling bounding box.
+     * Get the board outline bounding box.
      *
      * @return the board bounding box in 3D units.
      */
@@ -225,7 +236,12 @@ public:
      */
     float GetLayerTopZPos( PCB_LAYER_ID aLayerId ) const noexcept
     {
-        return m_layerZcoordTop[aLayerId];
+        auto it = m_layerZcoordTop.find( aLayerId );
+
+        if( it != m_layerZcoordTop.end() )
+            return it->second;
+        else
+            return -( m_boardBodyThickness3DU / 2.0f );
     }
 
     /**
@@ -236,7 +252,12 @@ public:
      */
     float GetLayerBottomZPos( PCB_LAYER_ID aLayerId ) const noexcept
     {
-        return m_layerZcoordBottom[aLayerId];
+        auto it = m_layerZcoordBottom.find( aLayerId );
+
+        if( it != m_layerZcoordBottom.end() )
+            return it->second;
+        else
+            return -( m_boardBodyThickness3DU / 2.0f ) - m_backCopperThickness3DU;
     }
 
     /**
@@ -331,8 +352,16 @@ public:
      */
     const MAP_POLY& GetPolyMap() const noexcept { return m_layers_poly; }
 
-    const SHAPE_POLY_SET* GetFrontPlatedPadAndGraphicPolys() { return m_frontPlatedPadAndGraphicPolys;  }
-    const SHAPE_POLY_SET* GetBackPlatedPadAndGraphicPolys() { return m_backPlatedPadAndGraphicPolys; }
+    const SHAPE_POLY_SET* GetFrontPlatedPadAndGraphicPolys()
+    {
+        return m_frontPlatedPadAndGraphicPolys;
+    }
+
+    const SHAPE_POLY_SET* GetBackPlatedPadAndGraphicPolys()
+    {
+        return m_backPlatedPadAndGraphicPolys;
+    }
+
     const MAP_POLY& GetHoleIdPolysMap() const noexcept { return m_layerHoleIdPolys; }
     const MAP_POLY& GetHoleOdPolysMap() const noexcept { return m_layerHoleOdPolys; }
 
@@ -347,10 +376,8 @@ private:
     void destroyLayers();
 
     // Helper functions to create the board
-    void createViaWithMargin( const PCB_TRACK* aTrack, CONTAINER_2D_BASE* aDstContainer,
-                              int aMargin );
-
-    void createTrack( const PCB_TRACK* aTrack, CONTAINER_2D_BASE* aDstContainer );
+    void createTrackWithMargin( const PCB_TRACK* aTrack, CONTAINER_2D_BASE* aDstContainer,
+                                PCB_LAYER_ID aLayer, int aMargin = 0 );
 
     void createPadWithMargin( const PAD *aPad, CONTAINER_2D_BASE* aDstContainer,
                               PCB_LAYER_ID aLayer, const VECTOR2I& aMargin ) const;
@@ -369,7 +396,7 @@ private:
                   const BOARD_ITEM* aOwner );
 
     void addShape( const PCB_SHAPE* aShape, CONTAINER_2D_BASE* aContainer,
-                   const BOARD_ITEM* aOwner );
+                   const BOARD_ITEM* aOwner, PCB_LAYER_ID aLayer );
 
     void addShape( const PCB_DIMENSION_BASE* aDimension, CONTAINER_2D_BASE* aDstContainer,
                    const BOARD_ITEM* aOwner );
@@ -377,14 +404,18 @@ private:
     void addShape( const PCB_TEXTBOX* aTextBox, CONTAINER_2D_BASE* aContainer,
                    const BOARD_ITEM* aOwner );
 
+    void addTable( const PCB_TABLE* aTable, CONTAINER_2D_BASE* aContainer,
+                   const BOARD_ITEM* aOwner );
+
     void addSolidAreasShapes( const ZONE* aZone, CONTAINER_2D_BASE* aDstContainer,
                               PCB_LAYER_ID aLayerId );
 
     void createArcSegments( const VECTOR2I& aCentre, const VECTOR2I& aStart,
-                                 const EDA_ANGLE& aArcAngle, int aCircleToSegmentsCount, int aWidth,
-                                 CONTAINER_2D_BASE* aContainer, const BOARD_ITEM& aOwner );
+                            const EDA_ANGLE& aArcAngle, int aCircleToSegmentsCount, int aWidth,
+                            CONTAINER_2D_BASE* aContainer, const BOARD_ITEM& aOwner );
 
-    void buildPadOutlineAsSegments( const PAD* aPad, CONTAINER_2D_BASE* aDstContainer, int aWidth );
+    void buildPadOutlineAsSegments( const PAD* aPad, PCB_LAYER_ID aLayer,
+                                    CONTAINER_2D_BASE* aDstContainer, int aWidth );
 
 public:
     static CUSTOM_COLORS_LIST   g_SilkColors;
@@ -424,6 +455,9 @@ public:
     SFVEC4F           m_UserCommentsColor;
     SFVEC4F           m_ECO1Color;
     SFVEC4F           m_ECO2Color;
+
+    std::map<int, COLOR4D> m_ColorOverrides;  ///< allows to override color scheme colors
+    std::map<int, COLOR4D> m_BoardEditorColors; ///< list of colors used by the board editor
 
 private:
     BOARD*            m_board;
@@ -471,11 +505,11 @@ private:
     double            m_biuTo3Dunits;         ///< Scale factor to convert board internal units
                                               ///<  to 3D units normalized between -1.0 and 1.0.
 
-    std::array<float, PCB_LAYER_ID_COUNT> m_layerZcoordTop;    ///< Top (End) Z position of each
-                                                               ///< layer in 3D units.
+    std::map<PCB_LAYER_ID, float> m_layerZcoordTop;    ///< Top (End) Z position of each
+                                                       ///< layer in 3D units.
 
-    std::array<float, PCB_LAYER_ID_COUNT> m_layerZcoordBottom; ///< Bottom (Start) Z position of
-                                                               ///< each layer in 3D units.
+    std::map<PCB_LAYER_ID, float> m_layerZcoordBottom; ///< Bottom (Start) Z position of
+                                                       ///< each layer in 3D units.
 
     float             m_frontCopperThickness3DU;
     float             m_backCopperThickness3DU;
@@ -499,14 +533,5 @@ private:
 
 };
 
-
-class EDA_3D_BOARD_HOLDER
-{
-public:
-    virtual BOARD_ADAPTER& GetAdapter() = 0;
-    virtual CAMERA&        GetCurrentCamera() = 0;
-
-    virtual ~EDA_3D_BOARD_HOLDER() {};
-};
 
 #endif // BOARD_ADAPTER_H

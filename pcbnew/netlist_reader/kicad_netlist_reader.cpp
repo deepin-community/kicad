@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 1992-2011 Jean-Pierre Charras.
- * Copyright (C) 1992-2021 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,6 +28,7 @@
 
 #include "pcb_netlist.h"
 #include "netlist_reader.h"
+#include "kicad_netlist_parser.h"
 
 using namespace NL_T;
 
@@ -280,13 +281,14 @@ void KICAD_NETLIST_PARSER::parseNet()
 
 void KICAD_NETLIST_PARSER::parseComponent()
 {
-   /* Parses a section like
+    /* Parses a section like
      * (comp (ref P1)
      *   (value DB25FEMALE)
      *   (footprint DB25FC)
      *   (libsource (lib conn) (part DB25))
      *   (property (name PINCOUNT) (value 25))
      *   (sheetpath (names /) (tstamps /))
+     *   (component_classes (class (name "CLASS")))
      *   (tstamp 68183921-93a5-49ac-91b0-49d05a0e1647))
      *
      * other fields (unused) are skipped
@@ -299,11 +301,13 @@ void KICAD_NETLIST_PARSER::parseComponent()
     wxString    value;
     wxString    library;
     wxString    name;
+    wxString    humanSheetPath;
     KIID_PATH   path;
 
     std::vector<KIID>            uuids;
     std::map<wxString, wxString> properties;
     nlohmann::ordered_map<wxString, wxString> fields;
+    std::unordered_set<wxString>              componentClasses;
 
     // The token comp was read, so the next data is (ref P1)
     while( (token = NextTok() ) != T_RIGHT )
@@ -396,8 +400,6 @@ void KICAD_NETLIST_PARSER::parseComponent()
             break;
 
         case T_fields:
-
-            // Read fields
             while( ( token = NextTok() ) != T_RIGHT )
             {
                 if( token == T_LEFT )
@@ -438,14 +440,24 @@ void KICAD_NETLIST_PARSER::parseComponent()
         case T_sheetpath:
             while( ( token = NextTok() ) != T_EOF )
             {
+                if( token == T_names )
+                {
+                    NeedSYMBOLorNUMBER();
+                    humanSheetPath = From_UTF8( CurText() );
+                    NeedRIGHT();
+                }
+
                 if( token == T_tstamps )
+                {
+                    NeedSYMBOLorNUMBER();
+                    path = KIID_PATH( From_UTF8( CurText() ) );
+                    NeedRIGHT();
                     break;
+                }
             }
 
-            NeedSYMBOLorNUMBER();
-            path = KIID_PATH( From_UTF8( CurText() ) );
             NeedRIGHT();
-            NeedRIGHT();
+
             break;
 
         case T_tstamps:
@@ -455,6 +467,22 @@ void KICAD_NETLIST_PARSER::parseComponent()
                     break;
 
                 uuids.emplace_back( From_UTF8( CurText() ) );
+            }
+
+            break;
+
+        case T_component_classes:
+            while( ( token = NextTok() ) != T_RIGHT )
+            {
+                if( token != T_LEFT )
+                    Expecting( T_LEFT );
+
+                if( ( token = NextTok() ) != T_class )
+                    Expecting( T_class );
+
+                NeedSYMBOLorNUMBER();
+                componentClasses.insert( From_UTF8( CurText() ) );
+                NeedRIGHT();
             }
 
             break;
@@ -469,7 +497,7 @@ void KICAD_NETLIST_PARSER::parseComponent()
     if( !footprint.IsEmpty() && fpid.Parse( footprint, true ) >= 0 )
     {
         wxString error;
-        error.Printf( _( "Invalid footprint ID in\nfile: '%s'\nline: %d\noffset: %d" ),
+        error.Printf( _( "Invalid footprint ID in\nfile: '%s'\nline: %d\nofff: %d" ),
                       CurSource(), CurLineNumber(), CurOffset() );
 
         THROW_IO_ERROR( error );
@@ -480,6 +508,8 @@ void KICAD_NETLIST_PARSER::parseComponent()
     component->SetLibrary( library );
     component->SetProperties( properties );
     component->SetFields( fields );
+    component->SetHumanReadablePath( humanSheetPath );
+    component->SetComponentClassNames( componentClasses );
     m_netlist->AddComponent( component );
 }
 

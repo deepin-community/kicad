@@ -53,7 +53,7 @@ def test_sch_export_svg( kitest,
     assert stderr == ''
     assert stdout is not None
 
-    stdout_regex = re.match("^Plotted to '(.+)'", stdout)
+    stdout_regex = re.search("Plotted to '(.+)'", stdout)
     assert stdout_regex
 
     # now try and manipulate the extracted path
@@ -75,8 +75,7 @@ def test_sch_export_svg( kitest,
                             [("cli/basic_test/basic_test.kicad_sch", "basic_test.netlist.kicadsexpr", 5, True, []),
                              ("cli/basic_test/basic_test.kicad_sch", "basic_test.netlist.kicadsexpr", 5, True,["--format=kicadsexpr"]),
                              ("cli/basic_test/basic_test.kicad_sch", "basic_test.netlist.kicadxml", 6, True,["--format=kicadxml"]),
-                             # currently inconsistenly sorts nets between platforms (MSW/Linux)
-                             ("cli/basic_test/basic_test.kicad_sch", "basic_test.netlist.cadstar", 3, True, ["--format=cadstar"]),
+                             ("cli/basic_test/basic_test.kicad_sch", "basic_test.netlist.cadstar", 3, False, ["--format=cadstar"]),
                              ("cli/basic_test/basic_test.kicad_sch", "basic_test.netlist.orcadpcb2", 1, False, ["--format=orcadpcb2"])
                              ])
 def test_sch_export_netlist( kitest,
@@ -160,5 +159,42 @@ def test_sch_export_pythonbom( kitest,
     assert stderr == ''
 
     # pythonbom is not currently crossplatform (platform specific paths) to enable diffs
+
+    kitest.add_attachment( str( output_filepath ) )
+
+
+
+@pytest.mark.parametrize("test_file,output_fn,line_skip_count,skip_compare,expected_exit_code,cli_args",
+                            [("cli/basic_test/basic_test.kicad_sch", "basic_test.erc.rpt", 1, False, 0, []),
+                             ("cli/basic_test/basic_test.kicad_sch", "basic_test.erc.rpt", 1, False, 0, ["--format=report"]),
+                             ("cli/basic_test/basic_test.kicad_sch", "basic_test.erc.json", 4, False,0, ["--format=json"]),
+                             ("cli/basic_test/basic_test.kicad_sch", "basic_test.erc.unitsin.rpt", 1, False, 0, ["--format=report", "--units=in"]),
+                             ])
+def test_sch_export_erc( kitest,
+                             test_file: str,
+                             output_fn: str,
+                             line_skip_count: int,
+                             skip_compare: bool,
+                             expected_exit_code: int,
+                             cli_args: List[str] ):
+    input_file = kitest.get_data_file_path( test_file )
+    compare_filepath = kitest.get_data_file_path( "cli/basic_test/{}".format( output_fn ) )
+
+    output_filepath =  kitest.get_output_path( "cli/" ).joinpath( output_fn )
+
+    command = ["kicad-cli", "sch", "erc"]
+    command.extend( cli_args )
+    command.append( "-o" )
+    command.append( str( output_filepath ) )
+    command.append( input_file )
+
+    stdout, stderr, exitcode = utils.run_and_capture( command )
+
+    assert exitcode == expected_exit_code
+    assert stderr == ''
+
+    # some of our netlist formats are not cross platform so skip for now
+    if not skip_compare:
+        assert utils.textdiff_files( compare_filepath, str( output_filepath ), line_skip_count )
 
     kitest.add_attachment( str( output_filepath ) )

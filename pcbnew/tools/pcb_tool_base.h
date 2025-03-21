@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016 CERN
- * Copyright (C) 2017-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -162,9 +162,10 @@ protected:
         return getViewControls();
     }
 
-    PCB_BASE_EDIT_FRAME* frame() const
+    template<class T = PCB_BASE_EDIT_FRAME>
+    T* frame() const
     {
-        return getEditFrame<PCB_BASE_EDIT_FRAME>();
+        return getEditFrame<T>();
     }
 
     BOARD* board() const { return getModel<BOARD>(); }

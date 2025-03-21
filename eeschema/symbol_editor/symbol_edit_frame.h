@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2004-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2017 CERN
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -30,16 +30,13 @@
 
 #include <sch_base_frame.h>
 #include <sch_screen.h>
-#include <lib_item.h>
 #include <ee_collectors.h>
+#include <symbol_tree_pane.h>
 #include <optional>
 
 class SCH_EDIT_FRAME;
 class SYMBOL_LIB_TABLE;
 class LIB_SYMBOL;
-class LIB_FIELD;
-class DIALOG_LIB_TEXT_PROPERTIES;
-class SYMBOL_TREE_PANE;
 class LIB_TREE_NODE;
 class LIB_ID;
 class LIB_SYMBOL_LIBRARY_MANAGER;
@@ -56,6 +53,8 @@ public:
     SYMBOL_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent );
 
     ~SYMBOL_EDIT_FRAME() override;
+
+    std::unique_ptr<GRID_HELPER> MakeGridHelper() override;
 
     /**
      * Switch currently used canvas ( Cairo / OpenGL).
@@ -91,7 +90,7 @@ public:
      */
     wxString SetCurLib( const wxString& aLibNickname );
 
-    LIB_TREE_NODE* GetCurrentTreeNode() const;
+    LIB_TREE* GetLibTree() const override { return m_treePane->GetLibTree(); }
 
     /**
      * Return the LIB_ID of the library or symbol selected in the symbol tree.
@@ -150,7 +149,7 @@ public:
     /**
      * Save the currently selected symbol to a new name and/or location.
      */
-    void SaveSymbolCopyAs();
+    void SaveSymbolCopyAs( bool aOpenCopy );
 
     /**
      * Save the currently selected library to a new file.
@@ -183,11 +182,11 @@ public:
 
     void OnSelectUnit( wxCommandEvent& event );
 
-    void OnToggleSymbolTree( wxCommandEvent& event );
-
     void ToggleProperties() override;
 
-    bool IsSymbolTreeShown() const;
+    void ToggleLibraryTree() override;
+    bool IsLibraryTreeShown() const override;
+    void FocusLibraryTreeInput() override;
     void FreezeLibraryTree();
     void ThawLibraryTree();
 
@@ -234,7 +233,7 @@ public:
     void OnModify() override;
 
     int GetUnit() const { return m_unit; }
-    void SetUnit( int aUnit ) { m_unit = aUnit; }
+    void SetUnit( int aUnit );
 
     int  GetBodyStyle() const { return m_bodyStyle; }
     void SetBodyStyle( int aBodyStyle ) { m_bodyStyle = aBodyStyle; }
@@ -327,7 +326,7 @@ public:
      * @param aFullFileName is the full filename
      * @param aOffset is a plot offset, in iu
      */
-    void SVGPlotSymbol( const wxString& aFullFileName, VECTOR2I aOffset );
+    void SVGPlotSymbol( const wxString& aFullFileName, const VECTOR2I& aOffset );
 
     /**
      * Synchronize the library manager to the symbol library table, and then the symbol tree
@@ -335,13 +334,6 @@ public:
      */
     void SyncLibraries( bool aShowProgress, bool aPreloadCancelled = false,
                         const wxString& aForceRefresh = wxEmptyString );
-
-    /**
-     * Filter, sort, and redisplay the library tree.
-     *
-     * Does NOT synchronize it with libraries in disk.
-     */
-    void RegenerateLibraryTree();
 
     /**
      * Redisplay the library tree.  Used after changing modified states, descriptions, etc.
@@ -357,7 +349,7 @@ public:
      * Return either the symbol selected in the symbol tree (if context menu is active) or the
      * symbol on the editor canvas.
      */
-    LIB_ID GetTargetLibId() const;
+    LIB_ID GetTargetLibId() const override;
 
     /**
      * @return a list of selected items in the symbol tree
@@ -369,7 +361,7 @@ public:
     /**
      * Called after the preferences dialog is run.
      */
-    void CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged ) override;
+    void CommonSettingsChanged( int aFlags ) override;
 
     void ShowChangedLanguage() override;
 
@@ -389,7 +381,7 @@ public:
 
     void KiwayMailIn( KIWAY_EXPRESS& mail ) override;
 
-    void FocusOnItem( LIB_ITEM* aItem );
+    void FocusOnItem( SCH_ITEM* aItem );
 
     /**
      * Load a symbol from the schematic to edit in place.
@@ -423,11 +415,13 @@ protected:
 
     void doReCreateMenuBar() override;
 
+    void updateSelectionFilterVisbility() override;
+
 private:
     // Set up the tool framework
     void setupTools();
 
-    void saveSymbolCopyAs();
+    void saveSymbolCopyAs( bool aOpenCopy );
 
     /**
      * Save the changes to the current library.

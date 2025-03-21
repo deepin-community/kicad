@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016-2022 CERN
- * Copyright (C) 2018-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
@@ -30,6 +30,7 @@
 #include <locale_io.h>
 #include <fmt/core.h>
 #include <paths.h>
+#include <richio.h>
 
 #include "spice_circuit_model.h"
 #include "ngspice.h"
@@ -287,6 +288,13 @@ bool NGSPICE::Attach( const std::shared_ptr<SIMULATION_MODEL>& aModel, const wxS
         SIMULATOR::Attach( aModel, aSimCommand, aSimOptions, aInputPath, aReporter );
         updateNgspiceSettings();
         LoadNetlist( formatter.GetString() );
+
+        if( !( aSimOptions & NETLIST_EXPORTER_SPICE::OPTION_SAVE_ALL_EVENTS ) )
+        {
+            Command( "echo Command: esave none" );
+            Command( "esave none" );
+        }
+
         return true;
     }
     else
@@ -428,12 +436,12 @@ void NGSPICE::init_dll()
     wxFileName dllFile( "", NGSPICE_DLL_FILE );
 #if defined(__WINDOWS__)
   #if defined( _MSC_VER )
-    const std::vector<std::string> dllPaths = { "" };
+    std::vector<std::string> dllPaths = { "" };
   #else
-    const std::vector<std::string> dllPaths = { "", "/mingw64/bin", "/mingw32/bin" };
+    std::vector<std::string> dllPaths = { "", "/mingw64/bin", "/mingw32/bin" };
   #endif
 #elif defined(__WXMAC__)
-    const std::vector<std::string> dllPaths = {
+    std::vector<std::string> dllPaths = {
         PATHS::GetOSXKicadUserDataDir().ToStdString() + "/PlugIns/ngspice",
         PATHS::GetOSXKicadMachineDataDir().ToStdString() + "/PlugIns/ngspice",
 
@@ -445,8 +453,11 @@ void NGSPICE::init_dll()
                 "/../../../../../Contents/PlugIns/sim"
     };
 #else   // Unix systems
-    const std::vector<std::string> dllPaths = { "/usr/local/lib" };
+    std::vector<std::string> dllPaths = { "/usr/local/lib" };
 #endif
+
+    if( wxGetEnv( wxT( "KICAD_RUN_FROM_BUILD_DIR" ), nullptr ) )
+        dllPaths.emplace_back( NGSPICE_DLL_DIR );
 
 #if defined(__WINDOWS__) || (__WXMAC__)
     for( const auto& path : dllPaths )

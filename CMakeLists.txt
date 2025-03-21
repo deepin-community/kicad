@@ -31,6 +31,11 @@ cmake_policy( SET CMP0116 OLD )
 # The current structure requires the add_custom_command to get called twice, the NEW behavior deduplicates it
 cmake_policy( SET CMP0113 OLD )
 
+#  Enable CMAKE_MSVC_DEBUG_INFORMATION_FORMAT to override the cmake pdb flags easily
+if (POLICY CMP0141)
+  cmake_policy(SET CMP0141 NEW)
+endif (POLICY CMP0141)
+
 # Default to CMAKE_BUILD_TYPE = Release unless overridden on command line
 # http://www.cmake.org/pipermail/cmake/2008-September/023808.html
 if( DEFINED CMAKE_BUILD_TYPE )
@@ -160,6 +165,11 @@ cmake_dependent_option( KICAD_APPLE_MAKE_RELOCATEABLE_BUNDLE
     "On macOS, post-process the build to make it relocateable (default ON)"
     ON "APPLE" OFF )
 
+# Old versions of CMake and/or protobuf can require the FindProtobuf.cmake,
+# but modern platforms require this to be off
+option( KICAD_USE_CMAKE_FINDPROTOBUF "Use FindProtobuf provided by CMake" OFF )
+mark_as_advanced( KICAD_USE_CMAKE_FINDPROTOBUF )
+
 ####################################
 # Installation options
 ####################################
@@ -247,6 +257,14 @@ option( KICAD_GAL_PROFILE
     "Enable profiling info for GAL"
     OFF )
 
+option( KICAD_IPC_API
+    "Enable IPC API"
+    ON )
+
+option( KICAD_IDF_TOOLS
+    "Build additional idf tools"
+    ON )
+
 # Global setting: exports are explicit
 set( CMAKE_CXX_VISIBILITY_PRESET "hidden" )
 set( CMAKE_VISIBILITY_INLINES_HIDDEN ON )
@@ -254,8 +272,8 @@ set( CMAKE_VISIBILITY_INLINES_HIDDEN ON )
 # Global setting: build everything position independent
 set( CMAKE_POSITION_INDEPENDENT_CODE ON )
 
-# Global setting: Use C++17
-set(CMAKE_CXX_STANDARD 17)
+# Global setting: Use C++20
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -276,6 +294,10 @@ endif()
 if( KICAD_WAYLAND )
     message( STATUS "Configuring KiCad to support Wayland features" )
     add_compile_definitions( KICAD_WAYLAND )
+endif()
+
+if( KICAD_IPC_API )
+    add_definitions( -DKICAD_IPC_API )
 endif()
 
 # Ensure DEBUG is defined for all platforms in Debug builds
@@ -331,13 +353,9 @@ add_compile_definitions( $<$<BOOL:${KICAD_BUILD_ARCH_ARM64}>:KICAD_BUILD_ARCH_AR
 if (USE_CCACHE)
   find_program(CCACHE_FOUND ccache)
   if(CCACHE_FOUND)
-    get_property(RULE_LAUNCH_COMPILE GLOBAL PROPERTY RULE_LAUNCH_COMPILE)
-    set(RULE_LAUNCH_COMPILE "${RULE_LAUNCH_COMPILE} ${CCACHE_FOUND}")
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ${RULE_LAUNCH_COMPILE})
-
-    get_property(RULE_LAUNCH_LINK GLOBAL PROPERTY RULE_LAUNCH_LINK)
-    set(RULE_LAUNCH_LINK "${RULE_LAUNCH_LINK} ${CCACHE_FOUND}")
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ${RULE_LAUNCH_LINK})
+    # Set ccache on the actual lang
+    list(PREPEND CMAKE_C_COMPILER_LAUNCHER ${CCACHE_FOUND})
+    list(PREPEND CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_FOUND})
 
     message(STATUS "Used ${CCACHE_FOUND} for compilation.")
   else(CCACHE_FOUND)
@@ -352,9 +370,9 @@ endif(USE_CCACHE)
 if (USE_DISTCC)
   find_program(DISTCC_FOUND distcc)
   if(DISTCC_FOUND)
-    get_property(RULE_LAUNCH_COMPILE GLOBAL PROPERTY RULE_LAUNCH_COMPILE)
-    set(RULE_LAUNCH_COMPILE "${RULE_LAUNCH_COMPILE} ${DISTCC_FOUND}")
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ${RULE_LAUNCH_COMPILE})
+    list(APPEND CMAKE_C_COMPILER_LAUNCHER ${DISTCC_FOUND})
+    list(APPEND CMAKE_CXX_COMPILER_LAUNCHER ${DISTCC_FOUND})
+
     message(STATUS "Using ${DISTCC_FOUND} for distributed build.")
   else(DISTCC_FOUND)
     message(INFO "Distcc was requested but not found.")
@@ -434,7 +452,7 @@ if( CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang" )
 
     if( KICAD_SANITIZE_ADDRESS )
         add_compile_definitions( KICAD_SANITIZE_ADDRESS )
-        set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_SANITIZE_VECTOR -fsanitize=address -fno-optimize-sibling-calls -fsanitize-address-use-after-scope -fno-omit-frame-pointer" )
+        set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_SANITIZE_VECTOR -fsanitize=address -fsanitize-recover=address -fno-optimize-sibling-calls -fsanitize-address-use-after-scope -fno-omit-frame-pointer" )
 
         # ASAN shouldn't be used with these options (https://github.com/google/sanitizers/wiki/AddressSanitizer#faq)
         set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-stack-protector -U_FORTIFY_SOURCE" )
@@ -508,14 +526,22 @@ if( MSVC )
     add_compile_definitions( NOMINMAX )
     # source and execution charset are UTF-8
     string( APPEND CMAKE_CXX_FLAGS " /utf-8" )
-    # C4290: throw() is interpreted as declspec(nothrow)
-    string( APPEND CMAKE_CXX_FLAGS " /wd4290" )
-    # C4800: non-bool is explicitly cast to bool, forcing value of 0 or 1
-    string( APPEND CMAKE_CXX_FLAGS " /wd4800" )
-    # /Zi: create PDB
-    string( APPEND CMAKE_CXX_FLAGS " /Zi" )
+
+    # cmake 3.25 or higher requried for MSVC, should be fine
+    if( USE_CCACHE AND CCACHE_FOUND )
+        # Equivalent to /Z7, ensures cmake doesn't fight over the default
+        # ccache may encounter external PDB file write errors due to paralleism
+        # Using the embedded PDB mode is ok for development use of ccache
+        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "Embedded")
+    else()
+        # Equivalent to /Zi, ensures cmake doesn't fight over the default
+        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "ProgramDatabase")
+    endif()
+
     # /Zc:__cplusplus: define this macro according to C++ standard version
     string( APPEND CMAKE_CXX_FLAGS " /Zc:__cplusplus" )
+    # /Zc:inline: enforces C++11 requirement that inline functions must have a definition in the same unit
+    string( APPEND CMAKE_CXX_FLAGS " /Zc:inline" )
     # /GF: enable string pooling
     string( APPEND CMAKE_CXX_FLAGS_RELEASE " /GF" )
     string( APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " /GF" )
@@ -573,6 +599,9 @@ if( MSVC )
     if( KICAD_WIN32_BUILD_PARALLEL_CL_MP )
         string( APPEND CMAKE_CXX_FLAGS " /MP" )
     endif()
+
+    set( CMAKE_INSTALL_UCRT_LIBRARIES TRUE )
+    include( InstallRequiredSystemLibraries )
 endif()
 
 # KIFACE_SUFFIX is the file extension used for top level program modules which
@@ -776,6 +805,11 @@ include_directories( SYSTEM ${GLM_INCLUDE_DIR} )
 find_package(ZLIB REQUIRED)
 
 #
+# Find Zstd library, required
+#
+find_package(ZSTD REQUIRED)
+
+#
 # Find libcurl, required
 #
 find_package( CURL REQUIRED )
@@ -841,6 +875,27 @@ if( OCC_VERSION_STRING VERSION_LESS 7.5.0 )
                          "================================================================\n")
 endif()
 include_directories( SYSTEM ${OCC_INCLUDE_DIR} )
+
+if( KICAD_USE_CMAKE_FINDPROTOBUF )
+    include( FindProtobuf )
+    find_package( Protobuf REQUIRED )
+else()
+    find_package( Protobuf REQUIRED CONFIG )
+    set( Protobuf_LIBRARY "protobuf::libprotobuf" )
+endif()
+
+if( NOT Protobuf_PROTOC_EXECUTABLE )
+if( NOT KICAD_USE_CMAKE_FINDPROTOBUF)
+    set( Protobuf_PROTOC_EXECUTABLE "protobuf::protoc" )
+else()
+    MESSAGE( FATAL_ERROR "Protobuf compiler not found. Please install protobuf-compiler." )
+endif()
+endif()
+
+if( NOT Protobuf_INCLUDE_DIR )
+    get_target_property( Protobuf_INCLUDE_DIR protobuf::libprotobuf INTERFACE_INCLUDE_DIRECTORIES )
+endif()
+
 
 # Assist with header file searching optimization:
 # INC_BEFORE and INC_AFTER are two lists which go at the front and back of the
@@ -1003,6 +1058,25 @@ find_package( wxWidgets ${wxWidgets_REQ_VERSION} COMPONENTS gl aui adv html core
 # Include wxWidgets macros.
 include( ${wxWidgets_USE_FILE} )
 
+# Detect wxWidgets port being used
+if( wxWidgets_FIND_STYLE STREQUAL "win32" )
+    string(REGEX MATCH "^[msw|qt|gtk]*" KICAD_WX_PORT "${WX_CONFIGURATION}")
+
+    if( KICAD_WX_PORT STREQUAL "qt" )
+        add_compile_definitions( __WXQT__ )
+    elseif( KICAD_WX_PORT STREQUAL "gtk" )
+        add_compile_definitions( __WXGTK__ )
+    endif()
+elseif( _wx_selected_config )
+    string(REGEX MATCH "^[msw|qt|gtk|osx]*" KICAD_WX_PORT "${_wx_selected_config}")
+endif()
+
+if( KICAD_WX_PORT )
+    message( STATUS "Detected wxWidgets port: ${KICAD_WX_PORT}")
+else()
+    message( FATAL_ERROR "Unable to detect wxWidgets port")
+endif()
+
 if( NOT MSVC )
     if( ${wxWidgets_VERSION_STRING} VERSION_LESS 3.2 )
         message( FATAL_ERROR "wxWidgets 3.2.0 or greater is required" )
@@ -1051,6 +1125,10 @@ if( KICAD_USE_SENTRY )
     add_compile_definitions( KICAD_USE_SENTRY )
 endif()
 
+if( KICAD_IPC_API )
+    find_package( nng REQUIRED )
+endif()
+
 #================================================
 # Add the doxygen target
 #================================================
@@ -1089,6 +1167,7 @@ list( APPEND CMAKE_CTEST_ARGUMENTS "--output-on-failure" )
 #================================================
 
 # Binaries ( CMake targets )
+add_subdirectory( api )
 add_subdirectory( resources )
 add_subdirectory( thirdparty )
 add_subdirectory( libs )
@@ -1103,7 +1182,7 @@ add_subdirectory( bitmap2component )
 add_subdirectory( pcb_calculator )
 add_subdirectory( plugins )             # 3D plugins must be built before kicad
 add_subdirectory( cvpcb )               # must be after pcbnew
-add_subdirectory( kicad )               # should follow pcbnew, eeschema
+add_subdirectory( kicad )               # should follow pcbnew, eeschema, api
 add_subdirectory( tools )
 add_subdirectory( utils )
 

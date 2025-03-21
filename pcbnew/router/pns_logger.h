@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2014 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -50,19 +50,23 @@ public:
         EVT_MOVE,
         EVT_ABORT,
         EVT_TOGGLE_VIA,
-        EVT_UNFIX
+        EVT_UNFIX,
+        EVT_START_MULTIDRAG
     };
 
     struct EVENT_ENTRY {
         VECTOR2I p;
         EVENT_TYPE type;
-        KIID uuid;
+        std::vector<KIID> uuids;
         SIZES_SETTINGS sizes;
+        int layer;
 
-        EVENT_ENTRY() {}
+        EVENT_ENTRY() : layer( 0 )
+        {
+        }
 
         EVENT_ENTRY( const EVENT_ENTRY& aE ) :
-                p( aE.p ), type( aE.type ), uuid( aE.uuid ), sizes( aE.sizes )
+                p( aE.p ), type( aE.type ), uuids( aE.uuids ), sizes( aE.sizes ), layer( aE.layer )
         {
         }
     };
@@ -72,8 +76,11 @@ public:
 
     void Clear();
 
+    void LogM( EVENT_TYPE evt, const VECTOR2I& pos = VECTOR2I(), std::vector<ITEM*> items = {},
+              const SIZES_SETTINGS* sizes = nullptr, int aLayer = 0 );
+
     void Log( EVENT_TYPE evt, const VECTOR2I& pos = VECTOR2I(), const ITEM* item = nullptr,
-              const SIZES_SETTINGS* sizes = nullptr );
+              const SIZES_SETTINGS* sizes = nullptr, int aLayer = 0 );
 
     const std::vector<EVENT_ENTRY>& GetEvents()
     {

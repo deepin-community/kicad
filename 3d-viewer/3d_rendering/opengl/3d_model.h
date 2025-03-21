@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2020 Oleg Endo <olegendo@gcc.gnu.org>
  * Copyright (C) 2015-2016 Mario Luzeiro <mrluzeiro@ua.pt>
- * Copyright (C) 2015-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,7 +30,7 @@
 #include <plugins/3dapi/c3dmodel.h>
 #include "../../common_ogl/openGL_includes.h"
 #include "../raytracing/shapes3D/bbox_3d.h"
-#include "../../3d_enums.h"
+#include <3d_enums.h>
 
 #include <wx/chartype.h>
 
@@ -146,7 +146,8 @@ private:
         unsigned int m_render_idx_buffer_offset = 0;
         unsigned int m_render_idx_count = 0;
 
-        BBOX_3D m_bbox; ///< bounding box for this material group, used for transparent material ordering
+        BBOX_3D m_bbox; ///< bounding box for this material group, used for transparent
+                        ///< material ordering.
 
         MATERIAL( const SMATERIAL& aOther ) : SMATERIAL( aOther ) { }
         bool IsTransparent() const { return m_Transparency > FLT_EPSILON; }

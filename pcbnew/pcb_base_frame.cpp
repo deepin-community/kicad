@@ -4,7 +4,7 @@
  * Copyright (C) 2018 Jean-Pierre Charras, jean-pierre.charras@ujf-grenoble.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2022 CERN
  *
  * This program is free software; you can redistribute it and/or
@@ -43,6 +43,7 @@
 #include <footprint.h>
 #include <footprint_editor_settings.h>
 #include <fp_lib_table.h>
+#include <lset.h>
 #include <kiface_base.h>
 #include <pcb_painter.h>
 #include <pcbnew_id.h>
@@ -57,6 +58,7 @@
 #include <math/vector2d.h>
 #include <math/vector2wx.h>
 #include <widgets/msgpanel.h>
+#include <wx/fswatcher.h>
 
 #include <settings/settings_manager.h>
 #include <settings/cvpcb_settings.h>
@@ -79,8 +81,7 @@ PCB_BASE_FRAME::PCB_BASE_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrame
         EDA_DRAW_FRAME( aKiway, aParent, aFrameType, aTitle, aPos, aSize, aStyle, aFrameName,
                         pcbIUScale ),
         m_pcb( nullptr ),
-        m_originTransforms( *this ),
-        m_spaceMouse( nullptr )
+        m_originTransforms( *this )
 {
     m_watcherDebounceTimer.Bind( wxEVT_TIMER, &PCB_BASE_FRAME::OnFpChangeDebounceTimer, this );
 }
@@ -88,9 +89,6 @@ PCB_BASE_FRAME::PCB_BASE_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrame
 
 PCB_BASE_FRAME::~PCB_BASE_FRAME()
 {
-    delete m_spaceMouse;
-    m_spaceMouse = nullptr;
-
     // Ensure m_canvasType is up to date, to save it in config
     if( GetCanvas() )
         m_canvasType = GetCanvas()->GetBackend();
@@ -130,7 +128,7 @@ void PCB_BASE_FRAME::handleIconizeEvent( wxIconizeEvent& aEvent )
 {
     EDA_DRAW_FRAME::handleIconizeEvent( aEvent );
 
-    if( m_spaceMouse != nullptr && aEvent.IsIconized() )
+    if( m_spaceMouse && aEvent.IsIconized() )
         m_spaceMouse->SetFocus( false );
 }
 
@@ -233,7 +231,7 @@ void PCB_BASE_FRAME::AddFootprintToBoard( FOOTPRINT* aFootprint )
         // Put it on FRONT layer (note that it might be stored flipped if the lib is an archive
         // built from a board)
         if( aFootprint->IsFlipped() )
-            aFootprint->Flip( aFootprint->GetPosition(), GetPcbNewSettings()->m_FlipLeftRight );
+            aFootprint->Flip( aFootprint->GetPosition(), GetPcbNewSettings()->m_FlipDirection );
 
         // Place it in orientation 0 even if it is not saved with orientation 0 in lib (note that
         // it might be stored in another orientation if the lib is an archive built from a board)
@@ -318,13 +316,11 @@ void PCB_BASE_FRAME::FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID
 
         try
         {
-            viewportPoly.BooleanSubtract( dialogPoly, SHAPE_POLY_SET::PM_FAST );
+            viewportPoly.BooleanSubtract( dialogPoly );
         }
-        catch( const std::exception& exc )
+        catch( const std::exception& e )
         {
-            // This may be overkill and could be an assertion but we are more likely to
-            // find any clipper errors this way.
-            wxLogError( wxT( "Clipper library exception '%s' occurred." ), exc.what() );
+            wxFAIL_MSG( wxString::Format( wxT( "Clipper exception occurred: %s" ), e.what() ) );
         }
     }
 
@@ -360,11 +356,10 @@ void PCB_BASE_FRAME::FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID
                 {
                     itemPoly = static_cast<FOOTPRINT*>( item )->GetBoundingHull();
                 }
-                catch( const std::exception& exc )
+                catch( const std::exception& e )
                 {
-                    // This may be overkill and could be an assertion but we are more likely to
-                    // find any clipper errors this way.
-                    wxLogError( wxT( "Clipper library exception '%s' occurred." ), exc.what() );
+                    wxFAIL_MSG( wxString::Format( wxT( "Clipper exception occurred: %s" ),
+                                                  e.what() ) );
                 }
 
                 break;
@@ -427,13 +422,11 @@ void PCB_BASE_FRAME::FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID
 
             try
             {
-                clippedPoly.BooleanIntersection( itemPoly, viewportPoly, SHAPE_POLY_SET::PM_FAST );
+                clippedPoly.BooleanIntersection( itemPoly, viewportPoly );
             }
-            catch( const std::exception& exc )
+            catch( const std::exception& e )
             {
-                // This may be overkill and could be an assertion but we are more likely to
-                // find any clipper errors this way.
-                wxLogError( wxT( "Clipper library exception '%s' occurred." ), exc.what() );
+                wxFAIL_MSG( wxString::Format( wxT( "Clipper exception occurred: %s" ), e.what() ) );
             }
 
             if( !clippedPoly.IsEmpty() )
@@ -456,11 +449,9 @@ void PCB_BASE_FRAME::FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID
         {
             itemPoly.Deflate( step, CORNER_STRATEGY::ALLOW_ACUTE_CORNERS, ARC_LOW_DEF );
         }
-        catch( const std::exception& exc )
+        catch( const std::exception& e )
         {
-            // This may be overkill and could be an assertion but we are more likely to
-            // find any clipper errors this way.
-            wxLogError( wxT( "Clipper library exception '%s' occurred." ), exc.what() );
+            wxFAIL_MSG( wxString::Format( wxT( "Clipper exception occurred: %s" ), e.what() ) );
         }
     }
 
@@ -641,6 +632,27 @@ BOX2I PCB_BASE_FRAME::GetBoardBoundingBox( bool aBoardEdgesOnly ) const
 }
 
 
+const BOX2I PCB_BASE_FRAME::GetDocumentExtents( bool aIncludeAllVisible ) const
+{
+    /* "Zoom to Fit" calls this with "aIncludeAllVisible" as true.  Since that feature
+         * always ignored the page and border, this function returns a bbox without them
+         * as well when passed true.  This technically is not all things visible, but it
+         * keeps behavior consistent.
+         *
+         * When passed false, this function returns a bbox of just the board edge. This
+         * allows things like fabrication text or anything else outside the board edge to
+         * be ignored, and just zooms up to the board itself.
+         *
+         * Calling "GetBoardBoundingBox(true)" when edge cuts are turned off will return
+         * the entire page and border, so we call "GetBoardBoundingBox(false)" instead.
+         */
+    if( aIncludeAllVisible || !m_pcb->IsLayerVisible( Edge_Cuts ) )
+        return GetBoardBoundingBox( false );
+    else
+        return GetBoardBoundingBox( true );
+}
+
+
 // Virtual function
 void PCB_BASE_FRAME::doReCreateMenuBar()
 {
@@ -707,22 +719,8 @@ void PCB_BASE_FRAME::SwitchLayer( PCB_LAYER_ID layer )
     // currently enabled needs to be checked.
     if( IsCopperLayer( layer ) )
     {
-        // If only one copper layer is enabled, the only such layer that can be selected to
-        // is the "Copper" layer (so the selection of any other copper layer is disregarded).
-        if( m_pcb->GetCopperLayerCount() < 2 )
-        {
-            if( layer != B_Cu )
-                return;
-        }
-
-        // If more than one copper layer is enabled, the "Copper" and "Component" layers
-        // can be selected, but the total number of copper layers determines which internal
-        // layers are also capable of being selected.
-        else
-        {
-            if( layer != B_Cu && layer != F_Cu && layer >= ( m_pcb->GetCopperLayerCount() - 1 ) )
-                return;
-        }
+        if( layer > m_pcb->GetCopperLayerStackMaxId() )
+            return;
     }
 
     // Is yet more checking required? E.g. when the layer to be selected is a non-copper
@@ -742,16 +740,13 @@ GENERAL_COLLECTORS_GUIDE PCB_BASE_FRAME::GetCollectorsGuide()
                                     GetCanvas()->GetView() );
 
     // account for the globals
-    guide.SetIgnoreMTextsMarkedNoShow( ! m_pcb->IsElementVisible( LAYER_HIDDEN_TEXT ) );
-    guide.SetIgnoreMTextsOnBack( ! m_pcb->IsElementVisible( LAYER_FP_TEXT ) );
-    guide.SetIgnoreMTextsOnFront( ! m_pcb->IsElementVisible( LAYER_FP_TEXT ) );
-    guide.SetIgnoreModulesOnBack( ! m_pcb->IsElementVisible( LAYER_FOOTPRINTS_BK ) );
-    guide.SetIgnoreModulesOnFront( ! m_pcb->IsElementVisible( LAYER_FOOTPRINTS_FR ) );
-    guide.SetIgnorePadsOnBack( ! m_pcb->IsElementVisible( LAYER_PADS_SMD_BK ) );
-    guide.SetIgnorePadsOnFront( ! m_pcb->IsElementVisible( LAYER_PADS_SMD_FR ) );
-    guide.SetIgnoreThroughHolePads( ! m_pcb->IsElementVisible( LAYER_PADS_TH ) );
-    guide.SetIgnoreModulesVals( ! m_pcb->IsElementVisible( LAYER_FP_VALUES ) );
-    guide.SetIgnoreModulesRefs( ! m_pcb->IsElementVisible( LAYER_FP_REFERENCES ) );
+    guide.SetIgnoreFPTextOnBack( !m_pcb->IsElementVisible( LAYER_FP_TEXT ) );
+    guide.SetIgnoreFPTextOnFront( !m_pcb->IsElementVisible( LAYER_FP_TEXT ) );
+    guide.SetIgnoreFootprintsOnBack( !m_pcb->IsElementVisible( LAYER_FOOTPRINTS_BK ) );
+    guide.SetIgnoreFootprintsOnFront( !m_pcb->IsElementVisible( LAYER_FOOTPRINTS_FR ) );
+    guide.SetIgnoreThroughHolePads( ! m_pcb->IsElementVisible( LAYER_PADS ) );
+    guide.SetIgnoreFPValues( !m_pcb->IsElementVisible( LAYER_FP_VALUES ) );
+    guide.SetIgnoreFPReferences( !m_pcb->IsElementVisible( LAYER_FP_REFERENCES ) );
     guide.SetIgnoreThroughVias( ! m_pcb->IsElementVisible( LAYER_VIAS ) );
     guide.SetIgnoreBlindBuriedVias( ! m_pcb->IsElementVisible( LAYER_VIAS ) );
     guide.SetIgnoreMicroVias( ! m_pcb->IsElementVisible( LAYER_VIAS ) );
@@ -939,9 +934,9 @@ MAGNETIC_SETTINGS* PCB_BASE_FRAME::GetMagneticItemsSettings()
 }
 
 
-void PCB_BASE_FRAME::CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged )
+void PCB_BASE_FRAME::CommonSettingsChanged( int aFlags )
 {
-    EDA_DRAW_FRAME::CommonSettingsChanged( aEnvVarsChanged, aTextVarsChanged );
+    EDA_DRAW_FRAME::CommonSettingsChanged( aFlags );
 
     KIGFX::VIEW*         view = GetCanvas()->GetView();
     KIGFX::PCB_PAINTER*  painter = static_cast<KIGFX::PCB_PAINTER*>( view->GetPainter() );
@@ -950,6 +945,9 @@ void PCB_BASE_FRAME::CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVars
     settings->LoadColors( GetColorSettings( true ) );
     settings->LoadDisplayOptions( GetDisplayOptions() );
     settings->m_ForceShowFieldsWhenFPSelected = GetPcbNewSettings()->m_Display.m_ForceShowFieldsWhenFPSelected;
+
+    if( aFlags & TEXTVARS_CHANGED )
+        GetBoard()->SynchronizeProperties();
 
     // Note: KIGFX::REPAINT isn't enough for things that go from invisible to visible as
     // they won't be found in the view layer's itemset for re-painting.
@@ -968,6 +966,15 @@ void PCB_BASE_FRAME::CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVars
                 {
                     return KIGFX::REPAINT;    // pad clearance display
                 }
+                else if( EDA_TEXT* text = dynamic_cast<EDA_TEXT*>( aItem ) )
+                {
+                    if( text->HasTextVars() )
+                    {
+                        text->ClearRenderCache();
+                        text->ClearBoundingBoxCache();
+                        return KIGFX::GEOMETRY | KIGFX::REPAINT;
+                    }
+                }
 
                 return 0;
             } );
@@ -980,7 +987,7 @@ void PCB_BASE_FRAME::CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVars
     EDA_3D_VIEWER_FRAME* viewer = Get3DViewerFrame();
 
     if( viewer )
-        viewer->CommonSettingsChanged( aEnvVarsChanged, aTextVarsChanged );
+        viewer->CommonSettingsChanged( aFlags );
 }
 
 
@@ -1041,9 +1048,9 @@ void PCB_BASE_FRAME::ActivateGalCanvas()
     try
 
     {
-        if( m_spaceMouse == nullptr )
+        if( !m_spaceMouse )
         {
-            m_spaceMouse = new NL_PCBNEW_PLUGIN( GetCanvas() );
+            m_spaceMouse = std::make_unique<NL_PCBNEW_PLUGIN>( GetCanvas() );
         }
     }
     catch( const std::system_error& e )
@@ -1082,8 +1089,7 @@ void PCB_BASE_FRAME::SetDisplayOptions( const PCB_DISPLAY_OPTIONS& aOptions, boo
                 {
                     if( PCB_VIA* via = dynamic_cast<PCB_VIA*>( aItem ) )
                     {
-                        if( via->GetViaType() == VIATYPE::BLIND_BURIED
-                                || via->GetViaType() == VIATYPE::MICROVIA
+                        if( via->GetViaType() != VIATYPE::THROUGH
                                 || via->GetRemoveUnconnected()
                                 || showNetNames )
                         {
@@ -1166,7 +1172,11 @@ void PCB_BASE_FRAME::setFPWatcher( FOOTPRINT* aFootprint )
 
     wxLogTrace( "KICAD_LIB_WATCH", "Add watch: %s", fn.GetPath() );
 
-    m_watcher->AddTree( fn );
+    {
+        // Silence OS errors that come from the watcher
+        wxLogNull silence;
+        m_watcher->Add( fn );
+    }
 }
 
 

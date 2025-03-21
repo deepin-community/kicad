@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Jon Evans <jon@craftyjon.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -35,6 +35,7 @@
 #include <collectors.h>
 #include <confirm.h>
 #include <convert_basic_shapes_to_polygon.h>
+#include <dialogs/dialog_outset_items.h>
 #include <footprint.h>
 #include <footprint_edit_frame.h>
 #include <geometry/shape_compound.h>
@@ -231,7 +232,7 @@ private:
 
 
 CONVERT_TOOL::CONVERT_TOOL() :
-    TOOL_INTERACTIVE( "pcbnew.Convert" ),
+    PCB_TOOL_BASE( "pcbnew.Convert" ),
     m_selectionTool( nullptr ),
     m_menu( nullptr ),
     m_frame( nullptr )
@@ -260,45 +261,60 @@ bool CONVERT_TOOL::Init()
     m_menu->SetIcon( BITMAPS::convert );
     m_menu->SetTitle( _( "Create from Selection" ) );
 
-    auto shapes = S_C::OnlyTypes( { PCB_SHAPE_LOCATE_SEGMENT_T, PCB_SHAPE_LOCATE_RECT_T,
-                                    PCB_SHAPE_LOCATE_CIRCLE_T, PCB_SHAPE_LOCATE_ARC_T,
-                                    PCB_SHAPE_LOCATE_BEZIER_T,
-                                    PCB_FIELD_T, PCB_TEXT_T } )
-                                && P_S_C::SameLayer();
+    static const std::vector<KICAD_T> padTypes =     { PCB_PAD_T };
+    static const std::vector<KICAD_T> toArcTypes =   { PCB_ARC_T,
+                                                       PCB_TRACE_T,
+                                                       PCB_SHAPE_LOCATE_SEGMENT_T };
+    static const std::vector<KICAD_T> shapeTypes =   { PCB_SHAPE_LOCATE_SEGMENT_T,
+                                                       PCB_SHAPE_LOCATE_RECT_T,
+                                                       PCB_SHAPE_LOCATE_CIRCLE_T,
+                                                       PCB_SHAPE_LOCATE_ARC_T,
+                                                       PCB_SHAPE_LOCATE_BEZIER_T,
+                                                       PCB_FIELD_T,
+                                                       PCB_TEXT_T };
+    static const std::vector<KICAD_T> trackTypes =   { PCB_TRACE_T,
+                                                       PCB_ARC_T,
+                                                       PCB_VIA_T };
+    static const std::vector<KICAD_T> toTrackTypes = { PCB_SHAPE_LOCATE_SEGMENT_T,
+                                                       PCB_SHAPE_LOCATE_ARC_T };
+    static const std::vector<KICAD_T> polyTypes =   { PCB_ZONE_T,
+                                                      PCB_SHAPE_LOCATE_POLY_T,
+                                                      PCB_SHAPE_LOCATE_RECT_T };
+    static const std::vector<KICAD_T> outsetTypes = { PCB_PAD_T, PCB_SHAPE_T };
 
-    auto graphicToTrack = S_C::OnlyTypes( { PCB_SHAPE_LOCATE_SEGMENT_T, PCB_SHAPE_LOCATE_ARC_T } );
+    auto shapes          = S_C::OnlyTypes( shapeTypes ) && P_S_C::SameLayer();
+    auto graphicToTrack  = S_C::OnlyTypes( toTrackTypes );
+    auto anyTracks       = S_C::MoreThan( 0 ) && S_C::OnlyTypes( trackTypes ) && P_S_C::SameLayer();
+    auto anyPolys        = S_C::OnlyTypes( polyTypes );
+    auto anyPads         = S_C::OnlyTypes( padTypes );
 
-    auto anyTracks = S_C::MoreThan( 0 ) && S_C::OnlyTypes( { PCB_TRACE_T, PCB_ARC_T, PCB_VIA_T } )
-                            && P_S_C::SameLayer();
+    auto canCreateArcs   = S_C::Count( 1 ) && S_C::OnlyTypes( toArcTypes );
+    auto canCreateArray  = S_C::MoreThan( 0 );
+    auto canCreatePoly   = shapes || anyPolys || anyTracks;
 
-    auto anyPolys = S_C::OnlyTypes( { PCB_ZONE_T, PCB_SHAPE_LOCATE_POLY_T, PCB_SHAPE_LOCATE_RECT_T } );
-
-    auto anyPads = S_C::OnlyTypes( { PCB_PAD_T } );
-
-    auto canCreateArcs     = S_C::Count( 1 )
-                                && S_C::OnlyTypes( { PCB_TRACE_T, PCB_SHAPE_LOCATE_SEGMENT_T } );
-    auto canCreateArray    = S_C::MoreThan( 0 );
-    auto canCreatePolyType = shapes || anyPolys || anyTracks;
+    auto canCreateOutset = S_C::OnlyTypes( outsetTypes );
 
     if( m_frame->IsType( FRAME_FOOTPRINT_EDITOR ) )
-        canCreatePolyType = shapes || anyPolys || anyTracks || anyPads;
+        canCreatePoly = shapes || anyPolys || anyTracks || anyPads;
 
     auto canCreateLines    = anyPolys;
     auto canCreateTracks   = anyPolys || graphicToTrack;
-    auto canCreate         = canCreatePolyType
+    auto canCreate         = canCreatePoly
                                 || canCreateLines
                                 || canCreateTracks
                                 || canCreateArcs
-                                || canCreateArray;
+                                || canCreateArray
+                                || canCreateOutset;
 
-    m_menu->AddItem( PCB_ACTIONS::convertToPoly, canCreatePolyType );
+    m_menu->AddItem( PCB_ACTIONS::convertToPoly, canCreatePoly );
 
     if( m_frame->IsType( FRAME_PCB_EDITOR ) )
-        m_menu->AddItem( PCB_ACTIONS::convertToZone, canCreatePolyType );
+        m_menu->AddItem( PCB_ACTIONS::convertToZone, canCreatePoly );
 
-    m_menu->AddItem( PCB_ACTIONS::convertToKeepout, canCreatePolyType );
+    m_menu->AddItem( PCB_ACTIONS::convertToKeepout, canCreatePoly );
     m_menu->AddItem( PCB_ACTIONS::convertToLines, canCreateLines );
-    m_menu->AppendSeparator();
+    m_menu->AddItem( PCB_ACTIONS::outsetItems, canCreateOutset );
+    m_menu->AddSeparator();
 
     // Currently the code exists, but tracks are not really existing in footprints
     // only segments on copper layers
@@ -307,7 +323,7 @@ bool CONVERT_TOOL::Init()
 
     m_menu->AddItem( PCB_ACTIONS::convertToArc, canCreateArcs );
 
-    m_menu->AppendSeparator();
+    m_menu->AddSeparator();
     m_menu->AddItem( PCB_ACTIONS::createArray, canCreateArray );
 
     CONDITIONAL_MENU& selToolMenu = m_selectionTool->GetToolMenu().GetMenu();
@@ -358,7 +374,7 @@ int CONVERT_TOOL::CreatePolys( const TOOL_EVENT& aEvent )
                     polySet.Append( makePolysFromOpenGraphics( selection.GetItems(), 0 ) );
 
                     polySet.ClearArcs();
-                    polySet.Simplify( SHAPE_POLY_SET::PM_FAST );
+                    polySet.Simplify();
 
                     // Now inflate the bounding hull by cfg.m_Gap
                     polySet.Inflate( cfg.m_Gap, CORNER_STRATEGY::ROUND_ALL_CORNERS, bds.m_MaxError,
@@ -507,7 +523,7 @@ int CONVERT_TOOL::CreatePolys( const TOOL_EVENT& aEvent )
         if( aEvent.IsAction( &PCB_ACTIONS::convertToKeepout ) )
         {
             zoneInfo.SetIsRuleArea( true );
-            ret = InvokeRuleAreaEditor( frame, &zoneInfo, &m_userSettings );
+            ret = InvokeRuleAreaEditor( frame, &zoneInfo, board(), &m_userSettings );
         }
         else if( nonCopper )
         {
@@ -590,13 +606,13 @@ SHAPE_POLY_SET CONVERT_TOOL::makePolysFromChainedSegs( const std::deque<EDA_ITEM
     std::deque<EDA_ITEM*> toCheck;
 
     auto closeEnough =
-            []( VECTOR2I aLeft, VECTOR2I aRight, int aLimit )
+            []( const VECTOR2I& aLeft, const VECTOR2I& aRight, int aLimit )
             {
                 return ( aLeft - aRight ).SquaredEuclideanNorm() <= SEG::Square( aLimit );
             };
 
     auto findInsertionPoint =
-            [&]( VECTOR2I aPoint ) -> VECTOR2I
+            [&]( const VECTOR2I& aPoint ) -> VECTOR2I
             {
                 if( connections.count( aPoint ) )
                     return aPoint;
@@ -633,7 +649,7 @@ SHAPE_POLY_SET CONVERT_TOOL::makePolysFromChainedSegs( const std::deque<EDA_ITEM
         SHAPE_LINE_CHAIN outline;
 
         auto insert =
-                [&]( EDA_ITEM* aItem, VECTOR2I aAnchor, bool aDirection )
+                [&]( EDA_ITEM* aItem, const VECTOR2I& aAnchor, bool aDirection )
                 {
                     if( aItem->Type() == PCB_ARC_T
                         || ( aItem->Type() == PCB_SHAPE_T
@@ -667,8 +683,8 @@ SHAPE_POLY_SET CONVERT_TOOL::makePolysFromChainedSegs( const std::deque<EDA_ITEM
                         if( aAnchor == graphic->GetStart() )
                         {
                             for( auto it = graphic->GetBezierPoints().begin();
-                                             it != graphic->GetBezierPoints().end();
-                                             ++it )
+                                 it != graphic->GetBezierPoints().end();
+                                 ++it )
                             {
                                 if( aDirection )
                                     outline.Append( *it );
@@ -680,8 +696,8 @@ SHAPE_POLY_SET CONVERT_TOOL::makePolysFromChainedSegs( const std::deque<EDA_ITEM
                         else
                         {
                             for( auto it = graphic->GetBezierPoints().rbegin();
-                                             it != graphic->GetBezierPoints().rend();
-                                             ++it )
+                                 it != graphic->GetBezierPoints().rend();
+                                 ++it )
                             {
                                 if( aDirection )
                                     outline.Append( *it );
@@ -707,8 +723,8 @@ SHAPE_POLY_SET CONVERT_TOOL::makePolysFromChainedSegs( const std::deque<EDA_ITEM
 
         // aDirection == true for walking "right" and appending to the end of points
         // false for walking "left" and prepending to the beginning
-        std::function<void( EDA_ITEM*, VECTOR2I, bool )> process =
-                [&]( EDA_ITEM* aItem, VECTOR2I aAnchor, bool aDirection )
+        std::function<void( EDA_ITEM*, const VECTOR2I&, bool )> process =
+                [&]( EDA_ITEM* aItem, const VECTOR2I& aAnchor, bool aDirection )
                 {
                     if( aItem->GetFlags() & SKIP_STRUCT )
                         return;
@@ -864,7 +880,8 @@ SHAPE_POLY_SET CONVERT_TOOL::makePolysFromClosedGraphics( const std::deque<EDA_I
                 shape->SetFilled( true );
 
             shape->TransformShapeToPolygon( poly, UNDEFINED_LAYER, 0, bds.m_MaxError, ERROR_INSIDE,
-                                            aStrategy == COPY_LINEWIDTH || aStrategy == CENTERLINE );
+                                            aStrategy == COPY_LINEWIDTH
+                                                    || aStrategy == CENTERLINE );
 
             if( aStrategy != BOUNDING_HULL )
                 shape->SetFillMode( wasFilled );
@@ -1163,14 +1180,15 @@ int CONVERT_TOOL::SegmentToArc( const TOOL_EVENT& aEvent )
                     BOARD_ITEM* item = aCollector[i];
 
                     if( !( item->Type() == PCB_SHAPE_T ||
-                           item->Type() == PCB_TRACE_T ) )
+                           item->Type() == PCB_TRACE_T ||
+                           item->Type() == PCB_ARC_T ) )
                     {
                         aCollector.Remove( item );
                     }
                 }
             } );
 
-    if( !selection.Front()->IsBOARD_ITEM() )
+    if( selection.Empty() || !selection.Front()->IsBOARD_ITEM() )
         return -1;
 
     BOARD_ITEM* source = static_cast<BOARD_ITEM*>( selection.Front() );
@@ -1197,7 +1215,7 @@ int CONVERT_TOOL::SegmentToArc( const TOOL_EVENT& aEvent )
     PCB_LAYER_ID          layer = source->GetLayer();
     BOARD_COMMIT          commit( m_frame );
 
-    if( source->Type() == PCB_SHAPE_T )
+    if( source->Type() == PCB_SHAPE_T && static_cast<PCB_SHAPE*>( source )->GetShape() == SHAPE_T::SEGMENT )
     {
         PCB_SHAPE* line = static_cast<PCB_SHAPE*>( source );
         PCB_SHAPE* arc  = new PCB_SHAPE( parent, SHAPE_T::ARC );
@@ -1208,24 +1226,48 @@ int CONVERT_TOOL::SegmentToArc( const TOOL_EVENT& aEvent )
         arc->SetLayer( layer );
         arc->SetStroke( line->GetStroke() );
 
-        arc->SetCenter( VECTOR2I( center ) );
-        arc->SetStart( VECTOR2I( start ) );
-        arc->SetEnd( VECTOR2I( end ) );
+        arc->SetCenter( center );
+        arc->SetStart( start );
+        arc->SetEnd( end );
 
         commit.Add( arc );
     }
-    else
+    else if( source->Type() == PCB_SHAPE_T && static_cast<PCB_SHAPE*>( source )->GetShape() == SHAPE_T::ARC )
     {
-        wxASSERT( source->Type() == PCB_TRACE_T );
+        PCB_SHAPE* source_arc = static_cast<PCB_SHAPE*>( source );
+        PCB_ARC*   arc  = new PCB_ARC( parent );
+
+        arc->SetLayer( layer );
+        arc->SetWidth( source_arc->GetWidth() );
+        arc->SetStart( start );
+        arc->SetMid( source_arc->GetArcMid() );
+        arc->SetEnd( end );
+
+        commit.Add( arc );
+    }
+    else if( source->Type() == PCB_TRACE_T )
+    {
         PCB_TRACK* line = static_cast<PCB_TRACK*>( source );
         PCB_ARC*   arc  = new PCB_ARC( parent );
 
         arc->SetLayer( layer );
         arc->SetWidth( line->GetWidth() );
-        arc->SetStart( VECTOR2I( start ) );
-        arc->SetMid( VECTOR2I( mid ) );
-        arc->SetEnd( VECTOR2I( end ) );
+        arc->SetStart( start );
+        arc->SetMid( mid );
+        arc->SetEnd( end );
 
+        commit.Add( arc );
+    }
+    else if( source->Type() == PCB_ARC_T )
+    {
+        PCB_ARC* source_arc = static_cast<PCB_ARC*>( source );
+        PCB_SHAPE* arc  = new PCB_SHAPE( parent, SHAPE_T::ARC );
+
+        arc->SetFilled( false );
+        arc->SetLayer( layer );
+        arc->SetWidth( source_arc->GetWidth() );
+
+        arc->SetArcGeometry( source_arc->GetStart(), source_arc->GetMid(), source_arc->GetEnd() );
         commit.Add( arc );
     }
 
@@ -1278,12 +1320,139 @@ std::optional<SEG> CONVERT_TOOL::getStartEndPoints( EDA_ITEM* aItem )
 }
 
 
+int CONVERT_TOOL::OutsetItems( const TOOL_EVENT& aEvent )
+{
+    PCB_BASE_EDIT_FRAME& frame = *getEditFrame<PCB_BASE_EDIT_FRAME>();
+    PCB_SELECTION&       selection = m_selectionTool->RequestSelection(
+            []( const VECTOR2I& aPt, GENERAL_COLLECTOR& aCollector, PCB_SELECTION_TOOL* sTool )
+            {
+                // Iterate from the back so we don't have to worry about removals.
+                for( int i = aCollector.GetCount() - 1; i >= 0; --i )
+                {
+                    BOARD_ITEM* item = aCollector[i];
+
+                    // We've converted the polygon and rectangle to segments, so drop everything
+                    // that isn't a segment at this point
+                    if( !item->IsType( { PCB_PAD_T, PCB_SHAPE_T } ) )
+                    {
+                        aCollector.Remove( item );
+                    }
+                }
+            },
+            true /* prompt user regarding locked items */ );
+
+    BOARD_COMMIT commit( this );
+
+    for( EDA_ITEM* item : selection )
+        item->ClearFlags( STRUCT_DELETED );
+
+    // List of thing to select at the end of the operation
+    // (doing it as we go will invalidate the iterator)
+    std::vector<BOARD_ITEM*> items_to_select_on_success;
+
+    // Handle modifications to existing items by the routine
+    // How to deal with this depends on whether we're in the footprint editor or not
+    // and whether the item was conjured up by decomposing a polygon or rectangle
+    auto item_modification_handler = [&]( BOARD_ITEM& aItem )
+    {
+    };
+
+    bool any_items_created = false;
+    auto item_creation_handler = [&]( std::unique_ptr<BOARD_ITEM> aItem )
+    {
+        any_items_created = true;
+        items_to_select_on_success.push_back( aItem.get() );
+        commit.Add( aItem.release() );
+    };
+
+    auto item_removal_handler = [&]( BOARD_ITEM& aItem )
+    {
+        // If you do an outset on a FP pad, do you really want to delete
+        // the parent?
+        if( !aItem.GetParentFootprint() )
+        {
+            commit.Remove( &aItem );
+        }
+    };
+
+    // Combine these callbacks into a CHANGE_HANDLER to inject in the ROUTINE
+    ITEM_MODIFICATION_ROUTINE::CALLABLE_BASED_HANDLER change_handler(
+            item_creation_handler, item_modification_handler, item_removal_handler );
+
+    // Persistent settings between dialog invocations
+    // Init with some sensible defaults
+    static OUTSET_ROUTINE::PARAMETERS outset_params_fp_edit{
+        pcbIUScale.mmToIU( 0.25 ), // A common outset value
+        false,
+        false,
+        true,
+        F_CrtYd,
+        frame.GetDesignSettings().GetLineThickness( F_CrtYd ),
+        pcbIUScale.mmToIU( 0.01 ),
+        false,
+    };
+
+    static OUTSET_ROUTINE::PARAMETERS outset_params_pcb_edit{
+        pcbIUScale.mmToIU( 1 ),
+        true,
+        true,
+        true,
+        Edge_Cuts, // Outsets often for slots?
+        frame.GetDesignSettings().GetLineThickness( Edge_Cuts ),
+        std::nullopt,
+        false,
+    };
+
+    OUTSET_ROUTINE::PARAMETERS& outset_params =
+            IsFootprintEditor() ? outset_params_fp_edit : outset_params_pcb_edit;
+
+    {
+        DIALOG_OUTSET_ITEMS dlg( frame, outset_params );
+        if( dlg.ShowModal() == wxID_CANCEL )
+        {
+            return 0;
+        }
+    }
+
+    OUTSET_ROUTINE outset_routine( frame.GetModel(), change_handler, outset_params );
+
+    for( EDA_ITEM* item : selection )
+    {
+        BOARD_ITEM* board_item = static_cast<BOARD_ITEM*>( item );
+        outset_routine.ProcessItem( *board_item );
+    }
+
+    // Deselect all the original items
+    m_selectionTool->ClearSelection();
+
+    // Select added and modified items
+    for( BOARD_ITEM* item : items_to_select_on_success )
+        m_selectionTool->AddItemToSel( item, true );
+
+    if( any_items_created )
+        m_toolMgr->ProcessEvent( EVENTS::SelectedEvent );
+
+    // Notify other tools of the changes
+    m_toolMgr->ProcessEvent( EVENTS::SelectedItemsModified );
+
+    commit.Push( outset_routine.GetCommitDescription() );
+
+    if( const std::optional<wxString> msg = outset_routine.GetStatusMessage() )
+        frame.ShowInfoBarMsg( *msg );
+
+    return 0;
+}
+
+
 void CONVERT_TOOL::setTransitions()
 {
+    // clang-format off
     Go( &CONVERT_TOOL::CreatePolys,    PCB_ACTIONS::convertToPoly.MakeEvent() );
     Go( &CONVERT_TOOL::CreatePolys,    PCB_ACTIONS::convertToZone.MakeEvent() );
     Go( &CONVERT_TOOL::CreatePolys,    PCB_ACTIONS::convertToKeepout.MakeEvent() );
     Go( &CONVERT_TOOL::CreateLines,    PCB_ACTIONS::convertToLines.MakeEvent() );
     Go( &CONVERT_TOOL::CreateLines,    PCB_ACTIONS::convertToTracks.MakeEvent() );
     Go( &CONVERT_TOOL::SegmentToArc,   PCB_ACTIONS::convertToArc.MakeEvent() );
+    Go( &CONVERT_TOOL::OutsetItems,    PCB_ACTIONS::outsetItems.MakeEvent() );
+    // clang-format on
 }

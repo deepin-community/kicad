@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 Andrew Lutsenko, anlutsenko at gmail dot com
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -122,6 +122,10 @@ void from_json( const json& j, PCM_PACKAGE& p )
     j.at( "versions" ).get_to( p.versions );
 
     to_optional( j, "maintainer", p.maintainer );
+    to_optional( j, "category", p.category );
+
+    if( p.type == PT_PLUGIN && p.category && p.category.value() == PC_FAB )
+        p.type = PT_FAB;
 
     if( j.contains( "tags" ) )
         j.at( "tags" ).get_to( p.tags );

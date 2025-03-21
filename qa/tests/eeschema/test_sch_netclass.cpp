@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,6 +22,9 @@
 
 #include <sch_sheet_path.h>
 #include <sch_label.h>
+#include <sch_io/sch_io.h>
+#include <project/net_settings.h>
+#include <project/project_file.h>
 
 class TEST_SCH_NETCLASS_FIXTURE : public KI_TEST::SCHEMATIC_TEST_FIXTURE
 {};
@@ -33,9 +36,8 @@ BOOST_AUTO_TEST_CASE( TestSubsheetNetclass )
 {
     LoadSchematic( "issue14494" );
 
-    SCH_SHEET_LIST sheets = m_schematic.GetSheets();
-    SCH_SHEET_PATH path = sheets.at( 1 );
-    SCH_SCREEN *screen = path.GetSheet( 1 )->GetScreen();
+    SCH_SHEET_PATH path = m_schematic.BuildSheetListSortedByPageNumbers().at( 1 );
+    SCH_SCREEN*    screen = path.GetSheet( 1 )->GetScreen();
 
     for( SCH_ITEM* item : screen->Items().OfType( SCH_HIER_LABEL_T ) )
     {
@@ -44,10 +46,41 @@ BOOST_AUTO_TEST_CASE( TestSubsheetNetclass )
         wxString name = label->GetText();
 
         if( name == wxT( "B" ) || name == wxT( "D" ) )
-            BOOST_CHECK_EQUAL( label->GetEffectiveNetClass( &path )->GetName(), wxT( "net_02" ) );
+            BOOST_CHECK_EQUAL( label->GetEffectiveNetClass( &path )->GetName(), "net_02" );
         else
-            BOOST_CHECK_EQUAL( label->GetEffectiveNetClass( &path )->GetName(), wxT( "net_01" ) );
+            BOOST_CHECK_EQUAL( label->GetEffectiveNetClass( &path )->GetName(), "net_01" );
     }
+}
+
+BOOST_AUTO_TEST_CASE( TestMultiNetclasses )
+{
+    LoadSchematic( "multinetclasses" );
+
+    std::shared_ptr<NET_SETTINGS>& netSettings = m_schematic.Prj().GetProjectFile().m_NetSettings;
+
+    std::shared_ptr<NETCLASS> nc = netSettings->GetEffectiveNetClass( "/BUS.SIGNAL" );
+    BOOST_CHECK_EQUAL( nc->GetName(), "CLASS2,CLASS1,Default" );
+
+    nc = netSettings->GetEffectiveNetClass( "/BUS.A0" );
+    BOOST_CHECK_EQUAL( nc->GetName(), "CLASS1,CLASS3,Default" );
+
+    nc = netSettings->GetEffectiveNetClass( "/BUS.A1" );
+    BOOST_CHECK_EQUAL( nc->GetName(), "CLASS1,Default" );
+
+    nc = netSettings->GetEffectiveNetClass( "/BUS.A2" );
+    BOOST_CHECK_EQUAL( nc->GetName(), "CLASS1,CLASS4,Default" );
+
+    nc = netSettings->GetEffectiveNetClass( "/NET_1" );
+    BOOST_CHECK_EQUAL( nc->GetName(), "CLASS2,CLASS3,Default" );
+
+    nc = netSettings->GetEffectiveNetClass( "/NET_2" );
+    BOOST_CHECK_EQUAL( nc->GetName(), "CLASS_COMPLETE" );
+
+    nc = netSettings->GetEffectiveNetClass( "/NET_3" );
+    BOOST_CHECK_EQUAL( nc->GetName(), "CLASS_COMPLETE,CLASS3,CLASS4" );
+
+    nc = netSettings->GetEffectiveNetClass( "/NET_4" );
+    BOOST_CHECK_EQUAL( nc->GetName(), "CLASS_COMPLETE,CLASS3,CLASS4" );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

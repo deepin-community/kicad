@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -171,7 +171,7 @@ private:
         m_step += aForward ? 1 : -1;
 
         // clamp to allowed values
-        m_step = alg::clamp( 0, m_step, getMaxStep() );
+        m_step = std::clamp( m_step, 0, getMaxStep() );
     }
 
     ///< Has the geometry changed such that a client should redraw?

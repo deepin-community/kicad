@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -148,7 +148,8 @@ public:
      * @return None
      */
     virtual void GetJsonViolation( RC_JSON::VIOLATION& aViolation, UNITS_PROVIDER* aUnitsProvider,
-                                   SEVERITY aSeverity, const std::map<KIID, EDA_ITEM*>& aItemMap ) const;
+                                   SEVERITY aSeverity,
+                                   const std::map<KIID, EDA_ITEM*>& aItemMap ) const;
 
     int GetErrorCode() const { return m_errorCode; }
     void SetErrorCode( int aCode ) { m_errorCode = aCode; }
@@ -195,9 +196,18 @@ protected:
 class RC_TREE_NODE
 {
 public:
-    enum NODE_TYPE { MARKER, MAIN_ITEM, AUX_ITEM, AUX_ITEM2, AUX_ITEM3 };
+    enum NODE_TYPE
+    {
+        MARKER,
+        MAIN_ITEM,
+        AUX_ITEM,
+        AUX_ITEM2,
+        AUX_ITEM3,
+        COMMENT
+    };
 
-    RC_TREE_NODE( RC_TREE_NODE* aParent, const std::shared_ptr<RC_ITEM>& aRcItem, NODE_TYPE aType ) :
+    RC_TREE_NODE( RC_TREE_NODE* aParent, const std::shared_ptr<RC_ITEM>& aRcItem,
+                  NODE_TYPE aType ) :
             m_Type( aType ),
             m_RcItem( aRcItem ),
             m_Parent( aParent )
@@ -280,13 +290,14 @@ public:
     bool GetAttr( wxDataViewItem const& aItem, unsigned int aCol,
                   wxDataViewItemAttr& aAttr ) const override;
 
-    void ValueChanged( const RC_TREE_NODE* aNode );
+    void ValueChanged( RC_TREE_NODE* aNode );
 
     void DeleteCurrentItem( bool aDeep );
 
     /**
-     * Deletes the current item or all items.  If all, \a aIncludeExclusions determines
-     * whether or not exclusions are also deleted.
+     * Delete the current item or all items.
+     *
+     * If all, \a aIncludeExclusions determines whether or not exclusions are also deleted.
      */
     void DeleteItems( bool aCurrentOnly, bool aIncludeExclusions, bool aDeep );
 

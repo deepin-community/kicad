@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2014-2024 KiCad Developers, see CHANGELOG.txt for contributors.
+ * Copyright The KiCad Developers, see CHANGELOG.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,13 +22,15 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <dialog_sheet_properties.h>
+#include "dialog_sheet_properties.h"
+
 #include <kiface_base.h>
 #include <wx/string.h>
 #include <wx/log.h>
 #include <wx/tooltip.h>
 #include <common.h>
 #include <confirm.h>
+#include <kidialog.h>
 #include <validators.h>
 #include <wx_filename.h>
 #include <wildcards_and_files_ext.h>
@@ -36,6 +38,7 @@
 #include <kiplatform/ui.h>
 #include <sch_commit.h>
 #include <sch_edit_frame.h>
+#include <sch_io/sch_io.h>
 #include <sch_sheet.h>
 #include <schematic.h>
 #include <bitmaps.h>
@@ -47,18 +50,21 @@
 #include "string_utils.h"
 
 DIALOG_SHEET_PROPERTIES::DIALOG_SHEET_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_SHEET* aSheet,
-                                                  bool* aClearAnnotationNewItems,
-                                                  bool* aUpdateHierarchyNavigator ) :
+                                                  bool* aIsUndoable, bool* aClearAnnotationNewItems,
+                                                  bool* aUpdateHierarchyNavigator,
+                                                  wxString* aSourceSheetFilename ) :
     DIALOG_SHEET_PROPERTIES_BASE( aParent ),
     m_frame( aParent ),
+    m_isUndoable( aIsUndoable ),
     m_clearAnnotationNewItems( aClearAnnotationNewItems ),
     m_updateHierarchyNavigator( aUpdateHierarchyNavigator ),
+    m_sourceSheetFilename( aSourceSheetFilename ),
     m_borderWidth( aParent, m_borderWidthLabel, m_borderWidthCtrl, m_borderWidthUnits ),
     m_dummySheet( *aSheet ),
     m_dummySheetNameField( VECTOR2I( -1, -1 ), SHEETNAME, &m_dummySheet )
 {
     m_sheet = aSheet;
-    m_fields = new FIELDS_GRID_TABLE<SCH_FIELD>( this, aParent, m_grid, m_sheet );
+    m_fields = new FIELDS_GRID_TABLE( this, aParent, m_grid, m_sheet );
     m_delayedFocusRow = SHEETNAME;
     m_delayedFocusColumn = FDC_VALUE;
 
@@ -66,7 +72,7 @@ DIALOG_SHEET_PROPERTIES::DIALOG_SHEET_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_S
     m_grid->SetDefaultRowSize( m_grid->GetDefaultRowSize() + 4 );
 
     m_grid->SetTable( m_fields );
-    m_grid->PushEventHandler( new FIELDS_GRID_TRICKS( m_grid, this,
+    m_grid->PushEventHandler( new FIELDS_GRID_TRICKS( m_grid, this, &aParent->Schematic(),
                                                       [&]( wxCommandEvent& aEvent )
                                                       {
                                                           OnAddField( aEvent );
@@ -177,26 +183,15 @@ bool DIALOG_SHEET_PROPERTIES::TransferDataToWindow()
     m_borderSwatch->SetSwatchBackground( canvas );
     m_backgroundSwatch->SetSwatchBackground( canvas );
 
-    SCH_SHEET_LIST hierarchy = m_frame->Schematic().GetFullHierarchy();
     SCH_SHEET_PATH instance = m_frame->GetCurrentSheet();
-
     instance.push_back( m_sheet );
 
-    wxString pageNumber;
+    m_pageNumberTextCtrl->ChangeValue( instance.GetPageNumber() );
 
-    if( m_sheet->IsNew() )
-    {
-        // Don't try to be too clever when assigning the next availabe page number.  Just use
-        // the number of sheets plus one.
-        pageNumber.Printf( wxT( "%d" ), static_cast<int>( hierarchy.size() ) + 1 );
-        instance.SetPageNumber( pageNumber );
-    }
-    else
-    {
-        pageNumber = instance.GetPageNumber();
-    }
-
-    m_pageNumberTextCtrl->ChangeValue( pageNumber );
+    m_cbExcludeFromSim->SetValue( m_sheet->GetExcludedFromSim() );
+    m_cbExcludeFromBom->SetValue( m_sheet->GetExcludedFromBOM() );
+    m_cbExcludeFromBoard->SetValue( m_sheet->GetExcludedFromBoard() );
+    m_cbDNP->SetValue( m_sheet->GetDNP() );
 
     return true;
 }
@@ -210,16 +205,19 @@ bool DIALOG_SHEET_PROPERTIES::Validate()
         return false;
 
     // Check for missing field names.
-    for( size_t i = SHEET_MANDATORY_FIELDS;  i < m_fields->size(); ++i )
+    for( size_t i = 0;  i < m_fields->size(); ++i )
     {
         SCH_FIELD& field = m_fields->at( i );
+
+        if( field.IsMandatory() )
+            continue;
 
         if( field.GetName( false ).empty() && !field.GetText().empty() )
         {
             DisplayErrorMessage( this, _( "Fields must have a name." ) );
 
             m_delayedFocusColumn = FDC_NAME;
-            m_delayedFocusRow = i;
+            m_delayedFocusRow = (int) i;
 
             return false;
         }
@@ -247,13 +245,13 @@ static bool positioningChanged( const SCH_FIELD& a, const SCH_FIELD& b )
 }
 
 
-static bool positioningChanged( FIELDS_GRID_TABLE<SCH_FIELD>* a, std::vector<SCH_FIELD>& b )
+static bool positioningChanged( FIELDS_GRID_TABLE* a, std::vector<SCH_FIELD>& b )
 {
-    for( size_t i = 0; i < SHEET_MANDATORY_FIELDS; ++i )
-    {
-        if( positioningChanged( a->at( i ), b.at( i ) ) )
-            return true;
-    }
+    if( positioningChanged( a->at( SHEETNAME ), b.at( SHEETNAME ) ) )
+        return true;
+
+    if( positioningChanged( a->at( SHEETFILENAME ), b.at( SHEETFILENAME ) ) )
+        return true;
 
     return false;
 }
@@ -266,11 +264,8 @@ bool DIALOG_SHEET_PROPERTIES::TransferDataFromWindow()
     if( !wxDialog::TransferDataFromWindow() )  // Calls our Validate() method.
         return false;
 
-    SCH_COMMIT commit( m_frame );
-
-    commit.Modify( m_sheet, m_frame->GetScreen() );
-
-    bool isUndoable = true;
+    if( m_isUndoable )
+        *m_isUndoable = true;
 
     // Sheet file names can be relative or absolute.
     wxString sheetFileName = m_fields->at( SHEETFILENAME ).GetText();
@@ -348,10 +343,12 @@ bool DIALOG_SHEET_PROPERTIES::TransferDataFromWindow()
             }
         }
 
-        if( !onSheetFilenameChanged( newRelativeFilename, &isUndoable ) )
+        if( !onSheetFilenameChanged( newRelativeFilename ) )
         {
             if( clearFileName )
                 currentScreen->SetFileName( wxEmptyString );
+            else
+                m_fields->at( SHEETFILENAME ).SetText( oldFilename );
 
             return false;
         }
@@ -364,7 +361,8 @@ bool DIALOG_SHEET_PROPERTIES::TransferDataFromWindow()
             currentScreen->SetFileName( wxEmptyString );
 
         // One last validity check (and potential repair) just to be sure to be sure
-        SCH_SHEET_LIST repairedList( &m_frame->Schematic().Root(), true );
+        SCH_SHEET_LIST repairedList;
+        repairedList.BuildSheetList( &m_frame->Schematic().Root(), true );
     }
 
     wxString newSheetname = m_fields->at( SHEETNAME ).GetText();
@@ -378,15 +376,19 @@ bool DIALOG_SHEET_PROPERTIES::TransferDataFromWindow()
     m_fields->at( SHEETNAME ).SetText( newSheetname );
 
     // change all field positions from relative to absolute
-    for( unsigned i = 0;  i < m_fields->size();  ++i )
-        m_fields->at( i ).Offset( m_sheet->GetPosition() );
+    for( SCH_FIELD& m_field : *m_fields)
+        m_field.Offset( m_sheet->GetPosition() );
 
     if( positioningChanged( m_fields, m_sheet->GetFields() ) )
-        m_sheet->ClearFieldsAutoplaced();
+        m_sheet->SetFieldsAutoplaced( AUTOPLACE_NONE );
 
-    for( int ii = m_fields->GetNumberRows() - 1; ii >= SHEET_MANDATORY_FIELDS; ii-- )
+    for( int ii = m_fields->GetNumberRows() - 1; ii >= 0; ii-- )
     {
-        SCH_FIELD&      field = m_fields->at( ii );
+        SCH_FIELD& field = m_fields->at( ii );
+
+        if( field.IsMandatory() )
+            continue;
+
         const wxString& fieldName = field.GetCanonicalName();
 
         if( field.IsEmpty() )
@@ -397,7 +399,7 @@ bool DIALOG_SHEET_PROPERTIES::TransferDataFromWindow()
 
     m_sheet->SetFields( *m_fields );
 
-    m_sheet->SetBorderWidth( m_borderWidth.GetValue() );
+    m_sheet->SetBorderWidth( m_borderWidth.GetIntValue() );
 
     COLOR_SETTINGS* colorSettings = m_frame->GetColorSettings();
 
@@ -422,6 +424,11 @@ bool DIALOG_SHEET_PROPERTIES::TransferDataFromWindow()
     m_sheet->SetBorderColor( m_borderSwatch->GetSwatchColor() );
     m_sheet->SetBackgroundColor( m_backgroundSwatch->GetSwatchColor() );
 
+    m_sheet->SetExcludedFromSim( m_cbExcludeFromSim->GetValue() );
+    m_sheet->SetExcludedFromBOM( m_cbExcludeFromBom->GetValue() );
+    m_sheet->SetExcludedFromBoard( m_cbExcludeFromBoard->GetValue() );
+    m_sheet->SetDNP( m_cbDNP->GetValue() );
+
     SCH_SHEET_PATH instance = m_frame->GetCurrentSheet();
 
     instance.push_back( m_sheet );
@@ -434,41 +441,23 @@ bool DIALOG_SHEET_PROPERTIES::TransferDataFromWindow()
     for( SCH_ITEM* item : m_frame->GetScreen()->Items().OfType( SCH_SHEET_T ) )
         m_frame->UpdateItem( item );
 
-    if( isUndoable && !m_sheet->IsNew() )
-    {
-        commit.Push( _( "Edit Sheet Properties" ) );
-    }
-    else
-    {
-        if( m_updateHierarchyNavigator )
-            *m_updateHierarchyNavigator = true;
-
-        // If we are renaming files, the undo/redo list becomes invalid and must be cleared.
-        m_frame->ClearUndoRedoList();
-        m_frame->OnModify();
-    }
-
     return true;
 }
 
 
-bool DIALOG_SHEET_PROPERTIES::onSheetFilenameChanged( const wxString& aNewFilename,
-                                                      bool* aIsUndoable )
+bool DIALOG_SHEET_PROPERTIES::onSheetFilenameChanged( const wxString& aNewFilename )
 {
-    wxCHECK( aIsUndoable, false );
-
-    wxString   msg;
-    wxFileName sheetFileName(
-            EnsureFileExtension( aNewFilename, FILEEXT::KiCadSchematicFileExtension ) );
+    wxString       msg;
+    wxFileName     sheetFileName( EnsureFileExtension( aNewFilename,
+                                                       FILEEXT::KiCadSchematicFileExtension ) );
 
     // Sheet file names are relative to the path of the current sheet.  This allows for
     // nesting of schematic files in subfolders.  Screen file names are always absolute.
-    SCHEMATIC&                             schematic = m_frame->Schematic();
-    SCH_SHEET_LIST                         fullHierarchy = schematic.GetFullHierarchy();
-    wxFileName                             screenFileName( sheetFileName );
-    wxFileName                             tmp( sheetFileName );
-
-    SCH_SCREEN* currentScreen = m_frame->GetCurrentSheet().LastScreen();
+    SCHEMATIC&     schematic = m_frame->Schematic();
+    SCH_SHEET_LIST fullHierarchy = schematic.Hierarchy();
+    wxFileName     screenFileName( sheetFileName );
+    wxFileName     tmp( sheetFileName );
+    SCH_SCREEN*    currentScreen = m_frame->GetCurrentSheet().LastScreen();
 
     wxCHECK( currentScreen, false );
 
@@ -513,7 +502,8 @@ bool DIALOG_SHEET_PROPERTIES::onSheetFilenameChanged( const wxString& aNewFilena
 
     if( m_sheet->GetScreen() == nullptr )      // New just created sheet.
     {
-        if( !m_frame->AllowCaseSensitiveFileNameClashes( m_sheet->GetFileName(), newAbsoluteFilename ) )
+        if( !m_frame->AllowCaseSensitiveFileNameClashes( m_sheet->GetFileName(),
+                                                         newAbsoluteFilename ) )
             return false;
 
         if( useScreen || loadFromFile )     // Load from existing file.
@@ -529,6 +519,22 @@ bool DIALOG_SHEET_PROPERTIES::onSheetFilenameChanged( const wxString& aNewFilena
                 return false;
             }
         }
+        // If we are drawing a sheet from a design block/sheet import, we need to copy the
+        // sheet to the current directory.
+        else if( m_sourceSheetFilename && !m_sourceSheetFilename->IsEmpty() )
+        {
+            loadFromFile = true;
+
+            if( !wxCopyFile( *m_sourceSheetFilename, newAbsoluteFilename, false ) )
+            {
+                msg.Printf( _( "Failed to copy schematic file '%s' to destination '%s'." ),
+                            currentScreenFileName.GetFullPath(), newAbsoluteFilename );
+
+                DisplayError( m_frame, msg );
+
+                return false;
+            }
+        }
         else                                // New file.
         {
             m_frame->InitSheet( m_sheet, newAbsoluteFilename );
@@ -538,7 +544,8 @@ bool DIALOG_SHEET_PROPERTIES::onSheetFilenameChanged( const wxString& aNewFilena
     {
         isExistingSheet = true;
 
-        if( !m_frame->AllowCaseSensitiveFileNameClashes( m_sheet->GetFileName(), newAbsoluteFilename ) )
+        if( !m_frame->AllowCaseSensitiveFileNameClashes( m_sheet->GetFileName(),
+                                                         newAbsoluteFilename ) )
             return false;
 
         // We are always using here a case insensitive comparison to avoid issues
@@ -556,11 +563,13 @@ bool DIALOG_SHEET_PROPERTIES::onSheetFilenameChanged( const wxString& aNewFilena
         if( newAbsoluteFilename.Cmp( oldAbsoluteFilename ) != 0 )
         {
             // Sheet file name changes cannot be undone.
-            *aIsUndoable = false;
+            if( m_isUndoable )
+                *m_isUndoable = false;
 
             if( useScreen || loadFromFile )           // Load from existing file.
             {
                 clearAnnotation = true;
+                oldScreen = m_sheet->GetScreen();
 
                 if( !IsOK( this, wxString::Format( _( "Change '%s' link from '%s' to '%s'?" ),
                                                    newAbsoluteFilename,
@@ -668,7 +677,7 @@ bool DIALOG_SHEET_PROPERTIES::onSheetFilenameChanged( const wxString& aNewFilena
             currentSheet.LastScreen()->Remove( m_sheet );
         }
 
-        if( !m_frame->LoadSheetFromFile( m_sheet, &currentSheet, newAbsoluteFilename )
+        if( !m_frame->LoadSheetFromFile( m_sheet, &currentSheet, newAbsoluteFilename, false, true )
           || m_frame->CheckSheetForRecursion( m_sheet, &currentSheet ) )
         {
             if( restoreSheet )
@@ -744,7 +753,7 @@ void DIALOG_SHEET_PROPERTIES::OnAddField( wxCommandEvent& event )
 
     int       fieldID = m_fields->size();
     SCH_FIELD newField( VECTOR2I( 0, 0 ), fieldID, m_sheet,
-                        SCH_SHEET::GetDefaultFieldName( fieldID ) );
+                        SCH_SHEET::GetDefaultFieldName( fieldID, DO_TRANSLATE ) );
 
     newField.SetTextAngle( m_fields->at( SHEETNAME ).GetTextAngle() );
 
@@ -774,10 +783,10 @@ void DIALOG_SHEET_PROPERTIES::OnDeleteField( wxCommandEvent& event )
 
     for( int row : selectedRows )
     {
-        if( row < SHEET_MANDATORY_FIELDS )
+        if( row < m_fields->GetMandatoryRowCount() )
         {
             DisplayError( this, wxString::Format( _( "The first %d fields are mandatory." ),
-                                                  SHEET_MANDATORY_FIELDS ) );
+                                                  m_fields->GetMandatoryRowCount() ) );
             return;
         }
     }
@@ -811,7 +820,7 @@ void DIALOG_SHEET_PROPERTIES::OnMoveUp( wxCommandEvent& event )
 
     int i = m_grid->GetGridCursorRow();
 
-    if( i > SHEET_MANDATORY_FIELDS )
+    if( i > m_fields->GetMandatoryRowCount() )
     {
         SCH_FIELD tmp = m_fields->at( (unsigned) i );
         m_fields->erase( m_fields->begin() + i, m_fields->begin() + i + 1 );
@@ -835,7 +844,7 @@ void DIALOG_SHEET_PROPERTIES::OnMoveDown( wxCommandEvent& event )
 
     int i = m_grid->GetGridCursorRow();
 
-    if( i >= SHEET_MANDATORY_FIELDS && i < m_grid->GetNumberRows() - 1 )
+    if( i >= m_fields->GetMandatoryRowCount() && i < m_grid->GetNumberRows() - 1 )
     {
         SCH_FIELD tmp = m_fields->at( (unsigned) i );
         m_fields->erase( m_fields->begin() + i, m_fields->begin() + i + 1 );

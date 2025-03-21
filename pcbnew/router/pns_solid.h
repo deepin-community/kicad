@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013  CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -73,7 +73,7 @@ public:
             SetShape( aB.m_shape->Clone() );
 
         if( aB.m_hole )
-            SetHole( new PNS::HOLE( aB.m_hole->Shape()->Clone() ) );
+            SetHole( new PNS::HOLE( aB.m_hole->Shape( -1 )->Clone() ) );
 
         m_pos = aB.m_pos;
         m_padToDie = aB.m_padToDie;
@@ -89,7 +89,7 @@ public:
 
     ITEM* Clone() const override;
 
-    const SHAPE* Shape() const override { return m_shape; }
+    const SHAPE* Shape( int aLayer ) const override { return m_shape; }
 
 
     const SHAPE_LINE_CHAIN Hull( int aClearance = 0, int aWalkaroundThickness = 0,

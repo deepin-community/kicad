@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -124,6 +124,7 @@ public:
      */
     bool ExportVRML_File( PROJECT* aProject, wxString *aMessages,
                           const wxString& aFullFileName, double  aMMtoWRMLunit,
+                          bool aIncludeUnspecified, bool aIncludeDNP,
                           bool aExport3DFiles, bool aUseRelativePaths,
                           const wxString& a3D_Subdir,
                           double aXRef, double aYRef );
@@ -138,10 +139,12 @@ private:
 
     double GetLayerZ( int aLayer )
     {
-        if( unsigned( aLayer ) >= arrayDim( m_layer_z ) )
+        auto it = m_layer_z.find( aLayer );
+
+        if( it == m_layer_z.end() )
             return 0;
 
-        return m_layer_z[ aLayer ];
+        return it->second;
     }
 
     void SetLayerZ( int aLayer, double aValue )
@@ -244,6 +247,12 @@ private:
     // true to reuse component definitions
     bool     m_ReuseDef;
 
+    // true if unspecified components should be included
+    bool     m_includeUnspecified;
+
+    // true if DNP components should be included
+    bool     m_includeDNP;
+
     // scaling from 0.1 inch to desired VRML unit
     double   m_WorldScale = 1.0;
 
@@ -256,10 +265,10 @@ private:
     double   m_brd_thickness; // depth of the PCB
 
 private:
-    BOARD*      m_board;
-    VRML_COLOR  vrml_colors_list[VRML_COLOR_LAST];
-    double      m_layer_z[PCB_LAYER_ID_COUNT];
-    SHAPE_POLY_SET  m_pcbOutlines;          // stores the board main outlines
+    BOARD*                m_board;
+    VRML_COLOR            vrml_colors_list[VRML_COLOR_LAST];
+    std::map<int, double> m_layer_z;
+    SHAPE_POLY_SET        m_pcbOutlines; // stores the board main outlines
 
     int         m_precision;                // precision factor when exporting fp shapes
                                             // to separate files

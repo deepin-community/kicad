@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -58,10 +58,16 @@ public:
 
     void CrossProbe( const SCH_MARKER* aMarker );
 
+    wxString InspectERCErrorMenuText( const std::shared_ptr<RC_ITEM>& aERCItem );
+    void InspectERCError( const std::shared_ptr<RC_ITEM>& aERCItem );
+
     int ExcludeMarker( const TOOL_EVENT& aEvent );
+
+    int ShowBusSyntaxHelp( const TOOL_EVENT& aEvent );
 
     int CheckSymbol( const TOOL_EVENT& aEvent );
     int DiffSymbol( const TOOL_EVENT& aEvent );
+    void DiffSymbol( SCH_SYMBOL* aSymbol );
 
     int RunSimulation( const TOOL_EVENT& aEvent );
 
@@ -77,6 +83,7 @@ private:
     void setTransitions() override;
 
 private:
+    HTML_MESSAGE_BOX* m_busSyntaxHelp;
 };
 
 #endif /* EE_INSPECTION_TOOL_H */

@@ -98,8 +98,8 @@ example `MY_VAR: MY_VALUE`.
     Built-in symbol fields are `DATASHEET`, `DESCRIPTION`, `FOOTPRINT`,
     `FOOTPRINT_LIBRARY`, `FOOTPRINT_NAME`, `NET_CLASS(<pin_number>)`,
     `NET_NAME(<pin_number>)`, `OP`, `PIN_NAME(<pin_number>)`, `REFERENCE`,
-    `SHORT_NET_NAME(<pin_number>)`, `SYMBOL_DESCRIPTION`, `SYMBOL_KEYWORDS`,
-    `SYMBOL_LIBRARY`, `SYMBOL_NAME`, `UNIT`, `VALUE`.
+    `SHORT_NET_NAME(<pin_number>)`, `SHORT_REFERENCE`, `SYMBOL_DESCRIPTION`,
+    `SYMBOL_KEYWORDS`, `SYMBOL_LIBRARY`, `SYMBOL_NAME`, `UNIT`, `VALUE`.
 
     Built-in symbol attributes are `DNP`, `EXCLUDE_FROM_BOARD`,
     `EXCLUDE_FROM_BOM`, and `EXCLUDE_FROM_SIM`. These attributes expand to the
@@ -132,6 +132,18 @@ example `MY_VAR: MY_VALUE`.
     friendly name of the attribute if the attribute is set (e.g. `Excluded from
     board` for `EXCLUDE_FROM_BOARD` and `DNP` for `DNP`), or to an empty string
     if the attribute is not set.
+| `ERC_ERROR <errorname>`
+  | Generates an <<text-var-erc,ERC error>> named `<errorname>`. Everything
+    inside the braces resolves to an empty string, while everything after the
+    braces is included in the descriptive text for the ERC violation. The text
+    variable must be at the beginning of the text item.
+    
+    For example, a text item containing `${ERC_ERROR TODO}Calculate resistor
+    value` would display as the text "Calculate resistor value" and generate a
+    ERC error named "TODO" with the description "Calculate resistor value".
+| `ERC_WARNING <warningname>`
+  | Generates an <<text-var-erc,ERC warning>> named `<warningname>`. This behaves
+    the same as `ERC_ERROR`, except a warning is generated rather than an error.
 
 |====
 

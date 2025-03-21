@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 jean-pierre.charras jp.charras at wanadoo.fr
- * Copyright (C) 2013-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,11 +22,12 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef BITMAP_BASE_H
-#define BITMAP_BASE_H
+#pragma once
 
 #include <wx/bitmap.h>
 #include <wx/image.h>
+
+#include <core/mirror.h>
 #include <kiid.h>
 #include <math/box2.h>
 #include <gal/color4d.h>
@@ -77,7 +78,7 @@ public:
     /**
      * Copy aItem image to this object and update #m_bitmap.
      */
-    void ImportData( BITMAP_BASE* aItem );
+    void ImportData( BITMAP_BASE& aItem );
 
     /**
      * This scaling factor depends on #m_pixelSizeIu and #m_scale.
@@ -129,7 +130,7 @@ public:
     const BOX2I GetBoundingBox() const;
 
     void DrawBitmap( wxDC* aDC, const VECTOR2I& aPos,
-                     const KIGFX::COLOR4D& aBackgroundColor = KIGFX::COLOR4D::UNSPECIFIED );
+                     const KIGFX::COLOR4D& aBackgroundColor = KIGFX::COLOR4D::UNSPECIFIED ) const;
 
     /**
      * Reads and stores in memory an image file.
@@ -170,6 +171,11 @@ public:
     bool ReadImageFile( wxMemoryBuffer& aBuf );
 
     /**
+     * Set the image from an existing wxImage.
+     */
+    bool SetImage( const wxImage& aImage );
+
+    /**
     * Write the bitmap data to \a aOutStream.
     *
     * This writes binary data, not hexadecimal strings
@@ -194,9 +200,9 @@ public:
     /**
      * Mirror image vertically (i.e. relative to its horizontal X axis ) or horizontally (i.e
      * relative to its vertical Y axis).
-     * @param aVertically false to mirror horizontally or true to mirror vertically.
+     * @param aFlipDirection the direction to flip the image.
      */
-    void Mirror( bool aVertically );
+    void Mirror( FLIP_DIRECTION aFlipDirection );
 
     /**
      * Rotate image CW or CCW.
@@ -234,18 +240,13 @@ public:
      */
     void SetImageType( wxBitmapType aType ) { m_imageType = aType; }
 
-    /**
-     * @return the image data buffer.
-     */
-    const wxMemoryBuffer& GetImageDataBuffer() const { return m_imageData; }
-
+private:
     /**
      * Resets the image data buffer using the current image data.
      */
-    void UpdateImageDataBuffer();
+    void updateImageDataBuffer();
 
-private:
-    /*
+    /**
      * Rebuild the internal bitmap used to draw/plot image.
      *
      * This must be called after a #m_image change.
@@ -256,24 +257,20 @@ private:
 
     void updatePPI();
 
-    double    m_scale;              // The scaling factor of the bitmap
-                                    // With m_pixelSizeIu, controls the actual draw size
-    wxMemoryBuffer m_imageData;     // The original image data, in its original format
-    wxBitmapType   m_imageType;     // the image type (png, jpeg, etc.)
+    double    m_scale;              ///< The scaling factor of the bitmap
+                                    ///< with #m_pixelSizeIu, controls the actual draw size.
+    wxMemoryBuffer m_imageData;     ///< The original image data in its original format.
+    wxBitmapType   m_imageType;     ///< The image type (png, jpeg, etc.).
 
-    wxImage*  m_image;              // the raw, uncompressed image data
-    wxImage*  m_originalImage;      // Raw image data, not transformed by rotate/mirror
-    wxBitmap* m_bitmap;             // the bitmap used to draw/plot image
-    double    m_pixelSizeIu;        // The scaling factor of the bitmap
-                                    // to convert the bitmap size (in pixels)
-                                    // to internal KiCad units
-                                    // Usually does not change
-    int       m_ppi;                // the bitmap definition. the default is 300PPI
+    wxImage*  m_image;              ///< The raw, uncompressed image data.
+    wxImage*  m_originalImage;      ///< Raw image data, not transformed by rotate/mirror.
+    wxBitmap* m_bitmap;             ///< The bitmap used to draw/plot image.
+    double    m_pixelSizeIu;        ///< The scaling factor of the bitmap to convert the bitmap
+                                    ///< size (in pixels) to internal KiCad units.  This usually
+                                    ///< does not change.
+    int       m_ppi;                ///< The bitmap definition. The default is 300PPI.
     KIID      m_imageId;
     bool      m_isMirroredX;        // Used for OpenGL rendering only
     bool      m_isMirroredY;        // Used for OpenGL rendering only
     EDA_ANGLE m_rotation;           // Used for OpenGL rendering only
 };
-
-
-#endif    // BITMAP_BASE_H

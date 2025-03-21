@@ -1,7 +1,7 @@
 /*
 * This program source code file is part of KiCad, a free EDA CAD application.
 *
-* Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -27,13 +27,15 @@
 #include <wx/aui/framemanager.h>
 
 #include <settings/app_settings.h>
-
+#include <sim/sim_preferences.h>
 
 using KIGFX::COLOR4D;
 
 
 extern const wxAuiPaneInfo& defaultNetNavigatorPaneInfo();
 extern const wxAuiPaneInfo& defaultPropertiesPaneInfo( wxWindow* aWindow );
+extern const wxAuiPaneInfo& defaultSchSelectionFilterPaneInfo( wxWindow* aWindow );
+extern const wxAuiPaneInfo& defaultDesignBlocksPaneInfo( wxWindow* aWindow );
 
 
 
@@ -68,11 +70,13 @@ public:
         bool show_hidden_pins;
         bool show_hidden_fields;
         bool show_directive_labels;
+        bool mark_sim_exclusions;
         bool show_erc_warnings;
         bool show_erc_errors;
         bool show_erc_exclusions;
         bool show_op_voltages;
         bool show_op_currents;
+        bool show_pin_alt_icons;
         bool show_illegal_symbol_lib_dialog;
         bool show_page_limits;
         bool show_sexpr_file_convert_warning;
@@ -99,6 +103,10 @@ public:
         int  properties_panel_width;
         float properties_splitter;
         bool show_properties;
+        bool design_blocks_show;
+        int  design_blocks_panel_docked_width;
+        int  design_blocks_panel_float_width;
+        int  design_blocks_panel_float_height;
     };
 
     struct AUTOPLACE_FIELDS
@@ -176,7 +184,9 @@ public:
         int  highlight_thickness;
         bool draw_selected_children;
         bool fill_shapes;
-        bool select_pin_selects_symbol;
+        bool highlight_netclass_colors;
+        int    highlight_netclass_colors_thickness;
+        double highlight_netclass_colors_alpha;
     };
 
     struct PAGE_SETTINGS
@@ -250,6 +260,8 @@ public:
         double   hpgl_pen_size;
         int      hpgl_origin;
         bool     pdf_property_popups;
+        bool     pdf_hierarchical_links;
+        bool     pdf_metadata;
         bool     open_file_after_plot;
     };
 
@@ -262,6 +274,21 @@ public:
         int  sort_mode;
         bool keep_symbol;
         bool place_all_units;
+    };
+
+    struct PANEL_DESIGN_BLOCK_CHOOSER
+    {
+        int  sash_pos_h;
+        int  sash_pos_v;
+        int  width;
+        int  height;
+        int  sort_mode;
+        bool repeated_placement;
+        bool place_as_sheet;
+        bool keep_annotations;
+
+        // For saving tree columns and widths
+        LIB_TREE tree;
     };
 
     struct DIALOG_IMPORT_GRAPHICS
@@ -278,13 +305,19 @@ public:
 
     struct SIMULATOR
     {
-        int plot_panel_width;
-        int plot_panel_height;
-        int signal_panel_height;
-        int cursors_panel_height;
-        int             measurements_panel_height;
-        bool white_background;
+        struct VIEW
+        {
+            int  plot_panel_width;
+            int  plot_panel_height;
+            int  signal_panel_height;
+            int  cursors_panel_height;
+            int  measurements_panel_height;
+            bool white_background;
+        };
+
+        VIEW            view;
         WINDOW_SETTINGS window;
+        SIM_PREFERENCES preferences;
     };
 
     struct FIND_REPLACE_EXTRA
@@ -347,6 +380,8 @@ public:
     PANEL_PLOT m_PlotPanel;
 
     PANEL_SYM_CHOOSER m_SymChooserPanel;
+
+    PANEL_DESIGN_BLOCK_CHOOSER m_DesignBlockChooserPanel;
 
     DIALOG_IMPORT_GRAPHICS m_ImportGraphics;
 
