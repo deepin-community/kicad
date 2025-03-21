@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2004 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,7 +29,6 @@
  */
 
 #include <wx/mimetype.h>
-#include <wx/filename.h>
 #include <wx/dir.h>
 
 #include <pgm_base.h>
@@ -39,6 +38,10 @@
 #include <string_utils.h>
 #include <launch_ext.h>
 #include "wx/tokenzr.h"
+
+#include <wx/wfstream.h>
+#include <wx/fs_zip.h>
+#include <wx/zipstrm.h>
 
 #include <filesystem>
 
@@ -95,7 +98,7 @@ wxString FindKicadFile( const wxString& shortname )
     }
 
 #if defined( __WINDOWS__ )
-    // kicad can be installed highly portably on Windows, anywhere and concurrently
+    // KiCad can be installed highly portably on Windows, anywhere and concurrently
     // either the "kicad file" is immediately adjacent to the exe or it's not a valid install
     return shortname;
 #else
@@ -137,7 +140,8 @@ wxString FindKicadFile( const wxString& shortname )
 }
 
 
-int ExecuteFile( const wxString& aEditorName, const wxString& aFileName, wxProcess *aCallback )
+int ExecuteFile( const wxString& aEditorName, const wxString& aFileName, wxProcess* aCallback,
+                 bool aFileForKicad )
 {
     wxString              fullEditorName;
     std::vector<wxString> params;
@@ -206,10 +210,18 @@ int ExecuteFile( const wxString& aEditorName, const wxString& aFileName, wxProce
 
     pushParam();
 
-    fullEditorName = FindKicadFile( params[0] );
+    if( aFileForKicad )
+        fullEditorName = FindKicadFile( params[0] );
+    else
+        fullEditorName = params[0];
+
     params.erase( params.begin() );
 #else
-    fullEditorName = FindKicadFile( aEditorName );
+
+    if( aFileForKicad )
+        fullEditorName = FindKicadFile( aEditorName );
+    else
+        fullEditorName = aEditorName;
 #endif
 
     if( wxFileExists( fullEditorName ) )
@@ -234,7 +246,7 @@ int ExecuteFile( const wxString& aEditorName, const wxString& aFileName, wxProce
 
     wxString msg;
     msg.Printf( _( "Command '%s' could not be found." ), fullEditorName );
-    DisplayError( nullptr, msg, 20 );
+    DisplayErrorMessage( nullptr, msg );
     return -1;
 }
 
@@ -251,7 +263,7 @@ bool OpenPDF( const wxString& file )
         if( !LaunchExternal( filename ) )
         {
             msg.Printf( _( "Unable to find a PDF viewer for '%s'." ), filename );
-            DisplayError( nullptr, msg );
+            DisplayErrorMessage( nullptr, msg );
             return false;
         }
     }
@@ -266,7 +278,7 @@ bool OpenPDF( const wxString& file )
         if( wxExecute( const_cast<wchar_t**>( args ) ) == -1 )
         {
             msg.Printf( _( "Problem while running the PDF viewer '%s'." ), args[0] );
-            DisplayError( nullptr, msg );
+            DisplayErrorMessage( nullptr, msg );
             return false;
         }
     }
@@ -335,9 +347,248 @@ bool RmDirRecursive( const wxString& aFileName, wxString* aErrors )
     catch( const fs::filesystem_error& e )
     {
         if( aErrors )
-            *aErrors = wxString::Format( _( "Error removing directory '%s': %s" ), aFileName, e.what() );
+            *aErrors = wxString::Format( _( "Error removing directory '%s': %s" ),
+                                         aFileName, e.what() );
 
         return false;
+    }
+
+    return true;
+}
+
+
+bool CopyDirectory( const wxString& aSourceDir, const wxString& aDestDir, wxString& aErrors )
+{
+    wxDir dir( aSourceDir );
+
+    if( !dir.IsOpened() )
+    {
+        aErrors += wxString::Format( _( "Could not open source directory: %s" ), aSourceDir );
+        aErrors += wxT( "\n" );
+        return false;
+    }
+
+    if( !wxFileName::Mkdir( aDestDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL ) )
+    {
+        aErrors += wxString::Format( _( "Could not create destination directory: %s" ), aDestDir );
+        aErrors += wxT( "\n" );
+        return false;
+    }
+
+    wxString filename;
+    bool     cont = dir.GetFirst( &filename );
+
+    while( cont )
+    {
+        wxString sourcePath = aSourceDir + wxFileName::GetPathSeparator() + filename;
+        wxString destPath = aDestDir + wxFileName::GetPathSeparator() + filename;
+
+        if( wxFileName::DirExists( sourcePath ) )
+        {
+            // Recursively copy subdirectories
+            if( !CopyDirectory( sourcePath, destPath, aErrors ) )
+                return false;
+        }
+        else
+        {
+            // Copy files
+            if( !wxCopyFile( sourcePath, destPath ) )
+            {
+                aErrors += wxString::Format( _( "Could not copy file: %s to %s" ),
+                                             sourcePath,
+                                             destPath );
+                return false;
+            }
+        }
+
+        cont = dir.GetNext( &filename );
+    }
+
+    return true;
+}
+
+
+bool CopyFilesOrDirectory( const wxString& aSourcePath, const wxString& aDestDir, wxString& aErrors,
+                           int& aFileCopiedCount, const std::vector<wxString>& aExclusions )
+{
+    // Parse source path and determine if it's a directory
+    wxFileName sourceFn( aSourcePath );
+    wxString   sourcePath = sourceFn.GetFullPath();
+    bool       isSourceDirectory = wxFileName::DirExists( sourcePath );
+    wxString   baseDestDir = aDestDir;
+
+    auto performCopy = [&]( const wxString& src, const wxString& dest ) -> bool
+    {
+        if( wxCopyFile( src, dest ) )
+        {
+            aFileCopiedCount++;
+            return true;
+        }
+
+        aErrors += wxString::Format( _( "Could not copy file: %s to %s" ), src, dest );
+        aErrors += wxT( "\n" );
+        return false;
+    };
+
+    auto processEntries = [&]( const wxString& srcDir, const wxString& pattern,
+                               const wxString& destDir ) -> bool
+    {
+        wxDir dir( srcDir );
+
+        if( !dir.IsOpened() )
+        {
+            aErrors += wxString::Format( _( "Could not open source directory: %s" ), srcDir );
+            aErrors += wxT( "\n" );
+            return false;
+        }
+
+        wxString filename;
+        bool     success = true;
+
+        // Find all entries matching pattern (files + directories + hidden items)
+        bool cont = dir.GetFirst( &filename, pattern, wxDIR_FILES | wxDIR_DIRS | wxDIR_HIDDEN );
+
+        while( cont )
+        {
+            const wxString entrySrc = srcDir + wxFileName::GetPathSeparator() + filename;
+            const wxString entryDest = destDir + wxFileName::GetPathSeparator() + filename;
+
+            // Apply exclusion filters
+            bool exclude =
+                    filename.Matches( wxT( "~*.lck" ) ) || filename.Matches( wxT( "*.lck" ) );
+
+            for( const auto& exclusion : aExclusions )
+            {
+                if( entrySrc.Matches( exclusion ) )
+                {
+                    exclude = true;
+                    break;
+                }
+            }
+
+            if( !exclude )
+            {
+                if( wxFileName::DirExists( entrySrc ) )
+                {
+                    // Recursively process subdirectories
+                    if( !CopyFilesOrDirectory( entrySrc, destDir, aErrors, aFileCopiedCount,
+                                               aExclusions ) )
+                    {
+                        aErrors += wxString::Format( _( "Could not copy directory: %s to %s" ),
+                                                     entrySrc, entryDest );
+                        aErrors += wxT( "\n" );
+
+                        success = false;
+                    }
+                }
+                else
+                {
+                    // Copy individual files
+                    if( !performCopy( entrySrc, entryDest ) )
+                    {
+                        success = false;
+                    }
+                }
+            }
+
+            cont = dir.GetNext( &filename );
+        }
+
+        return success;
+    };
+
+    // If copying a directory, append its name to destination path
+    if( isSourceDirectory )
+    {
+        wxString sourceDirName = sourceFn.GetFullName();
+        baseDestDir = wxFileName( aDestDir, sourceDirName ).GetFullPath();
+    }
+
+    // Create destination directory hierarchy
+    if( !wxFileName::Mkdir( baseDestDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL ) )
+    {
+        aErrors +=
+                wxString::Format( _( "Could not create destination directory: %s" ), baseDestDir );
+        aErrors += wxT( "\n" );
+
+        return false;
+    }
+
+    // Execute appropriate copy operation based on source type
+    if( !isSourceDirectory )
+    {
+        const wxString fileName = sourceFn.GetFullName();
+
+        // Handle wildcard patterns in filenames
+        if( fileName.Contains( '*' ) || fileName.Contains( '?' ) )
+        {
+            const wxString dirPath = sourceFn.GetPath();
+
+            if( !wxFileName::DirExists( dirPath ) )
+            {
+                aErrors += wxString::Format( _( "Source directory does not exist: %s" ), dirPath );
+                aErrors += wxT( "\n" );
+
+                return false;
+            }
+            // Process all matching files in source directory
+            return processEntries( dirPath, fileName, baseDestDir );
+        }
+
+        // Single file copy operation
+        return performCopy( sourcePath, wxFileName( baseDestDir, fileName ).GetFullPath() );
+    }
+
+    // Full directory copy operation
+    return processEntries( sourcePath, wxEmptyString, baseDestDir );
+}
+
+
+bool AddDirectoryToZip( wxZipOutputStream& aZip, const wxString& aSourceDir, wxString& aErrors,
+                        const wxString& aParentDir )
+{
+    wxDir dir( aSourceDir );
+
+    if( !dir.IsOpened() )
+    {
+        aErrors += wxString::Format( _( "Could not open source directory: %s" ), aSourceDir );
+        aErrors += "\n";
+        return false;
+    }
+
+    wxString filename;
+    bool     cont = dir.GetFirst( &filename );
+
+    while( cont )
+    {
+        wxString sourcePath = aSourceDir + wxFileName::GetPathSeparator() + filename;
+        wxString zipPath = aParentDir + filename;
+
+        if( wxFileName::DirExists( sourcePath ) )
+        {
+            // Add directory entry to the ZIP file
+            aZip.PutNextDirEntry( zipPath + "/" );
+
+            // Recursively add subdirectories
+            if( !AddDirectoryToZip( aZip, sourcePath, aErrors, zipPath + "/" ) )
+                return false;
+        }
+        else
+        {
+            // Add file entry to the ZIP file
+            aZip.PutNextEntry( zipPath );
+            wxFFileInputStream fileStream( sourcePath );
+
+            if( !fileStream.IsOk() )
+            {
+                aErrors += wxString::Format( _( "Could not read file: %s" ), sourcePath );
+                return false;
+            }
+
+            aZip.Write( fileStream );
+        }
+
+        cont = dir.GetNext( &filename );
     }
 
     return true;

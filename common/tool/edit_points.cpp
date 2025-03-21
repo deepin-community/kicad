@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2014-2019 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -278,11 +278,11 @@ void EDIT_POINTS::ViewDraw( int aLayer, KIGFX::VIEW* aView ) const
         highlightColor = drawColor.Brightened( 0.5 ).WithAlpha( 0.8 );
     }
 
+    KIGFX::GAL_SCOPED_ATTRS scopedAttrs( *gal, KIGFX::GAL_SCOPED_ATTRS::ALL_ATTRS );
     gal->SetFillColor( drawColor );
     gal->SetStrokeColor( borderColor );
     gal->SetIsFill( true );
     gal->SetIsStroke( true );
-    gal->PushDepth();
     gal->SetLayerDepth( gal->GetMinDepth() );
 
     double size       = aView->ToWorld( EDIT_POINT::POINT_SIZE ) / 2.0;
@@ -315,7 +315,17 @@ void EDIT_POINTS::ViewDraw( int aLayer, KIGFX::VIEW* aView ) const
         drawPoint( point );
 
     for( const EDIT_LINE& line : m_lines )
-        drawPoint( line, true );
+    {
+        if( line.HasCenterPoint() )
+        {
+            drawPoint( line.GetPosition(), true );
+        }
 
-    gal->PopDepth();
+        if( line.DrawLine() )
+        {
+            gal->SetLineWidth( borderSize );
+            gal->SetStrokeColor( borderColor );
+            gal->DrawLine( line.GetOrigin().GetPosition(), line.GetEnd().GetPosition() );
+        }
+    }
 }

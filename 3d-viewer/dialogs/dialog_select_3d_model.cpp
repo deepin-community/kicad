@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2016 Mario Luzeiro <mrluzeiro@ua.pt>
  * Copyright (C) 2016 Cirilo Bernardo <cirilo.bernardo@gmail.com>
- * Copyright (C) 2017-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,9 +29,9 @@
 #include "project.h"
 #include "3d_cache/3d_info.h"
 #include "3d_cache/3d_cache.h"
-#include "3d_cache_dialogs.h"
 #include <3d_model_viewer/eda_3d_model_viewer.h>
 #include <common_ogl/ogl_attr_list.h>
+#include <dialogs/dialog_configure_paths.h>
 #include <filename_resolver.h>
 #include <pcbnew/footprint.h>
 #include <wx_filename.h>
@@ -51,9 +51,8 @@ DIALOG_SELECT_3DMODEL::DIALOG_SELECT_3DMODEL( wxWindow* aParent, S3D_CACHE* aCac
         m_previousDir( prevModelSelectDir ),
         m_modelViewer( nullptr )
 {
-    m_modelViewer = new EDA_3D_MODEL_VIEWER( m_pane3Dviewer,
-                                             OGL_ATT_LIST::GetAttributesList( ANTIALIASING_MODE::AA_8X ),
-                                             m_cache );
+    m_modelViewer = new EDA_3D_MODEL_VIEWER(
+            m_pane3Dviewer, OGL_ATT_LIST::GetAttributesList( ANTIALIASING_MODE::AA_8X ), m_cache );
     m_modelViewer->SetMinSize( wxSize( 400, -1 ) );
     m_Sizer3Dviewer->Add( m_modelViewer, 1, wxEXPAND|wxRIGHT, 5 );
 
@@ -191,13 +190,18 @@ void DIALOG_SELECT_3DMODEL::OnFileActivated( wxCommandEvent& event )
 void DIALOG_SELECT_3DMODEL::SetRootDir( wxCommandEvent& event )
 {
     if( m_FileTree && m_dirChoices->GetSelection() > 0 )
+    {
         m_FileTree->SetPath( m_dirChoices->GetString( m_dirChoices->GetSelection() ) );
+        m_FileTree->UnselectAll();  // Ensure no unwanted selection
+    }
 }
 
 
 void DIALOG_SELECT_3DMODEL::Cfg3DPaths( wxCommandEvent& event )
 {
-    if( S3D::Configure3DPaths( this, m_resolver ) )
+    DIALOG_CONFIGURE_PATHS dlg( this );
+
+    if( dlg.ShowQuasiModal() == wxID_OK )
         updateDirChoiceList();
 }
 

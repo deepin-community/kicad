@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -60,7 +60,7 @@ public:
         return ScalePos( aVec - m_relOrigin );
     }
 
-    void TransformTextToBaseline( EDA_TEXT* textItem, const wxString& baselineAlign, bool invertY );
+    void TransformTextToBaseline( EDA_TEXT* textItem, const wxString& baselineAlign );
 
     std::vector<SHAPE_LINE_CHAIN> ParseLineChains( const wxString& aData, int aArcMinSegLen,
                                                    bool aForceClosed );

@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2014 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -67,7 +67,7 @@ public:
     JOINT() :
         ITEM( JOINT_T ), m_tag(), m_locked( false ) {}
 
-    JOINT( const VECTOR2I& aPos, const LAYER_RANGE& aLayers, NET_HANDLE aNet = nullptr ) :
+    JOINT( const VECTOR2I& aPos, const PNS_LAYER_RANGE& aLayers, NET_HANDLE aNet = nullptr ) :
         ITEM( JOINT_T )
     {
         m_tag.pos = aPos;
@@ -139,9 +139,8 @@ public:
                 }
             }
 
-            wxCHECK( seg1 && seg2, false );
-
-            return seg1->Width() == seg2->Width();
+            if( seg1 && seg2 )
+                return seg1->Width() == seg2->Width();
         }
 
         return false;
@@ -173,6 +172,13 @@ public:
     {
         return ( m_linkedItems.Size() == 1 && m_linkedItems.Count( VIA_T ) == 1 );
     }
+
+    bool IsTrivialEndpoint() const
+    {
+        // fixme: Arcs & trivial endpoint vias
+        return m_linkedItems.Size() == 1 && m_linkedItems.Count( SEGMENT_T ) == 1;
+    }
+
 
     bool IsTraceWidthChange() const
     {
@@ -219,28 +225,51 @@ public:
     bool Unlink( ITEM* aItem )
     {
         m_linkedItems.Erase( aItem );
+        if( m_linkedItems.Size() == 0 )
+            m_layers = PNS_LAYER_RANGE( -1 );
         return m_linkedItems.Size() == 0;
     }
 
     ///< For trivial joints, return the segment adjacent to (aCurrent). For non-trival ones,
     ///< return NULL, indicating the end of line.
-    LINKED_ITEM* NextSegment( ITEM* aCurrent, bool aAllowLockedSegs = false ) const
+    LINKED_ITEM* NextSegment( LINKED_ITEM* aCurrent, bool aAllowLockedSegs = false ) const
     {
-        if( !IsLineCorner( aAllowLockedSegs ) )
-            return nullptr;
-
         const std::vector<ITEM*>& citems = m_linkedItems.CItems();
         const size_t              size = citems.size();
+
+        LINKED_ITEM* otherItem = nullptr;
 
         for( size_t i = 0; i < size; i++ )
         {
             ITEM* item = m_linkedItems[i];
 
-            if( item != aCurrent && item->Kind() != VIA_T )
-                return static_cast<LINKED_ITEM*>( item );
+            if( item != aCurrent )
+            {
+                if ( item->OfKind( ITEM::SEGMENT_T | ITEM::ARC_T ) )
+                {
+                    if ( item->Net() == aCurrent->Net() && item->Layers().Overlaps( aCurrent->Layers() ) )
+                    {
+                        if( otherItem )
+                            return nullptr;
+
+                        if( !item->IsLocked() || aAllowLockedSegs )
+                            otherItem = static_cast<LINKED_ITEM*>( item );
+                    }
+                }
+                else if ( item->OfKind( ITEM::SOLID_T | ITEM::VIA_T ) )
+                {
+                    if( item->Kind() == ITEM::VIA_T && item->IsVirtual() && aAllowLockedSegs )
+                    {
+                        // Virtual via will be added at the joint between an unlocked and locked seg
+                        continue;
+                    }
+
+                    return nullptr;
+                }
+            }
         }
 
-        return nullptr;
+        return otherItem;
     }
 
     VIA* Via() const

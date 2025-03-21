@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,6 +21,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <advanced_config.h>
 #include <pcb_edit_frame.h>
 #include <base_units.h>
 #include <bitmaps.h>
@@ -36,21 +37,129 @@
 #include <convert_basic_shapes_to_polygon.h>
 #include <macros.h>
 #include <core/ignore.h>
+#include <api/api_enums.h>
+#include <api/api_utils.h>
+#include <api/board/board_types.pb.h>
 
 
-PCB_TEXTBOX::PCB_TEXTBOX( BOARD_ITEM* parent ) :
-    PCB_SHAPE( parent, PCB_TEXTBOX_T, SHAPE_T::RECTANGLE ),
+PCB_TEXTBOX::PCB_TEXTBOX( BOARD_ITEM* aParent, KICAD_T aType ) :
+    PCB_SHAPE( aParent, aType, SHAPE_T::RECTANGLE ),
     EDA_TEXT( pcbIUScale ),
     m_borderEnabled( true )
 {
     SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
     SetVertJustify( GR_TEXT_V_ALIGN_TOP );
     SetMultilineAllowed( true );
+
+    int defaultMargin = GetLegacyTextMargin();
+    m_marginLeft = defaultMargin;
+    m_marginTop = defaultMargin;
+    m_marginRight = defaultMargin;
+    m_marginBottom = defaultMargin;
 }
 
 
 PCB_TEXTBOX::~PCB_TEXTBOX()
 {
+}
+
+
+void PCB_TEXTBOX::Serialize( google::protobuf::Any &aContainer ) const
+{
+    using namespace kiapi::common::types;
+    using namespace kiapi::board;
+    types::BoardTextBox boardText;
+    boardText.set_layer( ToProtoEnum<PCB_LAYER_ID, types::BoardLayer>( GetLayer() ) );
+    boardText.mutable_id()->set_value( m_Uuid.AsStdString() );
+    boardText.set_locked( IsLocked() ? LockedState::LS_LOCKED : LockedState::LS_UNLOCKED );
+
+    TextBox& text = *boardText.mutable_textbox();
+
+    kiapi::common::PackVector2( *text.mutable_top_left(), GetPosition() );
+    kiapi::common::PackVector2( *text.mutable_bottom_right(), GetEnd() );
+    text.set_text( GetText().ToStdString() );
+    //text.set_hyperlink( GetHyperlink().ToStdString() );
+
+    TextAttributes* attrs = text.mutable_attributes();
+
+    if( GetFont() )
+        attrs->set_font_name( GetFont()->GetName().ToStdString() );
+
+    attrs->set_horizontal_alignment(
+            ToProtoEnum<GR_TEXT_H_ALIGN_T, HorizontalAlignment>( GetHorizJustify() ) );
+
+    attrs->set_vertical_alignment(
+            ToProtoEnum<GR_TEXT_V_ALIGN_T, VerticalAlignment>( GetVertJustify() ) );
+
+    attrs->mutable_angle()->set_value_degrees( GetTextAngleDegrees() );
+    attrs->set_line_spacing( GetLineSpacing() );
+    attrs->mutable_stroke_width()->set_value_nm( GetTextThickness() );
+    attrs->set_italic( IsItalic() );
+    attrs->set_bold( IsBold() );
+    attrs->set_underlined( GetAttributes().m_Underlined );
+    attrs->set_visible( IsVisible() );
+    attrs->set_mirrored( IsMirrored() );
+    attrs->set_multiline( IsMultilineAllowed() );
+    attrs->set_keep_upright( IsKeepUpright() );
+    kiapi::common::PackVector2( *attrs->mutable_size(), GetTextSize() );
+
+    aContainer.PackFrom( boardText );
+}
+
+
+bool PCB_TEXTBOX::Deserialize( const google::protobuf::Any &aContainer )
+{
+    using namespace kiapi::board;
+    types::BoardTextBox boardText;
+
+    if( !aContainer.UnpackTo( &boardText ) )
+        return false;
+
+    const_cast<KIID&>( m_Uuid ) = KIID( boardText.id().value() );
+    SetLayer( FromProtoEnum<PCB_LAYER_ID, types::BoardLayer>( boardText.layer() ) );
+    SetLocked( boardText.locked() == kiapi::common::types::LockedState::LS_LOCKED );
+
+    const kiapi::common::types::TextBox& text = boardText.textbox();
+
+    SetPosition( kiapi::common::UnpackVector2( text.top_left() ) );
+    SetEnd( kiapi::common::UnpackVector2( text.bottom_right() ) );
+    SetText( wxString( text.text().c_str(), wxConvUTF8 ) );
+    //SetHyperlink( wxString::FromUTF8( text.hyperlink() );
+
+    if( text.has_attributes() )
+    {
+        TEXT_ATTRIBUTES attrs = GetAttributes();
+
+        attrs.m_Bold = text.attributes().bold();
+        attrs.m_Italic = text.attributes().italic();
+        attrs.m_Underlined = text.attributes().underlined();
+        attrs.m_Visible = text.attributes().visible();
+        attrs.m_Mirrored = text.attributes().mirrored();
+        attrs.m_Multiline = text.attributes().multiline();
+        attrs.m_KeepUpright = text.attributes().keep_upright();
+        attrs.m_Size = kiapi::common::UnpackVector2( text.attributes().size() );
+
+        if( !text.attributes().font_name().empty() )
+        {
+            attrs.m_Font = KIFONT::FONT::GetFont(
+                    wxString( text.attributes().font_name().c_str(), wxConvUTF8 ), attrs.m_Bold,
+                    attrs.m_Italic );
+        }
+
+        attrs.m_Angle = EDA_ANGLE( text.attributes().angle().value_degrees(), DEGREES_T );
+        attrs.m_LineSpacing = text.attributes().line_spacing();
+        attrs.m_StrokeWidth = text.attributes().stroke_width().value_nm();
+        attrs.m_Halign =
+                FromProtoEnum<GR_TEXT_H_ALIGN_T, kiapi::common::types::HorizontalAlignment>(
+                        text.attributes().horizontal_alignment() );
+
+        attrs.m_Valign = FromProtoEnum<GR_TEXT_V_ALIGN_T, kiapi::common::types::VerticalAlignment>(
+                text.attributes().vertical_alignment() );
+
+        SetAttributes( attrs );
+    }
+
+    return true;
 }
 
 
@@ -66,7 +175,7 @@ void PCB_TEXTBOX::StyleFromSettings( const BOARD_DESIGN_SETTINGS& settings )
 }
 
 
-int PCB_TEXTBOX::GetTextMargin() const
+int PCB_TEXTBOX::GetLegacyTextMargin() const
 {
     return KiROUND( GetStroke().GetWidth() / 2.0 ) + KiROUND( GetTextSize().y * 0.75 );
 }
@@ -253,9 +362,10 @@ VECTOR2I PCB_TEXTBOX::GetDrawPos( bool aIsFlipped ) const
     {
         switch( GetHorizJustify() )
         {
-        case GR_TEXT_H_ALIGN_LEFT:   effectiveAlignment = GR_TEXT_H_ALIGN_RIGHT;  break;
-        case GR_TEXT_H_ALIGN_CENTER: effectiveAlignment = GR_TEXT_H_ALIGN_CENTER; break;
-        case GR_TEXT_H_ALIGN_RIGHT:  effectiveAlignment = GR_TEXT_H_ALIGN_LEFT;   break;
+        case GR_TEXT_H_ALIGN_LEFT:          effectiveAlignment = GR_TEXT_H_ALIGN_RIGHT;   break;
+        case GR_TEXT_H_ALIGN_CENTER:        effectiveAlignment = GR_TEXT_H_ALIGN_CENTER;  break;
+        case GR_TEXT_H_ALIGN_RIGHT:         effectiveAlignment = GR_TEXT_H_ALIGN_LEFT;    break;
+        case GR_TEXT_H_ALIGN_INDETERMINATE: wxFAIL_MSG( wxT( "Legal only in dialogs" ) ); break;
         }
     }
 
@@ -263,15 +373,18 @@ VECTOR2I PCB_TEXTBOX::GetDrawPos( bool aIsFlipped ) const
     {
     case GR_TEXT_H_ALIGN_LEFT:
         textAnchor = corners[0];
-        offset = VECTOR2I( GetTextMargin(), GetTextMargin() );
+        offset = VECTOR2I( GetMarginLeft(), GetMarginTop() );
         break;
     case GR_TEXT_H_ALIGN_CENTER:
         textAnchor = ( corners[0] + corners[1] ) / 2;
-        offset = VECTOR2I( 0, GetTextMargin() );
+        offset = VECTOR2I( 0, GetMarginTop() );
         break;
     case GR_TEXT_H_ALIGN_RIGHT:
         textAnchor = corners[1];
-        offset = VECTOR2I( -GetTextMargin(), GetTextMargin() );
+        offset = VECTOR2I( -GetMarginRight(), GetMarginTop() );
+        break;
+    case GR_TEXT_H_ALIGN_INDETERMINATE:
+        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
         break;
     }
 
@@ -280,38 +393,35 @@ VECTOR2I PCB_TEXTBOX::GetDrawPos( bool aIsFlipped ) const
 }
 
 
-double PCB_TEXTBOX::ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const
+double PCB_TEXTBOX::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
 {
-    constexpr double HIDE = std::numeric_limits<double>::max();
-
-    KIGFX::PCB_PAINTER*  painter = static_cast<KIGFX::PCB_PAINTER*>( aView->GetPainter() );
-    KIGFX::PCB_RENDER_SETTINGS* renderSettings = painter->GetSettings();
+    KIGFX::PCB_PAINTER&         painter = static_cast<KIGFX::PCB_PAINTER&>( *aView->GetPainter() );
+    KIGFX::PCB_RENDER_SETTINGS& renderSettings = *painter.GetSettings();
 
     if( aLayer == LAYER_LOCKED_ITEM_SHADOW )
     {
         // Hide shadow if the main layer is not shown
         if( !aView->IsLayerVisible( m_layer ) )
-            return HIDE;
+            return LOD_HIDE;
 
         // Hide shadow on dimmed tracks
-        if( renderSettings->GetHighContrast() )
+        if( renderSettings.GetHighContrast() )
         {
-            if( m_layer != renderSettings->GetPrimaryHighContrastLayer() )
-                return HIDE;
+            if( m_layer != renderSettings.GetPrimaryHighContrastLayer() )
+                return LOD_HIDE;
         }
     }
 
-    return 0.0;
+    return LOD_SHOW;
 }
 
 
-void PCB_TEXTBOX::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> PCB_TEXTBOX::ViewGetLayers() const
 {
-    aLayers[0] = GetLayer();
-    aCount = 1;
-
     if( IsLocked() )
-        aLayers[ aCount++ ] = LAYER_LOCKED_ITEM_SHADOW;
+        return { GetLayer(), LAYER_LOCKED_ITEM_SHADOW };
+
+    return { GetLayer() };
 }
 
 
@@ -341,7 +451,7 @@ wxString PCB_TEXTBOX::GetShownText( bool aAllowExtraText, int aDepth ) const
 
     if( HasTextVars() )
     {
-        if( aDepth < 10 )
+        if( aDepth < ADVANCED_CFG::GetCfg().m_ResolveTextRecursionDepth )
             text = ExpandTextVars( text, &resolver );
     }
 
@@ -349,7 +459,11 @@ wxString PCB_TEXTBOX::GetShownText( bool aAllowExtraText, int aDepth ) const
     std::vector<VECTOR2I> corners = GetAnchorAndOppositeCorner();
     int                   colWidth = ( corners[1] - corners[0] ).EuclideanNorm();
 
-    colWidth -= GetTextMargin() * 2;
+    if( GetTextAngle().IsHorizontal() )
+        colWidth -= ( GetMarginLeft() + GetMarginRight() );
+    else
+        colWidth -= ( GetMarginTop() + GetMarginBottom() );
+
     font->LinebreakText( text, colWidth, GetTextSize(), GetTextThickness(), IsBold(), IsItalic() );
 
     return text;
@@ -399,7 +513,7 @@ void PCB_TEXTBOX::Move( const VECTOR2I& aMoveVector )
 void PCB_TEXTBOX::Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle )
 {
     PCB_SHAPE::Rotate( aRotCentre, aAngle );
-    EDA_TEXT::SetTextAngle( ( GetTextAngle() + aAngle ).Normalized() );
+    EDA_TEXT::SetTextAngle( ( GetTextAngle() + aAngle ).Normalize90() );
 
     if( GetTextAngle().IsCardinal() && GetShape() != SHAPE_T::RECTANGLE )
     {
@@ -424,28 +538,25 @@ void PCB_TEXTBOX::Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle )
 }
 
 
-void PCB_TEXTBOX::Mirror( const VECTOR2I& aCentre, bool aMirrorAroundXAxis )
+void PCB_TEXTBOX::Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
     // the position and angle are mirrored, but not the text (or its justification)
-    PCB_SHAPE::Mirror( aCentre, aMirrorAroundXAxis );
+    PCB_SHAPE::Mirror( aCentre, aFlipDirection );
 
-    if( aMirrorAroundXAxis )
+    if( aFlipDirection == FLIP_DIRECTION::LEFT_RIGHT )
         EDA_TEXT::SetTextAngle( ANGLE_180 - GetTextAngle() );
     else
         EDA_TEXT::SetTextAngle( -GetTextAngle() );
 }
 
 
-void PCB_TEXTBOX::Flip( const VECTOR2I& aCentre, bool aFlipLeftRight )
+void PCB_TEXTBOX::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
-    PCB_SHAPE::Flip( aCentre, aFlipLeftRight );
+    PCB_SHAPE::Flip( aCentre, aFlipDirection );
 
-    if( aFlipLeftRight )
-        EDA_TEXT::SetTextAngle( -GetTextAngle() );
-    else
-        EDA_TEXT::SetTextAngle( ANGLE_180 - GetTextAngle() );
+    EDA_TEXT::SetTextAngle( -GetTextAngle() );
 
-    if( ( GetLayerSet() & LSET::SideSpecificMask() ).any() )
+    if( IsSideSpecific() )
         SetMirrored( !IsMirrored() );
 }
 
@@ -473,9 +584,11 @@ bool PCB_TEXTBOX::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) 
 }
 
 
-wxString PCB_TEXTBOX::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString PCB_TEXTBOX::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "PCB Text Box on %s" ), GetLayerName() );
+    return wxString::Format( _( "PCB Text Box '%s' on %s" ),
+                             aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ),
+                             GetLayerName() );
 }
 
 
@@ -493,7 +606,7 @@ EDA_ITEM* PCB_TEXTBOX::Clone() const
 
 void PCB_TEXTBOX::swapData( BOARD_ITEM* aImage )
 {
-    assert( aImage->Type() == PCB_TEXTBOX_T );
+    wxASSERT( aImage->Type() == PCB_TEXTBOX_T );
 
     std::swap( *((PCB_TEXTBOX*) this), *((PCB_TEXTBOX*) aImage) );
 }
@@ -550,7 +663,7 @@ void PCB_TEXTBOX::TransformTextToPolySet( SHAPE_POLY_SET& aBuffer, int aClearanc
     }
     else
     {
-        buffer.Simplify( SHAPE_POLY_SET::PM_FAST );
+        buffer.Simplify();
     }
 
     aBuffer.Append( buffer );
@@ -623,7 +736,6 @@ void PCB_TEXTBOX::SetBorderWidth( const int aSize )
 }
 
 
-
 bool PCB_TEXTBOX::operator==( const BOARD_ITEM& aBoardItem ) const
 {
     if( aBoardItem.Type() != Type() )
@@ -631,7 +743,14 @@ bool PCB_TEXTBOX::operator==( const BOARD_ITEM& aBoardItem ) const
 
     const PCB_TEXTBOX& other = static_cast<const PCB_TEXTBOX&>( aBoardItem );
 
-    return m_borderEnabled == other.m_borderEnabled && EDA_TEXT::operator==( other );
+    return *this == other;
+}
+
+
+bool PCB_TEXTBOX::operator==( const PCB_TEXTBOX& aOther ) const
+{
+    return m_borderEnabled == aOther.m_borderEnabled
+            && EDA_TEXT::operator==( aOther );
 }
 
 
@@ -647,6 +766,18 @@ double PCB_TEXTBOX::Similarity( const BOARD_ITEM& aBoardItem ) const
     if( m_borderEnabled != other.m_borderEnabled )
         similarity *= 0.9;
 
+    if( GetMarginLeft() != other.GetMarginLeft() )
+        similarity *= 0.9;
+
+    if( GetMarginTop() != other.GetMarginTop() )
+        similarity *= 0.9;
+
+    if( GetMarginRight() != other.GetMarginRight() )
+        similarity *= 0.9;
+
+    if( GetMarginBottom() != other.GetMarginBottom() )
+        similarity *= 0.9;
+
     similarity *= EDA_TEXT::Similarity( other );
 
     return similarity;
@@ -657,16 +788,15 @@ static struct PCB_TEXTBOX_DESC
 {
     PCB_TEXTBOX_DESC()
     {
-        ENUM_MAP<LINE_STYLE>& plotDashTypeEnum = ENUM_MAP<LINE_STYLE>::Instance();
+        ENUM_MAP<LINE_STYLE>& lineStyleEnum = ENUM_MAP<LINE_STYLE>::Instance();
 
-        if( plotDashTypeEnum.Choices().GetCount() == 0 )
+        if( lineStyleEnum.Choices().GetCount() == 0 )
         {
-            plotDashTypeEnum.Map( LINE_STYLE::DEFAULT, _HKI( "Default" ) )
-                            .Map( LINE_STYLE::SOLID, _HKI( "Solid" ) )
-                            .Map( LINE_STYLE::DASH, _HKI( "Dashed" ) )
-                            .Map( LINE_STYLE::DOT, _HKI( "Dotted" ) )
-                            .Map( LINE_STYLE::DASHDOT, _HKI( "Dash-Dot" ) )
-                            .Map( LINE_STYLE::DASHDOTDOT, _HKI( "Dash-Dot-Dot" ) );
+            lineStyleEnum.Map( LINE_STYLE::SOLID, _HKI( "Solid" ) )
+                         .Map( LINE_STYLE::DASH, _HKI( "Dashed" ) )
+                         .Map( LINE_STYLE::DOT, _HKI( "Dotted" ) )
+                         .Map( LINE_STYLE::DASHDOT, _HKI( "Dash-Dot" ) )
+                         .Map( LINE_STYLE::DASHDOTDOT, _HKI( "Dash-Dot-Dot" ) );
         }
 
         PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
@@ -681,6 +811,8 @@ static struct PCB_TEXTBOX_DESC
         propMgr.Mask( TYPE_HASH( PCB_TEXTBOX ), TYPE_HASH( EDA_SHAPE ), _HKI( "Start Y" ) );
         propMgr.Mask( TYPE_HASH( PCB_TEXTBOX ), TYPE_HASH( EDA_SHAPE ), _HKI( "End X" ) );
         propMgr.Mask( TYPE_HASH( PCB_TEXTBOX ), TYPE_HASH( EDA_SHAPE ), _HKI( "End Y" ) );
+        propMgr.Mask( TYPE_HASH( PCB_TEXTBOX ), TYPE_HASH( EDA_SHAPE ), _HKI( "Width" ) );
+        propMgr.Mask( TYPE_HASH( PCB_TEXTBOX ), TYPE_HASH( EDA_SHAPE ), _HKI( "Height" ) );
         propMgr.Mask( TYPE_HASH( PCB_TEXTBOX ), TYPE_HASH( EDA_SHAPE ), _HKI( "Line Width" ) );
         propMgr.Mask( TYPE_HASH( PCB_TEXTBOX ), TYPE_HASH( EDA_SHAPE ), _HKI( "Line Style" ) );
         propMgr.Mask( TYPE_HASH( PCB_TEXTBOX ), TYPE_HASH( EDA_SHAPE ), _HKI( "Filled" ) );
@@ -693,19 +825,37 @@ static struct PCB_TEXTBOX_DESC
         LINE_STYLE ( PCB_TEXTBOX::*lineStyleGetter )() const = &PCB_TEXTBOX::GetLineStyle;
 
         propMgr.AddProperty( new PROPERTY<PCB_TEXTBOX, bool>( _HKI( "Border" ),
-                                                              &PCB_TEXTBOX::SetBorderEnabled,
-                                                              &PCB_TEXTBOX::IsBorderEnabled ),
-                             borderProps );
+                    &PCB_TEXTBOX::SetBorderEnabled, &PCB_TEXTBOX::IsBorderEnabled ),
+                borderProps );
 
         propMgr.AddProperty( new PROPERTY_ENUM<PCB_TEXTBOX, LINE_STYLE>( _HKI( "Border Style" ),
-                                                                             lineStyleSetter,
-                                                                             lineStyleGetter ),
-                             borderProps );
+                    lineStyleSetter, lineStyleGetter ),
+                borderProps );
 
         propMgr.AddProperty( new PROPERTY<PCB_TEXTBOX, int>( _HKI( "Border Width" ),
-                                                             &PCB_TEXTBOX::SetBorderWidth,
-                                                             &PCB_TEXTBOX::GetBorderWidth,
-                                                             PROPERTY_DISPLAY::PT_SIZE ),
-                             borderProps );
+                    &PCB_TEXTBOX::SetBorderWidth, &PCB_TEXTBOX::GetBorderWidth,
+                    PROPERTY_DISPLAY::PT_SIZE ),
+                borderProps );
+
+        const wxString marginProps = _( "Margins" );
+
+        propMgr.AddProperty( new PROPERTY<PCB_TEXTBOX, int>( _HKI( "Margin Left" ),
+                    &PCB_TEXTBOX::SetMarginLeft, &PCB_TEXTBOX::GetMarginLeft,
+                    PROPERTY_DISPLAY::PT_SIZE ),
+                marginProps );
+        propMgr.AddProperty( new PROPERTY<PCB_TEXTBOX, int>( _HKI( "Margin Top" ),
+                    &PCB_TEXTBOX::SetMarginTop, &PCB_TEXTBOX::GetMarginTop,
+                    PROPERTY_DISPLAY::PT_SIZE ),
+                marginProps );
+        propMgr.AddProperty( new PROPERTY<PCB_TEXTBOX, int>( _HKI( "Margin Right" ),
+                    &PCB_TEXTBOX::SetMarginRight, &PCB_TEXTBOX::GetMarginRight,
+                    PROPERTY_DISPLAY::PT_SIZE ),
+                marginProps );
+        propMgr.AddProperty( new PROPERTY<PCB_TEXTBOX, int>( _HKI( "Margin Bottom" ),
+                    &PCB_TEXTBOX::SetMarginBottom, &PCB_TEXTBOX::GetMarginBottom,
+                    PROPERTY_DISPLAY::PT_SIZE ),
+                marginProps );
+
+        propMgr.Mask( TYPE_HASH( PCB_TEXT ), TYPE_HASH( EDA_TEXT ), _HKI( "Hyperlink" ) );
     }
 } _PCB_TEXTBOX_DESC;

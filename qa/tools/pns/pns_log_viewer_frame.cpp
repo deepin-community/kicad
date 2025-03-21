@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2022, 2024 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -133,12 +133,14 @@ void PNS_LOG_VIEWER_OVERLAY::DrawAnnotations()
 
 
 PNS_LOG_VIEWER_FRAME::PNS_LOG_VIEWER_FRAME( wxFrame* frame ) :
-        PNS_LOG_VIEWER_FRAME_BASE( frame ), m_rewindIter( 0 ), m_reporter( &m_consoleLog )
+        PNS_LOG_VIEWER_FRAME_BASE( frame ), m_rewindIter( 0 )
 {
     LoadSettings();
-    createView( this, PCB_DRAW_PANEL_GAL::GAL_TYPE_OPENGL );
+    createView( m_mainSplitter, PCB_DRAW_PANEL_GAL::GAL_TYPE_OPENGL );
 
-    m_viewSizer->Add( m_galPanel.get(), 1, wxEXPAND, 5 );
+    m_reporter.reset( new WX_TEXT_CTRL_REPORTER( m_consoleText ) );
+    m_galPanel->SetParent( m_mainSplitter );
+    m_mainSplitter->SplitHorizontally( m_galPanel.get(), m_panelProps );
 
     Layout();
 
@@ -345,8 +347,17 @@ void PNS_LOG_VIEWER_FRAME::LoadLogFile( const wxString& aFile )
 {
     std::unique_ptr<PNS_LOG_FILE> logFile( new PNS_LOG_FILE );
 
-    if( logFile->Load( wxFileName( aFile ), &m_reporter ) )
+    wxFileName logFn( aFile );
+    logFn.MakeAbsolute();
+
+    if( logFile->Load( logFn, m_reporter.get() ) )
         SetLogFile( logFile.release() );
+}
+
+
+void PNS_LOG_VIEWER_FRAME::updateViewerIface()
+{
+    m_viewerIface = std::make_shared<PNS_VIEWER_IFACE>( m_board );
 }
 
 
@@ -357,7 +368,7 @@ void PNS_LOG_VIEWER_FRAME::SetLogFile( PNS_LOG_FILE* aLog )
     m_logFile.reset( aLog );
 
     SetBoard( m_logFile->GetBoard() );
-
+    updateViewerIface();
     m_logPlayer->ReplayLog( m_logFile.get(), 0, 0, -1, true );
 
     auto dbgd = m_logPlayer->GetDebugDecorator();
@@ -380,13 +391,14 @@ void PNS_LOG_VIEWER_FRAME::SetLogFile( PNS_LOG_FILE* aLog )
     drawLoggedItems( m_rewindIter );
     updateDumpPanel( m_rewindIter );
     updatePnsPreviewItems( m_rewindIter );
+
 }
 
 
 void PNS_LOG_VIEWER_FRAME::SetBoard2( std::shared_ptr<BOARD> aBoard )
 {
     SetBoard( aBoard );
-
+    updateViewerIface();
     auto extents = m_board->GetBoundingBox();
 
     BOX2D bbd;
@@ -418,7 +430,7 @@ void PNS_LOG_VIEWER_FRAME::onSaveAs( wxCommandEvent& event )
 {
     if( !m_logFile )
     {
-        DisplayError( this, wxT( "No log file Loaded!" ) );
+        DisplayErrorMessage( this, wxT( "No log file Loaded!" ) );
         return;
     }
 
@@ -433,7 +445,7 @@ void PNS_LOG_VIEWER_FRAME::onSaveAs( wxCommandEvent& event )
 
         wxASSERT_MSG( create_me.IsAbsolute(), wxS( "wxFileDialog returned non-absolute path" ) );
 
-        m_logFile->SaveLog( create_me, &m_reporter );
+        m_logFile->SaveLog( create_me, m_reporter.get() );
         m_mruPath = create_me.GetPath();
     }
 
@@ -921,10 +933,10 @@ void PNS_LOG_VIEWER_FRAME::updatePnsPreviewItems( int iter )
 
     for( auto& ent : entries )
     {
-        if ( ent.isHideOp )
+        if ( ent.m_isHideOp )
         {
 
-            auto parent = ent.item->Parent();
+            auto parent = ent.m_item->Parent();
             if( parent )
             {
 
@@ -933,8 +945,8 @@ void PNS_LOG_VIEWER_FRAME::updatePnsPreviewItems( int iter )
         }
         else
         {
-            ROUTER_PREVIEW_ITEM* pitem = new ROUTER_PREVIEW_ITEM( ent.item, view );
-            pitem->Update( ent.item );
+            ROUTER_PREVIEW_ITEM* pitem = new ROUTER_PREVIEW_ITEM( ent.m_item, m_viewerIface.get(), view );
+            pitem->Update( ent.m_item );
             m_previewItems->Add(pitem);
     //        printf("DBG vadd %p total %d\n", pitem, m_previewItems->GetSize() );
         }
@@ -948,6 +960,12 @@ void PNS_LOG_VIEWER_FRAME::updatePnsPreviewItems( int iter )
 
     //view->UpdateAllItems( KIGFX::ALL );
 }
+
+REPORTER* PNS_LOG_VIEWER_FRAME::GetConsoleReporter()
+{
+    return m_reporter.get();
+}
+
 
 #if 0
 

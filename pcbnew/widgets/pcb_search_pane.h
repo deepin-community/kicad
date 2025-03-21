@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -42,6 +42,9 @@ public:
                                       std::vector<BOARD_ITEM*>& aBoardItems ) override;
     virtual void OnBoardHighlightNetChanged( BOARD& aBoard ) override;
     virtual void OnBoardRatsnestChanged( BOARD& aBoard ) override;
+    virtual void OnBoardCompositeUpdate( BOARD& aBoard, std::vector<BOARD_ITEM*>& aAddedItems,
+                                         std::vector<BOARD_ITEM*>& aRemovedItems,
+                                         std::vector<BOARD_ITEM*>& aChangedItems ) override;
 
 private:
     void            onUnitsChanged( wxCommandEvent& event );

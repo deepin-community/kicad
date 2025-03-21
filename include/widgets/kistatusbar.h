@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,6 +25,8 @@
 #ifndef KISTATUSBAR_H
 #define KISTATUSBAR_H
 
+#include <kicommon.h>
+
 class wxGauge;
 class wxButton;
 class wxStaticText;
@@ -39,7 +41,7 @@ class BITMAP_BUTTON;
  * Background notifications button (FIELD_OFFSET_NOTIFICATION_BUTTON  offset id)
  */
 
-class KISTATUSBAR : public wxStatusBar
+class KICOMMON_API KISTATUSBAR : public wxStatusBar
 {
 public:
     KISTATUSBAR( int aNumberFields, wxWindow* parent, wxWindowID id );
@@ -48,39 +50,41 @@ public:
 
     /**
      * Set the text in a field using wxELLIPSIZE_MIDDLE option to adjust the text size
-     * to the field size (unfortunately, setting the wxStatusBar style to wxELLIPSIZE_MIDDLE
-     * does not work fine
+     * to the field size.
+     *
+     * @note Unfortunately, setting the wxStatusBar style to wxELLIPSIZE_MIDDLE does not work.
      */
     void SetEllipsedTextField( const wxString& aText, int aFieldId );
 
     /**
-     * Shows the background progress bar
+     * Show the background progress bar.
      */
     void ShowBackgroundProgressBar( bool aCancellable = false );
 
     /**
-     * Hides the background progress bar
+     * Hide the background progress bar.
      */
     void HideBackgroundProgressBar();
 
     /**
-     * Sets the current progress of the progress bar
+     * Set the current progress of the progress bar.
      */
     void SetBackgroundProgress( int aAmount );
 
     /**
-     * Sets the maX progress of the progress bar
+     * Set the max progress of the progress bar.
      */
     void SetBackgroundProgressMax( int aAmount );
 
     /**
-     * Sets the status text that displays next to the progress bar
+     * Set the status text that displays next to the progress bar.
      */
     void SetBackgroundStatusText( const wxString& aTxt );
 
     /**
-     * Sets the notification count on the notifications button
-     * A value of 0 will hide the count
+     * Set the notification count on the notifications button.
+     *
+     * A value of 0 will hide the count.
      */
     void SetNotificationCount( int aCount );
 

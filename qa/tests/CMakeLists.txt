@@ -20,6 +20,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 ## Unit tests
+add_subdirectory( api )
 add_subdirectory( common )
 add_subdirectory( gerbview )
 add_subdirectory( eeschema )
@@ -37,13 +38,42 @@ if( KICAD_TEST_XML_OUTPUT )
 endif()
 
 # avoid formatting this otherwise you will introduce whitespace into the PATH string
-    set( QA_PATH_REPLACEMENT
-"PATH=${CMAKE_BINARY_DIR}/kicad/;\
+    set( NEW_PATHS
+"${CMAKE_BINARY_DIR}/kicad/;\
 ${CMAKE_BINARY_DIR}/common/;\
+${CMAKE_BINARY_DIR}/api/;\
 ${CMAKE_BINARY_DIR}/common/gal/;\
 ${CMAKE_BINARY_DIR}/pcbnew/;\
 ${CMAKE_BINARY_DIR}/eeschema/;\
-$ENV{PATH};" )
+${CMAKE_BINARY_DIR}/cvpcb/;\
+" )
+
+set( EXTRA_PYTEST_ENVIRONMENT "" )
+
+if( APPLE )
+    # We need to use the installed kicad-cli not the build dir to run these tests
+    set( NEW_PATHS
+"${CMAKE_INSTALL_PREFIX}/KiCad.app/Contents/MacOS;\
+${NEW_PATHS};" )
+    get_filename_component( CAIRO_LIB_BASE "${CAIRO_LIBRARY}" DIRECTORY )
+    set( EXTRA_PYTEST_ENVIRONMENT "DYLD_FALLBACK_LIBRARY_PATH=${CAIRO_LIB_BASE}" )
+elseif ( MSVC )
+
+
+    if( CMAKE_BUILD_TYPE STREQUAL "Debug" )
+        set( NEW_PATHS
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin;\
+${NEW_PATHS};" )
+    else()
+        set( NEW_PATHS
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin;\
+${NEW_PATHS};" )
+    endif()
+
+    set( EXTRA_PYTEST_ENVIRONMENT "FONTCONFIG_PATH=${CMAKE_SOURCE_DIR}/qa/resources/windows/fonts/" )
+endif()
+
+set( QA_PATH_REPLACEMENT "PATH=${NEW_PATHS};$ENV{PATH}" )
 
 if (UNIX)
   string(REPLACE ";" ":" QA_PATH_REPLACEMENT "${QA_PATH_REPLACEMENT}")
@@ -60,7 +90,7 @@ add_test(NAME qa_python
 
 set_tests_properties( qa_python
     PROPERTIES
-        ENVIRONMENT "${QA_PATH_REPLACEMENT};PYTHONPATH=${CMAKE_BINARY_DIR}/pcbnew;${PYTHON_QA_PATH}"
+        ENVIRONMENT "${QA_PATH_REPLACEMENT};PYTHONPATH=${CMAKE_BINARY_DIR}/pcbnew;${PYTHON_QA_PATH};${EXTRA_PYTEST_ENVIRONMENT}"
 )
 endif()
 
@@ -69,7 +99,16 @@ add_test(NAME qa_cli
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-set_tests_properties( qa_cli
-    PROPERTIES
-        ENVIRONMENT "${QA_PATH_REPLACEMENT};KICAD_RUN_FROM_BUILD_DIR=1;PYTHONPATH=${CMAKE_BINARY_DIR}/pcbnew;${PYTHON_QA_PATH}"
-)
+if( NOT MSVC )
+    set_tests_properties( qa_cli
+        PROPERTIES
+            ENVIRONMENT "${QA_PATH_REPLACEMENT};KICAD_RUN_FROM_BUILD_DIR=1;PYTHONPATH=${CMAKE_BINARY_DIR}/pcbnew;${PYTHON_QA_PATH};${EXTRA_PYTEST_ENVIRONMENT}"
+    )
+else()
+    set_tests_properties( qa_cli
+        PROPERTIES
+            ENVIRONMENT "KICAD_RUN_FROM_BUILD_DIR=1;PYTHONPATH=${CMAKE_BINARY_DIR}/pcbnew;${PYTHON_QA_PATH};${EXTRA_PYTEST_ENVIRONMENT}"
+    )
+
+    setup_qa_env( qa_cli )
+endif()

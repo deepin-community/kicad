@@ -1,7 +1,7 @@
 /*
 * This program source code file is part of KICAD, a free EDA CAD application.
 *
-* Copyright (C) 2016-2020 Kicad Developers, see change_log.txt for contributors.
+* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -28,7 +28,7 @@
 #include <wx/log.h>
 
 #include <config_map.h>
-#include <gal/dpi_scaling.h>
+#include <dpi_scaling.h>
 
 using namespace KIGFX;
 

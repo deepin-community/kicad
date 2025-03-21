@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Thomas Pointhuber <thomas.pointhuber@gmx.at>
- * Copyright (C) 2021-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -336,8 +336,6 @@ struct ASCH_PIN : ASCH_OWNER_INTERFACE
     bool showDesignator;
     bool hidden;
     bool locked;
-
-    bool isKiCadLibPin;  // Tracking variable to handle LibEdit nuance
 
     explicit ASCH_PIN( const std::map<wxString, wxString>& aProps );
 };

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2024 3Dconnexion
- * Copyright (C) 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -31,13 +31,14 @@
 #include <SpaceMouse/CNavigation3D.hpp>
 
 /**
- * The class that adjusts NL_3D_VIEWER_PLUGIN_IMPL implementation for 3D Model preview in footprint properties dialog.
+ * The class that adjusts NL_3D_VIEWER_PLUGIN_IMPL implementation for 3D Model preview in
+ * footprint properties dialog.
  */
 class NL_FOOTPRINT_PROPERTIES_PLUGIN_IMPL : public NL_3D_VIEWER_PLUGIN_IMPL
 {
 public:
     /**
-     * Initializes a new instance of the NL_FOOTPRINT_PROPERTIES_PLUGIN.
+     * Initialize a new instance of the NL_FOOTPRINT_PROPERTIES_PLUGIN.
      *
      *  @param aCanvas is the viewport to be navigated.
      */
@@ -60,8 +61,8 @@ private:
     /**
      *  Trace mask used to enable or disable the trace output of this class.
      *  The debug output can be turned on by setting the WXTRACE environment variable to
-     *  "KI_TRACE_NL_FOOTPRINT_PROPERTIES_PLUGIN".  See the wxWidgets documentation on wxLogTrace for
-     *  more information.
+     *  "KI_TRACE_NL_FOOTPRINT_PROPERTIES_PLUGIN".  See the wxWidgets documentation on
+     *  wxLogTrace for more information.
      */
     static const wxChar* m_logTrace;
 };

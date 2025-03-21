@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,7 +20,6 @@
 
 #include "board.h"
 #include "locale_io.h"
-#include "pcb_plot_params.h"
 #include "export_svg.h"
 #include "pcbplot.h"
 #include "pgm_base.h"
@@ -34,15 +33,25 @@ bool EXPORT_SVG::Plot( BOARD* aBoard, const PCB_PLOT_SVG_OPTIONS& aSvgPlotOption
 
     plot_opts.SetPlotFrameRef( aSvgPlotOptions.m_plotFrame );
 
+    if( aSvgPlotOptions.m_sketchPadsOnFabLayers )
+    {
+        plot_opts.SetSketchPadsOnFabLayers( true );
+        plot_opts.SetPlotPadNumbers( true );
+    }
+
+    plot_opts.SetHideDNPFPsOnFabLayers( aSvgPlotOptions.m_hideDNPFPsOnFabLayers );
+    plot_opts.SetSketchDNPFPsOnFabLayers( aSvgPlotOptions.m_sketchDNPFPsOnFabLayers );
+    plot_opts.SetCrossoutDNPFPsOnFabLayers( aSvgPlotOptions.m_crossoutDNPFPsOnFabLayers );
+
     // Adding drill marks, for copper layers
-    if( ( LSET( aSvgPlotOptions.m_printMaskLayer ) & LSET::AllCuMask() ).any() )
+    if( ( LSET( { aSvgPlotOptions.m_printMaskLayer } ) & LSET::AllCuMask() ).any() )
     {
         switch( aSvgPlotOptions.m_drillShapeOption )
         {
-            default:
-            case 0:  plot_opts.SetDrillMarksType( DRILL_MARKS::NO_DRILL_SHAPE );    break;
-            case 1:  plot_opts.SetDrillMarksType( DRILL_MARKS::SMALL_DRILL_SHAPE ); break;
-            case 2:  plot_opts.SetDrillMarksType( DRILL_MARKS::FULL_DRILL_SHAPE );  break;
+        default:
+        case 0:  plot_opts.SetDrillMarksType( DRILL_MARKS::NO_DRILL_SHAPE );    break;
+        case 1:  plot_opts.SetDrillMarksType( DRILL_MARKS::SMALL_DRILL_SHAPE ); break;
+        case 2:  plot_opts.SetDrillMarksType( DRILL_MARKS::FULL_DRILL_SHAPE );  break;
         }
     }
     else
@@ -55,15 +64,14 @@ bool EXPORT_SVG::Plot( BOARD* aBoard, const PCB_PLOT_SVG_OPTIONS& aSvgPlotOption
     plot_opts.SetMirror( aSvgPlotOptions.m_mirror );
     plot_opts.SetNegative( aSvgPlotOptions.m_negative );
     plot_opts.SetFormat( PLOT_FORMAT::SVG );
-    // coord format: 4 digits in mantissa (units always in mm). This is a good choice.
-    plot_opts.SetSvgPrecision( 4 );
+    plot_opts.SetSvgPrecision( aSvgPlotOptions.m_precision );
 
     PAGE_INFO savedPageInfo = aBoard->GetPageSettings();
     VECTOR2I  savedAuxOrigin = aBoard->GetDesignSettings().GetAuxOrigin();
 
     if( aSvgPlotOptions.m_pageSizeMode == 2 ) // Page is board boundary size
     {
-        BOX2I     bbox = aBoard->ComputeBoundingBox();
+        BOX2I     bbox = aBoard->ComputeBoundingBox( false );
         PAGE_INFO currpageInfo = aBoard->GetPageSettings();
 
         currpageInfo.SetWidthMils( bbox.GetWidth() / pcbIUScale.IU_PER_MILS );
@@ -78,7 +86,7 @@ bool EXPORT_SVG::Plot( BOARD* aBoard, const PCB_PLOT_SVG_OPTIONS& aSvgPlotOption
     {
         wxFileName fn = aBoard->GetFileName();
         fn.SetName( fn.GetName() );
-        fn.SetExt( wxS("svg") );
+        fn.SetExt( wxS( "svg" ) );
 
         outputFile = fn.GetFullName();
     }
@@ -107,16 +115,19 @@ bool EXPORT_SVG::Plot( BOARD* aBoard, const PCB_PLOT_SVG_OPTIONS& aSvgPlotOption
     if( plotter )
     {
         plotter->SetColorMode( !aSvgPlotOptions.m_blackAndWhite );
-        PlotBoardLayers( aBoard, plotter, aSvgPlotOptions.m_printMaskLayer,
-                         plot_opts );
+        PlotBoardLayers( aBoard, plotter, aSvgPlotOptions.m_printMaskLayer, plot_opts );
         plotter->EndPlot();
+
+        delete plotter;
+
+        // reset to the values saved earlier
+        aBoard->GetDesignSettings().SetAuxOrigin( savedAuxOrigin );
+        aBoard->SetPageSettings( savedPageInfo );
+
+        return true;
     }
-
-    delete plotter;
-
-    // reset to the values saved earlier
-    aBoard->GetDesignSettings().SetAuxOrigin( savedAuxOrigin );
-    aBoard->SetPageSettings( savedPageInfo );
-
-    return true;
+    else
+    {
+        return false;
+    }
 }

@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -28,12 +28,18 @@ DIALOG_SELECT_3D_MODEL_BASE::DIALOG_SELECT_3D_MODEL_BASE( wxWindow* parent, wxWi
 	wxBoxSizer* bSizerLeft;
 	bSizerLeft = new wxBoxSizer( wxVERTICAL );
 
-	m_FileTree = new wxGenericDirCtrl( m_panelLeft, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxDIRCTRL_3D_INTERNAL|wxDIRCTRL_EDIT_LABELS|wxDIRCTRL_SELECT_FIRST|wxDIRCTRL_SHOW_FILTERS|wxBORDER_DEFAULT, wxEmptyString, 0 );
+	m_FileTree = new wxGenericDirCtrl( m_panelLeft, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxDIRCTRL_3D_INTERNAL|wxDIRCTRL_EDIT_LABELS|wxDIRCTRL_SHOW_FILTERS|wxBORDER_DEFAULT, wxEmptyString, 0 );
 
 	m_FileTree->ShowHidden( false );
 	m_FileTree->SetMinSize( wxSize( 300,-1 ) );
 
 	bSizerLeft->Add( m_FileTree, 1, wxALL|wxEXPAND, 5 );
+
+	wxBoxSizer* bSizer7;
+	bSizer7 = new wxBoxSizer( wxHORIZONTAL );
+
+
+	bSizerLeft->Add( bSizer7, 0, wxEXPAND, 5 );
 
 
 	m_panelLeft->SetSizer( bSizerLeft );
@@ -70,6 +76,15 @@ DIALOG_SELECT_3D_MODEL_BASE::DIALOG_SELECT_3D_MODEL_BASE( wxWindow* parent, wxWi
 
 	bSizerMain->Add( bSizerLower, 0, wxEXPAND, 5 );
 
+	wxBoxSizer* bSizer6;
+	bSizer6 = new wxBoxSizer( wxHORIZONTAL );
+
+	m_EmbedModelCb = new wxCheckBox( this, wxID_ANY, _("Embed model"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer6->Add( m_EmbedModelCb, 0, wxALIGN_CENTER_VERTICAL|wxALL, 5 );
+
+
+	bSizer6->Add( 0, 0, 1, wxEXPAND, 5 );
+
 	m_sdbSizer = new wxStdDialogButtonSizer();
 	m_sdbSizerOK = new wxButton( this, wxID_OK );
 	m_sdbSizer->AddButton( m_sdbSizerOK );
@@ -77,7 +92,10 @@ DIALOG_SELECT_3D_MODEL_BASE::DIALOG_SELECT_3D_MODEL_BASE( wxWindow* parent, wxWi
 	m_sdbSizer->AddButton( m_sdbSizerCancel );
 	m_sdbSizer->Realize();
 
-	bSizerMain->Add( m_sdbSizer, 0, wxEXPAND|wxALL, 5 );
+	bSizer6->Add( m_sdbSizer, 0, wxBOTTOM|wxEXPAND|wxTOP, 5 );
+
+
+	bSizerMain->Add( bSizer6, 0, wxEXPAND, 5 );
 
 
 	this->SetSizer( bSizerMain );

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -35,6 +35,10 @@
 #include <zoom_defines.h>
 #include <drawing_sheet/ds_proxy_view_item.h>
 #include <string_utils.h>
+#include <wx/dcprint.h>
+#include <wx/log.h>
+#include <wx/dcmemory.h>
+#include <wx/log.h>
 
 
 SCH_PRINTOUT::SCH_PRINTOUT( SCH_EDIT_FRAME* aParent, const wxString& aTitle, bool aUseCairo ) :
@@ -71,7 +75,7 @@ bool SCH_PRINTOUT::OnBeginDocument( int startPage, int endPage )
 
 bool SCH_PRINTOUT::OnPrintPage( int page )
 {
-    SCH_SHEET_LIST sheetList = m_parent->Schematic().GetSheets();
+    SCH_SHEET_LIST sheetList = m_parent->Schematic().Hierarchy();
     sheetList.SortByPageNumbers( false );
 
     wxCHECK_MSG( page >= 1 && page <= (int)sheetList.size(), false,
@@ -96,7 +100,8 @@ bool SCH_PRINTOUT::OnPrintPage( int page )
     KIGFX::SCH_VIEW* sch_view = m_parent->GetCanvas()->GetView();
     sch_view->GetDrawingSheet()->SetPageNumber( TO_UTF8( screen->GetPageNumber() ) );
 
-    PrintPage( screen );
+    // Print page using the current wxPrinterDC
+    PrintPage( screen, GetDC(), true );
 
     // Restore the initial current sheet
     m_parent->SetCurrentSheet( oldsheetpath );
@@ -118,8 +123,10 @@ int SCH_PRINTOUT::milsToIU( int aMils )
 /*
  * This is the real print function: print the active screen
  */
-void SCH_PRINTOUT::PrintPage( SCH_SCREEN* aScreen )
+bool SCH_PRINTOUT::PrintPage( SCH_SCREEN* aScreen, wxDC* aDC, bool aForPrinting )
 {
+    // Note: some data (like paper size) is available only when printing
+
     if( !m_useCairo )
     {
         // Version using print to a wxDC
@@ -132,7 +139,7 @@ void SCH_PRINTOUT::PrintPage( SCH_SCREEN* aScreen )
         wxSize   pageSizeIU;             // Page size in internal units
         VECTOR2I old_org;
         wxRect   fitRect;
-        wxDC*    dc = GetDC();
+        wxDC*    dc = aDC;
 
         wxBusyCursor dummy;
 
@@ -150,7 +157,26 @@ void SCH_PRINTOUT::PrintPage( SCH_SCREEN* aScreen )
         pageSizeIU = ToWxSize( aScreen->GetPageSettings().GetSizeIU( schIUScale.IU_PER_MILS ) );
         FitThisSizeToPaper( pageSizeIU );
 
-        fitRect = GetLogicalPaperRect();
+        if( aForPrinting )
+            fitRect = GetLogicalPaperRect();
+        else
+        {
+            fitRect = wxRect( 0, 0, 6000, 4000 );
+
+            if( wxMemoryDC* memdc = dynamic_cast<wxMemoryDC*>( dc ) )
+            {
+                wxBitmap& bm = memdc->GetSelectedBitmap();
+                fitRect = wxRect( 0, 0, bm.GetWidth(), bm.GetHeight() );
+
+                // If the dc is a memory dc (should be the case when not printing on a printer,
+                // i.e. when printing on the clipboard), calculate a suitable dc user scale
+                double dc_scale;
+                double ppi = 300;   // Use 300 pixels per inch to create bitmap images on start
+                double inch2Iu = 1000.0 * schIUScale.IU_PER_MILS;
+                dc_scale = ppi / inch2Iu;
+                dc->SetUserScale( dc_scale, dc_scale );
+           }
+        }
 
         // When is the actual paper size does not match the schematic page size, the drawing will
         // not be centered on X or Y axis.  Give a draw offset to center the schematic page on the
@@ -160,7 +186,7 @@ void SCH_PRINTOUT::PrintPage( SCH_SCREEN* aScreen )
 
         // Using a wxAffineMatrix2D has a big advantage: it handles different pages orientations
         //(PORTRAIT/LANDSCAPE), but the affine matrix is not always supported
-        if( dc->CanUseTransformMatrix() )
+        if( dc->CanUseTransformMatrix() && aForPrinting )
         {
             wxAffineMatrix2D matrix;    // starts from a unity matrix (the current wxDC default)
 
@@ -192,7 +218,7 @@ void SCH_PRINTOUT::PrintPage( SCH_SCREEN* aScreen )
             fitRect.x -= xoffset;
             fitRect.y -= yoffset;
         }
-        else
+        else if( aForPrinting )
         {
             SetLogicalOrigin( 0, 0 );   // Reset all offset settings made previously.
                                         // When printing previous pages (all prints are using the same wxDC)
@@ -223,7 +249,7 @@ void SCH_PRINTOUT::PrintPage( SCH_SCREEN* aScreen )
         if( cfg->m_Printing.monochrome )
             GRForceBlackPen( true );
 
-        KIGFX::SCH_RENDER_SETTINGS renderSettings( *m_parent->GetRenderSettings() );
+        SCH_RENDER_SETTINGS renderSettings( *m_parent->GetRenderSettings() );
         renderSettings.SetPrintDC( dc );
 
         if( cfg->m_Printing.use_theme && theme )
@@ -257,7 +283,7 @@ void SCH_PRINTOUT::PrintPage( SCH_SCREEN* aScreen )
     }
     else
     {
-        wxDC* dc = GetDC();
+        wxDC* dc = aDC;
         m_view = m_parent->GetCanvas()->GetView();
         KIGFX::GAL_DISPLAY_OPTIONS options;
         options.cairo_antialiasing_mode = KIGFX::CAIRO_ANTIALIASING_MODE::GOOD;
@@ -275,9 +301,28 @@ void SCH_PRINTOUT::PrintPage( SCH_SCREEN* aScreen )
         EE_SELECTION_TOOL* selTool = m_parent->GetToolManager()->GetTool<EE_SELECTION_TOOL>();
 
         // Target paper size
-        wxRect         pageSizePx = GetLogicalPageRect();
-        const VECTOR2D pageSizeIn( (double) pageSizePx.width / dc->GetPPI().x,
-                                   (double) pageSizePx.height / dc->GetPPI().y );
+        wxRect pageSizePix;
+        wxSize dcPPI = dc->GetPPI();
+
+        if( aForPrinting )
+            pageSizePix = GetLogicalPageRect();
+        else
+        {
+            dc->SetUserScale( 1, 1 );
+
+            if( wxMemoryDC* memdc = dynamic_cast<wxMemoryDC*>( dc ) )
+            {
+                wxBitmap& bm = memdc->GetSelectedBitmap();
+                pageSizePix = wxRect( 0, 0, bm.GetWidth(), bm.GetHeight() );
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        const VECTOR2D pageSizeIn( (double) pageSizePix.width / dcPPI.x,
+                                   (double) pageSizePix.height / dcPPI.y );
         const VECTOR2D pageSizeIU( milsToIU( pageSizeIn.x * 1000 ), milsToIU( pageSizeIn.y * 1000 ) );
 
         galPrint->SetSheetSize( pageSizeIn );
@@ -289,7 +334,7 @@ void SCH_PRINTOUT::PrintPage( SCH_SCREEN* aScreen )
         gal->SetWorldUnitLength( SCH_WORLD_UNIT );
 
         // Init the SCH_RENDER_SETTINGS used by the painter used to print schematic
-        KIGFX::SCH_RENDER_SETTINGS* dstSettings = painter->GetSettings();
+        SCH_RENDER_SETTINGS* dstSettings = painter->GetSettings();
 
         dstSettings->m_ShowPinsElectricalType = false;
 
@@ -384,7 +429,14 @@ void SCH_PRINTOUT::PrintPage( SCH_SCREEN* aScreen )
         gal->SetLookAtPoint( drawingAreaBBox.Centre() );
         gal->SetZoomFactor( print_scale );
         gal->SetClearColor( dstSettings->GetBackgroundColor() );
+
+    // Clearing the screen for the background color needs the screen set to the page size
+    // in pixels.  This can ?somehow? prevent some but not all foreground elements from being printed
+    // TODO: figure out what's going on here and fix printing.  See also board_printout
+        VECTOR2I size = gal->GetScreenPixelSize();
+        gal->ResizeScreen( pageSizePix.GetWidth(),pageSizePix.GetHeight() );
         gal->ClearScreen();
+        gal->ResizeScreen( size.x, size.y );
 
         // Needed to use the same order for printing as for screen redraw
         view->UseDrawPriority( true );
@@ -394,4 +446,6 @@ void SCH_PRINTOUT::PrintPage( SCH_SCREEN* aScreen )
             view->Redraw();
         }
     }
+
+    return true;
 }

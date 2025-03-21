@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2020 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,19 +21,22 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <zone_manager/dialog_zone_manager.h>
 #include <footprint.h>
 #include <pcb_track.h>
-#include <zone.h>
 #include <tool/tool_manager.h>
 #include <tools/pcb_actions.h>
 #include <tools/edit_tool.h>
 #include <dialogs/dialog_exchange_footprints.h>
 #include <dialogs/dialog_cleanup_tracks_and_vias.h>
+#include <dialogs/dialog_global_edit_tracks_and_vias.h>
 #include <dialogs/dialog_swap_layers.h>
 #include <dialogs/dialog_unused_pad_layers.h>
 #include <tools/global_edit_tool.h>
-#include <board_commit.h>
 #include <dialogs/dialog_cleanup_graphics.h>
+#include <board_design_settings.h>
+#include <zone_manager/zone_manager_preference.h>
+
 
 GLOBAL_EDIT_TOOL::GLOBAL_EDIT_TOOL() :
         PCB_TOOL_BASE( "pcbnew.GlobalEdit" ),
@@ -177,10 +180,20 @@ int GLOBAL_EDIT_TOOL::SwapLayers( const TOOL_EVENT& aEvent )
     if( hasChanges )
     {
         frame()->OnModify();
-        m_commit->Push( wxT( "Swap Layers" ) );
+        m_commit->Push( _( "Swap Layers" ) );
         frame()->GetCanvas()->Refresh();
     }
 
+    return 0;
+}
+
+
+int GLOBAL_EDIT_TOOL::EditTracksAndVias( const TOOL_EVENT& aEvent )
+{
+    PCB_EDIT_FRAME* editFrame = getEditFrame<PCB_EDIT_FRAME>();
+    DIALOG_GLOBAL_EDIT_TRACKS_AND_VIAS dlg( editFrame );
+
+    dlg.ShowQuasiModal();       // QuasiModal required for NET_SELECTOR
     return 0;
 }
 
@@ -220,6 +233,64 @@ int GLOBAL_EDIT_TOOL::RemoveUnusedPads( const TOOL_EVENT& aEvent )
     return 0;
 }
 
+int GLOBAL_EDIT_TOOL::ZonesManager( const TOOL_EVENT& aEvent )
+{
+    PCB_EDIT_FRAME* editFrame = getEditFrame<PCB_EDIT_FRAME>();
+    BOARD_COMMIT    commit( editFrame );
+    BOARD*          board = editFrame->GetBoard();
+
+    for( ZONE* zone : board->Zones() )
+        commit.Modify( zone );
+
+    ZONE_SETTINGS       zoneInfo = board->GetDesignSettings().GetDefaultZoneSettings();
+    DIALOG_ZONE_MANAGER dlg( editFrame, &zoneInfo );
+
+    int dialogResult = dlg.ShowQuasiModal();
+
+    if( dialogResult == wxID_OK && ZONE_MANAGER_PREFERENCE::GetRepourOnClose() )
+        dialogResult = ZONE_MANAGER_REPOUR;
+
+    if( dialogResult == wxID_CANCEL )
+        return 0;
+
+    // Ensure all zones are deselected before make any change in view, to avoid
+    // dangling pointers in EDIT_POINT
+    PCB_SELECTION_TOOL* selTool = editFrame->GetToolManager()->GetTool<PCB_SELECTION_TOOL>();
+    selTool->ClearSelection();
+
+    wxBusyCursor dummy;
+
+    // Undraw old zone outlines
+    for( ZONE* zone : board->Zones() )
+        editFrame->GetCanvas()->GetView()->Update( zone );
+
+
+    board->GetDesignSettings().SetDefaultZoneSettings( zoneInfo );
+    commit.Push( _( "Modify zones properties with zone manager" ), SKIP_CONNECTIVITY );
+    editFrame->OnModify();
+
+    //rebuildConnectivity
+    board->BuildConnectivity();
+
+    if( TOOL_MANAGER* manger = GetManager() )
+    {
+        manger->PostEvent( EVENTS::ConnectivityChangedEvent );
+    }
+
+    editFrame->GetCanvas()->RedrawRatsnest();
+
+    if( dialogResult == ZONE_MANAGER_REPOUR )
+    {
+        if( TOOL_MANAGER* manger = GetManager() )
+        {
+            manger->PostAction( PCB_ACTIONS::zoneFillAll );
+        }
+    }
+
+    return 0;
+}
+
+
 
 void GLOBAL_EDIT_TOOL::setTransitions()
 {
@@ -237,6 +308,7 @@ void GLOBAL_EDIT_TOOL::setTransitions()
     Go( &GLOBAL_EDIT_TOOL::CleanupTracksAndVias, PCB_ACTIONS::cleanupTracksAndVias.MakeEvent() );
     Go( &GLOBAL_EDIT_TOOL::CleanupGraphics,      PCB_ACTIONS::cleanupGraphics.MakeEvent() );
     Go( &GLOBAL_EDIT_TOOL::RemoveUnusedPads,     PCB_ACTIONS::removeUnusedPads.MakeEvent() );
+    Go( &GLOBAL_EDIT_TOOL::ZonesManager,         PCB_ACTIONS::zonesManager.MakeEvent() );
 }
 
 

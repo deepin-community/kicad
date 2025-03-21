@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -28,9 +28,13 @@
 #include <settings/common_settings.h>
 #include <widgets/wx_aui_art_providers.h>
 
-
+#if wxCHECK_VERSION( 3, 3, 0 )
+wxSize WX_AUI_TOOLBAR_ART::GetToolSize( wxReadOnlyDC& aDc, wxWindow* aWindow,
+                                        const wxAuiToolBarItem& aItem )
+#else
 wxSize WX_AUI_TOOLBAR_ART::GetToolSize( wxDC& aDc, wxWindow* aWindow,
                                         const wxAuiToolBarItem& aItem )
+#endif
 {
     // Based on the upstream wxWidgets implementation, but simplified for our application
     int size = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;

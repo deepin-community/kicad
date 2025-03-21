@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2010-2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2012-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,13 +41,65 @@
 using namespace LIB_TABLE_T;
 
 
+std::unique_ptr<LINE_READER> FILE_LIB_TABLE_IO::GetReader( const wxString& aURI ) const
+{
+    const wxFileName fn( aURI );
+
+    if( !fn.IsOk() || !fn.IsFileReadable() )
+        return nullptr;
+
+    return std::make_unique<FILE_LINE_READER>( aURI );
+}
+
+
+bool FILE_LIB_TABLE_IO::CanSaveToUri( const wxString& aURI ) const
+{
+    const wxFileName fn( aURI );
+
+    if( !fn.IsOk() )
+        return false;
+
+    return fn.IsFileWritable();
+}
+
+
+bool FILE_LIB_TABLE_IO::UrisAreEquivalent( const wxString& aURI1, const wxString& aURI2 ) const
+{
+    // Avoid comparing filenames as wxURIs
+    if( aURI1.Find( "://" ) != wxNOT_FOUND )
+    {
+        // found as full path
+        return aURI1 == aURI2;
+    }
+    else
+    {
+        const wxFileName fn1( aURI1 );
+        const wxFileName fn2( aURI2 );
+
+        // This will also test if the file is a symlink so if we are comparing
+        // a symlink to the same real file, the comparison will be true.  See
+        // wxFileName::SameAs() in the wxWidgets source.
+
+        // found as full path and file name
+        return fn1 == fn2;
+    }
+}
+
+
+std::unique_ptr<OUTPUTFORMATTER> FILE_LIB_TABLE_IO::GetWriter( const wxString& aURI ) const
+{
+    const wxFileName fn( aURI );
+    return std::make_unique<FILE_OUTPUTFORMATTER>( aURI );
+}
+
+
 LIB_TABLE_ROW* new_clone( const LIB_TABLE_ROW& aRow )
 {
     return aRow.clone();
 }
 
 
-void LIB_TABLE_ROW::setProperties( STRING_UTF8_MAP* aProperties )
+void LIB_TABLE_ROW::setProperties( std::map<std::string, UTF8>* aProperties )
 {
     properties.reset( aProperties );
 }
@@ -72,7 +124,7 @@ const wxString LIB_TABLE_ROW::GetFullURI( bool aSubstituted ) const
 
 void LIB_TABLE_ROW::Format( OUTPUTFORMATTER* out, int nestLevel ) const
 {
-    // In Kicad, we save path and file names using the Unix notation (separator = '/')
+    // In KiCad, we save path and file names using the Unix notation (separator = '/')
     // So ensure separator is always '/' is saved URI string
     wxString uri = GetFullURI();
     uri.Replace( '\\', '/' );
@@ -115,9 +167,15 @@ void LIB_TABLE_ROW::SetOptions( const wxString& aOptions )
 }
 
 
-LIB_TABLE::LIB_TABLE( LIB_TABLE* aFallBackTable ) :
-    m_fallBack( aFallBackTable ), m_version( 0 )
+LIB_TABLE::LIB_TABLE( LIB_TABLE* aFallBackTable, std::unique_ptr<LIB_TABLE_IO> aTableIo ) :
+        m_io( std::move( aTableIo ) ),
+        m_fallBack( aFallBackTable ),
+        m_version( 0 )
 {
+    // If not given, use the default file-based I/O.
+    if( !m_io )
+        m_io = std::make_unique<FILE_LIB_TABLE_IO>();
+
     // not copying fall back, simply search aFallBackTable separately
     // if "nickName not found".
 }
@@ -129,7 +187,7 @@ LIB_TABLE::~LIB_TABLE()
 }
 
 
-void LIB_TABLE::Clear()
+void LIB_TABLE::clear()
 {
     m_rows.clear();
     m_rowsMap.clear();
@@ -214,7 +272,7 @@ LIB_TABLE_ROW* LIB_TABLE::findRow( const wxString& aNickName, bool aCheckIfEnabl
         }
 
         // Repeat, this time looking for names that were "fixed" by legacy versions because
-        // the old eeschema file format didn't support spaces in tokens.
+        // the old Eeschema file format didn't support spaces in tokens.
         for( const std::pair<const wxString, LIB_TABLE_ROWS_ITER>& entry : cur->m_rowsMap )
         {
             wxString legacyLibName = entry.first;
@@ -244,23 +302,10 @@ const LIB_TABLE_ROW* LIB_TABLE::FindRowByURI( const wxString& aURI )
     {
         for( unsigned i = 0; i < cur->m_rows.size(); i++ )
         {
-            wxString tmp = cur->m_rows[i].GetFullURI( true );
+            const wxString tmp = cur->m_rows[i].GetFullURI( true );
 
-            if( tmp.Find( "://" ) != wxNOT_FOUND )
-            {
-                if( tmp == aURI )
-                    return &cur->m_rows[i];  // found as URI
-            }
-            else
-            {
-                wxFileName fn = aURI;
-
-                // This will also test if the file is a symlink so if we are comparing
-                // a symlink to the same real file, the comparison will be true.  See
-                // wxFileName::SameAs() in the wxWidgets source.
-                if( fn == wxFileName( tmp ) )
-                    return &cur->m_rows[i];  // found as full path and file name
-            }
+            if( m_io->UrisAreEquivalent( tmp, aURI ) )
+                return &cur->m_rows[i];
         }
 
         // not found, search fall back table(s), if any
@@ -310,6 +355,15 @@ bool LIB_TABLE::InsertRow( LIB_TABLE_ROW* aRow, bool doReplace )
 {
     std::lock_guard<std::shared_mutex> lock( m_mutex );
 
+    doInsertRow( aRow, doReplace );
+    reindex();
+
+    return true;
+}
+
+
+bool LIB_TABLE::doInsertRow( LIB_TABLE_ROW* aRow, bool doReplace )
+{
     auto it = m_rowsMap.find( aRow->GetNickName() );
 
     if( it != m_rowsMap.end() )
@@ -407,6 +461,7 @@ void LIB_TABLE::TransferRows( LIB_TABLE_ROWS& aRowsList )
 {
     std::lock_guard<std::shared_mutex> lock( m_mutex );
 
+    clear();
     m_rows.transfer( m_rows.end(), aRowsList.begin(), aRowsList.end(), aRowsList );
 
     reindex();
@@ -460,38 +515,49 @@ bool LIB_TABLE::migrate()
 
 void LIB_TABLE::Load( const wxString& aFileName )
 {
+    std::lock_guard<std::shared_mutex> lock( m_mutex );
+    clear();
+
+    std::unique_ptr<LINE_READER> reader = m_io->GetReader( aFileName );
+
     // It's OK if footprint library tables are missing.
-    if( wxFileName::IsFileReadable( aFileName ) )
+    if( reader )
     {
-        FILE_LINE_READER reader( aFileName );
-        LIB_TABLE_LEXER  lexer( &reader );
+        LIB_TABLE_LEXER lexer( reader.get() );
 
         Parse( &lexer );
 
-        if( m_version != 7 && migrate() && wxFileName::IsFileWritable( aFileName ) )
+        if( m_version != 7 && migrate() && m_io->CanSaveToUri( aFileName ) )
             Save( aFileName );
+
+        reindex();
     }
 }
 
 
 void LIB_TABLE::Save( const wxString& aFileName ) const
 {
-    FILE_OUTPUTFORMATTER sf( aFileName );
+    std::unique_ptr<OUTPUTFORMATTER> sf = m_io->GetWriter( aFileName );
+
+    if( !sf )
+    {
+        THROW_IO_ERROR( wxString::Format( _( "Failed to get writer for %s" ), aFileName ) );
+    }
 
     // Force the lib table version to 7 before saving
     m_version = 7;
-    Format( &sf, 0 );
+    Format( sf.get(), 0 );
 }
 
 
-STRING_UTF8_MAP* LIB_TABLE::ParseOptions( const std::string& aOptionsList )
+std::map<std::string, UTF8>* LIB_TABLE::ParseOptions( const std::string& aOptionsList )
 {
     if( aOptionsList.size() )
     {
         const char* cp  = &aOptionsList[0];
         const char* end = cp + aOptionsList.size();
 
-        STRING_UTF8_MAP props;
+        std::map<std::string, UTF8> props;
         std::string pair;
 
         // Parse all name=value pairs
@@ -542,20 +608,21 @@ STRING_UTF8_MAP* LIB_TABLE::ParseOptions( const std::string& aOptionsList )
         }
 
         if( props.size() )
-            return new STRING_UTF8_MAP( props );
+            return new std::map<std::string, UTF8>( props );
     }
 
     return nullptr;
 }
 
 
-UTF8 LIB_TABLE::FormatOptions( const STRING_UTF8_MAP* aProperties )
+UTF8 LIB_TABLE::FormatOptions( const std::map<std::string, UTF8>* aProperties )
 {
     UTF8 ret;
 
     if( aProperties )
     {
-        for( STRING_UTF8_MAP::const_iterator it = aProperties->begin(); it != aProperties->end(); ++it )
+        for( std::map<std::string, UTF8>::const_iterator it = aProperties->begin();
+             it != aProperties->end(); ++it )
         {
             const std::string& name = it->first;
 

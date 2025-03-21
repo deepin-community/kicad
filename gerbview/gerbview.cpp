@@ -6,7 +6,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2021 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -79,7 +79,7 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
         case PANEL_GBR_GRIDS:
         {
             SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<GERBVIEW_SETTINGS>();
+            GERBVIEW_SETTINGS* cfg = mgr.GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" );
             EDA_BASE_FRAME*    frame = aKiway->Player( FRAME_GERBER, false );
 
             if( frame )
@@ -130,9 +130,6 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
 using namespace GERBV;
 
 
-static PGM_BASE* process;
-
-
 KIFACE_BASE& Kiface() { return kiface; }
 
 
@@ -140,22 +137,7 @@ KIFACE_BASE& Kiface() { return kiface; }
 // KIFACE_GETTER will not have name mangling due to declaration in kiway.h.
 KIFACE_API KIFACE* KIFACE_GETTER(  int* aKIFACEversion, int aKiwayVersion, PGM_BASE* aProgram )
 {
-    process = aProgram;
     return &kiface;
-}
-
-
-PGM_BASE& Pgm()
-{
-    wxASSERT( process );    // KIFACE_GETTER has already been called.
-    return *process;
-}
-
-
-// Similar to PGM_BASE& Pgm(), but return nullptr when a *.ki_face is run from a python script.
-PGM_BASE* PgmOrNull()
-{
-    return process;
 }
 
 

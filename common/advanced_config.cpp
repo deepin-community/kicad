@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -64,6 +64,7 @@ namespace AC_KEYS
 static const wxChar IncrementalConnectivity[] = wxT( "IncrementalConnectivity" );
 static const wxChar Use3DConnexionDriver[] = wxT( "3DConnexionDriver" );
 static const wxChar ExtraFillMargin[] = wxT( "ExtraFillMargin" );
+static const wxChar EnableCreepageSlot[] = wxT( "EnableCreepageSlot" );
 static const wxChar DRCEpsilon[] = wxT( "DRCEpsilon" );
 static const wxChar DRCSliverWidthTolerance[] = wxT( "DRCSliverWidthTolerance" );
 static const wxChar DRCSliverMinimumLength[] = wxT( "DRCSliverMinimumLength" );
@@ -97,19 +98,36 @@ static const wxChar AllowManualCanvasScale[] = wxT( "AllowManualCanvasScale" );
 static const wxChar UpdateUIEventInterval[] = wxT( "UpdateUIEventInterval" );
 static const wxChar V3DRT_BevelHeight_um[] = wxT( "V3DRT_BevelHeight_um" );
 static const wxChar V3DRT_BevelExtentFactor[] = wxT( "V3DRT_BevelExtentFactor" );
-static const wxChar UseClipper2[] = wxT( "UseClipper2" );
+static const wxChar EnableDesignBlocks[] = wxT( "EnableDesignBlocks" );
 static const wxChar EnableGenerators[] = wxT( "EnableGenerators" );
 static const wxChar EnableGit[] = wxT( "EnableGit" );
+static const wxChar EnableLibWithText[] = wxT( "EnableLibWithText" );
+static const wxChar EnableLibDir[] = wxT( "EnableLibDir" );
 static const wxChar EnableEeschemaPrintCairo[] = wxT( "EnableEeschemaPrintCairo" );
+static const wxChar EnableEeschemaExportClipboardCairo[] = wxT( "EnableEeschemaExportClipboardCairo" );
 static const wxChar DisambiguationTime[] = wxT( "DisambiguationTime" );
 static const wxChar PcbSelectionVisibilityRatio[] = wxT( "PcbSelectionVisibilityRatio" );
-static const wxChar MinimumSegmentLength[] = wxT( "MinimumSegmentLength" );
+static const wxChar FontErrorSize[] = wxT( "FontErrorSize" );
 static const wxChar OcePluginLinearDeflection[] = wxT( "OcePluginLinearDeflection" );
 static const wxChar OcePluginAngularDeflection[] = wxT( "OcePluginAngularDeflection" );
 static const wxChar TriangulateSimplificationLevel[] = wxT( "TriangulateSimplificationLevel" );
 static const wxChar TriangulateMinimumArea[] = wxT( "TriangulateMinimumArea" );
 static const wxChar EnableCacheFriendlyFracture[] = wxT( "EnableCacheFriendlyFracture" );
+static const wxChar EnableAPILogging[] = wxT( "EnableAPILogging" );
+static const wxChar MaxFileSystemWatchers[] = wxT( "MaxFileSystemWatchers" );
+static const wxChar MinorSchematicGraphSize[] = wxT( "MinorSchematicGraphSize" );
+static const wxChar ResolveTextRecursionDepth[] = wxT( "ResolveTextRecursionDepth" );
+static const wxChar EnableExtensionSnaps[] = wxT( "EnableExtensionSnaps" );
+static const wxChar ExtensionSnapTimeoutMs[] = wxT( "ExtensionSnapTimeoutMs" );
+static const wxChar ExtensionSnapActivateOnHover[] = wxT( "ExtensionSnapActivateOnHover" );
+static const wxChar EnableSnapAnchorsDebug[] = wxT( "EnableSnapAnchorsDebug" );
 static const wxChar MinParallelAngle[] = wxT( "MinParallelAngle" );
+static const wxChar HoleWallPaintingMultiplier[] = wxT( "HoleWallPaintingMultiplier" );
+static const wxChar MsgPanelShowUuids[] = wxT( "MsgPanelShowUuids" );
+static const wxChar MaximumThreads[] = wxT( "MaximumThreads" );
+static const wxChar NetInspectorBulkUpdateOptimisationThreshold[] =
+        wxT( "NetInspectorBulkUpdateOptimisationThreshold" );
+
 } // namespace KEYS
 
 
@@ -153,7 +171,8 @@ wxString dumpParamCfg( const PARAM_CFG& aParam )
         s << *static_cast<const PARAM_CFG_FILENAME&>( aParam ).m_Pt_param;
         break;
     case paramcfg_id::PARAM_BOOL:
-        s << ( *static_cast<const PARAM_CFG_BOOL&>( aParam ).m_Pt_param ? wxS( "true" ) : wxS( "false" ) );
+        s << ( *static_cast<const PARAM_CFG_BOOL&>( aParam ).m_Pt_param ? wxS( "true" )
+                                                                        : wxS( "false" ) );
         break;
     default: s << wxS( "Unsupported PARAM_CFG variant: " ) << aParam.m_Type;
     }
@@ -179,7 +198,7 @@ static void dumpCfg( const std::vector<PARAM_CFG*>& aArray )
 
 
 /**
- * Get the filename for the advanced config file
+ * Get the filename for the advanced config file.
  *
  * The user must check the file exists if they care.
  */
@@ -208,6 +227,7 @@ ADVANCED_CFG::ADVANCED_CFG()
     m_DrawTriangulationOutlines = false;
 
     m_ExtraClearance            = 0.0005;
+    m_EnableCreepageSlot        = false;
     m_DRCEpsilon                = 0.0005;   // 0.5um is small enough not to materially violate
                                             // any constraints.
     m_SliverWidthTolerance      = 0.08;
@@ -225,6 +245,7 @@ ADVANCED_CFG::ADVANCED_CFG()
     m_SmallDrillMarkSize        = 0.35;
     m_HotkeysDumper             = false;
     m_DrawBoundingBoxes         = false;
+    m_MsgPanelShowUuids         = 0;
     m_ShowPcbnewExportNetlist   = false;
     m_Skip3DModelFileCache      = false;
     m_Skip3DModelMemoryCache    = false;
@@ -234,15 +255,19 @@ ADVANCED_CFG::ADVANCED_CFG()
     m_CompactSave               = false;
     m_UpdateUIEventInterval     = 0;
     m_ShowRepairSchematic       = false;
+    m_EnableDesignBlocks        = true;
     m_EnableGenerators          = false;
-    m_EnableGit                 = false;
+    m_EnableGit                 = true;
+    m_EnableLibWithText         = false;
+    m_EnableLibDir              = false;
 
     m_EnableEeschemaPrintCairo  = true;
+    m_EnableEeschemaExportClipboardCairo = true;
 
     m_3DRT_BevelHeight_um       = 30;
     m_3DRT_BevelExtentFactor    = 1.0 / 16.0;
 
-    m_UseClipper2               = true;
+    m_EnableAPILogging          = false;
 
     m_Use3DConnexionDriver      = true;
 
@@ -252,7 +277,7 @@ ADVANCED_CFG::ADVANCED_CFG()
 
     m_PcbSelectionVisibilityRatio = 1.0;
 
-    m_MinimumSegmentLength      = 50;
+    m_FontErrorSize             = 2;
 
     m_OcePluginLinearDeflection = 0.14;
     m_OcePluginAngularDeflection = 30;
@@ -262,7 +287,25 @@ ADVANCED_CFG::ADVANCED_CFG()
 
     m_EnableCacheFriendlyFracture = true;
 
+    m_MaxFilesystemWatchers = 16384;
+
+    m_MinorSchematicGraphSize = 10000;
+
+    m_ResolveTextRecursionDepth = 3;
+
+    m_EnableExtensionSnaps = true;
+    m_ExtensionSnapTimeoutMs = 500;
+    m_ExtensionSnapActivateOnHover = true;
+    m_EnableSnapAnchorsDebug = false;
+
     m_MinParallelAngle = 0.001;
+    m_HoleWallPaintingMultiplier = 1.5;
+
+    m_MaximumThreads = 0;
+
+    m_MinimumMarkerSeparationDistance = 0.15;
+
+    m_NetInspectorBulkUpdateOptimisationThreshold = 25;
 
     loadFromConfigFile();
 }
@@ -309,6 +352,10 @@ void ADVANCED_CFG::loadSettings( wxConfigBase& aCfg )
     configParams.push_back( new PARAM_CFG_DOUBLE( true, AC_KEYS::ExtraFillMargin,
                                                   &m_ExtraClearance,
                                                   m_ExtraClearance, 0.0, 1.0 ) );
+
+    configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::EnableCreepageSlot,
+                                                &m_EnableCreepageSlot, m_EnableCreepageSlot ) );
+
 
     configParams.push_back( new PARAM_CFG_DOUBLE( true, AC_KEYS::DRCEpsilon,
                                                   &m_DRCEpsilon, m_DRCEpsilon, 0.0, 1.0 ) );
@@ -402,7 +449,8 @@ void ADVANCED_CFG::loadSettings( wxConfigBase& aCfg )
                                                 &m_Skip3DModelFileCache, m_Skip3DModelFileCache ) );
 
     configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::Skip3DModelMemoryCache,
-                                                &m_Skip3DModelMemoryCache, m_Skip3DModelMemoryCache ) );
+                                                &m_Skip3DModelMemoryCache,
+                                                m_Skip3DModelMemoryCache ) );
 
     configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::HideVersionFromTitle,
                                                 &m_HideVersionFromTitle, m_HideVersionFromTitle ) );
@@ -427,9 +475,6 @@ void ADVANCED_CFG::loadSettings( wxConfigBase& aCfg )
                                                   m_3DRT_BevelExtentFactor, 0.0, 100.0,
                                                   AC_GROUPS::V3D_RayTracing ) );
 
-    configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::UseClipper2,
-                                                &m_UseClipper2, m_UseClipper2 ) );
-
     configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::Use3DConnexionDriver,
                                                 &m_Use3DConnexionDriver, m_Use3DConnexionDriver ) );
 
@@ -442,23 +487,39 @@ void ADVANCED_CFG::loadSettings( wxConfigBase& aCfg )
                                                m_DisambiguationMenuDelay,
                                                50, 10000 ) );
 
+    configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::EnableDesignBlocks,
+                                                &m_EnableDesignBlocks, m_EnableDesignBlocks ) );
+
     configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::EnableGenerators,
                                                 &m_EnableGenerators, m_EnableGenerators ) );
 
+    configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::EnableAPILogging,
+                                                &m_EnableAPILogging, m_EnableAPILogging ) );
+
     configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::EnableGit,
                                                 &m_EnableGit, m_EnableGit ) );
+
+    configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::EnableLibWithText,
+                                                &m_EnableLibWithText, m_EnableLibWithText ) );
+
+    configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::EnableLibDir,
+                                                &m_EnableLibDir, m_EnableLibDir ) );
 
     configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::EnableEeschemaPrintCairo,
                                                 &m_EnableEeschemaPrintCairo,
                                                 m_EnableEeschemaPrintCairo ) );
 
+    configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::EnableEeschemaExportClipboardCairo,
+                                                &m_EnableEeschemaExportClipboardCairo,
+                                                m_EnableEeschemaExportClipboardCairo ) );
+
     configParams.push_back( new PARAM_CFG_DOUBLE( true, AC_KEYS::PcbSelectionVisibilityRatio,
                                                   &m_PcbSelectionVisibilityRatio,
                                                   m_PcbSelectionVisibilityRatio, 0.0, 1.0 ) );
 
-    configParams.push_back( new PARAM_CFG_INT( true, AC_KEYS::MinimumSegmentLength,
-                                                  &m_MinimumSegmentLength,
-                                                  m_MinimumSegmentLength, 10, 1000 ) );
+    configParams.push_back( new PARAM_CFG_DOUBLE( true, AC_KEYS::FontErrorSize,
+                                                  &m_FontErrorSize,
+                                                  m_FontErrorSize, 0.01, 100 ) );
 
     configParams.push_back( new PARAM_CFG_DOUBLE( true, AC_KEYS::OcePluginLinearDeflection,
                                                     &m_OcePluginLinearDeflection,
@@ -480,9 +541,56 @@ void ADVANCED_CFG::loadSettings( wxConfigBase& aCfg )
                                                 &m_EnableCacheFriendlyFracture,
                                                 m_EnableCacheFriendlyFracture ) );
 
+    configParams.push_back( new PARAM_CFG_INT( true, AC_KEYS::MaxFileSystemWatchers,
+                                                  &m_MaxFilesystemWatchers, m_MaxFilesystemWatchers,
+                                                  0, 2147483647 ) );
+
+    configParams.push_back( new PARAM_CFG_INT( true, AC_KEYS::MinorSchematicGraphSize,
+                                               &m_MinorSchematicGraphSize,
+                                               m_MinorSchematicGraphSize,
+                                               0, 2147483647 ) );
+
+    configParams.push_back( new PARAM_CFG_INT( true, AC_KEYS::ResolveTextRecursionDepth,
+                                               &m_ResolveTextRecursionDepth,
+                                               m_ResolveTextRecursionDepth, 0, 10 ) );
+
+    configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::EnableExtensionSnaps,
+                                                &m_EnableExtensionSnaps,
+                                                m_EnableExtensionSnaps ) );
+
+    configParams.push_back( new PARAM_CFG_INT( true, AC_KEYS::ExtensionSnapTimeoutMs,
+                                               &m_ExtensionSnapTimeoutMs,
+                                               m_ExtensionSnapTimeoutMs, 0 ) );
+
+    configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::ExtensionSnapActivateOnHover,
+                                                &m_ExtensionSnapActivateOnHover,
+                                                m_ExtensionSnapActivateOnHover ) );
+
+    configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::EnableSnapAnchorsDebug,
+                                                &m_EnableSnapAnchorsDebug,
+                                                m_EnableSnapAnchorsDebug ) );
+
     configParams.push_back( new PARAM_CFG_DOUBLE( true, AC_KEYS::MinParallelAngle,
                                                   &m_MinParallelAngle, m_MinParallelAngle,
                                                   0.0, 45.0 ) );
+
+    configParams.push_back( new PARAM_CFG_DOUBLE( true, AC_KEYS::HoleWallPaintingMultiplier,
+                                                  &m_HoleWallPaintingMultiplier,
+                                                  m_HoleWallPaintingMultiplier,
+                                                  0.1, 100.0 ) );
+
+    configParams.push_back( new PARAM_CFG_INT( true, AC_KEYS::MsgPanelShowUuids,
+                                               &m_MsgPanelShowUuids,
+                                               m_MsgPanelShowUuids ) );
+
+    configParams.push_back( new PARAM_CFG_INT( true, AC_KEYS::MaximumThreads,
+                                                  &m_MaximumThreads, m_MaximumThreads,
+                                                  0, 500 ) );
+
+    configParams.push_back(
+            new PARAM_CFG_INT( true, AC_KEYS::NetInspectorBulkUpdateOptimisationThreshold,
+                               &m_NetInspectorBulkUpdateOptimisationThreshold,
+                               m_NetInspectorBulkUpdateOptimisationThreshold, 0, 1000 ) );
 
     // Special case for trace mask setting...we just grab them and set them immediately
     // Because we even use wxLogTrace inside of advanced config
@@ -507,7 +615,8 @@ void ADVANCED_CFG::loadSettings( wxConfigBase& aCfg )
     for( PARAM_CFG* param : configParams )
         delete param;
 
-    wxLogTrace( kicadTraceCoroutineStack, wxT( "Using coroutine stack size %d" ), m_CoroutineStackSize );
+    wxLogTrace( kicadTraceCoroutineStack, wxT( "Using coroutine stack size %d" ),
+                m_CoroutineStackSize );
 }
 
 

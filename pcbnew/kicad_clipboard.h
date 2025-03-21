@@ -7,7 +7,7 @@
  *
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2020 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,11 +44,14 @@ public:
     CLIPBOARD_IO();
     ~CLIPBOARD_IO();
 
+    void SetWriter( std::function<void(const wxString&)> aWriter ) { m_writer = aWriter; }
+    void SetReader( std::function<wxString()> aReader ) { m_reader = aReader; }
+
     /*
      * Saves the entire board to the clipboard formatted using the PCB_IO_KICAD_SEXPR formatting
      */
     void SaveBoard( const wxString& aFileName, BOARD* aBoard,
-                    const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                    const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     /*
      * Write all the settings of the BOARD* set by setBoard() and then adds all the
@@ -59,12 +62,17 @@ public:
     BOARD_ITEM* Parse();
 
     BOARD* LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
-                      const STRING_UTF8_MAP* aProperties = nullptr, PROJECT* aProject = nullptr ) override;
+                      const std::map<std::string, UTF8>* aProperties = nullptr, PROJECT* aProject = nullptr ) override;
 
     void SetBoard( BOARD* aBoard );
 
 private:
+    static void clipboardWriter( const wxString& aData );
+    static wxString clipboardReader();
+
     STRING_FORMATTER m_formatter;
+    std::function<void(const wxString&)> m_writer;
+    std::function<wxString()> m_reader;
 };
 
 

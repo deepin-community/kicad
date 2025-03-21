@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,6 +21,7 @@
 #ifndef PCBNEW_SETTINGS_H_
 #define PCBNEW_SETTINGS_H_
 
+#include <core/mirror.h> // for FLIP_DIRECTION
 #include <geometry/eda_angle.h>
 #include <settings/app_settings.h>
 #include <pcb_display_options.h>
@@ -135,22 +136,25 @@ class PCBNEW_SETTINGS : public PCB_VIEWERS_SETTINGS_BASE
 public:
     struct AUI_PANELS
     {
-        int  appearance_panel_tab;
-        bool appearance_expand_layer_display;
-        bool appearance_expand_net_display;
-        int  right_panel_width;
-        int  properties_panel_width;
+        int   appearance_panel_tab;
+        bool  appearance_expand_layer_display;
+        bool  appearance_expand_net_display;
+        int   right_panel_width;
+        int   properties_panel_width;
+        int   net_inspector_width;
         float properties_splitter;
-        int  search_panel_height;
-        int  search_panel_width;
-        int  search_panel_dock_direction;
-        bool show_layer_manager;
-        bool show_properties;
-        bool show_search;
+        int   search_panel_height;
+        int   search_panel_width;
+        int   search_panel_dock_direction;
+        bool  show_layer_manager;
+        bool  show_properties;
+        bool  show_search;
+        bool  show_net_inspector;
     };
 
     struct DIALOG_CLEANUP
     {
+        bool cleanup_refill_zones;
         bool cleanup_vias;
         bool delete_dangling_vias;
         bool cleanup_tracks_in_pad;
@@ -174,6 +178,8 @@ public:
         double ref_x;
         double ref_y;
         bool   units_mils;
+        bool   no_unspecified;
+        bool   no_dnp;
     };
 
     struct DIALOG_EXPORT_STEP
@@ -196,6 +202,13 @@ public:
         bool   compress;
     };
 
+    struct DIALOG_EXPORT_ODBPP
+    {
+        int    precision;
+        int    units;
+        int    compressFormat;
+    };
+
     struct DIALOG_EXPORT_SVG
     {
         bool             black_and_white;
@@ -213,6 +226,8 @@ public:
     struct DIALOG_EXPORT_VRML
     {
         int    units;
+        bool   no_unspecified;
+        bool   no_dnp;
         bool   copy_3d_models;
         bool   use_relative_paths;
         int    ref_units;
@@ -237,6 +252,7 @@ public:
         int  drill_file_type;
         int  map_file_type;
         int  zeros_format;
+        bool generate_map;
     };
 
     struct DIALOG_IMPORT_GRAPHICS
@@ -309,23 +325,6 @@ public:
         wxString report_file_name;
     };
 
-    struct DIALOG_NET_INSPECTOR
-    {
-        wxString group_by_text;
-        bool     group_by;
-        int      group_by_kind;
-
-        bool     show_zero_pad_nets;
-        int      sorting_column;
-        bool     sort_order_asc;
-
-        std::vector<int> col_order;
-        std::vector<int> col_widths;
-
-        int      dlg_width;
-        int      dlg_height;
-    };
-
     struct FOOTPRINT_CHOOSER
     {
         int  width;
@@ -371,6 +370,12 @@ public:
         bool                 m_Live3DRefresh;
     };
 
+    struct LOCKING_OPTIONS
+    {
+        // Skip lock prompts for the current session
+        bool m_sessionSkipPrompts;
+    };
+
     PCBNEW_SETTINGS();
 
     virtual ~PCBNEW_SETTINGS();
@@ -389,6 +394,8 @@ public:
 
     DIALOG_EXPORT_2581 m_Export2581;
 
+    DIALOG_EXPORT_ODBPP m_ExportODBPP;
+
     DIALOG_EXPORT_SVG m_ExportSvg;
 
     DIALOG_EXPORT_VRML m_ExportVrml;
@@ -406,8 +413,6 @@ public:
     DIALOG_PLOT m_Plot;
 
     DIALOG_REANNOTATE m_Reannotate;
-
-    DIALOG_NET_INSPECTOR m_NetInspector;
 
     FOOTPRINT_CHOOSER m_FootprintChooser;
 
@@ -429,7 +434,7 @@ public:
 
     bool m_Use45DegreeLimit;            // True to constrain tool actions to horizontal,
                                         // vertical and 45deg
-    bool m_FlipLeftRight;               // True: Flip footprints across Y axis
+    FLIP_DIRECTION m_FlipDirection;
 
     bool m_ESCClearsNetHighlight;
 
@@ -460,6 +465,8 @@ public:
     wxString m_lastFootprintLibDir;
 
     wxString m_lastFootprint3dDir;
+
+    LOCKING_OPTIONS m_LockingOptions;
 
     ACTION_PLUGIN_SETTINGS_LIST m_VisibleActionPlugins;
 

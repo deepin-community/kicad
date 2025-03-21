@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,105 +37,6 @@
 
 #include <wx/gdicmn.h>
 
-/**
- * If HAVE_EXPECTED_FAILURES is defined, this means that
- * boost::unit_test::expected_failures is available.
- *
- * Wrap expected-to-fail tests with this to prevent them being compiled
- * on platforms with older (<1.59) Boost versions.
- *
- * This can be removed when our minimum boost version is 1.59 or higher.
- */
-#if BOOST_VERSION >= 105900
-#define HAVE_EXPECTED_FAILURES
-#endif
-
-/**
- * BOOST_TEST, while extremely handy, is not available in Boost < 1.59.
- * Undef it here to prevent use. Using it can cause older packaging like
- * Ubuntu LTS (which is on Boost 1.58) to fail.
- *
- * Use BOOST_CHECK_{EQUAL,NE,etc} instead.
- *
- * This can be removed when our minimum boost version is 1.59 or higher.
- */
-#undef BOOST_TEST
-
-
-#if BOOST_VERSION < 105900
-
-/*
- * BOOST_TEST_INFO is not available before 1.59. It's not critical for
- * test pass/fail, it's just info, so just pass along to a logging
- * function.
- *
- * This can be removed when our minimum boost version is 1.59 or higher.
- */
-#define BOOST_TEST_INFO( A ) BOOST_TEST_MESSAGE( A )
-
-/*
- *
- * BOOST_TEST_CONTEXT provides scoped info, but again, only after 1.59.
- * Replacing with a call to BOOST_TEST_MESSAGE will work, and the
- * scoping will still work for newer boosts.
- *
- * This can be removed when our minimum boost version is 1.59 or higher.
- */
-#define BOOST_TEST_CONTEXT( A ) BOOST_TEST_MESSAGE( A );
-
-#endif
-
-/*
- * Boost hides the configuration point for print_log_value in different
- * namespaces between < 1.59 and >= 1.59.
- *
- * The macros can be used to open and close the right level of namespacing
- * based on the version.
- *
- * We could just use a conditionally defined namespace alias, but that
- * doesn't work in GCC <7 (GCC bug #56480)
- *
- * From Boost 1.64, this should be done with boost_test_print_type,
- * and these defines can be removed once all logging functions use that.
- */
-#if BOOST_VERSION >= 105900
-#define BOOST_TEST_PRINT_NAMESPACE_OPEN \
-    boost                               \
-    {                                   \
-    namespace test_tools                \
-    {                                   \
-    namespace tt_detail
-#define BOOST_TEST_PRINT_NAMESPACE_CLOSE }}
-#else
-#define BOOST_TEST_PRINT_NAMESPACE_OPEN \
-    boost                               \
-    {                                   \
-    namespace test_tools
-#define BOOST_TEST_PRINT_NAMESPACE_CLOSE }
-#endif
-
-/**
- * Before Boost 1.64, nullptr_t wasn't handled. Provide our own logging
- * for nullptr_t's, which helps when doing BOOST_CHECK/REQUIRES on pointers.
- *
- * This can be removed when our minimum boost version is 1.64 or higher.
- */
-#if BOOST_VERSION < 106400
-
-namespace BOOST_TEST_PRINT_NAMESPACE_OPEN
-{
-template <>
-struct print_log_value<std::nullptr_t>
-{
-    inline void operator()( std::ostream& os, std::nullptr_t const& p )
-    {
-        os << "nullptr";
-    }
-};
-}
-BOOST_TEST_PRINT_NAMESPACE_CLOSE
-
-#endif
 
 
 template<class T>
@@ -184,42 +85,62 @@ inline bool operator!=( const PRINTABLE_OPT<L>& aLhs, const PRINTABLE_OPT<R>& aR
 }
 
 
-namespace BOOST_TEST_PRINT_NAMESPACE_OPEN
+// boost_test_print_type has to be in the same namespace as the printed type
+namespace std
 {
 
 /**
  * Boost print helper for generic vectors
  */
 template <typename T>
-struct print_log_value<std::vector<T>>
+std::ostream& boost_test_print_type( std::ostream& os, std::vector<T> const& aVec )
 {
-    inline void operator()( std::ostream& os, std::vector<T> const& aVec )
+    os << "std::vector size " << aVec.size() << " [";
+
+    for( const auto& i : aVec )
     {
-        os << "std::vector size " << aVec.size() << "[";
-
-        for( const auto& i : aVec )
-        {
-            os << "\n    ";
-            print_log_value<T>()( os, i );
-        }
-
-        os << "]";
+        os << "\n    " << i;
     }
-};
+
+    os << "]";
+    return os;
+}
+
+/**
+ * Boost print helper for generic maps
+ */
+template <typename K, typename V>
+std::ostream& boost_test_print_type( std::ostream& os, std::map<K, V> const& aMap )
+{
+    os << "std::map size " << aMap.size() << " [";
+
+    for( const auto& [key, value] : aMap )
+    {
+        os << "\n    " << key << " = " << value;
+    }
+
+    os << "]";
+    return os;
+}
+
+/**
+ * Boost print helper for generic pairs
+ */
+template <typename K, typename V>
+std::ostream& boost_test_print_type( std::ostream& os, std::pair<K, V> const& aPair )
+{
+    os << "[" << aPair.first << ", " << aPair.second << "]";
+    return os;
+}
+
+} // namespace std
+
 
 /**
  * Boost print helper for wxPoint. Note operator<< for this type doesn't
  * exist in non-DEBUG builds.
  */
-template <>
-struct print_log_value<wxPoint>
-{
-    void operator()( std::ostream& os, wxPoint const& aVec );
-};
-
-}
-BOOST_TEST_PRINT_NAMESPACE_CLOSE
-
+std::ostream& boost_test_print_type( std::ostream& os, wxPoint const& aVec );
 
 namespace KI_TEST
 {
@@ -337,6 +258,24 @@ bool CollectionHasNoDuplicates( const T& aCollection )
 
 
 /**
+ * A named data-driven test case.
+ *
+ * Inherit from this class to provide a printable name for a data-driven test case.
+ * (you can also not use this class and provide you own name printer).
+ */
+struct NAMED_CASE
+{
+    std::string m_CaseName;
+
+    friend std::ostream& operator<<( std::ostream& os, const NAMED_CASE& aCase )
+    {
+        os << aCase.m_CaseName;
+        return os;
+    }
+};
+
+
+/**
  * A test macro to check a wxASSERT is thrown.
  *
  * This only happens in DEBUG builds, so prevent test failures in Release builds
@@ -357,6 +296,10 @@ bool CollectionHasNoDuplicates( const T& aCollection )
  * @return a filename referring to the test data dir to use.
  */
 std::string GetEeschemaTestDataDir();
+
+std::string GetTestDataRootDir();
+
+void SetMockConfigDir();
 
 } // namespace KI_TEST
 

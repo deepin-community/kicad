@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2007 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,134 +22,23 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <confirm.h>
+
+#include <functional>
 #include <wx/app.h>
 #include <wx/stockitem.h>
 #include <wx/richmsgdlg.h>
+#include <wx/msgdlg.h>
 #include <wx/choicdlg.h>
 #include <wx/crt.h>
-#include <confirm.h>
-#include <functional>
-#include <unordered_map>
-
-// Set of dialogs that have been chosen not to be shown again
-static std::unordered_map<unsigned long, int> doNotShowAgainDlgs;
 
 
-KIDIALOG::KIDIALOG( wxWindow* aParent, const wxString& aMessage, const wxString& aCaption,
-                    long aStyle )
-    : wxRichMessageDialog( aParent, aMessage, aCaption, aStyle | wxCENTRE | wxSTAY_ON_TOP ),
-      m_hash( 0 ),
-      m_cancelMeansCancel( true )
-{
-}
-
-
-KIDIALOG::KIDIALOG( wxWindow* aParent, const wxString& aMessage, KD_TYPE aType,
-                    const wxString& aCaption )
-    : wxRichMessageDialog( aParent, aMessage, getCaption( aType, aCaption ), getStyle( aType ) ),
-      m_hash( 0 ),
-      m_cancelMeansCancel( true )
-{
-}
-
-
-void KIDIALOG::DoNotShowCheckbox( wxString aUniqueId, int line )
-{
-    ShowCheckBox( _( "Do not show again" ), false );
-
-    m_hash = std::hash<wxString>{}( aUniqueId ) + line;
-}
-
-
-bool KIDIALOG::DoNotShowAgain() const
-{
-    return doNotShowAgainDlgs.count( m_hash ) > 0;
-}
-
-
-void KIDIALOG::ForceShowAgain()
-{
-    doNotShowAgainDlgs.erase( m_hash );
-}
-
-
-bool KIDIALOG::Show( bool aShow )
-{
-    // We should check the do-not-show-again setting only when the dialog is displayed
-    if( aShow )
-    {
-        // Check if this dialog should be shown to the user
-        auto it = doNotShowAgainDlgs.find( m_hash );
-
-        if( it != doNotShowAgainDlgs.end() )
-            return it->second;
-    }
-
-    int ret = wxRichMessageDialog::Show( aShow );
-
-    // Has the user asked not to show the dialog again?
-    // Note that we don't save a Cancel value unless the Cancel button is being used for some
-    // other function (which is actually more common than it being used for Cancel).
-    if( IsCheckBoxChecked() && (!m_cancelMeansCancel || ret != wxID_CANCEL ) )
-        doNotShowAgainDlgs[m_hash] = ret;
-
-    return ret;
-}
-
-
-int KIDIALOG::ShowModal()
-{
-    // Check if this dialog should be shown to the user
-    auto it = doNotShowAgainDlgs.find( m_hash );
-
-    if( it != doNotShowAgainDlgs.end() )
-        return it->second;
-
-    int ret = wxRichMessageDialog::ShowModal();
-
-    // Has the user asked not to show the dialog again?
-    // Note that we don't save a Cancel value unless the Cancel button is being used for some
-    // other function (which is actually more common than it being used for Cancel).
-    if( IsCheckBoxChecked() && (!m_cancelMeansCancel || ret != wxID_CANCEL ) )
-        doNotShowAgainDlgs[m_hash] = ret;
-
-    return ret;
-}
-
-
-wxString KIDIALOG::getCaption( KD_TYPE aType, const wxString& aCaption )
-{
-    if( !aCaption.IsEmpty() )
-        return aCaption;
-
-    switch( aType )
-    {
-    case KD_NONE:       /* fall through */
-    case KD_INFO:       return _( "Message" );
-    case KD_QUESTION:   return _( "Question" );
-    case KD_WARNING:    return _( "Warning" );
-    case KD_ERROR:      return _( "Error" );
-    }
-
-    return wxEmptyString;
-}
-
-
-long KIDIALOG::getStyle( KD_TYPE aType )
-{
-    long style = wxOK | wxCENTRE | wxSTAY_ON_TOP;
-
-    switch( aType )
-    {
-    case KD_NONE:       break;
-    case KD_INFO:       style |= wxICON_INFORMATION; break;
-    case KD_QUESTION:   style |= wxICON_QUESTION; break;
-    case KD_WARNING:    style |= wxICON_WARNING; break;
-    case KD_ERROR:      style |= wxICON_ERROR; break;
-    }
-
-    return style;
-}
+/**
+ * Flag to enable confirmation dialog debugging output.
+ *
+ * @ingroup trace_env_vars
+ */
+static const wxChar traceConfirm[] = wxT( "KICAD_CONFIRM" );
 
 
 bool AskOverrideLock( wxWindow* aParent, const wxString& aMessage )
@@ -162,12 +51,12 @@ bool AskOverrideLock( wxWindow* aParent, const wxString& aMessage )
                              wxYES_NO | wxICON_WARNING | wxCENTER );
     dlg.SetExtendedMessage( _( "Interleaved saves may produce very unexpected results." )
                                 + wxS( "\n" ) );
-    dlg.SetYesNoLabels( _( "Cancel" ), _( "Open Anyway" ) );
+    dlg.SetYesNoLabels( _( "&Cancel" ), _( "&Open Anyway" ) );
 #else
     wxMessageDialog dlg( aParent, aMessage, _( "File Open Warning" ),
                          wxYES_NO | wxICON_ERROR | wxCENTER );
     dlg.SetExtendedMessage( _( "Interleaved saves may produce very unexpected results." ) );
-    dlg.SetYesNoLabels( _( "Cancel" ), _( "Open Anyway" ) );
+    dlg.SetYesNoLabels( _( "&Cancel" ), _( "&Open Anyway" ) );
 #endif
 
     return dlg.ShowModal() == wxID_NO;
@@ -182,10 +71,10 @@ int UnsavedChangesDialog( wxWindow* parent, const wxString& aMessage, bool* aApp
                              wxYES_NO | wxCANCEL | wxYES_DEFAULT | wxICON_WARNING | wxCENTER );
     dlg.SetExtendedMessage( _( "If you don't save, all your changes will be permanently lost." )
                                 + wxS( "\n" ) );
-    dlg.SetYesNoLabels( _( "Save" ), _( "Discard Changes" ) );
+    dlg.SetYesNoLabels( _( "&Save" ), _( "&Discard Changes" ) );
 
     if( aApplyToAll )
-        dlg.ShowCheckBox( _( "Apply to all" ), s_apply_to_all );
+        dlg.ShowCheckBox( _( "&Apply to all" ), s_apply_to_all );
 
     int ret = dlg.ShowModal();
 
@@ -211,14 +100,15 @@ int UnsavedChangesDialog( wxWindow* parent, const wxString& aMessage )
     // wxMessageDialog on windows invokes TaskDialogIndirect which is a native function for a dialog
     // As a result it skips wxWidgets for modal management...and we don't parent frames properly
     // among other things for Windows to do the right thing by default
-    // Disable all the windows manually to avoid being able to hit this dialog from the tool frame and kicad frame at the same time
+    // Disable all the windows manually to avoid being able to hit this dialog from the tool frame
+    // and kicad frame at the same time.
     wxWindowDisabler disable( true );
     #endif
 
     wxMessageDialog dlg( parent, aMessage, _( "Save Changes?" ),
                          wxYES_NO | wxCANCEL | wxYES_DEFAULT | wxICON_WARNING | wxCENTER );
     dlg.SetExtendedMessage( _( "If you don't save, all your changes will be permanently lost." ) );
-    dlg.SetYesNoLabels( _( "Save" ), _( "Discard Changes" ) );
+    dlg.SetYesNoLabels( _( "&Save" ), _( "&Discard Changes" ) );
 
     // Returns wxID_YES, wxID_NO, or wxID_CANCEL
     return dlg.ShowModal();
@@ -231,7 +121,7 @@ bool ConfirmRevertDialog( wxWindow* parent, const wxString& aMessage )
     wxMessageDialog dlg( parent, aMessage, wxEmptyString,
                          wxOK | wxCANCEL | wxOK_DEFAULT | wxICON_WARNING | wxCENTER );
     dlg.SetExtendedMessage( _( "Your current changes will be permanently lost." ) );
-    dlg.SetOKCancelLabels( _( "Revert" ), _( "Cancel" ) );
+    dlg.SetOKCancelLabels( _( "&Revert" ), _( "&Cancel" ) );
 
     return dlg.ShowModal() == wxID_OK;
 }
@@ -257,14 +147,14 @@ int OKOrCancelDialog( wxWindow* aParent, const wxString& aWarning, const wxStrin
     wxRichMessageDialog dlg( aParent, aMessage, aWarning,
                              wxOK | wxCANCEL | wxOK_DEFAULT | wxICON_WARNING | wxCENTER );
 
-    dlg.SetOKCancelLabels( ( aOKLabel.IsEmpty() ) ? _( "OK" ) : aOKLabel,
-                           ( aCancelLabel.IsEmpty() ) ?  _( "Cancel" ) : aCancelLabel );
+    dlg.SetOKCancelLabels( ( aOKLabel.IsEmpty() ) ? _( "&OK" ) : aOKLabel,
+                           ( aCancelLabel.IsEmpty() ) ? _( "&Cancel" ) : aCancelLabel );
 
     if( !aDetailedMessage.IsEmpty() )
         dlg.SetExtendedMessage( aDetailedMessage );
 
     if( aApplyToAll )
-        dlg.ShowCheckBox( _( "Apply to all" ), true );
+        dlg.ShowCheckBox( _( "&Apply to all" ), true );
 
     int ret = dlg.ShowModal();
 
@@ -333,7 +223,7 @@ void DisplayInfoMessage( wxWindow* aParent, const wxString& aMessage, const wxSt
 {
     if( !wxTheApp || !wxTheApp->GetTopWindow() )
     {
-        wxLogDebug( "%s %s", aMessage, aExtraInfo );
+        wxLogTrace( traceConfirm, wxS( "%s %s" ), aMessage, aExtraInfo );
         return;
     }
 
@@ -380,7 +270,7 @@ bool IsOK( wxWindow* aParent, const wxString& aMessage )
                          wxOK | wxCANCEL | wxOK_DEFAULT | wxCENTRE | icon | wxSTAY_ON_TOP );
 #endif
 
-    dlg.SetOKCancelLabels( _( "Yes" ), _( "No" ) );
+    dlg.SetOKCancelLabels( _( "&Yes" ), _( "&No" ) );
 
     return dlg.ShowModal() == wxID_OK;
 }

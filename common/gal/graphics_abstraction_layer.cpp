@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2012 Torsten Hueter, torstenhtr <at> gmx.de
- * Copyright (C) 2012-2017 Kicad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * Graphics Abstraction Layer (GAL) - base class
  *
@@ -39,6 +39,7 @@ using namespace KIGFX;
 
 GAL::GAL( GAL_DISPLAY_OPTIONS& aDisplayOptions ) :
         m_options( aDisplayOptions ),
+
         // m_currentNativeCursor is initialized with KICURSOR::DEFAULT value to avoid
         // if comparison with uninitialized value on SetNativeCursorStyle method.
         // Some classes inheriting from GAL has different SetNativeCursorStyle method
@@ -54,9 +55,11 @@ GAL::GAL( GAL_DISPLAY_OPTIONS& aDisplayOptions ) :
     SetLookAtPoint( VECTOR2D( 0, 0 ) );
     SetZoomFactor( 1.0 );
     SetRotation( 0.0 );
+
     // this value for SetWorldUnitLength is only suitable for Pcbnew.
     // Other editors/viewer must call SetWorldUnitLength with their internal units
     SetWorldUnitLength( 1e-9 /* 1 nm */ / 0.0254 /* 1 inch in meters */ );
+
     // wxDC::GetPPI() reports 96 DPI, but somehow this value
     // is the closest match to the legacy renderer
     SetScreenDPI( 91 );
@@ -223,21 +226,31 @@ VECTOR2D GAL::GetGridPoint( const VECTOR2D& aPoint ) const
 {
 #if 0
     // This old code expects a non zero grid size, which can be wrong here.
-    return VECTOR2D( KiROUND( ( aPoint.x - m_gridOffset.x ) / m_gridSize.x ) * m_gridSize.x + m_gridOffset.x,
-                     KiROUND( ( aPoint.y - m_gridOffset.y ) / m_gridSize.y ) * m_gridSize.y + m_gridOffset.y );
+    return VECTOR2D( KiROUND( ( aPoint.x - m_gridOffset.x ) / m_gridSize.x ) *
+                     m_gridSize.x + m_gridOffset.x,
+                     KiROUND( ( aPoint.y - m_gridOffset.y ) / m_gridSize.y ) *
+                     m_gridSize.y + m_gridOffset.y );
 #else
     // if grid size == 0.0 there is no grid, so use aPoint as grid reference position
-    double cx = m_gridSize.x > 0.0 ? KiROUND( ( aPoint.x - m_gridOffset.x ) / m_gridSize.x ) * m_gridSize.x + m_gridOffset.x
+    double cx = m_gridSize.x > 0.0 ? KiROUND( ( aPoint.x - m_gridOffset.x ) / m_gridSize.x ) *
+                m_gridSize.x + m_gridOffset.x
                                    : aPoint.x;
-    double cy = m_gridSize.y > 0.0 ? KiROUND( ( aPoint.y - m_gridOffset.y ) / m_gridSize.y ) * m_gridSize.y + m_gridOffset.y
+    double cy = m_gridSize.y > 0.0 ? KiROUND( ( aPoint.y - m_gridOffset.y ) / m_gridSize.y ) *
+                                     m_gridSize.y + m_gridOffset.y
                                    : aPoint.y;
 
     return VECTOR2D( cx, cy );
 #endif
 }
 
-const int GAL::MIN_DEPTH = -1024;
-const int GAL::MAX_DEPTH = 1023;
+
+// MIN_DEPTH must be set to be - (VIEW::VIEW_MAX_LAYERS + abs(VIEW::TOP_LAYER_MODIFIER))
+// MAX_DEPTH must be set to be VIEW::VIEW_MAX_LAYERS + abs(VIEW::TOP_LAYER_MODIFIER) -1
+// VIEW_MAX_LAYERS and TOP_LAYER_MODIFIER are defined in view.h.
+// TOP_LAYER_MODIFIER is set as -VIEW_MAX_LAYERS
+// Currently KIGFX::VIEW::VIEW_MAX_LAYERS = MAX_LAYERS_FOR_VIEW
+const int GAL::MIN_DEPTH = -2*MAX_LAYERS_FOR_VIEW;
+const int GAL::MAX_DEPTH = 2*MAX_LAYERS_FOR_VIEW - 1;
 const int GAL::GRID_DEPTH = MAX_DEPTH - 1;
 
 
@@ -254,9 +267,6 @@ COLOR4D GAL::getCursorColor() const
 }
 
 
-/*
- * Fallback for implementations that don't implement bitmap text: use stroke font
- */
 void GAL::BitmapText( const wxString& aText, const VECTOR2I& aPosition, const EDA_ANGLE& aAngle )
 {
     KIFONT::FONT* font = KIFONT::FONT::GetFont();

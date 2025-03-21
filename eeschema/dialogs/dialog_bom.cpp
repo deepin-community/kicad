@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,7 +32,7 @@
 #include <widgets/std_bitmap_button.h>
 #include <bom_plugins.h>
 #include <confirm.h>
-#include <dialog_bom_base.h>
+#include <dialog_bom.h>
 #include <dialogs/html_message_box.h>
 #include <eeschema_settings.h>
 #include <gestfich.h>
@@ -49,62 +49,12 @@
 
 #include <wx/filedlg.h>
 #include <wx/log.h>
+#include <wx/msgdlg.h>
 #include <wx/textdlg.h>
 
 wxString s_bomHelpInfo =
 #include <dialog_bom_help_md.h>
 ;
-
-// BOM "plugins" are not actually plugins. They are external tools
-// (scripts or executables) called by this dialog.
-typedef std::vector< std::unique_ptr<BOM_GENERATOR_HANDLER> > BOM_GENERATOR_ARRAY;
-
-
-// The main dialog frame to run scripts to build bom
-class DIALOG_BOM : public DIALOG_BOM_BASE
-{
-private:
-    SCH_EDIT_FRAME*     m_parent;
-    BOM_GENERATOR_ARRAY m_generators;
-    bool                m_initialized;
-
-    HTML_MESSAGE_BOX*   m_helpWindow;
-
-public:
-    DIALOG_BOM( SCH_EDIT_FRAME* parent );
-    ~DIALOG_BOM();
-
-private:
-    void OnGeneratorSelected( wxCommandEvent& event ) override;
-    void OnRunGenerator( wxCommandEvent& event ) override;
-    void OnHelp( wxCommandEvent& event ) override;
-    void OnAddGenerator( wxCommandEvent& event ) override;
-    void OnRemoveGenerator( wxCommandEvent& event ) override;
-    void OnEditGenerator( wxCommandEvent& event ) override;
-    void OnCommandLineEdited( wxCommandEvent& event ) override;
-    void OnNameEdited( wxCommandEvent& event ) override;
-    void OnShowConsoleChanged( wxCommandEvent& event ) override;
-    void OnIdle( wxIdleEvent& event ) override;
-
-    void pluginInit();
-    void installGeneratorsList();
-    BOM_GENERATOR_HANDLER* addGenerator( const wxString& aPath,
-                                         const wxString& aName = wxEmptyString );
-    bool pluginExists( const wxString& aName );
-
-    BOM_GENERATOR_HANDLER* selectedGenerator()
-    {
-        int idx = m_lbGenerators->GetSelection();
-
-        if( idx < 0 || idx >= (int)m_generators.size() )
-            return nullptr;
-
-        return m_generators[idx].get();
-    }
-
-    wxString chooseGenerator();
-};
-
 
 // Create and show DIALOG_BOM.
 int InvokeDialogCreateBOM( SCH_EDIT_FRAME* aCaller )
@@ -344,10 +294,11 @@ void DIALOG_BOM::OnRunGenerator( wxCommandEvent& event )
     bool status = false;
 
     if( m_parent->ReadyToNetlist( _( "Generating BOM requires a fully annotated schematic." ) ) )
-        status = m_parent->WriteNetListFile( NET_TYPE_BOM, fullfilename, GNL_OPT_BOM|GNL_ALL, &reporter );
+        status = m_parent->WriteNetListFile( NET_TYPE_BOM, fullfilename,
+                                             GNL_OPT_BOM | GNL_ALL, &reporter );
 
     if( !status )
-        DisplayError( this, _( "Failed to create file." ) );
+        DisplayErrorMessage( this, _( "Failed to create file." ) );
 
     m_Messages->SetValue( reporter.GetMessages() );
 
@@ -409,7 +360,7 @@ void DIALOG_BOM::OnAddGenerator( wxCommandEvent& event )
     }
     catch( const std::runtime_error& e )
     {
-        DisplayError( this, e.what() );
+        DisplayErrorMessage( this, e.what() );
     }
 }
 
@@ -528,4 +479,15 @@ void DIALOG_BOM::OnIdle( wxIdleEvent& event )
         m_Messages->SetSelection( 0, 0 );
         m_initialized = true;
     }
+}
+
+
+BOM_GENERATOR_HANDLER* DIALOG_BOM::selectedGenerator()
+{
+    int idx = m_lbGenerators->GetSelection();
+
+    if( idx < 0 || idx >= (int) m_generators.size() )
+        return nullptr;
+
+    return m_generators[idx].get();
 }

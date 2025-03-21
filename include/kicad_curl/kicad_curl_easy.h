@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2015, 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,6 +39,7 @@
 #include <ostream>
 #include <string>
 #include <cstdint>
+#include <shared_mutex>
 
 typedef void CURL;
 struct curl_slist;
@@ -101,7 +102,8 @@ public:
     bool SetPostFields( const std::vector<std::pair<std::string, std::string>>& aFields );
 
     /**
-     * Set the post content body to the string, usually used for json rather than the typical key/value pair
+     * Set the post content body to the string, usually used for json rather than the typical
+     * key/value pair.
      *
      * @param aField is the string body to send
      * @return True if successful, false if not.
@@ -162,10 +164,11 @@ private:
     template <typename T>
     int setOption( int aOption, T aArg );
 
-    CURL*                          m_CURL;
-    curl_slist*                    m_headers;
-    std::string                    m_buffer;
-    std::unique_ptr<CURL_PROGRESS> progress;
+    CURL*                               m_CURL;
+    curl_slist*                         m_headers;
+    std::string                         m_buffer;
+    std::unique_ptr<CURL_PROGRESS>      progress;
+    std::shared_lock<std::shared_mutex> m_curlSharedLock;
 };
 
 

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,10 +20,14 @@
 #ifndef SEARCH_PANE_H
 #define SEARCH_PANE_H
 
-#include <widgets/search_pane_base.h>
+#include <memory>
 #include <vector>
+
+#include <widgets/search_pane_base.h>
 #include <wx/listbase.h>
 
+
+class ACTION_MENU;
 class EDA_DRAW_FRAME;
 class SEARCH_PANE_TAB;
 
@@ -32,6 +36,9 @@ class SEARCH_HANDLER
 public:
     SEARCH_HANDLER( const wxString& aName ) :
             m_name( aName )
+    {}
+
+    virtual ~SEARCH_HANDLER()
     {}
 
     wxString GetName() const { return m_name; }
@@ -43,7 +50,7 @@ public:
 
     virtual int Search( const wxString& string ) = 0;
     virtual wxString GetResultCell( int row, int col ) = 0;
-    virtual void Sort( int aCol, bool aAscending ) = 0;
+    virtual void Sort( int aCol, bool aAscending, std::vector<long>* aSelection ) = 0;
 
     virtual void SelectItems( std::vector<long>& aItemRows ) {}
     virtual void ActivateItem( long aItemRow ) {}
@@ -52,6 +59,7 @@ protected:
     wxString                                                   m_name;
     std::vector<std::tuple<wxString, int, wxListColumnFormat>> m_columns;
 };
+
 
 class SEARCH_PANE : public SEARCH_PANE_BASE
 {
@@ -62,19 +70,22 @@ public:
     void AddSearcher( SEARCH_HANDLER* aHandler );
     void OnSearchTextEntry( wxCommandEvent& aEvent ) override;
     void OnNotebookPageChanged( wxBookCtrlEvent& aEvent ) override;
+    void OnSize( wxSizeEvent& aEvent ) override;
 
     void RefreshSearch();
-    void OnLanguageChange();
     void FocusSearch();
     void ClearAllResults();
 
 protected:
+    void             OnLanguageChange( wxCommandEvent& aEvent );
     SEARCH_PANE_TAB* GetCurrentTab() const;
 
 private:
     std::vector<SEARCH_HANDLER*>  m_handlers;
     std::vector<SEARCH_PANE_TAB*> m_tabs;
     wxString                      m_lastQuery;
+    EDA_DRAW_FRAME*               m_frame;
+    ACTION_MENU*                  m_menu;
 };
 
 #endif

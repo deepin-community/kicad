@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.0.0-0-g0efcecf)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -153,6 +153,22 @@ PANEL_SETUP_CONSTRAINTS_BASE::PANEL_SETUP_CONSTRAINTS_BASE( wxWindow* parent, wx
 	m_EdgeClearanceUnits = new wxStaticText( m_scrolledWindow, wxID_ANY, _("mm"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_EdgeClearanceUnits->Wrap( -1 );
 	fgFeatureConstraints->Add( m_EdgeClearanceUnits, 0, wxALIGN_CENTER_VERTICAL|wxLEFT, 5 );
+
+	m_bitmapMinGrooveWidth = new wxStaticBitmap( m_scrolledWindow, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, 0 );
+	fgFeatureConstraints->Add( m_bitmapMinGrooveWidth, 0, wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL|wxLEFT|wxRIGHT, 5 );
+
+	m_minGrooveWidthLabel = new wxStaticText( m_scrolledWindow, wxID_ANY, _("Minimum groove for creepage:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_minGrooveWidthLabel->Wrap( -1 );
+	fgFeatureConstraints->Add( m_minGrooveWidthLabel, 0, wxALL, 5 );
+
+	m_minGrooveWidthCtrl = new wxTextCtrl( m_scrolledWindow, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	m_minGrooveWidthCtrl->SetToolTip( _("The minimum slot width from DRC creepage checks") );
+
+	fgFeatureConstraints->Add( m_minGrooveWidthCtrl, 0, wxALIGN_CENTER_VERTICAL|wxBOTTOM|wxEXPAND|wxTOP, 5 );
+
+	m_minGrooveWidthUnits = new wxStaticText( m_scrolledWindow, wxID_ANY, _("mm"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_minGrooveWidthUnits->Wrap( -1 );
+	fgFeatureConstraints->Add( m_minGrooveWidthUnits, 0, wxALL, 5 );
 
 	m_staticline3 = new wxStaticLine( m_scrolledWindow, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
 	fgFeatureConstraints->Add( m_staticline3, 0, wxTOP|wxEXPAND, 10 );
@@ -352,7 +368,7 @@ PANEL_SETUP_CONSTRAINTS_BASE::PANEL_SETUP_CONSTRAINTS_BASE( wxWindow* parent, wx
 	wxBoxSizer* bSizerArcToPoly;
 	bSizerArcToPoly = new wxBoxSizer( wxVERTICAL );
 
-	m_stCircleToPolyOpt = new wxStaticText( m_scrolledWindow, wxID_ANY, _("Arc/circle approximated by segments"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_stCircleToPolyOpt = new wxStaticText( m_scrolledWindow, wxID_ANY, _("Arc/Circle Approximated by Segments"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_stCircleToPolyOpt->Wrap( -1 );
 	bSizerArcToPoly->Add( m_stCircleToPolyOpt, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
 
@@ -395,7 +411,7 @@ PANEL_SETUP_CONSTRAINTS_BASE::PANEL_SETUP_CONSTRAINTS_BASE( wxWindow* parent, wx
 	m_staticline1 = new wxStaticLine( m_scrolledWindow, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
 	m_bSizerPolygonFillOption->Add( m_staticline1, 0, wxEXPAND|wxTOP|wxBOTTOM, 12 );
 
-	m_stZoneFilledPolysOpt = new wxStaticText( m_scrolledWindow, wxID_ANY, _("Zone fill strategy"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_stZoneFilledPolysOpt = new wxStaticText( m_scrolledWindow, wxID_ANY, _("Zone Fill Strategy"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_stZoneFilledPolysOpt->Wrap( -1 );
 	m_bSizerPolygonFillOption->Add( m_stZoneFilledPolysOpt, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
 
@@ -405,7 +421,7 @@ PANEL_SETUP_CONSTRAINTS_BASE::PANEL_SETUP_CONSTRAINTS_BASE( wxWindow* parent, wx
 	m_filletBitmap = new wxStaticBitmap( m_scrolledWindow, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, 0 );
 	bSizer9->Add( m_filletBitmap, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5 );
 
-	m_allowExternalFilletsOpt = new wxCheckBox( m_scrolledWindow, wxID_ANY, _("Allow fillets outside zone outline"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_allowExternalFilletsOpt = new wxCheckBox( m_scrolledWindow, wxID_ANY, _("Allow fillets/chamfers outside zone outline"), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizer9->Add( m_allowExternalFilletsOpt, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5 );
 
 
@@ -436,7 +452,7 @@ PANEL_SETUP_CONSTRAINTS_BASE::PANEL_SETUP_CONSTRAINTS_BASE( wxWindow* parent, wx
 	m_staticline15 = new wxStaticLine( m_scrolledWindow, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
 	bSizer11->Add( m_staticline15, 0, wxEXPAND|wxTOP|wxBOTTOM, 12 );
 
-	m_staticText33 = new wxStaticText( m_scrolledWindow, wxID_ANY, _("Length tuning"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText33 = new wxStaticText( m_scrolledWindow, wxID_ANY, _("Length Tuning"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText33->Wrap( -1 );
 	bSizer11->Add( m_staticText33, 0, wxALL, 5 );
 

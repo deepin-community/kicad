@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 Jean-Pierre Charras, jean-pierre.charras@ujf-grenoble.fr
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * Some code comes from FreePCB.
  *
@@ -28,6 +28,7 @@
 #include <confirm.h>
 #include <pcb_edit_frame.h>
 #include <pcbnew_settings.h>
+#include <board.h>
 #include <board_commit.h>
 #include <board_design_settings.h>
 #include <tool/tool_manager.h>
@@ -47,7 +48,7 @@ void PCB_EDIT_FRAME::Edit_Zone_Params( ZONE* aZone )
     {
         // edit a rule area on a copper layer
         zoneInfo << *aZone;
-        dialogResult = InvokeRuleAreaEditor( this, &zoneInfo );
+        dialogResult = InvokeRuleAreaEditor( this, &zoneInfo, GetBoard() );
     }
     else if( IsCopperLayer( aZone->GetFirstLayer() ) )
     {
@@ -81,8 +82,7 @@ void PCB_EDIT_FRAME::Edit_Zone_Params( ZONE* aZone )
 
     m_pcb->GetDesignSettings().SetDefaultZoneSettings( zoneInfo );
 
-    // TODO: 9.0: Use title capitalization
-    commit.Push( _( "Modify zone properties" ), SKIP_CONNECTIVITY );
+    commit.Push( _( "Edit Zone Properties" ), SKIP_CONNECTIVITY );
     rebuildConnectivity();
 }
 

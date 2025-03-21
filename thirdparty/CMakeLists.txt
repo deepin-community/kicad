@@ -32,18 +32,28 @@ set( BUILD_SHARED_LIBS OFF )
 # instead of with cmake_policy will apply the change to the third-party CMakeLists files.
 set( CMAKE_POLICY_DEFAULT_CMP0077 NEW )
 
+# Avoid spurious warnings on g++
+if(CMAKE_C_COMPILER_ID MATCHES "GNU")
+    set_source_files_properties(
+        ${CMAKE_SOURCE_DIR}/thirdparty/3dxware_sdk/src/navlib_stub.c
+        PROPERTIES COMPILE_FLAGS "-Wno-attributes"
+    )
+endif()
+
 set( ARGPARSE_INSTALL OFF )
 add_subdirectory( argparse )
-add_subdirectory( clipper )
 add_subdirectory( clipper2 )
 add_subdirectory( compoundfilereader )
 add_subdirectory( delaunator )
 add_subdirectory( dxflib_qcad )
+add_subdirectory( dynamic_bitset )
+add_subdirectory( expected )
 set( FMT_INSTALL OFF )
 add_subdirectory( fmt )
 add_subdirectory( gzip-hpp )
 add_subdirectory( lemon )
 add_subdirectory( libcontext )
+add_subdirectory( libpopcnt )
 add_subdirectory( magic_enum )
 add_subdirectory( markdown2html )
 add_subdirectory( nanodbc )

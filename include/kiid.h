@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2020 Ian McInerney <ian.s.mcinerney@ieee.org>
  * Copyright (C) 2007-2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -64,6 +64,7 @@ public:
 
     wxString AsString() const;
     wxString AsLegacyTimestampString() const;
+    std::string AsStdString() const;
 
     /**
      * Returns true if a string has the correct formatting to be a KIID.
@@ -125,8 +126,6 @@ public:
 
 private:
     boost::uuids::uuid m_uuid;
-
-    timestamp_t m_cached_timestamp;
 };
 
 
@@ -244,5 +243,13 @@ public:
 KICOMMON_API void to_json( nlohmann::json& aJson, const KIID& aKIID );
 
 KICOMMON_API void from_json( const nlohmann::json& aJson, KIID& aKIID );
+
+template<> struct KICOMMON_API std::hash<KIID>
+{
+    std::size_t operator()( const KIID& aId ) const
+    {
+        return aId.Hash();
+    }
+};
 
 #endif // KIID_H

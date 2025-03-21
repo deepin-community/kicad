@@ -3,7 +3,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2016-2018 CERN
- * Copyright (C) 2019-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -84,7 +84,7 @@ const VECTOR2I CN_ITEM::GetAnchor( int n ) const
 
 void CN_ITEM::Dump()
 {
-    wxLogDebug("    valid: %d, connected: \n", !!Valid());
+    wxLogDebug( "    valid: %d, connected: \n", !!Valid() );
 
     for( CN_ITEM* i : m_connected )
     {
@@ -146,13 +146,23 @@ void CN_ITEM::RemoveInvalidRefs()
 
 
 CN_ITEM* CN_LIST::Add( PAD* pad )
- {
+{
     if( !pad->IsOnCopperLayer() )
          return nullptr;
 
-     auto item = new CN_ITEM( pad, false, 1 );
-     item->AddAnchor( pad->ShapePos() );
-     item->SetLayers( LAYER_RANGE( F_Cu, B_Cu ) );
+    auto item = new CN_ITEM( pad, false, 1 );
+
+    std::set<VECTOR2I> uniqueAnchors;
+    pad->Padstack().ForEachUniqueLayer(
+        [&]( PCB_LAYER_ID aLayer )
+        {
+            uniqueAnchors.insert( pad->ShapePos( aLayer ) );
+        } );
+
+    for( const VECTOR2I& anchor : uniqueAnchors )
+        item->AddAnchor( anchor );
+
+     item->SetLayers( F_Cu, B_Cu );
 
      switch( pad->GetAttribute() )
      {
@@ -160,16 +170,11 @@ CN_ITEM* CN_LIST::Add( PAD* pad )
      case PAD_ATTRIB::NPTH:
      case PAD_ATTRIB::CONN:
      {
-         LSET lmsk = pad->GetLayerSet();
+        LSEQ lmsk = pad->GetLayerSet().CuStack();
 
-         for( int i = 0; i <= MAX_CU_LAYERS; i++ )
-         {
-             if( lmsk[i] )
-             {
-                 item->SetLayer( i );
-                 break;
-             }
-         }
+        if( !lmsk.empty() )
+            item->SetLayer( lmsk.front() );
+
          break;
      }
      default:
@@ -216,7 +221,7 @@ CN_ITEM* CN_LIST::Add( PCB_VIA* via )
     m_items.push_back( item );
     item->AddAnchor( via->GetStart() );
 
-    item->SetLayers( LAYER_RANGE( via->TopLayer(), via->BottomLayer() ) );
+    item->SetLayers( via->TopLayer(), via->BottomLayer() );
     addItemtoTree( item );
     SetDirty();
     return item;
@@ -358,7 +363,7 @@ bool CN_ANCHOR::IsDangling() const
         {
             ZONE* zone = static_cast<ZONE*>( item->Parent() );
 
-            if( zone->HitTestFilledArea( ToLAYER_ID( item->Layer() ), Pos(), accuracy ) )
+            if( zone->HitTestFilledArea( item->GetBoardLayer(), Pos(), accuracy ) )
                 connected_count++;
         }
         else if( item->Parent()->HitTest( Pos(), accuracy ) )
@@ -384,7 +389,7 @@ int CN_ANCHOR::ConnectedItemsCount() const
         {
             ZONE* zone = static_cast<ZONE*>( item->Parent() );
 
-            if( zone->HitTestFilledArea( ToLAYER_ID( item->Layer() ), Pos() ) )
+            if( zone->HitTestFilledArea( item->GetBoardLayer(), Pos() ) )
                 connected_count++;
         }
         else if( item->Parent()->HitTest( Pos() ) )

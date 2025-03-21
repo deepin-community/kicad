@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 CERN
- * Copyright (C) 2019-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -24,11 +24,12 @@
  */
 
 #include <core/kicad_algo.h>
-#include <geometry/circle.h>
 #include <geometry/geometry_utils.h>
 #include <geometry/seg.h>               // for SEG
 #include <geometry/shape_arc.h>
+#include <geometry/shape_circle.h>
 #include <geometry/shape_line_chain.h>
+#include <geometry/shape_rect.h>
 #include <convert_basic_shapes_to_polygon.h>
 #include <trigo.h>
 
@@ -58,7 +59,7 @@ SHAPE_ARC::SHAPE_ARC( const VECTOR2I& aArcCenter, const VECTOR2I& aArcStartPoint
     m_mid = VECTOR2I( KiROUND( mid.x ), KiROUND( mid.y ) );
     m_end = VECTOR2I( KiROUND( end.x ), KiROUND( end.y ) );
 
-    update_bbox();
+    update_values();
 }
 
 
@@ -70,7 +71,7 @@ SHAPE_ARC::SHAPE_ARC( const VECTOR2I& aArcStart, const VECTOR2I& aArcMid,
         m_end( aArcEnd ),
         m_width( aWidth )
 {
-    update_bbox();
+    update_values();
 }
 
 
@@ -174,7 +175,7 @@ SHAPE_ARC::SHAPE_ARC( const SEG& aSegmentA, const SEG& aSegmentB, int aRadius, i
         RotatePoint( m_mid, arcCenter, midPointRotAngle );
     }
 
-    update_bbox();
+    update_values();
 }
 
 
@@ -186,6 +187,8 @@ SHAPE_ARC::SHAPE_ARC( const SHAPE_ARC& aOther )
     m_mid = aOther.m_mid;
     m_width = aOther.m_width;
     m_bbox = aOther.m_bbox;
+    m_center = aOther.m_center;
+    m_radius = aOther.m_radius;
 }
 
 
@@ -201,7 +204,7 @@ SHAPE_ARC& SHAPE_ARC::ConstructFromStartEndAngle( const VECTOR2I& aStart, const 
 
     RotatePoint( m_mid, center, -aAngle / 2.0 );
 
-    update_bbox();
+    update_values();
 
     return *this;
 }
@@ -233,19 +236,42 @@ SHAPE_ARC& SHAPE_ARC::ConstructFromStartEndCenter( const VECTOR2I& aStart, const
 
     RotatePoint( m_mid, aCenter, -angle / 2.0 );
 
-    update_bbox();
+    update_values();
 
     return *this;
 }
 
 
+bool SHAPE_ARC::IsEffectiveLine() const
+{
+    SEG v1 = SEG( m_start, m_mid );
+    SEG v2 = SEG( m_mid, m_end );
+
+    return v1.ApproxCollinear( v2 );
+}
+
+
 bool SHAPE_ARC::Collide( const SEG& aSeg, int aClearance, int* aActual, VECTOR2I* aLocation ) const
 {
-    if( aSeg.A == aSeg.B )
-        return Collide( aSeg.A, aClearance, aActual, aLocation );
-
     VECTOR2I center = GetCenter();
-    CIRCLE   circle( center, GetRadius() );
+    double   radius = VECTOR2D( center - m_start ).EuclideanNorm();
+    SHAPE_CIRCLE circle( center, radius );
+    ecoord   clearance_sq = SEG::Square( aClearance );
+
+    // Circle or at least an arc with less space remaining than the clearance
+    if( GetCentralAngle().AsDegrees() > 180.0
+        && ( m_start - m_end ).SquaredEuclideanNorm() < clearance_sq )
+    {
+        ecoord   a_dist_sq = ( aSeg.A - center ).SquaredEuclideanNorm();
+        ecoord   b_dist_sq = ( aSeg.B - center ).SquaredEuclideanNorm();
+        ecoord   radius_sq = SEG::Square( radius - aClearance );
+
+        if( a_dist_sq < radius_sq && b_dist_sq < radius_sq )
+            return false;
+
+
+        return circle.Collide( aSeg, aClearance, aActual, aLocation );
+    }
 
     // Possible points of the collision are:
     // 1. Intersetion of the segment with the full circle
@@ -253,7 +279,7 @@ bool SHAPE_ARC::Collide( const SEG& aSeg, int aClearance, int* aActual, VECTOR2I
     // 3. Closest point on the segment to the end points of the arc
     // 4. End points of the segment
 
-    std::vector<VECTOR2I> candidatePts = circle.Intersect( aSeg );
+    std::vector<VECTOR2I> candidatePts = circle.GetCircle().Intersect( aSeg );
 
     candidatePts.push_back( aSeg.NearestPoint( center ) );
     candidatePts.push_back( aSeg.NearestPoint( m_start ) );
@@ -285,7 +311,25 @@ int SHAPE_ARC::IntersectLine( const SEG& aSeg, std::vector<VECTOR2I>* aIpsBuffer
 
     std::vector<VECTOR2I> intersections = circ.IntersectLine( aSeg );
 
-    size_t originalSize = aIpsBuffer->size();
+    const size_t originalSize = aIpsBuffer->size();
+
+    for( const VECTOR2I& intersection : intersections )
+    {
+        if( sliceContainsPoint( intersection ) )
+            aIpsBuffer->push_back( intersection );
+    }
+
+    return aIpsBuffer->size() - originalSize;
+}
+
+
+int SHAPE_ARC::Intersect( const CIRCLE& aCircle, std::vector<VECTOR2I>* aIpsBuffer ) const
+{
+    CIRCLE thiscirc( GetCenter(), GetRadius() );
+
+    std::vector<VECTOR2I> intersections = thiscirc.Intersect( aCircle );
+
+    const size_t originalSize = aIpsBuffer->size();
 
     for( const VECTOR2I& intersection : intersections )
     {
@@ -304,7 +348,7 @@ int SHAPE_ARC::Intersect( const SHAPE_ARC& aArc, std::vector<VECTOR2I>* aIpsBuff
 
     std::vector<VECTOR2I> intersections = thiscirc.Intersect( othercirc );
 
-    size_t originalSize = aIpsBuffer->size();
+    const size_t originalSize = aIpsBuffer->size();
 
     for( const VECTOR2I& intersection : intersections )
     {
@@ -316,8 +360,11 @@ int SHAPE_ARC::Intersect( const SHAPE_ARC& aArc, std::vector<VECTOR2I>* aIpsBuff
 }
 
 
-void SHAPE_ARC::update_bbox()
+void SHAPE_ARC::update_values()
 {
+    m_center = CalcArcCenter( m_start, m_mid, m_end );
+    m_radius = std::sqrt( ( VECTOR2D( m_start ) - m_center ).SquaredEuclideanNorm() );
+
     std::vector<VECTOR2I> points;
     // Put start and end points in the point list
     points.push_back( m_start );
@@ -333,25 +380,30 @@ void SHAPE_ARC::update_bbox()
     int quad_angle_start = std::ceil( start_angle.AsDegrees() / 90.0 );
     int quad_angle_end = std::floor( end_angle.AsDegrees() / 90.0 );
 
-    VECTOR2I center = GetCenter();
-    const int radius = KiROUND( GetRadius() );
-
-    // count through quadrants included in arc
-    for( int quad_angle = quad_angle_start; quad_angle <= quad_angle_end; ++quad_angle )
+    // very large radius means the arc is similar to a segment
+    // so do not try to add more points, center cannot be handled
+    // Very large is here > INT_MAX/2
+    if( m_radius < (double)INT_MAX/2.0 )
     {
-        VECTOR2I  quad_pt = center;
+        const int radius = KiROUND( m_radius );
 
-        switch( quad_angle % 4 )
+        // count through quadrants included in arc
+        for( int quad_angle = quad_angle_start; quad_angle <= quad_angle_end; ++quad_angle )
         {
-        case 0:          quad_pt += { radius, 0 };  break;
-        case 1: case -3: quad_pt += { 0, radius };  break;
-        case 2: case -2: quad_pt += { -radius, 0 }; break;
-        case 3: case -1: quad_pt += { 0, -radius }; break;
-        default:
-            assert( false );
-        }
+            VECTOR2I quad_pt = m_center;
 
-        points.push_back( quad_pt );
+            switch( quad_angle % 4 )
+            {
+            case 0:          quad_pt += { radius, 0 };  break;
+            case 1: case -3: quad_pt += { 0, radius };  break;
+            case 2: case -2: quad_pt += { -radius, 0 }; break;
+            case 3: case -1: quad_pt += { 0, -radius }; break;
+            default:
+                assert( false );
+            }
+
+            points.push_back( quad_pt );
+        }
     }
 
     m_bbox.Compute( points );
@@ -395,6 +447,322 @@ VECTOR2I SHAPE_ARC::NearestPoint( const VECTOR2I& aP ) const
 }
 
 
+bool SHAPE_ARC::NearestPoints( const SHAPE_CIRCLE& aCircle, VECTOR2I& aPtA, VECTOR2I& aPtB,
+                               int64_t& aDistSq ) const
+{
+    if( GetCenter() == aCircle.GetCenter() && GetRadius() == aCircle.GetRadius() )
+    {
+        aPtA = aPtB = GetP0();
+        aDistSq = 0;
+        return true;
+    }
+
+    aDistSq = std::numeric_limits<int64_t>::max();
+
+    CIRCLE circle1( GetCenter(), GetRadius() );
+    CIRCLE circle2( aCircle.GetCircle() );
+    std::vector<VECTOR2I> intersections = circle1.Intersect( circle2 );
+
+    for( const VECTOR2I& pt : intersections )
+    {
+        if( sliceContainsPoint( pt ) )
+        {
+            aPtA = aPtB = pt;
+            aDistSq = 0;
+            return true;
+        }
+    }
+
+    std::vector<VECTOR2I> pts = { m_start, m_end, circle1.NearestPoint( GetCenter() ) };
+
+    for( const VECTOR2I& pt : pts )
+    {
+        if( sliceContainsPoint( pt ) )
+        {
+            VECTOR2I nearestPt2 = circle2.NearestPoint( pt );
+            int64_t distSq = pt.SquaredDistance( nearestPt2 );
+
+            if( distSq < aDistSq )
+            {
+                aDistSq = distSq;
+                aPtA = pt;
+                aPtB = nearestPt2;
+            }
+        }
+    }
+
+    return true;
+}
+
+
+bool SHAPE_ARC::NearestPoints( const SEG& aSeg, VECTOR2I& aPtA, VECTOR2I& aPtB,
+                               int64_t& aDistSq ) const
+{
+    aDistSq = std::numeric_limits<int64_t>::max();
+    CIRCLE circle( GetCenter(), GetRadius() );
+
+    // First check for intersections on the circle
+    std::vector<VECTOR2I> intersections = circle.Intersect( aSeg );
+
+    for( const VECTOR2I& pt : intersections )
+    {
+        if( sliceContainsPoint( pt ) )
+        {
+            aPtA = aPtB = pt;
+            aDistSq = 0;
+            return true;
+        }
+    }
+
+    // Check the endpoints of the segment against the nearest point on the arc
+    for( const VECTOR2I& pt : { aSeg.A, aSeg.B } )
+    {
+        if( sliceContainsPoint( pt ) )
+        {
+            VECTOR2I nearestPt = circle.NearestPoint( pt );
+            int64_t distSq = pt.SquaredDistance( nearestPt );
+
+            if( distSq < aDistSq )
+            {
+                aDistSq = distSq;
+                aPtA = nearestPt;
+                aPtB = pt;
+            }
+        }
+    }
+
+    // Check the endpoints of the arc against the nearest point on the segment
+    for( const VECTOR2I& pt : { m_start, m_end } )
+    {
+        VECTOR2I nearestPt = aSeg.NearestPoint( pt );
+        int64_t distSq = pt.SquaredDistance( nearestPt );
+
+        if( distSq < aDistSq )
+        {
+            aDistSq = distSq;
+            aPtA = pt;
+            aPtB = nearestPt;
+        }
+    }
+
+    // Check the closest points on the segment to the circle
+    VECTOR2I segNearestPt = aSeg.NearestPoint( GetCenter() );
+
+    if( sliceContainsPoint( segNearestPt ) )
+    {
+        VECTOR2I circleNearestPt = circle.NearestPoint( segNearestPt );
+        int64_t distSq = segNearestPt.SquaredDistance( circleNearestPt );
+
+        if( distSq < aDistSq )
+        {
+            aDistSq = distSq;
+            aPtA = segNearestPt;
+            aPtB = circleNearestPt;
+        }
+    }
+
+    return true;
+}
+
+
+bool SHAPE_ARC::NearestPoints( const SHAPE_RECT& aRect, VECTOR2I& aPtA, VECTOR2I& aPtB,
+                               int64_t& aDistSq ) const
+{
+    BOX2I  bbox = aRect.BBox();
+    CIRCLE circle( GetCenter(), GetRadius() );
+    aDistSq = std::numeric_limits<int64_t>::max();
+
+    // First check for intersections
+    SHAPE_LINE_CHAIN lineChain( aRect.Outline() );
+
+    for( int i = 0; i < 4; ++i )
+    {
+        SEG seg( lineChain.CPoint( i ), lineChain.CPoint( i + 1 ) );
+
+        std::vector<VECTOR2I> intersections = circle.Intersect( seg );
+
+        for( const VECTOR2I& pt : intersections )
+        {
+            if( sliceContainsPoint( pt ) )
+            {
+                aPtA = aPtB = pt;
+                aDistSq = 0;
+                return true;
+            }
+        }
+    }
+
+    // Check the endpoints of the arc against the nearest point on the rectangle
+    for( const VECTOR2I& pt : { m_start, m_end } )
+    {
+        VECTOR2I nearestPt = bbox.NearestPoint( pt );
+        int64_t distSq = pt.SquaredDistance( nearestPt );
+
+        if( distSq < aDistSq )
+        {
+            aDistSq = distSq;
+            aPtA = pt;
+            aPtB = nearestPt;
+        }
+    }
+
+    // Check the closest points on the rectangle to the circle
+    VECTOR2I rectNearestPt = bbox.NearestPoint( GetCenter() );
+
+    if( sliceContainsPoint( rectNearestPt ) )
+    {
+        VECTOR2I circleNearestPt = circle.NearestPoint( rectNearestPt );
+        int64_t distSq = rectNearestPt.SquaredDistance( circleNearestPt );
+
+        if( distSq < aDistSq )
+        {
+            aDistSq = distSq;
+            aPtA = rectNearestPt;
+            aPtB = circleNearestPt;
+        }
+    }
+
+    return true;
+}
+
+
+bool SHAPE_ARC::NearestPoints( const SHAPE_ARC& aArc, VECTOR2I& aPtA, VECTOR2I& aPtB,
+                               int64_t& aDistSq ) const
+{
+    aDistSq = std::numeric_limits<int64_t>::max();
+
+    VECTOR2I center1 = GetCenter();
+    VECTOR2I center2 = aArc.GetCenter();
+
+    int64_t center_dist_sq = center1.SquaredDistance( center2 );
+
+    // Start by checking endpoints
+    std::vector<VECTOR2I> pts1 = { m_start, m_end };
+    std::vector<VECTOR2I> pts2 = { aArc.GetP0(), aArc.GetP1() };
+
+    for( const VECTOR2I& pt1 : pts1 )
+    {
+        for( const VECTOR2I& pt2 : pts2 )
+        {
+            int64_t distSq = pt1.SquaredDistance( pt2 );
+
+            if( distSq < aDistSq )
+            {
+                aDistSq = distSq;
+                aPtA = pt1;
+                aPtB = pt2;
+
+                if( aDistSq == 0 )
+                    return true;
+            }
+        }
+    }
+
+    for( const VECTOR2I& pt : pts1 )
+    {
+        if( aArc.sliceContainsPoint( pt ) )
+        {
+            CIRCLE circle( center2, aArc.GetRadius() );
+            aPtA = circle.NearestPoint( pt );
+            aPtB = pt;
+            aDistSq = aPtA.SquaredDistance( aPtB );
+
+            if( center_dist_sq == 0 || aDistSq == 0 )
+                return true;
+        }
+    }
+
+    for( const VECTOR2I& pt : pts2 )
+    {
+        if( sliceContainsPoint( pt ) )
+        {
+            CIRCLE circle( center1, GetRadius() );
+            aPtA = pt;
+            aPtB = circle.NearestPoint( pt );
+            aDistSq = aPtA.SquaredDistance( aPtB );
+
+            if( center_dist_sq == 0 || aDistSq == 0 )
+                return true;
+        }
+    }
+
+    // The remaining checks are require the arcs to be on non-concentric circles
+    if( center_dist_sq == 0 )
+        return true;
+
+    CIRCLE circle1( center1, GetRadius() );
+    CIRCLE circle2( center2, aArc.GetRadius() );
+
+    // First check for intersections on the circles
+    std::vector<VECTOR2I> intersections = circle1.Intersect( circle2 );
+
+    for( const VECTOR2I& pt : intersections )
+    {
+        if( sliceContainsPoint( pt ) && aArc.sliceContainsPoint( pt ) )
+        {
+            aPtA = pt;
+            aPtB = pt;
+            aDistSq = 0;
+            return true;
+        }
+    }
+
+    // Check for the closest points on the circles
+    VECTOR2I pt1 = circle1.NearestPoint( center2 );
+    VECTOR2I pt2 = circle2.NearestPoint( center1 );
+    bool     pt1InSlice = sliceContainsPoint( pt1 );
+    bool     pt2InSlice = aArc.sliceContainsPoint( pt2 );
+
+    if( pt1InSlice && pt2InSlice )
+    {
+        int64_t distSq = pt1.SquaredDistance( pt2 );
+
+        if( distSq < aDistSq )
+        {
+            aDistSq = distSq;
+            aPtA = pt1;
+            aPtB = pt2;
+        }
+
+        return true;
+    }
+
+    // Check the endpoints of arc 1 against the nearest point on arc 2
+    if( pt2InSlice )
+    {
+        for( const VECTOR2I& pt : pts1 )
+        {
+            int64_t distSq = pt.SquaredDistance( pt2 );
+
+            if( distSq < aDistSq )
+            {
+                aDistSq = distSq;
+                aPtA = pt;
+                aPtB = pt2;
+            }
+        }
+    }
+
+    // Check the endpoints of arc 2 against the nearest point on arc 1
+    if( pt1InSlice )
+    {
+        for( const VECTOR2I& pt : pts2 )
+        {
+            int64_t distSq = pt.SquaredDistance( pt1 );
+
+            if( distSq < aDistSq )
+            {
+                aDistSq = distSq;
+                aPtA = pt1;
+                aPtB = pt;
+            }
+        }
+    }
+
+    return true;
+}
+
+
 bool SHAPE_ARC::Collide( const VECTOR2I& aP, int aClearance, int* aActual,
                          VECTOR2I* aLocation ) const
 {
@@ -405,16 +773,26 @@ bool SHAPE_ARC::Collide( const VECTOR2I& aP, int aClearance, int* aActual,
     if( !bbox.Contains( aP ) )
         return false;
 
-    CIRCLE   fullCircle( GetCenter(), GetRadius() );
-    VECTOR2I nearestPt = fullCircle.NearestPoint( aP );
+    VECTOR2L  center = GetCenter();
+    double    radius = VECTOR2D( center - m_start ).EuclideanNorm();
+    CIRCLE    fullCircle( center, radius );
+    VECTOR2D  nearestPt = fullCircle.NearestPoint( VECTOR2D( aP ) );
+    int       dist = KiROUND( nearestPt.Distance( aP ) );
+    EDA_ANGLE angleToPt( aP - fullCircle.Center ); // Angle from center to the point
 
-    int dist = ( nearestPt - aP ).EuclideanNorm();
+    if( !dist )
+    {
+        // Be sure to keep the sqrt of the squared distance instead of allowing a EuclideanNorm
+        // because this trucates the distance to an integer before subtracting
+        dist = KiROUND( radius - sqrt( ( aP - center ).SquaredEuclideanNorm() ) );
+        nearestPt = center + VECTOR2I( radius, 0 );
+        RotatePoint( nearestPt, center, angleToPt );
+    }
 
     // If not a 360 degree arc, need to use arc angles to decide if point collides
     if( m_start != m_end )
     {
         bool   ccw = GetCentralAngle() > ANGLE_0;
-        EDA_ANGLE angleToPt( aP - fullCircle.Center ); // Angle from center to the point
         EDA_ANGLE rotatedPtAngle = ( angleToPt.Normalize() - GetStartAngle() ).Normalize();
         EDA_ANGLE rotatedEndAngle = ( GetEndAngle() - GetStartAngle() ).Normalize();
 
@@ -423,7 +801,17 @@ bool SHAPE_ARC::Collide( const VECTOR2I& aP, int aClearance, int* aActual,
         {
             int distStartpt = ( aP - m_start ).EuclideanNorm();
             int distEndpt = ( aP - m_end ).EuclideanNorm();
-            dist = std::min( distStartpt, distEndpt );
+
+            if( distStartpt < distEndpt )
+            {
+                dist = distStartpt;
+                nearestPt = m_start;
+            }
+            else
+            {
+                dist = distEndpt;
+                nearestPt = m_end;
+            }
         }
     }
 
@@ -444,21 +832,23 @@ bool SHAPE_ARC::Collide( const VECTOR2I& aP, int aClearance, int* aActual,
 
 EDA_ANGLE SHAPE_ARC::GetStartAngle() const
 {
-    EDA_ANGLE angle( m_start - GetCenter() );
+    VECTOR2L center = GetCenter();
+    EDA_ANGLE angle( m_start - center );
     return angle.Normalize();
 }
 
 
 EDA_ANGLE SHAPE_ARC::GetEndAngle() const
 {
-    EDA_ANGLE angle( m_end - GetCenter() );
+    VECTOR2L center = GetCenter();
+    EDA_ANGLE angle( m_end - center );
     return angle.Normalize();
 }
 
 
-VECTOR2I SHAPE_ARC::GetCenter() const
+const VECTOR2I& SHAPE_ARC::GetCenter() const
 {
-    return CalcArcCenter( m_start, m_mid, m_end );
+    return m_center;
 }
 
 
@@ -479,7 +869,7 @@ EDA_ANGLE SHAPE_ARC::GetCentralAngle() const
     if( m_start == m_end )
         return ANGLE_360;
 
-    VECTOR2I  center = GetCenter();
+    VECTOR2L  center = GetCenter();
     EDA_ANGLE angle1 = EDA_ANGLE( m_mid - center ) - EDA_ANGLE( m_start - center );
     EDA_ANGLE angle2 = EDA_ANGLE( m_end - center ) - EDA_ANGLE( m_mid - center );
 
@@ -489,7 +879,7 @@ EDA_ANGLE SHAPE_ARC::GetCentralAngle() const
 
 double SHAPE_ARC::GetRadius() const
 {
-    return std::sqrt( ( m_start - GetCenter() ).SquaredEuclideanNorm() );
+    return m_radius;
 }
 
 
@@ -564,7 +954,7 @@ void SHAPE_ARC::Move( const VECTOR2I& aVector )
     m_start += aVector;
     m_end += aVector;
     m_mid += aVector;
-    update_bbox();
+    update_values();
 }
 
 
@@ -574,27 +964,26 @@ void SHAPE_ARC::Rotate( const EDA_ANGLE& aAngle, const VECTOR2I& aCenter )
     RotatePoint( m_end, aCenter, aAngle );
     RotatePoint( m_mid, aCenter, aAngle );
 
-    update_bbox();
+    update_values();
 }
 
 
-void SHAPE_ARC::Mirror( bool aX, bool aY, const VECTOR2I& aVector )
+void SHAPE_ARC::Mirror( const VECTOR2I& aVector, FLIP_DIRECTION aFlipDirection )
 {
-    if( aX )
+    if( aFlipDirection == FLIP_DIRECTION::LEFT_RIGHT )
     {
         m_start.x = -m_start.x + 2 * aVector.x;
         m_end.x = -m_end.x + 2 * aVector.x;
         m_mid.x = -m_mid.x + 2 * aVector.x;
     }
-
-    if( aY )
+    else
     {
         m_start.y = -m_start.y + 2 * aVector.y;
         m_end.y = -m_end.y + 2 * aVector.y;
         m_mid.y = -m_mid.y + 2 * aVector.y;
     }
 
-    update_bbox();
+    update_values();
 }
 
 
@@ -604,7 +993,7 @@ void SHAPE_ARC::Mirror( const SEG& axis )
     m_end = axis.ReflectPoint( m_end );
     m_mid = axis.ReflectPoint( m_mid );
 
-    update_bbox();
+    update_values();
 }
 
 

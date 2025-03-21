@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,6 +30,7 @@
 #include <netlist_reader/board_netlist_updater.h>
 #include <tool/tool_manager.h>
 #include <tools/pcb_actions.h>
+#include <view/view_controls.h>
 #include <kiface_base.h>
 #include <kiplatform/ui.h>
 
@@ -46,7 +47,7 @@ DIALOG_UPDATE_PCB::DIALOG_UPDATE_PCB( PCB_EDIT_FRAME* aParent, NETLIST* aNetlist
     m_cbUpdateFootprints->SetValue( cfg->m_NetlistDialog.update_footprints );
     m_cbDeleteExtraFootprints->SetValue( cfg->m_NetlistDialog.delete_extra_footprints );
 
-    m_messagePanel->SetLabel( _("Changes To Be Applied") );
+    m_messagePanel->SetLabel( _("Changes to Be Applied") );
     m_messagePanel->SetFileName( Prj().GetProjectPath() + wxT( "report.txt" ) );
     m_messagePanel->SetLazyUpdate( true );
     m_netlist->SortByReference();
@@ -119,6 +120,7 @@ void DIALOG_UPDATE_PCB::PerformUpdate( bool aDryRun )
     updater.SetLookupByTimestamp( !m_cbRelinkFootprints->GetValue() );
     updater.SetDeleteUnusedFootprints( m_cbDeleteExtraFootprints->GetValue());
     updater.SetReplaceFootprints( m_cbUpdateFootprints->GetValue() );
+    updater.SetOverrideLocks( m_cbOverrideLocks->GetValue() );
     updater.UpdateNetlist( *m_netlist );
 
     m_messagePanel->Flush( true );

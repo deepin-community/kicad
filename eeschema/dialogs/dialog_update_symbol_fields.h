@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,6 +22,7 @@
 #define DIALOG_UPDATE_SYMBOL_FIELDS_H
 
 #include <dialog_update_symbol_fields_base.h>
+#include <set>
 
 class LIB_ID;
 class LIB_SYMBOL;
@@ -49,7 +50,7 @@ protected:
         checkAll( false );
     }
 
-    ///< Select or deselect all fields in the listbox widget
+    /// Select or deselect all fields in the listbox widget.
     void checkAll( bool aCheck );
 
 private:
@@ -58,7 +59,7 @@ private:
     SYMBOL_EDIT_FRAME* m_editFrame;
     LIB_SYMBOL*        m_symbol;
 
-    ///< Set of field names that should have values updated
+    /// Set of field names that should have values updated.
     std::set<wxString> m_updateFields;
 };
 

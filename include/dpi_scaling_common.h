@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,7 +24,8 @@
 #ifndef DPI_SCALING_COMMON__H
 #define DPI_SCALING_COMMON__H
 
-#include <gal/dpi_scaling.h>
+#include <kicommon.h>
+#include <dpi_scaling.h>
 
 class COMMON_SETTINGS;
 class wxWindow;
@@ -34,7 +35,7 @@ class wxWindow;
  * scale to use for canvases. This has several sources and the availability of
  * some of them are platform dependent.
  */
-class DPI_SCALING_COMMON : public DPI_SCALING
+class KICOMMON_API DPI_SCALING_COMMON : public DPI_SCALING
 {
 public:
     /**

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2004-2018 Jean-Pierre Charras jp.charras at wanadoo.fr
- * Copyright (C) 2010-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -72,18 +72,19 @@ DIALOG_TEXT_PROPERTIES::DIALOG_TEXT_PROPERTIES( PCB_BASE_EDIT_FRAME* aParent, PC
 #endif
 
     m_scintillaTricks = new SCINTILLA_TRICKS( m_MultiLineText, wxT( "{}" ), false,
-            // onAccept handler
+            // onAcceptFn
             [this]( wxKeyEvent& aEvent )
             {
                 wxPostEvent( this, wxCommandEvent( wxEVT_COMMAND_BUTTON_CLICKED, wxID_OK ) );
             },
-            // onCharAdded handler
+            // onCharFn
             [this]( wxStyledTextEvent& aEvent )
             {
                 m_scintillaTricks->DoTextVarAutocomplete(
-                        [this]( const wxString& crossRef, wxArrayString* tokens )
+                        // getTokensFn
+                        [this]( const wxString& xRef, wxArrayString* tokens )
                         {
-                            m_frame->GetContextualTextVars( m_item, crossRef, tokens );
+                            m_frame->GetContextualTextVars( m_item, xRef, tokens );
                         } );
             } );
 
@@ -113,10 +114,6 @@ DIALOG_TEXT_PROPERTIES::DIALOG_TEXT_PROPERTIES( PCB_BASE_EDIT_FRAME* aParent, PC
             }
             else
             {
-                // Don't let users modify the library link, in the board editor
-                if( field->IsFootprint() && !m_frame->IsType(  FRAME_FOOTPRINT_EDITOR ) )
-                    m_SingleLineText->SetEditable( false );
-
                 title = _( "Footprint Field Properties" );
                 m_TextLabel->SetLabel( _( "Text:" ) );
             }
@@ -255,6 +252,8 @@ DIALOG_TEXT_PROPERTIES::~DIALOG_TEXT_PROPERTIES()
 void PCB_BASE_EDIT_FRAME::ShowTextPropertiesDialog( PCB_TEXT* aText )
 {
     DIALOG_TEXT_PROPERTIES dlg( this, aText );
+
+    // QuasiModal required for Scintilla auto-complete
     dlg.ShowQuasiModal();
 }
 
@@ -285,11 +284,14 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataToWindow()
 {
     BOARD*     board = m_frame->GetBoard();
     FOOTPRINT* parentFP = m_item->GetParentFootprint();
-    wxString   msg = board->ConvertKIIDsToCrossReferences( UnescapeString( m_item->GetText() ) );
+    wxString   text = m_item->GetText();
+
+    // show text variable cross-references in a human-readable format
+    text = board->ConvertKIIDsToCrossReferences( UnescapeString( text ) );
 
     if( m_SingleLineText->IsShown() )
     {
-        m_SingleLineText->SetValue( msg );
+        m_SingleLineText->SetValue( text );
 
         if( m_item->Type() == PCB_FIELD_T && static_cast<PCB_FIELD*>( m_item )->IsReference() )
             KIUI::SelectReferenceNumber( static_cast<wxTextEntry*>( m_SingleLineText ) );
@@ -298,7 +300,7 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataToWindow()
     }
     else if( m_MultiLineText->IsShown() )
     {
-        m_MultiLineText->SetValue( msg );
+        m_MultiLineText->SetValue( text );
         m_MultiLineText->SetSelection( -1, -1 );
         m_MultiLineText->EmptyUndoBuffer();
     }
@@ -340,16 +342,18 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataToWindow()
 
     switch ( m_item->GetHorizJustify() )
     {
-    case GR_TEXT_H_ALIGN_LEFT:   m_alignLeft->Check( true );   break;
-    case GR_TEXT_H_ALIGN_CENTER: m_alignCenter->Check( true ); break;
-    case GR_TEXT_H_ALIGN_RIGHT:  m_alignRight->Check( true );  break;
+    case GR_TEXT_H_ALIGN_LEFT:          m_alignLeft->Check( true );    break;
+    case GR_TEXT_H_ALIGN_CENTER:        m_alignCenter->Check( true );  break;
+    case GR_TEXT_H_ALIGN_RIGHT:         m_alignRight->Check( true );   break;
+    case GR_TEXT_H_ALIGN_INDETERMINATE:                                break;
     }
 
     switch ( m_item->GetVertJustify() )
     {
-    case GR_TEXT_V_ALIGN_BOTTOM: m_valignBottom->Check( true ); break;
-    case GR_TEXT_V_ALIGN_CENTER: m_valignCenter->Check( true ); break;
-    case GR_TEXT_V_ALIGN_TOP:    m_valignTop->Check( true );    break;
+    case GR_TEXT_V_ALIGN_BOTTOM:        m_valignBottom->Check( true ); break;
+    case GR_TEXT_V_ALIGN_CENTER:        m_valignCenter->Check( true ); break;
+    case GR_TEXT_V_ALIGN_TOP:           m_valignTop->Check( true );    break;
+    case GR_TEXT_V_ALIGN_INDETERMINATE:                                break;
     }
 
     m_mirrored->Check( m_item->IsMirrored() );
@@ -366,6 +370,7 @@ void DIALOG_TEXT_PROPERTIES::onFontSelected( wxCommandEvent & aEvent )
     if( KIFONT::FONT::IsStroke( aEvent.GetString() ) )
     {
         m_thickness.Show( true );
+        m_buttonUpdateTh->Show( true );
 
         int textSize = std::min( m_textWidth.GetValue(), m_textHeight.GetValue() );
         int thickness = m_thickness.GetValue();
@@ -376,6 +381,7 @@ void DIALOG_TEXT_PROPERTIES::onFontSelected( wxCommandEvent & aEvent )
     else
     {
         m_thickness.Show( false );
+        m_buttonUpdateTh->Show( false );
     }
 }
 
@@ -423,6 +429,21 @@ void DIALOG_TEXT_PROPERTIES::onThickness( wxCommandEvent& event )
 }
 
 
+void DIALOG_TEXT_PROPERTIES::updateTextThickness( wxCommandEvent &aEvent )
+{
+    int textSize = std::min( m_textWidth.GetValue(), m_textHeight.GetValue() );
+    int thickness;
+
+    // Calculate the "best" thickness from text size and bold option:
+    if( m_bold->IsChecked() )
+        thickness = GetPenSizeForBold( textSize );
+    else
+        thickness = GetPenSizeForNormal( textSize );
+
+    m_thickness.SetValue( thickness );
+}
+
+
 bool DIALOG_TEXT_PROPERTIES::TransferDataFromWindow()
 {
     if( !DIALOG_TEXT_PROPERTIES_BASE::TransferDataFromWindow() )
@@ -452,6 +473,7 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataFromWindow()
     {
         if( !m_SingleLineText->GetValue().IsEmpty() )
         {
+            // convert any text variable cross-references to their UUIDs
             wxString txt = board->ConvertCrossReferencesToKIIDs( m_SingleLineText->GetValue() );
 
             m_item->SetText( txt );
@@ -461,6 +483,7 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataFromWindow()
     {
         if( !m_MultiLineText->GetValue().IsEmpty() )
         {
+            // convert any text variable cross-references to their UUIDs
             wxString txt = board->ConvertCrossReferencesToKIIDs( m_MultiLineText->GetValue() );
 
 #ifdef __WXMAC__
@@ -492,7 +515,7 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataFromWindow()
     m_item->SetFPRelativePosition( VECTOR2I( m_posX.GetValue(), m_posY.GetValue() ) );
 
     // Test for acceptable values for thickness and size and clamp if fails
-    int maxPenWidth = Clamp_Text_PenSize( m_item->GetTextThickness(), m_item->GetTextSize() );
+    int maxPenWidth = ClampTextPenSize( m_item->GetTextThickness(), m_item->GetTextSize() );
 
     if( m_item->GetTextThickness() > maxPenWidth )
     {
@@ -528,7 +551,7 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataFromWindow()
     m_item->SetMirrored( m_mirrored->IsChecked() );
 
     if( pushCommit )
-        commit.Push( _( "Change text properties" ) );
+        commit.Push( _( "Edit Text Properties" ) );
 
     return true;
 }

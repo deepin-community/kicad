@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2004 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2004-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,14 +31,12 @@
 #include <sch_edit_frame.h>
 #include <sch_junction.h>
 #include <sch_line.h>
-#include <sch_label.h>
 #include <project/net_settings.h>
 #include <project/project_file.h>
 #include <settings/color_settings.h>
 #include <netclass.h>
 #include <trigo.h>
 #include <board_item.h>
-#include <advanced_config.h>
 #include <connection_graph.h>
 #include "sch_painter.h"
 #include "plotters/plotter.h"
@@ -58,7 +56,7 @@ SCH_BUS_ENTRY_BASE::SCH_BUS_ENTRY_BASE( KICAD_T aType, const VECTOR2I& pos, bool
     if( aFlipY )
         m_size.y *= -1;
 
-    m_isDanglingStart = m_isDanglingEnd = true;
+    m_isStartDangling = m_isEndDangling = true;
 
     m_lastResolvedWidth = schIUScale.MilsToIU( DEFAULT_WIRE_WIDTH_MILS );
     m_lastResolvedLineStyle = LINE_STYLE::SOLID;
@@ -153,12 +151,12 @@ void SCH_BUS_ENTRY_BASE::SwapData( SCH_ITEM* aItem )
 }
 
 
-void SCH_BUS_ENTRY_BASE::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> SCH_BUS_ENTRY_BASE::ViewGetLayers() const
 {
-    aCount     = 3;
-    aLayers[0] = LAYER_DANGLING;
-    aLayers[1] = Type() == SCH_BUS_BUS_ENTRY_T ? LAYER_BUS : LAYER_WIRE;
-    aLayers[2] = LAYER_SELECTION_SHADOWS;
+    if( Type() == SCH_BUS_BUS_ENTRY_T )
+        return { LAYER_BUS, LAYER_NET_COLOR_HIGHLIGHT, LAYER_SELECTION_SHADOWS };
+
+    return { LAYER_WIRE, LAYER_NET_COLOR_HIGHLIGHT, LAYER_SELECTION_SHADOWS };
 }
 
 
@@ -205,7 +203,7 @@ void SCH_BUS_ENTRY_BASE::SetBusEntryColor( const COLOR4D& aColor )
 }
 
 
-LINE_STYLE SCH_BUS_ENTRY_BASE::GetLineStyle() const
+LINE_STYLE SCH_BUS_ENTRY_BASE::GetEffectiveLineStyle() const
 {
     if( m_stroke.GetLineStyle() != LINE_STYLE::DEFAULT )
         m_lastResolvedLineStyle = m_stroke.GetLineStyle();
@@ -265,16 +263,18 @@ void SCH_BUS_BUS_ENTRY::GetEndPoints( std::vector< DANGLING_END_ITEM >& aItemLis
 }
 
 
-void SCH_BUS_ENTRY_BASE::Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset )
+void SCH_BUS_ENTRY_BASE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                                const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
 {
     wxDC*   DC = aSettings->GetPrintDC();
-    COLOR4D color = ( GetBusEntryColor() == COLOR4D::UNSPECIFIED ) ?
-                    aSettings->GetLayerColor( m_layer ) : GetBusEntryColor();
+    COLOR4D color = ( GetBusEntryColor() == COLOR4D::UNSPECIFIED )
+                                                            ? aSettings->GetLayerColor( m_layer )
+                                                            : GetBusEntryColor();
     VECTOR2I start = m_pos + aOffset;
     VECTOR2I end = GetEnd() + aOffset;
-    int     penWidth = ( GetPenWidth() == 0 ) ? aSettings->GetDefaultPenWidth() : GetPenWidth();
+    int      penWidth = ( GetPenWidth() == 0 ) ? aSettings->GetDefaultPenWidth() : GetPenWidth();
 
-    if( GetLineStyle() <= LINE_STYLE::FIRST_TYPE )
+    if( GetEffectiveLineStyle() <= LINE_STYLE::FIRST_TYPE )
     {
         GRLine( DC, start.x, start.y, end.x, end.y, penWidth, color );
     }
@@ -282,7 +282,7 @@ void SCH_BUS_ENTRY_BASE::Print( const RENDER_SETTINGS* aSettings, const VECTOR2I
     {
         SHAPE_SEGMENT segment( start, end );
 
-        STROKE_PARAMS::Stroke( &segment, GetLineStyle(), penWidth, aSettings,
+        STROKE_PARAMS::Stroke( &segment, GetEffectiveLineStyle(), penWidth, aSettings,
                                [&]( const VECTOR2I& a, const VECTOR2I& b )
                                {
                                    GRLine( DC, a.x, a.y, b.x, b.y, penWidth, color );
@@ -305,10 +305,10 @@ void SCH_BUS_ENTRY_BASE::MirrorHorizontally( int aCenter )
 }
 
 
-void SCH_BUS_ENTRY_BASE::Rotate( const VECTOR2I& aCenter )
+void SCH_BUS_ENTRY_BASE::Rotate( const VECTOR2I& aCenter, bool aRotateCCW )
 {
-    RotatePoint( m_pos, aCenter, ANGLE_90 );
-    RotatePoint( &m_size.x, &m_size.y, ANGLE_90 );
+    RotatePoint( m_pos, aCenter, aRotateCCW ? ANGLE_90 : ANGLE_270 );
+    RotatePoint( &m_size.x, &m_size.y, aRotateCCW ? ANGLE_90 : ANGLE_270 );
 }
 
 
@@ -316,10 +316,10 @@ bool SCH_BUS_WIRE_ENTRY::UpdateDanglingState( std::vector<DANGLING_END_ITEM>& aI
                                               std::vector<DANGLING_END_ITEM>& aItemListByPos,
                                               const SCH_SHEET_PATH*           aPath )
 {
-    bool previousStateStart = m_isDanglingStart;
-    bool previousStateEnd = m_isDanglingEnd;
+    bool previousStateStart = m_isStartDangling;
+    bool previousStateEnd = m_isEndDangling;
 
-    m_isDanglingStart = m_isDanglingEnd = true;
+    m_isStartDangling = m_isEndDangling = true;
 
     // Store the connection type and state for the start (0) and end (1)
     bool has_wire[2] = { false };
@@ -362,13 +362,13 @@ bool SCH_BUS_WIRE_ENTRY::UpdateDanglingState( std::vector<DANGLING_END_ITEM>& aI
     // A bus-wire entry is connected at both ends if it has a bus and a wire on its
     // ends.  Otherwise, we connect only one end (in the case of a wire-wire or bus-bus)
     if( ( has_wire[0] && has_bus[1] ) || ( has_wire[1] && has_bus[0] ) )
-        m_isDanglingEnd = m_isDanglingStart = false;
+        m_isEndDangling = m_isStartDangling = false;
     else if( has_wire[0] || has_bus[0] )
-        m_isDanglingStart = false;
+        m_isStartDangling = false;
     else if( has_wire[1] || has_bus[1] )
-        m_isDanglingEnd = false;
+        m_isEndDangling = false;
 
-    return (previousStateStart != m_isDanglingStart) || (previousStateEnd != m_isDanglingEnd);
+    return (previousStateStart != m_isStartDangling) || (previousStateEnd != m_isEndDangling);
 }
 
 
@@ -376,10 +376,10 @@ bool SCH_BUS_BUS_ENTRY::UpdateDanglingState( std::vector<DANGLING_END_ITEM>& aIt
                                              std::vector<DANGLING_END_ITEM>& aItemListByPos,
                                              const SCH_SHEET_PATH*           aPath )
 {
-    bool previousStateStart = m_isDanglingStart;
-    bool previousStateEnd = m_isDanglingEnd;
+    bool previousStateStart = m_isStartDangling;
+    bool previousStateEnd = m_isEndDangling;
 
-    m_isDanglingStart = m_isDanglingEnd = true;
+    m_isStartDangling = m_isEndDangling = true;
 
     // TODO: filter using get_lower as we only use one item type
     for( unsigned ii = 0; ii < aItemListByType.size(); ii++ )
@@ -397,9 +397,10 @@ bool SCH_BUS_BUS_ENTRY::UpdateDanglingState( std::vector<DANGLING_END_ITEM>& aIt
             DANGLING_END_ITEM& nextItem = aItemListByType[++ii];
 
             if( IsPointOnSegment( item.GetPosition(), nextItem.GetPosition(), m_pos ) )
-                m_isDanglingStart = false;
+                m_isStartDangling = false;
+
             if( IsPointOnSegment( item.GetPosition(), nextItem.GetPosition(), GetEnd() ) )
-                m_isDanglingEnd = false;
+                m_isEndDangling = false;
         }
             break;
 
@@ -408,13 +409,13 @@ bool SCH_BUS_BUS_ENTRY::UpdateDanglingState( std::vector<DANGLING_END_ITEM>& aIt
         }
     }
 
-    return (previousStateStart != m_isDanglingStart) || (previousStateEnd != m_isDanglingEnd);
+    return (previousStateStart != m_isStartDangling) || (previousStateEnd != m_isEndDangling);
 }
 
 
 bool SCH_BUS_ENTRY_BASE::IsDangling() const
 {
-    return m_isDanglingStart || m_isDanglingEnd;
+    return m_isStartDangling || m_isEndDangling;
 }
 
 
@@ -427,7 +428,7 @@ std::vector<VECTOR2I> SCH_BUS_ENTRY_BASE::GetConnectionPoints() const
 bool SCH_BUS_ENTRY_BASE::HasConnectivityChanges( const SCH_ITEM* aItem,
                                                  const SCH_SHEET_PATH* aInstance ) const
 {
-    // Do not compare to ourself.
+    // Do not compare to ourselves.
     if( aItem == this )
         return false;
 
@@ -443,13 +444,13 @@ bool SCH_BUS_ENTRY_BASE::HasConnectivityChanges( const SCH_ITEM* aItem,
 }
 
 
-wxString SCH_BUS_WIRE_ENTRY::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString SCH_BUS_WIRE_ENTRY::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     return wxString( _( "Bus to Wire Entry" ) );
 }
 
 
-wxString SCH_BUS_BUS_ENTRY::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString SCH_BUS_BUS_ENTRY::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     return wxString( _( "Bus to Bus Entry" ) );
 }
@@ -490,25 +491,24 @@ bool SCH_BUS_ENTRY_BASE::HitTest( const BOX2I& aRect, bool aContained, int aAccu
 }
 
 
-void SCH_BUS_ENTRY_BASE::Plot( PLOTTER* aPlotter, bool aBackground,
-                               const SCH_PLOT_SETTINGS& aPlotSettings ) const
+void SCH_BUS_ENTRY_BASE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
+                               int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed )
 {
     if( aBackground )
         return;
 
-    auto* settings = static_cast<KIGFX::SCH_RENDER_SETTINGS*>( aPlotter->RenderSettings() );
+    SCH_RENDER_SETTINGS* renderSettings = getRenderSettings( aPlotter );
 
     COLOR4D color = ( GetBusEntryColor() == COLOR4D::UNSPECIFIED )
-                                    ? settings->GetLayerColor( m_layer )
-                                    : GetBusEntryColor();
+                            ? renderSettings->GetLayerColor( m_layer ) : GetBusEntryColor();
 
-    int penWidth = ( GetPenWidth() == 0 ) ? settings->GetDefaultPenWidth() : GetPenWidth();
+    int penWidth = ( GetPenWidth() == 0 ) ? renderSettings->GetDefaultPenWidth() : GetPenWidth();
 
-    penWidth = std::max( penWidth, settings->GetMinPenWidth() );
+    penWidth = std::max( penWidth, renderSettings->GetMinPenWidth() );
 
     aPlotter->SetCurrentLineWidth( penWidth );
     aPlotter->SetColor( color );
-    aPlotter->SetDash( penWidth, GetLineStyle() );
+    aPlotter->SetDash( penWidth, GetEffectiveLineStyle() );
     aPlotter->MoveTo( m_pos );
     aPlotter->FinishTo( GetEnd() );
 
@@ -540,7 +540,8 @@ void SCH_BUS_ENTRY_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame,
         conn->AppendInfoToMsgPanel( aList );
 
         if( !conn->IsBus() )
-            aList.emplace_back( _( "Resolved Netclass" ), GetEffectiveNetClass()->GetName() );
+            aList.emplace_back( _( "Resolved Netclass" ),
+                                GetEffectiveNetClass()->GetHumanReadableName() );
     }
 }
 
@@ -652,31 +653,29 @@ static struct SCH_BUS_ENTRY_DESC
         propMgr.InheritsAfter( TYPE_HASH( SCH_BUS_WIRE_ENTRY ), TYPE_HASH( SCH_BUS_ENTRY_BASE ) );
         propMgr.InheritsAfter( TYPE_HASH( SCH_BUS_BUS_ENTRY ), TYPE_HASH( SCH_BUS_ENTRY_BASE ) );
 
-        ENUM_MAP<LINE_STYLE>& plotDashTypeEnum = ENUM_MAP<LINE_STYLE>::Instance();
+        ENUM_MAP<WIRE_STYLE>& wireLineStyleEnum = ENUM_MAP<WIRE_STYLE>::Instance();
 
-        if( plotDashTypeEnum.Choices().GetCount() == 0 )
+        if( wireLineStyleEnum.Choices().GetCount() == 0 )
         {
-            plotDashTypeEnum.Map( LINE_STYLE::DEFAULT, _HKI( "Default" ) )
-                            .Map( LINE_STYLE::SOLID, _HKI( "Solid" ) )
-                            .Map( LINE_STYLE::DASH, _HKI( "Dashed" ) )
-                            .Map( LINE_STYLE::DOT, _HKI( "Dotted" ) )
-                            .Map( LINE_STYLE::DASHDOT, _HKI( "Dash-Dot" ) )
-                            .Map( LINE_STYLE::DASHDOTDOT, _HKI( "Dash-Dot-Dot" ) );
+            wireLineStyleEnum.Map( WIRE_STYLE::DEFAULT, _HKI( "Default" ) )
+                             .Map( WIRE_STYLE::SOLID, _HKI( "Solid" ) )
+                             .Map( WIRE_STYLE::DASH, _HKI( "Dashed" ) )
+                             .Map( WIRE_STYLE::DOT, _HKI( "Dotted" ) )
+                             .Map( WIRE_STYLE::DASHDOT, _HKI( "Dash-Dot" ) )
+                             .Map( WIRE_STYLE::DASHDOTDOT, _HKI( "Dash-Dot-Dot" ) );
         }
 
-        // TODO: Maybe SCH_BUS_ENTRY_BASE should inherit from or mix in with SCH_LINE
-        void ( SCH_BUS_ENTRY_BASE::*lineStyleSetter )( LINE_STYLE ) =
-                &SCH_BUS_ENTRY_BASE::SetLineStyle;
-
-        propMgr.AddProperty( new PROPERTY_ENUM<SCH_BUS_ENTRY_BASE, LINE_STYLE>(
-                _HKI( "Line Style" ),
-                lineStyleSetter, &SCH_BUS_ENTRY_BASE::GetLineStyle ) );
+        propMgr.AddProperty( new PROPERTY_ENUM<SCH_BUS_ENTRY_BASE,
+                             WIRE_STYLE>( _HKI( "Line Style" ),
+                                          &SCH_BUS_ENTRY_BASE::SetWireStyle,
+                                          &SCH_BUS_ENTRY_BASE::GetWireStyle ) );
 
         propMgr.AddProperty( new PROPERTY<SCH_BUS_ENTRY_BASE, int>( _HKI( "Line Width" ),
-                &SCH_BUS_ENTRY_BASE::SetPenWidth, &SCH_BUS_ENTRY_BASE::GetPenWidth,
-                PROPERTY_DISPLAY::PT_SIZE ) );
+                    &SCH_BUS_ENTRY_BASE::SetPenWidth, &SCH_BUS_ENTRY_BASE::GetPenWidth,
+                    PROPERTY_DISPLAY::PT_SIZE ) );
 
-        propMgr.AddProperty( new PROPERTY<SCH_BUS_ENTRY_BASE, COLOR4D>( _HKI( "Color" ),
-                &SCH_BUS_ENTRY_BASE::SetBusEntryColor, &SCH_BUS_ENTRY_BASE::GetBusEntryColor ) );
+        propMgr.AddProperty( new PROPERTY<SCH_BUS_ENTRY_BASE, COLOR4D>(
+                _HKI( "Color" ), &SCH_BUS_ENTRY_BASE::SetBusEntryColor,
+                &SCH_BUS_ENTRY_BASE::GetBusEntryColor ) );
     }
 } _SCH_BUS_ENTRY_DESC;

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -335,13 +335,13 @@ private:
     MATRIX3x3D getArbitraryAxis( DL_Extrusion* aData );
 
     /**
-     * Converts a given world coordinate point to object coordinate using the given arbitrary
+     * Convert a given world coordinate point to object coordinate using the given arbitrary
      * axis vectors.
      */
     VECTOR3D wcsToOcs( const MATRIX3x3D& arbitraryAxis, VECTOR3D point );
 
     /**
-     * Converts a given object coordinate point to world coordinate using the given arbitrary
+     * Convert a given object coordinate point to world coordinate using the given arbitrary
      * axis vectors.
      */
     VECTOR3D ocsToWcs( const MATRIX3x3D& arbitraryAxis, VECTOR3D point );
@@ -428,13 +428,15 @@ private:
      * Called for every polyline vertex.
      */
     virtual void addVertex( const DL_VertexData& aData ) override;
-    virtual void addMText( const DL_MTextData& aData) override;
+
+    virtual void addMTextChunk( const std::string& text ) override;
+    virtual void addMText( const DL_MTextData& aData ) override;
 
     virtual void endEntity() override;
 
     /**
      * Called for every spline.
-     * */
+     */
     virtual void addSpline( const DL_SplineData& aData ) override;
 
     /**
@@ -457,6 +459,7 @@ private:
     {
         ReportMsg( _( "DXF construction lines not currently supported." ) );
     }
+
     virtual void addRay( const DL_RayData& ) override
     {
         ReportMsg( _( "DXF construction lines not currently supported." ) );
@@ -471,30 +474,37 @@ private:
     {
         ReportMsg( _( "DXF dimensions not currently supported." ) );
     }
+
     virtual void addDimLinear( const DL_DimensionData&, const DL_DimLinearData& ) override
     {
         ReportMsg( _( "DXF dimensions not currently supported." ) );
     }
+
     virtual void addDimRadial( const DL_DimensionData&, const DL_DimRadialData& ) override
     {
         ReportMsg( _( "DXF dimensions not currently supported." ) );
     }
+
     virtual void addDimDiametric( const DL_DimensionData&, const DL_DimDiametricData& ) override
     {
         ReportMsg( _( "DXF dimensions not currently supported." ) );
     }
+
     virtual void addDimAngular( const DL_DimensionData&, const DL_DimAngular2LData& ) override
     {
         ReportMsg( _( "DXF dimensions not currently supported." ) );
     }
+
     virtual void addDimAngular3P( const DL_DimensionData&, const DL_DimAngular3PData& ) override
     {
         ReportMsg( _( "DXF dimensions not currently supported." ) );
     }
+
     virtual void addDimOrdinate( const DL_DimensionData&, const DL_DimOrdinateData& ) override
     {
         ReportMsg( _( "DXF dimensions not currently supported." ) );
     }
+
     virtual void addLeader( const DL_LeaderData& ) override
     {
         ReportMsg( _( "DXF dimensions not currently supported." ) );
@@ -505,6 +515,7 @@ private:
     {
         ReportMsg( _( "DXF hatches not currently supported." ) );
     }
+
     virtual void addHatchLoop( const DL_HatchLoopData& ) override { }
     virtual void addHatchEdge( const DL_HatchEdgeData& ) override { }
 
@@ -571,6 +582,8 @@ private:
     wxString    m_messages;          // messages generated during dxf file parsing.
                                      // Each message ends by '\n'
     DXF2BRD_ENTITY_DATA m_curr_entity;  // the current entity parameters when parsing a DXF entity
+
+    std::string m_mtextContent;      // Contents of MText.
 
     double      m_minX, m_maxX;      // handles image size in mm
     double      m_minY, m_maxY;      // handles image size in mm

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -224,21 +224,18 @@ inline bool SexprConvertsToString( const SEXPR::SEXPR& aSexpr, const std::string
 
 } // namespace KI_TEST
 
-namespace BOOST_TEST_PRINT_NAMESPACE_OPEN
-{
 
+namespace SEXPR
+{
 /**
  * Boost print helper for SEXPR objects
  */
-template <>
-struct print_log_value<SEXPR::SEXPR>
+inline std::ostream& boost_test_print_type( std::ostream& os, const SEXPR& aSexpr )
 {
-    inline void operator()( std::ostream& os, const SEXPR::SEXPR& aSexpr )
-    {
-        os << "SEXPR [ " << KI_TEST::GetSexprDebugType( aSexpr ) << " ]\n    " << aSexpr.AsString();
-    }
-};
+    os << "SEXPR [ " << KI_TEST::GetSexprDebugType( aSexpr ) << " ]\n    " << aSexpr.AsString();
+    return os;
 }
-BOOST_TEST_PRINT_NAMESPACE_CLOSE
+
+} // namespace SEXPR
 
 #endif // TEST_SEXPR_TEST_UTILS__H

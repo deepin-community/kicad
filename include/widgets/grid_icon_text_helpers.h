@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,15 +39,32 @@ enum class BITMAPS : unsigned int;
 class GRID_CELL_ICON_TEXT_RENDERER : public wxGridCellStringRenderer
 {
 public:
+    /**
+     * Construct a renderer that maps a list of icons from the bitmap system to a list of strings
+     * @param icons is a list of possible icons to render
+     * @param names is a list of names to render - must be the same length as icons
+     */
     GRID_CELL_ICON_TEXT_RENDERER( const std::vector<BITMAPS>& icons, const wxArrayString& names );
+
+    /**
+     * Construct a renderer that renders a single icon next to the cell's value text
+     * @param aIcon is the icon to render next to the cell's value
+     */
+    GRID_CELL_ICON_TEXT_RENDERER( const wxBitmapBundle& aIcon,
+                                  wxSize aPreferredIconSize = wxDefaultSize );
 
     void Draw( wxGrid& aGrid, wxGridCellAttr& aAttr, wxDC& aDC,
                const wxRect& aRect, int aRow, int aCol, bool isSelected ) override;
-    wxSize GetBestSize( wxGrid & grid, wxGridCellAttr & attr, wxDC & dc, int row, int col ) override;
+    wxSize GetBestSize( wxGrid & grid, wxGridCellAttr & attr, wxDC & dc, int row,
+                        int col ) override;
 
 private:
     std::vector<BITMAPS> m_icons;
     wxArrayString        m_names;
+
+    // For single-icon mode
+    wxBitmapBundle m_icon;
+    wxSize m_iconSize;
 };
 
 //---- Grid helpers: custom wxGridCellRenderer that renders just an icon ----------------
@@ -61,7 +78,8 @@ public:
 
     void Draw( wxGrid& aGrid, wxGridCellAttr& aAttr, wxDC& aDC,
                const wxRect& aRect, int aRow, int aCol, bool isSelected ) override;
-    wxSize GetBestSize( wxGrid & grid, wxGridCellAttr & attr, wxDC & dc, int row, int col ) override;
+    wxSize GetBestSize( wxGrid & grid, wxGridCellAttr & attr, wxDC & dc, int row,
+                        int col ) override;
     wxGridCellRenderer* Clone() const override;
 
 private:
@@ -79,7 +97,8 @@ public:
 
     void Draw( wxGrid& aGrid, wxGridCellAttr& aAttr, wxDC& aDC,
                const wxRect& aRect, int aRow, int aCol, bool isSelected ) override;
-    wxSize GetBestSize( wxGrid & grid, wxGridCellAttr & attr, wxDC & dc, int row, int col ) override;
+    wxSize GetBestSize( wxGrid & grid, wxGridCellAttr & attr, wxDC & dc, int row,
+                        int col ) override;
     wxGridCellRenderer* Clone() const override;
 
 private:
@@ -120,6 +139,30 @@ protected:
     wxDECLARE_NO_COPY_CLASS( GRID_CELL_ICON_TEXT_POPUP );
 };
 
+
+//---- Grid helpers: custom wxGridCellTextEditor ------------------------------------------
+//
+// Note: This is used to mark WX_GRID cell as nullable
+class GRID_CELL_MARK_AS_NULLABLE : public wxGridCellTextEditor
+{
+public:
+    GRID_CELL_MARK_AS_NULLABLE() : m_isNullable( true ) {}
+    GRID_CELL_MARK_AS_NULLABLE( bool aIsNullable ) : m_isNullable( aIsNullable ) {}
+
+    wxGridCellEditor* Clone() const override
+    {
+        return new GRID_CELL_MARK_AS_NULLABLE( m_isNullable );
+    }
+
+    void Reset() override {}
+
+    bool IsNullable() { return m_isNullable; }
+
+protected:
+    bool m_isNullable;
+
+    wxDECLARE_NO_COPY_CLASS( GRID_CELL_MARK_AS_NULLABLE );
+};
 
 
 #endif  // GRID_ICON_TEXT_HELPERS_H

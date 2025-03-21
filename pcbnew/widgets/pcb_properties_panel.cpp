@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2020-2023 CERN
- * Copyright (C) 2021-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -93,7 +93,6 @@ PCB_PROPERTIES_PANEL::PCB_PROPERTIES_PANEL( wxWindow* aParent, PCB_BASE_EDIT_FRA
         m_ratioEditorInstance = static_cast<PG_RATIO_EDITOR*>( it->second );
     }
 }
-
 
 
 PCB_PROPERTIES_PANEL::~PCB_PROPERTIES_PANEL()
@@ -223,7 +222,7 @@ void PCB_PROPERTIES_PANEL::valueChanged( wxPropertyGridEvent& aEvent )
         item->Set( property, newValue );
     }
 
-    changes.Push( _( "Change property" ) );
+    changes.Push( _( "Edit Properties" ) );
 
     m_frame->Refresh();
 
@@ -240,11 +239,11 @@ void PCB_PROPERTIES_PANEL::updateLists( const BOARD* aBoard )
     wxPGChoices fonts;
 
     // Regenerate all layers
-    for( LSEQ seq = aBoard->GetEnabledLayers().UIOrder(); seq; ++seq )
-        layersAll.Add( LSET::Name( *seq ), *seq );
+    for( PCB_LAYER_ID layer : aBoard->GetEnabledLayers().UIOrder() )
+        layersAll.Add( LSET::Name( layer ), layer );
 
-    for( LSEQ seq = LSET( aBoard->GetEnabledLayers() & LSET::AllCuMask() ).UIOrder(); seq; ++seq )
-        layersCu.Add( LSET::Name( *seq ), *seq );
+    for( PCB_LAYER_ID layer : LSET( aBoard->GetEnabledLayers() & LSET::AllCuMask() ).UIOrder() )
+        layersCu.Add( LSET::Name( layer ), layer );
 
     m_propMgr.GetProperty( TYPE_HASH( BOARD_ITEM ), _HKI( "Layer" ) )->SetChoices( layersAll );
     m_propMgr.GetProperty( TYPE_HASH( PCB_SHAPE ), _HKI( "Layer" ) )->SetChoices( layersAll );
@@ -274,9 +273,10 @@ void PCB_PROPERTIES_PANEL::updateLists( const BOARD* aBoard )
     auto netProperty = m_propMgr.GetProperty( TYPE_HASH( BOARD_CONNECTED_ITEM ), _HKI( "Net" ) );
     netProperty->SetChoices( nets );
 
-    // Regnerate font names
+    // Regenerate font names
     std::vector<std::string> fontNames;
-    Fontconfig()->ListFonts( fontNames, std::string( Pgm().GetLanguageTag().utf8_str() ) );
+    Fontconfig()->ListFonts( fontNames, std::string( Pgm().GetLanguageTag().utf8_str() ),
+                             aBoard->GetFontFiles() );
 
     fonts.Add( KICAD_FONT_NAME, -1 );
 

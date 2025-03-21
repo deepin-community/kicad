@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,12 +30,15 @@
 
 #include <units_provider.h>
 #include <geometry/shape.h>
-
+#include <lset.h>
 #include <drc/drc_rule.h>
 
 
+class BOARD_COMMIT;
 class BOARD_DESIGN_SETTINGS;
 class DRC_TEST_PROVIDER;
+class DRC_TEST_PROVIDER_CLEARANCE_BASE;
+class DRC_TEST_PROVIDER_CREEPAGE;
 class PCB_EDIT_FRAME;
 class DS_PROXY_VIEW_ITEM;
 class BOARD_ITEM;
@@ -63,11 +66,11 @@ class DRC_ITEM;
 class DRC_RULE;
 class DRC_CONSTRAINT;
 
+typedef std::function<void( PCB_MARKER* aMarker )> DRC_CUSTOM_MARKER_HANDLER;
 
-typedef std::function<void( const std::shared_ptr<DRC_ITEM>& aItem,
-                            const VECTOR2I& aPos,
-                            int aLayer )> DRC_VIOLATION_HANDLER;
-
+typedef std::function<void( const std::shared_ptr<DRC_ITEM>& aItem, const VECTOR2I& aPos,
+                            int aLayer, DRC_CUSTOM_MARKER_HANDLER* aCustomHandler )>
+        DRC_VIOLATION_HANDLER;
 
 /**
  * Design Rule Checker object that performs all the DRC tests.
@@ -81,6 +84,10 @@ typedef std::function<void( const std::shared_ptr<DRC_ITEM>& aItem,
  */
 class DRC_ENGINE : public UNITS_PROVIDER
 {
+    // They need to change / restore the violation handler
+    friend class DRC_TEST_PROVIDER_CLEARANCE_BASE;
+    friend class DRC_TEST_PROVIDER_CREEPAGE;
+
 public:
     DRC_ENGINE( BOARD* aBoard = nullptr, BOARD_DESIGN_SETTINGS* aSettings = nullptr );
     virtual ~DRC_ENGINE();
@@ -142,7 +149,8 @@ public:
     /**
      * Run the DRC tests.
      */
-    void RunTests( EDA_UNITS aUnits,  bool aReportAllTrackErrors, bool aTestFootprints );
+    void RunTests( EDA_UNITS aUnits, bool aReportAllTrackErrors, bool aTestFootprints,
+                   BOARD_COMMIT* aCommit = nullptr );
 
     bool IsErrorLimitExceeded( int error_code );
 
@@ -165,7 +173,7 @@ public:
     bool RulesValid() { return m_rulesValid; }
 
     void ReportViolation( const std::shared_ptr<DRC_ITEM>& aItem, const VECTOR2I& aPos,
-                          int aMarkerLayer );
+                          int aMarkerLayer, DRC_CUSTOM_MARKER_HANDLER* aCustomHandler = nullptr );
 
     bool KeepRefreshing( bool aWait = false );
     void AdvanceProgress();

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019-2020 Thomas Pointhuber <thomas.pointhuber@gmx.at>
- * Copyright (C) 2020-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -94,8 +94,10 @@ std::map<wxString, wxString> ALTIUM_ASCII_PARSER::ReadProperties()
         // convert the strings to wxStrings, since we use them everywhere
         // value can have non-ASCII characters, so we convert them from LATIN1/ISO8859-1
         wxString key( keyS.c_str(), wxConvISO8859_1 );
+
         // Altium stores keys either in Upper, or in CamelCase. Lets unify it.
         wxString canonicalKey = key.Trim( false ).Trim( true ).MakeUpper();
+
         // If the key starts with '%UTF8%' we have to parse the value using UTF8
         wxString value;
 

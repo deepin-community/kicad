@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2004-2022 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -76,7 +76,7 @@ private:
 };
 
 
-static std::shared_ptr<SHAPE_CIRCLE> getDrilledHoleShape( BOARD_ITEM* aItem )
+static std::shared_ptr<SHAPE_CIRCLE> getHoleShape( BOARD_ITEM* aItem )
 {
     if( aItem->Type() == PCB_VIA_T )
     {
@@ -176,7 +176,7 @@ bool DRC_TEST_PROVIDER_HOLE_TO_HOLE::Run()
         // holes (which are generally drilled post laminataion).
         if( via->GetViaType() != VIATYPE::MICROVIA )
         {
-            std::shared_ptr<SHAPE_CIRCLE> holeShape = getDrilledHoleShape( via );
+            std::shared_ptr<SHAPE_CIRCLE> holeShape = getHoleShape( via );
 
             m_holeTree.QueryColliding( via, Edge_Cuts, Edge_Cuts,
                     // Filter:
@@ -218,10 +218,10 @@ bool DRC_TEST_PROVIDER_HOLE_TO_HOLE::Run()
             if( !reportProgress( ii++, count, progressDelta ) )
                 return false;   // DRC cancelled
 
-            // We only care about drilled (ie: round) holes
-            if( pad->GetDrillSize().x && pad->GetDrillSize().x == pad->GetDrillSize().y )
+            // We only care about drilled (ie: round) pad holes
+            if( pad->HasDrilledHole() )
             {
-                std::shared_ptr<SHAPE_CIRCLE> holeShape = getDrilledHoleShape( pad );
+                std::shared_ptr<SHAPE_CIRCLE> holeShape = getHoleShape( pad );
 
                 m_holeTree.QueryColliding( pad, Edge_Cuts, Edge_Cuts,
                         // Filter:
@@ -273,11 +273,11 @@ bool DRC_TEST_PROVIDER_HOLE_TO_HOLE::testHoleAgainstHole( BOARD_ITEM* aItem, SHA
     if( !reportCoLocation && !reportHole2Hole )
         return false;
 
-    std::shared_ptr<SHAPE_CIRCLE> otherHole = getDrilledHoleShape( aOther );
+    std::shared_ptr<SHAPE_CIRCLE> otherHole = getHoleShape( aOther );
     int                           epsilon = m_board->GetDesignSettings().GetDRCEpsilon();
     SEG::ecoord                   epsilon_sq = SEG::Square( epsilon );
 
-    // Blind-buried or microvias that don't overlap layers aren't an issue.
+    // Blind-buried vias are drilled prior to stackup; they're only an issue if they share layers
     if( aItem->Type() == PCB_VIA_T && aOther->Type() == PCB_VIA_T )
     {
         LSET viaHoleLayers = static_cast<PCB_VIA*>( aItem )->GetLayerSet() & LSET::AllCuMask();
@@ -291,6 +291,11 @@ bool DRC_TEST_PROVIDER_HOLE_TO_HOLE::testHoleAgainstHole( BOARD_ITEM* aItem, SHA
     {
         if( reportCoLocation )
         {
+            // Generate violations based on a well-defined order so that exclusion checking
+            // against previously-generated violations will work.
+            if( aItem->m_Uuid > aOther->m_Uuid )
+                std::swap( aItem, aOther );
+
             std::shared_ptr<DRC_ITEM> drce = DRC_ITEM::Create( DRCE_DRILLED_HOLES_COLOCATED );
             drce->SetItems( aItem, aOther );
             reportViolation( drce, aHole->GetCenter(), UNDEFINED_LAYER );
@@ -303,12 +308,17 @@ bool DRC_TEST_PROVIDER_HOLE_TO_HOLE::testHoleAgainstHole( BOARD_ITEM* aItem, SHA
 
         auto constraint = m_drcEngine->EvalRules( HOLE_TO_HOLE_CONSTRAINT, aItem, aOther,
                                                   UNDEFINED_LAYER /* holes pierce all layers */ );
-        int  minClearance = constraint.GetValue().Min() - epsilon;
+        int  minClearance = std::max( 0, constraint.GetValue().Min() - epsilon );
 
         if( constraint.GetSeverity() != RPT_SEVERITY_IGNORE
                 && minClearance >= 0
                 && actual < minClearance )
         {
+            // Generate violations based on a well-defined order so that exclusion checking
+            // against previously-generated violations will work.
+            if( aItem->m_Uuid > aOther->m_Uuid )
+                std::swap( aItem, aOther );
+
             std::shared_ptr<DRC_ITEM> drce = DRC_ITEM::Create( DRCE_DRILLED_HOLES_TOO_CLOSE );
             wxString msg = formatMsg( _( "(%s min %s; actual %s)" ),
                                       constraint.GetName(),

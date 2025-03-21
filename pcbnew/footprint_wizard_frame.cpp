@@ -4,7 +4,7 @@
  * Copyright (C) 2012-2015 Miguel Angel Ajo Pelayo <miguelangel@nbee.es>
  * Copyright (C) 2012-2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2004-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -131,7 +131,7 @@ FOOTPRINT_WIZARD_FRAME::FOOTPRINT_WIZARD_FRAME( KIWAY* aKiway, wxWindow* aParent
     // In viewer, the default net clearance is not known (it depends on the actual board).
     // So we do not show the default clearance, by setting it to 0
     // The footprint or pad specific clearance will be shown
-    GetBoard()->GetDesignSettings().m_NetSettings->m_DefaultNetClass->SetClearance( 0 );
+    GetBoard()->GetDesignSettings().m_NetSettings->GetDefaultNetclass()->SetClearance( 0 );
 
     // Create the manager and dispatcher & route draw panel events to the dispatcher
     m_toolManager = new TOOL_MANAGER;
@@ -643,7 +643,7 @@ void FOOTPRINT_WIZARD_FRAME::PythonPluginsReload()
     PCB_EDIT_FRAME* pcbframe = static_cast<PCB_EDIT_FRAME*>( Kiway().Player( FRAME_PCB_EDITOR, false ) );
 
     if( pcbframe )
-        pcbframe->GetToolManager()->RunAction( PCB_ACTIONS::pluginsReload );
+        pcbframe->GetToolManager()->RunAction( ACTIONS::pluginsReload );
     else
-        GetToolManager()->RunAction( PCB_ACTIONS::pluginsReload );
+        GetToolManager()->RunAction( ACTIONS::pluginsReload );
 }

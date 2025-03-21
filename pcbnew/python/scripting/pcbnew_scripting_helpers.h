@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 NBEE Embedded Systems SL, Miguel Angel Ajo <miguelangel@ajo.es>
- * Copyright (C) 2013-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -55,7 +55,7 @@ BOARD*  GetBoard();
  * This function does not set the board project as the active one
  * @return a pointer to the board if it was created, or None if not
  */
-BOARD*  LoadBoard( wxString& aFileName, PCB_IO_MGR::PCB_FILE_T aFormat );
+BOARD* LoadBoard( const wxString& aFileName, PCB_IO_MGR::PCB_FILE_T aFormat );
 
 #ifndef SWIG
 /**
@@ -63,7 +63,7 @@ BOARD*  LoadBoard( wxString& aFileName, PCB_IO_MGR::PCB_FILE_T aFormat );
  *
  * Hidden from SWIG as aSetActive should not be used by python, but cli also leverages this function
  */
-BOARD* LoadBoard( wxString& aFileName, PCB_IO_MGR::PCB_FILE_T aFormat, bool aSetActive );
+BOARD* LoadBoard( const wxString& aFileName, PCB_IO_MGR::PCB_FILE_T aFormat, bool aSetActive );
 #endif
 
 // Default LoadBoard() to load .kicad_pcb files:.
@@ -75,7 +75,7 @@ BOARD* LoadBoard( wxString& aFileName, PCB_IO_MGR::PCB_FILE_T aFormat, bool aSet
  *
  * Hidden from SWIG as aSetActive should not be used by python, but cli also leverages this function
  */
-BOARD* LoadBoard( wxString& aFileName, bool aSetActive );
+BOARD* LoadBoard( const wxString& aFileName, bool aSetActive );
 #endif
 
 /**
@@ -85,7 +85,7 @@ BOARD* LoadBoard( wxString& aFileName, bool aSetActive );
  * This function does not set the board project as the active one
  * @return a pointer to the board if it was created, or None if not
  */
-BOARD* LoadBoard( wxString& aFileName );
+BOARD* LoadBoard( const wxString& aFileName );
 
 /**
  * Creates a new board and project with the given filename (will overwrite existing files!)
@@ -157,7 +157,8 @@ bool ExportSpecctraDSN( BOARD* aBoard, wxString& aFullFilename );
  * See ExportVRML_File in pcb_edit_frame.h for detailed documentation.
  * @return true if OK.
  */
-bool ExportVRML( const wxString& aFullFileName, double aMMtoWRMLunit, bool aExport3DFiles,
+bool ExportVRML( const wxString& aFullFileName, double aMMtoWRMLunit, bool aIncludeUnspecified,
+                 bool aIncludeDNP, bool aExport3DFiles,
                  bool aUseRelativePaths, const wxString& a3D_Subdir, double aXRef, double aYRef );
 
 /**

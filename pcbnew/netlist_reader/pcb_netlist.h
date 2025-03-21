@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2012 Jean-Pierre Charras.
  * Copyright (C) 2013-2016 Wayne Stambaugh <stambaughw@gmail.com>.
- * Copyright (C) 2012-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +29,7 @@
 #include <boost/ptr_container/ptr_vector.hpp>
 #include <wx/arrstr.h>
 #include <nlohmann/json.hpp>
+#include <unordered_set>
 
 #include <lib_id.h>
 #include <footprint.h>
@@ -172,6 +173,16 @@ public:
 
     void Format( OUTPUTFORMATTER* aOut, int aNestLevel, int aCtl );
 
+    void SetHumanReadablePath( const wxString& aPath ) { m_humanReadablePath = aPath; }
+    const wxString& GetHumanReadablePath() const { return m_humanReadablePath; }
+
+    void SetComponentClassNames( const std::unordered_set<wxString>& aClassNames )
+    {
+        m_componentClassNames = aClassNames;
+    }
+
+    std::unordered_set<wxString>& GetComponentClassNames() { return m_componentClassNames; }
+
 private:
     std::vector<COMPONENT_NET>   m_nets;  ///< list of nets shared by the component pins
 
@@ -179,6 +190,9 @@ private:
     int                          m_pinCount;
     wxString                     m_reference;
     wxString                     m_value;
+
+    // human-readable hierarchical sheet path (e.g. /root/block0/sheet1)
+    wxString                     m_humanReadablePath;
 
     /// A fully specified path to the component (but not the component: [ sheetUUID, sheetUUID, .. ]
     KIID_PATH                    m_path;
@@ -208,6 +222,9 @@ private:
 
     /// Component-specific user fields found in the netlist.
     nlohmann::ordered_map<wxString, wxString> m_fields;
+
+    /// Component classes for this footprint
+    std::unordered_set<wxString> m_componentClassNames;
 
     static COMPONENT_NET         m_emptyNet;
 };

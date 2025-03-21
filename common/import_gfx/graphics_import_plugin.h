@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2016 CERN
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -134,7 +134,7 @@ public:
     virtual void ReportMsg( const wxString& aMessage ) = 0;
 
 protected:
-    ///< Importer used to create objects representing the imported shapes.
+    /// Importer used to create objects representing the imported shapes.
     GRAPHICS_IMPORTER* m_importer;
 };
 

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Roberto Fernandez Bautista <roberto.fer.bau@gmail.com>
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -29,7 +29,7 @@
 #include <memory>
 
 
-class PCB_IO_CADSTAR_ARCHIVE : public PCB_IO, public LAYER_REMAPPABLE_PLUGIN
+class PCB_IO_CADSTAR_ARCHIVE : public PCB_IO, public LAYER_MAPPABLE_PLUGIN
 {
 public:
     const IO_BASE::IO_FILE_DESC GetBoardFileDesc() const override
@@ -44,7 +44,7 @@ public:
     bool CanReadFootprint( const wxString& aFileName ) const override;
 
     BOARD* LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
-                      const STRING_UTF8_MAP* aProperties = nullptr, PROJECT* aProject = nullptr ) override;
+                      const std::map<std::string, UTF8>* aProperties = nullptr, PROJECT* aProject = nullptr ) override;
 
     std::vector<FOOTPRINT*> GetImportedCachedLibraryFootprints() override;
 
@@ -62,19 +62,19 @@ public:
      *
      * @param aLayerMappingHandler
      */
-    void RegisterLayerMappingCallback( LAYER_MAPPING_HANDLER aLayerMappingHandler ) override;
+    void RegisterCallback( LAYER_MAPPING_HANDLER aLayerMappingHandler ) override;
 
     void FootprintEnumerate( wxArrayString& aFootprintNames, const wxString& aLibraryPath,
-                             bool aBestEfforts, const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                             bool aBestEfforts, const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     // default implementation of GetEnumeratedFootprint is fine (call FootprintLoad)
 
     bool FootprintExists( const wxString& aLibraryPath, const wxString& aFootprintName,
-                          const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                          const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     FOOTPRINT* FootprintLoad( const wxString& aLibraryPath, const wxString& aFootprintName,
                               bool  aKeepUUID = false,
-                              const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                              const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     long long GetLibraryTimestamp( const wxString& aLibraryPath ) const override;
 

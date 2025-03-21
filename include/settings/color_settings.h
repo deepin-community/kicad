@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -48,7 +48,7 @@ using KIGFX::COLOR4D;
  * Each application (eeschema, gerbview, pcbnew) can have a different active color scheme selected.
  * The "child applications" (library editors) inherit from either eeschema or pcbnew.
  */
-class COLOR_SETTINGS : public JSON_SETTINGS
+class KICOMMON_API COLOR_SETTINGS : public JSON_SETTINGS
 {
 public:
     explicit COLOR_SETTINGS( const wxString& aFilename = wxT( "user" ),
@@ -118,12 +118,12 @@ public:
             m_map( aMap )
     {}
 
-    void Load( JSON_SETTINGS* aSettings, bool aResetIfMissing = true ) const override
+    void Load( const JSON_SETTINGS& aSettings, bool aResetIfMissing = true ) const override
     {
         if( m_readOnly )
             return;
 
-        if( std::optional<COLOR4D> optval = aSettings->Get<COLOR4D>( m_path ) )
+        if( std::optional<COLOR4D> optval = aSettings.Get<COLOR4D>( m_path ) )
             ( *m_map )[ m_key ] = *optval;
         else if( aResetIfMissing )
             ( *m_map )[ m_key ] = m_default;
@@ -149,9 +149,9 @@ public:
         ( *m_map )[ m_key ] = m_default;
     }
 
-    bool MatchesFile( JSON_SETTINGS* aSettings ) const override
+    bool MatchesFile( const JSON_SETTINGS& aSettings ) const override
     {
-        if( std::optional<COLOR4D> optval = aSettings->Get<COLOR4D>( m_path ) )
+        if( std::optional<COLOR4D> optval = aSettings.Get<COLOR4D>( m_path ) )
             return m_map->count( m_key ) && ( *optval == m_map->at( m_key ) );
 
         // If the JSON doesn't exist, the map shouldn't exist either

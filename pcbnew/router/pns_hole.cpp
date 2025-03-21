@@ -1,7 +1,7 @@
 /*
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -89,7 +89,7 @@ const SHAPE_LINE_CHAIN HOLE::Hull( int aClearance, int aWalkaroundThickness, int
                         BuildHullForPrimitiveShape( shape, aClearance, aWalkaroundThickness ) );
             }
 
-            hullSet.Simplify( SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+            hullSet.Simplify();
             return hullSet.Outline( 0 );
         }
     }
@@ -128,12 +128,11 @@ void HOLE::Move( const VECTOR2I& delta )
 }
 
 
-HOLE* HOLE::MakeCircularHole( const VECTOR2I& pos, int radius )
+HOLE* HOLE::MakeCircularHole( const VECTOR2I& pos, int radius, PNS_LAYER_RANGE aLayers )
 {
     SHAPE_CIRCLE* circle = new SHAPE_CIRCLE( pos, radius );
     HOLE*         hole = new HOLE( circle );
-
-    hole->SetLayers( LAYER_RANGE( F_Cu, B_Cu ) );
+    hole->SetLayers( aLayers );
     return hole;
 }
 

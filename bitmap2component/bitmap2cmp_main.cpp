@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 1992-2010 jean-pierre.charras
- * Copyright (C) 1992-2021 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,7 +37,7 @@ static struct IFACE : public KIFACE_BASE
     bool OnKifaceStart( PGM_BASE* aProgram, int aCtlBits, KIWAY* aKiway ) override;
 
     wxWindow* CreateKiWindow( wxWindow* aParent, int aClassId, KIWAY* aKiway,
-                            int aCtlBits = 0 ) override
+                              int aCtlBits = 0 ) override
     {
         InitSettings( new BITMAP2CMP_SETTINGS );
         Pgm().GetSettingsManager().RegisterSettings( KifaceSettings() );
@@ -69,8 +69,6 @@ static struct IFACE : public KIFACE_BASE
 
 using namespace BMP2CMP;
 
-static PGM_BASE* process;
-
 
 KIFACE_BASE& Kiface()
 {
@@ -82,25 +80,8 @@ KIFACE_BASE& Kiface()
 // KIFACE_GETTER will not have name mangling due to declaration in kiway.h.
 KIFACE* KIFACE_GETTER( int* aKIFACEversion, int aKIWAYversion, PGM_BASE* aProgram )
 {
-    process = (PGM_BASE*) aProgram;
     return &kiface;
 }
-
-
-#if defined(BUILD_KIWAY_DLLS)
-PGM_BASE& Pgm()
-{
-    wxASSERT( process );    // KIFACE_GETTER has already been called.
-    return *process;
-}
-
-
-// Similar to PGM_BASE& Pgm(), but return nullptr when a *.ki_face is run from a python script.
-PGM_BASE* PgmOrNull()
-{
-    return process;
-}
-#endif
 
 
 bool IFACE::OnKifaceStart( PGM_BASE* aProgram, int aCtlBits, KIWAY* aKiway )

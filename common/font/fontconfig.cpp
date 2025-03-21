@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2021 Ola Rinta-Koski
  * Copyright (C) 2023 CERN (www.cern.ch)
- * Copyright (C) 2021-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,7 +19,7 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
+#include <mutex>
 #include <font/fontconfig.h>
 #include <wx/log.h>
 #include <trace_helpers.h>
@@ -27,6 +27,7 @@
 #include <macros.h>
 #include <cstdint>
 #include <reporter.h>
+#include <embedded_files.h>
 
 #ifdef __WIN32__
 #define WIN32_LEAN_AND_MEAN
@@ -39,9 +40,10 @@ static FONTCONFIG* g_config = nullptr;
 static bool        g_fcInitSuccess = false;
 
 REPORTER* FONTCONFIG::s_reporter = nullptr;
+static std::mutex g_fontConfigMutex;
 
 /**
- * A simple wrapper to avoid exporing fontconfig in the header
+ * A simple wrapper to avoid exporting fontconfig in the header
  */
 struct fontconfig::FONTCONFIG_PAT
 {
@@ -62,16 +64,18 @@ FONTCONFIG::FONTCONFIG()
 
 void fontconfig::FONTCONFIG::SetReporter( REPORTER* aReporter )
 {
+    std::lock_guard lock( g_fontConfigMutex );
     s_reporter = aReporter;
 }
 
 
 /**
- * This is simply a wrapper to call FcInit() with SEH for Windows
- * SEH on Windows can only be used in functions without objects that might be unwinded
- * (basically objects with destructors)
+ * This is simply a wrapper to call FcInit() with SEH for Windows.
+ *
+ * SEH on Windows can only be used in functions without objects that might be unwound
+ * (basically objects with destructors).
  * For example, new FONTCONFIG() in Fontconfig() is creating a object with a destructor
- * that *might* need to be unwinded. MSVC catches this and throws a compile error
+ * that *might* need to be unwound. MSVC catches this and throws a compile error.
  */
 static void bootstrapFc()
 {
@@ -87,6 +91,7 @@ static void bootstrapFc()
                                                          : EXCEPTION_CONTINUE_SEARCH )
     {
         g_fcInitSuccess = false;
+
         // We have documented cases that fontconfig while trying to cache fonts
         // ends up using freetype to try and get font info
         // freetype itself reads fonts through memory mapping instead of normal file APIs
@@ -157,12 +162,15 @@ void FONTCONFIG::getAllFamilyStrings( FONTCONFIG_PAT&                           
     std::string fam;
 
     int langIdx = 0;
+
     do
     {
         famLang = getFcString( aPat, FC_FAMILYLANG, langIdx );
 
         if( famLang.empty() && langIdx != 0 )
+        {
             break;
+        }
         else
         {
             fam = getFcString( aPat, FC_FAMILY, langIdx );
@@ -196,8 +204,9 @@ std::string FONTCONFIG::getFamilyStringByLang( FONTCONFIG_PAT& aPat, const wxStr
 }
 
 
-FONTCONFIG::FF_RESULT FONTCONFIG::FindFont( const wxString &aFontName, wxString &aFontFile,
-                                            int& aFaceIndex, bool aBold, bool aItalic )
+FONTCONFIG::FF_RESULT FONTCONFIG::FindFont( const wxString& aFontName, wxString& aFontFile,
+                                            int& aFaceIndex, bool aBold, bool aItalic,
+                                            const std::vector<wxString>* aEmbeddedFiles )
 {
     FF_RESULT retval = FF_RESULT::FF_ERROR;
 
@@ -215,6 +224,16 @@ FONTCONFIG::FF_RESULT FONTCONFIG::FindFont( const wxString &aFontName, wxString 
         aBold = true;
     }
 
+    FcConfig* config = FcConfigGetCurrent();
+
+    if( aEmbeddedFiles )
+    {
+        for( const auto& file : *aEmbeddedFiles )
+        {
+            FcConfigAppFontAddFile( config, (const FcChar8*) file.c_str().AsChar() );
+        }
+    }
+
     wxString qualifiedFontName = aFontName;
 
     wxScopedCharBuffer const fcBuffer = qualifiedFontName.ToUTF8();
@@ -229,11 +248,11 @@ FONTCONFIG::FF_RESULT FONTCONFIG::FindFont( const wxString &aFontName, wxString 
 
     FcPatternAddString( pat, FC_FAMILY, (FcChar8*) fcBuffer.data() );
 
-    FcConfigSubstitute( nullptr, pat, FcMatchPattern );
+    FcConfigSubstitute( config, pat, FcMatchPattern );
     FcDefaultSubstitute( pat );
 
     FcResult   r = FcResultNoMatch;
-    FcPattern* font = FcFontMatch( nullptr, pat, &r );
+    FcPattern* font = FcFontMatch( config, pat, &r );
 
     wxString fontName;
 
@@ -279,7 +298,7 @@ FONTCONFIG::FF_RESULT FONTCONFIG::FindFont( const wxString &aFontName, wxString 
                 wxString lower_style = styleStr.Lower();
 
                 if( lower_style.Contains( wxS( "thin" ) )
-                         || lower_style.Contains( wxS( "light" ) )   // also cataches ultralight and extralight
+                         || lower_style.Contains( wxS( "light" ) )   // catches ultra & extra light
                          || lower_style.Contains( wxS( "regular" ) )
                          || lower_style.Contains( wxS( "roman" ) )
                          || lower_style.Contains( wxS( "book" ) ) )
@@ -338,17 +357,20 @@ FONTCONFIG::FF_RESULT FONTCONFIG::FindFont( const wxString &aFontName, wxString 
     if( retval == FF_RESULT::FF_ERROR )
     {
         if( s_reporter )
-            s_reporter->Report( wxString::Format( _( "Error loading font '%s'." ), qualifiedFontName ) );
+            s_reporter->Report( wxString::Format( _( "Error loading font '%s'." ),
+                                                  qualifiedFontName ) );
     }
     else if( retval == FF_RESULT::FF_SUBSTITUTE )
     {
         fontName.Replace( ':', ' ' );
 
-        // If we missed a case but the matching found the original font name, then we are not substituting
+        // If we missed a case but the matching found the original font name, then we are
+        // not substituting
         if( fontName.CmpNoCase( qualifiedFontName ) == 0 )
             retval = FF_RESULT::FF_OK;
         else if( s_reporter )
-            s_reporter->Report( wxString::Format( _( "Font '%s' not found; substituting '%s'." ), qualifiedFontName, fontName ) );
+            s_reporter->Report( wxString::Format( _( "Font '%s' not found; substituting '%s'." ),
+                                                  qualifiedFontName, fontName ) );
     }
 
     FcPatternDestroy( pat );
@@ -356,18 +378,29 @@ FONTCONFIG::FF_RESULT FONTCONFIG::FindFont( const wxString &aFontName, wxString 
 }
 
 
-void FONTCONFIG::ListFonts( std::vector<std::string>& aFonts, const std::string& aDesiredLang )
+void FONTCONFIG::ListFonts( std::vector<std::string>& aFonts, const std::string& aDesiredLang,
+                            const std::vector<wxString>* aEmbeddedFiles, bool aForce )
 {
     if( !g_fcInitSuccess )
         return;
 
     // be sure to cache bust if the language changed
-    if( m_fontInfoCache.empty() || m_fontCacheLastLang != aDesiredLang )
+    if( m_fontInfoCache.empty() || m_fontCacheLastLang != aDesiredLang || aForce )
     {
+        FcConfig* config = FcConfigGetCurrent();
+
+        if( aEmbeddedFiles )
+        {
+            for( const auto& file : *aEmbeddedFiles )
+            {
+                FcConfigAppFontAddFile( config, (const FcChar8*) file.c_str().AsChar() );
+            }
+        }
+
         FcPattern*   pat = FcPatternCreate();
         FcObjectSet* os = FcObjectSetBuild( FC_FAMILY, FC_FAMILYLANG, FC_STYLE, FC_LANG, FC_FILE,
                                             FC_OUTLINE, nullptr );
-        FcFontSet*   fs = FcFontList( nullptr, pat, os );
+        FcFontSet*   fs = FcFontList( config, pat, os );
 
         for( int i = 0; fs && i < fs->nfont; ++i )
         {
@@ -428,7 +461,8 @@ void FONTCONFIG::ListFonts( std::vector<std::string>& aFonts, const std::string&
                     }
                     else
                     {
-                        wxLogTrace( traceFonts, wxS( "Font '%s' language '%s' not supported by OS." ),
+                        wxLogTrace( traceFonts,
+                                    wxS( "Font '%s' language '%s' not supported by OS." ),
                                     theFamily, langWxStr );
                     }
 
@@ -467,3 +501,4 @@ void FONTCONFIG::ListFonts( std::vector<std::string>& aFonts, const std::string&
     for( const std::pair<const std::string, FONTINFO>& entry : m_fontInfoCache )
         aFonts.push_back( entry.second.Family() );
 }
+

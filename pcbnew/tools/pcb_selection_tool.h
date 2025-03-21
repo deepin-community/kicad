@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2017-2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
@@ -28,6 +28,7 @@
 #ifndef PCB_SELECTION_TOOL_H
 #define PCB_SELECTION_TOOL_H
 
+#include <functional>
 #include <memory>
 
 #include <math/vector2d.h>
@@ -42,6 +43,7 @@
 class PCB_BASE_FRAME;
 class BOARD_ITEM;
 class GENERAL_COLLECTOR;
+class PCB_TABLE;
 
 namespace KIGFX
 {
@@ -49,7 +51,8 @@ namespace KIGFX
 }
 
 
-typedef void (*CLIENT_SELECTION_FILTER)( const VECTOR2I&, GENERAL_COLLECTOR&, PCB_SELECTION_TOOL* );
+using CLIENT_SELECTION_FILTER =
+        std::function<void( const VECTOR2I&, GENERAL_COLLECTOR&, PCB_SELECTION_TOOL* )>;
 
 
 /**
@@ -105,6 +108,10 @@ public:
     ///< Select a single item under cursor event handler.
     int CursorSelection( const TOOL_EVENT& aEvent );
 
+    int SelectColumns( const TOOL_EVENT& aEvent );
+    int SelectRows( const TOOL_EVENT& aEvent );
+    int SelectTable( const TOOL_EVENT& aEvent );
+
     ///< Clear current selection event handler.
     int ClearSelection( const TOOL_EVENT& aEvent );
     void ClearSelection( bool aQuietMode = false );
@@ -159,7 +166,7 @@ public:
      */
     void RebuildSelection();
 
-    SELECTION_FILTER_OPTIONS& GetFilter()
+    PCB_SELECTION_FILTER_OPTIONS& GetFilter()
     {
         return m_filter;
     }
@@ -204,6 +211,11 @@ public:
      */
     void FilterCollectorForFreePads( GENERAL_COLLECTOR& aCollector,
                                      bool aForcePromotion = false ) const;
+
+    /**
+     * Promote any table cell selections to the whole table.
+     */
+    void FilterCollectorForTableCells( GENERAL_COLLECTOR& aCollector ) const;
 
     /**
      * Drop any PCB_MARKERs from the collector.
@@ -292,6 +304,8 @@ private:
      * @return true if the function was canceled (i.e. CancelEvent was received).
      */
     bool selectMultiple();
+
+    bool selectTableCells( PCB_TABLE* aTable );
 
     /**
      * Handle disambiguation actions including displaying the menu.
@@ -444,7 +458,7 @@ private:
 
     PCB_SELECTION            m_selection;            // Current state of selection
 
-    SELECTION_FILTER_OPTIONS m_filter;
+    PCB_SELECTION_FILTER_OPTIONS m_filter;
 
     KICURSOR                 m_nonModifiedCursor;    // Cursor in the absence of shift/ctrl/alt
 

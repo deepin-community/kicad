@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020-2021 Roberto Fernandez Bautista <roberto.fer.bau@gmail.com>
- * Copyright (C) 2020-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -42,7 +42,6 @@ struct CADSTAR_PART_ENTRY;
 class BUS_ALIAS;
 class EDA_TEXT;
 class SPIN_STYLE;
-class LIB_FIELD;
 class LIB_SYMBOL;
 class REPORTER;
 class SCH_SYMBOL;
@@ -62,7 +61,7 @@ public:
     const int SMALL_LABEL_SIZE = KiROUND( (double) SCH_IU_PER_MM * 0.4 );
     const double ARC_ACCURACY = SCH_IU_PER_MM * 0.01; // 0.01mm
 
-    explicit CADSTAR_SCH_ARCHIVE_LOADER( wxString aFilename, REPORTER* aReporter,
+    explicit CADSTAR_SCH_ARCHIVE_LOADER( const wxString& aFilename, REPORTER* aReporter,
                                          PROGRESS_REPORTER* aProgressReporter ) :
             CADSTAR_SCH_ARCHIVE_PARSER( aFilename )
     {
@@ -173,16 +172,16 @@ private:
                           bool aOverrideFields = true );
 
     //Helper Functions for loading sheets
-    void loadSheetAndChildSheets( LAYER_ID aCadstarSheetID, const VECTOR2I& aPosition,
-                                  VECTOR2I aSheetSize, const SCH_SHEET_PATH& aParentSheet );
+    void loadSheetAndChildSheets( const LAYER_ID& aCadstarSheetID, const VECTOR2I& aPosition,
+                                  const VECTOR2I& aSheetSize, const SCH_SHEET_PATH& aParentSheet );
 
-    void loadChildSheets( LAYER_ID aCadstarSheetID, const SCH_SHEET_PATH& aSheet );
+    void loadChildSheets( const LAYER_ID& aCadstarSheetID, const SCH_SHEET_PATH& aSheet );
 
     std::vector<LAYER_ID> findOrphanSheets();
 
-    int getSheetNumber( LAYER_ID aCadstarSheetID );
+    int getSheetNumber( const LAYER_ID& aCadstarSheetID );
 
-    void loadItemOntoKiCadSheet( LAYER_ID aCadstarSheetID, SCH_ITEM* aItem );
+    void loadItemOntoKiCadSheet( const LAYER_ID& aCadstarSheetID, SCH_ITEM* aItem );
 
     //Helper Functions for loading library items
     const LIB_SYMBOL* loadSymdef( const SYMDEF_ID& aSymdefID );
@@ -195,11 +194,11 @@ private:
                                const wxString&              aFootprintAlternate );
 
     void loadLibrarySymbolShapeVertices( const std::vector<VERTEX>& aCadstarVertices,
-                                         VECTOR2I aSymbolOrigin, LIB_SYMBOL* aSymbol,
+                                         const VECTOR2I& aSymbolOrigin, LIB_SYMBOL* aSymbol,
                                          int aGateNumber, int aLineThickness );
 
     void applyToLibraryFieldAttribute( const ATTRIBUTE_LOCATION& aCadstarAttrLoc,
-                                       VECTOR2I aSymbolOrigin, LIB_FIELD* aKiCadField );
+                                       const VECTOR2I& aSymbolOrigin, SCH_FIELD* aKiCadField );
 
     //Helper Functions for loading symbols in schematic
     SCH_SYMBOL* loadSchematicSymbol( const SYMBOL& aCadstarSymbol, const LIB_SYMBOL& aKiCadPart,
@@ -341,7 +340,7 @@ private:
     double getPolarRadius( const VECTOR2I& aPoint );
 
 
-    static LIB_FIELD* addNewFieldToSymbol( const wxString&              aFieldName,
+    static SCH_FIELD* addNewFieldToSymbol( const wxString&              aFieldName,
                                            std::unique_ptr<LIB_SYMBOL>& aKiCadSymbol );
 
 }; // CADSTAR_SCH_ARCHIVE_LOADER

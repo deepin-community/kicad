@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,11 +24,7 @@
 #include <jobs/job_dispatcher.h>
 #include <wx/string.h>
 
-namespace KIGFX
-{
 class SCH_RENDER_SETTINGS;
-};
-
 class KIWAY;
 class SCHEMATIC;
 class JOB_SYM_EXPORT_SVG;
@@ -54,23 +50,26 @@ public:
      * Configure the SCH_RENDER_SETTINGS object with the correct data to be used with plotting.
      *
      * It's sort of a kludge due to the plotter depending on this object normally managed by
-     *the frame and canvas
+     * the frame and canvas.
      *
      * @param aRenderSettings The object to populate with working settings.
      * @param aTheme The theme to take color data from to stick into render settings, can be
      *        left blank for default.
      * @param aSch The schematic to further copy settings from to be put into aRenderSettings.
      */
-    void InitRenderSettings( KIGFX::SCH_RENDER_SETTINGS* aRenderSettings, const wxString& aTheme,
+    void InitRenderSettings( SCH_RENDER_SETTINGS* aRenderSettings, const wxString& aTheme,
                              SCHEMATIC* aSch,
                              const wxString& aDrawingSheetOverride = wxEmptyString );
 
 private:
+    SCHEMATIC* getSchematic( const wxString& aPath );
 
-    int doSymExportSvg( JOB_SYM_EXPORT_SVG* aSvgJob, KIGFX::SCH_RENDER_SETTINGS* aRenderSettings,
+    int doSymExportSvg( JOB_SYM_EXPORT_SVG* aSvgJob, SCH_RENDER_SETTINGS* aRenderSettings,
                         LIB_SYMBOL* symbol );
 
     DS_PROXY_VIEW_ITEM* getDrawingSheetProxyView( SCHEMATIC* aSch );
+
+    SCHEMATIC* m_cliSchematic;
 };
 
 #endif

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,6 +26,8 @@
 #include <memory>
 #include <mutex>
 #include <board.h>
+#include <footprint.h>
+#include <lset.h>
 #include <board_connected_item.h>
 #include <pcbexpr_evaluator.h>
 #include <drc/drc_engine.h>
@@ -152,16 +154,22 @@ public:
 
     const wxString& AsString() const override
     {
-        const_cast<PCBEXPR_NETCLASS_VALUE*>( this )->Set( m_item->GetEffectiveNetClass()->GetName() );
+        const_cast<PCBEXPR_NETCLASS_VALUE*>( this )->Set(
+                m_item->GetEffectiveNetClass()->GetName() );
         return LIBEVAL::VALUE::AsString();
     }
 
     bool EqualTo( LIBEVAL::CONTEXT* aCtx, const VALUE* b ) const override
     {
         if( const PCBEXPR_NETCLASS_VALUE* bValue = dynamic_cast<const PCBEXPR_NETCLASS_VALUE*>( b ) )
-            return m_item->GetEffectiveNetClass() == bValue->m_item->GetEffectiveNetClass();
+        {
+            return *( m_item->GetEffectiveNetClass() )
+                   == *( bValue->m_item->GetEffectiveNetClass() );
+        }
         else
+        {
             return LIBEVAL::VALUE::EqualTo( aCtx, b );
+        }
     }
 
     bool NotEqualTo( LIBEVAL::CONTEXT* aCtx, const LIBEVAL::VALUE* b ) const override
@@ -174,6 +182,71 @@ public:
 
 protected:
     BOARD_CONNECTED_ITEM* m_item;
+};
+
+
+class PCBEXPR_COMPONENT_CLASS_VALUE : public LIBEVAL::VALUE
+{
+public:
+    PCBEXPR_COMPONENT_CLASS_VALUE( BOARD_ITEM* aItem ) :
+            LIBEVAL::VALUE( wxEmptyString ), m_item( dynamic_cast<FOOTPRINT*>( aItem ) )
+    {};
+
+    const wxString& AsString() const override
+    {
+        if( !m_item )
+            return LIBEVAL::VALUE::AsString();
+
+        if( const COMPONENT_CLASS* compClass = m_item->GetComponentClass() )
+            const_cast<PCBEXPR_COMPONENT_CLASS_VALUE*>( this )->Set( compClass->GetFullName() );
+
+        return LIBEVAL::VALUE::AsString();
+    }
+
+    bool EqualTo( LIBEVAL::CONTEXT* aCtx, const VALUE* b ) const override
+    {
+        if( const PCBEXPR_COMPONENT_CLASS_VALUE* bValue =
+                    dynamic_cast<const PCBEXPR_COMPONENT_CLASS_VALUE*>( b ) )
+        {
+            if( !m_item || !bValue->m_item )
+                return LIBEVAL::VALUE::EqualTo( aCtx, b );
+
+            const COMPONENT_CLASS* aClass = m_item->GetComponentClass();
+            const COMPONENT_CLASS* bClass = bValue->m_item->GetComponentClass();
+
+            // Note this depends on COMPONENT_CLASS_MANAGER maintaining ownership
+            // of all unique component class objects
+            return aClass == bClass;
+        }
+        else
+        {
+            return LIBEVAL::VALUE::EqualTo( aCtx, b );
+        }
+    }
+
+    bool NotEqualTo( LIBEVAL::CONTEXT* aCtx, const LIBEVAL::VALUE* b ) const override
+    {
+        if( const PCBEXPR_COMPONENT_CLASS_VALUE* bValue =
+                    dynamic_cast<const PCBEXPR_COMPONENT_CLASS_VALUE*>( b ) )
+        {
+            if( !m_item || !bValue->m_item )
+                return LIBEVAL::VALUE::EqualTo( aCtx, b );
+
+            const COMPONENT_CLASS* aClass = m_item->GetComponentClass();
+            const COMPONENT_CLASS* bClass = bValue->m_item->GetComponentClass();
+
+            // Note this depends on COMPONENT_CLASS_MANAGER maintaining ownership
+            // of all unique component class objects
+            return aClass != bClass;
+        }
+        else
+        {
+            return LIBEVAL::VALUE::NotEqualTo( aCtx, b );
+        }
+    }
+
+protected:
+    FOOTPRINT* m_item;
 };
 
 
@@ -216,6 +289,9 @@ LIBEVAL::VALUE* PCBEXPR_VAR_REF::GetValue( LIBEVAL::CONTEXT* aCtx )
 {
     PCBEXPR_CONTEXT* context = static_cast<PCBEXPR_CONTEXT*>( aCtx );
 
+    if( m_type == LIBEVAL::VT_NULL )
+        return LIBEVAL::VALUE::MakeNullValue();
+
     if( m_itemIndex == 2 )
         return new PCBEXPR_LAYER_VALUE( context->GetLayer() );
 
@@ -238,7 +314,17 @@ LIBEVAL::VALUE* PCBEXPR_VAR_REF::GetValue( LIBEVAL::CONTEXT* aCtx )
     {
         if( m_type == LIBEVAL::VT_NUMERIC )
         {
-            return new LIBEVAL::VALUE( (double) item->Get<int>( it->second ) );
+            if( m_isOptional )
+            {
+                auto val = item->Get<std::optional<int>>( it->second );
+
+                if( val.has_value() )
+                    return new LIBEVAL::VALUE( static_cast<double>( val.value() ) );
+
+                return LIBEVAL::VALUE::MakeNullValue();
+            }
+
+            return new LIBEVAL::VALUE( static_cast<double>( item->Get<int>( it->second ) ) );
         }
         else
         {
@@ -291,6 +377,17 @@ LIBEVAL::VALUE* PCBEXPR_NETCLASS_REF::GetValue( LIBEVAL::CONTEXT* aCtx )
 }
 
 
+LIBEVAL::VALUE* PCBEXPR_COMPONENT_CLASS_REF::GetValue( LIBEVAL::CONTEXT* aCtx )
+{
+    BOARD_ITEM* item = dynamic_cast<BOARD_ITEM*>( GetObject( aCtx ) );
+
+    if( !item || item->Type() != PCB_FOOTPRINT_T )
+        return new LIBEVAL::VALUE();
+
+    return new PCBEXPR_COMPONENT_CLASS_VALUE( item );
+}
+
+
 LIBEVAL::VALUE* PCBEXPR_NETNAME_REF::GetValue( LIBEVAL::CONTEXT* aCtx )
 {
     BOARD_CONNECTED_ITEM* item = dynamic_cast<BOARD_CONNECTED_ITEM*>( GetObject( aCtx ) );
@@ -327,6 +424,13 @@ std::unique_ptr<LIBEVAL::VAR_REF> PCBEXPR_UCODE::CreateVarRef( const wxString& a
     PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
     std::unique_ptr<PCBEXPR_VAR_REF> vref;
 
+    if( aVar.IsSameAs( wxT( "null" ), false ) )
+    {
+        vref = std::make_unique<PCBEXPR_VAR_REF>( 0 );
+        vref->SetType( LIBEVAL::VT_NULL );
+        return vref;
+    }
+
     // Check for a couple of very common cases and compile them straight to "object code".
 
     if( aField.CmpNoCase( wxT( "NetClass" ) ) == 0 )
@@ -335,6 +439,15 @@ std::unique_ptr<LIBEVAL::VAR_REF> PCBEXPR_UCODE::CreateVarRef( const wxString& a
             return std::make_unique<PCBEXPR_NETCLASS_REF>( 0 );
         else if( aVar == wxT( "B" ) )
             return std::make_unique<PCBEXPR_NETCLASS_REF>( 1 );
+        else
+            return nullptr;
+    }
+    else if( aField.CmpNoCase( wxT( "ComponentClass" ) ) == 0 )
+    {
+        if( aVar == wxT( "A" ) )
+            return std::make_unique<PCBEXPR_COMPONENT_CLASS_REF>( 0 );
+        else if( aVar == wxT( "B" ) )
+            return std::make_unique<PCBEXPR_COMPONENT_CLASS_REF>( 1 );
         else
             return nullptr;
     }
@@ -367,9 +480,7 @@ std::unique_ptr<LIBEVAL::VAR_REF> PCBEXPR_UCODE::CreateVarRef( const wxString& a
         return nullptr;
 
     if( aField.length() == 0 ) // return reference to base object
-    {
         return vref;
-    }
 
     wxString field( aField );
     field.Replace( wxT( "_" ),  wxT( " " ) );
@@ -388,6 +499,11 @@ std::unique_ptr<LIBEVAL::VAR_REF> PCBEXPR_UCODE::CreateVarRef( const wxString& a
                 {
                     vref->SetType( LIBEVAL::VT_NUMERIC );
                 }
+                else if( prop->TypeHash() == TYPE_HASH( std::optional<int> ) )
+                {
+                    vref->SetType( LIBEVAL::VT_NUMERIC );
+                    vref->SetIsOptional();
+                }
                 else if( prop->TypeHash() == TYPE_HASH( bool ) )
                 {
                     vref->SetType( LIBEVAL::VT_NUMERIC );
@@ -399,11 +515,15 @@ std::unique_ptr<LIBEVAL::VAR_REF> PCBEXPR_UCODE::CreateVarRef( const wxString& a
                 else if ( prop->HasChoices() )
                 {   // it's an enum, we treat it as string
                     vref->SetType( LIBEVAL::VT_STRING );
-                    vref->SetIsEnum ( true );
+                    vref->SetIsEnum( true );
                 }
                 else
                 {
-                    wxFAIL_MSG( wxT( "PCBEXPR_UCODE::createVarRef: Unknown property type." ) );
+                    wxString msg = wxString::Format( wxT( "PCBEXPR_UCODE::createVarRef: Unknown "
+                                                          "property type %s from %s." ),
+                                                     cls.name,
+                                                     field );
+                    wxFAIL_MSG( msg );
                 }
             }
         }

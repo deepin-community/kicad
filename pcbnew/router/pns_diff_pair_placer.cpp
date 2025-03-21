@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2015 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 #include "pns_topology.h"
 #include "pns_debug_decorator.h"
 #include "pns_arc.h"
+#include "pns_utils.h"
 
 namespace PNS {
 
@@ -70,7 +71,7 @@ void DIFF_PAIR_PLACER::setWorld( NODE* aWorld )
 
 const VIA DIFF_PAIR_PLACER::makeVia( const VECTOR2I& aP, NET_HANDLE aNet )
 {
-    const LAYER_RANGE layers( m_sizes.GetLayerTop(), m_sizes.GetLayerBottom() );
+    const PNS_LAYER_RANGE layers( m_sizes.GetLayerTop(), m_sizes.GetLayerBottom() );
 
     VIA v( aP, layers, m_sizes.ViaDiameter(), m_sizes.ViaDrill(), aNet, m_sizes.ViaType() );
 
@@ -118,12 +119,12 @@ bool DIFF_PAIR_PLACER::propagateDpHeadForces ( const VECTOR2I& aP, VECTOR2I& aNe
 
     if( m_placingVia )
     {
-        virtHead.SetDiameter( viaGap() + 2 * virtHead.Diameter() );
+        virtHead.SetDiameter( 0, viaGap() + 2 * virtHead.Diameter( 0 ) );
     }
     else
     {
         virtHead.SetLayer( m_currentLayer );
-        virtHead.SetDiameter( m_sizes.DiffPairGap() + 2 * m_sizes.DiffPairWidth() );
+        virtHead.SetDiameter( 0, m_sizes.DiffPairGap() + 2 * m_sizes.DiffPairWidth() );
     }
 
     bool solidsOnly = true;
@@ -159,10 +160,20 @@ bool DIFF_PAIR_PLACER::propagateDpHeadForces ( const VECTOR2I& aP, VECTOR2I& aNe
             break;
 
         int clearance = m_currentNode->GetClearance( obs->m_item, &m_currentTrace.PLine(), false );
+        VECTOR2I layerForce;
+        collided = false;
 
-        if( obs->m_item->Shape()->Collide( virtHead.Shape(), clearance, &force ) )
+        for( int viaLayer : virtHead.RelevantShapeLayers( obs->m_item ) )
         {
-            collided = true;
+            collided |= obs->m_item->Shape( viaLayer )->Collide( virtHead.Shape( viaLayer ),
+                                                                 clearance, &layerForce );
+
+            if( layerForce.SquaredEuclideanNorm() > force.SquaredEuclideanNorm() )
+                force = layerForce;
+        }
+
+        if( collided )
+        {
             totalForce += force;
             virtHead.SetPos( virtHead.Pos() + force );
         }
@@ -188,10 +199,11 @@ bool DIFF_PAIR_PLACER::attemptWalk( NODE* aNode, DIFF_PAIR* aCurrent, DIFF_PAIR&
                                     bool aPFirst, bool aWindCw, bool aSolidsOnly )
 {
     WALKAROUND walkaround( aNode, Router() );
-    WALKAROUND::WALKAROUND_STATUS wf1;
+    WALKAROUND::STATUS wf1;
 
     walkaround.SetSolidsOnly( aSolidsOnly );
     walkaround.SetIterationLimit( Settings().WalkaroundIterationLimit() );
+    walkaround.SetAllowedPolicies( { WALKAROUND::WP_SHORTEST } );
 
     SHOVE shove( aNode, Router() );
     LINE walkP, walkN;
@@ -222,20 +234,22 @@ bool DIFF_PAIR_PLACER::attemptWalk( NODE* aNode, DIFF_PAIR* aCurrent, DIFF_PAIR&
                 continue;
         }
 
-        wf1 = walkaround.Route( preWalk, postWalk, false );
+        auto wf1 = walkaround.Route( preWalk );
 
-        if( wf1 != WALKAROUND::DONE )
+        if( wf1.status[ WALKAROUND::WP_SHORTEST ] != WALKAROUND::ST_DONE )
             return false;
+
+        postWalk = wf1.lines[ WALKAROUND::WP_SHORTEST ];
 
         LINE postShove( preShove );
 
         shove.ForceClearance( true, cur.Gap() - 2 * PNS_HULL_MARGIN );
 
-        SHOVE::SHOVE_STATUS sh1;
+        bool sh1;
 
         sh1 = shove.ShoveObstacleLine( postWalk, preShove, postShove );
 
-        if( sh1 != SHOVE::SH_OK )
+        if( !sh1 )
             return false;
 
         postWalk.Line().Simplify();
@@ -353,10 +367,11 @@ bool DIFF_PAIR_PLACER::rhShoveOnly( const VECTOR2I& aP )
     LINE nLine( m_currentTrace.NLine() );
     ITEM_SET head;
 
-    head.Add( &pLine );
-    head.Add( &nLine );
+    m_shove->ClearHeads();
+    m_shove->AddHeads( pLine );
+    m_shove->AddHeads( nLine );
 
-    SHOVE::SHOVE_STATUS status = m_shove->ShoveMultiLines( head );
+    SHOVE::SHOVE_STATUS status = m_shove->Run();
 
     m_currentNode = m_shove->CurrentNode();
 
@@ -364,12 +379,24 @@ bool DIFF_PAIR_PLACER::rhShoveOnly( const VECTOR2I& aP )
     {
         m_currentNode = m_shove->CurrentNode();
 
+        if( m_shove->HeadsModified( 0 ))
+            pLine = m_shove->GetModifiedHead(0);
+
+        if( m_shove->HeadsModified( 1 ))
+            nLine = m_shove->GetModifiedHead(1);
+
         if( !m_currentNode->CheckColliding( &m_currentTrace.PLine() ) &&
             !m_currentNode->CheckColliding( &m_currentTrace.NLine() ) )
         {
             m_fitOk = true;
         }
     }
+    else
+    {
+        // bring back previous state
+        m_currentTrace.SetShape( pLine.CLine(), nLine.CLine() );
+    }
+    
 
     return m_fitOk;
 }

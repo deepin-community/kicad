@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2004-2024 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -153,12 +153,25 @@ bool DRC_TEST_PROVIDER_COURTYARD_CLEARANCE::testCourtyardClearances()
     const int progressDelta = 100;
     int       ii = 0;
 
-    for( auto itA = m_board->Footprints().begin(); itA != m_board->Footprints().end(); itA++ )
+    // Stable sorting gives stable violation generation (and stable comparisons to previously-
+    // generated violations for exclusion checking).
+    std::vector<FOOTPRINT*> footprints;
+
+    footprints.insert( footprints.begin(), m_board->Footprints().begin(),
+                       m_board->Footprints().end() );
+
+    std::sort( footprints.begin(), footprints.end(),
+               []( const FOOTPRINT* a, const FOOTPRINT* b )
+               {
+                   return a->m_Uuid < b->m_Uuid;
+               } );
+
+    for( auto itA = footprints.begin(); itA != footprints.end(); itA++ )
     {
-        if( !reportProgress( ii++, m_board->Footprints().size(), progressDelta ) )
+        if( !reportProgress( ii++, footprints.size(), progressDelta ) )
             return false;   // DRC cancelled
 
-        // Ensure tests related to courtyard constraints are not fully disabled:
+        // Ensure tests realted to courtyard constraints are not fully disabled:
         if( m_drcEngine->IsErrorLimitExceeded( DRCE_OVERLAPPING_FOOTPRINTS)
             && m_drcEngine->IsErrorLimitExceeded( DRCE_PTH_IN_COURTYARD )
             && m_drcEngine->IsErrorLimitExceeded( DRCE_NPTH_IN_COURTYARD ) )
@@ -186,7 +199,7 @@ bool DRC_TEST_PROVIDER_COURTYARD_CLEARANCE::testCourtyardClearances()
 
         BOX2I fpA_bbox = fpA->GetBoundingBox();
 
-        for( auto itB = itA + 1; itB != m_board->Footprints().end(); itB++ )
+        for( auto itB = itA + 1; itB != footprints.end(); itB++ )
         {
             FOOTPRINT*            fpB = *itB;
             const SHAPE_POLY_SET& frontB = fpB->GetCourtyard( F_CrtYd );
@@ -213,7 +226,7 @@ bool DRC_TEST_PROVIDER_COURTYARD_CLEARANCE::testCourtyardClearances()
             VECTOR2I       pos;
 
             // Check courtyard-to-courtyard collisions on front of board,
-            // if DRCE_OVERLAPPING_FOOTPRINTS is not disabled
+            // if DRCE_OVERLAPPING_FOOTPRINTS is not diasbled
             if( frontA.OutlineCount() > 0 && frontB.OutlineCount() > 0
                     && frontA_worstCaseBBox.Intersects( frontB.BBoxFromCaches() )
                     && !m_drcEngine->IsErrorLimitExceeded( DRCE_OVERLAPPING_FOOTPRINTS ) )

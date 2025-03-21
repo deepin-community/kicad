@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 CERN
- * Copyright (C) 2021-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Jon Evans <jon@craftyjon.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -28,12 +28,12 @@
 #include <wx/regex.h>
 #include <bus_alias.h>
 #include <sch_sheet_path.h>
+#include <widgets/msgpanel.h>
 
 
 class CONNECTION_GRAPH;
 class SCH_ITEM;
 class SCH_SHEET_PATH;
-class MSG_PANEL_ITEM;
 
 
 enum class CONNECTION_TYPE
@@ -278,7 +278,7 @@ private:
     /// Local prefix for group bus members (used with m_local_name)
     wxString m_local_prefix;
 
-    /// Optional prefix of a bux group (always empty for nets and vector buses)
+    /// Optional prefix of a bus group (always empty for nets and vector buses)
     wxString m_bus_prefix;
 
     wxString m_suffix;      ///< Name suffix (used only for disambiguation)
@@ -295,7 +295,7 @@ private:
 
     long m_vector_end;      ///< Lowest member of a vector bus
 
-    ///< Prefix name of the vector, if m_type == CONNECTION_BUS (or "" if not)
+    /// Prefix name of the vector, if m_type == CONNECTION_BUS (or "" if not).
     wxString m_vector_prefix;
 
     /**

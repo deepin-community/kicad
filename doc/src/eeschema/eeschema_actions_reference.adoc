@@ -24,7 +24,7 @@ to any of these actions in the **Hotkeys** section of the preferences.
 [width="100%",options="header",cols="20%,15%,65%"]
 |===
 | Action | Default Hotkey | Description
-| Align Elements to Grid
+| Align Items to Grid
   |
   | 
 | Annotate Schematic...
@@ -89,6 +89,9 @@ to any of these actions in the **Hotkeys** section of the preferences.
 | Import Graphics...
   | kbd:[Ctrl+Shift+F]
   | Import 2D drawing file
+| Increment Annotations From...
+  |
+  | Increment a subset of reference designators starting at a particular symbol
 | Line Mode for Wires and Buses
   |
   | Constrain drawing and dragging to horizontal, vertical, or 45-degree angle motions
@@ -101,6 +104,15 @@ to any of these actions in the **Hotkeys** section of the preferences.
 | Line Mode for Wires and Buses
   |
   | Constrain drawing and dragging to horizontal or vertical motions
+| Mark items excluded from simulation
+  |
+  | Draw 'X's over items which have been excluded from simulation
+| Next Symbol Unit
+  |
+  | Open the next unit of the symbol
+| Previous Symbol Unit
+  |
+  | Open the previous unit of the symbol
 | Remap Legacy Library Symbols...
   |
   | Remap library symbol references in legacy schematics to the symbol library table
@@ -119,7 +131,7 @@ to any of these actions in the **Hotkeys** section of the preferences.
 | Select on PCB
   |
   | Select corresponding items in PCB editor
-| Set Do Not Populate
+| Do not Populate
   |
   | Set the do not populate attribute
 | Exclude from Bill of Materials
@@ -133,7 +145,7 @@ to any of these actions in the **Hotkeys** section of the preferences.
   | Set the exclude from simulation attribute
 | Show Directive Labels
   |
-  | Toggle display of directive labels
+  | 
 | Show ERC Errors
   |
   | Show markers for electrical rules checker errors
@@ -145,13 +157,13 @@ to any of these actions in the **Hotkeys** section of the preferences.
   | Show markers for electrical rules checker warnings
 | Show Hidden Fields
   |
-  | Toggle display of hidden text fields
+  | 
 | Show Hidden Pins
   |
-  | Toggle display of hidden pins
-| Show Net Navigator
+  | 
+| Net Navigator
   |
-  | Toggle the net navigator panel visibility
+  | Show/hide the net navigator
 | Show OP Currents
   |
   | Show operating point current data from simulation
@@ -161,39 +173,15 @@ to any of these actions in the **Hotkeys** section of the preferences.
 | Switch to PCB Editor
   |
   | Open PCB in board editor
-| Scripting Console
-  |
-  | Show the Python scripting console
 | Simulator
   |
   | Show simulation window for running SPICE or IBIS simulations.
-| Toggle Do Not Populate
-  | kbd:[Ctrl+Alt+X]
-  | Toggle the do not populate attribute
-| Toggle Exclude from Bill of Materials
+| Show Pin Alternate Icons
   |
-  | Toggle the exclude from bill of materials attribute
-| Toggle Exclude from Board
-  |
-  | Toggle the exclude from board attribute
-| Toggle Exclude from Simulation
-  |
-  | Toggle the exclude from simulation attribute
-| Unset Do Not Populate
-  |
-  | Clear the do not populate attribute
-| Include in Bill of Materials
-  |
-  | Clear the exclude from bill of materials attribute
-| Include on Board
-  |
-  | Clear the exclude from board attribute
-| Include in Simulation
-  |
-  | Clear the exclude from simulation attribute
+  | Show indicator icons for pins with alternate modes
 | Hierarchy Navigator
   | kbd:[Ctrl+H]
-  | Show or hide the schematic sheet hierarchy navigator
+  | Show/hide the schematic sheet hierarchy navigator
 | Symbol Checker
   |
   | Show the symbol checker window
@@ -202,70 +190,121 @@ to any of these actions in the **Hotkeys** section of the preferences.
   | Show differences between schematic symbol and its library equivalent
 | Electrical Rules Checker
   |
-  | Perform electrical rules check
-| Show Datasheet
-  | kbd:[D]
-  | Opens the datasheet in a browser
-| Add Arc
+  | Show the electrical rules checker window
+| Show Bus Syntax Help
   |
-  | Draw arcs
-| Add Circle
+  | 
+| Decrement Primary
   |
-  | Draw circles
-| Add Rectangle
+  | Decrement the primary field of the selected item(s)
+| Decrement Secondary
   |
-  | Draw rectangles
-| Add Sheet
+  | Decrement the secondary field of the selected item(s)
+| Increment
+  |
+  | Increment the selected item(s)
+| Increment Primary
+  |
+  | Increment the primary field of the selected item(s)
+| Increment Secondary
+  |
+  | Increment the secondary field of the selected item(s)
+| Close Outline
+  |
+  | Close the in-progress outline
+| Delete Last Point
+  |
+  | Delete the last point added to the current item
+| Draw Arcs
+  |
+  | 
+| Draw Bezier Curve
+  |
+  | 
+| Draw Circles
+  |
+  | 
+| Draw Rectangles
+  |
+  | 
+| Draw Rule Areas
+  |
+  | 
+| Draw Hierarchical Sheets
   | kbd:[S]
-  | Draw hierarchical sheets
-| Add Text Box
+  | 
+| Draw Sheet from Design Block
   |
-  | Draw text box items
-| Import Sheet Pin
+  | Copy design block into project as a sheet on current sheet
+| Draw Sheet from File
   |
-  | Import hierarchical sheet pins
-| Add Wire to Bus Entry
+  | Copy sheet into project and draw on current sheet
+| Draw Tables
+  |
+  | 
+| Draw Text Boxes
+  |
+  | 
+| Import Sheet
+  |
+  | Import sheet into project
+| Place Wire to Bus Entries
   | kbd:[Z]
-  | Add a wire entry to a bus
-| Add Net Class Directive
+  | 
+| Place Directive Labels
   |
-  | Add net class directive labels
-| Add Global Label
+  | 
+| Place Design Block
+  | kbd:[Shift+B]
+  | Add selected design block to current sheet
+| Place Global Labels
   | kbd:[Ctrl+L]
-  | Add global labels
-| Add Hierarchical Label
+  | 
+| Place Hierarchical Labels
   | kbd:[H]
-  | Add hierarchical labels
-| Add Image
+  | 
+| Place Images
   |
-  | Add bitmap images
-| Add Junction
+  | 
+| Place Junctions
   | kbd:[J]
-  | Draw junctions
-| Add Label
+  | 
+| Place Net Labels
   | kbd:[L]
-  | Draw net labels
-| Add No Connect Flag
+  | 
+| Place Next Symbol Unit
+  |
+  | Place the next unit of the current symbol that is missing from the schematic
+| Place No Connect Flags
   | kbd:[Q]
-  | Draw no-connection flags
-| Add Power
+  | 
+| Place Power Symbols
   | kbd:[P]
-  | Add power symbols
-| Add Text
+  | 
+| Draw Text
   | kbd:[T]
-  | Draw text items
-| Add Symbol
+  | 
+| Place Sheet Pins
+  |
+  | 
+| Place Symbols
   | kbd:[A]
-  | Add symbols
-| Add Bus
+  | 
+| Sync Sheet Pins
+  |
+  | Synchronize sheet pins and hierarchical labels
+| Sync Sheet Pins
+  |
+  | Synchronize sheet pins and hierarchical labels
+| Draw Buses
   | kbd:[B]
-  | Add a bus
-| Add Lines
+  | 
+| Draw Lines
   | kbd:[I]
-  | Draw graphic lines
-| Add Wire
+  | 
+| Draw Wires
   | kbd:[W]
-  | Add a wire
+  | 
 | Switch Segment Posture
   | kbd:[/]
   | Switches posture of the current segment.
@@ -280,7 +319,7 @@ to any of these actions in the **Hotkeys** section of the preferences.
   | Assign a netclass to nets matching a pattern
 | Autoplace Fields
   | kbd:[O]
-  | Runs the automatic placement algorithm on the symbol or sheet's fields
+  | Runs the automatic placement algorithm on the symbol's (or sheet's) fields
 | Break
   |
   | Divide into connected segments
@@ -295,16 +334,16 @@ to any of these actions in the **Hotkeys** section of the preferences.
   | Delete unreferenced sheet pins
 | Edit Footprint…
   | kbd:[F]
-  | Displays footprint field dialog
+  | 
 | Edit Reference Designator...
   | kbd:[U]
-  | Displays reference designator dialog
+  | 
 | Edit Text & Graphics Properties...
   |
   | Edit text and graphics properties globally across schematic
 | Edit Value…
   | kbd:[V]
-  | Displays value field dialog
+  | 
 | Mirror Horizontally
   | kbd:[X]
   | Flips selected item(s) from left to right
@@ -316,16 +355,16 @@ to any of these actions in the **Hotkeys** section of the preferences.
   | Displays pin table for bulk editing of pins
 | Properties…
   | kbd:[E]
-  | Displays item properties dialog
+  | 
 | Repeat Last Item
   | kbd:[Ins]
   | Duplicates the last drawn item
 | Rotate Counterclockwise
   | kbd:[R]
-  | Rotates selected item(s) counter-clockwise
+  | 
 | Rotate Clockwise
   |
-  | Rotates selected item(s) clockwise
+  | 
 | De Morgan Alternate
   |
   | Switch to alternate De Morgan representation
@@ -336,11 +375,11 @@ to any of these actions in the **Hotkeys** section of the preferences.
   |
   | Divide into unconnected segments
 | Swap
-  | kbd:[S]
-  | Swaps selected items' positions
+  | kbd:[Alt+S]
+  | Swap positions of selected items
 | Symbol Properties...
   |
-  | Displays symbol properties dialog
+  | 
 | Change to Directive Label
   |
   | Change existing item to a directive label
@@ -370,12 +409,12 @@ to any of these actions in the **Hotkeys** section of the preferences.
   | Update symbols to include any changes from the library
 | Drag
   | kbd:[G]
-  | Drags the selected item(s)
+  | Move items while keeping their connections
 | Move
   | kbd:[M]
-  | Moves the selected item(s)
+  | 
 | Select Connection
-  | kbd:[Alt+4]
+  | kbd:[Ctrl+4]
   | Select a complete connection
 | Select Node
   | kbd:[Alt+3]
@@ -415,19 +454,34 @@ to any of these actions in the **Hotkeys** section of the preferences.
   | Copy pin number size to other pins in symbol
 | Create Corner
   |
-  | Create a corner
+  | 
 | Remove Corner
   |
-  | Remove corner
+  | 
+| Properties…
+  |
+  | Edit properies of design block
+| Delete Design Block
+  |
+  | Remove the selected design block from its library
+| Save Selection as Design Block...
+  |
+  | Create a new design block from the current selection
+| Save Current Sheet as Design Block...
+  |
+  | Create a new design block from the current sheet
+| Design Blocks
+  |
+  | Show/hide design blocks library
 | User-defined Signals...
   |
   | Add, edit or delete user-defined simulation signals
 | New Analysis Tab...
   | kbd:[Ctrl+N]
-  | 
+  | Create a new tab containing a simulation analysis
 | Open Workbook...
   | kbd:[Ctrl+O]
-  | 
+  | Open a saved set of analysis tabs and settings
 | Probe Schematic...
   | kbd:[P]
   | Add a simulator probe
@@ -436,16 +490,16 @@ to any of these actions in the **Hotkeys** section of the preferences.
   | 
 | Save Workbook
   | kbd:[Ctrl+S]
-  | 
+  | Save the current set of analysis tabs and settings
 | Save Workbook As...
   | kbd:[Ctrl+Shift+S]
-  | 
+  | Save the current set of analysis tabs and settings to another location
 | Show SPICE Netlist
   |
   | 
 | Edit Analysis Tab...
   |
-  | Edit the SPICE command and plot setup for the current analysis tab
+  | Edit the current analysis tab's SPICE command and plot setup
 | Stop Simulation
   |
   | 
@@ -458,6 +512,12 @@ to any of these actions in the **Hotkeys** section of the preferences.
 | Export Current Plot as PNG...
   |
   | 
+| Export Current Plot to Schematic
+  |
+  | 
+| Export Current Plot to Clipboard
+  |
+  | 
 | Dark Mode Plots
   |
   | Draw plots with a black background
@@ -467,27 +527,27 @@ to any of these actions in the **Hotkeys** section of the preferences.
 | Show Legend
   |
   | 
-| Add Lines
+| Draw Lines
   |
-  | Add connected graphic lines
-| Add Polygon
+  | Draw connected graphic lines
+| Draw Polygons
   |
-  | Draw polygons
-| Add Text Box
+  | 
+| Draw Text Boxes
   |
-  | Add a text box item
+  | 
 | Move Symbol Anchor
   |
-  | Specify a new location for the symbol anchor
-| Add Pin
+  | 
+| Draw Pins
   | kbd:[P]
-  | Add a pin
-| Add Text
+  | 
+| Draw Text
   |
-  | Add a text item
+  | 
 | Add Symbol to Schematic
   |
-  | Add Symbol to Schematic
+  | Add the current symbol to the schematic
 | Copy
   |
   | 
@@ -497,57 +557,57 @@ to any of these actions in the **Hotkeys** section of the preferences.
 | Delete Symbol
   |
   | Remove the selected symbol from its library
-| Derive from Existing Symbol
+| Derive from Existing Symbol...
   |
   | Create a new symbol, derived from an existing symbol
 | Duplicate Symbol
   |
-  | Make a copy of the selected symbol
+  | 
 | Edit Symbol
   |
   | Show selected symbol on editor canvas
-| Export…
-  |
-  | Export a symbol to a new library file
 | Export Symbol as SVG…
   |
   | Create SVG file from the current symbol
 | Export View as PNG…
   |
   | Create PNG file from the current view
-| Hide Symbol Tree
-  |
-  | 
 | Import Symbol...
   |
   | Import a symbol to the current library
 | New Symbol...
   | kbd:[Ctrl+N]
-  | Create a new symbol
+  | Create a new symbol in an existing library
 | Paste Symbol
   |
   | 
 | Rename Symbol...
   |
-  | Rename the selected symbol
+  | 
 | Save Library As...
   | kbd:[Ctrl+Shift+S]
-  | Save the current library to a new file.
+  | Save the current library to a new file
+| Save As…
+  |
+  | Save the current symbol to a different library or name
 | Save Copy As...
   |
-  | Save a copy of the current symbol to a different library.
+  | Save a copy of the current symbol to a different library or name
 | Set Unit Display Name...
   |
-  | Set the display name for a unit
+  | Set the display name for a particular unit in a multi-unit symbol
 | Show Pin Electrical Types
   |
   | Annotate pins with their electrical types
+| Show Hidden Fields
+  |
+  | 
+| Show Hidden Pins
+  |
+  | 
 | Show Pin Numbers
   |
   | Annotate pins with their numbers
-| Show Symbol Tree
-  |
-  | 
 | Synchronized Pins Mode
   |
   | Synchronized Pins Mode
@@ -570,18 +630,30 @@ the preferences.
 [width="100%",options="header",cols="20%,15%,65%"]
 |===
 | Action | Default Hotkey | Description
+| Refresh Plugins
+  |
+  | Reload all python plugins and refresh plugin menus
 | Exclude Marker
   |
   | Mark current violation in Checker window as an exclusion
 | Next Marker
   |
-  | Go to next marker in Checker window
+  | 
 | Previous Marker
   |
-  | Go to previous marker in Checker window
+  | 
 | Add Library…
   |
   | Add an existing library folder
+| Center Justify
+  |
+  | Center-justify fields and text items
+| Pan to Center Selected Objects
+  |
+  | 
+| Collapse All
+  |
+  | 
 | Click
   | kbd:[Return]
   | Performs left mouse button click
@@ -618,6 +690,9 @@ the preferences.
 | Edit Grids...
   |
   | Edit grid definitions
+| Expand All
+  |
+  | 
 | Switch to Fast Grid 1
   | kbd:[Alt+1]
   | 
@@ -639,6 +714,9 @@ the preferences.
 | Grid Origin
   |
   | Place the grid origin point
+| Hide Library Tree
+  |
+  | 
 | Inactive Layer View Mode
   |
   | Toggle inactive layers between normal and dimmed
@@ -647,7 +725,13 @@ the preferences.
   | Cycle inactive layers between normal, dimmed, and hidden
 | Inches
   |
-  | Use inches
+  | 
+| Left Justify
+  |
+  | Left-justify fields and text items
+| Focus Library Tree Search Field
+  | kbd:[Ctrl+L]
+  | 
 | Snap to Objects on the Active Layer Only
   |
   | Enables snapping to objects on the active layer only
@@ -659,10 +743,10 @@ the preferences.
   | Toggles between snapping on all visible layers and only the active area
 | Millimeters
   |
-  | Use millimeters
+  | 
 | Mils
   |
-  | Use mils
+  | 
 | New...
   | kbd:[Ctrl+N]
   | Create a new document in the editor
@@ -672,6 +756,12 @@ the preferences.
 | Open...
   | kbd:[Ctrl+O]
   | Open existing document
+| Open in file explorer...
+  |
+  | Open a library file with system file explorer
+| Edit in a Text Editor...
+  |
+  | Open a library file with a text editor
 | Page Settings...
   |
   | Settings for paper size and title block info
@@ -692,10 +782,10 @@ the preferences.
   | Keep the library at the top of the list
 | Plot...
   |
-  | Plot
+  | 
 | Print...
   | kbd:[Ctrl+P]
-  | Print
+  | 
 | Quit
   |
   | Close the current editor
@@ -708,6 +798,9 @@ the preferences.
 | Revert
   |
   | Throw away changes
+| Right Justify
+  |
+  | Right-justify fields and text items
 | Save
   | kbd:[Ctrl+S]
   | Save changes
@@ -729,30 +822,36 @@ the preferences.
 | Show Context Menu
   |
   | Perform the right-mouse-button action
+| Show Datasheet
+  | kbd:[D]
+  | Open the datasheet in a browser
 | Footprint Library Browser
   |
-  | Browse footprint libraries
+  | 
 | Footprint Editor
   |
-  | Create, delete and edit footprints
+  | Create, delete and edit board footprints
+| Library Tree
+  |
+  | 
 | Switch to Project Manager
   |
   | Show project window
-| Show Properties Manager
+| Properties
   |
   | Show/hide the properties manager
 | Symbol Library Browser
   |
-  | Browse symbol libraries
+  | 
 | Symbol Editor
   |
-  | Create, delete and edit symbols
+  | Create, delete and edit schematic symbols
 | Draw Bounding Boxes
   |
-  | Draw Bounding Boxes
-| Always Show Cursor
+  | 
+| Always Show Crosshairs
   | kbd:[Ctrl+Shift+X]
-  | Display crosshairs even in selection tool
+  | Display crosshairs even when not drawing objects
 | Full-Window Crosshairs
   |
   | Switch display of full-window crosshairs
@@ -782,37 +881,64 @@ the preferences.
   | Update schematic with changes made to PCB
 | Center on Cursor
   | kbd:[F4]
-  | Center on Cursor
+  | 
 | Zoom to Objects
   | kbd:[Ctrl+Home]
-  | Zoom to Objects
+  | 
 | Zoom to Fit
   | kbd:[Home]
-  | Zoom to Fit
+  | 
+| Zoom to Selected Objects
+  |
+  | 
 | Zoom In at Cursor
   | kbd:[F1]
-  | Zoom In at Cursor
+  | 
 | Zoom In
   |
-  | Zoom In
+  | 
+| Zoom In Horizontally
+  |
+  | Zoom in horizontally the plot area
+| Zoom In Vertically
+  |
+  | Zoom in vertically the plot area
 | Zoom Out at Cursor
   | kbd:[F2]
-  | Zoom Out at Cursor
+  | 
 | Zoom Out
   |
-  | Zoom Out
+  | 
+| Zoom Out Horizontally
+  |
+  | Zoom out horizontally the plot area
+| Zoom Out Vertically
+  |
+  | Zoom out vertically the plot area
 | Refresh
   | kbd:[F5]
-  | Refresh
+  | 
 | Zoom to Selection
   | kbd:[Ctrl+F5]
-  | Zoom to Selection
+  | 
+| Embedded Files
+  |
+  | Manage embedded files
+| Extract File
+  |
+  | Extract an embedded file
+| Remove File
+  |
+  | Remove an embedded file
 | Cancel
   |
   | Cancel current tool
 | Copy
   | kbd:[Ctrl+C]
   | Copy selected item(s) to clipboard
+| Copy as Text
+  | kbd:[Ctrl+Shift+C]
+  | Copy selected item(s) to clipboard as text
 | Cut
   | kbd:[Ctrl+X]
   | Cut selected item(s) to clipboard
@@ -821,7 +947,7 @@ the preferences.
   | Switch to a different method of editing arcs
 | Delete
   | kbd:[Del]
-  | Deletes selected item(s)
+  | Delete selected item(s)
 | Interactive Delete Tool
   |
   | Delete clicked items
@@ -830,38 +956,41 @@ the preferences.
   | Duplicates the selected item(s)
 | Find
   | kbd:[Ctrl+F]
-  | Find text
+  | 
 | Find and Replace
   | kbd:[Ctrl+Alt+F]
-  | Find and replace text
+  | 
 | Find Next
   | kbd:[F3]
-  | Find next match
+  | 
 | Find Next Marker
   | kbd:[Ctrl+Shift+F3]
   | 
 | Find Previous
   | kbd:[Shift+F3]
-  | Find previous match
+  | 
 | Finish
   | kbd:[End]
   | Finish current tool
+| Measure Tool
+  | kbd:[Ctrl+Shift+M]
+  | Interactively measure distance between points
 | Paste
   | kbd:[Ctrl+V]
   | Paste item(s) from clipboard
 | Paste Special...
   |
-  | Paste item(s) from clipboard with annotation options
+  | Paste item(s) from clipboard with options
 | Redo
   | kbd:[Ctrl+Y]
-  | Redo last edit
+  | 
 | Replace All
   |
-  | Replace all matches
+  | 
 | Replace and Find Next
   |
-  | Replace current match and find next
-| Show Search Panel
+  | 
+| Search
   | kbd:[Ctrl+G]
   | Show/hide the search panel
 | Select All
@@ -869,19 +998,25 @@ the preferences.
   | Select all items on screen
 | Undo
   | kbd:[Ctrl+Z]
-  | Undo last edit
+  | 
 | Unselect All
   | kbd:[Ctrl+Shift+A]
   | Unselect all items on screen
-| Measure Tool
-  | kbd:[Ctrl+Shift+M]
-  | Interactively measure distance between points
+| Select Row(s)
+  |
+  | Select complete row(s) containing the current selected cell(s)
+| Select Column(s)
+  |
+  | Select complete column(s) containing the current selected cell(s)
+| Select Table
+  |
+  | Select parent table of selected cell(s)
 | Select item(s)
   |
-  | Select item(s)
+  | 
 | About KiCad
   |
-  | Open about dialog
+  | 
 | Configure Paths…
   |
   | Edit path configuration environment variables
@@ -906,10 +1041,37 @@ the preferences.
 | Report Bug
   |
   | Report a problem with KiCad
+| Manage Design Block Libraries...
+  |
+  | Edit the global and project design block library lists
 | Manage Footprint Libraries...
   |
   | Edit the global and project footprint library lists
 | Manage Symbol Libraries…
   |
   | Edit the global and project symbol library lists
+| Add Column After
+  |
+  | Insert a new table column after the selected cell(s)
+| Add Column Before
+  |
+  | Insert a new table column before the selected cell(s)
+| Add Row Above
+  |
+  | Insert a new table row above the selected cell(s)
+| Add Row Below
+  |
+  | Insert a new table row below the selected cell(s)
+| Delete Column(s)
+  |
+  | Delete columns containing the currently selected cell(s)
+| Delete Row(s)
+  |
+  | Delete rows containing the currently selected cell(s)
+| Merge Cells
+  |
+  | Turn selected table cells into a single cell
+| Unmerge Cells
+  |
+  | Turn merged table cells back into separate cells.
 |===

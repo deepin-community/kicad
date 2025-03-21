@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2017-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -60,6 +60,11 @@ private:
     void onConvertLegacyLibraries( wxCommandEvent& event ) override;
     void onGridCellLeftClickHandler( wxGridEvent& event );
 
+    void onPageChange( wxBookCtrlEvent& event ) override;
+    void onReset( wxCommandEvent& event ) override;
+
+    void setupGrid( WX_GRID* aGrid );
+
     bool TransferDataFromWindow() override;
 
     /// Populate the readonly environment variable table with names and values
@@ -87,10 +92,13 @@ private:
     PROJECT*                    m_project;
 
     DIALOG_EDIT_LIBRARY_TABLES* m_parent;
+    wxArrayString               m_pluginChoices;
 
     WX_GRID*                    m_cur_grid;     ///< changed based on tab choice
     static size_t               m_pageNdx;      ///< Remember the last notebook page selected
-    wxString                    m_lastProjectLibDir;    //< Transient (unsaved) last browsed folder when adding a project level library
+
+    /// Transient (unsaved) last browsed folder when adding a project level library.
+    wxString                    m_lastProjectLibDir;
 };
 
 

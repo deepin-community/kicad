@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,6 +24,7 @@
 
 
 class FOOTPRINT;
+class wxBitmapButton;
 class wxSlider;
 
 
@@ -44,13 +45,20 @@ public:
      */
     void DisplayDiff( FOOTPRINT* aBoardFootprint, std::shared_ptr<FOOTPRINT>& aLibFootprint );
 
+    /**
+     * Toggle between full-A and full-B display.
+     */
+    void ToggleAB();
+
 private:
     void onSlider( wxScrollEvent& aEvent );
+    void onCharHook( wxKeyEvent& aEvent );
 
 private:
     std::shared_ptr<FOOTPRINT> m_boardItemCopy;
     std::shared_ptr<FOOTPRINT> m_libraryItem;
     wxSlider*                  m_slider;
+    wxBitmapButton*            m_toggleButton;
 };
 
 

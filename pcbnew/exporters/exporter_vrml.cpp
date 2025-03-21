@@ -4,7 +4,7 @@
  * Copyright (C) 2009-2013  Lorenzo Mercantonio
  * Copyright (C) 2014-2017  Cirilo Bernardo
  * Copyright (C) 2018 Jean-Pierre Charras jp.charras at wanadoo.fr
- * Copyright (C) 2004-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -60,12 +60,14 @@ EXPORTER_VRML::EXPORTER_VRML( BOARD* aBoard )
 
 bool EXPORTER_VRML::ExportVRML_File( PROJECT* aProject, wxString *aMessages,
                               const wxString& aFullFileName, double aMMtoWRMLunit,
+                              bool aIncludeUnspecified, bool aIncludeDNP,
                               bool aExport3DFiles, bool aUseRelativePaths,
                               const wxString& a3D_Subdir,
                               double aXRef, double aYRef )
 {
     return pcb_exporter->ExportVRML_File( aProject, aMessages,
                                           aFullFileName, aMMtoWRMLunit,
+                                          aIncludeUnspecified, aIncludeDNP,
                                           aExport3DFiles, aUseRelativePaths,
                                           a3D_Subdir, aXRef, aYRef );
 }
@@ -104,15 +106,14 @@ EXPORTER_PCB_VRML::EXPORTER_PCB_VRML( BOARD* aBoard ) :
     m_precision = 6;
     m_WorldScale = 1.0;
     m_Cache3Dmodels = nullptr;
+    m_includeDNP = false;
+    m_includeUnspecified = false;
     m_UseInlineModelsInBrdfile = false;
     m_UseRelPathIn3DModelFilename = false;
     m_BoardToVrmlScale = pcbIUScale.MM_PER_IU;
 
     for( int ii = 0; ii < VRML_COLOR_LAST; ++ii )
         m_sgmaterial[ii] = nullptr;
-
-    for( unsigned i = 0; i < arrayDim( m_layer_z );  ++i )
-        m_layer_z[i] = 0;
 
     // this default only makes sense if the output is in mm
     m_brd_thickness = pcbIUScale.IUTomm( m_board->GetDesignSettings().GetBoardThickness() );
@@ -130,8 +131,9 @@ EXPORTER_PCB_VRML::EXPORTER_PCB_VRML( BOARD* aBoard ) :
 
     const BOARD_STACKUP& stackup = m_board->GetDesignSettings().GetStackupDescriptor();
 
+    // Can't do a const KIGFX::COLOR4D& return type here because there are temporary variables
     auto findColor =
-            []( const wxString& aColorName, const CUSTOM_COLORS_LIST& aColorSet )
+            []( const wxString& aColorName, const CUSTOM_COLORS_LIST& aColorSet ) -> const KIGFX::COLOR4D
             {
                 if( aColorName.StartsWith( wxT( "#" ) ) )
                 {
@@ -395,8 +397,8 @@ void EXPORTER_PCB_VRML::ExportVrmlSolderMask()
         outlines = m_pcbOutlines;
         m_board->ConvertBrdLayerToPolygonalContours( pcb_layer, holes );
 
-        outlines.BooleanSubtract( holes, SHAPE_POLY_SET::PM_FAST );
-        outlines.Fracture( SHAPE_POLY_SET::PM_FAST );
+        outlines.BooleanSubtract( holes );
+        outlines.Fracture();
         ExportVrmlPolygonSet( vrmllayer, outlines );
 
         pcb_layer = B_Mask;
@@ -427,8 +429,8 @@ void EXPORTER_PCB_VRML::ExportStandardLayers()
 
         outlines.RemoveAllContours();
         m_board->ConvertBrdLayerToPolygonalContours( pcb_layer[lcnt], outlines );
-        outlines.BooleanIntersection( m_pcbOutlines, SHAPE_POLY_SET::PM_FAST );
-        outlines.Fracture( SHAPE_POLY_SET::PM_FAST );
+        outlines.BooleanIntersection( m_pcbOutlines );
+        outlines.Fracture();
 
         ExportVrmlPolygonSet( vrmllayer[lcnt], outlines );
     }
@@ -724,14 +726,12 @@ void EXPORTER_PCB_VRML::ComputeLayer3D_Zpos()
     double half_thickness = m_brd_thickness / 2;
 
     // Compute each layer's Z value, more or less like the 3d view
-    for( LSEQ seq = LSET::AllCuMask().Seq();  seq;  ++seq )
-    {
-        PCB_LAYER_ID i = *seq;
+    int orderFromTop = 0;
 
-        if( i < copper_layers )
-            SetLayerZ( i,  half_thickness - m_brd_thickness * i / (copper_layers - 1) );
-        else
-            SetLayerZ( i, - half_thickness );  // bottom layer
+    for( PCB_LAYER_ID layer : LSET::AllCuMask( copper_layers ).CuStack() )
+    {
+        SetLayerZ( layer, half_thickness - m_brd_thickness * orderFromTop / ( copper_layers - 1 ) );
+        orderFromTop++;
     }
 
     // To avoid rounding interference, we apply an epsilon to each successive layer
@@ -905,7 +905,7 @@ void EXPORTER_PCB_VRML::ExportVrmlPadHole( PAD* aPad )
         if( ( aPad->GetAttribute() != PAD_ATTRIB::NPTH ) )
             pth = true;
 
-        if( aPad->GetDrillShape() == PAD_DRILL_SHAPE_OBLONG )
+        if( aPad->GetDrillShape() == PAD_DRILL_SHAPE::OBLONG )
         {
             // Oblong hole (slot)
 
@@ -1020,6 +1020,15 @@ void EXPORTER_PCB_VRML::ExportVrmlFootprint( FOOTPRINT* aFootprint, std::ostream
     for( PAD* pad : aFootprint->Pads() )
         ExportVrmlPadHole( pad );
 
+    if( !m_includeUnspecified
+        && ( !( aFootprint->GetAttributes() & ( FP_THROUGH_HOLE | FP_SMD ) ) ) )
+    {
+        return;
+    }
+
+    if( !m_includeDNP && aFootprint->IsDNP() )
+        return;
+
     bool isFlipped = aFootprint->GetLayer() == B_Cu;
 
     // Export the object VRML model(s)
@@ -1035,7 +1044,7 @@ void EXPORTER_PCB_VRML::ExportVrmlFootprint( FOOTPRINT* aFootprint, std::ostream
             continue;
         }
 
-        SGNODE* mod3d = (SGNODE*) m_Cache3Dmodels->Load( sM->m_Filename, footprintBasePath );
+        SGNODE* mod3d = (SGNODE*) m_Cache3Dmodels->Load( sM->m_Filename, footprintBasePath, aFootprint );
 
         if( nullptr == mod3d )
         {
@@ -1101,7 +1110,7 @@ void EXPORTER_PCB_VRML::ExportVrmlFootprint( FOOTPRINT* aFootprint, std::ostream
             aOutputFile->precision( m_precision );
 
             wxFileName srcFile =
-                    m_Cache3Dmodels->GetResolver()->ResolvePath( sM->m_Filename, wxEmptyString );
+                    m_Cache3Dmodels->GetResolver()->ResolvePath( sM->m_Filename, wxEmptyString, aFootprint );
             wxFileName dstFile;
             dstFile.SetPath( m_Subdir3DFpModels );
             dstFile.SetName( srcFile.GetName() );
@@ -1231,6 +1240,7 @@ void EXPORTER_PCB_VRML::ExportVrmlFootprint( FOOTPRINT* aFootprint, std::ostream
 
 bool EXPORTER_PCB_VRML::ExportVRML_File( PROJECT* aProject, wxString *aMessages,
                                          const wxString& aFullFileName, double aMMtoWRMLunit,
+                                         bool aIncludeUnspecified, bool aIncludeDNP,
                                          bool aExport3DFiles, bool aUseRelativePaths,
                                          const wxString& a3D_Subdir,
                                          double aXRef, double aYRef )
@@ -1251,6 +1261,8 @@ bool EXPORTER_PCB_VRML::ExportVRML_File( PROJECT* aProject, wxString *aMessages,
     m_Subdir3DFpModels = subdir.GetAbsolutePath( wxFileName( aFullFileName ).GetPath() );
 
     m_UseRelPathIn3DModelFilename = aUseRelativePaths;
+    m_includeUnspecified = aIncludeUnspecified;
+    m_includeDNP = aIncludeDNP;
     m_Cache3Dmodels = PROJECT_PCB::Get3DCacheManager( aProject );
 
     // When 3D models are separate files, for historical reasons the VRML unit
@@ -1311,6 +1323,7 @@ bool EXPORTER_PCB_VRML::ExportVRML_File( PROJECT* aProject, wxString *aMessages,
 }
 
 bool PCB_EDIT_FRAME::ExportVRML_File( const wxString& aFullFileName, double aMMtoWRMLunit,
+                                      bool aIncludeUnspecified, bool aIncludeDNP,
                                       bool aExport3DFiles, bool aUseRelativePaths,
                                       const wxString& a3D_Subdir,
                                       double aXRef, double aYRef )
@@ -1320,6 +1333,7 @@ bool PCB_EDIT_FRAME::ExportVRML_File( const wxString& aFullFileName, double aMMt
     EXPORTER_VRML model3d( GetBoard() );
 
     success = model3d.ExportVRML_File( &Prj(), &msgs, aFullFileName, aMMtoWRMLunit,
+                                       aIncludeUnspecified, aIncludeDNP,
                                        aExport3DFiles, aUseRelativePaths,
                                        a3D_Subdir, aXRef, aYRef );
 

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2007, 2008 Lubo Racko <developer@lura.sk>
  * Copyright (C) 2007, 2008, 2012-2013 Alexander Lunev <al.lunev@yahoo.com>
- * Copyright (C) 2012-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -187,7 +187,7 @@ void PCAD_PAD::Flip()
         m_Rotation = -m_Rotation;
 
     for( i = 0; i < (int)m_Shapes.GetCount(); i++ )
-        m_Shapes[i]->m_KiCadLayer = FlipLayer( m_Shapes[i]->m_KiCadLayer );
+        m_Shapes[i]->m_KiCadLayer = m_board->FlipLayer( m_Shapes[i]->m_KiCadLayer );
 }
 
 
@@ -206,12 +206,12 @@ void PCAD_PAD::AddToFootprint( FOOTPRINT* aFootprint, const EDA_ANGLE& aRotation
     if( !m_IsHolePlated && m_Hole )
     {
         // mechanical hole
-        pad->SetShape( PAD_SHAPE::CIRCLE );
+        pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CIRCLE );
         pad->SetAttribute( PAD_ATTRIB::NPTH );
 
-        pad->SetDrillShape( PAD_DRILL_SHAPE_CIRCLE );
+        pad->SetDrillShape( PAD_DRILL_SHAPE::CIRCLE );
         pad->SetDrillSize( VECTOR2I( m_Hole, m_Hole ) );
-        pad->SetSize( VECTOR2I( m_Hole, m_Hole ) );
+        pad->SetSize( PADSTACK::ALL_LAYERS, VECTOR2I( m_Hole, m_Hole ) );
 
         // Mounting Hole: Solder Mask Margin from Top Layer Width size.
         // Used the default zone clearance (simplify)
@@ -222,7 +222,7 @@ void PCAD_PAD::AddToFootprint( FOOTPRINT* aFootprint, const EDA_ANGLE& aRotation
             pad->SetLocalClearance( sm_margin + pcbIUScale.mmToIU( 0.254 ) );
         }
 
-        pad->SetLayerSet( LSET::AllCuMask() | LSET( 2, B_Mask, F_Mask ) );
+        pad->SetLayerSet( LSET::AllCuMask() | LSET( { B_Mask, F_Mask } ) );
     }
     else
     {
@@ -244,9 +244,9 @@ void PCAD_PAD::AddToFootprint( FOOTPRINT* aFootprint, const EDA_ANGLE& aRotation
 
                     // assume this is SMD pad
                     if( padShape->m_KiCadLayer == F_Cu )
-                        pad->SetLayerSet( LSET( 3, F_Cu, F_Paste, F_Mask ) );
+                        pad->SetLayerSet( LSET( { F_Cu, F_Paste, F_Mask } ) );
                     else
-                        pad->SetLayerSet( LSET( 3, B_Cu, B_Paste, B_Mask ) );
+                        pad->SetLayerSet( LSET( { B_Cu, B_Paste, B_Mask } ) );
 
                     break;
                 }
@@ -261,7 +261,7 @@ void PCAD_PAD::AddToFootprint( FOOTPRINT* aFootprint, const EDA_ANGLE& aRotation
 
         if( padType == PAD_ATTRIB::PTH )
             // actually this is a thru-hole pad
-            pad->SetLayerSet( LSET::AllCuMask() | LSET( 2, B_Mask, F_Mask ) );
+            pad->SetLayerSet( LSET::AllCuMask() | LSET( { B_Mask, F_Mask } ) );
 
         pad->SetNumber( m_Name.text );
 
@@ -270,29 +270,29 @@ void PCAD_PAD::AddToFootprint( FOOTPRINT* aFootprint, const EDA_ANGLE& aRotation
             || padShapeName.IsSameAs( wxT( "MtHole" ), false ) )
         {
             if( width != height )
-                pad->SetShape( PAD_SHAPE::OVAL );
+                pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::OVAL );
             else
-                pad->SetShape( PAD_SHAPE::CIRCLE );
+                pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CIRCLE );
         }
         else if( padShapeName.IsSameAs( wxT( "Rect" ), false ) )
         {
-            pad->SetShape( PAD_SHAPE::RECTANGLE );
+            pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::RECTANGLE );
         }
         else if(  padShapeName.IsSameAs( wxT( "RndRect" ), false ) )
         {
-            pad->SetShape( PAD_SHAPE::ROUNDRECT );
+            pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::ROUNDRECT );
         }
         else if( padShapeName.IsSameAs( wxT( "Polygon" ), false ) )
         {
-            pad->SetShape( PAD_SHAPE::RECTANGLE ); // approximation
+            pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::RECTANGLE ); // approximation
         }
 
-        pad->SetSize( VECTOR2I( width, height ) );
-        pad->SetDelta( VECTOR2I( 0, 0 ) );
+        pad->SetSize( PADSTACK::ALL_LAYERS, VECTOR2I( width, height ) );
+        pad->SetDelta( PADSTACK::ALL_LAYERS, VECTOR2I( 0, 0 ) );
         pad->SetOrientation( m_Rotation + aRotation );
 
-        pad->SetDrillShape( PAD_DRILL_SHAPE_CIRCLE );
-        pad->SetOffset( VECTOR2I( 0, 0 ) );
+        pad->SetDrillShape( PAD_DRILL_SHAPE::CIRCLE );
+        pad->SetOffset( PADSTACK::ALL_LAYERS, VECTOR2I( 0, 0 ) );
         pad->SetDrillSize( VECTOR2I( m_Hole, m_Hole ) );
 
         pad->SetAttribute( padType );
@@ -359,7 +359,7 @@ void PCAD_PAD::AddToBoard( FOOTPRINT* aFootprint )
             via->SetPosition( VECTOR2I( m_PositionX, m_PositionY ) );
             via->SetEnd( VECTOR2I( m_PositionX, m_PositionY ) );
 
-            via->SetWidth( height );
+            via->SetWidth( PADSTACK::ALL_LAYERS, height );
             via->SetViaType( VIATYPE::THROUGH );
             via->SetLayerPair( F_Cu, B_Cu );
             via->SetDrill( m_Hole );

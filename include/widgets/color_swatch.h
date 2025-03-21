@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -58,18 +58,18 @@ class COLOR_SWATCH: public wxPanel
 public:
 
     /**
-     * Construct a COLOR_SWATCH
+     * Construct a COLOR_SWATCH.
      *
-     * @param aParent parent window
-     * @param aColor initial swatch color
-     * @param aID id to use when sending swatch events
+     * @param aParent parent window.
+     * @param aColor initial swatch color.
+     * @param aID id to use when sending swatch events.
      */
     COLOR_SWATCH( wxWindow* aParent, const KIGFX::COLOR4D& aColor, int aID,
                   const KIGFX::COLOR4D& aBackground, const KIGFX::COLOR4D& aDefault,
                   SWATCH_SIZE aSwatchType, bool aTriggerWithSingleClick = false );
 
     /**
-     * constructor for wxFormBuilder
+     * Constructor for wxFormBuilder.
      */
     COLOR_SWATCH( wxWindow *aParent, wxWindowID aId, const wxPoint &aPos = wxDefaultPosition,
                   const wxSize &aSize = wxDefaultSize, long aStyle = 0 );
@@ -95,13 +95,14 @@ public:
     void SetUserColors( CUSTOM_COLORS_LIST* aUserColors ) { m_userColors = aUserColors; }
 
     /**
-     * @return the current swatch color
+     * @return the current swatch color.
      */
     KIGFX::COLOR4D GetSwatchColor() const;
 
     /**
-     * Updates the window ID of this control and its children
-     * @param aId new Window ID to set
+     * Update the window ID of this control and its children.
+     *
+     * @param aId new Window ID to set.
      */
     void SetWindowID( wxWindowID aId )
     {
@@ -121,7 +122,7 @@ public:
 
     void SetSupportsOpacity( bool aSupportsOpacity ) { m_supportsOpacity = aSupportsOpacity; }
 
-    /// Registers a handler for when the user tries to interact with a read-only swatch
+    /// Register a handler for when the user tries to interact with a read-only swatch.
     void SetReadOnlyCallback( std::function<void()> aCallback ) { m_readOnlyCallback = aCallback; }
 
     /// Respond to a change in the OS's DarkMode setting.
@@ -139,8 +140,10 @@ public:
 private:
     void setupEvents( bool aTriggerWithSingleClick );
 
+    wxBitmap makeBitmap();
+
     /**
-     * Pass unwanted events on to listeners of this object
+     * Pass unwanted events on to listeners of this object.
      */
     void rePostEvent( wxEvent& aEvent );
 
@@ -167,6 +170,6 @@ private:
 /**
  * Event signaling a swatch has changed color
  */
-wxDECLARE_EVENT(COLOR_SWATCH_CHANGED, wxCommandEvent);
+wxDECLARE_EVENT( COLOR_SWATCH_CHANGED, wxCommandEvent );
 
 #endif // COLOR_SWATCH__H_

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,6 +32,7 @@
 #include <board_item.h>
 #include <board_connected_item.h>
 #include <layer_ids.h>
+#include <lset.h>
 #include <geometry/shape_poly_set.h>
 #include <zone_settings.h>
 #include <teardrop/teardrop_types.h>
@@ -83,6 +84,9 @@ public:
         return aItem && aItem->Type() == PCB_ZONE_T;
     }
 
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+
     /**
      * Not all ZONEs are *really* BOARD_CONNECTED_ITEMs....
      */
@@ -125,8 +129,15 @@ public:
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
     wxString GetFriendlyName() const override;
 
-    void SetLayerSet( LSET aLayerSet ) override;
+    void SetLayerSet( const LSET& aLayerSet ) override;
     virtual LSET GetLayerSet() const override { return m_layerSet; }
+
+    /**
+     * Set the zone to be on the aLayerSet layers and only remove the fill polygons
+     * from the unused layers, while keeping the fills on the layers in both the old
+     * and new layer sets.
+     */
+    void SetLayerSetAndRemoveUnusedFills( const LSET& aLayerSet );
 
     const wxString& GetZoneName() const { return m_zoneName; }
     void SetZoneName( const wxString& aName ) { m_zoneName = aName; }
@@ -148,16 +159,27 @@ public:
     void CacheBoundingBox();
 
     /**
-     * Return any local clearances set in the "classic" (ie: pre-rule) system.  These are
-     * things like zone clearance which are NOT an override.
+     * @return the zone's clearance in internal units.
+     */
+    std::optional<int> GetLocalClearance() const override;
+    void SetLocalClearance( std::optional<int> aClearance ) { m_ZoneClearance = aClearance.value(); }
+
+    /**
+     * Return any local clearances set in the "classic" (ie: pre-rule) system.
      *
-     * @param aSource [out] optionally reports the source as a user-readable string
+     * @param aSource [out] optionally reports the source as a user-readable string.
      * @return the clearance in internal units.
      */
-    int GetLocalClearance( wxString* aSource ) const override;
+    std::optional<int> GetLocalClearance( wxString* aSource ) const override
+    {
+        if( m_isRuleArea )
+            return std::optional<int>();
 
-    int GetLocalClearance() const { return GetLocalClearance( nullptr ); }
-    void SetLocalClearance( int aClearance ) { m_ZoneClearance = aClearance; }
+        if( aSource )
+            *aSource = _( "zone" );
+
+        return GetLocalClearance();
+    }
 
     /**
      * @return true if this zone is on a copper layer, false if on a technical layer.
@@ -173,9 +195,9 @@ public:
 
     virtual bool IsOnLayer( PCB_LAYER_ID ) const override;
 
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    virtual std::vector<int> ViewGetLayers() const override;
 
-    double ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const override;
+    double ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const override;
 
     void SetFillMode( ZONE_FILL_MODE aFillMode ) { m_fillMode = aFillMode; }
     ZONE_FILL_MODE GetFillMode() const { return m_fillMode; }
@@ -478,16 +500,17 @@ public:
      * (like Mirror() but changes layer).
      *
      * @param aCentre is the rotation point.
+     * @param aFlipDirection is the direction of the flip.
      */
-    virtual void Flip( const VECTOR2I& aCentre, bool aFlipLeftRight ) override;
+    virtual void Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
 
     /**
      * Mirror the outlines relative to a given horizontal axis the layer is not changed.
      *
      * @param aMirrorRef is axis position
-     * @param aMirrorLeftRight mirror across Y axis (otherwise mirror across X)
+     * @param aFlipDirection is the direction of the flip.
      */
-    void Mirror( const VECTOR2I& aMirrorRef, bool aMirrorLeftRight );
+    void Mirror( const VECTOR2I& aMirrorRef, FLIP_DIRECTION aFlipDirection ) override;
 
     /**
      * @return the class name.
@@ -671,7 +694,7 @@ public:
 
     void AddPolygon( const SHAPE_LINE_CHAIN& aPolygon );
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -694,16 +717,40 @@ public:
     TEARDROP_TYPE GetTeardropAreaType() const { return m_teardropType; }
 
     /**
+     * Accessor to determine if any keepout parameters are set
+     */
+    bool HasKeepoutParametersSet() const
+    {
+        return m_doNotAllowTracks || m_doNotAllowVias || m_doNotAllowPads || m_doNotAllowFootprints
+               || m_doNotAllowCopperPour;
+    }
+
+    /**
      * Accessors to parameters used in Rule Area zones:
      */
-    bool GetIsRuleArea() const           { return m_isRuleArea; }
+    bool GetIsRuleArea() const { return m_isRuleArea; }
+    bool GetRuleAreaPlacementEnabled() const { return m_ruleAreaPlacementEnabled ; }
+    RULE_AREA_PLACEMENT_SOURCE_TYPE GetRuleAreaPlacementSourceType() const
+    {
+        return m_ruleAreaPlacementSourceType;
+    }
+    wxString GetRuleAreaPlacementSource() const { return m_ruleAreaPlacementSource; }
     bool GetDoNotAllowCopperPour() const { return m_doNotAllowCopperPour; }
     bool GetDoNotAllowVias() const       { return m_doNotAllowVias; }
     bool GetDoNotAllowTracks() const     { return m_doNotAllowTracks; }
     bool GetDoNotAllowPads() const       { return m_doNotAllowPads; }
     bool GetDoNotAllowFootprints() const { return m_doNotAllowFootprints; }
 
-    void SetIsRuleArea( bool aEnable )           { m_isRuleArea = aEnable; }
+    void SetIsRuleArea( bool aEnable ) { m_isRuleArea = aEnable; }
+    void SetRuleAreaPlacementEnabled( bool aEnabled ) { m_ruleAreaPlacementEnabled = aEnabled; }
+    void SetRuleAreaPlacementSourceType( RULE_AREA_PLACEMENT_SOURCE_TYPE aType )
+    {
+        m_ruleAreaPlacementSourceType = aType;
+    }
+    void SetRuleAreaPlacementSource( const wxString& aSource )
+    {
+        m_ruleAreaPlacementSource = aSource;
+    }
     void SetDoNotAllowCopperPour( bool aEnable ) { m_doNotAllowCopperPour = aEnable; }
     void SetDoNotAllowVias( bool aEnable )       { m_doNotAllowVias = aEnable; }
     void SetDoNotAllowTracks( bool aEnable )     { m_doNotAllowTracks = aEnable; }
@@ -771,10 +818,11 @@ public:
     /**
      * @return the hash value previously calculated by BuildHashValue().
      */
-    MD5_HASH GetHashValue( PCB_LAYER_ID aLayer );
+    HASH_128 GetHashValue( PCB_LAYER_ID aLayer );
 
     double Similarity( const BOARD_ITEM& aOther ) const override;
 
+    bool operator==( const ZONE& aOther ) const;
     bool operator==( const BOARD_ITEM& aOther ) const override;
 
 #if defined(DEBUG)
@@ -811,6 +859,13 @@ protected:
      * It will be never filled, and DRC should test for pads, tracks and vias
      */
     bool m_isRuleArea;
+
+    /**
+     * Placement rule area data
+     */
+    bool                            m_ruleAreaPlacementEnabled;
+    RULE_AREA_PLACEMENT_SOURCE_TYPE m_ruleAreaPlacementSourceType;
+    wxString                        m_ruleAreaPlacementSource;
 
     /* A zone outline can be a teardrop zone with different rules for priority
      * (always bigger priority than copper zones) and never removed from a
@@ -892,7 +947,7 @@ protected:
     LSET                                   m_fillFlags;
 
     /// A hash value used in zone filling calculations to see if the filled areas are up to date
-    std::map<PCB_LAYER_ID, MD5_HASH>       m_filledPolysHash;
+    std::map<PCB_LAYER_ID, HASH_128>       m_filledPolysHash;
 
     ZONE_BORDER_DISPLAY_STYLE m_borderStyle;       // border display style, see enum above
     int                       m_borderHatchPitch;  // for DIAGONAL_EDGE, distance between 2 lines
@@ -913,6 +968,7 @@ protected:
 DECLARE_ENUM_TO_WXANY( ZONE_CONNECTION )
 DECLARE_ENUM_TO_WXANY( ZONE_FILL_MODE )
 DECLARE_ENUM_TO_WXANY( ISLAND_REMOVAL_MODE )
+DECLARE_ENUM_TO_WXANY( RULE_AREA_PLACEMENT_SOURCE_TYPE )
 #endif
 
 #endif  // ZONE_H

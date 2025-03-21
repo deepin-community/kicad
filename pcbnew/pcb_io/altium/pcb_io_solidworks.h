@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,8 +22,9 @@
 
 #include <pcb_io/pcb_io.h>
 #include <pcb_io/pcb_io_mgr.h>
+#include <pcb_io/common/plugin_common_layer_mapping.h>
 
-class PCB_IO_SOLIDWORKS : public PCB_IO
+class PCB_IO_SOLIDWORKS : public PCB_IO, public LAYER_MAPPABLE_PLUGIN
 {
 public:
     const IO_BASE::IO_FILE_DESC GetBoardFileDesc() const override
@@ -40,7 +41,7 @@ public:
     bool CanReadBoard( const wxString& aFileName ) const override;
 
     BOARD* LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
-                      const STRING_UTF8_MAP* aProperties, PROJECT* aProject = nullptr ) override;
+                      const std::map<std::string, UTF8>* aProperties, PROJECT* aProject = nullptr ) override;
 
     long long GetLibraryTimestamp( const wxString& aLibraryPath ) const override
     {

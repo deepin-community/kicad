@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2014 CERN
- * Copyright (C) 2016-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -93,10 +93,11 @@ enum DRAG_MODE
     virtual void AddItem( ITEM* aItem ) = 0;
     virtual void UpdateItem( ITEM* aItem ) = 0;
     virtual void RemoveItem( ITEM* aItem ) = 0;
-    virtual bool IsAnyLayerVisible( const LAYER_RANGE& aLayer ) const = 0;
+    virtual bool IsAnyLayerVisible( const PNS_LAYER_RANGE& aLayer ) const = 0;
     virtual bool IsItemVisible( const PNS::ITEM* aItem ) const = 0;
     virtual bool IsFlashedOnLayer( const PNS::ITEM* aItem, int aLayer ) const = 0;
-    virtual bool IsFlashedOnLayer( const PNS::ITEM* aItem, const LAYER_RANGE& aLayer ) const = 0;
+    virtual bool IsFlashedOnLayer( const PNS::ITEM* aItem, const PNS_LAYER_RANGE& aLayer ) const = 0;
+    virtual bool IsPNSCopperLayer( int aPNSLayer ) const = 0;
     virtual void DisplayItem( const ITEM* aItem, int aClearance, bool aEdit = false,
                                     int aFlags = 0 ) = 0;
     virtual void DisplayPathLine( const SHAPE_LINE_CHAIN& aLine, int aImportance ) = 0;
@@ -115,6 +116,9 @@ enum DRAG_MODE
 
     virtual RULE_RESOLVER* GetRuleResolver() = 0;
     virtual DEBUG_DECORATOR* GetDebugDecorator() = 0;
+
+    virtual PCB_LAYER_ID GetBoardLayerFromPNSLayer( int aLayer ) const = 0;
+    virtual int GetPNSLayerFromBoardLayer( PCB_LAYER_ID aLayer ) const = 0;
 };
 
 class ROUTER
@@ -221,6 +225,8 @@ public:
     void SetVisibleViewArea( const BOX2I& aExtents ) { m_visibleViewArea = aExtents; }
     const BOX2I& VisibleViewArea() const { return m_visibleViewArea; }
 
+    std::vector<PNS::ITEM*> GetLastCommittedLeaderSegments();
+
 private:
     bool movePlacing( const VECTOR2I& aP, ITEM* aItem );
     bool moveDragging( const VECTOR2I& aP, ITEM* aItem );
@@ -232,7 +238,7 @@ private:
     void markViolations( NODE* aNode, ITEM_SET& aCurrent, NODE::ITEM_VECTOR& aRemoved );
     bool isStartingPointRoutable( const VECTOR2I& aWhere, ITEM* aItem, int aLayer );
 
-    bool getNearestRatnestAnchor( VECTOR2I& aOtherEnd, LAYER_RANGE& aOtherEndLayers,
+    bool getNearestRatnestAnchor( VECTOR2I& aOtherEnd, PNS_LAYER_RANGE& aOtherEndLayers,
                                   ITEM*& aOtherEndItem );
 
 
@@ -246,6 +252,7 @@ private:
     std::unique_ptr<PLACEMENT_ALGO> m_placer;
     std::unique_ptr<DRAG_ALGO>      m_dragger;
     std::unique_ptr<SHOVE>          m_shove;
+    std::vector<PNS::ITEM*>         m_leaderSegments;
 
     ROUTER_IFACE*     m_iface;
 

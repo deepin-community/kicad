@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012-2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -66,10 +66,10 @@
  * unit used in pcbnew, cvpcb or gerbview (nanometer or deci-mil) depending on compile time option
  */
 
-constexpr double GERB_IU_PER_MM = 1e5; // Gerbview IU is 10 nanometers.
-constexpr double PCB_IU_PER_MM = 1e6;  // Pcbnew IU is 1 nanometer.
-constexpr double PL_IU_PER_MM = 1e3;   // internal units in micron (should be enough)
-constexpr double SCH_IU_PER_MM = 1e4;  // Schematic internal units 1=100nm
+constexpr double GERB_IU_PER_MM = 1e5; ///< Gerbview IU is 10 nanometers.
+constexpr double PCB_IU_PER_MM = 1e6;  ///< Pcbnew IU is 1 nanometer.
+constexpr double PL_IU_PER_MM = 1e3;   ///< Internal units in micron (should be enough).
+constexpr double SCH_IU_PER_MM = 1e4;  ///< Schematic internal units 1=100nm.
 
 struct EDA_IU_SCALE
 {

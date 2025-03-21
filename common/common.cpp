@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2014-2020 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023, 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,6 +37,7 @@
 #include <wx/stdpaths.h>
 #include <wx/url.h>
 #include <wx/utils.h>
+#include <wx/regex.h>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -55,7 +56,7 @@ enum Bracket
 };
 
 
-wxString ExpandTextVars( const wxString& aSource, const PROJECT* aProject )
+wxString ExpandTextVars( const wxString& aSource, const PROJECT* aProject, int aFlags )
 {
     std::function<bool( wxString* )> projectResolver =
             [&]( wxString* token ) -> bool
@@ -63,15 +64,16 @@ wxString ExpandTextVars( const wxString& aSource, const PROJECT* aProject )
                 return aProject->TextVarResolver( token );
             };
 
-    return ExpandTextVars( aSource, &projectResolver );
+    return ExpandTextVars( aSource, &projectResolver, aFlags );
 }
 
 
 wxString ExpandTextVars( const wxString& aSource,
-                         const std::function<bool( wxString* )>* aResolver )
+                         const std::function<bool( wxString* )>* aResolver, int aFlags )
 {
-    wxString newbuf;
-    size_t   sourceLen = aSource.length();
+    static wxRegEx userDefinedWarningError( wxS( "^(ERC|DRC)_(WARNING|ERROR).*$" ) );
+    wxString       newbuf;
+    size_t         sourceLen = aSource.length();
 
     newbuf.Alloc( sourceLen );  // best guess (improves performance)
 
@@ -92,7 +94,11 @@ wxString ExpandTextVars( const wxString& aSource,
             if( token.IsEmpty() )
                 continue;
 
-            if( aResolver && (*aResolver)( &token ) )
+            if( ( aFlags & FOR_ERC_DRC ) == 0 && userDefinedWarningError.Matches( token ) )
+            {
+                // Only show user-defined warnings/errors during ERC/DRC
+            }
+            else if( aResolver && (*aResolver)( &token ) )
             {
                 newbuf.append( token );
             }
@@ -133,7 +139,8 @@ bool IsTextVar( const wxString& aSource )
 //
 // Stolen from wxExpandEnvVars and then heavily optimized
 //
-wxString KIwxExpandEnvVars( const wxString& str, const PROJECT* aProject, std::set<wxString>* aSet = nullptr )
+wxString KIwxExpandEnvVars( const wxString& str, const PROJECT* aProject,
+                            std::set<wxString>* aSet = nullptr )
 {
     // If the same string is inserted twice, we have a loop
     if( aSet )
@@ -248,7 +255,8 @@ wxString KIwxExpandEnvVars( const wxString& str, const PROJECT* aProject, std::s
             // If the user has the older location defined, that will be matched
             // first above.  But if they do not, this will ensure that their board still
             // displays correctly
-            else if( strVarName.Contains( "KISYS3DMOD") || strVarName.Matches( "KICAD*_3DMODEL_DIR" ) )
+            else if( strVarName.Contains( "KISYS3DMOD")
+                   || strVarName.Matches( "KICAD*_3DMODEL_DIR" ) )
             {
                 if( getVersionedEnvVar( "KICAD*_3DMODEL_DIR", strResult ) )
                     expanded = true;
@@ -261,6 +269,11 @@ wxString KIwxExpandEnvVars( const wxString& str, const PROJECT* aProject, std::s
             else if( strVarName.Matches( "KICAD*_FOOTPRINT_DIR" ) )
             {
                 if( getVersionedEnvVar( "KICAD*_FOOTPRINT_DIR", strResult ) )
+                    expanded = true;
+            }
+            else if( strVarName.Matches( "KICAD*_3RD_PARTY" ) )
+            {
+                if( getVersionedEnvVar( "KICAD*_3RD_PARTY", strResult ) )
                     expanded = true;
             }
             else
@@ -309,13 +322,14 @@ wxString KIwxExpandEnvVars( const wxString& str, const PROJECT* aProject, std::s
 
         case wxT( '\\' ):
             // backslash can be used to suppress special meaning of % and $
-            if( n < strlen - 1 && (str[n + 1] == wxT( '%' ) || str[n + 1] == wxT( '$' )) )
+            if( n < strlen - 1 && (str[n + 1] == wxT( '%' ) || str[n + 1] == wxT( '$' ) ) )
             {
                 str_n = str[++n];
                 strResult += str_n;
 
                 break;
             }
+
             KI_FALLTHROUGH;
 
         default:
@@ -464,7 +478,7 @@ bool matchWild( const char* pat, const char* text, bool dot_special )
         return false;
     }
 
-    for(;;)
+    for( ;; )
     {
         if( *m == '*' )
         {
@@ -554,13 +568,13 @@ bool matchWild( const char* pat, const char* text, bool dot_special )
  * A copy of ConvertFileTimeToWx() because wxWidgets left it as a static function
  * private to src/common/filename.cpp.
  */
-#if wxUSE_DATETIME && defined(__WIN32__) && !defined(__WXMICROWIN__)
+#if wxUSE_DATETIME && defined( __WIN32__ ) && !defined( __WXMICROWIN__ )
 
 // Convert between wxDateTime and FILETIME which is a 64-bit value representing
 // the number of 100-nanosecond intervals since January 1, 1601 UTC.
 //
 // This is the offset between FILETIME epoch and the Unix/wxDateTime Epoch.
-static wxInt64 EPOCH_OFFSET_IN_MSEC = wxLL(11644473600000);
+static wxInt64 EPOCH_OFFSET_IN_MSEC = wxLL( 11644473600000 );
 
 
 static void ConvertFileTimeToWx( wxDateTime* dt, const FILETIME& ft )

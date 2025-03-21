@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -44,7 +44,7 @@ GERBVIEW_DRAW_PANEL_GAL::GERBVIEW_DRAW_PANEL_GAL( wxWindow* aParentWindow, wxWin
                                                   GAL_TYPE aGalType ) :
 EDA_DRAW_PANEL_GAL( aParentWindow, aWindowId, aPosition, aSize, aOptions, aGalType )
 {
-    m_view = new KIGFX::VIEW( true );
+    m_view = new KIGFX::VIEW();
     m_view->SetGAL( m_gal );
     GetGAL()->SetWorldUnitLength( 1.0/gerbIUScale.IU_PER_MM /* 10 nm */ / 25.4 /* 1 inch in mm */ );
 

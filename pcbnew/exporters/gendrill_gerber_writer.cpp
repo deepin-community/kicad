@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 Jean_Pierre Charras <jp.charras at wanadoo.fr>
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -219,11 +219,15 @@ int GERBER_WRITER::createDrillFile( wxString& aFullFilename, bool aIsNpth,
                 // Good practice of oblong pad holes (slots) is to use a specific aperture for
                 // routing, not used in drill commands.
                 if( hole_descr.m_Hole_Shape )
+                {
                     gbr_metadata.SetApertureAttrib(
                             GBR_APERTURE_METADATA::GBR_APERTURE_ATTRIB_CMP_OBLONG_DRILL );
+                }
                 else
+                {
                     gbr_metadata.SetApertureAttrib(
                             GBR_APERTURE_METADATA::GBR_APERTURE_ATTRIB_CMP_DRILL );
+                }
             }
 
             // Add object attribute: component reference to pads (mainly useful for users)

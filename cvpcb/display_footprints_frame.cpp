@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2015 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2007-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -312,7 +312,7 @@ void DISPLAY_FOOTPRINTS_FRAME::ReCreateHToolbar()
     UpdateZoomSelectBox();
     m_mainToolBar->AddControl( m_zoomSelectBox );
 
-    // Option to run Zoom automatique on footprint selection changge
+    // Option to run Zoom automatique on footprint selection change
     m_mainToolBar->AddTool( ID_CVPCB_FPVIEWER_AUTOZOOM_TOOL, wxEmptyString,
                             KiScaledBitmap( BITMAPS::zoom_auto_fit_in_page, this ),
                             _( "Automatic Zoom on footprint change" ),
@@ -418,7 +418,8 @@ FOOTPRINT* DISPLAY_FOOTPRINTS_FRAME::GetFootprint( const wxString& aFootprintNam
     // See if the library requested is in the library table
     if( !fpTable->HasLibrary( libNickname ) )
     {
-        aReporter.Report( wxString::Format( _( "Library '%s' is not in the footprint library table." ),
+        aReporter.Report( wxString::Format( _( "Library '%s' is not in the footprint library "
+                                               "table." ),
                                             libNickname ),
                           RPT_SEVERITY_ERROR );
         return nullptr;
@@ -441,7 +442,7 @@ FOOTPRINT* DISPLAY_FOOTPRINTS_FRAME::GetFootprint( const wxString& aFootprintNam
     }
     catch( const IO_ERROR& ioe )
     {
-        DisplayError( this, ioe.What() );
+        DisplayErrorMessage( this, _( "Error loading footprint" ), ioe.What() );
         return nullptr;
     }
 

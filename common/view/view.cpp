@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
@@ -57,6 +57,7 @@ public:
         m_flags( KIGFX::VISIBLE ),
         m_requiredUpdate( KIGFX::NONE ),
         m_drawPriority( 0 ),
+        m_cachedIndex( -1 ),
         m_groups( nullptr ),
         m_groupsSize( 0 ) {}
 
@@ -72,22 +73,6 @@ public:
 
 private:
     friend class VIEW;
-
-    /**
-     * Return layer numbers used by the item.
-     *
-     * @param aLayers[]: output layer index array
-     * @param aCount: number of layer indices in aLayers[]
-     */
-    void getLayers( int* aLayers, int& aCount ) const
-    {
-        int* layersPtr = aLayers;
-
-        for( int layer : m_layers )
-            *layersPtr++ = layer;
-
-        aCount = m_layers.size();
-    }
 
     /**
      * Return number of the group id for the given layer, or -1 in case it was not cached before.
@@ -148,7 +133,6 @@ private:
         m_groupsSize = 0;
     }
 
-
     /**
      * Return information if the item uses at least one group id (ie. if it is cached at all).
      *
@@ -158,7 +142,6 @@ private:
     {
         return m_groupsSize > 0;
     }
-
 
     /**
      * Reorder the stored groups (to facilitate reordering of layers).
@@ -187,16 +170,15 @@ private:
      * @param aLayers is an array containing layer numbers to be saved.
      * @param aCount is the size of the array.
      */
-    void saveLayers( int* aLayers, int aCount )
+    void saveLayers( const std::vector<int>& aLayers )
     {
         m_layers.clear();
 
-        for( int i = 0; i < aCount; ++i )
+        for( int layer : aLayers )
         {
-            // this fires on some eagle board after PCB_IO_EAGLE::Load()
-            wxASSERT( unsigned( aLayers[i] ) <= unsigned( VIEW::VIEW_MAX_LAYERS ) );
-
-            m_layers.push_back( aLayers[i] );
+            wxCHECK2_MSG( layer >= 0 && layer < VIEW::VIEW_MAX_LAYERS, continue,
+                          wxT( "Invalid layer number" ) );
+            m_layers.push_back( layer );
         }
     }
 
@@ -228,6 +210,7 @@ private:
     int                  m_flags;            ///< Visibility flags
     int                  m_requiredUpdate;   ///< Flag required for updating
     int                  m_drawPriority;     ///< Order to draw this item in a layer, lowest first
+    int                  m_cachedIndex;      ///< Cached index in m_allItems.
 
     std::pair<int, int>* m_groups;           ///< layer_number:group_id pairs for each layer the
                                              ///< item occupies.
@@ -252,14 +235,13 @@ void VIEW::OnDestroy( VIEW_ITEM* aItem )
 }
 
 
-VIEW::VIEW( bool aIsDynamic ) :
+VIEW::VIEW() :
     m_enableOrderModifier( true ),
     m_scale( 4.0 ),
     m_minScale( 0.2 ), m_maxScale( 50000.0 ),
     m_mirrorX( false ), m_mirrorY( false ),
     m_painter( nullptr ),
     m_gal( nullptr ),
-    m_dynamic( aIsDynamic ),
     m_useDrawPriority( false ),
     m_nextDrawPriority( 0 ),
     m_reverseDrawOrder( false )
@@ -280,26 +262,26 @@ VIEW::VIEW( bool aIsDynamic ) :
     // Redraw everything at the beginning
     MarkDirty();
 
-    m_layers.reserve( VIEW_MAX_LAYERS );
-
     // View uses layers to display EDA_ITEMs (item may be displayed on several layers, for example
     // pad may be shown on pad, pad hole and solder paste layers). There are usual copper layers
     // (eg. F.Cu, B.Cu, internal and so on) and layers for displaying objects such as texts,
     // silkscreen, pads, vias, etc.
     for( int ii = 0; ii < VIEW_MAX_LAYERS; ++ii )
     {
-        m_layers.emplace_back();
-        m_layers[ii].items          = std::make_shared<VIEW_RTREE>();
-        m_layers[ii].id             = ii;
-        m_layers[ii].renderingOrder = ii;
-        m_layers[ii].visible        = true;
-        m_layers[ii].displayOnly    = false;
-        m_layers[ii].diffLayer      = false;
-        m_layers[ii].hasNegatives   = false;
-        m_layers[ii].target         = TARGET_CACHED;
+        auto [it, _] = m_layers.emplace( ii, VIEW_LAYER() );
+        VIEW_LAYER& l = it->second;
+
+        l.items          = std::make_shared<VIEW_RTREE>();
+        l.id             = ii;
+        l.renderingOrder = ii;
+        l.visible        = true;
+        l.displayOnly    = false;
+        l.diffLayer      = false;
+        l.hasNegatives   = false;
+        l.target         = TARGET_CACHED;
     }
 
-    sortLayers();
+    sortOrderedLayers();
 
     m_preview.reset( new KIGFX::VIEW_GROUP() );
     Add( m_preview.get() );
@@ -314,8 +296,6 @@ VIEW::~VIEW()
 
 void VIEW::Add( VIEW_ITEM* aItem, int aDrawPriority )
 {
-    int layers[VIEW_MAX_LAYERS], layers_count;
-
     if( aDrawPriority < 0 )
         aDrawPriority = m_nextDrawPriority++;
 
@@ -330,18 +310,16 @@ void VIEW::Add( VIEW_ITEM* aItem, int aDrawPriority )
     aItem->m_viewPrivData->m_drawPriority = aDrawPriority;
     const BOX2I bbox = aItem->ViewBBox();
     aItem->m_viewPrivData->m_bbox = bbox;
+    aItem->m_viewPrivData->m_cachedIndex = m_allItems->size();
 
-    aItem->ViewGetLayers( layers, layers_count );
-    aItem->viewPrivData()->saveLayers( layers, layers_count );
+    std::vector<int> layers = aItem->ViewGetLayers();
+    aItem->viewPrivData()->saveLayers( layers );
 
     m_allItems->push_back( aItem );
 
-    for( int i = 0; i < layers_count; ++i )
+    for( int layer : layers )
     {
-        wxCHECK2_MSG( layers[i] >= 0 && static_cast<unsigned>( layers[i] ) < m_layers.size(),
-                      continue, wxS( "Invalid layer" ) );
-
-        VIEW_LAYER& l = m_layers[layers[i]];
+        VIEW_LAYER& l = m_layers[layer];
         l.items->Insert( aItem, bbox );
         MarkTargetDirty( l.target );
     }
@@ -353,29 +331,59 @@ void VIEW::Add( VIEW_ITEM* aItem, int aDrawPriority )
 
 void VIEW::Remove( VIEW_ITEM* aItem )
 {
+    static int s_gcCounter = 0;
+
     if( aItem && aItem->m_viewPrivData )
     {
         wxCHECK( aItem->m_viewPrivData->m_view == this, /*void*/ );
-        auto item = std::find( m_allItems->begin(), m_allItems->end(), aItem );
+
+        std::vector<VIEW_ITEM*>::iterator item = m_allItems->end();
+        int                               cachedIndex = aItem->m_viewPrivData->m_cachedIndex;
+
+        if( cachedIndex >= 0 && cachedIndex < static_cast<ssize_t>( m_allItems->size() )
+            && ( *m_allItems )[cachedIndex] == aItem )
+        {
+            item = m_allItems->begin() + cachedIndex;
+        }
+        else
+        {
+            item = std::find( m_allItems->begin(), m_allItems->end(), aItem );
+        }
 
         if( item != m_allItems->end() )
         {
-            m_allItems->erase( item );
+            *item = nullptr;
             aItem->m_viewPrivData->clearUpdateFlags();
+
+            s_gcCounter++;
+
+            if( s_gcCounter > 4096 )
+            {
+                // Perform defragmentation
+                alg::delete_if( *m_allItems,
+                                []( VIEW_ITEM* it )
+                                {
+                                    return it == nullptr;
+                                } );
+
+                // Update cached indices
+                for( size_t idx = 0; idx < m_allItems->size(); idx++ )
+                    ( *m_allItems )[idx]->m_viewPrivData->m_cachedIndex = idx;
+
+                s_gcCounter = 0;
+            }
         }
 
-        int layers[VIEW::VIEW_MAX_LAYERS], layers_count;
-        aItem->m_viewPrivData->getLayers( layers, layers_count );
         const BOX2I* bbox = &aItem->m_viewPrivData->m_bbox;
 
-        for( int i = 0; i < layers_count; ++i )
+        for( int layer : aItem->m_viewPrivData->m_layers )
         {
-            VIEW_LAYER& l = m_layers[layers[i]];
+            VIEW_LAYER& l = m_layers[layer];
             l.items->Remove( aItem, bbox );
             MarkTargetDirty( l.target );
 
             // Clear the GAL cache
-            int prevGroup = aItem->m_viewPrivData->getGroup( layers[i] );
+            int prevGroup = aItem->m_viewPrivData->getGroup( layer );
 
             if( prevGroup >= 0 )
                 m_gal->DeleteGroup( prevGroup );
@@ -612,7 +620,7 @@ void VIEW::SetCenter( const VECTOR2D& aCenter, const std::vector<BOX2D>& obscuri
     for( const BOX2D& obscuringScreenRect : obscuringScreenRects )
     {
         SHAPE_POLY_SET obscuringPoly( obscuringScreenRect );
-        unobscuredPoly.BooleanSubtract( obscuringPoly, SHAPE_POLY_SET::PM_FAST );
+        unobscuredPoly.BooleanSubtract( obscuringPoly );
     }
 
     /*
@@ -639,7 +647,7 @@ void VIEW::SetLayerOrder( int aLayer, int aRenderingOrder )
 {
     m_layers[aLayer].renderingOrder = aRenderingOrder;
 
-    sortLayers();
+    sortOrderedLayers();
 }
 
 
@@ -649,64 +657,53 @@ int VIEW::GetLayerOrder( int aLayer ) const
 }
 
 
-void VIEW::SortLayers( int aLayers[], int& aCount ) const
+void VIEW::SortLayers( std::vector<int>& aLayers ) const
 {
-    int maxLay, maxOrd, maxIdx;
-
-    for( int i = 0; i < aCount; ++i )
-    {
-        maxLay = aLayers[i];
-        maxOrd = GetLayerOrder( maxLay );
-        maxIdx = i;
-
-        // Look for the max element in the range (j..aCount)
-        for( int j = i; j < aCount; ++j )
-        {
-            if( maxOrd < GetLayerOrder( aLayers[j] ) )
-            {
-                maxLay = aLayers[j];
-                maxOrd = GetLayerOrder( maxLay );
-                maxIdx = j;
-            }
-        }
-
-        // Swap elements
-        aLayers[maxIdx] = aLayers[i];
-        aLayers[i] = maxLay;
-    }
+    std::sort( aLayers.begin(), aLayers.end(),
+               [this]( int a, int b )
+               {
+                   return GetLayerOrder( a ) > GetLayerOrder( b );
+               } );
 }
 
 
 void VIEW::ReorderLayerData( std::unordered_map<int, int> aReorderMap )
 {
-    std::vector<VIEW_LAYER> new_map;
-    new_map.reserve( m_layers.size() );
+    std::map<int,VIEW_LAYER> new_map;
 
-    for( const VIEW_LAYER& layer : m_layers )
-        new_map.push_back( layer );
-
-    for( auto& pair : aReorderMap )
+    for( auto& [_, layer] : m_layers )
     {
-        new_map[pair.second] = m_layers[pair.first];
-        new_map[pair.second].id = pair.second;
+        auto reorder_it = aReorderMap.find( layer.id );
+
+        // If the layer is not in the reorder map or if it is mapped to itself,
+        // just copy the layer to the new map.
+        if( reorder_it == aReorderMap.end() || reorder_it->second == layer.id )
+        {
+            new_map.emplace( layer.id, layer );
+            continue;
+        }
+
+        auto [new_it,__] = new_map.emplace( reorder_it->second, layer );
+        new_it->second.id = reorder_it->second;
     }
 
     // Transfer reordered data (using the copy assignment operator ):
     m_layers = new_map;
 
-    sortLayers();
+    sortOrderedLayers();
 
     for( VIEW_ITEM* item : *m_allItems )
     {
+        if( !item )
+            continue;
+
         VIEW_ITEM_DATA* viewData = item->viewPrivData();
 
         if( !viewData )
             continue;
 
-        int layers[VIEW::VIEW_MAX_LAYERS], layers_count;
-
-        item->ViewGetLayers( layers, layers_count );
-        viewData->saveLayers( layers, layers_count );
+        std::vector<int> layers = item->ViewGetLayers();
+        viewData->saveLayers( layers );
 
         viewData->reorderGroups( aReorderMap );
 
@@ -773,18 +770,18 @@ void VIEW::UpdateAllLayersColor()
 
         for( VIEW_ITEM* item : *m_allItems )
         {
+            if( !item )
+                continue;
+
             VIEW_ITEM_DATA* viewData = item->viewPrivData();
 
             if( !viewData )
                 continue;
 
-            int layers[VIEW::VIEW_MAX_LAYERS], layers_count;
-            viewData->getLayers( layers, layers_count );
-
-            for( int i = 0; i < layers_count; ++i )
+            for( int layer : viewData->m_layers )
             {
-                const COLOR4D color = m_painter->GetSettings()->GetColor( item, layers[i] );
-                int           group = viewData->getGroup( layers[i] );
+                const COLOR4D color = m_painter->GetSettings()->GetColor( item, layer );
+                int           group = viewData->getGroup( layer );
 
                 if( group >= 0 )
                     m_gal->ChangeGroupColor( group, color );
@@ -898,7 +895,7 @@ void VIEW::ClearTopLayers()
 
 void VIEW::UpdateAllLayersOrder()
 {
-    sortLayers();
+    sortOrderedLayers();
 
     if( m_gal->IsVisible() )
     {
@@ -906,20 +903,20 @@ void VIEW::UpdateAllLayersOrder()
 
         for( VIEW_ITEM* item : *m_allItems )
         {
+            if( !item )
+                continue;
+
             VIEW_ITEM_DATA* viewData = item->viewPrivData();
 
             if( !viewData )
                 continue;
 
-            int layers[VIEW::VIEW_MAX_LAYERS], layers_count;
-            viewData->getLayers( layers, layers_count );
-
-            for( int i = 0; i < layers_count; ++i )
+            for( int layer : viewData->m_layers )
             {
-                int group = viewData->getGroup( layers[i] );
+                int group = viewData->getGroup( layer );
 
                 if( group >= 0 )
-                    m_gal->ChangeGroupDepth( group, m_layers[layers[i]].renderingOrder );
+                    m_gal->ChangeGroupDepth( group, m_layers[layer].renderingOrder );
             }
         }
     }
@@ -950,9 +947,11 @@ struct VIEW::DRAW_ITEM_VISITOR
             return true;
         }
 
+        const double itemLOD = aItem->ViewGetLOD( layer, view );
+
         // Conditions that have to be fulfilled for an item to be drawn
-        bool drawCondition = aItem->viewPrivData()->isRenderable()
-                                    && aItem->ViewGetLOD( layer, view ) < view->m_scale;
+        bool drawCondition = aItem->viewPrivData()->isRenderable() && itemLOD < view->m_scale;
+
         if( !drawCondition )
             return true;
 
@@ -969,18 +968,20 @@ struct VIEW::DRAW_ITEM_VISITOR
         if( reverseDrawOrder )
         {
             std::sort( drawItems.begin(), drawItems.end(),
-                    []( VIEW_ITEM* a, VIEW_ITEM* b ) -> bool
-                    {
-                        return b->viewPrivData()->m_drawPriority < a->viewPrivData()->m_drawPriority;
-                    } );
+                       []( VIEW_ITEM* a, VIEW_ITEM* b ) -> bool
+                       {
+                           return b->viewPrivData()->m_drawPriority
+                                  < a->viewPrivData()->m_drawPriority;
+                       } );
         }
         else
         {
             std::sort( drawItems.begin(), drawItems.end(),
-                    []( VIEW_ITEM* a, VIEW_ITEM* b ) -> bool
-                    {
-                        return a->viewPrivData()->m_drawPriority < b->viewPrivData()->m_drawPriority;
-                    } );
+                       []( VIEW_ITEM* a, VIEW_ITEM* b ) -> bool
+                       {
+                           return a->viewPrivData()->m_drawPriority
+                                  < b->viewPrivData()->m_drawPriority;
+                       } );
         }
 
         for( VIEW_ITEM* item : drawItems )
@@ -1067,24 +1068,28 @@ void VIEW::draw( VIEW_ITEM* aItem, int aLayer, bool aImmediate )
 
 void VIEW::draw( VIEW_ITEM* aItem, bool aImmediate )
 {
-    int layers[VIEW_MAX_LAYERS], layers_count;
-
-    aItem->ViewGetLayers( layers, layers_count );
+    std::vector<int> layers = aItem->ViewGetLayers();
 
     // Sorting is needed for drawing order dependent GALs (like Cairo)
-    SortLayers( layers, layers_count );
+    if( !m_gal || !m_gal->IsOpenGlEngine())
+        SortLayers( layers );
 
-    for( int i = 0; i < layers_count; ++i )
+    for( int layer : layers )
     {
-        m_gal->SetLayerDepth( m_layers.at( layers[i] ).renderingOrder );
-        draw( aItem, layers[i], aImmediate );
+        auto it = m_layers.find( layer );
+
+        if( it == m_layers.end() )
+            continue;
+
+        m_gal->SetLayerDepth( it->second.renderingOrder );
+        draw( aItem, layer, aImmediate );
     }
 }
 
 
 void VIEW::draw( VIEW_GROUP* aGroup, bool aImmediate )
 {
-    for( unsigned int i = 0; i < aGroup->GetSize(); i++)
+    for( unsigned int i = 0; i < aGroup->GetSize(); i++ )
         draw( aGroup->GetItem(i), aImmediate );
 }
 
@@ -1129,7 +1134,7 @@ void VIEW::Clear()
     r.SetMaximum();
     m_allItems->clear();
 
-    for( VIEW_LAYER& layer : m_layers )
+    for( auto& [_, layer] : m_layers )
         layer.items->RemoveAll();
 
     m_nextDrawPriority = 0;
@@ -1168,15 +1173,7 @@ void VIEW::Redraw()
                    ToWorld( screenSize ) - ToWorld( VECTOR2D( 0, 0 ) ) );
 
     rect.Normalize();
-    BOX2I recti( rect.GetPosition(), rect.GetSize() );
-
-    // The view rtree uses integer positions.  Large screens can overflow this size so in
-    // this case, simply set the rectangle to the full rtree.
-    if( rect.GetWidth() > std::numeric_limits<int>::max()
-            || rect.GetHeight() > std::numeric_limits<int>::max() )
-    {
-        recti.SetMaximum();
-    }
+    BOX2I recti = BOX2ISafe( rect );
 
     redrawRect( recti );
 
@@ -1221,7 +1218,7 @@ void VIEW::clearGroupCache()
     r.SetMaximum();
     CLEAR_LAYER_CACHE_VISITOR visitor( this );
 
-    for( VIEW_LAYER& layer : m_layers )
+    for( auto& [_, layer] : m_layers )
         layer.items->Query( r, visitor );
 }
 
@@ -1244,37 +1241,34 @@ void VIEW::invalidateItem( VIEW_ITEM* aItem, int aUpdateFlags )
             updateBbox( aItem );
     }
 
-    int layers[VIEW_MAX_LAYERS], layers_count;
-    aItem->ViewGetLayers( layers, layers_count );
+    std::vector<int> layers = aItem->ViewGetLayers();
 
     // Iterate through layers used by the item and recache it immediately
-    for( int i = 0; i < layers_count; ++i )
+    for( int layer : layers )
     {
-        int layerId = layers[i];
-
-        if( IsCached( layerId ) )
+        if( IsCached( layer ) )
         {
             if( aUpdateFlags & ( GEOMETRY | LAYERS | REPAINT ) )
-                updateItemGeometry( aItem, layerId );
+                updateItemGeometry( aItem, layer );
             else if( aUpdateFlags & COLOR )
-                updateItemColor( aItem, layerId );
+                updateItemColor( aItem, layer );
         }
 
         // Mark those layers as dirty, so the VIEW will be refreshed
-        MarkTargetDirty( m_layers[layerId].target );
+        MarkTargetDirty( m_layers[layer].target );
     }
 
     aItem->viewPrivData()->clearUpdateFlags();
 }
 
 
-void VIEW::sortLayers()
+void VIEW::sortOrderedLayers()
 {
     int n = 0;
 
     m_orderedLayers.resize( m_layers.size() );
 
-    for( VIEW_LAYER& layer : m_layers )
+    for( auto& [layer_id, layer] : m_layers )
         m_orderedLayers[n++] = &layer;
 
     sort( m_orderedLayers.begin(), m_orderedLayers.end(), compareRenderingOrder );
@@ -1286,8 +1280,7 @@ void VIEW::sortLayers()
 void VIEW::updateItemColor( VIEW_ITEM* aItem, int aLayer )
 {
     VIEW_ITEM_DATA* viewData = aItem->viewPrivData();
-    wxCHECK( (unsigned) aLayer < m_layers.size(), /*void*/ );
-    wxCHECK( IsCached( aLayer ), /*void*/ );
+    wxCHECK( IsCached( aLayer ), /*void*/ ); // This will check if the layer exists
 
     if( !viewData )
         return;
@@ -1305,13 +1298,20 @@ void VIEW::updateItemColor( VIEW_ITEM* aItem, int aLayer )
 void VIEW::updateItemGeometry( VIEW_ITEM* aItem, int aLayer )
 {
     VIEW_ITEM_DATA* viewData = aItem->viewPrivData();
-    wxCHECK( (unsigned) aLayer < m_layers.size(), /*void*/ );
-    wxCHECK( IsCached( aLayer ), /*void*/ );
 
     if( !viewData )
         return;
 
-    VIEW_LAYER& l = m_layers.at( aLayer );
+    auto it = m_layers.find( aLayer );
+
+    if( it == m_layers.end() )
+        return;
+
+    VIEW_LAYER& l = it->second;
+
+    // Save the extra map lookup in IsCached by open coding here
+    if( l.target != TARGET_CACHED )
+        return;
 
     m_gal->SetTarget( l.target );
     m_gal->SetLayerDepth( l.renderingOrder );
@@ -1334,18 +1334,22 @@ void VIEW::updateItemGeometry( VIEW_ITEM* aItem, int aLayer )
 
 void VIEW::updateBbox( VIEW_ITEM* aItem )
 {
-    int layers[VIEW_MAX_LAYERS], layers_count;
+    std::vector<int> layers = aItem->ViewGetLayers();
 
-    aItem->ViewGetLayers( layers, layers_count );
     wxASSERT( aItem->m_viewPrivData ); //must have a viewPrivData
 
     const BOX2I  new_bbox = aItem->ViewBBox();
     const BOX2I* old_bbox = &aItem->m_viewPrivData->m_bbox;
     aItem->m_viewPrivData->m_bbox = new_bbox;
 
-    for( int i = 0; i < layers_count; ++i )
+    for( int layer : layers )
     {
-        VIEW_LAYER& l = m_layers[layers[i]];
+        auto it = m_layers.find( layer );
+
+        if( it == m_layers.end() )
+            continue;
+
+        VIEW_LAYER& l = it->second;
         l.items->Remove( aItem, old_bbox );
         l.items->Insert( aItem, new_bbox );
         MarkTargetDirty( l.target );
@@ -1356,25 +1360,28 @@ void VIEW::updateBbox( VIEW_ITEM* aItem )
 void VIEW::updateLayers( VIEW_ITEM* aItem )
 {
     VIEW_ITEM_DATA* viewData = aItem->viewPrivData();
-    int             layers[VIEW_MAX_LAYERS], layers_count;
 
     if( !viewData )
         return;
 
     // Remove the item from previous layer set
-    viewData->getLayers( layers, layers_count );
     const BOX2I* old_bbox = &aItem->m_viewPrivData->m_bbox;
 
-    for( int i = 0; i < layers_count; ++i )
+    for( int layer : aItem->m_viewPrivData->m_layers )
     {
-        VIEW_LAYER& l = m_layers[layers[i]];
+        auto it = m_layers.find( layer );
+
+        if( it == m_layers.end() )
+            continue;
+
+        VIEW_LAYER& l = it->second;
         l.items->Remove( aItem, old_bbox );
         MarkTargetDirty( l.target );
 
         if( IsCached( l.id ) )
         {
             // Redraw the item from scratch
-            int prevGroup = viewData->getGroup( layers[i] );
+            int prevGroup = viewData->getGroup( layer );
 
             if( prevGroup >= 0 )
             {
@@ -1388,12 +1395,17 @@ void VIEW::updateLayers( VIEW_ITEM* aItem )
     aItem->m_viewPrivData->m_bbox = new_bbox;
 
     // Add the item to new layer set
-    aItem->ViewGetLayers( layers, layers_count );
-    viewData->saveLayers( layers, layers_count );
+    std::vector<int> layers = aItem->ViewGetLayers();
+    viewData->saveLayers( layers );
 
-    for( int i = 0; i < layers_count; i++ )
+    for( int layer : layers )
     {
-        VIEW_LAYER& l = m_layers[layers[i]];
+        auto it = m_layers.find( layer );
+
+        if( it == m_layers.end() )
+            continue;
+
+        VIEW_LAYER& l = it->second;
         l.items->Insert( aItem, new_bbox );
         MarkTargetDirty( l.target );
     }
@@ -1402,14 +1414,21 @@ void VIEW::updateLayers( VIEW_ITEM* aItem )
 
 bool VIEW::areRequiredLayersEnabled( int aLayerId ) const
 {
-    wxCHECK( (unsigned) aLayerId < m_layers.size(), false );
+    auto it = m_layers.find( aLayerId );
 
-    std::set<int>::const_iterator it, it_end;
+    if( it == m_layers.end() )
+        return false;
 
-    for( int layer : m_layers.at( aLayerId ).requiredLayers )
+    for( int layer : it->second.requiredLayers )
     {
         // That is enough if just one layer is not enabled
-        if( !m_layers.at( layer ).visible || !areRequiredLayersEnabled( layer ) )
+
+        auto it2 = m_layers.find( layer );
+
+        if( it2 == m_layers.end() || !it2->second.visible )
+            return false;
+
+        if( !areRequiredLayersEnabled( layer ) )
             return false;
     }
 
@@ -1423,7 +1442,7 @@ void VIEW::RecacheAllItems()
 
     r.SetMaximum();
 
-    for( const VIEW_LAYER& l : m_layers )
+    for( const auto& [_, l] : m_layers )
     {
         if( IsCached( l.id ) )
         {
@@ -1444,6 +1463,9 @@ void VIEW::UpdateItems()
 
     for( VIEW_ITEM* item : *m_allItems )
     {
+        if( !item )
+            continue;
+
         auto vpd = item->viewPrivData();
 
         if( !vpd )
@@ -1473,26 +1495,30 @@ void VIEW::UpdateItems()
     if( ratio > 0.3 )
     {
         auto allItems = *m_allItems;
-        int  layers[VIEW_MAX_LAYERS], layers_count;
 
         // kill all Rtrees
-        for( VIEW_LAYER& layer : m_layers )
+        for( auto& [_, layer] : m_layers )
             layer.items->RemoveAll();
 
         // and re-insert items from scratch
         for( VIEW_ITEM* item : allItems )
         {
+            if( !item )
+                continue;
+
             const BOX2I bbox = item->ViewBBox();
             item->m_viewPrivData->m_bbox = bbox;
 
-            item->ViewGetLayers( layers, layers_count );
-            item->viewPrivData()->saveLayers( layers, layers_count );
+            std::vector<int> layers = item->ViewGetLayers();
+            item->viewPrivData()->saveLayers( layers );
 
-            for( int i = 0; i < layers_count; ++i )
+            for( int layer : layers )
             {
-                wxCHECK2_MSG( layers[i] >= 0 && static_cast<unsigned>( layers[i] ) < m_layers.size(),
-                        continue, wxS( "Invalid layer" ) );
-                VIEW_LAYER& l = m_layers[layers[i]];
+                auto it = m_layers.find( layer );
+
+                wxCHECK2_MSG( it != m_layers.end(), continue, wxS( "Invalid layer" ) );
+
+                VIEW_LAYER& l = it->second;
                 l.items->Insert( item, bbox );
                 MarkTargetDirty( l.target );
             }
@@ -1507,7 +1533,7 @@ void VIEW::UpdateItems()
 
         for( VIEW_ITEM* item : *m_allItems.get() )
         {
-            if( item->viewPrivData() && item->viewPrivData()->m_requiredUpdate != NONE )
+            if( item && item->viewPrivData() && item->viewPrivData()->m_requiredUpdate != NONE )
             {
                 invalidateItem( item, item->viewPrivData()->m_requiredUpdate );
                 item->viewPrivData()->m_requiredUpdate = NONE;
@@ -1515,8 +1541,8 @@ void VIEW::UpdateItems()
         }
     }
 
-    KI_TRACE( traceGalProfile, wxS( "View update: total items %u, geom %u anyUpdated %u\n" ), cntTotal,
-              cntGeomUpdate, (unsigned) anyUpdated );
+    KI_TRACE( traceGalProfile, wxS( "View update: total items %u, geom %u anyUpdated %u\n" ),
+              cntTotal, cntGeomUpdate, (unsigned) anyUpdated );
 }
 
 
@@ -1524,7 +1550,7 @@ void VIEW::UpdateAllItems( int aUpdateFlags )
 {
     for( VIEW_ITEM* item : *m_allItems )
     {
-        if( item->viewPrivData() )
+        if( item && item->viewPrivData() )
             item->viewPrivData()->m_requiredUpdate |= aUpdateFlags;
     }
 }
@@ -1535,6 +1561,9 @@ void VIEW::UpdateAllItemsConditionally( int aUpdateFlags,
 {
     for( VIEW_ITEM* item : *m_allItems )
     {
+        if( !item )
+            continue;
+
         if( aCondition( item ) )
         {
             if( item->viewPrivData() )
@@ -1548,6 +1577,9 @@ void VIEW::UpdateAllItemsConditionally( std::function<int( VIEW_ITEM* )> aItemFl
 {
     for( VIEW_ITEM* item : *m_allItems )
     {
+        if( !item )
+            continue;
+
         if( item->viewPrivData() )
             item->viewPrivData()->m_requiredUpdate |= aItemFlagsProvider( item );
     }
@@ -1560,7 +1592,7 @@ std::unique_ptr<VIEW> VIEW::DataReference() const
     std::unique_ptr<VIEW> ret = std::make_unique<VIEW>();
     ret->m_allItems = m_allItems;
     ret->m_layers = m_layers;
-    ret->sortLayers();
+    ret->sortOrderedLayers();
     return ret;
 }
 

@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2019 CERN
- * Author: Seth Hillbrand <hillbrand@ucdavis.edu>
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -30,8 +30,20 @@ class LINKED_ITEM : public ITEM
 {
 public:
 
-    LINKED_ITEM( PnsKind aKind ) : ITEM( aKind )
+    typedef uint64_t UNIQ_ID;
+
+    LINKED_ITEM( PnsKind aKind ) :
+        ITEM( aKind )
+    {
+        m_uid = genNextUid();
+    }
+
+    LINKED_ITEM( const LINKED_ITEM& aOther ) :
+        ITEM( aOther ),
+        m_uid( aOther.m_uid )
     {}
+
+    UNIQ_ID Uid() const { return m_uid; }
 
     virtual void SetWidth( int aWidth )
     {};
@@ -40,6 +52,11 @@ public:
     {
         return 0;
     }
+
+private:
+    static UNIQ_ID genNextUid();
+protected:
+    UNIQ_ID m_uid;
 };
 
 } // namespace PNS

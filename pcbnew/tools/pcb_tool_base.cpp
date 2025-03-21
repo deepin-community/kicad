@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,6 +37,7 @@
 #include <tools/pcb_actions.h>
 #include <tools/tool_event_utils.h>
 #include <tools/zone_filler_tool.h>
+#include <view/view_controls.h>
 
 
 void PCB_TOOL_BASE::doInteractiveItemPlacement( const TOOL_EVENT&        aTool,
@@ -207,7 +208,7 @@ void PCB_TOOL_BASE::doInteractiveItemPlacement( const TOOL_EVENT&        aTool,
         }
         else if( evt->IsClick( BUT_RIGHT ) )
         {
-            m_menu.ShowContextMenu( selection() );
+            m_menu->ShowContextMenu( selection() );
         }
         else if( evt->IsAction( &PCB_ACTIONS::trackViaSizeChanged ) )
         {
@@ -226,7 +227,8 @@ void PCB_TOOL_BASE::doInteractiveItemPlacement( const TOOL_EVENT&        aTool,
             }
             else if( evt->IsAction( &PCB_ACTIONS::flip ) && ( aOptions & IPO_FLIP ) )
             {
-                newItem->Flip( newItem->GetPosition(), frame()->GetPcbNewSettings()->m_FlipLeftRight );
+                newItem->Flip( newItem->GetPosition(),
+                               frame()->GetPcbNewSettings()->m_FlipDirection );
                 view()->Update( &preview );
             }
             else if( evt->IsAction( &PCB_ACTIONS::properties ) )
@@ -276,14 +278,14 @@ void PCB_TOOL_BASE::doInteractiveItemPlacement( const TOOL_EVENT&        aTool,
 bool PCB_TOOL_BASE::Init()
 {
     // A basic context manu.  Many (but not all) tools will choose to override this.
-    CONDITIONAL_MENU& ctxMenu = m_menu.GetMenu();
+    CONDITIONAL_MENU& ctxMenu = m_menu->GetMenu();
 
     // cancel current tool goes in main context menu at the top if present
     ctxMenu.AddItem( ACTIONS::cancelInteractive, SELECTION_CONDITIONS::ShowAlways, 1 );
     ctxMenu.AddSeparator( 1 );
 
     // Finally, add the standard zoom/grid items
-    getEditFrame<PCB_BASE_FRAME>()->AddStandardSubMenus( m_menu );
+    getEditFrame<PCB_BASE_FRAME>()->AddStandardSubMenus( *m_menu.get() );
 
     return true;
 }
@@ -331,9 +333,9 @@ bool PCB_TOOL_BASE::Is45Limited() const
     SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
 
     if( frame()->IsType( FRAME_PCB_EDITOR ) )
-        return mgr.GetAppSettings<PCBNEW_SETTINGS>()->m_Use45DegreeLimit;
+        return mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" )->m_Use45DegreeLimit;
     else
-        return mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>()->m_Use45Limit;
+        return mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" )->m_Use45Limit;
 }
 
 

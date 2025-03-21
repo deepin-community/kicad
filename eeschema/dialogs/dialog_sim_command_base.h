@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -36,7 +36,6 @@
 #include <wx/dialog.h>
 
 ///////////////////////////////////////////////////////////////////////////
-
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class DIALOG_SIM_COMMAND_BASE
@@ -159,6 +158,7 @@ class DIALOG_SIM_COMMAND_BASE : public DIALOG_SHIM
 		wxCheckBox* m_saveAllVoltages;
 		wxCheckBox* m_saveAllCurrents;
 		wxCheckBox* m_saveAllDissipations;
+		wxCheckBox* m_saveAllEvents;
 		wxBoxSizer* m_compatibilityModeSizer;
 		wxChoice* m_compatibilityMode;
 		wxPanel* m_panelPlotSetup;

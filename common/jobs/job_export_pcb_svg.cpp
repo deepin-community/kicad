@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,20 +19,49 @@
  */
 
 #include <jobs/job_export_pcb_svg.h>
+#include <jobs/job_registry.h>
+#include <i18n_utility.h>
 
+NLOHMANN_JSON_SERIALIZE_ENUM( JOB_EXPORT_PCB_SVG::GEN_MODE,
+                              {
+                                { JOB_EXPORT_PCB_SVG::GEN_MODE::MULTI, "multi" },   // intended gui behavior, first as default
+                                { JOB_EXPORT_PCB_SVG::GEN_MODE::SINGLE, "single" },
+                              } )
 
-JOB_EXPORT_PCB_SVG::JOB_EXPORT_PCB_SVG( bool aIsCli ) :
-    JOB( "svg", aIsCli ),
-    m_filename(),
-    m_outputFile(),
-    m_colorTheme(),
-    m_drawingSheet(),
-    m_mirror( false ),
-    m_blackAndWhite( false ),
-    m_negative( false ),
-    m_plotDrawingSheet( true ),
+JOB_EXPORT_PCB_SVG::JOB_EXPORT_PCB_SVG() :
+    JOB_EXPORT_PCB_PLOT( JOB_EXPORT_PCB_PLOT::PLOT_FORMAT::SVG, "svg", false ),
     m_pageSizeMode( 0 ),
-    m_printMaskLayer(),
-    m_drillShapeOption( 2 )
+    m_precision( 4 ),
+    m_genMode( GEN_MODE::SINGLE )
 {
+    m_plotDrawingSheet = true;
+
+    m_params.emplace_back( new JOB_PARAM<wxString>( "color_theme", &m_colorTheme, m_colorTheme ) );
+    m_params.emplace_back( new JOB_PARAM<bool>( "mirror", &m_mirror, m_mirror ) );
+    m_params.emplace_back(
+            new JOB_PARAM<bool>( "black_and_white", &m_blackAndWhite, m_blackAndWhite ) );
+    m_params.emplace_back( new JOB_PARAM<bool>( "negative", &m_negative, m_negative ) );
+    m_params.emplace_back( new JOB_PARAM<bool>(
+            "sketch_pads_on_fab_layers", &m_sketchPadsOnFabLayers, m_sketchPadsOnFabLayers ) );
+    m_params.emplace_back(
+            new JOB_PARAM<int>( "page_size_mode", &m_pageSizeMode, m_pageSizeMode ) );
+    m_params.emplace_back(
+            new JOB_PARAM<DRILL_MARKS>( "drill_shape", &m_drillShapeOption, m_drillShapeOption ) );
+    m_params.emplace_back( new JOB_PARAM<unsigned int>( "precision", &m_precision, m_precision ) );
+    m_params.emplace_back( new JOB_PARAM<GEN_MODE>( "gen_mode", &m_genMode, m_genMode ) );
 }
+
+
+wxString JOB_EXPORT_PCB_SVG::GetDefaultDescription() const
+{
+    return _( "Export SVG" );
+}
+
+
+wxString JOB_EXPORT_PCB_SVG::GetSettingsDialogTitle() const
+{
+    return _( "Export SVG Job Settings" );
+}
+
+
+REGISTER_JOB( pcb_export_svg, _HKI( "PCB: Export SVG" ), KIWAY::FACE_PCB, JOB_EXPORT_PCB_SVG );

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
  * Copyright (C) 2016 Cirilo Bernardo <cirilo.bernardo@gmail.com>
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,9 +24,11 @@
  */
 
 #include "exporter_step.h"
+#include <advanced_config.h>
 #include <board.h>
 #include <board_design_settings.h>
 #include <footprint.h>
+#include <pcb_textbox.h>
 #include <pcb_track.h>
 #include <pcb_shape.h>
 #include <pad.h>
@@ -39,6 +41,7 @@
 #include <filename_resolver.h>
 #include <trace_helpers.h>
 #include <project_pcb.h>
+#include <wildcards_and_files_ext.h>
 
 #include <Message.hxx>                // OpenCascade messenger
 #include <Message_PrinterOStream.hxx> // OpenCascade output messenger
@@ -113,44 +116,31 @@ private:
 };
 
 
-wxString EXPORTER_STEP_PARAMS::GetDefaultExportExtension()
-{
-    switch( m_format )
-    {
-    case EXPORTER_STEP_PARAMS::FORMAT::STEP: return wxS( "step" );
-    case EXPORTER_STEP_PARAMS::FORMAT::GLB:  return wxS( "glb" );
-    default:                                 return wxEmptyString; // shouldn't happen
-    }
-}
-
-wxString EXPORTER_STEP_PARAMS::GetFormatName()
-{
-    switch( m_format )
-    {
-    // honestly these names shouldn't be translated since they are mostly industry standard acronyms
-    case EXPORTER_STEP_PARAMS::FORMAT::STEP: return wxS( "STEP" );
-    case EXPORTER_STEP_PARAMS::FORMAT::GLB:  return wxS("Binary GLTF" );
-    default:                                 return wxEmptyString; // shouldn't happen
-    }
-}
-
-
 EXPORTER_STEP::EXPORTER_STEP( BOARD* aBoard, const EXPORTER_STEP_PARAMS& aParams ) :
     m_params( aParams ),
     m_error( false ),
     m_fail( false ),
     m_warn( false ),
     m_board( aBoard ),
-    m_pcbModel( nullptr ),
-    m_boardThickness( DEFAULT_BOARD_THICKNESS_MM )
+    m_pcbModel( nullptr )
 {
-    m_solderMaskColor = COLOR4D( 0.08, 0.20, 0.14, 0.83 );
     m_copperColor = COLOR4D( 0.7, 0.61, 0.0, 1.0 );
+
+    if( m_params.m_ExportComponents )
+        m_padColor = COLOR4D( 0.50, 0.50, 0.50, 1.0 );
+    else
+        m_padColor = m_copperColor;
+
+    // TODO: make configurable
+    m_platingThickness = pcbIUScale.mmToIU( 0.025 );
 
     // Init m_pcbBaseName to the board short filename (no path, no ext)
     // m_pcbName is used later to identify items in step file
     wxFileName fn( aBoard->GetFileName() );
     m_pcbBaseName = fn.GetName();
+
+    // Remove the autosave prefix
+    m_pcbBaseName.StartsWith( FILEEXT::AutoSaveFilePrefix, &m_pcbBaseName );
 
     m_resolver = std::make_unique<FILENAME_RESOLVER>();
     m_resolver->Set3DConfigDir( wxT( "" ) );
@@ -167,41 +157,117 @@ EXPORTER_STEP::~EXPORTER_STEP()
 
 bool EXPORTER_STEP::buildFootprint3DShapes( FOOTPRINT* aFootprint, VECTOR2D aOrigin )
 {
-    bool hasdata = false;
+    bool              hasdata = false;
+    std::vector<PAD*> padsMatchingNetFilter;
+    int               maxError = m_board->GetDesignSettings().m_MaxError;
 
     // Dump the pad holes into the PCB
     for( PAD* pad : aFootprint->Pads() )
     {
-        if( m_pcbModel->AddPadHole( pad, aOrigin ) )
-            hasdata = true;
+        std::shared_ptr<SHAPE_SEGMENT> holeShape = pad->GetEffectiveHoleShape();
 
-        if( ExportTracksAndVias() )
+        SHAPE_POLY_SET holePoly;
+        holeShape->TransformToPolygon( holePoly, maxError, ERROR_INSIDE );
+
+        for( PCB_LAYER_ID pcblayer : pad->GetLayerSet().Seq() )
         {
-            if( m_pcbModel->AddPadShape( pad, aOrigin ) )
+            if( pad->IsOnLayer( pcblayer ) )
+                m_poly_holes[pcblayer].Append( holePoly );
+        }
+
+        if( pad->HasHole() )
+        {
+            int platingThickness = pad->GetAttribute() == PAD_ATTRIB::PTH ? m_platingThickness : 0;
+
+            if( m_pcbModel->AddHole( *holeShape, platingThickness, F_Cu, B_Cu, false, aOrigin, true,
+                                     true ) )
+            {
                 hasdata = true;
+            }
+
+            //// Cut holes in silkscreen (buggy: insufficient polyset self-intersection checking)
+            //if( m_layersToExport.Contains( F_SilkS ) || m_layersToExport.Contains( B_SilkS ) )
+            //{
+            //    m_poly_holes[F_SilkS].Append( holePoly );
+            //    m_poly_holes[B_SilkS].Append( holePoly );
+            //}
+        }
+
+        if( !m_params.m_NetFilter.IsEmpty() && !pad->GetNetname().Matches( m_params.m_NetFilter ) )
+            continue;
+
+        if( m_params.m_ExportPads )
+        {
+            if( m_pcbModel->AddPadShape( pad, aOrigin, false ) )
+                hasdata = true;
+
+            if( m_params.m_ExportSoldermask )
+            {
+                for( PCB_LAYER_ID pcblayer : pad->GetLayerSet().Seq() )
+                {
+                    if( pcblayer != F_Mask && pcblayer != B_Mask )
+                        continue;
+
+                    SHAPE_POLY_SET poly;
+                    PCB_LAYER_ID cuLayer = ( pcblayer == F_Mask ) ? F_Cu : B_Cu;
+                    pad->TransformShapeToPolygon( poly, cuLayer,
+                                                  pad->GetSolderMaskExpansion( cuLayer ), maxError,
+                                                  ERROR_INSIDE );
+
+                    m_poly_shapes[pcblayer].Append( poly );
+                }
+            }
+        }
+
+        padsMatchingNetFilter.push_back( pad );
+    }
+
+    // Build 3D shapes of the footprint graphic items:
+    for( PCB_LAYER_ID pcblayer : m_layersToExport.Seq() )
+    {
+        if( IsCopperLayer( pcblayer ) && !m_params.m_ExportTracksVias )
+            continue;
+
+        SHAPE_POLY_SET buffer;
+
+        aFootprint->TransformFPShapesToPolySet( buffer, pcblayer, 0, maxError, ERROR_INSIDE,
+                                                true, /* include text */
+                                                true, /* include shapes */
+                                                false /* include private items */ );
+
+        if( m_params.m_NetFilter.IsEmpty() || !IsCopperLayer( pcblayer ) )
+        {
+            m_poly_shapes[pcblayer].Append( buffer );
+        }
+        else
+        {
+            // Only add shapes colliding with any matching pads
+            for( const SHAPE_POLY_SET::POLYGON& poly : buffer.CPolygons() )
+            {
+                for( PAD* pad : padsMatchingNetFilter )
+                {
+                    if( !pad->IsOnLayer( pcblayer ) )
+                        continue;
+
+                    std::shared_ptr<SHAPE_POLY_SET> padPoly = pad->GetEffectivePolygon( pcblayer );
+                    SHAPE_POLY_SET                  gfxPoly( poly );
+
+                    if( padPoly->Collide( &gfxPoly ) )
+                    {
+                        m_poly_shapes[pcblayer].Append( gfxPoly );
+                        break;
+                    }
+                }
+            }
         }
     }
 
-    // Build 3D shapes of the footprint graphic items on external layers:
-    if( ExportTracksAndVias() )
-    {
-        int maxError = m_board->GetDesignSettings().m_MaxError;
-        aFootprint->TransformFPShapesToPolySet( m_top_copper_shapes, F_Cu, 0, maxError, ERROR_INSIDE,
-                                               false, /* include text */
-                                               true, /* include shapes */
-                                               false /* include private items */ );
-        aFootprint->TransformFPShapesToPolySet( m_bottom_copper_shapes, B_Cu, 0, maxError, ERROR_INSIDE,
-                                               false, /* include text */
-                                               true, /* include shapes */
-                                               false /* include private items */ );
-    }
-
-    if( ( !(aFootprint->GetAttributes() & (FP_THROUGH_HOLE|FP_SMD)) ) && !m_params.m_includeUnspecified )
+    if( ( !(aFootprint->GetAttributes() & (FP_THROUGH_HOLE|FP_SMD)) ) && !m_params.m_IncludeUnspecified )
     {
         return hasdata;
     }
 
-    if( ( aFootprint->GetAttributes() & FP_DNP ) && !m_params.m_includeDNP )
+    if( ( aFootprint->GetAttributes() & FP_DNP ) && !m_params.m_IncludeDNP )
     {
         return hasdata;
     }
@@ -232,9 +298,34 @@ bool EXPORTER_STEP::buildFootprint3DShapes( FOOTPRINT* aFootprint, VECTOR2D aOri
     }
 
     // Exit early if we don't want to include footprint models
-    if( m_params.m_boardOnly )
+    if( m_params.m_BoardOnly || !m_params.m_ExportComponents )
     {
         return hasdata;
+    }
+
+    bool componentFilter = !m_params.m_ComponentFilter.IsEmpty();
+    std::vector<wxString> componentFilterPatterns;
+
+    if( componentFilter )
+    {
+        wxStringTokenizer tokenizer( m_params.m_ComponentFilter, wxS( "," ), wxTOKEN_STRTOK );
+
+        while( tokenizer.HasMoreTokens() )
+            componentFilterPatterns.push_back( tokenizer.GetNextToken().Trim( false ) );
+
+        bool found = false;
+
+        for( const wxString& pattern : componentFilterPatterns )
+        {
+            if( aFootprint->GetReference().Matches( pattern ) )
+            {
+                found = true;
+                break;
+            }
+        }
+
+        if( !found )
+            return hasdata;
     }
 
     VECTOR2D newpos( pcbIUScale.IUTomm( posX ), pcbIUScale.IUTomm( posY ) );
@@ -242,11 +333,10 @@ bool EXPORTER_STEP::buildFootprint3DShapes( FOOTPRINT* aFootprint, VECTOR2D aOri
     for( const FP_3DMODEL& fp_model : aFootprint->Models() )
     {
         if( !fp_model.m_Show || fp_model.m_Filename.empty() )
-
             continue;
 
         std::vector<wxString> searchedPaths;
-        wxString mname = m_resolver->ResolvePath( fp_model.m_Filename, footprintBasePath );
+        wxString mname = m_resolver->ResolvePath( fp_model.m_Filename, footprintBasePath, aFootprint );
 
 
         if( mname.empty() || !wxFileName::FileExists( mname ) )
@@ -276,7 +366,7 @@ bool EXPORTER_STEP::buildFootprint3DShapes( FOOTPRINT* aFootprint, VECTOR2D aOri
                                           newpos,
                                           aFootprint->GetOrientation().AsRadians(),
                                           fp_model.m_Offset, modelRot,
-                                          fp_model.m_Scale, m_params.m_substModels ) )
+                                          fp_model.m_Scale, m_params.m_SubstModels ) )
             {
                 hasdata = true;
             }
@@ -296,27 +386,81 @@ bool EXPORTER_STEP::buildFootprint3DShapes( FOOTPRINT* aFootprint, VECTOR2D aOri
 
 bool EXPORTER_STEP::buildTrack3DShape( PCB_TRACK* aTrack, VECTOR2D aOrigin )
 {
+    bool skipCopper = !m_params.m_ExportTracksVias
+                      || ( !m_params.m_NetFilter.IsEmpty()
+                           && !aTrack->GetNetname().Matches( m_params.m_NetFilter ) );
+
+    int maxError = m_board->GetDesignSettings().m_MaxError;
+
+    if( m_params.m_ExportSoldermask )
+    {
+        if( aTrack->IsOnLayer( F_Mask ) )
+        {
+            SHAPE_POLY_SET poly;
+            aTrack->TransformShapeToPolygon( poly, F_Mask, 0, maxError, ERROR_INSIDE );
+
+            m_poly_shapes[F_Mask].Append( poly );
+        }
+
+        if( aTrack->IsOnLayer( B_Mask ) )
+        {
+            SHAPE_POLY_SET poly;
+            aTrack->TransformShapeToPolygon( poly, B_Mask, 0, maxError, ERROR_INSIDE );
+
+            m_poly_shapes[B_Mask].Append( poly );
+        }
+    }
+
     if( aTrack->Type() == PCB_VIA_T )
     {
-        return m_pcbModel->AddViaShape( static_cast<const PCB_VIA*>( aTrack ), aOrigin );
+        PCB_VIA* via = static_cast<PCB_VIA*>( aTrack );
+
+        std::shared_ptr<SHAPE_SEGMENT> holeShape = via->GetEffectiveHoleShape();
+        SHAPE_POLY_SET                 holePoly;
+        holeShape->TransformToPolygon( holePoly, maxError, ERROR_INSIDE );
+
+        LSET layers( via->GetLayerSet() & m_layersToExport );
+
+        PCB_LAYER_ID top_layer, bot_layer;
+        via->LayerPair( &top_layer, &bot_layer );
+
+        if( !skipCopper )
+        {
+            for( PCB_LAYER_ID pcblayer : layers.Seq() )
+            {
+                const std::shared_ptr<SHAPE>& shape = via->GetEffectiveShape( pcblayer );
+
+                SHAPE_POLY_SET poly;
+                shape->TransformToPolygon( poly, maxError, ERROR_INSIDE );
+                m_poly_shapes[pcblayer].Append( poly );
+                m_poly_holes[pcblayer].Append( holePoly );
+            }
+
+            m_pcbModel->AddBarrel( *holeShape, top_layer, bot_layer, true, aOrigin );
+        }
+
+        //// Cut holes in silkscreen (buggy: insufficient polyset self-intersection checking)
+        //if( m_layersToExport.Contains( F_SilkS ) || m_layersToExport.Contains( B_SilkS ) )
+        //{
+        //    m_poly_holes[F_SilkS].Append( holePoly );
+        //    m_poly_holes[B_SilkS].Append( holePoly );
+        //}
+
+        m_pcbModel->AddHole( *holeShape, m_platingThickness, top_layer, bot_layer, true, aOrigin,
+                             !m_params.m_FillAllVias, m_params.m_CutViasInBody );
+
+        return true;
     }
+
+    if( skipCopper )
+        return true;
 
     PCB_LAYER_ID pcblayer = aTrack->GetLayer();
 
-    if( pcblayer != F_Cu && pcblayer != B_Cu )
+    if( !m_layersToExport.Contains( pcblayer ) )
         return false;
 
-    if( aTrack->Type() == PCB_ARC_T )
-    {
-        int maxError = m_board->GetDesignSettings().m_MaxError;
-
-        if( pcblayer == F_Cu )
-            aTrack->TransformShapeToPolygon( m_top_copper_shapes, pcblayer, 0, maxError, ERROR_INSIDE );
-        else
-            aTrack->TransformShapeToPolygon( m_bottom_copper_shapes, pcblayer, 0, maxError, ERROR_INSIDE );
-    }
-    else
-        m_pcbModel->AddTrackSegment( aTrack, aOrigin );
+    aTrack->TransformShapeToPolygon( m_poly_shapes[pcblayer], pcblayer, 0, maxError, ERROR_INSIDE );
 
     return true;
 }
@@ -326,16 +470,23 @@ void EXPORTER_STEP::buildZones3DShape( VECTOR2D aOrigin )
 {
     for( ZONE* zone : m_board->Zones() )
     {
-        for( PCB_LAYER_ID layer : zone->GetLayerSet().Seq() )
-        {
-            if( layer == F_Cu || layer == B_Cu )
-            {
-                SHAPE_POLY_SET copper_shape;
-                zone->TransformSolidAreasShapesToPolygon( layer, copper_shape );
-                copper_shape.Unfracture( SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+        LSET layers = zone->GetLayerSet();
 
-                m_pcbModel->AddCopperPolygonShapes( &copper_shape, layer == F_Cu, aOrigin, false );
-            }
+        if( ( layers & LSET::AllCuMask() ).count() && !m_params.m_NetFilter.IsEmpty()
+            && !zone->GetNetname().Matches( m_params.m_NetFilter ) )
+        {
+            continue;
+        }
+
+        for( PCB_LAYER_ID layer : layers.Seq() )
+        {
+            SHAPE_POLY_SET fill_shape;
+            zone->TransformSolidAreasShapesToPolygon( layer, fill_shape );
+            fill_shape.Unfracture();
+
+            fill_shape.SimplifyOutlines( ADVANCED_CFG::GetCfg().m_TriangulateSimplificationLevel );
+
+            m_poly_shapes[layer].Append( fill_shape );
         }
     }
 }
@@ -343,28 +494,98 @@ void EXPORTER_STEP::buildZones3DShape( VECTOR2D aOrigin )
 
 bool EXPORTER_STEP::buildGraphic3DShape( BOARD_ITEM* aItem, VECTOR2D aOrigin )
 {
-    PCB_SHAPE* graphic = dynamic_cast<PCB_SHAPE*>( aItem );
+    PCB_LAYER_ID pcblayer = aItem->GetLayer();
 
-    if( ! graphic )
+    if( !m_layersToExport.Contains( pcblayer ) )
         return false;
 
-    PCB_LAYER_ID pcblayer = graphic->GetLayer();
-
-    if( pcblayer != F_Cu && pcblayer != B_Cu )
+    if( IsCopperLayer( pcblayer ) && !m_params.m_ExportTracksVias )
         return false;
 
-    SHAPE_POLY_SET copper_shapes;
+    if( IsInnerCopperLayer( pcblayer ) && !m_params.m_ExportInnerCopper )
+        return false;
+
     int maxError = m_board->GetDesignSettings().m_MaxError;
 
+    switch( aItem->Type() )
+    {
+    case PCB_SHAPE_T:
+    {
+        PCB_SHAPE* graphic = static_cast<PCB_SHAPE*>( aItem );
 
-    if( pcblayer == F_Cu )
-        graphic->TransformShapeToPolygon( m_top_copper_shapes, pcblayer, 0,
-                                          maxError, ERROR_INSIDE );
-    else
-        graphic->TransformShapeToPolygon( m_bottom_copper_shapes, pcblayer, 0,
-                                          maxError, ERROR_INSIDE );
+        if( IsCopperLayer( pcblayer ) && !m_params.m_NetFilter.IsEmpty()
+            && !graphic->GetNetname().Matches( m_params.m_NetFilter ) )
+        {
+            return true;
+        }
+
+        graphic->TransformShapeToPolygon( m_poly_shapes[pcblayer], pcblayer, 0, maxError,
+                                          ERROR_INSIDE );
+
+        break;
+    }
+
+    case PCB_TEXT_T:
+    {
+        PCB_TEXT* text = static_cast<PCB_TEXT*>( aItem );
+
+        text->TransformTextToPolySet( m_poly_shapes[pcblayer], 0, maxError, ERROR_INSIDE );
+        break;
+    }
+
+    case PCB_TEXTBOX_T:
+    {
+        PCB_TEXTBOX* textbox = static_cast<PCB_TEXTBOX*>( aItem );
+
+        textbox->TransformTextToPolySet( m_poly_shapes[pcblayer], 0, maxError, ERROR_INSIDE );
+        break;
+    }
+
+    case PCB_TABLE_T:
+        // JEY TODO: tables
+        break;
+
+    default: wxFAIL_MSG( "buildGraphic3DShape: unhandled item type" );
+    }
 
     return true;
+}
+
+
+void EXPORTER_STEP::initOutputVariant()
+{
+    // Specialize the STEP_PCB_MODEL generator for specific output format
+    // it can have some minor actions for the generator
+    switch( m_params.m_Format )
+    {
+        case EXPORTER_STEP_PARAMS::FORMAT::STEP:
+            m_pcbModel->SpecializeVariant( OUTPUT_FORMAT::FMT_OUT_STEP );
+            break;
+
+        case EXPORTER_STEP_PARAMS::FORMAT::BREP:
+            m_pcbModel->SpecializeVariant( OUTPUT_FORMAT::FMT_OUT_BREP );
+            break;
+
+        case EXPORTER_STEP_PARAMS::FORMAT::XAO:
+            m_pcbModel->SpecializeVariant( OUTPUT_FORMAT::FMT_OUT_XAO );
+            break;
+
+        case EXPORTER_STEP_PARAMS::FORMAT::GLB:
+            m_pcbModel->SpecializeVariant( OUTPUT_FORMAT::FMT_OUT_GLTF );
+            break;
+
+        case EXPORTER_STEP_PARAMS::FORMAT::PLY:
+            m_pcbModel->SpecializeVariant( OUTPUT_FORMAT::FMT_OUT_PLY );
+            break;
+
+        case EXPORTER_STEP_PARAMS::FORMAT::STL:
+            m_pcbModel->SpecializeVariant( OUTPUT_FORMAT::FMT_OUT_STL );
+            break;
+
+        default:
+            m_pcbModel->SpecializeVariant( OUTPUT_FORMAT::FMT_OUT_UNKNOWN );
+            break;
+    }
 }
 
 
@@ -386,20 +607,24 @@ bool EXPORTER_STEP::buildBoard3DShapes()
 
     // Determine the coordinate system reference:
     // Precedence of reference point is Drill Origin > Grid Origin > User Offset
-    if( m_params.m_useDrillOrigin )
+    if( m_params.m_UseDrillOrigin )
         origin = m_board->GetDesignSettings().GetAuxOrigin();
-    else if( m_params.m_useGridOrigin )
+    else if( m_params.m_UseGridOrigin )
         origin = m_board->GetDesignSettings().GetGridOrigin();
     else
-        origin = m_params.m_origin;
+        origin = m_params.m_Origin;
 
     m_pcbModel = std::make_unique<STEP_PCB_MODEL>( m_pcbBaseName );
 
-    // TODO: Handle when top & bottom soldermask colours are different...
-    m_pcbModel->SetBoardColor( m_solderMaskColor.r, m_solderMaskColor.g, m_solderMaskColor.b );
-    m_pcbModel->SetCopperColor( m_copperColor.r, m_copperColor.g, m_copperColor.b );
+    initOutputVariant();
 
-    m_pcbModel->SetPCBThickness( m_boardThickness );
+    m_pcbModel->SetCopperColor( m_copperColor.r, m_copperColor.g, m_copperColor.b );
+    m_pcbModel->SetPadColor( m_padColor.r, m_padColor.g, m_padColor.b );
+
+    m_pcbModel->SetStackup( m_board->GetStackupOrDefault() );
+    m_pcbModel->SetEnabledLayers( m_layersToExport );
+    m_pcbModel->SetFuseShapes( m_params.m_FuseShapes );
+    m_pcbModel->SetNetFilter( m_params.m_NetFilter );
 
     // Note: m_params.m_BoardOutlinesChainingEpsilon is used only to build the board outlines,
     // not to set OCC chaining epsilon (much smaller)
@@ -417,21 +642,51 @@ bool EXPORTER_STEP::buildBoard3DShapes()
     for( FOOTPRINT* fp : m_board->Footprints() )
         buildFootprint3DShapes( fp, origin );
 
-    if( ExportTracksAndVias() )
-    {
-        for( PCB_TRACK* track : m_board->Tracks() )
-            buildTrack3DShape( track, origin );
+    for( PCB_TRACK* track : m_board->Tracks() )
+        buildTrack3DShape( track, origin );
 
-        for( BOARD_ITEM* item : m_board->Drawings() )
-            buildGraphic3DShape( item, origin );
-    }
+    for( BOARD_ITEM* item : m_board->Drawings() )
+        buildGraphic3DShape( item, origin );
 
-    m_pcbModel->AddCopperPolygonShapes( &m_top_copper_shapes, true, origin, true );
-    m_pcbModel->AddCopperPolygonShapes( &m_bottom_copper_shapes, false, origin, true );
-
-    if( m_params.m_exportZones )
+    if( m_params.m_ExportZones )
     {
         buildZones3DShape( origin );
+    }
+
+    SHAPE_POLY_SET pcbOutlinesNoArcs = pcbOutlines;
+    pcbOutlinesNoArcs.ClearArcs();
+
+    for( PCB_LAYER_ID pcblayer : m_layersToExport.Seq() )
+    {
+        SHAPE_POLY_SET poly = m_poly_shapes[pcblayer];
+        poly.Simplify();
+
+        poly.SimplifyOutlines( pcbIUScale.mmToIU( 0.003 ) );
+        poly.Simplify();
+
+        SHAPE_POLY_SET holes = m_poly_holes[pcblayer];
+        holes.Simplify();
+
+        // Mask layer is negative
+        if( pcblayer == F_Mask || pcblayer == B_Mask )
+        {
+            SHAPE_POLY_SET mask = pcbOutlinesNoArcs;
+
+            mask.BooleanSubtract( poly );
+            mask.BooleanSubtract( holes );
+
+            poly = mask;
+        }
+        else
+        {
+            // Subtract holes
+            poly.BooleanSubtract( holes );
+
+            // Clip to board outline
+            poly.BooleanIntersection( pcbOutlinesNoArcs );
+        }
+
+        m_pcbModel->AddPolygonShapes( &poly, pcblayer, origin );
     }
 
     ReportMessage( wxT( "Create PCB solid model\n" ) );
@@ -440,53 +695,13 @@ bool EXPORTER_STEP::buildBoard3DShapes()
     msg.Printf( wxT( "Board outline: find %d initial points\n" ), pcbOutlines.FullPointCount() );
     ReportMessage( msg );
 
-    if( !m_pcbModel->CreatePCB( pcbOutlines, origin ) )
+    if( !m_pcbModel->CreatePCB( pcbOutlines, origin, m_params.m_ExportBoardBody ) )
     {
         ReportMessage( wxT( "could not create PCB solid model\n" ) );
         return false;
     }
 
     return true;
-}
-
-
-void EXPORTER_STEP::calculatePcbThickness()
-{
-    m_boardThickness = DEFAULT_BOARD_THICKNESS_MM;
-
-    const BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
-
-    if( bds.GetStackupDescriptor().GetCount() )
-    {
-        int thickness = 0;
-
-        for( BOARD_STACKUP_ITEM* item : bds.GetStackupDescriptor().GetList() )
-        {
-            switch( item->GetType() )
-            {
-            case BS_ITEM_TYPE_DIELECTRIC:
-                // Dielectric can have sub-layers. Layer 0 is the main layer
-                // Not frequent, but possible
-                for( int idx = 0; idx < item->GetSublayersCount(); idx++ )
-                    thickness += item->GetThickness( idx );
-
-                break;
-
-            case BS_ITEM_TYPE_COPPER:
-            case BS_ITEM_TYPE_SOLDERMASK:
-                if( item->IsEnabled() )
-                    thickness += item->GetThickness();
-
-                break;
-
-            default:
-                break;
-            }
-        }
-
-        if( thickness > 0 )
-            m_boardThickness = pcbIUScale.IUTomm( thickness );
-    }
 }
 
 
@@ -500,19 +715,34 @@ bool EXPORTER_STEP::Export()
     Message::DefaultMessenger()->AddPrinter( new KiCadPrinter( this ) );
 
     ReportMessage( _( "Determining PCB data\n" ) );
-    calculatePcbThickness();
-    wxString msg;
-    msg.Printf( _( "Board Thickness from stackup: %.3f mm\n" ), m_boardThickness );
-    ReportMessage( msg );
 
-    if( m_params.m_outputFile.IsEmpty() )
+    if( m_params.m_OutputFile.IsEmpty() )
     {
         wxFileName fn = m_board->GetFileName();
         fn.SetName( fn.GetName() );
         fn.SetExt( m_params.GetDefaultExportExtension() );
 
-        m_params.m_outputFile = fn.GetFullName();
+        m_params.m_OutputFile = fn.GetFullName();
     }
+
+    m_layersToExport = LSET::ExternalCuMask();
+
+    if( m_params.m_ExportInnerCopper )
+        m_layersToExport |= LSET::InternalCuMask();
+
+    if( m_params.m_ExportSilkscreen )
+    {
+        m_layersToExport.set( F_SilkS );
+        m_layersToExport.set( B_SilkS );
+    }
+
+    if( m_params.m_ExportSoldermask )
+    {
+        m_layersToExport.set( F_Mask );
+        m_layersToExport.set( B_Mask );
+    }
+
+    m_layersToExport &= m_board->GetEnabledLayers();
 
     try
     {
@@ -527,10 +757,18 @@ bool EXPORTER_STEP::Export()
         ReportMessage( wxString::Format( _( "Writing %s file\n" ), m_params.GetFormatName() ) );
 
         bool success = true;
-        if( m_params.m_format == EXPORTER_STEP_PARAMS::FORMAT::STEP )
-            success = m_pcbModel->WriteSTEP( m_outputFile, m_params.m_optimizeStep );
-        else if( m_params.m_format == EXPORTER_STEP_PARAMS::FORMAT::GLB )
+        if( m_params.m_Format == EXPORTER_STEP_PARAMS::FORMAT::STEP )
+            success = m_pcbModel->WriteSTEP( m_outputFile, m_params.m_OptimizeStep );
+        else if( m_params.m_Format == EXPORTER_STEP_PARAMS::FORMAT::BREP )
+            success = m_pcbModel->WriteBREP( m_outputFile );
+        else if( m_params.m_Format == EXPORTER_STEP_PARAMS::FORMAT::XAO )
+            success = m_pcbModel->WriteXAO( m_outputFile );
+        else if( m_params.m_Format == EXPORTER_STEP_PARAMS::FORMAT::GLB )
             success = m_pcbModel->WriteGLTF( m_outputFile );
+        else if( m_params.m_Format == EXPORTER_STEP_PARAMS::FORMAT::PLY )
+            success = m_pcbModel->WritePLY( m_outputFile );
+        else if( m_params.m_Format == EXPORTER_STEP_PARAMS::FORMAT::STL )
+            success = m_pcbModel->WriteSTL( m_outputFile );
 
         if( !success )
         {
@@ -560,9 +798,11 @@ bool EXPORTER_STEP::Export()
 
     if( m_fail || m_error )
     {
+        wxString msg;
+
         if( m_fail )
         {
-            msg =  wxString::Format( _( "Unable to create %s file.\n"
+            msg = wxString::Format( _( "Unable to create %s file.\n"
                                        "Check that the board has a valid outline and models." ),
                                     m_params.GetFormatName() );
         }

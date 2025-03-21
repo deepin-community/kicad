@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,6 +20,8 @@
 #include <wx/dcclient.h>
 #include <wx/checkbox.h>
 #include <wx/choice.h>
+#include <wx/menu.h>
+#include <wx/menuitem.h>
 #include <wx/listbox.h>
 #include <wx/dataview.h>
 #include <wx/radiobut.h>
@@ -35,11 +37,12 @@
 #include <dialog_shim.h>
 #include <pgm_base.h>
 #include <wx/settings.h>
+#include <settings/common_settings.h>
 #include <bitmaps/bitmap_types.h>
 #include <string_utils.h>
 
 
-const wxString KIUI::s_FocusStealableInputName = wxS( "KI_NOFOCUS");
+const wxString KIUI::s_FocusStealableInputName = wxS( "KI_NOFOCUS" );
 
 
 int KIUI::GetStdMargin()
@@ -115,6 +118,7 @@ wxFont getGUIFont( wxWindow* aWindow, int aRelativeSize )
     // https://trac.wxwidgets.org/ticket/19210
     if( font.GetFaceName().IsEmpty() )
         font.SetFaceName( wxS( "San Francisco" ) );
+
     // OSX 10.1 .. 10.9: Lucida Grande
     // OSX 10.10:        Helvetica Neue
     // OSX 10.11 .. :    San Francisco
@@ -307,7 +311,8 @@ bool KIUI::IsInputControlEditable( wxWindow* aFocus )
     else if( searchCtrl )
         return searchCtrl->IsEditable();
 
-    return true;    // Must return true if we can't determine the state, intentionally true for non inputs as well
+    // Must return true if we can't determine the state, intentionally true for non inputs as well.
+    return true;
 }
 
 
@@ -352,7 +357,7 @@ void KIUI::Disable( wxWindow* aWindow )
 }
 
 
-void KIUI::AddBitmapToMenuItem( wxMenuItem* aMenu, const wxBitmap& aImage )
+void KIUI::AddBitmapToMenuItem( wxMenuItem* aMenu, const wxBitmapBundle& aImage )
 {
     // Retrieve the global application show icon option:
     bool useImagesInMenus = Pgm().GetCommonSettings()->m_Appearance.use_icons_in_menus;
@@ -366,8 +371,8 @@ void KIUI::AddBitmapToMenuItem( wxMenuItem* aMenu, const wxBitmap& aImage )
 }
 
 
-wxMenuItem* KIUI::AddMenuItem( wxMenu* aMenu, int aId, const wxString& aText, const wxBitmap& aImage,
-                               wxItemKind aType )
+wxMenuItem* KIUI::AddMenuItem( wxMenu* aMenu, int aId, const wxString& aText,
+                               const wxBitmapBundle& aImage, wxItemKind aType )
 {
     wxMenuItem* item = new wxMenuItem( aMenu, aId, aText, wxEmptyString, aType );
     AddBitmapToMenuItem( item, aImage );
@@ -378,8 +383,9 @@ wxMenuItem* KIUI::AddMenuItem( wxMenu* aMenu, int aId, const wxString& aText, co
 }
 
 
-wxMenuItem* KIUI::AddMenuItem( wxMenu* aMenu, int aId, const wxString& aText, const wxString& aHelpText,
-                               const wxBitmap& aImage, wxItemKind aType )
+wxMenuItem* KIUI::AddMenuItem( wxMenu* aMenu, int aId, const wxString& aText,
+                               const wxString& aHelpText, const wxBitmapBundle& aImage,
+                               wxItemKind aType )
 {
     wxMenuItem* item = new wxMenuItem( aMenu, aId, aText, aHelpText, aType );
     AddBitmapToMenuItem( item, aImage );
@@ -391,7 +397,7 @@ wxMenuItem* KIUI::AddMenuItem( wxMenu* aMenu, int aId, const wxString& aText, co
 
 
 wxMenuItem* KIUI::AddMenuItem( wxMenu* aMenu, wxMenu* aSubMenu, int aId, const wxString& aText,
-                               const wxBitmap& aImage )
+                               const wxBitmapBundle& aImage )
 {
     wxMenuItem* item = new wxMenuItem( aMenu, aId, aText );
     item->SetSubMenu( aSubMenu );
@@ -404,7 +410,7 @@ wxMenuItem* KIUI::AddMenuItem( wxMenu* aMenu, wxMenu* aSubMenu, int aId, const w
 
 
 wxMenuItem* KIUI::AddMenuItem( wxMenu* aMenu, wxMenu* aSubMenu, int aId, const wxString& aText,
-                               const wxString& aHelpText, const wxBitmap& aImage )
+                               const wxString& aHelpText, const wxBitmapBundle& aImage )
 {
     wxMenuItem* item = new wxMenuItem( aMenu, aId, aText, aHelpText );
     item->SetSubMenu( aSubMenu );

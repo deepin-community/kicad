@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2016-2018 CERN
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -33,7 +33,7 @@
 #include <progress_reporter.h>
 #include <geometry/geometry_utils.h>
 #include <board_commit.h>
-#include <core/thread_pool.h>
+#include <thread_pool.h>
 #include <pcb_shape.h>
 
 #include <wx/log.h>
@@ -200,11 +200,12 @@ bool CN_CONNECTIVITY_ALGO::Add( BOARD_ITEM* aItem )
         BOARD* board = zone->GetBoard();
         LSET layerset = board->GetEnabledLayers() & zone->GetLayerSet();
 
-        for( PCB_LAYER_ID layer : layerset.Seq() )
-        {
-            for( CN_ITEM* zitem : m_itemList.Add( zone, layer ) )
-                m_itemMap[zone].Link( zitem );
-        }
+        layerset.RunOnLayers(
+                [&]( PCB_LAYER_ID layer )
+                {
+                    for( CN_ITEM* zitem : m_itemList.Add( zone, layer ) )
+                        m_itemMap[zone].Link( zitem );
+                } );
     }
         break;
 
@@ -227,6 +228,7 @@ void CN_CONNECTIVITY_ALGO::RemoveInvalidRefs()
 
 void CN_CONNECTIVITY_ALGO::searchConnections()
 {
+    std::lock_guard lock( m_mutex );
 #ifdef PROFILE
     PROF_TIMER garbage_collection( "garbage-collection" );
 #endif
@@ -316,26 +318,26 @@ void CN_CONNECTIVITY_ALGO::searchConnections()
 
 const CN_CONNECTIVITY_ALGO::CLUSTERS CN_CONNECTIVITY_ALGO::SearchClusters( CLUSTER_SEARCH_MODE aMode )
 {
-    if( aMode == CSM_PROPAGATE )
-    {
-        return SearchClusters( aMode,
-                               { PCB_TRACE_T, PCB_ARC_T, PCB_PAD_T, PCB_VIA_T, PCB_FOOTPRINT_T,
-                                 PCB_SHAPE_T },
-                               -1 );
-    }
-    else
-    {
-        return SearchClusters( aMode,
-                               { PCB_TRACE_T, PCB_ARC_T, PCB_PAD_T, PCB_VIA_T, PCB_ZONE_T,
-                                 PCB_FOOTPRINT_T, PCB_SHAPE_T },
-                               -1 );
-    }
+    static const std::vector<KICAD_T> withoutZones = { PCB_TRACE_T,
+                                                       PCB_ARC_T,
+                                                       PCB_PAD_T,
+                                                       PCB_VIA_T,
+                                                       PCB_FOOTPRINT_T,
+                                                       PCB_SHAPE_T };
+    static const std::vector<KICAD_T> withZones = { PCB_TRACE_T,
+                                                    PCB_ARC_T,
+                                                    PCB_PAD_T,
+                                                    PCB_VIA_T,
+                                                    PCB_ZONE_T,
+                                                    PCB_FOOTPRINT_T,
+                                                    PCB_SHAPE_T };
+
+    return SearchClusters( aMode, aMode == CSM_PROPAGATE ? withoutZones : withZones, -1 );
 }
 
 
 const CN_CONNECTIVITY_ALGO::CLUSTERS
-CN_CONNECTIVITY_ALGO::SearchClusters( CLUSTER_SEARCH_MODE aMode,
-                                      const std::initializer_list<KICAD_T>& aTypes,
+CN_CONNECTIVITY_ALGO::SearchClusters( CLUSTER_SEARCH_MODE aMode, const std::vector<KICAD_T>& aTypes,
                                       int aSingleNet, CN_ITEM* rootItem )
 {
     bool withinAnyNet = ( aMode != CSM_PROPAGATE );
@@ -348,8 +350,10 @@ CN_CONNECTIVITY_ALGO::SearchClusters( CLUSTER_SEARCH_MODE aMode,
     if( m_itemList.IsDirty() )
         searchConnections();
 
+    std::set<CN_ITEM*> visited;
+
     auto addToSearchList =
-            [&item_set, withinAnyNet, aSingleNet, &aTypes, rootItem ]( CN_ITEM *aItem )
+            [&item_set, withinAnyNet, aSingleNet, &aTypes, rootItem]( CN_ITEM *aItem )
             {
                 if( withinAnyNet && aItem->Net() <= 0 )
                     return;
@@ -374,8 +378,6 @@ CN_CONNECTIVITY_ALGO::SearchClusters( CLUSTER_SEARCH_MODE aMode,
                 if( !found && aItem != rootItem )
                     return;
 
-                aItem->SetVisited( false );
-
                 item_set.insert( aItem );
             };
 
@@ -390,14 +392,14 @@ CN_CONNECTIVITY_ALGO::SearchClusters( CLUSTER_SEARCH_MODE aMode,
         CN_ITEM*                    root;
         auto                        it = item_set.begin();
 
-        while( it != item_set.end() && (*it)->Visited() )
+        while( it != item_set.end() && visited.contains( *it ) )
             it = item_set.erase( item_set.begin() );
 
         if( it == item_set.end() )
             break;
 
         root = *it;
-        root->SetVisited( true );
+        visited.insert( root );
 
         Q.clear();
         Q.push_back( root );
@@ -414,9 +416,9 @@ CN_CONNECTIVITY_ALGO::SearchClusters( CLUSTER_SEARCH_MODE aMode,
                 if( withinAnyNet && n->Net() != root->Net() )
                     continue;
 
-                if( !n->Visited() && n->Valid() )
+                if( !visited.contains( n ) && n->Valid() )
                 {
-                    n->SetVisited( true );
+                    visited.insert( n );
                     Q.push_back( n );
                 }
             }
@@ -456,11 +458,12 @@ void CN_CONNECTIVITY_ALGO::Build( BOARD* aBoard, PROGRESS_REPORTER* aReporter )
             BOARD* board = zone->GetBoard();
             LSET layerset = board->GetEnabledLayers() & zone->GetLayerSet() & LSET::AllCuMask();
 
-            for( PCB_LAYER_ID layer : layerset.Seq() )
-            {
-                for( int j = 0; j < zone->GetFilledPolysList( layer )->OutlineCount(); j++ )
-                    zitems.push_back( new CN_ZONE_LAYER( zone, layer, j ) );
-            }
+            layerset.RunOnLayers(
+                    [&]( PCB_LAYER_ID layer )
+                    {
+                        for( int j = 0; j < zone->GetFilledPolysList( layer )->OutlineCount(); j++ )
+                            zitems.push_back( new CN_ZONE_LAYER( zone, layer, j ) );
+                    } );
         }
     }
 
@@ -701,7 +704,7 @@ void CN_CONNECTIVITY_ALGO::FillIsolatedIslandsMap(
             {
                 for( CN_ITEM* item : *cluster )
                 {
-                    if( item->Parent() == zone && item->Layer() == layer )
+                    if( item->Parent() == zone && item->GetBoardLayer() == layer )
                     {
                         CN_ZONE_LAYER* z = static_cast<CN_ZONE_LAYER*>( item );
 
@@ -899,39 +902,43 @@ bool CN_VISITOR::operator()( CN_ITEM* aCandidate )
 
     LSET commonLayers = parentA->GetLayerSet() & parentB->GetLayerSet();
 
-    for( PCB_LAYER_ID layer : commonLayers.Seq() )
+    for( size_t ii = 0; ii < commonLayers.size(); ++ii )
     {
-        FLASHING flashingA = FLASHING::NEVER_FLASHED;
-        FLASHING flashingB = FLASHING::NEVER_FLASHED;
+        if( commonLayers.test( ii ) )
+        {
+            PCB_LAYER_ID layer = PCB_LAYER_ID( ii );
+            FLASHING     flashingA = FLASHING::NEVER_FLASHED;
+            FLASHING     flashingB = FLASHING::NEVER_FLASHED;
 
-        if( parentA->Type() == PCB_PAD_T )
-        {
-            if( !static_cast<const PAD*>( parentA )->ConditionallyFlashed( layer ) )
-                flashingA = FLASHING::ALWAYS_FLASHED;
-        }
-        else if( parentA->Type() == PCB_VIA_T )
-        {
-            if( !static_cast<const PCB_VIA*>( parentA )->ConditionallyFlashed( layer ) )
-                flashingA = FLASHING::ALWAYS_FLASHED;
-        }
+            if( parentA->Type() == PCB_PAD_T )
+            {
+                if( !static_cast<const PAD*>( parentA )->ConditionallyFlashed( layer ) )
+                    flashingA = FLASHING::ALWAYS_FLASHED;
+            }
+            else if( parentA->Type() == PCB_VIA_T )
+            {
+                if( !static_cast<const PCB_VIA*>( parentA )->ConditionallyFlashed( layer ) )
+                    flashingA = FLASHING::ALWAYS_FLASHED;
+            }
 
-        if( parentB->Type() == PCB_PAD_T )
-        {
-            if( !static_cast<const PAD*>( parentB )->ConditionallyFlashed( layer ) )
-                flashingB = FLASHING::ALWAYS_FLASHED;
-        }
-        else if( parentB->Type() == PCB_VIA_T )
-        {
-            if( !static_cast<const PCB_VIA*>( parentB )->ConditionallyFlashed( layer ) )
-                flashingB = FLASHING::ALWAYS_FLASHED;
-        }
+            if( parentB->Type() == PCB_PAD_T )
+            {
+                if( !static_cast<const PAD*>( parentB )->ConditionallyFlashed( layer ) )
+                    flashingB = FLASHING::ALWAYS_FLASHED;
+            }
+            else if( parentB->Type() == PCB_VIA_T )
+            {
+                if( !static_cast<const PCB_VIA*>( parentB )->ConditionallyFlashed( layer ) )
+                    flashingB = FLASHING::ALWAYS_FLASHED;
+            }
 
-        if( parentA->GetEffectiveShape( layer, flashingA )->Collide(
-                parentB->GetEffectiveShape( layer, flashingB ).get() ) )
-        {
-            m_item->Connect( aCandidate );
-            aCandidate->Connect( m_item );
-            return true;
+            if( parentA->GetEffectiveShape( layer, flashingA )->Collide(
+                    parentB->GetEffectiveShape( layer, flashingB ).get() ) )
+            {
+                m_item->Connect( aCandidate );
+                aCandidate->Connect( m_item );
+                return true;
+            }
         }
     }
 

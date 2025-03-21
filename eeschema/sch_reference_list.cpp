@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1992-2018 jean-pierre Charras <jp.charras at wanadoo.fr>
  * Copyright (C) 1992-2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,7 +37,7 @@
 #include <unordered_set>
 
 #include <string_utils.h>
-#include <erc_settings.h>
+#include <erc/erc_settings.h>
 #include <sch_symbol.h>
 #include <sch_edit_frame.h>
 
@@ -377,7 +377,9 @@ void SCH_REFERENCE_LIST::ReannotateByOptions( ANNOTATE_ORDER_T             aSort
         if( aHierarchy )
         {
             SCH_SHEET_PATH* path = aHierarchy->FindSheetForPath( &ref.GetSheetPath() );
-            wxASSERT_MSG( path, wxT( "Attempting to annotate item on sheet not part of the hierarchy?" ) );
+            wxCHECK2_MSG( path, continue,
+                          wxS( "Attempting to annotate item on sheet not part of the "
+                               "hierarchy?" ) );
 
             ref.SetSheetNumber( path->GetVirtualPageNumber() );
         }
@@ -555,7 +557,7 @@ void SCH_REFERENCE_LIST::Annotate( bool aUseSheetNum, int aSheetIntervalId, int 
                 GetRefsInUse( first, idList, minRefId );
                 LastReferenceNumber = createFirstFreeRefId( idList, minRefId );
                 ref_unit.m_numRef = LastReferenceNumber;
-                ref_unit.m_numRefStr = wxString::Format( "%d", LastReferenceNumber );
+                ref_unit.m_numRefStr = ref_unit.formatRefStr( LastReferenceNumber );
             }
 
             ref_unit.m_flag  = 1;
@@ -574,7 +576,7 @@ void SCH_REFERENCE_LIST::Annotate( bool aUseSheetNum, int aSheetIntervalId, int 
             {
                 LastReferenceNumber = FindFirstUnusedReference( ref_unit, minRefId, units );
                 ref_unit.m_numRef = LastReferenceNumber;
-                ref_unit.m_numRefStr = wxString::Format( "%d", LastReferenceNumber );
+                ref_unit.m_numRefStr = ref_unit.formatRefStr( LastReferenceNumber );
                 ref_unit.m_isNew = false;
                 ref_unit.m_flag = 1;
             }
@@ -631,6 +633,7 @@ void SCH_REFERENCE_LIST::Annotate( bool aUseSheetNum, int aSheetIntervalId, int 
             std::vector<int> units = { ref_unit.GetUnit() };
             LastReferenceNumber = FindFirstUnusedReference( ref_unit, minRefId, units );
             ref_unit.m_numRef = LastReferenceNumber;
+            ref_unit.m_numRefStr = ref_unit.formatRefStr( LastReferenceNumber );
             ref_unit.m_isNew = false;
             ref_unit.m_flag = 1;
         }
@@ -664,7 +667,7 @@ int SCH_REFERENCE_LIST::CheckAnnotation( ANNOTATION_ERROR_HANDLER aHandler )
         if( m_flatList[ii].m_isNew )    // Not yet annotated
         {
             if( m_flatList[ii].m_numRef >= 0 )
-                tmp << m_flatList[ii].m_numRef;
+                tmp << m_flatList[ii].m_numRefStr;
             else
                 tmp = wxT( "?" );
 
@@ -692,7 +695,7 @@ int SCH_REFERENCE_LIST::CheckAnnotation( ANNOTATION_ERROR_HANDLER aHandler )
         if( std::max( m_flatList[ii].GetLibPart()->GetUnitCount(), 1 ) < m_flatList[ii].m_unit )
         {
             if( m_flatList[ii].m_numRef >= 0 )
-                tmp << m_flatList[ii].m_numRef;
+                tmp << m_flatList[ii].m_numRefStr;
             else
                 tmp = wxT( "?" );
 
@@ -731,7 +734,7 @@ int SCH_REFERENCE_LIST::CheckAnnotation( ANNOTATION_ERROR_HANDLER aHandler )
         if( first.m_unit == second.m_unit )
         {
             if( first.m_numRef >= 0 )
-                tmp << first.m_numRef;
+                tmp << first.m_numRefStr;
             else
                 tmp = wxT( "?" );
 
@@ -751,12 +754,12 @@ int SCH_REFERENCE_LIST::CheckAnnotation( ANNOTATION_ERROR_HANDLER aHandler )
         if( first.GetLibPart()->GetUnitCount() != second.GetLibPart()->GetUnitCount() )
         {
             if( first.m_numRef >= 0 )
-                tmp << first.m_numRef;
+                tmp << first.m_numRefStr;
             else
                 tmp = wxT( "?" );
 
             if( second.m_numRef >= 0 )
-                tmp2 << second.m_numRef;
+                tmp2 << second.m_numRefStr;
             else
                 tmp2 = wxT( "?" );
 
@@ -817,10 +820,10 @@ SCH_REFERENCE::SCH_REFERENCE( SCH_SYMBOL* aSymbol, const SCH_SHEET_PATH& aSheetP
 
     m_numRef = -1;
 
-    if( aSymbol->GetValueFieldText( false, &aSheetPath, false ).IsEmpty() )
+    if( aSymbol->GetValue( false, &aSheetPath, false ).IsEmpty() )
         aSymbol->SetValueFieldText( wxT( "~" ) );
 
-    m_value = aSymbol->GetValueFieldText( false, &aSheetPath, false );
+    m_value = aSymbol->GetValue( false, &aSheetPath, false );
 }
 
 
@@ -873,7 +876,9 @@ void SCH_REFERENCE::Split()
         while( ll >= 0 )
         {
             if( (refText[ll] <= ' ' ) || isdigit( refText[ll] ) )
+            {
                 ll--;
+            }
             else
             {
                 if( isdigit( refText[ll + 1] ) )
@@ -953,6 +958,17 @@ wxString SCH_REFERENCE_LIST::Shorthand( std::vector<SCH_REFERENCE> aList,
     }
 
     return retVal;
+}
+
+
+wxString SCH_REFERENCE::formatRefStr( int aNumber ) const
+{
+    // To avoid a risk of duplicate, for power symbols the ref number is 0nnn instead of nnn.
+    // Just because sometimes only power symbols are annotated
+    if( GetSymbol() && GetLibPart() && GetLibPart()->IsPower() )
+        return wxString::Format( "0%d", aNumber );
+
+    return wxString::Format( "%d", aNumber );
 }
 
 

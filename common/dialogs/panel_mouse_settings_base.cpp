@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
+// C++ code generated with wxFormBuilder (version 4.0.0-0-g0efcecf)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -241,9 +241,8 @@ PANEL_MOUSE_SETTINGS_BASE::PANEL_MOUSE_SETTINGS_BASE( wxWindow* parent, wxWindow
 	m_rbZoomAlt = new wxRadioButton( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
 	fgSizer2->Add( m_rbZoomAlt, 0, wxALIGN_CENTER_HORIZONTAL|wxRIGHT|wxLEFT|wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_staticText201 = new wxStaticText( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
-	m_staticText201->Wrap( -1 );
-	fgSizer2->Add( m_staticText201, 0, wxALL, 5 );
+	m_checkZoomReverse = new wxCheckBox( this, wxID_ANY, _("Reverse"), wxDefaultPosition, wxDefaultSize, 0 );
+	fgSizer2->Add( m_checkZoomReverse, 0, wxALL, 5 );
 
 	m_staticText11 = new wxStaticText( this, wxID_ANY, _("Pan up/down:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText11->Wrap( -1 );
@@ -308,19 +307,19 @@ PANEL_MOUSE_SETTINGS_BASE::PANEL_MOUSE_SETTINGS_BASE( wxWindow* parent, wxWindow
 	bSizerLeft->Add( m_checkEnablePanH, 0, wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 
 
-	bMargins->Add( bSizerLeft, 0, wxEXPAND|wxLEFT, 5 );
+	bMargins->Add( bSizerLeft, 1, wxEXPAND|wxLEFT, 5 );
 
 	wxBoxSizer* bSizerRight;
 	bSizerRight = new wxBoxSizer( wxVERTICAL );
 
 	m_mouseDefaults = new wxButton( this, wxID_ANY, _("Reset to Mouse Defaults"), wxDefaultPosition, wxDefaultSize, 0 );
-	bSizerRight->Add( m_mouseDefaults, 0, wxALL|wxEXPAND, 5 );
+	bSizerRight->Add( m_mouseDefaults, 0, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 
 	m_trackpadDefaults = new wxButton( this, wxID_ANY, _("Reset to Trackpad Defaults"), wxDefaultPosition, wxDefaultSize, 0 );
-	bSizerRight->Add( m_trackpadDefaults, 0, wxALL|wxEXPAND, 5 );
+	bSizerRight->Add( m_trackpadDefaults, 0, wxEXPAND|wxALL, 5 );
 
 
-	bMargins->Add( bSizerRight, 0, wxTOP|wxLEFT|wxEXPAND, 5 );
+	bMargins->Add( bSizerRight, 0, wxEXPAND|wxLEFT, 5 );
 
 
 	bSizer1->Add( bMargins, 1, wxEXPAND|wxTOP|wxRIGHT, 10 );

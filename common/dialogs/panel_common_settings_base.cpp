@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6-dirty)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -94,6 +94,18 @@ PANEL_COMMON_SETTINGS_BASE::PANEL_COMMON_SETTINGS_BASE( wxWindow* parent, wxWind
 
 	bHelperAppsSizer->Add( bSizer61, 0, wxTOP|wxRIGHT|wxEXPAND, 5 );
 
+	bSizerFileManager = new wxBoxSizer( wxHORIZONTAL );
+
+	m_staticTextFileManager = new wxStaticText( this, wxID_ANY, _("File manager:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextFileManager->Wrap( -1 );
+	bSizerFileManager->Add( m_staticTextFileManager, 0, wxALIGN_CENTER_VERTICAL|wxLEFT|wxRIGHT, 5 );
+
+	m_textCtrlFileManager = new wxTextCtrl( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	bSizerFileManager->Add( m_textCtrlFileManager, 1, wxALIGN_CENTER_VERTICAL, 5 );
+
+
+	bHelperAppsSizer->Add( bSizerFileManager, 0, wxEXPAND|wxRIGHT|wxTOP, 5 );
+
 
 	bHelperAppsSizer->Add( 0, 12, 0, wxEXPAND, 5 );
 
@@ -158,6 +170,11 @@ PANEL_COMMON_SETTINGS_BASE::PANEL_COMMON_SETTINGS_BASE( wxWindow* parent, wxWind
 	m_hotkeyFeedback->SetToolTip( _("When enabled, certain hotkeys that cycle between settings will show a popup indicator briefly to indicate the change in settings.") );
 
 	bSizer14->Add( m_hotkeyFeedback, 0, wxBOTTOM|wxLEFT|wxRIGHT, 5 );
+
+	m_gridStriping = new wxCheckBox( this, wxID_ANY, _("Use alternating row colors in tables"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_gridStriping->SetToolTip( _("When enabled, use a different color for every other table row") );
+
+	bSizer14->Add( m_gridStriping, 0, wxBOTTOM|wxLEFT|wxRIGHT, 5 );
 
 
 	bUserInterfaceSizer->Add( bSizer14, 0, wxEXPAND, 5 );
@@ -277,7 +294,7 @@ PANEL_COMMON_SETTINGS_BASE::PANEL_COMMON_SETTINGS_BASE( wxWindow* parent, wxWind
 	wxBoxSizer* bEditingSizer;
 	bEditingSizer = new wxBoxSizer( wxVERTICAL );
 
-	m_warpMouseOnMove = new wxCheckBox( this, wxID_ANY, _("Warp mouse to origin of moved object"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_warpMouseOnMove = new wxCheckBox( this, wxID_ANY, _("Warp mouse to anchor of moved object"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_warpMouseOnMove->SetValue(true);
 	bEditingSizer->Add( m_warpMouseOnMove, 0, wxALL, 5 );
 
@@ -391,7 +408,7 @@ PANEL_COMMON_SETTINGS_BASE::PANEL_COMMON_SETTINGS_BASE( wxWindow* parent, wxWind
 	m_staticText9->Wrap( -1 );
 	m_staticText9->SetToolTip( _("How many backup files total to keep (set to 0 for no limit)") );
 
-	gbSizer3->Add( m_staticText9, wxGBPosition( 2, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxTOP|wxBOTTOM|wxRIGHT, 5 );
+	gbSizer3->Add( m_staticText9, wxGBPosition( 2, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxBOTTOM|wxRIGHT, 5 );
 
 	m_backupLimitTotalFiles = new wxSpinCtrl( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 1000, 0 );
 	gbSizer3->Add( m_backupLimitTotalFiles, wxGBPosition( 2, 1 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxBOTTOM|wxRIGHT|wxLEFT|wxEXPAND, 5 );
@@ -403,7 +420,7 @@ PANEL_COMMON_SETTINGS_BASE::PANEL_COMMON_SETTINGS_BASE( wxWindow* parent, wxWind
 	gbSizer3->Add( m_staticText10, wxGBPosition( 3, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxBOTTOM|wxRIGHT, 5 );
 
 	m_backupLimitDailyFiles = new wxSpinCtrl( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 1000, 0 );
-	gbSizer3->Add( m_backupLimitDailyFiles, wxGBPosition( 3, 1 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxBOTTOM|wxRIGHT|wxLEFT|wxEXPAND, 5 );
+	gbSizer3->Add( m_backupLimitDailyFiles, wxGBPosition( 3, 1 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 
 	m_staticText11 = new wxStaticText( this, wxID_ANY, _("Minimum time between backups:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText11->Wrap( -1 );
@@ -422,7 +439,7 @@ PANEL_COMMON_SETTINGS_BASE::PANEL_COMMON_SETTINGS_BASE( wxWindow* parent, wxWind
 	m_staticText16->Wrap( -1 );
 	m_staticText16->SetToolTip( _("If the total size of backup files grows above this limit, old backups will be deleted (set to 0 for no limit)") );
 
-	gbSizer3->Add( m_staticText16, wxGBPosition( 5, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxRIGHT, 5 );
+	gbSizer3->Add( m_staticText16, wxGBPosition( 5, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxBOTTOM|wxRIGHT, 5 );
 
 	m_backupLimitTotalSize = new wxSpinCtrl( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 1000, 0 );
 	gbSizer3->Add( m_backupLimitTotalSize, wxGBPosition( 5, 1 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT|wxEXPAND, 5 );

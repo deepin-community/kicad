@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -34,6 +34,7 @@
 #include <memory>
 #include <eda_item.h>
 #include <math/vector2d.h>
+#include <project/net_settings.h>
 
 class GAL;
 class CONNECTIVITY_DATA;
@@ -51,7 +52,7 @@ public:
     void ViewDraw( int aLayer, KIGFX::VIEW* aView ) const override;
 
     /// @copydoc VIEW_ITEM::ViewGetLayers()
-    void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    std::vector<int> ViewGetLayers() const override;
 
     bool HitTest( const VECTOR2I& aPoint, int aAccuracy = 0 ) const override
     {

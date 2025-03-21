@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,14 +19,25 @@
  */
 
 #include <jobs/job_sch_erc.h>
+#include <jobs/job_registry.h>
+#include <i18n_utility.h>
 
-
-JOB_SCH_ERC::JOB_SCH_ERC( bool aIsCli ) :
-    JOB( "erc", aIsCli ),
-    m_filename(),
-    m_units( JOB_SCH_ERC::UNITS::MILLIMETERS ),
-    m_severity( RPT_SEVERITY_ERROR | RPT_SEVERITY_WARNING ),
-    m_format( OUTPUT_FORMAT::REPORT ),
-    m_exitCodeViolations( false )
+JOB_SCH_ERC::JOB_SCH_ERC() :
+    JOB_RC( "erc" )
 {
 }
+
+
+wxString JOB_SCH_ERC::GetDefaultDescription() const
+{
+    return _( "Perform ERC" );
+}
+
+
+wxString JOB_SCH_ERC::GetSettingsDialogTitle() const
+{
+    return _( "Schematic ERC Job Settings" );
+}
+
+
+REGISTER_JOB( sch_erc, _HKI( "Schematic: Perform ERC" ), KIWAY::FACE_SCH, JOB_SCH_ERC );

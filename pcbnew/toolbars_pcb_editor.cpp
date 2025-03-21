@@ -4,7 +4,7 @@
  * Copyright (C) 2012 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,10 +27,12 @@
 #include <memory>
 
 #include <advanced_config.h>
+#include <api/api_plugin_manager.h>
 #include <bitmaps.h>
 #include <board.h>
 #include <board_design_settings.h>
 #include <kiface_base.h>
+#include <kiplatform/ui.h>
 #include <macros.h>
 #include <pcb_edit_frame.h>
 #include <pcb_layer_box_selector.h>
@@ -47,11 +49,13 @@
 #include <tools/pcb_actions.h>
 #include <tools/pcb_selection_tool.h>
 #include <widgets/appearance_controls.h>
+#include <widgets/layer_box_selector.h>
+#include <widgets/layer_presentation.h>
 #include <widgets/pcb_properties_panel.h>
+#include <widgets/net_inspector_panel.h>
 #include <widgets/pcb_search_pane.h>
 #include <widgets/wx_aui_utils.h>
 #include <wx/wupdlock.h>
-#include <wx/dcmemory.h>
 #include <wx/combobox.h>
 
 #include "../scripting/python_scripting.h"
@@ -60,46 +64,9 @@
 /* Data to build the layer pair indicator button */
 static std::unique_ptr<wxBitmap> LayerPairBitmap;
 
-#define BM_LAYERICON_SIZE 24
-static const char s_BitmapLayerIcon[BM_LAYERICON_SIZE][BM_LAYERICON_SIZE] =
-{
-    // 0 = draw pixel with white
-    // 1 = draw pixel with black
-    // 2 = draw pixel with top layer from router pair
-    // 3 = draw pixel with bottom layer from router pair
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-    { 2, 2, 2, 2, 2, 0, 1, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
-};
-
-static COLOR4D ICON_WHITE { 0.86, 0.86, 0.86, 1.0 };
-static COLOR4D ICON_BLACK { 0.28, 0.28, 0.28, 1.0 };
-
 
 void PCB_EDIT_FRAME::PrepareLayerIndicator( bool aForceRebuild )
 {
-    int        ii, jj;
     COLOR4D    top_color, bottom_color, background_color;
     bool       change = aForceRebuild;
 
@@ -137,56 +104,9 @@ void PCB_EDIT_FRAME::PrepareLayerIndicator( bool aForceRebuild )
 
     if( change || !LayerPairBitmap )
     {
-        LayerPairBitmap = std::make_unique<wxBitmap>( 24, 24 );
-
-        // Draw the icon, with colors according to the router's layer pair
-        wxMemoryDC iconDC;
-        iconDC.SelectObject( *LayerPairBitmap );
-        wxBrush    brush;
-        wxPen      pen;
-        int buttonColor = -1;
-
-        brush.SetStyle( wxBRUSHSTYLE_SOLID );
-        brush.SetColour( background_color.WithAlpha(1.0).ToColour() );
-        iconDC.SetBrush( brush );
-        iconDC.DrawRectangle( 0, 0, BM_LAYERICON_SIZE, BM_LAYERICON_SIZE );
-
-        for( ii = 0; ii < BM_LAYERICON_SIZE; ii++ )
-        {
-            for( jj = 0; jj < BM_LAYERICON_SIZE; jj++ )
-            {
-                if( s_BitmapLayerIcon[ii][jj] != buttonColor )
-                {
-                    switch( s_BitmapLayerIcon[ii][jj] )
-                    {
-                    default:
-                    case 0: pen.SetColour( ICON_WHITE.ToColour() );   break;
-                    case 1: pen.SetColour( ICON_BLACK.ToColour() );   break;
-                    case 2: pen.SetColour( top_color.ToColour() );    break;
-                    case 3: pen.SetColour( bottom_color.ToColour() ); break;
-                    }
-
-                    buttonColor = s_BitmapLayerIcon[ii][jj];
-                    iconDC.SetPen( pen );
-                }
-
-                iconDC.DrawPoint( jj, ii );
-            }
-        }
-
-        // Deselect the bitmap from the DC in order to delete the MemoryDC safely without
-        // deleting the bitmap
-        iconDC.SelectObject( wxNullBitmap );
-
-        // Scale the bitmap
         const int scale = ( requested_scale <= 0 ) ? KiIconScale( this ) : requested_scale;
-        wxImage image = LayerPairBitmap->ConvertToImage();
-
-        // "NEAREST" causes less mixing of colors
-        image.Rescale( scale * image.GetWidth() / 4, scale * image.GetHeight() / 4,
-                       wxIMAGE_QUALITY_NEAREST );
-
-        LayerPairBitmap = std::make_unique<wxBitmap>( image );
+        LayerPairBitmap = LAYER_PRESENTATION::CreateLayerPairIcon( background_color, top_color,
+                                                                   bottom_color, scale );
 
         if( m_auxiliaryToolBar )
         {
@@ -279,12 +199,27 @@ void PCB_EDIT_FRAME::ReCreateHToolbar()
     m_mainToolBar->AddScaledSeparator( this );
     m_mainToolBar->Add( PCB_ACTIONS::showEeschema );
 
-    // Access to the scripting console
-    if( SCRIPTING::IsWxAvailable() )
+    // Add SWIG and API plugins
+    bool scriptingAvailable = SCRIPTING::IsWxAvailable();
+#ifdef KICAD_IPC_API
+    bool haveApiPlugins = Pgm().GetCommonSettings()->m_Api.enable_server &&
+            !Pgm().GetPluginManager().GetActionsForScope( PLUGIN_ACTION_SCOPE::PCB ).empty();
+#else
+    bool haveApiPlugins = false;
+#endif
+
+    if( scriptingAvailable || haveApiPlugins )
     {
         m_mainToolBar->AddScaledSeparator( this );
-        m_mainToolBar->Add( PCB_ACTIONS::showPythonConsole, ACTION_TOOLBAR::TOGGLE );
-        AddActionPluginTools();
+
+        if( scriptingAvailable )
+        {
+            m_mainToolBar->Add( PCB_ACTIONS::showPythonConsole, ACTION_TOOLBAR::TOGGLE );
+            AddActionPluginTools();
+        }
+
+        if( haveApiPlugins )
+            addApiPluginTools();
     }
 
     // after adding the buttons to the toolbar, must call Realize() to reflect the changes
@@ -356,7 +291,7 @@ void PCB_EDIT_FRAME::ReCreateOptToolbar()
     // Tools to show/hide toolbars:
     m_optionsToolBar->AddScaledSeparator( this );
     m_optionsToolBar->Add( PCB_ACTIONS::showLayersManager,    ACTION_TOOLBAR::TOGGLE );
-    m_optionsToolBar->Add( PCB_ACTIONS::showProperties,       ACTION_TOOLBAR::TOGGLE );
+    m_optionsToolBar->Add( PCB_ACTIONS::showProperties, ACTION_TOOLBAR::TOGGLE );
 
     PCB_SELECTION_TOOL*          selTool = m_toolManager->GetTool<PCB_SELECTION_TOOL>();
     std::unique_ptr<ACTION_MENU> gridMenu = std::make_unique<ACTION_MENU>( false, selTool );
@@ -392,8 +327,8 @@ void PCB_EDIT_FRAME::ReCreateVToolbar()
     if( !dimensionGroup )
     {
         dimensionGroup = new ACTION_GROUP( "group.pcbDimensions",
-                                           { &PCB_ACTIONS::drawAlignedDimension,
-                                             &PCB_ACTIONS::drawOrthogonalDimension,
+                                           { &PCB_ACTIONS::drawOrthogonalDimension,
+                                             &PCB_ACTIONS::drawAlignedDimension,
                                              &PCB_ACTIONS::drawCenterDimension,
                                              &PCB_ACTIONS::drawRadialDimension,
                                              &PCB_ACTIONS::drawLeader } );
@@ -421,6 +356,7 @@ void PCB_EDIT_FRAME::ReCreateVToolbar()
                                         &PCB_ACTIONS::tuneSkew } );
     }
 
+    // clang-format off
     m_drawToolBar->Add( ACTIONS::selectionTool,            ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( PCB_ACTIONS::localRatsnestTool,    ACTION_TOOLBAR::TOGGLE );
 
@@ -438,15 +374,18 @@ void PCB_EDIT_FRAME::ReCreateVToolbar()
     m_drawToolBar->Add( PCB_ACTIONS::drawRectangle,        ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( PCB_ACTIONS::drawCircle,           ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( PCB_ACTIONS::drawPolygon,          ACTION_TOOLBAR::TOGGLE );
+    m_drawToolBar->Add( PCB_ACTIONS::drawBezier,           ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( PCB_ACTIONS::placeReferenceImage,  ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( PCB_ACTIONS::placeText,            ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( PCB_ACTIONS::drawTextBox,          ACTION_TOOLBAR::TOGGLE );
+    m_drawToolBar->Add( PCB_ACTIONS::drawTable,            ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->AddGroup( dimensionGroup,               ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( ACTIONS::deleteTool,               ACTION_TOOLBAR::TOGGLE );
 
     m_drawToolBar->AddScaledSeparator( this );
     m_drawToolBar->AddGroup( originGroup,                  ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( ACTIONS::measureTool,              ACTION_TOOLBAR::TOGGLE );
+    // clang-format on
 
     PCB_SELECTION_TOOL* selTool   = m_toolManager->GetTool<PCB_SELECTION_TOOL>();
 
@@ -504,17 +443,6 @@ void PCB_EDIT_FRAME::ReCreateAuxiliaryToolbar()
         m_auxiliaryToolBar = new ACTION_TOOLBAR( this, ID_AUX_TOOLBAR, wxDefaultPosition,
                                                  wxDefaultSize,
                                                  KICAD_AUI_TB_STYLE | wxAUI_TB_HORZ_LAYOUT );
-
-        // The layer indicator is special, so we register a callback directly that will
-        // regenerate the bitmap instead of using the conditions system.
-        auto layerIndicatorUpdate =
-            [this] ( wxUpdateUIEvent& )
-            {
-                PrepareLayerIndicator();
-            };
-
-        Bind( wxEVT_UPDATE_UI, layerIndicatorUpdate, PCB_ACTIONS::selectLayerPair.GetUIId() );
-
         m_auxiliaryToolBar->SetAuiManager( &m_auimgr );
     }
 
@@ -533,7 +461,7 @@ void PCB_EDIT_FRAME::ReCreateAuxiliaryToolbar()
                                        "Width' feature is enabled." ) );
 
     m_auxiliaryToolBar->AddTool( ID_AUX_TOOLBAR_PCB_SELECT_AUTO_WIDTH, wxEmptyString,
-                                 KiScaledBitmap( BITMAPS::auto_track_width, this ),
+                                 KiBitmapBundle( BITMAPS::auto_track_width ),
                                  _( "When routing from an existing track use its width instead "
                                     "of the current width setting" ),
                                  wxITEM_CHECK );
@@ -768,10 +696,12 @@ void PCB_EDIT_FRAME::ReCreateLayerBox( bool aForceResizeToolbar )
 void PCB_EDIT_FRAME::ToggleLayersManager()
 {
     PCBNEW_SETTINGS* settings      = GetPcbNewSettings();
-    wxAuiPaneInfo&   layersManager = m_auimgr.GetPane( "LayersManager" );
+    wxAuiPaneInfo&   layersManager = m_auimgr.GetPane( AppearancePanelName() );
     wxAuiPaneInfo&   selectionFilter = m_auimgr.GetPane( "SelectionFilter" );
 
     // show auxiliary Vertical layers and visibility manager toolbar
+    m_show_layer_manager_tools = layersManager.IsShown();
+
     m_show_layer_manager_tools = !m_show_layer_manager_tools;
 
     layersManager.Show( m_show_layer_manager_tools );
@@ -789,6 +719,32 @@ void PCB_EDIT_FRAME::ToggleLayersManager()
 }
 
 
+void PCB_EDIT_FRAME::ToggleNetInspector()
+{
+    PCBNEW_SETTINGS* settings          = GetPcbNewSettings();
+    wxAuiPaneInfo&   netInspectorPanel = m_auimgr.GetPane( NetInspectorPanelName() );
+
+    m_show_net_inspector = netInspectorPanel.IsShown();
+
+    m_show_net_inspector = !m_show_net_inspector;
+
+    netInspectorPanel.Show( m_show_net_inspector );
+
+    if( m_show_net_inspector )
+    {
+        SetAuiPaneSize( m_auimgr, netInspectorPanel, settings->m_AuiPanels.net_inspector_width,
+                        -1 );
+        m_netInspectorPanel->OnShowPanel();
+    }
+    else
+    {
+        m_netInspectorPanel->SaveSettings();
+        settings->m_AuiPanels.net_inspector_width = m_netInspectorPanel->GetSize().x;
+        m_auimgr.Update();
+    }
+}
+
+
 void PCB_EDIT_FRAME::ToggleSearch()
 {
     PCBNEW_SETTINGS* settings = GetPcbNewSettings();
@@ -800,7 +756,7 @@ void PCB_EDIT_FRAME::ToggleSearch()
 
     wxAuiPaneInfo& searchPaneInfo = m_auimgr.GetPane( SearchPaneName() );
     searchPaneInfo.Show( m_show_search );
-    
+
     if( m_show_search )
     {
         searchPaneInfo.Direction( settings->m_AuiPanels.search_panel_dock_direction );
@@ -820,7 +776,7 @@ void PCB_EDIT_FRAME::ToggleSearch()
         m_searchPane->FocusSearch();
     }
     else
-    {  
+    {
         settings->m_AuiPanels.search_panel_height = m_searchPane->GetSize().y;
         settings->m_AuiPanels.search_panel_width = m_searchPane->GetSize().x;
         settings->m_AuiPanels.search_panel_dock_direction = searchPaneInfo.dock_direction;

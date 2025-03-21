@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,24 +21,63 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <wx/colour.h>
 #include <wx/tokenzr.h>
 #include <wx/dc.h>
 #include <wx/settings.h>
 #include <wx/event.h> // Needed for textentry.h on MSW
 #include <wx/textentry.h>
 
+#include <widgets/grid_icon_text_helpers.h>
 #include <widgets/wx_grid.h>
 #include <widgets/ui_common.h>
 #include <algorithm>
 #include <core/kicad_algo.h>
 #include <gal/color4d.h>
+#include <kiplatform/ui.h>
+#include <utility>
 
-#define MIN_GRIDCELL_MARGIN FromDIP( 3 )
+#include <pgm_base.h>
+#include <settings/common_settings.h>
+#include <dialog_shim.h>
+
+
+wxGridCellAttr* WX_GRID_TABLE_BASE::enhanceAttr( wxGridCellAttr* aInputAttr, int aRow, int aCol,
+                                                 wxGridCellAttr::wxAttrKind aKind  )
+{
+    wxGridCellAttr* attr = aInputAttr;
+
+    if( wxGridCellAttrProvider* provider = GetAttrProvider() )
+    {
+        wxGridCellAttr* providerAttr = provider->GetAttr( aRow, aCol, aKind );
+
+        if( providerAttr )
+        {
+            attr = new wxGridCellAttr;
+            attr->SetKind( wxGridCellAttr::Merged );
+
+            if( aInputAttr )
+            {
+                attr->MergeWith( aInputAttr );
+                aInputAttr->DecRef();
+            }
+
+            attr->MergeWith( providerAttr );
+            providerAttr->DecRef();
+        }
+    }
+
+    return attr;
+}
+
+
+#define MIN_GRIDCELL_MARGIN FromDIP( 2 )
 
 
 void WX_GRID::CellEditorSetMargins( wxTextEntryBase* aEntry )
 {
-    // This is consistent with wxGridCellTextEditor. But works differently across platforms or course.
+    // This is consistent with wxGridCellTextEditor. But works differently across platforms or
+    // course.
     aEntry->SetMargins( 0, 0 );
 }
 
@@ -111,6 +150,58 @@ public:
 };
 
 
+/**
+ * Attribute provider that provides attributes (or modifies the existing attribute) to alternate
+ * a row color between the odd and even rows.
+ */
+class WX_GRID_ALT_ROW_COLOR_PROVIDER : public wxGridCellAttrProvider
+{
+public:
+    WX_GRID_ALT_ROW_COLOR_PROVIDER( const wxColor& aBaseColor ) :
+            wxGridCellAttrProvider(),
+            m_attrEven( new wxGridCellAttr() )
+    {
+        UpdateColors( aBaseColor );
+    }
+
+    void UpdateColors( const wxColor& aBaseColor )
+    {
+        // Choose the default color, taking into account if the dark mode theme is enabled
+        wxColor rowColor = aBaseColor.ChangeLightness( KIPLATFORM::UI::IsDarkTheme() ? 105 : 95 );
+
+        m_attrEven->SetBackgroundColour( rowColor );
+    }
+
+    wxGridCellAttr* GetAttr( int row, int col, wxGridCellAttr::wxAttrKind kind ) const override
+    {
+        wxGridCellAttrPtr cellAttr( wxGridCellAttrProvider::GetAttr( row, col, kind ) );
+
+        // Just pass through the cell attribute on odd rows (start normal to allow for the
+        // header row)
+        if( !( row % 2 ) )
+            return cellAttr.release();
+
+        if( !cellAttr )
+        {
+            cellAttr = m_attrEven;
+        }
+        else
+        {
+            if( !cellAttr->HasBackgroundColour() )
+            {
+                cellAttr = cellAttr->Clone();
+                cellAttr->SetBackgroundColour( m_attrEven->GetBackgroundColour() );
+            }
+        }
+
+        return cellAttr.release();
+    }
+
+private:
+    wxGridCellAttrPtr m_attrEven;
+};
+
+
 WX_GRID::WX_GRID( wxWindow *parent, wxWindowID id, const wxPoint& pos, const wxSize& size,
                   long style, const wxString& name ) :
         wxGrid( parent, id, pos, size, style, name ),
@@ -122,12 +213,11 @@ WX_GRID::WX_GRID( wxWindow *parent, wxWindowID id, const wxPoint& pos, const wxS
     SetDefaultCellFont( KIUI::GetControlFont( this ) );
     SetLabelFont( KIUI::GetControlFont( this ) );
 
-    if( GetColLabelSize() > 0 )
-        SetColLabelSize( GetColLabelSize() + FromDIP( 4 ) );
-
     Connect( wxEVT_DPI_CHANGED, wxDPIChangedEventHandler( WX_GRID::onDPIChanged ), nullptr, this );
-    Connect( wxEVT_GRID_EDITOR_SHOWN, wxGridEventHandler( WX_GRID::onCellEditorShown ), nullptr, this );
-    Connect( wxEVT_GRID_EDITOR_HIDDEN, wxGridEventHandler( WX_GRID::onCellEditorHidden ), nullptr, this );
+    Connect( wxEVT_GRID_EDITOR_SHOWN, wxGridEventHandler( WX_GRID::onCellEditorShown ), nullptr,
+             this );
+    Connect( wxEVT_GRID_EDITOR_HIDDEN, wxGridEventHandler( WX_GRID::onCellEditorHidden ), nullptr,
+             this );
 }
 
 
@@ -136,14 +226,25 @@ WX_GRID::~WX_GRID()
     if( m_weOwnTable )
         DestroyTable( GetTable() );
 
-    Disconnect( wxEVT_DPI_CHANGED, wxDPIChangedEventHandler( WX_GRID::onDPIChanged ), nullptr, this );
+    Disconnect( wxEVT_GRID_EDITOR_SHOWN, wxGridEventHandler( WX_GRID::onCellEditorShown ), nullptr,
+                this );
+    Disconnect( wxEVT_GRID_EDITOR_HIDDEN, wxGridEventHandler( WX_GRID::onCellEditorHidden ),
+                nullptr, this );
+    Disconnect( wxEVT_DPI_CHANGED, wxDPIChangedEventHandler( WX_GRID::onDPIChanged ), nullptr,
+                this );
 }
 
 
 void WX_GRID::onDPIChanged(wxDPIChangedEvent& aEvt)
 {
-    /// This terrible hack is a way to avoid the incredibly disruptive resizing of grids that happens on Macs
-    /// when moving a window between monitors of different DPIs.
+    CallAfter(
+            [&]()
+            {
+                wxGrid::SetColLabelSize( wxGRID_AUTOSIZE );
+            } );
+
+    /// This terrible hack is a way to avoid the incredibly disruptive resizing of grids that
+    /// happens on Macs when moving a window between monitors of different DPIs.
 #ifndef __WXMAC__
     aEvt.Skip();
 #endif
@@ -152,14 +253,15 @@ void WX_GRID::onDPIChanged(wxDPIChangedEvent& aEvt)
 
 void WX_GRID::SetColLabelSize( int aHeight )
 {
-    if( aHeight == 0 )
+    if( aHeight == 0 || aHeight == wxGRID_AUTOSIZE )
     {
-        wxGrid::SetColLabelSize( 0 );
+        wxGrid::SetColLabelSize( aHeight );
         return;
     }
 
     // Correct wxFormBuilder height for large fonts
-    int minHeight = GetLabelFont().GetPixelSize().y + 2 * MIN_GRIDCELL_MARGIN;
+    int minHeight = GetCharHeight() + 2 * MIN_GRIDCELL_MARGIN;
+
     wxGrid::SetColLabelSize( std::max( aHeight, minHeight ) );
 }
 
@@ -196,10 +298,32 @@ void WX_GRID::SetTable( wxGridTableBase* aTable, bool aTakeOwnership )
 
     delete[] formBuilderColWidths;
 
+    EnableAlternateRowColors( Pgm().GetCommonSettings()->m_Appearance.grid_striping );
+
     Connect( wxEVT_GRID_COL_MOVE, wxGridEventHandler( WX_GRID::onGridColMove ), nullptr, this );
-    Connect( wxEVT_GRID_SELECT_CELL, wxGridEventHandler( WX_GRID::onGridCellSelect ), nullptr, this );
+    Connect( wxEVT_GRID_SELECT_CELL, wxGridEventHandler( WX_GRID::onGridCellSelect ), nullptr,
+             this );
 
     m_weOwnTable = aTakeOwnership;
+}
+
+
+void WX_GRID::EnableAlternateRowColors( bool aEnable )
+{
+    wxGridTableBase* table = wxGrid::GetTable();
+
+    wxCHECK_MSG( table, /* void */,
+                 "Tried to enable alternate row colors without a table assigned to the grid" );
+
+    if( aEnable )
+    {
+        wxColor color = wxGrid::GetDefaultCellBackgroundColour();
+        table->SetAttrProvider( new WX_GRID_ALT_ROW_COLOR_PROVIDER( color ) );
+    }
+    else
+    {
+        table->SetAttrProvider( nullptr );
+    }
 }
 
 
@@ -259,23 +383,63 @@ void WX_GRID::onCellEditorHidden( wxGridEvent& aEvent )
         int row = aEvent.GetRow();
         int col = aEvent.GetCol();
 
+        // Determine if this cell is marked as holding nullable values
+        bool              isNullable = false;
+        wxGridCellEditor* cellEditor = GetCellEditor( row, col );
+
+        if( cellEditor )
+        {
+            GRID_CELL_MARK_AS_NULLABLE* nullableCell =
+                    dynamic_cast<GRID_CELL_MARK_AS_NULLABLE*>( cellEditor );
+
+            if( nullableCell )
+                isNullable = nullableCell->IsNullable();
+
+            cellEditor->DecRef();
+        }
+
         CallAfter(
-              [this, row, col, unitsProvider]()
-              {
-                  wxString stringValue = GetCellValue( row, col );
+                [this, row, col, isNullable, unitsProvider]()
+                {
+                    wxString stringValue = GetCellValue( row, col );
+                    bool     processedOk = true;
 
-                  if( m_eval->Process( stringValue ) )
-                  {
-                      int      val = unitsProvider->ValueFromString( m_eval->Result() );
-                      wxString evalValue = unitsProvider->StringFromValue( val, true );
+                    if( stringValue != UNITS_PROVIDER::NullUiString )
+                        processedOk = m_eval->Process( stringValue );
 
-                      if( stringValue != evalValue )
-                      {
-                          SetCellValue( row, col, evalValue );
-                          m_evalBeforeAfter[ { row, col } ] = { stringValue, evalValue };
-                      }
-                  }
-              } );
+                    if( processedOk )
+                    {
+                        wxString evalValue;
+
+                        if( isNullable )
+                        {
+                            std::optional<int> val;
+
+                            if( stringValue == UNITS_PROVIDER::NullUiString )
+                            {
+                                val = unitsProvider->OptionalValueFromString(
+                                        UNITS_PROVIDER::NullUiString );
+                            }
+                            else
+                            {
+                                val = unitsProvider->OptionalValueFromString( m_eval->Result() );
+                            }
+
+                            evalValue = unitsProvider->StringFromOptionalValue( val, true );
+                        }
+                        else
+                        {
+                            int val = unitsProvider->ValueFromString( m_eval->Result() );
+                            evalValue = unitsProvider->StringFromValue( val, true );
+                        }
+
+                        if( stringValue != evalValue )
+                        {
+                            SetCellValue( row, col, evalValue );
+                            m_evalBeforeAfter[{ row, col }] = { stringValue, evalValue };
+                        }
+                    }
+                } );
     }
 
     aEvent.Skip();
@@ -289,7 +453,8 @@ void WX_GRID::DestroyTable( wxGridTableBase* aTable )
     CommitPendingChanges( true /* quiet mode */ );
 
     Disconnect( wxEVT_GRID_COL_MOVE, wxGridEventHandler( WX_GRID::onGridColMove ), nullptr, this );
-    Disconnect( wxEVT_GRID_SELECT_CELL, wxGridEventHandler( WX_GRID::onGridCellSelect ), nullptr, this );
+    Disconnect( wxEVT_GRID_SELECT_CELL, wxGridEventHandler( WX_GRID::onGridCellSelect ), nullptr,
+                this );
 
     wxGrid::SetTable( nullptr );
     delete aTable;
@@ -418,7 +583,7 @@ void WX_GRID::DrawColLabel( wxDC& dc, int col )
 
 void WX_GRID::DrawRowLabel( wxDC& dc, int row )
 {
-    if ( GetRowHeight( row ) <= 0 || m_rowLabelWidth <= 0 )
+    if( GetRowHeight( row ) <= 0 || m_rowLabelWidth <= 0 )
         return;
 
     wxRect rect( 0, GetRowTop( row ), m_rowLabelWidth, GetRowHeight( row ) );
@@ -519,6 +684,9 @@ bool WX_GRID::CommitPendingChanges( bool aQuietMode )
             SetCellValue( row, col, oldval );
             return false;
         }
+
+        if( DIALOG_SHIM* dlg = dynamic_cast<DIALOG_SHIM*>( wxGetTopLevelParent( this ) ) )
+            dlg->OnModify();
     }
 
     return true;
@@ -555,6 +723,27 @@ int WX_GRID::GetUnitValue( int aRow, int aCol )
 }
 
 
+std::optional<int> WX_GRID::GetOptionalUnitValue( int aRow, int aCol )
+{
+    UNITS_PROVIDER* unitsProvider = m_unitsProviders[aCol];
+
+    if( !unitsProvider )
+        unitsProvider = m_unitsProviders.begin()->second;
+
+    wxString stringValue = GetCellValue( aRow, aCol );
+
+    if( alg::contains( m_autoEvalCols, aCol ) )
+    {
+        m_eval->SetDefaultUnits( unitsProvider->GetUserUnits() );
+
+        if( stringValue != UNITS_PROVIDER::NullUiString && m_eval->Process( stringValue ) )
+            stringValue = m_eval->Result();
+    }
+
+    return unitsProvider->OptionalValueFromString( stringValue );
+}
+
+
 void WX_GRID::SetUnitValue( int aRow, int aCol, int aValue )
 {
     UNITS_PROVIDER* unitsProvider = m_unitsProviders[ aCol ];
@@ -563,6 +752,17 @@ void WX_GRID::SetUnitValue( int aRow, int aCol, int aValue )
         unitsProvider = m_unitsProviders.begin()->second;
 
     SetCellValue( aRow, aCol, unitsProvider->StringFromValue( aValue, true ) );
+}
+
+
+void WX_GRID::SetOptionalUnitValue( int aRow, int aCol, std::optional<int> aValue )
+{
+    UNITS_PROVIDER* unitsProvider = m_unitsProviders[aCol];
+
+    if( !unitsProvider )
+        unitsProvider = m_unitsProviders.begin()->second;
+
+    SetCellValue( aRow, aCol, unitsProvider->StringFromOptionalValue( aValue, true ) );
 }
 
 
@@ -596,7 +796,8 @@ int WX_GRID::GetVisibleWidth( int aCol, bool aHeader, bool aContents, bool aKeep
         {
             EnsureColLabelsVisible();
 
-            size = std::max( size, int( GetTextExtent( GetColLabelValue( aCol ) + wxS( "M" ) ).x ) );
+            size = std::max( size,
+                             int( GetTextExtent( GetColLabelValue( aCol ) + wxS( "M" ) ).x ) );
         }
 
         for( int row = 0; aContents && row < GetNumberRows(); row++ )

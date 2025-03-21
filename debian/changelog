@@ -1,3 +1,22 @@
+kicad (9.0.0+dfsg-1) unstable; urgency=medium
+
+  * [90a9b14] d/gbp.conf: Filter out one more PDF file
+  * [a4131fc] New upstream version 9.0.0+dfsg
+  * [651264e] d/control: Add new needed Build-Deps
+  * [46e8aec] d/kicad.install.in: Add libkiapi to sequencer
+  * [80f8e81] d/rules: Add new CMAKE option to DEB_KICAD_CMAKE_OPTS
+  * [5341af1] d/s/lintian-overrides: Ignore non relevant Lintian detection
+  * [f2b0e1a] d/copyright: Update copyright information
+  * [39aae5e] d/kicad.lintian-overrides: Adjust content due changes
+  * [f3a620c] d/README.vendorded-stuff: Some more notes
+  * [83f540d] d/rules: Remove more unwanted files in kicad-demos
+  * [c50fcfa] d/rules: Use upper case, not one char variable names
+  * [3104e18] d/control: Increase Standards-Version to 4.7.1
+  * [b04b0d0] d/control: Bump Bre/Sug/Rec versions to >=/<< 9.0.0~
+  * [5069e37] d/t/control: Sort entries by wrap-and-sort
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Sun, 23 Feb 2025 17:00:42 +0200
+
 kicad (8.0.8+dfsg-1) unstable; urgency=medium
 
   * [414e014] New upstream version 8.0.8+dfsg

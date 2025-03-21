@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,33 +23,25 @@
 
 #include <kicommon.h>
 #include <layer_ids.h>
+#include <lseq.h>
 #include <wx/string.h>
-#include "job.h"
+#include <jobs/job_export_pcb_plot.h>
 
-class KICOMMON_API JOB_EXPORT_PCB_GERBER : public JOB
+class KICOMMON_API JOB_EXPORT_PCB_GERBER : public JOB_EXPORT_PCB_PLOT
 {
 public:
-    JOB_EXPORT_PCB_GERBER( const std::string& aType, bool aIsCli );
-    JOB_EXPORT_PCB_GERBER( bool aIsCli );
+    JOB_EXPORT_PCB_GERBER( const std::string& aType );
+    JOB_EXPORT_PCB_GERBER();
+    wxString GetDefaultDescription() const override;
+    wxString GetSettingsDialogTitle() const override;
 
-    wxString m_filename;
-    wxString m_outputFile;
-    wxString m_drawingSheet;
-
-    bool m_plotFootprintValues;
-    bool m_plotRefDes;
-    bool m_plotBorderTitleBlocks;
     bool m_subtractSolderMaskFromSilk;
     bool m_includeNetlistAttributes;
     bool m_useX2Format;
     bool m_disableApertureMacros;
-    bool m_useAuxOrigin;
     bool m_useProtelFileExtension;
 
     int m_precision;
-
-
-    LSEQ m_printMaskLayer;
 };
 
 #endif

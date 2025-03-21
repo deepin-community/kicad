@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,7 +21,9 @@
 #include <unordered_set>
 
 #include <io/io_base.h>
+#include <progress_reporter.h>
 #include <ki_exception.h>
+#include <reporter.h>
 #include <wildcards_and_files_ext.h>
 
 #include <wx/filename.h>
@@ -41,13 +43,15 @@ wxString IO_BASE::IO_FILE_DESC::FileFilter() const
 }
 
 
-void IO_BASE::CreateLibrary( const wxString& aLibraryPath, const STRING_UTF8_MAP* aProperties )
+void IO_BASE::CreateLibrary( const wxString& aLibraryPath,
+                             const std::map<std::string, UTF8>* aProperties )
 {
     NOT_IMPLEMENTED( __FUNCTION__ );
 }
 
 
-bool IO_BASE::DeleteLibrary( const wxString& aLibraryPath, const STRING_UTF8_MAP* aProperties )
+bool IO_BASE::DeleteLibrary( const wxString& aLibraryPath,
+                             const std::map<std::string, UTF8>* aProperties )
 {
     NOT_IMPLEMENTED( __FUNCTION__ );
 }
@@ -58,7 +62,7 @@ bool IO_BASE::IsLibraryWritable( const wxString& aLibraryPath )
     NOT_IMPLEMENTED( __FUNCTION__ );
 }
 
-void IO_BASE::GetLibraryOptions( STRING_UTF8_MAP* aListToAppendTo ) const
+void IO_BASE::GetLibraryOptions( std::map<std::string, UTF8>* aListToAppendTo ) const
 {
     // No global options to append
 }
@@ -114,4 +118,25 @@ bool IO_BASE::CanReadLibrary( const wxString& aFileName ) const
     }
 
     return false;
+}
+
+
+void IO_BASE::Report( const wxString& aText, SEVERITY aSeverity )
+{
+    if( !m_reporter )
+        return;
+
+    m_reporter->Report( aText, aSeverity );
+}
+
+
+void IO_BASE::AdvanceProgressPhase()
+{
+    if( !m_progressReporter )
+        return;
+
+    if( !m_progressReporter->KeepRefreshing() )
+        THROW_IO_ERROR( _( "Loading file canceled by user." ) );
+
+    m_progressReporter->AdvancePhase();
 }

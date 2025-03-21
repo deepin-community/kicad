@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mike Williams <mike@mikebwilliams.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -100,6 +100,7 @@ void PANEL_BOM_PRESETS::OnDeleteBomFmtPreset( wxCommandEvent& event )
         return;
 
     m_bomFmtPresetsGrid->DeleteRows( curRow, 1 );
+
     // Erase the bom preset from the bom presets list.
     m_bomFmtPresets.erase( m_bomFmtPresets.begin() + curRow );
 }

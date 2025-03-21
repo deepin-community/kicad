@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,16 +30,19 @@
 
 #include <tool/tool_manager.h>
 #include <widgets/unit_binder.h>
-#include "tools/position_relative_tool.h"
+#include <tools/pcb_picker_tool.h>
 
-class DIALOG_POSITION_RELATIVE : public DIALOG_POSITION_RELATIVE_BASE
+class DIALOG_POSITION_RELATIVE : public DIALOG_POSITION_RELATIVE_BASE,
+                                 public PCB_PICKER_TOOL::RECEIVER
 {
 public:
     // Constructor and destructor
     DIALOG_POSITION_RELATIVE( PCB_BASE_FRAME* aParent );
     ~DIALOG_POSITION_RELATIVE() { };
 
-    void UpdateAnchor( EDA_ITEM* aItem );
+    // Implement the RECEIVER interface for the callback from the TOOL
+    void UpdatePickedItem( const EDA_ITEM* aItem ) override;
+    void UpdatePickedPoint( const std::optional<VECTOR2I>& aPoint ) override;
 
 private:
     /**
@@ -51,6 +54,7 @@ private:
     void OnClear( wxCommandEvent& event ) override;
 
     void OnSelectItemClick( wxCommandEvent& event ) override;
+    void OnSelectPointClick( wxCommandEvent& event ) override;
     void OnUseGridOriginClick( wxCommandEvent& event ) override;
     void OnUseUserOriginClick( wxCommandEvent& event ) override;
     void OnOkClick( wxCommandEvent& event ) override;
@@ -75,7 +79,7 @@ private:
     void updateDialogControls( bool aPolar );
 
     // Update controls and labels after changing anchor type
-    void updateAnchorInfo( BOARD_ITEM* aItem );
+    void updateAnchorInfo( const BOARD_ITEM* aItem );
 
     // Get the current anchor position.
     VECTOR2I getAnchorPos();
@@ -87,7 +91,8 @@ private:
     {
         ANCHOR_GRID_ORIGIN,
         ANCHOR_USER_ORIGIN,
-        ANCHOR_ITEM
+        ANCHOR_ITEM,
+        ANCHOR_POINT
     };
 
     struct POSITION_RELATIVE_OPTIONS

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -46,8 +46,10 @@ enum  SHEET_FIELD_TYPE
     SHEETFILENAME,
 
     /// The first 2 are mandatory, and must be instantiated in SCH_SHEET
-    SHEET_MANDATORY_FIELDS
+    SHEET_MANDATORY_FIELD_COUNT
 };
+
+#define SHEET_MANDATORY_FIELDS { SHEETNAME, SHEETFILENAME }
 
 
 /**
@@ -58,12 +60,13 @@ class SCH_SHEET : public SCH_ITEM
 public:
     SCH_SHEET( EDA_ITEM* aParent = nullptr, const VECTOR2I& aPos = VECTOR2I( 0, 0 ),
                VECTOR2I aSize = VECTOR2I( schIUScale.MilsToIU( MIN_SHEET_WIDTH ),
-                                          schIUScale.MilsToIU( MIN_SHEET_HEIGHT ) ),
-               FIELDS_AUTOPLACED aAutoplaceFields = FIELDS_AUTOPLACED_AUTO );
+                                          schIUScale.MilsToIU( MIN_SHEET_HEIGHT ) ) );
 
     /**
-     * Copy \a aSheet into a new object.  All sheet pins are copied as is except and
-     * the SCH_SHEET_PIN's #m_Parent pointers are set to the new copied parent object.
+     * Copy \a aSheet into a new object.
+     *
+     * All sheet pins are copied as is except and the #SCH_SHEET_PIN object's #m_Parent pointers
+     * are set to the new copied parent object.
      */
     SCH_SHEET( const SCH_SHEET& aSheet );
 
@@ -206,7 +209,7 @@ public:
     SCH_SHEET_PIN* GetPin( const VECTOR2I& aPosition );
 
     /**
-     * Checks if the sheet already has a sheet pin named \a aName.
+     * Check if the sheet already has a sheet pin named \a aName.
      *
      * @param aName Name of the sheet pin to search for.
      * @return  True if sheet pin with \a aName is found, otherwise false.
@@ -249,8 +252,6 @@ public:
 
     int GetPenWidth() const override;
 
-    void Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset ) override;
-
     /**
      * Return a bounding box for the sheet body but not the fields.
      */
@@ -260,8 +261,9 @@ public:
 
     /**
      * Rotating around the boundingBox's center can cause walking when the sheetname or
-     * filename is longer than the edge it's on.  Use this instead, which always returns
-     * the center of the sheet itself.
+     * filename is longer than the edge it's on.
+     *
+     * Use this instead, which always returns the center of the sheet itself.
      */
     VECTOR2I GetRotationCenter() const;
 
@@ -324,7 +326,7 @@ public:
     void Move( const VECTOR2I& aMoveVector ) override;
     void MirrorHorizontally( int aCenter ) override;
     void MirrorVertically( int aCenter ) override;
-    void Rotate( const VECTOR2I& aCenter ) override;
+    void Rotate( const VECTOR2I& aCenter, bool aRotateCCW ) override;
 
     bool Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const override;
 
@@ -337,7 +339,7 @@ public:
      */
     void Resize( const VECTOR2I& aSize );
 
-    void AutoplaceFields( SCH_SCREEN* aScreen, bool aManual ) override;
+    void AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo ) override;
 
     void GetEndPoints( std::vector <DANGLING_END_ITEM>& aItemList ) override;
 
@@ -365,7 +367,31 @@ public:
 
     void RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction ) override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    /**
+     * Set or clear the exclude from simulation flag.
+     */
+    void SetExcludedFromSim( bool aExcludeFromSim ) override { m_excludedFromSim = aExcludeFromSim; }
+    bool GetExcludedFromSim() const override { return m_excludedFromSim; }
+
+    /**
+     * Set or clear the exclude from schematic bill of materials flag.
+     */
+    void SetExcludedFromBOM( bool aExcludeFromBOM ) { m_excludedFromBOM = aExcludeFromBOM; }
+    bool GetExcludedFromBOM() const { return m_excludedFromBOM; }
+
+    /**
+     * Set or clear exclude from board netlist flag.
+     */
+    void SetExcludedFromBoard( bool aExcludeFromBoard ) { m_excludedFromBoard = aExcludeFromBoard; }
+    bool GetExcludedFromBoard() const { return m_excludedFromBoard; }
+
+    /**
+     * Set or clear the 'Do Not Populate' flags
+     */
+    bool GetDNP() const { return m_DNP; }
+    void SetDNP( bool aDNP ) { m_DNP = aDNP; }
+
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -373,7 +399,7 @@ public:
 
     bool operator <( const SCH_ITEM& aItem ) const override;
 
-    void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    std::vector<int> ViewGetLayers() const override;
 
     VECTOR2I GetPosition() const override { return m_pos; }
     void     SetPosition( const VECTOR2I& aPosition ) override;
@@ -381,8 +407,14 @@ public:
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
 
-    void Plot( PLOTTER* aPlotter, bool aBackground,
-               const SCH_PLOT_SETTINGS& aPlotSettings ) const override;
+    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed ) override;
+
+    void PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                          const VECTOR2I& aOffset, bool aDimmed ) override {}
+
+    void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
+               int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override;
 
     EDA_ITEM* Clone() const override;
 
@@ -425,7 +457,7 @@ public:
     bool HasPageNumberChanges( const SCH_SHEET& aOther ) const;
 
     /**
-     * Compares page numbers of schematic sheets.
+     * Compare page numbers of schematic sheets.
      *
      * @return 0 if the page numbers are equal, -1 if aPageNumberA < aPageNumberB, 1 otherwise
      */
@@ -439,7 +471,7 @@ public:
     void Show( int nestLevel, std::ostream& os ) const override;
 #endif
 
-    static const wxString GetDefaultFieldName( int aFieldNdx, bool aTranslated = true );
+    static const wxString GetDefaultFieldName( int aFieldNdx, bool aTranslated );
 
 protected:
     friend SCH_SHEET_PATH;
@@ -517,6 +549,11 @@ private:
 
     std::vector<SCH_SHEET_PIN*> m_pins;         // The list of sheet connection points.
     std::vector<SCH_FIELD>      m_fields;
+
+    bool                        m_excludedFromSim;
+    bool                        m_excludedFromBOM;
+    bool                        m_excludedFromBoard;
+    bool                        m_DNP;
 
     VECTOR2I                    m_pos;          // The position of the sheet.
     VECTOR2I                    m_size;         // The size of the sheet.

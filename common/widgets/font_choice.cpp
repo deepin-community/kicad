@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -70,7 +70,7 @@ FONT_CHOICE::~FONT_CHOICE()
 }
 
 
-void FONT_CHOICE::SetFontSelection( KIFONT::FONT* aFont )
+void FONT_CHOICE::SetFontSelection( KIFONT::FONT* aFont, bool aSilentMode )
 {
     if( !aFont )
     {
@@ -78,16 +78,17 @@ void FONT_CHOICE::SetFontSelection( KIFONT::FONT* aFont )
     }
     else
     {
-        SetStringSelection( aFont->GetName() );
+        bool result = SetStringSelection( aFont->GetName() );
 
-        if( GetSelection() == wxNOT_FOUND )
+        if( !result )
         {
             Append( aFont->GetName() + m_notFound );
-            SetSelection( GetCount() );
+            SetSelection( GetCount() - 1 );
         }
     }
 
-    SendSelectionChangedEvent( wxEVT_CHOICE );
+    if( !aSilentMode )
+        SendSelectionChangedEvent( wxEVT_CHOICE );
 }
 
 
@@ -117,7 +118,8 @@ KIFONT::FONT* FONT_CHOICE::GetFontSelection( bool aBold, bool aItalic, bool aFor
     }
     else
     {
-        return KIFONT::FONT::GetFont( GetStringSelection(), aBold, aItalic, aForDrawingSheet );
+        return KIFONT::FONT::GetFont( GetStringSelection(), aBold, aItalic, nullptr,
+                                      aForDrawingSheet );
     }
 }
 

@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -26,14 +26,14 @@ class STD_BITMAP_BUTTON;
 #include <wx/icon.h>
 #include <wx/button.h>
 #include <wx/sizer.h>
+#include <wx/statline.h>
 #include <wx/radiobut.h>
 #include <wx/checkbox.h>
-#include <wx/radiobox.h>
+#include <wx/choice.h>
 #include <wx/statbox.h>
 #include <wx/dialog.h>
 
 ///////////////////////////////////////////////////////////////////////////
-
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class DIALOG_GENDRILL_BASE
@@ -43,49 +43,45 @@ class DIALOG_GENDRILL_BASE : public DIALOG_SHIM
 	private:
 
 	protected:
+		wxBoxSizer* bMainSizer;
 		wxStaticText* staticTextOutputDir;
 		wxTextCtrl* m_outputDirectoryName;
 		STD_BITMAP_BUTTON* m_browseButton;
+		wxStaticText* m_formatLabel;
+		wxStaticLine* m_staticline1;
 		wxRadioButton* m_rbExcellon;
 		wxCheckBox* m_Check_Mirror;
 		wxCheckBox* m_Check_Minimal;
 		wxCheckBox* m_Check_Merge_PTH_NPTH;
-		wxRadioBox* m_radioBoxOvalHoleMode;
+		wxCheckBox* m_altDrillMode;
 		wxRadioButton* m_rbGerberX2;
-		wxRadioBox* m_Choice_Drill_Map;
-		wxRadioBox* m_Choice_Drill_Offset;
-		wxRadioBox* m_Choice_Unit;
-		wxRadioBox* m_Choice_Zeros_Format;
-		wxStaticText* m_staticTextTitle;
+		wxCheckBox* m_cbGenerateMap;
+		wxChoice* m_choiceDrillMap;
+		wxStaticText* m_optionsLabel;
+		wxStaticLine* m_staticline2;
+		wxStaticText* m_originLabel;
+		wxChoice* m_origin;
+		wxStaticText* m_unitsLabel;
+		wxChoice* m_units;
+		wxStaticText* m_zerosLabel;
+		wxChoice* m_zeros;
+		wxStaticText* m_precisionLabel;
 		wxStaticText* m_staticTextPrecision;
-		wxStaticText* staticTextPlatedPads;
-		wxStaticText* m_PlatedPadsCountInfoMsg;
-		wxStaticText* staticTextNonPlatedPads;
-		wxStaticText* m_NotPlatedPadsCountInfoMsg;
-		wxStaticText* staticTextThroughVias;
-		wxStaticText* m_ThroughViasInfoMsg;
-		wxStaticText* staticTextMicroVias;
-		wxStaticText* m_MicroViasInfoMsg;
-		wxStaticText* staticTextBuriedVias;
-		wxStaticText* m_BuriedViasInfoMsg;
+		wxStaticBoxSizer* bMsgSizer;
 		wxTextCtrl* m_messagesBox;
 		wxBoxSizer* m_buttonsSizer;
 		wxButton* m_buttonReport;
 		wxStdDialogButtonSizer* m_sdbSizer;
 		wxButton* m_sdbSizerOK;
-		wxButton* m_sdbSizerApply;
 		wxButton* m_sdbSizerCancel;
 
 		// Virtual event handlers, override them in your derived class
 		virtual void onCloseDlg( wxCloseEvent& event ) { event.Skip(); }
-		virtual void OnOutputDirectoryBrowseClicked( wxCommandEvent& event ) { event.Skip(); }
+		virtual void onOutputDirectoryBrowseClicked( wxCommandEvent& event ) { event.Skip(); }
 		virtual void onFileFormatSelection( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnSelDrillUnitsSelected( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnSelZerosFmtSelected( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnGenReportFile( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnGenMapFile( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onQuitDlg( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnGenDrillFile( wxCommandEvent& event ) { event.Skip(); }
+		virtual void onSelDrillUnitsSelected( wxCommandEvent& event ) { event.Skip(); }
+		virtual void onSelZerosFmtSelected( wxCommandEvent& event ) { event.Skip(); }
+		virtual void onGenReportFile( wxCommandEvent& event ) { event.Skip(); }
 
 
 	public:

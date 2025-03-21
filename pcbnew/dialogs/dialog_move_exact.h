@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 John Beard, john.j.beard@gmail.com
- * Copyright (C) 2018-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,6 +26,8 @@
 #define __DIALOG_MOVE_EXACT__
 
 #include <vector>
+#include <math/box2.h>
+#include <geometry/eda_angle.h>
 #include <widgets/unit_binder.h>
 
 #include <dialogs/dialog_move_exact_base.h>

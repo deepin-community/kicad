@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -76,7 +76,11 @@ wxPGWindowList PG_UNIT_EDITOR::CreateControls( wxPropertyGrid* aPropGrid, wxPGPr
 {
     wxASSERT( m_unitBinder );
 
+#if wxCHECK_VERSION( 3, 3, 0 )
+    wxString text = aProperty->GetValueAsString( wxPGPropValFormatFlags::EditableValue );
+#else
     wxString text = aProperty->GetValueAsString( wxPG_EDITABLE_VALUE );
+#endif
     wxWindow* win = aPropGrid->GenerateEditorTextCtrl( aPos, aSize, text, nullptr, 0,
                                                        aProperty->GetMaxLength() );
     wxPGWindowList ret( win, nullptr );
@@ -446,6 +450,7 @@ void PG_RATIO_EDITOR::UpdateControl( wxPGProperty* aProperty, wxWindow* aCtrl ) 
     }
     else if( !aProperty->IsValueUnspecified() )
     {
-        wxFAIL_MSG( wxT( "PG_RATIO_EDITOR should only be used with scale-free numeric properties!" ) );
+        wxFAIL_MSG( wxT( "PG_RATIO_EDITOR should only be used with scale-free numeric "
+                         "properties!" ) );
     }
 }

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 Oliver Walters
- * Copyright (C) 2017-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,12 +37,13 @@ struct BOM_PRESET;
 struct BOM_FMT_PRESET;
 class SCH_EDIT_FRAME;
 class FIELDS_EDITOR_GRID_DATA_MODEL;
+class JOB_EXPORT_SCH_BOM;
 
 
 class DIALOG_SYMBOL_FIELDS_TABLE : public DIALOG_SYMBOL_FIELDS_TABLE_BASE, public SCHEMATIC_LISTENER
 {
 public:
-    DIALOG_SYMBOL_FIELDS_TABLE( SCH_EDIT_FRAME* parent );
+    DIALOG_SYMBOL_FIELDS_TABLE( SCH_EDIT_FRAME* parent, JOB_EXPORT_SCH_BOM* aJob = nullptr );
     virtual ~DIALOG_SYMBOL_FIELDS_TABLE();
 
     bool TransferDataToWindow() override;
@@ -71,6 +72,7 @@ private:
     void OnColumnItemToggled( wxDataViewEvent& event ) override;
     void OnGroupSymbolsToggled( wxCommandEvent& event ) override;
     void OnExcludeDNPToggled( wxCommandEvent& event ) override;
+    void OnShowExcludedToggled( wxCommandEvent& event ) override;
     void OnRegroupSymbols( wxCommandEvent& aEvent ) override;
     void OnScopeChanged( wxCommandEvent& aEvent ) override;
     void UpdateScope();
@@ -119,7 +121,7 @@ private:
     void DisableSelectionEvents();
 
 private:
-    SCH_REFERENCE_LIST getSymbolReferences( SCH_SYMBOL* aSymbol );
+    SCH_REFERENCE_LIST getSymbolReferences( SCH_SYMBOL* aSymbol, SCH_REFERENCE_LIST& aCachedRefs );
     SCH_REFERENCE_LIST getSheetSymbolReferences( SCH_SHEET& aSheet );
 
     void syncBomPresetSelection();
@@ -129,11 +131,6 @@ private:
     void doApplyBomPreset( const BOM_PRESET& aPreset );
     void loadDefaultBomPresets();
 
-    std::map<wxString, BOM_PRESET> m_bomPresets;
-    BOM_PRESET*                    m_currentBomPreset;
-    BOM_PRESET*                    m_lastSelectedBomPreset;
-    wxArrayString                  m_bomPresetMRU;
-
     void syncBomFmtPresetSelection();
     void rebuildBomFmtPresetsWidget();
     void updateBomFmtPresetSelection( const wxString& aName );
@@ -141,23 +138,31 @@ private:
     void doApplyBomFmtPreset( const BOM_FMT_PRESET& aPreset );
     void loadDefaultBomFmtPresets();
 
+    void savePresetsToSchematic();
+
+private:
+    std::map<wxString, BOM_PRESET>     m_bomPresets;
+    BOM_PRESET*                        m_currentBomPreset;
+    BOM_PRESET*                        m_lastSelectedBomPreset;
+    wxArrayString                      m_bomPresetMRU;
+
     std::map<wxString, BOM_FMT_PRESET> m_bomFmtPresets;
     BOM_FMT_PRESET*                    m_currentBomFmtPreset;
     BOM_FMT_PRESET*                    m_lastSelectedBomFmtPreset;
     wxArrayString                      m_bomFmtPresetMRU;
 
-    void savePresetsToSchematic();
+    SCH_EDIT_FRAME*                    m_parent;
+    int                                m_fieldNameColWidth;
+    int                                m_labelColWidth;
+    int                                m_showColWidth;
+    int                                m_groupByColWidth;
 
-    SCH_EDIT_FRAME*                m_parent;
-    int                            m_fieldNameColWidth;
-    int                            m_labelColWidth;
-    int                            m_showColWidth;
-    int                            m_groupByColWidth;
+    SCH_REFERENCE_LIST                 m_symbolsList;
+    FIELDS_EDITOR_GRID_DATA_MODEL*     m_dataModel;
 
-    SCH_REFERENCE_LIST             m_symbolsList;
-    FIELDS_EDITOR_GRID_DATA_MODEL* m_dataModel;
+    SCHEMATIC_SETTINGS&                m_schSettings;
 
-    SCHEMATIC_SETTINGS&            m_schSettings;
+    JOB_EXPORT_SCH_BOM* m_job;
 };
 
 #endif /* DIALOG_SYMBOL_FIELDS_TABLE_H */

@@ -2,6 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Andre F. K. Iwers <iwers11@gmail.com>
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -50,17 +51,19 @@ public:
     int GetModifyHash() const override { return 0; }
 
     void EnumerateSymbolLib( wxArrayString& aSymbolNameList, const wxString& aLibraryPath,
-                             const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                             const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     void EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList, const wxString& aLibraryPath,
-                             const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                             const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     LIB_SYMBOL* LoadSymbol( const wxString& aLibraryPath, const wxString& aAliasName,
-                            const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                            const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     bool SupportsSubLibraries() const override { return true; }
 
     void GetSubLibraryNames( std::vector<wxString>& aNames ) override;
+
+    wxString GetSubLibraryDescription( const wxString& aName ) override;
 
     void GetAvailableSymbolFields( std::vector<wxString>& aNames ) override;
 
@@ -73,25 +76,27 @@ public:
     HTTP_LIB_SETTINGS* Settings() const { return m_settings.get(); }
 
     void SaveSymbol( const wxString& aLibraryPath, const LIB_SYMBOL* aSymbol,
-                     const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                     const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     const wxString& GetError() const override { return m_lastError; }
 
 private:
-
     void ensureSettings( const wxString& aSettingsPath );
 
     void ensureConnection();
 
     void connect();
 
-    LIB_SYMBOL* loadSymbolFromPart( const wxString& aSymbolName,
-                                    const HTTP_LIB_CATEGORY& aCategory,
+    void syncCache();
+
+    void syncCache( const HTTP_LIB_CATEGORY& category );
+
+    LIB_SYMBOL* loadSymbolFromPart( const wxString& aSymbolName, const HTTP_LIB_CATEGORY& aCategory,
                                     const HTTP_LIB_PART& aPart );
 
     SYMBOL_LIB_TABLE* m_libTable;
 
-     /// Generally will be null if no valid connection is established
+    /// Generally will be null if no valid connection is established
     std::unique_ptr<HTTP_LIB_CONNECTION> m_conn;
 
     std::unique_ptr<HTTP_LIB_SETTINGS> m_settings;
@@ -110,9 +115,8 @@ private:
     wxString datasheet_field = "datasheet";
     wxString reference_field = "reference";
 
-     //     category.id       category
+    //     category.id       category
     std::map<std::string, HTTP_LIB_CATEGORY> m_cachedCategories;
-
 };
 
 #endif // SCH_IO_HTTP_LIB_H_

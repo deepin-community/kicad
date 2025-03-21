@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,7 +41,7 @@ EDA_VIEW_SWITCHER::EDA_VIEW_SWITCHER( wxWindow* aParent, const wxArrayString& aI
         m_ctrlKey( aCtrlKey )
 {
     m_listBox->InsertItems( aItems, 0 );
-    m_listBox->SetSelection( std::min( 1, (int) m_listBox->GetCount() - 1 ) );
+    m_listBox->SetSelection( std::min( 0, (int) m_listBox->GetCount() - 1 ) );
 
     int width = 0;
     int height = 0;
@@ -135,6 +135,10 @@ bool EDA_VIEW_SWITCHER::TryBefore( wxEvent& aEvent )
     if( !wxGetKeyState( m_ctrlKey ) )
     {
         wxPostEvent( this, wxCommandEvent( wxEVT_COMMAND_BUTTON_CLICKED, wxID_OK ) );
+    }
+    else if( wxGetKeyState( WXK_ESCAPE ) )
+    {
+        wxPostEvent( this, wxCommandEvent( wxEVT_COMMAND_BUTTON_CLICKED, wxID_CANCEL ) );
     }
 
     return DIALOG_SHIM::TryBefore( aEvent );

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014-2016 CERN
- * Copyright (C) 2021-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -43,14 +43,15 @@
 #include <eda_doc.h>
 #include <wx/msgdlg.h>
 
-#define URL_GET_INVOLVED wxS( "https://kicad.org/contribute/" )
+#define URL_GET_INVOLVED wxS( "https://go.kicad.org/contribute/" )
 #define URL_DONATE wxS( "https://go.kicad.org/app-donate" )
-#define URL_DOCUMENTATION wxS( "https://docs.kicad.org/" )
+#define URL_DOCUMENTATION wxS( "https://go.kicad.org/docs/" )
 
 
 /// URL to launch a new issue with pre-populated description
 wxString COMMON_CONTROL::m_bugReportUrl =
-        wxS( "https://gitlab.com/kicad/code/kicad/-/issues/new?issuable_template=bare&issue[description]=%s" );
+        wxS( "https://gitlab.com/kicad/code/kicad/-/issues/new?issuable_template=bare&issue"
+             "[description]=%s" );
 
 
 /// Issue template to use for reporting bugs (this should not be translated)
@@ -77,9 +78,7 @@ int COMMON_CONTROL::ConfigurePaths( const TOOL_EVENT& aEvent )
 {
     // If _pcbnew.kiface is running have it put up the dialog so the 3D paths can also
     // be edited
-    KIFACE* pcbnew = m_frame->Kiway().KiFACE( KIWAY::FACE_PCB, false );
-
-    if( pcbnew )
+    if( KIFACE* pcbnew = m_frame->Kiway().KiFACE( KIWAY::FACE_PCB, false ) )
     {
         try
         {
@@ -96,7 +95,7 @@ int COMMON_CONTROL::ConfigurePaths( const TOOL_EVENT& aEvent )
         DIALOG_CONFIGURE_PATHS dlg( m_frame );
 
         if( dlg.ShowModal() == wxID_OK )
-            m_frame->Kiway().CommonSettingsChanged( true, false );
+            m_frame->Kiway().CommonSettingsChanged( ENVVARS_CHANGED );
     }
 
     return 0;
@@ -109,9 +108,7 @@ int COMMON_CONTROL::ShowLibraryTable( const TOOL_EVENT& aEvent )
     {
         try     // Sch frame was not available, try to start it
         {
-            KIFACE* kiface = m_frame->Kiway().KiFACE( KIWAY::FACE_SCH );
-
-            if( kiface )
+            if( KIFACE* kiface = m_frame->Kiway().KiFACE( KIWAY::FACE_SCH ) )
                 kiface->CreateKiWindow( m_frame, DIALOG_SCH_LIBRARY_TABLE, &m_frame->Kiway() );
         }
         catch( ... )
@@ -123,12 +120,9 @@ int COMMON_CONTROL::ShowLibraryTable( const TOOL_EVENT& aEvent )
     }
     else if( aEvent.IsAction( &ACTIONS::showFootprintLibTable ) )
     {
-
         try     // Pcb frame was not available, try to start it
         {
-            KIFACE* kiface = m_frame->Kiway().KiFACE( KIWAY::FACE_PCB );
-
-            if( kiface )
+            if( KIFACE* kiface = m_frame->Kiway().KiFACE( KIWAY::FACE_PCB ) )
                 kiface->CreateKiWindow( m_frame, DIALOG_PCB_LIBRARY_TABLE, &m_frame->Kiway() );
         }
         catch( ... )
@@ -136,6 +130,21 @@ int COMMON_CONTROL::ShowLibraryTable( const TOOL_EVENT& aEvent )
             // _pcbnew.kiface is not available: it contains the library table dialog.
             // Do nothing here.
             // A error message is displayed after trying to load _pcbnew.kiface.
+        }
+    }
+    else if( aEvent.IsAction( &ACTIONS::showDesignBlockLibTable ) )
+    {
+        try     // Kicad frame was not available, try to start it
+        {
+            if( KIFACE* kiface = m_frame->Kiway().KiFACE( KIWAY::FACE_SCH ) )
+                kiface->CreateKiWindow( m_frame, DIALOG_DESIGN_BLOCK_LIBRARY_TABLE,
+                                        &m_frame->Kiway() );
+        }
+        catch( ... )
+        {
+            // _eeschema.kiface is not available: it contains the library table dialog.
+            // Do nothing here.
+            // A error message is displayed after trying to load _eeschema.kiface.
         }
     }
 
@@ -203,7 +212,7 @@ int COMMON_CONTROL::ShowHelp( const TOOL_EVENT& aEvent )
     wxString helpFile;
     wxString msg;
 
-    // the URL of help files is "https://docs.kicad.org/<version>/<language>/<name>/"
+    // the URL of help files is "https://go.kicad.org/docs/<version>/<language>/<name>/"
     const wxString baseUrl = URL_DOCUMENTATION + GetMajorMinorVersion() + wxT( "/" )
                              + Pgm().GetLocale()->GetName().BeforeLast( '_' ) + wxT( "/" );
 
@@ -342,6 +351,7 @@ void COMMON_CONTROL::setTransitions()
     Go( &COMMON_CONTROL::ConfigurePaths,     ACTIONS::configurePaths.MakeEvent() );
     Go( &COMMON_CONTROL::ShowLibraryTable,   ACTIONS::showSymbolLibTable.MakeEvent() );
     Go( &COMMON_CONTROL::ShowLibraryTable,   ACTIONS::showFootprintLibTable.MakeEvent() );
+    Go( &COMMON_CONTROL::ShowLibraryTable,   ACTIONS::showDesignBlockLibTable.MakeEvent() );
     Go( &COMMON_CONTROL::ShowPlayer,         ACTIONS::showSymbolBrowser.MakeEvent() );
     Go( &COMMON_CONTROL::ShowPlayer,         ACTIONS::showSymbolEditor.MakeEvent() );
     Go( &COMMON_CONTROL::ShowPlayer,         ACTIONS::showFootprintBrowser.MakeEvent() );

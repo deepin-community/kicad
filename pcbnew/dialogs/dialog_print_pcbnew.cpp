@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2010-2016 Jean-Pierre Charras, jean-pierre.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2018-2023 CERN
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
@@ -108,6 +108,18 @@ DIALOG_PRINT_PCBNEW::DIALOG_PRINT_PCBNEW( PCB_BASE_EDIT_FRAME* aParent,
     createExtraOptions();
     createLeftPanel();
 
+    BOARD* board = m_parent->GetBoard();
+
+    // Create layer list
+    // Could devote a PlotOrder() function in place of UIOrder().
+    m_layerList = board->GetEnabledLayers().UIOrder();
+
+    // Populate the check list box by all enabled layers names. They will be enabled later
+    // when the dlg settings are loaded (i.e. after DIALOG_PRINT_GENERIC::TransferDataToWindow()
+    // is called
+    for( PCB_LAYER_ID layer : m_layerList )
+        m_layerCheckListBox->Append( board->GetLayerName( layer ) );
+
     m_infoText->SetFont( KIUI::GetInfoFont( this ) );
     m_infoText->SetLabel( _( "Right-click for layer selection commands." ) );
     m_infoText->Show( true );
@@ -141,19 +153,16 @@ bool DIALOG_PRINT_PCBNEW::TransferDataToWindow()
 
     BOARD* board = m_parent->GetBoard();
 
-    // Create layer list
-    // Could devote a PlotOrder() function in place of UIOrder().
+    // Enable layers from previous dlg settings
     m_layerList = board->GetEnabledLayers().UIOrder();
+    int choice_ly_id = 0;
 
-    // Populate the check list box by all enabled layers names
-    for( LSEQ seq = m_layerList;  seq;  ++seq )
+    for( PCB_LAYER_ID layer : m_layerList )
     {
-        PCB_LAYER_ID layer = *seq;
-
-        int checkIndex = m_layerCheckListBox->Append( board->GetLayerName( layer ) );
-
         if( settings()->m_LayerSet.test( layer ) )
-            m_layerCheckListBox->Check( checkIndex );
+            m_layerCheckListBox->Check( choice_ly_id );
+
+        choice_ly_id++;
     }
 
     m_checkAsItems->SetValue( settings()->m_AsItemCheckboxes );
@@ -209,32 +218,29 @@ void DIALOG_PRINT_PCBNEW::createExtraOptions()
     wxGridBagSizer* optionsSizer = getOptionsSizer();
     wxStaticBox*    box = getOptionsBox();
     int             rows = optionsSizer->GetEffectiveRowsCount();
-    int             cols = optionsSizer->GetEffectiveColsCount();
 
-    m_checkAsItems = new wxCheckBox( box, wxID_ANY,
-                                     _( "Print according to objects tab of appearance manager" ) );
-    optionsSizer->Add( m_checkAsItems, wxGBPosition( rows++, 0 ), wxGBSpan( 1, 3 ),
+    m_checkAsItems = new wxCheckBox( box, wxID_ANY, _( "Print according to objects tab of "
+                                                       "appearance manager" ) );
+    optionsSizer->Add( m_checkAsItems, wxGBPosition( rows++, 0 ), wxGBSpan( 1, 2 ),
                        wxLEFT|wxRIGHT|wxBOTTOM, 5 );
 
     m_checkBackground = new wxCheckBox( box, wxID_ANY, _( "Print background color" ) );
-    optionsSizer->Add( m_checkBackground, wxGBPosition( rows++, 0 ), wxGBSpan( 1, 3 ),
+    optionsSizer->Add( m_checkBackground, wxGBPosition( rows++, 0 ), wxGBSpan( 1, 2 ),
                        wxLEFT|wxRIGHT|wxBOTTOM, 5 );
 
-    m_checkUseTheme = new wxCheckBox( box, wxID_ANY,
-                                      _( "Use a different color theme for printing:" ) );
-    optionsSizer->Add( m_checkUseTheme, wxGBPosition( rows++, 0 ), wxGBSpan( 1, 3 ),
+    m_checkUseTheme = new wxCheckBox( box, wxID_ANY, _( "Use a different color theme for "
+                                                        "printing:" ) );
+    optionsSizer->Add( m_checkUseTheme, wxGBPosition( rows++, 0 ), wxGBSpan( 1, 2 ),
                        wxLEFT|wxRIGHT, 5 );
 
     m_checkUseTheme->Bind( wxEVT_COMMAND_CHECKBOX_CLICKED,
                            &DIALOG_PRINT_PCBNEW::onUseThemeClicked, this );
 
-    wxArrayString m_colorThemeChoices;
-    m_colorTheme = new wxChoice( box, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-                                 m_colorThemeChoices, 0 );
+    wxArrayString choices;
+    m_colorTheme = new wxChoice( box, wxID_ANY, wxDefaultPosition, wxDefaultSize, choices, 0 );
     m_colorTheme->SetSelection( 0 );
-
-    optionsSizer->Add( m_colorTheme, wxGBPosition( rows++, 0 ), wxGBSpan( 1, 2 ),
-                       wxLEFT, 28 );
+    m_colorTheme->SetMinSize( { 200, -1 } );
+    optionsSizer->Add( m_colorTheme, wxGBPosition( rows++, 0 ), wxGBSpan( 1, 2 ), wxLEFT, 28 );
 
     rows++;
 
@@ -249,13 +255,13 @@ void DIALOG_PRINT_PCBNEW::createExtraOptions()
 
     optionsSizer->Add( drillMarksLabel, wxGBPosition( rows, 0 ), wxGBSpan( 1, 1 ),
                        wxALIGN_CENTER_VERTICAL|wxLEFT|wxRIGHT|wxBOTTOM, 5 );
-    optionsSizer->Add( m_drillMarksChoice, wxGBPosition( rows++, 1 ), wxGBSpan( 1, cols - 1 ),
-                       wxALIGN_CENTER_VERTICAL|wxLEFT|wxRIGHT|wxBOTTOM, 5 );
+    optionsSizer->Add( m_drillMarksChoice, wxGBPosition( rows++, 1 ), wxGBSpan( 1, 1 ),
+                       wxALIGN_CENTER_VERTICAL|wxRIGHT|wxBOTTOM, 5 );
 
     // Print mirrored
     m_checkboxMirror = new wxCheckBox( box, wxID_ANY, _( "Print mirrored" ) );
 
-    optionsSizer->Add( m_checkboxMirror, wxGBPosition( rows++, 0 ), wxGBSpan( 1, cols ),
+    optionsSizer->Add( m_checkboxMirror, wxGBPosition( rows++, 0 ), wxGBSpan( 1, 2 ),
                        wxLEFT|wxRIGHT|wxBOTTOM, 5 );
 
     // Pagination
@@ -267,9 +273,9 @@ void DIALOG_PRINT_PCBNEW::createExtraOptions()
     m_checkboxEdgesOnAllPages = new wxCheckBox( box, wxID_ANY,
                                                 _( "Print board edges on all pages" ) );
 
-    optionsSizer->Add( m_checkboxPagePerLayer, wxGBPosition( rows++, 0 ), wxGBSpan( 1, cols ),
+    optionsSizer->Add( m_checkboxPagePerLayer, wxGBPosition( rows++, 0 ), wxGBSpan( 1, 2 ),
                        wxLEFT|wxRIGHT, 5 );
-    optionsSizer->Add( m_checkboxEdgesOnAllPages, wxGBPosition( rows++, 0 ), wxGBSpan( 1, cols ),
+    optionsSizer->Add( m_checkboxEdgesOnAllPages, wxGBPosition( rows++, 0 ), wxGBSpan( 1, 2 ),
                        wxLEFT, 28 );
 }
 
@@ -353,14 +359,14 @@ void DIALOG_PRINT_PCBNEW::onColorModeClicked( wxCommandEvent& event )
 void DIALOG_PRINT_PCBNEW::onPopUpLayers( wxCommandEvent& event )
 {
     // Build a list of layers for usual fabrication: copper layers + tech layers without courtyard
-    LSET fab_layer_set = ( LSET::AllCuMask() | LSET::AllTechMask() ) & ~LSET( 2, B_CrtYd, F_CrtYd );
+    LSET fab_layer_set = ( LSET::AllCuMask() | LSET::AllTechMask() ) & ~LSET( { B_CrtYd, F_CrtYd } );
 
     switch( event.GetId() )
     {
     case ID_SELECT_FAB_LAYERS: // Select layers usually needed to build a board
         for( unsigned i = 0; i < m_layerList.size(); i++ )
         {
-            LSET layermask( m_layerList[ i ] );
+            LSET layermask( { m_layerList[ i ] } );
 
             if( ( layermask & fab_layer_set ).any() )
                 m_layerCheckListBox->Check( i, true );

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -35,7 +35,8 @@
 wxString DIALOG_SCH_IMPORT_SETTINGS::m_filePath;     // remember for session
 
 
-DIALOG_SCH_IMPORT_SETTINGS::DIALOG_SCH_IMPORT_SETTINGS( wxWindow* aParent, SCH_EDIT_FRAME* aFrame ) :
+DIALOG_SCH_IMPORT_SETTINGS::DIALOG_SCH_IMPORT_SETTINGS( wxWindow* aParent,
+                                                        SCH_EDIT_FRAME* aFrame ) :
         DIALOG_SCH_IMPORT_SETTINGS_BASE( aParent ),
         m_frame( aFrame )
 {
@@ -89,4 +90,6 @@ void DIALOG_SCH_IMPORT_SETTINGS::OnSelectAll( wxCommandEvent& event )
     m_NetClassesOpt->SetValue( true );
     m_BomPresetsOpt->SetValue( true );
     m_BomFmtPresetsOpt->SetValue( true );
+    m_BusAliasesOpt->SetValue( true );
+    m_TextVarsOpt->SetValue( true );
 }

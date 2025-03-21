@@ -2,7 +2,7 @@
  * This file is part of libeval, a simple math expression evaluator
  *
  * Copyright (C) 2017 Michael Geselbracht, mgeselbracht3@gmail.com
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -114,6 +114,9 @@ bool VALUE::EqualTo( CONTEXT* aCtx, const VALUE* b ) const
 {
     if( m_type == VT_UNDEFINED || b->m_type == VT_UNDEFINED )
         return false;
+
+    if( m_type == VT_NULL && b->m_type == VT_NULL )
+        return true;
 
     if( m_type == VT_NUMERIC && b->m_type == VT_NUMERIC )
     {
@@ -232,6 +235,7 @@ wxString TOKENIZER::GetChars( const std::function<bool( wxUniChar )>& cond ) con
 
     return rv;
 }
+
 
 bool TOKENIZER::MatchAhead( const wxString& match,
                             const std::function<bool( wxUniChar )>& stopCond ) const
@@ -767,6 +771,7 @@ static void prepareTree( LIBEVAL::TREE_NODE *node )
     if ( node->leaf[1] )
         prepareTree( node->leaf[1] );
 }
+
 
 static std::vector<TREE_NODE*> squashParamList( TREE_NODE* root )
 {

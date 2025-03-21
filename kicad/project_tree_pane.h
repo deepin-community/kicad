@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 1992-2012 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -219,6 +219,11 @@ private:
      * Revert the local repository to the last commit
     */
     void onGitRevertLocal( wxCommandEvent& event );
+
+    /**
+     * Run a selected jobs file
+     */
+    void onRunSelectedJobsFile( wxCommandEvent& event );
 
     /**
      * Updates the icons shown in the tree project to reflect the current git status

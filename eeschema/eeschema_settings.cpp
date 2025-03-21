@@ -1,7 +1,7 @@
 /*
 * This program source code file is part of KiCad, a free EDA CAD application.
 *
-* Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -41,8 +41,9 @@
 
 using namespace T_BOMCFG_T;     // for the BOM_CFG_PARSER parser and its keywords
 
-///! Update the schema version whenever a migration is required
+/// Update the schema version whenever a migration is required.
 const int eeschemaSchemaVersion = 3;
+
 
 /// Default value for bom.plugins
 const nlohmann::json defaultBomPlugins =
@@ -70,7 +71,7 @@ const wxAuiPaneInfo& defaultNetNavigatorPaneInfo()
             .Caption( _( "Net Navigator" ) )
             .CaptionVisible( true )
             .PaneBorder( true )
-            .Left().Layer( 3 )
+            .Left().Layer( 3 ).Position( 0 )
             .TopDockable( false )
             .BottomDockable( false )
             .CloseButton( true )
@@ -92,13 +93,55 @@ const wxAuiPaneInfo& defaultPropertiesPaneInfo( wxWindow* aWindow )
             .Caption( _( "Properties" ) )
             .CaptionVisible( true )
             .PaneBorder( true )
-            .Left().Layer( 3 )
+            .Left().Layer( 3 ).Position( 2 )
             .TopDockable( false )
             .BottomDockable( false )
             .CloseButton( true )
             .MinSize( aWindow->FromDIP( wxSize( 240, 60 ) ) )
             .BestSize( aWindow->FromDIP( wxSize( 300, 200 ) ) )
             .FloatingSize( aWindow->FromDIP( wxSize( 300, 400 ) ) )
+            .FloatingPosition( aWindow->FromDIP( wxPoint( 50, 200 ) ) )
+            .Show( true );
+
+    return paneInfo;
+}
+
+
+const wxAuiPaneInfo& defaultSchSelectionFilterPaneInfo( wxWindow* aWindow )
+{
+    static wxAuiPaneInfo paneInfo;
+
+    paneInfo.Name( wxS( "SelectionFilter" ) )
+            .Caption( _( "Selection Filter" ) )
+            .CaptionVisible( true )
+            .PaneBorder( false )
+            .Left().Layer( 3 ).Position( 4 )
+            .TopDockable( false )
+            .BottomDockable( false )
+            .CloseButton( true )
+            .MinSize( aWindow->FromDIP( wxSize( 180, -1 ) ) )
+            .BestSize( aWindow->FromDIP( wxSize( 180, -1 ) ) )
+            .Show( true );
+
+    return paneInfo;
+}
+
+
+const wxAuiPaneInfo& defaultDesignBlocksPaneInfo( wxWindow* aWindow )
+{
+    static wxAuiPaneInfo paneInfo;
+
+    paneInfo.Name( EDA_DRAW_FRAME::DesignBlocksPaneName() )
+            .Caption( _( "Design Blocks" ) )
+            .CaptionVisible( true )
+            .PaneBorder( true )
+            .Right().Layer( 3 ).Position( 2 )
+            .TopDockable( false )
+            .BottomDockable( false )
+            .CloseButton( true )
+            .MinSize( aWindow->FromDIP( wxSize( 240, 60 ) ) )
+            .BestSize( aWindow->FromDIP( wxSize( 300, 200 ) ) )
+            .FloatingSize( aWindow->FromDIP( wxSize( 800, 600 ) ) )
             .FloatingPosition( aWindow->FromDIP( wxPoint( 50, 200 ) ) )
             .Show( true );
 
@@ -183,11 +226,17 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "appearance.show_erc_exclusions",
             &m_Appearance.show_erc_exclusions, false ) );
 
+    m_params.emplace_back( new PARAM<bool>( "appearance.mark_sim_exclusions",
+            &m_Appearance.mark_sim_exclusions, true ) );
+
     m_params.emplace_back( new PARAM<bool>( "appearance.show_op_voltages",
             &m_Appearance.show_op_voltages, true ) );
 
     m_params.emplace_back( new PARAM<bool>( "appearance.show_op_currents",
             &m_Appearance.show_op_currents, true ) );
+
+    m_params.emplace_back( new PARAM<bool>( "appearance.show_pin_alt_icons",
+            &m_Appearance.show_pin_alt_icons, true ) );
 
     m_params.emplace_back( new PARAM<bool>( "appearance.show_illegal_symbol_lib_dialog",
             &m_Appearance.show_illegal_symbol_lib_dialog, true ) );
@@ -216,6 +265,18 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
 
     m_params.emplace_back( new PARAM<int>( "aui.hierarchy_panel_float_height",
             &m_AuiPanels.hierarchy_panel_float_height, -1 ) );
+
+    m_params.emplace_back( new PARAM<bool>( "aui.design_blocks_show",
+            &m_AuiPanels.design_blocks_show, false ) );
+
+    m_params.emplace_back( new PARAM<int>( "aui.design_blocks_panel_docked_width",
+            &m_AuiPanels.design_blocks_panel_docked_width, -1 ) );
+
+    m_params.emplace_back( new PARAM<int>( "aui.design_blocks_panel_float_width",
+            &m_AuiPanels.design_blocks_panel_float_width, -1 ) );
+
+    m_params.emplace_back( new PARAM<int>( "aui.design_blocks_panel_float_height",
+            &m_AuiPanels.design_blocks_panel_float_height, -1 ) );
 
     m_params.emplace_back( new PARAM<bool>( "aui.schematic_hierarchy_float",
             &m_AuiPanels.schematic_hierarchy_float, false ) );
@@ -347,8 +408,14 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "selection.fill_shapes",
             &m_Selection.fill_shapes, false ) );
 
-    m_params.emplace_back( new PARAM<bool>( "selection.select_pin_selects_symbol",
-            &m_Selection.select_pin_selects_symbol, false ) );
+    m_params.emplace_back( new PARAM<bool>( "selection.highlight_netclass_colors",
+            &m_Selection.highlight_netclass_colors, false ) );
+
+    m_params.emplace_back( new PARAM<int>( "selection.highlight_netclass_colors_thickness",
+            &m_Selection.highlight_netclass_colors_thickness, 15, 0, 50 ) );
+
+    m_params.emplace_back( new PARAM<double>( "selection.highlight_netclass_colors_alpha",
+            &m_Selection.highlight_netclass_colors_alpha, 0.6, 0, 1 ) );
 
     m_params.emplace_back( new PARAM<bool>( "annotation.automatic",
             &m_AnnotatePanel.automatic, true ) );
@@ -480,6 +547,12 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "plot.pdf_property_popups",
             &m_PlotPanel.pdf_property_popups, true ) );
 
+    m_params.emplace_back( new PARAM<bool>( "plot.pdf_hierarchical_links",
+            &m_PlotPanel.pdf_hierarchical_links, true ) );
+
+    m_params.emplace_back( new PARAM<bool>( "plot.pdf_metadata",
+            &m_PlotPanel.pdf_metadata, true ) );
+
     m_params.emplace_back( new PARAM<int>( "plot.hpgl_paper_size",
             &m_PlotPanel.hpgl_paper_size, 0 ) );
 
@@ -514,22 +587,51 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
             &m_Simulator.window.perspective, "" ) );
 
     m_params.emplace_back( new PARAM<int>( "simulator.plot_panel_width",
-            &m_Simulator.plot_panel_width, 0 ) );
+        &m_Simulator.view.plot_panel_width, 0 ) );
 
     m_params.emplace_back( new PARAM<int>( "simulator.plot_panel_height",
-            &m_Simulator.plot_panel_height, 0 ) );
+        &m_Simulator.view.plot_panel_height, 0 ) );
 
     m_params.emplace_back( new PARAM<int>( "simulator.signal_panel_height",
-            &m_Simulator.signal_panel_height, 0 ) );
+        &m_Simulator.view.signal_panel_height, 0 ) );
 
     m_params.emplace_back( new PARAM<int>( "simulator.cursors_panel_height",
-            &m_Simulator.cursors_panel_height, 0 ) );
+        &m_Simulator.view.cursors_panel_height, 0 ) );
 
     m_params.emplace_back( new PARAM<int>( "simulator.measurements_panel_height",
-            &m_Simulator.measurements_panel_height, 0 ) );
+        &m_Simulator.view.measurements_panel_height, 0 ) );
 
     m_params.emplace_back( new PARAM<bool>( "simulator.white_background",
-            &m_Simulator.white_background, false ) );
+        &m_Simulator.view.white_background, false ) );
+
+    m_params.emplace_back( new PARAM_ENUM<SIM_MOUSE_WHEEL_ACTION>(
+            "simulator.mouse_wheel_actions.vertical_unmodified",
+            &m_Simulator.preferences.mouse_wheel_actions.vertical_unmodified,
+            SIM_MOUSE_WHEEL_ACTION::ZOOM, SIM_MOUSE_WHEEL_ACTION::NONE,
+            SIM_MOUSE_WHEEL_ACTION::ZOOM_VERTICALLY ) );
+
+    m_params.emplace_back( new PARAM_ENUM<SIM_MOUSE_WHEEL_ACTION>(
+            "simulator.mouse_wheel_actions.vertical_with_ctrl",
+            &m_Simulator.preferences.mouse_wheel_actions.vertical_with_ctrl,
+            SIM_MOUSE_WHEEL_ACTION::PAN_LEFT_RIGHT, SIM_MOUSE_WHEEL_ACTION::NONE,
+            SIM_MOUSE_WHEEL_ACTION::ZOOM_VERTICALLY ) );
+
+    m_params.emplace_back( new PARAM_ENUM<SIM_MOUSE_WHEEL_ACTION>(
+            "simulator.mouse_wheel_actions.vertical_with_shift",
+            &m_Simulator.preferences.mouse_wheel_actions.vertical_with_shift,
+            SIM_MOUSE_WHEEL_ACTION::PAN_UP_DOWN, SIM_MOUSE_WHEEL_ACTION::NONE,
+            SIM_MOUSE_WHEEL_ACTION::ZOOM_VERTICALLY ) );
+
+    m_params.emplace_back( new PARAM_ENUM<SIM_MOUSE_WHEEL_ACTION>(
+            "simulator.mouse_wheel_actions.vertical_with_alt",
+            &m_Simulator.preferences.mouse_wheel_actions.vertical_with_alt,
+            SIM_MOUSE_WHEEL_ACTION::NONE, SIM_MOUSE_WHEEL_ACTION::NONE,
+            SIM_MOUSE_WHEEL_ACTION::ZOOM_VERTICALLY ) );
+
+    m_params.emplace_back( new PARAM_ENUM<SIM_MOUSE_WHEEL_ACTION>(
+            "simulator.mouse_wheel_actions.horizontal",
+            &m_Simulator.preferences.mouse_wheel_actions.horizontal, SIM_MOUSE_WHEEL_ACTION::NONE,
+            SIM_MOUSE_WHEEL_ACTION::NONE, SIM_MOUSE_WHEEL_ACTION::ZOOM_VERTICALLY ) );
 
     m_params.emplace_back( new PARAM<int>( "symbol_chooser.sash_pos_h",
             &m_SymChooserPanel.sash_pos_h, -1 ) );
@@ -551,6 +653,59 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
 
     m_params.emplace_back( new PARAM<bool>( "symbol_chooser.place_all_units",
             &m_SymChooserPanel.place_all_units, true ) );
+
+    m_params.emplace_back( new PARAM<int>( "design_block_chooser.sash_pos_h",
+            &m_DesignBlockChooserPanel.sash_pos_h, -1 ) );
+
+    m_params.emplace_back( new PARAM<int>( "design_block_chooser.sash_pos_v",
+            &m_DesignBlockChooserPanel.sash_pos_v, -1 ) );
+
+    m_params.emplace_back( new PARAM<int>( "design_block_chooser.width",
+            &m_DesignBlockChooserPanel.width, -1 ) );
+
+    m_params.emplace_back( new PARAM<int>( "design_block_chooser.height",
+            &m_DesignBlockChooserPanel.height, -1 ) );
+
+    m_params.emplace_back( new PARAM<int>( "design_block_chooser.sort_mode",
+            &m_DesignBlockChooserPanel.sort_mode, 0 ) );
+
+    m_params.emplace_back( new PARAM<bool>( "design_block_chooser.repeated_placement",
+            &m_DesignBlockChooserPanel.repeated_placement, false ) );
+
+    m_params.emplace_back( new PARAM<bool>( "design_block_chooser.place_as_sheet",
+            &m_DesignBlockChooserPanel.place_as_sheet, false ) );
+
+    m_params.emplace_back( new PARAM<bool>( "design_block_chooser.keep_annotations",
+            &m_DesignBlockChooserPanel.keep_annotations, false ) );
+
+    m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>(
+            "design_block_chooser.lib_tree.column_widths",
+            [&]() -> nlohmann::json
+            {
+                nlohmann::json ret = {};
+
+                for( const auto& [name, width] : m_DesignBlockChooserPanel.tree.column_widths )
+                    ret[std::string( name.ToUTF8() )] = width;
+
+                return ret;
+            },
+            [&]( const nlohmann::json& aJson )
+            {
+                if( !aJson.is_object() )
+                    return;
+
+                m_DesignBlockChooserPanel.tree.column_widths.clear();
+
+                for( const auto& entry : aJson.items() )
+                {
+                    if( !entry.value().is_number_integer() )
+                        continue;
+
+                    m_DesignBlockChooserPanel.tree.column_widths[ entry.key() ] =
+                            entry.value().get<int>();
+                }
+            },
+            {} ) );
 
     m_params.emplace_back( new PARAM<bool>( "import_graphics.interactive_placement",
             &m_ImportGraphics.interactive_placement, true ) );
@@ -609,9 +764,7 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<wxString>( "system.last_symbol_lib_dir",
             &m_lastSymbolLibDir, "" ) );
 
-
     // Migrations
-
     registerMigration( 0, 1,
             [&]() -> bool
             {
@@ -852,7 +1005,8 @@ bool EESCHEMA_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
     if( aCfg->Read( "MoveWarpsCursor", &tmp ) )
         Pgm().GetCommonSettings()->m_Input.warp_mouse_on_move = tmp;
 
-    COLOR_SETTINGS* cs = Pgm().GetSettingsManager().GetMigratedColorSettings();
+    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+    COLOR_SETTINGS*   cs = mgr.GetMigratedColorSettings();
 
     auto migrateLegacyColor = [&] ( const std::string& aKey, int aLayerId ) {
         wxString str;
@@ -891,14 +1045,14 @@ bool EESCHEMA_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
     migrateLegacyColor( "Color4DWireEx",            LAYER_WIRE );
     migrateLegacyColor( "Color4DWorksheetEx",       LAYER_SCHEMATIC_DRAWINGSHEET );
 
-    Pgm().GetSettingsManager().SaveColorSettings( cs, "schematic" );
+    mgr.SaveColorSettings( cs, "schematic" );
 
     Set( "appearance.color_theme", cs->GetFilename() );
 
     // LibEdit settings were stored with eeschema.  If eeschema is the first app to run,
     // we need to migrate the LibEdit settings here
 
-    auto libedit = Pgm().GetSettingsManager().GetAppSettings<SYMBOL_EDITOR_SETTINGS>();
+    SYMBOL_EDITOR_SETTINGS* libedit = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" );
     libedit->MigrateFromLegacy( aCfg );
     libedit->Load();
 

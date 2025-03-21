@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,13 +23,17 @@
 
 #include <kicommon.h>
 #include <layer_ids.h>
+#include <lseq.h>
 #include <wx/string.h>
+#include <jobs/job_export_pcb_plot.h>
 #include "job.h"
 
-class KICOMMON_API JOB_EXPORT_PCB_DXF : public JOB
+class KICOMMON_API JOB_EXPORT_PCB_DXF : public JOB_EXPORT_PCB_PLOT
 {
 public:
-    JOB_EXPORT_PCB_DXF( bool aIsCli );
+    JOB_EXPORT_PCB_DXF();
+    wxString GetDefaultDescription() const override;
+    wxString GetSettingsDialogTitle() const override;
 
     enum class DXF_UNITS
     {
@@ -37,17 +41,17 @@ public:
         MILLIMETERS
     };
 
-    wxString m_filename;
-    wxString m_outputFile;
-    wxString m_drawingSheet;
+    enum class GEN_MODE
+    {
+        SINGLE,
+        MULTI
+    };
 
-    bool m_plotFootprintValues;
-    bool m_plotRefDes;
-    bool m_plotGraphicItemsUsingContours;
-    bool m_plotBorderTitleBlocks;
+    bool      m_plotGraphicItemsUsingContours;
+    bool      m_polygonMode;
     DXF_UNITS m_dxfUnits;
 
-    LSEQ m_printMaskLayer;
+    GEN_MODE m_genMode;
 };
 
 #endif

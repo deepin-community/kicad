@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2010 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2015-2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,10 +22,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "template_fieldnames.h"
+
 #include <mutex>
 
-#include <template_fieldnames.h>
-#include <pgm_base.h>
+#include <template_fieldnames_lexer.h>
 #include <string_utils.h>
 
 using namespace TFIELD_T;
@@ -36,6 +37,7 @@ using namespace TFIELD_T;
 #define FOOTPRINT_CANONICAL "Footprint"
 #define DATASHEET_CANONICAL "Datasheet"
 #define DESCRIPTION_CANONICAL "Description"
+#define USER_FIELD_CANONICAL "Field%d"
 
 static wxString s_CanonicalReference( REFERENCE_CANONICAL );
 static wxString s_CanonicalValue( VALUE_CANONICAL );
@@ -43,7 +45,8 @@ static wxString s_CanonicalFootprint( FOOTPRINT_CANONICAL );
 static wxString s_CanonicalDatasheet( DATASHEET_CANONICAL );
 static wxString s_CanonicalDescription( DESCRIPTION_CANONICAL );
 
-const wxString TEMPLATE_FIELDNAME::GetDefaultFieldName( int aFieldNdx, bool aTranslateForHI )
+
+wxString GetDefaultFieldName( int aFieldNdx, bool aTranslateForHI )
 {
     if( !aTranslateForHI )
     {
@@ -54,41 +57,44 @@ const wxString TEMPLATE_FIELDNAME::GetDefaultFieldName( int aFieldNdx, bool aTra
         case FOOTPRINT_FIELD:   return s_CanonicalFootprint;   // The footprint for use with Pcbnew
         case DATASHEET_FIELD:   return s_CanonicalDatasheet;   // Link to a datasheet for symbol
         case DESCRIPTION_FIELD: return s_CanonicalDescription; // The symbol description
-        default: break;
+        default:                return GetUserFieldName( aFieldNdx, aTranslateForHI );
         }
-
-        wxString str( wxS( "Field" ) );
-#if wxUSE_UNICODE_WCHAR
-        str << std::to_wstring( aFieldNdx );
-#else
-        str << std::to_string( aFieldNdx );
-#endif
-        return str;
     }
-
-    switch( aFieldNdx )
+    else
     {
-    case REFERENCE_FIELD:   return _( REFERENCE_CANONICAL );   // The symbol reference, R1, C1, etc.
-    case VALUE_FIELD:       return _( VALUE_CANONICAL );       // The symbol value
-    case FOOTPRINT_FIELD:   return _( FOOTPRINT_CANONICAL );   // The footprint for use with Pcbnew
-    case DATASHEET_FIELD:   return _( DATASHEET_CANONICAL );   // Link to a datasheet for symbol
-    case DESCRIPTION_FIELD: return _( DESCRIPTION_CANONICAL );     // The symbol description
-    default:                return wxString::Format( _( "Field%d" ), aFieldNdx );
+        switch( aFieldNdx )
+        {
+        case REFERENCE_FIELD:   return _( REFERENCE_CANONICAL );   // The symbol reference, R1, C1, etc.
+        case VALUE_FIELD:       return _( VALUE_CANONICAL );       // The symbol value
+        case FOOTPRINT_FIELD:   return _( FOOTPRINT_CANONICAL );   // The footprint for use with Pcbnew
+        case DATASHEET_FIELD:   return _( DATASHEET_CANONICAL );   // Link to a datasheet for symbol
+        case DESCRIPTION_FIELD: return _( DESCRIPTION_CANONICAL ); // The symbol description
+        default:                return GetUserFieldName( aFieldNdx, aTranslateForHI );
+        }
     }
 }
 
 
-void TEMPLATE_FIELDNAME::Format( OUTPUTFORMATTER* out, int nestLevel ) const
+wxString GetUserFieldName( int aFieldNdx, bool aTranslateForHI )
 {
-    out->Print( nestLevel, "(field (name %s)",  out->Quotew( m_Name ).c_str() );
+    if( !aTranslateForHI )
+        return wxString::Format( wxS( USER_FIELD_CANONICAL ), aFieldNdx );
+    else
+        return wxString::Format( _( USER_FIELD_CANONICAL ), aFieldNdx );
+}
+
+
+void TEMPLATE_FIELDNAME::Format( OUTPUTFORMATTER* out ) const
+{
+    out->Print( "(field (name %s)",  out->Quotew( m_Name ).c_str() );
 
     if( m_Visible )
-        out->Print( 0, " visible" );
+        out->Print( " visible" );
 
     if( m_URL )
-        out->Print( 0, " url" );
+        out->Print( " url" );
 
-    out->Print( 0, ")\n" );
+    out->Print( ")" );
 }
 
 
@@ -137,21 +143,21 @@ void TEMPLATE_FIELDNAME::Parse( TEMPLATE_FIELDNAMES_LEXER* in )
 }
 
 
-void TEMPLATES::Format( OUTPUTFORMATTER* out, int nestLevel, bool aGlobal ) const
+void TEMPLATES::Format( OUTPUTFORMATTER* out, bool aGlobal ) const
 {
     // We'll keep this general, and include the \n, even though the only known
     // use at this time will not want the newlines or the indentation.
-    out->Print( nestLevel, "(templatefields" );
+    out->Print( "(templatefields" );
 
     const TEMPLATE_FIELDNAMES& source = aGlobal ? m_globals : m_project;
 
     for( const TEMPLATE_FIELDNAME& temp : source )
     {
         if( !temp.m_Name.IsEmpty() )
-            temp.Format( out, nestLevel+1 );
+            temp.Format( out );
     }
 
-    out->Print( 0, ")\n" );
+    out->Print( ")" );
 }
 
 
@@ -195,7 +201,7 @@ void TEMPLATES::parse( TEMPLATE_FIELDNAMES_LEXER* in, bool aGlobal )
 }
 
 
-/*
+/**
  * Flatten project and global templates into a single list.  (Project templates take
  * precedence.)
  */
@@ -208,13 +214,19 @@ void TEMPLATES::resolveTemplates()
 
     for( const TEMPLATE_FIELDNAME& global : m_globals )
     {
+        bool overriddenInProject = false;
+
         for( const TEMPLATE_FIELDNAME& project : m_project )
         {
             if( global.m_Name == project.m_Name )
-                continue;
+            {
+                overriddenInProject = true;
+                break;
+            }
         }
 
-        m_resolved.push_back( global );
+        if( !overriddenInProject )
+            m_resolved.push_back( global );
     }
 
     m_resolvedDirty = false;
@@ -224,9 +236,9 @@ void TEMPLATES::resolveTemplates()
 void TEMPLATES::AddTemplateFieldName( const TEMPLATE_FIELDNAME& aFieldName, bool aGlobal )
 {
     // Ensure that the template fieldname does not match a fixed fieldname.
-    for( int i = 0; i < MANDATORY_FIELDS; ++i )
+    for( int fieldId : MANDATORY_FIELDS )
     {
-        if( GetCanonicalFieldName( i ) == aFieldName.m_Name )
+        if( GetCanonicalFieldName( fieldId ) == aFieldName.m_Name )
             return;
     }
 

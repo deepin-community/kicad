@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -52,7 +52,7 @@ public:
 class PCBEXPR_CONTEXT : public LIBEVAL::CONTEXT
 {
 public:
-    PCBEXPR_CONTEXT( int aConstraint, PCB_LAYER_ID aLayer ) :
+    PCBEXPR_CONTEXT( int aConstraint = 0, PCB_LAYER_ID aLayer = F_Cu ) :
             m_constraint( aConstraint ),
             m_layer( aLayer )
     {
@@ -85,13 +85,17 @@ public:
     PCBEXPR_VAR_REF( int aItemIndex ) :
             m_itemIndex( aItemIndex ),
             m_type( LIBEVAL::VT_UNDEFINED ),
-            m_isEnum( false )
+            m_isEnum( false ),
+            m_isOptional( false )
     {}
 
     ~PCBEXPR_VAR_REF() {};
 
     void SetIsEnum( bool s ) { m_isEnum = s; }
     bool IsEnum() const { return m_isEnum; }
+
+    void SetIsOptional( bool s = true ) { m_isOptional = s; }
+    bool IsOptional() const { return m_isOptional; }
 
     void SetType( LIBEVAL::VAR_TYPE_T type ) { m_type = type; }
     LIBEVAL::VAR_TYPE_T GetType() const override { return m_type; }
@@ -110,6 +114,7 @@ private:
     int                                         m_itemIndex;
     LIBEVAL::VAR_TYPE_T                         m_type;
     bool                                        m_isEnum;
+    bool                                        m_isOptional;
 };
 
 
@@ -119,6 +124,19 @@ class PCBEXPR_NETCLASS_REF : public PCBEXPR_VAR_REF
 public:
     PCBEXPR_NETCLASS_REF( int aItemIndex ) :
             PCBEXPR_VAR_REF( aItemIndex )
+    {
+        SetType( LIBEVAL::VT_STRING );
+    }
+
+    LIBEVAL::VALUE* GetValue( LIBEVAL::CONTEXT* aCtx ) override;
+};
+
+
+// "Object code" version of a component class reference (for performance).
+class PCBEXPR_COMPONENT_CLASS_REF : public PCBEXPR_VAR_REF
+{
+public:
+    PCBEXPR_COMPONENT_CLASS_REF( int aItemIndex ) : PCBEXPR_VAR_REF( aItemIndex )
     {
         SetType( LIBEVAL::VT_STRING );
     }

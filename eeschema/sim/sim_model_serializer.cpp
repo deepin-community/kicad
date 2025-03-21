@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mikolaj Wielgus
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,7 +22,9 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <sim/sim_model_serializer.h>
+#include "sim/sim_model_serializer.h"
+
+#include <ki_exception.h>
 #include <fmt/core.h>
 #include <pegtl.hpp>
 #include <pegtl/contrib/parse_tree.hpp>
@@ -123,29 +125,27 @@ std::string SIM_MODEL_SERIALIZER::GeneratePins() const
 {
     std::string result;
 
-    std::vector<std::reference_wrapper<const SIM_MODEL::PIN>> pins = m_model.GetPins();
+    std::vector<std::reference_wrapper<const SIM_MODEL_PIN>> pins = m_model.GetPins();
 
     // m_model.GetPins() returns pins in the order they appear in the model, but the keys in the
     // key=value pairs we create here are symbol pin numbers, so we sort the pins so that they are
     // ordered by the latter instead.
     std::sort( pins.begin(), pins.end(),
-               []( const SIM_MODEL::PIN& lhs, const SIM_MODEL::PIN& rhs )
+               []( const SIM_MODEL_PIN& lhs, const SIM_MODEL_PIN& rhs )
                {
                    return StrNumCmp( lhs.symbolPinNumber, rhs.symbolPinNumber, true ) < 0;
                } );
 
-    bool isFirst = true;
-
-    for( const SIM_MODEL::PIN& pin : pins )
+    for( const SIM_MODEL_PIN& pin : pins )
     {
-        if( pin.symbolPinNumber != "" )
-        {
-            if( !isFirst )
-                result.append( " " );
-            else
-                isFirst = false;
+        std::string symbolPinNumber( pin.symbolPinNumber.ToUTF8() );
 
-            result.append( fmt::format( "{}={}", pin.symbolPinNumber, pin.name ) );
+        if( symbolPinNumber != "" )
+        {
+            if( !result.empty() )
+                result.append( " " );
+
+            result.append( fmt::format( "{}={}", symbolPinNumber, pin.modelPinName ) );
         }
     }
 
@@ -275,9 +275,9 @@ void SIM_MODEL_SERIALIZER::ParsePins( const std::string& aPins )
         for( const auto& node : root->children )
         {
             std::string symbolPinNumber = node->children.at( 0 )->string();
-            std::string pinName = node->children.at( 1 )->string();
+            std::string modelPinName = node->children.at( 1 )->string();
 
-            m_model.SetPinSymbolPinNumber( pinName, symbolPinNumber );
+            m_model.AssignSymbolPinNumberToModelPin( modelPinName, symbolPinNumber );
         }
     }
     catch( const tao::pegtl::parse_error& e )

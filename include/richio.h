@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2007-2010 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2016-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -72,7 +72,7 @@ KICOMMON_API std::string
 
 /**
  * Nominally opens a file and reads it into a string.  But unlike other facilities, this handles
- * mis-encded Wine-written files on macOS.
+ * mis-encoded Wine-written files on macOS.
  *
  * @param aFilePath
  * @param aReadType
@@ -297,7 +297,7 @@ public:
     char* ReadLine() override;
 
 protected:
-    wxInputStream* m_stream;   //< The input stream to read.  No ownership of this pointer.
+    wxInputStream* m_stream;        ///< The input stream to read.  No ownership of this pointer.
 };
 
 
@@ -328,8 +328,6 @@ protected:
         quoteChar[1] = '\0';
     }
 
-    virtual ~OUTPUTFORMATTER() {}
-
     /**
      * Perform quote character need determination according to the Specctra DSN specification.
 
@@ -357,12 +355,19 @@ protected:
     // so increase the STRING-INDEX and FIRST-TO_CHECK by one.
     // See http://docs.freebsd.org/info/gcc/gcc.info.Function_Attributes.html
     // Then to get format checking during the compile, compile with -Wall or -Wformat
-#define PRINTF_FUNC __attribute__( ( format( printf, 3, 4 ) ) )
+#define PRINTF_FUNC_N __attribute__( ( format( printf, 3, 4 ) ) )
+#define PRINTF_FUNC __attribute__( ( format( printf, 2, 3 ) ) )
 #else
+#define PRINTF_FUNC_N     // nothing
 #define PRINTF_FUNC       // nothing
 #endif
 
 public:
+    /**
+     * This is a polymorphic class that can validly be handled by a pointer to the base class.
+     */
+    virtual ~OUTPUTFORMATTER() {}
+
     /**
      * Format and write text to the output stream.
      *
@@ -373,7 +378,18 @@ public:
      * @return int - the number of characters output.
      * @throw IO_ERROR, if there is a problem outputting, such as a full disk.
      */
-    int PRINTF_FUNC Print( int nestLevel, const char* fmt, ... );
+    int PRINTF_FUNC_N Print( int nestLevel, const char* fmt, ... );
+
+    /**
+     * Format and write text to the output stream.
+     *
+     * @param fmt A printf() style format string.
+     * @param ... a variable list of parameters that will get blended into
+     *  the output under control of the format string.
+     * @return int - the number of characters output.
+     * @throw IO_ERROR, if there is a problem outputting, such as a full disk.
+     */
+    int PRINTF_FUNC Print( const char* fmt, ... );
 
     /**
      * Perform quote character need determination.

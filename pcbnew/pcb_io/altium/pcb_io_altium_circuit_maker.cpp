@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 Thomas Pointhuber <thomas.pointhuber@gmx.at>
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,6 +32,7 @@
 #include <pcb_io_altium_circuit_maker.h>
 #include <pcb_io_altium_designer.h>
 #include <altium_pcb.h>
+#include <altium_pcb_compound_file.h>
 #include <io/altium/altium_binary_parser.h>
 #include <pcb_io/pcb_io.h>
 #include <reporter.h>
@@ -41,8 +42,10 @@
 #include <compoundfilereader.h>
 #include <utf.h>
 
-PCB_IO_ALTIUM_CIRCUIT_MAKER::PCB_IO_ALTIUM_CIRCUIT_MAKER() : PCB_IO( wxS( "Altium Circuit Maker" ) )
+PCB_IO_ALTIUM_CIRCUIT_MAKER::PCB_IO_ALTIUM_CIRCUIT_MAKER() :
+        PCB_IO( wxS( "Altium Circuit Maker" ) )
 {
+    RegisterCallback( PCB_IO_ALTIUM_DESIGNER::DefaultLayerMappingCallback );
 }
 
 
@@ -61,7 +64,7 @@ bool PCB_IO_ALTIUM_CIRCUIT_MAKER::CanReadBoard( const wxString& aFileName ) cons
 
 
 BOARD* PCB_IO_ALTIUM_CIRCUIT_MAKER::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
-                                               const STRING_UTF8_MAP* aProperties,
+                                               const std::map<std::string, UTF8>* aProperties,
                                                PROJECT*               aProject )
 {
     m_props = aProperties;
@@ -99,12 +102,12 @@ BOARD* PCB_IO_ALTIUM_CIRCUIT_MAKER::LoadBoard( const wxString& aFileName, BOARD*
     };
     // clang-format on
 
-    ALTIUM_COMPOUND_FILE altiumPcbFile( aFileName );
+    ALTIUM_PCB_COMPOUND_FILE altiumPcbFile( aFileName );
 
     try
     {
         // Parse File
-        ALTIUM_PCB pcb( m_board, m_progressReporter, m_reporter );
+        ALTIUM_PCB pcb( m_board, m_progressReporter, m_layer_mapping_handler, m_reporter );
         pcb.Parse( altiumPcbFile, mapping );
     }
     catch( CFB::CFBException& exception )

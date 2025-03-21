@@ -1,13 +1,13 @@
 # SOME DESCRIPTIVE TITLE
 # Copyright (C) YEAR Free Software Foundation, Inc.
 # This file is distributed under the same license as the PACKAGE package.
-# taotieren <admin@taotieren.com>, 2019, 2020, 2021.
+# taotieren <admin@taotieren.com>, 2019-2024.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: KiCad_Manual_zh_CN\n"
-"POT-Creation-Date: 2023-01-28 22:55+0800\n"
-"PO-Revision-Date: 2023-01-28 23:00+0800\n"
+"POT-Creation-Date: 2024-09-03 11:29+0800\n"
+"PO-Revision-Date: 2024-09-03 13:50+0800\n"
 "Last-Translator: taotieren <admin@taotieren.com>\n"
 "Language-Team: admin@taotieren.com\n"
 "Language: zh\n"
@@ -15,82 +15,78 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Poedit 3.2.2\n"
+"X-Generator: Poedit 3.5\n"
 "X-Poedit-SourceCharset: UTF-8\n"
 
 #. type: Title =
-#: kicad.adoc:6
+#: kicad.adoc:7
 #, no-wrap
 msgid "KiCad"
 msgstr "KiCad"
 
 #. type: Plain text
-#: kicad.adoc:9
+#: kicad.adoc:10
 msgid "_Reference manual_"
 msgstr "_参考手册_"
 
 #. type: Plain text
-#: kicad.adoc:12
-#, no-wrap
-msgid "*Copyright*\n"
-msgstr "*版权*\n"
+#: kicad.adoc:13
+msgid "*Copyright*"
+msgstr "*版权*"
 
 #. type: Plain text
-#: kicad.adoc:17
+#: kicad.adoc:18
 msgid ""
-"This document is Copyright (C) 2010-2023 by its contributors as listed "
+"This document is Copyright (C) 2010-2024 by its contributors as listed "
 "below. You may distribute it and/or modify it under the terms of either the "
 "GNU General Public License (http://www.gnu.org/licenses/gpl.html), version 3 "
 "or later, or the Creative Commons Attribution License (http://"
 "creativecommons.org/licenses/by/3.0/), version 3.0 or later."
 msgstr ""
-"本文件的版权 (C) 2010-2023 由下列贡献者所拥有。您可以根据 GNU 通用公共许可证"
-"（http://www.gnu.org/licenses/gpl.html）第 3 版或更高版本，或知识共享署名许可"
-"证（http://creativecommons.org/licenses/by/3.0/）第 3.0 版或更高版本的条款发"
-"布它和/或修改它。"
+"本文档版权 (C) 2010-2024 年，作者如下。您可以根据 GNU 通用公共许可证 (http://"
+"www.gnu.org/licenses/gpl.html) 第 3 版或更高版本或知识共享署名许可证 (http://"
+"creativecommons.org/licenses/by/3.0/) 第 3.0 版或更高版本的条款分发和/或修改"
+"本文档。"
 
 #. type: Plain text
-#: kicad.adoc:19
+#: kicad.adoc:20
 msgid "All trademarks within this guide belong to their legitimate owners."
 msgstr "本指南中的所有商标均属于其合法所有者。"
 
 #. type: Plain text
-#: kicad.adoc:22
-#, no-wrap
-msgid "*Contributors*\n"
-msgstr "*贡献人员*\n"
+#: kicad.adoc:23
+msgid "*Contributors*"
+msgstr "*贡献者*"
 
 #. type: Plain text
-#: kicad.adoc:24
+#: kicad.adoc:25
 msgid "Jean-Pierre Charras, Fabrizio Tappero, Jon Evans."
-msgstr "Jean-Pierre Charras, Fabrizio Tappero, Jon Evans."
+msgstr ""
 
 #. type: Plain text
-#: kicad.adoc:27
-#, no-wrap
-msgid "*Feedback*\n"
-msgstr "*反馈*\n"
+#: kicad.adoc:28
+msgid "*Feedback*"
+msgstr "*反馈*"
 
 #. type: Plain text
-#: kicad.adoc:31
+#: kicad.adoc:32
 msgid ""
 "The KiCad project welcomes feedback, bug reports, and suggestions related to "
-"the software or its documentation.  For more information on how to sumbit "
+"the software or its documentation.  For more information on how to submit "
 "feedback or report an issue, please see the instructions at https://www."
 "kicad.org/help/report-an-issue/"
 msgstr ""
-"KiCad 项目欢迎与本软件或其文档相关的反馈、错误报告和建议。  关于如何提交反馈"
-"意见或报告问题的更多信息，请参见 https://www.kicad.org/help/report-an-issue/ "
-"的说明"
+"KiCad 项目欢迎与软件或其文档相关的反馈、错误报告和建议。 有关如何提交反馈或报"
+"告问题的详细信息，请参阅 https://www.kicad.org/help/report-an-issue/ 上的说明"
 
 #. type: Title ==
-#: kicad.adoc:32
+#: kicad.adoc:33
 #, no-wrap
 msgid "Introduction"
 msgstr "简介"
 
 #. type: Plain text
-#: kicad.adoc:40
+#: kicad.adoc:41
 msgid ""
 "KiCad is an open-source software suite for creating electronic circuit "
 "schematics and printed circuit boards (PCBs).  KiCad supports an integrated "
@@ -108,7 +104,7 @@ msgstr ""
 "成 SPICE 模拟器。"
 
 #. type: Plain text
-#: kicad.adoc:45
+#: kicad.adoc:46
 msgid ""
 "KiCad runs on all major operating systems and a wide range of computer "
 "hardware.  It supports PCBs with up to 32 copper layers and is suitable for "
@@ -122,20 +118,20 @@ msgstr ""
 "志愿者团队开发的，其使命是创建适合专业设计师的免费和开源的电子设计软件。"
 
 #. type: Plain text
-#: kicad.adoc:47
+#: kicad.adoc:48
 msgid ""
 "The latest version of this documentation is available at https://docs.kicad."
 "org."
 msgstr "该文件的最新版本可在 https://docs.kicad.org 。"
 
 #. type: Title ===
-#: kicad.adoc:48
+#: kicad.adoc:49
 #, no-wrap
 msgid "System Requirements"
 msgstr "系统要求"
 
 #. type: Plain text
-#: kicad.adoc:53
+#: kicad.adoc:54
 msgid ""
 "KiCad is capable of running on a wide variety of hardware and operating "
 "systems, but some tasks may be slower or more difficult on lower-end "
@@ -146,7 +142,7 @@ msgstr ""
 "很困难。为获得最佳体验，建议使用 1920x1080 或更高分辨率的专用显卡和显示器。"
 
 #. type: Plain text
-#: kicad.adoc:56
+#: kicad.adoc:57
 msgid ""
 "Please check the KiCad website for the latest system requirements: https://"
 "kicad.org/help/system-requirements/"
@@ -155,13 +151,13 @@ msgstr ""
 "requirements/"
 
 #. type: Title ===
-#: kicad.adoc:57
+#: kicad.adoc:58
 #, no-wrap
 msgid "KiCad files and folders"
 msgstr "KiCad 文件和文件夹"
 
 #. type: Plain text
-#: kicad.adoc:61
+#: kicad.adoc:62
 msgid ""
 "KiCad creates and uses files with the following specific file extensions "
 "(and folders)  for schematic and board editing."
@@ -170,13 +166,13 @@ msgstr ""
 "辑。"
 
 #. type: Title ====
-#: kicad.adoc:62
+#: kicad.adoc:63
 #, no-wrap
 msgid "Project files"
 msgstr "工程文件"
 
 #. type: Table
-#: kicad.adoc:68
+#: kicad.adoc:69
 #, no-wrap
 msgid ""
 "|`*.kicad_pro` |Project file, containing settings that are shared between the schematic and PCB\n"
@@ -184,17 +180,17 @@ msgid ""
 "Can be read and will be converted to a `.kicad_pro` file by the project manager.\n"
 msgstr ""
 "| `*.kicad_pro` |工程文件，包含原理图和 PCB 之间共享的设置。\n"
-"| ``*.pro` |遗留 (KiCad 5.x 及更早版本)工程文件。\n"
+"| ``*.pro` |旧版 (KiCad 5.x 及更早版本)工程文件。\n"
 "可被读取，并将由工程管理器转换为 `.kicad_pro` 文件。\n"
 
 #. type: Title ====
-#: kicad.adoc:70
+#: kicad.adoc:71
 #, no-wrap
 msgid "Schematic editor files"
 msgstr "原理图编辑器文件"
 
 #. type: Table
-#: kicad.adoc:83
+#: kicad.adoc:84
 #, no-wrap
 msgid ""
 "|`*.kicad_sch` |Schematic files containing all info and the components themselves.\n"
@@ -210,20 +206,20 @@ msgid ""
 msgstr ""
 "|`*.kicad_sch` |包含所有信息和元件本身的原理图文件。\n"
 "|`*.kicad_sym` |原理图符号库文件，包含元件描述：图形形状、引脚、字段。\n"
-"|`*.sch` |遗留 (KiCad 5.x 及更早版本)原理图文件。可以读取，写入时将转换为 `.kicad_sch` 文件。\n"
-"|`*.lib` |遗留（KiCad 5.x 及更早版本）原理图库文件。可以读取但不能写入。\n"
-"|`*.dcm` |遗留 (KiCad 5.x 及更早版本) 原理图库文件。可以读取但不能写入。\n"
-"|`*-cache.lib` |遗留 (KiCad 5.x 及更早版本) 原理图元件库缓存文件。为正确加载遗留原理图(`.sch`)文件所必需。\n"
+"|`*.sch` |旧版 (KiCad 5.x 及更早版本)原理图文件。可以读取，写入时将转换为 `.kicad_sch` 文件。\n"
+"|`*.lib` |旧版（KiCad 5.x 及更早版本）原理图库文件。可以读取但不能写入。\n"
+"|`*.dcm` |旧版 (KiCad 5.x 及更早版本) 原理图库文件。可以读取但不能写入。\n"
+"|`*-cache.lib` |旧版 (KiCad 5.x 及更早版本) 原理图元件库缓存文件。为正确加载旧版原理图(`.sch`)文件所必需。\n"
 "|`sym-lib-table` |原理图编辑器中可用的符号库列表。\n"
 
 #. type: Title ====
-#: kicad.adoc:85
+#: kicad.adoc:86
 #, no-wrap
 msgid "Board editor files and folders"
 msgstr "PCB 编辑器的文件和文件夹"
 
 #. type: Table
-#: kicad.adoc:99
+#: kicad.adoc:100
 #, no-wrap
 msgid ""
 "|`*.kicad_pcb` |Board file containing all info but the page layout.\n"
@@ -242,28 +238,28 @@ msgstr ""
 "|`*.pretty` |封装库文件夹。该文件夹本身就是库。\n"
 "|`*.kicad_mod` |封装文件，每个文件包含一个封装描述。\n"
 "|`*.kicad_dru` |设计规则文件，包含某个 `.kicad_pcb` 文件的自定义设计规则。\n"
-"|`*.brd` |遗留 (KiCad 4.x 及更早版本) PCB 文件.可以被当前的 PCB 编辑器读取，但不能写入。\n"
-"|`*.mod` |遗留 (KiCad 4.x 及更早版本) 封装库文件。可以被封装或 PCB 编辑器读取，但不能写入。\n"
+"|`*.brd` |旧版 (KiCad 4.x 及更早版本) PCB 文件.可以被当前的 PCB 编辑器读取，但不能写入。\n"
+"|`*.mod` |旧版 (KiCad 4.x 及更早版本) 封装库文件。可以被封装或 PCB 编辑器读取，但不能写入。\n"
 "|`fp-lib-table` |封装库表：在 PCB 编辑器中可用的封装库列表。\n"
 "|`fp-info-cache`|缓存，以加快加载封装库的速度。不需要与工程一起发布或置于版本控制之下。\n"
 
 #. type: Title ====
-#: kicad.adoc:101
+#: kicad.adoc:102
 #, no-wrap
 msgid "Common files"
 msgstr "通用文件"
 
 #. type: Table
-#: kicad.adoc:121
+#: kicad.adoc:123
 #, no-wrap
 msgid ""
-"|`*.kicad_prl` |Local settings for the current project; helps Kicad remember\n"
+"|`*.kicad_prl` |Local settings for the current project; helps KiCad remember\n"
 "the last used settings such as layer visibility or selection filter.\n"
 "May not need to be distributed with the project or put under version control.\n"
 "|`*.kicad_wks` |Page layout (drawing border and title block) description file\n"
 "|`*.net` |Netlist file created from the schematic, and read by the board editor.\n"
 "Note that the\n"
-"xref:../pcbnew/pcbnew_editing.adoc#forward-and-back-annotation[recommended\n"
+"xref:../pcbnew/pcbnew.adoc#forward-and-back-annotation[recommended\n"
 "workflow for transferring information from the schematic to the board] does not\n"
 "require the use of netlist files.\n"
 "|`*.cmp` |Association between components used in the schematic and their footprints.\n"
@@ -271,23 +267,24 @@ msgid ""
 "Its purpose is to import changes from the board to the schematic, for users\n"
 "who change footprints in the Board Editor (for instance using **Exchange\n"
 "Footprints** command) and want to import these changes back to the schematic.\n"
-"xref:../pcbnew/pcbnew_editing.adoc#forward-and-back-annotation[recommended\n"
+"Note that the\n"
+"xref:../pcbnew/pcbnew.adoc#forward-and-back-annotation[recommended\n"
 "workflow for transferring information from the board to the schematic] does not\n"
 "require the use of `.cmp` files.\n"
 msgstr ""
-"| `*.kicad_prl` | 当前工程的本地设置；帮助 Kicad 记住最后一次使用的设置，如图层可见性或选择筛选器。可能不需要与工程一起分发或放在版本控制下。\n"
-"| `*.kicad_wks` | 图框布局（绘图边界和标题块）描述文件\n"
-"| `*.net` | 从原理图创建的网表文件，由电路板编辑器读取。请注意，xref:../pcbnew/pcbnew_editing.adoc#forward-and-back-annotation[从原理图向电路板传输信息的推荐工作流程] 不要求使用网表文件。\n"
-"| `*.cmp` | 原理图中使用的元件与它们的封装之间的关联。它可以由 PCB 编辑器创建，并由原理图编辑器导入。它的目的是将 PCB 上的变化导入原理图，供那些在 PCB 编辑器中改变封装（例如使用* *交换封装** 命令）并希望将这些变化导入原理图的用户使用。xref:../pcbnew/pcbnew_editing.adoc#forward-and-back-annotation[从 PCB 到原理图传输信息的推荐工作流程] 不需要使用 `.cmp` 文件。\n"
+"|`*.kicad_prl` |当前工程的本地设置文件；帮助 KiCad 记住最近使用的设置，如图层可见性或选择过滤器。通常无需随工程分发或置于版本控制下。\n"
+"|`*.kicad_wks` |图框（绘图边界和标题栏）描述文件。\n"
+"|`*.net` |从原理图创建的网络表文件，由电路板编辑器读取。注意，xref:../pcbnew/pcbnew.adoc#forward-and-back-annotation[推荐的工作流程用于在原理图和电路板间传输信息] ，并不依赖网络表文件。\n"
+"|`*.cmp` |原理图中使用的元件与其封装之间的关联文件。此文件可由电路板编辑器创建，并被原理图编辑器导入。其主要用途是从电路板向原理图导入变更，适用于那些在电路板编辑器中修改封装（例如使用 **交互封装** 命令）并希望将这些变更同步回原理图的用户。请注意，xref:../pcbnew/pcbnew.adoc#forward-and-back-annotation[推荐的工作流程用于在电路板和原理图之间传输信息] ，并不依赖 `.cmp` 文件。\n"
 
 #. type: Title ====
-#: kicad.adoc:124
+#: kicad.adoc:126
 #, no-wrap
 msgid "Fabrication and documentation files"
 msgstr "制造和文档文件"
 
 #. type: Table
-#: kicad.adoc:136
+#: kicad.adoc:138
 #, no-wrap
 msgid ""
 "|`*.gbr` |Gerber files, for fabrication.\n"
@@ -311,13 +308,13 @@ msgstr ""
 "|`*.plt` |绘图文件(HPGL 格式)，用于文档。\n"
 
 #. type: Title ====
-#: kicad.adoc:138
+#: kicad.adoc:140
 #, no-wrap
 msgid "Storing and sending KiCad files"
 msgstr "储存和发送 KiCad 文件"
 
 #. type: Plain text
-#: kicad.adoc:144
+#: kicad.adoc:146
 msgid ""
 "KiCad schematic and board files contain all the schematic symbols and "
 "footprints used in the design, so you can back up or send these files by "
@@ -330,7 +327,7 @@ msgstr ""
 "kicad_pro`）中，所以如果你要发送一个完整的设计，请确保包含这些信息。"
 
 #. type: Plain text
-#: kicad.adoc:149
+#: kicad.adoc:151
 msgid ""
 "Some files, such as the project-local settings file (`.kicad_prl`) and the "
 "`fp-info-cache` file, are not necessary to send with your project.  If you "
@@ -343,19 +340,19 @@ msgstr ""
 "能想把这些文件添加到被忽略的文件列表中，这样它们就不会被跟踪了。"
 
 #. type: Title ==
-#: kicad.adoc:151
+#: kicad.adoc:153
 #, no-wrap
 msgid "Installing and Upgrading KiCad"
 msgstr "安装和升级 KiCad"
 
 #. type: Title ===
-#: kicad.adoc:154
+#: kicad.adoc:156
 #, no-wrap
 msgid "Importing settings"
 msgstr "导入设置"
 
 #. type: Plain text
-#: kicad.adoc:159
+#: kicad.adoc:161
 msgid ""
 "Each major release of KiCad has its own configuration, so that you may run "
 "multiple KiCad versions on the same computer without the configurations "
@@ -366,13 +363,13 @@ msgstr ""
 "版本，而不会干扰配置。首次运行新版本的 KiCad 时，系统将询问如何初始化设置："
 
 #. type: Target for macro image
-#: kicad.adoc:160
+#: kicad.adoc:162
 #, no-wrap
 msgid "images/configure_settings.png"
 msgstr "images/zh/configure_settings.png"
 
 #. type: Plain text
-#: kicad.adoc:165
+#: kicad.adoc:167
 msgid ""
 "If a previous version of KiCad is detected, you will have the option to "
 "import the settings from that version.  The location of the previous "
@@ -383,48 +380,46 @@ msgstr ""
 "置文件的位置，但如果需要，您可以覆盖该位置以选择其他位置。"
 
 #. type: Plain text
-#: kicad.adoc:168
+#: kicad.adoc:170
 msgid ""
 "Please note that, the schematic symbol and footprint library tables from the "
 "previous version of KiCad will **not** be imported."
 msgstr "请注意，KiCad 前一版本的原理图符号和封装库表将 **不会** 被导入。"
 
 #. type: Plain text
-#: kicad.adoc:171
+#: kicad.adoc:173
 msgid ""
 "You may also choose to start with default settings if you do not want to "
 "import settings from a previous version."
 msgstr "如果您不想从以前的版本导入设置，也可以选择从默认设置开始。"
 
 #. type: Plain text
-#: kicad.adoc:176
+#: kicad.adoc:177
 msgid ""
 "KiCad stores the settings files in a folder inside your user directory.  "
-"Each KiCad version will store its settings in a subfolder of that folder "
-"(except for KiCad 5.1 and earlier, which did not use subfolders).  Those "
-"folders are:"
+"Each KiCad version will use a different versioned subfolder. For KiCad 8, "
+"those folders are:"
 msgstr ""
-"KiCad 将设置文件存储在用户目录内的文件夹中。每个 KiCad 版本都会将其设置存储在"
-"该文件夹的子文件夹中 (KiCad 5.1 及更早版本除外，它不使用子文件夹)。这些文件夹"
-"是："
+"KiCad 将设置文件存储在用户目录内的文件夹中。 每个 KiCad 版本都会使用不同版本"
+"的子文件夹。对于 KiCad 8，这些文件夹是："
 
 #. type: Table
-#: kicad.adoc:182
+#: kicad.adoc:183
 #, no-wrap
 msgid ""
-"|Windows |`%APPDATA%\\kicad`\n"
-"|Linux   |`~/.config/kicad`\n"
-"|macOS  |`/Users/<username>/Library/Preferences/kicad`\n"
+"|Windows |`%APPDATA%\\kicad\\8.0`\n"
+"|Linux   |`~/.config/kicad/8.0`\n"
+"|macOS  |`/Users/<username>/Library/Preferences/kicad/8.0`\n"
 msgstr ""
 
 #. type: Title ===
-#: kicad.adoc:184
+#: kicad.adoc:185
 #, no-wrap
 msgid "Migrating files from previous versions"
 msgstr "从早期版本迁移文件"
 
 #. type: Plain text
-#: kicad.adoc:191
+#: kicad.adoc:192
 msgid ""
 "Modern versions of KiCad can open files created in earlier versions, but can "
 "only write files in the latest formats.  This means that in general, there "
@@ -442,6 +437,16 @@ msgstr ""
 #. type: Plain text
 #: kicad.adoc:196
 msgid ""
+"The schematic editor documentation describes several particular "
+"considerations for opening xref:../eeschema/eeschema.adoc#opening-legacy-"
+"schematics[legacy schematics]."
+msgstr ""
+"原理图编辑器文档介绍了打开 xref:../eeschema/eeschema.adoc#opening-legacy-"
+"schematics[旧版原理图] 时的几个特别注意事项。"
+
+#. type: Plain text
+#: kicad.adoc:201
+msgid ""
 "In general, files created or modified by one version of KiCad **cannot** be "
 "opened by older versions of KiCad.  For this reason, it is important to keep "
 "backup copies of your projects when testing a new KiCad release, until you "
@@ -452,7 +457,7 @@ msgstr ""
 "要使用旧的 KiCad 版本。"
 
 #. type: Plain text
-#: kicad.adoc:201
+#: kicad.adoc:206
 #, no-wrap
 msgid ""
 "Hotkey configurations are not imported from previous versions at this time.  You can manually\n"
@@ -462,65 +467,29 @@ msgid ""
 msgstr "目前不会从以前的版本导入快捷键配置。您可以通过将各种 `*.hotkeys` 文件从旧版本配置目录复制到新版本配置目录中，手动导入快捷键配置。如果这样做，请注意 KiCad 不会自动检测冲突，例如一个键被分配给多个操作。\n"
 
 #. type: Title ==
-#: kicad.adoc:203
+#: kicad.adoc:208
 #, no-wrap
-msgid "Using KiCad project manager"
+msgid "Using the KiCad project manager"
 msgstr "使用 KiCad 工程管理器"
 
 #. type: Plain text
-#: kicad.adoc:207
+#: kicad.adoc:212
 msgid ""
-"KiCad project manager (kicad or kicad.exe) is a tool which can easily run "
-"the other tools (schematic and board editors, Gerber viewer and utility "
-"tools) when creating a design."
+"The KiCad project manager is a tool which creates and opens KiCad projects "
+"and launches the other KiCad tools (schematic and board editors, Gerber "
+"viewer, and utility tools)."
 msgstr ""
-"KiCad 工程管理器 (kicad 或 kicad.exe) 是一个在创建设计时可以轻松运行其他工具 "
-"(原理图和电路板编辑器、Gerber 查看器和实用工具) 的工具。"
-
-#. type: Plain text
-#: kicad.adoc:209
-msgid "Running the other tools from KiCad manager has some advantages:"
-msgstr "从 KiCad 管理器运行其他工具有一些优点："
-
-#. type: Plain text
-#: kicad.adoc:211
-msgid "cross probing between schematic editor and board editor."
-msgstr "在原理图编辑器和电路板编辑器之间交叉探测。"
-
-#. type: Plain text
-#: kicad.adoc:214
-msgid ""
-"synchronization of the design between the schematic editor and board editor "
-"(without creating netlist files)"
-msgstr "原理图编辑器和电路板编辑器之间的设计同步 (无需创建网表文件)"
-
-#. type: Plain text
-#: kicad.adoc:219
-msgid ""
-"KiCad currently only supports having one project open at a time.  When "
-"running the schematic and board editors from the KiCad project manager, you "
-"can only edit the schematics and board associated with the open project.  "
-"When these tools are run in _standalone_ mode, you can open any file in any "
-"project, but cross probing between tools can give strange results."
-msgstr ""
-"KiCad 目前只支持一次打开一个工程。 当从 KiCad 工程管理器中运行原理图和 PCB 编"
-"辑器时，你只能编辑与打开的工程相关的原理图和 PCB。 当这些工具以_独立模式运行"
-"时，你可以打开任何工程中的任何文件，但是工具之间的交叉探测会产生奇怪的结果。"
-
-#. type: Title ===
-#: kicad.adoc:220
-#, no-wrap
-msgid "Project manager window"
-msgstr "工程管理器窗口"
+"KiCad 工程管理器是一种创建和打开 KiCad 工程并启动其他 KiCad 工具（原理图和电"
+"路板编辑器、Gerber 查看器和实用工具）的工具。"
 
 #. type: Target for macro image
-#: kicad.adoc:222
+#: kicad.adoc:213
 #, no-wrap
 msgid "images/main_window.png"
 msgstr "images/zh/main_window.png"
 
 #. type: Plain text
-#: kicad.adoc:227
+#: kicad.adoc:218
 msgid ""
 "The KiCad project manager window is composed of a tree view on the left "
 "showing the files associated with the open project, and a launcher on the "
@@ -529,52 +498,15 @@ msgstr ""
 "KiCad 工程管理器窗口由左侧的工作区视图和右侧的启动器组成，前者显示与打开的工"
 "程相关的文件，后者则包含各种编辑器和工具的快捷方式。"
 
-#. type: Title ===
-#: kicad.adoc:228
-#, no-wrap
-msgid "Project tree view"
-msgstr "工程工作区视图"
-
 #. type: Plain text
-#: kicad.adoc:233
-msgid ""
-"The tree view shows a list of files inside the project folder.  Double-"
-"clicking on a file in the tree view will open it in the associated editor.  "
-"Right-clicking on a file will open a context menu with some file "
-"manipulation commands."
-msgstr ""
-"工作区视图显示工程文件夹内的文件列表。  在工作区视图中双击一个文件将在相关的"
-"编辑器中打开它。  右键点击一个文件将打开一个包含一些文件操作命令的上下文菜"
-"单。"
-
-#. type: Target for macro image
-#: kicad.adoc:234
-#, no-wrap
-msgid "images/project_tree.png"
-msgstr "images/zh/project_tree.png"
-
-#. type: Plain text
-#: kicad.adoc:237
-msgid ""
-"Only files that KiCad understands how to open are displayed in the project "
-"tree view."
-msgstr "只有 KiCad 知道如何打开的文件才会显示在工程工作区视图中。"
-
-#. type: Title ===
-#: kicad.adoc:238
-#, no-wrap
-msgid "Side toolbar"
-msgstr "侧面工具栏"
-
-#. type: Plain text
-#: kicad.adoc:241
+#: kicad.adoc:220
 msgid ""
 "The toolbar on the left side of the window provides shortcuts for common "
 "project operations:"
 msgstr "窗口左侧的工具栏为常见的工程操作提供快捷键："
 
 #. type: Table
-#: kicad.adoc:258
+#: kicad.adoc:237
 #, no-wrap
 msgid ""
 "|image:images/icons/new_project_24.png[]\n"
@@ -587,34 +519,101 @@ msgid ""
 "|image:images/icons/unzip_24.png[]\n"
 "|Extract a project zip archive into a directory. Files in the destination\n"
 "directory will be overwritten.\n"
-"|image:images/icons/reload_24.png[]\n"
+"|image:images/icons/refresh_24.png[]\n"
 "|Refresh the tree view, to detect changes made on the filesystem.\n"
 "|image:images/icons/directory_browser_24.png[]\n"
 "|Open the project working directory in a file explorer.\n"
 msgstr ""
-"|image:images/icons/new_project_24.png[] \n"
+"|image:images/icons/new_project_24.png[]\n"
 "|创建一个新的工程。\n"
-"|image:images/icons/open_project_24.png[] \n"
-"|打开一个现有的工程。\n"
+"|image:images/icons/open_project_24.png[]\n"
+"|打开一个已存在的工程。\n"
 "|image:images/icons/zip_24.png[]\n"
-"|创建整个工程的压缩文件。\n"
-"这包括原理图文件、库、PCB 等。\n"
-"|image:images/icons/unzip_24.png[] \n"
-"|将工程压缩文件解压到一个目录中。\n"
-"目标目录中的文件将被覆盖。\n"
-"|image:images/icons/reload_24.png[]\n"
-"|刷新工作区视图，以检测文件系统上的变化。\n"
+"|将整个工程打包成 ZIP 存档，包括原理图文件、库、PCB 等所有相关文件。\n"
+"|image:images/icons/unzip_24.png[]\n"
+"|解压工程 ZIP 存档至指定目录。目标目录中的文件将被覆盖。\n"
+"|image:images/icons/refresh_24.png[]\n"
+"|刷新树状视图，以检测文件系统上所做的更改。\n"
 "|image:images/icons/directory_browser_24.png[]\n"
-"|在文件资源管理器中打开工程工作目录。\n"
+"|在文件浏览器中打开工程的工作目录。\n"
+
+#. type: Plain text
+#: kicad.adoc:242
+msgid ""
+"The tree view shows a list of files inside the project folder.  Double-"
+"clicking on a file in the tree view will open it in the associated editor.  "
+"Right-clicking on a file will open a context menu with some file "
+"manipulation commands."
+msgstr ""
+"工作区视图显示工程文件夹内的文件列表。  在工作区视图中双击一个文件将在相关的"
+"编辑器中打开它。  右键点击一个文件将打开一个包含一些文件操作命令的上下文菜"
+"单。"
+
+#. type: Target for macro image
+#: kicad.adoc:243
+#, no-wrap
+msgid "images/project_tree.png"
+msgstr "images/zh/project_tree.png"
+
+#. type: Plain text
+#: kicad.adoc:246
+msgid ""
+"Only files that KiCad understands how to open are displayed in the project "
+"tree view."
+msgstr "只有 KiCad 知道如何打开的文件才会显示在工程工作区视图中。"
+
+#. type: Plain text
+#: kicad.adoc:251
+msgid ""
+"KiCad projects contain at least a project file, a schematic, and a board "
+"design. Schematics may contain multiple sheets, each in its own file, but a "
+"project can only contain a single board. KiCad expects the project file, "
+"schematic root sheet file, and board file to all have the same name."
+msgstr ""
+"KiCad 工程至少包含一个工程文件、一个原理图和一个电路板设计。原理图可以包含多"
+"个图纸，每个图纸都有自己的文件，但一个项目只能包含一块电路板。KiCad 希望工程"
+"文件、原理图根页文件和电路板文件都具有相同的名称。"
 
 #. type: Title ===
-#: kicad.adoc:260
+#: kicad.adoc:252
+#, no-wrap
+msgid "Standalone mode"
+msgstr "单机模式"
+
+#. type: Plain text
+#: kicad.adoc:259
+msgid ""
+"You can also run the KiCad editor tools in _standalone_ mode, by launching "
+"them directly from your operating system's application launcher rather than "
+"from the project manager. It is usually *not recommended* to run the tools "
+"in standalone mode, except for some specific situations where it is "
+"necessary, such as when importing projects from other EDA tools.  When "
+"running in standalone mode, some project features are not available, "
+"including:"
+msgstr ""
+"您也可以在 _单机模式_ 模式下运行 KiCad 编辑器工具，方法是直接从操作系统的应用"
+"程序启动器而不是从工程管理器启动这些工具。通常 *不建议* 在单机模式下运行工"
+"具，除非在某些特殊情况下必须这样做，例如从其他 EDA 工具导入工程时。 在单机模"
+"式下运行时，某些工程功能不可用，包括："
+
+#. type: Plain text
+#: kicad.adoc:261
+msgid "cross probing between the schematic editor and the board editor"
+msgstr "原理图编辑器和电路板编辑器之间的交叉探测"
+
+#. type: Plain text
+#: kicad.adoc:262
+msgid "design synchronization between the schematic and the board"
+msgstr "原理图和电路板之间的设计同步"
+
+#. type: Title ===
+#: kicad.adoc:263
 #, no-wrap
 msgid "Creating a new project"
 msgstr "创建一个新工程"
 
 #. type: Plain text
-#: kicad.adoc:266
+#: kicad.adoc:269
 msgid ""
 "Most KiCad designs start with the creation of a project.  There are two ways "
 "to create a project from the KiCad project manager: you may create an empty "
@@ -627,7 +626,7 @@ msgstr ""
 "工程。从模板创建工程在 《工程 - 模板，工程模板》一节中介绍。"
 
 #. type: Plain text
-#: kicad.adoc:269
+#: kicad.adoc:272
 msgid ""
 "To create a new project, use the **New Project...** command in the **File** "
 "menu, click the **New Project** button in the top toolbar, or use the "
@@ -637,7 +636,7 @@ msgstr ""
 "栏中的 **新建工程** 按钮，或使用键盘快捷键 (默认为 `Ctrl+N`)。"
 
 #. type: Plain text
-#: kicad.adoc:273
+#: kicad.adoc:276
 msgid ""
 "You will be prompted for a name to give your project.  By default, a "
 "directory will be created for your project with the same name.  For example, "
@@ -649,7 +648,7 @@ msgstr ""
 "`MyProject/MyProject.kicad_pro`。"
 
 #. type: Plain text
-#: kicad.adoc:276
+#: kicad.adoc:279
 msgid ""
 "If you already have a directory to store your project files in, you can "
 "uncheck the _Create a new directory for the project_ checkbox in the **New "
@@ -659,21 +658,21 @@ msgstr ""
 "工程创建新目录_ 复选框。"
 
 #. type: Plain text
-#: kicad.adoc:278
+#: kicad.adoc:281
 msgid ""
 "It is strongly recommended that you store each KiCad project inside its own "
 "directory."
 msgstr "强烈建议您将每个 KiCad 工程保存在其自己的目录中。"
 
 #. type: Plain text
-#: kicad.adoc:281
+#: kicad.adoc:284
 msgid ""
 "Once you select the name of your project, KiCad will create the following "
 "files inside the project directory:"
 msgstr "选择工程名称后，KiCad 将在工程目录中创建以下文件："
 
 #. type: Table
-#: kicad.adoc:287
+#: kicad.adoc:290
 #, no-wrap
 msgid ""
 "|`example.kicad_pro` |KiCad project file.\n"
@@ -685,30 +684,40 @@ msgstr ""
 "|`example.kicad_pcb` |PCB 文件。\n"
 
 #. type: Title ===
-#: kicad.adoc:289
+#: kicad.adoc:292
 #, no-wrap
 msgid "Importing a project from another EDA tool"
 msgstr "从其他 EDA 工具导入工程"
 
 #. type: Plain text
-#: kicad.adoc:293
+#: kicad.adoc:298
 msgid ""
-"KiCad is able to import files created by some other software packages. "
-"Currently the following types of project are supported:"
-msgstr "KiCad 可以导入由其他一些软件包创建的文件。目前支持以下工程类型："
+"KiCad is able to import files created by some other software packages.  Some "
+"software formats can be imported as complete projects.  Others can only be "
+"imported as standalone schematics or boards at the moment, and must be "
+"manually linked together into a KiCad project. Currently the following types "
+"of project are supported:"
+msgstr ""
+"KiCad 能够导入某些其他软件包创建的文件。 有些软件格式可以作为完整工程导入。 "
+"其他格式目前只能作为独立的原理图或电路板导入，必须手动连接到 KiCad 工程中。目"
+"前支持以下类型的工程："
 
 #. type: Table
-#: kicad.adoc:298
+#: kicad.adoc:305
 #, no-wrap
 msgid ""
-"|`\\*.sch`, `*.brd` |Eagle 6.x or newer (XML format)\n"
-"|`\\*.csa`, `*.cpa` |CADSTAR archive format\n"
+"|`\\*.sch`, `*.brd`  |Eagle 6.x or newer (XML format)\n"
+"|`\\*.csa`, `*.cpa`  |CADSTAR archive format\n"
+"|`\\*.zip`           |EasyEDA (JLCEDA) Standard Backup\n"
+"|`\\*.epro`, `*.zip` |EasyEDA (JLCEDA) Pro Project\n"
 msgstr ""
-"|`*.sch`, `*.brd` |Eagle 6.x 或更新版本(XML 格式)\n"
-"|`*.csa`, `*.cpa` |CADSTAR 格式\n"
+"|`\\*.sch`, `*.brd`  |Eagle 6.x 或更新版本(XML 格式)\n"
+"|`\\*.csa`, `*.cpa`  |CADSTAR 压缩格式\n"
+"|`\\*.zip`           |EasyEDA (JLCEDA) 标准版备份\n"
+"|`\\*.epro`, `*.zip` |EasyEDA (JLCEDA) 专业版工程\n"
 
 #. type: Plain text
-#: kicad.adoc:302
+#: kicad.adoc:309
 msgid ""
 "To import a project from one of these tools, choose the appropriate option "
 "from the **Import Non-KiCad Project** submenu of the **File** menu."
@@ -717,7 +726,7 @@ msgstr ""
 "择合适的选项。"
 
 #. type: Plain text
-#: kicad.adoc:307
+#: kicad.adoc:314
 msgid ""
 "You will be prompted to select either a schematic or a board file in the "
 "import file browser dialog. The imported schematic and board files should "
@@ -729,330 +738,495 @@ msgstr ""
 "路板文件应具有相同的基本文件名 (例如，project.sch 和 project.brd)。一旦选择了"
 "请求的文件，系统将要求您选择一个目录来存储生成的 KiCad 工程。"
 
+#. type: Plain text
+#: kicad.adoc:321
+msgid ""
+"Currently the following types of documents can be imported standalone.  To "
+"import these documents, start the KiCad Schematic Editor or PCB Editor "
+"standalone (do not open the KiCad project manager first) and choose **File > "
+"Import > Non-KiCad Schematic** or **File > Import > Non-KiCad Board File**.  "
+"When importing Altium projects, we recommend importing the PCB first, saving "
+"the resulting project, and then copying each schematic sheet into the "
+"project after importing it in a standalone Schematic Editor window."
+msgstr ""
+"目前可在单机模式导入以下类型的文档。 要导入这些文件，请单独启动 KiCad 原理图"
+"编辑器或 PCB 编辑器（不要先打开 KiCad 工程管理器），然后选择 **文件 > 导入 > "
+"非 KiCad 原理图** 或 **文件 > 导入 > 非 KiCad 电路板文件**。 导入 Altium 工程"
+"时，我们建议先导入 PCB，保存生成的工程，然后在单机模式的原理图编辑器窗口中导"
+"入工程后，将每个原理图页复制到工程中。"
+
+#. type: Table
+#: kicad.adoc:330
+#, no-wrap
+msgid ""
+"|`*.SchDoc` |Altium Designer, Circuit Studio, Circuit Maker schematic documents\n"
+"|`*.PcbDoc` |Altium Designer PCB\n"
+"|`*.CMPcbDoc` |Altium Circuit Maker PCB\n"
+"|`*.CSPcbDoc` |Altium Circuit Studio PCB\n"
+"|`*.pcb` |P-Cad 200x ASCII PCB\n"
+"|`\\*.txt`, `*.fab` |Fabmaster PCB\n"
+msgstr ""
+"|`*.SchDoc` |Altium Designer, Circuit Studio, Circuit Maker 原理图文档\n"
+"|`*.PcbDoc` |Altium Designer PCB\n"
+"|`*.CMPcbDoc` |Altium Circuit Maker PCB\n"
+"|`*.CSPcbDoc` |Altium Circuit Studio PCB\n"
+"|`*.pcb` |P-Cad 200x ASCII PCB\n"
+"|`\\*.txt`, `*.fab` |Fabmaster PCB\n"
+
+#. type: Plain text
+#: kicad.adoc:335
+msgid ""
+"KiCad does not support schematics with multiple top-level sheets.  When "
+"importing designs from other tools that do support this feature, each "
+"schematic sheet must be imported, and then the imported sheets must be "
+"placed as hierarchical sheets in a new KiCad project."
+msgstr ""
+"KiCad 不支持具有多个顶层工作表的原理图。 从支持该功能的其他工具导入设计时，必"
+"须导入每个原理图工作表，然后将导入的工作表作为分层工作表放置在新的 KiCad 工程"
+"中。"
+
+#. type: Title ===
+#: kicad.adoc:337
+#, no-wrap
+msgid "Saving and loading project archives"
+msgstr "保存和加载工程档案"
+
+#. type: Plain text
+#: kicad.adoc:341
+msgid ""
+"You can archive your project's files into a zip archive with the Archive "
+"tool (**File** -> **Archive Project...**)."
+msgstr ""
+"您可以使用存档工具将工程的文件存档到 zip 存档中（**文件** -> **存档工程..."
+"**）。"
+
+#. type: Plain text
+#: kicad.adoc:346
+msgid ""
+"You can also unarchive a project using the Unarchive tool (**File** -> "
+"**Unarchive Project...**). When you unarchive a project into the currently "
+"loaded project directory, the project will be reloaded automatically to "
+"reflect any changes that were in the archived version of the project."
+msgstr ""
+"您也可以使用解压缩工具（**文件** -> **解压缩项目...**）来解压缩工程。将项目解"
+"压缩到当前加载的工程目录中时，工程将自动重新加载，以反映归档版本中的任何更"
+"改。"
+
+#. type: Plain text
+#: kicad.adoc:349
+msgid ""
+"The archive tool saves the following files from your project folder into the "
+"archive:"
+msgstr "存档工具会将工程文件夹中的以下文件保存到存档中："
+
+#. type: Table
+#: kicad.adoc:378
+#, no-wrap
+msgid ""
+"|`\\*.kicad_prl`, `*.kicad_pro`,\n"
+"      `\\*.kicad_sch`, `*.kicad_sym`,\n"
+"      `\\*.kicad_pcb`, `*.kicad_mod`,\n"
+"      `\\*.kicad_dru`, `*.kicad_wks`,\n"
+"      `\\*.wbk`, `*.fp-lib-table`, `*.sym-lib-table`\n"
+"      | KiCad design files\n"
+"|`\\*.pro`, `*.sch`,\n"
+"      `\\*.lib`, `*.dcm`, `\\*.cmp`, `*.brd`, `*.mod`\n"
+"      | Legacy KiCad design files\n"
+"|`\\*.stp`, `*.step`\n"
+"      | 3D models\n"
+"|`\\*.g?`, `*.g??`,\n"
+"      `\\*.gm??`, `*.gbrjob`\n"
+"      | Gerber files\n"
+"|`\\*.pos`, `*.drl`, `\\*.nc`, `*.xnc`, `\\*.d356`, `*.rpt`\n"
+"      | Manufacturing files\n"
+"|`*.net`\n"
+"      | Netlists\n"
+"|`*.py`\n"
+"      | Python scripts\n"
+"|`\\*.pdf`, `*.txt`\n"
+"      | Documentation files\n"
+"|`\\*.cir`, `*.sub`, `*.model`\n"
+"      | SPICE models\n"
+"|`\\*.ibs`, `*.pkg`\n"
+"      | IBIS models\n"
+msgstr ""
+"|`\\*.kicad_prl`, `*.kicad_pro`,\n"
+"      `\\*.kicad_sch`, `*.kicad_sym`,\n"
+"      `\\*.kicad_pcb`, `*.kicad_mod`,\n"
+"      `\\*.kicad_dru`, `*.kicad_wks`,\n"
+"      `\\*.wbk`, `*.fp-lib-table`, `*.sym-lib-table`\n"
+"      | KiCad 设计文件\n"
+"|`\\*.pro`, `*.sch`,\n"
+"      `\\*.lib`, `*.dcm`, `\\*.cmp`, `*.brd`, `*.mod`\n"
+"      | 旧版 KiCad 设计文件\n"
+"|`\\*.stp`, `*.step`\n"
+"      | 3D 模型\n"
+"|`\\*.g?`, `*.g??`,\n"
+"      `\\*.gm??`, `*.gbrjob`\n"
+"      | Gerber 文件\n"
+"|`\\*.pos`, `*.drl`, `\\*.nc`, `*.xnc`, `\\*.d356`, `*.rpt`\n"
+"      | 制造文件\n"
+"|`*.net`\n"
+"      | 网表\n"
+"|`*.py`\n"
+"      | Python 脚本\n"
+"|`\\*.pdf`, `*.txt`\n"
+"      | 文档文件\n"
+"|`\\*.cir`, `*.sub`, `*.model`\n"
+"      | SPICE 模型\n"
+"|`\\*.ibs`, `*.pkg`\n"
+"      | IBIS 模型\n"
+
 #. type: Title ==
-#: kicad.adoc:309
+#: kicad.adoc:382
 #, no-wrap
 msgid "KiCad configuration"
 msgstr "KiCad 配置"
 
 #. type: Plain text
-#: kicad.adoc:315
+#: kicad.adoc:388
 msgid ""
 "The KiCad preferences can always be accessed from the **Preferences** menu, "
-"or by using the hotkey (default `Ctrl+,`). The Preferences dialog is shared "
-"between the running KiCad tools.  Some preferences apply to all tools, and "
-"some are specific to a certain tool (such as the schematic or board editor)."
+"or by using the hotkey (default kbd:[Ctrl+,]). The Preferences dialog is "
+"shared between the running KiCad tools.  Some preferences apply to all "
+"tools, and some are specific to a certain tool (such as the schematic or "
+"board editor)."
 msgstr ""
-"KiCad 偏好设置始终可以从 **偏好设置** 菜单访问，也可以使用快捷键 (默认为 "
-"`Ctrl+,`)访问。\n"
-"偏好设置对话框在运行的 KiCad 工具之间共享。有些偏好设置适用于所有工具，有些则"
-"特定于某个工具 (如原理图或电路板编辑器)。"
+"KiCad 偏好设置可随时从 **偏好设置** 菜单访问，或使用热键（默认 kbd:[Ctrl+,]）"
+"访问。运行中的 KiCad 工具共享偏好设置对话框。 有些偏好设置适用于所有工具，有"
+"些则针对特定工具（如原理图或电路板编辑器）。"
 
 #. type: Title ===
-#: kicad.adoc:316
+#: kicad.adoc:389
 #, no-wrap
 msgid "Common preferences"
 msgstr "共同偏好设置"
 
 #. type: Target for macro image
-#: kicad.adoc:318
+#: kicad.adoc:391
 #, no-wrap
 msgid "images/preferences_common.png"
 msgstr "images/zh/preferences_common.png"
 
 #. type: Plain text
-#: kicad.adoc:323
-#, no-wrap
+#: kicad.adoc:396
 msgid ""
-"**Accelerated graphics antialising:** KiCad can use different methods to prevent aliasing\n"
-"(jagged lines) when rendering using a graphics card.  Different methods may look better on\n"
-"different hardware, so you may want to experiment to find the one that looks best to you.\n"
+"**Accelerated graphics antialising:** KiCad can use different methods to "
+"prevent aliasing (jagged lines) when rendering using a graphics card.  "
+"Different methods may look better on different hardware, so you may want to "
+"experiment to find the one that looks best to you."
 msgstr ""
-"**硬件加速抗锯齿：** KiCad 在使用显卡渲染时可以使用不同的方法来防止走样 (锯齿线)。\n"
-"不同的方法在不同的硬件上可能看起来更好，所以您可能想要尝试一下，找出对您来说最好的一种。\n"
+"**硬件图形抗锯齿：** KiCad 可以使用不同的方法来防止使用显卡渲染时出现锯齿（锯"
+"齿线）。 不同的方法在不同的硬件上可能会有更好的效果，因此您可能需要尝试找到最"
+"适合您的方法。"
 
 #. type: Plain text
-#: kicad.adoc:326
-#, no-wrap
+#: kicad.adoc:399
 msgid ""
-"**Fallback graphics antialiasing:** KiCad can also apply antialiasing when using the fallback\n"
-"graphics mode.  Enabling this feature may result in poor performance on some hardware.\n"
+"**Fallback graphics antialiasing:** KiCad can also apply antialiasing when "
+"using the fallback graphics mode.  Enabling this feature may result in poor "
+"performance on some hardware."
 msgstr ""
-"**软件加速抗锯齿：** KiCad 在使用软件加速模式时也可以应用抗锯齿。\n"
-"启用此功能可能会导致某些硬件的性能下降。\n"
+"**软件图形抗锯齿：** KiCad 还可在使用软件渲染模式时应用抗锯齿。 启用此功能可"
+"能会导致某些硬件性能不佳。"
 
 #. type: Plain text
-#: kicad.adoc:328
-#, no-wrap
-msgid "**Text editor:** Choose a text editor to use when opening text files from the project tree view.\n"
-msgstr "**文本编辑器：** 选择从工程工作区视图打开文本文件时要使用的文本编辑器。\n"
+#: kicad.adoc:401
+msgid ""
+"**Text editor:** Choose a text editor to use when opening text files from "
+"the project tree view."
+msgstr "**文本编辑器：** 从工程树视图打开文本文件时，选择要使用的文本编辑器。"
 
 #. type: Plain text
-#: kicad.adoc:330
-#, no-wrap
-msgid "**PDF viewer:** Choose a program to use when opening PDF files.\n"
-msgstr "**PDF 阅读器：** 选择一个在打开 PDF 文件时使用的程序。\n"
+#: kicad.adoc:403
+msgid "**PDF viewer:** Choose a program to use when opening PDF files."
+msgstr "**PDF 查看器：** 选择打开 PDF 文件时使用的程序。"
 
 #. type: Plain text
-#: kicad.adoc:332
-#, no-wrap
-msgid "**Show icons in menus:** Enables icons in drop-down menus throughout the KiCad user interface.\n"
-msgstr "**在菜单中显示图标：** 在整个 KiCad 用户界面中启用下拉菜单中的图标。\n"
+#: kicad.adoc:405
+msgid ""
+"**Show icons in menus:** Enables icons in drop-down menus throughout the "
+"KiCad user interface."
+msgstr "**在菜单中显示图标：** 在整个 KiCad 用户界面的下拉菜单中启用图标。"
 
 #. type: Plain text
-#: kicad.adoc:334
+#: kicad.adoc:407
 msgid "Icons in menus are not displayed on some operating systems."
 msgstr "菜单中的图标在某些操作系统上不显示。"
 
 #. type: Plain text
-#: kicad.adoc:337
-#, no-wrap
+#: kicad.adoc:410
 msgid ""
-"**Show scrollbars in editors:** When enabled, scrollbars are displayed next to the editing\n"
-"canvases in each tool. When disabled, scrollbars are not shown.\n"
-msgstr "**在编辑器中显示滚动条：** 当启用时，滚动条会显示在每个工具的编辑画布旁边。当禁用时，不显示滚动条。\n"
-
-#. type: Plain text
-#: kicad.adoc:340
-#, no-wrap
-msgid ""
-"**Focus follows mouse between schematic and PCB editors:** When enabled, the window under the\n"
-"mouse cursor will automatically become focused.\n"
-msgstr "**在原理图和 PCB 编辑器之间焦点跟随鼠标：** 启用后，鼠标指针下的窗口将自动成为焦点。\n"
-
-#. type: Plain text
-#: kicad.adoc:344
-#, no-wrap
-msgid ""
-"**Icon scale:** Sets the size of the icons used in menus and buttons throughout KiCad.  Choose\n"
-"_Automatic_ to pick an appropriate icon scale automatically based on your operating system\n"
-"settings.\n"
-msgstr "**图标比例：** 设置 KiCad 中菜单和按钮使用的图标大小。选择 _自动_ 根据您的操作系统设置自动选择合适的图标比例。\n"
-
-#. type: Plain text
-#: kicad.adoc:348
-#, no-wrap
-msgid ""
-"**Icon theme:** Sets whether to use the icon theme designed for light window backgrounds or dark\n"
-"window backgrounds.  The default setting of Automatic will choose the theme based on the lightness\n"
-"of the operating system window theme.\n"
+"**Show scrollbars in editors:** When enabled, scrollbars are displayed next "
+"to the editing canvases in each tool. When disabled, scrollbars are not "
+"shown."
 msgstr ""
-"**图标主题：** 设置是为浅色窗口背景设计的图标主题，还是为深色窗口背景设计的图标主题。\n"
-"自动的默认设置将根据操作系统窗口主题的亮度选择主题。\n"
+"**在编辑器中显示滚动条：** 启用时，每个工具的编辑画布旁边都会显示滚动条。禁用"
+"时，不显示滚动条。"
 
 #. type: Plain text
-#: kicad.adoc:351
-#, no-wrap
+#: kicad.adoc:413
 msgid ""
-"**High-contrast mode dimming factor:** Sets how much non-focused items are\n"
-"dimmed in high-contrast display mode.\n"
-msgstr "**高对比度模式的调光系数：** 设定在高对比度显示模式下非焦点项目的调光程度。\n"
-
-#. type: Plain text
-#: kicad.adoc:354
-#, no-wrap
-msgid ""
-"**Warp mouse to origin of moved object:** When enabled, the mouse cursor will be repositioned\n"
-"(warped) to the origin of an object when you start a move command on that object.\n"
-msgstr "**将鼠标扭曲到移动对象的原点：** 启用后，当您在对象上启动移动命令时，鼠标光标将重新定位 (扭曲) 到该对象的原点。\n"
-
-#. type: Plain text
-#: kicad.adoc:358
-#, no-wrap
-msgid ""
-"**First hotkey selects tool:** When disabled, pressing the hotkey for a command such as _Add Wire_\n"
-"will immediately start the command at the current cursor location.  When enabled, pressing the\n"
-"hotkey the first time will just select the _Add Wire_ tool but will not immediately begin a wire.\n"
+"**Focus follows mouse between schematic and PCB editors:** When enabled, the "
+"window under the mouse cursor will automatically become focused."
 msgstr ""
-"**第一个快捷键选择工具：** 禁用时，按下 _添加线_ 等命令的快捷键将立即在当前光标位置启动该命令。\n"
-"启用后，第一次按快捷键将仅选择 _添加线_ 工具，但不会立即开始一条线。\n"
+"**在原理图和 PCB 编辑器之间对焦跟随鼠标：** 启用后，鼠标光标下的窗口将自动变"
+"为焦点。"
 
 #. type: Plain text
-#: kicad.adoc:361
-#, no-wrap
+#: kicad.adoc:417
 msgid ""
-"**Remember open files for next project launch:** When enabled, KiCad will automatically re-open any\n"
-"files that were previously open when a project is re-opened.\n"
-msgstr "**记住下次启动项目时打开的文件：** 启用后，当重新打开工程时，KiCad 会自动重新打开之前打开的所有文件。\n"
-
-#. type: Plain text
-#: kicad.adoc:364
-#, no-wrap
-msgid ""
-"**Auto save:** When editing schematics and board files, KiCad can automatically save your work\n"
-"periodically.  Set to `0` to disable this feature.\n"
-msgstr "**自动保存：** 在编辑原理图和电路板文件时，KiCad 会定期自动保存您的工作。设置为 `0` 将禁用此功能。\n"
-
-#. type: Plain text
-#: kicad.adoc:366
-#, no-wrap
-msgid "**File history size:** Configure the number of entries in the list of recently-opened files\n"
-msgstr "**文件历史大小：** 配置最近打开的文件列表中的条目数\n"
-
-#. type: Plain text
-#: kicad.adoc:369
-#, no-wrap
-msgid ""
-"**3D cache file duration:** KiCad creates a cache of 3D models in order to speed up the 3D viewer.\n"
-"You can configure how long to keep this cache before deleting old files.\n"
+"**Icon scale:** Sets the size of the icons used in menus and buttons "
+"throughout KiCad.  Choose _Automatic_ to pick an appropriate icon scale "
+"automatically based on your operating system settings."
 msgstr ""
-"**3D 缓存文件时长：** KiCad 创建 3D 模型缓存，以提高 3D 观看速度。\n"
-"您可以配置在删除旧文件之前保留此缓存的时间。\n"
+"**图标比例：** 设置 KiCad 中菜单和按钮所用图标的大小。 选择 _自动_ 可根据操作"
+"系统设置自动选择合适的图标比例。"
 
 #. type: Plain text
-#: kicad.adoc:373
-#, no-wrap
+#: kicad.adoc:421
 msgid ""
-"**Automatically backup projects:** When enabled, KiCad projects will be archived to ZIP files\n"
-"automatically according to the settings below.  The archives will be stored in a subfolder of the\n"
-"project folder.  Backups are created when saving files in the project.\n"
+"**Icon theme:** Sets whether to use the icon theme designed for light window "
+"backgrounds or dark window backgrounds.  The default setting of Automatic "
+"will choose the theme based on the lightness of the operating system window "
+"theme."
 msgstr ""
-"**自动备份工程：**开启后，KiCad 工程将根据以下设置自动存档为 ZIP 文件。\n"
-"存档将保存在工程文件夹的子文件夹中。\n"
-"在工程中保存文件时会创建备份。\n"
+"**图标主题：** 设置是使用为浅色窗口背景设计的图标主题，还是使用为深色窗口背景"
+"设计的图标主题。 默认设置自动将根据操作系统窗口主题的明暗程度选择主题。"
 
 #. type: Plain text
-#: kicad.adoc:377
-#, no-wrap
+#: kicad.adoc:424
 msgid ""
-"**Create backups when auto save occurs:** When enabled, a backup will be created every time an\n"
-"automatic file save occurs (if the backup is permitted by the settings below).  This setting has\n"
-"no effect if the auto save interval is set to `0` (disabled).\n"
+"**High-contrast mode dimming factor:** Sets how much non-focused items are "
+"dimmed in high-contrast display mode."
 msgstr ""
-"**自动保存时创建备份：** 启用后，每次自动保存文件时都会创建备份 (如果下面的设置允许备份)。\n"
-"如果自动保存间隔设置为 `0` (禁用)，则此设置无效。\n"
+"**高对比度模式调光因子：** 设置高对比度显示模式下非聚焦项目的调光程度。"
 
 #. type: Plain text
-#: kicad.adoc:380
-#, no-wrap
+#: kicad.adoc:427
 msgid ""
-"**Maximum backups to keep:** When creating a new backup, the oldest backup file will be deleted to\n"
-"keep the total number of backup files below this limit.\n"
-msgstr "**要保留的最大备份数：** 创建新备份时，将删除最旧的备份文件，以将备份文件总数控制在此限制以下。\n"
+"**Warp mouse to origin of moved object:** When enabled, the mouse cursor "
+"will be repositioned (warped) to the origin of an object when you start a "
+"move command on that object."
+msgstr ""
+"**将鼠标移动到移动对象的原点：** 启用后，当您开始对对象执行移动命令时，鼠标光"
+"标将被重新定位（跳转）到该对象的原点。"
 
 #. type: Plain text
-#: kicad.adoc:383
-#, no-wrap
+#: kicad.adoc:431
 msgid ""
-"**Maximum backups per day:** When creating a new backup, the oldest backup file created on the\n"
-"current day will be deleted to stay below this limit.\n"
-msgstr "**每日最大备份次数：** 新建备份时，将删除当天创建的最旧备份文件，使其保持在该限制以下。\n"
+"**First hotkey selects tool:** When disabled, pressing the hotkey for a "
+"command such as _Add Wire_ will immediately start the command at the current "
+"cursor location.  When enabled, pressing the hotkey the first time will just "
+"select the _Add Wire_ tool but will not immediately begin a wire."
+msgstr ""
+"**第一个热键选择工具：** 禁用时，按下 _添加导线_ 等命令的热键将立即在当前光标"
+"位置开始执行命令。 启用后，首次按下热键将只选择 _添加导线_ 工具，但不会立即开"
+"始导线。"
 
 #. type: Plain text
-#: kicad.adoc:386
-#, no-wrap
+#: kicad.adoc:434
 msgid ""
-"**Minimum time between backups:** If backup is triggered (for example, by saving a board file),\n"
-"the backup will not be created if an existing backup file is newer than this limit.\n"
-msgstr "**最小备份间隔时间：** 如果触发备份 (例如保存电路板文件)，如果已有备份文件超过该限制，则不会创建备份。\n"
+"**Remember open files for next project launch:** When enabled, KiCad will "
+"automatically re-open any files that were previously open when a project is "
+"re-opened."
+msgstr ""
+"**下次启动工程时记住打开的文件：** 启用后，KiCad 将在重新打开工程时自动重新打"
+"开之前打开的任何文件。"
 
 #. type: Plain text
-#: kicad.adoc:389
-#, no-wrap
+#: kicad.adoc:437
 msgid ""
-"**Maximum total backup size:** When creating a new backup file, the oldest backup files will be\n"
-"deleted to keep the total size of the backup files directory below this limit.\n"
-msgstr "**最大总备份大小：** 创建新的备份文件时，将删除最旧的备份文件，以使备份文件目录的总大小低于该限制。\n"
+"**Auto save:** When editing schematics and board files, KiCad can "
+"automatically save your work periodically.  Set to `0` to disable this "
+"feature."
+msgstr ""
+"**自动保存：** 编辑原理图和电路板文件时，KiCad 可定期自动保存您的工作。 设置"
+"为 `0` 可禁用此功能。"
+
+#. type: Plain text
+#: kicad.adoc:439
+msgid ""
+"**File history size:** Configure the number of entries in the list of "
+"recently-opened files"
+msgstr "**文件历史记录大小：** 配置最近打开的文件列表中的条目数量"
+
+#. type: Plain text
+#: kicad.adoc:442
+msgid ""
+"**3D cache file duration:** KiCad creates a cache of 3D models in order to "
+"speed up the 3D viewer.  You can configure how long to keep this cache "
+"before deleting old files."
+msgstr ""
+"**3D 缓存文件持续时间：** KiCad 会创建一个 3D 模型缓存，以加快 3D 查看器的运"
+"行速度。 您可以设置在删除旧文件前保留此缓存的时间。"
+
+#. type: Plain text
+#: kicad.adoc:446
+msgid ""
+"**Automatically backup projects:** When enabled, KiCad projects will be "
+"archived to ZIP files automatically according to the settings below.  The "
+"archives will be stored in a subfolder of the project folder.  Backups are "
+"created when saving files in the project."
+msgstr ""
+"**自动备份工程：** 启用后，KiCad 工程将根据以下设置自动归档为 ZIP 文件。 存档"
+"文件将存储在工程文件夹的子文件夹中。 保存工程中的文件时会创建备份。"
+
+#. type: Plain text
+#: kicad.adoc:450
+msgid ""
+"**Create backups when auto save occurs:** When enabled, a backup will be "
+"created every time an automatic file save occurs (if the backup is permitted "
+"by the settings below).  This setting has no effect if the auto save "
+"interval is set to `0` (disabled)."
+msgstr ""
+"**自动保存时创建备份：** 启用后，每次自动保存文件时都将创建备份（如果以下设置"
+"允许备份）。 如果自动保存时间间隔设置为 `0`（禁用），则此设置无效。"
+
+#. type: Plain text
+#: kicad.adoc:453
+msgid ""
+"**Maximum backups to keep:** When creating a new backup, the oldest backup "
+"file will be deleted to keep the total number of backup files below this "
+"limit."
+msgstr ""
+"**保留的最大备份数：** 创建新备份时，将删除最旧的备份文件，以使备份文件总数低"
+"于此限制。"
+
+#. type: Plain text
+#: kicad.adoc:456
+msgid ""
+"**Maximum backups per day:** When creating a new backup, the oldest backup "
+"file created on the current day will be deleted to stay below this limit."
+msgstr ""
+"**每天最多备份次数：** 创建新备份时，将删除当日创建的最旧备份文件，以保持低于"
+"此限制。"
+
+#. type: Plain text
+#: kicad.adoc:459
+msgid ""
+"**Minimum time between backups:** If backup is triggered (for example, by "
+"saving a board file), the backup will not be created if an existing backup "
+"file is newer than this limit."
+msgstr ""
+"**备份之间的最短间隔时间：** 如果触发备份（例如，通过保存电路板文件），如果现"
+"有备份文件比此限制时间新，则不会创建备份。"
+
+#. type: Plain text
+#: kicad.adoc:462
+msgid ""
+"**Maximum total backup size:** When creating a new backup file, the oldest "
+"backup files will be deleted to keep the total size of the backup files "
+"directory below this limit."
+msgstr ""
+"**最大备份总大小：** 创建新备份文件时，将删除最旧的备份文件，以使备份文件目录"
+"的总大小低于此限制。"
 
 #. type: Title ===
-#: kicad.adoc:390
+#: kicad.adoc:463
 #, no-wrap
 msgid "Mouse and touchpad preferences"
 msgstr "鼠标和触摸板偏好设置"
 
 #. type: Target for macro image
-#: kicad.adoc:392
+#: kicad.adoc:465
 #, no-wrap
 msgid "images/preferences_mouse_and_touchpad.png"
 msgstr "images/zh/preferences_mouse_and_touchpad.png"
 
 #. type: Plain text
-#: kicad.adoc:396
-#, no-wrap
+#: kicad.adoc:469
 msgid ""
-"**Center and warp cursor on zoom:** When enabled, zooming using the hotkeys or mouse wheel will\n"
-"cause the view to be centered on the cursor location.\n"
-msgstr "**缩放时居中和扭曲光标：** 启用后，使用快捷键或鼠标滚轮进行缩放将导致视图在光标位置居中。\n"
-
-#. type: Plain text
-#: kicad.adoc:399
-#, no-wrap
-msgid ""
-"**Use zoom acceleration:** When enabled, scrolling the mouse wheel or touchpad faster will cause\n"
-"the zoom to change faster.\n"
-msgstr "**使用缩放加速：** 启用后，滚动鼠标滚轮或触摸板的速度越快，缩放的变化也会越快。\n"
-
-#. type: Plain text
-#: kicad.adoc:402
-#, no-wrap
-msgid ""
-"**Zoom speed:** Controls how much the zoom changes for a given amount of scrolling the mouse wheel\n"
-"or touchpad.  Use _Automatic_ to set a default value depending on your operating system.\n"
+"**Center and warp cursor on zoom:** When enabled, zooming using the hotkeys "
+"or mouse wheel will cause the view to be centered on the cursor location."
 msgstr ""
-"**缩放速度：** 控制鼠标滚轮或触摸板滚动一定量时的缩放变化量。\n"
-"使用 _自动_ 根据您的操作系统设置默认值。\n"
+"**缩放时光标居中和跳转：** 启用后，使用热键或鼠标滚轮缩放时，视图将以光标位置"
+"为中心。"
 
 #. type: Plain text
-#: kicad.adoc:405
-#, no-wrap
+#: kicad.adoc:472
 msgid ""
-"**Automatically pan while moving object:** When enabled, the view can be panned while moving an\n"
-"object by moving close to the edge of the canvas.\n"
-msgstr "**移动对象时自动平移：** 开启后，可以通过靠近画布边缘的方式在移动对象时平移视图。\n"
-
-#. type: Plain text
-#: kicad.adoc:407
-#, no-wrap
-msgid "**Auto pan speed:** Controls how fast the canvas pans while moving an object.\n"
-msgstr "**自动平移速度：** 控制画布移动对象时的平移速度。\n"
-
-#. type: Plain text
-#: kicad.adoc:411
-#, no-wrap
-msgid ""
-"**Mouse buttons:** You can set the behavior of dragging the middle and right mouse buttons to zoom\n"
-"the view, pan the view, or have no effect.  You can also set the behavior of dragging the left\n"
-"mouse button depending on whether or not any objects are already selected in the editing canvas.\n"
+"**Use zoom acceleration:** When enabled, scrolling the mouse wheel or "
+"touchpad faster will cause the zoom to change faster."
 msgstr ""
-"**鼠标键：** 您可以设置拖动鼠标中键和鼠标右键来缩放视图、平移视图或无效果的行为。\n"
-"您还可以根据编辑画布中是否已选择任何对象来设置拖动鼠标左键的行为。\n"
+"**使用缩放加速：** 启用后，更快地滚动鼠标滚轮或触摸板会使缩放变化更快。"
 
 #. type: Plain text
-#: kicad.adoc:413
+#: kicad.adoc:475
+msgid ""
+"**Zoom speed:** Controls how much the zoom changes for a given amount of "
+"scrolling the mouse wheel or touchpad.  Use _Automatic_ to set a default "
+"value depending on your operating system."
+msgstr ""
+"**缩放速度：** 控制滚动鼠标滚轮或触摸板一定量时的缩放变化程度。 使用 _自动_ "
+"设置默认值，具体取决于操作系统。"
+
+#. type: Plain text
+#: kicad.adoc:478
+msgid ""
+"**Automatically pan while moving object:** When enabled, the view can be "
+"panned while moving an object by moving close to the edge of the canvas."
+msgstr ""
+"**移动对象时自动平移：** 启用后，在移动对象时，只要靠近画布边缘，就能平移视"
+"图。"
+
+#. type: Plain text
+#: kicad.adoc:480
+msgid ""
+"**Auto pan speed:** Controls how fast the canvas pans while moving an object."
+msgstr "**自动平移速度：** 控制移动对象时画布平移的速度。"
+
+#. type: Plain text
+#: kicad.adoc:484
+msgid ""
+"**Mouse buttons:** You can set the behavior of dragging the middle and right "
+"mouse buttons to zoom the view, pan the view, or have no effect.  You can "
+"also set the behavior of dragging the left mouse button depending on whether "
+"or not any objects are already selected in the editing canvas."
+msgstr ""
+"**鼠标按钮：** 可以将拖动鼠标中键和右键的行为设置为缩放视图、平移视图或无影"
+"响。 您还可以根据编辑画布中是否已选中任何对象来设置拖动鼠标左键的行为。"
+
+#. type: Plain text
+#: kicad.adoc:486
 msgid ""
 "The left mouse button is always used for selecting and manipulating objects."
 msgstr "鼠标左键始终用于选择和操作对象。"
 
 #. type: Plain text
-#: kicad.adoc:416
-#, no-wrap
+#: kicad.adoc:489
 msgid ""
-"**Mouse wheel and touchpad scrolling:** You can set the behavior of scrolling the mouse wheel or\n"
-"vertical motion of the touchpad while pressing certain modifier keys.\n"
-msgstr "**鼠标滚轮和触摸板滚动：** 您可以设置在按特定修改键的同时滚动鼠标滚轮或触摸板垂直运动的行为。\n"
+"**Mouse wheel and touchpad scrolling:** You can set the behavior of "
+"scrolling the mouse wheel or vertical motion of the touchpad while pressing "
+"certain modifier keys."
+msgstr ""
+"**鼠标滚轮和触摸板滚动：** 可以设置在按下某些修改键时滚动鼠标滚轮或垂直移动触"
+"摸板的行为。"
 
 #. type: Plain text
-#: kicad.adoc:419
-#, no-wrap
+#: kicad.adoc:492
 msgid ""
-"**Pan left/right with horizontal movement:** When enabled, you can pan the view using the touchpad\n"
-"or horizontal scroll wheel (if present on your mouse).\n"
-msgstr "**触摸板水平移动左右平移：** 启用后，您可以使用触摸板或水平滚轮 (如果鼠标上有) 平移视图。\n"
+"**Pan left/right with horizontal movement:** When enabled, you can pan the "
+"view using the touchpad or horizontal scroll wheel (if present on your "
+"mouse)."
+msgstr ""
+"**触摸板使用水平移动向左/右平移：** 启用后，可以使用触摸板或水平滚轮（如果鼠"
+"标上有滚轮）平移视图。"
 
 #. type: Title ===
-#: kicad.adoc:420
+#: kicad.adoc:493
 #, no-wrap
 msgid "Hotkey preferences"
 msgstr "快捷键偏好设置"
 
 #. type: Target for macro image
-#: kicad.adoc:422
+#: kicad.adoc:495
 #, no-wrap
 msgid "images/preferences_hotkeys.png"
 msgstr "images/zh/preferences_hotkeys.png"
 
 #. type: Plain text
-#: kicad.adoc:429
+#: kicad.adoc:502
 msgid ""
 "You can use this dialog to customize the hotkeys used to control KiCad.  The "
 "hotkeys in the _Common_ section are shared between every KiCad program. "
@@ -1067,7 +1241,7 @@ msgstr ""
 "作，但不能将一个快捷键分配给同一程序中的多个操作。"
 
 #. type: Plain text
-#: kicad.adoc:434
+#: kicad.adoc:507
 msgid ""
 "There are many available commands, and so not all of them have a hotkey "
 "assigned by default.  You can add a hotkey to any command by double-clicking "
@@ -1081,7 +1255,7 @@ msgstr ""
 "命令上使用该快捷键，这将从冲突的命令中删除指定的快捷键。"
 
 #. type: Plain text
-#: kicad.adoc:438
+#: kicad.adoc:511
 msgid ""
 "Changes that you have made to hotkey assignments are shown with a `*` "
 "character at the end of the command name.  You can undo changes to a "
@@ -1094,13 +1268,12 @@ msgstr ""
 "命令列表下面的按钮撤销所有的更改。"
 
 #. type: Plain text
-#: kicad.adoc:440
-#, no-wrap
-msgid "**Importing hotkeys**\n"
-msgstr "**导入快捷键**\n"
+#: kicad.adoc:513
+msgid "**Importing hotkeys**"
+msgstr "**导入快捷键**"
 
 #. type: Plain text
-#: kicad.adoc:445
+#: kicad.adoc:518
 msgid ""
 "Hotkey preferences are stored in `.hotkeys` files in the KiCad settings "
 "directory (see the <<settings,Settings>> section for information about where "
@@ -1115,23 +1288,23 @@ msgstr ""
 "算机。"
 
 #. type: Title ===
-#: kicad.adoc:446
+#: kicad.adoc:520
 #, no-wrap
 msgid "Paths configuration"
 msgstr "路径配置"
 
 #. type: Plain text
-#: kicad.adoc:451
+#: kicad.adoc:525
 msgid ""
-"In KiCad, one can define paths using an *environment variable*.  A few "
-"environment variables are internally defined by KiCad, and can be used to "
-"define paths for libraries, 3D shapes, etc."
+"In KiCad, one can define paths using a *path variable*.  A few path "
+"variables are internally defined by KiCad, and can be used to define paths "
+"for libraries, 3D shapes, etc."
 msgstr ""
-"在 KiCad 中，人们可以使用 *环境变量* 定义路径。 一些环境变量是由 KiCad 内部定"
-"义的，可以用来定义库、3D 形状等的路径。"
+"在 KiCad 中，可以使用 *路径变量* 定义路径。 KiCad 内部定义了一些路径变量，可"
+"用于为库、3D 图形等定义路径。"
 
 #. type: Plain text
-#: kicad.adoc:456
+#: kicad.adoc:530
 msgid ""
 "This is useful when absolute paths are not known or are subject to change (e."
 "g.  when you transfer a project to a different computer), and also when one "
@@ -1143,72 +1316,100 @@ msgstr ""
 "容："
 
 #. type: Plain text
-#: kicad.adoc:458
+#: kicad.adoc:532
 msgid "Schematic symbol libraries"
 msgstr "原理图符号库"
 
 #. type: Plain text
-#: kicad.adoc:459
+#: kicad.adoc:533
 msgid "Footprint libraries"
 msgstr "封装库"
 
 #. type: Plain text
-#: kicad.adoc:460
+#: kicad.adoc:534
 msgid "3D model files used in footprint definitions"
 msgstr "封装定义中使用的 3D 模型文件"
 
 #. type: Plain text
-#: kicad.adoc:464
+#: kicad.adoc:538
 msgid ""
 "For instance, the path to the `connect.pretty` footprint library, when using "
-"the `KICAD7_FOOTPRINT_DIR` environment variable, would be defined as `$"
-"\\{KICAD7_FOOTPRINT_DIR\\}/connect.pretty`."
+"the `KICAD8_FOOTPRINT_DIR` path variable, would be defined as `$"
+"\\{KICAD8_FOOTPRINT_DIR\\}/connect.pretty`."
 msgstr ""
-"例如，当使用 `KICAD7_FOOTPRINT_DIR` 环境变量时，`connect.pretty` 封装库的路径"
-"将被定义为 `$\\{KICAD7_FOOTPRINT_DIR\\}/connect.pret`。"
+"例如，当使用 `KICAD8_FOOTPRINT_DIR` 路径变量时，`connect.pretty` 封装库的路径"
+"将被定义为 `$\\{KICAD8_FOOTPRINT_DIR\\}/connect.pretty`。"
 
 #. type: Plain text
-#: kicad.adoc:468
+#: kicad.adoc:542
 msgid ""
 "The *Preferences* -> *Configure Paths...* menu allows you to define paths "
-"for some built-in KiCad environment variables, and add your own environment "
-"variables to define personal paths, if needed."
+"for some built-in KiCad path variables, and add your own path variables to "
+"define personal paths, if needed."
 msgstr ""
-"在 *偏好设置* -> *配置路径...* 菜单中，您可以为一些内置的 KiCad 环境变量定义"
-"路径，如果需要，还可以添加自己的环境变量来定义个人路径。"
+"通过 *偏好设置* -> *配置路径...* 菜单，您可以为 KiCad 的一些内置路径变量定义"
+"路径，并根据需要添加自己的路径变量来定义个人路径。"
 
-#. type: Title ====
-#: kicad.adoc:470
-#, no-wrap
-msgid "KiCad environment variables"
-msgstr "KiCad 环境变量"
-
-#. type: Table
-#: kicad.adoc:480
+#. type: Plain text
+#: kicad.adoc:549
 #, no-wrap
 msgid ""
-"|KICAD7_3DMODEL_DIR |Base path of KiCad's standard 3D footprint model library files.\n"
-"|KICAD7_3RD_PARTY |Location for plugins, libraries, and color themes installed by the <<plugin-content-manager,Plugin and Content Manager>>.\n"
-"|KICAD7_FOOTPRINT_DIR |Base path of KiCad's standard footprint library files.\n"
-"|KICAD7_SYMBOL_DIR |Base path of KiCad's standard symbol library files.\n"
-"|KICAD7_TEMPLATE_DIR |Location of KiCad's standard project template library files.\n"
-"|KICAD_USER_TEMPLATE_DIR |Location of personal project templates.\n"
+"KiCad will automatically resolve versioned path variables from\n"
+"      older versions of KiCad to the value of the corresponding variable from\n"
+"      the current KiCad version, as long as the old variable is not explicitly\n"
+"      defined itself. For example, `$\\{KICAD7_FOOTPRINT_DIR\\}` will\n"
+"      automatically resolve to the value of `$\\{KICAD8_FOOTPRINT_DIR\\}` if there\n"
+"      is no `KICAD7_FOOTPRINT_DIR` variable defined.\n"
+msgstr "KiCad 会自动将旧版本 KiCad 中的版本路径变量解析为当前 KiCad 版本中相应变量的值，只要旧变量本身没有明确定义。例如，如果没有定义 `KICAD7_FOOTPRINT_DIR` 变量，`$\\{KICAD7_FOOTPRINT_DIR/}` 将自动解析为 `$\\{KICAD8_FOOTPRINT_DIR}` 的值。\n"
+
+#. type: Title ====
+#: kicad.adoc:551
+#, no-wrap
+msgid "KiCad path variables"
+msgstr "KiCad 路径变量"
+
+#. type: Table
+#: kicad.adoc:571
+#, no-wrap
+msgid ""
+"|`KICAD8_3DMODEL_DIR`\n"
+"  |Base path of KiCad's standard 3D footprint model library\n"
+"  files.\n"
+"|`KICAD8_3RD_PARTY`\n"
+"  |Location for plugins, libraries, and color themes installed by the\n"
+"  <<plugin-content-manager,Plugin and Content Manager>>.\n"
+"|`KICAD8_FOOTPRINT_DIR` |Base path of KiCad's standard footprint library files.\n"
+"|`KICAD8_SYMBOL_DIR` |Base path of KiCad's standard symbol library files.\n"
+"|`KICAD8_TEMPLATE_DIR` |Location of KiCad's standard project template library files.\n"
+"|`KICAD_USER_TEMPLATE_DIR` |Location of personal project templates.\n"
+"|`SPICE_LIB_DIR`\n"
+"  |Location of personal xref:../eeschema/eeschema.adoc#sim-library[simulation model libraries].\n"
+"  This variable is not defined by default.\n"
+"|`KIPRJMOD`\n"
+"  |Absolute path to the current project directory. This variable is set\n"
+"  automatically and cannot be redefined.\n"
 msgstr ""
-"|KICAD7_3DMODEL_DIR | KiCad 的标准 3D 封装模型库文件的基本路径。\n"
-"|KICAD7_3RD_PARTY | 由 《插件内容管理器，插件和内容管理器》安装的插件、库和颜色主题的位置。\n"
-"|KICAD7_FOOTPRINT_DIR | KiCad 的标准封装库文件的基本路径。\n"
-"|KICAD7_SYMBOL_DIR | KiCad 的标准符号库文件的基本路径。\n"
-"|KICAD7_TEMPLATE_DIR | KiCad 的标准项目模板库文件的位置。\n"
-"|KICAD_USER_TEMPLATE_DIR | 个人工程模板的位置。\n"
+"|`KICAD8_3DMODEL_DIR`\n"
+"  |KiCad 标准 3D 封装模型库的基础路径，存储着与封装关联的 3D 模型文件。\n"
+"|`KICAD8_3RD_PARTY`\n"
+"  |第三方插件、库和颜色主题的存放位置，这些是由 《插件和内容管理器，插件和内容管理器》 安装的。\n"
+"|`KICAD8_FOOTPRINT_DIR` |KiCad 标准封装库的基础路径，包含封装设计文件。\n"
+"|`KICAD8_SYMBOL_DIR` |KiCad 标准符号库的基础路径，存放着电路图符号的定义文件。\n"
+"|`KICAD8_TEMPLATE_DIR` |KiCad 标准项目模板库的存放位置，提供预设的项目模板文件。\n"
+"|`KICAD_USER_TEMPLATE_DIR` |个人项目模板的存放位置，允许用户创建和存储自定义的项目模板。\n"
+"|`SPICE_LIB_DIR`\n"
+"  |个人仿真模型库的存放位置，用于存放 xref:../eeschema/eeschema.adoc#sim-library[仿真模型库] 文件。此变量默认未定义。\n"
+"|`KIPRJMOD`\n"
+"  |当前项目目录的绝对路径，此变量由系统自动设定，不可重新定义。\n"
 
 #. type: Target for macro image
-#: kicad.adoc:482
+#: kicad.adoc:573
 #, no-wrap
 msgid "images/configure_path_dlg.png"
 msgstr "images/zh/configure_path_dlg.png"
 
 #. type: Plain text
-#: kicad.adoc:487
+#: kicad.adoc:578
 msgid ""
 "Paths set in the Configure Paths dialog are internal to KiCad and are not "
 "visible as environment variables outside of KiCad. They are stored in "
@@ -1218,69 +1419,58 @@ msgstr ""
 "们被保存在《配置文件位置，KiCad 的用户配置文件》。"
 
 #. type: Plain text
-#: kicad.adoc:490
+#: kicad.adoc:581
 msgid ""
-"Paths can also be set as environment variables outside of KiCad, which will "
-"override any settings in the user's configuration."
-msgstr "路径也可以设置为 KiCad 之外的环境变量，这将覆盖用户配置中的任何设置。"
+"Paths can also be set as system environment variables outside of KiCad, "
+"which will override any settings in the user's configuration."
+msgstr ""
+"路径还可以设置为 KiCad 外部的系统环境变量，这将覆盖用户配置中的任何设置。"
 
 #. type: Plain text
-#: kicad.adoc:495
+#: kicad.adoc:585
 #, no-wrap
 msgid ""
-"You cannot override an environment\n"
-"      variable that has been set outside of KiCad by using the Configure Paths dialog.\n"
-"      Any variable that has been set externally will be shown as read-only in the\n"
-"      dialog.\n"
-msgstr "你不能通过使用配置路径对话框覆盖在 KiCad 之外设置的环境变量。任何从外部设置的变量在对话框中都将显示为只读。\n"
+"You cannot override a system environment variable that has been set\n"
+"      outside of KiCad by using the Configure Paths dialog. Any variable that\n"
+"      has been set externally will be shown as read-only in the dialog.\n"
+msgstr "使用 `配置路径` 对话框无法覆盖在 KiCad 外部设置的系统环境变量。任何外部设置的变量都将在对话框中显示为只读。\n"
 
 #. type: Plain text
-#: kicad.adoc:498
+#: kicad.adoc:592
 msgid ""
-"Note also that the environment variable `KIPRJMOD` is *always* internally "
-"defined by KiCad, and expands to the **current project absolute path**."
-msgstr ""
-"请注意，环境变量 `KIPRJMOD` 总是由 KiCad 内部定义，并扩展到 **当前工程的绝对"
-"路径**。"
-
-#. type: Plain text
-#: kicad.adoc:501
-msgid ""
-"For instance, `$\\{KIPRJMOD\\}/connect.pretty` is always the `connect."
-"pretty` folder (the footprint library) inside **the current project folder**."
-msgstr ""
-"例如，`${KIPRJMOD\\}/connect.pretty` 总是 **当前项目文件夹** 内的 `connect."
-"pretty` 文件夹（封装库）。"
-
-#. type: Plain text
-#: kicad.adoc:504
-msgid ""
-"The `KIPRJMOD` variable cannot be changed in the Configure Paths dialog or "
+"Note also that the path variable `KIPRJMOD` is *always* internally defined "
+"by KiCad, and expands to the **current project absolute path**.  For "
+"instance, `$\\{KIPRJMOD\\}/connect.pretty` is always the `connect.pretty` "
+"folder (the footprint library) inside **the current project folder**.  The "
+"`KIPRJMOD` variable cannot be changed in the Configure Paths dialog or "
 "overridden by an external environment variable."
 msgstr ""
-"`KIPRJMOD` 变量不能在配置路径对话框中改变，也不能被外部环境变量所覆盖。"
+"还请注意，路径变量 `KIPRJMOD` *始终* 由 KiCad 内部定义，并展开为 **当前工程的"
+"绝对路径**。 例如，`$\\{KIPRJMOD\\}/connect.pretty` 始终是 **当前工程文件夹"
+"** 内的 `connect.pretty` 文件夹（封装库）。 KIPRJMOD 变量不能在 `配置路径` 对"
+"话框中更改，也不能被外部环境变量覆盖。"
 
 #. type: Title ====
-#: kicad.adoc:505
+#: kicad.adoc:593
 #, no-wrap
 msgid "Advanced environment variables"
 msgstr "高级环境变量"
 
 #. type: Plain text
-#: kicad.adoc:511
+#: kicad.adoc:600
 msgid ""
-"Some advanced environment variables can be set to customize KiCad's "
-"behavior.  These variables are not shown in the environment variable "
-"configuration and cannot be used in path substitutions. They cannot be "
-"modified in the Configure Paths dialog, but they can be overridden by system "
-"environment variables."
+"Some advanced environment variables can be set to customize where KiCad "
+"expects certain files to be located. By default, these locations are set "
+"based on your platform, but they can be overridden by system environment "
+"variables. These variables are not shown in the Configure Paths dialog and "
+"cannot be used in path substitutions."
 msgstr ""
-"一些高级环境变量可以被设置来定制 KiCad 的行为。 这些变量不在环境变量配置中显"
-"示，也不能在路径替换中使用。它们不能在配置路径对话框中被修改，但它们可以被系"
-"统环境变量覆盖。"
+"可以设置一些高级环境变量，自定义 KiCad 预计某些文件的位置。默认情况下，这些位"
+"置是根据你的平台设置的，但它们可以被系统环境变量覆盖。这些变量不会在 `配置路"
+"径` 对话框中显示，也不能用于路径替换。"
 
 #. type: Plain text
-#: kicad.adoc:515
+#: kicad.adoc:604
 msgid ""
 "Changing these variables will not result in KiCad moving any files from the "
 "default location to the new location, so if you change these variables you "
@@ -1289,28 +1479,26 @@ msgstr ""
 "改变这些变量不会导致 KiCad 将任何文件从默认位置移动到新的位置，所以如果你改变"
 "这些变量，你将需要手动复制任何需要的设置或文件。"
 
-#. type: Plain text
-#: kicad.adoc:517
-#, no-wrap
-msgid "*Additional environment variables:*\n"
-msgstr "*其他环境变量：*\n"
-
 #. type: Table
-#: kicad.adoc:525
+#: kicad.adoc:616
 #, no-wrap
 msgid ""
-"|KICAD_CONFIG_HOME |Base path of KiCad configuration files. Subdirectories will be created\n"
+"|`KICAD_CONFIG_HOME` |Base path of KiCad configuration files. Subdirectories will be created\n"
 "    within this directory for each KiCad minor version.\n"
-"|KICAD_DOCUMENTS_HOME |Base path of KiCad user-modifiable documents, such as projects, templates,\n"
+"|`KICAD_DOCUMENTS_HOME` |Base path of KiCad user-modifiable documents, such as projects, templates,\n"
 "    Python scripts, libraries, etc. Subdirectories will be created within this directory for each\n"
 "    KiCad minor version. This directory is provided as a suggested user data location, but does\n"
 "    not need to be used.\n"
+"|`KICAD_STOCK_DATA_HOME` |Base path of KiCad stock data, including default libraries. The data\n"
+"    in this directory is managed by the KiCad installer or system package manager, and is not\n"
+"    intended for user-writeable data.\n"
 msgstr ""
-"|`KICAD_CONFIG_HOME` |KiCad 配置文件的基本路径。每个 KiCad 次要版本都会在此目录下创建子目录。\n"
-"|`KICAD_DOCUMENTS_HOME` |KiCad 用户可修改的文件的基本路径，如工程、模板、Python 脚本、库等。每个 KiCad 小版本都会在此目录下创建子目录。这个目录是作为建议的用户数据位置提供的，但不需要使用。\n"
+"|`KICAD_CONFIG_HOME` |KiCad 配置文件的基础路径。此目录下将为每个 KiCad 次版本创建子目录，用于存储特定版本的配置文件。\n"
+"|`KICAD_DOCUMENTS_HOME` |KiCad 用户可修改文档的基础路径，如工程、模板、Python 脚本、库等。此目录下也将为每个 KiCad 次版本创建子目录。该目录作为推荐的用户数据存储位置，但并非强制使用。\n"
+"|`KICAD_STOCK_DATA_HOME` |KiCad 标配数据的基础路径，包含默认库等资源。此目录中的数据由 KiCad 安装程序或系统包管理器管理，不建议用户在此目录中写入自定义数据。\n"
 
 #. type: Plain text
-#: kicad.adoc:530
+#: kicad.adoc:621
 msgid ""
 "If you modify the configuration of paths, please quit and restart KiCad to "
 "avoid any issues in path handling."
@@ -1319,36 +1507,33 @@ msgstr ""
 "问题。"
 
 #. type: Title ===
-#: kicad.adoc:532
+#: kicad.adoc:623
 #, no-wrap
 msgid "Libraries configuration"
 msgstr "库配置"
 
 #. type: Plain text
-#: kicad.adoc:537
+#: kicad.adoc:628
 msgid ""
 "The *Preferences* -> *Manage Symbol Libraries...* menu lets you manage the "
-"list of symbol libraries (xref:../eeschema/eeschema_symbols_and_libraries."
-"adoc#managing-symbol-libraries[symbol library table])."
+"list of symbol libraries (xref:../eeschema/eeschema.adoc#managing-symbol-"
+"libraries[symbol library table])."
 msgstr ""
-"通过 *偏好设置* -> *管理符号库...* 菜单，你可以管理符号库的列表（xref:../"
-"eeschema/eeschema_symbols_and_libraries.adoc#managing-symbol-libraries[符号库"
-"表]）。"
+"通过 *偏好设置* -> *管理符号库...* 菜单，您可以管理符号库列表（xref:../"
+"eeschema/eeschema.adoc#managing-symbol-libraries[符号库表]）。"
 
 #. type: Plain text
-#: kicad.adoc:541
+#: kicad.adoc:632
 msgid ""
 "Likewise, use the *Preferences* -> *Manage Footprint Libraries...* menu to "
-"manage the list of footprint libraries (xref:../pcbnew/"
-"pcbnew_footprints_and_libraries.adoc#managing-footprint-libraries[footprint "
-"library table])."
+"manage the list of footprint libraries (xref:../pcbnew/pcbnew.adoc#managing-"
+"footprint-libraries[footprint library table])."
 msgstr ""
-"同样，使用 *偏好设置* -> *管理封装库...* 菜单来管理封装库的列表（xref:../"
-"pcbnew/pcbnew_footprints_and_libraries.adoc#managing-footprint-libraries[封装"
-"库表]）。"
+"同样，使用 *偏好设置* -> *管理封装库表...* 菜单来管理封装库列表（xref:../"
+"pcbnew/pcbnew.adoc#managing-footprint-libraries[封装库表]）。"
 
 #. type: Plain text
-#: kicad.adoc:548
+#: kicad.adoc:639
 msgid ""
 "For each type of library (symbol and footprint), there are 2 library tables: "
 "global and project specific. The global library table is located in the "
@@ -1362,13 +1547,13 @@ msgstr ""
 "选的，包含工程专用的库列表。它位于工程目录中。"
 
 #. type: Title ==
-#: kicad.adoc:551
+#: kicad.adoc:642
 #, no-wrap
 msgid "Project templates"
 msgstr "工程模板"
 
 #. type: Plain text
-#: kicad.adoc:557
+#: kicad.adoc:648
 msgid ""
 "Using a project template facilitates setting up a new project with "
 "predefined settings. Templates may contain pre-defined board outlines, "
@@ -1381,20 +1566,20 @@ msgstr ""
 "理图和/或 PCB。"
 
 #. type: Title ===
-#: kicad.adoc:558
+#: kicad.adoc:649
 #, no-wrap
 msgid "Using templates"
 msgstr "使用模板"
 
 #. type: Plain text
-#: kicad.adoc:562
+#: kicad.adoc:653
 msgid ""
 "The **File** -> **New Project from Template** menu will open the Project "
 "Template Selector dialog:"
 msgstr "**文件** -> **从模板新建工程** 菜单将打开工程模板选择器对话框："
 
 #. type: Plain text
-#: kicad.adoc:567
+#: kicad.adoc:658
 msgid ""
 "A single click on a template's icon will display the template information, "
 "and a further click on the OK button creates the new project. The template "
@@ -1405,76 +1590,164 @@ msgstr ""
 "新工程位置并重命名以反映新工程的名称。"
 
 #. type: Target for macro image
-#: kicad.adoc:568
+#: kicad.adoc:659
 #, no-wrap
 msgid "images/template_selected.png"
 msgstr "images/zh/template_selected.png"
 
 #. type: Title ===
-#: kicad.adoc:571
+#: kicad.adoc:662
 #, no-wrap
 msgid "Template locations"
 msgstr "模板位置"
 
 #. type: Plain text
-#: kicad.adoc:578
+#: kicad.adoc:668
 msgid ""
-"KiCad looks for template files in the following paths: KiCad looks for "
-"system templates in the path defined in the `KICAD7_TEMPLATE_DIR` path "
-"variable, and user templates in the path defined in "
-"`KICAD_USER_TEMPLATE_DIR`. However, you can browse for templates in an "
+"KiCad looks for system templates in the path defined in the "
+"`KICAD8_TEMPLATE_DIR` path variable, and user templates in the path defined "
+"in `KICAD_USER_TEMPLATE_DIR`. However, you can browse for templates in an "
 "arbitrary directory using the **Folder** control at the top of the dialog."
 msgstr ""
-"KiCad 会在以下路径中寻找模板文件。KiCad 在 `KICAD7_TEMPLATE_DIR` 路径变量定义"
-"的路径中寻找系统模板，在 `KICAD_USER_TEMPLATE_DIR` 定义的路径中寻找用户模板。"
-"然而，你可以使用对话框顶部的 **文件夹** 控件浏览任意目录下的模板。"
+"KiCad 在 `KICAD8_TEMPLATE_DIR` 路径变量中定义的路径下查找系统模板，在 "
+"`KICAD_USER_TEMPLATE_DIR` 中定义的路径下查找用户模板。不过，您可以使用对话框"
+"顶部的 **文件夹** 控件浏览任意目录中的模板。"
 
 #. type: Title ===
-#: kicad.adoc:579
+#: kicad.adoc:669
 #, no-wrap
 msgid "Creating templates"
 msgstr "创建模板"
 
 #. type: Plain text
-#: kicad.adoc:584
+#: kicad.adoc:677
 msgid ""
-"The template name is the directory name where the template files are stored. "
-"The metadata directory is a subdirectory named `meta` containing files "
-"describing the template."
+"A KiCad template is simply a directory containing the template project "
+"files, as well as some required metadata for the template in a subdirectory "
+"named `meta`. The name of the directory containing the template files "
+"determines the name of the template. When you create a project from a "
+"template, KiCad copies the template files to the new project directory, "
+"renaming them to match the new project name as described below."
 msgstr ""
-"模板名称是存储模板文件的目录名称。元数据目录是一个名为 `meta` 的子目录，包含"
-"描述模板的文件。"
+"KiCad 模板只是一个包含模板工程文件的目录，以及子目录 `meta` 中模板所需的一些"
+"元数据。包含模板文件的目录名称决定了模板的名称。根据模板创建工程时，KiCad 会"
+"将模板文件复制到新的工程目录，并重新命名这些文件以匹配新工程名称，如下所述。"
 
 #. type: Plain text
-#: kicad.adoc:588
-msgid ""
-"The metadata consists of one required file, and may contain optional files.  "
-"All files must be created by the user using a text editor or previous KiCad "
-"project files, and placed into the required directory structure."
-msgstr ""
-"元数据由一个必需文件组成，可能包含可选文件。 所有文件必须由用户使用文本编辑器"
-"或以前的 KiCad 工程文件创建，并放入所需的目录结构中。"
+#: kicad.adoc:679
+msgid "All files in the template are copied, with two exceptions:"
+msgstr "模板中的所有文件都会被复制，但有两个例外："
 
 #. type: Plain text
-#: kicad.adoc:593
+#: kicad.adoc:683
+msgid ""
+"Files with names beginning with the `.` character (dotfiles) are not "
+"copied.  There is a special case for files named `.gitignore` or `."
+"gitattributes`, which are copied if they exist."
+msgstr ""
+"名称以 `.` 开头的文件（隐藏文件）不会被复制。 名为 `.gitignore` 或 `."
+"gitattributes` 的文件有一个特殊情况，如果它们存在，就会被复制。"
+
+#. type: Plain text
+#: kicad.adoc:684
+msgid "The `meta` directory is not copied"
+msgstr "不复制 `meta` 目录"
+
+#. type: Plain text
+#: kicad.adoc:690
+msgid ""
+"The `meta` directory must contain an HTML file named `info.html`, which is "
+"displayed in the KiCad template browser and should contain basic information "
+"describing the template. Basic HTML features are supported, including "
+"images.  Any images referenced by `info.html` should also be stored in the "
+"`meta` directory."
+msgstr ""
+"`meta` 目录必须包含一个名为 `info.html` 的 HTML 文件，该文件将显示在 KiCad 模"
+"板浏览器中，并应包含描述模板的基本信息。支持基本的 HTML 功能，包括图像。 由 "
+"`info.html` 引用的任何图像也应存储在 `meta` 目录中。"
+
+#. type: Plain text
+#: kicad.adoc:695
+msgid ""
+"The `<title>` tag determines the name of the template that is displayed "
+"during template selection. Note that the project template name will be cut "
+"off if it's too long. This display name does not need to be the same as the "
+"template directory name."
+msgstr ""
+"`<title>` 标记决定模板选择时显示的模板名称。请注意，如果工程模板名称太长，将"
+"会被截断。显示名称不必与模板目录名称相同。"
+
+#. type: Plain text
+#: kicad.adoc:697
+msgid "Here is a sample `info.html` file:"
+msgstr "这里有一个 `info.html` 文件的例子："
+
+#. type: delimited block -
+#: kicad.adoc:722
+#, no-wrap
+msgid ""
+"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\">\n"
+"<HTML>\n"
+"<HEAD>\n"
+"<META HTTP-EQUIV=\"CONTENT-TYPE\" CONTENT=\"text/html;\n"
+"charset=windows-1252\">\n"
+"<TITLE>Raspberry Pi - Expansion Board</TITLE>\n"
+"</HEAD>\n"
+"<BODY LANG=\"fr-FR\" DIR=\"LTR\">\n"
+"<P>This project template is the basis of an expansion board for the\n"
+"<A HREF=\"http://www.raspberrypi.org/\" TARGET=\"blank\">Raspberry Pi $25\n"
+"ARM board.</A> <BR><BR>This base project includes a PCB edge defined\n"
+"as the same size as the Raspberry-Pi PCB with the connectors placed\n"
+"correctly to align the two boards. All IO present on the Raspberry-Pi\n"
+"board is connected to the project through the 0.1&quot; expansion\n"
+"headers. <BR><BR>The board outline looks like the following:\n"
+"</P>\n"
+"<P><IMG SRC=\"brd.png\" NAME=\"brd\" ALIGN=BOTTOM WIDTH=680 HEIGHT=378\n"
+"BORDER=0><BR><BR><BR><BR>\n"
+"</P>\n"
+"<P>(c)2012 Brian Sidebotham<BR>(c)2012 KiCad Developers</P>\n"
+"</BODY>\n"
+"</HTML>\n"
+msgstr ""
+
+#. type: Plain text
+#: kicad.adoc:727
+msgid ""
+"Finally, `meta` can optionally contain an image named `icon.png`, which will "
+"be used as the template's icon in the template selection dialog. The icon "
+"should be a 64 x 64 pixel PNG image."
+msgstr ""
+"最后，`meta` 可选择包含一张名为 `icon.png` 的图片，该图片将在模板选择对话框中"
+"用作模板的图标。图标应为 64 x 64 像素的 PNG 图像。"
+
+#. type: Title ====
+#: kicad.adoc:728
+#, no-wrap
+msgid "Template file renaming"
+msgstr "模板文件重命名"
+
+#. type: Plain text
+#: kicad.adoc:734
 msgid ""
 "All files and directories in a template are copied to the new project path "
-"when a project is created using a template, except `meta`.  Files and "
-"directories containing the template name will be renamed with the new "
-"project file name."
+"when a project is created using a template, except `meta` and any dotfiles.  "
+"Files and directories containing the template directory name will be renamed "
+"with the new project file name."
 msgstr ""
-"当使用模板创建工程时，模板中的所有文件和目录都被复制到新的工程路径中，除了 "
-"`meta'。 包含模板名称的文件和目录将被重命名为新的工程文件名。"
+"使用模板创建工程时，模板中的所有文件和目录都会复制到新的工程路径中，`meta` 和"
+"任何隐藏文件除外。 包含模板目录名的文件和目录将以新工程文件名重命名。"
 
 #. type: Plain text
-#: kicad.adoc:596
+#: kicad.adoc:737
 msgid ""
-"For example, creating a project called `newproject` from a template named "
-"`example`:"
-msgstr "例如，从一个名为 `example` 的模板创建一个名为 `newproject` 的工程："
+"For example, using a template named `example` (left) to create a project "
+"named `newproject` (right), with renamed files shown in *bold*:"
+msgstr ""
+"例如，使用名为 `example`（左）的模板创建名为 `newproject`（右）的工程，重命名"
+"后的文件以 *粗体* 显示："
 
 #. type: Table
-#: kicad.adoc:617
+#: kicad.adoc:758
 #, no-wrap
 msgid ""
 "|Files in template `example` directory\n"
@@ -1516,17 +1789,17 @@ msgstr ""
 "`third.kicad_pcb`\n"
 
 #. type: Plain text
-#: kicad.adoc:622
+#: kicad.adoc:763
 msgid ""
 "A template does not need to contain a complete project. If a required "
-"project file is missing, KiCad will create it using its default create "
+"project file is missing, KiCad will create the file using the default create "
 "project behavior:"
 msgstr ""
-"一个模板不需要包含一个完整的工程。如果缺少必要的工程文件，KiCad 将使用其默认"
-"的创建工程行为来创建它："
+"模板无需包含完整的工程。如果缺少所需的项目文件，KiCad 将使用默认的创建工程行"
+"为来创建文件："
 
 #. type: Table
-#: kicad.adoc:641
+#: kicad.adoc:782
 #, no-wrap
 msgid ""
 "|Files in template `example` directory\n"
@@ -1564,17 +1837,17 @@ msgstr ""
 "`*newproject.kicad_pcb*` (default)\n"
 
 #. type: Plain text
-#: kicad.adoc:646
+#: kicad.adoc:787
 msgid ""
-"As an exception to the template name renaming rule, if one project file (`."
-"kicad_pro`) exists and its name doesn't match the template name, KiCad will "
-"do the renaming based on that project file name instead:"
+"As an exception to the template name renaming rule, if the template contains "
+"one project file (`.kicad_pro`) and its name doesn't match the template "
+"name, KiCad will do the renaming based on that project file name instead:"
 msgstr ""
-"作为模板名称重命名规则的一个例外，如果存在一个工程文件（`.kicad_pro`），且其"
-"名称与模板名称不一致，KiCad 将根据该工程文件名称进行重命名："
+"作为模板名称重命名规则的例外情况，如果模板包含一个工程文件 (`.kicad_pro`)，且"
+"其名称与模板名称不匹配，KiCad 将根据该工程文件名称进行重命名："
 
 #. type: Table
-#: kicad.adoc:667
+#: kicad.adoc:808
 #, no-wrap
 msgid ""
 "|Files in template `example` directory\n"
@@ -1616,136 +1889,24 @@ msgstr ""
 "`second-example.kicad_pcb`\n"
 
 #. type: Plain text
-#: kicad.adoc:670
+#: kicad.adoc:811
 msgid "It is not recommended to create a template with multiple project files."
 msgstr "不建议创建包含多个工程文件的模板。"
 
-#. type: Title ====
-#: kicad.adoc:671
-#, no-wrap
-msgid "Template example"
-msgstr "模板示例"
-
-#. type: Plain text
-#: kicad.adoc:674
-msgid ""
-"Here is an example showing project files for *raspberrypi-gpio* template:"
-msgstr "这是一个显示 *raspberrypi-gpio* 模板的工程文件的示例："
-
-#. type: Target for macro image
-#: kicad.adoc:675
-#, no-wrap
-msgid "images/template_tree.png"
-msgstr "images/template_tree.png"
-
-#. type: Plain text
-#: kicad.adoc:678
-msgid "And the metadata files:"
-msgstr "和元数据文件："
-
-#. type: Target for macro image
-#: kicad.adoc:679
-#, no-wrap
-msgid "images/template_tree_meta.png"
-msgstr "images/template_tree_meta.png"
-
-#. type: Title ====
-#: kicad.adoc:681
-#, no-wrap
-msgid "Required file"
-msgstr "所需文件"
-
-#. type: Table
-#: kicad.adoc:686
-#, no-wrap
-msgid "|`meta/info.html` |HTML-formatted information describing the template.\n"
-msgstr "|`meta/info.html` |描述模板的 HTML 格式的信息。\n"
-
-#. type: Plain text
-#: kicad.adoc:691
-msgid ""
-"The `<title>` tag determines the actual name of the template that is exposed "
-"to the user for template selection. Note that the project template name will "
-"be cut off if it's too long."
-msgstr ""
-"`<title>` 标签决定了暴露在用户面前的模板的实际名称，用于模板选择。注意，如果"
-"工程模板名称太长，将被切断。"
-
-#. type: Plain text
-#: kicad.adoc:694
-msgid ""
-"Using HTML means that images can be easily in-lined without having to invent "
-"a new scheme. Only basic HTML tags can be used in this document."
-msgstr ""
-"使用 HTML 意味着可以轻松地对图像进行内联，而无需发明新方案。 本文档中只能使用"
-"基本 HTML 标记。"
-
-#. type: Plain text
-#: kicad.adoc:696
-msgid "Here is a sample `info.html` file:"
-msgstr "这里有一个 `info.html` 文件的例子："
-
-#. type: delimited block -
-#: kicad.adoc:721
-#, no-wrap
-msgid ""
-"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\">\n"
-"<HTML>\n"
-"<HEAD>\n"
-"<META HTTP-EQUIV=\"CONTENT-TYPE\" CONTENT=\"text/html;\n"
-"charset=windows-1252\">\n"
-"<TITLE>Raspberry Pi - Expansion Board</TITLE>\n"
-"</HEAD>\n"
-"<BODY LANG=\"fr-FR\" DIR=\"LTR\">\n"
-"<P>This project template is the basis of an expansion board for the\n"
-"<A HREF=\"http://www.raspberrypi.org/\" TARGET=\"blank\">Raspberry Pi $25\n"
-"ARM board.</A> <BR><BR>This base project includes a PCB edge defined\n"
-"as the same size as the Raspberry-Pi PCB with the connectors placed\n"
-"correctly to align the two boards. All IO present on the Raspberry-Pi\n"
-"board is connected to the project through the 0.1&quot; expansion\n"
-"headers. <BR><BR>The board outline looks like the following:\n"
-"</P>\n"
-"<P><IMG SRC=\"brd.png\" NAME=\"brd\" ALIGN=BOTTOM WIDTH=680 HEIGHT=378\n"
-"BORDER=0><BR><BR><BR><BR>\n"
-"</P>\n"
-"<P>(c)2012 Brian Sidebotham<BR>(c)2012 KiCad Developers</P>\n"
-"</BODY>\n"
-"</HTML>\n"
-msgstr ""
-
-#. type: Title ====
-#: kicad.adoc:723
-#, no-wrap
-msgid "Optional files"
-msgstr "可选文件"
-
-#. type: Table
-#: kicad.adoc:729
-#, no-wrap
-msgid ""
-"|`meta/icon.png` |A 64 x 64 pixel PNG icon file which is used as a\n"
-"clickable icon in the template selection dialog.\n"
-msgstr "|`meta/icon.png` |一个 64 x 64 像素的 PNG 图标文件，在模板选择对话框中作为一个可点击的图标。\n"
-
-#. type: Plain text
-#: kicad.adoc:733
-msgid ""
-"Any other image files used by `meta/info.html`, such as the image of the "
-"board file in the dialog above, are placed in this folder as well."
-msgstr ""
-"`meta/info.html` 使用的任何其他图像文件，如上面对话框中的板文件的图像，也放在"
-"这个文件夹中。"
-
 #. type: Title ==
-#: kicad.adoc:735
+#: kicad.adoc:813
 #, no-wrap
 msgid "Plugin and Content Manager"
 msgstr "插件和内容管理器"
 
 #. type: Plain text
-#: kicad.adoc:738
-msgid "TODO: Write this section"
-msgstr "TODO: 撰写本节"
+#: kicad.adoc:818
+#, no-wrap
+msgid ""
+"This section of the KiCad documentation has not yet been written.  We\n"
+"      appreciate your patience as our small team of volunteer documentation\n"
+"      writers work to update and expand the documentation.\n"
+msgstr "本节 KiCad 文档尚未编写完成。 我们的志愿文档编写小组正在努力更新和扩充文档，请您耐心等待。\n"
 
 #. type: Title ==
 #: kicad_projmgr_actions_reference.adoc:3
@@ -1771,9 +1932,9 @@ msgstr ""
 msgid "KiCad Project Manager"
 msgstr "KiCad 工程管理器"
 
-#. NOTE: this text between the section header and the table is *required* or
-#. asciidoctor-web-pdf will not insert page breaks in the table correctly and
-#. the PDF will be truncated.
+#.  NOTE: this text between the section header and the table is *required* or
+#.  asciidoctor-web-pdf will not insert page breaks in the table correctly and
+#.  the PDF will be truncated.
 #. type: Plain text
 #: kicad_projmgr_actions_reference.adoc:22
 msgid ""
@@ -1785,102 +1946,354 @@ msgstr ""
 "部分的任何动作。"
 
 #. type: Table
-#: kicad_projmgr_actions_reference.adoc:71
+#: kicad_projmgr_actions_reference.adoc:74
 #, no-wrap
 msgid ""
 "| Action | Default Hotkey | Description\n"
-"| New Project...\n"
-"  | kbd:[Ctrl+N]\n"
-"  | Create new blank project\n"
-"| New Project from Template...\n"
-"  | kbd:[Ctrl+T]\n"
-"  | Create new project from template\n"
-"| Open Project...\n"
-"  | kbd:[Ctrl+O]\n"
-"  | Open an existing project\n"
-"| Open Demo Project...\n"
-"  |\n"
-"  | Open a demo project\n"
 "| Close Project\n"
 "  |\n"
 "  | Close the current project\n"
+"| Image Converter\n"
+"  | kbd:[Ctrl+B]\n"
+"  | Convert bitmap images to schematic or PCB components\n"
+"| Drawing Sheet Editor\n"
+"  | kbd:[Ctrl+Y]\n"
+"  | Edit drawing sheet borders and title block\n"
+"| Footprint Editor\n"
+"  | kbd:[Ctrl+F]\n"
+"  | Edit PCB footprints\n"
+"| PCB Editor\n"
+"  | kbd:[Ctrl+P]\n"
+"  | Edit PCB\n"
 "| Schematic Editor\n"
 "  | kbd:[Ctrl+E]\n"
 "  | Edit schematic\n"
 "| Symbol Editor\n"
 "  | kbd:[Ctrl+L]\n"
 "  | Edit schematic symbols\n"
-"| PCB Editor\n"
-"  | kbd:[Ctrl+P]\n"
-"  | Edit PCB\n"
-"| Footprint Editor\n"
-"  | kbd:[Ctrl+F]\n"
-"  | Edit PCB footprints\n"
-"| Gerber Viewer\n"
-"  | kbd:[Ctrl+G]\n"
-"  | Preview Gerber output files\n"
-"| Image Converter\n"
-"  | kbd:[Ctrl+B]\n"
-"  | Convert bitmap images to schematic or PCB components\n"
-"| Calculator Tools\n"
+"| Clone Project from Repository...\n"
 "  |\n"
-"  | Run component calculations, track width calculations, etc.\n"
-"| Drawing Sheet Editor\n"
-"  | kbd:[Ctrl+Y]\n"
-"  | Edit drawing sheet borders and title block\n"
-"| Plugin and Content Manager\n"
-"  | kbd:[Ctrl+M]\n"
-"  | Manage downloadable packages from KiCad and 3rd party repositories\n"
+"  | Clone a project from an existing repository\n"
+"| New Project from Template...\n"
+"  | kbd:[Ctrl+T]\n"
+"  | Create new project from template\n"
+"| New Project...\n"
+"  | kbd:[Ctrl+N]\n"
+"  | Create new blank project\n"
+"| Open Demo Project...\n"
+"  |\n"
+"  | Open a demo project\n"
+"| Open Project...\n"
+"  | kbd:[Ctrl+O]\n"
+"  | Open an existing project\n"
 "| Open Text Editor\n"
 "  |\n"
 "  | Launch preferred text editor\n"
-msgstr ""
-"| 动作 | 默认快捷键 | 描述\n"
-"| 新建工程...\n"
-"  | kbd:[Ctrl+N]\n"
-"  | 创建新的空白工程\n"
-"| 从模板新建工程...\n"
-"  | kbd:[Ctrl+T] \n"
-"  | 从模板中创建新的工程\n"
-"| 打开工程...\n"
-"  | kbd:[Ctrl+O] \n"
-"  | 打开一个现有的工程\n"
-"| 打开演示工程...\n"
+"| Plugin and Content Manager\n"
+"  | kbd:[Ctrl+M]\n"
+"  | Run Plugin and Content Manager\n"
+"| Calculator Tools\n"
 "  |\n"
-"  | 打开一个演示工程\n"
+"  | Run component calculations, track width calculations, etc.\n"
+"| Gerber Viewer\n"
+"  | kbd:[Ctrl+G]\n"
+"  | Preview Gerber output files\n"
+msgstr ""
+"| Action | Default Hotkey | Description\n"
 "| 关闭工程\n"
 "  |\n"
 "  | 关闭当前工程\n"
-"|原理图编辑器\n"
-"  | kbd:[Ctrl+E] \n"
-"  | 编辑原理图\n"
-"| 符号编辑器\n"
-"  | kbd:[Ctrl+L] \n"
-"  | 编辑原理图符号\n"
-"| PCB 编辑器\n"
-"  | kbd:[Ctrl+P] \n"
-"  | 编辑 PCB\n"
-"| 封装编辑器\n"
-"  | kbd:[Ctrl+F] \n"
-"  | 编辑 PCB 封装\n"
-"| Gerber 浏览器\n"
-"  | kbd:[Ctrl+G] \n"
-"  | 预览 Gerber 输出文件\n"
-"| 图像转换器\n"
-"  | kbd:[Ctrl+B] \n"
+"| 图像转换\n"
+"  | kbd:[Ctrl+B]\n"
 "  | 将位图图像转换为原理图或 PCB 元件\n"
-"| 计算器工具\n"
-"  |\n"
-"  | 运行元件计算、布线宽度计算等。\n"
 "| 图框编辑器\n"
-"  | kbd:[Ctrl+Y] \n"
-"  | 编辑图框边框和标题块\n"
-"| 插件和内容管理器\n"
-"  | kbd:[Ctrl+M] \n"
-"  | 管理从 KiCad 和第三方软件库下载的软件包\n"
+"  | kbd:[Ctrl+Y]\n"
+"  | 编辑图框页边框和标题栏\n"
+"| 封装编辑器\n"
+"  | kbd:[Ctrl+F]\n"
+"  | 编辑 PCB 封装\n"
+"| PCB 编辑器\n"
+"  | kbd:[Ctrl+P]\n"
+"  | 编辑 PCB 布局\n"
+"| 原理图编辑器\n"
+"  | kbd:[Ctrl+E]\n"
+"  | 编辑电路原理图\n"
+"| 符号编辑器\n"
+"  | kbd:[Ctrl+L]\n"
+"  | 编辑原理图符号\n"
+"| 从仓库克隆工程...\n"
+"  |\n"
+"  | 从现有仓库克隆工程\n"
+"| 从模板新建工程...\n"
+"  | kbd:[Ctrl+T]\n"
+"  | 从模板创建新工程\n"
+"| 新建空白工程...\n"
+"  | kbd:[Ctrl+N]\n"
+"  | 创建新的空白工程\n"
+"| 打开演示工程...\n"
+"  |\n"
+"  | 打开演示工程\n"
+"| 打开工程...\n"
+"  | kbd:[Ctrl+O]\n"
+"  | 打开已有工程\n"
 "| 打开文本编辑器\n"
 "  |\n"
-"  | 启动偏好设置文本编辑器\n"
+"  | 启动偏好设置的文本编辑器\n"
+"| 插件与内容管理器\n"
+"  | kbd:[Ctrl+M]\n"
+"  | 运行插件与内容管理器\n"
+"| 计算器工具\n"
+"  |\n"
+"  | 运行元件计算、走线宽度计算等\n"
+"| Gerber 查看器\n"
+"  | kbd:[Ctrl+G]\n"
+"  | 预览 Gerber 输出文件\n"
+
+#~ msgid "Running the other tools from KiCad manager has some advantages:"
+#~ msgstr "从 KiCad 管理器运行其他工具有一些优点："
+
+#~ msgid ""
+#~ "synchronization of the design between the schematic editor and board "
+#~ "editor (without creating netlist files)"
+#~ msgstr "原理图编辑器和电路板编辑器之间的设计同步 (无需创建网表文件)"
+
+#~ msgid ""
+#~ "KiCad currently only supports having one project open at a time.  When "
+#~ "running the schematic and board editors from the KiCad project manager, "
+#~ "you can only edit the schematics and board associated with the open "
+#~ "project.  When these tools are run in _standalone_ mode, you can open any "
+#~ "file in any project, but cross probing between tools can give strange "
+#~ "results."
+#~ msgstr ""
+#~ "KiCad 目前只支持一次打开一个工程。 当从 KiCad 工程管理器中运行原理图和 "
+#~ "PCB 编辑器时，你只能编辑与打开的工程相关的原理图和 PCB。 当这些工具以_独立"
+#~ "模式运行时，你可以打开任何工程中的任何文件，但是工具之间的交叉探测会产生奇"
+#~ "怪的结果。"
+
+#, no-wrap
+#~ msgid "Project manager window"
+#~ msgstr "工程管理器窗口"
+
+#, no-wrap
+#~ msgid "Project tree view"
+#~ msgstr "工程工作区视图"
+
+#, no-wrap
+#~ msgid "Side toolbar"
+#~ msgstr "侧面工具栏"
+
+#~ msgid ""
+#~ "KiCad is able to import files created by some other software packages. "
+#~ "Currently the following types of project are supported:"
+#~ msgstr "KiCad 可以导入由其他一些软件包创建的文件。目前支持以下工程类型："
+
+#~ msgid ""
+#~ "Note also that the environment variable `KIPRJMOD` is *always* internally "
+#~ "defined by KiCad, and expands to the **current project absolute path**."
+#~ msgstr ""
+#~ "请注意，环境变量 `KIPRJMOD` 总是由 KiCad 内部定义，并扩展到 **当前工程的绝"
+#~ "对路径**。"
+
+#~ msgid ""
+#~ "For instance, `$\\{KIPRJMOD\\}/connect.pretty` is always the `connect."
+#~ "pretty` folder (the footprint library) inside **the current project "
+#~ "folder**."
+#~ msgstr ""
+#~ "例如，`${KIPRJMOD\\}/connect.pretty` 总是 **当前项目文件夹** 内的 "
+#~ "`connect.pretty` 文件夹（封装库）。"
+
+#~ msgid ""
+#~ "The `KIPRJMOD` variable cannot be changed in the Configure Paths dialog "
+#~ "or overridden by an external environment variable."
+#~ msgstr ""
+#~ "`KIPRJMOD` 变量不能在配置路径对话框中改变，也不能被外部环境变量所覆盖。"
+
+#~ msgid ""
+#~ "Some advanced environment variables can be set to customize KiCad's "
+#~ "behavior.  These variables are not shown in the environment variable "
+#~ "configuration and cannot be used in path substitutions. They cannot be "
+#~ "modified in the Configure Paths dialog, but they can be overridden by "
+#~ "system environment variables."
+#~ msgstr ""
+#~ "一些高级环境变量可以被设置来定制 KiCad 的行为。 这些变量不在环境变量配置中"
+#~ "显示，也不能在路径替换中使用。它们不能在配置路径对话框中被修改，但它们可以"
+#~ "被系统环境变量覆盖。"
+
+#, no-wrap
+#~ msgid "*Additional environment variables:*\n"
+#~ msgstr "*其他环境变量：*\n"
+
+#~ msgid ""
+#~ "The template name is the directory name where the template files are "
+#~ "stored. The metadata directory is a subdirectory named `meta` containing "
+#~ "files describing the template."
+#~ msgstr ""
+#~ "模板名称是存储模板文件的目录名称。元数据目录是一个名为 `meta` 的子目录，包"
+#~ "含描述模板的文件。"
+
+#~ msgid ""
+#~ "The metadata consists of one required file, and may contain optional "
+#~ "files.  All files must be created by the user using a text editor or "
+#~ "previous KiCad project files, and placed into the required directory "
+#~ "structure."
+#~ msgstr ""
+#~ "元数据由一个必需文件组成，可能包含可选文件。 所有文件必须由用户使用文本编"
+#~ "辑器或以前的 KiCad 工程文件创建，并放入所需的目录结构中。"
+
+#~ msgid ""
+#~ "For example, creating a project called `newproject` from a template named "
+#~ "`example`:"
+#~ msgstr "例如，从一个名为 `example` 的模板创建一个名为 `newproject` 的工程："
+
+#, no-wrap
+#~ msgid "Template example"
+#~ msgstr "模板示例"
+
+#~ msgid ""
+#~ "Here is an example showing project files for *raspberrypi-gpio* template:"
+#~ msgstr "这是一个显示 *raspberrypi-gpio* 模板的工程文件的示例："
+
+#, no-wrap
+#~ msgid "images/template_tree.png"
+#~ msgstr "images/template_tree.png"
+
+#~ msgid "And the metadata files:"
+#~ msgstr "和元数据文件："
+
+#, no-wrap
+#~ msgid "images/template_tree_meta.png"
+#~ msgstr "images/template_tree_meta.png"
+
+#, no-wrap
+#~ msgid "Required file"
+#~ msgstr "所需文件"
+
+#, no-wrap
+#~ msgid "|`meta/info.html` |HTML-formatted information describing the template.\n"
+#~ msgstr "|`meta/info.html` |描述模板的 HTML 格式的信息。\n"
+
+#~ msgid ""
+#~ "Using HTML means that images can be easily in-lined without having to "
+#~ "invent a new scheme. Only basic HTML tags can be used in this document."
+#~ msgstr ""
+#~ "使用 HTML 意味着可以轻松地对图像进行内联，而无需发明新方案。 本文档中只能"
+#~ "使用基本 HTML 标记。"
+
+#, no-wrap
+#~ msgid "Optional files"
+#~ msgstr "可选文件"
+
+#, no-wrap
+#~ msgid ""
+#~ "|`meta/icon.png` |A 64 x 64 pixel PNG icon file which is used as a\n"
+#~ "clickable icon in the template selection dialog.\n"
+#~ msgstr "|`meta/icon.png` |一个 64 x 64 像素的 PNG 图标文件，在模板选择对话框中作为一个可点击的图标。\n"
+
+#~ msgid ""
+#~ "Any other image files used by `meta/info.html`, such as the image of the "
+#~ "board file in the dialog above, are placed in this folder as well."
+#~ msgstr ""
+#~ "`meta/info.html` 使用的任何其他图像文件，如上面对话框中的板文件的图像，也"
+#~ "放在这个文件夹中。"
+
+#~ msgid "TODO: Write this section"
+#~ msgstr "TODO: 撰写本节"
+
+#, no-wrap
+#~ msgid ""
+#~ "| Action | Default Hotkey | Description\n"
+#~ "| New Project...\n"
+#~ "  | kbd:[Ctrl+N]\n"
+#~ "  | Create new blank project\n"
+#~ "| New Project from Template...\n"
+#~ "  | kbd:[Ctrl+T]\n"
+#~ "  | Create new project from template\n"
+#~ "| Open Project...\n"
+#~ "  | kbd:[Ctrl+O]\n"
+#~ "  | Open an existing project\n"
+#~ "| Open Demo Project...\n"
+#~ "  |\n"
+#~ "  | Open a demo project\n"
+#~ "| Close Project\n"
+#~ "  |\n"
+#~ "  | Close the current project\n"
+#~ "| Schematic Editor\n"
+#~ "  | kbd:[Ctrl+E]\n"
+#~ "  | Edit schematic\n"
+#~ "| Symbol Editor\n"
+#~ "  | kbd:[Ctrl+L]\n"
+#~ "  | Edit schematic symbols\n"
+#~ "| PCB Editor\n"
+#~ "  | kbd:[Ctrl+P]\n"
+#~ "  | Edit PCB\n"
+#~ "| Footprint Editor\n"
+#~ "  | kbd:[Ctrl+F]\n"
+#~ "  | Edit PCB footprints\n"
+#~ "| Gerber Viewer\n"
+#~ "  | kbd:[Ctrl+G]\n"
+#~ "  | Preview Gerber output files\n"
+#~ "| Image Converter\n"
+#~ "  | kbd:[Ctrl+B]\n"
+#~ "  | Convert bitmap images to schematic or PCB components\n"
+#~ "| Calculator Tools\n"
+#~ "  |\n"
+#~ "  | Run component calculations, track width calculations, etc.\n"
+#~ "| Drawing Sheet Editor\n"
+#~ "  | kbd:[Ctrl+Y]\n"
+#~ "  | Edit drawing sheet borders and title block\n"
+#~ "| Plugin and Content Manager\n"
+#~ "  | kbd:[Ctrl+M]\n"
+#~ "  | Manage downloadable packages from KiCad and 3rd party repositories\n"
+#~ "| Open Text Editor\n"
+#~ "  |\n"
+#~ "  | Launch preferred text editor\n"
+#~ msgstr ""
+#~ "| 动作 | 默认快捷键 | 描述\n"
+#~ "| 新建工程...\n"
+#~ "  | kbd:[Ctrl+N]\n"
+#~ "  | 创建新的空白工程\n"
+#~ "| 从模板新建工程...\n"
+#~ "  | kbd:[Ctrl+T] \n"
+#~ "  | 从模板中创建新的工程\n"
+#~ "| 打开工程...\n"
+#~ "  | kbd:[Ctrl+O] \n"
+#~ "  | 打开一个现有的工程\n"
+#~ "| 打开演示工程...\n"
+#~ "  |\n"
+#~ "  | 打开一个演示工程\n"
+#~ "| 关闭工程\n"
+#~ "  |\n"
+#~ "  | 关闭当前工程\n"
+#~ "|原理图编辑器\n"
+#~ "  | kbd:[Ctrl+E] \n"
+#~ "  | 编辑原理图\n"
+#~ "| 符号编辑器\n"
+#~ "  | kbd:[Ctrl+L] \n"
+#~ "  | 编辑原理图符号\n"
+#~ "| PCB 编辑器\n"
+#~ "  | kbd:[Ctrl+P] \n"
+#~ "  | 编辑 PCB\n"
+#~ "| 封装编辑器\n"
+#~ "  | kbd:[Ctrl+F] \n"
+#~ "  | 编辑 PCB 封装\n"
+#~ "| Gerber 浏览器\n"
+#~ "  | kbd:[Ctrl+G] \n"
+#~ "  | 预览 Gerber 输出文件\n"
+#~ "| 图像转换器\n"
+#~ "  | kbd:[Ctrl+B] \n"
+#~ "  | 将位图图像转换为原理图或 PCB 元件\n"
+#~ "| 计算器工具\n"
+#~ "  |\n"
+#~ "  | 运行元件计算、布线宽度计算等。\n"
+#~ "| 图框编辑器\n"
+#~ "  | kbd:[Ctrl+Y] \n"
+#~ "  | 编辑图框边框和标题块\n"
+#~ "| 插件和内容管理器\n"
+#~ "  | kbd:[Ctrl+M] \n"
+#~ "  | 管理从 KiCad 和第三方软件库下载的软件包\n"
+#~ "| 打开文本编辑器\n"
+#~ "  |\n"
+#~ "  | 启动偏好设置文本编辑器\n"
 
 #, no-wrap
 #~ msgid "*Project manager file:*\n"

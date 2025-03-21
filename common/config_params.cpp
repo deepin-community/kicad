@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2004 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -234,7 +234,7 @@ void PARAM_CFG_INT_WITH_SCALE::SaveParam( wxConfigBase* aConfig ) const
 
     // We cannot use aConfig->Write for a double, because
     // this function uses a format with very few digits in mantissa,
-    // and truncature issues are frequent.
+    // and truncate issues are frequent.
     // We uses our function.
     ConfigBaseWriteDouble( aConfig, m_Ident, *m_Pt_param * m_BIU_to_cfgunit );
 }
@@ -291,7 +291,7 @@ void PARAM_CFG_DOUBLE::SaveParam( wxConfigBase* aConfig ) const
 
     // We cannot use aConfig->Write for a double, because
     // this function uses a format with very few digits in mantissa,
-    // and truncature issues are frequent.
+    // and truncate issues are frequent.
     // We uses our function.
     ConfigBaseWriteDouble( aConfig, m_Ident, *m_Pt_param );
 }
@@ -451,7 +451,7 @@ void PARAM_CFG_FILENAME::ReadParam( wxConfigBase* aConfig ) const
     // under Window we must use \ instead of /
     // mainly if there is a server name in path (something like \\server\kicad)
 #ifdef __WINDOWS__
-    prm.Replace(wxT("/"), wxT("\\"));
+    prm.Replace( wxT( "/" ), wxT( "\\" ) );
 #endif
     *m_Pt_param = prm;
 }
@@ -463,8 +463,9 @@ void PARAM_CFG_FILENAME::SaveParam( wxConfigBase* aConfig ) const
         return;
 
     wxString prm = *m_Pt_param;
+
     // filenames are stored using Unix notation
-    prm.Replace(wxT("\\"), wxT("/") );
+    prm.Replace( wxT( "\\" ), wxT( "/" ) );
     aConfig->Write( m_Ident, prm );
 }
 
@@ -497,13 +498,14 @@ void PARAM_CFG_LIBNAME_LIST::ReadParam( wxConfigBase* aConfig ) const
 
         if( libname.IsEmpty() )
             break;
+
         // file names are stored using Unix notation
         // under Window we must use \ instead of /
         // mainly if there is a server name in path (something like \\server\kicad)
 #ifdef __WINDOWS__
-        libname.Replace(wxT("/"), wxT("\\"));
+        libname.Replace( wxT( "/" ), wxT( "\\" ) );
 #endif
-       libname_list->Add( libname );
+        libname_list->Add( libname );
     }
 }
 
@@ -523,11 +525,11 @@ void PARAM_CFG_LIBNAME_LIST::SaveParam( wxConfigBase* aConfig ) const
         configkey = m_Ident;
 
         // We use indexlib+1 because first lib name is LibName1
-        configkey << (indexlib + 1);
+        configkey << ( indexlib + 1 );
         libname = libname_list->Item( indexlib );
 
         // filenames are stored using Unix notation
-        libname.Replace(wxT("\\"), wxT("/") );
+        libname.Replace( wxT( "\\" ), wxT( "/" ) );
         aConfig->Write( configkey, libname );
     }
 }

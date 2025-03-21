@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -43,17 +43,16 @@ namespace KI_TEST
  */
 bool IsImagePixelOfColor( const wxImage& aImage, int aX, int aY, const KIGFX::COLOR4D& aColor );
 
+/**
+ * Check if an image is identical to another image, pixel by pixel
+ *
+ * (this is exhaustive, avoid using it for large images)
+ */
+bool ImagesHaveSamePixels( const wxImage& aImgA, const wxImage& aImgB );
+
 } // namespace KI_TEST
 
 
-namespace BOOST_TEST_PRINT_NAMESPACE_OPEN
-{
-template <>
-struct print_log_value<wxImage>
-{
-    void operator()( std::ostream& os, wxImage const& aImage );
-};
-} // namespace BOOST_TEST_PRINT_NAMESPACE_OPEN
-BOOST_TEST_PRINT_NAMESPACE_CLOSE
+std::ostream& boost_test_print_type( std::ostream& os, wxImage const& aImage );
 
 #endif

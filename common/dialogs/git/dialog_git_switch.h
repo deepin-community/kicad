@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021-2022 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,12 +26,12 @@
 #define DIALOG_GIT_SWITCH_H
 
 #include <dialog_shim.h>
+#include <wx/timer.h>
 #include <git2.h>
 
 class wxButton;
 class wxListView;
 class wxTextCtrl;
-class wxTimer;
 class wxListEvent;
 
 struct BranchData

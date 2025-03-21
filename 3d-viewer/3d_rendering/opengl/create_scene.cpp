@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2015-2016 Mario Luzeiro <mrluzeiro@ua.pt>
  * Copyright (C) 2023 CERN
- * Copyright (C) 2015-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,6 +28,7 @@
 #include <footprint.h>
 #include "../../3d_math.h"
 #include "convert_basic_shapes_to_polygon.h"
+#include <lset.h>
 #include <trigo.h>
 #include <project.h>
 #include <core/profile.h>        // To use GetRunningMicroSecs or another profiling utility
@@ -475,13 +476,12 @@ void RENDER_3D_OPENGL::reload( REPORTER* aStatusReporter, REPORTER* aWarningRepo
     m_antiBoardPolys.Append( VECTOR2I( -INT_MAX/2,  INT_MAX/2 ) );
     m_antiBoardPolys.Outline( 0 ).SetClosed( true );
 
-    m_antiBoardPolys.BooleanSubtract( m_boardAdapter.GetBoardPoly(),
-                                      SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+    m_antiBoardPolys.BooleanSubtract( m_boardAdapter.GetBoardPoly() );
     m_antiBoard = createBoard( m_antiBoardPolys );
 
     SHAPE_POLY_SET board_poly_with_holes = m_boardAdapter.GetBoardPoly().CloneDropTriangulation();
-    board_poly_with_holes.BooleanSubtract( m_boardAdapter.GetTH_ODPolys(), SHAPE_POLY_SET::PM_FAST );
-    board_poly_with_holes.BooleanSubtract( m_boardAdapter.GetNPTH_ODPolys(), SHAPE_POLY_SET::PM_FAST );
+    board_poly_with_holes.BooleanSubtract( m_boardAdapter.GetTH_ODPolys() );
+    board_poly_with_holes.BooleanSubtract( m_boardAdapter.GetNPTH_ODPolys() );
 
     m_boardWithHoles = createBoard( board_poly_with_holes );
 
@@ -494,8 +494,7 @@ void RENDER_3D_OPENGL::reload( REPORTER* aStatusReporter, REPORTER* aWarningRepo
 
     SHAPE_POLY_SET outerPolyTHT = m_boardAdapter.GetTH_ODPolys().CloneDropTriangulation();
 
-    outerPolyTHT.BooleanIntersection( m_boardAdapter.GetBoardPoly(),
-                                      SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+    outerPolyTHT.BooleanIntersection( m_boardAdapter.GetBoardPoly() );
 
     m_outerThroughHoles = generateHoles( m_boardAdapter.GetTH_ODs().GetList(), outerPolyTHT,
                                          1.0f, 0.0f, false, &m_boardAdapter.GetTH_IDs() );
@@ -574,29 +573,24 @@ void RENDER_3D_OPENGL::reload( REPORTER* aStatusReporter, REPORTER* aWarningRepo
 
                 if( LSET::PhysicalLayersMask().test( layer ) )
                 {
-                    polyListSubtracted.BooleanIntersection( m_boardAdapter.GetBoardPoly(),
-                                                            SHAPE_POLY_SET::PM_FAST );
+                    polyListSubtracted.BooleanIntersection( m_boardAdapter.GetBoardPoly() );
                 }
 
                 if( layer != B_Mask && layer != F_Mask )
                 {
-                    polyListSubtracted.BooleanSubtract( m_boardAdapter.GetTH_ODPolys(),
-                                                        SHAPE_POLY_SET::PM_FAST );
-                    polyListSubtracted.BooleanSubtract( m_boardAdapter.GetNPTH_ODPolys(),
-                                                        SHAPE_POLY_SET::PM_FAST );
+                    polyListSubtracted.BooleanSubtract( m_boardAdapter.GetTH_ODPolys() );
+                    polyListSubtracted.BooleanSubtract( m_boardAdapter.GetNPTH_ODPolys() );
                 }
 
                 if( m_boardAdapter.m_Cfg->m_Render.subtract_mask_from_silk )
                 {
                     if( layer == B_SilkS && map_poly.find( B_Mask ) != map_poly.end() )
                     {
-                        polyListSubtracted.BooleanSubtract( *map_poly.at( B_Mask ),
-                                                            SHAPE_POLY_SET::PM_FAST );
+                        polyListSubtracted.BooleanSubtract( *map_poly.at( B_Mask ) );
                     }
                     else if( layer == F_SilkS && map_poly.find( F_Mask ) != map_poly.end() )
                     {
-                        polyListSubtracted.BooleanSubtract( *map_poly.at( F_Mask ),
-                                                            SHAPE_POLY_SET::PM_FAST );
+                        polyListSubtracted.BooleanSubtract( *map_poly.at( F_Mask ) );
                     }
                 }
 
@@ -611,19 +605,22 @@ void RENDER_3D_OPENGL::reload( REPORTER* aStatusReporter, REPORTER* aWarningRepo
             m_layers[layer] = oglList;
     }
 
-    if( m_boardAdapter.m_Cfg->m_Render.differentiate_plated_copper )
+    if( m_boardAdapter.m_Cfg->m_Render.DifferentiatePlatedCopper() )
     {
-        const SHAPE_POLY_SET* frontPlatedPadAndGraphicPolys = m_boardAdapter.GetFrontPlatedPadAndGraphicPolys();
-        const SHAPE_POLY_SET* backPlatedPadAndGraphicPolys = m_boardAdapter.GetBackPlatedPadAndGraphicPolys();
+        const SHAPE_POLY_SET* frontPlatedPadAndGraphicPolys =
+                m_boardAdapter.GetFrontPlatedPadAndGraphicPolys();
+        const SHAPE_POLY_SET* backPlatedPadAndGraphicPolys =
+                m_boardAdapter.GetBackPlatedPadAndGraphicPolys();
 
         if( frontPlatedPadAndGraphicPolys )
         {
             SHAPE_POLY_SET poly = frontPlatedPadAndGraphicPolys->CloneDropTriangulation();
-            poly.BooleanIntersection( m_boardAdapter.GetBoardPoly(), SHAPE_POLY_SET::PM_FAST );
-            poly.BooleanSubtract( m_boardAdapter.GetTH_ODPolys(), SHAPE_POLY_SET::PM_FAST );
-            poly.BooleanSubtract( m_boardAdapter.GetNPTH_ODPolys(), SHAPE_POLY_SET::PM_FAST );
+            poly.BooleanIntersection( m_boardAdapter.GetBoardPoly() );
+            poly.BooleanSubtract( m_boardAdapter.GetTH_ODPolys() );
+            poly.BooleanSubtract( m_boardAdapter.GetNPTH_ODPolys() );
 
-            m_platedPadsFront = generateLayerList( m_boardAdapter.GetPlatedPadsFront(), &poly, F_Cu );
+            m_platedPadsFront = generateLayerList( m_boardAdapter.GetPlatedPadsFront(), &poly,
+                                                   F_Cu );
 
             // An entry for F_Cu must exist in m_layers or we'll never look at m_platedPadsFront
             if( m_layers.count( F_Cu ) == 0 )
@@ -633,9 +630,9 @@ void RENDER_3D_OPENGL::reload( REPORTER* aStatusReporter, REPORTER* aWarningRepo
         if( backPlatedPadAndGraphicPolys )
         {
             SHAPE_POLY_SET poly = backPlatedPadAndGraphicPolys->CloneDropTriangulation();
-            poly.BooleanIntersection( m_boardAdapter.GetBoardPoly(), SHAPE_POLY_SET::PM_FAST );
-            poly.BooleanSubtract( m_boardAdapter.GetTH_ODPolys(), SHAPE_POLY_SET::PM_FAST );
-            poly.BooleanSubtract( m_boardAdapter.GetNPTH_ODPolys(), SHAPE_POLY_SET::PM_FAST );
+            poly.BooleanIntersection( m_boardAdapter.GetBoardPoly() );
+            poly.BooleanSubtract( m_boardAdapter.GetTH_ODPolys() );
+            poly.BooleanSubtract( m_boardAdapter.GetNPTH_ODPolys() );
 
             m_platedPadsBack = generateLayerList( m_boardAdapter.GetPlatedPadsBack(), &poly, B_Cu );
 
@@ -838,9 +835,9 @@ void RENDER_3D_OPENGL::generateViasAndPads()
         }
 
         // Subtract the holes
-        tht_outer_holes_poly.BooleanSubtract( tht_inner_holes_poly, SHAPE_POLY_SET::PM_FAST );
+        tht_outer_holes_poly.BooleanSubtract( tht_inner_holes_poly );
 
-        tht_outer_holes_poly.BooleanSubtract( m_antiBoardPolys, SHAPE_POLY_SET::PM_FAST );
+        tht_outer_holes_poly.BooleanSubtract( m_antiBoardPolys );
 
         CONTAINER_2D holesContainer;
 
@@ -897,9 +894,7 @@ void RENDER_3D_OPENGL::Load3dModelsIfNeeded()
     if( m_3dModelMap.size() > 0 )
         return;
 
-    wxFrame* frame = dynamic_cast<EDA_3D_VIEWER_FRAME*>( m_canvas->GetParent() );
-
-    if( frame )
+    if( wxFrame* frame = dynamic_cast<wxFrame*>( m_canvas->GetParent() ) )
     {
         STATUSBAR_REPORTER activityReporter( frame->GetStatusBar(),
                                              (int) EDA_3D_VIEWER_STATUSBAR::ACTIVITY );
@@ -973,7 +968,9 @@ void RENDER_3D_OPENGL::load3dModels( REPORTER* aStatusReporter )
                 {
                     // It is not present, try get it from cache
                     const S3DMODEL* modelPtr =
-                            m_boardAdapter.Get3dCacheManager()->GetModel( fp_model.m_Filename, footprintBasePath );
+                            m_boardAdapter.Get3dCacheManager()->GetModel( fp_model.m_Filename,
+                                                                          footprintBasePath,
+                                                                          footprint );
 
                     // only add it if the return is not NULL
                     if( modelPtr )

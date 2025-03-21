@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 Ola Rinta-Koski
- * Copyright (C) 2021-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -59,14 +59,20 @@ public:
      *
      * A return value of false indicates a serious error in the font system.
      */
-    FF_RESULT FindFont( const wxString& aFontName, wxString& aFontFile, int& aFaceIndex, bool aBold, bool aItalic );
+    FF_RESULT FindFont( const wxString& aFontName, wxString& aFontFile, int& aFaceIndex, bool aBold,
+                        bool aItalic, const std::vector<wxString>* aEmbeddedFiles = nullptr );
 
     /**
      * List the current available font families.
      *
-     * @param aDesiredLang The desired language of font name to report back if available, otherwise it will fallback
+     * @param aDesiredLang The desired language of font name to report back if available,
+     *                     otherwise it will fallback.
+     * @param aEmbeddedFiles A list of embedded to use for searching fonts, if nullptr, this
+     *                       is not used
+     * @param aForce If true, force rebuilding the font cache
      */
-    void ListFonts( std::vector<std::string>& aFonts, const std::string& aDesiredLang );
+    void ListFonts( std::vector<std::string>& aFonts, const std::string& aDesiredLang,
+                    const std::vector<wxString>* aEmbeddedFiles = nullptr, bool aForce = false );
 
     /**
      * Set the reporter to use for reporting font substitution warnings.
@@ -81,12 +87,12 @@ private:
     static REPORTER*                s_reporter;
 
     /**
-     * Matches the two rfc 3306 language entries, used for when searching for matching family names
+     * Match two rfc 3306 language entries, used for when searching for matching family names
      *
-     * The overall logic is simple, either both language tags matched exactly or one tag is "single" level
-     * that the other language tag contains.
-     * There's nuances to language tags beyond this but font tags will most likely never be more complex than
-     * say "zh-CN" or single tag "en".
+     * The overall logic is simple, either both language tags matched exactly or one tag is
+     * "single" level that the other language tag contains.  There are nuances to language tags
+     * beyond this but font tags will most likely never be more complex than say "zh-CN" or
+     * single tag "en".
      *
      * @param aSearchLang the language being searched for
      * @param aSupportedLang the language being offered
@@ -94,17 +100,20 @@ private:
     bool isLanguageMatch( const wxString& aSearchLang, const wxString& aSupportedLang );
 
     /**
-     * Gets a list of all family name strings maped to lang
+     * Get a list of all family name strings mapped to lang
      *
      * @param aPat reference to FcPattern container
-     * @param aFamStringMap Map to be populated with key, value pairs representing lang to family name
+     * @param aFamStringMap Map to be populated with key, value pairs representing lang to
+     *                      family name
      */
     void getAllFamilyStrings( FONTCONFIG_PAT&                               aPat,
                               std::unordered_map<std::string, std::string>& aFamStringMap );
 
     /**
-     * Gets a family name based on desired language.
-     * This will fallback to english or first available string if no language matching string is found.
+     * Get a family name based on desired language.
+     *
+     * This will fallback to English or first available string if no language matching string
+     * is found.
      *
      * @param aPat reference to FcPattern container
      * @param aDesiredLang Language to research for (RFC3066 format)

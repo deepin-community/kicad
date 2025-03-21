@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,11 +22,14 @@
 
 #include <dialogs/dialog_page_settings.h>
 
+class EMBEDDED_FILES;
+
 
 class DIALOG_EESCHEMA_PAGE_SETTINGS : public DIALOG_PAGES_SETTINGS
 {
 public:
-    DIALOG_EESCHEMA_PAGE_SETTINGS( EDA_DRAW_FRAME* aParent, VECTOR2I aMaxUserSizeMils );
+    DIALOG_EESCHEMA_PAGE_SETTINGS( EDA_DRAW_FRAME* aParent, EMBEDDED_FILES* aEmbeddedFiles,
+                                   VECTOR2I aMaxUserSizeMils );
     virtual ~DIALOG_EESCHEMA_PAGE_SETTINGS();
 
 private:

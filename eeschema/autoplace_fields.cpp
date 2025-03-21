@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 Chris Pavlina <pavlina.chris@gmail.com>
- * Copyright (C) 2015, 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -53,10 +53,9 @@
 #include <boost/range/adaptor/reversed.hpp>
 
 #include <sch_edit_frame.h>
-#include <hotkeys_basic.h>
-#include <sch_symbol.h>
+#include <symbol.h>
 #include <sch_line.h>
-#include <lib_pin.h>
+#include <sch_pin.h>
 #include <kiface_base.h>
 #include <algorithm>
 #include <tool/tool_manager.h>
@@ -100,9 +99,10 @@ public:
         COLLISION collision;
     };
 
-    AUTOPLACER( SCH_SYMBOL* aSymbol, SCH_SCREEN* aScreen ) :
+    AUTOPLACER( SYMBOL* aSymbol, SCH_SCREEN* aScreen ) :
             m_screen( aScreen ),
-            m_symbol( aSymbol )
+            m_symbol( aSymbol ),
+            m_is_power_symbol( false )
     {
         m_symbol->GetFields( m_fields, /* aVisibleOnly */ true );
 
@@ -121,7 +121,8 @@ public:
         m_symbol_bbox = m_symbol->GetBodyBoundingBox();
         m_fbox_size = computeFBoxSize( /* aDynamic */ true );
 
-        m_is_power_symbol = !m_symbol->IsInNetlist();
+        if( SCH_SYMBOL* schSymbol = dynamic_cast<SCH_SYMBOL*>( m_symbol ) )
+            m_is_power_symbol = !schSymbol->IsInNetlist();
 
         if( aScreen )
             getPossibleCollisions( m_colliders );
@@ -132,24 +133,22 @@ public:
      * @param aManual - if true, use extra heuristics for smarter placement when manually
      * called up.
      */
-    void DoAutoplace( bool aManual )
+    void DoAutoplace( AUTOPLACE_ALGO aAlgo )
     {
         bool            forceWireSpacing = false;
-        SIDE_AND_NPINS  sideandpins = chooseSideForFields( aManual );
+        SIDE_AND_NPINS  sideandpins = chooseSideForFields( aAlgo == AUTOPLACE_MANUAL );
         SIDE            field_side = sideandpins.side;
         VECTOR2I        fbox_pos = fieldBoxPlacement( sideandpins );
         BOX2I           field_box( fbox_pos, m_fbox_size );
 
-        if( aManual )
+        if( aAlgo == AUTOPLACE_MANUAL )
             forceWireSpacing = fitFieldsBetweenWires( &field_box, field_side );
 
         // Move the fields
         int last_y_coord = field_box.GetTop();
 
-        for( unsigned field_idx = 0; field_idx < m_fields.size(); ++field_idx )
+        for( SCH_FIELD* field : m_fields )
         {
-            SCH_FIELD* field = m_fields[field_idx];
-
             if( !field->IsVisible() || !field->CanAutoplace() )
                 continue;
 
@@ -228,7 +227,7 @@ protected:
      */
     SIDE getPinSide( SCH_PIN* aPin )
     {
-        PIN_ORIENTATION pin_orient = aPin->GetLibPin()->PinDrawOrient( m_symbol->GetTransform() );
+        PIN_ORIENTATION pin_orient = aPin->PinDrawOrient( m_symbol->GetTransform() );
 
         switch( pin_orient )
         {
@@ -520,9 +519,10 @@ protected:
     void justifyField( SCH_FIELD* aField, SIDE aFieldSide )
     {
         // Justification is set twice to allow IsHorizJustifyFlipped() to work correctly.
-        aField->SetHorizJustify( TO_HJUSTIFY( -aFieldSide.x ) );
-        aField->SetHorizJustify( TO_HJUSTIFY( -aFieldSide.x
-                                                 * ( aField->IsHorizJustifyFlipped() ? -1 : 1 ) ) );
+        aField->SetHorizJustify( ToHAlignment( -aFieldSide.x ) );
+        if( aField->IsHorizJustifyFlipped() )
+            aField->SetHorizJustify( GetFlippedAlignment( aField->GetHorizJustify() ) );
+
         aField->SetVertJustify( GR_TEXT_V_ALIGN_CENTER );
     }
 
@@ -708,7 +708,7 @@ protected:
 
 private:
     SCH_SCREEN*             m_screen;
-    SCH_SYMBOL*             m_symbol;
+    SYMBOL*                 m_symbol;
     std::vector<SCH_FIELD*> m_fields;
     std::vector<SCH_ITEM*>  m_colliders;
     BOX2I                   m_symbol_bbox;
@@ -725,12 +725,35 @@ const AUTOPLACER::SIDE AUTOPLACER::SIDE_LEFT( -1, 0 );
 const AUTOPLACER::SIDE AUTOPLACER::SIDE_RIGHT( 1, 0 );
 
 
-void SCH_SYMBOL::AutoplaceFields( SCH_SCREEN* aScreen, bool aManual )
+void SCH_SYMBOL::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo )
 {
-    if( aManual )
-        wxASSERT_MSG( aScreen, wxS( "A SCH_SCREEN pointer must be given for manual autoplacement" ) );
+    if( aAlgo == AUTOPLACE_MANUAL )
+        wxASSERT_MSG( aScreen, wxS( "A SCH_SCREEN ptr must be given for manual autoplacement" ) );
 
     AUTOPLACER autoplacer( this, aScreen );
-    autoplacer.DoAutoplace( aManual );
-    m_fieldsAutoplaced = ( aManual ? FIELDS_AUTOPLACED_MANUAL : FIELDS_AUTOPLACED_AUTO );
+    autoplacer.DoAutoplace( aAlgo );
+
+    switch( aAlgo )
+    {
+    case AUTOPLACE_AUTO:    m_fieldsAutoplaced = AUTOPLACE_AUTO;          break;
+    case AUTOPLACE_MANUAL:  m_fieldsAutoplaced = AUTOPLACE_MANUAL;        break;
+    default:                wxFAIL_MSG( "Unknown autoplace algorithm" );  break;
+    }
+}
+
+
+void LIB_SYMBOL::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo )
+{
+    if( aAlgo == AUTOPLACE_MANUAL )
+        wxFAIL_MSG( wxS( "Manual autoplacement not supported for LIB_SYMBOLs" ) );
+
+    AUTOPLACER autoplacer( this, aScreen );
+    autoplacer.DoAutoplace( aAlgo );
+
+    switch( aAlgo )
+    {
+    case AUTOPLACE_AUTO:    m_fieldsAutoplaced = AUTOPLACE_AUTO;          break;
+    case AUTOPLACE_MANUAL:  m_fieldsAutoplaced = AUTOPLACE_MANUAL;        break;
+    default:                wxFAIL_MSG( "Unknown autoplace algorithm" );  break;
+    }
 }

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2013-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Dick Hollenbeck
  *
@@ -27,6 +27,7 @@
 #ifndef UTF8_H_
 #define UTF8_H_
 
+#include <iostream>
 #include <string>
 #include <wx/string.h>
 
@@ -113,6 +114,10 @@ public:
     bool operator==( const UTF8& rhs )          const   { return m_s == rhs.m_s; }
     bool operator==( const std::string& rhs )   const   { return m_s == rhs; }
     bool operator==( const char* s )            const   { return m_s == s; }
+
+    bool operator!=( const UTF8& rhs ) const { return !( operator==( rhs ) ); }
+    bool operator<( const UTF8& rhs ) const { return m_s < rhs.m_s;  }
+    bool operator>( const UTF8& rhs ) const { return m_s > rhs.m_s;  }
 
     std::string::size_type find_first_of( const std::string& str,
                                           std::string::size_type pos = 0 ) const
@@ -304,5 +309,7 @@ protected:
     std::string m_s;
 };
 
+
+std::ostream& operator<<( std::ostream& aStream, const UTF8& aRhs );
 
 #endif // UTF8_H_

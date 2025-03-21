@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2009-2016 Wayne Stambaugh <stambaughw@verizon.net>
- * Copyright (C) 1992-2017 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,16 +25,8 @@
 
 /**
  * @file id.h
- */
-
-
-#ifndef ID_H_
-#define ID_H_
-
-#include <wx/defs.h>
-
-/**
- * Common command IDs shared by more than one of the KiCad applications.
+ *
+ * @brief Common command IDs shared by more than one of the KiCad applications.
  *
  * Only place command IDs used in base window class event tables or shared
  * across multiple applications such as the zoom, grid, and language IDs.
@@ -58,6 +50,12 @@
  * Please, change these values if needed
  */
 
+
+#ifndef ID_H_
+#define ID_H_
+
+#include <wx/defs.h>
+
 // Define room for IDs, for each sub application
 #define ROOM_FOR_KICADMANAGER 50
 #define ROOM_FOR_3D_VIEWER 100
@@ -71,8 +69,7 @@
 
 enum main_id
 {
-    ID_APPEND_PROJECT         = wxID_HIGHEST,
-    ID_LOAD_FILE,
+    ID_LOAD_FILE = wxID_HIGHEST,
     ID_NEW_BOARD,
     ID_SAVE_BOARD,
     ID_SAVE_BOARD_AS,
@@ -108,6 +105,7 @@ enum main_id
     ID_LANGUAGE_ENGLISH,
     ID_LANGUAGE_FRENCH,
     ID_LANGUAGE_FINNISH,
+    ID_LANGUAGE_HEBREW,
     ID_LANGUAGE_SPANISH,
     ID_LANGUAGE_SPANISH_MEXICAN,
     ID_LANGUAGE_GERMAN,
@@ -185,9 +183,11 @@ enum main_id
     ID_KICAD_PANEL_PREV_MODEL_START,
     ID_KICAD_PANEL_PREV_MODEL_END = ID_KICAD_PANEL_PREV_MODEL_START + ROOM_FOR_PANEL_PREV_MODEL,
 
-    // Reseve ID for popup menus, when we need to know a menu item is inside a popup menu
+    // Reserve ID for popup menus, when we need to know a menu item is inside a popup menu
     ID_POPUP_MENU_START,
-    // The extra here need to minimum be larger than MAX_BUS_UNFOLD_MENU_ITEMS + MAX_UNIT_COUNT_PER_PACKAGE
+
+    // The extra here need to minimum be larger than MAX_BUS_UNFOLD_MENU_ITEMS +
+    // MAX_UNIT_COUNT_PER_PACKAGE.
     // These values are stored in eeschema_id.h
     ID_POPUP_MENU_END = ID_POPUP_MENU_START + 2048,
 

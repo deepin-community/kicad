@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -87,6 +87,10 @@ public:
                 BOOST_REQUIRE_EQUAL( goldenNet.GetPinName(), testNet.GetPinName() );
                 BOOST_REQUIRE_EQUAL( goldenNet.GetPinType(), testNet.GetPinType() );
             }
+
+            // And the the resolved component class is the same
+            BOOST_REQUIRE( goldenComp->GetComponentClassNames()
+                           == refComp->GetComponentClassNames() );
         }
     }
 };
@@ -207,6 +211,11 @@ BOOST_AUTO_TEST_CASE( Issue16003 )
 BOOST_AUTO_TEST_CASE( Issue16439 )
 {
     TestNetlist( "issue16439" );
+}
+
+BOOST_AUTO_TEST_CASE( ComponentClasses )
+{
+    TestNetlist( "component_classes" );
 }
 
 

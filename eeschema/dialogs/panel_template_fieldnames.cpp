@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009 Wayne Stambaugh <stambaughw@verizon.net>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,6 +22,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "panel_template_fieldnames.h"
+
 #include <wx/msgdlg.h>
 
 #include <pgm_base.h>
@@ -31,8 +33,8 @@
 #include <template_fieldnames.h>
 #include <grid_tricks.h>
 #include <bitmaps.h>
+#include <richio.h>
 #include <string_utils.h>
-#include <panel_template_fieldnames.h>
 
 PANEL_TEMPLATE_FIELDNAMES::PANEL_TEMPLATE_FIELDNAMES( wxWindow* aWindow,
                                                       TEMPLATES* aProjectTemplateMgr ) :
@@ -40,17 +42,18 @@ PANEL_TEMPLATE_FIELDNAMES::PANEL_TEMPLATE_FIELDNAMES( wxWindow* aWindow,
 {
     if( aProjectTemplateMgr )
     {
-        m_title->SetLabel( _( "Project field name templates:" ) );
+        m_title->SetLabel( _( "Project Field Name Templates" ) );
         m_global = false;
         m_templateMgr = aProjectTemplateMgr;
     }
     else
     {
-        m_title->SetLabel( _( "Global field name templates:" ) );
+        m_title->SetLabel( _( "Global Field Name Templates" ) );
         m_global = true;
         m_templateMgr = &m_templateMgrInstance;
 
-        EESCHEMA_SETTINGS* cfg = Pgm().GetSettingsManager().GetAppSettings<EESCHEMA_SETTINGS>();
+        SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+        EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
 
         if( cfg && !cfg->m_Drawing.field_names.IsEmpty() )
             m_templateMgr->AddTemplateFieldNames( cfg->m_Drawing.field_names );
@@ -142,6 +145,7 @@ bool PANEL_TEMPLATE_FIELDNAMES::TransferDataToGrid()
     for( int row = 0; row < m_grid->GetNumberRows(); ++row )
     {
         m_grid->SetCellValue( row, 0, m_fields[row].m_Name );
+
         // columns 1 and 2 show a boolean value (in a check box):
         m_grid->SetCellValue( row, 1, m_fields[row].m_Visible ? wxS( "1" ) : wxS( "0" ) );
         m_grid->SetCellValue( row, 2, m_fields[row].m_URL     ? wxS( "1" ) : wxS( "0" ) );
@@ -227,16 +231,16 @@ bool PANEL_TEMPLATE_FIELDNAMES::TransferDataFromWindow()
 
     if( m_global )
     {
-        EESCHEMA_SETTINGS* cfg = Pgm().GetSettingsManager().GetAppSettings<EESCHEMA_SETTINGS>();
+        SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+        EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
 
         if( cfg )
         {
             // Save global fieldname templates
             STRING_FORMATTER sf;
-            m_templateMgr->Format( &sf, 0, true );
+            m_templateMgr->Format( &sf, true );
 
             wxString record = From_UTF8( sf.GetString().c_str() );
-            record.Replace( wxT("\n"), wxT(""), true );   // strip all newlines
             record.Replace( wxT("  "), wxT(" "), true );  // double space to single
 
             cfg->m_Drawing.field_names = record.ToStdString();

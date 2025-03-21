@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mikolaj Wielgus
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -62,8 +62,10 @@ std::string SPICE_GENERATOR::ModelLine( const SPICE_ITEM& aItem ) const
 
     result.append( "\n" );
 
-    for( const SIM_MODEL::PARAM& param : m_model.GetParams() )
+    for( int ii = 0; ii < m_model.GetParamCount(); ++ii )
     {
+        const SIM_MODEL::PARAM& param = m_model.GetParam( ii );
+
         if( param.info.isSpiceInstanceParam )
             continue;
 
@@ -123,8 +125,8 @@ std::string SPICE_GENERATOR::ItemLine( const SPICE_ITEM& aItem ) const
 
     if( item.pinNetNames.empty() )
     {
-        for( const SIM_MODEL::PIN& pin : GetPins() )
-            item.pinNetNames.push_back( pin.name );
+        for( const SIM_MODEL_PIN& pin : GetPins() )
+            item.pinNetNames.push_back( pin.modelPinName );
     }
 
     std::string result;
@@ -151,7 +153,7 @@ std::string SPICE_GENERATOR::ItemPins( const SPICE_ITEM& aItem ) const
     std::string result;
     int ncCounter = 0;
 
-    for( const SIM_MODEL::PIN& pin : GetPins() )
+    for( const SIM_MODEL_PIN& pin : GetPins() )
     {
         auto it = std::find( aItem.pinNumbers.begin(), aItem.pinNumbers.end(),
                              pin.symbolPinNumber );
@@ -181,8 +183,13 @@ std::string SPICE_GENERATOR::ItemParams() const
 {
     std::string result;
 
-    for( const SIM_MODEL::PARAM& param : GetInstanceParams() )
+    for( int ii = 0; ii < m_model.GetParamCount(); ++ii )
     {
+        const SIM_MODEL::PARAM& param = m_model.GetParam( ii );
+
+        if( !param.info.isSpiceInstanceParam )
+            continue;
+
         std::string name = param.info.spiceInstanceName.empty() ? param.info.name
                                                                 : param.info.spiceInstanceName;
         std::string value = SIM_VALUE::ToSpice( param.value );
@@ -227,20 +234,6 @@ std::string SPICE_GENERATOR::Preview( const SPICE_ITEM& aItem ) const
 
     spiceCode.append( itemLine );
     return boost::trim_copy( spiceCode );
-}
-
-
-std::vector<std::reference_wrapper<const SIM_MODEL::PARAM>> SPICE_GENERATOR::GetInstanceParams() const
-{
-    std::vector<std::reference_wrapper<const SIM_MODEL::PARAM>> instanceParams;
-
-    for( const SIM_MODEL::PARAM& param : m_model.GetParams() )
-    {
-        if( param.info.isSpiceInstanceParam )
-            instanceParams.emplace_back( param );
-    }
-
-    return instanceParams;
 }
 
 

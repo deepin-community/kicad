@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -106,9 +106,22 @@ public:
     template<int Min, int Max>
     static VALIDATOR_RESULT RangeIntValidator( const wxAny&& aValue, EDA_ITEM* aItem )
     {
-        wxASSERT_MSG( aValue.CheckType<int>(), "Expecting int-containing value" );
+        wxASSERT_MSG( aValue.CheckType<int>() || aValue.CheckType<std::optional<int>>(),
+                      "Expecting int-containing value" );
 
-        int val = aValue.As<int>();
+        int val = 0;
+
+        if( aValue.CheckType<int>() )
+        {
+            val = aValue.As<int>();
+        }
+        else if( aValue.CheckType<std::optional<int>>() )
+        {
+            if( aValue.As<std::optional<int>>().has_value() )
+                val = aValue.As<std::optional<int>>().value();
+            else
+                return std::nullopt;     // no value for a std::optional is always valid
+        }
 
         if( val > Max )
             return std::make_unique<VALIDATION_ERROR_TOO_LARGE<int>>( val, Max );
@@ -120,9 +133,22 @@ public:
 
     static VALIDATOR_RESULT PositiveIntValidator( const wxAny&& aValue, EDA_ITEM* aItem )
     {
-        wxASSERT_MSG( aValue.CheckType<int>(), "Expecting int-containing value" );
+        wxASSERT_MSG( aValue.CheckType<int>() || aValue.CheckType<std::optional<int>>(),
+                      "Expecting int-containing value" );
 
-        int val = aValue.As<int>();
+        int val = 0;
+
+        if( aValue.CheckType<int>() )
+        {
+            val = aValue.As<int>();
+        }
+        else if( aValue.CheckType<std::optional<int>>() )
+        {
+            if( aValue.As<std::optional<int>>().has_value() )
+                val = aValue.As<std::optional<int>>().value();
+            else
+                return std::nullopt;     // no value for a std::optional is always valid
+        }
 
         if( val < 0 )
             return std::make_unique<VALIDATION_ERROR_TOO_SMALL<int>>( val, 0 );

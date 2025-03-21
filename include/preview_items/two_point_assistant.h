@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -55,11 +55,10 @@ public:
 
     const BOX2I ViewBBox() const override;
 
-    void ViewGetLayers( int aLayers[], int& aCount ) const override
+    std::vector<int> ViewGetLayers() const override
     {
-        aLayers[0] = LAYER_SELECT_OVERLAY;  // Assistant graphics
-        aLayers[1] = LAYER_GP_OVERLAY;      // Drop shadows
-        aCount = 2;
+        return { LAYER_SELECT_OVERLAY,  // Assistant graphics
+                 LAYER_GP_OVERLAY };    // Drop shadows
     }
 
     /**

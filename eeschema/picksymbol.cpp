@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2004-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,8 +30,10 @@
 #include <core/kicad_algo.h>
 #include <symbol_library_common.h>
 #include <confirm.h>
+#include <ee_tool_utils.h>
 #include <eeschema_id.h>
 #include <general.h>
+#include <kidialog.h>
 #include <kiway.h>
 #include <symbol_viewer_frame.h>
 #include <symbol_tree_model_adapter.h>
@@ -98,25 +100,79 @@ void SCH_EDIT_FRAME::SelectUnit( SCH_SYMBOL* aSymbol, int aUnit )
     if( !symbol )
         return;
 
-    int unitCount = symbol->GetUnitCount();
+    const int unitCount = symbol->GetUnitCount();
+    const int currentUnit = aSymbol->GetUnit();
 
-    if( unitCount <= 1 || aSymbol->GetUnit() == aUnit )
+    if( unitCount <= 1 || currentUnit == aUnit )
         return;
 
     if( aUnit > unitCount )
         aUnit = unitCount;
 
-    if( !aSymbol->GetEditFlags() )    // No command in progress: save in undo list
+    const SCH_SHEET_PATH&        sheetPath = GetCurrentSheet();
+    bool                         swapWithOther = false;
+    std::optional<SCH_REFERENCE> otherSymbolRef = FindSymbolByRefAndUnit(
+            *aSymbol->Schematic(), aSymbol->GetRef( &sheetPath, false ), aUnit );
+
+    if( otherSymbolRef )
+    {
+        const wxString targetUnitName = symbol->GetUnitDisplayName( aUnit );
+        const wxString currUnitName = symbol->GetUnitDisplayName( currentUnit );
+        wxString otherSheetName = otherSymbolRef->GetSheetPath().PathHumanReadable( true, true );
+
+        if( otherSheetName.IsEmpty() )
+            otherSheetName = _( "Root" );
+
+        const wxString msg =
+                wxString::Format( _( "Symbol unit '%s' is already placed (on sheet '%s')" ),
+                                  targetUnitName, otherSheetName );
+
+        KIDIALOG dlg( this, msg, _( "Unit Already Placed" ), wxYES_NO | wxCANCEL | wxICON_WARNING );
+        dlg.SetYesNoLabels(
+                wxString::Format( _( "&Swap '%s' and '%s'" ), targetUnitName, currUnitName ),
+                wxString::Format( _( "&Duplicate '%s'" ), targetUnitName ) );
+        dlg.DoNotShowCheckbox( __FILE__, __LINE__ );
+
+        int ret = dlg.ShowModal();
+
+        if( ret == wxID_CANCEL )
+            return;
+
+        if( ret == wxID_YES )
+            swapWithOther = true;
+    }
+
+    if( swapWithOther )
+    {
+        // We were reliably informed this would exist.
+        wxASSERT( otherSymbolRef );
+
+        SCH_SYMBOL* otherSymbol = otherSymbolRef->GetSymbol();
+
+        if( !otherSymbol->GetEditFlags() )
+            commit.Modify( otherSymbol, otherSymbolRef->GetSheetPath().LastScreen() );
+
+        // Give that symbol the unit we used to have
+        otherSymbol->SetUnitSelection( &otherSymbolRef->GetSheetPath(), currentUnit );
+        otherSymbol->SetUnit( currentUnit );
+    }
+
+    if( !aSymbol->GetEditFlags() ) // No command in progress: save in undo list
         commit.Modify( aSymbol, GetScreen() );
 
-    /* Update the unit number. */
-    aSymbol->SetUnitSelection( &GetCurrentSheet(), aUnit );
+    // Update the unit number.
     aSymbol->SetUnit( aUnit );
+    aSymbol->SetUnitSelection( &sheetPath, aUnit );
 
     if( !commit.Empty() )
     {
         if( eeconfig()->m_AutoplaceFields.enable )
-            aSymbol->AutoAutoplaceFields( GetScreen() );
+        {
+            AUTOPLACE_ALGO fieldsAutoplaced = aSymbol->GetFieldsAutoplaced();
+
+            if( fieldsAutoplaced == AUTOPLACE_AUTO || fieldsAutoplaced == AUTOPLACE_MANUAL )
+                aSymbol->AutoplaceFields( GetScreen(), fieldsAutoplaced );
+        }
 
         commit.Push( _( "Change Unit" ) );
     }
@@ -151,8 +207,8 @@ void SCH_EDIT_FRAME::FlipBodyStyle( SCH_SYMBOL* aSymbol )
     // 2 = shape 2 = second (DeMorgan conversion) alternate body style
     // > 2 is not currently supported
     // When m_bodyStyle = val max, return to the first shape
-    if( aSymbol->GetBodyStyle() > LIB_ITEM::BODY_STYLE::DEMORGAN )
-        aSymbol->SetBodyStyle( LIB_ITEM::BODY_STYLE::BASE );
+    if( aSymbol->GetBodyStyle() > BODY_STYLE::DEMORGAN )
+        aSymbol->SetBodyStyle( BODY_STYLE::BASE );
 
     // If selected make sure all the now-included pins are selected
     if( aSymbol->IsSelected() )

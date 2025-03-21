@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2022 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +29,7 @@
 
 #include <gal/color4d.h>
 #include <layer_ids.h>
+#include <lset.h>
 #include <memory>
 
 #include <wx/dc.h>
@@ -268,7 +269,7 @@ public:
         if( aLayer == LAYER_INTERSHEET_REFS )
             aLayer = LAYER_GLOBLABEL;
 
-        return m_layerColors[aLayer];
+        return m_layerColors.count( aLayer ) ? m_layerColors.at( aLayer ) : COLOR4D::BLACK;
     }
 
     /**
@@ -294,10 +295,8 @@ public:
      *
      * @param aWidth is the new width.
      */
-    void SetOutlineWidth( float aWidth )
-    {
-        m_outlineWidth = aWidth;
-    }
+    void SetOutlineWidth( float aWidth ) { m_outlineWidth = aWidth; }
+    float GetOutlineWidth() const { return m_outlineWidth; }
 
     void SetHighlightFactor( float aFactor ) { m_highlightFactor = aFactor; }
     void SetSelectFactor( float aFactor ) { m_selectFactor = aFactor; }
@@ -320,12 +319,11 @@ protected:
     wxString               m_layerName;
     std::set<int>          m_highContrastLayers; // High-contrast layers (both board layers and
                                                  //   synthetic GAL layers)
-    COLOR4D m_layerColors[LAYER_ID_COUNT];       // Layer colors
-    COLOR4D m_layerColorsHi[LAYER_ID_COUNT];     // Layer colors for highlighted objects
-    COLOR4D m_layerColorsSel[LAYER_ID_COUNT];    // Layer colors for selected objects
-
-    COLOR4D m_hiContrastColor[LAYER_ID_COUNT];   // High-contrast mode layer colors
-    COLOR4D m_layerColorsDark[LAYER_ID_COUNT];   // Darkened layer colors (for high-contrast mode)
+    std::map<int, COLOR4D> m_layerColors;        // Layer colors
+    std::map<int, COLOR4D> m_layerColorsHi;      // Layer colors for highlighted objects
+    std::map<int, COLOR4D> m_layerColorsSel;     // Layer colors for selected objects
+    std::map<int, COLOR4D> m_hiContrastColor;    // High-contrast mode layer colors
+    std::map<int, COLOR4D> m_layerColorsDark;    // Darkened layer colors (for high-contrast mode)
 
     COLOR4D m_backgroundColor;                   // The background color
 

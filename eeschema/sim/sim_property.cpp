@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mikolaj Wielgus
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -97,52 +97,49 @@ bool SIM_STRING_PROPERTY::OnEvent( wxPropertyGrid* propgrid, wxWindow* wnd_prima
 {
     if( event.GetEventType() == wxEVT_SET_FOCUS && allowEval() )
     {
-        wxTextEntry* textEntry = dynamic_cast<wxTextEntry*>( wnd_primary );
-
-        wxCHECK( textEntry, false );
-
-        wxString oldStr = m_eval.OriginalText();
-
-        if( oldStr.length() && oldStr != textEntry->GetValue() )
+        if( wxTextEntry* textEntry = dynamic_cast<wxTextEntry*>( wnd_primary ) )
         {
-            SetValueInEvent( oldStr );
-            textEntry->SetValue( oldStr );
-        }
+            wxString oldStr = m_eval.OriginalText();
 
-        m_needsEval = true;
-        return true;
+            if( oldStr.length() && oldStr != textEntry->GetValue() )
+            {
+                SetValueInEvent( oldStr );
+                textEntry->SetValue( oldStr );
+            }
+
+            m_needsEval = true;
+            return true;
+        }
     }
     else if( event.GetEventType() == wxEVT_KILL_FOCUS && allowEval() )
     {
-        wxTextEntry* textEntry = dynamic_cast<wxTextEntry*>( wnd_primary );
-
-        wxCHECK( textEntry, false );
-
-        wxString strValue = textEntry->GetValue();
-
-        if( !strValue.IsEmpty() && m_eval.Process( strValue ) )
+        if( wxTextEntry* textEntry = dynamic_cast<wxTextEntry*>( wnd_primary ) )
         {
-            double value = SIM_VALUE::ToDouble( m_eval.Result().ToStdString() );
+            wxString strValue = textEntry->GetValue();
 
-            if( std::isnan( value ) || SIM_VALUE::Equal( value, strValue.ToStdString() ) )
+            if( !strValue.IsEmpty() && m_eval.Process( strValue ) )
             {
-                // Don't mess up user formatting if eval'ing didn't actually change the value.
+                double value = SIM_VALUE::ToDouble( m_eval.Result().ToStdString() );
+
+                if( std::isnan( value ) || SIM_VALUE::Equal( value, strValue.ToStdString() ) )
+                {
+                    // Don't mess up user formatting if eval'ing didn't actually change the value.
+                }
+                else
+                {
+                    SetValueInEvent( m_eval.Result() );
+                }
             }
-            else
-            {
-                SetValueInEvent( m_eval.Result() );
-            }
+
+            m_needsEval = false;
+            return true;
         }
-
-        m_needsEval = false;
-        return true;
     }
     else if( event.GetEventType() == wxEVT_KEY_DOWN )
     {
-        wxKeyEvent&     keyEvent = dynamic_cast<wxKeyEvent&>( event );
-        wxPropertyGrid* propGrid = dynamic_cast<wxPropertyGrid*>( wnd_primary->GetParent() );
+        wxKeyEvent& keyEvent = dynamic_cast<wxKeyEvent&>( event );
 
-        if( propGrid )
+        if( wxPropertyGrid* propGrid = dynamic_cast<wxPropertyGrid*>( wnd_primary->GetParent() ) )
         {
             if( keyEvent.GetKeyCode() == WXK_TAB )
             {
@@ -236,7 +233,12 @@ SIM_ENUM_PROPERTY::SIM_ENUM_PROPERTY( const wxString& aLabel, const wxString& aN
 }
 
 
+#if wxCHECK_VERSION( 3, 3, 0 )
+bool SIM_ENUM_PROPERTY::IntToValue( wxVariant& aVariant, int aNumber,
+                                    wxPGPropValFormatFlags aArgFlags ) const
+#else
 bool SIM_ENUM_PROPERTY::IntToValue( wxVariant& aVariant, int aNumber, int aArgFlags ) const
+#endif
 {
     if( m_disabled )
         return false;

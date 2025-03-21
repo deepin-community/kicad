@@ -6,7 +6,7 @@
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@verizon.net>
  *
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -85,6 +85,8 @@ public:
 
     void SetReplaceFootprints( bool aEnabled ) { m_replaceFootprints = aEnabled; }
 
+    void SetOverrideLocks( bool aOverride ) { m_overrideLocks = aOverride; }
+
     void SetDeleteUnusedFootprints( bool aEnabled ) { m_deleteUnusedFootprints = aEnabled; }
 
     void SetLookupByTimestamp( bool aEnabled ) { m_lookupByTimestamp = aEnabled; }
@@ -109,6 +111,8 @@ private:
 
     bool updateComponentPadConnections( FOOTPRINT* aFootprint, COMPONENT* aNewComponent );
 
+    void updateComponentClass( FOOTPRINT* aFootprint, COMPONENT* aNewComponent );
+
     void cacheCopperZoneConnections();
 
     bool updateCopperZoneNets( NETLIST& aNetlist );
@@ -131,6 +135,7 @@ private:
     bool m_isDryRun;
     bool m_replaceFootprints;
     bool m_lookupByTimestamp;
+    bool m_overrideLocks;
 
     int m_warningCount;
     int m_errorCount;

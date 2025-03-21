@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,7 +27,7 @@
 #include <search_stack.h>
 #include <settings/settings_manager.h>
 #include <settings/common_settings.h>
-#include <settings/json_settings_internals.h>
+#include <settings/json_settings.h>
 #include <settings/parameters.h>
 #include <systemdirsappend.h>
 #include <trace_helpers.h>
@@ -53,7 +53,8 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
         m_System(),
         m_DoNotShowAgain(),
         m_NetclassPanel(),
-        m_PackageManager()
+        m_PackageManager(),
+        m_Api()
 {
     /*
      * Automatic dark mode detection works fine on Mac.
@@ -98,6 +99,9 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
 
     m_params.emplace_back( new PARAM<int>( "appearance.toolbar_icon_size",
             &m_Appearance.toolbar_icon_size, 24, 16, 64 ) );
+
+    m_params.emplace_back( new PARAM<bool>( "appearance.grid_striping",
+            &m_Appearance.grid_striping, false ) );
 
     m_params.emplace_back( new PARAM<bool>( "auto_backup.enabled", &m_Backup.enabled, true ) );
 
@@ -261,6 +265,9 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
     m_params.emplace_back( new PARAM<int>( "input.scroll_modifier_pan_v",
             &m_Input.scroll_modifier_pan_v, WXK_SHIFT ) );
 
+    m_params.emplace_back( new PARAM<bool>( "input.reverse_scroll_zoom",
+            &m_Input.reverse_scroll_zoom, false ) );
+
     m_params.emplace_back( new PARAM<bool>( "input.reverse_scroll_pan_h",
             &m_Input.reverse_scroll_pan_h, false ) );
 
@@ -277,7 +284,7 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
             MOUSE_DRAG_ACTION::NONE ) );
 
     m_params.emplace_back( new PARAM<int>( "graphics.opengl_antialiasing_mode",
-            &m_Graphics.opengl_aa_mode, 1, 0, 2 ) );
+            &m_Graphics.opengl_aa_mode, 2, 0, 2 ) );
 
     m_params.emplace_back( new PARAM<int>( "graphics.cairo_antialiasing_mode",
             &m_Graphics.cairo_aa_mode, 0, 0, 2 ) );
@@ -291,6 +298,14 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
 #else
     m_params.emplace_back( new PARAM<wxString>( "system.text_editor",
             &m_System.text_editor, wxS( "" ) ) );
+#endif
+
+#if defined( __WINDOWS__ )
+    m_params.emplace_back( new PARAM<wxString>( "system.file_explorer",
+            &m_System.file_explorer, wxS( "explorer.exe /n,/select,%F" ) ) );
+#else
+    m_params.emplace_back( new PARAM<wxString>( "system.file_explorer",
+            &m_System.file_explorer, wxS( "" ) ) );
 #endif
 
     m_params.emplace_back( new PARAM<int>( "system.file_history_size",
@@ -335,8 +350,17 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
     m_params.emplace_back( new PARAM_LIST<wxString>( "session.pinned_fp_libs",
             &m_Session.pinned_fp_libs, {} ) );
 
+    m_params.emplace_back( new PARAM_LIST<wxString>( "session.pinned_design_block_libs",
+            &m_Session.pinned_design_block_libs, {} ) );
+
     m_params.emplace_back( new PARAM<int>( "netclass_panel.sash_pos",
             &m_NetclassPanel.sash_pos, 160 ) );
+
+    m_params.emplace_back( new PARAM<wxString>( "netclass_panel.eeschema_shown_columns",
+            &m_NetclassPanel.eeschema_visible_columns, "0 10 11 12 13" ) );
+
+    m_params.emplace_back( new PARAM<wxString>( "netclass_panel.pcbnew_shown_columns",
+            &m_NetclassPanel.pcbnew_visible_columns, "0 1 2 3 4 5 6 7 8 9" ) );
 
     m_params.emplace_back( new PARAM<int>( "package_manager.sash_pos",
             &m_PackageManager.sash_pos, 380 ) );
@@ -395,7 +419,11 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "git.useDefaultAuthor",
             &m_Git.useDefaultAuthor, true ) );
 
+    m_params.emplace_back( new PARAM<wxString>( "api.interpreter_path",
+            &m_Api.python_interpreter, wxS( "" ) ) );
 
+    m_params.emplace_back( new PARAM<bool>( "api.enable_server",
+            &m_Api.enable_server, false ) );
 
     registerMigration( 0, 1, std::bind( &COMMON_SETTINGS::migrateSchema0to1, this ) );
     registerMigration( 1, 2, std::bind( &COMMON_SETTINGS::migrateSchema1to2, this ) );
@@ -422,24 +450,29 @@ bool COMMON_SETTINGS::migrateSchema0to1()
     }
     catch( ... )
     {
-        wxLogTrace( traceSettings, wxT( "COMMON_SETTINGS::Migrate 0->1: mousewheel_pan not found" ) );
+        wxLogTrace( traceSettings,
+                    wxT( "COMMON_SETTINGS::Migrate 0->1: mousewheel_pan not found" ) );
     }
 
     if( mwp )
     {
         ( *m_internals )[nlohmann::json::json_pointer( "/input/horizontal_pan" )] = true;
 
-        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_h" )] = WXK_SHIFT;
+        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_h" )] =
+                WXK_SHIFT;
         ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_v" )] = 0;
-        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_zoom" )]  = WXK_CONTROL;
+        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_zoom" )] =
+                WXK_CONTROL;
     }
     else
     {
         ( *m_internals )[nlohmann::json::json_pointer( "/input/horizontal_pan" )] = false;
 
-        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_h" )] = WXK_CONTROL;
-        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_v" )] = WXK_SHIFT;
-        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_zoom" )]  = 0;
+        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_h" )] =
+                WXK_CONTROL;
+        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_v" )] =
+                WXK_SHIFT;
+        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_zoom" )] = 0;
     }
 
     return true;
@@ -455,17 +488,21 @@ bool COMMON_SETTINGS::migrateSchema1to2()
     try
     {
         prefer_selection = m_internals->at( v1_pointer );
-        m_internals->at( nlohmann::json::json_pointer( "/input"_json_pointer ) ).erase( "prefer_select_to_drag" );
+        m_internals->at( nlohmann::json::json_pointer( "/input"_json_pointer ) )
+                .erase( "prefer_select_to_drag" );
     }
     catch( ... )
     {
-        wxLogTrace( traceSettings, wxT( "COMMON_SETTINGS::Migrate 1->2: prefer_select_to_drag not found" ) );
+        wxLogTrace( traceSettings,
+                    wxT( "COMMON_SETTINGS::Migrate 1->2: prefer_select_to_drag not found" ) );
     }
 
     if( prefer_selection )
-        ( *m_internals )[nlohmann::json::json_pointer( "/input/mouse_left" )] = MOUSE_DRAG_ACTION::SELECT;
+        ( *m_internals )[nlohmann::json::json_pointer( "/input/mouse_left" )] =
+                MOUSE_DRAG_ACTION::SELECT;
     else
-        ( *m_internals )[nlohmann::json::json_pointer( "/input/mouse_left" )] = MOUSE_DRAG_ACTION::DRAG_ANY;
+        ( *m_internals )[nlohmann::json::json_pointer( "/input/mouse_left" )] =
+                MOUSE_DRAG_ACTION::DRAG_ANY;
 
     return true;
 }
@@ -490,11 +527,12 @@ bool COMMON_SETTINGS::migrateSchema2to3()
         wxString key = path.m_Alias;
         const wxString& val = path.m_Pathvar;
 
-        // The 3d alias config didnt use the same naming restrictions as real env variables
+        // The 3d alias config didn't use the same naming restrictions as real env variables
         // We need to sanitize them
 
         // upper case only
         key.MakeUpper();
+
         // logically swap - with _
         key.Replace( wxS( "-" ), wxS( "_" ) );
 
@@ -531,7 +569,8 @@ bool COMMON_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
             {
                 wxString key, value;
                 long index = 0;
-                nlohmann::json::json_pointer ptr = m_internals->PointerFromString( "environment.vars" );
+                nlohmann::json::json_pointer ptr =
+                        m_internals->PointerFromString( "environment.vars" );
 
                 aCfg->SetPath( "EnvironmentVariables" );
                 ( *m_internals )[ptr] = nlohmann::json( {} );
@@ -645,6 +684,10 @@ void COMMON_SETTINGS::InitializeEnvironment()
     path = basePath;
     path.AppendDir( wxT( "symbols" ) );
     addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "SYMBOL_DIR" ) ), path.GetFullPath() );
+
+    path = basePath;
+    path.AppendDir( wxT( "blocks" ) );
+    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "DESIGN_BLOCK_DIR" ) ), path.GetFullPath() );
 }
 
 

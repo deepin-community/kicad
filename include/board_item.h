@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wandadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,13 +22,15 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef BOARD_ITEM_STRUCT_H
-#define BOARD_ITEM_STRUCT_H
+#pragma once
 
 
+#include <core/mirror.h>
 #include <eda_item.h>
+#include <geometry/approximation.h>
 #include <layer_ids.h>
-#include <geometry/geometry_utils.h>
+#include <lseq.h>
+#include <lset.h>
 #include <stroke_params.h>
 #include <geometry/eda_angle.h>
 
@@ -77,11 +79,8 @@ class BOARD_ITEM : public EDA_ITEM
 {
 public:
     BOARD_ITEM( BOARD_ITEM* aParent, KICAD_T idtype, PCB_LAYER_ID aLayer = F_Cu ) :
-            EDA_ITEM( aParent, idtype, false, true ),
-            m_layer( aLayer ),
-            m_isKnockout( false ),
-            m_isLocked( false ),
-            m_group( nullptr )
+            EDA_ITEM( aParent, idtype, false, true ), m_layer( aLayer ), m_isKnockout( false ),
+            m_isLocked( false ), m_group( nullptr )
     {
     }
 
@@ -141,7 +140,7 @@ public:
      * object.  The scale runs from 0.0 (definitely different objects) to 1.0 (same)
      *
      * This is a pure virtual function.  Derived classes must implement this.
-    */
+     */
     virtual double Similarity( const BOARD_ITEM& aItem ) const = 0;
     virtual bool operator==( const BOARD_ITEM& aItem ) const = 0;
 
@@ -158,7 +157,19 @@ public:
         return false;
     }
 
-    virtual bool IsTented() const
+    virtual bool HasDrilledHole() const
+    {
+        return false;
+    }
+
+    /**
+     * Checks if the given object is tented (its copper shape is covered by solder mask) on a given
+     * side of the board.
+     * @param aLayer is the layer to check tenting mode for: F_Cu and F_Mask are treated identically
+     *               as are B_Cu and B_Mask
+     * @return true if the object is tented on the given side
+     */
+    virtual bool IsTented( PCB_LAYER_ID aLayer ) const
     {
         return false;
     }
@@ -190,12 +201,14 @@ public:
 
     /**
      * Invoke a function on all children.
+     *
      * @note This function should not add or remove items to the parent.
      */
     virtual void RunOnChildren( const std::function<void ( BOARD_ITEM* )>& aFunction ) const { }
 
     /**
      * Invoke a function on all descendants.
+     *
      * @note This function should not add or remove items.
      */
     virtual void RunOnDescendants( const std::function<void ( BOARD_ITEM* )>& aFunction,
@@ -226,6 +239,21 @@ public:
     virtual PCB_LAYER_ID GetLayer() const { return m_layer; }
 
     /**
+     * Return the total number of layers for the board that this item resides on.
+     */
+    virtual int BoardLayerCount() const;
+
+    /**
+     * Return the total number of copper layers for the board that this item resides on.
+     */
+    virtual int BoardCopperLayerCount() const;
+
+    /**
+     * Return the LSET for the board that this item resides on.
+     */
+    virtual LSET BoardLayerSet() const;
+
+    /**
      * Return a std::bitset of all layers on which the item physically resides.
      */
     virtual LSET GetLayerSet() const
@@ -233,10 +261,10 @@ public:
         if( m_layer == UNDEFINED_LAYER )
             return LSET();
         else
-            return LSET( m_layer );
+            return LSET( { m_layer } );
     }
 
-    virtual void SetLayerSet( LSET aLayers )
+    virtual void SetLayerSet( const LSET& aLayers )
     {
         if( aLayers.count() == 1 )
         {
@@ -248,6 +276,8 @@ public:
 
         // Derived classes which support multiple layers must implement this
     }
+
+    bool IsSideSpecific() const;
 
     /**
      * Set the layer this item is on.
@@ -327,9 +357,17 @@ public:
      * Flip this object, i.e. change the board side for this object.
      *
      * @param aCentre the rotation point.
-     * @param aFlipLeftRight mirror across Y axis instead of X (the default).
+     * @param aFlipDirection the flip direction
      */
-    virtual void Flip( const VECTOR2I& aCentre, bool aFlipLeftRight );
+    virtual void Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection );
+
+    /**
+     * Mirror this object relative to a given horizontal axis the layer is not changed.
+     *
+     * @param aCentre the mirror point.
+     * @param aMirrorAroundXAxis mirror across X axis instead of Y (the default).
+     */
+    virtual void Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection );
 
     /**
      * Perform any normalization required after a user rotate and/or flip.
@@ -362,7 +400,7 @@ public:
      */
     wxString GetLayerName() const;
 
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    virtual std::vector<int> ViewGetLayers() const override;
 
     /**
      * Convert the item shape to a closed polygon. Circles and arcs are approximated by segments.
@@ -422,7 +460,7 @@ public:
         BOARD_ITEM( nullptr, NOT_USED )
     {}
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override
     {
         return _( "(Deleted Item)" );
     }
@@ -451,15 +489,17 @@ public:
         return ( this == &aItem ) ? 1.0 : 0.0;
     }
 
-    bool operator==( const BOARD_ITEM& aItem ) const override
+    bool operator==( const BOARD_ITEM& aBoardItem ) const override
     {
-        return ( this == &aItem );
+        return ( this == &aBoardItem );
+    }
+
+    bool operator==( const DELETED_BOARD_ITEM& aOther ) const
+    {
+        return ( this == &aOther );
     }
 
 #if defined(DEBUG)
     void Show( int , std::ostream& ) const override {}
 #endif
 };
-
-
-#endif /* BOARD_ITEM_STRUCT_H */

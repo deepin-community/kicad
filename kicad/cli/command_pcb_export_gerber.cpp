@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -29,6 +29,7 @@
 #include <wx/tokenzr.h>
 
 #include <locale_io.h>
+
 
 
 CLI::PCB_EXPORT_GERBER_COMMAND::PCB_EXPORT_GERBER_COMMAND( const std::string& aName ) :
@@ -82,6 +83,11 @@ CLI::PCB_EXPORT_GERBER_COMMAND::PCB_EXPORT_GERBER_COMMAND( const std::string& aN
     m_argParser.add_argument( ARG_NO_PROTEL_EXTENSION )
             .help( UTF8STDSTR( _( "Use KiCad Gerber file extension" ) ) )
             .flag();
+
+
+    m_argParser.add_argument( ARG_PLOT_INVISIBLE_TEXT )
+            .help( UTF8STDSTR( _( ARG_PLOT_INVISIBLE_TEXT_DESC ) ) )
+            .flag();
 }
 
 
@@ -93,21 +99,22 @@ CLI::PCB_EXPORT_GERBER_COMMAND::PCB_EXPORT_GERBER_COMMAND() : PCB_EXPORT_GERBER_
 int CLI::PCB_EXPORT_GERBER_COMMAND::populateJob( JOB_EXPORT_PCB_GERBER* aJob )
 {
     aJob->m_filename = m_argInput;
-    aJob->m_outputFile = m_argOutput;
+    aJob->SetConfiguredOutputPath( m_argOutput );
     aJob->m_drawingSheet = m_argDrawingSheet;
     aJob->SetVarOverrides( m_argDefineVars );
 
     aJob->m_plotFootprintValues = !m_argParser.get<bool>( ARG_EXCLUDE_VALUE );
     aJob->m_plotRefDes = !m_argParser.get<bool>( ARG_EXCLUDE_REFDES );
-    aJob->m_plotBorderTitleBlocks = m_argParser.get<bool>( ARG_INCLUDE_BORDER_TITLE );
+    aJob->m_plotDrawingSheet = m_argParser.get<bool>( ARG_INCLUDE_BORDER_TITLE );
     aJob->m_disableApertureMacros = m_argParser.get<bool>( ARG_DISABLE_APERTURE_MACROS );
     aJob->m_subtractSolderMaskFromSilk = m_argParser.get<bool>( ARG_SUBTRACT_SOLDERMASK );
     aJob->m_includeNetlistAttributes = !m_argParser.get<bool>( ARG_NO_NETLIST );
     aJob->m_useX2Format = !m_argParser.get<bool>( ARG_NO_X2 );
-    aJob->m_useAuxOrigin = m_argParser.get<bool>( ARG_USE_DRILL_FILE_ORIGIN );
+    aJob->m_useDrillOrigin = m_argParser.get<bool>( ARG_USE_DRILL_FILE_ORIGIN );
     aJob->m_useProtelFileExtension = !m_argParser.get<bool>( ARG_NO_PROTEL_EXTENSION );
     aJob->m_precision = m_argParser.get<int>( ARG_PRECISION );
     aJob->m_printMaskLayer = m_selectedLayers;
+    aJob->m_plotInvisibleText = m_argParser.get<bool>( ARG_PLOT_INVISIBLE_TEXT );
 
     if( !wxFile::Exists( aJob->m_filename ) )
     {
@@ -127,12 +134,15 @@ int CLI::PCB_EXPORT_GERBER_COMMAND::populateJob( JOB_EXPORT_PCB_GERBER* aJob )
 
 int CLI::PCB_EXPORT_GERBER_COMMAND::doPerform( KIWAY& aKiway )
 {
+    wxFprintf( stdout, wxT( "\033[33;1m%s\033[0m\n" ),
+               _( "This command is deprecated as of KiCad 9.0, please use \"gerbers\" instead\n" ) );
+
     int exitCode = PCB_EXPORT_BASE_COMMAND::doPerform( aKiway );
 
     if( exitCode != EXIT_CODES::OK )
         return exitCode;
 
-    std::unique_ptr<JOB_EXPORT_PCB_GERBER> gerberJob( new JOB_EXPORT_PCB_GERBER( true ) );
+    std::unique_ptr<JOB_EXPORT_PCB_GERBER> gerberJob( new JOB_EXPORT_PCB_GERBER() );
 
     exitCode = populateJob( gerberJob.get() );
 

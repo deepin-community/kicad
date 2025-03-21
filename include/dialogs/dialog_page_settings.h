@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,6 +27,10 @@
 #include <dialog_page_settings_base.h>
 
 class DS_DATA_MODEL;
+class EDA_DRAW_FRAME;
+class BASE_SCREEN;
+class EMBEDDED_FILES;
+class FILENAME_RESOLVER;
 
 /*!
  * DIALOG_PAGES_SETTINGS class declaration
@@ -35,8 +39,8 @@ class DS_DATA_MODEL;
 class DIALOG_PAGES_SETTINGS: public DIALOG_PAGES_SETTINGS_BASE
 {
 public:
-    DIALOG_PAGES_SETTINGS( EDA_DRAW_FRAME* aParent, double aIuPerMils,
-                           const VECTOR2D& aMaxUserSizeMils );
+    DIALOG_PAGES_SETTINGS( EDA_DRAW_FRAME* aParent, EMBEDDED_FILES* aEmbeddedFiles,
+                           double aIuPerMils, const VECTOR2D& aMaxUserSizeMils );
     virtual ~DIALOG_PAGES_SETTINGS();
 
     const wxString GetWksFileName()
@@ -128,7 +132,9 @@ protected:
     TITLE_BLOCK     m_tb;                    /// Temporary title block (basic inscriptions).
     DS_DATA_MODEL*  m_drawingSheet; // the alternate and temporary drawing sheet shown by the
                                     // dialog when the initial one is replaced by a new one
-    double          m_iuPerMils;
+    double             m_iuPerMils;
+    EMBEDDED_FILES*    m_embeddedFiles; // the embedded files reference from the parent
+    FILENAME_RESOLVER* m_filenameResolver;
 
 private:
     UNIT_BINDER m_customSizeX;

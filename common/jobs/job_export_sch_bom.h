@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mike Williams <mike@mikebwilliams.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -29,11 +29,12 @@
 class KICOMMON_API JOB_EXPORT_SCH_BOM : public JOB
 {
 public:
-    JOB_EXPORT_SCH_BOM( bool aIsCli );
+    JOB_EXPORT_SCH_BOM();
+    wxString GetDefaultDescription() const override;
+    wxString GetSettingsDialogTitle() const override;
 
     // Basic options
     wxString m_filename;
-    wxString m_outputFile;
 
     // Preset options (from schematic)
     wxString m_bomPresetName;
@@ -55,6 +56,7 @@ public:
     bool                  m_sortAsc;
     wxString              m_filterString;
     bool                  m_excludeDNP;
+    bool                  m_includeExcludedFromBOM;
 };
 
 #endif

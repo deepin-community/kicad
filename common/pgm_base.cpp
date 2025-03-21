@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2004-2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,6 +34,7 @@
 #include <wx/fs_zip.h>
 #include <wx/dir.h>
 #include <wx/filename.h>
+#include <wx/msgdlg.h>
 #include <wx/propgrid/propgrid.h>
 #include <wx/snglinst.h>
 #include <wx/stdpaths.h>
@@ -62,7 +63,7 @@
 #include <settings/settings_manager.h>
 #include <string_utils.h>
 #include <systemdirsappend.h>
-#include <core/thread_pool.h>
+#include <thread_pool.h>
 #include <trace_helpers.h>
 
 #include <widgets/wx_splash.h>
@@ -72,6 +73,12 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <sentry.h>
 #include <build_version.h>
+#endif
+
+#ifdef KICAD_IPC_API
+#include <api/api_plugin_manager.h>
+#include <api/api_server.h>
+#include <python_manager.h>
 #endif
 
 /**
@@ -88,9 +95,9 @@
 LANGUAGE_DESCR LanguagesList[] =
 {
     { wxLANGUAGE_DEFAULT,    ID_LANGUAGE_DEFAULT,    _( "Default" ),    false },
-//    { wxLANGUAGE_INDONESIAN, ID_LANGUAGE_INDONESIAN, wxT( "Bahasa Indonesia" ), true },
+    // { wxLANGUAGE_INDONESIAN, ID_LANGUAGE_INDONESIAN, wxT( "Bahasa Indonesia" ), true },
     { wxLANGUAGE_CZECH,      ID_LANGUAGE_CZECH,      wxT( "Čeština" ),  true },
-    { wxLANGUAGE_DANISH,     ID_LANGUAGE_DANISH,     wxT( "Dansk" ),    true },
+    // { wxLANGUAGE_DANISH,     ID_LANGUAGE_DANISH,     wxT( "Dansk" ),    true },
     { wxLANGUAGE_GERMAN,     ID_LANGUAGE_GERMAN,     wxT( "Deutsch" ),  true },
     { wxLANGUAGE_GREEK,      ID_LANGUAGE_GREEK,      wxT( "Ελληνικά" ), true },
     { wxLANGUAGE_ENGLISH,    ID_LANGUAGE_ENGLISH,    wxT( "English" ),  true },
@@ -98,10 +105,11 @@ LANGUAGE_DESCR LanguagesList[] =
     { wxLANGUAGE_SPANISH_MEXICAN, ID_LANGUAGE_SPANISH_MEXICAN,
       wxT( "Español (Latinoamericano)" ),  true },
     { wxLANGUAGE_FRENCH,     ID_LANGUAGE_FRENCH,     wxT( "Français" ), true },
+    // { wxLANGUAGE_HEBREW,     ID_LANGUAGE_HEBREW,     wxT( "עברית" ), true },
     { wxLANGUAGE_KOREAN,     ID_LANGUAGE_KOREAN,     wxT( "한국어"),       true },
     { wxLANGUAGE_ITALIAN,    ID_LANGUAGE_ITALIAN,    wxT( "Italiano" ), true },
-    { wxLANGUAGE_LITHUANIAN, ID_LANGUAGE_LITHUANIAN, wxT( "Lietuvių" ), true },
-//    { wxLANGUAGE_HUNGARIAN,  ID_LANGUAGE_HUNGARIAN,  wxT( "Magyar" ),   true },
+    // { wxLANGUAGE_LITHUANIAN, ID_LANGUAGE_LITHUANIAN, wxT( "Lietuvių" ), true },
+    // { wxLANGUAGE_HUNGARIAN,  ID_LANGUAGE_HUNGARIAN,  wxT( "Magyar" ),   true },
     { wxLANGUAGE_DUTCH,      ID_LANGUAGE_DUTCH,      wxT( "Nederlands" ), true },
     { wxLANGUAGE_JAPANESE,   ID_LANGUAGE_JAPANESE,   wxT( "日本語" ),    true },
     { wxLANGUAGE_THAI,       ID_LANGUAGE_THAI,       wxT( "ภาษาไทย" ),    true },
@@ -110,11 +118,11 @@ LANGUAGE_DESCR LanguagesList[] =
     { wxLANGUAGE_PORTUGUESE_BRAZILIAN, ID_LANGUAGE_PORTUGUESE_BRAZILIAN,
       wxT( "Português (Brasil)" ), true },
     { wxLANGUAGE_RUSSIAN,    ID_LANGUAGE_RUSSIAN,    wxT( "Русский" ),  true },
-//    { wxLANGUAGE_SERBIAN,    ID_LANGUAGE_SERBIAN,    wxT( "Српски" ),   true },
+    // { wxLANGUAGE_SERBIAN,    ID_LANGUAGE_SERBIAN,    wxT( "Српски" ),   true },
     { wxLANGUAGE_FINNISH,    ID_LANGUAGE_FINNISH,    wxT( "Suomi" ),    true },
     { wxLANGUAGE_SWEDISH,    ID_LANGUAGE_SWEDISH,    wxT( "Svenska" ),  true },
-//    { wxLANGUAGE_VIETNAMESE, ID_LANGUAGE_VIETNAMESE, wxT( "Tiếng Việt" ), true },
-//    { wxLANGUAGE_TURKISH,    ID_LANGUAGE_TURKISH,    wxT( "Türkçe" ),   true },
+    // { wxLANGUAGE_VIETNAMESE, ID_LANGUAGE_VIETNAMESE, wxT( "Tiếng Việt" ), true },
+    // { wxLANGUAGE_TURKISH,    ID_LANGUAGE_TURKISH,    wxT( "Türkçe" ),   true },
     { wxLANGUAGE_UKRAINIAN,  ID_LANGUAGE_UKRANIAN,   wxT( "Українська" ),   true },
     { wxLANGUAGE_CHINESE_SIMPLIFIED, ID_LANGUAGE_CHINESE_SIMPLIFIED,
             wxT( "简体中文" ), true },
@@ -326,9 +334,9 @@ void PGM_BASE::sentryInit()
 
         sentry_options_t* options = sentry_options_new();
 
-        #ifndef KICAD_SENTRY_DSN
-        #   error "Project configuration error, missing KICAD_SENTRY_DSN"
-        #endif
+#ifndef KICAD_SENTRY_DSN
+#   error "Project configuration error, missing KICAD_SENTRY_DSN"
+#endif
 
         sentry_options_set_dsn( options, KICAD_SENTRY_DSN );
 
@@ -464,6 +472,10 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
 #ifdef KICAD_USE_SENTRY
     sentryInit();
 #endif
+
+    // Initialize the singleton instance
+    m_singleton.Init();
+
     wxString pgm_name;
 
     /// Should never happen but boost unit_test isn't playing nicely in some cases
@@ -497,9 +509,10 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
     // their own lock files.
     wxString instanceCheckerDir = PATHS::GetInstanceCheckerPath();
     PATHS::EnsurePathExists( instanceCheckerDir );
-    wxChmod( instanceCheckerDir, wxPOSIX_USER_READ | wxPOSIX_USER_WRITE | wxPOSIX_USER_EXECUTE |
-                                 wxPOSIX_GROUP_READ | wxPOSIX_GROUP_WRITE | wxPOSIX_GROUP_EXECUTE |
-                                 wxPOSIX_OTHERS_READ | wxPOSIX_OTHERS_WRITE | wxPOSIX_OTHERS_EXECUTE );
+    wxChmod( instanceCheckerDir,
+             wxPOSIX_USER_READ | wxPOSIX_USER_WRITE | wxPOSIX_USER_EXECUTE |
+             wxPOSIX_GROUP_READ | wxPOSIX_GROUP_WRITE | wxPOSIX_GROUP_EXECUTE |
+             wxPOSIX_OTHERS_READ | wxPOSIX_OTHERS_WRITE | wxPOSIX_OTHERS_EXECUTE );
 
     wxString instanceCheckerName = wxString::Format( wxS( "%s-%s" ), pgm_name,
                                                      GetMajorMinorVersion() );
@@ -542,15 +555,23 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
     SetDefaultLanguage( tmp );
 
 #ifdef _MSC_VER
-    // We need to set this because the internal fontconfig logic
-    // seems to search relative to the dll rather the other logic it
-    // has to look for the /etc folder above the dll
-    wxSetEnv( "FONTCONFIG_PATH", PATHS::GetWindowsFontConfigDir() );
+    if( !wxGetEnv( "FONTCONFIG_PATH", NULL ) )
+    {
+        // We need to set this because the internal fontconfig logic
+        // seems to search relative to the dll rather the other logic it
+        // has to look for the /etc folder above the dll
+        // Also don't set it because we need it in QA cli tests to be set by ctest
+        wxSetEnv( "FONTCONFIG_PATH", PATHS::GetWindowsFontConfigDir() );
+    }
 #endif
 
     m_settings_manager = std::make_unique<SETTINGS_MANAGER>( aHeadless );
     m_background_jobs_monitor = std::make_unique<BACKGROUND_JOBS_MONITOR>();
     m_notifications_manager = std::make_unique<NOTIFICATIONS_MANAGER>();
+
+#ifdef KICAD_IPC_API
+    m_plugin_manager = std::make_unique<API_PLUGIN_MANAGER>( &App() );
+#endif
 
     // Our unit test mocks break if we continue
     // A bug caused InitPgm to terminate early in unit tests and the mocks are...simplistic
@@ -563,13 +584,20 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
         return false;
 
     // Set up built-in environment variables (and override them from the system environment if set)
-    GetCommonSettings()->InitializeEnvironment();
+    COMMON_SETTINGS* commonSettings = GetCommonSettings();
+    commonSettings->InitializeEnvironment();
 
     // Load color settings after env is initialized
     m_settings_manager->ReloadColorSettings();
 
     // Load common settings from disk after setting up env vars
-    GetSettingsManager().Load( GetCommonSettings() );
+    GetSettingsManager().Load( commonSettings );
+
+#ifdef KICAD_IPC_API
+    // If user doesn't have a saved Python interpreter, try (potentially again) to find one
+    if( commonSettings->m_Api.python_interpreter.IsEmpty() )
+        commonSettings->m_Api.python_interpreter = PYTHON_MANAGER::FindPythonInterpreter();
+#endif
 
     // Init user language *before* calling loadSettings, because
     // env vars could be incorrectly initialized on Linux
@@ -590,13 +618,18 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
     GetNotificationsManager().Load();
 
     // Create the python scripting stuff
-    // Skip it fot applications that do not use it
+    // Skip it for applications that do not use it
     if( !aSkipPyInit )
         m_python_scripting = std::make_unique<SCRIPTING>();
 
     // TODO(JE): Remove this if apps are refactored to not assume Prj() always works
     // Need to create a project early for now (it can have an empty path for the moment)
     GetSettingsManager().LoadProject( "" );
+
+#ifdef KICAD_IPC_API
+    if( commonSettings->m_Api.enable_server )
+        m_plugin_manager->ReloadPlugins();
+#endif
 
     // This sets the maximum tooltip display duration to 10s (up from 5) but only affects
     // Windows as other platforms display tooltips while the mouse is not moving
@@ -822,7 +855,9 @@ wxString PGM_BASE::GetLanguageTag()
     const wxLanguageInfo* langInfo = wxLocale::GetLanguageInfo( m_language_id );
 
     if( !langInfo )
+    {
         return "";
+    }
     else
     {
         wxString str = langInfo->GetCanonicalWithRegion();
@@ -836,8 +871,7 @@ wxString PGM_BASE::GetLanguageTag()
 void PGM_BASE::SetLanguagePath()
 {
 #ifdef _MSC_VER
-    wxLocale::AddCatalogLookupPathPrefix( PATHS::GetWindowsBaseSharePath()
-                                                  + wxT( "locale" ) );
+    wxLocale::AddCatalogLookupPathPrefix( PATHS::GetWindowsBaseSharePath() + wxT( "locale" ) );
 #endif
     wxLocale::AddCatalogLookupPathPrefix( PATHS::GetLocaleDataPath() );
 
@@ -1030,4 +1064,27 @@ void PGM_BASE::WritePdfBrowserInfos()
 {
     GetCommonSettings()->m_System.pdf_viewer_name = GetPdfBrowserName();
     GetCommonSettings()->m_System.use_system_pdf_viewer = m_use_system_pdf_browser;
+}
+
+
+static PGM_BASE* process;
+
+
+PGM_BASE& Pgm()
+{
+    wxASSERT( process ); // KIFACE_GETTER has already been called.
+    return *process;
+}
+
+
+// Similar to PGM_BASE& Pgm(), but return nullptr when a *.ki_face is run from a python script.
+PGM_BASE* PgmOrNull()
+{
+    return process;
+}
+
+
+void SetPgm( PGM_BASE* pgm )
+{
+    process = pgm;
 }

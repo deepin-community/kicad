@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 Jean_Pierre Charras <jp.charras at wanadoo.fr>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -66,7 +66,7 @@ public:
      * @param aIncludeBrdEdges use true to include board outlines.
      * @return component count, or -1 if the file cannot be created.
      */
-    int CreatePlaceFile( wxString& aFullFilename, PCB_LAYER_ID aLayer, bool aIncludeBrdEdges );
+    int CreatePlaceFile( const wxString& aFullFilename, PCB_LAYER_ID aLayer, bool aIncludeBrdEdges );
 
     /**
      * @param aFullBaseFilename = a full filename. it will be modified

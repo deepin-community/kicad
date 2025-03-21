@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -43,8 +43,6 @@ public:
 
     void AfterCommit() override;
 
-    void LanguageChanged() override;
-
 protected:
     wxPGProperty* createPGProperty( const PROPERTY_BASE* aProperty ) const override;
 
@@ -52,6 +50,8 @@ protected:
 
     void valueChanging( wxPropertyGridEvent& aEvent ) override;
     void valueChanged( wxPropertyGridEvent& aEvent ) override;
+
+    void OnLanguageChanged( wxCommandEvent& aEvent ) override;
 
     ///< Regenerates caches of font list property
     void updateFontList();

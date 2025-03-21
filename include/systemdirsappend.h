@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,12 +37,12 @@ class SEARCH_STACK;
  * Append system places to \a aSearchStack in a platform specific way and pertinent
  * to KiCad programs.
  */
-void SystemDirsAppend( SEARCH_STACK* aSearchStack );
+KICOMMON_API void SystemDirsAppend( SEARCH_STACK* aSearchStack );
 
 /**
  * Initialize aDst SEARCH_STACK with KIFACE (DSO) specific settings.
  * Adds libraries, docs, template paths to the search stack.
  */
-void GlobalPathsAppend( SEARCH_STACK* aDst, KIWAY::FACE_T aId );
+KICOMMON_API void GlobalPathsAppend( SEARCH_STACK* aDst, KIWAY::FACE_T aId );
 
 #endif  // INCLUDE__SYSTEM_DIRS_APPEND_H_

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 Ian McInerney <Ian.S.McInerney@ieee.org>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -34,6 +34,7 @@
 #include <tools/cvpcb_actions.h>
 #include <tools/cvpcb_control.h>
 #include <wx/settings.h>
+#include <wx/msgdlg.h>
 
 using namespace std::placeholders;
 
@@ -177,7 +178,7 @@ int CVPCB_CONTROL::ShowFootprintViewer( const TOOL_EVENT& aEvent )
         fpframe = (DISPLAY_FOOTPRINTS_FRAME*) m_frame->Kiway().Player( FRAME_CVPCB_DISPLAY, true,
                                                                        m_frame );
 
-        // If Kiway() cannot create the eeschema frame, it shows a error message, and
+        // If Kiway() cannot create the Eeschema frame, it shows a error message, and
         // frame is null
         if( !fpframe )
             return 0;
@@ -248,8 +249,10 @@ int CVPCB_CONTROL::ToNA( const TOOL_EVENT& aEvent )
 {
     CVPCB_MAINFRAME::ITEM_DIR dir = aEvent.Parameter<CVPCB_MAINFRAME::ITEM_DIR>();
 
-    std::vector<unsigned int> naComp = m_frame->GetComponentIndices( CVPCB_MAINFRAME::NA_COMPONENTS );
-    std::vector<unsigned int> tempSel = m_frame->GetComponentIndices( CVPCB_MAINFRAME::SEL_COMPONENTS );
+    std::vector<unsigned int> naComp =
+            m_frame->GetComponentIndices( CVPCB_MAINFRAME::NA_COMPONENTS );
+    std::vector<unsigned int> tempSel =
+            m_frame->GetComponentIndices( CVPCB_MAINFRAME::SEL_COMPONENTS );
 
     // No unassociated components
     if( naComp.empty() )
@@ -340,7 +343,8 @@ void CVPCB_CONTROL::setTransitions()
 
     // Management actions
     Go( &CVPCB_CONTROL::ShowEquFileTable,      CVPCB_ACTIONS::showEquFileTable.MakeEvent() );
-    Go( &CVPCB_CONTROL::SaveAssociationsToSchematic, CVPCB_ACTIONS::saveAssociationsToSchematic.MakeEvent() );
+    Go( &CVPCB_CONTROL::SaveAssociationsToSchematic,
+        CVPCB_ACTIONS::saveAssociationsToSchematic.MakeEvent() );
     Go( &CVPCB_CONTROL::SaveAssociationsToFile,CVPCB_ACTIONS::saveAssociationsToFile.MakeEvent() );
 
     // Navigation actions

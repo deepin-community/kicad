@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,6 +25,7 @@
 #ifndef NOTIFICATIONS_MANAGER_H
 #define NOTIFICATIONS_MANAGER_H
 
+#include <kicommon.h>
 #include <functional>
 #include <vector>
 
@@ -36,85 +37,85 @@ class wxWindow;
 class wxCloseEvent;
 
 
-struct NOTIFICATION
+struct KICOMMON_API NOTIFICATION
 {
 public:
-    wxString title; ///< Title of the notification
-    wxString description; ///< Additional message displayed under title
-    wxString href;  ///< URL if any to link to for details
-    wxString key;   ///< Unique key to find a notification
-    wxString date;  ///< Date notification will display
+    wxString title;       ///< Title of the notification.
+    wxString description; ///< Additional message displayed under title.
+    wxString href;        ///< URL if any to link to for details.
+    wxString key;         ///< Unique key to find a notification.
+    wxString date;        ///< Date notification will display.
 };
 
 
-class NOTIFICATIONS_MANAGER
+class KICOMMON_API NOTIFICATIONS_MANAGER
 {
-    friend class NOTIFICATION_LIST;
-
 public:
     NOTIFICATIONS_MANAGER();
 
     /**
-     * Creates a notification with the given parameters or updates an existing one with the same key
+     * Create a notification with the given parameters or updates an existing one with the same key.
      *
-     * @param aKey is a unique key for the notification, this allows removing or updating the same notification
-     * @param aTitle is the displayed title for the event
+     * @param aKey is a unique key for the notification, this allows removing or updating the same
+     *        notification.
+     * @param aTitle is the displayed title for the event.
      * @param aDescription is the text that displays underneath the title and has slightly more info
-     *   them later programtically in case a notificaiton is no logner required
-     * @param aHref is link to external or internal content
+     *        them later programatically in case a notification is no longer required.
+     * @param aHref is link to external or internal content.
      */
     void CreateOrUpdate( const wxString& aKey, const wxString& aTitle, const wxString& aDescription,
-                 const wxString& aHref = wxEmptyString );
+                         const wxString& aHref = wxEmptyString );
 
     /**
-     * Remove a notification by key
+     * Remove a notification by key.
      *
-     * @param aKey is the unique key to locate
+     * @param aKey is the unique key to locate.
      */
     void Remove( const wxString& aKey );
 
     /**
-     * Loads notifications stored from disk
+     * Load notifications stored from disk.
      */
     void Load();
 
     /**
-     * Saves notifications to disk
+     * Save notifications to disk.
      */
     void Save();
 
     /**
-     * Shows the notification list
+     * Show the notification list.
      */
     void ShowList( wxWindow* aParent, wxPoint aPos );
 
     /**
-     * Add a status bar for handling
+     * Add a status bar for handling.
      */
     void RegisterStatusBar( KISTATUSBAR* aStatusBar );
 
     /**
-     * Removes status bar from handling
+     * Remove status bar from handling.
      */
     void UnregisterStatusBar( KISTATUSBAR* aStatusBar );
 
 private:
     /**
-     * Handles removing the shown list window from our list of shown windows
+     * Handle removing the shown list window from our list of shown windows.
      */
     void onListWindowClosed( wxCloseEvent& aEvent );
 
-    ///< Current stack of notifications
+private:
+    /// Current stack of notifications.
     std::vector<NOTIFICATION>        m_notifications;
 
-    ///< Currently shown notification lists
+    /// Currently shown notification lists.
     std::vector<NOTIFICATIONS_LIST*> m_shownDialogs;
 
-    ///< Status bars registered for updates
-    std::vector<KISTATUSBAR*> m_statusBars;
+    /// Status bars registered for updates.
+    std::vector<KISTATUSBAR*>        m_statusBars;
 
-    ///< The cached file path to read/write notifications on disk
-    wxFileName m_destFileName;
+    /// The cached file path to read/write notifications on disk.
+    wxFileName                       m_destFileName;
 };
 
 #endif

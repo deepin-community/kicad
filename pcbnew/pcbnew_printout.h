@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2018 CERN
- * Copyright (C) 2018-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -22,6 +22,7 @@
 #define PCBNEW_PRINTOUT_H
 
 #include <board_printout.h>
+#include <lset.h>
 #include <pcb_painter.h>
 #include <plotprint_opts.h>
 
@@ -97,7 +98,7 @@ public:
     }
 
 protected:
-    int getDrillShape( const PAD* aPad ) const override;
+    PAD_DRILL_SHAPE getDrillShape( const PAD* aPad ) const override;
 
     SHAPE_SEGMENT getPadHoleShape( const PAD* aPad ) const override;
 

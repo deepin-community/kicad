@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2014 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,6 +27,7 @@
 #include <confirm.h>
 #include <pcb_edit_frame.h>
 #include <pcbnew_settings.h>
+#include <zone_settings.h>
 #include <widgets/unit_binder.h>
 #include <wx/statbox.h>
 #include <wx/statline.h>
@@ -81,6 +82,7 @@ int InvokeNonCopperZonesEditor( PCB_BASE_FRAME* aParent, ZONE_SETTINGS* aSetting
 {
     DIALOG_NON_COPPER_ZONES_EDITOR  dlg( aParent, aSettings, aConvertSettings );
 
+    // TODO: why does this require QuasiModal?
     return dlg.ShowQuasiModal();
 }
 

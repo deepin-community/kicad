@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,6 +26,7 @@
 #include <plotters/plotter.h>
 #include <pcbplot.h>
 #include <base_units.h>
+#include <lset.h>
 #include <locale_io.h>
 #include <reporter.h>
 #include <board.h>
@@ -37,7 +38,7 @@
 #include <build_version.h>
 #include <gbr_metadata.h>
 #include <render_settings.h>
-
+#include <pcb_plotter.h>
 
 const wxString GetGerberProtelExtension( int aLayer )
 {
@@ -48,7 +49,7 @@ const wxString GetGerberProtelExtension( int aLayer )
         else if( aLayer == B_Cu )
             return wxT( "gbl" );
         else
-            return wxString::Format( wxT( "g%d" ), aLayer+1 );
+            return wxString( wxT( "g" ) ) << CopperLayerToOrdinal( ToLAYER_ID( aLayer ) );
     }
     else
     {
@@ -81,6 +82,7 @@ const wxString GetGerberProtelExtension( int aLayer )
 const wxString GetGerberFileFunctionAttribute( const BOARD* aBoard, int aLayer )
 {
     wxString attrib;
+
 
     switch( aLayer )
     {
@@ -159,7 +161,12 @@ const wxString GetGerberFileFunctionAttribute( const BOARD* aBoard, int aLayer )
 
     default:
         if( IsCopperLayer( aLayer ) )
-            attrib.Printf( wxT( "Copper,L%d,Inr" ), aLayer+1 );
+        {
+            // aLayer use even values, and the first internal layer
+            // is B_Cu + 2. And in gerber file, layer id is 2 (1 is F_Cu)
+            int ly_id = ( ( aLayer - B_Cu ) / 2 ) + 1;
+            attrib.Printf( wxT( "Copper,L%d,Inr" ), ly_id );
+        }
         else
             attrib.Printf( wxT( "Other,User" ), aLayer+1 );
         break;
@@ -372,32 +379,8 @@ void AddGerberX2Attribute( PLOTTER* aPlotter, const BOARD* aBoard, int aLayer,
 void BuildPlotFileName( wxFileName* aFilename, const wxString& aOutputDir,
                         const wxString& aSuffix, const wxString& aExtension )
 {
-    // aFilename contains the base filename only (without path and extension)
-    // when calling this function.
-    // It is expected to be a valid filename (this is usually the board filename)
-    aFilename->SetPath( aOutputDir );
-
-    // Set the file extension
-    aFilename->SetExt( aExtension );
-
-    // remove leading and trailing spaces if any from the suffix, if
-    // something survives add it to the name;
-    // also the suffix can contain some not allowed chars in filename (/ \ . : and some others),
-    // so change them to underscore
-    // Remember it can be called from a python script, so the illegal chars
-    // have to be filtered here.
-    wxString suffix = aSuffix;
-    suffix.Trim( true );
-    suffix.Trim( false );
-
-    wxString badchars = wxFileName::GetForbiddenChars(wxPATH_DOS);
-    badchars.Append( "%." );
-
-    for( unsigned ii = 0; ii < badchars.Len(); ii++ )
-        suffix.Replace( badchars[ii], wxT("_") );
-
-    if( !suffix.IsEmpty() )
-        aFilename->SetName( aFilename->GetName() + wxT( "-" ) + suffix );
+    // Kept as compat, incase python junk used it
+    PCB_PLOTTER::BuildPlotFileName( aFilename, aOutputDir, aSuffix, aExtension );
 }
 
 

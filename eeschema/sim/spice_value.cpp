@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -57,7 +57,7 @@ void SPICE_VALUE_FORMAT::FromString( const wxString& aString )
 
 wxString SPICE_VALUE_FORMAT::ToString() const
 {
-    return wxString::Format( wxS( "%d%s" ), alg::clamp( 0, Precision, 9 ), Range );
+    return wxString::Format( wxS( "%d%s" ), std::clamp( Precision, 0, 9 ), Range );
 }
 
 
@@ -414,7 +414,7 @@ bool SPICE_VALIDATOR::Validate( wxWindow* aParent )
     }
     catch( ... )
     {
-        DisplayError( aParent, wxString::Format( _( "'%s' is not a valid Spice value." ),
+        DisplayError( aParent, wxString::Format( _( "'%s' is not a valid SPICE value." ),
                                                  text->GetValue() ) );
 
         return false;

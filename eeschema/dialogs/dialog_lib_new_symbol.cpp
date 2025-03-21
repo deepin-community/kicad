@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,47 +22,69 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "dialog_lib_new_symbol.h"
+
 #include <default_values.h>
-#include <dialog_lib_new_symbol.h>
 #include <eda_draw_frame.h>
 #include <sch_validators.h>
 #include <template_fieldnames.h>
 
-DIALOG_LIB_NEW_SYMBOL::DIALOG_LIB_NEW_SYMBOL( EDA_DRAW_FRAME* aParent, const wxString& aMessage,
-                                              const wxArrayString* aRootSymbolNames,
-                                              const wxString& aInheritFromSymbolName,
+
+static wxString getDerivativeName( const wxString& aParentName )
+{
+    return wxString::Format( "%s_1", aParentName );
+}
+
+
+DIALOG_LIB_NEW_SYMBOL::DIALOG_LIB_NEW_SYMBOL( EDA_DRAW_FRAME*      aParent,
+                                              const wxArrayString& aSymbolNames,
+                                              const wxString&      aInheritFromSymbolName,
                                               std::function<bool( wxString newName )> aValidator ) :
         DIALOG_LIB_NEW_SYMBOL_BASE( dynamic_cast<wxWindow*>( aParent ) ),
         m_pinTextPosition( aParent, m_staticPinTextPositionLabel, m_textPinTextPosition,
                            m_staticPinTextPositionUnits, true ),
-        m_validator( std::move( aValidator ) )
+        m_validator( std::move( aValidator ) ),
+        m_nameIsDefaulted( true )
 {
-    if( aRootSymbolNames && aRootSymbolNames->GetCount() )
+    if( aSymbolNames.GetCount() )
     {
         wxArrayString escapedNames;
 
-        for( const wxString& name : *aRootSymbolNames )
+        for( const wxString& name : aSymbolNames )
             escapedNames.Add( UnescapeString( name ) );
 
-        m_comboInheritanceSelect->Append( escapedNames );
+        m_comboInheritanceSelect->SetSymbolList( escapedNames );
 
         if( !aInheritFromSymbolName.IsEmpty() )
         {
-            m_comboInheritanceSelect->SetStringSelection( aInheritFromSymbolName );
-            syncControls( !m_comboInheritanceSelect->GetValue().IsEmpty() );
+            m_comboInheritanceSelect->SetSelectedSymbol( aInheritFromSymbolName );
         }
     }
 
-    if( !aMessage.IsEmpty() )
-    {
-        m_infoBar->RemoveAllButtons();
-        m_infoBar->ShowMessage( aMessage );
-    }
+    // Trigger the event handler to show/hide the info bar message.
+    wxCommandEvent dummyEvent;
+    onParentSymbolSelect( dummyEvent );
 
     m_textName->SetValidator( FIELD_VALIDATOR( VALUE_FIELD ) );
     m_textReference->SetValidator( FIELD_VALIDATOR( REFERENCE_FIELD ) );
 
+    if( !aInheritFromSymbolName.IsEmpty() )
+    {
+        m_textName->ChangeValue( getDerivativeName( aInheritFromSymbolName ) );
+        m_nameIsDefaulted = true;
+    }
+
     m_pinTextPosition.SetValue( schIUScale.MilsToIU( DEFAULT_PIN_NAME_OFFSET ) );
+
+    m_comboInheritanceSelect->Connect(
+            FILTERED_ITEM_SELECTED,
+            wxCommandEventHandler( DIALOG_LIB_NEW_SYMBOL::onParentSymbolSelect ), nullptr, this );
+
+    m_textName->Bind( wxEVT_TEXT,
+                      [this]( wxCommandEvent& aEvent )
+                      {
+                          m_nameIsDefaulted = false;
+                      } );
 
     // initial focus should be on first editable field.
     m_textName->SetFocus();
@@ -74,15 +96,43 @@ DIALOG_LIB_NEW_SYMBOL::DIALOG_LIB_NEW_SYMBOL( EDA_DRAW_FRAME* aParent, const wxS
 }
 
 
+DIALOG_LIB_NEW_SYMBOL::~DIALOG_LIB_NEW_SYMBOL()
+{
+    m_comboInheritanceSelect->Disconnect(
+            FILTERED_ITEM_SELECTED,
+            wxCommandEventHandler( DIALOG_LIB_NEW_SYMBOL::onParentSymbolSelect ), nullptr, this );
+}
+
+
 bool DIALOG_LIB_NEW_SYMBOL::TransferDataFromWindow()
 {
     return m_validator( GetName() );
 }
 
 
-void DIALOG_LIB_NEW_SYMBOL::OnParentSymbolSelect( wxCommandEvent& aEvent )
+void DIALOG_LIB_NEW_SYMBOL::onParentSymbolSelect( wxCommandEvent& aEvent )
 {
-    syncControls( !m_comboInheritanceSelect->GetValue().IsEmpty() );
+    const wxString parent = m_comboInheritanceSelect->GetValue();
+
+    if( !parent.IsEmpty() )
+    {
+        m_infoBar->RemoveAllButtons();
+        m_infoBar->ShowMessage( wxString::Format( _( "Deriving from symbol '%s'." ), parent ),
+                                wxICON_INFORMATION );
+    }
+    else
+    {
+        m_infoBar->Dismiss();
+    }
+
+    if( m_textName->IsEmpty() || m_nameIsDefaulted )
+    {
+        m_textName->SetValue( getDerivativeName( parent ) );
+        m_textName->SetInsertionPointEnd();
+        m_nameIsDefaulted = true;
+    }
+
+    syncControls( !parent.IsEmpty() );
 }
 
 

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,7 +21,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <boost/test/unit_test.hpp>
+#include <qa_utils/wx_utils/unit_test_utils.h>
 
 #include <geometry/oval.h>
 
@@ -55,17 +55,12 @@ void CHECK_COLLECTIONS_SAME_UNORDERED(const T& expected, const T& actual) {
     BOOST_CHECK_EQUAL( expected.size(), actual.size() );
 }
 
-struct OvalFixture
-{
-};
-
-BOOST_FIXTURE_TEST_SUITE( Oval, OvalFixture )
+BOOST_AUTO_TEST_SUITE( Oval )
 
 struct OVAL_POINTS_TEST_CASE
 {
-    VECTOR2I m_size;
-    EDA_ANGLE m_rotation;
-    std::vector<VECTOR2I> m_expected_points;
+    OVAL                       m_oval;
+    std::vector<TYPED_POINT2I> m_expected_points;
 };
 
 void DoOvalPointTestChecks( const OVAL_POINTS_TEST_CASE& testcase )
@@ -74,9 +69,10 @@ void DoOvalPointTestChecks( const OVAL_POINTS_TEST_CASE& testcase )
         return LexicographicalCompare<VECTOR2I::coord_type>( a, b ) > 0;
     };
 
-    std::vector<VECTOR2I> expected_points = testcase.m_expected_points;
-    std::vector<VECTOR2I> actual_points =
-            GetOvalKeyPoints( testcase.m_size, testcase.m_rotation, OVAL_ALL_KEY_POINTS );
+    std::vector<TYPED_POINT2I> expected_points = testcase.m_expected_points;
+
+    std::vector<TYPED_POINT2I> actual_points =
+            KIGEOM::GetOvalKeyPoints( testcase.m_oval, KIGEOM::OVAL_ALL_KEY_POINTS );
 
     CHECK_COLLECTIONS_SAME_UNORDERED( expected_points, actual_points );
 }
@@ -85,23 +81,26 @@ BOOST_AUTO_TEST_CASE( SimpleOvalVertical )
 {
     const OVAL_POINTS_TEST_CASE testcase
     {
-        { 1000, 3000 },
-        { 0, DEGREES_T },
         {
-            { 0, 0 },
+            SEG{ { 0, -1000 }, { 0, 1000 } },
+            1000,
+        },
+        {
+            { { 0, 0 }, PT_CENTER },
             // Main points
-            { 0, 1500 },
-            { 0, -1500 },
-            { 500, 0 },
-            { -500, 0 },
+            { { 0, 1500 }, PT_QUADRANT },
+            { { 0, -1500 }, PT_QUADRANT },
+            { { 500, 0 }, PT_MID },
+            { { -500, 0 }, PT_MID },
             // Cap centres
-            { 0, 1000 },
-            { 0, -1000 },
+            { { 0, 1000 }, PT_CENTER },
+            { { 0, -1000 }, PT_CENTER },
             // Side segment ends
-            { 500, 1000 },
-            { 500, -1000 },
-            { -500, 1000 },
-            { -500, -1000 },
+            { { 500, 1000 }, PT_END },
+            { { 500, -1000 }, PT_END },
+            { { -500, 1000 }, PT_END },
+            { { -500, -1000 }, PT_END },
+            // No quadrants
         },
     };
 
@@ -112,23 +111,26 @@ BOOST_AUTO_TEST_CASE( SimpleOvalHorizontal )
 {
     const OVAL_POINTS_TEST_CASE testcase
     {
-        { 3000, 1000 },
-        { 0, DEGREES_T },
         {
-            { 0, 0 },
+            SEG{ { -1000, 0 }, { 1000, 0 } },
+            1000,
+        },
+        {
+            { { 0, 0 }, PT_CENTER },
             // Main points
-            { 0, 500 },
-            { 0, -500 },
-            { 1500, 0 },
-            { -1500, 0 },
+            { { 0, 500 }, PT_MID },
+            { { 0, -500 }, PT_MID },
+            { { 1500, 0 }, PT_QUADRANT },
+            { { -1500, 0 }, PT_QUADRANT },
             // Cap centres
-            { 1000, 0 },
-            { -1000, 0 },
+            { { 1000, 0 }, PT_CENTER },
+            { { -1000, 0 }, PT_CENTER },
             // Side segment ends
-            { 1000, 500 },
-            { 1000, -500 },
-            { -1000, 500 },
-            { -1000, -500 },
+            { { 1000, 500 }, PT_END },
+            { { 1000, -500 }, PT_END },
+            { { -1000, 500 }, PT_END },
+            { { -1000, -500 }, PT_END },
+            // No quadrants
         },
     };
 
@@ -146,28 +148,30 @@ BOOST_AUTO_TEST_CASE( SimpleOval45Degrees )
 
     const OVAL_POINTS_TEST_CASE testcase
     {
-        { 4000, 1000 },
-        { 45, DEGREES_T },
         {
-            { 0, 0 },
+            SEG{ GetRotated( { -1500, 0 }, ANGLE_45 ), GetRotated( { 1500, 0 }, ANGLE_45 ) },
+            1000,
+        },
+        {
+            { { 0, 0 }, PT_CENTER },
             // Main points
-            { 1414, -1414 },
-            { -1414, 1414 },
-            { 354, 354 },
-            { -354, -354 },
+            { { 1414, -1414 }, PT_END },
+            { { -1414, 1414 }, PT_END },
+            { { 354, 354 }, PT_MID },
+            { { -354, -354 }, PT_MID },
             // Side segment ends
-            { -1414, 707 },
-            { 1414, -707 },
-            { -707, 1414 },
-            { 707, -1414 },
+            { { -1414, 707 }, PT_END },
+            { { 1414, -707 }, PT_END },
+            { { -707, 1414 }, PT_END },
+            { { 707, -1414 }, PT_END },
             // Cap centres
-            { 1061, -1061 },
-            { -1061, 1061 },
+            { { 1061, -1061 }, PT_CENTER },
+            { { -1061, 1061 }, PT_CENTER },
             // Extremum points (always one of NSEW of a cap centre because 45 degrees)
-            { -1061 - 500, 1061 },
-            { -1061, 1061 + 500 },
-            { 1061 + 500, -1061 },
-            { 1061, -1061 - 500 },
+            { { -1061 - 500, 1061 }, PT_QUADRANT },
+            { { -1061, 1061 + 500 }, PT_QUADRANT },
+            { { 1061 + 500, -1061 }, PT_QUADRANT },
+            { { 1061, -1061 - 500 }, PT_QUADRANT },
         },
     };
 

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Andrew Lutsenko, anlutsenko at gmail dot com
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -48,13 +48,15 @@ PANEL_PACKAGES_AND_UPDATES::PANEL_PACKAGES_AND_UPDATES( wxWindow* parent ) :
 bool PANEL_PACKAGES_AND_UPDATES::TransferDataToWindow()
 {
     SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-    KICAD_SETTINGS*   settings = mgr.GetAppSettings<KICAD_SETTINGS>();
+    KICAD_SETTINGS*   cfg = mgr.GetAppSettings<KICAD_SETTINGS>( "kicad" );
 
-    m_cbKicadUpdate->SetValue( settings->m_KiCadUpdateCheck );
-    m_cbPcmUpdate->SetValue( settings->m_PcmUpdateCheck );
-    m_libAutoAdd->SetValue( settings->m_PcmLibAutoAdd );
-    m_libAutoRemove->SetValue( settings->m_PcmLibAutoRemove );
-    m_libPrefix->SetValue( settings->m_PcmLibPrefix );
+    wxCHECK( cfg, false );
+
+    m_cbKicadUpdate->SetValue( cfg->m_KiCadUpdateCheck );
+    m_cbPcmUpdate->SetValue( cfg->m_PcmUpdateCheck );
+    m_libAutoAdd->SetValue( cfg->m_PcmLibAutoAdd );
+    m_libAutoRemove->SetValue( cfg->m_PcmLibAutoRemove );
+    m_libPrefix->SetValue( cfg->m_PcmLibPrefix );
 
     return true;
 }
@@ -63,13 +65,15 @@ bool PANEL_PACKAGES_AND_UPDATES::TransferDataToWindow()
 bool PANEL_PACKAGES_AND_UPDATES::TransferDataFromWindow()
 {
     SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-    KICAD_SETTINGS*   settings = mgr.GetAppSettings<KICAD_SETTINGS>();
+    KICAD_SETTINGS*   cfg = mgr.GetAppSettings<KICAD_SETTINGS>( "kicad" );
 
-    settings->m_KiCadUpdateCheck = m_cbKicadUpdate->GetValue();
-    settings->m_PcmUpdateCheck = m_cbPcmUpdate->GetValue();
-    settings->m_PcmLibAutoAdd = m_libAutoAdd->GetValue();
-    settings->m_PcmLibAutoRemove = m_libAutoRemove->GetValue();
-    settings->m_PcmLibPrefix = m_libPrefix->GetValue();
+    wxCHECK( cfg, false );
+
+    cfg->m_KiCadUpdateCheck = m_cbKicadUpdate->GetValue();
+    cfg->m_PcmUpdateCheck = m_cbPcmUpdate->GetValue();
+    cfg->m_PcmLibAutoAdd = m_libAutoAdd->GetValue();
+    cfg->m_PcmLibAutoRemove = m_libAutoRemove->GetValue();
+    cfg->m_PcmLibPrefix = m_libPrefix->GetValue();
 
     return true;
 }

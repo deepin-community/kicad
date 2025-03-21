@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012-2014 Miguel Angel Ajo <miguelangel@nbee.es>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -52,7 +52,8 @@ DIALOG_FOOTPRINT_WIZARD_LIST::DIALOG_FOOTPRINT_WIZARD_LIST( wxWindow* aParent )
 {
     initLists();
 
-    auto cfg = Pgm().GetSettingsManager().GetAppSettings<PCBNEW_SETTINGS>();
+    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+    PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
 
     wxSize size;
     size.x = cfg->m_FootprintWizardList.width;
@@ -68,16 +69,8 @@ DIALOG_FOOTPRINT_WIZARD_LIST::DIALOG_FOOTPRINT_WIZARD_LIST( wxWindow* aParent )
 
 DIALOG_FOOTPRINT_WIZARD_LIST::~DIALOG_FOOTPRINT_WIZARD_LIST()
 {
-    PCBNEW_SETTINGS* cfg = nullptr;
-
-    try
-    {
-        cfg = Pgm().GetSettingsManager().GetAppSettings<PCBNEW_SETTINGS>();
-    }
-    catch( const std::runtime_error& e )
-    {
-        wxFAIL_MSG( e.what() );
-    }
+    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+    PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
 
     if( cfg && !IsIconized() )
     {

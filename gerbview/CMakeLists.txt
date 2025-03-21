@@ -103,23 +103,15 @@ endif()
 
 add_executable( gerbview WIN32 MACOSX_BUNDLE
     ${CMAKE_SOURCE_DIR}/common/single_top.cpp
-    ${CMAKE_SOURCE_DIR}/common/pgm_base.cpp
     ${GERBVIEW_RESOURCES}
     )
-
-if( KICAD_USE_SENTRY )
-    set_property(SOURCE ${CMAKE_SOURCE_DIR}/common/pgm_base.cpp APPEND PROPERTY COMPILE_DEFINITIONS KICAD_SENTRY_DSN="${KICAD_SENTRY_DSN}")
-endif()
 
 set_source_files_properties( ${CMAKE_SOURCE_DIR}/common/single_top.cpp PROPERTIES
     COMPILE_DEFINITIONS "TOP_FRAME=FRAME_GERBER;BUILD_KIWAY_DLL"
     )
 target_link_libraries( gerbview
-    #singletop  # replaces common, giving us restrictive control and link warnings.
-    # There's way too much crap coming in from common yet.
-    gal
-    common
     core
+    kicommon
     nlohmann_json
     ${wxWidgets_LIBRARIES}
     )
@@ -170,7 +162,9 @@ target_link_libraries( gerbview_kiface
         ${wxWidgets_LIBRARIES}
     )
 
-target_link_libraries( gerbview_kiface PUBLIC gerbview_navlib)
+if( MINGW )
+    target_link_libraries( gerbview_kiface PUBLIC gerbview_navlib)
+endif()
 
 set_source_files_properties( gerbview.cpp PROPERTIES
     # The KIFACE is in gerbview.cpp, export it:

@@ -4,7 +4,7 @@
  * Copyright (C) 2004-2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
  * Copyright (C) 2022 CERN
- * Copyright (C) 2004-2023 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,12 +24,14 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef CLASS_LIBENTRY_H
-#define CLASS_LIBENTRY_H
+#ifndef LIB_SYMBOL_H
+#define LIB_SYMBOL_H
 
-#include <general.h>
+#include <embedded_files.h>
+#include <symbol.h>
+#include <sch_field.h>
+#include <sch_pin.h>
 #include <lib_tree_item.h>
-#include <lib_field.h>
 #include <vector>
 #include <core/multivector.h>
 
@@ -38,13 +40,18 @@ class OUTPUTFORMATTER;
 class REPORTER;
 class SYMBOL_LIB;
 class LIB_SYMBOL;
-class LIB_FIELD;
+class OUTLINE_FONT;
 class TEST_LIB_SYMBOL_FIXTURE;
+
+namespace KIFONT
+{
+    class OUTLINE_FONT;
+}
 
 
 typedef std::shared_ptr<LIB_SYMBOL>       LIB_SYMBOL_SPTR;      ///< shared pointer to LIB_SYMBOL
 typedef std::weak_ptr<LIB_SYMBOL>         LIB_SYMBOL_REF;       ///< weak pointer to LIB_SYMBOL
-typedef MULTIVECTOR<LIB_ITEM, LIB_SHAPE_T, LIB_FIELD_T> LIB_ITEMS_CONTAINER;
+typedef MULTIVECTOR<SCH_ITEM, SCH_SHAPE_T, SCH_PIN_T> LIB_ITEMS_CONTAINER;
 typedef LIB_ITEMS_CONTAINER::ITEM_PTR_VECTOR LIB_ITEMS;
 
 
@@ -59,33 +66,11 @@ enum LIBRENTRYOPTIONS
 extern bool operator<( const LIB_SYMBOL& aItem1, const LIB_SYMBOL& aItem2 );
 
 
-struct LIB_SYMBOL_OPTIONS
-{
-    TRANSFORM transform;            // Coordinate adjustment settings
-    bool force_draw_pin_text;       // Whether or not to force the drawing of pin names and numbers
-    bool draw_visible_fields;       // Whether to draw "visible" fields
-    bool draw_hidden_fields;        // Whether to draw "hidden" fields
-    bool show_elec_type;            // Whether to show the pin electrical type
-    bool show_connect_point;        // Whether to show the pin connect point marker (small circle)
-                                    // useful in dialog pin properties
-
-    LIB_SYMBOL_OPTIONS()
-    {
-        transform = DefaultTransform;
-        force_draw_pin_text = false;
-        draw_visible_fields = true;
-        draw_hidden_fields = true;
-        show_elec_type = false;
-        show_connect_point = false;
-    }
-};
-
-
 struct LIB_SYMBOL_UNIT
 {
     int m_unit;                       ///< The unit number.
     int m_bodyStyle;                  ///< The alternate body style of the unit.
-    std::vector<LIB_ITEM*> m_items;   ///< The items unique to this unit and alternate body style.
+    std::vector<SCH_ITEM*> m_items;   ///< The items unique to this unit and alternate body style.
 };
 
 
@@ -95,7 +80,7 @@ struct LIB_SYMBOL_UNIT
  * A library symbol object is typically saved and loaded in a symbol library file (.lib).
  * Library symbols are different from schematic symbols.
  */
-class LIB_SYMBOL : public EDA_ITEM, public LIB_TREE_ITEM
+class LIB_SYMBOL : public SYMBOL, public LIB_TREE_ITEM, public EMBEDDED_FILES
 {
 public:
     LIB_SYMBOL( const wxString& aName, LIB_SYMBOL* aParent = nullptr,
@@ -106,7 +91,7 @@ public:
     virtual ~LIB_SYMBOL()
     {}
 
-    ///< http://www.boost.org/doc/libs/1_55_0/libs/smart_ptr/sp_techniques.html#weak_without_shared
+    /// http://www.boost.org/doc/libs/1_55_0/libs/smart_ptr/sp_techniques.html#weak_without_shared.
     LIB_SYMBOL_SPTR SharedPtr() const { return m_me; }
 
     /**
@@ -117,11 +102,16 @@ public:
         LIB_SYMBOL* dupe = new LIB_SYMBOL( *this, m_library );
         const_cast<KIID&>( dupe->m_Uuid ) = KIID();
 
-        for( LIB_ITEM& item : dupe->m_drawings )
+        for( SCH_ITEM& item : dupe->m_drawings )
             const_cast<KIID&>( item.m_Uuid ) = KIID();
 
         return dupe;
     }
+
+    /**
+     * Returns a dummy LIB_SYMBOL, used when one is missing in the schematic
+     */
+    static LIB_SYMBOL* GetDummy();
 
     void SetParent( LIB_SYMBOL* aParent = nullptr );
     LIB_SYMBOL_REF& GetParent() { return m_parent; }
@@ -130,7 +120,7 @@ public:
     /**
      * Get the number of parents for this symbol.
      *
-     * @return the inhertance depth for this symbol.
+     * @return the inheritance depth for this symbol.
      */
     unsigned GetInheritanceDepth() const;
 
@@ -143,8 +133,6 @@ public:
      * @return the weak_ptr to the root symbol of this symbol.
      */
     LIB_SYMBOL_SPTR GetRootSymbol() const;
-
-    void ClearCaches();
 
     virtual wxString GetClass() const override
     {
@@ -159,9 +147,11 @@ public:
     virtual void SetName( const wxString& aName );
     wxString GetName() const override { return m_name; }
 
-    const LIB_ID& LibId() const { return m_libId; }
-    LIB_ID& LibId() { return m_libId; }
-    LIB_ID GetLibId() const override { return m_libId; }
+    LIB_ID GetLIB_ID() const override { return m_libId; }
+    wxString GetDesc() override { return GetDescription(); }
+    int GetSubUnitCount() const override { return GetUnitCount(); }
+
+    const LIB_ID& GetLibId() const override { return m_libId; }
     void SetLibId( const LIB_ID& aLibId ) { m_libId = aLibId; }
 
     LIB_ID GetSourceLibId() const { return m_sourceLibId; }
@@ -176,7 +166,7 @@ public:
     }
 
     ///< Gets the Description field text value */
-    wxString GetDescription() override
+    wxString GetDescription() const override
     {
         if( GetDescriptionField().GetText().IsEmpty() && IsAlias() )
         {
@@ -189,7 +179,7 @@ public:
 
     void SetKeyWords( const wxString& aKeyWords ) { m_keyWords = aKeyWords; }
 
-    wxString GetKeyWords() const
+    wxString GetKeyWords() const override
     {
         if( m_keyWords.IsEmpty() && IsAlias() )
         {
@@ -235,8 +225,6 @@ public:
         return m_fpFilters;
     }
 
-    void ViewGetLayers( int aLayers[], int& aCount ) const override;
-
     /**
      * Get the bounding box for the symbol.
      *
@@ -250,6 +238,11 @@ public:
     const BOX2I GetUnitBoundingBox( int aUnit, int aBodyStyle,
                                     bool aIgnoreHiddenFields = true ) const;
 
+    const BOX2I GetBoundingBox() const override
+    {
+        return GetUnitBoundingBox( 0, 0 );
+    }
+
     /**
      * Get the symbol bounding box excluding fields.
      *
@@ -259,17 +252,22 @@ public:
      *  If aUnit == 0, unit is not used
      *  if aBodyStyle == 0 Convert is non used
      *  Fields are not taken in account
-     **/
+     */
     const BOX2I GetBodyBoundingBox( int aUnit, int aBodyStyle, bool aIncludePins,
                                     bool aIncludePrivateItems ) const;
 
-    const BOX2I GetBoundingBox() const override
+    BOX2I GetBodyBoundingBox() const override
     {
-        return GetUnitBoundingBox( 0, 0 );
+        return GetBodyBoundingBox( m_previewUnit, m_previewBodyStyle, false, false );
     }
 
-    bool IsPower() const;
-    bool IsNormal() const;
+    BOX2I GetBodyAndPinsBoundingBox() const override
+    {
+        return GetBodyBoundingBox( m_previewUnit, m_previewBodyStyle, true, false );
+    }
+
+    bool IsPower() const override;
+    bool IsNormal() const override;
 
     void SetPower();
     void SetNormal();
@@ -291,22 +289,23 @@ public:
      *
      * @param aFieldsList is a set of fields to import, removing all previous fields.
      */
-    void SetFields( const std::vector<LIB_FIELD>& aFieldsList );
+    void SetFields( const std::vector<SCH_FIELD>& aFieldsList );
 
     /**
      * Return a list of fields within this symbol.
      *
      * @param aList - List to add fields to
      */
-    void GetFields( std::vector<LIB_FIELD*>& aList );
-    void GetFields( std::vector<LIB_FIELD>& aList );
+    void GetFields( std::vector<SCH_FIELD*>& aList, bool aVisibleOnly = false ) override;
+
+    void CopyFields( std::vector<SCH_FIELD>& aList );
 
     /**
      * Add a field.  Takes ownership of the pointer.
      */
-    void AddField( LIB_FIELD* aField );
+    void AddField( SCH_FIELD* aField );
 
-    void AddField( LIB_FIELD& aField ) { AddField( new LIB_FIELD( aField ) ); }
+    void AddField( SCH_FIELD& aField ) { AddField( new SCH_FIELD( aField ) ); }
 
     /**
      * Find a field within this symbol matching \a aFieldName and returns it
@@ -316,10 +315,10 @@ public:
      *
      * @return the field if found or NULL if the field was not found.
      */
-    LIB_FIELD* FindField( const wxString& aFieldName, bool aCaseInsensitive = false );
+    SCH_FIELD* FindField( const wxString& aFieldName, bool aCaseInsensitive = false );
 
-    const LIB_FIELD* FindField( const wxString& aFieldName,
-                                const bool      aCaseInsensitive = false ) const;
+    const SCH_FIELD* FindField( const wxString& aFieldName,
+                                bool aCaseInsensitive = false ) const;
 
     /**
      * Return pointer to the requested field.
@@ -327,26 +326,52 @@ public:
      * @param aId - Id of field to return.
      * @return The field if found, otherwise NULL.
      */
-    LIB_FIELD* GetFieldById( int aId ) const;
+    SCH_FIELD* GetFieldById( int aId ) const;
 
     /** Return reference to the value field. */
-    LIB_FIELD& GetValueField();
+    SCH_FIELD& GetValueField() const;
 
     /** Return reference to the reference designator field. */
-    LIB_FIELD& GetReferenceField();
+    SCH_FIELD& GetReferenceField() const;
 
     /** Return reference to the footprint field */
-    LIB_FIELD& GetFootprintField();
+    SCH_FIELD& GetFootprintField() const;
 
     /** Return reference to the datasheet field. */
-    LIB_FIELD& GetDatasheetField();
+    SCH_FIELD& GetDatasheetField() const;
 
     /** Return reference to the description field. */
-    LIB_FIELD& GetDescriptionField();
+    SCH_FIELD& GetDescriptionField() const;
 
     wxString GetPrefix();
 
-    void RunOnChildren( const std::function<void( LIB_ITEM* )>& aFunction );
+    const wxString GetRef( const SCH_SHEET_PATH* aSheet, bool aIncludeUnit = false ) const override
+    {
+        return GetReferenceField().GetText();
+    }
+
+    const wxString GetValue( bool aResolve, const SCH_SHEET_PATH* aPath,
+                             bool aAllowExtraText ) const override
+    {
+        return GetValueField().GetText();
+    }
+
+    std::set<KIFONT::OUTLINE_FONT*> GetFonts() const override;
+
+    EMBEDDED_FILES* GetEmbeddedFiles() override;
+    const EMBEDDED_FILES* GetEmbeddedFiles() const;
+
+    void EmbedFonts() override;
+
+    /**
+     * Automatically orient all the fields in the symbol.
+     *
+     * @param aScreen is the SCH_SCREEN associated with the current instance of the symbol.
+     *                Required when \a aAlgo is AUTOPLACE_MANUAL; optional otherwise.
+     */
+    void AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo ) override;
+
+    void RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction ) override;
 
     /**
      * Order optional field indices.
@@ -360,60 +385,26 @@ public:
     int GetNextAvailableFieldId() const;
 
     /**
-     * Print symbol.
+     * Resolve any references to system tokens supported by the symbol.
      *
-     * @param aOffset - Position of symbol.
-     * @param aMulti - unit if multiple units per symbol.
-     * @param aBodyStyle - Symbol alternate body style (DeMorgan) if available.
-     * @param aOpts - Drawing options
-     * @param aDimmed - Reduce brightness of symbol
+     * @param aDepth a counter to limit recursion and circular references.
      */
-    void Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset, int aMulti,
-                int aBodyStyle, const LIB_SYMBOL_OPTIONS& aOpts, bool aDimmed );
+    bool ResolveTextVar( wxString* token, int aDepth = 0 ) const;
+
+    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed ) override;
+
+    void PrintBackground( const SCH_RENDER_SETTINGS *aSettings, int aUnit, int aBodyStyle,
+                          const VECTOR2I& aOffset, bool aDimmed ) override;
+
+    void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
+               int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override;
 
     /**
-     * Print just the background fills of a symbol
-     *
-     * @param aOffset - Position of symbol.
-     * @param aMulti - unit if multiple units per symbol.
-     * @param aBodyStyle - Symbol alternate body style (DeMorgan) if available.
-     * @param aOpts - Drawing options
-     * @param aDimmed - Reduce brightness of symbol
+     * Plot symbol fields.
      */
-    void PrintBackground( const RENDER_SETTINGS *aSettings, const VECTOR2I &aOffset, int aMulti,
-                          int aBodyStyle, const LIB_SYMBOL_OPTIONS &aOpts, bool aDimmed );
-
-    /**
-     * Plot lib symbol to plotter.
-     * Lib Fields not are plotted here, because this plot function
-     * is used to plot schematic items, which have they own fields
-     *
-     * @param aPlotter - Plotter object to plot to.
-     * @param aUnit - Symbol symbol to plot.
-     * @param aBodyStyle - Symbol alternate body style to plot.
-     * @param aBackground - A poor-man's Z-order.
-     * @param aOffset - Distance to shift the plot coordinates.
-     * @param aTransform - Symbol plot transform matrix.
-     * @param aDimmed - Reduce brightness of symbol
-     */
-    void Plot( PLOTTER* aPlotter, int aUnit, int aBodyStyle, bool aBackground,
-               const VECTOR2I& aOffset, const TRANSFORM& aTransform, bool aDimmed ) const;
-
-    /**
-     * Plot Lib Fields only of the symbol to plotter.
-     * is used to plot the full lib symbol, outside the schematic
-     *
-     * @param aPlotter - Plotter object to plot to.
-     * @param aUnit - Symbol to plot.
-     * @param aBodyStyle - Symbol alternate body style to plot.
-     * @param aBackground - A poor-man's Z-order.
-     * @param aOffset - Distance to shift the plot coordinates.
-     * @param aTransform - Symbol plot transform matrix.
-     * @param aDimmed - reduce brightness of fields
-     */
-    void PlotLibFields( PLOTTER* aPlotter, int aUnit, int aBodyStyle, bool aBackground,
-                        const VECTOR2I& aOffset, const TRANSFORM& aTransform, bool aDimmed,
-                        bool aPlotHidden = true );
+    void PlotFields( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
+                     int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed );
 
     /**
      * Add a new draw \a aItem to the draw object list and sort according to \a aSort.
@@ -421,18 +412,18 @@ public:
      * @param aItem is the new draw object to add to the symbol.
      * @param aSort is the flag to determine if the newly added item should be sorted.
      */
-    void AddDrawItem( LIB_ITEM* aItem, bool aSort = true );
+    void AddDrawItem( SCH_ITEM* aItem, bool aSort = true );
 
     /**
      * Remove draw \a aItem from list.
      *
      * @param aItem - Draw item to remove from list.
      */
-    void RemoveDrawItem( LIB_ITEM* aItem );
+    void RemoveDrawItem( SCH_ITEM* aItem );
 
-    void RemoveField( LIB_FIELD* aField ) { RemoveDrawItem( aField ); }
+    void RemoveField( SCH_FIELD* aField ) { RemoveDrawItem( aField ); }
 
-    size_t GetFieldCount() const { return m_drawings.size( LIB_FIELD_T ); }
+    size_t GetFieldCount() const { return m_drawings.size( SCH_FIELD_T ); }
 
     /**
      * Return a list of pin object pointers from the draw item list.
@@ -440,18 +431,17 @@ public:
      * Note pin objects are owned by the draw list of the symbol.  Deleting any of the objects
      * will leave list in a unstable state and will likely segfault when the list is destroyed.
      *
-     * @param aList - Pin list to place pin object pointers into.
      * @param aUnit - Unit number of pins to collect.  Set to 0 to get pins from any symbol unit.
      * @param aBodyStyle - Symbol alternate body style of pins to collect.  Set to 0 to get pins
      *                     from any DeMorgan variant of symbol.
      */
-    void GetPins( LIB_PINS& aList, int aUnit = 0, int aBodyStyle = 0 ) const;
+    std::vector<SCH_PIN*> GetPins( int aUnit, int aBodyStyle ) const;
 
     /**
      * Return a list of pin pointers for all units / converts.  Used primarily for SPICE where
      * we want to treat all unit as a single part.
      */
-    std::vector<LIB_PIN*> GetAllLibPins() const;
+    std::vector<SCH_PIN*> GetPins() const override;
 
     /**
      * @return a count of pins for all units / converts.
@@ -467,7 +457,7 @@ public:
      *                   required.
      * @return The pin object if found.  Otherwise NULL.
      */
-    LIB_PIN* GetPin( const wxString& aNumber, int aUnit = 0, int aBodyStyle = 0 ) const;
+    SCH_PIN* GetPin( const wxString& aNumber, int aUnit = 0, int aBodyStyle = 0 ) const;
 
     /**
      * Return true if this symbol's pins do not match another symbol's pins. This is used to
@@ -488,19 +478,14 @@ public:
      *
      * @param aOffset - Offset displacement.
      */
-    void SetOffset( const VECTOR2I& aOffset );
-
-    /**
-     * Remove duplicate draw items from list.
-     */
-    void RemoveDuplicateDrawItems();
+    void Move( const VECTOR2I& aOffset ) override;
 
     /**
      * Test if symbol has more than one body conversion type (DeMorgan).
      *
      * @return True if symbol has more than one conversion.
      */
-    bool HasAlternateBodyStyle() const;
+    bool HasAlternateBodyStyle() const override;
 
     /**
      * @return the highest pin number of the symbol's pins.
@@ -511,8 +496,8 @@ public:
     /**
      * Clears the status flag all draw objects in this symbol.
      */
-    void ClearTempFlags();
-    void ClearEditFlags();
+    void ClearTempFlags() override;
+    void ClearEditFlags() override;
 
     /**
      * Locate a draw object.
@@ -523,7 +508,7 @@ public:
      * @param aPoint - Coordinate for hit testing.
      * @return The draw object if found.  Otherwise NULL.
      */
-    LIB_ITEM* LocateDrawItem( int aUnit, int aBodyStyle, KICAD_T aType, const VECTOR2I& aPoint );
+    SCH_ITEM* LocateDrawItem( int aUnit, int aBodyStyle, KICAD_T aType, const VECTOR2I& aPoint );
 
     /**
      * Locate a draw object (overlaid)
@@ -535,7 +520,7 @@ public:
      * @param aTransform = the transform matrix
      * @return The draw object if found.  Otherwise NULL.
      */
-    LIB_ITEM* LocateDrawItem( int aUnit, int aBodyStyle, KICAD_T aType, const VECTOR2I& aPoint,
+    SCH_ITEM* LocateDrawItem( int aUnit, int aBodyStyle, KICAD_T aType, const VECTOR2I& aPoint,
                               const TRANSFORM& aTransform );
 
     /**
@@ -564,7 +549,7 @@ public:
      * greater that count are removed from the symbol.
      *
      * @param aCount - Number of units per package.
-     * @param aDuplicateDrawItems Create duplicate draw items of unit 1 for each additionl unit.
+     * @param aDuplicateDrawItems Create duplicate draw items of unit 1 for each additional unit.
      */
     void SetUnitCount( int aCount, bool aDuplicateDrawItems = true );
     int GetUnitCount() const override;
@@ -598,7 +583,7 @@ public:
      * @return true if the symbol has multiple units per symbol.
      * When true, the reference has a sub reference to identify symbol.
      */
-    bool IsMulti() const { return m_unitCount > 1; }
+    bool IsMulti() const override { return m_unitCount > 1; }
 
     static wxString LetterSubReference( int aUnit, int aFirstId );
 
@@ -616,56 +601,6 @@ public:
     void SetHasAlternateBodyStyle( bool aHasAlternate, bool aDuplicatePins = true );
 
     /**
-     * Set the offset in mils of the pin name text from the pin symbol.
-     *
-     * Set the offset to 0 to draw the pin name above the pin symbol.
-     *
-     * @param aOffset - The offset in mils.
-     */
-    void SetPinNameOffset( int aOffset ) { m_pinNameOffset = aOffset; }
-    int GetPinNameOffset() const { return m_pinNameOffset; }
-
-    /**
-     * Set or clear the pin name visibility flag.
-     *
-     * @param aShow - True to make the symbol pin names visible.
-     */
-    void SetShowPinNames( bool aShow ) { m_showPinNames = aShow; }
-    bool ShowPinNames() const { return m_showPinNames; }
-
-    /**
-     * Set or clear the pin number visibility flag.
-     *
-     * @param aShow - True to make the symbol pin numbers visible.
-     */
-    void SetShowPinNumbers( bool aShow ) { m_showPinNumbers = aShow; }
-    bool ShowPinNumbers() const { return m_showPinNumbers; }
-
-    /**
-     * Set or clear the exclude from simulation flag.
-     *
-     * @param aExcludeFromSim true to exclude symbol from simulation
-     */
-    void SetExcludedFromSim( bool aExcludeFromSim ) { m_excludedFromSim = aExcludeFromSim; }
-    bool GetExcludedFromSim() const { return m_excludedFromSim; }
-
-    /**
-     * Set or clear the exclude from schematic bill of materials flag.
-     *
-     * @param aExcludeFromBOM true to exclude symbol from schematic bill of materials
-     */
-    void SetExcludedFromBOM( bool aExcludeFromBOM ) { m_excludedFromBOM = aExcludeFromBOM; }
-    bool GetExcludedFromBOM() const { return m_excludedFromBOM; }
-
-    /**
-     * Set or clear exclude from board netlist flag.
-     *
-     * @param aExcludeFromBoard true to exclude symbol from the board netlist
-     */
-    void SetExcludedFromBoard( bool aExcludeFromBoard ) { m_excludedFromBoard = aExcludeFromBoard; }
-    bool GetExcludedFromBoard() const { return m_excludedFromBoard; }
-
-    /**
      * Comparison test that can be used for operators.
      *
      * @param aRhs is the right hand side symbol used for comparison.
@@ -676,13 +611,6 @@ public:
      */
     int Compare( const LIB_SYMBOL& aRhs, int aCompareFlags = 0,
                  REPORTER* aReporter = nullptr ) const;
-
-    bool operator==( const LIB_SYMBOL* aSymbol ) const { return this == aSymbol; }
-    bool operator==( const LIB_SYMBOL& aSymbol ) const;
-    bool operator!=( const LIB_SYMBOL& aSymbol ) const
-    {
-        return Compare( aSymbol, LIB_ITEM::COMPARE_FLAGS::EQUALITY ) != 0;
-    }
 
     const LIB_SYMBOL& operator=( const LIB_SYMBOL& aSymbol );
 
@@ -696,34 +624,24 @@ public:
     std::unique_ptr< LIB_SYMBOL > Flatten() const;
 
     /**
-     * Return a list of LIB_ITEM objects separated by unit and convert number.
+     * Return a list of SCH_ITEM objects separated by unit and convert number.
      *
-     * @note This does not include LIB_FIELD objects since they are not associated with
+     * @note This does not include SCH_FIELD objects since they are not associated with
      *       unit and/or convert numbers.
      */
     std::vector<struct LIB_SYMBOL_UNIT> GetUnitDrawItems();
 
     /**
-     * Return a list of unit numbers that are unique to this symbol.
-     *
-     * If the symbol is inherited (alias), the unique units of the parent symbol are returned.
-     * When comparing pins, the pin number is ignored.
-     *
-     * @return a list of unique unit numbers and their associated draw items.
-     */
-    std::vector<struct LIB_SYMBOL_UNIT> GetUniqueUnits();
-
-    /**
      * Return a list of item pointers for \a aUnit and \a aBodyStyle for this symbol.
      *
-     * @note #LIB_FIELD objects are not included.
+     * @note #SCH_FIELD objects are not included.
      *
      * @param aUnit is the unit number of the item, -1 includes all units.
-     * @param aBodyStyle is the alternate body styple of the item, -1 includes all body styles.
+     * @param aBodyStyle is the alternate body style of the item, -1 includes all body styles.
      *
      * @return a list of unit items.
      */
-    std::vector<LIB_ITEM*> GetUnitDrawItems( int aUnit, int aBodyStyle );
+    std::vector<SCH_ITEM*> GetUnitDrawItems( int aUnit, int aBodyStyle );
 
     /**
      * Return a measure of similarity between this symbol and \a aSymbol.
@@ -731,7 +649,7 @@ public:
      *
      * @return a measure of similarity from 1.0 (identical) to 0.0 (no similarity).
     */
-    double Similarity( const LIB_SYMBOL& aSymbol ) const;
+    double Similarity( const SCH_ITEM& aSymbol ) const override;
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
 #endif
@@ -739,6 +657,14 @@ public:
 private:
     // We create a different set parent function for this class, so we hide the inherited one.
     using EDA_ITEM::SetParent;
+
+    /**
+     * The library symbol specific sort order is as follows:
+     *
+     *   - The result of #SCH_ITEM::compare()
+     */
+    int compare( const SCH_ITEM& aOther,
+                 int aCompareFlags = SCH_ITEM::COMPARE_FLAGS::EQUALITY ) const override;
 
     void deleteAllFields();
 
@@ -753,14 +679,6 @@ private:
     bool                m_unitsLocked;      ///< True if symbol has multiple units and changing one
                                             ///< unit does not automatically change another unit.
 
-    int                 m_pinNameOffset;    ///< The offset in mils to draw the pin name.  Set to
-                                            ///< 0 to draw the pin name above the pin.
-    bool                m_showPinNames;
-    bool                m_showPinNumbers;
-
-    bool                m_excludedFromSim;
-    bool                m_excludedFromBOM;
-    bool                m_excludedFromBoard;
     LIBRENTRYOPTIONS    m_options;          ///< Special symbol features such as POWER or NORMAL.)
 
     LIB_ITEMS_CONTAINER m_drawings;

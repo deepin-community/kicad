@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -37,14 +37,16 @@
 #include <memory>
 #include <connection_graph.h>
 #include "eeschema_helpers.h"
+#include <filename_resolver.h>
 #include <kiway.h>
 #include <sch_painter.h>
 #include <locale_io.h>
-#include <erc.h>
-#include <erc_report.h>
+#include <erc/erc.h>
+#include <erc/erc_report.h>
 #include <wildcards_and_files_ext.h>
 #include <plotters/plotters_pslike.h>
 #include <drawing_sheet/ds_data_model.h>
+#include <paths.h>
 #include <reporter.h>
 #include <string_utils.h>
 
@@ -61,37 +63,144 @@
 #include <netlist_exporter_spice_model.h>
 #include <netlist_exporter_kicad.h>
 #include <netlist_exporter_xml.h>
+#include <netlist_exporter_pads.h>
+#include <netlist_exporter_allegro.h>
 
 #include <fields_data_model.h>
 
+#include <dialogs/dialog_export_netlist.h>
+#include <dialogs/dialog_plot_schematic.h>
+#include <dialogs/dialog_erc_job_config.h>
+#include <dialogs/dialog_symbol_fields_table.h>
+
 
 EESCHEMA_JOBS_HANDLER::EESCHEMA_JOBS_HANDLER( KIWAY* aKiway ) :
-        JOB_DISPATCHER( aKiway )
+        JOB_DISPATCHER( aKiway ),
+        m_cliSchematic( nullptr )
 {
     Register( "bom",
-              std::bind( &EESCHEMA_JOBS_HANDLER::JobExportBom, this, std::placeholders::_1 ) );
+              std::bind( &EESCHEMA_JOBS_HANDLER::JobExportBom, this, std::placeholders::_1 ),
+              [aKiway]( JOB* job, wxWindow* aParent ) -> bool
+              {
+	              JOB_EXPORT_SCH_BOM* bomJob = dynamic_cast<JOB_EXPORT_SCH_BOM*>( job );
+
+                  SCH_EDIT_FRAME* editFrame =
+                          static_cast<SCH_EDIT_FRAME*>( aKiway->Player( FRAME_SCH, false ) );
+
+                  wxCHECK( bomJob && editFrame, false );
+
+                  DIALOG_SYMBOL_FIELDS_TABLE dlg( editFrame, bomJob );
+                  return dlg.ShowModal() == wxID_OK;
+              } );
     Register( "pythonbom",
-              std::bind( &EESCHEMA_JOBS_HANDLER::JobExportPythonBom, this,
-                         std::placeholders::_1 ) );
+              std::bind( &EESCHEMA_JOBS_HANDLER::JobExportPythonBom, this, std::placeholders::_1 ),
+              []( JOB* job, wxWindow* aParent ) -> bool
+              {
+                  return true;
+              } );
     Register( "netlist",
-              std::bind( &EESCHEMA_JOBS_HANDLER::JobExportNetlist, this, std::placeholders::_1 ) );
+              std::bind( &EESCHEMA_JOBS_HANDLER::JobExportNetlist, this, std::placeholders::_1 ),
+              [aKiway]( JOB* job, wxWindow* aParent ) -> bool
+              {
+                  JOB_EXPORT_SCH_NETLIST* netJob = dynamic_cast<JOB_EXPORT_SCH_NETLIST*>( job );
+
+                  SCH_EDIT_FRAME* editFrame =
+                          static_cast<SCH_EDIT_FRAME*>( aKiway->Player( FRAME_SCH, false ) );
+
+                  wxCHECK( netJob && editFrame, false );
+
+                  DIALOG_EXPORT_NETLIST dlg( editFrame, aParent, netJob );
+                  return dlg.ShowModal() == wxID_OK;
+              } );
     Register( "plot",
-              std::bind( &EESCHEMA_JOBS_HANDLER::JobExportPlot, this, std::placeholders::_1 ) );
+              std::bind( &EESCHEMA_JOBS_HANDLER::JobExportPlot, this, std::placeholders::_1 ),
+              [aKiway]( JOB* job, wxWindow* aParent ) -> bool
+              {
+                  JOB_EXPORT_SCH_PLOT* plotJob = dynamic_cast<JOB_EXPORT_SCH_PLOT*>( job );
+
+                  SCH_EDIT_FRAME* editFrame =
+                          static_cast<SCH_EDIT_FRAME*>( aKiway->Player( FRAME_SCH, false ) );
+
+                  wxCHECK( plotJob && editFrame, false );
+
+                  DIALOG_PLOT_SCHEMATIC dlg( editFrame, aParent, plotJob );
+                  return dlg.ShowModal() == wxID_OK;
+              } );
     Register( "symupgrade",
-              std::bind( &EESCHEMA_JOBS_HANDLER::JobSymUpgrade, this, std::placeholders::_1 ) );
+              std::bind( &EESCHEMA_JOBS_HANDLER::JobSymUpgrade, this, std::placeholders::_1 ),
+              []( JOB* job, wxWindow* aParent ) -> bool
+              {
+                  return true;
+              } );
     Register( "symsvg",
-              std::bind( &EESCHEMA_JOBS_HANDLER::JobSymExportSvg, this, std::placeholders::_1 ) );
-    Register( "erc",
-              std::bind( &EESCHEMA_JOBS_HANDLER::JobSchErc, this, std::placeholders::_1 ) );
+              std::bind( &EESCHEMA_JOBS_HANDLER::JobSymExportSvg, this, std::placeholders::_1 ),
+              []( JOB* job, wxWindow* aParent ) -> bool
+              {
+                  return true;
+              } );
+    Register( "erc", std::bind( &EESCHEMA_JOBS_HANDLER::JobSchErc, this, std::placeholders::_1 ),
+              []( JOB* job, wxWindow* aParent ) -> bool
+              {
+                  JOB_SCH_ERC* ercJob = dynamic_cast<JOB_SCH_ERC*>( job );
+
+                  wxCHECK( ercJob, false );
+
+                  DIALOG_ERC_JOB_CONFIG dlg( aParent, ercJob );
+                  return dlg.ShowModal() == wxID_OK;
+              } );
 }
 
 
-void EESCHEMA_JOBS_HANDLER::InitRenderSettings( KIGFX::SCH_RENDER_SETTINGS* aRenderSettings,
+SCHEMATIC* EESCHEMA_JOBS_HANDLER::getSchematic( const wxString& aPath )
+{
+    SCHEMATIC* sch = nullptr;
+
+    if( !Pgm().IsGUI() && Pgm().GetSettingsManager().IsProjectOpenNotDummy() )
+    {
+        PROJECT& project = Pgm().GetSettingsManager().Prj();
+
+        wxString schPath = aPath;
+        if( schPath.IsEmpty() )
+        {
+            wxFileName path = project.GetProjectFullName();
+            path.SetExt( FILEEXT::KiCadSchematicFileExtension );
+            path.MakeAbsolute();
+            schPath = path.GetFullPath();
+        }
+
+        if( !m_cliSchematic )
+            m_cliSchematic = EESCHEMA_HELPERS::LoadSchematic( schPath, true, false, &project );
+
+        sch = m_cliSchematic;
+    }
+    else if( Pgm().IsGUI() && Pgm().GetSettingsManager().IsProjectOpen() )
+    {
+        SCH_EDIT_FRAME* editFrame =
+                dynamic_cast<SCH_EDIT_FRAME*>( m_kiway->Player( FRAME_SCH, false ) );
+
+        if( editFrame )
+            sch = &editFrame->Schematic();
+    }
+    else if( !aPath.IsEmpty() )
+    {
+        sch = EESCHEMA_HELPERS::LoadSchematic( aPath, true, false );
+    }
+
+    if( !sch )
+        m_reporter->Report( _( "Failed to load schematic\n" ), RPT_SEVERITY_ERROR );
+
+    return sch;
+}
+
+void EESCHEMA_JOBS_HANDLER::InitRenderSettings( SCH_RENDER_SETTINGS* aRenderSettings,
                                                 const wxString& aTheme, SCHEMATIC* aSch,
                                                 const wxString& aDrawingSheetOverride )
 {
     COLOR_SETTINGS* cs = Pgm().GetSettingsManager().GetColorSettings( aTheme );
     aRenderSettings->LoadColors( cs );
+    aRenderSettings->m_ShowHiddenPins = false;
+    aRenderSettings->m_ShowHiddenFields = false;
+    aRenderSettings->m_ShowPinAltIcons = false;
 
     aRenderSettings->SetDefaultPenWidth( aSch->Settings().m_DefaultLineWidth );
     aRenderSettings->m_LabelSizeRatio = aSch->Settings().m_LabelSizeRatio;
@@ -104,28 +213,33 @@ void EESCHEMA_JOBS_HANDLER::InitRenderSettings( KIGFX::SCH_RENDER_SETTINGS* aRen
     // Load the drawing sheet from the filename stored in BASE_SCREEN::m_DrawingSheetFileName.
     // If empty, or not existing, the default drawing sheet is loaded.
 
-    auto loadSheet = [&]( const wxString& path ) -> bool
-    {
-        wxString resolvedSheetPath =
-                DS_DATA_MODEL::ResolvePath( path, aSch->Prj().GetProjectPath() );
+    auto loadSheet =
+            [&]( const wxString& path ) -> bool
+            {
+                wxString msg;
+                FILENAME_RESOLVER resolve;
+                resolve.SetProject( &aSch->Prj() );
+                resolve.SetProgramBase( &Pgm() );
 
-        if( !DS_DATA_MODEL::GetTheInstance().LoadDrawingSheet( resolvedSheetPath ) )
-        {
-            m_reporter->Report(
-                    wxString::Format( _( "Error loading drawing sheet '%s'." ) + wxS( "\n" ),
-                                      path ),
-                                RPT_SEVERITY_ERROR );
-            return false;
-        }
+                wxString absolutePath = resolve.ResolvePath( path,
+                                                            wxGetCwd(),
+                                                            aSch->GetEmbeddedFiles() );
 
-        return true;
-    };
+                if( !DS_DATA_MODEL::GetTheInstance().LoadDrawingSheet( absolutePath, &msg ) )
+                {
+                    m_reporter->Report( wxString::Format( _( "Error loading drawing sheet '%s'." ),
+                                                          path )
+                                            + wxS( "\n" ) + msg + wxS( "\n" ),
+                                        RPT_SEVERITY_ERROR );
+                    return false;
+                }
+
+                return true;
+            };
 
     // try to load the override first
     if( !aDrawingSheetOverride.IsEmpty() && loadSheet( aDrawingSheetOverride ) )
-    {
         return;
-    }
 
     // no override or failed override continues here
     loadSheet( aSch->Settings().m_SchDrawingSheetFileName );
@@ -139,57 +253,57 @@ int EESCHEMA_JOBS_HANDLER::JobExportPlot( JOB* aJob )
     if( !aPlotJob )
         return CLI::EXIT_CODES::ERR_UNKNOWN;
 
-    SCHEMATIC* sch = EESCHEMA_HELPERS::LoadSchematic( aPlotJob->m_filename, SCH_IO_MGR::SCH_KICAD, true );
+    SCHEMATIC* sch = getSchematic( aPlotJob->m_filename );
 
-    if( sch == nullptr )
-    {
-        m_reporter->Report( _( "Failed to load schematic file\n" ), RPT_SEVERITY_ERROR );
+    if( !sch )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
-    }
 
+    aJob->SetTitleBlock( sch->RootScreen()->GetTitleBlock() );
     sch->Prj().ApplyTextVars( aJob->GetVarOverrides() );
 
-    std::unique_ptr<KIGFX::SCH_RENDER_SETTINGS> renderSettings =
-            std::make_unique<KIGFX::SCH_RENDER_SETTINGS>();
+    std::unique_ptr<SCH_RENDER_SETTINGS> renderSettings = std::make_unique<SCH_RENDER_SETTINGS>();
     InitRenderSettings( renderSettings.get(), aPlotJob->m_theme, sch, aPlotJob->m_drawingSheet );
+    renderSettings->SetDefaultFont( aPlotJob->m_defaultFont );
+    renderSettings->SetMinPenWidth( aPlotJob->m_minPenWidth );
 
     std::unique_ptr<SCH_PLOTTER> schPlotter = std::make_unique<SCH_PLOTTER>( sch );
 
     PLOT_FORMAT format = PLOT_FORMAT::PDF;
+
     switch( aPlotJob->m_plotFormat )
     {
-    case SCH_PLOT_FORMAT::DXF: format = PLOT_FORMAT::DXF; break;
-    case SCH_PLOT_FORMAT::PDF: format = PLOT_FORMAT::PDF; break;
-    case SCH_PLOT_FORMAT::SVG: format = PLOT_FORMAT::SVG; break;
-    case SCH_PLOT_FORMAT::POST: format = PLOT_FORMAT::POST; break;
-    case SCH_PLOT_FORMAT::HPGL: format = PLOT_FORMAT::HPGL; break;
-    case SCH_PLOT_FORMAT::GERBER: format = PLOT_FORMAT::GERBER; break;
+    case SCH_PLOT_FORMAT::DXF:    format = PLOT_FORMAT::DXF;    break;
+    case SCH_PLOT_FORMAT::PDF:    format = PLOT_FORMAT::PDF;    break;
+    case SCH_PLOT_FORMAT::SVG:    format = PLOT_FORMAT::SVG;    break;
+    case SCH_PLOT_FORMAT::POST:   format = PLOT_FORMAT::POST;   break;
+    case SCH_PLOT_FORMAT::HPGL:   format = PLOT_FORMAT::HPGL;   break;
     }
 
     HPGL_PAGE_SIZE hpglPageSize = HPGL_PAGE_SIZE::DEFAULT;
+
     switch( aPlotJob->m_HPGLPaperSizeSelect )
     {
     case JOB_HPGL_PAGE_SIZE::DEFAULT: hpglPageSize = HPGL_PAGE_SIZE::DEFAULT; break;
-    case JOB_HPGL_PAGE_SIZE::SIZE_A: hpglPageSize = HPGL_PAGE_SIZE::SIZE_A; break;
+    case JOB_HPGL_PAGE_SIZE::SIZE_A:  hpglPageSize = HPGL_PAGE_SIZE::SIZE_A;  break;
     case JOB_HPGL_PAGE_SIZE::SIZE_A0: hpglPageSize = HPGL_PAGE_SIZE::SIZE_A0; break;
     case JOB_HPGL_PAGE_SIZE::SIZE_A1: hpglPageSize = HPGL_PAGE_SIZE::SIZE_A1; break;
     case JOB_HPGL_PAGE_SIZE::SIZE_A2: hpglPageSize = HPGL_PAGE_SIZE::SIZE_A2; break;
     case JOB_HPGL_PAGE_SIZE::SIZE_A3: hpglPageSize = HPGL_PAGE_SIZE::SIZE_A3; break;
     case JOB_HPGL_PAGE_SIZE::SIZE_A4: hpglPageSize = HPGL_PAGE_SIZE::SIZE_A4; break;
     case JOB_HPGL_PAGE_SIZE::SIZE_A5: hpglPageSize = HPGL_PAGE_SIZE::SIZE_A5; break;
-    case JOB_HPGL_PAGE_SIZE::SIZE_B: hpglPageSize = HPGL_PAGE_SIZE::SIZE_B; break;
-    case JOB_HPGL_PAGE_SIZE::SIZE_C: hpglPageSize = HPGL_PAGE_SIZE::SIZE_C; break;
-    case JOB_HPGL_PAGE_SIZE::SIZE_D: hpglPageSize = HPGL_PAGE_SIZE::SIZE_D; break;
-    case JOB_HPGL_PAGE_SIZE::SIZE_E: hpglPageSize = HPGL_PAGE_SIZE::SIZE_E; break;
+    case JOB_HPGL_PAGE_SIZE::SIZE_B:  hpglPageSize = HPGL_PAGE_SIZE::SIZE_B;  break;
+    case JOB_HPGL_PAGE_SIZE::SIZE_C:  hpglPageSize = HPGL_PAGE_SIZE::SIZE_C;  break;
+    case JOB_HPGL_PAGE_SIZE::SIZE_D:  hpglPageSize = HPGL_PAGE_SIZE::SIZE_D;  break;
+    case JOB_HPGL_PAGE_SIZE::SIZE_E:  hpglPageSize = HPGL_PAGE_SIZE::SIZE_E;  break;
     }
 
     HPGL_PLOT_ORIGIN_AND_UNITS hpglOrigin = HPGL_PLOT_ORIGIN_AND_UNITS::USER_FIT_PAGE;
+
     switch( aPlotJob->m_HPGLPlotOrigin )
     {
     case JOB_HPGL_PLOT_ORIGIN_AND_UNITS::PLOTTER_BOT_LEFT:
         hpglOrigin = HPGL_PLOT_ORIGIN_AND_UNITS::PLOTTER_BOT_LEFT;
         break;
-
     case JOB_HPGL_PLOT_ORIGIN_AND_UNITS::PLOTTER_CENTER:
         hpglOrigin = HPGL_PLOT_ORIGIN_AND_UNITS::PLOTTER_CENTER;
         break;
@@ -205,27 +319,48 @@ int EESCHEMA_JOBS_HANDLER::JobExportPlot( JOB* aJob )
 
     switch( aPlotJob->m_pageSizeSelect )
     {
-    case JOB_PAGE_SIZE::PAGE_SIZE_A: pageSizeSelect = PageFormatReq::PAGE_SIZE_A; break;
-    case JOB_PAGE_SIZE::PAGE_SIZE_A4: pageSizeSelect = PageFormatReq::PAGE_SIZE_A4; break;
+    case JOB_PAGE_SIZE::PAGE_SIZE_A:    pageSizeSelect = PageFormatReq::PAGE_SIZE_A;    break;
+    case JOB_PAGE_SIZE::PAGE_SIZE_A4:   pageSizeSelect = PageFormatReq::PAGE_SIZE_A4;   break;
     case JOB_PAGE_SIZE::PAGE_SIZE_AUTO: pageSizeSelect = PageFormatReq::PAGE_SIZE_AUTO; break;
     }
 
-    SCH_PLOT_SETTINGS settings;
-    settings.m_blackAndWhite = aPlotJob->m_blackAndWhite;
-    settings.m_HPGLPaperSizeSelect = hpglPageSize;
-    settings.m_HPGLPenSize = aPlotJob->m_HPGLPenSize;
-    settings.m_HPGLPlotOrigin = hpglOrigin;
-    settings.m_PDFPropertyPopups = aPlotJob->m_PDFPropertyPopups;
-    settings.m_outputDirectory = aPlotJob->m_outputDirectory;
-    settings.m_outputFile = aPlotJob->m_outputFile;
-    settings.m_pageSizeSelect = pageSizeSelect;
-    settings.m_plotAll = aPlotJob->m_plotAll;
-    settings.m_plotDrawingSheet = aPlotJob->m_plotDrawingSheet;
-    settings.m_plotPages = aPlotJob->m_plotPages;
-    settings.m_theme = aPlotJob->m_theme;
-    settings.m_useBackgroundColor = aPlotJob->m_useBackgroundColor;
+    wxString outPath = aPlotJob->GetFullOutputPath( &sch->Prj() );
 
-    schPlotter->Plot( format, settings, renderSettings.get(), m_reporter );
+    if( !PATHS::EnsurePathExists( outPath,
+                                  !aPlotJob->GetOutputPathIsDirectory() ) )
+    {
+        m_reporter->Report( _( "Failed to create output directory\n" ), RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
+    }
+
+    SCH_PLOT_OPTS plotOpts;
+    plotOpts.m_blackAndWhite = aPlotJob->m_blackAndWhite;
+    plotOpts.m_HPGLPaperSizeSelect = hpglPageSize;
+    plotOpts.m_HPGLPenSize = aPlotJob->m_HPGLPenSize;
+    plotOpts.m_HPGLPlotOrigin = hpglOrigin;
+    plotOpts.m_PDFPropertyPopups = aPlotJob->m_PDFPropertyPopups;
+    plotOpts.m_PDFHierarchicalLinks = aPlotJob->m_PDFHierarchicalLinks;
+    plotOpts.m_PDFMetadata = aPlotJob->m_PDFMetadata;
+
+    if( aPlotJob->GetOutputPathIsDirectory() )
+    {
+        plotOpts.m_outputDirectory = outPath;
+        plotOpts.m_outputFile = wxEmptyString;
+    }
+    else
+    {
+        plotOpts.m_outputDirectory = wxEmptyString;
+        plotOpts.m_outputFile = outPath;
+    }
+
+    plotOpts.m_pageSizeSelect = pageSizeSelect;
+    plotOpts.m_plotAll = aPlotJob->m_plotAll;
+    plotOpts.m_plotDrawingSheet = aPlotJob->m_plotDrawingSheet;
+    plotOpts.m_plotPages = aPlotJob->m_plotPages;
+    plotOpts.m_theme = aPlotJob->m_theme;
+    plotOpts.m_useBackgroundColor = aPlotJob->m_useBackgroundColor;
+
+    schPlotter->Plot( format, plotOpts, renderSettings.get(), m_reporter );
 
     return CLI::EXIT_CODES::OK;
 }
@@ -238,17 +373,17 @@ int EESCHEMA_JOBS_HANDLER::JobExportNetlist( JOB* aJob )
     if( !aNetJob )
         return CLI::EXIT_CODES::ERR_UNKNOWN;
 
-    SCHEMATIC* sch = EESCHEMA_HELPERS::LoadSchematic( aNetJob->m_filename, SCH_IO_MGR::SCH_KICAD, true );
+    SCHEMATIC* sch = getSchematic( aNetJob->m_filename );
 
-    if( sch == nullptr )
-    {
-        m_reporter->Report( _( "Failed to load schematic file\n" ), RPT_SEVERITY_ERROR );
+    if( !sch )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
-    }
+
+    aJob->SetTitleBlock( sch->RootScreen()->GetTitleBlock() );
+    sch->Prj().ApplyTextVars( aJob->GetVarOverrides() );
 
     // Annotation warning check
     SCH_REFERENCE_LIST referenceList;
-    sch->GetSheets().GetSymbols( referenceList );
+    sch->Hierarchy().GetSymbols( referenceList );
 
     if( referenceList.GetCount() > 0 )
     {
@@ -269,10 +404,7 @@ int EESCHEMA_JOBS_HANDLER::JobExportNetlist( JOB* aJob )
     ERC_TESTER erc( sch );
 
     if( erc.TestDuplicateSheetNames( false ) > 0 )
-    {
         m_reporter->Report( _( "Warning: duplicate sheet names.\n" ), RPT_SEVERITY_WARNING );
-    }
-
 
     std::unique_ptr<NETLIST_EXPORTER_BASE> helper;
     unsigned netlistOption = 0;
@@ -311,26 +443,43 @@ int EESCHEMA_JOBS_HANDLER::JobExportNetlist( JOB* aJob )
         fileExt = wxS( "xml" );
         helper = std::make_unique<NETLIST_EXPORTER_XML>( sch );
         break;
+
+    case JOB_EXPORT_SCH_NETLIST::FORMAT::PADS:
+        fileExt = wxS( "asc" );
+        helper = std::make_unique<NETLIST_EXPORTER_PADS>( sch );
+        break;
+
+    case JOB_EXPORT_SCH_NETLIST::FORMAT::ALLEGRO:
+        fileExt = wxS( "txt" );
+        helper = std::make_unique<NETLIST_EXPORTER_ALLEGRO>( sch );
+        break;
+
     default:
         m_reporter->Report( _( "Unknown netlist format.\n" ), RPT_SEVERITY_ERROR );
         return CLI::EXIT_CODES::ERR_UNKNOWN;
     }
 
-    if( aNetJob->m_outputFile.IsEmpty() )
+    if( aNetJob->GetConfiguredOutputPath().IsEmpty() )
     {
         wxFileName fn = sch->GetFileName();
         fn.SetName( fn.GetName() );
         fn.SetExt( fileExt );
 
-        aNetJob->m_outputFile = fn.GetFullName();
+        aNetJob->SetConfiguredOutputPath( fn.GetFullName() );
     }
 
-    bool res = helper->WriteNetlist( aNetJob->m_outputFile, netlistOption, *m_reporter );
+    wxString outPath = aNetJob->GetFullOutputPath( &sch->Prj() );
+
+    if( !PATHS::EnsurePathExists( outPath, true ) )
+    {
+        m_reporter->Report( _( "Failed to create output directory\n" ), RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
+    }
+
+    bool res = helper->WriteNetlist( outPath, netlistOption, *m_reporter );
 
     if( !res )
-    {
         return CLI::EXIT_CODES::ERR_UNKNOWN;
-    }
 
     return CLI::EXIT_CODES::OK;
 }
@@ -343,19 +492,17 @@ int EESCHEMA_JOBS_HANDLER::JobExportBom( JOB* aJob )
     if( !aBomJob )
         return CLI::EXIT_CODES::ERR_UNKNOWN;
 
-    SCHEMATIC* sch = EESCHEMA_HELPERS::LoadSchematic( aBomJob->m_filename, SCH_IO_MGR::SCH_KICAD, true );
+    SCHEMATIC* sch = getSchematic( aBomJob->m_filename );
 
-    if( sch == nullptr )
-    {
-        m_reporter->Report( _( "Failed to load schematic file\n" ), RPT_SEVERITY_ERROR );
+    if( !sch )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
-    }
 
+    aJob->SetTitleBlock( sch->RootScreen()->GetTitleBlock() );
     sch->Prj().ApplyTextVars( aJob->GetVarOverrides() );
 
     // Annotation warning check
     SCH_REFERENCE_LIST referenceList;
-    sch->GetSheets().GetSymbols( referenceList, false, false );
+    sch->Hierarchy().GetSymbols( referenceList, false, false );
 
     if( referenceList.GetCount() > 0 )
     {
@@ -380,17 +527,17 @@ int EESCHEMA_JOBS_HANDLER::JobExportBom( JOB* aJob )
     ERC_TESTER erc( sch );
 
     if( erc.TestDuplicateSheetNames( false ) > 0 )
-    {
         m_reporter->Report( _( "Warning: duplicate sheet names.\n" ), RPT_SEVERITY_WARNING );
-    }
 
     // Build our data model
     FIELDS_EDITOR_GRID_DATA_MODEL dataModel( referenceList );
 
     // Mandatory fields + quantity virtual field first
-    for( int i = 0; i < MANDATORY_FIELDS; ++i )
-        dataModel.AddColumn( TEMPLATE_FIELDNAME::GetDefaultFieldName( i ),
-                             TEMPLATE_FIELDNAME::GetDefaultFieldName( i, true ), false );
+    for( int fieldId : MANDATORY_FIELDS )
+    {
+        dataModel.AddColumn( GetCanonicalFieldName( fieldId ),
+                             GetDefaultFieldName( fieldId, DO_TRANSLATE ), false );
+    }
 
     // User field names in symbols second
     std::set<wxString> userFieldNames;
@@ -399,8 +546,11 @@ int EESCHEMA_JOBS_HANDLER::JobExportBom( JOB* aJob )
     {
         SCH_SYMBOL* symbol = referenceList[i].GetSymbol();
 
-        for( int j = MANDATORY_FIELDS; j < symbol->GetFieldCount(); ++j )
-            userFieldNames.insert( symbol->GetFields()[j].GetName() );
+        for( SCH_FIELD& field : symbol->GetFields() )
+        {
+            if( !field.IsMandatory() && !field.IsPrivate() )
+                userFieldNames.insert( field.GetName() );
+        }
     }
 
     for( const wxString& fieldName : userFieldNames )
@@ -411,8 +561,10 @@ int EESCHEMA_JOBS_HANDLER::JobExportBom( JOB* aJob )
          sch->Settings().m_TemplateFieldNames.GetTemplateFieldNames() )
     {
         if( userFieldNames.count( templateFieldname.m_Name ) == 0 )
+        {
             dataModel.AddColumn( templateFieldname.m_Name, GetTextVars( templateFieldname.m_Name ),
                                  false );
+        }
     }
 
     BOM_PRESET preset;
@@ -420,14 +572,19 @@ int EESCHEMA_JOBS_HANDLER::JobExportBom( JOB* aJob )
     // Load a preset if one is specified
     if( !aBomJob->m_bomPresetName.IsEmpty() )
     {
-        // Make sure the built-in presets are loaded
-        for( const BOM_PRESET& p : BOM_PRESET::BuiltInPresets() )
-            sch->Settings().m_BomPresets.emplace_back( p );
-
         // Find the preset
-        BOM_PRESET* schPreset = nullptr;
+        const BOM_PRESET* schPreset = nullptr;
 
-        for( BOM_PRESET& p : sch->Settings().m_BomPresets )
+        for( const BOM_PRESET& p : BOM_PRESET::BuiltInPresets() )
+        {
+            if( p.name == aBomJob->m_bomPresetName )
+            {
+                schPreset = &p;
+                break;
+            }
+        }
+
+        for( const BOM_PRESET& p : sch->Settings().m_BomPresets )
         {
             if( p.name == aBomJob->m_bomPresetName )
             {
@@ -440,7 +597,7 @@ int EESCHEMA_JOBS_HANDLER::JobExportBom( JOB* aJob )
         {
             m_reporter->Report( wxString::Format( _( "BOM preset '%s' not found" ) + wxS( "\n" ),
                                                   aBomJob->m_bomPresetName ),
-                    RPT_SEVERITY_ERROR );
+                                RPT_SEVERITY_ERROR );
 
             return CLI::EXIT_CODES::ERR_UNKNOWN;
         }
@@ -451,7 +608,7 @@ int EESCHEMA_JOBS_HANDLER::JobExportBom( JOB* aJob )
     {
         size_t i = 0;
 
-        for( wxString fieldName : aBomJob->m_fieldsOrdered )
+        for( const wxString& fieldName : aBomJob->m_fieldsOrdered )
         {
             // Handle wildcard. We allow the wildcard anywhere in the list, but it needs to respect
             // fields that come before and after the wildcard.
@@ -467,6 +624,7 @@ int EESCHEMA_JOBS_HANDLER::JobExportBom( JOB* aJob )
                     field.label = field.name;
 
                     bool fieldAlreadyPresent = false;
+
                     for( BOM_FIELD& presetField : preset.fieldsOrdered )
                     {
                         if( presetField.name == field.name )
@@ -477,6 +635,7 @@ int EESCHEMA_JOBS_HANDLER::JobExportBom( JOB* aJob )
                     }
 
                     bool fieldLaterInList = false;
+
                     for( const wxString& fieldInList : aBomJob->m_fieldsOrdered )
                     {
                         if( fieldInList == field.name )
@@ -496,10 +655,11 @@ int EESCHEMA_JOBS_HANDLER::JobExportBom( JOB* aJob )
             struct BOM_FIELD field;
 
             field.name = fieldName;
-            field.show = true;
+            field.show = !fieldName.StartsWith( wxT( "__" ), &field.name );
             field.groupBy = std::find( aBomJob->m_fieldsGroupBy.begin(),
                                        aBomJob->m_fieldsGroupBy.end(), field.name )
                             != aBomJob->m_fieldsGroupBy.end();
+
             if( ( aBomJob->m_fieldsLabels.size() > i ) && !aBomJob->m_fieldsLabels[i].IsEmpty() )
                 field.label = aBomJob->m_fieldsLabels[i];
             else if( IsTextVar( field.name ) )
@@ -516,27 +676,34 @@ int EESCHEMA_JOBS_HANDLER::JobExportBom( JOB* aJob )
         preset.filterString = aBomJob->m_filterString;
         preset.groupSymbols = ( aBomJob->m_fieldsGroupBy.size() > 0 );
         preset.excludeDNP = aBomJob->m_excludeDNP;
+        preset.includeExcludedFromBOM = aBomJob->m_includeExcludedFromBOM;
     }
 
     dataModel.ApplyBomPreset( preset );
 
-    if( aBomJob->m_outputFile.IsEmpty() )
+    if( aBomJob->GetConfiguredOutputPath().IsEmpty() )
     {
         wxFileName fn = sch->GetFileName();
         fn.SetName( fn.GetName() );
         fn.SetExt( FILEEXT::CsvFileExtension );
 
-        aBomJob->m_outputFile = fn.GetFullName();
+        aBomJob->SetConfiguredOutputPath( fn.GetFullName() );
+    }
+
+    wxString outPath = aBomJob->GetFullOutputPath( &sch->Prj() );
+
+    if( !PATHS::EnsurePathExists( outPath, true ) )
+    {
+        m_reporter->Report( _( "Failed to create output directory\n" ), RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
     }
 
     wxFile f;
 
-    if( !f.Open( aBomJob->m_outputFile, wxFile::write ) )
+    if( !f.Open( outPath, wxFile::write ) )
     {
-        m_reporter->Report( wxString::Format( _( "Unable to open destination '%s'" ) + wxS( "\n" ),
-                                              aBomJob->m_outputFile ),
-                RPT_SEVERITY_ERROR
-        );
+        m_reporter->Report( wxString::Format( _( "Unable to open destination '%s'" ), outPath ),
+                            RPT_SEVERITY_ERROR );
 
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
     }
@@ -546,26 +713,31 @@ int EESCHEMA_JOBS_HANDLER::JobExportBom( JOB* aJob )
     // Load a format preset if one is specified
     if( !aBomJob->m_bomFmtPresetName.IsEmpty() )
     {
-        // Make sure the built-in presets are loaded
-        for( const BOM_FMT_PRESET& p : BOM_FMT_PRESET::BuiltInPresets() )
-            sch->Settings().m_BomFmtPresets.emplace_back( p );
-
         // Find the preset
-        BOM_FMT_PRESET* schFmtPreset = nullptr;
+        std::optional<BOM_FMT_PRESET> schFmtPreset;
 
-        for( BOM_FMT_PRESET& p : sch->Settings().m_BomFmtPresets )
+        for( const BOM_FMT_PRESET& p : BOM_FMT_PRESET::BuiltInPresets() )
         {
             if( p.name == aBomJob->m_bomFmtPresetName )
             {
-                schFmtPreset = &p;
+                schFmtPreset = p;
+                break;
+            }
+        }
+
+        for( const BOM_FMT_PRESET& p : sch->Settings().m_BomFmtPresets )
+        {
+            if( p.name == aBomJob->m_bomFmtPresetName )
+            {
+                schFmtPreset = p;
                 break;
             }
         }
 
         if( !schFmtPreset )
         {
-            m_reporter->Report(
-                    wxString::Format( _( "BOM format preset '%s' not found" ) + wxS( "\n" ),
+            m_reporter->Report( wxString::Format( _( "BOM format preset '%s' not found" )
+                                                  + wxS( "\n" ),
                                                   aBomJob->m_bomFmtPresetName ),
                                 RPT_SEVERITY_ERROR );
 
@@ -587,9 +759,10 @@ int EESCHEMA_JOBS_HANDLER::JobExportBom( JOB* aJob )
     bool res = f.Write( dataModel.Export( fmt ) );
 
     if( !res )
-    {
         return CLI::EXIT_CODES::ERR_UNKNOWN;
-    }
+
+    m_reporter->Report( wxString::Format( _( "Wrote bill of materials to '%s'." ), outPath ),
+                        RPT_SEVERITY_ACTION );
 
     return CLI::EXIT_CODES::OK;
 }
@@ -602,17 +775,17 @@ int EESCHEMA_JOBS_HANDLER::JobExportPythonBom( JOB* aJob )
     if( !aNetJob )
         return CLI::EXIT_CODES::ERR_UNKNOWN;
 
-    SCHEMATIC* sch = EESCHEMA_HELPERS::LoadSchematic( aNetJob->m_filename, SCH_IO_MGR::SCH_KICAD, true );
+    SCHEMATIC* sch = getSchematic( aNetJob->m_filename );
 
-    if( sch == nullptr )
-    {
-        m_reporter->Report( _( "Failed to load schematic file\n" ), RPT_SEVERITY_ERROR );
+    if( !sch )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
-    }
+
+    aJob->SetTitleBlock( sch->RootScreen()->GetTitleBlock() );
+    sch->Prj().ApplyTextVars( aJob->GetVarOverrides() );
 
     // Annotation warning check
     SCH_REFERENCE_LIST referenceList;
-    sch->GetSheets().GetSymbols( referenceList );
+    sch->Hierarchy().GetSymbols( referenceList );
 
     if( referenceList.GetCount() > 0 )
     {
@@ -639,27 +812,38 @@ int EESCHEMA_JOBS_HANDLER::JobExportPythonBom( JOB* aJob )
     std::unique_ptr<NETLIST_EXPORTER_XML> xmlNetlist =
             std::make_unique<NETLIST_EXPORTER_XML>( sch );
 
-    if( aNetJob->m_outputFile.IsEmpty() )
+    if( aNetJob->GetConfiguredOutputPath().IsEmpty() )
     {
         wxFileName fn = sch->GetFileName();
         fn.SetName( fn.GetName() + "-bom" );
         fn.SetExt( FILEEXT::XmlFileExtension );
 
-        aNetJob->m_outputFile = fn.GetFullName();
+        aNetJob->SetConfiguredOutputPath( fn.GetFullName() );
     }
 
-    bool res = xmlNetlist->WriteNetlist( aNetJob->m_outputFile, GNL_OPT_BOM, *m_reporter );
+    wxString outPath = aNetJob->GetFullOutputPath( &sch->Prj() );
+
+    if( !PATHS::EnsurePathExists( outPath, true ) )
+    {
+        m_reporter->Report( _( "Failed to create output directory\n" ), RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
+    }
+
+    bool res = xmlNetlist->WriteNetlist( outPath, GNL_OPT_BOM, *m_reporter );
 
     if( !res )
         return CLI::EXIT_CODES::ERR_UNKNOWN;
+
+    m_reporter->Report( wxString::Format( _( "Wrote bill of materials to '%s'." ), outPath ),
+                        RPT_SEVERITY_ACTION );
 
     return CLI::EXIT_CODES::OK;
 }
 
 
-int EESCHEMA_JOBS_HANDLER::doSymExportSvg( JOB_SYM_EXPORT_SVG*         aSvgJob,
-                                           KIGFX::SCH_RENDER_SETTINGS* aRenderSettings,
-                                           LIB_SYMBOL*                 symbol )
+int EESCHEMA_JOBS_HANDLER::doSymExportSvg( JOB_SYM_EXPORT_SVG*  aSvgJob,
+                                           SCH_RENDER_SETTINGS* aRenderSettings,
+                                           LIB_SYMBOL*          symbol )
 {
     wxASSERT( symbol != nullptr );
 
@@ -681,23 +865,11 @@ int EESCHEMA_JOBS_HANDLER::doSymExportSvg( JOB_SYM_EXPORT_SVG*         aSvgJob,
         }
     }
 
-    if( aSvgJob->m_includeHiddenPins )
-    {
-        // horrible hack, TODO overhaul the Plot method to handle this
-        for( LIB_ITEM& item : symbolToPlot->GetDrawItems() )
-        {
-            if( item.Type() != LIB_PIN_T )
-                continue;
-
-            LIB_PIN& pin = static_cast<LIB_PIN&>( item );
-            pin.SetVisible( true );
-        }
-    }
-
     // iterate from unit 1, unit 0 would be "all units" which we don't want
     for( int unit = 1; unit < symbol->GetUnitCount() + 1; unit++ )
     {
-        for( int bodyStyle = 1; bodyStyle < ( symbol->HasAlternateBodyStyle() ? 2 : 1 ) + 1; ++bodyStyle )
+        for( int bodyStyle = 1; bodyStyle < ( symbol->HasAlternateBodyStyle() ? 2 : 1 ) + 1;
+             ++bodyStyle )
         {
             wxString   filename;
             wxFileName fn;
@@ -706,7 +878,7 @@ int EESCHEMA_JOBS_HANDLER::doSymExportSvg( JOB_SYM_EXPORT_SVG*         aSvgJob,
             fn.SetPath( aSvgJob->m_outputDirectory );
             fn.SetExt( FILEEXT::SVGFileExtension );
 
-            filename = symbol->GetName().Lower();
+            filename = symbol->GetName();
 
             while( wxString::npos
                    != ( forbidden_char = filename.find_first_of(
@@ -715,32 +887,22 @@ int EESCHEMA_JOBS_HANDLER::doSymExportSvg( JOB_SYM_EXPORT_SVG*         aSvgJob,
                 filename = filename.replace( forbidden_char, 1, wxS( '_' ) );
             }
 
-            //simplify the name if its single unit
-            if( symbol->GetUnitCount() > 1 )
-            {
-                filename += wxString::Format( "_%d", unit );
+            // Even single units get a unit number in the filename. This simplifies the
+            // handling of the files as they have a uniform pattern.
+            // Also avoids aliasing 'sym', unit 2 and 'sym_unit2', unit 1 to the same file.
+            filename += wxString::Format( "_unit%d", unit );
 
-                if( bodyStyle == 2 )
-                    filename += wxS( "_demorgan" );
+            if( bodyStyle == 2 )
+                filename += wxS( "_demorgan" );
 
-                fn.SetName( filename );
-                m_reporter->Report( wxString::Format( _( "Plotting symbol '%s' unit %d to '%s'\n" ),
-                                                      symbol->GetName(), unit, fn.GetFullPath() ),
-                                    RPT_SEVERITY_ACTION );
-            }
-            else
-            {
-                if( bodyStyle == 2 )
-                    filename += wxS( "_demorgan" );
-
-                fn.SetName( filename );
-                m_reporter->Report( wxString::Format( _( "Plotting symbol '%s' to '%s'\n" ),
-                                                      symbol->GetName(), fn.GetFullPath() ),
-                                    RPT_SEVERITY_ACTION );
-            }
+            fn.SetName( filename );
+            m_reporter->Report( wxString::Format( _( "Plotting symbol '%s' unit %d to '%s'\n" ),
+                                                  symbol->GetName(), unit, fn.GetFullPath() ),
+                                RPT_SEVERITY_ACTION );
 
             // Get the symbol bounding box to fit the plot page to it
-            BOX2I     symbolBB = symbol->Flatten()->GetUnitBoundingBox( unit, bodyStyle, !aSvgJob->m_includeHiddenFields );
+            BOX2I symbolBB = symbol->Flatten()->GetUnitBoundingBox(
+                    unit, bodyStyle, !aSvgJob->m_includeHiddenFields );
             PAGE_INFO pageInfo( PAGE_INFO::Custom );
             pageInfo.SetHeightMils( schIUScale.IUToMils( symbolBB.GetHeight() * 1.2 ) );
             pageInfo.SetWidthMils( schIUScale.IUToMils( symbolBB.GetWidth() * 1.2 ) );
@@ -760,8 +922,8 @@ int EESCHEMA_JOBS_HANDLER::doSymExportSvg( JOB_SYM_EXPORT_SVG*         aSvgJob,
 
             if( !plotter->OpenFile( fn.GetFullPath() ) )
             {
-                m_reporter->Report(
-                        wxString::Format( _( "Unable to open destination '%s'" ) + wxS( "\n" ),
+                m_reporter->Report( wxString::Format( _( "Unable to open destination '%s'" )
+                                                      + wxS( "\n" ),
                                                       fn.GetFullPath() ),
                                     RPT_SEVERITY_ERROR );
 
@@ -769,25 +931,21 @@ int EESCHEMA_JOBS_HANDLER::doSymExportSvg( JOB_SYM_EXPORT_SVG*         aSvgJob,
                 return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
             }
 
-            LOCALE_IO toggle;
+            LOCALE_IO     toggle;
+            SCH_PLOT_OPTS plotOpts;
 
             plotter->StartPlot( wxT( "1" ) );
 
-            bool      background = true;
-            TRANSFORM temp; // Uses default transform
-            VECTOR2I  plotPos;
-
-            plotPos.x = pageInfo.GetWidthIU( schIUScale.IU_PER_MILS ) / 2;
-            plotPos.y = pageInfo.GetHeightIU( schIUScale.IU_PER_MILS ) / 2;
+            bool     background = true;
+            VECTOR2I offset( pageInfo.GetWidthIU( schIUScale.IU_PER_MILS ) / 2,
+                             pageInfo.GetHeightIU( schIUScale.IU_PER_MILS ) / 2 );
 
             // note, we want the fields from the original symbol pointer (in case of non-alias)
-            symbolToPlot->Plot( plotter, unit, bodyStyle, background, plotPos, temp, false );
-            symbol->PlotLibFields( plotter, unit, bodyStyle, background, plotPos, temp, false,
-                                   aSvgJob->m_includeHiddenFields );
+            symbolToPlot->Plot( plotter, background, plotOpts, unit, bodyStyle, offset, false );
+            symbol->PlotFields( plotter, background, plotOpts, unit, bodyStyle, offset, false );
 
-            symbolToPlot->Plot( plotter, unit, bodyStyle, !background, plotPos, temp, false );
-            symbol->PlotLibFields( plotter, unit, bodyStyle, !background, plotPos, temp, false,
-                                   aSvgJob->m_includeHiddenFields );
+            symbolToPlot->Plot( plotter, !background, plotOpts, unit, bodyStyle, offset, false );
+            symbol->PlotFields( plotter, !background, plotOpts, unit, bodyStyle, offset, false );
 
             plotter->EndPlot();
             delete plotter;
@@ -840,10 +998,12 @@ int EESCHEMA_JOBS_HANDLER::JobSymExportSvg( JOB* aJob )
         wxFileName::Mkdir( svgJob->m_outputDirectory );
     }
 
-    KIGFX::SCH_RENDER_SETTINGS renderSettings;
+    SCH_RENDER_SETTINGS renderSettings;
     COLOR_SETTINGS* cs = Pgm().GetSettingsManager().GetColorSettings( svgJob->m_colorTheme );
     renderSettings.LoadColors( cs );
     renderSettings.SetDefaultPenWidth( DEFAULT_LINE_WIDTH_MILS * schIUScale.IU_PER_MILS );
+    renderSettings.m_ShowHiddenPins = svgJob->m_includeHiddenPins;
+    renderSettings.m_ShowHiddenFields = svgJob->m_includeHiddenFields;
 
     int exitCode = CLI::EXIT_CODES::OK;
 
@@ -893,7 +1053,8 @@ int EESCHEMA_JOBS_HANDLER::JobSymUpgrade( JOB* aJob )
     }
     else if( fileType != SCH_IO_MGR::SCH_KICAD )
     {
-        m_reporter->Report( _( "Output path must be specified to convert legacy and non-KiCad libraries\n" ),
+        m_reporter->Report( _( "Output path must be specified to convert legacy and non-KiCad "
+                               "libraries\n" ),
                             RPT_SEVERITY_ERROR );
 
         return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
@@ -940,12 +1101,13 @@ int EESCHEMA_JOBS_HANDLER::JobSymUpgrade( JOB* aJob )
         }
         else
         {
-            m_reporter->Report( _( "Symbol library was not updated\n" ), RPT_SEVERITY_INFO );
+            m_reporter->Report( _( "Symbol library was not updated\n" ), RPT_SEVERITY_ERROR );
         }
     }
     else
     {
-        if( !SCH_IO_MGR::ConvertLibrary( nullptr, fn.GetAbsolutePath(), upgradeJob->m_outputLibraryPath ) )
+        if( !SCH_IO_MGR::ConvertLibrary( nullptr, fn.GetAbsolutePath(),
+                                         upgradeJob->m_outputLibraryPath ) )
         {
             m_reporter->Report( ( "Unable to convert library\n" ), RPT_SEVERITY_ERROR );
             return CLI::EXIT_CODES::ERR_UNKNOWN;
@@ -964,42 +1126,43 @@ int EESCHEMA_JOBS_HANDLER::JobSchErc( JOB* aJob )
     if( !ercJob )
         return CLI::EXIT_CODES::ERR_UNKNOWN;
 
-    SCHEMATIC* sch = EESCHEMA_HELPERS::LoadSchematic( ercJob->m_filename, SCH_IO_MGR::SCH_KICAD, true );
+    SCHEMATIC* sch = getSchematic( ercJob->m_filename );
 
-    if( sch == nullptr )
-    {
-        m_reporter->Report( _( "Failed to load schematic file\n" ), RPT_SEVERITY_ERROR );
+    if( !sch )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
-    }
 
+    aJob->SetTitleBlock( sch->RootScreen()->GetTitleBlock() );
     sch->Prj().ApplyTextVars( aJob->GetVarOverrides() );
 
-    if( ercJob->m_outputFile.IsEmpty() )
+    if( ercJob->GetConfiguredOutputPath().IsEmpty() )
     {
         wxFileName fn = sch->GetFileName();
-        fn.SetName( fn.GetName() );
+        fn.SetName( fn.GetName() + wxS( "-erc" ) );
 
         if( ercJob->m_format == JOB_SCH_ERC::OUTPUT_FORMAT::JSON )
             fn.SetExt( FILEEXT::JsonFileExtension );
         else
             fn.SetExt( FILEEXT::ReportFileExtension );
 
-        ercJob->m_outputFile = fn.GetFullName();
+        ercJob->SetConfiguredOutputPath( fn.GetFullName() );
+    }
+
+    wxString outPath = ercJob->GetFullOutputPath( &sch->Prj() );
+
+    if( !PATHS::EnsurePathExists( outPath, true ) )
+    {
+        m_reporter->Report( _( "Failed to create output directory\n" ), RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
     }
 
     EDA_UNITS units;
 
     switch( ercJob->m_units )
     {
-    case JOB_SCH_ERC::UNITS::INCHES:
-        units = EDA_UNITS::INCHES;
-        break;
-    case JOB_SCH_ERC::UNITS::MILS:
-        units = EDA_UNITS::MILS;
-        break;
-    case JOB_SCH_ERC::UNITS::MILLIMETERS:
-    default:
-        units = EDA_UNITS::MILLIMETRES; break;
+    case JOB_SCH_ERC::UNITS::INCHES:      units = EDA_UNITS::INCHES;      break;
+    case JOB_SCH_ERC::UNITS::MILS:        units = EDA_UNITS::MILS;        break;
+    case JOB_SCH_ERC::UNITS::MILLIMETERS: units = EDA_UNITS::MILLIMETRES; break;
+    default:                              units = EDA_UNITS::MILLIMETRES; break;
     }
 
     std::shared_ptr<SHEETLIST_ERC_ITEMS_PROVIDER> markersProvider =
@@ -1007,44 +1170,39 @@ int EESCHEMA_JOBS_HANDLER::JobSchErc( JOB* aJob )
 
     ERC_TESTER ercTester( sch );
 
-    m_reporter->Report( _( "Running ERC...\n" ), RPT_SEVERITY_INFO );
-
     std::unique_ptr<DS_PROXY_VIEW_ITEM> drawingSheet( getDrawingSheetProxyView( sch ) );
     ercTester.RunTests( drawingSheet.get(), nullptr, m_kiway->KiFACE( KIWAY::FACE_CVPCB ),
                         &sch->Prj(), m_progressReporter );
 
     markersProvider->SetSeverities( ercJob->m_severity );
 
-    m_reporter->Report(
-            wxString::Format( _( "Found %d violations\n" ), markersProvider->GetCount() ),
-            RPT_SEVERITY_INFO );
+    m_reporter->Report( wxString::Format( _( "Found %d violations\n" ),
+                                          markersProvider->GetCount() ),
+                        RPT_SEVERITY_INFO );
 
     ERC_REPORT reportWriter( sch, units );
 
     bool wroteReport = false;
 
     if( ercJob->m_format == JOB_SCH_ERC::OUTPUT_FORMAT::JSON )
-        wroteReport = reportWriter.WriteJsonReport( ercJob->m_outputFile );
+        wroteReport = reportWriter.WriteJsonReport( outPath );
     else
-        wroteReport = reportWriter.WriteTextReport( ercJob->m_outputFile );
+        wroteReport = reportWriter.WriteTextReport( outPath );
 
     if( !wroteReport )
     {
-        m_reporter->Report(
-                wxString::Format( _( "Unable to save ERC report to %s\n" ), ercJob->m_outputFile ),
-                RPT_SEVERITY_INFO );
+        m_reporter->Report( wxString::Format( _( "Unable to save ERC report to %s\n" ), outPath ),
+                            RPT_SEVERITY_ERROR );
         return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
     }
 
-    m_reporter->Report( wxString::Format( _( "Saved ERC Report to %s\n" ), ercJob->m_outputFile ),
-                        RPT_SEVERITY_INFO );
+    m_reporter->Report( wxString::Format( _( "Saved ERC Report to %s\n" ), outPath ),
+                        RPT_SEVERITY_ACTION );
 
     if( ercJob->m_exitCodeViolations )
     {
         if( markersProvider->GetCount() > 0 )
-        {
             return CLI::EXIT_CODES::ERR_RC_VIOLATIONS;
-        }
     }
 
     return CLI::EXIT_CODES::SUCCESS;

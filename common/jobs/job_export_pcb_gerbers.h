@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,18 +24,23 @@
 #include <kicommon.h>
 #include "job_export_pcb_gerber.h"
 #include <layer_ids.h>
+#include <lset.h>
 #include <wx/string.h>
 #include "job.h"
 
 class KICOMMON_API JOB_EXPORT_PCB_GERBERS : public JOB_EXPORT_PCB_GERBER
 {
 public:
-    JOB_EXPORT_PCB_GERBERS( bool aIsCli );
+    JOB_EXPORT_PCB_GERBERS();
+    wxString GetDefaultDescription() const override;
+    wxString GetSettingsDialogTitle() const override;
 
-    LSET m_layersIncludeOnAll;
+    LSEQ m_layersIncludeOnAll;
 
     bool m_layersIncludeOnAllSet;
     bool m_useBoardPlotParams;
+
+    bool m_createJobsFile;
 };
 
 #endif

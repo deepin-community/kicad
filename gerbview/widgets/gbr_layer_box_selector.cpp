@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1992-2016 Jean-Pierre Charras <jp.charras at wanadoo.fr>
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2021 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,6 +23,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "gbr_layer_box_selector.h"
+
+#include <widgets/layer_presentation.h>
+
 #include <gerbview_frame.h>
 #include <gerber_file_image_list.h>
 
@@ -30,19 +34,51 @@
 #include <dpi_scaling_common.h>
 #endif
 
-#include "gbr_layer_box_selector.h"
+
+/**
+ * Gerbview-specific implementation of the LAYER_PRESENTATION interface.
+ */
+class GBR_LAYER_PRESENTATION : public LAYER_PRESENTATION
+{
+public:
+    GBR_LAYER_PRESENTATION( GERBVIEW_FRAME& aFrame ) : m_frame( aFrame ) {}
+
+    // Returns a color index from the layer id
+    COLOR4D getLayerColor( int aLayer ) const override
+    {
+        return m_frame.GetLayerColor( GERBER_DRAW_LAYER( aLayer ) );
+    }
+
+    // Returns the name of the layer id
+    wxString getLayerName( int aLayer ) const override
+    {
+        GERBER_FILE_IMAGE_LIST& images = GERBER_FILE_IMAGE_LIST::GetImagesList();
+        wxString                name = images.GetDisplayName( aLayer );
+
+        return name;
+    }
+
+private:
+    GERBVIEW_FRAME& m_frame;
+};
+
+
+GBR_LAYER_BOX_SELECTOR::GBR_LAYER_BOX_SELECTOR( wxWindow* parent, wxWindowID id, const wxPoint& pos,
+                                                const wxSize& size, int n,
+                                                const wxString choices[] ) :
+        LAYER_BOX_SELECTOR( parent, id, pos, size, n, choices ),
+        m_layerPresentation( std::make_unique<GBR_LAYER_PRESENTATION>(
+                static_cast<GERBVIEW_FRAME&>( *parent->GetParent() ) ) )
+{
+    m_layerhotkeys = false;
+}
 
 void GBR_LAYER_BOX_SELECTOR::Resync()
 {
     Freeze();
     Clear();
 
-#ifdef __WXMSW__
-    DPI_SCALING_COMMON dpi( nullptr, this );
-    int size = static_cast<int>( 14 / dpi.GetContentScaleFactor() );
-#else
     const int size = 14;
-#endif
 
     GERBER_FILE_IMAGE_LIST& images = GERBER_FILE_IMAGE_LIST::GetImagesList();
 
@@ -55,11 +91,21 @@ void GBR_LAYER_BOX_SELECTOR::Resync()
         if ( images.GetGbrImage( layerid ) == nullptr )
             continue;
 
-        // Prepare Bitmap
-        wxBitmap bmp( size, size );
-        DrawColorSwatch( bmp, getLayerColor( LAYER_PCB_BACKGROUND ), getLayerColor( layerid ) );
+        // Prepare Bitmaps
+        wxVector<wxBitmap> bitmaps;
 
-        Append( getLayerName( layerid ), bmp, (void*)(intptr_t) layerid );
+        for( int scale = 1; scale <= 3; scale++ )
+        {
+            wxBitmap bmp( size * scale, size * scale );
+
+            m_layerPresentation->DrawColorSwatch( bmp, layerid );
+
+            bmp.SetScaleFactor( scale );
+            bitmaps.push_back( bmp );
+        }
+
+        Append( m_layerPresentation->getLayerName( layerid ),
+                wxBitmapBundle::FromBitmaps( bitmaps ), (void*) (intptr_t) layerid );
     }
 
     // Ensure the size of the widget is enough to show the text and the icon
@@ -82,23 +128,4 @@ void GBR_LAYER_BOX_SELECTOR::Resync()
     }
 
     Thaw();
-}
-
-
-// Returns a color index from the layer id
-COLOR4D GBR_LAYER_BOX_SELECTOR::getLayerColor( int aLayer ) const
-{
-    GERBVIEW_FRAME* frame = (GERBVIEW_FRAME*) GetParent()->GetParent();
-
-    return frame->GetLayerColor( GERBER_DRAW_LAYER( aLayer ) );
-}
-
-
-// Returns the name of the layer id
-wxString GBR_LAYER_BOX_SELECTOR::getLayerName( int aLayer ) const
-{
-    GERBER_FILE_IMAGE_LIST& images = GERBER_FILE_IMAGE_LIST::GetImagesList();
-    wxString name = images.GetDisplayName( aLayer );
-
-    return name;
 }

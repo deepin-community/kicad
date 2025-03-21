@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 CERN
- * Copyright (C) 2015-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -31,6 +31,7 @@
 class PCB_SELECTION;
 class PCB_BASE_FRAME;
 class PAD;
+class PADSTACK;
 
 class DIALOG_TRACK_VIA_PROPERTIES : public DIALOG_TRACK_VIA_PROPERTIES_BASE
 {
@@ -48,14 +49,19 @@ private:
     void onWidthEdit( wxCommandEvent& aEvent ) override;
     void onViaSelect( wxCommandEvent& aEvent ) override;
     void onViaEdit( wxCommandEvent& aEvent ) override;
+    void onTentingLinkToggle( wxCommandEvent& event ) override;
+    void onFrontTentingChanged( wxCommandEvent& event ) override;
+    void onTrackEdit( wxCommandEvent& aEvent ) override;
+    void onPadstackModeChanged( wxCommandEvent& aEvent ) override;
+    void onEditLayerChanged( wxCommandEvent& aEvent ) override;
 
     void onUnitsChanged( wxCommandEvent& aEvent );
     void onTeardropsUpdateUi( wxUpdateUIEvent& event ) override;
-    void onCurvedEdgesUpdateUi( wxUpdateUIEvent& event ) override;
 
     bool confirmPadChange( const std::vector<PAD*>& connectedPads );
 
     int getLayerDepth();
+    void afterPadstackModeChanged();
 
 private:
     PCB_BASE_FRAME*      m_frame;
@@ -64,6 +70,7 @@ private:
     UNIT_BINDER          m_trackStartX, m_trackStartY;
     UNIT_BINDER          m_trackEndX, m_trackEndY;
     UNIT_BINDER          m_trackWidth;
+    UNIT_BINDER          m_trackMaskMargin;
 
     UNIT_BINDER          m_viaX, m_viaY;
     UNIT_BINDER          m_viaDiameter, m_viaDrill;
@@ -76,4 +83,11 @@ private:
 
     bool                 m_tracks;     // True if dialog displays any track properties.
     bool                 m_vias;       // True if dialog displays any via properties.
+
+    /// Temporary padstack of the edited via(s)
+    std::unique_ptr<PADSTACK> m_viaStack;
+
+    /// The currently-shown copper layer of the edited via(s)
+    PCB_LAYER_ID m_editLayer;
+    std::map<int, PCB_LAYER_ID> m_editLayerCtrlMap;
 };

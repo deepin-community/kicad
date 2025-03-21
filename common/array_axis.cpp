@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,6 +22,8 @@
  */
 
 #include <array_axis.h>
+
+#include <increment.h>
 
 
 /**
@@ -134,26 +136,9 @@ wxString ARRAY_AXIS::GetItemNumber( int n ) const
 {
     wxString        itemNum;
     const wxString& alphabet = GetAlphabet();
-
-    const bool nonUnitColsStartAt0 = schemeNonUnitColsStartAt0( m_type );
-
-    bool firstRound = true;
-    int  radix = alphabet.Length();
+    const bool      nonUnitColsStartAt0 = schemeNonUnitColsStartAt0( m_type );
 
     n = m_offset + m_step * n;
 
-    do
-    {
-        int modN = n % radix;
-
-        if( nonUnitColsStartAt0 && !firstRound )
-            modN--; // Start the "tens/hundreds/etc column" at "Ax", not "Bx"
-
-        itemNum.insert( 0, 1, alphabet[modN] );
-
-        n /= radix;
-        firstRound = false;
-    } while( n );
-
-    return itemNum;
+    return AlphabeticFromIndex( n, alphabet, nonUnitColsStartAt0 );
 }

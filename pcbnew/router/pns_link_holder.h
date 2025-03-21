@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * Author: Seth Hillbrand <hillbrand@ucdavis.edu>
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.h>
@@ -33,21 +33,28 @@ namespace PNS
 class LINK_HOLDER : public ITEM
 {
 public:
-    typedef std::vector<LINKED_ITEM*> LINKS;
-
     LINK_HOLDER( PnsKind aKind ) : ITEM( aKind )
     {}
 
     ///< Add a reference to an item registered in a #NODE that is a part of this line.
     void Link( LINKED_ITEM* aLink )
     {
+        wxCHECK_MSG( !alg::contains( m_links, aLink ), /* void */,
+                     "Trying to link an item that is already linked" );
         m_links.push_back( aLink );
+    }
+
+    void Unlink( const LINKED_ITEM* aLink )
+    {
+        wxCHECK_MSG( alg::contains( m_links, aLink ), /* void */,
+                     "Trying to unlink an item that is not linked" );
+        alg::delete_matching( m_links, aLink );
     }
 
     ///< Return the list of links from the owning node that constitute this
     ///< line (or NULL if the line is not linked).
-    LINKS& Links() { return m_links; }
-    const LINKS& Links() const { return m_links; }
+    std::vector<LINKED_ITEM*>& Links() { return m_links; }
+    const std::vector<LINKED_ITEM*>& Links() const { return m_links; }
 
     bool IsLinked() const
     {
@@ -62,6 +69,8 @@ public:
 
     LINKED_ITEM* GetLink( int aIndex ) const
     {
+        if( aIndex < 0 )
+            aIndex += m_links.size();
         return m_links[aIndex];
     }
 
@@ -102,7 +111,7 @@ protected:
 
     ///< List of segments in the owning NODE (ITEM::m_owner) that constitute this line, or NULL
     ///< if the line is not a part of any node.
-    LINKS m_links;
+    std::vector<LINKED_ITEM*> m_links;
 };
 
 } // namespace PNS

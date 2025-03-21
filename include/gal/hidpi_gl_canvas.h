@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2017 Bernhard Stegmaier <stegmaier@sw-systems.de>
- * Copyright (C) 2016-2021 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * Base class for HiDPI aware wxGLCanvas implementations.
  *
@@ -42,7 +42,7 @@ class GAL_API HIDPI_GL_CANVAS : public wxGLCanvas
 public:
     // wxGLCanvas constructor
     HIDPI_GL_CANVAS( const KIGFX::VC_SETTINGS& aSettings, wxWindow* aParent,
-                     wxWindowID aId = wxID_ANY, const int* aAttribList = nullptr,
+                     const wxGLAttributes& aGLAttribs, wxWindowID aId = wxID_ANY,
                      const wxPoint& aPos = wxDefaultPosition, const wxSize& aSize = wxDefaultSize,
                      long aStyle = 0, const wxString& aName = wxGLCanvasName,
                      const wxPalette& aPalette = wxNullPalette );

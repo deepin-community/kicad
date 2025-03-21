@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2022 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -237,6 +237,8 @@ std::shared_ptr<DRC_RULE> DRC_RULES_PARSER::parseDRC_RULE()
             break;
 
         case T_layer:
+            if( rule->m_LayerCondition != LSET::AllLayersMask() )
+                reportError( _( "'layer' keyword already present." ) );
             rule->m_LayerSource = FromUTF8();
             rule->m_LayerCondition = parseLayer();
             break;
@@ -304,6 +306,7 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
     {
     case T_assertion:                 c.m_Type = ASSERTION_CONSTRAINT;                 break;
     case T_clearance:                 c.m_Type = CLEARANCE_CONSTRAINT;                 break;
+    case T_creepage:                  c.m_Type = CREEPAGE_CONSTRAINT;                  break;
     case T_hole_clearance:            c.m_Type = HOLE_CLEARANCE_CONSTRAINT;            break;
     case T_edge_clearance:            c.m_Type = EDGE_CLEARANCE_CONSTRAINT;            break;
     case T_hole_size:                 c.m_Type = HOLE_SIZE_CONSTRAINT;                 break;
@@ -313,6 +316,8 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
     case T_text_height:               c.m_Type = TEXT_HEIGHT_CONSTRAINT;               break;
     case T_text_thickness:            c.m_Type = TEXT_THICKNESS_CONSTRAINT;            break;
     case T_track_width:               c.m_Type = TRACK_WIDTH_CONSTRAINT;               break;
+    case T_track_angle:               c.m_Type = TRACK_ANGLE_CONSTRAINT;               break;
+    case T_track_segment_length:      c.m_Type = TRACK_SEGMENT_LENGTH_CONSTRAINT;      break;
     case T_connection_width:          c.m_Type = CONNECTION_WIDTH_CONSTRAINT;          break;
     case T_annular_width:             c.m_Type = ANNULAR_WIDTH_CONSTRAINT;             break;
     case T_via_diameter:              c.m_Type = VIA_DIAMETER_CONSTRAINT;              break;
@@ -332,7 +337,7 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
         msg.Printf( _( "Unrecognized item '%s'.| Expected %s." ), FromUTF8(),
                     wxT( "assertion, clearance, hole_clearance, edge_clearance, "
                          "physical_clearance, physical_hole_clearance, courtyard_clearance, "
-                         "silk_clearance, hole_size, hole_to_hole, track_width, annular_width, "
+                         "silk_clearance, hole_size, hole_to_hole, track_width, track_angle, track_segment_length, annular_width, "
                          "disallow, zone_connection, thermal_relief_gap, thermal_spoke_width, "
                          "min_resolved_spokes, length, skew, via_count, via_diameter, "
                          "diff_pair_gap or diff_pair_uncoupled" ) );
@@ -346,7 +351,8 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
     }
 
     bool unitless = c.m_Type == VIA_COUNT_CONSTRAINT
-                    || c.m_Type == MIN_RESOLVED_SPOKES_CONSTRAINT;
+                    || c.m_Type == MIN_RESOLVED_SPOKES_CONSTRAINT
+                    || c.m_Type == TRACK_ANGLE_CONSTRAINT;
 
     if( c.m_Type == DISALLOW_CONSTRAINT )
     {
@@ -480,6 +486,22 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
 
         switch( token )
         {
+        case T_within_diff_pairs:
+            if( c.m_Type != SKEW_CONSTRAINT )
+            {
+                reportError( _( "within_diff_pairs option invalid for constraint type." ) );
+                break;
+            }
+
+            c.SetOption( DRC_CONSTRAINT::OPTIONS::SKEW_WITHIN_DIFF_PAIRS );
+
+            if( (int) NextTok() != DSN_RIGHT )
+            {
+                reportError( wxString::Format( _( "Unrecognized item '%s'." ), FromUTF8() ) );
+                parseUnknown();
+            }
+
+            break;
         case T_min:
             token = NextTok();
 

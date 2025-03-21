@@ -4,7 +4,7 @@
  * Copyright (C) 1992-2018 Jean-Pierre Charras jp.charras at wanadoo.fr
  * Copyright (C) 1992-2010 Lorenzo Marcantonio
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023, 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,10 +27,11 @@
 #ifndef SCH_PLOTTER_H
 #define SCH_PLOTTER_H
 
+#include <wx/filename.h>
 #include <wx/string.h>
 #include <wx/gdicmn.h>
 #include <page_info.h>
-#include <render_settings.h>
+#include <sch_render_settings.h>
 #include <sch_sheet_path.h>
 #include <plotters/plotter.h>
 
@@ -76,7 +77,7 @@ enum class HPGL_PAGE_SIZE
 };
 
 
-struct SCH_PLOT_SETTINGS
+struct SCH_PLOT_OPTS
 {
     bool                  m_plotAll;
     bool                  m_plotDrawingSheet;
@@ -88,6 +89,8 @@ struct SCH_PLOT_SETTINGS
     double         m_HPGLPenSize; // for HPGL format only: pen size
     HPGL_PAGE_SIZE m_HPGLPaperSizeSelect;
     bool           m_PDFPropertyPopups;
+    bool           m_PDFHierarchicalLinks;
+    bool           m_PDFMetadata;
     wxString       m_theme;
 
     wxString       m_outputDirectory;
@@ -95,7 +98,7 @@ struct SCH_PLOT_SETTINGS
 
     HPGL_PLOT_ORIGIN_AND_UNITS m_HPGLPlotOrigin;
 
-    SCH_PLOT_SETTINGS() :
+    SCH_PLOT_OPTS() :
         m_plotAll( true ),
         m_plotDrawingSheet( true ),
         m_blackAndWhite( false ),
@@ -104,6 +107,8 @@ struct SCH_PLOT_SETTINGS
         m_HPGLPenSize( 1.0 ),
         m_HPGLPaperSizeSelect( HPGL_PAGE_SIZE::DEFAULT ),
         m_PDFPropertyPopups( false ),
+        m_PDFHierarchicalLinks( false ),
+        m_PDFMetadata( false ),
         m_theme(),
         m_outputDirectory(),
         m_outputFile(),
@@ -115,82 +120,80 @@ struct SCH_PLOT_SETTINGS
 
 
 /**
- * Schematic plotting class
+ * Schematic plotting class.
  */
 class SCH_PLOTTER
 {
 public:
     /**
-     * Constructor for usage with a frame having the schematic we want to print loaded
+     * Constructor for usage with a frame having the schematic we want to print loaded.
      */
     SCH_PLOTTER( SCH_EDIT_FRAME* aFrame );
 
     /**
-     * Constructor for usage with a schematic that can be headless
+     * Constructor for usage with a schematic that can be headless.
      */
     SCH_PLOTTER( SCHEMATIC* aSch );
 
     /**
-     * Perform the plotting of the schematic using the given aPlotFormat and aPlotSettings
+     * Perform the plotting of the schematic using the given \a aPlotFormat and a\ aPlotSettings.
      *
      * @param aPlotFormat The resulting output plot format (PDF, SVG, DXF, etc)
      * @param aPlotSettings The configuration for the plotting operation
      * @param aRenderSettings Mandatory object containing render settings for lower level classes
      * @param aReporter Optional reporter to print messages to
      */
-    void Plot( PLOT_FORMAT aPlotFormat, const SCH_PLOT_SETTINGS& aPlotSettings,
-               RENDER_SETTINGS* aRenderSettings, REPORTER* aReporter = nullptr );
+    void Plot( PLOT_FORMAT aPlotFormat, const SCH_PLOT_OPTS& aPlotOpts,
+               SCH_RENDER_SETTINGS* aRenderSettings, REPORTER* aReporter = nullptr );
 
     /**
-     * Get the last output file path, this is mainly intended for PDFs with the open after plot GUI option
+     * Get the last output file path, this is mainly intended for PDFs with the open after
+     * plot GUI option.
      */
     wxString GetLastOutputFilePath() const { return m_lastOutputFilePath; }
 
 protected:
     /**
-     * Returns the output filename for formats where the output is a single file
+     * Return the output filename for formats where the output is a single file.
      */
-    wxFileName getOutputFilenameSingle( const SCH_PLOT_SETTINGS& aPlotSettings, REPORTER* aReporter,
+    wxFileName getOutputFilenameSingle( const SCH_PLOT_OPTS& aPlotOpts, REPORTER* aReporter,
                                         const wxString& ext );
 
     // PDF
-    void createPDFFile( const SCH_PLOT_SETTINGS& aPlotSettings, RENDER_SETTINGS* aRenderSettings,
+    void createPDFFile( const SCH_PLOT_OPTS& aPlotOpts, SCH_RENDER_SETTINGS* aRenderSettings,
                         REPORTER* aReporter );
-    void plotOneSheetPDF( PLOTTER* aPlotter, SCH_SCREEN* aScreen,
-                          const SCH_PLOT_SETTINGS& aPlotSettings );
-    void setupPlotPagePDF( PLOTTER* aPlotter, SCH_SCREEN* aScreen,
-                           const SCH_PLOT_SETTINGS& aPlotSettings );
+    void plotOneSheetPDF( PLOTTER* aPlotter, SCH_SCREEN* aScreen, const SCH_PLOT_OPTS& aPlotOpts );
+    void setupPlotPagePDF( PLOTTER* aPlotter, SCH_SCREEN* aScreen, const SCH_PLOT_OPTS& aPlotOpts );
 
     // DXF
-    void createDXFFiles( const SCH_PLOT_SETTINGS& aPlotSettings, RENDER_SETTINGS* aRenderSettings,
+    void createDXFFiles( const SCH_PLOT_OPTS& aPlotOpts, SCH_RENDER_SETTINGS* aRenderSettings,
                          REPORTER* aReporter );
     bool plotOneSheetDXF( const wxString& aFileName, SCH_SCREEN* aScreen,
                           RENDER_SETTINGS* aRenderSettings, const VECTOR2I& aPlotOffset,
-                          double aScale, const SCH_PLOT_SETTINGS& aPlotSettings );
+                          double aScale, const SCH_PLOT_OPTS& aPlotOpts );
 
 
     // HPGL
-    void createHPGLFiles( const SCH_PLOT_SETTINGS& aPlotSettings, RENDER_SETTINGS* aRenderSettings,
+    void createHPGLFiles( const SCH_PLOT_OPTS& aPlotOpts, SCH_RENDER_SETTINGS* aRenderSettings,
                           REPORTER* aReporter );
     bool plotOneSheetHpgl( const wxString& aFileName, SCH_SCREEN* aScreen,
                            const PAGE_INFO& aPageInfo, RENDER_SETTINGS* aRenderSettings,
                            const VECTOR2I& aPlot0ffset, double aScale,
-                           const SCH_PLOT_SETTINGS&   aPlotSettings );
+                           const SCH_PLOT_OPTS& aPlotOpts );
 
     // PS
-    void createPSFiles( const SCH_PLOT_SETTINGS& aPlotSettings, RENDER_SETTINGS* aRenderSettings,
+    void createPSFiles( const SCH_PLOT_OPTS& aPlotOpts, SCH_RENDER_SETTINGS* aRenderSettings,
                         REPORTER* aReporter );
     bool plotOneSheetPS( const wxString& aFileName, SCH_SCREEN* aScreen,
                          RENDER_SETTINGS* aRenderSettings, const PAGE_INFO& aPageInfo,
                          const VECTOR2I& aPlot0ffset, double aScale,
-                         const SCH_PLOT_SETTINGS& aPlotSettings );
+                         const SCH_PLOT_OPTS& aPlotOpts );
 
     // SVG
-    void createSVGFiles( const SCH_PLOT_SETTINGS& aPlotSettings, RENDER_SETTINGS* aRenderSettings,
+    void createSVGFiles( const SCH_PLOT_OPTS& aPlotOpts, SCH_RENDER_SETTINGS* aRenderSettings,
                          REPORTER* aReporter );
     bool plotOneSheetSVG( const wxString& aFileName, SCH_SCREEN* aScreen,
-                          RENDER_SETTINGS*         aRenderSettings,
-                          const SCH_PLOT_SETTINGS& aPlotSettings );
+                          RENDER_SETTINGS* aRenderSettings, const SCH_PLOT_OPTS& aPlotOpts );
 
     /**
      * Everything done, close the plot and restore the environment.
@@ -210,9 +213,8 @@ protected:
      * @return the created file name.
      * @throw IO_ERROR on file I/O errors.
      */
-    wxFileName createPlotFileName( const SCH_PLOT_SETTINGS& aPlotSettings,
-                                   const wxString& aPlotFileName, const wxString& aExtension,
-                                   REPORTER* aReporter = nullptr );
+    wxFileName createPlotFileName( const SCH_PLOT_OPTS& aPlotOpts, const wxString& aPlotFileName,
+                                   const wxString& aExtension, REPORTER* aReporter = nullptr );
 
 private:
     SCHEMATIC*      m_schematic;

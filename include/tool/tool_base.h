@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2016-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -24,8 +24,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef __TOOL_BASE_H
-#define __TOOL_BASE_H
+#ifndef TOOL_BASE_H
+#define TOOL_BASE_H
 
 #include <cassert>
 #include <functional>
@@ -45,10 +45,10 @@ class VIEW_CONTROLS;
 
 enum TOOL_TYPE
 {
-    ///< Tool that interacts with the user
+    /// Tool that interacts with the user
     INTERACTIVE = 0x01,
 
-    ///< Tool that runs in the background without any user intervention
+    /// Tool that runs in the background without any user intervention
     BATCH       = 0x02
 };
 
@@ -73,14 +73,15 @@ public:
 
     virtual ~TOOL_BASE() {};
 
-    ///< Determine the reason of reset for a tool.
+    /// Determine the reason of reset for a tool.
     enum RESET_REASON
     {
         RUN,                ///< Tool is invoked after being inactive
         MODEL_RELOAD,       ///< Model changes (the sheet for a schematic)
         SUPERMODEL_RELOAD,  ///< For schematics, the entire schematic changed, not just the sheet
         GAL_SWITCH,         ///< Rendering engine changes
-        REDRAW              ///< Full drawing refresh
+        REDRAW,             ///< Full drawing refresh
+        SHUTDOWN            ///< Tool is being shut down
     };
 
     /**
@@ -153,7 +154,6 @@ public:
 
 protected:
     friend class TOOL_MANAGER;
-    friend class TOOL_SETTINGS;
 
     /**
      * Set the #TOOL_MANAGER the tool will belong to.
@@ -186,9 +186,9 @@ protected:
     T* getEditFrame() const
     {
 #if !defined( QA_TEST )   // Dynamic casts give the linker a seizure in the test framework
-        wxASSERT( dynamic_cast<T*>( getToolHolderInt() ) );
+        wxASSERT( dynamic_cast<T*>( getToolHolderInternal() ) );
 #endif
-        return static_cast<T*>( getToolHolderInt() );
+        return static_cast<T*>( getToolHolderInternal() );
     }
 
     /**
@@ -197,30 +197,27 @@ protected:
     template <typename T>
     T* getModel() const
     {
-        EDA_ITEM* m = getModelInt();
+        EDA_ITEM* m = getModelInternal();
 #if !defined( QA_TEST )   // Dynamic casts give the linker a seizure in the test framework
         wxASSERT( dynamic_cast<T*>( m ) );
 #endif
         return static_cast<T*>( m );
     }
 
-    ///< Store the type of the tool.
-    TOOL_TYPE m_type;
-
-    ///< Unique identifier for the tool, assigned by a TOOL_MANAGER instance.
-    TOOL_ID m_toolId;
-
-    ///< Name of the tool. Names are expected to obey the format application.ToolName
-    ///< (eg. pcbnew.InteractiveSelection).
-    std::string m_toolName;
-    TOOL_MANAGER* m_toolMgr;
-    //TOOL_SETTINGS m_toolSettings;
-
 private:
-    // hide the implementation to avoid spreading half of
-    // kicad and wxWidgets headers to the tools that may not need them at all!
-    EDA_ITEM* getModelInt() const;
-    TOOLS_HOLDER* getToolHolderInt() const;
+    // hide the implementation to avoid spreading half of kicad and wxWidgets headers to the tools
+    // that may not need them at all!
+    EDA_ITEM* getModelInternal() const;
+    TOOLS_HOLDER* getToolHolderInternal() const;
+
+protected:
+    TOOL_TYPE     m_type;
+    TOOL_ID       m_toolId;       ///< Unique id, assigned by a TOOL_MANAGER instance.
+
+    /// Names are expected to obey the format application.ToolName (eg.
+    /// pcbnew.InteractiveSelection).
+    std::string   m_toolName;
+    TOOL_MANAGER* m_toolMgr;
 };
 
-#endif
+#endif  // TOOL_BASE_H

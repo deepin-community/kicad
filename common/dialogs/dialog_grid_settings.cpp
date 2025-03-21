@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,8 +22,7 @@
  */
 
 #include <bitmaps.h>
-#include <confirm.h>
-#include <wx/textdlg.h>
+#include <wx/msgdlg.h>
 #include <dialogs/dialog_grid_settings.h>
 #include <widgets/std_bitmap_button.h>
 #include <common.h>
@@ -51,6 +50,28 @@ DIALOG_GRID_SETTINGS::DIALOG_GRID_SETTINGS( wxWindow* aParent, wxWindow* aEventS
     // Now all widgets have the size fixed, call FinishDialogSettings
     finishDialogSettings();
 }
+
+
+bool DIALOG_GRID_SETTINGS::TransferDataToWindow()
+{
+    if( !m_grid.x.IsEmpty() )
+    {
+        bool     linked = ( m_grid.x == m_grid.y );
+        VECTOR2D grid = m_grid.ToDouble( m_unitsProvider->GetIuScale() );
+
+        m_textName->SetValue( m_grid.name );
+        m_checkLinked->SetValue( linked );
+        m_gridSizeX.SetDoubleValue( grid.x );
+
+        if( !linked )
+            m_gridSizeY.SetDoubleValue( grid.y );
+
+        m_textY->Enable( !linked );
+    }
+
+    return true;
+}
+
 
 bool DIALOG_GRID_SETTINGS::TransferDataFromWindow()
 {

@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Seth Hillbrand <hillbrand@ucdavis.edu>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -75,7 +75,7 @@ public:
 
     ARC* Clone() const override;
 
-    const SHAPE* Shape() const override
+    const SHAPE* Shape( int aLayer ) const override
     {
         return static_cast<const SHAPE*>( &m_arc );
     }

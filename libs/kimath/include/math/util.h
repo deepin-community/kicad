@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2005 Michael Niedermayer <michaelni@gmx.at>
  * Copyright (C) CERN
- * Copyright (C) 2021-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -34,6 +34,7 @@
 #define UTIL_H
 
 #include <config.h>
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -50,25 +51,6 @@ void kimathLogDebug( const char* aFormatString, ... );
  */
 void kimathLogOverflow( double v, const char* aTypeName );
 
-/**
- * Limit @a value within the range @a lower <= @a value <= @a upper.
- *
- * It will work on temporary expressions, since they are evaluated only once, and it should
- * work on most if not all numeric types, string types, or any type for which "operator < ()"
- * is present. The arguments are accepted in this order so you can remember the expression as
- * a memory aid:
- * <p>
- * result is:  lower <= value <= upper
- *</p>
- */
-template <typename T> inline constexpr T Clamp( const T& lower, const T& value, const T& upper )
-{
-    if( value < lower )
-        return lower;
-    else if( upper < value )
-        return upper;
-    return value;
-}
 
 // Suppress an annoying warning that the explicit rounding we do is not precise
 #ifdef HAVE_WIMPLICIT_FLOAT_CONVERSION
@@ -76,26 +58,65 @@ template <typename T> inline constexpr T Clamp( const T& lower, const T& value, 
     _Pragma( "GCC diagnostic ignored \"-Wimplicit-int-float-conversion\"" )
 #endif
 
+
+/**
+ * Perform a cast between numerical types. Will clamp the return value to numerical type limits.
+ *
+ * In Debug build an assert fires if will not fit into the return type.
+ */
+template <typename in_type = long long int, typename ret_type = int>
+inline constexpr ret_type KiCheckedCast( in_type v )
+{
+    if constexpr( std::is_same_v<in_type, long long int> && std::is_same_v<ret_type, int> )
+    {
+        if( v > std::numeric_limits<int>::max() )
+        {
+            kimathLogOverflow( double( v ), typeid( int ).name() );
+
+            return std::numeric_limits<int>::max();
+        }
+        else if( v < std::numeric_limits<int>::lowest() )
+        {
+            kimathLogOverflow( double( v ), typeid( int ).name() );
+
+            return std::numeric_limits<int>::lowest();
+        }
+
+        return int( v );
+    }
+    else
+    {
+        return v;
+    }
+}
+
+
 /**
  * Round a floating point number to an integer using "round halfway cases away from zero".
  *
  * In Debug build an assert fires if will not fit into the return type.
  */
 template <typename fp_type, typename ret_type = int>
-constexpr ret_type KiROUND( fp_type v )
+constexpr ret_type KiROUND( fp_type v, bool aQuiet = false )
 {
     using max_ret = long long int;
     fp_type ret = v < 0 ? v - 0.5 : v + 0.5;
 
     if( ret > std::numeric_limits<ret_type>::max() )
     {
-        kimathLogOverflow( double( v ), typeid( ret_type ).name() );
+        if( !aQuiet )
+        {
+            kimathLogOverflow( double( v ), typeid( ret_type ).name() );
+        }
 
         return std::numeric_limits<ret_type>::max() - 1;
     }
     else if( ret < std::numeric_limits<ret_type>::lowest() )
     {
-        kimathLogOverflow( double( v ), typeid( ret_type ).name() );
+        if( !aQuiet )
+        {
+            kimathLogOverflow( double( v ), typeid( ret_type ).name() );
+        }
 
         if( std::numeric_limits<ret_type>::is_signed )
             return std::numeric_limits<ret_type>::lowest() + 1;
@@ -107,7 +128,10 @@ constexpr ret_type KiROUND( fp_type v )
     {
         if( std::isnan( v ) )
         {
-            kimathLogOverflow( double( v ), typeid( ret_type ).name() );
+            if( !aQuiet )
+            {
+                kimathLogOverflow( double( v ), typeid( ret_type ).name() );
+            }
 
             return 0;
         }
@@ -132,7 +156,7 @@ T rescale( T aNumerator, T aValue, T aDenominator )
 }
 
 template <typename T>
-int sign( T val )
+constexpr int sign( T val )
 {
     return ( T( 0 ) < val) - ( val < T( 0 ) );
 }
@@ -157,7 +181,7 @@ template <class T>
 typename std::enable_if<std::is_floating_point<T>::value, bool>::type
 equals( T aFirst, T aSecond, T aEpsilon = std::numeric_limits<T>::epsilon() )
 {
-    T diff = std::abs( aFirst - aSecond );
+    const T diff = std::abs( aFirst - aSecond );
 
     if( diff < aEpsilon )
     {

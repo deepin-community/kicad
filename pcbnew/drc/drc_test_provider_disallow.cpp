@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2004-2024 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,7 +31,7 @@
 #include <drc/drc_test_provider.h>
 #include <pad.h>
 #include <progress_reporter.h>
-#include <core/thread_pool.h>
+#include <thread_pool.h>
 #include <zone.h>
 #include <mutex>
 
@@ -90,10 +90,15 @@ bool DRC_TEST_PROVIDER_DISALLOW::Run()
             {
                 ZONE* zone = dynamic_cast<ZONE*>( item );
 
-                if( zone && zone->GetIsRuleArea() && zone->GetDoNotAllowCopperPour() )
+                if( zone && zone->GetIsRuleArea() && zone->HasKeepoutParametersSet()
+                    && zone->GetDoNotAllowCopperPour() )
+                {
                     antiCopperKeepouts.push_back( zone );
+                }
                 else if( zone && zone->IsOnCopperLayer() )
+                {
                     copperZones.push_back( zone );
+                }
 
                 totalCount++;
 
@@ -127,23 +132,28 @@ bool DRC_TEST_PROVIDER_DISALLOW::Run()
                     // exclude it.  This is particularly important for detecting copper fills as
                     // they will be exactly touching along the entire exclusion border.
                     SHAPE_POLY_SET areaPoly = ruleArea->Outline()->CloneDropTriangulation();
-                    areaPoly.Fracture( SHAPE_POLY_SET::PM_FAST );
+                    areaPoly.Fracture();
                     areaPoly.Deflate( epsilon, CORNER_STRATEGY::ALLOW_ACUTE_CORNERS, ARC_LOW_DEF );
 
                     DRC_RTREE* zoneRTree = board->m_CopperZoneRTreeCache[ copperZone ].get();
 
                     if( zoneRTree )
                     {
-                        for( PCB_LAYER_ID layer : ruleArea->GetLayerSet().Seq() )
+                        for( size_t ii = 0; ii < ruleArea->GetLayerSet().size(); ++ii )
                         {
-                            if( zoneRTree->QueryColliding( areaBBox, &areaPoly, layer ) )
+                            if( ruleArea->GetLayerSet().test( ii ) )
                             {
-                                isInside = true;
-                                break;
-                            }
+                                PCB_LAYER_ID layer = PCB_LAYER_ID( ii );
 
-                            if( m_drcEngine->IsCancelled() )
-                                return 0;
+                                if( zoneRTree->QueryColliding( areaBBox, &areaPoly, layer ) )
+                                {
+                                    isInside = true;
+                                    break;
+                                }
+
+                                if( m_drcEngine->IsCancelled() )
+                                    return 0;
+                            }
                         }
                     }
                 }
@@ -217,7 +227,7 @@ bool DRC_TEST_PROVIDER_DISALLOW::Run()
                     std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_ALLOWED_ITEMS );
                     DRC_RULE*                 rule = constraint.GetParentRule();
                     VECTOR2I                  pos = item->GetPosition();
-                    PCB_LAYER_ID              layer = UNDEFINED_LAYER;
+                    PCB_LAYER_ID              layer = item->GetLayerSet().ExtractLayer();
                     wxString                  msg;
 
                     msg.Printf( drcItem->GetErrorText() + wxS( " (%s)" ), constraint.GetName() );
@@ -225,9 +235,6 @@ bool DRC_TEST_PROVIDER_DISALLOW::Run()
                     drcItem->SetErrorMessage( msg );
                     drcItem->SetItems( item );
                     drcItem->SetViolatingRule( rule );
-
-                    if( item->GetLayerSet().count() )
-                        layer = item->GetLayerSet().Seq().front();
 
                     if( rule->m_Implicit )
                     {
@@ -258,7 +265,7 @@ bool DRC_TEST_PROVIDER_DISALLOW::Run()
                 {
                     ZONE* zone = dynamic_cast<ZONE*>( item );
 
-                    if( zone && zone->GetIsRuleArea() )
+                    if( zone && zone->GetIsRuleArea() && zone->HasKeepoutParametersSet() )
                         return true;
 
                     item->ClearFlags( HOLE_PROXY );     // Just in case

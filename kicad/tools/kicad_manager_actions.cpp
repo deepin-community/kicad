@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019-2023 CERN
- * Copyright (C) 2019 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,7 +41,7 @@ TOOL_ACTION KICAD_MANAGER_ACTIONS::newProject( TOOL_ACTION_ARGS()
         .DefaultHotkey( MD_CTRL + 'N' )
         .LegacyHotkeyName( "New Project" )
         .FriendlyName( _( "New Project..." ) )
-        .Tooltip( _( "Create new blank project" ) )
+        .Tooltip( _( "Create a new, blank project" ) )
         .Icon( BITMAPS::new_project ) );
 
 TOOL_ACTION KICAD_MANAGER_ACTIONS::newFromTemplate( TOOL_ACTION_ARGS()
@@ -50,7 +50,7 @@ TOOL_ACTION KICAD_MANAGER_ACTIONS::newFromTemplate( TOOL_ACTION_ARGS()
         .DefaultHotkey( MD_CTRL + 'T' )
         .LegacyHotkeyName( "New Project From Template" )
         .FriendlyName( _( "New Project from Template..." ) )
-        .Tooltip( _( "Create new project from template" ) )
+        .Tooltip( _( "Create a new project based on an existing project" ) )
         .Icon( BITMAPS::new_project_from_template ) );
 
 TOOL_ACTION KICAD_MANAGER_ACTIONS::newFromRepository( TOOL_ACTION_ARGS()
@@ -58,15 +58,20 @@ TOOL_ACTION KICAD_MANAGER_ACTIONS::newFromRepository( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .LegacyHotkeyName( "Clone Project From Repository" )
         .FriendlyName( _( "Clone Project from Repository..." ) )
-        .Tooltip( _( "Clone a project from an existing repository" ) )
-        .Icon( BITMAPS::new_project_from_template ) );
+        .Icon( BITMAPS::project_clone ) );
+
+TOOL_ACTION KICAD_MANAGER_ACTIONS::newJobsetFile( TOOL_ACTION_ARGS()
+        .Name( "kicad.Control.newJobs" )
+        .Scope( AS_GLOBAL )
+        .LegacyHotkeyName( "New Jobset File" )
+        .FriendlyName( _( "New Jobset File..." ) )
+        .Icon( BITMAPS::jobset ) );
 
 TOOL_ACTION KICAD_MANAGER_ACTIONS::openDemoProject( TOOL_ACTION_ARGS()
         .Name( "kicad.Control.openDemoProject" )
         .Scope( AS_GLOBAL )
         .LegacyHotkeyName( "Open Demo Project" )
         .FriendlyName( _( "Open Demo Project..." ) )
-        .Tooltip( _( "Open a demo project" ) )
         .Icon( BITMAPS::open_project_demo ) );
 
 TOOL_ACTION KICAD_MANAGER_ACTIONS::openProject( TOOL_ACTION_ARGS()
@@ -75,15 +80,20 @@ TOOL_ACTION KICAD_MANAGER_ACTIONS::openProject( TOOL_ACTION_ARGS()
         .DefaultHotkey( MD_CTRL + 'O' )
         .LegacyHotkeyName( "Open Project" )
         .FriendlyName( _( "Open Project..." ) )
-        .Tooltip( _( "Open an existing project" ) )
         .Icon( BITMAPS::open_project ) );
+
+TOOL_ACTION KICAD_MANAGER_ACTIONS::openJobsetFile( TOOL_ACTION_ARGS()
+        .Name( "kicad.Control.openJobset" )
+        .Scope( AS_GLOBAL )
+        .LegacyHotkeyName( "Open Jobset File" )
+        .FriendlyName( _( "Open Jobset File..." ) )
+        .Icon( BITMAPS::jobset_open ) );
 
 TOOL_ACTION KICAD_MANAGER_ACTIONS::closeProject( TOOL_ACTION_ARGS()
         .Name( "kicad.Control.closeProject" )
         .Scope( AS_GLOBAL )
         .LegacyHotkeyName( "Close Project" )
         .FriendlyName( _( "Close Project" ) )
-        .Tooltip( _( "Close the current project" ) )
         .Icon( BITMAPS::project_close ) );
 
 TOOL_ACTION KICAD_MANAGER_ACTIONS::loadProject( TOOL_ACTION_ARGS()
@@ -102,7 +112,7 @@ TOOL_ACTION KICAD_MANAGER_ACTIONS::editSchematic( TOOL_ACTION_ARGS()
         .DefaultHotkey( MD_CTRL + 'E' )
         .LegacyHotkeyName( "Run Eeschema" )
         .FriendlyName( _( "Schematic Editor" ) )
-        .Tooltip( _( "Edit schematic" ) )
+        .Tooltip( _( "Edit schematic in schematic editor" ) )
         .Icon( BITMAPS::icon_eeschema_24 )
         .Flags( AF_NONE )
         .Parameter( FRAME_SCH ) );
@@ -113,7 +123,7 @@ TOOL_ACTION KICAD_MANAGER_ACTIONS::editSymbols( TOOL_ACTION_ARGS()
         .DefaultHotkey( MD_CTRL + 'L' )
         .LegacyHotkeyName( "Run LibEdit" )
         .FriendlyName( _( "Symbol Editor" ) )
-        .Tooltip( _( "Edit schematic symbols" ) )
+        .Tooltip( _( "Create, delete and edit schematic symbols" ) )
         .Icon( BITMAPS::icon_libedit_24 )
         .Flags( AF_NONE )
         .Parameter( FRAME_SCH_SYMBOL_EDITOR ) );
@@ -124,7 +134,7 @@ TOOL_ACTION KICAD_MANAGER_ACTIONS::editPCB( TOOL_ACTION_ARGS()
         .DefaultHotkey( MD_CTRL + 'P' )
         .LegacyHotkeyName( "Run Pcbnew" )
         .FriendlyName( _( "PCB Editor" ) )
-        .Tooltip( _( "Edit PCB" ) )
+        .Tooltip( _( "Edit PCB in PCB editor" ) )
         .Icon( BITMAPS::icon_pcbnew_24 )
         .Flags( AF_NONE )
         .Parameter( FRAME_PCB_EDITOR ) );
@@ -135,7 +145,7 @@ TOOL_ACTION KICAD_MANAGER_ACTIONS::editFootprints( TOOL_ACTION_ARGS()
         .DefaultHotkey( MD_CTRL + 'F' )
         .LegacyHotkeyName( "Run FpEditor" )
         .FriendlyName( _( "Footprint Editor" ) )
-        .Tooltip( _( "Edit PCB footprints" ) )
+        .Tooltip( _( "Create, delete and edit PCB footprints" ) )
         .Icon( BITMAPS::icon_modedit_24 )
         .Flags( AF_NONE )
         .Parameter( FRAME_FOOTPRINT_EDITOR ) );

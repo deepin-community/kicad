@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -68,7 +68,7 @@ public:
 
     WINDOW_SETTINGS* GetWindowSettings( APP_SETTINGS_BASE* aCfg ) override;
 
-    void CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged ) override;
+    void CommonSettingsChanged( int aFlags ) override;
 
     const BOX2I GetDocumentExtents( bool aIncludeAllVisible = true ) const override;
 

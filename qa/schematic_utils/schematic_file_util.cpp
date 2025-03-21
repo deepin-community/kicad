@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,7 +24,6 @@
 #include <settings/settings_manager.h>
 
 #include <connection_graph.h>
-#include <lib_textbox.h>
 #include <schematic.h>
 #include <sch_screen.h>
 
@@ -127,9 +126,6 @@ void LoadSchematic( SETTINGS_MANAGER& aSettingsManager, const wxString& aRelPath
         aSchematic->SetProject( nullptr );
         aSettingsManager.UnloadProject( prj, false );
         aSchematic->Reset();
-
-        // Delete old schematic data and clear old pointer
-        aSchematic.reset();
     }
 
     std::string absPath = GetEeschemaTestDataDir() + aRelPath.ToStdString();
@@ -144,7 +140,7 @@ void LoadSchematic( SETTINGS_MANAGER& aSettingsManager, const wxString& aRelPath
     else
         aSettingsManager.LoadProject( "" );
 
-    aSettingsManager.Prj().SetElem( PROJECT::ELEM_SCH_SYMBOL_LIBS, nullptr );
+    aSettingsManager.Prj().SetElem( PROJECT::ELEM::SCH_SYMBOL_LIBS, nullptr );
 
     aSchematic = LoadHierarchyFromRoot( schematicPath, &aSettingsManager.Prj() );
 
@@ -153,7 +149,7 @@ void LoadSchematic( SETTINGS_MANAGER& aSettingsManager, const wxString& aRelPath
     for( SCH_SCREEN* screen = screens.GetFirst(); screen; screen = screens.GetNext() )
         screen->UpdateLocalLibSymbolLinks();
 
-    SCH_SHEET_LIST sheets = aSchematic->GetSheets();
+    SCH_SHEET_LIST sheets = aSchematic->BuildSheetListSortedByPageNumbers();
 
     // Restore all of the loaded symbol instances from the root sheet screen.
     sheets.UpdateSymbolInstanceData( aSchematic->RootScreen()->GetSymbolInstances() );

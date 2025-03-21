@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6-dirty)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -59,15 +59,18 @@ class DIALOG_GLOBAL_EDIT_TRACKS_AND_VIAS_BASE : public DIALOG_SHIM
 		wxStaticText* m_viaSizeFilterUnits;
 		wxCheckBox* m_selectedItemsFilter;
 		wxRadioButton* m_setToSpecifiedValues;
-		wxStaticText* m_trackWidthLabel;
-		wxStaticText* m_viaSizeLabel;
 		wxStaticText* m_layerLabel;
-		wxChoice* m_trackWidthCtrl;
-		wxChoice* m_viaSizesCtrl;
 		PCB_LAYER_BOX_SELECTOR* m_layerCtrl;
+		wxStaticText* m_trackWidthLabel;
+		wxChoice* m_trackWidthCtrl;
+		wxStaticText* m_viaSizeLabel;
+		wxChoice* m_viaSizesCtrl;
+		wxStaticText* m_annularRingsLabel;
+		wxChoice* m_annularRingsCtrl;
 		wxRadioButton* m_setToDesignRuleValues;
 		wxStdDialogButtonSizer* m_sdbSizer;
 		wxButton* m_sdbSizerOK;
+		wxButton* m_sdbSizerApply;
 		wxButton* m_sdbSizerCancel;
 
 		// Virtual event handlers, override them in your derived class

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1992-2011 jean-pierre Charras <jean-pierre.charras@gipsa-lab.inpg.fr>
  * Copyright (C) 1992-2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,6 +41,7 @@ enum  NETLIST_TYPE_ID {
     NET_TYPE_SPICE,
     NET_TYPE_SPICE_MODEL,
     NET_TYPE_ALLEGRO,
+    NET_TYPE_PADS,
     NET_TYPE_CUSTOM1,   /* NET_TYPE_CUSTOM1
                          * is the first id for user netlist format
                          * NET_TYPE_CUSTOM1+CUSTOMPANEL_COUNTMAX-1

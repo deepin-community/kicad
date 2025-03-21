@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
- * Copyright (C) 2021 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -39,7 +39,8 @@ static struct IFACE : public KIFACE_BASE
 
     void OnKifaceEnd() override;
 
-    wxWindow* CreateKiWindow( wxWindow* aParent, int aClassId, KIWAY* aKiway, int aCtlBits = 0 ) override
+    wxWindow* CreateKiWindow( wxWindow* aParent, int aClassId, KIWAY* aKiway,
+                              int aCtlBits = 0 ) override
     {
         KIPYTHON_FRAME* frame = new KIPYTHON_FRAME( aKiway, aParent );
 
@@ -78,8 +79,6 @@ static struct IFACE : public KIFACE_BASE
 
 using namespace KIPYTHON;
 
-static PGM_BASE* process;
-
 KIFACE_BASE& Kiface()
 {
     return kiface;
@@ -90,22 +89,7 @@ KIFACE_BASE& Kiface()
 // KIFACE_GETTER will not have name mangling due to declaration in kiway.h.
 KIFACE* KIFACE_GETTER( int* aKIFACEversion, int aKIWAYversion, PGM_BASE* aProgram )
 {
-    process = (PGM_BASE*) aProgram;
     return &kiface;
-}
-
-
-PGM_BASE& Pgm()
-{
-    wxASSERT( process );    // KIFACE_GETTER has already been called.
-    return *process;
-}
-
-// Similar to PGM_BASE& Pgm(), but return nullptr when a *.ki_face is run from
-// a python script or something else.
-PGM_BASE* PgmOrNull()
-{
-    return process;
 }
 
 

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,11 +44,9 @@ const BOX2I ROUTER_STATUS_VIEW_ITEM::ViewBBox() const
     return tmp;
 }
 
-void ROUTER_STATUS_VIEW_ITEM::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> ROUTER_STATUS_VIEW_ITEM::ViewGetLayers() const
 {
-    aLayers[0] = LAYER_UI_START;
-    aLayers[1] = LAYER_UI_START + 1;
-    aCount = 2;
+    return { LAYER_UI_START, LAYER_UI_START + 1 };
 }
 
 void ROUTER_STATUS_VIEW_ITEM::ViewDraw( int aLayer, KIGFX::VIEW* aView ) const

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2023 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,11 +44,11 @@ public:
     {
     }
 
-    virtual LIB_ID GetLibId() const = 0;
+    virtual LIB_ID GetLIB_ID() const = 0;
 
     virtual wxString GetName() const = 0;
     virtual wxString GetLibNickname() const = 0;
-    virtual wxString GetDescription() = 0;
+    virtual wxString GetDesc() = 0;
 
     /**
      * Retrieves a key/value map of the fields on this item that should be exposed to the library
@@ -76,7 +76,7 @@ public:
     /**
      * For items with units, return the number of units.
      */
-    virtual int GetUnitCount() const { return 0; }
+    virtual int GetSubUnitCount() const { return 0; }
 
     /**
      * For items with units, return an identifier for unit x.

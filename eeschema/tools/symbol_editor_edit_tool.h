@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,12 +22,13 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef SYMBOL_EDITOR_EDIT_TOOL_H
-#define SYMBOL_EDITOR_EDIT_TOOL_H
+#pragma once
 
 #include <tools/ee_tool_base.h>
 
 
+class SCH_PIN;
+class SCH_SHAPE;
 class SYMBOL_EDIT_FRAME;
 
 
@@ -42,6 +43,7 @@ public:
 
     int Rotate( const TOOL_EVENT& aEvent );
     int Mirror( const TOOL_EVENT& aEvent );
+    int Swap( const TOOL_EVENT& aEvent );
 
     int Duplicate( const TOOL_EVENT& aEvent );
 
@@ -54,7 +56,10 @@ public:
     int Redo( const TOOL_EVENT& aEvent );
     int Cut( const TOOL_EVENT& aEvent );
     int Copy( const TOOL_EVENT& aEvent );
+    int CopyAsText( const TOOL_EVENT& aEvent );
     int Paste( const TOOL_EVENT& aEvent );
+
+    int Increment( const TOOL_EVENT& aEvent );
 
     /**
      * Delete the selected items, or the item under the cursor.
@@ -65,17 +70,15 @@ public:
     int InteractiveDelete( const TOOL_EVENT& aEvent );
 
 private:
-    void editShapeProperties( LIB_SHAPE* aShape );
-    void editTextProperties( LIB_ITEM* aItem );
-    void editTextBoxProperties( LIB_ITEM* aItem );
-    void editFieldProperties( LIB_FIELD* aField );
+    void editShapeProperties( SCH_SHAPE* aShape );
+    void editTextProperties( SCH_ITEM* aItem );
+    void editTextBoxProperties( SCH_ITEM* aItem );
+    void editFieldProperties( SCH_FIELD* aField );
     void editSymbolProperties();
-    void handlePinDuplication(LIB_PIN* aOldPin, LIB_PIN* aNewPin, int &aSymbolLastPinNumber );
+    void handlePinDuplication(SCH_PIN* aOldPin, SCH_PIN* aNewPin, int &aSymbolLastPinNumber );
 
     ///< Set up handlers for various events.
     void setTransitions() override;
 
     EDA_ITEM* m_pickerItem;
 };
-
-#endif // SYMBOL_EDITOR_EDIT_TOOL_H

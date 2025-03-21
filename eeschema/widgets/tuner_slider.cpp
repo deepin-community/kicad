@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016 CERN
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -25,6 +25,7 @@
  */
 
 
+#include <ki_exception.h>
 #include <sim/simulator_frame_ui.h>
 #include <sim/simulator_frame.h>
 #include <sch_symbol.h>
@@ -50,7 +51,15 @@ TUNER_SLIDER::TUNER_SLIDER( SIMULATOR_FRAME_UI* aFrame, wxWindow* aParent,
         m_value( 0.0 ),
         m_frame( aFrame )
 {
-    const SPICE_ITEM* item = m_frame->GetExporter()->FindItem( std::string( m_ref.ToUTF8() ) );
+#if  _WIN32
+        // BORDER_RAISED/SUNKEN look pretty on every platform but Windows
+        long style = GetWindowStyleFlag();
+        style &= ~wxBORDER_MASK;
+        style |= wxBORDER_SIMPLE;
+        SetWindowStyleFlag( style );
+#endif //  _WIN32
+
+    const SPICE_ITEM* item = m_frame->GetExporter()->FindItem( m_ref );
 
     if( !item )
         throw KI_PARAM_ERROR( wxString::Format( _( "%s not found" ), m_ref ) );

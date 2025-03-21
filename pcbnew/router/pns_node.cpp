@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2019 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -235,10 +235,13 @@ struct NODE::DEFAULT_OBSTACLE_VISITOR : public OBSTACLE_VISITOR
         if( m_item == aCandidate )
             return true;
 
+        if( m_ctx->options.m_filter && !m_ctx->options.m_filter( aCandidate ) )
+            return true;
+
         if( visit( aCandidate ) )
             return true;
 
-        if( !aCandidate->Collide( m_item, m_node, m_ctx ) )
+        if( !aCandidate->Collide( m_item, m_node, m_layerContext.value_or( -1 ), m_ctx ) )
             return true;
 
         if( m_ctx->options.m_limitCount > 0 && m_ctx->obstacles.size() >= m_ctx->options.m_limitCount )
@@ -329,9 +332,6 @@ NODE::OPT_OBSTACLE NODE::NearestObstacle( const LINE* aLine,
 
     for( const OBSTACLE& obstacle : obstacleList )
     {
-        if( aOpts.m_restrictedSet && !aOpts.m_restrictedSet->empty() && aOpts.m_restrictedSet->count( obstacle.m_item ) == 0 )
-            continue;
-
         int clearance = GetClearance( obstacle.m_item, aLine, aOpts.m_useClearanceEpsilon )
                             + aLine->Width() / 2;
 
@@ -363,7 +363,7 @@ NODE::OPT_OBSTACLE NODE::NearestObstacle( const LINE* aLine,
         {
             const VIA& via = aLine->Via();
             int viaClearance = GetClearance( obstacle.m_item, &via, aOpts.m_useClearanceEpsilon )
-                               + via.Diameter() / 2;
+                               + via.Diameter( aLine->Layer() ) / 2;
 
             obstacleHull = obstacle.m_item->Hull( viaClearance, 0, layer );
 
@@ -478,7 +478,8 @@ struct HIT_VISITOR : public OBSTACLE_VISITOR
 
         int cl = 0;
 
-        if( aItem->Shape()->Collide( &cp, cl ) )
+        // TODO(JE) padstacks -- this may not work
+        if( aItem->Shape( -1 )->Collide( &cp, cl ) )
             m_items.Add( aItem );
 
         return true;
@@ -636,7 +637,8 @@ void NODE::Add( LINE& aLine, bool aAllowRedundant )
                                                                    aLine.Net() ) ) )
             {
                 // another line could be referencing this segment too :(
-                aLine.Link( rseg );
+                if( !aLine.ContainsLink( rseg ) )
+                    aLine.Link( rseg );
             }
             else
             {
@@ -724,6 +726,8 @@ bool NODE::QueryEdgeExclusions( const VECTOR2I& aPos ) const
 
 void NODE::doRemove( ITEM* aItem )
 {
+    bool holeRemoved = false; // fixme: better logic, I don't like this
+
     // case 1: removing an item that is stored in the root node from any branch:
     // mark it as overridden, but do not remove
     if( aItem->BelongsTo( m_root ) && !isRoot() )
@@ -741,21 +745,26 @@ void NODE::doRemove( ITEM* aItem )
         m_index->Remove( aItem );
 
         if( aItem->HasHole() )
+        {
             m_index->Remove( aItem->Hole() );
+            holeRemoved = true;
+        }
     }
 
     // the item belongs to this particular branch: un-reference it
     if( aItem->BelongsTo( this ) )
     {
         aItem->SetOwner( nullptr );
-
         m_root->m_garbageItems.insert( aItem );
-
         HOLE *hole = aItem->Hole();
 
         if( hole )
         {
-            m_index->Remove( hole ); // hole is not directly owned by NODE but by the parent SOLID/VIA.
+            if( ! holeRemoved )
+            {
+                m_index->Remove( hole ); // hole is not directly owned by NODE but by the parent SOLID/VIA.
+            }
+
             hole->SetOwner( aItem );
         }
     }
@@ -778,6 +787,9 @@ void NODE::removeArcIndex( ARC* aArc )
 
 void NODE::rebuildJoint( const JOINT* aJoint, const ITEM* aItem )
 {
+    if( !aJoint )
+        return;
+
     // We have to split a single joint (associated with a via or a pad, binding together multiple
     // layers) into multiple independent joints. As I'm a lazy bastard, I simply delete the
     // via/solid and all its links and re-insert them.
@@ -812,11 +824,24 @@ void NODE::rebuildJoint( const JOINT* aJoint, const ITEM* aItem )
         }
     } while( split );
 
+    bool completelyErased = false;
+
+    if( !isRoot() && m_joints.find( tag ) == m_joints.end() )
+    {
+        JOINT jtDummy( tag.pos, PNS_LAYER_RANGE(-1), tag.net );
+
+        m_joints.insert( TagJointPair( tag, jtDummy ) );
+        completelyErased = true;
+    }
+
+
     // and re-link them, using the former via's link list
     for( ITEM* link : links )
     {
         if( link != aItem )
             linkJoint( tag.pos, link->Layers(), net, link );
+        else if( !completelyErased )
+            unlinkJoint( tag.pos, link->Layers(), net, link );
     }
 }
 
@@ -848,10 +873,10 @@ void NODE::Replace( ITEM* aOldItem, std::unique_ptr< ITEM > aNewItem )
 }
 
 
-void NODE::Replace( LINE& aOldLine, LINE& aNewLine )
+void NODE::Replace( LINE& aOldLine, LINE& aNewLine, bool aAllowRedundantSegments )
 {
     Remove( aOldLine );
-    Add( aNewLine );
+    Add( aNewLine, aAllowRedundantSegments );
 }
 
 
@@ -955,6 +980,8 @@ void NODE::Remove( LINE& aLine )
             Remove( static_cast<SEGMENT*>( li ) );
         else if( li->OfKind( ITEM::ARC_T ) )
             Remove( static_cast<ARC*>( li ) );
+        else if( li->OfKind( ITEM::VIA_T ) )
+            Remove( static_cast<VIA*>( li ) );
     }
 
     aLine.SetOwner( nullptr );
@@ -975,7 +1002,8 @@ void NODE::followLine( LINKED_ITEM* aCurrent, bool aScanDirection, int& aPos, in
         const VECTOR2I p  = aCurrent->Anchor( aScanDirection ^ prevReversed );
         const JOINT*   jt = FindJoint( p, aCurrent );
 
-        wxCHECK( jt, /* void */ );
+        if( !jt )
+            break;
 
         aCorners[aPos]     = jt->Pos();
         aSegments[aPos]    = aCurrent;
@@ -985,7 +1013,9 @@ void NODE::followLine( LINKED_ITEM* aCurrent, bool aScanDirection, int& aPos, in
         {
             if( ( aScanDirection && jt->Pos() == aCurrent->Anchor( 0 ) )
                     || ( !aScanDirection && jt->Pos() == aCurrent->Anchor( 1 ) ) )
+            {
                 aArcReversed[aPos] = true;
+            }
         }
 
         aPos += ( aScanDirection ? 1 : -1 );
@@ -1001,10 +1031,13 @@ void NODE::followLine( LINKED_ITEM* aCurrent, bool aScanDirection, int& aPos, in
 
         bool locked = aStopAtLockedJoints ? jt->IsLocked() : false;
 
-        if( locked || !jt->IsLineCorner( aFollowLockedSegments ) || aPos < 0 || aPos == aLimit )
+        if( locked || aPos < 0 || aPos == aLimit )
             break;
 
         aCurrent = jt->NextSegment( aCurrent, aFollowLockedSegments );
+
+        if( !aCurrent )
+            break;
 
         prevReversed = ( aCurrent && jt->Pos() == aCurrent->Anchor( aScanDirection ) );
     }
@@ -1060,7 +1093,7 @@ const LINE NODE::AssembleLine( LINKED_ITEM* aSeg, int* aOriginSegmentIndex,
             if( li->Kind() == ITEM::ARC_T )
             {
                 const ARC*       arc = static_cast<const ARC*>( li );
-                const SHAPE_ARC* sa  = static_cast<const SHAPE_ARC*>( arc->Shape() );
+                const SHAPE_ARC* sa  = static_cast<const SHAPE_ARC*>( arc->Shape( -1 ) );
 
                 int      nSegs     = line.PointCount();
                 VECTOR2I last      = nSegs ? line.CPoint( -1 ) : VECTOR2I();
@@ -1224,15 +1257,12 @@ const JOINT* NODE::FindJoint( const VECTOR2I& aPos, int aLayer, NET_HANDLE aNet 
         f = m_root->m_joints.find( tag );    // m_root->FindJoint(aPos, aLayer, aNet);
     }
 
-    if( f == end )
-        return nullptr;
-
     while( f != end )
     {
-        if( f->second.Layers().Overlaps( aLayer ) )
+        if( f->second.Pos() == aPos && f->second.Net() == aNet && f->second.Layers().Overlaps( aLayer ) )
             return &f->second;
 
-        ++f;
+        f++;
     }
 
     return nullptr;
@@ -1246,7 +1276,7 @@ void NODE::LockJoint( const VECTOR2I& aPos, const ITEM* aItem, bool aLock )
 }
 
 
-JOINT& NODE::touchJoint( const VECTOR2I& aPos, const LAYER_RANGE& aLayers, NET_HANDLE aNet )
+JOINT& NODE::touchJoint( const VECTOR2I& aPos, const PNS_LAYER_RANGE& aLayers, NET_HANDLE aNet )
 {
     JOINT::HASH_TAG tag;
 
@@ -1307,7 +1337,7 @@ void JOINT::Dump() const
 }
 
 
-void NODE::linkJoint( const VECTOR2I& aPos, const LAYER_RANGE& aLayers, NET_HANDLE aNet,
+void NODE::linkJoint( const VECTOR2I& aPos, const PNS_LAYER_RANGE& aLayers, NET_HANDLE aNet,
                       ITEM* aWhere )
 {
     JOINT& jt = touchJoint( aPos, aLayers, aNet );
@@ -1316,7 +1346,7 @@ void NODE::linkJoint( const VECTOR2I& aPos, const LAYER_RANGE& aLayers, NET_HAND
 }
 
 
-void NODE::unlinkJoint( const VECTOR2I& aPos, const LAYER_RANGE& aLayers, NET_HANDLE aNet,
+void NODE::unlinkJoint( const VECTOR2I& aPos, const PNS_LAYER_RANGE& aLayers, NET_HANDLE aNet,
                         ITEM* aWhere )
 {
     // fixme: remove dangling joints
@@ -1553,7 +1583,7 @@ void NODE::RemoveByMarker( int aMarker )
 }
 
 
-SEGMENT* NODE::findRedundantSegment( const VECTOR2I& A, const VECTOR2I& B, const LAYER_RANGE& lr,
+SEGMENT* NODE::findRedundantSegment( const VECTOR2I& A, const VECTOR2I& B, const PNS_LAYER_RANGE& lr,
                                      NET_HANDLE aNet )
 {
     const JOINT* jtStart = FindJoint( A, lr.Start(), aNet );
@@ -1588,7 +1618,7 @@ SEGMENT* NODE::findRedundantSegment( SEGMENT* aSeg )
 }
 
 
-ARC* NODE::findRedundantArc( const VECTOR2I& A, const VECTOR2I& B, const LAYER_RANGE& lr,
+ARC* NODE::findRedundantArc( const VECTOR2I& A, const VECTOR2I& B, const PNS_LAYER_RANGE& lr,
                              NET_HANDLE aNet )
 {
     const JOINT* jtStart = FindJoint( A, lr.Start(), aNet );
@@ -1623,7 +1653,7 @@ ARC* NODE::findRedundantArc( ARC* aArc )
 }
 
 
-int NODE::QueryJoints( const BOX2I& aBox, std::vector<JOINT*>& aJoints, LAYER_RANGE aLayerMask,
+int NODE::QueryJoints( const BOX2I& aBox, std::vector<JOINT*>& aJoints, PNS_LAYER_RANGE aLayerMask,
                        int aKindMask )
 {
     int n = 0;
@@ -1663,7 +1693,7 @@ int NODE::QueryJoints( const BOX2I& aBox, std::vector<JOINT*>& aJoints, LAYER_RA
 
 ITEM *NODE::FindItemByParent( const BOARD_ITEM* aParent )
 {
-    if( aParent->IsConnected() )
+    if( aParent && aParent->IsConnected() )
     {
         const BOARD_CONNECTED_ITEM* cItem = static_cast<const BOARD_CONNECTED_ITEM*>( aParent );
         INDEX::NET_ITEMS_LIST*      l_cur = m_index->GetItemsForNet( cItem->GetNet() );
@@ -1681,7 +1711,8 @@ ITEM *NODE::FindItemByParent( const BOARD_ITEM* aParent )
     return nullptr;
 }
 
-std::vector<ITEM*> NODE::FindItemsByZone( const ZONE* aParent )
+
+std::vector<ITEM*> NODE::FindItemsByParent( const BOARD_ITEM* aParent )
 {
     std::vector<ITEM*> ret;
 
@@ -1693,4 +1724,26 @@ std::vector<ITEM*> NODE::FindItemsByZone( const ZONE* aParent )
 
     return ret;
 }
+
+
+VIA* NODE::FindViaByHandle ( const VIA_HANDLE& handle ) const
+{
+    const JOINT* jt = FindJoint( handle.pos, handle.layers.Start(), handle.net );
+
+    if( !jt )
+        return nullptr;
+
+    for( ITEM* item : jt->LinkList() )
+    {
+        if( item->OfKind( ITEM::VIA_T ) )
+        {
+            if( item->Net() == handle.net && item->Layers().Overlaps(handle.layers) )
+                return static_cast<VIA*>( item );
+        }
+    }
+
+    return nullptr;
 }
+
+}
+

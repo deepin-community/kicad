@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 CERN
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -72,7 +72,13 @@ protected:
     FOOTPRINT_CHOOSER_FRAME( KIWAY* aKiway, wxWindow* aParent );
 
 private:
+    bool filterByPinCount();
+    bool filterByFPFilters();
     bool filterFootprint( LIB_TREE_NODE& aNode );
+    void Show3DViewerFrame();
+
+    /// @copydoc PCB_BASE_FRAME::Update3DView
+    void Update3DView( bool aMarkDirty, bool aRefresh, const wxString* aTitle = nullptr ) override;
 
     void OnPaint( wxPaintEvent& aEvent );
     void OnOK( wxCommandEvent& aEvent );
@@ -82,11 +88,24 @@ private:
 
     WINDOW_SETTINGS* GetWindowSettings( APP_SETTINGS_BASE* aCfg ) override;
     COLOR_SETTINGS* GetColorSettings( bool aForceRefresh ) const override;
-	void on3DviewReq( wxCommandEvent& event );
-	void onFpViewReq( wxCommandEvent& event );
+
+    void on3DviewReq( wxCommandEvent& event );
+    void onFpViewReq( wxCommandEvent& event );
+    void onExternalViewer3DEnable( wxCommandEvent& aEvent );
+
+    /**
+     * Show hide footprint view panel and/or 3d view panel according to the options
+     * (display 3D shapes and use external 3D viewer)
+     */
+    void updatePanelsVisibility();
+
+    /**
+     * Must be called after loading a new footprint: update footprint and/or 3D views
+     */
+    void updateViews();
 
     // A command event sent by a PANEL_FOOTPRINT_CHOOSER will fire this event:
-	void onFpChanged( wxCommandEvent& event );
+    void onFpChanged( wxCommandEvent& event );
 
     void build3DCanvas();
 
@@ -96,9 +115,11 @@ private:
 
 private:
     PANEL_FOOTPRINT_CHOOSER* m_chooserPanel;
-    bool                     m_showFpMode;   // True to show the footprint, false for 3D model
+    bool                     m_showFpMode; // True to show the footprint
+    bool                     m_show3DMode; // True to show the 3D model
     wxCheckBox*              m_filterByPinCount;
     wxCheckBox*              m_filterByFPFilters;
+    wxCheckBox*              m_show3DViewer;
 
     BOARD_ADAPTER            m_boardAdapter;
     EDA_3D_CANVAS*           m_preview3DCanvas;

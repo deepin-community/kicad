@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021-2024 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,7 +33,7 @@
 #include <drc/drc_test_provider.h>
 #include <advanced_config.h>
 #include <progress_reporter.h>
-#include <core/thread_pool.h>
+#include <thread_pool.h>
 
 /*
     Checks for slivers in copper layers
@@ -155,7 +155,7 @@ bool DRC_TEST_PROVIDER_SLIVER_CHECKER::Run()
                 if( m_drcEngine->IsCancelled() )
                     return 0;
 
-                poly.Simplify( SHAPE_POLY_SET::POLYGON_MODE::PM_FAST );
+                poly.Simplify();
 
                 return 1;
             };

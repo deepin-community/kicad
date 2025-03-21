@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Jon Evans <jon@craftyjon.com>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -24,13 +24,14 @@
 
 #include <layer_ids.h>
 #include <project/board_project_settings.h>
+#include <project/sch_project_settings.h>
 #include <settings/json_settings.h>
 #include <wildcards_and_files_ext.h>
 #include <settings/app_settings.h>
 
 class PROJECT;
 
-struct PROJECT_FILE_STATE
+struct KICOMMON_API PROJECT_FILE_STATE
 {
     wxString fileName;
     bool open;
@@ -50,7 +51,7 @@ struct PROJECT_FILE_STATE
  * This file doesn't need to exist for a project to be loaded.  It will be created on-demand if
  * any of the things stored here are modified by the user.
  */
-class PROJECT_LOCAL_SETTINGS : public JSON_SETTINGS
+class KICOMMON_API PROJECT_LOCAL_SETTINGS : public JSON_SETTINGS
 {
 public:
     PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxString& aFilename );
@@ -71,6 +72,11 @@ public:
 
     void ClearFileState();
 
+    /**
+     * @return true if it should be safe to auto-save this file without user action
+     */
+    bool ShouldAutoSave() const { return !m_wasMigrated && !m_isFutureFormat; }
+
 protected:
     wxString getFileExt() const override
     {
@@ -90,6 +96,8 @@ public:
 
     /// File based state
     std::vector<PROJECT_FILE_STATE> m_files;
+
+    std::vector<wxString>           m_OpenJobSets;
 
     /**
      * Board settings
@@ -113,6 +121,9 @@ public:
     /// The current net color mode
     NET_COLOR_MODE m_NetColorMode;
 
+    /// The state of the net inspector panel
+    PANEL_NET_INSPECTOR_SETTINGS m_NetInspectorPanel;
+
     /// The current setting for whether to automatically adjust track widths to match
     bool m_AutoTrackWidth;
 
@@ -123,6 +134,7 @@ public:
     double m_ViaOpacity;       ///< Opacity override for all types of via
     double m_PadOpacity;       ///< Opacity override for SMD pads and PTH
     double m_ZoneOpacity;      ///< Opacity override for filled zones
+    double m_ShapeOpacity;     ///< Opacity override for graphic shapes
     double m_ImageOpacity;     ///< Opacity override for user images
 
     /**
@@ -132,18 +144,20 @@ public:
     std::vector<wxString> m_HiddenNets;
     std::set<wxString> m_HiddenNetclasses;
 
-    /// State of the selection filter widget
-    SELECTION_FILTER_OPTIONS m_SelectionFilter;
+    /// State of the selection filter widgets
+    PCB_SELECTION_FILTER_OPTIONS m_PcbSelectionFilter;
+    SCH_SELECTION_FILTER_OPTIONS m_SchSelectionFilter;
 
     // Upstream git repo info
     wxString m_GitRepoUsername;
-    wxString m_GitRepoPassword;
     wxString m_GitRepoType;
     wxString m_GitSSHKey;
 
 private:
     /// A link to the owning project
     PROJECT* m_project;
+
+    bool m_wasMigrated;
 };
 
 #endif

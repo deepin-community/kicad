@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2023 CERN
- * Copyright (C) 2019-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -33,6 +33,7 @@
 #include <hotkeys_basic.h>
 #include <cctype>
 
+
 ACTION_MANAGER::ACTION_MANAGER( TOOL_MANAGER* aToolManager ) :
     m_toolMgr( aToolManager )
 {
@@ -56,7 +57,8 @@ ACTION_MANAGER::ACTION_MANAGER( TOOL_MANAGER* aToolManager ) :
         }
 
         wxLogTrace( kicadTraceToolStack,
-                    "ACTION_MANAGER::ACTION_MANAGER: Registering action %s with ID %d, UI ID %d, and group %s(%d)",
+                    "ACTION_MANAGER::ACTION_MANAGER: Registering action %s with ID %d, UI ID %d, "
+                    "and group %s(%d)",
                     action->m_name, action->m_id, action->GetUIId(), groupName, groupID );
 
         RegisterAction( action );
@@ -280,14 +282,14 @@ int ACTION_MANAGER::GetHotKey( const TOOL_ACTION& aAction ) const
 
 void ACTION_MANAGER::UpdateHotKeys( bool aFullUpdate )
 {
-    static std::map<std::string, int> legacyHotKeyMap;
+    static std::map<std::string, int>                 legacyHotKeyMap;
     static std::map<std::string, std::pair<int, int>> userHotKeyMap;
-    static bool                       mapsInitialized = false;
+    static bool                                       mapsInitialized = false;
 
     m_actionHotKeys.clear();
     m_hotkeys.clear();
 
-    if( aFullUpdate && !mapsInitialized && m_toolMgr->GetToolHolder() )
+    if( m_toolMgr->GetToolHolder() && ( aFullUpdate || !mapsInitialized ) )
     {
         ReadLegacyHotkeyConfig( m_toolMgr->GetToolHolder()->ConfigBaseName(), legacyHotKeyMap );
         ReadHotKeyConfig( wxEmptyString, userHotKeyMap );

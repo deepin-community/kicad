@@ -1,5 +1,6 @@
 :experimental:
 
+[[appearance-panel]]
 == Display and selection controls
 
 === Board layers
@@ -108,7 +109,8 @@ checker; it only is intended to make the ratsnest easier to understand.
 Each net and net class can also have a color assigned.  By default, this color applies to the
 ratsnest lines for the net (or for all the nets in the net class).  Nets have no color by default;
 this is indicated by a checkerboard pattern in the color swatch.  Double-click or right-click a
-net or net class color swatch to set the color.
+net or net class color swatch to set the color. To give a net class the same color it has in the
+schematic, right click the net class and select **Use color from schematic**.
 
 NOTE: The Default net class cannot have a color assigned, as nets in this class will just use the
       default ratsnest color defined by the color theme.
@@ -129,6 +131,7 @@ be drawn to items that are on hidden layers, even when those items are unconnect
 NOTE: You can configure the thickness of ratsnest lines in the PCB Editor Editing Options section
       of the Preferences dialog, to make the ratsnest more or less visible.
 
+[[selection]]
 === Selection and the selection filter
 
 Selecting items in the editing canvas is done with the left mouse button.  Single-clicking on an
@@ -178,6 +181,8 @@ items on and off.  The "Locked items" checkbox is independent of the rest, and c
 not items that have been locked can be selected.  You can right-click any object type in the
 selection filter to quickly change the filter to only allow selecting that type of object.
 
+image::images/selection_filter.png[]
+
 When a connected copper item is selected, you can expand the selection to other copper items of the
 same net using the Expand Selection command in the right-click context menu or with the hotkey
 kbd:[U].  The first time you run this command, the selection will be expanded to the nearest pad.
@@ -189,6 +194,7 @@ window. Double-clicking an object opens a window to edit the object's properties
 Pressing kbd:[Esc] will always cancel the current tool or operation and return to the selection
 tool.  Pressing kbd:[Esc] while the selection tool is active will clear the current selection.
 
+[[net-highlighting]]
 === Net highlighting
 
 An electrical net (or set of nets) can be highlighted in the PCB editor to visualize how the net
@@ -197,14 +203,19 @@ the PCB editor or by selecting the corresponding net in the schematic editor whe
 highlighting is enabled (see below).  When net highlighting is active, the highlighted net or nets
 will be shown in a brighter color and all other items will be shown in a dimmer color than normal.
 
-There are three ways to select a net or nets to highlight in the PCB editor: by using the hotkey
-kbd:[`] after selecting a copper object, by using the context menu of any copper object, and by
-using the context menu of the Nets tab of the Appearance panel.  When you press the Highlight Net
-hotkey, the nets of any selected copper items will be highlighted.  If no copper items are selected,
-the net of the copper item under the editor cursor will be highlighted.
+There are several ways to select a net or nets to highlight in the PCB editor:
+
+* Use the hotkey kbd:[`] after selecting a copper object, or while hovering over a copper object
+* Right click a copper object in the editing canvas and select **Net Inspection Tools** -> **Highlight Net**
+* Right click a net in the **Nets** tab of the Appearance panel and select **Highlight**
+* Double click a net in the <<net-inspector,Net Inspector>>
+
+When you press the Highlight Net hotkey, the nets of any selected copper items
+will be highlighted.  If no copper items are selected, the net of the copper
+item under the editor cursor will be highlighted.
 
 Net highlighting can be cleared by using the Clear Net Highlight action (hotkey
-kbd:[~]) or by using the Highlight net tool on an empty region in the schematic.
+kbd:[~]) or by using the Highlight net tool on an empty region in the board.
 By default, kbd:[Esc] also clears net highlighting, but this can be disabled if
 desired in **Preferences** -> **PCB Editor** -> **Editing Options**.
 
@@ -240,10 +251,10 @@ The left toolbar provides options to change the display of items in the PCB Edit
 | image:images/icons/grid_24.png[]
     | Turns grid display on/off.
 
-    *Note:* by default, hiding the grid does not disable grid snapping.
+    *Note:* by default, hiding the grid does not disable <<grids-and-snapping,grid snapping>>.
     This behavior can be changed in the Display Options section of Preferences.
 | image:images/icons/grid_override_24.png[grid override enable button]
-    | Turns item-specific grid overrides on/off.
+    | Turns item-specific <<grids-and-snapping,grid overrides>> on/off.
 | image:images/icons/polar_coord_24.png[]
     | Switch between polar and Cartesian coordinate display in the status bar.
 | image:images/icons/unit_inch_24.png[]
@@ -270,7 +281,7 @@ The left toolbar provides options to change the display of items in the PCB Edit
       pressing the button will change the layer display mode to Normal.  The Hide mode can only be
       accessed via the controls in the Appearance Panel or via the hotkey kbd:[Ctrl+H].
 | image:images/icons/net_highlight_24.png[]
-    | When a net has been selected for highlighting, switches the highlighting on or off.
+    | When a net has been selected for <<net-highlighting,highlighting>>, switches the highlighting on or off.
 
     *Note:* this button will be disabled when no net has been highlighted.  To highlight a net, use
     the hotkey kbd:[`], right-click any copper object in the net and choose Highlight Net from the
@@ -286,8 +297,8 @@ The left toolbar provides options to change the display of items in the PCB Edit
 | image:images/icons/showtrack_24.png[]
     | Switches display of tracks between filled and outline mode.
 | image:images/icons/layers_manager_24.png[]
-    | Shows or hides the Appearance and Selection Filter panels on the right side of the editor.
+    | Shows or hides the <<appearance-panel,Appearance>> and <<selection,Selection Filter>> panels on the right side of the editor.
 | image:images/icons/tools_24.png[]
-    | Shows or hides the Properties Manager panel on the left side of the editor.
+    | Shows or hides the <<editing-object-properties,Properties Manager>> panel on the left side of the editor.
 
 |====

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2012-2019, 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,10 +25,16 @@
 #ifndef DIALOG_SHIM_
 #define DIALOG_SHIM_
 
+#include <kicommon.h>
+#include <eda_units.h>
+#include <kiway_holder.h>
 #include <wx/dialog.h>
-#include <kiway_player.h>
-class wxGridEvent;
+#include <map>
 
+class EDA_BASE_FRAME;
+
+class wxGridEvent;
+class wxGUIEventLoop;
 
 
 struct WINDOW_THAWER
@@ -61,7 +67,6 @@ protected:
 
 
 class WDO_ENABLE_DISABLE;
-class WX_EVENT_LOOP;
 
 // These macros are for DIALOG_SHIM only, NOT for KIWAY_PLAYER.  KIWAY_PLAYER
 // has its own support for quasi modal and its platform specific issues are different
@@ -79,7 +84,7 @@ class WX_EVENT_LOOP;
  * <br>
  * in the dialog window's properties.
  */
-class DIALOG_SHIM : public wxDialog, public KIWAY_HOLDER
+class KICOMMON_API DIALOG_SHIM : public wxDialog, public KIWAY_HOLDER
 {
 public:
     DIALOG_SHIM( wxWindow* aParent, wxWindowID id, const wxString& title,
@@ -107,6 +112,14 @@ public:
 
     bool IsQuasiModal() const { return m_qmodal_showing; }
 
+    // A quasi-modal dialog disables its parent window.  Sadly this disabling is more extreme
+    // than wxWidgets' normal modal dialog disabling, and prevents things like hotkey Cut/Copy/
+    // Paste from working in search controls in standard file dialogs.  So when we put up a modal
+    // dialog in front of a quasi-modal, we suspend the quasi-modal dialog parent window
+    // disabling, causing us to fall back to the normal modal dialog parent window disabling.
+    void PrepareForModalSubDialog();
+    void CleanupAfterModalSubDialog();
+
     bool Show( bool show ) override;
 
     bool Enable( bool enable ) override;
@@ -114,6 +127,7 @@ public:
     void OnPaint( wxPaintEvent &event );
 
     void OnModify();
+    void ClearModify();
 
     /**
      * Force the position of the dialog to a new position
@@ -226,7 +240,7 @@ protected:
     wxWindow*              m_initialFocusTarget;
     bool                   m_isClosing;
 
-    WX_EVENT_LOOP*         m_qmodal_loop;  // points to nested event_loop, NULL means not qmodal
+    wxGUIEventLoop*        m_qmodal_loop;  // points to nested event_loop, NULL means not qmodal
                                            // and dismissed
     bool                   m_qmodal_showing;
     WDO_ENABLE_DISABLE*    m_qmodal_parent_disabler;

@@ -6,7 +6,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2010-2014 Jean-Pierre Charras <jp.charras at wanadoo.fr>
- * Copyright (C) 1992-2021 Kicad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -45,10 +45,9 @@ public:
 
     /**
      * @param aReference is the component schematic reference.
-     * @return the selection option:
-     *      0 for fpid text from the netlist
-     *      1 for fpid text from the cmp file
-     *      -1 on error
+     * @retval  0 for fpid text from the netlist.
+     * @retval  1 for fpid text from the cmp file.
+     * @retval -1 on error.
      */
     int GetSelection( const wxString& aReference );
 

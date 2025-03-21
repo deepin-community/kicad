@@ -4,7 +4,7 @@
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,22 +24,35 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "pcb_shape.h"
+
+#include <google/protobuf/any.pb.h>
+#include <magic_enum.hpp>
+
 #include <bitmaps.h>
-#include <core/mirror.h>
 #include <macros.h>
 #include <pcb_edit_frame.h>
 #include <board_design_settings.h>
+#include <board.h>
 #include <footprint.h>
+#include <lset.h>
 #include <pad.h>
 #include <base_units.h>
+#include <geometry/shape_circle.h>
 #include <geometry/shape_compound.h>
-#include <pcb_shape.h>
+#include <geometry/point_types.h>
+#include <geometry/shape_utils.h>
 #include <pcb_painter.h>
+#include <api/board/board_types.pb.h>
+#include <api/api_enums.h>
+#include <api/api_utils.h>
+
 
 PCB_SHAPE::PCB_SHAPE( BOARD_ITEM* aParent, KICAD_T aItemType, SHAPE_T aShapeType ) :
     BOARD_CONNECTED_ITEM( aParent, aItemType ),
     EDA_SHAPE( aShapeType, pcbIUScale.mmToIU( DEFAULT_LINE_WIDTH ), FILL_T::NO_FILL )
 {
+    m_hasSolderMask = false;
 }
 
 
@@ -47,11 +60,71 @@ PCB_SHAPE::PCB_SHAPE( BOARD_ITEM* aParent, SHAPE_T shapetype ) :
     BOARD_CONNECTED_ITEM( aParent, PCB_SHAPE_T ),
     EDA_SHAPE( shapetype, pcbIUScale.mmToIU( DEFAULT_LINE_WIDTH ), FILL_T::NO_FILL )
 {
+    m_hasSolderMask = false;
 }
 
 
 PCB_SHAPE::~PCB_SHAPE()
 {
+}
+
+
+void PCB_SHAPE::Serialize( google::protobuf::Any &aContainer ) const
+{
+    using namespace kiapi::common;
+    using namespace kiapi::board::types;
+    BoardGraphicShape msg;
+
+    msg.set_layer( ToProtoEnum<PCB_LAYER_ID, BoardLayer>( GetLayer() ) );
+    msg.mutable_net()->mutable_code()->set_value( GetNetCode() );
+    msg.mutable_net()->set_name( GetNetname() );
+    msg.mutable_id()->set_value( m_Uuid.AsStdString() );
+    msg.set_locked( IsLocked() ? types::LockedState::LS_LOCKED : types::LockedState::LS_UNLOCKED );
+
+    google::protobuf::Any any;
+    EDA_SHAPE::Serialize( any );
+    any.UnpackTo( msg.mutable_shape() );
+
+    // TODO m_hasSolderMask and m_solderMaskMargin
+
+    aContainer.PackFrom( msg );
+}
+
+
+bool PCB_SHAPE::Deserialize( const google::protobuf::Any &aContainer )
+{
+    using namespace kiapi::common;
+    using namespace kiapi::board::types;
+
+    BoardGraphicShape msg;
+
+    if( !aContainer.UnpackTo( &msg ) )
+        return false;
+
+    // Initialize everything to a known state that doesn't get touched by every
+    // codepath below, to make sure the equality operator is consistent
+    m_start = {};
+    m_end = {};
+    m_arcCenter = {};
+    m_arcMidData = {};
+    m_bezierC1 = {};
+    m_bezierC2 = {};
+    m_editState = 0;
+    m_proxyItem = false;
+    m_endsSwapped = false;
+
+    const_cast<KIID&>( m_Uuid ) = KIID( msg.id().value() );
+    SetLocked( msg.locked() == types::LS_LOCKED );
+    SetLayer( FromProtoEnum<PCB_LAYER_ID, BoardLayer>( msg.layer() ) );
+    SetNetCode( msg.net().code().value() );
+
+    google::protobuf::Any any;
+    any.PackFrom( msg.shape() );
+    EDA_SHAPE::Deserialize( any );
+
+    // TODO m_hasSolderMask and m_solderMaskMargin
+
+    return true;
 }
 
 
@@ -103,6 +176,75 @@ void PCB_SHAPE::SetLayer( PCB_LAYER_ID aLayer )
 }
 
 
+int PCB_SHAPE::GetSolderMaskExpansion() const
+{
+    int margin = m_solderMaskMargin.value_or( 0 );
+
+    // If no local margin is set, get the board's solder mask expansion value
+    if( !m_solderMaskMargin.has_value() )
+    {
+        const BOARD* board = GetBoard();
+
+        if( board )
+            margin = board->GetDesignSettings().m_SolderMaskExpansion;
+    }
+
+    // Ensure the resulting mask opening has a non-negative size
+    if( margin < 0 && !IsFilled() )
+        margin = std::max( margin, -GetWidth() / 2 );
+
+    return margin;
+}
+
+
+bool PCB_SHAPE::IsOnLayer( PCB_LAYER_ID aLayer ) const
+{
+    if( aLayer == m_layer )
+    {
+        return true;
+    }
+
+    if( m_hasSolderMask
+        && ( ( aLayer == F_Mask && m_layer == F_Cu )
+               || ( aLayer == B_Mask && m_layer == B_Cu ) ) )
+    {
+        return true;
+    }
+
+    return false;
+}
+
+
+LSET PCB_SHAPE::GetLayerSet() const
+{
+    LSET layermask( { m_layer } );
+
+    if( m_hasSolderMask )
+    {
+        if( layermask.test( F_Cu ) )
+            layermask.set( F_Mask );
+
+        if( layermask.test( B_Cu ) )
+            layermask.set( B_Mask );
+    }
+
+    return layermask;
+}
+
+
+void PCB_SHAPE::SetLayerSet( const LSET& aLayerSet )
+{
+    aLayerSet.RunOnLayers(
+            [&]( PCB_LAYER_ID layer )
+            {
+                if( IsCopperLayer( layer ) )
+                    SetLayer( layer );
+                else if( IsSolderMaskLayer( layer ) )
+                    SetHasSolderMask( true );
+            } );
+}
+
+
 std::vector<VECTOR2I> PCB_SHAPE::GetConnectionPoints() const
 {
     std::vector<VECTOR2I> ret;
@@ -118,12 +260,11 @@ std::vector<VECTOR2I> PCB_SHAPE::GetConnectionPoints() const
     {
     case SHAPE_T::CIRCLE:
     {
-        const VECTOR2I center = GetCenter();
-        const int      radius = GetRadius();
-        ret.emplace_back( center + VECTOR2I{ radius, 0 } );
-        ret.emplace_back( center + VECTOR2I{ 0, radius } );
-        ret.emplace_back( center + VECTOR2I{ -radius, 0 } );
-        ret.emplace_back( center + VECTOR2I{ 0, -radius } );
+        const CIRCLE circle( GetCenter(), GetRadius() );
+        for( const TYPED_POINT2I& pt : KIGEOM::GetCircleKeyPoints( circle, false ) )
+        {
+            ret.emplace_back( pt.m_point );
+        }
         break;
     }
     case SHAPE_T::ARC:
@@ -148,7 +289,9 @@ std::vector<VECTOR2I> PCB_SHAPE::GetConnectionPoints() const
 
         break;
 
+    case SHAPE_T::UNDEFINED:
         // No default - handle all cases, even if just break
+        break;
     }
 
     return ret;
@@ -340,15 +483,15 @@ void PCB_SHAPE::Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle )
 }
 
 
-void PCB_SHAPE::Flip( const VECTOR2I& aCentre, bool aFlipLeftRight )
+void PCB_SHAPE::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
-    flip( aCentre, aFlipLeftRight );
+    flip( aCentre, aFlipDirection );
 
-    SetLayer( FlipLayer( GetLayer(), GetBoard()->GetCopperLayerCount() ) );
+    SetLayer( GetBoard()->FlipLayer( GetLayer() ) );
 }
 
 
-void PCB_SHAPE::Mirror( const VECTOR2I& aCentre, bool aMirrorAroundXAxis )
+void PCB_SHAPE::Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
     // Mirror an edge of the footprint. the layer is not modified
     // This is a footprint shape modification.
@@ -360,33 +503,22 @@ void PCB_SHAPE::Mirror( const VECTOR2I& aCentre, bool aMirrorAroundXAxis )
     case SHAPE_T::RECTANGLE:
     case SHAPE_T::CIRCLE:
     case SHAPE_T::BEZIER:
-        if( aMirrorAroundXAxis )
-        {
-            MIRROR( m_start.y, aCentre.y );
-            MIRROR( m_end.y, aCentre.y );
-            MIRROR( m_arcCenter.y, aCentre.y );
-            MIRROR( m_bezierC1.y, aCentre.y );
-            MIRROR( m_bezierC2.y, aCentre.y );
-        }
-        else
-        {
-            MIRROR( m_start.x, aCentre.x );
-            MIRROR( m_end.x, aCentre.x );
-            MIRROR( m_arcCenter.x, aCentre.x );
-            MIRROR( m_bezierC1.x, aCentre.x );
-            MIRROR( m_bezierC2.x, aCentre.x );
-        }
+        MIRROR( m_start, aCentre, aFlipDirection );
+        MIRROR( m_end, aCentre, aFlipDirection );
+        MIRROR( m_arcCenter, aCentre, aFlipDirection );
+        MIRROR( m_bezierC1, aCentre, aFlipDirection );
+        MIRROR( m_bezierC2, aCentre, aFlipDirection );
 
         if( GetShape() == SHAPE_T::ARC )
             std::swap( m_start, m_end );
 
         if( GetShape() == SHAPE_T::BEZIER )
-            RebuildBezierToSegmentsPointsList( GetWidth() );
+            RebuildBezierToSegmentsPointsList( ARC_HIGH_DEF );
 
         break;
 
     case SHAPE_T::POLY:
-        m_poly.Mirror( !aMirrorAroundXAxis, aMirrorAroundXAxis, aCentre );
+        m_poly.Mirror( aCentre, aFlipDirection );
         break;
 
     default:
@@ -418,8 +550,8 @@ void PCB_SHAPE::SetIsProxyItem( bool aIsProxy )
     {
         if( GetShape() == SHAPE_T::SEGMENT )
         {
-            if( parentPad && parentPad->GetThermalSpokeWidth() )
-                SetWidth( parentPad->GetThermalSpokeWidth() );
+            if( parentPad && parentPad->GetLocalThermalSpokeWidthOverride().has_value() )
+                SetWidth( parentPad->GetLocalThermalSpokeWidthOverride().value() );
             else
                 SetWidth( pcbIUScale.mmToIU( ZONE_THERMAL_RELIEF_COPPER_WIDTH_MM ) );
         }
@@ -437,57 +569,62 @@ void PCB_SHAPE::SetIsProxyItem( bool aIsProxy )
 }
 
 
-double PCB_SHAPE::ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const
+double PCB_SHAPE::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
 {
-    constexpr double HIDE = std::numeric_limits<double>::max();
-    constexpr double SHOW = 0.0;
-
-    KIGFX::PCB_PAINTER*  painter = static_cast<KIGFX::PCB_PAINTER*>( aView->GetPainter() );
-    KIGFX::PCB_RENDER_SETTINGS* renderSettings = painter->GetSettings();
+    KIGFX::PCB_PAINTER&         painter = static_cast<KIGFX::PCB_PAINTER&>( *aView->GetPainter() );
+    KIGFX::PCB_RENDER_SETTINGS& renderSettings = *painter.GetSettings();
 
     if( aLayer == LAYER_LOCKED_ITEM_SHADOW )
     {
         // Hide shadow if the main layer is not shown
         if( !aView->IsLayerVisible( m_layer ) )
-            return HIDE;
+            return LOD_HIDE;
 
         // Hide shadow on dimmed tracks
-        if( renderSettings->GetHighContrast() )
+        if( renderSettings.GetHighContrast() )
         {
-            if( m_layer != renderSettings->GetPrimaryHighContrastLayer() )
-                return HIDE;
+            if( m_layer != renderSettings.GetPrimaryHighContrastLayer() )
+                return LOD_HIDE;
         }
     }
 
     if( FOOTPRINT* parent = GetParentFootprint() )
     {
         if( parent->GetLayer() == F_Cu && !aView->IsLayerVisible( LAYER_FOOTPRINTS_FR ) )
-            return HIDE;
+            return LOD_HIDE;
 
         if( parent->GetLayer() == B_Cu && !aView->IsLayerVisible( LAYER_FOOTPRINTS_BK ) )
-            return HIDE;
+            return LOD_HIDE;
     }
 
-    return SHOW;
+    return LOD_SHOW;
 }
 
 
-void PCB_SHAPE::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> PCB_SHAPE::ViewGetLayers() const
 {
-    aLayers[0] = GetLayer();
+    std::vector<int> layers;
+    layers.reserve( 4 );
+
+    layers.push_back( GetLayer() );
 
     if( IsOnCopperLayer() )
     {
-        aLayers[1] = GetNetnameLayer( aLayers[0] );
-        aCount = 2;
-    }
-    else
-    {
-        aCount = 1;
+        layers.push_back( GetNetnameLayer( GetLayer() ) );
+
+        if( m_hasSolderMask )
+        {
+            if( m_layer == F_Cu )
+                layers.push_back( F_Mask );
+            else if( m_layer == B_Cu )
+                layers.push_back( B_Mask );
+        }
     }
 
     if( IsLocked() )
-        aLayers[ aCount++ ] = LAYER_LOCKED_ITEM_SHADOW;
+        layers.push_back( LAYER_LOCKED_ITEM_SHADOW );
+
+    return layers;
 }
 
 
@@ -510,20 +647,49 @@ void PCB_SHAPE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
 }
 
 
-wxString PCB_SHAPE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString PCB_SHAPE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
+    FOOTPRINT* parentFP = nullptr;
+
+    if( EDA_DRAW_FRAME* frame = dynamic_cast<EDA_DRAW_FRAME*>( aUnitsProvider ) )
+    {
+        if( frame->GetName() == PCB_EDIT_FRAME_NAME )
+            parentFP = GetParentFootprint();
+    }
+
     if( IsOnCopperLayer() )
     {
-        return wxString::Format( _( "%s %s on %s" ),
-                                 GetFriendlyName(),
-                                 GetNetnameMsg(),
-                                 GetLayerName() );
+        if( parentFP )
+        {
+            return wxString::Format( _( "%s %s of %s on %s" ),
+                                     GetFriendlyName(),
+                                     GetNetnameMsg(),
+                                     parentFP->GetReference(),
+                                     GetLayerName() );
+        }
+        else
+        {
+            return wxString::Format( _( "%s %s on %s" ),
+                                     GetFriendlyName(),
+                                     GetNetnameMsg(),
+                                     GetLayerName() );
+        }
     }
     else
     {
-        return wxString::Format( _( "%s on %s" ),
-                                 GetFriendlyName(),
-                                 GetLayerName() );
+        if( parentFP )
+        {
+            return wxString::Format( _( "%s of %s on %s" ),
+                                     GetFriendlyName(),
+                                     parentFP->GetReference(),
+                                     GetLayerName() );
+        }
+        else
+        {
+            return wxString::Format( _( "%s on %s" ),
+                                     GetFriendlyName(),
+                                     GetLayerName() );
+        }
     }
 }
 
@@ -575,6 +741,8 @@ void PCB_SHAPE::swapData( BOARD_ITEM* aImage )
     std::swap( m_parent, image->m_parent );
     std::swap( m_forceVisible, image->m_forceVisible );
     std::swap( m_netinfo, image->m_netinfo );
+    std::swap( m_hasSolderMask, image->m_hasSolderMask );
+    std::swap( m_solderMaskMargin, image->m_solderMaskMargin );
 }
 
 
@@ -615,6 +783,17 @@ bool PCB_SHAPE::operator==( const BOARD_ITEM& aOther ) const
 
     const PCB_SHAPE& other = static_cast<const PCB_SHAPE&>( aOther );
 
+    return *this == other;
+}
+
+
+bool PCB_SHAPE::operator==( const PCB_SHAPE& aOther ) const
+{
+    if( aOther.Type() != Type() )
+        return false;
+
+    const PCB_SHAPE& other = static_cast<const PCB_SHAPE&>( aOther );
+
     if( m_layer != other.m_layer )
         return false;
 
@@ -631,6 +810,12 @@ bool PCB_SHAPE::operator==( const BOARD_ITEM& aOther ) const
         return false;
 
     if( m_netinfo->GetNetCode() != other.m_netinfo->GetNetCode() )
+        return false;
+
+    if( m_hasSolderMask != other.m_hasSolderMask )
+        return false;
+
+    if( m_solderMaskMargin != other.m_solderMaskMargin )
         return false;
 
     return EDA_SHAPE::operator==( other );
@@ -664,6 +849,12 @@ double PCB_SHAPE::Similarity( const BOARD_ITEM& aOther ) const
     if( m_netinfo->GetNetCode() != other.m_netinfo->GetNetCode() )
         similarity *= 0.9;
 
+    if( m_hasSolderMask != other.m_hasSolderMask )
+        similarity *= 0.9;
+
+    if( m_solderMaskMargin != other.m_solderMaskMargin )
+        similarity *= 0.9;
+
     similarity *= EDA_SHAPE::Similarity( other );
 
     return similarity;
@@ -688,8 +879,8 @@ static struct PCB_SHAPE_DESC
         {
             layerEnum.Undefined( UNDEFINED_LAYER );
 
-            for( LSEQ seq = LSET::AllLayersMask().Seq(); seq; ++seq )
-                layerEnum.Map( *seq, LSET::Name( *seq ) );
+            for( PCB_LAYER_ID layer : LSET::AllLayersMask().Seq() )
+                layerEnum.Map( layer, LSET::Name( layer ) );
         }
 
         void ( PCB_SHAPE::*shapeLayerSetter )( PCB_LAYER_ID ) = &PCB_SHAPE::SetLayer;
@@ -788,5 +979,30 @@ static struct PCB_SHAPE_DESC
                              groupPadPrimitives )
                 .SetAvailableFunc( showSpokeTemplateProperty )
                 .SetIsHiddenFromRulesEditor();
+
+        const wxString groupTechLayers = _HKI( "Technical Layers" );
+
+        auto isExternalCuLayer =
+                []( INSPECTABLE* aItem )
+                {
+                    if( auto shape = dynamic_cast<PCB_SHAPE*>( aItem ) )
+                        return IsExternalCopperLayer( shape->GetLayer() );
+
+                    return false;
+                };
+
+        propMgr.AddProperty( new PROPERTY<PCB_SHAPE, bool>( _HKI( "Soldermask" ),
+                                                            &PCB_SHAPE::SetHasSolderMask,
+                                                            &PCB_SHAPE::HasSolderMask ),
+                             groupTechLayers )
+                .SetAvailableFunc( isExternalCuLayer );
+
+        propMgr.AddProperty( new PROPERTY<PCB_SHAPE, std::optional<int>>(
+                                                            _HKI( "Soldermask Margin Override" ),
+                                                            &PCB_SHAPE::SetLocalSolderMaskMargin,
+                                                            &PCB_SHAPE::GetLocalSolderMaskMargin,
+                                                            PROPERTY_DISPLAY::PT_SIZE ),
+                             groupTechLayers )
+                .SetAvailableFunc( isExternalCuLayer );
     }
 } _PCB_SHAPE_DESC;

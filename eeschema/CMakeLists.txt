@@ -4,8 +4,6 @@ if( COMPILER_SUPPORTS_WARNINGS )
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WARN_FLAGS_C}")
 endif()
 
-add_compile_definitions( EESCHEMA )
-
 if( CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang" )
     if( MSYS )
         # For some reason the big file sim/ngspice_models.cpp creates an issue when
@@ -22,10 +20,12 @@ set( INC_AFTER ${INC_AFTER} ${NGSPICE_INCLUDE_DIR} )
 # Find out the exact libngspice file name
 get_filename_component( NGSPICE_DLL_ABSPATH "${NGSPICE_DLL}" ABSOLUTE )
 get_filename_component( NGSPICE_DLL_FILE "${NGSPICE_DLL_ABSPATH}" NAME )
+get_filename_component( NGSPICE_DLL_DIR "${NGSPICE_DLL_ABSPATH}" DIRECTORY )
 
 set_property( SOURCE sim/ngspice.cpp
     APPEND PROPERTY COMPILE_DEFINITIONS
     NGSPICE_DLL_FILE="${NGSPICE_DLL_FILE}"
+    NGSPICE_DLL_DIR="${NGSPICE_DLL_DIR}"
     )
 
 include_directories( BEFORE ${INC_BEFORE} )
@@ -99,6 +99,8 @@ set( EESCHEMA_DLGS
     dialogs/dialog_change_symbols_base.cpp
     dialogs/dialog_database_lib_settings_base.cpp
     dialogs/dialog_database_lib_settings.cpp
+    dialogs/dialog_design_block_properties_base.cpp
+    dialogs/dialog_design_block_properties.cpp
     dialogs/dialog_edit_symbols_libid.cpp
     dialogs/dialog_edit_symbols_libid_base.cpp
     dialogs/dialog_eeschema_page_settings.cpp
@@ -115,6 +117,7 @@ set( EESCHEMA_DLGS
     dialogs/dialog_ibis_parser_reporter_base.cpp
     dialogs/dialog_image_properties.cpp
     dialogs/dialog_image_properties_base.cpp
+    dialogs/dialog_increment_annotations_base.cpp
     dialogs/dialog_junction_props.cpp
     dialogs/dialog_junction_props_base.cpp
     dialogs/dialog_label_properties.cpp
@@ -123,14 +126,8 @@ set( EESCHEMA_DLGS
     dialogs/dialog_lib_edit_pin_table_base.cpp
     dialogs/dialog_lib_new_symbol.cpp
     dialogs/dialog_lib_new_symbol_base.cpp
-    dialogs/dialog_lib_shape_properties.cpp
-    dialogs/dialog_lib_shape_properties_base.cpp
     dialogs/dialog_lib_symbol_properties.cpp
     dialogs/dialog_lib_symbol_properties_base.cpp
-    dialogs/dialog_lib_text_properties.cpp
-    dialogs/dialog_lib_text_properties_base.cpp
-    dialogs/dialog_lib_textbox_properties.cpp
-    dialogs/dialog_lib_textbox_properties_base.cpp
     dialogs/dialog_line_properties.cpp
     dialogs/dialog_line_properties_base.cpp
     dialogs/dialog_migrate_buses.cpp
@@ -139,6 +136,7 @@ set( EESCHEMA_DLGS
     dialogs/dialog_pin_properties_base.cpp
     dialogs/dialog_plot_schematic.cpp
     dialogs/dialog_plot_schematic_base.cpp
+    dialogs/dialog_erc_job_config.cpp
     dialogs/dialog_rescue_each.cpp
     dialogs/dialog_rescue_each_base.cpp
     dialogs/dialog_sch_import_settings.cpp
@@ -159,6 +157,10 @@ set( EESCHEMA_DLGS
     dialogs/dialog_symbol_properties_base.cpp
     dialogs/dialog_symbol_remap.cpp
     dialogs/dialog_symbol_remap_base.cpp
+    dialogs/dialog_table_properties.cpp
+    dialogs/dialog_table_properties_base.cpp
+    dialogs/dialog_tablecell_properties.cpp
+    dialogs/dialog_tablecell_properties_base.cpp
     dialogs/dialog_text_properties.cpp
     dialogs/dialog_text_properties_base.cpp
     dialogs/dialog_update_from_pcb.cpp
@@ -182,9 +184,12 @@ set( EESCHEMA_DLGS
     dialogs/panel_setup_formatting_base.cpp
     dialogs/panel_setup_pinmap.cpp
     dialogs/panel_setup_pinmap_base.cpp
+    dialogs/panel_simulator_preferences.cpp
+    dialogs/panel_simulator_preferences_base.cpp
     dialogs/panel_sym_color_settings.cpp
     dialogs/panel_sym_color_settings_base.cpp
     dialogs/panel_sym_display_options.cpp
+    dialogs/panel_sym_display_options_base.cpp
     dialogs/panel_sym_editing_options.cpp
     dialogs/panel_sym_editing_options_base.cpp
     dialogs/panel_sym_lib_table.cpp
@@ -207,7 +212,7 @@ set( EESCHEMA_SIM_SRCS
 
     sim/sim_library.cpp
     sim/sim_library_spice.cpp
-    sim/sim_library_kibis.cpp
+    sim/sim_library_ibis.cpp
     sim/sim_lib_mgr.cpp
 
     sim/sim_model_serializer.cpp
@@ -215,7 +220,7 @@ set( EESCHEMA_SIM_SRCS
     sim/sim_model_behavioral.cpp
     sim/sim_model_ideal.cpp
     sim/sim_model_l_mutual.cpp
-    sim/sim_model_kibis.cpp
+    sim/sim_model_ibis.cpp
     sim/sim_model_ngspice.cpp
     sim/sim_model_ngspice_data_bjt.cpp
     sim/sim_model_ngspice_data_bsim1.cpp
@@ -273,7 +278,12 @@ set( EESCHEMA_SIM_SRCS
     )
 
 set( EESCHEMA_WIDGETS
+    widgets/design_block_pane.cpp
+    widgets/design_block_preview_widget.cpp
     widgets/hierarchy_pane.cpp
+    widgets/panel_design_block_chooser.cpp
+    widgets/panel_sch_selection_filter_base.cpp
+    widgets/panel_sch_selection_filter.cpp
     widgets/panel_symbol_chooser.cpp
     widgets/pin_shape_combobox.cpp
     widgets/pin_type_combobox.cpp
@@ -281,6 +291,7 @@ set( EESCHEMA_WIDGETS
     widgets/sch_properties_panel.cpp
     widgets/sch_search_pane.cpp
     widgets/search_handlers.cpp
+    widgets/symbol_filter_combobox.cpp
     widgets/symbol_preview_widget.cpp
     widgets/symbol_tree_pane.cpp
     )
@@ -307,50 +318,64 @@ set( EESCHEMA_IMPORT_GFX
     )
 
 set( EESCHEMA_PRINTING
-    printing/dialog_print_using_printer.cpp
-    printing/dialog_print_using_printer_base.cpp
+    printing/dialog_print.cpp
+    printing/dialog_print_base.cpp
     printing/sch_printout.cpp
+    )
+
+set( SYNC_SHEET_PIN_SRCS
+    sync_sheet_pin/dialog_sync_sheet_pins.cpp
+    sync_sheet_pin/dialog_sync_sheet_pins_base.cpp
+    sync_sheet_pin/panel_sync_sheet_pins.cpp
+    sync_sheet_pin/panel_sync_sheet_pins_base.cpp
+    sync_sheet_pin/sheet_synchronization_agent.cpp
+    sync_sheet_pin/sheet_synchronization_item.cpp
+    sync_sheet_pin/sheet_synchronization_notifier.cpp
+    sync_sheet_pin/sheet_synchronization_model.cpp
+    )
+
+set( EESCHEMA_ERC_SRCS
+    erc/erc.cpp
+    erc/erc_item.cpp
+    erc/erc_report.cpp
+    erc/erc_sch_pin_context.cpp
+    erc/erc_settings.cpp
     )
 
 set( EESCHEMA_SRCS
     ${EESCHEMA_DLGS}
+    ${EESCHEMA_ERC_SRCS}
     ${EESCHEMA_LIBEDIT_SRCS}
     ${EESCHEMA_SCH_IO}
     ${EESCHEMA_SIM_SRCS}
     ${EESCHEMA_WIDGETS}
     ${EESCHEMA_IMPORT_GFX}
+    ${SYNC_SHEET_PIN_SRCS}
     annotate.cpp
     autoplace_fields.cpp
     bom_plugins.cpp
     bus-wire-junction.cpp
     connection_graph.cpp
     cross-probing.cpp
+    design_block_tree_model_adapter.cpp
+    design_block_utils.cpp
     ee_collectors.cpp
     eeschema_config.cpp
     eeschema_helpers.cpp
     eeschema_jobs_handler.cpp
     eeschema_settings.cpp
-    erc.cpp
-    erc_item.cpp
-    erc_report.cpp
-    erc_sch_pin_context.cpp
-    erc_settings.cpp
     fields_data_model.cpp
     fields_grid_table.cpp
     files-io.cpp
     generate_alias_info.cpp
     gfx_import_utils.cpp
-    picksymbol.cpp
-    lib_field.cpp
-    lib_item.cpp
-    lib_pin.cpp
-    lib_shape.cpp
+    junction_helpers.cpp
     lib_symbol.cpp
-    lib_text.cpp
-    lib_textbox.cpp
     libarch.cpp
     menubar.cpp
     net_navigator.cpp
+    picksymbol.cpp
+    pin_layout_cache.cpp
     pin_numbers.cpp
     pin_type.cpp
     project_sch.cpp
@@ -374,12 +399,16 @@ set( EESCHEMA_SRCS
     sch_plotter.cpp
     sch_preview_panel.cpp
     sch_reference_list.cpp
+    sch_render_settings.cpp
     sch_screen.cpp
     sch_shape.cpp
+    sch_rule_area.cpp
     sch_sheet.cpp
     sch_sheet_path.cpp
     sch_sheet_pin.cpp
     sch_symbol.cpp
+    sch_table.cpp
+    sch_tablecell.cpp
     sch_text.cpp
     sch_textbox.cpp
     sch_validators.cpp
@@ -388,6 +417,7 @@ set( EESCHEMA_SRCS
     schematic_settings.cpp
     schematic_undo_redo.cpp
     sheet.cpp
+    symbol.cpp
     symbol_async_loader.cpp
     symbol_checker.cpp
     symbol_chooser_frame.cpp
@@ -401,10 +431,13 @@ set( EESCHEMA_SRCS
     toolbars_sch_editor.cpp
     toolbars_symbol_viewer.cpp
 
+    api/api_sch_utils.cpp
+
     netlist_exporters/netlist_exporter_allegro.cpp
     netlist_exporters/netlist_exporter_base.cpp
     netlist_exporters/netlist_exporter_cadstar.cpp
     netlist_exporters/netlist_exporter_kicad.cpp
+    netlist_exporters/netlist_exporter_pads.cpp
     netlist_exporters/netlist_exporter_orcadpcb2.cpp
     netlist_exporters/netlist_exporter_spice.cpp
     netlist_exporters/netlist_exporter_spice_model.cpp
@@ -419,7 +452,11 @@ set( EESCHEMA_SRCS
     tools/ee_point_editor.cpp
     tools/ee_selection.cpp
     tools/ee_selection_tool.cpp
+    tools/ee_tool_utils.cpp
+    tools/rule_area_create_helper.cpp
     tools/sch_drawing_tools.cpp
+    tools/sch_design_block_control.cpp
+    tools/sch_edit_table_tool.cpp
     tools/sch_edit_tool.cpp
     tools/sch_editor_control.cpp
     tools/sch_editor_conditions.cpp
@@ -433,6 +470,13 @@ set( EESCHEMA_SRCS
     tools/symbol_editor_move_tool.cpp
     tools/symbol_editor_pin_tool.cpp
     )
+
+if( KICAD_IPC_API )
+    set( EESCHEMA_SRCS
+        ${EESCHEMA_SRCS}
+        api/api_handler_sch.cpp
+    )
+endif()
 
 if( WIN32 )
     if( MINGW )
@@ -512,23 +556,15 @@ endif()
 
 add_executable( eeschema WIN32 MACOSX_BUNDLE
     ${CMAKE_SOURCE_DIR}/common/single_top.cpp
-    ${CMAKE_SOURCE_DIR}/common/pgm_base.cpp
     ${EESCHEMA_RESOURCES}
     )
-
-if( KICAD_USE_SENTRY )
-    set_property(SOURCE ${CMAKE_SOURCE_DIR}/common/pgm_base.cpp APPEND PROPERTY COMPILE_DEFINITIONS KICAD_SENTRY_DSN="${KICAD_SENTRY_DSN}")
-endif()
 
 set_source_files_properties( ${CMAKE_SOURCE_DIR}/common/single_top.cpp PROPERTIES
     COMPILE_DEFINITIONS "TOP_FRAME=FRAME_SCH;PGM_DATA_FILE_EXT=\"kicad_sch\";BUILD_KIWAY_DLL"
     )
+
 target_link_libraries( eeschema
-    #singletop  # replaces common, giving us restrictive control and link warnings.
-    # There's way too much crap coming in from common yet.
-    gal
-    common
-    argparse::argparse
+    kicommon
     ${wxWidgets_LIBRARIES}
     )
 
@@ -687,16 +723,6 @@ if( KICAD_WIN32_INSTALL_PDBS )
     install(FILES $<TARGET_PDB_FILE:eeschema> DESTINATION ${KICAD_BIN})
     install(FILES $<TARGET_PDB_FILE:eeschema_kiface> DESTINATION ${KICAD_KIFACE})
 endif()
-
-# auto-generate cmp_library_lexer.h and cmp_library_keywords.cpp for the component
-# library format.
-make_lexer(
-    eeschema_kiface_objects
-    cmp_library.keywords
-    cmp_library_lexer.h
-    cmp_library_keywords.cpp
-    TLIB_T
-    )
 
 make_lexer(
     eeschema_kiface_objects

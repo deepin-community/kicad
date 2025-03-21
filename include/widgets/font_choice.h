@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -33,7 +33,14 @@ public:
 
     virtual ~FONT_CHOICE();
 
-    void SetFontSelection( KIFONT::FONT* aFont );
+    /**
+     * Set the selection in wxChoice widget
+     * @param aFont is the fotn to select
+     * @param aSilentMode allow or not a wxEVT_CHOICE on selection
+     * default = false: the event is sent.
+     * if true, just make silently the selection
+     */
+    void SetFontSelection( KIFONT::FONT* aFont, bool aSilentMode = false );
 
     bool HaveFontSelection() const;
 

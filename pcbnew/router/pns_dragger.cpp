@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2014 CERN
- * Copyright (C) 2016-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -120,8 +120,6 @@ bool DRAGGER::startDragSegment( const VECTOR2D& aP, SEGMENT* aSeg )
         m_forceMarkObstaclesMode = true;
     }
 
-    if( m_shove && !m_forceMarkObstaclesMode )
-        m_shove->SetInitialLine( m_draggedLine );
 
     auto distA = ( aP - aSeg->Seg().A ).EuclideanNorm();
     auto distB = ( aP - aSeg->Seg().B ).EuclideanNorm();
@@ -156,7 +154,6 @@ bool DRAGGER::startDragSegment( const VECTOR2D& aP, SEGMENT* aSeg )
 bool DRAGGER::startDragArc( const VECTOR2D& aP, ARC* aArc )
 {
     m_draggedLine = m_world->AssembleLine( aArc, &m_draggedSegmentIndex );
-    m_shove->SetInitialLine( m_draggedLine );
     m_mode = DM_ARC;
 
     if ( m_world->CheckColliding( &m_draggedLine ) )
@@ -241,11 +238,14 @@ bool DRAGGER::Start( const VECTOR2I& aP, ITEM_SET& aPrimitives )
     m_mouseTrailTracer.Clear();
     m_mouseTrailTracer.AddTrailPoint( aP );
 
+    m_preDragNode = m_world->Branch();
+
     if( m_currentMode == RM_Shove && !m_freeAngleMode )
     {
-        m_shove = std::make_unique<SHOVE>( m_world, Router() );
+        m_shove = std::make_unique<SHOVE>( m_preDragNode, Router() );
         m_shove->SetLogger( Logger() );
         m_shove->SetDebugDecorator( Dbg() );
+        m_shove->SetDefaultShovePolicy( SHOVE::SHP_SHOVE );
     }
 
     startItem->Unmark( MK_LOCKED );
@@ -469,89 +469,78 @@ bool DRAGGER::dragViaWalkaround( const VIA_HANDLE& aHandle, NODE* aNode, const V
 
 void DRAGGER::optimizeAndUpdateDraggedLine( LINE& aDragged, const LINE& aOrig, const VECTOR2I& aP )
 {
+    LINE draggedPostOpt, origLine( aOrig );
+
     aDragged.ClearLinks();
     aDragged.Unmark();
 
-    OPTIMIZER optimizer( m_lastNode );
-
-    int effort = OPTIMIZER::MERGE_SEGMENTS | OPTIMIZER::KEEP_TOPOLOGY | OPTIMIZER::RESTRICT_AREA;
-
-    if( Settings().SmoothDraggedSegments() )
-        effort |= OPTIMIZER::MERGE_COLINEAR;
-
-    optimizer.SetEffortLevel( effort );
-
-    OPT_BOX2I affectedArea = aDragged.ChangedArea( &aOrig );
-    VECTOR2I anchor( aP );
-
-    if( aDragged.CLine().Find( aP ) < 0 )
-        anchor = aDragged.CLine().NearestPoint( aP );
-
-    optimizer.SetPreserveVertex( anchor );
-
-    // People almost never want KiCad to reroute tracks in areas they can't even see, so restrict
-    // the area to what is visible even if we are optimizing the "entire" track.
     if( Settings().GetOptimizeEntireDraggedTrack() )
-        affectedArea = VisibleViewArea();
-    else if( !affectedArea )
-        affectedArea = BOX2I( aP ); // No valid area yet? set to minimum to disable optimization
+    {
+        OPTIMIZER optimizer( m_lastNode );
 
-    PNS_DBG( Dbg(), AddPoint, anchor, YELLOW, 100000, wxT( "drag-anchor" ) );
-    PNS_DBG( Dbg(), AddShape, *affectedArea, RED, 0, wxT( "drag-affected-area" ) );
+        int effort =
+                OPTIMIZER::MERGE_SEGMENTS | OPTIMIZER::KEEP_TOPOLOGY | OPTIMIZER::RESTRICT_AREA;
 
-    optimizer.SetRestrictArea( *affectedArea );
-    optimizer.Optimize( &aDragged );
+        if( Settings().SmoothDraggedSegments() )
+            effort |= OPTIMIZER::MERGE_COLINEAR;
 
-    OPT_BOX2I optArea = aDragged.ChangedArea( &aOrig );
+        optimizer.SetEffortLevel( effort );
 
-    if( optArea )
-        PNS_DBG( Dbg(), AddShape, *optArea, BLUE, 0, wxT( "drag-opt-area" ) );
+        OPT_BOX2I affectedArea = aDragged.ChangedArea( &aOrig );
+        VECTOR2I  anchor( aP );
 
-    m_lastNode->Add( aDragged );
+        if( aDragged.CLine().Find( aP ) < 0 )
+            anchor = aDragged.CLine().NearestPoint( aP );
+
+        optimizer.SetPreserveVertex( anchor );
+
+        if( !affectedArea )
+            affectedArea = BOX2I( aP ); // No valid area yet? set to minimum to disable optimization
+
+        PNS_DBG( Dbg(), AddPoint, anchor, YELLOW, 100000, wxT( "drag-anchor" ) );
+        PNS_DBG( Dbg(), AddShape, *affectedArea, RED, 0, wxT( "drag-affected-area" ) );
+
+        optimizer.SetRestrictArea( *affectedArea );
+
+        PNS_DBG( Dbg(), AddItem, aDragged.Clone(), RED, 0, wxT( "drag-preopt" ) );
+        aDragged.Line().Split( anchor );
+
+        optimizer.Optimize( &aDragged, &draggedPostOpt, &origLine );
+        PNS_DBG( Dbg(), AddItem, aDragged.Clone(), GREEN, 0, wxT( "drag-postopt" ) );
+    }
+    else
+    {
+        draggedPostOpt = aDragged;
+    }
+
+    m_lastNode->Add( draggedPostOpt );
     m_draggedItems.Clear();
-    m_draggedItems.Add( aDragged );
+    m_draggedItems.Add( draggedPostOpt );
 }
 
 
 bool DRAGGER::tryWalkaround( NODE* aNode, LINE& aOrig, LINE& aWalk )
 {
-    WALKAROUND walkaround( aNode, Router() );
+        WALKAROUND walkaround( aNode, Router() );
     bool       ok = false;
     walkaround.SetSolidsOnly( false );
     walkaround.SetDebugDecorator( Dbg() );
     walkaround.SetLogger( Logger() );
     walkaround.SetIterationLimit( Settings().WalkaroundIterationLimit() );
+    walkaround.SetLengthLimit( true, 30.0 );
+    walkaround.SetAllowedPolicies( { WALKAROUND::WP_SHORTEST } );
 
     aWalk = aOrig;
 
     WALKAROUND::RESULT wr = walkaround.Route( aWalk );
 
-    if( wr.statusCcw == WALKAROUND::DONE && wr.statusCw == WALKAROUND::DONE )
+    if( wr.status[ WALKAROUND::WP_SHORTEST ] == WALKAROUND::ST_DONE )
     {
-        if( wr.lineCw.CLine().PointCount() > 1
-                && wr.lineCw.CLine().Length() < wr.lineCcw.CLine().Length() )
-        {
-            aWalk = wr.lineCw;
-            ok    = true;
-        }
-        else if( wr.lineCcw.CLine().PointCount() > 1 )
-        {
-            aWalk = wr.lineCcw;
-            ok    = true;
-        }
-    }
-    else if( wr.statusCw == WALKAROUND::DONE && wr.lineCw.CLine().PointCount() > 1 )
-    {
-        aWalk = wr.lineCw;
-        ok    = true;
-    }
-    else if( wr.statusCcw == WALKAROUND::DONE && wr.lineCcw.CLine().PointCount() > 1  )
-    {
-        aWalk = wr.lineCcw;
-        ok    = true;
+        aWalk = wr.lines[ WALKAROUND::WP_SHORTEST ];
+         return true;
     }
 
-    return ok;
+    return false;
 }
 
 
@@ -621,7 +610,6 @@ bool DRAGGER::dragWalkaround( const VECTOR2I& aP )
 
 bool DRAGGER::dragShove( const VECTOR2I& aP )
 {
-    bool ok = false;
 
     if( m_lastNode )
     {
@@ -634,28 +622,36 @@ bool DRAGGER::dragShove( const VECTOR2I& aP )
     case DM_SEGMENT:
     case DM_CORNER:
     {
+        bool ok = false;
         //TODO: Make threshold configurable
         int  thresh = Settings().SmoothDraggedSegments() ? m_draggedLine.Width() / 2 : 0;
-        LINE dragged( m_draggedLine );
-        dragged.SetSnapThreshhold( thresh );
+        LINE draggedPreShove( m_draggedLine );
+        draggedPreShove.SetSnapThreshhold( thresh );
 
         if( m_mode == DM_SEGMENT )
-            dragged.DragSegment( aP, m_draggedSegmentIndex );
+            draggedPreShove.DragSegment( aP, m_draggedSegmentIndex );
         else
-            dragged.DragCorner( aP, m_draggedSegmentIndex );
+            draggedPreShove.DragCorner( aP, m_draggedSegmentIndex );
 
-        PNS_DBG( Dbg(), AddShape, &dragged.CLine(), BLUE, 5000, wxT( "drag-shove-line" ) );
+        auto preShoveNode = m_shove->CurrentNode();
 
-        SHOVE::SHOVE_STATUS st = m_shove->ShoveLines( dragged );
-
-        if( st == SHOVE::SH_OK )
+        if( preShoveNode )
         {
-            ok = true;
+            preShoveNode->Remove( draggedPreShove );
         }
-        else if( st == SHOVE::SH_HEAD_MODIFIED )
+
+        m_shove->ClearHeads();
+        m_shove->AddHeads( draggedPreShove, SHOVE::SHP_SHOVE );
+        ok = m_shove->Run() == SHOVE::SH_OK;
+
+        LINE draggedPostShove( draggedPreShove );
+
+        if( ok )
         {
-            dragged = m_shove->NewHead();
-            ok = true;
+            if( m_shove->HeadsModified() )
+            {
+                draggedPostShove = m_shove->GetModifiedHead( 0 );
+            }
         }
 
         m_lastNode = m_shove->CurrentNode()->Branch();
@@ -663,17 +659,13 @@ bool DRAGGER::dragShove( const VECTOR2I& aP )
         if( ok )
         {
             VECTOR2D lockV;
-            dragged.ClearLinks();
-            dragged.Unmark();
-            optimizeAndUpdateDraggedLine( dragged, m_draggedLine, aP );
-            m_lastDragSolution = dragged;
-        }
-        else
-        {
-            m_lastDragSolution.ClearLinks();
-            m_lastNode->Add( m_lastDragSolution );
+            draggedPostShove.ClearLinks();
+            draggedPostShove.Unmark();
+            optimizeAndUpdateDraggedLine( draggedPostShove, m_draggedLine, aP );
+            m_lastDragSolution = draggedPostShove;
         }
 
+        m_dragStatus = ok;
         break;
     }
 
@@ -684,29 +676,45 @@ bool DRAGGER::dragShove( const VECTOR2I& aP )
         // corner count limiter intended to avoid excessive optimization produces mediocre results for via shoving.
         // this is a hack that disables it, before I figure out a more reliable solution
         m_shove->DisablePostShoveOptimizations( OPTIMIZER::LIMIT_CORNER_COUNT );
-        SHOVE::SHOVE_STATUS st = m_shove->ShoveDraggingVia( m_draggedVia, aP, newVia );
 
-        if( st == SHOVE::SH_OK || st == SHOVE::SH_HEAD_MODIFIED )
-            ok = true;
+        m_shove->ClearHeads();
+        m_shove->AddHeads( m_draggedVia, aP, SHOVE::SHP_SHOVE );
+
+        SHOVE::SHOVE_STATUS st = m_shove->Run(); //ShoveDraggingVia( m_draggedVia, aP, newVia );
+
+            PNS_DBG( Dbg(), Message, wxString::Format("head-mod %d",
+                m_shove->HeadsModified() ? 1:  0 ) );
+
+            if( m_shove->HeadsModified() )
+            {
+                newVia = m_shove->GetModifiedHeadVia( 0 );
+
+                PNS_DBG( Dbg(), Message, wxString::Format("newvia %d %d %d %d",
+                        newVia.pos.x,
+                        newVia.pos.y,
+                        newVia.layers.Start(),
+                        newVia.layers.End()
+                    ) );
+
+                m_draggedVia = newVia;
+            }
+
 
         m_lastNode = m_shove->CurrentNode()->Branch();
-
-        if( newVia.valid )
-            m_draggedVia = newVia;
 
         m_draggedItems.Clear();
 
          // If drag didn't work (i.e. dragged onto a collision) try walkaround instead
-        if( !ok )
-            ok = dragViaWalkaround( m_draggedVia, m_lastNode, aP );
+        if( st != SHOVE::SH_OK )
+            m_dragStatus = dragViaWalkaround( m_draggedVia, m_lastNode, aP );
+        else
+            m_dragStatus = true;
 
         break;
     }
     }
 
-    m_dragStatus = ok;
-
-    return ok;
+    return m_dragStatus;
 }
 
 
@@ -780,9 +788,12 @@ bool DRAGGER::Drag( const VECTOR2I& aP )
     {
         if( m_lastNode )
         {
+            NODE* parent = m_lastNode->GetParent()->Branch();
             delete m_lastNode;
+            m_lastNode = parent;
             m_draggedItems.Clear();
-            m_lastNode = nullptr;
+            m_lastDragSolution.ClearLinks();
+            m_lastNode->Add( m_lastDragSolution );
         }
     }
 

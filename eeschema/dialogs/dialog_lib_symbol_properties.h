@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,8 +22,9 @@
  */
 
 
-#ifndef DIALOG_LIB_SYMBOL_PROPERTIES_H
-#define DIALOG_LIB_SYMBOL_PROPERTIES_H
+#pragma once
+
+#include <memory>
 
 #include <fields_grid_table.h>
 #include <widgets/unit_binder.h>
@@ -32,6 +33,8 @@
 
 class SYMBOL_EDIT_FRAME;
 class LIB_SYMBOL;
+class LISTBOX_TRICKS;
+class PANEL_EMBEDDED_FILES;
 class WX_GRID;
 
 
@@ -62,14 +65,14 @@ private:
     void OnSymbolNameKillFocus( wxFocusEvent& event ) override;
     void OnSymbolNameText( wxCommandEvent& event ) override;
     void OnAddFootprintFilter( wxCommandEvent& event ) override;
-    void OnDeleteFootprintFilter( wxCommandEvent& event ) override;
     void OnEditFootprintFilter( wxCommandEvent& event ) override;
     void OnSizeGrid( wxSizeEvent& event ) override;
     void OnGridCellChanging( wxGridEvent& event );
     void OnEditSpiceModel( wxCommandEvent& event ) override;
     void OnUpdateUI( wxUpdateUIEvent& event ) override;
-    void OnFilterDClick( wxMouseEvent& event ) override;
     void OnCancelButtonClick( wxCommandEvent& event ) override;
+    void OnPageChanging( wxNotebookEvent& event ) override;
+    void OnFpFilterDClick( wxMouseEvent& event ) override;
 
     void adjustGridColumns();
     void syncControlStates( bool aIsAlias );
@@ -78,7 +81,8 @@ public:
     SYMBOL_EDIT_FRAME* m_Parent;
     LIB_SYMBOL*        m_libEntry;
 
-    FIELDS_GRID_TABLE<LIB_FIELD>* m_fields;
+    FIELDS_GRID_TABLE* m_fields;
+    std::set<wxString> m_addedTemplateFields;
 
     UNIT_BINDER        m_pinNameOffset;
 
@@ -92,6 +96,8 @@ public:
     std::bitset<64>    m_shownColumns;
     wxSize             m_size;
 
+    PANEL_EMBEDDED_FILES* m_embeddedFiles;
+
 private:
     static int m_lastOpenedPage;    // To remember the last notebook selection
 
@@ -102,6 +108,6 @@ private:
     };
 
     static LAST_LAYOUT m_lastLayout;
-};
 
-#endif // DIALOG_LIB_SYMBOL_PROPERTIES_H
+    std::unique_ptr<LISTBOX_TRICKS> m_fpFilterTricks;
+};

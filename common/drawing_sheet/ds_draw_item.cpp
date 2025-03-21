@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 1992-2013 Jean-Pierre Charras <jp.charras at wanadoo.fr>.
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  *
  * This program is free software; you can redistribute it and/or
@@ -69,28 +69,27 @@ const KIFONT::METRICS& DS_DRAW_ITEM_BASE::GetFontMetrics() const
 }
 
 
-void DS_DRAW_ITEM_BASE::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> DS_DRAW_ITEM_BASE::ViewGetLayers() const
 {
-    aCount = 1;
+    std::vector<int> layers( 1 );
 
-    DS_DATA_ITEM* dataItem = GetPeer();
-
-    if( !dataItem )     // No peer: this item is like a DS_DRAW_ITEM_PAGE
+    if( m_peer == nullptr )
     {
-        aLayers[0] = LAYER_DRAWINGSHEET;
-        return;
+        layers[0] = LAYER_DRAWINGSHEET;
+        return layers;
     }
 
-    if( dataItem->GetPage1Option() == FIRST_PAGE_ONLY )
-        aLayers[0] = LAYER_DRAWINGSHEET_PAGE1;
-    else if( dataItem->GetPage1Option() == SUBSEQUENT_PAGES )
-        aLayers[0] = LAYER_DRAWINGSHEET_PAGEn;
+    if( m_peer->GetPage1Option() == FIRST_PAGE_ONLY )
+        layers[0] = LAYER_DRAWINGSHEET_PAGE1;
+    else if( m_peer->GetPage1Option() == SUBSEQUENT_PAGES )
+        layers[0] = LAYER_DRAWINGSHEET_PAGEn;
     else
-        aLayers[0] = LAYER_DRAWINGSHEET;
+        layers[0] = LAYER_DRAWINGSHEET;
+
+    return layers;
 }
 
 
-// A generic HitTest that can be used by some, but not all, sub-classes.
 bool DS_DRAW_ITEM_BASE::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) const
 {
     BOX2I sel = aRect;
@@ -128,6 +127,7 @@ void DS_DRAW_ITEM_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame,
     case DS_DATA_ITEM::DS_TEXT:
     {
         DS_DRAW_ITEM_TEXT* textItem = static_cast<DS_DRAW_ITEM_TEXT*>( this );
+
         // Don't use GetShownText(); we want to see the variable references here
         aList.emplace_back( _( "Text" ), KIUI::EllipsizeStatusText( aFrame, textItem->GetText() ) );
         break;
@@ -191,21 +191,27 @@ const BOX2I DS_DRAW_ITEM_TEXT::GetApproxBBox()
     const wxString         text = GetShownText( true );
     BOX2I                  bbox( GetTextPos() );
 
-    bbox.SetWidth( (int) text.length() * attrs.m_Size.x * 1.3 );
+    bbox.SetWidth( KiROUND( (int) text.length() * attrs.m_Size.x * 1.3 ) );
     bbox.SetHeight( attrs.m_Size.y );
 
     switch( attrs.m_Halign )
     {
-    case GR_TEXT_H_ALIGN_LEFT:                                           break;
-    case GR_TEXT_H_ALIGN_CENTER: bbox.Offset( -bbox.GetWidth() / 2, 0 ); break;
-    case GR_TEXT_H_ALIGN_RIGHT:  bbox.Offset( -bbox.GetWidth(),     0 ); break;
+    case GR_TEXT_H_ALIGN_LEFT:                                                  break;
+    case GR_TEXT_H_ALIGN_CENTER: bbox.Offset( - (int) bbox.GetWidth() / 2, 0 ); break;
+    case GR_TEXT_H_ALIGN_RIGHT:  bbox.Offset( - (int) bbox.GetWidth(),     0 ); break;
+    case GR_TEXT_H_ALIGN_INDETERMINATE:
+        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+        break;
     }
 
     switch( GetAttributes().m_Valign )
     {
-    case GR_TEXT_V_ALIGN_TOP:                                             break;
-    case GR_TEXT_V_ALIGN_CENTER: bbox.Offset( 0, -bbox.GetHeight() / 2 ); break;
-    case GR_TEXT_V_ALIGN_BOTTOM: bbox.Offset( 0, -bbox.GetHeight()     ); break;
+    case GR_TEXT_V_ALIGN_TOP:                                                    break;
+    case GR_TEXT_V_ALIGN_CENTER: bbox.Offset( 0, - (int) bbox.GetHeight() / 2 ); break;
+    case GR_TEXT_V_ALIGN_BOTTOM: bbox.Offset( 0, - (int) bbox.GetHeight()     ); break;
+    case GR_TEXT_V_ALIGN_INDETERMINATE:
+        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+        break;
     }
 
     bbox.Inflate( attrs.m_Size.x, attrs.m_Size.y / 2 );
@@ -231,9 +237,10 @@ bool DS_DRAW_ITEM_TEXT::HitTest( const BOX2I& aRect, bool aContains, int aAccura
 }
 
 
-wxString DS_DRAW_ITEM_TEXT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString DS_DRAW_ITEM_TEXT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Text '%s'" ), KIUI::EllipsizeMenuText( GetText() ) );
+    return wxString::Format( _( "Text '%s'" ),
+                             aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
 }
 
 
@@ -259,7 +266,7 @@ void DS_DRAW_ITEM_POLYPOLYGONS::PrintWsItem( const RENDER_SETTINGS* aSettings,
                                        outline.CPoint( ii ).y + aOffset.y );
         }
 
-        GRPoly( DC, points_moved.size(), &points_moved[0], true, penWidth, color, color );
+        GRPoly( DC, (int) points_moved.size(), &points_moved[0], true, penWidth, color, color );
     }
 }
 
@@ -326,7 +333,8 @@ bool DS_DRAW_ITEM_POLYPOLYGONS::HitTest( const BOX2I& aRect, bool aContained, in
 }
 
 
-wxString DS_DRAW_ITEM_POLYPOLYGONS::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString DS_DRAW_ITEM_POLYPOLYGONS::GetItemDescription( UNITS_PROVIDER* aUnitsProvider,
+                                                        bool aFull ) const
 {
     return _( "Imported Shape" );
 }
@@ -365,18 +373,21 @@ bool DS_DRAW_ITEM_RECT::HitTest( const VECTOR2I& aPosition, int aAccuracy ) cons
     // Right line
     start = end;
     end.y = GetEnd().y;
+
     if( TestSegmentHit( aPosition, start, end, dist ) )
         return true;
 
     // lower line
     start = end;
     end.x = GetStart().x;
+
     if( TestSegmentHit( aPosition, start, end, dist ) )
         return true;
 
     // left line
     start = end;
     end = GetStart();
+
     if( TestSegmentHit( aPosition, start, end, dist ) )
         return true;
 
@@ -422,11 +433,12 @@ bool DS_DRAW_ITEM_RECT::HitTest( const BOX2I& aRect, bool aContained, int aAccur
 }
 
 
-wxString DS_DRAW_ITEM_RECT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString DS_DRAW_ITEM_RECT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Rectangle, width %s height %s" ),
-                             aUnitsProvider->MessageTextFromValue( std::abs( GetStart().x - GetEnd().x ) ),
-                             aUnitsProvider->MessageTextFromValue( std::abs( GetStart().y - GetEnd().y ) ) );
+    return wxString::Format(
+            _( "Rectangle, width %s height %s" ),
+            aUnitsProvider->MessageTextFromValue( std::abs( GetStart().x - GetEnd().x ) ),
+            aUnitsProvider->MessageTextFromValue( std::abs( GetStart().y - GetEnd().y ) ) );
 }
 
 
@@ -455,10 +467,10 @@ bool DS_DRAW_ITEM_LINE::HitTest( const VECTOR2I& aPosition, int aAccuracy ) cons
 }
 
 
-wxString DS_DRAW_ITEM_LINE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString DS_DRAW_ITEM_LINE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     return wxString::Format( _( "Line, length %s" ),
-                             aUnitsProvider->MessageTextFromValue( EuclideanNorm( GetStart() - GetEnd() ) ) );
+                             aUnitsProvider->MessageTextFromValue( GetStart().Distance( GetEnd() ) ) );
 }
 
 
@@ -507,13 +519,13 @@ bool DS_DRAW_ITEM_BITMAP::HitTest( const BOX2I& aRect, bool aContains, int aAccu
 }
 
 
-wxString DS_DRAW_ITEM_BITMAP::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString DS_DRAW_ITEM_BITMAP::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     return _( "Image" );
 }
 
 
-wxString DS_DRAW_ITEM_PAGE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString DS_DRAW_ITEM_PAGE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     return _( "Page Limits" );
 }
@@ -543,7 +555,7 @@ void DS_DRAW_ITEM_LIST::BuildDrawItemsList( const PAGE_INFO& aPageInfo,
 
     // Build the basic layout shape, if the layout list is empty
     if( model.GetCount() == 0 && !model.VoidListAllowed() )
-        model.LoadDrawingSheet();
+        model.LoadDrawingSheet( wxEmptyString, nullptr );
 
     model.SetupDrawEnvironment( aPageInfo, GetMilsToIUfactor() );
 
@@ -560,12 +572,6 @@ void DS_DRAW_ITEM_LIST::BuildDrawItemsList( const PAGE_INFO& aPageInfo,
 }
 
 
-/* Print the item list created by BuildDrawItemsList
- * aDC = the current Device Context
- * The not selected items are drawn first (most of items)
- * The selected items are drawn after (usually 0 or 1)
- * to be sure they are seen, even for overlapping items
- */
 void DS_DRAW_ITEM_LIST::Print( const RENDER_SETTINGS* aSettings )
 {
     std::vector<DS_DRAW_ITEM_BASE*> second_items;

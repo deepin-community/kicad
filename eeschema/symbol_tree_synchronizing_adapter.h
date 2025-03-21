@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -66,16 +66,16 @@ protected:
     SYMBOL_TREE_SYNCHRONIZING_ADAPTER( SYMBOL_EDIT_FRAME* aParent,
                                        SYMBOL_LIBRARY_MANAGER* aLibMgr );
 
-    bool isSymbolModel() override { return true; }
+    PROJECT::LIB_TYPE_T getLibType() override { return PROJECT::LIB_TYPE_T::SYMBOL_LIB; }
 
 protected:
     SYMBOL_EDIT_FRAME*      m_frame;
     SYMBOL_LIBRARY_MANAGER* m_libMgr;
 
-    ///< Hashes to decide whether a library needs an update.
+    /// Hashes to decide whether a library needs an update.
     std::map<wxString, int> m_libHashes;
 
-    ///< SYMBOL_LIBRARY_MANAGER hash value returned in the last synchronization.
+    /// #SYMBOL_LIBRARY_MANAGER hash value returned in the last synchronization.
     int                     m_lastSyncHash;
 };
 

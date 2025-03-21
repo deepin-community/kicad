@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2014 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -59,6 +59,12 @@ public:
         m_rank = aParentLine.Rank();
     }
 
+    explicit SEGMENT( const LINKED_ITEM& aParent ) :
+        LINKED_ITEM( aParent )
+    {
+        assert( aParent.Kind() == SEGMENT_T );
+    }
+
     static inline bool ClassOf( const ITEM* aItem )
     {
         return aItem && SEGMENT_T == aItem->Kind();
@@ -66,7 +72,7 @@ public:
 
     SEGMENT* Clone() const override;
 
-    const SHAPE* Shape() const override
+    const SHAPE* Shape( int aLayer ) const override
     {
         return static_cast<const SHAPE*>( &m_seg );
     }

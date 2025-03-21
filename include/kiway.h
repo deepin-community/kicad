@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2016-2020 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -104,7 +104,6 @@
 #include <frame_type.h>
 #include <mail_type.h>
 #include <ki_exception.h>
-#include <jobs/job.h>
 
 
 #define KIFACE_VERSION      1
@@ -133,6 +132,8 @@ class KIWAY;
 class KIWAY_PLAYER;
 class wxTopLevelWindow;
 class TOOL_ACTION;
+class JOB;
+class REPORTER;
 
 
 /**
@@ -241,7 +242,12 @@ struct KIFACE
      */
     virtual void GetActions( std::vector<TOOL_ACTION*>& aActions ) const = 0;
 
-    virtual int HandleJob( JOB* aJob )
+    virtual int HandleJob( JOB* aJob, REPORTER* aReporter )
+    {
+        return 0;
+    }
+
+    virtual bool HandleJobConfig( JOB* aJob, wxWindow* aParent )
     {
         return 0;
     }
@@ -275,7 +281,7 @@ struct KIFACE
  * and a #NETLIST, (anything relating to production of a single #BOARD and added to class
  * #PROJECT.)
  */
-class KIWAY : public wxEvtHandler
+class KICOMMON_API KIWAY : public wxEvtHandler
 {
     friend struct PGM_SINGLE_TOP;        // can use set_kiface()
 
@@ -395,7 +401,7 @@ public:
      *
      * Use after changing suite-wide options such as panning, autosave interval, etc.
      */
-    virtual void CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged );
+    virtual void CommonSettingsChanged( int aFlags );
 
     /**
      * Calls ProjectChanged() on all KIWAY_PLAYERs.
@@ -403,7 +409,7 @@ public:
      */
     virtual void ProjectChanged();
 
-    KIWAY( PGM_BASE* aProgram, int aCtlBits, wxFrame* aTop = nullptr );
+    KIWAY( int aCtlBits, wxFrame* aTop = nullptr );
 
     /**
      * Overwrites previously set ctl bits, only for use in kicad.cpp to flip between
@@ -426,7 +432,8 @@ public:
 
     bool ProcessEvent( wxEvent& aEvent ) override;
 
-    int ProcessJob( KIWAY::FACE_T aFace, JOB* job );
+    int  ProcessJob( KIWAY::FACE_T aFace, JOB* aJob, REPORTER* aReporter = nullptr );
+    bool ProcessJobConfigDialog( KIWAY::FACE_T aFace, JOB* aJob, wxWindow* aWindow );
 
     /**
      * Gets the window pointer to the blocking dialog (to send it signals)
@@ -459,7 +466,6 @@ private:
     static KIFACE*  m_kiface[KIWAY_FACE_COUNT];
     static int      m_kiface_version[KIWAY_FACE_COUNT];
 
-    PGM_BASE*       m_program;
     int             m_ctl;
 
     wxFrame*        m_top;      // Usually m_top is the Project manager

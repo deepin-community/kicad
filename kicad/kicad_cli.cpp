@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2004-2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2004-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -46,15 +46,20 @@
 #include <kiplatform/environment.h>
 #include <locale_io.h>
 
+#include "cli/command_jobset.h"
+#include "cli/command_jobset_run.h"
 #include "cli/command_pcb.h"
 #include "cli/command_pcb_export.h"
 #include "cli/command_pcb_drc.h"
+#include "cli/command_pcb_render.h"
 #include "cli/command_pcb_export_3d.h"
 #include "cli/command_pcb_export_drill.h"
 #include "cli/command_pcb_export_dxf.h"
 #include "cli/command_pcb_export_gerber.h"
 #include "cli/command_pcb_export_gerbers.h"
+#include "cli/command_pcb_export_gencad.h"
 #include "cli/command_pcb_export_ipc2581.h"
+#include "cli/command_pcb_export_odb.h"
 #include "cli/command_pcb_export_pdf.h"
 #include "cli/command_pcb_export_pos.h"
 #include "cli/command_pcb_export_svg.h"
@@ -93,28 +98,6 @@ KIFACE_BASE& Kiface()
 }
 
 
-static PGM_KICAD program;
-
-
-PGM_BASE& Pgm()
-{
-    return program;
-}
-
-
-// Similar to PGM_BASE& Pgm(), but return nullptr when a *.ki_face is run from a python script.
-PGM_BASE* PgmOrNull()
-{
-    return &program;
-}
-
-
-PGM_KICAD& PgmTop()
-{
-    return program;
-}
-
-
 struct COMMAND_ENTRY
 {
     CLI::COMMAND* handler;
@@ -126,19 +109,28 @@ struct COMMAND_ENTRY
             handler( aHandler ), subCommands( aSub ){};
 };
 
+static CLI::JOBSET_COMMAND               jobsetCmd{};
+static CLI::JOBSET_RUN_COMMAND           jobsetRunCmd{};
 static CLI::PCB_COMMAND                  pcbCmd{};
 static CLI::PCB_DRC_COMMAND              pcbDrcCmd{};
+static CLI::PCB_RENDER_COMMAND           pcbRenderCmd{};
 static CLI::PCB_EXPORT_DRILL_COMMAND     exportPcbDrillCmd{};
 static CLI::PCB_EXPORT_DXF_COMMAND       exportPcbDxfCmd{};
 static CLI::PCB_EXPORT_3D_COMMAND        exportPcbGlbCmd{ "glb", UTF8STDSTR( _( "Export GLB (binary GLTF)" ) ), JOB_EXPORT_PCB_3D::FORMAT::GLB };
 static CLI::PCB_EXPORT_3D_COMMAND        exportPcbStepCmd{ "step", UTF8STDSTR( _( "Export STEP" ) ), JOB_EXPORT_PCB_3D::FORMAT::STEP };
+static CLI::PCB_EXPORT_3D_COMMAND        exportPcbBrepCmd{ "brep", UTF8STDSTR( _( "Export BREP" ) ), JOB_EXPORT_PCB_3D::FORMAT::BREP };
+static CLI::PCB_EXPORT_3D_COMMAND        exportPcbXaoCmd{ "xao", UTF8STDSTR( _( "Export XAO" ) ), JOB_EXPORT_PCB_3D::FORMAT::XAO };
 static CLI::PCB_EXPORT_3D_COMMAND        exportPcbVrmlCmd{ "vrml", UTF8STDSTR( _( "Export VRML" ) ), JOB_EXPORT_PCB_3D::FORMAT::VRML };
+static CLI::PCB_EXPORT_3D_COMMAND        exportPcbPlyCmd{ "ply", UTF8STDSTR( _( "Export PLY" ) ), JOB_EXPORT_PCB_3D::FORMAT::PLY };
+static CLI::PCB_EXPORT_3D_COMMAND        exportPcbStlCmd{ "stl", UTF8STDSTR( _( "Export STL" ) ), JOB_EXPORT_PCB_3D::FORMAT::STL };
 static CLI::PCB_EXPORT_SVG_COMMAND       exportPcbSvgCmd{};
 static CLI::PCB_EXPORT_PDF_COMMAND       exportPcbPdfCmd{};
 static CLI::PCB_EXPORT_POS_COMMAND       exportPcbPosCmd{};
 static CLI::PCB_EXPORT_GERBER_COMMAND    exportPcbGerberCmd{};
 static CLI::PCB_EXPORT_GERBERS_COMMAND   exportPcbGerbersCmd{};
+static CLI::PCB_EXPORT_GENCAD_COMMAND    exportPcbGencadCmd{};
 static CLI::PCB_EXPORT_IPC2581_COMMAND   exportPcbIpc2581Cmd{};
+static CLI::PCB_EXPORT_ODB_COMMAND       exportPcbOdbCmd{};
 static CLI::PCB_EXPORT_COMMAND           exportPcbCmd{};
 static CLI::SCH_EXPORT_COMMAND           exportSchCmd{};
 static CLI::SCH_COMMAND                  schCmd{};
@@ -164,6 +156,14 @@ static CLI::VERSION_COMMAND              versionCmd{};
 
 static std::vector<COMMAND_ENTRY> commandStack = {
     {
+        &jobsetCmd,
+        {
+            {
+                &jobsetRunCmd
+            }
+        }
+    },
+    {
         &fpCmd,
         {
             {
@@ -184,19 +184,28 @@ static std::vector<COMMAND_ENTRY> commandStack = {
                 &pcbDrcCmd
             },
             {
+                &pcbRenderCmd
+            },
+            {
                 &exportPcbCmd,
                 {
+                    &exportPcbBrepCmd,
                     &exportPcbDrillCmd,
                     &exportPcbDxfCmd,
                     &exportPcbGerberCmd,
                     &exportPcbGerbersCmd,
+                    &exportPcbGencadCmd,
                     &exportPcbGlbCmd,
                     &exportPcbIpc2581Cmd,
+                    &exportPcbOdbCmd,
                     &exportPcbPdfCmd,
                     &exportPcbPosCmd,
                     &exportPcbStepCmd,
                     &exportPcbSvgCmd,
-                    &exportPcbVrmlCmd
+                    &exportPcbVrmlCmd,
+                    &exportPcbXaoCmd,
+                    &exportPcbPlyCmd,
+                    &exportPcbStlCmd
                 }
             }
         }
@@ -458,8 +467,9 @@ void PGM_KICAD::Destroy()
 }
 
 
-KIWAY Kiway( &Pgm(), KFCTL_CPP_PROJECT_SUITE | KFCTL_CLI );
+KIWAY Kiway( KFCTL_CPP_PROJECT_SUITE | KFCTL_CLI );
 
+static PGM_KICAD program;
 
 /**
  * Not publicly visible because most of the action is in #PGM_KICAD these days.
@@ -468,6 +478,8 @@ struct APP_KICAD_CLI : public wxAppConsole
 {
     APP_KICAD_CLI() : wxAppConsole()
     {
+        SetPgm( &program );
+
         // Init the environment each platform wants
         KIPLATFORM::ENV::Init();
     }

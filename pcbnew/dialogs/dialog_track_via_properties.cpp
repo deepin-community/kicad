@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 CERN
- * Copyright (C) 2018-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -31,11 +31,11 @@
 #include <footprint.h>
 #include <pad.h>
 #include <pcb_track.h>
-#include <pcb_edit_frame.h>
 #include <confirm.h>
+#include <kidialog.h>
 #include <connectivity/connectivity_data.h>
 #include <board_commit.h>
-#include <macros.h>
+
 
 DIALOG_TRACK_VIA_PROPERTIES::DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_FRAME* aParent,
                                                           const PCB_SELECTION& aItems ) :
@@ -47,6 +47,7 @@ DIALOG_TRACK_VIA_PROPERTIES::DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_FRAME* aParen
         m_trackEndX( aParent, m_TrackEndXLabel, m_TrackEndXCtrl, nullptr ),
         m_trackEndY( aParent, m_TrackEndYLabel, m_TrackEndYCtrl, m_TrackEndYUnit ),
         m_trackWidth( aParent, m_TrackWidthLabel, m_TrackWidthCtrl, m_TrackWidthUnit ),
+        m_trackMaskMargin( aParent, m_trackMaskMarginLabel, m_trackMaskMarginCtrl, m_trackMaskMarginUnit ),
         m_viaX( aParent, m_ViaXLabel, m_ViaXCtrl, nullptr ),
         m_viaY( aParent, m_ViaYLabel, m_ViaYCtrl, m_ViaYUnit ),
         m_viaDiameter( aParent, m_ViaDiameterLabel, m_ViaDiameterCtrl, m_ViaDiameterUnit ),
@@ -57,7 +58,8 @@ DIALOG_TRACK_VIA_PROPERTIES::DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_FRAME* aParen
         m_teardropWidthPercent( aParent, m_stWidthPercentLabel, m_tcWidthPercent, nullptr ),
         m_teardropMaxWidth( aParent, m_stMaxWidthLabel, m_tcMaxWidth, m_stMaxWidthUnits ),
         m_tracks( false ),
-        m_vias( false )
+        m_vias( false ),
+        m_editLayer( PADSTACK::ALL_LAYERS )
 {
     m_useCalculatedSize = true;
 
@@ -99,6 +101,14 @@ DIALOG_TRACK_VIA_PROPERTIES::DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_FRAME* aParen
     m_ViaEndLayer->SetBoardFrame( aParent );
     m_ViaEndLayer->Resync();
 
+    m_btnLinkTenting->SetBitmap( KiBitmapBundle( BITMAPS::edit_cmp_symb_links ) );
+    m_btnLinkTenting->SetValue( true );
+    m_tentingBackCtrl->Disable();
+    m_tentingBackLabel->Disable();
+
+    wxFont infoFont = KIUI::GetInfoFont( this );
+    m_techLayersLabel->SetFont( infoFont );
+
     bool nets = false;
     int  net = 0;
     bool hasLocked = false;
@@ -116,12 +126,29 @@ DIALOG_TRACK_VIA_PROPERTIES::DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_FRAME* aParen
     auto getAnnularRingSelection =
             []( const PCB_VIA* via ) -> int
             {
-                if( !via->GetRemoveUnconnected() )
-                    return 0;
-                else if( via->GetKeepStartEnd() )
-                    return 1;
-                else
-                    return 2;
+                switch( via->Padstack().UnconnectedLayerMode() )
+                {
+                default:
+                case PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL:                    return 0;
+                case PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END: return 1;
+                case PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_ALL:                  return 2;
+                }
+            };
+
+    auto getTentingSelection =
+            []( const PCB_VIA* via, PCB_LAYER_ID aLayer ) -> int
+            {
+                std::optional<bool> tentingOverride = via->Padstack().IsTented( aLayer );
+
+                if( tentingOverride.has_value() )
+                {
+                    if( *tentingOverride )
+                        return 1;   // Tented
+
+                    return 2;   // Not tented
+                }
+
+                return 0;   // From design rules
             };
 
     // Look for values that are common for every item that is selected
@@ -152,6 +179,13 @@ DIALOG_TRACK_VIA_PROPERTIES::DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_FRAME* aParen
                     m_trackEndY.SetValue( t->GetEndY() );
                     m_trackWidth.SetValue( t->GetWidth() );
                     track_selection_layer = t->GetLayer();
+                    m_trackHasSolderMask->SetValue ( t->HasSolderMask() );
+
+                    if( t->GetLocalSolderMaskMargin().has_value() )
+                        m_trackMaskMargin.SetValue( t->GetLocalSolderMaskMargin().value() );
+                    else
+                        m_trackMaskMargin.SetValue( wxEmptyString );
+
                     m_tracks = true;
                 }
                 else        // check if values are the same for every selected track
@@ -173,6 +207,12 @@ DIALOG_TRACK_VIA_PROPERTIES::DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_FRAME* aParen
 
                     if( track_selection_layer != t->GetLayer() )
                         track_selection_layer = UNDEFINED_LAYER;
+
+                    if( m_trackHasSolderMask->GetValue() != t->HasSolderMask() )
+                        m_trackHasSolderMask->Set3StateValue( wxCHK_UNDETERMINED );
+
+                    if( m_trackMaskMargin.GetValue() != t->GetLocalSolderMaskMargin() )
+                        m_trackMaskMargin.SetValue( INDETERMINATE_STATE );
                 }
 
                 if( t->IsLocked() )
@@ -191,12 +231,24 @@ DIALOG_TRACK_VIA_PROPERTIES::DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_FRAME* aParen
                 {
                     m_viaX.SetValue( v->GetPosition().x );
                     m_viaY.SetValue( v->GetPosition().y );
-                    m_viaDiameter.SetValue( v->GetWidth() );
+                    m_viaStack = std::make_unique<PADSTACK>( v->Padstack() );
+                    m_viaDiameter.SetValue( v->GetWidth( m_editLayer ) );
                     m_viaDrill.SetValue( v->GetDrillValue() );
                     m_vias = true;
                     viaType = v->GetViaType();
                     m_viaNotFree->SetValue( !v->GetIsFree() );
                     m_annularRingsCtrl->SetSelection( getAnnularRingSelection( v ) );
+
+                    m_tentingFrontCtrl->SetSelection( getTentingSelection( v, F_Mask ) );
+                    m_tentingBackCtrl->SetSelection( getTentingSelection( v, B_Mask ) );
+
+                    bool link = m_tentingFrontCtrl->GetSelection()
+                                == m_tentingBackCtrl->GetSelection();
+
+                    m_btnLinkTenting->SetValue( link );
+                    m_tentingBackCtrl->Enable( !link );
+                    m_tentingBackLabel->Enable( !link );
+
                     selection_first_layer = v->TopLayer();
                     selection_last_layer = v->BottomLayer();
 
@@ -207,8 +259,7 @@ DIALOG_TRACK_VIA_PROPERTIES::DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_FRAME* aParen
                     m_teardropLenPercent.SetDoubleValue( v->GetTeardropParams().m_BestLengthRatio*100.0 );
                     m_teardropWidthPercent.SetDoubleValue( v->GetTeardropParams().m_BestWidthRatio*100.0 );
                     m_teardropHDPercent.SetDoubleValue( v->GetTeardropParams().m_WidthtoSizeFilterRatio*100.0 );
-                    m_curvedEdges->SetValue( v->GetTeardropParams().IsCurved() );
-                    m_curvePointsCtrl->SetValue( v->GetTeardropParams().m_CurveSegCount );
+                    m_curvedEdges->SetValue( v->GetTeardropParams().m_CurvedEdges );
                 }
                 else        // check if values are the same for every selected via
                 {
@@ -218,7 +269,7 @@ DIALOG_TRACK_VIA_PROPERTIES::DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_FRAME* aParen
                     if( m_viaY.GetValue() != v->GetPosition().y )
                         m_viaY.SetValue( INDETERMINATE_STATE );
 
-                    if( m_viaDiameter.GetValue() != v->GetWidth() )
+                    if( m_viaDiameter.GetValue() != v->GetWidth( m_editLayer ) )
                         m_viaDiameter.SetValue( INDETERMINATE_STATE );
 
                     if( m_viaDrill.GetValue() != v->GetDrillValue() )
@@ -264,12 +315,6 @@ DIALOG_TRACK_VIA_PROPERTIES::DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_FRAME* aParen
 
                     if( m_teardropHDPercent.GetDoubleValue() != v->GetTeardropParams().m_WidthtoSizeFilterRatio*100.0 )
                         m_teardropHDPercent.SetValue( INDETERMINATE_STATE );
-
-                    if( m_curvePointsCtrl->GetValue() != v->GetTeardropParams().m_CurveSegCount )
-                    {
-                        m_curvedEdges->Set3StateValue( wxCHK_UNDETERMINED );
-                        m_curvePointsCtrl->SetValue( 5 );
-                    }
                 }
 
                 if( v->IsLocked() )
@@ -383,6 +428,8 @@ DIALOG_TRACK_VIA_PROPERTIES::DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_FRAME* aParen
 
         m_annularRingsLabel->Show( getLayerDepth() > 1 );
         m_annularRingsCtrl->Show( getLayerDepth() > 1 );
+
+        afterPadstackModeChanged();
     }
     else
     {
@@ -407,6 +454,9 @@ DIALOG_TRACK_VIA_PROPERTIES::DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_FRAME* aParen
 
         m_predefinedTrackWidthsCtrl->SetSelection( widthSelection );
         m_predefinedTrackWidthsUnits->SetLabel( EDA_UNIT_UTILS::GetLabel( m_frame->GetUserUnits() ) );
+
+        wxCommandEvent event;
+        onTrackEdit( event );
     }
     else
     {
@@ -430,7 +480,7 @@ DIALOG_TRACK_VIA_PROPERTIES::DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_FRAME* aParen
     SetupStandardButtons();
 
     m_frame->Bind( EDA_EVT_UNITS_CHANGED, &DIALOG_TRACK_VIA_PROPERTIES::onUnitsChanged, this );
-    m_netSelector->Bind( NET_SELECTED, &DIALOG_TRACK_VIA_PROPERTIES::onNetSelector, this );
+    m_netSelector->Bind( FILTERED_ITEM_SELECTED, &DIALOG_TRACK_VIA_PROPERTIES::onNetSelector, this );
 
     // Now all widgets have the size fixed, call FinishDialogSettings
     finishDialogSettings();
@@ -531,6 +581,8 @@ bool DIALOG_TRACK_VIA_PROPERTIES::TransferDataFromWindow()
 
     if( m_vias )
     {
+        // TODO: This needs to move into the via class, not the dialog
+
         if( !m_viaDiameter.Validate( GEOMETRY_MIN_SIZE, INT_MAX )
             || !m_viaDrill.Validate( GEOMETRY_MIN_SIZE, INT_MAX ) )
         {
@@ -552,6 +604,12 @@ bool DIALOG_TRACK_VIA_PROPERTIES::TransferDataFromWindow()
         {
             DisplayError( GetParent(), _( "Via start layer and end layer cannot be the same" ) );
             return false;
+        }
+
+        if( !m_viaDiameter.IsIndeterminate() )
+        {
+            int diameter = m_viaDiameter.GetValue();
+            m_viaStack->SetSize( { diameter, diameter }, m_editLayer );
         }
     }
 
@@ -602,6 +660,17 @@ bool DIALOG_TRACK_VIA_PROPERTIES::TransferDataFromWindow()
                 if( layer != UNDEFINED_LAYER )
                     t->SetLayer( (PCB_LAYER_ID) layer );
 
+                if ( m_trackHasSolderMask->Get3StateValue() != wxCHK_UNDETERMINED )
+                    t->SetHasSolderMask( m_trackHasSolderMask->GetValue() );
+
+                if( !m_trackMaskMargin.IsIndeterminate() )
+                {
+                    if( m_trackMaskMargin.IsNull() )
+                        t->SetLocalSolderMaskMargin( {} );
+                    else
+                        t->SetLocalSolderMaskMargin( m_trackMaskMargin.GetIntValue() );
+                }
+
                 if( changeLock )
                     t->SetLocked( setLock );
 
@@ -622,11 +691,13 @@ bool DIALOG_TRACK_VIA_PROPERTIES::TransferDataFromWindow()
                 if( m_viaNotFree->Get3StateValue() != wxCHK_UNDETERMINED )
                     v->SetIsFree( !m_viaNotFree->GetValue() );
 
+                if( !m_viaDiameter.IsIndeterminate() )
+                    v->SetPadstack( *m_viaStack );
+
                 switch( m_ViaTypeChoice->GetSelection() )
                 {
                 case 0:
                     v->SetViaType( VIATYPE::THROUGH );
-                    v->SanitizeLayers();
                     break;
                 case 1:
                     v->SetViaType( VIATYPE::MICROVIA );
@@ -638,36 +709,56 @@ bool DIALOG_TRACK_VIA_PROPERTIES::TransferDataFromWindow()
                     break;
                 }
 
-                auto startLayer = static_cast<PCB_LAYER_ID>( m_ViaStartLayer->GetLayerSelection() );
-                auto endLayer = static_cast<PCB_LAYER_ID>( m_ViaEndLayer->GetLayerSelection() );
+                PCB_LAYER_ID startLayer = static_cast<PCB_LAYER_ID>( m_ViaStartLayer->GetLayerSelection() );
+                PCB_LAYER_ID endLayer = static_cast<PCB_LAYER_ID>( m_ViaEndLayer->GetLayerSelection() );
 
-                if (startLayer != UNDEFINED_LAYER )
+                if( startLayer != UNDEFINED_LAYER )
+                {
+                    m_viaStack->Drill().start = startLayer;
                     v->SetTopLayer( startLayer );
+                }
 
-                if (endLayer != UNDEFINED_LAYER )
+                if( endLayer != UNDEFINED_LAYER )
+                {
+                    m_viaStack->Drill().end = endLayer;
                     v->SetBottomLayer( endLayer );
+                }
+
+                v->SanitizeLayers();
 
                 switch( m_annularRingsCtrl->GetSelection() )
                 {
                 case 0:
-                    v->SetRemoveUnconnected( false );
+                    v->Padstack().SetUnconnectedLayerMode(
+                            PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL );
                     break;
                 case 1:
-                    v->SetRemoveUnconnected( true );
-                    v->SetKeepStartEnd( true );
+                    v->Padstack().SetUnconnectedLayerMode(
+                            PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END );
                     break;
                 case 2:
-                    v->SetRemoveUnconnected( true );
-                    v->SetKeepStartEnd( false );
+                    v->Padstack().SetUnconnectedLayerMode(
+                            PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_ALL );
                     break;
                 default:
                     break;
                 }
 
-                v->SanitizeLayers();
+                switch( m_tentingFrontCtrl->GetSelection() )
+                {
+                default:
+                case 0: v->Padstack().FrontOuterLayers().has_solder_mask.reset();  break;
+                case 1: v->Padstack().FrontOuterLayers().has_solder_mask = true;   break;
+                case 2: v->Padstack().FrontOuterLayers().has_solder_mask = false;  break;
+                }
 
-                if( !m_viaDiameter.IsIndeterminate() )
-                    v->SetWidth( m_viaDiameter.GetIntValue() );
+                switch( m_tentingBackCtrl->GetSelection() )
+                {
+                default:
+                case 0: v->Padstack().BackOuterLayers().has_solder_mask.reset();  break;
+                case 1: v->Padstack().BackOuterLayers().has_solder_mask = true;   break;
+                case 2: v->Padstack().BackOuterLayers().has_solder_mask = false;  break;
+                }
 
                 if( !m_viaDrill.IsIndeterminate() )
                     v->SetDrill( m_viaDrill.GetIntValue() );
@@ -697,12 +788,7 @@ bool DIALOG_TRACK_VIA_PROPERTIES::TransferDataFromWindow()
                     targetParams->m_WidthtoSizeFilterRatio = m_teardropHDPercent.GetDoubleValue() / 100.0;
 
                 if( m_curvedEdges->Get3StateValue() != wxCHK_UNDETERMINED )
-                {
-                    if( m_curvedEdges->GetValue() )
-                        targetParams->m_CurveSegCount = m_curvePointsCtrl->GetValue();
-                    else
-                        targetParams->m_CurveSegCount = 0;
-                }
+                    targetParams->m_CurvedEdges = m_curvedEdges->GetValue();
 
                 if( changeLock )
                     v->SetLocked( setLock );
@@ -716,7 +802,7 @@ bool DIALOG_TRACK_VIA_PROPERTIES::TransferDataFromWindow()
         }
     }
 
-    commit.Push( _( "Edit track/via properties" ) );
+    commit.Push( _( "Edit Track/Via Properties" ) );
 
     // Pushing the commit will have updated the connectivity so we can now test to see if we
     // need to update any pad nets.
@@ -781,7 +867,7 @@ bool DIALOG_TRACK_VIA_PROPERTIES::TransferDataFromWindow()
             pad->SetNetCode( newNetCode );
         }
 
-        commit.Push( _( "Updating nets" ) );
+        commit.Push( _( "Update Nets" ) );
     }
 
     return true;
@@ -823,6 +909,140 @@ void DIALOG_TRACK_VIA_PROPERTIES::onViaSelect( wxCommandEvent& aEvent )
 
     m_viaDiameter.ChangeValue( viaDimension->m_Diameter );
     m_viaDrill.ChangeValue( viaDimension->m_Drill );
+}
+
+
+void DIALOG_TRACK_VIA_PROPERTIES::onPadstackModeChanged( wxCommandEvent& aEvent )
+{
+    wxCHECK_MSG( m_viaStack, /* void */, "Expected valid via stack in onPadstackModeChanged" );
+
+    switch( m_cbPadstackMode->GetSelection() )
+    {
+    default:
+    case 0: m_viaStack->SetMode( PADSTACK::MODE::NORMAL );           break;
+    case 1: m_viaStack->SetMode( PADSTACK::MODE::FRONT_INNER_BACK ); break;
+    case 2: m_viaStack->SetMode( PADSTACK::MODE::CUSTOM );           break;
+    }
+
+    afterPadstackModeChanged();
+}
+
+
+void DIALOG_TRACK_VIA_PROPERTIES::onEditLayerChanged( wxCommandEvent& aEvent )
+{
+    wxCHECK_MSG( m_viaStack, /* void */, "Expected valid via stack in onEditLayerChanged" );
+
+    // Save data from the previous layer
+    if( !m_viaDiameter.IsIndeterminate() )
+    {
+        int diameter = m_viaDiameter.GetValue();
+        m_viaStack->SetSize( { diameter, diameter }, m_editLayer );
+    }
+
+    switch( m_viaStack->Mode() )
+    {
+    default:
+    case PADSTACK::MODE::NORMAL:
+        m_editLayer = PADSTACK::ALL_LAYERS;
+        break;
+
+    case PADSTACK::MODE::FRONT_INNER_BACK:
+        switch( m_cbEditLayer->GetSelection() )
+        {
+    default:
+    case 0: m_editLayer = F_Cu;                   break;
+    case 1: m_editLayer = PADSTACK::INNER_LAYERS; break;
+    case 2: m_editLayer = B_Cu;                   break;
+        }
+        break;
+
+    case PADSTACK::MODE::CUSTOM:
+    {
+        int layer = m_cbEditLayer->GetSelection();
+
+        if( layer < 0 )
+            layer = 0;
+
+        if( m_editLayerCtrlMap.contains( layer ) )
+            m_editLayer = m_editLayerCtrlMap.at( layer );
+        else
+            m_editLayer = F_Cu;
+    }
+    }
+
+    // Load controls with the current layer
+    m_viaDiameter.SetValue( m_viaStack->Size( m_editLayer ).x );
+}
+
+
+void DIALOG_TRACK_VIA_PROPERTIES::afterPadstackModeChanged()
+{
+    // NOTE: synchronize changes here with DIALOG_PAD_PROPERTIES::afterPadstackModeChanged
+
+    wxCHECK_MSG( m_viaStack, /* void */, "Expected valid via stack in afterPadstackModeChanged" );
+    m_cbEditLayer->Clear();
+
+    BOARD* board = m_frame->GetBoard();
+
+    switch( m_viaStack->Mode() )
+    {
+    case PADSTACK::MODE::NORMAL:
+        m_cbPadstackMode->SetSelection( 0 );
+        m_cbEditLayer->Append( _( "All layers" ) );
+        m_cbEditLayer->Disable();
+        m_editLayer = PADSTACK::ALL_LAYERS;
+        m_editLayerCtrlMap = { { 0, PADSTACK::ALL_LAYERS } };
+        break;
+
+    case PADSTACK::MODE::FRONT_INNER_BACK:
+    {
+        m_cbPadstackMode->SetSelection( 1 );
+        m_cbEditLayer->Enable();
+
+        std::vector choices = {
+            board->GetLayerName( F_Cu ),
+            _( "Inner Layers" ),
+            board->GetLayerName( B_Cu )
+        };
+
+        m_cbEditLayer->Append( choices );
+
+        m_editLayerCtrlMap = {
+            { 0, F_Cu },
+            { 1, PADSTACK::INNER_LAYERS },
+            { 2, B_Cu }
+        };
+
+        if( m_editLayer != F_Cu && m_editLayer != B_Cu )
+            m_editLayer = PADSTACK::INNER_LAYERS;
+
+        break;
+    }
+
+    case PADSTACK::MODE::CUSTOM:
+    {
+        m_cbPadstackMode->SetSelection( 2 );
+        m_cbEditLayer->Enable();
+        LSET layers = LSET::AllCuMask() & board->GetEnabledLayers();
+
+        for( PCB_LAYER_ID layer : layers.UIOrder() )
+        {
+            int idx = m_cbEditLayer->Append( board->GetLayerName( layer ) );
+            m_editLayerCtrlMap[idx] = layer;
+        }
+
+        break;
+    }
+    }
+
+    for( const auto& [idx, layer] : m_editLayerCtrlMap )
+    {
+        if( layer == m_editLayer )
+        {
+            m_cbEditLayer->SetSelection( idx );
+            break;
+        }
+    }
 }
 
 
@@ -869,14 +1089,47 @@ void DIALOG_TRACK_VIA_PROPERTIES::onViaEdit( wxCommandEvent& aEvent )
 }
 
 
+void DIALOG_TRACK_VIA_PROPERTIES::onFrontTentingChanged( wxCommandEvent& event )
+{
+    if( m_btnLinkTenting->GetValue() )
+        m_tentingBackCtrl->SetSelection( m_tentingFrontCtrl->GetSelection() );
+
+    event.Skip();
+}
+
+
+void DIALOG_TRACK_VIA_PROPERTIES::onTentingLinkToggle( wxCommandEvent& event )
+{
+    bool link = m_btnLinkTenting->GetValue();
+
+    m_tentingBackCtrl->Enable( !link );
+    m_tentingBackLabel->Enable( !link );
+
+    if( link )
+        m_tentingBackCtrl->SetSelection( m_tentingFrontCtrl->GetSelection() );
+
+    event.Skip();
+}
+
+
+void DIALOG_TRACK_VIA_PROPERTIES::onTrackEdit( wxCommandEvent& aEvent )
+{
+    bool externalCuLayer = m_TrackLayerCtrl->GetLayerSelection() == F_Cu
+                               || m_TrackLayerCtrl->GetLayerSelection() == B_Cu;
+
+    m_techLayersLabel->Enable( externalCuLayer );
+    m_trackHasSolderMask->Enable( externalCuLayer );
+
+    bool showMaskMargin = externalCuLayer && m_trackHasSolderMask->GetValue();
+
+    m_trackMaskMarginCtrl->Enable( showMaskMargin );
+    m_trackMaskMarginLabel->Enable( showMaskMargin );
+    m_trackMaskMarginUnit->Enable( showMaskMargin );
+}
+
+
 void DIALOG_TRACK_VIA_PROPERTIES::onTeardropsUpdateUi( wxUpdateUIEvent& event )
 {
     event.Enable( !m_frame->GetBoard()->LegacyTeardrops() );
 }
 
-
-void DIALOG_TRACK_VIA_PROPERTIES::onCurvedEdgesUpdateUi( wxUpdateUIEvent& event )
-{
-    event.Enable( !m_frame->GetBoard()->LegacyTeardrops()
-                  && m_curvedEdges->Get3StateValue() == wxCHK_CHECKED );
-}

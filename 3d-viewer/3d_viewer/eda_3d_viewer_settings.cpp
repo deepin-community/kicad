@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
  * Copyright (C) 2023 CERN
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -368,6 +368,8 @@ EDA_3D_VIEWER_SETTINGS::EDA_3D_VIEWER_SETTINGS() :
                                             &m_Render.clip_silk_on_via_annuli, false ) );
     m_params.emplace_back( new PARAM<bool>( "render.plated_and_bare_copper",
                                             &m_Render.differentiate_plated_copper, false ) );
+    m_params.emplace_back( new PARAM<bool>( "render.use_board_editor_copper_colors",
+                                            &m_Render.use_board_editor_copper_colors, false ) );
     m_params.emplace_back( new PARAM<bool>( "camera.animation_enabled",
                                             &m_Camera.animation_enabled, true ) );
     m_params.emplace_back( new PARAM<int>( "camera.moving_speed_multiplier",
@@ -467,12 +469,15 @@ bool EDA_3D_VIEWER_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
     ret &= fromLegacy<int>( aCfg,  "RenderEngine",              "render.engine" );
     ret &= fromLegacy<int>( aCfg,  "ShowGrid3D",                "render.grid_type" );
     ret &= fromLegacy<int>( aCfg,  "Render_Material",           "render.material_mode" );
-    ret &= fromLegacy<bool>( aCfg, "Render_OGL_ShowCopperThickness", "render.opengl_copper_thickness" );
-    ret &= fromLegacy<bool>( aCfg, "Render_OGL_ShowModelBoudingBoxes", "render.opengl_show_model_bbox" );
+    ret &= fromLegacy<bool>( aCfg, "Render_OGL_ShowCopperThickness",
+                             "render.opengl_copper_thickness" );
+    ret &= fromLegacy<bool>( aCfg, "Render_OGL_ShowModelBoudingBoxes",
+                             "render.opengl_show_model_bbox" );
     ret &= fromLegacy<bool>( aCfg, "Render_RAY_AntiAliasing",   "render.raytrace_anti_aliasing" );
     ret &= fromLegacy<bool>( aCfg, "Render_RAY_Backfloor",      "render.raytrace_backfloor" );
     ret &= fromLegacy<bool>( aCfg, "Render_RAY_PostProcess",    "render.raytrace_post_processing" );
-    ret &= fromLegacy<bool>( aCfg, "Render_RAY_ProceduralTextures", "render.raytrace_procedural_textures" );
+    ret &= fromLegacy<bool>( aCfg, "Render_RAY_ProceduralTextures",
+                             "render.raytrace_procedural_textures" );
     ret &= fromLegacy<bool>( aCfg, "Render_RAY_Reflections",    "render.raytrace_reflections" );
     ret &= fromLegacy<bool>( aCfg, "Render_RAY_Refractions",    "render.raytrace_refractions" );
     ret &= fromLegacy<bool>( aCfg, "Render_RAY_Shadows",        "render.raytrace_shadows" );

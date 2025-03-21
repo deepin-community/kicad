@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2023 CERN
- * Copyright (C) 1992-2024 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,6 +32,7 @@
 #include <trigo.h>
 #include <sch_edit_frame.h>
 #include <plotters/plotter.h>
+#include <sch_plotter.h>
 #include <string_utils.h>
 #include <widgets/msgpanel.h>
 #include <math/util.h>      // for KiROUND
@@ -42,6 +43,7 @@
 #include <sch_painter.h>
 #include <schematic.h>
 #include <settings/color_settings.h>
+#include <settings/settings_manager.h>
 #include <trace_helpers.h>
 #include <pgm_base.h>
 #include <wx/log.h>
@@ -51,6 +53,8 @@
 #define SHEET_FILE_CANONICAL "Sheetfile"
 #define USER_FIELD_CANONICAL "Field%d"
 
+static wxString s_CanonicalSheetName( SHEET_NAME_CANONICAL );
+static wxString s_CanonicalSheetFile( SHEET_FILE_CANONICAL );
 
 const wxString SCH_SHEET::GetDefaultFieldName( int aFieldNdx, bool aTranslated )
 {
@@ -58,25 +62,29 @@ const wxString SCH_SHEET::GetDefaultFieldName( int aFieldNdx, bool aTranslated )
     {
         switch( aFieldNdx )
         {
-        case  SHEETNAME:     return SHEET_NAME_CANONICAL;
-        case  SHEETFILENAME: return SHEET_FILE_CANONICAL;
-        default:             return wxString::Format( USER_FIELD_CANONICAL, aFieldNdx );
+        case  SHEETNAME:     return s_CanonicalSheetName;
+        case  SHEETFILENAME: return s_CanonicalSheetFile;
+        default:             return wxString::Format( wxS( USER_FIELD_CANONICAL ), aFieldNdx );
         }
     }
-
-    // Fixed values for the mandatory fields
-    switch( aFieldNdx )
+    else
     {
-    case  SHEETNAME:     return _( SHEET_NAME_CANONICAL );
-    case  SHEETFILENAME: return _( SHEET_FILE_CANONICAL );
-    default:             return wxString::Format( _( USER_FIELD_CANONICAL ), aFieldNdx );
+        switch( aFieldNdx )
+        {
+        case  SHEETNAME:     return _( SHEET_NAME_CANONICAL );
+        case  SHEETFILENAME: return _( SHEET_FILE_CANONICAL );
+        default:             return wxString::Format( _( USER_FIELD_CANONICAL ), aFieldNdx );
+        }
     }
 }
 
 
-SCH_SHEET::SCH_SHEET( EDA_ITEM* aParent, const VECTOR2I& aPos, VECTOR2I aSize,
-                      FIELDS_AUTOPLACED aAutoplaceFields ) :
-        SCH_ITEM( aParent, SCH_SHEET_T )
+SCH_SHEET::SCH_SHEET( EDA_ITEM* aParent, const VECTOR2I& aPos, VECTOR2I aSize ) :
+        SCH_ITEM( aParent, SCH_SHEET_T ),
+        m_excludedFromSim( false ),
+        m_excludedFromBOM( false ),
+        m_excludedFromBoard( false ),
+        m_DNP( false )
 {
     m_layer = LAYER_SHEET;
     m_pos = aPos;
@@ -86,22 +94,18 @@ SCH_SHEET::SCH_SHEET( EDA_ITEM* aParent, const VECTOR2I& aPos, VECTOR2I aSize,
     m_borderWidth = 0;
     m_borderColor = COLOR4D::UNSPECIFIED;
     m_backgroundColor = COLOR4D::UNSPECIFIED;
-    m_fieldsAutoplaced = aAutoplaceFields;
+    m_fieldsAutoplaced = AUTOPLACE_AUTO;
 
-    for( int i = 0; i < SHEET_MANDATORY_FIELDS; ++i )
-    {
-        m_fields.emplace_back( aPos, i, this, GetDefaultFieldName( i ) );
-        m_fields.back().SetVisible( true );
+    m_fields.emplace_back( aPos, SHEETNAME, this, GetDefaultFieldName( SHEETNAME, DO_TRANSLATE ) );
+    m_fields.back().SetVisible( true );
+    m_fields.back().SetLayer( LAYER_SHEETNAME );
 
-        if( i == SHEETNAME )
-            m_fields.back().SetLayer( LAYER_SHEETNAME );
-        else if( i == SHEETFILENAME )
-            m_fields.back().SetLayer( LAYER_SHEETFILENAME );
-        else
-            m_fields.back().SetLayer( LAYER_SHEETFIELDS );
-    }
+    m_fields.emplace_back( aPos, SHEETFILENAME, this,
+                           GetDefaultFieldName( SHEETFILENAME, DO_TRANSLATE ) );
+    m_fields.back().SetVisible( true );
+    m_fields.back().SetLayer( LAYER_SHEETNAME );
 
-    AutoAutoplaceFields( nullptr );
+    AutoplaceFields( nullptr, m_fieldsAutoplaced );
 }
 
 
@@ -115,6 +119,11 @@ SCH_SHEET::SCH_SHEET( const SCH_SHEET& aSheet ) :
     m_fields = aSheet.m_fields;
     m_fieldsAutoplaced = aSheet.m_fieldsAutoplaced;
     m_screen = aSheet.m_screen;
+
+    m_excludedFromSim = aSheet.m_excludedFromSim;
+    m_excludedFromBOM = aSheet.m_excludedFromBOM;
+    m_excludedFromBoard = aSheet.m_excludedFromBoard;
+    m_DNP = aSheet.m_DNP;
 
     m_borderWidth = aSheet.m_borderWidth;
     m_borderColor = aSheet.m_borderColor;
@@ -208,11 +217,13 @@ void SCH_SHEET::GetContextualTextVars( wxArrayString* aVars ) const
                     aVars->push_back( aVar );
             };
 
-    for( int i = 0; i < SHEET_MANDATORY_FIELDS; ++i )
-        add( m_fields[i].GetCanonicalName().Upper() );
-
-    for( size_t i = SHEET_MANDATORY_FIELDS; i < m_fields.size(); ++i )
-        add( m_fields[i].GetName() );
+    for( const SCH_FIELD& field : m_fields )
+    {
+        if( field.IsMandatory() )
+            add( field.GetCanonicalName().Upper() );
+        else
+            add( field.GetName() );
+    }
 
     SCH_SHEET_PATH sheetPath = findSelf();
 
@@ -229,6 +240,12 @@ void SCH_SHEET::GetContextualTextVars( wxArrayString* aVars ) const
     add( wxT( "#" ) );
     add( wxT( "##" ) );
     add( wxT( "SHEETPATH" ) );
+    add( wxT( "EXCLUDE_FROM_BOM" ) );
+    add( wxT( "EXCLUDE_FROM_BOARD" ) );
+    add( wxT( "EXCLUDE_FROM_SIM" ) );
+    add( wxT( "DNP" ) );
+    add( wxT( "ERC_ERROR <message_text>" ) );
+    add( wxT( "ERC_WARNING <message_text>" ) );
 
     m_screen->GetTitleBlock().GetContextualTextVars( aVars );
 }
@@ -249,20 +266,14 @@ bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, in
             return true;
     }
 
-    for( int i = 0; i < SHEET_MANDATORY_FIELDS; ++i )
+    for( const SCH_FIELD& field : m_fields )
     {
-        if( token->IsSameAs( m_fields[i].GetCanonicalName().Upper() ) )
-        {
-            *token = m_fields[i].GetShownText( aPath, false, aDepth + 1 );
-            return true;
-        }
-    }
+        wxString fieldName = field.IsMandatory() ? field.GetCanonicalName().Upper()
+                                                 : field.GetName();
 
-    for( size_t i = SHEET_MANDATORY_FIELDS; i < m_fields.size(); ++i )
-    {
-        if( token->IsSameAs( m_fields[i].GetName() ) )
+        if( token->IsSameAs( fieldName ) )
         {
-            *token = m_fields[i].GetShownText( aPath, false, aDepth + 1 );
+            *token = field.GetShownText( aPath, false, aDepth + 1 );
             return true;
         }
     }
@@ -283,12 +294,48 @@ bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, in
     }
     else if( token->IsSameAs( wxT( "##" ) ) )
     {
-        *token = wxString::Format( wxT( "%d" ), (int) schematic->GetUnorderedSheets().size() );
+        *token = wxString::Format( wxT( "%d" ), (int) schematic->Hierarchy().size() );
         return true;
     }
     else if( token->IsSameAs( wxT( "SHEETPATH" ) ) )
     {
         *token = aPath->PathHumanReadable();
+        return true;
+    }
+    else if( token->IsSameAs( wxT( "EXCLUDE_FROM_BOM" ) ) )
+    {
+        *token = wxEmptyString;
+
+        if( aPath->GetExcludedFromBOM() || this->GetExcludedFromBOM() )
+            *token = _( "Excluded from BOM" );
+
+        return true;
+    }
+    else if( token->IsSameAs( wxT( "EXCLUDE_FROM_BOARD" ) ) )
+    {
+        *token = wxEmptyString;
+
+        if( aPath->GetExcludedFromBoard() || this->GetExcludedFromBoard() )
+            *token = _( "Excluded from board" );
+
+        return true;
+    }
+    else if( token->IsSameAs( wxT( "EXCLUDE_FROM_SIM" ) ) )
+    {
+        *token = wxEmptyString;
+
+        if( aPath->GetExcludedFromSim() || this->GetExcludedFromSim() )
+            *token = _( "Excluded from simulation" );
+
+        return true;
+    }
+    else if( token->IsSameAs( wxT( "DNP" ) ) )
+    {
+        *token = wxEmptyString;
+
+        if( aPath->GetDNP() || this->GetDNP() )
+            *token = _( "DNP" );
+
         return true;
     }
 
@@ -341,6 +388,11 @@ void SCH_SHEET::SwapData( SCH_ITEM* aItem )
     for( SCH_FIELD& field : sheet->m_fields )
         field.SetParent( sheet );
 
+    std::swap( m_excludedFromSim, sheet->m_excludedFromSim );
+    std::swap( m_excludedFromBOM, sheet->m_excludedFromBOM );
+    std::swap( m_excludedFromBoard, sheet->m_excludedFromBoard );
+    std::swap( m_DNP, sheet->m_DNP );
+
     std::swap( m_borderWidth, sheet->m_borderWidth );
     std::swap( m_borderColor, sheet->m_borderColor );
     std::swap( m_backgroundColor, sheet->m_backgroundColor );
@@ -360,8 +412,11 @@ void SCH_SHEET::SetFields( const std::vector<SCH_FIELD>& aFields )
                } );
 
     // After mandatory fields, the rest should be sequential user fields
-    for( int ii = SHEET_MANDATORY_FIELDS; ii < static_cast<int>( m_fields.size() ); ++ii )
-        m_fields[ii].SetId( ii );
+    for( int ii = 0; ii < static_cast<int>( m_fields.size() ); ++ii )
+    {
+        if( !m_fields[ii].IsMandatory() )
+            m_fields[ii].SetId( ii );
+    }
 
     // Make sure that we get the UNIX variant of the file path
     SetFileName( m_fields[SHEETFILENAME].GetText() );
@@ -605,7 +660,7 @@ int SCH_SHEET::GetPenWidth() const
 }
 
 
-void SCH_SHEET::AutoplaceFields( SCH_SCREEN* aScreen, bool /* aManual */ )
+void SCH_SHEET::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo )
 {
     VECTOR2I textSize = m_fields[SHEETNAME].GetTextSize();
     int      borderMargin = KiROUND( GetPenWidth() / 2.0 ) + 4;
@@ -644,22 +699,16 @@ void SCH_SHEET::AutoplaceFields( SCH_SCREEN* aScreen, bool /* aManual */ )
         m_fields[ SHEETFILENAME ].SetTextAngle( ANGLE_HORIZONTAL );
     }
 
-    m_fieldsAutoplaced = FIELDS_AUTOPLACED_AUTO;
+    if( aAlgo == AUTOPLACE_AUTO || aAlgo == AUTOPLACE_MANUAL )
+        m_fieldsAutoplaced = aAlgo;
 }
 
 
-void SCH_SHEET::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> SCH_SHEET::ViewGetLayers() const
 {
-    aCount     = 8;
-    aLayers[0] = LAYER_DANGLING;     // Sheet pins are drawn by their parent sheet, so the
-                                     //   parent needs to draw to LAYER_DANGLING
-    aLayers[1] = LAYER_HIERLABEL;
-    aLayers[2] = LAYER_SHEETNAME;
-    aLayers[3] = LAYER_SHEETFILENAME;
-    aLayers[4] = LAYER_SHEETFIELDS;
-    aLayers[5] = LAYER_SHEET;
-    aLayers[6] = LAYER_SHEET_BACKGROUND;
-    aLayers[7] = LAYER_SELECTION_SHADOWS;
+    // Sheet pins are drawn by their parent sheet, so the parent needs to draw to LAYER_DANGLING
+    return { LAYER_DANGLING,    LAYER_HIERLABEL, LAYER_SHEETNAME,        LAYER_SHEETFILENAME,
+             LAYER_SHEETFIELDS, LAYER_SHEET,     LAYER_SHEET_BACKGROUND, LAYER_SELECTION_SHADOWS };
 }
 
 
@@ -815,6 +864,27 @@ void SCH_SHEET::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
     // Don't use GetShownText(); we want to see the variable references here
     aList.emplace_back( _( "File Name" ),
                         KIUI::EllipsizeStatusText( aFrame, m_fields[ SHEETFILENAME ].GetText() ) );
+
+    wxArrayString msgs;
+    wxString      msg;
+
+    if( GetExcludedFromSim() )
+        msgs.Add( _( "Simulation" ) );
+
+    if( GetExcludedFromBOM() )
+        msgs.Add( _( "BOM" ) );
+
+    if( GetExcludedFromBoard() )
+        msgs.Add( _( "Board" ) );
+
+    if( GetDNP() )
+        msgs.Add( _( "DNP" ) );
+
+    msg = wxJoin( msgs, '|' );
+    msg.Replace( '|', wxS( ", " ) );
+
+    if( !msg.empty() )
+        aList.emplace_back( _( "Exclude from" ), msg );
 }
 
 
@@ -841,12 +911,12 @@ void SCH_SHEET::Move( const VECTOR2I& aMoveVector )
 }
 
 
-void SCH_SHEET::Rotate( const VECTOR2I& aCenter )
+void SCH_SHEET::Rotate( const VECTOR2I& aCenter, bool aRotateCCW )
 {
     VECTOR2I prev = m_pos;
 
-    RotatePoint( m_pos, aCenter, ANGLE_90 );
-    RotatePoint( &m_size.x, &m_size.y, ANGLE_90 );
+    RotatePoint( m_pos, aCenter, aRotateCCW ? ANGLE_90 : ANGLE_270 );
+    RotatePoint( &m_size.x, &m_size.y, aRotateCCW ? ANGLE_90 : ANGLE_270 );
 
     if( m_size.x < 0 )
     {
@@ -863,11 +933,11 @@ void SCH_SHEET::Rotate( const VECTOR2I& aCenter )
     // Pins must be rotated first as that's how we determine vertical vs horizontal
     // orientation for auto-placement
     for( SCH_SHEET_PIN* sheetPin : m_pins )
-        sheetPin->Rotate( aCenter );
+        sheetPin->Rotate( aCenter, aRotateCCW );
 
-    if( m_fieldsAutoplaced == FIELDS_AUTOPLACED_AUTO )
+    if( m_fieldsAutoplaced == AUTOPLACE_AUTO || m_fieldsAutoplaced == AUTOPLACE_MANUAL )
     {
-        AutoplaceFields( /* aScreen */ nullptr, /* aManual */ false );
+        AutoplaceFields( nullptr, m_fieldsAutoplaced );
     }
     else
     {
@@ -939,8 +1009,8 @@ void SCH_SHEET::Resize( const VECTOR2I& aSize )
     m_size = aSize;
 
     // Move the fields if we're in autoplace mode
-    if( m_fieldsAutoplaced == FIELDS_AUTOPLACED_AUTO )
-        AutoplaceFields( /* aScreen */ nullptr, /* aManual */ false );
+    if( m_fieldsAutoplaced == AUTOPLACE_AUTO || m_fieldsAutoplaced == AUTOPLACE_MANUAL )
+        AutoplaceFields( nullptr, m_fieldsAutoplaced );
 
     // Move the sheet labels according to the new sheet size.
     for( SCH_SHEET_PIN* sheetPin : m_pins )
@@ -1104,10 +1174,11 @@ void SCH_SHEET::RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction
 }
 
 
-wxString SCH_SHEET::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString SCH_SHEET::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     return wxString::Format( _( "Hierarchical Sheet %s" ),
-                             KIUI::EllipsizeMenuText( m_fields[ SHEETNAME ].GetText() ) );
+                             aFull ? m_fields[ SHEETNAME ].GetShownText( false )
+                                   : KIUI::EllipsizeMenuText( m_fields[ SHEETNAME ].GetText() ) );
 }
 
 
@@ -1140,21 +1211,20 @@ bool SCH_SHEET::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) co
 }
 
 
-void SCH_SHEET::Plot( PLOTTER* aPlotter, bool aBackground,
-                      const SCH_PLOT_SETTINGS& aPlotSettings ) const
+void SCH_SHEET::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
+                      int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed )
 {
     if( aBackground && !aPlotter->GetColorMode() )
         return;
 
-    auto*    settings = dynamic_cast<KIGFX::SCH_RENDER_SETTINGS*>( aPlotter->RenderSettings() );
-    bool     override = settings ? settings->m_OverrideItemColors : false;
-    COLOR4D  borderColor = GetBorderColor();
-    COLOR4D  backgroundColor = GetBackgroundColor();
+    SCH_RENDER_SETTINGS* renderSettings = getRenderSettings( aPlotter );
+    COLOR4D              borderColor = GetBorderColor();
+    COLOR4D              backgroundColor = GetBackgroundColor();
 
-    if( override || borderColor == COLOR4D::UNSPECIFIED )
+    if( renderSettings->m_OverrideItemColors || borderColor == COLOR4D::UNSPECIFIED )
         borderColor = aPlotter->RenderSettings()->GetLayerColor( LAYER_SHEET );
 
-    if( override || backgroundColor == COLOR4D::UNSPECIFIED )
+    if( renderSettings->m_OverrideItemColors || backgroundColor == COLOR4D::UNSPECIFIED )
         backgroundColor = aPlotter->RenderSettings()->GetLayerColor( LAYER_SHEET_BACKGROUND );
 
     if( aBackground && backgroundColor.a > 0.0 )
@@ -1166,48 +1236,78 @@ void SCH_SHEET::Plot( PLOTTER* aPlotter, bool aBackground,
     {
         aPlotter->SetColor( borderColor );
 
-        int penWidth = std::max( GetPenWidth(), aPlotter->RenderSettings()->GetMinPenWidth() );
+        int penWidth = GetEffectivePenWidth( getRenderSettings( aPlotter ) );
         aPlotter->Rect( m_pos, m_pos + m_size, FILL_T::NO_FILL, penWidth );
     }
 
     // Make the sheet object a clickable hyperlink (e.g. for PDF plotter)
-    std::vector<wxString> properties;
-
-    properties.emplace_back( EDA_TEXT::GotoPageHref( findSelf().GetPageNumber() ) );
-
-    for( const SCH_FIELD& field : GetFields() )
+    if( aPlotOpts.m_PDFHierarchicalLinks )
     {
-        properties.emplace_back( wxString::Format( wxT( "!%s = %s" ),
-                                                   field.GetName(),
-                                                   field.GetShownText( false ) ) );
+        aPlotter->HyperlinkBox( GetBoundingBox(),
+                                EDA_TEXT::GotoPageHref( findSelf().GetPageNumber() ) );
     }
+    else if( aPlotOpts.m_PDFPropertyPopups )
+    {
+        std::vector<wxString> properties;
 
-    aPlotter->HyperlinkMenu( GetBoundingBox(), properties );
+        properties.emplace_back( EDA_TEXT::GotoPageHref( findSelf().GetPageNumber() ) );
+
+        for( const SCH_FIELD& field : GetFields() )
+        {
+            properties.emplace_back( wxString::Format( wxT( "!%s = %s" ), field.GetName(),
+                                                       field.GetShownText( false ) ) );
+        }
+
+        aPlotter->HyperlinkMenu( GetBoundingBox(), properties );
+    }
 
     // Plot sheet pins
     for( SCH_SHEET_PIN* sheetPin : m_pins )
-        sheetPin->Plot( aPlotter, aBackground, aPlotSettings );
+        sheetPin->Plot( aPlotter, aBackground, aPlotOpts, aUnit, aBodyStyle, aOffset, aDimmed );
 
     // Plot the fields
-    for( const SCH_FIELD& field : m_fields )
-        field.Plot( aPlotter, aBackground, aPlotSettings );
+    for( SCH_FIELD& field : m_fields )
+        field.Plot( aPlotter, aBackground, aPlotOpts, aUnit, aBodyStyle, aOffset, aDimmed );
+
+    if( GetDNP() )
+    {
+        COLOR_SETTINGS* colors = Pgm().GetSettingsManager().GetColorSettings();
+        BOX2I           bbox = GetBodyBoundingBox();
+        BOX2I           pins = GetBoundingBox();
+        VECTOR2D        margins( std::max( bbox.GetX() - pins.GetX(),
+                                           pins.GetEnd().x - bbox.GetEnd().x ),
+                                 std::max( bbox.GetY() - pins.GetY(),
+                                           pins.GetEnd().y - bbox.GetEnd().y ) );
+        int             strokeWidth = 3.0 * schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS );
+
+        margins.x = std::max( margins.x * 0.6, margins.y * 0.3 );
+        margins.y = std::max( margins.y * 0.6, margins.x * 0.3 );
+        bbox.Inflate( KiROUND( margins.x ), KiROUND( margins.y ) );
+
+        aPlotter->SetColor( colors->GetColor( LAYER_DNP_MARKER ) );
+
+        aPlotter->ThickSegment( bbox.GetOrigin(), bbox.GetEnd(), strokeWidth, FILLED, nullptr );
+
+        aPlotter->ThickSegment( bbox.GetOrigin() + VECTOR2I( bbox.GetWidth(), 0 ),
+                                bbox.GetOrigin() + VECTOR2I( 0, bbox.GetHeight() ),
+                                strokeWidth, FILLED, nullptr );
+    }
 }
 
 
-void SCH_SHEET::Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset )
+void SCH_SHEET::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                       const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
 {
-    wxDC*       DC = aSettings->GetPrintDC();
-    VECTOR2I    pos = m_pos + aOffset;
-    int         lineWidth = std::max( GetPenWidth(), aSettings->GetDefaultPenWidth() );
-    const auto* settings = dynamic_cast<const KIGFX::SCH_RENDER_SETTINGS*>( aSettings );
-    bool        override = settings && settings->m_OverrideItemColors;
-    COLOR4D     border = GetBorderColor();
-    COLOR4D     background = GetBackgroundColor();
+    wxDC*    DC = aSettings->GetPrintDC();
+    VECTOR2I pos = m_pos + aOffset;
+    int      lineWidth = GetEffectivePenWidth( aSettings );
+    COLOR4D  border = GetBorderColor();
+    COLOR4D  background = GetBackgroundColor();
 
-    if( override || border == COLOR4D::UNSPECIFIED )
+    if( aSettings->m_OverrideItemColors || border == COLOR4D::UNSPECIFIED )
         border = aSettings->GetLayerColor( LAYER_SHEET );
 
-    if( override || background == COLOR4D::UNSPECIFIED )
+    if( aSettings->m_OverrideItemColors || background == COLOR4D::UNSPECIFIED )
         background = aSettings->GetLayerColor( LAYER_SHEET_BACKGROUND );
 
     if( GetGRForceBlackPenState() )     // printing in black & white
@@ -1219,10 +1319,33 @@ void SCH_SHEET::Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset
     GRRect( DC, pos, pos + m_size, lineWidth, border );
 
     for( SCH_FIELD& field : m_fields )
-        field.Print( aSettings, aOffset );
+        field.Print( aSettings, aUnit, aBodyStyle, aOffset, aForceNoFill, aDimmed );
 
     for( SCH_SHEET_PIN* sheetPin : m_pins )
-        sheetPin->Print( aSettings, aOffset );
+        sheetPin->Print( aSettings, aUnit, aBodyStyle, aOffset, aForceNoFill, aDimmed );
+
+    if( GetDNP() )
+    {
+        BOX2I    bbox = GetBodyBoundingBox();
+        BOX2I    pins = GetBoundingBox();
+        COLOR4D  dnp_color = aSettings->GetLayerColor( LAYER_DNP_MARKER );
+        VECTOR2D margins( std::max( bbox.GetX() - pins.GetX(), pins.GetEnd().x - bbox.GetEnd().x ),
+                          std::max( bbox.GetY() - pins.GetY(),
+                                    pins.GetEnd().y - bbox.GetEnd().y ) );
+
+        margins.x = std::max( margins.x * 0.6, margins.y * 0.3 );
+        margins.y = std::max( margins.y * 0.6, margins.x * 0.3 );
+        bbox.Inflate( KiROUND( margins.x ), KiROUND( margins.y ) );
+
+        GRFilledSegment( DC, bbox.GetOrigin(), bbox.GetEnd(),
+                             3.0 * schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS ),
+                             dnp_color );
+
+        GRFilledSegment( DC, bbox.GetOrigin() + VECTOR2I( bbox.GetWidth(), 0 ),
+                             bbox.GetOrigin() + VECTOR2I( 0, bbox.GetHeight() ),
+                             3.0 * schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS ),
+                             dnp_color );
+    }
 }
 
 
@@ -1424,7 +1547,7 @@ bool SCH_SHEET::HasPageNumberChanges( const SCH_SHEET& aOther ) const
     std::vector<SCH_SHEET_INSTANCE> instances = GetInstances();
     std::vector<SCH_SHEET_INSTANCE> otherInstances = aOther.GetInstances();
 
-    // Sorting may not be necessary but there is no guaratee that sheet
+    // Sorting may not be necessary but there is no guarantee that sheet
     // instance data will be in the correct KIID_PATH order.  We should
     // probably use a std::map instead of a std::vector to store the sheet
     // instance data.
@@ -1513,6 +1636,18 @@ bool SCH_SHEET::operator==( const SCH_ITEM& aOther ) const
     if( m_size != other->m_size )
         return false;
 
+    if( GetExcludedFromSim() != other->GetExcludedFromSim() )
+        return false;
+
+    if( GetExcludedFromBOM() != other->GetExcludedFromBOM() )
+        return false;
+
+    if( GetExcludedFromBoard() != other->GetExcludedFromBoard() )
+        return false;
+
+    if( GetDNP() != other->GetDNP() )
+        return false;
+
     if( GetBorderColor() != other->GetBorderColor() )
         return false;
 
@@ -1588,5 +1723,22 @@ static struct SCH_SHEET_DESC
 
         propMgr.AddProperty( new PROPERTY<SCH_SHEET, COLOR4D>( _HKI( "Background Color" ),
                              &SCH_SHEET::SetBackgroundColor, &SCH_SHEET::GetBackgroundColor ) );
+
+        const wxString groupAttributes = _HKI( "Attributes" );
+
+        propMgr.AddProperty( new PROPERTY<SCH_SHEET, bool>( _HKI( "Exclude From Board" ),
+                    &SCH_SHEET::SetExcludedFromBoard, &SCH_SHEET::GetExcludedFromBoard ),
+                    groupAttributes );
+        propMgr.AddProperty( new PROPERTY<SCH_SHEET, bool>( _HKI( "Exclude From Simulation" ),
+                    &SCH_SHEET::SetExcludedFromSim, &SCH_SHEET::GetExcludedFromSim ),
+                    groupAttributes );
+        propMgr.AddProperty(
+                new PROPERTY<SCH_SHEET, bool>( _HKI( "Exclude From Bill of Materials" ),
+                                               &SCH_SHEET::SetExcludedFromBOM,
+                                               &SCH_SHEET::GetExcludedFromBOM ),
+                groupAttributes );
+        propMgr.AddProperty( new PROPERTY<SCH_SHEET, bool>( _HKI( "Do not Populate" ),
+                    &SCH_SHEET::SetDNP, &SCH_SHEET::GetDNP ),
+                    groupAttributes );
     }
 } _SCH_SHEET_DESC;

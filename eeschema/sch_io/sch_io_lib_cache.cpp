@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Wayne Stambaugh <stambaughw@gmail.com>
  *
@@ -103,7 +103,7 @@ LIB_SYMBOL* SCH_IO_LIB_CACHE::removeSymbol( LIB_SYMBOL* aSymbol )
 
     // If the entry pointer doesn't match the name it is mapped to in the library, we
     // have done something terribly wrong.
-    wxCHECK_MSG( *it->second == aSymbol, nullptr,
+    wxCHECK_MSG( &*it->second == aSymbol, nullptr,
                  "Pointer mismatch while attempting to remove alias entry <" + aSymbol->GetName() +
                  "> from library cache <" + m_libFileName.GetName() + ">." );
 
@@ -123,17 +123,17 @@ LIB_SYMBOL* SCH_IO_LIB_CACHE::removeSymbol( LIB_SYMBOL* aSymbol )
 
         if( firstChild )
         {
-            for( LIB_ITEM& drawItem : aSymbol->GetDrawItems() )
+            for( SCH_ITEM& drawItem : aSymbol->GetDrawItems() )
             {
-                if( drawItem.Type() == LIB_FIELD_T )
+                if( drawItem.Type() == SCH_FIELD_T )
                 {
-                    LIB_FIELD& field = static_cast<LIB_FIELD&>( drawItem );
+                    SCH_FIELD& field = static_cast<SCH_FIELD&>( drawItem );
 
                     if( firstChild->FindField( field.GetCanonicalName() ) )
                         continue;
                 }
 
-                LIB_ITEM* newItem = (LIB_ITEM*) drawItem.Clone();
+                SCH_ITEM* newItem = (SCH_ITEM*) drawItem.Clone();
                 drawItem.SetParent( firstChild );
                 firstChild->AddDrawItem( newItem );
             }

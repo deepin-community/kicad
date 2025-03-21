@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009 Wayne Stambaugh <stambaughw@verizon.net>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -35,11 +35,16 @@ PANEL_SYM_EDITING_OPTIONS::PANEL_SYM_EDITING_OPTIONS( wxWindow* aWindow,
                                                       UNITS_PROVIDER* aUnitsProvider,
                                                       wxWindow* aEventSource ) :
         PANEL_SYM_EDITING_OPTIONS_BASE( aWindow ),
-        m_lineWidth( aUnitsProvider, aEventSource, m_lineWidthLabel, m_lineWidthCtrl, m_lineWidthUnits ),
-        m_textSize( aUnitsProvider, aEventSource, m_textSizeLabel, m_textSizeCtrl, m_textSizeUnits ),
-        m_pinLength( aUnitsProvider, aEventSource, m_pinLengthLabel, m_pinLengthCtrl, m_pinLengthUnits ),
-        m_pinNameSize( aUnitsProvider, aEventSource ,m_pinNameSizeLabel, m_pinNameSizeCtrl, m_pinNameSizeUnits ),
-        m_pinNumberSize( aUnitsProvider, aEventSource, m_pinNumSizeLabel, m_pinNumSizeCtrl, m_pinNumSizeUnits ),
+        m_lineWidth( aUnitsProvider, aEventSource, m_lineWidthLabel, m_lineWidthCtrl,
+                     m_lineWidthUnits ),
+        m_textSize( aUnitsProvider, aEventSource, m_textSizeLabel, m_textSizeCtrl,
+                    m_textSizeUnits ),
+        m_pinLength( aUnitsProvider, aEventSource, m_pinLengthLabel, m_pinLengthCtrl,
+                     m_pinLengthUnits ),
+        m_pinNameSize( aUnitsProvider, aEventSource ,m_pinNameSizeLabel, m_pinNameSizeCtrl,
+                       m_pinNameSizeUnits ),
+        m_pinNumberSize( aUnitsProvider, aEventSource, m_pinNumSizeLabel, m_pinNumSizeCtrl,
+                         m_pinNumSizeUnits ),
         m_pinPitch( aUnitsProvider, aEventSource, m_pinPitchLabel, m_pinPitchCtrl, m_pinPitchUnits )
 {
     m_widthHelpText->SetFont( KIUI::GetInfoFont( this ).Italic() );
@@ -55,16 +60,16 @@ void PANEL_SYM_EDITING_OPTIONS::loadSymEditorSettings( SYMBOL_EDITOR_SETTINGS* a
     m_pinNameSize.SetValue( schIUScale.MilsToIU( aCfg->m_Defaults.pin_name_size ) );
     m_pinPitch.SetValue( schIUScale.MilsToIU( aCfg->m_Repeat.pin_step ) );
     m_spinRepeatLabel->SetValue( aCfg->m_Repeat.label_delta );
-    m_cbShowPinElectricalType->SetValue( aCfg->m_ShowPinElectricalType );
+    m_dragPinsWithEdges->SetValue( aCfg->m_dragPinsAlongWithEdges );
 }
 
 
 bool PANEL_SYM_EDITING_OPTIONS::TransferDataToWindow()
 {
     SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
-    SYMBOL_EDITOR_SETTINGS* settings = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>();
+    SYMBOL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" );
 
-    loadSymEditorSettings( settings );
+    loadSymEditorSettings( cfg );
 
     return true;
 }
@@ -73,19 +78,19 @@ bool PANEL_SYM_EDITING_OPTIONS::TransferDataToWindow()
 bool PANEL_SYM_EDITING_OPTIONS::TransferDataFromWindow()
 {
     SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
-    SYMBOL_EDITOR_SETTINGS* settings = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>();
+    SYMBOL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" );
 
-    settings->m_Defaults.line_width = schIUScale.IUToMils( m_lineWidth.GetIntValue() );
-    settings->m_Defaults.text_size = schIUScale.IUToMils( m_textSize.GetIntValue() );
-    settings->m_Defaults.pin_length = schIUScale.IUToMils( m_pinLength.GetIntValue() );
-    settings->m_Defaults.pin_num_size = schIUScale.IUToMils( m_pinNumberSize.GetIntValue() );
-    settings->m_Defaults.pin_name_size = schIUScale.IUToMils( m_pinNameSize.GetIntValue() );
-    settings->m_Repeat.label_delta = m_spinRepeatLabel->GetValue();
-    settings->m_Repeat.pin_step = schIUScale.IUToMils( m_pinPitch.GetIntValue() );
-    settings->m_ShowPinElectricalType = m_cbShowPinElectricalType->GetValue();
+    cfg->m_Defaults.line_width = schIUScale.IUToMils( m_lineWidth.GetIntValue() );
+    cfg->m_Defaults.text_size = schIUScale.IUToMils( m_textSize.GetIntValue() );
+    cfg->m_Defaults.pin_length = schIUScale.IUToMils( m_pinLength.GetIntValue() );
+    cfg->m_Defaults.pin_num_size = schIUScale.IUToMils( m_pinNumberSize.GetIntValue() );
+    cfg->m_Defaults.pin_name_size = schIUScale.IUToMils( m_pinNameSize.GetIntValue() );
+    cfg->m_Repeat.label_delta = m_spinRepeatLabel->GetValue();
+    cfg->m_Repeat.pin_step = schIUScale.IUToMils( m_pinPitch.GetIntValue() );
+    cfg->m_dragPinsAlongWithEdges = m_dragPinsWithEdges->GetValue();
 
     // Force pin_step to a grid multiple
-    settings->m_Repeat.pin_step = KiROUND( double( settings->m_Repeat.pin_step ) / MIN_GRID ) * MIN_GRID;
+    cfg->m_Repeat.pin_step = KiROUND( double( cfg->m_Repeat.pin_step ) / MIN_GRID ) * MIN_GRID;
 
     return true;
 }

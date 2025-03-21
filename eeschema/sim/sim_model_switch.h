@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mikolaj Wielgus
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,7 +36,7 @@ public:
 
     std::string ItemLine( const SPICE_ITEM& aItem ) const override;
     std::string ItemParams() const override;
-    std::vector<std::reference_wrapper<const SIM_MODEL::PIN>> GetPins() const override;
+    std::vector<std::reference_wrapper<const SIM_MODEL_PIN>> GetPins() const override;
 };
 
 

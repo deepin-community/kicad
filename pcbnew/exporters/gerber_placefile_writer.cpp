@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 Jean_Pierre Charras <jp.charras at wanadoo.fr>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -48,7 +48,7 @@ PLACEFILE_GERBER_WRITER::PLACEFILE_GERBER_WRITER( BOARD* aPcb )
 }
 
 
-int PLACEFILE_GERBER_WRITER::CreatePlaceFile( wxString& aFullFilename, PCB_LAYER_ID aLayer,
+int PLACEFILE_GERBER_WRITER::CreatePlaceFile( const wxString& aFullFilename, PCB_LAYER_ID aLayer,
                                               bool aIncludeBrdEdges )
 {
     m_layer = aLayer;
@@ -124,7 +124,7 @@ int PLACEFILE_GERBER_WRITER::CreatePlaceFile( wxString& aFullFilename, PCB_LAYER
     // defined size for component outlines
     int line_thickness = pcbIUScale.mmToIU( 0.1 );
 
-    brd_plotter.SetLayerSet( LSET( aLayer ) );
+    brd_plotter.SetLayerSet( LSET( { aLayer } ) );
     int cmp_count = 0;
     const bool allowUtf8 = true;
     const bool quoteOption = false;
@@ -291,9 +291,9 @@ int PLACEFILE_GERBER_WRITER::CreatePlaceFile( wxString& aFullFilename, PCB_LAYER
     // Plot board outlines, if requested
     if( aIncludeBrdEdges )
     {
-        brd_plotter.SetLayerSet( LSET( Edge_Cuts ) );
+        brd_plotter.SetLayerSet( LSET( { Edge_Cuts } ) );
 
-         // Plot edge layer and graphic items
+        // Plot edge layer and graphic items
         for( const BOARD_ITEM* item : m_pcb->Drawings() )
             brd_plotter.PlotBoardGraphicItem( item );
 

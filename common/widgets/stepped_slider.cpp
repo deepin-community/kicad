@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -79,11 +79,14 @@ void STEPPED_SLIDER::OnScroll( wxScrollEvent& aEvent )
     if( aEvent.GetEventType() == wxEVT_SCROLL_CHANGED )
     {
 #endif // __WXMSW__
+
         const int value = GetValue();
         const int rounded = value - value % m_step;
         SetValue( rounded );
+
 #ifdef __WXMSW__
     }
 #endif // __WXMSW__
+
     aEvent.Skip();
 }

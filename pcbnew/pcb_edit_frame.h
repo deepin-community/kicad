@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2010 Jean-Pierre Charras, jp.charras@wanadoo.fr
- * Copyright (C) 2010-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,6 +24,8 @@
 #include "pcb_base_edit_frame.h"
 #include "zones.h"
 #include <mail_type.h>
+#include <settings/app_settings.h>
+#include <variant>
 
 class ACTION_PLUGIN;
 class PCB_SCREEN;
@@ -31,7 +33,6 @@ class BOARD;
 class BOARD_COMMIT;
 class BOARD_ITEM_CONTAINER;
 class DIALOG_BOOK_REPORTER;
-class DIALOG_NET_INSPECTOR;
 class FOOTPRINT;
 class PCB_TRACK;
 class PCB_VIA;
@@ -57,7 +58,13 @@ class FP_LIB_TABLE;
 class BOARD_NETLIST_UPDATER;
 class ACTION_MENU;
 class TOOL_ACTION;
-class STRING_UTF8_MAP;
+class DIALOG_BOARD_SETUP;
+
+#ifdef KICAD_IPC_API
+class KICAD_API_SERVER;
+class API_HANDLER_PCB;
+class API_HANDLER_COMMON;
+#endif
 
 enum LAST_PATH_TYPE : unsigned int;
 
@@ -152,16 +159,12 @@ public:
      */
     void ToPlotter( int aID );
 
-    /**
-     * Show the Export to SVG file dialog.
-     */
-    void ExportSVG( wxCommandEvent& event );
-
     // User interface update command event handlers.
     void OnUpdateLayerSelectBox( wxUpdateUIEvent& aEvent );
 
     bool LayerManagerShown();
     bool PropertiesShown();
+    bool NetInspectorShown();
 
     void OnUpdateSelectViaSize( wxUpdateUIEvent& aEvent );
     void OnUpdateSelectTrackWidth( wxUpdateUIEvent& aEvent );
@@ -196,9 +199,9 @@ public:
 
     /**
      * Return ordered list of plugins in sequence in which they should appear on toolbar or
-     * in settings
+     * in settings.  Handles both legacy (SWIG) and API plugins, so returns a heterogenous list.
      */
-    static std::vector<ACTION_PLUGIN*> GetOrderedActionPlugins();
+    static std::vector<std::variant<ACTION_PLUGIN*, const PLUGIN_ACTION*>> GetOrderedActionPlugins();
 
     void SaveProjectLocalSettings() override;
 
@@ -213,6 +216,11 @@ public:
     void LoadSettings( APP_SETTINGS_BASE* aCfg ) override;
 
     void SaveSettings( APP_SETTINGS_BASE* aCfg ) override;
+
+    /**
+     * Load the drawing sheet file.
+     */
+    void LoadDrawingSheet();
 
     /**
      * Get the last path for a particular type.
@@ -301,6 +309,9 @@ public:
     void PrepareLayerIndicator( bool aForceRebuild = false );
 
     void ToggleLayersManager();
+
+    void ToggleNetInspector();
+
     void ToggleSearch();
 
     /**
@@ -333,6 +344,11 @@ public:
      * Create and IPC2581 output file
     */
     void GenIPC2581File( wxCommandEvent& event );
+
+    /**
+     * Create and Generate ODB++ output files
+    */
+    void GenODBPPFiles( wxCommandEvent& event );
 
     /**
      * Create an ASCII footprint report file giving some infos on footprints and board outlines.
@@ -407,9 +423,11 @@ public:
      *
      * @param aFileName The file name to write.
      * @param aCreateProject will create an empty project alongside the board file
+     * @param aHeadless will suppress informational output (e.g. to be used from the API)
      * @return True if file was saved successfully.
      */
-    bool SavePcbCopy( const wxString& aFileName, bool aCreateProject = false );
+    bool SavePcbCopy( const wxString& aFileName, bool aCreateProject = false,
+                      bool aHeadless = false );
 
     /**
      * Delete all and reinitialize the current board.
@@ -430,6 +448,8 @@ public:
 
     ///< @copydoc PCB_BASE_FRAME::GetModel()
     BOARD_ITEM_CONTAINER* GetModel() const override;
+
+    std::unique_ptr<GRID_HELPER> MakeGridHelper() override;
 
     ///< @copydoc PCB_BASE_FRAME::SetPageSettings()
     void SetPageSettings( const PAGE_INFO& aPageSettings ) override;
@@ -495,6 +515,7 @@ public:
      * @return true if Ok.
      */
     bool ExportVRML_File( const wxString& aFullFileName, double aMMtoWRMLunit,
+                          bool aIncludeUnspecified, bool aIncludeDNP,
                           bool aExport3DFiles, bool aUseRelativePaths,
                           const wxString& a3D_Subdir, double aXRef, double aYRef );
 
@@ -516,10 +537,13 @@ public:
      * @param aUseThou set to true if the desired IDF unit is thou (mil).
      * @param aXRef the board Reference Point in mm, X value.
      * @param aYRef the board Reference Point in mm, Y value.
+     * @param aIncludeUnspecified true to include unspecified-type footprint models
+     * @param aIncludeDNP true to include DNP footprint models
      * @return true if OK.
      */
     bool Export_IDF3( BOARD* aPcb, const wxString& aFullFileName,
-                      bool aUseThou, double aXRef, double aYRef );
+                      bool aUseThou, double aXRef, double aYRef,
+                      bool aIncludeUnspecified, bool aIncludeDNP );
 
     /**
      * Export the current BOARD to a STEP assembly.
@@ -561,7 +585,8 @@ public:
     void ExchangeFootprint( FOOTPRINT* aExisting, FOOTPRINT* aNew, BOARD_COMMIT& aCommit,
                             bool deleteExtraTexts = true, bool resetTextLayers = true,
                             bool resetTextEffects = true, bool resetFabricationAttrs = true,
-                            bool reset3DModels = true, bool* aUpdated = nullptr );
+                            bool resetTextContent = true, bool reset3DModels = true,
+                            bool* aUpdated = nullptr );
 
     /**
      * Install the corresponding dialog editor for the given item.
@@ -681,7 +706,7 @@ public:
     /**
      * Called after the preferences dialog is run.
      */
-    void CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged ) override;
+    void CommonSettingsChanged( int aFlags ) override;
 
     /**
      * Called when light/dark theme is changed.
@@ -689,6 +714,8 @@ public:
     void ThemeChanged() override;
 
     void ProjectChanged() override;
+
+    bool CanAcceptApiCommands() override;
 
     wxString GetCurrentFileName() const override;
 
@@ -703,8 +730,6 @@ public:
     DIALOG_BOOK_REPORTER* GetInspectClearanceDialog();
 
     DIALOG_BOOK_REPORTER* GetFootprintDiffDialog();
-
-    DIALOG_NET_INSPECTOR* GetNetInspectorDialog();
 
     DECLARE_EVENT_TABLE()
 
@@ -774,6 +799,8 @@ protected:
      */
     void OnActionPluginButton( wxCommandEvent& aEvent );
 
+    PLUGIN_ACTION_SCOPE PluginActionScope() const override { return PLUGIN_ACTION_SCOPE::PCB; }
+
     /**
      * Update the state of the GUI after a new board is loaded or created.
      */
@@ -794,7 +821,7 @@ protected:
      * @param aFileType PCB_FILE_T value for file type
      */
     bool importFile( const wxString& aFileName, int aFileType,
-                     const STRING_UTF8_MAP* aProperties = nullptr );
+                     const std::map<std::string, UTF8>* aProperties = nullptr );
 
     bool canCloseWindow( wxCloseEvent& aCloseEvent ) override;
     void doCloseWindow() override;
@@ -812,9 +839,9 @@ protected:
 
     void onCloseModelessBookReporterDialogs( wxCommandEvent& aEvent );
 
-    void onCloseNetInspectorDialog( wxCommandEvent& aEvent );
-
-    void onUnitsChanged( wxCommandEvent& aEvent );
+#ifdef KICAD_IPC_API
+    void onPluginAvailabilityChanged( wxCommandEvent& aEvt );
+#endif
 
 public:
     PCB_LAYER_BOX_SELECTOR* m_SelLayerBox; // a combo box to display and select active layer
@@ -824,6 +851,7 @@ public:
 
     bool m_show_layer_manager_tools;
     bool m_show_search;
+    bool m_show_net_inspector;
 
     bool m_ZoneFillsDirty;          // Board has been modified since last zone fill.
 
@@ -847,9 +875,9 @@ private:
     DIALOG_BOOK_REPORTER* m_inspectClearanceDlg;
     DIALOG_BOOK_REPORTER* m_inspectConstraintsDlg;
     DIALOG_BOOK_REPORTER* m_footprintDiffDlg;
-    DIALOG_NET_INSPECTOR* m_netInspectorDlg;
+    DIALOG_BOARD_SETUP*   m_boardSetupDlg;
 
-    const STRING_UTF8_MAP* m_importProperties; // Properties used for non-KiCad import.
+    const std::map<std::string, UTF8>* m_importProperties; // Properties used for non-KiCad import.
 
     /**
      * Keep track of viewport so that track net labels can be adjusted when it changes.
@@ -857,6 +885,11 @@ private:
     BOX2D        m_lastNetnamesViewport;
 
     wxTimer*     m_eventCounterTimer;
+
+#ifdef KICAD_IPC_API
+    std::unique_ptr<API_HANDLER_PCB> m_apiHandler;
+    std::unique_ptr<API_HANDLER_COMMON> m_apiHandlerCommon;
+#endif
 };
 
 #endif  // __PCB_EDIT_FRAME_H__

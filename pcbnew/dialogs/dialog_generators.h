@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -71,6 +71,9 @@ private:
     virtual void OnBoardItemChanged( BOARD& aBoard, BOARD_ITEM* aBoardItem ) override;
     virtual void OnBoardItemsChanged( BOARD&                    aBoard,
                                       std::vector<BOARD_ITEM*>& aBoardItems ) override;
+    virtual void OnBoardCompositeUpdate( BOARD& aBoard, std::vector<BOARD_ITEM*>& aAddedItems,
+                                         std::vector<BOARD_ITEM*>& aRemovedItems,
+                                         std::vector<BOARD_ITEM*>& aChangedItems ) override;
 
     std::map<wxString, std::vector<std::pair<wxString, wxString>>> m_columnNameTypes;
     std::map<wxString, wxDataViewListStore*>                       m_dataModels;

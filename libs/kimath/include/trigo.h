@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -63,20 +63,46 @@ bool SegmentIntersectsSegment( const VECTOR2I& a_p1_l1, const VECTOR2I& a_p2_l1,
  */
 void RotatePoint( int *pX, int *pY, const EDA_ANGLE& aAngle );
 
+/**
+ * Rotate a VECTOR2I in place by aAngle.
+ */
 inline void RotatePoint( VECTOR2I& point, const EDA_ANGLE& aAngle )
 {
     RotatePoint( &point.x, &point.y, aAngle );
 }
 
+/**
+ * Return a new VECTOR2I that is the result of rotating aVector by aAngle.
+ */
+inline VECTOR2I GetRotated( const VECTOR2I& aVector, const EDA_ANGLE& aAngle )
+{
+    VECTOR2I result = aVector;
+    RotatePoint( &result.x, &result.y, aAngle );
+    return result;
+}
 
 /**
  * Calculate the new point of coord coord pX, pY, for a rotation center cx, cy.
  */
 void RotatePoint( int *pX, int *pY, int cx, int cy, const EDA_ANGLE& aAngle );
 
-inline void RotatePoint( VECTOR2I& point, const VECTOR2I& centre, const EDA_ANGLE& aAngle )
+/**
+ * Rotate a VECTOR2I in place by aAngle about aCentre
+ */
+inline void RotatePoint( VECTOR2I& aPoint, const VECTOR2I& aCentre, const EDA_ANGLE& aAngle )
 {
-    RotatePoint( &point.x, &point.y, centre.x, centre.y, aAngle );
+    RotatePoint( &aPoint.x, &aPoint.y, aCentre.x, aCentre.y, aAngle );
+}
+
+/**
+ * Return a new VECTOR2I that is the result of rotating aVector by aAngle.
+ */
+inline VECTOR2I GetRotated( const VECTOR2I& aVector, const VECTOR2I& aCentre,
+                            const EDA_ANGLE& aAngle )
+{
+    VECTOR2I result = aVector;
+    RotatePoint( &result.x, &result.y, aCentre.x, aCentre.y, aAngle );
+    return result;
 }
 
 
@@ -125,54 +151,6 @@ const VECTOR2D CalcArcCenter( const VECTOR2D& aStart, const VECTOR2D& aEnd,
 const VECTOR2I CalcArcMid( const VECTOR2I& aStart, const VECTOR2I& aEnd, const VECTOR2I& aCenter,
                            bool aMinArcAngle = true );
 
-inline double EuclideanNorm( const VECTOR2I& vector )
-{
-    // this is working with doubles
-    return hypot( vector.x, vector.y );
-}
-
-/**
- * Compute the distance between a line and a reference point.
- *
- * Reference: http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html
- *
- * @param linePointA Point on line.
- * @param linePointB Point on line.
- * @param referencePoint Reference point.
- */
-inline double DistanceLinePoint( const VECTOR2I& linePointA, const VECTOR2I& linePointB,
-                                 const VECTOR2I& referencePoint )
-{
-    // Some of the multiple double casts are redundant. However in the previous definition
-    // the cast was (implicitly) done too late, just before the division (EuclideanNorm gives
-    // a double so from int it would be promoted); that means that the whole expression were
-    // vulnerable to overflow during int multiplications
-    return fabs( ( static_cast<double>( linePointB.x - linePointA.x ) *
-                   static_cast<double>( linePointA.y - referencePoint.y ) -
-                   static_cast<double>( linePointA.x  - referencePoint.x ) *
-                   static_cast<double>( linePointB.y - linePointA.y) )
-            / EuclideanNorm( linePointB - linePointA ) );
-}
-
-/**
- * Test if two points are near each other.
- *
- * @param pointA First point.
- * @param pointB Second point.
- * @param threshold The maximum distance.
- * @return true if \a pointA is within \a threshold of \a pointB otherwise false.
- */
-inline bool HitTestPoints( const VECTOR2I& pointA, const VECTOR2I& pointB, double threshold )
-{
-    VECTOR2I vectorAB = pointB - pointA;
-
-    // Compare the distances squared. The double is needed to avoid overflow during int
-    // multiplication
-    double sqdistance = (double)vectorAB.x * vectorAB.x + (double)vectorAB.y * vectorAB.y;
-
-    return sqdistance < threshold * threshold;
-}
-
 /**
  * Test if \a aRefPoint is with \a aDistance on the line defined by \a aStart and \a aEnd..
  *
@@ -183,18 +161,6 @@ inline bool HitTestPoints( const VECTOR2I& pointA, const VECTOR2I& pointB, doubl
 */
 bool TestSegmentHit( const VECTOR2I& aRefPoint, const VECTOR2I& aStart, const VECTOR2I& aEnd,
                      int aDist );
-
-/**
- * Return the length of a line segment defined by \a aPointA and \a aPointB.
- *
- * See also EuclideanNorm and Distance for the single vector or four scalar versions.
- *
- * @return Length of a line (as double)
- */
-inline double GetLineLength( const VECTOR2I& aPointA, const VECTOR2I& aPointB )
-{
-    return hypot( (double) aPointA.x - aPointB.x, (double) aPointA.y - aPointB.y );
-}
 
 // These are the usual degrees <-> radians conversion routines
 inline double DEG2RAD( double deg ) { return deg * M_PI / 180.0; }
@@ -273,31 +239,5 @@ inline bool InterceptsNegativeX( double aStartAngle, double aEndAngle )
 
     return aStartAngle < 180.0 && end > 180.0;
 }
-
-/**
- * Calculate the area of a parallelogram defined by \a aPointA, \a aPointB, and \a aPointC.
- *                     B ______________________
- *                      /                      /
- *                     /                      /
- *                    /______________________/
- *                   A                       C
- * The area of a parallelogram is the cross product of the vectors A->B and A->C.
- * The order of the vertices is not important, the result will be the same (modulo sign).
- */
-template <class T>
-inline typename VECTOR2<T>::extended_type
-ParallelogramArea( const VECTOR2<T>& aPointA, const VECTOR2<T>& aPointB, const VECTOR2<T>& aPointC )
-{
-    VECTOR2<T> v1 = aPointB - aPointA;
-    VECTOR2<T> v2 = aPointC - aPointA;
-    return v1.Cross( v2 );
-}
-
-/**
- * Test if a point hits a line segment within a given distance.  This is a faster version of
- * TestSegmentHit() that does not calculate the distance.
-*/
-bool TestSegmentHitFast( const VECTOR2I& aRefPoint, const VECTOR2I& aStart, const VECTOR2I& aEnd,
-                         int aDist );
 
 #endif

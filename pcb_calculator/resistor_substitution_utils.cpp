@@ -2,7 +2,7 @@
  * This program source code file
  * is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -87,8 +87,8 @@ private:
      * @param aResultFunc is a function calculating final result (RESISTANCE instance)
      * for this combination
      */
-    void addSolution( double aValue, RESISTANCE *aFound,
-                      std::function<RESISTANCE( RESISTANCE& )> aResultFunc )
+    void addSolution( double aValue, RESISTANCE* aFound,
+                      std::function<RESISTANCE( RESISTANCE& )>& aResultFunc )
     {
         double deviation = std::abs( aValue - m_target );
         if( deviation < m_best_deviation )

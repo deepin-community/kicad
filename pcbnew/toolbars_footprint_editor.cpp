@@ -4,7 +4,7 @@
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,6 +24,7 @@
 #include <footprint_edit_frame.h>
 #include <pcbnew_id.h>
 #include <bitmaps.h>
+#include <lset.h>
 #include <tool/action_toolbar.h>
 #include <tool/tool_manager.h>
 #include <tools/pcb_actions.h>
@@ -84,6 +85,7 @@ void FOOTPRINT_EDIT_FRAME::ReCreateHToolbar()
     m_mainToolBar->AddScaledSeparator( this );
     m_mainToolBar->Add( PCB_ACTIONS::footprintProperties );
     m_mainToolBar->Add( PCB_ACTIONS::defaultPadProperties );
+    m_mainToolBar->Add( ACTIONS::showDatasheet );
     m_mainToolBar->Add( PCB_ACTIONS::checkFootprint );
 
     m_mainToolBar->AddScaledSeparator( this );
@@ -165,13 +167,14 @@ void FOOTPRINT_EDIT_FRAME::ReCreateVToolbar()
     if( !dimensionGroup )
     {
         dimensionGroup = new ACTION_GROUP( "group.pcbDimensions",
-                                           { &PCB_ACTIONS::drawAlignedDimension,
-                                             &PCB_ACTIONS::drawOrthogonalDimension,
+                                           { &PCB_ACTIONS::drawOrthogonalDimension,
+                                             &PCB_ACTIONS::drawAlignedDimension,
                                              &PCB_ACTIONS::drawCenterDimension,
                                              &PCB_ACTIONS::drawRadialDimension,
                                              &PCB_ACTIONS::drawLeader } );
     }
 
+    // clang-format off
     m_drawToolBar->Add( ACTIONS::selectionTool,           ACTION_TOOLBAR::TOGGLE );
 
     m_drawToolBar->AddScaledSeparator( this );
@@ -184,9 +187,11 @@ void FOOTPRINT_EDIT_FRAME::ReCreateVToolbar()
     m_drawToolBar->Add( PCB_ACTIONS::drawRectangle,       ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( PCB_ACTIONS::drawCircle,          ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( PCB_ACTIONS::drawPolygon,         ACTION_TOOLBAR::TOGGLE );
+    m_drawToolBar->Add( PCB_ACTIONS::drawBezier,          ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( PCB_ACTIONS::placeReferenceImage, ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( PCB_ACTIONS::placeText,           ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( PCB_ACTIONS::drawTextBox,         ACTION_TOOLBAR::TOGGLE );
+    m_drawToolBar->Add( PCB_ACTIONS::drawTable,           ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->AddGroup( dimensionGroup,              ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( ACTIONS::deleteTool,              ACTION_TOOLBAR::TOGGLE );
 
@@ -194,6 +199,7 @@ void FOOTPRINT_EDIT_FRAME::ReCreateVToolbar()
     m_drawToolBar->Add( PCB_ACTIONS::setAnchor,           ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( PCB_ACTIONS::gridSetOrigin,       ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( ACTIONS::measureTool,             ACTION_TOOLBAR::TOGGLE );
+    // clang-format on
 
     PCB_SELECTION_TOOL* selTool = m_toolManager->GetTool<PCB_SELECTION_TOOL>();
 
@@ -248,7 +254,7 @@ void FOOTPRINT_EDIT_FRAME::ReCreateOptToolbar()
         m_optionsToolBar->Add( ACTIONS::toggleBoundingBoxes, ACTION_TOOLBAR::TOGGLE );
 
     m_optionsToolBar->AddScaledSeparator( this );
-    m_optionsToolBar->Add( PCB_ACTIONS::showFootprintTree,   ACTION_TOOLBAR::TOGGLE );
+    m_optionsToolBar->Add( ACTIONS::showLibraryTree,         ACTION_TOOLBAR::TOGGLE );
     m_optionsToolBar->Add( PCB_ACTIONS::showLayersManager,   ACTION_TOOLBAR::TOGGLE );
     m_optionsToolBar->Add( PCB_ACTIONS::showProperties,      ACTION_TOOLBAR::TOGGLE );
 

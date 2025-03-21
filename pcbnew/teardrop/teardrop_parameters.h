@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -48,14 +48,14 @@ class TEARDROP_PARAMETERS
 {
 public:
     TEARDROP_PARAMETERS():
-            m_Enabled( false ),
-            m_AllowUseTwoTracks( true ),
             m_TdMaxLen( pcbIUScale.mmToIU( 1.0 ) ),
             m_TdMaxWidth( pcbIUScale.mmToIU( 2.0 ) ),
             m_BestLengthRatio( 0.5),
             m_BestWidthRatio( 1.0 ),
-            m_CurveSegCount( 0 ),
             m_WidthtoSizeFilterRatio( 0.9 ),
+            m_CurvedEdges( false ),
+            m_Enabled( false ),
+            m_AllowUseTwoTracks( true ),
             m_TdOnPadsInZones( false )
     {
     }
@@ -81,17 +81,6 @@ public:
         m_BestWidthRatio = aHeightRatio;
     }
 
-    /**
-     * Set the params for teardrop using curved shape
-     * note: if aCurveSegCount is < 3, the shape uses a straight line
-     */
-    void SetTeardropCurvedPrm( int aCurveSegCount = 0 )
-    {
-        m_CurveSegCount = aCurveSegCount;
-    }
-
-    bool IsCurved() const { return m_CurveSegCount > 2; }
-
     bool operator== ( const TEARDROP_PARAMETERS& aOther ) const
     {
         return m_Enabled == aOther.m_Enabled &&
@@ -100,7 +89,7 @@ public:
                m_TdMaxWidth == aOther.m_TdMaxWidth &&
                m_BestLengthRatio == aOther.m_BestLengthRatio &&
                m_BestWidthRatio == aOther.m_BestWidthRatio &&
-               m_CurveSegCount == aOther.m_CurveSegCount &&
+               m_CurvedEdges == aOther.m_CurvedEdges &&
                m_WidthtoSizeFilterRatio == aOther.m_WidthtoSizeFilterRatio &&
                m_TdOnPadsInZones == aOther.m_TdOnPadsInZones;
     }
@@ -111,9 +100,6 @@ public:
     }
 
 public:
-    bool    m_Enabled;
-    /// True to create teardrops using 2 track segments if the first in too small
-    bool    m_AllowUseTwoTracks;
     /// max allowed length for teardrops in IU. <= 0 to disable
     int     m_TdMaxLen;
     /// max allowed height for teardrops in IU. <= 0 to disable
@@ -122,14 +108,18 @@ public:
     double  m_BestLengthRatio;
     /// The height of a teardrop as ratio between height and size of pad/via
     double  m_BestWidthRatio;
-    /// number of segments to build the curved sides of a teardrop area
-    /// must be > 2. for values <= 2 a straight line is used
-    int     m_CurveSegCount;
     /// The ratio (H/D) between the via/pad size and the track width max value to create a teardrop
     /// 1.0 (100 %) always creates a teardrop, 0.0 (0%) never create a teardrop
     double  m_WidthtoSizeFilterRatio;
+    /// True if the teardrop should be curved
+    bool    m_CurvedEdges;
+
+    /// Flag to enable teardrops
+    bool m_Enabled;
+    /// True to create teardrops using 2 track segments if the first in too small
+    bool m_AllowUseTwoTracks;
     /// A filter to exclude pads inside zone fills
-    bool    m_TdOnPadsInZones;
+    bool m_TdOnPadsInZones;
 };
 
 
@@ -143,10 +133,12 @@ class TEARDROP_PARAMETERS_LIST
     std::vector<TEARDROP_PARAMETERS> m_params_list;
 
 public:
-    /// True to create teardrops for vias and pads with holes
-    bool     m_TargetViasPads;
-    /// True to create teardrops for pads without holes (SMD and others
-    bool     m_TargetPadsWithNoHole;
+    /// True to create teardrops for vias
+    bool     m_TargetVias;
+    /// True to create teardrops for pads with holes
+    bool     m_TargetPTHPads;
+    /// True to create teardrops for pads SMD, edge connectors,
+    bool     m_TargetSMDPads;
     /// True to create teardrops at the end of a track connected to the end of
     /// another track having a different width
     bool     m_TargetTrack2Track;
@@ -155,8 +147,9 @@ public:
 
 public:
     TEARDROP_PARAMETERS_LIST() :
-            m_TargetViasPads( true ),
-            m_TargetPadsWithNoHole( true ),
+            m_TargetVias( true ),
+            m_TargetPTHPads( true ),
+            m_TargetSMDPads( true ),
             m_TargetTrack2Track( false ),
             m_UseRoundShapesOnly( false )
     {

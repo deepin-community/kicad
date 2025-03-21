@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2015-2023 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -40,17 +40,23 @@
 #include <preview_items/selection_area.h>
 #include <project_sch.h>
 #include <symbol_library.h>
-#include <sch_base_frame.h>
 #include <symbol_lib_table.h>
+#include <sch_base_frame.h>
+#include <design_block.h>
+#include <design_block_lib_table.h>
 #include <tool/action_toolbar.h>
 #include <tool/tool_manager.h>
 #include <tool/tool_dispatcher.h>
 #include <tools/ee_actions.h>
 #include <tools/ee_selection_tool.h>
+#include <view/view_controls.h>
 #include <wx/choicdlg.h>
+#include <wx/fswatcher.h>
 #include <wx/log.h>
+#include <wx/msgdlg.h>
 
 #include <navlib/nl_schematic_plugin.h>
+
 
 LIB_SYMBOL* SchGetLibSymbol( const LIB_ID& aLibId, SYMBOL_LIB_TABLE* aLibTable,
                              SYMBOL_LIB* aCacheLib, wxWindow* aParent, bool aShowErrorMsg )
@@ -68,7 +74,7 @@ LIB_SYMBOL* SchGetLibSymbol( const LIB_ID& aLibId, SYMBOL_LIB_TABLE* aLibTable,
             wxCHECK_MSG( aCacheLib->IsCache(), nullptr, wxS( "Invalid cache library." ) );
 
             wxString cacheName = aLibId.GetLibNickname().wx_str();
-            cacheName += "_" + aLibId.GetLibItemName();
+            cacheName << "_" << aLibId.GetLibItemName();
             symbol = aCacheLib->FindSymbol( cacheName );
         }
     }
@@ -92,7 +98,8 @@ SCH_BASE_FRAME::SCH_BASE_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aWindo
                                 const wxSize& aSize, long aStyle, const wxString& aFrameName ) :
         EDA_DRAW_FRAME( aKiway, aParent, aWindowType, aTitle, aPosition, aSize, aStyle,
                         aFrameName, schIUScale ),
-        m_base_frame_defaults( nullptr, "base_Frame_defaults" ), m_spaceMouse( nullptr )
+        m_base_frame_defaults( nullptr, "base_Frame_defaults" ),
+        m_selectionFilterPanel( nullptr )
 {
     if( ( aStyle & wxFRAME_NO_TASKBAR ) == 0 )
         createCanvas();
@@ -115,10 +122,9 @@ SCH_BASE_FRAME::SCH_BASE_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aWindo
 }
 
 
+/// Needs to be in the cpp file to encode the sizeof() for std::unique_ptr
 SCH_BASE_FRAME::~SCH_BASE_FRAME()
-{
-    delete m_spaceMouse;
-}
+{}
 
 
 SCH_SCREEN* SCH_BASE_FRAME::GetScreen() const
@@ -136,6 +142,22 @@ EESCHEMA_SETTINGS* SCH_BASE_FRAME::eeconfig() const
 SYMBOL_EDITOR_SETTINGS* SCH_BASE_FRAME::libeditconfig() const
 {
     return dynamic_cast<SYMBOL_EDITOR_SETTINGS*>( config() );
+}
+
+
+APP_SETTINGS_BASE* SCH_BASE_FRAME::GetViewerSettingsBase() const
+{
+    switch( GetFrameType() )
+    {
+    case FRAME_SCH:
+    default:
+        return Pgm().GetSettingsManager().GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
+
+    case FRAME_SCH_SYMBOL_EDITOR:
+    case FRAME_SCH_VIEWER:
+    case FRAME_SYMBOL_CHOOSER:
+        return Pgm().GetSettingsManager().GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" );
+    }
 }
 
 
@@ -324,12 +346,12 @@ SCH_DRAW_PANEL* SCH_BASE_FRAME::GetCanvas() const
 }
 
 
-KIGFX::SCH_RENDER_SETTINGS* SCH_BASE_FRAME::GetRenderSettings()
+SCH_RENDER_SETTINGS* SCH_BASE_FRAME::GetRenderSettings()
 {
     if( GetCanvas() && GetCanvas()->GetView() )
     {
         if( KIGFX::PAINTER* painter = GetCanvas()->GetView()->GetPainter() )
-            return static_cast<KIGFX::SCH_RENDER_SETTINGS*>( painter->GetSettings() );
+            return static_cast<SCH_RENDER_SETTINGS*>( painter->GetSettings() );
     }
 
     return nullptr;
@@ -353,7 +375,7 @@ void SCH_BASE_FRAME::ActivateGalCanvas()
     try
     {
         if( !m_spaceMouse )
-            m_spaceMouse = new NL_SCHEMATIC_PLUGIN();
+            m_spaceMouse = std::make_unique<NL_SCHEMATIC_PLUGIN>();
 
         m_spaceMouse->SetCanvas( GetCanvas() );
     }
@@ -380,11 +402,12 @@ void SCH_BASE_FRAME::UpdateItem( EDA_ITEM* aItem, bool isAddOrDelete, bool aUpda
             GetCanvas()->GetView()->Update( aItem );
 
         // Some children are drawn from their parents.  Mark them for re-paint.
-        if( parent && parent->IsType( { SCH_SYMBOL_T, SCH_SHEET_T, SCH_LABEL_LOCATE_ANY_T } ) )
+        if( parent
+          && parent->IsType( { SCH_SYMBOL_T, SCH_SHEET_T, SCH_LABEL_LOCATE_ANY_T, SCH_TABLE_T } ) )
             GetCanvas()->GetView()->Update( parent, KIGFX::REPAINT );
     }
 
-    /**
+    /*
      * Be careful when calling this.  Update will invalidate RTree iterators, so you cannot
      * call this while doing things like `for( SCH_ITEM* item : screen->Items() )`
      */
@@ -409,7 +432,6 @@ void SCH_BASE_FRAME::RefreshZoomDependentItems()
     //
     // Thus, as it currently stands, all zoom-dependent items can be found in the list of selected
     // items.
-
     if( m_toolManager )
     {
         EE_SELECTION_TOOL* selectionTool = m_toolManager->GetTool<EE_SELECTION_TOOL>();
@@ -439,14 +461,15 @@ void SCH_BASE_FRAME::AddToScreen( EDA_ITEM* aItem, SCH_SCREEN* aScreen )
     // Null pointers will cause boost::ptr_vector to raise a boost::bad_pointer exception which
     // will be unhandled.  There is no valid reason to pass an invalid EDA_ITEM pointer to the
     // screen append function.
-    wxCHECK( aItem != nullptr, /* void */ );
+    wxCHECK( aItem, /* void */ );
 
-    auto screen = aScreen;
+    SCH_SCREEN* screen = aScreen;
 
     if( aScreen == nullptr )
         screen = GetScreen();
 
-    screen->Append( (SCH_ITEM*) aItem );
+    if( aItem->Type() != SCH_TABLECELL_T )
+        screen->Append( (SCH_ITEM*) aItem );
 
     if( screen == GetScreen() )
     {
@@ -466,7 +489,8 @@ void SCH_BASE_FRAME::RemoveFromScreen( EDA_ITEM* aItem, SCH_SCREEN* aScreen )
     if( screen == GetScreen() )
         GetCanvas()->GetView()->Remove( aItem );
 
-    screen->Remove( (SCH_ITEM*) aItem );
+    if( aItem->Type() != SCH_TABLECELL_T )
+        screen->Remove( (SCH_ITEM*) aItem );
 
     if( screen == GetScreen() )
         UpdateItem( aItem, true );           // handle any additional parent semantics
@@ -489,9 +513,9 @@ COLOR4D SCH_BASE_FRAME::GetLayerColor( SCH_LAYER_ID aLayer )
 }
 
 
-void SCH_BASE_FRAME::CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged )
+void SCH_BASE_FRAME::CommonSettingsChanged( int aFlags )
 {
-    EDA_DRAW_FRAME::CommonSettingsChanged( aEnvVarsChanged, aTextVarsChanged );
+    EDA_DRAW_FRAME::CommonSettingsChanged( aFlags );
 
     COLOR_SETTINGS* colorSettings = GetColorSettings( true );
 
@@ -509,12 +533,13 @@ COLOR_SETTINGS* SCH_BASE_FRAME::GetColorSettings( bool aForceRefresh ) const
     if( !m_colorSettings || aForceRefresh )
     {
         SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-        EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>();
+        EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
         wxString           colorTheme = cfg->m_ColorTheme;
 
         if( IsType( FRAME_SCH_SYMBOL_EDITOR ) )
         {
-            SYMBOL_EDITOR_SETTINGS* symCfg = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>();
+            SYMBOL_EDITOR_SETTINGS* symCfg =
+                    mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" );
 
             if( !symCfg->m_UseEeschemaColorSettings )
                 colorTheme = symCfg->m_ColorTheme;
@@ -681,7 +706,11 @@ void SCH_BASE_FRAME::setSymWatcher( const LIB_ID* aID )
     fn.AssignDir( m_watcherFileName.GetPath() );
     fn.DontFollowLink();
 
-    m_watcher->AddTree( fn );
+    {
+        // Silence OS errors that come from the watcher
+        wxLogNull silence;
+        m_watcher->Add( fn );
+    }
 }
 
 
@@ -710,6 +739,7 @@ void SCH_BASE_FRAME::OnSymChange( wxFileSystemWatcherEvent& aEvent )
 void SCH_BASE_FRAME::OnSymChangeDebounceTimer( wxTimerEvent& aEvent )
 {
     wxLogTrace( "KICAD_LIB_WATCH", "OnSymChangeDebounceTimer" );
+
     // Disable logging to avoid spurious messages and check if the file has changed
     wxLog::EnableLogging( false );
     wxDateTime lastModified = m_watcherFileName.GetModificationTime();
@@ -720,8 +750,9 @@ void SCH_BASE_FRAME::OnSymChangeDebounceTimer( wxTimerEvent& aEvent )
 
     m_watcherLastModified = lastModified;
 
-    if( !GetScreen()->IsContentModified() || IsOK( this, _( "The library containing the current symbol has changed.\n"
-                                                            "Do you want to reload the library?" ) ) )
+    if( !GetScreen()->IsContentModified()
+      || IsOK( this, _( "The library containing the current symbol has changed.\n"
+                        "Do you want to reload the library?" ) ) )
     {
         wxLogTrace( "KICAD_LIB_WATCH", "Sending refresh symbol mail" );
         std::string libName = m_watcherFileName.GetFullPath().ToStdString();

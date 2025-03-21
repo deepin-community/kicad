@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2023 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -46,8 +46,8 @@ public:
 
     wxStyledTextCtrl* Scintilla() const { return m_te; }
 
-    void DoTextVarAutocomplete( std::function<void( const wxString& crossRef,
-                                                    wxArrayString* tokens )> aTokenProvider );
+    void DoTextVarAutocomplete(
+            const std::function<void( const wxString& xRef, wxArrayString* tokens )>& getTokensFn );
 
     void DoAutocomplete( const wxString& aPartial, const wxArrayString& aTokens );
 
@@ -58,7 +58,7 @@ protected:
 
     int firstNonWhitespace( int aLine, int* aWhitespaceCount = nullptr );
 
-    void onCharHook( wxKeyEvent& aEvent );
+    virtual void onCharHook( wxKeyEvent& aEvent );
     void onChar( wxStyledTextEvent& aEvent );
     void onModified( wxStyledTextEvent& aEvent );
     void onScintillaUpdateUI( wxStyledTextEvent& aEvent );
@@ -75,8 +75,8 @@ protected:
                                                    //  stop handling (including monospaced font).
 
     // Process <return> in singleLine, and <shift> + <return> irrespective.
-    std::function<void( wxKeyEvent& aEvent )>        m_onAcceptHandler;
-    std::function<void( wxStyledTextEvent& aEvent )> m_onCharAddedHandler;
+    std::function<void( wxKeyEvent& aEvent )>        m_onAcceptFn;
+    std::function<void( wxStyledTextEvent& aEvent )> m_onCharAddedFn;
 };
 
 #endif  // SCINTILLA_TRICKS_H

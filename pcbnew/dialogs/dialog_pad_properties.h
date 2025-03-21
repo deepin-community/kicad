@@ -4,7 +4,7 @@
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2013 Dick Hollenbeck, dick@softplc.com
  * Copyright (C) 2008-2013 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,7 +31,7 @@
 #include <wx/valnum.h>
 #include <board.h>
 #include <footprint.h>
-#include <pad_shapes.h>
+#include <padstack.h>
 #include <pcb_shape.h>
 #include <origin_viewitem.h>
 #include <dialog_pad_properties_base.h>
@@ -55,9 +55,11 @@ public:
 private:
     void prepareCanvas();       // Initialize the canvases (legacy or gal) to display the pad
     void initValues();
+    void initPadstackLayerValues();
     bool padValuesOK();         ///< test if all values are acceptable for the pad
     void redraw();
     void updateRoundRectCornerValues();
+    void afterPadstackModeChanged();
 
     /**
      * Updates the CheckBox states in pad layers list, based on the layer_mask (if non-empty)
@@ -76,7 +78,8 @@ private:
 	void OnCancel( wxCommandEvent& event ) override;
     void OnUpdateUI( wxUpdateUIEvent& event ) override;
     void onTeardropsUpdateUi( wxUpdateUIEvent& event ) override;
-    void onTeardropCurvePointsUpdateUi( wxUpdateUIEvent& event ) override;
+    void OnPadstackModeChanged( wxCommandEvent& event ) override;
+    void OnEditLayerChanged( wxCommandEvent& event ) override;
 
     void OnUpdateUINonCopperWarning( wxUpdateUIEvent& event ) override;
 
@@ -118,6 +121,9 @@ private:
     // Setting the X/Diameter label according to the selected hole type
     void updatePadSizeControls();
 
+    void onModify( wxCommandEvent& aEvent ) override;
+    void onModify( wxSpinDoubleEvent& aEvent ) override;
+
 private:
     PCB_BASE_FRAME* m_parent;
     PAD*            m_currentPad;       // pad currently being edited
@@ -125,9 +131,11 @@ private:
     PAD*            m_masterPad;        // pad used to create new pads in board or FP editor
     BOARD*          m_board;            // the main board: this is the board handled by the PCB
                                         //    editor or the dummy board used by the FP editor
-    bool            m_canUpdate;
+    bool            m_initialized;
     bool            m_canEditNetName;   // true only if the caller is the board editor
     bool            m_isFpEditor;       // true if the caller is the footprint editor
+    PCB_LAYER_ID    m_editLayer;        // Which copper layer of the padstack is being edited
+    std::map<int, PCB_LAYER_ID> m_editLayerCtrlMap;
 
     std::vector<std::shared_ptr<PCB_SHAPE>> m_primitives;     // the custom shape primitives in
                                                               // local coords, orient 0

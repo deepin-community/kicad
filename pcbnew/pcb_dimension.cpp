@@ -5,7 +5,7 @@
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
  * Copyright (C) 2023 CERN
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,7 +30,7 @@
 #include <base_units.h>
 #include <convert_basic_shapes_to_polygon.h>
 #include <font/font.h>
-#include <core/mirror.h>
+#include <board.h>
 #include <pcb_dimension.h>
 #include <pcb_text.h>
 #include <geometry/shape_compound.h>
@@ -39,9 +39,96 @@
 #include <settings/color_settings.h>
 #include <settings/settings_manager.h>
 #include <trigo.h>
+#include <api/api_enums.h>
+#include <api/api_utils.h>
+#include <api/board/board_types.pb.h>
 
+static const int INWARD_ARROW_LENGTH_TO_HEAD_RATIO = 2;
 
 static const EDA_ANGLE s_arrowAngle( 27.5, DEGREES_T );
+
+
+/**
+ * Find the intersection between a given segment and polygon outline.
+ *
+ * @param aPoly is the polygon to collide.
+ * @param aSeg is the segment to collide.
+ * @param aStart if true will start from aSeg.A, otherwise aSeg.B.
+ * @return a point on aSeg that collides with aPoly closest to the start, if one exists.
+ */
+static OPT_VECTOR2I segPolyIntersection( const SHAPE_POLY_SET& aPoly, const SEG& aSeg,
+                                         bool aStart = true )
+{
+    VECTOR2I start( aStart ? aSeg.A : aSeg.B );
+    VECTOR2I endpoint( aStart ? aSeg.B : aSeg.A );
+
+    if( aPoly.Contains( start ) )
+        return std::nullopt;
+
+    for( SHAPE_POLY_SET::CONST_SEGMENT_ITERATOR seg = aPoly.CIterateSegments(); seg; ++seg )
+    {
+        if( OPT_VECTOR2I intersection = ( *seg ).Intersect( aSeg ) )
+        {
+            if( ( *intersection - start ).SquaredEuclideanNorm()
+                < ( endpoint - start ).SquaredEuclideanNorm() )
+                endpoint = *intersection;
+        }
+    }
+
+    if( start == endpoint )
+        return std::nullopt;
+
+    return OPT_VECTOR2I( endpoint );
+}
+
+
+static OPT_VECTOR2I segCircleIntersection( CIRCLE& aCircle, SEG& aSeg, bool aStart = true )
+{
+    VECTOR2I start( aStart ? aSeg.A : aSeg.B );
+    VECTOR2I endpoint( aStart ? aSeg.B : aSeg.A );
+
+    if( aCircle.Contains( start ) )
+        return std::nullopt;
+
+    std::vector<VECTOR2I> intersections = aCircle.Intersect( aSeg );
+
+    for( VECTOR2I& intersection : aCircle.Intersect( aSeg ) )
+    {
+        if( ( intersection - start ).SquaredEuclideanNorm()
+            < ( endpoint - start ).SquaredEuclideanNorm() )
+            endpoint = intersection;
+    }
+
+    if( start == endpoint )
+        return std::nullopt;
+
+    return OPT_VECTOR2I( endpoint );
+}
+
+
+/**
+ * Knockout a polygon from a segment. This function will add 0, 1 or 2 segments to the
+ * vector, depending on how the polygon intersects the segment.
+ */
+static void CollectKnockedOutSegments( const SHAPE_POLY_SET& aPoly, const SEG& aSeg,
+                                       std::vector<std::shared_ptr<SHAPE>>& aSegmentsAfterKnockout )
+{
+    // Now we can draw 0, 1, or 2 crossbar lines depending on how the polygon collides
+    const bool containsA = aPoly.Contains( aSeg.A );
+    const bool containsB = aPoly.Contains( aSeg.B );
+
+    const OPT_VECTOR2I endpointA = segPolyIntersection( aPoly, aSeg );
+    const OPT_VECTOR2I endpointB = segPolyIntersection( aPoly, aSeg, false );
+
+    if( endpointA )
+        aSegmentsAfterKnockout.emplace_back( new SHAPE_SEGMENT( aSeg.A, *endpointA ) );
+
+    if( endpointB )
+        aSegmentsAfterKnockout.emplace_back( new SHAPE_SEGMENT( *endpointB, aSeg.B ) );
+
+    if( !containsA && !containsB && !endpointA && !endpointB )
+        aSegmentsAfterKnockout.emplace_back( new SHAPE_SEGMENT( aSeg ) );
+}
 
 
 PCB_DIMENSION_BASE::PCB_DIMENSION_BASE( BOARD_ITEM* aParent, KICAD_T aType ) :
@@ -50,6 +137,7 @@ PCB_DIMENSION_BASE::PCB_DIMENSION_BASE( BOARD_ITEM* aParent, KICAD_T aType ) :
         m_units( EDA_UNITS::INCHES ),
         m_autoUnits( false ),
         m_unitsFormat( DIM_UNITS_FORMAT::BARE_SUFFIX ),
+        m_arrowDirection( DIM_ARROW_DIRECTION::OUTWARD ),
         m_precision( DIM_PRECISION::X_XXXX ),
         m_suppressZeroes( false ),
         m_lineThickness( pcbIUScale.mmToIU( 0.2 ) ),
@@ -71,40 +159,46 @@ bool PCB_DIMENSION_BASE::operator==( const BOARD_ITEM& aOther ) const
 
     const PCB_DIMENSION_BASE& other = static_cast<const PCB_DIMENSION_BASE&>( aOther );
 
-    if( m_textPosition != other.m_textPosition )
+    return *this == other;
+}
+
+
+bool PCB_DIMENSION_BASE::operator==( const PCB_DIMENSION_BASE& aOther ) const
+{
+    if( m_textPosition != aOther.m_textPosition )
         return false;
 
-    if( m_keepTextAligned != other.m_keepTextAligned )
+    if( m_keepTextAligned != aOther.m_keepTextAligned )
         return false;
 
-    if( m_units != other.m_units )
+    if( m_units != aOther.m_units )
         return false;
 
-    if( m_autoUnits != other.m_autoUnits )
+    if( m_autoUnits != aOther.m_autoUnits )
         return false;
 
-    if( m_unitsFormat != other.m_unitsFormat )
+    if( m_unitsFormat != aOther.m_unitsFormat )
         return false;
 
-    if( m_precision != other.m_precision )
+    if( m_precision != aOther.m_precision )
         return false;
 
-    if( m_suppressZeroes != other.m_suppressZeroes )
+    if( m_suppressZeroes != aOther.m_suppressZeroes )
         return false;
 
-    if( m_lineThickness != other.m_lineThickness )
+    if( m_lineThickness != aOther.m_lineThickness )
         return false;
 
-    if( m_arrowLength != other.m_arrowLength )
+    if( m_arrowLength != aOther.m_arrowLength )
         return false;
 
-    if( m_extensionOffset != other.m_extensionOffset )
+    if( m_extensionOffset != aOther.m_extensionOffset )
         return false;
 
-    if( m_measuredValue != other.m_measuredValue )
+    if( m_measuredValue != aOther.m_measuredValue )
         return false;
 
-    return EDA_TEXT::operator==( other );
+    return EDA_TEXT::operator==( aOther );
 }
 
 
@@ -159,6 +253,107 @@ double PCB_DIMENSION_BASE::Similarity( const BOARD_ITEM& aOther ) const
 }
 
 
+void PCB_DIMENSION_BASE::Serialize( google::protobuf::Any &aContainer ) const
+{
+    using namespace kiapi::common;
+    using namespace kiapi::board::types;
+    Dimension dimension;
+
+    dimension.mutable_id()->set_value( m_Uuid.AsStdString() );
+    dimension.set_layer( ToProtoEnum<PCB_LAYER_ID, BoardLayer>( GetLayer() ) );
+    dimension.set_locked( IsLocked() ? types::LockedState::LS_LOCKED
+                                     : types::LockedState::LS_UNLOCKED );
+
+    google::protobuf::Any any;
+    EDA_TEXT::Serialize( any );
+    any.UnpackTo( dimension.mutable_text() );
+
+    types::Text* text = dimension.mutable_text();
+    text->set_text( GetValueText() );
+
+    dimension.set_override_text_enabled( m_overrideTextEnabled );
+    dimension.set_override_text( m_valueString.ToUTF8() );
+    dimension.set_prefix( m_prefix.ToUTF8() );
+    dimension.set_suffix( m_suffix.ToUTF8() );
+
+    dimension.set_unit( ToProtoEnum<DIM_UNITS_MODE, DimensionUnit>( GetUnitsMode() ) );
+    dimension.set_unit_format(
+            ToProtoEnum<DIM_UNITS_FORMAT, DimensionUnitFormat>( m_unitsFormat ) );
+    dimension.set_arrow_direction(
+            ToProtoEnum<DIM_ARROW_DIRECTION, DimensionArrowDirection>( m_arrowDirection ) );
+    dimension.set_precision( ToProtoEnum<DIM_PRECISION, DimensionPrecision>( m_precision ) );
+    dimension.set_suppress_trailing_zeroes( m_suppressZeroes );
+
+    dimension.mutable_line_thickness()->set_value_nm( m_lineThickness );
+    dimension.mutable_arrow_length()->set_value_nm( m_arrowLength );
+    dimension.mutable_extension_offset()->set_value_nm( m_extensionOffset );
+    dimension.set_text_position(
+            ToProtoEnum<DIM_TEXT_POSITION, DimensionTextPosition>( m_textPosition ) );
+    dimension.set_keep_text_aligned( m_keepTextAligned );
+
+    aContainer.PackFrom( dimension );
+}
+
+
+bool PCB_DIMENSION_BASE::Deserialize( const google::protobuf::Any &aContainer )
+{
+    using namespace kiapi::common;
+    kiapi::board::types::Dimension dimension;
+
+    if( !aContainer.UnpackTo( &dimension ) )
+        return false;
+
+    SetLayer( FromProtoEnum<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( dimension.layer() ) );
+    const_cast<KIID&>( m_Uuid ) = KIID( dimension.id().value() );
+    SetLocked( dimension.locked() == types::LockedState::LS_LOCKED );
+
+    google::protobuf::Any any;
+    any.PackFrom( dimension.text() );
+    EDA_TEXT::Deserialize( any );
+
+    SetOverrideTextEnabled( dimension.override_text_enabled() );
+    SetOverrideText( wxString::FromUTF8( dimension.override_text() ) );
+    SetPrefix( wxString::FromUTF8( dimension.prefix() ) );
+    SetSuffix( wxString::FromUTF8( dimension.suffix() ) );
+
+    SetUnitsMode( FromProtoEnum<DIM_UNITS_MODE>( dimension.unit() ) );
+    SetUnitsFormat( FromProtoEnum<DIM_UNITS_FORMAT>( dimension.unit_format() ) );
+    SetArrowDirection( FromProtoEnum<DIM_ARROW_DIRECTION>( dimension.arrow_direction() ) );
+    SetPrecision( FromProtoEnum<DIM_PRECISION>( dimension.precision() ) );
+    SetSuppressZeroes( dimension.suppress_trailing_zeroes() );
+
+    SetLineThickness( dimension.line_thickness().value_nm() );
+    SetArrowLength( dimension.arrow_length().value_nm() );
+    SetExtensionOffset( dimension.extension_offset().value_nm() );
+    SetTextPositionMode( FromProtoEnum<DIM_TEXT_POSITION>( dimension.text_position() ) );
+    SetKeepTextAligned( dimension.keep_text_aligned() );
+
+    Update();
+
+    return true;
+}
+
+
+void PCB_DIMENSION_BASE::drawAnArrow( VECTOR2I startPoint, EDA_ANGLE anAngle, int aLength )
+{
+    if( aLength )
+    {
+        VECTOR2I tailEnd( aLength, 0 );
+        RotatePoint( tailEnd, -anAngle );
+        m_shapes.emplace_back( new SHAPE_SEGMENT( startPoint, startPoint + tailEnd ) );
+    }
+
+    VECTOR2I arrowEndPos( m_arrowLength, 0 );
+    VECTOR2I arrowEndNeg( m_arrowLength, 0 );
+
+    RotatePoint( arrowEndPos, -anAngle + s_arrowAngle );
+    RotatePoint( arrowEndNeg, -anAngle - s_arrowAngle );
+
+    m_shapes.emplace_back( new SHAPE_SEGMENT( startPoint, startPoint + arrowEndPos ) );
+    m_shapes.emplace_back( new SHAPE_SEGMENT( startPoint, startPoint + arrowEndNeg ) );
+}
+
+
 void PCB_DIMENSION_BASE::updateText()
 {
     wxString text = m_overrideTextEnabled ? m_valueString : GetValueText();
@@ -194,7 +389,7 @@ void PCB_DIMENSION_BASE::ClearRenderCache()
     if( !m_inClearRenderCache )
     {
         m_inClearRenderCache = true;
-        updateText();
+        Update();
         m_inClearRenderCache = false;
     }
 }
@@ -313,6 +508,22 @@ void PCB_DIMENSION_BASE::SetUnitsMode( DIM_UNITS_MODE aMode )
 }
 
 
+void PCB_DIMENSION_BASE::ChangeTextAngleDegrees( double aDegrees )
+{
+    SetTextAngleDegrees( aDegrees );
+    // Create or repair any knockouts
+    Update();
+}
+
+
+void PCB_DIMENSION_BASE::ChangeKeepTextAligned( bool aKeepAligned )
+{
+    SetKeepTextAligned( aKeepAligned );
+    // Re-align the text and repair any knockouts
+    Update();
+}
+
+
 void PCB_DIMENSION_BASE::Move( const VECTOR2I& offset )
 {
     PCB_TEXT::Offset( offset );
@@ -343,40 +554,29 @@ void PCB_DIMENSION_BASE::Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aA
 }
 
 
-void PCB_DIMENSION_BASE::Flip( const VECTOR2I& aCentre, bool aFlipLeftRight )
+void PCB_DIMENSION_BASE::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
-    Mirror( aCentre );
+    Mirror( aCentre, aFlipDirection );
 
-    SetLayer( FlipLayer( GetLayer(), GetBoard()->GetCopperLayerCount() ) );
+    SetLayer( GetBoard()->FlipLayer( GetLayer() ) );
 }
 
 
-void PCB_DIMENSION_BASE::Mirror( const VECTOR2I& axis_pos, bool aMirrorLeftRight )
+void PCB_DIMENSION_BASE::Mirror( const VECTOR2I& axis_pos, FLIP_DIRECTION aFlipDirection )
 {
     VECTOR2I newPos = GetTextPos();
 
-    if( aMirrorLeftRight )
-        MIRROR( newPos.x, axis_pos.x );
-    else
-        MIRROR( newPos.y, axis_pos.y );
+    MIRROR( newPos, axis_pos, aFlipDirection );
 
     SetTextPos( newPos );
 
     // invert angle
     SetTextAngle( -GetTextAngle() );
 
-    if( aMirrorLeftRight )
-    {
-        MIRROR( m_start.x, axis_pos.x );
-        MIRROR( m_end.x, axis_pos.x );
-    }
-    else
-    {
-        MIRROR( m_start.y, axis_pos.y );
-        MIRROR( m_end.y, axis_pos.y );
-    }
+    MIRROR( m_start, axis_pos, aFlipDirection );
+    MIRROR( m_end, axis_pos, aFlipDirection );
 
-    if( ( GetLayerSet() & LSET::SideSpecificMask() ).any() )
+    if( IsSideSpecific() )
         SetMirrored( !IsMirrored() );
 
     Update();
@@ -544,10 +744,10 @@ const BOX2I PCB_DIMENSION_BASE::GetBoundingBox() const
 }
 
 
-wxString PCB_DIMENSION_BASE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString PCB_DIMENSION_BASE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     return wxString::Format( _( "Dimension '%s' on %s" ),
-                             KIUI::EllipsizeMenuText( GetText() ),
+                             aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ),
                              GetLayerName() );
 }
 
@@ -560,56 +760,6 @@ const BOX2I PCB_DIMENSION_BASE::ViewBBox() const
     dimBBox.Merge( PCB_TEXT::ViewBBox() );
 
     return dimBBox;
-}
-
-
-OPT_VECTOR2I PCB_DIMENSION_BASE::segPolyIntersection( const SHAPE_POLY_SET& aPoly, const SEG& aSeg,
-                                                      bool aStart )
-{
-    VECTOR2I start( aStart ? aSeg.A : aSeg.B );
-    VECTOR2I endpoint( aStart ? aSeg.B : aSeg.A );
-
-    if( aPoly.Contains( start ) )
-        return std::nullopt;
-
-    for( SHAPE_POLY_SET::CONST_SEGMENT_ITERATOR seg = aPoly.CIterateSegments(); seg; ++seg )
-    {
-        if( OPT_VECTOR2I intersection = ( *seg ).Intersect( aSeg ) )
-        {
-            if( ( *intersection - start ).SquaredEuclideanNorm() <
-                ( endpoint - start ).SquaredEuclideanNorm() )
-                endpoint = *intersection;
-        }
-    }
-
-    if( start == endpoint )
-        return std::nullopt;
-
-    return OPT_VECTOR2I( endpoint );
-}
-
-
-OPT_VECTOR2I PCB_DIMENSION_BASE::segCircleIntersection( CIRCLE& aCircle, SEG& aSeg, bool aStart )
-{
-    VECTOR2I start( aStart ? aSeg.A : aSeg.B );
-    VECTOR2I endpoint( aStart ? aSeg.B : aSeg.A );
-
-    if( aCircle.Contains( start ) )
-        return std::nullopt;
-
-    std::vector<VECTOR2I> intersections = aCircle.Intersect( aSeg );
-
-    for( VECTOR2I& intersection : aCircle.Intersect( aSeg ) )
-    {
-        if( ( intersection - start ).SquaredEuclideanNorm() <
-            ( endpoint - start ).SquaredEuclideanNorm() )
-            endpoint = intersection;
-    }
-
-    if( start == endpoint )
-        return std::nullopt;
-
-    return OPT_VECTOR2I( endpoint );
 }
 
 
@@ -658,6 +808,47 @@ EDA_ITEM* PCB_DIM_ALIGNED::Clone() const
 }
 
 
+void PCB_DIM_ALIGNED::Serialize( google::protobuf::Any &aContainer ) const
+{
+    using namespace kiapi::common;
+    kiapi::board::types::Dimension dimension;
+
+    PCB_DIMENSION_BASE::Serialize( aContainer );
+    aContainer.UnpackTo( &dimension );
+
+    PackVector2( *dimension.mutable_aligned()->mutable_start(), m_start );
+    PackVector2( *dimension.mutable_aligned()->mutable_end(), m_end );
+    dimension.mutable_aligned()->mutable_height()->set_value_nm( m_height );
+    dimension.mutable_aligned()->mutable_extension_height()->set_value_nm( m_extensionHeight );
+
+    aContainer.PackFrom( dimension );
+}
+
+
+bool PCB_DIM_ALIGNED::Deserialize( const google::protobuf::Any &aContainer )
+{
+    using namespace kiapi::common;
+
+    if( !PCB_DIMENSION_BASE::Deserialize( aContainer ) )
+        return false;
+
+    kiapi::board::types::Dimension dimension;
+    aContainer.UnpackTo( &dimension );
+
+    if( !dimension.has_aligned() )
+        return false;
+
+    SetStart( UnpackVector2( dimension.aligned().start() ) );
+    SetEnd( UnpackVector2( dimension.aligned().end() ) );
+    SetHeight( dimension.aligned().height().value_nm());
+    SetExtensionHeight( dimension.aligned().extension_height().value_nm() );
+
+    Update();
+
+    return true;
+}
+
+
 void PCB_DIM_ALIGNED::swapData( BOARD_ITEM* aImage )
 {
     wxASSERT( aImage->Type() == Type() );
@@ -671,11 +862,11 @@ void PCB_DIM_ALIGNED::swapData( BOARD_ITEM* aImage )
 }
 
 
-void PCB_DIM_ALIGNED::Mirror( const VECTOR2I& axis_pos, bool aMirrorLeftRight )
+void PCB_DIM_ALIGNED::Mirror( const VECTOR2I& axis_pos, FLIP_DIRECTION aFlipDirection )
 {
     m_height = -m_height;
     // Call this last for the Update()
-    PCB_DIMENSION_BASE::Mirror( axis_pos, aMirrorLeftRight );
+    PCB_DIMENSION_BASE::Mirror( axis_pos, aFlipDirection );
 }
 
 
@@ -750,32 +941,20 @@ void PCB_DIM_ALIGNED::updateGeometry()
     // The ideal crossbar, if the text doesn't collide
     SEG crossbar( m_crossBarStart, m_crossBarEnd );
 
-    // Now we can draw 0, 1, or 2 crossbar lines depending on how the polygon collides
-    bool containsA = polyBox.Contains( crossbar.A );
-    bool containsB = polyBox.Contains( crossbar.B );
+    CollectKnockedOutSegments( polyBox, crossbar, m_shapes );
 
-    OPT_VECTOR2I endpointA = segPolyIntersection( polyBox, crossbar );
-    OPT_VECTOR2I endpointB = segPolyIntersection( polyBox, crossbar, false );
-
-    if( endpointA )
-        m_shapes.emplace_back( new SHAPE_SEGMENT( crossbar.A, *endpointA ) );
-
-    if( endpointB )
-        m_shapes.emplace_back( new SHAPE_SEGMENT( *endpointB, crossbar.B ) );
-
-    if( !containsA && !containsB && !endpointA && !endpointB )
-        m_shapes.emplace_back( new SHAPE_SEGMENT( crossbar ) );
-
-    // Add arrows
-    VECTOR2I arrowEndPos( m_arrowLength, 0 );
-    VECTOR2I arrowEndNeg( m_arrowLength, 0 );
-    RotatePoint( arrowEndPos, -EDA_ANGLE( dimension ) + s_arrowAngle );
-    RotatePoint( arrowEndNeg, -EDA_ANGLE( dimension ) - s_arrowAngle );
-
-    m_shapes.emplace_back( new SHAPE_SEGMENT( m_crossBarStart, m_crossBarStart + arrowEndPos ) );
-    m_shapes.emplace_back( new SHAPE_SEGMENT( m_crossBarStart, m_crossBarStart + arrowEndNeg ) );
-    m_shapes.emplace_back( new SHAPE_SEGMENT( m_crossBarEnd, m_crossBarEnd - arrowEndPos ) );
-    m_shapes.emplace_back( new SHAPE_SEGMENT( m_crossBarEnd, m_crossBarEnd - arrowEndNeg ) );
+    if( m_arrowDirection == DIM_ARROW_DIRECTION::INWARD )
+    {
+        drawAnArrow( m_crossBarStart, EDA_ANGLE( dimension ) + EDA_ANGLE( 180 ),
+                     m_arrowLength * INWARD_ARROW_LENGTH_TO_HEAD_RATIO );
+        drawAnArrow( m_crossBarEnd, EDA_ANGLE( dimension ),
+                     m_arrowLength * INWARD_ARROW_LENGTH_TO_HEAD_RATIO );
+    }
+    else
+    {
+        drawAnArrow( m_crossBarStart, EDA_ANGLE( dimension ), 0 );
+        drawAnArrow( m_crossBarEnd, EDA_ANGLE( dimension ) + EDA_ANGLE( 180 ), 0 );
+    }
 }
 
 
@@ -849,6 +1028,53 @@ EDA_ITEM* PCB_DIM_ORTHOGONAL::Clone() const
 }
 
 
+void PCB_DIM_ORTHOGONAL::Serialize( google::protobuf::Any &aContainer ) const
+{
+    using namespace kiapi::common;
+    kiapi::board::types::Dimension dimension;
+
+    PCB_DIMENSION_BASE::Serialize( aContainer );
+    aContainer.UnpackTo( &dimension );
+
+    PackVector2( *dimension.mutable_orthogonal()->mutable_start(), m_start );
+    PackVector2( *dimension.mutable_orthogonal()->mutable_end(), m_end );
+    dimension.mutable_orthogonal()->mutable_height()->set_value_nm( m_height );
+    dimension.mutable_orthogonal()->mutable_extension_height()->set_value_nm( m_extensionHeight );
+
+    dimension.mutable_orthogonal()->set_alignment( m_orientation == DIR::VERTICAL
+                                                           ? types::AxisAlignment::AA_Y_AXIS
+                                                           : types::AxisAlignment::AA_X_AXIS );
+    aContainer.PackFrom( dimension );
+}
+
+
+bool PCB_DIM_ORTHOGONAL::Deserialize( const google::protobuf::Any &aContainer )
+{
+    using namespace kiapi::common;
+
+    if( !PCB_DIMENSION_BASE::Deserialize( aContainer ) )
+        return false;
+
+    kiapi::board::types::Dimension dimension;
+    aContainer.UnpackTo( &dimension );
+
+    if( !dimension.has_orthogonal() )
+        return false;
+
+    SetStart( UnpackVector2( dimension.orthogonal().start() ) );
+    SetEnd( UnpackVector2( dimension.orthogonal().end() ) );
+    SetHeight( dimension.orthogonal().height().value_nm());
+    SetExtensionHeight( dimension.orthogonal().extension_height().value_nm() );
+    SetOrientation( dimension.orthogonal().alignment() == types::AxisAlignment::AA_Y_AXIS
+                            ? DIR::VERTICAL
+                            : DIR::HORIZONTAL );
+
+    Update();
+
+    return true;
+}
+
+
 void PCB_DIM_ORTHOGONAL::swapData( BOARD_ITEM* aImage )
 {
     wxASSERT( aImage->Type() == Type() );
@@ -863,16 +1089,16 @@ void PCB_DIM_ORTHOGONAL::swapData( BOARD_ITEM* aImage )
 }
 
 
-void PCB_DIM_ORTHOGONAL::Mirror( const VECTOR2I& axis_pos, bool aMirrorLeftRight )
+void PCB_DIM_ORTHOGONAL::Mirror( const VECTOR2I& axis_pos, FLIP_DIRECTION aFlipDirection )
 {
     // Only reverse the height if the height is aligned with the flip
-    if( m_orientation == DIR::HORIZONTAL && !aMirrorLeftRight )
+    if( m_orientation == DIR::HORIZONTAL && aFlipDirection == FLIP_DIRECTION::TOP_BOTTOM )
         m_height = -m_height;
-    else if( m_orientation == DIR::VERTICAL && aMirrorLeftRight )
+    else if( m_orientation == DIR::VERTICAL && aFlipDirection == FLIP_DIRECTION::LEFT_RIGHT )
         m_height = -m_height;
 
     // Call this last, as we need the Update()
-    PCB_DIMENSION_BASE::Mirror( axis_pos, aMirrorLeftRight );
+    PCB_DIMENSION_BASE::Mirror( axis_pos, aFlipDirection );
 }
 
 
@@ -945,33 +1171,22 @@ void PCB_DIM_ORTHOGONAL::updateGeometry()
     // The ideal crossbar, if the text doesn't collide
     SEG crossbar( m_crossBarStart, m_crossBarEnd );
 
-    // Now we can draw 0, 1, or 2 crossbar lines depending on how the polygon collides
-    bool containsA = polyBox.Contains( crossbar.A );
-    bool containsB = polyBox.Contains( crossbar.B );
+    CollectKnockedOutSegments( polyBox, crossbar, m_shapes );
 
-    OPT_VECTOR2I endpointA = segPolyIntersection( polyBox, crossbar );
-    OPT_VECTOR2I endpointB = segPolyIntersection( polyBox, crossbar, false );
-
-    if( endpointA )
-        m_shapes.emplace_back( new SHAPE_SEGMENT( crossbar.A, *endpointA ) );
-
-    if( endpointB )
-        m_shapes.emplace_back( new SHAPE_SEGMENT( *endpointB, crossbar.B ) );
-
-    if( !containsA && !containsB && !endpointA && !endpointB )
-        m_shapes.emplace_back( new SHAPE_SEGMENT( crossbar ) );
-
-    // Add arrows
     EDA_ANGLE crossBarAngle( m_crossBarEnd - m_crossBarStart );
-    VECTOR2I  arrowEndPos( m_arrowLength, 0 );
-    VECTOR2I  arrowEndNeg( m_arrowLength, 0 );
-    RotatePoint( arrowEndPos, -crossBarAngle + s_arrowAngle );
-    RotatePoint( arrowEndNeg, -crossBarAngle - s_arrowAngle );
 
-    m_shapes.emplace_back( new SHAPE_SEGMENT( m_crossBarStart, m_crossBarStart + arrowEndPos ) );
-    m_shapes.emplace_back( new SHAPE_SEGMENT( m_crossBarStart, m_crossBarStart + arrowEndNeg ) );
-    m_shapes.emplace_back( new SHAPE_SEGMENT( m_crossBarEnd, m_crossBarEnd - arrowEndPos ) );
-    m_shapes.emplace_back( new SHAPE_SEGMENT( m_crossBarEnd, m_crossBarEnd - arrowEndNeg ) );
+    if( m_arrowDirection == DIM_ARROW_DIRECTION::INWARD )
+    {
+        // Arrows with fixed length.
+        drawAnArrow( m_crossBarStart, crossBarAngle + EDA_ANGLE( 180 ),
+                     m_arrowLength * INWARD_ARROW_LENGTH_TO_HEAD_RATIO );
+        drawAnArrow( m_crossBarEnd, crossBarAngle, m_arrowLength * INWARD_ARROW_LENGTH_TO_HEAD_RATIO );
+    }
+    else
+    {
+        drawAnArrow( m_crossBarStart, crossBarAngle, 0 );
+        drawAnArrow( m_crossBarEnd, crossBarAngle + EDA_ANGLE( 180 ), 0 );
+    }
 }
 
 
@@ -1072,6 +1287,47 @@ PCB_DIM_LEADER::PCB_DIM_LEADER( BOARD_ITEM* aParent ) :
 }
 
 
+void PCB_DIM_LEADER::Serialize( google::protobuf::Any &aContainer ) const
+{
+    using namespace kiapi::common;
+    kiapi::board::types::Dimension dimension;
+
+    PCB_DIMENSION_BASE::Serialize( aContainer );
+    aContainer.UnpackTo( &dimension );
+
+    PackVector2( *dimension.mutable_leader()->mutable_start(), m_start );
+    PackVector2( *dimension.mutable_leader()->mutable_end(), m_end );
+    dimension.mutable_leader()->set_border_style(
+            ToProtoEnum<DIM_TEXT_BORDER, kiapi::board::types::DimensionTextBorderStyle>(
+                    m_textBorder ) );
+
+    aContainer.PackFrom( dimension );
+}
+
+
+bool PCB_DIM_LEADER::Deserialize( const google::protobuf::Any &aContainer )
+{
+    using namespace kiapi::common;
+
+    if( !PCB_DIMENSION_BASE::Deserialize( aContainer ) )
+        return false;
+
+    kiapi::board::types::Dimension dimension;
+    aContainer.UnpackTo( &dimension );
+
+    if( !dimension.has_leader() )
+        return false;
+
+    SetStart( UnpackVector2( dimension.leader().start() ) );
+    SetEnd( UnpackVector2( dimension.leader().end() ) );
+    SetTextBorder( FromProtoEnum<DIM_TEXT_BORDER>( dimension.leader().border_style() ) );
+
+    Update();
+
+    return true;
+}
+
+
 EDA_ITEM* PCB_DIM_LEADER::Clone() const
 {
     return new PCB_DIM_LEADER( *this );
@@ -1151,15 +1407,7 @@ void PCB_DIM_LEADER::updateGeometry()
 
     m_shapes.emplace_back( new SHAPE_SEGMENT( start, *arrowSegEnd ) );
 
-    // Add arrows
-    VECTOR2I arrowEndPos( m_arrowLength, 0 );
-    VECTOR2I arrowEndNeg( m_arrowLength, 0 );
-    RotatePoint( arrowEndPos, -EDA_ANGLE( firstLine ) + s_arrowAngle );
-    RotatePoint( arrowEndNeg, -EDA_ANGLE( firstLine ) - s_arrowAngle );
-
-    m_shapes.emplace_back( new SHAPE_SEGMENT( start, start + arrowEndPos ) );
-    m_shapes.emplace_back( new SHAPE_SEGMENT( start, start + arrowEndNeg ) );
-
+    drawAnArrow( start, EDA_ANGLE( firstLine ), 0 );
 
     if( !GetText().IsEmpty() )
     {
@@ -1216,9 +1464,47 @@ PCB_DIM_RADIAL::PCB_DIM_RADIAL( BOARD_ITEM* aParent ) :
     m_unitsFormat         = DIM_UNITS_FORMAT::NO_SUFFIX;
     m_overrideTextEnabled = false;
     m_keepTextAligned     = true;
-    m_isDiameter          = false;
     m_prefix              = "R ";
     m_leaderLength        = m_arrowLength * 3;
+}
+
+
+void PCB_DIM_RADIAL::Serialize( google::protobuf::Any &aContainer ) const
+{
+    using namespace kiapi::common;
+    kiapi::board::types::Dimension dimension;
+
+    PCB_DIMENSION_BASE::Serialize( aContainer );
+    aContainer.UnpackTo( &dimension );
+
+    PackVector2( *dimension.mutable_radial()->mutable_center(), m_start );
+    PackVector2( *dimension.mutable_radial()->mutable_radius_point(), m_end );
+    dimension.mutable_radial()->mutable_leader_length()->set_value_nm( m_leaderLength );
+
+    aContainer.PackFrom( dimension );
+}
+
+
+bool PCB_DIM_RADIAL::Deserialize( const google::protobuf::Any &aContainer )
+{
+    using namespace kiapi::common;
+
+    if( !PCB_DIMENSION_BASE::Deserialize( aContainer ) )
+        return false;
+
+    kiapi::board::types::Dimension dimension;
+    aContainer.UnpackTo( &dimension );
+
+    if( !dimension.has_radial() )
+        return false;
+
+    SetStart( UnpackVector2( dimension.radial().center() ) );
+    SetEnd( UnpackVector2( dimension.radial().radius_point() ) );
+    SetLeaderLength( dimension.radial().leader_length().value_nm() );
+
+    Update();
+
+    return true;
 }
 
 
@@ -1292,10 +1578,7 @@ void PCB_DIM_RADIAL::updateGeometry()
 
     VECTOR2I radius( m_end - m_start );
 
-    if( m_isDiameter )
-        m_measuredValue = KiROUND( radius.EuclideanNorm() * 2 );
-    else
-        m_measuredValue = KiROUND( radius.EuclideanNorm() );
+    m_measuredValue = KiROUND( radius.EuclideanNorm() );
 
     updateText();
 
@@ -1317,27 +1600,10 @@ void PCB_DIM_RADIAL::updateGeometry()
     SEG arrowSeg( m_end, m_end + radial );
     SEG textSeg( arrowSeg.B, GetTextPos() );
 
-    OPT_VECTOR2I arrowSegEnd = segPolyIntersection( polyBox, arrowSeg );
-    OPT_VECTOR2I textSegEnd = segPolyIntersection( polyBox, textSeg );
+    CollectKnockedOutSegments( polyBox, arrowSeg, m_shapes );
+    CollectKnockedOutSegments( polyBox, textSeg, m_shapes );
 
-    if( arrowSegEnd )
-        arrowSeg.B = *arrowSegEnd;
-
-    if( textSegEnd )
-        textSeg.B = *textSegEnd;
-
-    m_shapes.emplace_back( new SHAPE_SEGMENT( arrowSeg ) );
-
-    // Add arrows
-    VECTOR2I arrowEndPos( m_arrowLength, 0 );
-    VECTOR2I arrowEndNeg( m_arrowLength, 0 );
-    RotatePoint( arrowEndPos, -EDA_ANGLE( radial ) + s_arrowAngle );
-    RotatePoint( arrowEndNeg, -EDA_ANGLE( radial ) - s_arrowAngle );
-
-    m_shapes.emplace_back( new SHAPE_SEGMENT( m_end, m_end + arrowEndPos ) );
-    m_shapes.emplace_back( new SHAPE_SEGMENT( m_end, m_end + arrowEndNeg ) );
-
-    m_shapes.emplace_back( new SHAPE_SEGMENT( textSeg ) );
+    drawAnArrow( m_end, EDA_ANGLE( radial ), 0 );
 }
 
 
@@ -1346,6 +1612,43 @@ PCB_DIM_CENTER::PCB_DIM_CENTER( BOARD_ITEM* aParent ) :
 {
     m_unitsFormat         = DIM_UNITS_FORMAT::NO_SUFFIX;
     m_overrideTextEnabled = true;
+}
+
+
+void PCB_DIM_CENTER::Serialize( google::protobuf::Any &aContainer ) const
+{
+    using namespace kiapi::common;
+    kiapi::board::types::Dimension dimension;
+
+    PCB_DIMENSION_BASE::Serialize( aContainer );
+    aContainer.UnpackTo( &dimension );
+
+    PackVector2( *dimension.mutable_center()->mutable_center(), m_start );
+    PackVector2( *dimension.mutable_center()->mutable_end(), m_end );
+
+    aContainer.PackFrom( dimension );
+}
+
+
+bool PCB_DIM_CENTER::Deserialize( const google::protobuf::Any &aContainer )
+{
+    using namespace kiapi::common;
+
+    if( !PCB_DIMENSION_BASE::Deserialize( aContainer ) )
+        return false;
+
+    kiapi::board::types::Dimension dimension;
+    aContainer.UnpackTo( &dimension );
+
+    if( !dimension.has_center() )
+        return false;
+
+    SetStart( UnpackVector2( dimension.center().center() ) );
+    SetEnd( UnpackVector2( dimension.center().end() ) );
+
+    Update();
+
+    return true;
 }
 
 
@@ -1405,6 +1708,8 @@ void PCB_DIM_CENTER::updateGeometry()
     RotatePoint( arm, -ANGLE_90 );
 
     m_shapes.emplace_back( new SHAPE_SEGMENT( center - arm, center + arm ) );
+
+    updateText();
 }
 
 
@@ -1435,6 +1740,10 @@ static struct DIMENSION_DESC
                     .Map( DIM_UNITS_MODE::MILLIMETRES, _HKI( "Millimeters" ) )
                     .Map( DIM_UNITS_MODE::AUTOMATIC,   _HKI( "Automatic" ) );
 
+        ENUM_MAP<DIM_ARROW_DIRECTION>::Instance()
+                    .Map( DIM_ARROW_DIRECTION::INWARD,      _HKI( "Inward" ) )
+                    .Map( DIM_ARROW_DIRECTION::OUTWARD,     _HKI( "Outward" ) );
+
         PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
         REGISTER_TYPE( PCB_DIMENSION_BASE );
         propMgr.AddTypeCast( new TYPE_CAST<PCB_DIMENSION_BASE, PCB_TEXT> );
@@ -1443,6 +1752,8 @@ static struct DIMENSION_DESC
         propMgr.InheritsAfter( TYPE_HASH( PCB_DIMENSION_BASE ), TYPE_HASH( PCB_TEXT ) );
         propMgr.InheritsAfter( TYPE_HASH( PCB_DIMENSION_BASE ), TYPE_HASH( BOARD_ITEM ) );
         propMgr.InheritsAfter( TYPE_HASH( PCB_DIMENSION_BASE ), TYPE_HASH( EDA_TEXT ) );
+
+        propMgr.Mask( TYPE_HASH( PCB_DIMENSION_BASE ), TYPE_HASH( EDA_TEXT ), _HKI( "Orientation" ) );
 
         const wxString groupDimension = _HKI( "Dimension Properties" );
 
@@ -1455,7 +1766,13 @@ static struct DIMENSION_DESC
         auto isNotLeader =
                 []( INSPECTABLE* aItem ) -> bool
                 {
-            return dynamic_cast<PCB_DIM_LEADER*>( aItem ) == nullptr;
+                    return dynamic_cast<PCB_DIM_LEADER*>( aItem ) == nullptr;
+                };
+
+        auto isMultiArrowDirection =
+                []( INSPECTABLE* aItem ) -> bool
+                {
+                    return dynamic_cast<PCB_DIM_ALIGNED*>( aItem ) != nullptr;
                 };
 
         propMgr.AddProperty( new PROPERTY<PCB_DIMENSION_BASE, wxString>( _HKI( "Prefix" ),
@@ -1492,12 +1809,38 @@ static struct DIMENSION_DESC
                 &PCB_DIMENSION_BASE::ChangeSuppressZeroes, &PCB_DIMENSION_BASE::GetSuppressZeroes ),
                 groupDimension )
                 .SetAvailableFunc( isNotLeader );
+
+        propMgr.AddProperty( new PROPERTY_ENUM<PCB_DIMENSION_BASE, DIM_ARROW_DIRECTION>( _HKI( "Arrow Direction"),
+                &PCB_DIMENSION_BASE::ChangeArrowDirection, &PCB_DIMENSION_BASE::GetArrowDirection ),
+                groupDimension )
+                .SetAvailableFunc( isMultiArrowDirection );
+
+        const wxString groupText = _HKI( "Text Properties" );
+
+        const auto isTextOrientationWriteable =
+                []( INSPECTABLE* aItem ) -> bool
+                {
+                    return !static_cast<PCB_DIMENSION_BASE*>( aItem )->GetKeepTextAligned();
+                };
+
+        propMgr.AddProperty( new PROPERTY<PCB_DIMENSION_BASE, bool>( _HKI( "Keep Aligned with Dimension" ),
+                &PCB_DIMENSION_BASE::ChangeKeepTextAligned,
+                &PCB_DIMENSION_BASE::GetKeepTextAligned ),
+                groupText );
+
+        propMgr.AddProperty( new PROPERTY<PCB_DIMENSION_BASE, double>( _HKI( "Orientation" ),
+                &PCB_DIMENSION_BASE::ChangeTextAngleDegrees,
+                &PCB_DIMENSION_BASE::GetTextAngleDegreesProp,
+                PROPERTY_DISPLAY::PT_DEGREE ),
+                groupText )
+                .SetWriteableFunc( isTextOrientationWriteable );
     }
 } _DIMENSION_DESC;
 
 ENUM_TO_WXANY( DIM_PRECISION )
 ENUM_TO_WXANY( DIM_UNITS_FORMAT )
 ENUM_TO_WXANY( DIM_UNITS_MODE )
+ENUM_TO_WXANY( DIM_ARROW_DIRECTION )
 
 
 static struct ALIGNED_DIMENSION_DESC
@@ -1702,5 +2045,3 @@ static struct CENTER_DIMENSION_DESC
                                       []( INSPECTABLE* aItem ) { return false; } );
     }
 } CENTER_DIMENSION_DESC;
-
-

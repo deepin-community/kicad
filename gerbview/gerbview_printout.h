@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1992-2016 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2018 CERN
  * Author: Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -23,6 +23,7 @@
 #include <board_printout.h>
 
 class GBR_LAYOUT;
+class LSET;
 
 class GERBVIEW_PRINTOUT : public BOARD_PRINTOUT
 {

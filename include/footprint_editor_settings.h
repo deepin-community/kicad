@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -84,7 +84,7 @@ public:
 
     wxString m_FootprintTextShownColumns;
 
-    SELECTION_FILTER_OPTIONS m_SelectionFilter;
+    PCB_SELECTION_FILTER_OPTIONS m_SelectionFilter;
 
     std::vector<LAYER_PRESET> m_LayerPresets;
 
@@ -97,6 +97,12 @@ protected:
 private:
 
     bool migrateSchema0to1();
+
+    bool migrateSchema2To3();
+
+    bool migrateSchema3To4();
+
+    bool migrateSchema4To5();
 };
 
 

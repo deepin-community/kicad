@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2022 Mikolaj Wielgus
  * Copyright (C) 2022 CERN
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,9 +30,8 @@
 #include <map>
 #include <utility>
 
-#include <reporter.h>
 #include <sch_field.h>
-#include <lib_field.h>
+#include <sch_pin.h>
 
 // Must be included after sch_field.h (exactly eda_shape.h) to avoid a colliding
 // declaration with a window header (under msys2)
@@ -44,24 +43,35 @@ struct SPICE_ITEM;
 class SPICE_GENERATOR;
 class SIM_MODEL_SERIALIZER;
 class PROJECT;
+class REPORTER;
 
 
 #define SIM_REFERENCE_FIELD wxT( "Reference" )
 #define SIM_VALUE_FIELD wxT( "Value" )
 
-#define SIM_DEVICE_FIELD           wxT( "Sim.Device" )
-#define SIM_DEVICE_SUBTYPE_FIELD   wxT( "Sim.Type" )
-#define SIM_PINS_FIELD             wxT( "Sim.Pins" )
-#define SIM_PARAMS_FIELD           wxT( "Sim.Params" )
-#define SIM_LIBRARY_FIELD          wxT( "Sim.Library" )
-#define SIM_NAME_FIELD             wxT( "Sim.Name" )
+#define SIM_DEVICE_FIELD wxT( "Sim.Device" )
+#define SIM_DEVICE_SUBTYPE_FIELD wxT( "Sim.Type" )
+#define SIM_PINS_FIELD wxT( "Sim.Pins" )
+#define SIM_PARAMS_FIELD wxT( "Sim.Params" )
+#define SIM_LIBRARY_FIELD wxT( "Sim.Library" )
+#define SIM_NAME_FIELD wxT( "Sim.Name" )
+#define SIM_NODES_FORMAT_FIELD wxT( "Sim.NodesFormat" )
 
 #define SIM_LEGACY_ENABLE_FIELD_V7 wxT( "Sim.Enable" )
 #define SIM_LEGACY_PRIMITIVE_FIELD wxS( "Spice_Primitive" )
-#define SIM_LEGACY_MODEL_FIELD     wxS( "Spice_Model" )
-#define SIM_LEGACY_PINS_FIELD      wxS( "Spice_Node_Sequence" )
-#define SIM_LEGACY_ENABLE_FIELD    wxS( "Spice_Netlist_Enabled" )
-#define SIM_LEGACY_LIBRARY_FIELD   wxS( "Spice_Lib_File" )
+#define SIM_LEGACY_MODEL_FIELD wxS( "Spice_Model" )
+#define SIM_LEGACY_PINS_FIELD wxS( "Spice_Node_Sequence" )
+#define SIM_LEGACY_ENABLE_FIELD wxS( "Spice_Netlist_Enabled" )
+#define SIM_LEGACY_LIBRARY_FIELD wxS( "Spice_Lib_File" )
+
+
+struct SIM_MODEL_PIN
+{
+    const std::string modelPinName;
+    wxString          symbolPinNumber;
+
+    static constexpr auto NOT_CONNECTED = -1;
+};
 
 
 class SIM_MODEL
@@ -70,7 +80,6 @@ public:
     friend class SPICE_GENERATOR;
     friend class NETLIST_EXPORTER_SPICE;
 
-    struct PIN;
     struct PARAM;
 
     // There's a trailing '_' because `DEVICE_TYPE` collides with something in Windows headers.
@@ -302,15 +311,6 @@ public:
     };
 
 
-    struct PIN
-    {
-        const std::string name;
-        std::string       symbolPinNumber;
-
-        static constexpr auto NOT_CONNECTED = -1;
-    };
-
-
     struct PARAM
     {
         // MS Windows compilers complain about the names IN and OUT, so we prefix them.
@@ -407,34 +407,30 @@ public:
     static SPICE_INFO SpiceInfo( TYPE aType );
 
 
-    template <typename T>
-    static TYPE ReadTypeFromFields( const std::vector<T>& aFields, REPORTER& aReporter );
+    static TYPE ReadTypeFromFields( const std::vector<SCH_FIELD>& aFields, REPORTER& aReporter );
 
-    static std::unique_ptr<SIM_MODEL> Create( TYPE aType, const std::vector<LIB_PIN*>& aPins,
+    static std::unique_ptr<SIM_MODEL> Create( TYPE aType, const std::vector<SCH_PIN*>& aPins,
                                               REPORTER& aReporter );
 
     static std::unique_ptr<SIM_MODEL> Create( const SIM_MODEL* aBaseModel,
-                                              const std::vector<LIB_PIN*>& aPins,
+                                              const std::vector<SCH_PIN*>& aPins,
                                               REPORTER& aReporter );
 
-    template <typename T>
     static std::unique_ptr<SIM_MODEL> Create( const SIM_MODEL* aBaseModel,
-                                              const std::vector<LIB_PIN*>& aPins,
-                                              const std::vector<T>& aFields,
+                                              const std::vector<SCH_PIN*>& aPins,
+                                              const std::vector<SCH_FIELD>& aFields,
                                               REPORTER& aReporter );
 
-    template <typename T>
-    static std::unique_ptr<SIM_MODEL> Create( const std::vector<T>& aFields,
-                                              const std::vector<LIB_PIN*>& aPins,
+    static std::unique_ptr<SIM_MODEL> Create( const std::vector<SCH_FIELD>& aFields,
+                                              const std::vector<SCH_PIN*>& aPins,
                                               bool aResolved, REPORTER& aReporter );
 
-    template <typename T>
-    static std::string GetFieldValue( const std::vector<T>* aFields, const wxString& aFieldName,
+    static std::string GetFieldValue( const std::vector<SCH_FIELD>* aFields,
+                                      const wxString& aFieldName,
                                       bool aResolve = true );
 
-    template <typename T>
-    static void SetFieldValue( std::vector<T>& aFields, const wxString& aFieldName,
-                               const std::string& aValue );
+    static void SetFieldValue( std::vector<SCH_FIELD>& aFields, const wxString& aFieldName,
+                               const std::string& aValue, bool aIsVisible = true );
 
     const SPICE_GENERATOR& SpiceGenerator() const { return *m_spiceGenerator; }
     const SIM_MODEL_SERIALIZER& Serializer() const { return *m_serializer; }
@@ -448,15 +444,14 @@ public:
     SIM_MODEL( SIM_MODEL&& aOther ) = default;
     SIM_MODEL& operator=(SIM_MODEL&& aOther ) = delete;
 
-    template <typename T>
-    void ReadDataFields( const std::vector<T>* aFields, const std::vector<LIB_PIN*>& aPins );
+    void ReadDataFields( const std::vector<SCH_FIELD>* aFields,
+                         const std::vector<SCH_PIN*>& aPins );
 
-    template <typename T>
-    void WriteFields( std::vector<T>& aFields ) const;
+    void WriteFields( std::vector<SCH_FIELD>& aFields ) const;
 
     SPICE_INFO GetSpiceInfo() const { return SpiceInfo( GetType() ); }
 
-    void AddPin( const PIN& aPin );
+    void AddPin( const SIM_MODEL_PIN& aPin );
     void ClearPins();
 
     int FindModelPinIndex( const std::string& aSymbolPinNumber );
@@ -473,14 +468,14 @@ public:
 
     virtual std::vector<std::string> GetPinNames() const { return {}; }
 
-    int GetPinCount() const { return static_cast<int>( m_pins.size() ); }
-    const PIN& GetPin( unsigned aIndex ) const { return m_pins.at( aIndex ); }
+    int GetPinCount() const { return static_cast<int>( m_modelPins.size() ); }
+    const SIM_MODEL_PIN& GetPin( unsigned aIndex ) const { return m_modelPins.at( aIndex ); }
 
-    std::vector<std::reference_wrapper<const PIN>> GetPins() const;
+    std::vector<std::reference_wrapper<const SIM_MODEL_PIN>> GetPins() const;
 
-    void SetPinSymbolPinNumber( int aPinIndex, const std::string& aSymbolPinNumber );
-    virtual void SetPinSymbolPinNumber( const std::string& aPinName,
-                                        const std::string& aSymbolPinNumber );
+    void AssignSymbolPinNumberToModelPin( int aPinIndex, const wxString& aSymbolPinNumber );
+    virtual void AssignSymbolPinNumberToModelPin( const std::string& aPinName,
+                                                  const wxString& aSymbolPinNumber );
 
 
     int GetParamCount() const { return static_cast<int>( m_params.size() ); }
@@ -489,8 +484,6 @@ public:
     virtual const PARAM* GetTunerParam() const { return nullptr; }
 
     const PARAM* FindParam( const std::string& aParamName ) const;
-
-    std::vector<std::reference_wrapper<const PARAM>> GetParams() const;
 
     const PARAM& GetParamOverride( unsigned aParamIndex ) const; // Return the actual parameter.
     const PARAM& GetBaseParam( unsigned aParamIndex ) const; // Always return base parameter if it exists.
@@ -517,13 +510,13 @@ public:
 
     virtual void SwitchSingleEndedDiff( bool aDiff ) { };
 
-    template <class T_symbol, class T_field>
-    static bool InferSimModel( T_symbol& aSymbol, std::vector<T_field>* aFields, bool aResolve,
+    template <class T>
+    static bool InferSimModel( T& aSymbol, std::vector<SCH_FIELD>* aFields, bool aResolve,
                                SIM_VALUE_GRAMMAR::NOTATION aNotation, wxString* aDeviceType,
                                wxString* aModelType, wxString* aModelParams, wxString* aPinMap );
 
-    template <class T_symbol, class T_field>
-    static void MigrateSimModel( T_symbol& aSymbol, const PROJECT* aProject );
+    template <class T>
+    static void MigrateSimModel( T& aSymbol, const PROJECT* aProject );
 
 protected:
     static std::unique_ptr<SIM_MODEL> Create( TYPE aType );
@@ -533,23 +526,17 @@ protected:
     SIM_MODEL( TYPE aType, std::unique_ptr<SPICE_GENERATOR> aSpiceGenerator,
                std::unique_ptr<SIM_MODEL_SERIALIZER> aSerializer );
 
-    void createPins( const std::vector<LIB_PIN*>& aSymbolPins );
+    void createPins( const std::vector<SCH_PIN*>& aSymbolPins );
 
     virtual int doFindParam( const std::string& aParamName ) const;
     virtual void doSetParamValue( int aParamIndex, const std::string& aValue );
 
 private:
-    template <typename T>
-    void doReadDataFields( const std::vector<T>* aFields, const std::vector<LIB_PIN*>& aPins );
-
-    template <typename T>
-    void doWriteFields( std::vector<T>& aFields ) const;
-
     virtual bool requiresSpiceModelLine( const SPICE_ITEM& aItem ) const;
 
 protected:
     std::vector<PARAM>                    m_params;
-    std::vector<PIN>                      m_pins;
+    std::vector<SIM_MODEL_PIN>            m_modelPins;
     const SIM_MODEL*                      m_baseModel;
     std::unique_ptr<SIM_MODEL_SERIALIZER> m_serializer;
 

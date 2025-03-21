@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015-2016 Mario Luzeiro <mrluzeiro@ua.pt>
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,8 +44,8 @@
 #include <macros.h>
 
 /**
-  * Scale conversion from 3d model units to pcb units
-  */
+ * Scale conversion from 3d model units to pcb units
+ */
 #define UNITS3D_TO_UNITSPCB ( pcbIUScale.IU_PER_MM )
 
 /**
@@ -86,9 +86,9 @@ END_EVENT_TABLE()
 #define RANGE_SCALE_3D 8.0f
 
 
-EDA_3D_MODEL_VIEWER::EDA_3D_MODEL_VIEWER( wxWindow* aParent, const int* aAttribList,
+EDA_3D_MODEL_VIEWER::EDA_3D_MODEL_VIEWER( wxWindow* aParent, const wxGLAttributes& aGLAttribs,
                                           S3D_CACHE* aCacheManager ) :
-        HIDPI_GL_CANVAS( EDA_DRAW_PANEL_GAL::GetVcSettings(), aParent, wxID_ANY, aAttribList,
+        HIDPI_GL_CANVAS( EDA_DRAW_PANEL_GAL::GetVcSettings(), aParent, aGLAttribs, wxID_ANY,
                          wxDefaultPosition, wxDefaultSize,
                          wxFULL_REPAINT_ON_RESIZE ),
         m_trackBallCamera( RANGE_SCALE_3D * 4.0f ),
@@ -109,16 +109,17 @@ EDA_3D_MODEL_VIEWER::EDA_3D_MODEL_VIEWER( wxWindow* aParent, const int* aAttribL
 EDA_3D_MODEL_VIEWER::~EDA_3D_MODEL_VIEWER()
 {
     wxLogTrace( m_logTrace, wxT( "EDA_3D_MODEL_VIEWER::~EDA_3D_MODEL_VIEWER" ) );
+    GL_CONTEXT_MANAGER* gl_mgr = Pgm().GetGLContextManager();
 
     if( m_glRC )
     {
-        GL_CONTEXT_MANAGER::Get().LockCtx( m_glRC, this );
+        gl_mgr->LockCtx( m_glRC, this );
 
         delete m_ogl_3dmodel;
         m_ogl_3dmodel = nullptr;
 
-        GL_CONTEXT_MANAGER::Get().UnlockCtx( m_glRC );
-        GL_CONTEXT_MANAGER::Get().DestroyCtx( m_glRC );
+        gl_mgr->UnlockCtx( m_glRC );
+        gl_mgr->DestroyCtx( m_glRC );
     }
 }
 
@@ -156,7 +157,7 @@ void EDA_3D_MODEL_VIEWER::Set3DModel( const wxString& aModelPathName)
 
     if( m_cacheManager )
     {
-        const S3DMODEL* model = m_cacheManager->GetModel( aModelPathName, wxEmptyString );
+        const S3DMODEL* model = m_cacheManager->GetModel( aModelPathName, wxEmptyString, nullptr );
 
         if( model )
             Set3DModel( (const S3DMODEL &)*model );
@@ -256,7 +257,7 @@ void EDA_3D_MODEL_VIEWER::OnPaint( wxPaintEvent& event )
     //  context context current, i.e. it will be used by all subsequent OpenGL calls.
     //  This function may only be called when the window is shown on screen"
     if( m_glRC == nullptr )
-        m_glRC = GL_CONTEXT_MANAGER::Get().CreateCtx( this );
+        m_glRC = Pgm().GetGLContextManager()->CreateCtx( this );
 
     // CreateCtx could and does fail per sentry crash events, lets be graceful
     if( m_glRC == nullptr )
@@ -265,7 +266,7 @@ void EDA_3D_MODEL_VIEWER::OnPaint( wxPaintEvent& event )
         return;
     }
 
-    GL_CONTEXT_MANAGER::Get().LockCtx( m_glRC, this );
+    Pgm().GetGLContextManager()->LockCtx( m_glRC, this );
 
     // Set the OpenGL viewport according to the client size of this canvas.
     // This is done here rather than in a wxSizeEvent handler because our
@@ -301,7 +302,7 @@ void EDA_3D_MODEL_VIEWER::OnPaint( wxPaintEvent& event )
 
     // clear color and depth buffers
     glEnable( GL_DEPTH_TEST );
-    glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
+    glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );
     glClearDepth( 1.0f );
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
@@ -383,7 +384,7 @@ void EDA_3D_MODEL_VIEWER::OnPaint( wxPaintEvent& event )
     //  commands is displayed on the window."
     SwapBuffers();
 
-    GL_CONTEXT_MANAGER::Get().UnlockCtx( m_glRC );
+    Pgm().GetGLContextManager()->UnlockCtx( m_glRC );
 }
 
 

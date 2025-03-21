@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2022 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -65,11 +65,11 @@ EDA_ITEM* EE_SELECTION::GetTopLeftItem( bool onlyModules ) const
     for( EDA_ITEM* item : m_items )
     {
         SCH_ITEM* sch_item = dynamic_cast<SCH_ITEM*>( item );
-        LIB_PIN*  lib_pin = dynamic_cast<LIB_PIN*>( item );
+        SCH_PIN*  pin = dynamic_cast<SCH_PIN*>( item );
 
         // Prefer connection points (which should remain on grid)
 
-        if( ( sch_item && sch_item->IsConnectable() ) || lib_pin )
+        if( ( sch_item && sch_item->IsConnectable() ) || pin )
             processItem( item, &topLeftConnectedItem, &topLeftConnectedPos );
 
         processItem( item, &topLeftItem, &topLeftPos );
@@ -82,7 +82,7 @@ EDA_ITEM* EE_SELECTION::GetTopLeftItem( bool onlyModules ) const
 }
 
 
-BOX2I EE_SELECTION::GetBoundingBox( bool aOnlyVisible ) const
+BOX2I EE_SELECTION::GetBoundingBox() const
 {
     BOX2I bbox;
 

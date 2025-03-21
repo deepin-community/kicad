@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Jean-Pierre Charras, jp.charras at wanadoo.fr
  *
  * This program is free software; you can redistribute it and/or
@@ -55,7 +55,7 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
     void OnKifaceEnd() override;
 
     wxWindow* CreateKiWindow( wxWindow* aParent, int aClassId, KIWAY* aKiway,
-                            int aCtlBits = 0 ) override
+                              int aCtlBits = 0 ) override
     {
         switch( aClassId )
         {
@@ -65,7 +65,7 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
         case PANEL_DS_DISPLAY_OPTIONS:
         {
             SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<PL_EDITOR_SETTINGS>();
+            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<PL_EDITOR_SETTINGS>( "pl_editor" );
 
             return new PANEL_PL_EDITOR_DISPLAY_OPTIONS( aParent, cfg );
         }
@@ -73,7 +73,7 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
         case PANEL_DS_GRIDS:
         {
             SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<PL_EDITOR_SETTINGS>();
+            APP_SETTINGS_BASE* cfg = mgr.GetAppSettings<PL_EDITOR_SETTINGS>( "pl_editor" );
             EDA_BASE_FRAME*    frame = aKiway->Player( FRAME_PL_EDITOR, false );
 
             if( frame )
@@ -124,9 +124,6 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
 using namespace PGE;
 
 
-static PGM_BASE* process;
-
-
 KIFACE_BASE& Kiface() { return kiface; }
 
 
@@ -134,22 +131,7 @@ KIFACE_BASE& Kiface() { return kiface; }
 // KIFACE_GETTER will not have name mangling due to declaration in kiway.h.
 KIFACE_API KIFACE* KIFACE_GETTER(  int* aKIFACEversion, int aKiwayVersion, PGM_BASE* aProgram )
 {
-    process = (PGM_BASE*) aProgram;
     return &kiface;
-}
-
-
-PGM_BASE& Pgm()
-{
-    wxASSERT( process );    // KIFACE_GETTER has already been called.
-    return *process;
-}
-
-
-// Similar to PGM_BASE& Pgm(), but return nullptr when a *.ki_face is run from a python script.
-PGM_BASE* PgmOrNull()
-{
-    return process;
 }
 
 bool IFACE::OnKifaceStart( PGM_BASE* aProgram, int aCtlBits, KIWAY* aKiway )

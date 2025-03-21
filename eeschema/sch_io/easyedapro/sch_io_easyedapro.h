@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -57,18 +57,18 @@ public:
 
     SCH_SHEET* LoadSchematicFile( const wxString& aFileName, SCHEMATIC* aSchematic,
                                   SCH_SHEET*             aAppendToMe = nullptr,
-                                  const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                                  const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     void EnumerateSymbolLib( wxArrayString& aSymbolNameList, const wxString& aLibraryPath,
-                             const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                             const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     void EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList, const wxString& aLibraryPath,
-                             const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                             const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     void LoadAllDataFromProject( const wxString& aLibraryPath );
 
     LIB_SYMBOL* LoadSymbol( const wxString& aLibraryPath, const wxString& aAliasName,
-                            const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                            const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     bool IsLibraryWritable( const wxString& aLibraryPath ) override { return false; }
 

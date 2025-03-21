@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2016 CERN
  * @author Maciej Suminski <maciej.suminski@cern.ch>
- * Copyright (C) 2018-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -201,28 +201,16 @@ void GRAPHICS_IMPORTER_PCBNEW::AddSpline( const VECTOR2D& aStart, const VECTOR2D
                                           const IMPORTED_STROKE& aStroke )
 {
     std::unique_ptr<PCB_SHAPE> spline = std::make_unique<PCB_SHAPE>( m_parent );
-    spline->SetShape( SHAPE_T::BEZIER );
+
     spline->SetLayer( GetLayer() );
     spline->SetStroke( MapStrokeParams( aStroke ) );
     spline->SetStart( MapCoordinate( aStart ) );
     spline->SetBezierC1( MapCoordinate( aBezierControl1 ));
     spline->SetBezierC2( MapCoordinate( aBezierControl2 ));
     spline->SetEnd( MapCoordinate( aEnd ) );
-    spline->RebuildBezierToSegmentsPointsList( aStroke.GetWidth() );
 
-    // If the spline is degenerated (i.e. a segment) add it as segment or discard it if
-    // null (i.e. very small) length
-    if( spline->GetBezierPoints().size() <= 2 )
+    if( setupSplineOrLine( *spline, ARC_HIGH_DEF ) )
     {
-        spline->SetShape( SHAPE_T::SEGMENT );
-        int dist = VECTOR2I(spline->GetStart()- spline->GetEnd()).EuclideanNorm();
-
-        // segment smaller than MIN_SEG_LEN_ACCEPTABLE_NM nanometers are skipped.
-        #define MIN_SEG_LEN_ACCEPTABLE_NM 20
-        if( dist < MIN_SEG_LEN_ACCEPTABLE_NM )
-            return;
+        addItem( std::move( spline ) );
     }
-
-    addItem( std::move( spline ) );
 }
-

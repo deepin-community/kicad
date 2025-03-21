@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2023 CERN
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
@@ -25,23 +25,28 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef __TOOL_MANAGER_H
-#define __TOOL_MANAGER_H
+#ifndef TOOL_MANAGER_H
+#define TOOL_MANAGER_H
 
 #include <list>
 #include <map>
 #include <stack>
+#include <vector>
 #include <typeinfo>
 #include <type_traits>
 
 #include <tool/tool_base.h>
 #include <tool/tool_event.h>
-#include <view/view_controls.h>
+
+namespace KIGFX
+{
+class VIEW_CONTROLS;
+struct VC_SETTINGS;
+}
 
 class COMMIT;
 class TOOLS_HOLDER;
 class TOOL_ACTION;
-class TOOL_BASE;
 class ACTION_MANAGER;
 class ACTION_MENU;
 class APP_SETTINGS_BASE;
@@ -70,7 +75,7 @@ public:
     typedef std::list<TOOL_ID> ID_LIST;
 
     /**
-     * Generates a unique ID from for a tool with given name.
+     * Generate a unique ID from for a tool with given name.
      */
     static TOOL_ID MakeToolId( const std::string& aToolName );
 
@@ -133,8 +138,8 @@ public:
      *
      * The common format for action names is "application.ToolName.Action".
      *
-     * Note: The type of the optional parameter must match exactly with the type the consuming
-     *       action is expecting, otherwise an assert will occur when reading the paramter.
+     * @note The type of the optional parameter must match exactly with the type the consuming
+     *       action is expecting, otherwise an assert will occur when reading the parameter.
      *
      * @param aActionName is the name of action to be invoked.
      * @param aParam is an optional parameter that might be used by the invoked action. Its meaning
@@ -145,15 +150,15 @@ public:
     bool RunAction( const std::string& aActionName, T aParam )
     {
         // Use a cast to ensure the proper type is stored inside the parameter
-        std::any a( static_cast<T>( aParam ) );
+        ki::any a( static_cast<T>( aParam ) );
 
         return doRunAction( aActionName, true, a, nullptr );
     }
 
     bool RunAction( const std::string& aActionName )
     {
-        // Default initialize the parameter argument to an empty std::any
-        std::any a;
+        // Default initialize the parameter argument to an empty ki_any
+        ki::any a;
 
         return doRunAction( aActionName, true, a, nullptr );
     }
@@ -161,19 +166,19 @@ public:
     /**
      * Run the specified action immediately, pausing the current action to run the new one.
      *
-     * Note: The type of the optional parameter must match exactly with the type the consuming
-     *       action is expecting, otherwise an assert will occur when reading the paramter.
+     * @note The type of the optional parameter must match exactly with the type the consuming
+     *       action is expecting, otherwise an assert will occur when reading the parameter.
      *
      * @param aAction is the action to be invoked.
      * @param aParam is an optional parameter that might be used by the invoked action. Its meaning
      *               depends on the action.
-     * @return True if the action was handled immediately
+     * @return True if the action was handled immediately.
      */
     template<typename T, std::enable_if_t<!std::is_convertible_v<T, COMMIT*>>* = nullptr>
     bool RunAction( const TOOL_ACTION& aAction, T aParam )
     {
         // Use a cast to ensure the proper type is stored inside the parameter
-        std::any a( static_cast<T>( aParam ) );
+        ki::any a( static_cast<T>( aParam ) );
 
         return doRunAction( aAction, true, a, nullptr );
     }
@@ -181,8 +186,8 @@ public:
     /**
      * Run the specified action immediately, pausing the current action to run the new one.
      *
-     * Note: The type of the optional parameter must match exactly with the type the consuming
-     *       action is expecting, otherwise an assert will occur when reading the paramter.
+     * @note The type of the optional parameter must match exactly with the type the consuming
+     *       action is expecting, otherwise an assert will occur when reading the parameter.
      *
      * @param aAction is the action to be invoked.
      * @param aCommit is the commit object the tool handling the action should add the new edits to
@@ -192,23 +197,23 @@ public:
     bool RunSynchronousAction( const TOOL_ACTION& aAction, COMMIT* aCommit, T aParam )
     {
         // Use a cast to ensure the proper type is stored inside the parameter
-        std::any a( static_cast<T>( aParam ) );
+        ki::any a( static_cast<T>( aParam ) );
 
         return doRunAction( aAction, true, a, aCommit );
     }
 
     bool RunSynchronousAction( const TOOL_ACTION& aAction, COMMIT* aCommit )
     {
-        // Default initialize the parameter argument to an empty std::any
-        std::any a;
+        // Default initialize the parameter argument to an empty ki_any
+        ki::any a;
 
         return doRunAction( aAction, true, a, aCommit );
     }
 
     bool RunAction( const TOOL_ACTION& aAction )
     {
-        // Default initialize the parameter argument to an empty std::any
-        std::any a;
+        // Default initialize the parameter argument to an empty ki_any
+        ki::any a;
 
         return doRunAction( aAction, true, a, nullptr );
     }
@@ -218,8 +223,8 @@ public:
      *
      * The common format for action names is "application.ToolName.Action".
      *
-     * Note: The type of the optional parameter must match exactly with the type the consuming
-     *       action is expecting, otherwise an assert will occur when reading the paramter.
+     * @note The type of the optional parameter must match exactly with the type the consuming
+     *       action is expecting, otherwise an assert will occur when reading the parameter.
      *
      * @param aActionName is the name of action to be invoked.
      * @param aParam is an optional parameter that might be used by the invoked action. Its meaning
@@ -230,15 +235,15 @@ public:
     bool PostAction( const std::string& aActionName, T aParam )
     {
         // Use a cast to ensure the proper type is stored inside the parameter
-        std::any a( static_cast<T>( aParam ) );
+        ki::any a( static_cast<T>( aParam ) );
 
         return doRunAction( aActionName, false, a, nullptr );
     }
 
     bool PostAction( const std::string& aActionName )
     {
-        // Default initialize the parameter argument to an empty std::any
-        std::any a;
+        // Default initialize the parameter argument to an empty ki_any
+        ki::any a;
 
         return doRunAction( aActionName, false, a, nullptr );
     }
@@ -246,8 +251,8 @@ public:
     /**
      * Run the specified action after the current action (coroutine) ends.
      *
-     * Note: The type of the optional parameter must match exactly with the type the consuming
-     *       action is expecting, otherwise an assert will occur when reading the paramter.
+     * @nite The type of the optional parameter must match exactly with the type the consuming
+     *       action is expecting, otherwise an assert will occur when reading the parameter.
      *
      * @param aAction is the action to be invoked.
      * @param aParam is an optional parameter that might be used by the invoked action. Its meaning
@@ -257,17 +262,25 @@ public:
     bool PostAction( const TOOL_ACTION& aAction, T aParam )
     {
         // Use a cast to ensure the proper type is stored inside the parameter
-        std::any a( static_cast<T>( aParam ) );
+        ki::any a( static_cast<T>( aParam ) );
 
         return doRunAction( aAction, false, a, nullptr );
     }
 
     void PostAction( const TOOL_ACTION& aAction )
     {
-        // Default initialize the parameter argument to an empty std::any
-        std::any a;
+        // Default initialize the parameter argument to an empty ki_any
+        ki::any a;
 
         doRunAction( aAction, false, a, nullptr );
+    }
+
+    bool PostAction( const TOOL_ACTION& aAction, COMMIT* aCommit )
+    {
+        // Default initialize the parameter argument to an empty ki_any
+        ki::any a;
+
+        return doRunAction( aAction, false, a, aCommit );
     }
 
     /**
@@ -283,7 +296,7 @@ public:
      */
     void PrimeTool( const VECTOR2D& aPosition );
 
-    ///< @copydoc ACTION_MANAGER::GetHotKey()
+    /// @copydoc ACTION_MANAGER::GetHotKey()
     int GetHotKey( const TOOL_ACTION& aAction ) const;
 
     ACTION_MANAGER* GetActionManager() const { return m_actionMgr; }
@@ -341,7 +354,7 @@ public:
     void ResetTools( TOOL_BASE::RESET_REASON aReason );
 
     /**
-     * Initializes all registered tools.
+     * Initialize all registered tools.
      *
      * If a tool fails during the initialization, it is deactivated and becomes unavailable
      * for further use. Initialization should be done only once.
@@ -476,25 +489,6 @@ public:
     void ScheduleContextMenu( TOOL_BASE* aTool, ACTION_MENU* aMenu, CONTEXT_MENU_TRIGGER aTrigger );
 
     /**
-     * Store information to the system clipboard.
-     *
-     * @param aText is the information to be stored, expected UTF8 encoding.  The text will be
-     *              stored as Unicode string (not stored as UTF8 string).
-     * @return False if error occurred.
-     */
-    bool SaveClipboard( const std::string& aTextUTF8 );
-
-    /**
-     * Return the information currently stored in the system clipboard.
-     *
-     * If data stored in the clipboard is in non-text format, empty string is returned.
-     *
-     * @note The clipboard is expected containing Unicode chars, not only ASCII7 chars.
-     *       The returned string is UTF8 encoded
-     */
-    std::string GetClipboardUTF8() const;
-
-    /**
      * Return the view controls settings for the current tool or the general settings if there is
      * no active tool.
      */
@@ -543,8 +537,10 @@ private:
     /**
      * Helper function to actually run an action.
      */
-    bool doRunAction( const TOOL_ACTION& aAction, bool aNow, const std::any& aParam, COMMIT* aCommit );
-    bool doRunAction( const std::string& aActionName, bool aNow, const std::any& aParam, COMMIT* aCommit );
+    bool doRunAction( const TOOL_ACTION& aAction, bool aNow, const ki::any& aParam,
+                      COMMIT* aCommit );
+    bool doRunAction( const std::string& aActionName, bool aNow, const ki::any& aParam,
+                      COMMIT* aCommit );
 
     /**
      * Pass an event at first to the active tools, then to all others.
@@ -633,28 +629,29 @@ private:
      */
     void setActiveState( TOOL_STATE* aState );
 
-    ///< List of tools in the order they were registered
+private:
+    /// List of tools in the order they were registered.
     std::vector<TOOL_BASE*> m_toolOrder;
 
-    ///< Index of registered tools current states, associated by tools' objects.
+    /// Index of registered tools current states, associated by tools' objects.
     TOOL_STATE_MAP m_toolState;
 
-    ///< Index of the registered tools current states, associated by tools' names.
+    /// Index of the registered tools current states, associated by tools' names.
     NAME_STATE_MAP m_toolNameIndex;
 
-    ///< Index of the registered tools current states, associated by tools' ID numbers.
+    /// Index of the registered tools current states, associated by tools' ID numbers.
     ID_STATE_MAP m_toolIdIndex;
 
-    ///< Index of the registered tools to easily lookup by their type.
+    /// Index of the registered tools to easily lookup by their type.
     std::map<const char*, TOOL_BASE*> m_toolTypes;
 
-    ///< Stack of the active tools
+    /// Stack of the active tools.
     ID_LIST m_activeTools;
 
-    ///< Instance of ACTION_MANAGER that handles TOOL_ACTIONs
+    /// Instance of ACTION_MANAGER that handles TOOL_ACTIONs.
     ACTION_MANAGER* m_actionMgr;
 
-    ///< Original cursor position, if overridden by the context menu handler
+    /// Original cursor position, if overridden by the context menu handler.
     std::map<TOOL_ID, std::optional<VECTOR2D>> m_cursorSettings;
 
     EDA_ITEM*             m_model;
@@ -663,25 +660,25 @@ private:
     TOOLS_HOLDER*         m_frame;
     APP_SETTINGS_BASE*    m_settings;
 
-    ///< Queue that stores events to be processed at the end of the event processing cycle.
+    /// Queue that stores events to be processed at the end of the event processing cycle.
     std::list<TOOL_EVENT> m_eventQueue;
 
-    ///< Right click context menu position.
+    /// Right click context menu position.
     VECTOR2D m_menuCursor;
 
     bool m_warpMouseAfterContextMenu;
 
-    ///< Flag indicating whether a context menu is currently displayed.
+    /// Flag indicating whether a context menu is currently displayed.
     bool m_menuActive;
 
-    ///< Tool currently displaying a popup menu. It is negative when there is no menu displayed.
+    /// Tool currently displaying a popup menu. It is negative when there is no menu displayed.
     TOOL_ID m_menuOwner;
 
-    ///< Pointer to the state object corresponding to the currently executed tool.
+    /// Pointer to the state object corresponding to the currently executed tool.
     TOOL_STATE* m_activeState;
 
-    ///< True if the tool manager is shutting down (don't process additional events)
+    /// True if the tool manager is shutting down (don't process additional events)
     bool m_shuttingDown;
 };
 
-#endif // __TOOL_MANAGER_H
+#endif // TOOL_MANAGER_H

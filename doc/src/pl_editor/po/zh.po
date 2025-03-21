@@ -1,21 +1,22 @@
 # SOME DESCRIPTIVE TITLE
 # Copyright (C) YEAR Free Software Foundation, Inc.
 # This file is distributed under the same license as the PACKAGE package.
-# taotieren <admin@taotieren.com>, 2019, 2020, 2021.
+# taotieren <admin@taotieren.com>, 2019-2024.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Pl_Editor_zh_CN_v0.5.2\n"
-"POT-Creation-Date: 2023-01-19 17:06+0800\n"
-"PO-Revision-Date: 2023-01-19 17:08+0800\n"
+"Project-Id-Version: Pl_Editor_zh_CN\n"
+"POT-Creation-Date: 2024-08-02 10:48+0800\n"
+"PO-Revision-Date: 2024-08-03 23:22+0800\n"
 "Last-Translator: taotieren <admin@taotieren.com>\n"
-"Language-Team: \n"
+"Language-Team: admin@taotieren.com\n"
 "Language: zh\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Poedit 3.2.2\n"
+"X-Generator: Poedit 3.5\n"
+"X-Poedit-SourceCharset: UTF-8\n"
 
 #. type: Title =
 #: pl_editor.adoc:6
@@ -30,134 +31,116 @@ msgstr "_参考手册_"
 
 #. type: Plain text
 #: pl_editor.adoc:12
-#, no-wrap
-msgid "*Copyright*\n"
-msgstr "*版权*\n"
+msgid "*Copyright*"
+msgstr "*版权*"
 
 #. type: Plain text
 #: pl_editor.adoc:19
 msgid ""
-"This document is Copyright (C) 2015 by its contributors as listed below.  "
+"This document is Copyright (C) 2024 by its contributors as listed below.  "
 "You may distribute it and/or modify it under the terms of either the GNU "
 "General Public License (http://www.gnu.org/licenses/gpl.html), version 3 or "
 "later, or the Creative Commons Attribution License (http://creativecommons."
 "org/licenses/by/3.0/), version 3.0 or later."
 msgstr ""
-"本文件的版权 (C) 2015 年由下面列出的贡献者所拥有。 您可以根据 GNU 通用公共许"
-"可证（http://www.gnu.org/licenses/gpl.html）第 3 版或更高版本，或知识共享署名"
-"许可证（http://creativecommons.org/licenses/by/3.0/）第 3.0 版或更高版本的条"
-"款发布它和/或修改它。"
+"本文档版权 (C) 2024 年，作者如下。 您可以根据 GNU 通用公共许可证 (http://www."
+"gnu.org/licenses/gpl.html) 第 3 版或更高版本或知识共享署名许可证 (http://"
+"creativecommons.org/licenses/by/3.0/) 第 3.0 版或更高版本的条款分发和/或修改"
+"本文档。"
 
 #. type: Plain text
 #: pl_editor.adoc:22
-#, no-wrap
-msgid "*Contributors*\n"
-msgstr "*贡献者*\n"
+msgid "*Contributors*"
+msgstr "*贡献者*"
 
 #. type: Plain text
 #: pl_editor.adoc:24
-msgid "Jean-Pierre Charras."
+msgid "Jean-Pierre Charras, Graham Keeth"
 msgstr ""
 
 #. type: Plain text
 #: pl_editor.adoc:27
-#, no-wrap
-msgid "*Feedback*\n"
-msgstr "*反馈*\n"
+msgid "*Feedback*"
+msgstr "*反馈*"
 
 #. type: Plain text
 #: pl_editor.adoc:31
 msgid ""
 "The KiCad project welcomes feedback, bug reports, and suggestions related to "
-"the software or its documentation. For more information on how to sumbit "
+"the software or its documentation. For more information on how to submit "
 "feedback or report an issue, please see the instructions at https://www."
 "kicad.org/help/report-an-issue/"
 msgstr ""
-"KiCad 项目欢迎与本软件或其文档相关的反馈、错误报告和建议。关于如何提交反馈意"
-"见或报告问题的更多信息，请参见 https://www.kicad.org/help/report-an-issue/ 的"
-"说明"
+"KiCad 项目欢迎与软件或其文档相关的反馈、错误报告和建议。有关如何提交反馈或报"
+"告问题的更多信息，请参阅 https://www.kicad.org/help/report-an-issue/ 上的说明"
 
 #. type: Plain text
-#: pl_editor.adoc:34
-#, no-wrap
-msgid "*Publication date and software version*\n"
-msgstr "*出版日期和软件版本*\n"
-
-#. type: Plain text
-#: pl_editor.adoc:36
-msgid "may 23, 2015."
-msgstr ""
-
-#. type: Plain text
-#: pl_editor.adoc:39 pl_editor.adoc:90 pl_editor.adoc:153 pl_editor.adoc:169
-#: pl_editor.adoc:180 pl_editor.adoc:228 pl_editor.adoc:240 pl_editor.adoc:264
-#: pl_editor.adoc:290 pl_editor.adoc:315 pl_editor.adoc:346 pl_editor.adoc:358
-#: pl_editor.adoc:382 pl_editor.adoc:511 pl_editor.adoc:531 pl_editor.adoc:547
-#: pl_editor.adoc:567 pl_editor.adoc:604 pl_editor.adoc:618 pl_editor.adoc:646
+#: pl_editor.adoc:34 pl_editor.adoc:76 pl_editor.adoc:137 pl_editor.adoc:153
+#: pl_editor.adoc:164 pl_editor.adoc:219 pl_editor.adoc:235 pl_editor.adoc:259
+#: pl_editor.adoc:285 pl_editor.adoc:303 pl_editor.adoc:354 pl_editor.adoc:465
+#: pl_editor.adoc:485 pl_editor.adoc:497 pl_editor.adoc:518 pl_editor.adoc:538
 msgid "<<<<<"
 msgstr "<<<<<"
 
 #. type: Title ==
+#: pl_editor.adoc:36
+#, no-wrap
+msgid "Introduction to the KiCad Drawing Sheet Editor"
+msgstr "KiCad 图框编辑器简介"
+
+#. type: Plain text
 #: pl_editor.adoc:41
-#, no-wrap
-msgid "Introduction to *Pl_Editor*"
-msgstr "*Pl_Editor 简介*"
-
-#. type: Plain text
-#: pl_editor.adoc:45
 msgid ""
-"Pl_Editor is a page layout editor tool to create custom title blocks, and "
-"frame references."
-msgstr "Pl_Editor 是一个图框编辑器工具，用于创建自定义标题块和框架引用。"
+"The Drawing Sheet Editor is a tool to create custom drawing sheets for use "
+"in the KiCad Schematic and Board Editors. Drawing sheets can include custom "
+"title blocks, frames, logos, as well as other text and graphics."
+msgstr ""
+"图框编辑器是一种工具，用于创建自定义绘图表，以便在 KiCad 原理图和电路板编辑器"
+"中使用。工程图表可以包含自定义标题栏、框架、LOGO 以及其他文本和图形。"
 
 #. type: Plain text
-#: pl_editor.adoc:48
+#: pl_editor.adoc:44
 msgid ""
-"The title block, associated to frame references, and other graphic items "
-"(logos) is called here a page layout."
-msgstr "与框架引用和其他图形项（LOGO）关联的标题栏在此称为图框。"
+"The frame, title block, and other graphic items (logos) are collectively "
+"called a *drawing sheet*."
+msgstr "框架、标题块和其他图形项目（LOGO）统称为 *图框*。"
 
 #. type: Plain text
-#: pl_editor.adoc:50 pl_editor.adoc:98
-msgid "Basic page layout items are:"
-msgstr "基本图框项目是："
+#: pl_editor.adoc:46 pl_editor.adoc:84
+msgid "Basic drawing sheet items are:"
+msgstr "基本图框项目有："
 
 #. type: Plain text
-#: pl_editor.adoc:52 pl_editor.adoc:100
-#, no-wrap
-msgid "*Lines*\n"
-msgstr "*直线*\n"
+#: pl_editor.adoc:48 pl_editor.adoc:86
+msgid "*Lines*"
+msgstr "*线条*"
 
 #. type: Plain text
-#: pl_editor.adoc:54 pl_editor.adoc:102
-#, no-wrap
-msgid "*Rectangles*\n"
-msgstr "*矩形*\n"
+#: pl_editor.adoc:50 pl_editor.adoc:88
+msgid "*Rectangles*"
+msgstr "*矩形*"
+
+#. type: Plain text
+#: pl_editor.adoc:53
+msgid ""
+"*Text* (with keywords that will be replaced by the actual text, like the "
+"date, page number...) in the Schematic or Board Editors."
+msgstr ""
+"原理图或 PCB 编辑器中的 *文本*（包含将被实际文本替换的关键字，如日期、页"
+"码......）。"
+
+#. type: Plain text
+#: pl_editor.adoc:55
+msgid "*Poly-polygons* (mainly to place logos and special graphic shapes)"
+msgstr "*多边形*（主要用于放置 LOGO 和特殊图形）"
 
 #. type: Plain text
 #: pl_editor.adoc:57
-#, no-wrap
-msgid ""
-"*Texts* (with format symbols, that will be replaced by the actual text,\n"
-"like the date, page number...) in Eeschema or Pcbnew.\n"
-msgstr ""
-"*文本* （带格式符号，将被实际文本替换，\n"
-"比如 Eeschema 或 Pcbnew 中的日期，页码...）。\n"
-
-#. type: Plain text
-#: pl_editor.adoc:59
-#, no-wrap
-msgid "*Poly-polygons* (mainly to place logos and special graphic shapes)\n"
-msgstr "*多边形* （主要用于放置 LOGO 和特殊图形形状）\n"
+msgid "*Bitmaps*."
+msgstr "*位图* 。"
 
 #. type: Plain text
 #: pl_editor.adoc:61
-#, no-wrap
-msgid "*Bitmaps*.\n"
-msgstr "*位图* 。\n"
-
-#. type: Plain text
-#: pl_editor.adoc:65
 msgid ""
 "Bitmaps can be plotted only by few plotters (PDF and PS only) Therefore, for "
 "other plotters, only a bounding box will be plotted."
@@ -166,767 +149,716 @@ msgstr ""
 "框。"
 
 #. type: Plain text
-#: pl_editor.adoc:67
-msgid "Items can be repeated, and texts and poly_polygons can be rotated."
-msgstr "可以重复项目，可以旋转文本和多边形。"
+#: pl_editor.adoc:63
+msgid "Items can be repeated, and text and poly_polygons can be rotated."
+msgstr "项目可以重复，文本和多边形可以旋转。"
 
 #. type: Title ==
-#: pl_editor.adoc:69
+#: pl_editor.adoc:65
 #, no-wrap
-msgid "Pl_Editor files"
-msgstr "Pl_Editor 文件"
-
-#. type: Title ===
-#: pl_editor.adoc:72
-#, no-wrap
-msgid "Input file and default title block"
-msgstr "输入文件和默认标题栏"
+msgid "Drawing Sheet Editor files"
+msgstr "图框编辑器文件"
 
 #. type: Plain text
-#: pl_editor.adoc:76
+#: pl_editor.adoc:71
 msgid ""
-"Pl_Editor reads or writes page layout description files *.kicad_wks (KiCad "
-"worksheet)."
-msgstr "Pl_Editor 读取或写入图框描述文件 *.kicad_wks（KiCad 工作表）。"
+"The Drawing Sheet Editor reads and writes KiCad drawing sheet files (`."
+"kicad_wks`). These files can be used as custom drawing sheets for schematic "
+"and PCB designs by selecting a custom drawing sheet in the **Page Setup** "
+"dialog in each editor."
+msgstr ""
+"图框编辑器可读写 KiCad 图框文件（`.kicad_wks`）。通过在各编辑器的 **页面设置"
+"** 对话框中选择自定义图框，这些文件可用作原理图和 PCB 设计的自定义图框。"
 
 #. type: Plain text
-#: pl_editor.adoc:79
+#: pl_editor.adoc:74
 msgid ""
-"An internal default page layout description to display the default KiCad "
-"title block is used until a file is read."
-msgstr "在读取文件之前，将使用内部默认图框描述来显示默认的 KiCad 标题块。"
+"When the Drawing Sheet Editor is first opened, it displays the default KiCad "
+"drawing sheet is used until a different drawing sheet file is opened."
+msgstr ""
+"首次打开图框编辑器时，会显示默认的 KiCad 图框，直到打开不同的图框文件。"
+
+#. type: Title ==
+#: pl_editor.adoc:78
+#, no-wrap
+msgid "Theory of operations"
+msgstr "操作理论"
 
 #. type: Title ===
 #: pl_editor.adoc:81
 #, no-wrap
-msgid "Output file"
-msgstr "输出文件"
+msgid "Basic drawing sheet item properties"
+msgstr "基本图框项目属性"
 
 #. type: Plain text
-#: pl_editor.adoc:85
+#: pl_editor.adoc:91
 msgid ""
-"The current page layout description can be written in a **.kicad_wks* file, "
-"using the S-expression format, which is widely used in KiCad."
+"*Text* (with keywords, with will be replaced by the actual text, like the "
+"date, page number...) in the Schematic or PCB Editors."
 msgstr ""
-"当前图框描述可以使用 S-expression 格式写入 **.kicad_wks* 文件，该格式在 "
-"KiCad 中广泛使用。"
+"原理图或 PCB 编辑器中的 *文本*（包含将被实际文本替换的关键字，如日期、页"
+"码......）。"
 
 #. type: Plain text
-#: pl_editor.adoc:88
+#: pl_editor.adoc:96
 msgid ""
-"This file can be used to show the custom page layout in Eeschema and/or "
-"Pcbnew."
-msgstr "此文件可用于在 Eeschema 和/或 Pcbnew 中显示自定义图框。"
-
-#. type: Title ==
-#: pl_editor.adoc:92
-#, no-wrap
-msgid "Theory of operations"
-msgstr "运作理论"
-
-#. type: Title ===
-#: pl_editor.adoc:95
-#, no-wrap
-msgid "Basic page layout items properties:"
-msgstr "基本图框项属性："
-
-#. type: Plain text
-#: pl_editor.adoc:105
-#, no-wrap
-msgid ""
-"*Texts* (with format symbols, with will be replaced by the actual\n"
-"text, like the date, page number...) in Eeschema or Pcbnew.\n"
+"*Poly-polygons* (mainly to place logos and special graphic shapes).  These "
+"poly polygons are created by the **Image Converter** tool, and cannot be "
+"built inside the Drawing Sheet Editor, because it is not possible to create "
+"such shapes by hand."
 msgstr ""
-"*文本* （带格式符号，将由实际替换\n"
-"文字，如 Eeschema 或 Pcbnew 中的日期，页码...）。\n"
+"*多边形*（主要用于放置 LOGO 和特殊图形）。 这些多边形由 **图像转换器** 工具创"
+"建，无法在图框编辑器内建立，因为无法手动创建此类形状。"
 
 #. type: Plain text
-#: pl_editor.adoc:110
-#, no-wrap
-msgid ""
-"*Poly-polygons* (mainly to place logos and special graphic shapes).\n"
-"These poly polygons are created by **Bitmap2component**, and cannot be\n"
-"built inside pl_editor, because it is not possible to create such shapes\n"
-"by hand.\n"
-msgstr ""
-"*多边形* （主要用于放置 LOGO 和特殊图形形状）。\n"
-"这些多边形由 **Bitmap2component** 创建，但不能\n"
-"内置 pl_editor，因为无法创建这样的形状\n"
-"用手。\n"
+#: pl_editor.adoc:98
+msgid "*Bitmaps* to place logos."
+msgstr "*位图* 放置 LOGO。"
 
 #. type: Plain text
-#: pl_editor.adoc:112
-#, no-wrap
-msgid "*Bitmaps* to place logos.\n"
-msgstr "*位图* 用于放置 LOGO。\n"
-
-#. type: Plain text
-#: pl_editor.adoc:114
+#: pl_editor.adoc:100
 msgid "Bitmaps can be plotted only by few plotters: PDF and PS only."
 msgstr "位图只能由少量绘图仪绘制：仅限 PDF 和 PS。"
 
 #. type: Plain text
-#: pl_editor.adoc:116
+#: pl_editor.adoc:102
 msgid "Therefore:"
 msgstr "因此："
 
 #. type: Plain text
-#: pl_editor.adoc:119
-#, no-wrap
+#: pl_editor.adoc:105
 msgid ""
-"*Texts, poly-polygons* and *bitmaps* are defined by a position, and\n"
-"can be rotated.\n"
-msgstr ""
-"*文本，多边形* 和 *位图* 由位置定义，和\n"
-"可以旋转。\n"
+"*Text, poly-polygons* and *bitmaps* are defined by a position, and can be "
+"rotated."
+msgstr "*文本、多边形* 和 *位图* 由位置定义，可以旋转。"
 
 #. type: Plain text
-#: pl_editor.adoc:123
-#, no-wrap
+#: pl_editor.adoc:109
 msgid ""
-"*Lines* (in fact segments) and *rectangles* are defined by two points:\n"
-"a start point and a end point. They cannot be rotated (this is useless\n"
-"for segments).\n"
+"*Lines* (in fact segments) and *rectangles* are defined by two points: a "
+"start point and a end point. They cannot be rotated (this is useless for "
+"segments)."
 msgstr ""
-"*线* （实际上是段）和 *矩形* 由两点定义：\n"
-"起点和终点。 它们不能旋转（这是没用的\n"
-"对于线）。\n"
+"*线条*（实际上是线段）和 *矩形* 由两个点定义：起点和终点。它们不能旋转（这对"
+"线段毫无用处）。"
 
 #. type: Plain text
-#: pl_editor.adoc:125
+#: pl_editor.adoc:111
 msgid "These basic items can be repeated."
 msgstr "这些基本项目可以重复。"
 
 #. type: Plain text
-#: pl_editor.adoc:128
+#: pl_editor.adoc:114
 msgid ""
-"Texts which are repeated accept also an increment value for labels (has "
-"meaning only if the text is one letter or one digit)."
+"Repeated text also accepts an increment value for labels (has meaning only "
+"if the text is one letter or one digit)."
 msgstr ""
-"重复的文本也接受标签的增量值（仅在文本是一个字母或一个数字时才有意义）。"
+"重复文本还接受标签的增量值（只有当文本是一个字母或一个数字时才有意义）。"
 
 #. type: Title ===
-#: pl_editor.adoc:130
+#: pl_editor.adoc:116
 #, no-wrap
 msgid "Coordinates definition"
 msgstr "坐标定义"
 
 #. type: Plain text
-#: pl_editor.adoc:134
+#: pl_editor.adoc:121
 msgid ""
 "Each position, start point and end point of items is always relative to a "
-"page corner."
-msgstr "项目的每个位置，起点和终点始终相对于页面角落。"
-
-#. type: Plain text
-#: pl_editor.adoc:137
-#, no-wrap
-msgid ""
-"**This feature ensure you can define a page layout which is not\n"
-"dependent on the paper size**.\n"
+"page corner. This feature allows you to define a drawing sheet which is not "
+"dependent on the paper size."
 msgstr ""
-"**此功能可确保您可以定义不是的图框\n"
-"取决于纸张尺寸** 。\n"
+"项目的每个位置、起点和终点总是与页面角相对应。通过这一功能，您可以定义一个不"
+"依赖于纸张大小的图框。"
 
 #. type: Title ===
-#: pl_editor.adoc:139
+#: pl_editor.adoc:123
 #, no-wrap
 msgid "Reference corners and coordinates:"
 msgstr "参考角和坐标："
 
 #. type: Plain text
-#: pl_editor.adoc:142
+#: pl_editor.adoc:126
 msgid "image:images/en/page_property_1.png[]"
 msgstr "image:images/zh/page_property_1.png[]"
 
 #. type: Plain text
-#: pl_editor.adoc:145
+#: pl_editor.adoc:129
 msgid ""
 "When the page size is changed, the position of the item, relative to its "
 "reference corner does not change."
 msgstr "更改页面大小时，项目相对于其参考角的位置不会更改。"
 
 #. type: Plain text
-#: pl_editor.adoc:148
+#: pl_editor.adoc:132
 msgid ""
 "Usually, title blocks are attached to the right bottom corner, and therefore "
 "this corner is the default corner, when creating an item."
 msgstr "通常，标题栏附加到右下角，因此在创建项目时，此角是默认角。"
 
 #. type: Plain text
-#: pl_editor.adoc:151
+#: pl_editor.adoc:135
 msgid ""
 "For rectangles and segments, which have two defined points, each point has "
 "its reference corner."
 msgstr "对于具有两个定义点的矩形和线段，每个点都有其参考角。"
 
 #. type: Title ===
-#: pl_editor.adoc:155
+#: pl_editor.adoc:139
 #, no-wrap
 msgid "Rotation"
 msgstr "旋转"
 
 #. type: Plain text
-#: pl_editor.adoc:159
+#: pl_editor.adoc:143
 msgid ""
-"Items which have a position defined by just one point (texts and poly-"
+"Items which have a position defined by just one point (text and poly-"
 "polygons) can be rotated:"
-msgstr "可以旋转具有仅由一个点（文本和多边形）定义的位置的项目："
+msgstr "仅由一个点定义位置的项目（文本和多边形）可以旋转："
 
 #. type: Plain text
-#: pl_editor.adoc:161
+#: pl_editor.adoc:145
 msgid "Normal: Rotation = 0"
 msgstr "正常：旋转 = 0"
 
 #. type: Target for macro image
-#: pl_editor.adoc:162
+#: pl_editor.adoc:146
 #, no-wrap
 msgid "images/en/text_noriented.png"
 msgstr "images/zh/text_noriented.png"
 
 #. type: Plain text
-#: pl_editor.adoc:165
+#: pl_editor.adoc:149
 msgid "Rotated: Rotation = 20 and 10 degrees."
 msgstr "旋转：旋转 = 20 和 10 度。"
 
 #. type: Target for macro image
-#: pl_editor.adoc:166
+#: pl_editor.adoc:150
 #, no-wrap
 msgid "images/en/text_rotated.png"
 msgstr "images/zh/text_rotated.png"
 
 #. type: Title ===
-#: pl_editor.adoc:171
+#: pl_editor.adoc:155
 #, no-wrap
 msgid "Repeat option"
 msgstr "重复选项"
 
 #. type: Plain text
-#: pl_editor.adoc:174
+#: pl_editor.adoc:158
 msgid "Items can be repeated:"
 msgstr "项目可以重复："
 
 #. type: Plain text
-#: pl_editor.adoc:176
+#: pl_editor.adoc:160
 msgid "This is useful to create grid and grid labels."
 msgstr "这对于创建网格和网格标签很有用。"
 
 #. type: Target for macro image
-#: pl_editor.adoc:177
+#: pl_editor.adoc:161
 #, no-wrap
 msgid "images/en/page_property_2.png"
 msgstr "images/zh/page_property_2.png"
 
 #. type: Title ==
-#: pl_editor.adoc:182
+#: pl_editor.adoc:166
 #, no-wrap
-msgid "Texts and formats"
-msgstr "文字和格式"
+msgid "Text and keywords"
+msgstr "文本和关键字"
 
 #. type: Title ===
-#: pl_editor.adoc:185
+#: pl_editor.adoc:169
 #, no-wrap
-msgid "Format symbols:"
-msgstr "格式符号："
+msgid "Keywords"
+msgstr "关键字"
 
 #. type: Plain text
-#: pl_editor.adoc:188
-msgid "Texts can be simple strings or can include format symbols."
-msgstr "文本可以是简单的字符串，也可以包含格式符号。"
+#: pl_editor.adoc:172
+msgid "Text can be simple strings or can include keywords."
+msgstr "文本可以是简单的字符串，也可以包含关键字。"
 
 #. type: Plain text
-#: pl_editor.adoc:190
-msgid "Format symbols are replaced by the actual values in Eeschema or Pcbnew."
-msgstr "格式符号由 Eeschema 或 Pcbnew 中的实际值替换。"
+#: pl_editor.adoc:178
+msgid ""
+"Keywords are replaced by actual values when the drawing sheet is used in a "
+"schematic or PCB design. They behave like xref:../eeschema/eeschema."
+"adoc#text-variables[text variables] in the Schematic and Board Editors, "
+"except the values are either automatically set by the editor or set by the "
+"user in the Page Setup dialog of the respective editor."
+msgstr ""
+"在原理图或 PCB 设计中使用图框时，关键字会被实际值取代。它们的行为类似于原理图"
+"和电路板编辑器中的 xref:../eeschema/eeschema.adoc#text-variables[文本变量]，"
+"只是值由编辑器自动设置或由用户在相应编辑器的页面设置对话框中设置。"
 
 #. type: Plain text
-#: pl_editor.adoc:192
-msgid "They are like format symbols in printf function."
-msgstr "它们就像 printf 函数中的格式符号。"
+#: pl_editor.adoc:181
+msgid ""
+"The keyword syntax is `${KEYWORD}`. The keyword, including the surrounding "
+"`${}`, will be replaced by the keyword's value."
+msgstr ""
+"关键字的语法是 `${KEYWORD}`。关键字（包括周围的 `${}`）将被关键字的值替换。"
 
-#. type: Plain text
-#: pl_editor.adoc:194
-msgid "A format symbol is *%* followed by 1 letter."
-msgstr "格式符号是 *%* 后跟 1 个字母。"
-
-#. type: Plain text
-#: pl_editor.adoc:196
-msgid "The *%C* format has one digit (comment identifier)."
-msgstr "*%C* 格式有一位数（注释标识符）。"
-
-#. type: Plain text
-#: pl_editor.adoc:198
-msgid "Formats symbols are:"
-msgstr "格式符号是："
-
-#. type: Plain text
-#: pl_editor.adoc:200
-#, no-wrap
-msgid "*%% = replaced by %*\n"
-msgstr "*%% = 替换为 %*\n"
-
-#. type: Plain text
-#: pl_editor.adoc:202
-#, no-wrap
-msgid "*%K = KiCad version*\n"
-msgstr "*%K = KiCad 版本*\n"
-
-#. type: Plain text
-#: pl_editor.adoc:204
-#, no-wrap
-msgid "*%Z = paper format name (A4, USLetter ...)*\n"
-msgstr "*%Z = 纸张格式名称（A4，美国信封 ...*\n"
-
-#. type: Plain text
-#: pl_editor.adoc:206
-#, no-wrap
-msgid "*%Y = company name*\n"
-msgstr "*%Y = 公司名称*\n"
-
-#. type: Plain text
-#: pl_editor.adoc:208
-#, no-wrap
-msgid "*%D = date*\n"
-msgstr "*%D = 日期*\n"
-
-#. type: Plain text
-#: pl_editor.adoc:210
-#, no-wrap
-msgid "*%R = revision*\n"
-msgstr "*%R = 修订版*\n"
-
-#. type: Plain text
+#. type: Table
 #: pl_editor.adoc:212
 #, no-wrap
-msgid "*%S = sheet number*\n"
-msgstr "*%S = 表格编号*\n"
+msgid ""
+"| Keyword name | Description\n"
+"| `KICAD_VERSION`\n"
+"  | Version number of KiCad.\n"
+"| `#`\n"
+"  | Sheet number.\n"
+"| `##`\n"
+"  | Total number of sheets.\n"
+"| `COMMENT1` - `COMMENT9`\n"
+"  | Contents of the `Comment<n>` field in Page Setup.\n"
+"| `COMPANY`\n"
+"  | Contents of the `Company` field in Page Setup.\n"
+"| `FILENAME`\n"
+"  | Filename of the schematic or PCB design file, with a file extension.\n"
+"| `ISSUE_DATE`\n"
+"  | Contents of the `Issue Date` field in Page Setup.\n"
+"| `LAYER`\n"
+"  | Name of the current PCB layer. This is blank in the Schematic and Board\n"
+"    Editors. It is only shown in plots of PCB designs.\n"
+"| `PAPER`\n"
+"  | Current sheet's paper size, which is set in Page Setup.\n"
+"| `REVISION`\n"
+"  | Contents of the `Revision` field in Page Setup.\n"
+"| `SHEETNAME`\n"
+"  | Sheet name of the current sheet. This is blank in the Board Editor.\n"
+"| `SHEETPATH`\n"
+"  | Sheet path of the current sheet. This is blank in the Board Editor.\n"
+"| `TITLE`\n"
+"  | Contents of the `Title` field in Page Setup.\n"
+msgstr ""
+"| 关键词名称 | 描述\n"
+"| `KICAD_VERSION`\n"
+"  | KiCad 的版本号。\n"
+"| `#`\n"
+"  | 当前图纸编号。\n"
+"| `##`\n"
+"  | 总图纸数量。\n"
+"| `COMMENT1` - `COMMENT9`\n"
+"  | 页面设置中 `Comment<n>` 字段的内容。这些字段可以用于添加图纸注释。\n"
+"| `COMPANY`\n"
+"  | 页面设置中 `公司` 字段的内容。\n"
+"| `FILENAME`\n"
+"  | 原理图或 PCB 设计文件的文件名，包括扩展名。\n"
+"| `ISSUE_DATE`\n"
+"  | 页面设置中 `发布日期` 字段的内容。\n"
+"| `LAYER`\n"
+"  | 当前 PCB 层的名称。在原理图编辑器和 PCB 编辑器中此值为空；仅在 PCB 设计打印预览中显示。\n"
+"| `PAPER`\n"
+"  | 当前图纸的纸张大小，该大小在页面设置中定义。\n"
+"| `REVISION`\n"
+"  | 页面设置中 `修订` 字段的内容。\n"
+"| `SHEETNAME`\n"
+"  | 当前图纸的名称。在 PCB 编辑器中此值为空。\n"
+"| `SHEETPATH`\n"
+"  | 当前图纸的路径。在 PCB 编辑器中此值为空。\n"
+"| `TITLE`\n"
+"  | 页面设置中标题 `字段` 的内容。\n"
 
 #. type: Plain text
-#: pl_editor.adoc:214
-#, no-wrap
-msgid "*%N = number of sheets*\n"
-msgstr "*%N = 张数*\n"
+#: pl_editor.adoc:217
+msgid ""
+"For example, `Size: ${PAPER}` displays \"Size: A4\" when the paper size is "
+"set to A4."
+msgstr "例如，当纸张尺寸设置为 A4 时，`Size: ${PAPER}` 显示 “Size: A4”。"
 
 #. type: Plain text
-#: pl_editor.adoc:216
-#, no-wrap
-msgid "*%Cx = comment (x = 0 to 9 to identify the comment)*\n"
-msgstr "*%Cx = 注释（x = 0 到 9 以标识注释）*\n"
+#: pl_editor.adoc:225
+msgid ""
+"When the Preview display mode is active (image:images/icons/"
+"pagelayout_normal_view_mode_24.png[]), the title block is displayed like in "
+"the Schematic and PCB Editors, with keywords replaced with the corresponding "
+"values. You can configure the displayed values in the Page Preview Settings "
+"dialog (image:images/icons/sheetset_24.png[])."
+msgstr ""
+"预览显示模式激活时（image:images/icons/pagelayout_normal_view_mode_24."
+"png[]），标题块的显示方式与原理图和 PCB 编辑器相同，关键字用相应的值代替。您"
+"可以在页面预览设置对话框（image:images/icons/sheetset_24.png[]）中配置显示的"
+"值。"
 
-#. type: Plain text
-#: pl_editor.adoc:218
-#, no-wrap
-msgid "*%F = filename*\n"
-msgstr "*%F = 文件名*\n"
-
-#. type: Plain text
-#: pl_editor.adoc:220
-#, no-wrap
-msgid "*%P = sheet path (sheet full name, for Eeschema)*\n"
-msgstr "*%P = 表格路径（表格全名，Eeschema）*\n"
-
-#. type: Plain text
-#: pl_editor.adoc:222
-#, no-wrap
-msgid "*%T = title*\n"
-msgstr "*%T = 标题*\n"
-
-#. type: Plain text
-#: pl_editor.adoc:224
-msgid "Example:"
-msgstr "例："
-
-#. type: Plain text
+#. type: Target for macro image
 #: pl_editor.adoc:226
-msgid "\"Size: %Z\" displays \"Size: A4\" or \"Size: USLetter\""
-msgstr "“Size: %Z” 显示“Size: A4” 或“Size: USLetter”"
+#, no-wrap
+msgid "images/show_fields_edit.png"
+msgstr ""
 
 #. type: Plain text
 #: pl_editor.adoc:231
 msgid ""
-"User display mode: image:images/icons/pagelayout_normal_view_mode.png[] "
-"activated.  Title block displayed like in Eeschema and Pcbnew"
+"When the Edit mode is active (image:images/icons/"
+"pagelayout_special_view_mode_24.png[]), the title block is displayed without "
+"replacing keywords."
 msgstr ""
-"用户显示模式：image:images/icons/pagelayout_normal_view_mode.png[] 已激活。 "
-"标题栏显示在 Eeschema 和 Pcbnew 中"
+"编辑模式激活时（image:images/icons/pagelayout_special_view_mode_24.png[]），"
+"标题块显示时不会替换关键字。"
 
 #. type: Target for macro image
 #: pl_editor.adoc:232
 #, no-wrap
-msgid "images/en/show_fields_data.png"
-msgstr "images/zh/show_fields_data.png"
-
-#. type: Plain text
-#: pl_editor.adoc:236
-msgid ""
-"\"Native\" display mode: image:images/icons/pagelayout_special_view_mode."
-"png[] activated.  The native texts entered in Pl_Editor, with their format "
-"symbols."
+msgid "images/show_fields_preview.png"
 msgstr ""
-"“原生”显示模式：image:images/icons/pagelayout_special_view_mode.png[] 已激"
-"活。 在 Pl_Editor 中输入的本机文本及其格式符号。"
-
-#. type: Target for macro image
-#: pl_editor.adoc:237
-#, no-wrap
-msgid "images/en/show_fields_codes.png"
-msgstr "images/zh/show_fields_codes.png"
 
 #. type: Title ===
-#: pl_editor.adoc:242
+#: pl_editor.adoc:237
 #, no-wrap
-msgid "Multi-line texts:"
-msgstr "多行文字："
+msgid "Multi-line text"
+msgstr "多行文字"
+
+#. type: Plain text
+#: pl_editor.adoc:240
+msgid "Text can be multi-line."
+msgstr "文本可以是多行文字。"
+
+#. type: Plain text
+#: pl_editor.adoc:242
+msgid "There are 2 ways to insert a new line in text:"
+msgstr "在文本中插入新行有两种方法："
 
 #. type: Plain text
 #: pl_editor.adoc:245
-msgid "Texts can be multi-line."
-msgstr "文本可以是多行的。"
+msgid ""
+"Insert the `\\n` 2 chars sequence (mainly in Page setup dialog in KiCad)."
+msgstr "插入 `\\n` 2 字符序列（主要在 KiCad 的页面设置对话框中）。"
 
 #. type: Plain text
 #: pl_editor.adoc:247
-msgid "There are 2 ways to insert a new line in texts:"
-msgstr "有两种方法可以在文本中插入新行："
+msgid "Insert a new line in the Drawing Sheet Editor Design window."
+msgstr "在图框编辑器设计窗口中插入新线条。"
 
 #. type: Plain text
-#: pl_editor.adoc:250
-msgid ""
-"Insert the \"\\n\" 2 chars sequence (mainly in Page setup dialog in KiCad)."
-msgstr "插入“\\n”2个字符序列（主要在 KiCad 中的页面设置对话框中）。"
-
-#. type: Plain text
-#: pl_editor.adoc:252
-msgid "Insert a new line in Pl_Editor Design window."
-msgstr "在 Pl_Editor 设计窗口中插入一个新行。"
-
-#. type: Plain text
-#: pl_editor.adoc:254
+#: pl_editor.adoc:249
 msgid "Here is an example:"
 msgstr "这是一个例子："
 
 #. type: Plain text
-#: pl_editor.adoc:256 pl_editor.adoc:350
+#: pl_editor.adoc:251
 msgid "Setup"
 msgstr "设置"
 
 #. type: Target for macro image
-#: pl_editor.adoc:257
+#: pl_editor.adoc:252
 #, no-wrap
-msgid "images/en/options_multi_line.png"
+msgid "images/options_multi_line.png"
 msgstr "images/zh/options_multi_line.png"
 
 #. type: Plain text
-#: pl_editor.adoc:260 pl_editor.adoc:354
+#: pl_editor.adoc:255
 msgid "Output"
 msgstr "输出"
 
 #. type: Target for macro image
-#: pl_editor.adoc:261
+#: pl_editor.adoc:256
 #, no-wrap
-msgid "images/en/multi_line.png"
+msgid "images/multi_line.png"
 msgstr "images/zh/multi_line.png"
 
 #. type: Title ===
-#: pl_editor.adoc:266
+#: pl_editor.adoc:261
 #, no-wrap
-msgid "Multi-line texts in Page Setup dialog:"
-msgstr "页面设置对话框中的多行文本："
+msgid "Multi-line text in Page Setup dialog"
+msgstr "页面设置对话框中的多行文本"
 
 #. type: Plain text
-#: pl_editor.adoc:269
-msgid ""
-"In the page setup dialog, text controls do not accept a multi-line text."
+#: pl_editor.adoc:264
+msgid "In the Page Setup dialog, text controls do not accept multi-line text."
 msgstr "在页面设置对话框中，文本控件不接受多行文本。"
 
 #. type: Plain text
-#: pl_editor.adoc:272
+#: pl_editor.adoc:267
 msgid ""
-"The *\"\\n\"* 2 chars sequence should be inserted to force a new line inside "
-"a text."
-msgstr "应插入 *“\\n”* 2个字符序列以强制在文本中添加新行。"
+"The `\\n` 2 character sequence should be inserted to force a new line inside "
+"a text object."
+msgstr "应插入 `\\n` 2 字符序列，以强制在文本对象内换行。"
 
 #. type: Plain text
-#: pl_editor.adoc:274
-msgid "Here is a two lines text, in _comment 2_ field:"
-msgstr "这是一个两行文本，在 _注释 2_ 字段中："
+#: pl_editor.adoc:269
+msgid "Here is a two line text object, in the Comment2 field:"
+msgstr "下面是 `注释 2` 字段中的两行文本对象："
 
 #. type: Plain text
-#: pl_editor.adoc:276
-msgid "image:images/en/insert_newline_code.png[]"
+#: pl_editor.adoc:271
+msgid "image:images/insert_newline_code.png[]"
 msgstr "image:images/zh/insert_newline_code.png[]"
 
 #. type: Plain text
-#: pl_editor.adoc:278
+#: pl_editor.adoc:273
 msgid "Here is the actual text:"
 msgstr "这是实际的文字："
 
 #. type: Plain text
-#: pl_editor.adoc:280
-msgid "image:images/en/multi_line_2.png[]"
+#: pl_editor.adoc:275
+msgid "image:images/multi_line_2.png[]"
 msgstr "image:images/zh/multi_line_2.png[]"
 
 #. type: Plain text
-#: pl_editor.adoc:282
-msgid ""
-"However, if you really want the *\"\\n\"* inside the text, enter *\"\\\\n\"*."
-msgstr "但是，如果您真的想在文本中使用 *“\\n”* ，请输入 *“\\\\n”* 。"
+#: pl_editor.adoc:277
+msgid "However, if you really want the `\\n` inside the text, enter `\\\\n`."
+msgstr "但是，如果您真的想在文本中输入 `\\n`，请输入 `\\\\n`。"
 
 #. type: Plain text
-#: pl_editor.adoc:284
-msgid "image:images/en/insert_slashnewline_code.png[]"
+#: pl_editor.adoc:279
+msgid "image:images/insert_slashnewline_code.png[]"
 msgstr "image:images/zh/insert_slashnewline_code.png[]"
 
 #. type: Plain text
-#: pl_editor.adoc:286
+#: pl_editor.adoc:281
 msgid "And the displayed text:"
 msgstr "并显示的文字："
 
 #. type: Plain text
-#: pl_editor.adoc:288
-msgid "image:images/en/multi_line_3.png[]"
+#: pl_editor.adoc:283
+msgid "image:images/multi_line_3.png[]"
 msgstr "image:images/zh/multi_line_3.png[]"
 
 #. type: Title ==
-#: pl_editor.adoc:292
+#: pl_editor.adoc:287
 #, no-wrap
 msgid "Constraints"
 msgstr "约束"
 
 #. type: Title ===
-#: pl_editor.adoc:295
+#: pl_editor.adoc:290
 #, no-wrap
 msgid "Page 1 constraint"
 msgstr "第 1 页约束"
 
 #. type: Plain text
-#: pl_editor.adoc:298
-msgid "When using Eeschema, the full schematic often uses more than one page."
-msgstr "使用 Eeschema 时，完整原理图通常使用多个页面。"
-
-#. type: Plain text
-#: pl_editor.adoc:300
-msgid "Usually page layout items are displayed on all pages."
-msgstr "通常图框项目显示在所有页面上。"
-
-#. type: Plain text
-#: pl_editor.adoc:303
+#: pl_editor.adoc:293
 msgid ""
-"But if a user want some items to be displayed only on page 1, or not on page "
-"1, the \"page 1 option\" this is possible by setting this option:"
+"When using the Schematic Editor, the full schematic often uses more than one "
+"page."
+msgstr "在使用原理图编辑器时，完整的原理图往往会用到一页以上。"
+
+#. type: Plain text
+#: pl_editor.adoc:299
+msgid ""
+"Usually drawing sheet items are shown on all pages, but you can also set "
+"each item to be shown only on the first page or on all pages except the "
+"first page.  To change which pages an item is shown on, use the dropdown in "
+"the the item's **Item Properties** panel. Options are **show on all pages**, "
+"**first page only**, and **subsequent pages only**."
 msgstr ""
-"但是，如果用户希望某些项目仅在第1页上显示，或者不在第1页上显示，则可以通过设"
-"置此选项来实现“第1页选项”："
+"通常图框项目会显示在所有页面上，但您也可以设置每个项目只显示在第一页或除第一"
+"页外的所有页面上。 要更改项目在哪些页面上显示，请使用项目 **项目属性** 面板中"
+"的下拉菜单。选项包括 **在所有页面显示**、**仅在第一页显示** 和 **仅在后续页面"
+"显示**。"
 
 #. type: Plain text
-#: pl_editor.adoc:305
-msgid "image:images/en/display_options.png[]"
-msgstr "image:images/zh/display_options.png[]"
-
-#. type: Plain text
-#: pl_editor.adoc:307
-msgid "Page 1 option:"
-msgstr "第 1 页选项："
-
-#. type: Plain text
-#: pl_editor.adoc:309
-msgid "None: no constraint."
-msgstr "无：没有约束。"
-
-#. type: Plain text
-#: pl_editor.adoc:311
-msgid "Page 1 only: the items is visible only on page 1."
-msgstr "仅限第 1 页：这些项目仅在第 1 页上可见。"
-
-#. type: Plain text
-#: pl_editor.adoc:313
-msgid "Not on page 1: the items is visible on all pages but the page 1."
-msgstr "不在第 1 页上：项目在所有页面上都可见，但页面1。"
+#: pl_editor.adoc:301
+msgid "image:images/page_options.png[]"
+msgstr ""
 
 #. type: Title ===
-#: pl_editor.adoc:317
+#: pl_editor.adoc:305
 #, no-wrap
-msgid "Text full size constraint"
-msgstr "文本全尺寸约束"
+msgid "Text maximum size constraint"
+msgstr "文本最大尺寸限制"
 
 #. type: Plain text
-#: pl_editor.adoc:320 pl_editor.adoc:352
-msgid "image:images/en/constraint_options.png[]"
-msgstr "image:images/zh/constraint_options.png[]"
+#: pl_editor.adoc:310
+msgid ""
+"Text items have a maximum size constraint. You can set a **maximum height** "
+"and **maximum width**, which together form a bounding box defining the "
+"maximum size of the text object."
+msgstr ""
+"文本项目有最大尺寸限制。您可以设置 **最大高度** 和 **最大宽度**，它们共同组成"
+"一个边界框，定义文本对象的最大尺寸。"
+
+#. type: Plain text
+#: pl_editor.adoc:312
+msgid "image:images/text_max_size_options.png[]"
+msgstr ""
+
+#. type: Plain text
+#: pl_editor.adoc:317
+msgid ""
+"If the text object is bigger than the maximum size in a given dimension, the "
+"text object will be dynamically compressed in that dimension in order to fit "
+"within the bounding box. This will result in the text being visually "
+"distorted.  If the text fits within the bounding box, the text will not be "
+"compressed."
+msgstr ""
+"如果文本对象在给定维度上大于最大尺寸，文本对象将在该维度上被动态压缩，以适应"
+"边界框。这将导致文本在视觉上失真。 如果文本在边界框内，则文本不会被压缩。"
+
+#. type: Plain text
+#: pl_editor.adoc:320
+msgid ""
+"When either parameter is set to `0`, KiCad will not enforce a maximum size "
+"in that dimension."
+msgstr "当任一参数设置为 `0` 时，KiCad 将不强制执行该尺寸的最大尺寸。"
 
 #. type: Plain text
 #: pl_editor.adoc:322
-msgid "Only for texts, one can set 2 parameters :"
-msgstr "仅对于文本，可以设置 2 个参数："
+msgid "Some text with the maximum height and width set to `0`:"
+msgstr "最大高度和宽度设置为 `0` 的文本："
 
 #. type: Plain text
 #: pl_editor.adoc:324
-msgid "the max size X"
-msgstr "最大尺寸 X"
-
-#. type: Plain text
-#: pl_editor.adoc:326
-msgid "the max size Y"
-msgstr "最大尺寸 Y"
-
-#. type: Plain text
-#: pl_editor.adoc:328
-msgid "which define a bounding box."
-msgstr "它定义了一个边界框。"
-
-#. type: Plain text
-#: pl_editor.adoc:333
-msgid ""
-"When these parameters are not 0, when displaying the text, the actual text "
-"height and the actual text width are dynamically modified if the full text "
-"size is bigger than the max size X and/or the max size Y, to fit the full "
-"text size with this bounding box."
+msgid "image:images/text_no_max_width.png[]"
 msgstr ""
-"当这些参数不为 0 时，在显示文本时，如果全文大小大于最大尺寸 X 和/或最大尺寸 "
-"Y，则动态修改实际文本高度和实际文本宽度，以适合全文大小 用这个边界框。"
 
 #. type: Plain text
-#: pl_editor.adoc:336
+#: pl_editor.adoc:327
 msgid ""
-"When the actual full text size is smaller than the max size X and/or the max "
-"size Y, the text height and/or the text width is not modified."
+"The same text compressed because the maximum width is set smaller than the "
+"width of the text:"
+msgstr "由于最大宽度设置小于文本宽度，因此压缩了相同的文本："
+
+#. type: Plain text
+#: pl_editor.adoc:329
+msgid "image:images/text_max_width.png[]"
 msgstr ""
-"当实际全文尺寸小于最大尺寸 X 和/或最大尺寸 Y 时，不修改文本高度和/或文本宽"
-"度。"
-
-#. type: Plain text
-#: pl_editor.adoc:338
-msgid "The text with no bounding box. Max size X = 0,0 Max size Y = 0,0"
-msgstr "没有边界框的文本。 最大尺寸 X = 0,0 最大尺寸 Y = 0,0"
-
-#. type: Plain text
-#: pl_editor.adoc:340
-msgid "image:images/en/constraints_none.png[]"
-msgstr "image:images/zh/constraints_none.png[]"
-
-#. type: Plain text
-#: pl_editor.adoc:342
-msgid "The *same* text with constraint. Max size X = 40,0 Max size Y = 0,0"
-msgstr "带有约束的 *相同* 文本。 最大尺寸 X = 40,0 最大尺寸 Y = 0,0"
-
-#. type: Plain text
-#: pl_editor.adoc:344
-msgid "image:images/en/constraints_defined.png[]"
-msgstr "image:images/zh/constraints_defined.png[]"
-
-#. type: Plain text
-#: pl_editor.adoc:348
-msgid "A multi line text, constrained:"
-msgstr "受限制的多行文字："
-
-#. type: Plain text
-#: pl_editor.adoc:356
-msgid "image:images/en/block_constraints.png[]"
-msgstr "image:images/zh/block_constraints.png[]"
 
 #. type: Title ==
-#: pl_editor.adoc:360
+#: pl_editor.adoc:331
 #, no-wrap
-msgid "Invoking Pl_Editor"
-msgstr "调用 Pl_Editor"
+msgid "Invoking the Drawing Sheet Editor"
+msgstr "调用图框编辑器"
 
 #. type: Plain text
-#: pl_editor.adoc:364
+#: pl_editor.adoc:335
 msgid ""
-"Pl_Editor is typically invoked from a command line, or from the KiCad "
-"manager."
-msgstr "通常从命令行或 KiCad 管理器调用 Pl_Editor。"
+"The Drawing Sheet Editor is typically invoked from a command line, or from "
+"the KiCad Project Manager."
+msgstr "图框编辑器通常通过命令行或 KiCad 工程管理器调用。"
 
 #. type: Plain text
-#: pl_editor.adoc:366
+#: pl_editor.adoc:337
 msgid ""
 "From a command line, the syntax is pl_editor <*.kicad_wks file to open>."
 msgstr "从命令行，语法是 pl_editor <*.kicad_wks 文件打开>。"
 
 #. type: Title ==
-#: pl_editor.adoc:368
+#: pl_editor.adoc:339
 #, no-wrap
-msgid "Pl_Editor Commands"
-msgstr "Pl_Editor 命令"
+msgid "Drawing Sheet Editor Commands"
+msgstr "图框编辑器命令"
 
 #. type: Title ===
-#: pl_editor.adoc:371
+#: pl_editor.adoc:342
 #, no-wrap
 msgid "Main Screen"
 msgstr "主屏幕"
 
 #. type: Plain text
-#: pl_editor.adoc:374
-msgid "The image below shows the main window of Pl_Editor."
-msgstr "下图显示了 Pl_Editor 的主窗口。"
+#: pl_editor.adoc:345
+msgid "The image below shows the main window of the Drawing Sheet Editor."
+msgstr "下图显示了图框编辑器的主窗口。"
 
 #. type: Target for macro image
-#: pl_editor.adoc:375
+#: pl_editor.adoc:346
 #, no-wrap
-msgid "images/en/main_window.png"
+msgid "images/main_window.png"
 msgstr "images/zh/main_window.png"
 
 #. type: Plain text
-#: pl_editor.adoc:378
-msgid "The left pane contains the list of basic items."
-msgstr "左窗格包含基本项目列表。"
+#: pl_editor.adoc:349
+msgid ""
+"The main part of the screen is the editing canvas for the open drawing sheet."
+msgstr "屏幕的主要部分是打开的图框的编辑画布。"
 
 #. type: Plain text
-#: pl_editor.adoc:380
-msgid "The right pane is the item settings editor."
-msgstr "右侧窗格是项目设置编辑器。"
+#: pl_editor.adoc:352
+msgid ""
+"The right pane is a properties editor for editing the selected item. It only "
+"appears when an item is selected in the canvas."
+msgstr ""
+"右侧窗格是一个属性编辑器，用于编辑选定的项目。只有在画布中选中项目时才会出"
+"现。"
 
 #. type: Title ===
-#: pl_editor.adoc:384
+#: pl_editor.adoc:356
 #, no-wrap
 msgid "Main Window Toolbar"
 msgstr "主窗口工具栏"
 
 #. type: Plain text
-#: pl_editor.adoc:387
-msgid "image:images/en/main_toolbar.png[]"
-msgstr "image:images/zh/main_toolbar.png[]"
-
-#. type: Plain text
-#: pl_editor.adoc:389
+#: pl_editor.adoc:359
 msgid "The top toolbar allows for easy access to the following commands:"
 msgstr "顶部工具栏可以轻松访问以下命令："
 
 #. type: Table
-#: pl_editor.adoc:435
+#: pl_editor.adoc:402
 #, no-wrap
+#| msgid ""
+#| "|image:images/icons/new_page_layout.png[]\n"
+#| "|Select the net list file to be processed.\n"
+#| "\n"
+#| "|image:images/icons/open_page_layout.png[]\n"
+#| "|Load a page layout description file.\n"
+#| "\n"
+#| "|image:images/icons/save.png[]\n"
+#| "|Save the current page layout description in a .kicad_wks file.\n"
+#| "\n"
+#| "|image:images/icons/sheetset.png[]\n"
+#| "|Display the page size selector and the title block user data editor.\n"
+#| "\n"
+#| "|image:images/icons/print_button.png[]\n"
+#| "|Prints the current page.\n"
+#| "\n"
+#| "|image:images/icons/delete.png[]\n"
+#| "|Delete the currently selected item.\n"
+#| "\n"
+#| "|image:images/icons/undo.png[] image:images/icons/redo.png[]\n"
+#| "|Undo/redo tools.\n"
+#| "\n"
+#| "|image:images/icons/zoom_in.png[] image:images/icons/zoom_out.png[]\n"
+#| " image:images/icons/zoom_redraw.png[] image:images/icons/zoom_fit_in_page.png[] \n"
+#| "|Zoom in, out, redraw and auto, respectively.\n"
+#| "\n"
+#| "|image:images/icons/pagelayout_normal_view_mode.png[]\n"
+#| "|Show the page layout in user mode: texts are shown like in Eeschema or Pcbnew:\n"
+#| "text format symbols are replaced by the user texts.\n"
+#| "\n"
+#| "|image:images/icons/pagelayout_special_view_mode.png[]\n"
+#| "|Show the page layout in native mode: texts are displayed \"as is\", with the\n"
+#| "contained formats, without any replacement.\n"
+#| "\n"
+#| "|image:images/en/set_base_corner.png[width=\"70%\"]\n"
+#| "|Reference corner selection, for coordinates displayed to the status bar.\n"
+#| "\n"
+#| "|image:images/en/set_current_page.png[width=\"85%\"]\n"
+#| "|Selection of the page number (page & or other pages).\n"
+#| "\n"
+#| "This selection has meaning only if some items than have a page option,\n"
+#| "are not shown on all pages (in a schematic for instance, which contains\n"
+#| "more than one page).\n"
+#| "\n"
 msgid ""
-"|image:images/icons/new_page_layout.png[]\n"
-"|Select the net list file to be processed.\n"
+"|image:images/icons/new_generic_24.png[]\n"
+"|Create a new drawing sheet.\n"
 "\n"
-"|image:images/icons/open_page_layout.png[]\n"
-"|Load a page layout description file.\n"
+"|image:images/icons/directory_open_24.png[]\n"
+"|Load a drawing sheet file.\n"
 "\n"
-"|image:images/icons/save.png[]\n"
-"|Save the current page layout description in a .kicad_wks file.\n"
+"|image:images/icons/save_24.png[]\n"
+"|Save the current drawing sheet in a `.kicad_wks` file.\n"
 "\n"
-"|image:images/icons/sheetset.png[]\n"
+"|image:images/icons/sheetset_24.png[]\n"
 "|Display the page size selector and the title block user data editor.\n"
 "\n"
-"|image:images/icons/print_button.png[]\n"
+"|image:images/icons/print_button_24.png[]\n"
 "|Prints the current page.\n"
 "\n"
-"|image:images/icons/delete.png[]\n"
-"|Delete the currently selected item.\n"
-"\n"
-"|image:images/icons/undo.png[] image:images/icons/redo.png[]\n"
+"|image:images/icons/undo_24.png[] image:images/icons/redo_24.png[]\n"
 "|Undo/redo tools.\n"
 "\n"
-"|image:images/icons/zoom_in.png[] image:images/icons/zoom_out.png[]\n"
-" image:images/icons/zoom_redraw.png[] image:images/icons/zoom_fit_in_page.png[] \n"
+"|image:images/icons/zoom_in_24.png[] image:images/icons/zoom_out_24.png[]\n"
+" image:images/icons/refresh_24.png[] image:images/icons/zoom_fit_in_page_24.png[] \n"
 "|Zoom in, out, redraw and auto, respectively.\n"
 "\n"
-"|image:images/icons/pagelayout_normal_view_mode.png[]\n"
-"|Show the page layout in user mode: texts are shown like in Eeschema or Pcbnew:\n"
-"text format symbols are replaced by the user texts.\n"
+"|image:images/icons/pagelayout_normal_view_mode_24.png[]\n"
+"|Show the drawing sheet in Preview mode: text is shown like in the Schematic or\n"
+"PCB Editors, with text keywords replaced by user text.\n"
 "\n"
-"|image:images/icons/pagelayout_special_view_mode.png[]\n"
-"|Show the page layout in native mode: texts are displayed \"as is\", with the\n"
-"contained formats, without any replacement.\n"
+"|image:images/icons/pagelayout_special_view_mode_24.png[]\n"
+"|Show the drawing sheet in Edit mode: text is displayed \"as is\", without any\n"
+"keyword replacement.\n"
 "\n"
 "|image:images/en/set_base_corner.png[width=\"70%\"]\n"
 "|Reference corner selection, for coordinates displayed to the status bar.\n"
@@ -939,60 +871,53 @@ msgid ""
 "more than one page).\n"
 "\n"
 msgstr ""
-"|image:images/icons/new_page_layout.png[]\n"
-"|选择要处理的网络列表文件。\n"
+"|image:images/icons/new_generic_24.png[]\n"
+"| 创建一个新的图框。\n"
 "\n"
-"|image:images/icons/open_page_layout.png[]\n"
-"|加载图框描述文件。\n"
+"|image:images/icons/directory_open_24.png[]\n"
+"|加载一个已保存的图框文件。\n"
 "\n"
-"|image:images/icons/save.png[]\n"
-"|将当前图框描述保存在 .kicad_wks 文件中。\n"
+"|image:images/icons/save_24.png[]\n"
+"|将当前图框保存为 `.kicad_wks` 文件。\n"
 "\n"
-"|image:images/icons/sheetset.png[]\n"
-"|显示页面大小选择器和标题栏用户数据编辑器。\n"
+"|image:images/icons/sheetset_24.png[]\n"
+"|显示页面大小选择器及标题栏用户数据编辑器。\n"
 "\n"
-"|image:images/icons/print_button.png[]\n"
-"|打印当前页面。\n"
+"|image:images/icons/print_button_24.png[]\n"
+"| 打印当前页面。\n"
 "\n"
-"|image:images/icons/delete.png[]\n"
-"|删除当前选定的项目。\n"
+"|image:images/icons/undo_24.png[] image:images/icons/redo_24.png[]\n"
+"|撤销/重做工具。\n"
 "\n"
-"|image:images/icons/undo.png[] image:images/icons/redo.png[]\n"
-"|撤消/重做工具。\n"
+"|image:images/icons/zoom_in_24.png[] image:images/icons/zoom_out_24.png[]\n"
+" image:images/icons/refresh_24.png[] image:images/icons/zoom_fit_in_page_24.png[] \n"
+"|分别实现放大、缩小、重新绘制和自动适配页面的缩放功能。\n"
 "\n"
-"|image:images/icons/zoom_in.png[] image:images/icons/zoom_out.png[]\n"
-" image:images/icons/zoom_redraw.png[] image:images/icons/zoom_fit_in_page.png[] \n"
-"|分别放大，缩小，重绘和自动。\n"
-"\n"
-"|image:images/icons/pagelayout_normal_view_mode.png[]\n"
-"|在用户模式下显示图框：文本显示在 Eeschema 或 Pcbnew 中：\n"
-"文本格式符号由用户文本替换。\n"
-"\n"
-"|image:images/icons/pagelayout_special_view_mode.png[]\n"
-"|以纯模式显示图框：文本按“原样”显示，带有\n"
-"包含格式，无需任何替换。\n"
-"\n"
-"|image:images/zh/set_base_corner.png[width=\"70%\"]\n"
-"|参考角选择，用于显示到状态栏的坐标。\n"
-"\n"
-"|image:images/zh/set_current_page.png[width=\"85%\"]\n"
-"|选择页码（页面和/或其他页面）。\n"
+"|image:images/icons/pagelayout_normal_view_mode_24.png[]\n"
+"|在预览模式下显示图框：文本展示方式与原理图或 PCB 编辑器相同，其中关键词会被用户自定义文本替代。\n"
+"|image:images/icons/pagelayout_special_view_mode_24.png[]\n"
+"|在编辑模式下显示图框文本 “原样” 展示，不进行任何关键词替换。\n"
+"|image:images/en/set_base_corner.png[width=\"70%\"]\n"
+"|选择参考角，用于状态栏中显示的坐标系统。\n"
+"|image:images/en/set_current_page.png[width=\"85%\"]\n"
+"|选择页码（当前页或其它页）。\n"
+" 此选项仅当存在某些具有页码选项的项目，并且这些项目不会出现在所有页面上时才有意义（例如，对于包含多页的原理图）。通过选择特定页码，可以确保相关联的元素只在指定的页面上显示，而不会重复出现在每个页面上，从而保持图纸的清晰性和组织性。\n"
 "\n"
 
 #. type: Title ===
-#: pl_editor.adoc:438
+#: pl_editor.adoc:405
 #, no-wrap
 msgid "Commands in drawing area (draw panel)"
 msgstr "绘图区域中的命令（绘图面板）"
 
 #. type: Title ====
-#: pl_editor.adoc:441
+#: pl_editor.adoc:408
 #, no-wrap
 msgid "Keyboard Commands"
 msgstr "键盘命令"
 
 #. type: Table
-#: pl_editor.adoc:455
+#: pl_editor.adoc:422
 #, no-wrap
 msgid ""
 "|F1 |Zoom In\n"
@@ -1018,13 +943,13 @@ msgstr ""
 "| 向下箭头 | 将光标向下移动一个网格位置\n"
 
 #. type: Title ====
-#: pl_editor.adoc:458
+#: pl_editor.adoc:425
 #, no-wrap
 msgid "Mouse Commands"
 msgstr "鼠标命令"
 
 #. type: Table
-#: pl_editor.adoc:466
+#: pl_editor.adoc:433
 #, no-wrap
 msgid ""
 "|Scroll Wheel |Zoom in and out at the current cursor position\n"
@@ -1038,516 +963,811 @@ msgstr ""
 "| 右键单击 | 打开上下文菜单\n"
 
 #. type: Title ====
-#: pl_editor.adoc:469
+#: pl_editor.adoc:436
 #, no-wrap
 msgid "Context Menu"
 msgstr "上下文菜单"
 
 #. type: Plain text
-#: pl_editor.adoc:472
+#: pl_editor.adoc:439
 msgid "Displayed by right-clicking the mouse:"
 msgstr "通过右键单击鼠标显示："
 
 #. type: Plain text
-#: pl_editor.adoc:474
+#: pl_editor.adoc:441
 msgid "Add Line"
 msgstr "添加线"
 
 #. type: Plain text
-#: pl_editor.adoc:476
+#: pl_editor.adoc:443
 msgid "Add Rectangle"
 msgstr "添加矩形"
 
 #. type: Plain text
-#: pl_editor.adoc:478
+#: pl_editor.adoc:445
 msgid "Add Text"
 msgstr "添加文字"
 
 #. type: Plain text
-#: pl_editor.adoc:480
-msgid "Append Page Layout Descr File"
-msgstr "附加图框描述文件"
+#: pl_editor.adoc:447
+msgid "Add Bitmap"
+msgstr "添加位图"
 
 #. type: Plain text
-#: pl_editor.adoc:483
-msgid ""
-"Are commands to add a basic layout item to the current page layout "
-"description."
-msgstr "是用于将基本布局项添加到当前图框描述的命令。"
-
-#. type: Plain text
-#: pl_editor.adoc:485
+#: pl_editor.adoc:449
 msgid "Zoom selection: direct selection of the display zoom."
 msgstr "缩放选择：直接选择显示缩放。"
 
 #. type: Plain text
-#: pl_editor.adoc:487
+#: pl_editor.adoc:451
 msgid "Grid selection: direct selection of the grid."
 msgstr "网格选择：直接选择网格。"
 
-#. type: delimited block =
-#: pl_editor.adoc:492
-msgid ""
-"_Append Page Layout Descr File_ is intended to add poly polygons to make "
-"logos."
-msgstr "_追加图框描述文件_ 旨在添加多边形以制作 LOGO。"
-
-#. type: delimited block =
-#: pl_editor.adoc:496
-msgid ""
-"Because usually a logo it needs hundred of vertices, you cannot create a "
-"polygon by hand. But you can append a description file, created by "
-"Bitmap2Component."
-msgstr ""
-"因为通常需要数百个顶点的 LOGO，所以不能手工创建多边形。 但是您可以附加由 "
-"Bitmap2Component 创建的描述文件。"
-
 #. type: Title ===
-#: pl_editor.adoc:500
+#: pl_editor.adoc:454
 #, no-wrap
 msgid "Status Bar Information"
 msgstr "状态栏信息"
 
 #. type: Plain text
-#: pl_editor.adoc:504
+#: pl_editor.adoc:458
 msgid ""
-"The status bar is located at the bottom of the Pl_Editor and provides useful "
-"information to the user."
-msgstr "状态栏位于 Pl_Editor 的底部，为用户提供有用的信息。"
+"The status bar is located at the bottom of the Drawing Sheet Editor and "
+"provides useful information to the user."
+msgstr "状态栏位于图框的底部，为用户提供有用的信息。"
 
 #. type: Target for macro image
-#: pl_editor.adoc:505
+#: pl_editor.adoc:459
 #, no-wrap
 msgid "images/en/pl_status_bar.png"
 msgstr "images/zh/pl_status_bar.png"
 
 #. type: Plain text
-#: pl_editor.adoc:509
+#: pl_editor.adoc:463
 msgid ""
-"Coordinates are *always relative to the corner* selected as **reference**."
-msgstr "坐标 *始终相对于角* 被选为 **参考** 。"
+"Coordinates are always relative to the corner selected as the reference "
+"corner in the reference corner dropdown in the menubar."
+msgstr "坐标始终相对于菜单栏中的参考角下拉列表中选为参考角的角。"
 
 #. type: Title ==
-#: pl_editor.adoc:513
+#: pl_editor.adoc:467
 #, no-wrap
-msgid "Left window"
-msgstr "左窗口"
+msgid "Properties editor"
+msgstr "属性编辑器"
 
 #. type: Plain text
-#: pl_editor.adoc:516
-msgid "The left windows shows the list of layout items."
-msgstr "左侧窗口显示布局项列表。"
-
-#. type: Plain text
-#: pl_editor.adoc:519
+#: pl_editor.adoc:474
 msgid ""
-"One can select a given item (left clicking on the line) or, when right "
-"clicking on the line, display a pop up menu."
-msgstr "可以选择给定项目（左键单击该行），或者在右键单击该行时，显示弹出菜单。"
+"The right pane is a properties editor. It only appears when an item is "
+"selected in the canvas. The **Item Properties** tab contains properties for "
+"the selected item. These properties depend on what type of item is selected. "
+"The **General Options** tab lets you edit default properties and margins for "
+"the *sheet."
+msgstr ""
+"右侧窗格是属性编辑器。仅当在画布中选择项目时，它才会显示。**项目属性** 选项卡"
+"包含所选项目的属性。这些属性取决于所选的项目类型。通过 **常规选项** 选项卡，"
+"您可以编辑 *sheet 的默认属性和边距。"
 
 #. type: Plain text
-#: pl_editor.adoc:522
+#: pl_editor.adoc:477
 msgid ""
-"This menu allows basic operations: add a new item, or delete the selected "
-"item."
-msgstr "此菜单允许基本操作：添加新项目或删除所选项目。"
+"Changes made in the properties editor are not applied until you click the "
+"**Apply** button."
+msgstr "在属性编辑器中所做的更改在单击 **应用** 按钮之前不会应用。"
 
-#. type: Plain text
-#: pl_editor.adoc:524
+#. type: Table
+#: pl_editor.adoc:482
 #, no-wrap
-msgid "**-> A selected item is also drawn in a different color on draw panel**.\n"
-msgstr "**-> 选定的项目也会在绘图面板上以不同的颜色绘制** 。\n"
+msgid ""
+"|image:images/item_properties.png[width=\"50%\"]\n"
+"|image:images/general_options.png[width=\"50%\"]\n"
+msgstr ""
+
+#. type: Title ==
+#: pl_editor.adoc:486
+#, no-wrap
+msgid "Design Inspector window"
+msgstr "设计检查器窗口"
 
 #. type: Plain text
-#: pl_editor.adoc:527
+#: pl_editor.adoc:491
 msgid ""
-"Design tree: the item 19 is selected, and shown in highlighted on the draw "
-"panel."
-msgstr "设计树：选择项目 19，并在绘图面板上突出显示。"
+"The Design Inspector shows a table of every item in the drawing sheet and "
+"their properties. Selecting an item in the Design Inspector also selects the "
+"item on the canvas and leaves it selected when you close the Design "
+"Inspector."
+msgstr ""
+"设计检查器显示工图框中每个项目及其属性的表格。在设计检查器中选择项目也会在画"
+"布上选择该项目，并在您关闭设计检查器时保持选中状态。"
+
+#. type: Plain text
+#: pl_editor.adoc:493
+msgid ""
+"To open the Design Inspector, use **Inspect** -> **Show Design Inspector**."
+msgstr "要打开设计检查器，请使用 **检查** -> **显示设计检查器** 。"
 
 #. type: Target for macro image
-#: pl_editor.adoc:528
+#: pl_editor.adoc:494
 #, no-wrap
-msgid "images/en/project_tree.png"
-msgstr "images/zh/project_tree.png"
+msgid "images/design_inspector.png"
+msgstr ""
 
 #. type: Title ==
-#: pl_editor.adoc:533
+#: pl_editor.adoc:498
 #, no-wrap
-msgid "Right window"
-msgstr "右窗口"
-
-#. type: Plain text
-#: pl_editor.adoc:536
-msgid "The right window is the edit window."
-msgstr "右侧窗口是编辑窗口。"
-
-#. type: Table
-#: pl_editor.adoc:541
-#, no-wrap
-msgid ""
-"|image:images/en/property_none.png[width=\"50%\"]\n"
-"|image:images/en/property_main.png[width=\"50%\"]\n"
-msgstr ""
-"|image:images/zh/property_none.png[width=\"50%\"]\n"
-"|image:images/zh/property_main.png[width=\"50%\"]\n"
-
-#. type: Plain text
-#: pl_editor.adoc:545
-msgid ""
-"On this dialog you can set the page property and the item property of the "
-"current item."
-msgstr "在此对话框中，您可以设置页面属性和当前项目的项目属性。"
-
-#. type: Plain text
-#: pl_editor.adoc:549
-msgid "Displayed settings depend on the selected item:"
-msgstr "显示的设置取决于所选项目："
-
-#. type: Table
-#: pl_editor.adoc:564
-#, no-wrap
-msgid ""
-"|Settings for lines and rectangles\n"
-"|Settings for texts\n"
-"\n"
-"|image:images/en/property_line.png[width=\"50%\"]\n"
-"|image:images/en/property_text.png[width=\"50%\"]\n"
-"\n"
-"|Settings for poly-polygons\n"
-"|Setting for bitmaps\n"
-"\n"
-"|image:images/en/property_polyline.png[width=\"50%\"]\n"
-"|image:images/en/property_bitmap.png[width=\"50%\"]\n"
-"\n"
-msgstr ""
-"|线条和矩形的设置\n"
-"|文本设置\n"
-"\n"
-"|image:images/zh/property_line.png[width=\"50%\"]\n"
-"|image:images/zh/property_text.png[width=\"50%\"]\n"
-"\n"
-"|多边形的设置\n"
-"|设置位图\n"
-"\n"
-"|image:images/zh/property_polyline.png[width=\"50%\"]\n"
-"|image:images/zh/property_bitmap.png[width=\"50%\"]\n"
-"\n"
-
-#. type: Title ==
-#: pl_editor.adoc:569
-#, no-wrap
-msgid "Interactive edition"
-msgstr "交互式版"
+msgid "Interactive editing"
+msgstr "交互式编辑"
 
 #. type: Title ===
-#: pl_editor.adoc:572
+#: pl_editor.adoc:501
 #, no-wrap
 msgid "Item selection"
 msgstr "项目选择"
 
 #. type: Plain text
-#: pl_editor.adoc:575
+#: pl_editor.adoc:504
 msgid "An item can be selected:"
 msgstr "可以选择一个项目："
 
 #. type: Plain text
-#: pl_editor.adoc:577
-msgid "From the Design tree."
-msgstr "从设计树。"
+#: pl_editor.adoc:506
+msgid "From the Design Inspector"
+msgstr "来自设计检查器"
 
 #. type: Plain text
-#: pl_editor.adoc:579
+#: pl_editor.adoc:508
 msgid "By Left clicking on it."
 msgstr "通过左键单击它。"
 
 #. type: Plain text
-#: pl_editor.adoc:581
+#: pl_editor.adoc:510
 msgid "By Right clicking on it (and a pop up menu will be displayed)."
 msgstr "通过右键单击它（将显示一个弹出菜单）。"
 
 #. type: Plain text
-#: pl_editor.adoc:583
-msgid "When selected, this item is drawn in yellow."
-msgstr "选中后，此项目以黄色绘制。"
-
-#. type: Table
-#: pl_editor.adoc:590
-#, no-wrap
+#: pl_editor.adoc:513
 msgid ""
-"|image:images/edit_line.png[width=\"70%\"]\n"
-"|The starting point (image:images/edit_line_start.png[])\n"
-"and the ending point (image:images/edit_line_end.png[])\n"
-"are highlighted.\n"
+"When selected, this item is drawn in a lighter shade of color and the "
+"properties editor will be displayed for the selected item."
 msgstr ""
-"|image:images/edit_line.png[width=\"70%\"]\n"
-"|出发点 (image:images/edit_line_start.png[])\n"
-"和结束点 (image:images/edit_line_end.png[])\n"
-"突出显示。\n"
+"选中此选项后，将以较浅的颜色阴影绘制此项，并且将显示所选项的属性编辑器。"
 
 #. type: Plain text
-#: pl_editor.adoc:593
-msgid "When right clicking on the item, a pop-up menu is displayed."
-msgstr "右键单击该项目时，将显示一个弹出菜单。"
-
-#. type: Plain text
-#: pl_editor.adoc:595
-msgid "The pop menu options slightly depend on the selection:"
-msgstr "弹出菜单选项稍微取决于选择："
-
-#. type: Table
-#: pl_editor.adoc:601
-#, no-wrap
+#: pl_editor.adoc:516
 msgid ""
-"|image:images/en/context_line_move_start.png[width=\"50%\"]\n"
-"|image:images/en/context_line_move_end.png[width=\"50%\"]\n"
-"|image:images/en/context_line_move.png[width=\"50%\"]\n"
+"When right clicking on the item, a pop-up menu is displayed. The pop menu "
+"contents depend on the type of object selected."
 msgstr ""
-"|image:images/zh/context_line_move_start.png[width=\"50%\"]\n"
-"|image:images/zh/context_line_move_end.png[width=\"50%\"]\n"
-"|image:images/zh/context_line_move.png[width=\"50%\"]\n"
-
-#. type: Plain text
-#: pl_editor.adoc:607
-msgid ""
-"If more than one item is found, a menu clarification will be shown, to "
-"select the item:"
-msgstr "如果找到多个项目，将显示菜单说明，以选择项目："
-
-#. type: Target for macro image
-#: pl_editor.adoc:608
-#, no-wrap
-msgid "images/en/dialog_select_element.png"
-msgstr "images/zh/dialog_select_element.png"
-
-#. type: Table
-#: pl_editor.adoc:615
-#, no-wrap
-msgid ""
-"|image:images/drag_element.png[width=\"70%\"]\n"
-"|Once selected, the item, or one of its end points, can be moved by\n"
-"moving the mouse and placed (right clicking on the mouse).\n"
-msgstr ""
-"|image:images/drag_element.png[width=\"70%\"]\n"
-"|选择后，可以移动项目或其中一个端点\n"
-"移动鼠标并放置（右键单击鼠标）。\n"
+"右键单击该项目时，将显示一个弹出菜单。弹出菜单内容取决于所选对象的类型。"
 
 #. type: Title ===
-#: pl_editor.adoc:620
+#: pl_editor.adoc:520
 #, no-wrap
 msgid "Item creation"
 msgstr "项目创建"
 
 #. type: Plain text
-#: pl_editor.adoc:624
+#: pl_editor.adoc:526
 msgid ""
-"To add a new item, right click the mouse button when the cursor is on the "
-"left window or the draw area."
-msgstr "要添加新项目，请在光标位于左侧窗口或绘图区域时单击鼠标右键。"
+"To add a new item, use the appropriate button in the right toolbar and then "
+"click on the canvas. The item will be added to the canvas and selected, and "
+"the properties editor for the new item will open. You can edit the item's "
+"properties in the properties editor, then click **Apply** to modify the new "
+"item."
+msgstr ""
+"要添加新项目，请使用右侧工具栏中的相应按钮，然后单击画布。该项目将被添加到画"
+"布中并处于选中状态，并且将打开新项目的属性编辑器。您可以在属性编辑器中编辑项"
+"目的属性，然后单击 **应用** 以修改新项目。"
 
 #. type: Plain text
-#: pl_editor.adoc:626
-msgid "A popup menu is displayed:"
-msgstr "将显示一个弹出菜单："
-
-#. type: Plain text
-#: pl_editor.adoc:628
-msgid "Pop up menu in left window"
-msgstr "在左侧窗口中弹出菜单"
-
-#. type: Target for macro image
-#: pl_editor.adoc:629
-#, no-wrap
-msgid "images/en/context_createnew.png"
-msgstr "images/zh/context_createnew.png"
-
-#. type: Plain text
-#: pl_editor.adoc:632
-msgid "Pop up menu in draw area."
-msgstr "在绘图区域弹出菜单。"
-
-#. type: Target for macro image
-#: pl_editor.adoc:633
-#, no-wrap
-msgid "images/en/context_createnew2.png"
-msgstr "images/zh/context_createnew2.png"
-
-#. type: Plain text
-#: pl_editor.adoc:638
+#: pl_editor.adoc:530
 msgid ""
-"Lines, rectangles and texts are added just by clicking on the corresponding "
-"menu item."
-msgstr "只需单击相应的菜单项即可添加线条，矩形和文本。"
+"The available items are lines (image:images/icons/add_graphical_segments_24."
+"png[]), rectangles (image:images/icons/add_rectangle_24.png[]), text (image:"
+"images/icons/text_24.png[]), and bitmaps (image:images/icons/image_24.png[])."
+msgstr ""
+"可用项目包括线条 (image:images/icons/add_graphical_segments_24.png[])、矩形 "
+"(image:images/icons/add_rectangle_24.png[])、文本(image:images/icons/text_24."
+"png[]) 和位图 (image:images/icons/image_24.png[])。"
 
 #. type: Plain text
-#: pl_editor.adoc:641
-msgid ""
-"Logos must first be created by Bitmap2component, which creates a page layout "
-"description file."
-msgstr "必须首先由 Bitmap2component 创建 LOGO，这将创建图框描述文件。"
+#: pl_editor.adoc:532
+msgid "You can also add new items from the right-click context menu."
+msgstr "您还可以从右键单击上下文菜单添加新项目。"
 
 #. type: Plain text
-#: pl_editor.adoc:644
+#: pl_editor.adoc:536
 msgid ""
-"The Append Page Layout Descr File option append this file, to insert the "
-"logo (a poly polygon)."
-msgstr "附加图框描述文件选项附加此文件，以插入 LOGO（多边形）。"
+"Logos must first be created by the Image Converter tool, which creates a "
+"page layout description file. You can use the **Append Existing Drawing "
+"Sheet** command to insert the logo (a poly polygon) contained in the new "
+"drawing sheet."
+msgstr ""
+"LOGO 必须首先由位图转换器工具创建，该工具会创建页面布局描述文件。您可以使用 "
+"**追加现有图框** 命令插入新绘图表中包含的 LOGO（多边形）。"
 
 #. type: Title ===
-#: pl_editor.adoc:648
+#: pl_editor.adoc:540
 #, no-wrap
-msgid "Adding lines, rectangles and texts"
-msgstr "添加线条，矩形和文本"
+msgid "Adding lines, rectangles and text"
+msgstr "添加线条、矩形和文本"
 
 #. type: Plain text
-#: pl_editor.adoc:651
-msgid "When clicking on the option, a dialog is opened:"
-msgstr "单击该选项时，将打开一个对话框："
-
-#. type: Plain text
-#: pl_editor.adoc:653
-msgid "Adding line or rectangle"
-msgstr "添加线条或矩形"
-
-#. type: Target for macro image
-#: pl_editor.adoc:654
-#, no-wrap
-msgid "images/en/dialog_newline.png"
-msgstr "images/zh/dialog_newline.png"
-
-#. type: Plain text
-#: pl_editor.adoc:657
-msgid "Adding text"
-msgstr "添加文字"
-
-#. type: Target for macro image
-#: pl_editor.adoc:658
-#, no-wrap
-msgid "images/en/dialog_newtext.png"
-msgstr "images/zh/dialog_newtext.png"
-
-#. type: Plain text
-#: pl_editor.adoc:662
-msgid "Position of end points, and corner reference can be defined here."
-msgstr "可以在此处定义端点的位置和拐角参考。"
-
-#. type: Plain text
-#: pl_editor.adoc:665
+#: pl_editor.adoc:545
 msgid ""
-"However they can be defined later, from the right window, or by moving the "
-"item, or one of its end points."
-msgstr "但是，可以在稍后，从右侧窗口或通过移动项目或其中一个端点来定义它们。"
-
-#. type: Plain text
-#: pl_editor.adoc:667
-msgid "Most of time the corner reference is the same for both points."
-msgstr "大多数时候角点参考对于两个点都是相同的。"
-
-#. type: Plain text
-#: pl_editor.adoc:671
-msgid ""
-"If this is not the case, define the corner reference at creation is better, "
-"because if a corner reference is changed later, the geometry of the item "
-"will be a bit strange."
+"When you add lines, rectangles, or text, the item will be added to the "
+"canvas, selected, and shown in the properties editor. You can edit the "
+"item's properties in the properties editor, then click **Apply** to apply "
+"the changes."
 msgstr ""
-"如果不是这种情况，则在创建时定义角参考更好，因为如果稍后更改角参考，则项的几"
-"何将有点奇怪。"
+"添加线条、矩形或文本时，项目将被添加到画布中，处于选中状态，并在属性编辑器中"
+"显示。您可以在属性编辑器中编辑项目的属性，然后单击 **应用** 以应用更改。"
 
 #. type: Plain text
-#: pl_editor.adoc:674
+#: pl_editor.adoc:549
 msgid ""
-"When an item is created, if is put in move mode, and you can refine its "
-"position (this is very useful for texts and small lines or rectangles)"
+"You can also move the item in the canvas after it has been placed by "
+"dragging it or using the Move command (kbd:[M]). Lines and rectangles can be "
+"moved as a shape, but you can also move their points individually."
 msgstr ""
-"创建项目时，如果是否处于移动模式，您可以优化其位置（这对于文本和小行或矩形非"
-"常有用）"
+"在放置项目后，您还可以通过拖动项目或使用移动命令 (kbd:[M]) 在画布中移动项"
+"目。 线条和矩形可以作为形状移动，但您也可以单独移动它们的点。"
+
+#. type: Plain text
+#: pl_editor.adoc:553
+msgid ""
+"Lines and rectangles typically use the same corner reference for both the "
+"start and end points. If this is not the case, the item's geometry will "
+"change when the sheet size or margins are changed."
+msgstr ""
+"直线和矩形通常对起点和终点使用相同的角参照。如果不是这种情况，则当更改图纸大"
+"小或边距时，项目的几何图形将发生变化。"
 
 #. type: Title ===
-#: pl_editor.adoc:676
+#: pl_editor.adoc:555
 #, no-wrap
 msgid "Adding logos"
 msgstr "添加 LOGO"
 
 #. type: Plain text
-#: pl_editor.adoc:680
+#: pl_editor.adoc:560
 msgid ""
 "To add a logo, a poly polygon (the vectored image of the logo) must be first "
-"created using Bitmap2component."
+"created using the Image Converter tool, which is available in the main KiCad "
+"Project Manager window. Polygons cannot be created by hand."
 msgstr ""
-"要添加 LOGO，必须首先使用 Bitmap2component 创建多边形（LOGO 的矢量图像）。"
+"要添加 LOGO，必须首先使用位图转换器工具创建多边形（ LOGO 的矢量图像），该工具"
+"可在 KiCad 工程管理器主窗口中使用。多边形不能手动创建。"
 
 #. type: Plain text
-#: pl_editor.adoc:683
+#: pl_editor.adoc:565
 msgid ""
-"Bitmap2component creates a page layout description file which is append to "
-"the current design, using the *Append Page Layout Descr File* option."
+"The Image Converter tool creates a drawing sheet file which contains only "
+"one item: a poly polygon representing the source image. This drawing sheet "
+"file is appended to the current design, using the **Append Existing Drawing "
+"Sheet** command."
 msgstr ""
-"Bitmap2component 使用 *附加图框描述文件* 选项创建一个附加到当前设计的图框描述"
-"文件。"
+"位图转换器工具将创建一个图框文件，该文件仅包含一项：表示源图像的多边形多边"
+"形。此图框文件将使用 **追加现有图框** 命令追加到当前设计中。"
 
 #. type: Plain text
-#: pl_editor.adoc:686
+#: pl_editor.adoc:569
+#, no-wrap
 msgid ""
-"Bitmap2component creates a page layout description file which contains only "
-"one item: a poly polygon."
-msgstr "Bitmap2component 创建一个图框描述文件，其中只包含一个项目：多边形。"
+"This command can be used to append any drawing sheet file, regardless of\n"
+"      what items it contains. All items in the appended file will be added to\n"
+"      the current design.\n"
+msgstr "此命令可用于追加任何图形图纸文件，而不管它包含哪些项目。附加文件中的所有项目都将添加到当前设计中。\n"
 
 #. type: Plain text
-#: pl_editor.adoc:689
-msgid ""
-"__However, this command can be used to append any page layout description "
-"file, which is merged with the current design.__"
-msgstr "__但是，此命令可用于附加任何图框描述文件，该文件与当前设计合并。__"
-
-#. type: Plain text
-#: pl_editor.adoc:692
+#: pl_editor.adoc:572
 msgid ""
 "Once a poly polygon is inserted, it can be moved and its parameters edited."
 msgstr "插入多边形后，可以移动它并编辑其参数。"
 
 #. type: Title ===
-#: pl_editor.adoc:694
+#: pl_editor.adoc:574
 #, no-wrap
 msgid "Adding image bitmaps"
 msgstr "添加图像位图"
 
 #. type: Plain text
-#: pl_editor.adoc:698
+#: pl_editor.adoc:578
 msgid ""
-"You can add an image bitmap using most of bitmap formats (PNG, JPEG, "
-"BMP ...)."
-msgstr "您可以使用大多数位图格式（PNG，JPEG，BMP ...）添加图像位图。"
+"You can add an image bitmap using many common bitmap formats (PNG, JPEG, "
+"BMP, etc.)."
+msgstr "您可以使用许多常见的位图格式（PNG、JPEG、BMP 等）添加图像位图。"
 
 #. type: Plain text
-#: pl_editor.adoc:701
+#: pl_editor.adoc:581
 msgid ""
 "When a bitmap is imported, its PPI (pixel per inch) definition is set to "
 "300PPI."
 msgstr "导入位图时，其 PPI（每英寸像素数）定义设置为 300PPI。"
 
 #. type: Plain text
-#: pl_editor.adoc:703
-msgid "This value can be modified in panel Properties (right panel)."
-msgstr "可以在面板属性（右侧面板）中修改此值。"
+#: pl_editor.adoc:583
+msgid "This value can be modified in the properties editor."
+msgstr "可以在属性编辑器中修改此值。"
 
 #. type: Plain text
-#: pl_editor.adoc:705
-msgid "The actual size depend on this parameter."
-msgstr "实际大小取决于此参数。"
+#: pl_editor.adoc:585
+msgid ""
+"The actual size of the bitmap in the drawing sheet depends on this parameter."
+msgstr "图框中位图的实际大小取决于此参数。"
 
 #. type: Plain text
-#: pl_editor.adoc:708
+#: pl_editor.adoc:588
 msgid ""
 "Be aware that using higher definition values brings larger output files, and "
-"can have a noticeable draw or plot time."
+"can have an effect on draw or plot time."
 msgstr ""
-"请注意，使用更高的定义值会带来更大的输出文件，并且可能会有明显的绘制或绘图时"
+"请注意，使用更高的清晰度值会带来更大的输出文件，并且可能会影响绘制或绘图时"
 "间。"
 
 #. type: Plain text
-#: pl_editor.adoc:709
-msgid "A bitmap can be repeated, **but not rotated**."
-msgstr "可以重复位图，**但不能旋转** 。"
+#: pl_editor.adoc:589
+msgid "Bitmaps can be repeated but not rotated."
+msgstr "位图可以重复，但不能旋转。"
+
+#, no-wrap
+#~ msgid "*Publication date and software version*\n"
+#~ msgstr "*出版日期和软件版本*\n"
+
+#, no-wrap
+#~ msgid "Introduction to *Pl_Editor*"
+#~ msgstr "*Pl_Editor 简介*"
+
+#~ msgid ""
+#~ "Pl_Editor is a page layout editor tool to create custom title blocks, and "
+#~ "frame references."
+#~ msgstr "Pl_Editor 是一个图框编辑器工具，用于创建自定义标题块和框架引用。"
+
+#, no-wrap
+#~ msgid "Pl_Editor files"
+#~ msgstr "Pl_Editor 文件"
+
+#, no-wrap
+#~ msgid "Input file and default title block"
+#~ msgstr "输入文件和默认标题栏"
+
+#~ msgid ""
+#~ "Pl_Editor reads or writes page layout description files *.kicad_wks "
+#~ "(KiCad worksheet)."
+#~ msgstr "Pl_Editor 读取或写入图框描述文件 *.kicad_wks（KiCad 工作表）。"
+
+#~ msgid ""
+#~ "An internal default page layout description to display the default KiCad "
+#~ "title block is used until a file is read."
+#~ msgstr "在读取文件之前，将使用内部默认图框描述来显示默认的 KiCad 标题块。"
+
+#, no-wrap
+#~ msgid "Output file"
+#~ msgstr "输出文件"
+
+#~ msgid ""
+#~ "The current page layout description can be written in a **.kicad_wks* "
+#~ "file, using the S-expression format, which is widely used in KiCad."
+#~ msgstr ""
+#~ "当前图框描述可以使用 S-expression 格式写入 **.kicad_wks* 文件，该格式在 "
+#~ "KiCad 中广泛使用。"
+
+#~ msgid ""
+#~ "This file can be used to show the custom page layout in Eeschema and/or "
+#~ "Pcbnew."
+#~ msgstr "此文件可用于在 Eeschema 和/或 Pcbnew 中显示自定义图框。"
+
+#, no-wrap
+#~ msgid ""
+#~ "**This feature ensure you can define a page layout which is not\n"
+#~ "dependent on the paper size**.\n"
+#~ msgstr ""
+#~ "**此功能可确保您可以定义不是的图框\n"
+#~ "取决于纸张尺寸** 。\n"
+
+#, no-wrap
+#~ msgid "Format symbols:"
+#~ msgstr "格式符号："
+
+#~ msgid ""
+#~ "Format symbols are replaced by the actual values in Eeschema or Pcbnew."
+#~ msgstr "格式符号由 Eeschema 或 Pcbnew 中的实际值替换。"
+
+#~ msgid "They are like format symbols in printf function."
+#~ msgstr "它们就像 printf 函数中的格式符号。"
+
+#~ msgid "A format symbol is *%* followed by 1 letter."
+#~ msgstr "格式符号是 *%* 后跟 1 个字母。"
+
+#~ msgid "The *%C* format has one digit (comment identifier)."
+#~ msgstr "*%C* 格式有一位数（注释标识符）。"
+
+#~ msgid "Formats symbols are:"
+#~ msgstr "格式符号是："
+
+#, no-wrap
+#~ msgid "*%% = replaced by %*\n"
+#~ msgstr "*%% = 替换为 %*\n"
+
+#, no-wrap
+#~ msgid "*%K = KiCad version*\n"
+#~ msgstr "*%K = KiCad 版本*\n"
+
+#, no-wrap
+#~ msgid "*%Z = paper format name (A4, USLetter ...)*\n"
+#~ msgstr "*%Z = 纸张格式名称（A4，美国信封 ...*\n"
+
+#, no-wrap
+#~ msgid "*%Y = company name*\n"
+#~ msgstr "*%Y = 公司名称*\n"
+
+#, no-wrap
+#~ msgid "*%D = date*\n"
+#~ msgstr "*%D = 日期*\n"
+
+#, no-wrap
+#~ msgid "*%R = revision*\n"
+#~ msgstr "*%R = 修订版*\n"
+
+#, no-wrap
+#~ msgid "*%S = sheet number*\n"
+#~ msgstr "*%S = 表格编号*\n"
+
+#, no-wrap
+#~ msgid "*%N = number of sheets*\n"
+#~ msgstr "*%N = 张数*\n"
+
+#, no-wrap
+#~ msgid "*%Cx = comment (x = 0 to 9 to identify the comment)*\n"
+#~ msgstr "*%Cx = 注释（x = 0 到 9 以标识注释）*\n"
+
+#, no-wrap
+#~ msgid "*%F = filename*\n"
+#~ msgstr "*%F = 文件名*\n"
+
+#, no-wrap
+#~ msgid "*%P = sheet path (sheet full name, for Eeschema)*\n"
+#~ msgstr "*%P = 表格路径（表格全名，Eeschema）*\n"
+
+#, no-wrap
+#~ msgid "*%T = title*\n"
+#~ msgstr "*%T = 标题*\n"
+
+#~ msgid "Example:"
+#~ msgstr "例："
+
+#~ msgid "\"Size: %Z\" displays \"Size: A4\" or \"Size: USLetter\""
+#~ msgstr "“Size: %Z” 显示“Size: A4” 或“Size: USLetter”"
+
+#~ msgid ""
+#~ "\"Native\" display mode: image:images/icons/pagelayout_special_view_mode."
+#~ "png[] activated.  The native texts entered in Pl_Editor, with their "
+#~ "format symbols."
+#~ msgstr ""
+#~ "“原生”显示模式：image:images/icons/pagelayout_special_view_mode.png[] 已激"
+#~ "活。 在 Pl_Editor 中输入的本机文本及其格式符号。"
+
+#~ msgid "Usually page layout items are displayed on all pages."
+#~ msgstr "通常图框项目显示在所有页面上。"
+
+#~ msgid ""
+#~ "But if a user want some items to be displayed only on page 1, or not on "
+#~ "page 1, the \"page 1 option\" this is possible by setting this option:"
+#~ msgstr ""
+#~ "但是，如果用户希望某些项目仅在第1页上显示，或者不在第1页上显示，则可以通过"
+#~ "设置此选项来实现“第1页选项”："
+
+#~ msgid "Page 1 option:"
+#~ msgstr "第 1 页选项："
+
+#~ msgid "None: no constraint."
+#~ msgstr "无：没有约束。"
+
+#~ msgid "Page 1 only: the items is visible only on page 1."
+#~ msgstr "仅限第 1 页：这些项目仅在第 1 页上可见。"
+
+#~ msgid "Not on page 1: the items is visible on all pages but the page 1."
+#~ msgstr "不在第 1 页上：项目在所有页面上都可见，但页面1。"
+
+#~ msgid "Only for texts, one can set 2 parameters :"
+#~ msgstr "仅对于文本，可以设置 2 个参数："
+
+#~ msgid "the max size X"
+#~ msgstr "最大尺寸 X"
+
+#~ msgid "the max size Y"
+#~ msgstr "最大尺寸 Y"
+
+#~ msgid "which define a bounding box."
+#~ msgstr "它定义了一个边界框。"
+
+#~ msgid ""
+#~ "When these parameters are not 0, when displaying the text, the actual "
+#~ "text height and the actual text width are dynamically modified if the "
+#~ "full text size is bigger than the max size X and/or the max size Y, to "
+#~ "fit the full text size with this bounding box."
+#~ msgstr ""
+#~ "当这些参数不为 0 时，在显示文本时，如果全文大小大于最大尺寸 X 和/或最大尺"
+#~ "寸 Y，则动态修改实际文本高度和实际文本宽度，以适合全文大小 用这个边界框。"
+
+#~ msgid ""
+#~ "When the actual full text size is smaller than the max size X and/or the "
+#~ "max size Y, the text height and/or the text width is not modified."
+#~ msgstr ""
+#~ "当实际全文尺寸小于最大尺寸 X 和/或最大尺寸 Y 时，不修改文本高度和/或文本宽"
+#~ "度。"
+
+#~ msgid "The text with no bounding box. Max size X = 0,0 Max size Y = 0,0"
+#~ msgstr "没有边界框的文本。 最大尺寸 X = 0,0 最大尺寸 Y = 0,0"
+
+#~ msgid "image:images/en/constraints_none.png[]"
+#~ msgstr "image:images/zh/constraints_none.png[]"
+
+#~ msgid "The *same* text with constraint. Max size X = 40,0 Max size Y = 0,0"
+#~ msgstr "带有约束的 *相同* 文本。 最大尺寸 X = 40,0 最大尺寸 Y = 0,0"
+
+#~ msgid "image:images/en/constraints_defined.png[]"
+#~ msgstr "image:images/zh/constraints_defined.png[]"
+
+#~ msgid "A multi line text, constrained:"
+#~ msgstr "受限制的多行文字："
+
+#~ msgid "image:images/en/block_constraints.png[]"
+#~ msgstr "image:images/zh/block_constraints.png[]"
+
+#, no-wrap
+#~ msgid "Invoking Pl_Editor"
+#~ msgstr "调用 Pl_Editor"
+
+#, no-wrap
+#~ msgid "Pl_Editor Commands"
+#~ msgstr "Pl_Editor 命令"
+
+#~ msgid "The left pane contains the list of basic items."
+#~ msgstr "左窗格包含基本项目列表。"
+
+#~ msgid "The right pane is the item settings editor."
+#~ msgstr "右侧窗格是项目设置编辑器。"
+
+#~ msgid "Append Page Layout Descr File"
+#~ msgstr "附加图框描述文件"
+
+#~ msgid ""
+#~ "Are commands to add a basic layout item to the current page layout "
+#~ "description."
+#~ msgstr "是用于将基本布局项添加到当前图框描述的命令。"
+
+#~ msgid ""
+#~ "_Append Page Layout Descr File_ is intended to add poly polygons to make "
+#~ "logos."
+#~ msgstr "_追加图框描述文件_ 旨在添加多边形以制作 LOGO。"
+
+#~ msgid ""
+#~ "Because usually a logo it needs hundred of vertices, you cannot create a "
+#~ "polygon by hand. But you can append a description file, created by "
+#~ "Bitmap2Component."
+#~ msgstr ""
+#~ "因为通常需要数百个顶点的 LOGO，所以不能手工创建多边形。 但是您可以附加由 "
+#~ "Bitmap2Component 创建的描述文件。"
+
+#, no-wrap
+#~ msgid "Left window"
+#~ msgstr "左窗口"
+
+#~ msgid "The left windows shows the list of layout items."
+#~ msgstr "左侧窗口显示布局项列表。"
+
+#~ msgid ""
+#~ "One can select a given item (left clicking on the line) or, when right "
+#~ "clicking on the line, display a pop up menu."
+#~ msgstr ""
+#~ "可以选择给定项目（左键单击该行），或者在右键单击该行时，显示弹出菜单。"
+
+#~ msgid ""
+#~ "This menu allows basic operations: add a new item, or delete the selected "
+#~ "item."
+#~ msgstr "此菜单允许基本操作：添加新项目或删除所选项目。"
+
+#, no-wrap
+#~ msgid "**-> A selected item is also drawn in a different color on draw panel**.\n"
+#~ msgstr "**-> 选定的项目也会在绘图面板上以不同的颜色绘制** 。\n"
+
+#~ msgid ""
+#~ "Design tree: the item 19 is selected, and shown in highlighted on the "
+#~ "draw panel."
+#~ msgstr "设计树：选择项目 19，并在绘图面板上突出显示。"
+
+#, no-wrap
+#~ msgid "images/en/project_tree.png"
+#~ msgstr "images/zh/project_tree.png"
+
+#, no-wrap
+#~ msgid "Right window"
+#~ msgstr "右窗口"
+
+#~ msgid "The right window is the edit window."
+#~ msgstr "右侧窗口是编辑窗口。"
+
+#~ msgid ""
+#~ "On this dialog you can set the page property and the item property of the "
+#~ "current item."
+#~ msgstr "在此对话框中，您可以设置页面属性和当前项目的项目属性。"
+
+#~ msgid "Displayed settings depend on the selected item:"
+#~ msgstr "显示的设置取决于所选项目："
+
+#, no-wrap
+#~ msgid ""
+#~ "|Settings for lines and rectangles\n"
+#~ "|Settings for texts\n"
+#~ "\n"
+#~ "|image:images/en/property_line.png[width=\"50%\"]\n"
+#~ "|image:images/en/property_text.png[width=\"50%\"]\n"
+#~ "\n"
+#~ "|Settings for poly-polygons\n"
+#~ "|Setting for bitmaps\n"
+#~ "\n"
+#~ "|image:images/en/property_polyline.png[width=\"50%\"]\n"
+#~ "|image:images/en/property_bitmap.png[width=\"50%\"]\n"
+#~ "\n"
+#~ msgstr ""
+#~ "|线条和矩形的设置\n"
+#~ "|文本设置\n"
+#~ "\n"
+#~ "|image:images/zh/property_line.png[width=\"50%\"]\n"
+#~ "|image:images/zh/property_text.png[width=\"50%\"]\n"
+#~ "\n"
+#~ "|多边形的设置\n"
+#~ "|设置位图\n"
+#~ "\n"
+#~ "|image:images/zh/property_polyline.png[width=\"50%\"]\n"
+#~ "|image:images/zh/property_bitmap.png[width=\"50%\"]\n"
+#~ "\n"
+
+#~ msgid "When selected, this item is drawn in yellow."
+#~ msgstr "选中后，此项目以黄色绘制。"
+
+#, no-wrap
+#~ msgid ""
+#~ "|image:images/edit_line.png[width=\"70%\"]\n"
+#~ "|The starting point (image:images/edit_line_start.png[])\n"
+#~ "and the ending point (image:images/edit_line_end.png[])\n"
+#~ "are highlighted.\n"
+#~ msgstr ""
+#~ "|image:images/edit_line.png[width=\"70%\"]\n"
+#~ "|出发点 (image:images/edit_line_start.png[])\n"
+#~ "和结束点 (image:images/edit_line_end.png[])\n"
+#~ "突出显示。\n"
+
+#~ msgid "The pop menu options slightly depend on the selection:"
+#~ msgstr "弹出菜单选项稍微取决于选择："
+
+#, no-wrap
+#~ msgid ""
+#~ "|image:images/en/context_line_move_start.png[width=\"50%\"]\n"
+#~ "|image:images/en/context_line_move_end.png[width=\"50%\"]\n"
+#~ "|image:images/en/context_line_move.png[width=\"50%\"]\n"
+#~ msgstr ""
+#~ "|image:images/zh/context_line_move_start.png[width=\"50%\"]\n"
+#~ "|image:images/zh/context_line_move_end.png[width=\"50%\"]\n"
+#~ "|image:images/zh/context_line_move.png[width=\"50%\"]\n"
+
+#~ msgid ""
+#~ "If more than one item is found, a menu clarification will be shown, to "
+#~ "select the item:"
+#~ msgstr "如果找到多个项目，将显示菜单说明，以选择项目："
+
+#, no-wrap
+#~ msgid "images/en/dialog_select_element.png"
+#~ msgstr "images/zh/dialog_select_element.png"
+
+#, no-wrap
+#~ msgid ""
+#~ "|image:images/drag_element.png[width=\"70%\"]\n"
+#~ "|Once selected, the item, or one of its end points, can be moved by\n"
+#~ "moving the mouse and placed (right clicking on the mouse).\n"
+#~ msgstr ""
+#~ "|image:images/drag_element.png[width=\"70%\"]\n"
+#~ "|选择后，可以移动项目或其中一个端点\n"
+#~ "移动鼠标并放置（右键单击鼠标）。\n"
+
+#~ msgid ""
+#~ "To add a new item, right click the mouse button when the cursor is on the "
+#~ "left window or the draw area."
+#~ msgstr "要添加新项目，请在光标位于左侧窗口或绘图区域时单击鼠标右键。"
+
+#~ msgid "A popup menu is displayed:"
+#~ msgstr "将显示一个弹出菜单："
+
+#~ msgid "Pop up menu in left window"
+#~ msgstr "在左侧窗口中弹出菜单"
+
+#, no-wrap
+#~ msgid "images/en/context_createnew.png"
+#~ msgstr "images/zh/context_createnew.png"
+
+#~ msgid "Pop up menu in draw area."
+#~ msgstr "在绘图区域弹出菜单。"
+
+#, no-wrap
+#~ msgid "images/en/context_createnew2.png"
+#~ msgstr "images/zh/context_createnew2.png"
+
+#~ msgid ""
+#~ "Lines, rectangles and texts are added just by clicking on the "
+#~ "corresponding menu item."
+#~ msgstr "只需单击相应的菜单项即可添加线条，矩形和文本。"
+
+#~ msgid ""
+#~ "Logos must first be created by Bitmap2component, which creates a page "
+#~ "layout description file."
+#~ msgstr "必须首先由 Bitmap2component 创建 LOGO，这将创建图框描述文件。"
+
+#~ msgid ""
+#~ "The Append Page Layout Descr File option append this file, to insert the "
+#~ "logo (a poly polygon)."
+#~ msgstr "附加图框描述文件选项附加此文件，以插入 LOGO（多边形）。"
+
+#~ msgid "When clicking on the option, a dialog is opened:"
+#~ msgstr "单击该选项时，将打开一个对话框："
+
+#~ msgid "Adding line or rectangle"
+#~ msgstr "添加线条或矩形"
+
+#, no-wrap
+#~ msgid "images/en/dialog_newline.png"
+#~ msgstr "images/zh/dialog_newline.png"
+
+#~ msgid "Adding text"
+#~ msgstr "添加文字"
+
+#, no-wrap
+#~ msgid "images/en/dialog_newtext.png"
+#~ msgstr "images/zh/dialog_newtext.png"
+
+#~ msgid "Position of end points, and corner reference can be defined here."
+#~ msgstr "可以在此处定义端点的位置和拐角参考。"
+
+#~ msgid ""
+#~ "However they can be defined later, from the right window, or by moving "
+#~ "the item, or one of its end points."
+#~ msgstr ""
+#~ "但是，可以在稍后，从右侧窗口或通过移动项目或其中一个端点来定义它们。"
+
+#~ msgid "Most of time the corner reference is the same for both points."
+#~ msgstr "大多数时候角点参考对于两个点都是相同的。"
+
+#~ msgid ""
+#~ "If this is not the case, define the corner reference at creation is "
+#~ "better, because if a corner reference is changed later, the geometry of "
+#~ "the item will be a bit strange."
+#~ msgstr ""
+#~ "如果不是这种情况，则在创建时定义角参考更好，因为如果稍后更改角参考，则项的"
+#~ "几何将有点奇怪。"
+
+#~ msgid ""
+#~ "When an item is created, if is put in move mode, and you can refine its "
+#~ "position (this is very useful for texts and small lines or rectangles)"
+#~ msgstr ""
+#~ "创建项目时，如果是否处于移动模式，您可以优化其位置（这对于文本和小行或矩形"
+#~ "非常有用）"
+
+#~ msgid ""
+#~ "Bitmap2component creates a page layout description file which is append "
+#~ "to the current design, using the *Append Page Layout Descr File* option."
+#~ msgstr ""
+#~ "Bitmap2component 使用 *附加图框描述文件* 选项创建一个附加到当前设计的图框"
+#~ "描述文件。"
+
+#~ msgid ""
+#~ "Bitmap2component creates a page layout description file which contains "
+#~ "only one item: a poly polygon."
+#~ msgstr "Bitmap2component 创建一个图框描述文件，其中只包含一个项目：多边形。"
+
+#~ msgid ""
+#~ "__However, this command can be used to append any page layout description "
+#~ "file, which is merged with the current design.__"
+#~ msgstr "__但是，此命令可用于附加任何图框描述文件，该文件与当前设计合并。__"
 
 #, no-wrap
 #~ msgid "Pl_Editor"

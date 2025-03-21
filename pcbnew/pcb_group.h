@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Joshua Redstone redstone at gmail.com
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,6 +32,7 @@
 
 #include <board_commit.h>
 #include <board_item.h>
+#include <lset.h>
 #include <unordered_set>
 
 namespace KIGFX
@@ -104,7 +105,8 @@ public:
 
     double Similarity( const BOARD_ITEM& aOther ) const override;
 
-    bool operator==( const BOARD_ITEM& aOther ) const override;
+    bool operator==( const PCB_GROUP& aOther ) const;
+    bool operator==( const BOARD_ITEM& aBoardItem ) const override;
 
 #if defined( DEBUG )
     void Show( int nestLevel, std::ostream& os ) const override
@@ -170,10 +172,10 @@ public:
                           const std::vector<KICAD_T>& aScanTypes ) override;
 
     /// @copydoc VIEW_ITEM::ViewGetLayers
-    void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    std::vector<int> ViewGetLayers() const override;
 
     /// @copydoc VIEW_ITEM::ViewGetLOD
-    double ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const override;
+    double ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const override;
 
     /// @copydoc BOARD_ITEM::Move
     void Move( const VECTOR2I& aMoveVector ) override;
@@ -182,10 +184,13 @@ public:
     void Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle ) override;
 
     /// @copydoc BOARD_ITEM::Flip
-    void Flip( const VECTOR2I& aCentre, bool aFlipLeftRight ) override;
+    void Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
+
+    /// @copydoc BOARD_ITEM::Mirror
+    void Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
 
     /// @copydoc EDA_ITEM::GetItemDescription
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     /// @copydoc EDA_ITEM::GetMenuImage
     BITMAPS GetMenuImage() const override;

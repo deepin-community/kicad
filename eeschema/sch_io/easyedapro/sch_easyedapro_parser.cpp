@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,20 +30,17 @@
 #include <sch_io/sch_io_mgr.h>
 #include <schematic.h>
 #include <sch_sheet.h>
-#include <sch_sheet_pin.h>
 #include <sch_line.h>
 #include <sch_bitmap.h>
-#include <lib_shape.h>
-#include <lib_text.h>
 #include <sch_no_connect.h>
 #include <sch_label.h>
 #include <sch_junction.h>
 #include <sch_edit_frame.h>
 #include <sch_shape.h>
-#include <sch_bus_entry.h>
 #include <string_utils.h>
 #include <bezier_curves.h>
 #include <wx/base64.h>
+#include <wx/log.h>
 #include <wx/url.h>
 #include <wx/mstream.h>
 #include <gfx_import_utils.h>
@@ -447,8 +444,7 @@ SCH_EASYEDAPRO_PARSER::ParseSymbol( const std::vector<nlohmann::json>&  aLines,
             VECTOR2D end( line.at( 4 ), line.at( 5 ) );
             wxString styleStr = line.at( 9 );
 
-            std::unique_ptr<LIB_SHAPE> rect =
-                    std::make_unique<LIB_SHAPE>( ksymbol, SHAPE_T::RECTANGLE );
+            auto rect = std::make_unique<SCH_SHAPE>( SHAPE_T::RECTANGLE, LAYER_DEVICE );
 
             rect->SetStart( ScalePosSym( start ) );
             rect->SetEnd( ScalePosSym( end ) );
@@ -464,8 +460,7 @@ SCH_EASYEDAPRO_PARSER::ParseSymbol( const std::vector<nlohmann::json>&  aLines,
             double   radius = line.at( 4 );
             wxString styleStr = line.at( 5 );
 
-            std::unique_ptr<LIB_SHAPE> circle =
-                    std::make_unique<LIB_SHAPE>( ksymbol, SHAPE_T::CIRCLE );
+            auto circle = std::make_unique<SCH_SHAPE>( SHAPE_T::CIRCLE, LAYER_DEVICE );
 
             circle->SetCenter( ScalePosSym( center ) );
             circle->SetEnd( circle->GetCenter() + VECTOR2I( ScaleSize( radius ), 0 ) );
@@ -486,19 +481,9 @@ SCH_EASYEDAPRO_PARSER::ParseSymbol( const std::vector<nlohmann::json>&  aLines,
             VECTOR2D kmid = ScalePosSym( mid );
             VECTOR2D kend = ScalePosSym( end );
 
-            VECTOR2D kcenter = CalcArcCenter( kstart, kmid, kend );
+            auto shape = std::make_unique<SCH_SHAPE>( SHAPE_T::ARC, LAYER_DEVICE );
 
-            std::unique_ptr<LIB_SHAPE> shape = std::make_unique<LIB_SHAPE>( ksymbol, SHAPE_T::ARC );
-
-            shape->SetStart( kstart );
-            shape->SetEnd( kend );
-            shape->SetCenter( kcenter );
-
-            if( SEG( start, end ).Side( mid ) != SEG( kstart, kend ).Side( shape->GetArcMid() ) )
-            {
-                shape->SetStart( kend );
-                shape->SetEnd( kstart );
-            }
+            shape->SetArcGeometry( kstart, kmid, kend );
 
             shape->SetUnit( currentUnit );
             ApplyLineStyle( lineStyles, shape, styleStr );
@@ -510,8 +495,7 @@ SCH_EASYEDAPRO_PARSER::ParseSymbol( const std::vector<nlohmann::json>&  aLines,
             std::vector<double> points = line.at( 2 );
             wxString            styleStr = line.at( 3 );
 
-            std::unique_ptr<LIB_SHAPE> shape =
-                    std::make_unique<LIB_SHAPE>( ksymbol, SHAPE_T::BEZIER );
+            auto shape = std::make_unique<SCH_SHAPE>( SHAPE_T::BEZIER, LAYER_DEVICE );
 
             for( size_t i = 1; i < points.size(); i += 2 )
             {
@@ -536,13 +520,10 @@ SCH_EASYEDAPRO_PARSER::ParseSymbol( const std::vector<nlohmann::json>&  aLines,
             std::vector<double> points = line.at( 2 );
             wxString            styleStr = line.at( 4 );
 
-            std::unique_ptr<LIB_SHAPE> shape =
-                    std::make_unique<LIB_SHAPE>( ksymbol, SHAPE_T::POLY );
+            auto shape = std::make_unique<SCH_SHAPE>( SHAPE_T::POLY, LAYER_DEVICE );
 
             for( size_t i = 1; i < points.size(); i += 2 )
-            {
                 shape->AddPoint( ScalePosSym( VECTOR2D( points[i - 1], points[i] ) ) );
-            }
 
             shape->SetUnit( currentUnit );
             ApplyLineStyle( lineStyles, shape, styleStr );
@@ -552,18 +533,15 @@ SCH_EASYEDAPRO_PARSER::ParseSymbol( const std::vector<nlohmann::json>&  aLines,
         else if( type == wxS( "TEXT" ) )
         {
             VECTOR2D pos( line.at( 2 ), line.at( 3 ) );
-            double   angle = line.at( 4 );
+            double   angle = line.at( 4 ).is_number() ? line.at( 4 ).get<double>() : 0.0;
             wxString textStr = line.at( 5 );
             wxString fontStyleStr = line.at( 6 );
 
-            std::unique_ptr<LIB_TEXT> text = std::make_unique<LIB_TEXT>( ksymbol );
-
-            text->SetPosition( ScalePosSym( pos ) );
-            text->SetText( UnescapeHTML( textStr ) );
+            auto text = std::make_unique<SCH_TEXT>( ScalePosSym( pos ), UnescapeHTML( textStr ),
+                                                    LAYER_DEVICE );
 
             text->SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
             text->SetVertJustify( GR_TEXT_V_ALIGN_TOP );
-
             text->SetTextAngleDegrees( angle );
 
             text->SetUnit( currentUnit );
@@ -629,7 +607,7 @@ SCH_EASYEDAPRO_PARSER::ParseSymbol( const std::vector<nlohmann::json>&  aLines,
                                  svgImportPlugin.GetImageHeight() );
 
                 VECTOR2D pixelScale( schIUScale.IUTomm( ScaleSize( size.x ) ) / imSize.x,
-                                     schIUScale.IUTomm( -ScaleSize( size.y ) ) / imSize.y );
+                                     schIUScale.IUTomm( ScaleSize( size.y ) ) / imSize.y );
 
                 if( upsideDown )
                     pixelScale.y *= -1;
@@ -644,7 +622,7 @@ SCH_EASYEDAPRO_PARSER::ParseSymbol( const std::vector<nlohmann::json>&  aLines,
 
                 // TODO: rotation
                 for( std::unique_ptr<EDA_ITEM>& item : libsymImporter.GetItems() )
-                    ksymbol->AddDrawItem( static_cast<LIB_ITEM*>( item.release() ) );
+                    ksymbol->AddDrawItem( static_cast<SCH_ITEM*>( item.release() ) );
             }
             else
             {
@@ -665,7 +643,7 @@ SCH_EASYEDAPRO_PARSER::ParseSymbol( const std::vector<nlohmann::json>&  aLines,
                     }
 
                     VECTOR2D pixelScale( ScaleSize( size.x ) / img.GetWidth(),
-                                         -ScaleSize( size.y ) / img.GetHeight() );
+                                         ScaleSize( size.y ) / img.GetHeight() );
 
                     // TODO: rotation
                     ConvertImageToLibShapes( ksymbol, 0, img, pixelScale, ScalePosSym( start ) );
@@ -742,11 +720,11 @@ SCH_EASYEDAPRO_PARSER::ParseSymbol( const std::vector<nlohmann::json>&  aLines,
                 if( valOpt->empty() )
                     continue;
 
-                LIB_FIELD* fd = ksymbol->FindField( attrName, true );
+                SCH_FIELD* fd = ksymbol->FindField( attrName, true );
 
                 if( !fd )
                 {
-                    fd = new LIB_FIELD( ksymbol->GetNextAvailableFieldId(), attrName );
+                    fd = new SCH_FIELD( ksymbol, ksymbol->GetNextAvailableFieldId(), attrName );
                     ksymbol->AddField( fd );
                 }
 
@@ -788,7 +766,7 @@ SCH_EASYEDAPRO_PARSER::ParseSymbol( const std::vector<nlohmann::json>&  aLines,
             EASYEDAPRO::PIN_INFO pinInfo;
             pinInfo.pin = *epin;
 
-            std::unique_ptr<LIB_PIN> pin = std::make_unique<LIB_PIN>( ksymbol );
+            std::unique_ptr<SCH_PIN> pin = std::make_unique<SCH_PIN>( ksymbol );
 
             pin->SetUnit( unitId );
 
@@ -960,7 +938,7 @@ void SCH_EASYEDAPRO_PARSER::ParseSchematic( SCHEMATIC* aSchematic, SCH_SHEET* aR
         else if( type == wxS( "TEXT" ) )
         {
             VECTOR2D pos( line.at( 2 ), line.at( 3 ) );
-            double   angle = line.at( 4 );
+            double   angle = line.at( 4 ).is_number() ? line.at( 4 ).get<double>() : 0.0;
             wxString textStr = line.at( 5 );
             wxString fontStyleStr = line.at( 6 );
 
@@ -1073,16 +1051,16 @@ void SCH_EASYEDAPRO_PARSER::ParseSchematic( SCHEMATIC* aSchematic, SCH_SHEET* aR
                         {
                             // Lines need special handling for some reason
                             schItem->SetFlags( STARTPOINT );
-                            schItem->Rotate( kstart );
+                            schItem->Rotate( kstart, false );
                             schItem->ClearFlags( STARTPOINT );
 
                             schItem->SetFlags( ENDPOINT );
-                            schItem->Rotate( kstart );
+                            schItem->Rotate( kstart, false );
                             schItem->ClearFlags( ENDPOINT );
                         }
                         else
                         {
-                            schItem->Rotate( kstart );
+                            schItem->Rotate( kstart, false );
                         }
                     }
 
@@ -1104,20 +1082,21 @@ void SCH_EASYEDAPRO_PARSER::ParseSchematic( SCHEMATIC* aSchematic, SCH_SHEET* aR
             else
             {
                 std::unique_ptr<SCH_BITMAP> bitmap = std::make_unique<SCH_BITMAP>();
+                REFERENCE_IMAGE&            refImage = bitmap->GetReferenceImage();
 
                 wxImage::SetDefaultLoadFlags( wxImage::GetDefaultLoadFlags()
                                               & ~wxImage::Load_Verbose );
 
-                if( bitmap->ReadImageFile( buf ) )
+                if( refImage.ReadImageFile( buf ) )
                 {
                     VECTOR2D kcenter = kstart + ksize / 2;
 
-                    double scaleFactor = ScaleSize( size.x ) / bitmap->GetSize().x;
-                    bitmap->SetImageScale( scaleFactor );
+                    double scaleFactor = ScaleSize( size.x ) / refImage.GetSize().x;
+                    refImage.SetImageScale( scaleFactor );
                     bitmap->SetPosition( kcenter );
 
                     for( double i = angle; i > 0; i -= 90 )
-                        bitmap->Rotate( kstart );
+                        bitmap->Rotate( kstart, false );
 
                     if( flipped )
                         bitmap->MirrorHorizontally( kstart.x );
@@ -1196,17 +1175,17 @@ void SCH_EASYEDAPRO_PARSER::ParseSchematic( SCHEMATIC* aSchematic, SCH_SHEET* aR
 
             wxString unitName = component->name;
 
-            LIB_ID libId =
-                    EASYEDAPRO::ToKiCadLibID( aLibName, newLibSymbol.GetLibId().GetLibItemName() );
+            LIB_ID libId = EASYEDAPRO::ToKiCadLibID( aLibName,
+                                                     newLibSymbol.GetLibId().GetLibItemName() );
 
-            std::unique_ptr<SCH_SYMBOL> schSym =
-                    std::make_unique<SCH_SYMBOL>( newLibSymbol, libId, &aSchematic->CurrentSheet(),
-                                                  esymInfo.partUnits[unitName] );
+            auto schSym = std::make_unique<SCH_SYMBOL>( newLibSymbol, libId,
+                                                        &aSchematic->CurrentSheet(),
+                                                        esymInfo.partUnits[unitName] );
 
             schSym->SetFootprintFieldText( newLibSymbol.GetFootprintField().GetText() );
 
             for( double i = component->rotation; i > 0; i -= 90 )
-                schSym->Rotate( VECTOR2I() );
+                schSym->Rotate( VECTOR2I(), true );
 
             if( component->mirror )
                 schSym->MirrorHorizontally( 0 );
@@ -1220,7 +1199,7 @@ void SCH_EASYEDAPRO_PARSER::ParseSchematic( SCHEMATIC* aSchematic, SCH_SHEET* aR
                     ApplyAttrToField( fontStyles, schSym->GetField( VALUE_FIELD ), *globalNetAttr,
                                       false, true, compAttrs, schSym.get() );
 
-                    for( LIB_PIN* pin : schSym->GetAllLibPins() )
+                    for( SCH_PIN* pin : schSym->GetAllLibPins() )
                         pin->SetName( globalNetAttr->value );
                 }
                 else
@@ -1316,8 +1295,9 @@ void SCH_EASYEDAPRO_PARSER::ParseSchematic( SCHEMATIC* aSchematic, SCH_SHEET* aR
 
                         if( !text )
                         {
-                            text = schSym->AddField(
-                                    SCH_FIELD( schSym.get(), schSym->GetFieldCount(), attrKey ) );
+                            text = schSym->AddField( SCH_FIELD( schSym.get(),
+                                                                schSym->GetNextFieldId(),
+                                                                attrKey ) );
                         }
 
                         wxString value = *valOpt;
@@ -1387,8 +1367,8 @@ void SCH_EASYEDAPRO_PARSER::ParseSchematic( SCHEMATIC* aSchematic, SCH_SHEET* aR
 
                     if( !text )
                     {
-                        text = schSym->AddField(
-                                SCH_FIELD( schSym.get(), schSym->GetFieldCount(), attrKey ) );
+                        text = schSym->AddField( SCH_FIELD( schSym.get(), schSym->GetNextFieldId(),
+                                                            attrKey ) );
                     }
 
                     text->SetPosition( schSym->GetPosition() );

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,7 +27,7 @@
 class SETTINGS_MANAGER;
 
 
-class DIALOG_MIGRATE_SETTINGS : public DIALOG_MIGRATE_SETTINGS_BASE
+class KICOMMON_API DIALOG_MIGRATE_SETTINGS : public DIALOG_MIGRATE_SETTINGS_BASE
 {
 public:
     DIALOG_MIGRATE_SETTINGS( SETTINGS_MANAGER* aManager );

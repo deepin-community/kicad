@@ -4,7 +4,7 @@
  * Copyright (C) 2012 Torsten Hueter, torstenhtr <at> gmx.de
  * Copyright (C) 2013 CERN
  * @author Maciej Suminski <maciej.suminski@cern.ch>
- * Copyright (C) 2016-2023 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,10 +41,10 @@
 using namespace KIFONT;
 
 
-///< Scale factor for a glyph
+/// Scale factor for a glyph.
 static constexpr double STROKE_FONT_SCALE = 1.0 / 21.0;
 
-///< Offset (in stroke font units) to move the origin to the baseline.
+/// Offset (in stroke font units) to move the origin to the baseline.
 static constexpr int FONT_OFFSET = -8;
 
 

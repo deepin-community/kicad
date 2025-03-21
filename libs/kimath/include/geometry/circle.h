@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 Roberto Fernandez Bautista <roberto.fer.bau@gmail.com>
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -37,6 +37,8 @@ public:
     CIRCLE( const VECTOR2I& aCenter, int aRadius );
 
     CIRCLE( const CIRCLE& aOther );
+
+    bool operator==( const CIRCLE& aOther ) const = default;
 
     /**
      * Construct this circle such that it is tangent to the given segments and passes through the
@@ -73,6 +75,18 @@ public:
      * @return nearest point to aP.
      */
     VECTOR2I NearestPoint( const VECTOR2I& aP ) const;
+
+    /**
+     * Compute the point (floating point version) on the circumference of the circle that
+     * is the closest to aP.
+     *
+     * In other words: finds the intersection point of this circle and a line that passes through
+     * both this circle's center and aP.
+     *
+     * @param aP.
+     * @return nearest point to aP.
+     */
+    VECTOR2D NearestPoint( const VECTOR2D& aP ) const;
 
     /**
      * Compute the intersection points between this circle and \a aCircle.

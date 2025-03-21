@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2020 Ian McInerney <ian.s.mcinerney at ieee dot org>
- * Copyright (C) 2020-2023 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -45,11 +45,8 @@ BITMAP_BUTTON::BITMAP_BUTTON( wxWindow* aParent, wxWindowID aId, const wxPoint& 
         m_padding( 0 ),
         m_isToolbarButton( false ),
         m_acceptDraggedInClicks( false ),
-        m_centerBitmap( false )
+        m_centerBitmap( true )
 {
-    if( aSize == wxDefaultSize )
-        SetMinSize( wxButton::GetDefaultSize() + wxSize( m_padding * 2, m_padding * 2) );
-
     m_badgeFont = GetFont().Smaller().MakeBold();
 
     setupEvents();
@@ -67,11 +64,8 @@ BITMAP_BUTTON::BITMAP_BUTTON( wxWindow* aParent, wxWindowID aId, const wxBitmap&
         m_padding( 5 ),
         m_isToolbarButton( false ),
         m_acceptDraggedInClicks( false ),
-        m_centerBitmap( false )
+        m_centerBitmap( true )
 {
-    if( aSize == wxDefaultSize )
-        SetMinSize( wxButton::GetDefaultSize() + wxSize( m_padding * 2, m_padding * 2) );
-
     m_badgeFont = GetFont().Smaller().MakeBold();
 
     setupEvents();
@@ -80,6 +74,7 @@ BITMAP_BUTTON::BITMAP_BUTTON( wxWindow* aParent, wxWindowID aId, const wxBitmap&
 
 void BITMAP_BUTTON::setupEvents()
 {
+    Bind( wxEVT_DPI_CHANGED,  &BITMAP_BUTTON::OnDPIChanged,     this );
     Bind( wxEVT_PAINT,        &BITMAP_BUTTON::OnPaint,          this );
     Bind( wxEVT_LEFT_UP,      &BITMAP_BUTTON::OnLeftButtonUp,   this );
     Bind( wxEVT_LEFT_DOWN,    &BITMAP_BUTTON::OnLeftButtonDown, this );
@@ -92,20 +87,40 @@ void BITMAP_BUTTON::setupEvents()
 
 BITMAP_BUTTON::~BITMAP_BUTTON()
 {
-    Unbind( wxEVT_PAINT,        &BITMAP_BUTTON::OnPaint,          this );
-    Unbind( wxEVT_LEFT_UP,      &BITMAP_BUTTON::OnLeftButtonUp,   this );
-    Unbind( wxEVT_LEFT_DOWN,    &BITMAP_BUTTON::OnLeftButtonDown, this );
-    Unbind( wxEVT_LEAVE_WINDOW, &BITMAP_BUTTON::OnMouseLeave,     this );
-    Unbind( wxEVT_ENTER_WINDOW, &BITMAP_BUTTON::OnMouseEnter,     this );
-    Unbind( wxEVT_KILL_FOCUS,   &BITMAP_BUTTON::OnKillFocus,      this );
-    Unbind( wxEVT_SET_FOCUS,    &BITMAP_BUTTON::OnSetFocus,       this );
+    Unbind( wxEVT_DPI_CHANGED, &BITMAP_BUTTON::OnDPIChanged, this );
+    Unbind( wxEVT_PAINT, &BITMAP_BUTTON::OnPaint, this );
+    Unbind( wxEVT_LEFT_UP, &BITMAP_BUTTON::OnLeftButtonUp, this );
+    Unbind( wxEVT_LEFT_DOWN, &BITMAP_BUTTON::OnLeftButtonDown, this );
+    Unbind( wxEVT_LEAVE_WINDOW, &BITMAP_BUTTON::OnMouseLeave, this );
+    Unbind( wxEVT_ENTER_WINDOW, &BITMAP_BUTTON::OnMouseEnter, this );
+    Unbind( wxEVT_KILL_FOCUS, &BITMAP_BUTTON::OnKillFocus, this );
+    Unbind( wxEVT_SET_FOCUS, &BITMAP_BUTTON::OnSetFocus, this );
+}
+
+
+wxSize BITMAP_BUTTON::DoGetBestSize() const
+{
+    if( hasFlag( wxCONTROL_SEPARATOR ) )
+        return wxSize( m_unadjustedMinSize.x + m_padding * 2, wxButton::GetDefaultSize().y );
+
+    return m_unadjustedMinSize + wxSize( m_padding * 2, m_padding * 2 );
+}
+
+
+void BITMAP_BUTTON::invalidateBestSize()
+{
+    // Uncomment to override wxFB sizes
+    // SetMinSize( DoGetBestSize() );
+
+    InvalidateBestSize();
 }
 
 
 void BITMAP_BUTTON::SetPadding( int aPadding )
 {
     m_padding = aPadding;
-    SetMinSize( m_unadjustedMinSize + wxSize( aPadding * 2, aPadding * 2 ) );
+
+    invalidateBestSize();
 }
 
 
@@ -128,8 +143,7 @@ void BITMAP_BUTTON::SetBitmap( const wxBitmapBundle& aBmp )
 #endif
     }
 
-    SetMinSize( wxSize( m_unadjustedMinSize.GetWidth() + ( m_padding * 2 ),
-                        m_unadjustedMinSize.GetHeight() + ( m_padding * 2 ) ) );
+    invalidateBestSize();
 }
 
 
@@ -203,7 +217,7 @@ void BITMAP_BUTTON::OnLeftButtonUp( wxMouseEvent& aEvent )
     if( !hasFlag( wxCONTROL_DISABLED )
             && ( m_acceptDraggedInClicks || hasFlag( wxCONTROL_PRESSED | wxCONTROL_FOCUSED ) ) )
     {
-        GetEventHandler()->CallAfter( [=]()
+        GetEventHandler()->CallAfter( [this]()
                                       {
                                           wxCommandEvent evt( wxEVT_BUTTON, GetId() );
                                           evt.SetEventObject( this );
@@ -227,7 +241,7 @@ void BITMAP_BUTTON::OnLeftButtonDown( wxMouseEvent& aEvent )
             clearFlag( wxCONTROL_CHECKED );
 
             GetEventHandler()->CallAfter(
-                    [=]()
+                    [this]()
                     {
                         wxCommandEvent evt( wxEVT_BUTTON, GetId() );
                         evt.SetEventObject( this );
@@ -240,7 +254,7 @@ void BITMAP_BUTTON::OnLeftButtonDown( wxMouseEvent& aEvent )
             setFlag( wxCONTROL_CHECKED );
 
             GetEventHandler()->CallAfter(
-                    [=]()
+                    [this]()
                     {
                         wxCommandEvent evt( wxEVT_BUTTON, GetId() );
                         evt.SetEventObject( this );
@@ -255,6 +269,20 @@ void BITMAP_BUTTON::OnLeftButtonDown( wxMouseEvent& aEvent )
     }
 
     Refresh();
+
+    aEvent.Skip();
+}
+
+
+void BITMAP_BUTTON::OnDPIChanged( wxDPIChangedEvent& aEvent )
+{
+    wxSize newBmSize = m_normalBitmap.GetPreferredBitmapSizeFor( this );
+
+    if( newBmSize != m_unadjustedMinSize )
+    {
+        m_unadjustedMinSize = newBmSize;
+        invalidateBestSize();
+    }
 
     aEvent.Skip();
 }
@@ -308,32 +336,18 @@ void BITMAP_BUTTON::OnPaint( wxPaintEvent& aEvent )
 
     wxPoint drawBmpPos( m_padding, m_padding );
     wxBitmap bmpImg;
-    double scale = KIPLATFORM::UI::GetPixelScaleFactor( this );
-    int size;
     wxSize bmSize;
 
-    if( m_isToolbarButton )
+    if( bmp.IsOk() )
     {
-        size = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
-        bmSize = wxSize( size, size );
-        bmpImg = bmp.GetBitmap( bmSize * scale );
-
-        // wxBitmapBundle::GetBitmap thinks we need this rescaled to match the base size
-        if( bmpImg.IsOk() )
-            bmpImg.SetScaleFactor( scale );
-    }
-    else if( bmp.IsOk() )
-    {
-        bmpImg = bmp.GetBitmapFor( this );
-        bmSize = bmpImg.GetSize();
+        bmpImg = bmp.GetBitmap( ToPhys( m_unadjustedMinSize ) );
+        bmSize = bmpImg.GetLogicalSize();
     }
 
     if( m_centerBitmap )
     {
-        // dont let it go negative if bmp is larger than the button
-        int x = std::max( ( rect.width - bmSize.x ) / 2, 0 );
-        int y = std::max( ( rect.height - bmSize.y ) / 2, 0 );
-        drawBmpPos = wxPoint( x, y );
+        drawBmpPos.x = ( rect.width - bmSize.x ) / 2;
+        drawBmpPos.y = ( rect.height - bmSize.y ) / 2;
     }
 
     // Draw the bitmap with the upper-left corner offset by the padding
@@ -406,7 +420,8 @@ void BITMAP_BUTTON::SetIsRadioButton()
 void BITMAP_BUTTON::SetIsSeparator()
 {
     setFlag( wxCONTROL_SEPARATOR | wxCONTROL_DISABLED );
-    SetMinSize( wxSize( m_padding * 2, wxButton::GetDefaultSize().y ) );
+
+    invalidateBestSize();
 }
 
 

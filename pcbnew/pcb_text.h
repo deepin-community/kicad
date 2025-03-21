@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2004 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -65,6 +65,9 @@ public:
         return false;
     }
 
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+
     void StyleFromSettings( const BOARD_DESIGN_SETTINGS& settings ) override;
 
     /**
@@ -93,9 +96,9 @@ public:
 
     void Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle ) override;
 
-    void Mirror( const VECTOR2I& aCentre, bool aMirrorAroundXAxis );
+    void Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
 
-    void Flip( const VECTOR2I& aCentre, bool aFlipLeftRight ) override;
+    void Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 
@@ -139,7 +142,7 @@ public:
 
     virtual wxString GetTextTypeDescription() const;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -151,10 +154,10 @@ public:
 
     const BOX2I ViewBBox() const override;
 
-    void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    std::vector<int> ViewGetLayers() const override;
 
     ///< @copydoc VIEW_ITEM::ViewGetLOD
-    double ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const override;
+    double ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const override;
 
     // Virtual function
     const BOX2I GetBoundingBox() const override;
@@ -163,6 +166,7 @@ public:
 
     double Similarity( const BOARD_ITEM& aBoardItem ) const override;
 
+    bool operator==( const PCB_TEXT& aOther ) const;
     bool operator==( const BOARD_ITEM& aBoardItem ) const override;
 
 #if defined(DEBUG)

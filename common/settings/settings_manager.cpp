@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2021, 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -32,6 +32,7 @@
 #include <dialogs/dialog_migrate_settings.h>
 #include <gestfich.h>
 #include <kiplatform/environment.h>
+#include <kiplatform/io.h>
 #include <kiway.h>
 #include <lockfile.h>
 #include <macros.h>
@@ -82,6 +83,7 @@ SETTINGS_MANAGER::SETTINGS_MANAGER( bool aHeadless ) :
     }
 }
 
+
 SETTINGS_MANAGER::~SETTINGS_MANAGER()
 {
     for( std::unique_ptr<PROJECT>& project : m_projects_list )
@@ -119,7 +121,6 @@ void SETTINGS_MANAGER::Load()
 {
     // TODO(JE) We should check for dirty settings here and write them if so, because
     // Load() could be called late in the application lifecycle
-
     std::vector<JSON_SETTINGS*> toLoad;
 
     // Cache a copy of raw pointers; m_settings may be modified during the load loop
@@ -154,6 +155,13 @@ void SETTINGS_MANAGER::Save()
         // Never automatically save color settings, caller should use SaveColorSettings
         if( dynamic_cast<COLOR_SETTINGS*>( settings.get() ) )
             continue;
+
+        // Never automatically save project settings, caller should use SaveProject or UnloadProject
+        if( dynamic_cast<PROJECT_FILE*>( settings.get() )
+            || dynamic_cast<PROJECT_LOCAL_SETTINGS*>( settings.get() ) )
+        {
+            continue;
+        }
 
         settings->SaveToFile( GetPathForSettingsFile( settings.get() ) );
     }
@@ -191,7 +199,8 @@ void SETTINGS_MANAGER::FlushAndRelease( JSON_SETTINGS* aSettings, bool aSave )
         if( aSave )
             ( *it )->SaveToFile( GetPathForSettingsFile( it->get() ) );
 
-        size_t typeHash = typeid( *it->get() ).hash_code();
+        JSON_SETTINGS* tmp = it->get(); // We use a temporary to suppress a Clang warning
+        size_t         typeHash = typeid( *tmp ).hash_code();
 
         if( m_app_settings_cache.count( typeHash ) )
             m_app_settings_cache.erase( typeHash );
@@ -482,8 +491,8 @@ public:
     {
         wxFileName file( aSrcFilePath );
 
-        if( !m_migrateTables && ( file.GetName() == wxT( "sym-lib-table" ) ||
-                                  file.GetName() == wxT( "fp-lib-table" ) ) )
+        if( !m_migrateTables && ( file.GetName() == FILEEXT::SymbolLibraryTableFileName ||
+                                  file.GetName() == FILEEXT::FootprintLibraryTableFileName ) )
         {
             return wxDIR_CONTINUE;
         }
@@ -901,8 +910,8 @@ bool SETTINGS_MANAGER::LoadProject( const wxString& aFullPath, bool aSetActive )
     wxString fullPath = path.GetFullPath();
 
     // If already loaded, we are all set.  This might be called more than once over a project's
-    // lifetime in case the project is first loaded by the KiCad manager and then eeschema or
-    // pcbnew try to load it again when they are launched.
+    // lifetime in case the project is first loaded by the KiCad manager and then Eeschema or
+    // Pcbnew try to load it again when they are launched.
     if( m_projects.count( fullPath ) )
         return true;
 
@@ -943,6 +952,10 @@ bool SETTINGS_MANAGER::LoadProject( const wxString& aFullPath, bool aSetActive )
         // the project pointer.
         wxFileName projectPath( fullPath );
         wxSetEnv( PROJECT_VAR_NAME, projectPath.GetPath() );
+
+        // set the cwd but don't impact kicad-cli
+        if( !projectPath.GetPath().IsEmpty() && wxTheApp && wxTheApp->IsGUI() )
+            wxSetWorkingDirectory( projectPath.GetPath() );
     }
 
     bool success = loadProjectFile( *project );
@@ -1036,6 +1049,13 @@ bool SETTINGS_MANAGER::IsProjectOpen() const
 }
 
 
+bool SETTINGS_MANAGER::IsProjectOpenNotDummy() const
+{
+    return m_projects.size() > 1 || ( m_projects.size() == 1
+        && !m_projects.begin()->second->GetProjectFullName().IsEmpty() );
+}
+
+
 PROJECT* SETTINGS_MANAGER::GetProject( const wxString& aFullPath ) const
 {
     if( m_projects.count( aFullPath ) )
@@ -1050,7 +1070,11 @@ std::vector<wxString> SETTINGS_MANAGER::GetOpenProjects() const
     std::vector<wxString> ret;
 
     for( const std::pair<const wxString, PROJECT*>& pair : m_projects )
-        ret.emplace_back( pair.first );
+    {
+        // Don't save empty projects (these are the default project settings)
+        if( !pair.first.IsEmpty() )
+            ret.emplace_back( pair.first );
+    }
 
     return ret;
 }
@@ -1103,7 +1127,7 @@ void SETTINGS_MANAGER::SaveProjectAs( const wxString& aFullPath, PROJECT* aProje
 
     PROJECT_FILE* project = m_project_files.at( oldName );
 
-    // Ensure read-only flags are copied; this allows doing a "Save As" on a standalong board/sch
+    // Ensure read-only flags are copied; this allows doing a "Save As" on a standalone board/sch
     // without creating project files if the checkbox is turned off
     project->SetReadOnly( aProject->IsReadOnly() );
     aProject->GetLocalSettings().SetReadOnly( aProject->IsReadOnly() );
@@ -1178,6 +1202,9 @@ bool SETTINGS_MANAGER::unloadProjectFile( PROJECT* aProject, bool aSave )
 
     PROJECT_FILE* file = m_project_files[name];
 
+    if( !file->ShouldAutoSave() )
+        aSave = false;
+
     auto it = std::find_if( m_settings.begin(), m_settings.end(),
                             [&file]( const std::unique_ptr<JSON_SETTINGS>& aPtr )
                             {
@@ -1188,7 +1215,9 @@ bool SETTINGS_MANAGER::unloadProjectFile( PROJECT* aProject, bool aSave )
     {
         wxString projectPath = GetPathForSettingsFile( it->get() );
 
-        FlushAndRelease( &aProject->GetLocalSettings(), aSave );
+        bool saveLocalSettings = aSave && aProject->GetLocalSettings().ShouldAutoSave();
+
+        FlushAndRelease( &aProject->GetLocalSettings(), saveLocalSettings );
 
         if( aSave )
             ( *it )->SaveToFile( projectPath );
@@ -1211,36 +1240,39 @@ wxString SETTINGS_MANAGER::GetProjectBackupsPath() const
 wxString SETTINGS_MANAGER::backupDateTimeFormat = wxT( "%Y-%m-%d_%H%M%S" );
 
 
-bool SETTINGS_MANAGER::BackupProject( REPORTER& aReporter ) const
+bool SETTINGS_MANAGER::BackupProject( REPORTER& aReporter, wxFileName& aTarget ) const
 {
     wxDateTime timestamp = wxDateTime::Now();
 
     wxString fileName = wxString::Format( wxT( "%s-%s" ), Prj().GetProjectName(),
                                           timestamp.Format( backupDateTimeFormat ) );
 
-    wxFileName target;
-    target.SetPath( GetProjectBackupsPath() );
-    target.SetName( fileName );
-    target.SetExt( FILEEXT::ArchiveFileExtension );
+    if( !aTarget.IsOk() )
+    {
+        aTarget.SetPath( GetProjectBackupsPath() );
+        aTarget.SetName( fileName );
+        aTarget.SetExt( FILEEXT::ArchiveFileExtension );
+    }
 
-    if( !target.DirExists() && !wxMkdir( target.GetPath() ) )
+    wxString test = aTarget.GetPath();
+
+    if( !aTarget.DirExists() && !wxMkdir( aTarget.GetPath() ) )
     {
         wxLogTrace( traceSettings, wxT( "Could not create project backup path %s" ),
-                    target.GetPath() );
+                    aTarget.GetPath() );
         return false;
     }
 
-    if( !target.IsDirWritable() )
+    if( !aTarget.IsDirWritable() )
     {
-        wxLogTrace( traceSettings, wxT( "Backup directory %s is not writable" ), target.GetPath() );
+        wxLogTrace( traceSettings, wxT( "Backup directory %s is not writable" ),
+                    aTarget.GetPath() );
         return false;
     }
 
-    wxLogTrace( traceSettings, wxT( "Backing up project to %s" ), target.GetPath() );
+    wxLogTrace( traceSettings, wxT( "Backing up project to %s" ), aTarget.GetPath() );
 
-    PROJECT_ARCHIVER archiver;
-
-    return archiver.Archive( Prj().GetProjectPath(), target.GetFullPath(), aReporter );
+    return PROJECT_ARCHIVER::Archive( Prj().GetProjectPath(), aTarget.GetFullPath(), aReporter );
 }
 
 
@@ -1354,6 +1386,24 @@ bool SETTINGS_MANAGER::TriggerBackupIfNeeded( REPORTER& aReporter ) const
         }
     }
 
+    // Backup
+    wxFileName target;
+    bool backupSuccessful = BackupProject( aReporter, target );
+
+    if( !backupSuccessful )
+        return false;
+
+    // Update the file list
+    files.insert( files.begin(), target.GetFullPath() );
+
+    // Are there any changes since the last backup?
+    if( files.size() >= 2
+        && PROJECT_ARCHIVER::AreZipArchivesIdentical( files[0], files[1], aReporter ) )
+    {
+        wxRemoveFile( files[0] );
+        return true;
+    }
+
     // Now that we know a backup is needed, apply the retention policy
 
     // Step 1: if we're over the total file limit, remove the oldest
@@ -1414,7 +1464,7 @@ bool SETTINGS_MANAGER::TriggerBackupIfNeeded( REPORTER& aReporter ) const
             wxRemoveFile( file );
     }
 
-    return BackupProject( aReporter );
+    return true;
 }
 
 

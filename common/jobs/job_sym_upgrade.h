@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -28,7 +28,7 @@
 class KICOMMON_API JOB_SYM_UPGRADE : public JOB
 {
 public:
-    JOB_SYM_UPGRADE( bool aIsCli );
+    JOB_SYM_UPGRADE();
 
     wxString m_libraryPath;
     wxString m_outputLibraryPath;

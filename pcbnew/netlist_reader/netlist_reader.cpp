@@ -6,7 +6,7 @@
  *
  * Copyright (C) 1992-2011 Jean-Pierre Charras.
  * Copyright (C) 2013-2016 Wayne Stambaugh <stambaughw@gmail.com>.
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,6 +30,7 @@
 
 #include <string_utils.h>
 #include <reporter.h>
+#include <richio.h>
 
 #include "pcb_netlist.h"
 #include "netlist_reader.h"
@@ -109,6 +110,16 @@ NETLIST_READER* NETLIST_READER::GetNetlistReader( NETLIST*        aNetlist,
     }
 
     return nullptr;
+}
+
+
+CMP_READER::~CMP_READER()
+{
+    if( m_lineReader )
+    {
+        delete m_lineReader;
+        m_lineReader = nullptr;
+    }
 }
 
 

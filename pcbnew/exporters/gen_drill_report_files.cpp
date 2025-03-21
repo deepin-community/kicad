@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 1992-2017 Jean_Pierre Charras <jp.charras at wanadoo.fr>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,6 +28,7 @@
 #include <eda_item.h>
 #include <font/font.h>
 #include <confirm.h>
+#include <richio.h>
 #include <string_utils.h>
 #include <locale_io.h>
 #include <macros.h>
@@ -105,7 +106,7 @@ bool GENDRILL_WRITER_BASE::genDrillMapFile( const wxString& aFullFileName, PLOT_
     // Calculate dimensions and center of PCB. The Edge_Cuts layer must be visible
     // to calculate the board edges bounding box
     LSET visibleLayers = m_pcb->GetVisibleLayers();
-    m_pcb->SetVisibleLayers( visibleLayers | LSET( Edge_Cuts ) );
+    m_pcb->SetVisibleLayers( visibleLayers | LSET( { Edge_Cuts } ) );
     BOX2I bbbox = m_pcb->GetBoardEdgesBoundingBox();
     m_pcb->SetVisibleLayers( visibleLayers );
 
@@ -236,7 +237,7 @@ bool GENDRILL_WRITER_BASE::genDrillMapFile( const wxString& aFullFileName, PLOT_
     BRDITEMS_PLOTTER itemplotter( plotter, m_pcb, plot_opts );
 
     // Use attributes of a drawing layer (we are not really draw the Edge.Cuts layer)
-    itemplotter.SetLayerSet( Dwgs_User );
+    itemplotter.SetLayerSet( { Dwgs_User } );
 
     for( BOARD_ITEM* item : m_pcb->Drawings() )
     {
@@ -430,12 +431,12 @@ bool GENDRILL_WRITER_BASE::GenDrillReportFile( const wxString& aFullFileName )
 
     int conventional_layer_num = 1;
 
-    for( LSEQ seq = cu.Seq();  seq;  ++seq, ++conventional_layer_num )
+    for( PCB_LAYER_ID layer : cu.Seq() )
     {
         out.Print( 0, "    L%-2d:  %-25s %s\n",
                    conventional_layer_num,
-                   TO_UTF8( m_pcb->GetLayerName( *seq ) ),
-                   layerName( *seq ).c_str() );             // generic layer name
+                   TO_UTF8( m_pcb->GetLayerName( layer ) ),
+                   layerName( layer ).c_str() );             // generic layer name
     }
 
     out.Print( 0, "\n\n" );

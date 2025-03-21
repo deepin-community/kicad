@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2017 Chris Pavlina <pavlina.chris@gmail.com>
  * Copyright (C) 2014 Henner Zeller <h.zeller@acm.org>
- * Copyright (C) 2014-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,6 +27,7 @@
 
 class LIB_TABLE;
 class FP_LIB_TABLE;
+class PCB_BASE_FRAME;
 
 class FP_TREE_MODEL_ADAPTER : public LIB_TREE_MODEL_ADAPTER
 {
@@ -36,7 +37,7 @@ public:
      *
      * @param aLibs library set from which parts will be loaded
      */
-    static wxObjectDataPtr<LIB_TREE_MODEL_ADAPTER> Create( EDA_BASE_FRAME* aParent,
+    static wxObjectDataPtr<LIB_TREE_MODEL_ADAPTER> Create( PCB_BASE_FRAME* aParent,
                                                            LIB_TABLE* aLibs );
 
     void AddLibraries( EDA_BASE_FRAME* aParent );
@@ -47,11 +48,11 @@ protected:
     /**
      * Constructor; takes a set of libraries to be included in the search.
      */
-    FP_TREE_MODEL_ADAPTER( EDA_BASE_FRAME* aParent, LIB_TABLE* aLibs );
+    FP_TREE_MODEL_ADAPTER( PCB_BASE_FRAME* aParent, LIB_TABLE* aLibs );
 
     std::vector<LIB_TREE_ITEM*> getFootprints( const wxString& aLibName );
 
-    bool isSymbolModel() override { return false; }
+    PROJECT::LIB_TYPE_T getLibType() override { return PROJECT::LIB_TYPE_T::FOOTPRINT_LIB; }
 
 protected:
     FP_LIB_TABLE*   m_libs;

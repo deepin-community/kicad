@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 Cirilo Bernardo <cirilo.bernardo@gmail.com>
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,12 +32,14 @@
 #include "3d_info.h"
 #include <core/typeinfo.h>
 #include "string_utils.h"
+#include <hash_128.h>
 #include <list>
 #include <map>
 #include "plugins/3dapi/c3dmodel.h"
 #include <project.h>
 #include <wx/string.h>
 
+class  EMBEDDED_FILES;
 class  PGM_BASE;
 class  S3D_CACHE_ENTRY;
 class  SCENEGRAPH;
@@ -55,13 +57,13 @@ public:
     S3D_CACHE();
     virtual ~S3D_CACHE();
 
-    KICAD_T Type() noexcept override
+    PROJECT::ELEM ProjectElementType() noexcept override
     {
-        return S3D_CACHE_T;
+        return PROJECT::ELEM::S3DCACHE;
     }
 
     /**
-     * Sets the configuration directory to be used by the model manager for storing 3D
+     * Set the configuration directory to be used by the model manager for storing 3D
      * model manager configuration data and the model cache.
      *
      * The config directory may only be set once in the lifetime of the object.
@@ -93,9 +95,11 @@ public:
      *
      * @param aModelFile is the partial or full path to the model to be loaded.
      * @param aBasePath is the path to search for any relative files
+     * @param aEmbeddedFiles is a pointer to the embedded files list.
      * @return true if the model was successfully loaded, otherwise false.
      */
-    SCENEGRAPH* Load( const wxString& aModelFile, const wxString& aBasePath );
+    SCENEGRAPH* Load( const wxString& aModelFile, const wxString& aBasePath,
+                      const EMBEDDED_FILES* aEmbeddedFiles );
 
     FILENAME_RESOLVER* GetResolver() noexcept;
 
@@ -123,9 +127,12 @@ public:
      * structure for display by a renderer.
      *
      * @param aModelFileName is the full path to the model to be loaded.
+     * @param aBasePath is the path to search for any relative files.
+     * @param aEmbeddedFiles is a pointer to the embedded files list.
      * @return is a pointer to the render data or NULL if not available.
      */
-    S3DMODEL* GetModel( const wxString& aModelFileName, const wxString& aBasePath );
+    S3DMODEL* GetModel( const wxString& aModelFileName, const wxString& aBasePath,
+                        const EMBEDDED_FILES* aEmbeddedFiles );
 
     /**
      * Delete up old cache files in cache directory.
@@ -153,10 +160,10 @@ private:
      * Calculate the SHA1 hash of the given file.
      *
      * @param aFileName file name (full path).
-     * @param aSHA1Sum a 20 byte character array to hold the SHA1 hash.
+     * @param aHash a 128 bit hash to hold the hash.
      * @return true on  success, otherwise false.
      */
-    bool getSHA1( const wxString& aFileName, unsigned char* aSHA1Sum );
+    bool getHash( const wxString& aFileName, HASH_128& aHash );
 
     // load scene data from a cache file
     bool loadCacheData( S3D_CACHE_ENTRY* aCacheItem );
@@ -165,12 +172,14 @@ private:
     bool saveCacheData( S3D_CACHE_ENTRY* aCacheItem );
 
     // the real load function (can supply a cache entry pointer to member functions)
-    SCENEGRAPH* load( const wxString& aModelFile, const wxString& aBasePath, S3D_CACHE_ENTRY** aCachePtr = nullptr );
+    SCENEGRAPH* load( const wxString& aModelFile, const wxString& aBasePath,
+                      S3D_CACHE_ENTRY** aCachePtr = nullptr,
+                      const EMBEDDED_FILES* aEmbeddedFiles = nullptr );
 
-    /// cache entries
+    /// Cache entries.
     std::list< S3D_CACHE_ENTRY* > m_CacheList;
 
-    /// mapping of file names to cache names and data
+    /// Mapping of file names to cache names and data.
     std::map< wxString, S3D_CACHE_ENTRY*, rsort_wxString > m_CacheMap;
 
     FILENAME_RESOLVER*  m_FNResolver;
@@ -179,7 +188,7 @@ private:
 
     PROJECT*            m_project;
     wxString            m_CacheDir;
-    wxString            m_ConfigDir;       /// base configuration path for 3D items
+    wxString            m_ConfigDir;       ///< base configuration path for 3D items.
 };
 
 #endif  // CACHE_3D_H

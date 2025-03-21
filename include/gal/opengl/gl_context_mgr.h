@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016 CERN
- * Copyright (C) 2020-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -27,18 +27,17 @@
 #ifndef GL_CONTEXT_MANAGER_H
 #define GL_CONTEXT_MANAGER_H
 
+#include <kicommon.h>
 #include <gal/gal.h>
 #include <wx/glcanvas.h>
 #include <mutex>
 #include <map>
 
-class GAL_API GL_CONTEXT_MANAGER
+class KICOMMON_API GL_CONTEXT_MANAGER
 {
 public:
-    /**
-     * Return the GL_CONTEXT_MANAGER instance (singleton).
-     */
-    static GL_CONTEXT_MANAGER& Get();
+
+    GL_CONTEXT_MANAGER() : m_glCtx( nullptr ) {}
 
     /**
      * Create a managed OpenGL context.
@@ -86,6 +85,53 @@ public:
      */
     void UnlockCtx( wxGLContext* aContext );
 
+    /**
+     * Get the currently bound GL context.
+     *
+     * @return the currently bound GL context.
+     */
+    wxGLContext* GetCurrentCtx() const
+    {
+        return m_glCtx;
+    }
+
+    /**
+     * Get the currently bound GL canvas.
+     *
+     * @return the currently bound GL canvas.
+     */
+    wxGLCanvas* GetCurrentCanvas() const
+    {
+        auto it = m_glContexts.find( m_glCtx );
+        return it != m_glContexts.end() ? it->second : nullptr;
+    }
+
+    /**
+     * Run the given function first releasing the GL context lock, then restoring it.
+     *
+     * @param aFunction is the function to be executed.
+     */
+    template<typename Func, typename... Args>
+    auto RunWithoutCtxLock( Func&& aFunction, Args&&... args )
+    {
+        wxGLContext* currentCtx = GetCurrentCtx();
+        wxGLCanvas* currentCanvas = GetCurrentCanvas();
+        UnlockCtx( currentCtx );
+
+        if constexpr (std::is_void_v<decltype(aFunction(std::forward<Args>(args)...))>)
+        {
+            std::forward<Func>(aFunction)(std::forward<Args>(args)...);
+            LockCtx( currentCtx, currentCanvas );
+            return;
+        }
+        else
+        {
+            auto result = std::forward<Func>(aFunction)(std::forward<Args>(args)...);
+            LockCtx( currentCtx, currentCanvas );
+            return result;
+        }
+    }
+
 private:
     ///< Map of GL contexts & their parent canvases.
     std::map<wxGLContext*, wxGLCanvas*> m_glContexts;
@@ -95,11 +141,6 @@ private:
 
     ///< Lock to prevent unexpected GL context switching.
     std::mutex m_glCtxMutex;
-
-    // Singleton
-    GL_CONTEXT_MANAGER();
-    GL_CONTEXT_MANAGER( const GL_CONTEXT_MANAGER& );
-    void operator=( const GL_CONTEXT_MANAGER& );
 };
 
 #endif /* GL_CONTEXT_MANAGER_H */

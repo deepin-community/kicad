@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2014-2017 CERN
- * Copyright (C) 2020-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -186,15 +186,15 @@ public:
         return m_position == aOther.m_position;
     }
 
-    ///< Single point size in pixels
+    /// Single point size in pixels
     static const int POINT_SIZE = 8;
 
 #ifdef __WXMAC__
-    static const int BORDER_SIZE = 3;       ///< Border size when not hovering
-    static const int HOVER_SIZE  = 6;       ///< Border size when hovering
+    static const int BORDER_SIZE = 3;       ///< Border size when not hovering.
+    static const int HOVER_SIZE  = 6;       ///< Border size when hovering.
 #else
-    static const int BORDER_SIZE = 2;       ///< Border size when not hovering
-    static const int HOVER_SIZE  = 5;       ///< Border size when hovering
+    static const int BORDER_SIZE = 2;       ///< Border size when not hovering.
+    static const int HOVER_SIZE  = 5;       ///< Border size when hovering.
 #endif
 
 private:
@@ -204,11 +204,11 @@ private:
     GRID_CONSTRAINT_TYPE m_gridConstraint;  ///< Describe the grid snapping behavior.
     SNAP_CONSTRAINT_TYPE m_snapConstraint;  ///< Describe the object snapping behavior.
 
-    ///< An optional connected item record used to mimic polyLine behavior with individual
-    ///< line segments.
+    /// An optional connected item record used to mimic polyLine behavior with individual
+    /// line segments.
     std::pair<EDA_ITEM*, int>                     m_connected;
 
-    ///< Constraint for the point, NULL if none
+    /// Constraint for the point, NULL if none.
     std::shared_ptr<EDIT_CONSTRAINT<EDIT_POINT> > m_constraint;
 };
 
@@ -234,13 +234,13 @@ public:
         SetGridConstraint( SNAP_BY_GRID );
     }
 
-    ///< @copydoc EDIT_POINT::GetPosition()
+    /// @copydoc EDIT_POINT::GetPosition()
     virtual VECTOR2I GetPosition() const override
     {
         return m_origin.GetPosition() / 2 + m_end.GetPosition() / 2;
     }
 
-    ///< @copydoc EDIT_POINT::GetPosition()
+    /// @copydoc EDIT_POINT::GetPosition()
     virtual void SetPosition( const VECTOR2I& aPosition ) override
     {
         VECTOR2I difference = aPosition - GetPosition();
@@ -249,7 +249,7 @@ public:
         m_end.SetPosition( m_end.GetPosition() + difference );
     }
 
-    ///< @copydoc EDIT_POINT::ApplyConstraint()
+    /// @copydoc EDIT_POINT::ApplyConstraint()
     virtual void ApplyConstraint( const GRID_HELPER& aGrid ) override
     {
         if( m_constraint )
@@ -304,6 +304,26 @@ public:
         return m_end;
     }
 
+    /**
+     * Is the center-point of the line useful to be shown?
+     */
+    bool HasCenterPoint() const { return m_hasCenterPoint; }
+
+    /**
+     * Set if the center-point of the line should be shown.
+     */
+    void SetHasCenterPoint( bool aHasCenterPoint ) { m_hasCenterPoint = aHasCenterPoint; }
+
+    /**
+     * Should the line itself be drawn, or just the end and/or center points?
+     */
+    bool DrawLine() const { return m_showLine; }
+
+    /**
+     * Set if the line itself should be drawn.
+     */
+    void SetDrawLine( bool aShowLine ) { m_showLine = aShowLine; }
+
     bool operator==( const EDIT_POINT& aOther ) const
     {
         return GetPosition() == aOther.GetPosition();
@@ -315,10 +335,13 @@ public:
     }
 
 private:
-    EDIT_POINT& m_origin;           ///< Origin point for a line
-    EDIT_POINT& m_end;              ///< End point for a line
+    EDIT_POINT& m_origin;           ///< Origin point for a line.
+    EDIT_POINT& m_end;              ///< End point for a line.
 
-    ///< Constraint for the point, NULL if none
+    bool m_hasCenterPoint = true; ///< True if the line has a (useful) center point.
+    bool m_showLine = false;      ///< True if the line itself should be drawn.
+
+    /// Constraint for the point, NULL if none.
     std::shared_ptr<EDIT_CONSTRAINT<EDIT_LINE> > m_constraint;
 };
 
@@ -347,6 +370,16 @@ public:
     EDA_ITEM* GetParent() const
     {
         return m_parent;
+    }
+
+    /**
+     * Clear all stored EDIT_POINTs and EDIT_LINEs.
+     */
+    void Clear()
+    {
+        m_points.clear();
+        m_lines.clear();
+        m_contours.clear();
     }
 
     /**
@@ -389,6 +422,22 @@ public:
     {
         m_lines.emplace_back( aOrigin, aEnd );
     }
+
+    /**
+     * Adds an EDIT_LINE that is shown as an indicator,
+     * rather than an editable line (no center point drag,
+     * show the line itself).
+     *
+     * @param aOrigin is the origin for a new line.
+     * @param aEnd is the end for a new line.
+     */
+    void AddIndicatorLine( EDIT_POINT& aOrigin, EDIT_POINT& aEnd )
+    {
+        EDIT_LINE& line = m_lines.emplace_back( aOrigin, aEnd );
+        line.SetHasCenterPoint( false );
+        line.SetDrawLine( true );
+    }
+
 
     /**
      * Adds a break, indicating the end of a contour.
@@ -502,10 +551,9 @@ public:
     virtual void ViewDraw( int aLayer, KIGFX::VIEW* aView ) const override;
 
     ///< @copydoc VIEW_ITEM::ViewGetLayers()
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override
+    virtual std::vector<int> ViewGetLayers() const override
     {
-        aCount = 1;
-        aLayers[0] = LAYER_GP_OVERLAY ;
+        return { LAYER_GP_OVERLAY };
     }
 
 #if defined(DEBUG)

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2007, 2008 Lubo Racko <developer@lura.sk>
  * Copyright (C) 2007, 2008, 2012-2013 Alexander Lunev <al.lunev@yahoo.com>
- * Copyright (C) 2012-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -525,7 +525,7 @@ void PCAD_FOOTPRINT::AddToBoard( FOOTPRINT* aFootprint )
     ref_text->SetMirrored( m_Name.mirror );
     ref_text->SetVisible( m_Name.textIsVisible );
 
-    ref_text->SetLayer( m_Mirror ? FlipLayer( m_KiCadLayer ) : m_KiCadLayer );
+    ref_text->SetLayer( m_Mirror ? m_board->FlipLayer( m_KiCadLayer ) : m_KiCadLayer );
 
     // value text
     PCB_FIELD* val_text = &footprint->Value();
@@ -550,7 +550,7 @@ void PCAD_FOOTPRINT::AddToBoard( FOOTPRINT* aFootprint )
     val_text->SetMirrored( m_Value.mirror );
     val_text->SetVisible( m_Value.textIsVisible );
 
-    val_text->SetLayer( m_Value.mirror ? FlipLayer( m_KiCadLayer ) : m_KiCadLayer );
+    val_text->SetLayer( m_Value.mirror ? m_board->FlipLayer( m_KiCadLayer ) : m_KiCadLayer );
 
     // TEXTS
     for( i = 0; i < (int) m_FootprintItems.GetCount(); i++ )

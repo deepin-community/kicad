@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009-2014 Jerry Jacobs
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,8 +25,11 @@
 #ifndef GR_TEXT_H
 #define GR_TEXT_H
 
-#include <eda_item.h>
 #include <font/text_attributes.h>
+#include <wx/gdicmn.h>
+
+class wxDC;
+
 
 namespace KIGFX
 {
@@ -51,9 +54,9 @@ class PLOTTER;
  * @param aBold true if text accept bold pen size.
  * @return the max pen size allowed.
  */
-int Clamp_Text_PenSize( int aPenSize, int aSize, bool aStrict = false );
-float Clamp_Text_PenSize( float aPenSize, int aSize, bool aStrict = false );
-int Clamp_Text_PenSize( int aPenSize, const VECTOR2I& aSize, bool aStrict = false );
+int ClampTextPenSize( int aPenSize, int aSize, bool aStrict = false );
+float ClampTextPenSize( float aPenSize, int aSize, bool aStrict = false );
+int ClampTextPenSize( int aPenSize, const VECTOR2I& aSize, bool aStrict = false );
 
 /**
  * @param aTextSize the char size (height or width).
@@ -87,7 +90,7 @@ inline void InferBold( TEXT_ATTRIBUTES* aAttrs )
 
 
 /**
- * Returns the margin for knocking out text.
+ * Return the margin for knocking out text.
  */
 inline int GetKnockoutTextMargin( const VECTOR2I& aSize, int aThickness )
 {

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -135,7 +135,7 @@ bool PCB_IO_EASYEDA::CanReadLibrary( const wxString& aFileName ) const
 
 
 BOARD* PCB_IO_EASYEDA::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
-                                  const STRING_UTF8_MAP* aProperties, PROJECT* aProject )
+                                  const std::map<std::string, UTF8>* aProperties, PROJECT* aProject )
 {
     m_loadedFootprints.clear();
 
@@ -200,7 +200,7 @@ BOARD* PCB_IO_EASYEDA::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
             m_board->SetLayerName( klayer, name );
 
         BOARD_DESIGN_SETTINGS&    bds = m_board->GetDesignSettings();
-        std::shared_ptr<NETCLASS> defNetclass = bds.m_NetSettings->m_DefaultNetClass;
+        std::shared_ptr<NETCLASS> defNetclass = bds.m_NetSettings->GetDefaultNetclass();
 
         if( pcbDoc.DRCRULE )
         {
@@ -285,7 +285,7 @@ long long PCB_IO_EASYEDA::GetLibraryTimestamp( const wxString& aLibraryPath ) co
 
 void PCB_IO_EASYEDA::FootprintEnumerate( wxArrayString&  aFootprintNames,
                                          const wxString& aLibraryPath, bool aBestEfforts,
-                                         const STRING_UTF8_MAP* aProperties )
+                                         const std::map<std::string, UTF8>* aProperties )
 {
     try
     {
@@ -381,7 +381,7 @@ void PCB_IO_EASYEDA::FootprintEnumerate( wxArrayString&  aFootprintNames,
 
 FOOTPRINT* PCB_IO_EASYEDA::FootprintLoad( const wxString& aLibraryPath,
                                           const wxString& aFootprintName, bool aKeepUUID,
-                                          const STRING_UTF8_MAP* aProperties )
+                                          const std::map<std::string, UTF8>* aProperties )
 {
     fontconfig::FONTCONFIG::SetReporter( nullptr );
 

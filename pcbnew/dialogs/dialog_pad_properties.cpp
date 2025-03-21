@@ -4,7 +4,7 @@
  * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2013 Dick Hollenbeck, dick@softplc.com
  * Copyright (C) 2008-2013 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -40,6 +40,7 @@
 #include <dialogs/html_message_box.h>
 #include <macros.h>
 #include <pad.h>
+#include <pad_utils.h>
 #include <pcb_base_frame.h>
 #include <footprint_edit_frame.h>
 #include <pcb_painter.h>
@@ -106,39 +107,11 @@ static PAD_ATTRIB code_type[] =
 #define APERTURE_DLG_TYPE 4
 
 
-/**
- * @brief Returns true if the pad's rounding ratio is valid (i.e. the pad
- * has a shape where that is meaningful)
- */
-static bool PadHasMeaningfulRoundingRadius( const PAD& aPad )
-{
-    const PAD_SHAPE shape = aPad.GetShape();
-    return shape == PAD_SHAPE::ROUNDRECT || shape == PAD_SHAPE::CHAMFERED_RECT;
-}
-
-
-/**
- * @brief Get a sensible default for a rounded rectangle pad's rounding ratio
- *
- * According to IPC-7351C, this is 25%, or 0.25mm, whichever is smaller
- */
-static double GetDefaultIpcRoundingRatio( const PAD& aPad )
-{
-    const double defaultProportion = 0.25;
-    const double minimumSizeIU = pcbIUScale.mmToIU( 0.25 );
-
-    const int    padMinSizeIU = std::min( aPad.GetSizeX(), aPad.GetSizeY() );
-    const double defaultRadiusIU = std::min( minimumSizeIU, padMinSizeIU * defaultProportion );
-
-    // Convert back to a ratio
-    return defaultRadiusIU / padMinSizeIU;
-}
-
-
 void PCB_BASE_FRAME::ShowPadPropertiesDialog( PAD* aPad )
 {
     DIALOG_PAD_PROPERTIES dlg( this, aPad );
 
+    // QuasiModal required for NET_SELECTOR
     dlg.ShowQuasiModal();
 }
 
@@ -146,7 +119,8 @@ void PCB_BASE_FRAME::ShowPadPropertiesDialog( PAD* aPad )
 DIALOG_PAD_PROPERTIES::DIALOG_PAD_PROPERTIES( PCB_BASE_FRAME* aParent, PAD* aPad ) :
         DIALOG_PAD_PROPERTIES_BASE( aParent ),
         m_parent( aParent ),
-        m_canUpdate( false ),
+        m_initialized( false ),
+        m_editLayer( F_Cu ),
         m_posX( aParent, m_posXLabel, m_posXCtrl, m_posXUnits ),
         m_posY( aParent, m_posYLabel, m_posYCtrl, m_posYUnits ),
         m_sizeX( aParent, m_sizeXLabel, m_sizeXCtrl, m_sizeXUnits ),
@@ -216,13 +190,18 @@ DIALOG_PAD_PROPERTIES::DIALOG_PAD_PROPERTIES( PCB_BASE_FRAME* aParent, PAD* aPad
         m_previewPad->GetTeardropParams() = m_masterPad->GetTeardropParams();
     }
 
+    // TODO(JE) padstacks: should this be re-run when pad mode changes?
     // Pads have a hardcoded internal rounding ratio which is 0.25 by default, even if
     // they're not a rounded shape. This makes it hard to detect an intentional 0.25
     // ratio, or one that's only there because it's the PAD default.
     // Zero it out here to mark that we should recompute a better ratio if the user
     // selects a pad shape which would need a default rounding ratio computed for it
-    if( !PadHasMeaningfulRoundingRadius( *m_previewPad ) )
-        m_previewPad->SetRoundRectRadiusRatio( 0.0 );
+    m_previewPad->Padstack().ForEachUniqueLayer(
+        [&]( PCB_LAYER_ID aLayer )
+        {
+            if( !PAD_UTILS::PadHasMeaningfulRoundingRadius( *m_previewPad, aLayer ) )
+                m_previewPad->SetRoundRectRadiusRatio( aLayer, 0.0 );
+        } );
 
     if( m_isFpEditor )
     {
@@ -277,16 +256,16 @@ DIALOG_PAD_PROPERTIES::DIALOG_PAD_PROPERTIES( PCB_BASE_FRAME* aParent, PAD* aPad
 
     switch( m_page )
     {
+    default:
     case 0: SetInitialFocus( m_padNumCtrl );     break;
     case 1: SetInitialFocus( m_thermalGapCtrl ); break;
     case 2: SetInitialFocus( m_clearanceCtrl );  break;
     }
 
-    SetInitialFocus( m_padNumCtrl );
     SetupStandardButtons();
-    m_canUpdate = true;
+    m_initialized = true;
 
-    m_padNetSelector->Connect( NET_SELECTED,
+    m_padNetSelector->Connect( FILTERED_ITEM_SELECTED,
                                wxCommandEventHandler( DIALOG_PAD_PROPERTIES::OnValuesChanged ),
                                nullptr, this );
 
@@ -311,7 +290,7 @@ DIALOG_PAD_PROPERTIES::DIALOG_PAD_PROPERTIES( PCB_BASE_FRAME* aParent, PAD* aPad
 
 DIALOG_PAD_PROPERTIES::~DIALOG_PAD_PROPERTIES()
 {
-    m_padNetSelector->Disconnect( NET_SELECTED,
+    m_padNetSelector->Disconnect( FILTERED_ITEM_SELECTED,
                                   wxCommandEventHandler( DIALOG_PAD_PROPERTIES::OnValuesChanged ),
                                   nullptr, this );
 
@@ -405,23 +384,78 @@ void DIALOG_PAD_PROPERTIES::prepareCanvas()
 }
 
 
+void DIALOG_PAD_PROPERTIES::OnPadstackModeChanged( wxCommandEvent& aEvent )
+{
+    transferDataToPad( m_previewPad );
+    afterPadstackModeChanged();
+    redraw();
+}
+
+
+void DIALOG_PAD_PROPERTIES::OnEditLayerChanged( wxCommandEvent& aEvent )
+{
+    // Save data from the previous layer
+    transferDataToPad( m_previewPad );
+
+    switch( m_previewPad->Padstack().Mode() )
+    {
+    default:
+    case PADSTACK::MODE::NORMAL:
+        m_editLayer = F_Cu;
+        break;
+
+    case PADSTACK::MODE::FRONT_INNER_BACK:
+        switch( m_cbEditLayer->GetSelection() )
+        {
+        default:
+        case 0: m_editLayer = F_Cu;                   break;
+        case 1: m_editLayer = PADSTACK::INNER_LAYERS; break;
+        case 2: m_editLayer = B_Cu;                   break;
+        }
+        break;
+
+    case PADSTACK::MODE::CUSTOM:
+    {
+        int layer = m_cbEditLayer->GetSelection();
+
+        if( layer < 0 )
+            layer = 0;
+
+        if( m_editLayerCtrlMap.contains( layer ) )
+            m_editLayer = m_editLayerCtrlMap.at( layer );
+        else
+            m_editLayer = F_Cu;
+    }
+    }
+
+    // Load controls with the current layer
+    initPadstackLayerValues();
+
+    wxCommandEvent cmd_event;
+    OnPadShapeSelection( cmd_event );
+    OnOffsetCheckbox( cmd_event );
+
+    redraw();
+}
+
+
 void DIALOG_PAD_PROPERTIES::updateRoundRectCornerValues()
 {
     // Note: use ChangeValue() to avoid generating a wxEVT_TEXT event
-    m_cornerRadius.ChangeValue( m_previewPad->GetRoundRectCornerRadius() );
+    m_cornerRadius.ChangeValue( m_previewPad->GetRoundRectCornerRadius( m_editLayer ) );
 
-    m_cornerRatio.ChangeDoubleValue( m_previewPad->GetRoundRectRadiusRatio() * 100.0 );
-    m_mixedCornerRatio.ChangeDoubleValue( m_previewPad->GetRoundRectRadiusRatio() * 100.0 );
+    m_cornerRatio.ChangeDoubleValue( m_previewPad->GetRoundRectRadiusRatio( m_editLayer ) * 100.0 );
+    m_mixedCornerRatio.ChangeDoubleValue( m_previewPad->GetRoundRectRadiusRatio( m_editLayer ) * 100.0 );
 
-    m_chamferRatio.ChangeDoubleValue( m_previewPad->GetChamferRectRatio() * 100.0 );
-    m_mixedChamferRatio.ChangeDoubleValue( m_previewPad->GetChamferRectRatio() * 100.0 );
+    m_chamferRatio.ChangeDoubleValue( m_previewPad->GetChamferRectRatio( m_editLayer ) * 100.0 );
+    m_mixedChamferRatio.ChangeDoubleValue( m_previewPad->GetChamferRectRatio( m_editLayer ) * 100.0 );
 }
 
 
 void DIALOG_PAD_PROPERTIES::onCornerRadiusChange( wxCommandEvent& event )
 {
-    if( m_previewPad->GetShape() != PAD_SHAPE::ROUNDRECT
-            && m_previewPad->GetShape() != PAD_SHAPE::CHAMFERED_RECT )
+    if( m_previewPad->GetShape( m_editLayer ) != PAD_SHAPE::ROUNDRECT
+            && m_previewPad->GetShape( m_editLayer ) != PAD_SHAPE::CHAMFERED_RECT )
     {
         return;
     }
@@ -431,20 +465,23 @@ void DIALOG_PAD_PROPERTIES::onCornerRadiusChange( wxCommandEvent& event )
 
     if( transferDataToPad( m_previewPad ) )
     {
-        m_previewPad->SetRoundRectCornerRadius( m_cornerRadius.GetValue() );
+        m_previewPad->SetRoundRectCornerRadius( m_editLayer, m_cornerRadius.GetValue() );
 
-        m_cornerRatio.ChangeDoubleValue( m_previewPad->GetRoundRectRadiusRatio() * 100.0 );
-        m_mixedCornerRatio.ChangeDoubleValue( m_previewPad->GetRoundRectRadiusRatio() * 100.0 );
+        m_cornerRatio.ChangeDoubleValue( m_previewPad->GetRoundRectRadiusRatio( m_editLayer ) * 100.0 );
+        m_mixedCornerRatio.ChangeDoubleValue( m_previewPad->GetRoundRectRadiusRatio( m_editLayer ) * 100.0 );
 
         redraw();
     }
+
+    if( m_initialized )
+        OnModify();
 }
 
 
 void DIALOG_PAD_PROPERTIES::onCornerSizePercentChange( wxCommandEvent& event )
 {
-    if( m_previewPad->GetShape() != PAD_SHAPE::ROUNDRECT
-            && m_previewPad->GetShape() != PAD_SHAPE::CHAMFERED_RECT )
+    if( m_previewPad->GetShape( m_editLayer ) != PAD_SHAPE::ROUNDRECT
+            && m_previewPad->GetShape( m_editLayer ) != PAD_SHAPE::CHAMFERED_RECT )
     {
         return;
     }
@@ -507,9 +544,12 @@ void DIALOG_PAD_PROPERTIES::onCornerSizePercentChange( wxCommandEvent& event )
     }
 
     if( changed && transferDataToPad( m_previewPad ) )
-        m_cornerRadius.ChangeValue( m_previewPad->GetRoundRectCornerRadius() );
+        m_cornerRadius.ChangeValue( m_previewPad->GetRoundRectCornerRadius( m_editLayer ) );
 
     redraw();
+
+    if( m_initialized )
+        OnModify();
 }
 
 
@@ -546,7 +586,7 @@ void DIALOG_PAD_PROPERTIES::initValues()
             if( footprint->IsFlipped() )
             {
                 // flip pad (up/down) around its position
-                m_previewPad->Flip( m_previewPad->GetPosition(), false );
+                m_previewPad->Flip( m_previewPad->GetPosition(), FLIP_DIRECTION::TOP_BOTTOM );
                 relPos.y = - relPos.y;
             }
 
@@ -563,19 +603,35 @@ void DIALOG_PAD_PROPERTIES::initValues()
             m_FlippedWarningSizer->Show( footprint->IsFlipped() );
             m_parentInfo->SetLabel( msg );
         }
-    }
 
-    m_primitives = m_previewPad->GetPrimitives();
-
-    if( m_currentPad )
-    {
         m_padNumCtrl->SetValue( m_previewPad->GetNumber() );
     }
     else
     {
         PAD_TOOL* padTool = m_parent->GetToolManager()->GetTool<PAD_TOOL>();
         m_padNumCtrl->SetValue( padTool->GetLastPadNumber() );
+
+        if( m_isFpEditor && m_board->GetFirstFootprint() )
+        {
+            switch( m_board->GetFirstFootprint()->GetAttributes() )
+            {
+            case FOOTPRINT_ATTR_T::FP_THROUGH_HOLE:
+                m_previewPad->SetAttribute( PAD_ATTRIB::PTH );
+
+                if( m_previewPad->GetDrillSizeX() == 0 )
+                    m_board->GetDesignSettings().SetDefaultMasterPad();
+
+                break;
+
+            case FOOTPRINT_ATTR_T::FP_SMD:
+                m_previewPad->SetLayerSet( PAD::SMDMask() );
+                m_previewPad->SetAttribute( PAD_ATTRIB::SMD );
+                break;
+            }
+        }
     }
+
+    afterPadstackModeChanged();
 
     m_padNetSelector->SetSelectedNetcode( m_previewPad->GetNetCode() );
 
@@ -586,38 +642,47 @@ void DIALOG_PAD_PROPERTIES::initValues()
     m_holeX.ChangeValue( m_previewPad->GetDrillSize().x );
     m_holeY.ChangeValue( m_previewPad->GetDrillSize().y );
 
-    m_sizeX.ChangeValue( m_previewPad->GetSize().x );
-    m_sizeY.ChangeValue( m_previewPad->GetSize().y );
-
-    m_offsetShapeOpt->SetValue( m_previewPad->GetOffset() != VECTOR2I() );
-    m_offsetX.ChangeValue( m_previewPad->GetOffset().x );
-    m_offsetY.ChangeValue( m_previewPad->GetOffset().y );
-
-    if( m_previewPad->GetDelta().x )
-    {
-        m_trapDelta.ChangeValue( m_previewPad->GetDelta().x );
-        m_trapAxisCtrl->SetSelection( 0 );
-    }
-    else
-    {
-        m_trapDelta.ChangeValue( m_previewPad->GetDelta().y );
-        m_trapAxisCtrl->SetSelection( 1 );
-    }
-
+    // TODO(JE) padstacks -- does this need to be saved/restored every time the layer changes?
     // Store the initial thermal spoke angle to restore it, because some initializations
     // can change this value (mainly after m_PadShapeSelector initializations)
     EDA_ANGLE spokeInitialAngle = m_previewPad->GetThermalSpokeAngle();
 
+    initPadstackLayerValues();
+
     m_padToDieOpt->SetValue( m_previewPad->GetPadToDieLength() != 0 );
     m_padToDie.ChangeValue( m_previewPad->GetPadToDieLength() );
 
-    m_clearance.ChangeValue( m_previewPad->GetLocalClearance() );
-    m_maskMargin.ChangeValue( m_previewPad->GetLocalSolderMaskMargin() );
-    m_spokeWidth.ChangeValue( m_previewPad->GetThermalSpokeWidth() );
+    if( m_previewPad->GetLocalClearance().has_value() )
+        m_clearance.ChangeValue( m_previewPad->GetLocalClearance().value() );
+    else
+        m_clearance.ChangeValue( wxEmptyString );
+
+    if( m_previewPad->GetLocalSolderMaskMargin().has_value() )
+        m_maskMargin.ChangeValue( m_previewPad->GetLocalSolderMaskMargin().value() );
+    else
+        m_maskMargin.ChangeValue( wxEmptyString );
+
+    if( m_previewPad->GetLocalSolderPasteMargin().has_value() )
+        m_pasteMargin.ChangeValue( m_previewPad->GetLocalSolderPasteMargin().value() );
+    else
+        m_pasteMargin.ChangeValue( wxEmptyString );
+
+    if( m_previewPad->GetLocalSolderPasteMarginRatio().has_value() )
+        m_pasteMarginRatio.ChangeDoubleValue( m_previewPad->GetLocalSolderPasteMarginRatio().value() * 100.0 );
+    else
+        m_pasteMarginRatio.ChangeValue( wxEmptyString );
+
+    if( m_previewPad->GetLocalThermalSpokeWidthOverride().has_value() )
+        m_spokeWidth.ChangeValue( m_previewPad->GetLocalThermalSpokeWidthOverride().value() );
+    else
+        m_spokeWidth.SetNull();
+
+    if( m_previewPad->GetLocalThermalGapOverride().has_value() )
+        m_thermalGap.ChangeValue( m_previewPad->GetLocalThermalGapOverride().value() );
+    else
+        m_thermalGap.SetNull();
+
     m_spokeAngle.ChangeAngleValue( m_previewPad->GetThermalSpokeAngle() );
-    m_thermalGap.ChangeValue( m_previewPad->GetThermalGap() );
-    m_pasteMargin.ChangeValue( m_previewPad->GetLocalSolderPasteMargin() );
-    m_pasteMarginRatio.ChangeDoubleValue( m_previewPad->GetLocalSolderPasteMarginRatio() * 100.0 );
     m_pad_orientation.ChangeAngleValue( m_previewPad->GetOrientation() );
 
     m_cbTeardrops->SetValue( m_previewPad->GetTeardropParams().m_Enabled );
@@ -628,15 +693,9 @@ void DIALOG_PAD_PROPERTIES::initValues()
     m_spTeardropLenPercent->SetValue( m_previewPad->GetTeardropParams().m_BestLengthRatio *100 );
     m_spTeardropSizePercent->SetValue( m_previewPad->GetTeardropParams().m_BestWidthRatio *100 );
     m_spTeardropHDPercent->SetValue( m_previewPad->GetTeardropParams().m_WidthtoSizeFilterRatio*100 );
+    m_curvedEdges->SetValue( m_previewPad->GetTeardropParams().m_CurvedEdges );
 
-    m_curvedEdges->SetValue( m_previewPad->GetTeardropParams().IsCurved() );
-
-    if( m_curvedEdges->GetValue() )
-        m_curvePointsCtrl->SetValue( m_previewPad->GetTeardropParams().m_CurveSegCount );
-    else
-        m_curvePointsCtrl->SetValue( 5 );
-
-    switch( m_previewPad->GetZoneConnection() )
+    switch( m_previewPad->GetLocalZoneConnection() )
     {
     default:
     case ZONE_CONNECTION::INHERITED: m_ZoneConnectionChoice->SetSelection( 0 ); break;
@@ -645,45 +704,10 @@ void DIALOG_PAD_PROPERTIES::initValues()
     case ZONE_CONNECTION::NONE:      m_ZoneConnectionChoice->SetSelection( 3 ); break;
     }
 
-    if( m_previewPad->GetCustomShapeInZoneOpt() == CUST_PAD_SHAPE_IN_ZONE_CONVEXHULL )
+    if( m_previewPad->GetCustomShapeInZoneOpt() == PADSTACK::CUSTOM_SHAPE_ZONE_MODE::CONVEXHULL )
         m_ZoneCustomPadShape->SetSelection( 1 );
     else
         m_ZoneCustomPadShape->SetSelection( 0 );
-
-    switch( m_previewPad->GetShape() )
-    {
-    default:
-    case PAD_SHAPE::CIRCLE:    m_PadShapeSelector->SetSelection( CHOICE_SHAPE_CIRCLE );    break;
-    case PAD_SHAPE::OVAL:      m_PadShapeSelector->SetSelection( CHOICE_SHAPE_OVAL );      break;
-    case PAD_SHAPE::RECTANGLE:      m_PadShapeSelector->SetSelection( CHOICE_SHAPE_RECT );      break;
-    case PAD_SHAPE::TRAPEZOID: m_PadShapeSelector->SetSelection( CHOICE_SHAPE_TRAPEZOID ); break;
-    case PAD_SHAPE::ROUNDRECT: m_PadShapeSelector->SetSelection( CHOICE_SHAPE_ROUNDRECT ); break;
-
-    case PAD_SHAPE::CHAMFERED_RECT:
-        if( m_previewPad->GetRoundRectRadiusRatio() > 0.0 )
-            m_PadShapeSelector->SetSelection( CHOICE_SHAPE_CHAMFERED_ROUNDED_RECT );
-        else
-            m_PadShapeSelector->SetSelection( CHOICE_SHAPE_CHAMFERED_RECT );
-        break;
-
-    case PAD_SHAPE::CUSTOM:
-        if( m_previewPad->GetAnchorPadShape() == PAD_SHAPE::RECTANGLE )
-            m_PadShapeSelector->SetSelection( CHOICE_SHAPE_CUSTOM_RECT_ANCHOR );
-        else
-            m_PadShapeSelector->SetSelection( CHOICE_SHAPE_CUSTOM_CIRC_ANCHOR );
-        break;
-    }
-
-    m_cbTopLeft->SetValue( m_previewPad->GetChamferPositions() & RECT_CHAMFER_TOP_LEFT );
-    m_cbTopLeft1->SetValue( m_previewPad->GetChamferPositions() & RECT_CHAMFER_TOP_LEFT );
-    m_cbTopRight->SetValue( m_previewPad->GetChamferPositions() & RECT_CHAMFER_TOP_RIGHT );
-    m_cbTopRight1->SetValue( m_previewPad->GetChamferPositions() & RECT_CHAMFER_TOP_RIGHT );
-    m_cbBottomLeft->SetValue( m_previewPad->GetChamferPositions() & RECT_CHAMFER_BOTTOM_LEFT );
-    m_cbBottomLeft1->SetValue( m_previewPad->GetChamferPositions() & RECT_CHAMFER_BOTTOM_LEFT );
-    m_cbBottomRight->SetValue( m_previewPad->GetChamferPositions() & RECT_CHAMFER_BOTTOM_RIGHT );
-    m_cbBottomRight1->SetValue( m_previewPad->GetChamferPositions() & RECT_CHAMFER_BOTTOM_RIGHT );
-
-    updateRoundRectCornerValues();
 
     // Type of pad selection
     bool aperture =
@@ -713,6 +737,7 @@ void DIALOG_PAD_PROPERTIES::initValues()
     case PAD_PROP::TESTPOINT:        m_choiceFabProperty->SetSelection( 4 ); break;
     case PAD_PROP::HEATSINK:         m_choiceFabProperty->SetSelection( 5 ); break;
     case PAD_PROP::CASTELLATED:      m_choiceFabProperty->SetSelection( 6 ); break;
+    case PAD_PROP::MECHANICAL:       m_choiceFabProperty->SetSelection( 7 ); break;
     }
 
     // Ensure the pad property is compatible with the pad type
@@ -722,7 +747,7 @@ void DIALOG_PAD_PROPERTIES::initValues()
         m_choiceFabProperty->Enable( false );
     }
 
-    if( m_previewPad->GetDrillShape() != PAD_DRILL_SHAPE_OBLONG )
+    if( m_previewPad->GetDrillShape() != PAD_DRILL_SHAPE::OBLONG )
         m_holeShapeCtrl->SetSelection( 0 );
     else
         m_holeShapeCtrl->SetSelection( 1 );
@@ -739,6 +764,136 @@ void DIALOG_PAD_PROPERTIES::initValues()
     // by the call to OnPadShapeSelection()
     m_previewPad->SetThermalSpokeAngle( spokeInitialAngle );
     m_spokeAngle.SetAngleValue( m_previewPad->GetThermalSpokeAngle() );
+}
+
+
+void DIALOG_PAD_PROPERTIES::initPadstackLayerValues()
+{
+    m_primitives = m_previewPad->GetPrimitives( m_editLayer );
+
+    m_sizeX.ChangeValue( m_previewPad->GetSize( m_editLayer ).x );
+    m_sizeY.ChangeValue( m_previewPad->GetSize( m_editLayer ).y );
+
+    m_offsetShapeOpt->SetValue( m_previewPad->GetOffset( m_editLayer ) != VECTOR2I() );
+    m_offsetX.ChangeValue( m_previewPad->GetOffset( m_editLayer ).x );
+    m_offsetY.ChangeValue( m_previewPad->GetOffset( m_editLayer ).y );
+
+    if( m_previewPad->GetDelta( m_editLayer ).x )
+    {
+        m_trapDelta.ChangeValue( m_previewPad->GetDelta( m_editLayer ).x );
+        m_trapAxisCtrl->SetSelection( 0 );
+    }
+    else
+    {
+        m_trapDelta.ChangeValue( m_previewPad->GetDelta( m_editLayer ).y );
+        m_trapAxisCtrl->SetSelection( 1 );
+    }
+
+    switch( m_previewPad->GetShape( m_editLayer ) )
+    {
+    default:
+    case PAD_SHAPE::CIRCLE:    m_PadShapeSelector->SetSelection( CHOICE_SHAPE_CIRCLE );    break;
+    case PAD_SHAPE::OVAL:      m_PadShapeSelector->SetSelection( CHOICE_SHAPE_OVAL );      break;
+    case PAD_SHAPE::RECTANGLE: m_PadShapeSelector->SetSelection( CHOICE_SHAPE_RECT );      break;
+    case PAD_SHAPE::TRAPEZOID: m_PadShapeSelector->SetSelection( CHOICE_SHAPE_TRAPEZOID ); break;
+    case PAD_SHAPE::ROUNDRECT: m_PadShapeSelector->SetSelection( CHOICE_SHAPE_ROUNDRECT ); break;
+
+    case PAD_SHAPE::CHAMFERED_RECT:
+        if( m_previewPad->GetRoundRectRadiusRatio( m_editLayer ) > 0.0 )
+            m_PadShapeSelector->SetSelection( CHOICE_SHAPE_CHAMFERED_ROUNDED_RECT );
+        else
+            m_PadShapeSelector->SetSelection( CHOICE_SHAPE_CHAMFERED_RECT );
+        break;
+
+    case PAD_SHAPE::CUSTOM:
+        if( m_previewPad->GetAnchorPadShape( m_editLayer ) == PAD_SHAPE::RECTANGLE )
+            m_PadShapeSelector->SetSelection( CHOICE_SHAPE_CUSTOM_RECT_ANCHOR );
+        else
+            m_PadShapeSelector->SetSelection( CHOICE_SHAPE_CUSTOM_CIRC_ANCHOR );
+        break;
+    }
+
+    int chamferPositions = m_previewPad->GetChamferPositions( m_editLayer );
+
+    m_cbTopLeft->SetValue( chamferPositions & RECT_CHAMFER_TOP_LEFT );
+    m_cbTopLeft1->SetValue( chamferPositions & RECT_CHAMFER_TOP_LEFT );
+    m_cbTopRight->SetValue( chamferPositions & RECT_CHAMFER_TOP_RIGHT );
+    m_cbTopRight1->SetValue( chamferPositions & RECT_CHAMFER_TOP_RIGHT );
+    m_cbBottomLeft->SetValue( chamferPositions & RECT_CHAMFER_BOTTOM_LEFT );
+    m_cbBottomLeft1->SetValue( chamferPositions & RECT_CHAMFER_BOTTOM_LEFT );
+    m_cbBottomRight->SetValue( chamferPositions & RECT_CHAMFER_BOTTOM_RIGHT );
+    m_cbBottomRight1->SetValue( chamferPositions & RECT_CHAMFER_BOTTOM_RIGHT );
+
+    updateRoundRectCornerValues();
+}
+
+
+void DIALOG_PAD_PROPERTIES::afterPadstackModeChanged()
+{
+    // NOTE: synchronize changes here with DIALOG_TRACK_VIA_PROPERTIES::afterPadstackModeChanged
+
+    wxCHECK_MSG( m_board, /* void */, "Expected valid board in afterPadstackModeChanged" );
+    m_cbEditLayer->Clear();
+
+    switch( m_previewPad->Padstack().Mode() )
+    {
+    case PADSTACK::MODE::NORMAL:
+        m_cbPadstackMode->SetSelection( 0 );
+        m_cbEditLayer->Append( m_board->GetLayerName( F_Cu ) );
+        m_cbEditLayer->Disable();
+        m_editLayer = F_Cu;
+        m_editLayerCtrlMap = { { 0, F_Cu } };
+        break;
+
+    case PADSTACK::MODE::FRONT_INNER_BACK:
+    {
+        m_cbPadstackMode->SetSelection( 1 );
+        m_cbEditLayer->Enable();
+
+        std::vector choices = {
+            m_board->GetLayerName( F_Cu ),
+            _( "Inner Layers" ),
+            m_board->GetLayerName( B_Cu )
+        };
+
+        m_cbEditLayer->Append( choices );
+
+        m_editLayerCtrlMap = {
+            { 0, F_Cu },
+            { 1, PADSTACK::INNER_LAYERS },
+            { 2, B_Cu }
+        };
+
+        if( m_editLayer != F_Cu && m_editLayer != B_Cu )
+            m_editLayer = PADSTACK::INNER_LAYERS;
+
+        break;
+    }
+
+    case PADSTACK::MODE::CUSTOM:
+    {
+        m_cbPadstackMode->SetSelection( 2 );
+        m_cbEditLayer->Enable();
+        LSET layers = LSET::AllCuMask() & m_board->GetEnabledLayers();
+
+        for( PCB_LAYER_ID layer : layers.UIOrder() )
+        {
+            int idx = m_cbEditLayer->Append( m_board->GetLayerName( layer ) );
+            m_editLayerCtrlMap[idx] = layer;
+        }
+
+        break;
+    }
+    }
+
+    for( const auto& [idx, layer] : m_editLayerCtrlMap )
+    {
+        if( layer == m_editLayer )
+        {
+            m_cbEditLayer->SetSelection( idx );
+            break;
+        }
+    }
 }
 
 
@@ -785,8 +940,12 @@ void DIALOG_PAD_PROPERTIES::OnPadShapeSelection( wxCommandEvent& event )
         m_shapePropsBook->SetSelection( 2 );
 
         // Reasonable defaults
-        if( m_previewPad->GetRoundRectRadiusRatio() == 0.0 )
-            m_cornerRatio.ChangeDoubleValue( GetDefaultIpcRoundingRatio( *m_previewPad ) * 100 );
+        if( m_previewPad->GetRoundRectRadiusRatio( m_editLayer ) == 0.0 )
+        {
+            const double ipcRadiusRatio =
+                    PAD_UTILS::GetDefaultIpcRoundingRatio( *m_previewPad, m_editLayer );
+            m_cornerRatio.ChangeDoubleValue( ipcRadiusRatio * 100 );
+        }
 
         break;
     }
@@ -795,11 +954,11 @@ void DIALOG_PAD_PROPERTIES::OnPadShapeSelection( wxCommandEvent& event )
         m_shapePropsBook->SetSelection( 3 );
 
         // Reasonable default
-        if( m_previewPad->GetChamferRectRatio() == 0.0 )
-            m_previewPad->SetChamferRectRatio( 0.2 );
+        if( m_previewPad->GetChamferRectRatio( m_editLayer ) == 0.0 )
+            m_previewPad->SetChamferRectRatio( m_editLayer, 0.2 );
 
         // Ensure the displayed value is up to date:
-        m_chamferRatio.ChangeDoubleValue( m_previewPad->GetChamferRectRatio() * 100.0 );
+        m_chamferRatio.ChangeDoubleValue( m_previewPad->GetChamferRectRatio( m_editLayer ) * 100.0 );
 
         // A reasonable default is one corner chamfered (usual for some SMD pads).
         if( !m_cbTopLeft->GetValue() && !m_cbTopRight->GetValue()
@@ -817,17 +976,18 @@ void DIALOG_PAD_PROPERTIES::OnPadShapeSelection( wxCommandEvent& event )
         m_shapePropsBook->SetSelection( 4 );
 
         // Reasonable defaults
-        if( m_previewPad->GetRoundRectRadiusRatio() == 0.0
-                && m_previewPad->GetChamferRectRatio() == 0.0 )
+        if( m_previewPad->GetRoundRectRadiusRatio( m_editLayer ) == 0.0
+                && m_previewPad->GetChamferRectRatio( m_editLayer ) == 0.0 )
         {
-            m_previewPad->SetRoundRectRadiusRatio(
-                    GetDefaultIpcRoundingRatio( *m_previewPad ) );
-            m_previewPad->SetChamferRectRatio( 0.2 );
+            const double ipcRadiusRatio =
+                    PAD_UTILS::GetDefaultIpcRoundingRatio( *m_previewPad, m_editLayer );
+            m_previewPad->SetRoundRectRadiusRatio( m_editLayer, ipcRadiusRatio );
+            m_previewPad->SetChamferRectRatio( m_editLayer, 0.2 );
         }
 
         // Ensure the displayed values are up to date:
-        m_mixedChamferRatio.ChangeDoubleValue( m_previewPad->GetChamferRectRatio() * 100.0 );
-        m_mixedCornerRatio.ChangeDoubleValue( m_previewPad->GetRoundRectRadiusRatio() * 100.0 );
+        m_mixedChamferRatio.ChangeDoubleValue( m_previewPad->GetChamferRectRatio( m_editLayer ) * 100.0 );
+        m_mixedCornerRatio.ChangeDoubleValue( m_previewPad->GetRoundRectRadiusRatio( m_editLayer ) * 100.0 );
         break;
 
     case CHOICE_SHAPE_CUSTOM_CIRC_ANCHOR:     // PAD_SHAPE::CUSTOM, circular anchor
@@ -878,6 +1038,9 @@ void DIALOG_PAD_PROPERTIES::OnPadShapeSelection( wxCommandEvent& event )
 
     updatePadSizeControls();
     redraw();
+
+    if( m_initialized )
+        OnModify();
 }
 
 
@@ -886,6 +1049,9 @@ void DIALOG_PAD_PROPERTIES::OnDrillShapeSelected( wxCommandEvent& event )
     transferDataToPad( m_previewPad );
     updateHoleControls();
     redraw();
+
+    if( m_initialized )
+        OnModify();
 }
 
 
@@ -893,6 +1059,9 @@ void DIALOG_PAD_PROPERTIES::PadOrientEvent( wxCommandEvent& event )
 {
     transferDataToPad( m_previewPad );
     redraw();
+
+    if( m_initialized )
+        OnModify();
 }
 
 
@@ -954,15 +1123,23 @@ void DIALOG_PAD_PROPERTIES::PadTypeSelected( wxCommandEvent& event )
 
     m_gbSizerHole->Show( hasHole );
     m_staticline6->Show( hasHole );
+
     if( !hasHole )
     {
         m_holeX.ChangeValue( 0 );
         m_holeY.ChangeValue( 0 );
     }
-    else if ( m_holeX.GetValue() == 0 && m_currentPad )
+    else if( m_holeX.GetValue() == 0 )
     {
-        m_holeX.ChangeValue( m_currentPad->GetDrillSize().x );
-        m_holeY.ChangeValue( m_currentPad->GetDrillSize().y );
+        if( m_currentPad )
+        {
+            m_holeX.ChangeValue( m_currentPad->GetDrillSize().x );
+            m_holeY.ChangeValue( m_currentPad->GetDrillSize().y );
+        }
+        else
+        {
+            m_holeX.ChangeValue( pcbIUScale.mmToIU( DEFAULT_PAD_DRILL_DIAMETER_MM ) );
+        }
     }
 
     if( !hasConnection )
@@ -984,9 +1161,22 @@ void DIALOG_PAD_PROPERTIES::PadTypeSelected( wxCommandEvent& event )
 
     transferDataToPad( m_previewPad );
 
+    // For now, padstack controls only enabled for PTH pads
+    bool enablePadstack = m_padType->GetSelection() == PTH_DLG_TYPE;
+    m_padstackControls->Show( enablePadstack );
+
+    if( !enablePadstack )
+    {
+        m_editLayer = F_Cu;
+        afterPadstackModeChanged();
+    }
+
     // Layout adjustment is needed if the hole details got shown/hidden
     m_LeftBoxSizer->Layout();
     redraw();
+
+    if( m_initialized )
+        OnModify();
 }
 
 
@@ -1076,12 +1266,6 @@ void DIALOG_PAD_PROPERTIES::OnUpdateUI( wxUpdateUIEvent& event )
 void DIALOG_PAD_PROPERTIES::onTeardropsUpdateUi( wxUpdateUIEvent& event )
 {
     event.Enable( !m_board->LegacyTeardrops() );
-}
-
-
-void DIALOG_PAD_PROPERTIES::onTeardropCurvePointsUpdateUi( wxUpdateUIEvent& event )
-{
-    event.Enable( !m_board->LegacyTeardrops() && m_curvedEdges->GetValue() );
 }
 
 
@@ -1206,6 +1390,9 @@ void DIALOG_PAD_PROPERTIES::OnSetCopperLayers( wxCommandEvent& event )
 {
     transferDataToPad( m_previewPad );
     redraw();
+
+    if( m_initialized )
+        OnModify();
 }
 
 
@@ -1213,6 +1400,9 @@ void DIALOG_PAD_PROPERTIES::OnSetLayers( wxCommandEvent& event )
 {
     transferDataToPad( m_previewPad );
     redraw();
+
+    if( m_initialized )
+        OnModify();
 }
 
 
@@ -1223,7 +1413,7 @@ bool DIALOG_PAD_PROPERTIES::padValuesOK()
     wxArrayString error_msgs;
     wxArrayString warning_msgs;
 
-    m_previewPad->CheckPad( m_parentFrame,
+    m_previewPad->CheckPad( m_parentFrame, true,
             [&]( int errorCode, const wxString& msg )
             {
                 if( errorCode == DRCE_PADSTACK_INVALID )
@@ -1256,7 +1446,7 @@ bool DIALOG_PAD_PROPERTIES::padValuesOK()
 
 void DIALOG_PAD_PROPERTIES::redraw()
 {
-    if( !m_canUpdate )
+    if( !m_initialized )
         return;
 
     KIGFX::VIEW*                view = m_padPreviewGAL->GetView();
@@ -1269,8 +1459,20 @@ void DIALOG_PAD_PROPERTIES::redraw()
     // we use here a layer never used in a pad:
     #define SELECTED_ITEMS_LAYER Dwgs_User
 
+    view->ClearTopLayers();
     view->SetTopLayer( SELECTED_ITEMS_LAYER );
+    view->SetTopLayer( m_editLayer );
     settings->SetLayerColor( SELECTED_ITEMS_LAYER, m_selectedColor );
+
+    static const std::vector<int> topLayers = {
+        LAYER_PAD_PLATEDHOLES,
+        LAYER_PAD_HOLEWALLS,
+        LAYER_NON_PLATEDHOLES,
+        LAYER_PAD_NETNAMES
+    };
+
+    for( int layer : topLayers )
+        view->SetTopLayer( layer );
 
     m_axisOrigin->SetPosition( m_previewPad->GetPosition() );
 
@@ -1350,6 +1552,8 @@ bool DIALOG_PAD_PROPERTIES::TransferDataFromWindow()
     if( !transferDataToPad( m_masterPad ) )
         return false;
 
+    m_padPreviewGAL->StopDrawing();
+
     PAD_TOOL* padTool = m_parent->GetToolManager()->GetTool<PAD_TOOL>();
     padTool->SetLastPadNumber( m_masterPad->GetNumber() );
 
@@ -1362,33 +1566,15 @@ bool DIALOG_PAD_PROPERTIES::TransferDataFromWindow()
     commit.Modify( m_currentPad );
 
     // Update values
-    m_currentPad->SetShape( m_masterPad->GetShape() );
+
+    // transferDataToPad only handles the current edit layer, so m_masterPad isn't accurate
+    // TODO(JE) this could be cleaner
+    m_currentPad->SetPadstack( m_previewPad->Padstack() );
+
     m_currentPad->SetAttribute( m_masterPad->GetAttribute() );
     m_currentPad->SetFPRelativeOrientation( m_masterPad->GetOrientation() );
-
-    m_currentPad->SetSize( m_masterPad->GetSize() );
-
-    VECTOR2I size = m_masterPad->GetDelta();
-    m_currentPad->SetDelta( size );
-
-    m_currentPad->SetDrillSize( m_masterPad->GetDrillSize() );
-    m_currentPad->SetDrillShape( m_masterPad->GetDrillShape() );
-
-    VECTOR2I offset = m_masterPad->GetOffset();
-    m_currentPad->SetOffset( offset );
-
     m_currentPad->SetPadToDieLength( m_masterPad->GetPadToDieLength() );
-
-    if( m_masterPad->GetShape() != PAD_SHAPE::CUSTOM )
-        m_masterPad->DeletePrimitivesList();
-
-    m_currentPad->SetAnchorPadShape( m_masterPad->GetAnchorPadShape() );
-    m_currentPad->ReplacePrimitives( m_masterPad->GetPrimitives() );
-
     m_currentPad->SetLayerSet( m_masterPad->GetLayerSet() );
-    m_currentPad->SetRemoveUnconnected( m_masterPad->GetRemoveUnconnected() );
-    m_currentPad->SetKeepTopBottom( m_masterPad->GetKeepTopBottom() );
-
     m_currentPad->SetNumber( m_masterPad->GetNumber() );
 
     int padNetcode = NETINFO_LIST::UNCONNECTED;
@@ -1398,27 +1584,8 @@ bool DIALOG_PAD_PROPERTIES::TransferDataFromWindow()
         padNetcode = m_padNetSelector->GetSelectedNetcode();
 
     m_currentPad->SetNetCode( padNetcode );
-    m_currentPad->SetLocalClearance( m_masterPad->GetLocalClearance() );
-    m_currentPad->SetLocalSolderMaskMargin( m_masterPad->GetLocalSolderMaskMargin() );
-    m_currentPad->SetLocalSolderPasteMargin( m_masterPad->GetLocalSolderPasteMargin() );
-    m_currentPad->SetLocalSolderPasteMarginRatio( m_masterPad->GetLocalSolderPasteMarginRatio() );
-    m_currentPad->SetThermalSpokeWidth( m_masterPad->GetThermalSpokeWidth() );
-    m_currentPad->SetThermalSpokeAngle( m_masterPad->GetThermalSpokeAngle() );
-    m_currentPad->SetThermalGap( m_masterPad->GetThermalGap() );
-    m_currentPad->SetRoundRectRadiusRatio( m_masterPad->GetRoundRectRadiusRatio() );
-    m_currentPad->SetChamferRectRatio( m_masterPad->GetChamferRectRatio() );
-    m_currentPad->SetChamferPositions( m_masterPad->GetChamferPositions() );
-    m_currentPad->SetZoneConnection( m_masterPad->GetZoneConnection() );
 
     m_currentPad->GetTeardropParams() = m_masterPad->GetTeardropParams();
-
-    // rounded rect pads with radius ratio = 0 are in fact rect pads.
-    // So set the right shape (and perhaps issues with a radius = 0)
-    if( m_currentPad->GetShape() == PAD_SHAPE::ROUNDRECT &&
-        m_currentPad->GetRoundRectRadiusRatio() == 0.0 )
-    {
-        m_currentPad->SetShape( PAD_SHAPE::RECTANGLE );
-    }
 
     // Set the fabrication property:
     m_currentPad->SetProperty( getSelectedProperty() );
@@ -1429,7 +1596,7 @@ bool DIALOG_PAD_PROPERTIES::TransferDataFromWindow()
     if( m_currentPad->GetParentFootprint() && m_currentPad->GetParentFootprint()->IsFlipped() )
     {
         // flip pad (up/down) around its position
-        m_currentPad->Flip( m_currentPad->GetPosition(), false );
+        m_currentPad->Flip( m_currentPad->GetPosition(), FLIP_DIRECTION::TOP_BOTTOM );
     }
 
     m_currentPad->SetPosition( m_masterPad->GetPosition() );
@@ -1439,7 +1606,7 @@ bool DIALOG_PAD_PROPERTIES::TransferDataFromWindow()
     // redraw the area where the pad was
     m_parent->GetCanvas()->Refresh();
 
-    commit.Push( _( "Modify pad" ) );
+    commit.Push( _( "Edit Pad Properties" ) );
 
     return true;
 }
@@ -1458,10 +1625,12 @@ PAD_PROP DIALOG_PAD_PROPERTIES::getSelectedProperty()
     case 4:  prop = PAD_PROP::TESTPOINT;      break;
     case 5:  prop = PAD_PROP::HEATSINK;       break;
     case 6:  prop = PAD_PROP::CASTELLATED;    break;
+    case 7:  prop = PAD_PROP::MECHANICAL;     break;
     }
 
     return prop;
 }
+
 
 void DIALOG_PAD_PROPERTIES::updateHoleControls()
 {
@@ -1478,6 +1647,7 @@ void DIALOG_PAD_PROPERTIES::updateHoleControls()
 
     m_holeXLabel->GetParent()->Layout();
 }
+
 
 void DIALOG_PAD_PROPERTIES::updatePadSizeControls()
 {
@@ -1522,16 +1692,24 @@ bool DIALOG_PAD_PROPERTIES::transferDataToPad( PAD* aPad )
     if( !m_spokeWidth.Validate( 0, INT_MAX ) )
         return false;
 
+    switch( m_cbPadstackMode->GetSelection() )
+    {
+    default:
+    case 0: aPad->Padstack().SetMode( PADSTACK::MODE::NORMAL );           break;
+    case 1: aPad->Padstack().SetMode( PADSTACK::MODE::FRONT_INNER_BACK ); break;
+    case 2: aPad->Padstack().SetMode( PADSTACK::MODE::CUSTOM );           break;
+    }
+
     aPad->SetAttribute( code_type[m_padType->GetSelection()] );
-    aPad->SetShape( code_shape[m_PadShapeSelector->GetSelection()] );
+    aPad->SetShape( m_editLayer, code_shape[m_PadShapeSelector->GetSelection()] );
 
     if( m_PadShapeSelector->GetSelection() == CHOICE_SHAPE_CUSTOM_RECT_ANCHOR )
-        aPad->SetAnchorPadShape( PAD_SHAPE::RECTANGLE );
+        aPad->SetAnchorPadShape( m_editLayer, PAD_SHAPE::RECTANGLE );
     else
-        aPad->SetAnchorPadShape( PAD_SHAPE::CIRCLE );
+        aPad->SetAnchorPadShape( m_editLayer, PAD_SHAPE::CIRCLE );
 
-    if( aPad->GetShape() == PAD_SHAPE::CUSTOM )
-        aPad->ReplacePrimitives( m_primitives );
+    if( aPad->GetShape( m_editLayer ) == PAD_SHAPE::CUSTOM )
+        aPad->ReplacePrimitives( m_editLayer, m_primitives );
 
     aPad->GetTeardropParams().m_Enabled = m_cbTeardrops->GetValue();
     aPad->GetTeardropParams().m_AllowUseTwoTracks = m_cbTeardropsUseNextTrack->GetValue();
@@ -1540,22 +1718,37 @@ bool DIALOG_PAD_PROPERTIES::transferDataToPad( PAD* aPad )
     aPad->GetTeardropParams().m_TdMaxWidth = m_teardropMaxHeightSetting.GetIntValue();
     aPad->GetTeardropParams().m_BestLengthRatio = m_spTeardropLenPercent->GetValue() / 100;
     aPad->GetTeardropParams().m_BestWidthRatio = m_spTeardropSizePercent->GetValue() / 100;
-
-    if( m_curvedEdges->GetValue() )
-        aPad->GetTeardropParams().m_CurveSegCount = m_curvePointsCtrl->GetValue();
-    else
-        aPad->GetTeardropParams().m_CurveSegCount = 0;
-
+    aPad->GetTeardropParams().m_CurvedEdges = m_curvedEdges->GetValue();
     aPad->GetTeardropParams().m_WidthtoSizeFilterRatio = m_spTeardropHDPercent->GetValue() / 100;
 
     // Read pad clearances values:
-    aPad->SetLocalClearance( m_clearance.GetIntValue() );
-    aPad->SetLocalSolderMaskMargin( m_maskMargin.GetIntValue() );
-    aPad->SetLocalSolderPasteMargin( m_pasteMargin.GetIntValue() );
-    aPad->SetLocalSolderPasteMarginRatio( m_pasteMarginRatio.GetDoubleValue() / 100.0 );
-    aPad->SetThermalSpokeWidth( m_spokeWidth.GetIntValue() );
+    if( m_clearance.IsNull() )
+        aPad->SetLocalClearance( {} );
+    else
+        aPad->SetLocalClearance( m_clearance.GetIntValue() );
+
+    if( m_maskMargin.IsNull() )
+        aPad->SetLocalSolderMaskMargin( {} );
+    else
+        aPad->SetLocalSolderMaskMargin( m_maskMargin.GetIntValue() );
+
+    if( m_pasteMargin.IsNull() )
+        aPad->SetLocalSolderPasteMargin( {} );
+    else
+        aPad->SetLocalSolderPasteMargin( m_pasteMargin.GetIntValue() );
+
+    if( m_pasteMarginRatio.IsNull() )
+        aPad->SetLocalSolderPasteMarginRatio( {} );
+    else
+        aPad->SetLocalSolderPasteMarginRatio( m_pasteMarginRatio.GetDoubleValue() / 100.0 );
+
+    if( !m_spokeWidth.IsNull() )
+        aPad->SetLocalThermalSpokeWidthOverride( m_spokeWidth.GetIntValue() );
+
+    if( !m_thermalGap.IsNull() )
+        aPad->SetLocalThermalGapOverride( m_thermalGap.GetIntValue() );
+
     aPad->SetThermalSpokeAngle( m_spokeAngle.GetAngleValue() );
-    aPad->SetThermalGap( m_thermalGap.GetIntValue() );
 
     // And rotation
     aPad->SetOrientation( m_pad_orientation.GetAngleValue() );
@@ -1563,10 +1756,10 @@ bool DIALOG_PAD_PROPERTIES::transferDataToPad( PAD* aPad )
     switch( m_ZoneConnectionChoice->GetSelection() )
     {
     default:
-    case 0: aPad->SetZoneConnection( ZONE_CONNECTION::INHERITED ); break;
-    case 1: aPad->SetZoneConnection( ZONE_CONNECTION::FULL );      break;
-    case 2: aPad->SetZoneConnection( ZONE_CONNECTION::THERMAL );   break;
-    case 3: aPad->SetZoneConnection( ZONE_CONNECTION::NONE );      break;
+    case 0: aPad->SetLocalZoneConnection( ZONE_CONNECTION::INHERITED ); break;
+    case 1: aPad->SetLocalZoneConnection( ZONE_CONNECTION::FULL );      break;
+    case 2: aPad->SetLocalZoneConnection( ZONE_CONNECTION::THERMAL );   break;
+    case 3: aPad->SetLocalZoneConnection( ZONE_CONNECTION::NONE );      break;
     }
 
     VECTOR2I pos( m_posX.GetIntValue(), m_posY.GetIntValue() );
@@ -1581,26 +1774,26 @@ bool DIALOG_PAD_PROPERTIES::transferDataToPad( PAD* aPad )
 
     if( m_holeShapeCtrl->GetSelection() == CHOICE_SHAPE_CIRCLE )
     {
-        aPad->SetDrillShape( PAD_DRILL_SHAPE_CIRCLE );
+        aPad->SetDrillShape( PAD_DRILL_SHAPE::CIRCLE );
         aPad->SetDrillSize( VECTOR2I( m_holeX.GetIntValue(), m_holeX.GetIntValue() ) );
     }
     else
     {
-        aPad->SetDrillShape( PAD_DRILL_SHAPE_OBLONG );
+        aPad->SetDrillShape( PAD_DRILL_SHAPE::OBLONG );
         aPad->SetDrillSize( VECTOR2I( m_holeX.GetIntValue(), m_holeY.GetIntValue() ) );
     }
 
-    if( aPad->GetShape() == PAD_SHAPE::CIRCLE )
-        aPad->SetSize( VECTOR2I( m_sizeX.GetIntValue(), m_sizeX.GetIntValue() ) );
+    if( aPad->GetShape( m_editLayer ) == PAD_SHAPE::CIRCLE )
+        aPad->SetSize( m_editLayer, VECTOR2I( m_sizeX.GetIntValue(), m_sizeX.GetIntValue() ) );
     else
-        aPad->SetSize( VECTOR2I( m_sizeX.GetIntValue(), m_sizeY.GetIntValue() ) );
+        aPad->SetSize( m_editLayer, VECTOR2I( m_sizeX.GetIntValue(), m_sizeY.GetIntValue() ) );
 
     // For a trapezoid, test delta value (be sure delta is not too large for pad size)
     // remember DeltaSize.x is the Y size variation
     bool   error    = false;
     VECTOR2I delta( 0, 0 );
 
-    if( aPad->GetShape() == PAD_SHAPE::TRAPEZOID )
+    if( aPad->GetShape( m_editLayer ) == PAD_SHAPE::TRAPEZOID )
     {
         // For a trapezoid, only one of delta.x or delta.y is not 0, depending on axis.
         if( m_trapAxisCtrl->GetSelection() == 0 )
@@ -1608,37 +1801,37 @@ bool DIALOG_PAD_PROPERTIES::transferDataToPad( PAD* aPad )
         else
             delta.y = m_trapDelta.GetIntValue();
 
-        if( delta.x < 0 && delta.x < -aPad->GetSize().y )
+        if( delta.x < 0 && delta.x < -aPad->GetSize( m_editLayer ).y )
         {
-            delta.x = -aPad->GetSize().y + 2;
+            delta.x = -aPad->GetSize( m_editLayer ).y + 2;
             error = true;
         }
 
-        if( delta.x > 0 && delta.x > aPad->GetSize().y )
+        if( delta.x > 0 && delta.x > aPad->GetSize( m_editLayer ).y )
         {
-            delta.x = aPad->GetSize().y - 2;
+            delta.x = aPad->GetSize( m_editLayer ).y - 2;
             error = true;
         }
 
-        if( delta.y < 0 && delta.y < -aPad->GetSize().x )
+        if( delta.y < 0 && delta.y < -aPad->GetSize( m_editLayer ).x )
         {
-            delta.y = -aPad->GetSize().x + 2;
+            delta.y = -aPad->GetSize( m_editLayer ).x + 2;
             error = true;
         }
 
-        if( delta.y > 0 && delta.y > aPad->GetSize().x )
+        if( delta.y > 0 && delta.y > aPad->GetSize( m_editLayer ).x )
         {
-            delta.y = aPad->GetSize().x - 2;
+            delta.y = aPad->GetSize( m_editLayer ).x - 2;
             error = true;
         }
     }
 
-    aPad->SetDelta( delta );
+    aPad->SetDelta( m_editLayer, delta );
 
     if( m_offsetShapeOpt->GetValue() )
-        aPad->SetOffset( VECTOR2I( m_offsetX.GetIntValue(), m_offsetY.GetIntValue() ) );
+        aPad->SetOffset( m_editLayer, VECTOR2I( m_offsetX.GetIntValue(), m_offsetY.GetIntValue() ) );
     else
-        aPad->SetOffset( VECTOR2I() );
+        aPad->SetOffset( m_editLayer, VECTOR2I() );
 
     // Read pad length die
     if( m_padToDieOpt->GetValue() )
@@ -1679,24 +1872,25 @@ bool DIALOG_PAD_PROPERTIES::transferDataToPad( PAD* aPad )
         if( m_cbBottomRight1->GetValue() )
             chamfers |= RECT_CHAMFER_BOTTOM_RIGHT;
     }
-    aPad->SetChamferPositions( chamfers );
 
-    if( aPad->GetShape() == PAD_SHAPE::CUSTOM )
+    aPad->SetChamferPositions( m_editLayer, chamfers );
+
+    if( aPad->GetShape( m_editLayer ) == PAD_SHAPE::CUSTOM )
     {
         // The pad custom has a "anchor pad" (a basic shape: round or rect pad)
         // that is the minimal area of this pad, and is useful to ensure a hole
         // diameter is acceptable, and is used in Gerber files as flashed area
         // reference
-        if( aPad->GetAnchorPadShape() == PAD_SHAPE::CIRCLE )
-            aPad->SetSize( VECTOR2I( m_sizeX.GetIntValue(), m_sizeX.GetIntValue() ) );
+        if( aPad->GetAnchorPadShape( m_editLayer ) == PAD_SHAPE::CIRCLE )
+            aPad->SetSize( m_editLayer, VECTOR2I( m_sizeX.GetIntValue(), m_sizeX.GetIntValue() ) );
     }
 
     // Define the way the clearance area is defined in zones.  Since all non-custom pad
     // shapes are convex to begin with, this really only makes any difference for custom
     // pad shapes.
     aPad->SetCustomShapeInZoneOpt( m_ZoneCustomPadShape->GetSelection() == 0 ?
-                                   CUST_PAD_SHAPE_IN_ZONE_OUTLINE :
-                                   CUST_PAD_SHAPE_IN_ZONE_CONVEXHULL );
+                                   PADSTACK::CUSTOM_SHAPE_ZONE_MODE::OUTLINE :
+                                   PADSTACK::CUSTOM_SHAPE_ZONE_MODE::CONVEXHULL );
 
     switch( aPad->GetAttribute() )
     {
@@ -1726,21 +1920,21 @@ bool DIALOG_PAD_PROPERTIES::transferDataToPad( PAD* aPad )
         break;
     }
 
-    if( aPad->GetShape() == PAD_SHAPE::ROUNDRECT )
+    if( aPad->GetShape( m_editLayer ) == PAD_SHAPE::ROUNDRECT )
     {
-        aPad->SetRoundRectRadiusRatio( m_cornerRatio.GetDoubleValue() / 100.0 );
+        aPad->SetRoundRectRadiusRatio( m_editLayer, m_cornerRatio.GetDoubleValue() / 100.0 );
     }
-    else if( aPad->GetShape() == PAD_SHAPE::CHAMFERED_RECT )
+    else if( aPad->GetShape( m_editLayer ) == PAD_SHAPE::CHAMFERED_RECT )
     {
         if( m_PadShapeSelector->GetSelection() == CHOICE_SHAPE_CHAMFERED_ROUNDED_RECT )
         {
-            aPad->SetChamferRectRatio( m_mixedChamferRatio.GetDoubleValue() / 100.0 );
-            aPad->SetRoundRectRadiusRatio( m_mixedCornerRatio.GetDoubleValue() / 100.0 );
+            aPad->SetChamferRectRatio( m_editLayer, m_mixedChamferRatio.GetDoubleValue() / 100.0 );
+            aPad->SetRoundRectRadiusRatio( m_editLayer, m_mixedCornerRatio.GetDoubleValue() / 100.0 );
         }
         else    // Choice is CHOICE_SHAPE_CHAMFERED_RECT, no rounded corner
         {
-            aPad->SetChamferRectRatio( m_chamferRatio.GetDoubleValue() / 100.0 );
-            aPad->SetRoundRectRadiusRatio( 0 );
+            aPad->SetChamferRectRatio( m_editLayer, m_chamferRatio.GetDoubleValue() / 100.0 );
+            aPad->SetRoundRectRadiusRatio( m_editLayer, 0 );
         }
     }
 
@@ -1749,8 +1943,7 @@ bool DIALOG_PAD_PROPERTIES::transferDataToPad( PAD* aPad )
     LSET padLayerMask = LSET();
     int  copperLayersChoice = m_rbCopperLayersSel->GetSelection();
 
-    aPad->SetRemoveUnconnected( false );
-    aPad->SetKeepTopBottom( false );
+    aPad->Padstack().SetUnconnectedLayerMode( PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL );
 
     switch( m_padType->GetSelection() )
     {
@@ -1765,14 +1958,14 @@ bool DIALOG_PAD_PROPERTIES::transferDataToPad( PAD* aPad )
         case 1:
             // Front, back and connected
             padLayerMask |= LSET::AllCuMask();
-            aPad->SetRemoveUnconnected( true );
-            aPad->SetKeepTopBottom( true );
+            aPad->Padstack().SetUnconnectedLayerMode(
+                    PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END );
             break;
 
         case 2:
             // Connected only
             padLayerMask |= LSET::AllCuMask();
-            aPad->SetRemoveUnconnected( true );
+            aPad->Padstack().SetUnconnectedLayerMode( PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_ALL );
             break;
 
         case 3:
@@ -1851,8 +2044,8 @@ void DIALOG_PAD_PROPERTIES::OnOffsetCheckbox( wxCommandEvent& event )
 {
     if( m_offsetShapeOpt->GetValue() )
     {
-        m_offsetX.SetValue( m_previewPad->GetOffset().x );
-        m_offsetY.SetValue( m_previewPad->GetOffset().y );
+        m_offsetX.SetValue( m_previewPad->GetOffset( m_editLayer ).x );
+        m_offsetY.SetValue( m_previewPad->GetOffset( m_editLayer ).y );
     }
 
     // Show/hide controls depending on m_offsetShapeOpt being enabled
@@ -1875,9 +2068,23 @@ void DIALOG_PAD_PROPERTIES::OnPadToDieCheckbox( wxCommandEvent& event )
 }
 
 
+void DIALOG_PAD_PROPERTIES::onModify( wxSpinDoubleEvent& aEvent )
+{
+    if( m_initialized )
+        OnModify();
+}
+
+
+void DIALOG_PAD_PROPERTIES::onModify( wxCommandEvent& aEvent )
+{
+    if( m_initialized )
+        OnModify();
+}
+
+
 void DIALOG_PAD_PROPERTIES::OnValuesChanged( wxCommandEvent& event )
 {
-    if( m_canUpdate )
+    if( m_initialized )
     {
         if( !transferDataToPad( m_previewPad ) )
             return;
@@ -1886,6 +2093,6 @@ void DIALOG_PAD_PROPERTIES::OnValuesChanged( wxCommandEvent& event )
         updateRoundRectCornerValues();
 
         redraw();
+        OnModify();
     }
 }
-

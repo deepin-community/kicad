@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -33,8 +33,7 @@
 PANEL_KICAD_LAUNCHER::PANEL_KICAD_LAUNCHER( wxWindow* aParent ) :
         PANEL_KICAD_LAUNCHER_BASE( aParent )
 {
-    m_frame = static_cast<KICAD_MANAGER_FRAME*>( aParent );
-    m_toolManager = m_frame->GetToolManager();
+    m_frame = static_cast<KICAD_MANAGER_FRAME*>( aParent->GetParent() );
     CreateLaunchers();
 
     Bind( wxEVT_SYS_COLOUR_CHANGED,
@@ -44,8 +43,37 @@ PANEL_KICAD_LAUNCHER::PANEL_KICAD_LAUNCHER( wxWindow* aParent ) :
 
 PANEL_KICAD_LAUNCHER::~PANEL_KICAD_LAUNCHER()
 {
+    for( wxWindow* window : m_scrolledWindow->GetChildren() )
+    {
+        if( dynamic_cast<BITMAP_BUTTON*>( window ) != nullptr )
+        {
+            window->Unbind( wxEVT_BUTTON, &PANEL_KICAD_LAUNCHER::onLauncherButtonClick, this );
+        }
+    }
+
     Unbind( wxEVT_SYS_COLOUR_CHANGED,
-          wxSysColourChangedEventHandler( PANEL_KICAD_LAUNCHER::onThemeChanged ), this );
+            wxSysColourChangedEventHandler( PANEL_KICAD_LAUNCHER::onThemeChanged ), this );
+}
+
+
+void PANEL_KICAD_LAUNCHER::onLauncherButtonClick( wxCommandEvent& aEvent )
+{
+    // Defocus the button because leaving the large buttons
+    // focused after a click looks out of place in the launcher
+    m_frame->SetFocus();
+    // Gives a slice of time to update the button state (mandatory on GTK,
+    // useful on MSW to avoid some cosmetic issues).
+    wxSafeYield();
+
+    BITMAP_BUTTON*     button = (BITMAP_BUTTON*) aEvent.GetEventObject();
+    const TOOL_ACTION* action = static_cast<const TOOL_ACTION*>( button->GetClientData() );
+
+    if( action == nullptr )
+        return;
+
+    OPT_TOOL_EVENT evt = action->MakeEvent();
+    evt->SetHasPosition( false );
+    m_frame->GetToolManager()->ProcessEvent( *evt );
 }
 
 
@@ -53,7 +81,7 @@ void PANEL_KICAD_LAUNCHER::CreateLaunchers()
 {
     m_frame->SetPcmButton( nullptr );
 
-    if( m_toolsSizer->GetRows() > 0 )
+    if( m_toolsSizer->GetEffectiveRowsCount() > 0 )
     {
         m_toolsSizer->Clear( true );
         m_toolsSizer->SetRows( 0 );
@@ -68,111 +96,76 @@ void PANEL_KICAD_LAUNCHER::CreateLaunchers()
     wxFont helpFont = wxSystemSettings::GetFont( wxSYS_DEFAULT_GUI_FONT );
     helpFont.SetStyle( wxFONTSTYLE_ITALIC );
 
-    auto addLauncher =
-        [&]( const TOOL_ACTION& aAction, const wxBitmap& aBitmap, const wxString& aHelpText, bool enabled = true )
+    auto addLauncher = [&]( const TOOL_ACTION& aAction, BITMAPS aBitmaps, const wxString& aHelpText,
+                            bool enabled = true )
+    {
+        BITMAP_BUTTON* btn = new BITMAP_BUTTON( m_scrolledWindow, wxID_ANY );
+        btn->SetBitmap( KiBitmapBundle( aBitmaps ) );
+        btn->SetDisabledBitmap( KiDisabledBitmapBundle( aBitmaps ) );
+        btn->SetPadding( FromDIP( 4 ) );
+        btn->SetToolTip( aAction.GetTooltip() );
+
+        m_scrolledWindow->SetFont( titleFont ); // Use font inheritance to avoid extra SetFont call.
+        wxStaticText* label =
+                new wxStaticText( m_scrolledWindow, wxID_ANY, aAction.GetFriendlyName() );
+        label->SetToolTip( aAction.GetTooltip() );
+
+        m_scrolledWindow->SetFont( helpFont ); // Use font inheritance to avoid extra SetFont call.
+        wxStaticText* help = new wxStaticText( m_scrolledWindow, wxID_ANY, aHelpText );
+
+        btn->Bind( wxEVT_BUTTON, &PANEL_KICAD_LAUNCHER::onLauncherButtonClick, this );
+        btn->SetClientData( (void*) &aAction );
+
+        // The bug fix below makes this handler active for the entire window width.  Without
+        // any visual feedback that's a bit odd.  Disabling for now.
+        // label->Bind( wxEVT_LEFT_UP, handler );
+
+        m_toolsSizer->Add( btn, 1, wxALIGN_CENTER_VERTICAL );
+
+        wxBoxSizer* textSizer = new wxBoxSizer( wxVERTICAL );
+
+        textSizer->Add( label );
+        textSizer->Add( help );
+
+        m_toolsSizer->Add( textSizer, 1, wxEXPAND | wxALIGN_CENTER_VERTICAL );
+
+        btn->Enable( enabled );
+        if( !enabled )
         {
-            BITMAP_BUTTON* btn = new BITMAP_BUTTON( this, wxID_ANY );
-            btn->SetBitmap( aBitmap );
-            btn->SetDisabledBitmap( wxBitmap( aBitmap.ConvertToImage().ConvertToGreyscale() ) );
-            btn->SetPadding( 5 );
-            btn->SetToolTip( aAction.GetTooltip() );
+            help->Disable();
+            label->Disable();
+        }
 
-            auto handler =
-                    [&]( wxEvent& aEvent )
-                    {
-                        // Defocus the button because leaving the large buttons
-                        // focused after a click looks out of place in the launcher
-                        m_frame->SetFocus();
-                        // Gives a slice of time to update the button state (mandatory on GTK,
-                        // useful on MSW to avoid some cosmetic issues).
-                        wxSafeYield();
-
-                        OPT_TOOL_EVENT evt = aAction.MakeEvent();
-                        evt->SetHasPosition( false );
-                        m_toolManager->ProcessEvent( *evt );
-                    };
-
-            wxStaticText* label = new wxStaticText( this, wxID_ANY, aAction.GetFriendlyName() );
-            wxStaticText* help;
-
-            label->SetToolTip( aAction.GetTooltip() );
-            label->SetFont( titleFont );
-
-            help = new wxStaticText( this, wxID_ANY, aHelpText );
-            help->SetFont( helpFont );
-
-            btn->Bind( wxEVT_BUTTON, handler );
-
-            // The bug fix below makes this handler active for the entire window width.  Without
-            // any visual feedback that's a bit odd.  Disabling for now.
-            // label->Bind( wxEVT_LEFT_UP, handler );
-
-            int row = m_toolsSizer->GetRows();
-
-#if wxCHECK_VERSION( 3, 2, 6 )
-            m_toolsSizer->Add( btn, wxGBPosition( row, 0 ), wxGBSpan( 2, 1 ) );
-#else
-            // Work around the wxGridBagSizer gap bug in wx
-            m_toolsSizer->Add( btn, wxGBPosition( row, 0 ), wxGBSpan( 2, 1 ), wxBOTTOM, 12 );
-#endif
-
-            // Due to https://trac.wxwidgets.org/ticket/16088?cversion=0&cnum_hist=7 GTK fails to
-            // correctly set the BestSize of non-default-size or styled text so we need to make
-            // sure that the BestSize isn't needed by setting wxEXPAND.  Unfortunately this makes
-            // wxALIGN_BOTTOM non-functional, so we have to jump through a bunch more hoops to
-            // try and align the title and help text in the middle of the icon.
-            m_toolsSizer->Add( label, wxGBPosition( row, 1 ), wxGBSpan( 1, 1 ),
-                               wxTOP | wxEXPAND, 10 );
-
-            m_toolsSizer->Add( help, wxGBPosition( row + 1, 1 ), wxGBSpan( 1, 1 ),
-                               wxALIGN_TOP | wxTOP, 1 );
-
-            btn->Enable( enabled );
-            if( !enabled )
-            {
-                help->Disable();
-                label->Disable();
-            }
-
-            return btn;
+        return btn;
     };
 
-    addLauncher( KICAD_MANAGER_ACTIONS::editSchematic,
-                 KiScaledBitmap( BITMAPS::icon_eeschema, this, 48, true ),
+    addLauncher( KICAD_MANAGER_ACTIONS::editSchematic, BITMAPS::icon_eeschema,
                  _( "Edit the project schematic" ) );
 
-    addLauncher( KICAD_MANAGER_ACTIONS::editSymbols,
-                 KiScaledBitmap( BITMAPS::icon_libedit, this, 48, true ),
+    addLauncher( KICAD_MANAGER_ACTIONS::editSymbols, BITMAPS::icon_libedit,
                  _( "Edit global and/or project schematic symbol libraries" ) );
 
-    addLauncher( KICAD_MANAGER_ACTIONS::editPCB,
-                 KiScaledBitmap( BITMAPS::icon_pcbnew, this, 48, true ),
+    addLauncher( KICAD_MANAGER_ACTIONS::editPCB, BITMAPS::icon_pcbnew,
                  _( "Edit the project PCB design" ) );
 
-    addLauncher( KICAD_MANAGER_ACTIONS::editFootprints,
-                 KiScaledBitmap( BITMAPS::icon_modedit, this, 48, true ),
+    addLauncher( KICAD_MANAGER_ACTIONS::editFootprints, BITMAPS::icon_modedit,
                  _( "Edit global and/or project PCB footprint libraries" ) );
 
-    addLauncher( KICAD_MANAGER_ACTIONS::viewGerbers,
-                 KiScaledBitmap( BITMAPS::icon_gerbview, this, 48, true ),
+    addLauncher( KICAD_MANAGER_ACTIONS::viewGerbers, BITMAPS::icon_gerbview,
                  _( "Preview Gerber files" ) );
 
-    addLauncher( KICAD_MANAGER_ACTIONS::convertImage,
-                 KiScaledBitmap( BITMAPS::icon_bitmap2component, this, 48, true ),
+    addLauncher( KICAD_MANAGER_ACTIONS::convertImage, BITMAPS::icon_bitmap2component,
                  _( "Convert bitmap images to schematic symbols or PCB footprints" ) );
 
-    addLauncher( KICAD_MANAGER_ACTIONS::showCalculator,
-                 KiScaledBitmap( BITMAPS::icon_pcbcalculator, this, 48, true ),
+    addLauncher( KICAD_MANAGER_ACTIONS::showCalculator, BITMAPS::icon_pcbcalculator,
                  _( "Show tools for calculating resistance, current capacity, etc." ) );
 
-    addLauncher( KICAD_MANAGER_ACTIONS::editDrawingSheet,
-                 KiScaledBitmap( BITMAPS::icon_pagelayout_editor, this, 48, true ),
+    addLauncher( KICAD_MANAGER_ACTIONS::editDrawingSheet, BITMAPS::icon_pagelayout_editor,
                  _( "Edit drawing sheet borders and title blocks for use in schematics and PCB "
                     "designs" ) );
 
     BITMAP_BUTTON* bb =
-            addLauncher( KICAD_MANAGER_ACTIONS::showPluginManager,
-                         KiScaledBitmap( BITMAPS::icon_pcm, this, 48, true ),
+            addLauncher( KICAD_MANAGER_ACTIONS::showPluginManager, BITMAPS::icon_pcm,
                          _( "Manage downloadable packages from KiCad and 3rd party repositories" ),
                          ( KIPLATFORM::POLICY::GetPolicyBool( POLICY_KEY_PCM )
                            != KIPLATFORM::POLICY::PBOOL::DISABLED ) );
@@ -183,12 +176,10 @@ void PANEL_KICAD_LAUNCHER::CreateLaunchers()
 }
 
 
-void PANEL_KICAD_LAUNCHER::onThemeChanged( wxSysColourChangedEvent &aEvent )
+void PANEL_KICAD_LAUNCHER::onThemeChanged( wxSysColourChangedEvent& aEvent )
 {
     GetBitmapStore()->ThemeChanged();
     CreateLaunchers();
 
     aEvent.Skip();
 }
-
-

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Joshua Redstone redstone at gmail.com
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -58,6 +58,7 @@ bool PCB_GROUP::IsGroupableType( KICAD_T aType )
     case PCB_FIELD_T:
     case PCB_TEXT_T:
     case PCB_TEXTBOX_T:
+    case PCB_TABLE_T:
     case PCB_GROUP_T:
     case PCB_GENERATOR_T:
     case PCB_TRACE_T:
@@ -266,7 +267,7 @@ const BOX2I PCB_GROUP::GetBoundingBox() const
     for( BOARD_ITEM* item : m_items )
     {
         if( item->Type() == PCB_FOOTPRINT_T )
-            bbox.Merge( static_cast<FOOTPRINT*>( item )->GetBoundingBox( true, false ) );
+            bbox.Merge( static_cast<FOOTPRINT*>( item )->GetBoundingBox( true ) );
         else
             bbox.Merge( item->GetBoundingBox() );
     }
@@ -328,19 +329,18 @@ bool PCB_GROUP::IsOnLayer( PCB_LAYER_ID aLayer ) const
 }
 
 
-void PCB_GROUP::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> PCB_GROUP::ViewGetLayers() const
 {
-    aCount = 1;
-    aLayers[0] = LAYER_ANCHOR;
+    return { LAYER_ANCHOR };
 }
 
 
-double PCB_GROUP::ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const
+double PCB_GROUP::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
 {
     if( aView->IsLayerVisible( LAYER_ANCHOR ) )
-        return 0.0;
+        return LOD_SHOW;
 
-    return std::numeric_limits<double>::max();
+    return LOD_HIDE;
 }
 
 
@@ -358,14 +358,21 @@ void PCB_GROUP::Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle )
 }
 
 
-void PCB_GROUP::Flip( const VECTOR2I& aCentre, bool aFlipLeftRight )
+void PCB_GROUP::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
     for( BOARD_ITEM* item : m_items )
-        item->Flip( aCentre, aFlipLeftRight );
+        item->Flip( aCentre, aFlipDirection );
 }
 
 
-wxString PCB_GROUP::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+void PCB_GROUP::Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
+{
+    for( BOARD_ITEM* item : m_items )
+        item->Mirror( aCentre, aFlipDirection );
+}
+
+
+wxString PCB_GROUP::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     if( m_name.empty() )
         return wxString::Format( _( "Unnamed Group, %zu members" ), m_items.size() );
@@ -428,20 +435,26 @@ void PCB_GROUP::RunOnDescendants( const std::function<void( BOARD_ITEM* )>& aFun
 }
 
 
-bool PCB_GROUP::operator==( const BOARD_ITEM& aOther ) const
+bool PCB_GROUP::operator==( const BOARD_ITEM& aBoardItem ) const
 {
-    if( aOther.Type() != Type() )
+    if( aBoardItem.Type() != Type() )
         return false;
 
-    const PCB_GROUP& other = static_cast<const PCB_GROUP&>( aOther );
+    const PCB_GROUP& other = static_cast<const PCB_GROUP&>( aBoardItem );
 
-    if( m_items.size() != other.m_items.size() )
+    return *this == other;
+}
+
+
+bool PCB_GROUP::operator==( const PCB_GROUP& aOther ) const
+{
+    if( m_items.size() != aOther.m_items.size() )
         return false;
 
     // The items in groups are in unordered sets hashed by the pointer value, so we need to
     // order them by UUID (EDA_ITEM_SET) to compare
     EDA_ITEM_SET itemSet( m_items.begin(), m_items.end() );
-    EDA_ITEM_SET otherItemSet( other.m_items.begin(), other.m_items.end() );
+    EDA_ITEM_SET otherItemSet( aOther.m_items.begin(), aOther.m_items.end() );
 
     for( auto it1 = itemSet.begin(), it2 = otherItemSet.begin(); it1 != itemSet.end(); ++it1, ++it2 )
     {

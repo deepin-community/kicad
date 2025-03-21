@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mikolaj Wielgus
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,7 +32,7 @@
 
 #include <sim/sim_model.h>
 #include <sim/sim_library.h>
-#include <sim/sim_library_kibis.h>
+#include <sim/sim_library_ibis.h>
 #include <sch_symbol.h>
 
 
@@ -41,7 +41,7 @@
 //    wxPG_NATIVE_DOUBLE_BUFFERING flag is not set.
 // 2. wxPropertyGridManager->ShowHeader() segfaults when called from this dialog's constructor.
 
-template <typename T_symbol, typename T_field>
+template <typename T>
 class DIALOG_SIM_MODEL : public DIALOG_SIM_MODEL_BASE
 {
 public:
@@ -61,8 +61,8 @@ public:
         MODEL
     };
 
-    DIALOG_SIM_MODEL( wxWindow* aParent, EDA_BASE_FRAME* aFrame, T_symbol& aSymbol,
-                      std::vector<T_field>& aFields );
+    DIALOG_SIM_MODEL( wxWindow* aParent, EDA_BASE_FRAME* aFrame, T& aSymbol,
+                      std::vector<SCH_FIELD>& aFields );
 
     ~DIALOG_SIM_MODEL();
 
@@ -99,6 +99,8 @@ private:
     void onLibraryPathTextEnter( wxCommandEvent& aEvent ) override;
     void onLibraryPathTextKillFocus( wxFocusEvent& aEvent ) override;
     void onBrowseButtonClick( wxCommandEvent& aEvent ) override;
+    void onFilterCharHook( wxKeyEvent& aKeyStroke ) override;
+    void onModelFilter( wxCommandEvent& aEvent ) override;
     void onModelNameChoice( wxCommandEvent& aEvent ) override;
     void onPinCombobox( wxCommandEvent& event ) override;
     void onPinComboboxTextEnter( wxCommandEvent& event ) override;
@@ -119,27 +121,29 @@ private:
 
     void adjustParamGridColumns( int aWidth, bool aForce );
 
-    bool isIbisLoaded() { return dynamic_cast<const SIM_LIBRARY_KIBIS*>( library() ); }
+    bool isIbisLoaded() { return dynamic_cast<const SIM_LIBRARY_IBIS*>( library() ); }
 
 private:
-    EDA_BASE_FRAME*        m_frame;
-    T_symbol&              m_symbol;
-    std::vector<T_field>&  m_fields;
+    EDA_BASE_FRAME*         m_frame;
+    T&                      m_symbol;
+    std::vector<SCH_FIELD>& m_fields;
 
-    SIM_LIB_MGR            m_libraryModelsMgr;
-    SIM_LIB_MGR            m_builtinModelsMgr;
-    wxString               m_prevLibrary;
-    const SIM_MODEL*       m_prevModel;
+    SIM_LIB_MGR             m_libraryModelsMgr;
+    SIM_LIB_MGR             m_builtinModelsMgr;
+    wxString                m_prevLibrary;
+    const SIM_MODEL*        m_prevModel;
 
-    std::vector<LIB_PIN*>                          m_sortedPartPins; //< Pins of the current part.
+    std::map<wxString, int> m_modelListBoxEntryToLibraryIdx;
+
+    std::vector<SCH_PIN*>                          m_sortedPartPins; ///< Pins of the current part.
     std::map<SIM_MODEL::DEVICE_T, SIM_MODEL::TYPE> m_curModelTypeOfDeviceType;
     SIM_MODEL::TYPE                                m_curModelType;
 
-    SCINTILLA_TRICKS*      m_scintillaTricksCode;
-    SCINTILLA_TRICKS*      m_scintillaTricksSubckt;
+    SCINTILLA_TRICKS*       m_scintillaTricksCode;
+    SCINTILLA_TRICKS*       m_scintillaTricksSubckt;
 
-    wxPGProperty*          m_firstCategory;            // Used to add principal parameters to root.
-    wxPGProperty*          m_prevParamGridSelection;
+    wxPGProperty*           m_firstCategory;            // Used to add principal parameters to root.
+    wxPGProperty*           m_prevParamGridSelection;
 
     int                     m_lastParamGridWidth;
 };

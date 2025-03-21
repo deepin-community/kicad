@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2004-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,6 +44,11 @@
 #include <wx/clipbrd.h>
 #include <wx/dcmemory.h>
 #include <wx/log.h>
+#include <wx/msgdlg.h>
+#include <wx/richmsgdlg.h>
+
+#include <advanced_config.h>
+#include "printing/sch_printout.h"
 
 
 bool SCH_EDIT_FRAME::CheckSheetForRecursion( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurrentSheet )
@@ -51,8 +56,8 @@ bool SCH_EDIT_FRAME::CheckSheetForRecursion( SCH_SHEET* aSheet, SCH_SHEET_PATH* 
     wxASSERT( aSheet && aCurrentSheet );
 
     wxString msg;
-    SCH_SHEET_LIST hierarchy = Schematic().GetSheets();  // The full schematic sheet hierarchy.
-    SCH_SHEET_LIST sheetHierarchy( aSheet );  // This is the hierarchy of the loaded file.
+    SCH_SHEET_LIST schematicSheets = Schematic().Hierarchy();
+    SCH_SHEET_LIST loadedSheets( aSheet );  // This is the schematicSheets of the loaded file.
 
     wxString destFilePath = aCurrentSheet->LastScreen()->GetFileName();
 
@@ -66,7 +71,7 @@ bool SCH_EDIT_FRAME::CheckSheetForRecursion( SCH_SHEET* aSheet, SCH_SHEET_PATH* 
     // something is seriously broken.
     wxASSERT( wxFileName( destFilePath ).IsAbsolute() );
 
-    if( hierarchy.TestForRecursion( sheetHierarchy, destFilePath ) )
+    if( schematicSheets.TestForRecursion( loadedSheets, destFilePath ) )
     {
         msg.Printf( _( "The sheet changes cannot be made because the destination sheet already "
                        "has the sheet '%s' or one of its subsheets as a parent somewhere in the "
@@ -162,7 +167,8 @@ void SCH_EDIT_FRAME::InitSheet( SCH_SHEET* aSheet, const wxString& aNewFilename 
 
 
 bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurrentSheet,
-                                        const wxString& aFileName )
+                                        const wxString& aFileName, bool aSkipRecursionCheck,
+                                        bool aSkipLibCheck )
 {
     wxASSERT( aSheet && aCurrentSheet );
 
@@ -233,26 +239,32 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
 
     // If the loaded schematic is in a different folder from the current project and
     // it contains hierarchical sheets, the hierarchical sheet paths need to be updated.
-    if( fileName.GetPathWithSep() != Prj().GetProjectPath() && tmpSheet->CountSheets() )
+    //
+    // Additionally, we need to make all backing screens absolute paths be in the current project
+    // path not the source path.
+    if( fileName.GetPathWithSep() != Prj().GetProjectPath() )
     {
         SCH_SHEET_LIST loadedSheets( tmpSheet.get() );
 
         for( const SCH_SHEET_PATH& sheetPath : loadedSheets )
         {
-            // Skip the loaded sheet since the user already determined if the file path should
-            // be relative or absolute.
-            if( sheetPath.size() == 1 )
-                continue;
+            wxString lastSheetPath = Prj().GetProjectPath();
 
-            wxString lastSheetPath = fileName.GetPathWithSep();
-
-            for( unsigned i = 1; i < sheetPath.size(); i++ )
+            for( unsigned i = 0; i < sheetPath.size(); i++ )
             {
                 SCH_SHEET* sheet = sheetPath.at( i );
                 wxCHECK2( sheet, continue );
 
                 SCH_SCREEN* screen = sheet->GetScreen();
                 wxCHECK2( screen, continue );
+
+                // Fix screen path to be based on the current project path.
+                // Basically, make an absolute screen path relative to the schematic file
+                // we started with, then make it absolute again using the current project path.
+                wxFileName screenFileName = screen->GetFileName();
+                screenFileName.MakeRelativeTo( fileName.GetPath() );
+                screenFileName.MakeAbsolute( Prj().GetProjectPath() );
+                screen->SetFileName( screenFileName.GetFullPath() );
 
                 // Use the screen file name which should always be absolute.
                 wxFileName loadedSheetFileName = screen->GetFileName();
@@ -266,22 +278,22 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
                 else
                     sheetFileName = loadedSheetFileName.GetFullPath();
 
-                sheetFileName.Replace( wxT( "\\" ), wxT( "/" ) );
                 sheet->SetFileName( sheetFileName );
                 lastSheetPath = loadedSheetFileName.GetPath();
             }
         }
     }
 
-    SCH_SHEET_LIST sheetHierarchy( tmpSheet.get() );    // This is the hierarchy of the loaded file.
-    SCH_SHEET_LIST hierarchy = Schematic().GetSheets(); // This is the schematic sheet hierarchy.
+    SCH_SHEET_LIST loadedSheets( tmpSheet.get() );
+    Schematic().RefreshHierarchy();
+    SCH_SHEET_LIST schematicSheets = Schematic().Hierarchy();
 
     // Make sure any new sheet changes do not cause any recursion issues.
-    if( CheckSheetForRecursion( tmpSheet.get(), aCurrentSheet )
-          || checkForNoFullyDefinedLibIds( tmpSheet.get() ) )
-    {
+    if( !aSkipRecursionCheck && CheckSheetForRecursion( tmpSheet.get(), aCurrentSheet ) )
         return false;
-    }
+
+    if( checkForNoFullyDefinedLibIds( tmpSheet.get() ) )
+        return false;
 
     // Make a valiant attempt to warn the user of all possible scenarios where there could
     // be broken symbol library links.
@@ -307,7 +319,7 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
                  "result in all of the symbols in the loaded schematic to use either the "
                  "default instance setting or fall back to the library symbol settings.  "
                  "Loading the project that uses this schematic file and saving to the "
-                 "lastest file version will resolve this issue.\n\n"
+                 "latest file version will resolve this issue.\n\n"
                  "Do you wish to continue?" );
         wxMessageDialog msgDlg7( this, msg, _( "Continue Load Schematic" ),
                                  wxOK | wxCANCEL | wxCANCEL_DEFAULT | wxCENTER | wxICON_QUESTION );
@@ -317,7 +329,7 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
             return false;
     }
 
-    if( !prjScreens.HasSchematic( fullFilename ) )
+    if( !aSkipLibCheck && !prjScreens.HasSchematic( fullFilename ) )
     {
         if( fileName.GetPathWithSep() == Prj().GetProjectPath() )
         {
@@ -379,8 +391,8 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
                              "incorrect symbol library references.\n\n"
                              "Do you wish to continue?" );
                     wxMessageDialog msgDlg4( this, msg, _( "Continue Load Schematic" ),
-                                             wxOK | wxCANCEL | wxCANCEL_DEFAULT |
-                                             wxCENTER | wxICON_QUESTION );
+                                             wxOK | wxCANCEL | wxCANCEL_DEFAULT | wxCENTER
+                                                     | wxICON_QUESTION );
                     msgDlg4.SetOKCancelLabels( okButtonLabel, cancelButtonLabel );
 
                     if( msgDlg4.ShowModal() == wxID_CANCEL )
@@ -556,24 +568,24 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
                                          SYMBOL_LIB_TABLE::GetSymbolLibTableFileName() );
     }
 
-    // Make the best attempt to set the symbol instance data for the loaded scheamtic.
+    // Make the best attempt to set the symbol instance data for the loaded schematic.
     if( newScreen->GetFileFormatVersionAtLoad() < 20221002 )
     {
         if( !newScreen->GetSymbolInstances().empty() )
         {
             // If the loaded schematic is a root sheet for another project, update the symbol
             // instances.
-            sheetHierarchy.UpdateSymbolInstanceData( newScreen->GetSymbolInstances());
+            loadedSheets.UpdateSymbolInstanceData( newScreen->GetSymbolInstances());
         }
     }
 
     newScreen->MigrateSimModels();
 
     // Attempt to create new symbol instances using the instance data loaded above.
-    sheetHierarchy.AddNewSymbolInstances( *aCurrentSheet, Prj().GetProjectName() );
+    loadedSheets.AddNewSymbolInstances( *aCurrentSheet, Prj().GetProjectName() );
 
     // Add new sheet instance data.
-    sheetHierarchy.AddNewSheetInstances( *aCurrentSheet, hierarchy.GetLastVirtualPageNumber() );
+    loadedSheets.AddNewSheetInstances( *aCurrentSheet, schematicSheets.GetLastVirtualPageNumber() );
 
     // It is finally safe to add or append the imported schematic.
     if( aSheet->GetScreen() == nullptr )
@@ -589,15 +601,16 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
 
 
 bool SCH_EDIT_FRAME::EditSheetProperties( SCH_SHEET* aSheet, SCH_SHEET_PATH* aHierarchy,
-                                          bool* aClearAnnotationNewItems,
-                                          bool* aUpdateHierarchyNavigator )
+                                          bool* aIsUndoable, bool* aClearAnnotationNewItems,
+                                          bool* aUpdateHierarchyNavigator,
+                                          wxString* aSourceSheetFilename )
 {
     if( aSheet == nullptr || aHierarchy == nullptr )
         return false;
 
     // Get the new texts
-    DIALOG_SHEET_PROPERTIES dlg( this, aSheet, aClearAnnotationNewItems,
-                                 aUpdateHierarchyNavigator );
+    DIALOG_SHEET_PROPERTIES dlg( this, aSheet, aIsUndoable, aClearAnnotationNewItems,
+                                 aUpdateHierarchyNavigator, aSourceSheetFilename );
 
     if( dlg.ShowModal() == wxID_CANCEL )
         return false;
@@ -610,6 +623,7 @@ bool SCH_EDIT_FRAME::EditSheetProperties( SCH_SHEET* aSheet, SCH_SHEET_PATH* aHi
 
 void SCH_EDIT_FRAME::DrawCurrentSheetToClipboard()
 {
+    bool useCairo = ADVANCED_CFG::GetCfg().m_EnableEeschemaExportClipboardCairo;;
     wxRect       drawArea;
     BASE_SCREEN* screen = GetScreen();
 
@@ -654,7 +668,7 @@ void SCH_EDIT_FRAME::DrawCurrentSheetToClipboard()
     GRForceBlackPen( false );
     dc.SetUserScale( scale, scale );
 
-    KIGFX::SCH_RENDER_SETTINGS* cfg = GetRenderSettings();
+    SCH_RENDER_SETTINGS* cfg = GetRenderSettings();
 
     cfg->SetPrintDC( &dc );
 
@@ -663,7 +677,30 @@ void SCH_EDIT_FRAME::DrawCurrentSheetToClipboard()
 
     cfg->SetDefaultFont( eeconfig()->m_Appearance.default_font );
 
-    PrintPage( cfg );
+    if( useCairo )
+    {
+        try
+        {
+            dc.SetUserScale( 1.0, 1.0 );
+            SCH_PRINTOUT printout( this, wxEmptyString, true );
+            // Ensure title block will be when printed on clipboard, regardless
+            // the current Cairo print option
+            EESCHEMA_SETTINGS* eecfg = eeconfig();
+            bool print_tb_opt = eecfg->m_Printing.title_block;
+            eecfg->m_Printing.title_block = true;
+            bool success = printout.PrintPage( GetScreen(), cfg->GetPrintDC(), false );
+            eecfg->m_Printing.title_block = print_tb_opt;
+
+            if( !success )
+                wxLogMessage( _( "Cannot create the schematic image") );
+        }
+        catch( ... )
+        {
+            wxLogMessage( "printout internal error" );
+        }
+    }
+    else
+        PrintPage( cfg );
 
     // Deselect Bitmap from DC before using the bitmap
     dc.SelectObject( wxNullBitmap );
@@ -688,11 +725,12 @@ void SCH_EDIT_FRAME::DrawCurrentSheetToClipboard()
 }
 
 
-bool SCH_EDIT_FRAME::AllowCaseSensitiveFileNameClashes( const wxString& aOldName, const wxString& aSchematicFileName )
+bool SCH_EDIT_FRAME::AllowCaseSensitiveFileNameClashes( const wxString& aOldName,
+                                                        const wxString& aSchematicFileName )
 {
-    wxString msg;
-    SCH_SHEET_LIST sheets( &Schematic().Root() );
-    wxFileName fn = aSchematicFileName;
+    wxString       msg;
+    SCH_SHEET_LIST sheets = Schematic().Hierarchy();
+    wxFileName     fn = aSchematicFileName;
 
     wxCHECK( fn.IsAbsolute(), false );
 

@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 1992-2015 jean-pierre.charras
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -146,6 +146,10 @@ PCB_CALCULATOR_FRAME::~PCB_CALCULATOR_FRAME()
     // This needed for OSX: avoids further OnDraw processing after this destructor and before
     // the native window is destroyed
     this->Freeze();
+
+    // Clean up the tool framework
+    delete m_toolManager;
+    delete m_toolDispatcher;
 }
 
 

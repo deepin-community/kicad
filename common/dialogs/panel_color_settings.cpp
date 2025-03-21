@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,10 +27,12 @@
 #include <settings/common_settings.h>
 #include <settings/settings_manager.h>
 #include <validators.h>
+#include <widgets/ui_common.h>
 #include <widgets/color_swatch.h>
 #include <widgets/wx_panel.h>
 
 #include <wx/msgdlg.h>
+#include <wx/menu.h>
 #include <wx/textdlg.h>
 
 // Button ID starting point
@@ -191,20 +193,16 @@ void PANEL_COLOR_SETTINGS::OnThemeChanged( wxCommandEvent& event )
 void PANEL_COLOR_SETTINGS::updateSwatches()
 {
     if( m_swatches.empty() )
-    {
         createSwatches();
-    }
-    else
-    {
-        bool    isReadOnly = m_currentSettings->IsReadOnly();
-        COLOR4D background = m_currentSettings->GetColor( m_backgroundLayer );
 
-        for( std::pair<int, COLOR_SWATCH*> pair : m_swatches )
-        {
-            pair.second->SetSwatchBackground( background );
-            pair.second->SetSwatchColor( m_currentSettings->GetColor( pair.first ), false );
-            pair.second->SetReadOnly( isReadOnly );
-        }
+    bool    isReadOnly = m_currentSettings->IsReadOnly();
+    COLOR4D background = m_currentSettings->GetColor( m_backgroundLayer );
+
+    for( std::pair<int, COLOR_SWATCH*> pair : m_swatches )
+    {
+        pair.second->SetSwatchBackground( background );
+        pair.second->SetSwatchColor( m_currentSettings->GetColor( pair.first ), false );
+        pair.second->SetReadOnly( isReadOnly );
     }
 }
 
@@ -301,7 +299,8 @@ void PANEL_COLOR_SETTINGS::ShowColorContextMenu( wxMouseEvent& aEvent, int aLaye
         KIUI::AddMenuItem( &menu, ID_PASTE, _( "Paste color" ), KiBitmap( BITMAPS::paste ) );
 
     if( !readOnly && current != saved )
-        KIUI::AddMenuItem( &menu, ID_REVERT, _( "Revert to saved color" ), KiBitmap( BITMAPS::undo ) );
+        KIUI::AddMenuItem( &menu, ID_REVERT, _( "Revert to saved color" ),
+                           KiBitmap( BITMAPS::undo ) );
 
     menu.Bind( wxEVT_COMMAND_MENU_SELECTED,
             [&]( wxCommandEvent& aCmd )

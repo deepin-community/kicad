@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -31,7 +31,6 @@
 
 #include <locale_io.h>
 
-#define ARG_COMMON_LAYERS "--common-layers"
 #define ARG_USE_BOARD_PLOT_PARAMS "--board-plot-params"
 
 
@@ -65,7 +64,7 @@ int CLI::PCB_EXPORT_GERBERS_COMMAND::doPerform( KIWAY& aKiway )
     if( exitCode != EXIT_CODES::OK )
         return exitCode;
 
-    std::unique_ptr<JOB_EXPORT_PCB_GERBERS> gerberJob( new JOB_EXPORT_PCB_GERBERS( true ) );
+    std::unique_ptr<JOB_EXPORT_PCB_GERBERS> gerberJob( new JOB_EXPORT_PCB_GERBERS() );
 
     exitCode = populateJob( gerberJob.get() );
 

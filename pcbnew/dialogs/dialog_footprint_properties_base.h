@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -11,7 +11,6 @@
 #include <wx/xrc/xmlres.h>
 #include <wx/intl.h>
 class STD_BITMAP_BUTTON;
-class TEXT_CTRL_EVAL;
 class WX_GRID;
 
 #include "dialog_shim.h"
@@ -40,18 +39,16 @@ class WX_GRID;
 
 ///////////////////////////////////////////////////////////////////////////
 
-#define ID_NOTEBOOK 1000
-
 ///////////////////////////////////////////////////////////////////////////////
 /// Class DIALOG_FOOTPRINT_PROPERTIES_BASE
 ///////////////////////////////////////////////////////////////////////////////
 class DIALOG_FOOTPRINT_PROPERTIES_BASE : public DIALOG_SHIM
 {
 	private:
-		wxBoxSizer* m_GeneralBoxSizer;
 		wxBoxSizer* bSizerLeft;
 
 	protected:
+		wxBoxSizer* m_GeneralBoxSizer;
 		wxNotebook* m_NoteBook;
 		wxPanel* m_PanelGeneral;
 		WX_GRID* m_itemsGrid;
@@ -92,7 +89,7 @@ class DIALOG_FOOTPRINT_PROPERTIES_BASE : public DIALOG_SHIM
 		wxTextCtrl* m_SolderPasteMarginCtrl;
 		wxStaticText* m_SolderPasteMarginUnits;
 		wxStaticText* m_PasteMarginRatioLabel;
-		TEXT_CTRL_EVAL* m_PasteMarginRatioCtrl;
+		wxTextCtrl* m_PasteMarginRatioCtrl;
 		wxStaticText* m_PasteMarginRatioUnits;
 		wxStaticText* m_staticTextInfoCopper;
 		wxStaticText* m_staticTextInfoPaste;
@@ -107,14 +104,19 @@ class DIALOG_FOOTPRINT_PROPERTIES_BASE : public DIALOG_SHIM
 		// Virtual event handlers, override them in your derived class
 		virtual void OnInitDlg( wxInitDialogEvent& event ) { event.Skip(); }
 		virtual void OnUpdateUI( wxUpdateUIEvent& event ) { event.Skip(); }
-		virtual void OnPageChange( wxNotebookEvent& event ) { event.Skip(); }
+		virtual void OnPageChanging( wxNotebookEvent& event ) { event.Skip(); }
 		virtual void OnGridSize( wxSizeEvent& event ) { event.Skip(); }
 		virtual void OnAddField( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnDeleteField( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnText( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnCombobox( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnChoice( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnCheckBox( wxCommandEvent& event ) { event.Skip(); }
 		virtual void UpdateFootprint( wxCommandEvent& event ) { event.Skip(); }
 		virtual void ChangeFootprint( wxCommandEvent& event ) { event.Skip(); }
 		virtual void EditFootprint( wxCommandEvent& event ) { event.Skip(); }
 		virtual void EditLibraryFootprint( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnValuesChanged( wxCommandEvent& event ) { event.Skip(); }
 
 
 	public:

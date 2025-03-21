@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,6 +22,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <sch_commit.h>
 #include <sch_sheet_pin.h>
 #include <schematic.h>
 #include <tools/ee_actions.h>
@@ -169,11 +170,15 @@ SCH_ITEM* SCH_FIND_REPLACE_TOOL::nextMatch( SCH_SCREEN* aScreen, SCH_SHEET_PATH*
             };
 
     if( selectedOnly )
+    {
         for( EDA_ITEM* item : m_selectionTool->GetSelection() )
             addItem( static_cast<SCH_ITEM*>( item ) );
+    }
     else
+    {
         for( SCH_ITEM* item : aScreen->Items() )
             addItem( item );
+    }
 
     std::sort( sorted_items.begin(), sorted_items.end(),
             [&]( SCH_ITEM* a, SCH_ITEM* b )
@@ -285,6 +290,9 @@ int SCH_FIND_REPLACE_TOOL::FindNext( const TOOL_EVENT& aEvent )
             {
                 if( m_frame->Schematic().CurrentSheet() != sheet )
                 {
+                    // Store the current zoom level into the current screen before switching
+                    m_frame->GetScreen()->m_LastZoomLevel = m_frame->GetCanvas()->GetView()->GetScale();
+
                     m_frame->Schematic().SetCurrentSheet( sheet );
                     m_frame->DisplayCurrentSheet();
                 }
@@ -359,19 +367,17 @@ int SCH_FIND_REPLACE_TOOL::ReplaceAndFindNext( const TOOL_EVENT& aEvent )
     if( data.findString.IsEmpty() )
         return FindAndReplace( ACTIONS::find.MakeEvent() );
 
-    // TODO: move to SCH_COMMIT....
-
     if( item && HasMatch() )
     {
+        SCH_COMMIT commit( m_frame );
         SCH_ITEM* sch_item = static_cast<SCH_ITEM*>( item );
 
-        m_frame->SaveCopyInUndoList( sheet->LastScreen(), sch_item, UNDO_REDO::CHANGED, false );
+        commit.Modify( sch_item, sheet->LastScreen() );
 
         if( item->Replace( data, sheet ) )
         {
-            m_frame->UpdateItem( item, false, true );
             m_frame->GetCurrentSheet().UpdateAllScreenReferences();
-            m_frame->OnModify();
+            commit.Push( wxS( "Find and Replace" ) );
         }
 
         FindNext( ACTIONS::findNext.MakeEvent() );
@@ -397,6 +403,7 @@ int SCH_FIND_REPLACE_TOOL::ReplaceAll( const TOOL_EVENT& aEvent )
     {
     }
 
+    SCH_COMMIT commit( m_frame );
     bool modified = false;      // TODO: move to SCH_COMMIT....
 
     if( data.findString.IsEmpty() )
@@ -405,8 +412,7 @@ int SCH_FIND_REPLACE_TOOL::ReplaceAll( const TOOL_EVENT& aEvent )
     auto doReplace =
             [&]( SCH_ITEM* aItem, SCH_SHEET_PATH* aSheet, EDA_SEARCH_DATA& aData )
             {
-                m_frame->SaveCopyInUndoList( aSheet->LastScreen(), aItem, UNDO_REDO::CHANGED,
-                                             modified );
+                commit.Modify( aItem, aSheet->LastScreen() );
 
                 if( aItem->Replace( aData, aSheet ) )
                 {
@@ -431,7 +437,7 @@ int SCH_FIND_REPLACE_TOOL::ReplaceAll( const TOOL_EVENT& aEvent )
     }
     else
     {
-        SCH_SHEET_LIST allSheets = m_frame->Schematic().GetUnorderedSheets();
+        SCH_SHEET_LIST allSheets = m_frame->Schematic().Hierarchy();
         SCH_SCREENS    screens( m_frame->Schematic().Root() );
 
         for( SCH_SCREEN* screen = screens.GetFirst(); screen; screen = screens.GetNext() )
@@ -478,8 +484,8 @@ int SCH_FIND_REPLACE_TOOL::ReplaceAll( const TOOL_EVENT& aEvent )
 
     if( modified )
     {
+        commit.Push( wxS( "Find and Replace All" ) );
         m_frame->GetCurrentSheet().UpdateAllScreenReferences();
-        m_frame->OnModify();
     }
 
     return 0;

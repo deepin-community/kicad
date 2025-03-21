@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019-2020 Thomas Pointhuber <thomas.pointhuber@gmx.at>
- * Copyright (C) 2020-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,7 +37,7 @@ int32_t ALTIUM_PROPS_UTILS::ConvertToKicadUnit( const double aValue )
 {
     constexpr double int_limit = ( std::numeric_limits<int>::max() - 10 ) / 2.54;
 
-    int32_t iu = KiROUND( Clamp<double>( -int_limit, aValue, int_limit ) * 2.54 );
+    int32_t iu = KiROUND( std::clamp( aValue, -int_limit, int_limit ) * 2.54 );
 
     // Altium's internal precision is 0.1uinch.  KiCad's is 1nm.  Round to nearest 10nm to clean
     // up most rounding errors.  This allows lossless conversion of increments of 0.05mils and
@@ -54,8 +54,8 @@ int ALTIUM_PROPS_UTILS::ReadInt( const std::map<wxString, wxString>& aProps, con
 }
 
 
-double ALTIUM_PROPS_UTILS::ReadDouble( const std::map<wxString, wxString>& aProps, const wxString& aKey,
-                                  double aDefault )
+double ALTIUM_PROPS_UTILS::ReadDouble( const std::map<wxString, wxString>& aProps,
+                                       const wxString& aKey, double aDefault )
 {
     const std::map<wxString, wxString>::const_iterator& value = aProps.find( aKey );
 
@@ -73,7 +73,7 @@ double ALTIUM_PROPS_UTILS::ReadDouble( const std::map<wxString, wxString>& aProp
 
 
 bool ALTIUM_PROPS_UTILS::ReadBool( const std::map<wxString, wxString>& aProps, const wxString& aKey,
-                              bool aDefault )
+                                   bool aDefault )
 {
     const std::map<wxString, wxString>::const_iterator& value = aProps.find( aKey );
 
@@ -85,7 +85,7 @@ bool ALTIUM_PROPS_UTILS::ReadBool( const std::map<wxString, wxString>& aProps, c
 
 
 int32_t ALTIUM_PROPS_UTILS::ReadKicadUnit( const std::map<wxString, wxString>& aProps,
-                                      const wxString& aKey, const wxString& aDefault )
+                                           const wxString& aKey, const wxString& aDefault )
 {
     const wxString& value = ReadString( aProps, aKey, aDefault );
 
@@ -93,7 +93,7 @@ int32_t ALTIUM_PROPS_UTILS::ReadKicadUnit( const std::map<wxString, wxString>& a
 
     if( !value.EndsWith( "mil", &prefix ) )
     {
-        wxLogError( _( "Unit '%s' does not end with 'mil'." ), value );
+        wxLogTrace( "ALTIUM", wxT( "Unit '%s' does not end with 'mil'." ), value );
         return 0;
     }
 
@@ -103,7 +103,7 @@ int32_t ALTIUM_PROPS_UTILS::ReadKicadUnit( const std::map<wxString, wxString>& a
 
     if( !prefix.ToCDouble( &mils ) )
     {
-        wxLogError( _( "Cannot convert '%s' to double." ), prefix );
+        wxLogTrace( "ALTIUM", wxT( "Cannot convert '%s' to double." ), prefix );
         return 0;
     }
 
@@ -112,7 +112,7 @@ int32_t ALTIUM_PROPS_UTILS::ReadKicadUnit( const std::map<wxString, wxString>& a
 
 
 wxString ALTIUM_PROPS_UTILS::ReadString( const std::map<wxString, wxString>& aProps,
-                                    const wxString& aKey, const wxString& aDefault )
+                                         const wxString& aKey, const wxString& aDefault )
 {
     const auto& utf8Value = aProps.find( wxString( "%UTF8%" ) + aKey );
 
@@ -129,7 +129,7 @@ wxString ALTIUM_PROPS_UTILS::ReadString( const std::map<wxString, wxString>& aPr
 
 
 wxString ALTIUM_PROPS_UTILS::ReadUnicodeString( const std::map<wxString, wxString>& aProps,
-                                           const wxString& aKey, const wxString& aDefault )
+                                                const wxString& aKey, const wxString& aDefault )
 {
     const auto& unicodeFlag = aProps.find( wxS( "UNICODE" ) );
 

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2014-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,6 +36,7 @@
 
 #include <typeinfo>
 #include <wx/cmdline.h>
+#include <wx/dialog.h>
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
 #include <wx/snglinst.h>
@@ -58,16 +59,19 @@
 #include <sentry.h>
 #endif
 
+#ifdef KICAD_IPC_API
+#include <api/api_server.h>
+#endif
+
 // Only a single KIWAY is supported in this single_top top level component,
 // which is dedicated to loading only a single DSO.
-KIWAY    Kiway( &Pgm(), KFCTL_STANDALONE );
+KIWAY    Kiway( KFCTL_STANDALONE );
 
 
 // implement a PGM_BASE and a wxApp side by side:
 
 /**
- * Struct PGM_SINGLE_TOP
- * implements PGM_BASE with its own OnPgmInit() and OnPgmExit().
+ * Implement PGM_BASE with its own OnPgmInit() and OnPgmExit().
  */
 static struct PGM_SINGLE_TOP : public PGM_BASE
 {
@@ -77,6 +81,10 @@ static struct PGM_SINGLE_TOP : public PGM_BASE
     {
 
         Kiway.OnKiwayEnd();
+
+#ifdef KICAD_IPC_API
+        m_api_server.reset();
+#endif
 
         if( m_settings_manager && m_settings_manager->IsOK() )
         {
@@ -116,11 +124,6 @@ static struct PGM_SINGLE_TOP : public PGM_BASE
 } program;
 
 
-PGM_BASE& Pgm()
-{
-    return program;
-}
-
 // A module to allow Html module initialization/cleanup
 // When a wxHtmlWindow is used *only* in a dll/so module, the Html text is displayed
 // as plain text.
@@ -132,32 +135,37 @@ public:
     HtmlModule() { }
     virtual bool OnInit() override { AddDependency( CLASSINFO( wxHtmlWinParser ) ); return true; };
     virtual void OnExit() override {};
+
 private:
     wxDECLARE_DYNAMIC_CLASS( HtmlModule );
 };
+
 wxIMPLEMENT_DYNAMIC_CLASS(HtmlModule, wxModule);
+
 
 #ifdef NDEBUG
 // Define a custom assertion handler
-void CustomAssertHandler(const wxString& file,
-                         int line,
-                         const wxString& func,
-                         const wxString& cond,
-                         const wxString& msg)
+void CustomAssertHandler( const wxString& file,
+                          int line,
+                          const wxString& func,
+                          const wxString& cond,
+                          const wxString& msg )
 {
     Pgm().HandleAssert( file, line, func, cond, msg );
 }
 #endif
 
+
 /**
- * Struct APP_SINGLE_TOP
- * implements a bare naked wxApp (so that we don't become dependent on
+ * Implement a bare naked wxApp (so that we don't become dependent on
  * functionality in a wxApp derivative that we cannot deliver under wxPython).
  */
 struct APP_SINGLE_TOP : public wxApp
 {
     APP_SINGLE_TOP() : wxApp()
     {
+        SetPgm( &program );
+
         // Init the environment each platform wants
         KIPLATFORM::ENV::Init();
     }
@@ -250,7 +258,8 @@ struct APP_SINGLE_TOP : public wxApp
                     if( dlgs.back() == dialog )
                         dlgs.pop_back();
                     // If an out-of-order, remove all dialogs added after the closed one
-                    else if( auto it = std::find( dlgs.begin(), dlgs.end(), dialog ) ; it != dlgs.end() )
+                    else if( auto it = std::find( dlgs.begin(), dlgs.end(), dialog );
+                             it != dlgs.end() )
                         dlgs.erase( it, dlgs.end() );
                 }
             }
@@ -285,9 +294,10 @@ struct APP_SINGLE_TOP : public wxApp
 #ifdef __WXMAC__
 
     /**
-     * Function MacOpenFile
-     * is specific to MacOSX (not used under Linux or Windows).
+     * Specific to MacOSX (not used under Linux or Windows).
+     *
      * MacOSX requires it for file association.
+     *
      * @see http://wiki.wxwidgets.org/WxMac-specific_topics
      */
     void MacOpenFile( const wxString& aFileName ) override
@@ -316,11 +326,12 @@ bool PGM_SINGLE_TOP::OnPgmInit()
     // Initialize the git library before trying to initialize individual programs
     git_libgit2_init();
 
-    // Not all kicad applications use the python stuff. skip python init
+    // Not all KiCad applications use the python stuff. skip python init
     // for these apps.
     bool skip_python_initialization = false;
-#if defined( BITMAP_2_CMP ) || defined( PL_EDITOR ) || defined( GERBVIEW ) ||\
-        defined( PCB_CALCULATOR_BUILD )
+
+#if defined( BITMAP_2_CMP ) || defined( PL_EDITOR ) || defined( GERBVIEW ) || \
+    defined( PCB_CALCULATOR_BUILD )
     skip_python_initialization = true;
 #endif
 
@@ -354,6 +365,11 @@ bool PGM_SINGLE_TOP::OnPgmInit()
     GetSettingsManager().SetKiway( &Kiway );
 
     GetSettingsManager().RegisterSettings( new KICAD_SETTINGS );
+
+#ifdef KICAD_IPC_API
+    // Create the API server thread once the app event loop exists
+    m_api_server = std::make_unique<KICAD_API_SERVER>();
+#endif
 
     // Use KIWAY to create a top window, which registers its existence also.
     // "TOP_FRAME" is a macro that is passed on compiler command line from CMake,
@@ -394,6 +410,7 @@ bool PGM_SINGLE_TOP::OnPgmInit()
     wxCmdLineParser parser( App().argc, App().argv );
     parser.SetDesc( desc );
     parser.Parse( false );
+
     if( parser.GetParamCount() )
     {
         /*
@@ -428,6 +445,10 @@ bool PGM_SINGLE_TOP::OnPgmInit()
 
         frame->OpenProjectFiles( fileArgs );
     }
+
+#ifdef KICAD_IPC_API
+    m_api_server->SetReadyToReply();
+#endif
 
     return true;
 }

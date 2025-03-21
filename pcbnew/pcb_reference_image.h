@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2011 jean-pierre.charras
  * Copyright (C) 2022 Mike Williams
- * Copyright (C) 2011-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,12 +23,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef PCB_REFERENCE_IMAGE_H
-#define PCB_REFERENCE_IMAGE_H
-
+#pragma once
 
 #include <board_item.h>
 #include <bitmap_base.h>
+#include <reference_image.h>
 
 
 /**
@@ -42,34 +41,15 @@ public:
 
     PCB_REFERENCE_IMAGE( const PCB_REFERENCE_IMAGE& aPcbBitmap );
 
-    ~PCB_REFERENCE_IMAGE() { delete m_bitmapBase; }
+    ~PCB_REFERENCE_IMAGE();
 
     PCB_REFERENCE_IMAGE& operator=( const BOARD_ITEM& aItem );
 
-    const BITMAP_BASE* GetImage() const
-    {
-        wxCHECK_MSG( m_bitmapBase != nullptr, nullptr,
-                     wxS( "Invalid PCB_REFERENCE_IMAGE init, m_bitmapBase is NULL." ) );
-        return m_bitmapBase;
-    }
-
     /**
-     * Only use this if you really need to modify the underlying image
+     * @return the underlying reference image object.
      */
-    BITMAP_BASE* MutableImage() const
-    {
-        return m_bitmapBase;
-    }
-
-    /**
-     * @return the image "zoom" value.
-     *  scale = 1.0 = original size of bitmap.
-     *  scale < 1.0 = the bitmap is drawn smaller than its original size.
-     *  scale > 1.0 = the bitmap is drawn bigger than its original size.
-     */
-    double GetImageScale() const { return m_bitmapBase->GetScale(); }
-
-    void SetImageScale( double aScale ) { m_bitmapBase->SetScale( aScale ); }
+    REFERENCE_IMAGE&       GetReferenceImage() { return m_referenceImage; }
+    const REFERENCE_IMAGE& GetReferenceImage() const { return m_referenceImage; }
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
@@ -78,12 +58,7 @@ public:
 
     wxString GetClass() const override { return wxT( "PCB_REFERENCE_IMAGE" ); }
 
-    /**
-     * @return the actual size (in user units, not in pixels) of the image.
-     */
-    const VECTOR2I GetSize() const;
-
-    double ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const override;
+    double ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const override;
 
     const BOX2I GetBoundingBox() const override;
 
@@ -93,34 +68,14 @@ public:
     //void Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset ) override;
 
     /// @copydoc VIEW_ITEM::ViewGetLayers()
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    virtual std::vector<int> ViewGetLayers() const override;
 
-    /**
-     * Read and store an image file.
-     *
-     * Initialize the bitmap used to draw this item format.
-     *
-     * @param aFullFilename is the full filename of the image file to read.
-     * @return true if success reading else false.
-     */
-    bool ReadImageFile( const wxString& aFullFilename );
+    void Move( const VECTOR2I& aMoveVector ) override;
 
-    /**
-     * Read and store an image file.
-     *
-     * Initialize the bitmap used to draw this item format.
-     *
-     * @param aBuf is the memory buffer containing the image file to read.
-     * @return true if success reading else false.
-     */
-    bool ReadImageFile( wxMemoryBuffer& aBuf );
-
-    void Move( const VECTOR2I& aMoveVector ) override { m_pos += aMoveVector; }
-
-    void Flip( const VECTOR2I& aCentre, bool aFlipLeftRight ) override;
+    void Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
     void Rotate( const VECTOR2I& aCenter, const EDA_ANGLE& aAngle ) override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override
     {
         return wxString( _( "Reference Image" ) );
     }
@@ -129,8 +84,17 @@ public:
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 
-    VECTOR2I GetPosition() const override { return m_pos; }
-    void     SetPosition( const VECTOR2I& aPosition ) override { m_pos = aPosition; }
+    /**
+     * Get the position of the image (this is the center of the image).
+     */
+    VECTOR2I GetPosition() const override;
+
+    /**
+     * Set the position of the image.
+     *
+     * If this results in the image overflowing the coordinate system, nothing is updated.
+     */
+    void SetPosition( const VECTOR2I& aPosition ) override;
 
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
@@ -139,6 +103,7 @@ public:
 
     double Similarity( const BOARD_ITEM& aBoardItem ) const override;
 
+    bool operator==( const PCB_REFERENCE_IMAGE& aOther ) const;
     bool operator==( const BOARD_ITEM& aBoardItem ) const override;
 
 #if defined( DEBUG )
@@ -149,8 +114,20 @@ protected:
     void swapData( BOARD_ITEM* aItem ) override;
 
 private:
-    VECTOR2I     m_pos;   // XY coordinates of center of the bitmap
-    BITMAP_BASE* m_bitmapBase; // the BITMAP_BASE item
-};
+    friend struct PCB_REFERENCE_IMAGE_DESC;
 
-#endif // PCB_REFERENCE_IMAGE_H
+    // Property manager interfaces
+    int  GetWidth() const;
+    void SetWidth( int aWidth );
+    int  GetHeight() const;
+    void SetHeight( int aHeight );
+    int  GetTransformOriginOffsetX() const;
+    void SetTransformOriginOffsetX( int aX );
+    int  GetTransformOriginOffsetY() const;
+    void SetTransformOriginOffsetY( int aY );
+
+    double GetImageScale() const;
+    void   SetImageScale( double aScale );
+
+    REFERENCE_IMAGE m_referenceImage;
+};

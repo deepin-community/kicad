@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 Chris Pavlina <pavlina.chris@gmail.com>
- * Copyright (C) 2015-2023 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,7 +39,6 @@
 
 #include <wx/string.h>
 
-#include <string_utf8_map.h>
 #include <lib_symbol.h>
 #include <sch_io/kicad_legacy/sch_io_kicad_legacy.h>
 #include <class_draw_panel_gal.h>
@@ -379,7 +378,7 @@ public:
 private:
     std::vector<std::unique_ptr<LIB_SYMBOL>> m_rescueLibSymbols;
 
-    std::unique_ptr<STRING_UTF8_MAP> m_properties;   ///< Library plugin properties.
+    std::unique_ptr<std::map<std::string, UTF8>> m_properties;   ///< Library plugin properties.
 };
 
 #endif // _LIB_CACHE_RESCUE_H_

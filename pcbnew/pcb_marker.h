@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009-2018 Jean-Pierre Charras, jean-pierre.charras@ujf-grenoble.fr
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,6 +27,7 @@
 
 
 #include <board_item.h>
+#include <pcb_shape.h>
 #include <rc_item.h>
 #include <marker_base.h>
 
@@ -52,9 +53,9 @@ public:
 
     const KIID GetUUID() const override { return m_Uuid; }
 
-    wxString Serialize() const;
+    wxString SerializeToString() const;
 
-    static PCB_MARKER* Deserialize( const wxString& data );
+    static PCB_MARKER* DeserializeFromString( const wxString& data );
 
     void Move( const VECTOR2I& aMoveVector ) override
     {
@@ -63,7 +64,7 @@ public:
 
     void Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle ) override;
 
-    void Flip( const VECTOR2I& aCentre, bool aFlipLeftRight ) override;
+    void Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
 
     VECTOR2I GetPosition() const override { return m_Pos; }
     void     SetPosition( const VECTOR2I& aPos ) override { m_Pos = aPos; }
@@ -106,7 +107,7 @@ public:
         return BOARD_ITEM::Matches( m_rcItem->GetErrorMessage(), aSearchData );
     }
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -116,7 +117,7 @@ public:
 
     const BOX2I GetBoundingBox() const override;
 
-    void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    std::vector<int> ViewGetLayers() const override;
 
     SEVERITY GetSeverity() const override;
 
@@ -142,8 +143,17 @@ public:
         return wxT( "PCB_MARKER" );
     }
 
+    std::vector<PCB_SHAPE> GetShapes1() const { return m_shapes1; };
+    std::vector<PCB_SHAPE> GetShapes2() const { return m_shapes2; };
+
+    void SetShapes1( const std::vector<PCB_SHAPE>& aShapes ) { m_shapes1 = aShapes; };
+    void SetShapes2( const std::vector<PCB_SHAPE>& aShapes ) { m_shapes2 = aShapes; };
+
+
 protected:
     KIGFX::COLOR4D getColor() const override;
+    std::vector<PCB_SHAPE> m_shapes1; // Shown on LAYER_DRC_SHAPE1
+    std::vector<PCB_SHAPE> m_shapes2; // Shown on LAYER_DRC_SHAPE2
 };
 
 #endif      //  PCB_MARKER_H

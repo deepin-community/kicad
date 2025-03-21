@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,8 +21,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef ADVANCED_CFG__H
-#define ADVANCED_CFG__H
+#pragma once
 
 #include <kicommon.h>
 
@@ -71,8 +70,8 @@ public:
      */
     static const ADVANCED_CFG& GetCfg();
 
-///@{
-/// \ingroup advanced_config
+    ///@{
+    /// \ingroup advanced_config
 
     /**
      * Distance from an arc end point and the estimated end point, when rotating from the
@@ -124,6 +123,14 @@ public:
      * Default value: 0.0005
      */
     double m_ExtraClearance;
+
+    /**
+     * Enable the minimum slot width check for creepage
+     *
+     * Setting name: "EnableCreepageSlot"
+     * Default value: false
+     */
+    bool m_EnableCreepageSlot;
 
     /**
      * Epsilon for DRC tests.
@@ -230,7 +237,7 @@ public:
     /**
      * Slide the zoom steps over for debugging things "up close".
      *
-     * Setting name: "EnableRouterDump"
+     * Setting name: "HyperZoom"
      * Valid values: 0 or 1
      * Default value: 0
      */
@@ -390,6 +397,21 @@ public:
     bool m_ShowEventCounters;
 
     /**
+     * Show UUIDs of items in the message panel.
+     *
+     * Can be useful when debugging against a specific item
+     * saved in a file.
+     *
+     * 0: do not show (default)
+     * 1: show full UUID
+     * 2: show only first 8 characters of UUID
+     *
+     * Setting name: "MsgPanelShowUuids"
+     * Default value: 0
+     */
+    int m_MsgPanelShowUuids;
+
+    /**
      * Allow manual scaling of canvas.
      *
      * Setting name: "AllowManualCanvasScale"
@@ -415,20 +437,11 @@ public:
      *
      * This is used for calculating the bevel's height.
      *
-     * Setting name: "V3DRT_BevelHeight_um"
+     * Setting name: "V3DRT_BevelExtentFactor"
      * Valid values: 0 to 100
      * Default value: 1/16
      */
     double m_3DRT_BevelExtentFactor;
-
-    /**
-     * Use Clipper2 instead of Clipper1.
-     *
-     * Setting name: "UseClipper2"
-     * Valid values: 0 or 1
-     * Default value: 1
-     */
-    bool m_UseClipper2;
 
     /**
      * Use the 3DConnexion Driver.
@@ -444,7 +457,7 @@ public:
      *
      * Setting name: "IncrementalConnectivity"
      * Valid values: 0 or 1
-     * Default value: 0
+     * Default value: 1
      */
     bool m_IncrementalConnectivity;
 
@@ -456,6 +469,15 @@ public:
      * Default value: 300
      */
     int m_DisambiguationMenuDelay;
+
+    /**
+     * Enable the new Design Blocks feature
+     *
+     * Setting name: "EnableDesignBlocks"
+     * Valid values: true or false
+     * Default value: false
+     */
+    bool m_EnableDesignBlocks;
 
     /**
      * Enable support for generators.
@@ -476,13 +498,49 @@ public:
     bool m_EnableGit;
 
     /**
+     * Enable option to load lib files with text editor.
+     *
+     * Setting name: "EnableLibWithText"
+     * Valid values: 0 or 1
+     * Default value: 0
+     */
+    bool m_EnableLibWithText;
+
+    /**
+     * Enable option to open lib file directory.
+     * Reveals one additional field under common preferences to set
+     * system's file manager command in order for the context menu options to work.
+     * On windows common settings preselect the default explorer with a hardcoded value.
+     *
+     * Examples,
+     * Linux:  "nemo -n %F"
+     *         "nautilus --browser %F"
+     *         "dolphin --select %F" etc
+     * Win11:  "explorer.exe /n,/select,%F"
+     *
+     * Setting name: "EnableLibDir"
+     * Valid values: 0 or 1
+     * Default value: 0
+     */
+    bool m_EnableLibDir;
+
+    /**
      * Enable Eeschema printing using Cairo.
      *
      * Setting name: "EnableEeschemaPrintCairo"
      * Valid values: 0 or 1
-     * Default value: 0
+     * Default value: 1
      */
     bool m_EnableEeschemaPrintCairo;
+
+    /**
+     * Enable Eeschema Export to clipboard using Cairo.
+     *
+     * Setting name: "EnableEeschemaExportClipboardCairo"
+     * Valid values: 0 or 1
+     * Default value: 1
+     */
+    bool m_EnableEeschemaExportClipboardCairo;
 
     /**
      * Board object selection visibility limit.
@@ -500,14 +558,14 @@ public:
     double m_PcbSelectionVisibilityRatio;
 
     /**
-     * Length of the minimum segment for the outline decomposer.  This is in IU, so
-     * it is nm in pcbnew and 100nm in eeschema.
+     * Deviation between font's bezier curve ideal and the poligonized curve.  This
+     * is 1/16 of the font's internal units.
      *
-     * Setting name: "MinimumSegmentLength"
-     * Valid values: 10 to 1000
-     * Default value: 50
+     * Setting name: "FontErrorSize"
+     * Valid values: 0.01 to 100
+     * Default value: 2
      */
-    int m_MinimumSegmentLength;
+    double m_FontErrorSize;
 
     /**
      * OCE (STEP/IGES) 3D Plugin Tesselation Linear Deflection
@@ -568,29 +626,142 @@ public:
     bool m_EnableCacheFriendlyFracture;
 
     /**
+     * Log IPC API requests and responses
+     *
+     * Setting name: "EnableAPILogging"
+     * Default value: false
+     */
+    bool m_EnableAPILogging;
+
+    /**
+     * Maximum number of filesystem watchers to use.
+     *
+     * Setting name: "MaxFilesystemWatchers"
+     * Valid values: 0 to 2147483647
+     * Default value: 16384
+     */
+    int m_MaxFilesystemWatchers;
+
+    /**
+     * Set the number of items in a schematic graph for it to be considered "minor"
+     *
+     * Setting name: "MinorSchematicGraphSize"
+     * Valid values: 0 to 2147483647
+     * Default value: 10000
+     */
+    int m_MinorSchematicGraphSize;
+
+    /**
+     * The number of recursions to resolve text variables.
+     *
+     * Setting name: "ResolveTextRecursionDepth"
+     * Valid values: 0 to 10
+     * Default value: 3
+     */
+    int m_ResolveTextRecursionDepth;
+
+    /**
+     * Enable snap anchors based on item line extensions.
+     *
+     * This should be removed when extension snaps are tuned up.
+     *
+     * Setting name: "EnableExtensionSnaps"
+     * Default value: true
+     */
+    bool m_EnableExtensionSnaps;
+
+    /**
+     * If extension snaps are enabled, this is the timeout in milliseconds
+     * before a hovered item gets extensions shown.
+     *
+     * This should be removed if a good value is agreed, or made configurable
+     * if there's no universal good value.
+     *
+     * Setting name: "EnableExtensionSnapsMs"
+     * Default value: 500
+     * Valid values: >0
+     */
+    int m_ExtensionSnapTimeoutMs;
+
+    /**
+     * If extension snaps are enabled, 'activate' items on
+     * hover, even if not near a snap point.
+     *
+     * This just to experiment with tuning.  It should either
+     * be removed or made configurable when we know what feels best.
+     *
+     * Setting name: "ExtensionSnapActivateOnHover"
+     * Default value: true
+     */
+    bool m_ExtensionSnapActivateOnHover;
+
+    /**
+     * Enable snap anchors debug visualization.
+     *
+     * Setting name: "EnableSnapAnchorsDebug"
+     * Default value: false
+     */
+    bool m_EnableSnapAnchorsDebug;
+
+    /**
      * Minimum overlapping angle for which an arc is considered to be parallel
      * to its paired arc.
      *
      * Setting name: "MinParallelAngle"
-     * Valid values: 0 to 45
      * Default value: 0.001
      */
     double m_MinParallelAngle;
 
-///@}
+    /**
+     * What factor to use when painting via and PTH pad hole walls, so that
+     * the painted hole wall can be overemphasized compared to physical reality
+     * to make the wall easier to see on-screen.
+     *
+     * Setting name: "HoleWallPaintingMultiplier"
+     * Default value: 1.5
+     */
+    double m_HoleWallPaintingMultiplier;
+
+    /**
+     * Default value for the maximum number of threads to use for parallel processing.
+     * Setting this value to 0 or less will mean that we use the number of cores available
+     *
+     * Setting name: "MaximumThreads"
+     * Default value: 0
+     */
+    int m_MaximumThreads;
+
+    /**
+     * When finding overlapped marker a minium distance (in mm) between two DRC markers required
+     * to mark it as overlapped
+     *
+     * Setting name: "MinimumMarkerSeparationDistance"
+     * Default value: 0.15
+     */
+    double m_MinimumMarkerSeparationDistance;
+
+    /**
+     * When updating the net inspector, it either recalculates all nets or iterates through items
+     * one-by-one. This value controls the threshold at which all nets are recalculated rather than
+     * iterating over the items.
+     *
+     * Setting name: "NetInspectorBulkUpdateOptimisationThreshold"
+     * Default value: 25
+     */
+    int m_NetInspectorBulkUpdateOptimisationThreshold;
+
+    ///@}
 
 private:
     ADVANCED_CFG();
 
     /**
-     * Load the config from the normal config file
+     * Load the config from the normal configuration file.
      */
     void loadFromConfigFile();
 
-    /*
-     * Load config from the given config base
+    /**
+     * Load config from the given configuration base.
      */
     void loadSettings( wxConfigBase& aCfg );
 };
-
-#endif // ADVANCED_CFG__H

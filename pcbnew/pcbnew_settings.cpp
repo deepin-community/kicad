@@ -1,7 +1,7 @@
 /*
 * This program source code file is part of KiCad, a free EDA CAD application.
 *
-* Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -26,6 +26,7 @@
 #include <common.h>
 #include <footprint_editor_settings.h>
 #include <layer_ids.h>
+#include <lset.h>
 #include <pcbnew_settings.h>
 #include <pgm_base.h>
 #include <router/pns_routing_settings.h>
@@ -53,6 +54,7 @@ PCBNEW_SETTINGS::PCBNEW_SETTINGS()
           m_DrcDialog(),
           m_ExportIdf(),
           m_ExportStep(),
+          m_ExportODBPP(),
           m_ExportSvg(),
           m_ExportVrml(),
           m_FootprintWizardList(),
@@ -70,7 +72,7 @@ PCBNEW_SETTINGS::PCBNEW_SETTINGS()
           m_ArcEditMode( ARC_EDIT_MODE::KEEP_CENTER_ADJUST_ANGLE_RADIUS ),
           m_CtrlClickHighlight( false ),
           m_Use45DegreeLimit( false ),
-          m_FlipLeftRight( false ),
+          m_FlipDirection( FLIP_DIRECTION::TOP_BOTTOM ),
           m_ESCClearsNetHighlight( true ),
           m_PolarCoords( false ),
           m_RotationAngle( ANGLE_90 ),
@@ -89,11 +91,16 @@ PCBNEW_SETTINGS::PCBNEW_SETTINGS()
     m_MagneticItems.graphics  = false;
     m_MagneticItems.allLayers = false;
 
+    m_LockingOptions.m_sessionSkipPrompts = false;
+
     m_params.emplace_back( new PARAM<bool>( "aui.show_layer_manager",
             &m_AuiPanels.show_layer_manager, true ) );
 
     m_params.emplace_back( new PARAM<int>( "aui.right_panel_width",
             &m_AuiPanels.right_panel_width, -1 ) );
+
+    m_params.emplace_back( new PARAM<int>( "aui.net_inspector_width",
+            &m_AuiPanels.net_inspector_width, -1 ) );
 
     m_params.emplace_back( new PARAM<int>( "aui.properties_panel_width",
             &m_AuiPanels.properties_panel_width, -1 ) );
@@ -125,6 +132,9 @@ PCBNEW_SETTINGS::PCBNEW_SETTINGS()
     m_params.emplace_back( new PARAM<bool>( "aui.show_search",
             &m_AuiPanels.show_search, false ) );
 
+    m_params.emplace_back( new PARAM<bool>( "aui.show_net_inspector",
+            &m_AuiPanels.show_net_inspector, false ) );
+
     m_params.emplace_back( new PARAM<int>( "footprint_chooser.width",
             &m_FootprintChooser.width, -1 ) );
 
@@ -147,7 +157,8 @@ PCBNEW_SETTINGS::PCBNEW_SETTINGS()
             &m_FootprintChooser.use_fp_filters, false ) );
 
     m_params.emplace_back( new PARAM<bool>( "editing.flip_left_right",
-            &m_FlipLeftRight, true ) );
+            reinterpret_cast<bool*>( &m_FlipDirection ),
+            static_cast<bool>( FLIP_DIRECTION::LEFT_RIGHT ) ) );
 
     m_params.emplace_back( new PARAM<bool>( "editing.esc_clears_net_highlight",
             &m_ESCClearsNetHighlight, true ) );
@@ -278,6 +289,9 @@ PCBNEW_SETTINGS::PCBNEW_SETTINGS()
     m_params.emplace_back( new PARAM<bool>( "pcb_display.show_page_borders",
             &m_ShowPageLimits, true ) );
 
+    m_params.emplace_back( new PARAM<bool>( "cleanup.cleanup_refill_zones",
+            &m_Cleanup.cleanup_refill_zones, true ) );
+
     m_params.emplace_back( new PARAM<bool>( "cleanup.cleanup_vias",
             &m_Cleanup.cleanup_vias, true ) );
 
@@ -318,7 +332,7 @@ PCBNEW_SETTINGS::PCBNEW_SETTINGS()
             &m_GenDrill.mirror, false ) );
 
     m_params.emplace_back( new PARAM<bool>( "gen_drill.unit_drill_is_inch",
-            &m_GenDrill.unit_drill_is_inch, true ) );
+            &m_GenDrill.unit_drill_is_inch, false ) );
 
     m_params.emplace_back( new PARAM<bool>( "gen_drill.use_route_for_oval_holes",
             &m_GenDrill.use_route_for_oval_holes, true ) );
@@ -332,17 +346,29 @@ PCBNEW_SETTINGS::PCBNEW_SETTINGS()
     m_params.emplace_back( new PARAM<int>( "gen_drill.zeros_format",
             &m_GenDrill.zeros_format, 0, 0, 3 ) );
 
+    m_params.emplace_back( new PARAM<bool>( "gen_drill.generate_map",
+            &m_GenDrill.generate_map, false ) );
+
     m_params.emplace_back( new PARAM<int>( "export_2581.units",
             &m_Export2581.units, 0 ) );
 
     m_params.emplace_back( new PARAM<int>( "export_2581.precision",
-            &m_Export2581.precision, 3 ) );
+            &m_Export2581.precision, 6 ) );
 
     m_params.emplace_back( new PARAM<int>( "export_2581.version",
             &m_Export2581.version, 1 ) );
 
     m_params.emplace_back( new PARAM<bool>( "export_2581.compress",
             &m_Export2581.compress, false ) );
+
+    m_params.emplace_back( new PARAM<int>( "export_odb.units",
+            &m_ExportODBPP.units, 0 ) );
+
+    m_params.emplace_back( new PARAM<int>( "export_odb.precision",
+            &m_ExportODBPP.precision, 6 ) );
+
+    m_params.emplace_back( new PARAM<int>( "export_odb.compress_format",
+            &m_ExportODBPP.compressFormat, 1 ) );
 
     m_params.emplace_back( new PARAM<bool>( "export_idf.auto_adjust",
             &m_ExportIdf.auto_adjust, false ) );
@@ -412,6 +438,12 @@ PCBNEW_SETTINGS::PCBNEW_SETTINGS()
 
     m_params.emplace_back( new PARAM<int>( "export_vrml.units",
             &m_ExportVrml.units, 1 ) );
+
+    m_params.emplace_back( new PARAM<bool>( "export_vrml.no_unspecified",
+            &m_ExportVrml.no_unspecified, false ) );
+
+    m_params.emplace_back( new PARAM<bool>( "export_vrml.no_dnp",
+            &m_ExportVrml.no_dnp, false ) );
 
     m_params.emplace_back( new PARAM<bool>( "export_vrml.copy_3d_models",
             &m_ExportVrml.copy_3d_models, false ) );
@@ -582,31 +614,6 @@ PCBNEW_SETTINGS::PCBNEW_SETTINGS()
             &m_Reannotate.exclude_list, "" ) );
     m_params.emplace_back( new PARAM<wxString>( "reannotate_dialog.annotate_report_file_name",
             &m_Reannotate.report_file_name, "" ) );
-
-    m_params.emplace_back( new PARAM<wxString>( "net_inspector_dialog.group_by_text",
-            &m_NetInspector.group_by_text, "" ) );
-    m_params.emplace_back( new PARAM<bool>( "net_inspector_dialog.group_by",
-            &m_NetInspector.group_by, false ) );
-    m_params.emplace_back( new PARAM<int>( "net_inspector_dialog.group_by_kind",
-            &m_NetInspector.group_by_kind, 0 ) );
-    m_params.emplace_back( new PARAM<bool>( "net_inspector_dialog.show_zero_pad_nets",
-            &m_NetInspector.show_zero_pad_nets, true ) );
-    m_params.emplace_back( new PARAM<int>( "net_inspector_dialog.sorting_column",
-            &m_NetInspector.sorting_column, -1 ) );
-    m_params.emplace_back( new PARAM<bool>( "net_inspector_dialog.sort_ascending",
-            &m_NetInspector.sort_order_asc, true ) );
-    m_params.emplace_back( new PARAM<int>( "net_inspector_dialog.dlg_width",
-            &m_NetInspector.dlg_width, 960 ) );
-    m_params.emplace_back( new PARAM<int>( "net_inspector_dialog.dlg_height",
-            &m_NetInspector.dlg_height, 520 ) );
-
-    const std::vector<int> default_col_order = { };
-    const std::vector<int> default_widths = { };
-
-    m_params.emplace_back( new PARAM_LIST<int>( "net_inspector_dialog.col_order",
-            &m_NetInspector.col_order, default_col_order ) );
-    m_params.emplace_back( new PARAM_LIST<int>( "net_inspector_dialog.col_widths",
-            &m_NetInspector.col_widths, default_widths ) );
 
     m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "action_plugins",
             [&]() -> nlohmann::json
@@ -943,7 +950,8 @@ bool PCBNEW_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
 
     // Migrate color settings that were stored in the pcbnew config file
 
-    COLOR_SETTINGS* cs = Pgm().GetSettingsManager().GetMigratedColorSettings();
+    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+    COLOR_SETTINGS*   cs = mgr.GetMigratedColorSettings();
 
     auto migrateLegacyColor =
             [&] ( const std::string& aKey, int aLayerId )
@@ -964,18 +972,16 @@ bool PCBNEW_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
     migrateLegacyColor( "Color4DAuxItems",           LAYER_AUX_ITEMS );
     migrateLegacyColor( "Color4DGrid",               LAYER_GRID );
     migrateLegacyColor( "Color4DNonPlatedEx",        LAYER_NON_PLATEDHOLES );
-    migrateLegacyColor( "Color4DPadThruHoleEx",      LAYER_PADS_TH );
     migrateLegacyColor( "Color4DPCBBackground",      LAYER_PCB_BACKGROUND );
     migrateLegacyColor( "Color4DPCBCursor",          LAYER_CURSOR );
     migrateLegacyColor( "Color4DRatsEx",             LAYER_RATSNEST );
-    migrateLegacyColor( "Color4DTxtInvisEx",         LAYER_HIDDEN_TEXT );
     migrateLegacyColor( "Color4DViaBBlindEx",        LAYER_VIA_BBLIND );
     migrateLegacyColor( "Color4DViaMicroEx",         LAYER_VIA_MICROVIA );
     migrateLegacyColor( "Color4DViaThruEx",          LAYER_VIA_THROUGH );
     migrateLegacyColor( "Color4DWorksheet",          LAYER_DRAWINGSHEET );
     migrateLegacyColor( "Color4DGrid",               LAYER_PAGE_LIMITS );
 
-    Pgm().GetSettingsManager().SaveColorSettings( cs, "board" );
+    mgr.SaveColorSettings( cs, "board" );
 
     Set( "appearance.color_theme", cs->GetFilename() );
 
@@ -995,12 +1001,12 @@ bool PCBNEW_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
     }
 
     // Footprint editor settings were stored in pcbnew config file.  Migrate them here.
-    auto fpedit = Pgm().GetSettingsManager().GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>();
+    FOOTPRINT_EDITOR_SETTINGS* fpedit = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" );
     fpedit->MigrateFromLegacy( aCfg );
     fpedit->Load();
 
     // Same with 3D viewer
-    auto viewer3d = Pgm().GetSettingsManager().GetAppSettings<EDA_3D_VIEWER_SETTINGS>();
+    EDA_3D_VIEWER_SETTINGS* viewer3d = mgr.GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
     viewer3d->MigrateFromLegacy( aCfg );
     viewer3d->Load();
 
@@ -1013,7 +1019,7 @@ bool PCBNEW_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
 //{
 //    py::class_<PCBNEW_SETTINGS>( m, "settings" )
 //            .def_readwrite( "Use45DegreeGraphicSegments", &PCBNEW_SETTINGS::m_Use45DegreeGraphicSegments )
-//            .def_readwrite( "FlipLeftRight", &PCBNEW_SETTINGS::m_FlipLeftRight )
+//            .def_readwrite( "FlipLeftRight", &PCBNEW_SETTINGS::m_FlipDirection )
 //            .def_readwrite( "AddUnlockedPads", &PCBNEW_SETTINGS::m_AddUnlockedPads)
 //            .def_readwrite( "UsePolarCoords", &PCBNEW_SETTINGS::m_PolarCoords)
 //            .def_readwrite( "RotationAngle", &PCBNEW_SETTINGS::m_RotationAngle)

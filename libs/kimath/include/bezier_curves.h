@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2014-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -52,15 +52,32 @@ public:
      * Convert a Bezier curve to a polygon.
      *
      * @param aOutput will be used as an output vector storing polygon points.
-     * @param aMinSegLen is the min dist between 2 successive points.
-     * It can be used to reduce the number of points.
-     * (the last point is always generated)
-     * aMaxSegCount is the max number of segments created
+     * @param aMaxError maximum error in IU between the curve and the polygon.
      */
-    void GetPoly( std::vector<VECTOR2I>& aOutput, int aMinSegLen = 0, int aMaxSegCount = 32 );
-    void GetPoly( std::vector<VECTOR2D>& aOutput, double aMinSegLen = 0.0, int aMaxSegCount = 32 );
+    void GetPoly( std::vector<VECTOR2I>& aOutput, int aMaxError = 10 );
+    void GetPoly( std::vector<VECTOR2D>& aOutput, double aMaxError = 10.0 );
 
 private:
+
+    void getQuadPoly( std::vector<VECTOR2D>& aOutput, double aMaxError );
+    void getCubicPoly( std::vector<VECTOR2D>& aOutput, double aMaxError );
+
+    int findInflectionPoints( double& aT1, double& aT2 );
+    int numberOfInflectionPoints();
+
+    double thirdControlPointDeviation();
+
+    void subdivide( double aT, BEZIER_POLY& aLeft, BEZIER_POLY& aRight );
+    void recursiveSegmentation( std::vector<VECTOR2D>& aOutput, double aMaxError );
+
+    void cubicParabolicApprox( std::vector<VECTOR2D>& aOutput, double aMaxError );
+
+    bool isNaN() const;
+
+    bool isFlat( double aMaxError ) const;
+
+    VECTOR2D eval( double t );
+
     double m_minSegLen;
 
     ///< Control points
@@ -79,13 +96,32 @@ class BEZIER
 public:
     BEZIER() = default;
 
-    BEZIER( VECTOR2<NumericType> aStart, VECTOR2<NumericType> aC1, VECTOR2<NumericType> aC2,
-            VECTOR2<NumericType> aEnd ) :
-            Start( aStart ),
-            C1( aC1 ),
-            C2( aC2 ),
-            End( aEnd )
-    {}
+    constexpr BEZIER( const VECTOR2<NumericType>& aStart, const VECTOR2<NumericType>& aC1,
+                      const VECTOR2<NumericType>& aC2, const VECTOR2<NumericType>& aEnd ) :
+            Start( aStart ), C1( aC1 ), C2( aC2 ), End( aEnd )
+    {
+    }
+
+    /**
+     * Evaluate the Bezier curve at a given t value
+     *
+     * aT doesn't have to be in the range [0, 1], but if it's not, the
+     * point will not be on the curve.
+     *
+     * @param aT the t value to evaluate the curve at (0 = start, 1 = end)
+     * @return the point on the curve at t (0 <= t <= 1)
+     */
+    constexpr VECTOR2<NumericType> PointAt( double aT ) const
+    {
+        const double t2 = aT * aT;
+        const double t3 = t2 * aT;
+        const double t_m1 = 1.0 - aT;
+        const double t_m1_2 = t_m1 * t_m1;
+        const double t_m1_3 = t_m1_2 * t_m1;
+
+        return ( t_m1_3 * Start ) + ( 3.0 * aT * t_m1_2 * C1 ) + ( 3.0 * t2 * t_m1 * C2 )
+               + ( t3 * End );
+    }
 
     VECTOR2<NumericType> Start;
     VECTOR2<NumericType> C1;

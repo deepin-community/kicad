@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2017-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -63,7 +63,7 @@ public:
     static TOOL_ACTION polygonsDisplayOutlines;
     static TOOL_ACTION negativeObjectDisplay;
     static TOOL_ACTION dcodeDisplay;
-    static TOOL_ACTION toggleDiffMode;
+    static TOOL_ACTION toggleForceOpacityMode;
     static TOOL_ACTION toggleXORMode;
     static TOOL_ACTION flipGerberView;
 

@@ -1,0 +1,58 @@
+# Default for all jobs
+default:
+  image: docker:27
+  services:
+    - docker:dind
+  tags:
+    - gitlab-org-docker
+
+before_script:
+  - docker info
+  - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin "$CI_REGISTRY"
+
+stages:
+  - build
+  - deploy_container
+
+# Build the doc container
+# This job will always run on a branch or tag
+build_container:
+  stage: build
+  script:
+    - docker build -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
+    - container_id=$(docker run -d -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME" ls)
+    - mkdir -p artifacts
+    - docker cp $container_id:/archive .
+  only:
+    - branches
+    - tags
+  artifacts:
+    paths:
+    - archive/*
+    expire_in: never
+
+# Build the doc container as a test
+build_container_mr:
+  stage: build
+  script:
+    - docker build -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" .
+  only:
+    - merge_requests  # Execute on merge request
+
+# Deploy on the web the latest container
+# This will trigger the pipeline in the "kicad/services/kicad-doc-website"
+# This job will run only on the master branch of the main project(KiCad/KiCad Web Services/kicad-doc)
+deploy_doc_on the_www:
+  stage: deploy_container
+  trigger:
+    project: kicad/services/kicad-doc-website
+    branch: master
+  only:
+    - master@kicad/services/kicad-doc # Execute only on master commit in the main repo
+    - 7.0@kicad/services/kicad-doc
+    - 6.0@kicad/services/kicad-doc
+    - 5.1@kicad/services/kicad-doc # Execute only on master commit in the main repo
+    - 4.0@kicad/services/kicad-doc # Execute only on master commit in the main repo
+  except:
+    - merge_requests  # Do not execute on merge request

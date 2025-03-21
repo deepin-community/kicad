@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016-2023 CERN
- * Copyright (C) 2021-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
@@ -447,7 +447,6 @@ SIM_PLOT_TAB::SIM_PLOT_TAB( const wxString& aSimCommand, wxWindow* parent ) :
 
     m_plotWin->LimitView( true );
     m_plotWin->SetMargins( 30, 70, 45, 70 );
-
     UpdatePlotColors();
 
     updateAxes();
@@ -979,36 +978,34 @@ bool SIM_PLOT_TAB::DeleteTrace( const wxString& aVectorName, int aTraceType )
 }
 
 
-void SIM_PLOT_TAB::EnableCursor( const wxString& aVectorName, int aType, int aCursorId,
-                                 bool aEnable, const wxString& aSignalName )
+void SIM_PLOT_TAB::EnableCursor( TRACE* aTrace, int aCursorId, const wxString& aSignalName )
 {
-    TRACE* t = GetTrace( aVectorName, aType );
+    CURSOR*   cursor = new CURSOR( aTrace, this );
+    mpWindow* win = GetPlotWin();
+    int       width = win->GetXScreen() - win->GetMarginLeft() - win->GetMarginRight();
+    int       center = win->GetMarginLeft() + KiROUND( width * ( aCursorId == 1 ? 0.4 : 0.6 ) );
 
-    if( t == nullptr || t->HasCursor( aCursorId ) == aEnable )
-        return;
+    cursor->SetName( aSignalName );
+    cursor->SetX( center );
 
-    if( aEnable )
-    {
-        CURSOR*   cursor = new CURSOR( t, this );
-        mpWindow* win = GetPlotWin();
-        int       width = win->GetXScreen() - win->GetMarginLeft() - win->GetMarginRight();
-        int       center = win->GetMarginLeft() + KiROUND( width * ( aCursorId == 1 ? 0.4 : 0.6 ) );
-
-        cursor->SetName( aSignalName );
-        cursor->SetX( center );
-
-        t->SetCursor( aCursorId, cursor );
-        m_plotWin->AddLayer( cursor );
-    }
-    else
-    {
-        CURSOR* cursor = t->GetCursor( aCursorId );
-        t->SetCursor( aCursorId, nullptr );
-        m_plotWin->DelLayer( cursor, true );
-    }
+    aTrace->SetCursor( aCursorId, cursor );
+    m_plotWin->AddLayer( cursor );
 
     // Notify the parent window about the changes
-    wxQueueEvent( GetParent(), new wxCommandEvent( EVT_SIM_CURSOR_UPDATE ) );
+    wxQueueEvent( this, new wxCommandEvent( EVT_SIM_CURSOR_UPDATE ) );
+}
+
+
+void SIM_PLOT_TAB::DisableCursor( TRACE* aTrace, int aCursorId )
+{
+    if( CURSOR* cursor = aTrace->GetCursor( aCursorId ) )
+    {
+        aTrace->SetCursor( aCursorId, nullptr );
+        GetPlotWin()->DelLayer( cursor, true );
+
+        // Notify the parent window about the changes
+        wxQueueEvent( this, new wxCommandEvent( EVT_SIM_CURSOR_UPDATE ) );
+    }
 }
 
 

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,9 +28,10 @@
 #include <ee_grid_helper.h>
 #include <eda_item.h>
 #include <gal/graphics_abstraction_layer.h>
-#include <lib_shape.h>
+#include <sch_shape.h>
 #include <sch_commit.h>
-#include <wx/log.h>
+#include <wx/debug.h>
+#include <view/view_controls.h>
 #include "symbol_editor_move_tool.h"
 #include "symbol_editor_pin_tool.h"
 
@@ -64,7 +65,7 @@ bool SYMBOL_EDITOR_MOVE_TOOL::Init()
                 {
                     for( EDA_ITEM* item : sel )
                     {
-                        if( item->Type() != LIB_FIELD_T )
+                        if( item->Type() != SCH_FIELD_T )
                             return false;
                     }
                 }
@@ -124,7 +125,7 @@ bool SYMBOL_EDITOR_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COM
     // Be sure that there is at least one item that we can move. If there's no selection try
     // looking for the stuff under mouse cursor (i.e. Kicad old-style hover selection).
     EE_SELECTION& selection = m_frame->IsSymbolAlias()
-                                            ? m_selectionTool->RequestSelection( { LIB_FIELD_T } )
+                                            ? m_selectionTool->RequestSelection( { SCH_FIELD_T } )
                                             : m_selectionTool->RequestSelection();
     bool          unselect = selection.IsHover();
 
@@ -168,34 +169,33 @@ bool SYMBOL_EDITOR_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COM
                 || evt->IsDrag( BUT_LEFT )
                 || evt->IsAction( &ACTIONS::refreshPreview ) )
         {
+            GRID_HELPER_GRIDS snapLayer = grid.GetSelectionGrid( selection );
+
             if( !m_moveInProgress )    // Prepare to start moving/dragging
             {
-                LIB_ITEM* lib_item = static_cast<LIB_ITEM*>( selection.Front() );
+                SCH_ITEM* lib_item = static_cast<SCH_ITEM*>( selection.Front() );
 
                 // Pick up any synchronized pins
                 //
                 // Careful when pasting.  The pasted pin will be at the same location as it
                 // was copied from, leading us to believe it's a synchronized pin.  It's not.
-                if( m_frame->SynchronizePins()
-                        && ( lib_item->GetEditFlags() & IS_PASTED ) == 0 )
+                if( m_frame->SynchronizePins() && !( lib_item->GetEditFlags() & IS_PASTED ) )
                 {
-                    std::set<LIB_PIN*> sync_pins;
+                    std::set<SCH_PIN*> sync_pins;
 
                     for( EDA_ITEM* sel_item : selection )
                     {
-                        lib_item = static_cast<LIB_ITEM*>( sel_item );
+                        lib_item = static_cast<SCH_ITEM*>( sel_item );
 
-                        if(  lib_item->Type() == LIB_PIN_T )
+                        if(  lib_item->Type() == SCH_PIN_T )
                         {
-                            LIB_PIN* cur_pin = static_cast<LIB_PIN*>( lib_item );
-                            LIB_SYMBOL* symbol = m_frame->GetCurSymbol();
+                            SCH_PIN*          cur_pin = static_cast<SCH_PIN*>( lib_item );
+                            LIB_SYMBOL*       symbol = m_frame->GetCurSymbol();
                             std::vector<bool> got_unit( symbol->GetUnitCount() + 1 );
 
                             got_unit[cur_pin->GetUnit()] = true;
 
-                            std::vector<LIB_PIN*> pins = symbol->GetAllLibPins();
-
-                            for( LIB_PIN* pin : pins )
+                            for( SCH_PIN* pin : symbol->GetPins() )
                             {
                                 if( !got_unit[pin->GetUnit()]
                                         && pin->GetPosition() == cur_pin->GetPosition()
@@ -211,7 +211,7 @@ bool SYMBOL_EDITOR_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COM
                         }
                     }
 
-                    for( LIB_PIN* pin : sync_pins )
+                    for( SCH_PIN* pin : sync_pins )
                         m_selectionTool->AddItemToSel( pin, true /*quiet mode*/ );
                 }
 
@@ -227,7 +227,7 @@ bool SYMBOL_EDITOR_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COM
                 if( lib_item->IsNew() )
                 {
                     m_anchorPos = selection.GetReferencePoint();
-                    VECTOR2I delta = m_cursor - mapCoords( m_anchorPos );
+                    VECTOR2I delta = m_cursor - m_anchorPos;
 
                     // Drag items to the current cursor position
                     for( EDA_ITEM* item : selection )
@@ -240,11 +240,10 @@ bool SYMBOL_EDITOR_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COM
                 }
                 else if( m_frame->GetMoveWarpsCursor() )
                 {
-                    VECTOR2I itemPos = selection.GetTopLeftItem()->GetPosition();
-                    m_anchorPos = VECTOR2I( itemPos.x, -itemPos.y );
-
-                    getViewControls()->WarpMouseCursor( m_anchorPos, true, true );
-                    m_cursor = m_anchorPos;
+                    // User wants to warp the mouse
+                    m_cursor = grid.BestDragOrigin( m_cursor, snapLayer, selection );
+                    selection.SetReferencePoint( m_cursor );
+                    m_anchorPos = m_cursor;
                 }
                 else
                 {
@@ -262,8 +261,8 @@ bool SYMBOL_EDITOR_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COM
             //------------------------------------------------------------------------
             // Follow the mouse
             //
-            m_cursor = grid.BestSnapAnchor( controls->GetCursorPosition( false ),
-                                            grid.GetSelectionGrid( selection ), selection );
+            m_cursor = grid.BestSnapAnchor( controls->GetCursorPosition( false ), snapLayer,
+                                            selection );
             VECTOR2I delta( m_cursor - prevPos );
             m_anchorPos = m_cursor;
 
@@ -313,7 +312,7 @@ bool SYMBOL_EDITOR_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COM
         //
         else if( evt->IsClick( BUT_RIGHT ) )
         {
-            m_menu.ShowContextMenu( m_selectionTool->GetSelection() );
+            m_menu->ShowContextMenu( m_selectionTool->GetSelection() );
         }
         //------------------------------------------------------------------------
         // Handle drop
@@ -322,13 +321,13 @@ bool SYMBOL_EDITOR_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COM
                 || evt->IsClick( BUT_LEFT )
                 || evt->IsDblClick( BUT_LEFT ) )
         {
-            if( selection.GetSize() == 1 && selection.Front()->Type() == LIB_PIN_T )
+            if( selection.GetSize() == 1 && selection.Front()->Type() == SCH_PIN_T )
             {
                 SYMBOL_EDITOR_PIN_TOOL* pinTool = m_toolMgr->GetTool<SYMBOL_EDITOR_PIN_TOOL>();
 
                 try
                 {
-                    LIB_PIN* curr_pin = (LIB_PIN*) selection.Front();
+                    SCH_PIN* curr_pin = static_cast<SCH_PIN*>( selection.Front() );
 
                     if( pinTool->PlacePin( curr_pin ) )
                     {
@@ -345,7 +344,8 @@ bool SYMBOL_EDITOR_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COM
                 catch( const boost::bad_pointer& e )
                 {
                     restore_state = true;
-                    wxLogError( "Boost pointer exception occurred: \"%s\"", e.what() );
+                    wxFAIL_MSG( wxString::Format( wxT( "Boost pointer exception occurred: %s" ),
+                                                  e.what() ) );
                 }
             }
 
@@ -387,131 +387,50 @@ int SYMBOL_EDITOR_MOVE_TOOL::AlignElements( const TOOL_EVENT& aEvent )
             [&]( EDA_ITEM* item, const VECTOR2I& delta )
             {
                 commit.Modify( item, m_frame->GetScreen() );
-                static_cast<LIB_ITEM*>( item )->Offset( delta );
+                static_cast<SCH_ITEM*>( item )->Move( delta );
                 updateItem( item, true );
             };
 
     for( EDA_ITEM* item : selection )
     {
-        if( LIB_SHAPE* shape = dynamic_cast<LIB_SHAPE*>( item ) )
+        VECTOR2I newPos = grid.AlignGrid( item->GetPosition(), grid.GetItemGrid( item ) );
+        VECTOR2I delta = newPos - item->GetPosition();
+
+        if( delta != VECTOR2I( 0, 0 ) )
+            doMoveItem( item, delta );
+
+        if( SCH_PIN* pin = dynamic_cast<SCH_PIN*>( item ) )
         {
-            VECTOR2I newStart = grid.AlignGrid( shape->GetStart(), grid.GetItemGrid( shape ) );
-            VECTOR2I newEnd = grid.AlignGrid( shape->GetEnd(), grid.GetItemGrid( shape ) );
+            int length = pin->GetLength();
+            int pinGrid;
 
-            switch( shape->GetShape() )
+            if( pin->GetOrientation() == PIN_ORIENTATION::PIN_LEFT
+                    || pin->GetOrientation() == PIN_ORIENTATION::PIN_RIGHT )
             {
-            case SHAPE_T::SEGMENT:
-            case SHAPE_T::RECTANGLE:
-            case SHAPE_T::CIRCLE:
-            case SHAPE_T::ARC:
-                if( newStart == newEnd ||
-                    shape->GetShape() == SHAPE_T::CIRCLE || shape->GetShape() == SHAPE_T::ARC )
-                {
-                    // For arc and circle, never modify the shape. just snap its position
-                    // For others, don't collapse shape; just snap its position
-                    if( newStart != shape->GetStart() )
-                        doMoveItem( shape, newStart - shape->GetStart() );
-                }
-                else if( newStart != shape->GetStart() || newEnd != shape->GetEnd() )
-                {
-                    // Snap both ends
-                    commit.Modify( shape, m_frame->GetScreen() );
-
-                    shape->SetStart( newStart );
-                    shape->SetEnd( newEnd );
-
-                    updateItem( item, true );
-                }
-
-                break;
-
-                break;
-
-            case SHAPE_T::POLY:
-                if( shape->GetPointCount() > 0 )
-                {
-                    std::vector<VECTOR2I> newPts;
-
-                    for( const VECTOR2I& pt : shape->GetPolyShape().Outline( 0 ).CPoints() )
-                        newPts.push_back( grid.AlignGrid( pt, grid.GetItemGrid( shape ) ) );
-
-                    bool collapsed = false;
-
-                    for( int ii = 0; ii < (int) newPts.size() - 1; ++ii )
-                    {
-                        if( newPts[ii] == newPts[ii + 1] )
-                            collapsed = true;
-                    }
-
-                    if( collapsed )
-                    {
-                        // Don't collapse shape; just snap its position
-                        if( newStart != shape->GetStart() )
-                            doMoveItem( shape, newStart - shape->GetStart() );
-                    }
-                    else
-                    {
-                        commit.Modify( shape, m_frame->GetScreen() );
-
-                        for( int ii = 0; ii < (int) newPts.size(); ++ii )
-                            shape->GetPolyShape().Outline( 0 ).SetPoint( ii, newPts[ii] );
-
-                        updateItem( item, true );
-                    }
-                }
-
-                break;
-
-            case SHAPE_T::BEZIER:
-                // Snapping bezier control points is unlikely to be useful.  Just snap its
-                // position.
-                if( newStart != shape->GetStart() )
-                    doMoveItem( shape, newStart - shape->GetStart() );
-
-                break;
+                pinGrid = KiROUND( grid.GetGridSize( grid.GetItemGrid( item ) ).x );
             }
-        }
-        else
-        {
-            VECTOR2I newPos = grid.AlignGrid( item->GetPosition(), grid.GetItemGrid( item ) );
-            VECTOR2I delta = newPos - item->GetPosition();
-
-            if( delta != VECTOR2I( 0, 0 ) )
-                doMoveItem( item, delta );
-
-            if( LIB_PIN* pin = dynamic_cast<LIB_PIN*>( item ) )
+            else
             {
-                int length = pin->GetLength();
-                int pinGrid;
-
-                if( pin->GetOrientation() == PIN_ORIENTATION::PIN_LEFT
-                        || pin->GetOrientation() == PIN_ORIENTATION::PIN_RIGHT )
-                {
-                    pinGrid = KiROUND( grid.GetGridSize( grid.GetItemGrid( item ) ).x );
-                }
-                else
-                {
-                    pinGrid = KiROUND( grid.GetGridSize( grid.GetItemGrid( item ) ).y );
-                }
-
-                int newLength = KiROUND( (double) length / pinGrid ) * pinGrid;
-
-                if( newLength > 0 )
-                    pin->SetLength( newLength );
+                pinGrid = KiROUND( grid.GetGridSize( grid.GetItemGrid( item ) ).y );
             }
+
+            int newLength = KiROUND( (double) length / pinGrid ) * pinGrid;
+
+            if( newLength > 0 )
+                pin->SetLength( newLength );
         }
     }
 
     m_toolMgr->PostEvent( EVENTS::SelectedItemsMoved );
 
-    commit.Push( _( "Align" ) );
+    commit.Push( _( "Align Items to Grid" ) );
     return 0;
 }
 
 
 void SYMBOL_EDITOR_MOVE_TOOL::moveItem( EDA_ITEM* aItem, const VECTOR2I& aDelta )
 {
-    static_cast<LIB_ITEM*>( aItem )->Offset( mapCoords( aDelta ) );
+    static_cast<SCH_ITEM*>( aItem )->Move( aDelta );
     aItem->SetFlags( IS_MOVING );
 }
 

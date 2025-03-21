@@ -3,7 +3,7 @@
 #
 # Copyright (C) 2017 CERN
 # @author Alejandro García Montoro <alejandro.garciamontoro@gmail.com>
-# Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+# Copyright (C) 2022-2023, 2024 KiCad Developers, see AUTHORS.txt for contributors.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -51,14 +51,21 @@ set( QA_EESCHEMA_SRCS
 
     sch_io/altium/test_altium_parser_sch.cpp
 
+    erc/test_erc_four_way.cpp
 	erc/test_erc_label_not_connected.cpp
+	erc/test_erc_multiple_pin_to_pin.cpp
 	erc/test_erc_stacking_pins.cpp
+    erc/test_erc_label_names.cpp
 	erc/test_erc_global_labels.cpp
 	erc/test_erc_no_connect.cpp
     erc/test_erc_hierarchical_schematics.cpp
+    erc/test_erc_label_multiple_wires.cpp
+    erc/test_erc_unconnected_wire_endpoints.cpp
+    erc/test_erc_wire_bus_entry.cpp
 
     test_connectivity_algo.cpp
     test_eagle_plugin.cpp
+    test_junction_helpers.cpp
     test_lib_part.cpp
     test_netlist_exporter_kicad.cpp
     test_ee_item.cpp
@@ -73,6 +80,7 @@ set( QA_EESCHEMA_SRCS
     test_sch_sheet_path.cpp
     test_sch_sheet_list.cpp
     test_sch_symbol.cpp
+    test_schematic.cpp
     test_symbol_library_manager.cpp
 )
 
@@ -97,6 +105,7 @@ target_link_libraries( qa_eeschema
 PRIVATE
     eeschema_kiface_objects
     common
+    kicommon
     pcbcommon
     3d-viewer
     scripting
@@ -116,3 +125,4 @@ target_compile_definitions( qa_eeschema
 
 kicad_add_boost_test( qa_eeschema qa_eeschema )
 
+setup_qa_env( qa_eeschema )

@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2018 jean-pierre.charras
- * Copyright (C) 2011-2024 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,28 +23,33 @@
  */
 
 #include <wx/dcclient.h>
-#include <confirm.h>
+#include <wx/msgdlg.h>
 #include <bitmap_base.h>
 #include <pcb_base_edit_frame.h>
 #include <tool/tool_manager.h>
 #include <tool/actions.h>
+#include <confirm.h>
 
 #include <dialogs/panel_image_editor.h>
 
 #include <algorithm>
 
 
-PANEL_IMAGE_EDITOR::PANEL_IMAGE_EDITOR( wxWindow* aParent, BITMAP_BASE* aItem ) :
-        PANEL_IMAGE_EDITOR_BASE( aParent )
+PANEL_IMAGE_EDITOR::PANEL_IMAGE_EDITOR( wxWindow* aParent, const BITMAP_BASE& aItem ) :
+        PANEL_IMAGE_EDITOR_BASE( aParent ),
+        m_workingImage( std::make_unique<BITMAP_BASE>( aItem ) )
 {
-    m_workingImage = new BITMAP_BASE( *aItem );
-
     wxString msg;
     msg.Printf( wxT( "%f" ), m_workingImage->GetScale() );
     m_textCtrlScale->SetValue( msg );
 
     msg.Printf( wxT( "%d" ), m_workingImage->GetPPI() );
     m_stPPI_Value->SetLabel( msg );
+}
+
+
+PANEL_IMAGE_EDITOR::~PANEL_IMAGE_EDITOR()
+{
 }
 
 
@@ -131,11 +136,11 @@ void PANEL_IMAGE_EDITOR::OnRedrawPanel( wxPaintEvent& event )
 }
 
 
-void PANEL_IMAGE_EDITOR::TransferToImage( BITMAP_BASE* aItem )
+void PANEL_IMAGE_EDITOR::TransferToImage( BITMAP_BASE& aItem )
 {
     wxString msg = m_textCtrlScale->GetValue();
     double   scale = 1.0;
     msg.ToDouble( &scale );
     m_workingImage->SetScale( scale );
-    aItem->ImportData( m_workingImage );
+    aItem.ImportData( *m_workingImage );
 }

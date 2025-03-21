@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mike Williams <mike@mikebwilliams.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -61,7 +61,7 @@ VECTOR2D GRID::ToDouble( EDA_IU_SCALE aScale ) const
 
 bool GRID::operator==( const GRID& aOther ) const
 {
-    return x == aOther.x && y == aOther.y;
+    return x == aOther.x && y == aOther.y && name == aOther.name;
 }
 
 

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1992-2013 jp.charras at wanadoo.fr
  * Copyright (C) 2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -130,7 +130,16 @@ protected:
      */
     XNODE* makeLibraries();
 
-    void addSymbolFields( XNODE* aNode, SCH_SYMBOL* aSymbol, SCH_SHEET_PATH* aSheet );
+    void addSymbolFields( XNODE* aNode, SCH_SYMBOL* aSymbol, const SCH_SHEET_PATH& aSheet,
+                          const SCH_SHEET_LIST& aSheetList);
+
+    /**
+     * Finds all component class names attached to any sub-unit of a given symbol
+     */
+    std::vector<wxString>
+    getComponentClassNamesForAllSymbolUnits( SCH_SYMBOL*           aSymbol,
+                                             const SCH_SHEET_PATH& aSymbolSheet,
+                                             const SCH_SHEET_LIST& aSheetList );
 
     bool                m_resolveTextVars;   // Export textVar references resolved
 

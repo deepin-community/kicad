@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2010 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2010-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,6 +31,7 @@
 
 class SCH_EDIT_FRAME;
 class SCH_FIND_REPLACE_TOOL;
+struct SCH_SEARCH_DATA;
 
 
 class DIALOG_SCH_FIND : public DIALOG_SCH_FIND_BASE

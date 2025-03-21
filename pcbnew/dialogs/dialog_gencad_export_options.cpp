@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 CERN
- * Copyright (C) 2018-2019 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -27,13 +27,11 @@
 #include "dialog_gencad_export_options.h"
 
 #include <pcb_edit_frame.h>
-#include <board.h>
-#include <project.h>
-#include <confirm.h>
+#include <kidialog.h>
 #include <wildcards_and_files_ext.h>
 #include <wx/checkbox.h>
 #include <wx/filepicker.h>
-#include <wx/statline.h>
+#include <wx/sizer.h>
 
 
 DIALOG_GENCAD_EXPORT_OPTIONS::DIALOG_GENCAD_EXPORT_OPTIONS( PCB_EDIT_FRAME* aParent,

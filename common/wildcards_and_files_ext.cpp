@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -142,10 +142,14 @@ const std::string FILEEXT::CadstarSchematicFileExtension( "csa" );
 const std::string FILEEXT::CadstarPartsLibraryFileExtension( "lib" );
 const std::string FILEEXT::KiCadSchematicFileExtension( "kicad_sch" );
 const std::string FILEEXT::SpiceFileExtension( "cir" );
+const std::string FILEEXT::SpiceModelFileExtension( "model" );
+const std::string FILEEXT::SpiceSubcircuitFileExtension( "sub" );
+const std::string FILEEXT::IbisFileExtension( "ibs" );
 const std::string FILEEXT::CadstarNetlistFileExtension( "frp" );
 const std::string FILEEXT::OrCadPcb2NetlistFileExtension( "net" );
 const std::string FILEEXT::NetlistFileExtension( "net" );
 const std::string FILEEXT::AllegroNetlistFileExtension( "txt" );
+const std::string FILEEXT::PADSNetlistFileExtension( "asc" );
 const std::string FILEEXT::FootprintAssignmentFileExtension( "cmp" );
 const std::string FILEEXT::GerberFileExtension( "gbr" );
 const std::string FILEEXT::GerberJobFileExtension( "gbrjob" );
@@ -154,6 +158,7 @@ const std::string FILEEXT::EquFileExtension( "equ" );
 const std::string FILEEXT::HotkeyFileExtension( "hotkeys" );
 const std::string FILEEXT::DatabaseLibraryFileExtension( "kicad_dbl" );
 const std::string FILEEXT::HTTPLibraryFileExtension( "kicad_httplib" );
+const std::string FILEEXT::KiCadJobSetFileExtension( "kicad_jobset" );
 
 const std::string FILEEXT::ArchiveFileExtension( "zip" );
 
@@ -185,6 +190,9 @@ const std::string FILEEXT::IpcD356FileExtension( "d356" );
 const std::string FILEEXT::Ipc2581FileExtension( "xml" );
 const std::string FILEEXT::WorkbookFileExtension( "wbk" );
 
+const std::string FILEEXT::KiCadDesignBlockLibPathExtension( "kicad_blocks" ); // this is a directory
+const std::string FILEEXT::KiCadDesignBlockPathExtension( "kicad_block" );     // this is a directory
+
 const std::string FILEEXT::PngFileExtension( "png" );
 const std::string FILEEXT::JpegFileExtension( "jpg" );
 const std::string FILEEXT::TextFileExtension( "txt" );
@@ -192,12 +200,26 @@ const std::string FILEEXT::MarkdownFileExtension( "md" );
 const std::string FILEEXT::CsvFileExtension( "csv" );
 const std::string FILEEXT::XmlFileExtension( "xml" );
 const std::string FILEEXT::JsonFileExtension( "json" );
+const std::string FILEEXT::PythonFileExtension( "py" );
 
 const std::string FILEEXT::StepFileExtension( "step" );
 const std::string FILEEXT::StepFileAbrvExtension( "stp" );
 const std::string FILEEXT::GltfBinaryFileExtension( "glb" );
+const std::string FILEEXT::BrepFileExtension( "brep" );
+const std::string FILEEXT::XaoFileExtension( "xao" );
+const std::string FILEEXT::PlyFileExtension( "ply" );
+const std::string FILEEXT::StlFileExtension( "stl" );
 
-const wxString FILEEXT::GerberFileExtensionsRegex( "(gbr|gko|pho|(g[tb][alops])|(gm?\\d\\d*)|(gp[tb]))" );
+const std::string FILEEXT::GencadFileExtension( "cad" );
+
+const wxString
+        FILEEXT::GerberFileExtensionsRegex( "(gbr|gko|pho|(g[tb][alops])|(gm?\\d\\d*)|(gp[tb]))" );
+
+const std::string FILEEXT::FootprintLibraryTableFileName( "fp-lib-table" );
+const std::string FILEEXT::SymbolLibraryTableFileName( "sym-lib-table" );
+const std::string FILEEXT::DesignBlockLibraryTableFileName( "design-block-lib-table" );
+
+const std::string FILEEXT::KiCadUriPrefix( "kicad-embed" );
 
 
 bool FILEEXT::IsGerberFileExtension( const wxString& ext )
@@ -294,6 +316,12 @@ wxString FILEEXT::AllegroNetlistFileWildcard()
 }
 
 
+wxString FILEEXT::PADSNetlistFileWildcard()
+{
+    return _( "PADS netlist files" ) + AddFileExtListToFilter( { PADSNetlistFileExtension } );
+}
+
+
 wxString FILEEXT::EasyEdaArchiveWildcard()
 {
     return _( "EasyEDA (JLCEDA) Std backup archive" ) + AddFileExtListToFilter( { "zip" } );
@@ -323,6 +351,20 @@ wxString FILEEXT::KiCadFootprintLibPathWildcard()
 {
     return _( "KiCad footprint library paths" )
             + AddFileExtListToFilter( { KiCadFootprintLibPathExtension } );
+}
+
+
+wxString FILEEXT::KiCadDesignBlockPathWildcard()
+{
+    return _( "KiCad design block path" )
+           + AddFileExtListToFilter( { KiCadDesignBlockPathExtension } );
+}
+
+
+wxString FILEEXT::KiCadDesignBlockLibPathWildcard()
+{
+    return _( "KiCad design block library paths" )
+           + AddFileExtListToFilter( { KiCadDesignBlockLibPathExtension } );
 }
 
 
@@ -429,7 +471,7 @@ wxString FILEEXT::ErcFileWildcard()
 
 wxString FILEEXT::SpiceLibraryFileWildcard()
 {
-    return _( "Spice library file" ) + AddFileExtListToFilter( { "lib", "mod" } );
+    return _( "SPICE library file" ) + AddFileExtListToFilter( { "lib", "mod" } );
 }
 
 
@@ -459,7 +501,7 @@ wxString FILEEXT::ZipFileWildcard()
 
 wxString FILEEXT::GencadFileWildcard()
 {
-    return _( "GenCAD 1.4 board files" ) + AddFileExtListToFilter( { "cad" } );
+    return _( "GenCAD 1.4 board files" ) + AddFileExtListToFilter( { GencadFileExtension } );
 }
 
 
@@ -518,4 +560,10 @@ wxString FILEEXT::JpegFileWildcard()
 wxString FILEEXT::HotkeyFileWildcard()
 {
     return _( "Hotkey file" ) + AddFileExtListToFilter( { HotkeyFileExtension } );
+}
+
+
+wxString FILEEXT::JobsetFileWildcard()
+{
+    return _( "KiCad jobset files" ) + AddFileExtListToFilter( { KiCadJobSetFileExtension } );
 }

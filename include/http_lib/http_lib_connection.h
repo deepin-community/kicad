@@ -2,6 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Andre F. K. Iwers <iwers11@gmail.com>
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -41,15 +42,17 @@ public:
     bool IsValidEndpoint() const;
 
     /**
-     * Retrieves a single part with full details from the HTTP library.
+     * Retrieve a single part with full details from the HTTP library.
+     *
      * @param aPk is the primary key of the part
-     * @param aResult will conatain the part if one was found
+     * @param aResult will contain the part if one was found
      * @return true if aResult was filled; false otherwise
      */
     bool SelectOne( const std::string& aPartID, HTTP_LIB_PART& aFetchedPart );
 
     /**
-     * Retrieves all parts from a specific category from the HTTP library.
+     * Retrieve all parts from a specific category from the HTTP library.
+     *
      * @param aPk is the primary key of the category
      * @param aResults will be filled with all parts in that category
      * @return true if the query succeeded and at least one part was found, false otherwise
@@ -60,20 +63,28 @@ public:
 
     std::vector<HTTP_LIB_CATEGORY> getCategories() const { return m_categories; }
 
-    auto getCachedParts() { return m_cache; }
+    std::string getCategoryDescription( const std::string& aCategoryName ) const
+    {
+        if( m_categoryDescriptions.contains( aCategoryName ) )
+           return m_categoryDescriptions.at( aCategoryName );
+        else
+           return "";
+    }
+
+    auto& getCachedParts() { return m_cache; }
 
 private:
-
-    // This is clunky but at the moment the only way to free the pointer after use without KiCad crashing.
-    // at this point we can't use smart pointers as there is a problem with the order of how things are deleted/freed
+    // This is clunky but at the moment the only way to free the pointer after use without
+    // KiCad crashing.  At this point we can't use smart pointers as there is a problem with
+    // the order of how things are deleted/freed
     std::unique_ptr<KICAD_CURL_EASY> createCurlEasyObject()
     {
-
         std::unique_ptr<KICAD_CURL_EASY> aCurl( new KICAD_CURL_EASY() );
 
         // prepare curl
         aCurl->SetHeader( "Accept", "application/json" );
         aCurl->SetHeader( "Authorization", "Token " + m_source.token );
+        aCurl->SetFollowRedirects( true );
 
         return aCurl;
     }
@@ -86,9 +97,22 @@ private:
 
     bool boolFromString( const std::any& aVal, bool aDefaultValue = false );
 
+    /**
+     * HTTP response status codes indicate whether a specific HTTP request has been
+     * successfully completed.
+     *
+     * Responses are grouped in five classes:
+     *  -  Informational responses (100 ? 199)
+     *  -  Successful responses (200 ? 299)
+     *  -  Redirection messages (300 ? 399)
+     *  -  Client error responses (400 ? 499)
+     *  -  Server error responses (500 ? 599)
+     *
+     *    see: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+     */
     wxString httpErrorCodeDescription( uint16_t aHttpCode );
 
-    HTTP_LIB_SOURCE      m_source;
+    HTTP_LIB_SOURCE m_source;
 
     //          part.id     part
     std::map<std::string, HTTP_LIB_PART> m_cachedParts;
@@ -100,7 +124,8 @@ private:
 
     std::string m_lastError;
 
-    std::vector<HTTP_LIB_CATEGORY> m_categories;
+    std::vector<HTTP_LIB_CATEGORY>     m_categories;
+    std::map<std::string, std::string> m_categoryDescriptions;
 
     std::map<std::string, std::string> m_parts;
 
@@ -108,7 +133,6 @@ private:
     const std::string http_endpoint_parts = "parts";
     const std::string http_endpoint_settings = "settings";
     const std::string http_endpoint_auth = "authentication";
-
 };
 
 #endif //KICAD_HTTP_LIB_CONNECTION_H

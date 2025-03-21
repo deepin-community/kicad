@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009-2014 Jerry Jacobs
- * Copyright (C) 1992-2020 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,19 +31,21 @@
 #ifndef __INCLUDE__EDA_DOC_H__
 #define __INCLUDE__EDA_DOC_H__ 1
 
+class EMBEDDED_FILES;
+
 /**
  * Open a document (file) with the suitable browser.
  *
  * Environmental variables are substituted before the document name is resolved for
- * either browser or file.  If \a aDocName begins with http: or ftp: or www. the
- * default internet browser is launched.
+ * either browser or file.  If \a aDocName has an associated URI handler on the system,
+ * the default handler will be launched.
  *
  * @param aParent main frame.
  * @param aDocName filename of file to open (Full filename or short filename).
  * @param aPaths Additional paths to search for local disk datasheet files
 */
 bool GetAssociatedDocument( wxWindow* aParent, const wxString& aDocName, PROJECT* aProject,
-                            SEARCH_STACK* aPaths = nullptr );
+                            SEARCH_STACK* aPaths = nullptr, EMBEDDED_FILES* aFiles = nullptr );
 
 
 #endif /* __INCLUDE__EDA_DOC_H__ */

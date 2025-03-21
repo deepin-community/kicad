@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -211,6 +211,12 @@ bool DIALOG_DIMENSION_PROPERTIES::TransferDataToWindow()
         case DIM_UNITS_MODE::AUTOMATIC:     m_cbUnits->SetSelection( 3 ); break;
     }
 
+    switch ( m_dimension->GetArrowDirection() )
+    {
+        case DIM_ARROW_DIRECTION::INWARD:       m_cbArrowDirection->SetSelection( 0 ); break;
+        case DIM_ARROW_DIRECTION::OUTWARD:      m_cbArrowDirection->SetSelection( 1 ); break;
+    }
+
     m_cbUnitsFormat->SetSelection( static_cast<int>( m_dimension->GetUnitsFormat() ) );
     m_cbPrecision->SetSelection( static_cast<int>( m_dimension->GetPrecision() ) );
 
@@ -252,9 +258,10 @@ bool DIALOG_DIMENSION_PROPERTIES::TransferDataToWindow()
 
     switch ( m_dimension->GetHorizJustify() )
     {
-    case GR_TEXT_H_ALIGN_LEFT:   m_alignLeft->Check( true );   break;
-    case GR_TEXT_H_ALIGN_CENTER: m_alignCenter->Check( true ); break;
-    case GR_TEXT_H_ALIGN_RIGHT:  m_alignRight->Check( true );  break;
+    case GR_TEXT_H_ALIGN_LEFT:          m_alignLeft->Check( true );   break;
+    case GR_TEXT_H_ALIGN_CENTER:        m_alignCenter->Check( true ); break;
+    case GR_TEXT_H_ALIGN_RIGHT:         m_alignRight->Check( true );  break;
+    case GR_TEXT_H_ALIGN_INDETERMINATE:                               break;
     }
 
     m_mirrored->Check( m_dimension->IsMirrored() );
@@ -308,7 +315,7 @@ bool DIALOG_DIMENSION_PROPERTIES::TransferDataFromWindow()
     updateDimensionFromDialog( m_dimension );
 
     if( pushCommit )
-        commit.Push( _( "Change dimension properties" ) );
+        commit.Push( _( "Edit Dimension Properties" ) );
 
     return true;
 }
@@ -381,6 +388,11 @@ void DIALOG_DIMENSION_PROPERTIES::updateDimensionFromDialog( PCB_DIMENSION_BASE*
     aTarget->SetPrefix( board->ConvertCrossReferencesToKIIDs( m_txtPrefix->GetValue() ) );
     aTarget->SetSuffix( board->ConvertCrossReferencesToKIIDs( m_txtSuffix->GetValue() ) );
     aTarget->SetLayer( static_cast<PCB_LAYER_ID>( m_cbLayerActual->GetLayerSelection() ) );
+
+    switch ( m_cbArrowDirection->GetSelection() ) {
+        case 0: aTarget->SetArrowDirection( DIM_ARROW_DIRECTION::INWARD );     break;
+        case 1: aTarget->SetArrowDirection( DIM_ARROW_DIRECTION::OUTWARD );    break;
+    }
 
     switch( m_cbUnits->GetSelection() )
     {

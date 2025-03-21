@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 Chris Pavlina <pavlina.chris@gmail.com>
- * Copyright (C) 2015-2023 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,6 +39,7 @@
 #include <symbol_lib_table.h>
 #include <wildcards_and_files_ext.h>
 #include <project_sch.h>
+#include <wx/msgdlg.h>
 
 #include <cctype>
 #include <map>
@@ -270,7 +271,8 @@ void RESCUE_CACHE_CANDIDATE::FindRescues( RESCUER& aRescuer,
             // A new symbol name is found (a new group starts here).
             // Search the symbol names candidates only once for this group:
             old_symbol_name = symbol_name;
-            cache_match = findSymbol( symbol_name, PROJECT_SCH::SchLibs( aRescuer.GetPrj() ), true );
+            cache_match = findSymbol( symbol_name, PROJECT_SCH::SchLibs( aRescuer.GetPrj() ),
+                                      true );
             lib_match = findSymbol( symbol_name, PROJECT_SCH::SchLibs( aRescuer.GetPrj() ), false );
 
             // At some point during V5 development, the LIB_ID delimiter character ':' was
@@ -421,11 +423,13 @@ void RESCUE_SYMBOL_LIB_TABLE_CANDIDATE::FindRescues(
             {
                 symbolName = symbol_id.GetLibNickname().wx_str() + wxT( "_" ) +
                              symbol_id.GetLibItemName().wx_str();
-                cache_match = findSymbol( symbolName, PROJECT_SCH::SchLibs( aRescuer.GetPrj() ), true );
+                cache_match = findSymbol( symbolName, PROJECT_SCH::SchLibs( aRescuer.GetPrj() ),
+                                          true );
             }
 
             // Get the library symbol from the symbol library table.
-            lib_match = SchGetLibSymbol( symbol_id, PROJECT_SCH::SchSymbolLibTable( aRescuer.GetPrj() ) );
+            lib_match = SchGetLibSymbol( symbol_id,
+                                         PROJECT_SCH::SchSymbolLibTable( aRescuer.GetPrj() ) );
 
             if( !cache_match && !lib_match )
                 continue;
@@ -464,7 +468,8 @@ void RESCUE_SYMBOL_LIB_TABLE_CANDIDATE::FindRescues(
             // library.
             wxString libNickname = GetRescueLibraryFileName( aRescuer.Schematic() ).GetName();
 
-            LIB_ID new_id( libNickname, new_name + wxS( "-" ) + symbol_id.GetLibNickname().wx_str() );
+            LIB_ID new_id( libNickname, new_name + wxS( "-" ) +
+                           symbol_id.GetLibNickname().wx_str() );
 
             RESCUE_SYMBOL_LIB_TABLE_CANDIDATE candidate( symbol_id, new_id, cache_match, lib_match,
                                                          eachSymbol->GetUnit(),
@@ -681,8 +686,8 @@ void LEGACY_RESCUER::OpenRescueLibrary()
 {
     wxFileName fn = GetRescueLibraryFileName( m_schematic );
 
-    std::unique_ptr<SYMBOL_LIB> rescue_lib = std::make_unique<SYMBOL_LIB>( SCH_LIB_TYPE::LT_EESCHEMA,
-                                                                           fn.GetFullPath() );
+    std::unique_ptr<SYMBOL_LIB> rescue_lib =
+            std::make_unique<SYMBOL_LIB>( SCH_LIB_TYPE::LT_EESCHEMA, fn.GetFullPath() );
 
     m_rescue_lib = std::move( rescue_lib );
     m_rescue_lib->EnableBuffering();
@@ -727,12 +732,13 @@ bool LEGACY_RESCUER::WriteRescueLibrary( wxWindow *aParent )
     wxString libPaths;
 
     wxString libName = m_rescue_lib->GetName();
-    SYMBOL_LIBS *libs = dynamic_cast<SYMBOL_LIBS*>( m_prj->GetElem( PROJECT::ELEM_SCH_SYMBOL_LIBS ) );
+    SYMBOL_LIBS* libs =
+            dynamic_cast<SYMBOL_LIBS*>( m_prj->GetElem( PROJECT::ELEM::SCH_SYMBOL_LIBS ) );
 
     if( !libs )
     {
         libs = new SYMBOL_LIBS();
-        m_prj->SetElem( PROJECT::ELEM_SCH_SYMBOL_LIBS, libs );
+        m_prj->SetElem( PROJECT::ELEM::SCH_SYMBOL_LIBS, libs );
     }
 
     try
@@ -758,7 +764,7 @@ bool LEGACY_RESCUER::WriteRescueLibrary( wxWindow *aParent )
     boost::ptr_vector<SYMBOL_LIB> libsSave;
     libsSave.transfer( libsSave.end(), libs->begin(), libs->end(), *libs );
 
-    m_prj->SetElem( PROJECT::ELEM_SCH_SYMBOL_LIBS, nullptr );
+    m_prj->SetElem( PROJECT::ELEM::SCH_SYMBOL_LIBS, nullptr );
 
     libs = new SYMBOL_LIBS();
 
@@ -779,7 +785,7 @@ bool LEGACY_RESCUER::WriteRescueLibrary( wxWindow *aParent )
         return false;
     }
 
-    m_prj->SetElem( PROJECT::ELEM_SCH_SYMBOL_LIBS, libs );
+    m_prj->SetElem( PROJECT::ELEM::SCH_SYMBOL_LIBS, libs );
 
     // Update the schematic symbol library links since the library list has changed.
     SCH_SCREENS schematic( m_schematic->Root() );
@@ -802,7 +808,7 @@ SYMBOL_LIB_TABLE_RESCUER::SYMBOL_LIB_TABLE_RESCUER( PROJECT& aProject, SCHEMATIC
                                                     EDA_DRAW_PANEL_GAL::GAL_TYPE aGalBackEndType ) :
     RESCUER( aProject, aSchematic, aCurrentSheet, aGalBackEndType )
 {
-    m_properties = std::make_unique<STRING_UTF8_MAP>();
+    m_properties = std::make_unique<std::map<std::string, UTF8>>();
 }
 
 
@@ -899,7 +905,7 @@ bool SYMBOL_LIB_TABLE_RESCUER::WriteRescueLibrary( wxWindow *aParent )
         }
     }
 
-    m_prj->SetElem( PROJECT::ELEM_SYMBOL_LIB_TABLE, nullptr );
+    m_prj->SetElem( PROJECT::ELEM::SYMBOL_LIB_TABLE, nullptr );
 
     // This can only happen if the symbol library table file was corrupted on write.
     if( !PROJECT_SCH::SchSymbolLibTable( m_prj ) )

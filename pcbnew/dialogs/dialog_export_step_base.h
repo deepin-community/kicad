@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -20,6 +20,7 @@ class TEXT_CTRL_EVAL;
 #include <wx/font.h>
 #include <wx/colour.h>
 #include <wx/settings.h>
+#include <wx/choice.h>
 #include <wx/textctrl.h>
 #include <wx/bmpbuttn.h>
 #include <wx/bitmap.h>
@@ -27,12 +28,10 @@ class TEXT_CTRL_EVAL;
 #include <wx/icon.h>
 #include <wx/button.h>
 #include <wx/sizer.h>
+#include <wx/checkbox.h>
 #include <wx/radiobut.h>
 #include <wx/statbox.h>
-#include <wx/choice.h>
 #include <wx/valtext.h>
-#include <wx/checkbox.h>
-#include <wx/statline.h>
 #include <wx/dialog.h>
 
 ///////////////////////////////////////////////////////////////////////////
@@ -47,9 +46,30 @@ class DIALOG_EXPORT_STEP_BASE : public DIALOG_SHIM
 	protected:
 		wxBoxSizer* bSizerSTEPFile;
 		wxBoxSizer* bSizerTop;
+		wxStaticText* m_txtFormat;
+		wxChoice* m_choiceFormat;
 		wxStaticText* m_txtBrdFile;
 		wxTextCtrl* m_outputFileName;
 		STD_BITMAP_BUTTON* m_browseButton;
+		wxCheckBox* m_cbExportCompound_hidden;
+		wxCheckBox* m_cbExportBody;
+		wxCheckBox* m_cbCutViasInBody;
+		wxCheckBox* m_cbExportSilkscreen;
+		wxCheckBox* m_cbExportSoldermask;
+		wxCheckBox* m_cbExportSolderpaste_hidden;
+		wxCheckBox* m_cbExportComponents;
+		wxRadioButton* m_rbAllComponents;
+		wxRadioButton* m_rbOnlySelected;
+		wxRadioButton* m_rbFilteredComponents;
+		wxTextCtrl* m_txtComponentFilter;
+		wxCheckBox* m_cbExportTracks;
+		wxCheckBox* m_cbExportPads;
+		wxCheckBox* m_cbExportZones;
+		wxCheckBox* m_cbExportInnerCopper;
+		wxCheckBox* m_cbFuseShapes;
+		wxCheckBox* m_cbFillAllVias;
+		wxStaticText* m_staticTextNetFilter;
+		wxTextCtrl* m_txtNetFilter;
 		wxRadioButton* m_rbDrillAndPlotOrigin;
 		wxRadioButton* m_rbGridOrigin;
 		wxRadioButton* m_rbUserDefinedOrigin;
@@ -64,16 +84,7 @@ class DIALOG_EXPORT_STEP_BASE : public DIALOG_SHIM
 		wxCheckBox* m_cbRemoveUnspecified;
 		wxCheckBox* m_cbSubstModels;
 		wxCheckBox* m_cbOverwriteFile;
-		wxStaticLine* m_staticline11_hidden;
 		wxCheckBox* m_cbOptimizeStep;
-		wxCheckBox* m_cbFuseShapes_hidden;
-		wxCheckBox* m_cbExportCompound_hidden;
-		wxStaticLine* m_staticline1;
-		wxCheckBox* m_cbExportTracks;
-		wxCheckBox* m_cbExportZones;
-		wxCheckBox* m_cbExportSilkscreen_hidden;
-		wxCheckBox* m_cbExportSoldermask_hidden;
-		wxCheckBox* m_cbExportSolderpaste_hidden;
 		wxStaticText* m_staticTextTolerance;
 		wxChoice* m_choiceTolerance;
 		wxStdDialogButtonSizer* m_sdbSizer;
@@ -81,7 +92,10 @@ class DIALOG_EXPORT_STEP_BASE : public DIALOG_SHIM
 		wxButton* m_sdbSizerCancel;
 
 		// Virtual event handlers, override them in your derived class
+		virtual void onFormatChoice( wxCommandEvent& event ) { event.Skip(); }
 		virtual void onBrowseClicked( wxCommandEvent& event ) { event.Skip(); }
+		virtual void onCbExportComponents( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnComponentModeChange( wxCommandEvent& event ) { event.Skip(); }
 		virtual void onUpdateUnits( wxUpdateUIEvent& event ) { event.Skip(); }
 		virtual void onUpdateXPos( wxUpdateUIEvent& event ) { event.Skip(); }
 		virtual void onUpdateYPos( wxUpdateUIEvent& event ) { event.Skip(); }
@@ -90,7 +104,7 @@ class DIALOG_EXPORT_STEP_BASE : public DIALOG_SHIM
 
 	public:
 
-		DIALOG_EXPORT_STEP_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Export STEP / GLTF"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+		DIALOG_EXPORT_STEP_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Export 3D Model"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
 
 		~DIALOG_EXPORT_STEP_BASE();
 

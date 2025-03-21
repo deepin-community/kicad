@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,6 +22,7 @@
 #include <sch_plotter.h>
 #include "command_sch_export_plot.h"
 #include <cli/exit_codes.h>
+#include "font/kicad_font_name.h"
 #include "jobs/job_export_sch_plot.h"
 #include <layer_ids.h>
 #include <wx/crt.h>
@@ -36,6 +37,9 @@
 #define ARG_HPGL_ORIGIN "--origin"
 #define ARG_PAGES "--pages"
 #define ARG_EXCLUDE_PDF_PROPERTY_POPUPS "--exclude-pdf-property-popups"
+#define ARG_EXCLUDE_PDF_HIERARCHICAL_LINKS "--exclude-pdf-hierarchical-links"
+#define ARG_EXCLUDE_PDF_METADATA "--exclude-pdf-metadata"
+#define ARG_FONT_NAME "--default-font"
 
 const JOB_HPGL_PLOT_ORIGIN_AND_UNITS hpgl_origin_ops[4] = {
     JOB_HPGL_PLOT_ORIGIN_AND_UNITS::PLOTTER_BOT_LEFT,
@@ -74,10 +78,23 @@ CLI::SCH_EXPORT_PLOT_COMMAND::SCH_EXPORT_PLOT_COMMAND( const std::string& aName,
             .implicit_value( true )
             .default_value( false );
 
+    m_argParser.add_argument( ARG_FONT_NAME )
+            .help( UTF8STDSTR( _( "Default font name" ) ) )
+            .default_value( wxString( KICAD_FONT_NAME ).ToStdString() );
+
     if( aPlotFormat == SCH_PLOT_FORMAT::PDF )
     {
         m_argParser.add_argument( ARG_EXCLUDE_PDF_PROPERTY_POPUPS )
                 .help( UTF8STDSTR( _( "Do not generate property popups in PDF" ) ) )
+                .flag();
+
+        m_argParser.add_argument( ARG_EXCLUDE_PDF_HIERARCHICAL_LINKS )
+                .help( UTF8STDSTR( _( "Do not generate clickable links for hierarchical elements "
+                                      "in PDF" ) ) )
+                .flag();
+
+        m_argParser.add_argument( ARG_EXCLUDE_PDF_METADATA )
+                .help( UTF8STDSTR( _( "Do not generate PDF metadata from AUTHOR and SUBJECT variables" ) ) )
                 .flag();
     }
 
@@ -90,7 +107,7 @@ CLI::SCH_EXPORT_PLOT_COMMAND::SCH_EXPORT_PLOT_COMMAND( const std::string& aName,
                 .flag();
     }
 
-    m_argParser.add_argument( "-p", ARG_PAGES )
+    m_argParser.add_argument( ARG_PAGES )
             .default_value( std::string() )
             .help( UTF8STDSTR( _( "List of page numbers separated by comma to print, blank or "
                                   "unspecified is equivalent to all pages" ) ) )
@@ -131,12 +148,24 @@ int CLI::SCH_EXPORT_PLOT_COMMAND::doPerform( KIWAY& aKiway )
         pages.push_back( tokenizer.GetNextToken().Trim() );
     }
 
-    std::unique_ptr<JOB_EXPORT_SCH_PLOT> plotJob =
-            std::make_unique<JOB_EXPORT_SCH_PLOT>( true, m_plotFormat, filename );
+    std::unique_ptr<JOB_EXPORT_SCH_PLOT> plotJob;
 
+    switch( m_plotFormat )
+    {
+    case SCH_PLOT_FORMAT::PDF: plotJob = std::make_unique<JOB_EXPORT_SCH_PLOT_PDF>(); break;
+    case SCH_PLOT_FORMAT::DXF: plotJob = std::make_unique<JOB_EXPORT_SCH_PLOT_DXF>(); break;
+    case SCH_PLOT_FORMAT::SVG: plotJob = std::make_unique<JOB_EXPORT_SCH_PLOT_SVG>(); break;
+    case SCH_PLOT_FORMAT::POST: plotJob = std::make_unique<JOB_EXPORT_SCH_PLOT_PS>(); break;
+    case SCH_PLOT_FORMAT::HPGL: plotJob = std::make_unique<JOB_EXPORT_SCH_PLOT_HPGL>(); break;
+    }
+
+
+    plotJob->m_filename = filename;
+    plotJob->m_plotFormat = m_plotFormat;
     plotJob->m_plotPages = pages;
     plotJob->m_plotDrawingSheet = !m_argParser.get<bool>( ARG_EXCLUDE_DRAWING_SHEET );
     plotJob->m_pageSizeSelect = JOB_PAGE_SIZE::PAGE_SIZE_AUTO;
+    plotJob->m_defaultFont = m_argParser.get( ARG_FONT_NAME );
 
     if( m_plotFormat == SCH_PLOT_FORMAT::PDF
             || m_plotFormat == SCH_PLOT_FORMAT::POST
@@ -151,10 +180,7 @@ int CLI::SCH_EXPORT_PLOT_COMMAND::doPerform( KIWAY& aKiway )
         plotJob->m_theme = From_UTF8( m_argParser.get<std::string>( ARG_THEME ).c_str() );
     }
 
-    if( m_outputArgExpectsDir )
-        plotJob->m_outputDirectory = m_argOutput;
-    else
-        plotJob->m_outputFile = m_argOutput;
+    plotJob->SetConfiguredOutputPath( m_argOutput );
 
     plotJob->m_plotAll = plotJob->m_plotPages.size() == 0;
 
@@ -178,6 +204,9 @@ int CLI::SCH_EXPORT_PLOT_COMMAND::doPerform( KIWAY& aKiway )
     else if( m_plotFormat == SCH_PLOT_FORMAT::PDF )
     {
         plotJob->m_PDFPropertyPopups = !m_argParser.get<bool>( ARG_EXCLUDE_PDF_PROPERTY_POPUPS );
+        plotJob->m_PDFHierarchicalLinks =
+                !m_argParser.get<bool>( ARG_EXCLUDE_PDF_HIERARCHICAL_LINKS );
+        plotJob->m_PDFMetadata = !m_argParser.get<bool>( ARG_EXCLUDE_PDF_METADATA );
     }
 
     int exitCode = aKiway.ProcessJob( KIWAY::FACE_SCH, plotJob.get() );

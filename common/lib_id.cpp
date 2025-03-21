@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2010 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2010-2020 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -215,8 +215,8 @@ bool LIB_ID::isLegalChar( unsigned aUniChar )
 
     // This list of characters is also duplicated in validators.cpp and footprint.cpp
     // TODO: Unify forbidden character lists - Warning, invalid filename characters are not the same
-    // as invalid LIB_ID characters.  We will need to separate the FP filenames from FP names before this
-    // can be unified
+    // as invalid LIB_ID characters.  We will need to separate the FP filenames from FP names
+    // before this can be unified
     switch( aUniChar )
     {
     case ':':

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2011-2013 Lorenzo Marcantonio <l.marcantonio@logossrl.com>
- * Copyright (C) 2004-2023 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,6 +39,7 @@
 #include <board.h>
 #include <board_design_settings.h>
 #include <footprint.h>
+#include <layer_range.h>
 #include <pad.h>
 #include <pcb_track.h>
 #include <vector>
@@ -72,7 +73,7 @@ static int compute_pad_access_code( BOARD *aPcb, LSET aLayerMask )
     // OK, we have an inner-layer only pad (and I have no idea about
     // what could be used for); anyway, find the first copper layer
     // it's on
-    for( int layer = In1_Cu; layer < B_Cu; ++layer )
+    for( PCB_LAYER_ID layer : LAYER_RANGE( In1_Cu, B_Cu, aPcb->GetCopperLayerCount() ) )
     {
         if( aLayerMask[layer] )
             return layer + 1;
@@ -118,13 +119,15 @@ static void build_pad_testpoints( BOARD *aPcb, std::vector <D356_RECORD>& aRecor
                 rk.mechanical = ( pad->GetAttribute() == PAD_ATTRIB::NPTH );
                 rk.x_location = pad->GetPosition().x - origin.x;
                 rk.y_location = origin.y - pad->GetPosition().y;
-                rk.x_size = pad->GetSize().x;
+
+                PCB_LAYER_ID accessLayer = footprint->IsFlipped() ? B_Cu : F_Cu;
+                rk.x_size = pad->GetSize( accessLayer ).x;
 
                 // Rule: round pads have y = 0
-                if( pad->GetShape() == PAD_SHAPE::CIRCLE )
+                if( pad->GetShape( accessLayer ) == PAD_SHAPE::CIRCLE )
                     rk.y_size = 0;
                 else
-                    rk.y_size = pad->GetSize().y;
+                    rk.y_size = pad->GetSize( accessLayer ).y;
 
                 rk.rotation = - pad->GetOrientation().AsDegrees();
 
@@ -202,10 +205,20 @@ static void build_via_testpoints( BOARD *aPcb, std::vector <D356_RECORD>& aRecor
             rk.access = via_access_code( aPcb, top_layer, bottom_layer );
             rk.x_location = via->GetPosition().x - origin.x;
             rk.y_location = origin.y - via->GetPosition().y;
-            rk.x_size = via->GetWidth();
+
+            // The record has a single size for vias, so take the smaller of the front and back
+            if( via->Padstack().Mode() != PADSTACK::MODE::NORMAL )
+                rk.x_size = std::min( via->GetWidth( F_Cu ), via->GetWidth( B_Cu ) );
+            else
+                rk.x_size = via->GetWidth( PADSTACK::ALL_LAYERS );
+
             rk.y_size = 0; // Round so height = 0
             rk.rotation = 0;
-            rk.soldermask = 3; // XXX always tented?
+
+            if( via->IsTented( F_Mask ) )
+                rk.soldermask |= 1;
+            if( via->IsTented( B_Mask ) )
+                rk.soldermask |= 2;
 
             aRecords.push_back( rk );
         }

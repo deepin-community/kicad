@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -49,7 +49,7 @@ VECTOR2I ARRAY_GRID_OPTIONS::getGridCoords( int n ) const
 }
 
 
-ARRAY_OPTIONS::TRANSFORM ARRAY_GRID_OPTIONS::GetTransform( int n, const VECTOR2I& aPos ) const
+VECTOR2I ARRAY_GRID_OPTIONS::gtItemPosRelativeToItem0( int n ) const
 {
     VECTOR2I point;
 
@@ -74,7 +74,24 @@ ARRAY_OPTIONS::TRANSFORM ARRAY_GRID_OPTIONS::GetTransform( int n, const VECTOR2I
         point += stagger_delta * copysign( stagger_idx, m_stagger ) / stagger;
     }
 
-    // this is already relative to the first array entry
+    return point;
+}
+
+
+ARRAY_OPTIONS::TRANSFORM ARRAY_GRID_OPTIONS::GetTransform( int n, const VECTOR2I& aPos ) const
+{
+    VECTOR2I point = gtItemPosRelativeToItem0( n );
+
+    // Bump the item by half the array size
+    if( m_centred )
+    {
+        // Get the array extents
+        const int arrayExtentX = ( m_nx - 1 ) * m_delta.x + ( m_ny - 1 ) * m_offset.x;
+        const int arrayExtentY = ( m_ny - 1 ) * m_delta.y + ( m_nx - 1 ) * m_offset.y;
+
+        point -= VECTOR2I( arrayExtentX, arrayExtentY ) / 2;
+    }
+
     return { point, ANGLE_0 };
 }
 

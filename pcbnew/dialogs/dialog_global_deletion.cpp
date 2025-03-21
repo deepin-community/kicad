@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -255,7 +255,7 @@ void DIALOG_GLOBAL_DELETION::DoGlobalDeletions()
         }
     }
 
-    commit.Push( wxT( "Global delete" ) );
+    commit.Push( _( "Global Delete" ) );
 
     if( m_delMarkers->GetValue() )
         board->DeleteMARKERs();

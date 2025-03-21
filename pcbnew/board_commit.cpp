@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016 CERN
- * Copyright (C) 2020-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -26,6 +26,7 @@
 #include <macros.h>
 #include <board.h>
 #include <footprint.h>
+#include <lset.h>
 #include <pcb_group.h>
 #include <pcb_track.h>
 #include <tool/tool_manager.h>
@@ -64,7 +65,7 @@ BOARD_COMMIT::BOARD_COMMIT( EDA_DRAW_FRAME* aFrame ) :
 
 
 BOARD_COMMIT::BOARD_COMMIT( TOOL_MANAGER* aMgr ) :
-        m_toolMgr( aMgr ),
+    m_toolMgr( aMgr ),
         m_isBoardEditor( false ),
         m_isFootprintEditor( false )
 {
@@ -76,6 +77,13 @@ BOARD_COMMIT::BOARD_COMMIT( TOOL_MANAGER* aMgr ) :
         m_isFootprintEditor = true;
 }
 
+BOARD_COMMIT::BOARD_COMMIT( TOOL_MANAGER* aMgr, bool aIsBoardEditor ) :
+    m_toolMgr( aMgr ),
+    m_isBoardEditor( aIsBoardEditor ),
+    m_isFootprintEditor( false )
+{
+}
+
 
 BOARD* BOARD_COMMIT::GetBoard() const
 {
@@ -85,8 +93,6 @@ BOARD* BOARD_COMMIT::GetBoard() const
 
 COMMIT& BOARD_COMMIT::Stage( EDA_ITEM* aItem, CHANGE_TYPE aChangeType, BASE_SCREEN* aScreen )
 {
-    wxCHECK( aItem, *this );
-
     // Many operations (move, rotate, etc.) are applied directly to a group's children, so they
     // must be staged as well.
     if( aChangeType == CHT_MODIFY )
@@ -297,7 +303,7 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
             if( boardItem->Type() == PCB_GROUP_T || boardItem->Type() == PCB_GENERATOR_T )
                 addedGroup = static_cast<PCB_GROUP*>( boardItem );
 
-            if( autofillZones && boardItem->Type() != PCB_MARKER_T )
+            if( m_isBoardEditor && autofillZones && boardItem->Type() != PCB_MARKER_T )
                 dirtyIntersectingZones( boardItem, changeType );
 
             if( view && boardItem->Type() != PCB_NETINFO_T )
@@ -327,7 +333,7 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
             if( parentFP && !( parentFP->GetFlags() & STRUCT_DELETED ) )
                 ent.m_parent = parentFP->m_Uuid;
 
-            if( autofillZones )
+            if( m_isBoardEditor && autofillZones && boardItem->Type() != PCB_MARKER_T )
                 dirtyIntersectingZones( boardItem, changeType );
 
             switch( boardItem->Type() )
@@ -341,7 +347,8 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
             case PCB_SHAPE_T:            // a shape (normally not on copper layers)
             case PCB_REFERENCE_IMAGE_T:  // a bitmap on an associated layer
             case PCB_GENERATOR_T:        // a generator on a layer
-            case PCB_TEXTBOX_T:          // a wrapped text on a layer
+            case PCB_TEXTBOX_T:          // a line-wrapped (and optionally bordered) text item
+            case PCB_TABLE_T:            // rows and columns of tablecells
             case PCB_TRACE_T:            // a track segment (segment on a copper layer)
             case PCB_ARC_T:              // an arced track segment (segment on a copper layer)
             case PCB_VIA_T:              // a via (like track segment on a copper layer)
@@ -439,7 +446,7 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
                 connectivity->Update( boardItem );
             }
 
-            if( m_isBoardEditor && autofillZones )
+            if( m_isBoardEditor && autofillZones && boardItem->Type() != PCB_MARKER_T )
             {
                 dirtyIntersectingZones( boardItemCopy, changeType );   // before
                 dirtyIntersectingZones( boardItem, changeType );       // after
@@ -543,14 +550,8 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
         }
     }
 
-    if( bulkAddedItems.size() > 0 )
-        board->FinalizeBulkAdd( bulkAddedItems );
-
-    if( bulkRemovedItems.size() > 0 )
-        board->FinalizeBulkRemove( bulkRemovedItems );
-
-    if( itemsChanged.size() > 0 )
-        board->OnItemsChanged( itemsChanged );
+    if( bulkAddedItems.size() > 0 || bulkRemovedItems.size() > 0 || itemsChanged.size() > 0 )
+        board->OnItemsCompositeUpdate( bulkAddedItems, bulkRemovedItems, itemsChanged );
 
     if( frame )
     {
@@ -681,9 +682,11 @@ void BOARD_COMMIT::Revert()
             view->Add( boardItem );
             connectivity->Add( boardItem );
 
+            // Note: parent can be nullptr, because ent.m_parent is not
+            // initialized for every ent.m_item, only for some.
             BOARD_ITEM* parent = board->GetItem( ent.m_parent );
 
-            if( parent->Type() == PCB_FOOTPRINT_T )
+            if( parent && parent->Type() == PCB_FOOTPRINT_T )
             {
                 static_cast<FOOTPRINT*>( parent )->Add( boardItem, ADD_MODE::INSERT );
             }
@@ -730,14 +733,8 @@ void BOARD_COMMIT::Revert()
         boardItem->ClearEditFlags();
     }
 
-    if( bulkAddedItems.size() > 0 )
-        board->FinalizeBulkAdd( bulkAddedItems );
-
-    if( bulkRemovedItems.size() > 0 )
-        board->FinalizeBulkRemove( bulkRemovedItems );
-
-    if( itemsChanged.size() > 0 )
-        board->OnItemsChanged( itemsChanged );
+    if( bulkAddedItems.size() > 0 || bulkRemovedItems.size() > 0 || itemsChanged.size() > 0 )
+        board->OnItemsCompositeUpdate( bulkAddedItems, bulkRemovedItems, itemsChanged );
 
     if( m_isBoardEditor )
     {

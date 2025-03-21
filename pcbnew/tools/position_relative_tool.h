@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,14 +26,13 @@
 
 #include <math/vector2d.h>
 #include <tools/pcb_tool_base.h>
-#include "pcb_selection_tool.h"
-#include "dialogs/dialog_position_relative.h"
-#include "dialogs/dialog_position_relative_base.h"
+#include <tools/pcb_selection_tool.h>
 
 class BOARD_COMMIT;
 class BOARD_ITEM;
 class PCB_SELECTION_TOOL;
 class DIALOG_POSITION_RELATIVE;
+
 
 /**
  * The interactive edit tool.
@@ -58,10 +57,10 @@ public:
     int PositionRelative( const TOOL_EVENT& aEvent );
 
     /**
-     * Invoke the picker tool to select the item to which the previous selection will be placed
-     * relative to.
+     * Draw a line connecting two points and allow the user to enter what it should be.
+     * The move the items to match that.
      */
-    int SelectPositionRelativeItem( const TOOL_EVENT& aEvent  );
+    int PositionRelativeInteractively( const TOOL_EVENT& aEvent );
 
     /**
      * Return the position of the selected item(s)
@@ -83,10 +82,9 @@ private:
     PCB_SELECTION_TOOL*           m_selectionTool;
     PCB_SELECTION                 m_selection;
     VECTOR2I                      m_selectionAnchor;
+    bool                          m_inInteractivePosition; // Re-entrancy guard
 
     std::unique_ptr<BOARD_COMMIT> m_commit;
-
-    EDA_ITEM*                     m_anchor_item;
 };
 
 #endif

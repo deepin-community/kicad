@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2004-2023 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -49,16 +49,19 @@
 #include <geometry/shape_poly_set.h>
 #include <properties/property_validators.h>
 #include <ctl_flags.h>         // for CTL_OMIT_HIDE definition
+#include <api/api_enums.h>
+#include <api/api_utils.h>
+#include <api/common/types/base_types.pb.h>
 
 #include <wx/debug.h>           // for wxASSERT
 #include <wx/string.h>
 #include <wx/url.h>             // for wxURL
+#include <io/kicad/kicad_io_utils.h>
 #include "font/kicad_font_name.h"
 #include "font/fontconfig.h"
 #include "pgm_base.h"
 
 class OUTPUTFORMATTER;
-class wxFindReplaceData;
 
 
 GR_TEXT_H_ALIGN_T EDA_TEXT::MapHorizJustify( int aHorizJustify )
@@ -92,10 +95,7 @@ GR_TEXT_V_ALIGN_T EDA_TEXT::MapVertJustify( int aVertJustify )
 EDA_TEXT::EDA_TEXT( const EDA_IU_SCALE& aIuScale, const wxString& aText ) :
         m_text( aText ),
         m_IuScale( aIuScale ),
-        m_render_cache_font( nullptr ),
-        m_bounding_box_cache_valid( false ),
-        m_bounding_box_cache_line( -1 ),
-        m_bounding_box_cache_inverted( false )
+        m_render_cache_font( nullptr )
 {
     SetTextSize( VECTOR2I( EDA_UNIT_UTILS::Mils2IU( m_IuScale, DEFAULT_SIZE_TEXT ),
                            EDA_UNIT_UTILS::Mils2IU( m_IuScale, DEFAULT_SIZE_TEXT ) ) );
@@ -138,10 +138,9 @@ EDA_TEXT::EDA_TEXT( const EDA_TEXT& aText ) :
             m_render_cache.emplace_back( std::make_unique<KIFONT::STROKE_GLYPH>( *stroke ) );
     }
 
-    m_bounding_box_cache_valid = aText.m_bounding_box_cache_valid;
-    m_bounding_box_cache = aText.m_bounding_box_cache;
-    m_bounding_box_cache_line = aText.m_bounding_box_cache_line;
-    m_bounding_box_cache_inverted = aText.m_bounding_box_cache_inverted;
+    m_bbox_cache = aText.m_bbox_cache;
+
+    m_unresolvedFontName = aText.m_unresolvedFontName;
 }
 
 
@@ -174,10 +173,95 @@ EDA_TEXT& EDA_TEXT::operator=( const EDA_TEXT& aText )
             m_render_cache.emplace_back( std::make_unique<KIFONT::STROKE_GLYPH>( *stroke ) );
     }
 
-    m_bounding_box_cache_valid = aText.m_bounding_box_cache_valid;
-    m_bounding_box_cache = aText.m_bounding_box_cache;
+    m_bbox_cache = aText.m_bbox_cache;
+
+    m_unresolvedFontName = aText.m_unresolvedFontName;
 
     return *this;
+}
+
+
+void EDA_TEXT::Serialize( google::protobuf::Any &aContainer ) const
+{
+    using namespace kiapi::common;
+    types::Text text;
+
+    text.set_text( GetText().ToStdString() );
+    text.set_hyperlink( GetHyperlink().ToStdString() );
+    PackVector2( *text.mutable_position(), GetTextPos() );
+
+    types::TextAttributes* attrs = text.mutable_attributes();
+
+    if( GetFont() )
+        attrs->set_font_name( GetFont()->GetName().ToStdString() );
+
+    attrs->set_horizontal_alignment(
+            ToProtoEnum<GR_TEXT_H_ALIGN_T, types::HorizontalAlignment>( GetHorizJustify() ) );
+
+    attrs->set_vertical_alignment(
+            ToProtoEnum<GR_TEXT_V_ALIGN_T, types::VerticalAlignment>( GetVertJustify() ) );
+
+    attrs->mutable_angle()->set_value_degrees( GetTextAngleDegrees() );
+    attrs->set_line_spacing( GetLineSpacing() );
+    attrs->mutable_stroke_width()->set_value_nm( GetTextThickness() );
+    attrs->set_italic( IsItalic() );
+    attrs->set_bold( IsBold() );
+    attrs->set_underlined( GetAttributes().m_Underlined );
+    attrs->set_visible( IsVisible() );
+    attrs->set_mirrored( IsMirrored() );
+    attrs->set_multiline( IsMultilineAllowed() );
+    attrs->set_keep_upright( IsKeepUpright() );
+    PackVector2( *attrs->mutable_size(), GetTextSize() );
+
+    aContainer.PackFrom( text );
+}
+
+
+bool EDA_TEXT::Deserialize( const google::protobuf::Any &aContainer )
+{
+    using namespace kiapi::common;
+    types::Text text;
+
+    if( !aContainer.UnpackTo( &text ) )
+        return false;
+
+    SetText( wxString( text.text().c_str(), wxConvUTF8 ) );
+    SetHyperlink( wxString( text.hyperlink().c_str(), wxConvUTF8 ) );
+    SetTextPos( UnpackVector2( text.position() ) );
+
+    if( text.has_attributes() )
+    {
+        TEXT_ATTRIBUTES attrs = GetAttributes();
+
+        attrs.m_Bold = text.attributes().bold();
+        attrs.m_Italic = text.attributes().italic();
+        attrs.m_Underlined = text.attributes().underlined();
+        attrs.m_Visible = text.attributes().visible();
+        attrs.m_Mirrored = text.attributes().mirrored();
+        attrs.m_Multiline = text.attributes().multiline();
+        attrs.m_KeepUpright = text.attributes().keep_upright();
+        attrs.m_Size = UnpackVector2( text.attributes().size() );
+
+        if( !text.attributes().font_name().empty() )
+        {
+            attrs.m_Font = KIFONT::FONT::GetFont(
+                    wxString( text.attributes().font_name().c_str(), wxConvUTF8 ), attrs.m_Bold,
+                    attrs.m_Italic );
+        }
+
+        attrs.m_Angle = EDA_ANGLE( text.attributes().angle().value_degrees(), DEGREES_T );
+        attrs.m_LineSpacing = text.attributes().line_spacing();
+        attrs.m_StrokeWidth = text.attributes().stroke_width().value_nm();
+        attrs.m_Halign = FromProtoEnum<GR_TEXT_H_ALIGN_T, types::HorizontalAlignment>(
+                text.attributes().horizontal_alignment() );
+
+        attrs.m_Valign = FromProtoEnum<GR_TEXT_V_ALIGN_T, types::VerticalAlignment>(
+                text.attributes().vertical_alignment() );
+
+        SetAttributes( attrs );
+    }
+
+    return true;
 }
 
 
@@ -199,7 +283,7 @@ void EDA_TEXT::SetTextThickness( int aWidth )
 {
     m_attributes.m_StrokeWidth = aWidth;
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -207,7 +291,7 @@ void EDA_TEXT::SetTextAngle( const EDA_ANGLE& aAngle )
 {
     m_attributes.m_Angle = aAngle;
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -235,7 +319,7 @@ void EDA_TEXT::SetItalicFlag( bool aItalic )
 {
     m_attributes.m_Italic = aItalic;
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -257,15 +341,16 @@ void EDA_TEXT::SetBold( bool aBold )
             }
             else
             {
-                // Restore the original stroke width from `m_StoredStrokeWidth` if it was previously stored,
-                // resetting the width after unbolding.
+                // Restore the original stroke width from `m_StoredStrokeWidth` if it was
+                // previously stored, resetting the width after unbolding.
                 if( m_attributes.m_StoredStrokeWidth )
                     m_attributes.m_StrokeWidth = m_attributes.m_StoredStrokeWidth;
                 else
                 {
                     m_attributes.m_StrokeWidth = GetPenSizeForNormal( size );
-                    // Sets `m_StrokeWidth` to the normal pen size and stores it in `m_StoredStrokeWidth`
-                    // as the default, but only if the bold option was applied before this feature was implemented.
+                    // Sets `m_StrokeWidth` to the normal pen size and stores it in
+                    // `m_StoredStrokeWidth` as the default, but only if the bold option was
+                    // applied before this feature was implemented.
                     m_attributes.m_StoredStrokeWidth = m_attributes.m_StrokeWidth;
                 }
             }
@@ -285,7 +370,7 @@ void EDA_TEXT::SetBoldFlag( bool aBold )
 {
     m_attributes.m_Bold = aBold;
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -300,7 +385,7 @@ void EDA_TEXT::SetMirrored( bool isMirrored )
 {
     m_attributes.m_Mirrored = isMirrored;
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -308,7 +393,7 @@ void EDA_TEXT::SetMultilineAllowed( bool aAllow )
 {
     m_attributes.m_Multiline = aAllow;
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -316,7 +401,7 @@ void EDA_TEXT::SetHorizJustify( GR_TEXT_H_ALIGN_T aType )
 {
     m_attributes.m_Halign = aType;
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -324,7 +409,7 @@ void EDA_TEXT::SetVertJustify( GR_TEXT_V_ALIGN_T aType )
 {
     m_attributes.m_Valign = aType;
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -332,7 +417,7 @@ void EDA_TEXT::SetKeepUpright( bool aKeepUpright )
 {
     m_attributes.m_KeepUpright = aKeepUpright;
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -344,7 +429,7 @@ void EDA_TEXT::SetAttributes( const EDA_TEXT& aSrc, bool aSetPosition )
         m_pos = aSrc.m_pos;
 
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -363,8 +448,8 @@ void EDA_TEXT::SwapAttributes( EDA_TEXT& aTradingPartner )
     ClearRenderCache();
     aTradingPartner.ClearRenderCache();
 
-    m_bounding_box_cache_valid = false;
-    aTradingPartner.m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
+    aTradingPartner.ClearBoundingBoxCache();
 }
 
 
@@ -383,7 +468,7 @@ int EDA_TEXT::GetEffectiveTextPenWidth( int aDefaultPenWidth ) const
     }
 
     // Clip pen size for small texts:
-    penWidth = Clamp_Text_PenSize( penWidth, GetTextSize() );
+    penWidth = ClampTextPenSize( penWidth, GetTextSize() );
 
     return penWidth;
 }
@@ -396,7 +481,7 @@ bool EDA_TEXT::Replace( const EDA_SEARCH_DATA& aSearchData )
     cacheShownText();
 
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 
     return retval;
 }
@@ -406,7 +491,25 @@ void EDA_TEXT::SetFont( KIFONT::FONT* aFont )
 {
     m_attributes.m_Font = aFont;
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
+}
+
+
+bool EDA_TEXT::ResolveFont( const std::vector<wxString>* aEmbeddedFonts )
+{
+    if( !m_unresolvedFontName.IsEmpty() )
+    {
+        m_attributes.m_Font = KIFONT::FONT::GetFont( m_unresolvedFontName, IsBold(), IsItalic(),
+                                                     aEmbeddedFonts );
+
+        if( !m_render_cache.empty() )
+            m_render_cache_font = m_attributes.m_Font;
+
+        m_unresolvedFontName = wxEmptyString;
+        return true;
+    }
+
+    return false;
 }
 
 
@@ -414,7 +517,7 @@ void EDA_TEXT::SetLineSpacing( double aLineSpacing )
 {
     m_attributes.m_LineSpacing = aLineSpacing;
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -430,14 +533,14 @@ void EDA_TEXT::SetTextSize( VECTOR2I aNewSize, bool aEnforceMinTextSize )
         int min = m_IuScale.get().mmToIU( TEXT_MIN_SIZE_MM );
         int max = m_IuScale.get().mmToIU( TEXT_MAX_SIZE_MM );
 
-        aNewSize = VECTOR2I( alg::clamp( min, aNewSize.x, max ),
-                             alg::clamp( min, aNewSize.y, max ) );
+        aNewSize = VECTOR2I( std::clamp( aNewSize.x, min, max ),
+                             std::clamp( aNewSize.y, min, max ) );
     }
 
     m_attributes.m_Size = aNewSize;
 
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -446,9 +549,9 @@ void EDA_TEXT::SetTextWidth( int aWidth )
     int min = m_IuScale.get().mmToIU( TEXT_MIN_SIZE_MM );
     int max = m_IuScale.get().mmToIU( TEXT_MAX_SIZE_MM );
 
-    m_attributes.m_Size.x = alg::clamp( min, aWidth, max );
+    m_attributes.m_Size.x = std::clamp( aWidth, min, max );
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -457,9 +560,9 @@ void EDA_TEXT::SetTextHeight( int aHeight )
     int min = m_IuScale.get().mmToIU( TEXT_MIN_SIZE_MM );
     int max = m_IuScale.get().mmToIU( TEXT_MAX_SIZE_MM );
 
-    m_attributes.m_Size.y = alg::clamp( min, aHeight, max );
+    m_attributes.m_Size.y = std::clamp( aHeight, min, max );
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -496,7 +599,7 @@ void EDA_TEXT::Offset( const VECTOR2I& aOffset )
             glyph = stroke->Transform( { 1.0, 1.0 }, aOffset, 0, ANGLE_0, false, { 0, 0 } );
     }
 
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -504,7 +607,7 @@ void EDA_TEXT::Empty()
 {
     m_text.Empty();
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -522,7 +625,7 @@ void EDA_TEXT::cacheShownText()
     }
 
     ClearRenderCache();
-    m_bounding_box_cache_valid = false;
+    ClearBoundingBoxCache();
 }
 
 
@@ -551,7 +654,7 @@ void EDA_TEXT::ClearRenderCache()
 
 void EDA_TEXT::ClearBoundingBoxCache()
 {
-    m_bounding_box_cache_valid = false;
+    m_bbox_cache.clear();
 }
 
 
@@ -615,17 +718,14 @@ int EDA_TEXT::GetInterline() const
 }
 
 
-BOX2I EDA_TEXT::GetTextBox( int aLine, bool aInvertY ) const
+BOX2I EDA_TEXT::GetTextBox( int aLine ) const
 {
     VECTOR2I drawPos = GetDrawPos();
 
-    if( m_bounding_box_cache_valid
-            && m_bounding_box_cache_pos == drawPos
-            && m_bounding_box_cache_line == aLine
-            && m_bounding_box_cache_inverted == aInvertY  )
-    {
-        return m_bounding_box_cache;
-    }
+    auto cache_it = m_bbox_cache.find( aLine );
+
+    if( cache_it != m_bbox_cache.end() && cache_it->second.m_pos == drawPos )
+        return cache_it->second.m_bbox;
 
     BOX2I          bbox;
     wxArrayString  strings;
@@ -669,9 +769,6 @@ BOX2I EDA_TEXT::GetTextBox( int aLine, bool aInvertY ) const
     if( text.Contains( wxT( "~{" ) ) )
         overbarOffset = extents.y / 6;
 
-    if( aInvertY )
-        pos.y = -pos.y;
-
     bbox.SetOrigin( pos );
 
     // for multiline texts and aLine < 0, merge all rectangles (aLine == -1 signals all lines)
@@ -687,8 +784,8 @@ BOX2I EDA_TEXT::GetTextBox( int aLine, bool aInvertY ) const
 
         // interline spacing is only *between* lines, so total height is the height of the first
         // line plus the interline distance (with interline spacing) for all subsequent lines
-        textsize.y += KiROUND( ( strings.GetCount() - 1 ) * font->GetInterline( fontSize.y,
-                                                                                getFontMetrics() ) );
+        textsize.y += KiROUND( ( strings.GetCount() - 1 )
+                               * font->GetInterline( fontSize.y, getFontMetrics() ) );
     }
 
     textsize.y += overbarOffset;
@@ -706,6 +803,7 @@ BOX2I EDA_TEXT::GetTextBox( int aLine, bool aInvertY ) const
     case GR_TEXT_H_ALIGN_LEFT:
         if( IsMirrored() )
             bbox.SetX( bbox.GetX() - ( bbox.GetWidth() - italicOffset ) );
+
         break;
 
     case GR_TEXT_H_ALIGN_CENTER:
@@ -715,6 +813,10 @@ BOX2I EDA_TEXT::GetTextBox( int aLine, bool aInvertY ) const
     case GR_TEXT_H_ALIGN_RIGHT:
         if( !IsMirrored() )
             bbox.SetX( bbox.GetX() - ( bbox.GetWidth() - italicOffset ) );
+        break;
+
+    case GR_TEXT_H_ALIGN_INDETERMINATE:
+        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
         break;
     }
 
@@ -732,15 +834,15 @@ BOX2I EDA_TEXT::GetTextBox( int aLine, bool aInvertY ) const
         bbox.SetY( bbox.GetY() - bbox.GetHeight() );
         bbox.Offset( 0, fudgeFactor );
         break;
+
+    case GR_TEXT_V_ALIGN_INDETERMINATE:
+        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+        break;
     }
 
     bbox.Normalize();       // Make h and v sizes always >= 0
 
-    m_bounding_box_cache_valid = true;
-    m_bounding_box_cache_pos = drawPos;
-    m_bounding_box_cache_line = aLine;
-    m_bounding_box_cache_inverted = aInvertY;
-    m_bounding_box_cache = bbox;
+    m_bbox_cache[ aLine ] = { drawPos, bbox };
 
     return bbox;
 }
@@ -748,21 +850,15 @@ BOX2I EDA_TEXT::GetTextBox( int aLine, bool aInvertY ) const
 
 bool EDA_TEXT::TextHitTest( const VECTOR2I& aPoint, int aAccuracy ) const
 {
-    BOX2I    rect = GetTextBox();
-    VECTOR2I location = aPoint;
-
-    rect.Inflate( aAccuracy );
-    RotatePoint( location, GetDrawPos(), -GetDrawRotation() );
-
+    const BOX2I    rect = GetTextBox().GetInflated( aAccuracy );
+    const VECTOR2I location = GetRotated( aPoint, GetDrawPos(), -GetDrawRotation() );
     return rect.Contains( location );
 }
 
 
 bool EDA_TEXT::TextHitTest( const BOX2I& aRect, bool aContains, int aAccuracy ) const
 {
-    BOX2I rect = aRect;
-
-    rect.Inflate( aAccuracy );
+    const BOX2I rect = aRect.GetInflated( aAccuracy );
 
     if( aContains )
         return rect.Contains( GetTextBox() );
@@ -817,6 +913,10 @@ void EDA_TEXT::GetLinePositions( std::vector<VECTOR2I>& aPositions, int aLineCou
 
         case GR_TEXT_V_ALIGN_BOTTOM:
             pos.y -= ( aLineCount - 1 ) * offset.y;
+            break;
+
+        case GR_TEXT_V_ALIGN_INDETERMINATE:
+            wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
             break;
         }
     }
@@ -949,75 +1049,75 @@ bool EDA_TEXT::IsDefaultFormatting() const
 }
 
 
-void EDA_TEXT::Format( OUTPUTFORMATTER* aFormatter, int aNestLevel, int aControlBits ) const
+void EDA_TEXT::Format( OUTPUTFORMATTER* aFormatter, int aControlBits ) const
 {
-    aFormatter->Print( aNestLevel + 1, "(effects" );
+    aFormatter->Print( "(effects" );
 
-    aFormatter->Print( 0, " (font" );
+    aFormatter->Print( "(font" );
 
     if( GetFont() && !GetFont()->GetName().IsEmpty() )
-        aFormatter->Print( 0, " (face \"%s\")", GetFont()->NameAsToken() );
+        aFormatter->Print( "(face %s)", aFormatter->Quotew( GetFont()->NameAsToken() ).c_str() );
 
     // Text size
-    aFormatter->Print( 0, " (size %s %s)",
+    aFormatter->Print( "(size %s %s)",
                        EDA_UNIT_UTILS::FormatInternalUnits( m_IuScale, GetTextHeight() ).c_str(),
                        EDA_UNIT_UTILS::FormatInternalUnits( m_IuScale, GetTextWidth() ).c_str() );
 
     if( GetLineSpacing() != 1.0 )
     {
-        aFormatter->Print( 0, " (line_spacing %s)",
+        aFormatter->Print( "(line_spacing %s)",
                            FormatDouble2Str( GetLineSpacing() ).c_str() );
     }
 
     if( GetTextThickness() )
     {
-        aFormatter->Print( 0, " (thickness %s)",
+        aFormatter->Print( "(thickness %s)",
                 EDA_UNIT_UTILS::FormatInternalUnits( m_IuScale, GetTextThickness() ).c_str() );
     }
 
     if( IsBold() )
-        aFormatter->Print( 0, " (bold yes)" );
+        KICAD_FORMAT::FormatBool( aFormatter, "bold", true );
 
     if( IsItalic() )
-        aFormatter->Print( 0, " (italic yes)" );
+        KICAD_FORMAT::FormatBool( aFormatter, "italic", true );
 
     if( !( aControlBits & CTL_OMIT_COLOR ) && GetTextColor() != COLOR4D::UNSPECIFIED )
     {
-        aFormatter->Print( 0, " (color %d %d %d %s)",
+        aFormatter->Print( "(color %d %d %d %s)",
                            KiROUND( GetTextColor().r * 255.0 ),
                            KiROUND( GetTextColor().g * 255.0 ),
                            KiROUND( GetTextColor().b * 255.0 ),
                            FormatDouble2Str( GetTextColor().a ).c_str() );
     }
 
-    aFormatter->Print( 0, ")"); // (font
+    aFormatter->Print( ")"); // (font
 
     if( IsMirrored() || GetHorizJustify() != GR_TEXT_H_ALIGN_CENTER
                      || GetVertJustify() != GR_TEXT_V_ALIGN_CENTER )
     {
-        aFormatter->Print( 0, " (justify");
+        aFormatter->Print( "(justify");
 
         if( GetHorizJustify() != GR_TEXT_H_ALIGN_CENTER )
-            aFormatter->Print( 0, GetHorizJustify() == GR_TEXT_H_ALIGN_LEFT ? " left" : " right" );
+            aFormatter->Print( GetHorizJustify() == GR_TEXT_H_ALIGN_LEFT ? " left" : " right" );
 
         if( GetVertJustify() != GR_TEXT_V_ALIGN_CENTER )
-            aFormatter->Print( 0, GetVertJustify() == GR_TEXT_V_ALIGN_TOP ? " top" : " bottom" );
+            aFormatter->Print( GetVertJustify() == GR_TEXT_V_ALIGN_TOP ? " top" : " bottom" );
 
         if( IsMirrored() )
-            aFormatter->Print( 0, " mirror" );
+            aFormatter->Print( " mirror" );
 
-        aFormatter->Print( 0, ")" ); // (justify
+        aFormatter->Print( ")" ); // (justify
     }
 
     if( !( aControlBits & CTL_OMIT_HIDE ) && !IsVisible() )
-        aFormatter->Print( 0, " (hide yes)" );
+        KICAD_FORMAT::FormatBool( aFormatter, "hide", true );
 
     if( !( aControlBits & CTL_OMIT_HYPERLINK ) && HasHyperlink() )
     {
-        aFormatter->Print( 0, " (href %s)", aFormatter->Quotew( GetHyperlink() ).c_str() );
+        aFormatter->Print( "(href %s)", aFormatter->Quotew( GetHyperlink() ).c_str() );
     }
 
-    aFormatter->Print( 0, ")\n" ); // (effects
+    aFormatter->Print( ")" ); // (effects
 }
 
 
@@ -1129,16 +1229,9 @@ bool EDA_TEXT::ValidateHyperlink( const wxString& aURL )
     if( aURL.IsEmpty() || IsGotoPageHref( aURL ) )
         return true;
 
-    // Limit valid urls to file, http and https for now. Note wxURL doesn't support https
     wxURI uri;
 
-    if( uri.Create( aURL ) && uri.HasScheme() )
-    {
-        const wxString& scheme = uri.GetScheme();
-        return scheme == wxT( "file" )  || scheme == wxT( "http" ) || scheme == wxT( "https" );
-    }
-
-    return false;
+    return( uri.Create( aURL ) && uri.HasScheme() );
 }
 
 double EDA_TEXT::Levenshtein( const EDA_TEXT& aOther ) const
@@ -1227,14 +1320,26 @@ static struct EDA_TEXT_DESC
 {
     EDA_TEXT_DESC()
     {
-        ENUM_MAP<GR_TEXT_H_ALIGN_T>::Instance()
-                .Map( GR_TEXT_H_ALIGN_LEFT,   _HKI( "Left" ) )
-                .Map( GR_TEXT_H_ALIGN_CENTER, _HKI( "Center" ) )
-                .Map( GR_TEXT_H_ALIGN_RIGHT,  _HKI( "Right" ) );
-        ENUM_MAP<GR_TEXT_V_ALIGN_T>::Instance()
-                .Map( GR_TEXT_V_ALIGN_TOP,    _HKI( "Top" ) )
-                .Map( GR_TEXT_V_ALIGN_CENTER, _HKI( "Center" ) )
-                .Map( GR_TEXT_V_ALIGN_BOTTOM, _HKI( "Bottom" ) );
+        // These are defined in SCH_FIELD as well but initialization order is
+        // not defined, so this needs to be conditional.  Defining in both
+        // places leads to duplicate symbols.
+        auto& h_inst = ENUM_MAP<GR_TEXT_H_ALIGN_T>::Instance();
+
+        if( h_inst.Choices().GetCount() == 0)
+        {
+            h_inst.Map( GR_TEXT_H_ALIGN_LEFT,   _( "Left" ) );
+            h_inst.Map( GR_TEXT_H_ALIGN_CENTER, _( "Center" ) );
+            h_inst.Map( GR_TEXT_H_ALIGN_RIGHT,  _( "Right" ) );
+        }
+
+        auto& v_inst = ENUM_MAP<GR_TEXT_V_ALIGN_T>::Instance();
+
+        if( v_inst.Choices().GetCount() == 0)
+        {
+            v_inst.Map( GR_TEXT_V_ALIGN_TOP,    _( "Top" ) );
+            v_inst.Map( GR_TEXT_V_ALIGN_CENTER, _( "Center" ) );
+            v_inst.Map( GR_TEXT_V_ALIGN_BOTTOM, _( "Bottom" ) );
+        }
 
         PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
         REGISTER_TYPE( EDA_TEXT );

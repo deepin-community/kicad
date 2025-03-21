@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2014 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -116,7 +116,7 @@ public:
     static bool Optimize( LINE* aLine, int aEffortLevel, NODE* aWorld,
                           const VECTOR2I& aV = VECTOR2I(0, 0) );
 
-    bool Optimize( LINE* aLine, LINE* aResult = nullptr, LINE* aRoot = nullptr );
+    bool Optimize( const LINE* aLine, LINE* aResult = nullptr, LINE* aRoot = nullptr );
     bool Optimize( DIFF_PAIR* aPair );
 
 
@@ -151,10 +151,8 @@ public:
     {
         m_restrictArea = aArea;
         m_restrictAreaIsStrict = aStrict;
+        m_effortLevel |= OPTIMIZER::RESTRICT_AREA;
     }
-
-    void ClearConstraints();
-    void AddConstraint ( OPT_CONSTRAINT *aConstraint );
 
 private:
     static const int MaxCachedItems = 256;
@@ -169,6 +167,8 @@ private:
         bool m_isStatic;
     };
 
+
+    void addConstraint ( OPT_CONSTRAINT *aConstraint );
     bool mergeObtuse( LINE* aLine );
     bool mergeFull( LINE* aLine );
     bool mergeColinear( LINE* aLine );

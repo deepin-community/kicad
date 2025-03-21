@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -99,18 +99,27 @@ DIALOG_GIT_COMMIT::DIALOG_GIT_COMMIT( wxWindow* parent, git_repository* repo,
             m_listCtrl->SetItem( i, 1, _( "New" ) );
             m_listCtrl->SetItemImage(
                     i, static_cast<int>( KIGIT_COMMON::GIT_STATUS::GIT_STATUS_ADDED ) );
+
+            if( status & ( GIT_STATUS_INDEX_NEW ) )
+                m_listCtrl->CheckItem( i, true );
         }
         else if( status & ( GIT_STATUS_INDEX_MODIFIED | GIT_STATUS_WT_MODIFIED ) )
         {
             m_listCtrl->SetItem( i, 1, _( "Modified" ) );
             m_listCtrl->SetItemImage(
                     i, static_cast<int>( KIGIT_COMMON::GIT_STATUS::GIT_STATUS_MODIFIED ) );
+
+            if( status & ( GIT_STATUS_INDEX_MODIFIED ) )
+                m_listCtrl->CheckItem( i, true );
         }
         else if( status & ( GIT_STATUS_INDEX_DELETED | GIT_STATUS_WT_DELETED ) )
         {
             m_listCtrl->SetItem( i, 1, _( "Deleted" ) );
             m_listCtrl->SetItemImage(
                     i, static_cast<int>( KIGIT_COMMON::GIT_STATUS::GIT_STATUS_DELETED ) );
+
+            if( status & ( GIT_STATUS_INDEX_DELETED ) )
+                m_listCtrl->CheckItem( i, true );
         }
         else
         {

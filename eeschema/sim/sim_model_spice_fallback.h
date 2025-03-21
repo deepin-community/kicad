@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,10 +32,12 @@ class SIM_MODEL_SPICE_FALLBACK : public SIM_MODEL_SPICE
 public:
     SIM_MODEL_SPICE_FALLBACK( TYPE aType, const std::string& aRawSpiceCode = "" );
 
-    void SetPinSymbolPinNumber( const std::string& aPinName,
-                                const std::string& aSymbolPinNumber ) override;
+    void AssignSymbolPinNumberToModelPin( const std::string& aModelPinName,
+                                          const wxString& aSymbolPinNumber ) override;
 
     std::vector<std::string> GetPinNames() const override;
+
+    std::string GetSpiceCode() const { return m_spiceCode; }
 
 protected:
     int doFindParam( const std::string& aParamName ) const override;

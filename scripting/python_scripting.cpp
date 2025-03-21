@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 NBEE Embedded Systems, Miguel Angel Ajo <miguelangel@nbee.es>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,10 +36,7 @@
 #include <cstring>
 #include <string>
 
-#include <eda_base_frame.h>
 #include <env_vars.h>
-#include <gal/color4d.h>
-#include <gestfich.h>
 #include <trace_helpers.h>
 #include <string_utils.h>
 #include <macros.h>
@@ -57,6 +54,7 @@
 #include <wx/utils.h>
 
 #include <config.h>
+#include <gestfich.h>
 
 
 SCRIPTING::SCRIPTING()
@@ -100,7 +98,13 @@ bool SCRIPTING::IsWxAvailable()
     pybind11::dict locals;
 
     pybind11::exec( R"(
+import traceback
+import sys
+
+sys_version = sys.version
 wx_version = ""
+exception_output = ""
+
 try:
     from wx import version
     wx_version = version()
@@ -110,19 +114,34 @@ try:
     # mutating those globals.
     import wx.adv, wx.html, wx.richtext
 
-except:
-    pass
+except Exception as e:
+    exception_output = "".join(traceback.format_exc())
     )", pybind11::globals(), locals );
 
-    // e.g. "4.0.7 gtk3 (phoenix) wxWidgets 3.0.4"
-    wxString version( locals["wx_version"].cast<std::string>().c_str(), wxConvUTF8 );
+    const auto getLocal = [&]( const wxString& aName ) -> wxString
+    {
+        return wxString( locals[aName.ToStdString().c_str()].cast<std::string>().c_str(),
+                         wxConvUTF8 );
+    };
 
-    int idx = version.Find( wxT( "wxWidgets " ) );
+    // e.g. "4.0.7 gtk3 (phoenix) wxWidgets 3.0.4"
+    wxString version = getLocal( "wx_version" );
+    int      idx = version.Find( wxT( "wxWidgets " ) );
 
     if( idx == wxNOT_FOUND || version.IsEmpty() )
     {
-        wxLogError( wxT( "Could not determine wxPython version. "
-                         "Python plugins will not be available." ) );
+        wxString msg = wxString::Format( wxT( "Could not determine wxWidgets version. "
+                                              "Python plugins will not be available." ),
+                                         version );
+
+        msg << wxString::Format( wxT( "\n\nsys.version: '%s'" ), getLocal( "sys_version" ) );
+        msg << wxString::Format( wxT( "\nwx.version(): '%s'" ), getLocal( "wx_version" ) );
+
+        const wxString exception_output = getLocal( "exception_output" );
+        if( !exception_output.IsEmpty() )
+            msg << wxT( "\n\n" ) << exception_output;
+
+        wxLogError( msg );
         available = false;
     }
     else
@@ -335,72 +354,6 @@ bool SCRIPTING::scriptingSetup()
         wxLogError( _( "Could not create user scripting path %s." ), path.GetPath() );
 
     return true;
-}
-
-
-/**
- * Run a python method from the Pcbnew module.
- *
- * @param aMethodName is the name of the method (like "pcbnew.myfunction" )
- * @param aNames will contain the returned string
- */
-static void RunPythonMethodWithReturnedString( const char* aMethodName, wxString& aNames )
-{
-    aNames.Clear();
-
-    PyLOCK      lock;
-    PyErr_Clear();
-
-    PyObject* builtins = PyImport_ImportModule( "pcbnew" );
-    wxASSERT( builtins );
-
-    if( !builtins ) // Something is wrong in pcbnew.py module (incorrect version?)
-        return;
-
-    PyObject* globals = PyDict_New();
-    PyDict_SetItemString( globals, "pcbnew", builtins );
-    Py_DECREF( builtins );
-
-    // Build the python code
-    std::string cmd = "result = " + std::string( aMethodName ) + "()";
-
-    // Execute the python code and get the returned data
-    PyObject* localDict = PyDict_New();
-    PyObject* pobj = PyRun_String( cmd.c_str(), Py_file_input, globals, localDict );
-    Py_DECREF( globals );
-
-    if( pobj )
-    {
-        PyObject* str = PyDict_GetItemString(localDict, "result" );
-        const char* str_res = nullptr;
-
-        if(str)
-        {
-            PyObject* temp_bytes = PyUnicode_AsEncodedString( str, "UTF-8", "strict" );
-
-            if( temp_bytes != nullptr )
-            {
-                str_res = PyBytes_AS_STRING( temp_bytes );
-                aNames = From_UTF8( str_res );
-                Py_DECREF( temp_bytes );
-            }
-            else
-            {
-                wxLogMessage( wxS( "cannot encode Unicode python string" ) );
-            }
-        }
-        else
-        {
-            aNames = wxString();
-        }
-
-        Py_DECREF( pobj );
-    }
-
-    Py_DECREF( localDict );
-
-    if( PyErr_Occurred() )
-        wxLogMessage( PyErrStringWithTraceback() );
 }
 
 

@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2021 Ola Rinta-Koski
- * Copyright (C) 2021-2023 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * Font abstract base class
  *
@@ -141,7 +141,9 @@ public:
     virtual bool IsItalic() const  { return false; }
 
     static FONT* GetFont( const wxString& aFontName = wxEmptyString, bool aBold = false,
-                          bool aItalic = false, bool aForDrawingSheet = false );
+                          bool aItalic = false,
+                          const std::vector<wxString>* aEmbeddedFiles = nullptr,
+                          bool aForDrawingSheet = false );
     static bool IsStroke( const wxString& aFontName );
 
     const wxString& GetName() const { return m_fontName; };
@@ -177,6 +179,16 @@ public:
 
     /**
      * Insert \n characters into text to ensure that no lines are wider than \a aColumnWidth.
+     *
+     * This is a highly simplified line-breaker.  KiCad is an EDA tool, not a word processor.
+     *
+     * -# It breaks only on spaces.  If you type a word wider than the column width then you get
+     *    overflow.
+     * -# It treats runs of formatted text (superscript, subscript, overbar) as single words.
+     * -# It does not perform justification.
+     *
+     * The results of the linebreaking are the addition of \n in the text.  It is presumed that this
+     * function is called on m_shownText (or equivalent) rather than the original source text.
      */
     void LinebreakText( wxString& aText, int aColumnWidth, const VECTOR2I& aGlyphSize,
                         int aThickness, bool aBold, bool aItalic ) const;
@@ -209,7 +221,7 @@ public:
 
 protected:
     /**
-     * Returns number of lines for a given text.
+     * Return number of lines for a given text.
      *
      * @param aText is the text to be checked.
      * @return unsigned - The number of lines in aText.
@@ -224,7 +236,7 @@ protected:
     }
 
     /**
-     * Draws a single line of text. Multiline texts should be split before using the
+     * Draw a single line of text. Multiline texts should be split before using the
      * function.
      *
      * @param aGal is a pointer to the graphics abstraction layer, or nullptr (nothing is drawn)
@@ -243,7 +255,8 @@ protected:
                              bool aItalic, bool aUnderline, const METRICS& aFontMetrics ) const;
 
     /**
-     * Computes the bounding box for a single line of text.
+     * Compute the bounding box for a single line of text.
+     *
      * Multiline texts should be split before using the function.
      *
      * @param aBBox is an optional pointer to be filled with the bounding box.
@@ -253,7 +266,8 @@ protected:
      * @return new cursor position
      */
     VECTOR2I boundingBoxSingleLine( BOX2I* aBBox, const wxString& aText, const VECTOR2I& aPosition,
-                                    const VECTOR2I& aSize, bool aItalic, const METRICS& aFontMetrics ) const;
+                                    const VECTOR2I& aSize, bool aItalic,
+                                    const METRICS& aFontMetrics ) const;
 
     void getLinePositions( const wxString& aText, const VECTOR2I& aPosition,
                            wxArrayString& aTextLines, std::vector<VECTOR2I>& aPositions,

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,14 +25,15 @@
  * @brief functions to read the rs274d commands from a rs274d/rs274x file
  */
 
+#include <cmath>
 
+#include <geometry/geometry_utils.h>
 #include <gerbview.h>
 #include <gerbview_frame.h>
-#include <trigo.h>
 #include <gerber_file_image.h>
+#include <trigo.h>
 #include <X2_gerber_attributes.h>
 
-#include <cmath>
 
 /* Gerber: NOTES about some important commands found in RS274D and RS274X (G codes).
  * Some are now deprecated, but deprecated commands must be known by the Gerber reader
@@ -298,7 +299,7 @@ void fillArcGBRITEM( GERBER_DRAW_ITEM* aGbrItem, int Dcode_index, const VECTOR2I
     aGbrItem->SetLayerPolarity( aLayerNegative );
 }
 
-#include <wx/log.h>
+
 /**
  * Create an arc G code when found in polygon outlines.
  *

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -33,9 +33,9 @@
 #include <vector>
 #include <deque>
 
-#include <geometry/shape_poly_set.h>
-
 class SEG;
+class SHAPE_LINE_CHAIN;
+class SHAPE_POLY_SET;
 
 namespace KIGFX
 {
@@ -73,7 +73,7 @@ public:
 
     virtual const BOX2I ViewBBox() const override;
     virtual void ViewDraw( int aLayer, VIEW *aView ) const override;
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    virtual std::vector<int> ViewGetLayers() const override;
 
     // Basic shape primitives
     void Line( const VECTOR2D& aStartPoint, const VECTOR2D& aEndPoint );

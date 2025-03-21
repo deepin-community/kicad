@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,17 +22,19 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "symbol_editor_pin_tool.h"
+
 #include <tools/ee_selection_tool.h>
 #include <symbol_edit_frame.h>
 #include <sch_commit.h>
-#include <confirm.h>
+#include <kidialog.h>
 #include <ee_actions.h>
 #include <dialogs/dialog_pin_properties.h>
+#include <increment.h>
 #include <settings/settings_manager.h>
 #include <symbol_editor/symbol_editor_settings.h>
 #include <pgm_base.h>
-#include <wx/log.h>
-#include "symbol_editor_pin_tool.h"
+#include <wx/debug.h>
 
 
 static ELECTRICAL_PINTYPE g_LastPinType            = ELECTRICAL_PINTYPE::PT_INPUT;
@@ -51,8 +53,10 @@ static int GetLastPinLength()
 {
     if( g_LastPinLength == -1 )
     {
-        auto* settings = Pgm().GetSettingsManager().GetAppSettings<SYMBOL_EDITOR_SETTINGS>();
-        g_LastPinLength = schIUScale.MilsToIU( settings->m_Defaults.pin_length );
+        SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
+        SYMBOL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" );
+
+        g_LastPinLength = schIUScale.MilsToIU( cfg->m_Defaults.pin_length );
     }
 
     return g_LastPinLength;
@@ -62,8 +66,10 @@ static int GetLastPinNameSize()
 {
     if( g_LastPinNameSize == -1 )
     {
-        auto* settings = Pgm().GetSettingsManager().GetAppSettings<SYMBOL_EDITOR_SETTINGS>();
-        g_LastPinNameSize = schIUScale.MilsToIU( settings->m_Defaults.pin_name_size );
+        SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
+        SYMBOL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" );
+
+        g_LastPinNameSize = schIUScale.MilsToIU( cfg->m_Defaults.pin_name_size );
     }
 
     return g_LastPinNameSize;
@@ -73,15 +79,14 @@ static int GetLastPinNumSize()
 {
     if( g_LastPinNumSize == -1 )
     {
-        auto* settings = Pgm().GetSettingsManager().GetAppSettings<SYMBOL_EDITOR_SETTINGS>();
-        g_LastPinNumSize = schIUScale.MilsToIU( settings->m_Defaults.pin_num_size );
+        SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
+        SYMBOL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" );
+
+        g_LastPinNumSize = schIUScale.MilsToIU( cfg->m_Defaults.pin_num_size );
     }
 
     return g_LastPinNumSize;
 }
-
-
-extern bool IncrementLabelMember( wxString& name, int aIncrement );
 
 
 SYMBOL_EDITOR_PIN_TOOL::SYMBOL_EDITOR_PIN_TOOL() :
@@ -103,7 +108,9 @@ bool SYMBOL_EDITOR_PIN_TOOL::Init()
                 return editor->IsSymbolEditable() && !editor->IsSymbolAlias();
             };
 
-    auto singlePinCondition = EE_CONDITIONS::Count( 1 ) && EE_CONDITIONS::OnlyTypes( { LIB_PIN_T } );
+    static const std::vector<KICAD_T> pinTypes = { SCH_PIN_T };
+
+    auto singlePinCondition = EE_CONDITIONS::Count( 1 ) && EE_CONDITIONS::OnlyTypes( pinTypes );
 
     CONDITIONAL_MENU& selToolMenu = m_selectionTool->GetToolMenu().GetMenu();
 
@@ -116,31 +123,29 @@ bool SYMBOL_EDITOR_PIN_TOOL::Init()
 }
 
 
-bool SYMBOL_EDITOR_PIN_TOOL::EditPinProperties( LIB_PIN* aPin )
+bool SYMBOL_EDITOR_PIN_TOOL::EditPinProperties( SCH_PIN* aPin, bool aFocusPinNumber )
 {
-    LIB_PIN               original_pin( *aPin );
-    DIALOG_PIN_PROPERTIES dlg( m_frame, aPin );
+    SCH_PIN               original_pin( *aPin );
+    DIALOG_PIN_PROPERTIES dlg( m_frame, aPin, aFocusPinNumber );
     SCH_COMMIT            commit( m_frame );
+    LIB_SYMBOL*           parentSymbol = static_cast<LIB_SYMBOL*>( aPin->GetParentSymbol() );
 
     if( aPin->GetEditFlags() == 0 )
-        commit.Modify( aPin->GetParent() );
+        commit.Modify( parentSymbol );
 
     if( dlg.ShowModal() == wxID_CANCEL )
         return false;
 
-    if( !aPin->IsNew() && m_frame->SynchronizePins() && aPin->GetParent() )
+    if( !aPin->IsNew() && m_frame->SynchronizePins() && parentSymbol )
     {
-        LIB_PINS pinList;
-        aPin->GetParent()->GetPins( pinList );
-
         // a pin can have a unit id = 0 (common to all units) to unit count
         // So we need a buffer size = GetUnitCount()+1 to store a value in a vector
         // when using the unit id of a pin as index
-        std::vector<bool> got_unit( aPin->GetParent()->GetUnitCount() + 1 );
+        std::vector<bool> got_unit( parentSymbol->GetUnitCount() + 1 );
 
         got_unit[static_cast<size_t>(aPin->GetUnit())] = true;
 
-        for( LIB_PIN* other : pinList )
+        for( SCH_PIN* other : parentSymbol->GetPins() )
         {
             if( other == aPin )
                 continue;
@@ -160,19 +165,23 @@ bool SYMBOL_EDITOR_PIN_TOOL::EditPinProperties( LIB_PIN* aPin )
                 if( aPin->GetBodyStyle() == 0 )
                 {
                     if( !aPin->GetUnit() || other->GetUnit() == aPin->GetUnit() )
-                        aPin->GetParent()->RemoveDrawItem( other );
+                        parentSymbol->RemoveDrawItem( other );
                 }
-                else if( other->GetBodyStyle() == aPin->GetBodyStyle() )
+
+                if( other->GetBodyStyle() == aPin->GetBodyStyle() )
                 {
-                    other->SetPosition( aPin->GetPosition() );
                     other->ChangeLength( aPin->GetLength() );
+
+                    // Must be done after ChangeLenght(), which can alter the position
+                    other->SetPosition( aPin->GetPosition() );
+
                     other->SetShape( aPin->GetShape() );
                 }
 
                 if( aPin->GetUnit() == 0 )
                 {
                     if( !aPin->GetBodyStyle() || other->GetBodyStyle() == aPin->GetBodyStyle() )
-                        aPin->GetParent()->RemoveDrawItem( other );
+                        parentSymbol->RemoveDrawItem( other );
                 }
 
                 other->SetOrientation( aPin->GetOrientation() );
@@ -208,14 +217,14 @@ bool SYMBOL_EDITOR_PIN_TOOL::EditPinProperties( LIB_PIN* aPin )
 }
 
 
-bool SYMBOL_EDITOR_PIN_TOOL::PlacePin( LIB_PIN* aPin )
+bool SYMBOL_EDITOR_PIN_TOOL::PlacePin( SCH_PIN* aPin )
 {
     LIB_SYMBOL* symbol = m_frame->GetCurSymbol();
     bool        ask_for_pin = true;   // Test for another pin in same position in other units
 
-    std::vector<LIB_PIN*> pins = symbol->GetAllLibPins();
+    std::vector<SCH_PIN*> pins = symbol->GetPins();
 
-    for( LIB_PIN* test : pins )
+    for( SCH_PIN* test : pins )
     {
         if( test == aPin || aPin->GetPosition() != test->GetPosition() || test->GetEditFlags() )
             continue;
@@ -264,12 +273,12 @@ bool SYMBOL_EDITOR_PIN_TOOL::PlacePin( LIB_PIN* aPin )
     }
 
     // Put linked pins in new position, and clear flags
-    for( LIB_PIN* pin : pins )
+    for( SCH_PIN* pin : pins )
     {
         if( ( pin->GetEditFlags() & IS_LINKED ) == 0 )
             continue;
 
-        pin->MoveTo( aPin->GetPosition() );
+        pin->SetPosition( aPin->GetPosition() );
         pin->ClearFlags();
     }
 
@@ -283,11 +292,11 @@ bool SYMBOL_EDITOR_PIN_TOOL::PlacePin( LIB_PIN* aPin )
 /*
  * Create a new pin.
  */
-LIB_PIN* SYMBOL_EDITOR_PIN_TOOL::CreatePin( const VECTOR2I& aPosition, LIB_SYMBOL* aSymbol )
+SCH_PIN* SYMBOL_EDITOR_PIN_TOOL::CreatePin( const VECTOR2I& aPosition, LIB_SYMBOL* aSymbol )
 {
     aSymbol->ClearTempFlags();
 
-    LIB_PIN* pin = new LIB_PIN( aSymbol );
+    SCH_PIN* pin = new SCH_PIN( aSymbol );
 
     pin->SetFlags( IS_NEW );
 
@@ -295,7 +304,7 @@ LIB_PIN* SYMBOL_EDITOR_PIN_TOOL::CreatePin( const VECTOR2I& aPosition, LIB_SYMBO
     if( m_frame->SynchronizePins() )
         pin->SetFlags( IS_LINKED );
 
-    pin->MoveTo( aPosition );
+    pin->SetPosition( aPosition );
     pin->SetLength( GetLastPinLength() );
     pin->SetOrientation( g_LastPinOrient );
     pin->SetType( g_LastPinType );
@@ -306,7 +315,7 @@ LIB_PIN* SYMBOL_EDITOR_PIN_TOOL::CreatePin( const VECTOR2I& aPosition, LIB_SYMBO
     pin->SetUnit( g_LastPinCommonUnit ? 0 : m_frame->GetUnit() );
     pin->SetVisible( g_LastPinVisible );
 
-    if( !EditPinProperties( pin ) )
+    if( !EditPinProperties( pin, false ) )
     {
         delete pin;
         pin = nullptr;
@@ -316,10 +325,10 @@ LIB_PIN* SYMBOL_EDITOR_PIN_TOOL::CreatePin( const VECTOR2I& aPosition, LIB_SYMBO
 }
 
 
-void SYMBOL_EDITOR_PIN_TOOL::CreateImagePins( LIB_PIN* aPin )
+void SYMBOL_EDITOR_PIN_TOOL::CreateImagePins( SCH_PIN* aPin )
 {
     int      ii;
-    LIB_PIN* newPin;
+    SCH_PIN* newPin;
 
     // if "synchronize pins editing" option is off, do not create any similar pin for other
     // units and/or shapes: each unit is edited regardless other units or body
@@ -334,12 +343,12 @@ void SYMBOL_EDITOR_PIN_TOOL::CreateImagePins( LIB_PIN* aPin )
     // to facilitate pin editing, create pins for all other units for the current body style
     // at the same position as aPin
 
-    for( ii = 1; ii <= aPin->GetParent()->GetUnitCount(); ii++ )
+    for( ii = 1; ii <= aPin->GetParentSymbol()->GetUnitCount(); ii++ )
     {
         if( ii == aPin->GetUnit() )
             continue;
 
-        newPin = (LIB_PIN*) aPin->Duplicate();
+        newPin = static_cast<SCH_PIN*>( aPin->Duplicate() );
 
         // To avoid mistakes, gives this pin a new pin number because
         // it does no have the save pin number as the master pin
@@ -352,12 +361,13 @@ void SYMBOL_EDITOR_PIN_TOOL::CreateImagePins( LIB_PIN* aPin )
 
         try
         {
-            aPin->GetParent()->AddDrawItem( newPin );
+            LIB_SYMBOL* symbol = static_cast<LIB_SYMBOL*>( aPin->GetParentSymbol() );
+            symbol->AddDrawItem( newPin );
         }
         catch( const boost::bad_pointer& e )
         {
-            wxLogError( "Cannot add new pin to symbol.  Boost pointer error %s occurred.",
-                        e.what() );
+            wxFAIL_MSG( wxString::Format( wxT( "Boost pointer exception occurred: %s" ),
+                                          e.what() ));
             delete newPin;
             return;
         }
@@ -371,15 +381,14 @@ int SYMBOL_EDITOR_PIN_TOOL::PushPinProperties( const TOOL_EVENT& aEvent )
 {
     LIB_SYMBOL*   symbol = m_frame->GetCurSymbol();
     EE_SELECTION& selection = m_selectionTool->GetSelection();
-    LIB_PIN*      sourcePin = dynamic_cast<LIB_PIN*>( selection.Front() );
+    SCH_PIN*      sourcePin = dynamic_cast<SCH_PIN*>( selection.Front() );
 
     if( !sourcePin )
         return 0;
 
     saveCopyInUndoList( symbol, UNDO_REDO::LIBEDIT );
-    std::vector<LIB_PIN*> pins = symbol->GetAllLibPins();
 
-    for( LIB_PIN* pin : pins )
+    for( SCH_PIN* pin : symbol->GetPins() )
     {
         if( pin == sourcePin )
             continue;
@@ -407,37 +416,39 @@ int SYMBOL_EDITOR_PIN_TOOL::PushPinProperties( const TOOL_EVENT& aEvent )
 
 
 // Create a new pin based on the previous pin with an incremented pin number.
-LIB_PIN* SYMBOL_EDITOR_PIN_TOOL::RepeatPin( const LIB_PIN* aSourcePin )
+SCH_PIN* SYMBOL_EDITOR_PIN_TOOL::RepeatPin( const SCH_PIN* aSourcePin )
 {
     SCH_COMMIT  commit( m_frame );
     LIB_SYMBOL* symbol = m_frame->GetCurSymbol();
 
     commit.Modify( symbol );
 
-    LIB_PIN* pin = (LIB_PIN*) aSourcePin->Duplicate();
+    SCH_PIN* pin = static_cast<SCH_PIN*>( aSourcePin->Duplicate() );
     VECTOR2I step;
 
     pin->ClearFlags();
     pin->SetFlags( IS_NEW );
 
-    auto* settings = Pgm().GetSettingsManager().GetAppSettings<SYMBOL_EDITOR_SETTINGS>();
+    SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
+    SYMBOL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" );
 
     switch( pin->GetOrientation() )
     {
-    case PIN_ORIENTATION::PIN_UP:    step.x = schIUScale.MilsToIU(settings->m_Repeat.pin_step);   break;
-    case PIN_ORIENTATION::PIN_DOWN:  step.x = schIUScale.MilsToIU(settings->m_Repeat.pin_step);   break;
-    case PIN_ORIENTATION::PIN_LEFT:  step.y = schIUScale.MilsToIU(-settings->m_Repeat.pin_step);  break;
-    case PIN_ORIENTATION::PIN_RIGHT: step.y = schIUScale.MilsToIU(-settings->m_Repeat.pin_step);  break;
+    default:
+    case PIN_ORIENTATION::PIN_RIGHT: step.y = schIUScale.MilsToIU( cfg->m_Repeat.pin_step );   break;
+    case PIN_ORIENTATION::PIN_UP:    step.x = schIUScale.MilsToIU( cfg->m_Repeat.pin_step );  break;
+    case PIN_ORIENTATION::PIN_DOWN:  step.x = schIUScale.MilsToIU( cfg->m_Repeat.pin_step) ;  break;
+    case PIN_ORIENTATION::PIN_LEFT:  step.y = schIUScale.MilsToIU( cfg->m_Repeat.pin_step );   break;
     }
 
-    pin->Offset( step );
+    pin->Move( step );
 
     wxString nextName = pin->GetName();
-    IncrementLabelMember( nextName, settings->m_Repeat.label_delta );
+    IncrementString( nextName, cfg->m_Repeat.label_delta );
     pin->SetName( nextName );
 
     wxString nextNumber = pin->GetNumber();
-    IncrementLabelMember( nextNumber, settings->m_Repeat.label_delta );
+    IncrementString( nextNumber, cfg->m_Repeat.label_delta );
     pin->SetNumber( nextNumber );
 
     if( m_frame->SynchronizePins() )

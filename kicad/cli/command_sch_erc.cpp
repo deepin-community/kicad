@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -83,9 +83,9 @@ CLI::SCH_ERC_COMMAND::SCH_ERC_COMMAND() : COMMAND( "erc" )
 
 int CLI::SCH_ERC_COMMAND::doPerform( KIWAY& aKiway )
 {
-    std::unique_ptr<JOB_SCH_ERC> ercJob( new JOB_SCH_ERC( true ) );
+    std::unique_ptr<JOB_SCH_ERC> ercJob( new JOB_SCH_ERC() );
 
-    ercJob->m_outputFile = m_argOutput;
+    ercJob->SetConfiguredOutputPath( m_argOutput );
     ercJob->m_filename = m_argInput;
     ercJob->m_exitCodeViolations = m_argParser.get<bool>( ARG_EXIT_CODE_VIOLATIONS );
     ercJob->SetVarOverrides( m_argDefineVars );

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021-2024 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -119,7 +119,7 @@ public:
                 return diff;                                \
         } while (0)
 
-#define ITEM_DESC( item ) ( item )->GetItemDescription( &g_unitsProvider )
+#define ITEM_DESC( item ) ( item )->GetItemDescription( &g_unitsProvider, true )
 #define PAD_DESC( pad ) wxString::Format( _( "Pad %s" ), ( pad )->GetNumber() )
 
 
@@ -192,29 +192,72 @@ bool primitiveNeedsUpdate( const std::shared_ptr<PCB_SHAPE>& a,
 }
 
 
-bool padHasOverrides( const PAD* a, const PAD* b, REPORTER* aReporter )
+bool padHasOverrides( const PAD* a, const PAD* b, REPORTER& aReporter )
 {
     bool diff = false;
 
-    TEST( a->GetLocalClearance(), b->GetLocalClearance(),
-          wxString::Format( _( "%s has clearance override." ), PAD_DESC( a ) ) );
-    TEST( a->GetLocalSolderMaskMargin(), b->GetLocalSolderMaskMargin(),
-          wxString::Format( _( "%s has solder mask expansion override." ), PAD_DESC( a ) ) );
-    TEST( a->GetLocalSolderPasteMargin(), b->GetLocalSolderPasteMargin(),
-          wxString::Format( _( "%s has solder paste clearance override." ), PAD_DESC( a ) ) );
-    TEST_D( a->GetLocalSolderPasteMarginRatio(), b->GetLocalSolderPasteMarginRatio(),
-          wxString::Format( _( "%s has solder paste clearance override." ), PAD_DESC( a ) ) );
+#define REPORT_MSG( s, p ) aReporter.Report( wxString::Format( s, p ) )
 
-    TEST( a->GetZoneConnection(), b->GetZoneConnection(),
-          wxString::Format( _( "%s has zone connection override." ), PAD_DESC( a ) ) );
-    TEST( a->GetThermalGap(), b->GetThermalGap(),
-          wxString::Format( _( "%s has thermal relief gap override." ), PAD_DESC( a ) ) );
-    TEST( a->GetThermalSpokeWidth(), b->GetThermalSpokeWidth(),
-          wxString::Format( _( "%s has thermal relief spoke width override." ), PAD_DESC( a ) ) );
-    TEST_D( a->GetThermalSpokeAngle().AsDegrees(), b->GetThermalSpokeAngle().AsDegrees(),
-            wxString::Format( _( "%s has thermal relief spoke angle override." ), PAD_DESC( a ) ) );
-    TEST( a->GetCustomShapeInZoneOpt(), b->GetCustomShapeInZoneOpt(),
-          wxString::Format( _( "%s has zone knockout setting override." ), PAD_DESC( a ) ) );
+    if( a->GetLocalClearance().has_value() && a->GetLocalClearance() != b->GetLocalClearance() )
+    {
+        diff = true;
+        REPORT_MSG( _( "%s has clearance override." ), PAD_DESC( a ) );
+    }
+
+    if( a->GetLocalSolderMaskMargin().has_value()
+            && a->GetLocalSolderMaskMargin() != b->GetLocalSolderMaskMargin() )
+    {
+        diff = true;
+        REPORT_MSG( _( "%s has solder mask expansion override." ), PAD_DESC( a ) );
+    }
+
+
+    if( a->GetLocalSolderPasteMargin().has_value()
+            && a->GetLocalSolderPasteMargin() != b->GetLocalSolderPasteMargin() )
+    {
+        diff = true;
+        REPORT_MSG( _( "%s has solder paste clearance override." ), PAD_DESC( a ) );
+    }
+
+    if( a->GetLocalSolderPasteMarginRatio()
+            && a->GetLocalSolderPasteMarginRatio() != b->GetLocalSolderPasteMarginRatio() )
+    {
+        diff = true;
+        REPORT_MSG( _( "%s has solder paste clearance override." ), PAD_DESC( a ) );
+    }
+
+    if( a->GetLocalZoneConnection() != ZONE_CONNECTION::INHERITED
+            && a->GetLocalZoneConnection() != b->GetLocalZoneConnection() )
+    {
+        diff = true;
+        REPORT_MSG( _( "%s has zone connection override." ), PAD_DESC( a ) );
+    }
+
+    if( a->GetLocalThermalGapOverride().has_value()
+            && a->GetThermalGap() != b->GetThermalGap() )
+    {
+        diff = true;
+        REPORT_MSG( _( "%s has thermal relief gap override." ), PAD_DESC( a ) );
+    }
+
+    if( a->GetLocalThermalSpokeWidthOverride().has_value()
+            && a->GetLocalThermalSpokeWidthOverride() != b->GetLocalThermalSpokeWidthOverride() )
+    {
+        diff = true;
+        REPORT_MSG( _( "%s has thermal relief spoke width override." ), PAD_DESC( a ) );
+    }
+
+    if( a->GetThermalSpokeAngle() != b->GetThermalSpokeAngle() )
+    {
+        diff = true;
+        REPORT_MSG( _( "%s has thermal relief spoke angle override." ), PAD_DESC( a ) );
+    }
+
+    if( a->GetCustomShapeInZoneOpt() != b->GetCustomShapeInZoneOpt() )
+    {
+        diff = true;
+        REPORT_MSG( _( "%s has zone knockout setting override." ), PAD_DESC( a ) );
+    }
 
     return diff;
 }
@@ -243,7 +286,7 @@ bool padNeedsUpdate( const PAD* a, const PAD* b, REPORTER* aReporter )
         layerSettingsDiffer |= a->GetKeepTopBottom() != b->GetKeepTopBottom();
 
     // Trim layersets to the current board before comparing
-    LSET enabledLayers = a->GetBoard()->GetEnabledLayers();
+    LSET enabledLayers = a->GetBoard() ? a->GetBoard()->GetEnabledLayers() : LSET::AllLayersMask();
     LSET aLayers = a->GetLayerSet() & enabledLayers;
     LSET bLayers = b->GetLayerSet() & enabledLayers;
 
@@ -257,9 +300,6 @@ bool padNeedsUpdate( const PAD* a, const PAD* b, REPORTER* aReporter )
             return true;
     }
 
-    TEST( a->GetShape(), b->GetShape(),
-          wxString::Format( _( "%s pad shape type differs." ), PAD_DESC( a ) ) );
-
     TEST( a->GetAttribute(), b->GetAttribute(),
           wxString::Format( _( "%s pad type differs." ), PAD_DESC( a ) ) );
     TEST( a->GetProperty(), b->GetProperty(),
@@ -270,22 +310,44 @@ bool padNeedsUpdate( const PAD* a, const PAD* b, REPORTER* aReporter )
             b->GetFPRelativeOrientation().Normalize().AsDegrees(),
             wxString::Format( _( "%s orientation differs." ), PAD_DESC( a ) ) );
 
-    TEST( a->GetSize(), b->GetSize(),
-          wxString::Format( _( "%s size differs." ), PAD_DESC( a ) ) );
-    TEST( a->GetDelta(), b->GetDelta(),
-          wxString::Format( _( "%s trapezoid delta differs." ), PAD_DESC( a ) ) );
+    std::vector<PCB_LAYER_ID> layers = a->Padstack().UniqueLayers();
+    const BOARD* board = a->GetBoard();
+    wxString layerName;
 
-    TEST_D( a->GetRoundRectRadiusRatio(), b->GetRoundRectRadiusRatio(),
-            wxString::Format( _( "%s rounded corners differ." ), PAD_DESC( a ) ) );
+    for( PCB_LAYER_ID layer : layers )
+    {
+        layerName = board ? board->GetLayerName( layer ) : LayerName( layer );
 
-    TEST_D( a->GetChamferRectRatio(), b->GetChamferRectRatio(),
-            wxString::Format( _( "%s chamfered corner sizes differ." ), PAD_DESC( a ) ) );
+        TEST( a->GetShape( layer ), b->GetShape( layer ),
+                  wxString::Format( _( "%s pad shape type differs on layer %s." ), PAD_DESC( a ),
+                                    layerName ) );
 
-    TEST( a->GetChamferPositions(), b->GetChamferPositions(),
-          wxString::Format( _( "%s chamfered corners differ." ), PAD_DESC( a ) ) );
+        TEST( a->GetSize( layer ), b->GetSize( layer ),
+              wxString::Format( _( "%s size differs on layer %s." ), PAD_DESC( a ), layerName ) );
 
-    TEST_PT( a->GetOffset(), b->GetOffset(),
-             wxString::Format( _( "%s shape offset from hole differs." ), PAD_DESC( a ) ) );
+        TEST( a->GetDelta( layer ), b->GetDelta( layer ),
+              wxString::Format( _( "%s trapezoid delta differs on layer %s." ), PAD_DESC( a ),
+                                layerName ) );
+
+        TEST_D( a->GetRoundRectRadiusRatio( layer ),
+                b->GetRoundRectRadiusRatio( layer ),
+                wxString::Format( _( "%s rounded corners differ on layer %s." ), PAD_DESC( a ),
+                                  layerName ) );
+
+        TEST_D( a->GetChamferRectRatio( layer ),
+                b->GetChamferRectRatio( layer ),
+                wxString::Format( _( "%s chamfered corner sizes differ on layer %s." ),
+                                  PAD_DESC( a ), layerName ) );
+
+        TEST( a->GetChamferPositions( layer ),
+              b->GetChamferPositions( layer ),
+              wxString::Format( _( "%s chamfered corners differ on layer %s." ), PAD_DESC( a ),
+                                layerName ) );
+
+        TEST_PT( a->GetOffset( layer ), b->GetOffset( layer ),
+                 wxString::Format( _( "%s shape offset from hole differs on layer %s." ),
+                                   PAD_DESC( a ), layerName ) );
+    }
 
     TEST( a->GetDrillShape(), b->GetDrillShape(),
           wxString::Format( _( "%s drill shape differs." ), PAD_DESC( a ) ) );
@@ -302,33 +364,47 @@ bool padNeedsUpdate( const PAD* a, const PAD* b, REPORTER* aReporter )
     // going to be VERY noisy.
     //
     // So we just do it when we have a reporter.
-    if( aReporter && padHasOverrides( a, b, aReporter ) )
+    if( aReporter && padHasOverrides( a, b, *aReporter ) )
         diff = true;
 
     bool primitivesDiffer = false;
+    PCB_LAYER_ID firstDifferingLayer = UNDEFINED_LAYER;
 
-    if( a->GetPrimitives().size() != b->GetPrimitives().size() )
-    {
-        primitivesDiffer = true;
-    }
-    else
-    {
-        for( size_t ii = 0; ii < a->GetPrimitives().size(); ++ii )
+    a->Padstack().ForEachUniqueLayer(
+        [&]( PCB_LAYER_ID aLayer )
         {
-            if( primitiveNeedsUpdate( a->GetPrimitives()[ii], b->GetPrimitives()[ii] ) )
+            if( a->GetPrimitives( aLayer ).size() !=
+                b->GetPrimitives( aLayer ).size() )
             {
                 primitivesDiffer = true;
-                break;
             }
-        }
-    }
+            else
+            {
+                for( size_t ii = 0; ii < a->GetPrimitives( aLayer ).size(); ++ii )
+                {
+                    if( primitiveNeedsUpdate( a->GetPrimitives( aLayer )[ii],
+                                              b->GetPrimitives( aLayer )[ii] ) )
+                    {
+                        primitivesDiffer = true;
+                        break;
+                    }
+                }
+            }
+
+            if( primitivesDiffer && firstDifferingLayer == UNDEFINED_LAYER )
+                firstDifferingLayer = aLayer;
+        } );
+
 
     if( primitivesDiffer )
     {
         diff = true;
+        layerName = board ? board->GetLayerName( firstDifferingLayer )
+                          : LayerName( firstDifferingLayer );
 
         if( aReporter )
-            aReporter->Report( wxString::Format( _( "%s shape primitives differ." ), PAD_DESC( a ) ) );
+            aReporter->Report( wxString::Format( _( "%s shape primitives differ on layer %s." ),
+                                                 PAD_DESC( a ), layerName ) );
         else
             return true;
     }
@@ -512,7 +588,7 @@ bool FOOTPRINT::FootprintNeedsUpdate( const FOOTPRINT* aLibFP, int aCompareFlags
     temp->SetParent( GetBoard() );  // Needed to know the copper layer count;
 
     if( IsFlipped() != temp->IsFlipped() )
-        temp->Flip( { 0, 0 }, false );
+        temp->Flip( { 0, 0 }, FLIP_DIRECTION::TOP_BOTTOM );
 
     if( GetOrientation() != temp->GetOrientation() )
         temp->SetOrientation( GetOrientation() );
@@ -574,17 +650,40 @@ bool FOOTPRINT::FootprintNeedsUpdate( const FOOTPRINT* aLibFP, int aCompareFlags
     // For now we report them if there's a reporter, but we DON'T generate DRC errors on them.
     if( aReporter )
     {
-        TEST( GetLocalClearance(), aLibFP->GetLocalClearance(),
-              _( "Pad clearance overridden." ) );
-        TEST( GetLocalSolderMaskMargin(), aLibFP->GetLocalSolderMaskMargin(),
-              _( "Solder mask expansion overridden." ) );
-        TEST( GetLocalSolderPasteMargin(), aLibFP->GetLocalSolderPasteMargin(),
-              _( "Solder paste absolute clearance overridden." ) );
-        TEST_D( GetLocalSolderPasteMarginRatio(), aLibFP->GetLocalSolderPasteMarginRatio(),
-                _( "Solder paste relative clearance overridden." ) );
+        if( GetLocalClearance().has_value() && GetLocalClearance() != aLibFP->GetLocalClearance() )
+        {
+            diff = true;
+            aReporter->Report( _( "Pad clearance overridden." ) );
+        }
 
-        TEST( GetZoneConnection(), aLibFP->GetZoneConnection(),
-              _( "Zone connection overridden." ) );
+        if( GetLocalSolderMaskMargin().has_value()
+                && GetLocalSolderMaskMargin() != aLibFP->GetLocalSolderMaskMargin() )
+        {
+            diff = true;
+            aReporter->Report( _( "Solder mask expansion overridden." ) );
+        }
+
+
+        if( GetLocalSolderPasteMargin().has_value()
+                && GetLocalSolderPasteMargin() != aLibFP->GetLocalSolderPasteMargin() )
+        {
+            diff = true;
+            aReporter->Report( _( "Solder paste absolute clearance overridden." ) );
+        }
+
+        if( GetLocalSolderPasteMarginRatio()
+                && GetLocalSolderPasteMarginRatio() != aLibFP->GetLocalSolderPasteMarginRatio() )
+        {
+            diff = true;
+            aReporter->Report( _( "Solder paste relative clearance overridden." ) );
+        }
+
+        if( GetLocalZoneConnection() != ZONE_CONNECTION::INHERITED
+                && GetLocalZoneConnection() != aLibFP->GetLocalZoneConnection() )
+        {
+            diff = true;
+            aReporter->Report( _( "Zone connection overridden." ) );
+        }
     }
 
     TEST( GetNetTiePadGroups().size(), aLibFP->GetNetTiePadGroups().size(),
@@ -678,7 +777,7 @@ bool FOOTPRINT::FootprintNeedsUpdate( const FOOTPRINT* aLibFP, int aCompareFlags
         {
             if( padNeedsUpdate( *aIt, *bIt, aReporter ) )
                 diff = true;
-            else if( aReporter && padHasOverrides( *aIt, *bIt, aReporter ) )
+            else if( aReporter && padHasOverrides( *aIt, *bIt, *aReporter ) )
                 diff = true;
         }
     }
@@ -738,10 +837,10 @@ bool DRC_TEST_PROVIDER_LIBRARY_PARITY::Run()
         if( !reportProgress( ii++, (int) board->Footprints().size(), progressDelta ) )
             return false;   // DRC cancelled
 
-        LIB_ID               fpID = footprint->GetFPID();
-        wxString             libName = fpID.GetLibNickname();
-        wxString             fpName = fpID.GetLibItemName();
-        const LIB_TABLE_ROW* libTableRow = nullptr;
+        LIB_ID                  fpID = footprint->GetFPID();
+        wxString                libName = fpID.GetLibNickname();
+        wxString                fpName = fpID.GetLibItemName();
+        const FP_LIB_TABLE_ROW* libTableRow = nullptr;
 
         if( libName.IsEmpty() )
         {
@@ -762,7 +861,7 @@ bool DRC_TEST_PROVIDER_LIBRARY_PARITY::Run()
             if( !m_drcEngine->IsErrorLimitExceeded( DRCE_LIB_FOOTPRINT_ISSUES ) )
             {
                 std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_LIB_FOOTPRINT_ISSUES );
-                msg.Printf( _( "The current configuration does not include the library '%s'." ),
+                msg.Printf( _( "The current configuration does not include the footprint library '%s'." ),
                             libName );
                 drcItem->SetErrorMessage( msg );
                 drcItem->SetItems( footprint );
@@ -776,7 +875,21 @@ bool DRC_TEST_PROVIDER_LIBRARY_PARITY::Run()
             if( !m_drcEngine->IsErrorLimitExceeded( DRCE_LIB_FOOTPRINT_ISSUES ) )
             {
                 std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_LIB_FOOTPRINT_ISSUES );
-                msg.Printf( _( "The library '%s' is not enabled in the current configuration." ),
+                msg.Printf( _( "The footprint library '%s' is not enabled in the current configuration." ),
+                            libName );
+                drcItem->SetErrorMessage( msg );
+                drcItem->SetItems( footprint );
+                reportViolation( drcItem, footprint->GetCenter(), UNDEFINED_LAYER );
+            }
+
+            continue;
+        }
+        else if( !libTableRow->LibraryExists() )
+        {
+            if( !m_drcEngine->IsErrorLimitExceeded( DRCE_LIB_FOOTPRINT_ISSUES ) )
+            {
+                std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_LIB_FOOTPRINT_ISSUES );
+                msg.Printf( _( "The footprint library '%s' was not found." ),
                             libName );
                 drcItem->SetErrorMessage( msg );
                 drcItem->SetItems( footprint );

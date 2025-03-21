@@ -7,11 +7,12 @@
 
 set( _DBG OFF )
 
-find_program( ASCIIDOCTORPDF_PROGRAM asciidoctor-web-pdf )
+# if asciidoctor-web-pdf isn't installed globally, it might be installed locally
+find_program( ASCIIDOCTORPDF_PROGRAM asciidoctor-web-pdf PATHS "./node_modules/.bin/" )
 
 if( ASCIIDOCTORPDF_PROGRAM )
     execute_process(
-        COMMAND asciidoctor-web-pdf --version
+        COMMAND ${ASCIIDOCTORPDF_PROGRAM} --version
         RESULT_VARIABLE _ADOCPDF_EXE_RESULT
         OUTPUT_VARIABLE _ADOCPDF_EXE_OUTPUT
         ERROR_VARIABLE _ADOCPDF_EXE_ERROR )

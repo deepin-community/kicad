@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2023 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,21 +39,38 @@
 
 #include <../../tests/common/console_log.h>
 
-BOARD_CONNECTED_ITEM* PNS_LOG_FILE::ItemById( const PNS::LOGGER::EVENT_ENTRY& evt )
+std::vector<BOARD_CONNECTED_ITEM*> PNS_LOG_FILE::ItemsById( const PNS::LOGGER::EVENT_ENTRY& evt )
 {
-    BOARD_CONNECTED_ITEM* parent = nullptr;
+    std::vector<BOARD_CONNECTED_ITEM*> parents;
+
+    parents.resize( evt.uuids.size() );
+
+    printf("u %zu p %zu\n", evt.uuids.size(), parents.size() );
 
     for( BOARD_CONNECTED_ITEM* item : m_board->AllConnectedItems() )
     {
-        if( item->m_Uuid == evt.uuid )
+        for( int i = 0; i < evt.uuids.size(); i++ )
         {
-            parent = item;
-            break;
-        };
+            if( item->m_Uuid == evt.uuids[i] )
+            {
+                parents[i] = item;
+                break;
+            };
+        }
     }
 
-    return parent;
+    return parents;
 }
+
+BOARD_CONNECTED_ITEM* PNS_LOG_FILE::ItemById( const PNS::LOGGER::EVENT_ENTRY& evt )
+{
+    auto parents = ItemsById( evt );
+    if ( parents.size() > 0 )
+        return parents[0];
+
+    return nullptr;
+}
+
 
 static const wxString readLine( FILE* f )
 {
@@ -114,7 +131,7 @@ bool PNS_LOG_FILE::parseCommonPnsProps( PNS::ITEM* aItem, const wxString& cmd,
     {
         int start = wxAtoi( aTokens.GetNextToken() );
         int end = wxAtoi( aTokens.GetNextToken() );
-        aItem->SetLayers( LAYER_RANGE( start, end ) );
+        aItem->SetLayers( PNS_LAYER_RANGE( start, end ) );
         return true;
     }
     return false;
@@ -166,7 +183,7 @@ std::unique_ptr<PNS::VIA> PNS_LOG_FILE::parsePnsViaFromString( wxStringTokenizer
                 SHAPE_CIRCLE* sc = static_cast<SHAPE_CIRCLE*>( sh.get() );
 
                 via->SetPos( sc->GetCenter() );
-                via->SetDiameter( 2 * sc->GetRadius() );
+                via->SetDiameter( PNS::VIA::ALL_LAYERS, 2 * sc->GetRadius() );
             }
             else if( cmd == wxS( "drill" ) )
             {
@@ -207,7 +224,8 @@ bool comparePnsItems( const PNS::ITEM* a , const PNS::ITEM* b )
         const PNS::VIA* va = static_cast<const PNS::VIA*>(a);
         const PNS::VIA* vb = static_cast<const PNS::VIA*>(b);
 
-        if( va->Diameter() != vb->Diameter() )
+        // TODO(JE) padstacks
+        if( va->Diameter( PNS::VIA::ALL_LAYERS ) != vb->Diameter( PNS::VIA::ALL_LAYERS ) )
             return false;
 
         if( va->Drill() != vb->Drill() )
@@ -356,7 +374,6 @@ bool PNS_LOG_FILE::Load( const wxFileName& logFileName, REPORTER* aRpt )
 
         std::shared_ptr<DRC_ENGINE> drcEngine( new DRC_ENGINE );
 
-        CONSOLE_LOG            consoleLog;
         BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
 
         bds.m_DRCEngine = drcEngine;
@@ -366,7 +383,7 @@ bool PNS_LOG_FILE::Load( const wxFileName& logFileName, REPORTER* aRpt )
 
         drcEngine->SetBoard( m_board.get() );
         drcEngine->SetDesignSettings( &bds );
-        drcEngine->SetLogReporter( new CONSOLE_MSG_REPORTER( &consoleLog ) );
+        drcEngine->SetLogReporter( aRpt );
         drcEngine->InitEngine( wxFileName() );
     }
     catch( const PARSE_ERROR& parse_error )
@@ -405,11 +422,11 @@ bool PNS_LOG_FILE::Load( const wxFileName& logFileName, REPORTER* aRpt )
         }
         else if( cmd == wxT( "event" ) )
         {
-            m_events.push_back( PNS::LOGGER::ParseEvent( line ) );
+            m_events.push_back( std::move( PNS::LOGGER::ParseEvent( line ) ) );
         }
         else if ( cmd == wxT( "added" ) )
         {
-            m_parsed_items.push_back( parseItemFromString( tokens ) );
+            m_parsed_items.push_back( std::move( parseItemFromString( tokens ) ) );
             m_commitState.m_addedItems.push_back( m_parsed_items.back().get() );
         }
         else if ( cmd == wxT( "removed" ) )

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,14 +23,16 @@
 
 #include "dialogs/dialog_create_array.h"
 
-#include <base_units.h>
-#include <widgets/text_ctrl_eval.h>
-#include <board.h>
-#include <footprint.h>
-#include <pcb_edit_frame.h>
 #include <wx/msgdlg.h>
 
-#include <boost/algorithm/string/join.hpp>
+#include <base_units.h>
+#include <footprint.h>
+#include <pcb_edit_frame.h>
+#include <tools/pcb_actions.h>
+#include <tools/pcb_picker_tool.h>
+#include <tool/tool_manager.h>
+#include <widgets/text_ctrl_eval.h>
+
 
 /**
  * Struct containing the last-entered values for the dialog.
@@ -41,74 +43,43 @@ struct CREATE_ARRAY_DIALOG_ENTRIES
      * Construct with some sensible defaults.
      * In future, this could be loaded from config?
      */
-    CREATE_ARRAY_DIALOG_ENTRIES() :
-            m_OptionsSet( true ),
-            m_GridNx( 5 ),
-            m_GridNy( 5 ),
-            m_GridDx( pcbIUScale.mmToIU( 2.54 ) ),
-            m_GridDy( pcbIUScale.mmToIU( 2.54 ) ),
-            m_GridOffsetX( 0 ),
-            m_GridOffsetY( 0 ),
-            m_GridStagger( 1 ),
-            m_GridStaggerType( 0 ),                  // rows
-            m_GridNumberingAxis( 0 ),                // h then v
-            m_GridNumReverseAlt( false ),
-            m_GridNumStartSet( 1 ),                  // use specified start
-            m_Grid2dArrayNumbering( 0 ),             // linear numbering
-            m_GridPrimaryAxisScheme( 0 ),            // numeric
-            m_GridSecondaryAxisScheme( 0 ),          // numeric
-            m_GridPrimaryNumOffset( wxT( "1" ) ),    // numeric
-            m_GridSecondaryNumOffset( wxT( "1" ) ),  // numeric
-            m_GridPrimaryAxisStep( 1 ),
-            m_GridSecondaryAxisStep( 1 ),
-            m_CircCentreX( 0 ),
-            m_CircCentreY( 0 ),
-            m_CircCount( 4 ),
-            m_CircNumStartSet( 1 ),                  // use specified start
-            m_GridCircNumScheme( 0 ),
-            m_CircNumberingOffset( wxT( "1" ) ),
-            m_CircNumberingStep( 1 ),
-            m_CircRotatationStep( false ),
-            m_ArrayTypeTab( 0 ),                     // start on grid view
-            m_FootprintKeepAnnotations( false ),
-            m_FootprintReannotate( true )            // Assign unique by default
-    {
-    }
+    CREATE_ARRAY_DIALOG_ENTRIES() {}
 
-    bool      m_OptionsSet;
+    bool     m_OptionsSet = true;
 
-    long      m_GridNx;
-    long      m_GridNy;
-    long      m_GridDx;
-    long      m_GridDy;
-    long      m_GridOffsetX;
-    long      m_GridOffsetY;
-    long      m_GridStagger;
+    long     m_GridNx                    = 5;
+    long     m_GridNy                    = 5;
+    long     m_GridDx                    = pcbIUScale.mmToIU( 2.54 );
+    long     m_GridDy                    = pcbIUScale.mmToIU( 2.54 );
+    long     m_GridOffsetX               = 0;
+    long     m_GridOffsetY               = 0;
+    long     m_GridStagger               = 1;
+    bool     m_GridStaggerRows           = true;
+    bool     m_GridPositionCentreOnItems = true;
+    long     m_GridNumberingAxis         = 0;           // h then v
+    bool     m_GridNumReverseAlt         = false;
+    long     m_GridNumStartSet           = 1;           // use specified start
+    long     m_Grid2dArrayNumbering      = 0;           // linear numbering
+    long     m_GridPrimaryAxisScheme     = 0;           // numeric
+    long     m_GridSecondaryAxisScheme   = 0;           // numeric
+    wxString m_GridPrimaryNumOffset      = wxT( "1" );  // numeric
+    wxString m_GridSecondaryNumOffset    = wxT( "1" );  // numeric
+    long     m_GridPrimaryAxisStep       = 1;
+    long     m_GridSecondaryAxisStep     = 1;
 
-    long      m_GridStaggerType;
-    long      m_GridNumberingAxis;
-    bool      m_GridNumReverseAlt;
-    long      m_GridNumStartSet;
-    long      m_Grid2dArrayNumbering;
-    long      m_GridPrimaryAxisScheme;
-    long      m_GridSecondaryAxisScheme;
-    wxString  m_GridPrimaryNumOffset;
-    wxString  m_GridSecondaryNumOffset;
-    long      m_GridPrimaryAxisStep;
-    long      m_GridSecondaryAxisStep;
-
-    long      m_CircCentreX;
-    long      m_CircCentreY;
-    EDA_ANGLE m_CircAngle;
-    long      m_CircCount;
-    long      m_CircNumStartSet;
-    long      m_GridCircNumScheme;
-    wxString  m_CircNumberingOffset;
-    long      m_CircNumberingStep;
-    bool      m_CircRotatationStep;
-    long      m_ArrayTypeTab;
-    bool      m_FootprintKeepAnnotations;
-    bool      m_FootprintReannotate;
+    long      m_CircCentreX              = 0;
+    long      m_CircCentreY              = 0;
+    EDA_ANGLE m_CircAngle                = ANGLE_90;
+    long      m_CircCount                = 4;
+    bool      m_CircFullCircle           = 0;
+    long      m_CircNumStartSet          = 1;        // use specified start
+    long      m_GridCircNumScheme        = 0;
+    wxString  m_CircNumberingOffset      = wxT("1");
+    long      m_CircNumberingStep        = 1;
+    bool      m_CircRotatationStep       = false;
+    long      m_ArrayTypeTab             = 0;       // start on grid view
+    bool      m_FootprintKeepAnnotations = false;
+    bool      m_FootprintReannotate      = true;    // Assign unique by default
 };
 
 // Persistent options settings
@@ -146,23 +117,19 @@ static const std::vector<NUMBERING_LIST_DATA> numberingTypeData {
     },
 };
 
-DIALOG_CREATE_ARRAY::DIALOG_CREATE_ARRAY( PCB_BASE_FRAME* aParent,
+DIALOG_CREATE_ARRAY::DIALOG_CREATE_ARRAY( PCB_BASE_FRAME*                 aParent,
                                           std::unique_ptr<ARRAY_OPTIONS>& aSettings,
                                           bool aIsFootprintEditor, const VECTOR2I& aOrigPos ) :
         DIALOG_CREATE_ARRAY_BASE( aParent ),
+        m_frame( aParent ),
         m_settings( aSettings ),
-        m_originalItemPosition( aOrigPos ),
-        m_isFootprintEditor( aIsFootprintEditor ),
+        m_originalItemPosition( aOrigPos ), m_isFootprintEditor( aIsFootprintEditor ),
         m_hSpacing( aParent, m_labelDx, m_entryDx, m_unitLabelDx ),
         m_vSpacing( aParent, m_labelDy, m_entryDy, m_unitLabelDy ),
         m_hOffset( aParent, m_labelOffsetX, m_entryOffsetX, m_unitLabelOffsetX ),
         m_vOffset( aParent, m_labelOffsetY, m_entryOffsetY, m_unitLabelOffsetY ),
-        m_refPosX( aParent, m_stRefPosXTxt, m_tcRefPosX, m_stRefPosXUnit ),
-        m_refPosY( aParent, m_stRefPosYTxt, m_tcRefPosY, m_stRefPosYUnit ),
         m_hCentre( aParent, m_labelCentreX, m_entryCentreX, m_unitLabelCentreX ),
         m_vCentre( aParent, m_labelCentreY, m_entryCentreY, m_unitLabelCentreY ),
-        m_circRadius( aParent, m_labelCircRadius, m_tcValueCircRadius, m_unitLabelCircRadius ),
-        m_circCenterAngle( aParent, m_labelCircCenterAngle, m_tcValueCircCenterAngle, m_unitLabelCircCenterAngle ),
         m_circAngle( aParent, m_labelCircAngle, m_entryCircAngle, m_unitLabelCircAngle ),
         m_cfg_persister( pcbIUScale, s_arrayOptions.m_OptionsSet )
 {
@@ -189,7 +156,6 @@ DIALOG_CREATE_ARRAY::DIALOG_CREATE_ARRAY( PCB_BASE_FRAME* aParent,
     m_choiceSecAxisNumbering->SetSelection( 0 );
     m_choiceCircNumbering->SetSelection( 0 );
 
-    m_circCenterAngle.SetUnits( EDA_UNITS::DEGREES );
     m_circAngle.SetUnits( EDA_UNITS::DEGREES );
 
     // bind grid options to persister
@@ -202,7 +168,9 @@ DIALOG_CREATE_ARRAY::DIALOG_CREATE_ARRAY( PCB_BASE_FRAME* aParent,
     m_cfg_persister.Add( m_vOffset, s_arrayOptions.m_GridOffsetY );
     m_cfg_persister.Add( *m_entryStagger, s_arrayOptions.m_GridStagger );
 
-    m_cfg_persister.Add( *m_radioBoxGridStaggerType, s_arrayOptions.m_GridStaggerType );
+    m_cfg_persister.Add( *m_staggerRows, s_arrayOptions.m_GridStaggerRows );
+
+    m_cfg_persister.Add( *m_rbCentreOnSource, s_arrayOptions.m_GridPositionCentreOnItems );
 
     m_cfg_persister.Add( *m_radioBoxGridNumberingAxis, s_arrayOptions.m_GridNumberingAxis );
     m_cfg_persister.Add( *m_checkBoxGridReverseNumbering, s_arrayOptions.m_GridNumReverseAlt );
@@ -220,6 +188,8 @@ DIALOG_CREATE_ARRAY::DIALOG_CREATE_ARRAY( PCB_BASE_FRAME* aParent,
     // bind circular options to persister
     m_cfg_persister.Add( m_hCentre, s_arrayOptions.m_CircCentreX );
     m_cfg_persister.Add( m_vCentre, s_arrayOptions.m_CircCentreY );
+
+    m_cfg_persister.Add( *m_checkBoxFullCircle, s_arrayOptions.m_CircFullCircle );
     m_cfg_persister.Add( m_circAngle, s_arrayOptions.m_CircAngle );
     m_cfg_persister.Add( *m_entryCircCount, s_arrayOptions.m_CircCount );
     m_cfg_persister.Add( *m_entryRotateItemsCb, s_arrayOptions.m_CircRotatationStep );
@@ -238,7 +208,6 @@ DIALOG_CREATE_ARRAY::DIALOG_CREATE_ARRAY( PCB_BASE_FRAME* aParent,
 
     // Run the callbacks once to process the dialog contents
     setControlEnablement();
-    setCircularArrayEnablement();
     calculateCircularArrayProperties();
 
     SetupStandardButtons();
@@ -247,57 +216,113 @@ DIALOG_CREATE_ARRAY::DIALOG_CREATE_ARRAY( PCB_BASE_FRAME* aParent,
 }
 
 
-void DIALOG_CREATE_ARRAY::OnButtonPosition( wxCommandEvent& event )
+DIALOG_CREATE_ARRAY::~DIALOG_CREATE_ARRAY()
 {
-    setCircularArrayEnablement();
-}
-
-
-void DIALOG_CREATE_ARRAY::OnButtonRadius( wxCommandEvent& event )
-{
-    setCircularArrayEnablement();
-}
-
-
-void DIALOG_CREATE_ARRAY::setCircularArrayEnablement()
-{
-    if( m_radioBtnSetByRadius->GetValue() )
-    {
-        m_entryCentreX->Disable();
-        m_entryCentreY->Disable();
-        m_tcValueCircRadius->Enable();
-        m_tcValueCircCenterAngle->Enable();
-    }
-    else
-    {
-        m_entryCentreX->Enable();
-        m_entryCentreY->Enable();
-        m_tcValueCircRadius->Disable();
-        m_tcValueCircCenterAngle->Disable();
-    }
 }
 
 
 void DIALOG_CREATE_ARRAY::OnParameterChanged( wxCommandEvent& event )
 {
-    setCircularArrayEnablement();
-
-    if( m_radioBtnSetByPos->GetValue() )
+    if( m_checkBoxFullCircle->GetValue() && m_entryCircAngle == event.GetEventObject() )
     {
-        setControlEnablement();
-        calculateCircularArrayProperties();
+        return;
+    }
+
+    setControlEnablement();
+    calculateCircularArrayProperties();
+}
+
+
+void DIALOG_CREATE_ARRAY::OnSelectCenterButton( wxCommandEvent& event )
+{
+    event.Skip();
+
+    PCB_PICKER_TOOL* pickerTool = m_frame->GetToolManager()->GetTool<PCB_PICKER_TOOL>();
+    wxCHECK( pickerTool, /* void */ );
+
+    if( event.GetEventObject() == m_btnSelectCenterItem )
+    {
+        m_frame->GetToolManager()->RunAction(
+                PCB_ACTIONS::selectItemInteractively,
+                PCB_PICKER_TOOL::INTERACTIVE_PARAMS{ this, _( "Select center item..." ) } );
+    }
+    else if( event.GetEventObject() == m_btnSelectCenterPoint )
+    {
+        m_frame->GetToolManager()->RunAction(
+                PCB_ACTIONS::selectPointInteractively,
+                PCB_PICKER_TOOL::INTERACTIVE_PARAMS{ this, _( "Select center point..." ) } );
+    }
+    else
+    {
+        wxFAIL_MSG( "Unknown event source" );
+    }
+
+    // Hide, but do not close, the dialog
+    Hide();
+}
+
+
+void DIALOG_CREATE_ARRAY::OnAxisNumberingChange( wxCommandEvent& aEvent )
+{
+    // On an alphabet change, make sure the offset control is valid by default.
+
+    const int newAlphabet = aEvent.GetSelection();
+
+    wxCHECK( newAlphabet >= 0 && newAlphabet < static_cast<int>( numberingTypeData.size() ),
+             /* void */ );
+
+    const ARRAY_AXIS::NUMBERING_TYPE numberingType =
+            numberingTypeData[newAlphabet].m_numbering_type;
+
+    wxTextCtrl* matchingTextCtrl = nullptr;
+
+    if( aEvent.GetEventObject() == m_choicePriAxisNumbering )
+        matchingTextCtrl = m_entryGridPriNumberingOffset;
+    else if( aEvent.GetEventObject() == m_choiceSecAxisNumbering )
+        matchingTextCtrl = m_entryGridSecNumberingOffset;
+    else if( aEvent.GetEventObject() == m_choiceCircNumbering )
+        matchingTextCtrl = m_entryCircNumberingStart;
+
+    wxCHECK( matchingTextCtrl, /* void */ );
+
+    ARRAY_AXIS dummyAxis;
+    dummyAxis.SetAxisType( numberingType );
+
+    // If the text control has a valid value for the new alphabet, keep it
+    // else reset to the first value in the new alphabet.
+
+    const bool isAlreadyOK = dummyAxis.SetOffset( matchingTextCtrl->GetValue() );
+
+    if( !isAlreadyOK )
+    {
+        dummyAxis.SetOffset( ARRAY_AXIS::TypeIsNumeric( numberingType ) ? 1 : 0 );
+        matchingTextCtrl->SetValue( dummyAxis.GetItemNumber( 0 ) );
     }
 }
 
-void DIALOG_CREATE_ARRAY::OnRadiusChanged( wxCommandEvent& event )
-{
-    setCircularArrayEnablement();
 
-    if( m_radioBtnSetByRadius->GetValue() )
+// Implement the RECEIVER interface for the callback from the TOOL
+void DIALOG_CREATE_ARRAY::UpdatePickedItem( const EDA_ITEM* aItem )
+{
+    if( aItem )
     {
-        setControlEnablement();
-        calculateCircularArrayProperties();
+        m_hCentre.SetValue( aItem->GetPosition().x );
+        m_vCentre.SetValue( aItem->GetPosition().y );
     }
+
+    Show( true );
+}
+
+
+void DIALOG_CREATE_ARRAY::UpdatePickedPoint( const std::optional<VECTOR2I>& aPoint )
+{
+    if( aPoint )
+    {
+        m_hCentre.SetValue( aPoint->x );
+        m_vCentre.SetValue( aPoint->y );
+    }
+
+    Show( true );
 }
 
 
@@ -387,15 +412,17 @@ bool DIALOG_CREATE_ARRAY::TransferDataFromWindow()
         ok &= validateLongEntry(*m_entryNx, newGrid->m_nx, _("horizontal count"), errors);
         ok &= validateLongEntry(*m_entryNy, newGrid->m_ny, _("vertical count"), errors);
 
-        newGrid->m_delta.x = m_hSpacing.GetValue();
-        newGrid->m_delta.y = m_vSpacing.GetValue();
+        newGrid->m_delta.x = m_hSpacing.GetIntValue();
+        newGrid->m_delta.y = m_vSpacing.GetIntValue();
 
-        newGrid->m_offset.x = m_hOffset.GetValue();
-        newGrid->m_offset.y = m_vOffset.GetValue();
+        newGrid->m_offset.x = m_hOffset.GetIntValue();
+        newGrid->m_offset.y = m_vOffset.GetIntValue();
+
+        newGrid->m_centred = m_rbCentreOnSource->GetValue();
 
         ok &= validateLongEntry(*m_entryStagger, newGrid->m_stagger, _("stagger"), errors);
 
-        newGrid->m_stagger_rows = m_radioBoxGridStaggerType->GetSelection() == 0;
+        newGrid->m_stagger_rows = m_staggerRows->GetValue();
 
         newGrid->m_horizontalThenVertical = m_radioBoxGridNumberingAxis->GetSelection() == 0;
         newGrid->m_reverseNumberingAlternate = m_checkBoxGridReverseNumbering->GetValue();
@@ -445,8 +472,8 @@ bool DIALOG_CREATE_ARRAY::TransferDataFromWindow()
         bool   ok = true;
         double angle = EDA_UNIT_UTILS::UI::DoubleValueFromString( m_entryCircAngle->GetValue() );
 
-        newCirc->m_centre.x = m_hCentre.GetValue();
-        newCirc->m_centre.y = m_vCentre.GetValue();
+        newCirc->m_centre.x = m_hCentre.GetIntValue();
+        newCirc->m_centre.y = m_vCentre.GetIntValue();
         newCirc->m_angle = EDA_ANGLE( angle, DEGREES_T );
 
         ok = validateLongEntry(*m_entryCircCount, newCirc->m_nPts, _("point count"), errors);
@@ -476,6 +503,8 @@ bool DIALOG_CREATE_ARRAY::TransferDataFromWindow()
             newSettings = std::move( newCirc );
     }
 
+    bool ret = false;
+
     // If we got good settings, send them out and finish
     if( newSettings )
     {
@@ -487,7 +516,7 @@ bool DIALOG_CREATE_ARRAY::TransferDataFromWindow()
         // persist the control state for next time
         m_cfg_persister.ReadConfigFromControls();
 
-        return true;
+        ret = true;
     }
     else
     {
@@ -496,16 +525,31 @@ bool DIALOG_CREATE_ARRAY::TransferDataFromWindow()
         if( errors.IsEmpty() )
             errorStr = _("Bad parameters");
         else
-            errorStr = boost::algorithm::join( errors, wxT( "\n" ) );
+            errorStr = wxJoin( errors, '\n' );
 
         wxMessageBox( errorStr );
-        return false;
+        ret = false;
     }
+
+    // This dialog is not modal, so close it now if successful
+    if( ret )
+        Close();
+
+    return ret;
 }
 
 
 void DIALOG_CREATE_ARRAY::setControlEnablement()
 {
+    if( m_checkBoxFullCircle->GetValue() )
+    {
+        m_entryCircAngle->Disable();
+    }
+    else
+    {
+        m_entryCircAngle->Enable();
+    }
+
     if( m_isFootprintEditor )
     {
         m_footprintReannotatePanel->Show( false );
@@ -532,6 +576,7 @@ void DIALOG_CREATE_ARRAY::setControlEnablement()
         m_labelGridNumberingOffset->Enable( use_set_start_grid );
         m_entryGridPriNumberingOffset->Enable( use_set_start_grid );
         m_entryGridSecNumberingOffset->Enable( use_set_start_grid && num2d );
+        m_entryGridSecNumberingStep->Enable( use_set_start_grid && num2d );
 
         // disable the circular number offset in the same way
         const bool use_set_start_circ = m_rbCircStartNumberingOpt->GetSelection() == 1;
@@ -568,29 +613,14 @@ void DIALOG_CREATE_ARRAY::setControlEnablement()
 
 void DIALOG_CREATE_ARRAY::calculateCircularArrayProperties()
 {
-    if( m_radioBtnSetByPos->GetValue() )
+    // In full circle mode, the division angle is computed from the number of points
+    if( m_checkBoxFullCircle->GetValue() )
     {
-        VECTOR2I centre( m_hCentre.GetValue(), m_vCentre.GetValue() );
-
-        // Find the radius, etc of the circle
-        centre -= m_originalItemPosition;
-        EDA_ANGLE angle( centre );
-
-        m_circRadius.SetValue( int( centre.EuclideanNorm() ) );
-        m_circCenterAngle.SetAngleValue( angle.Round( 4 ) );
-
-        m_refPosX.SetValue( m_originalItemPosition.x );
-        m_refPosY.SetValue( m_originalItemPosition.y );
-    }
-    else
-    {
-        m_refPosX.SetValue( m_originalItemPosition.x );
-        m_refPosY.SetValue( m_originalItemPosition.y );
-
-        double radius = m_circRadius.GetValue();
-        EDA_ANGLE angle = m_circCenterAngle.GetAngleValue();
-
-        m_hCentre.SetValue( m_originalItemPosition.x + radius * angle.Cos() );
-        m_vCentre.SetValue( m_originalItemPosition.y + radius * angle.Sin() );
+        long nPts;
+        if( m_entryCircCount->GetValue().ToLong( &nPts ) )
+        {
+            EDA_ANGLE division = EDA_ANGLE( 360, DEGREES_T ) / nPts;
+            m_circAngle.SetAngleValue( division );
+        }
     }
 }

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,80 +22,40 @@
  */
 
 #include <vector>
-#include <sch_symbol.h>
 #include <eda_draw_frame.h>
-#include <lib_shape.h>
+#include <lib_symbol.h>
+#include <sch_shape.h>
 #include <macros.h>
 
 // helper function to sort pins by pin num
-static bool sort_by_pin_number( const LIB_PIN* ref, const LIB_PIN* tst );
+static bool sort_by_pin_number( const SCH_PIN* ref, const SCH_PIN* tst );
+
 
 static void CheckLibSymbolGraphics( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
-                                     EDA_DRAW_FRAME* aUnitsProvider );
+                                    UNITS_PROVIDER* aUnitsProvider );
 
-/**
- * Check a lib symbol to find incorrect settings
- * Pins not on a valid grid
- * Pins duplicated
- * Conflict with pins at same location
- * Incorrect Power Symbols
- * illegal reference prefix (cannot ends by a digit or a '?')
- * @param aSymbol is the library symbol to check
- * @param aMessages is a room to store error messages
- * @param aGridForPins (in IU) is the grid to test pin positions ( >= 25 mils )
- * should be 25, 50 or 100 mils (convered to IUs)
- * @param aUnitsProvider a frame to format coordinates in messages
- */
-void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
-                    int aGridForPins, EDA_DRAW_FRAME* aUnitsProvider )
+
+void CheckDuplicatePins( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
+                         UNITS_PROVIDER* aUnitsProvider )
 {
-    if( !aSymbol )
-        return;
-
-    wxString msg;
-
-    // Test reference prefix validity:
-    // if the symbol is saved in a library, the prefix should not ends by a digit or a '?'
-    // but it is acceptable if the symbol is saved to aschematic
-    wxString reference_base = aSymbol->GetReferenceField().GetText();
-    wxString illegal_end( wxT( "0123456789?" ) );
-    wxUniChar last_char = reference_base.Last();
-
-    if( illegal_end.Find( last_char ) != wxNOT_FOUND )
-    {
-        msg.Printf( _( "<b>Warning: reference prefix</b><br>prefix ending by '%s' can create"
-                       " issues if saved in a symbol library" ),
-                    illegal_end );
-        msg += wxT( "<br><br>" );
-        aMessages.push_back( msg );
-    }
-
-    LIB_PINS pinList;
-    aSymbol->GetPins( pinList );
+    wxString              msg;
+    std::vector<SCH_PIN*> pinList = aSymbol->GetPins();
 
     // Test for duplicates:
     // Sort pins by pin num, so 2 duplicate pins
     // (pins with the same number) will be consecutive in list
     sort( pinList.begin(), pinList.end(), sort_by_pin_number );
 
-    // The minimal grid size allowed to place a pin is 25 mils
-    // the best grid size is 50 mils, but 25 mils is still usable
-    // this is because all aSymbols are using a 50 mils grid to place pins, and therefore
-    // the wires must be on the 50 mils grid
-    // So raise an error if a pin is not on a 25 (or bigger :50 or 100) mils grid
-    const int min_grid_size = schIUScale.MilsToIU( 25 );
-    const int clamped_grid_size = ( aGridForPins < min_grid_size ) ? min_grid_size : aGridForPins;
-
     for( unsigned ii = 1; ii < pinList.size(); ii++ )
     {
-        LIB_PIN* pin  = pinList[ii - 1];
-        LIB_PIN* next = pinList[ii];
+        SCH_PIN* pin  = pinList[ii - 1];
+        SCH_PIN* next = pinList[ii];
 
         if( pin->GetNumber() != next->GetNumber() )
             continue;
 
         // Pins are not duplicated only if they are in different body styles
-        // (but GetBodyStyle() == 0 means commun to all body styles)
+        // (but GetBodyStyle() == 0 means common to all body styles)
         if( pin->GetBodyStyle() != 0 && next->GetBodyStyle() != 0 )
         {
             if( pin->GetBodyStyle() != next->GetBodyStyle() )
@@ -126,7 +86,7 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
                             pin->GetName(),
                             aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
                             aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ),
-                            LIB_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
+                            SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
             }
             else
             {
@@ -143,7 +103,7 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
                             aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ),
                             aSymbol->GetUnitReference( next->GetUnit() ),
                             aSymbol->GetUnitReference( pin->GetUnit() ),
-                            LIB_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
+                            SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
             }
         }
         else
@@ -182,6 +142,60 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
         msg += wxT( "<br><br>" );
         aMessages.push_back( msg );
     }
+}
+
+
+/**
+ * Check a library symbol to find incorrect settings.
+ *
+ *  - Pins not on a valid grid
+ *  - Pins duplicated
+ *  - Conflict with pins at same location
+ *  - Incorrect Power Symbols
+ *  - illegal reference prefix (cannot ends by a digit or a '?')
+ *
+ * @param aSymbol is the library symbol to check.
+ * @param aMessages is a room to store error messages.
+ * @param aGridForPins (in IU) is the grid to test pin positions ( >= 25 mils )
+ * should be 25, 50 or 100 mils (converted to IUs).
+ * @param aUnitsProvider a frame to format coordinates in messages.
+ */
+void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
+                     int aGridForPins, UNITS_PROVIDER* aUnitsProvider )
+{
+    if( !aSymbol )
+        return;
+
+    wxString msg;
+
+    // Test reference prefix validity:
+    // if the symbol is saved in a library, the prefix should not ends by a digit or a '?'
+    // but it is acceptable if the symbol is saved to a schematic.
+    wxString reference_base = aSymbol->GetReferenceField().GetText();
+    wxString illegal_end( wxT( "0123456789?" ) );
+    wxUniChar last_char = reference_base.Last();
+
+    if( illegal_end.Find( last_char ) != wxNOT_FOUND )
+    {
+        msg.Printf( _( "<b>Warning: reference prefix</b><br>prefix ending by '%s' can create"
+                       " issues if saved in a symbol library" ),
+                    illegal_end );
+        msg += wxT( "<br><br>" );
+        aMessages.push_back( msg );
+    }
+
+    CheckDuplicatePins( aSymbol, aMessages, aUnitsProvider );
+
+    std::vector<SCH_PIN*> pinList = aSymbol->GetPins();
+    sort( pinList.begin(), pinList.end(), sort_by_pin_number );
+
+    // The minimal grid size allowed to place a pin is 25 mils
+    // the best grid size is 50 mils, but 25 mils is still usable
+    // this is because all aSymbols are using a 50 mils grid to place pins, and therefore
+    // the wires must be on the 50 mils grid
+    // So raise an error if a pin is not on a 25 (or bigger :50 or 100) mils grid
+    const int min_grid_size = schIUScale.MilsToIU( 25 );
+    const int clamped_grid_size = ( aGridForPins < min_grid_size ) ? min_grid_size : aGridForPins;
 
     // Test for a valid power aSymbol.
     // A valid power aSymbol has only one unit, no alternate body styles and one pin.
@@ -207,7 +221,7 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
             aMessages.push_back( msg );
         }
 
-        LIB_PIN* pin = pinList[0];
+        SCH_PIN* pin = pinList[0];
 
         if( pin->GetType() != ELECTRICAL_PINTYPE::PT_POWER_IN
                 && pin->GetType() != ELECTRICAL_PINTYPE::PT_POWER_OUT )
@@ -226,7 +240,7 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
     }
 
 
-    for( LIB_PIN* pin : pinList )
+    for( SCH_PIN* pin : pinList )
     {
         wxString pinName = pin->GetName();
 
@@ -250,7 +264,7 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
                                 pinName,
                                 aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
                                 aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ),
-                                LIB_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
+                                SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
                 }
                 else
                 {
@@ -261,14 +275,15 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
                                 aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
                                 aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ),
                                 'A' + pin->GetUnit() - 1,
-                                LIB_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
+                                SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
                 }
             }
             else
             {
                 if( aSymbol->GetUnitCount() <= 1 )
                 {
-                    msg.Printf( _( "Info: <b>Hidden power pin %s</b> %s at location <b>(%s, %s)</b>." ),
+                    msg.Printf( _( "Info: <b>Hidden power pin %s</b> %s at location <b>"
+                                   "(%s, %s)</b>." ),
                                 pin->GetNumber(),
                                 pinName,
                                 aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
@@ -308,7 +323,7 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
                                 pinName,
                                 aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
                                 aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ),
-                                LIB_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
+                                SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
                 }
                 else
                 {
@@ -319,7 +334,7 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
                                 aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
                                 aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ),
                                 'A' + pin->GetUnit() - 1,
-                                LIB_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
+                                SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
                  }
             }
             else
@@ -354,19 +369,19 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
 
 
 void CheckLibSymbolGraphics( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
-                             EDA_DRAW_FRAME* aUnitsProvider )
+                             UNITS_PROVIDER* aUnitsProvider )
 {
     if( !aSymbol )
         return;
 
     wxString msg;
 
-    for( const LIB_ITEM& item : aSymbol->GetDrawItems() )
+    for( const SCH_ITEM& item : aSymbol->GetDrawItems() )
     {
-        if( item.Type() != LIB_SHAPE_T )
+        if( item.Type() != SCH_SHAPE_T )
             continue;
 
-        const LIB_SHAPE* shape = static_cast<const LIB_SHAPE*>( &item );
+        const SCH_SHAPE* shape = static_cast<const SCH_SHAPE*>( &item );
 
         switch( shape->GetShape() )
         {
@@ -376,7 +391,8 @@ void CheckLibSymbolGraphics( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessag
         case SHAPE_T::CIRCLE:
             if( shape->GetRadius() <= 0 )
             {
-                msg.Printf( _( "<b>Graphic circle has radius = 0</b> at location <b>(%s, %s)</b>." ),
+                msg.Printf( _( "<b>Graphic circle has radius = 0</b> at location "
+                             "<b>(%s, %s)</b>." ),
                             aUnitsProvider->MessageTextFromValue(shape->GetPosition().x ),
                             aUnitsProvider->MessageTextFromValue( -shape->GetPosition().y ) );
                 msg += wxT( "<br>" );
@@ -408,7 +424,7 @@ void CheckLibSymbolGraphics( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessag
 }
 
 
-bool sort_by_pin_number( const LIB_PIN* ref, const LIB_PIN* tst )
+bool sort_by_pin_number( const SCH_PIN* ref, const SCH_PIN* tst )
 {
     // Use number as primary key
     int test = ref->GetNumber().Cmp( tst->GetNumber() );

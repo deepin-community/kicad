@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 CERN
- * Copyright (C) 2020-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -27,14 +27,21 @@
 #define PCB_GRID_HELPER_H
 
 #include <vector>
+
 #include <pcb_item_containers.h>
 #include <tool/grid_helper.h>
+#include <board.h>
+#include <geometry/intersection.h>
+#include <geometry/nearest.h>
 
+
+class LSET;
+class SHAPE_ARC;
 class TOOL_MANAGER;
 struct MAGNETIC_SETTINGS;
-struct SELECTION_FILTER_OPTIONS;
+struct PCB_SELECTION_FILTER_OPTIONS;
 
-class PCB_GRID_HELPER : public GRID_HELPER
+class PCB_GRID_HELPER : public GRID_HELPER, public BOARD_LISTENER
 {
 public:
 
@@ -57,11 +64,27 @@ public:
 
     VECTOR2I BestDragOrigin( const VECTOR2I& aMousePos, std::vector<BOARD_ITEM*>& aItem,
                              GRID_HELPER_GRIDS aGrid = GRID_HELPER_GRIDS::GRID_CURRENT,
-                             const SELECTION_FILTER_OPTIONS* aSelectionFilter = nullptr );
+                             const PCB_SELECTION_FILTER_OPTIONS* aSelectionFilter = nullptr );
 
     VECTOR2I AlignToArc ( const VECTOR2I& aPoint, const SHAPE_ARC& aSeg );
 
-    VECTOR2I AlignToNearestPad( const VECTOR2I& aMousePos, PADS& aPads );
+    VECTOR2I SnapToPad( const VECTOR2I& aMousePos, std::deque<PAD*>& aPads );
+
+    virtual void OnBoardItemRemoved( BOARD& aBoard, BOARD_ITEM* aBoardItem ) override
+    {
+        // If the item being removed is involved in the snap, clear the snap item
+        if( m_snapItem )
+        {
+            for( EDA_ITEM* item : m_snapItem->items )
+            {
+                if( item == aBoardItem )
+                {
+                    m_snapItem = std::nullopt;
+                    break;
+                }
+            }
+        }
+    }
 
     /**
      * Chooses the "best" snap anchor around the given point, optionally taking layers from
@@ -81,12 +104,37 @@ public:
 
     VECTOR2D GetGridSize( GRID_HELPER_GRIDS aGrid ) const override;
 
+    /**
+     * Add construction geometry for a set of board items.
+     *
+     * @param aItems The items for which to add construction geometry
+     * @param aExtensionOnly If true, the construction geometry only includes extensions of the
+     *                       items, if false it also overlays the items themselves.
+     * @param aIsPersistent If true, the construction geometry is considered "persistent" and will
+     *                      always be shown and won't be replaced by later temporary geometry.
+     */
+    void AddConstructionItems( std::vector<BOARD_ITEM*> aItems, bool aExtensionOnly,
+                               bool aIsPersistent );
 
 private:
-    std::set<BOARD_ITEM*> queryVisible( const BOX2I& aArea,
-                                        const std::vector<BOARD_ITEM*>& aSkip ) const;
+    std::vector<BOARD_ITEM*> queryVisible( const BOX2I&                    aArea,
+                                           const std::vector<BOARD_ITEM*>& aSkip ) const;
 
-    ANCHOR* nearestAnchor( const VECTOR2I& aPos, int aFlags, LSET aMatchLayers );
+    /**
+     * Find the nearest anchor point to the given position with matching flags.
+     *
+     * @param return The nearest anchor point, or nullptr if none found
+     */
+    ANCHOR* nearestAnchor( const VECTOR2I& aPos, int aFlags );
+
+    /**
+     * computeAnchors inserts the local anchor points in to the grid helper for the specified
+     * container of board items, including points implied by intersections or other relationships
+     * between the items.
+     */
+    void computeAnchors( const std::vector<BOARD_ITEM*>& aItems, const VECTOR2I& aRefPos,
+                         bool aFrom, const PCB_SELECTION_FILTER_OPTIONS* aSelectionFilter,
+                         const LSET* aLayers, bool aForDrag );
 
     /**
      * computeAnchors inserts the local anchor points in to the grid helper for the specified
@@ -96,11 +144,12 @@ private:
      * @param aRefPos The point for which to compute the anchors (if used by the component)
      * @param aFrom Is this for an anchor that is designating a source point (aFrom=true) or not
      */
-    void computeAnchors( BOARD_ITEM* aItem, const VECTOR2I& aRefPos, bool aFrom = false,
-                         const SELECTION_FILTER_OPTIONS* aSelectionFilter = nullptr );
+    void computeAnchors( BOARD_ITEM* aItem, const VECTOR2I& aRefPos, bool aFrom,
+                         const PCB_SELECTION_FILTER_OPTIONS* aSelectionFilter );
 
-private:
     MAGNETIC_SETTINGS*     m_magneticSettings;
+
+    std::vector<NEARABLE_GEOM> m_pointOnLineCandidates;
 };
 
 #endif

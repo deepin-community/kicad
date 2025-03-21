@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2018 CERN
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
@@ -45,8 +45,8 @@
 namespace KIGFX {
 
 
-SCH_VIEW::SCH_VIEW( bool aIsDynamic, SCH_BASE_FRAME* aFrame ) :
-    VIEW( aIsDynamic )
+SCH_VIEW::SCH_VIEW( SCH_BASE_FRAME* aFrame ) :
+    VIEW()
 {
     m_frame = aFrame;
 
@@ -143,16 +143,10 @@ void SCH_VIEW::DisplaySymbol( LIB_SYMBOL* aSymbol )
         return;
 
     // Draw the fields.
-    for( LIB_ITEM& item : aSymbol->GetDrawItems() )
+    for( SCH_ITEM& item : aSymbol->GetDrawItems() )
     {
-        if( item.Type() == LIB_FIELD_T )
-        {
-            LIB_FIELD* field = static_cast< LIB_FIELD* >( &item );
-
-            wxCHECK2( field, continue );
-
+        if( item.Type() == SCH_FIELD_T )
             Add( &item );
-        }
     }
 
     LIB_SYMBOL* drawnSymbol = aSymbol;
@@ -168,11 +162,11 @@ void SCH_VIEW::DisplaySymbol( LIB_SYMBOL* aSymbol )
         }
     }
 
-    for( LIB_ITEM& item : drawnSymbol->GetDrawItems() )
+    for( SCH_ITEM& item : drawnSymbol->GetDrawItems() )
     {
         // Fields already drawn above.  (Besides, we don't want to show parent symbol fields as
         // users may be confused by shown fields that can not be edited.)
-        if( item.Type() == LIB_FIELD_T )
+        if( item.Type() == SCH_FIELD_T )
             continue;
 
         Add( &item );
@@ -185,7 +179,12 @@ void SCH_VIEW::DisplaySymbol( LIB_SYMBOL* aSymbol )
 void SCH_VIEW::ClearHiddenFlags()
 {
     for( VIEW_ITEM* item : *m_allItems )
+    {
+        if( !item )
+            continue;
+
         Hide( item, false );
+    }
 }
 
 

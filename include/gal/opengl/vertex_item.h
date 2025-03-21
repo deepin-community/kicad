@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -48,7 +48,7 @@ public:
     friend class VERTEX_MANAGER;
 
     explicit VERTEX_ITEM( const VERTEX_MANAGER& aManager );
-    virtual ~VERTEX_ITEM();
+    ~VERTEX_ITEM();
 
     /**
      * Return information about number of vertices stored.

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2004-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,7 +25,7 @@
 #ifndef TYPE_SCH_MARKER_H_
 #define TYPE_SCH_MARKER_H_
 
-#include <erc_item.h>
+#include <erc/erc_item.h>
 #include <sch_item.h>
 #include <marker_base.h>
 
@@ -53,19 +53,21 @@ public:
 
     void SwapData( SCH_ITEM* aItem ) override;
 
-    wxString Serialize() const;
-    static SCH_MARKER* Deserialize( const SCH_SHEET_LIST& aSheetList, const wxString& data );
+    wxString SerializeToString() const;
+    static SCH_MARKER* DeserializeFromString( const SCH_SHEET_LIST& aSheetList,
+                                              const wxString& data );
 
-    void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    std::vector<int> ViewGetLayers() const override;
 
     SCH_LAYER_ID GetColorLayer() const;
 
     SEVERITY GetSeverity() const override;
 
-    void Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset ) override;
+    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed ) override;
 
-    void Plot( PLOTTER* /* aPlotter */, bool /* aBackground */,
-               const SCH_PLOT_SETTINGS& /* aPlotSettings */ ) const override
+    void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
+               int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override
     {
         // SCH_MARKERs should not be plotted. However, SCH_ITEM will fail an assertion if we
         // do not confirm this by locally implementing a no-op Plot().
@@ -82,7 +84,7 @@ public:
 
     void MirrorHorizontally( int aCenter ) override;
     void MirrorVertically( int aCenter ) override;
-    void Rotate( const VECTOR2I& aCenter ) override;
+    void Rotate( const VECTOR2I& aCenter, bool aRotateCCW ) override;
 
     /**
      * Compare DRC marker main and auxiliary text against search string.
@@ -95,7 +97,7 @@ public:
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override
     {
         return wxString( _( "ERC Marker" ) );
     }
@@ -110,13 +112,15 @@ public:
     EDA_ITEM* Clone() const override;
 
     /**
-     * Sets this marker as a legacy artifact. Legacy markers are those deserialized from a file
-     * version < 20230121
+     * Set this marker as a legacy artifact.
+     *
+     * Legacy markers are those deserialized from a file version < 20230121.
      */
     void SetIsLegacyMarker( bool isLegacyMarker = true ) { m_isLegacyMarker = isLegacyMarker; }
 
     /**
-     * Determines if this marker is legacy (i.e. does not store sheet paths for specific errors)
+     * Determine if this marker is legacy (i.e. does not store sheet paths for specific errors).
+     *
      * @return True if marker deserialized from a file version < 20230121
      */
     bool IsLegacyMarker() const { return m_isLegacyMarker; }
@@ -138,7 +142,7 @@ public:
 protected:
     KIGFX::COLOR4D getColor() const override;
 
-    bool m_isLegacyMarker; /// True if marker was deserialized from a file version < 20230121
+    bool m_isLegacyMarker; ///< True if marker was deserialized from a file version < 20230121.
 };
 
 #endif // TYPE_SCH_MARKER_H_

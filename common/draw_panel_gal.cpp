@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2013-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
@@ -24,7 +24,6 @@
  * or you may write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
-#include <confirm.h>
 #include <eda_draw_frame.h>
 #include <kiface_base.h>
 #include <macros.h>
@@ -54,6 +53,16 @@
 #include <core/profile.h>
 
 #include <pgm_base.h>
+#include <confirm.h>
+
+
+/**
+ * Flag to enable drawing panel debugging output.
+ *
+ * @ingroup trace_env_vars
+ */
+static const wxChar traceDrawPanel[] = wxT( "KICAD_DRAW_PANEL" );
+
 
 EDA_DRAW_PANEL_GAL::EDA_DRAW_PANEL_GAL( wxWindow* aParentWindow, wxWindowID aWindowId,
                                         const wxPoint& aPosition, const wxSize& aSize,
@@ -80,6 +89,11 @@ EDA_DRAW_PANEL_GAL::EDA_DRAW_PANEL_GAL( wxWindow* aParentWindow, wxWindowID aWin
 {
     m_PaintEventCounter = std::make_unique<PROF_COUNTER>( "Draw panel paint events" );
 
+    if( Pgm().GetCommonSettings()->m_Appearance.show_scrollbars )
+        ShowScrollbars( wxSHOW_SB_ALWAYS, wxSHOW_SB_ALWAYS );
+    else
+        ShowScrollbars( wxSHOW_SB_NEVER, wxSHOW_SB_NEVER );
+
     SetLayoutDirection( wxLayout_LeftToRight );
 
     m_edaFrame = dynamic_cast<EDA_DRAW_FRAME*>( m_parent );
@@ -98,15 +112,6 @@ EDA_DRAW_PANEL_GAL::EDA_DRAW_PANEL_GAL( wxWindow* aParentWindow, wxWindowID aWin
 
     SwitchBackend( aGalType );
     SetBackgroundStyle( wxBG_STYLE_CUSTOM );
-
-    if( Pgm().GetCommonSettings()->m_Appearance.show_scrollbars )
-    {
-        ShowScrollbars( wxSHOW_SB_ALWAYS, wxSHOW_SB_ALWAYS );
-    }
-    else
-    {
-        ShowScrollbars( wxSHOW_SB_NEVER, wxSHOW_SB_NEVER );
-    }
 
     EnableScrolling( false, false ); // otherwise Zoom Auto disables GAL canvas
     KIPLATFORM::UI::SetOverlayScrolling( this, false ); // Prevent excessive repaint on GTK
@@ -177,6 +182,7 @@ EDA_DRAW_PANEL_GAL::~EDA_DRAW_PANEL_GAL()
 
 void EDA_DRAW_PANEL_GAL::SetFocus()
 {
+    KIPLATFORM::UI::ImeNotifyCancelComposition( this );
     wxScrolledCanvas::SetFocus();
     m_lostFocus = false;
 }
@@ -198,7 +204,7 @@ bool EDA_DRAW_PANEL_GAL::DoRePaint()
     if( !m_drawingEnabled )
         return false;
 
-    if( !m_gal->IsInitialized() || !m_gal->IsVisible() )
+    if( !m_gal->IsInitialized() || !m_gal->IsVisible() || m_gal->IsContextLocked() )
         return false;
 
     if( m_drawing )
@@ -236,6 +242,7 @@ bool EDA_DRAW_PANEL_GAL::DoRePaint()
     bool isDirty = false;
 
     cntTotal.Start();
+
     try
     {
         cntUpd.Start();
@@ -248,9 +255,7 @@ bool EDA_DRAW_PANEL_GAL::DoRePaint()
         {
             // Don't do anything here but don't fail
             // This can happen when we don't catch `at()` calls
-            wxString msg;
-            msg.Printf( wxT( "Out of Range error: %s" ), err.what() );
-            wxLogDebug( msg );
+            wxLogTrace( traceDrawPanel, wxS( "Out of Range error: %s" ), err.what() );
         }
 
         cntUpd.Stop();
@@ -382,10 +387,16 @@ void EDA_DRAW_PANEL_GAL::onSize( wxSizeEvent& aEvent )
 }
 
 
+void EDA_DRAW_PANEL_GAL::RequestRefresh()
+{
+    m_needIdleRefresh = true;
+}
+
+
 void EDA_DRAW_PANEL_GAL::Refresh( bool aEraseBackground, const wxRect* aRect )
 {
     if( !DoRePaint() )
-        m_needIdleRefresh = true;
+        RequestRefresh();
 }
 
 
@@ -504,10 +515,13 @@ bool EDA_DRAW_PANEL_GAL::SwitchBackend( GAL_TYPE aGalType )
                     DisplayInfoMessage( m_parent, _( "Could not use OpenGL" ), errormsg );
                 }
             }
+
             break;
         }
 
-        case GAL_TYPE_CAIRO: new_gal = new KIGFX::CAIRO_GAL( m_options, this, this, this ); break;
+        case GAL_TYPE_CAIRO:
+            new_gal = new KIGFX::CAIRO_GAL( m_options, this, this, this );
+            break;
 
         default:
             wxASSERT( false );
@@ -526,7 +540,7 @@ bool EDA_DRAW_PANEL_GAL::SwitchBackend( GAL_TYPE aGalType )
         // Create a dummy GAL
         new_gal = new KIGFX::GAL( m_options );
         aGalType = GAL_TYPE_NONE;
-        DisplayError( m_parent, wxString( err.what() ) );
+        DisplayErrorMessage( m_parent, _( "Error switching GAL backend" ), wxString( err.what() ) );
         result = false;
     }
 
@@ -589,7 +603,7 @@ void EDA_DRAW_PANEL_GAL::OnEvent( wxEvent& aEvent )
     if( endDelta > timeLimit )
         Refresh();
     else
-        m_needIdleRefresh = true;
+        RequestRefresh();
 }
 
 
@@ -707,6 +721,7 @@ KIGFX::VC_SETTINGS EDA_DRAW_PANEL_GAL::GetVcSettings()
     vcSettings.m_dragLeft = cfg->m_Input.drag_left;
     vcSettings.m_dragMiddle = cfg->m_Input.drag_middle;
     vcSettings.m_dragRight = cfg->m_Input.drag_right;
+    vcSettings.m_scrollReverseZoom = cfg->m_Input.reverse_scroll_zoom;
     vcSettings.m_scrollReversePanH = cfg->m_Input.reverse_scroll_pan_h;
 
     return vcSettings;

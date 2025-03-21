@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015-2016 Cirilo Bernardo <cirilo.bernardo@gmail.com>
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -155,13 +155,47 @@ void S3D_PLUGIN_MANAGER::loadPlugins( void )
     fn.AssignDir( PATHS::GetStockPlugins3DPath() );
     checkPluginPath( std::string( fn.GetPathWithSep().ToUTF8() ), searchpaths );
 #else
-   // Search path on OS X is
-   // (1) Machine  /Library/Application Support/kicad/PlugIns/3d
-   checkPluginPath( PATHS::GetOSXKicadMachineDataDir() + wxT( "/PlugIns/3d" ), searchpaths );
+    if( wxGetEnv( wxT( "KICAD_RUN_FROM_BUILD_DIR" ), nullptr ) )
+    {
+    	// Exe will be at <build_dir>/pcbnew/pcbnew.app/Contents/MacOS/pcbnew for standalone
+    	// Plugin will be at <build_dir>/kicad/KiCad.app/Contents/PlugIns/3d
+    	fn.Assign( wxStandardPaths::Get().GetExecutablePath() );
 
-   // (2) Bundle   kicad.app/Contents/PlugIns/3d
-   fn.AssignDir( PATHS::GetStockPlugins3DPath() );
-   checkPluginPath( fn.GetPathWithSep(), searchpaths );
+        if( fn.GetName() == wxT( "kicad" ) )
+        {
+            fn.AppendDir( wxT( ".." ) ); // Contents
+        }
+        else
+        {
+            fn.AppendDir( wxT( ".." ) ); // Contents
+            fn.AppendDir( wxT( ".." ) ); // pcbnew.app
+            fn.AppendDir( wxT( ".." ) ); // pcbnew
+            fn.AppendDir( wxT( ".." ) ); // Build root
+            fn.AppendDir( wxT( "kicad" ) );
+            fn.AppendDir( wxT( "KiCad.app" ) );
+            fn.AppendDir( wxT( "Contents" ) );
+        }
+
+    	fn.AppendDir( wxT( "PlugIns" ) );
+    	fn.AppendDir( wxT( "3d" ) );
+    	fn.MakeAbsolute();
+
+    	std::string testpath = std::string( fn.GetPathWithSep().ToUTF8() );
+    	checkPluginPath( testpath, searchpaths );
+
+        // Also check when running KiCad manager from build dir
+
+    }
+    else
+    {
+    	// Search path on OS X is
+    	// (1) Machine  /Library/Application Support/kicad/PlugIns/3d
+    	checkPluginPath( PATHS::GetOSXKicadMachineDataDir() + wxT( "/PlugIns/3d" ), searchpaths );
+
+    	// (2) Bundle   kicad.app/Contents/PlugIns/3d
+    	fn.AssignDir( PATHS::GetStockPlugins3DPath() );
+    	checkPluginPath( fn.GetPathWithSep(), searchpaths );
+    }
 #endif
 
     std::list< wxString >::iterator sPL = searchpaths.begin();
@@ -202,7 +236,7 @@ void S3D_PLUGIN_MANAGER::loadPlugins( void )
                 char const* cp = pp->GetFileFilter( i );
 
                 if( cp )
-                    addFilterString( wxString::FromUTF8Unchecked( cp ) );
+                    addFilterString( cp );
             }
 
             addExtensionMap( pp );
@@ -294,7 +328,7 @@ void S3D_PLUGIN_MANAGER::checkPluginName( const wxString& aPath,
         ++bl;
     }
 
-    // prevent loading non-plugin dlls 
+    // prevent loading non-plugin dlls
     if( wxGetEnv( wxT( "KICAD_RUN_FROM_BUILD_DIR" ), nullptr ) )
     {
         if( !path.GetName().StartsWith( "s3d_plugin" )
@@ -382,7 +416,7 @@ void S3D_PLUGIN_MANAGER::addExtensionMap( KICAD_PLUGIN_LDR_3D* aPlugin )
         wxString ws;
 
         if( cp )
-            ws = wxString::FromUTF8Unchecked( cp );
+            ws = wxString( cp );
 
         if( !ws.empty() )
         {
@@ -410,7 +444,8 @@ SCENEGRAPH* S3D_PLUGIN_MANAGER::Load3DModel( const wxString& aFileName, std::str
     ext_to_find.MakeLower();
 #endif
 
-    // .gz files are compressed versions that may have additional information in the previous extension
+    // .gz files are compressed versions that may have additional information in the previous
+    // extension.
     if( ext_to_find == wxT( "gz" ) )
     {
         wxFileName second( raw.GetName() );
@@ -484,8 +519,7 @@ bool S3D_PLUGIN_MANAGER::CheckTag( const char* aTag )
         ptag.clear();
         (*pS)->GetPluginInfo( ptag );
 
-        // if the plugin name matches then the version
-        // must also match
+        // if the plugin name matches then the version must also match
         if( !ptag.compare( 0, pname.size(), pname ) )
         {
             if( ptag.compare( tname ) )

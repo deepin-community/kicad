@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -48,11 +48,13 @@ PANEL_SETUP_RULES::PANEL_SETUP_RULES( wxWindow* aParentWindow, PCB_EDIT_FRAME* a
         m_helpWindow( nullptr )
 {
     m_scintillaTricks = new SCINTILLA_TRICKS( m_textEditor, wxT( "()" ), false,
+            // onAcceptFn
             [this]( wxKeyEvent& aEvent )
             {
                 wxPostEvent( PAGED_DIALOG::GetDialog( this ),
                              wxCommandEvent( wxEVT_COMMAND_BUTTON_CLICKED, wxID_OK ) );
             },
+            // onCharFn
             [this]( wxStyledTextEvent& aEvent )
             {
                 onScintillaCharAdded( aEvent );
@@ -236,9 +238,43 @@ void PANEL_SETUP_RULES::onScintillaCharAdded( wxStyledTextEvent &aEvent )
                     || token == wxT( "zone" );
             };
 
+    auto isConstraintTypeToken =
+            []( const wxString& token ) -> bool
+            {
+                return token == wxT( "annular_width" )
+                    || token == wxT( "assertion" )
+                    || token == wxT( "clearance" )
+                    || token == wxT( "connection_width" )
+                    || token == wxT( "courtyard_clearance" )
+                    || token == wxT( "diff_pair_gap" )
+                    || token == wxT( "diff_pair_uncoupled" )
+                    || token == wxT( "disallow" )
+                    || token == wxT( "edge_clearance" )
+                    || token == wxT( "length" )
+                    || token == wxT( "hole_clearance" )
+                    || token == wxT( "hole_size" )
+                    || token == wxT( "hole_to_hole" )
+                    || token == wxT( "min_resolved_spokes" )
+                    || token == wxT( "physical_clearance" )
+                    || token == wxT( "physical_hole_clearance" )
+                    || token == wxT( "silk_clearance" )
+                    || token == wxT( "skew" )
+                    || token == wxT( "text_height" )
+                    || token == wxT( "text_thickness" )
+                    || token == wxT( "thermal_relief_gap" )
+                    || token == wxT( "thermal_spoke_width" )
+                    || token == wxT( "track_width" )
+                    || token == wxT( "track_angle" )
+                    || token == wxT( "track_segment_length" )
+                    || token == wxT( "via_count" )
+                    || token == wxT( "via_diameter" )
+                    || token == wxT( "zone_connection" );
+            };
+
     std::stack<wxString> sexprs;
     wxString             partial;
     wxString             last;
+    wxString             constraintType;
     int                  context = NONE;
     int                  expr_context = NONE;
 
@@ -311,7 +347,22 @@ void PANEL_SETUP_RULES::onScintillaCharAdded( wxStyledTextEvent &aEvent )
             }
 
             if( !sexprs.empty() )
-                sexprs.pop();
+            {
+                // Ignore argument-less tokens
+                if( partial == wxT( "within_diff_pairs" ) )
+                {
+                    partial = wxEmptyString;
+                }
+                else
+                {
+                    if( sexprs.top() == wxT( "constraint" ) )
+                    {
+                        constraintType = wxEmptyString;
+                    }
+
+                    sexprs.pop();
+                }
+            }
 
             context = NONE;
         }
@@ -362,6 +413,10 @@ void PANEL_SETUP_RULES::onScintillaCharAdded( wxStyledTextEvent &aEvent )
                 context = SEXPR_STRING;
                 continue;
             }
+            else if( isConstraintTypeToken( partial ) )
+            {
+                constraintType = partial;
+            }
 
             context = NONE;
         }
@@ -389,7 +444,10 @@ void PANEL_SETUP_RULES::onScintillaCharAdded( wxStyledTextEvent &aEvent )
         }
         else if( sexprs.top() == wxT( "constraint" ) )
         {
-            tokens = wxT( "max|min|opt" );
+            if( constraintType == wxT( "skew" ) )
+                tokens = wxT( "max|min|opt|within_diff_pairs" );
+            else
+                tokens = wxT( "max|min|opt" );
         }
     }
     else if( context == SEXPR_TOKEN )
@@ -405,6 +463,7 @@ void PANEL_SETUP_RULES::onScintillaCharAdded( wxStyledTextEvent &aEvent )
                           "clearance|"
                           "connection_width|"
                           "courtyard_clearance|"
+                          "creepage|"
                           "diff_pair_gap|"
                           "diff_pair_uncoupled|"
                           "disallow|"
@@ -423,6 +482,8 @@ void PANEL_SETUP_RULES::onScintillaCharAdded( wxStyledTextEvent &aEvent )
                           "thermal_relief_gap|"
                           "thermal_spoke_width|"
                           "track_width|"
+                          "track_angle|"
+                          "track_segment_length|"
                           "via_count|"
                           "via_diameter|"
                           "zone_connection" );
@@ -506,7 +567,7 @@ void PANEL_SETUP_RULES::onScintillaCharAdded( wxStyledTextEvent &aEvent )
                 BOARD_DESIGN_SETTINGS&         bds = m_frame->GetBoard()->GetDesignSettings();
                 std::shared_ptr<NET_SETTINGS>& netSettings = bds.m_NetSettings;
 
-                for( const auto& [ name, netclass ] : netSettings->m_NetClasses )
+                for( const auto& [name, netclass] : netSettings->GetNetclasses() )
                     tokens += wxT( "|" ) + name;
             }
             else if( m_netNameRegex.Matches( last ) )
@@ -705,6 +766,10 @@ bool PANEL_SETUP_RULES::TransferDataToWindow()
             OnCompile( dummy );
         }
     }
+    else
+    {
+        m_textEditor->AddText( wxT( "(version 1)\n" ) );
+    }
 
     m_originalText = m_textEditor->GetText();
 
@@ -755,20 +820,65 @@ void PANEL_SETUP_RULES::OnSyntaxHelp( wxHyperlinkEvent& aEvent )
         m_helpWindow->ShowModeless();
         return;
     }
+    std::vector<wxString> msg;
+    msg.clear();
 
-    wxString msg =
-#include "dialogs/panel_setup_rules_help_md.h"
-    ;
+    wxString t =
+#include "dialogs/panel_setup_rules_help_1clauses.h"
+            ;
+    msg.emplace_back( t );
+    t =
+#include "dialogs/panel_setup_rules_help_2constraints.h"
+            ;
+    msg.emplace_back( t );
+    t =
+#include "dialogs/panel_setup_rules_help_3items.h"
+            ;
+    msg.emplace_back( t );
+    t =
+#include "dialogs/panel_setup_rules_help_4severity_names.h"
+            ;
+    msg.emplace_back( t );
+    t =
+#include "dialogs/panel_setup_rules_help_5examples.h"
+            ;
+    msg.emplace_back( t );
+    t =
+#include "dialogs/panel_setup_rules_help_6notes.h"
+            ;
+    msg.emplace_back( t );
+    t =
+#include "dialogs/panel_setup_rules_help_7properties.h"
+            ;
+    msg.emplace_back( t );
+    t =
+#include "dialogs/panel_setup_rules_help_8expression_functions.h"
+            ;
+    msg.emplace_back( t );
+    t =
+#include "dialogs/panel_setup_rules_help_9more_examples.h"
+            ;
+    msg.emplace_back( t );
+    t =
+#include "dialogs/panel_setup_rules_help_10documentation.h"
+            ;
+    msg.emplace_back( t );
+
+    wxString msg_txt = wxEmptyString;
+
+    for( wxString i : msg )
+        msg_txt << wxGetTranslation( i );
 
 #ifdef __WXMAC__
-    msg.Replace( wxT( "Ctrl+" ), wxT( "Cmd+" ) );
+    msg_txt.Replace( wxT( "Ctrl+" ), wxT( "Cmd+" ) );
 #endif
+    const wxString& msGg_txt = msg_txt;
 
     m_helpWindow = new HTML_MESSAGE_BOX( nullptr, _( "Syntax Help" ) );
     m_helpWindow->SetDialogSizeInDU( 420, 320 );
 
-    wxString html_txt;
-    ConvertMarkdown2Html( wxGetTranslation( msg ), html_txt );
+    wxString html_txt = wxEmptyString;
+    ConvertMarkdown2Html( msGg_txt, html_txt );
 
     html_txt.Replace( wxS( "<td" ), wxS( "<td valign=top" ) );
     m_helpWindow->AddHTML_Text( html_txt );

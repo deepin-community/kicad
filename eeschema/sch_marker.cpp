@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,14 +27,15 @@
 #include <widgets/msgpanel.h>
 #include <bitmaps.h>
 #include <base_units.h>
-#include <erc_settings.h>
+#include <eda_draw_frame.h>
+#include <erc/erc_settings.h>
 #include <sch_marker.h>
 #include <schematic.h>
 #include <widgets/ui_common.h>
 #include <pgm_base.h>
 #include <settings/settings_manager.h>
 #include <settings/color_settings.h>
-#include <erc_item.h>
+#include <erc/erc_item.h>
 #include <sch_screen.h>
 
 /// Factor to convert the maker unit shape to internal units:
@@ -87,7 +88,7 @@ void SCH_MARKER::SwapData( SCH_ITEM* aItem )
 }
 
 
-wxString SCH_MARKER::Serialize() const
+wxString SCH_MARKER::SerializeToString() const
 {
     std::shared_ptr<ERC_ITEM> erc = std::static_pointer_cast<ERC_ITEM>( m_rcItem );
     wxString                  sheetSpecificPath, mainItemPath, auxItemPath;
@@ -101,14 +102,46 @@ wxString SCH_MARKER::Serialize() const
     if( erc->AuxItemHasSheetPath() )
         auxItemPath = erc->GetAuxItemSheetPath().Path().AsString();
 
-    return wxString::Format( wxT( "%s|%d|%d|%s|%s|%s|%s|%s" ), m_rcItem->GetSettingsKey(), m_Pos.x,
-                             m_Pos.y, m_rcItem->GetMainItemID().AsString(),
-                             m_rcItem->GetAuxItemID().AsString(), sheetSpecificPath, mainItemPath,
+    if( m_rcItem->GetErrorCode() == ERCE_GENERIC_WARNING
+            || m_rcItem->GetErrorCode() == ERCE_GENERIC_ERROR
+            || m_rcItem->GetErrorCode() == ERCE_UNRESOLVED_VARIABLE )
+    {
+        SCH_ITEM* sch_item = Schematic()->GetItem( erc->GetMainItemID() );
+        SCH_ITEM* parent = static_cast<SCH_ITEM*>( sch_item->GetParent() );
+        EDA_TEXT* text_item = dynamic_cast<EDA_TEXT*>( sch_item );
+
+        // SCH_FIELDs and SCH_ITEMs inside LIB_SYMBOLs don't have persistent KIIDs.  So the
+        // exclusion must refer to the parent's KIID, and include the text of the original text
+        // item for later look-up.
+
+        if( parent && parent->IsType( { SCH_SYMBOL_T, SCH_LABEL_T, SCH_SHEET_T } ) )
+        {
+            return wxString::Format( wxT( "%s|%d|%d|%s|%s|%s|%s|%s" ),
+                                     m_rcItem->GetSettingsKey(),
+                                     m_Pos.x,
+                                     m_Pos.y,
+                                     parent->m_Uuid.AsString(),
+                                     text_item->GetText(),
+                                     sheetSpecificPath,
+                                     mainItemPath,
+                                     wxEmptyString );
+        }
+    }
+
+    return wxString::Format( wxT( "%s|%d|%d|%s|%s|%s|%s|%s" ),
+                             m_rcItem->GetSettingsKey(),
+                             m_Pos.x,
+                             m_Pos.y,
+                             m_rcItem->GetMainItemID().AsString(),
+                             m_rcItem->GetAuxItemID().AsString(),
+                             sheetSpecificPath,
+                             mainItemPath,
                              auxItemPath );
 }
 
 
-SCH_MARKER* SCH_MARKER::Deserialize( const SCH_SHEET_LIST& aSheetList, const wxString& data )
+SCH_MARKER* SCH_MARKER::DeserializeFromString( const SCH_SHEET_LIST& aSheetList,
+                                               const wxString& data )
 {
     wxArrayString props = wxSplit( data, '|' );
     VECTOR2I      markerPos( (int) strtol( props[1].c_str(), nullptr, 10 ),
@@ -119,14 +152,69 @@ SCH_MARKER* SCH_MARKER::Deserialize( const SCH_SHEET_LIST& aSheetList, const wxS
     if( !ercItem )
         return nullptr;
 
-    ercItem->SetItems( KIID( props[3] ), KIID( props[4] ) );
+    if( ercItem->GetErrorCode() == ERCE_GENERIC_WARNING
+            || ercItem->GetErrorCode() == ERCE_GENERIC_ERROR
+            || ercItem->GetErrorCode() == ERCE_UNRESOLVED_VARIABLE )
+    {
+        // SCH_FIELDs and SCH_ITEMs inside LIB_SYMBOLs don't have persistent KIIDs.  So the
+        // exclusion will contain the parent's KIID in prop[3], and the text of the original
+        // text item in prop[4].
+
+        if( !props[4].IsEmpty() )
+        {
+            KIID      uuid = niluuid;
+            SCH_ITEM* parent = aSheetList.GetItem( KIID( props[3] ) );
+
+            // Check fields and pins for a match
+            parent->RunOnChildren(
+                    [&]( SCH_ITEM* child )
+                    {
+                        if( EDA_TEXT* text_item = dynamic_cast<EDA_TEXT*>( child ) )
+                        {
+                            if( text_item->GetText() == props[4] )
+                                uuid = child->m_Uuid;
+                        }
+                    } );
+
+            // If it's a symbol, we must also check non-overridden LIB_SYMBOL text children
+            if( uuid == niluuid && parent->Type() == SCH_SYMBOL_T )
+            {
+                static_cast<SCH_SYMBOL*>( parent )->GetLibSymbolRef()->RunOnChildren(
+                        [&]( SCH_ITEM* child )
+                        {
+                            if( child->Type() == SCH_FIELD_T )
+                            {
+                                // Match only on SCH_SYMBOL fields, not LIB_SYMBOL fields.
+                            }
+                            else if( EDA_TEXT* text_item = dynamic_cast<EDA_TEXT*>( child ) )
+                            {
+                                if( text_item->GetText() == props[4] )
+                                    uuid = child->m_Uuid;
+                            }
+                        } );
+            }
+
+            if( uuid != niluuid )
+                ercItem->SetItems( uuid );
+            else
+                return nullptr;
+        }
+        else
+        {
+            ercItem->SetItems( KIID( props[3] ) );
+        }
+    }
+    else
+    {
+        ercItem->SetItems( KIID( props[3] ), KIID( props[4] ) );
+    }
 
     bool isLegacyMarker = true;
 
-    // Deserialize sheet / item specific paths - we are not able to use the file version to determine
-    // if markers are legacy as there could be a file opened with a prior version but which has
-    // new markers - this code is called not just during schematic load, but also to match new
-    // ERC exceptions to exclusions.
+    // Deserialize sheet / item specific paths - we are not able to use the file version to
+    // determine if markers are legacy as there could be a file opened with a prior version
+    // but which has new markers - this code is called not just during schematic load, but
+    // also to match new ERC exceptions to exclusions.
     if( props.size() == 8 )
     {
         isLegacyMarker = false;
@@ -136,6 +224,7 @@ SCH_MARKER* SCH_MARKER::Deserialize( const SCH_SHEET_LIST& aSheetList, const wxS
             KIID_PATH                     sheetSpecificKiidPath( props[5] );
             std::optional<SCH_SHEET_PATH> sheetSpecificPath =
                     aSheetList.GetSheetPathByKIIDPath( sheetSpecificKiidPath, true );
+
             if( sheetSpecificPath.has_value() )
                 ercItem->SetSheetSpecificPath( sheetSpecificPath.value() );
         }
@@ -145,6 +234,7 @@ SCH_MARKER* SCH_MARKER::Deserialize( const SCH_SHEET_LIST& aSheetList, const wxS
             KIID_PATH                     mainItemKiidPath( props[6] );
             std::optional<SCH_SHEET_PATH> mainItemPath =
                     aSheetList.GetSheetPathByKIIDPath( mainItemKiidPath, true );
+
             if( mainItemPath.has_value() )
             {
                 if( props[7].IsEmpty() )
@@ -182,9 +272,9 @@ void SCH_MARKER::Show( int nestLevel, std::ostream& os ) const
 #endif
 
 
-void SCH_MARKER::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> SCH_MARKER::ViewGetLayers() const
 {
-    wxCHECK_RET( Schematic(), "No SCHEMATIC set for SCH_MARKER!" );
+    wxCHECK2_MSG( Schematic(), return {}, "No SCHEMATIC set for SCH_MARKER!" );
 
     // Don't display sheet-specific markers when SCH_SHEET_PATHs do not match
     std::shared_ptr<ERC_ITEM> ercItem = std::static_pointer_cast<ERC_ITEM>( GetRCItem() );
@@ -192,27 +282,27 @@ void SCH_MARKER::ViewGetLayers( int aLayers[], int& aCount ) const
     if( ercItem->IsSheetSpecific()
         && ( ercItem->GetSpecificSheetPath() != Schematic()->CurrentSheet() ) )
     {
-        aCount = 0;
-        return;
+        return {};
     }
 
-    aCount = 2;
+    std::vector<int> layers( 2 );
 
     if( IsExcluded() )
     {
-        aLayers[0] = LAYER_ERC_EXCLUSION;
+        layers[0] = LAYER_ERC_EXCLUSION;
     }
     else
     {
         switch( Schematic()->ErcSettings().GetSeverity( m_rcItem->GetErrorCode() ) )
         {
         default:
-        case SEVERITY::RPT_SEVERITY_ERROR:   aLayers[0] = LAYER_ERC_ERR;  break;
-        case SEVERITY::RPT_SEVERITY_WARNING: aLayers[0] = LAYER_ERC_WARN; break;
+        case SEVERITY::RPT_SEVERITY_ERROR:   layers[0] = LAYER_ERC_ERR;  break;
+        case SEVERITY::RPT_SEVERITY_WARNING: layers[0] = LAYER_ERC_WARN; break;
         }
     }
 
-    aLayers[1] = LAYER_SELECTION_SHADOWS;
+    layers[1] = LAYER_SELECTION_SHADOWS;
+    return layers;
 }
 
 
@@ -250,7 +340,8 @@ SEVERITY SCH_MARKER::GetSeverity() const
 }
 
 
-void SCH_MARKER::Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset )
+void SCH_MARKER::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                        const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
 {
     PrintMarker( aSettings, aOffset );
 }
@@ -270,7 +361,52 @@ const BOX2I SCH_MARKER::GetBoundingBox() const
 
 void SCH_MARKER::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    aList.emplace_back( _( "Electrical Rule Check Error" ), m_rcItem->GetErrorMessage() );
+    aList.emplace_back( _( "Type" ), _( "Marker" ) );
+    aList.emplace_back( _( "Violation" ), m_rcItem->GetErrorMessage() );
+
+    switch( GetSeverity() )
+    {
+    case RPT_SEVERITY_IGNORE:
+        aList.emplace_back( _( "Severity" ), _( "Ignore" ) );
+        break;
+    case RPT_SEVERITY_WARNING:
+        aList.emplace_back( _( "Severity" ), _( "Warning" ) );
+        break;
+    case RPT_SEVERITY_ERROR:
+        aList.emplace_back( _( "Severity" ), _( "Error" ) );
+        break;
+    default:
+        break;
+    }
+
+    if( GetMarkerType() == MARKER_DRAWING_SHEET )
+    {
+        aList.emplace_back( _( "Drawing Sheet" ), wxEmptyString );
+    }
+    else
+    {
+        wxString  mainText;
+        wxString  auxText;
+        EDA_ITEM* mainItem = nullptr;
+        EDA_ITEM* auxItem = nullptr;
+
+        if( m_rcItem->GetMainItemID() != niluuid )
+            mainItem = aFrame->GetItem( m_rcItem->GetMainItemID() );
+
+        if( m_rcItem->GetAuxItemID() != niluuid )
+            auxItem = aFrame->GetItem( m_rcItem->GetAuxItemID() );
+
+        if( mainItem )
+            mainText = mainItem->GetItemDescription( aFrame, true );
+
+        if( auxItem )
+            auxText = auxItem->GetItemDescription( aFrame, true );
+
+        aList.emplace_back( mainText, auxText );
+    }
+
+    if( IsExcluded() )
+        aList.emplace_back( _( "Excluded" ), m_comment );
 }
 
 
@@ -280,7 +416,7 @@ BITMAPS SCH_MARKER::GetMenuImage() const
 }
 
 
-void SCH_MARKER::Rotate( const VECTOR2I& aCenter )
+void SCH_MARKER::Rotate( const VECTOR2I& aCenter, bool aRotateCCW )
 {
     // Marker geometry isn't user-editable
 }

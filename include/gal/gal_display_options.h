@@ -1,7 +1,7 @@
 /*
 * This program source code file is part of KICAD, a free EDA CAD application.
 *
-* Copyright (C) 2017-2021 KiCad Developers, see AUTHORS.txt for contributors.
+* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -25,7 +25,7 @@
 #define GAL_DISPLAY_OPTIONS_H__
 
 #include <gal/gal.h>
-#include <gal/dpi_scaling.h>
+#include <dpi_scaling.h>
 #include <core/observable.h>
 
 class COMMON_SETTINGS;
@@ -41,7 +41,7 @@ class wxWindow;
 namespace KIGFX
 {
     /**
-     * GRID_STYLE: Type definition of the grid style
+     * Type definition of the grid style.
      */
     enum class GRID_STYLE
     {
@@ -77,6 +77,7 @@ namespace KIGFX
     {
     public:
         virtual void OnGalDisplayOptionsChanged( const GAL_DISPLAY_OPTIONS& ) = 0;
+
     protected:
         // Observer lifetimes aren't handled by base class pointer
         virtual ~GAL_DISPLAY_OPTIONS_OBSERVER() {}
@@ -86,6 +87,9 @@ namespace KIGFX
     {
     public:
         GAL_DISPLAY_OPTIONS();
+
+        virtual ~GAL_DISPLAY_OPTIONS()
+        {}
 
         OPENGL_ANTIALIASING_MODE gl_antialiasing_mode;
 

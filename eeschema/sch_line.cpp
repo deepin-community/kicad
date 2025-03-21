@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,12 +32,15 @@
 #include <sch_line.h>
 #include <sch_edit_frame.h>
 #include <settings/color_settings.h>
-#include <schematic.h>
 #include <connection_graph.h>
 #include <project/project_file.h>
 #include <project/net_settings.h>
 #include <trigo.h>
 #include <board_item.h>
+#include <api/api_enums.h>
+#include <api/api_utils.h>
+#include <api/schematic/schematic_types.pb.h>
+#include <properties/property.h>
 
 
 SCH_LINE::SCH_LINE( const VECTOR2I& pos, int layer ) :
@@ -87,6 +90,49 @@ SCH_LINE::SCH_LINE( const SCH_LINE& aLine ) :
     m_lastResolvedColor = aLine.m_lastResolvedColor;
 
     m_operatingPoint = aLine.m_operatingPoint;
+}
+
+
+void SCH_LINE::Serialize( google::protobuf::Any &aContainer ) const
+{
+    kiapi::schematic::types::Line line;
+
+    line.mutable_id()->set_value( m_Uuid.AsStdString() );
+    kiapi::common::PackVector2( *line.mutable_start(), GetStartPoint() );
+    kiapi::common::PackVector2( *line.mutable_end(), GetEndPoint() );
+    line.set_layer(
+            ToProtoEnum<SCH_LAYER_ID, kiapi::schematic::types::SchematicLayer>( GetLayer() ) );
+
+    aContainer.PackFrom( line );
+}
+
+
+bool SCH_LINE::Deserialize( const google::protobuf::Any &aContainer )
+{
+    kiapi::schematic::types::Line line;
+
+    if( !aContainer.UnpackTo( &line ) )
+        return false;
+
+    const_cast<KIID&>( m_Uuid ) = KIID( line.id().value() );
+    SetStartPoint( kiapi::common::UnpackVector2( line.start() ) );
+    SetEndPoint( kiapi::common::UnpackVector2( line.end() ) );
+    SCH_LAYER_ID layer =
+            FromProtoEnum<SCH_LAYER_ID, kiapi::schematic::types::SchematicLayer>( line.layer() );
+
+    switch( layer )
+    {
+    case LAYER_WIRE:
+    case LAYER_BUS:
+    case LAYER_NOTES:
+        SetLayer( layer );
+        break;
+
+    default:
+        break;
+    }
+
+    return true;
 }
 
 
@@ -143,38 +189,32 @@ void SCH_LINE::Show( int nestLevel, std::ostream& os ) const
 #endif
 
 
-void SCH_LINE::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> SCH_LINE::ViewGetLayers() const
 {
-    aCount     = 4;
-    aLayers[0] = LAYER_DANGLING;
-    aLayers[1] = m_layer;
-    aLayers[2] = LAYER_SELECTION_SHADOWS;
-    aLayers[3] = LAYER_OP_VOLTAGES;
+    return { LAYER_DANGLING, m_layer, LAYER_SELECTION_SHADOWS, LAYER_NET_COLOR_HIGHLIGHT,
+             LAYER_OP_VOLTAGES };
 }
 
 
-double SCH_LINE::ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const
+double SCH_LINE::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
 {
-    constexpr double HIDE = std::numeric_limits<double>::max();
-    constexpr double SHOW = 0.0;
-
     if( aLayer == LAYER_OP_VOLTAGES )
     {
         if( m_start == m_end )
-            return HIDE;
+            return LOD_HIDE;
 
-        int height = std::abs( m_end.y - m_start.y );
-        int width = std::abs( m_end.x - m_start.x );
+        const int height = std::abs( m_end.y - m_start.y );
 
         // Operating points will be shown only if zoom is appropriate
-        if( height == 0 )
-            return (double) schIUScale.mmToIU( 15 ) / width;
-        else
-            return (double) schIUScale.mmToIU( 5 ) / height;
+        if( height > 0 )
+            return lodScaleForThreshold( height, schIUScale.mmToIU( 5 ) );
+
+        const int width = std::abs( m_end.x - m_start.x );
+        return lodScaleForThreshold( width, schIUScale.mmToIU( 15 ) );
     }
 
     // Other layers are always drawn.
-    return SHOW;
+    return LOD_SHOW;
 }
 
 
@@ -196,7 +236,7 @@ const BOX2I SCH_LINE::GetBoundingBox() const
 
 double SCH_LINE::GetLength() const
 {
-    return GetLineLength( m_start, m_end );
+    return m_start.Distance( m_end );
 }
 
 
@@ -237,25 +277,19 @@ COLOR4D SCH_LINE::GetLineColor() const
 }
 
 
-void SCH_LINE::SetLineStyle( const int aStyleId )
-{
-    SetLineStyle( static_cast<LINE_STYLE>( aStyleId ) );
-}
-
-
 void SCH_LINE::SetLineStyle( const LINE_STYLE aStyle )
 {
     m_stroke.SetLineStyle( aStyle );
-    m_lastResolvedLineStyle = GetLineStyle();
+    m_lastResolvedLineStyle = GetEffectiveLineStyle();
 }
 
 
 LINE_STYLE SCH_LINE::GetLineStyle() const
 {
-    if( m_stroke.GetLineStyle() != LINE_STYLE::DEFAULT )
+    if( IsGraphicLine() && m_stroke.GetLineStyle() == LINE_STYLE::DEFAULT )
+        return LINE_STYLE::SOLID;
+    else
         return m_stroke.GetLineStyle();
-
-    return LINE_STYLE::SOLID;
 }
 
 
@@ -313,7 +347,8 @@ int SCH_LINE::GetPenWidth() const
 }
 
 
-void SCH_LINE::Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& offset )
+void SCH_LINE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                      const VECTOR2I& offset, bool aForceNoFill, bool aDimmed )
 {
     wxDC*   DC = aSettings->GetPrintDC();
     COLOR4D color = GetLineColor();
@@ -324,7 +359,7 @@ void SCH_LINE::Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& offset )
     VECTOR2I   start = m_start;
     VECTOR2I   end = m_end;
     LINE_STYLE lineStyle = GetEffectiveLineStyle();
-    int        penWidth = std::max( GetPenWidth(), aSettings->GetDefaultPenWidth() );
+    int        penWidth = GetEffectivePenWidth( aSettings );
 
     if( lineStyle <= LINE_STYLE::FIRST_TYPE )
     {
@@ -363,28 +398,13 @@ void SCH_LINE::MirrorHorizontally( int aCenter )
 }
 
 
-void SCH_LINE::Rotate( const VECTOR2I& aCenter )
+void SCH_LINE::Rotate( const VECTOR2I& aCenter, bool aRotateCCW )
 {
-    // When we allow off grid items, the
-    // else if should become a plain if to allow
-    // rotation around the center of the line
     if( m_flags & STARTPOINT )
-        RotatePoint( m_start, aCenter, ANGLE_90 );
+        RotatePoint( m_start, aCenter, aRotateCCW ? ANGLE_90 : ANGLE_270 );
 
-    else if( m_flags & ENDPOINT )
-        RotatePoint( m_end, aCenter, ANGLE_90 );
-}
-
-
-void SCH_LINE::RotateStart( const VECTOR2I& aCenter )
-{
-    RotatePoint( m_start, aCenter, ANGLE_90 );
-}
-
-
-void SCH_LINE::RotateEnd( const VECTOR2I& aCenter )
-{
-    RotatePoint( m_end, aCenter, ANGLE_90 );
+    if( m_flags & ENDPOINT )
+        RotatePoint( m_end, aCenter, aRotateCCW ? ANGLE_90 : ANGLE_270 );
 }
 
 
@@ -634,44 +654,25 @@ bool SCH_LINE::IsConnectable() const
 
 bool SCH_LINE::CanConnect( const SCH_ITEM* aItem ) const
 {
-    if( m_layer == LAYER_WIRE )
+    switch( aItem->Type() )
     {
-        switch( aItem->Type() )
-        {
-        case SCH_JUNCTION_T:
-        case SCH_NO_CONNECT_T:
-        case SCH_LABEL_T:
-        case SCH_GLOBAL_LABEL_T:
-        case SCH_HIER_LABEL_T:
-        case SCH_DIRECTIVE_LABEL_T:
-        case SCH_BUS_WIRE_ENTRY_T:
-        case SCH_SYMBOL_T:
-        case SCH_SHEET_T:
-        case SCH_SHEET_PIN_T:
-            return true;
-        default:
-            break;
-        }
-    }
-    else if( m_layer == LAYER_BUS )
-    {
-        switch( aItem->Type() )
-        {
-        case SCH_JUNCTION_T:
-        case SCH_LABEL_T:
-        case SCH_GLOBAL_LABEL_T:
-        case SCH_HIER_LABEL_T:
-        case SCH_DIRECTIVE_LABEL_T:
-        case SCH_BUS_WIRE_ENTRY_T:
-        case SCH_SHEET_T:
-        case SCH_SHEET_PIN_T:
-            return true;
-        default:
-            break;
-        }
-    }
+    case SCH_NO_CONNECT_T:
+    case SCH_SYMBOL_T:
+        return IsWire();
 
-    return aItem->GetLayer() == m_layer;
+    case SCH_JUNCTION_T:
+    case SCH_LABEL_T:
+    case SCH_GLOBAL_LABEL_T:
+    case SCH_HIER_LABEL_T:
+    case SCH_DIRECTIVE_LABEL_T:
+    case SCH_BUS_WIRE_ENTRY_T:
+    case SCH_SHEET_T:
+    case SCH_SHEET_PIN_T:
+        return IsWire() || IsBus();
+
+    default:
+        return m_layer == aItem->GetLayer();
+    }
 }
 
 
@@ -723,7 +724,7 @@ void SCH_LINE::GetSelectedPoints( std::vector<VECTOR2I>& aPoints ) const
 }
 
 
-wxString SCH_LINE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString SCH_LINE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     wxString txtfmt;
 
@@ -756,7 +757,7 @@ wxString SCH_LINE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
     }
 
     return wxString::Format( txtfmt,
-                             aUnitsProvider->MessageTextFromValue( EuclideanNorm( m_start - m_end ) ) );
+                             aUnitsProvider->MessageTextFromValue( m_start.Distance( m_end ) ) );
 }
 
 
@@ -851,18 +852,18 @@ bool SCH_LINE::doIsConnected( const VECTOR2I& aPosition ) const
 }
 
 
-void SCH_LINE::Plot( PLOTTER* aPlotter, bool aBackground,
-                     const SCH_PLOT_SETTINGS& aPlotSettings ) const
+void SCH_LINE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
+                     int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed )
 {
     if( aBackground )
         return;
 
-    auto*   settings = static_cast<KIGFX::SCH_RENDER_SETTINGS*>( aPlotter->RenderSettings() );
-    int     penWidth = std::max( GetPenWidth(), settings->GetMinPenWidth() );
-    COLOR4D color = GetLineColor();
+    SCH_RENDER_SETTINGS* renderSettings = getRenderSettings( aPlotter );
+    int                  penWidth = GetEffectivePenWidth( renderSettings );
+    COLOR4D              color = GetLineColor();
 
     if( color == COLOR4D::UNSPECIFIED )
-        color = settings->GetLayerColor( GetLayer() );
+        color = renderSettings->GetLayerColor( GetLayer() );
 
     aPlotter->SetColor( color );
 
@@ -877,9 +878,9 @@ void SCH_LINE::Plot( PLOTTER* aPlotter, bool aBackground,
     // Plot attributes to a hypertext menu
     std::vector<wxString> properties;
     BOX2I                 bbox = GetBoundingBox();
-    bbox.Inflate( GetPenWidth() * 3 );
+    bbox.Inflate( penWidth * 3 );
 
-    if( aPlotSettings.m_PDFPropertyPopups )
+    if( aPlotOpts.m_PDFPropertyPopups )
     {
         if( GetLayer() == LAYER_WIRE )
         {
@@ -891,7 +892,7 @@ void SCH_LINE::Plot( PLOTTER* aPlotter, bool aBackground,
 
                 properties.emplace_back( wxString::Format( wxT( "!%s = %s" ),
                                                            _( "Resolved netclass" ),
-                                                           GetEffectiveNetClass()->GetName() ) );
+                                                           GetEffectiveNetClass()->GetHumanReadableName() ) );
             }
         }
         else if( GetLayer() == LAYER_BUS )
@@ -901,7 +902,6 @@ void SCH_LINE::Plot( PLOTTER* aPlotter, bool aBackground,
                 for( const std::shared_ptr<SCH_CONNECTION>& member : connection->Members() )
                     properties.emplace_back( wxT( "!" ) + member->Name() );
             }
-
         }
 
         if( !properties.empty() )
@@ -930,7 +930,7 @@ void SCH_LINE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_IT
 
     aList.emplace_back( _( "Line Type" ), msg );
 
-    LINE_STYLE lineStyle = GetLineStyle();
+    LINE_STYLE lineStyle = GetStroke().GetLineStyle();
 
     if( GetEffectiveLineStyle() != lineStyle )
         aList.emplace_back( _( "Line Style" ), _( "from netclass" ) );
@@ -949,7 +949,7 @@ void SCH_LINE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_IT
         if( !conn->IsBus() )
         {
             aList.emplace_back( _( "Resolved Netclass" ),
-                                UnescapeString( GetEffectiveNetClass()->GetName() ) );
+                                UnescapeString( GetEffectiveNetClass()->GetHumanReadableName() ) );
         }
     }
 }
@@ -1040,31 +1040,65 @@ static struct SCH_LINE_DESC
 {
     SCH_LINE_DESC()
     {
-        ENUM_MAP<LINE_STYLE>& plotDashTypeEnum = ENUM_MAP<LINE_STYLE>::Instance();
+        ENUM_MAP<LINE_STYLE>& lineStyleEnum = ENUM_MAP<LINE_STYLE>::Instance();
 
-        if( plotDashTypeEnum.Choices().GetCount() == 0 )
+        if( lineStyleEnum.Choices().GetCount() == 0 )
         {
-            plotDashTypeEnum.Map( LINE_STYLE::DEFAULT, _HKI( "Default" ) )
-                            .Map( LINE_STYLE::SOLID, _HKI( "Solid" ) )
-                            .Map( LINE_STYLE::DASH, _HKI( "Dashed" ) )
-                            .Map( LINE_STYLE::DOT, _HKI( "Dotted" ) )
-                            .Map( LINE_STYLE::DASHDOT, _HKI( "Dash-Dot" ) )
-                            .Map( LINE_STYLE::DASHDOTDOT, _HKI( "Dash-Dot-Dot" ) );
+            lineStyleEnum.Map( LINE_STYLE::SOLID, _HKI( "Solid" ) )
+                         .Map( LINE_STYLE::DASH, _HKI( "Dashed" ) )
+                         .Map( LINE_STYLE::DOT, _HKI( "Dotted" ) )
+                         .Map( LINE_STYLE::DASHDOT, _HKI( "Dash-Dot" ) )
+                         .Map( LINE_STYLE::DASHDOTDOT, _HKI( "Dash-Dot-Dot" ) );
+        }
+
+        ENUM_MAP<WIRE_STYLE>& wireLineStyleEnum = ENUM_MAP<WIRE_STYLE>::Instance();
+
+        if( wireLineStyleEnum.Choices().GetCount() == 0 )
+        {
+            wireLineStyleEnum.Map( WIRE_STYLE::DEFAULT, _HKI( "Default" ) )
+                             .Map( WIRE_STYLE::SOLID, _HKI( "Solid" ) )
+                             .Map( WIRE_STYLE::DASH, _HKI( "Dashed" ) )
+                             .Map( WIRE_STYLE::DOT, _HKI( "Dotted" ) )
+                             .Map( WIRE_STYLE::DASHDOT, _HKI( "Dash-Dot" ) )
+                             .Map( WIRE_STYLE::DASHDOTDOT, _HKI( "Dash-Dot-Dot" ) );
         }
 
         PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
         REGISTER_TYPE( SCH_LINE );
         propMgr.InheritsAfter( TYPE_HASH( SCH_LINE ), TYPE_HASH( SCH_ITEM ) );
 
-        void ( SCH_LINE::*lineStyleSetter )( LINE_STYLE ) = &SCH_LINE::SetLineStyle;
+        auto isGraphicLine =
+                []( INSPECTABLE* aItem ) -> bool
+                {
+                    if( SCH_LINE* line = dynamic_cast<SCH_LINE*>( aItem ) )
+                        return line->IsGraphicLine();
+
+                    return false;
+                };
+
+        auto isWireOrBus =
+                []( INSPECTABLE* aItem ) -> bool
+                {
+                    if( SCH_LINE* line = dynamic_cast<SCH_LINE*>( aItem ) )
+                        return line->IsWire() || line->IsBus();
+
+                    return false;
+                };
 
         propMgr.AddProperty( new PROPERTY_ENUM<SCH_LINE, LINE_STYLE>( _HKI( "Line Style" ),
-                lineStyleSetter, &SCH_LINE::GetLineStyle ) );
+                    &SCH_LINE::SetLineStyle, &SCH_LINE::GetLineStyle ) )
+                .SetAvailableFunc( isGraphicLine );
+
+        propMgr.AddProperty( new PROPERTY_ENUM<SCH_LINE, WIRE_STYLE>( _HKI( "Line Style" ),
+                    &SCH_LINE::SetWireStyle, &SCH_LINE::GetWireStyle ) )
+                .SetAvailableFunc( isWireOrBus );
 
         propMgr.AddProperty( new PROPERTY<SCH_LINE, int>( _HKI( "Line Width" ),
-                &SCH_LINE::SetLineWidth, &SCH_LINE::GetLineWidth, PROPERTY_DISPLAY::PT_SIZE ) );
+                    &SCH_LINE::SetLineWidth, &SCH_LINE::GetLineWidth, PROPERTY_DISPLAY::PT_SIZE ) );
 
         propMgr.AddProperty( new PROPERTY<SCH_LINE, COLOR4D>( _HKI( "Color" ),
-                &SCH_LINE::SetLineColor, &SCH_LINE::GetLineColor ) );
+                    &SCH_LINE::SetLineColor, &SCH_LINE::GetLineColor ) );
     }
 } _SCH_LINE_DESC;
+
+IMPLEMENT_ENUM_TO_WXANY( WIRE_STYLE )

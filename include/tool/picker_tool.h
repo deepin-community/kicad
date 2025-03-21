@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,7 +36,7 @@ class EDA_DRAW_FRAME;
 class PICKER_TOOL_BASE
 {
 public:
-    ///< Event handler types.
+    /// Event handler types.
     typedef std::function<bool(const VECTOR2D&)> CLICK_HANDLER;
     typedef std::function<void(const VECTOR2D&)> MOTION_HANDLER;
     typedef std::function<void(void)> CANCEL_HANDLER;
@@ -53,7 +53,8 @@ public:
 
     PICKER_TOOL_BASE() :
             m_frame( nullptr ),
-            m_snap( false )
+            m_snap( false ),
+            m_modifiers( 0 )
     {
         reset();
     }
@@ -106,13 +107,16 @@ public:
         m_finalizeHandler = aHandler;
     }
 
+    int CurrentModifiers() const { return m_modifiers; }
+
 protected:
-    ///< Reinitializes tool to its initial state.
+    /// Reinitializes tool to its initial state.
     virtual void reset();
 
     EDA_DRAW_FRAME* m_frame;
     KICURSOR        m_cursor;
     bool            m_snap;
+    int             m_modifiers;
 
     std::optional<CLICK_HANDLER>    m_clickHandler;
     std::optional<MOTION_HANDLER>   m_motionHandler;
@@ -138,14 +142,14 @@ public:
     /// @copydoc TOOL_INTERACTIVE::Reset()
     void Reset( RESET_REASON aReason ) override { }
 
-    ///< Main event loop.
+    /// Main event loop.
     int Main( const TOOL_EVENT& aEvent );
 
 protected:
-    ///< Applies the requested VIEW_CONTROLS settings.
+    /// Applies the requested VIEW_CONTROLS settings.
     void setControls();
 
-    ///< @copydoc TOOL_INTERACTIVE::setTransitions();
+    /// @copydoc TOOL_INTERACTIVE::setTransitions();
     void setTransitions() override;
 };
 

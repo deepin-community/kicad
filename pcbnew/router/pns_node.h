@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2014 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -116,13 +116,14 @@ struct COLLISION_SEARCH_OPTIONS
     int m_limitCount = -1;
     int m_kindMask = -1;
     bool m_useClearanceEpsilon = true;
-    std::set<ITEM*>* m_restrictedSet = nullptr;
+    std::function<bool(const ITEM*)> m_filter = nullptr;
+    int m_layer = -1;
 };
 
 
 struct COLLISION_SEARCH_CONTEXT
 {
-    COLLISION_SEARCH_CONTEXT( std::set<OBSTACLE>& aObs, const COLLISION_SEARCH_OPTIONS aOpts ) :
+    COLLISION_SEARCH_CONTEXT( std::set<OBSTACLE>& aObs, const COLLISION_SEARCH_OPTIONS aOpts = COLLISION_SEARCH_OPTIONS() ) :
         obstacles( aObs ),
         options( aOpts )
     {
@@ -182,6 +183,9 @@ public:
 
     void SetWorld( const NODE* aNode, const NODE* aOverride = nullptr );
 
+    void SetLayerContext( int aLayer ) { m_layerContext = aLayer; }
+    void ClearLayerContext() { m_layerContext = std::nullopt; }
+
     virtual bool operator()( ITEM* aCandidate ) = 0;
 
 protected:
@@ -192,6 +196,26 @@ protected:
 
     const NODE* m_node;             ///< node we are searching in (either root or a branch)
     const NODE* m_override;         ///< node that overrides root entries
+    std::optional<int> m_layerContext;
+};
+
+
+class LAYER_CONTEXT_SETTER
+{
+public:
+    LAYER_CONTEXT_SETTER( OBSTACLE_VISITOR& aVisitor, int aLayer ) :
+            m_visitor( aVisitor )
+    {
+        m_visitor.SetLayerContext( aLayer );
+    }
+
+    ~LAYER_CONTEXT_SETTER()
+    {
+        m_visitor.ClearLayerContext();
+    }
+
+private:
+    OBSTACLE_VISITOR& m_visitor;
 };
 
 /**
@@ -272,7 +296,7 @@ public:
                         const COLLISION_SEARCH_OPTIONS& aOpts = COLLISION_SEARCH_OPTIONS() ) const;
 
     int QueryJoints( const BOX2I& aBox, std::vector<JOINT*>& aJoints,
-                     LAYER_RANGE aLayerMask = LAYER_RANGE::All(), int aKindMask = ITEM::ANY_T );
+                     PNS_LAYER_RANGE aLayerMask = PNS_LAYER_RANGE::All(), int aKindMask = ITEM::ANY_T );
 
     /**
      * Follow the line in search of an obstacle that is nearest to the starting to the line's
@@ -365,7 +389,7 @@ public:
      * @param aNewItem item add instead
      */
     void Replace( ITEM* aOldItem, std::unique_ptr< ITEM > aNewItem );
-    void Replace( LINE& aOldLine, LINE& aNewLine );
+    void Replace( LINE& aOldLine, LINE& aNewLine, bool aAllowRedundantSegments = false );
 
     /**
      * Create a lightweight copy (called branch) of self that tracks the changes (added/removed
@@ -449,7 +473,7 @@ public:
 
     ITEM* FindItemByParent( const BOARD_ITEM* aParent );
 
-    std::vector<ITEM*> FindItemsByZone( const ZONE* aParent );
+    std::vector<ITEM*> FindItemsByParent( const BOARD_ITEM* aParent );
 
     bool HasChildren() const
     {
@@ -474,6 +498,13 @@ public:
         add( aItem, aAllowRedundant );
     }
 
+    const std::unordered_set<ITEM*>& GetOverrides() const
+    {
+        return m_override;
+    }
+
+    VIA* FindViaByHandle ( const VIA_HANDLE& handle ) const;
+
 private:
     void add( ITEM* aItem, bool aAllowRedundant = false );
 
@@ -482,14 +513,14 @@ private:
     NODE& operator=( const NODE& aB );
 
     ///< Try to find matching joint and creates a new one if not found.
-    JOINT& touchJoint( const VECTOR2I& aPos, const LAYER_RANGE& aLayers, NET_HANDLE aNet );
+    JOINT& touchJoint( const VECTOR2I& aPos, const PNS_LAYER_RANGE& aLayers, NET_HANDLE aNet );
 
     ///< Touch a joint and links it to an m_item.
-    void linkJoint( const VECTOR2I& aPos, const LAYER_RANGE& aLayers, NET_HANDLE aNet,
+    void linkJoint( const VECTOR2I& aPos, const PNS_LAYER_RANGE& aLayers, NET_HANDLE aNet,
                     ITEM* aWhere );
 
     ///< Unlink an item from a joint.
-    void unlinkJoint( const VECTOR2I& aPos, const LAYER_RANGE& aLayers, NET_HANDLE aNet,
+    void unlinkJoint( const VECTOR2I& aPos, const PNS_LAYER_RANGE& aLayers, NET_HANDLE aNet,
                       ITEM* aWhere );
 
     ///< Helpers for adding/removing items.
@@ -515,11 +546,11 @@ private:
         return m_parent == nullptr;
     }
 
-    SEGMENT* findRedundantSegment( const VECTOR2I& A, const VECTOR2I& B, const LAYER_RANGE& lr,
+    SEGMENT* findRedundantSegment( const VECTOR2I& A, const VECTOR2I& B, const PNS_LAYER_RANGE& lr,
                                    NET_HANDLE aNet );
     SEGMENT* findRedundantSegment( SEGMENT* aSeg );
 
-    ARC* findRedundantArc( const VECTOR2I& A, const VECTOR2I& B, const LAYER_RANGE& lr,
+    ARC* findRedundantArc( const VECTOR2I& A, const VECTOR2I& B, const PNS_LAYER_RANGE& lr,
                            NET_HANDLE aNet );
     ARC* findRedundantArc( ARC* aSeg );
 

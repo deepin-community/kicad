@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2016 CERN
- * Copyright (C) 2020-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -24,12 +24,13 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef __VIEW_ITEM_H
-#define __VIEW_ITEM_H
+#pragma once
+
+#include <bitset>
+#include <vector>
+#include <limits>
 
 #include <gal/gal.h>
-#include <vector>
-#include <bitset>
 #include <math/box2.h>
 #include <inspectable.h>
 
@@ -63,9 +64,10 @@ enum VIEW_UPDATE_FLAGS {
  */
 enum VIEW_VISIBILITY_FLAGS {
     VISIBLE        = 0x01,  ///< Item is visible (in general)
-    HIDDEN         = 0x02,  ///< Item is temporarily hidden (usually in favor of a being drawn
-                            ///<   from an overlay, such as a SELECTION).
-                            ///<   Overrides VISIBLE flag.
+
+    /// Item is temporarily hidden (usually in favor of a being drawn from an overlay, such as a
+    /// #SELECTION).  Overrides #VISIBLE flag.
+    HIDDEN         = 0x02,
     OVERLAY_HIDDEN = 0x04   ///< Item is temporarily hidden from being drawn on an overlay.
 };
 
@@ -125,11 +127,8 @@ public:
      * For instance, a #PAD spans zero or more copper layers and a few technical layers.
      * ViewDraw() or PAINTER::Draw() is repeatedly called for each of the layers returned
      * by ViewGetLayers(), depending on the rendering order.
-     *
-     * @param aLayers[] is the output layer index array.
-     * @param aCount is the number of layer indices in aLayers[].
      */
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const = 0;
+    virtual std::vector<int> ViewGetLayers() const = 0;
 
     /**
      * Return the level of detail (LOD) of the item.
@@ -137,15 +136,20 @@ public:
      * A level of detail is the minimal #VIEW scale that is sufficient for an item to be shown
      * on a given layer.
      *
+     * Use @ref LOD_HIDE and @ref LOD_SHOW constants to hide or show the item unconditionally.
+     *
+     * Use @ref lodScaleForThreshold() to calculate the LOD scale for when the item
+     * passes a certain threshold size on screen.
+     *
      * @param aLayer is the current drawing layer.
      * @param aView is a pointer to the #VIEW device we are drawing on.
-     * @return the level of detail. 0 always show the item, because the actual zoom level
+     * @return the level of detail. 0 always shows the item, because the actual zoom level
      *         (or VIEW scale) is always > 0
      */
-    virtual double ViewGetLOD( int aLayer, VIEW* aView ) const
+    virtual double ViewGetLOD( int aLayer, const VIEW* aView ) const
     {
         // By default always show the item
-        return 0.0;
+        return LOD_SHOW;
     }
 
     VIEW_ITEM_DATA* viewPrivData() const
@@ -163,6 +167,40 @@ public:
         return m_forcedTransparency;
     }
 
+protected:
+    /**
+     * Return this constant from ViewGetLOD() to hide the item unconditionally.
+     */
+    static constexpr double LOD_HIDE = std::numeric_limits<double>::max();
+
+    /**
+     * Return this constant from ViewGetLOD() to show the item unconditionally.
+     */
+    static constexpr double LOD_SHOW = 0.0;
+
+    /**
+     * Get the scale at which aWhatIu would be drawn at the same size as
+     * aThresholdIu on screen.
+     *
+     * This is useful when a level-of-detail is defined in terms of a threshold
+     * size (i.e. 'only draw X when it will be bigger than Y size on screen').
+     *
+     * E.g. if aWhatIu is 1000 and aThresholdIu is 100, then the item will be
+     * the same size as the threshold at 0.1 scale. Returning that 0.1 as the LoD
+     * will hide the item when the scale is less than 0.1 - i.e. smaller than the
+     * threshold.
+     *
+     * Because even at zoom 1.0, 1mm in KiCad may not be exactly 1mm on a physical
+     * screen, the threshold may not be exact in practice.
+     */
+    static constexpr double lodScaleForThreshold( int aWhatIu, int aThresholdIu )
+    {
+        if( aWhatIu == 0 )
+            return LOD_HIDE;
+
+        return double( aThresholdIu ) / aWhatIu;
+    }
+
 private:
     friend class VIEW;
 
@@ -176,6 +214,4 @@ private:
 
 #if defined( _MSC_VER )
 #pragma warning( pop )
-#endif
-
 #endif

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Jon Evans <jon@craftyjon.com>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -19,12 +19,14 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <lset.h>
 #include <project.h>
 #include <project/project_local_settings.h>
+#include <settings/layer_settings_utils.h>
 #include <settings/json_settings_internals.h>
 #include <settings/parameters.h>
 
-const int projectLocalSettingsVersion = 3;
+const int projectLocalSettingsVersion = 5;
 
 
 PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxString& aFilename ) :
@@ -40,9 +42,11 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
         m_ViaOpacity( 1.0 ),
         m_PadOpacity( 1.0 ),
         m_ZoneOpacity( 0.6 ),
+        m_ShapeOpacity( 1.0 ),
         m_ImageOpacity( 0.6 ),
-        m_SelectionFilter(),
-        m_project( aProject )
+        m_PcbSelectionFilter(),
+        m_project( aProject ),
+        m_wasMigrated( false )
 {
     // Keep old files around
     m_deleteLegacyAfterMigration = false;
@@ -54,7 +58,7 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
             },
             [&]( const std::string& aString )
             {
-                m_VisibleLayers.ParseHex( aString.c_str(), aString.size() );
+                m_VisibleLayers.ParseHex( aString );
             },
             LSET::AllLayersMask().FmtHex() ) );
 
@@ -63,9 +67,11 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
             {
                 nlohmann::json ret = nlohmann::json::array();
 
-                for( size_t i = 0; i < m_VisibleItems.size(); i++ )
-                    if( m_VisibleItems.test( i ) )
-                        ret.push_back( i );
+                for( GAL_LAYER_ID l : m_VisibleItems.Seq() )
+                {
+                    if( std::optional<VISIBILITY_LAYER> vl = VisibilityLayerFromRenderLayer( l ) )
+                        ret.push_back( VisibilityLayerToString( *vl ) );
+                }
 
                 return ret;
             },
@@ -77,20 +83,25 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
                     return;
                 }
 
-                m_VisibleItems.reset();
+                m_VisibleItems &= ~UserVisbilityLayers();
+                GAL_SET visible;
 
                 for( const nlohmann::json& entry : aVal )
                 {
                     try
                     {
-                        int i = entry.get<int>();
-                        m_VisibleItems.set( i );
+                        std::string vs = entry.get<std::string>();
+
+                        if( std::optional<GAL_LAYER_ID> l = RenderLayerFromVisbilityString( vs ) )
+                            visible.set( *l );
                     }
                     catch( ... )
                     {
                         // Non-integer or out of range entry in the array; ignore
                     }
                 }
+
+                m_VisibleItems |= UserVisbilityLayers() & visible;
             },
             {} ) );
 
@@ -99,17 +110,17 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
             {
                 nlohmann::json ret;
 
-                ret["lockedItems"] = m_SelectionFilter.lockedItems;
-                ret["footprints"]  = m_SelectionFilter.footprints;
-                ret["text"]        = m_SelectionFilter.text;
-                ret["tracks"]      = m_SelectionFilter.tracks;
-                ret["vias"]        = m_SelectionFilter.vias;
-                ret["pads"]        = m_SelectionFilter.pads;
-                ret["graphics"]    = m_SelectionFilter.graphics;
-                ret["zones"]       = m_SelectionFilter.zones;
-                ret["keepouts"]    = m_SelectionFilter.keepouts;
-                ret["dimensions"]  = m_SelectionFilter.dimensions;
-                ret["otherItems"]  = m_SelectionFilter.otherItems;
+                ret["lockedItems"] = m_PcbSelectionFilter.lockedItems;
+                ret["footprints"]  = m_PcbSelectionFilter.footprints;
+                ret["text"]        = m_PcbSelectionFilter.text;
+                ret["tracks"]      = m_PcbSelectionFilter.tracks;
+                ret["vias"]        = m_PcbSelectionFilter.vias;
+                ret["pads"]        = m_PcbSelectionFilter.pads;
+                ret["graphics"]    = m_PcbSelectionFilter.graphics;
+                ret["zones"]       = m_PcbSelectionFilter.zones;
+                ret["keepouts"]    = m_PcbSelectionFilter.keepouts;
+                ret["dimensions"]  = m_PcbSelectionFilter.dimensions;
+                ret["otherItems"]  = m_PcbSelectionFilter.otherItems;
 
                 return ret;
             },
@@ -118,17 +129,17 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
                 if( aVal.empty() || !aVal.is_object() )
                     return;
 
-                SetIfPresent( aVal, "lockedItems", m_SelectionFilter.lockedItems );
-                SetIfPresent( aVal, "footprints", m_SelectionFilter.footprints );
-                SetIfPresent( aVal, "text", m_SelectionFilter.text );
-                SetIfPresent( aVal, "tracks", m_SelectionFilter.tracks );
-                SetIfPresent( aVal, "vias", m_SelectionFilter.vias );
-                SetIfPresent( aVal, "pads", m_SelectionFilter.pads );
-                SetIfPresent( aVal, "graphics", m_SelectionFilter.graphics );
-                SetIfPresent( aVal, "zones", m_SelectionFilter.zones );
-                SetIfPresent( aVal, "keepouts", m_SelectionFilter.keepouts );
-                SetIfPresent( aVal, "dimensions", m_SelectionFilter.dimensions );
-                SetIfPresent( aVal, "otherItems", m_SelectionFilter.otherItems );
+                SetIfPresent( aVal, "lockedItems", m_PcbSelectionFilter.lockedItems );
+                SetIfPresent( aVal, "footprints", m_PcbSelectionFilter.footprints );
+                SetIfPresent( aVal, "text", m_PcbSelectionFilter.text );
+                SetIfPresent( aVal, "tracks", m_PcbSelectionFilter.tracks );
+                SetIfPresent( aVal, "vias", m_PcbSelectionFilter.vias );
+                SetIfPresent( aVal, "pads", m_PcbSelectionFilter.pads );
+                SetIfPresent( aVal, "graphics", m_PcbSelectionFilter.graphics );
+                SetIfPresent( aVal, "zones", m_PcbSelectionFilter.zones );
+                SetIfPresent( aVal, "keepouts", m_PcbSelectionFilter.keepouts );
+                SetIfPresent( aVal, "dimensions", m_PcbSelectionFilter.dimensions );
+                SetIfPresent( aVal, "otherItems", m_PcbSelectionFilter.otherItems );
             },
             {
                 { "lockedItems", false },
@@ -159,6 +170,7 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
     m_params.emplace_back( new PARAM<double>( "board.opacity.pads", &m_PadOpacity, 1.0 ) );
     m_params.emplace_back( new PARAM<double>( "board.opacity.zones", &m_ZoneOpacity, 0.6 ) );
     m_params.emplace_back( new PARAM<double>( "board.opacity.images", &m_ImageOpacity, 0.6 ) );
+    m_params.emplace_back( new PARAM<double>( "board.opacity.shapes", &m_ShapeOpacity, 1.0 ) );
 
     m_params.emplace_back( new PARAM_LIST<wxString>( "board.hidden_nets", &m_HiddenNets, {} ) );
 
@@ -177,17 +189,43 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
                            ZONE_DISPLAY_MODE::SHOW_FILLED, ZONE_DISPLAY_MODE::SHOW_FILLED,
                            ZONE_DISPLAY_MODE::SHOW_TRIANGULATION ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "git.repo_username",
-            &m_GitRepoUsername, "" ) );
+    m_params.emplace_back( new PARAM<wxString>( "git.repo_username", &m_GitRepoUsername, "" ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "git.repo_password",
-            &m_GitRepoPassword, "" ) );
+    m_params.emplace_back( new PARAM<wxString>( "git.repo_type", &m_GitRepoType, "" ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "git.repo_type",
-            &m_GitRepoType, "" ) );
+    m_params.emplace_back( new PARAM<wxString>( "git.ssh_key", &m_GitSSHKey, "" ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "git.ssh_key",
-            &m_GitSSHKey, "" ) );
+    m_params.emplace_back( new PARAM<wxString>( "net_inspector_panel.filter_text",
+                                                &m_NetInspectorPanel.filter_text, "" ) );
+    m_params.emplace_back( new PARAM<bool>( "net_inspector_panel.filter_by_net_name",
+                                            &m_NetInspectorPanel.filter_by_net_name, true ) );
+    m_params.emplace_back( new PARAM<bool>( "net_inspector_panel.filter_by_netclass",
+                                            &m_NetInspectorPanel.filter_by_netclass, true ) );
+    m_params.emplace_back( new PARAM<bool>( "net_inspector_panel.group_by_netclass",
+                                            &m_NetInspectorPanel.group_by_netclass, false ) );
+    m_params.emplace_back( new PARAM<bool>( "net_inspector_panel.group_by_constraint",
+                                            &m_NetInspectorPanel.group_by_constraint, false ) );
+    m_params.emplace_back( new PARAM_LIST<wxString>( "net_inspector_panel.custom_group_rules",
+                                                     &m_NetInspectorPanel.custom_group_rules,
+                                                     {} ) );
+    m_params.emplace_back( new PARAM<bool>( "net_inspector_panel.show_zero_pad_nets",
+                                            &m_NetInspectorPanel.show_zero_pad_nets, false ) );
+    m_params.emplace_back( new PARAM<bool>( "net_inspector_panel.show_unconnected_nets",
+                                            &m_NetInspectorPanel.show_unconnected_nets, false ) );
+    m_params.emplace_back( new PARAM<int>( "net_inspector_panel.sorting_column",
+                                           &m_NetInspectorPanel.sorting_column, -1 ) );
+    m_params.emplace_back( new PARAM<bool>( "net_inspector_panel.sort_ascending",
+                                            &m_NetInspectorPanel.sort_order_asc, true ) );
+    m_params.emplace_back( new PARAM_LIST<int>( "net_inspector_panel.col_order",
+                                                &m_NetInspectorPanel.col_order, {} ) );
+    m_params.emplace_back( new PARAM_LIST<int>( "net_inspector_panel.col_widths",
+                                                &m_NetInspectorPanel.col_widths, {} ) );
+    m_params.emplace_back( new PARAM_LIST<bool>( "net_inspector_panel.col_hidden",
+                                                 &m_NetInspectorPanel.col_hidden, {} ) );
+    m_params.emplace_back( new PARAM_LIST<wxString>( "net_inspector_panel.expanded_rows",
+                                                     &m_NetInspectorPanel.expanded_rows, {} ) );
+
+    m_params.emplace_back( new PARAM_LIST<wxString>( "open_jobsets", &m_OpenJobSets, {} ) );
 
     m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "project.files",
             [&]() -> nlohmann::json
@@ -218,9 +256,7 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
             [&]( const nlohmann::json& aVal )
             {
                 if( !aVal.is_array() || aVal.empty() )
-                {
                     return;
-                }
 
                 m_files.clear();
 
@@ -251,6 +287,50 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
             {
             } ) );
 
+    m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "schematic.selection_filter",
+            [&]() -> nlohmann::json
+            {
+                nlohmann::json ret;
+
+                ret["lockedItems"] = m_SchSelectionFilter.lockedItems;
+                ret["symbols"]     = m_SchSelectionFilter.symbols;
+                ret["text"]        = m_SchSelectionFilter.text;
+                ret["wires"]       = m_SchSelectionFilter.wires;
+                ret["labels"]      = m_SchSelectionFilter.labels;
+                ret["pins"]        = m_SchSelectionFilter.pins;
+                ret["graphics"]    = m_SchSelectionFilter.graphics;
+                ret["images"]      = m_SchSelectionFilter.images;
+                ret["otherItems"]  = m_SchSelectionFilter.otherItems;
+
+                return ret;
+            },
+            [&]( const nlohmann::json& aVal )
+            {
+                if( aVal.empty() || !aVal.is_object() )
+                    return;
+
+                SetIfPresent( aVal, "lockedItems", m_SchSelectionFilter.lockedItems );
+                SetIfPresent( aVal, "symbols", m_SchSelectionFilter.symbols );
+                SetIfPresent( aVal, "text", m_SchSelectionFilter.text );
+                SetIfPresent( aVal, "wires", m_SchSelectionFilter.wires );
+                SetIfPresent( aVal, "labels", m_SchSelectionFilter.labels );
+                SetIfPresent( aVal, "pins", m_SchSelectionFilter.pins );
+                SetIfPresent( aVal, "graphics", m_SchSelectionFilter.graphics );
+                SetIfPresent( aVal, "images", m_SchSelectionFilter.images );
+                SetIfPresent( aVal, "otherItems", m_SchSelectionFilter.otherItems );
+            },
+            {
+                { "lockedItems", false },
+                { "symbols", true },
+                { "text", true },
+                { "wires", true },
+                { "labels", true },
+                { "pins", true },
+                { "graphics", true },
+                { "images", true },
+                { "otherItems", true }
+            } ) );
+
     registerMigration( 1, 2,
             [&]()
             {
@@ -272,6 +352,8 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
                     {
                         At( "board" ).erase( "visible_items" );
                     }
+
+                    m_wasMigrated = true;
                 }
 
                 return true;
@@ -330,6 +412,57 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
                     }
 
                     At( "board" )["visible_items"] = visible;
+                    m_wasMigrated = true;
+                }
+
+                return true;
+            } );
+
+    registerMigration( 3, 4,
+            [&]()
+            {
+                // Schema version 3 to 4: LAYER_SHAPES added to visibility controls
+
+                std::string ptr( "board.visible_items" );
+
+                if( Contains( ptr ) )
+                {
+                    if( At( ptr ).is_array() )
+                        At( ptr ).push_back( LAYER_SHAPES - GAL_LAYER_ID_START );
+                    else
+                        At( "board" ).erase( "visible_items" );
+
+                    m_wasMigrated = true;
+                }
+
+                return true;
+            } );
+
+    registerMigration( 4, 5,
+            [&]()
+            {
+                // Schema version 5: use named render layers
+
+                std::string ptr( "board.visible_items" );
+
+                if( Contains( ptr ) && At( ptr ).is_array() )
+                {
+                    std::vector<std::string> newLayers;
+
+                    for( nlohmann::json& entry : At( ptr ) )
+                    {
+                        if( !entry.is_number_integer() )
+                            continue;
+
+                        if( std::optional<VISIBILITY_LAYER> vl =
+                            VisibilityLayerFromRenderLayer( GAL_LAYER_ID_START + entry.get<int>() ) )
+                        {
+                            newLayers.emplace_back( VisibilityLayerToString( *vl ) );
+                        }
+                    }
+
+                    At( ptr ) = newLayers;
+                    m_wasMigrated = true;
                 }
 
                 return true;
@@ -352,9 +485,17 @@ bool PROJECT_LOCAL_SETTINGS::SaveToFile( const wxString& aDirectory, bool aForce
 {
     wxASSERT( m_project );
 
-    Set( "meta.filename", m_project->GetProjectName() + "." + FILEEXT::ProjectLocalSettingsFileExtension );
+    Set( "meta.filename",
+         m_project->GetProjectName() + "." + FILEEXT::ProjectLocalSettingsFileExtension );
 
-    return JSON_SETTINGS::SaveToFile( aDirectory, aForce );
+    // Even if parameters were not modified, we should resave after migration
+    bool force = aForce || m_wasMigrated;
+
+    // If we're actually going ahead and doing the save, the flag that keeps code from doing the
+    // save should be cleared at this point.
+    m_wasMigrated = false;
+
+    return JSON_SETTINGS::SaveToFile( aDirectory, force );
 }
 
 
@@ -362,6 +503,10 @@ bool PROJECT_LOCAL_SETTINGS::SaveAs( const wxString& aDirectory, const wxString&
 {
     Set( "meta.filename", aFile + "." + FILEEXT::ProjectLocalSettingsFileExtension );
     SetFilename( aFile );
+
+    // If we're actually going ahead and doing the save, the flag that keeps code from doing the
+    // save should be cleared at this point.
+    m_wasMigrated = false;
 
     return JSON_SETTINGS::SaveToFile( aDirectory, true );
 }
