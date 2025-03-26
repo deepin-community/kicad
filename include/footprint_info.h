@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2011 Jean-Pierre Charras, <jp.charras@wanadoo.fr>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -74,12 +74,12 @@ public:
 
     int GetPinCount() override { return GetUniquePadCount(); }
 
-    LIB_ID GetLibId() const override
+    LIB_ID GetLIB_ID() const override
     {
         return LIB_ID( m_nickname, m_fpname );
     }
 
-    wxString GetDescription() override
+    wxString GetDesc() override
     {
         ensure_loaded();
         return m_doc;
@@ -160,10 +160,8 @@ protected:
 class APIEXPORT FOOTPRINT_LIST
 {
 public:
-    typedef std::vector<std::unique_ptr<FOOTPRINT_INFO>> FPILIST;
-    typedef SYNC_QUEUE<std::unique_ptr<IO_ERROR>>        ERRLIST;
-
-    FOOTPRINT_LIST() : m_lib_table( nullptr )
+    FOOTPRINT_LIST() :
+            m_lib_table( nullptr )
     {
     }
 
@@ -183,7 +181,7 @@ public:
     }
 
     /// Was forced to add this by modview_frame.cpp
-    const FPILIST& GetList() const
+    const std::vector<std::unique_ptr<FOOTPRINT_INFO>>& GetList() const
     {
         return m_list;
     }
@@ -260,10 +258,10 @@ public:
     static FOOTPRINT_LIST* GetInstance( KIWAY& aKiway );
 
 protected:
-    FP_LIB_TABLE* m_lib_table; ///< no ownership
+    FP_LIB_TABLE*                                m_lib_table; ///< no ownership
 
-    FPILIST m_list;
-    ERRLIST m_errors; ///< some can be PARSE_ERRORs also
+    std::vector<std::unique_ptr<FOOTPRINT_INFO>> m_list;
+    SYNC_QUEUE<std::unique_ptr<IO_ERROR>>        m_errors; ///< some can be PARSE_ERRORs also
 };
 
 

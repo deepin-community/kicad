@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,6 +23,8 @@
 #include <pcb_base_frame.h>
 #include <pcb_base_edit_frame.h>
 #include <pcb_io/pcb_io_mgr.h>
+#include <widgets/lib_tree.h>
+#include <footprint_tree_pane.h>
 #include <fp_tree_synchronizing_adapter.h>
 
 class PCB_LAYER_BOX_SELECTOR;
@@ -82,6 +84,8 @@ public:
 
     COLOR_SETTINGS* GetColorSettings( bool aForceRefresh = false ) const override;
 
+    std::unique_ptr<GRID_HELPER> MakeGridHelper() override;
+
     const BOX2I GetDocumentExtents( bool aIncludeAllVisible = true ) const override;
 
     bool canCloseWindow( wxCloseEvent& Event ) override;
@@ -138,8 +142,10 @@ public:
 
     void OnSaveFootprintAsPng( wxCommandEvent& event );
 
-    bool IsSearchTreeShown() const;
-    void ToggleSearchTree();
+    bool IsLibraryTreeShown() const override;
+    void ToggleLibraryTree() override;
+    void FocusLibraryTreeInput() override;
+
     void ToggleLayersManager();
 
     /**
@@ -199,11 +205,6 @@ public:
      *                                   contains unsaved changes, false to re-initialize silently
      */
     bool Clear_Pcb( bool doAskAboutUnsavedChanges );
-
-    /// Return the LIB_ID of the part or library selected in the footprint tree.
-    LIB_ID GetTreeFPID() const;
-
-    LIB_TREE_NODE* GetCurrentTreeNode() const;
 
     /// Return the LIB_ID of the part being edited.
     LIB_ID GetLoadedFPID() const;
@@ -292,19 +293,18 @@ public:
     /**
      * Called after the preferences dialog is run.
      */
-    void CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged ) override;
+    void CommonSettingsChanged( int aFlags ) override;
+
+    LIB_TREE* GetLibTree() const override
+    {
+        return m_treePane->GetLibTree();
+    }
 
     /**
      * Synchronize the footprint library tree to the current state of the footprint library
      * table.
      */
     void SyncLibraryTree( bool aProgress );
-
-    /**
-     * Filter, sort, and redisplay the library tree.  Does NOT synchronize it with libraries
-     * in disk.
-     */
-    void RegenerateLibraryTree();
 
     /**
      * Redisplay the library tree.  Used after changing modified states, descriptions, etc.

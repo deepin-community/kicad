@@ -5,9 +5,9 @@
 # (c)2015 Brian Sidebotham <brian.sidebotham@gmail.com>
 #
 
-# Require CMake V2.8 as a minimum. You can experiment with setting this lower if that's all you
+# Require CMake V3.0 as a minimum. You can experiment with setting this lower if that's all you
 # have available, but it's not guaranteed to work or be supported.
-cmake_minimum_required( VERSION 2.8 )
+cmake_minimum_required( VERSION 3.0 )
 
 project( KiCadDocumentation NONE )
 
@@ -19,10 +19,10 @@ set( PDF_GENERATOR "ASCIIDOCTORPDF" CACHE STRING "Specify which PDF generator to
 
 # Provide an option to limit the set of languages built. This helps developers to speed up a
 # build they're working on, or limit the number of dependencies for packagers
-set( LANGUAGES "" CACHE LIST "Specify languages to build: ca;de;en;es;fr;id;it;ja;nl;pl;ru;zh" )
+set( LANGUAGES "" CACHE STRING "Specify languages to build: ca;de;en;es;fr;id;it;ja;nl;pl;ru;zh" )
 
 # Provide an option to decide which documentation formats to build.
-set( BUILD_FORMATS "html;pdf" CACHE LIST "Specify which output formats to build html/pdf" )
+set( BUILD_FORMATS "html;pdf" CACHE STRING "Specify which output formats to build html/pdf" )
 
 # Add our custom modules to the module path
 set( CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMakeModules" ${CMAKE_MODULE_PATH} )

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,7 +19,10 @@
  */
 
 #include <functional>
+#include <lset.h>
+#include <lseq.h>
 #include <project/board_project_settings.h>
+#include <settings/layer_settings_utils.h>
 
 using namespace std::placeholders;
 
@@ -57,7 +60,10 @@ nlohmann::json PARAM_LAYER_PRESET::presetsToJson()
         nlohmann::json renderLayers = nlohmann::json::array();
 
         for( GAL_LAYER_ID layer : preset.renderLayers.Seq() )
-            renderLayers.push_back( static_cast<int>( layer ) );
+        {
+            if( std::optional<VISIBILITY_LAYER> vl = VisibilityLayerFromRenderLayer( layer ) )
+                renderLayers.push_back( VisibilityLayerToString( *vl ) );
+        }
 
         js["renderLayers"] = renderLayers;
 
@@ -113,13 +119,12 @@ void PARAM_LAYER_PRESET::jsonToPresets( const nlohmann::json& aJson )
 
                 for( const nlohmann::json& layer : preset.at( "renderLayers" ) )
                 {
-                    if( layer.is_number_integer() )
+                    if( layer.is_string() )
                     {
-                        int layerNum = layer.get<int>();
+                        std::string vs = layer.get<std::string>();
 
-                        if( layerNum >= GAL_LAYER_ID_START
-                            && layerNum < GAL_LAYER_ID_END )
-                            p.renderLayers.set( static_cast<GAL_LAYER_ID>( layerNum ) );
+                        if( std::optional<GAL_LAYER_ID> rl = RenderLayerFromVisbilityString( vs ) )
+                            p.renderLayers.set( *rl );
                     }
                 }
             }
@@ -127,6 +132,48 @@ void PARAM_LAYER_PRESET::jsonToPresets( const nlohmann::json& aJson )
             m_presets->emplace_back( p );
         }
     }
+}
+
+
+void PARAM_LAYER_PRESET::MigrateToV9Layers( nlohmann::json& aJson )
+{
+    if( !aJson.is_object() || !aJson.contains( "layers" ) )
+        return;
+
+    std::vector<int> newLayers;
+
+    for( const nlohmann::json& layer : aJson.at( "layers" ) )
+    {
+        wxCHECK2( layer.is_number_integer(), continue );
+        newLayers.emplace_back( BoardLayerFromLegacyId( layer.get<int>() ) );
+    }
+
+    aJson["layers"] = newLayers;
+
+    if( aJson.contains( "activeLayer" ) )
+        aJson["activeLayer"] = BoardLayerFromLegacyId( aJson.at( "activeLayer" ).get<int>() );
+}
+
+
+void PARAM_LAYER_PRESET::MigrateToNamedRenderLayers( nlohmann::json& aJson )
+{
+    static constexpr int V8_GAL_LAYER_ID_START = 125;
+
+    if( !aJson.is_object() || !aJson.contains( "renderLayers" ) )
+        return;
+
+    std::vector<std::string> newLayers;
+
+    for( const nlohmann::json& layer : aJson.at( "renderLayers" ) )
+    {
+        wxCHECK2( layer.is_number_integer(), continue );
+        GAL_LAYER_ID layerId = GAL_LAYER_ID_START + ( layer.get<int>() - V8_GAL_LAYER_ID_START );
+
+        if( std::optional<VISIBILITY_LAYER> vl = VisibilityLayerFromRenderLayer( layerId ) )
+            newLayers.emplace_back( VisibilityLayerToString( *vl ) );
+    }
+
+    aJson["renderLayers"] = newLayers;
 }
 
 
@@ -300,6 +347,70 @@ void PARAM_VIEWPORT3D::jsonToViewports( const nlohmann::json& aJson )
                 v.matrix[3].w = viewport.at( "ww" ).get<double>();
 
             m_viewports->emplace_back( v );
+        }
+    }
+}
+
+
+PARAM_LAYER_PAIRS::PARAM_LAYER_PAIRS( const std::string& aPath,
+                                      std::vector<LAYER_PAIR_INFO>& aLayerPairInfos ) :
+        PARAM_LAMBDA<nlohmann::json>( aPath,
+                                      std::bind( &PARAM_LAYER_PAIRS::layerPairsToJson, this ),
+                                      std::bind( &PARAM_LAYER_PAIRS::jsonToLayerPairs, this, _1 ),
+                                      {} ),
+        m_layerPairInfos( aLayerPairInfos )
+{
+}
+
+
+nlohmann::json PARAM_LAYER_PAIRS::layerPairsToJson()
+{
+    nlohmann::json ret = nlohmann::json::array();
+
+    for( const LAYER_PAIR_INFO& pairInfo : m_layerPairInfos )
+    {
+        const LAYER_PAIR& pair = pairInfo.GetLayerPair();
+        nlohmann::json js = {
+                { "topLayer", pair.GetLayerA() },
+                { "bottomLayer", pair.GetLayerB() },
+                { "enabled", pairInfo.IsEnabled() },
+        };
+
+        if( pairInfo.GetName().has_value() )
+        {
+            js["name"] = pairInfo.GetName().value();
+        }
+
+        ret.push_back( std::move( js ) );
+    }
+
+    return ret;
+}
+
+
+void PARAM_LAYER_PAIRS::jsonToLayerPairs( const nlohmann::json& aJson )
+{
+    if( aJson.empty() || !aJson.is_array() )
+        return;
+
+    m_layerPairInfos.clear();
+
+    for( const nlohmann::json& pairJson : aJson )
+    {
+        if( pairJson.contains( "topLayer" ) && pairJson.contains( "bottomLayer" ) )
+        {
+            LAYER_PAIR pair( pairJson.at( "topLayer" ).get<PCB_LAYER_ID>(),
+                             pairJson.at( "bottomLayer" ).get<PCB_LAYER_ID>() );
+
+            bool enabled = true;
+            if( pairJson.contains( "enabled" ) )
+                enabled = pairJson.at( "enabled" ).get<bool>();
+
+            std::optional<wxString> name;
+            if( pairJson.contains( "name" ) )
+                name = pairJson.at( "name" ).get<wxString>();
+
+            m_layerPairInfos.emplace_back( LAYER_PAIR_INFO( pair, enabled, std::move( name ) ) );
         }
     }
 }

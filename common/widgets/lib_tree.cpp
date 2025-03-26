@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 Henner Zeller <h.zeller@acm.org>
- * Copyright (C) 2014-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -59,6 +59,7 @@ LIB_TREE::LIB_TREE( wxWindow* aParent, const wxString& aRecentSearchesKey, LIB_T
         m_details_ctrl( nullptr ),
         m_inTimerEvent( false ),
         m_recentSearchesKey( aRecentSearchesKey ),
+        m_filtersSizer( nullptr ),
         m_skipNextRightClick( false ),
         m_previewWindow( nullptr ),
         m_previewDisabled( false )
@@ -98,6 +99,9 @@ LIB_TREE::LIB_TREE( wxWindow* aParent, const wxString& aRecentSearchesKey, LIB_T
 
                     menu.Append( 4201, _( "Sort by Best Match" ), wxEmptyString, wxITEM_CHECK );
                     menu.Append( 4202, _( "Sort Alphabetically" ), wxEmptyString, wxITEM_CHECK );
+                    menu.AppendSeparator();
+                    menu.Append( 4203, ACTIONS::expandAll.GetMenuItem() );
+                    menu.Append( 4204, ACTIONS::collapseAll.GetMenuItem() );
 
                     if( m_adapter->GetSortMode() == LIB_TREE_MODEL_ADAPTER::BEST_MATCH )
                         menu.Check( 4201, true );
@@ -117,9 +121,19 @@ LIB_TREE::LIB_TREE( wxWindow* aParent, const wxString& aRecentSearchesKey, LIB_T
                         m_adapter->SetSortMode( LIB_TREE_MODEL_ADAPTER::ALPHABETIC );
                         Regenerate( true );
                     }
+                    else if( menu_id == 3 || menu_id == 4203 )
+                    {
+                        ExpandAll();
+                    }
+                    else if( menu_id == 4 || menu_id == 4204 )
+                    {
+                        CollapseAll();
+                    }
                 } );
 
-        search_sizer->Add( m_sort_ctrl, 0, wxEXPAND | wxRIGHT, 5 );
+        m_sort_ctrl->Bind( wxEVT_CHAR_HOOK, &LIB_TREE::onTreeCharHook, this );
+
+        search_sizer->Add( m_sort_ctrl, 0, wxEXPAND, 5 );
 
         sizer->Add( search_sizer, 0, wxEXPAND | wxBOTTOM, 5 );
 
@@ -151,6 +165,12 @@ LIB_TREE::LIB_TREE( wxWindow* aParent, const wxString& aRecentSearchesKey, LIB_T
         Bind( wxEVT_TIMER, &LIB_TREE::onDebounceTimer, this, m_debounceTimer->GetId() );
     }
 
+    if( aFlags & FILTERS )
+    {
+        m_filtersSizer = new wxBoxSizer( wxVERTICAL );
+        sizer->Add( m_filtersSizer, 0, wxEXPAND | wxLEFT, 4 );
+    }
+
     // Tree control
     int dvFlags = ( aFlags & MULTISELECT ) ? wxDV_MULTIPLE : wxDV_SINGLE;
     m_tree_ctrl = new WX_DATAVIEWCTRL( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, dvFlags );
@@ -158,11 +178,11 @@ LIB_TREE::LIB_TREE( wxWindow* aParent, const wxString& aRecentSearchesKey, LIB_T
 
 #ifdef __WXGTK__
     // The GTK renderer seems to calculate row height incorrectly sometimes; but can be overridden
-    int rowHeight = FromDIP( 8 ) + GetTextExtent( wxS( "pdI" ) ).y;
+    int rowHeight = FromDIP( 6 ) + GetTextExtent( wxS( "pdI" ) ).y;
     m_tree_ctrl->SetRowHeight( rowHeight );
 #endif
 
-    sizer->Add( m_tree_ctrl, 5, wxRIGHT | wxBOTTOM | wxEXPAND, 5 );
+    sizer->Add( m_tree_ctrl, 5, wxEXPAND, 5 );
 
     // Description panel
     if( aFlags & DETAILS )
@@ -334,13 +354,27 @@ void LIB_TREE::CenterLibId( const LIB_ID& aLibId )
 
 void LIB_TREE::Unselect()
 {
+    m_tree_ctrl->Freeze();
     m_tree_ctrl->UnselectAll();
+    m_tree_ctrl->Thaw();
 }
 
 
 void LIB_TREE::ExpandLibId( const LIB_ID& aLibId )
 {
     expandIfValid( m_adapter->FindItem( aLibId ) );
+}
+
+
+void LIB_TREE::ExpandAll()
+{
+    m_tree_ctrl->ExpandAll();
+}
+
+
+void LIB_TREE::CollapseAll()
+{
+    m_tree_ctrl->CollapseAll();
 }
 
 
@@ -572,12 +606,37 @@ void LIB_TREE::onDebounceTimer( wxTimerEvent& aEvent )
 
 void LIB_TREE::onQueryCharHook( wxKeyEvent& aKeyStroke )
 {
+    int hotkey = aKeyStroke.GetKeyCode();
+
+    if( aKeyStroke.GetModifiers() & wxMOD_CONTROL )
+        hotkey += MD_CTRL;
+
+    if( aKeyStroke.GetModifiers() & wxMOD_ALT )
+        hotkey += MD_ALT;
+
+    if( aKeyStroke.GetModifiers() & wxMOD_SHIFT )
+        hotkey += MD_SHIFT;
+
+    if( hotkey == ACTIONS::expandAll.GetHotKey()
+        || hotkey == ACTIONS::expandAll.GetHotKeyAlt() )
+    {
+        m_tree_ctrl->ExpandAll();
+        return;
+    }
+    else if( hotkey == ACTIONS::collapseAll.GetHotKey()
+             || hotkey == ACTIONS::collapseAll.GetHotKeyAlt() )
+    {
+        m_tree_ctrl->CollapseAll();
+        return;
+    }
+
     wxDataViewItem sel = m_tree_ctrl->GetSelection();
 
     if( !sel.IsOk() )
         sel = m_adapter->GetCurrentDataViewItem();
 
-    LIB_TREE_NODE::TYPE  type = sel.IsOk() ? m_adapter->GetTypeFor( sel ) : LIB_TREE_NODE::INVALID;
+    LIB_TREE_NODE::TYPE type = sel.IsOk() ? m_adapter->GetTypeFor( sel )
+                                          : LIB_TREE_NODE::TYPE::INVALID;
 
     switch( aKeyStroke.GetKeyCode() )
     {
@@ -594,7 +653,7 @@ void LIB_TREE::onQueryCharHook( wxKeyEvent& aKeyStroke )
     case WXK_ADD:
         updateRecentSearchMenu();
 
-        if( type == LIB_TREE_NODE::LIBRARY )
+        if( type == LIB_TREE_NODE::TYPE::LIBRARY )
             m_tree_ctrl->Expand( sel );
 
         break;
@@ -602,7 +661,7 @@ void LIB_TREE::onQueryCharHook( wxKeyEvent& aKeyStroke )
     case WXK_SUBTRACT:
         updateRecentSearchMenu();
 
-        if( type == LIB_TREE_NODE::LIBRARY )
+        if( type == LIB_TREE_NODE::TYPE::LIBRARY )
             m_tree_ctrl->Collapse( sel );
 
         break;
@@ -613,7 +672,7 @@ void LIB_TREE::onQueryCharHook( wxKeyEvent& aKeyStroke )
 
         if( GetSelectedLibId().IsValid() )
             postSelectEvent();
-        else if( type == LIB_TREE_NODE::LIBRARY )
+        else if( type == LIB_TREE_NODE::TYPE::LIBRARY )
             toggleExpand( sel );
 
         break;
@@ -675,9 +734,7 @@ void LIB_TREE::hidePreview()
     m_previewItem = wxDataViewItem();
 
     if( m_previewWindow )
-    {
         m_previewWindow->Hide();
-    }
 }
 
 
@@ -752,10 +809,7 @@ void LIB_TREE::onHoverTimer( wxTimerEvent& aEvent )
 {
     hidePreview();
 
-    TOOL_DISPATCHER* toolDispatcher = m_adapter->GetToolDispatcher();
-
-    if( !m_tree_ctrl->IsShownOnScreen() || m_previewDisabled
-        || ( toolDispatcher && toolDispatcher->GetCurrentMenu() ) )
+    if( !m_tree_ctrl->IsShownOnScreen() || m_previewDisabled )
         return;
 
     wxDataViewItem    item;
@@ -898,7 +952,7 @@ void LIB_TREE::onItemContextMenu( wxDataViewEvent& aEvent )
     {
         LIB_TREE_NODE* current = GetCurrentTreeNode();
 
-        if( current && current->m_Type == LIB_TREE_NODE::LIBRARY )
+        if( current && current->m_Type == LIB_TREE_NODE::TYPE::LIBRARY )
         {
             ACTION_MENU menu( true, nullptr );
 
@@ -930,7 +984,7 @@ void LIB_TREE::onHeaderContextMenu( wxDataViewEvent& aEvent )
 
     ACTION_MENU menu( true, nullptr );
 
-    menu.Add( ACTIONS::selectColumns );
+    menu.Add( ACTIONS::selectLibTreeColumns );
 
     if( GetPopupMenuSelectionFromUser( menu ) != wxID_NONE )
     {

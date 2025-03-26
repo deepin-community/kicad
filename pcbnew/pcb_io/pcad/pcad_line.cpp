@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2007, 2008 Lubo Racko <developer@lura.sk>
  * Copyright (C) 2007, 2008, 2012-2013 Alexander Lunev <al.lunev@yahoo.com>
- * Copyright (C) 2012-2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -110,7 +110,7 @@ void PCAD_LINE::Flip()
     PCAD_PCB_COMPONENT::Flip();
 
     m_ToX = -m_ToX;
-    m_KiCadLayer = FlipLayer( m_KiCadLayer );
+    m_KiCadLayer = m_board->FlipLayer( m_KiCadLayer );
 }
 
 

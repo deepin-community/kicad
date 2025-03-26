@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2015-2023 Mario Luzeiro <mrluzeiro@ua.pt>
  * Copyright (C) 2023 CERN
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,9 +31,11 @@
 #include <3d_rendering/raytracing/shapes2D/polygon_2d.h>
 #include <board.h>
 #include <dialogs/dialog_color_picker.h>
+#include <layer_range.h>
 #include <3d_math.h>
 #include "3d_fastmath.h"
 #include <geometry/geometry_utils.h>
+#include <lset.h>
 #include <pgm_base.h>
 #include <settings/settings_manager.h>
 #include <wx/log.h>
@@ -95,8 +97,6 @@ BOARD_ADAPTER::BOARD_ADAPTER() :
 {
     wxLogTrace( m_logTrace, wxT( "BOARD_ADAPTER::BOARD_ADAPTER" ) );
 
-    ReloadColorSettings();
-
     m_boardPos = VECTOR2I();
     m_boardSize = VECTOR2I();
     m_boardCenter = SFVEC3F( 0.0f );
@@ -146,6 +146,8 @@ BOARD_ADAPTER::BOARD_ADAPTER() :
     m_backPlatedPadAndGraphicPolys = nullptr;
     m_frontPlatedCopperPolys = nullptr;
     m_backPlatedCopperPolys = nullptr;
+
+    ReloadColorSettings();
 
     if( !g_ColorsLoaded )
     {
@@ -225,20 +227,13 @@ void BOARD_ADAPTER::ReloadColorSettings() noexcept
 {
     wxCHECK( PgmOrNull(), /* void */ );
 
-    PCBNEW_SETTINGS* cfg = nullptr;
-
-    try
-    {
-        cfg = Pgm().GetSettingsManager().GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
-    }
-    catch( const std::runtime_error& e )
-    {
-        wxFAIL_MSG( e.what() );
-    }
+    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+    PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
 
     if( cfg )
     {
         m_colors = Pgm().GetSettingsManager().GetColorSettings( cfg->m_ColorTheme );
+        GetBoardEditorCopperLayerColors( cfg );
     }
 }
 
@@ -371,13 +366,16 @@ void BOARD_ADAPTER::InitSettings( REPORTER* aStatusReporter, REPORTER* aWarningR
     if( !m_board || !m_board->IsFootprintHolder() )
         m_biuTo3Dunits *= 1.6f;
 
+    ReloadColorSettings();
+
     m_boardBodyThickness3DU        = DEFAULT_BOARD_THICKNESS      * m_biuTo3Dunits;
     m_frontCopperThickness3DU      = DEFAULT_COPPER_THICKNESS     * m_biuTo3Dunits;
     m_backCopperThickness3DU       = DEFAULT_COPPER_THICKNESS     * m_biuTo3Dunits;
     m_nonCopperLayerThickness3DU   = DEFAULT_TECH_LAYER_THICKNESS * m_biuTo3Dunits;
     m_solderPasteLayerThickness3DU = SOLDERPASTE_LAYER_THICKNESS  * m_biuTo3Dunits;
 
-    g_BevelThickness3DU = pcbIUScale.mmToIU( ADVANCED_CFG::GetCfg().m_3DRT_BevelHeight_um / 1000.0 ) * m_biuTo3Dunits;
+    g_BevelThickness3DU = pcbIUScale.mmToIU( ADVANCED_CFG::GetCfg().m_3DRT_BevelHeight_um / 1000.0 )
+                          * m_biuTo3Dunits;
 
     if( m_board )
     {
@@ -398,9 +396,10 @@ void BOARD_ADAPTER::InitSettings( REPORTER* aStatusReporter, REPORTER* aWarningR
 
                 case BS_ITEM_TYPE_COPPER:
                 {
-                    // The copper thickness must be > 0 to avoid draw issues (divide by 0 for instance)
-                    // We use a minimal arbitrary value = 1 micrometer here:
-                    int copper_thickness = std::max( item->GetThickness(), pcbIUScale.mmToIU( 0.001 ) );
+                    // The copper thickness must be > 0 to avoid draw issues (divide by 0 for
+                    // instance).   We use a minimal arbitrary value = 1 micrometer here:
+                    int copper_thickness = std::max( item->GetThickness(),
+                                                     pcbIUScale.mmToIU( 0.001 ) );
 
                     if( item->GetBrdLayerId() == F_Cu )
                         m_frontCopperThickness3DU = copper_thickness * m_biuTo3Dunits;
@@ -422,8 +421,10 @@ void BOARD_ADAPTER::InitSettings( REPORTER* aStatusReporter, REPORTER* aWarningR
 
     // Init  Z position of each layer
     // calculate z position for each copper layer
-    // Zstart = -m_epoxyThickness / 2.0 is the z position of the back (bottom layer) (layer id = 31)
-    // Zstart = +m_epoxyThickness / 2.0 is the z position of the front (top layer) (layer id = 0)
+    // Zstart = -m_epoxyThickness / 2.0 is the z position of the back (bottom layer)
+    // (layer id = B_Cu)
+    // Zstart = +m_epoxyThickness / 2.0 is the z position of the front (top layer)
+    // (layer id = F_Cu)
 
     //  ____==__________==________==______ <- Bottom = +m_epoxyThickness / 2.0,
     // |                                  |   Top = Bottom + m_copperThickness
@@ -431,42 +432,59 @@ void BOARD_ADAPTER::InitSettings( REPORTER* aStatusReporter, REPORTER* aWarningR
     //   ==         ==         ==     ==   <- Bottom = -m_epoxyThickness / 2.0,
     //                                        Top = Bottom - m_copperThickness
 
-    unsigned int layer;
-
-    for( layer = 0; layer < m_copperLayersCount; ++layer )
+    // Generate the Z position of copper layers
+    // A copper layer Z position has 2 values: its top Z position and its bottom Z position
+    for( auto layer_id : LAYER_RANGE( F_Cu, B_Cu, m_copperLayersCount ) )
     {
         // This approximates internal layer positions (because we're treating all the dielectric
         // layers as having the same thickness).  But we don't render them anyway so it doesn't
         // really matter.
-        m_layerZcoordBottom[layer] = m_boardBodyThickness3DU / 2.0f -
-                                     (m_boardBodyThickness3DU * layer / (m_copperLayersCount - 1) );
+        int layer_pos;      // the position of the copper layer from board top to bottom
 
-        if( layer < (m_copperLayersCount / 2) )
-            m_layerZcoordTop[layer] = m_layerZcoordBottom[layer] + m_frontCopperThickness3DU;
+        switch( layer_id )
+        {
+            case F_Cu: layer_pos = 0; break;
+            case B_Cu: layer_pos =  m_copperLayersCount - 1; break;
+            default: layer_pos = ( layer_id - B_Cu )/2; break;
+        };
+
+        m_layerZcoordBottom[layer_id] = m_boardBodyThickness3DU / 2.0
+                                        - ( m_boardBodyThickness3DU * layer_pos
+                                            / ( m_copperLayersCount - 1 ) );
+
+        if( layer_pos < (m_copperLayersCount / 2) )
+            m_layerZcoordTop[layer_id] = m_layerZcoordBottom[layer_id] + m_frontCopperThickness3DU;
         else
-            m_layerZcoordTop[layer] = m_layerZcoordBottom[layer] - m_backCopperThickness3DU;
+            m_layerZcoordTop[layer_id] = m_layerZcoordBottom[layer_id] - m_backCopperThickness3DU;
     }
 
     #define layerThicknessMargin 1.1
     const float zpos_offset = m_nonCopperLayerThickness3DU * layerThicknessMargin;
 
-    // Fill remaining unused copper layers and back layer zpos with -m_boardBodyThickness / 2.0
-    for( ; layer < MAX_CU_LAYERS; layer++ )
-    {
-        m_layerZcoordBottom[layer] = -( m_boardBodyThickness3DU / 2.0f );
-        m_layerZcoordTop[layer]    = m_layerZcoordBottom[layer] - m_backCopperThickness3DU;
-    }
-
     // This is the top of the copper layer thickness.
     const float zpos_copperTop_back  = m_layerZcoordTop[B_Cu];
     const float zpos_copperTop_front = m_layerZcoordTop[F_Cu];
 
-    // calculate z position for each non copper layer
-    // Solder mask and Solder paste have the same Z position
-    for( int layer_id = MAX_CU_LAYERS; layer_id < PCB_LAYER_ID_COUNT; ++layer_id )
+    // Fill not copper layers zpos with a dummy position
+    // (m_layerZcoordTop[B_Cu]with a small margin)
+    // Some important layer position will be set later
+    for( int layer_id = 0; layer_id < PCB_LAYER_ID_COUNT; layer_id++ )
     {
-        float zposTop;
-        float zposBottom;
+        if( IsCopperLayer( (PCB_LAYER_ID)layer_id ) )
+            continue;
+
+        m_layerZcoordBottom[(PCB_LAYER_ID)layer_id] = zpos_copperTop_back - 2.0f * zpos_offset;
+        m_layerZcoordTop[(PCB_LAYER_ID) layer_id] =
+                m_layerZcoordBottom[(PCB_LAYER_ID) layer_id] - m_backCopperThickness3DU;
+    }
+
+    // calculate z position for each technical layer
+    // Solder mask and Solder paste have the same Z position
+    for( PCB_LAYER_ID layer_id :
+         { B_Adhes, B_Mask, B_Paste, F_Adhes, F_Mask, F_Paste, B_SilkS, F_SilkS } )
+    {
+        float zposTop = 0.0;
+        float zposBottom = 0.0;
 
         switch( layer_id )
         {
@@ -511,12 +529,10 @@ void BOARD_ADAPTER::InitSettings( REPORTER* aStatusReporter, REPORTER* aWarningR
             break;
 
         default:
-            zposTop = zpos_copperTop_front + (layer_id - MAX_CU_LAYERS + 3.0f) * zpos_offset;
-            zposBottom = zposTop - m_nonCopperLayerThickness3DU;
             break;
         }
 
-        m_layerZcoordTop[layer_id]    = zposTop;
+        m_layerZcoordTop[layer_id] = zposTop;
         m_layerZcoordBottom[layer_id] = zposBottom;
     }
 
@@ -590,6 +606,24 @@ std::map<int, COLOR4D> BOARD_ADAPTER::GetDefaultColors() const
 }
 
 
+void BOARD_ADAPTER::GetBoardEditorCopperLayerColors( PCBNEW_SETTINGS* aCfg )
+{
+    m_BoardEditorColors.clear();
+
+    if( m_copperLayersCount <= 0 )
+        return;
+
+    COLOR_SETTINGS* settings = Pgm().GetSettingsManager().GetColorSettings( aCfg->m_ColorTheme );
+
+    LSET copperLayers = LSET::AllCuMask();
+
+    for( auto layer : LAYER_RANGE( F_Cu, B_Cu, m_copperLayersCount ) )
+    {
+        m_BoardEditorColors[ layer ] = settings->GetColor( layer );
+    }
+}
+
+
 std::map<int, COLOR4D> BOARD_ADAPTER::GetLayerColors() const
 {
     std::map<int, COLOR4D> colors;
@@ -611,8 +645,10 @@ std::map<int, COLOR4D> BOARD_ADAPTER::GetLayerColors() const
         const BOARD_STACKUP& stackup = m_board->GetDesignSettings().GetStackupDescriptor();
         KIGFX::COLOR4D       bodyColor( 0, 0, 0, 0 );
 
+        // Can't do a const KIGFX::COLOR4D& return type here because there are temporary variables
         auto findColor =
-                []( const wxString& aColorName, const CUSTOM_COLORS_LIST& aColorSet )
+                []( const wxString& aColorName,
+                    const CUSTOM_COLORS_LIST& aColorSet ) -> const KIGFX::COLOR4D
                 {
                     if( aColorName.StartsWith( wxT( "#" ) ) )
                     {
@@ -698,6 +734,10 @@ std::map<int, COLOR4D> BOARD_ADAPTER::GetLayerColors() const
     }
 
     colors[ LAYER_3D_COPPER_BOTTOM ] = colors[ LAYER_3D_COPPER_TOP ];
+
+    for( const auto& [layer, val] : m_ColorOverrides )
+        colors[layer] = val;
+
     return colors;
 }
 
@@ -915,9 +955,7 @@ bool BOARD_ADAPTER::createBoardPolygon( wxString* aErrorMsg )
         success = BuildFootprintPolygonOutlines( m_board, m_board_poly,
                                                  m_board->GetDesignSettings().m_MaxError,
                                                  chainingEpsilon );
-
-        // Make polygon strictly simple to avoid issues (especially in 3D viewer)
-        m_board_poly.Simplify( SHAPE_POLY_SET::PM_STRICTLY_SIMPLE );
+        m_board_poly.Simplify();
 
         if( !success && aErrorMsg )
         {
@@ -940,9 +978,17 @@ bool BOARD_ADAPTER::createBoardPolygon( wxString* aErrorMsg )
 float BOARD_ADAPTER::GetFootprintZPos( bool aIsFlipped ) const
 {
     if( aIsFlipped )
-        return m_layerZcoordBottom[B_Paste];
+    {
+        if( auto it = m_layerZcoordBottom.find( B_Paste ); it != m_layerZcoordBottom.end() )
+            return it->second;
+    }
     else
-        return m_layerZcoordTop[F_Paste];
+    {
+        if( auto it = m_layerZcoordTop.find( F_Paste ); it != m_layerZcoordTop.end() )
+            return it->second;
+    }
+
+    return 0.0;
 }
 
 

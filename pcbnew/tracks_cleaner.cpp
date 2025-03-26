@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2004-2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@verizon.net>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,11 +23,16 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <atomic>
+#include <bit>
+
 #include <reporter.h>
 #include <board_commit.h>
 #include <cleanup_item.h>
 #include <connectivity/connectivity_algo.h>
 #include <connectivity/connectivity_data.h>
+#include <thread_pool.h>
+#include <lset.h>
 #include <tool/tool_manager.h>
 #include <tools/pcb_actions.h>
 #include <tools/global_edit_tool.h>
@@ -39,7 +44,8 @@ TRACKS_CLEANER::TRACKS_CLEANER( BOARD* aPcb, BOARD_COMMIT& aCommit ) :
         m_commit( aCommit ),
         m_dryRun( true ),
         m_itemsList( nullptr ),
-        m_reporter( nullptr )
+        m_reporter( nullptr ),
+        m_filter( nullptr )
 {
 }
 
@@ -159,6 +165,15 @@ void TRACKS_CLEANER::CleanupBoard( bool aDryRun,
 }
 
 
+bool TRACKS_CLEANER::filterItem( BOARD_CONNECTED_ITEM* aItem )
+{
+    if( !m_filter )
+        return false;
+
+    return (m_filter)( aItem );
+}
+
+
 void TRACKS_CLEANER::removeShortingTrackSegments()
 {
     std::shared_ptr<CONNECTIVITY_DATA> connectivity = m_brd->GetConnectivity();
@@ -167,8 +182,7 @@ void TRACKS_CLEANER::removeShortingTrackSegments()
 
     for( PCB_TRACK* segment : m_brd->Tracks() )
     {
-        // Assume that the user knows what they are doing
-        if( segment->IsLocked() )
+        if( segment->IsLocked() || filterItem( segment ) )
             continue;
 
         for( PAD* testedPad : connectivity->GetConnectedPads( segment ) )
@@ -213,36 +227,44 @@ void TRACKS_CLEANER::removeShortingTrackSegments()
 }
 
 
-bool TRACKS_CLEANER::testTrackEndpointIsNode( PCB_TRACK* aTrack, bool aTstStart )
+bool TRACKS_CLEANER::testTrackEndpointIsNode( PCB_TRACK* aTrack, bool aTstStart, bool aTstEnd )
 {
-    // A node is a point where more than 2 items are connected.
+    if( !( aTstStart && aTstEnd ) )
+        return false;
 
+    // A node is a point where more than 2 items are connected.  However, we elide tracks that are
+    // collinear with the track being tested.
     const std::list<CN_ITEM*>& items =
                 m_brd->GetConnectivity()->GetConnectivityAlgo()->ItemEntry( aTrack ).GetItems();
 
     if( items.empty() )
         return false;
 
-    CN_ITEM* citem = items.front();
+    int itemcount = 0;
 
-    if( !citem->Valid() )
-        return false;
-
-    const std::vector<std::shared_ptr<CN_ANCHOR>>& anchors = citem->Anchors();
-
-    VECTOR2I refpoint = aTstStart ? aTrack->GetStart() : aTrack->GetEnd();
-
-    for( const std::shared_ptr<CN_ANCHOR>& anchor : anchors )
+    for( CN_ITEM* item : items )
     {
-        if( anchor->Pos() != refpoint )
+        if( !item->Valid() || item->Parent() == aTrack || item->Parent()->HasFlag( IS_DELETED ) )
             continue;
 
-        // The right anchor point is found: if more than one other item
-        // (pad, via, track...) is connected, it is a node:
-        return anchor->ConnectedItemsCount() > 1;
+        if( item->Parent()->Type() == PCB_TRACE_T &&
+            static_cast<PCB_TRACK*>( item->Parent() )->ApproxCollinear( aTrack ) )
+        {
+            continue;
+        }
+
+        for( const std::shared_ptr<CN_ANCHOR>& anchor : item->Anchors() )
+        {
+            if( ( aTstStart && anchor->Pos() == aTrack->GetStart() )
+                && ( aTstEnd && anchor->Pos() == aTrack->GetEnd() ) )
+            {
+                itemcount++;
+                break;
+            }
+        }
     }
 
-    return false;
+    return itemcount > 1;
 }
 
 
@@ -265,7 +287,7 @@ bool TRACKS_CLEANER::deleteDanglingTracks( bool aTrack, bool aVia )
 
         for( PCB_TRACK* track : temp_tracks )
         {
-            if( track->IsLocked() || ( track->GetFlags() & IS_DELETED ) > 0 )
+            if( track->HasFlag( IS_DELETED ) || track->IsLocked() || filterItem( track ) )
                 continue;
 
             if( !aVia && track->Type() == PCB_VIA_T )
@@ -315,7 +337,7 @@ void TRACKS_CLEANER::deleteTracksInPads()
 
     for( PCB_TRACK* track : m_brd->Tracks() )
     {
-        if( track->IsLocked() )
+        if( track->IsLocked() || filterItem( track ) )
             continue;
 
         if( track->Type() == PCB_VIA_T )
@@ -330,8 +352,7 @@ void TRACKS_CLEANER::deleteTracksInPads()
                 track->TransformShapeToPolygon( poly, track->GetLayer(), 0, ARC_HIGH_DEF,
                                                 ERROR_INSIDE );
 
-                poly.BooleanSubtract( *pad->GetEffectivePolygon( ERROR_INSIDE ),
-                                      SHAPE_POLY_SET::PM_FAST );
+                poly.BooleanSubtract( *pad->GetEffectivePolygon( track->GetLayer(), ERROR_INSIDE ) );
 
                 if( poly.IsEmpty() )
                 {
@@ -369,7 +390,7 @@ void TRACKS_CLEANER::cleanup( bool aDeleteDuplicateVias, bool aDeleteNullSegment
 
     for( PCB_TRACK* track : m_brd->Tracks() )
     {
-        if( track->HasFlag( IS_DELETED ) || track->IsLocked() )
+        if( track->HasFlag( IS_DELETED ) || track->IsLocked() || filterItem( track ) )
             continue;
 
         if( aDeleteDuplicateVias && track->Type() == PCB_VIA_T )
@@ -480,67 +501,109 @@ void TRACKS_CLEANER::cleanup( bool aDeleteDuplicateVias, bool aDeleteNullSegment
     if( !m_dryRun )
         removeItems( toRemove );
 
-    auto mergeSegments =
-            [&]( std::shared_ptr<CN_CONNECTIVITY_ALGO> connectivity ) -> bool
+
+
+
+    auto mergeSegments = [&]( std::shared_ptr<CN_CONNECTIVITY_ALGO> connectivity ) -> bool
+    {
+        auto track_loop = [&]( int aStart, int aEnd ) -> std::vector<std::pair<PCB_TRACK*, PCB_TRACK*>>
+        {
+            std::vector<std::pair<PCB_TRACK*, PCB_TRACK*>> tracks;
+
+            for( int ii = aStart; ii < aEnd; ++ii )
             {
+                PCB_TRACK* segment = m_brd->Tracks()[ii];
 
-                for( PCB_TRACK* segment : m_brd->Tracks() )
+                // one can merge only collinear segments, not vias or arcs.
+                if( segment->Type() != PCB_TRACE_T )
+                    continue;
+
+                if( segment->HasFlag( IS_DELETED ) ) // already taken into account
+                    continue;
+
+                if( filterItem( segment ) )
+                    continue;
+
+                // for each end of the segment:
+                for( CN_ITEM* citem : connectivity->ItemEntry( segment ).GetItems() )
                 {
-                    // one can merge only collinear segments, not vias or arcs.
-                    if( segment->Type() != PCB_TRACE_T )
-                        continue;
+                    // Do not merge an end which has different width tracks attached -- it's a
+                    // common use-case for necking-down a track between pads.
+                    std::vector<PCB_TRACK*> sameWidthCandidates;
+                    std::vector<PCB_TRACK*> differentWidthCandidates;
 
-                    if( segment->HasFlag( IS_DELETED ) )  // already taken into account
-                        continue;
-
-                    // for each end of the segment:
-                    for( CN_ITEM* citem : connectivity->ItemEntry( segment ).GetItems() )
+                    for( CN_ITEM* connected : citem->ConnectedItems() )
                     {
-                        // Do not merge an end which has different width tracks attached -- it's a
-                        // common use-case for necking-down a track between pads.
-                        std::vector<PCB_TRACK*> sameWidthCandidates;
-                        std::vector<PCB_TRACK*> differentWidthCandidates;
-
-                        for( CN_ITEM* connected : citem->ConnectedItems() )
-                        {
-                            if( !connected->Valid() )
-                                continue;
-
-                            BOARD_CONNECTED_ITEM* candidate = connected->Parent();
-
-                            if( candidate->Type() == PCB_TRACE_T
-                                    && !candidate->HasFlag( IS_DELETED ) )
-                            {
-                                PCB_TRACK* candidateSegment = static_cast<PCB_TRACK*>( candidate );
-
-                                if( candidateSegment->GetWidth() == segment->GetWidth() )
-                                {
-                                    sameWidthCandidates.push_back( candidateSegment );
-                                }
-                                else
-                                {
-                                    differentWidthCandidates.push_back( candidateSegment );
-                                    break;
-                                }
-                            }
-                        }
-
-                        if( !differentWidthCandidates.empty() )
+                        if( !connected->Valid() )
                             continue;
 
-                        for( PCB_TRACK* candidate : sameWidthCandidates )
+                        BOARD_CONNECTED_ITEM* candidate = connected->Parent();
+
+                        if( candidate->Type() == PCB_TRACE_T && !candidate->HasFlag( IS_DELETED )
+                            && !filterItem( candidate ) )
                         {
-                            if( segment->ApproxCollinear( *candidate )
-                                    && mergeCollinearSegments( segment, candidate ) )
+                            PCB_TRACK* candidateSegment = static_cast<PCB_TRACK*>( candidate );
+
+                            if( candidateSegment->GetWidth() == segment->GetWidth() )
                             {
-                                return true;
+                                sameWidthCandidates.push_back( candidateSegment );
+                            }
+                            else
+                            {
+                                differentWidthCandidates.push_back( candidateSegment );
+                                break;
                             }
                         }
                     }
-                }
 
-                return false;
-            };
+                    if( !differentWidthCandidates.empty() )
+                        continue;
+
+                    for( PCB_TRACK* candidate : sameWidthCandidates )
+                    {
+                        if( candidate < segment ) // avoid duplicate merges
+                            continue;
+
+                        if( segment->ApproxCollinear( *candidate )
+                            && testMergeCollinearSegments( segment, candidate ) )
+                        {
+                            tracks.emplace_back( segment, candidate );
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return tracks;
+        };
+
+        // The idea here is to parallelize the loop that does not modify the connectivity
+        // and extract all of the pairs of segments that might be merged.  Then, perform
+        // the actual merge in the main loop.
+        thread_pool& tp = GetKiCadThreadPool();
+        auto merge_returns = tp.parallelize_loop( 0, m_brd->Tracks().size(), track_loop );
+        bool retval = false;
+
+        for( size_t ii = 0; ii < merge_returns.size(); ++ii )
+        {
+            std::future<std::vector<std::pair<PCB_TRACK*, PCB_TRACK*>>>& ret = merge_returns[ii];
+
+            if( ret.valid() )
+            {
+                for( auto& [seg1, seg2] : ret.get() )
+                {
+                    retval = true;
+
+                    if( seg1->HasFlag( IS_DELETED ) || seg2->HasFlag( IS_DELETED ) )
+                        continue;
+
+                    mergeCollinearSegments( seg1, seg2 );
+                }
+            }
+        }
+
+        return retval;
+    };
 
     if( aMergeSegments )
     {
@@ -549,6 +612,7 @@ void TRACKS_CLEANER::cleanup( bool aDeleteDuplicateVias, bool aDeleteNullSegment
             while( !m_brd->BuildConnectivity() )
                 wxSafeYield();
 
+            std::lock_guard lock( m_mutex );
             m_connectedItemsCache.clear();
         } while( mergeSegments( m_brd->GetConnectivity()->GetConnectivityAlgo() ) );
     }
@@ -560,82 +624,120 @@ void TRACKS_CLEANER::cleanup( bool aDeleteDuplicateVias, bool aDeleteNullSegment
 
 const std::vector<BOARD_CONNECTED_ITEM*>& TRACKS_CLEANER::getConnectedItems( PCB_TRACK* aTrack )
 {
+    static const std::vector<KICAD_T> connectedTypes = { PCB_TRACE_T,
+                                                         PCB_ARC_T,
+                                                         PCB_VIA_T,
+                                                         PCB_PAD_T,
+                                                         PCB_ZONE_T };
+
     const std::shared_ptr<CONNECTIVITY_DATA>& connectivity = m_brd->GetConnectivity();
 
-    if( m_connectedItemsCache.count( aTrack ) == 0 )
-    {
-        m_connectedItemsCache[ aTrack ] =
-                connectivity->GetConnectedItems( aTrack, { PCB_TRACE_T, PCB_ARC_T, PCB_VIA_T,
-                                                           PCB_PAD_T, PCB_ZONE_T } );
-    }
+    if( std::lock_guard lock( m_mutex ); !m_connectedItemsCache.contains( aTrack ) )
+        m_connectedItemsCache[aTrack] = connectivity->GetConnectedItems( aTrack, connectedTypes );
 
-    return m_connectedItemsCache[ aTrack ];
+    return m_connectedItemsCache.at( aTrack );
 }
 
 
-bool TRACKS_CLEANER::mergeCollinearSegments( PCB_TRACK* aSeg1, PCB_TRACK* aSeg2 )
+bool TRACKS_CLEANER::testMergeCollinearSegments( PCB_TRACK* aSeg1, PCB_TRACK* aSeg2, PCB_TRACK* aDummySeg )
 {
     if( aSeg1->IsLocked() || aSeg2->IsLocked() )
         return false;
 
     // Collect the unique points where the two tracks are connected to other items
-    std::set<VECTOR2I> pts;
+    const unsigned p1s = 1 << 0;
+    const unsigned p1e = 1 << 1;
+    const unsigned p2s = 1 << 2;
+    const unsigned p2e = 1 << 3;
+    std::vector<VECTOR2I> pts = { aSeg1->GetStart(), aSeg1->GetEnd(), aSeg2->GetStart(), aSeg2->GetEnd() };
+    std::atomic<unsigned> flags = 0;
 
-    auto collectPts =
+    auto collectPtsSeg1 =
             [&]( BOARD_CONNECTED_ITEM* citem )
             {
+                if( std::popcount( flags.load() ) > 2 )
+                    return;
+
                 if( citem->Type() == PCB_TRACE_T || citem->Type() == PCB_ARC_T
                         || citem->Type() == PCB_VIA_T )
                 {
                     PCB_TRACK* track = static_cast<PCB_TRACK*>( citem );
 
                     if( track->IsPointOnEnds( aSeg1->GetStart() ) )
-                        pts.emplace( aSeg1->GetStart() );
+                        flags |= p1s;
 
                     if( track->IsPointOnEnds( aSeg1->GetEnd() ) )
-                        pts.emplace( aSeg1->GetEnd() );
-
-                    if( track->IsPointOnEnds( aSeg2->GetStart() ) )
-                        pts.emplace( aSeg2->GetStart() );
-
-                    if( track->IsPointOnEnds( aSeg2->GetEnd() ) )
-                        pts.emplace( aSeg2->GetEnd() );
+                        flags |= p1e;
                 }
                 else
                 {
-                    if( citem->HitTest( aSeg1->GetStart(), ( aSeg1->GetWidth() + 1 ) / 2 ) )
-                        pts.emplace( aSeg1->GetStart() );
+                    if( !( flags & p1s ) && citem->HitTest( aSeg1->GetStart(), ( aSeg1->GetWidth() + 1 ) / 2 ) )
+                        flags |= p1s;
 
-                    if( citem->HitTest( aSeg1->GetEnd(), ( aSeg1->GetWidth() + 1 ) / 2  ) )
-                        pts.emplace( aSeg1->GetEnd() );
+                    if( !( flags & p1e ) && citem->HitTest( aSeg1->GetEnd(), ( aSeg1->GetWidth() + 1 ) / 2 ) )
+                        flags |= p1e;
+                }
+            };
 
-                    if( citem->HitTest( aSeg2->GetStart(), ( aSeg2->GetWidth() + 1 ) / 2  ) )
-                        pts.emplace( aSeg2->GetStart() );
+    auto collectPtsSeg2 =
+            [&]( BOARD_CONNECTED_ITEM* citem )
+            {
+                if( std::popcount( flags.load() ) > 2 )
+                    return;
 
-                    if( citem->HitTest( aSeg2->GetEnd(), ( aSeg2->GetWidth() + 1 ) / 2  ) )
-                        pts.emplace( aSeg2->GetEnd() );
+                if( citem->Type() == PCB_TRACE_T || citem->Type() == PCB_ARC_T
+                        || citem->Type() == PCB_VIA_T )
+                {
+                    PCB_TRACK* track = static_cast<PCB_TRACK*>( citem );
+
+                    if( track->IsPointOnEnds( aSeg2->GetStart() ) )
+                        flags |= p2s;
+
+                    if( track->IsPointOnEnds( aSeg2->GetEnd() ) )
+                        flags |= p2e;
+                }
+                else
+                {
+                    if( !( flags & p2s ) && citem->HitTest( aSeg2->GetStart(), ( aSeg2->GetWidth() + 1 ) / 2 ) )
+                        flags |= p2s;
+
+                    if( !( flags & p2e ) && citem->HitTest( aSeg2->GetEnd(), ( aSeg2->GetWidth() + 1 ) / 2 ) )
+                        flags |= p2e;
                 }
             };
 
     for( BOARD_CONNECTED_ITEM* item : getConnectedItems( aSeg1 ) )
     {
+        if( item->HasFlag( IS_DELETED ) )
+            continue;
+
         if( item != aSeg1 && item != aSeg2 )
-            collectPts( item );
+            collectPtsSeg1( item );
     }
 
     for( BOARD_CONNECTED_ITEM* item : getConnectedItems( aSeg2 ) )
     {
+        if( item->HasFlag( IS_DELETED ) )
+            continue;
+
         if( item != aSeg1 && item != aSeg2 )
-            collectPts( item );
+            collectPtsSeg2( item );
     }
 
     // This means there is a node in the center
-    if( pts.size() > 2 )
+    if( std::popcount( flags.load() ) > 2 )
         return false;
 
     // Verify the removed point after merging is not a node.
     // If it is a node (i.e. if more than one other item is connected, the segments cannot be merged
+
     PCB_TRACK dummy_seg( *aSeg1 );
+
+    if( !aDummySeg )
+        aDummySeg = &dummy_seg;
+
+    // Do not copy the parent group to the dummy segment
+    dummy_seg.SetParentGroup( nullptr );
 
     // Calculate the new ends of the segment to merge, and store them to dummy_seg:
     int min_x = std::min( aSeg1->GetStart().x,
@@ -650,35 +752,36 @@ bool TRACKS_CLEANER::mergeCollinearSegments( PCB_TRACK* aSeg1, PCB_TRACK* aSeg2 
     if( ( aSeg1->GetStart().x > aSeg1->GetEnd().x )
             == ( aSeg1->GetStart().y > aSeg1->GetEnd().y ) )
     {
-        dummy_seg.SetStart( VECTOR2I( min_x, min_y ) );
-        dummy_seg.SetEnd( VECTOR2I( max_x, max_y ) );
+        aDummySeg->SetStart( VECTOR2I( min_x, min_y ) );
+        aDummySeg->SetEnd( VECTOR2I( max_x, max_y ) );
     }
     else
     {
-        dummy_seg.SetStart( VECTOR2I( min_x, max_y ) );
-        dummy_seg.SetEnd( VECTOR2I( max_x, min_y ) );
+        aDummySeg->SetStart( VECTOR2I( min_x, max_y ) );
+        aDummySeg->SetEnd( VECTOR2I( max_x, min_y ) );
     }
 
     // The new ends of the segment must be connected to all of the same points as the original
     // segments.  If not, the segments cannot be merged.
-    for( auto& pt : pts )
+    for( unsigned i = 0; i < 4; ++i )
     {
-        if( !dummy_seg.IsPointOnEnds( pt ) )
+        if( ( flags & ( 1 << i ) ) && !aDummySeg->IsPointOnEnds( pts[i] ) )
             return false;
     }
 
     // Now find the removed end(s) and stop merging if it is a node:
-    if( aSeg1->GetStart() != dummy_seg.GetStart() && aSeg1->GetStart() != dummy_seg.GetEnd() )
-     {
-        if( testTrackEndpointIsNode( aSeg1, true ) )
-            return false;
-    }
+    return !testTrackEndpointIsNode( aSeg1, aDummySeg->IsPointOnEnds( aSeg1->GetStart() ),
+                                aDummySeg->IsPointOnEnds( aSeg1->GetEnd() ) );
+}
 
-    if( aSeg1->GetEnd() != dummy_seg.GetStart() && aSeg1->GetEnd() != dummy_seg.GetEnd() )
-    {
-        if( testTrackEndpointIsNode( aSeg1, false ) )
-            return false;
-    }
+bool TRACKS_CLEANER::mergeCollinearSegments( PCB_TRACK* aSeg1, PCB_TRACK* aSeg2 )
+{
+    PCB_TRACK dummy_seg( *aSeg1 );
+
+    dummy_seg.SetParentGroup( nullptr );
+
+    if( !testMergeCollinearSegments( aSeg1, aSeg2, &dummy_seg ) )
+        return false;
 
     std::shared_ptr<CLEANUP_ITEM> item = std::make_shared<CLEANUP_ITEM>( CLEANUP_MERGE_TRACKS );
     item->SetItems( aSeg1, aSeg2 );
@@ -689,7 +792,11 @@ bool TRACKS_CLEANER::mergeCollinearSegments( PCB_TRACK* aSeg1, PCB_TRACK* aSeg2 
     if( !m_dryRun )
     {
         m_commit.Modify( aSeg1 );
+
+        PCB_GROUP* group = aSeg1->GetParentGroup();
         *aSeg1 = dummy_seg;
+        aSeg1->SetParentGroup( group );
+
 
         m_brd->GetConnectivity()->Update( aSeg1 );
 
@@ -697,9 +804,6 @@ bool TRACKS_CLEANER::mergeCollinearSegments( PCB_TRACK* aSeg1, PCB_TRACK* aSeg2 
         m_brd->Remove( aSeg2 );
         m_commit.Removed( aSeg2 );
     }
-
-    if( dummy_seg.GetParentGroup() )
-        dummy_seg.SetParentGroup( nullptr );
 
     return true;
 }

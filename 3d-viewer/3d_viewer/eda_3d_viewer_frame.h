@@ -5,7 +5,7 @@
  * Copyright (C) 2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
  * Copyright (C) 2023 CERN
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -60,7 +60,7 @@ enum EDA_3D_VIEWER_STATUSBAR
 /**
  * Create and handle a window for the 3d viewer connected to a Kiway and a pcbboard
  */
-class EDA_3D_VIEWER_FRAME : public EDA_3D_BOARD_HOLDER, public KIWAY_PLAYER
+class EDA_3D_VIEWER_FRAME : public KIWAY_PLAYER
 {
 public:
     EDA_3D_VIEWER_FRAME( KIWAY* aKiway, PCB_BASE_FRAME* aParent, const wxString& aTitle,
@@ -100,8 +100,8 @@ public:
 
     void Redraw();
 
-    BOARD_ADAPTER& GetAdapter() override { return m_boardAdapter; }
-    CAMERA& GetCurrentCamera() override { return m_currentCamera; }
+    BOARD_ADAPTER& GetAdapter() { return m_boardAdapter; }
+    CAMERA& GetCurrentCamera() { return m_currentCamera; }
 
     EDA_3D_CANVAS* GetCanvas()  { return m_canvas; }
 
@@ -114,7 +114,7 @@ public:
      * This would be private (and only called by the Kiway), but we need to do this manually
      * from the PCB frame because the 3D viewer isn't updated via the #KIWAY.
      */
-    void CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged ) override;
+    void CommonSettingsChanged( int aFlags ) override;
     void ShowChangedLanguage() override;
 
     APPEARANCE_CONTROLS_3D* GetAppearanceManager() { return m_appearancePanel; }
@@ -180,7 +180,7 @@ private:
 
     bool                           m_disable_ray_tracing;
 
-    NL_3D_VIEWER_PLUGIN*           m_spaceMouse;
+    std::unique_ptr<NL_3D_VIEWER_PLUGIN> m_spaceMouse;
 
     /**
      *  Trace mask used to enable or disable the trace output of this class.

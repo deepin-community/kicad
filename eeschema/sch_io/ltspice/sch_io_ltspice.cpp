@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2022 Chetan Subhash Shinde<chetanshinde2001@gmail.com>
  * Copyright (C) 2023 CERN
- * Copyright (C) 2022-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,6 +27,7 @@
 #include <schematic.h>
 #include <sch_sheet.h>
 #include <sch_screen.h>
+#include <symbol_lib_table.h>
 #include <kiplatform/environment.h>
 
 /**
@@ -41,7 +42,7 @@ int SCH_IO_LTSPICE::GetModifyHash() const
 
 SCH_SHEET* SCH_IO_LTSPICE::LoadSchematicFile( const wxString& aFileName, SCHEMATIC* aSchematic,
                                               SCH_SHEET*             aAppendToMe,
-                                              const STRING_UTF8_MAP* aProperties )
+                                              const std::map<std::string, UTF8>* aProperties )
 {
     wxASSERT( !aFileName || aSchematic );
 

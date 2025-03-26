@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2017-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Jean-Pierre Charras, jp.charras at wanadoo.fr
  *
  * This program is free software; you can redistribute it and/or
@@ -56,11 +56,13 @@
 #include "tools/pl_point_editor.h"
 #include "invoke_pl_editor_dialog.h"
 #include "tools/pl_editor_control.h"
+#include <view/view_controls.h>
 #include <zoom_defines.h>
 
 #include <wx/filedlg.h>
 #include <wx/print.h>
 #include <wx/treebook.h>
+#include <wx/msgdlg.h>
 #include <wx/log.h>
 
 #include <navlib/nl_pl_editor_plugin.h>
@@ -214,7 +216,7 @@ PL_EDITOR_FRAME::PL_EDITOR_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     DS_DATA_MODEL::GetTheInstance().AllowVoidList( true );
     DS_DATA_MODEL::GetTheInstance().ClearList();
 #else       // start with the default KiCad layout
-    DS_DATA_MODEL::GetTheInstance().LoadDrawingSheet();
+    DS_DATA_MODEL::GetTheInstance().LoadDrawingSheet( wxEmptyString, nullptr );
 #endif
     OnNewDrawingSheet();
 
@@ -305,7 +307,7 @@ void PL_EDITOR_FRAME::setupUIConditions()
 
     mgr->SetConditions( ACTIONS::cut,               ENABLE( SELECTION_CONDITIONS::NotEmpty ) );
     mgr->SetConditions( ACTIONS::copy,              ENABLE( SELECTION_CONDITIONS::NotEmpty ) );
-    mgr->SetConditions( ACTIONS::paste,             ENABLE( SELECTION_CONDITIONS::Idle ) );
+    mgr->SetConditions( ACTIONS::paste,             ENABLE( SELECTION_CONDITIONS::Idle && cond.NoActiveTool() ) );
     mgr->SetConditions( ACTIONS::doDelete,          ENABLE( SELECTION_CONDITIONS::NotEmpty ) );
 
     mgr->SetConditions( ACTIONS::zoomTool,
@@ -632,13 +634,13 @@ void PL_EDITOR_FRAME::SetTitleBlock( const TITLE_BLOCK& aTitleBlock )
 }
 
 
-void PL_EDITOR_FRAME::CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged )
+void PL_EDITOR_FRAME::CommonSettingsChanged( int aFlags )
 {
-    EDA_DRAW_FRAME::CommonSettingsChanged( aEnvVarsChanged, aTextVarsChanged );
+    EDA_DRAW_FRAME::CommonSettingsChanged( aFlags );
 
-    SETTINGS_MANAGER&   settingsManager = Pgm().GetSettingsManager();
-    PL_EDITOR_SETTINGS* cfg = settingsManager.GetAppSettings<PL_EDITOR_SETTINGS>();
-    COLOR_SETTINGS*     colors = settingsManager.GetColorSettings( cfg->m_ColorTheme );
+    SETTINGS_MANAGER&   mgr = Pgm().GetSettingsManager();
+    PL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<PL_EDITOR_SETTINGS>( "pl_editor" );
+    COLOR_SETTINGS*     colors = mgr.GetColorSettings( cfg->m_ColorTheme );
 
     // Update gal display options like cursor shape, grid options:
     GetGalDisplayOptions().ReadWindowSettings( cfg->m_Window );

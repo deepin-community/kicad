@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 CERN
- * Copyright (C) 2021-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Wayne Stambaugh <stambaughw@gmail.com>
  *
@@ -22,16 +22,11 @@
 
 #include <algorithm>
 
-// For some reason wxWidgets is built with wxUSE_BASE64 unset so expose the wxWidgets
-// base64 code.
-#define wxUSE_BASE64 1
-#include <wx/base64.h>
 #include <wx/log.h>
 #include <wx/mstream.h>
-#include <boost/algorithm/string/join.hpp>
 
-#include <advanced_config.h>
 #include <base_units.h>
+#include <bitmap_base.h>
 #include <build_version.h>
 #include <ee_selection.h>
 #include <font/fontconfig.h>
@@ -49,32 +44,21 @@
 #include <sch_io/kicad_sexpr/sch_io_kicad_sexpr_parser.h>
 #include <sch_junction.h>
 #include <sch_line.h>
-#include <sch_shape.h>
 #include <sch_no_connect.h>
-#include <sch_text.h>
-#include <sch_textbox.h>
+#include <sch_pin.h>
+#include <sch_rule_area.h>
+#include <sch_screen.h>
+#include <sch_shape.h>
 #include <sch_sheet.h>
 #include <sch_sheet_pin.h>
-#include <schematic.h>
-#include <sch_screen.h>
-#include <lib_shape.h>
-#include <lib_pin.h>
-#include <lib_text.h>
-#include <lib_textbox.h>
-#include <eeschema_id.h>       // for MAX_UNIT_COUNT_PER_PACKAGE definition
-#include <io/kicad/kicad_io_utils.h>
-#include <sch_file_versions.h>
-#include <schematic_lexer.h>
-#include <sch_io/kicad_sexpr/sch_io_kicad_sexpr.h>
-#include <sch_io/kicad_sexpr/sch_io_kicad_sexpr_parser.h>
-#include <sch_io/kicad_sexpr/sch_io_kicad_sexpr_lib_cache.h>
-#include <sch_io/kicad_sexpr/sch_io_kicad_sexpr_common.h>
-#include <symbol_lib_table.h>  // for PropPowerSymsOnly definition.
-#include <ee_selection.h>
+#include <sch_symbol.h>
+#include <sch_table.h>
+#include <sch_tablecell.h>
+#include <sch_text.h>
+#include <sch_textbox.h>
 #include <string_utils.h>
 #include <symbol_lib_table.h>  // for PropPowerSymsOnly definition.
 #include <trace_helpers.h>
-#include <wx_filename.h>       // for ::ResolvePossibleSymlinks()
 
 using namespace TSCHEMATIC_T;
 
@@ -96,7 +80,7 @@ SCH_IO_KICAD_SEXPR::~SCH_IO_KICAD_SEXPR()
 }
 
 
-void SCH_IO_KICAD_SEXPR::init( SCHEMATIC* aSchematic, const STRING_UTF8_MAP* aProperties )
+void SCH_IO_KICAD_SEXPR::init( SCHEMATIC* aSchematic, const std::map<std::string, UTF8>* aProperties )
 {
     m_version         = 0;
     m_appending       = false;
@@ -104,13 +88,13 @@ void SCH_IO_KICAD_SEXPR::init( SCHEMATIC* aSchematic, const STRING_UTF8_MAP* aPr
     m_schematic       = aSchematic;
     m_cache           = nullptr;
     m_out             = nullptr;
-    m_nextFreeFieldId = 100; // number arbitrarily > MANDATORY_FIELDS or SHEET_MANDATORY_FIELDS
+    m_nextFreeFieldId = 100; // number arbitrarily > MANDATORY_FIELD_COUNT or SHEET_MANDATORY_FIELD_COUNT
 }
 
 
 SCH_SHEET* SCH_IO_KICAD_SEXPR::LoadSchematicFile( const wxString& aFileName, SCHEMATIC* aSchematic,
                                                   SCH_SHEET*             aAppendToMe,
-                                                  const STRING_UTF8_MAP* aProperties )
+                                                  const std::map<std::string, UTF8>* aProperties )
 {
     wxASSERT( !aFileName || aSchematic != nullptr );
 
@@ -346,7 +330,7 @@ void SCH_IO_KICAD_SEXPR::LoadContent( LINE_READER& aReader, SCH_SHEET* aSheet, i
 
 void SCH_IO_KICAD_SEXPR::SaveSchematicFile( const wxString& aFileName, SCH_SHEET* aSheet,
                                             SCHEMATIC*             aSchematic,
-                                            const STRING_UTF8_MAP* aProperties )
+                                            const std::map<std::string, UTF8>* aProperties )
 {
     wxCHECK_RET( aSheet != nullptr, "NULL SCH_SHEET object." );
     wxCHECK_RET( !aFileName.IsEmpty(), "No schematic file name defined." );
@@ -377,29 +361,38 @@ void SCH_IO_KICAD_SEXPR::Format( SCH_SHEET* aSheet )
     wxCHECK_RET( aSheet != nullptr, "NULL SCH_SHEET* object." );
     wxCHECK_RET( m_schematic != nullptr, "NULL SCHEMATIC* object." );
 
+    SCH_SHEET_LIST sheets = m_schematic->Hierarchy();
     SCH_SCREEN* screen = aSheet->GetScreen();
 
     wxCHECK( screen, /* void */ );
 
-    m_out->Print( 0, "(kicad_sch (version %d) (generator \"eeschema\") (generator_version \"%s\")\n\n",
-                  SEXPR_SCHEMATIC_FILE_VERSION, GetMajorMinorVersion().c_str().AsChar() );
+    // If we've requested to embed the fonts in the schematic, do so.
+    // Otherwise, clear the embedded fonts from the schematic.  Embedded
+    // fonts will be used if available
+    if( m_schematic->GetAreFontsEmbedded() )
+        m_schematic->EmbedFonts();
+    else
+        m_schematic->GetEmbeddedFiles()->ClearEmbeddedFonts();
+
+    m_out->Print( "(kicad_sch (version %d) (generator \"eeschema\") (generator_version %s)",
+                  SEXPR_SCHEMATIC_FILE_VERSION,
+                  m_out->Quotew( GetMajorMinorVersion() ).c_str() );
 
     KICAD_FORMAT::FormatUuid( m_out, screen->m_uuid );
 
-    screen->GetPageSettings().Format( m_out, 1, 0 );
-    m_out->Print( 0, "\n" );
-    screen->GetTitleBlock().Format( m_out, 1, 0 );
+    screen->GetPageSettings().Format( m_out );
+    screen->GetTitleBlock().Format( m_out );
 
     // Save cache library.
-    m_out->Print( 1, "(lib_symbols\n" );
+    m_out->Print( "(lib_symbols" );
 
     for( const auto& [ libItemName, libSymbol ] : screen->GetLibSymbols() )
-        SCH_IO_KICAD_SEXPR_LIB_CACHE::SaveSymbol( libSymbol, *m_out, 2, libItemName );
+        SCH_IO_KICAD_SEXPR_LIB_CACHE::SaveSymbol( libSymbol, *m_out, libItemName );
 
-    m_out->Print( 1, ")\n\n" );
+    m_out->Print( ")" );
 
     for( const std::shared_ptr<BUS_ALIAS>& alias : screen->GetBusAliases() )
-        saveBusAlias( alias, 1 );
+        saveBusAlias( alias );
 
     // Enforce item ordering
     auto cmp =
@@ -420,71 +413,45 @@ void SCH_IO_KICAD_SEXPR::Format( SCH_SHEET* aSheet )
             save_map.insert( item );
     }
 
-    KICAD_T itemType = TYPE_NOT_INIT;
-    SCH_LAYER_ID layer = SCH_LAYER_ID_START;
-
     for( SCH_ITEM* item : save_map )
     {
-        if( itemType != item->Type() )
-        {
-            itemType = item->Type();
-
-            if( itemType != SCH_SYMBOL_T
-                    && itemType != SCH_JUNCTION_T
-                    && itemType != SCH_SHEET_T )
-            {
-                m_out->Print( 0, "\n" );
-            }
-        }
-
         switch( item->Type() )
         {
         case SCH_SYMBOL_T:
-            m_out->Print( 0, "\n" );
-            saveSymbol( static_cast<SCH_SYMBOL*>( item ), *m_schematic, 1, false );
+            saveSymbol( static_cast<SCH_SYMBOL*>( item ), *m_schematic, sheets, false );
             break;
 
         case SCH_BITMAP_T:
-            saveBitmap( static_cast<SCH_BITMAP*>( item ), 1 );
+            saveBitmap( static_cast<SCH_BITMAP&>( *item ) );
             break;
 
         case SCH_SHEET_T:
-            m_out->Print( 0, "\n" );
-            saveSheet( static_cast<SCH_SHEET*>( item ), 1 );
+            saveSheet( static_cast<SCH_SHEET*>( item ), sheets );
             break;
 
         case SCH_JUNCTION_T:
-            saveJunction( static_cast<SCH_JUNCTION*>( item ), 1 );
+            saveJunction( static_cast<SCH_JUNCTION*>( item ) );
             break;
 
         case SCH_NO_CONNECT_T:
-            saveNoConnect( static_cast<SCH_NO_CONNECT*>( item ), 1 );
+            saveNoConnect( static_cast<SCH_NO_CONNECT*>( item ) );
             break;
 
         case SCH_BUS_WIRE_ENTRY_T:
         case SCH_BUS_BUS_ENTRY_T:
-            saveBusEntry( static_cast<SCH_BUS_ENTRY_BASE*>( item ), 1 );
+            saveBusEntry( static_cast<SCH_BUS_ENTRY_BASE*>( item ) );
             break;
 
         case SCH_LINE_T:
-            if( layer != item->GetLayer() )
-            {
-                if( layer == SCH_LAYER_ID_START )
-                {
-                    layer = item->GetLayer();
-                }
-                else
-                {
-                    layer = item->GetLayer();
-                    m_out->Print( 0, "\n" );
-                }
-            }
-
-            saveLine( static_cast<SCH_LINE*>( item ), 1 );
+            saveLine( static_cast<SCH_LINE*>( item ) );
             break;
 
         case SCH_SHAPE_T:
-            saveShape( static_cast<SCH_SHAPE*>( item ), 1 );
+            saveShape( static_cast<SCH_SHAPE*>( item ) );
+            break;
+
+        case SCH_RULE_AREA_T:
+            saveRuleArea( static_cast<SCH_RULE_AREA*>( item ) );
             break;
 
         case SCH_TEXT_T:
@@ -492,11 +459,15 @@ void SCH_IO_KICAD_SEXPR::Format( SCH_SHEET* aSheet )
         case SCH_GLOBAL_LABEL_T:
         case SCH_HIER_LABEL_T:
         case SCH_DIRECTIVE_LABEL_T:
-            saveText( static_cast<SCH_TEXT*>( item ), 1 );
+            saveText( static_cast<SCH_TEXT*>( item ) );
             break;
 
         case SCH_TEXTBOX_T:
-            saveTextBox( static_cast<SCH_TEXTBOX*>( item ), 1 );
+            saveTextBox( static_cast<SCH_TEXTBOX*>( item ) );
+            break;
+
+        case SCH_TABLE_T:
+            saveTable( static_cast<SCH_TABLE*>( item ) );
             break;
 
         default:
@@ -509,10 +480,16 @@ void SCH_IO_KICAD_SEXPR::Format( SCH_SHEET* aSheet )
         std::vector< SCH_SHEET_INSTANCE> instances;
 
         instances.emplace_back( aSheet->GetRootInstance() );
-        saveInstances( instances, 1 );
+        saveInstances( instances );
+
+        KICAD_FORMAT::FormatBool( m_out, "embedded_fonts", m_schematic->GetAreFontsEmbedded() );
+
+        // Save any embedded files
+        if( !m_schematic->GetEmbeddedFiles()->IsEmpty() )
+            m_schematic->WriteEmbeddedFiles( *m_out, true );
     }
 
-    m_out->Print( 0, ")\n" );
+    m_out->Print( ")" );
 }
 
 
@@ -523,15 +500,16 @@ void SCH_IO_KICAD_SEXPR::Format( EE_SELECTION* aSelection, SCH_SHEET_PATH* aSele
     wxCHECK( aSelection && aSelectionPath && aFormatter, /* void */ );
 
     LOCALE_IO toggle;
-    SCH_SHEET_LIST fullHierarchy = aSchematic.GetSheets();
+    SCH_SHEET_LIST sheets = aSchematic.Hierarchy();
 
     m_schematic = &aSchematic;
     m_out = aFormatter;
 
-    size_t i;
-    SCH_ITEM* item;
+    size_t                          i;
+    SCH_ITEM*                       item;
     std::map<wxString, LIB_SYMBOL*> libSymbols;
-    SCH_SCREEN* screen = aSelection->GetScreen();
+    SCH_SCREEN*                     screen = aSelection->GetScreen();
+    std::set<SCH_TABLE*>            promotedTables;
 
     for( i = 0; i < aSelection->GetSize(); ++i )
     {
@@ -559,13 +537,15 @@ void SCH_IO_KICAD_SEXPR::Format( EE_SELECTION* aSelection, SCH_SHEET_PATH* aSele
 
     if( !libSymbols.empty() )
     {
-        m_out->Print( 0, "(lib_symbols\n" );
+        m_out->Print( "(lib_symbols" );
 
         for( const std::pair<const wxString, LIB_SYMBOL*>& libSymbol : libSymbols )
-            SCH_IO_KICAD_SEXPR_LIB_CACHE::SaveSymbol( libSymbol.second, *m_out, 1,
-                                                      libSymbol.first );
+        {
+            SCH_IO_KICAD_SEXPR_LIB_CACHE::SaveSymbol( libSymbol.second, *m_out, libSymbol.first,
+                                                      false );
+        }
 
-        m_out->Print( 0, ")\n\n" );
+        m_out->Print( ")" );
     }
 
     for( i = 0; i < aSelection->GetSize(); ++i )
@@ -575,37 +555,41 @@ void SCH_IO_KICAD_SEXPR::Format( EE_SELECTION* aSelection, SCH_SHEET_PATH* aSele
         switch( item->Type() )
         {
         case SCH_SYMBOL_T:
-            saveSymbol( static_cast<SCH_SYMBOL*>( item ), aSchematic, 0, aForClipboard,
+            saveSymbol( static_cast<SCH_SYMBOL*>( item ), aSchematic, sheets, aForClipboard,
                         aSelectionPath );
             break;
 
         case SCH_BITMAP_T:
-            saveBitmap( static_cast< SCH_BITMAP* >( item ), 0 );
+            saveBitmap( static_cast< SCH_BITMAP& >( *item ) );
             break;
 
         case SCH_SHEET_T:
-            saveSheet( static_cast< SCH_SHEET* >( item ), 0 );
+            saveSheet( static_cast< SCH_SHEET* >( item ), sheets );
             break;
 
         case SCH_JUNCTION_T:
-            saveJunction( static_cast< SCH_JUNCTION* >( item ), 0 );
+            saveJunction( static_cast< SCH_JUNCTION* >( item ) );
             break;
 
         case SCH_NO_CONNECT_T:
-            saveNoConnect( static_cast< SCH_NO_CONNECT* >( item ), 0 );
+            saveNoConnect( static_cast< SCH_NO_CONNECT* >( item ) );
             break;
 
         case SCH_BUS_WIRE_ENTRY_T:
         case SCH_BUS_BUS_ENTRY_T:
-            saveBusEntry( static_cast< SCH_BUS_ENTRY_BASE* >( item ), 0 );
+            saveBusEntry( static_cast< SCH_BUS_ENTRY_BASE* >( item ) );
             break;
 
         case SCH_LINE_T:
-            saveLine( static_cast< SCH_LINE* >( item ), 0 );
+            saveLine( static_cast< SCH_LINE* >( item ) );
             break;
 
         case SCH_SHAPE_T:
-            saveShape( static_cast<SCH_SHAPE*>( item ), 0 );
+            saveShape( static_cast<SCH_SHAPE*>( item ) );
+            break;
+
+        case SCH_RULE_AREA_T:
+            saveRuleArea( static_cast<SCH_RULE_AREA*>( item ) );
             break;
 
         case SCH_TEXT_T:
@@ -613,11 +597,30 @@ void SCH_IO_KICAD_SEXPR::Format( EE_SELECTION* aSelection, SCH_SHEET_PATH* aSele
         case SCH_GLOBAL_LABEL_T:
         case SCH_HIER_LABEL_T:
         case SCH_DIRECTIVE_LABEL_T:
-            saveText( static_cast<SCH_TEXT*>( item ), 0 );
+            saveText( static_cast<SCH_TEXT*>( item ) );
             break;
 
         case SCH_TEXTBOX_T:
-            saveTextBox( static_cast<SCH_TEXTBOX*>( item ), 0 );
+            saveTextBox( static_cast<SCH_TEXTBOX*>( item ) );
+            break;
+
+        case SCH_TABLECELL_T:
+        {
+            SCH_TABLE* table = static_cast<SCH_TABLE*>( item->GetParent() );
+
+            if( promotedTables.count( table ) )
+                break;
+
+            table->SetFlags( SKIP_STRUCT );
+            saveTable( table );
+            table->ClearFlags( SKIP_STRUCT );
+            promotedTables.insert( table );
+            break;
+        }
+
+        case SCH_TABLE_T:
+            item->ClearFlags( SKIP_STRUCT );
+            saveTable( static_cast<SCH_TABLE*>( item ) );
             break;
 
         default:
@@ -628,13 +631,10 @@ void SCH_IO_KICAD_SEXPR::Format( EE_SELECTION* aSelection, SCH_SHEET_PATH* aSele
 
 
 void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSchematic,
-                                     int aNestLevel, bool aForClipboard,
+                                     const SCH_SHEET_LIST& aSheetList, bool aForClipboard,
                                      const SCH_SHEET_PATH* aRelativePath )
 {
     wxCHECK_RET( aSymbol != nullptr && m_out != nullptr, "" );
-
-    // Sort symbol instance data to minimize file churn.
-    aSymbol->SortInstances( SortSymbolInstancesByProjectUuid );
 
     std::string     libName;
 
@@ -661,15 +661,15 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
     else
         angle = ANGLE_0;
 
-    m_out->Print( aNestLevel, "(symbol" );
+    m_out->Print( "(symbol" );
 
     if( !aSymbol->UseLibIdLookup() )
     {
-        m_out->Print( 0, " (lib_name %s)",
+        m_out->Print( "(lib_name %s)",
                       m_out->Quotew( aSymbol->GetSchSymbolLibraryName() ).c_str() );
     }
 
-    m_out->Print( 0, " (lib_id %s) (at %s %s %s)",
+    m_out->Print( "(lib_id %s) (at %s %s %s)",
                   m_out->Quotew( aSymbol->GetLibId().Format().wx_str() ).c_str(),
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
                                                        aSymbol->GetPosition().x ).c_str(),
@@ -682,22 +682,37 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
 
     if( mirrorX || mirrorY )
     {
-        m_out->Print( 0, " (mirror" );
-
-        if( mirrorX )
-            m_out->Print( 0, " x" );
-
-        if( mirrorY )
-            m_out->Print( 0, " y" );
-
-        m_out->Print( 0, ")" );
+        m_out->Print( "(mirror %s %s)",
+                      mirrorX ? "x" : "",
+                      mirrorY ? "y" : "" );
     }
 
-    // The symbol unit is always set to the first instance regardless of the current sheet
+    // The symbol unit is always set to the ordianal instance regardless of the current sheet
     // instance to prevent file churn.
-    int unit = ( aSymbol->GetInstances().size() == 0 ) ?
-               aSymbol->GetUnit() :
-               aSymbol->GetInstances()[0].m_Unit;
+    SCH_SYMBOL_INSTANCE ordinalInstance;
+
+    ordinalInstance.m_Reference = aSymbol->GetPrefix();
+
+    const SCH_SCREEN* parentScreen = static_cast<const SCH_SCREEN*>( aSymbol->GetParent() );
+
+    wxASSERT( parentScreen );
+
+    if( parentScreen && m_schematic )
+    {
+        std::optional<SCH_SHEET_PATH> ordinalPath =
+                m_schematic->Hierarchy().GetOrdinalPath( parentScreen );
+
+        // Design blocks are saved from a temporary sheet & screen which will not be found in
+        // the schematic, and will therefore have no ordinal path.
+        // wxASSERT( ordinalPath );
+
+        if( ordinalPath )
+            aSymbol->GetInstance( ordinalInstance, ordinalPath->Path() );
+        else if( aSymbol->GetInstances().size() )
+            ordinalInstance = aSymbol->GetInstances()[0];
+    }
+
+    int unit = ordinalInstance.m_Unit;
 
     if( aForClipboard && aRelativePath )
     {
@@ -707,27 +722,24 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
             unit = unitInstance.m_Unit;
     }
 
-    m_out->Print( 0, " (unit %d)", unit );
+    m_out->Print( "(unit %d)", unit );
 
-    if( aSymbol->GetBodyStyle() == LIB_ITEM::BODY_STYLE::DEMORGAN )
-        m_out->Print( 0, " (convert %d)", aSymbol->GetBodyStyle() );
+    if( aSymbol->GetBodyStyle() == BODY_STYLE::DEMORGAN )
+        m_out->Print( "(convert %d)", aSymbol->GetBodyStyle() );
 
-    m_out->Print( 0, "\n" );
+    KICAD_FORMAT::FormatBool( m_out, "exclude_from_sim", aSymbol->GetExcludedFromSim() );
+    KICAD_FORMAT::FormatBool( m_out, "in_bom", !aSymbol->GetExcludedFromBOM() );
+    KICAD_FORMAT::FormatBool( m_out, "on_board", !aSymbol->GetExcludedFromBoard() );
+    KICAD_FORMAT::FormatBool( m_out, "dnp", aSymbol->GetDNP() );
 
-    m_out->Print( aNestLevel + 1, "(exclude_from_sim %s)",
-                  ( aSymbol->GetExcludedFromSim() ) ? "yes" : "no" );
-    m_out->Print( 0, " (in_bom %s)", ( aSymbol->GetExcludedFromBOM() ) ? "no" : "yes" );
-    m_out->Print( 0, " (on_board %s)", ( aSymbol->GetExcludedFromBoard() ) ? "no" : "yes" );
-    m_out->Print( 0, " (dnp %s)", ( aSymbol->GetDNP() ) ? "yes" : "no" );
+    AUTOPLACE_ALGO fieldsAutoplaced = aSymbol->GetFieldsAutoplaced();
 
-    if( aSymbol->GetFieldsAutoplaced() != FIELDS_AUTOPLACED_NO )
-        m_out->Print( 0, " (fields_autoplaced yes)" );
-
-    m_out->Print( 0, "\n" );
+    if( fieldsAutoplaced == AUTOPLACE_AUTO || fieldsAutoplaced == AUTOPLACE_MANUAL )
+        KICAD_FORMAT::FormatBool( m_out, "fields_autoplaced", true );
 
     KICAD_FORMAT::FormatUuid( m_out, aSymbol->m_Uuid );
 
-    m_nextFreeFieldId = MANDATORY_FIELDS;
+    m_nextFreeFieldId = MANDATORY_FIELD_COUNT;
 
     for( SCH_FIELD& field : aSymbol->GetFields() )
     {
@@ -740,7 +752,7 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
             // sheet instance to prevent file churn.
             if( id == REFERENCE_FIELD )
             {
-                field.SetText( aSymbol->GetInstances()[0].m_Reference );
+                field.SetText( ordinalInstance.m_Reference );
             }
             else if( id == VALUE_FIELD )
             {
@@ -762,7 +774,7 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
 
         try
         {
-            saveField( &field, aNestLevel + 1 );
+            saveField( &field );
         }
         catch( ... )
         {
@@ -781,16 +793,15 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
     {
         if( pin->GetAlt().IsEmpty() )
         {
-            m_out->Print( aNestLevel + 1, "(pin %s ", m_out->Quotew( pin->GetNumber() ).c_str() );
+            m_out->Print( "(pin %s", m_out->Quotew( pin->GetNumber() ).c_str() );
             KICAD_FORMAT::FormatUuid( m_out, pin->m_Uuid );
-            m_out->Print( aNestLevel + 1, ")\n" );
+            m_out->Print( ")" );
         }
         else
         {
-            m_out->Print( aNestLevel + 1, "(pin %s ", m_out->Quotew( pin->GetNumber() ).c_str() );
+            m_out->Print( "(pin %s", m_out->Quotew( pin->GetNumber() ).c_str() );
             KICAD_FORMAT::FormatUuid( m_out, pin->m_Uuid );
-            m_out->Print( aNestLevel + 1, " (alternate %s))\n",
-                          m_out->Quotew( pin->GetAlt() ).c_str() );
+            m_out->Print( "(alternate %s))", m_out->Quotew( pin->GetAlt() ).c_str() );
         }
     }
 
@@ -798,12 +809,10 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
     {
         std::map<KIID, std::vector<SCH_SYMBOL_INSTANCE>> projectInstances;
 
-        m_out->Print( aNestLevel + 1, "(instances\n" );
+        m_out->Print( "(instances" );
 
         wxString projectName;
-        KIID lastProjectUuid;
-        KIID rootSheetUuid = aSchematic.Root().m_Uuid;
-        SCH_SHEET_LIST fullHierarchy = aSchematic.GetSheets();
+        KIID     rootSheetUuid = aSchematic.Root().m_Uuid;
 
         for( const SCH_SYMBOL_INSTANCE& inst : aSymbol->GetInstances() )
         {
@@ -814,7 +823,7 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
             // path, don't save it.  This prevents large amounts of orphaned instance data for the
             // current project from accumulating in the schematic files.
             bool isOrphaned = ( inst.m_Path[0] == rootSheetUuid )
-                              && !fullHierarchy.GetSheetPathByKIIDPath( inst.m_Path );
+                              && !aSheetList.GetSheetPathByKIIDPath( inst.m_Path );
 
             // Keep all instance data when copying to the clipboard.  They may be needed on paste.
             if( !aForClipboard && isOrphaned )
@@ -823,13 +832,9 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
             auto it = projectInstances.find( inst.m_Path[0] );
 
             if( it == projectInstances.end() )
-            {
                 projectInstances[ inst.m_Path[0] ] = { inst };
-            }
             else
-            {
                 it->second.emplace_back( inst );
-            }
         }
 
         for( auto& [uuid, instances] : projectInstances )
@@ -845,8 +850,7 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
 
             projectName = instances[0].m_ProjectName;
 
-            m_out->Print( aNestLevel + 2, "(project %s\n",
-                          m_out->Quotew( projectName ).c_str() );
+            m_out->Print( "(project %s", m_out->Quotew( projectName ).c_str() );
 
             for( const SCH_SYMBOL_INSTANCE& instance : instances )
             {
@@ -858,25 +862,23 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
 
                 path = tmp.AsString();
 
-                m_out->Print( aNestLevel + 3, "(path %s\n",
-                              m_out->Quotew( path ).c_str() );
-                m_out->Print( aNestLevel + 4, "(reference %s) (unit %d)\n",
+                m_out->Print( "(path %s (reference %s) (unit %d))",
+                              m_out->Quotew( path ).c_str(),
                               m_out->Quotew( instance.m_Reference ).c_str(),
                               instance.m_Unit );
-                m_out->Print( aNestLevel + 3, ")\n" );
             }
 
-            m_out->Print( aNestLevel + 2, ")\n" );  // Closes `project`.
+            m_out->Print( ")" );  // Closes `project`.
         }
 
-        m_out->Print( aNestLevel + 1, ")\n" );  // Closes `instances`.
+        m_out->Print( ")" );  // Closes `instances`.
     }
 
-    m_out->Print( aNestLevel, ")\n" );      // Closes `symbol`.
+    m_out->Print( ")" );      // Closes `symbol`.
 }
 
 
-void SCH_IO_KICAD_SEXPR::saveField( SCH_FIELD* aField, int aNestLevel )
+void SCH_IO_KICAD_SEXPR::saveField( SCH_FIELD* aField )
 {
     wxCHECK_RET( aField != nullptr && m_out != nullptr, "" );
 
@@ -899,7 +901,8 @@ void SCH_IO_KICAD_SEXPR::saveField( SCH_FIELD* aField, int aNestLevel )
         m_nextFreeFieldId = aField->GetId() + 1;
     }
 
-    m_out->Print( aNestLevel, "(property %s %s (at %s %s %s)",
+    m_out->Print( "(property %s %s %s (at %s %s %s)",
+                  aField->IsPrivate() ? "private" : "",
                   m_out->Quotew( fieldName ).c_str(),
                   m_out->Quotew( aField->GetText() ).c_str(),
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
@@ -909,84 +912,64 @@ void SCH_IO_KICAD_SEXPR::saveField( SCH_FIELD* aField, int aNestLevel )
                   EDA_UNIT_UTILS::FormatAngle( aField->GetTextAngle() ).c_str() );
 
     if( aField->IsNameShown() )
-        m_out->Print( 0, " (show_name yes)" );
+        KICAD_FORMAT::FormatBool( m_out, "show_name", true );
 
     if( !aField->CanAutoplace() )
-        m_out->Print( 0, " (do_not_autoplace yes)" );
+        KICAD_FORMAT::FormatBool( m_out, "do_not_autoplace", true );
 
     if( !aField->IsDefaultFormatting()
-      || ( aField->GetTextHeight() != schIUScale.MilsToIU( DEFAULT_SIZE_TEXT ) ) )
+            || ( aField->GetTextHeight() != schIUScale.MilsToIU( DEFAULT_SIZE_TEXT ) ) )
     {
-        m_out->Print( 0, "\n" );
-        aField->Format( m_out, aNestLevel, 0 );
-        m_out->Print( aNestLevel, ")\n" );   // Closes property token with font effects.
+        aField->Format( m_out, 0 );
     }
-    else
-    {
-        m_out->Print( 0, ")\n" );            // Closes property token without font effects.
-    }
+
+    m_out->Print( ")" );            // Closes `property` token
 }
 
 
-void SCH_IO_KICAD_SEXPR::saveBitmap( SCH_BITMAP* aBitmap, int aNestLevel )
+void SCH_IO_KICAD_SEXPR::saveBitmap( const SCH_BITMAP& aBitmap )
 {
-    wxCHECK_RET( aBitmap != nullptr && m_out != nullptr, "" );
+    wxCHECK_RET( m_out != nullptr, "" );
 
-    const wxImage* image = aBitmap->GetImage()->GetImageData();
+    const REFERENCE_IMAGE& refImage = aBitmap.GetReferenceImage();
+    const BITMAP_BASE&     bitmapBase = refImage.GetImage();
+
+    const wxImage* image = bitmapBase.GetImageData();
 
     wxCHECK_RET( image != nullptr, "wxImage* is NULL" );
 
-    m_out->Print( aNestLevel, "(image (at %s %s)",
+    m_out->Print( "(image (at %s %s)",
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
-                                                       aBitmap->GetPosition().x ).c_str(),
+                                                       refImage.GetPosition().x ).c_str(),
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
-                                                       aBitmap->GetPosition().y ).c_str() );
+                                                       refImage.GetPosition().y ).c_str() );
 
-    double scale = aBitmap->GetImage()->GetScale();
+    double scale = refImage.GetImageScale();
 
     // 20230121 or older file format versions assumed 300 image PPI at load/save.
     // Let's keep compatibility by changing image scale.
     if( SEXPR_SCHEMATIC_FILE_VERSION <= 20230121 )
-    {
-        BITMAP_BASE* bm_image = aBitmap->GetImage();
-        scale = scale * 300.0 / bm_image->GetPPI();
-    }
+        scale = scale * 300.0 / bitmapBase.GetPPI();
 
     if( scale != 1.0 )
-        m_out->Print( 0, " (scale %g)", scale );
+        m_out->Print( "(scale %g)", scale );
 
-    m_out->Print( 0, "\n" );
+    KICAD_FORMAT::FormatUuid( m_out, aBitmap.m_Uuid );
 
-    KICAD_FORMAT::FormatUuid( m_out, aBitmap->m_Uuid );
+    wxMemoryOutputStream stream;
+    bitmapBase.SaveImageData( stream );
 
-    m_out->Print( aNestLevel + 1, "(data" );
+    KICAD_FORMAT::FormatStreamData( *m_out, *stream.GetOutputStreamBuffer() );
 
-    wxString out = wxBase64Encode( aBitmap->GetImage()->GetImageDataBuffer() );
-
-    // Apparently the MIME standard character width for base64 encoding is 76 (unconfirmed)
-    // so use it in a vein attempt to be standard like.
-#define MIME_BASE64_LENGTH 76
-
-    size_t first = 0;
-
-    while( first < out.Length() )
-    {
-        m_out->Print( 0, "\n" );
-        m_out->Print( aNestLevel + 2, "\"%s\"", TO_UTF8( out( first, MIME_BASE64_LENGTH ) ) );
-        first += MIME_BASE64_LENGTH;
-    }
-
-    m_out->Print( 0, "\n" );
-    m_out->Print( aNestLevel + 1, ")\n" );  // Closes data token.
-    m_out->Print( aNestLevel, ")\n" );      // Closes image token.
+    m_out->Print( ")" );        // Closes image token.
 }
 
 
-void SCH_IO_KICAD_SEXPR::saveSheet( SCH_SHEET* aSheet, int aNestLevel )
+void SCH_IO_KICAD_SEXPR::saveSheet( SCH_SHEET* aSheet, const SCH_SHEET_LIST& aSheetList )
 {
     wxCHECK_RET( aSheet != nullptr && m_out != nullptr, "" );
 
-    m_out->Print( aNestLevel, "(sheet (at %s %s) (size %s %s)",
+    m_out->Print( "(sheet (at %s %s) (size %s %s)",
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
                                                        aSheet->GetPosition().x ).c_str(),
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
@@ -996,19 +979,22 @@ void SCH_IO_KICAD_SEXPR::saveSheet( SCH_SHEET* aSheet, int aNestLevel )
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
                                                        aSheet->GetSize().y ).c_str() );
 
-    if( aSheet->GetFieldsAutoplaced() != FIELDS_AUTOPLACED_NO )
-        m_out->Print( 0, " (fields_autoplaced yes)" );
+    KICAD_FORMAT::FormatBool( m_out, "exclude_from_sim", aSheet->GetExcludedFromSim() );
+    KICAD_FORMAT::FormatBool( m_out, "in_bom", !aSheet->GetExcludedFromBOM() );
+    KICAD_FORMAT::FormatBool( m_out, "on_board", !aSheet->GetExcludedFromBoard() );
+    KICAD_FORMAT::FormatBool( m_out, "dnp", aSheet->GetDNP() );
 
-    m_out->Print( 0, "\n" );
+    AUTOPLACE_ALGO fieldsAutoplaced = aSheet->GetFieldsAutoplaced();
+
+    if( fieldsAutoplaced == AUTOPLACE_AUTO || fieldsAutoplaced == AUTOPLACE_MANUAL )
+        KICAD_FORMAT::FormatBool( m_out, "fields_autoplaced", true );
 
     STROKE_PARAMS stroke( aSheet->GetBorderWidth(), LINE_STYLE::SOLID, aSheet->GetBorderColor() );
 
     stroke.SetWidth( aSheet->GetBorderWidth() );
-    stroke.Format( m_out, schIUScale, aNestLevel + 1 );
+    stroke.Format( m_out, schIUScale );
 
-    m_out->Print( 0, "\n" );
-
-    m_out->Print( aNestLevel + 1, "(fill (color %d %d %d %0.4f))\n",
+    m_out->Print( "(fill (color %d %d %d %0.4f))",
                   KiROUND( aSheet->GetBackgroundColor().r * 255.0 ),
                   KiROUND( aSheet->GetBackgroundColor().g * 255.0 ),
                   KiROUND( aSheet->GetBackgroundColor().b * 255.0 ),
@@ -1016,16 +1002,14 @@ void SCH_IO_KICAD_SEXPR::saveSheet( SCH_SHEET* aSheet, int aNestLevel )
 
     KICAD_FORMAT::FormatUuid( m_out, aSheet->m_Uuid );
 
-    m_nextFreeFieldId = SHEET_MANDATORY_FIELDS;
+    m_nextFreeFieldId = SHEET_MANDATORY_FIELD_COUNT;
 
     for( SCH_FIELD& field : aSheet->GetFields() )
-    {
-        saveField( &field, aNestLevel + 1 );
-    }
+        saveField( &field );
 
     for( const SCH_SHEET_PIN* pin : aSheet->GetPins() )
     {
-        m_out->Print( aNestLevel + 1, "(pin %s %s (at %s %s %s)\n",
+        m_out->Print( "(pin %s %s (at %s %s %s)",
                       EscapedUTF8( pin->GetText() ).c_str(),
                       getSheetPinShapeToken( pin->GetShape() ),
                       EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
@@ -1034,11 +1018,11 @@ void SCH_IO_KICAD_SEXPR::saveSheet( SCH_SHEET* aSheet, int aNestLevel )
                                                            pin->GetPosition().y ).c_str(),
                       EDA_UNIT_UTILS::FormatAngle( getSheetPinAngle( pin->GetSide() ) ).c_str() );
 
-        pin->Format( m_out, aNestLevel + 1, 0 );
-
         KICAD_FORMAT::FormatUuid( m_out, pin->m_Uuid );
 
-        m_out->Print( aNestLevel + 1, ")\n" );  // Closes pin token.
+        pin->Format( m_out, 0 );
+
+        m_out->Print( ")" );  // Closes pin token.
     }
 
     // Save all sheet instances here except the root sheet instance.
@@ -1056,12 +1040,11 @@ void SCH_IO_KICAD_SEXPR::saveSheet( SCH_SHEET* aSheet, int aNestLevel )
 
     if( !sheetInstances.empty() )
     {
-        m_out->Print( aNestLevel + 1, "(instances\n" );
+        m_out->Print( "(instances" );
 
         KIID lastProjectUuid;
         KIID rootSheetUuid = m_schematic->Root().m_Uuid;
-        SCH_SHEET_LIST fullHierarchy = m_schematic->GetSheets();
-        bool project_open = false;
+        bool inProjectClause = false;
 
         for( size_t i = 0; i < sheetInstances.size(); i++ )
         {
@@ -1071,13 +1054,13 @@ void SCH_IO_KICAD_SEXPR::saveSheet( SCH_SHEET* aSheet, int aNestLevel )
             //
             // Keep all instance data when copying to the clipboard.  It may be needed on paste.
             if( ( sheetInstances[i].m_Path[0] == rootSheetUuid )
-              && !fullHierarchy.GetSheetPathByKIIDPath( sheetInstances[i].m_Path, false ) )
+                    && !aSheetList.GetSheetPathByKIIDPath( sheetInstances[i].m_Path, false ) )
             {
-                if( project_open && ( ( i + 1 == sheetInstances.size() )
-                  || lastProjectUuid != sheetInstances[i+1].m_Path[0] ) )
+                if( inProjectClause && ( ( i + 1 == sheetInstances.size() )
+                        || lastProjectUuid != sheetInstances[i+1].m_Path[0] ) )
                 {
-                    m_out->Print( aNestLevel + 2, ")\n" );  // Closes `project` token.
-                    project_open = false;
+                    m_out->Print( ")" );  // Closes `project` token.
+                    inProjectClause = false;
                 }
 
                 continue;
@@ -1093,37 +1076,36 @@ void SCH_IO_KICAD_SEXPR::saveSheet( SCH_SHEET* aSheet, int aNestLevel )
                     projectName = sheetInstances[i].m_ProjectName;
 
                 lastProjectUuid = sheetInstances[i].m_Path[0];
-                m_out->Print( aNestLevel + 2, "(project %s\n",
-                              m_out->Quotew( projectName ).c_str() );
-                project_open = true;
+                m_out->Print( "(project %s", m_out->Quotew( projectName ).c_str() );
+                inProjectClause = true;
             }
 
             wxString path = sheetInstances[i].m_Path.AsString();
 
-            m_out->Print( aNestLevel + 3, "(path %s (page %s))\n",
+            m_out->Print( "(path %s (page %s))",
                           m_out->Quotew( path ).c_str(),
                           m_out->Quotew( sheetInstances[i].m_PageNumber ).c_str() );
 
-            if( project_open && ( ( i + 1 == sheetInstances.size() )
-              || lastProjectUuid != sheetInstances[i+1].m_Path[0] ) )
+            if( inProjectClause && ( ( i + 1 == sheetInstances.size() )
+                    || lastProjectUuid != sheetInstances[i+1].m_Path[0] ) )
             {
-                m_out->Print( aNestLevel + 2, ")\n" );  // Closes `project` token.
-                project_open = false;
+                m_out->Print( ")" );  // Closes `project` token.
+                inProjectClause = false;
             }
         }
 
-        m_out->Print( aNestLevel + 1, ")\n" );  // Closes `instances` token.
+        m_out->Print( ")" );        // Closes `instances` token.
     }
 
-    m_out->Print( aNestLevel, ")\n" );          // Closes sheet token.
+    m_out->Print( ")" );          // Closes sheet token.
 }
 
 
-void SCH_IO_KICAD_SEXPR::saveJunction( SCH_JUNCTION* aJunction, int aNestLevel )
+void SCH_IO_KICAD_SEXPR::saveJunction( SCH_JUNCTION* aJunction )
 {
     wxCHECK_RET( aJunction != nullptr && m_out != nullptr, "" );
 
-    m_out->Print( aNestLevel, "(junction (at %s %s) (diameter %s) (color %d %d %d %s)\n",
+    m_out->Print( "(junction (at %s %s) (diameter %s) (color %d %d %d %s)",
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
                                                        aJunction->GetPosition().x ).c_str(),
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
@@ -1136,26 +1118,26 @@ void SCH_IO_KICAD_SEXPR::saveJunction( SCH_JUNCTION* aJunction, int aNestLevel )
                   FormatDouble2Str( aJunction->GetColor().a ).c_str() );
 
     KICAD_FORMAT::FormatUuid( m_out, aJunction->m_Uuid );
-
-    m_out->Print( aNestLevel, ")\n" );
+    m_out->Print( ")" );
 }
 
 
-void SCH_IO_KICAD_SEXPR::saveNoConnect( SCH_NO_CONNECT* aNoConnect, int aNestLevel )
+void SCH_IO_KICAD_SEXPR::saveNoConnect( SCH_NO_CONNECT* aNoConnect )
 {
     wxCHECK_RET( aNoConnect != nullptr && m_out != nullptr, "" );
 
-    m_out->Print( aNestLevel, "(no_connect (at %s %s)",
+    m_out->Print( "(no_connect (at %s %s)",
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
                                                        aNoConnect->GetPosition().x ).c_str(),
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
                                                        aNoConnect->GetPosition().y ).c_str() );
+
     KICAD_FORMAT::FormatUuid( m_out, aNoConnect->m_Uuid );
-    m_out->Print( aNestLevel, ")\n" );
+    m_out->Print( ")" );
 }
 
 
-void SCH_IO_KICAD_SEXPR::saveBusEntry( SCH_BUS_ENTRY_BASE* aBusEntry, int aNestLevel )
+void SCH_IO_KICAD_SEXPR::saveBusEntry( SCH_BUS_ENTRY_BASE* aBusEntry )
 {
     wxCHECK_RET( aBusEntry != nullptr && m_out != nullptr, "" );
 
@@ -1165,60 +1147,55 @@ void SCH_IO_KICAD_SEXPR::saveBusEntry( SCH_BUS_ENTRY_BASE* aBusEntry, int aNestL
         SCH_LINE busEntryLine( aBusEntry->GetPosition(), LAYER_BUS );
 
         busEntryLine.SetEndPoint( aBusEntry->GetEnd() );
-        saveLine( &busEntryLine, aNestLevel );
+        saveLine( &busEntryLine );
+        return;
     }
-    else
-    {
-        m_out->Print( aNestLevel, "(bus_entry (at %s %s) (size %s %s)\n",
-                      EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
-                                                           aBusEntry->GetPosition().x ).c_str(),
-                      EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
-                                                           aBusEntry->GetPosition().y ).c_str(),
-                      EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
-                                                           aBusEntry->GetSize().x ).c_str(),
-                      EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
-                                                           aBusEntry->GetSize().y ).c_str() );
 
-        aBusEntry->GetStroke().Format( m_out, schIUScale, aNestLevel + 1 );
+    m_out->Print( "(bus_entry (at %s %s) (size %s %s)",
+                  EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
+                                                       aBusEntry->GetPosition().x ).c_str(),
+                  EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
+                                                       aBusEntry->GetPosition().y ).c_str(),
+                  EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
+                                                       aBusEntry->GetSize().x ).c_str(),
+                  EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
+                                                       aBusEntry->GetSize().y ).c_str() );
 
-        m_out->Print( 0, "\n" );
-
-        KICAD_FORMAT::FormatUuid( m_out, aBusEntry->m_Uuid );
-
-        m_out->Print( aNestLevel, ")\n" );
-    }
+    aBusEntry->GetStroke().Format( m_out, schIUScale );
+    KICAD_FORMAT::FormatUuid( m_out, aBusEntry->m_Uuid );
+    m_out->Print( ")" );
 }
 
 
-void SCH_IO_KICAD_SEXPR::saveShape( SCH_SHAPE* aShape, int aNestLevel )
+void SCH_IO_KICAD_SEXPR::saveShape( SCH_SHAPE* aShape )
 {
     wxCHECK_RET( aShape != nullptr && m_out != nullptr, "" );
 
     switch( aShape->GetShape() )
     {
     case SHAPE_T::ARC:
-        formatArc( m_out, aNestLevel, aShape, false, aShape->GetStroke(), aShape->GetFillMode(),
-                   aShape->GetFillColor(), aShape->m_Uuid );
+        formatArc( m_out, aShape, false, aShape->GetStroke(), aShape->GetFillMode(),
+                   aShape->GetFillColor(), false, aShape->m_Uuid );
         break;
 
     case SHAPE_T::CIRCLE:
-        formatCircle( m_out, aNestLevel, aShape, false, aShape->GetStroke(), aShape->GetFillMode(),
-                      aShape->GetFillColor(), aShape->m_Uuid );
+        formatCircle( m_out, aShape, false, aShape->GetStroke(), aShape->GetFillMode(),
+                      aShape->GetFillColor(), false, aShape->m_Uuid );
         break;
 
     case SHAPE_T::RECTANGLE:
-        formatRect( m_out, aNestLevel, aShape, false, aShape->GetStroke(), aShape->GetFillMode(),
-                    aShape->GetFillColor(), aShape->m_Uuid );
+        formatRect( m_out, aShape, false, aShape->GetStroke(), aShape->GetFillMode(),
+                    aShape->GetFillColor(), false, aShape->m_Uuid );
         break;
 
     case SHAPE_T::BEZIER:
-        formatBezier( m_out, aNestLevel, aShape, false, aShape->GetStroke(), aShape->GetFillMode(),
-                      aShape->GetFillColor(), aShape->m_Uuid );
+        formatBezier( m_out, aShape, false, aShape->GetStroke(), aShape->GetFillMode(),
+                      aShape->GetFillColor(), false, aShape->m_Uuid );
         break;
 
     case SHAPE_T::POLY:
-        formatPoly( m_out, aNestLevel, aShape, false, aShape->GetStroke(), aShape->GetFillMode(),
-                    aShape->GetFillColor(), aShape->m_Uuid );
+        formatPoly( m_out, aShape, false, aShape->GetStroke(), aShape->GetFillMode(),
+                    aShape->GetFillColor(), false, aShape->m_Uuid );
         break;
 
     default:
@@ -1227,7 +1204,17 @@ void SCH_IO_KICAD_SEXPR::saveShape( SCH_SHAPE* aShape, int aNestLevel )
 }
 
 
-void SCH_IO_KICAD_SEXPR::saveLine( SCH_LINE* aLine, int aNestLevel )
+void SCH_IO_KICAD_SEXPR::saveRuleArea( SCH_RULE_AREA* aRuleArea )
+{
+    wxCHECK_RET( aRuleArea != nullptr && m_out != nullptr, "" );
+
+    m_out->Print( "(rule_area " );
+    saveShape( aRuleArea );
+    m_out->Print( ")" );
+}
+
+
+void SCH_IO_KICAD_SEXPR::saveLine( SCH_LINE* aLine )
 {
     wxCHECK_RET( aLine != nullptr && m_out != nullptr, "" );
 
@@ -1244,7 +1231,7 @@ void SCH_IO_KICAD_SEXPR::saveLine( SCH_LINE* aLine, int aNestLevel )
         UNIMPLEMENTED_FOR( LayerName( aLine->GetLayer() ) );
     }
 
-    m_out->Print( aNestLevel, "(%s (pts (xy %s %s) (xy %s %s))\n",
+    m_out->Print( "(%s (pts (xy %s %s) (xy %s %s))",
                   TO_UTF8( lineType ),
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
                                                        aLine->GetStartPoint().x ).c_str(),
@@ -1255,35 +1242,31 @@ void SCH_IO_KICAD_SEXPR::saveLine( SCH_LINE* aLine, int aNestLevel )
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
                                                        aLine->GetEndPoint().y ).c_str() );
 
-    line_stroke.Format( m_out, schIUScale, aNestLevel + 1 );
-    m_out->Print( 0, "\n" );
-
+    line_stroke.Format( m_out, schIUScale );
     KICAD_FORMAT::FormatUuid( m_out, aLine->m_Uuid );
-
-    m_out->Print( aNestLevel, ")\n" );
+    m_out->Print( ")" );
 }
 
 
-void SCH_IO_KICAD_SEXPR::saveText( SCH_TEXT* aText, int aNestLevel )
+void SCH_IO_KICAD_SEXPR::saveText( SCH_TEXT* aText )
 {
     wxCHECK_RET( aText != nullptr && m_out != nullptr, "" );
 
     // Note: label is nullptr SCH_TEXT, but not for SCH_LABEL_XXX,
     SCH_LABEL_BASE* label = dynamic_cast<SCH_LABEL_BASE*>( aText );
 
-    m_out->Print( aNestLevel, "(%s %s",
+    m_out->Print( "(%s %s",
                   getTextTypeToken( aText->Type() ),
                   m_out->Quotew( aText->GetText() ).c_str() );
 
     if( aText->Type() == SCH_TEXT_T )
-    {
-        m_out->Print( 0, " (exclude_from_sim %s)\n", aText->GetExcludedFromSim() ? "yes" : "no" );
-    }
-    else if( aText->Type() == SCH_DIRECTIVE_LABEL_T )
+        KICAD_FORMAT::FormatBool( m_out, "exclude_from_sim", aText->GetExcludedFromSim() );
+
+    if( aText->Type() == SCH_DIRECTIVE_LABEL_T )
     {
         SCH_DIRECTIVE_LABEL* flag = static_cast<SCH_DIRECTIVE_LABEL*>( aText );
 
-        m_out->Print( 0, " (length %s)",
+        m_out->Print( "(length %s)",
                       EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
                                                            flag->GetPinLength() ).c_str() );
     }
@@ -1296,7 +1279,7 @@ void SCH_IO_KICAD_SEXPR::saveText( SCH_TEXT* aText, int aNestLevel )
                 || label->Type() == SCH_HIER_LABEL_T
                 || label->Type() == SCH_DIRECTIVE_LABEL_T )
         {
-            m_out->Print( 0, " (shape %s)", getSheetPinShapeToken( label->GetShape() ) );
+            m_out->Print( "(shape %s)", getSheetPinShapeToken( label->GetShape() ) );
         }
 
         // The angle of the text is always 0 or 90 degrees for readibility reasons,
@@ -1311,77 +1294,181 @@ void SCH_IO_KICAD_SEXPR::saveText( SCH_TEXT* aText, int aNestLevel )
         }
     }
 
-    if( aText->GetText().Length() < 50 )
+    m_out->Print( "(at %s %s %s)",
+                    EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
+                                                        aText->GetPosition().x ).c_str(),
+                    EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
+                                                        aText->GetPosition().y ).c_str(),
+                    EDA_UNIT_UTILS::FormatAngle( angle ).c_str() );
+
+    if( label && !label->GetFields().empty() )
     {
-        m_out->Print( 0, " (at %s %s %s)",
-                      EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
-                                                           aText->GetPosition().x ).c_str(),
-                      EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
-                                                           aText->GetPosition().y ).c_str(),
-                      EDA_UNIT_UTILS::FormatAngle( angle ).c_str() );
-    }
-    else
-    {
-        m_out->Print( 0, "\n" );
-        m_out->Print( aNestLevel + 1, "(at %s %s %s)",
-                      EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
-                                                           aText->GetPosition().x ).c_str(),
-                      EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
-                                                           aText->GetPosition().y ).c_str(),
-                      EDA_UNIT_UTILS::FormatAngle( angle ).c_str() );
+        AUTOPLACE_ALGO fieldsAutoplaced = label->GetFieldsAutoplaced();
+
+        if( fieldsAutoplaced == AUTOPLACE_AUTO || fieldsAutoplaced == AUTOPLACE_MANUAL )
+            KICAD_FORMAT::FormatBool( m_out, "fields_autoplaced", true );
     }
 
-    if( label && !label->GetFields().empty() && label->GetFieldsAutoplaced() != FIELDS_AUTOPLACED_NO )
-        m_out->Print( 0, " (fields_autoplaced yes)" );
-
-    m_out->Print( 0, "\n" );
-    aText->EDA_TEXT::Format( m_out, aNestLevel, 0 );
-
+    aText->EDA_TEXT::Format( m_out, 0 );
     KICAD_FORMAT::FormatUuid( m_out, aText->m_Uuid );
+
+    if( label && label->Type() == SCH_GLOBAL_LABEL_T )
+        m_nextFreeFieldId = GLOBALLABEL_MANDATORY_FIELD_COUNT;
+    else
+        m_nextFreeFieldId = 0;
 
     if( label )
     {
         for( SCH_FIELD& field : label->GetFields() )
-            saveField( &field, aNestLevel + 1 );
+            saveField( &field );
     }
 
-    m_out->Print( aNestLevel, ")\n" );   // Closes text token.
+    m_out->Print( ")" );   // Closes text token.
 }
 
 
-void SCH_IO_KICAD_SEXPR::saveTextBox( SCH_TEXTBOX* aTextBox, int aNestLevel )
+void SCH_IO_KICAD_SEXPR::saveTextBox( SCH_TEXTBOX* aTextBox )
 {
     wxCHECK_RET( aTextBox != nullptr && m_out != nullptr, "" );
 
-    m_out->Print( aNestLevel, "(text_box %s\n",
+    m_out->Print( "(%s %s",
+                  aTextBox->Type() == SCH_TABLECELL_T ? "table_cell" : "text_box",
                   m_out->Quotew( aTextBox->GetText() ).c_str() );
+
+    KICAD_FORMAT::FormatBool( m_out, "exclude_from_sim", aTextBox->GetExcludedFromSim() );
 
     VECTOR2I pos = aTextBox->GetStart();
     VECTOR2I size = aTextBox->GetEnd() - pos;
 
-    m_out->Print( aNestLevel + 1, "(exclude_from_sim %s) (at %s %s %s) (size %s %s)\n",
-                  aTextBox->GetExcludedFromSim() ? "yes" : "no",
+    m_out->Print( "(at %s %s %s) (size %s %s) (margins %s %s %s %s)",
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale, pos.x ).c_str(),
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale, pos.y ).c_str(),
                   EDA_UNIT_UTILS::FormatAngle( aTextBox->GetTextAngle() ).c_str(),
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale, size.x ).c_str(),
-                  EDA_UNIT_UTILS::FormatInternalUnits( schIUScale, size.y ).c_str() );
+                  EDA_UNIT_UTILS::FormatInternalUnits( schIUScale, size.y ).c_str(),
+                  EDA_UNIT_UTILS::FormatInternalUnits( schIUScale, aTextBox->GetMarginLeft() ).c_str(),
+                  EDA_UNIT_UTILS::FormatInternalUnits( schIUScale, aTextBox->GetMarginTop() ).c_str(),
+                  EDA_UNIT_UTILS::FormatInternalUnits( schIUScale, aTextBox->GetMarginRight() ).c_str(),
+                  EDA_UNIT_UTILS::FormatInternalUnits( schIUScale, aTextBox->GetMarginBottom() ).c_str() );
 
-    aTextBox->GetStroke().Format( m_out, schIUScale, aNestLevel + 1 );
-    m_out->Print( 0, "\n" );
-    formatFill( m_out, aNestLevel + 1, aTextBox->GetFillMode(), aTextBox->GetFillColor() );
-    m_out->Print( 0, "\n" );
+    if( SCH_TABLECELL* cell = dynamic_cast<SCH_TABLECELL*>( aTextBox ) )
+        m_out->Print( "(span %d %d)", cell->GetColSpan(), cell->GetRowSpan() );
 
-    aTextBox->EDA_TEXT::Format( m_out, aNestLevel, 0 );
+    if( aTextBox->Type() != SCH_TABLECELL_T )
+        aTextBox->GetStroke().Format( m_out, schIUScale );
 
-    if( aTextBox->m_Uuid != niluuid )
-        KICAD_FORMAT::FormatUuid( m_out, aTextBox->m_Uuid );
-
-    m_out->Print( aNestLevel, ")\n" );
+    formatFill( m_out, aTextBox->GetFillMode(), aTextBox->GetFillColor() );
+    aTextBox->EDA_TEXT::Format( m_out, 0 );
+    KICAD_FORMAT::FormatUuid( m_out, aTextBox->m_Uuid );
+    m_out->Print( ")" );
 }
 
 
-void SCH_IO_KICAD_SEXPR::saveBusAlias( std::shared_ptr<BUS_ALIAS> aAlias, int aNestLevel )
+void SCH_IO_KICAD_SEXPR::saveTable( SCH_TABLE* aTable )
+{
+    if( aTable->GetFlags() & SKIP_STRUCT )
+    {
+        aTable = static_cast<SCH_TABLE*>( aTable->Clone() );
+
+        int minCol = aTable->GetColCount();
+        int maxCol = -1;
+        int minRow = aTable->GetRowCount();
+        int maxRow = -1;
+
+        for( int row = 0; row < aTable->GetRowCount(); ++row )
+        {
+            for( int col = 0; col < aTable->GetColCount(); ++col )
+            {
+                SCH_TABLECELL* cell = aTable->GetCell( row, col );
+
+                if( cell->IsSelected() )
+                {
+                    minRow = std::min( minRow, row );
+                    maxRow = std::max( maxRow, row );
+                    minCol = std::min( minCol, col );
+                    maxCol = std::max( maxCol, col );
+                }
+                else
+                {
+                    cell->SetFlags( STRUCT_DELETED );
+                }
+            }
+        }
+
+        wxCHECK_MSG( maxCol >= minCol && maxRow >= minRow, /*void*/, wxT( "No selected cells!" ) );
+
+        int destRow = 0;
+
+        for( int row = minRow; row <= maxRow; row++ )
+            aTable->SetRowHeight( destRow++, aTable->GetRowHeight( row ) );
+
+        int destCol = 0;
+
+        for( int col = minCol; col <= maxCol; col++ )
+            aTable->SetColWidth( destCol++, aTable->GetColWidth( col ) );
+
+        aTable->DeleteMarkedCells();
+        aTable->SetColCount( ( maxCol - minCol ) + 1 );
+    }
+
+    wxCHECK_RET( aTable != nullptr && m_out != nullptr, "" );
+
+    m_out->Print( "(table (column_count %d)", aTable->GetColCount() );
+
+    m_out->Print( "(border" );
+    KICAD_FORMAT::FormatBool( m_out, "external", aTable->StrokeExternal() );
+    KICAD_FORMAT::FormatBool( m_out, "header", aTable->StrokeHeader() );
+
+    if( aTable->StrokeExternal() || aTable->StrokeHeader() )
+        aTable->GetBorderStroke().Format( m_out, schIUScale );
+
+    m_out->Print( ")" );               // Close `border` token.
+
+    m_out->Print( "(separators" );
+    KICAD_FORMAT::FormatBool( m_out, "rows", aTable->StrokeRows() );
+    KICAD_FORMAT::FormatBool( m_out, "cols", aTable->StrokeColumns() );
+
+    if( aTable->StrokeRows() || aTable->StrokeColumns() )
+        aTable->GetSeparatorsStroke().Format( m_out, schIUScale );
+
+    m_out->Print( ")" );               // Close `separators` token.
+
+    m_out->Print( "(column_widths" );
+
+    for( int col = 0; col < aTable->GetColCount(); ++col )
+    {
+        m_out->Print( " %s",
+                      EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
+                                                           aTable->GetColWidth( col ) ).c_str() );
+    }
+
+    m_out->Print( ")" );
+
+    m_out->Print( "(row_heights" );
+
+    for( int row = 0; row < aTable->GetRowCount(); ++row )
+    {
+        m_out->Print( " %s",
+                      EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
+                                                           aTable->GetRowHeight( row ) ).c_str() );
+    }
+
+    m_out->Print( ")" );
+
+    m_out->Print( "(cells" );
+
+    for( SCH_TABLECELL* cell : aTable->GetCells() )
+        saveTextBox( cell );
+
+    m_out->Print( ")" );        // Close `cells` token.
+    m_out->Print( ")" );        // Close `table` token.
+
+    if( aTable->GetFlags() & SKIP_STRUCT )
+        delete aTable;
+}
+
+
+void SCH_IO_KICAD_SEXPR::saveBusAlias( std::shared_ptr<BUS_ALIAS> aAlias )
 {
     wxCHECK_RET( aAlias != nullptr, "BUS_ALIAS* is NULL" );
 
@@ -1395,19 +1482,17 @@ void SCH_IO_KICAD_SEXPR::saveBusAlias( std::shared_ptr<BUS_ALIAS> aAlias, int aN
         members += m_out->Quotew( member );
     }
 
-    m_out->Print( aNestLevel, "(bus_alias %s (members %s))\n",
+    m_out->Print( "(bus_alias %s (members %s))",
                   m_out->Quotew( aAlias->GetName() ).c_str(),
                   TO_UTF8( members ) );
 }
 
 
-void SCH_IO_KICAD_SEXPR::saveInstances( const std::vector<SCH_SHEET_INSTANCE>& aInstances,
-                                        int aNestLevel )
+void SCH_IO_KICAD_SEXPR::saveInstances( const std::vector<SCH_SHEET_INSTANCE>& aInstances )
 {
     if( aInstances.size() )
     {
-        m_out->Print( 0, "\n" );
-        m_out->Print( aNestLevel, "(sheet_instances\n" );
+        m_out->Print( "(sheet_instances" );
 
         for( const SCH_SHEET_INSTANCE& instance : aInstances )
         {
@@ -1416,18 +1501,18 @@ void SCH_IO_KICAD_SEXPR::saveInstances( const std::vector<SCH_SHEET_INSTANCE>& a
             if( path.IsEmpty() )
                 path = wxT( "/" ); // Root path
 
-            m_out->Print( aNestLevel + 1, "(path %s (page %s))\n",
+            m_out->Print( "(path %s (page %s))",
                           m_out->Quotew( path ).c_str(),
                           m_out->Quotew( instance.m_PageNumber ).c_str() );
         }
 
-        m_out->Print( aNestLevel, ")\n" ); // Close sheet instances token.
+        m_out->Print( ")" );    // Close sheet instances token.
     }
 }
 
 
 void SCH_IO_KICAD_SEXPR::cacheLib( const wxString& aLibraryFileName,
-                                   const STRING_UTF8_MAP* aProperties )
+                                   const std::map<std::string, UTF8>* aProperties )
 {
     // Suppress font substitution warnings
     fontconfig::FONTCONFIG::SetReporter( nullptr );
@@ -1444,9 +1529,9 @@ void SCH_IO_KICAD_SEXPR::cacheLib( const wxString& aLibraryFileName,
 }
 
 
-bool SCH_IO_KICAD_SEXPR::isBuffering( const STRING_UTF8_MAP* aProperties )
+bool SCH_IO_KICAD_SEXPR::isBuffering( const std::map<std::string, UTF8>* aProperties )
 {
-    return ( aProperties && aProperties->Exists( SCH_IO_KICAD_SEXPR::PropBuffering ) );
+    return ( aProperties && aProperties->contains( SCH_IO_KICAD_SEXPR::PropBuffering ) );
 }
 
 
@@ -1462,7 +1547,7 @@ int SCH_IO_KICAD_SEXPR::GetModifyHash() const
 
 void SCH_IO_KICAD_SEXPR::EnumerateSymbolLib( wxArrayString&    aSymbolNameList,
                                              const wxString&   aLibraryPath,
-                                             const STRING_UTF8_MAP* aProperties )
+                                             const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO   toggle;     // toggles on, then off, the C locale.
 
@@ -1483,7 +1568,7 @@ void SCH_IO_KICAD_SEXPR::EnumerateSymbolLib( wxArrayString&    aSymbolNameList,
 
 void SCH_IO_KICAD_SEXPR::EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList,
                                              const wxString&   aLibraryPath,
-                                             const STRING_UTF8_MAP* aProperties )
+                                             const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO   toggle;     // toggles on, then off, the C locale.
 
@@ -1504,7 +1589,7 @@ void SCH_IO_KICAD_SEXPR::EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolLi
 
 LIB_SYMBOL* SCH_IO_KICAD_SEXPR::LoadSymbol( const wxString& aLibraryPath,
                                             const wxString& aSymbolName,
-                                            const STRING_UTF8_MAP* aProperties )
+                                            const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO toggle;     // toggles on, then off, the C locale.
 
@@ -1531,7 +1616,7 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR::LoadSymbol( const wxString& aLibraryPath,
 
 
 void SCH_IO_KICAD_SEXPR::SaveSymbol( const wxString& aLibraryPath, const LIB_SYMBOL* aSymbol,
-                                     const STRING_UTF8_MAP* aProperties )
+                                     const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO toggle;     // toggles on, then off, the C locale.
 
@@ -1545,7 +1630,7 @@ void SCH_IO_KICAD_SEXPR::SaveSymbol( const wxString& aLibraryPath, const LIB_SYM
 
 
 void SCH_IO_KICAD_SEXPR::DeleteSymbol( const wxString& aLibraryPath, const wxString& aSymbolName,
-                                       const STRING_UTF8_MAP* aProperties )
+                                       const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO toggle;     // toggles on, then off, the C locale.
 
@@ -1559,7 +1644,7 @@ void SCH_IO_KICAD_SEXPR::DeleteSymbol( const wxString& aLibraryPath, const wxStr
 
 
 void SCH_IO_KICAD_SEXPR::CreateLibrary( const wxString& aLibraryPath,
-                                        const STRING_UTF8_MAP* aProperties )
+                                        const std::map<std::string, UTF8>* aProperties )
 {
     if( wxFileExists( aLibraryPath ) )
     {
@@ -1578,7 +1663,7 @@ void SCH_IO_KICAD_SEXPR::CreateLibrary( const wxString& aLibraryPath,
 
 
 bool SCH_IO_KICAD_SEXPR::DeleteLibrary( const wxString& aLibraryPath,
-                                        const STRING_UTF8_MAP* aProperties )
+                                        const std::map<std::string, UTF8>* aProperties )
 {
     wxFileName fn = aLibraryPath;
 
@@ -1604,7 +1689,7 @@ bool SCH_IO_KICAD_SEXPR::DeleteLibrary( const wxString& aLibraryPath,
 
 
 void SCH_IO_KICAD_SEXPR::SaveLibrary( const wxString& aLibraryPath,
-                                      const STRING_UTF8_MAP* aProperties )
+                                      const std::map<std::string, UTF8>* aProperties )
 {
     if( !m_cache )
         m_cache = new SCH_IO_KICAD_SEXPR_LIB_CACHE( aLibraryPath );
@@ -1627,7 +1712,10 @@ bool SCH_IO_KICAD_SEXPR::IsLibraryWritable( const wxString& aLibraryPath )
 {
     wxFileName fn( aLibraryPath );
 
-    return ( fn.FileExists() && fn.IsFileWritable() ) || fn.IsDirWritable();
+    if( fn.FileExists() )
+        return fn.IsFileWritable();
+
+    return fn.IsDirWritable();
 }
 
 
@@ -1642,10 +1730,10 @@ void SCH_IO_KICAD_SEXPR::GetAvailableSymbolFields( std::vector<wxString>& aNames
 
     for( LIB_SYMBOL_MAP::const_iterator it = symbols.begin();  it != symbols.end();  ++it )
     {
-        std::vector<LIB_FIELD*> fields;
+        std::vector<SCH_FIELD*> fields;
         it->second->GetFields( fields );
 
-        for( LIB_FIELD* field : fields )
+        for( SCH_FIELD* field : fields )
         {
             if( field->IsMandatory() )
                 continue;

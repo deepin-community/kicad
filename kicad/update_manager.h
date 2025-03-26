@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,6 +25,7 @@
 #include <wx/string.h>
 #include <atomic>
 #include <memory>
+#include <future>
 
 class PROGRESS_REPORTER;
 struct BACKGROUND_JOB;
@@ -35,6 +36,7 @@ class UPDATE_MANAGER
 {
 public:
     UPDATE_MANAGER();
+    ~UPDATE_MANAGER();
 
     void CheckForUpdate( wxWindow* aNoticeParent );
     int PostRequest( const wxString& aUrl, std::string aRequestBody, std::ostream* aOutput,
@@ -43,4 +45,5 @@ public:
 private:
     std::atomic<bool>               m_working;
     std::shared_ptr<BACKGROUND_JOB> m_updateBackgroundJob;
+    std::future<void>               m_updateTask;
 };

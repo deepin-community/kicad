@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Roberto Fernandez Bautista <roberto.fer.bau@gmail.com>
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -28,7 +28,6 @@
 #include <pcb_io_cadstar_archive.h>
 #include <board.h>
 #include <footprint.h>
-#include <string_utf8_map.h>
 #include <io/io_utils.h>
 #include <pcb_io/pcb_io.h>
 #include <reporter.h>
@@ -49,10 +48,9 @@ std::map<wxString, PCB_LAYER_ID> PCB_IO_CADSTAR_ARCHIVE::DefaultLayerMappingCall
 }
 
 
-void PCB_IO_CADSTAR_ARCHIVE::RegisterLayerMappingCallback(
-        LAYER_MAPPING_HANDLER aLayerMappingHandler )
+void PCB_IO_CADSTAR_ARCHIVE::RegisterCallback( LAYER_MAPPING_HANDLER aLayerMappingHandler )
 {
-    LAYER_REMAPPABLE_PLUGIN::RegisterLayerMappingCallback( aLayerMappingHandler );
+    LAYER_MAPPABLE_PLUGIN::RegisterCallback( aLayerMappingHandler );
     m_show_layer_mapping_warnings = false; // only show warnings with default callback
 }
 
@@ -60,8 +58,7 @@ void PCB_IO_CADSTAR_ARCHIVE::RegisterLayerMappingCallback(
 PCB_IO_CADSTAR_ARCHIVE::PCB_IO_CADSTAR_ARCHIVE() : PCB_IO( wxS( "CADSTAR PCB Archive" ) )
 {
     m_show_layer_mapping_warnings = true;
-    LAYER_REMAPPABLE_PLUGIN::RegisterLayerMappingCallback(
-        PCB_IO_CADSTAR_ARCHIVE::DefaultLayerMappingCallback );
+    LAYER_MAPPABLE_PLUGIN::RegisterCallback( PCB_IO_CADSTAR_ARCHIVE::DefaultLayerMappingCallback );
 }
 
 
@@ -96,7 +93,7 @@ std::vector<FOOTPRINT*> PCB_IO_CADSTAR_ARCHIVE::GetImportedCachedLibraryFootprin
 
 
 BOARD* PCB_IO_CADSTAR_ARCHIVE::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
-                                              const STRING_UTF8_MAP* aProperties, PROJECT* aProject )
+                                              const std::map<std::string, UTF8>* aProperties, PROJECT* aProject )
 {
     m_props = aProperties;
     m_board = aAppendToMe ? aAppendToMe : new BOARD();
@@ -114,8 +111,13 @@ BOARD* PCB_IO_CADSTAR_ARCHIVE::LoadBoard( const wxString& aFileName, BOARD* aApp
         UTF8 page_width;
         UTF8 page_height;
 
-        if( aProperties->Value( "page_width", &page_width )
-                && aProperties->Value( "page_height", &page_height ) )
+        if( auto it = aProperties->find( "page_width" ); it != aProperties->end() )
+            page_width = it->second;
+
+        if( auto it = aProperties->find( "page_height" ); it != aProperties->end() )
+            page_height = it->second;
+
+        if( !page_width.empty() && !page_height.empty() )
         {
             BOX2I bbbox = m_board->GetBoardEdgesBoundingBox();
 
@@ -175,7 +177,7 @@ bool PCB_IO_CADSTAR_ARCHIVE::CanReadFootprint( const wxString& aFileName ) const
 void PCB_IO_CADSTAR_ARCHIVE::FootprintEnumerate( wxArrayString&         aFootprintNames,
                                                      const wxString&        aLibraryPath,
                                                      bool                   aBestEfforts,
-                                                     const STRING_UTF8_MAP* aProperties )
+                                                     const std::map<std::string, UTF8>* aProperties )
 {
     ensureLoadedLibrary( aLibraryPath );
 
@@ -189,7 +191,7 @@ void PCB_IO_CADSTAR_ARCHIVE::FootprintEnumerate( wxArrayString&         aFootpri
 
 bool PCB_IO_CADSTAR_ARCHIVE::FootprintExists( const wxString&        aLibraryPath,
                                                   const wxString&        aFootprintName,
-                                                  const STRING_UTF8_MAP* aProperties )
+                                                  const std::map<std::string, UTF8>* aProperties )
 {
     ensureLoadedLibrary( aLibraryPath );
 
@@ -206,7 +208,7 @@ bool PCB_IO_CADSTAR_ARCHIVE::FootprintExists( const wxString&        aLibraryPat
 FOOTPRINT* PCB_IO_CADSTAR_ARCHIVE::FootprintLoad( const wxString&        aLibraryPath,
                                                       const wxString&        aFootprintName,
                                                       bool                   aKeepUUID,
-                                                      const STRING_UTF8_MAP* aProperties )
+                                                      const std::map<std::string, UTF8>* aProperties )
 {
     ensureLoadedLibrary( aLibraryPath );
 

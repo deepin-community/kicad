@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009 Jean-Pierre Charras, jean-pierre.charras at wanadoo.fr
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2018 CERN
  * Author: Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -26,6 +26,7 @@
 
 #include <board_printout.h>
 
+#include <lset.h>
 #include <view/view.h>
 #include <gal/gal_print.h>
 #include <gal/graphics_abstraction_layer.h>
@@ -174,7 +175,14 @@ void BOARD_PRINTOUT::DrawPage( const wxString& aLayerName, int aPageNum, int aPa
     gal->SetLookAtPoint( drawingAreaBBox.Centre() );
     gal->SetZoomFactor( m_settings.m_scale );
     gal->SetClearColor( dstSettings->GetBackgroundColor() );
+
+    // Clearing the screen for the background color needs the screen set to the page size
+    // in pixels.  This can ?somehow? prevent some but not all foreground elements from being printed
+    // TODO: figure out what's going on here and fix printing.  See also sch_printout
+    VECTOR2I size = gal->GetScreenPixelSize();
+    gal->ResizeScreen( pageSizePx.GetWidth(),pageSizePx.GetHeight() );
     gal->ClearScreen();
+    gal->ResizeScreen( size.x, size.y );
 
     if( m_gerbviewPrint )
         // Mandatory in Gerbview to use the same order for printing as for screen redraw

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2017 CERN
  * @author Alejandro García Montoro <alejandro.garciamontoro@gmail.com>
- * Copyright (C) 2019-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,8 +24,12 @@
  */
 
 #include <qa_utils/wx_utils/unit_test_utils.h>
+#include <boost/test/data/test_case.hpp>
 
 #include <geometry/seg.h>
+
+namespace
+{
 
 /**
  * Predicate to check expected collision between two segments
@@ -103,6 +107,9 @@ bool SegDistanceCorrect( const SEG& aSegA, const SEG& aSegB, int aExp )
  */
 bool SegVecDistanceCorrect( const SEG& aSeg, const VECTOR2I& aVec, int aExp )
 {
+    const SEG::ecoord squaredDistance = aSeg.SquaredDistance( aVec );
+    BOOST_REQUIRE( squaredDistance >= 0 );
+
     const int dist = aSeg.Distance( aVec );
 
     bool ok = ( dist == aExp );
@@ -212,6 +219,8 @@ bool SegPerpendicularCorrect( const SEG& aSegA, const SEG& aSegB, bool aExp )
     return ok;
 }
 
+} // namespace
+
 BOOST_AUTO_TEST_SUITE( Segment )
 
 /**
@@ -238,9 +247,8 @@ BOOST_AUTO_TEST_CASE( EndpointCtorMod )
     BOOST_CHECK_EQUAL( segment.B, VECTOR2I( 200, 300 ) );
 }
 
-struct SEG_SEG_DISTANCE_CASE
+struct SEG_SEG_DISTANCE_CASE : public KI_TEST::NAMED_CASE
 {
-    std::string m_case_name;
     SEG         m_seg_a;
     SEG         m_seg_b;
     int         m_exp_dist;
@@ -289,21 +297,14 @@ static const std::vector<SEG_SEG_DISTANCE_CASE> seg_seg_dist_cases = {
 // clang-format on
 
 
-BOOST_AUTO_TEST_CASE( SegSegDistance )
+BOOST_DATA_TEST_CASE( SegSegDistance, boost::unit_test::data::make( seg_seg_dist_cases ), c )
 {
-    for( const auto& c : seg_seg_dist_cases )
-    {
-        BOOST_TEST_CONTEXT( c.m_case_name )
-        {
-            BOOST_CHECK_PREDICATE( SegDistanceCorrect, ( c.m_seg_a )( c.m_seg_b )( c.m_exp_dist ) );
-        }
-    }
+    BOOST_CHECK_PREDICATE( SegDistanceCorrect, ( c.m_seg_a )( c.m_seg_b )( c.m_exp_dist ) );
 }
 
 
-struct SEG_VECTOR_DISTANCE_CASE
+struct SEG_VECTOR_DISTANCE_CASE : public KI_TEST::NAMED_CASE
 {
-    std::string m_case_name;
     SEG         m_seg;
     VECTOR2I    m_vec;
     int         m_exp_dist;
@@ -342,19 +343,31 @@ static const std::vector<SEG_VECTOR_DISTANCE_CASE> seg_vec_dist_cases = {
         { 1000 + 200, 200 },
         282, // sqrt(200^2 + 200^2) = 282.8, rounded to nearest
     },
+    {
+        "Issue 18473 (inside hit with rounding error)",
+        { { 187360000, 42510000 }, { 105796472, 42510000 } },
+        { 106645000, 42510000 },
+          0,
+    },
+    {
+        "Straight line x distance",
+        { { 187360000, 42510000 }, { 105796472, 42510000 } },
+          { 197360000, 42510000 },
+             10000000,
+    },
+    {
+        "Straight line -x distance",
+        { { 187360000, 42510000 }, { 105796472, 42510000 } },
+          { 104796472, 42510000 },
+              1000000,
+    },
 };
 // clang-format on
 
 
-BOOST_AUTO_TEST_CASE( SegVecDistance )
+BOOST_DATA_TEST_CASE( SegVecDistance, boost::unit_test::data::make( seg_vec_dist_cases ), c )
 {
-    for( const auto& c : seg_vec_dist_cases )
-    {
-        BOOST_TEST_CONTEXT( c.m_case_name )
-        {
-            BOOST_CHECK_PREDICATE( SegVecDistanceCorrect, ( c.m_seg )( c.m_vec )( c.m_exp_dist ) );
-        }
-    }
+    BOOST_CHECK_PREDICATE( SegVecDistanceCorrect, ( c.m_seg )( c.m_vec )( c.m_exp_dist ) );
 }
 
 
@@ -362,9 +375,8 @@ BOOST_AUTO_TEST_CASE( SegVecDistance )
  * Test cases for collisions (with clearance, for no clearance,
  * it's just a SEG_SEG_DISTANCE_CASE of 0)
  */
-struct SEG_SEG_COLLIDE_CASE
+struct SEG_SEG_COLLIDE_CASE : public KI_TEST::NAMED_CASE
 {
-    std::string m_case_name;
     SEG         m_seg_a;
     SEG         m_seg_b;
     int         m_clearance;
@@ -413,25 +425,18 @@ static const std::vector<SEG_SEG_COLLIDE_CASE> seg_seg_coll_cases = {
 // clang-format on
 
 
-BOOST_AUTO_TEST_CASE( SegSegCollision )
+BOOST_DATA_TEST_CASE( SegSegCollision, boost::unit_test::data::make( seg_seg_coll_cases ), c )
 {
-    for( const auto& c : seg_seg_coll_cases )
-    {
-        BOOST_TEST_CONTEXT( c.m_case_name )
-        {
-            BOOST_CHECK_PREDICATE( SegCollideCorrect,
-                    ( c.m_seg_a )( c.m_seg_b )( c.m_clearance )( c.m_exp_coll ) );
-        }
-    }
+    BOOST_CHECK_PREDICATE( SegCollideCorrect,
+                           ( c.m_seg_a )( c.m_seg_b )( c.m_clearance )( c.m_exp_coll ) );
 }
 
 
 /**
  * Struct to hold general cases for collinearity, parallelism and perpendicularity
  */
-struct SEG_SEG_BOOLEAN_CASE
+struct SEG_SEG_BOOLEAN_CASE : public KI_TEST::NAMED_CASE
 {
-    std::string m_case_name;
     SEG         m_seg_a;
     SEG         m_seg_b;
     bool        m_exp_result;
@@ -476,16 +481,9 @@ static const std::vector<SEG_SEG_BOOLEAN_CASE> seg_vec_collinear_cases = {
 // clang-format on
 
 
-BOOST_AUTO_TEST_CASE( SegSegCollinear )
+BOOST_DATA_TEST_CASE( SegSegCollinear, boost::unit_test::data::make( seg_vec_collinear_cases ), c )
 {
-    for( const auto& c : seg_vec_collinear_cases )
-    {
-        BOOST_TEST_CONTEXT( c.m_case_name )
-        {
-            BOOST_CHECK_PREDICATE( SegCollinearCorrect,
-                                   ( c.m_seg_a )( c.m_seg_b )( c.m_exp_result ) );
-        }
-    }
+    BOOST_CHECK_PREDICATE( SegCollinearCorrect, ( c.m_seg_a )( c.m_seg_b )( c.m_exp_result ) );
 }
 
 
@@ -528,16 +526,9 @@ static const std::vector<SEG_SEG_BOOLEAN_CASE> seg_vec_parallel_cases = {
 // clang-format on
 
 
-BOOST_AUTO_TEST_CASE( SegSegParallel )
+BOOST_DATA_TEST_CASE( SegSegParallel, boost::unit_test::data::make( seg_vec_parallel_cases ), c )
 {
-    for( const auto& c : seg_vec_parallel_cases )
-    {
-        BOOST_TEST_CONTEXT( c.m_case_name )
-        {
-            BOOST_CHECK_PREDICATE( SegParallelCorrect,
-                                   ( c.m_seg_a )( c.m_seg_b )( c.m_exp_result ) );
-        }
-    }
+    BOOST_CHECK_PREDICATE( SegParallelCorrect, ( c.m_seg_a )( c.m_seg_b )( c.m_exp_result ) );
 }
 
 
@@ -604,25 +595,18 @@ static const std::vector<SEG_SEG_BOOLEAN_CASE> seg_vec_perpendicular_cases = {
 // clang-format on
 
 
-BOOST_AUTO_TEST_CASE( SegSegPerpendicular )
+BOOST_DATA_TEST_CASE( SegSegPerpendicular,
+                      boost::unit_test::data::make( seg_vec_perpendicular_cases ), c )
 {
-    for( const auto& c : seg_vec_perpendicular_cases )
-    {
-        BOOST_TEST_CONTEXT( c.m_case_name )
-        {
-            BOOST_CHECK_PREDICATE( SegPerpendicularCorrect,
-                                   ( c.m_seg_a )( c.m_seg_b )( c.m_exp_result ) );
-        }
-    }
+    BOOST_CHECK_PREDICATE( SegPerpendicularCorrect, ( c.m_seg_a )( c.m_seg_b )( c.m_exp_result ) );
 }
 
 
 /**
  * Struct to hold cases for operations with a #SEG, and a #VECTOR2I
  */
-struct SEG_VEC_CASE
+struct SEG_VEC_CASE : public KI_TEST::NAMED_CASE
 {
-    std::string m_case_name;
     SEG         m_seg;
     VECTOR2I    m_vec;
 };
@@ -667,48 +651,38 @@ static const std::vector<SEG_VEC_CASE> segment_and_point_cases = {
 // clang-format on
 
 
-BOOST_AUTO_TEST_CASE( SegCreateParallel )
+BOOST_DATA_TEST_CASE( SegCreateParallel, boost::unit_test::data::make( segment_and_point_cases ),
+                      c )
 {
-    for( const auto& c : segment_and_point_cases )
-    {
-        BOOST_TEST_CONTEXT( c.m_case_name )
-        {
-            SEG perpendicular = c.m_seg.ParallelSeg( c.m_vec );
+    const SEG perpendicular = c.m_seg.ParallelSeg( c.m_vec );
 
-            BOOST_CHECK_PREDICATE( SegParallelCorrect, ( perpendicular )( c.m_seg )( true ) );
-            BOOST_CHECK_PREDICATE( SegVecDistanceCorrect, ( perpendicular )( c.m_vec )( 0 ) );
-        }
-    }
+    BOOST_CHECK_PREDICATE( SegParallelCorrect, (perpendicular) ( c.m_seg )( true ) );
+    BOOST_CHECK_PREDICATE( SegVecDistanceCorrect, (perpendicular) ( c.m_vec )( 0 ) );
 }
 
-BOOST_AUTO_TEST_CASE( SegCreatePerpendicular )
+BOOST_DATA_TEST_CASE( SegCreatePerpendicular,
+                      boost::unit_test::data::make( segment_and_point_cases ), c )
 {
-    for( const auto& c : segment_and_point_cases )
-    {
-        BOOST_TEST_CONTEXT( c.m_case_name )
-        {
-            SEG perpendicular = c.m_seg.PerpendicularSeg( c.m_vec );
+    const SEG perpendicular = c.m_seg.PerpendicularSeg( c.m_vec );
 
-            BOOST_CHECK_PREDICATE( SegPerpendicularCorrect, ( perpendicular )( c.m_seg )( true ) );
-            BOOST_CHECK_PREDICATE( SegVecDistanceCorrect, ( perpendicular )( c.m_vec )( 0 ) );
-        }
-    }
+    BOOST_CHECK_PREDICATE( SegPerpendicularCorrect, (perpendicular) ( c.m_seg )( true ) );
+    BOOST_CHECK_PREDICATE( SegVecDistanceCorrect, (perpendicular) ( c.m_vec )( 0 ) );
 }
 
 BOOST_AUTO_TEST_CASE( LineDistance )
 {
     SEG seg( { 0, 0 }, { 10, 0 } );
 
-    BOOST_CHECK_EQUAL( seg.LineDistance( { 5, 0 } ), 0 );
-    BOOST_CHECK_EQUAL( seg.LineDistance( { 5, 8 } ), 8 );
+    BOOST_TEST( seg.LineDistance( { 5, 0 } ) == 0 );
+    BOOST_TEST( seg.LineDistance( { 5, 8 } ) == 8 );
 }
 
 BOOST_AUTO_TEST_CASE( LineDistanceSided )
 {
     SEG seg( { 0, 0 }, { 10, 0 } );
 
-    BOOST_CHECK_EQUAL( seg.LineDistance( { 5, 8 }, true ), 8 );
-    BOOST_CHECK_EQUAL( seg.LineDistance( { 5, -8 }, true ), -8 );
+    BOOST_TEST( seg.LineDistance( { 5, 8 }, true ) == 8 );
+    BOOST_TEST( seg.LineDistance( { 5, -8 }, true ) == -8 );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

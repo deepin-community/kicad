@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -127,6 +127,14 @@ void GENERATOR_TOOL_PNS_PROXY::Reset( RESET_REASON aReason )
     delete m_gridHelper;
     delete m_router;
     delete m_iface; // Delete after m_router because PNS::NODE dtor needs m_ruleResolver
+
+    if( aReason == RESET_REASON::SHUTDOWN )
+    {
+        m_iface = nullptr;
+        m_router = nullptr;
+        m_gridHelper = nullptr;
+        return;
+    }
 
     m_iface = new PNS_KICAD_IFACE_GENERATOR;
     m_iface->SetBoard( board() );

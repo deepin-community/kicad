@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,6 +21,7 @@
 #define KICAD_SCHEMATIC_H
 
 #include <eda_item.h>
+#include <embedded_files.h>
 #include <sch_sheet_path.h>
 #include <schematic_settings.h>
 
@@ -35,6 +36,11 @@ class SCH_SHEET;
 class SCH_SHEET_LIST;
 class SCH_GLOBALLABEL;
 
+namespace KIFONT
+{
+class OUTLINE_FONT;
+}
+
 
 class SCHEMATIC_IFACE
 {
@@ -43,11 +49,12 @@ public:
     virtual ~SCHEMATIC_IFACE() {};
 
     virtual CONNECTION_GRAPH* ConnectionGraph() const = 0;
-    virtual SCH_SHEET_LIST GetSheets() const = 0;
+    virtual SCH_SHEET_LIST BuildSheetListSortedByPageNumbers() const = 0;
     virtual void SetCurrentSheet( const SCH_SHEET_PATH& aPath ) = 0;
     virtual SCH_SHEET_PATH& CurrentSheet() const = 0;
     virtual wxString GetFileName() const = 0;
     virtual PROJECT& Prj() const = 0;
+    virtual SCH_SHEET_LIST Hierarchy() const = 0;
 };
 
 class SCHEMATIC;
@@ -59,6 +66,7 @@ public:
     virtual void OnSchItemsAdded( SCHEMATIC& aSch, std::vector<SCH_ITEM*>& aSchItem ) {}
     virtual void OnSchItemsRemoved( SCHEMATIC& aSch, std::vector<SCH_ITEM*>& aSchItem ) {}
     virtual void OnSchItemsChanged( SCHEMATIC& aSch, std::vector<SCH_ITEM*>& aSchItem ) {}
+
     // This is called when the user changes to a new sheet, not when a sheet is altered.
     // Sheet alteration events will call OnSchItems*
     virtual void OnSchSheetChanged( SCHEMATIC& aSch ) {}
@@ -71,7 +79,7 @@ public:
  * Right now, Eeschema can have only one schematic open at a time, but this could change.
  * Please keep this possibility in mind when adding to this object.
  */
-class SCHEMATIC : public SCHEMATIC_IFACE, public EDA_ITEM
+class SCHEMATIC : public SCHEMATIC_IFACE, public EDA_ITEM, public EMBEDDED_FILES
 {
 public:
     SCHEMATIC( PROJECT* aPrj );
@@ -92,26 +100,32 @@ public:
 
     const std::map<wxString, wxString>* GetProperties() { return &m_properties; }
 
-    /**
-     * Builds and returns an updated schematic hierarchy
-     * TODO: can this be cached?
-     * @return a SCH_SHEET_LIST containing the schematic hierarchy
-     */
-    SCH_SHEET_LIST GetSheets() const override
+    SCH_SHEET_LIST BuildSheetListSortedByPageNumbers() const override
     {
-        return SCH_SHEET_LIST( m_rootSheet );
+        SCH_SHEET_LIST hierarchy( m_rootSheet );
+
+        hierarchy.SortByPageNumbers();
+
+        return hierarchy;
     }
 
-    SCH_SHEET_LIST GetUnorderedSheets() const
+    SCH_SHEET_LIST BuildUnorderedSheetList() const
     {
         SCH_SHEET_LIST sheets;
         sheets.BuildSheetList( m_rootSheet, false );
         return sheets;
     }
 
+    /**
+     * Return the full schematic flattened hierarchical sheet list.
+     */
+    SCH_SHEET_LIST Hierarchy() const override;
+
+    void RefreshHierarchy();
+
     SCH_ITEM* GetItem( const KIID& aID, SCH_SHEET_PATH* aPathOut = nullptr ) const
     {
-        return GetUnorderedSheets().GetItem( aID, aPathOut );
+        return BuildUnorderedSheetList().GetItem( aID, aPathOut );
     }
 
     SCH_SHEET& Root() const
@@ -166,6 +180,9 @@ public:
 
     std::vector<SCH_MARKER*> ResolveERCExclusions();
 
+    EMBEDDED_FILES* GetEmbeddedFiles() override;
+    const EMBEDDED_FILES* GetEmbeddedFiles() const;
+
     /**
      * Return a pointer to a bus alias object for the given label, or null if one
      * doesn't exist.
@@ -173,16 +190,18 @@ public:
     std::shared_ptr<BUS_ALIAS> GetBusAlias( const wxString& aLabel ) const;
 
     /**
-     * Return the set of netname candidates for netclass assignment.  The list will include both
-     * composite names (buses) and atomic net names.  Names are fetched from available labels,
-     * power pins, etc.
+     * Return the set of netname candidates for netclass assignment.
+     *
+     * The list will include both composite names (buses) and atomic net names.  Names are
+     * fetched from available labels, power pins, etc.
      */
     std::set<wxString> GetNetClassAssignmentCandidates();
 
     /**
      * Resolves text vars that refer to other items.
-     * Note that the actual resolve is delegated to the symbol/sheet in question.  This routine
-     * just does the look-up and delegation.
+     *
+     * @note The actual resolve is delegated to the symbol/sheet in question.  This routine
+     *       just does the look-up and delegation.
      */
     bool ResolveCrossReference( wxString* token, int aDepth ) const;
 
@@ -195,11 +214,6 @@ public:
     wxString ConvertKIIDsToRefs( const wxString& aSource ) const;
 
     /**
-     * Return the full schematic flattened hierarchical sheet list.
-     */
-    SCH_SHEET_LIST& GetFullHierarchy() const;
-
-    /**
      * Update the symbol value and footprint instance data for legacy designs.
      *
      * Prior to schematic file format version 20200828 and legacy file format version, only
@@ -209,11 +223,15 @@ public:
     void SetLegacySymbolInstanceData();
 
     /**
+     * Get the unique file name for the current sheet.
+     *
+     * This file name is unique and must be used instead of the screen file name when one must
+     * create files for each sheet in the hierarchy.  The name is
+     * &ltroot sheet filename&gt-&ltsheet path&gt and has no extension.
+     * If filename is too long name is &ltsheet filename&gt-&ltsheet number&gt
+     *
      * @return a filename that can be used in plot and print functions for the current screen
-     * and sheet path.  This filename is unique and must be used instead of the screen filename
-     * when one must create files for each sheet in the hierarchy.
-     * Name is &ltroot sheet filename&gt-&ltsheet path&gt and has no extension.
-     * However if filename is too long name is &ltsheet filename&gt-&ltsheet number&gt
+     * and sheet path.
      */
     wxString GetUniqueFilenameForCurrentSheet();
 
@@ -239,7 +257,9 @@ public:
     }
 
     /**
-     * Set operating points from a .op simulation.  Called after the simulation completes.
+     * Set operating points from a .op simulation.
+     *
+     * Called after the simulation completes.
      */
     void SetOperatingPoint( const wxString& aSignal, double aValue )
     {
@@ -249,8 +269,10 @@ public:
     wxString GetOperatingPoint( const wxString& aNetName, int aPrecision, const wxString& aRange );
 
     /**
-     * Add junctions to this schematic where required. This function is needed for some plugins
-     * (e.g. Legacy and Cadstar) in order to retain connectivity after loading.
+     * Add junctions to this schematic where required.
+     *
+     * This function is needed for some plugins (e.g. Legacy and Cadstar) in order to retain
+     * connectivity after loading.
      */
     void FixupJunctions();
 
@@ -284,6 +306,7 @@ public:
 
     /**
       * Notify the schematic and its listeners that the current sheet has been changed.
+      *
       * This is called when the user navigates to a different sheet, not when the sheet is
       * altered.
       */
@@ -291,24 +314,51 @@ public:
 
     /**
      * Add a listener to the schematic to receive calls whenever something on the
-     * schematic has been modified.  The schematic does not take ownership of the
-     * listener object.  Make sure to call RemoveListener before deleting the
-     * listener object.  The order of listener invocations is not guaranteed.
-     * If the specified listener object has been added before, it will not be
-     * added again.
+     * schematic has been modified.
+     *
+     * The schematic does not take ownership of the listener object.  Make sure to call
+     * RemoveListener before deleting the listener object.  The order of listener invocations
+     * is not guaranteed.  If the specified listener object has been added before, it will
+     * not be added again.
      */
     void AddListener( SCHEMATIC_LISTENER* aListener );
 
     /**
-     * Remove the specified listener.  If it has not been added before, it
-     * will do nothing.
+     * Remove the specified listener.
+     *
+     * If it has not been added before, it will do nothing.
      */
     void RemoveListener( SCHEMATIC_LISTENER* aListener );
 
     /**
-     * Remove all listeners
+     * Remove all listeners.
      */
     void RemoveAllListeners();
+
+    /**
+     * Embed fonts in the schematic.
+     */
+    void EmbedFonts() override;
+
+    /**
+     * Get a set of fonts used in the schematic.
+     */
+    std::set<KIFONT::OUTLINE_FONT*> GetFonts() const override;
+
+    /**
+     * Return a list of schematic files in the current project that contain instance data for
+     * multiple projects.
+     *
+     * @return all of the #SCH_SCREEN objects that contain instance data for multiple projects.
+     */
+    std::set<const SCH_SCREEN*> GetSchematicsSharedByMultipleProjects() const;
+
+    /**
+     * Test if the schematic is a complex hierarchy.
+     *
+     * @return true if the schematic is a complex hierarchy or false if it's a simple hierarchy.
+     */
+    bool IsComplexHierarchy() const;
 
     /**
      * True if a SCHEMATIC exists, false if not
@@ -336,18 +386,20 @@ private:
 
     /**
      * The sheet path of the sheet currently being edited or displayed.
-     * Note that this was moved here from SCH_EDIT_FRAME because currently many places in the code
+     *
+     * @note This was moved here from #SCH_EDIT_FRAME because currently many places in the code
      * want to know the current sheet.  Potentially this can be moved back to the UI code once
-     * the only places that want to know it are UI-related
+     * the only places that want to know it are UI-related.
      */
     SCH_SHEET_PATH* m_currentSheet;
 
-    /// Holds and calculates connectivity information of this schematic
+    /// Hold and calculate connectivity information of this schematic.
     CONNECTION_GRAPH* m_connectionGraph;
 
     /**
-     * Holds a map of labels to the page sequence (virtual page number) that they appear on.  It is
-     * used for updating global label intersheet references.
+     * Holds a map of labels to the page sequence (virtual page number) that they appear on.
+     *
+     * It is used for updating global label intersheet references.
      */
     std::map<wxString, std::set<int>> m_labelToPageRefsMap;
 
@@ -362,7 +414,12 @@ private:
     std::map<wxString, double>        m_operatingPoints;
 
     /**
-     * Currently installed listeners
+     * Cache of the entire schematic hierarchy sorted by sheet page number.
+     */
+    SCH_SHEET_LIST m_hierarchy;
+
+    /**
+     * Currently installed listeners.
      */
     std::vector<SCHEMATIC_LISTENER*> m_listeners;
 };

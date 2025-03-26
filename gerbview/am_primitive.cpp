@@ -7,7 +7,7 @@
  *
  * Copyright (C) 1992-2017 Jean-Pierre Charras <jp.charras at wanadoo.fr>
  * Copyright (C) 2010 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -460,7 +460,7 @@ void AM_PRIMITIVE::ConvertShapeToPolygon( APERTURE_MACRO* aApertMacro,
         VECTOR2I end =
                 mapPt( m_Params[4].GetValueFromMacro( aApertMacro ), m_Params[5].GetValueFromMacro( aApertMacro ), m_GerbMetric );
         VECTOR2I delta = end - start;
-        int     len   = KiROUND( EuclideanNorm( delta ) );
+        int     len   = delta.EuclideanNorm();
 
         // To build the polygon, we must create a horizontal polygon starting to "start"
         // and rotate it to have the end point to "end"

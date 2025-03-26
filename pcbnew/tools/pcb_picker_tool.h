@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -37,8 +37,33 @@
 class PCB_PICKER_TOOL : public PCB_TOOL_BASE, public PICKER_TOOL_BASE
 {
 public:
+    /**
+     * Interface class for something that receives picked points
+     * or items from this tool. Examples could be a dialog that's
+     * asking the user to pick a point.
+     */
+    class RECEIVER
+    {
+    public:
+        virtual void UpdatePickedPoint( const std::optional<VECTOR2I>& aPoint ) = 0;
+        virtual void UpdatePickedItem( const EDA_ITEM* aItem ) = 0;
+
+    protected:
+        ~RECEIVER() = default;
+    };
+
+    struct INTERACTIVE_PARAMS
+    {
+        RECEIVER* m_Receiver = nullptr;
+        wxString  m_Prompt;
+        std::function<bool(EDA_ITEM*)> m_ItemFilter = nullptr;
+    };
+
     PCB_PICKER_TOOL();
     virtual ~PCB_PICKER_TOOL() = default;
+
+    ///< @copydoc TOOL_BASE::Init()
+    bool Init() override;
 
     ///< Main event loop.
     int Main( const TOOL_EVENT& aEvent );
@@ -47,6 +72,9 @@ public:
      * Set the tool's snap layer set.
      */
     inline void SetLayerSet( LSET aLayerSet ) { m_layerMask = aLayerSet; }
+
+    int SelectPointInteractively( const TOOL_EVENT& aEvent );
+    int SelectItemInteractively( const TOOL_EVENT& aEvent );
 
 protected:
     ///< @copydoc TOOL_INTERACTIVE::setTransitions();

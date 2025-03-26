@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2014  CERN
- * Copyright (C) 2016 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -35,7 +35,8 @@ constexpr int HULL_MARGIN = 10;
 
 class ITEM;
 class LINE;
-
+class DEBUG_DECORATOR;
+class NODE;
 /** Various utility functions */
 
 const SHAPE_LINE_CHAIN ArcHull( const SHAPE_ARC& aSeg, int aClearance, int aWalkaroundThickness );
@@ -67,6 +68,9 @@ void HullIntersection( const SHAPE_LINE_CHAIN& hull, const SHAPE_LINE_CHAIN& lin
 const SHAPE_LINE_CHAIN BuildHullForPrimitiveShape( const SHAPE* aShape, int aClearance,
                                                           int aWalkaroundThickness );
 
+void NodeStats( DEBUG_DECORATOR* aDbg, wxString aLabel, NODE *aNode );
+
 }
+
 
 #endif    // __PNS_UTILS_H

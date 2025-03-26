@@ -5,7 +5,7 @@
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2013 Wayne Stambaugh <stambaughw@gmail.com>
  * Copyright (C) 2023 CERN
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -48,22 +48,24 @@ void EDA_3D_VIEWER_FRAME::ReCreateMainToolbar()
     else
     {
         m_mainToolBar = new ACTION_TOOLBAR( this, ID_H_TOOLBAR, wxDefaultPosition, wxDefaultSize,
-                                            KICAD_AUI_TB_STYLE | wxAUI_TB_HORZ_LAYOUT | wxAUI_TB_HORIZONTAL );
+                                            KICAD_AUI_TB_STYLE | wxAUI_TB_HORZ_LAYOUT |
+                                            wxAUI_TB_HORIZONTAL );
         m_mainToolBar->SetAuiManager( &m_auimgr );
     }
 
     // Set up toolbar
     m_mainToolBar->AddTool( ID_RELOAD3D_BOARD, wxEmptyString,
-                            KiScaledBitmap( BITMAPS::import3d, this ), _( "Reload board" ) );
+                            KiBitmapBundle( BITMAPS::import3d ),
+                            _( "Reload board" ) );
 
     m_mainToolBar->AddScaledSeparator( this );
     m_mainToolBar->AddTool( ID_TOOL_SCREENCOPY_TOCLIBBOARD, wxEmptyString,
-                            KiScaledBitmap( BITMAPS::copy, this ),
+                            KiBitmapBundle( BITMAPS::copy ),
                             _( "Copy 3D image to clipboard" ) );
 
     m_mainToolBar->AddScaledSeparator( this );
     m_mainToolBar->AddTool( ID_RENDER_CURRENT_VIEW, wxEmptyString,
-                            KiScaledBitmap( BITMAPS::render_mode, this ),
+                            KiBitmapBundle( BITMAPS::ray_tracing ),
                             _( "Render current view using Raytracing" ), wxITEM_CHECK );
 
     m_mainToolBar->AddScaledSeparator( this );

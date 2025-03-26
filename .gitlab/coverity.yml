@@ -42,7 +42,7 @@ Coverity:
   tags:
     - coverity
   stage: build
-  image: registry.gitlab.com/kicad/kicad-ci/source_containers/master/fedora:38
+  image: registry.gitlab.com/kicad/kicad-ci/source_containers/master/fedora:40
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULED_JOB_NAME == "coverity"
   cache:
@@ -65,6 +65,7 @@ Coverity:
       -DCMAKE_BUILD_TYPE=RelWithDebInfo
       -DKICAD_STDLIB_LIGHT_DEBUG=ON
       -DKICAD_SCRIPTING_WXPYTHON=ON
+      -DKICAD_USE_CMAKE_FINDPROTOBUF=ON
     - coverity/bin/cov-build --dir cov-int make -j10
     - *coverity_submit
   artifacts:

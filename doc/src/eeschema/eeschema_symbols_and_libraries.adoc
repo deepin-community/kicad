@@ -57,7 +57,11 @@ non-KiCad format symbol library, you must first convert it to KiCad format.
 The first time the KiCad Schematic Editor is run and the global symbol table
 file `sym-lib-table` is not found in the KiCad configuration folder, KiCad will
 guide the user through setting up a new symbol library table. This process is
-described <<initial-configuration,above>>.
+described <<initial-configuration,above>>. You can re-run this process at any
+time by clicking the **Reset Libraries**.
+
+WARNING: Resetting your symbol library table will permanently change your symbol
+         library table on disk.
 
 ==== Managing Table Entries
 
@@ -122,6 +126,13 @@ Path variables can be configured in the **Preferences**
 Using path variables in the symbol library tables allows libraries to
 be relocated without breaking the symbol library tables, so long as the
 path variables are updated when the library location changes.
+
+NOTE: KiCad will automatically resolve versioned path variables from
+      older versions of KiCad to the value of the corresponding variable from
+      the current KiCad version, as long as the old variable is not explicitly
+      defined itself. For example, `$\{KICAD8_SYMBOL_DIR\}` will
+      automatically resolve to the value of `$\{KICAD9_SYMBOL_DIR\}` if there
+      is no `KICAD8_SYMBOL_DIR` variable defined.
 
 `${KIPRJMOD}` is a special path variable that always expands to the
 absolute path of the current project directory. `${KIPRJMOD}` allows libraries
@@ -241,9 +252,17 @@ symbols were referred to as aliases.
 ==== Symbol Editor overview
 
 KiCad provides a symbol editing tool that allows you to create libraries; add,
-edit, delete, or transfer symbols between libraries; export symbols to files;
+edit, delete, or transfer symbols between libraries; 
 and import symbols from files. The Symbol Editor can be launched from the KiCad
 Project Manager or from the Schematic Editor (**Tools** -> **Symbol Editor**).
+You can also open the Symbol Editor from the
+<<editing-symbol-properties,a symbol in the schematic>>; in this way you can
+edit either the library copy or the schematic copy of that symbol in the editor.
+
+NOTE: Editing the library version of a symbol will not affect any
+      copies of that symbol that have been added to a schematic until the
+      schematic copy is updated from the library. Conversely, editing the
+      schematic version of a symbol will not affect the library version of a symbol or any other copies of that symbol in a schematic.
 
 In general, the flow for designing a symbol involves:
 
@@ -268,9 +287,9 @@ quick access to common features and a symbol viewing/editing canvas. Not all
 commands are available on the toolbars, but all commands are available in the
 menus.
 
-In addition to the toolbars, there are collapsible panels for the symbol tree
-and Properties Manager on the left. The bottom of the window contains a message
-panel that shows details about the selected object.
+In addition to the toolbars, there are collapsible panels for the symbol tree,
+Properties Manager, and selection filter on the left. The bottom of the window
+contains a message panel that shows details about the selected object.
 
 image::images/libedit_main_window.png[alt="Symbol Editor main window",scaledwidth="95%"]
 
@@ -376,11 +395,17 @@ The left toolbar provides options to change the display of items in the Symbol E
 |image:images/icons/pin_show_etype_24.png[Show pintype icon]
 |Toggle display of pin electrical types.
 
+|image:images/icons/hidden_pin_24.png[Show hidden pins icon]
+|Toggle display of hidden (invisible) pins.
+
+|image:images/icons/text_sketch_24.png[Show hidden fields icon]
+|Toggle display of hidden (invisible) fields.
+
 |image:images/icons/search_tree_24.png[Symbol tree icon]
 |Toggle display of library and symbol tree.
 
 |image:images/icons/tools_24.png[Symbol tree icon]
-|Toggle display of Properties Manager pane.
+|Toggle display of Properties Manager panel.
 |=======================================================================
 
 ===== Right toolbar tools
@@ -419,6 +444,11 @@ the center. Left-click again to define the radius of the circle.
 |Arc tool. Left-click to begin drawing a new graphical arc item from the
 first arc end point. Left-click again to define the second arc end point.
 Adjust the radius by dragging the arc center point.
+
+|image:images/icons/add_bezier_24.png[Add bezier icon]
+|Bezier curve tool. Left-click to begin drawing a new graphical bezier curve
+item. First click for the start point, then for the control points and the
+end point. Adjust the curve by dragging the points.
 
 |image:images/icons/add_graphical_segments_24.png[Add line icon]
 |Connected line tool. Left-click to begin drawing a new graphical line item
@@ -461,12 +491,23 @@ NOTE: Saving a modified symbol also saves all other modified symbols in the same
       library.
 
 To save the symbol changes to a new symbol, click **File** ->
-**Save Copy As...**.  The symbol can be saved in the current library or a
-different library, and a new name can be set for the symbol.
+**Save As...**.  The symbol can be saved in the current library or a
+different library (including a new library), and a new name can be set for the
+symbol. Alternatively, you can use **File** -> **Save Copy As...**, which
+behaves the same as **Save As** except that the original symbol remains open
+rather than switching to the new symbol.
 
-To create a new file containing only the current symbol, click **File** ->
-**Export** -> **Symbol...**. This file will be a standard symbol library file
-which will contain only one symbol.
+The editor can also open symbols from the schematic. To edit a symbol from the
+schematic, right click a symbol in the Schematic Editor and select
+**Open in Schematic Editor** (kbd:[Ctrl+E]).
+
+Editing and saving the schematic copy of a symbol will only update that symbol
+in the schematic; it will not update other copies of that symbol in the schematic,
+and it will not change the original library copy of the symbol. When you open
+the schematic copy of a symbol, the Schematic Editor displays an info bar that
+warns you the library copy will not be modified. You can click the link in this
+info bar to open the library version of the symbol instead, or press
+kbd:[Ctrl+Shift+E].
 
 ==== Creating a new symbol library
 
@@ -767,7 +808,7 @@ style.
 Element options can be quickly accessed by right-clicking on the element to
 display the context menu for the selected element. You can also
 double-left-click on an element to modify its properties, or edit its properties
-using the Properties Manager pane.
+using the Properties Manager panel.
 
 Below is the properties dialog for a polygon element.
 
@@ -1020,9 +1061,9 @@ image::images/eeschema_libedit_pin_table.png[alt="Pin table",scaledwidth="95%"]
 [[alternate-pin-definitions]]
 ===== Alternate Pin Function Definitions
 
-Pins can have alternate pin function definitions added to them. Alternate pin
-functions allow a user to select a different name, electrical type, and
-graphical style for a pin when the symbol has been placed in the schematic. This
+Symbol pins can have alternate pin functions defined for them. Alternate pin
+functions allow you to select a different name, electrical type, and
+graphical style for a pin when a symbol has been placed in the schematic. This
 can be used for pins that have multiple functions, such as microcontroller pins.
 
 Alternate pin functions are added in the Pin Properties dialog as shown below.
@@ -1033,13 +1074,8 @@ as alternate pin names.
 image::images/eeschema_libedit_alternate_pin_definitions.png[alt="Alternate pin definitions", scaledwidth="60%"]
 
 Alternate pin functions are selected in the Schematic Editor once the symbol
-has been placed in the schematic. The alternate pin is assigned in the
-**Pin Functions** tab of the Symbol Properties dialog. Alternate definitions are
-selectable in the dropdown in the Alternate Assignment column. You can also
-select an alternate pin by right-clicking the pin and selecting a new function
-from the **Pin Function** menu.
-
-image::images/eeschema_alternate_pin_assignment_selection.png[alt="Selecting an alternate pin definition", scaledwidth="60%"]
+has been placed in the schematic. For information on using alternate pin
+functions in the schematic, see the <<alternate-pin-functions,schematic editor symbol documentation>>.
 
 [[creating-power-symbols]]
 ==== Creating Power Symbols
@@ -1144,7 +1180,7 @@ image:images/icons/library_browser_24.png[Library viewer icon] icon on the main
 Symbol Editor toolbar or with **View** -> **Symbol Library Browser**.
 
 To examine the contents of a library, select a library from the list in the left
-hand pane. All symbols in the selected library will appear in the second pane.
+hand panel. All symbols in the selected library will appear in the second panel.
 Select a symbol name to view the symbol.
 
 image::images/symbol_library_browser.png[alt="Symbol Library Browser",scaledwidth="95%"]
@@ -1167,6 +1203,12 @@ The top toolbar contains the following commands:
 |image:images/icons/refresh_24.png[] image:images/icons/zoom_in_24.png[]
 image:images/icons/zoom_out_24.png[] image:images/icons/zoom_fit_in_page_24.png[]
 |Zoom tools.
+
+|image:images/icons/pin_show_etype_24.png[Show pintype icon]
+|Toggle display of pin electrical types.
+
+|image:images/icons/pin_24.png[Show pin number icon]
+|Toggle display of pin numbers.
 
 |image:images/icons/morgan1_24.png[] image:images/icons/morgan2_24.png[]
 |Select standard or alternate De Morgan representation of symbol, if applicable.

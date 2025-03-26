@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,16 +22,35 @@
  */
 
 #include "eeschema_test_utils.h"
+
 #include <qa_utils/wx_utils/unit_test_utils.h>
+#include <sch_io/sch_io.h>
 #include <wildcards_and_files_ext.h>
 
 #include <cstdlib>
 #include <memory>
 
+#include <eeschema/sch_io/sch_io.h>
 #include <eeschema/sch_io/sch_io_mgr.h>
 #include <eeschema/sch_screen.h>
 #include <eeschema/schematic.h>
 #include <eeschema/connection_graph.h>
+#include <eeschema/sch_rule_area.h>
+
+
+KI_TEST::SCHEMATIC_TEST_FIXTURE::SCHEMATIC_TEST_FIXTURE() :
+        m_schematic( nullptr ),
+        m_pi( SCH_IO_MGR::FindPlugin( SCH_IO_MGR::SCH_KICAD ) ),
+        m_manager( true )
+{
+}
+
+
+KI_TEST::SCHEMATIC_TEST_FIXTURE::~SCHEMATIC_TEST_FIXTURE()
+{
+    m_schematic.Reset();
+    m_pi.reset();
+}
 
 
 void KI_TEST::SCHEMATIC_TEST_FIXTURE::LoadSchematic( const wxString& aBaseName )
@@ -47,7 +66,7 @@ void KI_TEST::SCHEMATIC_TEST_FIXTURE::LoadSchematic( const wxString& aBaseName )
     m_schematic.Reset();
     m_manager.LoadProject( pro.GetFullPath() );
 
-    m_manager.Prj().SetElem( PROJECT::ELEM_SCH_SYMBOL_LIBS, nullptr );
+    m_manager.Prj().SetElem( PROJECT::ELEM::SCH_SYMBOL_LIBS, nullptr );
 
     m_schematic.SetProject( &m_manager.Prj() );
     m_schematic.SetRoot( m_pi->LoadSchematicFile( fn.GetFullPath(), &m_schematic ) );
@@ -61,7 +80,7 @@ void KI_TEST::SCHEMATIC_TEST_FIXTURE::LoadSchematic( const wxString& aBaseName )
     for( SCH_SCREEN* screen = screens.GetFirst(); screen; screen = screens.GetNext() )
         screen->UpdateLocalLibSymbolLinks();
 
-    SCH_SHEET_LIST sheets = m_schematic.GetSheets();
+    SCH_SHEET_LIST sheets = m_schematic.BuildSheetListSortedByPageNumbers();
 
     // Restore all of the loaded symbol instances from the root sheet screen.
     if( m_schematic.RootScreen()->GetFileFormatVersionAtLoad() < 20221002 )
@@ -87,6 +106,13 @@ void KI_TEST::SCHEMATIC_TEST_FIXTURE::LoadSchematic( const wxString& aBaseName )
 
     // NOTE: SchematicCleanUp is not called; QA schematics must already be clean or else
     // SchematicCleanUp must be freed from its UI dependencies.
+
+    std::unordered_set<SCH_SCREEN*> all_screens;
+
+    for( const SCH_SHEET_PATH& path : sheets )
+        all_screens.insert( path.LastScreen() );
+
+    SCH_RULE_AREA::UpdateRuleAreasInScreens( all_screens, nullptr );
 
     m_schematic.ConnectionGraph()->Recalculate( sheets, true );
 }

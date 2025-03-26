@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019-2023 CERN
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,12 +22,12 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef EESCHEMA_ACTIONS_H
-#define EESCHEMA_ACTIONS_H
+#pragma once
 
 #include <tool/tool_action.h>
 #include <tool/actions.h>
 
+class SCH_SYMBOL;
 class TOOL_EVENT;
 class TOOL_MANAGER;
 
@@ -77,7 +77,9 @@ public:
     // Schematic Tools
     static TOOL_ACTION pickerTool;
     static TOOL_ACTION placeSymbol;
+    static TOOL_ACTION placeNextSymbolUnit;
     static TOOL_ACTION placePower;
+    static TOOL_ACTION placeDesignBlock;
     static TOOL_ACTION drawWire;
     static TOOL_ACTION drawBus;
     static TOOL_ACTION unfoldBus;
@@ -89,16 +91,28 @@ public:
     static TOOL_ACTION placeGlobalLabel;
     static TOOL_ACTION placeHierLabel;
     static TOOL_ACTION drawSheet;
-    static TOOL_ACTION importSheetPin;
+    static TOOL_ACTION drawSheetFromFile;
+    static TOOL_ACTION drawSheetFromDesignBlock;
+    static TOOL_ACTION placeSheetPin;
+    static TOOL_ACTION importSheet;
+    // Sync sheet pins for selected sheet symbol
+    static TOOL_ACTION syncSheetPins;
+    // Sync sheet pins for all sheet symbols
+    static TOOL_ACTION syncAllSheetsPins;
     static TOOL_ACTION placeSchematicText;
     static TOOL_ACTION drawTextBox;
+    static TOOL_ACTION drawTable;
     static TOOL_ACTION drawRectangle;
     static TOOL_ACTION drawCircle;
     static TOOL_ACTION drawArc;
+    static TOOL_ACTION drawBezier;
     static TOOL_ACTION drawLines;
     static TOOL_ACTION placeImage;
     static TOOL_ACTION undoLastSegment;
     static TOOL_ACTION switchSegmentPosture;
+    static TOOL_ACTION drawRuleArea;
+    static TOOL_ACTION deleteLastPoint;
+    static TOOL_ACTION closeOutline;
 
     // Symbol Tools
     static TOOL_ACTION placeSymbolPin;
@@ -139,9 +153,9 @@ public:
     static TOOL_ACTION pointEditorRemoveCorner;
 
     /// Inspection and Editing
-    static TOOL_ACTION showDatasheet;
     static TOOL_ACTION runERC;
     static TOOL_ACTION annotate;
+    static TOOL_ACTION incrementAnnotations;
     static TOOL_ACTION editSymbolFields;
     static TOOL_ACTION editSymbolLibraryLinks;
     static TOOL_ACTION symbolProperties;
@@ -156,6 +170,7 @@ public:
     static TOOL_ACTION editPageNumber;
     static TOOL_ACTION checkSymbol;
     static TOOL_ACTION diffSymbol;
+    static TOOL_ACTION showBusSyntaxHelp;
 
     static TOOL_ACTION rescueSymbols;
     static TOOL_ACTION remapSymbols;
@@ -175,20 +190,20 @@ public:
 
     // Attribute Toggles
     static TOOL_ACTION setExcludeFromBOM;
-    static TOOL_ACTION unsetExcludeFromBOM;
-    static TOOL_ACTION toggleExcludeFromBOM;
     static TOOL_ACTION setExcludeFromSimulation;
-    static TOOL_ACTION unsetExcludeFromSimulation;
-    static TOOL_ACTION toggleExcludeFromSimulation;
     static TOOL_ACTION setExcludeFromBoard;
-    static TOOL_ACTION unsetExcludeFromBoard;
-    static TOOL_ACTION toggleExcludeFromBoard;
     static TOOL_ACTION setDNP;
-    static TOOL_ACTION unsetDNP;
-    static TOOL_ACTION toggleDNP;
+
+    // Design Block management
+    static TOOL_ACTION showDesignBlockPanel;
+    static TOOL_ACTION saveSheetAsDesignBlock;
+    static TOOL_ACTION saveSelectionAsDesignBlock;
+    static TOOL_ACTION deleteDesignBlock;
+    static TOOL_ACTION editDesignBlockProperties;
 
     // Library management
     static TOOL_ACTION saveLibraryAs;
+    static TOOL_ACTION saveSymbolAs;
     static TOOL_ACTION saveSymbolCopyAs;
     static TOOL_ACTION newSymbol;
     static TOOL_ACTION deriveFromExistingSymbol;
@@ -223,14 +238,16 @@ public:
     // Miscellaneous
     static TOOL_ACTION toggleHiddenPins;
     static TOOL_ACTION toggleHiddenFields;
-    static TOOL_ACTION showHiddenLibPins;
-    static TOOL_ACTION showHiddenLibFields;
+    static TOOL_ACTION showHiddenPins;
+    static TOOL_ACTION showHiddenFields;
     static TOOL_ACTION toggleDirectiveLabels;
     static TOOL_ACTION toggleERCWarnings;
     static TOOL_ACTION toggleERCErrors;
     static TOOL_ACTION toggleERCExclusions;
+    static TOOL_ACTION markSimExclusions;
     static TOOL_ACTION toggleOPVoltages;
     static TOOL_ACTION toggleOPCurrents;
+    static TOOL_ACTION togglePinAltIcons;
     static TOOL_ACTION toggleSyncedPinsMode;
     static TOOL_ACTION restartMove;
     static TOOL_ACTION selectOnPCB;
@@ -239,14 +256,15 @@ public:
     static TOOL_ACTION pushPinNumSize;
     static TOOL_ACTION showElectricalTypes;
     static TOOL_ACTION showPinNumbers;
-    static TOOL_ACTION showSymbolTree;
-    static TOOL_ACTION hideSymbolTree;
+    static TOOL_ACTION symbolTreeSearch;
     static TOOL_ACTION drawSheetOnClipboard;
     static TOOL_ACTION importGraphics;
     static TOOL_ACTION exportSymbolView;
     static TOOL_ACTION exportSymbolAsSVG;
     static TOOL_ACTION showPythonConsole;
     static TOOL_ACTION repairSchematic;
+    static TOOL_ACTION previousUnit;
+    static TOOL_ACTION nextUnit;
 
     // Line modes
     static TOOL_ACTION lineModeFree;
@@ -264,6 +282,8 @@ public:
     static TOOL_ACTION saveWorkbookAs;
     static TOOL_ACTION exportPlotAsPNG;
     static TOOL_ACTION exportPlotAsCSV;
+    static TOOL_ACTION exportPlotToClipboard;
+    static TOOL_ACTION exportPlotToSchematic;
     static TOOL_ACTION showSimulator;
     static TOOL_ACTION simProbe;
     static TOOL_ACTION simTune;
@@ -285,6 +305,12 @@ public:
 
     // Drag and drop
     static TOOL_ACTION ddAppendFile;
-};
 
-#endif
+    struct PLACE_SYMBOL_PARAMS
+    {
+        ///< Provide a symbol to place
+        SCH_SYMBOL* m_Symbol = nullptr;
+        ///< If a symbol is provide, reannotate it?
+        bool m_Reannotate = true;
+    };
+};

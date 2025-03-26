@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -160,7 +160,7 @@ void GRID_CELL_COLOR_SELECTOR::BeginEdit( int row, int col, wxGrid* grid )
     m_value.SetFromWxString( grid->GetTable()->GetValue( row, col ) );
 
     grid->CallAfter(
-            [=]()
+            [this, row, col]()
             {
                 DIALOG_COLOR_PICKER dialog( m_parent, m_value, false );
 

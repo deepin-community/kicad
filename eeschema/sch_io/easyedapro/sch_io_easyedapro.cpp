@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +29,7 @@
 #include <schematic.h>
 #include <sch_sheet.h>
 #include <sch_screen.h>
+#include <symbol_lib_table.h>
 #include <kiplatform/environment.h>
 
 #include <fstream>
@@ -105,7 +106,7 @@ int SCH_IO_EASYEDAPRO::GetModifyHash() const
 
 
 static LIB_SYMBOL* loadSymbol( nlohmann::json project, const wxString& aLibraryPath,
-                               const wxString& aAliasName, const STRING_UTF8_MAP* aProperties )
+                               const wxString& aAliasName, const std::map<std::string, UTF8>* aProperties )
 {
     SCH_EASYEDAPRO_PARSER parser( nullptr, nullptr );
     LIB_SYMBOL*           symbol = nullptr;
@@ -241,7 +242,7 @@ static LIB_SYMBOL* loadSymbol( nlohmann::json project, const wxString& aLibraryP
 
 void SCH_IO_EASYEDAPRO::EnumerateSymbolLib( wxArrayString&         aSymbolNameList,
                                             const wxString&        aLibraryPath,
-                                            const STRING_UTF8_MAP* aProperties )
+                                            const std::map<std::string, UTF8>* aProperties )
 {
     wxFileName fname( aLibraryPath );
 
@@ -287,7 +288,7 @@ void SCH_IO_EASYEDAPRO::EnumerateSymbolLib( wxArrayString&         aSymbolNameLi
 
 void SCH_IO_EASYEDAPRO::EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList,
                                             const wxString&           aLibraryPath,
-                                            const STRING_UTF8_MAP*    aProperties )
+                                            const std::map<std::string, UTF8>*    aProperties )
 {
     wxFileName     libFname( aLibraryPath );
     wxArrayString  symbolNameList;
@@ -409,7 +410,7 @@ void SCH_IO_EASYEDAPRO::LoadAllDataFromProject( const wxString& aProjectPath )
 
 
 LIB_SYMBOL* SCH_IO_EASYEDAPRO::LoadSymbol( const wxString& aLibraryPath, const wxString& aAliasName,
-                                           const STRING_UTF8_MAP* aProperties )
+                                           const std::map<std::string, UTF8>* aProperties )
 {
     wxFileName     libFname( aLibraryPath );
     nlohmann::json project;
@@ -426,7 +427,7 @@ LIB_SYMBOL* SCH_IO_EASYEDAPRO::LoadSymbol( const wxString& aLibraryPath, const w
 
 SCH_SHEET* SCH_IO_EASYEDAPRO::LoadSchematicFile( const wxString& aFileName,
                                                  SCHEMATIC* aSchematic, SCH_SHEET* aAppendToMe,
-                                                 const STRING_UTF8_MAP* aProperties )
+                                                 const std::map<std::string, UTF8>* aProperties )
 {
     wxCHECK( !aFileName.IsEmpty() && aSchematic, nullptr );
 
@@ -478,7 +479,7 @@ SCH_SHEET* SCH_IO_EASYEDAPRO::LoadSchematicFile( const wxString& aFileName,
 
     wxString schematicToLoad;
 
-    if( aProperties && aProperties->Exists( "sch_id" ) )
+    if( aProperties && aProperties->contains( "sch_id" ) )
     {
         schematicToLoad = wxString::FromUTF8( aProperties->at( "sch_id" ) );
     }
@@ -625,12 +626,12 @@ SCH_SHEET* SCH_IO_EASYEDAPRO::LoadSchematicFile( const wxString& aFileName,
         }
 
         // Relaod the symbol library table.
-        aSchematic->Prj().SetElem( PROJECT::ELEM_SYMBOL_LIB_TABLE, NULL );
+        aSchematic->Prj().SetElem( PROJECT::ELEM::SYMBOL_LIB_TABLE, NULL );
         PROJECT_SCH::SchSymbolLibTable( &aSchematic->Prj() );
     }
 
     // set properties to prevent save file on every symbol save
-    STRING_UTF8_MAP properties;
+    std::map<std::string, UTF8> properties;
     properties.emplace( SCH_IO_KICAD_SEXPR::PropBuffering, wxEmptyString );
 
     for( auto& [symbolUuid, symInfo] : m_projectData->m_Symbols )

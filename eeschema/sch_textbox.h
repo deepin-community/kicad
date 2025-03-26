@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -35,24 +35,35 @@ class HTML_MESSAGE_BOX;
 class SCH_TEXTBOX : public SCH_SHAPE, public EDA_TEXT
 {
 public:
-    SCH_TEXTBOX( int aLineWidth = 0, FILL_T aFillType = FILL_T::NO_FILL,
-                 const wxString& aText = wxEmptyString );
+    SCH_TEXTBOX( SCH_LAYER_ID aLayer = LAYER_NOTES, int aLineWidth = 0,
+                 FILL_T aFillType = FILL_T::NO_FILL, const wxString& aText = wxEmptyString,
+                 KICAD_T aType = SCH_TEXTBOX_T );
 
     SCH_TEXTBOX( const SCH_TEXTBOX& aText );
 
     ~SCH_TEXTBOX() { }
 
-    static inline bool ClassOf( const EDA_ITEM* aItem )
+    static bool ClassOf( const EDA_ITEM* aItem )
     {
         return aItem && SCH_TEXTBOX_T == aItem->Type();
     }
 
-    virtual wxString GetClass() const override
+    wxString GetClass() const override
     {
         return wxT( "SCH_TEXTBOX" );
     }
 
-    int GetTextMargin() const;
+    int GetLegacyTextMargin() const;
+
+    void SetMarginLeft( int aLeft )     { m_marginLeft = aLeft; }
+    void SetMarginTop( int aTop )       { m_marginTop = aTop; }
+    void SetMarginRight( int aRight )   { m_marginRight = aRight; }
+    void SetMarginBottom( int aBottom ) { m_marginBottom = aBottom; }
+
+    int GetMarginLeft() const           { return m_marginLeft; }
+    int GetMarginTop() const            { return m_marginTop; }
+    int GetMarginRight() const          { return m_marginRight; }
+    int GetMarginBottom() const         { return m_marginBottom; }
 
     int GetSchTextSize() const { return GetTextWidth(); }
     void SetSchTextSize( int aSize ) { SetTextSize( VECTOR2I( aSize, aSize ) ); }
@@ -64,12 +75,12 @@ public:
 
     wxString GetShownText( bool aAllowExtraText, int aDepth = 0 ) const override
     {
-        SCHEMATIC* schematic = Schematic();
+        SCH_SHEET_PATH* sheetPath = nullptr;
 
-        if( schematic )
-            return GetShownText( &schematic->CurrentSheet(), aAllowExtraText, aDepth );
-        else
-            return GetText();
+        if( SCHEMATIC* schematic = Schematic() )
+            sheetPath = &schematic->CurrentSheet();
+
+        return GetShownText( sheetPath, aAllowExtraText, aDepth );
     }
 
     bool IsHypertext() const override
@@ -81,8 +92,6 @@ public:
 
     void SetExcludedFromSim( bool aExclude ) override { m_excludedFromSim = aExclude; }
     bool GetExcludedFromSim() const override { return m_excludedFromSim; }
-
-    void Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& offset ) override;
 
     void SwapData( SCH_ITEM* aItem ) override;
 
@@ -96,7 +105,7 @@ public:
 
     void MirrorHorizontally( int aCenter ) override;
     void MirrorVertically( int aCenter ) override;
-    void Rotate( const VECTOR2I& aCenter ) override;
+    void Rotate( const VECTOR2I& aCenter, bool aRotateCCW ) override;
 
     virtual void Rotate90( bool aClockwise );
 
@@ -116,12 +125,15 @@ public:
 
     virtual bool IsReplaceable() const override { return true; }
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
-    void Plot( PLOTTER* aPlotter, bool aBackground,
-               const SCH_PLOT_SETTINGS& aPlotSettings ) const override;
+    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                const VECTOR2I& offset, bool aForceNoFill, bool aDimmed ) override;
+
+    void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
+               int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override;
 
     EDA_ITEM* Clone() const override
     {
@@ -139,8 +151,14 @@ protected:
 
     const KIFONT::METRICS& getFontMetrics() const override { return GetFontMetrics(); }
 
+    int compare( const SCH_ITEM& aOther, int aCompareFlags = 0 ) const override;
+
 protected:
     bool m_excludedFromSim;
+    int  m_marginLeft;
+    int  m_marginTop;
+    int  m_marginRight;
+    int  m_marginBottom;
 };
 
 

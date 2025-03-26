@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -45,17 +45,16 @@
 #include <title_block.h>
 
 #include <lib_id.h>
-#include <sch_symbol.h>         // SCH_SYMBOL_INSTANCE
 #include <sch_reference_list.h>
 #include <sch_rtree.h>
 #include <sch_sheet.h>
 #include <sch_label.h>
-#include <sch_sheet_path.h>
+#include <sch_sheet_path.h>     // SCH_SYMBOL_INSTANCE
 
 class BUS_ALIAS;
 class EDA_ITEM;
 class LIB_SYMBOL;
-class LIB_PIN;
+class SCH_PIN;
 class SCH_SYMBOL;
 class SCH_LINE;
 class SCH_LABEL_BASE;
@@ -98,13 +97,14 @@ public:
     SCHEMATIC* Schematic() const;
 
     /**
-     * Gets the full RTree, usually for iterating.
-     * N.B. The iteration order of the RTree is not readily apparent and will change
-     * if/when you add or move items and the RTree is re-balanced.  Any exposure of the
-     * RTree contents to the user MUST be sorted before being presented.  See
-     * SCH_IO_KICAD_SEXPR::Format() or SCH_EDITOR_CONTROL::nextMatch() for examples.
+     * Get the full RTree, usually for iterating.
      *
-     * @return Complete RTree of the screen's items
+     * @note The iteration order of the RTree is not readily apparent and will change
+     *       if/when you add or move items and the RTree is re-balanced.  Any exposure of the
+     *       RTree contents to the user MUST be sorted before being presented.  See
+     *       SCH_IO_KICAD_SEXPR::Format() or SCH_EDITOR_CONTROL::nextMatch() for examples.
+     *
+     * @return Complete RTree of the screen's items.
      */
     EE_RTREE& Items() { return m_rtree; }
     const EE_RTREE& Items() const { return m_rtree; }
@@ -246,7 +246,7 @@ public:
      * @note This function is useful only for schematic.  The library editor and library viewer
      *       do not use a draw list and therefore draws nothing.
      */
-    void Print( const RENDER_SETTINGS* aSettings );
+    void Print( const SCH_RENDER_SETTINGS* aSettings );
 
     /**
      * Plot all the schematic objects to \a aPlotter.
@@ -256,7 +256,7 @@ public:
      *
      * @param[in] aPlotter The plotter object to plot to.
      */
-    void Plot( PLOTTER* aPlotter, const SCH_PLOT_SETTINGS& aPlotSettings ) const;
+    void Plot( PLOTTER* aPlotter, const SCH_PLOT_OPTS& aPlotOpts ) const;
 
     /**
      * Remove \a aItem from the schematic associated with this screen.
@@ -277,7 +277,7 @@ public:
     void Update( SCH_ITEM* aItem, bool aUpdateLibSymbol = true );
 
     /**
-     * Removes \a aItem from the linked list and deletes the object.
+     * Remove \a aItem from the linked list and deletes the object.
      *
      * If \a aItem is a schematic sheet label, it is removed from the screen associated with
      * the sheet that contains the label to be deleted.
@@ -314,7 +314,7 @@ public:
 
     /**
      * Test if a junction is required for the items at \a aPosition on the screen.  Note that
-     * this coule be either an implied junction (bus entry) or an explicit junction (dot).
+     * this could be either an implied junction (bus entry) or an explicit junction (dot).
      *
      * A junction is required at \a aPosition if one of the following criteria is satisfied:
      *  - One wire midpoint and one or more wire endpoints.
@@ -329,14 +329,16 @@ public:
     bool IsJunction( const VECTOR2I& aPosition ) const;
 
     /**
-     * Indicates that a junction dot is necessary at the given location.  See IsJunctionNeeded
-     * for more info.
+     * Indicate that a junction dot is necessary at the given location.
+     *
+     * See IsJunctionNeeded() for more info.
      */
     bool IsExplicitJunction( const VECTOR2I& aPosition ) const;
 
     /**
-     * Indicates that a junction dot is necessary at the given location, and does not yet exist.
-     * See IsJunctionNeeded for more info.
+     * Indicate that a junction dot is necessary at the given location, and does not yet exist.
+     *
+     * See IsJunctionNeeded() for more info.
      */
     bool IsExplicitJunctionNeeded( const VECTOR2I& aPosition ) const;
 
@@ -344,8 +346,9 @@ public:
                                             SPIN_STYLE            aDefaultOrientation,
                                             const SCH_SHEET_PATH* aSheet ) const;
     /**
-     * Indicates that a juction dot may be placed at the given location.  See IsJunctionNeeded
-     * for more info.
+     * Indicate that a junction dot may be placed at the given location.
+     *
+     * See IsJunctionNeeded() for more info.
      */
     bool IsExplicitJunctionAllowed( const VECTOR2I& aPosition ) const;
 
@@ -368,7 +371,7 @@ public:
      *                      point of the pin.
      * @return The pin item if found, otherwise NULL.
      */
-    LIB_PIN* GetPin( const VECTOR2I& aPosition, SCH_SYMBOL** aSymbol = nullptr,
+    SCH_PIN* GetPin( const VECTOR2I& aPosition, SCH_SYMBOL** aSymbol = nullptr,
                      bool aEndPointOnly = false ) const;
 
     /**
@@ -492,6 +495,13 @@ public:
     void AddLibSymbol( LIB_SYMBOL* aLibSymbol );
 
     /**
+     * After loading a file from disk, the library symbols do not yet contain the full
+     * data for their embedded files, only a reference.  This iterates over all lib symbols
+     * in the schematic and updates the library symbols with the full data.
+    */
+    void FixupEmbeddedData();
+
+    /**
      * Add a bus alias definition (and transfers ownership of the pointer).
      */
     void AddBusAlias( std::shared_ptr<BUS_ALIAS> aAlias );
@@ -505,7 +515,7 @@ public:
     }
 
     /**
-     * Return a set of bus aliases defined in this screen
+     * Return a set of bus aliases defined in this screen.
      */
     auto& GetBusAliases() const
     {
@@ -657,7 +667,7 @@ private:
 
     bool        m_isReadOnly;               ///< Read only status of the screen file.
 
-    ///< Flag to indicate the file associated with this screen has been created.
+    /// Flag to indicate the file associated with this screen has been created.
     bool        m_fileExists;
 
     /// List of bus aliases stored in this screen.
@@ -698,9 +708,9 @@ private:
  *
  * Individual #SCH_SCREEN objects are unique and correspond to .sch files.
  *
- * NOTE: It may be desirable to fold the functionality of SCH_SCREENS into
- * the new SCHEMATIC class at some point, since SCHEMATIC can also be thought
- * of as owning the collection of all the SCH_SCREEN objects.
+ * @note It may be desirable to fold the functionality of #SCH_SCREENS into the new #SCHEMATIC
+ *       class at some point, since SCHEMATIC can also be thought of as owning the collection
+ *       of all the #SCH_SCREEN objects.
  */
 class SCH_SCREENS
 {
@@ -810,7 +820,7 @@ public:
     bool HasSchematic( const wxString& aSchematicFileName );
 
     /**
-     * built the list of sheet paths sharing a screen for each screen in use
+     * Build the list of sheet paths sharing a screen for each screen in use.
      */
     void BuildClientSheetPathList();
 

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -25,7 +25,7 @@
 #define PCM_DEFAULT_REPOSITORY_URL "https://repository.kicad.org/repository.json"
 
 
-class KICAD_SETTINGS : public APP_SETTINGS_BASE
+class KICOMMON_API KICAD_SETTINGS : public APP_SETTINGS_BASE
 {
 public:
     KICAD_SETTINGS();
@@ -38,6 +38,8 @@ public:
 
 
     std::vector<wxString> m_OpenProjects;
+
+    wxString m_lastDesignBlockLibDir;
 
     std::vector<std::pair<wxString, wxString>> m_PcmRepositories;
     wxString                                   m_PcmLastDownloadDir;
@@ -55,6 +57,11 @@ public:
     bool     m_KiCadUpdateCheck;
     wxString m_lastUpdateCheckTime;
     wxString m_lastReceivedUpdate;
+
+    // Last position of the template window
+    wxPoint m_TemplateWindowPos;
+    // Last size of the template window
+    wxSize m_TemplateWindowSize;
 
 protected:
     virtual std::string getLegacyFrameName() const override { return "KicadFrame"; }

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mikolaj Wielgus
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,10 +22,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <sim/sim_library_kibis.h>
+#include <sim/sim_library_ibis.h>
 #include <sim/sim_library.h>
 #include <sim/sim_library_spice.h>
 #include <boost/algorithm/string/case_conv.hpp>
+#include <wildcards_and_files_ext.h>
 #include <macros.h>
 
 
@@ -35,8 +36,8 @@ SIM_LIBRARY::Create( const wxString& aFilePath, bool aForceFullParse, REPORTER& 
 {
     std::unique_ptr<SIM_LIBRARY> library;
 
-    if( aFilePath.EndsWith( ".ibs" ) )
-        library = std::make_unique<SIM_LIBRARY_KIBIS>();
+    if( aFilePath.EndsWith( FILEEXT::IbisFileExtension ) )
+        library = std::make_unique<SIM_LIBRARY_IBIS>();
     else
         library = std::make_unique<SIM_LIBRARY_SPICE>( aForceFullParse );
 

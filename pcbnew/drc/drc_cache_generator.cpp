@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022-2024 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,7 +24,7 @@
 #include <common.h>
 #include <board_design_settings.h>
 #include <footprint.h>
-#include <core/thread_pool.h>
+#include <thread_pool.h>
 #include <zone.h>
 #include <connectivity/connectivity_data.h>
 #include <drc/drc_engine.h>
@@ -111,11 +111,11 @@ bool DRC_CACHE_GENERATOR::Run()
                         copperLayers = boardCopperLayers;
                 }
 
-                for( PCB_LAYER_ID layer : copperLayers.Seq() )
-                {
-                    if( IsCopperLayer( layer ) )
-                        m_board->m_CopperItemRTreeCache->Insert( item, layer, largestClearance );
-                }
+                copperLayers.RunOnLayers(
+                        [&]( PCB_LAYER_ID layer )
+                        {
+                            m_board->m_CopperItemRTreeCache->Insert( item, layer, largestClearance );
+                        } );
 
                 done.fetch_add( 1 );
                 return true;
@@ -182,11 +182,12 @@ bool DRC_CACHE_GENERATOR::Run()
                 {
                    std::unique_ptr<DRC_RTREE> rtree = std::make_unique<DRC_RTREE>();
 
-                   for( PCB_LAYER_ID layer : aZone->GetLayerSet().Seq() )
-                   {
-                       if( IsCopperLayer( layer ) )
-                           rtree->Insert( aZone, layer );
-                   }
+                   aZone->GetLayerSet().RunOnLayers(
+                           [&]( PCB_LAYER_ID layer )
+                           {
+                               if( IsCopperLayer( layer ) )
+                                   rtree->Insert( aZone, layer );
+                           } );
 
                    {
                        std::unique_lock<std::shared_mutex> writeLock( m_board->m_CachesMutex );
@@ -221,8 +222,11 @@ bool DRC_CACHE_GENERATOR::Run()
     {
         if( !zone->GetIsRuleArea() && !zone->IsTeardropArea() )
         {
-            for( PCB_LAYER_ID layer : zone->GetLayerSet().Seq() )
-                m_board->m_ZoneIsolatedIslandsMap[ zone ][ layer ] = ISOLATED_ISLANDS();
+            zone->GetLayerSet().RunOnLayers(
+                    [&]( PCB_LAYER_ID layer )
+                    {
+                        m_board->m_ZoneIsolatedIslandsMap[ zone ][ layer ] = ISOLATED_ISLANDS();
+                    } );
         }
     }
 

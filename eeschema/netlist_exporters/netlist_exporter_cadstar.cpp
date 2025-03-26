@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1992-2018 jp.charras at wanadoo.fr
  * Copyright (C) 2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -65,13 +65,27 @@ bool NETLIST_EXPORTER_CADSTAR::WriteNetlist( const wxString& aOutFileName,
     // Create netlist footprints section
     m_referencesAlreadyFound.Clear();
 
-    SCH_SHEET_LIST sheetList = m_schematic->GetSheets();
-
-    for( unsigned i = 0; i < sheetList.size(); i++ )
+    for( const SCH_SHEET_PATH& sheet : m_schematic->Hierarchy() )
     {
-        for( SCH_ITEM* item : sheetList[i].LastScreen()->Items().OfType( SCH_SYMBOL_T ) )
+        // The rtree returns items in a non-deterministic order (platform-dependent)
+        // Therefore we need to sort them before outputting to ensure file stability for version
+        // control and QA comparisons
+        std::vector<EDA_ITEM*> sheetItems;
+
+        for( EDA_ITEM* item : sheet.LastScreen()->Items().OfType( SCH_SYMBOL_T ) )
+            sheetItems.push_back( item );
+
+        auto pred = []( const EDA_ITEM* item1, const EDA_ITEM* item2 )
         {
-            symbol = findNextSymbol( item, &sheetList[ i ] );
+            return item1->m_Uuid < item2->m_Uuid;
+        };
+
+        std::sort( sheetItems.begin(), sheetItems.end(), pred );
+
+        // Process symbol attributes
+        for( EDA_ITEM* item : sheetItems )
+        {
+            symbol = findNextSymbol( item, sheet );
 
             if( !symbol )
                 continue;
@@ -79,16 +93,16 @@ bool NETLIST_EXPORTER_CADSTAR::WriteNetlist( const wxString& aOutFileName,
             if( symbol->GetExcludedFromBoard() )
                 continue;
 
-            footprint = symbol->GetFootprintFieldText( true, &sheetList[ i ], false );
+            footprint = symbol->GetFootprintFieldText( true, &sheet, false );
 
             if( footprint.IsEmpty() )
                 footprint = "$noname";
 
-            msg = symbol->GetRef( &sheetList[i] );
+            msg = symbol->GetRef( &sheet );
             ret |= fprintf( f, "%s     ", TO_UTF8( StartCmpDesc ) );
             ret |= fprintf( f, "%s", TO_UTF8( msg ) );
 
-            msg = symbol->GetValueFieldText( true, &sheetList[ i ], false );
+            msg = symbol->GetValue( true, &sheet, false );
             msg.Replace( wxT( " " ), wxT( "_" ) );
             ret |= fprintf( f, "     \"%s\"", TO_UTF8( msg ) );
             ret |= fprintf( f, "     \"%s\"", TO_UTF8( footprint ) );
@@ -117,13 +131,16 @@ bool NETLIST_EXPORTER_CADSTAR::writeListOfNets( FILE* f )
     wxString InitNetDesc  = StartLine + wxT( "ADD_TER" );
     wxString StartNetDesc = StartLine + wxT( "TER" );
     wxString InitNetDescLine;
-    wxString netName;
+
+    std::vector<std::pair<wxString, std::vector<std::pair<SCH_PIN*, SCH_SHEET_PATH>>>> all_nets;
 
     for( const auto& [ key, subgraphs ] : m_schematic->ConnectionGraph()->GetNetMap() )
     {
+        wxString netName;
         netName.Printf( wxT( "\"%s\"" ), key.Name );
 
-        std::vector<std::pair<SCH_PIN*, SCH_SHEET_PATH>> sorted_items;
+        all_nets.emplace_back( netName, std::vector<std::pair<SCH_PIN*, SCH_SHEET_PATH>>{} );
+        std::vector<std::pair<SCH_PIN*, SCH_SHEET_PATH>>& sorted_items = all_nets.back().second;
 
         for( CONNECTION_SUBGRAPH* subgraph : subgraphs )
         {
@@ -136,7 +153,7 @@ bool NETLIST_EXPORTER_CADSTAR::writeListOfNets( FILE* f )
             }
         }
 
-        // Netlist ordering: Net name, then ref des, then pin name
+        // Intra-net ordering: Ref des, then pin name
         std::sort( sorted_items.begin(), sorted_items.end(),
                 []( std::pair<SCH_PIN*, SCH_SHEET_PATH> a, std::pair<SCH_PIN*, SCH_SHEET_PATH> b )
                 {
@@ -161,7 +178,17 @@ bool NETLIST_EXPORTER_CADSTAR::writeListOfNets( FILE* f )
                     return ref_a == ref_b && a.first->GetShownNumber() == b.first->GetShownNumber();
                 } ),
                 sorted_items.end() );
+    }
 
+    // Inter-net ordering by net name
+    std::sort( all_nets.begin(), all_nets.end(),
+               []( const auto& a, const auto& b )
+               {
+                   return a.first < b.first;
+               } );
+
+    for( const auto& [netName, sorted_items] : all_nets )
+    {
         print_ter = 0;
 
         for( const std::pair<SCH_PIN*, SCH_SHEET_PATH>& pair : sorted_items )

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,6 +23,7 @@
 #include <pgm_base.h>
 #include <board.h>
 #include <layer_ids.h>
+#include <layer_range.h>
 #include <gal/graphics_abstraction_layer.h>
 #include <panel_pcbnew_color_settings.h>
 #include <math/vector2wx.h>
@@ -106,6 +107,7 @@ std::string g_previewBoard =
         "      (plotreference true)\n"
         "      (plotvalue true)\n"
         "      (plotinvisibletext false)\n"
+        "      (plotpadnumbers false)\n"
         "      (sketchpadsonfab false)\n"
         "      (subtractmaskfromsilk false)\n"
         "      (outputformat 1)\n"
@@ -655,17 +657,21 @@ std::string g_previewBoard =
 std::set<int> g_excludedLayers =
         {
             LAYER_VIAS,
-            LAYER_VIA_HOLEWALLS,
+            LAYER_VIA_THROUGH,
+            LAYER_VIA_BBLIND,
+            LAYER_VIA_MICROVIA,
             LAYER_FOOTPRINTS_FR,
             LAYER_FOOTPRINTS_BK,
-            LAYER_PADS_SMD_FR,
-            LAYER_PADS_SMD_BK,
             LAYER_FP_VALUES,
             LAYER_FP_REFERENCES,
             LAYER_TRACKS,
             LAYER_FP_TEXT,
             GAL_LAYER_ID_START + 6,     // where LAYER_MOD_TEXT_BK (deprecated) used to be
+            GAL_LAYER_ID_START + 7,     // where LAYER_HIDDEN_TEXT (deprecated) used to be
+            GAL_LAYER_ID_START + 9,    // where LAYER_PADS_SMD_FR (deprecated) used to be
+            GAL_LAYER_ID_START + 10,    // where LAYER_PADS_SMD_BK (deprecated) used to be
             GAL_LAYER_ID_START + 14,    // where LAYER_NO_CONNECTS (deprecated) used to be
+            GAL_LAYER_ID_START + 20,    // where LAYER_PADS_TH (deprecated) used to be
             LAYER_PAD_PLATEDHOLES,
             LAYER_PAD_HOLEWALLS,
             LAYER_GP_OVERLAY,
@@ -684,15 +690,15 @@ PANEL_PCBNEW_COLOR_SETTINGS::PANEL_PCBNEW_COLOR_SETTINGS( wxWindow* aParent, BOA
 {
     m_colorNamespace = "board";
 
-    SETTINGS_MANAGER& mgr          = Pgm().GetSettingsManager();
-    PCBNEW_SETTINGS*  app_settings = mgr.GetAppSettings<PCBNEW_SETTINGS>();
-    COLOR_SETTINGS*   current      = mgr.GetColorSettings( app_settings->m_ColorTheme );
+    SETTINGS_MANAGER& mgr     = Pgm().GetSettingsManager();
+    PCBNEW_SETTINGS*  cfg     = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
+    COLOR_SETTINGS*   current = mgr.GetColorSettings( cfg->m_ColorTheme );
 
     // Saved theme doesn't exist?  Reset to default
-    if( current->GetFilename() != app_settings->m_ColorTheme )
-        app_settings->m_ColorTheme = current->GetFilename();
+    if( current->GetFilename() != cfg->m_ColorTheme )
+        cfg->m_ColorTheme = current->GetFilename();
 
-    createThemeList( app_settings->m_ColorTheme );
+    createThemeList( cfg->m_ColorTheme );
 
     // Currently this only applies to eeschema
     m_optOverrideColors->Hide();
@@ -713,6 +719,8 @@ PANEL_PCBNEW_COLOR_SETTINGS::PANEL_PCBNEW_COLOR_SETTINGS( wxWindow* aParent, BOA
     m_validLayers.push_back( LAYER_PAGE_LIMITS );
     m_validLayers.push_back( LAYER_DRC_WARNING );
     m_validLayers.push_back( LAYER_DRC_EXCLUSION );
+    m_validLayers.push_back( NETNAMES_LAYER_ID_START );
+    m_validLayers.push_back( LAYER_PAD_NETNAMES );
 
     // NOTE: Main board layers are added by createSwatches()
 
@@ -731,8 +739,9 @@ PANEL_PCBNEW_COLOR_SETTINGS::~PANEL_PCBNEW_COLOR_SETTINGS()
 bool PANEL_PCBNEW_COLOR_SETTINGS::TransferDataFromWindow()
 {
     SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-    PCBNEW_SETTINGS*  app_settings = mgr.GetAppSettings<PCBNEW_SETTINGS>();
-    app_settings->m_ColorTheme = m_currentSettings->GetFilename();
+    PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
+
+    cfg->m_ColorTheme = m_currentSettings->GetFilename();
 
     return true;
 }
@@ -754,8 +763,13 @@ void PANEL_PCBNEW_COLOR_SETTINGS::createSwatches()
                } );
 
     // Don't sort aBoard layers by name
-    for( int i = PCBNEW_LAYER_ID_START; i <= User_9; ++i )
-        m_validLayers.insert( m_validLayers.begin() + i, i );
+    size_t i = 0;
+
+    for( PCB_LAYER_ID layer : LAYER_RANGE( F_Cu, B_Cu, MAX_CU_LAYERS ) )
+        m_validLayers.insert( m_validLayers.begin() + i++, layer );
+
+    for( PCB_LAYER_ID layer : LSET::AllNonCuMask().TechAndUserUIOrder() )
+        m_validLayers.insert( m_validLayers.begin() + i++, layer );
 
     for( int layer : m_validLayers )
     {

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,6 +32,7 @@
 #include <pcb_group.h>
 #include <pcb_marker.h>
 #include <pcb_textbox.h>
+#include <pcb_table.h>
 #include <pcb_shape.h>
 #include <pad.h>
 #include <zone.h>
@@ -44,7 +45,9 @@
 #include <pcb_layer_box_selector.h>
 #include <pcb_dimension.h>
 #include <project_pcb.h>
+#include <view/view_controls.h>
 #include <dialogs/dialog_dimension_properties.h>
+#include <dialogs/dialog_table_properties.h>
 
 using namespace std::placeholders;
 
@@ -167,7 +170,7 @@ void FOOTPRINT_EDIT_FRAME::editFootprintProperties( FOOTPRINT* aFootprint )
     LIB_ID oldFPID = aFootprint->GetFPID();
 
     DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR dialog( this, aFootprint );
-    dialog.ShowModal();
+    dialog.ShowQuasiModal();
 
     // Update library tree and title in case of a name change
     wxDataViewItem treeItem = m_adapter->FindItem( oldFPID );
@@ -204,6 +207,15 @@ void FOOTPRINT_EDIT_FRAME::OnEditItemRequest( BOARD_ITEM* aItem )
         ShowTextBoxPropertiesDialog( static_cast<PCB_TEXTBOX*>( aItem ) );
         break;
 
+    case PCB_TABLE_T:
+    {
+        DIALOG_TABLE_PROPERTIES dlg( this, static_cast<PCB_TABLE*>( aItem ) );
+
+        //QuasiModal required for Scintilla auto-complete
+        dlg.ShowQuasiModal();
+        break;
+    }
+
     case PCB_SHAPE_T :
         ShowGraphicItemPropertiesDialog( static_cast<PCB_SHAPE*>( aItem ) );
         break;
@@ -215,6 +227,8 @@ void FOOTPRINT_EDIT_FRAME::OnEditItemRequest( BOARD_ITEM* aItem )
     case PCB_DIM_LEADER_T:
     {
         DIALOG_DIMENSION_PROPERTIES dlg( this, static_cast<PCB_DIMENSION_BASE*>( aItem ) );
+
+        // TODO: why is this QuasiModal?
         dlg.ShowQuasiModal();
         break;
     }
@@ -275,11 +289,34 @@ COLOR4D FOOTPRINT_EDIT_FRAME::GetGridColor()
 
 void FOOTPRINT_EDIT_FRAME::SetActiveLayer( PCB_LAYER_ID aLayer )
 {
+    const PCB_LAYER_ID oldLayer = GetActiveLayer();
+
+    if( oldLayer == aLayer )
+        return;
+
     PCB_BASE_FRAME::SetActiveLayer( aLayer );
+
+    /*
+     * Follow the PCB editor logic for showing/hiding clearance layers: show only for
+     * the active copper layer or a front/back non-copper layer.
+     */
+    const auto getClearanceLayerForActive = []( PCB_LAYER_ID aActiveLayer ) -> std::optional<int>
+    {
+        if( IsCopperLayer( aActiveLayer ) )
+            return CLEARANCE_LAYER_FOR( aActiveLayer );
+
+        return std::nullopt;
+    };
+
+    if( std::optional<int> oldClearanceLayer = getClearanceLayerForActive( oldLayer ) )
+        GetCanvas()->GetView()->SetLayerVisible( *oldClearanceLayer, false );
+
+    if( std::optional<int> newClearanceLayer = getClearanceLayerForActive( aLayer ) )
+        GetCanvas()->GetView()->SetLayerVisible( *newClearanceLayer, true );
 
     m_appearancePanel->OnLayerChanged();
 
-    m_toolManager->PostAction( PCB_ACTIONS::layerChanged );  // notify other tools
+    m_toolManager->RunAction( PCB_ACTIONS::layerChanged );  // notify other tools
     GetCanvas()->SetFocus();                             // allow capture of hotkeys
     GetCanvas()->SetHighContrastLayer( aLayer );
     GetCanvas()->Refresh();
@@ -323,9 +360,9 @@ void FOOTPRINT_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
 
             if( !libTableRow )
             {
-                msg.Printf( _( "The current configuration does not include a library named '%s'.\n"
-                               "Use Manage Footprint Libraries to edit the configuration." ),
+                msg.Printf( _( "The current configuration does not include the footprint library '%s'." ),
                             fpFileName.GetPath() );
+                msg += wxS( "\n" ) + _( "Use Manage Footprint Libraries to edit the configuration." );
                 DisplayErrorMessage( this, _( "Library not found in footprint library table." ),
                                      msg );
                 break;
@@ -335,9 +372,9 @@ void FOOTPRINT_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
 
             if( !libTable->HasLibrary( libNickname, true ) )
             {
-                msg.Printf( _( "The library '%s' is not enabled in the current configuration.\n"
-                               "Use Manage Footprint Libraries to edit the configuration." ),
+                msg.Printf( _( "The footprint library '%s' is not enabled in the current configuration." ),
                             libNickname );
+                msg += wxS( "\n" ) + _( "Use Manage Footprint Libraries to edit the configuration." );
                 DisplayErrorMessage( this, _( "Footprint library not enabled." ), msg );
                 break;
             }

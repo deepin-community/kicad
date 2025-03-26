@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN (www.cern.ch)
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -71,7 +71,15 @@ public:
     wxStatusBar* OnCreateStatusBar( int number, long style, wxWindowID id,
                                     const wxString& name ) override;
 
-    void RecreateBaseHToolbar();
+    /**
+     * Hides the tabs for Editor notebook if there is only 1 page
+     */
+    void HideTabsIfNeeded();
+
+    /**
+     * (Re)Create the left vertical toolbar
+     */
+    void RecreateBaseLeftToolbar();
 
     wxString GetCurrentFileName() const override
     {
@@ -139,13 +147,16 @@ public:
     bool CloseProject( bool aSave );
     void LoadProject( const wxFileName& aProjectFileName );
 
+    void OpenJobsFile( const wxFileName& aFileName, bool aCreate = false,
+                       bool aResaveProjectPreferences = true );
+
 
     void LoadSettings( APP_SETTINGS_BASE* aCfg ) override;
 
     void SaveSettings( APP_SETTINGS_BASE* aCfg ) override;
 
     void ShowChangedLanguage() override;
-    void CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged ) override;
+    void CommonSettingsChanged( int aFlags ) override;
     void ProjectChanged() override;
 
     /**
@@ -164,6 +175,15 @@ public:
     const wxString PcbLegacyFileName();
 
     void ReCreateTreePrj();
+
+    /**
+     * @param aIsExplicitUserSave is true to indicate the user ran a Save Project action explicitly
+     *        Note that this parameter should currently *always* be false, because there is no
+     *        explicit Save Project action in the project manager.  This means that anytime the
+     *        project manager saves project local settings, it is an implicit save (and should not
+     *        actually save the file if it was migrated)
+     */
+    void SaveOpenJobSetsToLocalSettings( bool aIsExplicitUserSave = false );
 
     wxWindow* GetToolCanvas() const override;
 
@@ -184,6 +204,10 @@ protected:
     void doReCreateMenuBar() override;
 
     void onToolbarSizeChanged();
+
+    void onNotebookPageCloseRequest( wxAuiNotebookEvent& evt );
+
+    void onNotebookPageCountChanged( wxAuiNotebookEvent& evt );
 
 private:
     void setupTools();
@@ -208,6 +232,7 @@ private:
     bool m_active_project;
 
     PROJECT_TREE_PANE*    m_leftWin;
+    wxAuiNotebook*        m_notebook;
     PANEL_KICAD_LAUNCHER* m_launcher;
     ACTION_TOOLBAR*       m_mainToolBar;
     int                   m_lastToolbarIconSize;

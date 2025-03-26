@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1992-2018 jp.charras at wanadoo.fr
  * Copyright (C) 2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2023, 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -65,12 +65,8 @@ bool NETLIST_EXPORTER_ORCADPCB2::WriteNetlist( const wxString& aOutFileName,
     // Create netlist footprints section
     m_referencesAlreadyFound.Clear();
 
-    SCH_SHEET_LIST sheetList = m_schematic->GetSheets();
-
-    for( unsigned i = 0;  i < sheetList.size();  i++ )
+    for( const SCH_SHEET_PATH& sheet : m_schematic->Hierarchy() )
     {
-        SCH_SHEET_PATH sheet = sheetList[i];
-
         // The rtree returns items in a non-deterministic order (platform-dependent)
         // Therefore we need to sort them before outputting to ensure file stability for version
         // control and QA comparisons
@@ -89,7 +85,7 @@ bool NETLIST_EXPORTER_ORCADPCB2::WriteNetlist( const wxString& aOutFileName,
         // Process symbol attributes
         for( EDA_ITEM* item : sheetItems )
         {
-            SCH_SYMBOL* symbol = findNextSymbol( item, &sheet );
+            SCH_SYMBOL* symbol = findNextSymbol( item, sheet );
 
             if( !symbol )
                 continue;
@@ -97,7 +93,7 @@ bool NETLIST_EXPORTER_ORCADPCB2::WriteNetlist( const wxString& aOutFileName,
             if( symbol->GetExcludedFromBoard() )
                 continue;
 
-            std::vector<PIN_INFO> pins = CreatePinList( symbol, &sheet, true );
+            std::vector<PIN_INFO> pins = CreatePinList( symbol, sheet, true );
 
             if( symbol->GetLibSymbolRef()
                   && symbol->GetLibSymbolRef()->GetFPFilters().GetCount() != 0  )
@@ -119,7 +115,7 @@ bool NETLIST_EXPORTER_ORCADPCB2::WriteNetlist( const wxString& aOutFileName,
 
             ret |= fprintf( f, "  %s", TO_UTF8( field ) );
 
-            field = symbol->GetValueFieldText( true, &sheet, false );
+            field = symbol->GetValue( true, &sheet, false );
             field.Replace( wxT( " " ), wxT( "_" ) );
 
             ret |= fprintf( f, " %s", TO_UTF8( field ) );

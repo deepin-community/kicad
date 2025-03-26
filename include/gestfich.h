@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009-2014 Jerry Jacobs
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,8 +25,10 @@
 #ifndef GESTFICH_H
 #define GESTFICH_H
 
+#include <kicommon.h>
 #include <wx/filename.h>
 #include <wx/process.h>
+#include <wx/zipstrm.h>
 
 
 /**
@@ -43,29 +45,39 @@ class EDA_LIST_DIALOG;
  * Run the PDF viewer and display a PDF file.
  *
  * @param file the PDF file to open.
- * @return true is success or false if no PDF viewer found.
+ * @retval true if PDF viewer found.
+ * @retval false if no PDF viewer found.
  */
-bool OpenPDF( const wxString& file );
+KICOMMON_API bool OpenPDF( const wxString& file );
 
 /**
  * @param aSrcPath is the full filename of the source.
- * @param aDestPath is the full filename of the target
- * @param aErrors a wxString to *append* any errors to
+ * @param[in] aDestPath is the full filename of the target.
+ * @param[out] aErrors a wxString to *append* any errors to.
  */
-void KiCopyFile( const wxString& aSrcPath, const wxString& aDestPath, wxString& aErrors );
+KICOMMON_API void KiCopyFile( const wxString& aSrcPath, const wxString& aDestPath,
+                              wxString& aErrors );
 
 /**
  * Call the executable file \a aEditorName with the parameter \a aFileName.
+ *
+ * @param[in] aEditorName is the full filename for the binary.
+ * @param[in] aFileName is the full filename of the file to open.
+ * @param[in] aCallback a wxProcess* for the call.
+ * @param aFileForKicad a boolean to flag if aFileName runs with a KiCad binary.
+ * In this case aFileName is a shortname and FindKicadFile() is called to return the path.
+ * In the other case, aFileName is a full file name (passed prefixed with the path).
  */
-int ExecuteFile( const wxString& aEditorName, const wxString& aFileName = wxEmptyString,
-                 wxProcess* aCallback = nullptr );
+KICOMMON_API int ExecuteFile( const wxString& aEditorName,
+                              const wxString& aFileName = wxEmptyString,
+                              wxProcess* aCallback = nullptr, bool aFileForKicad = true );
 
 /**
  * Add un " to the start and the end of string (if not already done).
  *
  * @param string string to modify.
  */
-void QuoteString( wxString& string );
+KICOMMON_API void QuoteString( wxString& string );
 
 /**
  * Search the executable file shortname in KiCad binary path and return full file
@@ -77,7 +89,7 @@ void QuoteString( wxString& string );
  *   - c:\\kicad or /usr/local/kicad (the default).
  *   - default binary path.
  */
-wxString FindKicadFile( const wxString& shortname );
+KICOMMON_API wxString FindKicadFile( const wxString& shortname );
 
 /**
  * Quote return value of wxFileName::GetFullPath().
@@ -89,13 +101,40 @@ wxString FindKicadFile( const wxString& shortname );
  * @param format if provided, can be used to transform the nature of the wrapped filename
  *               to another platform.
  */
-extern wxString QuoteFullPath( wxFileName& fn, wxPathFormat format = wxPATH_NATIVE );
+KICOMMON_API extern wxString QuoteFullPath( wxFileName& fn, wxPathFormat format = wxPATH_NATIVE );
 
 
 /**
- * Removes the directory \a aDirName and all its contents including
- * subdirectories and their files
+ * Remove the directory \a aDirName and all its contents including
+ * subdirectories and their files.
  */
-bool RmDirRecursive( const wxString& aDirName, wxString* aErrors = nullptr );
+KICOMMON_API bool RmDirRecursive( const wxString& aDirName, wxString* aErrors = nullptr );
+
+/**
+ * Copy a directory and its contents to another directory.
+ *
+ * @param aSourceDir is the directory to copy.
+ * @param aDestDir is the directory to copy to.
+ * @param aErrors is a string to append any errors to.
+ */
+KICOMMON_API bool CopyDirectory( const wxString& aSourceDir, const wxString& aDestDir,
+                                 wxString& aErrors );
+
+KICOMMON_API bool CopyFilesOrDirectory( const wxString& aSourceDir, const wxString& aDestDir,
+                                        wxString& aErrors, int& fileCopiedCount,
+                                        const std::vector<wxString>& aExclusions );
+
+/**
+ * Add a directory and its contents to a zip file.
+ *
+ * @param aZip is the zip file to add to.
+ * @param aSourceDir is the directory to add.
+ * @param aErrors is a string to append any errors to.
+ * @param aParentDir is the parent directory to add to the zip file.
+ */
+KICOMMON_API bool AddDirectoryToZip( wxZipOutputStream& aZip,
+                                     const wxString& aSourceDir,
+                                     wxString& aErrors,
+                                     const wxString& aParentDir = "" );
 
 #endif /* GESTFICH_H */

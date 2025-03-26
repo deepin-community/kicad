@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,6 +33,7 @@ class KIGIT_ERRORS
 public:
 
     KIGIT_ERRORS() = default;
+    virtual ~KIGIT_ERRORS() = default;
 
     const std::vector<wxString>& GetErrorStrings() const
     {

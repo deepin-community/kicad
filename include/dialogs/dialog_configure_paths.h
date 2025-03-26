@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2015 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2015-2018 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,12 +25,16 @@
 #ifndef _DIALOG_CONFIGURE_PATHS_H_
 #define _DIALOG_CONFIGURE_PATHS_H_
 
-#include <../common/dialogs/dialog_configure_paths_base.h>
+#include <memory>
 
 #include <wx/string.h>
 #include <wx/valtext.h>
 
+#include <../common/dialogs/dialog_configure_paths_base.h>
+
+
 class HTML_WINDOW;
+class WX_GRID_AUTOSIZER;
 
 
 class DIALOG_CONFIGURE_PATHS: public DIALOG_CONFIGURE_PATHS_BASE
@@ -44,7 +48,6 @@ public:
 
 protected:
     // Various button callbacks
-    void OnGridSize( wxSizeEvent& event ) override;
     void OnUpdateUI( wxUpdateUIEvent& event ) override;
     void OnGridCellChanging( wxGridEvent& event );
     void OnAddEnvVar( wxCommandEvent& event ) override;
@@ -63,8 +66,7 @@ private:
     wxString            m_curdir;
     wxTextValidator     m_aliasValidator;
 
-    int                 m_gridWidth;
-    bool                m_gridWidthsDirty;
+    std::unique_ptr<WX_GRID_AUTOSIZER> m_gridAutosizer;
 
     HTML_WINDOW*        m_helpBox;
     int                 m_heightBeforeHelp;

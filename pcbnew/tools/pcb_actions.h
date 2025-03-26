@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2016 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -158,10 +158,16 @@ public:
     static TOOL_ACTION filletLines;
     /// Chamfer (i.e. adds a straight line) all selected straight lines by a user defined setback
     static TOOL_ACTION chamferLines;
+    /// Add "dogbone" corners to selected lines to allow routing with a cutter radius
+    static TOOL_ACTION dogboneCorners;
     /// Connect selected shapes, possibly extending or cutting them, or adding extra geometry
     static TOOL_ACTION healShapes;
     /// Extend selected lines to meet at a point
     static TOOL_ACTION extendLines;
+    /// Simplify polygon outlines
+    static TOOL_ACTION simplifyPolygons;
+    /// Create outset items from selection
+    static TOOL_ACTION outsetItems;
 
     /// Merge multiple polygons into a single polygon
     static TOOL_ACTION mergePolygons;
@@ -197,9 +203,11 @@ public:
     static TOOL_ACTION drawRectangle;
     static TOOL_ACTION drawCircle;
     static TOOL_ACTION drawArc;
+    static TOOL_ACTION drawBezier;
     static TOOL_ACTION placeReferenceImage;
     static TOOL_ACTION placeText;
     static TOOL_ACTION drawTextBox;
+    static TOOL_ACTION drawTable;
     static TOOL_ACTION spacingIncrease;
     static TOOL_ACTION spacingDecrease;
     static TOOL_ACTION amplIncrease;
@@ -231,6 +239,9 @@ public:
 
     /// Switch posture when drawing arc
     static TOOL_ACTION arcPosture;
+
+    /// Switch between dimension arrow directions
+    static TOOL_ACTION changeDimensionArrows;
 
     /// Snapping controls
     static TOOL_ACTION magneticSnapActiveLayer;
@@ -286,6 +297,7 @@ public:
     // Point Editor
     static TOOL_ACTION pointEditorAddCorner;
     static TOOL_ACTION pointEditorRemoveCorner;
+    static TOOL_ACTION pointEditorChamferCorner;
 
     static TOOL_ACTION pointEditorArcKeepCenter;
     static TOOL_ACTION pointEditorArcKeepEndpoint;
@@ -306,15 +318,18 @@ public:
     static TOOL_ACTION alignRight;
     static TOOL_ACTION alignCenterX;
     static TOOL_ACTION alignCenterY;
-    static TOOL_ACTION distributeHorizontally;
-    static TOOL_ACTION distributeVertically;
+    static TOOL_ACTION distributeHorizontallyCenters;
+    static TOOL_ACTION distributeHorizontallyGaps;
+    static TOOL_ACTION distributeVerticallyCenters;
+    static TOOL_ACTION distributeVerticallyGaps;
 
     // Position Relative Tool
-    /// Activation of the position relative tool
     static TOOL_ACTION positionRelative;
+    static TOOL_ACTION positionRelativeInteractively;
 
-    /// Selection of anchor item for position relative tool
-    static TOOL_ACTION selectpositionRelativeItem;
+    /// Selection of reference points/items
+    static TOOL_ACTION selectItemInteractively;
+    static TOOL_ACTION selectPointInteractively;
 
     // Display modes
     static TOOL_ACTION showRatsnest;
@@ -369,6 +384,7 @@ public:
     static TOOL_ACTION layerAlphaInc;
     static TOOL_ACTION layerAlphaDec;
     static TOOL_ACTION layerToggle;
+    static TOOL_ACTION layerPairPresetsCycle;
 
     // Group to link all actions that directly select layers
     static TOOL_ACTION_GROUP layerDirectSwitchActions();
@@ -399,7 +415,6 @@ public:
     static TOOL_ACTION zoneDuplicate;
 
     /// Scripting Actions
-    static TOOL_ACTION pluginsReload;
     static TOOL_ACTION pluginsShowFolder;
 
     // Global edit tool
@@ -427,22 +442,21 @@ public:
     static TOOL_ACTION generatePosFile;
     static TOOL_ACTION generateReportFile;
     static TOOL_ACTION generateIPC2581File;
+    static TOOL_ACTION generateODBPPFile;
     static TOOL_ACTION generateD356File;
     static TOOL_ACTION generateBOM;
 
-    static TOOL_ACTION listNets;
     static TOOL_ACTION runDRC;
 
     static TOOL_ACTION editFpInFpEditor;
     static TOOL_ACTION editLibFpInFpEditor;
 
     static TOOL_ACTION showLayersManager;
+    static TOOL_ACTION showNetInspector;
     static TOOL_ACTION showPythonConsole;
+    static TOOL_ACTION zonesManager;
 
-    // Module editor tools
-
-    static TOOL_ACTION showFootprintTree;
-    static TOOL_ACTION hideFootprintTree;
+    // Footprint editor tools
 
     // We don't use ACTION::new here because we need to distinguish between New Library
     // and New Footprint.
@@ -575,14 +589,19 @@ public:
     static TOOL_ACTION ddAppendBoard;
     static TOOL_ACTION ddImportFootprint;
 
-
+    static TOOL_ACTION repeatLayout;
+    static TOOL_ACTION generatePlacementRuleAreas;
 };
 
 class PCB_EVENTS
 {
 public:
+    // These are functions that access the underlying event because the event constructor
+    // needs the ACTION::cancelInteractive action, so we must
+
     /// Hotkey feedback
-    const static TOOL_EVENT SnappingModeChangedByKeyEvent;
+    static const TOOL_EVENT& SnappingModeChangedByKeyEvent();
+    static const TOOL_EVENT& LayerPairPresetChangedByKeyEvent();
 };
 
 #endif

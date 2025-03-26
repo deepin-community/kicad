@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2013 CERN
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- * Copyright (C) 2021-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -84,7 +84,17 @@ public:
         if( dist_sq == 0 || dist_sq < SEG::Square( minDist ) )
         {
             if( aLocation )
-                *aLocation = pn;
+            {
+                if( std::vector<VECTOR2I> pts = m_circle.Intersect( aSeg );
+                    !pts.empty() && dist_sq == 0 )
+                {
+                    *aLocation = m_circle.Intersect( aSeg )[0];
+                }
+                else
+                {
+                    *aLocation = pn;
+                }
+            }
 
             if( aActual )
                 *aActual = std::max( 0, (int) sqrt( dist_sq ) - m_circle.Radius );

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,6 +26,8 @@
 #define DRC_TEST_PROVIDER__H
 
 #include <board.h>
+#include <board_commit.h>
+#include <drc/drc_engine.h>
 #include <pcb_marker.h>
 
 #include <functional>
@@ -109,7 +111,8 @@ protected:
     virtual void reportAux( const wxChar* fmt, ... );
 
     virtual void reportViolation( std::shared_ptr<DRC_ITEM>& item, const VECTOR2I& aMarkerPos,
-                                  int aMarkerLayer );
+                                  int                        aMarkerLayer,
+                                  DRC_CUSTOM_MARKER_HANDLER* aCustomHandler = nullptr );
     virtual bool reportProgress( size_t aCount, size_t aSize, size_t aDelta = 1 );
     virtual bool reportPhase( const wxString& aStageName );
 
@@ -121,6 +124,8 @@ protected:
 
     wxString formatMsg( const wxString& aFormatString, const wxString& aSource, double aConstraint,
                         double aActual );
+    wxString formatMsg( const wxString& aFormatString, const wxString& aSource,
+                        const EDA_ANGLE& aConstraint, const EDA_ANGLE& aActual );
 
     // List of basic (ie: non-compound) geometry items
     static std::vector<KICAD_T> s_allBasicItems;
@@ -132,7 +137,7 @@ protected:
     DRC_ENGINE* m_drcEngine;
     std::unordered_map<const DRC_RULE*, int> m_stats;
     bool        m_isRuleDriven = true;
-    std::mutex  m_statsMutex;
+    std::mutex                               m_statsMutex;
 };
 
 #endif // DRC_TEST_PROVIDER__H

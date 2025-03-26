@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2017 CERN
  * @author Alejandro García Montoro <alejandro.garciamontoro@gmail.com>
- * Copyright (C) 2019-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -35,23 +35,15 @@
 #include <symbol_editor/symbol_editor_settings.h>
 #include <wx/app.h>
 #include <wx/init.h>
+#include <mock_pgm_base.h>
 
 #include <qa_utils/wx_utils/wx_assert.h>
-
-/*
- * Simple function to handle a WX assertion and throw a real exception.
- *
- * This is useful when you want to check assertions fire in unit tests.
- */
-void wxAssertThrower( const wxString& aFile, int aLine, const wxString& aFunc,
-        const wxString& aCond, const wxString& aMsg )
-{
-    throw KI_TEST::WX_ASSERT_ERROR( aFile, aLine, aFunc, aCond, aMsg );
-}
 
 
 bool init_unit_test()
 {
+    KI_TEST::SetMockConfigDir();
+    SetPgm( new MOCK_PGM_BASE() );
     KIPLATFORM::APP::Init();
     boost::unit_test::framework::master_test_suite().p_name.value = "Common Eeschema module tests";
 
@@ -60,7 +52,7 @@ bool init_unit_test()
     bool ok = wxInitialize( boost::unit_test::framework::master_test_suite().argc,
                             boost::unit_test::framework::master_test_suite().argv );
 
-    wxSetAssertHandler( &wxAssertThrower );
+    wxSetAssertHandler( &KI_TEST::wxAssertThrower );
 
     Pgm().InitPgm( true, true, true );
     Pgm().GetSettingsManager().RegisterSettings( new EESCHEMA_SETTINGS, false );

@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -22,7 +22,7 @@ WX_HTML_REPORT_PANEL_BASE::WX_HTML_REPORT_PANEL_BASE( wxWindow* parent, wxWindow
 	m_fgSizer->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
 
 	m_htmlView = new HTML_WINDOW( m_box->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, wxHW_SCROLLBAR_AUTO );
-	m_fgSizer->Add( m_htmlView, 1, wxEXPAND|wxRIGHT|wxLEFT, 2 );
+	m_fgSizer->Add( m_htmlView, 1, wxEXPAND|wxLEFT|wxRIGHT|wxTOP, 5 );
 
 	wxBoxSizer* bSizerBottom;
 	bSizerBottom = new wxBoxSizer( wxHORIZONTAL );
@@ -36,37 +36,41 @@ WX_HTML_REPORT_PANEL_BASE::WX_HTML_REPORT_PANEL_BASE( wxWindow* parent, wxWindow
 	bSizerBottom->Add( m_checkBoxShowAll, 0, wxALIGN_CENTER_VERTICAL|wxLEFT|wxRIGHT, 5 );
 
 
-	bSizerBottom->Add( 20, 0, 0, wxEXPAND, 5 );
+	bSizerBottom->Add( 30, 0, 0, wxEXPAND, 5 );
 
 	m_checkBoxShowErrors = new wxCheckBox( m_box->GetStaticBox(), wxID_ANY, _("Errors"), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizerBottom->Add( m_checkBoxShowErrors, 0, wxALIGN_CENTER_VERTICAL|wxLEFT|wxRIGHT, 5 );
 
 	m_errorsBadge = new NUMBER_BADGE( m_box->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, 0 );
+	m_errorsBadge->SetMinSize( wxSize( 10,10 ) );
+
 	bSizerBottom->Add( m_errorsBadge, 0, wxALIGN_CENTER_VERTICAL|wxBOTTOM|wxRIGHT|wxTOP, 4 );
 
 
-	bSizerBottom->Add( 10, 0, 0, wxEXPAND, 5 );
+	bSizerBottom->Add( 25, 0, 0, wxEXPAND, 5 );
 
 	m_checkBoxShowWarnings = new wxCheckBox( m_box->GetStaticBox(), wxID_ANY, _("Warnings"), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizerBottom->Add( m_checkBoxShowWarnings, 0, wxALIGN_CENTER_VERTICAL|wxLEFT|wxRIGHT, 5 );
 
 	m_warningsBadge = new NUMBER_BADGE( m_box->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, 0 );
+	m_warningsBadge->SetMinSize( wxSize( 10,10 ) );
+
 	bSizerBottom->Add( m_warningsBadge, 0, wxALIGN_CENTER_VERTICAL|wxBOTTOM|wxRIGHT|wxTOP, 4 );
 
 
-	bSizerBottom->Add( 10, 0, 0, wxEXPAND, 5 );
+	bSizerBottom->Add( 25, 0, 0, wxEXPAND, 5 );
 
 	m_checkBoxShowActions = new wxCheckBox( m_box->GetStaticBox(), wxID_ANY, _("Actions"), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizerBottom->Add( m_checkBoxShowActions, 0, wxALIGN_CENTER_VERTICAL|wxLEFT|wxRIGHT, 5 );
 
 
-	bSizerBottom->Add( 20, 0, 0, wxEXPAND, 5 );
+	bSizerBottom->Add( 30, 0, 0, wxEXPAND, 5 );
 
 	m_checkBoxShowInfos = new wxCheckBox( m_box->GetStaticBox(), wxID_ANY, _("Infos"), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizerBottom->Add( m_checkBoxShowInfos, 0, wxALIGN_CENTER_VERTICAL|wxLEFT|wxRIGHT, 5 );
 
 
-	bSizerBottom->Add( 20, 0, 1, wxEXPAND, 5 );
+	bSizerBottom->Add( 30, 0, 1, wxEXPAND, 5 );
 
 	m_btnSaveReportToFile = new wxButton( m_box->GetStaticBox(), wxID_ANY, _("Save..."), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizerBottom->Add( m_btnSaveReportToFile, 0, wxALIGN_CENTER_VERTICAL|wxALL, 5 );

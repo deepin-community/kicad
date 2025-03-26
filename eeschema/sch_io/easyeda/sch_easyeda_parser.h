@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,19 +29,9 @@
 #include <io/easyeda/easyeda_parser_structs.h>
 
 #include <sch_io/sch_io_mgr.h>
-#include <pin_type.h>
-#include <layer_ids.h>
-#include <wx/filename.h>
-#include <plotters/plotter.h>
 
 
 class EDA_TEXT;
-class LIB_SHAPE;
-class LIB_PIN;
-class SCH_LABEL_BASE;
-class SCH_SYMBOL;
-class SCH_TEXT;
-class SCH_SHAPE;
 
 class SCH_EASYEDA_PARSER: public EASYEDA_PARSER_BASE
 {
@@ -57,7 +47,7 @@ public:
     template <typename T>
     VECTOR2<T> RelPosSym( const VECTOR2<T>& aVec )
     {
-        return VECTOR2<T>( RelPosX( aVec.x ), -RelPosY( aVec.y ) );
+        return VECTOR2<T>( RelPosX( aVec.x ), RelPosY( aVec.y ) );
     }
 
     std::pair<LIB_SYMBOL*, bool> MakePowerSymbol( const wxString& aFlagTypename,

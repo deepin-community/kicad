@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2020 CERN
- * Copyright (C) 2021-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -30,6 +30,8 @@
 #include <properties/property_mgr.h>
 #include <sch_commit.h>
 #include <sch_edit_frame.h>
+#include <symbol_edit_frame.h>
+#include <symbol_viewer_frame.h>
 #include <schematic.h>
 #include <settings/color_settings.h>
 #include <string_utils.h>
@@ -194,9 +196,12 @@ void SCH_PROPERTIES_PANEL::valueChanged( wxPropertyGridEvent& aEvent )
         SCH_ITEM* item = static_cast<SCH_ITEM*>( edaItem );
         changes.Modify( item, screen );
         item->Set( property, newValue );
+
+        if( SCH_SYMBOL* symbol = dynamic_cast<SCH_SYMBOL*>( item ) )
+            symbol->SyncOtherUnits( symbol->Schematic()->CurrentSheet(), changes, property );
     }
 
-    changes.Push( _( "Change property" ) );
+    changes.Push( _( "Edit Properties" ) );
     m_frame->Refresh();
 
     // Perform grid updates as necessary based on value change
@@ -206,19 +211,43 @@ void SCH_PROPERTIES_PANEL::valueChanged( wxPropertyGridEvent& aEvent )
 }
 
 
-void SCH_PROPERTIES_PANEL::LanguageChanged()
+void SCH_PROPERTIES_PANEL::OnLanguageChanged( wxCommandEvent& aEvent )
 {
+    PROPERTIES_PANEL::OnLanguageChanged( aEvent );
     updateFontList();
+
+    aEvent.Skip();
 }
 
 
 void SCH_PROPERTIES_PANEL::updateFontList()
 {
     wxPGChoices fonts;
+    const std::vector<wxString>* fontFiles = nullptr;
+
+    if( m_frame->GetFrameType() == FRAME_SCH && m_frame->GetScreen() && m_frame->GetScreen()->Schematic() )
+    {
+        fontFiles = m_frame->GetScreen()->Schematic()->GetEmbeddedFiles()->GetFontFiles();
+    }
+    else if( m_frame->GetFrameType() == FRAME_SCH_SYMBOL_EDITOR )
+    {
+        SYMBOL_EDIT_FRAME* symbolFrame = static_cast<SYMBOL_EDIT_FRAME*>( m_frame );
+
+        if( symbolFrame->GetCurSymbol() )
+            fontFiles = symbolFrame->GetCurSymbol()->GetEmbeddedFiles()->UpdateFontFiles();
+    }
+    else if( m_frame->GetFrameType() == FRAME_SCH_VIEWER )
+    {
+        SYMBOL_VIEWER_FRAME* symbolFrame = static_cast<SYMBOL_VIEWER_FRAME*>( m_frame );
+
+        if( symbolFrame->GetSelectedSymbol() )
+            fontFiles = symbolFrame->GetSelectedSymbol()->GetEmbeddedFiles()->UpdateFontFiles();
+    }
 
     // Regnerate font names
     std::vector<std::string> fontNames;
-    Fontconfig()->ListFonts( fontNames, std::string( Pgm().GetLanguageTag().utf8_str() ) );
+    Fontconfig()->ListFonts( fontNames, std::string( Pgm().GetLanguageTag().utf8_str() ),
+                             fontFiles );
 
     fonts.Add( _( "Default Font" ), -1 );
     fonts.Add( KICAD_FONT_NAME, -2 );

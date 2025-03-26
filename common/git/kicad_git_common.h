@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -63,7 +63,7 @@ public:
      * Return a pair of sets of files that differ locally from the remote repository
      * The first set is files that have been committed locally but not pushed
      * The second set is files that have been committed remotely but not pulled
-    */
+     */
     std::pair<std::set<wxString>,std::set<wxString>> GetDifferentFiles() const;
 
     enum class GIT_STATUS
@@ -89,12 +89,11 @@ public:
 
     wxString GetUsername() const { return m_username; }
     wxString GetPassword() const { return m_password; }
-    wxString GetSSHKey() const { return m_sshKey; }
     GIT_CONN_TYPE GetConnType() const { return m_connType; }
 
     void SetUsername( const wxString& aUsername ) { m_username = aUsername; }
     void SetPassword( const wxString& aPassword ) { m_password = aPassword; }
-    void SetSSHKey( const wxString& aSSHKey ) { m_sshKey = aSSHKey; }
+    void SetSSHKey( const wxString& aSSHKey );
 
     void SetConnType( GIT_CONN_TYPE aConnType ) { m_connType = aConnType; }
     void SetConnType( unsigned aConnType )
@@ -114,15 +113,40 @@ public:
     // Returns true if the repository has a remote that can be pushed to pulled from
     bool HasPushAndPullRemote() const;
 
+    // Updates the password and remote information for the repository given the current branch
+    void UpdateCurrentBranchInfo();
+
+    wxString GetGitRootDirectory() const;
+
+    wxString GetRemotename() const;
+
+    void ResetNextKey() { m_nextPublicKey = 0; }
+
+    wxString GetNextPublicKey()
+    {
+        if( m_nextPublicKey >= static_cast<int>( m_publicKeys.size() ) )
+            return wxEmptyString;
+
+        return m_publicKeys[m_nextPublicKey++];
+    }
+
 protected:
     git_repository* m_repo;
 
     GIT_CONN_TYPE m_connType;
+    wxString m_remote;      // This is the full connection string
+    wxString m_hostname;    // This is just the hostname without the protocol, username, or password
     wxString m_username;
     wxString m_password;
-    wxString m_sshKey;
 
     unsigned m_testedTypes;
+
+private:
+    void updatePublicKeys();
+    void updateConnectionType();
+
+    std::vector<wxString> m_publicKeys;
+    int m_nextPublicKey;
 
 };
 
@@ -140,6 +164,6 @@ extern "C" int push_update_reference_cb( const char* aRefname, const char* aStat
 extern "C" int fetchhead_foreach_cb( const char*, const char*,
                                      const git_oid* aOID, unsigned int aIsMerge, void* aPayload );
 extern "C" int credentials_cb( git_cred** aOut, const char* aUrl, const char* aUsername,
-                                unsigned int aAllowedTypes, void* aPayload );
+                               unsigned int aAllowedTypes, void* aPayload );
 
 #endif // _GIT_COMMON_H_

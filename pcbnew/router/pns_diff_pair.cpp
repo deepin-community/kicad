@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2015 CERN
- * Copyright (C) 2016-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -436,12 +436,13 @@ void DP_GATEWAYS::BuildFromPrimitivePair( const DP_PRIMITIVE_PAIR& aPair, bool a
 
     const int pvMask = ITEM::SOLID_T | ITEM::VIA_T;
 
-    if( aPair.PrimP()->OfKind( pvMask ) && aPair.PrimN()->OfKind(  pvMask ) )
+    if( aPair.PrimP()->OfKind( pvMask ) && aPair.PrimN()->OfKind( pvMask ) )
     {
         p0_p = aPair.AnchorP();
         p0_n = aPair.AnchorN();
 
-        shP = aPair.PrimP()->Shape();
+        // TODO(JE) padstacks
+        shP = aPair.PrimP()->Shape( -1 );
     }
     else if( aPair.PrimP()->OfKind( ITEM::SEGMENT_T | ITEM::ARC_T )
              && aPair.PrimN()->OfKind( ITEM::SEGMENT_T | ITEM::ARC_T ) )

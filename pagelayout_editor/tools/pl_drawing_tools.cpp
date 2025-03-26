@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -49,14 +49,14 @@ bool PL_DRAWING_TOOLS::Init()
     m_frame = getEditFrame<PL_EDITOR_FRAME>();
     m_selectionTool = m_toolMgr->GetTool<PL_SELECTION_TOOL>();
 
-    auto& ctxMenu = m_menu.GetMenu();
+    auto& ctxMenu = m_menu->GetMenu();
 
     // cancel current tool goes in main context menu at the top if present
     ctxMenu.AddItem( ACTIONS::cancelInteractive, SELECTION_CONDITIONS::ShowAlways, 1 );
     ctxMenu.AddSeparator( 1 );
 
     // Finally, add the standard zoom/grid items
-    m_frame->AddStandardSubMenus( m_menu );
+    m_frame->AddStandardSubMenus( *m_menu.get() );
 
     return true;
 }
@@ -85,8 +85,18 @@ int PL_DRAWING_TOOLS::PlaceItem( const TOOL_EVENT& aEvent )
             {
                 if( item )
                     m_frame->GetCanvas()->SetCurrentCursor( KICURSOR::PLACE );
+                else if( isText )
+                {
+                    m_frame->GetCanvas()->SetCurrentCursor( KICURSOR::TEXT );
+                }
+                else if( aEvent.IsAction( &PL_ACTIONS::placeImage ) )
+                {
+                    m_frame->GetCanvas()->SetCurrentCursor( KICURSOR::ARROW );
+                }
                 else
-                    m_frame->GetCanvas()->SetCurrentCursor( isText ? KICURSOR::TEXT : KICURSOR::PENCIL );
+                {
+                    m_frame->GetCanvas()->SetCurrentCursor( KICURSOR::PENCIL );
+                }
             };
 
     auto cleanup =
@@ -196,7 +206,7 @@ int PL_DRAWING_TOOLS::PlaceItem( const TOOL_EVENT& aEvent )
             if( !item )
                 m_toolMgr->VetoContextMenuMouseWarp();
 
-            m_menu.ShowContextMenu( m_selectionTool->GetSelection() );
+            m_menu->ShowContextMenu( m_selectionTool->GetSelection() );
         }
         else if( item && ( evt->IsAction( &ACTIONS::refreshPreview ) || evt->IsMotion() ) )
         {
@@ -336,7 +346,7 @@ int PL_DRAWING_TOOLS::DrawShape( const TOOL_EVENT& aEvent )
             if( !item )
                 m_toolMgr->VetoContextMenuMouseWarp();
 
-            m_menu.ShowContextMenu( m_selectionTool->GetSelection() );
+            m_menu->ShowContextMenu( m_selectionTool->GetSelection() );
         }
         else
         {

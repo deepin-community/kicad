@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2014-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,8 +27,9 @@
  * @brief Trigonometric and geometric basic functions.
  */
 
+#include <algorithm>        // for std::clamp
 #include <limits>           // for numeric_limits
-#include <stdlib.h>         // for abs
+#include <cstdlib>         // for abs
 #include <type_traits>      // for swap
 
 #include <geometry/seg.h>
@@ -526,43 +527,13 @@ const VECTOR2I CalcArcCenter( const VECTOR2I& aStart, const VECTOR2I& aMid, cons
 
     VECTOR2I iCenter;
 
-    iCenter.x = KiROUND( Clamp<double>( double( std::numeric_limits<int>::min() + 100 ),
-                                        dCenter.x,
-                                        double( std::numeric_limits<int>::max() - 100 ) ) );
+    iCenter.x = KiROUND( std::clamp( dCenter.x,
+                                    double( std::numeric_limits<int>::min() + 100 ),
+                                    double( std::numeric_limits<int>::max() - 100 ) ) );
 
-    iCenter.y = KiROUND( Clamp<double>( double( std::numeric_limits<int>::min() + 100 ),
-                                        dCenter.y,
-                                        double( std::numeric_limits<int>::max() - 100 ) ) );
+    iCenter.y = KiROUND( std::clamp( dCenter.y,
+                                    double( std::numeric_limits<int>::min() + 100 ),
+                                    double( std::numeric_limits<int>::max() - 100 ) ) );
 
     return iCenter;
-}
-
-
-bool TestSegmentHitFast( const VECTOR2I& aRefPoint, const VECTOR2I& aStart, const VECTOR2I& aEnd,
-                         int aDist )
-{
-    int xmin = std::min( aStart.x, aEnd.x );
-    int xmax = std::max( aStart.x, aEnd.x );
-    int ymin = std::min( aStart.y, aEnd.y );
-    int ymax = std::max( aStart.y, aEnd.y );
-    VECTOR2I delta = aStart - aRefPoint;
-
-    // Check if we are outside of the bounding box.
-    if( ( ymin - aRefPoint.y > aDist ) || ( aRefPoint.y - ymax > aDist ) )
-        return false;
-
-    if( ( xmin - aRefPoint.x > aDist ) || ( aRefPoint.x - xmax > aDist ) )
-        return false;
-
-    // Eliminate easy cases.
-    if( aStart.x == aEnd.x && aRefPoint.y > ymin && aRefPoint.y < ymax )
-        return std::abs( delta.x ) <= aDist;
-
-    if( aStart.y == aEnd.y && aRefPoint.x > xmin && aRefPoint.x < xmax )
-        return std::abs( delta.y ) <= aDist;
-
-    VECTOR2I::extended_type len = ( aEnd - aStart ).EuclideanNorm();
-    VECTOR2I::extended_type area = len * aDist;
-
-    return std::abs( ParallelogramArea( aStart, aRefPoint, aEnd ) ) <= area;
 }

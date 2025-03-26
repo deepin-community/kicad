@@ -4,7 +4,7 @@
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras wanadoo.fr
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
  * Copyright (C) 2023 CERN (www.cern.ch)
- * Copyright (C) 2004-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -56,12 +56,16 @@ class SCH_FIELD;
 class SCH_JUNCTION;
 class SCHEMATIC;
 class SCH_COMMIT;
+class DESIGN_BLOCK;
+class DESIGN_BLOCK_PANE;
 class DIALOG_BOOK_REPORTER;
 class DIALOG_ERC;
 class DIALOG_SYMBOL_FIELDS_TABLE;
 class DIALOG_SCH_FIND;
 class RESCUER;
 class HIERARCHY_PANE;
+class API_HANDLER_SCH;
+class DIALOG_SCHEMATIC_SETUP;
 
 
 /// Schematic search type used by the socket link with Pcbnew
@@ -141,6 +145,8 @@ public:
 
     SCHEMATIC& Schematic() const;
 
+    std::unique_ptr<GRID_HELPER> MakeGridHelper() override;
+
     /**
      * Allow edit frame to show/hide hidden pins.
      */
@@ -157,6 +163,11 @@ public:
      * @return True if the project file was loaded correctly.
      */
     bool LoadProjectSettings();
+
+    /**
+     * Load the drawing sheet file.
+     */
+    void LoadDrawingSheet();
 
     void ShowSchematicSetupDialog( const wxString& aInitialPage = wxEmptyString );
 
@@ -206,7 +217,9 @@ public:
      * \li \c \$NET: \c "netname" Highlight a specified net
      * \li \c \$CLEAR: \c "HIGHLIGHTED" Clear symbols highlight
      * <p>
+     *
      * They are a keyword followed by a quoted string.
+     *
      * @param cmdline is the command received from Pcbnew.
      */
     void ExecuteRemoteCommand( const char* cmdline ) override;
@@ -214,12 +227,12 @@ public:
     void KiwayMailIn( KIWAY_EXPRESS& aEvent ) override;
 
     /**
-     * Refresh the display of any operaintg points.  Called after a .op simulation completes.
+     * Refresh the display of any operating points.  Called after a .op simulation completes.
      */
     void RefreshOperatingPointDisplay();
 
     /**
-     * Automatically set the rotation of an item (if the item supports it)
+     * Automatically set the rotation of an item (if the item supports it).
      */
     void AutoRotateItem( SCH_SCREEN* aScreen, SCH_ITEM* aItem );
 
@@ -231,10 +244,11 @@ public:
     /**
      * Update the hierarchy navigation tree and history
      */
-    void UpdateHierarchyNavigator();
+    void UpdateHierarchyNavigator( bool aRefreshNetNavigator = true );
 
     /**
      * Update the hierarchy navigation tree labels.
+     *
      * No change for the tree, only the labels are updated, after editing a sheet
      * name or a sheet number.
      */
@@ -255,7 +269,13 @@ public:
     void OnFindDialogClose();
 
     /**
+     * Design block panel options have changed and the panel needs to be refreshed.
+     */
+    void UpdateDesignBlockOptions();
+
+    /**
      * Break a single segment into two at the specified point.
+     *
      * @param aCommit Transaction container used to record changes for undo/redo
      * @param aSegment Line segment to break
      * @param aPoint Point at which to break the segment
@@ -268,6 +288,7 @@ public:
     /**
      * Check every wire and bus for a intersection at \a aPoint and break into two segments
      * at \a aPoint if an intersection is found.
+     *
      * @param aCommit Transaction container used to record changes for undo/redo
      * @param aPoint Test this point for an intersection.
      * @param aScreen is the screen to examine.
@@ -278,6 +299,7 @@ public:
     /**
      * Test all junctions and bus entries in the schematic for intersections with wires and
      * buses and breaks any intersections into multiple segments.
+     *
      * @param aCommit Transaction container used to record changes for undo/redo
      * @param aScreen is the screen to examine.
      * @return True if any wires or buses were broken.
@@ -286,6 +308,7 @@ public:
 
     /**
      * Test all of the connectable objects in the schematic for unused connection points.
+     *
      * @return True if any connection state changes were made.
      */
     void TestDanglingEnds();
@@ -293,10 +316,10 @@ public:
     /**
      * Send items to board editor for selection.
      *
-     * This is used for when the eeschema user is using the cross-probe tool.
+     * This is used for when the Eeschema user is using the cross-probe tool.
      *
      * @param aItems are the items to select
-     * @param aForce select the element in pcbnew whether or not the user has the select option
+     * @param aForce select the element in Pcbnew whether or not the user has the select option
      *        chosen
      */
     void SendSelectItemsToPcb( const std::vector<EDA_ITEM*>& aItems, bool aForce );
@@ -359,14 +382,18 @@ public:
     /**
      * Clear the current symbol annotation.
      *
-     * @param aCurrentSheetOnly Where to clear the annotation. See #ANNOTATE_SCOPE_T
+     * @param aAnnotateScope See #ANNOTATE_SCOPE_T
+     * @param aRecursive  Annotation should descend into and annotate subsheets
+     * @param aReporter A sink for error messages.  Use NULL_REPORTER if you don't need errors.
      */
-    void DeleteAnnotation( ANNOTATE_SCOPE_T aAnnotateScope, bool aRecursive );
+    void DeleteAnnotation( ANNOTATE_SCOPE_T aAnnotateScope, bool aRecursive, REPORTER& aReporter );
 
     /**
-     * Annotate the symbols in the schematic that are not currently annotated. Multi-unit symbols
-     * are annotated together. E.g. if two symbols were R8A and R8B, they may become R3A and
-     * R3B, but not R3A and R3C or R3C and R4D.
+     * Annotate the symbols in the schematic that are not currently annotated.
+     *
+     * Multi-unit symbols are annotated together. E.g. if two symbols were R8A and R8B, they may
+     * become R3A and R3B, but not R3A and R3C or R3C and R4D.
+     *
      * @param aCommit Transaction container used to record changes for undo/redo
      * @param aAnnotateScope See #ANNOTATE_SCOPE_T
      * @param aSortOption Define the annotation order.  See #ANNOTATE_ORDER_T.
@@ -427,7 +454,9 @@ public:
                      bool aUpdateRtree = false ) override;
 
     /**
-     * Rebuild the GAL and redraw the screen.  Call when something went wrong.
+     * Rebuild the GAL and redraw the screen.
+     *
+     * Call when something went wrong.
      */
     void HardRedraw() override;
 
@@ -475,23 +504,6 @@ public:
     wxString GetCurrentFileName() const override;
 
     /**
-     * Import a KiCad schematic into the current sheet.
-     *
-     * @return True if the schematic was imported properly.
-     */
-    bool AppendSchematic();
-
-    /**
-     * Add a sheet file into the current sheet and updates display
-     *
-     * @note Used in AppendSchematic() and SCH_EDIT_TOOL::ddAppendFile() (so it is public)
-     *
-     * @param aFullFileName Path and name of sheet
-     * @return True if the sheet was properly added
-     */
-    bool AddSheetAndUpdateDisplay( const wxString aFullFileName );
-
-    /**
      * Check if any of the screens has unsaved changes and asks the user whether to save or
      * drop them.
      *
@@ -505,6 +517,7 @@ public:
     /**
      * Perform routine schematic cleaning including breaking wire and buses and deleting
      * identical objects superimposed on top of each other.
+     *
      * @param aCommit Transaction container used to record changes for undo/redo
      * @param aScreen is the screen to examine, or nullptr to examine the current screen
      */
@@ -513,17 +526,18 @@ public:
     /**
      * If any single wire passes through _both points_, remove the portion between the two points,
      * potentially splitting the wire into two.
+     *
      * @param aCommit Transaction container used to record changes for undo/redo
-     * @param aStart The starting point for trimmming
+     * @param aStart The starting point for trimming
      * @param aEnd The ending point for trimming
      * @return True if any wires were changed by this operation
      */
     bool TrimWire( SCH_COMMIT* aCommit, const VECTOR2I& aStart, const VECTOR2I& aEnd );
 
-    void OnOpenPcbnew( wxCommandEvent& event );
-    void OnOpenCvpcb( wxCommandEvent& event );
-    void OnUpdatePCB( wxCommandEvent& event );
-    void OnAnnotate( wxCommandEvent& event );
+    void OnOpenPcbnew();
+    void OnOpenCvpcb();
+    void OnUpdatePCB();
+    void OnAnnotate();
 
     /**
      * Verify that \a aSheet will not cause a recursion error in \a aCurrentSheet.
@@ -545,7 +559,8 @@ public:
      * @param aSchematicFileName is the absolute path and file name of the file to test.
      * @return true if the user accepts the potential file name clash risk.
      */
-    bool AllowCaseSensitiveFileNameClashes( const wxString& aOldName, const wxString& aSchematicFileName );
+    bool AllowCaseSensitiveFileNameClashes( const wxString& aOldName,
+                                            const wxString& aSchematicFileName );
 
     /**
      * Edit an existing sheet or add a new sheet to the schematic.
@@ -570,16 +585,20 @@ public:
      *
      * @param aSheet is the sheet to edit
      * @param aHierarchy is the current hierarchy containing aSheet
+     * @param aIsUndoable is a reference to a bool to know if this operation must clear
+     * the undo-redo list, since the operation is not reversible.
      * @param aClearAnnotationNewItems is a reference to a bool to know if the items managed by
      * this sheet need to have their annotation cleared i.e. when an existing item list is used.
      * it can happens when the edited sheet used an existing file, or becomes a new instance
      * of a already existing sheet.
      * @param aUpdateHierarchyNavigator is an optional flag to indicate the sheet changes require
      *                                  the hierarchy navigator panel to be updated.
+     * @param aSourceSheetFilename is an optional filename to copy the new sheet from
      */
     bool EditSheetProperties( SCH_SHEET* aSheet, SCH_SHEET_PATH* aHierarchy,
-                              bool* aClearAnnotationNewItems,
-                              bool* aUpdateHierarchyNavigator = nullptr );
+                              bool* aIsUndoable = nullptr, bool* aClearAnnotationNewItems = nullptr,
+                              bool* aUpdateHierarchyNavigator = nullptr,
+                              wxString* aSourceSheetFilename = nullptr );
 
     void InitSheet( SCH_SHEET* aSheet, const wxString& aNewFilename );
 
@@ -624,14 +643,21 @@ public:
      *                      possible file recursion issues.
      * @param aFileName is the file name to load.  The file name is expected to have an absolute
      *                  path.
-     *
+     * @param aSkipRecursionCheck is true to skip the recursion check. This is used when loading
+     *                  a schematic sheet that is not part of the current project. If we are placing
+     *                  sheet contents instead of a sheet, then we do not need to check for
+     *                  recursion.
+     * @param aSkipLibCheck is true to skip the new/duplicate lib check. This is always triggered
+     *                      when placing design blocks so it is not necessary to check for
+     *                      new/duplicate libs.
      * @return True if the schematic was imported properly.
      */
     bool LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurrentSheet,
-                            const wxString& aFileName );
+                            const wxString& aFileName, bool aSkipRecursionCheck = false,
+                            bool aSkipLibCheck = false );
 
     /**
-     * Removes a given junction and heals any wire segments under the junction
+     * Remove a given junction and heals any wire segments under the junction.
      *
      * @param aItem The junction to delete
      */
@@ -702,8 +728,9 @@ public:
     void AddCopyForRepeatItem( const SCH_ITEM* aItem );
 
     /**
-     * Return the items which are to be repeated with the insert key.  Such objects are owned by
-     * this container, and must be cloned.
+     * Return the items which are to be repeated with the insert key.
+     *
+     * Such objects are owned by this container and must be cloned.
      */
     const std::vector<std::unique_ptr<SCH_ITEM>>& GetRepeatItems() const
     {
@@ -712,6 +739,7 @@ public:
 
     /**
      * Clear the list of items which are to be repeated with the insert key.
+     *
      * These objects are owned by this container.
      */
     void ClearRepeatItemsList()
@@ -722,8 +750,9 @@ public:
     EDA_ITEM* GetItem( const KIID& aId ) const override;
 
     /**
-     * Perform an undo of the last edit WITHOUT logging a corresponding redo.  Used to cancel
-     * an in-progress operation.
+     * Perform an undo of the last edit **without** logging a corresponding redo.
+     *
+     * Used to cancel an in-progress operation.
      */
     void RollbackSchematicFromUndo();
 
@@ -734,6 +763,54 @@ public:
      * @return True if \a aFileName was written successfully.
      */
     bool CreateArchiveLibrary( const wxString& aFileName );
+
+    /**
+     * If a library name is given, creates a new design block library in the project folder
+     * with the given name.
+     *
+     * If no library name is given it prompts user for a library path, then creates a new design
+     * block library at that location.  If library exists, user is warned about that, and is given
+     * a chance to abort the new creation, and in that case existing library is first deleted.
+     *
+     * @param aProposedName is the initial path and filename shown in the file chooser dialog.
+     * @return The newly created library path if library was successfully created, else
+     *         wxEmptyString because user aborted or error.
+     */
+    wxString CreateNewDesignBlockLibrary( const wxString& aLibName = wxEmptyString,
+                                          const wxString& aProposedName = wxEmptyString );
+
+    /**
+     * Add an existing library to either the global or project library table.
+     *
+     * @param aFileName the library to add; a file open dialog will be displayed if empty.
+     * @return true if successfully added.
+     */
+    bool AddDesignBlockLibrary( const wxString& aFilename, DESIGN_BLOCK_LIB_TABLE* aTable );
+
+    void SaveSheetAsDesignBlock( const wxString& aLibraryName, SCH_SHEET_PATH& aSheetPath );
+
+    void SaveSelectionAsDesignBlock( const wxString& aLibraryName );
+
+    bool DeleteDesignBlockLibrary( const wxString& aLibName, bool aConfirm );
+
+    bool DeleteDesignBlockFromLibrary( const LIB_ID& aLibId, bool aConfirm );
+
+    bool EditDesignBlockProperties( const LIB_ID& aLibId );
+
+
+    /**
+     * Load design block from design block library table.
+     *
+     * @param aLibId is the design block library identifier to load.
+     * @param aUseCacheLib set to true to fall back to cache library if design block is not found in
+     *                     design block library table.
+     * @param aShowErrorMessage set to true to show any error messages.
+     * @return The design block found in the library or NULL if the design block was not found.
+     */
+    DESIGN_BLOCK* GetDesignBlock( const LIB_ID& aLibId, bool aUseCacheLib = false,
+                                  bool aShowErrorMsg = false );
+
+    DESIGN_BLOCK_PANE* GetDesignBlockPane() const { return m_designBlocksPane; }
 
     /**
      * Plot or print the current sheet to the clipboard.
@@ -772,7 +849,7 @@ public:
     /**
      * Called after the preferences dialog is run.
      */
-    void CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged ) override;
+    void CommonSettingsChanged( int aFlags ) override;
 
     void UpdateNetHighlightStatus();
 
@@ -828,6 +905,8 @@ public:
 
     void ToggleProperties() override;
 
+    void ToggleLibraryTree() override;
+
     DIALOG_BOOK_REPORTER* GetSymbolDiffDialog();
 
     DIALOG_ERC* GetErcDialog();
@@ -839,7 +918,7 @@ public:
     const SCH_ITEM* GetSelectedNetNavigatorItem() const;
 
     /**
-     * @return the name of the wxAuiPaneInfo managing the Hierarchy Navigator panel
+     * @return the name of the wxAuiPaneInfo managing the Hierarchy Navigator panel.
      */
     static const wxString SchematicHierarchyPaneName()
     {
@@ -847,14 +926,14 @@ public:
     }
 
     /**
-     * @return the name of the wxAuiPaneInfo managing the Search panel
+     * @return the name of the wxAuiPaneInfo managing the Search panel.
      */
     static const wxString SearchPaneName() { return wxT( "Search" ); }
 
     /**
      * Add \a aListener to post #EDA_EVT_SCHEMATIC_CHANGED command events to.
      *
-     * @warning The caller is reponsible for removing any listeners that are no long valid.
+     * @warning The caller is responsible for removing any listeners that are no long valid.
      *
      * @note This only gets called when the schematic editor is in stand alone mode.  Changing
      *       projects in the project manager closes the schematic editor when a new project is
@@ -881,6 +960,11 @@ public:
     void SelectNetNavigatorItem( const NET_NAVIGATOR_ITEM_DATA* aSelection = nullptr );
 
     void ToggleNetNavigator();
+
+    PLUGIN_ACTION_SCOPE PluginActionScope() const override
+    {
+        return PLUGIN_ACTION_SCOPE::SCHEMATIC;
+    }
 
     DECLARE_EVENT_TABLE()
 
@@ -911,6 +995,26 @@ protected:
 
     void unitsChangeRefresh() override;
 
+    void updateSelectionFilterVisbility() override;
+
+#ifdef KICAD_IPC_API
+    void onPluginAvailabilityChanged( wxCommandEvent& aEvt );
+#endif
+
+    /**
+     * Prompt user to select global or project library tables.
+     *
+     * @return Pointer to library table selected or nullptr if none selected/canceled.
+     */
+    DESIGN_BLOCK_LIB_TABLE* selectDesignBlockLibTable( bool aOptional = false );
+
+    /**
+     * Create a new library in the given table (presumed to be either the global or project
+     * library table).
+     */
+    wxString createNewDesignBlockLibrary( const wxString& aLibName, const wxString& aProposedName,
+                                          DESIGN_BLOCK_LIB_TABLE* aTable );
+
 private:
     // Called when resizing the Hierarchy Navigator panel
     void OnResizeHierarchyNavigator( wxSizeEvent& aEvent );
@@ -923,7 +1027,6 @@ private:
     void OnExit( wxCommandEvent& event );
 
     void OnLoadFile( wxCommandEvent& event );
-    void OnAppendProject( wxCommandEvent& event );
     void OnImportProject( wxCommandEvent& event );
 
     void OnClearFileHistory( wxCommandEvent& aEvent );
@@ -963,7 +1066,7 @@ private:
      *  @param aFileType SCH_FILE_T value for file type
      */
     bool importFile( const wxString& aFileName, int aFileType,
-                     const STRING_UTF8_MAP* aProperties = nullptr );
+                     const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Save \a aSheet to a schematic file.
@@ -991,6 +1094,8 @@ private:
 
     void onNetNavigatorSelChanging( wxTreeEvent& aEvent );
 
+    void CaptureHierarchyPaneSize();
+
 private:
     // The schematic editor control class should be able to access some internal
     // functions of the editor frame.
@@ -1013,6 +1118,7 @@ private:
     DIALOG_BOOK_REPORTER*   m_diffSymbolDialog;
     HIERARCHY_PANE*         m_hierarchy;
     DIALOG_SYMBOL_FIELDS_TABLE* m_symbolFieldsTableDialog;
+    DIALOG_SCHEMATIC_SETUP*     m_schematicSetupDialog;
 
 
     wxTreeCtrl*             m_netNavigator;
@@ -1024,6 +1130,14 @@ private:
     bool m_highlightedConnChanged;
 
     std::vector<wxEvtHandler*> m_schematicChangeListeners;
+
+    std::vector<LIB_ID> m_designBlockHistoryList;
+
+    DESIGN_BLOCK_PANE* m_designBlocksPane;
+
+#ifdef KICAD_IPC_API
+    std::unique_ptr<API_HANDLER_SCH> m_apiHandler;
+#endif
 };
 
 

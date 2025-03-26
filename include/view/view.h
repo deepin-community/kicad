@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2016 CERN
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -37,7 +37,6 @@
 #include <gal/definitions.h>
 
 #include <view/view_overlay.h>
-#include <view/view.h>
 
 namespace KIGFX
 {
@@ -71,11 +70,7 @@ public:
 
     typedef std::pair<VIEW_ITEM*, int> LAYER_ITEM_PAIR;
 
-    /**
-     * @param aIsDynamic decides whether we are creating a static or a dynamic VIEW.
-     */
-    VIEW( bool aIsDynamic = true );
-
+    VIEW();
     virtual ~VIEW();
 
     /**
@@ -400,13 +395,18 @@ public:
      */
     inline void SetLayerVisible( int aLayer, bool aVisible = true )
     {
-        wxCHECK( aLayer < (int) m_layers.size(), /*void*/ );
+        auto it = m_layers.find( aLayer );
 
-        if( m_layers[aLayer].visible != aVisible )
+        if( it == m_layers.end() )
+            return;
+
+        VIEW_LAYER& layer = it->second;
+
+        if( layer.visible != aVisible )
         {
             // Target has to be redrawn after changing its visibility
-            MarkTargetDirty( m_layers[aLayer].target );
-            m_layers[aLayer].visible = aVisible;
+            MarkTargetDirty( layer.target );
+            layer.visible = aVisible;
         }
     }
 
@@ -417,10 +417,12 @@ public:
      */
     inline bool IsLayerVisible( int aLayer ) const
     {
-        wxCHECK( aLayer >= 0, false);
-        wxCHECK( aLayer < (int) m_layers.size(), false );
+        auto it = m_layers.find( aLayer );
 
-        return m_layers.at( aLayer ).visible;
+        if( it == m_layers.end() )
+            return false;
+
+        return it->second.visible;
     }
 
     /**
@@ -431,13 +433,18 @@ public:
      */
     inline void SetLayerDiff( int aLayer, bool aDiff = true )
     {
-        wxCHECK( aLayer < (int) m_layers.size(), /*void*/ );
+        auto it = m_layers.find( aLayer );
 
-        if( m_layers[aLayer].diffLayer != aDiff )
+        if( it == m_layers.end() )
+            return;
+
+        VIEW_LAYER& layer = it->second;
+
+        if( layer.diffLayer != aDiff )
         {
             // Target has to be redrawn after changing its layers' diff status
-            MarkTargetDirty( m_layers[aLayer].target );
-            m_layers[aLayer].diffLayer = aDiff;
+            MarkTargetDirty( layer.target );
+            layer.diffLayer = aDiff;
         }
     }
 
@@ -449,13 +456,18 @@ public:
      */
     inline void SetLayerHasNegatives( int aLayer, bool aNegatives = true )
     {
-        wxCHECK( aLayer < (int) m_layers.size(), /*void*/ );
+        auto it = m_layers.find( aLayer );
 
-        if( m_layers[aLayer].hasNegatives != aNegatives )
+        if( it == m_layers.end() )
+            return;
+
+        VIEW_LAYER& layer = it->second;
+
+        if( layer.hasNegatives != aNegatives )
         {
             // Target has to be redrawn after changing a layers' negatives
-            MarkTargetDirty( m_layers[aLayer].target );
-            m_layers[aLayer].hasNegatives = aNegatives;
+            MarkTargetDirty( layer.target );
+            layer.hasNegatives = aNegatives;
         }
     }
 
@@ -464,8 +476,12 @@ public:
      */
     inline void SetLayerDisplayOnly( int aLayer, bool aDisplayOnly = true )
     {
-        wxCHECK( aLayer < (int) m_layers.size(), /*void*/ );
-        m_layers[aLayer].displayOnly = aDisplayOnly;
+        auto it = m_layers.find( aLayer );
+
+        if( it == m_layers.end() )
+            return;
+
+        it->second.displayOnly = aDisplayOnly;
     }
 
     /**
@@ -476,8 +492,12 @@ public:
      */
     inline void SetLayerTarget( int aLayer, RENDER_TARGET aTarget )
     {
-        wxCHECK( aLayer < (int) m_layers.size(), /*void*/ );
-        m_layers[aLayer].target = aTarget;
+        auto it = m_layers.find( aLayer );
+
+        if( it == m_layers.end() )
+            return;
+
+        it->second.target = aTarget;
     }
 
     /**
@@ -502,9 +522,8 @@ public:
      * the top).
      *
      * @param aLayers stores id of layers to be sorted.
-     * @param aCount stores the number of layers.
      */
-    void SortLayers( int aLayers[], int& aCount ) const;
+    void SortLayers( std::vector<int>& aLayers ) const;
 
     /**
      * Remap the data between layer ids without invalidating that data.
@@ -581,15 +600,6 @@ public:
     void RecacheAllItems();
 
     /**
-     * Tell if the VIEW is dynamic (ie. can be changed, for example displaying PCBs in a window)
-     * or static (that cannot be modified, eg. displaying image/PDF).
-     */
-    bool IsDynamic() const
-    {
-        return m_dynamic;
-    }
-
-    /**
      * Return true if any of the VIEW layers needs to be refreshened.
      *
      * @return True in case if any of layers is marked as dirty.
@@ -631,16 +641,12 @@ public:
     /// Return true if the layer is cached.
     inline bool IsCached( int aLayer ) const
     {
-        wxCHECK( aLayer < (int) m_layers.size(), false );
+        auto it = m_layers.find( aLayer );
 
-        try
-        {
-            return m_layers.at( aLayer ).target == TARGET_CACHED;
-        }
-        catch( const std::out_of_range& )
-        {
+        if( it == m_layers.end() )
             return false;
-        }
+
+        return it->second.target == TARGET_CACHED;
     }
 
     /**
@@ -731,32 +737,42 @@ public:
      */
     std::unique_ptr<VIEW> DataReference() const;
 
-    ///< Maximum number of layers that may be shown
-    static constexpr int VIEW_MAX_LAYERS = 512;
+    /// Maximum number of layers that may be shown.
+    static constexpr int VIEW_MAX_LAYERS = MAX_LAYERS_FOR_VIEW;
 
-    ///< Rendering order modifier for layers that are marked as top layers.
-    static constexpr int TOP_LAYER_MODIFIER = -VIEW_MAX_LAYERS;
+    /// Rendering order modifier for layers that are marked as top layers.
+    static constexpr int TOP_LAYER_MODIFIER = -MAX_LAYERS_FOR_VIEW;
 
 protected:
     struct VIEW_LAYER
     {
         bool                    visible;         ///< Is the layer to be rendered?
         bool                    displayOnly;     ///< Is the layer display only?
-        bool                    diffLayer;       ///< Layer should be drawn differentially over lower layers
-        bool                    hasNegatives;    ///< Layer should be drawn separately to not delete lower layers
+
+        /// Layer should be drawn differentially over lower layers.
+        bool                    diffLayer;
+
+        /// Layer should be drawn separately to not delete lower layers.
+        bool                    hasNegatives;
         std::shared_ptr<VIEW_RTREE> items;       ///< R-tree indexing all items on this layer.
         int                     renderingOrder;  ///< Rendering order of this layer.
         int                     id;              ///< Layer ID.
         RENDER_TARGET           target;          ///< Where the layer should be rendered.
-        std::set<int>           requiredLayers;  ///< Layers that have to be enabled to show
-                                                 ///< the layer.
+
+        ///< Layers that have to be enabled to show the layer.
+        std::set<int>           requiredLayers;
+
+        bool operator< ( const VIEW_LAYER& aOther ) const
+        {
+            return id < aOther.id;
+        }
     };
 
 
 
     VIEW( const VIEW& ) = delete;
 
-    ///* Redraws contents within rect aRect
+    /// Redraw contents within rectangle \a aRect.
     void redrawRect( const BOX2I& aRect );
 
     inline void markTargetClean( int aTarget )
@@ -796,11 +812,11 @@ protected:
      */
     void draw( VIEW_GROUP* aGroup, bool aImmediate = false );
 
-    ///< Sort m_orderedLayers when layer rendering order has changed
-    void sortLayers();
+    /// Sort m_orderedLayers when layer rendering order has changed.
+    void sortOrderedLayers();
 
-    ///< Clear cached GAL group numbers (*ONLY* numbers stored in VIEW_ITEMs, not group objects
-    ///< used by GAL)
+    /// Clear cached GAL group numbers (*ONLY* numbers stored in VIEW_ITEMs, not group objects
+    /// used by GAL).
     void clearGroupCache();
 
     /**
@@ -811,25 +827,25 @@ protected:
      */
     void invalidateItem( VIEW_ITEM* aItem, int aUpdateFlags );
 
-    ///< Update colors that are used for an item to be drawn
+    /// Update colors that are used for an item to be drawn.
     void updateItemColor( VIEW_ITEM* aItem, int aLayer );
 
-    ///< Update all information needed to draw an item
+    /// Update all information needed to draw an item.
     void updateItemGeometry( VIEW_ITEM* aItem, int aLayer );
 
-    ///< Update bounding box of an item
+    /// Update bounding box of an item.
     void updateBbox( VIEW_ITEM* aItem );
 
-    ///< Update set of layers that an item occupies
+    /// Update set of layers that an item occupies.
     void updateLayers( VIEW_ITEM* aItem );
 
-    ///< Determine rendering order of layers. Used in display order sorting function.
+    /// Determine rendering order of layers. Used in display order sorting function.
     static bool compareRenderingOrder( VIEW_LAYER* aI, VIEW_LAYER* aJ )
     {
         return aI->renderingOrder > aJ->renderingOrder;
     }
 
-    ///< Check if every layer required by the aLayerId layer is enabled.
+    /// Check if every layer required by the aLayerId layer is enabled.
     bool areRequiredLayersEnabled( int aLayerId ) const;
 
     // Function objects that need to access VIEW/VIEW_ITEM private/protected members
@@ -842,22 +858,22 @@ protected:
     std::unique_ptr<KIGFX::VIEW_GROUP> m_preview;
     std::vector<VIEW_ITEM *>            m_ownedItems;
 
-    ///< Whether to use rendering order modifier or not.
+    /// Whether to use rendering order modifier or not.
     bool                               m_enableOrderModifier;
 
-    ///< The set of possible displayed layers and its properties.
-    std::vector<VIEW_LAYER>            m_layers;
+    /// The set of possible displayed layers and its properties.
+    std::map<int, VIEW_LAYER>          m_layers;
 
-    ///< Sorted list of pointers to members of m_layers.
+    /// Sorted list of pointers to members of m_layers.
     std::vector<VIEW_LAYER*>           m_orderedLayers;
 
-    ///< Flat list of all items.
+    /// Flat list of all items.
     std::shared_ptr<std::vector<VIEW_ITEM*>> m_allItems;
 
-    ///< The set of layers that are displayed on the top.
+    /// The set of layers that are displayed on the top.
     std::set<unsigned int>             m_topLayers;
 
-    ///< Center point of the VIEW (the point at which we are looking at).
+    /// Center point of the VIEW (the point at which we are looking at).
     VECTOR2D                           m_center;
 
     double                             m_scale;
@@ -868,26 +884,22 @@ protected:
     bool                               m_mirrorX;
     bool                               m_mirrorY;
 
-    ///< PAINTER contains information how do draw items.
+    /// PAINTER contains information how do draw items.
     PAINTER* m_painter;
 
-    ///< Interface to #PAINTER that is used to draw items.
+    /// Interface to #PAINTER that is used to draw items.
     GAL* m_gal;
 
-    ///< Dynamic VIEW (eg. display PCB in window) allows changes once it is built,
-    ///< static (eg. image/PDF) - does not.
-    bool m_dynamic;
-
-    ///< Flag to mark targets as dirty so they have to be redrawn on the next refresh event.
+    /// Flag to mark targets as dirty so they have to be redrawn on the next refresh event.
     bool m_dirtyTargets[TARGETS_NUMBER];
 
-    ///< Flag to respect draw priority when drawing items.
+    /// Flag to respect draw priority when drawing items.
     bool m_useDrawPriority;
 
-    ///< The next sequential drawing priority.
+    /// The next sequential drawing priority.
     int m_nextDrawPriority;
 
-    ///< Flag to reverse the draw order when using draw priority.
+    /// Flag to reverse the draw order when using draw priority.
     bool m_reverseDrawOrder;
 };
 } // namespace KIGFX

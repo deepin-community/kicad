@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015-2016 Mario Luzeiro <mrluzeiro@ua.pt>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -42,8 +42,8 @@ public:
     // wxGLCanvas constructor
 
     HIDPI_GL_3D_CANVAS( const KIGFX::VC_SETTINGS& aVcSettings, CAMERA& aCamera, wxWindow* parent,
-                        wxWindowID id = wxID_ANY,
-                        const int* attribList = nullptr, const wxPoint& pos = wxDefaultPosition,
+                        const wxGLAttributes& aGLAttribs, wxWindowID id = wxID_ANY,
+                        const wxPoint& pos = wxDefaultPosition,
                         const wxSize& size = wxDefaultSize, long style = 0,
                         const wxString&  name = wxGLCanvasName,
                         const wxPalette& palette = wxNullPalette );

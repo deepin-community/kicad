@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,6 +24,7 @@
 #include <pcb_dimension.h>
 #include <pcb_track.h>
 #include <layer_ids.h>
+#include <lset.h>
 #include <kiface_base.h>
 #include <pad.h>
 #include <board_design_settings.h>
@@ -53,12 +54,16 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
     m_HasStackup = false;                   // no stackup defined by default
 
     m_Pad_Master = std::make_unique<PAD>( nullptr );
+    SetDefaultMasterPad();
 
     LSET all_set = LSET().set();
-    m_enabledLayers = all_set;              // All layers enabled at first.
-                                            // SetCopperLayerCount() will adjust this.
+    m_enabledLayers = all_set;     // All layers enabled at first.
+                                   // SetCopperLayerCount() will adjust this.
 
-    SetCopperLayerCount( 2 );               // Default design is a double sided board
+    // Default design is a double layer board with 4 user defined layers
+    SetCopperLayerCount( 2 );
+    SetUserDefinedLayerCount( 4 );
+
     m_CurrentViaType = VIATYPE::THROUGH;
 
     // if true, when creating a new track starting on an existing track, use this track width
@@ -122,8 +127,8 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
 
     m_DimensionPrecision       = DIM_PRECISION::X_XXXX;
     m_DimensionUnitsMode       = DIM_UNITS_MODE::AUTOMATIC;
-    m_DimensionUnitsFormat     = DIM_UNITS_FORMAT::BARE_SUFFIX;
-    m_DimensionSuppressZeroes  = false;
+    m_DimensionUnitsFormat     = DIM_UNITS_FORMAT::NO_SUFFIX;
+    m_DimensionSuppressZeroes  = true;
     m_DimensionTextPosition    = DIM_TEXT_POSITION::OUTSIDE;
     m_DimensionKeepTextAligned = true;
     m_DimensionArrowLength     = pcbIUScale.MilsToIU( DEFAULT_DIMENSION_ARROW_LENGTH );
@@ -154,11 +159,13 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
     m_MinResolvedSpokes   = DEFAULT_MINRESOLVEDSPOKES;
     m_MinSilkTextHeight   = pcbIUScale.mmToIU( DEFAULT_SILK_TEXT_SIZE * 0.8 );
     m_MinSilkTextThickness= pcbIUScale.mmToIU( DEFAULT_SILK_TEXT_WIDTH * 0.8 );
+    m_MinGrooveWidth      = pcbIUScale.mmToIU( DEFAULT_MINGROOVEWIDTH );
 
     for( int errorCode = DRCE_FIRST; errorCode <= DRCE_LAST; ++errorCode )
         m_DRCSeverities[ errorCode ] = RPT_SEVERITY_ERROR;
 
     m_DRCSeverities[ DRCE_DRILLED_HOLES_COLOCATED ] = RPT_SEVERITY_WARNING;
+    m_DRCSeverities[ DRCE_DRILLED_HOLES_TOO_CLOSE ] = RPT_SEVERITY_WARNING;
 
     m_DRCSeverities[ DRCE_MISSING_COURTYARD ] = RPT_SEVERITY_IGNORE;
     m_DRCSeverities[ DRCE_PTH_IN_COURTYARD ] = RPT_SEVERITY_IGNORE;
@@ -176,7 +183,8 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
     m_DRCSeverities[ DRCE_DUPLICATE_FOOTPRINT ] = RPT_SEVERITY_WARNING;
     m_DRCSeverities[ DRCE_EXTRA_FOOTPRINT ] = RPT_SEVERITY_WARNING;
     m_DRCSeverities[ DRCE_NET_CONFLICT ] = RPT_SEVERITY_WARNING;
-    m_DRCSeverities[ DRCE_SCHEMATIC_PARITY_ISSUES ] = RPT_SEVERITY_WARNING;
+    m_DRCSeverities[ DRCE_SCHEMATIC_PARITY ] = RPT_SEVERITY_WARNING;
+    m_DRCSeverities[ DRCE_FOOTPRINT_FILTERS ] = RPT_SEVERITY_IGNORE;
 
     m_DRCSeverities[ DRCE_OVERLAPPING_SILK ] = RPT_SEVERITY_WARNING;
     m_DRCSeverities[ DRCE_SILK_CLEARANCE ] = RPT_SEVERITY_WARNING;
@@ -190,6 +198,9 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
     m_DRCSeverities[ DRCE_LIB_FOOTPRINT_MISMATCH ] = RPT_SEVERITY_WARNING;
 
     m_DRCSeverities[ DRCE_CONNECTION_WIDTH ] = RPT_SEVERITY_WARNING;
+
+    m_DRCSeverities[DRCE_MIRRORED_TEXT_ON_FRONT_LAYER] = RPT_SEVERITY_WARNING;
+    m_DRCSeverities[DRCE_NONMIRRORED_TEXT_ON_BACK_LAYER] = RPT_SEVERITY_WARNING;
 
     m_MaxError = ARC_HIGH_DEF;
     m_ZoneKeepExternalFillets = false;
@@ -208,6 +219,8 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
     m_SolderPasteMarginRatio = DEFAULT_SOLDERPASTE_RATIO;
 
     m_AllowSoldermaskBridgesInFPs = false;
+    m_TentViasFront = true;
+    m_TentViasBack = true;
 
     // Layer thickness for 3D viewer
     m_boardThickness = pcbIUScale.mmToIU( DEFAULT_BOARD_THICKNESS_MM );
@@ -277,6 +290,10 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
             &m_SilkClearance, pcbIUScale.mmToIU( DEFAULT_SILKCLEARANCE ),
             pcbIUScale.mmToIU( 0.00 ), pcbIUScale.mmToIU( 100.0 ), pcbIUScale.MM_PER_IU ) );
 
+    m_params.emplace_back( new PARAM_SCALED<int>( "rules.min_groove_width",
+            &m_MinGrooveWidth, pcbIUScale.mmToIU( DEFAULT_MINGROOVEWIDTH ),
+            pcbIUScale.mmToIU( 0.00 ), pcbIUScale.mmToIU( 25.0 ), pcbIUScale.MM_PER_IU ) );
+
     // While the maximum *effective* value is 4, we've had users interpret this as the count on
     // all layers, and enter something like 10.  They'll figure it out soon enough *unless* we
     // enforce a max of 4 (and therefore reset it back to the default of 2), at which point it
@@ -321,7 +338,7 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
                 if( !aJson.is_object() )
                     return;
 
-                for( const RC_ITEM& item : DRC_ITEM::GetItemsWithSeverities() )
+                for( const RC_ITEM& item : DRC_ITEM::GetItemsWithSeverities( true ) )
                 {
                     wxString name = item.GetSettingsKey();
                     std::string key( name.ToUTF8() );
@@ -336,8 +353,8 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
             {
                 nlohmann::json js = nlohmann::json::array();
 
-                for( const auto& entry : m_DrcExclusions )
-                    js.push_back( entry );
+                for( const wxString& entry : m_DrcExclusions )
+                    js.push_back( { entry, m_DrcExclusionComments[ entry ] } );
 
                 return js;
             },
@@ -350,10 +367,16 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
 
                 for( const nlohmann::json& entry : aObj )
                 {
-                    if( entry.empty() )
-                        continue;
-
-                    m_DrcExclusions.insert( entry.get<wxString>() );
+                    if( entry.is_array() )
+                    {
+                        wxString serialized = entry[0].get<wxString>();
+                        m_DrcExclusions.insert( serialized );
+                        m_DrcExclusionComments[ serialized ] = entry[1].get<wxString>();
+                    }
+                    else if( entry.is_string() )
+                    {
+                        m_DrcExclusions.insert( entry.get<wxString>() );
+                    }
                 }
             },
             {} ) );
@@ -455,16 +478,18 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
                     if( entry.empty() || !entry.is_object() )
                         continue;
 
-                    if( !entry.contains( "width" ) || !entry.contains( "gap" )
+                    if( !entry.contains( "width" )
+                            || !entry.contains( "gap" )
                             || !entry.contains( "via_gap" ) )
+                    {
                         continue;
+                    }
 
                     int width   = pcbIUScale.mmToIU( entry["width"].get<double>() );
                     int gap     = pcbIUScale.mmToIU( entry["gap"].get<double>() );
                     int via_gap = pcbIUScale.mmToIU( entry["via_gap"].get<double>() );
 
-                    m_DiffPairDimensionsList.emplace_back(
-                            DIFF_PAIR_DIMENSION( width, gap, via_gap ) );
+                    m_DiffPairDimensionsList.emplace_back( DIFF_PAIR_DIMENSION( width, gap, via_gap ) );
                 }
             },
             {} ) );
@@ -476,8 +501,9 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
                 nlohmann::json js = nlohmann::json::array();
                 nlohmann::json entry = {};
 
-                entry["td_onviapad"]  = m_TeardropParamsList.m_TargetViasPads;
-                entry["td_onpadsmd"]  = m_TeardropParamsList.m_TargetPadsWithNoHole;
+                entry["td_onvia"]  = m_TeardropParamsList.m_TargetVias;
+                entry["td_onpthpad"]  = m_TeardropParamsList.m_TargetPTHPads;
+                entry["td_onsmdpad"]  = m_TeardropParamsList.m_TargetSMDPads;
                 entry["td_ontrackend"]  = m_TeardropParamsList.m_TargetTrack2Track;
                 entry["td_onroundshapesonly"]  = m_TeardropParamsList.m_UseRoundShapesOnly;
 
@@ -495,11 +521,14 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
                     if( entry.empty() || !entry.is_object() )
                         continue;
 
-                    if( entry.contains( "td_onviapad" ) )
-                        m_TeardropParamsList.m_TargetViasPads = entry["td_onviapad"].get<bool>();
+                    if( entry.contains( "td_onvia" ) )
+                        m_TeardropParamsList.m_TargetVias = entry["td_onvia"].get<bool>();
 
-                    if( entry.contains( "td_onpadsmd" ) )
-                        m_TeardropParamsList.m_TargetPadsWithNoHole = entry["td_onpadsmd"].get<bool>();
+                    if( entry.contains( "td_onpthpad" ) )
+                        m_TeardropParamsList.m_TargetPTHPads = entry["td_onpthpad"].get<bool>();
+
+                    if( entry.contains( "td_onsmdpad" ) )
+                        m_TeardropParamsList.m_TargetSMDPads = entry["td_onsmdpad"].get<bool>();
 
                     if( entry.contains( "td_ontrackend" ) )
                         m_TeardropParamsList.m_TargetTrack2Track = entry["td_ontrackend"].get<bool>();
@@ -516,7 +545,10 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
                             td_prm->m_AllowUseTwoTracks = entry["td_allow_use_two_tracks"].get<bool>();
 
                         if( entry.contains( "td_curve_segcount" ) )
-                            td_prm->m_CurveSegCount = entry["td_curve_segcount"].get<int>();
+                        {
+                            if( entry["td_curve_segcount"].get<int>() > 0 )
+                                td_prm->m_CurvedEdges = true;
+                        }
 
                         if( entry.contains( "td_on_pad_in_zone" ) )
                             td_prm->m_TdOnPadsInZones = entry["td_on_pad_in_zone"].get<bool>();
@@ -541,10 +573,9 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
                     entry["td_maxheight"]  = pcbIUScale.IUTomm( td_prm->m_TdMaxWidth );
                     entry["td_length_ratio"]  = td_prm->m_BestLengthRatio;
                     entry["td_height_ratio"]  = td_prm->m_BestWidthRatio;
-                    entry["td_curve_segcount"]  = td_prm->m_CurveSegCount;
+                    entry["td_curve_segcount"]  = td_prm->m_CurvedEdges ? 1 : 0;
                     entry["td_width_to_size_filter_ratio"] = td_prm->m_WidthtoSizeFilterRatio;
                     entry["td_allow_use_two_tracks"] = td_prm->m_AllowUseTwoTracks;
-                    entry["td_curve_segcount"]  = td_prm->m_CurveSegCount;
                     entry["td_on_pad_in_zone"]  = td_prm->m_TdOnPadsInZones;
 
                     js.push_back( entry );
@@ -584,16 +615,16 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
                             td_prm->m_BestWidthRatio = entry["td_height_ratio"].get<double>();
 
                         if( entry.contains( "td_curve_segcount" ) )
-                            td_prm->m_CurveSegCount = entry["td_curve_segcount"].get<int>();
+                        {
+                            if( entry["td_curve_segcount"].get<int>() > 0 )
+                                td_prm->m_CurvedEdges = true;
+                        }
 
                         if( entry.contains( "td_width_to_size_filter_ratio" ) )
                             td_prm->m_WidthtoSizeFilterRatio = entry["td_width_to_size_filter_ratio"].get<double>();
 
                         if( entry.contains( "td_allow_use_two_tracks" ) )
                             td_prm->m_AllowUseTwoTracks = entry["td_allow_use_two_tracks"].get<bool>();
-
-                        if( entry.contains( "td_curve_segcount" ) )
-                            td_prm->m_CurveSegCount = entry["td_curve_segcount"].get<int>();
 
                         if( entry.contains( "td_on_pad_in_zone" ) )
                             td_prm->m_TdOnPadsInZones = entry["td_on_pad_in_zone"].get<bool>();
@@ -779,11 +810,11 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
             &m_DimensionPrecision, DIM_PRECISION::X_XXXX, DIM_PRECISION::X, DIM_PRECISION::V_VVVVV ) );
 
     m_params.emplace_back( new PARAM_ENUM<DIM_UNITS_FORMAT>( "defaults.dimensions.units_format",
-            &m_DimensionUnitsFormat, DIM_UNITS_FORMAT::BARE_SUFFIX, DIM_UNITS_FORMAT::NO_SUFFIX,
+            &m_DimensionUnitsFormat, DIM_UNITS_FORMAT::NO_SUFFIX, DIM_UNITS_FORMAT::NO_SUFFIX,
             DIM_UNITS_FORMAT::PAREN_SUFFIX ) );
 
     m_params.emplace_back( new PARAM<bool>( "defaults.dimensions.suppress_zeroes",
-            &m_DimensionSuppressZeroes, false ) );
+            &m_DimensionSuppressZeroes, true ) );
 
     // NOTE: excluding DIM_TEXT_POSITION::MANUAL from the valid range here
     m_params.emplace_back( new PARAM_ENUM<DIM_TEXT_POSITION>( "defaults.dimensions.text_position",
@@ -817,8 +848,8 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
             {
                 nlohmann::json ret =
                         {
-                            { "width",  pcbIUScale.IUTomm( m_Pad_Master->GetSize().x ) },
-                            { "height", pcbIUScale.IUTomm( m_Pad_Master->GetSize().y ) },
+                            { "width",  pcbIUScale.IUTomm( m_Pad_Master->GetSize( PADSTACK::ALL_LAYERS ).x ) },
+                            { "height", pcbIUScale.IUTomm( m_Pad_Master->GetSize( PADSTACK::ALL_LAYERS ).y ) },
                             { "drill",  pcbIUScale.IUTomm( m_Pad_Master->GetDrillSize().x ) }
                         };
 
@@ -833,7 +864,7 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
                     sz.x = pcbIUScale.mmToIU( aJson["width"].get<double>() );
                     sz.y = pcbIUScale.mmToIU( aJson["height"].get<double>() );
 
-                    m_Pad_Master->SetSize( sz );
+                    m_Pad_Master->SetSize( PADSTACK::ALL_LAYERS, sz );
 
                     int drill = pcbIUScale.mmToIU( aJson["drill"].get<double>() );
 
@@ -842,7 +873,8 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
             }, {} ) );
 
     m_params.emplace_back( new PARAM_SCALED<int>( "rules.max_error",
-            &m_MaxError, ARC_HIGH_DEF, pcbIUScale.mmToIU( 0.0001 ), pcbIUScale.mmToIU( 1.0 ), pcbIUScale.MM_PER_IU ) );
+            &m_MaxError, ARC_HIGH_DEF,
+            pcbIUScale.mmToIU( 0.0001 ), pcbIUScale.mmToIU( 1.0 ), pcbIUScale.MM_PER_IU ) );
 
     m_params.emplace_back( new PARAM_SCALED<int>( "rules.solder_mask_to_copper_clearance",
             &m_SolderMaskToCopperClearance, pcbIUScale.mmToIU( DEFAULT_SOLDERMASK_TO_COPPER_CLEARANCE ),
@@ -915,29 +947,31 @@ BOARD_DESIGN_SETTINGS& BOARD_DESIGN_SETTINGS::operator=( const BOARD_DESIGN_SETT
 void BOARD_DESIGN_SETTINGS::initFromOther( const BOARD_DESIGN_SETTINGS& aOther )
 {
     // Copy of NESTED_SETTINGS around is not allowed, so let's just update the params.
-    m_TrackWidthList         = aOther.m_TrackWidthList;
-    m_ViasDimensionsList     = aOther.m_ViasDimensionsList;
-    m_DiffPairDimensionsList = aOther.m_DiffPairDimensionsList;
-    m_CurrentViaType         = aOther.m_CurrentViaType;
-    m_UseConnectedTrackWidth = aOther.m_UseConnectedTrackWidth;
-    m_TempOverrideTrackWidth = aOther.m_TempOverrideTrackWidth;
-    m_MinClearance           = aOther.m_MinClearance;
-    m_MinConn                = aOther.m_MinConn;
-    m_TrackMinWidth          = aOther.m_TrackMinWidth;
-    m_ViasMinAnnularWidth    = aOther.m_ViasMinAnnularWidth;
-    m_ViasMinSize            = aOther.m_ViasMinSize;
-    m_MinThroughDrill        = aOther.m_MinThroughDrill;
-    m_MicroViasMinSize       = aOther.m_MicroViasMinSize;
-    m_MicroViasMinDrill      = aOther.m_MicroViasMinDrill;
-    m_CopperEdgeClearance    = aOther.m_CopperEdgeClearance;
-    m_HoleClearance          = aOther.m_HoleClearance;
-    m_HoleToHoleMin          = aOther.m_HoleToHoleMin;
-    m_SilkClearance          = aOther.m_SilkClearance;
-    m_MinResolvedSpokes      = aOther.m_MinResolvedSpokes;
-    m_MinSilkTextHeight      = aOther.m_MinSilkTextHeight;
-    m_MinSilkTextThickness   = aOther.m_MinSilkTextThickness;
-    m_DRCSeverities          = aOther.m_DRCSeverities;
-    m_DrcExclusions          = aOther.m_DrcExclusions;
+    m_TrackWidthList              = aOther.m_TrackWidthList;
+    m_ViasDimensionsList          = aOther.m_ViasDimensionsList;
+    m_DiffPairDimensionsList      = aOther.m_DiffPairDimensionsList;
+    m_CurrentViaType              = aOther.m_CurrentViaType;
+    m_UseConnectedTrackWidth      = aOther.m_UseConnectedTrackWidth;
+    m_TempOverrideTrackWidth      = aOther.m_TempOverrideTrackWidth;
+    m_MinClearance                = aOther.m_MinClearance;
+    m_MinGrooveWidth              = aOther.m_MinGrooveWidth;
+    m_MinConn                     = aOther.m_MinConn;
+    m_TrackMinWidth               = aOther.m_TrackMinWidth;
+    m_ViasMinAnnularWidth         = aOther.m_ViasMinAnnularWidth;
+    m_ViasMinSize                 = aOther.m_ViasMinSize;
+    m_MinThroughDrill             = aOther.m_MinThroughDrill;
+    m_MicroViasMinSize            = aOther.m_MicroViasMinSize;
+    m_MicroViasMinDrill           = aOther.m_MicroViasMinDrill;
+    m_CopperEdgeClearance         = aOther.m_CopperEdgeClearance;
+    m_HoleClearance               = aOther.m_HoleClearance;
+    m_HoleToHoleMin               = aOther.m_HoleToHoleMin;
+    m_SilkClearance               = aOther.m_SilkClearance;
+    m_MinResolvedSpokes           = aOther.m_MinResolvedSpokes;
+    m_MinSilkTextHeight           = aOther.m_MinSilkTextHeight;
+    m_MinSilkTextThickness        = aOther.m_MinSilkTextThickness;
+    m_DRCSeverities               = aOther.m_DRCSeverities;
+    m_DrcExclusions               = aOther.m_DrcExclusions;
+    m_DrcExclusionComments        = aOther.m_DrcExclusionComments;
     m_ZoneKeepExternalFillets     = aOther.m_ZoneKeepExternalFillets;
     m_MaxError                    = aOther.m_MaxError;
     m_SolderMaskExpansion         = aOther.m_SolderMaskExpansion;
@@ -946,7 +980,10 @@ void BOARD_DESIGN_SETTINGS::initFromOther( const BOARD_DESIGN_SETTINGS& aOther )
     m_SolderPasteMargin           = aOther.m_SolderPasteMargin;
     m_SolderPasteMarginRatio      = aOther.m_SolderPasteMarginRatio;
     m_AllowSoldermaskBridgesInFPs = aOther.m_AllowSoldermaskBridgesInFPs;
+    m_TentViasFront               = aOther.m_TentViasFront;
+    m_TentViasBack                = aOther.m_TentViasBack;
     m_DefaultFPTextItems          = aOther.m_DefaultFPTextItems;
+    m_UserLayerNames              = aOther.m_UserLayerNames;
 
     std::copy( std::begin( aOther.m_LineThickness ), std::end( aOther.m_LineThickness ),
                std::begin( m_LineThickness ) );
@@ -972,31 +1009,32 @@ void BOARD_DESIGN_SETTINGS::initFromOther( const BOARD_DESIGN_SETTINGS& aOther )
     m_DimensionArrowLength     = aOther.m_DimensionArrowLength;
     m_DimensionExtensionOffset = aOther.m_DimensionExtensionOffset;
 
-    m_auxOrigin              = aOther.m_auxOrigin;
-    m_gridOrigin             = aOther.m_gridOrigin;
-    m_HasStackup             = aOther.m_HasStackup;
-    m_UseHeightForLengthCalcs= aOther.m_UseHeightForLengthCalcs;
+    m_auxOrigin                = aOther.m_auxOrigin;
+    m_gridOrigin               = aOther.m_gridOrigin;
+    m_HasStackup               = aOther.m_HasStackup;
+    m_UseHeightForLengthCalcs  = aOther.m_UseHeightForLengthCalcs;
 
-    m_trackWidthIndex        = aOther.m_trackWidthIndex;
-    m_viaSizeIndex           = aOther.m_viaSizeIndex;
-    m_diffPairIndex          = aOther.m_diffPairIndex;
-    m_useCustomTrackVia      = aOther.m_useCustomTrackVia;
-    m_customTrackWidth       = aOther.m_customTrackWidth;
-    m_customViaSize          = aOther.m_customViaSize;
-    m_useCustomDiffPair      = aOther.m_useCustomDiffPair;
-    m_customDiffPair         = aOther.m_customDiffPair;
-    m_copperLayerCount       = aOther.m_copperLayerCount;
-    m_enabledLayers          = aOther.m_enabledLayers;
-    m_boardThickness         = aOther.m_boardThickness;
-    m_currentNetClassName    = aOther.m_currentNetClassName;
-    m_stackup                = aOther.m_stackup;
-    m_NetSettings            = aOther.m_NetSettings;
-    m_Pad_Master             = std::make_unique<PAD>( *aOther.m_Pad_Master );
-    m_defaultZoneSettings    = aOther.m_defaultZoneSettings;
+    m_trackWidthIndex     = aOther.m_trackWidthIndex;
+    m_viaSizeIndex        = aOther.m_viaSizeIndex;
+    m_diffPairIndex       = aOther.m_diffPairIndex;
+    m_useCustomTrackVia   = aOther.m_useCustomTrackVia;
+    m_customTrackWidth    = aOther.m_customTrackWidth;
+    m_customViaSize       = aOther.m_customViaSize;
+    m_useCustomDiffPair   = aOther.m_useCustomDiffPair;
+    m_customDiffPair      = aOther.m_customDiffPair;
+    m_copperLayerCount    = aOther.m_copperLayerCount;
+    m_userDefinedLayerCount = aOther.m_userDefinedLayerCount;
+    m_enabledLayers       = aOther.m_enabledLayers;
+    m_boardThickness      = aOther.m_boardThickness;
+    m_currentNetClassName = aOther.m_currentNetClassName;
+    m_stackup             = aOther.m_stackup;
+    m_NetSettings         = aOther.m_NetSettings;
+    m_Pad_Master          = std::make_unique<PAD>( *aOther.m_Pad_Master );
+    m_defaultZoneSettings = aOther.m_defaultZoneSettings;
 
-    m_StyleFPFields = aOther.m_StyleFPFields;
-    m_StyleFPText   = aOther.m_StyleFPText;
-    m_StyleFPShapes = aOther.m_StyleFPShapes;
+    m_StyleFPFields       = aOther.m_StyleFPFields;
+    m_StyleFPText         = aOther.m_StyleFPText;
+    m_StyleFPShapes       = aOther.m_StyleFPShapes;
 }
 
 
@@ -1009,6 +1047,7 @@ bool BOARD_DESIGN_SETTINGS::operator==( const BOARD_DESIGN_SETTINGS& aOther ) co
     if( m_UseConnectedTrackWidth != aOther.m_UseConnectedTrackWidth ) return false;
     if( m_TempOverrideTrackWidth != aOther.m_TempOverrideTrackWidth ) return false;
     if( m_MinClearance           != aOther.m_MinClearance ) return false;
+    if( m_MinGrooveWidth         != aOther.m_MinGrooveWidth ) return false;
     if( m_MinConn                != aOther.m_MinConn ) return false;
     if( m_TrackMinWidth          != aOther.m_TrackMinWidth ) return false;
     if( m_ViasMinAnnularWidth    != aOther.m_ViasMinAnnularWidth ) return false;
@@ -1025,6 +1064,7 @@ bool BOARD_DESIGN_SETTINGS::operator==( const BOARD_DESIGN_SETTINGS& aOther ) co
     if( m_MinSilkTextThickness   != aOther.m_MinSilkTextThickness ) return false;
     if( m_DRCSeverities          != aOther.m_DRCSeverities ) return false;
     if( m_DrcExclusions          != aOther.m_DrcExclusions ) return false;
+    if( m_DrcExclusionComments   != aOther.m_DrcExclusionComments ) return false;
     if( m_ZoneKeepExternalFillets     != aOther.m_ZoneKeepExternalFillets ) return false;
     if( m_MaxError                    != aOther.m_MaxError ) return false;
     if( m_SolderMaskExpansion         != aOther.m_SolderMaskExpansion ) return false;
@@ -1033,7 +1073,10 @@ bool BOARD_DESIGN_SETTINGS::operator==( const BOARD_DESIGN_SETTINGS& aOther ) co
     if( m_SolderPasteMargin           != aOther.m_SolderPasteMargin ) return false;
     if( m_SolderPasteMarginRatio      != aOther.m_SolderPasteMarginRatio ) return false;
     if( m_AllowSoldermaskBridgesInFPs != aOther.m_AllowSoldermaskBridgesInFPs ) return false;
+    if( m_TentViasFront               != aOther.m_TentViasFront ) return false;
+    if( m_TentViasBack                != aOther.m_TentViasBack ) return false;
     if( m_DefaultFPTextItems          != aOther.m_DefaultFPTextItems ) return false;
+    if( m_UserLayerNames              != aOther.m_UserLayerNames ) return false;
 
     if( !std::equal( std::begin( m_LineThickness ), std::end( m_LineThickness ),
                      std::begin( aOther.m_LineThickness ) ) )
@@ -1076,6 +1119,7 @@ bool BOARD_DESIGN_SETTINGS::operator==( const BOARD_DESIGN_SETTINGS& aOther ) co
     if( m_useCustomDiffPair        != aOther.m_useCustomDiffPair ) return false;
     if( m_customDiffPair           != aOther.m_customDiffPair ) return false;
     if( m_copperLayerCount         != aOther.m_copperLayerCount ) return false;
+    if( m_userDefinedLayerCount    != aOther.m_userDefinedLayerCount ) return false;
     if( m_enabledLayers            != aOther.m_enabledLayers ) return false;
     if( m_boardThickness           != aOther.m_boardThickness ) return false;
     if( m_currentNetClassName      != aOther.m_currentNetClassName ) return false;
@@ -1114,9 +1158,10 @@ bool BOARD_DESIGN_SETTINGS::migrateSchema0to1()
     std::string units_ptr( "defaults.dimension_units" );
     std::string precision_ptr( "defaults.dimension_precision" );
 
-    if( !( Contains( units_ptr ) && Contains( precision_ptr ) &&
-           At( units_ptr ).is_number_integer() &&
-           At( precision_ptr ).is_number_integer() ) )
+    if( !( Contains( units_ptr )
+            && Contains( precision_ptr )
+            && At( units_ptr ).is_number_integer()
+            && At( precision_ptr ).is_number_integer() ) )
     {
         // if either is missing or invalid, migration doesn't make sense
         return true;
@@ -1132,7 +1177,7 @@ bool BOARD_DESIGN_SETTINGS::migrateSchema0to1()
     {
     case 0: extraDigits = 3; break;
     case 2: extraDigits = 2; break;
-    default: break;
+    default:                 break;
     }
 
     precision += extraDigits;
@@ -1200,6 +1245,7 @@ bool BOARD_DESIGN_SETTINGS::LoadFromFile( const wxString& aDirectory )
     catch( ... )
     {
     }
+
     if( Contains( "legacy" ) )
     {
         // This defaults to false for new boards, but version 5.1.x and prior kept the fillets
@@ -1242,6 +1288,9 @@ int BOARD_DESIGN_SETTINGS::GetBiggestClearanceValue() const
         m_DRCEngine->QueryWorstConstraint( CLEARANCE_CONSTRAINT, constraint );
         biggest = std::max( biggest, constraint.Value().Min() );
 
+        m_DRCEngine->QueryWorstConstraint( PHYSICAL_CLEARANCE_CONSTRAINT, constraint );
+        biggest = std::max( biggest, constraint.Value().Min() );
+
         m_DRCEngine->QueryWorstConstraint( HOLE_CLEARANCE_CONSTRAINT, constraint );
         biggest = std::max( biggest, constraint.Value().Min() );
 
@@ -1258,9 +1307,9 @@ int BOARD_DESIGN_SETTINGS::GetBiggestClearanceValue() const
 
 int BOARD_DESIGN_SETTINGS::GetSmallestClearanceValue() const
 {
-    int clearance = m_NetSettings->m_DefaultNetClass->GetClearance();
+    int clearance = m_NetSettings->GetDefaultNetclass()->GetClearance();
 
-    for( const auto& [ name, netclass ] : m_NetSettings->m_NetClasses )
+    for( const auto& [name, netclass] : m_NetSettings->GetNetclasses() )
         clearance = std::min( clearance, netclass->GetClearance() );
 
     return clearance;
@@ -1279,7 +1328,7 @@ int BOARD_DESIGN_SETTINGS::GetCurrentViaSize() const
     if( m_useCustomTrackVia )
         return m_customViaSize.m_Diameter;
     else if( m_viaSizeIndex == 0 )
-        return m_NetSettings->m_DefaultNetClass->GetViaDiameter();
+        return m_NetSettings->GetDefaultNetclass()->GetViaDiameter();
     else
         return m_ViasDimensionsList[ m_viaSizeIndex ].m_Diameter;
 }
@@ -1292,7 +1341,7 @@ int BOARD_DESIGN_SETTINGS::GetCurrentViaDrill() const
     if( m_useCustomTrackVia )
         drill = m_customViaSize.m_Drill;
     else if( m_viaSizeIndex == 0 )
-        drill = m_NetSettings->m_DefaultNetClass->GetViaDrill();
+        drill = m_NetSettings->GetDefaultNetclass()->GetViaDrill();
     else
         drill = m_ViasDimensionsList[ m_viaSizeIndex ].m_Drill;
 
@@ -1312,7 +1361,7 @@ int BOARD_DESIGN_SETTINGS::GetCurrentTrackWidth() const
     if( m_useCustomTrackVia )
         return m_customTrackWidth;
     else if( m_trackWidthIndex == 0 )
-        return m_NetSettings->m_DefaultNetClass->GetTrackWidth();
+        return m_NetSettings->GetDefaultNetclass()->GetTrackWidth();
     else
         return m_TrackWidthList[ m_trackWidthIndex ];
 }
@@ -1338,10 +1387,10 @@ int BOARD_DESIGN_SETTINGS::GetCurrentDiffPairWidth() const
     }
     else if( m_diffPairIndex == 0 )
     {
-        if( m_NetSettings->m_DefaultNetClass->HasDiffPairWidth() )
-            return m_NetSettings->m_DefaultNetClass->GetDiffPairWidth();
+        if( m_NetSettings->GetDefaultNetclass()->HasDiffPairWidth() )
+            return m_NetSettings->GetDefaultNetclass()->GetDiffPairWidth();
         else
-            return m_NetSettings->m_DefaultNetClass->GetTrackWidth();
+            return m_NetSettings->GetDefaultNetclass()->GetTrackWidth();
     }
     else
     {
@@ -1358,10 +1407,10 @@ int BOARD_DESIGN_SETTINGS::GetCurrentDiffPairGap() const
     }
     else if( m_diffPairIndex == 0 )
     {
-        if( m_NetSettings->m_DefaultNetClass->HasDiffPairGap() )
-            return m_NetSettings->m_DefaultNetClass->GetDiffPairGap();
+        if( m_NetSettings->GetDefaultNetclass()->HasDiffPairGap() )
+            return m_NetSettings->GetDefaultNetclass()->GetDiffPairGap();
         else
-            return m_NetSettings->m_DefaultNetClass->GetClearance();
+            return m_NetSettings->GetDefaultNetclass()->GetClearance();
     }
     else
     {
@@ -1378,8 +1427,8 @@ int BOARD_DESIGN_SETTINGS::GetCurrentDiffPairViaGap() const
     }
     else if( m_diffPairIndex == 0 )
     {
-        if( m_NetSettings->m_DefaultNetClass->HasDiffPairViaGap() )
-            return m_NetSettings->m_DefaultNetClass->GetDiffPairViaGap();
+        if( m_NetSettings->GetDefaultNetclass()->HasDiffPairViaGap() )
+            return m_NetSettings->GetDefaultNetclass()->GetDiffPairViaGap();
         else
             return GetCurrentDiffPairGap();
     }
@@ -1395,25 +1444,38 @@ void BOARD_DESIGN_SETTINGS::SetCopperLayerCount( int aNewLayerCount )
     m_copperLayerCount = aNewLayerCount;
 
     // Update only enabled copper layers mask
-    m_enabledLayers &= ~LSET::AllCuMask();
+    m_enabledLayers.ClearCopperLayers();
 
     if( aNewLayerCount > 0 )
         m_enabledLayers |= LSET::AllCuMask( aNewLayerCount );
 }
 
 
+void BOARD_DESIGN_SETTINGS::SetUserDefinedLayerCount( int aNewLayerCount )
+{
+    m_userDefinedLayerCount = aNewLayerCount;
+
+    m_enabledLayers.ClearUserDefinedLayers();
+
+    if( aNewLayerCount > 0 )
+        m_enabledLayers |= LSET::UserDefinedLayersMask( aNewLayerCount );
+}
+
+
 void BOARD_DESIGN_SETTINGS::SetEnabledLayers( LSET aMask )
 {
-    // Ensures mandatory back and front layers are always enabled
-    // regardless of board file configuration.
+    // Ensures mandatory back and front layers are always enabled regardless of board file
+    // configuration.
     aMask.set( B_Cu ).set( F_Cu )
          .set( B_CrtYd ).set( F_CrtYd )
-         .set( Edge_Cuts ).set( Margin );
+         .set( Edge_Cuts )
+         .set( Margin );
 
     m_enabledLayers = aMask;
 
-    // update m_CopperLayerCount to ensure its consistency with m_EnabledLayers
-    m_copperLayerCount = ( aMask & LSET::AllCuMask() ).count();
+    // update layer counts to ensure their consistency with m_EnabledLayers
+    m_copperLayerCount      = (int) aMask.ClearNonCopperLayers().count();
+    m_userDefinedLayerCount = (int) ( aMask & LSET::UserDefinedLayersMask() ).count();
 }
 
 
@@ -1475,4 +1537,16 @@ bool BOARD_DESIGN_SETTINGS::GetTextItalic( PCB_LAYER_ID aLayer ) const
 bool BOARD_DESIGN_SETTINGS::GetTextUpright( PCB_LAYER_ID aLayer ) const
 {
     return m_TextUpright[ GetLayerClass( aLayer ) ];
+}
+
+void BOARD_DESIGN_SETTINGS::SetDefaultMasterPad()
+{
+    m_Pad_Master->SetSizeX( pcbIUScale.mmToIU( DEFAULT_PAD_WIDTH_MM ) );
+    m_Pad_Master->SetSizeY( pcbIUScale.mmToIU( DEFAULT_PAD_HEIGTH_MM ) );
+    m_Pad_Master->SetDrillShape( PAD_DRILL_SHAPE::CIRCLE );
+    m_Pad_Master->SetDrillSize( VECTOR2I( pcbIUScale.mmToIU( DEFAULT_PAD_DRILL_DIAMETER_MM ), 0 ) );
+    m_Pad_Master->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::ROUNDRECT );
+
+    constexpr double RR_RADIUS = DEFAULT_PAD_HEIGTH_MM * DEFAULT_PAD_RR_RADIUS_RATIO;
+    m_Pad_Master->SetRoundRectCornerRadius( PADSTACK::ALL_LAYERS, pcbIUScale.mmToIU( RR_RADIUS ) );
 }

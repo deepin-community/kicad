@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -96,7 +96,6 @@ public:
     void Clear() override;
 
 protected:
-    void loadLibs();
     void loadFootprints();
 
 private:
@@ -107,8 +106,7 @@ private:
      */
     bool CatchErrors( const std::function<void()>& aFunc );
 
-    SYNC_QUEUE<wxString>     m_queue_in;
-    SYNC_QUEUE<wxString>     m_queue_out;
+    SYNC_QUEUE<wxString>     m_queue;
     long long                m_list_timestamp;
     PROGRESS_REPORTER*       m_progress_reporter;
     std::atomic_bool         m_cancelled;

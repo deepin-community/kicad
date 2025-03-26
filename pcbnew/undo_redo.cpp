@@ -4,7 +4,7 @@
  * Copyright (C) 2012 Jean-Pierre Charras, jean-pierre.charras@ujf-grenoble.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2016 CERN
- * Copyright (C) 2012-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -34,6 +34,7 @@ using namespace std::placeholders;
 #include <pcb_generator.h>
 #include <pcb_target.h>
 #include <footprint.h>
+#include <lset.h>
 #include <pad.h>
 #include <origin_viewitem.h>
 #include <connectivity/connectivity_data.h>
@@ -277,64 +278,64 @@ void PCB_BASE_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
 
     std::unordered_map<EDA_ITEM*, ITEM_CHANGE_TYPE> item_changes;
 
-    auto update_item_change_state = [&]( EDA_ITEM* item, ITEM_CHANGE_TYPE change_type )
-    {
-        auto item_itr = item_changes.find( item );
+    auto update_item_change_state =
+            [&]( EDA_ITEM* item, ITEM_CHANGE_TYPE change_type )
+            {
+                auto item_itr = item_changes.find( item );
 
-        if( item_itr == item_changes.end() )
-        {
-            // First time we've seen this item - tag the current change type
-            item_changes.insert( { item, change_type } );
-        }
-        else
-        {
-            // Update the item state based on the current and next change type
-            switch( item_itr->second )
-            {
-            case ITEM_CHANGE_TYPE::ADDED:
-            {
-                if( change_type == ITEM_CHANGE_TYPE::DELETED )
+                if( item_itr == item_changes.end() )
                 {
-                    // The item was previously added, now deleted - as far as bulk callbacks
-                    // are concerned, the item has never existed
-                    item_changes.erase( item_itr );
-                }
-                else if( change_type == ITEM_CHANGE_TYPE::ADDED )
-                {
-                    // Error condition - added an already added item
-                    wxASSERT_MSG( false, wxT( "Undo / Redo - should not add already added item" ) );
+                    // First time we've seen this item - tag the current change type
+                    item_changes.insert( { item, change_type } );
+                    return;
                 }
 
-                // For all other cases, the item remains as ADDED as seen by the bulk callbacks
-                break;
-            }
-            case ITEM_CHANGE_TYPE::DELETED:
-            {
-                // This is an error condition - item has already been deleted so should not
-                // be operated on further
-                wxASSERT_MSG( false, wxT( "Undo / Redo - should not alter already deleted item" ) );
-                break;
-            }
-            case ITEM_CHANGE_TYPE::CHANGED:
-            {
-                if( change_type == ITEM_CHANGE_TYPE::DELETED )
+                // Update the item state based on the current and next change type
+                switch( item_itr->second )
                 {
-                    item_itr->second = ITEM_CHANGE_TYPE::DELETED;
-                }
-                else if( change_type == ITEM_CHANGE_TYPE::ADDED )
+                case ITEM_CHANGE_TYPE::ADDED:
                 {
-                    // This is an error condition - item has already been changed so should not
-                    // be added
-                    wxASSERT_MSG( false,
-                                  wxT( "Undo / Redo - should not add already changed item" ) );
-                }
+                    if( change_type == ITEM_CHANGE_TYPE::DELETED )
+                    {
+                        // The item was previously added, now deleted - as far as bulk callbacks
+                        // are concerned, the item has never existed
+                        item_changes.erase( item_itr );
+                    }
+                    else if( change_type == ITEM_CHANGE_TYPE::ADDED )
+                    {
+                        // Error condition - added an already added item
+                        wxASSERT_MSG( false, wxT( "UndoRedo: should not add already added item" ) );
+                    }
 
-                // Otherwise, item remains CHANGED
-                break;
-            }
-            }
-        }
-    };
+                    // For all other cases, the item remains as ADDED as seen by the bulk callbacks
+                    break;
+                }
+                case ITEM_CHANGE_TYPE::DELETED:
+                {
+                    // This is an error condition - item has already been deleted so should not
+                    // be operated on further
+                    wxASSERT_MSG( false, wxT( "UndoRedo: should not alter already deleted item" ) );
+                    break;
+                }
+                case ITEM_CHANGE_TYPE::CHANGED:
+                {
+                    if( change_type == ITEM_CHANGE_TYPE::DELETED )
+                    {
+                        item_itr->second = ITEM_CHANGE_TYPE::DELETED;
+                    }
+                    else if( change_type == ITEM_CHANGE_TYPE::ADDED )
+                    {
+                        // This is an error condition - item has already been changed so should not
+                        // be added
+                        wxASSERT_MSG( false,
+                                      wxT( "UndoRedo: should not add already changed item" ) );
+                    }
+
+                    // Otherwise, item remains CHANGED
+                    break;
+                }
+                }
+            };
 
     // Undo in the reverse order of list creation: (this can allow stacked changes
     // like the same item can be changes and deleted in the same complex command
@@ -432,19 +433,26 @@ void PCB_BASE_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
         {
         case UNDO_REDO::CHANGED:    /* Exchange old and new data for each item */
         {
-            BOARD_ITEM* item = (BOARD_ITEM*) eda_item;
+            BOARD_ITEM*           item = (BOARD_ITEM*) eda_item;
+            BOARD_ITEM_CONTAINER* parent = GetBoard();
+            PCB_GROUP*            parentGroup = item->GetParentGroup();
 
             if( item->GetParentFootprint() )
             {
-                // We need the current item, which may be different from what was stored if
-                // we're multiple frames up the undo stack.
+                // We need the current item and it's parent, which may be different from what
+                // was stored if we're multiple frames up the undo stack.
                 item = GetBoard()->GetItem( item->m_Uuid );
+                parent = item->GetParentFootprint();
             }
 
             BOARD_ITEM* image = (BOARD_ITEM*) aList->GetPickedItemLink( ii );
 
             view->Remove( item );
-            connectivity->Remove( item );
+
+            if( parentGroup )
+                parentGroup->RemoveItem( item );
+
+            parent->Remove( item );
 
             item->SwapItemData( image );
 
@@ -461,7 +469,11 @@ void PCB_BASE_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
 
             view->Add( item );
             view->Hide( item, false );
-            connectivity->Add( item );
+            parent->Add( item );
+
+            if( parentGroup )
+                parentGroup->AddItem( item );
+
             update_item_change_state( item, ITEM_CHANGE_TYPE::CHANGED );
             break;
         }
@@ -582,36 +594,26 @@ void PCB_BASE_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
     // Invoke bulk BOARD_LISTENER callbacks
     std::vector<BOARD_ITEM*> added_items, deleted_items, changed_items;
 
-    for( auto& item_itr : item_changes )
+    for( auto& [item, changeType] : item_changes )
     {
-        switch( item_itr.second )
+        switch( changeType )
         {
         case ITEM_CHANGE_TYPE::ADDED:
-        {
-            added_items.push_back( static_cast<BOARD_ITEM*>( item_itr.first ) );
+            added_items.push_back( static_cast<BOARD_ITEM*>( item ) );
             break;
-        }
+
         case ITEM_CHANGE_TYPE::DELETED:
-        {
-            deleted_items.push_back( static_cast<BOARD_ITEM*>( item_itr.first ) );
+            deleted_items.push_back( static_cast<BOARD_ITEM*>( item ) );
             break;
-        }
+
         case ITEM_CHANGE_TYPE::CHANGED:
-        {
-            changed_items.push_back( static_cast<BOARD_ITEM*>( item_itr.first ) );
+            changed_items.push_back( static_cast<BOARD_ITEM*>( item ) );
             break;
-        }
         }
     }
 
-    if( added_items.size() > 0 )
-        GetBoard()->FinalizeBulkAdd( added_items );
-
-    if( deleted_items.size() > 0 )
-        GetBoard()->FinalizeBulkRemove( deleted_items );
-
-    if( changed_items.size() > 0 )
-        GetBoard()->OnItemsChanged( changed_items );
+    if( added_items.size() > 0 || deleted_items.size() > 0 || changed_items.size() > 0 )
+        GetBoard()->OnItemsCompositeUpdate( added_items, deleted_items, changed_items );
 }
 
 

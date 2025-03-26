@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,7 +19,8 @@
 
 #include <boost/test/unit_test.hpp>
 #include <kiid.h>
-
+#include <wx/string.h>
+#include <set>
 
 BOOST_AUTO_TEST_SUITE( Kiid )
 
@@ -32,6 +33,14 @@ BOOST_AUTO_TEST_CASE( Seeding )
     KIID b0;
     KIID c0;
     KIID d0;
+
+    // Make sure the hashes are unique
+    std::set<size_t> hashes;
+    hashes.insert( a0.Hash() );
+    hashes.insert( b0.Hash() );
+    hashes.insert( c0.Hash() );
+    hashes.insert( d0.Hash() );
+    BOOST_CHECK_EQUAL( hashes.size(), 4 );
 
     KIID::SeedGenerator( 0l );
 
@@ -67,6 +76,31 @@ BOOST_AUTO_TEST_CASE( KiidPathTest )
 
     BOOST_CHECK( path1.EndsWith( path2 ) == true );
     BOOST_CHECK( path2.EndsWith( path1 ) == false );
+}
+
+
+BOOST_AUTO_TEST_CASE( LegacyTimestamp )
+{
+    timestamp_t ts_a = 0xAABBCCDD;
+    timestamp_t ts_b = 0x00000012;
+
+    wxString str_a( wxS( "AABBCCDD" ) );
+    wxString str_b( wxS( "00000012" ) );
+
+    KIID a( ts_a );
+    KIID b( ts_b );
+
+    BOOST_CHECK( a.AsLegacyTimestamp() == ts_a );
+    BOOST_CHECK( a.AsLegacyTimestampString() == str_a );
+
+    BOOST_CHECK( b.AsLegacyTimestamp() == ts_b );
+    BOOST_CHECK( b.AsLegacyTimestampString() == str_b );
+
+    BOOST_CHECK( KIID( str_a ).AsLegacyTimestamp() == ts_a );
+    BOOST_CHECK( KIID( str_b ).AsLegacyTimestamp() == ts_b );
+
+    BOOST_CHECK( KIID( str_a ).AsLegacyTimestampString() == str_a );
+    BOOST_CHECK( KIID( str_b ).AsLegacyTimestampString() == str_b );
 }
 
 

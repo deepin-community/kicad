@@ -1,22 +1,69 @@
+/*
+ * This program is part of KiCad, a free EDA CAD application.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 %rename(AddPrimitiveShape) PAD::AddPrimitive;
 
-%include pad_shapes.h
+%{
+#include <pad.h>
+#include <padstack.h>
+%}
+
+%include padstack.h
 %include pad.h
 
 %rename(Get) operator   PAD*;
-%{
-#include <pad.h>
-%}
 
 /* Only for compatibility with old python scripts: */
 const int PAD_SHAPE_RECT = (const int)PAD_SHAPE::RECTANGLE;
 
 %{
 const int PAD_SHAPE_RECT = (const int)PAD_SHAPE::RECTANGLE;
+const int PAD_DRILL_SHAPE_CIRCLE = (const int)PAD_DRILL_SHAPE::CIRCLE;
+const int PAD_DRILL_SHAPE_OBLONG = (const int)PAD_DRILL_SHAPE::OBLONG;
 %}
 
 %extend PAD
 {
+    // Overrides to make non-padstack-aware scripts continue to work
+    PAD_SHAPE GetShape() { return $self->GetShape( F_Cu ); }
+    void SetShape( PAD_SHAPE aShape ) { $self->SetShape( F_Cu, aShape ); }
+
+    VECTOR2I GetSize() { return $self->GetSize( F_Cu ); }
+    void SetSize( VECTOR2I aSize ) { $self->SetSize( F_Cu, aSize ); }
+
+    VECTOR2I GetDelta() { return $self->GetDelta( F_Cu ); }
+    void SetDelta( VECTOR2I aSize ) { $self->SetDelta( F_Cu, aSize ); }
+
+    VECTOR2I GetOffset() { return $self->GetOffset( F_Cu ); }
+    void SetOffset( VECTOR2I aOffset ) { $self->SetOffset( F_Cu, aOffset ); }
+
+    double GetRoundRectCornerRadius() { return $self->GetRoundRectCornerRadius( F_Cu ); }
+    void SetRoundRectCornerRadius( double aRadius ) { $self->SetRoundRectCornerRadius( F_Cu, aRadius ); }
+
+    double GetRoundRectRadiusRatio() { return $self->GetRoundRectRadiusRatio( F_Cu ); }
+    void SetRoundRectRadiusRatio( double aRatio ) { $self->SetRoundRectRadiusRatio( F_Cu, aRatio ); }
+
+    double GetChamferRectRatio() { return $self->GetChamferRectRatio( F_Cu ); }
+    void SetChamferRectRatio( double aRatio ) { $self->SetChamferRectRatio( F_Cu, aRatio ); }
+
+    int GetChamferPositions() { return $self->GetChamferPositions( F_Cu ); }
+    void SetChamferPositions( int aPositions ) { $self->SetChamferPositions( F_Cu, aPositions ); }
+
     %pythoncode
     %{
 
@@ -42,7 +89,7 @@ const int PAD_SHAPE_RECT = (const int)PAD_SHAPE::RECTANGLE;
     # have gotten used to this API, so keep compatibility with it
     def AddPrimitive(self, *args):
         if len(args) == 2:
-            return self.AddPrimitivePoly(*args, True)
+            return self.AddPrimitivePoly(F_Cu, *args, True)
         elif len(args) == 3:
             if type(args[1] in [wxPoint,wxSize,VECTOR2I]):
                 s = PCB_SHAPE(None, SHAPE_T_SEGMENT)
@@ -75,7 +122,7 @@ const int PAD_SHAPE_RECT = (const int)PAD_SHAPE::RECTANGLE;
     # GetCustomShapeAsPolygon() is the old accessor to get custom shapes
     def GetCustomShapeAsPolygon(self, layer=UNDEFINED_LAYER):
         polygon_set = SHAPE_POLY_SET()
-        self.MergePrimitivesAsPolygon(polygon_set)
+        self.MergePrimitivesAsPolygon(F_Cu, polygon_set)
         return polygon_set
     %}
 }

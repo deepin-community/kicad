@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jean-pierre.charras@ujf-grenoble.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2020, 2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,7 +31,6 @@ using namespace std::placeholders;
 #include <confirm.h>
 #include <connectivity/connectivity_data.h>
 #include <dialog_footprint_chooser.h>
-#include <dialog_get_footprint_by_name.h>
 #include <eda_list_dialog.h>
 #include <footprint_edit_frame.h>
 #include <footprint_tree_pane.h>
@@ -45,6 +44,7 @@ using namespace std::placeholders;
 #include <pcb_edit_frame.h>
 #include <pcbnew_settings.h>
 #include <board_design_settings.h>
+#include <drc/drc_item.h>
 #include <view/view_controls.h>
 #include <widgets/lib_tree.h>
 #include <widgets/wx_progress_reporters.h>
@@ -104,6 +104,9 @@ bool FOOTPRINT_EDIT_FRAME::LoadFootprintFromBoard( FOOTPRINT* aFootprint )
     if( !Clear_Pcb( true ) )
         return false;
 
+    std::map<int, SEVERITY>& severities = GetBoard()->GetDesignSettings().m_DRCSeverities;
+    severities[ DRCE_MISSING_COURTYARD ] = RPT_SEVERITY_WARNING;
+
     m_boardFootprintUuids.clear();
 
     auto recordAndUpdateUuid =
@@ -146,7 +149,10 @@ bool FOOTPRINT_EDIT_FRAME::LoadFootprintFromBoard( FOOTPRINT* aFootprint )
     // Put it on FRONT layer,
     // because this is the default in Footprint Editor, and in libs
     if( newFootprint->GetLayer() != F_Cu )
-        newFootprint->Flip( newFootprint->GetPosition(), frame->GetPcbNewSettings()->m_FlipLeftRight );
+    {
+        newFootprint->Flip( newFootprint->GetPosition(),
+                            frame->GetPcbNewSettings()->m_FlipDirection );
+    }
 
     // Put it in orientation 0,
     // because this is the default orientation in Footprint Editor, and in libs
@@ -165,8 +171,8 @@ bool FOOTPRINT_EDIT_FRAME::LoadFootprintFromBoard( FOOTPRINT* aFootprint )
         ReCreateMenuBar();
         ReCreateHToolbar();
 
-        if( IsSearchTreeShown() )
-            ToggleSearchTree();
+        if( IsLibraryTreeShown() )
+            ToggleLibraryTree();
     }
 
     Update3DView( true, true );
@@ -369,7 +375,7 @@ bool FOOTPRINT_EDIT_FRAME::SaveLibraryAs( const wxString& aLibraryPath )
     }
     catch( const IO_ERROR& ioe )
     {
-        DisplayError( this, ioe.What() );
+        DisplayErrorMessage( this, _( "Error saving footprint library" ), ioe.What() );
         return false;
     }
 
@@ -388,40 +394,6 @@ static FOOTPRINT* s_FootprintInitialCopy = nullptr;    // Copy of footprint for 
 
 static PICKED_ITEMS_LIST s_PickedList;              // A pick-list to save initial footprint
                                                     //   and dragged tracks
-
-
-FOOTPRINT* PCB_BASE_FRAME::GetFootprintFromBoardByReference()
-{
-    wxString        footprintName;
-    wxArrayString   fplist;
-
-    // Build list of available fp references, to display them in dialog
-    for( FOOTPRINT* fp : GetBoard()->Footprints() )
-        fplist.Add( fp->GetReference() + wxT( "    ( " ) + fp->GetValue() + wxT( " )" ) );
-
-    fplist.Sort();
-
-    DIALOG_GET_FOOTPRINT_BY_NAME dlg( this, fplist );
-
-    if( dlg.ShowModal() != wxID_OK )    //Aborted by user
-        return nullptr;
-
-    footprintName = dlg.GetValue();
-    footprintName.Trim( true );
-    footprintName.Trim( false );
-
-    if( !footprintName.IsEmpty() )
-    {
-        for( FOOTPRINT* fp : GetBoard()->Footprints() )
-        {
-            if( fp->GetReference().CmpNoCase( footprintName ) == 0 )
-                return fp;
-        }
-    }
-
-    return nullptr;
-}
-
 
 void PCB_BASE_FRAME::PlaceFootprint( FOOTPRINT* aFootprint, bool aRecreateRatsnest )
 {

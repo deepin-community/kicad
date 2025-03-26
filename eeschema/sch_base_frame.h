@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2015-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -35,7 +35,6 @@
 #include <utility>
 #include <vector>
 #include <wx/event.h>
-#include <wx/fswatcher.h>
 #include <wx/datetime.h>
 #include <wx/gdicmn.h>
 #include <wx/string.h>
@@ -44,11 +43,7 @@
 #include <template_fieldnames.h>
 
 
-namespace KIGFX
-{
-    class SCH_RENDER_SETTINGS;
-}
-
+class SCH_RENDER_SETTINGS;
 class PAGE_INFO;
 class TITLE_BLOCK;
 class SYMBOL_VIEWER_FRAME;
@@ -61,6 +56,22 @@ class SYMBOL_LIB_TABLE;
 class EESCHEMA_SETTINGS;
 class SYMBOL_EDITOR_SETTINGS;
 class NL_SCHEMATIC_PLUGIN;
+class PANEL_SCH_SELECTION_FILTER;
+
+#ifdef wxHAS_INOTIFY
+#define wxFileSystemWatcher wxInotifyFileSystemWatcher
+#elif defined( wxHAS_KQUEUE ) && defined( wxHAVE_FSEVENTS_FILE_NOTIFICATIONS )
+#define wxFileSystemWatcher wxFsEventsFileSystemWatcher
+#elif defined( wxHAS_KQUEUE )
+#define wxFileSystemWatcher wxKqueueFileSystemWatcher
+#elif defined( __WINDOWS__ )
+#define wxFileSystemWatcher wxMSWFileSystemWatcher
+#else
+#define wxFileSystemWatcher wxPollingFileSystemWatcher
+#endif
+
+class wxFileSystemWatcher;
+class wxFileSystemWatcherEvent;
 
 /**
  * Load symbol from symbol library table.
@@ -107,10 +118,12 @@ public:
 
     SYMBOL_EDITOR_SETTINGS* libeditconfig() const;
 
+    APP_SETTINGS_BASE* GetViewerSettingsBase() const;
+
     void LoadSettings( APP_SETTINGS_BASE* aCfg ) override;
     void SaveSettings( APP_SETTINGS_BASE* aCfg ) override;
 
-    KIGFX::SCH_RENDER_SETTINGS* GetRenderSettings();
+    SCH_RENDER_SETTINGS* GetRenderSettings();
 
     COLOR4D GetDrawBgColor() const override;
 
@@ -134,6 +147,7 @@ public:
     void SetTitleBlock( const TITLE_BLOCK& aTitleBlock ) override;
 
     void UpdateStatusBar() override;
+
 
     /**
      * Call the library viewer to select symbol to import into schematic.
@@ -220,7 +234,7 @@ public:
      */
     void SyncView();
 
-    void CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged ) override;
+    void CommonSettingsChanged( int aFlags ) override;
 
     /**
      * Helper to retrieve a layer color from the global color settings
@@ -273,9 +287,17 @@ protected:
      */
     void setSymWatcher( const LIB_ID* aSymbol );
 
+    /**
+     * Selection filter panel doesn't have a dedicated visibility control, so show it if any
+     * other AUI panel is shown and docked
+     */
+    virtual void updateSelectionFilterVisbility() {}
+
     /// These are only used by symbol_editor.  Eeschema should be using the one inside
     /// the SCHEMATIC.
     SCHEMATIC_SETTINGS  m_base_frame_defaults;
+
+    PANEL_SCH_SELECTION_FILTER* m_selectionFilterPanel;
 
 private:
 
@@ -285,7 +307,7 @@ private:
     wxDateTime                              m_watcherLastModified;
     wxTimer                                 m_watcherDebounceTimer;
 
-    NL_SCHEMATIC_PLUGIN* m_spaceMouse;
+    std::unique_ptr<NL_SCHEMATIC_PLUGIN>    m_spaceMouse;
 };
 
 #endif // SCH_BASE_FRAME_H_

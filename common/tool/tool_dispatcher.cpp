@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2013-2024 KiCad Developers, see CHANGELOG.txt for contributors.
+ * Copyright The KiCad Developers, see CHANGELOG.txt for contributors.
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -23,11 +23,19 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "tool/tool_dispatcher.h"
+
+#include <bit>
+#include <optional>
+
+#include <wx/log.h>
+#include <wx/stc/stc.h>
+#include <wx/settings.h>
+
 #include <core/ignore.h>
 #include <macros.h>
 #include <trace_helpers.h>
 #include <tool/tool_manager.h>
-#include <tool/tool_dispatcher.h>
 #include <tool/actions.h>
 #include <tool/action_manager.h>
 #include <tool/action_menu.h>
@@ -35,14 +43,12 @@
 #include <view/wx_view_controls.h>
 #include <eda_draw_frame.h>
 #include <core/kicad_algo.h>
-#include <optional>
-#include <wx/log.h>
-#include <wx/stc/stc.h>
-#include <wx/settings.h>
+
 #include <kiplatform/app.h>
 #include <kiplatform/ui.h>
 
-///< Stores information about a mouse button state
+
+/// Store information about a mouse button state.
 struct TOOL_DISPATCHER::BUTTON_STATE
 {
     BUTTON_STATE( TOOL_MOUSE_BUTTONS aButton, const wxEventType& aDownEvent,
@@ -55,44 +61,44 @@ struct TOOL_DISPATCHER::BUTTON_STATE
         dblClickEvent( aDblClickEvent )
     {};
 
-    ///< Flag indicating that dragging is active for the given button.
+    /// Flag indicating that dragging is active for the given button.
     bool dragging;
 
-    ///< Flag indicating that the given button is pressed.
+    /// Flag indicating that the given button is pressed.
     bool pressed;
 
-    ///< Point where dragging has started (in world coordinates).
+    /// Point where dragging has started (in world coordinates).
     VECTOR2D dragOrigin;
 
-    ///< Point where dragging has started (in screen coordinates).
+    /// Point where dragging has started (in screen coordinates).
     VECTOR2D dragOriginScreen;
 
-    ///< Point where click event has occurred.
+    /// Point where click event has occurred.
     VECTOR2D downPosition;
 
-    ///< Determines the mouse button for which information are stored.
+    /// Determines the mouse button for which information are stored.
     TOOL_MOUSE_BUTTONS button;
 
-    ///< The type of wxEvent that determines mouse button press.
+    /// The type of wxEvent that determines mouse button press.
     wxEventType downEvent;
 
-    ///< The type of wxEvent that determines mouse button release.
+    /// The type of wxEvent that determines mouse button release.
     wxEventType upEvent;
 
-    ///< The type of wxEvent that determines mouse button double click.
+    /// The type of wxEvent that determines mouse button double click.
     wxEventType dblClickEvent;
 
-    ///< Time stamp for the last mouse button press event.
+    /// Time stamp for the last mouse button press event.
     wxLongLong downTimestamp;
 
-    ///< Restores initial state.
+    /// Restores initial state.
     void Reset()
     {
         dragging = false;
         pressed = false;
     }
 
-    ///< Checks the current state of the button.
+    /// Checks the current state of the button.
     bool GetState() const
     {
         wxMouseState mouseState = wxGetMouseState();
@@ -123,8 +129,7 @@ struct TOOL_DISPATCHER::BUTTON_STATE
 
 
 TOOL_DISPATCHER::TOOL_DISPATCHER( TOOL_MANAGER* aToolMgr ) :
-        m_toolMgr( aToolMgr ),
-        m_currentMenu( nullptr )
+    m_toolMgr( aToolMgr )
 {
     m_sysDragMinX = wxSystemSettings::GetMetric( wxSYS_DRAG_X );
     m_sysDragMinY = wxSystemSettings::GetMetric( wxSYS_DRAG_Y );
@@ -262,13 +267,14 @@ bool TOOL_DISPATCHER::handleMouseButton( wxEvent& aEvent, int aIndex, bool aMoti
 }
 
 
-// Helper function to know if a special key ( see key list ) should be captured
-// or if the event can be skipped
-// on Linux, the event must be passed to the GUI if they are not used by KiCad,
-// especially the wxEVENT_CHAR_HOOK, if it is not handled
-// Some keys have a predefined action in wxWidgets so, even if not used,
-// the even will be not skipped
-// the unused keys listed in isKeySpecialCode() will be not skipped
+/**
+ * Helper to know if a special key ( see key list ) should be captured.
+ *
+ * If the event can be skipped on Linux, the event must be passed to the GUI if they are not
+ * used by KiCad, especially the wxEVENT_CHAR_HOOK, if it is not handled.  Some keys have a
+ * predefined action in wxWidgets so, even if not used, the even will be not skipped the unused
+ * keys listed in isKeySpecialCode() will be not skipped.
+ */
 bool isKeySpecialCode( int aKeyCode )
 {
     // These keys have predefined actions (like move thumbtrack cursor),
@@ -283,9 +289,10 @@ bool isKeySpecialCode( int aKeyCode )
 }
 
 
-// Helper function to know if a key should be managed by DispatchWxEvent()
-// or if the event can be ignored and skipped because the key is only a modifier
-// that is not used alone in kicad
+/**
+ * Helper to know if a key should be managed by DispatchWxEvent() or if the event can be ignored
+ * and skipped because the key is only a modifier that is not used alone in KiCad.
+ */
 static bool isKeyModifierOnly( int aKeyCode )
 {
     static std::vector<enum wxKeyCode> special_keys =
@@ -307,17 +314,19 @@ static bool isMouseClick( wxEventType type )
 }
 
 
-/* A helper class that convert some special key codes to an equivalent.
- *  WXK_NUMPAD_UP to WXK_UP,
- *  WXK_NUMPAD_DOWN to WXK_DOWN,
- *  WXK_NUMPAD_LEFT to WXK_LEFT,
- *  WXK_NUMPAD_RIGHT,
- *  WXK_NUMPAD_PAGEUP,
- *  WXK_NUMPAD_PAGEDOWN
- * note:
- * wxEVT_CHAR_HOOK does this conversion when it is skipped by firing a wxEVT_CHAR
- * with this converted code, but we do not skip these key events because they also
- * have default action (scroll the panel)
+/**
+ * Convert some special key codes to an equivalent.
+ *
+ *  - WXK_NUMPAD_UP to WXK_UP
+ *  - WXK_NUMPAD_DOWN to WXK_DOWN
+ *  - WXK_NUMPAD_LEFT to WXK_LEFT
+ *  - WXK_NUMPAD_RIGHT to WXK_RIGHT
+ *  - WXK_NUMPAD_PAGEUP to WXK_PAGEUP
+ *  - WXK_NUMPAD_PAGEDOWN to WXK_PAGEDOWN
+ *
+ * @note wxEVT_CHAR_HOOK does this conversion when it is skipped by firing a wxEVT_CHAR
+ *       with this converted code, but we do not skip these key events because they also
+ *       have default action (scroll the panel).
  */
 int translateSpecialCode( int aKeyCode )
 {
@@ -342,7 +351,7 @@ std::optional<TOOL_EVENT> TOOL_DISPATCHER::GetToolEvent( wxKeyEvent* aKeyEvent, 
     int             key = aKeyEvent->GetKeyCode();
     int             unicode_key = aKeyEvent->GetUnicodeKey();
 
-    // This wxEVT_CHAR_HOOK event can be ignored: not useful in Kicad
+    // This wxEVT_CHAR_HOOK event can be ignored: not useful in KiCad
     if( isKeyModifierOnly( key ) )
     {
         aKeyEvent->Skip();
@@ -497,6 +506,24 @@ void TOOL_DISPATCHER::DispatchWxEvent( wxEvent& aEvent )
                 evt->SetMousePosition( pos );
             }
         }
+
+        // We only handle wheel events that aren't for the view control.
+        // Events with zero or one modifier are reserved for view control.
+        // When using WX_VIEW_CONTROLS, these will already be handled, but
+        // we still shouldn't consume such events if we get them (e.g. for
+        // when WX_VIEW_CONTROLS is not in use, like in the 3D viewer)
+        if( !evt && me->GetWheelRotation() != 0 )
+        {
+            const unsigned modBits =
+                    static_cast<unsigned>( mods ) & ( MD_CTRL | MD_ALT | MD_SHIFT );
+            const bool shouldHandle = std::popcount( modBits ) > 1;
+
+            if( shouldHandle )
+            {
+                evt = TOOL_EVENT( TC_MOUSE, TA_MOUSE_WHEEL, mods );
+                evt->SetParameter<int>( me->GetWheelRotation() );
+            }
+        }
     }
     else if( type == wxEVT_CHAR_HOOK || type == wxEVT_CHAR )
     {
@@ -569,24 +596,26 @@ void TOOL_DISPATCHER::DispatchWxEvent( wxEvent& aEvent )
         //    hotkey.  So we keep track of menu highlighting so we can differentiate.
         //
 
+        static ACTION_MENU* currentMenu;
+
         if( type == wxEVT_MENU_OPEN )
         {
-            m_currentMenu = dynamic_cast<ACTION_MENU*>( menuEvent.GetMenu() );
+            currentMenu = dynamic_cast<ACTION_MENU*>( menuEvent.GetMenu() );
 
-            if( m_currentMenu )
-                m_currentMenu->OnMenuEvent( menuEvent );
+            if( currentMenu )
+                currentMenu->OnMenuEvent( menuEvent );
         }
         else if( type == wxEVT_MENU_HIGHLIGHT )
         {
-            if( m_currentMenu )
-                m_currentMenu->OnMenuEvent( menuEvent );
+            if( currentMenu )
+                currentMenu->OnMenuEvent( menuEvent );
         }
         else if( type == wxEVT_MENU_CLOSE )
         {
-            if( m_currentMenu )
-                m_currentMenu->OnMenuEvent( menuEvent );
+            if( currentMenu )
+                currentMenu->OnMenuEvent( menuEvent );
 
-            m_currentMenu = nullptr;
+            currentMenu = nullptr;
         }
 #endif
 
@@ -597,11 +626,13 @@ void TOOL_DISPATCHER::DispatchWxEvent( wxEvent& aEvent )
 
     if( evt )
     {
-        wxLogTrace( kicadTraceToolStack, wxS( "TOOL_DISPATCHER::DispatchWxEvent %s" ), evt->Format() );
+        wxLogTrace( kicadTraceToolStack, wxS( "TOOL_DISPATCHER::DispatchWxEvent %s" ),
+                    evt->Format() );
 
         handled = m_toolMgr->ProcessEvent( *evt );
 
-        wxLogTrace( kicadTraceToolStack, wxS( "TOOL_DISPATCHER::DispatchWxEvent - Handled: %s  %s" ),
+        wxLogTrace( kicadTraceToolStack,
+                    wxS( "TOOL_DISPATCHER::DispatchWxEvent - Handled: %s  %s" ),
                     ( handled ? wxS( "true" ) : wxS( "false" ) ), evt->Format() );
     }
 
@@ -638,3 +669,10 @@ void TOOL_DISPATCHER::DispatchWxEvent( wxEvent& aEvent )
     wxLogTrace( kicadTraceToolStack, "TOOL_DISPATCHER::DispatchWxEvent - Wx event skipped: %s",
                 ( aEvent.GetSkipped() ? "true" : "false" ) );
 }
+
+//  LocalWords:  EDA CERN CHANGELOG txt Tomasz Wlostowski wxEvent WXK
+//  LocalWords:  MERCHANTABILITY bool upEvent downEvent touchpad Ctrl
+//  LocalWords:  wxEVENT isKeySpecialCode thumbtrack DispatchWxEvent
+//  LocalWords:  NUMPAD PAGEUP PAGEDOWN wxEVT EVT OSX ctrl ctlr kVK
+//  LocalWords:  unicode ESC keypress wxTimer iconized autopanning WX
+//  LocalWords:  un Wx

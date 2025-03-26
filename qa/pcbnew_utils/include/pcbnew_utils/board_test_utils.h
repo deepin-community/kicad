@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -175,6 +175,23 @@ private:
 };
 
 
+struct BOARD_LOAD_TEST_CASE
+{
+    wxString m_BoardFileRelativePath;
+
+    // These tests may well test specific versions of the board file format,
+    // so don't let it change accidentally in the files (e.g. by resaving in newer KiCad)!
+    std::optional<int> m_ExpectedBoardVersion;
+
+    // Be default, printing the board file is sufficent to identify the test case
+    friend std::ostream& operator<<( std::ostream& os, const BOARD_LOAD_TEST_CASE& aTestCase )
+    {
+        os << aTestCase.m_BoardFileRelativePath;
+        return os;
+    }
+};
+
+
 void LoadBoard( SETTINGS_MANAGER& aSettingsManager, const wxString& aRelPath,
                 std::unique_ptr<BOARD>& aBoard );
 
@@ -205,6 +222,15 @@ BOARD_ITEM& RequireBoardItemWithTypeAndId( const BOARD& aBoard, KICAD_T aItemTyp
 void LoadAndTestBoardFile( const wxString aRelativePath, bool aRoundtrip,
                            std::function<void( BOARD& )> aBoardTestFunction,
                            std::optional<int> aExpectedBoardVersion = std::nullopt );
+
+/**
+ * Same as LoadAndTestBoardFile, but for footprints
+ */
+void LoadAndTestFootprintFile( const wxString& aLibRelativePath, const wxString& aFpName,
+                               bool                              aRoundtrip,
+                               std::function<void( FOOTPRINT& )> aFootprintTestFunction,
+                               std::optional<int>                aExpectedFootprintVersion );
+
 
 void FillZones( BOARD* m_board );
 

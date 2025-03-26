@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 CERN
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,7 +37,7 @@
 
 bool EDA_3D_CONTROLLER::Init()
 {
-    CONDITIONAL_MENU& ctxMenu = m_menu.GetMenu();
+    CONDITIONAL_MENU& ctxMenu = m_menu->GetMenu();
 
     ctxMenu.AddItem( ACTIONS::zoomInCenter,       SELECTION_CONDITIONS::ShowAlways );
     ctxMenu.AddItem( ACTIONS::zoomOutCenter,      SELECTION_CONDITIONS::ShowAlways );
@@ -69,27 +69,30 @@ bool EDA_3D_CONTROLLER::Init()
 
 void EDA_3D_CONTROLLER::Reset( RESET_REASON aReason )
 {
-    TOOLS_HOLDER* holder = m_toolMgr->GetToolHolder();
-
-    wxASSERT( holder );
-
     m_canvas = nullptr;
     m_boardAdapter = nullptr;
     m_camera = nullptr;
 
-    if( holder )
+    TOOLS_HOLDER* holder = m_toolMgr->GetToolHolder();
+
+    wxCHECK( holder, /* void */ );
+    wxCHECK( holder->GetToolCanvas()->GetId() == EDA_3D_CANVAS_ID, /* void */ );
+
+    m_canvas = static_cast<EDA_3D_CANVAS*>( holder->GetToolCanvas() );
+
+    if( EDA_BASE_FRAME* frame = dynamic_cast<EDA_BASE_FRAME*>( holder ) )
     {
-        m_canvas = dynamic_cast<EDA_3D_CANVAS*>( holder->GetToolCanvas() );
+        wxCHECK( frame->GetFrameType() == FRAME_PCB_DISPLAY3D, /* void */ );
 
-        EDA_3D_BOARD_HOLDER* holder3d = dynamic_cast<EDA_3D_BOARD_HOLDER*>( holder );
+        m_boardAdapter = &static_cast<EDA_3D_VIEWER_FRAME*>( frame )->GetAdapter();
+        m_camera = &static_cast<EDA_3D_VIEWER_FRAME*>( frame )->GetCurrentCamera();
+    }
+    else if( wxWindow* previewWindow = dynamic_cast<wxWindow*>( holder ) )
+    {
+        wxCHECK( previewWindow->GetId() == PANEL_PREVIEW_3D_MODEL_ID, /* void */ );
 
-        wxASSERT( holder3d );
-
-        if( holder3d )
-        {
-            m_boardAdapter = &holder3d->GetAdapter();
-            m_camera = &holder3d->GetCurrentCamera();
-        }
+        m_boardAdapter = &static_cast<PANEL_PREVIEW_3D_MODEL*>( holder )->GetAdapter();
+        m_camera = &static_cast<PANEL_PREVIEW_3D_MODEL*>( holder )->GetCurrentCamera();
     }
 }
 
@@ -117,12 +120,12 @@ int EDA_3D_CONTROLLER::Main( const TOOL_EVENT& aEvent )
     {
         if( evt->IsCancelInteractive() )
         {
-            wxWindow* canvas = m_toolMgr->GetToolHolder()->GetToolCanvas();
-            wxWindow* topLevelParent = wxGetTopLevelParent( canvas->GetParent() );
+            wxWindow*     canvas = m_toolMgr->GetToolHolder()->GetToolCanvas();
+            KIWAY_HOLDER* parent = dynamic_cast<KIWAY_HOLDER*>( wxGetTopLevelParent( canvas ) );
 
-            if( topLevelParent && dynamic_cast<DIALOG_SHIM*>( topLevelParent ) )
+            if( parent && parent->GetType() == KIWAY_HOLDER::DIALOG )
             {
-                DIALOG_SHIM* dialog = static_cast<DIALOG_SHIM*>( topLevelParent );
+                DIALOG_SHIM* dialog = static_cast<DIALOG_SHIM*>( parent );
 
                 if( dialog->IsQuasiModal() )
                     dialog->EndQuasiModal( wxID_CANCEL );
@@ -136,7 +139,7 @@ int EDA_3D_CONTROLLER::Main( const TOOL_EVENT& aEvent )
         }
         else if( evt->IsClick( BUT_RIGHT ) )
         {
-            m_menu.ShowContextMenu();
+            m_menu->ShowContextMenu();
         }
         else
         {
@@ -179,6 +182,7 @@ int EDA_3D_CONTROLLER::RotateView( const TOOL_EVENT& aEvent )
     {
     case ROTATION_DIR::X_CW:  m_camera->RotateX( -rotIncrement ); break;
     case ROTATION_DIR::X_CCW: m_camera->RotateX( rotIncrement );  break;
+
     /// Y rotations are backward b/c the RHR has Y pointing into the screen
     case ROTATION_DIR::Y_CW:  m_camera->RotateY( rotIncrement );  break;
     case ROTATION_DIR::Y_CCW: m_camera->RotateY( -rotIncrement ); break;
@@ -200,8 +204,10 @@ int EDA_3D_CONTROLLER::SetMaterial( const TOOL_EVENT& aEvent )
 {
     m_boardAdapter->m_Cfg->m_Render.material_mode = aEvent.Parameter<MATERIAL_MODE>();
 
-    if( auto* viewer = dynamic_cast<EDA_3D_VIEWER_FRAME*>( m_toolMgr->GetToolHolder() ) )
-        viewer->NewDisplay( true );
+    EDA_BASE_FRAME* frame = dynamic_cast<EDA_BASE_FRAME*>( m_toolMgr->GetToolHolder() );
+
+    if( frame && frame->GetFrameType() == FRAME_PCB_DISPLAY3D )
+        static_cast<EDA_3D_VIEWER_FRAME*>( frame )->NewDisplay( true );
     else
         m_canvas->Request_refresh();
 
@@ -229,11 +235,14 @@ int EDA_3D_CONTROLLER::ToggleVisibility( const TOOL_EVENT& aEvent )
     auto flipLayer =
             [&]( int layer )
             {
-                appearanceManager->OnLayerVisibilityChanged( layer, !visibilityFlags.test( layer ) );
+                appearanceManager->OnLayerVisibilityChanged( layer,
+                                                             !visibilityFlags.test( layer ) );
             };
 
-    if( auto viewer = dynamic_cast<EDA_3D_VIEWER_FRAME*>( m_toolMgr->GetToolHolder() ) )
-        appearanceManager = viewer->GetAppearanceManager();
+    EDA_BASE_FRAME* frame = dynamic_cast<EDA_BASE_FRAME*>( m_toolMgr->GetToolHolder() );
+
+    if( frame && frame->GetFrameType() == FRAME_PCB_DISPLAY3D )
+        appearanceManager = static_cast<EDA_3D_VIEWER_FRAME*>( frame )->GetAppearanceManager();
 
     if( appearanceManager )
     {
@@ -259,8 +268,10 @@ int EDA_3D_CONTROLLER::ToggleVisibility( const TOOL_EVENT& aEvent )
 
 int EDA_3D_CONTROLLER::ToggleLayersManager( const TOOL_EVENT& aEvent )
 {
-    if( auto* viewer = dynamic_cast<EDA_3D_VIEWER_FRAME*>( m_toolMgr->GetToolHolder() ) )
-        viewer->ToggleAppearanceManager();
+    EDA_BASE_FRAME* frame = dynamic_cast<EDA_BASE_FRAME*>( m_toolMgr->GetToolHolder() );
+
+    if( frame && frame->GetFrameType() == FRAME_PCB_DISPLAY3D )
+        static_cast<EDA_3D_VIEWER_FRAME*>( frame )->ToggleAppearanceManager();
 
     return 0;
 }
@@ -302,7 +313,8 @@ int EDA_3D_CONTROLLER::doZoomInOut( bool aDirection, bool aCenterOnCursor )
 {
     if( m_canvas )
     {
-        m_canvas->SetView3D( aDirection ? VIEW3D_TYPE::VIEW3D_ZOOM_IN : VIEW3D_TYPE::VIEW3D_ZOOM_OUT );
+        m_canvas->SetView3D( aDirection ? VIEW3D_TYPE::VIEW3D_ZOOM_IN
+                                        : VIEW3D_TYPE::VIEW3D_ZOOM_OUT );
         m_canvas->DisplayStatus();
     }
 

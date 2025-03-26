@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2007-2010 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2007-2024 Kicad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -57,7 +57,8 @@ struct KICOMMON_API KEYWORD
  */
 enum DSN_SYNTAX_T
 {
-    DSN_NONE         = -11,
+    DSN_NONE         = -12,
+    DSN_BAR          = -11, // Also called pipe '|'
     DSN_COMMENT      = -10,
     DSN_STRING_QUOTE = -9,
     DSN_QUOTE_DEF    = -8,
@@ -382,6 +383,13 @@ public:
     void NeedRIGHT();
 
     /**
+     * Call #NextTok() and then verifies that the token read in is a #DSN_BAR.
+     *
+     * @throw IO_ERROR if the next token is not a #DSN_BAR
+     */
+    void NeedBAR();
+
+    /**
      * Return the C string representation of a #DSN_T value.
      */
     const char* GetTokenText( int aTok ) const;
@@ -520,17 +528,17 @@ protected:
         return parseDouble( GetTokenText( aToken ) );
     }
 
-    bool                iOwnReaders;            ///< on readerStack, should I delete them?
+    bool                iOwnReaders;            ///< On readerStack, should I delete them?
     const char*         start;
     const char*         next;
     const char*         limit;
-    char                dummy[1];               ///< when there is no reader.
+    char                dummy[1];               ///< When there is no reader.
 
     typedef std::vector<LINE_READER*>  READER_STACK;
 
     READER_STACK        readerStack;            ///< all the LINE_READERs by pointer.
 
-    ///< no ownership. ownership is via readerStack, maybe, if iOwnReaders
+    /// No ownership. ownership is via readerStack, maybe, if #iOwnReaders.
     LINE_READER*        reader;
 
     bool                specctraMode;           ///< if true, then:
@@ -540,19 +548,19 @@ protected:
                                                 ///< else not.
 
     char                stringDelimiter;
-    bool                space_in_quoted_tokens; ///< blank spaces within quoted strings
+    bool                space_in_quoted_tokens; ///< Blank spaces within quoted strings.
 
-    bool                commentsAreTokens;      ///< true if should return comments as tokens
+    bool                commentsAreTokens;      ///< True if should return comments as tokens.
 
-    int                 prevTok;                ///< curTok from previous NextTok() call.
-    int                 curOffset;              ///< offset within current line of the current token
+    int                 prevTok;                ///< #curTok from previous NextTok() call.
+    int                 curOffset;              ///< Offset within current line of the current token
 
-    int                 curTok;                 ///< the current token obtained on last NextTok()
-    std::string         curText;                ///< the text of the current token
+    int                 curTok;                 ///< The current token obtained on last NextTok().
+    std::string         curText;                ///< The text of the current token.
 
-    const KEYWORD*      keywords;               ///< table sorted by CMake for bsearch()
-    unsigned            keywordCount;           ///< count of keywords table
-    const KEYWORD_MAP*  keywordsLookup;         ///< fast, specialized "C string" hashtable
+    const KEYWORD*      keywords;               ///< Table sorted by CMake for bsearch().
+    unsigned            keywordCount;           ///< Count of keywords table.
+    const KEYWORD_MAP*  keywordsLookup;         ///< Fast, specialized "C string" hashtable.
 #endif // SWIG
 };
 

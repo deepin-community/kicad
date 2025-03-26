@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,8 +29,9 @@
 #include <iostream>
 #include <time.h>
 
-GIT_PULL_HANDLER::GIT_PULL_HANDLER( git_repository* aRepo ) :  KIGIT_COMMON( aRepo )
+GIT_PULL_HANDLER::GIT_PULL_HANDLER( KIGIT_COMMON* aRepo ) :  KIGIT_COMMON( *aRepo )
 {}
+
 
 GIT_PULL_HANDLER::~GIT_PULL_HANDLER()
 {}
@@ -43,30 +44,37 @@ bool GIT_PULL_HANDLER::PerformFetch()
 
     if( git_remote_lookup( &remote, m_repo, "origin" ) != 0 )
     {
-        AddErrorString( wxString::Format( _( "Could not lookup remote '%s'" ), "origin" ).ToStdString() );
+        AddErrorString( wxString::Format( _( "Could not lookup remote '%s'" ), "origin" ) );
         return false;
     }
 
-    git_remote_callbacks remoteCallbacks = GIT_REMOTE_CALLBACKS_INIT;
+    git_remote_callbacks remoteCallbacks;
+    git_remote_init_callbacks( &remoteCallbacks, GIT_REMOTE_CALLBACKS_VERSION );
     remoteCallbacks.sideband_progress = progress_cb;
     remoteCallbacks.transfer_progress = transfer_progress_cb;
     remoteCallbacks.credentials = credentials_cb;
     remoteCallbacks.payload = this;
 
+    m_testedTypes = 0;
+    ResetNextKey();
+
     if( git_remote_connect( remote, GIT_DIRECTION_FETCH, &remoteCallbacks, nullptr, nullptr ) )
     {
         git_remote_free( remote );
-        AddErrorString( wxString::Format( _( "Could not connect to remote '%s'" ), "origin" ).ToStdString() );
+        AddErrorString( wxString::Format( _( "Could not connect to remote '%s': %s" ), "origin",
+                                          git_error_last()->message ) );
         return false;
     }
 
-    git_fetch_options fetchOptions = GIT_FETCH_OPTIONS_INIT;
+    git_fetch_options fetchOptions;
+    git_fetch_init_options( &fetchOptions, GIT_FETCH_OPTIONS_VERSION );
     fetchOptions.callbacks = remoteCallbacks;
 
     if( git_remote_fetch( remote, nullptr, &fetchOptions, nullptr ) )
     {
         git_remote_free( remote );
-        AddErrorString( wxString::Format( _( "Could not fetch data from remote '%s'" ), "origin" ) );
+        AddErrorString( wxString::Format( _( "Could not fetch data from remote '%s': %s" ),
+                                          "origin", git_error_last()->message ) );
         return false;
     }
 
@@ -144,9 +152,12 @@ PullResult GIT_PULL_HANDLER::PerformPull()
     return result;
 }
 
-const std::vector<std::pair<std::string, std::vector<CommitDetails>>>& GIT_PULL_HANDLER::GetFetchResults() const {
+const std::vector<std::pair<std::string, std::vector<CommitDetails>>>&
+GIT_PULL_HANDLER::GetFetchResults() const
+{
     return m_fetchResults;
 }
+
 
 std::string GIT_PULL_HANDLER::getFirstLineFromCommitMessage( const std::string& aMessage )
 {
@@ -157,6 +168,7 @@ std::string GIT_PULL_HANDLER::getFirstLineFromCommitMessage( const std::string& 
 
     return aMessage;
 }
+
 
 std::string GIT_PULL_HANDLER::getFormattedCommitDate( const git_time& aTime )
 {
@@ -170,26 +182,39 @@ std::string GIT_PULL_HANDLER::getFormattedCommitDate( const git_time& aTime )
 PullResult GIT_PULL_HANDLER::handleFastForward()
 {
         // Update local references with fetched data
-        git_reference* updatedRef = nullptr;
+        auto git_reference_deleter =
+                []( void* p )
+                {
+                    git_reference_free( static_cast<git_reference*>( p ) );
+                };
 
-        if( git_repository_head( &updatedRef, m_repo ) )
+        git_reference* rawRef = nullptr;
+
+        if( git_repository_head( &rawRef, m_repo ) )
         {
             AddErrorString( _( "Could not get repository head" ) );
             return PullResult::Error;
         }
 
-        const char* updatedRefName = git_reference_name( updatedRef );
-        git_reference_free( updatedRef );
+        // Defer destruction of the git_reference until this function exits somewhere, since
+        // updatedRefName etc. just point to memory inside the reference
+        std::unique_ptr<git_reference, decltype( git_reference_deleter )> updatedRef( rawRef );
+
+        const char* updatedRefName = git_reference_name( updatedRef.get() );
 
         git_oid     updatedRefOid;
+
         if( git_reference_name_to_id( &updatedRefOid, m_repo, updatedRefName ) )
         {
-            AddErrorString( wxString::Format( _( "Could not get reference OID for reference '%s'" ), updatedRefName ) );
+            AddErrorString( wxString::Format( _( "Could not get reference OID for reference '%s'" ),
+                                              updatedRefName ) );
             return PullResult::Error;
         }
 
-        git_checkout_options checkoutOptions = GIT_CHECKOUT_OPTIONS_INIT;
+        git_checkout_options checkoutOptions;
+        git_checkout_init_options( &checkoutOptions, GIT_CHECKOUT_OPTIONS_VERSION );
         checkoutOptions.checkout_strategy = GIT_CHECKOUT_SAFE;
+
         if( git_checkout_head( m_repo, &checkoutOptions ) )
         {
             AddErrorString( _( "Failed to perform checkout operation." ) );
@@ -203,13 +228,15 @@ PullResult GIT_PULL_HANDLER::handleFastForward()
         git_revwalk_push_glob( revWalker, updatedRefName );
 
         git_oid commitOid;
+
         while( git_revwalk_next( &commitOid, revWalker ) == 0 )
         {
             git_commit* commit = nullptr;
 
             if( git_commit_lookup( &commit, m_repo, &commitOid ) )
             {
-                AddErrorString( wxString::Format( _( "Could not lookup commit '{}'" ), git_oid_tostr_s( &commitOid ) ) );
+                AddErrorString( wxString::Format( _( "Could not lookup commit '{}'" ),
+                                                  git_oid_tostr_s( &commitOid ) ) );
                 git_revwalk_free( revWalker );
                 return PullResult::Error;
             }
@@ -239,8 +266,11 @@ PullResult GIT_PULL_HANDLER::handleFastForward()
 PullResult GIT_PULL_HANDLER::handleMerge( const git_annotated_commit** aMergeHeads,
                                           size_t                       aMergeHeadsCount )
 {
-    git_merge_options    merge_opts = GIT_MERGE_OPTIONS_INIT;
-    git_checkout_options checkout_opts = GIT_CHECKOUT_OPTIONS_INIT;
+    git_merge_options    merge_opts;
+    git_merge_options_init( &merge_opts, GIT_MERGE_OPTIONS_VERSION );
+
+    git_checkout_options checkout_opts;
+    git_checkout_init_options( &checkout_opts, GIT_CHECKOUT_OPTIONS_VERSION );
 
     checkout_opts.checkout_strategy = GIT_CHECKOUT_SAFE;
 
@@ -252,6 +282,7 @@ PullResult GIT_PULL_HANDLER::handleMerge( const git_annotated_commit** aMergeHea
 
     // Get the repository index
     git_index* index = nullptr;
+
     if( git_repository_index( &index, m_repo ) )
     {
         AddErrorString( _( "Could not get repository index" ) );
@@ -260,6 +291,7 @@ PullResult GIT_PULL_HANDLER::handleMerge( const git_annotated_commit** aMergeHea
 
     // Check for conflicts
     git_index_conflict_iterator* conflicts = nullptr;
+
     if( git_index_conflict_iterator_new( &conflicts, index ) )
     {
         AddErrorString( _( "Could not get conflict iterator" ) );

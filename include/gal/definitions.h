@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2012 Torsten Hueter, torstenhtr <at> gmx.de
- * Copyright (C) 2012 Kicad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * Macro definitions
  *
@@ -27,17 +27,6 @@
 #ifndef DEFINITIONS_H_
 #define DEFINITIONS_H_
 
-/// Swap the variables if a condition is met.
-#define SWAP( varA, condition, varB )   \
-    assert( typeid( varA ).hash_code() == typeid( varB ).hash_code() ); \
-    \
-    if( varA condition varB )           \
-    {                                   \
-        decltype( varA ) tmp = varA;    \
-        varA = varB;                    \
-        varB = tmp;                     \
-    }
-
 namespace KIGFX
 {
 /**
@@ -51,6 +40,9 @@ enum RENDER_TARGET
     TARGET_TEMP,            ///< Temporary target for drawing in separate layer
     TARGETS_NUMBER          ///< Number of available rendering targets
 };
+
+// Used in view.h to initialize VIEW_MAX_LAYERS and graphic_abstraction_layer.cpp
+#define MAX_LAYERS_FOR_VIEW 2048
 } // namespace KIGFX
 
 #endif /* DEFINITIONS_H_ */

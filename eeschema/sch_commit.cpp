@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,7 +25,6 @@
 #include <tool/tool_manager.h>
 #include <tools/ee_tool_base.h>
 
-#include <lib_item.h>
 #include <lib_symbol.h>
 
 #include <sch_screen.h>
@@ -36,6 +35,7 @@
 #include <connection_graph.h>
 
 #include <functional>
+#include <wx/log.h>
 
 
 SCH_COMMIT::SCH_COMMIT( TOOL_MANAGER* aToolMgr ) :
@@ -134,10 +134,10 @@ void SCH_COMMIT::pushLibEdit( const wxString& aMessage, int aCommitFlags )
             view->Update( symbol );
 
             symbol->RunOnChildren(
-                    [&]( LIB_ITEM* aChild )
+                    [&]( SCH_ITEM* aChild )
                     {
                         view->Update( aChild );
-                    });
+                    } );
         }
 
         if( !( aCommitFlags & SKIP_UNDO ) )
@@ -225,7 +225,7 @@ void SCH_COMMIT::pushSchEdit( const wxString& aMessage, int aCommitFlags )
 
         auto updateConnectivityFlag = [&]()
         {
-            if( schItem->IsConnectable() )
+            if( schItem->IsConnectable() || ( schItem->Type() == SCH_RULE_AREA_T ) )
             {
                 dirtyConnectivity = true;
 
@@ -233,7 +233,7 @@ void SCH_COMMIT::pushSchEdit( const wxString& aMessage, int aCommitFlags )
                 if( connectivityCleanUp == NO_CLEANUP )
                     connectivityCleanUp = LOCAL_CLEANUP;
 
-                // Do a full rebauild of the connectivity if there is a sheet in the commit.
+                // Do a full rebuild of the connectivity if there is a sheet in the commit.
                 if( schItem->Type() == SCH_SHEET_T )
                     connectivityCleanUp = GLOBAL_CLEANUP;
             }
@@ -325,8 +325,11 @@ void SCH_COMMIT::pushSchEdit( const wxString& aMessage, int aCommitFlags )
                 if( frame )
                     currentSheet = frame->GetCurrentSheet();
 
-                if( itemCopy->HasConnectivityChanges( schItem, &currentSheet ) )
+                if( itemCopy->HasConnectivityChanges( schItem, &currentSheet )
+                    || ( itemCopy->Type() == SCH_RULE_AREA_T ) )
+                {
                     updateConnectivityFlag();
+                }
 
 
                 if( schItem->Type() == SCH_SHEET_T )
@@ -380,8 +383,13 @@ void SCH_COMMIT::pushSchEdit( const wxString& aMessage, int aCommitFlags )
         if( itemsChanged.size() > 0 )
             schematic->OnItemsChanged( itemsChanged );
 
-        if( frame && refreshHierarchy )
-            frame->UpdateHierarchyNavigator();
+        if( refreshHierarchy )
+        {
+            schematic->RefreshHierarchy();
+
+            if( frame )
+                frame->UpdateHierarchyNavigator();
+        }
     }
 
     if( !( aCommitFlags & SKIP_UNDO ) )
@@ -394,7 +402,8 @@ void SCH_COMMIT::pushSchEdit( const wxString& aMessage, int aCommitFlags )
             {
                 wxLogTrace( wxS( "CONN_PROFILE" ),
                             wxS( "SCH_COMMIT::pushSchEdit() %s clean up connectivity rebuild." ),
-                            ( connectivityCleanUp == LOCAL_CLEANUP ) ? wxS( "local" ) : wxS( "global" ) );
+                            ( connectivityCleanUp == LOCAL_CLEANUP ) ? wxS( "local" )
+                                                                     : wxS( "global" ) );
                 frame->RecalculateConnections( this, connectivityCleanUp );
             }
         }
@@ -434,10 +443,7 @@ EDA_ITEM* SCH_COMMIT::parentObject( EDA_ITEM* aItem ) const
 {
     EDA_ITEM* parent = aItem->GetParent();
 
-    if( parent && parent->Type() == SCH_SYMBOL_T )
-        return parent;
-
-    if( parent && parent->Type() == LIB_SYMBOL_T )
+    if( parent && ( parent->Type() == SCH_SYMBOL_T || parent->Type() == LIB_SYMBOL_T ) )
         return parent;
 
     if( m_isLibEditor )
@@ -455,7 +461,7 @@ EDA_ITEM* SCH_COMMIT::makeImage( EDA_ITEM* aItem ) const
         LIB_SYMBOL*        symbol = frame->GetCurSymbol();
         std::vector<KIID>  selected;
 
-        for( const LIB_ITEM& item : symbol->GetDrawItems() )
+        for( const SCH_ITEM& item : symbol->GetDrawItems() )
         {
             if( item.IsSelected() )
                 selected.push_back( item.m_Uuid );
@@ -463,7 +469,7 @@ EDA_ITEM* SCH_COMMIT::makeImage( EDA_ITEM* aItem ) const
 
         symbol = new LIB_SYMBOL( *symbol );
 
-        for( LIB_ITEM& item : symbol->GetDrawItems() )
+        for( SCH_ITEM& item : symbol->GetDrawItems() )
         {
             if( alg::contains( selected, item.m_Uuid ) )
                 item.SetSelected();
@@ -507,6 +513,7 @@ void SCH_COMMIT::Revert()
     KIGFX::VIEW*       view = m_toolMgr->GetView();
     SCH_EDIT_FRAME*    frame = dynamic_cast<SCH_EDIT_FRAME*>( m_toolMgr->GetToolHolder() );
     EE_SELECTION_TOOL* selTool = m_toolMgr->GetTool<EE_SELECTION_TOOL>();
+    SCH_SHEET_LIST     sheets;
 
     if( m_changes.empty() )
         return;
@@ -585,7 +592,11 @@ void SCH_COMMIT::Revert()
 
                 if( field->GetId() == REFERENCE_FIELD )
                 {
-                    SCH_SHEET_PATH sheet = schematic->GetSheets().FindSheetForScreen( screen );
+                    // Lazy eval of sheet list; this is expensive even when unsorted
+                    if( sheets.empty() )
+                        sheets = schematic->Hierarchy();
+
+                    SCH_SHEET_PATH sheet = sheets.FindSheetForScreen( screen );
                     symbol->SetRef( &sheet, field->GetText() );
                 }
             }

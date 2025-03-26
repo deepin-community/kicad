@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2007-2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,6 +41,7 @@ public:
         m_PadOpacity          = 1.0;
         m_ZoneOpacity         = 1.0;
         m_ImageOpacity        = 1.0;
+        m_FilledShapeOpacity        = 1.0;
     }
 
     /// @see ZONE_DISPLAY_MODE - stored in the project
@@ -59,6 +60,7 @@ public:
     double             m_PadOpacity;       ///< Opacity override for SMD pads and PTHs
     double             m_ZoneOpacity;      ///< Opacity override for filled zone areas
     double             m_ImageOpacity;     ///< Opacity override for user images
+    double             m_FilledShapeOpacity;     ///< Opacity override for graphic shapes
 };
 
 #endif // PCBSTRUCT_H_

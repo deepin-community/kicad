@@ -43,6 +43,7 @@ DEB_KICAD_CMAKE_OPTS := \
 	-DKICAD_INSTALL_DEMOS=ON \
 	-DKICAD_SCRIPTING_WXPYTHON=ON \
 	-DKICAD_SPICE=ON \
+	-DKICAD_USE_CMAKE_FINDPROTOBUF=ON \
 	-DKICAD_USE_EGL=OFF \
 	-DKICAD_VERSION_EXTRA="$(DEB_VERSION_APPENDIX)" \
 	$(NULL)
@@ -96,12 +97,12 @@ override_dh_auto_install-arch: $(PREPROCESS_FILES:.in=)
 	chrpath --delete $(CURDIR)/debian/tmp/usr/lib/python3/dist-packages/_pcbnew.so
 	# some tweaks before running the next dh sequencers
 	# fixing icon sizes
-	images=$$(find $(INSTDIR)/usr/share/icons/hicolor/48x48 -name "*.png"); \
-	for f in $$images; do \
-		size=$$(identify $$f | sed -n 's/.* PNG \(4[^ ]*\) .*/\1/ p'); \
-		if [ "$$size" != "48x48" ]; then \
-			echo "Resize $$(basename $$f) : $$size => 48x48"; \
-			convert -resize '48x48!' $$f $$f.tmp && mv $$f.tmp $$f; \
+	IMAGES=$$(find $(INSTDIR)/usr/share/icons/hicolor/48x48 -name "*.png"); \
+	for FILE in $${IMAGES}; do \
+		SIZE=$$(identify $${FILE} | sed -n 's/.* PNG \(4[^ ]*\) .*/\1/ p'); \
+		if [ "$${SIZE}" != "48x48" ]; then \
+			echo "Resize $$(basename $${FILE}) : $${SIZE} => 48x48"; \
+			convert -resize '48x48!' $$f $${FILE}.tmp && mv $${FILE}.tmp $${FILE}; \
 		fi; \
 	done
 
@@ -110,7 +111,8 @@ override_dh_auto_install-indep: $(PREPROCESS_FILES:.in=)
 	# installing KiCad demos #
 	##########################
 	dh_auto_install --destdir=$(INSTDIR) --sourcedirectory=$(CURDIR) --builddirectory=$(DEB_BUILD_DIR)/demos
-	find $(INSTDIR)/usr/share/kicad/demos -type f -name "*.md" -exec rm {} \;
+	# Remove any uneeded License or Readme related files in kicad-demos.
+	find $(INSTDIR)/usr/share/kicad/demos -type f \( -name "*.md" -o -name "LICENSE*" -o -name "README*" \) -exec rm {} \;
 	##################################
 	# installing KiCad documentation #
 	##################################
@@ -128,12 +130,12 @@ override_dh_install-indep:
 override_dh_fixperms-arch:
 	dh_fixperms
 	# fixing file permissions for *.py files in kicad
-	for i in `find $(CURDIR)/debian/kicad/usr -type f -name "*.py"`; do \
-		FOUND_PYTHON=$$(head -n1 $$i | grep python); \
-		if [ "$$FOUND_PYTHON" != "" ]; then \
-			chmod +x $$i; \
+	for FILE in `find $(CURDIR)/debian/kicad/usr -type f -name "*.py"`; do \
+		FOUND_PYTHON=$$(head -n1 $${FILE} | grep python); \
+		if [ "$${FOUND_PYTHON}" != "" ]; then \
+			chmod +x $${FILE}; \
 		else \
-			chmod -x $$i; \
+			chmod -x $${FILE}; \
 		fi; \
 	done
 

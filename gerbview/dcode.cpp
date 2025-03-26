@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -448,6 +448,6 @@ static void addHoleToPolygon( SHAPE_POLY_SET* aPolygon, APERTURE_DEF_HOLETYPE aH
         holeBuffer.Append( VECTOR2I( currpos ) );       // close hole
     }
 
-    aPolygon->BooleanSubtract( holeBuffer, SHAPE_POLY_SET::PM_FAST );
-    aPolygon->Fracture( SHAPE_POLY_SET::PM_FAST );
+    aPolygon->BooleanSubtract( holeBuffer );
+    aPolygon->Fracture();
 }

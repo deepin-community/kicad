@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -42,7 +42,7 @@
 #include <settings/settings_manager.h>
 #include <tool/tool_manager.h>
 
-#define CHECK_ENUM_CLASS_EQUAL( L, R )                                                             \
+#define CHECK_ENUM_CLASS_EQUAL( L, R )                                                      \
     BOOST_CHECK_EQUAL( static_cast<int>( L ), static_cast<int>( R ) )
 
 
@@ -127,9 +127,48 @@ BOARD_ITEM& RequireBoardItemWithTypeAndId( const BOARD& aBoard, KICAD_T aItemTyp
 }
 
 
+/**
+ * A temporary directory that will be deleted when it goes out of scope.
+ */
+class TEMPORARY_DIRECTORY
+{
+public:
+    /**
+     * Create a temporary directory with a given prefix and suffix. The directory will be
+     * created in the system temporary directory, and will not be pre-existing.
+     */
+    TEMPORARY_DIRECTORY( const std::string& aNamePrefix, const std::string aSuffix )
+    {
+        int i = 0;
+
+        // Find a unique directory name
+        while( true )
+        {
+            m_path = std::filesystem::temp_directory_path()
+                     / ( aNamePrefix + std::to_string( i ) + aSuffix );
+
+            if( !std::filesystem::exists( m_path ) )
+                break;
+
+            i++;
+        }
+
+        wxASSERT( !std::filesystem::exists( m_path ) );
+        std::filesystem::create_directories( m_path );
+    }
+
+    ~TEMPORARY_DIRECTORY() { std::filesystem::remove_all( m_path ); }
+
+    const std::filesystem::path& GetPath() const { return m_path; }
+
+private:
+    std::filesystem::path m_path;
+};
+
+
 void LoadAndTestBoardFile( const wxString aRelativePath, bool aRoundtrip,
                            std::function<void( BOARD& )> aBoardTestFunction,
-                           std::optional<int> aExpectedBoardVersion )
+                           std::optional<int>            aExpectedBoardVersion )
 {
     const std::string absBoardPath =
             KI_TEST::GetPcbnewTestDataDir() + aRelativePath.ToStdString() + ".kicad_pcb";
@@ -152,8 +191,9 @@ void LoadAndTestBoardFile( const wxString aRelativePath, bool aRoundtrip,
 
     if( aRoundtrip )
     {
-        const auto savePath = std::filesystem::temp_directory_path()
-                              / ( aRelativePath.ToStdString() + ".kicad_pcb" );
+        TEMPORARY_DIRECTORY tempLib( "kicad_qa_brd_roundtrip", "" );
+
+        const auto savePath = tempLib.GetPath() / ( aRelativePath.ToStdString() + ".kicad_pcb" );
         KI_TEST::DumpBoardToFile( *board1, savePath.string() );
 
         std::unique_ptr<BOARD> board2 = KI_TEST::ReadBoardFromFileOrStream( savePath.string() );
@@ -163,6 +203,60 @@ void LoadAndTestBoardFile( const wxString aRelativePath, bool aRoundtrip,
 
         BOOST_TEST_MESSAGE( "Testing roundtripped (saved/reloaded) file" );
         aBoardTestFunction( *board2 );
+    }
+}
+
+
+void LoadAndTestFootprintFile( const wxString& aLibRelativePath, const wxString& aFpName,
+                               bool                              aRoundtrip,
+                               std::function<void( FOOTPRINT& )> aFootprintTestFunction,
+                               std::optional<int>                aExpectedFootprintVersion )
+{
+    const std::string absFootprintPath = KI_TEST::GetPcbnewTestDataDir()
+                                         + aLibRelativePath.ToStdString() + "/"
+                                         + aFpName.ToStdString() + ".kicad_mod";
+
+    BOOST_TEST_MESSAGE( "Loading footprint to test: " << absFootprintPath );
+    std::unique_ptr<FOOTPRINT> fp1 = KI_TEST::ReadFootprintFromFileOrStream( absFootprintPath );
+
+    // Should load - if it doesn't we're done for
+    BOOST_REQUIRE( fp1 );
+
+    BOOST_TEST_MESSAGE( "Testing loaded footprint (value: " << fp1->GetValue() << ")" );
+    aFootprintTestFunction( *fp1 );
+
+    // If we care about the board version, check it now - but not after a roundtrip
+    // (as the version will be updated to the current version)
+    if( aExpectedFootprintVersion )
+    {
+        BOOST_CHECK_EQUAL( fp1->GetFileFormatVersionAtLoad(), *aExpectedFootprintVersion );
+    }
+
+    if( aRoundtrip )
+    {
+        /**
+         * Use a temporary directory, so that if something goes wrong and the file isn't
+         * written properly, we don't leave a library behind that will cause exceptions
+         * when the cache is set up on future runs.
+         */
+        TEMPORARY_DIRECTORY tempLib( "kicad_qa_fp_roundtrip", ".pretty" );
+        const wxString      fpFilename = fp1->GetFPID().GetLibItemName() + wxString( ".kicad_mod" );
+
+        BOOST_TEST_MESSAGE( "Resaving footprint: " << fpFilename << " in " << tempLib.GetPath() );
+
+        KI_TEST::DumpFootprintToFile( *fp1, tempLib.GetPath().string() );
+
+        const auto fp2Path = tempLib.GetPath() / fpFilename.ToStdString();
+
+        BOOST_TEST_MESSAGE( "Re-reading footprint: " << fpFilename << " in " << tempLib.GetPath() );
+
+        std::unique_ptr<FOOTPRINT> fp2 = KI_TEST::ReadFootprintFromFileOrStream( fp2Path.string() );
+
+        // Should load again
+        BOOST_REQUIRE( fp2 );
+
+        BOOST_TEST_MESSAGE( "Testing roundtripped (saved/reloaded) file" );
+        aFootprintTestFunction( *fp2 );
     }
 }
 
@@ -246,7 +340,7 @@ void CheckFootprint( const FOOTPRINT* expected, const FOOTPRINT* fp )
     BOOST_CHECK_EQUAL( expected->GetTypeName(), fp->GetTypeName() );
 
     // simple test if count matches
-    BOOST_CHECK_EQUAL( expected->Fields().size(), fp->Fields().size() );
+    BOOST_CHECK_EQUAL( expected->GetFields().size(), fp->GetFields().size() );
     BOOST_CHECK_EQUAL( expected->Pads().size(), fp->Pads().size() );
     BOOST_CHECK_EQUAL( expected->GraphicalItems().size(), fp->GraphicalItems().size() );
     BOOST_CHECK_EQUAL( expected->Zones().size(), fp->Zones().size() );
@@ -319,11 +413,16 @@ void CheckFootprint( const FOOTPRINT* expected, const FOOTPRINT* fp )
     }
 
     // TODO: Groups
+
+    // Use FootprintNeedsUpdate as sanity check (which should do the same thing as our manually coded checks)
+    // If we get the reporter working, and COMPARE_FLAGS::DRC is enough for us, we can remove the old code
+    BOOST_CHECK( !const_cast<FOOTPRINT*>(expected)->FootprintNeedsUpdate(fp, BOARD_ITEM::COMPARE_FLAGS::DRC, nullptr) );
 }
 
 
 void CheckFpPad( const PAD* expected, const PAD* pad )
 {
+    // TODO(JE) padstacks
     BOOST_TEST_CONTEXT( "Assert PAD with KIID=" << expected->m_Uuid.AsString() )
     {
         CHECK_ENUM_CLASS_EQUAL( expected->Type(), pad->Type() );
@@ -331,15 +430,19 @@ void CheckFpPad( const PAD* expected, const PAD* pad )
         BOOST_CHECK_EQUAL( expected->GetNumber(), pad->GetNumber() );
         CHECK_ENUM_CLASS_EQUAL( expected->GetAttribute(), pad->GetAttribute() );
         CHECK_ENUM_CLASS_EQUAL( expected->GetProperty(), pad->GetProperty() );
-        CHECK_ENUM_CLASS_EQUAL( expected->GetShape(), pad->GetShape() );
+        CHECK_ENUM_CLASS_EQUAL( expected->GetShape( PADSTACK::ALL_LAYERS ),
+                                pad->GetShape( PADSTACK::ALL_LAYERS ) );
 
         BOOST_CHECK_EQUAL( expected->IsLocked(), pad->IsLocked() );
 
         BOOST_CHECK_EQUAL( expected->GetPosition(), pad->GetPosition() );
-        BOOST_CHECK_EQUAL( expected->GetSize(), pad->GetSize() );
+        BOOST_CHECK_EQUAL( expected->GetSize( PADSTACK::ALL_LAYERS ),
+                           pad->GetSize( PADSTACK::ALL_LAYERS ) );
         BOOST_CHECK_EQUAL( expected->GetOrientation(), pad->GetOrientation() );
-        BOOST_CHECK_EQUAL( expected->GetDelta(), pad->GetDelta() );
-        BOOST_CHECK_EQUAL( expected->GetOffset(), pad->GetOffset() );
+        BOOST_CHECK_EQUAL( expected->GetDelta( PADSTACK::ALL_LAYERS ),
+                           pad->GetDelta( PADSTACK::ALL_LAYERS ) );
+        BOOST_CHECK_EQUAL( expected->GetOffset( PADSTACK::ALL_LAYERS ),
+                           pad->GetOffset( PADSTACK::ALL_LAYERS ) );
         BOOST_CHECK_EQUAL( expected->GetDrillSize(), pad->GetDrillSize() );
         CHECK_ENUM_CLASS_EQUAL( expected->GetDrillShape(), pad->GetDrillShape() );
 
@@ -349,35 +452,44 @@ void CheckFpPad( const PAD* expected, const PAD* pad )
         BOOST_CHECK_EQUAL( expected->GetPinFunction(), pad->GetPinFunction() );
         BOOST_CHECK_EQUAL( expected->GetPinType(), pad->GetPinType() );
         BOOST_CHECK_EQUAL( expected->GetPadToDieLength(), pad->GetPadToDieLength() );
-        BOOST_CHECK_EQUAL( expected->GetLocalSolderMaskMargin(), pad->GetLocalSolderMaskMargin() );
-        BOOST_CHECK_EQUAL( expected->GetLocalSolderPasteMargin(),
-                           pad->GetLocalSolderPasteMargin() );
-        BOOST_CHECK_EQUAL( expected->GetLocalSolderPasteMarginRatio(),
-                           pad->GetLocalSolderPasteMarginRatio() );
-        BOOST_CHECK_EQUAL( expected->GetLocalClearance(), pad->GetLocalClearance() );
-        CHECK_ENUM_CLASS_EQUAL( expected->GetZoneConnection(), pad->GetZoneConnection() );
-        BOOST_CHECK_EQUAL( expected->GetThermalSpokeWidth(), pad->GetThermalSpokeWidth() );
+        BOOST_CHECK_EQUAL( expected->GetLocalSolderMaskMargin().value_or( 0 ),
+                                  pad->GetLocalSolderMaskMargin().value_or( 0 ) );
+        BOOST_CHECK_EQUAL( expected->GetLocalSolderPasteMargin().value_or( 0 ),
+                                  pad->GetLocalSolderPasteMargin().value_or( 0 ) );
+        BOOST_CHECK_EQUAL( expected->GetLocalSolderPasteMarginRatio().value_or( 0 ),
+                                  pad->GetLocalSolderPasteMarginRatio().value_or( 0 ) );
+        BOOST_CHECK_EQUAL( expected->GetLocalClearance().value_or( 0 ),
+                           pad->GetLocalClearance().value_or( 0 ) );
+        CHECK_ENUM_CLASS_EQUAL( expected->GetLocalZoneConnection(), pad->GetLocalZoneConnection() );
+        BOOST_CHECK_EQUAL( expected->GetLocalThermalSpokeWidthOverride().value_or( 0 ),
+                           pad->GetLocalThermalSpokeWidthOverride().value_or( 0 ) );
         BOOST_CHECK_EQUAL( expected->GetThermalSpokeAngle(), pad->GetThermalSpokeAngle() );
         BOOST_CHECK_EQUAL( expected->GetThermalGap(), pad->GetThermalGap() );
-        BOOST_CHECK_EQUAL( expected->GetRoundRectRadiusRatio(), pad->GetRoundRectRadiusRatio() );
-        BOOST_CHECK_EQUAL( expected->GetChamferRectRatio(), pad->GetChamferRectRatio() );
-        BOOST_CHECK_EQUAL( expected->GetChamferPositions(), pad->GetChamferPositions() );
+        BOOST_CHECK_EQUAL( expected->GetRoundRectRadiusRatio( PADSTACK::ALL_LAYERS ),
+                           pad->GetRoundRectRadiusRatio( PADSTACK::ALL_LAYERS ) );
+        BOOST_CHECK_EQUAL( expected->GetChamferRectRatio( PADSTACK::ALL_LAYERS ),
+                           pad->GetChamferRectRatio( PADSTACK::ALL_LAYERS ) );
+        BOOST_CHECK_EQUAL( expected->GetChamferPositions( PADSTACK::ALL_LAYERS ),
+                           pad->GetChamferPositions( PADSTACK::ALL_LAYERS ) );
         BOOST_CHECK_EQUAL( expected->GetRemoveUnconnected(), pad->GetRemoveUnconnected() );
         BOOST_CHECK_EQUAL( expected->GetKeepTopBottom(), pad->GetKeepTopBottom() );
 
         // TODO: did we check everything for complex pad shapes?
-        CHECK_ENUM_CLASS_EQUAL( expected->GetAnchorPadShape(), pad->GetAnchorPadShape() );
+        CHECK_ENUM_CLASS_EQUAL( expected->GetAnchorPadShape( PADSTACK::ALL_LAYERS ),
+                                pad->GetAnchorPadShape( PADSTACK::ALL_LAYERS ) );
         CHECK_ENUM_CLASS_EQUAL( expected->GetCustomShapeInZoneOpt(),
                                 pad->GetCustomShapeInZoneOpt() );
 
-        BOOST_CHECK_EQUAL( expected->GetPrimitives().size(), pad->GetPrimitives().size() );
+        BOOST_CHECK_EQUAL( expected->GetPrimitives( PADSTACK::ALL_LAYERS ).size(),
+                           pad->GetPrimitives( PADSTACK::ALL_LAYERS ).size() );
 
-        if( expected->GetPrimitives().size() == pad->GetPrimitives().size() )
+        if( expected->GetPrimitives( PADSTACK::ALL_LAYERS ).size()
+            == pad->GetPrimitives( PADSTACK::ALL_LAYERS ).size() )
         {
-            for( size_t i = 0; i < expected->GetPrimitives().size(); ++i )
+            for( size_t i = 0; i < expected->GetPrimitives( PADSTACK::ALL_LAYERS ).size(); ++i )
             {
-                CheckFpShape( expected->GetPrimitives().at( i ).get(),
-                              pad->GetPrimitives().at( i ).get() );
+                CheckFpShape( expected->GetPrimitives( PADSTACK::ALL_LAYERS ).at( i ).get(),
+                              pad->GetPrimitives( PADSTACK::ALL_LAYERS ).at( i ).get() );
             }
         }
 
@@ -467,7 +579,8 @@ void CheckFpZone( const ZONE* expected, const ZONE* zone )
         BOOST_CHECK_EQUAL( expected->GetNetCode(), zone->GetNetCode() );
         BOOST_CHECK_EQUAL( expected->GetAssignedPriority(), zone->GetAssignedPriority() );
         CHECK_ENUM_CLASS_EQUAL( expected->GetPadConnection(), zone->GetPadConnection() );
-        BOOST_CHECK_EQUAL( expected->GetLocalClearance(), zone->GetLocalClearance() );
+        BOOST_CHECK_EQUAL( expected->GetLocalClearance().value_or( 0 ),
+                           zone->GetLocalClearance().value_or( 0 ) );
         BOOST_CHECK_EQUAL( expected->GetMinThickness(), zone->GetMinThickness() );
 
         BOOST_CHECK_EQUAL( expected->GetLayerSet(), zone->GetLayerSet() );

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2023 CERN
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -38,6 +38,7 @@
 #include <math/vector2wx.h>
 
 #include <view/view.h>
+#include <view/view_controls.h>
 #include <eda_base_frame.h>
 #include <tool/tool_base.h>
 #include <tool/tool_interactive.h>
@@ -137,6 +138,7 @@ struct TOOL_MANAGER::TOOL_STATE
         waitEvents         = aState.waitEvents;
         transitions        = aState.transitions;
         vcSettings         = aState.vcSettings;
+
         // do not copy stateStack
         return *this;
     }
@@ -186,10 +188,10 @@ struct TOOL_MANAGER::TOOL_STATE
     }
 
 private:
-    ///< Stack preserving previous states of a TOOL.
+    /// Stack preserving previous states of a TOOL.
     std::stack<std::unique_ptr<TOOL_STATE>> stateStack;
 
-    ///< Restores the initial state.
+    /// Restores the initial state.
     void clear()
     {
         idle               = true;
@@ -245,7 +247,8 @@ void TOOL_MANAGER::RegisterTool( TOOL_BASE* aTool )
     wxASSERT_MSG( m_toolTypes.find( typeid( *aTool ).name() ) == m_toolTypes.end(),
                   wxT( "Adding two tools of the same type may result in unexpected behavior.") );
 
-    wxLogTrace( kicadTraceToolStack, wxS( "TOOL_MANAGER::RegisterTool: Registering tool %s with ID %d" ),
+    wxLogTrace( kicadTraceToolStack,
+                wxS( "TOOL_MANAGER::RegisterTool: Registering tool %s with ID %d" ),
                 aTool->GetName(), aTool->GetId() );
 
     m_toolOrder.push_back( aTool );
@@ -283,13 +286,13 @@ bool TOOL_MANAGER::InvokeTool( const std::string& aToolName )
         return invokeTool( tool );
 
     wxLogTrace( kicadTraceToolStack, wxS( "TOOL_MANAGER::InvokeTool - no tool with name %s" ),
-                                     aToolName );
+                aToolName );
 
     return false;       // there is no tool with the given name
 }
 
 
-bool TOOL_MANAGER::doRunAction( const std::string& aActionName, bool aNow, const std::any& aParam,
+bool TOOL_MANAGER::doRunAction( const std::string& aActionName, bool aNow, const ki::any& aParam,
                                 COMMIT* aCommit )
 {
     TOOL_ACTION* action = m_actionMgr->FindAction( aActionName );
@@ -302,7 +305,7 @@ bool TOOL_MANAGER::doRunAction( const std::string& aActionName, bool aNow, const
 
     doRunAction( *action, aNow, aParam, aCommit );
 
-    return false;
+    return true;
 }
 
 
@@ -324,7 +327,7 @@ VECTOR2D TOOL_MANAGER::GetCursorPosition() const
 }
 
 
-bool TOOL_MANAGER::doRunAction( const TOOL_ACTION& aAction, bool aNow, const std::any& aParam,
+bool TOOL_MANAGER::doRunAction( const TOOL_ACTION& aAction, bool aNow, const ki::any& aParam,
                                 COMMIT* aCommit )
 {
     if( m_shuttingDown )
@@ -643,8 +646,9 @@ void TOOL_MANAGER::InitTools()
 
         if( !tool->Init() )
         {
-            wxLogTrace( kicadTraceToolStack, wxS( "TOOL_MANAGER initialization of tool '%s' failed" ),
-                                             tool->GetName() );
+            wxLogTrace( kicadTraceToolStack,
+                        wxS( "TOOL_MANAGER initialization of tool '%s' failed" ),
+                        tool->GetName() );
 
             // Unregister the tool
             setActiveState( nullptr );
@@ -784,7 +788,8 @@ bool TOOL_MANAGER::dispatchInternal( TOOL_EVENT& aEvent )
             if( !st->wakeupEvent.PassEvent() )
             {
                 wxLogTrace( kicadTraceToolStack,
-                            wxS( "TOOL_MANAGER::dispatchInternal - tool %s stopped passing event: %s" ),
+                            wxS( "TOOL_MANAGER::dispatchInternal - tool %s stopped passing "
+                                 "event: %s" ),
                             st->theTool->GetName(), aEvent.Format() );
 
                 return true;
@@ -825,7 +830,8 @@ bool TOOL_MANAGER::dispatchInternal( TOOL_EVENT& aEvent )
                     st->cofunc = new COROUTINE<int, const TOOL_EVENT&>( std::move( func_copy ) );
 
                     wxLogTrace( kicadTraceToolStack,
-                                wxS( "TOOL_MANAGER::dispatchInternal - Running tool %s for event: %s" ),
+                                wxS( "TOOL_MANAGER::dispatchInternal - Running tool %s for "
+                                     "event: %s" ),
                                 st->theTool->GetName(), aEvent.Format() );
 
                     // got match? Run the handler.
@@ -890,6 +896,7 @@ bool TOOL_MANAGER::dispatchActivation( const TOOL_EVENT& aEvent )
     return false;
 }
 
+
 void TOOL_MANAGER::DispatchContextMenu( const TOOL_EVENT& aEvent )
 {
     for( TOOL_ID toolId : m_activeTools )
@@ -951,7 +958,7 @@ void TOOL_MANAGER::DispatchContextMenu( const TOOL_EVENT& aEvent )
             if( m_viewControls && m_warpMouseAfterContextMenu )
                 m_viewControls->WarpMouseCursor( m_menuCursor, true, false );
         }
-        // Otherwise notify the tool of a cancelled menu
+        // Otherwise notify the tool of a canceled menu
         else
         {
             TOOL_EVENT evt( TC_COMMAND, TA_CHOICE_MENU_CHOICE, -1 );
@@ -973,7 +980,8 @@ void TOOL_MANAGER::DispatchContextMenu( const TOOL_EVENT& aEvent )
         m_menuOwner = -1;
 
         // Restore cursor settings
-        for( const std::pair<const TOOL_ID, std::optional<VECTOR2D>>& cursorSetting : m_cursorSettings )
+        for( const std::pair<const TOOL_ID,
+             std::optional<VECTOR2D>>& cursorSetting : m_cursorSettings )
         {
             auto it = m_toolIdIndex.find( cursorSetting.first );
             wxASSERT( it != m_toolIdIndex.end() );
@@ -1046,52 +1054,6 @@ void TOOL_MANAGER::ScheduleContextMenu( TOOL_BASE* aTool, ACTION_MENU* aMenu,
 
     st->contextMenu = aMenu;
     st->contextMenuTrigger = aTrigger;
-}
-
-
-bool TOOL_MANAGER::SaveClipboard( const std::string& aTextUTF8 )
-{
-    wxLogNull doNotLog; // disable logging of failed clipboard actions
-
-    if( wxTheClipboard->Open() )
-    {
-        // Store the UTF8 string as Unicode string in clipboard:
-        wxTheClipboard->SetData( new wxTextDataObject( wxString( aTextUTF8.c_str(),
-                                                                 wxConvUTF8 ) ) );
-
-        wxTheClipboard->Flush(); // Allow data to be available after closing KiCad
-        wxTheClipboard->Close();
-
-        return true;
-    }
-
-    return false;
-}
-
-
-std::string TOOL_MANAGER::GetClipboardUTF8() const
-{
-    std::string result;
-
-    wxLogNull doNotLog; // disable logging of failed clipboard actions
-
-    if( wxTheClipboard->Open() )
-    {
-        if( wxTheClipboard->IsSupported( wxDF_TEXT )
-                || wxTheClipboard->IsSupported( wxDF_UNICODETEXT ) )
-        {
-            wxTextDataObject data;
-            wxTheClipboard->GetData( data );
-
-            // The clipboard is expected containing a Unicode string, so return it
-            // as UTF8 string
-            result = data.GetText().utf8_str();
-        }
-
-        wxTheClipboard->Close();
-    }
-
-    return result;
 }
 
 
@@ -1243,7 +1205,8 @@ bool TOOL_MANAGER::IsToolActive( TOOL_ID aId ) const
 {
     auto it = m_toolIdIndex.find( aId );
 
-    wxCHECK( it != m_toolIdIndex.end(), false );
+    if( it == m_toolIdIndex.end() )
+        return false;
 
     return !it->second->idle;
 }

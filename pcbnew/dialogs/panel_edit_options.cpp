@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -43,6 +43,9 @@ PANEL_EDIT_OPTIONS::PANEL_EDIT_OPTIONS( wxWindow* aParent, UNITS_PROVIDER* aUnit
 
     m_rotationAngle.SetUnits( EDA_UNITS::DEGREES );
 
+    m_stHint1->SetFont( KIUI::GetInfoFont( this ).Italic() );
+    m_stHint2->SetFont( KIUI::GetInfoFont( this ).Italic() );
+
 #ifdef __WXOSX_MAC__
     m_mouseCmdsOSX->Show( true );
     m_mouseCmdsWinLin->Show( false );
@@ -65,8 +68,14 @@ void PANEL_EDIT_OPTIONS::loadPCBSettings( PCBNEW_SETTINGS* aCfg )
     m_rotationAngle.SetAngleValue( aCfg->m_RotationAngle );
     m_arcEditMode->SetSelection( (int) aCfg->m_ArcEditMode );
     m_trackMouseDragCtrl->SetSelection( (int) aCfg->m_TrackDragAction );
-    m_flipLeftRight->SetValue( aCfg->m_FlipLeftRight );
+
+    if( aCfg->m_FlipDirection == FLIP_DIRECTION::LEFT_RIGHT )
+        m_rbFlipLeftRight->SetValue( true );
+    else
+        m_rbFlipTopBottom->SetValue( true );
+
     m_allowFreePads->SetValue( aCfg->m_AllowFreePads );
+    m_overrideLocks->SetValue( aCfg->m_LockingOptions.m_sessionSkipPrompts );
     m_autoRefillZones->SetValue( aCfg->m_AutoRefillZones );
 
     m_magneticPadChoice->SetSelection( static_cast<int>( aCfg->m_MagneticItems.pads ) );
@@ -107,13 +116,13 @@ bool PANEL_EDIT_OPTIONS::TransferDataToWindow()
 
     if( m_isFootprintEditor )
     {
-        FOOTPRINT_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>();
+        FOOTPRINT_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" );
 
         loadFPSettings( cfg );
     }
     else
     {
-        PCBNEW_SETTINGS* cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>();
+        PCBNEW_SETTINGS* cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
 
         loadPCBSettings( cfg );
     }
@@ -128,7 +137,7 @@ bool PANEL_EDIT_OPTIONS::TransferDataFromWindow()
 
     if( m_isFootprintEditor )
     {
-        FOOTPRINT_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>();
+        FOOTPRINT_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" );
 
         cfg->m_RotationAngle = m_rotationAngle.GetAngleValue();
 
@@ -141,7 +150,7 @@ bool PANEL_EDIT_OPTIONS::TransferDataFromWindow()
     }
     else
     {
-        PCBNEW_SETTINGS* cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>();
+        PCBNEW_SETTINGS* cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
 
         cfg->m_Display.m_DisplayRatsnestLinesCurved = m_OptDisplayCurvedRatsnestLines->GetValue();
         cfg->m_Display.m_ShowModuleRatsnest = m_showSelectedRatsnest->GetValue();
@@ -151,8 +160,12 @@ bool PANEL_EDIT_OPTIONS::TransferDataFromWindow()
         cfg->m_RotationAngle = m_rotationAngle.GetAngleValue();
         cfg->m_ArcEditMode = (ARC_EDIT_MODE) m_arcEditMode->GetSelection();
         cfg->m_TrackDragAction = (TRACK_DRAG_ACTION) m_trackMouseDragCtrl->GetSelection();
-        cfg->m_FlipLeftRight = m_flipLeftRight->GetValue();
+
+        cfg->m_FlipDirection = m_rbFlipLeftRight->GetValue() ? FLIP_DIRECTION::LEFT_RIGHT
+                                                             : FLIP_DIRECTION::TOP_BOTTOM;
+
         cfg->m_AllowFreePads = m_allowFreePads->GetValue();
+        cfg->m_LockingOptions.m_sessionSkipPrompts = m_overrideLocks->GetValue();
         cfg->m_AutoRefillZones = m_autoRefillZones->GetValue();
 
         cfg->m_MagneticItems.pads = static_cast<MAGNETIC_OPTIONS>( m_magneticPadChoice->GetSelection() );

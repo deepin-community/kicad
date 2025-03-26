@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-282-g1fa54006)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -21,7 +21,6 @@
 #include <wx/string.h>
 #include <wx/stattext.h>
 #include <wx/sizer.h>
-#include <wx/statline.h>
 #include <wx/textctrl.h>
 #include <wx/checkbox.h>
 #include <wx/gbsizer.h>
@@ -40,7 +39,7 @@ class PANEL_SETUP_MASK_AND_PASTE_BASE : public wxPanel
 		wxStaticBitmap* m_bitmapWarning;
 		wxStaticText* m_staticTextInfoMaskMinWidth;
 		wxStaticText* m_staticTextInfoMaskMinWidth1;
-		wxStaticLine* m_staticline1;
+		wxStaticText* m_stSolderMaskSettings;
 		wxStaticText* m_maskMarginLabel;
 		wxTextCtrl* m_maskMarginCtrl;
 		wxStaticText* m_maskMarginUnits;
@@ -51,7 +50,10 @@ class PANEL_SETUP_MASK_AND_PASTE_BASE : public wxPanel
 		wxTextCtrl* m_maskToCopperClearanceCtrl;
 		wxStaticText* m_maskToCopperClearanceUnits;
 		wxCheckBox* m_allowBridges;
-		wxCheckBox* m_tentVias;
+		wxStaticText* m_stTenting;
+		wxCheckBox* m_tentViasFront;
+		wxCheckBox* m_tentViasBack;
+		wxStaticText* m_stSolderPasteSettings;
 		wxStaticText* m_pasteMarginLabel;
 		wxTextCtrl* m_pasteMarginCtrl;
 		wxStaticText* m_pasteMarginUnits;

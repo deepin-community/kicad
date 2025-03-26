@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mike Williams, mike@mikebwilliams.com
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,6 +37,9 @@ public:
 
     PCB_FIELD( const PCB_TEXT& aText, int aFieldId, const wxString& aName = wxEmptyString );
 
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
         return aItem && PCB_FIELD_T == aItem->Type();
@@ -55,8 +58,6 @@ public:
                 return true;
             else if( scanType == PCB_FIELD_LOCATE_VALUE_T && m_id == VALUE_FIELD )
                 return true;
-            else if( scanType == PCB_FIELD_LOCATE_FOOTPRINT_T && m_id == FOOTPRINT_FIELD )
-                return true;
             else if( scanType == PCB_FIELD_LOCATE_DATASHEET_T && m_id == DATASHEET_FIELD )
                 return true;
         }
@@ -66,16 +67,16 @@ public:
 
     bool IsReference() const { return m_id == REFERENCE_FIELD; }
     bool IsValue() const { return m_id == VALUE_FIELD; }
-    bool IsFootprint() const { return m_id == FOOTPRINT_FIELD; }
     bool IsDatasheet() const { return m_id == DATASHEET_FIELD; }
+    bool IsComponentClass() const { return GetName() == wxT( "Component Class" ); }
 
-    bool IsMandatoryField() const { return m_id < MANDATORY_FIELDS; }
+    bool IsMandatory() const;
 
     wxString GetTextTypeDescription() const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
-    double ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const override;
+    double ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const override;
 
     EDA_ITEM* Clone() const override;
 
@@ -108,12 +109,15 @@ public:
 
     double Similarity( const BOARD_ITEM& aOther ) const override;
 
+    bool operator==( const PCB_FIELD& aOther ) const;
     bool operator==( const BOARD_ITEM& aOther ) const override;
 
 protected:
     void swapData( BOARD_ITEM* aImage ) override;
 
 private:
+    void setId( int aId ) { m_id = aId; }
+
     int m_id; ///< Field index, @see enum MANDATORY_FIELD_T
 
     wxString m_name;

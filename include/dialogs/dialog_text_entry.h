@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -40,7 +40,7 @@ class WX_TEXT_ENTRY_DIALOG : public WX_TEXT_ENTRY_DIALOG_BASE
 {
 public:
     WX_TEXT_ENTRY_DIALOG( wxWindow* aParent, const wxString& aLabel, const wxString& aCaption,
-                          const wxString& aDefaultValue = wxEmptyString );
+                          const wxString& aDefaultValue = wxEmptyString, bool aExtraWidth = false );
 
 
     WX_TEXT_ENTRY_DIALOG( wxWindow* aParent, const wxString& aLabel, const wxString& aCaption,

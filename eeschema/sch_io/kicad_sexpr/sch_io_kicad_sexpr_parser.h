@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 CERN
- * Copyright (C) 2021-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Wayne Stambaugh <stambaughw@gmail.com>
  *
@@ -37,10 +37,7 @@
 #include <default_values.h>    // For some default values
 
 
-class LIB_SHAPE;
-class LIB_ITEM;
-class LIB_PIN;
-class LIB_TEXT;
+class SCH_PIN;
 class PAGE_INFO;
 class SCH_BITMAP;
 class SCH_BUS_WIRE_ENTRY;
@@ -48,6 +45,7 @@ class SCH_SYMBOL;
 class SCH_FIELD;
 class SCH_ITEM;
 class SCH_SHAPE;
+class SCH_RULE_AREA;
 class SCH_JUNCTION;
 class SCH_LINE;
 class SCH_NO_CONNECT;
@@ -56,6 +54,8 @@ class SCH_SHEET;
 class SCH_SHEET_PIN;
 class SCH_TEXT;
 class SCH_TEXTBOX;
+class SCH_TABLE;
+class SCH_TABLECELL;
 class TITLE_BLOCK;
 
 
@@ -88,7 +88,7 @@ public:
     LIB_SYMBOL* ParseSymbol( LIB_SYMBOL_MAP& aSymbolLibMap,
                              int aFileVersion = SEXPR_SYMBOL_LIB_FILE_VERSION );
 
-    LIB_ITEM* ParseDrawItem();
+    SCH_ITEM* ParseSymbolDrawItem();
 
     /**
      * Parse the internal #LINE_READER object into \a aSheet.
@@ -140,17 +140,18 @@ private:
 
     int parseInternalUnits( const char* aExpected );
 
-    inline int parseInternalUnits( TSCHEMATIC_T::T aToken )
+    int parseInternalUnits( TSCHEMATIC_T::T aToken )
     {
         return parseInternalUnits( GetTokenText( aToken ) );
     }
 
-    inline VECTOR2I parseXY()
+    VECTOR2I parseXY( bool aInvertY = false )
     {
         VECTOR2I xy;
 
         xy.x = parseInternalUnits( "X coordinate" );
-        xy.y = parseInternalUnits( "Y coordinate" );
+        xy.y = aInvertY ? -parseInternalUnits( "Y coordinate" )
+                        :  parseInternalUnits( "Y coordinate" );
 
         return xy;
     }
@@ -180,20 +181,29 @@ private:
 
     void parseFill( FILL_PARAMS& aFill );
 
+    void parseMargins( int& aLeft, int& aTop, int& aRight, int& aBottom )
+    {
+        aLeft = parseInternalUnits( "left margin" );
+        aTop = parseInternalUnits( "top margin" );
+        aRight = parseInternalUnits( "right margin" );
+        aBottom = parseInternalUnits( "bottom margin" );
+    }
+
     void parseEDA_TEXT( EDA_TEXT* aText, bool aConvertOverbarSyntax,
                         bool aEnforceMinTextSize = true );
     void parsePinNames( std::unique_ptr<LIB_SYMBOL>& aSymbol );
+    void parsePinNumbers( std::unique_ptr<LIB_SYMBOL>& aSymbol );
 
-    LIB_FIELD* parseProperty( std::unique_ptr<LIB_SYMBOL>& aSymbol );
+    SCH_FIELD* parseProperty( std::unique_ptr<LIB_SYMBOL>& aSymbol );
 
-    LIB_SHAPE* parseArc();
-    LIB_SHAPE* parseBezier();
-    LIB_SHAPE* parseCircle();
-    LIB_PIN* parsePin();
-    LIB_SHAPE* parsePolyLine();
-    LIB_SHAPE* parseRectangle();
-    LIB_TEXT* parseText();
-    LIB_TEXTBOX* parseTextBox();
+    SCH_SHAPE* parseSymbolArc();
+    SCH_SHAPE* parseSymbolBezier();
+    SCH_SHAPE* parseSymbolCircle();
+    SCH_PIN* parseSymbolPin();
+    SCH_SHAPE* parseSymbolPolyLine();
+    SCH_SHAPE* parseSymbolRectangle();
+    SCH_TEXT* parseSymbolText();
+    SCH_TEXTBOX* parseSymbolTextBox();
 
     void parsePAGE_INFO( PAGE_INFO& aPageInfo );
     void parseTITLE_BLOCK( TITLE_BLOCK& aTitleBlock );
@@ -214,8 +224,12 @@ private:
     SCH_SHAPE* parseSchCircle();
     SCH_SHAPE* parseSchRectangle();
     SCH_SHAPE* parseSchBezier();
+    SCH_RULE_AREA* parseSchRuleArea();
     SCH_TEXT* parseSchText();
     SCH_TEXTBOX* parseSchTextBox();
+    void parseSchTextBoxContent( SCH_TEXTBOX* aTextBox );
+    SCH_TABLECELL* parseSchTableCell();
+    SCH_TABLE* parseSchTable();
     void parseBusAlias( SCH_SCREEN* aScreen );
 
 private:

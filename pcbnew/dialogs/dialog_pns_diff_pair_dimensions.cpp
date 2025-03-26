@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2014-2015  CERN
- * Copyright (C) 2016-2018 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -52,7 +52,7 @@ bool DIALOG_PNS_DIFF_PAIR_DIMENSIONS::TransferDataFromWindow()
 
     if( m_traceGap.GetValue() <= 0 )
     {
-        DisplayErrorMessage( this, _( "Trace gap must be greater than 0." ) );
+        DisplayErrorMessage( this, _( "Track gap must be greater than 0." ) );
         m_traceGapText->SetFocus();
         return false;
     }

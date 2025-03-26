@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2009 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
  * Copyright (C) 2011-2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,16 +28,15 @@
  * @brief Message panel definition file.
  */
 
-#ifndef  _MSGPANEL_H_
-#define  _MSGPANEL_H_
+#pragma once
 
+#include <optional>
+#include <vector>
 
 #include <gal/color4d.h>
 
 #include <wx/window.h>
 #include <wx/panel.h>
-
-#include <vector>
 
 using KIGFX::COLOR4D;
 
@@ -45,6 +44,7 @@ using KIGFX::COLOR4D;
 
 
 class EDA_MSG_PANEL;
+class KIID;
 
 
 /**
@@ -102,18 +102,15 @@ class EDA_MSG_PANEL : public wxPanel
 public:
     EDA_MSG_PANEL( wxWindow* aParent, int aId,
                    const wxPoint& aPosition, const wxSize& aSize,
-                   long style=wxTAB_TRAVERSAL, const wxString& name=wxPanelNameStr);
+                   long style=wxTAB_TRAVERSAL, const wxString& name=wxPanelNameStr );
     ~EDA_MSG_PANEL();
 
-    /**
-     * Return the required height (in pixels) of a EDA_MSG_PANEL.
-     *
-     * This takes into consideration the system gui font, wxSYS_DEFAULT_GUI_FONT.
-     */
-    static int GetRequiredHeight( wxWindow* aWindow );
-
     void OnPaint( wxPaintEvent& aEvent );
+    void OnDPIChanged( wxDPIChangedEvent& aEvent );
     void EraseMsgBox();
+
+    wxSize DoGetBestSize() const override;
+    wxSize DoGetBestClientSize() const override;
 
     /**
      * Set a message at \a aXPosition to \a aUpperText and \a aLowerText in the message panel.
@@ -154,14 +151,11 @@ public:
     DECLARE_EVENT_TABLE()
 
 protected:
+    void updateFontSize();
+
     void showItem( wxDC& dc, const MSG_PANEL_ITEM& aItem );
 
     void erase( wxDC* DC );
-
-    /**
-     * Calculate the width and height of a text string using the system UI font.
-     */
-    wxSize computeTextSize( const wxString& text ) const;
 
 protected:
     std::vector<MSG_PANEL_ITEM> m_Items;
@@ -170,4 +164,10 @@ protected:
 };
 
 
-#endif    // _MSGPANEL_H_
+/**
+ * Get a formatted UUID string for display in the message panel,
+ * according to the current advanced configuration setting.
+ *
+ * This will be std::nullopt if the configuration setting disables UUID display.
+ */
+std::optional<wxString> GetMsgPanelDisplayUuid( const KIID& aKiid );

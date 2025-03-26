@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,32 +21,43 @@
 #ifndef IO_BASE_H_
 #define IO_BASE_H_
 
+#include <map>
 #include <vector>
 #include <string>
+
+#include <kicommon.h>
+#include <core/utf8.h>
 #include <wx/string.h>
+#include <widgets/report_severity.h>
 
 class REPORTER;
 class PROGRESS_REPORTER;
-class STRING_UTF8_MAP;
 
-class IO_BASE
+class KICOMMON_API IO_BASE
 {
 public:
     /**
     * Container that describes file type info
     */
-    struct IO_FILE_DESC
+    struct KICOMMON_API IO_FILE_DESC
     {
         wxString                 m_Description;    ///< Description shown in the file picker dialog
-        std::vector<std::string> m_FileExtensions; ///< Filter used for file pickers if m_IsFile is true
-        std::vector<std::string> m_ExtensionsInDir; ///< In case of folders: extensions of files inside
+
+        /// Filter used for file pickers if m_IsFile is true.
+        std::vector<std::string> m_FileExtensions;
+
+        ///< In case of folders: extensions of files inside.
+        std::vector<std::string> m_ExtensionsInDir;
         bool                     m_IsFile;          ///< Whether the library is a folder or a file
+        bool                     m_CanRead;         ///< Whether the IO can read this file type
+        bool                     m_CanWrite;        ///< Whether the IO can write this file type
 
         IO_FILE_DESC( const wxString& aDescription, const std::vector<std::string>& aFileExtensions,
-                      const std::vector<std::string>& aExtsInFolder = {}, bool aIsFile = true ) :
+                      const std::vector<std::string>& aExtsInFolder = {}, bool aIsFile = true,
+                      bool aCanRead = true, bool aCanWrite = true ) :
                 m_Description( aDescription ),
                 m_FileExtensions( aFileExtensions ), m_ExtensionsInDir( aExtsInFolder ),
-                m_IsFile( aIsFile )
+                m_IsFile( aIsFile ), m_CanRead( aCanRead ), m_CanWrite( aCanWrite )
         {
         }
 
@@ -75,8 +86,10 @@ public:
     /**
      * Set an optional progress reporter.
      */
-    virtual void SetProgressReporter( PROGRESS_REPORTER* aReporter ) { m_progressReporter = aReporter; }
-
+    virtual void SetProgressReporter( PROGRESS_REPORTER* aReporter )
+    {
+        m_progressReporter = aReporter;
+    }
 
     ////////////////////////////////////////////////////
     // Library-related functions
@@ -91,8 +104,8 @@ public:
 
     /**
      * Get the descriptor for the individual library elements that this IO plugin operates on.
-     * For libraries where all the elements are in a single container (e.g. all elements in a single file),
-     * then this will return the descriptor from #IO_BASE::GetLibraryDesc().
+     * For libraries where all the elements are in a single container (e.g. all elements in a
+     * single file), then this will return the descriptor from #IO_BASE::GetLibraryDesc().
      *
      * @return File descriptor for the library elements
      */
@@ -100,7 +113,7 @@ public:
 
     /**
      * Checks if this IO object can read the specified library file/directory.
-     * If not overriden, extension check is used.
+     * If not overridden, extension check is used.
      *
      * @note This is not a check that the file system object is readable by the user,
      *       but a check that this IO object can parse the given library.
@@ -124,7 +137,7 @@ public:
      * @throw IO_ERROR if there is a problem finding the library, or creating it.
      */
     virtual void CreateLibrary( const wxString& aLibraryPath,
-                                const STRING_UTF8_MAP* aProperties = nullptr );
+                                const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Delete an existing library and returns true, or if library does not
@@ -144,7 +157,7 @@ public:
      * @throw IO_ERROR if there is a problem deleting an existing library.
      */
     virtual bool DeleteLibrary( const wxString& aLibraryPath,
-                                const STRING_UTF8_MAP* aProperties = nullptr );
+                                const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Return true if the library at @a aLibraryPath is writable.
@@ -179,17 +192,20 @@ public:
      *  In the future perhaps \a aListToAppendTo evolves to something capable of also
      *  holding a wxValidator for the cells in said dialog:
      *  http://forums.wxwidgets.org/viewtopic.php?t=23277&p=104180.
-     *   This would require a 3 column list, and introducing wx GUI knowledge to
-     *   #SCH_IO, which has been avoided to date.
+     *  This would require a 3 column list, and introducing wx GUI knowledge to
+     *  #SCH_IO, which has been avoided to date.
      */
-    virtual void GetLibraryOptions( STRING_UTF8_MAP* aListToAppendTo ) const;
+    virtual void GetLibraryOptions( std::map<std::string, UTF8>* aListToAppendTo ) const;
+
+    virtual void Report( const wxString& aText, SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED );
+
+    virtual void AdvanceProgressPhase();
 
 protected:
     // Delete the zero-argument base constructor to force proper construction
     IO_BASE() = delete;
 
     /**
-     *
      * @param aName is the user-visible name for the IO loader
      */
     IO_BASE( const wxString& aName ) :

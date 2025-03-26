@@ -4,7 +4,7 @@
  * Copyright (C) 2012 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2012 Wayne Stambaugh <stambaughw@verizon.net>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -90,14 +90,14 @@ void PCB_TARGET::Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle )
 }
 
 
-void PCB_TARGET::Flip( const VECTOR2I& aCentre, bool aFlipLeftRight )
+void PCB_TARGET::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
-    if( aFlipLeftRight )
+    if( aFlipDirection == FLIP_DIRECTION::LEFT_RIGHT )
         m_pos.x = aCentre.x - ( m_pos.x - aCentre.x );
     else
         m_pos.y = aCentre.y - ( m_pos.y - aCentre.y );
 
-    SetLayer( FlipLayer( GetLayer(), GetBoard()->GetCopperLayerCount() ) );
+    SetLayer( GetBoard()->FlipLayer( GetLayer() ) );
 }
 
 
@@ -119,7 +119,7 @@ std::shared_ptr<SHAPE> PCB_TARGET::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASH
 }
 
 
-wxString PCB_TARGET::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString PCB_TARGET::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     // Targets are on *every* layer by definition
     return _( "Target" );
@@ -189,15 +189,24 @@ void PCB_TARGET::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID 
 }
 
 
-bool PCB_TARGET::operator==( const BOARD_ITEM& aOther ) const
+bool PCB_TARGET::operator==( const BOARD_ITEM& aBoardItem ) const
 {
-    if( aOther.Type() != Type() )
+    if( aBoardItem.Type() != Type() )
         return false;
 
-    const PCB_TARGET& other = static_cast<const PCB_TARGET&>( aOther );
+    const PCB_TARGET& other = static_cast<const PCB_TARGET&>( aBoardItem );
 
-    return m_shape == other.m_shape && m_size == other.m_size && m_lineWidth == other.m_lineWidth
-           && m_layer == other.m_layer && m_pos == other.m_pos;
+    return *this == other;
+}
+
+
+bool PCB_TARGET::operator==( const PCB_TARGET& aOther ) const
+{
+    return m_shape == aOther.m_shape
+           && m_size == aOther.m_size
+           && m_lineWidth == aOther.m_lineWidth
+           && m_layer == aOther.m_layer
+           && m_pos == aOther.m_pos;
 }
 
 

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 Andrew Lutsenko, anlutsenko at gmail dot com
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -48,6 +48,7 @@
 // transalted text
 static std::vector<std::pair<PCM_PACKAGE_TYPE, wxString>> PACKAGE_TYPE_LIST = {
     { PT_PLUGIN, _( "Plugins (%d)" ) },
+    { PT_FAB, _( "Fabrication plugins (%d)" ) },
     { PT_LIBRARY, _( "Libraries (%d)" ) },
     { PT_COLORTHEME, _( "Color themes (%d)" ) },
 };
@@ -244,9 +245,9 @@ void DIALOG_PCM::OnManageRepositoriesClicked( wxCommandEvent& event )
         m_pcm->SetRepositoryList( dialog_data );
 
         SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-        KICAD_SETTINGS*   app_settings = mgr.GetAppSettings<KICAD_SETTINGS>();
+        KICAD_SETTINGS*   cfg = mgr.GetAppSettings<KICAD_SETTINGS>( "kicad" );
 
-        app_settings->m_PcmRepositories = std::move( dialog_data );
+        cfg->m_PcmRepositories = std::move( dialog_data );
 
         setRepositoryListFromPcm();
     }
@@ -373,7 +374,10 @@ void DIALOG_PCM::setRepositoryData( const wxString& aRepositoryId )
             package_data.repository_id = aRepositoryId;
             package_data.repository_name = m_choiceRepository->GetStringSelection();
 
-            data[pkg.type].emplace_back( package_data );
+            // Fabrication plugins are displayed in a different tab although they are still plugins
+            PCM_PACKAGE_TYPE type = pkg.category == PC_FAB ? PT_FAB : pkg.type;
+
+            data[type].emplace_back( package_data );
         }
 
         for( size_t i = 0; i < PACKAGE_TYPE_LIST.size(); i++ )

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2004-2022 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -177,7 +177,7 @@ bool DRC_TEST_PROVIDER_EDGE_CLEARANCE::Run()
     std::vector<std::unique_ptr<PCB_SHAPE>> edges;
     DRC_RTREE                               edgesTree;
 
-    forEachGeometryItem( { PCB_SHAPE_T }, LSET( 2, Edge_Cuts, Margin ),
+    forEachGeometryItem( { PCB_SHAPE_T }, LSET( { Edge_Cuts, Margin } ),
             [&]( BOARD_ITEM *item ) -> bool
             {
                 PCB_SHAPE*    shape = static_cast<PCB_SHAPE*>( item );
@@ -304,38 +304,57 @@ bool DRC_TEST_PROVIDER_EDGE_CLEARANCE::Run()
                     }
                 }
 
-                const std::shared_ptr<SHAPE>& itemShape = item->GetEffectiveShape();
+                std::vector<PCB_LAYER_ID> layersToTest;
 
-                for( PCB_LAYER_ID testLayer : { Edge_Cuts, Margin } )
+                switch( item->Type() )
                 {
-                    if( testCopper && item->IsOnCopperLayer() )
-                    {
-                        edgesTree.QueryColliding( item, UNDEFINED_LAYER, testLayer, nullptr,
-                                [&]( BOARD_ITEM* edge ) -> bool
-                                {
-                                    return testAgainstEdge( item, itemShape.get(), edge,
-                                                            EDGE_CLEARANCE_CONSTRAINT,
-                                                            DRCE_EDGE_CLEARANCE );
-                                },
-                                m_largestEdgeClearance );
-                    }
+                case PCB_PAD_T:
+                    layersToTest = static_cast<PAD*>( item )->Padstack().UniqueLayers();
+                    break;
 
-                    if( testSilk && ( item->IsOnLayer( F_SilkS ) || item->IsOnLayer( B_SilkS ) ) )
+                case PCB_VIA_T:
+                    layersToTest = static_cast<PCB_VIA*>( item )->Padstack().UniqueLayers();
+                    break;
+
+                default:
+                    layersToTest = { UNDEFINED_LAYER };
+                }
+
+                for( PCB_LAYER_ID shapeLayer : layersToTest )
+                {
+                    const std::shared_ptr<SHAPE>& itemShape = item->GetEffectiveShape( shapeLayer );
+
+                    for( PCB_LAYER_ID testLayer : { Edge_Cuts, Margin } )
                     {
-                        if( edgesTree.QueryColliding( item, UNDEFINED_LAYER, testLayer, nullptr,
-                                [&]( BOARD_ITEM* edge ) -> bool
-                                {
-                                    return testAgainstEdge( item, itemShape.get(), edge,
-                                                            SILK_CLEARANCE_CONSTRAINT,
-                                                            DRCE_SILK_EDGE_CLEARANCE );
-                                },
-                                m_largestEdgeClearance ) )
+                        if( testCopper && item->IsOnCopperLayer() )
                         {
-                            // violations reported during QueryColliding
+                            edgesTree.QueryColliding( item, shapeLayer, testLayer, nullptr,
+                                    [&]( BOARD_ITEM* edge ) -> bool
+                                    {
+                                        return testAgainstEdge( item, itemShape.get(), edge,
+                                                                EDGE_CLEARANCE_CONSTRAINT,
+                                                                DRCE_EDGE_CLEARANCE );
+                                    },
+                                    m_largestEdgeClearance );
                         }
-                        else
+
+                        if( testSilk && ( item->IsOnLayer( F_SilkS ) || item->IsOnLayer( B_SilkS ) ) )
                         {
-                            // TODO: check postion being outside board boundary
+                            if( edgesTree.QueryColliding( item, shapeLayer, testLayer, nullptr,
+                                    [&]( BOARD_ITEM* edge ) -> bool
+                                    {
+                                        return testAgainstEdge( item, itemShape.get(), edge,
+                                                                SILK_CLEARANCE_CONSTRAINT,
+                                                                DRCE_SILK_EDGE_CLEARANCE );
+                                    },
+                                    m_largestEdgeClearance ) )
+                            {
+                                // violations reported during QueryColliding
+                            }
+                            else
+                            {
+                                // TODO: check postion being outside board boundary
+                            }
                         }
                     }
                 }

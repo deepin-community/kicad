@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2004-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -65,7 +65,7 @@ enum PIN_TABLE_COL_ORDER
 };
 
 
-class SCH_PIN_TABLE_DATA_MODEL : public wxGridTableBase, public std::vector<SCH_PIN>
+class SCH_PIN_TABLE_DATA_MODEL : public WX_GRID_TABLE_BASE, public std::vector<SCH_PIN>
 {
 public:
     SCH_PIN_TABLE_DATA_MODEL() :
@@ -100,7 +100,7 @@ public:
 
         for( const SCH_PIN& pin : *this )
         {
-            LIB_PIN*        lib_pin = pin.GetLibPin();
+            SCH_PIN*        lib_pin = pin.GetLibPin();
             wxGridCellAttr* attr = nullptr;
 
             if( lib_pin->GetAlternates().empty() )
@@ -114,7 +114,7 @@ public:
                 wxArrayString choices;
                 choices.push_back( lib_pin->GetName() );
 
-                for( const std::pair<const wxString, LIB_PIN::ALT>& alt : lib_pin->GetAlternates() )
+                for( const std::pair<const wxString, SCH_PIN::ALT>& alt : lib_pin->GetAlternates() )
                     choices.push_back( alt.first );
 
                 attr = new wxGridCellAttr();
@@ -195,26 +195,26 @@ public:
         }
     }
 
-    wxGridCellAttr* GetAttr( int aRow, int aCol, wxGridCellAttr::wxAttrKind  ) override
+    wxGridCellAttr* GetAttr( int aRow, int aCol, wxGridCellAttr::wxAttrKind aKind ) override
     {
         switch( aCol )
         {
         case COL_NUMBER:
         case COL_BASE_NAME:
             m_readOnlyAttr->IncRef();
-            return m_readOnlyAttr;
+            return enhanceAttr( m_readOnlyAttr, aRow, aCol, aKind );
 
         case COL_ALT_NAME:
             m_nameAttrs[ aRow ]->IncRef();
-            return m_nameAttrs[ aRow ];
+            return enhanceAttr( m_nameAttrs[ aRow ], aRow, aCol, aKind );
 
         case COL_TYPE:
             m_typeAttr->IncRef();
-            return m_typeAttr;
+            return enhanceAttr( m_typeAttr, aRow, aCol, aKind );
 
         case COL_SHAPE:
             m_shapeAttr->IncRef();
-            return m_shapeAttr;
+            return enhanceAttr( m_shapeAttr, aRow, aCol, aKind );
 
         default:
             wxFAIL;
@@ -327,7 +327,7 @@ DIALOG_SYMBOL_PROPERTIES::DIALOG_SYMBOL_PROPERTIES( SCH_EDIT_FRAME* aParent,
     // so we need to handle m_part == nullptr
     // wxASSERT( m_part );
 
-    m_fields = new FIELDS_GRID_TABLE<SCH_FIELD>( this, aParent, m_fieldsGrid, m_symbol );
+    m_fields = new FIELDS_GRID_TABLE( this, aParent, m_fieldsGrid, m_symbol, &aParent->Schematic() );
 
     // Give a bit more room for combobox editors
     m_fieldsGrid->SetDefaultRowSize( m_fieldsGrid->GetDefaultRowSize() + 4 );
@@ -335,6 +335,7 @@ DIALOG_SYMBOL_PROPERTIES::DIALOG_SYMBOL_PROPERTIES( SCH_EDIT_FRAME* aParent,
 
     m_fieldsGrid->SetTable( m_fields );
     m_fieldsGrid->PushEventHandler( new FIELDS_GRID_TRICKS( m_fieldsGrid, this,
+                                                            &aParent->Schematic(),
                                                             [&]( wxCommandEvent& aEvent )
                                                             {
                                                                 OnAddField( aEvent );
@@ -471,7 +472,7 @@ bool DIALOG_SYMBOL_PROPERTIES::TransferDataToWindow()
     }
 
     // notify the grid
-    wxGridTableMessage msg( m_fields, wxGRIDTABLE_NOTIFY_ROWS_APPENDED, m_fields->size() );
+    wxGridTableMessage msg( m_fields, wxGRIDTABLE_NOTIFY_ROWS_APPENDED, m_fields->GetNumberRows() );
     m_fieldsGrid->ProcessTableMessage( msg );
     AdjustFieldsGridColumns();
 
@@ -480,7 +481,7 @@ bool DIALOG_SYMBOL_PROPERTIES::TransferDataToWindow()
     {
         // Ensure symbol unit is the currently selected unit (mandatory in complex hierarchies)
         // from the current sheet path, because it can be modified by previous calculations
-        m_symbol->UpdateUnit( m_symbol->GetUnitSelection( &GetParent()->GetCurrentSheet() ) );
+        m_symbol->SetUnit( m_symbol->GetUnitSelection( &GetParent()->GetCurrentSheet() ) );
 
         for( int ii = 1; ii <= m_symbol->GetUnitCount(); ii++ )
         {
@@ -501,7 +502,7 @@ bool DIALOG_SYMBOL_PROPERTIES::TransferDataToWindow()
 
     if( m_part && m_part->HasAlternateBodyStyle() )
     {
-        if( m_symbol->GetBodyStyle() > LIB_ITEM::BODY_STYLE::BASE )
+        if( m_symbol->GetBodyStyle() > BODY_STYLE::BASE )
             m_cbAlternateSymbol->SetValue( true );
     }
     else
@@ -537,8 +538,8 @@ bool DIALOG_SYMBOL_PROPERTIES::TransferDataToWindow()
 
     if( m_part )
     {
-        m_ShowPinNumButt->SetValue( m_part->ShowPinNumbers() );
-        m_ShowPinNameButt->SetValue( m_part->ShowPinNames() );
+        m_ShowPinNumButt->SetValue( m_part->GetShowPinNumbers() );
+        m_ShowPinNameButt->SetValue( m_part->GetShowPinNames() );
     }
 
     // Set the symbol's library name.
@@ -635,10 +636,14 @@ bool DIALOG_SYMBOL_PROPERTIES::Validate()
         return false;
 
     // Check for missing field names.
-    for( size_t i = MANDATORY_FIELDS;  i < m_fields->size(); ++i )
+    for( size_t i = 0; i < m_fields->size(); ++i )
     {
         SCH_FIELD& field = m_fields->at( i );
-        wxString   fieldName = field.GetName( false );
+
+        if( field.IsMandatory() )
+            continue;
+
+        wxString fieldName = field.GetName( false );
 
         if( fieldName.IsEmpty() )
         {
@@ -685,9 +690,9 @@ bool DIALOG_SYMBOL_PROPERTIES::TransferDataFromWindow()
 
     // For symbols with multiple shapes (De Morgan representation) Set the selected shape:
     if( m_cbAlternateSymbol->IsEnabled() && m_cbAlternateSymbol->GetValue() )
-        m_symbol->SetBodyStyle( LIB_ITEM::BODY_STYLE::DEMORGAN );
+        m_symbol->SetBodyStyle( BODY_STYLE::DEMORGAN );
     else
-        m_symbol->SetBodyStyle( LIB_ITEM::BODY_STYLE::BASE );
+        m_symbol->SetBodyStyle( BODY_STYLE::BASE );
 
     //Set the part selection in multiple part per package
     int unit_selection = m_unitChoice->IsEnabled() ? m_unitChoice->GetSelection() + 1 : 1;
@@ -709,32 +714,25 @@ bool DIALOG_SYMBOL_PROPERTIES::TransferDataFromWindow()
     case 2: m_symbol->SetOrientation( SYM_MIRROR_Y ); break;
     }
 
-    if( m_part )
-    {
-        m_part->SetShowPinNames( m_ShowPinNameButt->GetValue() );
-        m_part->SetShowPinNumbers( m_ShowPinNumButt->GetValue() );
-    }
+    m_symbol->SetShowPinNames( m_ShowPinNameButt->GetValue() );
+    m_symbol->SetShowPinNumbers( m_ShowPinNumButt->GetValue() );
 
     // Restore m_Flag modified by SetUnit() and other change settings from the dialog
     m_symbol->ClearFlags();
     m_symbol->SetFlags( flags );
 
     // change all field positions from relative to absolute
-    for( unsigned i = 0;  i < m_fields->size();  ++i )
+    for( SCH_FIELD& field : *m_fields )
     {
-        SCH_FIELD& field = m_fields->at( i );
-
         field.Offset( m_symbol->GetPosition() );
         field.SetText( m_symbol->Schematic()->ConvertRefsToKIIDs( field.GetText() ) );
     }
 
     SCH_FIELDS& fields = m_symbol->GetFields();
-
     fields.clear();
 
-    for( size_t ii = 0; ii < m_fields->size(); ++ii )
+    for( SCH_FIELD& field : *m_fields )
     {
-        SCH_FIELD&      field = m_fields->at( ii );
         const wxString& fieldName = field.GetCanonicalName();
 
         if( fieldName.IsEmpty() && field.GetText().IsEmpty() )
@@ -775,72 +773,7 @@ bool DIALOG_SYMBOL_PROPERTIES::TransferDataFromWindow()
 
     // Keep fields other than the reference, include/exclude flags, and alternate pin assignements
     // in sync in multi-unit parts.
-    if( m_symbol->GetUnitCount() > 1 && m_symbol->IsAnnotated( &GetParent()->GetCurrentSheet() ) )
-    {
-        wxString ref = m_symbol->GetRef( &GetParent()->GetCurrentSheet() );
-        int      unit = m_symbol->GetUnit();
-        LIB_ID   libId = m_symbol->GetLibId();
-
-        for( SCH_SHEET_PATH& sheet : GetParent()->Schematic().GetUnorderedSheets() )
-        {
-            SCH_SCREEN*              screen = sheet.LastScreen();
-            std::vector<SCH_SYMBOL*> otherUnits;
-
-            CollectOtherUnits( ref, unit, libId, sheet, &otherUnits );
-
-            for( SCH_SYMBOL* otherUnit : otherUnits )
-            {
-                commit.Modify( otherUnit, screen );
-                otherUnit->SetValueFieldText( m_fields->at( VALUE_FIELD ).GetText() );
-                otherUnit->SetFootprintFieldText( m_fields->at( FOOTPRINT_FIELD ).GetText() );
-
-                for( size_t ii = DATASHEET_FIELD; ii < m_fields->size(); ++ii )
-                {
-                    SCH_FIELD* otherField = otherUnit->FindField( m_fields->at( ii ).GetName() );
-
-                    if( otherField )
-                    {
-                        otherField->SetText( m_fields->at( ii ).GetText() );
-                    }
-                    else
-                    {
-                        SCH_FIELD newField( m_fields->at( ii ) );
-                        const_cast<KIID&>( newField.m_Uuid ) = KIID();
-
-                        newField.Offset( -m_symbol->GetPosition() );
-                        newField.Offset( otherUnit->GetPosition() );
-
-                        newField.SetParent( otherUnit );
-                        otherUnit->AddField( newField );
-                    }
-                }
-
-                for( size_t ii = otherUnit->GetFields().size() - 1; ii > DATASHEET_FIELD; ii-- )
-                {
-                    SCH_FIELD& otherField = otherUnit->GetFields().at( ii );
-
-                    if( !m_symbol->FindField( otherField.GetName() ) )
-                        otherUnit->GetFields().erase( otherUnit->GetFields().begin() + ii );
-                }
-
-                otherUnit->SetExcludedFromSim( m_cbExcludeFromSim->IsChecked() );
-                otherUnit->SetExcludedFromBOM( m_cbExcludeFromBom->IsChecked() );
-                otherUnit->SetExcludedFromBoard( m_cbExcludeFromBoard->IsChecked() );
-                otherUnit->SetDNP( m_cbDNP->IsChecked() );
-
-                if( m_dataModel )
-                {
-                    for( const SCH_PIN& model_pin : *m_dataModel )
-                    {
-                        SCH_PIN* src_pin = otherUnit->GetPin( model_pin.GetNumber() );
-
-                        if( src_pin )
-                            src_pin->SetAlt( model_pin.GetAlt() );
-                    }
-                }
-            }
-        }
-    }
+    m_symbol->SyncOtherUnits( GetParent()->GetCurrentSheet(), commit, nullptr );
 
     if( replaceOnCurrentScreen )
         currentScreen->Append( m_symbol );
@@ -911,12 +844,11 @@ void DIALOG_SYMBOL_PROPERTIES::OnAddField( wxCommandEvent& event )
 
     SCHEMATIC_SETTINGS& settings = m_symbol->Schematic()->Settings();
     int                 fieldID = (int) m_fields->size();
-    SCH_FIELD           newField( VECTOR2I( 0, 0 ), fieldID, m_symbol,
-                                  TEMPLATE_FIELDNAME::GetDefaultFieldName( fieldID,
-                                                                           DO_TRANSLATE ) );
+    SCH_FIELD           newField( VECTOR2I(), fieldID, m_symbol, GetUserFieldName( fieldID, DO_TRANSLATE ) );
 
     newField.SetTextAngle( m_fields->at( REFERENCE_FIELD ).GetTextAngle() );
     newField.SetTextSize( VECTOR2I( settings.m_DefaultTextSize, settings.m_DefaultTextSize ) );
+    newField.SetVisible( false );
 
     m_fields->push_back( newField );
 
@@ -946,10 +878,10 @@ void DIALOG_SYMBOL_PROPERTIES::OnDeleteField( wxCommandEvent& event )
 
     for( int row : selectedRows )
     {
-        if( row < MANDATORY_FIELDS )
+        if( row < m_fields->GetMandatoryRowCount() )
         {
             DisplayError( this, wxString::Format( _( "The first %d fields are mandatory." ),
-                                                  MANDATORY_FIELDS ) );
+                                                  m_fields->GetMandatoryRowCount() ) );
             return;
         }
     }
@@ -986,7 +918,7 @@ void DIALOG_SYMBOL_PROPERTIES::OnMoveUp( wxCommandEvent& event )
 
     int i = m_fieldsGrid->GetGridCursorRow();
 
-    if( i > MANDATORY_FIELDS )
+    if( i > m_fields->GetMandatoryRowCount() )
     {
         SCH_FIELD tmp = m_fields->at( (unsigned) i );
         m_fields->erase( m_fields->begin() + i, m_fields->begin() + i + 1 );
@@ -1013,7 +945,7 @@ void DIALOG_SYMBOL_PROPERTIES::OnMoveDown( wxCommandEvent& event )
 
     int i = m_fieldsGrid->GetGridCursorRow();
 
-    if( i >= MANDATORY_FIELDS && i < m_fieldsGrid->GetNumberRows() - 1 )
+    if( i >= m_fields->GetMandatoryRowCount() && i < m_fieldsGrid->GetNumberRows() - 1 )
     {
         SCH_FIELD tmp = m_fields->at( (unsigned) i );
         m_fields->erase( m_fields->begin() + i, m_fields->begin() + i + 1 );
@@ -1287,3 +1219,12 @@ void DIALOG_SYMBOL_PROPERTIES::onUpdateEditLibrarySymbol( wxUpdateUIEvent& event
     event.Enable( m_symbol && m_symbol->GetLibSymbolRef() );
 }
 
+
+void DIALOG_SYMBOL_PROPERTIES::OnPageChanging( wxBookCtrlEvent& aEvent )
+{
+    if( !m_fieldsGrid->CommitPendingChanges() )
+        aEvent.Veto();
+
+    if( !m_pinGrid->CommitPendingChanges() )
+        aEvent.Veto();
+}

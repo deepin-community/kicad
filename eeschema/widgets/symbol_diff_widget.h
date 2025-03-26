@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,6 +24,7 @@
 
 
 class LIB_SYMBOL;
+class wxBitmapButton;
 class wxSlider;
 
 
@@ -46,12 +47,19 @@ public:
      */
     void DisplayDiff( LIB_SYMBOL* aSchSymbol, LIB_SYMBOL* aLibSymbol, int aUnit, int aConvert );
 
-private:
-    void onSlider( wxScrollEvent& aEvent );
+    /**
+     * Toggle between full-A and full-B display.
+     */
+    void ToggleAB();
 
 private:
-    LIB_SYMBOL* m_libraryItem;
-    wxSlider*   m_slider;
+    void onSlider( wxScrollEvent& aEvent );
+    void onCharHook( wxKeyEvent& aEvent );
+
+private:
+    LIB_SYMBOL*     m_libraryItem;
+    wxSlider*       m_slider;
+    wxBitmapButton* m_toggleButton;
 };
 
 

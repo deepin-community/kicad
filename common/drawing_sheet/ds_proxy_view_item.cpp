@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2013-2020 CERN
- * Copyright (C) 2018-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -104,7 +104,7 @@ void DS_PROXY_VIEW_ITEM::ViewDraw( int aLayer, VIEW* aView ) const
 
     buildDrawList( aView, m_properties, &drawList );
 
-    BOX2I viewport( aView->GetViewport().GetOrigin(), aView->GetViewport().GetSize() );
+    BOX2I viewport = BOX2ISafe( aView->GetViewport() );
 
     // Draw the title block normally even if the view is flipped
     bool flipped = gal->IsFlippedX();
@@ -147,10 +147,10 @@ void DS_PROXY_VIEW_ITEM::ViewDraw( int aLayer, VIEW* aView ) const
 }
 
 
-void DS_PROXY_VIEW_ITEM::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> DS_PROXY_VIEW_ITEM::ViewGetLayers() const
 {
-    aCount = 1;
-    aLayers[0] = LAYER_DRAWINGSHEET;
+    std::vector<int> layer{ LAYER_DRAWINGSHEET };
+    return layer;
 }
 
 

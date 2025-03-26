@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mike Williams <mike@mikebwilliams.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -25,6 +25,7 @@
 #include <layer_ids.h>
 #include <string_utils.h>
 #include <wx/crt.h>
+#include <wx/tokenzr.h>
 #include <schematic_settings.h>
 
 #include <macros.h>
@@ -81,6 +82,10 @@ CLI::SCH_EXPORT_BOM_COMMAND::SCH_EXPORT_BOM_COMMAND() : COMMAND( "bom" )
             .help( UTF8STDSTR( _( ARG_EXCLUDE_DNP_DESC ) ) )
             .flag();
 
+    m_argParser.add_argument( ARG_INCLUDE_EXCLUDED_FROM_BOM )
+            .help( UTF8STDSTR( _( ARG_INCLUDE_EXCLUDED_FROM_BOM_DESC ) ) )
+            .flag();
+
     // Output formatting options
     m_argParser.add_argument( ARG_FIELD_DELIMITER )
             .help( UTF8STDSTR( _( ARG_FIELD_DELIMITER_DESC ) ) )
@@ -129,11 +134,11 @@ std::vector<wxString> CLI::SCH_EXPORT_BOM_COMMAND::convertStringList( const wxSt
 
 int CLI::SCH_EXPORT_BOM_COMMAND::doPerform( KIWAY& aKiway )
 {
-    std::unique_ptr<JOB_EXPORT_SCH_BOM> bomJob = std::make_unique<JOB_EXPORT_SCH_BOM>( true );
+    std::unique_ptr<JOB_EXPORT_SCH_BOM> bomJob = std::make_unique<JOB_EXPORT_SCH_BOM>();
 
     // Basic options
     bomJob->m_filename = m_argInput;
-    bomJob->m_outputFile = m_argOutput;
+    bomJob->SetConfiguredOutputPath( m_argOutput );
 
     bomJob->m_bomPresetName = From_UTF8( m_argParser.get<std::string>( ARG_PRESET ).c_str() );
     bomJob->m_bomFmtPresetName =
@@ -168,6 +173,7 @@ int CLI::SCH_EXPORT_BOM_COMMAND::doPerform( KIWAY& aKiway )
     bomJob->m_sortAsc = m_argParser.get<bool>( ARG_SORT_ASC );
     bomJob->m_filterString = From_UTF8( m_argParser.get<std::string>( ARG_FILTER ).c_str() );
     bomJob->m_excludeDNP = m_argParser.get<bool>( ARG_EXCLUDE_DNP );
+    bomJob->m_includeExcludedFromBOM = m_argParser.get<bool>( ARG_INCLUDE_EXCLUDED_FROM_BOM );
 
     if( !wxFile::Exists( bomJob->m_filename ) )
     {

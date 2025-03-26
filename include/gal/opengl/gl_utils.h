@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2022 Kicad Developers, see AUTHORS.txt for contributors
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,7 +41,7 @@ class GL_UTILS
 {
 public:
     /**
-     * Attempts to set the OpenGL swap interval.
+     * Attempt to set the OpenGL swap interval.
      *
      * @param aVal if -1 = try to set adaptive swapping, 0 = sync off, 1 = sync with VSYNC rate.
      * @return actual value set
@@ -112,7 +112,6 @@ public:
 #elif defined( _WIN32 )
 
         const GLubyte* vendor = glGetString( GL_VENDOR );
-        //const GLubyte* renderer = glGetString( GL_RENDERER );
         const GLubyte* version = glGetString( GL_VERSION );
 
         if( wglSwapIntervalEXT && wxGLCanvas::IsExtensionSupported( "WGL_EXT_swap_control" ) )

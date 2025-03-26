@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,10 +21,9 @@
 #ifndef KICAD_JSON_SETTINGS_INTERNALS_H
 #define KICAD_JSON_SETTINGS_INTERNALS_H
 
-// This is a pretty heavy file.  Try to use json_fwd.hpp most places.
-#include <nlohmann/json.hpp>
+#include <json_common.h>
 
-class JSON_SETTINGS_INTERNALS : public nlohmann::json
+class KICOMMON_API JSON_SETTINGS_INTERNALS : public nlohmann::json
 {
     friend class JSON_SETTINGS;
 

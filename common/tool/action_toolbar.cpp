@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2021 KiCad Developers, see CHANGELOG.txt for contributors.
+ * Copyright The KiCad Developers, see CHANGELOG.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -114,16 +114,15 @@ ACTION_TOOLBAR_PALETTE::ACTION_TOOLBAR_PALETTE( wxWindow* aParent, bool aVertica
 
 void ACTION_TOOLBAR_PALETTE::AddAction( const TOOL_ACTION& aAction )
 {
-    wxBitmapBundle normalBmp = KiBitmapBundle( aAction.GetIcon() );
+    int            size = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
+    wxBitmapBundle normalBmp = KiBitmapBundle( aAction.GetIcon(), size );
 
     int bmpWidth = normalBmp.GetPreferredBitmapSizeFor( this ).GetWidth();
     int padding = ( m_buttonSize.GetWidth() - bmpWidth ) / 2;
-    int size = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
     wxSize bmSize( size, size );
-    bmSize *= KIPLATFORM::UI::GetPixelScaleFactor( m_parent );
+    bmSize *= KIPLATFORM::UI::GetContentScaleFactor( m_parent );
 
-    BITMAP_BUTTON* button = new BITMAP_BUTTON( m_panel, aAction.GetUIId(), wxDefaultPosition,
-                                               bmSize );
+    BITMAP_BUTTON* button = new BITMAP_BUTTON( m_panel, aAction.GetUIId() );
 
     button->SetIsToolbarButton();
     button->SetBitmap( normalBmp );
@@ -226,7 +225,7 @@ ACTION_TOOLBAR::~ACTION_TOOLBAR()
 
     Unbind( wxEVT_SYS_COLOUR_CHANGED,
             wxSysColourChangedEventHandler( ACTION_TOOLBAR::onThemeChanged ), this );
-            
+
     delete m_paletteTimer;
 
     // Clear all the maps keeping track of our items on the toolbar
@@ -241,11 +240,14 @@ ACTION_TOOLBAR::~ACTION_TOOLBAR()
 void ACTION_TOOLBAR::Add( const TOOL_ACTION& aAction, bool aIsToggleEntry, bool aIsCancellable )
 {
     wxASSERT( GetParent() );
-    wxASSERT_MSG( !( aIsCancellable && !aIsToggleEntry ), wxS( "aIsCancellable requires aIsToggleEntry" ) );
+    wxASSERT_MSG( !( aIsCancellable && !aIsToggleEntry ),
+                  wxS( "aIsCancellable requires aIsToggleEntry" ) );
 
     int toolId = aAction.GetUIId();
 
-    AddTool( toolId, wxEmptyString, KiBitmapBundle( aAction.GetIcon() ),
+    AddTool( toolId, wxEmptyString,
+             KiBitmapBundle( aAction.GetIcon(),
+                             Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size ),
              KiDisabledBitmapBundle( aAction.GetIcon() ),
              aIsToggleEntry ? wxITEM_CHECK : wxITEM_NORMAL,
              aAction.GetButtonTooltip(), wxEmptyString, nullptr );
@@ -260,7 +262,9 @@ void ACTION_TOOLBAR::AddButton( const TOOL_ACTION& aAction )
 {
     int toolId = aAction.GetUIId();
 
-    AddTool( toolId, wxEmptyString, KiBitmapBundle( aAction.GetIcon() ),
+    AddTool( toolId, wxEmptyString,
+             KiBitmapBundle( aAction.GetIcon(),
+                             Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size ),
              KiDisabledBitmapBundle( aAction.GetIcon() ), wxITEM_NORMAL,
              aAction.GetButtonTooltip(), wxEmptyString, nullptr );
 
@@ -305,7 +309,9 @@ void ACTION_TOOLBAR::AddGroup( ACTION_GROUP* aGroup, bool aIsToggleEntry )
     m_actionGroups[ groupId ] = aGroup;
 
     // Add the main toolbar item representing the group
-    AddTool( groupId, wxEmptyString, KiBitmapBundle( defaultAction->GetIcon() ),
+    AddTool( groupId, wxEmptyString,
+             KiBitmapBundle( defaultAction->GetIcon(),
+                             Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size ),
              KiDisabledBitmapBundle( defaultAction->GetIcon() ),
              aIsToggleEntry ? wxITEM_CHECK : wxITEM_NORMAL,
              wxEmptyString, wxEmptyString, nullptr );
@@ -341,8 +347,9 @@ void ACTION_TOOLBAR::doSelectAction( ACTION_GROUP* aGroup, const TOOL_ACTION& aA
         return;
 
     // Update the item information
-    item->SetShortHelp( aAction.GetTooltip() );
-    item->SetBitmap( KiBitmapBundle( aAction.GetIcon() ) );
+    item->SetShortHelp( aAction.GetButtonTooltip() );
+    item->SetBitmap( KiBitmapBundle( aAction.GetIcon(),
+                                     Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size ) );
     item->SetDisabledBitmap( KiDisabledBitmapBundle( aAction.GetIcon() ) );
 
     // Register a new handler with the new UI conditions
@@ -371,9 +378,11 @@ void ACTION_TOOLBAR::UpdateControlWidth( int aID )
 
     // The control on the toolbar is stored inside the window field of the item
     wxControl* control = dynamic_cast<wxControl*>( item->GetWindow() );
-    wxASSERT_MSG( control, wxString::Format( "No control located in toolbar item with ID %d", aID ) );
+    wxASSERT_MSG( control,
+                  wxString::Format( "No control located in toolbar item with ID %d", aID ) );
 
     // Update the size the item has stored using the best size of the control
+    control->InvalidateBestSize();
     wxSize bestSize = control->GetBestSize();
     item->SetMinSize( bestSize );
 
@@ -524,6 +533,7 @@ void ACTION_TOOLBAR::onToolRightClick( wxAuiToolBarEvent& aEvent )
     // mouse is not on the toolbar
     SetHoverItem( nullptr );
 }
+
 
 // The time (in milliseconds) between pressing the left mouse button and opening the palette
 #define PALETTE_OPEN_DELAY 500
@@ -856,7 +866,9 @@ void ACTION_TOOLBAR::RefreshBitmaps()
     {
         wxAuiToolBarItem* tool = FindTool( pair.first );
 
-        tool->SetBitmap( KiBitmapBundle( pair.second->GetIcon() ) );
+        tool->SetBitmap(
+                KiBitmapBundle( pair.second->GetIcon(),
+                                Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size ) );
         tool->SetDisabledBitmap( KiDisabledBitmapBundle( pair.second->GetIcon() ) );
     }
 

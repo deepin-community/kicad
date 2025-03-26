@@ -21,7 +21,7 @@ All trademarks within this guide belong to their legitimate owners.
 [[contributors]]
 *Contributors*
 
-Jean-Pierre Charras, Fabrizio Tappero, Jon Evans.
+Jean-Pierre Charras, Fabrizio Tappero, Jon Evans, Graham Keeth.
 
 [[feedback]]
 *Feedback*
@@ -60,27 +60,44 @@ https://kicad.org/help/system-requirements/
 KiCad creates and uses files with the following specific file extensions (and folders)
 for schematic and board editing.
 
+Many of these files include important design information,
+especially the project file (`.kicad_pro`), the schematic file(s) (`.kicad_sch`), and the
+board file (`.kicad_pcb`). Other files may also be necessary. Such files should always be
+included when distributing the project. Some files are not necessary to distribute with the
+project, such as the project-local settings file (`.kicad_prl`) or the `fp-info-cache` file.
+Files that are unnecessary to distribute are noted in the table below.
+
 ==== Project files
 [width="100%",cols="20%,80%",]
 |=================================================================
 |`*.kicad_pro` |Project file, containing settings that are shared between the schematic and PCB
-|`*.pro` |Legacy (KiCad 5.x and earlier) project file.
-Can be read and will be converted to a `.kicad_pro` file by the project manager.
+|`*.pro`
+      |Legacy (KiCad 5.x and earlier) project file.
+      Can be read and will be converted to a `.kicad_pro` file by the project manager.
 |=================================================================
 
 ==== Schematic editor files
 [width="100%",cols="20%,80%",]
 |=================================================================
-|`*.kicad_sch` |Schematic files containing all info and the components themselves.
-|`*.kicad_sym` |Schematic symbol library file, containing the component descriptions: graphic shape, pins, fields.
-|`*.sch` |Legacy (KiCad 5.x and earlier) schematic file.
-Can be read and will be converted to a `.kicad_sch` file on write.
+|`*.kicad_sch` |Schematic files, containing all symbol and connection information.
+|`*.kicad_sym` |Schematic symbol library file, containing the symbol descriptions: graphic shape, pins, fields.
+|`*.kicad_blocks` |Schematic design block library folders. The folder itself is the library.
+|`*.kicad_block`
+      |Schematic design block folder for defining a reusable schematic design.
+      The folder is the design block, and contains a `.kicad_sch` file defining
+      the design block's schematic and a `.json` file defining the design
+      block's metadata.
+|`*.wbk` |Simulator workbook file containing SPICE simulation setup information.
+|`*.sch`
+      |Legacy (KiCad 5.x and earlier) schematic file.
+      Can be read and will be converted to a `.kicad_sch` file on write.
 |`*.lib` |Legacy (KiCad 5.x and earlier) schematic library file. Can be read but not written.
 |`*.dcm` |Legacy (KiCad 5.x and earlier) schematic library documentation. Can be read but not written.
-|`*-cache.lib` |Legacy (KiCad 5.x and earlier) schematic component library cache file.
-Required for proper loading of a legacy schematic (`.sch`) file.
-|`sym-lib-table` |Symbol library table:
-list of symbol libraries available in the schematic editor.
+|`*-cache.lib`
+      |Legacy (KiCad 5.x and earlier) schematic component library cache file.
+      Required for proper loading of a legacy schematic (`.sch`) file.
+|`sym-lib-table` |Symbol library table: list of symbol libraries available in the schematic editor.
+|`design-block-lib-table` |Design block library table: list of design block libraries available in the schematic editor.
 |=================================================================
 
 ==== Board editor files and folders
@@ -90,13 +107,16 @@ list of symbol libraries available in the schematic editor.
 |`*.pretty` |Footprint library folders. The folder itself is the library.
 |`*.kicad_mod` |Footprint files, containing one footprint description each.
 |`*.kicad_dru` |Design rules file, containing custom design rules for a certain `.kicad_pcb` file.
-|`*.brd` |Legacy (KiCad 4.x and earlier) board file.
-Can be read, but not written, by the current board editor.
-|`*.mod` |Legacy (KiCad 4.x and earlier) footprint library file.
-Can be read by the footprint or the board editor, but not written.
-|`fp-lib-table` |Footprint library table: 
-list of footprint libraries available in the board editor.
-|`fp-info-cache` |Cache to speed up loading of footprint libraries. Does not need to be distributed with the project or put under version control.
+|`*.brd`
+      |Legacy (KiCad 4.x and earlier) board file.
+      Can be read, but not written, by the current board editor.
+|`*.mod`
+      |Legacy (KiCad 4.x and earlier) footprint library file.
+      Can be read by the footprint or the board editor, but not written.
+|`fp-lib-table` |Footprint library table: list of footprint libraries available in the board editor.
+|`fp-info-cache`
+      |Cache to speed up loading of footprint libraries. Does not need to be
+      distributed with the project or put under version control.
 |=================================================================
 
 ==== Common files
@@ -104,8 +124,9 @@ list of footprint libraries available in the board editor.
 |=================================================================
 |`*.kicad_prl` |Local settings for the current project; helps KiCad remember
 the last used settings such as layer visibility or selection filter.
-May not need to be distributed with the project or put under version control.
-|`*.kicad_wks` |Page layout (drawing border and title block) description file
+Does not need to be distributed with the project or put under version control.
+|`*.kicad_wks` |Page layout (drawing border and title block) description file.
+|`*.kicad_jobset` |Jobset definition file containing output jobsets.
 |`*.net` |Netlist file created from the schematic, and read by the board editor.
 Note that the
 xref:../pcbnew/pcbnew.adoc#forward-and-back-annotation[recommended
@@ -146,7 +167,7 @@ design, make sure to include it.
 
 Some files, such as the project-local settings file (`.kicad_prl`) and the `fp-info-cache` file,
 are not necessary to send with your project.  If you use a version control system such as Git to
-keep track of your KiCad projects, you may want to add these files to the list of ignored files so
+keep track of your KiCad projects, you can add these files to the list of ignored files so
 that they are not tracked.
 
 
@@ -238,7 +259,9 @@ directory will be overwritten.
 
 The tree view shows a list of files inside the project folder.  Double-clicking on a file in the
 tree view will open it in the associated editor.  Right-clicking on a file will open a context
-menu with some file manipulation commands.
+menu with some file manipulation commands. If the project is part of a Git repository, the tree
+shows icons indicating the <<git-integration,version control status>> of each file and lists
+the active branch next to the project name.
 
 image::images/project_tree.png[scaledwidth="35%"]
 
@@ -353,7 +376,8 @@ archive:
       `\*.kicad_sch`, `*.kicad_sym`,
       `\*.kicad_pcb`, `*.kicad_mod`,
       `\*.kicad_dru`, `*.kicad_wks`,
-      `\*.wbk`, `fp-lib-table`, `sym-lib-table`
+      `\*.kicad_jobset`, `*.wbk`, `*.json`,
+      `fp-lib-table`, `sym-lib-table`, `design-block-lib-table`
       | KiCad design files
 |`\*.pro`, `*.sch`,
       `\*.lib`, `*.dcm`, `\*.cmp`, `*.brd`, `*.mod`
@@ -377,6 +401,69 @@ archive:
       | IBIS models
 |=================================================================
 
+=== Git integration
+
+The KiCad Project Manager integrates with the Git version control tool for
+tracking changes in your projects. It can work with an existing local Git
+repository, clone a project from a remote repository, or create a new repository
+in an existing project. You can use the tool to commit changes from your
+project, push and pull from a remote repository, and switch branches.
+
+image::images/git_status.png[]
+
+If you open a project that is already under version control with Git, i.e. it is
+part of an existing Git repository, you can use KiCad's version control features
+to track changes in the project without any additional configuration. The active
+branch is displayed next to the project name, and the version control status of
+each file in your project is shown graphically in the project files tree. For
+example, the image:images/icons/git_good_check_16.png[] icon indicates a file is
+unchanged, image:images/icons/git_modified_16.png[] indicates a file has
+uncommitted changes, and image:images/icons/git_add_16.png[] indicates a file is
+not tracked. No icons are shown if the project is not part of a Git repository.
+
+If an existing project is not already under version control, you can initialize
+a new Git repository in the project by right clicking on one of the files in the
+project files tree and clicking **Version Control** ->
+**Add Project to Version Control...**. You must configure a remote when
+initializing a repository in this way. Configuring the repository requires the
+following information:
+
+* **Name**: A name for the repository. This field can be anything and is not used.
+* **Location**: The URL or file path to the remote.
+* **Connection Type**: The protocol for connecting to the remote.
+  This can be HTTPS, SSH, or local (file). HTTPS connections use username and
+  password authentication. SSH connections use a username, private key, and an
+  optional password for the keyfile. Local connections do not use
+  authentication. You can check the connection and authentication by clicking
+  the **Test** button.
+
+image::images/git_add_project_to_repository.png[]
+
+To clone an existing repository and open the cloned project, use **File** ->
+**Clone Project from Repository...**. You can clone a remote repository using
+SSH or HTTPS, or clone a local repository. The configuration settings for
+cloning are the same as the settings for configuring a new repository and remote
+for an existing project.
+
+When you have made changes that you want to commit, you can commit either the
+entire project (right click -> **Version Control** -> **Commit Project...**) or
+a specific file (right click the file -> **Version Control** -> **Commit
+File...**). Both actions open the Commit Changes dialog, but the Commit Project
+action shows all changed files in the repository, while the Commit File action
+shows only the file that was right clicked.  The Commit Changes dialog lets you
+select the changed files you want to include in the commit, provide a commit
+message and author, and commit the changes.
+
+image::images/git_commit.png[]
+
+To push changes to the remote, right click in the project files tree and select
+**Version Control** -> **Push**. To pull from the remote, right click and select
+**Version Control** -> **Pull**. You can switch branches by selecting the
+desired branch from the **Version Control** -> **Switch to Branch** menu.
+
+Finally, you can remove version control entirely, deleting all tracked history
+from the local repository, by right clicking and selecting **Version Control**
+-> **Remove Version Control**.
 
 [[kicad-manager-configuration]]
 == KiCad configuration
@@ -543,9 +630,9 @@ and add your own path variables to define personal paths, if needed.
 NOTE: KiCad will automatically resolve versioned path variables from
       older versions of KiCad to the value of the corresponding variable from
       the current KiCad version, as long as the old variable is not explicitly
-      defined itself. For example, `$\{KICAD7_FOOTPRINT_DIR\}` will
-      automatically resolve to the value of `$\{KICAD8_FOOTPRINT_DIR\}` if there
-      is no `KICAD7_FOOTPRINT_DIR` variable defined.
+      defined itself. For example, `$\{KICAD8_FOOTPRINT_DIR\}` will
+      automatically resolve to the value of `$\{KICAD9_FOOTPRINT_DIR\}` if there
+      is no `KICAD8_FOOTPRINT_DIR` variable defined.
 
 [[kicad-environment-variables]]
 ==== KiCad path variables
@@ -637,6 +724,108 @@ libraries available to all projects. The project-specific library table is
 optional and contains a list of libraries specific to the project. It is located
 in the project directory.
 
+[[jobsets]]
+== Jobsets
+
+KiCad lets you configure a list of outputs that are all generated with a single click. The list of output jobs and where they will be saved is called a __jobset__. For example, a jobset might contain jobs to generate Gerber files, assembly data, a bill of materials, PDF plots of the schematic and PCB, while also running ERC and DRC checks, with all of the outputs saved to a compressed archive. The full list of available jobs is given <<job-types,below>>.
+
+Each __job__ in a jobset defines a single type of generated output, such as a bill of materials or a set of Gerbers. A job can be configured in the same way as if the output was manually generated from the schematic or board editor. The configuration for each job is stored in the jobset and remembered when you load the jobset later. Jobs are configured individually, so if you include the same type of job multiple times in a single jobset, each job will have its own independent configuration. For example, this lets you generate PDF outputs in color as well as black and white.
+
+In addition to the jobs, jobsets also contain __jobset output__ configurations, which define a list of jobs to run and how to store their outputs. Jobset output configurations can simply store the chosen jobs' output files in a specified location, or they can add the output files to a compressed archive. Each jobset output configuration can select a different subset of jobs from the full list of jobs in the jobset. You can run each jobset output individually or run all jobset outputs at once. As an example, you could set up one jobset output configuration that generates PDFs of the board and schematic and copies them to an external location, while another jobset output configuration generates the fabrication files and compresses them in a zip archive to send to the board manufacturer.
+
+Projects can have multiple jobsets, with each jobset defining a different list of jobs and output configurations. Each jobset is stored in a `.kicad_jobset` file, which can be specific to a single project, copied between projects, or even stored in a central location and shared between projects.
+
+To use a jobset, first create a new jobset file in the KiCad project manager (**File** -> **New Jobset File...**) and choose a name and location for it. Alternatively, you can open an existing jobset file with **File** -> **Open Jobset File...**. Jobset files that are stored in the project directory are considered part of the project and are displayed in the project file tree. You can open a jobset file in the project file tree by double clicking on it.
+
+image::images/jobset_overview.png[]
+
+Once you create or open a jobset, it is displayed in a new tab in the project manager. The list of jobs is shown in the middle and the list of jobset outputs is shown on the right. New jobsets will not contain any jobs or outputs. When you make changes to a jobset, you can save the changes by clicking the **Save Jobset** button.
+
+=== Defining jobs
+
+To add a new job, click the image:images/icons/small_plus_16.png[] button under the Jobs list. In the Add New Job dialog that appears, select the desired type of job. You can filter which types of jobs are shown in the list by typing in the **Filter** textbox at the bottom.
+
+When you select a job and press **OK**, the configuration dialog for that type of output will appear. Each output configuration dialog provides the same options you would have if you manually generated that type of output from the schematic or board editor.
+
+NOTE: Output filenames and paths specified in job configurations are relative to the <<jobset-outputs,jobset output>> folder or archive root. You can use certain xref:../eeschema/eeschema.adoc#text-variables[text variables], like `${PROJECTNAME}`, `${CURRENT_DATE}`, and xref:../eeschema/eeschema.adoc#schematic-setup-text-variables[project text variables].
+
+image::images/jobset_job_settings_export_sch_pdf.png[]
+
+When you accept the output configuration dialog, the job is added to the list of jobs, where you can optionally change the new job's description from its default. To change a job's description or settings later, right click the job in the list and select **Edit Job Description** or **Edit Job Settings...**. Double clicking on a job also edits its settings. To remove a job, select the job and click the image:images/icons/small_trash_16.png[] button. To reorder the list, select a job and move it up or down using the image:images/icons/small_up_16.png[] or image:images/icons/small_down_16.png[] buttons.
+
+[[jobset-outputs]]
+=== Defining jobset outputs
+
+You cannot generate any outputs from a jobset until you add a jobset output configuration. To add a jobset output, click the image:images/icons/small_plus_16.png[] button under the Outputs list. When the Add New Output dialog appears, select a type of output:
+
+* **Archive** saves the outputs generated by the jobs in a compressed zip archive.
+* **Folder** saves the outputs generated by the jobs uncompressed in a folder.
+
+Once you have selected a type of output, the Output Options dialog appears. 
+
+image::images/jobset_archive_output_options.png[]
+
+Here you can select which jobs will be run as part of this jobset output, as well as the folder or archive name that will be used to store them. By default all jobs are enabled. You can also set a description for the output which will be displayed in the Outputs list. The output path controls where the files generated by the jobs will be saved. The path here can be absolute or relative to the project directory, and it can use <<kicad-environment-variables,path variables>> or certain text variables (`${PROJECTNAME}`, `${CURRENT_DATE}`, and xref:../eeschema/eeschema.adoc#schematic-setup-text-variables[project text variables]). Filenames defined in job configurations are relative to the jobset output directory or archive root.
+
+When you click **OK** in this dialog, the new jobset output is added to the Outputs list. You can modify an existing jobset output configuration by clicking its image:images/icons/config_16.png[] button, or remove it by clicking its image:images/icons/small_trash_16.png[] button.
+
+After configuring your jobs and outputs, you can generate an individual set of outputs by clicking the **Generate** button for the desired output configuration. You can run all outputs at once by clicking the **Generate All Outputs** button.
+
+If a jobset output runs and generates its outputs successfully, a blue check is shown that indicates the last run was successful. If a jobset output fails to complete successfully, a red exclamation point is shown to indicate the run was not successful. Clicking on the success/failure indicator will display the Job Output Run Log dialog, which displays the status of each job in the jobset output configuration. Clicking on a specific job will display the logged output from that job, if there is any.
+
+image::images/jobset_run_log.png[]
+
+[[job-types]]
+=== Available job types
+
+The following types of jobs are available:
+
+[width="100%",cols="30%,70%",]
+|====
+| Job | Description
+| PCB: Export 3D Model
+      | Exports a xref:../pcbnew/pcbnew.adoc#_3d-export[3D model] of the board. The model format can be STEP, GLB (binary glTF), XAO, BREP (OCCT), PLY, or STL.
+| PCB: Export Drill Data
+      | Exports a xref:../pcbnew/pcbnew.adoc#drill_files[drill file] from the board.
+| PCB: Export DXF
+      | Exports the board design to a xref:../pcbnew/pcbnew.adoc#fabrication_outputs_and_plotting[DXF file].
+| PCB: Export Gerbers
+      | Exports the board design to xref:../pcbnew/pcbnew.adoc#fabrication_outputs_and_plotting[Gerber files], with one file per selected layer.
+| PCB: Export IPC2581
+      | Exports the board design in xref:../pcbnew/pcbnew.adoc#ipc-2581-export[IPC-2581 format].
+| PCB: Export ODB{pp}
+      | Exports the board design in xref:../pcbnew/pcbnew.adoc#odb-export[ODB{pp} format].
+| PCB: Export PDF
+      | Exports the board design to xref:../pcbnew/pcbnew.adoc#fabrication_outputs_and_plotting[PDF files], with one file per selected board layer. You can also generate a single PDF with multiple layers depending on the plot configuration.
+| PCB: Export Position Data
+      | Exports a xref:../pcbnew/pcbnew.adoc#component_placement_files[position (component placement) file] from the board.
+| PCB: Export SVG
+      | Exports the board design to a xref:../pcbnew/pcbnew.adoc#fabrication_outputs_and_plotting[SVG file].
+| PCB: Perform DRC
+      | Performs a xref:../pcbnew/pcbnew.adoc#design-rule-checking[Design Rule Check] on the board and generates a report. If DRC violations are found, this job can optionally report a job failure.
+| PCB: Render
+      | Generates a xref:../pcbnew/pcbnew.adoc#threed-viewer[raytraced rendering of the 3D model of the board] as a PNG or JPG file.
+| Schematic: Export DXF
+      | Exports the schematic to a xref:../eeschema/eeschema.adoc#plotting[DXF file].
+| Schematic: Export HPGL
+      | Exports the schematic to a xref:../eeschema/eeschema.adoc#plotting[HPGL file].
+| Schematic: Export Netlist
+      | Exports a xref:../eeschema/eeschema.adoc#netlist-export[netlist] from the schematic, with various formats available.
+| Schematic: Export PDF
+      | Exports the schematic to a xref:../eeschema/eeschema.adoc#plotting[PDF file].
+| Schematic: Export Postscript
+      | Exports the schematic to a xref:../eeschema/eeschema.adoc#plotting[PostScript file].
+| Schematic: Export SVG
+      | Exports the schematic to a xref:../eeschema/eeschema.adoc#plotting[SVG file].
+| Schematic: Generate Bill of Materials
+      | Exports a xref:../eeschema/eeschema.adoc#bom-export[bill of materials] from the schematic.
+| Schematic: Perform ERC
+      | Performs an xref:../eeschema/eeschema.adoc#erc[Electrical Rule Check] on the schematic and generates a report. If ERC violations are found, this job can optionally report a job failure.
+| Special: Copy files
+      | Copies the specified file to the specified destination. A failure to copy the files can optionally cause the output job to fail. You can control whether files in the destination should be overwritten or not.
+| Special: Execute Command
+      | Executes an arbitrary command. Output from the command can optionally be logged to a file. You can either ignore non-zero output codes or cause them to fail the output job.
+|====
 
 [[project-templates]]
 == Project templates

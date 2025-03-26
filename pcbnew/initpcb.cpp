@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2007-2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,6 +23,7 @@
  */
 
 #include <confirm.h>
+#include <lset.h>
 #include <pcb_edit_frame.h>
 #include <project.h>
 #include <tool/tool_manager.h>
@@ -78,6 +79,9 @@ bool PCB_EDIT_FRAME::Clear_Pcb( bool doAskAboutUnsavedChanges, bool aFinal )
         // Default copper layers count set to 2: double layer board
         GetBoard()->SetCopperLayerCount( 2 );
 
+        // Default user defined layers count set to 4
+        GetBoard()->SetUserDefinedLayerCount( 4 );
+
         // Update display (some options depend on the board setup)
         GetBoard()->SetVisibleLayers( LSET().set() );
         ReCreateLayerBox();
@@ -90,7 +94,7 @@ bool PCB_EDIT_FRAME::Clear_Pcb( bool doAskAboutUnsavedChanges, bool aFinal )
     else if( m_isClosing )
     {
         if( m_toolManager )
-            m_toolManager->ResetTools( TOOL_BASE::MODEL_RELOAD );
+            m_toolManager->ResetTools( TOOL_BASE::SHUTDOWN );
 
         // Clear the view so we don't attempt redraws (particularly of the RATSNEST_VIEW_ITEM,
         // which causes all manner of grief).
@@ -145,10 +149,10 @@ bool FOOTPRINT_EDIT_FRAME::Clear_Pcb( bool doAskAboutUnsavedChanges )
         // Setup our own severities for the Footprint Checker.
         // These are not (at present) user-editable.
         std::map<int, SEVERITY>& drcSeverities = GetBoard()->GetDesignSettings().m_DRCSeverities;
-        
+
         for( int errorCode = DRCE_FIRST; errorCode <= DRCE_LAST; ++errorCode )
             drcSeverities[ errorCode ] = RPT_SEVERITY_ERROR;
-    
+
         drcSeverities[ DRCE_DRILLED_HOLES_COLOCATED ] = RPT_SEVERITY_WARNING;
         drcSeverities[ DRCE_DRILLED_HOLES_TOO_CLOSE ] = RPT_SEVERITY_WARNING;
 

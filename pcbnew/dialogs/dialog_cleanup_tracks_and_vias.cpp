@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,15 +30,22 @@
 #include <drc/drc_item.h>
 #include <tools/zone_filler_tool.h>
 #include <reporter.h>
+#include <pcb_layer_box_selector.h>
+#include <board_design_settings.h>
+#include <board_connected_item.h>
+#include <pcb_group.h>
+#include <project/net_settings.h>
 
 DIALOG_CLEANUP_TRACKS_AND_VIAS::DIALOG_CLEANUP_TRACKS_AND_VIAS( PCB_EDIT_FRAME* aParentFrame ) :
         DIALOG_CLEANUP_TRACKS_AND_VIAS_BASE( aParentFrame ),
         m_parentFrame( aParentFrame ),
+        m_brd( aParentFrame->GetBoard() ),
         m_firstRun( true )
 {
-    auto cfg = m_parentFrame->GetPcbNewSettings();
+    PCBNEW_SETTINGS* cfg = m_parentFrame->GetPcbNewSettings();
     m_reporter = new WX_TEXT_CTRL_REPORTER( m_tcReport );
 
+    m_cbRefillZones->SetValue( cfg->m_Cleanup.cleanup_refill_zones );
     m_cleanViasOpt->SetValue( cfg->m_Cleanup.cleanup_vias );
     m_mergeSegmOpt->SetValue( cfg->m_Cleanup.merge_segments );
     m_deleteUnconnectedOpt->SetValue( cfg->m_Cleanup.cleanup_unconnected );
@@ -46,10 +53,16 @@ DIALOG_CLEANUP_TRACKS_AND_VIAS::DIALOG_CLEANUP_TRACKS_AND_VIAS( PCB_EDIT_FRAME* 
     m_deleteTracksInPadsOpt->SetValue( cfg->m_Cleanup.cleanup_tracks_in_pad );
     m_deleteDanglingViasOpt->SetValue( cfg->m_Cleanup.delete_dangling_vias );
 
+    buildFilterLists();
+
     m_changesTreeModel = new RC_TREE_MODEL( m_parentFrame, m_changesDataView );
     m_changesDataView->AssociateModel( m_changesTreeModel );
 
     setupOKButtonLabel();
+
+    m_netFilter->Connect( FILTERED_ITEM_SELECTED,
+                          wxCommandEventHandler( DIALOG_CLEANUP_TRACKS_AND_VIAS::OnNetFilterSelect ),
+                          nullptr, this );
 
     m_sdbSizer->SetSizeHints( this );
 
@@ -72,6 +85,7 @@ DIALOG_CLEANUP_TRACKS_AND_VIAS::~DIALOG_CLEANUP_TRACKS_AND_VIAS()
 
     if( cfg )
     {
+        cfg->m_Cleanup.cleanup_refill_zones   = m_cbRefillZones->GetValue();
         cfg->m_Cleanup.cleanup_vias           = m_cleanViasOpt->GetValue();
         cfg->m_Cleanup.merge_segments         = m_mergeSegmOpt->GetValue();
         cfg->m_Cleanup.cleanup_unconnected    = m_deleteUnconnectedOpt->GetValue();
@@ -81,6 +95,36 @@ DIALOG_CLEANUP_TRACKS_AND_VIAS::~DIALOG_CLEANUP_TRACKS_AND_VIAS()
     }
 
     m_changesTreeModel->DecRef();
+}
+
+
+void DIALOG_CLEANUP_TRACKS_AND_VIAS::buildFilterLists()
+{
+    // Populate the net filter list with net names
+    m_netFilter->SetBoard( m_brd );
+    m_netFilter->SetNetInfo( &m_brd->GetNetInfo() );
+
+    if( !m_brd->GetHighLightNetCodes().empty() )
+        m_netFilter->SetSelectedNetcode( *m_brd->GetHighLightNetCodes().begin() );
+
+    // Populate the netclass filter list with netclass names
+    wxArrayString                  netclassNames;
+    std::shared_ptr<NET_SETTINGS>& settings = m_brd->GetDesignSettings().m_NetSettings;
+
+    netclassNames.push_back( settings->GetDefaultNetclass()->GetName() );
+
+    for( const auto& [name, netclass] : settings->GetNetclasses() )
+        netclassNames.push_back( name );
+
+    m_netclassFilter->Set( netclassNames );
+    m_netclassFilter->SetStringSelection( m_brd->GetDesignSettings().GetCurrentNetClassName() );
+
+    // Populate the layer filter list
+    m_layerFilter->SetBoardFrame( m_parentFrame );
+    m_layerFilter->SetLayersHotkeys( false );
+    m_layerFilter->SetNotAllowedLayerSet( LSET::AllNonCuMask() );
+    m_layerFilter->Resync();
+    m_layerFilter->SetLayerSelection( m_parentFrame->GetActiveLayer() );
 }
 
 
@@ -95,9 +139,27 @@ void DIALOG_CLEANUP_TRACKS_AND_VIAS::setupOKButtonLabel()
 
 void DIALOG_CLEANUP_TRACKS_AND_VIAS::OnCheckBox( wxCommandEvent& anEvent )
 {
+    m_changesTreeModel->Update( nullptr, RPT_SEVERITY_ACTION );
     m_firstRun = true;
     setupOKButtonLabel();
-    m_tcReport->Clear();
+}
+
+
+void DIALOG_CLEANUP_TRACKS_AND_VIAS::OnNetFilterSelect( wxCommandEvent& aEvent )
+{
+    OnCheckBox( aEvent );
+}
+
+
+void DIALOG_CLEANUP_TRACKS_AND_VIAS::OnNetclassFilterSelect( wxCommandEvent& aEvent )
+{
+    OnCheckBox( aEvent );
+}
+
+
+void DIALOG_CLEANUP_TRACKS_AND_VIAS::OnLayerFilterSelect( wxCommandEvent& aEvent )
+{
+    OnCheckBox( aEvent );
 }
 
 
@@ -124,7 +186,68 @@ void DIALOG_CLEANUP_TRACKS_AND_VIAS::doCleanup( bool aDryRun )
 
     wxBusyCursor busy;
     BOARD_COMMIT commit( m_parentFrame );
-    TRACKS_CLEANER cleaner( m_parentFrame->GetBoard(), commit );
+    TRACKS_CLEANER cleaner( m_brd, commit );
+
+    struct FILTER_STATE
+    {
+        bool selectedOnly;
+        int netCodeOnly;
+        wxString netClassOnly;
+        int layerOnly;
+    };
+
+    FILTER_STATE filter_state = {
+            .selectedOnly = m_selectedItemsFilter->GetValue(),
+            .netCodeOnly = m_netFilterOpt->GetValue() ? m_netFilter->GetSelectedNetcode() : -1,
+            .netClassOnly = m_netclassFilterOpt->GetValue()
+                                ? m_netclassFilter->GetStringSelection()
+                                : wxString(),
+            .layerOnly = m_layerFilterOpt->GetValue()
+                             ? m_layerFilter->GetLayerSelection()
+                             : UNDEFINED_LAYER
+            };
+
+    cleaner.SetFilter(
+            [&, filter_state]( BOARD_CONNECTED_ITEM* aItem ) -> bool
+            {
+                if( filter_state.selectedOnly )
+                {
+                    if( !aItem->IsSelected() )
+                    {
+                        PCB_GROUP* group = aItem->GetParentGroup();
+
+                        while( group && !group->IsSelected() )
+                            group = group->GetParentGroup();
+
+                        if( !group )
+                            return true;
+                    }
+                }
+
+                if( filter_state.netCodeOnly >= 0 )
+                {
+                    if( aItem->GetNetCode() != filter_state.netCodeOnly )
+                        return true;
+                }
+
+                if( !filter_state.netClassOnly.IsEmpty() )
+                {
+                    NETCLASS* netclass = aItem->GetEffectiveNetClass();
+
+                    if( !netclass->ContainsNetclassWithName( filter_state.netClassOnly ) )
+                        return true;
+                }
+
+                if( filter_state.layerOnly != UNDEFINED_LAYER )
+                {
+                    if( aItem->GetLayer() != filter_state.layerOnly )
+                        return true;
+                }
+
+                return false;
+            } );
+
+    m_outputBook->SetSelection( 1 );
 
     if( !aDryRun )
     {
@@ -139,10 +262,14 @@ void DIALOG_CLEANUP_TRACKS_AND_VIAS::doCleanup( bool aDryRun )
 
     if( m_firstRun )
     {
-        m_reporter->Report( _( "Checking zones..." ) );
-        wxSafeYield();      // Timeslice to update UI
-        m_parentFrame->GetToolManager()->GetTool<ZONE_FILLER_TOOL>()->CheckAllZones( this );
-        wxSafeYield();      // Timeslice to close zone progress reporter
+        if( m_cbRefillZones->GetValue() )
+        {
+            m_reporter->Report( _( "Checking zones..." ) );
+            wxSafeYield();      // Timeslice to update UI
+            m_parentFrame->GetToolManager()->GetTool<ZONE_FILLER_TOOL>()->CheckAllZones( this );
+            wxSafeYield();      // Timeslice to close zone progress reporter
+        }
+
         m_firstRun = false;
     }
 
@@ -159,6 +286,14 @@ void DIALOG_CLEANUP_TRACKS_AND_VIAS::doCleanup( bool aDryRun )
                                              m_deleteDanglingViasOpt->GetValue(),
                                              m_reporter );
 
+    if( m_cbRefillZones->GetValue() == wxCHK_CHECKED && !aDryRun )
+    {
+        m_reporter->Report( _( "Refilling all zones..." ) );
+        wxSafeYield(); // Timeslice to update UI
+        m_parentFrame->GetToolManager()->GetTool<ZONE_FILLER_TOOL>()->FillAllZones( this );
+        wxSafeYield(); // Timeslice to close zone progress reporter
+    }
+
     if( aDryRun )
     {
         m_changesTreeModel->Update( std::make_shared<VECTOR_CLEANUP_ITEMS_PROVIDER>( &m_items ),
@@ -167,11 +302,11 @@ void DIALOG_CLEANUP_TRACKS_AND_VIAS::doCleanup( bool aDryRun )
     else if( !commit.Empty() )
     {
         // Clear undo and redo lists to avoid inconsistencies between lists
-        commit.Push( _( "Board cleanup" ) );
+        commit.Push( _( "Board Cleanup" ) );
         m_parentFrame->GetCanvas()->Refresh( true );
     }
 
-    m_reporter->Report( _( "Done." ) );
+    m_outputBook->SetSelection( 0 );
     setupOKButtonLabel();
 }
 
@@ -179,7 +314,7 @@ void DIALOG_CLEANUP_TRACKS_AND_VIAS::doCleanup( bool aDryRun )
 void DIALOG_CLEANUP_TRACKS_AND_VIAS::OnSelectItem( wxDataViewEvent& aEvent )
 {
     const KIID&   itemID = RC_TREE_MODEL::ToUUID( aEvent.GetItem() );
-    BOARD_ITEM*   item = m_parentFrame->GetBoard()->GetItem( itemID );
+    BOARD_ITEM*   item = m_brd->GetItem( itemID );
     WINDOW_THAWER thawer( m_parentFrame );
 
     m_parentFrame->FocusOnItem( item );

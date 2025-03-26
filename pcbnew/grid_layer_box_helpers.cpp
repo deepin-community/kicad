@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,16 +22,19 @@
  */
 
 #include <grid_layer_box_helpers.h>
+
+#include <wx/textctrl.h>
+
 #include <pgm_base.h>
 #include <settings/settings_manager.h>
 #include <settings/color_settings.h>
 #include <footprint_editor_settings.h>
 #include <board.h>
+#include <lset.h>
 #include <pcb_edit_frame.h>
 #include <pcb_layer_box_selector.h>
 #include <settings/color_settings.h>
-#include <widgets/layer_box_selector.h>
-#include <wx/textctrl.h>
+#include <widgets/layer_presentation.h>
 
 
 //-------- Custom wxGridCellRenderers --------------------------------------------------
@@ -72,10 +75,12 @@ void GRID_CELL_LAYER_RENDERER::Draw( wxGrid& aGrid, wxGridCellAttr& aAttr, wxDC&
     }
 
     // draw the swatch
-    wxBitmap bitmap( 14, 14 );
-    LAYER_SELECTOR::DrawColorSwatch( bitmap,
-                                     cs->GetColor( ToLAYER_ID( LAYER_PCB_BACKGROUND ) ),
-                                     cs->GetColor( ToLAYER_ID( value ) ) );
+    int      size = KiROUND( 14 * aDC.GetContentScaleFactor() );
+    wxBitmap bitmap( size, size );
+
+    LAYER_PRESENTATION::DrawColorSwatch( bitmap,
+                                         cs->GetColor( ToLAYER_ID( LAYER_PCB_BACKGROUND ) ),
+                                         cs->GetColor( ToLAYER_ID( value ) ) );
 
     aDC.DrawBitmap( bitmap, rect.GetLeft() + 4,
                     rect.GetTop() + ( rect.GetHeight() - bitmap.GetHeight() ) / 2, true );
@@ -122,6 +127,7 @@ void GRID_CELL_LAYER_SELECTOR::Create( wxWindow* aParent, wxWindowID aId,
                     wxDefaultPosition, wxDefaultSize, 0, nullptr,
                     wxCB_READONLY | wxTE_PROCESS_ENTER | wxTE_PROCESS_TAB | wxBORDER_NONE );
 
+    LayerBox()->SetLayersHotkeys( false );
     LayerBox()->SetBoardFrame( m_frame );
     LayerBox()->SetNotAllowedLayerSet( m_mask );
 
@@ -181,6 +187,7 @@ void GRID_CELL_LAYER_SELECTOR::BeginEdit( int aRow, int aCol, wxGrid* aGrid )
     if( m_frame && !m_frame->GetBoard()->IsLayerEnabled( ToLAYER_ID( m_value ) ) )
         LayerBox()->ShowNonActivatedLayers( true );
 
+    LayerBox()->SetNotAllowedLayerSet( m_mask );
     LayerBox()->Resync();
     LayerBox()->SetLayerSelection( m_value );
     LayerBox()->SetFocus();

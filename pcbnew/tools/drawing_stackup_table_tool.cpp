@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014-2017 CERN
- * Copyright (C) 2018-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
   *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,6 +37,7 @@
 #include <pcb_shape.h>
 #include <pcb_group.h>
 #include <pcb_text.h>
+#include <view/view_controls.h>
 #include <string_utils.h>
 #include <wx/utils.h>
 
@@ -351,7 +352,7 @@ std::vector<BOARD_ITEM*> DRAWING_TOOL::DrawSpecificationStackup( const VECTOR2I&
         for( BOARD_ITEM* item : table )
             commit.Add( item );
 
-        commit.Push( _( "Insert board stackup table" ) );
+        commit.Push( _( "Insert Board Stackup Table" ) );
     }
 
     return table;
@@ -527,7 +528,7 @@ std::vector<BOARD_ITEM*> DRAWING_TOOL::DrawBoardCharacteristics( const VECTOR2I&
         for( BOARD_ITEM* item : objects )
             commit.Add( item );
 
-        commit.Push( wxT( "Board Characteristics" ) );
+        commit.Push( _( "Board Characteristics" ) );
     }
 
     tableSize->x = tableSize2.x;
@@ -616,7 +617,7 @@ int DRAWING_TOOL::InteractivePlaceWithPreview( const TOOL_EVENT& aEvent,
         }
         else if( evt->IsClick( BUT_RIGHT ) )
         {
-            m_menu.ShowContextMenu( selection() );
+            m_menu->ShowContextMenu( selection() );
         }
         else if( evt->IsClick( BUT_LEFT ) )
         {
@@ -660,7 +661,7 @@ int DRAWING_TOOL::InteractivePlaceWithPreview( const TOOL_EVENT& aEvent,
                         } );
             }
 
-            commit.Push( wxT( "Placing items" ) );
+            commit.Push( _( "Place Items" ) );
             m_frame->PopTool( aEvent );
 
             break;
@@ -697,7 +698,7 @@ int DRAWING_TOOL::PlaceCharacteristics( const TOOL_EVENT& aEvent )
 
     PCB_LAYER_ID layer = m_frame->GetActiveLayer();
 
-    if( ( layerSet & LSET( layer ) ).count() ) // if layer is a forbidden layer
+    if( ( layerSet & LSET( { layer } ) ).count() ) // if layer is a forbidden layer
         m_frame->SetActiveLayer( Cmts_User );
 
     std::vector<BOARD_ITEM*> table = DrawBoardCharacteristics( { 0, 0 }, m_frame->GetActiveLayer(),
@@ -760,7 +761,7 @@ int DRAWING_TOOL::PlaceStackup( const TOOL_EVENT& aEvent )
     PCB_LAYER_ID layer      = m_frame->GetActiveLayer();
     PCB_LAYER_ID savedLayer = layer;
 
-    if( ( layerSet & LSET( layer ) ).count() ) // if layer is a forbidden layer
+    if( ( layerSet & LSET( { layer } ) ).count() ) // if layer is a forbidden layer
     {
         m_frame->SetActiveLayer( Cmts_User );
         layer = Cmts_User;

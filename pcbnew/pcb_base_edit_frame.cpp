@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 CERN
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -37,6 +37,7 @@
 #include <pcb_dimension.h>
 #include <footprint.h>
 #include <footprint_info_impl.h>
+#include <layer_pairs.h>
 #include <project.h>
 #include <settings/color_settings.h>
 #include <settings/settings_manager.h>
@@ -131,13 +132,16 @@ bool PCB_BASE_EDIT_FRAME::TryBefore( wxEvent& aEvent )
                     EDA_VIEW_SWITCHER switcher( this, mru, PRESET_SWITCH_KEY );
 
                     s_presetSwitcherShown = true;
-                    switcher.ShowModal();
+                    const int switcherDialogRet = switcher.ShowModal();
                     s_presetSwitcherShown = false;
 
-                    int idx = switcher.GetSelection();
+                    if( switcherDialogRet == wxID_OK )
+                    {
+                        int idx = switcher.GetSelection();
 
-                    if( idx >= 0 && idx < (int) mru.size() )
-                        m_appearancePanel->ApplyLayerPreset( mru[idx] );
+                        if( idx >= 0 && idx < (int) mru.size() )
+                            m_appearancePanel->ApplyLayerPreset( mru[idx] );
+                    }
 
                     return true;
                 }
@@ -154,13 +158,16 @@ bool PCB_BASE_EDIT_FRAME::TryBefore( wxEvent& aEvent )
                     EDA_VIEW_SWITCHER switcher( this, mru, VIEWPORT_SWITCH_KEY );
 
                     s_viewportSwitcherShown = true;
-                    switcher.ShowModal();
+                    const int switcherDialogRet = switcher.ShowModal();
                     s_viewportSwitcherShown = false;
 
-                    int idx = switcher.GetSelection();
+                    if( switcherDialogRet == wxID_OK )
+                    {
+                        int idx = switcher.GetSelection();
 
-                    if( idx >= 0 && idx < (int) mru.size() )
-                        m_appearancePanel->ApplyViewport( mru[idx] );
+                        if( idx >= 0 && idx < (int) mru.size() )
+                            m_appearancePanel->ApplyViewport( mru[idx] );
+                    }
 
                     return true;
                 }

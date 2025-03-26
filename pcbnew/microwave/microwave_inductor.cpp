@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -50,9 +50,9 @@
 static void gen_arc( std::vector<VECTOR2I>& aBuffer, const VECTOR2I& aStartPoint,
                      const VECTOR2I& aCenter, const EDA_ANGLE& a_ArcAngle )
 {
-    auto first_point = aStartPoint - aCenter;
-    auto radius = KiROUND( EuclideanNorm( first_point ) );
-    int  seg_count = GetArcToSegmentCount( radius, ARC_HIGH_DEF, a_ArcAngle );
+    VECTOR2D first_point = VECTOR2D( aStartPoint ) - aCenter;
+    double   radius = first_point.EuclideanNorm();
+    int      seg_count = GetArcToSegmentCount( radius, ARC_HIGH_DEF, a_ArcAngle );
 
     double increment_angle = a_ArcAngle.AsRadians() / seg_count;
 
@@ -140,7 +140,7 @@ static INDUCTOR_S_SHAPE_RESULT BuildCornersList_S_Shape( std::vector<VECTOR2I>& 
 
     auto      pt  = aEndPoint - aStartPoint;
     EDA_ANGLE angle( pt );
-    int       min_len = KiROUND( EuclideanNorm( pt ) );
+    int       min_len = pt.EuclideanNorm();
     int       segm_len = 0;       // length of segments
     int       full_len;           // full len of shape (sum of length of all segments + arcs)
 
@@ -313,7 +313,7 @@ void MICROWAVE_TOOL::createInductorBetween( const VECTOR2I& aStart, const VECTOR
 
         BOARD_COMMIT commit( this );
         commit.Add( inductorFP.release() );
-        commit.Push( _("Add microwave inductor" ) );
+        commit.Push( _("Add Microwave Inductor" ) );
     }
 }
 
@@ -358,13 +358,14 @@ FOOTPRINT* MICROWAVE_TOOL::createMicrowaveInductor( MICROWAVE_INDUCTOR_PATTERN& 
     PCB_EDIT_FRAME* editFrame = getEditFrame<PCB_EDIT_FRAME>();
 
     VECTOR2I pt = aInductorPattern.m_End - aInductorPattern.m_Start;
-    int     min_len = KiROUND( EuclideanNorm( pt ) );
+    int      min_len = pt.EuclideanNorm();
     aInductorPattern.m_Length = min_len;
 
     // Enter the desired length.
     wxString             msg = editFrame->StringFromValue( aInductorPattern.m_Length );
-    WX_TEXT_ENTRY_DIALOG dlg( editFrame, _( "Length of Trace:" ), wxEmptyString, msg );
+    WX_TEXT_ENTRY_DIALOG dlg( editFrame, _( "Length of Track:" ), wxEmptyString, msg );
 
+    // TODO: why is this QuasiModal?
     if( dlg.ShowQuasiModal() != wxID_OK )
         return nullptr; // canceled by user
 
@@ -404,10 +405,11 @@ FOOTPRINT* MICROWAVE_TOOL::createMicrowaveInductor( MICROWAVE_INDUCTOR_PATTERN& 
     WX_TEXT_ENTRY_DIALOG cmpdlg( editFrame, _( "Component Value:" ), wxEmptyString, msg );
     cmpdlg.SetTextValidator( FOOTPRINT_NAME_VALIDATOR( &msg ) );
 
+    // TODO: why is this QuasiModal?
     if( ( cmpdlg.ShowQuasiModal() != wxID_OK ) || msg.IsEmpty() )
         return nullptr;    //  Aborted by user
 
-    FOOTPRINT* footprint = editFrame->CreateNewFootprint( msg, wxEmptyString, true );
+    FOOTPRINT* footprint = editFrame->CreateNewFootprint( msg, wxEmptyString );
 
     footprint->SetFPID( LIB_ID( wxEmptyString, wxT( "mw_inductor" ) ) );
     footprint->SetAttributes( FP_EXCLUDE_FROM_POS_FILES | FP_EXCLUDE_FROM_BOM );
@@ -433,11 +435,12 @@ FOOTPRINT* MICROWAVE_TOOL::createMicrowaveInductor( MICROWAVE_INDUCTOR_PATTERN& 
     pad->SetNumber( wxT( "1" ) );
     pad->SetPosition( aInductorPattern.m_End );
 
-    pad->SetSize( VECTOR2I( aInductorPattern.m_Width, aInductorPattern.m_Width ) );
+    pad->SetSize( PADSTACK::ALL_LAYERS,
+                  VECTOR2I( aInductorPattern.m_Width, aInductorPattern.m_Width ) );
 
-    pad->SetLayerSet( LSET( footprint->GetLayer() ) );
+    pad->SetLayerSet( LSET( { footprint->GetLayer() } ) );
     pad->SetAttribute( PAD_ATTRIB::SMD );
-    pad->SetShape( PAD_SHAPE::CIRCLE );
+    pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CIRCLE );
 
     PAD* newpad = new PAD( *pad );
     const_cast<KIID&>( newpad->m_Uuid ) = KIID();

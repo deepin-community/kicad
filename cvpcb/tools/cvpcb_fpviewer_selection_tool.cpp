@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -35,7 +35,7 @@ CVPCB_FOOTPRINT_VIEWER_SELECTION_TOOL::CVPCB_FOOTPRINT_VIEWER_SELECTION_TOOL() :
 
 bool CVPCB_FOOTPRINT_VIEWER_SELECTION_TOOL::Init()
 {
-    getEditFrame<DISPLAY_FOOTPRINTS_FRAME>()->AddStandardSubMenus( m_menu );
+    getEditFrame<DISPLAY_FOOTPRINTS_FRAME>()->AddStandardSubMenus( *m_menu.get() );
     return true;
 }
 
@@ -60,7 +60,7 @@ int CVPCB_FOOTPRINT_VIEWER_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
         }
         else if( evt->IsClick( BUT_RIGHT ) )
         {
-            m_menu.ShowContextMenu( m_selection );
+            m_menu->ShowContextMenu( m_selection );
         }
         else if( evt->IsDblClick( BUT_MIDDLE ) )
         {
@@ -99,5 +99,5 @@ void CVPCB_FOOTPRINT_VIEWER_SELECTION_TOOL::setTransitions()
 {
     Go( &CVPCB_FOOTPRINT_VIEWER_SELECTION_TOOL::UpdateMenu, ACTIONS::updateMenu.MakeEvent() );
     Go( &CVPCB_FOOTPRINT_VIEWER_SELECTION_TOOL::Main,
-            CVPCB_ACTIONS::selectionActivate.MakeEvent() );
+        CVPCB_ACTIONS::selectionActivate.MakeEvent() );
 }

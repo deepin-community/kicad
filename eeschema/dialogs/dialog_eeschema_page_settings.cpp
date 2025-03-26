@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,31 +27,58 @@
 #include <eeschema_settings.h>
 
 DIALOG_EESCHEMA_PAGE_SETTINGS::DIALOG_EESCHEMA_PAGE_SETTINGS( EDA_DRAW_FRAME* aParent,
+                                                              EMBEDDED_FILES* aEmbeddedFiles,
                                                               VECTOR2I        aMaxUserSizeMils ) :
-        DIALOG_PAGES_SETTINGS( aParent, schIUScale.IU_PER_MILS, aMaxUserSizeMils )
+        DIALOG_PAGES_SETTINGS( aParent, aEmbeddedFiles, schIUScale.IU_PER_MILS, aMaxUserSizeMils )
 {
 }
 
 
 DIALOG_EESCHEMA_PAGE_SETTINGS::~DIALOG_EESCHEMA_PAGE_SETTINGS()
 {
-    auto cfg = dynamic_cast<EESCHEMA_SETTINGS*>( Kiface().KifaceSettings() );
+    EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( Kiface().KifaceSettings() );
     wxCHECK( cfg, /* void */ );
 
     cfg->m_PageSettings.export_paper = m_PaperExport->GetValue();
-    if ( !m_TextRevision->GetValue().IsEmpty() ) cfg->m_PageSettings.export_revision = m_RevisionExport->GetValue();
-    if ( !m_TextDate->GetValue().IsEmpty() ) cfg->m_PageSettings.export_date = m_DateExport->GetValue();
-    if ( !m_TextTitle->GetValue().IsEmpty() ) cfg->m_PageSettings.export_title = m_TitleExport->GetValue();
-    if ( !m_TextCompany->GetValue().IsEmpty() ) cfg->m_PageSettings.export_company = m_CompanyExport->GetValue();
-    if ( !m_TextComment1->GetValue().IsEmpty() ) cfg->m_PageSettings.export_comment1 = m_Comment1Export->GetValue();
-    if ( !m_TextComment2->GetValue().IsEmpty() ) cfg->m_PageSettings.export_comment2 = m_Comment2Export->GetValue();
-    if ( !m_TextComment3->GetValue().IsEmpty() ) cfg->m_PageSettings.export_comment3 = m_Comment3Export->GetValue();
-    if ( !m_TextComment4->GetValue().IsEmpty() ) cfg->m_PageSettings.export_comment4 = m_Comment4Export->GetValue();
-    if ( !m_TextComment5->GetValue().IsEmpty() ) cfg->m_PageSettings.export_comment5 = m_Comment5Export->GetValue();
-    if ( !m_TextComment6->GetValue().IsEmpty() ) cfg->m_PageSettings.export_comment6 = m_Comment6Export->GetValue();
-    if ( !m_TextComment7->GetValue().IsEmpty() ) cfg->m_PageSettings.export_comment7 = m_Comment7Export->GetValue();
-    if ( !m_TextComment8->GetValue().IsEmpty() ) cfg->m_PageSettings.export_comment8 = m_Comment8Export->GetValue();
-    if ( !m_TextComment9->GetValue().IsEmpty() ) cfg->m_PageSettings.export_comment9 = m_Comment9Export->GetValue();
+
+    if( !m_TextRevision->GetValue().IsEmpty() )
+        cfg->m_PageSettings.export_revision = m_RevisionExport->GetValue();
+
+    if( !m_TextDate->GetValue().IsEmpty() )
+        cfg->m_PageSettings.export_date = m_DateExport->GetValue();
+
+    if( !m_TextTitle->GetValue().IsEmpty() )
+        cfg->m_PageSettings.export_title = m_TitleExport->GetValue();
+
+    if( !m_TextCompany->GetValue().IsEmpty() )
+        cfg->m_PageSettings.export_company = m_CompanyExport->GetValue();
+
+    if( !m_TextComment1->GetValue().IsEmpty() )
+        cfg->m_PageSettings.export_comment1 = m_Comment1Export->GetValue();
+
+    if( !m_TextComment2->GetValue().IsEmpty() )
+        cfg->m_PageSettings.export_comment2 = m_Comment2Export->GetValue();
+
+    if( !m_TextComment3->GetValue().IsEmpty() )
+        cfg->m_PageSettings.export_comment3 = m_Comment3Export->GetValue();
+
+    if( !m_TextComment4->GetValue().IsEmpty() )
+        cfg->m_PageSettings.export_comment4 = m_Comment4Export->GetValue();
+
+    if( !m_TextComment5->GetValue().IsEmpty() )
+        cfg->m_PageSettings.export_comment5 = m_Comment5Export->GetValue();
+
+    if( !m_TextComment6->GetValue().IsEmpty() )
+        cfg->m_PageSettings.export_comment6 = m_Comment6Export->GetValue();
+
+    if( !m_TextComment7->GetValue().IsEmpty() )
+        cfg->m_PageSettings.export_comment7 = m_Comment7Export->GetValue();
+
+    if( !m_TextComment8->GetValue().IsEmpty() )
+        cfg->m_PageSettings.export_comment8 = m_Comment8Export->GetValue();
+
+    if( !m_TextComment9->GetValue().IsEmpty() )
+        cfg->m_PageSettings.export_comment9 = m_Comment9Export->GetValue();
 }
 
 
@@ -85,23 +112,36 @@ void DIALOG_EESCHEMA_PAGE_SETTINGS::onTransferDataToWindow()
     msg.Printf( format, m_screen->GetVirtualPageNumber() );
     m_TextSheetNumber->SetLabel( msg );
 
-    auto cfg = dynamic_cast<EESCHEMA_SETTINGS*>( Kiface().KifaceSettings() );
+    EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( Kiface().KifaceSettings() );
     wxCHECK( cfg, /* void */ );
 
     m_PaperExport->SetValue( cfg->m_PageSettings.export_paper );
-    m_RevisionExport->SetValue( m_TextRevision->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_revision );
-    m_DateExport->SetValue( m_TextDate->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_date );
-    m_TitleExport->SetValue( m_TextTitle->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_title );
-    m_CompanyExport->SetValue( m_TextCompany->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_company );
-    m_Comment1Export->SetValue( m_TextComment1->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment1 );
-    m_Comment2Export->SetValue( m_TextComment2->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment2 );
-    m_Comment3Export->SetValue( m_TextComment3->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment3 );
-    m_Comment4Export->SetValue( m_TextComment4->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment4 );
-    m_Comment5Export->SetValue( m_TextComment5->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment5 );
-    m_Comment6Export->SetValue( m_TextComment6->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment6 );
-    m_Comment7Export->SetValue( m_TextComment7->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment7 );
-    m_Comment8Export->SetValue( m_TextComment8->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment8 );
-    m_Comment9Export->SetValue( m_TextComment9->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment9 );
+    m_RevisionExport->SetValue(
+            m_TextRevision->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_revision );
+    m_DateExport->SetValue( m_TextDate->GetValue().IsEmpty() ? false
+                                                             : cfg->m_PageSettings.export_date );
+    m_TitleExport->SetValue( m_TextTitle->GetValue().IsEmpty() ? false
+                                                               : cfg->m_PageSettings.export_title );
+    m_CompanyExport->SetValue(
+            m_TextCompany->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_company );
+    m_Comment1Export->SetValue(
+            m_TextComment1->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment1 );
+    m_Comment2Export->SetValue(
+            m_TextComment2->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment2 );
+    m_Comment3Export->SetValue(
+            m_TextComment3->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment3 );
+    m_Comment4Export->SetValue(
+            m_TextComment4->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment4 );
+    m_Comment5Export->SetValue(
+            m_TextComment5->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment5 );
+    m_Comment6Export->SetValue(
+            m_TextComment6->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment6 );
+    m_Comment7Export->SetValue(
+            m_TextComment7->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment7 );
+    m_Comment8Export->SetValue(
+            m_TextComment8->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment8 );
+    m_Comment9Export->SetValue(
+            m_TextComment9->GetValue().IsEmpty() ? false : cfg->m_PageSettings.export_comment9 );
 }
 
 

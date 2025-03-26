@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2013-2022 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -60,10 +60,6 @@ class SCH_EDIT_FRAME;
  */
 int InvokeDialogRescueEach( wxWindow* aParent, RESCUER& aRescuer, SCH_SHEET_PATH* aCurrentSheet,
                             EDA_DRAW_PANEL_GAL::GAL_TYPE aGalBackEndType, bool aAskShowAgain );
-
-/// Create and show DIALOG_PRINT_USING_PRINTER and return whatever
-/// DIALOG_PRINT_USING_PRINTER::ShowModal() returns.
-int InvokeDialogPrintUsingPrinter( SCH_EDIT_FRAME* aCaller );
 
 /// Create and show DIALOG_BOM and return whatever
 /// DIALOG_BOM::ShowModal() returns.

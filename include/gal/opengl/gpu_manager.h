@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2020-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -106,10 +106,12 @@ public:
     struct VRANGE
     {
         VRANGE( int aStart, int aEnd, bool aContinuous ) :
-        m_start( aStart ),
-        m_end( aEnd ),
-        m_isContinuous ( aContinuous )
-        {}
+                m_start( aStart ),
+                m_end( aEnd ),
+                m_isContinuous( aContinuous )
+        {
+        }
+
         unsigned int m_start, m_end;
         bool m_isContinuous;
     };
@@ -180,5 +182,7 @@ public:
     ///< @copydoc GPU_MANAGER::EndDrawing()
     virtual void EndDrawing() override;
 };
+
 } // namespace KIGFX
+
 #endif /* GPU_MANAGER_H_ */

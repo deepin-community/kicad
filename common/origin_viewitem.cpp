@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 CERN
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +31,9 @@
 
 using namespace KIGFX;
 
-ORIGIN_VIEWITEM::ORIGIN_VIEWITEM( const COLOR4D& aColor, MARKER_STYLE aStyle, int aSize, const VECTOR2D& aPosition ) :
-    EDA_ITEM( nullptr, NOT_USED ),   // this item is never added to a BOARD/SCHEMATIC so it needs no type
+ORIGIN_VIEWITEM::ORIGIN_VIEWITEM( const COLOR4D& aColor, MARKER_STYLE aStyle, int aSize,
+                                  const VECTOR2D& aPosition ) :
+    EDA_ITEM( nullptr, NOT_USED ),  // never added to a BOARD/SCHEMATIC so it needs no type
     m_position( aPosition ),
     m_size( aSize ),
     m_color( aColor ),
@@ -43,7 +44,7 @@ ORIGIN_VIEWITEM::ORIGIN_VIEWITEM( const COLOR4D& aColor, MARKER_STYLE aStyle, in
 
 
 ORIGIN_VIEWITEM::ORIGIN_VIEWITEM( const VECTOR2D& aPosition, EDA_ITEM_FLAGS flags ) :
-    EDA_ITEM( nullptr, NOT_USED ),   // this item is never added to a BOARD/SCHEMATIC so it needs no type
+    EDA_ITEM( nullptr, NOT_USED ),   // never added to a BOARD/SCHEMATIC so it needs no type
     m_position( aPosition ),
     m_size( NOT_USED ),
     m_color( UNSPECIFIED_COLOR ),
@@ -81,7 +82,7 @@ void ORIGIN_VIEWITEM::ViewDraw( int, VIEW* aView ) const
     gal->SetStrokeColor( m_color );
     VECTOR2D scaledSize = aView->ToWorld( VECTOR2D( m_size, m_size ), false );
 
-    // Draw a circle around the marker's centre point if the style demands it
+    // Draw a circle around the marker's center point if the style demands it
     if( ( m_style == CIRCLE_CROSS ) || ( m_style == CIRCLE_DOT ) || ( m_style == CIRCLE_X ) )
         gal->DrawCircle( m_position, fabs( scaledSize.x ) );
 

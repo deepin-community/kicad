@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 Andrew Lutsenko, anlutsenko at gmail dot com
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,7 +24,7 @@
 #include "core/wx_stl_compat.h"
 
 #include <map>
-#include <nlohmann/json.hpp>
+#include <json_common.h>
 #include <core/json_serializers.h>
 #include <optional>
 #include <string>
@@ -42,8 +42,17 @@ enum PCM_PACKAGE_TYPE
 {
     PT_INVALID,
     PT_PLUGIN,
+    PT_FAB,
     PT_LIBRARY,
     PT_COLORTHEME,
+};
+
+///< Plugin categories
+enum PCM_PLUGIN_CATEGORY
+{
+    PC_INVALID,
+    PC_GENERAL,
+    PC_FAB,
 };
 
 
@@ -94,18 +103,19 @@ struct PACKAGE_VERSION
 ///< Package metadata
 struct PCM_PACKAGE
 {
-    wxString                     name;
-    wxString                     description;
-    wxString                     description_full;
-    wxString                     identifier;
-    PCM_PACKAGE_TYPE             type;
-    PCM_CONTACT                  author;
-    std::optional<PCM_CONTACT>   maintainer;
-    wxString                     license;
-    STRING_MAP                   resources;
-    std::vector<std::string>     tags;
-    std::vector<std::string>     keep_on_update;
-    std::vector<PACKAGE_VERSION> versions;
+    wxString                           name;
+    wxString                           description;
+    wxString                           description_full;
+    wxString                           identifier;
+    PCM_PACKAGE_TYPE                   type;
+    std::optional<PCM_PLUGIN_CATEGORY> category;
+    PCM_CONTACT                        author;
+    std::optional<PCM_CONTACT>         maintainer;
+    wxString                           license;
+    STRING_MAP                         resources;
+    std::vector<std::string>           tags;
+    std::vector<std::string>           keep_on_update;
+    std::vector<PACKAGE_VERSION>       versions;
 };
 
 
@@ -152,8 +162,15 @@ struct PCM_INSTALLATION_ENTRY
 NLOHMANN_JSON_SERIALIZE_ENUM( PCM_PACKAGE_TYPE, {
                                                         { PT_INVALID, "invalid" },
                                                         { PT_PLUGIN, "plugin" },
+                                                        { PT_FAB, "fab" },
                                                         { PT_LIBRARY, "library" },
                                                         { PT_COLORTHEME, "colortheme" },
+                                                } )
+
+NLOHMANN_JSON_SERIALIZE_ENUM( PCM_PLUGIN_CATEGORY, {
+                                                        { PC_INVALID, "invalid" },
+                                                        { PC_GENERAL, "general" },
+                                                        { PC_FAB, "fab" },
                                                 } )
 
 

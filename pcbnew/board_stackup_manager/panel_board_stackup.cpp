@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,8 +28,9 @@
 #include <board_design_settings.h>
 #include <dialogs/dialog_color_picker.h>
 #include <widgets/paged_dialog.h>
-#include <widgets/layer_box_selector.h>
+#include <widgets/layer_presentation.h>
 #include <widgets/wx_panel.h>
+#include <wx/bmpcbox.h>
 #include <wx/log.h>
 #include <wx/rawbmp.h>
 #include <wx/clipbrd.h>
@@ -47,6 +48,7 @@
 
 #include <locale_io.h>
 #include <eda_list_dialog.h>
+#include <richio.h>
 #include <string_utils.h>               // for UIDouble2Str()
 
 
@@ -94,9 +96,9 @@ PANEL_SETUP_BOARD_STACKUP::PANEL_SETUP_BOARD_STACKUP( wxWindow* aParentWindow,
 
     m_enabledLayers = m_board->GetEnabledLayers() & BOARD_STACKUP::StackupAllowedBrdLayers();
 
-    // Calculates a good size for color swatches (icons) in this dialog
-    m_colorSwatchesSize = GetTextExtent( wxT( "XX" ) );
-    m_colorIconsSize = GetTextExtent( wxT( "XXXX" ) );
+    // Use a good size for color swatches (icons) in this dialog
+    m_colorSwatchesSize = wxSize( 14, 14 );
+    m_colorIconsSize = wxSize( 24, 14 );
 
     // Calculates a good size for wxTextCtrl to enter Epsilon R and Loss tan
     // ("0.0000000" + margins)
@@ -110,7 +112,7 @@ PANEL_SETUP_BOARD_STACKUP::PANEL_SETUP_BOARD_STACKUP( wxWindow* aParentWindow,
 
     // The grid column containing the lock checkbox is kept to a minimal
     // size. So we use a wxStaticBitmap: set the bitmap itself
-    m_bitmapLockThickness->SetBitmap( KiScaledBitmap( BITMAPS::locked, aFrame ) );
+    m_bitmapLockThickness->SetBitmap( KiBitmapBundle( BITMAPS::locked ) );
 
     // Gives a minimal size of wxTextCtrl showing dimensions+units
     m_tcCTValue->SetMinSize( m_numericTextCtrlSize );
@@ -603,15 +605,12 @@ int PANEL_SETUP_BOARD_STACKUP::GetCopperLayerCount() const
 
 void PANEL_SETUP_BOARD_STACKUP::updateCopperLayerCount()
 {
-    int copperCount = GetCopperLayerCount();
+    const int copperCount = GetCopperLayerCount();
 
     wxASSERT( copperCount >= 2 );
 
-    m_enabledLayers |= LSET::ExternalCuMask();
-    m_enabledLayers &= ~LSET::InternalCuMask();
-
-    for( int i = 1; i < copperCount - 1; i++ )
-        m_enabledLayers.set( F_Cu + i );
+    m_enabledLayers.ClearCopperLayers();
+    m_enabledLayers |= LSET::AllCuMask( copperCount );
 }
 
 
@@ -684,7 +683,7 @@ void PANEL_SETUP_BOARD_STACKUP::synchronizeWithBoard( bool aFullSync )
                 {
                     bm_combo->SetString( selected, item->GetColor( sub_item ) );
                     wxBitmap layerbmp( m_colorSwatchesSize.x, m_colorSwatchesSize.y );
-                    LAYER_SELECTOR::DrawColorSwatch( layerbmp, COLOR4D(), custom_color );
+                    LAYER_PRESENTATION::DrawColorSwatch( layerbmp, COLOR4D(), custom_color );
                     bm_combo->SetItemBitmap( selected, layerbmp );
                 }
             }
@@ -912,7 +911,10 @@ void PANEL_SETUP_BOARD_STACKUP::lazyBuildRowUI( BOARD_STACKUP_ROW_UI_ITEM& ui_ro
             wxCheckBox* cb_box = new wxCheckBox( m_scGridWin, ID_ITEM_THICKNESS_LOCKED+row,
                                                  wxEmptyString );
             cb_box->SetValue( item->IsThicknessLocked( sublayerIdx ) );
-            m_fgGridSizer->Insert( aPos++, cb_box, 0, wxALIGN_CENTER_VERTICAL, 2 );
+
+            m_fgGridSizer->Insert( aPos++, cb_box, 0,
+                                   wxALIGN_CENTER_VERTICAL | wxALIGN_CENTER_HORIZONTAL, 2 );
+
             ui_row_item.m_ThicknessLockCtrl = cb_box;
         }
         else
@@ -1076,7 +1078,7 @@ void PANEL_SETUP_BOARD_STACKUP::buildLayerStackPanel( bool aCreateInitialStackup
     {
         if( aCreateInitialStackup )
         {
-            // Creates a full BOARD_STACKUP with 32 copper layers.
+            // Creates a BOARD_STACKUP with 32 copper layers.
             // extra layers will be hidden later.
             // but if the number of layer is changed in the dialog, the corresponding
             // widgets will be available with their previous values.
@@ -1134,14 +1136,12 @@ bool PANEL_SETUP_BOARD_STACKUP::transferDataFromUIToStackup()
     wxString error_msg;
     bool success = true;
     double value;
-    int row = 0;
 
     for( BOARD_STACKUP_ROW_UI_ITEM& ui_item : m_rowUiItemsList )
     {
         // Skip stackup items useless for the current board
         if( !ui_item.m_isEnabled )
         {
-            row++;
             continue;
         }
 
@@ -1259,8 +1259,6 @@ bool PANEL_SETUP_BOARD_STACKUP::transferDataFromUIToStackup()
                     item->SetColor( GetStandardColorName( item->GetType(), idx ), sub_item );
             }
         }
-
-        row++;
     }
 
     if( !success )
@@ -1290,7 +1288,7 @@ bool PANEL_SETUP_BOARD_STACKUP::TransferDataFromWindow()
     // FormatBoardStackup() (using FormatInternalUnits()) expects a "C" locale
     // to execute some tests. So switch to the suitable locale
     LOCALE_IO dummy;
-    brd_stackup.FormatBoardStackup( &old_stackup, m_board, 0 );
+    brd_stackup.FormatBoardStackup( &old_stackup, m_board );
 
     // copy enabled items to the new board stackup
     brd_stackup.RemoveAll();
@@ -1302,7 +1300,7 @@ bool PANEL_SETUP_BOARD_STACKUP::TransferDataFromWindow()
     }
 
     STRING_FORMATTER new_stackup;
-    brd_stackup.FormatBoardStackup( &new_stackup, m_board, 0 );
+    brd_stackup.FormatBoardStackup( &new_stackup, m_board );
 
     bool modified = old_stackup.GetString() != new_stackup.GetString();
     int thickness = brd_stackup.BuildBoardThicknessFromStackup();
@@ -1405,7 +1403,7 @@ void PANEL_SETUP_BOARD_STACKUP::onColorSelected( wxCommandEvent& event )
             combo->SetString( idx, color.ToHexString() );
 
             wxBitmap layerbmp( m_colorSwatchesSize.x, m_colorSwatchesSize.y );
-            LAYER_SELECTOR::DrawColorSwatch( layerbmp, COLOR4D( 0, 0, 0, 0 ), color );
+            LAYER_PRESENTATION::DrawColorSwatch( layerbmp, COLOR4D( 0, 0, 0, 0 ), color );
             combo->SetItemBitmap( combo->GetCount() - 1, layerbmp );
 
             combo->SetSelection( idx );
@@ -1655,7 +1653,7 @@ wxBitmapComboBox* PANEL_SETUP_BOARD_STACKUP::createColorBox( BOARD_STACKUP_ITEM*
         }
 
         wxBitmap layerbmp( m_colorSwatchesSize.x, m_colorSwatchesSize.y );
-        LAYER_SELECTOR::DrawColorSwatch( layerbmp, COLOR4D( 0, 0, 0, 0 ), curr_color );
+        LAYER_PRESENTATION::DrawColorSwatch( layerbmp, COLOR4D( 0, 0, 0, 0 ), curr_color );
 
         combo->Append( label, layerbmp );
     }

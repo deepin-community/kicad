@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,8 +22,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <pcb_generator.h>
-#include <core/mirror.h>
+#include "pcb_generator.h"
+
 #include <board.h>
 
 
@@ -95,20 +95,19 @@ std::vector<EDA_ITEM*> PCB_GENERATOR::GetPreviewItems( GENERATOR_TOOL* aTool,
 }
 
 
-bool PCB_GENERATOR::MakeEditPoints( std::shared_ptr<EDIT_POINTS> aEditPoints ) const
+bool PCB_GENERATOR::MakeEditPoints( EDIT_POINTS& aEditPoints ) const
 {
     return true;
 }
 
 
-bool PCB_GENERATOR::UpdateFromEditPoints( std::shared_ptr<EDIT_POINTS> aEditPoints,
-                                          BOARD_COMMIT* aCommit )
+bool PCB_GENERATOR::UpdateFromEditPoints( EDIT_POINTS& aEditPoints )
 {
     return true;
 }
 
 
-bool PCB_GENERATOR::UpdateEditPoints( std::shared_ptr<EDIT_POINTS> aEditPoints )
+bool PCB_GENERATOR::UpdateEditPoints( EDIT_POINTS& aEditPoints )
 {
     return true;
 }
@@ -135,16 +134,28 @@ void PCB_GENERATOR::Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle 
     PCB_GROUP::Rotate( aRotCentre, aAngle );
 }
 
-void PCB_GENERATOR::Flip( const VECTOR2I& aCentre, bool aFlipLeftRight )
+void PCB_GENERATOR::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
-    if( aFlipLeftRight )
-        MIRROR( m_origin.x, aCentre.x );
-    else
+    baseMirror( aCentre, aFlipDirection );
+
+    SetLayer( GetBoard()->FlipLayer( GetLayer() ) );
+
+    PCB_GROUP::Flip( aCentre, aFlipDirection );
+}
+
+void PCB_GENERATOR::Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
+{
+    baseMirror( aCentre, aFlipDirection );
+
+    PCB_GROUP::Mirror( aCentre, aFlipDirection );
+}
+
+void PCB_GENERATOR::baseMirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
+{
+    if( aFlipDirection == FLIP_DIRECTION::TOP_BOTTOM )
         MIRROR( m_origin.y, aCentre.y );
-
-    SetLayer( FlipLayer( GetLayer(), GetBoard()->GetCopperLayerCount() ) );
-
-    PCB_GROUP::Flip( aCentre, aFlipLeftRight );
+    else
+        MIRROR( m_origin.x, aCentre.x );
 }
 
 bool PCB_GENERATOR::AddItem( BOARD_ITEM* aItem )
@@ -161,7 +172,7 @@ bool PCB_GENERATOR::AddItem( BOARD_ITEM* aItem )
 
 LSET PCB_GENERATOR::GetLayerSet() const
 {
-    return PCB_GROUP::GetLayerSet() | LSET( GetLayer() );
+    return PCB_GROUP::GetLayerSet() | LSET( { GetLayer() } );
 }
 
 
@@ -211,7 +222,7 @@ std::vector<std::pair<wxString, wxVariant>> PCB_GENERATOR::GetRowData()
 }
 
 
-wxString PCB_GENERATOR::GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const
+wxString PCB_GENERATOR::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     return wxString( _( "Generator" ) );
 }

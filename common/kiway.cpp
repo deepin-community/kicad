@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2014-2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -54,8 +54,8 @@ int     KIWAY::m_kiface_version[KIWAY_FACE_COUNT];
 
 
 
-KIWAY::KIWAY( PGM_BASE* aProgram, int aCtlBits, wxFrame* aTop ):
-    m_program( aProgram ), m_ctl( aCtlBits ), m_top( nullptr ), m_blockingDialog( wxID_NONE )
+KIWAY::KIWAY( int aCtlBits, wxFrame* aTop ):
+     m_ctl( aCtlBits ), m_top( nullptr ), m_blockingDialog( wxID_NONE )
 {
     SetTop( aTop );     // hook player_destroy_handler() into aTop.
 
@@ -150,7 +150,6 @@ const wxString KIWAY::dso_search_path( FACE_T aFaceId )
     // To speed up development, it's sometimes nice to run kicad from inside
     // the build path.  In that case, each program will be in a subdirectory.
     // To find the DSOs, we need to go up one directory and then enter a subdirectory.
-
     if( wxGetEnv( wxT( "KICAD_RUN_FROM_BUILD_DIR" ), nullptr ) )
     {
 #ifdef __WXMAC__
@@ -296,7 +295,7 @@ KIFACE* KIWAY::KiFACE( FACE_T aFaceId, bool doLoad )
         {
             KIFACE_GETTER_FUNC* ki_getter = (KIFACE_GETTER_FUNC*) addr;
 
-            KIFACE* kiface = ki_getter( &m_kiface_version[aFaceId], KIFACE_VERSION, m_program );
+            KIFACE* kiface = ki_getter( &m_kiface_version[aFaceId], KIFACE_VERSION, &Pgm() );
 
             // KIFACE_GETTER_FUNC function comment (API) says the non-NULL is unconditional.
             wxASSERT_MSG( kiface,
@@ -311,13 +310,14 @@ KIFACE* KIWAY::KiFACE( FACE_T aFaceId, bool doLoad )
 
             try
             {
-                startSuccess = kiface->OnKifaceStart( m_program, m_ctl, this );
+                startSuccess = kiface->OnKifaceStart( &Pgm(), m_ctl, this );
             }
             catch (...)
             {
                 // OnKiFaceStart may generate an exception
                 // Before we continue and ultimately unload our module to retry we need
-                // to process the exception before we delete the free the memory space the exception resides in
+                // to process the exception before we delete the free the memory space the
+                // exception resides in
                 Pgm().HandleException( std::current_exception() );
             }
 
@@ -327,7 +327,7 @@ KIFACE* KIWAY::KiFACE( FACE_T aFaceId, bool doLoad )
             }
             else
             {
-                // Usually means cancelled initial global library setup
+                // Usually means canceled initial global library setup
                 // But it could have been an exception/failure
                 // Let the module go out of scope to unload
                 dso.Attach( dsoHandle );
@@ -335,32 +335,6 @@ KIFACE* KIWAY::KiFACE( FACE_T aFaceId, bool doLoad )
                 return nullptr;
             }
         }
-
-        // In any of the failure cases above, dso.Unload() should be called here
-        // by dso destructor.
-        // However:
-
-        // There is a file installation bug. We only look for KIFACE's which we know
-        // to exist, and we did not find one.  If we do not find one, this is an
-        // installation bug.
-
-        msg = wxString::Format( _( "Fatal Installation Bug. File:\n"
-                                   "'%s'\ncould not be loaded\n" ), dname );
-
-        if( ! wxFileExists( dname ) )
-            msg << _( "It is missing.\n" );
-        else
-            msg << _( "Perhaps a shared library (.dll or .so) file is missing.\n" );
-
-        msg << _( "From command line: argv[0]:\n'" );
-        msg << wxStandardPaths::Get().GetExecutablePath() << wxT( "'\n" );
-
-        // This is a fatal error, one from which we cannot recover, nor do we want
-        // to protect against in client code which would require numerous noisy
-        // tests in numerous places.  So we inform the user that the installation
-        // is bad.  This exception will likely not get caught until way up in the
-        // wxApp derivative, at which point the process will exit gracefully.
-        THROW_IO_ERROR( msg );
     }
 
     return nullptr;
@@ -617,8 +591,12 @@ void KIWAY::SetLanguage( int aLanguage )
         // so a static_cast is used.
         EDA_BASE_FRAME* top = static_cast<EDA_BASE_FRAME*>( m_top );
 
-        if( top )
+        if ( top )
+        {
             top->ShowChangedLanguage();
+            wxCommandEvent e( EDA_LANG_CHANGED );
+            top->GetEventHandler()->ProcessEvent( e );
+        }
     }
 #endif
 
@@ -629,12 +607,14 @@ void KIWAY::SetLanguage( int aLanguage )
         if( frame )
         {
             frame->ShowChangedLanguage();
+            wxCommandEvent e( EDA_LANG_CHANGED );
+            frame->GetEventHandler()->ProcessEvent( e );
         }
     }
 }
 
 
-void KIWAY::CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged )
+void KIWAY::CommonSettingsChanged( int aFlags )
 {
     if( m_ctl & KFCTL_CPP_PROJECT_SUITE )
     {
@@ -644,7 +624,7 @@ void KIWAY::CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged )
         EDA_BASE_FRAME* top = static_cast<EDA_BASE_FRAME*>( m_top );
 
         if( top )
-            top->CommonSettingsChanged( aEnvVarsChanged, aTextVarsChanged );
+            top->CommonSettingsChanged( aFlags );
     }
 
     for( unsigned i=0;  i < KIWAY_PLAYER_COUNT;  ++i )
@@ -652,7 +632,7 @@ void KIWAY::CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged )
         KIWAY_PLAYER* frame = GetPlayerFrame( ( FRAME_T )i );
 
         if( frame )
-            frame->CommonSettingsChanged( aEnvVarsChanged, aTextVarsChanged );
+            frame->CommonSettingsChanged( aFlags );
     }
 }
 
@@ -686,10 +666,12 @@ void KIWAY::ProjectChanged()
     }
 }
 
+
 wxWindow* KIWAY::GetBlockingDialog()
 {
     return wxWindow::FindWindowById( m_blockingDialog );
 }
+
 
 void KIWAY::SetBlockingDialog( wxWindow* aWin )
 {
@@ -726,11 +708,19 @@ bool KIWAY::ProcessEvent( wxEvent& aEvent )
 }
 
 
-int KIWAY::ProcessJob( KIWAY::FACE_T aFace, JOB* job )
+int KIWAY::ProcessJob( KIWAY::FACE_T aFace, JOB* job, REPORTER* aReporter )
 {
     KIFACE* kiface = KiFACE( aFace );
 
-    return kiface->HandleJob( job );
+    return kiface->HandleJob( job, aReporter );
+}
+
+
+bool KIWAY::ProcessJobConfigDialog( KIWAY::FACE_T aFace, JOB* aJob, wxWindow* aWindow )
+{
+    KIFACE* kiface = KiFACE( aFace );
+
+    return kiface->HandleJobConfig( aJob, aWindow );
 }
 
 

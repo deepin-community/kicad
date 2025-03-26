@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 CERN
- * Copyright (C) 2014-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -23,12 +23,13 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "board_editor_control.h"
+
 #include <functional>
 #include <memory>
 
 #include <pgm_base.h>
 #include <advanced_config.h>
-#include "board_editor_control.h"
 #include <bitmaps.h>
 #include <pcb_painter.h>
 #include <board.h>
@@ -57,12 +58,14 @@
 #include <tool/tool_event.h>
 #include <tools/drawing_tool.h>
 #include <tools/pcb_actions.h>
+#include <tools/pcb_edit_table_tool.h>
 #include <tools/pcb_picker_tool.h>
 #include <tools/pcb_selection_conditions.h>
 #include <tools/pcb_selection_tool.h>
 #include <tools/edit_tool.h>
 #include <tools/tool_event_utils.h>
 #include <tools/zone_filler_tool.h>
+#include <richio.h>
 #include <router/router_tool.h>
 #include <view/view_controls.h>
 #include <view/view_group.h>
@@ -70,6 +73,7 @@
 #include <drawing_sheet/ds_proxy_undo_item.h>
 #include <footprint_edit_frame.h>
 #include <wx/filedlg.h>
+#include <wx/msgdlg.h>
 #include <wx/log.h>
 
 #include <widgets/legacyfiledlg_netlist_options.h>
@@ -97,6 +101,10 @@ public:
         Add( PCB_ACTIONS::zoneDuplicate );
         Add( PCB_ACTIONS::drawZoneCutout );
         Add( PCB_ACTIONS::drawSimilarZone );
+
+        AppendSeparator();
+
+        Add( PCB_ACTIONS::zonesManager );
     }
 
 protected:
@@ -178,7 +186,7 @@ bool BOARD_EDITOR_CONTROL::Init()
                 return m_frame->IsCurrentTool( PCB_ACTIONS::placeFootprint ) && aSel.GetSize() == 0;
             };
 
-    auto& ctxMenu = m_menu.GetMenu();
+    auto& ctxMenu = m_menu->GetMenu();
 
     // "Cancel" goes at the top of the context menu when a tool is active
     ctxMenu.AddItem( ACTIONS::cancelInteractive, activeToolCondition, 1 );
@@ -189,7 +197,7 @@ bool BOARD_EDITOR_CONTROL::Init()
     ctxMenu.AddSeparator( 1000 );
 
     // Finally, add the standard zoom & grid items
-    getEditFrame<PCB_BASE_FRAME>()->AddStandardSubMenus( m_menu );
+    getEditFrame<PCB_BASE_FRAME>()->AddStandardSubMenus( *m_menu.get() );
 
     std::shared_ptr<ZONE_CONTEXT_MENU> zoneMenu = std::make_shared<ZONE_CONTEXT_MENU>();
     zoneMenu->SetTool( this );
@@ -296,8 +304,8 @@ int BOARD_EDITOR_CONTROL::PageSettings( const TOOL_EVENT& aEvent )
     undoCmd.SetDescription( _( "Page Settings" ) );
     m_frame->SaveCopyInUndoList( undoCmd, UNDO_REDO::PAGESETTINGS );
 
-    DIALOG_PAGES_SETTINGS dlg( m_frame, pcbIUScale.IU_PER_MILS, VECTOR2I( MAX_PAGE_SIZE_PCBNEW_MILS,
-                                                                          MAX_PAGE_SIZE_PCBNEW_MILS ) );
+    DIALOG_PAGES_SETTINGS dlg( m_frame, m_frame->GetBoard()->GetEmbeddedFiles(), pcbIUScale.IU_PER_MILS,
+                               VECTOR2I( MAX_PAGE_SIZE_PCBNEW_MILS, MAX_PAGE_SIZE_PCBNEW_MILS ) );
     dlg.SetWksFileName( BASE_SCREEN::m_DrawingSheetFileName );
 
     if( dlg.ShowModal() == wxID_OK )
@@ -378,10 +386,10 @@ int BOARD_EDITOR_CONTROL::ImportSpecctraSession( const TOOL_EVENT& aEvent )
     wxString ext;
 
     wxFileName::SplitPath( fullFileName, &path, &name, &ext );
-    name += wxT( "." ) + FILEEXT::SpecctraSessionFileExtension;
+    name += wxT( "." ) + wxString( FILEEXT::SpecctraSessionFileExtension );
 
     fullFileName = wxFileSelector( _( "Specctra Session File" ), path, name,
-                                   wxT( "." ) + FILEEXT::SpecctraSessionFileExtension,
+                                   wxT( "." ) + wxString( FILEEXT::SpecctraSessionFileExtension ),
                                    FILEEXT::SpecctraSessionFileWildcard(), wxFD_OPEN | wxFD_CHANGE_DIR,
                                    frame() );
 
@@ -475,7 +483,8 @@ int BOARD_EDITOR_CONTROL::ExportNetlist( const TOOL_EVENT& aEvent )
         }
 
         nlohmann::ordered_map<wxString, wxString> fields;
-        for( PCB_FIELD* field : footprint->Fields() )
+
+        for( PCB_FIELD* field : footprint->GetFields() )
             fields[field->GetCanonicalName()] = field->GetText();
 
         component->SetFields( fields );
@@ -505,6 +514,8 @@ int BOARD_EDITOR_CONTROL::GenerateFabFiles( const TOOL_EVENT& aEvent )
         m_frame->RecreateBOMFileFromBoard( dummy );
     else if( aEvent.IsAction( &PCB_ACTIONS::generateIPC2581File ) )
         m_frame->GenIPC2581File( dummy );
+    else if( aEvent.IsAction( &PCB_ACTIONS::generateODBPPFile ) )
+        m_frame->GenODBPPFiles( dummy );
     else
         wxFAIL_MSG( wxT( "GenerateFabFiles(): unexpected request" ) );
 
@@ -691,6 +702,13 @@ int BOARD_EDITOR_CONTROL::ToggleProperties( const TOOL_EVENT& aEvent )
 }
 
 
+int BOARD_EDITOR_CONTROL::ToggleNetInspector( const TOOL_EVENT& aEvent )
+{
+    getEditFrame<PCB_EDIT_FRAME>()->ToggleNetInspector();
+    return 0;
+}
+
+
 int BOARD_EDITOR_CONTROL::ToggleSearch( const TOOL_EVENT& aEvent )
 {
     getEditFrame<PCB_EDIT_FRAME>()->ToggleSearch();
@@ -724,7 +742,7 @@ int BOARD_EDITOR_CONTROL::TrackWidthInc( const TOOL_EVENT& aEvent )
 
                 for( int i = 0; i < (int) bds.m_TrackWidthList.size(); ++i )
                 {
-                    int candidate = bds.m_NetSettings->m_DefaultNetClass->GetTrackWidth();
+                    int candidate = bds.m_NetSettings->GetDefaultNetclass()->GetTrackWidth();
 
                     if( i > 0 )
                         candidate = bds.m_TrackWidthList[ i ];
@@ -739,7 +757,7 @@ int BOARD_EDITOR_CONTROL::TrackWidthInc( const TOOL_EVENT& aEvent )
             }
         }
 
-        commit.Push( wxT( "Increase Track Width" ) );
+        commit.Push( _( "Increase Track Width" ) );
         return 0;
     }
 
@@ -806,7 +824,7 @@ int BOARD_EDITOR_CONTROL::TrackWidthDec( const TOOL_EVENT& aEvent )
 
                 for( int i = (int) bds.m_TrackWidthList.size() - 1; i >= 0; --i )
                 {
-                    int candidate = bds.m_NetSettings->m_DefaultNetClass->GetTrackWidth();
+                    int candidate = bds.m_NetSettings->GetDefaultNetclass()->GetTrackWidth();
 
                     if( i > 0 )
                         candidate = bds.m_TrackWidthList[ i ];
@@ -821,7 +839,7 @@ int BOARD_EDITOR_CONTROL::TrackWidthDec( const TOOL_EVENT& aEvent )
             }
         }
 
-        commit.Push( wxT( "Decrease Track Width" ) );
+        commit.Push( _( "Decrease Track Width" ) );
         return 0;
     }
 
@@ -888,16 +906,17 @@ int BOARD_EDITOR_CONTROL::ViaSizeInc( const TOOL_EVENT& aEvent )
 
                 for( int i = 0; i < (int) bds.m_ViasDimensionsList.size(); ++i )
                 {
-                    VIA_DIMENSION dims( bds.m_NetSettings->m_DefaultNetClass->GetViaDiameter(),
-                                        bds.m_NetSettings->m_DefaultNetClass->GetViaDrill() );
+                    VIA_DIMENSION dims( bds.m_NetSettings->GetDefaultNetclass()->GetViaDiameter(),
+                                        bds.m_NetSettings->GetDefaultNetclass()->GetViaDrill() );
 
                     if( i> 0 )
                         dims = bds.m_ViasDimensionsList[ i ];
 
-                    if( dims.m_Diameter > via->GetWidth() )
+                    // TODO(JE) padstacks
+                    if( dims.m_Diameter > via->GetWidth( PADSTACK::ALL_LAYERS ) )
                     {
                         commit.Modify( via );
-                        via->SetWidth( dims.m_Diameter );
+                        via->SetWidth( PADSTACK::ALL_LAYERS, dims.m_Diameter );
                         via->SetDrill( dims.m_Drill );
                         break;
                     }
@@ -905,7 +924,7 @@ int BOARD_EDITOR_CONTROL::ViaSizeInc( const TOOL_EVENT& aEvent )
             }
         }
 
-        commit.Push( wxT( "Increase Via Size" ) );
+        commit.Push( _( "Increase Via Size" ) );
     }
     else
     {
@@ -943,16 +962,17 @@ int BOARD_EDITOR_CONTROL::ViaSizeDec( const TOOL_EVENT& aEvent )
 
                 for( int i = (int) bds.m_ViasDimensionsList.size() - 1; i >= 0; --i )
                 {
-                    VIA_DIMENSION dims( bds.m_NetSettings->m_DefaultNetClass->GetViaDiameter(),
-                                        bds.m_NetSettings->m_DefaultNetClass->GetViaDrill() );
+                    VIA_DIMENSION dims( bds.m_NetSettings->GetDefaultNetclass()->GetViaDiameter(),
+                                        bds.m_NetSettings->GetDefaultNetclass()->GetViaDrill() );
 
                     if( i > 0 )
                         dims = bds.m_ViasDimensionsList[ i ];
 
-                    if( dims.m_Diameter < via->GetWidth() )
+                    // TODO(JE) padstacks
+                    if( dims.m_Diameter < via->GetWidth( PADSTACK::ALL_LAYERS ) )
                     {
                         commit.Modify( via );
-                        via->SetWidth( dims.m_Diameter );
+                        via->SetWidth( PADSTACK::ALL_LAYERS, dims.m_Diameter );
                         via->SetDrill( dims.m_Drill );
                         break;
                     }
@@ -1142,13 +1162,10 @@ int BOARD_EDITOR_CONTROL::PlaceFootprint( const TOOL_EVENT& aEvent )
                 // Put it on FRONT layer,
                 // (Can be stored flipped if the lib is an archive built from a board)
                 if( fp->IsFlipped() )
-                    fp->Flip( fp->GetPosition(), m_frame->GetPcbNewSettings()->m_FlipLeftRight );
+                    fp->Flip( fp->GetPosition(), m_frame->GetPcbNewSettings()->m_FlipDirection );
 
                 fp->SetOrientation( ANGLE_0 );
                 fp->SetPosition( cursorPos );
-
-                // Fill this in since it won't be synced from a symbol
-                fp->GetField( FOOTPRINT_FIELD )->SetText( UnescapeString( fp->GetFPIDAsString() ) );
 
                 commit.Add( fp );
                 m_toolMgr->RunAction<EDA_ITEM*>( PCB_ACTIONS::selectItem, fp );
@@ -1158,14 +1175,14 @@ int BOARD_EDITOR_CONTROL::PlaceFootprint( const TOOL_EVENT& aEvent )
             else
             {
                 m_toolMgr->RunAction( PCB_ACTIONS::selectionClear );
-                commit.Push( _( "Place a footprint" ) );
+                commit.Push( _( "Place Footprint" ) );
                 fp = nullptr;  // to indicate that there is no footprint that we currently modify
                 m_placingFootprint = false;
             }
         }
         else if( evt->IsClick( BUT_RIGHT ) )
         {
-            m_menu.ShowContextMenu(  selection()  );
+            m_menu->ShowContextMenu(  selection()  );
         }
         else if( fp && ( evt->IsMotion() || evt->IsAction( &ACTIONS::refreshPreview ) ) )
         {
@@ -1252,8 +1269,14 @@ int BOARD_EDITOR_CONTROL::modifyLockSelected( MODIFY_MODE aMode )
         if( !item->IsBOARD_ITEM() )
             continue;
 
-        BOARD_ITEM* board_item = static_cast<BOARD_ITEM*>( item );
-        PCB_GROUP*  parent_group = board_item->GetParentGroup();
+        BOARD_ITEM* const board_item = static_cast<BOARD_ITEM*>( item );
+
+        // Disallow locking free pads - it's confusing and not persisted
+        // through save/load anyway.
+        if( board_item->Type() == PCB_PAD_T )
+            continue;
+
+        PCB_GROUP* parent_group = board_item->GetParentGroup();
 
         if( parent_group && parent_group->Type() == PCB_GENERATOR_T )
         {
@@ -1297,11 +1320,10 @@ static bool mergeZones( EDA_DRAW_FRAME* aFrame, BOARD_COMMIT& aCommit,
 
     for( unsigned int i = 1; i < aOriginZones.size(); i++ )
     {
-        aOriginZones[0]->Outline()->BooleanAdd( *aOriginZones[i]->Outline(),
-                                                SHAPE_POLY_SET::PM_FAST );
+        aOriginZones[0]->Outline()->BooleanAdd( *aOriginZones[i]->Outline() );
     }
 
-    aOriginZones[0]->Outline()->Simplify( SHAPE_POLY_SET::PM_FAST );
+    aOriginZones[0]->Outline()->Simplify();
 
     // We should have one polygon, possibly with holes.  If we end up with two polygons (either
     // because the intersection was a single point or because the intersection was within one of
@@ -1403,7 +1425,7 @@ int BOARD_EDITOR_CONTROL::ZoneMerge( const TOOL_EVENT& aEvent )
     {
         if( mergeZones( m_frame, commit, toMerge, merged ) )
         {
-            commit.Push( wxT( "Merge Zones" ) );
+            commit.Push( _( "Merge Zones" ) );
 
             for( EDA_ITEM* item : merged )
                 m_toolMgr->RunAction( PCB_ACTIONS::selectItem, item );
@@ -1434,7 +1456,7 @@ int BOARD_EDITOR_CONTROL::ZoneDuplicate( const TOOL_EVENT& aEvent )
     int dialogResult;
 
     if( oldZone->GetIsRuleArea() )
-        dialogResult = InvokeRuleAreaEditor( m_frame, &zoneSettings );
+        dialogResult = InvokeRuleAreaEditor( m_frame, &zoneSettings, board() );
     else if( oldZone->IsOnCopperLayer() )
         dialogResult = InvokeCopperZonesEditor( m_frame, &zoneSettings );
     else
@@ -1573,7 +1595,14 @@ int BOARD_EDITOR_CONTROL::EditFpInFpEditor( const TOOL_EVENT& aEvent )
     const PCB_SELECTION& selection = selTool->RequestSelection( EDIT_TOOL::FootprintFilter );
 
     if( selection.Empty() )
+    {
+        // Giant hack: by default we assign Edit Table to the same hotkey, so give the table
+        // tool a chance to handle it if we can't.
+        if( PCB_EDIT_TABLE_TOOL* tableTool = m_toolMgr->GetTool<PCB_EDIT_TABLE_TOOL>() )
+            tableTool->EditTable( aEvent );
+
         return 0;
+    }
 
     FOOTPRINT* fp = selection.FirstOfKind<FOOTPRINT>();
 
@@ -1627,12 +1656,12 @@ int BOARD_EDITOR_CONTROL::DrillOrigin( const TOOL_EVENT& aEvent )
     Activate();
 
     picker->SetClickHandler(
-        [this] ( const VECTOR2D& pt ) -> bool
-        {
-            m_frame->SaveCopyInUndoList( m_placeOrigin.get(), UNDO_REDO::DRILLORIGIN );
-            DoSetDrillOrigin( getView(), m_frame, m_placeOrigin.get(), pt );
-            return false;   // drill origin is a one-shot; don't continue with tool
-        } );
+            [this] ( const VECTOR2D& pt ) -> bool
+            {
+                m_frame->SaveCopyInUndoList( m_placeOrigin.get(), UNDO_REDO::DRILLORIGIN );
+                DoSetDrillOrigin( getView(), m_frame, m_placeOrigin.get(), pt );
+                return false;   // drill origin is a one-shot; don't continue with tool
+            } );
 
     m_toolMgr->RunAction( ACTIONS::pickerTool, &aEvent );
 
@@ -1661,9 +1690,11 @@ void BOARD_EDITOR_CONTROL::setTransitions()
     Go( &BOARD_EDITOR_CONTROL::ImportSpecctraSession,  PCB_ACTIONS::importSpecctraSession.MakeEvent() );
     Go( &BOARD_EDITOR_CONTROL::ExportSpecctraDSN,      PCB_ACTIONS::exportSpecctraDSN.MakeEvent() );
 
-    if( ADVANCED_CFG::GetCfg().m_ShowPcbnewExportNetlist && m_frame &&
-        m_frame->GetExportNetlistAction() )
+    if( ADVANCED_CFG::GetCfg().m_ShowPcbnewExportNetlist && m_frame
+            && m_frame->GetExportNetlistAction() )
+    {
         Go( &BOARD_EDITOR_CONTROL::ExportNetlist, m_frame->GetExportNetlistAction()->MakeEvent() );
+    }
 
     Go( &BOARD_EDITOR_CONTROL::GenerateDrillFiles,     PCB_ACTIONS::generateDrillFiles.MakeEvent() );
     Go( &BOARD_EDITOR_CONTROL::GenerateFabFiles,       PCB_ACTIONS::generateGerbers.MakeEvent() );
@@ -1672,6 +1703,7 @@ void BOARD_EDITOR_CONTROL::setTransitions()
     Go( &BOARD_EDITOR_CONTROL::GenerateFabFiles,       PCB_ACTIONS::generateD356File.MakeEvent() );
     Go( &BOARD_EDITOR_CONTROL::GenerateFabFiles,       PCB_ACTIONS::generateBOM.MakeEvent() );
     Go( &BOARD_EDITOR_CONTROL::GenerateFabFiles,       PCB_ACTIONS::generateIPC2581File.MakeEvent() );
+    Go( &BOARD_EDITOR_CONTROL::GenerateFabFiles,       PCB_ACTIONS::generateODBPPFile.MakeEvent() );
 
     // Track & via size control
     Go( &BOARD_EDITOR_CONTROL::TrackWidthInc,          PCB_ACTIONS::trackWidthInc.MakeEvent() );
@@ -1710,6 +1742,7 @@ void BOARD_EDITOR_CONTROL::setTransitions()
     Go( &BOARD_EDITOR_CONTROL::ShowEeschema,           PCB_ACTIONS::showEeschema.MakeEvent() );
     Go( &BOARD_EDITOR_CONTROL::ToggleLayersManager,    PCB_ACTIONS::showLayersManager.MakeEvent() );
     Go( &BOARD_EDITOR_CONTROL::ToggleProperties,       ACTIONS::showProperties.MakeEvent() );
+    Go( &BOARD_EDITOR_CONTROL::ToggleNetInspector,     PCB_ACTIONS::showNetInspector.MakeEvent() );
     Go( &BOARD_EDITOR_CONTROL::ToggleSearch,           PCB_ACTIONS::showSearch.MakeEvent() );
     Go( &BOARD_EDITOR_CONTROL::TogglePythonConsole,    PCB_ACTIONS::showPythonConsole.MakeEvent() );
     Go( &BOARD_EDITOR_CONTROL::RepairBoard,            PCB_ACTIONS::repairBoard.MakeEvent() );

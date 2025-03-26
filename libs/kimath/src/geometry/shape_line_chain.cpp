@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2013-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -29,15 +29,16 @@
 #include <map>
 #include <string>            // for basic_string
 
-#include <clipper.hpp>
 #include <clipper2/clipper.h>
 #include <core/kicad_algo.h> // for alg::run_on_pair
+#include <geometry/circle.h>
 #include <geometry/seg.h>    // for SEG, OPT_VECTOR2I
 #include <geometry/shape_line_chain.h>
 #include <geometry/shape_poly_set.h>
 #include <math/box2.h>       // for BOX2I
 #include <math/util.h>       // for rescale
 #include <math/vector2d.h>   // for VECTOR2, VECTOR2I
+#include <math/box2_minmax.h>
 #include <trigo.h>           // for RotatePoint
 
 class SHAPE;
@@ -77,50 +78,6 @@ SHAPE_LINE_CHAIN::SHAPE_LINE_CHAIN( const SHAPE_ARC& aArc, bool aClosed ) :
 }
 
 
-SHAPE_LINE_CHAIN::SHAPE_LINE_CHAIN( const ClipperLib::Path&             aPath,
-                                    const std::vector<CLIPPER_Z_VALUE>& aZValueBuffer,
-                                    const std::vector<SHAPE_ARC>&       aArcBuffer ) :
-        SHAPE_LINE_CHAIN_BASE( SH_LINE_CHAIN ),
-        m_closed( true ), m_width( 0 )
-{
-    std::map<ssize_t, ssize_t> loadedArcs;
-    m_points.reserve( aPath.size() );
-    m_shapes.reserve( aPath.size() );
-
-    auto loadArc =
-        [&]( ssize_t aArcIndex ) -> ssize_t
-        {
-            if( aArcIndex == SHAPE_IS_PT )
-            {
-                return SHAPE_IS_PT;
-            }
-            else if( loadedArcs.count( aArcIndex ) == 0 )
-            {
-                loadedArcs.insert( { aArcIndex, m_arcs.size() } );
-                m_arcs.push_back( aArcBuffer.at( aArcIndex ) );
-            }
-
-            return loadedArcs.at( aArcIndex );
-        };
-
-    for( size_t ii = 0; ii < aPath.size(); ++ii )
-    {
-        Append( aPath[ii].X, aPath[ii].Y );
-
-        m_shapes[ii].first = loadArc( aZValueBuffer[aPath[ii].Z].m_FirstArcIdx );
-        m_shapes[ii].second = loadArc( aZValueBuffer[aPath[ii].Z].m_SecondArcIdx );
-    }
-
-    // Clipper shouldn't return duplicate contiguous points. if it did, these would be
-    // removed during Append() and we would have different number of shapes to points
-    wxASSERT( m_shapes.size() == m_points.size() );
-
-    // Clipper might mess up the rotation of the indices such that an arc can be split between
-    // the end point and wrap around to the start point. Lets fix the indices up now
-    fixIndicesRotation();
-}
-
-
 SHAPE_LINE_CHAIN::SHAPE_LINE_CHAIN( const Clipper2Lib::Path64&          aPath,
                                     const std::vector<CLIPPER_Z_VALUE>& aZValueBuffer,
                                     const std::vector<SHAPE_ARC>&       aArcBuffer ) :
@@ -151,8 +108,14 @@ SHAPE_LINE_CHAIN::SHAPE_LINE_CHAIN( const Clipper2Lib::Path64&          aPath,
     {
         Append( aPath[ii].x, aPath[ii].y );
 
-        m_shapes[ii].first = loadArc( aZValueBuffer[aPath[ii].z].m_FirstArcIdx );
-        m_shapes[ii].second = loadArc( aZValueBuffer[aPath[ii].z].m_SecondArcIdx );
+        // Add arc info (if exists)
+        int idx_z = aPath[ii].z;
+
+        if( idx_z < 0 || idx_z >= (int)aZValueBuffer.size() )
+            continue;
+
+        m_shapes[ii].first = loadArc( aZValueBuffer[idx_z].m_FirstArcIdx );
+        m_shapes[ii].second = loadArc( aZValueBuffer[idx_z].m_SecondArcIdx );
     }
 
     // Clipper shouldn't return duplicate contiguous points. if it did, these would be
@@ -162,40 +125,6 @@ SHAPE_LINE_CHAIN::SHAPE_LINE_CHAIN( const Clipper2Lib::Path64&          aPath,
     // Clipper might mess up the rotation of the indices such that an arc can be split between
     // the end point and wrap around to the start point. Lets fix the indices up now
     fixIndicesRotation();
-}
-
-
-ClipperLib::Path SHAPE_LINE_CHAIN::convertToClipper( bool aRequiredOrientation,
-                                                     std::vector<CLIPPER_Z_VALUE>& aZValueBuffer,
-                                                     std::vector<SHAPE_ARC>& aArcBuffer ) const
-{
-    ClipperLib::Path c_path;
-    SHAPE_LINE_CHAIN input;
-    bool             orientation = Area( false ) >= 0;
-    ssize_t          shape_offset = aArcBuffer.size();
-
-    if( orientation != aRequiredOrientation )
-        input = Reverse();
-    else
-        input = *this;
-
-    int pointCount = input.PointCount();
-    c_path.reserve( pointCount );
-
-    for( int i = 0; i < pointCount; i++ )
-    {
-        const VECTOR2I& vertex = input.CPoint( i );
-
-        CLIPPER_Z_VALUE z_value( input.m_shapes[i], shape_offset );
-        size_t          z_value_ptr = aZValueBuffer.size();
-        aZValueBuffer.push_back( z_value );
-
-        c_path.emplace_back( vertex.x, vertex.y, z_value_ptr );
-    }
-
-    aArcBuffer.insert( aArcBuffer.end(), input.m_arcs.begin(), input.m_arcs.end() );
-
-    return c_path;
 }
 
 
@@ -280,7 +209,7 @@ void SHAPE_LINE_CHAIN::mergeFirstLastPointIfNeeded()
         {
             // Create a duplicate point at the end
             m_points.push_back( m_points.front() );
-            m_shapes.push_back( { m_shapes.front().first, SHAPE_IS_PT });
+            m_shapes.push_back( { m_shapes.front().first, SHAPE_IS_PT } );
             m_shapes.front().first = m_shapes.front().second;
             m_shapes.front().second = SHAPE_IS_PT;
         }
@@ -547,6 +476,262 @@ void SHAPE_LINE_CHAIN::Rotate( const EDA_ANGLE& aAngle, const VECTOR2I& aCenter 
 }
 
 
+bool SHAPE_LINE_CHAIN::ClosestSegmentsFast( const SHAPE_LINE_CHAIN& aOther, VECTOR2I& aPt0,
+                                            VECTOR2I& aPt1 ) const
+{
+    const std::vector<VECTOR2I>& myPts = m_points;
+    const std::vector<VECTOR2I>& otherPts = aOther.m_points;
+
+    const int c_maxBoxes = 100;
+    const int c_minPtsPerBox = 20;
+
+    int myPointsPerBox = std::max( c_minPtsPerBox, int( myPts.size() / c_maxBoxes ) + 1 );
+    int otherPointsPerBox = std::max( c_minPtsPerBox, int( otherPts.size() / c_maxBoxes ) + 1 );
+
+    int myNumBoxes = ( myPts.size() + myPointsPerBox - 1 ) / myPointsPerBox;
+    int otherNumBoxes = ( otherPts.size() + otherPointsPerBox - 1 ) / otherPointsPerBox;
+
+    struct BOX
+    {
+        BOX2I_MINMAX bbox;
+        VECTOR2I     center;
+        int          radius;
+        bool         valid = false;
+    };
+
+    std::vector<BOX> myBoxes( myNumBoxes );
+    std::vector<BOX> otherBoxes( otherNumBoxes );
+
+    // Calculate bounding boxes
+    for( size_t i = 0; i < myPts.size(); i++ )
+    {
+        const VECTOR2I pt = myPts[i];
+        BOX&           box = myBoxes[i / myPointsPerBox];
+
+        if( box.valid )
+        {
+            box.bbox.Merge( pt );
+        }
+        else
+        {
+            box.bbox = BOX2I_MINMAX( pt );
+            box.valid = true;
+        }
+    }
+
+    for( size_t i = 0; i < otherPts.size(); i++ )
+    {
+        const VECTOR2I pt = otherPts[i];
+        BOX&           box = otherBoxes[i / otherPointsPerBox];
+
+        if( box.valid )
+        {
+            box.bbox.Merge( pt );
+        }
+        else
+        {
+            box.bbox = BOX2I_MINMAX( pt );
+            box.valid = true;
+        }
+    }
+
+    // Store centers and radiuses
+    for( BOX& box : myBoxes )
+    {
+        box.center = box.bbox.GetCenter();
+        box.radius = int( box.bbox.GetDiameter() / 2 );
+    }
+
+    for( BOX& box : otherBoxes )
+    {
+        box.center = box.bbox.GetCenter();
+        box.radius = int( box.bbox.GetDiameter() / 2 );
+    }
+
+    // Find closest pairs
+    struct DIST_PAIR
+    {
+        DIST_PAIR( int64_t aDistSq, size_t aIdA, size_t aIdB ) :
+                dist( aDistSq ), idA( aIdA ), idB( aIdB )
+        {
+        }
+
+        int64_t dist;
+        size_t  idA;
+        size_t  idB;
+    };
+
+    std::vector<DIST_PAIR> pairsToTest;
+
+    for( size_t ia = 0; ia < myBoxes.size(); ia++ )
+    {
+        for( size_t ib = 0; ib < otherBoxes.size(); ib++ )
+        {
+            const BOX& ca = myBoxes[ia];
+            const BOX& cb = otherBoxes[ib];
+
+            if( !ca.valid || !cb.valid )
+                continue;
+
+            VECTOR2L pA( ca.center );
+            VECTOR2L pB( cb.center );
+
+            int64_t dist = ( pB - pA ).EuclideanNorm();
+
+            dist -= ca.radius;
+            dist -= cb.radius;
+
+            pairsToTest.emplace_back( dist, ia, ib );
+        }
+    }
+
+    std::sort( pairsToTest.begin(), pairsToTest.end(),
+               []( const DIST_PAIR& a, const DIST_PAIR& b )
+               {
+                   return a.dist < b.dist;
+               } );
+
+    const int c_polyPairsLimit = 5;
+
+    // Find closest segments in tested pairs
+    int64_t total_closest_dist_sq = VECTOR2I::ECOORD_MAX;
+
+    for( size_t pairId = 0; pairId < pairsToTest.size() && pairId < c_polyPairsLimit; pairId++ )
+    {
+        const DIST_PAIR& pair = pairsToTest[pairId];
+
+        VECTOR2I ptA;
+        VECTOR2I ptB;
+        int64_t  dist_sq;
+
+        size_t myStartId = pair.idA * myPointsPerBox;
+        size_t myEndId = myStartId + myPointsPerBox;
+
+        if( myEndId > myPts.size() )
+            myEndId = myPts.size();
+
+        VECTOR2I myPrevPt = myPts[myStartId == 0 ? myPts.size() - 1 : myStartId - 1];
+
+        size_t otherStartId = pair.idB * otherPointsPerBox;
+        size_t otherEndId = otherStartId + otherPointsPerBox;
+
+        if( otherEndId > otherPts.size() )
+            otherEndId = otherPts.size();
+
+        VECTOR2I otherPrevPt = otherPts[otherStartId == 0 ? otherPts.size() - 1 : otherStartId - 1];
+
+        if( ClosestSegments( myPrevPt, myPts.begin() + myStartId, myPts.begin() + myEndId,
+                             otherPrevPt, otherPts.begin() + otherStartId,
+                             otherPts.begin() + otherEndId, ptA, ptB, dist_sq ) )
+        {
+            if( dist_sq < total_closest_dist_sq )
+            {
+                total_closest_dist_sq = dist_sq;
+                aPt0 = ptA;
+                aPt1 = ptB;
+            }
+        }
+    }
+
+    return total_closest_dist_sq != VECTOR2I::ECOORD_MAX;
+}
+
+
+bool SHAPE_LINE_CHAIN::ClosestSegments( const VECTOR2I& aMyPrevPt, const point_citer& aMyStart,
+                                        const point_citer& aMyEnd, const VECTOR2I& aOtherPrevPt,
+                                        const point_citer& aOtherStart,
+                                        const point_citer& aOtherEnd, VECTOR2I& aPt0,
+                                        VECTOR2I& aPt1, int64_t& aDistSq )
+{
+    if( aMyStart == aMyEnd )
+        return false;
+
+    if( aOtherStart == aOtherEnd )
+        return false;
+
+    int64_t  closest_dist_sq = VECTOR2I::ECOORD_MAX;
+    VECTOR2I lastPtA = aMyPrevPt;
+
+    for( point_citer itA = aMyStart; itA != aMyEnd; itA++ )
+    {
+        const VECTOR2I& ptA = *itA;
+        VECTOR2I        lastPtB = aOtherPrevPt;
+
+        for( point_citer itB = aOtherStart; itB != aOtherEnd; itB++ )
+        {
+            const VECTOR2I& ptB = *itB;
+
+            SEG segA( lastPtA, ptA );
+            SEG segB( lastPtB, ptB );
+
+            VECTOR2I nearestA, nearestB;
+
+            int64_t dist_sq;
+
+            if( segA.NearestPoints( segB, nearestA, nearestB, dist_sq ) )
+            {
+                if( dist_sq < closest_dist_sq )
+                {
+                    closest_dist_sq = dist_sq;
+                    aPt0 = nearestA;
+                    aPt1 = nearestB;
+                }
+            }
+
+            lastPtB = ptB;
+        }
+
+        lastPtA = ptA;
+    }
+
+    aDistSq = closest_dist_sq;
+    return closest_dist_sq != VECTOR2I::ECOORD_MAX;
+}
+
+
+bool SHAPE_LINE_CHAIN::ClosestPoints( const point_citer& aMyStart, const point_citer& aMyEnd,
+                                      const point_citer& aOtherStart, const point_citer& aOtherEnd,
+                                      VECTOR2I& aPt0, VECTOR2I& aPt1, int64_t& aDistSq )
+{
+    int64_t closest_dist_sq = VECTOR2I::ECOORD_MAX;
+
+    for( point_citer itA = aMyStart; itA != aMyEnd; itA++ )
+    {
+        const VECTOR2I& ptA = *itA;
+
+        for( point_citer itB = aOtherStart; itB != aOtherEnd; itB++ )
+        {
+            const VECTOR2I& ptB = *itB;
+
+            ecoord dx = (ecoord) ptB.x - ptA.x;
+            ecoord dy = (ecoord) ptB.y - ptA.y;
+
+            SEG::ecoord dist_sq = dx * dx + dy * dy;
+
+            if( dist_sq < closest_dist_sq )
+            {
+                closest_dist_sq = dist_sq;
+                aPt0 = ptA;
+                aPt1 = ptB;
+            }
+        }
+    }
+
+    aDistSq = closest_dist_sq;
+    return closest_dist_sq != VECTOR2I::ECOORD_MAX;
+}
+
+
+bool SHAPE_LINE_CHAIN::ClosestPoints( const SHAPE_LINE_CHAIN& aOther, VECTOR2I& aPt0,
+                                      VECTOR2I& aPt1 ) const
+{
+    ecoord dist_sq;
+
+    return ClosestPoints( m_points.cbegin(), m_points.cend(), aOther.m_points.cbegin(),
+                          aOther.m_points.cend(), aPt0, aPt1, dist_sq );
+}
+
+
 bool SHAPE_LINE_CHAIN_BASE::Collide( const SEG& aSeg, int aClearance, int* aActual,
                                      VECTOR2I* aLocation ) const
 {
@@ -655,14 +840,14 @@ bool SHAPE_LINE_CHAIN::Collide( const SEG& aSeg, int aClearance, int* aActual,
         return true;
     }
 
-    int dist = 0;
+    int         dist = std::numeric_limits<int>::max();
     SEG::ecoord closest_dist = sqrt( closest_dist_sq );
 
     // Collide arc segments
     for( size_t i = 0; i < ArcCount(); i++ )
     {
         const SHAPE_ARC& arc = Arc( i );
-        VECTOR2I pos;
+        VECTOR2I         pos;
 
         // The arcs in the chain should have zero width
         wxASSERT_MSG( arc.GetWidth() == 0, wxT( "Invalid arc width - should be zero" ) );
@@ -760,19 +945,18 @@ long long int SHAPE_LINE_CHAIN::Length() const
 }
 
 
-void SHAPE_LINE_CHAIN::Mirror( bool aX, bool aY, const VECTOR2I& aRef )
+void SHAPE_LINE_CHAIN::Mirror( const VECTOR2I& aRef, FLIP_DIRECTION aFlipDirection )
 {
     for( auto& pt : m_points )
     {
-        if( aX )
+        if( aFlipDirection == FLIP_DIRECTION::LEFT_RIGHT )
             pt.x = -pt.x + 2 * aRef.x;
-
-        if( aY )
+        else
             pt.y = -pt.y + 2 * aRef.y;
     }
 
     for( auto& arc : m_arcs )
-        arc.Mirror( aX, aY, aRef );
+        arc.Mirror( aRef, aFlipDirection );
 }
 
 
@@ -1074,10 +1258,12 @@ int SHAPE_LINE_CHAIN::ShapeCount() const
 
 SEG SHAPE_LINE_CHAIN::Segment( int aIndex ) const
 {
-    if( aIndex < 0 )
-        aIndex += SegmentCount();
+    int segCount = SegmentCount();
 
-    wxCHECK( aIndex < SegmentCount() && aIndex >= 0,
+    if( aIndex < 0 )
+        aIndex += segCount;
+
+    wxCHECK( aIndex < segCount && aIndex >= 0,
              m_points.size() > 0 ? SEG( m_points.back(), m_points.back() ) : SEG( 0, 0, 0, 0 ) );
 
     if( aIndex == (int) ( m_points.size() - 1 ) && m_closed )
@@ -1827,6 +2013,186 @@ const std::optional<SHAPE_LINE_CHAIN::INTERSECTION> SHAPE_LINE_CHAIN::SelfInters
 }
 
 
+struct SHAPE_KEY
+{
+    SHAPE_KEY( int aFirstIdx, int aArcIdx, const BOX2I_MINMAX& aBBox ) :
+            m_FirstIdx( aFirstIdx ), m_ArcIdx( aArcIdx ), m_BBox( aBBox )
+    {
+    }
+
+    int          m_FirstIdx;
+    int          m_ArcIdx;
+    BOX2I_MINMAX m_BBox;
+};
+
+
+const std::optional<SHAPE_LINE_CHAIN::INTERSECTION>
+SHAPE_LINE_CHAIN::SelfIntersectingWithArcs() const
+{
+    auto pointsClose = []( const VECTOR2I& aPt1, const VECTOR2I& aPt2 ) -> bool
+    {
+        return ( VECTOR2D( aPt1 ) - aPt2 ).SquaredEuclideanNorm() <= 2.0;
+    };
+
+    auto collideArcSeg = [&pointsClose]( const SHAPE_ARC& aArc, const SEG& aSeg, int aClearance = 0,
+                                         VECTOR2I* aLocation = nullptr )
+    {
+        VECTOR2I center = aArc.GetCenter();
+        CIRCLE   circle( center, aArc.GetRadius() );
+
+        std::vector<VECTOR2I> candidatePts = circle.Intersect( aSeg );
+
+        for( const VECTOR2I& candidate : candidatePts )
+        {
+            // Skip shared points
+            if( aArc.GetP1() == aSeg.A && pointsClose( candidate, aSeg.A ) )
+                continue;
+
+            if( aSeg.B == aArc.GetP0() && pointsClose( candidate, aSeg.B ) )
+                continue;
+
+            bool collides = aArc.Collide( candidate, aClearance, nullptr, aLocation );
+
+            if( collides )
+                return true;
+        }
+
+        return false;
+    };
+
+    auto collideArcArc = [&pointsClose]( const SHAPE_ARC& aArc1, const SHAPE_ARC& aArc2,
+                                         VECTOR2I* aLocation = nullptr )
+    {
+        std::vector<VECTOR2I> candidatePts;
+
+        aArc1.Intersect( aArc2, &candidatePts );
+
+        for( const VECTOR2I& candidate : candidatePts )
+        {
+            // Skip shared points
+            if( aArc1.GetP1() == aArc2.GetP0() && pointsClose( candidate, aArc1.GetP1() ) )
+                continue;
+
+            if( aArc2.GetP1() == aArc1.GetP0() && pointsClose( candidate, aArc2.GetP1() ) )
+                continue;
+
+            if( aLocation )
+                *aLocation = candidate;
+
+            return true;
+        }
+
+        return false;
+    };
+
+    auto collideSegSeg = [this]( int s1, int s2, INTERSECTION& is )
+    {
+        SEG seg1 = CSegment( s1 );
+        SEG seg2 = CSegment( s2 );
+
+        const VECTOR2I s2a = seg2.A, s2b = seg2.B;
+
+        if( s1 + 1 != s2 && seg1.Contains( s2a ) )
+        {
+            is.index_our = s1;
+            is.index_their = s2;
+            is.p = s2a;
+            return true;
+        }
+        else if( seg1.Contains( s2b ) &&
+                 // for closed polylines, the ending point of the
+                 // last segment == starting point of the first segment
+                 // this is a normal case, not self intersecting case
+                 !( IsClosed() && s1 == 0 && s2 == SegmentCount() - 1 ) )
+        {
+            is.index_our = s1;
+            is.index_their = s2;
+            is.p = s2b;
+            return true;
+        }
+        else
+        {
+            OPT_VECTOR2I p = seg1.Intersect( seg2, true );
+
+            if( p )
+            {
+                is.index_our = s1;
+                is.index_their = s2;
+                is.p = *p;
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    INTERSECTION is;
+
+    std::vector<SHAPE_KEY> shapeCache;
+    for( int si = 0; si != -1; si = NextShape( si ) )
+    {
+        int arci = ArcIndex( si );
+
+        shapeCache.emplace_back( si, arci,
+                                 arci == -1 ? BOX2I_MINMAX( CSegment( si ) )
+                                            : BOX2I_MINMAX( Arc( arci ) ) );
+    }
+
+    for( size_t sk1 = 0; sk1 < shapeCache.size(); sk1++ )
+    {
+        for( size_t sk2 = sk1 + 1; sk2 < shapeCache.size(); sk2++ )
+        {
+            VECTOR2I         loc;
+            const SHAPE_KEY& k1 = shapeCache[sk1];
+            const SHAPE_KEY& k2 = shapeCache[sk2];
+
+            if( !k1.m_BBox.Intersects( k2.m_BBox ) )
+                continue;
+
+            if( k1.m_ArcIdx == -1 && k2.m_ArcIdx == -1 )
+            {
+                if( collideSegSeg( k1.m_FirstIdx, k2.m_FirstIdx, is ) )
+                {
+                    return is;
+                }
+            }
+            else if( k1.m_ArcIdx != -1 && k2.m_ArcIdx == -1 )
+            {
+                if( collideArcSeg( Arc( k1.m_ArcIdx ), CSegment( k2.m_FirstIdx ), 0, &loc ) )
+                {
+                    is.index_our = k1.m_FirstIdx;
+                    is.index_their = k2.m_FirstIdx;
+                    is.p = loc;
+                    return is;
+                }
+            }
+            else if( k1.m_ArcIdx == -1 && k2.m_ArcIdx != -1 )
+            {
+                if( collideArcSeg( Arc( k2.m_ArcIdx ), CSegment( k1.m_FirstIdx ), 0, &loc ) )
+                {
+                    is.index_our = k1.m_FirstIdx;
+                    is.index_their = k2.m_FirstIdx;
+                    is.p = loc;
+                    return is;
+                }
+            }
+            else if( k1.m_ArcIdx != -1 && k2.m_ArcIdx != -1 )
+            {
+                if( collideArcArc( Arc( k1.m_ArcIdx ), Arc( k2.m_ArcIdx ), &loc ) )
+                {
+                    is.index_our = k1.m_FirstIdx;
+                    is.index_their = k2.m_FirstIdx;
+                    is.p = loc;
+                    return is;
+                }
+            }
+        }
+    }
+
+    return std::optional<SHAPE_LINE_CHAIN::INTERSECTION>();
+}
+
+
 const VECTOR2I SHAPE_LINE_CHAIN::NearestPoint( const VECTOR2I& aP,
                                                bool aAllowInternalShapePoints ) const
 {
@@ -2163,31 +2529,66 @@ void SHAPE_LINE_CHAIN::Simplify( int aMaxError )
     new_points.reserve( m_points.size() );
     new_shapes.reserve( m_shapes.size() );
 
-    for( size_t ii = 0; ii < m_points.size(); )
+    for( size_t start_idx = 0; start_idx < m_points.size(); )
     {
-        new_points.push_back( m_points[ii] );
-        new_shapes.push_back( m_shapes[ii] );
-        size_t jj = ( ii + 1 ) % m_points.size();
-        size_t kk = ( jj + 1 ) % m_points.size();
+        new_points.push_back( m_points[start_idx] );
+        new_shapes.push_back( m_shapes[start_idx] );
 
-        if( m_shapes[ii].first != SHAPE_IS_PT || m_shapes[jj].first != SHAPE_IS_PT
-            || m_shapes[kk].first != SHAPE_IS_PT )
-        {
-            ++ii;
-            continue;
-        }
-
-        while( TestSegmentHitFast( m_points[jj], m_points[ii], m_points[kk], aMaxError )
-               && ii != kk && jj > ii )
-        {
-            jj = ( jj + 1 ) % m_points.size();
-            kk = ( jj + 1 ) % m_points.size();
-        }
-
-        if( ii == kk || jj <= ii )
+        // If the line is not closed, we need at least 3 points before simplifying
+        if( !m_closed && start_idx == m_points.size() - 2 )
             break;
 
-        ii = jj;
+        // Initialize the end index to be two points ahead of start
+        size_t end_idx = ( start_idx + 2 ) % m_points.size();
+        bool can_simplify = true;
+
+        while( can_simplify && end_idx != start_idx && ( end_idx > start_idx || m_closed ) )
+        {
+            // Test all points between start_idx and end_idx
+            for( size_t test_idx = ( start_idx + 1 ) % m_points.size();
+                 test_idx != end_idx;
+                 test_idx = ( test_idx + 1 ) % m_points.size() )
+            {
+                // Check if all points are regular points (not arcs)
+                if( m_shapes[start_idx].first != SHAPE_IS_PT ||
+                    m_shapes[test_idx].first != SHAPE_IS_PT ||
+                    m_shapes[end_idx].first != SHAPE_IS_PT )
+                {
+                    can_simplify = false;
+                    break;
+                }
+
+                // Test if the point is within the allowed error
+                if( !TestSegmentHit( m_points[test_idx], m_points[start_idx], m_points[end_idx], aMaxError ) )
+                {
+                    can_simplify = false;
+                    break;
+                }
+            }
+
+            if( can_simplify )
+            {
+                // If we can simplify, move end_idx one further
+                end_idx = ( end_idx + 1 ) % m_points.size();
+            }
+        }
+
+        // If we couldn't simplify at all, move to the next point
+        if( end_idx == ( start_idx + 2 ) % m_points.size() )
+        {
+            ++start_idx;
+        }
+        else
+        {
+            // Otherwise, jump to the last point we could include in the simplification
+            size_t new_start_idx = ( end_idx + m_points.size() - 1 ) % m_points.size();
+
+            // If we looped all the way around, we're done
+            if( new_start_idx <= start_idx )
+                break;
+
+            start_idx = new_start_idx;
+        }
     }
 
     // If we have only one point, we need to add a second point to make a line
@@ -2239,6 +2640,108 @@ void SHAPE_LINE_CHAIN::Split( const VECTOR2I& aStart, const VECTOR2I& aEnd, SHAP
     aMid = l.Slice( i_start, i_end );
 }
 
+
+
+SHAPE_LINE_CHAIN& SHAPE_LINE_CHAIN::Simplify2( bool aRemoveColinear )
+{
+    std::vector<VECTOR2I> pts_unique;
+    std::vector<std::pair<ssize_t, ssize_t>> shapes_unique;
+
+    // Always try to keep at least 2 points otherwise, we're not really a line
+    if( PointCount() < 3 )
+    {
+        return *this;
+    }
+    else if( PointCount() == 3 )
+    {
+        if( m_points[0] == m_points[1] )
+            Remove( 1 );
+
+        return *this;
+    }
+
+    int i = 0;
+    int np = PointCount();
+
+    // stage 1: eliminate duplicate vertices
+    while( i < np )
+    {
+        int j = i + 1;
+
+        // We can eliminate duplicate vertices as long as they are part of the same shape, OR if
+        // one of them is part of a shape and one is not.
+        while( j < np && m_points[i] == m_points[j] &&
+               ( m_shapes[i] == m_shapes[j] ||
+                 m_shapes[i] == SHAPES_ARE_PT ||
+                 m_shapes[j] == SHAPES_ARE_PT ) )
+        {
+            j++;
+        }
+
+        std::pair<ssize_t,ssize_t> shapeToKeep = m_shapes[i];
+
+        if( shapeToKeep == SHAPES_ARE_PT )
+            shapeToKeep = m_shapes[j - 1];
+
+        assert( shapeToKeep.first < static_cast<int>( m_arcs.size() ) );
+        assert( shapeToKeep.second < static_cast<int>( m_arcs.size() ) );
+
+        pts_unique.push_back( CPoint( i ) );
+        shapes_unique.push_back( shapeToKeep );
+
+        i = j;
+    }
+
+    m_points.clear();
+    m_shapes.clear();
+    np = pts_unique.size();
+
+    i = 0;
+
+    // stage 2: eliminate colinear segments
+    while( i < np - 2 )
+    {
+        const VECTOR2I p0 = pts_unique[i];
+        int n = i;
+
+        if( aRemoveColinear && shapes_unique[i] == SHAPES_ARE_PT
+            && shapes_unique[i + 1] == SHAPES_ARE_PT )
+        {
+            while( n < np - 2
+                    && ( SEG( p0, pts_unique[n + 2] ).LineDistance( pts_unique[n + 1] ) <= 1
+                      || SEG( p0, pts_unique[n + 2] ).Collinear( SEG( p0, pts_unique[n + 1] ) ) ) )
+                n++;
+        }
+
+        m_points.push_back( p0 );
+        m_shapes.push_back( shapes_unique[i] );
+
+        if( n > i )
+            i = n;
+
+        if( n == np - 2 )
+        {
+            m_points.push_back( pts_unique[np - 1] );
+            m_shapes.push_back( shapes_unique[np - 1] );
+            return *this;
+        }
+
+        i++;
+    }
+
+    if( np > 1 )
+    {
+        m_points.push_back( pts_unique[np - 2] );
+        m_shapes.push_back( shapes_unique[np - 2] );
+    }
+
+    m_points.push_back( pts_unique[np - 1] );
+    m_shapes.push_back( shapes_unique[np - 1] );
+
+    assert( m_points.size() == m_shapes.size() );
+
+    return *this;
+}
 
 bool SHAPE_LINE_CHAIN::OffsetLine( int aAmount, CORNER_STRATEGY aCornerStrategy, int aMaxError,
                                    SHAPE_LINE_CHAIN& aLeft, SHAPE_LINE_CHAIN& aRight,

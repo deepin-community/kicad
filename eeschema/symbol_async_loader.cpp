@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2021-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,9 +27,9 @@
 
 
 SYMBOL_ASYNC_LOADER::SYMBOL_ASYNC_LOADER( const std::vector<wxString>& aNicknames,
-        SYMBOL_LIB_TABLE* aTable, bool aOnlyPowerSymbols,
-        std::unordered_map<wxString, std::vector<LIB_SYMBOL*>>* aOutput,
-        PROGRESS_REPORTER* aReporter ) :
+                                          SYMBOL_LIB_TABLE* aTable, bool aOnlyPowerSymbols,
+                                          std::unordered_map<wxString, std::vector<LIB_SYMBOL*>>* aOutput,
+                                          PROGRESS_REPORTER* aReporter ) :
         m_nicknames( aNicknames ),
         m_table( aTable ),
         m_onlyPowerSymbols( aOnlyPowerSymbols ),

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,33 +37,37 @@
 #include <tools/ee_actions.h>
 #include <tools/ee_inspection_tool.h>
 #include <dialog_erc.h>
-#include <erc.h>
-#include <erc_report.h>
+#include <erc/erc.h>
+#include <erc/erc_report.h>
 #include <id.h>
 #include <confirm.h>
 #include <common.h>
 #include <widgets/wx_html_report_box.h>
-#include <wx/ffile.h>
-#include <wx/filedlg.h>
-#include <wx/hyperlink.h>
-#include <erc_item.h>
+#include <dialogs/dialog_text_entry.h>
+#include <erc/erc_item.h>
 #include <eeschema_settings.h>
 #include <string_utils.h>
 #include <kiplatform/ui.h>
+
+#include <wx/ffile.h>
+#include <wx/filedlg.h>
+#include <wx/hyperlink.h>
+#include <wx/msgdlg.h>
 
 
 wxDEFINE_EVENT( EDA_EVT_CLOSE_ERC_DIALOG, wxCommandEvent );
 
 
-// wxWidgets spends *far* too long calcuating column widths (most of it, believe it or
+// wxWidgets spends *far* too long calculating column widths (most of it, believe it or
 // not, in repeatedly creating/destroying a wxDC to do the measurement in).
 // Use default column widths instead.
 static int DEFAULT_SINGLE_COL_WIDTH = 660;
 
 
-static SCHEMATIC*            g_lastERCSchematic = nullptr;
-static bool                  g_lastERCRun = false;
-static std::vector<wxString> g_lastERCIgnored;
+static SCHEMATIC* g_lastERCSchematic = nullptr;
+static bool       g_lastERCRun = false;
+
+static std::vector<std::pair<wxString, int>> g_lastERCIgnored;
 
 
 DIALOG_ERC::DIALOG_ERC( SCH_EDIT_FRAME* parent ) :
@@ -98,8 +102,15 @@ DIALOG_ERC::DIALOG_ERC( SCH_EDIT_FRAME* parent ) :
     {
         m_ercRun = g_lastERCRun;
 
-        for( const wxString& str : g_lastERCIgnored )
-            m_ignoredList->InsertItem( m_ignoredList->GetItemCount(), str );
+        for( const auto& [ str, code ] : g_lastERCIgnored )
+        {
+            wxListItem listItem;
+            listItem.SetId( m_ignoredList->GetItemCount() );
+            listItem.SetText( str );
+            listItem.SetData( code );
+
+            m_ignoredList->InsertItem( listItem );
+        }
     }
 
     m_notebook->SetSelection( 0 );
@@ -136,7 +147,10 @@ DIALOG_ERC::~DIALOG_ERC()
     g_lastERCIgnored.clear();
 
     for( int ii = 0; ii < m_ignoredList->GetItemCount(); ++ii )
-        g_lastERCIgnored.push_back( m_ignoredList->GetItemText( ii ) );
+    {
+        g_lastERCIgnored.push_back( { m_ignoredList->GetItemText( ii ),
+                                      m_ignoredList->GetItemData( ii ) } );
+    }
 
     EESCHEMA_SETTINGS* settings = dynamic_cast<EESCHEMA_SETTINGS*>( Kiface().KifaceSettings() );
     wxASSERT( settings );
@@ -368,8 +382,7 @@ void DIALOG_ERC::syncCheckboxes()
 
 void DIALOG_ERC::OnLinkClicked( wxHtmlLinkEvent& event )
 {
-    wxCommandEvent dummy;
-    m_parent->OnAnnotate( dummy );
+    m_parent->OnAnnotate();
 }
 
 
@@ -391,8 +404,12 @@ void DIALOG_ERC::OnRunERCClick( wxCommandEvent& event )
     {
         if( sch->ErcSettings().GetSeverity( item.get().GetErrorCode() ) == RPT_SEVERITY_IGNORE )
         {
-            m_ignoredList->InsertItem( m_ignoredList->GetItemCount(),
-                                       wxT( " • " ) + item.get().GetErrorText() );
+            wxListItem listItem;
+            listItem.SetId( m_ignoredList->GetItemCount() );
+            listItem.SetText( wxT( " • " ) + item.get().GetErrorText() );
+            listItem.SetData( item.get().GetErrorCode() );
+
+            m_ignoredList->InsertItem( listItem );
         }
     }
 
@@ -411,8 +428,6 @@ void DIALOG_ERC::OnRunERCClick( wxCommandEvent& event )
     m_deleteOneMarker->Enable( false );
     m_deleteAllMarkers->Enable( false );
     m_saveReport->Enable( false );
-
-    sch->GetSheets().AnnotatePowerSymbols();
 
     int itemsNotAnnotated = m_parent->CheckAnnotate(
             []( ERCE_T aType, const wxString& aMsg, SCH_REFERENCE* aItemA, SCH_REFERENCE* aItemB )
@@ -436,6 +451,7 @@ void DIALOG_ERC::OnRunERCClick( wxCommandEvent& event )
                                                   itemsNotAnnotated ), RPT_SEVERITY_INFO );
 
     if( m_cancelled )
+        // @spellingerror
         m_messages->Report( _( "-------- ERC cancelled by user.<br><br>" ), RPT_SEVERITY_INFO );
     else
         m_messages->Report( _( "Done.<br><br>" ), RPT_SEVERITY_INFO );
@@ -453,6 +469,7 @@ void DIALOG_ERC::OnRunERCClick( wxCommandEvent& event )
     if( !m_cancelled )
     {
         m_sdbSizer1Cancel->SetDefault();
+
         // wxWidgets has a tendency to keep both buttons highlighted without the following:
         m_sdbSizer1OK->Enable( false );
 
@@ -555,9 +572,12 @@ void DIALOG_ERC::OnERCItemSelected( wxDataViewEvent& aEvent )
             m_parent->GetToolManager()->RunAction( ACTIONS::cancelInteractive );
             m_parent->GetToolManager()->RunAction( EE_ACTIONS::clearSelection );
 
+            // Store the current zoom level into the current screen before switching
+            m_parent->GetScreen()->m_LastZoomLevel = m_parent->GetCanvas()->GetView()->GetScale();
+
             m_parent->SetCurrentSheet( sheet );
             m_parent->DisplayCurrentSheet();
-            m_parent->RedrawScreen(  m_parent->GetScreen()->m_ScrollCenter, false );
+            m_parent->RedrawScreen( m_parent->GetScreen()->m_ScrollCenter, false );
         }
 
         m_parent->FocusOnItem( item );
@@ -584,16 +604,18 @@ void DIALOG_ERC::OnERCItemDClick( wxDataViewEvent& aEvent )
 
 void DIALOG_ERC::OnERCItemRClick( wxDataViewEvent& aEvent )
 {
-    RC_TREE_NODE* node = RC_TREE_MODEL::ToNode( aEvent.GetItem() );
+    TOOL_MANAGER*       toolMgr = m_parent->GetToolManager();
+    EE_INSPECTION_TOOL* inspectionTool = toolMgr->GetTool<EE_INSPECTION_TOOL>();
+    RC_TREE_NODE*       node = RC_TREE_MODEL::ToNode( aEvent.GetItem() );
 
     if( !node )
         return;
 
     ERC_SETTINGS& settings = m_parent->Schematic().ErcSettings();
 
-    std::shared_ptr<RC_ITEM>  rcItem = node->m_RcItem;
-    wxString  listName;
-    wxMenu    menu;
+    std::shared_ptr<RC_ITEM> rcItem = node->m_RcItem;
+    wxString                 listName;
+    wxMenu                   menu;
 
     switch( settings.GetSeverity( rcItem->GetErrorCode() ) )
     {
@@ -602,16 +624,47 @@ void DIALOG_ERC::OnERCItemRClick( wxDataViewEvent& aEvent )
     default:                   listName = _( "appropriate" ); break;
     }
 
+    enum MENU_IDS
+    {
+        ID_EDIT_EXCLUSION_COMMENT = 4467,
+        ID_REMOVE_EXCLUSION,
+        ID_REMOVE_EXCLUSION_ALL,
+        ID_ADD_EXCLUSION,
+        ID_ADD_EXCLUSION_WITH_COMMENT,
+        ID_ADD_EXCLUSION_ALL,
+        ID_INSPECT_VIOLATION,
+        ID_EDIT_PIN_CONFLICT_MAP,
+        ID_EDIT_CONNECTION_GRID,
+        ID_SET_SEVERITY_TO_ERROR,
+        ID_SET_SEVERITY_TO_WARNING,
+        ID_SET_SEVERITY_TO_IGNORE,
+        ID_EDIT_SEVERITIES,
+    };
+
     if( rcItem->GetParent()->IsExcluded() )
     {
-        menu.Append( 1, _( "Remove exclusion for this violation" ),
+        menu.Append( ID_REMOVE_EXCLUSION,
+                     _( "Remove exclusion for this violation" ),
                      wxString::Format( _( "It will be placed back in the %s list" ), listName ) );
+
+        menu.Append( ID_EDIT_EXCLUSION_COMMENT,
+                     _( "Edit exclusion comment..." ) );
     }
     else
     {
-        menu.Append( 2, _( "Exclude this violation" ),
+        menu.Append( ID_ADD_EXCLUSION,
+                     _( "Exclude this violation" ),
+                     wxString::Format( _( "It will be excluded from the %s list" ), listName ) );
+
+        menu.Append( ID_ADD_EXCLUSION_WITH_COMMENT,
+                     _( "Exclude with comment..." ),
                      wxString::Format( _( "It will be excluded from the %s list" ), listName ) );
     }
+
+    wxString inspectERCErrorMenuText = inspectionTool->InspectERCErrorMenuText( rcItem );
+
+    if( !inspectERCErrorMenuText.IsEmpty() )
+        menu.Append( ID_INSPECT_VIOLATION, inspectERCErrorMenuText );
 
     menu.AppendSeparator();
 
@@ -622,18 +675,22 @@ void DIALOG_ERC::OnERCItemRClick( wxDataViewEvent& aEvent )
     }
     else if( settings.GetSeverity( rcItem->GetErrorCode() ) == RPT_SEVERITY_WARNING )
     {
-        menu.Append( 4, wxString::Format( _( "Change severity to Error for all '%s' violations" ),
-                                          rcItem->GetErrorText() ),
+        menu.Append( ID_SET_SEVERITY_TO_ERROR,
+                     wxString::Format( _( "Change severity to Error for all '%s' violations" ),
+                                       rcItem->GetErrorText() ),
                      _( "Violation severities can also be edited in the Schematic Setup... dialog" ) );
     }
     else
     {
-        menu.Append( 5, wxString::Format( _( "Change severity to Warning for all '%s' violations" ),
-                                          rcItem->GetErrorText() ),
-                     _( "Violation severities can also be edited in the Schematic Setup... dialog" ) );
+        menu.Append( ID_SET_SEVERITY_TO_WARNING,
+                     wxString::Format( _( "Change severity to Warning for all '%s' violations" ),
+                                       rcItem->GetErrorText() ),
+                     _( "Violation severities can also be edited in the Schematic Setup... "
+                        "dialog" ) );
     }
 
-    menu.Append( 6, wxString::Format( _( "Ignore all '%s' violations" ), rcItem->GetErrorText() ),
+    menu.Append( ID_SET_SEVERITY_TO_IGNORE,
+                 wxString::Format( _( "Ignore all '%s' violations" ), rcItem->GetErrorText() ),
                  _( "Violations will not be checked or reported" ) );
 
     menu.AppendSeparator();
@@ -641,29 +698,49 @@ void DIALOG_ERC::OnERCItemRClick( wxDataViewEvent& aEvent )
     if( rcItem->GetErrorCode() == ERCE_PIN_TO_PIN_WARNING
         || rcItem->GetErrorCode() == ERCE_PIN_TO_PIN_ERROR )
     {
-        menu.Append( 7, _( "Edit pin-to-pin conflict map..." ) );
+        menu.Append( ID_EDIT_PIN_CONFLICT_MAP,
+                     _( "Edit pin-to-pin conflict map..." ),
+                     _( "Open the Schematic Setup... dialog" ) );
     }
     else
     {
-        menu.Append( 8, _( "Edit violation severities..." ),
+        menu.Append( ID_EDIT_SEVERITIES,
+                     _( "Edit violation severities..." ),
                      _( "Open the Schematic Setup... dialog" ) );
     }
 
     if( rcItem->GetErrorCode() == ERCE_ENDPOINT_OFF_GRID )
     {
-        menu.Append( 9, _( "Edit connection grid spacing..." ),
+        menu.Append( ID_EDIT_CONNECTION_GRID,
+                     _( "Edit connection grid spacing..." ),
                      _( "Open the Schematic Setup... dialog" ) );
     }
 
     bool modified = false;
+    int  command = GetPopupMenuSelectionFromUser( menu );
 
-    switch( GetPopupMenuSelectionFromUser( menu ) )
+    switch( command )
     {
-    case 1:
-    {
-        SCH_MARKER* marker = dynamic_cast<SCH_MARKER*>( node->m_RcItem->GetParent() );
+    case ID_EDIT_EXCLUSION_COMMENT:
+        if( SCH_MARKER* marker = dynamic_cast<SCH_MARKER*>( node->m_RcItem->GetParent() ) )
+        {
+            WX_TEXT_ENTRY_DIALOG dlg( this, wxEmptyString, _( "Exclusion Comment" ),
+                                      marker->GetComment(), true );
 
-        if( marker )
+            if( dlg.ShowModal() == wxID_CANCEL )
+                break;
+
+            marker->SetExcluded( true, dlg.GetValue() );
+
+            // Update view
+            static_cast<RC_TREE_MODEL*>( aEvent.GetModel() )->ValueChanged( node );
+            modified = true;
+        }
+
+        break;
+
+    case ID_REMOVE_EXCLUSION:
+        if( SCH_MARKER* marker = dynamic_cast<SCH_MARKER*>( node->m_RcItem->GetParent() ) )
         {
             marker->SetExcluded( false );
             m_parent->GetCanvas()->GetView()->Update( marker );
@@ -672,16 +749,28 @@ void DIALOG_ERC::OnERCItemRClick( wxDataViewEvent& aEvent )
             static_cast<RC_TREE_MODEL*>( aEvent.GetModel() )->ValueChanged( node );
             modified = true;
         }
-    }
+
         break;
 
-    case 2:
-    {
-        SCH_MARKER* marker = dynamic_cast<SCH_MARKER*>( node->m_RcItem->GetParent() );
-
-        if( marker )
+    case ID_ADD_EXCLUSION:
+    case ID_ADD_EXCLUSION_WITH_COMMENT:
+        if( SCH_MARKER* marker = dynamic_cast<SCH_MARKER*>( node->m_RcItem->GetParent() ) )
         {
-            marker->SetExcluded( true );
+            wxString comment;
+
+            if( command == ID_ADD_EXCLUSION_WITH_COMMENT )
+            {
+                WX_TEXT_ENTRY_DIALOG dlg( this, wxEmptyString, _( "Exclusion Comment" ),
+                                          wxEmptyString, true );
+
+                if( dlg.ShowModal() == wxID_CANCEL )
+                    break;
+
+                comment = dlg.GetValue();
+            }
+
+            marker->SetExcluded( true, comment );
+
             m_parent->GetCanvas()->GetView()->Update( marker );
 
             // Update view
@@ -692,10 +781,14 @@ void DIALOG_ERC::OnERCItemRClick( wxDataViewEvent& aEvent )
 
             modified = true;
         }
-    }
+
         break;
 
-    case 4:
+    case ID_INSPECT_VIOLATION:
+        inspectionTool->InspectERCError( node->m_RcItem );
+        break;
+
+    case ID_SET_SEVERITY_TO_ERROR:
         settings.SetSeverity( rcItem->GetErrorCode(), RPT_SEVERITY_ERROR );
 
         for( SCH_ITEM* item : m_parent->GetScreen()->Items().OfType( SCH_MARKER_T ) )
@@ -711,7 +804,7 @@ void DIALOG_ERC::OnERCItemRClick( wxDataViewEvent& aEvent )
         modified = true;
         break;
 
-    case 5:
+    case ID_SET_SEVERITY_TO_WARNING:
         settings.SetSeverity( rcItem->GetErrorCode(), RPT_SEVERITY_WARNING );
 
         for( SCH_ITEM* item : m_parent->GetScreen()->Items().OfType( SCH_MARKER_T ) )
@@ -727,12 +820,19 @@ void DIALOG_ERC::OnERCItemRClick( wxDataViewEvent& aEvent )
         modified = true;
         break;
 
-    case 6:
+    case ID_SET_SEVERITY_TO_IGNORE:
     {
         settings.SetSeverity( rcItem->GetErrorCode(), RPT_SEVERITY_IGNORE );
 
         if( rcItem->GetErrorCode() == ERCE_PIN_TO_PIN_ERROR )
             settings.SetSeverity( ERCE_PIN_TO_PIN_WARNING, RPT_SEVERITY_IGNORE );
+
+        wxListItem listItem;
+        listItem.SetId( m_ignoredList->GetItemCount() );
+        listItem.SetText( wxT( " • " ) + rcItem->GetErrorText() );
+        listItem.SetData( rcItem->GetErrorCode() );
+
+        m_ignoredList->InsertItem( listItem );
 
         // Clear the selection before deleting markers. It may be some selected ERC markers.
         // Deleting a selected marker without deselecting it first generates a crash
@@ -747,15 +847,15 @@ void DIALOG_ERC::OnERCItemRClick( wxDataViewEvent& aEvent )
     }
         break;
 
-    case 7:
+    case ID_EDIT_PIN_CONFLICT_MAP:
         m_parent->ShowSchematicSetupDialog( _( "Pin Conflicts Map" ) );
         break;
 
-    case 8:
+    case ID_EDIT_SEVERITIES:
         m_parent->ShowSchematicSetupDialog( _( "Violation Severity" ) );
         break;
 
-    case 9:
+    case ID_EDIT_CONNECTION_GRID:
         m_parent->ShowSchematicSetupDialog( _( "Formatting" ) );
         break;
     }
@@ -765,6 +865,34 @@ void DIALOG_ERC::OnERCItemRClick( wxDataViewEvent& aEvent )
         updateDisplayedCounts();
         redrawDrawPanel();
         m_parent->OnModify();
+    }
+}
+
+
+void DIALOG_ERC::OnIgnoredItemRClick( wxListEvent& event )
+{
+    ERC_SETTINGS& settings = m_parent->Schematic().ErcSettings();
+    int           errorCode = (int) event.m_item.GetData();
+    wxMenu        menu;
+
+    menu.Append( RPT_SEVERITY_ERROR,   _( "Error" ),   wxEmptyString, wxITEM_CHECK );
+    menu.Append( RPT_SEVERITY_WARNING, _( "Warning" ), wxEmptyString, wxITEM_CHECK );
+    menu.Append( RPT_SEVERITY_IGNORE,  _( "Ignore" ),  wxEmptyString, wxITEM_CHECK );
+
+    menu.Check( settings.GetSeverity( errorCode ), true );
+
+    int severity = GetPopupMenuSelectionFromUser( menu );
+
+    if( severity > 0 )
+    {
+        if( settings.GetSeverity( errorCode ) != severity )
+        {
+            settings.SetSeverity( errorCode, (SEVERITY) severity );
+
+            updateDisplayedCounts();
+            redrawDrawPanel();
+            m_parent->OnModify();
+        }
     }
 }
 
@@ -885,18 +1013,22 @@ void DIALOG_ERC::OnSeverity( wxCommandEvent& aEvent )
 void DIALOG_ERC::deleteAllMarkers( bool aIncludeExclusions )
 {
     // Clear current selection list to avoid selection of deleted items
+    // Freeze to avoid repainting the dialog, which can cause a RePaint()
+    // of the screen as well
+    Freeze();
     m_parent->GetToolManager()->RunAction( EE_ACTIONS::clearSelection );
 
     m_markerTreeModel->DeleteItems( false, aIncludeExclusions, false );
 
     SCH_SCREENS screens( m_parent->Schematic().Root() );
     screens.DeleteAllMarkers( MARKER_BASE::MARKER_ERC, aIncludeExclusions );
+    Thaw();
 }
 
 
 void DIALOG_ERC::OnSaveReport( wxCommandEvent& aEvent )
 {
-    wxFileName fn( wxS( "ERC." ) + FILEEXT::ReportFileExtension );
+    wxFileName fn( wxS( "ERC." ) + wxString( FILEEXT::ReportFileExtension ) );
 
     wxFileDialog dlg( this, _( "Save Report File" ), Prj().GetProjectPath(), fn.GetFullName(),
                       FILEEXT::ReportFileWildcard() + wxS( "|" ) + FILEEXT::JsonFileWildcard(),
@@ -931,7 +1063,7 @@ void DIALOG_ERC::OnSaveReport( wxCommandEvent& aEvent )
     }
     else
     {
-        DisplayError( this, wxString::Format( _( "Failed to create file '%s'." ),
-                                              fn.GetFullPath() ) );
+        DisplayErrorMessage( this, wxString::Format( _( "Failed to create file '%s'." ),
+                                                     fn.GetFullPath() ) );
     }
 }

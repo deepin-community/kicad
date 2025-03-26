@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2011-2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2016-2023 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,13 +32,14 @@
 #include <i18n_utility.h>
 #include <io/io_base.h>
 #include <io/io_mgr.h>
+#include <pcb_io/pcb_io.h>
 
 class BOARD;
 class PCB_IO;
 class FOOTPRINT;
-class STRING_UTF8_MAP;
 class PROJECT;
 class PROGRESS_REPORTER;
+class REPORTER;
 
 /**
  * A factory which returns an instance of a #PLUGIN.
@@ -68,6 +69,7 @@ public:
         PCAD,
         SOLIDWORKS_PCB,
         IPC2581,
+        ODBPP,
         // add your type here.
 
         // etc.
@@ -202,7 +204,7 @@ public:
      *                 be loaded.
      */
     static BOARD* Load( PCB_FILE_T aFileType, const wxString& aFileName,
-                        BOARD* aAppendToMe = nullptr, const STRING_UTF8_MAP* aProperties = nullptr,
+                        BOARD* aAppendToMe = nullptr, const std::map<std::string, UTF8>* aProperties = nullptr,
                         PROJECT* aProject = nullptr,
                         PROGRESS_REPORTER* aProgressReporter = nullptr );
 
@@ -226,13 +228,13 @@ public:
      * @throw IO_ERROR if there is a problem saving or exporting.
      */
     static void Save( PCB_FILE_T aFileType, const wxString& aFileName, BOARD* aBoard,
-                      const STRING_UTF8_MAP* aProperties = nullptr );
+                      const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Convert a schematic symbol library to the latest KiCad format
      */
-    static bool ConvertLibrary( STRING_UTF8_MAP* aOldFileProps, const wxString& aOldFilePath,
-                                const wxString& aNewFilePath );
+    static bool ConvertLibrary( std::map<std::string, UTF8>* aOldFileProps, const wxString& aOldFilePath,
+                                const wxString& aNewFilePath, REPORTER* aReporter );
 };
 
 #endif // PCB_IO_MGR_H_

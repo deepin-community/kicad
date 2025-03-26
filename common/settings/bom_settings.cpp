@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mike Williams <mike@mikebwilliams.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -82,6 +82,7 @@ void to_json( nlohmann::json& j, const BOM_PRESET& p )
         { "filter_string", p.filterString },
         { "group_symbols", p.groupSymbols },
         { "exclude_dnp", p.excludeDNP },
+        { "include_excluded_from_bom", p.includeExcludedFromBOM },
     };
 
     if( p.fieldsOrdered.size() > 0 )
@@ -98,6 +99,9 @@ void from_json( const nlohmann::json& j, BOM_PRESET& f )
     j.at( "filter_string" ).get_to( f.filterString );
     j.at( "group_symbols" ).get_to( f.groupSymbols );
     j.at( "exclude_dnp" ).get_to( f.excludeDNP );
+
+    // Was not present in initial BOM settings in 8.0, so default to false if not found
+    f.includeExcludedFromBOM = j.value( "include_excluded_from_bom", false );
 }
 
 
@@ -109,14 +113,39 @@ bool BOM_PRESET::operator==( const BOM_PRESET& rhs ) const
         && this->fieldsOrdered == rhs.fieldsOrdered
         && this->sortField == rhs.sortField
         && this->sortAsc == rhs.sortAsc
+        && this->filterString == rhs.filterString
         && this->groupSymbols == rhs.groupSymbols
-        && this->excludeDNP == rhs.excludeDNP;
+        && this->excludeDNP == rhs.excludeDNP
+        && this->includeExcludedFromBOM == rhs.includeExcludedFromBOM;
+}
+
+
+BOM_PRESET BOM_PRESET::DefaultEditing()
+{
+    BOM_PRESET p{
+        _HKI( "Default Editing" ), true, {}, _( "Reference" ), true, "", true, false, true
+    };
+
+    p.fieldsOrdered = std::vector<BOM_FIELD>{
+        { "Reference", "Reference", true, false },
+        { "${QUANTITY}", "Qty", true, false },
+        { "Value", "Value", true, true },
+        { "${DNP}", "DNP", true, true },
+        { "${EXCLUDE_FROM_BOM}", "Exclude from BOM", true, true },
+        { "${EXCLUDE_FROM_BOARD}", "Exclude from Board", true, true },
+        { "Footprint", "Footprint", true, true },
+        { "Datasheet", "Datasheet", true, false },
+    };
+
+    return p;
 }
 
 
 BOM_PRESET BOM_PRESET::GroupedByValue()
 {
-    BOM_PRESET p{ _HKI( "Grouped By Value" ), true, {}, _( "Reference" ), true, "", true, false };
+    BOM_PRESET p{
+        _HKI( "Grouped By Value" ), true, {}, _( "Reference" ), true, "", true, false, false
+    };
 
     p.fieldsOrdered = std::vector<BOM_FIELD>{
         { "Reference", "Reference", true, false },
@@ -134,7 +163,8 @@ BOM_PRESET BOM_PRESET::GroupedByValue()
 BOM_PRESET BOM_PRESET::GroupedByValueFootprint()
 {
     BOM_PRESET p{
-        _HKI( "Grouped By Value and Footprint" ), true, {}, _( "Reference" ), true, "", true, false
+        _HKI( "Grouped By Value and Footprint" ), true, {}, _( "Reference" ), true, "",
+        true, false, false
     };
 
     p.fieldsOrdered = std::vector<BOM_FIELD>{
@@ -153,7 +183,7 @@ BOM_PRESET BOM_PRESET::GroupedByValueFootprint()
 BOM_PRESET BOM_PRESET::Attributes()
 {
     BOM_PRESET p{
-        _HKI( "Attributes" ), true, {}, _( "Reference" ), true, "", true, false
+        _HKI( "Attributes" ), true, {}, _( "Reference" ), true, "", true, false, true
     };
 
     p.fieldsOrdered = std::vector<BOM_FIELD>{
@@ -170,11 +200,13 @@ BOM_PRESET BOM_PRESET::Attributes()
     return p;
 }
 
+
 std::vector<BOM_PRESET> BOM_PRESET::BuiltInPresets()
 {
-    return { BOM_PRESET::GroupedByValue(), BOM_PRESET::GroupedByValueFootprint(),
-             BOM_PRESET::Attributes() };
+    return { BOM_PRESET::DefaultEditing(), BOM_PRESET::GroupedByValue(),
+             BOM_PRESET::GroupedByValueFootprint(), BOM_PRESET::Attributes() };
 }
+
 
 //Implementations for BOM_FMT_PRESET
 bool BOM_FMT_PRESET::operator==( const BOM_FMT_PRESET& rhs ) const
@@ -228,10 +260,12 @@ BOM_FMT_PRESET BOM_FMT_PRESET::CSV()
     return { _HKI( "CSV" ), true, wxS( "," ), wxT( "\"" ), wxT( "," ), wxT( "" ), false, false };
 }
 
+
 BOM_FMT_PRESET BOM_FMT_PRESET::TSV()
 {
     return { _HKI( "TSV" ), true, wxS( "\t" ), wxT( "" ), wxT( "," ), wxT( "" ), false, false };
 }
+
 
 BOM_FMT_PRESET BOM_FMT_PRESET::Semicolons()
 {
@@ -240,7 +274,14 @@ BOM_FMT_PRESET BOM_FMT_PRESET::Semicolons()
     };
 }
 
+
 std::vector<BOM_FMT_PRESET> BOM_FMT_PRESET::BuiltInPresets()
 {
     return { BOM_FMT_PRESET::CSV(), BOM_FMT_PRESET::TSV(), BOM_FMT_PRESET::Semicolons() };
 }
+
+
+#if !defined( __MINGW32__ )
+template class KICOMMON_API PARAM_LIST<BOM_PRESET>;
+template class KICOMMON_API PARAM_LIST<BOM_FMT_PRESET>;
+#endif

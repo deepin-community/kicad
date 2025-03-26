@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -103,41 +103,39 @@ void TEARDROP_MANAGER::RemoveTeardrops( BOARD_COMMIT& aCommit,
     std::shared_ptr<CONNECTIVITY_DATA> connectivity = m_board->GetConnectivity();
     std::vector<ZONE*>                 stale_teardrops;
 
-    for( ZONE* zone : m_board->Zones() )
-    {
-        if( zone->IsTeardropArea() )
-        {
-            bool stale = false;
-
-            std::vector<PAD*>     connectedPads;
-            std::vector<PCB_VIA*> connectedVias;
-
-            connectivity->GetConnectedPadsAndVias( zone, &connectedPads, &connectedVias );
-
-            for( PAD* pad : connectedPads )
+    auto isStale =
+            [&]( ZONE* zone )
             {
-                if( alg::contains( *dirtyPadsAndVias, pad ) )
+                std::vector<PAD*>     connectedPads;
+                std::vector<PCB_VIA*> connectedVias;
+
+                connectivity->GetConnectedPadsAndVias( zone, &connectedPads, &connectedVias );
+
+                for( PAD* pad : connectedPads )
                 {
-                    stale = true;
-                    break;
+                    if( alg::contains( *dirtyPadsAndVias, pad ) )
+                        return true;
                 }
-            }
 
-            if( !stale )
-            {
                 for( PCB_VIA* via : connectedVias )
                 {
                     if( alg::contains( *dirtyPadsAndVias, via ) )
-                    {
-                        stale = true;
-                        break;
-                    }
+                        return true;
                 }
-            }
 
-            if( stale )
-                stale_teardrops.push_back( zone );
-        }
+                for( PCB_TRACK* track : connectivity->GetConnectedTracks( zone ) )
+                {
+                    if( alg::contains( *dirtyTracks, track ) )
+                        return true;
+                }
+
+                return false;
+            };
+
+    for( ZONE* zone : m_board->Zones() )
+    {
+        if( zone->IsTeardropArea() && isStale( zone ) )
+            stale_teardrops.push_back( zone );
     }
 
     for( ZONE* td : stale_teardrops )
@@ -191,19 +189,16 @@ void TEARDROP_MANAGER::UpdateTeardrops( BOARD_COMMIT& aCommit,
 
         connectivity->GetConnectedPadsAndVias( track, &connectedPads, &connectedVias );
 
-        bool forceUpdate = aForceFullUpdate || dirtyTracks->find( track ) != dirtyTracks->end();
+        bool forceUpdate = aForceFullUpdate || dirtyTracks->contains( track );
 
         for( PAD* pad : connectedPads )
         {
             if( !forceUpdate && !alg::contains( *dirtyPadsAndVias, pad ) )
                 continue;
 
-            if( pad->GetShape() == PAD_SHAPE::CUSTOM )
-                // A teardrop shape cannot be built
-                continue;
-
             TEARDROP_PARAMETERS& tdParams = pad->GetTeardropParams();
-            int                  annularWidth = std::min( pad->GetSize().x, pad->GetSize().y );
+            VECTOR2I padSize = pad->GetSize( track->GetLayer() );
+            int annularWidth = std::min( padSize.x, padSize.y );
 
             if( !tdParams.m_Enabled )
                 continue;
@@ -244,7 +239,7 @@ void TEARDROP_MANAGER::UpdateTeardrops( BOARD_COMMIT& aCommit,
                 continue;
 
             TEARDROP_PARAMETERS tdParams = via->GetTeardropParams();
-            int                 annularWidth = via->GetWidth();
+            int                 annularWidth = via->GetWidth( track->GetLayer() );
 
             if( !tdParams.m_Enabled )
                 continue;

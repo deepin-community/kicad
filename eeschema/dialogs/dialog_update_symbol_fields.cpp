@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -46,9 +46,9 @@ DIALOG_UPDATE_SYMBOL_FIELDS::DIALOG_UPDATE_SYMBOL_FIELDS( SYMBOL_EDIT_FRAME* aPa
 
     m_parentSymbolReadOnly->SetValue( UnescapeString( m_symbol->GetParent().lock()->GetName() ) );
 
-    for( int i = 0; i < MANDATORY_FIELDS; ++i )
+    for( int i = 0; i < MANDATORY_FIELD_COUNT; ++i )
     {
-        m_fieldsBox->Append( TEMPLATE_FIELDNAME::GetDefaultFieldName( i, DO_TRANSLATE ) );
+        m_fieldsBox->Append( GetDefaultFieldName( i, DO_TRANSLATE ) );
         m_fieldsBox->Check( i, true );
     }
 
@@ -82,33 +82,39 @@ DIALOG_UPDATE_SYMBOL_FIELDS::~DIALOG_UPDATE_SYMBOL_FIELDS()
 void DIALOG_UPDATE_SYMBOL_FIELDS::updateFieldsList()
 {
     // Load non-mandatory fields from the parent part
-    std::vector<LIB_FIELD*>      libFields;
+    std::vector<SCH_FIELD*>      libFields;
     std::set<wxString>           fieldNames;
     std::unique_ptr<LIB_SYMBOL>  flattenedParent = m_symbol->GetParent().lock()->Flatten();
 
     flattenedParent->GetFields( libFields );
 
-    for( unsigned i = MANDATORY_FIELDS; i < libFields.size(); ++i )
-        fieldNames.insert( libFields[i]->GetName() );
+    for( SCH_FIELD* libField : libFields )
+    {
+        if( !libField->IsMandatory() )
+            fieldNames.insert( libField->GetName() );
+    }
 
     libFields.clear();  // flattenedPart is about to go out of scope...
 
     // Load non-mandatory fields from the editor symbol
     m_symbol->GetFields( libFields );
 
-    for( unsigned i = MANDATORY_FIELDS; i < libFields.size(); ++i )
-        fieldNames.insert( libFields[i]->GetName() );
+    for( SCH_FIELD* libField : libFields )
+    {
+        if( !libField->IsMandatory() )
+            fieldNames.insert( libField->GetName() );
+    }
 
     libFields.clear();
 
     // Update the listbox widget
-    for( unsigned i = m_fieldsBox->GetCount() - 1; i >= MANDATORY_FIELDS; --i )
+    for( unsigned i = m_fieldsBox->GetCount() - 1; i >= MANDATORY_FIELD_COUNT; --i )
         m_fieldsBox->Delete( i );
 
     for( const wxString& fieldName : fieldNames )
         m_fieldsBox->Append( fieldName );
 
-    for( unsigned i = MANDATORY_FIELDS; i < m_fieldsBox->GetCount(); ++i )
+    for( unsigned i = MANDATORY_FIELD_COUNT; i < m_fieldsBox->GetCount(); ++i )
         m_fieldsBox->Check( i, true );
 }
 
@@ -143,14 +149,14 @@ void DIALOG_UPDATE_SYMBOL_FIELDS::onOkButtonClicked( wxCommandEvent& aEvent )
     bool resetEffects = m_resetFieldEffects->GetValue();
     bool resetPositions = m_resetFieldPositions->GetValue();
 
-    std::vector<LIB_FIELD> fields;
-    std::vector<LIB_FIELD> result;
-    m_symbol->GetFields( fields );
+    std::vector<SCH_FIELD> fields;
+    std::vector<SCH_FIELD> result;
+    m_symbol->CopyFields( fields );
 
-    for( LIB_FIELD& field : fields )
+    for( SCH_FIELD& field : fields )
     {
         bool       copy = true;
-        LIB_FIELD* parentField = nullptr;
+        SCH_FIELD* parentField = nullptr;
 
         if( alg::contains( m_updateFields, field.GetName() ) )
         {
@@ -195,12 +201,12 @@ void DIALOG_UPDATE_SYMBOL_FIELDS::onOkButtonClicked( wxCommandEvent& aEvent )
             result.emplace_back( std::move( field ) );
     }
 
-    std::vector<LIB_FIELD*> parentFields;
+    std::vector<SCH_FIELD*> parentFields;
     int                     idx = result.size();
 
     flattenedParent->GetFields( parentFields );
 
-    for( LIB_FIELD* parentField : parentFields )
+    for( SCH_FIELD* parentField : parentFields )
     {
         if( !alg::contains( m_updateFields, parentField->GetName() ) )
             continue;
@@ -208,7 +214,7 @@ void DIALOG_UPDATE_SYMBOL_FIELDS::onOkButtonClicked( wxCommandEvent& aEvent )
         if( !m_symbol->FindField( parentField->GetName() ) )
         {
             result.emplace_back( m_symbol, idx++ );
-            LIB_FIELD* newField = &result.back();
+            SCH_FIELD* newField = &result.back();
 
             newField->SetName( parentField->GetCanonicalName() );
             newField->SetText( parentField->GetText() );

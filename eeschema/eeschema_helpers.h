@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -35,7 +35,7 @@ class PROJECT;
 /**
  * Helper functions to do things like load schematics behind the scenes for special functions
  *
- * Similar to the pcbnew scripting helpers, this is just to have one spot
+ * Similar to the Pcbnew scripting helpers, this is just to have one spot
  * for these types of "hacky" solutions
  */
 class EESCHEMA_HELPERS
@@ -43,11 +43,14 @@ class EESCHEMA_HELPERS
 public:
     static SETTINGS_MANAGER* GetSettingsManager();
     static void              SetSchEditFrame( SCH_EDIT_FRAME* aSchEditFrame );
-    static PROJECT*          GetDefaultProject();
-    static SCHEMATIC*        LoadSchematic( wxString& aFileName, bool aSetActive );
-    static SCHEMATIC*        LoadSchematic( wxString& aFileName, SCH_IO_MGR::SCH_FILE_T aFormat,
-                                            bool aSetActive );
-
+    static PROJECT*          GetDefaultProject( bool aSetActive );
+    static SCHEMATIC*        LoadSchematic( const wxString& aFileName, bool aSetActive,
+                                            bool aForceDefaultProject,
+                                            PROJECT* aProject = nullptr );
+    static SCHEMATIC*        LoadSchematic( const wxString& aFileName,
+                                            SCH_IO_MGR::SCH_FILE_T aFormat,
+                                            bool aSetActive, bool aForceDefaultProject,
+                                            PROJECT* aProject = nullptr );
 
 private:
     static SCH_EDIT_FRAME*   s_SchEditFrame;

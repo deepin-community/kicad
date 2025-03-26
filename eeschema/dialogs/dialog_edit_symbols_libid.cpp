@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright 2017 Jean-Pierre Charras, jp.charras@wanadoo.fr
- * Copyright 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +29,7 @@
 
 
 #include <confirm.h>
+#include <sch_commit.h>
 #include <sch_edit_frame.h>
 #include <sch_symbol.h>
 #include <sch_reference_list.h>
@@ -41,6 +42,7 @@
 #include <wx/tokenzr.h>
 #include <wx/choicdlg.h>
 #include <wx/dcclient.h>
+#include <wx/msgdlg.h>
 #include <grid_tricks.h>
 #include <widgets/grid_text_button_helpers.h>
 #include <kiplatform/ui.h>
@@ -59,7 +61,9 @@ public:
     int GetHeight( wxDC& aDC, wxGrid* aGrid, int aRow, int aCol );
 
     wxGridCellRenderer *Clone() const override
-    { return new GRIDCELL_AUTOWRAP_STRINGRENDERER; }
+    {
+        return new GRIDCELL_AUTOWRAP_STRINGRENDERER;
+    }
 
 private:
     // HELPER ROUTINES UNCHANGED FROM wxWidgets IMPLEMENTATION
@@ -390,13 +394,13 @@ void DIALOG_EDIT_SYMBOLS_LIBID::initDlg()
     // In complex hierarchies, the same symbol is in fact duplicated, but
     // it is listed with different references (one by sheet instance)
     // the list is larger and looks like it contains all symbols.
-    const SCH_SHEET_LIST& sheets = GetParent()->Schematic().GetSheets();
     SCH_REFERENCE_LIST references;
 
     // build the full list of symbols including symbol having no symbol in loaded libs
     // (orphan symbols)
-    sheets.GetSymbols( references, /* include power symbols */ true,
-                       /* include orphan symbols */ true );
+    GetParent()->Schematic().Hierarchy().GetSymbols( references,
+                                                     true /* include power symbols */,
+                                                     true /* include orphan symbols */ );
 
     for( unsigned ii = 0; ii < references.GetCount(); ii++ )
     {
@@ -706,6 +710,8 @@ bool DIALOG_EDIT_SYMBOLS_LIBID::TransferDataFromWindow()
     if( !validateLibIds() )
         return false;
 
+    SCH_COMMIT commit( GetParent() );
+
     auto getName = []( const LIB_ID& aLibId )
             {
                 return UnescapeString( aLibId.GetLibItemName().wx_str() );
@@ -744,14 +750,13 @@ bool DIALOG_EDIT_SYMBOLS_LIBID::TransferDataFromWindow()
                             id.GetLibNickname().wx_str(),
                             ioe.What() );
 
-                DisplayError( this, msg );
+                DisplayErrorMessage( this, msg );
             }
 
             if( symbol == nullptr )
                 continue;
 
-            GetParent()->SaveCopyInUndoList( candidate.m_Screen, candidate.m_Symbol,
-                                             UNDO_REDO::CHANGED, m_isModified );
+            commit.Modify( candidate.m_Symbol, candidate.m_Screen );
             m_isModified = true;
 
             candidate.m_Screen->Remove( candidate.m_Symbol );
@@ -777,6 +782,9 @@ bool DIALOG_EDIT_SYMBOLS_LIBID::TransferDataFromWindow()
             }
         }
     }
+
+    if( m_modified )
+        commit.Push( wxS( "Change Symbol Library Indentifier" ) );
 
     return true;
 }

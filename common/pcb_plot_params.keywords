@@ -1,4 +1,5 @@
 creategerberjobfile
+crossoutdnponfab
 dashed_line_dash_ratio
 dashed_line_gap_ratio
 disableapertmacros
@@ -9,6 +10,7 @@ dxfusepcbnewfont
 excludeedgelayer
 false
 gerberprecision
+hidednponfab
 hpglpendiameter
 hpglpennumber
 hpglpenoverlay
@@ -24,9 +26,13 @@ outputformat
 pcbplotparams
 pdf_back_fp_property_popups
 pdf_front_fp_property_popups
+pdf_metadata
+pdf_single_document
 plotframeref
 plotfptext
+plot_black_and_white
 plotinvisibletext
+plotpadnumbers
 plotreference
 plotvalue
 psa4output
@@ -34,6 +40,7 @@ pscolor
 psnegative
 scaleselection
 sketchpadsonfab
+sketchdnponfab
 subtractmaskfromsilk
 svgprecision
 svguseinch

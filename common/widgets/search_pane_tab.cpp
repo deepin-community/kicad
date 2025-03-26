@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,6 +23,7 @@
 #include <vector>
 #include <string_utils.h>
 #include <wx/clipbrd.h>
+#include <core/kicad_algo.h>
 
 SEARCH_PANE_LISTVIEW::SEARCH_PANE_LISTVIEW( SEARCH_HANDLER* handler, wxWindow* parent,
                                             wxWindowID winid, const wxPoint& pos,
@@ -134,7 +135,16 @@ void SEARCH_PANE_LISTVIEW::OnColClicked( wxListEvent& aEvent )
 
     ShowSortIndicator( m_sortCol, m_sortAscending );
 
-    Sort();
+    std::vector<long> selection = Sort();
+
+    for( long row = 0; row < GetItemCount(); row++ )
+    {
+        if( alg::contains( selection, row ) )
+            SetItemState( row, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED );
+        else
+            SetItemState( row, 0, wxLIST_STATE_SELECTED );
+    }
+
     Refresh();
 }
 
@@ -153,6 +163,7 @@ void SEARCH_PANE_LISTVIEW::OnChar( wxKeyEvent& aEvent )
         if( wxTheClipboard->Open() )
         {
             wxString txt;
+
             for( int row = 0; row < GetItemCount(); row++ )
             {
                 if( GetItemState( row, wxLIST_STATE_SELECTED ) == wxLIST_STATE_SELECTED )
@@ -162,10 +173,12 @@ void SEARCH_PANE_LISTVIEW::OnChar( wxKeyEvent& aEvent )
                         if( GetColumnWidth( col ) > 0 )
                         {
                             txt += GetItemText( row, col );
+
                             if( row <= GetItemCount() - 1 )
                                 txt += wxT( "\t" );
                         }
                     }
+
                     txt += wxT( "\n" );
                 }
             }
@@ -177,9 +190,14 @@ void SEARCH_PANE_LISTVIEW::OnChar( wxKeyEvent& aEvent )
 }
 
 
-void SEARCH_PANE_LISTVIEW::Sort()
+std::vector<long> SEARCH_PANE_LISTVIEW::Sort()
 {
-    m_handler->Sort( m_sortCol, m_sortAscending );
+    std::vector<long> selection;
+    GetSelectRowsList( selection );
+
+    m_handler->Sort( m_sortCol, m_sortAscending, &selection );
+
+    return selection;
 }
 
 

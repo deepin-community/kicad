@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -144,6 +144,14 @@ void DIALOG_FOOTPRINT_CHECKER::runChecks()
 
     footprint->BuildCourtyardCaches( &outlineErrorHandler );
 
+    if( ( footprint->GetAttributes() & FP_ALLOW_MISSING_COURTYARD ) == 0
+            && footprint->GetCourtyard( F_CrtYd ).OutlineCount() == 0
+            && footprint->GetCourtyard( B_CrtYd ).OutlineCount() == 0 )
+    {
+        errorHandler( footprint, nullptr, nullptr, DRCE_MISSING_COURTYARD, wxEmptyString,
+                      { 0, 0 } );
+    }
+
     footprint->CheckFootprintAttributes(
             [&]( const wxString& aMsg )
             {
@@ -158,10 +166,9 @@ void DIALOG_FOOTPRINT_CHECKER::runChecks()
             } );
 
     footprint->CheckShortingPads(
-            [&]( const PAD* aPadA, const PAD* aPadB, const VECTOR2I& aPosition )
+            [&]( const PAD* aPadA, const PAD* aPadB, int aErrorCode, const VECTOR2I& aPosition )
             {
-                errorHandler( aPadA, aPadB, nullptr, DRCE_SHORTING_ITEMS, wxEmptyString,
-                              aPosition );
+                errorHandler( aPadA, aPadB, nullptr, aErrorCode, wxEmptyString, aPosition );
             } );
 
     if( footprint->IsNetTie() )
@@ -293,7 +300,7 @@ void DIALOG_FOOTPRINT_CHECKER::OnSelectItem( wxDataViewEvent& aEvent )
         m_frame->FocusOnItem( item );
         m_frame->GetCanvas()->Refresh();
 
-        if( ( violationLayers & board->GetVisibleLayers() ) == 0 )
+        if( ( violationLayers & board->GetVisibleLayers() ).none() )
         {
             m_frame->GetAppearancePanel()->SetLayerVisible( principalLayer, true );
             m_frame->GetCanvas()->Refresh();

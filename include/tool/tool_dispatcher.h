@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2020-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -77,16 +77,14 @@ public:
      */
     std::optional<TOOL_EVENT> GetToolEvent( wxKeyEvent* aKeyEvent, bool* aSpecialKeyFlag );
 
-    ACTION_MENU* GetCurrentMenu() const { return m_currentMenu; }
-
 private:
-    ///< Handles mouse related events (click, motion, dragging).
+    /// Handles mouse related events (click, motion, dragging).
     bool handleMouseButton( wxEvent& aEvent, int aIndex, bool aMotion );
 
-    ///< Returns the instance of VIEW, used by the application.
+    /// Returns the instance of VIEW, used by the application.
     KIGFX::VIEW* getView();
 
-    ///< Saves the state of key modifiers (Alt, Ctrl and so on).
+    /// Saves the state of key modifiers (Alt, Ctrl and so on).
     static int decodeModifiers( const wxKeyboardState* aState )
     {
         int mods = 0;
@@ -104,30 +102,27 @@ private:
     }
 
 private:
-    ///< The time threshold for a mouse button press that distinguishes between a single mouse
-    ///< click and a beginning of drag event (expressed in milliseconds).
+    /// The time threshold for a mouse button press that distinguishes between a single mouse
+    /// click and a beginning of drag event (expressed in milliseconds).
     static const int DragTimeThreshold = 300;
 
-    ///< The distance threshold for mouse cursor that distinguishes between a single mouse click
-    ///< and a beginning of drag event (expressed in screen pixels).
-    ///< System drag preferences take precedence if available
+    /// The distance threshold for mouse cursor that distinguishes between a single mouse click
+    /// and a beginning of drag event (expressed in screen pixels).
+    /// System drag preferences take precedence if available
     static const int DragDistanceThreshold = 8;
 
-    int      m_sysDragMinX;          ///< Mininum distance before drag is activated in the X axis
+    int      m_sysDragMinX;          ///< Minimum distance before drag is activated in the X axis
     int      m_sysDragMinY;          ///< Maximum distance before drag is activated in the Y axis
 
     VECTOR2D m_lastMousePos;         ///< The last mouse cursor position (in world coordinates).
     VECTOR2D m_lastMousePosScreen;   ///< The last mouse cursor position (in screen coordinates).
 
-    ///< State of mouse buttons.
+    /// State of mouse buttons.
     struct BUTTON_STATE;
     std::vector<BUTTON_STATE*> m_buttons;
 
-    ///< Instance of tool manager that cooperates with the dispatcher.
+    /// Instance of tool manager that cooperates with the dispatcher.
     TOOL_MANAGER* m_toolMgr;
-
-    ///< The menu from the main menubar currently shown (if any; nullptr otherwise)
-    ACTION_MENU*  m_currentMenu;
 };
 
 #endif  // TOOL_DISPATCHER_H

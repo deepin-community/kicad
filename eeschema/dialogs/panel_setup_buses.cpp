@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 CERN
- * Copyright (C) 2021-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Jon Evans <jon@craftyjon.com>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -45,6 +45,8 @@ PANEL_SETUP_BUSES::PANEL_SETUP_BUSES( wxWindow* aWindow, SCH_EDIT_FRAME* aFrame 
 
     m_source->SetFont( KIUI::GetInfoFont( aWindow ) );
 
+    m_aliasesGrid->OverrideMinSize( 0.6, 0.3 );
+    m_membersGrid->OverrideMinSize( 0.6, 0.3 );
     m_aliasesGrid->SetSelectionMode( wxGrid::wxGridSelectRows );
     m_membersGrid->SetSelectionMode( wxGrid::wxGridSelectRows );
 
@@ -82,14 +84,15 @@ PANEL_SETUP_BUSES::~PANEL_SETUP_BUSES()
     m_membersGrid->PopEventHandler( true );
 
     m_aliasesGrid->Disconnect( wxEVT_GRID_CELL_CHANGING,
-                                wxGridEventHandler( PANEL_SETUP_BUSES::OnAliasesGridCellChanging ),
-                                nullptr, this );
+                               wxGridEventHandler( PANEL_SETUP_BUSES::OnAliasesGridCellChanging ),
+                               nullptr, this );
     m_membersGrid->Disconnect( wxEVT_GRID_CELL_CHANGING,
-                                wxGridEventHandler( PANEL_SETUP_BUSES::OnMemberGridCellChanging ),
-                                nullptr, this );
+                               wxGridEventHandler( PANEL_SETUP_BUSES::OnMemberGridCellChanging ),
+                               nullptr, this );
 }
 
-bool PANEL_SETUP_BUSES::TransferDataToWindow()
+
+void PANEL_SETUP_BUSES::loadAliases( const SCHEMATIC& aSchematic )
 {
     auto contains =
             [&]( const std::shared_ptr<BUS_ALIAS>& alias ) -> bool
@@ -113,7 +116,7 @@ bool PANEL_SETUP_BUSES::TransferDataToWindow()
                 return false;
             };
 
-    SCH_SCREENS screens( m_frame->Schematic().Root() );
+    SCH_SCREENS screens( aSchematic.Root() );
 
     // collect aliases from each open sheet
     for( SCH_SCREEN* screen = screens.GetFirst(); screen != nullptr; screen = screens.GetNext() )
@@ -134,7 +137,12 @@ bool PANEL_SETUP_BUSES::TransferDataToWindow()
         m_aliasesGrid->SetCellValue( ii++, 0, alias->GetName() );
 
     m_membersBook->SetSelection( 1 );
+}
 
+
+bool PANEL_SETUP_BUSES::TransferDataToWindow()
+{
+    loadAliases( m_frame->Schematic() );
     return true;
 }
 
@@ -173,8 +181,8 @@ void PANEL_SETUP_BUSES::OnAddAlias( wxCommandEvent& aEvent )
 
     int row = m_aliasesGrid->GetNumberRows();
 
-    // Associate the respective members with the previous alias. This ensures that the association starts
-    // correctly when adding more than one row
+    // Associate the respective members with the previous alias. This ensures that the association
+    // starts correctly when adding more than one row.
     if( row > 0 )
         updateAliasMembers( row - 1 );
 
@@ -229,9 +237,10 @@ void PANEL_SETUP_BUSES::OnAddMember( wxCommandEvent& aEvent )
     /*
      * Check if the clipboard contains text data.
      *
-     * - If `clipboardHasText` is true, select the specified row in the members grid to allow our custom
-     *   conext menu to paste the clipbaord .
-     * - Otherwise, enable and display the cell edit control, allowing the user to manually edit the cell.
+     * - If `clipboardHasText` is true, select the specified row in the members grid to allow
+     *   our custom context menu to paste the clipboard .
+     * - Otherwise, enable and display the cell edit control, allowing the user to manually edit
+     *   the cell.
      */
     bool clipboardHasText = false;
 
@@ -496,10 +505,20 @@ void PANEL_SETUP_BUSES::OnUpdateUI( wxUpdateUIEvent& event )
 }
 
 
+void PANEL_SETUP_BUSES::ImportSettingsFrom( const SCHEMATIC& aOtherSchematic )
+{
+    loadAliases( aOtherSchematic );
+
+    // New aliases get stored on the currently visible sheet
+    for( const std::shared_ptr<BUS_ALIAS>& alias : m_aliases )
+        alias->SetParent( m_frame->GetScreen() );
+}
+
+
 void PANEL_SETUP_BUSES::updateAliasMembers( int aAliasIndex )
 {
     if( !m_aliases.empty() && m_membersGrid->GetNumberRows() > 0 && aAliasIndex >= 0
-        && aAliasIndex < m_aliases.size() )
+        && aAliasIndex < (int)m_aliases.size() )
     {
         const std::shared_ptr<BUS_ALIAS>& alias = m_aliases[aAliasIndex];
 

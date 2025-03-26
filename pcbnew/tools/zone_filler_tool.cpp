@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014-2017 CERN
- * Copyright (C) 2014-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -246,8 +246,11 @@ int ZONE_FILLER_TOOL::ZoneFillDirty( const TOOL_EVENT& aEvent )
 
     for( ZONE* zone : toFill )
     {
-        for( PCB_LAYER_ID layer : zone->GetLayerSet().Seq() )
-            pts += zone->GetFilledPolysList( layer )->FullPointCount();
+        zone->GetLayerSet().RunOnLayers(
+                [&]( PCB_LAYER_ID layer )
+                {
+                    pts += zone->GetFilledPolysList( layer )->FullPointCount();
+                } );
 
         if( pts > 1000 )
         {

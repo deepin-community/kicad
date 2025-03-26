@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,29 +22,24 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef PAD_H
-#define PAD_H
+#pragma once
 
 #include <mutex>
 #include <array>
-#include <zones.h>
+
 #include <board_connected_item.h>
+#include <core/arraydim.h>
+#include <core/mirror.h>
+#include <geometry/eda_angle.h>
 #include <geometry/shape_poly_set.h>
 #include <geometry/shape_compound.h>
-#include <pad_shapes.h>
-#include <geometry/eda_angle.h>
-#include <geometry/geometry_utils.h>
-#include <core/arraydim.h>
+#include <lset.h>
+#include <padstack.h>
+#include <zones.h>
 
 class PCB_SHAPE;
 class SHAPE;
 class SHAPE_SEGMENT;
-
-enum CUST_PAD_SHAPE_IN_ZONE
-{
-    CUST_PAD_SHAPE_IN_ZONE_OUTLINE,
-    CUST_PAD_SHAPE_IN_ZONE_CONVEXHULL
-};
 
 class LINE_READER;
 class EDA_3D_CANVAS;
@@ -64,6 +59,9 @@ public:
     // must be duplicated in copy.
     PAD( const PAD& aPad );
     PAD& operator=( const PAD &aOther );
+
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     /*
      * Default layers used for pads, according to the pad type.
@@ -106,6 +104,11 @@ public:
     bool HasHole() const override
     {
         return GetDrillSizeX() > 0 && GetDrillSizeY() > 0;
+    }
+
+    bool HasDrilledHole() const override
+    {
+        return HasHole() && GetDrillSizeX() == GetDrillSizeY();
     }
 
     bool IsLocked() const override;
@@ -178,16 +181,21 @@ public:
     /**
      * Set the new shape of this pad.
      */
-    void SetShape( PAD_SHAPE aShape )
+    void SetShape( PCB_LAYER_ID aLayer, PAD_SHAPE aShape )
     {
-        m_padShape = aShape;
+        m_padStack.SetShape( aShape, aLayer );
         SetDirty();
     }
 
     /**
      * @return the shape of this pad.
      */
-    PAD_SHAPE GetShape() const { return m_padShape; }
+    PAD_SHAPE GetShape( PCB_LAYER_ID aLayer ) const { return m_padStack.Shape( aLayer ); }
+
+    // Used for the properties panel, which does not support padstacks at the moment
+    void SetFrontShape( PAD_SHAPE aShape );
+
+    PAD_SHAPE GetFrontShape() const { return m_padStack.Shape( F_Cu ); }
 
     void SetPosition( const VECTOR2I& aPos ) override
     {
@@ -200,14 +208,17 @@ public:
     /**
      * @return the shape of the anchor pad shape, for custom shaped pads.
      */
-    PAD_SHAPE GetAnchorPadShape() const       { return m_anchorPadShape; }
+    PAD_SHAPE GetAnchorPadShape( PCB_LAYER_ID aLayer ) const
+    {
+        return m_padStack.AnchorShape( aLayer );
+    }
 
     /**
      * @return the option for the custom pad shape to use as clearance area in copper zones.
      */
-    CUST_PAD_SHAPE_IN_ZONE GetCustomShapeInZoneOpt() const
+    PADSTACK::CUSTOM_SHAPE_ZONE_MODE GetCustomShapeInZoneOpt() const
     {
-        return m_customShapeClearanceArea;
+        return m_padStack.CustomShapeInZoneMode();
     }
 
     /**
@@ -215,9 +226,9 @@ public:
      *
      * @param aOption is the clearance area shape CUST_PAD_SHAPE_IN_ZONE option
      */
-    void SetCustomShapeInZoneOpt( CUST_PAD_SHAPE_IN_ZONE aOption )
+    void SetCustomShapeInZoneOpt( PADSTACK::CUSTOM_SHAPE_ZONE_MODE aOption )
     {
-        m_customShapeClearanceArea = aOption;
+        m_padStack.SetCustomShapeInZoneMode( aOption );
     }
 
     /**
@@ -226,9 +237,12 @@ public:
      * @param aShape is the shape of the anchor pad shape( currently, only #PAD_SHAPE::RECTANGLE or
      *               #PAD_SHAPE::CIRCLE.
      */
-    void SetAnchorPadShape( PAD_SHAPE aShape )
+    void SetAnchorPadShape( PCB_LAYER_ID aLayer, PAD_SHAPE aShape )
     {
-        m_anchorPadShape = ( aShape ==  PAD_SHAPE::RECTANGLE ) ? PAD_SHAPE::RECTANGLE : PAD_SHAPE::CIRCLE;
+        m_padStack.SetAnchorShape( aShape == PAD_SHAPE::RECTANGLE
+                                   ? PAD_SHAPE::RECTANGLE
+                                   : PAD_SHAPE::CIRCLE,
+                                   aLayer );
         SetDirty();
     }
 
@@ -240,27 +254,71 @@ public:
     void SetY( int y )                          { m_pos.y = y; SetDirty(); }
     void SetX( int x )                          { m_pos.x = x; SetDirty(); }
 
-    void SetSize( const VECTOR2I& aSize )       { m_size = aSize; SetDirty(); }
-    const VECTOR2I& GetSize() const             { return m_size; }
-    void SetSizeX( const int aX )               { if( aX > 0 ) { m_size.x = aX; SetDirty(); } }
-    int GetSizeX() const                        { return m_size.x; }
-    void SetSizeY( const int aY )               { if( aY > 0 ) { m_size.y = aY; SetDirty(); } }
-    int GetSizeY() const                        { return m_size.y; }
+    void SetSize( PCB_LAYER_ID aLayer, const VECTOR2I& aSize )
+    {
+        m_padStack.SetSize( aSize, aLayer );
+        SetDirty();
+    }
+    const VECTOR2I& GetSize( PCB_LAYER_ID aLayer ) const { return m_padStack.Size( aLayer ); }
 
-    void SetDelta( const VECTOR2I& aSize )      { m_deltaSize = aSize; SetDirty(); }
-    const VECTOR2I& GetDelta() const            { return m_deltaSize; }
+    // These accessors are for the properties panel, which does not have the ability to deal with
+    // custom padstacks where the properties can vary by layer.  The properties should be disabled
+    // in the GUI when the padstack mode is set to anything other than NORMAL, but so that the code
+    // compiles, these are set up to work with the front layer (in other words, assume the mode is
+    // NORMAL, where F_Cu stores the whole padstack data)
+    void SetSizeX( const int aX )
+    {
+        if( aX > 0 )
+        {
+            m_padStack.SetSize( { aX, m_padStack.Size( PADSTACK::ALL_LAYERS ).y }, PADSTACK::ALL_LAYERS );
+            SetDirty();
+        }
+    }
 
-    void SetDrillSize( const VECTOR2I& aSize )  { m_drill = aSize; SetDirty(); }
-    const VECTOR2I& GetDrillSize() const        { return m_drill; }
+    int GetSizeX() const { return m_padStack.Size( PADSTACK::ALL_LAYERS ).x; }
+
+    void SetSizeY( const int aY )
+    {
+        if( aY > 0 )
+        {
+            m_padStack.SetSize( { m_padStack.Size( PADSTACK::ALL_LAYERS ).x, aY }, PADSTACK::ALL_LAYERS );
+            SetDirty();
+        }
+    }
+
+    int GetSizeY() const { return m_padStack.Size( PADSTACK::ALL_LAYERS ).y; }
+
+    void SetDelta( PCB_LAYER_ID aLayer, const VECTOR2I& aSize )
+    {
+        m_padStack.TrapezoidDeltaSize( aLayer ) = aSize;
+        SetDirty();
+    }
+
+    const VECTOR2I& GetDelta( PCB_LAYER_ID aLayer ) const
+    {
+        return m_padStack.TrapezoidDeltaSize( aLayer );
+    }
+
+    void SetDrillSize( const VECTOR2I& aSize )  { m_padStack.Drill().size = aSize; SetDirty(); }
+    const VECTOR2I& GetDrillSize() const        { return m_padStack.Drill().size; }
     void SetDrillSizeX( const int aX );
-    int GetDrillSizeX() const                   { return m_drill.x; }
-    void SetDrillSizeY( const int aY )          { m_drill.y = aY; SetDirty(); }
-    int GetDrillSizeY() const                   { return m_drill.y; }
+    int GetDrillSizeX() const                   { return m_padStack.Drill().size.x; }
+    void SetDrillSizeY( const int aY )          { m_padStack.Drill().size.y = aY; SetDirty(); }
+    int GetDrillSizeY() const                   { return m_padStack.Drill().size.y; }
 
-    void SetOffset( const VECTOR2I& aOffset )    { m_offset = aOffset; SetDirty(); }
-    const VECTOR2I& GetOffset() const            { return m_offset; }
+    void SetOffset( PCB_LAYER_ID aLayer, const VECTOR2I& aOffset )
+    {
+        m_padStack.Offset( aLayer ) = aOffset;
+        SetDirty();
+    }
+
+    const VECTOR2I& GetOffset( PCB_LAYER_ID aLayer ) const { return m_padStack.Offset( aLayer ); }
 
     VECTOR2I GetCenter() const override          { return GetPosition(); }
+
+    const PADSTACK& Padstack() const              { return m_padStack; }
+    PADSTACK& Padstack()                          { return m_padStack; }
+    void SetPadstack( const PADSTACK& aPadstack ) { m_padStack = aPadstack; }
 
     /**
      * Has meaning only for custom shape pads.
@@ -273,60 +331,66 @@ public:
      *  - a arc
      *  - a bezier curve
      */
-    void AddPrimitivePoly( const SHAPE_POLY_SET& aPoly, int aThickness, bool aFilled );
-    void AddPrimitivePoly( const std::vector<VECTOR2I>& aPoly, int aThickness, bool aFilled );
+    void AddPrimitivePoly( PCB_LAYER_ID aLayer, const SHAPE_POLY_SET& aPoly, int aThickness,
+                           bool aFilled );
+    void AddPrimitivePoly( PCB_LAYER_ID aLayer, const std::vector<VECTOR2I>& aPoly, int aThickness,
+                           bool aFilled );
 
     /**
      * Merge all basic shapes to a #SHAPE_POLY_SET.
      *
      * @note The results are relative to the pad position, orientation 0.
      *
+     * @param aLayer is the copper layer to merge shapes for
      * @param aMergedPolygon will store the final polygon
      * @param aErrorLoc is used when a circle (or arc) is approximated by segments
      *  = ERROR_INSIDE to build a polygon inside the arc/circle (usual shape to raw/plot)
      *  = ERROR_OUIDE to build a polygon outside the arc/circle
      * (for instance when building a clearance area)
      */
-    void MergePrimitivesAsPolygon( SHAPE_POLY_SET* aMergedPolygon,
+    void MergePrimitivesAsPolygon( PCB_LAYER_ID aLayer, SHAPE_POLY_SET* aMergedPolygon,
                                    ERROR_LOC aErrorLoc = ERROR_INSIDE ) const;
 
     /**
      * Clear the basic shapes list.
+     * @param aLayer is the layer to clear, or UNDEFINED_LAYER to clear all layers
      */
-    void DeletePrimitivesList();
+    void DeletePrimitivesList( PCB_LAYER_ID aLayer = UNDEFINED_LAYER );
 
     /**
      * Accessor to the basic shape list for custom-shaped pads.
      */
-    const std::vector<std::shared_ptr<PCB_SHAPE>>& GetPrimitives() const
+    const std::vector<std::shared_ptr<PCB_SHAPE>>& GetPrimitives( PCB_LAYER_ID aLayer ) const
     {
-        return m_editPrimitives;
+        return m_padStack.Primitives( aLayer );
     }
 
-    void Flip( const VECTOR2I& VECTOR2I, bool aFlipLeftRight ) override;
+    void Flip( const VECTOR2I& VECTOR2I, FLIP_DIRECTION aFlipDirection ) override;
 
     /**
      * Flip (mirror) the primitives left to right or top to bottom, around the anchor position
      * in custom pads.
      */
-    void FlipPrimitives( bool aFlipLeftRight );
+    void FlipPrimitives( FLIP_DIRECTION aFlipDirection );
 
     /**
      * Clear the current custom shape primitives list and import a new list.  Copies the input,
      * which is not altered.
      */
-    void ReplacePrimitives( const std::vector<std::shared_ptr<PCB_SHAPE>>& aPrimitivesList );
+    void ReplacePrimitives( PCB_LAYER_ID aLayer,
+                            const std::vector<std::shared_ptr<PCB_SHAPE>>& aPrimitivesList );
 
     /**
      * Import a custom shape primitive list (composed of basic shapes) and add items to the
      * current list.  Copies the input, which is not altered.
      */
-    void AppendPrimitives( const std::vector<std::shared_ptr<PCB_SHAPE>>& aPrimitivesList );
+    void AppendPrimitives( PCB_LAYER_ID aLayer,
+                           const std::vector<std::shared_ptr<PCB_SHAPE>>& aPrimitivesList );
 
     /**
      * Add item to the custom shape primitives list
      */
-    void AddPrimitive( PCB_SHAPE* aPrimitive );
+    void AddPrimitive( PCB_LAYER_ID aLayer, PCB_SHAPE* aPrimitive );
 
     /**
      * Set the rotation angle of the pad.
@@ -339,7 +403,7 @@ public:
     /**
      * Return the rotation angle of the pad.
      */
-    EDA_ANGLE GetOrientation() const { return m_orient; }
+    EDA_ANGLE GetOrientation() const { return m_padStack.GetOrientation(); }
     EDA_ANGLE GetFPRelativeOrientation() const;
 
     // For property system
@@ -349,11 +413,11 @@ public:
     }
     double GetOrientationDegrees() const
     {
-        return m_orient.AsDegrees();
+        return m_padStack.GetOrientation().AsDegrees();
     }
 
-    void SetDrillShape( PAD_DRILL_SHAPE_T aShape );
-    PAD_DRILL_SHAPE_T GetDrillShape() const     { return m_drillShape; }
+    void SetDrillShape( PAD_DRILL_SHAPE aShape );
+    PAD_DRILL_SHAPE GetDrillShape() const { return m_padStack.Drill().shape; }
 
     bool IsDirty() const
     {
@@ -367,38 +431,62 @@ public:
         m_polyDirty[ERROR_OUTSIDE] = true;
     }
 
-    void SetLayerSet( LSET aLayers ) override   { m_layerMask = aLayers; }
-    LSET GetLayerSet() const override           { return m_layerMask; }
+    void SetLayerSet( const LSET& aLayers ) override   { m_padStack.SetLayerSet( aLayers ); }
+    LSET GetLayerSet() const override           { return m_padStack.LayerSet(); }
 
     void SetAttribute( PAD_ATTRIB aAttribute );
     PAD_ATTRIB GetAttribute() const             { return m_attribute; }
 
     void SetProperty( PAD_PROP aProperty );
-    PAD_PROP GetProperty() const              { return m_property; }
+    PAD_PROP GetProperty() const                { return m_property; }
 
     // We don't currently have an attribute for APERTURE, and adding one will change the file
     // format, so for now just infer a copper-less pad to be an APERTURE pad.
     bool IsAperturePad() const
     {
-        return ( m_layerMask & LSET::AllCuMask() ).none();
+        return ( m_padStack.LayerSet() & LSET::AllCuMask() ).none();
     }
 
     void SetPadToDieLength( int aLength )       { m_lengthPadToDie = aLength; }
     int GetPadToDieLength() const               { return m_lengthPadToDie; }
 
-    int GetLocalSolderMaskMargin() const        { return m_localSolderMaskMargin; }
-    void SetLocalSolderMaskMargin( int aMargin ) { m_localSolderMaskMargin = aMargin; }
+    std::optional<int> GetLocalClearance() const override   { return m_padStack.Clearance(); }
+    void SetLocalClearance( std::optional<int> aClearance ) { m_padStack.Clearance() = aClearance; }
 
-    int GetLocalClearance( wxString* aSource ) const override;
-    int GetLocalClearance() const               { return m_localClearance; }
-    void SetLocalClearance( int aClearance )    { m_localClearance = aClearance; }
+    std::optional<int> GetLocalSolderMaskMargin() const { return m_padStack.SolderMaskMargin(); }
+    void               SetLocalSolderMaskMargin( std::optional<int> aMargin )
+    {
+        m_padStack.SolderMaskMargin() = aMargin;
+    }
 
-    int GetLocalSolderPasteMargin() const       { return m_localSolderPasteMargin; }
-    void SetLocalSolderPasteMargin( int aMargin ) { m_localSolderPasteMargin = aMargin; }
+    std::optional<int> GetLocalSolderPasteMargin() const { return m_padStack.SolderPasteMargin(); }
+    void               SetLocalSolderPasteMargin( std::optional<int> aMargin )
+    {
+        m_padStack.SolderPasteMargin() = aMargin;
+    }
 
-    double GetLocalSolderPasteMarginRatio() const { return m_localSolderPasteMarginRatio; }
-    void SetLocalSolderPasteMarginRatio( double aRatio ) { m_localSolderPasteMarginRatio = aRatio; }
+    std::optional<double> GetLocalSolderPasteMarginRatio() const
+    {
+        return m_padStack.SolderPasteMarginRatio();
+    }
+    void SetLocalSolderPasteMarginRatio( std::optional<double> aRatio )
+    {
+        m_padStack.SolderPasteMarginRatio() = aRatio;
+    }
 
+    void SetLocalZoneConnection( ZONE_CONNECTION aType ) { m_padStack.ZoneConnection() = aType; }
+    ZONE_CONNECTION GetLocalZoneConnection() const
+    {
+        return m_padStack.ZoneConnection().value_or( ZONE_CONNECTION::INHERITED );
+    }
+
+    /**
+     * Return the pad's "own" clearance in internal units.
+     *
+     * @param aLayer the layer in question.
+     * @param aSource [out] optionally reports the source as a user-readable string.
+     * @return the clearance in internal units.
+     */
     int GetOwnClearance( PCB_LAYER_ID aLayer, wxString* aSource = nullptr ) const override;
 
     /**
@@ -435,17 +523,17 @@ public:
      * polygon), but should never contain a SHAPE_POLY_SET (a complex polygon consisting of
      * multiple outlines and/or holes).
      *
-     * @param aLayer optional parameter allowing a caller to specify a particular layer (default
-     *               is to return the pad's "natural" shape).
+     * @param aLayer determines which layer to query for shape
      * @param aFlash optional parameter allowing a caller to force the pad to be flashed (or not
      *               flashed) on the current layer (default is to honour the pad's setting and
      *               the current connections for the given layer).
      */
     virtual std::shared_ptr<SHAPE>
-    GetEffectiveShape( PCB_LAYER_ID aLayer = UNDEFINED_LAYER,
+    GetEffectiveShape( PCB_LAYER_ID aLayer,
                        FLASHING flashPTHPads = FLASHING::DEFAULT ) const override;
 
-    const std::shared_ptr<SHAPE_POLY_SET>& GetEffectivePolygon( ERROR_LOC aErrorLoc = ERROR_INSIDE ) const;
+    const std::shared_ptr<SHAPE_POLY_SET>& GetEffectivePolygon( PCB_LAYER_ID aLayer,
+                                                                ERROR_LOC aErrorLoc = ERROR_INSIDE ) const;
 
     /**
      * Return a SHAPE_SEGMENT object representing the pad's hole.
@@ -465,7 +553,15 @@ public:
      * @param aSource [out] optionally reports the source as a user-readable string.
      * @return the clearance in internal units.
      */
-    int GetLocalClearanceOverrides( wxString* aSource ) const override;
+    std::optional<int> GetLocalClearance( wxString* aSource ) const override;
+
+    /**
+     * Return any clearance overrides set in the "classic" (ie: pre-rule) system.
+     *
+     * @param aSource [out] optionally reports the source as a user-readable string.
+     * @return the clearance in internal units.
+     */
+    std::optional<int> GetClearanceOverrides( wxString* aSource ) const override;
 
     /**
      * @return the expansion for the solder mask layer
@@ -477,7 +573,7 @@ public:
      *  2 if 0, the parent footprint value
      *  3 if 0, the global value
      */
-    int GetSolderMaskExpansion() const;
+    int GetSolderMaskExpansion( PCB_LAYER_ID aLayer ) const;
 
     /**
      * Usually < 0 (mask shape smaller than pad)because the margin can be dependent on the pad
@@ -490,19 +586,22 @@ public:
      *
      * @return the margin for the solder mask layer.
     */
-    VECTOR2I GetSolderPasteMargin() const;
+    VECTOR2I GetSolderPasteMargin( PCB_LAYER_ID aLayer ) const;
 
-    void SetZoneConnection( ZONE_CONNECTION aType ) { m_zoneConnection = aType; }
-    ZONE_CONNECTION GetZoneConnection() const { return m_zoneConnection; }
-
-    ZONE_CONNECTION GetLocalZoneConnectionOverride( wxString* aSource = nullptr ) const;
+    ZONE_CONNECTION GetZoneConnectionOverrides( wxString* aSource = nullptr ) const;
 
     /**
      * Set the width of the thermal spokes connecting the pad to a zone.  If != 0 this will
      * override similar settings in the parent footprint and zone.
      */
-    void SetThermalSpokeWidth( int aWidth ) { m_thermalSpokeWidth = aWidth; }
-    int GetThermalSpokeWidth() const { return m_thermalSpokeWidth; }
+    void SetLocalThermalSpokeWidthOverride( std::optional<int> aWidth )
+    {
+        m_padStack.ThermalSpokeWidth() = aWidth;
+    }
+    std::optional<int> GetLocalThermalSpokeWidthOverride() const
+    {
+        return m_padStack.ThermalSpokeWidth();
+    }
 
     int GetLocalSpokeWidthOverride( wxString* aSource = nullptr ) const;
 
@@ -511,33 +610,48 @@ public:
      * pads and circular-anchored custom shaped pads), while 90° will produce a + (the default
      * for all other shapes).
      */
-    void SetThermalSpokeAngle( const EDA_ANGLE& aAngle ) { m_thermalSpokeAngle = aAngle; }
-    EDA_ANGLE GetThermalSpokeAngle() const { return m_thermalSpokeAngle; }
+    void SetThermalSpokeAngle( const EDA_ANGLE& aAngle )
+    {
+        m_padStack.SetThermalSpokeAngle( aAngle );
+    }
+    EDA_ANGLE GetThermalSpokeAngle() const
+    {
+        return m_padStack.ThermalSpokeAngle();
+    }
 
     // For property system
     void SetThermalSpokeAngleDegrees( double aAngle )
     {
-        m_thermalSpokeAngle = EDA_ANGLE( aAngle, DEGREES_T );
+        m_padStack.SetThermalSpokeAngle( EDA_ANGLE( aAngle, DEGREES_T ) );
     }
     double GetThermalSpokeAngleDegrees() const
     {
-        return m_thermalSpokeAngle.AsDegrees();
+        return m_padStack.ThermalSpokeAngle().AsDegrees();
     }
 
-    void SetThermalGap( int aGap ) { m_thermalGap = aGap; }
-    int GetThermalGap() const { return m_thermalGap; }
+    void SetThermalGap( int aGap ) { m_padStack.ThermalGap() = aGap; }
+    int GetThermalGap() const { return m_padStack.ThermalGap().value_or( 0 ); }
 
-    int GetLocalThermalGapOverride( wxString* aSource = nullptr ) const;
+    int GetLocalThermalGapOverride( wxString* aSource ) const;
+
+    std::optional<int> GetLocalThermalGapOverride() const
+    {
+        return m_padStack.ThermalGap();
+    }
+    void SetLocalThermalGapOverride( const std::optional<int>& aOverride )
+    {
+        m_padStack.ThermalGap() = aOverride;
+    }
 
     /**
      * Has meaning only for rounded rectangle pads.
      *
      * @return The radius of the rounded corners for this pad.
      */
-    void SetRoundRectCornerRadius( double aRadius );
-    int GetRoundRectCornerRadius() const;
+    void SetRoundRectCornerRadius( PCB_LAYER_ID aLayer, double aRadius );
+    int GetRoundRectCornerRadius( PCB_LAYER_ID aLayer ) const;
 
-    VECTOR2I ShapePos() const;
+    VECTOR2I ShapePos( PCB_LAYER_ID aLayer ) const;
 
     /**
      * Has meaning only for rounded rectangle pads.
@@ -545,8 +659,22 @@ public:
      * Set the ratio between the smaller X or Y size and the rounded corner radius.
      * Cannot be > 0.5; the normalized IPC-7351C value is 0.25
      */
-    void SetRoundRectRadiusRatio( double aRadiusScale );
-    double GetRoundRectRadiusRatio() const { return m_roundedCornerScale; }
+    void SetRoundRectRadiusRatio( PCB_LAYER_ID aLayer, double aRadiusScale );
+    double GetRoundRectRadiusRatio( PCB_LAYER_ID aLayer ) const
+    {
+        return m_padStack.RoundRectRadiusRatio( aLayer );
+    }
+
+    // For properties panel, which only supports normal padstacks
+    void SetFrontRoundRectRadiusRatio( double aRadiusScale );
+    double GetFrontRoundRectRadiusRatio() const
+    {
+       return m_padStack.RoundRectRadiusRatio( F_Cu );
+    }
+
+    // For properties panel, which only supports normal padstacks
+    void SetFrontRoundRectRadiusSize( int aRadius );
+    int  GetFrontRoundRectRadiusSize() const;
 
     /**
      * Has meaning only for chamfered rectangular pads.
@@ -554,8 +682,11 @@ public:
      * Set the ratio between the smaller X or Y size and chamfered corner size.
      * Cannot be < 0.5.
      */
-    void SetChamferRectRatio( double aChamferScale );
-    double GetChamferRectRatio() const { return m_chamferScale; }
+    void SetChamferRectRatio( PCB_LAYER_ID aLayer, double aChamferScale );
+    double GetChamferRectRatio( PCB_LAYER_ID aLayer ) const
+    {
+        return m_padStack.ChamferRatio( aLayer );
+    }
 
     /**
      * Has meaning only for chamfered rectangular pads.
@@ -564,8 +695,15 @@ public:
      *
      * @param aPositions a bit-set of #RECT_CHAMFER_POSITIONS.
      */
-    void SetChamferPositions( int aPositions ) { m_chamferPositions = aPositions; }
-    int GetChamferPositions() const { return m_chamferPositions; }
+    void SetChamferPositions( PCB_LAYER_ID aLayer, int aPositions )
+    {
+        m_padStack.SetChamferPositions( aPositions, aLayer );
+    }
+
+    int GetChamferPositions( PCB_LAYER_ID aLayer ) const
+    {
+        return m_padStack.ChamferPositions( aLayer );
+    }
 
     /**
      * @return the netcode.
@@ -574,27 +712,65 @@ public:
     void SetSubRatsnest( int aSubRatsnest )     { m_subRatsnest = aSubRatsnest; }
 
     /**
-     * Set the unconnected removal property.
-     *
-     * If true, the copper is removed on zone fill or when specifically requested when the pad
-     * is not connected on a layer.  This requires that there be a through hole.
+     * @deprecated - use Padstack().SetUnconnectedLayerMode()
+     * Sets the unconnected removal property.  If true, the copper is removed on zone fill
+     * or when specifically requested when the via is not connected on a layer.
      */
-    void SetRemoveUnconnected( bool aSet )      { m_removeUnconnectedLayer = aSet; }
-    bool GetRemoveUnconnected() const           { return m_removeUnconnectedLayer; }
+    void SetRemoveUnconnected( bool aSet )
+    {
+        m_padStack.SetUnconnectedLayerMode( aSet
+                ? PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_ALL
+                : PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL );
+    }
+
+    bool GetRemoveUnconnected() const
+    {
+        return m_padStack.UnconnectedLayerMode() != PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL;
+    }
 
     /**
-     * Set whether we keep the top and bottom connections even if they are not connected.
+     * @deprecated - use Padstack().SetUnconnectedLayerMode()
+     * Sets whether we keep the start and end annular rings even if they are not connected
      */
-    void SetKeepTopBottom( bool aSet )      { m_keepTopBottomLayer = aSet; }
-    bool GetKeepTopBottom() const           { return m_keepTopBottomLayer; }
+    void SetKeepTopBottom( bool aSet )
+    {
+        m_padStack.SetUnconnectedLayerMode( aSet
+                ? PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END
+                : PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_ALL );
+    }
+
+    bool GetKeepTopBottom() const
+    {
+        return m_padStack.UnconnectedLayerMode()
+               == PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END;
+    }
+
+    void SetUnconnectedLayerMode( PADSTACK::UNCONNECTED_LAYER_MODE aMode )
+    {
+        m_padStack.SetUnconnectedLayerMode( aMode );
+    }
+
+    PADSTACK::UNCONNECTED_LAYER_MODE GetUnconnectedLayerMode() const
+    {
+        return m_padStack.UnconnectedLayerMode();
+    }
 
     bool ConditionallyFlashed( PCB_LAYER_ID aLayer ) const
     {
-        if( !m_removeUnconnectedLayer )
+        switch( m_padStack.UnconnectedLayerMode() )
+        {
+        case PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL:
             return false;
 
-        if( m_keepTopBottomLayer && ( aLayer == F_Cu || aLayer == B_Cu ) )
-            return false;
+        case PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_ALL:
+            return true;
+
+        case PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END:
+        {
+            if( aLayer == m_padStack.Drill().start || aLayer == m_padStack.Drill().end )
+                return false;
+        }
+        }
 
         return true;
     }
@@ -603,7 +779,7 @@ public:
 
     bool IsOnLayer( PCB_LAYER_ID aLayer ) const override
     {
-        return m_layerMask[aLayer];
+        return m_padStack.LayerSet().test( aLayer );
     }
 
     /**
@@ -676,14 +852,14 @@ public:
 
     void Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle ) override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
     /**
      * @return the GUI-appropriate name of the shape.
      */
-    wxString ShowPadShape() const;
+    wxString ShowPadShape( PCB_LAYER_ID aLayer ) const;
 
     /**
      * @return the GUI-appropriate description of the pad type (attribute) : Std, SMD ...
@@ -706,39 +882,29 @@ public:
      * Rebuild the effective shape cache (and bounding box and radius) for the pad and clears
      * the dirty bit.
      */
-    void BuildEffectiveShapes( PCB_LAYER_ID aLayer ) const;
+    void BuildEffectiveShapes() const;
     void BuildEffectivePolygon( ERROR_LOC aErrorLoc = ERROR_INSIDE ) const;
 
-    virtual void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    virtual std::vector<int> ViewGetLayers() const override;
 
-    double ViewGetLOD( int aLayer, KIGFX::VIEW* aView ) const override;
+    double ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const override;
 
     virtual const BOX2I ViewBBox() const override;
 
-    void ClearZoneLayerOverrides()
-    {
-        m_zoneLayerOverrides.fill( ZLO_NONE );
-    }
+    void ClearZoneLayerOverrides();
 
-    const ZONE_LAYER_OVERRIDE& GetZoneLayerOverride( PCB_LAYER_ID aLayer ) const
-    {
-        return m_zoneLayerOverrides.at( aLayer );
-    }
+    const ZONE_LAYER_OVERRIDE& GetZoneLayerOverride( PCB_LAYER_ID aLayer ) const;
 
-    void SetZoneLayerOverride( PCB_LAYER_ID aLayer, ZONE_LAYER_OVERRIDE aOverride )
-    {
-        std::unique_lock<std::mutex> cacheLock( m_zoneLayerOverridesMutex );
-        m_zoneLayerOverrides.at( aLayer ) = aOverride;
-    }
+    void SetZoneLayerOverride( PCB_LAYER_ID aLayer, ZONE_LAYER_OVERRIDE aOverride );
 
-    void CheckPad( UNITS_PROVIDER* aUnitsProvider,
+    void CheckPad( UNITS_PROVIDER* aUnitsProvider, bool aForPadProperties,
                    const std::function<void( int aErrorCode,
                                              const wxString& aMsg )>& aErrorHandler ) const;
 
     double Similarity( const BOARD_ITEM& aOther ) const override;
 
-    bool operator==( const BOARD_ITEM& aOther ) const override;
-    bool operator!=( const BOARD_ITEM& aOther ) const { return !operator==( aOther ); }
+    bool operator==( const PAD& aOther ) const;
+    bool operator==( const BOARD_ITEM& aBoardItem ) const override;
 
 #if defined(DEBUG)
     virtual void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -748,8 +914,14 @@ protected:
     virtual void swapData( BOARD_ITEM* aImage ) override;
 
 private:
-    void addPadPrimitivesToPolygon( SHAPE_POLY_SET* aMergedPolygon, int aError,
+    const SHAPE_COMPOUND& buildEffectiveShape( PCB_LAYER_ID aLayer ) const;
+
+    void addPadPrimitivesToPolygon( PCB_LAYER_ID aLayer, SHAPE_POLY_SET* aMergedPolygon, int aError,
                                     ERROR_LOC aErrorLoc ) const;
+
+    void doCheckPad( PCB_LAYER_ID aLayer, UNITS_PROVIDER* aUnitsProvider, bool aForPadProperties,
+                     const std::function<void( int aErrorCode,
+                                               const wxString& aMsg )>& aErrorHandler ) const;
 
 private:
     wxString      m_number;             // Pad name (pin number in schematic)
@@ -758,106 +930,31 @@ private:
 
     VECTOR2I      m_pos; // Pad Position on board
 
-    PAD_SHAPE     m_padShape;           // Shape: PAD_SHAPE::CIRCLE, PAD_SHAPE::RECTANGLE,
-                                        //   PAD_SHAPE::OVAL, PAD_SHAPE::TRAPEZOID,
-                                        //   PAD_SHAPE::ROUNDRECT, PAD_SHAPE::CHAMFERED_RECT,
-                                        //   PAD_SHAPE::CUSTOM
-    /*
-     * Editing definitions of primitives for custom pad shapes.  In local coordinates relative
-     * to m_Pos (NOT shapePos) at orient 0.
-     */
-    std::vector<std::shared_ptr<PCB_SHAPE>>   m_editPrimitives;
+    PADSTACK      m_padStack;
 
     // Must be set to true to force rebuild shapes to draw (after geometry change for instance)
+    typedef std::map<PCB_LAYER_ID, std::shared_ptr<SHAPE_COMPOUND>> LAYER_SHAPE_MAP;
     mutable bool                              m_shapesDirty;
     mutable std::mutex                        m_shapesBuildingLock;
     mutable BOX2I                             m_effectiveBoundingBox;
-    mutable std::shared_ptr<SHAPE_COMPOUND>   m_effectiveShape;
+    mutable LAYER_SHAPE_MAP                   m_effectiveShapes;
     mutable std::shared_ptr<SHAPE_SEGMENT>    m_effectiveHoleShape;
 
+    typedef std::map<PCB_LAYER_ID, std::array<std::shared_ptr<SHAPE_POLY_SET>, 2>> LAYER_POLYGON_MAP;
     mutable bool                              m_polyDirty[2];
     mutable std::mutex                        m_polyBuildingLock;
-    mutable std::shared_ptr<SHAPE_POLY_SET>   m_effectivePolygon[2];
+    mutable LAYER_POLYGON_MAP                 m_effectivePolygons;
     mutable int                               m_effectiveBoundingRadius;
 
     int               m_subRatsnest;        // Variable used to handle subnet (block) number in
                                             //   ratsnest computations
 
-    VECTOR2I          m_drill;              // Drill diameter (x == y) or slot dimensions (x != y)
-    VECTOR2I          m_size;               // X and Y size (relative to orient 0)
-
-    PAD_DRILL_SHAPE_T m_drillShape;         // PAD_DRILL_SHAPE_CIRCLE, PAD_DRILL_SHAPE_OBLONG
-
-    double            m_roundedCornerScale; // Scaling factor of min(width, height) to corner
-                                            //   radius, default 0.25
-    double            m_chamferScale;       // Scaling factor of min(width, height) to chamfer
-                                            //   size, default 0.25
-    int               m_chamferPositions;   // The positions of the chamfers (at orient 0)
-
-    PAD_SHAPE         m_anchorPadShape;     // For custom shaped pads: shape of pad anchor,
-                                            //   PAD_SHAPE::RECTANGLE, PAD_SHAPE::CIRCLE
-
-    /*
-     * Most of the time the hole is the center of the shape (m_Offset = 0). But some designers
-     * use oblong/rect pads with a hole moved to one of the oblong/rect pad shape ends.
-     * In all cases the hole is at the pad position.  This offset is from the hole to the center
-     * of the pad shape (ie: the copper area around the hole).
-     * ShapePos() returns the board shape position according to the offset and the pad rotation.
-     */
-    VECTOR2I    m_offset;
-
-    LSET        m_layerMask;        // Bitwise layer: 1 = copper layer, 15 = cmp,
-                                    // 2..14 = internal layers, 16..31 = technical layers
-
-    VECTOR2I    m_deltaSize;        // Delta for PAD_SHAPE::TRAPEZOID; half the delta squeezes
-                                    //   one end and half expands the other.  It is only valid
-                                    //   to have a single axis be non-0.
-
     PAD_ATTRIB  m_attribute = PAD_ATTRIB::PTH;
 
     PAD_PROP    m_property;         // Property in fab files (BGA, FIDUCIAL, TESTPOINT, etc.)
 
-    EDA_ANGLE   m_orient;
-
     int         m_lengthPadToDie;   // Length net from pad to die, inside the package
 
-    ///< If true, the pad copper is removed for layers that are not connected.
-    bool        m_removeUnconnectedLayer;
-
-    ///< When removing unconnected pads, keep the top and bottom pads.
-    bool        m_keepTopBottomLayer;
-
-    /*
-     * Pad clearances, margins, etc. exist in a hierarchy.  If a given level is specified then
-     * the remaining levels are NOT consulted.
-     *
-     * LEVEL 1: (highest priority) local overrides (pad, footprint, etc.)
-     * LEVEL 2: Rules
-     * LEVEL 3: Accumulated local settings, netclass settings, & board design settings
-     *
-     * These are the LEVEL 1 settings for a pad.
-     */
-    int         m_localClearance;
-    int         m_localSolderMaskMargin;        // Local solder mask margin
-    int         m_localSolderPasteMargin;       // Local solder paste margin absolute value
-    double      m_localSolderPasteMarginRatio;  // Local solder mask margin ratio of pad size
-                                                // The final margin is the sum of these 2 values
-
-    /*
-     * How to build the custom shape in zone, to create the clearance area:
-     * CUST_PAD_SHAPE_IN_ZONE_OUTLINE = use pad shape
-     * CUST_PAD_SHAPE_IN_ZONE_CONVEXHULL = use the convex hull of the pad shape
-     */
-    CUST_PAD_SHAPE_IN_ZONE m_customShapeClearanceArea;
-
-    ZONE_CONNECTION     m_zoneConnection;       // No connection, thermal relief, etc.
-    int                 m_thermalSpokeWidth;    // Thermal spoke width.
-    EDA_ANGLE           m_thermalSpokeAngle;    // Rotation of the spokes.  45° will produce an X,
-                                                //   while 90° will produce a +.
-    int                 m_thermalGap;
-
-    std::mutex                                     m_zoneLayerOverridesMutex;
-    std::array<ZONE_LAYER_OVERRIDE, MAX_CU_LAYERS> m_zoneLayerOverrides;
+    std::mutex                                  m_zoneLayerOverridesMutex;
+    std::map<PCB_LAYER_ID, ZONE_LAYER_OVERRIDE> m_zoneLayerOverrides;
 };
-
-#endif  // PAD_H

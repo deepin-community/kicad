@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
  * Copyright (C) 2016 Cirilo Bernardo <cirilo.bernardo@gmail.com>
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,10 +28,10 @@
 
 #include <geometry/shape_poly_set.h>
 #include <gal/color4d.h>
+#include <jobs/job_export_pcb_3d.h>     // For EXPORTER_STEP_PARAMS
+#include <layer_ids.h>
+#include <lset.h>
 
-// Default value to chain 2 shapes when creating the board outlines
-// from shapes on Edges.Cut layer
-#define BOARD_DEFAULT_CHAINING_EPSILON 0.01
 
 class PCBMODEL;
 class BOARD;
@@ -41,51 +41,6 @@ class PCB_TRACK;
 class FILENAME_RESOLVER;
 class STEP_PCB_MODEL;
 
-class EXPORTER_STEP_PARAMS
-{
-public:
-    EXPORTER_STEP_PARAMS() :
-            m_origin(),
-            m_overwrite( false ),
-            m_useGridOrigin( false ),
-            m_useDrillOrigin( false ),
-            m_includeUnspecified( true ),
-            m_includeDNP( true ),
-            m_substModels( true ),
-            m_BoardOutlinesChainingEpsilon( BOARD_DEFAULT_CHAINING_EPSILON ),
-            m_boardOnly( false ),
-            m_exportTracks( false ),
-            m_exportZones( false ),
-            m_optimizeStep( true ),
-            m_format( FORMAT::STEP )
-    {};
-
-    enum class FORMAT
-    {
-        STEP,
-        GLB
-    };
-
-    wxString m_outputFile;
-
-    VECTOR2D m_origin;
-
-    bool     m_overwrite;
-    bool     m_useGridOrigin;
-    bool     m_useDrillOrigin;
-    bool     m_includeUnspecified;
-    bool     m_includeDNP;
-    bool     m_substModels;
-    double   m_BoardOutlinesChainingEpsilon;
-    bool     m_boardOnly;
-    bool     m_exportTracks;
-    bool     m_exportZones;
-    bool     m_optimizeStep;
-    FORMAT   m_format;
-
-    wxString GetDefaultExportExtension();
-    wxString GetFormatName();
-};
 
 class EXPORTER_STEP
 {
@@ -101,16 +56,13 @@ public:
     void SetFail() { m_fail = true; }
     void SetWarn() { m_warn = true; }
 
-    /// Return rue to export tracks and vias on top and bottom copper layers
-    bool ExportTracksAndVias() { return m_params.m_exportTracks; }
-
 private:
     bool buildBoard3DShapes();
     bool buildFootprint3DShapes( FOOTPRINT* aFootprint, VECTOR2D aOrigin );
     bool buildTrack3DShape( PCB_TRACK* aTrack, VECTOR2D aOrigin );
     void buildZones3DShape( VECTOR2D aOrigin );
     bool buildGraphic3DShape( BOARD_ITEM* aItem, VECTOR2D aOrigin );
-    void calculatePcbThickness();
+    void initOutputVariant();
 
     EXPORTER_STEP_PARAMS m_params;
     std::unique_ptr<FILENAME_RESOLVER> m_resolver;
@@ -127,13 +79,15 @@ private:
     /// used to identify items in step file
     wxString        m_pcbBaseName;
 
-    double          m_boardThickness;
+    std::map<PCB_LAYER_ID, SHAPE_POLY_SET> m_poly_shapes;
+    std::map<PCB_LAYER_ID, SHAPE_POLY_SET> m_poly_holes;
 
-    SHAPE_POLY_SET  m_top_copper_shapes;
-    SHAPE_POLY_SET  m_bottom_copper_shapes;
+    LSET m_layersToExport;
 
-    KIGFX::COLOR4D  m_solderMaskColor;
-    KIGFX::COLOR4D  m_copperColor;
+    KIGFX::COLOR4D m_copperColor;
+    KIGFX::COLOR4D m_padColor;
+
+    int m_platingThickness; // plating thickness for TH pads/vias
 };
 
 #endif

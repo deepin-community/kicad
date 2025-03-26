@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,21 +22,27 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "tools/symbol_editor_control.h"
+
+#include <advanced_config.h>
 #include <kiway.h>
 #include <pgm_base.h>
 #include <sch_painter.h>
 #include <tool/tool_manager.h>
+#include <tool/library_editor_control.h>
 #include <tools/ee_actions.h>
-#include <tools/symbol_editor_control.h>
-#include <symbol_edit_frame.h>
 #include <lib_symbol_library_manager.h>
+#include <symbol_editor/symbol_editor_settings.h>
 #include <symbol_viewer_frame.h>
 #include <symbol_tree_model_adapter.h>
+#include <symbol_lib_table.h>
 #include <wildcards_and_files_ext.h>
 #include <bitmaps/bitmap_types.h>
 #include <confirm.h>
+#include <kidialog.h>
+#include <launch_ext.h> // To default when file manager setting is empty
+#include <gestfich.h> // To open with a text editor
 #include <wx/filedlg.h>
-#include "wx/generic/textdlgg.h"
 #include "string_utils.h"
 
 bool SYMBOL_EDITOR_CONTROL::Init()
@@ -47,8 +53,9 @@ bool SYMBOL_EDITOR_CONTROL::Init()
 
     if( m_isSymbolEditor )
     {
-        CONDITIONAL_MENU& ctxMenu = m_menu.GetMenu();
-        SYMBOL_EDIT_FRAME* editFrame = getEditFrame<SYMBOL_EDIT_FRAME>();
+        LIBRARY_EDITOR_CONTROL* libraryTreeTool = m_toolMgr->GetTool<LIBRARY_EDITOR_CONTROL>();
+        CONDITIONAL_MENU&       ctxMenu = m_menu->GetMenu();
+        SYMBOL_EDIT_FRAME*      editFrame = getEditFrame<SYMBOL_EDIT_FRAME>();
 
         wxCHECK( editFrame, false );
 
@@ -58,6 +65,7 @@ bool SYMBOL_EDITOR_CONTROL::Init()
                     LIB_ID sel = editFrame->GetTreeLIBID();
                     return !sel.GetLibNickname().empty() && sel.GetLibItemName().empty();
                 };
+
         // The libInferredCondition allows you to do things like New Symbol and Paste with a
         // symbol selected (in other words, when we know the library context even if the library
         // itself isn't selected.
@@ -67,64 +75,98 @@ bool SYMBOL_EDITOR_CONTROL::Init()
                     LIB_ID sel = editFrame->GetTreeLIBID();
                     return !sel.GetLibNickname().empty();
                 };
-        auto pinnedLibSelectedCondition =
-                [ editFrame ]( const SELECTION& aSel )
-                {
-                    LIB_TREE_NODE* node = editFrame->GetCurrentTreeNode();
-                    return node && node->m_Type == LIB_TREE_NODE::LIBRARY && node->m_Pinned;
-                };
-        auto unpinnedLibSelectedCondition =
-                [ editFrame ](const SELECTION& aSel )
-                {
-                    LIB_TREE_NODE* node = editFrame->GetCurrentTreeNode();
-                    return node && node->m_Type == LIB_TREE_NODE::LIBRARY && !node->m_Pinned;
-                };
+
         auto symbolSelectedCondition =
                 [ editFrame ]( const SELECTION& aSel )
                 {
                     LIB_ID sel = editFrame->GetTargetLibId();
                     return !sel.GetLibNickname().empty() && !sel.GetLibItemName().empty();
                 };
-        auto saveSymbolAsCondition =
-                [ editFrame ]( const SELECTION& aSel )
-                {
-                    LIB_ID sel = editFrame->GetTargetLibId();
-                    return !sel.GetLibNickname().empty() && !sel.GetLibItemName().empty();
-                };
+
+/* not used, but used to be used
         auto multiSelectedCondition =
                 [ editFrame ]( const SELECTION& aSel )
                 {
                     return editFrame->GetTreeSelectionCount() > 1;
                 };
+*/
+        auto multiSymbolSelectedCondition =
+                [ editFrame ]( const SELECTION& aSel )
+                {
+                    if( editFrame->GetTreeSelectionCount() > 1 )
+                    {
+                        for( LIB_ID& sel : editFrame->GetSelectedLibIds() )
+                        {
+                            if( !sel.IsValid() )
+                                return false;
+                        }
+                        return true;
+                    }
+                    return false;
+                };
+/* not used, yet
+        auto multiLibrarySelectedCondition =
+                [ editFrame ]( const SELECTION& aSel )
+                {
+                    if( editFrame->GetTreeSelectionCount() > 1 )
+                    {
+                        for( LIB_ID& sel : editFrame->GetSelectedLibIds() )
+                        {
+                            if( sel.IsValid() )
+                                return false;
+                        }
+                        return true;
+                    }
+                    return false;
+                };
+*/
+        auto canOpenExternally =
+                [ editFrame ]( const SELECTION& aSel )
+                {
+                    // The option is shown if the lib has no current edits
+                    LIB_SYMBOL_LIBRARY_MANAGER& libMgr = editFrame->GetLibManager();
+                    wxString libName = editFrame->GetTargetLibId().GetLibNickname();
+                    bool     ret = !libMgr.IsLibraryModified( libName );
+                    return ret;
+                };
 
-        ctxMenu.AddItem( ACTIONS::pinLibrary,            unpinnedLibSelectedCondition );
-        ctxMenu.AddItem( ACTIONS::unpinLibrary,          pinnedLibSelectedCondition );
+// clang-format off
+        ctxMenu.AddItem( EE_ACTIONS::newSymbol,           libInferredCondition, 10 );
+        ctxMenu.AddItem( EE_ACTIONS::deriveFromExistingSymbol, symbolSelectedCondition, 10 );
 
-        ctxMenu.AddSeparator();
-        ctxMenu.AddItem( EE_ACTIONS::newSymbol,          libInferredCondition );
-        ctxMenu.AddItem( EE_ACTIONS::deriveFromExistingSymbol, symbolSelectedCondition );
+        ctxMenu.AddSeparator( 10 );
+        ctxMenu.AddItem( ACTIONS::save,                   symbolSelectedCondition || libInferredCondition, 10 );
+        ctxMenu.AddItem( EE_ACTIONS::saveLibraryAs,       libSelectedCondition, 10 );
+        ctxMenu.AddItem( EE_ACTIONS::saveSymbolAs,        symbolSelectedCondition, 10 );
+        ctxMenu.AddItem( EE_ACTIONS::saveSymbolCopyAs,    symbolSelectedCondition, 10 );
+        ctxMenu.AddItem( ACTIONS::revert,                 symbolSelectedCondition || libInferredCondition, 10 );
 
-        ctxMenu.AddSeparator();
-        ctxMenu.AddItem( ACTIONS::save,                  symbolSelectedCondition || libInferredCondition );
-        ctxMenu.AddItem( EE_ACTIONS::saveLibraryAs,      libSelectedCondition );
-        ctxMenu.AddItem( EE_ACTIONS::saveSymbolCopyAs,   saveSymbolAsCondition );
-        ctxMenu.AddItem( ACTIONS::revert,                symbolSelectedCondition || libInferredCondition );
+        ctxMenu.AddSeparator( 10 );
+        ctxMenu.AddItem( EE_ACTIONS::cutSymbol,           symbolSelectedCondition || multiSymbolSelectedCondition, 10 );
+        ctxMenu.AddItem( EE_ACTIONS::copySymbol,          symbolSelectedCondition || multiSymbolSelectedCondition, 10 );
+        ctxMenu.AddItem( EE_ACTIONS::pasteSymbol,         libInferredCondition, 10 );
+        ctxMenu.AddItem( EE_ACTIONS::duplicateSymbol,     symbolSelectedCondition, 10 );
+        ctxMenu.AddItem( EE_ACTIONS::renameSymbol,        symbolSelectedCondition, 10 );
+        ctxMenu.AddItem( EE_ACTIONS::deleteSymbol,        symbolSelectedCondition || multiSymbolSelectedCondition, 10 );
 
-        ctxMenu.AddSeparator();
-        ctxMenu.AddItem( EE_ACTIONS::cutSymbol,          symbolSelectedCondition || multiSelectedCondition );
-        ctxMenu.AddItem( EE_ACTIONS::copySymbol,         symbolSelectedCondition || multiSelectedCondition );
-        ctxMenu.AddItem( EE_ACTIONS::pasteSymbol,        libInferredCondition );
-        ctxMenu.AddItem( EE_ACTIONS::duplicateSymbol,    symbolSelectedCondition );
-        ctxMenu.AddItem( EE_ACTIONS::renameSymbol,       symbolSelectedCondition );
-        ctxMenu.AddItem( EE_ACTIONS::deleteSymbol,       symbolSelectedCondition || multiSelectedCondition );
+        ctxMenu.AddSeparator( 100 );
+        ctxMenu.AddItem( EE_ACTIONS::importSymbol,        libInferredCondition, 100 );
 
-        ctxMenu.AddSeparator();
-        ctxMenu.AddItem( EE_ACTIONS::importSymbol,       libInferredCondition );
-        ctxMenu.AddItem( EE_ACTIONS::exportSymbol,       symbolSelectedCondition );
+        if( ADVANCED_CFG::GetCfg().m_EnableLibWithText )
+        {
+            ctxMenu.AddSeparator( 200 );
+            ctxMenu.AddItem( ACTIONS::openWithTextEditor, canOpenExternally && ( symbolSelectedCondition || libSelectedCondition ), 200 );
+        }
 
-        // If we've got nothing else to show, at least show a hide tree option
-        ctxMenu.AddItem( EE_ACTIONS::hideSymbolTree,    !libInferredCondition );
+        if( ADVANCED_CFG::GetCfg().m_EnableLibDir )
+        {
+            ctxMenu.AddSeparator( 200 );
+            ctxMenu.AddItem( ACTIONS::openDirectory,      canOpenExternally && ( symbolSelectedCondition || libSelectedCondition ), 200 );
+        }
+
+        libraryTreeTool->AddContextMenuItems( &ctxMenu );
     }
+// clang-format on
 
     return true;
 }
@@ -144,6 +186,7 @@ int SYMBOL_EDITOR_CONTROL::AddLibrary( const TOOL_EVENT& aEvent )
 int SYMBOL_EDITOR_CONTROL::DdAddLibrary( const TOOL_EVENT& aEvent )
 {
     wxString libFile = *aEvent.Parameter<wxString*>();
+
     if( m_frame->IsType( FRAME_SCH_SYMBOL_EDITOR ) )
         static_cast<SYMBOL_EDIT_FRAME*>( m_frame )->DdAddLibrary( libFile );
 
@@ -153,56 +196,80 @@ int SYMBOL_EDITOR_CONTROL::DdAddLibrary( const TOOL_EVENT& aEvent )
 
 int SYMBOL_EDITOR_CONTROL::EditSymbol( const TOOL_EVENT& aEvent )
 {
-    if( m_frame->IsType( FRAME_SCH_SYMBOL_EDITOR ) )
-    {
-        SYMBOL_EDIT_FRAME* editFrame = static_cast<SYMBOL_EDIT_FRAME*>( m_frame );
-        int                unit = 0;
-        LIB_ID             partId = editFrame->GetTreeLIBID( &unit );
+    if( !m_isSymbolEditor )
+        return 0;
 
-        editFrame->LoadSymbol( partId.GetLibItemName(), partId.GetLibNickname(), unit );
+    SYMBOL_EDIT_FRAME* editFrame = getEditFrame<SYMBOL_EDIT_FRAME>();
+    int                unit = 0;
+    LIB_ID             partId = editFrame->GetTreeLIBID( &unit );
+
+    editFrame->LoadSymbol( partId.GetLibItemName(), partId.GetLibNickname(), unit );
+    return 0;
+}
+
+
+int SYMBOL_EDITOR_CONTROL::EditLibrarySymbol( const TOOL_EVENT& aEvent )
+{
+    SYMBOL_EDIT_FRAME* editFrame = getEditFrame<SYMBOL_EDIT_FRAME>();
+    const LIB_SYMBOL*  symbol = editFrame->GetCurSymbol();
+
+    if( !symbol || !editFrame->IsSymbolFromSchematic() )
+    {
+        wxBell();
+        return 0;
     }
 
+    const LIB_ID& libId = symbol->GetLibId();
+
+    if( editFrame->LoadSymbol( libId, editFrame->GetUnit(), editFrame->GetBodyStyle() ) )
+    {
+        if( !editFrame->IsLibraryTreeShown() )
+            editFrame->ToggleLibraryTree();
+    }
+    else
+    {
+        const wxString libName = libId.GetLibNickname();
+        const wxString symbolName = libId.GetLibItemName();
+
+        DisplayError( editFrame,
+                      wxString::Format( _( "Failed to load symbol %s from "
+                                           "library %s." ),
+                                        UnescapeString( symbolName ), UnescapeString( libName ) ) );
+    }
     return 0;
 }
 
 
 int SYMBOL_EDITOR_CONTROL::AddSymbol( const TOOL_EVENT& aEvent )
 {
-    if( m_frame->IsType( FRAME_SCH_SYMBOL_EDITOR ) )
+    if( !m_isSymbolEditor )
+        return 0;
+
+    SYMBOL_EDIT_FRAME* editFrame = getEditFrame<SYMBOL_EDIT_FRAME>();
+    LIB_ID             target = editFrame->GetTargetLibId();
+    const wxString&    libName = target.GetLibNickname();
+    wxString           msg;
+
+    if( libName.IsEmpty() )
     {
-        SYMBOL_EDIT_FRAME* editFrame = static_cast<SYMBOL_EDIT_FRAME*>( m_frame );
-
-        LIB_ID          target = editFrame->GetTargetLibId();
-        const wxString& libName = target.GetLibNickname();
-        wxString        msg;
-
-        if( libName.IsEmpty() )
-        {
-            msg.Printf( _( "No symbol library selected." ) );
-            m_frame->ShowInfoBarError( msg );
-            return 0;
-        }
-
-        if( editFrame->GetLibManager().IsLibraryReadOnly( libName ) )
-        {
-            msg.Printf( _( "Symbol library '%s' is not writable." ), libName );
-            m_frame->ShowInfoBarError( msg );
-            return 0;
-        }
-
-        if( aEvent.IsAction( &EE_ACTIONS::newSymbol ) )
-        {
-            editFrame->CreateNewSymbol();
-        }
-        else if( aEvent.IsAction( &EE_ACTIONS::deriveFromExistingSymbol ) )
-        {
-            editFrame->CreateNewSymbol( target.GetLibItemName() );
-        }
-        else if( aEvent.IsAction( &EE_ACTIONS::importSymbol ) )
-        {
-            editFrame->ImportSymbol();
-        }
+        msg.Printf( _( "No symbol library selected." ) );
+        m_frame->ShowInfoBarError( msg );
+        return 0;
     }
+
+    if( editFrame->GetLibManager().IsLibraryReadOnly( libName ) )
+    {
+        msg.Printf( _( "Symbol library '%s' is not writable." ), libName );
+        m_frame->ShowInfoBarError( msg );
+        return 0;
+    }
+
+    if( aEvent.IsAction( &EE_ACTIONS::newSymbol ) )
+        editFrame->CreateNewSymbol();
+    else if( aEvent.IsAction( &EE_ACTIONS::deriveFromExistingSymbol ) )
+        editFrame->CreateNewSymbol( target.GetLibItemName() );
+    else if( aEvent.IsAction( &EE_ACTIONS::importSymbol ) )
+        editFrame->ImportSymbol();
 
     return 0;
 }
@@ -210,19 +277,21 @@ int SYMBOL_EDITOR_CONTROL::AddSymbol( const TOOL_EVENT& aEvent )
 
 int SYMBOL_EDITOR_CONTROL::Save( const TOOL_EVENT& aEvt )
 {
-    if( m_frame->IsType( FRAME_SCH_SYMBOL_EDITOR ) )
-    {
-        SYMBOL_EDIT_FRAME* editFrame = static_cast<SYMBOL_EDIT_FRAME*>( m_frame );
+    if( !m_isSymbolEditor )
+        return 0;
 
-        if( aEvt.IsAction( &EE_ACTIONS::save ) )
-            editFrame->Save();
-        else if( aEvt.IsAction( &EE_ACTIONS::saveLibraryAs ) )
-            editFrame->SaveLibraryAs();
-        else if( aEvt.IsAction( &EE_ACTIONS::saveSymbolCopyAs ) )
-            editFrame->SaveSymbolCopyAs();
-        else if( aEvt.IsAction( &EE_ACTIONS::saveAll ) )
-            editFrame->SaveAll();
-    }
+    SYMBOL_EDIT_FRAME* editFrame = getEditFrame<SYMBOL_EDIT_FRAME>();
+
+    if( aEvt.IsAction( &EE_ACTIONS::save ) )
+        editFrame->Save();
+    else if( aEvt.IsAction( &EE_ACTIONS::saveLibraryAs ) )
+        editFrame->SaveLibraryAs();
+    else if( aEvt.IsAction( &EE_ACTIONS::saveSymbolAs ) )
+        editFrame->SaveSymbolCopyAs( true );
+    else if( aEvt.IsAction( &EE_ACTIONS::saveSymbolCopyAs ) )
+        editFrame->SaveSymbolCopyAs( false );
+    else if( aEvt.IsAction( &EE_ACTIONS::saveAll ) )
+        editFrame->SaveAll();
 
     return 0;
 }
@@ -237,10 +306,77 @@ int SYMBOL_EDITOR_CONTROL::Revert( const TOOL_EVENT& aEvent )
 }
 
 
-int SYMBOL_EDITOR_CONTROL::ExportSymbol( const TOOL_EVENT& aEvent )
+int SYMBOL_EDITOR_CONTROL::OpenDirectory( const TOOL_EVENT& aEvent )
 {
-    if( m_frame->IsType( FRAME_SCH_SYMBOL_EDITOR ) )
-        static_cast<SYMBOL_EDIT_FRAME*>( m_frame )->ExportSymbol();
+    if( !m_isSymbolEditor )
+        return 0;
+
+    SYMBOL_EDIT_FRAME*          editFrame = getEditFrame<SYMBOL_EDIT_FRAME>();
+    LIB_SYMBOL_LIBRARY_MANAGER& libMgr = editFrame->GetLibManager();
+
+    LIB_ID libId = editFrame->GetTreeLIBID();
+
+    wxString libName = libId.GetLibNickname();
+    wxString libItemName = libMgr.GetLibrary( libName )->GetFullURI( true );
+
+    wxFileName fileName( libItemName );
+
+    wxString filePath = wxEmptyString;
+
+    COMMON_SETTINGS* cfg = Pgm().GetCommonSettings();
+
+    wxString explCommand = cfg->m_System.file_explorer;
+
+    if( explCommand.IsEmpty() )
+    {
+        filePath = fileName.GetFullPath().BeforeLast( wxFileName::GetPathSeparator() );
+
+        if( !filePath.IsEmpty() && wxDirExists( filePath ) )
+            LaunchExternal( filePath );
+        return 0;
+    }
+
+    if( !explCommand.EndsWith( "%F" ) )
+    {
+        wxMessageBox( _( "Missing/malformed file explorer argument '%F' in common settings." ) );
+        return 0;
+    }
+
+    filePath = fileName.GetFullPath();
+    filePath.Replace( wxS( "\"" ), wxS( "_" ) );
+
+    wxString fileArg = '"' + filePath + '"';
+
+    explCommand.Replace( wxT( "%F" ), fileArg );
+
+    if( !explCommand.IsEmpty() )
+        wxExecute( explCommand );
+
+    return 0;
+}
+
+
+int SYMBOL_EDITOR_CONTROL::OpenWithTextEditor( const TOOL_EVENT& aEvent )
+{
+    if( !m_isSymbolEditor )
+        return 0;
+
+    SYMBOL_EDIT_FRAME*          editFrame = getEditFrame<SYMBOL_EDIT_FRAME>();
+    LIB_SYMBOL_LIBRARY_MANAGER& libMgr = editFrame->GetLibManager();
+    wxString                    textEditorName = Pgm().GetTextEditor();
+
+    if( textEditorName.IsEmpty() )
+    {
+        wxMessageBox( _( "No text editor selected in KiCad. Please choose one." ) );
+        return 0;
+    }
+
+    LIB_ID   libId = editFrame->GetTreeLIBID();
+    wxString libName = libId.GetLibNickname();
+    wxString tempFName = libMgr.GetLibrary( libName )->GetFullURI( true ).wc_str();
+
+    if( !tempFName.IsEmpty() )
+        ExecuteFile( textEditorName, tempFName, nullptr, false );
 
     return 0;
 }
@@ -248,36 +384,36 @@ int SYMBOL_EDITOR_CONTROL::ExportSymbol( const TOOL_EVENT& aEvent )
 
 int SYMBOL_EDITOR_CONTROL::CutCopyDelete( const TOOL_EVENT& aEvt )
 {
-    if( m_frame->IsType( FRAME_SCH_SYMBOL_EDITOR ) )
+    if( !m_isSymbolEditor )
+        return 0;
+
+    SYMBOL_EDIT_FRAME* editFrame = getEditFrame<SYMBOL_EDIT_FRAME>();
+
+    if( aEvt.IsAction( &EE_ACTIONS::cutSymbol ) || aEvt.IsAction( &EE_ACTIONS::copySymbol ) )
+        editFrame->CopySymbolToClipboard();
+
+    if( aEvt.IsAction( &EE_ACTIONS::cutSymbol ) || aEvt.IsAction( &EE_ACTIONS::deleteSymbol ) )
     {
-        SYMBOL_EDIT_FRAME* editFrame = static_cast<SYMBOL_EDIT_FRAME*>( m_frame );
+        bool hasWritableLibs = false;
+        wxString msg;
 
-        if( aEvt.IsAction( &EE_ACTIONS::cutSymbol ) || aEvt.IsAction( &EE_ACTIONS::copySymbol ) )
-            editFrame->CopySymbolToClipboard();
-
-        if( aEvt.IsAction( &EE_ACTIONS::cutSymbol ) || aEvt.IsAction( &EE_ACTIONS::deleteSymbol ) )
+        for( LIB_ID& sel : editFrame->GetSelectedLibIds() )
         {
-            bool hasWritableLibs = false;
-            wxString msg;
+            const wxString& libName = sel.GetLibNickname();
 
-            for( LIB_ID& sel : editFrame->GetSelectedLibIds() )
-            {
-                const wxString& libName = sel.GetLibNickname();
-
-                if( editFrame->GetLibManager().IsLibraryReadOnly( libName ) )
-                    msg.Printf( _( "Symbol library '%s' is not writable." ), libName );
-                else
-                    hasWritableLibs = true;
-            }
-
-            if( !msg.IsEmpty() )
-                m_frame->ShowInfoBarError( msg );
-
-            if( !hasWritableLibs )
-                return 0;
-
-            editFrame->DeleteSymbolFromLibrary();
+            if( editFrame->GetLibManager().IsLibraryReadOnly( libName ) )
+                msg.Printf( _( "Symbol library '%s' is not writable." ), libName );
+            else
+                hasWritableLibs = true;
         }
+
+        if( !msg.IsEmpty() )
+            m_frame->ShowInfoBarError( msg );
+
+        if( !hasWritableLibs )
+            return 0;
+
+        editFrame->DeleteSymbolFromLibrary();
     }
 
     return 0;
@@ -286,155 +422,150 @@ int SYMBOL_EDITOR_CONTROL::CutCopyDelete( const TOOL_EVENT& aEvt )
 
 int SYMBOL_EDITOR_CONTROL::DuplicateSymbol( const TOOL_EVENT& aEvent )
 {
-    if( m_frame->IsType( FRAME_SCH_SYMBOL_EDITOR ) )
+    if( !m_isSymbolEditor )
+        return 0;
+
+    SYMBOL_EDIT_FRAME* editFrame = getEditFrame<SYMBOL_EDIT_FRAME>();
+    LIB_ID             sel = editFrame->GetTargetLibId();
+    // DuplicateSymbol() is called to duplicate a symbol, or to paste a previously
+    // saved symbol in clipboard
+    bool               isPasteAction = aEvent.IsAction( &EE_ACTIONS::pasteSymbol );
+    wxString           msg;
+
+    if( !sel.IsValid() && !isPasteAction )
     {
-        SYMBOL_EDIT_FRAME* editFrame = static_cast<SYMBOL_EDIT_FRAME*>( m_frame );
-        LIB_ID             sel = editFrame->GetTargetLibId();
-        // DuplicateSymbol() is called to duplicate a symbol, or to paste a previously
-        // saved symbol in clipboard
-        bool               isPasteAction = aEvent.IsAction( &EE_ACTIONS::pasteSymbol );
-        wxString           msg;
-
-        if( !sel.IsValid() && !isPasteAction )
-        {
-            // When duplicating a symbol, a source symbol must exists.
-            msg.Printf( _( "No symbol selected" ) );
-            m_frame->ShowInfoBarError( msg );
-            return 0;
-        }
-
-        const wxString& libName = sel.GetLibNickname();
-
-        if( editFrame->GetLibManager().IsLibraryReadOnly( libName ) )
-        {
-            msg.Printf( _( "Symbol library '%s' is not writable." ), libName );
-            m_frame->ShowInfoBarError( msg );
-            return 0;
-        }
-
-        editFrame->DuplicateSymbol( isPasteAction );
+        // When duplicating a symbol, a source symbol must exists.
+        msg.Printf( _( "No symbol selected" ) );
+        m_frame->ShowInfoBarError( msg );
+        return 0;
     }
 
+    const wxString& libName = sel.GetLibNickname();
+
+    if( editFrame->GetLibManager().IsLibraryReadOnly( libName ) )
+    {
+        msg.Printf( _( "Symbol library '%s' is not writable." ), libName );
+        m_frame->ShowInfoBarError( msg );
+        return 0;
+    }
+
+    editFrame->DuplicateSymbol( isPasteAction );
     return 0;
 }
 
 
-class RENAME_DIALOG : public wxTextEntryDialog
-{
-public:
-    RENAME_DIALOG( wxWindow* aParent, const wxString& aName,
-                   std::function<bool( wxString newName )> aValidator ) :
-            wxTextEntryDialog( aParent, _( "New name:" ), _( "Change Symbol Name" ), aName ),
-            m_validator( std::move( aValidator ) )
-    { }
-
-    wxString GetSymbolName()
-    {
-        wxString name = EscapeString( m_textctrl->GetValue(), CTX_LIBID );
-        name.Trim( true ).Trim( false );
-        return name;
-    }
-
-protected:
-    bool TransferDataFromWindow() override
-    {
-        return m_validator( GetSymbolName() );
-    }
-
-private:
-    std::function<bool( wxString newName )> m_validator;
-};
-
-
 int SYMBOL_EDITOR_CONTROL::RenameSymbol( const TOOL_EVENT& aEvent )
 {
-    if( m_frame->IsType( FRAME_SCH_SYMBOL_EDITOR ) )
-    {
-        SYMBOL_EDIT_FRAME*          editFrame = static_cast<SYMBOL_EDIT_FRAME*>( m_frame );
-        LIB_SYMBOL_LIBRARY_MANAGER& libMgr    = editFrame->GetLibManager();
+    if( !m_isSymbolEditor )
+        return 0;
 
-        LIB_ID   libId = editFrame->GetTreeLIBID();
-        wxString libName = libId.GetLibNickname();
-        wxString symbolName = libId.GetLibItemName();
-        wxString msg;
+    SYMBOL_EDIT_FRAME*          editFrame = getEditFrame<SYMBOL_EDIT_FRAME>();
+    LIB_SYMBOL_LIBRARY_MANAGER& libMgr    = editFrame->GetLibManager();
+    LIBRARY_EDITOR_CONTROL*     libTool   = m_toolMgr->GetTool<LIBRARY_EDITOR_CONTROL>();
 
-        if( !libMgr.LibraryExists( libName ) )
-            return 0;
+    LIB_ID   libId = editFrame->GetTreeLIBID();
+    wxString libName = libId.GetLibNickname();
+    wxString oldName = libId.GetLibItemName();
+    wxString newName;
+    wxString msg;
 
-        RENAME_DIALOG dlg( m_frame, symbolName,
-                [&]( wxString newName )
+    if( !libMgr.LibraryExists( libName ) )
+        return 0;
+
+    if( !libTool->RenameLibrary( _( "Change Symbol Name" ), oldName,
+            [&]( const wxString& aNewName )
+            {
+                newName = EscapeString( aNewName, CTX_LIBID );
+
+                if( newName.IsEmpty() )
                 {
-                    if( newName.IsEmpty() )
-                    {
-                        wxMessageBox( _( "Symbol must have a name." ) );
-                        return false;
-                    }
+                    wxMessageBox( _( "Symbol must have a name." ) );
+                    return false;
+                }
 
-                    if( libMgr.SymbolExists( newName, libName ) )
-                    {
-                        msg = wxString::Format( _( "Symbol '%s' already exists in library '%s'." ),
-                                                newName, libName );
+                // If no change, accept it without prompting
+                if( newName != oldName && libMgr.SymbolExists( newName, libName ) )
+                {
+                    msg = wxString::Format( _( "Symbol '%s' already exists in library '%s'." ),
+                                            newName, libName );
 
-                        KIDIALOG errorDlg( m_frame, msg, _( "Confirmation" ),
-                                           wxOK | wxCANCEL | wxICON_WARNING );
-                        errorDlg.SetOKLabel( _( "Overwrite" ) );
+                    KIDIALOG errorDlg( m_frame, msg, _( "Confirmation" ),
+                                       wxOK | wxCANCEL | wxICON_WARNING );
+                    errorDlg.SetOKLabel( _( "Overwrite" ) );
 
-                        return errorDlg.ShowModal() == wxID_OK;
-                    }
+                    return errorDlg.ShowModal() == wxID_OK;
+                }
 
-                    return true;
-                } );
+                return true;
+            } ) )
+    {
+        return 0;   // cancelled by user
+    }
 
-        if( dlg.ShowModal() != wxID_OK )
-            return 0;   // canceled by user
+    if( newName == oldName )
+        return 0;
 
-        wxString    newName = dlg.GetSymbolName();
-        wxString    oldName = symbolName;
-        LIB_SYMBOL* libSymbol = libMgr.GetBufferedSymbol( oldName, libName );
-        bool        isCurrentSymbol = editFrame->IsCurrentSymbol( libId );
+    LIB_SYMBOL* libSymbol = libMgr.GetBufferedSymbol( oldName, libName );
 
-        if( !libSymbol )
-            return 0;
+    if( !libSymbol )
+        return 0;
+
+    // Renaming the current symbol
+    const bool isCurrentSymbol = editFrame->IsCurrentSymbol( libId );
+    bool       overwritingCurrentSymbol = false;
+
+    if( libMgr.SymbolExists( newName, libName ) )
+    {
+        // Overwriting the current symbol also need to update the open symbol
+        LIB_SYMBOL* const overwrittenSymbol = libMgr.GetBufferedSymbol( newName, libName );
+        overwritingCurrentSymbol = editFrame->IsCurrentSymbol( overwrittenSymbol->GetLibId() );
+        libMgr.RemoveSymbol( newName, libName );
+    }
+
+    libSymbol->SetName( newName );
+
+    if( libSymbol->GetFieldById( VALUE_FIELD )->GetText() == oldName )
+        libSymbol->GetFieldById( VALUE_FIELD )->SetText( newName );
+
+    libMgr.UpdateSymbolAfterRename( libSymbol, newName, libName );
+    libMgr.SetSymbolModified( newName, libName );
+
+    if( overwritingCurrentSymbol )
+    {
+        // We overwrite the old current symbol with the renamed one, so show
+        // the renamed one now
+        editFrame->SetCurSymbol( new LIB_SYMBOL( *libSymbol ), false );
+    }
+    else if( isCurrentSymbol && editFrame->GetCurSymbol() )
+    {
+        // Renamed the current symbol - follow it
+        libSymbol = editFrame->GetCurSymbol();
 
         libSymbol->SetName( newName );
 
         if( libSymbol->GetFieldById( VALUE_FIELD )->GetText() == oldName )
             libSymbol->GetFieldById( VALUE_FIELD )->SetText( newName );
 
-        libMgr.UpdateSymbolAfterRename( libSymbol, newName, libName );
-        libMgr.SetSymbolModified( newName, libName );
+        editFrame->RebuildView();
+        editFrame->OnModify();
+        editFrame->UpdateTitle();
 
-        if( isCurrentSymbol && editFrame->GetCurSymbol())
-        {
-            libSymbol = editFrame->GetCurSymbol();
-
-            libSymbol->SetName( newName );
-
-            if( libSymbol->GetFieldById( VALUE_FIELD )->GetText() == oldName )
-                libSymbol->GetFieldById( VALUE_FIELD )->SetText( newName );
-
-            editFrame->RebuildView();
-            editFrame->OnModify();
-            editFrame->UpdateTitle();
-
-            // N.B. The view needs to be rebuilt first as the Symbol Properties change may
-            // invalidate the view pointers by rebuilting the field table
-            editFrame->UpdateMsgPanel();
-        }
-
-        wxDataViewItem treeItem = libMgr.GetAdapter()->FindItem( libId );
-        editFrame->UpdateLibraryTree( treeItem, libSymbol );
-        editFrame->FocusOnLibId( LIB_ID( libName, newName ) );
+        // N.B. The view needs to be rebuilt first as the Symbol Properties change may
+        // invalidate the view pointers by rebuilting the field table
+        editFrame->UpdateMsgPanel();
     }
 
+    wxDataViewItem treeItem = libMgr.GetAdapter()->FindItem( libId );
+    editFrame->UpdateLibraryTree( treeItem, libSymbol );
+    editFrame->FocusOnLibId( LIB_ID( libName, newName ) );
     return 0;
 }
 
 
 int SYMBOL_EDITOR_CONTROL::OnDeMorgan( const TOOL_EVENT& aEvent )
 {
-    int convert = aEvent.IsAction( &EE_ACTIONS::showDeMorganStandard ) ?
-            LIB_ITEM::BODY_STYLE::BASE : LIB_ITEM::BODY_STYLE::DEMORGAN;
+    int bodyStyle = aEvent.IsAction( &EE_ACTIONS::showDeMorganStandard ) ? BODY_STYLE::BASE
+                                                                         : BODY_STYLE::DEMORGAN;
 
     if( m_frame->IsType( FRAME_SCH_SYMBOL_EDITOR ) )
     {
@@ -442,7 +573,7 @@ int SYMBOL_EDITOR_CONTROL::OnDeMorgan( const TOOL_EVENT& aEvent )
         m_toolMgr->RunAction( EE_ACTIONS::clearSelection );
 
         SYMBOL_EDIT_FRAME* symbolEditor = static_cast<SYMBOL_EDIT_FRAME*>( m_frame );
-        symbolEditor->SetBodyStyle( convert );
+        symbolEditor->SetBodyStyle( bodyStyle );
 
         m_toolMgr->ResetTools( TOOL_BASE::MODEL_RELOAD );
         symbolEditor->RebuildView();
@@ -450,59 +581,7 @@ int SYMBOL_EDITOR_CONTROL::OnDeMorgan( const TOOL_EVENT& aEvent )
     else if( m_frame->IsType( FRAME_SCH_VIEWER ) )
     {
         SYMBOL_VIEWER_FRAME* symbolViewer = static_cast<SYMBOL_VIEWER_FRAME*>( m_frame );
-        symbolViewer->SetUnitAndBodyStyle( symbolViewer->GetUnit(), convert );
-    }
-
-    return 0;
-}
-
-
-int SYMBOL_EDITOR_CONTROL::PinLibrary( const TOOL_EVENT& aEvent )
-{
-    if( m_frame->IsType( FRAME_SCH_SYMBOL_EDITOR ) )
-    {
-        SYMBOL_EDIT_FRAME* editFrame = static_cast<SYMBOL_EDIT_FRAME*>( m_frame );
-        LIB_TREE_NODE*  currentNode = editFrame->GetCurrentTreeNode();
-
-        if( currentNode && !currentNode->m_Pinned )
-        {
-            m_frame->Prj().PinLibrary( currentNode->m_LibId.GetLibNickname(), true );
-
-            currentNode->m_Pinned = true;
-            editFrame->RegenerateLibraryTree();
-        }
-    }
-
-    return 0;
-}
-
-
-int SYMBOL_EDITOR_CONTROL::UnpinLibrary( const TOOL_EVENT& aEvent )
-{
-    if( m_frame->IsType( FRAME_SCH_SYMBOL_EDITOR ) )
-    {
-        SYMBOL_EDIT_FRAME* editFrame = static_cast<SYMBOL_EDIT_FRAME*>( m_frame );
-        LIB_TREE_NODE*  currentNode = editFrame->GetCurrentTreeNode();
-
-        if( currentNode && currentNode->m_Pinned )
-        {
-            m_frame->Prj().UnpinLibrary( currentNode->m_LibId.GetLibNickname(), true );
-
-            currentNode->m_Pinned = false;
-            editFrame->RegenerateLibraryTree();
-        }
-    }
-
-    return 0;
-}
-
-
-int SYMBOL_EDITOR_CONTROL::ToggleSymbolTree( const TOOL_EVENT& aEvent )
-{
-    if( m_frame->IsType( FRAME_SCH_SYMBOL_EDITOR ) )
-    {
-        wxCommandEvent dummy;
-        static_cast<SYMBOL_EDIT_FRAME*>( m_frame )->OnToggleSymbolTree( dummy );
+        symbolViewer->SetUnitAndBodyStyle( symbolViewer->GetUnit(), bodyStyle );
     }
 
     return 0;
@@ -520,7 +599,7 @@ int SYMBOL_EDITOR_CONTROL::ToggleProperties( const TOOL_EVENT& aEvent )
 
 int SYMBOL_EDITOR_CONTROL::ShowElectricalTypes( const TOOL_EVENT& aEvent )
 {
-    KIGFX::SCH_RENDER_SETTINGS* renderSettings = m_frame->GetRenderSettings();
+    SCH_RENDER_SETTINGS* renderSettings = m_frame->GetRenderSettings();
     renderSettings->m_ShowPinsElectricalType = !renderSettings->m_ShowPinsElectricalType;
 
     // Update canvas
@@ -533,7 +612,7 @@ int SYMBOL_EDITOR_CONTROL::ShowElectricalTypes( const TOOL_EVENT& aEvent )
 
 int SYMBOL_EDITOR_CONTROL::ShowPinNumbers( const TOOL_EVENT& aEvent )
 {
-    KIGFX::SCH_RENDER_SETTINGS* renderSettings = m_frame->GetRenderSettings();
+    SCH_RENDER_SETTINGS* renderSettings = m_frame->GetRenderSettings();
     renderSettings->m_ShowPinNumbers = !renderSettings->m_ShowPinNumbers;
 
     // Update canvas
@@ -556,28 +635,53 @@ int SYMBOL_EDITOR_CONTROL::ToggleSyncedPinsMode( const TOOL_EVENT& aEvent )
 }
 
 
-int SYMBOL_EDITOR_CONTROL::ToggleHiddenLibPins( const TOOL_EVENT& aEvent )
+int SYMBOL_EDITOR_CONTROL::ToggleHiddenPins( const TOOL_EVENT& aEvent )
 {
-    SYMBOL_EDIT_FRAME* editFrame = getEditFrame<SYMBOL_EDIT_FRAME>();
-    editFrame->GetRenderSettings()->m_ShowHiddenLibPins =
-                    !editFrame->GetRenderSettings()->m_ShowHiddenLibPins;
+    if( !m_isSymbolEditor )
+        return 0;
+
+    SYMBOL_EDITOR_SETTINGS* cfg = m_frame->libeditconfig();
+    cfg->m_ShowHiddenPins = !cfg->m_ShowHiddenPins;
+
+    getEditFrame<SYMBOL_EDIT_FRAME>()->GetRenderSettings()->m_ShowHiddenPins =
+            cfg->m_ShowHiddenPins;
 
     getView()->UpdateAllItems( KIGFX::REPAINT );
-    editFrame->GetCanvas()->Refresh();
-
+    m_frame->GetCanvas()->Refresh();
     return 0;
 }
 
 
-int SYMBOL_EDITOR_CONTROL::ToggleHiddenLibFields( const TOOL_EVENT& aEvent )
+int SYMBOL_EDITOR_CONTROL::ToggleHiddenFields( const TOOL_EVENT& aEvent )
 {
-    SYMBOL_EDIT_FRAME* editFrame = getEditFrame<SYMBOL_EDIT_FRAME>();
-    editFrame->GetRenderSettings()->m_ShowHiddenLibFields =
-                    !editFrame->GetRenderSettings()->m_ShowHiddenLibFields;
+    if( !m_isSymbolEditor )
+        return 0;
+
+    SYMBOL_EDITOR_SETTINGS* cfg = m_frame->libeditconfig();
+    cfg->m_ShowHiddenFields = !cfg->m_ShowHiddenFields;
+
+    // TODO: Why is this needed in symbol edit and not in schematic edit?
+    getEditFrame<SYMBOL_EDIT_FRAME>()->GetRenderSettings()->m_ShowHiddenFields =
+            cfg->m_ShowHiddenFields;
 
     getView()->UpdateAllItems( KIGFX::REPAINT );
-    editFrame->GetCanvas()->Refresh();
+    m_frame->GetCanvas()->Refresh();
+    return 0;
+}
 
+
+int SYMBOL_EDITOR_CONTROL::TogglePinAltIcons( const TOOL_EVENT& aEvent )
+{
+    if( !m_isSymbolEditor )
+        return 0;
+
+    SYMBOL_EDITOR_SETTINGS& cfg = *m_frame->libeditconfig();
+    cfg.m_ShowPinAltIcons = !cfg.m_ShowPinAltIcons;
+
+    m_frame->GetRenderSettings()->m_ShowPinAltIcons = cfg.m_ShowPinAltIcons;
+
+    getView()->UpdateAllItems( KIGFX::REPAINT );
+    m_frame->GetCanvas()->Refresh();
     return 0;
 }
 
@@ -726,11 +830,32 @@ int SYMBOL_EDITOR_CONTROL::AddSymbolToSchematic( const TOOL_EVENT& aEvent )
         symbol->SetParent( schframe->GetScreen() );
 
         if( schframe->eeconfig()->m_AutoplaceFields.enable )
-            symbol->AutoplaceFields( /* aScreen */ nullptr, /* aManual */ false );
+        {
+            // Not placed yet, so pass a nullptr screen reference
+            symbol->AutoplaceFields( nullptr, AUTOPLACE_AUTO );
+        }
 
         schframe->Raise();
-        schframe->GetToolManager()->PostAction( EE_ACTIONS::placeSymbol, symbol );
+        schframe->GetToolManager()->PostAction( EE_ACTIONS::placeSymbol,
+                                                EE_ACTIONS::PLACE_SYMBOL_PARAMS{ symbol, true } );
     }
+
+    return 0;
+}
+
+
+int SYMBOL_EDITOR_CONTROL::ChangeUnit( const TOOL_EVENT& aEvent )
+{
+    if( !m_isSymbolEditor )
+        return 0;
+
+    SYMBOL_EDIT_FRAME* editFrame = getEditFrame<SYMBOL_EDIT_FRAME>();
+    const int          deltaUnit = aEvent.Parameter<int>();
+
+    const int nUnits = editFrame->GetCurSymbol()->GetUnitCount();
+    const int newUnit = ( ( editFrame->GetUnit() - 1 + deltaUnit + nUnits ) % nUnits ) + 1;
+
+    editFrame->SetUnit( newUnit );
 
     return 0;
 }
@@ -738,17 +863,20 @@ int SYMBOL_EDITOR_CONTROL::AddSymbolToSchematic( const TOOL_EVENT& aEvent )
 
 void SYMBOL_EDITOR_CONTROL::setTransitions()
 {
+    // clang-format off
     Go( &SYMBOL_EDITOR_CONTROL::AddLibrary,            ACTIONS::newLibrary.MakeEvent() );
     Go( &SYMBOL_EDITOR_CONTROL::AddLibrary,            ACTIONS::addLibrary.MakeEvent() );
     Go( &SYMBOL_EDITOR_CONTROL::AddSymbol,             EE_ACTIONS::newSymbol.MakeEvent() );
     Go( &SYMBOL_EDITOR_CONTROL::AddSymbol,             EE_ACTIONS::deriveFromExistingSymbol.MakeEvent() );
     Go( &SYMBOL_EDITOR_CONTROL::AddSymbol,             EE_ACTIONS::importSymbol.MakeEvent() );
     Go( &SYMBOL_EDITOR_CONTROL::EditSymbol,            EE_ACTIONS::editSymbol.MakeEvent() );
+    Go( &SYMBOL_EDITOR_CONTROL::EditLibrarySymbol,     EE_ACTIONS::editLibSymbolWithLibEdit.MakeEvent() );
 
     Go( &SYMBOL_EDITOR_CONTROL::DdAddLibrary,          ACTIONS::ddAddLibrary.MakeEvent() );
 
     Go( &SYMBOL_EDITOR_CONTROL::Save,                  ACTIONS::save.MakeEvent() );
     Go( &SYMBOL_EDITOR_CONTROL::Save,                  EE_ACTIONS::saveLibraryAs.MakeEvent() );
+    Go( &SYMBOL_EDITOR_CONTROL::Save,                  EE_ACTIONS::saveSymbolAs.MakeEvent() );
     Go( &SYMBOL_EDITOR_CONTROL::Save,                  EE_ACTIONS::saveSymbolCopyAs.MakeEvent() );
     Go( &SYMBOL_EDITOR_CONTROL::Save,                  ACTIONS::saveAll.MakeEvent() );
     Go( &SYMBOL_EDITOR_CONTROL::Revert,                ACTIONS::revert.MakeEvent() );
@@ -759,7 +887,10 @@ void SYMBOL_EDITOR_CONTROL::setTransitions()
     Go( &SYMBOL_EDITOR_CONTROL::CutCopyDelete,         EE_ACTIONS::cutSymbol.MakeEvent() );
     Go( &SYMBOL_EDITOR_CONTROL::CutCopyDelete,         EE_ACTIONS::copySymbol.MakeEvent() );
     Go( &SYMBOL_EDITOR_CONTROL::DuplicateSymbol,       EE_ACTIONS::pasteSymbol.MakeEvent() );
-    Go( &SYMBOL_EDITOR_CONTROL::ExportSymbol,          EE_ACTIONS::exportSymbol.MakeEvent() );
+
+    Go( &SYMBOL_EDITOR_CONTROL::OpenWithTextEditor,    ACTIONS::openWithTextEditor.MakeEvent() );
+    Go( &SYMBOL_EDITOR_CONTROL::OpenDirectory,         ACTIONS::openDirectory.MakeEvent() );
+
     Go( &SYMBOL_EDITOR_CONTROL::ExportView,            EE_ACTIONS::exportSymbolView.MakeEvent() );
     Go( &SYMBOL_EDITOR_CONTROL::ExportSymbolAsSVG,     EE_ACTIONS::exportSymbolAsSVG.MakeEvent() );
     Go( &SYMBOL_EDITOR_CONTROL::AddSymbolToSchematic,  EE_ACTIONS::addSymbolToSchematic.MakeEvent() );
@@ -769,13 +900,14 @@ void SYMBOL_EDITOR_CONTROL::setTransitions()
 
     Go( &SYMBOL_EDITOR_CONTROL::ShowElectricalTypes,   EE_ACTIONS::showElectricalTypes.MakeEvent() );
     Go( &SYMBOL_EDITOR_CONTROL::ShowPinNumbers,        EE_ACTIONS::showPinNumbers.MakeEvent() );
-    Go( &SYMBOL_EDITOR_CONTROL::PinLibrary,            ACTIONS::pinLibrary.MakeEvent() );
-    Go( &SYMBOL_EDITOR_CONTROL::UnpinLibrary,          ACTIONS::unpinLibrary.MakeEvent() );
-    Go( &SYMBOL_EDITOR_CONTROL::ToggleSymbolTree,      EE_ACTIONS::showSymbolTree.MakeEvent() );
-    Go( &SYMBOL_EDITOR_CONTROL::ToggleSymbolTree,      EE_ACTIONS::hideSymbolTree.MakeEvent() );
     Go( &SYMBOL_EDITOR_CONTROL::ToggleSyncedPinsMode,  EE_ACTIONS::toggleSyncedPinsMode.MakeEvent() );
 
     Go( &SYMBOL_EDITOR_CONTROL::ToggleProperties,      ACTIONS::showProperties.MakeEvent() );
-    Go( &SYMBOL_EDITOR_CONTROL::ToggleHiddenLibPins,   EE_ACTIONS::showHiddenLibPins.MakeEvent() );
-    Go( &SYMBOL_EDITOR_CONTROL::ToggleHiddenLibFields, EE_ACTIONS::showHiddenLibFields.MakeEvent() );
+    Go( &SYMBOL_EDITOR_CONTROL::ToggleHiddenPins,      EE_ACTIONS::showHiddenPins.MakeEvent() );
+    Go( &SYMBOL_EDITOR_CONTROL::ToggleHiddenFields,    EE_ACTIONS::showHiddenFields.MakeEvent() );
+    Go( &SYMBOL_EDITOR_CONTROL::TogglePinAltIcons,     EE_ACTIONS::togglePinAltIcons.MakeEvent() );
+
+    Go( &SYMBOL_EDITOR_CONTROL::ChangeUnit,            EE_ACTIONS::previousUnit.MakeEvent() );
+    Go( &SYMBOL_EDITOR_CONTROL::ChangeUnit,            EE_ACTIONS::nextUnit.MakeEvent() );
+    // clang-format on
 }

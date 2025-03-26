@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Andrew Lutsenko, anlutsenko at gmail dot com
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -46,6 +46,7 @@
 #include <geometry/shape_rect.h>
 #include <geometry/shape_segment.h>
 #include <geometry/shape_simple.h>
+#include <geometry/approximation.h>
 %}
 
 %shared_ptr(SHAPE)
@@ -73,6 +74,7 @@
 %include <geometry/shape_rect.h>
 %include <geometry/shape_segment.h>
 %include <geometry/shape_simple.h>
+%include <geometry/approximation.h>
 
 %template(VECTOR_SHAPEPTR) std::vector<std::shared_ptr<SHAPE>>;
 

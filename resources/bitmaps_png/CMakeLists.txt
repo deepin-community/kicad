@@ -125,6 +125,7 @@ set( BMAPS_SMALL
     small_edit
     small_folder
     small_library
+    small_new_window
     small_plus
     small_refresh
     small_sort_desc
@@ -203,6 +204,7 @@ set( BMAPS_MID
     align_items_center
     align_items_middle
     anchor
+    annotate_increment
     annotate_down_right
     annotate_right_down
     annotate
@@ -218,6 +220,7 @@ set( BMAPS_MID
     axis3d_right
     axis3d_top
     axis3d
+    body_style
     break_line
     bug
     bus_definition_tool
@@ -247,8 +250,10 @@ set( BMAPS_MID
     directory
     directory_browser
     directory_open
-    distribute_horizontal
-    distribute_vertical
+    distribute_horizontal_centers
+    distribute_horizontal_gaps
+    distribute_vertical_centers
+    distribute_vertical_gaps
     down
     drag
     drag_segment
@@ -351,6 +356,8 @@ set( BMAPS_MID
     info
     insert_module_board
     intersect_polygons
+    jobset
+    jobset_open
     language
     layers_manager
     leave_sheet
@@ -416,6 +423,7 @@ set( BMAPS_MID
     options_schematic
     opt_show_polygon
     ortho
+    outset_from_selection
     pack_footprints
     pad_sketch
     pad
@@ -445,9 +453,11 @@ set( BMAPS_MID
     post_gerber
     post_rpt
     post_xml
+    post_odb
     preference
     print_button
     project
+    project_clone
     project_close
     project_kicad
     ps_diff_pair
@@ -458,12 +468,13 @@ set( BMAPS_MID
     push_pad_settings
     puzzle_piece
     py_script
+    ray_tracing
     recent
     redo
     refresh
     reload
-    render_mode
     rescue
+    restore_from_file
     right
     router_len_tuner
     router_len_tuner_setup
@@ -487,6 +498,7 @@ set( BMAPS_MID
     shape_3d
     shape_3d_back
     sheetset
+    show_board_body
     simulator
     sim_add_plot
     sim_command
@@ -526,6 +538,17 @@ set( BMAPS_MID
     swap
     swap_layer
     switch_corner_rounding_shape
+    table
+    table_add_column_after
+    table_add_column_before
+    table_add_row_above
+    table_add_row_below
+    table_delete_column
+    table_delete_row
+    table_edit
+    table_select
+    table_select_column
+    table_select_row
     text
     text_sketch
     thermal_spokes
@@ -564,6 +587,10 @@ set( BMAPS_MID
     zoom_center_on_screen
     zoom_in
     zoom_out
+    zoom_in_horizontally
+    zoom_out_horizontally
+    zoom_in_vertically
+    zoom_out_vertically
     zoom_selection
     )
 
@@ -626,6 +653,7 @@ set( BMAPS_64
     icon_pagelayout_editor
     icon_bitmap2component
     icon_pcbcalculator
+    icon_pcm
     )
 
 # 128 x 128 for icon sets
@@ -641,6 +669,7 @@ set( BMAPS_128
     icon_pagelayout_editor
     icon_bitmap2component
     icon_pcbcalculator
+    icon_pcm
     )
 
 # 256 x 256 for icon sets (windows namely)
@@ -656,6 +685,7 @@ set( BMAPS_256
     icon_pagelayout_editor
     icon_bitmap2component
     icon_pcbcalculator
+    icon_pcm
     )
 
 # Teardrop images (275x130 native size) for teardrop dialogs
@@ -713,6 +743,7 @@ set( BMAPS_OTHER
     stroke_dashdotdot
     stroke_dot
     stroke_solid
+    stroke_none
     twistedpair
     viacalc
     )
@@ -882,14 +913,29 @@ else()
     set( TAR_OUTPUT_FILE "${BITMAP_ARCHIVE_PATH}" )
 endif()
 
-add_custom_target( bitmap_archive ALL
-    COMMAND ${TAR} cfz "${TAR_OUTPUT_FILE}" .
-    DEPENDS ${ALL_PNGS}
-    BYPRODUCTS ${BITMAP_ARCHIVE_PATH}
+set( TARFLAGS cfz )
+if( DEFINED ENV{SOURCE_DATE_EPOCH} )
+    set( TARFLAGS --sort=name --mtime=@$ENV{SOURCE_DATE_EPOCH} --clamp-mtime --owner=0 --group=0 --numeric-owner --pax-option=exthdr.name=%d/PaxHeaders/%f,delete=atime,delete=ctime -czf )
+endif()
+
+# This is a dummy target to bind the custom command to something we can reuse in other calls
+# i.e. we want to dynamically make bitmap_archive depend on generate_pngs target after wards
+add_custom_target( bitmap_archive_bundle ALL )
+
+# We use a custom command here because it will avoid running the command
+# on every cmake build if there are no depends changes
+add_custom_command(
+    OUTPUT ${BITMAP_ARCHIVE_PATH}
+    COMMAND ${TAR} ${TARFLAGS} "${TAR_OUTPUT_FILE}" .
+    DEPENDS bitmap_archive_bundle ${ALL_PNGS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/png
     COMMENT "Creating image archive ${TAR_OUTPUT_FILE}"
     VERBATIM
     )
+
+# This is the second target we need to require the custom_command to generate and potentially run
+add_custom_target( bitmap_archive_build ALL
+                DEPENDS ${BITMAP_ARCHIVE_PATH})
 
 install( FILES ${BITMAP_ARCHIVE_PATH}
     DESTINATION ${KICAD_DATA}/resources
@@ -972,6 +1018,6 @@ if( MAINTAIN_PNGS )
         COMMENT "Creating PNGs from SVGs"
         )
 
-    add_dependencies( bitmap_archive generate_pngs )
+    add_dependencies( bitmap_archive_bundle  generate_pngs )
 
 endif( MAINTAIN_PNGS )

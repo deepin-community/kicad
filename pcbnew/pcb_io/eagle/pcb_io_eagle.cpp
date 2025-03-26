@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2012-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -62,9 +62,9 @@ Load() TODO's
 
 #include <convert_basic_shapes_to_polygon.h>
 #include <font/fontconfig.h>
+#include <geometry/geometry_utils.h>
 #include <string_utils.h>
 #include <locale_io.h>
-#include <string_utf8_map.h>
 #include <trigo.h>
 #include <progress_reporter.h>
 #include <project.h>
@@ -75,7 +75,7 @@ Load() TODO's
 #include <pcb_track.h>
 #include <pcb_shape.h>
 #include <zone.h>
-#include <pad_shapes.h>
+#include <padstack.h>
 #include <pcb_text.h>
 #include <pcb_dimension.h>
 #include <reporter.h>
@@ -155,7 +155,7 @@ void PCB_IO_EAGLE::setKeepoutSettingsToZone( ZONE* aZone, int aLayer ) const
         aZone->SetDoNotAllowPads( false );
         aZone->SetDoNotAllowFootprints( false );
 
-        aZone->SetLayerSet( kicad_layer( aLayer ) );
+        aZone->SetLayerSet( { kicad_layer( aLayer ) } );
     }
 }
 
@@ -222,7 +222,8 @@ void ERULES::parse( wxXmlNode* aRules, std::function<void()> aCheckpoint )
 }
 
 
-PCB_IO_EAGLE::PCB_IO_EAGLE() : PCB_IO( wxS( "Eagle" ) ),
+PCB_IO_EAGLE::PCB_IO_EAGLE() :
+        PCB_IO( wxS( "Eagle" ) ),
         m_rules( new ERULES() ),
         m_xpath( new XPATH() ),
         m_progressReporter( nullptr ),
@@ -235,8 +236,7 @@ PCB_IO_EAGLE::PCB_IO_EAGLE() : PCB_IO( wxS( "Eagle" ) ),
 
     init( nullptr );
     clear_cu_map();
-    RegisterLayerMappingCallback( std::bind( &PCB_IO_EAGLE::DefaultLayerMappingCallback,
-                                             this, _1 ) );
+    RegisterCallback( std::bind( &PCB_IO_EAGLE::DefaultLayerMappingCallback, this, _1 ) );
 }
 
 
@@ -323,7 +323,7 @@ VECTOR2I inline PCB_IO_EAGLE::kicad_fontsize( const ECOORD& d, int aTextThicknes
 
 
 BOARD* PCB_IO_EAGLE::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
-                                const STRING_UTF8_MAP* aProperties, PROJECT* aProject )
+                                const std::map<std::string, UTF8>* aProperties, PROJECT* aProject )
 {
     LOCALE_IO       toggle;     // toggles on, then off, the C locale.
     wxXmlNode*      doc;
@@ -410,9 +410,9 @@ BOARD* PCB_IO_EAGLE::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
 
         std::shared_ptr<NET_SETTINGS>& netSettings = bds.m_NetSettings;
 
-        finishNetclass( netSettings->m_DefaultNetClass );
+        finishNetclass( netSettings->GetDefaultNetclass() );
 
-        for( const auto& [ name, netclass ] : netSettings->m_NetClasses )
+        for( const auto& [name, netclass] : netSettings->GetNetclasses() )
             finishNetclass( netclass );
 
         m_board->m_LegacyNetclassesLoaded = true;
@@ -456,7 +456,7 @@ std::vector<FOOTPRINT*> PCB_IO_EAGLE::GetImportedCachedLibraryFootprints()
 }
 
 
-void PCB_IO_EAGLE::init( const STRING_UTF8_MAP* aProperties )
+void PCB_IO_EAGLE::init( const std::map<std::string, UTF8>* aProperties )
 {
     m_hole_count  = 0;
     m_min_trace   = 0;
@@ -746,7 +746,7 @@ void PCB_IO_EAGLE::loadPlain( wxXmlNode* aGraphics )
                 if( t.rot )
                 {
                     if( !t.rot->spin )
-                        degrees = t.rot->degrees;
+                        degrees = t.rot->mirror ? -t.rot->degrees : t.rot->degrees;
 
                     if( t.rot->mirror )
                         pcbtxt->SetMirrored( t.rot->mirror );
@@ -851,6 +851,22 @@ void PCB_IO_EAGLE::loadPlain( wxXmlNode* aGraphics )
                     pcbtxt->SetVertJustify( GR_TEXT_V_ALIGN_BOTTOM );
                     break;
                 }
+
+                // Refine justification and rotation for mirrored texts
+                if( pcbtxt->IsMirrored() && degrees < -90 && degrees >= -270 )
+                {
+                    pcbtxt->SetTextAngle( EDA_ANGLE( 180+degrees, DEGREES_T ) );
+
+                    if( pcbtxt->GetHorizJustify() == GR_TEXT_H_ALIGN_LEFT )
+                        pcbtxt->SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
+                    else if( pcbtxt->GetHorizJustify() == GR_TEXT_H_ALIGN_RIGHT )
+                        pcbtxt->SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
+
+                    if( pcbtxt->GetVertJustify() == GR_TEXT_V_ALIGN_BOTTOM )
+                        pcbtxt->SetVertJustify( GR_TEXT_V_ALIGN_TOP );
+                    else if( pcbtxt->GetVertJustify() == GR_TEXT_V_ALIGN_TOP )
+                        pcbtxt->SetVertJustify( GR_TEXT_V_ALIGN_BOTTOM );
+               }
             }
 
             m_xpath->pop();
@@ -965,12 +981,16 @@ void PCB_IO_EAGLE::loadPlain( wxXmlNode* aGraphics )
             m_xpath->push( "hole" );
 
             // Fabricate a FOOTPRINT with a single PAD_ATTRIB::NPTH pad.
-            // Use m_hole_count to gen up a unique name.
+            // Use m_hole_count to gen up a unique reference designator.
 
             FOOTPRINT* footprint = new FOOTPRINT( m_board );
             m_board->Add( footprint, ADD_MODE::APPEND );
-            footprint->SetReference( wxString::Format( wxT( "@HOLE%d" ), m_hole_count++ ) );
+            int hole_count = m_hole_count++;
+            footprint->SetReference( wxString::Format( wxT( "UNK_HOLE_%d" ), hole_count ) );
             footprint->Reference().SetVisible( false );
+            // Mandatory: gives a dummy but valid LIB_ID
+            LIB_ID fpid( wxEmptyString, wxString::Format( wxT( "dummyfp%d" ), hole_count ) );
+            footprint->SetFPID( fpid );
 
             packageHole( footprint, gr, true );
 
@@ -1102,7 +1122,7 @@ void PCB_IO_EAGLE::loadPlain( wxXmlNode* aGraphics )
                     }
                     else
                     {
-                        int offset = GetLineLength( pt3, pt1 );
+                        int offset = KiROUND( pt3.Distance( pt1 ) );
 
                         if( pt1.y > pt2.y )
                             dimension->SetHeight( offset );
@@ -1252,10 +1272,7 @@ void PCB_IO_EAGLE::loadElements( wxXmlNode* aElements )
         wxString packageName = e.package;
 
         if( e.library_urn )
-        {
-            wxString libOrdinal = *e.library_urn;
-            packageName = e.package + wxS( "_" ) + libOrdinal.AfterLast( ':' );
-        }
+            packageName = e.package + wxS( "_" ) + e.library_urn->assetId;
 
         wxString pkg_key = makeKey( e.library, packageName );
         auto     it = m_templates.find( pkg_key );
@@ -1650,7 +1667,7 @@ void PCB_IO_EAGLE::orientFootprintAndText( FOOTPRINT* aFootprint, const EELEMENT
         if( e.rot->mirror )
         {
             aFootprint->SetOrientation( EDA_ANGLE( e.rot->degrees + 180.0, DEGREES_T ) );
-            aFootprint->Flip( aFootprint->GetPosition(), false );
+            aFootprint->Flip( aFootprint->GetPosition(), FLIP_DIRECTION::TOP_BOTTOM );
         }
         else
         {
@@ -1724,22 +1741,24 @@ void PCB_IO_EAGLE::orientFPText( FOOTPRINT* aFootprint, const EELEMENT& e, PCB_T
 
         if( degrees == 90 || degrees == 0 || spin )
         {
-            aFPText->SetTextAngle( EDA_ANGLE( sign * degrees, DEGREES_T ) );
+            degrees *= sign;
         }
         else if( degrees == 180 )
         {
-            aFPText->SetTextAngle( EDA_ANGLE( sign * 0, DEGREES_T ) );
+            degrees = 0;
             align = -align;
         }
         else if( degrees == 270 )
         {
             align = -align;
-            aFPText->SetTextAngle( EDA_ANGLE( sign * 90, DEGREES_T ) );
+            degrees = sign * 90;
         }
         else
         {
-            aFPText->SetTextAngle( EDA_ANGLE( sign * 90 - degrees, DEGREES_T ) );
+            degrees = 90 - (sign * degrees);
         }
+
+        aFPText->SetTextAngle( EDA_ANGLE( degrees, DEGREES_T ) );
 
         switch( align )
         {
@@ -1791,6 +1810,22 @@ void PCB_IO_EAGLE::orientFPText( FOOTPRINT* aFootprint, const EELEMENT& e, PCB_T
         default:
             ;
         }
+
+        // Refine justification and rotation for mirrored texts
+        if( aFPText->IsMirrored() && degrees < -90 && degrees >= -270 )
+        {
+            aFPText->SetTextAngle( EDA_ANGLE( 180+degrees, DEGREES_T ) );
+
+            if( aFPText->GetHorizJustify() == GR_TEXT_H_ALIGN_LEFT )
+                aFPText->SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
+            else if( aFPText->GetHorizJustify() == GR_TEXT_H_ALIGN_RIGHT )
+                aFPText->SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
+
+            if( aFPText->GetVertJustify() == GR_TEXT_V_ALIGN_BOTTOM )
+                aFPText->SetVertJustify( GR_TEXT_V_ALIGN_TOP );
+            else if( aFPText->GetVertJustify() == GR_TEXT_V_ALIGN_TOP )
+                aFPText->SetVertJustify( GR_TEXT_V_ALIGN_BOTTOM );
+       }
     }
     else
     {
@@ -1799,11 +1834,12 @@ void PCB_IO_EAGLE::orientFPText( FOOTPRINT* aFootprint, const EELEMENT& e, PCB_T
         double degrees = aFPText->GetTextAngle().AsDegrees()
                             + aFootprint->GetOrientation().AsDegrees();
 
-        // @todo there are a few more cases than these to contend with:
-        if( ( !aFPText->IsMirrored() && ( abs( degrees ) == 180 || abs( degrees ) == 270 ) )
-         || ( aFPText->IsMirrored() && ( degrees == 360 ) ) )
+        // bottom-left is eagle default
+        aFPText->SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
+        aFPText->SetVertJustify( GR_TEXT_V_ALIGN_BOTTOM );
+
+        if( !aFPText->IsMirrored() && abs( degrees ) <= -180 )
         {
-            // ETEXT::TOP_RIGHT:
             aFPText->SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
             aFPText->SetVertJustify( GR_TEXT_V_ALIGN_TOP );
         }
@@ -1968,25 +2004,25 @@ void PCB_IO_EAGLE::packagePad( FOOTPRINT* aFootprint, wxXmlNode* aTree )
         switch( *e.shape )
         {
         case EPAD::ROUND:
-            pad->SetShape( PAD_SHAPE::CIRCLE );
+            pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CIRCLE );
             break;
 
         case EPAD::OCTAGON:
-            pad->SetShape( PAD_SHAPE::CHAMFERED_RECT );
-            pad->SetChamferPositions( RECT_CHAMFER_ALL );
-            pad->SetChamferRectRatio( 1 - M_SQRT1_2 );    // Regular polygon
+            pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CHAMFERED_RECT );
+            pad->SetChamferPositions( PADSTACK::ALL_LAYERS, RECT_CHAMFER_ALL );
+            pad->SetChamferRectRatio( PADSTACK::ALL_LAYERS, 1 - M_SQRT1_2 );    // Regular polygon
             break;
 
         case EPAD::LONG:
-            pad->SetShape( PAD_SHAPE::OVAL );
+            pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::OVAL );
             break;
 
         case EPAD::SQUARE:
-            pad->SetShape( PAD_SHAPE::RECTANGLE );
+            pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::RECTANGLE );
             break;
 
         case EPAD::OFFSET:
-            pad->SetShape( PAD_SHAPE::OVAL );
+            pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::OVAL );
             break;
         }
     }
@@ -1998,7 +2034,7 @@ void PCB_IO_EAGLE::packagePad( FOOTPRINT* aFootprint, wxXmlNode* aTree )
     if( e.diameter && e.diameter->value > 0 )
     {
         int diameter = e.diameter->ToPcbUnits();
-        pad->SetSize( VECTOR2I( diameter, diameter ) );
+        pad->SetSize( PADSTACK::ALL_LAYERS, VECTOR2I( diameter, diameter ) );
     }
     else
     {
@@ -2006,20 +2042,20 @@ void PCB_IO_EAGLE::packagePad( FOOTPRINT* aFootprint, wxXmlNode* aTree )
         double annulus = drillz * m_rules->rvPadTop;   // copper annulus, eagle "restring"
         annulus = eagleClamp( m_rules->rlMinPadTop, annulus, m_rules->rlMaxPadTop );
         int diameter = KiROUND( drillz + 2 * annulus );
-        pad->SetSize( VECTOR2I( KiROUND( diameter ), KiROUND( diameter ) ) );
+        pad->SetSize( PADSTACK::ALL_LAYERS, VECTOR2I( KiROUND( diameter ), KiROUND( diameter ) ) );
     }
 
-    if( pad->GetShape() == PAD_SHAPE::OVAL )
+    if( pad->GetShape( PADSTACK::ALL_LAYERS ) == PAD_SHAPE::OVAL )
     {
         // The Eagle "long" pad is wider than it is tall; m_elongation is percent elongation
-        VECTOR2I sz = pad->GetSize();
+        VECTOR2I sz = pad->GetSize( PADSTACK::ALL_LAYERS );
         sz.x = ( sz.x * ( 100 + m_rules->psElongationLong ) ) / 100;
-        pad->SetSize( sz );
+        pad->SetSize( PADSTACK::ALL_LAYERS, sz );
 
         if( e.shape && *e.shape == EPAD::OFFSET )
         {
             int offset = KiROUND( ( sz.x - sz.y ) / 2.0 );
-            pad->SetOffset( VECTOR2I( offset, 0 ) );
+            pad->SetOffset( PADSTACK::ALL_LAYERS, VECTOR2I( offset, 0 ) );
         }
     }
 
@@ -2103,20 +2139,7 @@ void PCB_IO_EAGLE::packageText( FOOTPRINT* aFootprint, wxXmlNode* aTree ) const
         textItem->SetMirrored( t.rot->mirror );
 
         double degrees = t.rot->degrees;
-
-        if( degrees == 90 || t.rot->spin )
-        {
-            textItem->SetTextAngle( EDA_ANGLE( sign * degrees, DEGREES_T ) );
-        }
-        else if( degrees == 180 )
-        {
-            align = ETEXT::TOP_RIGHT;
-        }
-        else if( degrees == 270 )
-        {
-            align = ETEXT::TOP_RIGHT;
-            textItem->SetTextAngle( EDA_ANGLE( sign * 90, DEGREES_T ) );
-        }
+        textItem->SetTextAngle( EDA_ANGLE( sign * degrees, DEGREES_T ) );
     }
 
     switch( align )
@@ -2444,9 +2467,7 @@ void PCB_IO_EAGLE::packageHole( FOOTPRINT* aFootprint, wxXmlNode* aTree, bool aC
     PAD* pad = new PAD( aFootprint );
     aFootprint->Add( pad );
 
-    pad->SetKeepTopBottom( false ); // TODO: correct? This seems to be KiCad default on import
-
-    pad->SetShape( PAD_SHAPE::CIRCLE );
+    pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CIRCLE );
     pad->SetAttribute( PAD_ATTRIB::NPTH );
 
     // Mechanical purpose only:
@@ -2469,7 +2490,7 @@ void PCB_IO_EAGLE::packageHole( FOOTPRINT* aFootprint, wxXmlNode* aTree, bool aC
     VECTOR2I sz( e.drill.ToPcbUnits(), e.drill.ToPcbUnits() );
 
     pad->SetDrillSize( sz );
-    pad->SetSize( sz );
+    pad->SetSize( PADSTACK::ALL_LAYERS, sz );
 
     pad->SetLayerSet( LSET::AllCuMask().set( B_Mask ).set( F_Mask ) );
 }
@@ -2487,17 +2508,15 @@ void PCB_IO_EAGLE::packageSMD( FOOTPRINT* aFootprint, wxXmlNode* aTree ) const
     aFootprint->Add( pad );
     transferPad( e, pad );
 
-    pad->SetKeepTopBottom( false ); // TODO: correct? This seems to be KiCad default on import
-
-    pad->SetShape( PAD_SHAPE::RECTANGLE );
+    pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::RECTANGLE );
     pad->SetAttribute( PAD_ATTRIB::SMD );
 
     VECTOR2I padSize( e.dx.ToPcbUnits(), e.dy.ToPcbUnits() );
-    pad->SetSize( padSize );
+    pad->SetSize( PADSTACK::ALL_LAYERS, padSize );
     pad->SetLayer( layer );
 
-    const LSET front( 3, F_Cu, F_Paste, F_Mask );
-    const LSET back(  3, B_Cu, B_Paste, B_Mask );
+    const LSET front( { F_Cu, F_Paste, F_Mask } );
+    const LSET back( { B_Cu, B_Paste, B_Mask } );
 
     if( layer == F_Cu )
         pad->SetLayerSet( front );
@@ -2519,8 +2538,8 @@ void PCB_IO_EAGLE::packageSMD( FOOTPRINT* aFootprint, wxXmlNode* aTree ) const
         if( e.roundness )
             roundRatio = std::fmax( *e.roundness / 200.0, roundRatio );
 
-        pad->SetShape( PAD_SHAPE::ROUNDRECT );
-        pad->SetRoundRectRadiusRatio( roundRatio );
+        pad->SetShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::ROUNDRECT );
+        pad->SetRoundRectRadiusRatio( PADSTACK::ALL_LAYERS, roundRatio );
     }
 
     if( e.rot )
@@ -2560,7 +2579,7 @@ void PCB_IO_EAGLE::transferPad( const EPAD_COMMON& aEaglePad, PAD* aPad ) const
     VECTOR2I padPos( kicad_x( aEaglePad.x ), kicad_y( aEaglePad.y ) );
 
     // Solder mask
-    const VECTOR2I& padSize( aPad->GetSize() );
+    const VECTOR2I& padSize( aPad->GetSize( PADSTACK::ALL_LAYERS ) );
 
     aPad->SetLocalSolderMaskMargin(
             eagleClamp( m_rules->mlMinStopFrame,
@@ -2569,7 +2588,7 @@ void PCB_IO_EAGLE::transferPad( const EPAD_COMMON& aEaglePad, PAD* aPad ) const
 
     // Solid connection to copper zones
     if( aEaglePad.thermals && !*aEaglePad.thermals )
-        aPad->SetZoneConnection( ZONE_CONNECTION::FULL );
+        aPad->SetLocalZoneConnection( ZONE_CONNECTION::FULL );
 
     FOOTPRINT* footprint = aPad->GetParentFootprint();
     wxCHECK( footprint, /* void */ );
@@ -2612,12 +2631,12 @@ void PCB_IO_EAGLE::loadClasses( wxXmlNode* aClasses )
 
         if( eClass.name.CmpNoCase( wxT( "default" ) ) == 0 )
         {
-            netclass = bds.m_NetSettings->m_DefaultNetClass;
+            netclass = bds.m_NetSettings->GetDefaultNetclass();
         }
         else
         {
             netclass.reset( new NETCLASS( eClass.name ) );
-            bds.m_NetSettings->m_NetClasses[ eClass.name ] = netclass;
+            bds.m_NetSettings->SetNetclass( eClass.name, netclass );
         }
 
         netclass->SetTrackWidth( INT_MAX );
@@ -2690,10 +2709,8 @@ void PCB_IO_EAGLE::loadSignals( wxXmlNode* aSignals )
 
             if( netclassIt != m_classMap.end() )
             {
-                m_board->GetDesignSettings().m_NetSettings->m_NetClassPatternAssignments.push_back(
-                        { std::make_unique<EDA_COMBINED_MATCHER>( netName, CTX_NETCLASS ),
-                          netclassIt->second->GetName() } );
-
+                m_board->GetDesignSettings().m_NetSettings->SetNetclassPatternAssignment(
+                        netName, netclassIt->second->GetName() );
                 netInfo->SetNetClass( netclassIt->second );
                 netclass = netclassIt->second;
             }
@@ -2798,7 +2815,7 @@ void PCB_IO_EAGLE::loadSignals( wxXmlNode* aSignals )
                     if( v.diam )
                     {
                         kidiam = v.diam->ToPcbUnits();
-                        via->SetWidth( kidiam );
+                        via->SetWidth( PADSTACK::ALL_LAYERS, kidiam );
                     }
                     else
                     {
@@ -2806,20 +2823,21 @@ void PCB_IO_EAGLE::loadSignals( wxXmlNode* aSignals )
                         annulus = eagleClamp( m_rules->rlMinViaOuter, annulus,
                                               m_rules->rlMaxViaOuter );
                         kidiam = KiROUND( drillz + 2 * annulus );
-                        via->SetWidth( kidiam );
+                        via->SetWidth( PADSTACK::ALL_LAYERS, kidiam );
                     }
 
                     via->SetDrill( drillz );
 
                     // make sure the via diameter respects the restring rules
 
-                    if( !v.diam || via->GetWidth() <= via->GetDrill() )
+                    if( !v.diam || via->GetWidth( PADSTACK::ALL_LAYERS ) <= via->GetDrill() )
                     {
-                        double annulus =
-                                eagleClamp( m_rules->rlMinViaOuter,
-                                            (double) ( via->GetWidth() / 2 - via->GetDrill() ),
-                                            m_rules->rlMaxViaOuter );
-                        via->SetWidth( drillz + 2 * annulus );
+                        double annulus = eagleClamp(
+                                m_rules->rlMinViaOuter,
+                                static_cast<double>( via->GetWidth( PADSTACK::ALL_LAYERS ) / 2
+                                                     - via->GetDrill() ),
+                                m_rules->rlMaxViaOuter );
+                        via->SetWidth( PADSTACK::ALL_LAYERS, drillz + 2 * annulus );
                     }
 
                     if( kidiam < m_min_via )
@@ -3004,7 +3022,7 @@ std::tuple<PCB_LAYER_ID, LSET, bool> PCB_IO_EAGLE::defaultKicadLayer( int aEagle
     case EAGLE_LAYER::DIMENSION:
         kiLayer         = Edge_Cuts;
         required        = true;
-        permittedLayers = LSET( 1, Edge_Cuts );
+        permittedLayers = LSET( { Edge_Cuts } );
         break;
 
     case EAGLE_LAYER::TPLACE:
@@ -3131,8 +3149,13 @@ void PCB_IO_EAGLE::centerBoard()
         UTF8 page_width;
         UTF8 page_height;
 
-        if( m_props->Value( "page_width",  &page_width ) &&
-            m_props->Value( "page_height", &page_height ) )
+        if( auto it = m_props->find( "page_width" ); it != m_props->end() )
+            page_width = it->second;
+
+        if( auto it = m_props->find( "page_height" ); it != m_props->end() )
+            page_height = it->second;
+
+        if( !page_width.empty() && !page_height.empty() )
         {
             BOX2I bbbox = m_board->GetBoardEdgesBoundingBox();
 
@@ -3251,7 +3274,7 @@ void PCB_IO_EAGLE::cacheLib( const wxString& aLibPath )
 
 
 void PCB_IO_EAGLE::FootprintEnumerate( wxArrayString& aFootprintNames, const wxString& aLibraryPath,
-                                       bool aBestEfforts, const STRING_UTF8_MAP* aProperties )
+                                       bool aBestEfforts, const std::map<std::string, UTF8>* aProperties )
 {
     wxString errorMsg;
 
@@ -3279,7 +3302,7 @@ void PCB_IO_EAGLE::FootprintEnumerate( wxArrayString& aFootprintNames, const wxS
 
 FOOTPRINT* PCB_IO_EAGLE::FootprintLoad( const wxString& aLibraryPath,
                                         const wxString& aFootprintName, bool aKeepUUID,
-                                        const STRING_UTF8_MAP* aProperties )
+                                        const std::map<std::string, UTF8>* aProperties )
 {
     init( aProperties );
     cacheLib( aLibraryPath );

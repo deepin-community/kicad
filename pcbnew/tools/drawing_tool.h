@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014-2017 CERN
- * Copyright (C) 2018-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -71,6 +71,7 @@ public:
         RECTANGLE,
         CIRCLE,
         ARC,
+        BEZIER,
         IMAGE,
         TEXT,
         ANCHOR,
@@ -146,6 +147,13 @@ public:
     int DrawArc( const TOOL_EVENT& aEvent );
 
     /**
+     * Start interactively drawing a bezier curve.
+     *
+     * An interactive geometry manager will handle adding/editing the control points.
+     */
+    int DrawBezier( const TOOL_EVENT& aEvent );
+
+    /**
      * Display a dialog that allows one to select a reference image and then decide where to
      * place the image in the editor.
      */
@@ -156,6 +164,11 @@ public:
      * decide where to place the text in editor.
      */
     int PlaceText( const TOOL_EVENT& aEvent );
+
+    /*
+     * Start interactively drawing a table (rows & columns of TEXTBOXes).
+     */
+    int DrawTable( const TOOL_EVENT& aEvent );
 
     /**
      * Start interactively drawing a dimension.
@@ -227,6 +240,21 @@ public:
     void UpdateStatusBar() const;
 
 private:
+    enum class DRAW_ONE_RESULT
+    {
+        // The drawing was accepted "normally"
+        // E.g. for a poly-line, you might then begin a chained next segment
+        ACCEPTED,
+        // The drawing was cancelled with no shape accepted.
+        CANCELLED,
+        // The drawing was reset - no shape was accepted this time,
+        // but the tool remains active.
+        RESET,
+        // A shape was accepted, but the tool should reset for the
+        // next one (e.g. no chaining)
+        ACCEPTED_AND_RESET,
+    };
+
     /**
      * Start drawing a selected shape (i.e. PCB_SHAPE).
      *
@@ -252,6 +280,25 @@ private:
      */
     bool drawArc( const TOOL_EVENT& aTool, PCB_SHAPE** aGraphic,
                   std::optional<VECTOR2D> aStartingPoint );
+
+    /**
+     * Draw a bezier curve.
+     *
+     * @param aTool is the event that triggered the drawing.
+     * @param aStartingPoint is the starting point of the curve (e.g. the end point of the
+     *                      previous curve).
+     * @param aStartingControl1Point is the previous control point of the curve (which can
+     *                               be used to create a smooth transition between two curves).
+     * @param aCancelled is set to true if the tool was canceled before the curve was finished.
+     *
+     * @return A new PCB_SHAPE object representing the bezier curve, or nullptr if
+     *         the tool was cancelled or reset.
+     */
+    std::unique_ptr<PCB_SHAPE> drawOneBezier( const TOOL_EVENT&   aTool,
+                                              const OPT_VECTOR2I& aStartingPoint,
+                                              const OPT_VECTOR2I& aStartingControl1Point,
+                                              DRAW_ONE_RESULT&    aResult );
+
 
     /**
      * Draw a polygon, that is added as a zone or a keepout area.

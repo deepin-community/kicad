@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mikolaj Wielgus
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -63,7 +63,7 @@ std::string SPICE_GENERATOR_RAW_SPICE::ItemPins( const SPICE_ITEM& aItem ) const
 
     if( !GetPins().empty() )
     {
-        for( const SIM_MODEL::PIN& pin : GetPins() )
+        for( const SIM_MODEL_PIN& pin : GetPins() )
         {
             auto it = std::find( aItem.pinNumbers.begin(), aItem.pinNumbers.end(),
                                  pin.symbolPinNumber );
@@ -101,8 +101,13 @@ std::string SPICE_GENERATOR_RAW_SPICE::ItemParams() const
 {
     std::string result;
 
-    for( const SIM_MODEL::PARAM& param : GetInstanceParams() )
+    for( int ii = 0; ii < m_model.GetParamCount(); ++ii )
     {
+        const SIM_MODEL::PARAM& param = m_model.GetParam( ii );
+
+        if( !param.info.isSpiceInstanceParam )
+            continue;
+
         if( param.info.name == "model" )
             result.append( " " + SIM_VALUE::ToSpice( param.value ) );
     }
@@ -130,19 +135,19 @@ SIM_MODEL_RAW_SPICE::SIM_MODEL_RAW_SPICE( const std::string& aSpiceSource ) :
 }
 
 
-void SIM_MODEL_RAW_SPICE::SetPinSymbolPinNumber( const std::string& aPinName,
-                                                 const std::string& aSymbolPinNumber )
+void SIM_MODEL_RAW_SPICE::AssignSymbolPinNumberToModelPin( const std::string& aModelPinName,
+                                                           const wxString& aSymbolPinNumber )
 {
-    for( PIN& pin : m_pins )
-    {
-        if( pin.name == aPinName )
-        {
-            pin.symbolPinNumber = aSymbolPinNumber;
-            return;
-        }
-    }
+    // SPICE doesn't name model inputs so we have to assume they're indexes here.
+    int pinIndex = (int) strtol( aModelPinName.c_str(), nullptr, 10 );
 
-    m_pins.push_back( { aPinName, aSymbolPinNumber } );
+    if( pinIndex > 0 )
+    {
+        while( (int)m_modelPins.size() < pinIndex )
+            m_modelPins.push_back( { fmt::format( "{}", m_modelPins.size() + 1 ), wxEmptyString } );
+
+        m_modelPins[ --pinIndex /* convert to 0-based */ ].symbolPinNumber = aSymbolPinNumber;
+    }
 }
 
 

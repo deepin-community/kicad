@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,7 +37,9 @@
 #include <ki_exception.h>
 #include <locale_io.h>
 #include <reporter.h>
+#include <richio.h>
 #include <exporters/board_exporter_base.h>
+#include <wx/log.h>
 
 static double iu2hyp( double iu )
 {
@@ -211,9 +213,10 @@ private:
 
 HYPERLYNX_PAD_STACK::HYPERLYNX_PAD_STACK( BOARD* aBoard, const PAD* aPad )
 {
+    // TODO(JE) padstacks
     m_board = aBoard;
-    m_sx    = aPad->GetSize().x;
-    m_sy    = aPad->GetSize().y;
+    m_sx    = aPad->GetSize( PADSTACK::ALL_LAYERS ).x;
+    m_sy    = aPad->GetSize( PADSTACK::ALL_LAYERS ).y;
     m_angle = 180.0 - aPad->GetOrientation().AsDegrees();
 
     if( m_angle < 0.0 )
@@ -221,7 +224,7 @@ HYPERLYNX_PAD_STACK::HYPERLYNX_PAD_STACK( BOARD* aBoard, const PAD* aPad )
 
     m_layers = aPad->GetLayerSet();
     m_drill  = aPad->GetDrillSize().x;
-    m_shape  = aPad->GetShape();
+    m_shape  = aPad->GetShape( PADSTACK::ALL_LAYERS );
     m_type   = PAD_ATTRIB::PTH;
     m_id     = 0;
 }
@@ -230,8 +233,8 @@ HYPERLYNX_PAD_STACK::HYPERLYNX_PAD_STACK( BOARD* aBoard, const PAD* aPad )
 HYPERLYNX_PAD_STACK::HYPERLYNX_PAD_STACK( BOARD* aBoard, const PCB_VIA* aVia )
 {
     m_board  = aBoard;
-    m_sx     = aVia->GetWidth();
-    m_sy     = aVia->GetWidth();
+    // TODO(JE) padstacks
+    m_sx = m_sy = aVia->GetWidth( PADSTACK::ALL_LAYERS );
     m_angle  = 0;
     m_layers = aVia->GetLayerSet();
     m_drill  = aVia->GetDrillValue();
@@ -499,7 +502,7 @@ bool HYPERLYNX_EXPORTER::writeNetObjects( const std::vector<BOARD_ITEM*>& aObjec
                 const wxString layerName   = m_board->GetLayerName( layer );
                 SHAPE_POLY_SET fill = zone->GetFilledPolysList( layer )->CloneDropTriangulation();
 
-                fill.Simplify( SHAPE_POLY_SET::PM_FAST );
+                fill.Simplify();
 
                 for( int i = 0; i < fill.OutlineCount(); i++ )
                 {

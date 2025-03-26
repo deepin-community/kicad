@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -50,7 +50,7 @@ CLI::PCB_EXPORT_IPC2581_COMMAND::PCB_EXPORT_IPC2581_COMMAND() :
     m_argParser.add_argument( ARG_PRECISION )
             .help( std::string( "Precision" ) )
             .scan<'i', int>()
-            .default_value( 3 )
+            .default_value( 6 )
             .metavar( "PRECISION" );
 
     m_argParser.add_argument( ARG_COMPRESS )
@@ -107,10 +107,10 @@ int CLI::PCB_EXPORT_IPC2581_COMMAND::doPerform( KIWAY& aKiway )
     if( exitCode != EXIT_CODES::OK )
         return exitCode;
 
-    std::unique_ptr<JOB_EXPORT_PCB_IPC2581> ipc2581Job( new JOB_EXPORT_PCB_IPC2581( true ) );
+    std::unique_ptr<JOB_EXPORT_PCB_IPC2581> ipc2581Job( new JOB_EXPORT_PCB_IPC2581() );
 
     ipc2581Job->m_filename = m_argInput;
-    ipc2581Job->m_outputFile = m_argOutput;
+    ipc2581Job->SetConfiguredOutputPath( m_argOutput );
     ipc2581Job->m_drawingSheet = m_argDrawingSheet;
     ipc2581Job->SetVarOverrides( m_argDefineVars );
 

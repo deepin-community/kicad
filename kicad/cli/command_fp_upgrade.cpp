@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -44,7 +44,7 @@ CLI::FP_UPGRADE_COMMAND::FP_UPGRADE_COMMAND() : PCB_EXPORT_BASE_COMMAND( "upgrad
 
 int CLI::FP_UPGRADE_COMMAND::doPerform( KIWAY& aKiway )
 {
-    std::unique_ptr<JOB_FP_UPGRADE> fpJob = std::make_unique<JOB_FP_UPGRADE>( true );
+    std::unique_ptr<JOB_FP_UPGRADE> fpJob = std::make_unique<JOB_FP_UPGRADE>();
 
     fpJob->m_libraryPath = m_argInput;
     fpJob->m_outputLibraryPath = m_argOutput;

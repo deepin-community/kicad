@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,8 +25,8 @@
 #define  TOOL_HOLDER_H
 
 #include <vector>
-#include <view/view_controls.h>
 #include <tool/selection.h>
+#include <settings/common_settings.h>
 
 struct ACTION_CONDITIONS;
 
@@ -149,11 +149,15 @@ public:
      */
     bool GetMoveWarpsCursor() const { return m_moveWarpsCursor; }
 
+#define ENVVARS_CHANGED  0x0001
+#define TEXTVARS_CHANGED 0x0002
+#define HOTKEYS_CHANGED  0x0004
+
     /**
      * Notification event that some of the common (suite-wide) settings have changed.
      * Update hotkeys, preferences, etc.
      */
-    virtual void CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged );
+    virtual void CommonSettingsChanged( int aFlags = 0 );
 
     /**
      * Canvas access.

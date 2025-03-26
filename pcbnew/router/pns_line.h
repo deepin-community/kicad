@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -40,6 +40,7 @@ namespace PNS {
 class LINKED_ITEM;
 class NODE;
 class VIA;
+class SEGMENT;
 
 #define PNS_HULL_MARGIN 10
 
@@ -92,15 +93,16 @@ public:
     /**
      * Construct a LINE for a lone VIA (ie a stitching via).
      */
-    LINE( const VIA& aVia ) :
+    LINE( VIA* aVia ) :
         LINK_HOLDER( LINE_T ),
         m_blockingObstacle( nullptr )
     {
-        m_via = aVia.Clone();
-        m_width = aVia.Diameter();
-        m_net = aVia.Net();
-        m_layers = aVia.Layers();
-        m_rank = aVia.Rank();
+        m_via = aVia;
+        // TODO(JE) Padstacks - does this matter?
+        m_width = aVia->Diameter( aVia->Layers().Start() );
+        m_net = aVia->Net();
+        m_layers = aVia->Layers();
+        m_rank = aVia->Rank();
         m_snapThreshhold = 0;
     }
 
@@ -129,7 +131,7 @@ public:
     }
 
     ///< Return the shape of the line.
-    const SHAPE* Shape() const override { return &m_line; }
+    const SHAPE* Shape( int aLayer ) const override { return &m_line; }
 
     ///< Modifiable accessor to the underlying shape.
     SHAPE_LINE_CHAIN& Line() { return m_line; }
@@ -187,13 +189,24 @@ public:
 
     bool EndsWithVia() const { return m_via != nullptr; }
 
+    int FindSegment( const SEGMENT* aSeg ) const;
+
     void AppendVia( const VIA& aVia );
+    void LinkVia( VIA* aVia );
     void RemoveVia();
 
     VIA& Via() { return *m_via; }
     const VIA& Via() const { return *m_via; }
 
-    void SetViaDiameter( int aDiameter ) { assert(m_via); m_via->SetDiameter( aDiameter ); }
+    void SetViaDiameter( int aDiameter )
+    {
+        wxCHECK( m_via, /* void */ );
+        wxCHECK2_MSG( m_via->StackMode() == VIA::STACK_MODE::NORMAL,
+                      m_via->SetStackMode( VIA::STACK_MODE::NORMAL ),
+                      wxS( "Warning: converting a complex viastack to normal in PNS_LINE" ) );
+
+        m_via->SetDiameter( VIA::ALL_LAYERS, aDiameter );
+    }
     void SetViaDrill( int aDrill ) { assert(m_via); m_via->SetDrill( aDrill ); }
 
     virtual void Mark( int aMarker ) const override;
@@ -204,7 +217,7 @@ public:
     ITEM* GetBlockingObstacle() const { return m_blockingObstacle; }
 
     void DragSegment( const VECTOR2I& aP, int aIndex, bool aFreeAngle = false );
-    void DragCorner( const VECTOR2I& aP, int aIndex, bool aFreeAngle = false );
+    void DragCorner( const VECTOR2I& aP, int aIndex, bool aFreeAngle = false, DIRECTION_45 aPreferredEndingDirection = DIRECTION_45() );
 
     void SetRank( int aRank ) override;
     int Rank() const override;
@@ -228,7 +241,7 @@ public:
 
 private:
     void dragSegment45( const VECTOR2I& aP, int aIndex );
-    void dragCorner45( const VECTOR2I& aP, int aIndex );
+    void dragCorner45( const VECTOR2I& aP, int aIndex, DIRECTION_45 aPreferredEndingDirection );
     void dragSegmentFree( const VECTOR2I& aP, int aIndex );
     void dragCornerFree( const VECTOR2I& aP, int aIndex );
 
@@ -245,7 +258,6 @@ private:
     int              m_snapThreshhold;      ///< Width to smooth out jagged segments.
 
     VIA*             m_via;
-
     ITEM*            m_blockingObstacle;    ///< For mark obstacle mode.
 };
 

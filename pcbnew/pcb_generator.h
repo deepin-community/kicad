@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +29,7 @@
 #include <unordered_set>
 #include <string_any_map.h>
 
+#include <lset.h>
 #include <pcb_group.h>
 
 class EDIT_POINTS;
@@ -69,12 +70,11 @@ public:
                                                     PCB_BASE_EDIT_FRAME* aFrame,
                                                     bool aStatusItemsOnly = false );
 
-    virtual bool MakeEditPoints( std::shared_ptr<EDIT_POINTS> aEditPoints ) const;
+    virtual bool MakeEditPoints( EDIT_POINTS& aEditPoints ) const;
 
-    virtual bool UpdateFromEditPoints( std::shared_ptr<EDIT_POINTS> aEditPoints,
-                                       BOARD_COMMIT* aCommit );
+    virtual bool UpdateFromEditPoints( EDIT_POINTS& aEditPoints );
 
-    virtual bool UpdateEditPoints( std::shared_ptr<EDIT_POINTS> aEditPoints );
+    virtual bool UpdateEditPoints( EDIT_POINTS& aEditPoints );
 
     const BOX2I GetBoundingBox() const override;
 
@@ -85,7 +85,9 @@ public:
 
     void Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle ) override;
 
-    void Flip( const VECTOR2I& aCentre, bool aFlipLeftRight ) override;
+    void Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
+
+    void Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aMirrorDirection ) override;
 
     bool AddItem( BOARD_ITEM* aItem ) override;
 
@@ -103,7 +105,7 @@ public:
 
     virtual void ShowPropertiesDialog( PCB_BASE_EDIT_FRAME* aEditFrame ) {};
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     virtual wxString GetPluralName() const = 0;
 
@@ -130,6 +132,8 @@ protected:
 #endif
 
     friend class GENERATORS_MGR;
+
+    void baseMirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection );
 };
 
 #endif /* GENERATOR_H_ */

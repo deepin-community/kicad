@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2004-2022 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,7 +39,7 @@ void DRC_INTERACTIVE_COURTYARD_CLEARANCE::testCourtyardClearances()
     {
         FOOTPRINT* fpB = m_FpInMove[i];
 
-        BOX2I bbox = fpB->GetBoundingBox( true, false );
+        BOX2I bbox = fpB->GetBoundingBox( true );
         movingBBox.Merge( bbox );
         fpBBBoxes[i] = bbox;
     }
@@ -51,7 +51,7 @@ void DRC_INTERACTIVE_COURTYARD_CLEARANCE::testCourtyardClearances()
         if( fpA->IsSelected() )
             continue;
 
-        BOX2I fpABBox = fpA->GetBoundingBox( true, false );
+        BOX2I fpABBox = fpA->GetBoundingBox( true );
 
         if( !movingBBox.Intersects( fpABBox ) )
             continue;
@@ -171,8 +171,11 @@ void DRC_INTERACTIVE_COURTYARD_CLEARANCE::testCourtyardClearances()
 
     for( ZONE* zone : m_board->Zones() )
     {
-        if( !zone->GetIsRuleArea() || !zone->GetDoNotAllowFootprints() )
+        if( !zone->GetIsRuleArea() || !zone->HasKeepoutParametersSet()
+            || !zone->GetDoNotAllowFootprints() )
+        {
             continue;
+        }
 
         bool disallowFront = ( zone->GetLayerSet() & LSET::FrontMask() ).any();
         bool disallowBack = ( zone->GetLayerSet() & LSET::BackMask() ).any();

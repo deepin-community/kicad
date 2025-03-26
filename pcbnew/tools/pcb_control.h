@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014-2020 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -79,6 +79,8 @@ public:
     int LayerToggle( const TOOL_EVENT& aEvent );
     int LayerAlphaInc( const TOOL_EVENT& aEvent );
     int LayerAlphaDec( const TOOL_EVENT& aEvent );
+    int CycleLayerPresets( const TOOL_EVENT& aEvent );
+    int LayerPresetFeedback( const TOOL_EVENT& aEvent );
 
     // Grid control
     int GridPlaceOrigin( const TOOL_EVENT& aEvent );

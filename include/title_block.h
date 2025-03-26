@@ -3,7 +3,7 @@
  *
  * Author: Dick Hollenbeck
  *
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,7 +37,7 @@ class PROJECT;
  * Hold the information shown in the lower right corner of a plot, printout, or
  * editing view.
  */
-class TITLE_BLOCK
+class KICOMMON_API TITLE_BLOCK
 {
     // Texts are stored in wxArraystring.
     // TEXTS_IDX gives the index of known texts in this array
@@ -116,17 +116,17 @@ public:
     }
 
     static void GetContextualTextVars( wxArrayString* aVars );
-    bool TextVarResolver( wxString* aToken, const PROJECT* aProject ) const;
+    bool TextVarResolver( wxString* aToken, const PROJECT* aProject, int aFlags = 0 ) const;
 
     /**
      * Output the object to \a aFormatter in s-expression form.
      *
      * @param aFormatter The #OUTPUTFORMATTER object to write to.
-     * @param aNestLevel The indentation next level.
-     * @param aControlBits The control bit definition for object specific formatting.
      * @throw IO_ERROR on write error.
      */
-    virtual void Format( OUTPUTFORMATTER* aFormatter, int aNestLevel, int aControlBits ) const;
+    virtual void Format( OUTPUTFORMATTER* aFormatter ) const;
+
+    static wxString GetCurrentDate();
 
 private:
     wxArrayString m_tbTexts;

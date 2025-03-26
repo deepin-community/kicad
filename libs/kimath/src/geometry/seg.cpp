@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2013 CERN
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -147,11 +147,69 @@ const VECTOR2I SEG::NearestPoint( const SEG& aSeg ) const
 }
 
 
+bool SEG::NearestPoints( const SEG& aSeg, VECTOR2I& aPtA, VECTOR2I& aPtB, int64_t& aDistSq ) const
+{
+    if( OPT_VECTOR2I p = Intersect( aSeg ) )
+    {
+        aPtA = aPtB = *p;
+        aDistSq = 0;
+
+        return true;
+    }
+
+    const VECTOR2I pts_origin[4] =
+    {
+        aSeg.NearestPoint( A ),
+        aSeg.NearestPoint( B ),
+        NearestPoint( aSeg.A ),
+        NearestPoint( aSeg.B )
+    };
+
+    const VECTOR2I* pts_a_out[4] =
+    {
+        &A,
+        &B,
+        &pts_origin[2],
+        &pts_origin[3]
+    };
+
+    const VECTOR2I* pts_b_out[4] =
+    {
+        &pts_origin[0],
+        &pts_origin[1],
+        &aSeg.A,
+        &aSeg.B
+    };
+
+    const ecoord pts_dist[4] =
+    {
+        ( pts_origin[0] - A ).SquaredEuclideanNorm(),
+        ( pts_origin[1] - B ).SquaredEuclideanNorm(),
+        ( pts_origin[2] - aSeg.A ).SquaredEuclideanNorm(),
+        ( pts_origin[3] - aSeg.B ).SquaredEuclideanNorm()
+    };
+
+    int min_i = 0;
+
+    for( int i = 0; i < 4; i++ )
+    {
+        if( pts_dist[i] < pts_dist[min_i] )
+            min_i = i;
+    }
+
+    aPtA = *pts_a_out[min_i];
+    aPtB = *pts_b_out[min_i];
+    aDistSq = pts_dist[min_i];
+
+    return true;
+}
+
+
 bool SEG::intersects( const SEG& aSeg, bool aIgnoreEndpoints, bool aLines, VECTOR2I* aPt ) const
 {
-    const VECTOR2<ecoord> e = VECTOR2<ecoord>( B ) - A;
-    const VECTOR2<ecoord> f = VECTOR2<ecoord>( aSeg.B ) - aSeg.A;
-    const VECTOR2<ecoord> ac = VECTOR2<ecoord>( aSeg.A ) - A;
+    const VECTOR2<ecoord> e = VECTOR2<ecoord>( B.x - A.x, B.y - A.y );
+    const VECTOR2<ecoord> f = VECTOR2<ecoord>( aSeg.B.x - aSeg.A.x, aSeg.B.y - aSeg.A.y );
+    const VECTOR2<ecoord> ac = VECTOR2<ecoord>( aSeg.A.x - A.x, aSeg.A.y - A.y );
 
     ecoord d = f.Cross( e );
     ecoord p = f.Cross( ac );
@@ -268,8 +326,9 @@ bool SEG::Contains( const VECTOR2I& aP ) const
 
 const VECTOR2I SEG::NearestPoint( const VECTOR2I& aP ) const
 {
-    VECTOR2I d = B - A;
-    ecoord   l_squared = d.Dot( d );
+    // Inlined for performance reasons
+    VECTOR2L d( B.x - A.x, B.y - A.y );
+    ecoord   l_squared( d.x * d.x + d.y * d.y );
 
     if( l_squared == 0 )
         return A;
@@ -335,6 +394,34 @@ int SEG::Distance( const SEG& aSeg ) const
 int SEG::Distance( const VECTOR2I& aP ) const
 {
     return int( isqrt( SquaredDistance( aP ) ) );
+}
+
+
+SEG::ecoord SEG::SquaredDistance( const VECTOR2I& aP ) const
+{
+    VECTOR2L ab = VECTOR2L( B ) - A;
+    VECTOR2L ap = VECTOR2L( aP ) - A;
+
+    ecoord e = ap.Dot( ab );
+
+    if( e <= 0 )
+        return ap.SquaredEuclideanNorm();
+
+    ecoord f = ab.SquaredEuclideanNorm();
+
+    if( e >= f )
+        return ( VECTOR2L( aP ) - B ).Dot( VECTOR2L( aP ) - B );
+
+    const double g = ap.SquaredEuclideanNorm() - ( double( e ) * e ) / f;
+
+    // The only way g can be negative is if there was a rounding error since
+    // e is the projection of aP onto ab and therefore cannot be greater than
+    // the length of ap and f is guaranteed to be greater than e, meaning
+    // e * e / f cannot be greater than ap.SquaredEuclideanNorm()
+    if( g < 0 )
+        return 0;
+
+    return KiROUND<double, ecoord>( g );
 }
 
 

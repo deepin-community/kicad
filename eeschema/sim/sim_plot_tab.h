@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016-2023 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
@@ -195,6 +195,11 @@ public:
 
     virtual ~SIM_PLOT_TAB();
 
+    void ApplyPreferences( const SIM_PREFERENCES& aPrefs ) override
+    {
+        m_plotWin->SetMouseWheelActions( convertMouseWheelActions( aPrefs.mouse_wheel_actions ) );
+    }
+
     wxString GetLabelX() const
     {
         return m_axis_x ? m_axis_x->GetName() : wxString( wxS( "" ) );
@@ -326,9 +331,9 @@ public:
         return m_dotted_cp;
     }
 
-    ///< Toggle cursor for a particular trace.
-    void EnableCursor( const wxString& aVectorName, int aType, int aCursorId, bool aEnable,
-                       const wxString& aSignalName );
+    ///< Turn on/off the cursor for a particular trace.
+    void EnableCursor( TRACE* aTrace, int aCursorId, const wxString& aSignalName );
+    void DisableCursor( TRACE* aTrace, int aCursorId );
 
     ///< Reset scale ranges to fit the current traces.
     void ResetScales( bool aIncludeX );
@@ -360,6 +365,24 @@ public:
     wxPoint m_LastLegendPosition;
 
 private:
+    static mpWindow::MouseWheelActionSet
+    convertMouseWheelActions( const SIM_MOUSE_WHEEL_ACTION_SET& s )
+    {
+        static_assert( static_cast<unsigned>( mpWindow::MouseWheelAction::COUNT )
+                               == static_cast<unsigned>( SIM_MOUSE_WHEEL_ACTION::COUNT ),
+                       "mpWindow::MouseWheelAction enum must match SIM_MOUSE_WHEEL_ACTION" );
+
+        using A = mpWindow::MouseWheelAction;
+        mpWindow::MouseWheelActionSet m;
+        m.verticalUnmodified = static_cast<A>( s.vertical_unmodified );
+        m.verticalWithCtrl   = static_cast<A>( s.vertical_with_ctrl );
+        m.verticalWithShift  = static_cast<A>( s.vertical_with_shift );
+        m.verticalWithAlt    = static_cast<A>( s.vertical_with_alt );
+        m.horizontal         = static_cast<A>( s.horizontal );
+
+        return m;
+    }
+
     wxString getTraceId( const wxString& aVectorName, int aType ) const
     {
         return wxString::Format( wxS( "%s%d" ), aVectorName, aType & SPT_Y_AXIS_MASK );

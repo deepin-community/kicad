@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,8 +21,8 @@
 #include <jobs/job_sym_upgrade.h>
 
 
-JOB_SYM_UPGRADE::JOB_SYM_UPGRADE( bool aIsCli ) :
-    JOB( "symupgrade", aIsCli ),
+JOB_SYM_UPGRADE::JOB_SYM_UPGRADE() :
+    JOB( "symupgrade", false ),
     m_libraryPath(),
     m_outputLibraryPath(),
     m_force( false )

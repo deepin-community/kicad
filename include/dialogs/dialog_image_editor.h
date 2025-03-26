@@ -6,7 +6,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2018 jean-pierre.charras
- * Copyright (C) 2018 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,8 +44,7 @@ public:
 
 public:
     /**
-     * Function TransferToImage
-     * copy edited image to aItem
+     * Copy edited image to \a aItem.
      */
     void TransferToImage( BITMAP_BASE* aItem );
 

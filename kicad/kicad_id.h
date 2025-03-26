@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -93,6 +93,8 @@ enum id_kicad_frm {
     ID_GIT_SWITCH_QUICK3,       // Switch the local repository to the third quick branch
     ID_GIT_SWITCH_QUICK4,       // Switch the local repository to the fourth quick branch
     ID_GIT_SWITCH_QUICK5,       // Switch the local repository to the fifth quick branch
+
+    ID_JOBS_RUN,
 
     // Please, verify: the number of items in this list should be
     // less than ROOM_FOR_KICADMANAGER (see id.h)

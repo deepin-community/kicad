@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2020 Ian McInerney <ian.s.mcinerney@ieee.org>
  * Copyright (C) 2007-2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -75,8 +75,6 @@ KIID& NilUuid()
 
 KIID::KIID()
 {
-    m_cached_timestamp = 0;
-
 #if BOOST_VERSION >= 106700
     try
     {
@@ -104,16 +102,14 @@ KIID::KIID()
 
 
 KIID::KIID( int null ) :
-        m_uuid( nilGenerator() ),
-        m_cached_timestamp( 0 )
+        m_uuid( nilGenerator() )
 {
     wxASSERT( null == 0 );
 }
 
 
 KIID::KIID( const std::string& aString ) :
-        m_uuid(),
-        m_cached_timestamp( 0 )
+        m_uuid()
 {
     if( !aString.empty() && aString.length() <= 8
         && std::all_of( aString.begin(), aString.end(),
@@ -136,17 +132,12 @@ KIID::KIID( const std::string& aString ) :
             std::string octet = aString.substr( start, len );
             m_uuid.data[i + 12] = strtol( octet.data(), nullptr, 16 );
         }
-
-        m_cached_timestamp = strtol( aString.c_str(), nullptr, 16 );
     }
     else
     {
         try
         {
             m_uuid = stringGenerator( aString );
-
-            if( IsLegacyTimestamp() )
-                m_cached_timestamp = strtol( aString.substr( 28 ).c_str(), nullptr, 16 );
         }
         catch( ... )
         {
@@ -214,18 +205,10 @@ bool KIID::SniffTest( const wxString& aCandidate )
 
 KIID::KIID( timestamp_t aTimestamp )
 {
-    m_cached_timestamp = aTimestamp;
-
-    // A legacy-timestamp-based UUID has only the last 4 octets filled in.
-    // Convert them individually to avoid stepping in the little-endian/big-endian
-    // doo-doo.
-    wxString str = AsLegacyTimestampString();
-
-    for( int i = 0; i < 4; ++i )
-    {
-        wxString octet      = str.substr( i * 2, 2 );
-        m_uuid.data[i + 12] = strtol( octet.data(), nullptr, 16 );
-    }
+    m_uuid.data[12] = static_cast<uint8_t>( aTimestamp >> 24 );
+    m_uuid.data[13] = static_cast<uint8_t>( aTimestamp >> 16 );
+    m_uuid.data[14] = static_cast<uint8_t>( aTimestamp >> 8 );
+    m_uuid.data[15] = static_cast<uint8_t>( aTimestamp );
 }
 
 
@@ -237,7 +220,14 @@ bool KIID::IsLegacyTimestamp() const
 
 timestamp_t KIID::AsLegacyTimestamp() const
 {
-    return m_cached_timestamp;
+    timestamp_t ret = 0;
+
+    ret |= m_uuid.data[12] << 24;
+    ret |= m_uuid.data[13] << 16;
+    ret |= m_uuid.data[14] << 8;
+    ret |= m_uuid.data[15];
+
+    return ret;
 }
 
 
@@ -249,12 +239,17 @@ size_t KIID::Hash() const
 
 void KIID::Clone( const KIID& aUUID )
 {
-    m_uuid             = aUUID.m_uuid;
-    m_cached_timestamp = aUUID.m_cached_timestamp;
+    m_uuid = aUUID.m_uuid;
 }
 
 
 wxString KIID::AsString() const
+{
+    return boost::uuids::to_string( m_uuid );
+}
+
+
+std::string KIID::AsStdString() const
 {
     return boost::uuids::to_string( m_uuid );
 }
@@ -271,8 +266,7 @@ void KIID::ConvertTimestampToUuid()
     if( !IsLegacyTimestamp() )
         return;
 
-    m_cached_timestamp = 0;
-    m_uuid             = randomGenerator();
+    m_uuid = randomGenerator();
 }
 
 

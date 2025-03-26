@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +29,7 @@
 #include <wx/dc.h>
 
 #include <bitmaps.h>
+#include <kiplatform/ui.h>
 
 
 GRID_CELL_ICON_TEXT_RENDERER::GRID_CELL_ICON_TEXT_RENDERER( const std::vector<BITMAPS>& icons,
@@ -39,11 +40,18 @@ GRID_CELL_ICON_TEXT_RENDERER::GRID_CELL_ICON_TEXT_RENDERER( const std::vector<BI
 }
 
 
+GRID_CELL_ICON_TEXT_RENDERER::GRID_CELL_ICON_TEXT_RENDERER( const wxBitmapBundle& aIcon,
+                                                            wxSize aPreferredIconSize ) :
+    m_icon( aIcon ),
+    m_iconSize( aPreferredIconSize )
+{
+}
+
+
 void GRID_CELL_ICON_TEXT_RENDERER::Draw( wxGrid& aGrid, wxGridCellAttr& aAttr, wxDC& aDC,
                                          const wxRect& aRect, int aRow, int aCol, bool isSelected )
 {
-    wxString value  = aGrid.GetCellValue( aRow, aCol );
-    wxBitmap bitmap;
+    wxString value = aGrid.GetCellValue( aRow, aCol );
 
     wxRect rect = aRect;
     rect.Inflate( -1 );
@@ -52,34 +60,95 @@ void GRID_CELL_ICON_TEXT_RENDERER::Draw( wxGrid& aGrid, wxGridCellAttr& aAttr, w
     wxGridCellRenderer::Draw( aGrid, aAttr, aDC, aRect, aRow, aCol, isSelected );
 
     // draw the icon
-    // note that the set of icons might be smaller than the set of labels if the last
-    // label is <...>.
-    int position = m_names.Index( value );
+    int leftCut = aDC.FromDIP( 4 );
 
-    if( position < (int) m_icons.size() && position != wxNOT_FOUND )
+    if( m_icon.IsOk() )
     {
-        bitmap = KiBitmap( m_icons[ position ] );
-        aDC.DrawBitmap( bitmap, rect.GetLeft() + 3, rect.GetTop() + 2, true );
+        wxSize size = m_iconSize == wxDefaultSize
+                            ? m_icon.GetPreferredBitmapSizeAtScale( aDC.GetContentScaleFactor() )
+                            : m_iconSize;
+        double scale = KIPLATFORM::UI::GetPixelScaleFactor( &aGrid );
+        wxBitmap bitmap = m_icon.GetBitmap( size * scale );
+
+        if( bitmap.IsOk() )
+            bitmap.SetScaleFactor( scale );
+
+        aDC.DrawBitmap( bitmap,
+                        rect.GetLeft() + leftCut,
+                        rect.GetTop() + ( rect.GetHeight() - bitmap.GetLogicalHeight() ) / 2,
+                        true );
+
+        leftCut += bitmap.GetLogicalWidth();
     }
-    else    // still need a bitmap to fetch the width
+    else
     {
-        bitmap = KiBitmap( m_icons[ 0 ] );
+        // note that the set of icons might be smaller than the set of labels if the last
+        // label is <...>.
+        int position = m_names.Index( value );
+
+        if( position < (int) m_icons.size() && position != wxNOT_FOUND )
+        {
+            wxBitmapBundle bundle = KiBitmapBundle( m_icons[position] );
+
+            wxBitmap bitmap = bundle.GetBitmap(
+                    bundle.GetPreferredBitmapSizeAtScale( aDC.GetContentScaleFactor() ) );
+
+            aDC.DrawBitmap( bitmap,
+                            rect.GetLeft() + leftCut,
+                            rect.GetTop() + ( rect.GetHeight() - bitmap.GetLogicalHeight() ) / 2,
+                            true );
+
+            leftCut += bitmap.GetLogicalWidth();
+        }
+        else    // still need a bitmap to fetch the width
+        {
+            wxBitmapBundle bundle = KiBitmapBundle( m_icons[0] );
+
+            wxBitmap bitmap = bundle.GetBitmap(
+                    bundle.GetPreferredBitmapSizeAtScale( aDC.GetContentScaleFactor() ) );
+
+            leftCut += bitmap.GetLogicalWidth();
+        }
     }
+
+    leftCut += aDC.FromDIP( 4 );
+
+    rect.x += leftCut;
+    rect.width -= leftCut;
 
     // draw the text
-    rect.SetLeft( rect.GetLeft() + bitmap.GetWidth() + 7 );
     SetTextColoursAndFont( aGrid, aAttr, aDC, isSelected );
     aGrid.DrawTextRectangle( aDC, value, rect, wxALIGN_LEFT, wxALIGN_CENTRE );
 }
 
+
 wxSize GRID_CELL_ICON_TEXT_RENDERER::GetBestSize( wxGrid& grid, wxGridCellAttr& attr, wxDC& dc,
                                                   int row, int col )
 {
-    wxBitmap bitmap = KiBitmap( m_icons[ row ] );
+    wxBitmap bitmap;
+    wxSize bitmapSize;
+
+    if( m_icon.IsOk() )
+    {
+        bitmapSize = m_iconSize == wxDefaultSize
+                            ? m_icon.GetPreferredBitmapSizeAtScale( dc.GetContentScaleFactor() )
+                            : m_iconSize;
+    }
+    else
+    {
+        int            bmpIdx = ( row < (int) m_icons.size() && row >= 0 ) ? row : 0;
+        wxBitmapBundle bundle = KiBitmapBundle( m_icons[bmpIdx] );
+
+        bitmap = bundle.GetBitmap(
+                bundle.GetPreferredBitmapSizeAtScale( dc.GetContentScaleFactor() ) );
+        bitmapSize = wxSize( bitmap.GetLogicalWidth(), -1 );
+    }
+
     wxString text = grid.GetCellValue( row, col );
     wxSize   size = wxGridCellStringRenderer::DoGetBestSize( attr, dc, text );
 
-    size.x += bitmap.GetWidth() + 6;
+    size.x += bitmapSize.x + dc.FromDIP( 8 );
+    size.y = std::max( size.y, bitmapSize.y + dc.FromDIP( 2 ) );
 
     return size;
 }
@@ -139,8 +208,8 @@ GRID_CELL_STATUS_ICON_RENDERER::GRID_CELL_STATUS_ICON_RENDERER( int aStatus ) :
     else
     {
         // Dummy bitmap for size
-        m_bitmap = wxArtProvider::GetBitmap( wxArtProvider::GetMessageBoxIconId( wxICON_INFORMATION ),
-                                             wxART_BUTTON );
+        m_bitmap = wxArtProvider::GetBitmap(
+                wxArtProvider::GetMessageBoxIconId( wxICON_INFORMATION ), wxART_BUTTON );
     }
 }
 
@@ -198,7 +267,8 @@ void GRID_CELL_ICON_TEXT_POPUP::Create( wxWindow* aParent, wxWindowID aId,
 {
     m_control = new wxBitmapComboBox( aParent, aId, wxEmptyString, wxDefaultPosition,
                                       wxDefaultSize, 0, nullptr,
-                                      wxCB_READONLY | wxTE_PROCESS_ENTER | wxTE_PROCESS_TAB | wxBORDER_NONE );
+                                      wxCB_READONLY | wxTE_PROCESS_ENTER | wxTE_PROCESS_TAB |
+                                      wxBORDER_NONE );
 
     for( unsigned i = 0; i < m_names.size(); ++i )
     {

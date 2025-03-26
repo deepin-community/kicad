@@ -246,6 +246,18 @@ xref:../eeschema/eeschema.adoc#text-variables[variables that can be used in the 
     `LAYER`, `NET_CLASS(<pad_number>)`, `NET_NAME(<pad_number>)`,
     `PIN_NAME(<pad_number>)`, `REFERENCE`, `SHORT_NET_NAME(<pad_number>)`,
     `VALUE`.
+| `DRC_ERROR <errorname>`
+  | Generates a <<text-var-drc,DRC error>> named `<errorname>`. Everything
+    inside the braces resolves to an empty string, while everything after the
+    braces is included in the descriptive text for the DRC violation. The text
+    variable must be at the beginning of the text item.
+
+    For example, a text item containing `${DRC_ERROR TODO}Length match traces`
+    will display as the text "Length match traces" and generate a DRC error
+    named "TODO" with the description "Length match traces".
+| `DRC_WARNING <warningname>`
+  | Generates a DRC warning named `<warningname>`. This behaves the same as
+    `DRC_ERROR`, except a warning is generated rather than an error.
 
 |====
 
@@ -257,7 +269,7 @@ xref:../eeschema/eeschema.adoc#text-variables[variables that can be used in the 
 KiCad's custom design rule system allows creating design rules that are more specific than the
 generic rules available in the Constraints page of the Board Setup dialog.  Custom design rules have
 many applications, but in general they are used to apply certain rules to a portion of the board,
-such as a specific net or netclass, a specific area, or a specific footprint.
+such as a specific net or net class, a specific area, or a specific footprint.
 
 Custom design rules are stored in a separate file with the extension `kicad_dru`.  This file is
 created automatically when you start adding custom rules to a project.  If you are using custom
@@ -337,7 +349,7 @@ to comment or uncomment lines automatically.
 
    # Clearance for 400V nets to anything else
    (rule HV
-       (condition "A.NetClass == 'HV'")
+       (condition "A.hasNetclass('HV')")
        (constraint clearance (min 1.5mm)))
 
 ===== Layer Clause
@@ -402,8 +414,8 @@ the two objects is not important because the design rule checker will test both 
 For example, you can write a rule that assumes that `A` is a track and `B` is a via.  There are
 some expression functions that test both objects together; these use `AB` as the object name.
 
-The expression in a condition must resolve to a boolean value (`true` or `false`).  If the
-expression resolves to `true`, the rule is applied to the given objects.
+The expression in a condition must resolve to a boolean value (true or false).  If the
+expression resolves to true, the rule is applied to the given objects.
 
 Each object being tested has **properties** that can be compared, as well as **functions** that
 can be used to perform certain tests.  The syntax for using properties and functions is
@@ -426,10 +438,18 @@ to result in a boolean expression.  The following operators are supported:
 | `!`       | Not (unary)
 |====
 
-For example, `A.NetClass == 'HV'` will apply to any objects that are part of the "HV" netclass and
-`A.NetClass != B.NetClass` will apply to any objects that are in different netclasses. Parentheses
+For example, `A.NetName == 'VDD'` will apply to any objects that are part of the "VDD" net and
+`A.NetName != B.NetName` will apply to any objects that have different net names. Parentheses
 can be used to clarify the order of operations in complex expressions but they are not required.
 All the boolean operators have the same precedence and are evaluated in order from left to right.
+
+To test a boolean property, evaluate the property itself, without comparing it to a boolean
+literal like `true` or `false` (which don't exist in the DRC rules language). For example, to test
+if a footprint's boolean `Do_not_populate` property is set, the boolean expression `A.Do_not_populate`
+by itself is sufficient. It will resolve to a true value if the footprint's DNP attribute is set, and
+a false value otherwise. To check if a boolean is false, use the `!` operator (unary not):
+`!A.Do_not_populate` will resolve to a true value if the DNP attribute is unset, and a false value
+otherwise.
 
 Some properties represent a physical measurement, such as a size, angle, length, position, etc.
 On these properties, **unit suffixes** can be used in the custom rules language to specify what
@@ -491,6 +511,8 @@ Numeric constraint values can use simple math expressions, for example
 
     To allow copper objects to overlap (collide), create a `clearance` constraint with the `min`
     value less than zero (for example, `-1`).
+| `creepage` | min
+  | Specifies the creepage between copper objects of different nets.
 | `connection_width` | min
   | Checks the width of connections between pads and zones. An error will be generated for each pad
     connection that is narrower than the `min` value.
@@ -502,13 +524,18 @@ Numeric constraint values can use simple math expressions, for example
     To allow courtyard objects to overlap (collide), create a `courtyard_clearance` constraint with
     the `min` value less than zero (for example, `-1`).
 | `diff_pair_gap` | min/opt/max
-  | Checks the gap between coupled tracks in a differential pair.  Coupled tracks are segments that
-    are parallel to each other.  Differential pair gap is not tested on uncoupled portions of a
-    differential pair (for example, the fanout from a component).
+  | Sets the gap between parallel tracks in a differential pair.  The `opt` setting is used by the
+    interactive router for placing new differential pairs. An error will be generated if the
+    spacing between tracks in a differential pair is outside of the `min` and `max` settings.
+    Differential pair gap is not tested on non-parallel portions of a differential pair (for example,
+    the fanout from a component).
 | `diff_pair_uncoupled` | max
   | Checks the distance that a differential pair track is routed uncoupled from the other polarity
     track in the pair (for example, where the pair fans out from a component, or becomes uncoupled
-    to pass around another object such as a via).
+    to pass around another object such as a via). An error will be generated for each differential
+    pair with an uncoupled distance that is greater than the `max` value. Differential pair tracks
+    are considered uncoupled if they are not parallel or if they are outside the range set by a
+    `diff_pair_gap` constraint.
 | `disallow`
   | `track +
      via +
@@ -577,14 +604,17 @@ Numeric constraint values can use simple math expressions, for example
 
     To allow silkscreen objects to overlap (collide) with other objects, create a `silk_clearance`
     constraint with the `min` value less than zero (for example, `-1`).
-| `skew` | min/opt/max
+| `skew` | min/opt/max/within_diff_pairs
   | Checks the total skew for the nets that match the rule condition, that is, the difference
-    between the length of each net and the average of all the lengths of each net that is matched
-    by the rule.  If the difference between that average and the length of any one net is above
+    between the length of each net and the longest net that is matched
+    by the rule.  If the difference between the longest net and the length of any one net is above
     the constraint `max` value, an error will be generated.
     This constraint also sets a target skew that is used by the <<length-tuning,skew tuning tool>>
     for any nets that match the rule condition. The target skew is the `opt` value, if specified,
     or the `min` value if not. If neither `min` nor `opt` is specified, the target skew is `0`.
+    If the option `within_diff_pairs` is specified, the skew will be tested separately for every 
+    valid differential pair in the nets matching the rule. If `within_diff_pairs` is not specified,
+    the skew will  be tested across all matching nets (e.g. for skew tuning a bus).
 | `text_height` | min/max
   | Checks the height of text, including text boxes. An error will be generated for each text item
     that has a height below the `min` value (if specified) or above the `max` value (if specified).
@@ -596,6 +626,13 @@ Numeric constraint values can use simple math expressions, for example
   | Specifies the width of the gap between a pad and a zone with a thermal-relief connection.
 | `thermal_spoke_width` | opt
   | Specifies the width of the spokes connecting a pad to a zone with a thermal-relief connection.
+| `track_angle` | min/max
+  | Checks the angle between two connected track segments. An error will be generated for each
+    connected pair with an angle below the min value (if specified) or above the max value
+    (if specified).
+| `track_segment_length` | min/max
+  | Checks the length of track and arc segments. An error will be generated for each segment that
+    has a width below the min value (if specified) or above the max value (if specified).
 | `track_width` | min/opt/max
   | Checks the width of track and arc segments.  An error will be generated for each segment that
     has a width below the `min` value (if specified) or above the `max` value (if specified).
@@ -660,12 +697,25 @@ These properties apply to copper objects that can have a net assigned (pads, via
     be used to compare the nets of two objects with better performance, for example
     `A.Net == B.Net` is faster than `A.NetName == B.NetName`.
 | `NetClass` | string
-  | The name of the netclass for the copper object.
-  
-    Note: netclasses must be declared in the <<board-setup-net-classes,Board Setup dialog>> before
-    they can be used in DRC rules.
-| `NetName` | string | The name of the net for the copper object.
-| `Curve_Points`      | integer | Number of curve points on curved teardrops connected to the object.
+  | The list of all net classes for the copper object. This is a priority
+    ordered, comma delimited list where a net has multiple net classes assigned.
+
+    Note that this list may include the `Default` net class, even if other net
+    classes have been explicitly assigned to the net, because the `Default` net
+    class provides fallback properties and design rules for any properties not
+    defined by explicit net classes. See the
+    <<board-setup-net-classes,net class documentation>> for more details.
+
+    To check if a copper object is a member of a particular net class,
+    regardless of any other net classes it may be a part of, use
+    `hasNetclass(<netclass>)`.
+
+| `NetName` | string
+  | The name of the net for the copper object.
+
+    Note that `Net` can be used instead in some situations for better
+    performance; see the notes under `Net`.
+| `Curved_Edges`      | boolean | True if curved edges are enabled for teardrops connected to the object.
 | `Enable_Teardrops`  | boolean | True if teardrops are enabled for the object.
 | `Prefer_Zone_Connections` | boolean | True if the "Prefer zone connections" property is set for the object.
 | `Allow_Teardrops_To_Span_Two_Tracks`  | boolean | True if the "Allow teardrops to span two tracks" property is set for the object.
@@ -684,6 +734,14 @@ These properties apply to footprints.
 |====
 | Property    | Data type | Description
 | `Clearance_Override` | dimension | The copper clearance override set for the footprint.
+| `Component_Class` | string
+  | The name of the component class set for the footprint. This is an alphabetically ordered,
+    comma delimited list where a footprint has multiple component classes assigned.
+
+    Note that while footprints have a `Component_Class` property, footprint child
+    objects (such as pads) do not. To check if an object belongs to a footprint
+    with a specific component class, use the `memberOfFootprint('${Class:x}')`
+    function.
 | `Do_not_Populate` | boolean | True if the footprint's "Do not populate" attribute is set.
 | `Exclude_From_Position_Files` | boolean
   | True if the footprint's "Exclude from position files" attribute is set.
@@ -890,6 +948,13 @@ The following functions can be called on objects in custom rule expressions:
 | `getField('x')` | `A` or `B`
     | Returns the value of field `x` in the object. Note that only footprints have fields, so no field will
       be returned unless the object is is a footprint.
+| `hasComponentClass('x')` | `A` or `B`
+    | Returns true if the set of component classes assigned to the object contains the named component class `x`.
+      Note that only footprints have component classes, so this function will only return true if the object is
+      a footprint. In most cases, you will want to check if an object is part of a footprint that has a specific
+      component class. For this query, see the `memberOfFootprint()` expression function.
+| `hasNetclass('x')` | `A` or `B`
+    | Returns true if the set of net classes assigned to the object contains the named net class `x`.
 | `inDiffPair('x')` | `A` or `B`
     | Returns true if the object is part of a differential pair and the base name of the pair
       matches the given argument `x`.  For example, `inDiffPair('/USB_')` or `inDiffPair('/USB')` both return
@@ -911,16 +976,22 @@ The following functions can be called on objects in custom rule expressions:
 
   `insideBackCourtyard('x')`
   | `A` or `B`
-  | Returns true if the any part of the object is inside the courtyard of the given footprint.  The
+  a| Returns true if the any part of the object is inside the courtyard of the given footprint.  The
     first variant checks both the front or back courtyard and returns true if the object is inside
     either one; the second and third variants check a courtyard on a specific layer.
-  
-    The footprint can be specified by reference designator or library ID in `<footprint_library>:<footprint_name>`
-    format.  The `\*` or `?` wildcards can be used in the argument: `insideCourtyard('R?')` will check all
-    footprints with references that contain `R` followed by a single character, while
-    `insideCourtyard('Resistor_SMD:*')` will check all footprints in the `Resistor_SMD` library.
+    The named footprint `x` can be one of the following:
+
+    * A reference designator, possibly containing wildcards `\*` and `?`. `insideCourtyard('R?')`
+      will check all footprints with references that contain `R` followed by a single character, while
+      `insideCourtyard('R*')` will check all footprints with reference designators starting with `R`.
+    * A footprint library identifier in `<footprint_library>:<footprint_name>` format, possibly
+      containing wildcards `\*` and `?`. `insideCourtyard('Resistor_SMD:*')` will check all footprints
+      in the `Resistor_SMD` library.
+    * A component class, in the form `${Class:ClassName}`. The `Class` keyword is not case-sensitive,
+      but component class names are case-sensitive. The function will return true if the object is
+      inside the courtyard of a footprint with the named component class.
     
-    **Deprecated**; use `intersectsCourtyard()`, `intersectsFrontCourtyard()`, and `intersectsBackCourtyard()` instead.
+**Deprecated**; use `intersectsCourtyard()`, `intersectsFrontCourtyard()`, and `intersectsBackCourtyard()` instead.
 | `intersectsArea('x')` | `A` or `B`
     | Returns true if any part of the object is inside the named rule area or zone.  Rule area and zone
       names can be set in their respective properties dialogs.  If the given area is a filled copper zone, the
@@ -932,14 +1003,20 @@ The following functions can be called on objects in custom rule expressions:
 
   `intersectsBackCourtyard('x')`
   | `A` or `B`
-  | Returns true if any part of the object is inside the courtyard of the given footprint.  The
+  a| Returns true if any part of the object is inside the courtyard of the given footprint.  The
     first variant checks both the front or back courtyard and returns true if the object is inside
     either one; the second and third variants check a courtyard on a specific layer.
-  
-    The footprint can be specified by reference designator or library ID in `<footprint_library>:<footprint_name>`
-    format.  The `\*` or `?` wildcards can be used in the argument: `intersectsCourtyard('R?')` will check all
-    footprints with references that contain `R` followed by a single character, while
-    `intersectsCourtyard('Resistor_SMD:*')` will check all footprints in the `Resistor_SMD` library.
+    The named footprint `x` can be one of the following:
+
+    * A reference designator, possibly containing wildcards `\*` and `?`. `intersectsCourtyard('R?')`
+      will check all footprints with references that contain `R` followed by a single character, while
+      `intersectsCourtyard('R*')` will check all footprints with reference designators starting with `R`.
+    * A footprint library identifier in `<footprint_library>:<footprint_name>` format, possibly
+      containing wildcards `\*` and `?`. `intersectsCourtyard('Resistor_SMD:*')` will check all footprints
+      in the `Resistor_SMD` library.
+    * A component class, in the form `${Class:ClassName}`. The `Class` keyword is not case-sensitive,
+      but component class names are case-sensitive. The function will return true if the object intersects
+      the courtyard of a footprint with the named component class.
 | `isBlindBuriedVia()` | `A` or `B` | Returns true if the object is a blind/buried via.
 | `isCoupledDiffPair()` | `AB`
   | Returns true if the two objects being tested are part of the same differential pair but are
@@ -952,12 +1029,18 @@ The following functions can be called on objects in custom rule expressions:
   **Deprecated**; use `memberOfGroup()` instead.
 | `memberOfGroup('x')` | `A` or `B` | Returns true if the object is a member of a group named `x`.
 | `memberOfFootprint('x')` | `A` or `B`
-  | Returns true if the object is a member of the given footprint.
-  
-    The footprint can be specified by reference designator or library ID in `<footprint_library>:<footprint_name>`
-    format.  The `\*` or `?` wildcards can be used in the argument: `memberOfFootprint('R?')` will check all
-    footprints with references that contain `R` followed by a single character, while
-    `memberOfFootprint('Resistor_SMD:*')` will check all footprints in the `Resistor_SMD` library.
+  a| Returns true if the object is a member of the given footprint.
+    The named footprint `x` can be one of the following:
+
+    * A reference designator, possibly containing wildcards `\*` and `?`. `memberOfFootprint('R?')`
+      will match all footprints with references that contain `R` followed by a single character, while
+      `memberOfFootprint('R*')` will match all footprints with reference designators starting with `R`.
+    * A footprint library identifier in `<footprint_library>:<footprint_name>` format, possibly
+      containing wildcards `\*` and `?`. `memberOfFootprint('Resistor_SMD:*')` will match all footprints
+      in the `Resistor_SMD` library.
+    * A component class, in the form `${Class:ClassName}`. The `Class` keyword is not case-sensitive,
+      but component class names are case-sensitive. The function will return true if the object is a
+      member of a footprint with the named component class.
 | `memberOfSheet('x')` |  `A` or `B` | Returns true if the object is a member of a schematic sheet
 named `x`.
 |====
@@ -969,7 +1052,7 @@ named `x`.
 
 (rule RF_width
     (layer outer)
-    (condition "A.NetClass == 'RF'")
+    (condition "A.hasNetclass('RF')")
     (constraint track_width (min 0.35mm) (max 0.35mm)))
 
 (rule "BGA neckdown"
@@ -1015,6 +1098,12 @@ named `x`.
     (constraint physical_clearance (min 3mm))
     (condition "B.Layer == 'Edge.Cuts'"))
 
+# Prevent copper pours under capacitors
+(rule "No copper pours under capacitors"
+    (constraint physical_clearance (min 0.1mm))
+    (condition "A.Type == 'Zone' && B.Reference == 'C*'")
+)
+
 # This assumes that there is a cutout with 1mm thick lines
 (rule "Clearance to cutout"
     (constraint edge_clearance (min 0.8mm))
@@ -1051,7 +1140,7 @@ named `x`.
 (rule high-current
     (constraint track_width (min 1.0mm))
     (constraint connection_width (min 0.8mm))
-    (condition "A.NetClass == 'Power'"))
+    (condition "A.hasNetclass('Power')"))
 
 # Don't use thermal reliefs on heatsink pads
 (rule heat_sink_pad
@@ -1118,7 +1207,7 @@ be used to create footprint creation plugins for the Footprint Editor.
 This manual covers general scripting concepts for the Board Editor's `pcbnew` API as well as for
 the footprint wizard API. Users wishing to write or modify scripts should also
 use the Doxygen documentation for these APIs located at
-https://docs.kicad.org/doxygen-python-8.0/namespaces.html[https://docs.kicad.org/doxygen-python-8.0/namespaces.html].
+https://docs.kicad.org/doxygen-python-nightly/namespaces.html[https://docs.kicad.org/doxygen-python-nightly/namespaces.html].
 
 KiCad 6 or newer requires Python 3 for scripting support. Python 2 is no longer supported.
 
@@ -1158,7 +1247,7 @@ by the `pcbnew` module in Python.
 
 NOTE: Because the API is tightly coupled to KiCad's internals, the API will change over time and is not
       considered stable. Consult the
-      https://docs.kicad.org/doxygen-python-8.0/namespaces.html[doxygen documentation]
+      https://docs.kicad.org/doxygen-python-nightly/namespaces.html[doxygen documentation]
       for the most up-to-date API reference, and be sure to use the documentation for the appropriate
       version of KiCad.
 

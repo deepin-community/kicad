@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -38,7 +38,9 @@
 #include <project/project_file.h>  // LAST_PATH_TYPE
 #include <dialog_import_netlist.h>
 #include <widgets/wx_html_report_panel.h>
+#include <view/view_controls.h>
 #include <wx/filedlg.h>
+#include <wx/msgdlg.h>
 
 
 void PCB_EDIT_FRAME::InstallNetlistFrame()
@@ -74,7 +76,7 @@ DIALOG_IMPORT_NETLIST::DIALOG_IMPORT_NETLIST( PCB_EDIT_FRAME* aParent,
 
     m_matchByTimestamp->SetSelection( m_matchByUUID ? 0 : 1 );
 
-    m_MessageWindow->SetLabel( _("Changes To Be Applied") );
+    m_MessageWindow->SetLabel( _("Changes to Be Applied") );
     m_MessageWindow->SetVisibleSeverities( cfg->m_NetlistDialog.report_filter );
     m_MessageWindow->SetFileName( Prj().GetProjectPath() + wxT( "report.txt" ) );
 
@@ -262,6 +264,7 @@ void DIALOG_IMPORT_NETLIST::loadNetlist( bool aDryRun )
     updater.SetLookupByTimestamp( m_matchByUUID );
     updater.SetDeleteUnusedFootprints( m_cbDeleteExtraFootprints->GetValue());
     updater.SetReplaceFootprints( m_cbUpdateFootprints->GetValue() );
+    updater.SetOverrideLocks( m_cbOverrideLocks->GetValue() );
     updater.UpdateNetlist( netlist );
 
     // The creation of the report was made without window update: the full page must be displayed

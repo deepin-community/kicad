@@ -4,7 +4,7 @@
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2008-2016 Wayne Stambaugh <stambaughw@gmail.com>
  * Copyright (C) 2023 CERN
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,8 +28,6 @@
 #define  PCB_BASE_FRAME_H
 
 #include <eda_units.h>
-#include <eda_item.h>
-#include <board.h>
 #include <eda_draw_frame.h>
 #include <outline_mode.h>
 #include <lib_id.h>
@@ -39,7 +37,6 @@
 #include <pcb_screen.h>
 #include <vector>
 
-#include <wx/fswatcher.h>
 #include <wx/datetime.h>
 #include <wx/timer.h>
 
@@ -48,12 +45,14 @@ class APP_SETTINGS_BASE;
 class BOARD;
 class BOARD_CONNECTED_ITEM;
 class COLOR_SETTINGS;
+class EDA_ITEM;
 class FOOTPRINT;
 class PAD;
 class EDA_3D_VIEWER_FRAME;
 class GENERAL_COLLECTOR;
 class GENERAL_COLLECTORS_GUIDE;
 class BOARD_DESIGN_SETTINGS;
+class LSET;
 class ZONE_SETTINGS;
 class PCB_PLOT_PARAMS;
 class FP_LIB_TABLE;
@@ -63,6 +62,21 @@ class FOOTPRINT_EDITOR_SETTINGS;
 struct MAGNETIC_SETTINGS;
 class NL_PCBNEW_PLUGIN;
 class PROGRESS_REPORTER;
+
+#ifdef wxHAS_INOTIFY
+#define wxFileSystemWatcher wxInotifyFileSystemWatcher
+#elif defined( wxHAS_KQUEUE ) && defined( wxHAVE_FSEVENTS_FILE_NOTIFICATIONS )
+#define wxFileSystemWatcher wxFsEventsFileSystemWatcher
+#elif defined( wxHAS_KQUEUE )
+#define wxFileSystemWatcher wxKqueueFileSystemWatcher
+#elif defined( __WINDOWS__ )
+#define wxFileSystemWatcher wxMSWFileSystemWatcher
+#else
+#define wxFileSystemWatcher wxPollingFileSystemWatcher
+#endif
+
+class wxFileSystemWatcher;
+class wxFileSystemWatcherEvent;
 
 wxDECLARE_EVENT( EDA_EVT_BOARD_CHANGED, wxCommandEvent );
 
@@ -109,25 +123,7 @@ public:
      */
     BOX2I GetBoardBoundingBox( bool aBoardEdgesOnly = false ) const;
 
-    const BOX2I GetDocumentExtents( bool aIncludeAllVisible = true ) const override
-    {
-        /* "Zoom to Fit" calls this with "aIncludeAllVisible" as true.  Since that feature
-         * always ignored the page and border, this function returns a bbox without them
-         * as well when passed true.  This technically is not all things visible, but it
-         * keeps behavior consistent.
-         *
-         * When passed false, this function returns a bbox of just the board edge. This
-         * allows things like fabrication text or anything else outside the board edge to
-         * be ignored, and just zooms up to the board itself.
-         *
-         * Calling "GetBoardBoundingBox(true)" when edge cuts are turned off will return
-         * the entire page and border, so we call "GetBoardBoundingBox(false)" instead.
-         */
-        if( aIncludeAllVisible || !m_pcb->IsLayerVisible( Edge_Cuts ) )
-            return GetBoardBoundingBox( false );
-        else
-            return GetBoardBoundingBox( true );
-    }
+    const BOX2I GetDocumentExtents( bool aIncludeAllVisible = true ) const override;
 
     virtual void SetPageSettings( const PAGE_INFO& aPageSettings ) override;
     const PAGE_INFO& GetPageSettings() const override;
@@ -141,7 +137,7 @@ public:
     const VECTOR2I GetUserOrigin() const;
 
     /**
-     * Return a reference to the default ORIGIN_TRANSFORMS object
+     * Return a reference to the default #ORIGIN_TRANSFORMS object.
      */
     ORIGIN_TRANSFORMS& GetOriginTransforms() override;
 
@@ -154,7 +150,7 @@ public:
     void SetTitleBlock( const TITLE_BLOCK& aTitleBlock ) override;
 
     /**
-     * Returns the BOARD_DESIGN_SETTINGS for the open project.
+     * Return the BOARD_DESIGN_SETTINGS for the open project.
      */
     virtual BOARD_DESIGN_SETTINGS& GetDesignSettings() const;
 
@@ -163,7 +159,8 @@ public:
      */
     virtual COLOR_SETTINGS* GetColorSettings( bool aForceRefresh = false ) const override
     {
-        wxFAIL_MSG( wxT( "Color settings requested for a PCB_BASE_FRAME that does not override!" ) );
+        wxFAIL_MSG( wxT( "Color settings requested for a PCB_BASE_FRAME that does not "
+                         "override!" ) );
         return nullptr;
     }
 
@@ -176,9 +173,10 @@ public:
     const PCB_DISPLAY_OPTIONS& GetDisplayOptions() const { return m_displayOptions; }
 
     /**
-     * Updates the current display options from the given options struct
-     * @param aOptions is the options struct to apply
-     * @param aRefresh will refresh the view after updating
+     * Update the current display options.
+     *
+     * @param aOptions is the options struct to apply.
+     * @param aRefresh will refresh the view after updating.
      */
     void SetDisplayOptions( const PCB_DISPLAY_OPTIONS& aOptions, bool aRefresh = true );
 
@@ -190,11 +188,13 @@ public:
 
     /**
      * Reload the footprint from the library.
+     *
      * @param aFootprint is the footprint to reload.
      */
     virtual void ReloadFootprint( FOOTPRINT* aFootprint )
     {
-        wxFAIL_MSG( wxT( "Attempted to reload a footprint for PCB_BASE_FRAME that does not override!" ) );
+        wxFAIL_MSG( wxT( "Attempted to reload a footprint for PCB_BASE_FRAME that does not "
+                         "override!" ) );
     }
 
     /**
@@ -228,7 +228,7 @@ public:
     PCB_SCREEN* GetScreen() const override { return (PCB_SCREEN*) EDA_DRAW_FRAME::GetScreen(); }
 
     /**
-     * Shows the 3D view frame.
+     * Show the 3D view frame.
      *
      * If it does not exist, it is created.  If it exists, it is brought to the foreground.
      */
@@ -248,37 +248,28 @@ public:
     wxString SelectLibrary( const wxString& aNicknameExisting );
 
     /**
-     * @return a reference to the footprint found by its reference on the current board. The
-     *         reference is entered by the user from a dialog (by awxTextCtlr, or a list of
-     *         available references)
-     */
-    FOOTPRINT* GetFootprintFromBoardByReference();
-
-    /**
      * Must be called after a change in order to set the "modify" flag and update other data
      * structures and GUI elements.
      */
     void OnModify() override;
 
     /**
-     * Creates a new footprint, at position 0,0.
+     * Create a new footprint at position 0,0.
      *
      * The new footprint contains only 2 texts: a reference and a value:
      *  Reference = REF**
      *  Value = "VAL**" or Footprint name in lib
      *
-     * @note They are dummy texts, which will be replaced by the actual texts when the
+     * @note They are dummy texts which will be replaced by the actual texts when the
      *       footprint is placed on a board and a netlist is read.
      *
      * @param aFootprintName is the name of the new footprint in library.
      * @param aLibName optional, if specified is the library for the new footprint
-     * @param aQuiet prevents user dialogs from being shown
      */
-    FOOTPRINT* CreateNewFootprint( const wxString& aFootprintName, const wxString& aLibName,
-                                   bool aQuiet );
+    FOOTPRINT* CreateNewFootprint( wxString aFootprintName, const wxString& aLibName );
 
     /**
-     * Places \a aFootprint at the current cursor position and updates footprint coordinates
+     * Place \a aFootprint at the current cursor position and updates footprint coordinates
      * with the new position.
      *
      * @param aRecreateRatsnest A bool true redraws the footprint ratsnest.
@@ -320,7 +311,7 @@ public:
     virtual void SaveCopyInUndoList( EDA_ITEM* aItemToCopy, UNDO_REDO aTypeCommand ) {};
 
     /**
-     * Creates a new entry in undo list of commands.
+     * Create a new entry in undo list of commands.
      *
      * @param aItemsList is the list of items modified by the command to undo.
      * @param aTypeCommand is the command type (see enum #UNDO_REDO)
@@ -349,9 +340,9 @@ public:
                                  wxPoint aDlgPosition = wxDefaultPosition );
 
     /**
-     * Change the active layer in the frame
+     * Change the active layer in the frame.
      *
-     * @param aLayer New layer to make active
+     * @param aLayer New layer to make active.
      */
     virtual void SwitchLayer( PCB_LAYER_ID aLayer );
 
@@ -373,7 +364,7 @@ public:
 
     virtual MAGNETIC_SETTINGS* GetMagneticItemsSettings();
 
-    void CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged ) override;
+    void CommonSettingsChanged( int aFlags ) override;
 
     PCB_DRAW_PANEL_GAL* GetCanvas() const override;
 
@@ -382,7 +373,7 @@ public:
     /**
      * Add \a aListener to post #EDA_EVT_BOARD_CHANGED command events to.
      *
-     * @warning The caller is reponsible for removing any listeners that are no long valid.
+     * @warning The caller is responsible for removing any listeners that are no long valid.
      *
      * @note This only gets called when the board editor is in stand alone mode.  Changing
      *       projects in the project manager closes the board editor when a new project is
@@ -415,7 +406,7 @@ protected:
     virtual void doReCreateMenuBar() override;
 
     /**
-     * Attempts to load \a aFootprintId from the footprint library table.
+     * Attempt to load \a aFootprintId from the footprint library table.
      *
      * @param aFootprintId is the #LIB_ID of component footprint to load.
      * @return the #FOOTPRINT if found or NULL if \a aFootprintId not found in any of the
@@ -430,7 +421,8 @@ protected:
     void rebuildConnectivity();
 
     /**
-     * Creates (or removes) a watcher on the specified footprint
+     * Create or removes a watcher on the specified footprint.
+     *
      * @param aFootprint If nullptr, the watcher is removed.  Otherwise, set a change watcher
      */
     void setFPWatcher( FOOTPRINT* aFootprint );
@@ -441,7 +433,7 @@ protected:
     PCB_ORIGIN_TRANSFORMS   m_originTransforms;
 
 private:
-    NL_PCBNEW_PLUGIN*       m_spaceMouse;
+    std::unique_ptr<NL_PCBNEW_PLUGIN>       m_spaceMouse;
 
     std::unique_ptr<wxFileSystemWatcher>    m_watcher;
     wxFileName                              m_watcherFileName;

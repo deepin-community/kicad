@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -51,6 +51,7 @@ public:
      */
     bool ExportVRML_File( PROJECT* aProject, wxString *aMessages,
                                   const wxString& aFullFileName, double aMMtoWRMLunit,
+                                  bool aIncludeUnspecified, bool aIncludeDNP,
                                   bool aExport3DFiles, bool aUseRelativePaths,
                                   const wxString& a3D_Subdir,
                                   double aXRef, double aYRef );

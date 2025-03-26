@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -46,14 +46,14 @@ public:
     }
 
     /**
-     * static function: returns the instance of DS_DATA_MODEL used in the application
+     * Return the instance of DS_DATA_MODEL used in the application.
      */
     static DS_DATA_MODEL& GetTheInstance();
 
     /**
-     * Set an alternate instance of DS_DATA_MODEL.
+     * Set an alternate instance of #DS_DATA_MODEL.
      *
-     * @param aLayout the alternate drawing sheet; if null restore the default drawing sheet
+     * @param aLayout the alternate drawing sheet; if null restore the default drawing sheet.
      */
     static void SetAltInstance( DS_DATA_MODEL* aLayout = nullptr );
 
@@ -143,15 +143,16 @@ public:
     static wxString DefaultLayout();
 
     /**
-     * Populates the list with a custom layout or the default layout if no custom layout
-     * is  available.
+     * Populate the list with a custom layout or the default layout if no custom layout
+     * is available.
      *
      * @param aFullFileName is the custom drawing sheet file. If empty, load the file defined by
      *                      KICAD_WKSFILE and if its not defined, the default internal drawing
      *                      sheet.
-     * @param Append if true: do not delete old layout, and load only \a aFullFileName.
+     * @param aMsg [optional] if non-null, will be filled with any error messages.
+     * @param aAppend if true: do not delete old layout, and load only \a aFullFileName.
      */
-    bool LoadDrawingSheet( const wxString& aFullFileName = wxEmptyString, bool Append = false );
+    bool LoadDrawingSheet( const wxString& aFullFileName, wxString* aMsg, bool aAppend = false );
 
     /**
      * Populate the list from a S expr description stored in a string.

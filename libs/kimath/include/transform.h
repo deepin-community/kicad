@@ -6,7 +6,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2007-2010 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2007-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -53,9 +53,19 @@ public:
     /**
      * The default construct creates a transform that draws object is the normal orientation.
      */
-    TRANSFORM() : x1( 1 ), y1( 0 ), x2( 0 ), y2( -1 ) {}
+    TRANSFORM() :
+            x1( 1 ),
+            y1( 0 ),
+            x2( 0 ),
+            y2( 1 )
+    {}
 
-    TRANSFORM( int ax1, int ay1, int ax2, int ay2 ) : x1( ax1 ), y1( ay1 ), x2( ax2 ), y2( ay2 ) {}
+    TRANSFORM( int ax1, int ay1, int ax2, int ay2 ) :
+            x1( ax1 ),
+            y1( ay1 ),
+            x2( ax2 ),
+            y2( ay2 )
+    {}
 
     bool operator==( const TRANSFORM& aTransform ) const;
 

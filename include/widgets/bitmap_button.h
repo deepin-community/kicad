@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2020 Ian McInerney <ian.s.mcinerney at ieee dot org>
- * Copyright (C) 2020-2021 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,6 +25,7 @@
 #ifndef BITMAP_BUTTON_H_
 #define BITMAP_BUTTON_H_
 
+#include <kicommon.h>
 #include <wx/bmpbndl.h>
 #include <wx/panel.h>
 #include <wx/colour.h>
@@ -37,7 +38,7 @@
  *     * It has a rectangle highlight when the mouse is hovering/pressed
  *     * It has the ability to be checked/toggled
  */
-class BITMAP_BUTTON : public wxPanel
+class KICOMMON_API BITMAP_BUTTON : public wxPanel
 {
 public:
     BITMAP_BUTTON( wxWindow* aParent, wxWindowID aId, const wxPoint& aPos = wxDefaultPosition,
@@ -133,6 +134,9 @@ protected:
     void OnLeftButtonUp( wxMouseEvent& aEvent );
     void OnLeftButtonDown( wxMouseEvent& aEvent );
     void OnPaint( wxPaintEvent& aEvent );
+    void OnDPIChanged( wxDPIChangedEvent& aEvent );
+
+    virtual wxSize DoGetBestSize() const override;
 
     void setFlag( int aFlag )
     {
@@ -149,6 +153,8 @@ protected:
         return m_buttonState & aFlag;
     }
 
+    void invalidateBestSize();
+
 private:
     wxBitmapBundle m_normalBitmap;
     wxBitmapBundle m_disabledBitmap;
@@ -164,10 +170,10 @@ private:
     wxSize    m_unadjustedMinSize;
     bool      m_isToolbarButton;
 
-    ///< Accept mouse-up as click even if mouse-down happened outside of the control
+    /// Accept mouse-up as click even if mouse-down happened outside of the control.
     bool      m_acceptDraggedInClicks;
 
-    ///< Draws bitmap centered in the control
+    /// Draw bitmap centered in the control.
     bool      m_centerBitmap;
 };
 

@@ -2,6 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 CERN
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -53,6 +54,13 @@ public:
     void FocusSearchFieldIfExists();
 
 protected:
+
+    /**
+     * Handle parent menu events to block preview updates while the menu is open.
+     */
+    void onMenuOpen( wxMenuEvent& aEvent );
+    void onMenuClose( wxMenuEvent& aEvent );
+
     void onComponentSelected( wxCommandEvent& aEvent );
     void onUpdateUI( wxUpdateUIEvent& aEvent );
 

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -29,10 +29,12 @@
 class KICOMMON_API JOB_EXPORT_PCB_DRILL : public JOB
 {
 public:
-    JOB_EXPORT_PCB_DRILL( bool aIsCli );
+    JOB_EXPORT_PCB_DRILL();
+
+    wxString GetDefaultDescription() const override;
+    wxString GetSettingsDialogTitle() const override;
 
     wxString m_filename;
-    wxString m_outputDir;
 
     bool m_excellonMirrorY;
     bool m_excellonMinimalHeader;

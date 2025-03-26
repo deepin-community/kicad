@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019-2023 CERN
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,6 +22,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "tools/ee_inspection_tool.h"
+
 #include <sch_symbol.h>
 #include <id.h>
 #include <kiway.h>
@@ -32,13 +34,13 @@
 #include <tool/conditional_menu.h>
 #include <tool/selection_conditions.h>
 #include <tools/ee_actions.h>
-#include <tools/ee_inspection_tool.h>
 #include <tools/ee_selection_tool.h>
 #include <tools/ee_selection.h>
 #include <sim/simulator_frame.h>
 #include <sch_edit_frame.h>
 #include <symbol_edit_frame.h>
 #include <symbol_viewer_frame.h>
+#include <symbol_lib_table.h>
 #include <eda_doc.h>
 #include <sch_marker.h>
 #include <project.h>
@@ -52,7 +54,7 @@
 
 
 EE_INSPECTION_TOOL::EE_INSPECTION_TOOL() :
-    EE_TOOL_BASE<SCH_BASE_FRAME>( "eeschema.InspectionTool" )
+        EE_TOOL_BASE<SCH_BASE_FRAME>( "eeschema.InspectionTool" ), m_busSyntaxHelp( nullptr )
 {
 }
 
@@ -67,7 +69,7 @@ bool EE_INSPECTION_TOOL::Init()
 
     selToolMenu.AddItem( EE_ACTIONS::excludeMarker, EE_CONDITIONS::SingleNonExcludedMarker, 100 );
 
-    selToolMenu.AddItem( EE_ACTIONS::showDatasheet,
+    selToolMenu.AddItem( ACTIONS::showDatasheet,
                          EE_CONDITIONS::SingleSymbol && EE_CONDITIONS::Idle, 220 );
 
     return true;
@@ -78,7 +80,7 @@ void EE_INSPECTION_TOOL::Reset( RESET_REASON aReason )
 {
     EE_TOOL_BASE::Reset( aReason );
 
-    if( aReason == SUPERMODEL_RELOAD )
+    if( aReason == SUPERMODEL_RELOAD || aReason == RESET_REASON::SHUTDOWN )
     {
         wxCommandEvent* evt = new wxCommandEvent( EDA_EVT_CLOSE_ERC_DIALOG, wxID_ANY );
 
@@ -110,7 +112,11 @@ void EE_INSPECTION_TOOL::ShowERCDialog()
     // Bring it to the top if already open.  Dual monitor users need this.
     dlg->Raise();
 
-    KIPLATFORM::UI::ForceFocus( dlg->FindWindow( wxID_OK ) );
+    if( wxButton* okButton = dynamic_cast<wxButton*>( dlg->FindWindow( wxID_OK ) ) )
+    {
+        KIPLATFORM::UI::ForceFocus( okButton );
+        okButton->SetDefault();
+    }
 }
 
 
@@ -196,6 +202,68 @@ void EE_INSPECTION_TOOL::CrossProbe( const SCH_MARKER* aMarker )
 }
 
 
+wxString EE_INSPECTION_TOOL::InspectERCErrorMenuText( const std::shared_ptr<RC_ITEM>& aERCItem )
+{
+    auto menuDescription =
+            [&]( const TOOL_ACTION& aAction )
+            {
+                wxString   menuItemLabel = aAction.GetMenuLabel();
+                wxMenuBar* menuBar = m_frame->GetMenuBar();
+
+                for( size_t ii = 0; ii < menuBar->GetMenuCount(); ++ii )
+                {
+                    for( wxMenuItem* menuItem : menuBar->GetMenu( ii )->GetMenuItems() )
+                    {
+                        if( menuItem->GetItemLabelText() == menuItemLabel )
+                        {
+                            wxString menuTitleLabel = menuBar->GetMenuLabelText( ii );
+
+                            menuTitleLabel.Replace( wxS( "&" ), wxS( "&&" ) );
+                            menuItemLabel.Replace( wxS( "&" ), wxS( "&&" ) );
+
+                            return wxString::Format( _( "Run %s > %s" ),
+                                                     menuTitleLabel,
+                                                     menuItemLabel );
+                        }
+                    }
+                }
+
+                return wxString::Format( _( "Run %s" ), aAction.GetFriendlyName() );
+            };
+
+    if( aERCItem->GetErrorCode() == ERCE_BUS_TO_NET_CONFLICT )
+    {
+        return menuDescription( EE_ACTIONS::showBusSyntaxHelp );
+    }
+    else if( aERCItem->GetErrorCode() == ERCE_LIB_SYMBOL_MISMATCH )
+    {
+        return menuDescription( EE_ACTIONS::diffSymbol );
+    }
+
+    return wxEmptyString;
+}
+
+
+void EE_INSPECTION_TOOL::InspectERCError( const std::shared_ptr<RC_ITEM>& aERCItem )
+{
+    SCH_EDIT_FRAME* frame = dynamic_cast<SCH_EDIT_FRAME*>( m_frame );
+
+    wxCHECK( frame, /* void */ );
+
+    EDA_ITEM* a = frame->GetItem( aERCItem->GetMainItemID() );
+
+    if( aERCItem->GetErrorCode() == ERCE_BUS_TO_NET_CONFLICT )
+    {
+        m_toolMgr->RunAction( EE_ACTIONS::showBusSyntaxHelp );
+    }
+    else if( aERCItem->GetErrorCode() == ERCE_LIB_SYMBOL_MISMATCH )
+    {
+        if( SCH_SYMBOL* symbol = dynamic_cast<SCH_SYMBOL*>( a ) )
+            DiffSymbol( symbol );
+    }
+}
+
+
 int EE_INSPECTION_TOOL::ExcludeMarker( const TOOL_EVENT& aEvent )
 {
     EE_SELECTION_TOOL* selTool = m_toolMgr->GetTool<EE_SELECTION_TOOL>();
@@ -231,7 +299,7 @@ int EE_INSPECTION_TOOL::ExcludeMarker( const TOOL_EVENT& aEvent )
 
 
 extern void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
-                           int aGridForPins, EDA_DRAW_FRAME* aUnitsProvider );
+                            int aGridForPins, UNITS_PROVIDER* aUnitsProvider );
 
 int EE_INSPECTION_TOOL::CheckSymbol( const TOOL_EVENT& aEvent )
 {
@@ -263,6 +331,20 @@ int EE_INSPECTION_TOOL::CheckSymbol( const TOOL_EVENT& aEvent )
 }
 
 
+int EE_INSPECTION_TOOL::ShowBusSyntaxHelp( const TOOL_EVENT& aEvent )
+{
+    if( m_busSyntaxHelp )
+    {
+        m_busSyntaxHelp->Raise();
+        m_busSyntaxHelp->Show( true );
+        return 0;
+    }
+
+    m_busSyntaxHelp = SCH_TEXT::ShowSyntaxHelp( m_frame );
+    return 0;
+}
+
+
 int EE_INSPECTION_TOOL::DiffSymbol( const TOOL_EVENT& aEvent )
 {
     SCH_EDIT_FRAME* schEditorFrame = dynamic_cast<SCH_EDIT_FRAME*>( m_frame );
@@ -277,18 +359,28 @@ int EE_INSPECTION_TOOL::DiffSymbol( const TOOL_EVENT& aEvent )
         return 0;
     }
 
+    DiffSymbol( static_cast<SCH_SYMBOL*>( selection.Front() ) );
+    return 0;
+}
+
+
+void EE_INSPECTION_TOOL::DiffSymbol( SCH_SYMBOL* symbol )
+{
+    SCH_EDIT_FRAME* schEditorFrame = dynamic_cast<SCH_EDIT_FRAME*>( m_frame );
+
+    wxCHECK( schEditorFrame, /* void */ );
+
     DIALOG_BOOK_REPORTER* dialog = schEditorFrame->GetSymbolDiffDialog();
 
-    wxCHECK( dialog, 0 );
+    wxCHECK( dialog, /* void */ );
 
     dialog->DeleteAllPages();
 
-    SCH_SYMBOL* symbol = (SCH_SYMBOL*) selection.Front();
-    wxString    symbolDesc = wxString::Format( _( "Symbol %s" ),
-                                               symbol->GetField( REFERENCE_FIELD )->GetText() );
-    LIB_ID      libId = symbol->GetLibId();
-    wxString    libName = libId.GetLibNickname();
-    wxString    symbolName = libId.GetLibItemName();
+    wxString symbolDesc = wxString::Format( _( "Symbol %s" ),
+                                            symbol->GetField( REFERENCE_FIELD )->GetText() );
+    LIB_ID   libId = symbol->GetLibId();
+    wxString libName = libId.GetLibNickname();
+    wxString symbolName = libId.GetLibItemName();
 
     WX_HTML_REPORT_BOX* r = dialog->AddHTMLPage( _( "Summary" ) );
 
@@ -336,20 +428,20 @@ int EE_INSPECTION_TOOL::DiffSymbol( const TOOL_EVENT& aEvent )
         }
         else
         {
-            std::vector<LIB_FIELD> fields;
+            std::vector<SCH_FIELD> fields;
 
             for( SCH_FIELD& field : symbol->GetFields() )
             {
-                fields.emplace_back( LIB_FIELD( flattenedLibSymbol.get(), field.GetId(),
+                fields.emplace_back( SCH_FIELD( flattenedLibSymbol.get(), field.GetId(),
                                                 field.GetName( false ) ) );
                 fields.back().CopyText( field );
                 fields.back().SetAttributes( field );
-                fields.back().Offset( -symbol->GetPosition() );
+                fields.back().Move( -symbol->GetPosition() );
             }
 
             flattenedSchSymbol->SetFields( fields );
 
-            if( flattenedSchSymbol->Compare( *flattenedLibSymbol, LIB_ITEM::COMPARE_FLAGS::ERC,
+            if( flattenedSchSymbol->Compare( *flattenedLibSymbol, SCH_ITEM::COMPARE_FLAGS::ERC,
                                              r ) == 0 )
             {
                 r->Report( _( "No relevant differences detected." ) );
@@ -367,7 +459,6 @@ int EE_INSPECTION_TOOL::DiffSymbol( const TOOL_EVENT& aEvent )
 
     dialog->Raise();
     dialog->Show( true );
-    return 0;
 }
 
 
@@ -411,6 +502,7 @@ int EE_INSPECTION_TOOL::RunSimulation( const TOOL_EVENT& aEvent )
 int EE_INSPECTION_TOOL::ShowDatasheet( const TOOL_EVENT& aEvent )
 {
     wxString datasheet;
+    EMBEDDED_FILES* files = nullptr;
 
     if( m_frame->IsType( FRAME_SCH_SYMBOL_EDITOR ) )
     {
@@ -420,6 +512,7 @@ int EE_INSPECTION_TOOL::ShowDatasheet( const TOOL_EVENT& aEvent )
             return 0;
 
         datasheet = symbol->GetDatasheetField().GetText();
+        files = symbol;
     }
     else if( m_frame->IsType( FRAME_SCH_VIEWER ) )
     {
@@ -429,6 +522,7 @@ int EE_INSPECTION_TOOL::ShowDatasheet( const TOOL_EVENT& aEvent )
             return 0;
 
         datasheet = entry->GetDatasheetField().GetText();
+        files = entry;
     }
     else if( m_frame->IsType( FRAME_SCH ) )
     {
@@ -438,10 +532,12 @@ int EE_INSPECTION_TOOL::ShowDatasheet( const TOOL_EVENT& aEvent )
             return 0;
 
         SCH_SYMBOL* symbol = (SCH_SYMBOL*) selection.Front();
+        SCH_FIELD*  field = symbol->GetField( DATASHEET_FIELD );
 
         // Use GetShownText() to resolve any text variables, but don't allow adding extra text
         // (ie: the field name)
-        datasheet = symbol->GetField( DATASHEET_FIELD )->GetShownText( false );
+        datasheet = field->GetShownText( &symbol->Schematic()->CurrentSheet(), false );
+        files = symbol->Schematic();
     }
 
     if( datasheet.IsEmpty() || datasheet == wxS( "~" ) )
@@ -451,7 +547,7 @@ int EE_INSPECTION_TOOL::ShowDatasheet( const TOOL_EVENT& aEvent )
     else
     {
         GetAssociatedDocument( m_frame, datasheet, &m_frame->Prj(),
-                               PROJECT_SCH::SchSearchS( &m_frame->Prj() ) );
+                               PROJECT_SCH::SchSearchS( &m_frame->Prj() ), files );
     }
 
     return 0;
@@ -471,9 +567,12 @@ int EE_INSPECTION_TOOL::UpdateMessagePanel( const TOOL_EVENT& aEvent )
     {
         if( selection.GetSize() == 1 )
         {
-            EDA_ITEM* item = (EDA_ITEM*) selection.Front();
-
+            EDA_ITEM*                   item = (EDA_ITEM*) selection.Front();
             std::vector<MSG_PANEL_ITEM> msgItems;
+
+            if( std::optional<wxString> uuid = GetMsgPanelDisplayUuid( item->m_Uuid ) )
+                msgItems.emplace_back( _( "UUID" ), *uuid );
+
             item->GetMsgPanelInfo( m_frame, msgItems );
             m_frame->SetMsgPanel( msgItems );
         }
@@ -506,8 +605,9 @@ void EE_INSPECTION_TOOL::setTransitions()
     Go( &EE_INSPECTION_TOOL::CheckSymbol,         EE_ACTIONS::checkSymbol.MakeEvent() );
     Go( &EE_INSPECTION_TOOL::DiffSymbol,          EE_ACTIONS::diffSymbol.MakeEvent() );
     Go( &EE_INSPECTION_TOOL::RunSimulation,       EE_ACTIONS::showSimulator.MakeEvent() );
+    Go( &EE_INSPECTION_TOOL::ShowBusSyntaxHelp,   EE_ACTIONS::showBusSyntaxHelp.MakeEvent() );
 
-    Go( &EE_INSPECTION_TOOL::ShowDatasheet,       EE_ACTIONS::showDatasheet.MakeEvent() );
+    Go( &EE_INSPECTION_TOOL::ShowDatasheet,       ACTIONS::showDatasheet.MakeEvent() );
 
     // Note 1: tUpdateMessagePanel is called by CrossProbe. So uncomment this line if
     // call to CrossProbe is modifiied

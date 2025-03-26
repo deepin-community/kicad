@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -127,4 +127,35 @@ wxDataViewItem WX_DATAVIEWCTRL::GetNextSibling( wxDataViewItem const& aItem )
     }
 
     return invalid;
+}
+
+
+void recursiveDescent( WX_DATAVIEWCTRL* aCtrl, wxDataViewItem aItem, bool aExpand )
+{
+    wxDataViewItemArray children;
+
+    aCtrl->GetModel()->GetChildren( aItem, children );
+
+    for( size_t i = 0; i < children.size(); ++i )
+        recursiveDescent( aCtrl, children[i], aExpand );
+
+    if( aItem )
+    {
+        if( aExpand )
+            aCtrl->Expand( aItem );
+        else
+            aCtrl->Collapse( aItem );
+    }
+}
+
+
+void WX_DATAVIEWCTRL::ExpandAll()
+{
+    recursiveDescent( this, wxDataViewItem(), true );
+}
+
+
+void WX_DATAVIEWCTRL::CollapseAll()
+{
+    recursiveDescent( this, wxDataViewItem(), false );
 }

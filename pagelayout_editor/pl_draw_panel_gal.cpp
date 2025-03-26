@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2018-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -47,16 +47,17 @@ PL_DRAW_PANEL_GAL::PL_DRAW_PANEL_GAL( wxWindow* aParentWindow, wxWindowID aWindo
                                       KIGFX::GAL_DISPLAY_OPTIONS& aOptions, GAL_TYPE aGalType ) :
         EDA_DRAW_PANEL_GAL( aParentWindow, aWindowId, aPosition, aSize, aOptions, aGalType )
 {
-    m_view = new KIGFX::VIEW( true );
+    m_view = new KIGFX::VIEW();
     m_view->SetGAL( m_gal );
 
     GetGAL()->SetWorldUnitLength( 1.0/drawSheetIUScale.IU_PER_MM /* 10 nm */ / 25.4 /* 1 inch in mm */ );
 
     m_painter = std::make_unique<KIGFX::DS_PAINTER>( m_gal );
 
-    SETTINGS_MANAGER&   settingsManager = Pgm().GetSettingsManager();
-    PL_EDITOR_SETTINGS* cfg = settingsManager.GetAppSettings<PL_EDITOR_SETTINGS>();
-    m_painter->GetSettings()->LoadColors( settingsManager.GetColorSettings( cfg->m_ColorTheme ) );
+    SETTINGS_MANAGER&   mgr = Pgm().GetSettingsManager();
+    PL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<PL_EDITOR_SETTINGS>( "pl_editor" );
+
+    m_painter->GetSettings()->LoadColors( mgr.GetColorSettings( cfg->m_ColorTheme ) );
 
     m_view->SetPainter( m_painter.get() );
     // This fixes the zoom in and zoom out limits

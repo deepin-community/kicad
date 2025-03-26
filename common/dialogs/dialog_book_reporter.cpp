@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,7 +23,8 @@
 
 #include <dialogs/dialog_book_reporter.h>
 #include <widgets/wx_html_report_box.h>
-#include <wx/wxhtml.h>
+#include <wx/event.h>
+#include <kiway_player.h>
 
 
 wxDEFINE_EVENT( EDA_EVT_CLOSE_DIALOG_BOOK_REPORTER, wxCommandEvent );

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -43,7 +43,7 @@ enum class PushResult
 class GIT_PUSH_HANDLER : public KIGIT_COMMON, public GIT_PROGRESS
 {
 public:
-    GIT_PUSH_HANDLER( git_repository* aRepo );
+    GIT_PUSH_HANDLER( KIGIT_COMMON* aRepo );
     ~GIT_PUSH_HANDLER();
 
     PushResult PerformPush();

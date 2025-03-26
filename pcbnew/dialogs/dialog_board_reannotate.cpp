@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Brian Piccioni brian@documenteddesigns.com
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Brian Piccioni <brian@documenteddesigns.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -23,18 +23,20 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "dialog_board_reannotate.h"
+
 #include <algorithm>
 #include <base_units.h>
 #include <bitmaps.h>
 #include <board_commit.h>
 #include <confirm.h>
 #include <ctype.h>
-#include <dialog_board_reannotate.h>
 #include <gal/graphics_abstraction_layer.h>
 #include <string_utils.h>  // StrNumCmp
 #include <kiface_base.h>
 #include <pcbnew_settings.h>
 #include <refdes_utils.h>
+#include <richio.h>
 #include <tool/grid_menu.h>
 #include <widgets/wx_html_report_panel.h>
 #include <wx/valtext.h>
@@ -325,7 +327,7 @@ void DIALOG_BOARD_REANNOTATE::OnApplyClick( wxCommandEvent& event )
 void DIALOG_BOARD_REANNOTATE::MakeSampleText( wxString& aMessage )
 {
     aMessage.Printf( _( "\n%s footprints will be reannotated." ),
-                     _( AnnotateString[m_annotationScope] ) );
+                     wxGetTranslation( AnnotateString[m_annotationScope] ) );
 
     if( !m_ExcludeList->GetValue().empty() )
     {
@@ -639,7 +641,7 @@ bool DIALOG_BOARD_REANNOTATE::ReannotateBoard()
         m_frame->GetCanvas()->GetView()->Update( footprint ); // Touch the footprint
     }
 
-    commit.Push( wxT( "Geographic reannotation" ) );
+    commit.Push( _( "Annotation" ) );
     return true;
 }
 
@@ -683,10 +685,10 @@ bool DIALOG_BOARD_REANNOTATE::BuildFootprintList( std::vector<REFDES_INFO>& aBad
         }
         else
             exclude += thischar;
-
-        if( !exclude.empty() )
-            m_excludeArray.push_back( exclude );
     }
+
+    if( !exclude.empty() )      // last item to exclude
+        m_excludeArray.push_back( exclude );
 
     REFDES_INFO fpData;
     bool       useModuleLocation = m_locationChoice->GetSelection() == 0;

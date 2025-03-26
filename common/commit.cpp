@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright 2016-2017 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
@@ -59,6 +59,7 @@ COMMIT& COMMIT::Stage( EDA_ITEM* aItem, CHANGE_TYPE aChangeType, BASE_SCREEN* aS
         return *this;
 
     case CHT_REMOVE:
+        wxASSERT( m_deletedItems.find( aItem ) == m_deletedItems.end() );
         m_deletedItems.insert( aItem );
         makeEntry( aItem, CHT_REMOVE | flag, nullptr, aScreen );
         return *this;
@@ -134,7 +135,8 @@ int COMMIT::GetStatus( EDA_ITEM* aItem, BASE_SCREEN *aScreen )
 }
 
 
-COMMIT& COMMIT::createModified( EDA_ITEM* aItem, EDA_ITEM* aCopy, int aExtraFlags, BASE_SCREEN* aScreen )
+COMMIT& COMMIT::createModified( EDA_ITEM* aItem, EDA_ITEM* aCopy, int aExtraFlags,
+                                BASE_SCREEN* aScreen )
 {
     EDA_ITEM* parent = parentObject( aItem );
 
@@ -162,8 +164,8 @@ void COMMIT::makeEntry( EDA_ITEM* aItem, CHANGE_TYPE aType, EDA_ITEM* aCopy, BAS
     ent.m_copy = aCopy;
     ent.m_screen = aScreen;
 
-    // N.B. Do not throw an assertion for multiple changed items.  An item can be changed multiple times
-    // in a single commit such as when importing graphics and grouping them.
+    // N.B. Do not throw an assertion for multiple changed items.  An item can be changed
+    // multiple times in a single commit such as when importing graphics and grouping them.
 
     m_changedItems.insert( aItem );
     m_changes.push_back( ent );

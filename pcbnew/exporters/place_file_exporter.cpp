@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2015-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -216,7 +216,8 @@ std::string PLACE_FILE_EXPORTER::GenPositionData()
     else
     {
         // Write file header
-        snprintf( line, sizeof(line), "### Footprint positions - created on %s ###\n", TO_UTF8( GetISO8601CurrentDateTime() ) );
+        snprintf( line, sizeof(line), "### Footprint positions - created on %s ###\n",
+                  TO_UTF8( GetISO8601CurrentDateTime() ) );
 
         buffer += line;
 
@@ -298,27 +299,31 @@ std::string PLACE_FILE_EXPORTER::GenReportData()
 
     // Generate header file comments.)
     char line[1024];
-    snprintf( line, sizeof(line), "## Footprint report - date %s\n", TO_UTF8( GetISO8601CurrentDateTime() ) );
+    snprintf( line, sizeof(line), "## Footprint report - date %s\n",
+              TO_UTF8( GetISO8601CurrentDateTime() ) );
     buffer += line;
 
     wxString Title = GetBuildVersion();
-    snprintf( line, sizeof(line), "## Created by KiCad version %s\n", TO_UTF8( Title ) );
+    snprintf( line, sizeof(line), "## Created by KiCad version %s\n",
+              TO_UTF8( Title ) );
     buffer += line;
 
     buffer += unit_text;
 
     buffer += "\n$BeginDESCRIPTION\n";
 
-    BOX2I bbbox = m_board->ComputeBoundingBox();
+    BOX2I bbbox = m_board->ComputeBoundingBox( false );
 
     buffer += "\n$BOARD\n";
 
     snprintf( line, sizeof(line), "upper_left_corner %9.6f %9.6f\n",
-              bbbox.GetX() * conv_unit, bbbox.GetY() * conv_unit );
+              bbbox.GetX() * conv_unit,
+              bbbox.GetY() * conv_unit );
     buffer += line;
 
     snprintf( line, sizeof(line), "lower_right_corner %9.6f %9.6f\n",
-              bbbox.GetRight()  * conv_unit, bbbox.GetBottom() * conv_unit );
+              bbbox.GetRight()  * conv_unit,
+              bbbox.GetBottom() * conv_unit );
     buffer += line;
 
     buffer += "$EndBOARD\n\n";
@@ -400,9 +405,10 @@ std::string PLACE_FILE_EXPORTER::GenReportData()
             if( pad->GetLayerSet()[F_Cu] )
                 layer |= 2;
 
+            // TODO(JE) padstacks
             static const char* layer_name[4] = { "nocopper", "back", "front", "both" };
             snprintf( line, sizeof(line), "Shape %s Layer %s\n",
-                      TO_UTF8( pad->ShowPadShape() ),
+                      TO_UTF8( pad->ShowPadShape( PADSTACK::ALL_LAYERS ) ),
                       layer_name[layer] );
             buffer += line;
 
@@ -411,8 +417,8 @@ std::string PLACE_FILE_EXPORTER::GenReportData()
             snprintf( line, sizeof(line), "position %9.6f %9.6f  size %9.6f %9.6f  orientation %.2f\n",
                       padPos.x * conv_unit,
                       padPos.y * conv_unit,
-                      pad->GetSize().x * conv_unit,
-                      pad->GetSize().y * conv_unit,
+                      pad->GetSize( PADSTACK::ALL_LAYERS ).x * conv_unit,
+                      pad->GetSize( PADSTACK::ALL_LAYERS ).y * conv_unit,
                       ( pad->GetOrientation() - footprint->GetOrientation() ).AsDegrees() );
             buffer += line;
 
@@ -420,8 +426,8 @@ std::string PLACE_FILE_EXPORTER::GenReportData()
             buffer += line;
 
             snprintf( line, sizeof(line), "shape_offset %9.6f %9.6f\n",
-                      pad->GetOffset().x * conv_unit,
-                      pad->GetOffset().y * conv_unit );
+                      pad->GetOffset( PADSTACK::ALL_LAYERS ).x * conv_unit,
+                      pad->GetOffset( PADSTACK::ALL_LAYERS ).y * conv_unit );
             buffer += line;
 
             buffer += "$EndPAD\n";
@@ -435,4 +441,17 @@ std::string PLACE_FILE_EXPORTER::GenReportData()
     buffer += "$EndDESCRIPTION\n";
 
     return buffer;
+}
+
+
+wxString PLACE_FILE_EXPORTER::DecorateFilename( const wxString& aBaseName, bool aFront, bool aBack )
+{
+    if( aFront && aBack )
+        return aBaseName + wxT( "-" ) + wxT( "all" );
+    else if( aFront )
+        return aBaseName + wxT( "-" ) + GetFrontSideName();
+    else if( aBack )
+        return aBaseName + wxT( "-" ) + GetBackSideName();
+    else
+        return aBaseName;
 }

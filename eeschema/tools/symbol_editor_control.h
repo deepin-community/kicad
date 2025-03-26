@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,14 +41,13 @@ public:
         EE_TOOL_BASE<SCH_BASE_FRAME>( "eeschema.SymbolLibraryControl" )
     { }
 
-    virtual ~SYMBOL_EDITOR_CONTROL() { }
-
     /// @copydoc TOOL_INTERACTIVE::Init()
     bool Init() override;
 
     int AddLibrary( const TOOL_EVENT& aEvent );
     int AddSymbol( const TOOL_EVENT& aEvent );
     int EditSymbol( const TOOL_EVENT& aEvent );
+    int EditLibrarySymbol( const TOOL_EVENT& aEvent );
 
     int Save( const TOOL_EVENT& aEvt );
     int Revert( const TOOL_EVENT& aEvent );
@@ -56,7 +55,8 @@ public:
     int CutCopyDelete( const TOOL_EVENT& aEvent );
     int DuplicateSymbol( const TOOL_EVENT& aEvent );
     int RenameSymbol( const TOOL_EVENT& newName );
-    int ExportSymbol( const TOOL_EVENT& aEvent );
+    int OpenDirectory( const TOOL_EVENT& aEvent );
+    int OpenWithTextEditor( const TOOL_EVENT& aEvent );
     int ExportView( const TOOL_EVENT& aEvent );
     int ExportSymbolAsSVG( const TOOL_EVENT& aEvent );
     int AddSymbolToSchematic( const TOOL_EVENT& aEvent );
@@ -65,14 +65,14 @@ public:
 
     int ShowElectricalTypes( const TOOL_EVENT& aEvent );
     int ShowPinNumbers( const TOOL_EVENT& aEvent );
-    int PinLibrary( const TOOL_EVENT& aEvent );
-    int UnpinLibrary( const TOOL_EVENT& aEvent );
-    int ToggleSymbolTree( const TOOL_EVENT& aEvent );
     int ToggleProperties( const TOOL_EVENT& aEvent );
     int ToggleSyncedPinsMode( const TOOL_EVENT& aEvent );
 
-    int ToggleHiddenLibPins( const TOOL_EVENT& aEvent );
-    int ToggleHiddenLibFields( const TOOL_EVENT& aEvent );
+    int ToggleHiddenPins( const TOOL_EVENT& aEvent );
+    int ToggleHiddenFields( const TOOL_EVENT& aEvent );
+    int TogglePinAltIcons( const TOOL_EVENT& aEvent );
+
+    int ChangeUnit( const TOOL_EVENT& aEvent );
 
     int DdAddLibrary( const TOOL_EVENT& aEvent );
 

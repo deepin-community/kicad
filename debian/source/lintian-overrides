@@ -2,3 +2,6 @@
 source: source-is-missing [doxygen/doxygen-awesome-css/doxygen-awesome-darkmode-toggle.js]
 # Ignore this, there will be no signature ever.
 source: debian-watch-does-not-check-openpgp-signature [debian/watch]
+# Irrelevant for us.
+source: uses-deprecated-python-stdlib distutils (deprecated in Python 3.10, removed in Python 3.12) [thirdparty/pybind11/pybind11/setup_helpers.py:60]
+source: uses-deprecated-python-stdlib distutils (deprecated in Python 3.10, removed in Python 3.12) [thirdparty/pybind11/pybind11/setup_helpers.py:61]

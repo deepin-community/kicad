@@ -2,6 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 CERN
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -300,6 +301,7 @@ void PROPERTY_MANAGER::CLASS_DESC::rebuild()
     PROPERTY_SET masked;
     m_allProperties.clear();
     collectPropsRecur( m_allProperties, replaced, m_displayOrder, masked );
+
     // We need to keep properties sorted to be able to use std::set_* functions
     sort( m_allProperties.begin(), m_allProperties.end() );
 

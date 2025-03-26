@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Ian McInerney <Ian.S.McInerney at ieee.org>
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -120,6 +120,11 @@ namespace KIPLATFORM
         double GetContentScaleFactor( const wxWindow* aWindow );
 
         /**
+         * Return the background and foreground colors for info bars in the current scheme
+         */
+        void GetInfoBarColours( wxColour& aFGColour, wxColour& aBGColour );
+
+        /**
          * Tries to determine the size of the viewport of a scrollable widget (wxDataViewCtrl, wxGrid)
          * that won't be obscured by scrollbars.
          * @param aWindow pointer to the scrollable widget to check
@@ -157,6 +162,11 @@ namespace KIPLATFORM
          * Configures the IME mode of a given control handle
          */
         void ImmControl( wxWindow* aWindow, bool aEnable );
+
+        /**
+         * Asks the IME to cancel
+         */
+        void ImeNotifyCancelComposition( wxWindow* aWindow );
 
         /**
          * On Wayland, restricts the pointer movement to a rectangle slightly bigger than the given `wxWindow`.

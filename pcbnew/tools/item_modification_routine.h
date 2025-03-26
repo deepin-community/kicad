@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,7 +32,7 @@
 #include <board_item.h>
 #include <pcb_shape.h>
 
-#include <geometry/chamfer.h>
+#include <geometry/corner_operations.h>
 
 /**
  * @brief An object that has the ability to modify items on a board
@@ -69,21 +69,21 @@ public:
          *
          * @param aItem the new item
          */
-        virtual void AddNewItem( std::unique_ptr<PCB_SHAPE> aItem ) = 0;
+        virtual void AddNewItem( std::unique_ptr<BOARD_ITEM> aItem ) = 0;
 
         /**
          * @brief Report that the tool has modified an item on the board
          *
          * @param aItem the modified item
          */
-        virtual void MarkItemModified( PCB_SHAPE& aItem ) = 0;
+        virtual void MarkItemModified( BOARD_ITEM& aItem ) = 0;
 
         /**
          * @brief Report that the tool has deleted an item on the board
          *
          * @param aItem the deleted item
          */
-        virtual void DeleteItem( PCB_SHAPE& aItem ) = 0;
+        virtual void DeleteItem( BOARD_ITEM& aItem ) = 0;
     };
 
     /**
@@ -96,23 +96,23 @@ public:
         /**
          * Handler for creating a new item on the board
          *
-         * @param PCB_SHAPE& the shape to add
+         * @param BOARD_ITEM& the item to add
          */
-        using CREATION_HANDLER = std::function<void( std::unique_ptr<PCB_SHAPE> )>;
+        using CREATION_HANDLER = std::function<void( std::unique_ptr<BOARD_ITEM> )>;
 
         /**
          * Handler for modifying or deleting an existing item on the board
          *
-         * @param PCB_SHAPE& the shape to modify
+         * @param BOARD_ITEM& the item to modify
          */
-        using MODIFICATION_HANDLER = std::function<void( PCB_SHAPE& )>;
+        using MODIFICATION_HANDLER = std::function<void( BOARD_ITEM& )>;
 
         /**
          * Handler for modifying or deleting an existing item on the board
          *
-         * @param PCB_SHAPE& the shape to delete
+         * @param BOARD_ITEM& the item to delete
          */
-        using DELETION_HANDLER = std::function<void( PCB_SHAPE& )>;
+        using DELETION_HANDLER = std::function<void( BOARD_ITEM& )>;
 
         CALLABLE_BASED_HANDLER( CREATION_HANDLER     aCreationHandler,
                                 MODIFICATION_HANDLER aModificationHandler,
@@ -128,7 +128,7 @@ public:
          *
          * @param aItem the new item
          */
-        void AddNewItem( std::unique_ptr<PCB_SHAPE> aItem ) override
+        void AddNewItem( std::unique_ptr<BOARD_ITEM> aItem ) override
         {
             m_creationHandler( std::move( aItem ) );
         }
@@ -138,14 +138,14 @@ public:
          *
          * @param aItem the modified item
          */
-        void MarkItemModified( PCB_SHAPE& aItem ) override { m_modificationHandler( aItem ); }
+        void MarkItemModified( BOARD_ITEM& aItem ) override { m_modificationHandler( aItem ); }
 
         /**
          * @brief Report that the tool has deleted an item on the board
          *
          * @param aItem the deleted item
          */
-        void DeleteItem( PCB_SHAPE& aItem ) override { m_deletionHandler( aItem ); }
+        void DeleteItem( BOARD_ITEM& aItem ) override { m_deletionHandler( aItem ); }
 
         CREATION_HANDLER     m_creationHandler;
         MODIFICATION_HANDLER m_modificationHandler;
@@ -198,7 +198,7 @@ protected:
      * @param aItem the line to modify
      * @param aSeg the new line geometry
      */
-    bool ModifyLineOrDeleteIfZeroLength( PCB_SHAPE& aItem, const SEG& aSeg );
+    bool ModifyLineOrDeleteIfZeroLength( PCB_SHAPE& aItem, const std::optional<SEG>& aSeg );
 
     /**
      * @brief Access the handler for making changes to the board
@@ -301,6 +301,34 @@ public:
     void ProcessLinePair( PCB_SHAPE& aLineA, PCB_SHAPE& aLineB ) override;
 };
 
+/**
+ * Pairwise add dogbone corners to an internal corner.
+ */
+class DOGBONE_CORNER_ROUTINE : public PAIRWISE_LINE_ROUTINE
+{
+public:
+    struct PARAMETERS
+    {
+        int  DogboneRadiusIU;
+        bool AddSlots;
+    };
+
+    DOGBONE_CORNER_ROUTINE( BOARD_ITEM* aBoard, CHANGE_HANDLER& aHandler, PARAMETERS aParams ) :
+            PAIRWISE_LINE_ROUTINE( aBoard, aHandler ), m_params( std::move( aParams ) ),
+            m_haveNarrowMouths( false )
+    {
+    }
+
+    wxString                GetCommitDescription() const override;
+    std::optional<wxString> GetStatusMessage() const override;
+
+    void ProcessLinePair( PCB_SHAPE& aLineA, PCB_SHAPE& aLineB ) override;
+
+private:
+    PARAMETERS m_params;
+    bool m_haveNarrowMouths;
+};
+
 
 /**
  * A routine that modifies polygons using boolean operations
@@ -309,19 +337,30 @@ class POLYGON_BOOLEAN_ROUTINE : public ITEM_MODIFICATION_ROUTINE
 {
 public:
     POLYGON_BOOLEAN_ROUTINE( BOARD_ITEM* aBoard, CHANGE_HANDLER& aHandler ) :
-            ITEM_MODIFICATION_ROUTINE( aBoard, aHandler ), m_workingPolygon( nullptr )
+            ITEM_MODIFICATION_ROUTINE( aBoard, aHandler )
     {
     }
 
     void ProcessShape( PCB_SHAPE& aPcbShape );
 
+    /**
+     * Clear up any outstanding work
+     */
+    void Finalize();
+
 protected:
-    PCB_SHAPE* GetWorkingPolygon() const { return m_workingPolygon; }
+    SHAPE_POLY_SET& GetWorkingPolygons() { return m_workingPolygons; }
 
     virtual bool ProcessSubsequentPolygon( const SHAPE_POLY_SET& aPolygon ) = 0;
 
 private:
-    PCB_SHAPE* m_workingPolygon;
+    /// This can be disjoint, which will be fixed at the end
+    SHAPE_POLY_SET m_workingPolygons;
+
+    bool         m_firstPolygon = true;
+    int          m_width = 0;
+    PCB_LAYER_ID m_layer = PCB_LAYER_ID::UNDEFINED_LAYER;
+    bool         m_filled = false;
 };
 
 class POLYGON_MERGE_ROUTINE : public POLYGON_BOOLEAN_ROUTINE
@@ -369,6 +408,37 @@ public:
 
 private:
     bool ProcessSubsequentPolygon( const SHAPE_POLY_SET& aPolygon ) override;
+};
+
+
+class OUTSET_ROUTINE : public ITEM_MODIFICATION_ROUTINE
+{
+public:
+    struct PARAMETERS
+    {
+        int                outsetDistance;
+        bool               roundCorners;
+        bool               useSourceLayers;
+        bool               useSourceWidths;
+        PCB_LAYER_ID       layer;
+        int                lineWidth;
+        std::optional<int> gridRounding;
+        bool               deleteSourceItems;
+    };
+
+    OUTSET_ROUTINE( BOARD_ITEM* aBoard, CHANGE_HANDLER& aHandler, const PARAMETERS& aParams ) :
+            ITEM_MODIFICATION_ROUTINE( aBoard, aHandler ), m_params( aParams )
+    {
+    }
+
+    wxString GetCommitDescription() const override;
+
+    std::optional<wxString> GetStatusMessage() const override;
+
+    void ProcessItem( BOARD_ITEM& aItem );
+
+private:
+    const PARAMETERS m_params;
 };
 
 #endif /* ITEM_MODIFICATION_ROUTINE_H_ */

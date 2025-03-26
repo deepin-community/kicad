@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2004-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2019 CERN
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -42,7 +42,8 @@ void SYMBOL_VIEWER_FRAME::ReCreateHToolbar()
     else
     {
         m_mainToolBar = new ACTION_TOOLBAR( this, ID_H_TOOLBAR, wxDefaultPosition, wxDefaultSize,
-                                            KICAD_AUI_TB_STYLE | wxAUI_TB_HORZ_LAYOUT | wxAUI_TB_HORIZONTAL );
+                                            KICAD_AUI_TB_STYLE | wxAUI_TB_HORZ_LAYOUT |
+                                            wxAUI_TB_HORIZONTAL );
         m_mainToolBar->SetAuiManager( &m_auimgr );
     }
 
@@ -76,7 +77,7 @@ void SYMBOL_VIEWER_FRAME::ReCreateHToolbar()
     m_mainToolBar->AddControl( m_unitChoice );
 
     m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( EE_ACTIONS::showDatasheet );
+    m_mainToolBar->Add( ACTIONS::showDatasheet );
 
     m_mainToolBar->AddScaledSeparator( this );
     m_mainToolBar->Add( EE_ACTIONS::addSymbolToSchematic );

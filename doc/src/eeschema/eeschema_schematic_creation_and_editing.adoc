@@ -43,29 +43,29 @@ other tool is canceled.
 [width="100%",cols="10%,90%",]
 |=======================================================================
 |image:images/icons/cursor_24.png[Selection tool icon]
-|Selection tool (the default tool)
+|<<selection,Selection tool>> (the default tool)
 
 |image:images/icons/net_highlight_schematic_24.png[Highlight net icon]
-|Highlight a net by marking its wires and net labels with a different color.
+|<<net-highlighting,Highlight a net>> by marking its wires and net labels with a different color.
 If the PCB Editor is also open then copper corresponding to the selected net
 will be highlighted as well. Net highlighting can be cleared by clicking with
 the highlight tool in an empty space, or by using the Clear Net Highlighting
 hotkey (kbd:[~]).
 
 |image:images/icons/add_component_24.png[New Symbol icon]
-|Display the symbol selector dialog to place a new symbol.
+|<<placing-symbols,Display the symbol selector dialog>> to place a new symbol.
 
 |image:images/icons/add_power_24.png[Add Power icon]
-|Display the power symbol selector dialog to place a new power symbol.
+|<<placing-power-symbols,Display the power symbol selector dialog>> to place a new power symbol.
 
 |image:images/icons/add_line_24.png[Draw Wire icon]
-|Draw a wire.
+|<<wires,Draw a wire>>.
 
 |image:images/icons/add_bus_24.png[Draw Bus icon]
-|Draw a bus.
+|<<buses,Draw a bus>>.
 
 |image:images/icons/add_line2bus_24.png[Draw wire to bus icon]
-|Draw wire-to-bus entry points. These elements are only graphical and do not create
+|Draw <<buses,wire-to-bus entry points>>. These elements are only graphical and do not create
 a connection, thus they should not be used to connect wires together.
 
 |image:images/icons/noconn_24.png[draw no connect flag icon]
@@ -76,59 +76,71 @@ unconnected and not an error. They also affect schematic connectivity for
 stacked symbol pins.
 
 |image:images/icons/add_junction_24.png[place junction icon]
-|Place a junction. This connects two crossing wires or a wire and a pin, which
+|Place a <<wire-junctions,junction>>. This connects two crossing wires or a wire and a pin, which
 can sometimes be ambiguous without a junction (i.e. if a wire end or a pin is
 not directly connected to another wire end).
 
 |image:images/icons/add_label_24.png[Local label icon]
-|Place a local label. Local labels connect items located **in the same sheet**.
+|Place a <<labels,local label>>. Local labels connect items located **in the same sheet**.
 For connections between two different sheets, use global or hierarchical labels.
 
-|image:images/icons/add_class_flag_24.png[Local label icon]
-|Place a net class directive label.
+|image:images/icons/add_class_flag_24.png[Net class directive icon]
+|Place a <<netclass-directive,net class directive label>>.
+
+|image:images/icons/add_keepout_area_24.png[Directive rule area icon]
+|Place a <<netclass-directive,directive rule area>>.
 
 |image:images/icons/add_glabel_24.png[Global label icon]
-|Place a global label. All global labels with the same name are connected, even
+|Place a <<labels,global label>>. All global labels with the same name are connected, even
 when located on different sheets.
 
 |image:images/icons/add_hierarchical_label_24.png[Hierarchical label icon]
-|Place a hierarchical label. Hierarchical labels are used to create a connection
+|Place a <<hierarchical-labels,hierarchical label>>. Hierarchical labels are used to create a connection
 between a subsheet and the sheet's parent sheet. See the
 <<hierarchical-schematics,Hierarchical Schematics>> section for more information
 about hierarchical labels, sheets, and pins.
 
-
 |image:images/icons/add_hierarchical_subsheet_24.png[Hierarchical subsheet icon]
-|Place a hierarchical subsheet. You must specify the file name for this subsheet.
+|Place a <<drawing-hierarchical-sheets,hierarchical subsheet>>. You must specify the file name for this subsheet.
+
+|image:images/icons/add_hierar_pin_24.png[]
+|Place a <<hierarchical-sheet-pins,hierarchical sheet pin>> on a sheet corresponding to a hierarchical label
+that has been added in the target sheet.
 
 |image:images/icons/import_hierarchical_label_24.png[Import hierarchical label icon]
-|Import a hierarchical pin from a subsheet. This command can be executed only on
-hierarchical subsheets. It will create hierarchical pins corresponding to hierarchical
-labels placed in the target subsheet.
+|<<syncing-sheet-pins,Sync hierarchical sheet pins and hierarchical labels>>.
+This displays a list of all the hierarchical labels in each subsheet and lets
+you manage the corresponding hierarchical sheet pins.
 
 |image:images/icons/text_24.png[place text icon]
-|Place a text comment.
+|<<text-comments,Place text>>.
 
 |image:images/icons/add_textbox_24.png[place textbox icon]
-|Place a text box.
+|<<text-comments,Place a text box>>.
+
+|image:images/icons/table_24.png[place table icon]
+|<<tables,Place a table>>.
 
 |image:images/icons/add_rectangle_24.png[draw rectangle icon]
-|Draw a rectangle.
+|<<graphic-lines,Draw a rectangle>>.
 
 |image:images/icons/add_circle_24.png[draw circle icon]
-|Draw a circle.
+|<<graphic-lines,Draw a circle>>.
 
 |image:images/icons/add_arc_24.png[draw arc icon]
-|Draw an arc.
+|<<graphic-lines,Draw an arc>>.
+
+|image:images/icons/add_bezier_24.png[draw bezier curve icon]
+|<<graphic-lines,Draw a bezier curve>>.
 
 |image:images/icons/add_graphical_segments_24.png[draw line icon]
-|Draw a graphic lines.
+|<<graphic-lines,Draw graphic lines>>.
 
 *Note:* Lines are graphical objects and are not the same as wires
 placed with the Wire tool. They do not connect anything.
 
 |image:images/icons/image_24.png[place bitmap icon]
-|Place a bitmap image.
+|<<bitmap-images,Place a bitmap image>>.
 
 |image:images/icons/delete_cursor_24.png[interactive delete tool icon]
 |Delete clicked items.
@@ -185,8 +197,11 @@ select **Edit Grids...**.
 image::images/grid_panel.png[grid settings dialog]
 
 In this dialog you can select an active grid from the list of grids, reorder the
-list of grids, and add or remove grids. Grids defined in this dialog can have
-unequal X and Y spacing as well as an optional name.
+list of grids (image:images/icons/small_up_16.png[] / image:images/icons/small_down_16.png[]),
+and add (image:images/icons/small_plus_16.png[]), remove (image:images/icons/small_trash_16.png[]),
+or edit (image:images/icons/small_edit_16.png[]) grids. Grids defined in this
+dialog can have unequal X and Y spacing as well as an optional name. The grid
+spacing and name are specified when you create or edit a grid.
 
 This dialog also lets you designate two grids from the list as "Fast Grids",
 which can be quickly selected using kbd:[Alt+1] and kbd:[Alt+2].
@@ -213,11 +228,16 @@ toolbar. By default the grid is still active even if it is hidden, but this is
 configurable in the **Display Options** preferences page. There you can set the
 grid to be disabled when it is hidden or even disable the grid entirely.
 
+[[editing-object-properties]]
 === Editing object properties
 
 All objects have properties that are editable in a dialog. Use the hotkey
 kbd:[E] or select **Properties** from the right-click context menu to edit the
-properties of selected item(s).
+properties of selected item(s). You can only open the properties dialog if all
+the items you have selected are of the same type.  For many object types, like
+symbols, you can only edit the properties of a single item at one time. To edit
+the properties of multiple items at once, including items with different types,
+you can use the Properties Manager.
 
 image::images/en/dialog_component_properties.png[alt="Symbol Properties dialog",scaledwidth="70%"]
 
@@ -242,7 +262,7 @@ selected item individually, not to the whole selection as a group. For example,
 when changing the orientation of multiple items, each item is individually
 rotated around its own origin, not the group's origin.
 
-Show the Properties Manager with **View** -> **Show Properties Manager** or the
+Show the Properties Manager with **View** -> **Panels** -> **Properties** or the
 image:images/icons/tools_24.png[Properties Manager icon] button on the left toolbar.
 
 In properties dialogs and many other dialogs, any field that contains a numeric
@@ -354,9 +374,13 @@ Symbols can also be rotated (kbd:[R]) or mirrored in the X (kbd:[X]) or Y
 [[editing-symbol-properties]]
 ==== Editing symbol properties
 
-A symbol's fields can be edited in the symbol's Properties window. Open the
-Symbol Properties window for a symbol with the kbd:[E] hotkey or by
-double-clicking on the symbol.
+Symbols in the schematic can be individually edited, both in terms of their
+properties (fields, attributes, etc.) and in terms of their pins and graphics. Editing a symbol in the schematic only affects that
+particular instance of the symbol; it does not affect any other copies of
+that symbol in the schematic, and it does not affect the library symbol.
+
+To edit the properties of a symbol in the schematic, open its properties dialog
+(kbd:[E]). You can also double-click the symbol.
 
 image::images/en/dialog_component_properties.png[alt="Symbol Properties dialog",scaledwidth="70%"]
 
@@ -364,7 +388,8 @@ The Symbol Properties window displays all the fields of a symbol in a table. New
 fields can be added, and existing fields can be deleted, edited, reordered,
 moved, or resized. Fields can be arbitrarily named, but names beginning with
 `ki_`, e.g. `ki_description`, are reserved by KiCad and should not be used for
-user fields.
+user fields. All symbol fields will be added to the symbol's corresponding
+footprint when the <<schematic-to-pcb,PCB is updated from the schematic>>.
 
 Each field's name and value can be visible or hidden, and there are several
 formatting options: horizontal and vertical alignment, orientation, position,
@@ -377,24 +402,16 @@ NOTE: Formatting options for symbol fields can be shown or hidden by
       right-clicking on the header row of the symbol field table and enabling or
       disabling the desired columns. Not all columns are shown by default.
 
-The **Update Symbol from Library...** button is used to update the schematic's
-copy of the symbol to match the copy in the library. The **Change Symbol...**
-button is used to swap the current symbol to a different
-symbol in the library. These functions are described
-<<updating-and-exchanging-symbols,later>>.
-
-**Edit Symbol...** opens the Symbol Editor to edit the copy of the symbol in
-the schematic. Note that the original symbol in the library will not be
-modified. The **Edit Library Symbol...** button opens the Symbol Editor to
-edit the original symbol in the library. In this case, the symbol in the
-schematic will not be modified until the user clicks the **Update Symbol from
-Library...** button.
-
 Symbols have several attributes that affect how the symbols are treated by other
 parts of KiCad.
 
 **Exclude from simulation** prevents the symbol from being included in SPICE
-simulations.
+simulations. Symbols that are excluded from simulation appear desaturated and
+with a grey "X" over them in the schematic. The color of the "X" is configurable
+by editing the "Excluded-from-simulation Markers" color in the selected
+colorscheme. The visual marker (the "X" and the desaturation) can be disabled
+completely by unchecking **Mark items which are excluded from simulation** in
+the Schematic Editor preferences.
 
 **Exclude from bill of materials** prevents the component from being included in
 <<bom-export,BOM exports>>.
@@ -405,9 +422,37 @@ corresponding footprint will not be added to the PCB.
 **Do not populate** means that the component should not be attached to the PCB,
 although a corresponding footprint should still be added to the board. DNP
 symbols appear desaturated and with a red "X" over them in the schematic, as
-shown below.
+shown below. The color of the "X" is configurable by editing the "DNP Markers"
+color in the selected colorscheme.
 
 image::images/dnp_symbol.png[alt="Symbol with DNP property set",scaledwidth="30%"]
+
+To edit the symbols's form, i.e. its pins and graphics, you need to
+use the <<creating-and-editing-symbols,symbol editor>>. There are two buttons for opening a symbol in the
+editor, depending on whether you want to edit a single copy of a symbol in
+the schematic or a symbol's source copy in the library.
+
+* **Edit Symbol...** will open the specific instance of the symbol in the
+  symbol editor. Editing this symbol will only affect this one instance of
+  the symbol in the schematic. It will not affect other instances of the
+  symbol in the schematic, and it will not affect the library copy of the
+  symbol. You can also open a schematic symbol in the symbol editor by
+  right clicking the symbol in the schematic and selecting
+  **Edit with symbol editor** (kbd:[Ctrl+E]).
+* **Edit Library Symbol...**  will open the library copy of the symbol in
+  the symbol editor. Editing the library copy of the symbol will edit the
+  symbol in the symbol library, but will not immediately affect any
+  instances of that symbol in the schematic. To update symbols in the schematic
+  with changes to the library symbol, use the
+  **Update Symbol from Library...** tool. Editing the library symbol in
+  this way is equivalent to opening the symbol editor, opening the
+  appropriate symbol in its library, and editing it.
+
+The **Update Symbol from Library...** button is used to update the schematic's
+copy of the symbol to match the copy in the library. The **Change Symbol...**
+button is used to swap the current symbol to a different
+symbol in the library. These functions are described
+<<updating-and-exchanging-symbols,later>>.
 
 ===== Editing symbol fields individually
 
@@ -429,6 +474,32 @@ is configurable in the Schematic Editor's Editing Options, including a setting
 to always autoplace fields. You can also disable autoplacement for individual
 fields in the Symbol Properties or Field Properties dialogs.
 
+==== Alternate pin functions
+
+Symbol pins can have alternate pin functions defined for them. Alternate pin
+functions allow you to select a different name, electrical type, and
+graphical style for a pin when a symbol has been placed in the schematic. This
+can be used for pins that have multiple functions, such as microcontroller pins.
+
+Alternate pin functions are selected once a symbol
+has been placed in the schematic. The pin function is selected in the
+**Pin Functions** tab of the Symbol Properties dialog. Alternate definitions are
+selectable in the dropdown in the Alternate Assignment column. You can also
+select an alternate pin by right-clicking the pin and selecting a new function
+from the **Pin Function** menu.
+
+image::images/eeschema_alternate_pin_assignment_selection.png[alt="Selecting an alternate pin definition", scaledwidth="60%"]
+
+Pins that have alternate functions available are displayed with a small
+graphical indicator next to the pin name, as shown in the screenshot below. To
+globally show or hide these indicators, use **View** ->
+**Show Pin Alternate Icons**.
+
+image::images/alternate_pin_function_indicator.png[]
+
+For information on how to add alternate pin functions to symbols, see the <<alternate-pin-definitions,symbol editor documentation>>.
+
+
 [[updating-and-exchanging-symbols]]
 ==== Updating and exchanging symbols
 
@@ -449,23 +520,69 @@ select **Update Symbol...**. You can also access the tool from the
 
 image::images/update_symbol_dialog.png[alt="update symbol from library dialog",scaledwidth="60%"]
 
-The top of the dialog has options to choose which symbols will be updated. You
-can update all symbols in the schematic, update only the selected symbols, or
-update only the symbols that match a specific reference designator, value, or
-library identifier. The reference designator and value fields support wildcards:
-`*` matches any number of any characters, including none, and `?` matches any
-single character.
+The top of the dialog has options to choose which symbols will be updated:
+
+* **Update all symbols in schematic**: all symbols in the schematic will be
+  updated to match the library versions of the symbols.
+* **Update selected symbol(s)**: symbols that are selected in the schematic will
+  be updated.
+* **Update symbols matching reference designator**: symbols matching the
+  specified reference designator will be updated. The reference designator field
+  supports wildcards: `*` matches any number of any characters, including none,
+  and `?` matches any single character.
+* **Update symbols matching value**: symbols with the specified value will be
+  updated. The value field supports wildcards: `*` matches any number of any
+  characters, including none, and `?` matches any single character.
+* **Update symbols matching library identifier**: symbols that match the
+  specified library identifier will be updated. Library identifiers consist of
+  the symbol library name and the symbol name, separated by `:`.
 
 The middle of the dialog has options to control what parts of the symbol will be
-updated. You can select specific fields to update or not update, which
-properties of the fields to update (text, visibility, size and style, and
-position), and how to handle fields that are missing or empty in the library
-symbol. You can also choose whether to update symbol attributes, such as
-**do not populate** and **exclude from simulation** / **bill of materials** /
-**board**.
+updated. On the left, you can select which fields will be modified (updated or
+reset). On the right, you can select how to update those fields:
+
+* **Update symbol shape and pins**: the symbol's shape and pins are always
+  updated to match the library version of the symbol.
+* **Update keywords and footprint filters**: The symbol's keywords and footprint
+  filters are always updated to match the library version of the symbol.
+* **Remove fields if not in library symbol**: if selected, any fields that are
+  in the schematic version of the symbol but not the library version will be
+  deleted.
+* **Reset fields if empty in library symbol**: if selected, any fields that are
+  empty in the library version of the symbol will be set to empty in the
+  schematic version of the symbol.
+* **Update/reset field text**: if selected, field contents in the schematic
+  version of the symbol will be updated to match the fields in the library
+  version of the symbol. Any fields that are empty in the library version of the
+  symbol will not be updated unless **Reset fields if empty in library symbol**
+  is selected.
+* **Update/reset field visibilities**: if selected, fields in the schematic
+  version of the symbol will have their visibility updated to match the library
+  version of the symbol.
+* **Update/reset field text sizes and styles**: if selected, fields in the
+  schematic version of the symbol will have their text sizes and styles updated
+  to match the library version of the symbol.
+* **Update/reset field positions**: if selected, fields in the schematic version
+  of the symbol will be moved to match the locations of the fields in the
+  library version of the symbol.
+* **Update/reset visibility of pin names/numbers**: if selected, the visibility
+  of pin names and numbers in the schematic version of the symbol will be
+  updated to match the visibility of the pin names and numbeers in the library
+  version of the symbol.
+* **Update/reset symbol attributes**: if selected, the schematic symbol
+  attributes (**do not populate**, **exclude from simulation**,
+  **exclude from BOM**, **exclude from board**) will be updated to match the
+  library version of the symbol.
+* **Reset custom power symbols**: if selected, the `Value` field of
+  <<power-symbols,power symbols>> in the schematic will be updated to match the
+  library versions of the symbols. If not selected, the `Value` field of power
+  symbols will not be updated, even if the `Value` field of other non-power
+  symbols would be updated. Note that changing the `Value` field of power
+  symbols will change the global net associated with the power symbol.
 
 The bottom of the dialog displays messages describing the update actions that
-have been performed.
+have been performed, with filters for which types of messages to display
+(errors, warnings, actions, and/or infos).
 
 To change an existing symbol to a different symbol, use **Edit** ->
 **Change Symbols...**, or right click an existing symbol and select
@@ -531,6 +648,9 @@ the library version more transparent). At the far right and left ends of the
 slider, the schematic and library versions of the symbol, respectively, are
 fully hidden. It may be helpful to drag the slider back and forth to see the
 changes more clearly.
+
+You can press the **A/B** button, or use the kbd:[/] hotkey, to quickly toggle
+back and forth between the schematic and library versions.
 
 The screenshot above shows a visual comparison with the schematic version of the
 symbol deemphasized. You can see a partially transparent pin 5 (from the
@@ -772,6 +892,7 @@ that can be added with the "Power symbol" button on the right toolbar:
   not connected to a power output pin (for example, a power net that is supplied
   by an off-board connector).
 
+[[wires]]
 ==== Wires
 
 Wires are used to directly establish electrical connections between two points.
@@ -830,17 +951,18 @@ position. You can also separate a wire segment from the adjacent segments by
 right-clicking the segment and selecting **Break**.
 
 Normally the line style of a wire follows the
-net's <<schematic-setup-netclasses,netclass settings>> (nets are in the
-`Default` netclass if no other netclass is specified). However, the line style
+net's <<schematic-setup-netclasses,net class settings>> (nets are in the
+`Default` net class if no other net class is specified). However, the line style
 for the selected wire segments can be overridden in the wire's properties dialog
 (kbd:[E] when a wire segment is selected). The wire's width, color, and line
 style (solid, dashed, dotted, etc.) can be set. Setting the width to `0`,
 clearing the color, and using the `Default` line style uses the default width,
-color, and style, respectively, from the netclass settings. If a wire junction
+color, and style, respectively, from the net class settings. If a wire junction
 is included in the selection, the junction size can also be edited here.
 
 image::images/wire_properties.png[alt="wire and bus properties dialog",scaledwidth="50%"]
 
+[[wire-junctions]]
 ===== Wire Junctions
 
 Wires that cross are not implicitly connected. It is necessary to
@@ -854,10 +976,10 @@ Junction dots are used in the schematic figure above on the wires connected to
 
 Junction size automatically follows the schematic's **Junction dot size**
 setting in **Schematic Setup** -> **General** -> **Formatting**. Color follows
-the <<schematic-setup-netclasses,netclass setting>>. The automatic
+the <<schematic-setup-netclasses,net class setting>>. The automatic
 size and color can be overridden in each junction dot's properties; a size of
 `0` is equivalent to the schematic default size, and clearing the color uses the
-netclass color.
+net class color.
 
 image::images/junction_properties.png[alt="junction properties dialog",scaledwidth="50%"]
 
@@ -959,16 +1081,24 @@ using the kbd:[E] hotkey, double-clicking on the label, or with
 ===== Assigning net classes with labels
 
 In addition to assigning net names, labels can be used to assign net classes. A
-label field named `Net Class` assigns the specified netclass to the net
+label field named `Net Class` assigns the specified net class to the net
 associated with the label. To make it easier to assign net classes in this way,
 `Net Class` is the default name for new label fields, and `Net Class` fields
-present a dropdown list of all the net classes in the design. Net classes
-must be created in the <<schematic-netclasses,Schematic Setup>> or
-xref:../pcbnew/pcbnew.adoc#board-setup-net-classes[Board Setup]
-windows before they can be assigned with a label field.
+present a dropdown list of all the net classes that have been specified in
+<<schematic-netclasses,Schematic Setup>> or
+xref:../pcbnew/pcbnew.adoc#board-setup-net-classes[Board Setup].
 
-For more information about assigning netclasses, see the
-<<schematic-netclasses,netclass documentation>>.
+You can also type in a net class that isn't explicitly listed in the
+Schematic/Board Setup priority list. Such implicit net classes can't be assigned
+any design settings, like net class color or track width, but they can still be
+used in DRC rule queries.
+
+If multiple `Net Class` fields are added to a label, or multiple
+labels with `Net Class` fields are applied to a net, all of the specified net
+classes are assigned to the net.
+
+For more information about assigning net classes, see the
+<<schematic-netclasses,net class documentation>>.
 
 [[intersheet-references]]
 ===== Inter-sheet references
@@ -1269,55 +1399,76 @@ NOTE: Hidden pins can be shown in the schematic by checking the **Show hidden
       left toolbar.
 
 [[schematic-netclasses]]
-=== Netclasses
+=== Net classes
 
-Netclasses are groups of nets that can be assigned design rules (for the PCB)
-and graphical properties (for the schematic). In KiCad, each net is part of
-exactly one net class. If you do not add a net to a specific class, it will be
-part of the Default class, which always exists.
+Net classes are named groupings of nets that can be assigned design rules (for the PCB)
+and graphical properties (for the schematic). 
+
+More than one net class can be assigned to a net (through a combination of graphical
+assignments and net class patterns). For nets with multiple net classes assigned, an
+effective aggregate net class is formed, taking any net class properties from the
+highest priority net class which has that property set. Net class priority is
+determined by the ordering in the Schematic or Board Setup dialogs. The
+`Default` net class is used as a fallback for any missing properties after all
+explicit net classes have been considered; this means that
+nets may be part of the `Default` net class even if they have other net classes
+explicitly assigned.
 
 Net classes may be created and edited in either the Schematic or Board Setup
-dialogs. Nets can be added to netclasses in either the schematic or board using
+dialogs. Nets can be added to net classes in either the schematic or board using
 pattern-based assignments described below. Nets can also be assigned to
-netclasses in the schematic using graphical assignments with net class
+net classes in the schematic using graphical assignments with net class
 directives or <<label-netclass,net labels>>.
 
-Selecting a wire or label displays the net's netclass in the message panel at
+Selecting a wire or label displays the net's net class in the message panel at
 the bottom of the window.
 
-image::images/resolved_netclass.png[alt="selected wire's netclass displayed in status pane"]
+image::images/resolved_netclass.png[alt="selected wire's net class displayed in status pane"]
 
 [[schematic-setup-netclasses]]
-==== Managing netclasses in Schematic Setup
+==== Managing net classes in Schematic Setup
 
-Netclasses are managed in the **Net Classes** panel of the **Schematic Setup**
+Net classes are managed in the **Net Classes** panel of the **Schematic Setup**
 dialog.
 
-image::images/schematic_setup_netclasses.png[alt="Schematic Setup netclasses panel",scaledwidth=70%]
+image::images/schematic_setup_netclasses.png[alt="Schematic Setup net classes panel",scaledwidth=70%]
 
-The top pane lists the netclasses that exist in the design. The `Default`
-netclass always exists, and you can add additional netclasses with the
-image:images/icons/small_plus_16.png[add netclass icon] button or remove the
-selected netclass with the
-image:images/icons/small_trash_16.png[delete netclass icon] button.
+The top pane lists the net classes that exist in the design. The `Default`
+net class always exists, and you can add additional net classes with the
+image:images/icons/small_plus_16.png[add net class icon] button or remove the
+selected net class with the
+image:images/icons/small_trash_16.png[delete net class icon] button.
 
-Each netclass can have unique graphic properties that determine how wires of
-that netclass are displayed in the schematic. Wire and bus thicknesses, color,
+Net classes can be moved up and down in priority order with the
+image:images/icons/small_up_16.png[move net class up icon] and
+image:images/icons/small_down_16.png[move net class down icon] buttons. Note
+that the `Default` net class will always be the lowest priority net class and
+can therefore not be moved.
+
+Each net class can have unique graphic properties that determine how wires of
+that net class are displayed in the schematic. Wire and bus thicknesses, color,
 and line style (solid, dashed, dotted, etc.) can all be adjusted. Setting the
 color to transparent will use the theme's default wire/bus color for the
-netclass, which is configurable in <<preferences-colors,Preferences>>.
+net class, which is configurable in <<preferences-colors,Preferences>>.
 
-You can also set board design rules for each netclass, although the DRC fields
+You can also set board design rules for each net class, although the DRC fields
 are hidden by default. Right click the header row to show or hide additional
-columns. For more information about setting netclass design rules, see the
+columns. For more information about setting net class design rules, see the
 xref:../pcbnew/pcbnew.adoc#board-setup-net-classes[PCB editor
 documentation].
 
-The bottom pane lists pattern-based netclass assignments. Each row has a net
-name pattern and a netclass; nets with names that match the pattern are assigned
-to the specified netclass. If a net matches multiple patterns, the first match
-is used. Pattern-based netclass assignments are dynamic: when a new net is added
-that matches an existing pattern, it will be assigned to the associated netclass
+All net class parameters for user-defined net classes are optional. However, all
+properties belonging to the `Default` net class must be set. When a net has
+more than one net class assigned, the appropriate value for graphic properties
+or board design rules is taken from the highest priority assigned net class with
+the relevant value set. If only one net class is assigned which contains missing
+properties, any missing values will be taken from the `Default` net class.
+
+The bottom pane lists pattern-based net class assignments. Each row has a net
+name pattern and a net class; nets with names that match the pattern are assigned
+to the specified net class. If a net matches multiple patterns, the first match
+is used. Pattern-based net class assignments are dynamic: when a new net is added
+that matches an existing pattern, it will be assigned to the associated net class
 automatically. Net patterns can use both wildcards (`*` to match any number of
 any characters, including none, and `?` to match any character) and
 https://docs.wxwidgets.org/3.2/overview_resyntax.html[regular expressions]. The
@@ -1332,72 +1483,88 @@ character), the `net*` pattern would also match a net named `ne`.
 NOTE: Remember that net names must include the full sheet path. For example, a
       locally labeled net in the root sheet has a name prefixed with `/`.
 
-Use the image:images/icons/small_plus_16.png[add netclass icon] button to add
+Use the image:images/icons/small_plus_16.png[add net class icon] button to add
 a net class assignment pattern or the
-image:images/icons/small_trash_16.png[delete netclass icon] button to remove a
+image:images/icons/small_trash_16.png[delete net class icon] button to remove a
 pattern.
 
-NOTE: A netclass pattern containing only the `\*` wildcard will match all
-      explicitly named nets, but will not match unlabeled nets. To match
-      unlabeled nets, you can include more of the net name before the wildcard
-      character. All unlabeled nets have names that begin with `Net-`, so the
-      pattern `Net-*` will match all unlabeled nets. You can also assign a
-      netclass to an unlabeled net using a
-      <<netclass-directive, net class directive>>.
-
-Instead of adding netclass patterns in the Schematic Setup dialog, you can
-directly create netclass patterns from the schematic canvas. Right click a net
+Instead of adding net class patterns in the Schematic Setup dialog, you can
+directly create net class patterns from the schematic canvas. Right click a net
 and select **Assign Netclass...** to bring up the **Add Netclass Assignment**
-dialog. The netclass pattern is pre-filled with the name of the selected net,
+dialog. The net class pattern is pre-filled with the name of the selected net,
 but the pattern can be changed if desired. All nets matching the pattern are
 displayed in the dialog. This method can only be used on nets with an assigned
 name.
 
-image::images/schematic_assign_netclass.png[alt="assigning a netclass from the schematic",scaledwidth=50%]
+image::images/schematic_assign_netclass.png[alt="assigning a net class from the schematic",scaledwidth=50%]
 
 [[netclass-directive]]
-==== Graphically assigning netclasses in the schematic
+==== Graphically assigning net classes in the schematic
 
-As an alternative to pattern-based netclass assignment, netclasses can be
-graphically assigned to nets in the schematic using either *net class
-directives* or *labels*. Netclasses must be created in
-<<schematic-setup-netclasses,Schematic Setup>> before they can be assigned
-graphically.
+As an alternative to pattern-based net class assignment, net classes can be
+graphically assigned to nets in the schematic using either *directive labels*,
+*net labels*, or *rule areas*.
 
-In the image below, a net class directive is used to assign signals to the `50R`
-netclass.
+In the image below, a directive label is used to assign signals to the `50R`
+net class.
 
-image::images/netclass_directive_bus.png[alt="a netclass directive attached to a bus",scaledwidth=50%]
+image::images/netclass_directive_bus.png[alt="a net class directive attached to a bus",scaledwidth=50%]
 
-Net class directives are added with the
-image:images/icons/add_class_flag_24.png[net class directive icon] button in the
+Directive labels are added with the
+image:images/icons/add_class_flag_24.png[directive label icon] button in the
 right toolbar. They behave like <<labels,labels>>, except that they cannot be
-used to name a net. The attached net is assigned a netclass according to the
+used to name a net. The attached net is assigned a net class according to the
 value of the directive's `Net Class` field. The `Net Class` field presents a
-dropdown list of all the net classes in the design.
+dropdown list of all the net classes that have been specified in
+<<schematic-setup-netclasses,Schematic Setup>> or
+xref:../pcbnew/pcbnew.adoc#board-setup-net-classes[Board Setup].
+
+You can also type in a net class that isn't explicitly listed in the
+Schematic/Board Setup priority list. Such implicit net classes can't be assigned
+any design settings, like net class color or track width, but they can still be
+used in DRC rule queries.
+
+If multiple `Net Class` fields are added to a directive label, or multiple
+directive labels with `Net Class` fields are applied to a net, all of the
+specified net classes are assigned to the net.
 
 If a directive is attached to a bus, all members of the bus are assigned to the
 specified net class.
 
 image::images/netclass_directive_properties.png[alt="net class directive window",scaledwidth=85%]
 
-In addition to the associated netclass, you can edit the directive's **shape**
+In addition to the associated net class, you can edit the directive's **shape**
 (dot, circle, diamond, or rectangle), **orientation**, **pin length**, and
 **color** in the directive's properties.
 
-<<label-netclass,Net labels can also be used to assign netclasses>> to nets by
-adding a `Net Class` field to the label.
+NOTE: <<label-netclass,Net labels can also be used to assign net classes>> to
+      nets by adding a `Net Class` field to the label.
 
-If more than one different netclass is graphically assigned to a single net,
-<<list-of-erc-checks,ERC will report an issue>>. Graphical netclass assignments
-override pattern-based assignments: if a net matches a netclass pattern
-assignment and also has a netclass assigned graphically, the graphically
-assigned netclass will be used.
+The Rule Area tool (image:images/icons/add_keepout_area_24.png[rule area button]) can be used to draw a shape to which net class directives can be attached.
+Any <<wires,wire>>, <<buses,bus>>, <<labels,label>>, or symbol pin which crosses or is inside the rule area
+will be assigned the net class of a net class directive attached to the rule area border. An
+example is shown in the image below; all wires passing through the rule area will be assigned
+the `RAM_ADDR` net class.
 
-You can show or hide netclass directives in the schematic using the **View** ->
-**Show Netclass Directives** option.
+image::images/netclass_rule_area.png[alt="net class assignment by rule area",scaledwidth=50%]
 
-=== Graphical items
+You can show or hide directive labels in the schematic using the **View** ->
+**Show Directive Labels** option.
+
+[[component-classes]]
+=== Component classes
+
+Component classes are named groupings of components: they are assigned to symbols in the schematic and also apply to the corresponding footprints on the board. They are used to group symbols into channels for xref:../pcbnew/pcbnew.adoc#multichannel[multichannel designs] and can also be used to group footprints in xref:../pcbnew/pcbnew.adoc#custom-design-rules[custom DRC rules].
+
+To assign a component class to a symbol, you can add a symbol field named `Component Class` to the symbol. The symbol will then be a member of the component class named by the field.
+
+You can also assign component classes using directive labels (image:images/icons/add_class_flag_24.png[directive label button]) in combination with rule areas (image:images/icons/add_keepout_area_24.png[rule area button]). The Rule Area tool can be used to draw a shape to which directive labels can be attached. Any symbol which crosses or is inside the rule area will be assigned to the component class specified by the directive label attached to the rule area border. An example is shown in the image below; R1 and R2 will be assigned to the `Channel 1` component class.
+
+image::images/component_class_rule_area.png[]
+
+Components can have more than one class, and symbols take on a class if any of their sub-units have that class. If multiple `Component Class` fields are added to a directive label, or multiple directive labels with `Component Class` fields are applied to a rule area, the symbols in the rule area will take on all of the specified component classes.
+
+=== Graphics and text
 
 Text, graphic shapes, and images can be added to schematics for documentation
 purposes. These items do not have any electrical effect on the schematic.
@@ -1424,7 +1591,10 @@ but text boxes wrap text to fit in the outline and have additional formatting
 options. All text has adjustable fonts, color, size, bold and italic emphasis,
 left and right alignment, and vertical and horizontal orientation. Text boxes
 additionally support horizontal centering, vertical alignment options, and
-colored borders and fill.
+colored borders and fill. You can also adjust the padding on each side of text
+in a text box (padding can be set using the
+<<editing-object-properties,Properties Manager>>, but not using the Text Box
+Properties dialog).
 
 NOTE: The default text size can be set for a schematic in
       <<schematic-setup-formatting,Schematic Setup>>, and the default font can
@@ -1435,11 +1605,22 @@ image::images/text_box_properties.png[alt="text box properties dialog",scaledwid
 ===== Links
 
 Text and text boxes can be made into a link by entering a target in the *Link*
-box in the text properties. The link target can be a local file (using the
-`file://` protocol prefix followed by the file's path), to a website (using
-`http://` or `https://` followed by the rest of the URL), or to another page in
-the same schematic (using `#` followed by the page number). These can also be
-autofilled using the dropdown menu in the link target box.
+box in the text properties.
+
+You can link to different kinds of resources depending on the link target. The
+link target can be:
+
+* a sheet in the current schematic, using `#` followed by the page number
+* a local file on your machine, using a URL with the `file://` scheme
+* a website, using a URL with the `http://` or `https://` scheme
+* another resource, using a URL with the appropriate scheme, e.g. `ftp://`
+
+If no protocol prefix is used, the target is assumed to be a local file as if
+the `file://` scheme was used.
+
+Sheet, file, and web links can be autofilled using the dropdown meu in the link
+target box. Other kinds of links cannot be autofilled but will work if your
+system can handle them.
 
 [[fonts]]
 ===== Fonts
@@ -1489,6 +1670,74 @@ Text and textboxes can contain <<sim-directives,simulation directives>> for
 SPICE simulations. The **Exclude from simulation** checkbox prevents text from
 being interpreted as a simulation directive.
 
+[[tables]]
+==== Tables
+
+You can use a table to organize text in a tabular format. Tables have customizable borders, cell sizes, colors, and headers.
+
+image::images/table.png[]
+
+To place a table, use the image:images/icons/table_24.png[] button in the right toolbar. Click in the canvas to place the top left corner of the table, then click again to place the bottom right corner of the table and finish drawing the table. The bigger you draw the table, the more rows and columns will be added by default, but rows and columns can be added or deleted after the table is created.
+
+===== Editing table properties
+
+When you finish drawing a table, the Table Properties dialog appears. You can also open the Table Properties dialog in several other ways:
+
+- Select any cell in the table, right click, and select **Edit Table** (kbd:[Ctrl] + kbd:[E])
+- Select the entire table, right click, and select **Properties...** (kbd:[E]). You can select the entire table with a drag selection or by selecting a single cell, then right clicking and selecting **Select Table**.
+- Click the **Edit Table...** button in the Table Cell Properties dialog.
+
+image::images/table_properties.png[]
+
+This dialog lets you edit the properties of the entire table, including the text in each cell and the separators between cells. To change the formatting of text in a cell, edit the properties of individual cells, instead of the properties for the entire table.
+
+NOTE: The properties for a table can also be edited in the <<editing-object-properties,Properties Manager>> when the entire table is selected.
+
+The left side of the dialog displays an editable grid of the entire table. You can edit the contents of any cell by clicking on the cell in the grid. You can also edit the text in a cell by selecting the cell and using the Properties Manager.
+
+NOTE: Text in table cells supports the markup described in the <<text-markup,text markup section>> (superscripts, subscripts, strikethroughs, etc.).
+
+The right side of the dialog contains formatting options for the table.
+
+- The **Locked** checkbox controls whether or not the table is <<locking,locked>>. Locked objects may not be manipulated or moved, and cannot be selected unless the **Locked Items** option is enabled in the Selection Filter panel.
+- The **External border** and **Header border** checkboxes control whether there is a border drawn around the entire table and the cells in the top row, respectively. When **Header border** is enabled, the border below the cells in the top row is styled using these external border settings rather than the row/column line settings. The line width of the header borders is controlled by the **Width** field. When set to 0, the line width uses the default symbol line width configured in the **Formatting** panel of Schematic Setup. The line color is controlled by the **Color** picker, and the line style can be set to solid, dashed, dotted, dash-dot, or dash-dot-dot using the **Style** dropdown menu.
+- The **Row Lines** and **Column lines** checkboxes enable horizontal lines between rows and vertical lines between columns, respectively. These have the same formatting options as the external and header borders.
+
+===== Editing table cell properties
+
+Instead of editing the properties of an entire table, you can also edit the properties of individual cells. This modifies selected cells, but does not affect other cells. To open the Table Cell Properties dialog, double click on a cell, or select a cell, right click, and choose **Properties...** (kbd:[E]). If you select multiple cells, the properties dialog will act on all of them at once.
+
+NOTE: You can select multiple cells by clicking and dragging.
+
+NOTE: To select all cells in a row or column, select a cell in that row or column, right click, and choose **Select Row(s)** or **Select Column(s)**. You can select multiple rows or columns in this way by starting with multiple cells selected.
+
+image::images/table_cell_properties.png[]
+
+This dialog contains formatting options for the text in each cell.
+
+- **Horizontal alignment** and **Vertical alignment** control how text is positioned within the cell.
+- **Font** controls the text font used in the cell.
+- **Text size** controls the size of the text in the cell.
+- The **Bold** and **Italic** checkboxes bold and italicize the text, respectively. These are three-state checkboxes, which can be set to off, on, or no change. No change is useful when multiple cells with different bold/italic settings are being edited at the same time.
+- The **Text color** and **Background fill** color pickers control the color of the text and the cell background, respectively.
+- The **Cell margins** textboxes control the amount of spacing around the top, bottom, left, and right of the text in the cell.
+
+You can click the **Edit Table...** button to open the properties dialog for the entire table.
+
+NOTE: The properties for a table cell can also be edited in the <<editing-object-properties,Properties Manager>> when one or more table cells is selected.
+
+===== Editing table layout
+
+The layout of a table (size and number of columns and rows) is initially set when you create a table, but you can also edit the layout after creation.
+
+To resize a row or column, select a cell in that row or column, then drag the handle on the right (to change the column width) or the bottom (to change the row height) to the desired size.
+
+To add rows or columns, select a cell next to where the new row or column should go, right click, then choose **Add Row Above**, **Add Row Below**, **Add Column Before**, or **Add Column After**, as desired.
+
+To delete rows or columns, select a cell in the row or column you want to delete, then right click and choose **Delete Row(s)** or **Delete Column(s)**. To delete multiple rows or columns, start with a selection that spans all the rows or columns you want to delete.
+
+You can merge multiple cells into a single cell by selecting all the cells you want to merge, right clicking, and choosing **Merge Cells**. To unmerge them, select the merged cell, right click, and choose **Unmerge Cells**.
+
 [[graphic-lines]]
 ==== Graphic Shapes
 
@@ -1523,6 +1772,7 @@ kbd:[Shift+Space] cycles through the modes.
 xref:../pcbnew/pcbnew.adoc#track-posture[As with PCB tracks], the
 kbd:[/] hotkey switches line posture.
 
+[[bitmap-images]]
 ==== Bitmap Images
 
 Bitmap images can be added to the schematic with the
@@ -1575,7 +1825,7 @@ existing values. Checkboxes can be checked or unchecked to enable or disable a
 change, but can also be toggled to a third "leave unchanged" state. Color
 properties must be checked to change the value; a checkerboard swatch indicates
 that the color will be inherited from the default value from the the schematic
-settings or netclass properties.
+settings or net class properties.
 
 Text properties that can be modified are *font*, *text size*, *text orientation*
 (right/up/leftdown), *horizontal* and *vertical alignment*, *text color*,
@@ -1668,14 +1918,8 @@ TIP: One possible use of the swap command is to exchange two units within a
 
 The Schematic Setup window is used to set schematic options that are specific to
 the currently active schematic. For example, the Schematic Setup window contains
-formatting options, electrical rule configuration, netclass setup, and schematic
+formatting options, electrical rule configuration, net class setup, and schematic
 text variable setup.
-
-You can import schematic settings from an existing project using the
-**Import Settings from Another Project...** button. This allows you to
-choose a project to use as a template and select which settings to import
-(formatting preferences, field name templates, pin conflict map, violation
-severities, and net classes).
 
 [[schematic-setup-formatting]]
 ==== Schematic formatting
@@ -1787,17 +2031,17 @@ These panels are explained in more detail in the <<erc-configuration,ERC section
 
 ==== Net classes
 
-image::images/schematic_setup_netclasses.png[alt="Schematic Setup netclasses panel",scaledwidth=70%]
+image::images/schematic_setup_netclasses.png[alt="Schematic Setup net classes panel",scaledwidth=70%]
 
-The **Net Classes** panel allows you to manage netclasses for the project and
-assign nets to netclasses with patterns. Managing netclasses in this panel
+The **Net Classes** panel allows you to manage net classes for the project and
+assign nets to net classes with patterns. Managing net classes in this panel
 is equivalent to managing them in the
 xref:../pcbnew/pcbnew.adoc#board-setup-net-classes[Board Setup dialog].
-Nets can also be assigned to netclasses in the schematic using graphical
+Nets can also be assigned to net classes in the schematic using graphical
 assignments with <<netclass-directive,net class directives>> or
 <<label-netclass,net labels>>.
 
-Pattern-based netclass assigment is explained in more detail in the
+Pattern-based net class assigment is explained in more detail in the
 <<schematic-setup-netclasses,net classes section>>.
 
 ==== Bus alias definitions
@@ -1832,6 +2076,68 @@ Text variables are project-wide; variables created in the schematic editor are
 also available in the board editor, and vice versa.
 
 There are also a number of <<text-variables,built-in system text variables>>.
+
+[[sch-embedding-files]]
+==== Embedding files
+
+External files can be embedded within a schematic. Embedding a file stores a
+copy of the file inside the schematic file. The design can then refer to the
+embedded copy of the file instead of the external file, which makes the project
+more portable as it doesn't rely on an external file. Fonts, datasheets, drawing
+sheets, and 3D models can be embedded and used within KiCad. Other arbitrary
+files can also be embedded to store them in the project for later export, but
+they are not used by any KiCad functionality.
+
+image::images/embedded_files.png[]
+
+Embedded files are managed in the Embedded Files section of Schematic Setup. To
+embed a file inside a schematic, click the
+image:images/icons/small_folder_16.png[] button and select the file. The file is
+then embedded inside the schematic and is listed in the embedded files list
+along with its internal reference. The internal reference is a unique identifier
+for the embedded file that begins with `kicad-embed://`. You can use the
+internal reference elsewhere in the Schematic Editor to refer to the embedded
+file as if it were an external file path. You can copy the internal reference by
+right clicking and selecting **Copy Embedded Reference**. To remove an embedded
+file, click the image:images/icons/small_trash_16.png[] button. Any remaining
+links to the removed file will become invalid.
+
+To embed any fonts used in a schematic, check the **Embed fonts** checkbox. All
+fonts used in the schematic will be embedded, so text using that font can be
+edited on any computer regardless of whether the font file is installed.
+
+As an example, to embed a datasheet in a project and use it within several
+symbols, you could embed the datasheet using the schematic setup dialog, copy
+the internal reference, and paste the internal reference into the datasheet
+field of each symbol that uses that datasheet. Each symbol would then have a
+portable reference to the embedded datasheet.
+
+Files can also be embedded in xref:../pcbnew/pcbnew.adoc#pcb-embedding-files[boards].
+
+==== Importing settings
+
+You can import some or all of the schematic setup from an existing schematic.
+This allows you to choose a schematic to use as a template and select which
+settings to import.
+
+image::images/import_settings.png[]
+
+To import settings, click the **Import Settings from Another Project...** button
+at the bottom of the Schematic Setup dialog and then choose the `.kicad_sch`
+file you want to import from. Select which settings you want to import and the
+current settings will be overwritten with the values from the chosen schematic.
+
+The settings that are available to import are:
+
+* Formatting preferences
+* Field name templates
+* BOM presets
+* BOM format presets
+* Violation severities
+* Pin conflict map
+* Net classes
+* Bus alias definitions
+* Text variables
 
 [[opening-legacy-schematics]]
 === Opening legacy schematics

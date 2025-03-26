@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 CERN
- * Copyright (C) 2015-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -74,6 +74,7 @@ void ZOOM_MENU::update()
     {
         // Search for a value near the current zoom setting:
         double rel_error = std::fabs( zoomList[jj] - zoom ) / zoom;
+
         // IDs start with 1 (leaving 0 for auto-zoom)
         Check( ID_POPUP_ZOOM_LEVEL_START + jj + 1, rel_error < 0.1 );
     }

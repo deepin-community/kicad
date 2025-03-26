@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Ian McInerney <Ian.S.McInerney at ieee.org>
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -110,5 +110,13 @@ namespace KIPLATFORM
          * @return True if file signature passes
          */
         bool VerifyFileSignature( const wxString& aPath );
+
+        /**
+         * Retrieves the app user model id, a special string used for taskbar grouping
+         * on Windows 7 and later
+         *
+         * @returns The app user model id on Windows, empty on all other platforms
+         */
+        wxString GetAppUserModelId();
     }
 }

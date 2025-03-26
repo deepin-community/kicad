@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,6 +33,7 @@
 #include <pcb_painter.h>
 #include <tools/pcb_actions.h>
 #include <tools/pcb_selection_tool.h>
+#include <view/view_controls.h>
 
 ZONE_CREATE_HELPER::ZONE_CREATE_HELPER( DRAWING_TOOL& aTool, PARAMS& aParams ):
         m_tool( aTool ),
@@ -121,7 +122,7 @@ std::unique_ptr<ZONE> ZONE_CREATE_HELPER::createNewZone( bool aKeepout )
         int dialogResult;
 
         if( m_params.m_keepout )
-            dialogResult = InvokeRuleAreaEditor( frame, &zoneInfo );
+            dialogResult = InvokeRuleAreaEditor( frame, &zoneInfo, m_tool.board() );
         else if( ( zoneInfo.m_Layers & LSET::AllCuMask() ).any() )
             dialogResult = InvokeCopperZonesEditor( frame, &zoneInfo );
         else
@@ -170,7 +171,7 @@ void ZONE_CREATE_HELPER::performZoneCutout( ZONE& aZone, const ZONE& aCutout )
     toolMgr->RunAction( PCB_ACTIONS::selectionClear );
 
     SHAPE_POLY_SET originalOutline( *aZone.Outline() );
-    originalOutline.BooleanSubtract( *aCutout.Outline(), SHAPE_POLY_SET::PM_FAST );
+    originalOutline.BooleanSubtract( *aCutout.Outline() );
 
     // After substracting the hole, originalOutline can have more than one main outline.
     // But a zone can have only one main outline, so create as many zones as originalOutline
@@ -226,7 +227,7 @@ void ZONE_CREATE_HELPER::commitZone( std::unique_ptr<ZONE> aZone )
             aZone->HatchBorder();
 
             commit.Add( aZone.get() );
-            commit.Push( _( "Add a zone" ) );
+            commit.Push( _( "Draw Zone" ) );
 
             m_tool.GetManager()->RunAction<EDA_ITEM*>( PCB_ACTIONS::selectItem, aZone.release() );
             break;
@@ -248,7 +249,7 @@ void ZONE_CREATE_HELPER::commitZone( std::unique_ptr<ZONE> aZone )
             poly->SetPolyShape( *aZone->Outline() );
 
             commit.Add( poly );
-            commit.Push( _( "Add Polygon" ) );
+            commit.Push( _( "Draw Polygon" ) );
 
             m_tool.GetManager()->RunAction<EDA_ITEM*>( PCB_ACTIONS::selectItem, poly );
             break;

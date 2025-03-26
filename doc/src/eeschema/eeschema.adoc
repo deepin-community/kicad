@@ -53,6 +53,8 @@ include::eeschema_generating_outputs.adoc[po4a]
 
 include::eeschema_symbols_and_libraries.adoc[po4a]
 
+include::eeschema_design_blocks.adoc[po4a]
+
 include::eeschema_simulator.adoc[po4a]
 
 include::eeschema_advanced.adoc[po4a]

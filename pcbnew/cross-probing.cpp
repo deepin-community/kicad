@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -49,7 +49,7 @@
 #include <pcb_edit_frame.h>
 #include <pcbnew_settings.h>
 #include <render_settings.h>
-#include <string_utf8_map.h>
+#include <richio.h>
 #include <tool/tool_manager.h>
 #include <tools/pcb_actions.h>
 #include <tools/pcb_selection_tool.h>
@@ -96,10 +96,10 @@ void PCB_EDIT_FRAME::ExecuteRemoteCommand( const char* cmdline )
         return;
 
     if( strcmp( idcmd, "$CONFIG" ) == 0 )
-        {
-            GetToolManager()->RunAction( ACTIONS::showSymbolLibTable );
-            return;
-        }
+    {
+        GetToolManager()->RunAction( ACTIONS::showFootprintLibTable );
+        return;
+    }
     else if( strcmp( idcmd, "$CUSTOM_RULES" ) == 0 )
     {
         ShowBoardSetupDialog( _( "Custom Rules" ) );
@@ -145,7 +145,7 @@ void PCB_EDIT_FRAME::ExecuteRemoteCommand( const char* cmdline )
             SetMsgPanel( items );
         }
 
-        // fall through to hihglighting section
+        // fall through to highlighting section
     }
     else if( strcmp( idcmd, "$NETS:" ) == 0 )
     {
@@ -190,7 +190,7 @@ void PCB_EDIT_FRAME::ExecuteRemoteCommand( const char* cmdline )
 
     if( footprint )
     {
-        bbox = footprint->GetBoundingBox( true, false ); // No invisible text in bbox calc
+        bbox = footprint->GetBoundingBox( true );
 
         if( pad )
             m_toolManager->RunAction<BOARD_ITEM*>( PCB_ACTIONS::highlightItem, pad );
@@ -565,7 +565,7 @@ void PCB_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
             }
 
             nlohmann::ordered_map<wxString, wxString> fields;
-            for( PCB_FIELD* field : footprint->Fields() )
+            for( PCB_FIELD* field : footprint->GetFields() )
                 fields[field->GetCanonicalName()] = field->GetText();
 
             component->SetFields( fields );
@@ -693,7 +693,7 @@ void PCB_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
             importFormat = -1;
         }
 
-        STRING_UTF8_MAP props;
+        std::map<std::string, UTF8> props;
 
         std::string key, value;
         do
@@ -715,7 +715,7 @@ void PCB_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
     }
 
     case MAIL_RELOAD_PLUGINS:
-        GetToolManager()->RunAction( PCB_ACTIONS::pluginsReload );
+        GetToolManager()->RunAction( ACTIONS::pluginsReload );
         break;
 
     // many many others.

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mikolaj Wielgus
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -53,6 +53,8 @@ public:
     std::string ModelLine( const SPICE_ITEM& aItem ) const override;
     std::string ItemLine( const SPICE_ITEM& aItem ) const override;
 
+    std::string TunerCommand( const SPICE_ITEM& aItem, double aValue ) const override;
+
 private:
     std::string getParamValueString( const std::string& aParamName,
                                      const std::string& aDefaultValue ) const;
@@ -75,6 +77,8 @@ public:
     bool HasPrimaryValue() const override { return GetType() == TYPE::V || GetType() == TYPE::I; }
 
     std::vector<std::string> GetPinNames() const override;
+
+    const PARAM* GetTunerParam() const override;
 
 protected:
     void doSetParamValue( int aParamIndex, const std::string& aValue ) override;

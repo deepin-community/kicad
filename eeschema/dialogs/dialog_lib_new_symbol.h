@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2015-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,8 +22,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef __dialog_lib_new_symbol__
-#define __dialog_lib_new_symbol__
+#pragma once
 
 #include <widgets/unit_binder.h>
 #include <string_utils.h>
@@ -35,10 +34,11 @@ class wxArrayString;
 class DIALOG_LIB_NEW_SYMBOL : public DIALOG_LIB_NEW_SYMBOL_BASE
 {
 public:
-    DIALOG_LIB_NEW_SYMBOL( EDA_DRAW_FRAME* aParent, const wxString& aMessage,
-                           const wxArrayString* aRootSymbolNames,
-                           const wxString&  aInheritFromSymbolName,
+    DIALOG_LIB_NEW_SYMBOL( EDA_DRAW_FRAME* aParent, const wxArrayString& aSymbolNames,
+                           const wxString&                         aInheritFromSymbolName,
                            std::function<bool( wxString newName )> aValidator );
+
+    ~DIALOG_LIB_NEW_SYMBOL();
 
     void SetName( const wxString& name ) override
     {
@@ -96,15 +96,15 @@ public:
 protected:
     bool TransferDataFromWindow() override;
 
-    virtual void OnParentSymbolSelect( wxCommandEvent& aEvent ) override;
     virtual void onPowerCheckBox( wxCommandEvent& aEvent ) override;
 
 private:
+    void onParentSymbolSelect( wxCommandEvent& aEvent );
+
     void syncControls( bool aIsDerivedPart );
 
 private:
     UNIT_BINDER                             m_pinTextPosition;
     std::function<bool( wxString newName )> m_validator;
+    bool                                    m_nameIsDefaulted;
 };
-
-#endif // __dialog_lib_new_symbol__

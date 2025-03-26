@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.0-39-g3487c3cb)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -45,8 +45,8 @@ class DIALOG_PLOT_SCHEMATIC_BASE : public DIALOG_SHIM
 	private:
 
 	protected:
-		wxStaticText* m_staticTextOutputDirectory;
-		wxTextCtrl* m_outputDirectoryName;
+		wxStaticText* m_outputPathLabel;
+		wxTextCtrl* m_outputPath;
 		STD_BITMAP_BUTTON* m_browseButton;
 		wxBoxSizer* m_optionsSizer;
 		wxRadioBox* m_plotFormatOpt;
@@ -67,6 +67,8 @@ class DIALOG_PLOT_SCHEMATIC_BASE : public DIALOG_SHIM
 		wxTextCtrl* m_penWidthCtrl;
 		wxStaticText* m_penWidthUnits;
 		wxCheckBox* m_plotPDFPropertyPopups;
+		wxCheckBox* m_plotPDFHierarchicalLinks;
+		wxCheckBox* m_plotPDFMetadata;
 		wxStaticBoxSizer* m_otherOptions;
 		wxCheckBox* m_openFileAfterPlot;
 		WX_HTML_REPORT_PANEL* m_MessagesBox;
@@ -78,7 +80,7 @@ class DIALOG_PLOT_SCHEMATIC_BASE : public DIALOG_SHIM
 		// Virtual event handlers, override them in your derived class
 		virtual void OnCloseWindow( wxCloseEvent& event ) { event.Skip(); }
 		virtual void OnUpdateUI( wxUpdateUIEvent& event ) { event.Skip(); }
-		virtual void OnOutputDirectoryBrowseClicked( wxCommandEvent& event ) { event.Skip(); }
+		virtual void onOutputDirectoryBrowseClicked( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnPlotFormatSelection( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnPageSizeSelected( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnPlotCurrent( wxCommandEvent& event ) { event.Skip(); }
@@ -87,7 +89,7 @@ class DIALOG_PLOT_SCHEMATIC_BASE : public DIALOG_SHIM
 
 	public:
 
-		DIALOG_PLOT_SCHEMATIC_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Plot Schematic Options"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+		DIALOG_PLOT_SCHEMATIC_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Plot Schematic"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
 
 		~DIALOG_PLOT_SCHEMATIC_BASE();
 

@@ -2,6 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mikolaj Wielgus, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,6 +27,8 @@
 
 #include "netlist_exporter_spice.h"
 
+enum LABEL_FLAG_SHAPE : unsigned int;
+
 
 class NETLIST_EXPORTER_SPICE_MODEL : public NETLIST_EXPORTER_SPICE
 {
@@ -40,18 +43,18 @@ public:
     bool ReadSchematicAndLibraries( unsigned aNetlistOptions, REPORTER& aReporter ) override;
 
 protected:
-    std::string GenerateItemPinNetName( const std::string& aNetName, int& aNcCounter ) const override;
+    wxString GenerateItemPinNetName( const wxString& aNetName, int& aNcCounter ) const override;
 
 private:
     struct PORT_INFO
     {
-        std::string name;
-        LABEL_FLAG_SHAPE dir;
+        wxString         m_name;
+        LABEL_FLAG_SHAPE m_dir;
     };
 
     void readPorts( unsigned aNetlistOptions );
 
-    std::map<std::string, PORT_INFO> m_ports;
+    std::map<wxString, PORT_INFO> m_ports;
 };
 
 #endif // NETLIST_EXPORTER_SPICE_MODEL_H

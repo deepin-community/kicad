@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2018 CERN
- * Copyright (C) 2013-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
@@ -144,6 +144,11 @@ public:
      * Force a redraw.
      */
     void ForceRefresh();
+
+    /**
+     * Make sure a refresh gets done on the next idle event if it hasn't already.
+     */
+    void RequestRefresh();
 
     /**
      * Set a dispatcher that processes events and forwards them to tools.

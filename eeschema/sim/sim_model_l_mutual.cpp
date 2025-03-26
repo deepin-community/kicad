@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mikolaj Wielgus
- * Copyright (C) 2022-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,8 +29,15 @@ std::string SPICE_GENERATOR_L_MUTUAL::ItemParams() const
 {
     std::string result;
 
-    for( const SIM_MODEL::PARAM& param : GetInstanceParams() )
+    for( int ii = 0; ii < m_model.GetParamCount(); ++ii )
+    {
+        const SIM_MODEL::PARAM& param = m_model.GetParam( ii );
+
+        if( !param.info.isSpiceInstanceParam )
+            continue;
+
         result.append( " " + SIM_VALUE::ToSpice( param.value ) );
+    }
 
     return result;
 }

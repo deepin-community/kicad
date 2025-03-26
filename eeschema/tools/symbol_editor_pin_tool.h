@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,13 +41,13 @@ public:
     /// @copydoc TOOL_INTERACTIVE::Init()
     bool Init() override;
 
-    LIB_PIN* CreatePin( const VECTOR2I& aPosition, LIB_SYMBOL* aSymbol );
-    LIB_PIN* RepeatPin( const LIB_PIN* aSourcePin );
+    SCH_PIN* CreatePin( const VECTOR2I& aPosition, LIB_SYMBOL* aSymbol );
+    SCH_PIN* RepeatPin( const SCH_PIN* aSourcePin );
 
-    bool PlacePin( LIB_PIN* aPin );
-    void CreateImagePins( LIB_PIN* aPin );
+    bool PlacePin( SCH_PIN* aPin );
+    void CreateImagePins( SCH_PIN* aPin );
 
-    bool EditPinProperties( LIB_PIN* aPin );
+    bool EditPinProperties( SCH_PIN* aPin, bool aFocusPinNumber );
     int PushPinProperties( const TOOL_EVENT& aEvent );
 
 private:

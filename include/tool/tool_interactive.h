@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2016-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -74,7 +74,7 @@ public:
      */
     void Activate();
 
-    TOOL_MENU& GetToolMenu() { return m_menu; }
+    TOOL_MENU& GetToolMenu();
 
     /**
      * Assign a context menu and tells when it should be activated.
@@ -122,7 +122,7 @@ public:
         void Yield( const T& returnValue );*/
 
 protected:
-    TOOL_MENU m_menu;
+    std::unique_ptr<TOOL_MENU> m_menu;
 
 private:
     /**

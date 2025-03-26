@@ -50,6 +50,7 @@ set( PCBNEW_DIALOGS
     dialogs/dialog_dimension_properties_base.cpp
     dialogs/dialog_drc.cpp
     dialogs/dialog_drc_base.cpp
+    dialogs/dialog_drc_job_config.cpp
     dialogs/dialog_footprint_associations.cpp
     dialogs/dialog_footprint_associations_base.cpp
     dialogs/dialog_footprint_checker.cpp
@@ -68,11 +69,11 @@ set( PCBNEW_DIALOGS
     dialogs/dialog_export_idf.cpp
     dialogs/dialog_export_idf_base.cpp
     dialogs/dialog_export_step.cpp
+    dialogs/dialog_export_odbpp.cpp
+    dialogs/dialog_export_odbpp_base.cpp
     dialogs/dialog_export_step_base.cpp
     dialogs/dialog_export_step_process.cpp
     dialogs/dialog_export_step_process_base.cpp
-    dialogs/dialog_export_svg.cpp
-    dialogs/dialog_export_svg_base.cpp
     dialogs/dialog_export_vrml.cpp
     dialogs/dialog_export_vrml_base.cpp
     dialogs/dialog_find.cpp
@@ -86,6 +87,7 @@ set( PCBNEW_DIALOGS
     dialogs/dialog_gendrill_base.cpp
     dialogs/dialog_generators.cpp
     dialogs/dialog_generators_base.cpp
+    dialogs/dialog_get_footprint_by_name.cpp
     dialogs/dialog_get_footprint_by_name_base.cpp
     dialogs/dialog_global_deletion.cpp
     dialogs/dialog_global_deletion_base.cpp
@@ -107,18 +109,18 @@ set( PCBNEW_DIALOGS
     dialogs/dialog_import_settings.cpp
     dialogs/dialog_import_settings_base.cpp
     dialogs/dialog_imported_layers_base.cpp
-    dialogs/dialog_imported_layers.cpp
+    dialogs/dialog_map_layers.cpp
     dialogs/dialog_rule_area_properties.cpp
     dialogs/dialog_rule_area_properties_base.cpp
     dialogs/dialog_layer_selection_base.cpp
     dialogs/dialog_move_exact.cpp
     dialogs/dialog_move_exact_base.cpp
-    dialogs/dialog_net_inspector.cpp
-    dialogs/dialog_net_inspector_base.cpp
     dialogs/dialog_import_netlist.cpp
     dialogs/dialog_import_netlist_base.cpp
     dialogs/dialog_non_copper_zones_properties.cpp
     dialogs/dialog_non_copper_zones_properties_base.cpp
+    dialogs/dialog_outset_items.cpp
+    dialogs/dialog_outset_items_base.cpp
     dialogs/dialog_pad_properties.cpp
     dialogs/dialog_pad_properties_base.cpp
     dialogs/dialog_plot.cpp
@@ -130,8 +132,16 @@ set( PCBNEW_DIALOGS
     dialogs/dialog_position_relative.cpp
     dialogs/dialog_position_relative_base.cpp
     dialogs/dialog_print_pcbnew.cpp
+    dialogs/dialog_render_job_base.cpp
+    dialogs/dialog_render_job.cpp
+    dialogs/dialog_set_offset_base.cpp
+    dialogs/dialog_set_offset.cpp
     dialogs/dialog_swap_layers.cpp
     dialogs/dialog_swap_layers_base.cpp
+    dialogs/dialog_table_properties.cpp
+    dialogs/dialog_table_properties_base.cpp
+    dialogs/dialog_tablecell_properties.cpp
+    dialogs/dialog_tablecell_properties_base.cpp
     dialogs/dialog_target_properties.cpp
     dialogs/dialog_target_properties_base.cpp
     dialogs/dialog_text_properties.cpp
@@ -148,6 +158,10 @@ set( PCBNEW_DIALOGS
     dialogs/dialog_unused_pad_layers_base.cpp
     dialogs/dialog_update_pcb.cpp
     dialogs/dialog_update_pcb_base.cpp
+    dialogs/dialog_multichannel_generate_rule_areas_base.cpp
+    dialogs/dialog_multichannel_generate_rule_areas.cpp
+    dialogs/dialog_multichannel_repeat_layout_base.cpp
+    dialogs/dialog_multichannel_repeat_layout.cpp
     dialogs/panel_pcb_display_options.cpp
     dialogs/panel_pcb_display_options_base.cpp
     dialogs/panel_edit_options.cpp
@@ -155,8 +169,10 @@ set( PCBNEW_DIALOGS
     dialogs/panel_fp_lib_table.cpp
     dialogs/panel_fp_lib_table_base.cpp
     dialogs/panel_fp_editor_color_settings.cpp
-    dialogs/panel_fp_editor_defaults.cpp
-    dialogs/panel_fp_editor_defaults_base.cpp
+    dialogs/panel_fp_editor_field_defaults.cpp
+    dialogs/panel_fp_editor_field_defaults_base.cpp
+    dialogs/panel_fp_editor_graphics_defaults.cpp
+    dialogs/panel_fp_editor_graphics_defaults_base.cpp
     dialogs/panel_fp_properties_3d_model.cpp
     dialogs/panel_fp_properties_3d_model_base.cpp
     dialogs/panel_pcbnew_action_plugins.cpp
@@ -164,8 +180,12 @@ set( PCBNEW_DIALOGS
     dialogs/panel_pcbnew_color_settings.cpp
     dialogs/panel_pcbnew_display_origin.cpp
     dialogs/panel_pcbnew_display_origin_base.cpp
+    dialogs/panel_rule_area_properties_keepout_base.cpp
+    dialogs/panel_rule_area_properties_placement_base.cpp
     dialogs/panel_setup_constraints.cpp
     dialogs/panel_setup_constraints_base.cpp
+    dialogs/panel_setup_dimensions.cpp
+    dialogs/panel_setup_dimensions_base.cpp
     dialogs/panel_setup_formatting.cpp
     dialogs/panel_setup_formatting_base.cpp
     dialogs/panel_setup_mask_and_paste.cpp
@@ -216,6 +236,7 @@ set( PCBNEW_EXPORTERS
     exporters/export_svg.cpp
     exporters/step/exporter_step.cpp
     exporters/step/step_pcb_model.cpp
+    exporters/step/KI_XCAFDoc_AssemblyGraph.cxx
     exporters/exporter_vrml.cpp
     exporters/place_file_exporter.cpp
     exporters/gen_drill_report_files.cpp
@@ -239,10 +260,13 @@ set( PCBNEW_GENERATORS_SRCS
 
 set( PCBNEW_DRC_SRCS
     drc/drc_interactive_courtyard_clearance.cpp
+    drc/drc_creepage_utils.cpp
     drc/drc_report.cpp
     drc/drc_test_provider.cpp
     drc/drc_test_provider_annular_width.cpp
     drc/drc_test_provider_disallow.cpp
+    drc/drc_test_provider_clearance_base.cpp
+    drc/drc_test_provider_creepage.cpp
     drc/drc_test_provider_connectivity.cpp
     drc/drc_test_provider_connection_width.cpp
     drc/drc_test_provider_copper_clearance.cpp
@@ -256,7 +280,9 @@ set( PCBNEW_DRC_SRCS
     drc/drc_test_provider_schematic_parity.cpp
     drc/drc_test_provider_misc.cpp
     drc/drc_test_provider_text_dims.cpp
+    drc/drc_test_provider_track_angle.cpp
     drc/drc_test_provider_track_width.cpp
+    drc/drc_test_provider_track_segment_length.cpp
     drc/drc_test_provider_zone_connections.cpp
     drc/drc_test_provider_via_diameter.cpp
     drc/drc_test_provider_solder_mask.cpp
@@ -264,11 +290,26 @@ set( PCBNEW_DRC_SRCS
     drc/drc_test_provider_matched_length.cpp
     drc/drc_test_provider_diff_pair_coupling.cpp
     drc/drc_test_provider_sliver_checker.cpp
+    drc/drc_test_provider_text_mirroring.cpp
     )
 
 set( PCBNEW_NETLIST_SRCS
     netlist_reader/board_netlist_updater.cpp
     netlist_reader/netlist.cpp
+    )
+
+set( ZONE_MANAGER_SRCS
+    zone_manager/board_edges_bounding_item.cpp
+    zone_manager/dialog_zone_manager.cpp
+    zone_manager/dialog_zone_manager_base.cpp
+    zone_manager/model_zones_overview_table.cpp
+    zone_manager/pane_zone_viewer.cpp
+    zone_manager/panel_zone_gal.cpp
+    zone_manager/panel_zone_properties.cpp
+    zone_manager/panel_zone_properties_base.cpp
+    zone_manager/zone_manager_preference.cpp
+    zone_manager/zone_painter.cpp
+    zone_manager/zones_container.cpp
     )
 
 set( PCBNEW_CLASS_SRCS
@@ -278,6 +319,7 @@ set( PCBNEW_CLASS_SRCS
     ${PCBNEW_DRC_SRCS}
     ${PCBNEW_IMPORT_GFX}
     ${PCBNEW_NETLIST_SRCS}
+    ${ZONE_MANAGER_SRCS}
     ${PCBNEW_BRDSTACKUP_MGR}
 
     autorouter/spread_footprints.cpp
@@ -286,10 +328,10 @@ set( PCBNEW_CLASS_SRCS
     autorouter/autoplace_tool.cpp
 
     action_plugin.cpp
-    array_creator.cpp
     array_pad_number_provider.cpp
     build_BOM_from_board.cpp
     cleanup_item.cpp
+    component_class_manager.cpp
     convert_shape_list_to_polygon.cpp
     cross-probing.cpp
     edit.cpp
@@ -310,12 +352,14 @@ set( PCBNEW_CLASS_SRCS
     grid_layer_box_helpers.cpp
     grid_layer_box_helpers.h
     initpcb.cpp
+    layer_pairs.cpp
     load_select_footprint.cpp
     menubar_footprint_editor.cpp
     menubar_pcb_editor.cpp
     pcb_base_edit_frame.cpp
     pcb_layer_box_selector.cpp
     pcb_edit_frame.cpp
+    pcb_plotter.cpp
     pcbnew_config.cpp
     pcbnew_jobs_handler.cpp
     pcbnew_printout.cpp
@@ -326,7 +370,7 @@ set( PCBNEW_CLASS_SRCS
     specctra_import_export/specctra.cpp
     specctra_import_export/specctra_export.cpp
     specctra_import_export/specctra_import.cpp
-    fp_text_grid_table.cpp
+        pcb_fields_grid_table.cpp
     toolbars_footprint_editor.cpp
     toolbars_footprint_viewer.cpp
     toolbars_pcb_editor.cpp
@@ -337,6 +381,7 @@ set( PCBNEW_CLASS_SRCS
 
     ratsnest/ratsnest.cpp
 
+    tools/array_tool.cpp
     tools/board_editor_control.cpp
     tools/board_inspection_tool.cpp
     tools/board_reannotate_tool.cpp
@@ -346,6 +391,7 @@ set( PCBNEW_CLASS_SRCS
     tools/drc_tool.cpp
     tools/edit_tool.cpp
     tools/edit_tool_move_fct.cpp
+    tools/pcb_edit_table_tool.cpp
     tools/global_edit_tool.cpp
     tools/group_tool.cpp
     tools/footprint_editor_control.cpp
@@ -366,6 +412,7 @@ set( PCBNEW_CLASS_SRCS
     tools/zone_filler_tool.cpp
     tools/generator_tool.cpp
     tools/generator_tool_pns_proxy.cpp
+    tools/multichannel_tool.cpp
 
     footprint_preview_panel.cpp
     footprint_tree_pane.cpp
@@ -378,6 +425,8 @@ set( PCBNEW_CLASS_SRCS
     widgets/pcb_properties_panel.cpp
     widgets/pcb_search_pane.cpp
     widgets/search_handlers.cpp
+    widgets/net_inspector_panel.cpp
+    widgets/pcb_net_inspector_panel.cpp
 
     )
 
@@ -405,6 +454,12 @@ set( PCBNEW_SCRIPTING_PYTHON_HELPERS
     python/scripting/pcbnew_utils_3d.cpp
     python/scripting/pcb_scripting_tool.cpp
     )
+
+if( KICAD_IPC_API )
+    set( PCBNEW_SRCS ${PCBNEW_SRCS}
+        api/api_handler_pcb.cpp
+        )
+endif()
 
 
 if( COMPILER_SUPPORTS_WARNINGS )
@@ -462,6 +517,9 @@ endforeach()
 set( SWIG_OPTS -python -c++ -nothreads -fastdispatch -fvirtual )
 
 set( SWIG_OPTS ${SWIG_OPTS} -outdir ${CMAKE_CURRENT_BINARY_DIR} ${SWIG_FLAGS} )
+
+# Avoid "nothing known about base class" warning output
+set( SWIG_OPTS ${SWIG_OPTS} -w401 -w402 )
 
 if( EXISTS ${CMAKE_CURRENT_BINARY_DIR}/doxygen-xml )
     set( SWIG_OPTS ${SWIG_OPTS} -DENABLE_DOCSTRINGS_FROM_DOXYGEN )
@@ -561,22 +619,39 @@ if( WIN32 )
 endif()
 
 
-# Create a C++ compilable string initializer containing markdown text into a *.h file:
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/dialogs/panel_setup_rules_help_md.h
-    COMMAND ${CMAKE_COMMAND}
-        -DinputFile=${CMAKE_CURRENT_SOURCE_DIR}/dialogs/panel_setup_rules_help.md
-        -DoutputFile=${CMAKE_CURRENT_SOURCE_DIR}/dialogs/panel_setup_rules_help_md.h
-        -P ${KICAD_CMAKE_MODULE_PATH}/BuildSteps/markdown2C.cmake
-    DEPENDS ${KICAD_CMAKE_MODULE_PATH}/BuildSteps/markdown2C.cmake ${CMAKE_CURRENT_SOURCE_DIR}/dialogs/panel_setup_rules_help.md
-    COMMENT "creating ${CMAKE_CURRENT_SOURCE_DIR}/dialogs/panel_setup_rules_help_md.h
-       from ${CMAKE_CURRENT_SOURCE_DIR}/dialogs/panel_setup_rules_help.md"
+# Function to process a markdown (.md) file into a header (.h) file
+function(callMrkdn2C inFile outFile)
+    add_custom_command(
+        OUTPUT "${outFile}"
+        COMMAND ${CMAKE_COMMAND} -DinputFile="${inFile}" -DoutputFile="${outFile}" -P "${KICAD_CMAKE_MODULE_PATH}/BuildSteps/markdown2C.cmake"
+        DEPENDS "${inFile}" "${KICAD_CMAKE_MODULE_PATH}/BuildSteps/markdown2C.cmake"
+        COMMENT "Generating header: ${outFile}"
     )
+endfunction()
 
-set_source_files_properties( dialogs/panel_setup_rules.cpp
-    PROPERTIES
-        OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dialogs/panel_setup_rules_help_md.h
-    )
+# Locate all .md files in the specified directory
+file(GLOB markdownFiles ${CMAKE_CURRENT_SOURCE_DIR}/dialogs/panel_setup_rules_help_*.md)
+
+# Create a custom target to generate all .h files
+add_custom_target(generate_headers ALL)
+
+# Loop over all .md files and convert them into .h files in the same directory as the .md files
+foreach(file ${markdownFiles})
+    # Extract the filename without extension and define output path in the same folder as the .md file
+    get_filename_component(filename "${file}" NAME_WE)
+    set(outputHeader "${CMAKE_CURRENT_SOURCE_DIR}/dialogs/${filename}.h")
+
+    # Call the custom function to process the file
+    callMrkdn2C("${file}" "${outputHeader}")
+
+    # Create a per-file custom target and add it as a dependency
+    add_custom_target(${filename}_gen DEPENDS "${outputHeader}")
+    add_dependencies(generate_headers ${filename}_gen)
+
+    # Mark the output header as a dependency of the source file
+    set_source_files_properties(dialogs/panel_setup_rules.cpp
+        PROPERTIES OBJECT_DEPENDS "${outputHeader}")
+endforeach()
 
 if( APPLE )
     # setup bundle
@@ -601,8 +676,9 @@ add_subdirectory( pcb_io/easyeda )
 add_subdirectory( pcb_io/easyedapro )
 add_subdirectory( pcb_io/fabmaster )
 add_subdirectory( pcb_io/ipc2581 )
+add_subdirectory( pcb_io/odbpp )
 
-set( PCBNEW_IO_LIBRARIES pcad2kicadpcb altium2pcbnew cadstar2pcbnew easyeda easyedapro fabmaster ipc2581 CACHE INTERNAL "")
+set( PCBNEW_IO_LIBRARIES pcad2kicadpcb altium2pcbnew cadstar2pcbnew easyeda easyedapro fabmaster ipc2581 odbpp CACHE INTERNAL "")
 
 # a very small program launcher for pcbnew_kiface
 add_executable( pcbnew WIN32 MACOSX_BUNDLE
@@ -613,15 +689,7 @@ set_source_files_properties( ${CMAKE_SOURCE_DIR}/common/single_top.cpp pcbnew.cp
     COMPILE_DEFINITIONS "TOP_FRAME=FRAME_PCB_EDITOR;PGM_DATA_FILE_EXT=\"kicad_pcb\";BUILD_KIWAY_DLL"
     )
 target_link_libraries( pcbnew
-    #singletop  # replaces common, giving us restrictive control and link warnings.
-    # There's way too much crap coming in from common yet.
-    common
-    gal
-    scripting
-    core
-    nlohmann_json
-    rectpack2d
-    argparse::argparse
+    kicommon
     ${wxWidgets_LIBRARIES}
     )
 
@@ -686,6 +754,7 @@ set( PCBNEW_KIFACE_LIBRARIES
     connectivity
     pcbcommon
     pnsrouter
+    kicommon
     kiplatform
     common
     gal
@@ -699,7 +768,6 @@ set( PCBNEW_KIFACE_LIBRARIES
     Boost::headers
     ${PCBNEW_EXTRA_LIBS}    # -lrt must follow Boost
     )
-
 
 target_link_libraries( pcbnew_kiface
     PRIVATE
@@ -722,6 +790,9 @@ if( WIN32 )
     # Copy dynamic lib dependency to build dir to allow running directly
     add_custom_command( TARGET pcbnew POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:kicad_3dsg>" "$<TARGET_FILE_DIR:pcbnew>"
+        )
+    add_custom_command( TARGET pcbnew POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:kiapi>" "$<TARGET_FILE_DIR:pcbnew>"
         )
 endif()
 

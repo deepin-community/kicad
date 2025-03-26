@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015-2016 Mario Luzeiro <mrluzeiro@ua.pt>
- * Copyright (C) 1992-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -358,12 +358,12 @@ bool ROUND_SEGMENT::IntersectP( const RAY& aRay, float aMaxDistance ) const
 
     double c_Start = p_dot_p_Start - m_radius_squared;
 
-    float delta_Start = (float)(b_Start * b_Start - a * c_Start);
+    float delta_Start = (float)( b_Start * b_Start - a * c_Start );
 
     if( delta_Start > FLT_EPSILON )
     {
         float sdelta = sqrtf( delta_Start );
-        float t = (-b_Start - sdelta) / a;
+        float t = ( -b_Start - sdelta ) / a;
         float z = aRay.m_Origin.z + t * aRay.m_Dir.z;
 
         if( ( z >= m_bbox.Min().z ) && ( z <= m_bbox.Max().z ) )

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Wayne Stambaugh <stambaughw@gmail.com>
  *
@@ -33,6 +33,7 @@
 #include <wx/tokenzr.h>
 #include <wx_filename.h>       // For ::ResolvePossibleSymlinks()
 
+#include <bitmap_base.h>
 #include <kiway.h>
 #include <string_utils.h>
 #include <locale_io.h>
@@ -60,6 +61,7 @@
 #include <sch_screen.h>
 #include <schematic.h>
 #include <symbol_library.h>
+#include <symbol_lib_table.h>
 #include <eeschema_id.h>       // for MAX_UNIT_COUNT_PER_PACKAGE definition
 #include <tool/selection.h>
 #include <wildcards_and_files_ext.h>
@@ -88,7 +90,7 @@ SCH_IO_KICAD_LEGACY::~SCH_IO_KICAD_LEGACY()
 }
 
 
-void SCH_IO_KICAD_LEGACY::init( SCHEMATIC* aSchematic, const STRING_UTF8_MAP* aProperties )
+void SCH_IO_KICAD_LEGACY::init( SCHEMATIC* aSchematic, const std::map<std::string, UTF8>* aProperties )
 {
     m_version   = 0;
     m_rootSheet = nullptr;
@@ -123,7 +125,7 @@ void SCH_IO_KICAD_LEGACY::checkpoint()
 
 SCH_SHEET* SCH_IO_KICAD_LEGACY::LoadSchematicFile( const wxString& aFileName, SCHEMATIC* aSchematic,
                                                    SCH_SHEET*             aAppendToMe,
-                                                   const STRING_UTF8_MAP* aProperties )
+                                                   const std::map<std::string, UTF8>* aProperties )
 {
     wxASSERT( !aFileName || aSchematic != nullptr );
 
@@ -630,7 +632,7 @@ SCH_SHEET* SCH_IO_KICAD_LEGACY::loadSheet( LINE_READER& aReader )
         }
         else if( strCompare( "$EndSheet", line ) )
         {
-            sheet->AutoplaceFields( /* aScreen */ nullptr, /* aManual */ false );
+            sheet->AutoplaceFields( nullptr, AUTOPLACE_AUTO );
             return sheet.release();
         }
 
@@ -646,6 +648,7 @@ SCH_SHEET* SCH_IO_KICAD_LEGACY::loadSheet( LINE_READER& aReader )
 SCH_BITMAP* SCH_IO_KICAD_LEGACY::loadBitmap( LINE_READER& aReader )
 {
     std::unique_ptr<SCH_BITMAP> bitmap = std::make_unique<SCH_BITMAP>();
+    REFERENCE_IMAGE&            refImage = bitmap->GetReferenceImage();
 
     const char* line = aReader.Line();
 
@@ -674,7 +677,7 @@ SCH_BITMAP* SCH_IO_KICAD_LEGACY::loadBitmap( LINE_READER& aReader )
             if( !std::isnormal( scalefactor ) )
                 scalefactor = 1.0;
 
-            bitmap->GetImage()->SetScale( scalefactor );
+            refImage.SetImageScale( scalefactor );
         }
         else if( strCompare( "Data", line, &line ) )
         {
@@ -690,12 +693,12 @@ SCH_BITMAP* SCH_IO_KICAD_LEGACY::loadBitmap( LINE_READER& aReader )
                 if( strCompare( "EndData", line ) )
                 {
                     // all the PNG date is read.
-                    bitmap->GetImage()->ReadImageFile( buffer );
+                    refImage.ReadImageFile( buffer );
 
                     // Legacy file formats assumed 300 image PPI at load.
-                    BITMAP_BASE* bitmapImage = bitmap->GetImage();
-                    bitmapImage->SetScale( bitmapImage->GetScale() * bitmapImage->GetPPI()
-                                           / 300.0 );
+                    const BITMAP_BASE& bitmapImage = refImage.GetImage();
+                    refImage.SetImageScale( refImage.GetImageScale() * bitmapImage.GetPPI()
+                                            / 300.0 );
                     break;
                 }
 
@@ -1285,6 +1288,10 @@ SCH_SYMBOL* SCH_IO_KICAD_LEGACY::loadSymbol( LINE_READER& aReader )
             VECTOR2I pos;
             pos.x = schIUScale.MilsToIU( parseInt( aReader, line, &line ) );
             pos.y = schIUScale.MilsToIU( parseInt( aReader, line, &line ) );
+
+            // Y got inverted in symbol coordinates
+            pos.y = -( pos.y - symbol->GetY() ) + symbol->GetY();
+
             int size = schIUScale.MilsToIU( parseInt( aReader, line, &line ) );
             int attributes = parseHex( aReader, line, &line );
 
@@ -1295,7 +1302,7 @@ SCH_SYMBOL* SCH_IO_KICAD_LEGACY::loadSymbol( LINE_READER& aReader )
                 // The first MANDATOR_FIELDS _must_ be constructed within the SCH_SYMBOL
                 // constructor.  This assert is simply here to guard against a change in that
                 // constructor.
-                wxASSERT( symbol->GetFieldCount() >= MANDATORY_FIELDS );
+                wxASSERT( symbol->GetFieldCount() >= MANDATORY_FIELD_COUNT );
 
                 // We need to check for an existing field by name that happens to have the same
                 // name and index as any field that was made mandatory after this point, e.g. Description
@@ -1306,9 +1313,9 @@ SCH_SYMBOL* SCH_IO_KICAD_LEGACY::loadSymbol( LINE_READER& aReader )
                 if( !existingField )
                 {
                     // Ignore the _supplied_ fieldNdx.  It is not important anymore if within the
-                    // user defined fields region (i.e. >= MANDATORY_FIELDS).
+                    // user defined fields region (i.e. >= MANDATORY_FIELD_COUNT).
                     // We freely renumber the index to fit the next available field slot.
-                    index = symbol->GetFieldCount(); // new has this index after insertion
+                    index = symbol->GetNextFieldId(); // new has this index after insertion
 
                     SCH_FIELD field( VECTOR2I( 0, 0 ), index, symbol.get(), name );
                     symbol->AddField( field );
@@ -1392,7 +1399,7 @@ SCH_SYMBOL* SCH_IO_KICAD_LEGACY::loadSymbol( LINE_READER& aReader )
                 SCH_PARSE_ERROR( "symbol field orientation must be H or V", aReader, line );
 
             if( name.IsEmpty() )
-                name = TEMPLATE_FIELDNAME::GetDefaultFieldName( index );
+                name = GetDefaultFieldName( index, !DO_TRANSLATE );
 
             field.SetName( name );
         }
@@ -1445,7 +1452,7 @@ SCH_SYMBOL* SCH_IO_KICAD_LEGACY::loadSymbol( LINE_READER& aReader )
             if( transform.x1 < -1 || transform.x1 > 1 )
                 SCH_PARSE_ERROR( "invalid symbol X1 transform value", aReader, line );
 
-            transform.y1 = parseInt( aReader, line, &line );
+            transform.y1 = -parseInt( aReader, line, &line );
 
             if( transform.y1 < -1 || transform.y1 > 1 )
                 SCH_PARSE_ERROR( "invalid symbol Y1 transform value", aReader, line );
@@ -1455,7 +1462,7 @@ SCH_SYMBOL* SCH_IO_KICAD_LEGACY::loadSymbol( LINE_READER& aReader )
             if( transform.x2 < -1 || transform.x2 > 1 )
                 SCH_PARSE_ERROR( "invalid symbol X2 transform value", aReader, line );
 
-            transform.y2 = parseInt( aReader, line, &line );
+            transform.y2 = -parseInt( aReader, line, &line );
 
             if( transform.y2 < -1 || transform.y2 > 1 )
                 SCH_PARSE_ERROR( "invalid symbol Y2 transform value", aReader, line );
@@ -1499,7 +1506,7 @@ std::shared_ptr<BUS_ALIAS> SCH_IO_KICAD_LEGACY::loadBusAlias( LINE_READER& aRead
 
 void SCH_IO_KICAD_LEGACY::SaveSchematicFile( const wxString& aFileName, SCH_SHEET* aSheet,
                                              SCHEMATIC*             aSchematic,
-                                             const STRING_UTF8_MAP* aProperties )
+                                             const std::map<std::string, UTF8>* aProperties )
 {
     wxCHECK_RET( aSheet != nullptr, "NULL SCH_SHEET object." );
     wxCHECK_RET( !aFileName.IsEmpty(), "No schematic file name defined." );
@@ -1588,7 +1595,7 @@ void SCH_IO_KICAD_LEGACY::Format( SCH_SHEET* aSheet )
             saveSymbol( static_cast<SCH_SYMBOL*>( item ) );
             break;
         case SCH_BITMAP_T:
-            saveBitmap( static_cast<SCH_BITMAP*>( item ) );
+            saveBitmap( static_cast<const SCH_BITMAP&>( *item ) );
             break;
         case SCH_SHEET_T:
             saveSheet( static_cast<SCH_SHEET*>( item ) );
@@ -1635,7 +1642,7 @@ void SCH_IO_KICAD_LEGACY::Format( SELECTION* aSelection, OUTPUTFORMATTER* aForma
             saveSymbol( static_cast< SCH_SYMBOL* >( item ) );
             break;
         case SCH_BITMAP_T:
-            saveBitmap( static_cast< SCH_BITMAP* >( item ) );
+            saveBitmap( static_cast< const SCH_BITMAP& >( *item ) );
             break;
         case SCH_SHEET_T:
             saveSheet( static_cast< SCH_SHEET* >( item ) );
@@ -1748,16 +1755,22 @@ void SCH_IO_KICAD_LEGACY::saveSymbol( SCH_SYMBOL* aSymbol )
     // Fixed fields:
     // Save mandatory fields even if they are blank,
     // because the visibility, size and orientation are set from library editor.
-    for( unsigned i = 0; i < MANDATORY_FIELDS; ++i )
-        saveField( &aSymbol->GetFields()[i] );
+    for( SCH_FIELD& field : aSymbol->GetFields() )
+    {
+        if( field.IsMandatory() )
+            saveField( &field );
+    }
 
     // User defined fields:
     // The *policy* about which user defined fields are symbol of a symbol is now
     // only in the dialog editors.  No policy should be enforced here, simply
     // save all the user defined fields, they are present because a dialog editor
     // thought they should be.  If you disagree, go fix the dialog editors.
-    for( int i = MANDATORY_FIELDS;  i < aSymbol->GetFieldCount();  ++i )
-        saveField( &aSymbol->GetFields()[i] );
+    for( SCH_FIELD& field : aSymbol->GetFields() )
+    {
+        if( !field.IsMandatory() )
+            saveField( &field );
+    }
 
     // Unit number, position, box ( old standard )
     m_out->Print( 0, "\t%-4d %-4d %-4d\n", aSymbol->GetUnit(),
@@ -1801,26 +1814,26 @@ void SCH_IO_KICAD_LEGACY::saveField( SCH_FIELD* aField )
                   aField->IsBold() ? 'B' : 'N' );
 
     // Save field name, if the name is user definable
-    if( aField->GetId() >= MANDATORY_FIELDS )
+    if( !aField->IsMandatory() )
         m_out->Print( 0, " %s", EscapedUTF8( aField->GetName() ).c_str() );
 
     m_out->Print( 0, "\n" );
 }
 
 
-void SCH_IO_KICAD_LEGACY::saveBitmap( SCH_BITMAP* aBitmap )
+void SCH_IO_KICAD_LEGACY::saveBitmap( const SCH_BITMAP& aBitmap )
 {
-    wxCHECK_RET( aBitmap != nullptr, "SCH_BITMAP* is NULL" );
+    const REFERENCE_IMAGE& refImage = aBitmap.GetReferenceImage();
 
-    const wxImage* image = aBitmap->GetImage()->GetImageData();
+    const wxImage* image = refImage.GetImage().GetImageData();
 
     wxCHECK_RET( image != nullptr, "wxImage* is NULL" );
 
     m_out->Print( 0, "$Bitmap\n" );
     m_out->Print( 0, "Pos %-4d %-4d\n",
-                  schIUScale.IUToMils( aBitmap->GetPosition().x ),
-                  schIUScale.IUToMils( aBitmap->GetPosition().y ) );
-    m_out->Print( 0, "Scale %f\n", aBitmap->GetImage()->GetScale() );
+                  schIUScale.IUToMils( aBitmap.GetPosition().x ),
+                  schIUScale.IUToMils( aBitmap.GetPosition().y ) );
+    m_out->Print( 0, "Scale %f\n", refImage.GetImageScale() );
     m_out->Print( 0, "Data\n" );
 
     wxMemoryOutputStream stream;
@@ -1976,17 +1989,17 @@ void SCH_IO_KICAD_LEGACY::saveLine( SCH_LINE* aLine )
     // Write line style (width, type, color) only for non default values
     if( aLine->IsGraphicLine() )
     {
-        if( aLine->GetLineWidth() != 0 )
-            m_out->Print( 0, " %s %d", T_WIDTH, schIUScale.IUToMils( aLine->GetLineWidth() ) );
+        const STROKE_PARAMS& stroke = aLine->GetStroke();
 
-        m_out->Print( 0, " %s %s", T_STYLE,
-                      TO_UTF8( STROKE_PARAMS::GetLineStyleToken( aLine->GetLineStyle() ) ) );
+        if( stroke.GetWidth() != 0 )
+            m_out->Print( 0, " %s %d", T_WIDTH, schIUScale.IUToMils( stroke.GetWidth() ) );
 
-        if( aLine->GetLineColor() != COLOR4D::UNSPECIFIED )
-        {
-            m_out->Print( 0, " %s",
-                TO_UTF8( aLine->GetLineColor().ToCSSString() ) );
-        }
+        m_out->Print( 0, " %s %s",
+                      T_STYLE,
+                      TO_UTF8( STROKE_PARAMS::GetLineStyleToken( stroke.GetLineStyle() ) ) );
+
+        if( stroke.GetColor() != COLOR4D::UNSPECIFIED )
+            m_out->Print( 0, " %s", TO_UTF8( stroke.GetColor().ToCSSString() ) );
     }
 
     m_out->Print( 0, "\n" );
@@ -2094,7 +2107,7 @@ void SCH_IO_KICAD_LEGACY::saveBusAlias( std::shared_ptr<BUS_ALIAS> aAlias )
 
 
 void SCH_IO_KICAD_LEGACY::cacheLib( const wxString& aLibraryFileName,
-                                    const STRING_UTF8_MAP* aProperties )
+                                    const std::map<std::string, UTF8>* aProperties )
 {
     if( !m_cache || !m_cache->IsFile( aLibraryFileName ) || m_cache->IsFileChanged() )
     {
@@ -2108,7 +2121,7 @@ void SCH_IO_KICAD_LEGACY::cacheLib( const wxString& aLibraryFileName,
 }
 
 
-bool SCH_IO_KICAD_LEGACY::writeDocFile( const STRING_UTF8_MAP* aProperties )
+bool SCH_IO_KICAD_LEGACY::writeDocFile( const std::map<std::string, UTF8>* aProperties )
 {
     std::string propName( SCH_IO_KICAD_LEGACY::PropNoDocFile );
 
@@ -2119,9 +2132,9 @@ bool SCH_IO_KICAD_LEGACY::writeDocFile( const STRING_UTF8_MAP* aProperties )
 }
 
 
-bool SCH_IO_KICAD_LEGACY::isBuffering( const STRING_UTF8_MAP* aProperties )
+bool SCH_IO_KICAD_LEGACY::isBuffering( const std::map<std::string, UTF8>* aProperties )
 {
-    return ( aProperties && aProperties->Exists( SCH_IO_KICAD_LEGACY::PropBuffering ) );
+    return ( aProperties && aProperties->contains( SCH_IO_KICAD_LEGACY::PropBuffering ) );
 }
 
 
@@ -2137,7 +2150,7 @@ int SCH_IO_KICAD_LEGACY::GetModifyHash() const
 
 void SCH_IO_KICAD_LEGACY::EnumerateSymbolLib( wxArrayString&    aSymbolNameList,
                                               const wxString&   aLibraryPath,
-                                              const STRING_UTF8_MAP* aProperties )
+                                              const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO   toggle;     // toggles on, then off, the C locale.
 
@@ -2158,7 +2171,7 @@ void SCH_IO_KICAD_LEGACY::EnumerateSymbolLib( wxArrayString&    aSymbolNameList,
 
 void SCH_IO_KICAD_LEGACY::EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList,
                                               const wxString&   aLibraryPath,
-                                            const STRING_UTF8_MAP* aProperties )
+                                            const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO   toggle;     // toggles on, then off, the C locale.
 
@@ -2179,7 +2192,7 @@ void SCH_IO_KICAD_LEGACY::EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolL
 
 LIB_SYMBOL* SCH_IO_KICAD_LEGACY::LoadSymbol( const wxString& aLibraryPath,
                                              const wxString& aSymbolName,
-                                             const STRING_UTF8_MAP* aProperties )
+                                             const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO toggle;     // toggles on, then off, the C locale.
 
@@ -2195,7 +2208,7 @@ LIB_SYMBOL* SCH_IO_KICAD_LEGACY::LoadSymbol( const wxString& aLibraryPath,
 
 
 void SCH_IO_KICAD_LEGACY::SaveSymbol( const wxString& aLibraryPath, const LIB_SYMBOL* aSymbol,
-                                      const STRING_UTF8_MAP* aProperties )
+                                      const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO toggle;     // toggles on, then off, the C locale.
 
@@ -2209,7 +2222,7 @@ void SCH_IO_KICAD_LEGACY::SaveSymbol( const wxString& aLibraryPath, const LIB_SY
 
 
 void SCH_IO_KICAD_LEGACY::DeleteSymbol( const wxString& aLibraryPath, const wxString& aSymbolName,
-                                        const STRING_UTF8_MAP* aProperties )
+                                        const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO toggle;     // toggles on, then off, the C locale.
 
@@ -2223,7 +2236,7 @@ void SCH_IO_KICAD_LEGACY::DeleteSymbol( const wxString& aLibraryPath, const wxSt
 
 
 void SCH_IO_KICAD_LEGACY::CreateLibrary( const wxString& aLibraryPath,
-                                         const STRING_UTF8_MAP* aProperties )
+                                         const std::map<std::string, UTF8>* aProperties )
 {
     if( wxFileExists( aLibraryPath ) )
     {
@@ -2242,7 +2255,7 @@ void SCH_IO_KICAD_LEGACY::CreateLibrary( const wxString& aLibraryPath,
 
 
 bool SCH_IO_KICAD_LEGACY::DeleteLibrary( const wxString& aLibraryPath,
-                                         const STRING_UTF8_MAP* aProperties )
+                                         const std::map<std::string, UTF8>* aProperties )
 {
     wxFileName fn = aLibraryPath;
 
@@ -2268,7 +2281,7 @@ bool SCH_IO_KICAD_LEGACY::DeleteLibrary( const wxString& aLibraryPath,
 
 
 void SCH_IO_KICAD_LEGACY::SaveLibrary( const wxString& aLibraryPath,
-                                       const STRING_UTF8_MAP* aProperties )
+                                       const std::map<std::string, UTF8>* aProperties )
 {
     if( !m_cache )
         m_cache = new SCH_IO_KICAD_LEGACY_LIB_CACHE( aLibraryPath );

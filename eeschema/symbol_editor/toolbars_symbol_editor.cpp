@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2004 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2004-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -58,6 +58,7 @@ void SYMBOL_EDIT_FRAME::ReCreateVToolbar()
     }
 
     // Set up toolbar
+    // clang-format off
     m_drawToolBar->Add( ACTIONS::selectionTool,           ACTION_TOOLBAR::TOGGLE );
 
     m_drawToolBar->AddScaledSeparator( this );
@@ -67,10 +68,12 @@ void SYMBOL_EDIT_FRAME::ReCreateVToolbar()
     m_drawToolBar->Add( EE_ACTIONS::drawRectangle,        ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::drawCircle,           ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::drawArc,              ACTION_TOOLBAR::TOGGLE );
+    m_drawToolBar->Add( EE_ACTIONS::drawBezier,           ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::drawSymbolLines,      ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::drawSymbolPolygon,    ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( EE_ACTIONS::placeSymbolAnchor,    ACTION_TOOLBAR::TOGGLE );
     m_drawToolBar->Add( ACTIONS::deleteTool,              ACTION_TOOLBAR::TOGGLE );
+    // clang-format on
 
     m_drawToolBar->Realize();
 }
@@ -119,7 +122,7 @@ void SYMBOL_EDIT_FRAME::ReCreateHToolbar()
     m_mainToolBar->Add( EE_ACTIONS::pinTable );
 
     m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( EE_ACTIONS::showDatasheet );
+    m_mainToolBar->Add( ACTIONS::showDatasheet );
     m_mainToolBar->Add( EE_ACTIONS::checkSymbol );
 
     m_mainToolBar->AddScaledSeparator( this );
@@ -168,14 +171,15 @@ void SYMBOL_EDIT_FRAME::ReCreateOptToolbar()
 
     m_optionsToolBar->AddScaledSeparator( this );
     m_optionsToolBar->Add( EE_ACTIONS::showElectricalTypes, ACTION_TOOLBAR::TOGGLE );
-    m_optionsToolBar->Add( EE_ACTIONS::showHiddenLibPins,   ACTION_TOOLBAR::TOGGLE );
-    m_optionsToolBar->Add( EE_ACTIONS::showHiddenLibFields, ACTION_TOOLBAR::TOGGLE );
+    m_optionsToolBar->Add( EE_ACTIONS::showHiddenPins,      ACTION_TOOLBAR::TOGGLE );
+    m_optionsToolBar->Add( EE_ACTIONS::showHiddenFields,    ACTION_TOOLBAR::TOGGLE );
+    // m_optionsToolBar->Add( EE_ACTIONS::togglePinAltIcons,   ACTION_TOOLBAR::TOGGLE );
 
     if( ADVANCED_CFG::GetCfg().m_DrawBoundingBoxes )
         m_optionsToolBar->Add( ACTIONS::toggleBoundingBoxes, ACTION_TOOLBAR::TOGGLE );
 
     m_optionsToolBar->AddScaledSeparator( this );
-    m_optionsToolBar->Add( EE_ACTIONS::showSymbolTree,      ACTION_TOOLBAR::TOGGLE );
+    m_optionsToolBar->Add( ACTIONS::showLibraryTree,        ACTION_TOOLBAR::TOGGLE );
     m_optionsToolBar->Add( ACTIONS::showProperties,         ACTION_TOOLBAR::TOGGLE );
 
     EE_SELECTION_TOOL* selTool = m_toolManager->GetTool<EE_SELECTION_TOOL>();
@@ -196,6 +200,7 @@ void SYMBOL_EDIT_FRAME::ToggleProperties()
 
     wxAuiPaneInfo& propertiesPaneInfo = m_auimgr.GetPane( PropertiesPaneName() );
     propertiesPaneInfo.Show( show );
+    updateSelectionFilterVisbility();
 
     if( show )
     {
@@ -208,4 +213,5 @@ void SYMBOL_EDIT_FRAME::ToggleProperties()
     }
 
     m_auimgr.Update();
+    Refresh();
 }

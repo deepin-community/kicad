@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019-2023 CERN
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,15 +25,18 @@
 #ifndef SCH_DRAWING_TOOLS_H
 #define SCH_DRAWING_TOOLS_H
 
+#include "sch_sheet_path.h"
 #include <tools/ee_tool_base.h>
 #include <sch_base_frame.h>
 #include <sch_label.h>
 #include <status_popup.h>
+#include <sync_sheet_pin/dialog_sync_sheet_pins.h>
 
 class SCH_SYMBOL;
 class SCH_BUS_WIRE_ENTRY;
 class SCH_EDIT_FRAME;
 class EE_SELECTION_TOOL;
+class DIALOG_SYNC_SHEET_PINS;
 
 
 /**
@@ -50,12 +53,18 @@ public:
     bool Init() override;
 
     int PlaceSymbol( const TOOL_EVENT& aEvent );
+    int PlaceNextSymbolUnit( const TOOL_EVENT& aEvent );
     int SingleClickPlace( const TOOL_EVENT& aEvent );
     int TwoClickPlace( const TOOL_EVENT& aEvent );
+    int ImportSheet( const TOOL_EVENT& aEvent );
     int DrawShape( const TOOL_EVENT& aEvent );
+    int DrawRuleArea( const TOOL_EVENT& aEvent );
+    int DrawTable( const TOOL_EVENT& aEvent );
     int DrawSheet( const TOOL_EVENT& aEvent );
     int PlaceImage( const TOOL_EVENT& aEvent );
     int ImportGraphics( const TOOL_EVENT& aEvent );
+    int SyncSheetsPins( const TOOL_EVENT& aEvent );
+    int SyncAllSheetsPins( const TOOL_EVENT& aEvent );
 
 private:
     SCH_LINE* findWire( const VECTOR2I& aPosition );
@@ -65,18 +74,24 @@ private:
 
     SCH_TEXT* createNewText( const VECTOR2I& aPosition, int aType );
 
-    SCH_HIERLABEL* importHierLabel( SCH_SHEET* aSheet );
+    SCH_SHEET_PIN* createNewSheetPin( SCH_SHEET* aSheet, const VECTOR2I& aPosition );
 
-    SCH_SHEET_PIN* createNewSheetPin( SCH_SHEET* aSheet, SCH_HIERLABEL* aLabel,
-                                      const VECTOR2I& aPosition );
+    SCH_SHEET_PIN* createNewSheetPinFromLabel( SCH_SHEET* aSheet, const VECTOR2I& aPosition,
+                                               SCH_HIERLABEL* aLabel );
 
     void sizeSheet( SCH_SHEET* aSheet, const VECTOR2I& aPos );
 
     ///< Set up handlers for various events.
     void setTransitions() override;
 
+    int doSyncSheetsPins( std::list<SCH_SHEET_PATH> aSheets );
+
+    ///< Try finding any hierlabel that does not have a sheet pin associated with it
+    SCH_HIERLABEL* importHierLabel( SCH_SHEET* aSheet );
+
     std::vector<PICKED_SYMBOL> m_symbolHistoryList;
     std::vector<PICKED_SYMBOL> m_powerHistoryList;
+    std::vector<LIB_ID>        m_designBlockHistoryList;
 
     LABEL_FLAG_SHAPE           m_lastSheetPinType;
     LABEL_FLAG_SHAPE           m_lastGlobalLabelShape;
@@ -98,9 +113,11 @@ private:
     STROKE_PARAMS              m_lastTextboxStroke;
     wxString                   m_mruPath;
     bool                       m_lastAutoLabelRotateOnPlacement;
+    bool                       m_drawingRuleArea;
 
-    bool                               m_inDrawingTool;     // Re-entrancy guard
-    std::unique_ptr<STATUS_TEXT_POPUP> m_statusPopup;
+    bool                                    m_inDrawingTool; // Re-entrancy guard
+    std::unique_ptr<STATUS_TEXT_POPUP>      m_statusPopup;
+    std::unique_ptr<DIALOG_SYNC_SHEET_PINS> m_dialogSyncSheetPin;
 };
 
 #endif /* SCH_DRAWING_TOOLS_H */

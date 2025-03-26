@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2020-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,7 +24,7 @@
 #include <gal/gal_display_options.h>
 #include <gal/graphics_abstraction_layer.h>
 #include <layer_ids.h>
-#include <lib_shape.h>
+#include <sch_shape.h>
 #include <math/vector2wx.h>
 #include <page_info.h>
 #include <panel_eeschema_color_settings.h>
@@ -52,7 +52,8 @@
 std::set<int> g_excludedLayers =
         {
             LAYER_NOTES_BACKGROUND,
-            LAYER_DANGLING
+            LAYER_DANGLING,
+            LAYER_NET_COLOR_HIGHLIGHT
         };
 
 
@@ -68,7 +69,7 @@ PANEL_EESCHEMA_COLOR_SETTINGS::PANEL_EESCHEMA_COLOR_SETTINGS( wxWindow* aParent 
 
     SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
     COMMON_SETTINGS*   common_settings = Pgm().GetCommonSettings();
-    EESCHEMA_SETTINGS* app_settings = mgr.GetAppSettings<EESCHEMA_SETTINGS>();
+    EESCHEMA_SETTINGS* app_settings = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
     COLOR_SETTINGS*    current = mgr.GetColorSettings( app_settings->m_ColorTheme );
 
     // Saved theme doesn't exist?  Reset to default
@@ -121,9 +122,10 @@ bool PANEL_EESCHEMA_COLOR_SETTINGS::TransferDataFromWindow()
     if( !saveCurrentTheme( true ) )
         return false;
 
-    SETTINGS_MANAGER& settingsMgr = Pgm().GetSettingsManager();
-    EESCHEMA_SETTINGS* app_settings = settingsMgr.GetAppSettings<EESCHEMA_SETTINGS>();
-    app_settings->m_ColorTheme = m_currentSettings->GetFilename();
+    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
+
+    cfg->m_ColorTheme = m_currentSettings->GetFilename();
 
     return true;
 }
@@ -222,7 +224,7 @@ void PANEL_EESCHEMA_COLOR_SETTINGS::createSwatches()
     m_preview->ShowScrollbars( wxSHOW_SB_NEVER, wxSHOW_SB_NEVER );
     m_preview->GetGAL()->SetAxesEnabled( false );
 
-    KIGFX::SCH_RENDER_SETTINGS* settings = m_preview->GetRenderSettings();
+    SCH_RENDER_SETTINGS* settings = m_preview->GetRenderSettings();
     settings->m_IsSymbolEditor = true;
 
     m_colorsMainSizer->Add( m_preview, 1, wxTOP | wxEXPAND, 1 );
@@ -357,30 +359,32 @@ void PANEL_EESCHEMA_COLOR_SETTINGS::createPreviewItems()
         auto mapLibItemPosition =
                 []( const VECTOR2I& aLibPosition ) -> VECTOR2I
                 {
-                    return VECTOR2I( aLibPosition.x, -aLibPosition.y );
+                    // Currently, the mapping is a no-op.
+                    return VECTOR2I( aLibPosition.x, aLibPosition.y );
                 };
 
         LIB_SYMBOL* symbol = new LIB_SYMBOL( wxEmptyString );
-        VECTOR2I p( 2625, -1600 );
+        VECTOR2I p( 2625, 1600 );
 
-        LIB_FIELD& ref = symbol->GetReferenceField();
+        SCH_FIELD& ref = symbol->GetReferenceField();
 
         ref.SetText( wxT( "U1" ) );
-        ref.SetPosition( MILS_POINT( p.x + 30, p.y + 260 ) );
+        ref.SetPosition( MILS_POINT( p.x + 30, p.y - 260 ) );
         ref.SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
 
-        LIB_FIELD& value = symbol->GetValueField();
+        SCH_FIELD& value = symbol->GetValueField();
 
         value.SetText( wxT( "OPA604" ) );
-        value.SetPosition( MILS_POINT( p.x + 30, p.y + 180 ) );
+        value.SetPosition( MILS_POINT( p.x + 30, p.y - 180 ) );
         value.SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
 
         symbol->SetShowPinNames( true );
         symbol->SetShowPinNumbers( true );
         symbol->SetPinNameOffset( 0 );
 
-        LIB_SHAPE* comp_body = new LIB_SHAPE( symbol, SHAPE_T::POLY );
+        SCH_SHAPE* comp_body = new SCH_SHAPE( SHAPE_T::POLY, LAYER_DEVICE );
 
+        comp_body->SetParent( symbol );
         comp_body->SetUnit( 0 );
         comp_body->SetBodyStyle( 0 );
         comp_body->SetStroke( STROKE_PARAMS( schIUScale.MilsToIU( 10 ), LINE_STYLE::SOLID ) );
@@ -392,9 +396,9 @@ void PANEL_EESCHEMA_COLOR_SETTINGS::createPreviewItems()
 
         addItem( comp_body );
 
-        LIB_PIN* pin = new LIB_PIN( symbol );
+        SCH_PIN* pin = new SCH_PIN( symbol );
 
-        pin->SetPosition( MILS_POINT( p.x - 300, p.y + 100 ) );
+        pin->SetPosition( MILS_POINT( p.x - 300, p.y - 100 ) );
         pin->SetLength( schIUScale.MilsToIU( 100 ) );
         pin->SetOrientation( PIN_ORIENTATION::PIN_RIGHT );
         pin->SetType( ELECTRICAL_PINTYPE::PT_INPUT );
@@ -406,9 +410,9 @@ void PANEL_EESCHEMA_COLOR_SETTINGS::createPreviewItems()
         endPointsByType.emplace_back( PIN_END, pin, mapLibItemPosition( pin->GetPosition() ) );
         symbol->AddDrawItem( pin );
 
-        pin = new LIB_PIN( symbol );
+        pin = new SCH_PIN( symbol );
 
-        pin->SetPosition( MILS_POINT( p.x - 300, p.y - 100 ) );
+        pin->SetPosition( MILS_POINT( p.x - 300, p.y + 100 ) );
         pin->SetLength( schIUScale.MilsToIU( 100 ) );
         pin->SetOrientation( PIN_ORIENTATION::PIN_RIGHT );
         pin->SetType( ELECTRICAL_PINTYPE::PT_INPUT );
@@ -420,7 +424,7 @@ void PANEL_EESCHEMA_COLOR_SETTINGS::createPreviewItems()
         endPointsByType.emplace_back( PIN_END, pin, mapLibItemPosition( pin->GetPosition() ) );
         symbol->AddDrawItem( pin );
 
-        pin = new LIB_PIN( symbol );
+        pin = new SCH_PIN( symbol );
 
         pin->SetPosition( MILS_POINT( p.x + 300, p.y ) );
         pin->SetLength( schIUScale.MilsToIU( 100 ) );
@@ -438,12 +442,12 @@ void PANEL_EESCHEMA_COLOR_SETTINGS::createPreviewItems()
     }
 
     SCH_SHEET* s = new SCH_SHEET(
-        /* aParent */ nullptr,
-        /* aPosition */ MILS_POINT( 4000, 1300 ),
+            /* aParent */ nullptr,
+            /* aPosition */ MILS_POINT( 4000, 1300 ),
             /* aSize */ VECTOR2I( schIUScale.MilsToIU( 800 ), schIUScale.MilsToIU( 1300 ) ) );
     s->GetFields().at( SHEETNAME ).SetText( wxT( "SHEET" ) );
     s->GetFields().at( SHEETFILENAME ).SetText( _( "/path/to/sheet" ) );
-    s->AutoplaceFields( nullptr, false );
+    s->AutoplaceFields( nullptr, AUTOPLACE_AUTO );
     addItem( s );
 
     SCH_SHEET_PIN* sp = new SCH_SHEET_PIN( s, MILS_POINT( 4500, 1500 ), wxT( "SHEET PIN" ) );
@@ -455,7 +459,7 @@ void PANEL_EESCHEMA_COLOR_SETTINGS::createPreviewItems()
 
         if( sch_item && sch_item->IsConnectable() )
         {
-            sch_item->AutoplaceFields( nullptr, false );
+            sch_item->AutoplaceFields( nullptr, AUTOPLACE_AUTO );
             sch_item->GetEndPoints( endPointsByType );
         }
     }
@@ -494,7 +498,7 @@ void PANEL_EESCHEMA_COLOR_SETTINGS::updatePreview()
         return;
 
     KIGFX::VIEW* view = m_preview->GetView();
-    auto settings = static_cast<KIGFX::SCH_RENDER_SETTINGS*>( view->GetPainter()->GetSettings() );
+    auto settings = static_cast<SCH_RENDER_SETTINGS*>( view->GetPainter()->GetSettings() );
     settings->LoadColors( m_currentSettings );
 
     m_preview->GetGAL()->SetClearColor( settings->GetBackgroundColor() );
@@ -514,7 +518,8 @@ void PANEL_EESCHEMA_COLOR_SETTINGS::zoomFitPreview()
         view->SetScale( 1.0 );
         VECTOR2D screenSize = view->ToWorld( ToVECTOR2D( m_preview->GetClientSize() ), false );
 
-        VECTOR2I psize( m_page->GetWidthIU( schIUScale.IU_PER_MILS ), m_page->GetHeightIU( schIUScale.IU_PER_MILS ) );
+        VECTOR2I psize( m_page->GetWidthIU( schIUScale.IU_PER_MILS ),
+                        m_page->GetHeightIU( schIUScale.IU_PER_MILS ) );
         double scale = view->GetScale() / std::max( fabs( psize.x / screenSize.x ),
                                                     fabs( psize.y / screenSize.y ) );
 

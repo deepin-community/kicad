@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2014 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -43,24 +43,36 @@ void LOGGER::Clear()
 }
 
 
-void LOGGER::Log( LOGGER::EVENT_TYPE evt, const VECTOR2I& pos, const ITEM* item,
-                  const SIZES_SETTINGS* sizes )
+void LOGGER::LogM( LOGGER::EVENT_TYPE evt, const VECTOR2I& pos, std::vector<ITEM*> items,
+                  const SIZES_SETTINGS* sizes, int aLayer )
 {
     LOGGER::EVENT_ENTRY ent;
 
     ent.type = evt;
     ent.p = pos;
-    ent.uuid = KIID( 0 );
+    ent.layer = aLayer;
 
     if( sizes )
     {
         ent.sizes = *sizes;
     }
 
-    if( item && item->Parent() )
-        ent.uuid = item->Parent()->m_Uuid;
+    for( auto& item : items )
+    {
+        if( item && item->Parent() )
+            ent.uuids.push_back( item->Parent()->m_Uuid );
+    }
 
     m_events.push_back( ent );
+}
+
+
+void LOGGER::Log( LOGGER::EVENT_TYPE evt, const VECTOR2I& pos, const ITEM* item,
+                  const SIZES_SETTINGS* sizes, int aLayer )
+{
+    std::vector<ITEM*> items;
+    items.push_back( const_cast<ITEM*>( item ) );
+    LogM( evt, pos, items, sizes, aLayer );
 }
 
 
@@ -90,13 +102,26 @@ wxString LOGGER::FormatLogFileAsString( int aMode,
 
 wxString LOGGER::FormatEvent( const LOGGER::EVENT_ENTRY& aEvent )
 {
-    return wxString::Format(
-            "event %d %d %d %s %d %d %d %d %d %d %d\n", aEvent.p.x, aEvent.p.y, aEvent.type,
-            static_cast<const char*>( aEvent.uuid.AsString().c_str() ), aEvent.sizes.TrackWidth(),
-            aEvent.sizes.ViaDiameter(), aEvent.sizes.ViaDrill(),
-            aEvent.sizes.TrackWidthIsExplicit() ? 1 : 0, aEvent.sizes.GetLayerBottom(),
-            aEvent.sizes.GetLayerTop(), static_cast<int>( aEvent.sizes.ViaType() ) );
+    wxString str = wxString::Format( "event %d %d %d %d %d ", aEvent.p.x, aEvent.p.y, aEvent.type, aEvent.layer, (int)aEvent.uuids.size() );
 
+    for( int i = 0; i < aEvent.uuids.size(); i++ )
+    {
+        str.Append( aEvent.uuids[i].AsString() );
+        str.Append( wxT(" ") );
+    }
+
+    str.Append( wxString::Format( "%d %d %d %d %d %d %d",
+            aEvent.sizes.TrackWidth(),
+            aEvent.sizes.ViaDiameter(),
+            aEvent.sizes.ViaDrill(),
+            aEvent.sizes.TrackWidthIsExplicit() ? 1 : 0,
+            aEvent.sizes.GetLayerBottom(),
+            aEvent.sizes.GetLayerTop(),
+            static_cast<int>( aEvent.sizes.ViaType() ) ) );
+
+    str.Append( wxT("\n") );
+
+    return str;
 }
 
 
@@ -105,13 +130,19 @@ LOGGER::EVENT_ENTRY LOGGER::ParseEvent( const wxString& aLine )
     wxStringTokenizer tokens( aLine );
     wxString          cmd = tokens.GetNextToken();
 
+    int n_uuids = 0;
+
     wxCHECK_MSG( cmd == wxT( "event" ), EVENT_ENTRY(), "Line doesn't contain an event!" );
 
     EVENT_ENTRY evt;
     evt.p.x = wxAtoi( tokens.GetNextToken() );
     evt.p.y = wxAtoi( tokens.GetNextToken() );
     evt.type = (PNS::LOGGER::EVENT_TYPE) wxAtoi( tokens.GetNextToken() );
-    evt.uuid = KIID( tokens.GetNextToken() );
+    evt.layer = wxAtoi( tokens.GetNextToken() );
+    n_uuids = wxAtoi( tokens.GetNextToken() );
+
+    for( int i = 0; i < n_uuids; i++)
+        evt.uuids.push_back( KIID( tokens.GetNextToken() ) );
 
     return evt;
 }

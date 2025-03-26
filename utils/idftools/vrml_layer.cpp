@@ -2,7 +2,7 @@
  * file: vrml_layer.cpp
  *
  * This program source code file is part of KiCad, a free EDA CAD application.
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * Copyright (C) 2013-2017  Cirilo Bernardo
  *
@@ -1874,7 +1874,6 @@ bool VRML_LAYER::Get3DTriangles( std::vector< double >& aVertexList,
     // compile indices for the walls joining top to bottom
     int lastPoint;
     int curPoint;
-    int curContour = 0;
 
     std::list< std::list< int >* >::const_iterator  obeg = outline.begin();
     std::list< std::list< int >* >::const_iterator  oend = outline.end();
@@ -1891,7 +1890,6 @@ bool VRML_LAYER::Get3DTriangles( std::vector< double >& aVertexList,
         if( cp->size() < 3 )
         {
             ++obeg;
-            ++curContour;
             continue;
         }
 
@@ -1956,7 +1954,6 @@ bool VRML_LAYER::Get3DTriangles( std::vector< double >& aVertexList,
         }
 
         ++obeg;
-        ++curContour;
     }
 
     return true;

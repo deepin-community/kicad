@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2004 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@verizon.net>
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,10 +30,14 @@
 #include <wx/settings.h>
 #include <wx/toplevel.h>
 
+#include <advanced_config.h>
+#include <kiid.h>
+
 #include <widgets/ui_common.h>
 
 
 BEGIN_EVENT_TABLE( EDA_MSG_PANEL, wxPanel )
+    EVT_DPI_CHANGED( EDA_MSG_PANEL::OnDPIChanged )
     EVT_PAINT( EDA_MSG_PANEL::OnPaint )
 END_EVENT_TABLE()
 
@@ -50,7 +54,9 @@ EDA_MSG_PANEL::EDA_MSG_PANEL( wxWindow* aParent, int aId, const wxPoint& aPositi
 
     m_last_x = 0;
 
-    m_fontSize = GetTextExtent( wxT( "W" ) );
+    updateFontSize();
+
+    InvalidateBestSize();
 }
 
 
@@ -59,16 +65,31 @@ EDA_MSG_PANEL::~EDA_MSG_PANEL()
 }
 
 
-int EDA_MSG_PANEL::GetRequiredHeight( wxWindow* aWindow )
+void EDA_MSG_PANEL::updateFontSize()
 {
-    wxSize     fontSizeInPixels;
-    wxWindowDC dc( aWindow );
+    wxFont font = KIUI::GetControlFont( this );
+    GetTextExtent( wxT( "W" ), &m_fontSize.x, &m_fontSize.y, 0, 0, &font );
+}
 
-    dc.SetFont( KIUI::GetControlFont( aWindow ) );
-    dc.GetTextExtent( wxT( "W" ), &fontSizeInPixels.x, &fontSizeInPixels.y );
 
-    // make space for two rows of text plus a number of pixels between them.
-    return 2 * fontSizeInPixels.y + 0;
+wxSize EDA_MSG_PANEL::DoGetBestSize() const
+{
+    return wxSize( wxDefaultCoord, 2 * m_fontSize.y + 0 );
+}
+
+
+wxSize EDA_MSG_PANEL::DoGetBestClientSize() const
+{
+    return wxPanel::DoGetBestClientSize();
+}
+
+
+void EDA_MSG_PANEL::OnDPIChanged( wxDPIChangedEvent& aEvent )
+{
+    updateFontSize();
+    InvalidateBestSize();
+
+    aEvent.Skip();
 }
 
 
@@ -218,4 +239,21 @@ void EDA_MSG_PANEL::erase( wxDC* aDC )
     aDC->SetPen( pen );
     aDC->SetBrush( brush );
     aDC->DrawRectangle( 0, 0, size.x, size.y );
+}
+
+
+std::optional<wxString> GetMsgPanelDisplayUuid( const KIID& aKiid )
+{
+    const static int        showUuids = ADVANCED_CFG::GetCfg().m_MsgPanelShowUuids;
+    std::optional<wxString> uuid;
+
+    if( showUuids > 0 )
+    {
+        uuid = aKiid.AsString();
+
+        if( showUuids == 2 )
+            uuid = uuid->SubString( 0, 7 );
+    }
+
+    return uuid;
 }

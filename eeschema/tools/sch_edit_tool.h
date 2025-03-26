@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -58,6 +58,11 @@ public:
     int EditPageNumber( const TOOL_EVENT& aEvent );
 
     /**
+     * Increment/decrement something about an item.
+     */
+    int Increment( const TOOL_EVENT& aEvent );
+
+    /**
      * Change a text type to another one.
      *
      * The new text, label, hierarchical label, or global label is created from the old text
@@ -68,6 +73,8 @@ public:
      * current move/edit command
      */
     int ChangeTextType( const TOOL_EVENT& aEvent );
+
+    int JustifyText( const TOOL_EVENT& aEvent );
 
     int BreakWire( const TOOL_EVENT& aEvent );
 
@@ -83,13 +90,15 @@ public:
     /// Drag and drop
     int DdAppendFile( const TOOL_EVENT& aEvent );
 
-    /// Modify Attributes
+    /// Modify Attributes (DNP, Exclude, etc.)  All attributes are
+    /// set to true unless all symbols already have the attribute set to true.
     int SetAttribute( const TOOL_EVENT& aEvent );
-    int UnsetAttribute( const TOOL_EVENT& aEvent );
-    int ToggleAttribute( const TOOL_EVENT& aEvent );
 
 private:
     void editFieldText( SCH_FIELD* aField );
+
+    void collectUnits( const EE_SELECTION& aSelection,
+                       std::set<std::pair<SCH_SYMBOL*, SCH_SCREEN*>>& aCollectedUnits );
 
     ///< Set up handlers for various events.
     void setTransitions() override;

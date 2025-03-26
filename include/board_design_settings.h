@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009-2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,6 +31,7 @@
 #include <project/net_settings.h>
 #include <board_stackup_manager/board_stackup.h>
 #include <drc/drc_engine.h>
+#include <lset.h>
 #include <settings/nested_settings.h>
 #include <widgets/ui_common.h>
 #include <zone_settings.h>
@@ -93,6 +94,7 @@
 #define LEGACY_COPPEREDGECLEARANCE   -0.01    // A flag to indicate the legacy method (based
                                               // on edge cut line thicknesses) should be used.
 #define DEFAULT_SILKCLEARANCE         0.0
+#define DEFAULT_MINGROOVEWIDTH        0.0
 
 #define DEFAULT_MINRESOLVEDSPOKES     2       // Fewer resolved spokes indicates a starved thermal
 
@@ -103,6 +105,11 @@
 #define MINIMUM_LINE_WIDTH_MM         0.005   // minimal line width entered in a dialog
 #define MAXIMUM_LINE_WIDTH_MM         100.0   // max line width entered in a dialog
 
+// Default pad properties
+#define DEFAULT_PAD_WIDTH_MM 2.54         // master pad width
+#define DEFAULT_PAD_HEIGTH_MM 1.27        // master pad height
+#define DEFAULT_PAD_DRILL_DIAMETER_MM 0.8 // master pad drill diameter for PTH
+#define DEFAULT_PAD_RR_RADIUS_RATIO 0.15  // master pad corner radius ratio
 
 /**
  * Container to handle a stock of specific vias each with unique diameter and drill sizes
@@ -203,11 +210,11 @@ enum
 
 struct TEXT_ITEM_INFO
 {
-    wxString m_Text;
-    bool     m_Visible;
-    int      m_Layer;
+    wxString     m_Text;
+    bool         m_Visible;
+    PCB_LAYER_ID m_Layer;
 
-    TEXT_ITEM_INFO( const wxString& aText, bool aVisible, int aLayer )
+    TEXT_ITEM_INFO( const wxString& aText, bool aVisible, PCB_LAYER_ID aLayer )
     {
         m_Text = aText;
         m_Visible = aVisible;
@@ -469,7 +476,7 @@ public:
      * Sets custom track width for differential pairs (i.e. not available in netclasses or
      * preset list).
      *
-     * @param aDrill is the new track wdith.
+     * @param aDrill is the new track width.
      */
     inline void SetCustomDiffPairWidth( int aWidth )
     {
@@ -606,13 +613,28 @@ public:
     void SetCopperLayerCount( int aNewLayerCount );
 
     /**
+     * @return the number of enabled user defined layers.
+     */
+    inline int GetUserDefinedLayerCount() const
+    {
+        return m_userDefinedLayerCount;
+    }
+
+    /**
+     * Set the number of user defined layers to \a aNewLayerCount.
+     *
+     * @param aNewLayerCount The new number of enabled user defined layers.
+     */
+    void SetUserDefinedLayerCount( int aNewLayerCount );
+
+    /**
      * The full thickness of the board including copper and masks.
      * @return
      */
     inline int GetBoardThickness() const { return m_boardThickness; }
     inline void SetBoardThickness( int aThickness ) { m_boardThickness = aThickness; }
 
-    /*
+    /**
      * Return an epsilon which accounts for rounding errors, etc.
      *
      * While currently an advanced cfg, going through this API allows us to easily change
@@ -653,6 +675,8 @@ public:
     void            SetGridOrigin( const VECTOR2I& aOrigin ) { m_gridOrigin = aOrigin; }
     const VECTOR2I& GetGridOrigin() { return m_gridOrigin; }
 
+    void SetDefaultMasterPad();
+
 private:
     void initFromOther( const BOARD_DESIGN_SETTINGS& aOther );
 
@@ -664,8 +688,10 @@ public:
     std::vector<VIA_DIMENSION>       m_ViasDimensionsList;
     std::vector<DIFF_PAIR_DIMENSION> m_DiffPairDimensionsList;
 
-    /** The parameters of teardrops for the different teardrop targets (via/pad, track end)
-     *  3 set of parameters always exist: for round shapes, for rect shapes, for track ends
+    /**
+     * The parameters of teardrops for the different teardrop targets (via/pad, track end).
+     *
+     * 3 set of parameters always exist: for round shapes, for rect shapes, for track ends.
      */
     TEARDROP_PARAMETERS_LIST         m_TeardropParamsList;
 
@@ -679,7 +705,8 @@ public:
                                             // connected track
     bool       m_TempOverrideTrackWidth;    // use selected track width temporarily even when
                                             // using connected track width
-    int        m_MinClearance;              // overall min clearance
+    int        m_MinClearance;              // overall min
+    int        m_MinGrooveWidth;            // Minimum groove width for creepage checks
     int        m_MinConn;                   // overall min connection width
     int        m_TrackMinWidth;             // overall min track width
     int        m_ViasMinAnnularWidth;       // overall minimum width of the via copper ring
@@ -695,9 +722,10 @@ public:
     int        m_MinSilkTextHeight;         // Min text height for silkscreen layers
     int        m_MinSilkTextThickness;      // Min text thickness for silkscreen layers
 
-    std::shared_ptr<DRC_ENGINE> m_DRCEngine;
-    std::map<int, SEVERITY>     m_DRCSeverities;   // Map from DRCErrorCode to SEVERITY
-    std::set<wxString>          m_DrcExclusions;
+    std::shared_ptr<DRC_ENGINE>  m_DRCEngine;
+    std::map<int, SEVERITY>      m_DRCSeverities;           // Map from DRCErrorCode to SEVERITY
+    std::set<wxString>           m_DrcExclusions;           // Serialized excluded DRC markers
+    std::map<wxString, wxString> m_DrcExclusionComments;    // Map from serialization to comment
 
     // When smoothing the zone's outline there's the question of external fillets (that is, those
     // applied to concave corners).  While it seems safer to never have copper extend outside the
@@ -718,11 +746,16 @@ public:
     double     m_SolderPasteMarginRatio;      // Solder mask margin ratio value of pad size
                                               // The final margin is the sum of these 2 values
     bool       m_AllowSoldermaskBridgesInFPs;
+    bool       m_TentViasFront;               // The default tenting option if not overridden on an
+    bool       m_TentViasBack;                // individual via
 
     std::shared_ptr<NET_SETTINGS> m_NetSettings;
 
     // Variables used in footprint editing (default value in item/footprint creation)
     std::vector<TEXT_ITEM_INFO>   m_DefaultFPTextItems;
+
+    // Map between user layer default names and custom names
+    std::map<std::string, wxString>  m_UserLayerNames;
 
     // Arrays of default values for the various layer classes.
     int        m_LineThickness[ LAYER_CLASS_COUNT ];
@@ -778,6 +811,8 @@ private:
 
     int        m_copperLayerCount; ///< Number of copper layers for this design
 
+    int        m_userDefinedLayerCount; ///< Number of user defined layers for this design
+
     LSET       m_enabledLayers;    ///< Bit-mask for layer enabling
 
     int        m_boardThickness;   ///< Board thickness for 3D viewer
@@ -786,13 +821,15 @@ private:
     /// This is also the last used netclass after starting a track.
     wxString   m_currentNetClassName;
 
-    /** the description of layers stackup, for board fabrication
-     * only physical layers are in layers stackup.
-     * It includes not only layers enabled for the board edition, but also dielectric layers
+    /**
+     * The description of layers stackup, for board fabrication only physical layers are in
+     * layers stackup.
+     *
+     * It includes not only layers enabled for the board edition, but also dielectric layers.
      */
     BOARD_STACKUP m_stackup;
 
-    /// The default settings that will be used for new zones
+    /// The default settings that will be used for new zones.
     ZONE_SETTINGS m_defaultZoneSettings;
 };
 

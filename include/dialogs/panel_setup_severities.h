@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,20 +36,10 @@ class wxRadioButton;
 
 class PANEL_SETUP_SEVERITIES : public wxPanel
 {
-private:
-    std::map<int, SEVERITY>& m_severities;
-
-    /// A list of item templates (to get descriptive text and error codes from)
-    std::vector<std::reference_wrapper<RC_ITEM>> m_items;
-
-    /// For ERC settings; a pointer to ERC_ITEM::pinTableConflict
-    RC_ITEM* m_pinMapSpecialCase;
-
-    std::map<int, wxRadioButton*[4]> m_buttonMap;   // map from DRC error code to button group
-
 public:
     /**
-     * Creates the severities setup panel
+     * Create the severities setup panel.
+     *
      * @param aItems is a list of error types that can have a severity.  Must have one or more!
      * @param aSeverities is a map of error code to severity
      * @param aPinMapSpecialCase is used to special-case the ERCE_PIN_TO_PIN_WARNING
@@ -68,7 +58,17 @@ private:
     void checkReload();
 
 private:
+    std::map<int, SEVERITY>& m_severities;
+
+    /// A list of item templates (to get descriptive text and error codes from)
+    std::vector<std::reference_wrapper<RC_ITEM>> m_items;
+
+    /// For ERC settings; a pointer to ERC_ITEM::pinTableConflict
+    RC_ITEM* m_pinMapSpecialCase;
+
+    std::map<int, wxRadioButton*[4]> m_buttonMap;   // map from DRC error code to button group
+
     std::map<int, SEVERITY> m_lastLoaded;
 };
 
-#endif //KICAD_PANEL_SETUP_SEVERITIES_H
+#endif // KICAD_PANEL_SETUP_SEVERITIES_H

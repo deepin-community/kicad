@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -50,7 +50,7 @@ public:
         return getResultCell( item, aCol );
     }
 
-    void Sort( int aCol, bool aAscending ) override;
+    void Sort( int aCol, bool aAscending, std::vector<long>* aSelection ) override;
 
     void SelectItems( std::vector<long>& aItemRows ) override;
     void ActivateItem( long aItemRow ) override;

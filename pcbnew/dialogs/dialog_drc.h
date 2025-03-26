@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2011 Jean-Pierre Charras, jean-pierre.charras@ujf-grenoble.fr
  * Copyright (C) 2009 Dick Hollenbeck, dick@softplc.com
- * Copyright (C) 2004-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -79,6 +79,7 @@ private:
     void OnDRCItemSelected( wxDataViewEvent& aEvent ) override;
     void OnDRCItemDClick( wxDataViewEvent& aEvent ) override;
     void OnDRCItemRClick( wxDataViewEvent& aEvent ) override;
+    void OnIgnoredItemRClick( wxListEvent& event ) override;
     void OnEditViolationSeverities( wxHyperlinkEvent& aEvent ) override;
 
     void OnSeverity( wxCommandEvent& aEvent ) override;

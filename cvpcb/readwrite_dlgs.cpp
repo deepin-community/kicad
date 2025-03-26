@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jean-pierre.charras
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,6 +33,7 @@
 #include <cvpcb_mainframe.h>
 #include <fp_conflict_assignment_selector.h>
 #include <project_pcb.h>
+#include <wx/msgdlg.h>
 
 
 /**
@@ -53,13 +54,13 @@ static int guessNickname( FP_LIB_TABLE* aTbl, LIB_ID* aFootprintId )
     std::vector<wxString> nicks = aTbl->GetLogicalLibs();
 
     // Search each library going through libraries alphabetically.
-    for( unsigned libNdx = 0;  libNdx<nicks.size();  ++libNdx )
+    for( unsigned libNdx = 0; libNdx < nicks.size(); ++libNdx )
     {
         wxArrayString fpnames;
 
         aTbl->FootprintEnumerate( fpnames, nicks[libNdx], true );
 
-        for( unsigned nameNdx = 0;  nameNdx<fpnames.size();   ++nameNdx )
+        for( unsigned nameNdx = 0; nameNdx < fpnames.size(); ++nameNdx )
         {
             if( fpname == fpnames[nameNdx] )
             {
@@ -102,7 +103,7 @@ bool CVPCB_MAINFRAME::readNetListAndFpFiles( const std::string& aNetlist )
 
     if( m_netlist.AnyFootprintsLinked() )
     {
-        for( unsigned i = 0;  i < m_netlist.GetCount();  i++ )
+        for( unsigned i = 0; i < m_netlist.GetCount(); i++ )
         {
             COMPONENT* component = m_netlist.GetComponent( i );
 
@@ -128,7 +129,7 @@ bool CVPCB_MAINFRAME::readNetListAndFpFiles( const std::string& aNetlist )
 
             try
             {
-                for( unsigned i = 0;  i < m_netlist.GetCount();  i++ )
+                for( unsigned i = 0; i < m_netlist.GetCount(); i++ )
                 {
                     COMPONENT* component = m_netlist.GetComponent( i );
 
@@ -262,7 +263,7 @@ bool CVPCB_MAINFRAME::readNetListAndFpFiles( const std::string& aNetlist )
     int firstUnassigned = wxNOT_FOUND;
 
     // Populates the component list box:
-    for( unsigned i = 0;  i < m_netlist.GetCount();  i++ )
+    for( unsigned i = 0; i < m_netlist.GetCount(); i++ )
     {
         COMPONENT* component = m_netlist.GetComponent( i );
 

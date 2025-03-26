@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2009 Wayne Stambaugh <stambaughw@verizon.net>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,10 +23,12 @@
  */
 
 #include <pgm_base.h>
+#include <layer_ids.h>
 #include <settings/settings_manager.h>
 #include <settings/color_settings.h>
 #include <eeschema_settings.h>
 #include "panel_eeschema_editing_options.h"
+#include <widgets/ui_common.h>
 
 
 PANEL_EESCHEMA_EDITING_OPTIONS::PANEL_EESCHEMA_EDITING_OPTIONS( wxWindow* aWindow,
@@ -71,7 +73,8 @@ void PANEL_EESCHEMA_EDITING_OPTIONS::loadEEschemaSettings( EESCHEMA_SETTINGS* aC
 
     m_backgroundColorSwatch->SetSwatchBackground( schematicBackground );
     m_backgroundColorSwatch->SetDefaultColor( settings->GetDefaultColor( LAYER_SHEET_BACKGROUND ) );
-    m_backgroundColorSwatch->SetSwatchColor( aCfg->m_Drawing.default_sheet_background_color, false );
+    m_backgroundColorSwatch->SetSwatchColor( aCfg->m_Drawing.default_sheet_background_color,
+                                             false );
 
     m_choiceLineMode->SetSelection( aCfg->m_Drawing.line_mode );
     m_footprintPreview->SetValue( aCfg->m_Appearance.footprint_preview );
@@ -82,7 +85,6 @@ void PANEL_EESCHEMA_EDITING_OPTIONS::loadEEschemaSettings( EESCHEMA_SETTINGS* aC
     m_checkAutoplaceAlign->SetValue( aCfg->m_AutoplaceFields.align_to_grid );
 
     m_mouseDragIsDrag->SetValue( !aCfg->m_Input.drag_is_move );
-    m_cbPinSelectionOpt->SetValue( aCfg->m_Selection.select_pin_selects_symbol );
 
     m_cbAutoStartWires->SetValue( aCfg->m_Drawing.auto_start_wires );
     m_escClearsNetHighlight->SetValue( aCfg->m_Input.esc_clears_net_highlight );
@@ -92,7 +94,7 @@ void PANEL_EESCHEMA_EDITING_OPTIONS::loadEEschemaSettings( EESCHEMA_SETTINGS* aC
 bool PANEL_EESCHEMA_EDITING_OPTIONS::TransferDataToWindow()
 {
     SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>();
+    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
 
     loadEEschemaSettings( cfg );
 
@@ -103,7 +105,7 @@ bool PANEL_EESCHEMA_EDITING_OPTIONS::TransferDataToWindow()
 bool PANEL_EESCHEMA_EDITING_OPTIONS::TransferDataFromWindow()
 {
     SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>();
+    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
 
     cfg->m_Drawing.default_sheet_border_color = m_borderColorSwatch->GetSwatchColor();
     cfg->m_Drawing.default_sheet_background_color = m_backgroundColorSwatch->GetSwatchColor();
@@ -121,7 +123,6 @@ bool PANEL_EESCHEMA_EDITING_OPTIONS::TransferDataFromWindow()
     cfg->m_AutoplaceFields.align_to_grid = m_checkAutoplaceAlign->GetValue();
 
     cfg->m_Input.drag_is_move = !m_mouseDragIsDrag->GetValue();
-    cfg->m_Selection.select_pin_selects_symbol = m_cbPinSelectionOpt->GetValue();
 
     cfg->m_Drawing.auto_start_wires = m_cbAutoStartWires->GetValue();
     cfg->m_Input.esc_clears_net_highlight = m_escClearsNetHighlight->GetValue();

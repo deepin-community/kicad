@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2015-2016 Mario Luzeiro <mrluzeiro@ua.pt>
  * Copyright (C) 2023 CERN
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -38,6 +38,7 @@
 #include <3d_viewer/tools/eda_3d_actions.h>
 #include <3d_viewer/tools/eda_3d_controller.h>
 #include <3d_viewer/tools/eda_3d_conditions.h>
+#include <board.h>
 #include <advanced_config.h>
 #include <bitmaps.h>
 #include <board_design_settings.h>
@@ -93,8 +94,7 @@ EDA_3D_VIEWER_FRAME::EDA_3D_VIEWER_FRAME( KIWAY* aKiway, PCB_BASE_FRAME* aParent
         m_mainToolBar( nullptr ),
         m_canvas( nullptr ),
         m_currentCamera( m_trackBallCamera ),
-        m_trackBallCamera( 2 * RANGE_SCALE_3D ),
-        m_spaceMouse( nullptr )
+        m_trackBallCamera( 2 * RANGE_SCALE_3D )
 {
     wxLogTrace( m_logTrace, wxT( "EDA_3D_VIEWER_FRAME::EDA_3D_VIEWER_FRAME %s" ), aTitle );
 
@@ -116,8 +116,8 @@ EDA_3D_VIEWER_FRAME::EDA_3D_VIEWER_FRAME( KIWAY* aKiway, PCB_BASE_FRAME* aParent
     EDA_3D_VIEWER_SETTINGS* cfg = mgr.GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
     ANTIALIASING_MODE       aaMode = static_cast<ANTIALIASING_MODE>( cfg->m_Render.opengl_AA_mode );
 
-    m_canvas = new EDA_3D_CANVAS( this, OGL_ATT_LIST::GetAttributesList( aaMode ), m_boardAdapter,
-                                  m_currentCamera,
+    m_canvas = new EDA_3D_CANVAS( this, OGL_ATT_LIST::GetAttributesList( aaMode, true ),
+                                  m_boardAdapter, m_currentCamera,
                                   PROJECT_PCB::Get3DCacheManager( &Prj() ) );
 
     m_appearancePanel = new APPEARANCE_CONTROLS_3D( this, GetCanvas() );
@@ -186,7 +186,7 @@ EDA_3D_VIEWER_FRAME::EDA_3D_VIEWER_FRAME( KIWAY* aKiway, PCB_BASE_FRAME* aParent
 
     try
     {
-        m_spaceMouse = new NL_3D_VIEWER_PLUGIN( m_canvas );
+        m_spaceMouse = std::make_unique<NL_3D_VIEWER_PLUGIN>( m_canvas );
     }
     catch( const std::system_error& e )
     {
@@ -202,8 +202,6 @@ EDA_3D_VIEWER_FRAME::EDA_3D_VIEWER_FRAME( KIWAY* aKiway, PCB_BASE_FRAME* aParent
 
 EDA_3D_VIEWER_FRAME::~EDA_3D_VIEWER_FRAME()
 {
-    delete m_spaceMouse;
-
     Prj().GetProjectFile().m_Viewports3D = m_appearancePanel->GetUserViewports();
 
     m_canvas->SetEventDispatcher( nullptr );
@@ -274,25 +272,27 @@ void EDA_3D_VIEWER_FRAME::setupUIConditions()
                 return m_boardAdapter.m_Cfg->m_AuiPanels.show_layer_manager;
             };
 
-    RegisterUIUpdateHandler( ID_RENDER_CURRENT_VIEW,       ACTION_CONDITIONS().Check( raytracing ) );
+    RegisterUIUpdateHandler( ID_RENDER_CURRENT_VIEW, ACTION_CONDITIONS().Check( raytracing ) );
 
-    mgr->SetConditions( EDA_3D_ACTIONS::showTHT,           ACTION_CONDITIONS().Check( showTH ) );
-    mgr->SetConditions( EDA_3D_ACTIONS::showSMD,           ACTION_CONDITIONS().Check( showSMD ) );
-    mgr->SetConditions( EDA_3D_ACTIONS::showVirtual,       ACTION_CONDITIONS().Check( showVirtual ) );
-    mgr->SetConditions( EDA_3D_ACTIONS::showNotInPosFile,  ACTION_CONDITIONS().Check( show_NotInPosfile ) );
-    mgr->SetConditions( EDA_3D_ACTIONS::showDNP,           ACTION_CONDITIONS().Check( show_DNP ) );
+    mgr->SetConditions( EDA_3D_ACTIONS::showTHT, ACTION_CONDITIONS().Check( showTH ) );
+    mgr->SetConditions( EDA_3D_ACTIONS::showSMD, ACTION_CONDITIONS().Check( showSMD ) );
+    mgr->SetConditions( EDA_3D_ACTIONS::showVirtual, ACTION_CONDITIONS().Check( showVirtual ) );
+    mgr->SetConditions( EDA_3D_ACTIONS::showNotInPosFile,
+                        ACTION_CONDITIONS().Check( show_NotInPosfile ) );
+    mgr->SetConditions( EDA_3D_ACTIONS::showDNP, ACTION_CONDITIONS().Check( show_DNP ) );
 
-    mgr->SetConditions( EDA_3D_ACTIONS::showBBoxes,        ACTION_CONDITIONS().Check( showBBoxes ) );
-    mgr->SetConditions( EDA_3D_ACTIONS::showAxis,          ACTION_CONDITIONS().Check( showAxes ) );
+    mgr->SetConditions( EDA_3D_ACTIONS::showBBoxes, ACTION_CONDITIONS().Check( showBBoxes ) );
+    mgr->SetConditions( EDA_3D_ACTIONS::showAxis, ACTION_CONDITIONS().Check( showAxes ) );
 
-    mgr->SetConditions( EDA_3D_ACTIONS::noGrid,            GridSizeCheck( GRID3D_TYPE::NONE ) );
-    mgr->SetConditions( EDA_3D_ACTIONS::show10mmGrid,      GridSizeCheck( GRID3D_TYPE::GRID_10MM ) );
-    mgr->SetConditions( EDA_3D_ACTIONS::show5mmGrid,       GridSizeCheck( GRID3D_TYPE::GRID_5MM ) );
-    mgr->SetConditions( EDA_3D_ACTIONS::show2_5mmGrid,     GridSizeCheck( GRID3D_TYPE::GRID_2P5MM ) );
-    mgr->SetConditions( EDA_3D_ACTIONS::show1mmGrid,       GridSizeCheck( GRID3D_TYPE::GRID_1MM ) );
-    mgr->SetConditions( EDA_3D_ACTIONS::toggleOrtho,       ACTION_CONDITIONS().Check( ortho ) );
+    mgr->SetConditions( EDA_3D_ACTIONS::noGrid, GridSizeCheck( GRID3D_TYPE::NONE ) );
+    mgr->SetConditions( EDA_3D_ACTIONS::show10mmGrid, GridSizeCheck( GRID3D_TYPE::GRID_10MM ) );
+    mgr->SetConditions( EDA_3D_ACTIONS::show5mmGrid, GridSizeCheck( GRID3D_TYPE::GRID_5MM ) );
+    mgr->SetConditions( EDA_3D_ACTIONS::show2_5mmGrid, GridSizeCheck( GRID3D_TYPE::GRID_2P5MM ) );
+    mgr->SetConditions( EDA_3D_ACTIONS::show1mmGrid, GridSizeCheck( GRID3D_TYPE::GRID_1MM ) );
+    mgr->SetConditions( EDA_3D_ACTIONS::toggleOrtho, ACTION_CONDITIONS().Check( ortho ) );
 
-    mgr->SetConditions( EDA_3D_ACTIONS::showLayersManager, ACTION_CONDITIONS().Check( appearances ) );
+    mgr->SetConditions( EDA_3D_ACTIONS::showLayersManager,
+                        ACTION_CONDITIONS().Check( appearances ) );
 
 #undef GridSizeCheck
 }
@@ -479,7 +479,9 @@ void EDA_3D_VIEWER_FRAME::Process_Special_Functions( wxCommandEvent &event )
 
     case ID_MENU3D_RESET_DEFAULTS:
     {
-        auto cfg = Pgm().GetSettingsManager().GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
+        SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
+        EDA_3D_VIEWER_SETTINGS* cfg = mgr.GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
+
         cfg->ResetToDefaults();
         LoadSettings( cfg );
 
@@ -593,7 +595,7 @@ void EDA_3D_VIEWER_FRAME::LoadSettings( APP_SETTINGS_BASE *aCfg )
                                                   GetAdapter().GetDefaultColors() );
             }
 
-            cfg->m_CurrentPreset = wxEmptyString;
+            cfg->m_CurrentPreset = FOLLOW_PLOT_SETTINGS;
         }
 
         m_boardAdapter.InitSettings( nullptr, nullptr );
@@ -606,7 +608,8 @@ void EDA_3D_VIEWER_FRAME::LoadSettings( APP_SETTINGS_BASE *aCfg )
 
 void EDA_3D_VIEWER_FRAME::SaveSettings( APP_SETTINGS_BASE *aCfg )
 {
-    auto cfg = Pgm().GetSettingsManager().GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
+    SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
+    EDA_3D_VIEWER_SETTINGS* cfg = mgr.GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
 
     EDA_BASE_FRAME::SaveSettings( cfg );
 
@@ -631,18 +634,19 @@ void EDA_3D_VIEWER_FRAME::SaveSettings( APP_SETTINGS_BASE *aCfg )
 }
 
 
-void EDA_3D_VIEWER_FRAME::CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged )
+void EDA_3D_VIEWER_FRAME::CommonSettingsChanged( int aFlags )
 {
     wxLogTrace( m_logTrace, wxT( "EDA_3D_VIEWER_FRAME::CommonSettingsChanged" ) );
 
     // Regen menu bars, etc
-    EDA_BASE_FRAME::CommonSettingsChanged( aEnvVarsChanged, aTextVarsChanged );
+    EDA_BASE_FRAME::CommonSettingsChanged( aFlags );
 
     // There is no base class that handles toolbars for this frame
     ReCreateMainToolbar();
 
     loadCommonSettings();
-    applySettings( Pgm().GetSettingsManager().GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" ) );
+    applySettings(
+            Pgm().GetSettingsManager().GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" ) );
 
     m_appearancePanel->CommonSettingsChanged();
 
@@ -661,8 +665,6 @@ void EDA_3D_VIEWER_FRAME::ShowChangedLanguage()
     {
         wxAuiPaneInfo& lm_pane_info = m_auimgr.GetPane( m_appearancePanel );
         lm_pane_info.Caption( _( "Appearance" ) );
-
-        m_appearancePanel->OnLanguageChanged();
     }
 
     SetStatusText( wxEmptyString, ACTIVITY );
@@ -711,7 +713,8 @@ void EDA_3D_VIEWER_FRAME::takeScreenshot( wxCommandEvent& event )
     if( event.GetId() != ID_TOOL_SCREENCOPY_TOCLIBBOARD )
     {
         // Remember path between saves during this session only.
-        const wxString wildcard = fmt_is_jpeg ? FILEEXT::JpegFileWildcard() : FILEEXT::PngFileWildcard();
+        const wxString wildcard =
+                fmt_is_jpeg ? FILEEXT::JpegFileWildcard() : FILEEXT::PngFileWildcard();
         const wxString ext = fmt_is_jpeg ? FILEEXT::JpegFileExtension : FILEEXT::PngFileExtension;
 
         // First time path is set to the project path.

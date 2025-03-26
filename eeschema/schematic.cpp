@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,19 +23,22 @@
 #include <core/ignore.h>
 #include <core/kicad_algo.h>
 #include <ee_collectors.h>
-#include <erc_settings.h>
-#include <sch_marker.h>
+#include <erc/erc_settings.h>
+#include <font/outline_font.h>
+#include <netlist_exporter_spice.h>
 #include <project.h>
-#include <project/project_file.h>
 #include <project/net_settings.h>
+#include <project/project_file.h>
 #include <schematic.h>
 #include <sch_junction.h>
+#include <sch_label.h>
 #include <sch_line.h>
+#include <sch_marker.h>
 #include <sch_screen.h>
 #include <sim/spice_settings.h>
-#include <sch_label.h>
 #include <sim/spice_value.h>
-#include <netlist_exporter_spice.h>
+
+#include <wx/log.h>
 
 bool SCHEMATIC::m_IsSchematicExists = false;
 
@@ -75,7 +78,7 @@ SCHEMATIC::SCHEMATIC( PROJECT* aPrj ) :
                 int      unit = symbol->GetUnit();
                 LIB_ID   libId = symbol->GetLibId();
 
-                for( SCH_SHEET_PATH& sheet : GetUnorderedSheets() )
+                for( SCH_SHEET_PATH& sheet : Hierarchy() )
                 {
                     std::vector<SCH_SYMBOL*> otherUnits;
 
@@ -197,6 +200,7 @@ void SCHEMATIC::SetRoot( SCH_SHEET* aRootSheet )
     m_currentSheet->clear();
     m_currentSheet->push_back( m_rootSheet );
 
+    m_hierarchy = BuildSheetListSortedByPageNumbers();
     m_connectionGraph->Reset();
 }
 
@@ -204,6 +208,20 @@ void SCHEMATIC::SetRoot( SCH_SHEET* aRootSheet )
 SCH_SCREEN* SCHEMATIC::RootScreen() const
 {
     return IsValid() ? m_rootSheet->GetScreen() : nullptr;
+}
+
+
+SCH_SHEET_LIST SCHEMATIC::Hierarchy() const
+{
+    wxCHECK( !m_hierarchy.empty(), m_hierarchy );
+
+    return m_hierarchy;
+}
+
+
+void SCHEMATIC::RefreshHierarchy()
+{
+    m_hierarchy = BuildSheetListSortedByPageNumbers();
 }
 
 
@@ -307,7 +325,7 @@ ERC_SETTINGS& SCHEMATIC::ErcSettings() const
 
 std::vector<SCH_MARKER*> SCHEMATIC::ResolveERCExclusions()
 {
-    SCH_SHEET_LIST sheetList = GetSheets();
+    SCH_SHEET_LIST sheetList = Hierarchy();
     ERC_SETTINGS&  settings  = ErcSettings();
 
     // Migrate legacy marker exclusions to new format to ensure exclusion matching functions across
@@ -319,7 +337,13 @@ std::vector<SCH_MARKER*> SCHEMATIC::ResolveERCExclusions()
 
     for( auto it = settings.m_ErcExclusions.begin(); it != settings.m_ErcExclusions.end(); )
     {
-        SCH_MARKER* testMarker = SCH_MARKER::Deserialize( sheetList, *it );
+        SCH_MARKER* testMarker = SCH_MARKER::DeserializeFromString( sheetList, *it );
+
+        if( !testMarker )
+        {
+            it = settings.m_ErcExclusions.erase( it );
+            continue;
+        }
 
         if( testMarker->IsLegacyMarker() )
         {
@@ -329,7 +353,7 @@ std::vector<SCH_MARKER*> SCHEMATIC::ResolveERCExclusions()
                 && settingsKey != wxT( "hier_label_mismatch" )
                 && settingsKey != wxT( "different_unit_net" ) )
             {
-                migratedExclusions.insert( testMarker->Serialize() );
+                migratedExclusions.insert( testMarker->SerializeToString() );
             }
 
             it = settings.m_ErcExclusions.erase( it );
@@ -351,12 +375,12 @@ std::vector<SCH_MARKER*> SCHEMATIC::ResolveERCExclusions()
         for( SCH_ITEM* item : sheet.LastScreen()->Items().OfType( SCH_MARKER_T ) )
         {
             SCH_MARKER*                  marker = static_cast<SCH_MARKER*>( item );
-            wxString                     serialized = marker->Serialize();
+            wxString                     serialized = marker->SerializeToString();
             std::set<wxString>::iterator it = settings.m_ErcExclusions.find( serialized );
 
             if( it != settings.m_ErcExclusions.end() )
             {
-                marker->SetExcluded( true );
+                marker->SetExcluded( true, settings.m_ErcExclusionComments[serialized] );
                 settings.m_ErcExclusions.erase( it );
             }
         }
@@ -366,11 +390,11 @@ std::vector<SCH_MARKER*> SCHEMATIC::ResolveERCExclusions()
 
     for( const wxString& serialized : settings.m_ErcExclusions )
     {
-        SCH_MARKER* marker = SCH_MARKER::Deserialize( sheetList, serialized );
+        SCH_MARKER* marker = SCH_MARKER::DeserializeFromString( sheetList, serialized );
 
         if( marker )
         {
-            marker->SetExcluded( true );
+            marker->SetExcluded( true, settings.m_ErcExclusionComments[serialized] );
             newMarkers.push_back( marker );
         }
     }
@@ -383,7 +407,7 @@ std::vector<SCH_MARKER*> SCHEMATIC::ResolveERCExclusions()
 
 std::shared_ptr<BUS_ALIAS> SCHEMATIC::GetBusAlias( const wxString& aLabel ) const
 {
-    for( const SCH_SHEET_PATH& sheet : GetUnorderedSheets() )
+    for( const SCH_SHEET_PATH& sheet : Hierarchy() )
     {
         for( const std::shared_ptr<BUS_ALIAS>& alias : sheet.LastScreen()->GetBusAliases() )
         {
@@ -419,8 +443,16 @@ bool SCHEMATIC::ResolveCrossReference( wxString* token, int aDepth ) const
 {
     wxString       remainder;
     wxString       ref = token->BeforeFirst( ':', &remainder );
+    KIID_PATH      path( ref );
+    KIID           uuid = path.back();
     SCH_SHEET_PATH sheetPath;
-    SCH_ITEM*      refItem = GetItem( KIID( ref ), &sheetPath );
+    SCH_ITEM*      refItem = GetItem( KIID( uuid ), &sheetPath );
+
+    if( path.size() > 1 )
+    {
+        path.pop_back();
+        sheetPath = Hierarchy().GetSheetPathByKIIDPath( path ).value_or( sheetPath );
+    }
 
     if( refItem && refItem->Type() == SCH_SYMBOL_T )
     {
@@ -453,7 +485,7 @@ std::map<int, wxString> SCHEMATIC::GetVirtualPageToSheetNamesMap() const
 {
     std::map<int, wxString> namesMap;
 
-    for( const SCH_SHEET_PATH& sheet : GetSheets() )
+    for( const SCH_SHEET_PATH& sheet : Hierarchy() )
     {
         if( sheet.size() == 1 )
             namesMap[sheet.GetVirtualPageNumber()] = _( "<root sheet>" );
@@ -469,7 +501,7 @@ std::map<int, wxString> SCHEMATIC::GetVirtualPageToSheetPagesMap() const
 {
     std::map<int, wxString> pagesMap;
 
-    for( const SCH_SHEET_PATH& sheet : GetSheets() )
+    for( const SCH_SHEET_PATH& sheet : Hierarchy() )
         pagesMap[sheet.GetVirtualPageNumber()] = sheet.GetPageNumber();
 
     return pagesMap;
@@ -517,7 +549,7 @@ wxString SCHEMATIC::ConvertRefsToKIIDs( const wxString& aSource ) const
                 wxString           ref = token.BeforeFirst( ':', &remainder );
                 SCH_REFERENCE_LIST references;
 
-                GetUnorderedSheets().GetSymbols( references );
+                Hierarchy().GetSymbols( references );
 
                 for( size_t jj = 0; jj < references.GetCount(); jj++ )
                 {
@@ -525,7 +557,10 @@ wxString SCHEMATIC::ConvertRefsToKIIDs( const wxString& aSource ) const
 
                     if( ref == refSymbol->GetRef( &references[ jj ].GetSheetPath(), true ) )
                     {
-                        token = refSymbol->m_Uuid.AsString() + wxS( ":" ) + remainder;
+                        KIID_PATH path = references[ jj ].GetSheetPath().Path();
+                        path.push_back( refSymbol->m_Uuid );
+
+                        token = path.AsString() + wxS( ":" ) + remainder;
                         break;
                     }
                 }
@@ -568,16 +603,23 @@ wxString SCHEMATIC::ConvertKIIDsToRefs( const wxString& aSource ) const
 
             if( isCrossRef )
             {
-                wxString remainder;
-                wxString ref = token.BeforeFirst( ':', &remainder );
+                wxString       remainder;
+                wxString       ref = token.BeforeFirst( ':', &remainder );
+                KIID_PATH      path( ref );
+                KIID           uuid = path.back();
+                SCH_SHEET_PATH sheetPath;
+                SCH_ITEM*      refItem = GetItem( uuid, &sheetPath );
 
-                SCH_SHEET_PATH refSheetPath;
-                SCH_ITEM* refItem = GetItem( KIID( ref ), &refSheetPath );
+                if( path.size() > 1 )
+                {
+                    path.pop_back();
+                    sheetPath = Hierarchy().GetSheetPathByKIIDPath( path ).value_or( sheetPath );
+                }
 
                 if( refItem && refItem->Type() == SCH_SYMBOL_T )
                 {
                     SCH_SYMBOL* refSymbol = static_cast<SCH_SYMBOL*>( refItem );
-                    token = refSymbol->GetRef( &refSheetPath, true ) + wxS( ":" ) + remainder;
+                    token = refSymbol->GetRef( &sheetPath, true ) + wxS( ":" ) + remainder;
                 }
             }
 
@@ -590,17 +632,6 @@ wxString SCHEMATIC::ConvertKIIDsToRefs( const wxString& aSource ) const
     }
 
     return newbuf;
-}
-
-
-SCH_SHEET_LIST& SCHEMATIC::GetFullHierarchy() const
-{
-    static SCH_SHEET_LIST hierarchy;
-
-    hierarchy.clear();
-    hierarchy.BuildSheetList( m_rootSheet, false );
-
-    return hierarchy;
 }
 
 
@@ -640,7 +671,7 @@ void SCHEMATIC::SetSheetNumberAndCount()
 
     // @todo Remove all pseudo page number system is left over from prior to real page number
     //       implementation.
-    for( const SCH_SHEET_PATH& sheet : GetSheets() )
+    for( const SCH_SHEET_PATH& sheet : Hierarchy() )
     {
         if( sheet.Path() == current_sheetpath ) // Current sheet path found
             break;
@@ -657,43 +688,27 @@ void SCHEMATIC::SetSheetNumberAndCount()
 }
 
 
-void SCHEMATIC::RecomputeIntersheetRefs( const std::function<void( SCH_GLOBALLABEL* )>& aItemCallback )
+void SCHEMATIC::RecomputeIntersheetRefs(
+        const std::function<void( SCH_GLOBALLABEL* )>& aItemCallback )
 {
     std::map<wxString, std::set<int>>& pageRefsMap = GetPageRefsMap();
 
     pageRefsMap.clear();
 
-    SCH_SCREENS      screens( Root() );
-    std::vector<int> virtualPageNumbers;
-
-    /* Iterate over screens */
-    for( SCH_SCREEN* screen = screens.GetFirst(); screen != nullptr; screen = screens.GetNext() )
+    for( const SCH_SHEET_PATH& sheet : Hierarchy() )
     {
-        virtualPageNumbers.clear();
-
-        /* Find in which sheets this screen is used */
-        for( const SCH_SHEET_PATH& sheet : GetSheets() )
+        for( SCH_ITEM* item : sheet.LastScreen()->Items().OfType( SCH_GLOBAL_LABEL_T ) )
         {
-            if( sheet.LastScreen() == screen )
-                virtualPageNumbers.push_back( sheet.GetVirtualPageNumber() );
-        }
+            SCH_GLOBALLABEL* global = static_cast<SCH_GLOBALLABEL*>( item );
+            wxString         resolvedLabel = global->GetShownText( &sheet, false );
 
-        for( SCH_ITEM* item : screen->Items() )
-        {
-            if( item->Type() == SCH_GLOBAL_LABEL_T )
-            {
-                SCH_GLOBALLABEL* globalLabel = static_cast<SCH_GLOBALLABEL*>( item );
-                std::set<int>&   virtualpageList = pageRefsMap[globalLabel->GetText()];
-
-                for( const int& pageNo : virtualPageNumbers )
-                    virtualpageList.insert( pageNo );
-            }
+            pageRefsMap[ resolvedLabel ].insert( sheet.GetVirtualPageNumber() );
         }
     }
 
     bool show = Settings().m_IntersheetRefsShow;
 
-    // Refresh all global labels.  Note that we have to collect them first as the
+    // Refresh all visible global labels.  Note that we have to collect them first as the
     // SCH_SCREEN::Update() call is going to invalidate the RTree iterator.
 
     std::vector<SCH_GLOBALLABEL*> currentSheetGlobalLabels;
@@ -710,7 +725,7 @@ void SCHEMATIC::RecomputeIntersheetRefs( const std::function<void( SCH_GLOBALLAB
         if( show )
         {
             if( fields.size() == 1 && fields[0].GetTextPos() == globalLabel->GetPosition() )
-                globalLabel->AutoplaceFields( CurrentSheet().LastScreen(), false );
+                globalLabel->AutoplaceFields( CurrentSheet().LastScreen(), AUTOPLACE_AUTO );
 
             CurrentSheet().LastScreen()->Update( globalLabel );
             aItemCallback( globalLabel );
@@ -722,10 +737,10 @@ void SCHEMATIC::RecomputeIntersheetRefs( const std::function<void( SCH_GLOBALLAB
 wxString SCHEMATIC::GetOperatingPoint( const wxString& aNetName, int aPrecision,
                                        const wxString& aRange )
 {
-    std::string spiceNetName( aNetName.Lower().ToStdString() );
-    NETLIST_EXPORTER_SPICE::ConvertToSpiceMarkup( spiceNetName );
+    wxString spiceNetName( aNetName.Lower() );
+    NETLIST_EXPORTER_SPICE::ConvertToSpiceMarkup( &spiceNetName );
 
-    if( spiceNetName == "gnd" || spiceNetName == "0" )
+    if( spiceNetName == wxS( "gnd" ) || spiceNetName == wxS( "0" ) )
         return wxEmptyString;
 
     auto it = m_operatingPoints.find( spiceNetName );
@@ -818,10 +833,12 @@ void SCHEMATIC::RemoveAllListeners()
 
 void SCHEMATIC::RecordERCExclusions()
 {
-    SCH_SHEET_LIST sheetList = GetSheets();
+    // Use a sorted sheetList to reduce file churn
+    SCH_SHEET_LIST sheetList = Hierarchy();
     ERC_SETTINGS&  ercSettings = ErcSettings();
 
     ercSettings.m_ErcExclusions.clear();
+    ercSettings.m_ErcExclusionComments.clear();
 
     for( unsigned i = 0; i < sheetList.size(); i++ )
     {
@@ -830,7 +847,11 @@ void SCHEMATIC::RecordERCExclusions()
             SCH_MARKER* marker = static_cast<SCH_MARKER*>( item );
 
             if( marker->IsExcluded() )
-                ercSettings.m_ErcExclusions.insert( marker->Serialize() );
+            {
+                wxString serialized = marker->SerializeToString();
+                ercSettings.m_ErcExclusions.insert( serialized );
+                ercSettings.m_ErcExclusionComments[ serialized ] = marker->GetComment();
+            }
         }
     }
 }
@@ -838,7 +859,7 @@ void SCHEMATIC::RecordERCExclusions()
 
 void SCHEMATIC::ResolveERCExclusionsPostUpdate()
 {
-    SCH_SHEET_LIST sheetList = GetUnorderedSheets();
+    SCH_SHEET_LIST sheetList = Hierarchy();
 
     for( SCH_MARKER* marker : ResolveERCExclusions() )
     {
@@ -850,4 +871,121 @@ void SCHEMATIC::ResolveERCExclusionsPostUpdate()
         else
             RootScreen()->Append( marker );
     }
+}
+
+
+EMBEDDED_FILES* SCHEMATIC::GetEmbeddedFiles()
+{
+    return static_cast<EMBEDDED_FILES*>( this );
+}
+
+
+const EMBEDDED_FILES* SCHEMATIC::GetEmbeddedFiles() const
+{
+    return static_cast<const EMBEDDED_FILES*>( this );
+}
+
+
+std::set<KIFONT::OUTLINE_FONT*> SCHEMATIC::GetFonts() const
+{
+    std::set<KIFONT::OUTLINE_FONT*> fonts;
+
+    SCH_SHEET_LIST sheetList = Hierarchy();
+
+    for( const SCH_SHEET_PATH& sheet : sheetList )
+    {
+        for( SCH_ITEM* item : sheet.LastScreen()->Items() )
+        {
+            if( EDA_TEXT* text = dynamic_cast<EDA_TEXT*>( item ) )
+            {
+                KIFONT::FONT* font = text->GetFont();
+
+                if( !font || font->IsStroke() )
+                    continue;
+
+                using EMBEDDING_PERMISSION = KIFONT::OUTLINE_FONT::EMBEDDING_PERMISSION;
+                auto* outline = static_cast<KIFONT::OUTLINE_FONT*>( font );
+
+                if( outline->GetEmbeddingPermission() == EMBEDDING_PERMISSION::EDITABLE
+                    || outline->GetEmbeddingPermission() == EMBEDDING_PERMISSION::INSTALLABLE )
+                {
+                    fonts.insert( outline );
+                }
+            }
+        }
+    }
+
+    return fonts;
+}
+
+
+void SCHEMATIC::EmbedFonts()
+{
+    std::set<KIFONT::OUTLINE_FONT*> fonts = GetFonts();
+
+    for( KIFONT::OUTLINE_FONT* font : fonts )
+    {
+        auto file = GetEmbeddedFiles()->AddFile( font->GetFileName(), false );
+
+        if( !file )
+        {
+            wxLogTrace( "EMBED", "Failed to add font file: %s", font->GetFileName() );
+            continue;
+        }
+
+        file->type = EMBEDDED_FILES::EMBEDDED_FILE::FILE_TYPE::FONT;
+    }
+}
+
+
+std::set<const SCH_SCREEN*> SCHEMATIC::GetSchematicsSharedByMultipleProjects() const
+{
+    std::set<const SCH_SCREEN*> retv;
+
+    wxCHECK( m_rootSheet, retv );
+
+    SCH_SHEET_LIST hierarchy( m_rootSheet );
+    SCH_SCREENS screens( m_rootSheet );
+
+    for( const SCH_SCREEN* screen = screens.GetFirst(); screen; screen = screens.GetNext() )
+    {
+        for( const SCH_ITEM* item : screen->Items().OfType( SCH_SYMBOL_T ) )
+        {
+            const SCH_SYMBOL* symbol = static_cast<const SCH_SYMBOL*>( item );
+
+            const std::vector<SCH_SYMBOL_INSTANCE> symbolInstances = symbol->GetInstances();
+
+            for( const SCH_SYMBOL_INSTANCE& instance : symbolInstances )
+            {
+                if( !hierarchy.HasPath( instance.m_Path ) )
+                {
+                    retv.insert( screen );
+                    break;
+                }
+            }
+
+            if( retv.count( screen ) )
+                break;
+        }
+    }
+
+    return retv;
+}
+
+
+bool SCHEMATIC::IsComplexHierarchy() const
+{
+    wxCHECK( m_rootSheet, false );
+
+    SCH_SCREENS screens( m_rootSheet );
+
+    for( const SCH_SCREEN* screen = screens.GetFirst(); screen; screen = screens.GetNext() )
+    {
+        wxCHECK2( screen, continue );
+
+        if( screen->GetRefCount() > 1 )
+            return true;
+    }
+
+    return false;
 }

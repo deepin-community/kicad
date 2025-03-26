@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2007-2011 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2017-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,16 +30,18 @@
 #include <core/ignore.h>
 #include <richio.h>
 #include <errno.h>
+#include <advanced_config.h>
 #include <io/kicad/kicad_io_utils.h>
 
-#include <wx/file.h>
 #include <wx/translation.h>
 
 
 // Fall back to getc() when getc_unlocked() is not available on the target platform.
 #if !defined( HAVE_FGETC_NOLOCK )
 #ifdef _MSC_VER
-//getc is not a macro on windows and adds a tiny overhead for the indirection to eventually calling fgetc
+
+// getc is not a macro on windows and adds a tiny overhead for the indirection to eventually
+// calling fgetc
 #define getc_unlocked _fgetc_nolock
 #else
 #define getc_unlocked getc
@@ -448,7 +450,7 @@ int OUTPUTFORMATTER::sprint( const char* fmt, ... )
     va_list args;
 
     va_start( args, fmt );
-    int ret = vprint( fmt, args);
+    int ret = vprint( fmt, args );
     va_end( args );
 
     return ret;
@@ -481,6 +483,23 @@ int OUTPUTFORMATTER::Print( int nestLevel, const char* fmt, ... )
 
     total += result;
     return total;
+}
+
+
+int OUTPUTFORMATTER::Print( const char* fmt, ... )
+{
+    va_list     args;
+
+    va_start( args, fmt );
+
+    int result = 0;
+
+    // no error checking needed, an exception indicates an error.
+    result = vprint( fmt, args );
+
+    va_end( args );
+
+    return result;
 }
 
 
@@ -540,6 +559,7 @@ void STRING_FORMATTER::write( const char* aOutBuf, int aCount )
 {
     m_mystring.append( aOutBuf, aCount );
 }
+
 
 void STRING_FORMATTER::StripUseless()
 {
@@ -611,7 +631,7 @@ bool PRETTIFIED_FILE_OUTPUTFORMATTER::Finish()
     if( !m_fp )
         return false;
 
-    KICAD_FORMAT::Prettify( m_buf );
+    KICAD_FORMAT::Prettify( m_buf, ADVANCED_CFG::GetCfg().m_CompactSave );
 
     if( fwrite( m_buf.c_str(), m_buf.length(), 1, m_fp ) != 1 )
         THROW_IO_ERROR( strerror( errno ) );

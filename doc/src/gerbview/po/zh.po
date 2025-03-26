@@ -2,13 +2,13 @@
 # Copyright (C) YEAR Free Software Foundation, Inc.
 # This file is distributed under the same license as the PACKAGE package.
 # Jim Jiang <jim@lotlab.org>, 2018.
-# taotieren <admin@taotieren.com>, 2019, 2020, 2021.
+# taotieren <admin@taotieren.com>, 2019-2024.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: GerbView_Manual_zh_CN\n"
-"POT-Creation-Date: 2023-01-18 01:17+0800\n"
-"PO-Revision-Date: 2023-01-18 01:21+0800\n"
+"POT-Creation-Date: 2024-08-02 10:48+0800\n"
+"PO-Revision-Date: 2024-08-03 09:46+0800\n"
 "Last-Translator: taotieren <admin@taotieren.com>\n"
 "Language-Team: admin@taotieren.com\n"
 "Language: zh\n"
@@ -16,7 +16,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Poedit 3.2.2\n"
+"X-Generator: Poedit 3.4.4\n"
 "X-Poedit-SourceCharset: UTF-8\n"
 
 #. type: Title =
@@ -32,9 +32,8 @@ msgstr "_参考手册_"
 
 #. type: Plain text
 #: gerbview.adoc:12
-#, no-wrap
-msgid "*Copyright*\n"
-msgstr "*版权*\n"
+msgid "*Copyright*"
+msgstr "*版权*"
 
 #. type: Plain text
 #: gerbview.adoc:18
@@ -56,9 +55,8 @@ msgstr "本文档中出现的所有商标归其持有人所有。"
 
 #. type: Plain text
 #: gerbview.adoc:23
-#, no-wrap
-msgid "*Contributors*\n"
-msgstr "*贡献者*\n"
+msgid "*Contributors*"
+msgstr "*贡献者*"
 
 #. type: Plain text
 #: gerbview.adoc:25
@@ -67,20 +65,19 @@ msgstr "KiCad 团队。"
 
 #. type: Plain text
 #: gerbview.adoc:28
-#, no-wrap
-msgid "*Feedback*\n"
-msgstr "*反馈*\n"
+msgid "*Feedback*"
+msgstr "*反馈*"
 
 #. type: Plain text
 #: gerbview.adoc:32
 msgid ""
 "The KiCad project welcomes feedback, bug reports, and suggestions related to the "
-"software or its documentation.  For more information on how to sumbit feedback or "
+"software or its documentation.  For more information on how to submit feedback or "
 "report an issue, please see the instructions at https://www.kicad.org/help/report-"
 "an-issue/"
 msgstr ""
-"KiCad  项目欢迎与本软件或其文档相关的反馈、错误报告和建议。  关于如何提交反馈意见"
-"或报告问题的更多信息，请参见 https://www.kicad.org/help/report-an-issue/ 的说明"
+"KiCad 项目欢迎与软件或其文档相关的反馈、错误报告和建议。 有关如何提交反馈或报告问"
+"题的详细信息，请参阅 https://www.kicad.org/help/report-an-issue/ 上的说明"
 
 #. Since docbook "article" is more compact, I have to separate this page
 #. type: Plain text
@@ -438,16 +435,16 @@ msgstr "images/zh/gerbview_file_menu.png"
 
 #. type: Plain text
 #: gerbview.adoc:190
-#, no-wrap
 msgid ""
-"*Export to PCB Editor* is a limited capability to export Gerber files into a KiCad PCB. The final\n"
-"result depends on what features of the RS-274X format are used in the original Gerber files:\n"
-"rasterized items cannot be converted (typically negative objects), flashed items are converted to\n"
-"vias, lines are converted to track segments (or graphic lines for non-copper layers).\n"
+"*Export to PCB Editor* is a limited capability to export Gerber files into a "
+"KiCad PCB. The final result depends on what features of the RS-274X format are "
+"used in the original Gerber files: rasterized items cannot be converted "
+"(typically negative objects), flashed items are converted to vias, lines are "
+"converted to track segments (or graphic lines for non-copper layers)."
 msgstr ""
-"*导出到 PCB 编辑器* 是将 Gerber 文件导出到 KiCad PCB 的有限功能。\n"
-"最终结果取决于原始 Gerber 文件中使用的 RS-274X 格式的哪些功能：\n"
-"无法转换栅格化的项目 (通常为负值对象)，将完成的项目转换为过孔、线条转换为布线段 (或非铜层的图形线)。\n"
+"*导出到 PCB 编辑器* 是一种将 Gerber 文件导出到 KiCad PCB 的有限功能。最终结果取决"
+"于原始 Gerber 文件中使用了 RS-274X 格式的哪些特征：光栅化项目无法转换（通常是负对"
+"象），将完成的项目转换为过孔、线条转换为布线段（或非铜层的图形线条）。"
 
 #. type: Title ===
 #: gerbview.adoc:191
@@ -469,27 +466,25 @@ msgstr "images/zh/gerbview_tools_menu.png"
 
 #. type: Plain text
 #: gerbview.adoc:196
-#, no-wrap
-msgid "*List DCodes* shows the D Code information for all layers.\n"
-msgstr "*D 码列表* 单可以显示所有层中的 D 码信息。\n"
+msgid "*List DCodes* shows the D Code information for all layers."
+msgstr "*D 码列表* 显示所有图层的 D 代码信息。"
 
 #. type: Plain text
 #: gerbview.adoc:197
-#, no-wrap
-msgid "*Show Source* displays the Gerber file contents of the active layer in a text editor.\n"
-msgstr "*显示源文件* 在一个文本编辑器中显示活动层的 Gerber 文件内容。\n"
+msgid ""
+"*Show Source* displays the Gerber file contents of the active layer in a text "
+"editor."
+msgstr "*显示源文件* 在文本编辑器中显示活动图层的 Gerber 文件内容。"
 
 #. type: Plain text
 #: gerbview.adoc:198
-#, no-wrap
-msgid "*Measure Tool* allows measuring the distance between two points.\n"
-msgstr "*测量工具* 可以测量两点之间的距离。\n"
+msgid "*Measure Tool* allows measuring the distance between two points."
+msgstr "*测量工具* 可以测量两点之间的距离。"
 
 #. type: Plain text
 #: gerbview.adoc:199
-#, no-wrap
-msgid "*Clear Current Layer* erases the contents of the active layer.\n"
-msgstr "*清除当前层* 菜单可以擦除活动层中的内容。\n"
+msgid "*Clear Current Layer* erases the contents of the active layer."
+msgstr "*清除当前图层* 删除活动图层的内容。"
 
 #. type: Title ==
 #: gerbview.adoc:200

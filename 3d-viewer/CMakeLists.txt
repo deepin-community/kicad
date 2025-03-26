@@ -45,7 +45,9 @@ set(3D-VIEWER_SRCS
     ${DIR_RAY_ACC}/container_2d.cpp
     ${DIR_RAY}/PerlinNoise.cpp
     ${DIR_RAY}/create_scene.cpp
-    ${DIR_RAY}/render_3d_raytrace.cpp
+    ${DIR_RAY}/render_3d_raytrace_base.cpp
+    ${DIR_RAY}/render_3d_raytrace_gl.cpp
+    ${DIR_RAY}/render_3d_raytrace_ram.cpp
     ${DIR_RAY}/frustum.cpp
     ${DIR_RAY}/material.cpp
     ${DIR_RAY}/mortoncodes.cpp
@@ -71,7 +73,7 @@ set(3D-VIEWER_SRCS
     ${DIR_RAY_3D}/triangle_3d.cpp
     3d_rendering/buffers_debug.cpp
     3d_rendering/render_3d_base.cpp
-    3d_rendering/color_rgb.cpp
+    3d_rendering/color_rgba.cpp
     3d_rendering/image.cpp
     3d_rendering/post_shader.cpp
     3d_rendering/post_shader_ssao.cpp
@@ -89,7 +91,6 @@ set(3D-VIEWER_SRCS
     common_ogl/ogl_utils.cpp
     3d_fastmath.cpp
     3d_math.cpp
-    dialogs/3d_cache_dialogs.cpp
     dialogs/appearance_controls_3D.cpp
     dialogs/appearance_controls_3D_base.cpp
     dialogs/dialog_select_3d_model_base.cpp

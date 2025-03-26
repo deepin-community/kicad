@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,18 +30,16 @@
 #include <tools/symbol_editor_drawing_tools.h>
 #include <tools/symbol_editor_pin_tool.h>
 #include <tools/ee_grid_helper.h>
-#include <lib_text.h>
-#include <dialogs/dialog_lib_text_properties.h>
-#include <lib_shape.h>
-#include <lib_textbox.h>
+#include <dialogs/dialog_text_properties.h>
+#include <sch_shape.h>
+#include <sch_textbox.h>
 #include <pgm_base.h>
+#include <view/view_controls.h>
 #include <symbol_editor/symbol_editor_settings.h>
 #include <settings/settings_manager.h>
 #include <string_utils.h>
-#include <geometry/geometry_utils.h>
 #include <wx/msgdlg.h>
 #include <import_gfx/dialog_import_gfx_sch.h>
-#include "dialog_lib_textbox_properties.h"
 
 
 KIID SYMBOL_EDITOR_DRAWING_TOOLS::g_lastPin;
@@ -71,11 +69,11 @@ bool SYMBOL_EDITOR_DRAWING_TOOLS::Init()
     auto isDrawingCondition =
             [] ( const SELECTION& aSel )
             {
-                LIB_ITEM* item = (LIB_ITEM*) aSel.Front();
+                SCH_ITEM* item = dynamic_cast<SCH_ITEM*>( aSel.Front() );
                 return item && item->IsNew();
             };
 
-    m_menu.GetMenu().AddItem( ACTIONS::finishInteractive, isDrawingCondition, 2 );
+    m_menu->GetMenu().AddItem( ACTIONS::finishInteractive, isDrawingCondition, 2 );
 
     return true;
 }
@@ -83,9 +81,12 @@ bool SYMBOL_EDITOR_DRAWING_TOOLS::Init()
 
 int SYMBOL_EDITOR_DRAWING_TOOLS::TwoClickPlace( const TOOL_EVENT& aEvent )
 {
-    KICAD_T type = aEvent.Parameter<KICAD_T>();
-    auto*   settings = Pgm().GetSettingsManager().GetAppSettings<SYMBOL_EDITOR_SETTINGS>();
-    auto*   pinTool = type == LIB_PIN_T ? m_toolMgr->GetTool<SYMBOL_EDITOR_PIN_TOOL>() : nullptr;
+    KICAD_T                 type = aEvent.Parameter<KICAD_T>();
+    SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
+    SYMBOL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" );
+    SYMBOL_EDITOR_PIN_TOOL* pinTool = type == SCH_PIN_T
+                                                ? m_toolMgr->GetTool<SYMBOL_EDITOR_PIN_TOOL>()
+                                                : nullptr;
 
     if( m_inTwoClickPlace )
         return 0;
@@ -96,7 +97,7 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::TwoClickPlace( const TOOL_EVENT& aEvent )
     EE_GRID_HELPER        grid( m_toolMgr );
     VECTOR2I              cursorPos;
     bool                  ignorePrimePosition = false;
-    LIB_ITEM*             item   = nullptr;
+    SCH_ITEM*             item   = nullptr;
     bool                  isText = aEvent.IsAction( &EE_ACTIONS::placeSymbolText );
     COMMON_SETTINGS*      common_settings = Pgm().GetCommonSettings();
 
@@ -139,6 +140,8 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::TwoClickPlace( const TOOL_EVENT& aEvent )
         m_toolMgr->PrimeTool( { 0, 0 } );
         ignorePrimePosition = true;
     }
+
+    SCH_COMMIT commit( m_toolMgr );
 
     // Main loop: keep receiving events
     while( TOOL_EVENT* evt = Wait() )
@@ -212,18 +215,20 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::TwoClickPlace( const TOOL_EVENT& aEvent )
 
                 switch( type )
                 {
-                case LIB_PIN_T:
+                case SCH_PIN_T:
                 {
-                    item = pinTool->CreatePin( VECTOR2I( cursorPos.x, -cursorPos.y ), symbol );
+                    item = pinTool->CreatePin( cursorPos, symbol );
 
                     if( item )
                         g_lastPin = item->m_Uuid;
 
                     break;
                 }
-                case LIB_TEXT_T:
+                case SCH_TEXT_T:
                 {
-                    LIB_TEXT* text = new LIB_TEXT( symbol );
+                    SCH_TEXT* text = new SCH_TEXT( cursorPos, wxEmptyString, LAYER_DEVICE );
+
+                    text->SetParent( symbol );
 
                     if( m_drawSpecificUnit )
                         text->SetUnit( m_frame->GetUnit() );
@@ -231,12 +236,11 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::TwoClickPlace( const TOOL_EVENT& aEvent )
                     if( m_drawSpecificBodyStyle )
                         text->SetBodyStyle( m_frame->GetBodyStyle() );
 
-                    text->SetPosition( VECTOR2I( cursorPos.x, -cursorPos.y ) );
-                    text->SetTextSize( VECTOR2I( schIUScale.MilsToIU( settings->m_Defaults.text_size ),
-                                                 schIUScale.MilsToIU( settings->m_Defaults.text_size ) ) );
+                    text->SetTextSize( VECTOR2I( schIUScale.MilsToIU( cfg->m_Defaults.text_size ),
+                                                 schIUScale.MilsToIU( cfg->m_Defaults.text_size ) ) );
                     text->SetTextAngle( m_lastTextAngle );
 
-                    DIALOG_LIB_TEXT_PROPERTIES dlg( m_frame, text );
+                    DIALOG_TEXT_PROPERTIES dlg( m_frame, text );
 
                     if( dlg.ShowModal() != wxID_OK || NoPrintableChars( text->GetText() ) )
                         delete text;
@@ -269,7 +273,7 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::TwoClickPlace( const TOOL_EVENT& aEvent )
 
                     item->SetFlags( IS_NEW | IS_MOVING );
                     m_view->ClearPreview();
-                    m_view->AddToPreview( item->Clone() );
+                    m_view->AddToPreview( item, false );
                     m_selectionTool->AddItemToSel( item );
 
                     // update the cursor so it looks correct before another event
@@ -281,21 +285,20 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::TwoClickPlace( const TOOL_EVENT& aEvent )
             // ... and second click places:
             else
             {
-                SCH_COMMIT commit( m_toolMgr );
                 commit.Modify( symbol, m_frame->GetScreen() );
 
                 switch( item->Type() )
                 {
-                case LIB_PIN_T:
-                    pinTool->PlacePin( (LIB_PIN*) item );
+                case SCH_PIN_T:
+                    pinTool->PlacePin( static_cast<SCH_PIN*>( item ) );
                     item->ClearEditFlags();
-                    commit.Push( _( "Add Pin" ) );
+                    commit.Push( _( "Place Pin" ) );
                     break;
 
-                case LIB_TEXT_T:
-                    symbol->AddDrawItem( (LIB_TEXT*) item );
+                case SCH_TEXT_T:
+                    symbol->AddDrawItem( static_cast<SCH_TEXT*>( item ) );
                     item->ClearEditFlags();
-                    commit.Push( _( "Add Text" ) );
+                    commit.Push( _( "Draw Text" ) );
                     break;
 
                 default:
@@ -313,13 +316,18 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::TwoClickPlace( const TOOL_EVENT& aEvent )
             if( !item )
                 m_toolMgr->VetoContextMenuMouseWarp();
 
-            m_menu.ShowContextMenu( m_selectionTool->GetSelection() );
+            m_menu->ShowContextMenu( m_selectionTool->GetSelection() );
+        }
+        else if( evt->IsAction( &ACTIONS::increment ) )
+        {
+            m_toolMgr->RunSynchronousAction( ACTIONS::increment, &commit,
+                                             evt->Parameter<ACTIONS::INCREMENT>() );
         }
         else if( item && ( evt->IsAction( &ACTIONS::refreshPreview ) || evt->IsMotion() ) )
         {
-            item->SetPosition( VECTOR2I( cursorPos.x, -cursorPos.y ) );
+            item->SetPosition( VECTOR2I( cursorPos.x, cursorPos.y ) );
             m_view->ClearPreview();
-            m_view->AddToPreview( item->Clone() );
+            m_view->AddToPreview( item, false );
         }
         else
         {
@@ -359,13 +367,13 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::doDrawShape( const TOOL_EVENT& aEvent, std::opt
     SHAPE_T toolType  = aDrawingShape.value_or( SHAPE_T::SEGMENT );
 
     KIGFX::VIEW_CONTROLS*   controls = getViewControls();
-    SETTINGS_MANAGER&       settingsMgr = Pgm().GetSettingsManager();
-    SYMBOL_EDITOR_SETTINGS* settings = settingsMgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>();
+    SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
+    SYMBOL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" );
     EE_GRID_HELPER          grid( m_toolMgr );
     VECTOR2I                cursorPos;
     SHAPE_T                 shapeType = toolType == SHAPE_T::SEGMENT ? SHAPE_T::POLY : toolType;
     LIB_SYMBOL*             symbol = m_frame->GetCurSymbol();
-    LIB_SHAPE*              item = nullptr;
+    SCH_SHAPE*              item = nullptr;
     wxString                description;
 
     if( m_inDrawShape )
@@ -461,14 +469,15 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::doDrawShape( const TOOL_EVENT& aEvent, std::opt
 
             m_toolMgr->RunAction( EE_ACTIONS::clearSelection );
 
-            int lineWidth = schIUScale.MilsToIU( settings->m_Defaults.line_width );
+            int lineWidth = schIUScale.MilsToIU( cfg->m_Defaults.line_width );
 
             if( isTextBox )
             {
-                LIB_TEXTBOX* textbox = new LIB_TEXTBOX( symbol, lineWidth, m_lastFillStyle );
+                SCH_TEXTBOX* textbox = new SCH_TEXTBOX( LAYER_DEVICE, lineWidth, m_lastFillStyle );
 
-                textbox->SetTextSize( VECTOR2I( schIUScale.MilsToIU( settings->m_Defaults.text_size ),
-                                                schIUScale.MilsToIU( settings->m_Defaults.text_size ) ) );
+                textbox->SetParent( symbol );
+                textbox->SetTextSize( VECTOR2I( schIUScale.MilsToIU( cfg->m_Defaults.text_size ),
+                                                schIUScale.MilsToIU( cfg->m_Defaults.text_size ) ) );
 
                 // Must be after SetTextSize()
                 textbox->SetBold( m_lastTextBold );
@@ -482,15 +491,16 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::doDrawShape( const TOOL_EVENT& aEvent, std::opt
             }
             else
             {
-                item = new LIB_SHAPE( symbol, shapeType, lineWidth, m_lastFillStyle );
-                description = wxString::Format( _( "Add %s" ), item->EDA_SHAPE::GetFriendlyName() );
+                item = new SCH_SHAPE( shapeType, LAYER_DEVICE, lineWidth, m_lastFillStyle );
+                item->SetParent( symbol );
+                description = wxString::Format( _( "Add %s" ), item->GetFriendlyName() );
             }
 
             item->SetStroke( m_lastStroke );
             item->SetFillColor( m_lastFillColor );
 
             item->SetFlags( IS_NEW );
-            item->BeginEdit( VECTOR2I( cursorPos.x, -cursorPos.y ) );
+            item->BeginEdit( cursorPos );
 
             if( m_drawSpecificUnit )
                 item->SetUnit( m_frame->GetUnit() );
@@ -512,7 +522,7 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::doDrawShape( const TOOL_EVENT& aEvent, std::opt
             }
 
             if( evt->IsDblClick( BUT_LEFT ) || evt->IsAction( &ACTIONS::finishInteractive )
-                    || !item->ContinueEdit( VECTOR2I( cursorPos.x, -cursorPos.y ) ) )
+                || !item->ContinueEdit( VECTOR2I( cursorPos.x, cursorPos.y ) ) )
             {
                 if( toolType == SHAPE_T::POLY )
                 {
@@ -528,9 +538,10 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::doDrawShape( const TOOL_EVENT& aEvent, std::opt
 
                 if( isTextBox )
                 {
-                    LIB_TEXTBOX*                  textbox = static_cast<LIB_TEXTBOX*>( item );
-                    DIALOG_LIB_TEXTBOX_PROPERTIES dlg( m_frame, static_cast<LIB_TEXTBOX*>( item ) );
+                    SCH_TEXTBOX*           textbox = static_cast<SCH_TEXTBOX*>( item );
+                    DIALOG_TEXT_PROPERTIES dlg( m_frame, static_cast<SCH_TEXTBOX*>( item ) );
 
+                    // QuasiModal required for syntax help and Scintilla auto-complete
                     if( dlg.ShowQuasiModal() != wxID_OK )
                     {
                         cleanup();
@@ -562,7 +573,7 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::doDrawShape( const TOOL_EVENT& aEvent, std::opt
         }
         else if( item && ( evt->IsAction( &ACTIONS::refreshPreview ) || evt->IsMotion() ) )
         {
-            item->CalcEdit( VECTOR2I( cursorPos.x, -cursorPos.y ) );
+            item->CalcEdit( cursorPos );
             m_view->ClearPreview();
             m_view->AddToPreview( item->Clone() );
         }
@@ -576,7 +587,7 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::doDrawShape( const TOOL_EVENT& aEvent, std::opt
             if( !item )
                 m_toolMgr->VetoContextMenuMouseWarp();
 
-            m_menu.ShowContextMenu( m_selectionTool->GetSelection() );
+            m_menu->ShowContextMenu( m_selectionTool->GetSelection() );
         }
         else
         {
@@ -634,21 +645,17 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::PlaceAnchor( const TOOL_EVENT& aEvent )
                 continue;
 
             VECTOR2I cursorPos = getViewControls()->GetCursorPosition( !evt->DisableGridSnapping() );
-            VECTOR2I offset( -cursorPos.x, cursorPos.y );
 
-            symbol->SetOffset( offset );
+            symbol->Move( -cursorPos );
 
             // Refresh the view without changing the viewport
-            auto center = m_view->GetCenter();
-            center.x += offset.x;
-            center.y -= offset.y;
-            m_view->SetCenter( center );
+            m_view->SetCenter( m_view->GetCenter() + cursorPos );
             m_view->RecacheAllItems();
             m_frame->OnModify();
         }
         else if( evt->IsClick( BUT_RIGHT ) )
         {
-            m_menu.ShowContextMenu( m_selectionTool->GetSelection() );
+            m_menu->ShowContextMenu( m_selectionTool->GetSelection() );
         }
         else
         {
@@ -688,14 +695,14 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::ImportGraphics( const TOOL_EVENT& aEvent )
     m_toolMgr->RunAction( ACTIONS::cancelInteractive );
 
     KIGFX::VIEW_CONTROLS*  controls = getViewControls();
-    std::vector<LIB_ITEM*> newItems;      // all new items, including group
-    std::vector<LIB_ITEM*> selectedItems; // the group, or newItems if no group
+    std::vector<SCH_ITEM*> newItems;      // all new items, including group
+    std::vector<SCH_ITEM*> selectedItems; // the group, or newItems if no group
     EE_SELECTION           preview;
     SCH_COMMIT             commit( m_toolMgr );
 
     for( std::unique_ptr<EDA_ITEM>& ptr : list )
     {
-        LIB_ITEM* item = dynamic_cast<LIB_ITEM*>( ptr.get() );
+        SCH_ITEM* item = dynamic_cast<SCH_ITEM*>( ptr.get() );
         wxCHECK2( item, continue );
 
         newItems.push_back( item );
@@ -710,7 +717,7 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::ImportGraphics( const TOOL_EVENT& aEvent )
         commit.Modify( symbol, m_frame->GetScreen() );
 
         // Place the imported drawings
-        for( LIB_ITEM* item : newItems )
+        for( SCH_ITEM* item : newItems )
         {
             symbol->AddDrawItem( item );
             item->ClearEditFlags();
@@ -752,8 +759,8 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::ImportGraphics( const TOOL_EVENT& aEvent )
     VECTOR2I delta = cursorPos;
     VECTOR2I currentOffset;
 
-    for( LIB_ITEM* item : selectedItems )
-        item->Offset( delta );
+    for( SCH_ITEM* item : selectedItems )
+        item->Move( delta );
 
     currentOffset += delta;
 
@@ -774,17 +781,17 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::ImportGraphics( const TOOL_EVENT& aEvent )
         {
             m_toolMgr->RunAction( EE_ACTIONS::clearSelection );
 
-            for( LIB_ITEM* item : newItems )
+            for( SCH_ITEM* item : newItems )
                 delete item;
 
             break;
         }
         else if( evt->IsMotion() )
         {
-            delta = VECTOR2I( cursorPos.x, -cursorPos.y ) - currentOffset;
+            delta = cursorPos - currentOffset;
 
-            for( LIB_ITEM* item : selectedItems )
-                item->Offset( delta );
+            for( SCH_ITEM* item : selectedItems )
+                item->Move( delta );
 
             currentOffset += delta;
 
@@ -792,14 +799,14 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::ImportGraphics( const TOOL_EVENT& aEvent )
         }
         else if( evt->IsClick( BUT_RIGHT ) )
         {
-            m_menu.ShowContextMenu( m_selectionTool->GetSelection() );
+            m_menu->ShowContextMenu( m_selectionTool->GetSelection() );
         }
         else if( evt->IsClick( BUT_LEFT ) || evt->IsDblClick( BUT_LEFT ) )
         {
             commit.Modify( symbol, m_frame->GetScreen() );
 
             // Place the imported drawings
-            for( LIB_ITEM* item : newItems )
+            for( SCH_ITEM* item : newItems )
             {
                 symbol->AddDrawItem( item );
                 item->ClearEditFlags();
@@ -832,14 +839,12 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::RepeatDrawItem( const TOOL_EVENT& aEvent )
 {
     SYMBOL_EDITOR_PIN_TOOL* pinTool = m_toolMgr->GetTool<SYMBOL_EDITOR_PIN_TOOL>();
     LIB_SYMBOL*   symbol = m_frame->GetCurSymbol();
-    LIB_PIN*      sourcePin = nullptr;
+    SCH_PIN*      sourcePin = nullptr;
 
     if( !symbol )
         return 0;
 
-    std::vector<LIB_PIN*> pins = symbol->GetAllLibPins();
-
-    for( LIB_PIN* test : pins )
+    for( SCH_PIN* test : symbol->GetPins() )
     {
         if( test->m_Uuid == g_lastPin )
         {
@@ -850,7 +855,7 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::RepeatDrawItem( const TOOL_EVENT& aEvent )
 
     if( sourcePin )
     {
-        LIB_PIN* pin = pinTool->RepeatPin( sourcePin );
+        SCH_PIN* pin = pinTool->RepeatPin( sourcePin );
 
         if( pin )
             g_lastPin = pin->m_Uuid;
@@ -867,15 +872,18 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::RepeatDrawItem( const TOOL_EVENT& aEvent )
 
 void SYMBOL_EDITOR_DRAWING_TOOLS::setTransitions()
 {
+    // clang-format off
     Go( &SYMBOL_EDITOR_DRAWING_TOOLS::TwoClickPlace,     EE_ACTIONS::placeSymbolPin.MakeEvent() );
     Go( &SYMBOL_EDITOR_DRAWING_TOOLS::TwoClickPlace,     EE_ACTIONS::placeSymbolText.MakeEvent() );
     Go( &SYMBOL_EDITOR_DRAWING_TOOLS::DrawShape,         EE_ACTIONS::drawRectangle.MakeEvent() );
     Go( &SYMBOL_EDITOR_DRAWING_TOOLS::DrawShape,         EE_ACTIONS::drawCircle.MakeEvent() );
     Go( &SYMBOL_EDITOR_DRAWING_TOOLS::DrawShape,         EE_ACTIONS::drawArc.MakeEvent() );
+    Go( &SYMBOL_EDITOR_DRAWING_TOOLS::DrawShape,         EE_ACTIONS::drawBezier.MakeEvent() );
     Go( &SYMBOL_EDITOR_DRAWING_TOOLS::DrawShape,         EE_ACTIONS::drawSymbolLines.MakeEvent() );
     Go( &SYMBOL_EDITOR_DRAWING_TOOLS::DrawShape,         EE_ACTIONS::drawSymbolPolygon.MakeEvent() );
     Go( &SYMBOL_EDITOR_DRAWING_TOOLS::DrawSymbolTextBox, EE_ACTIONS::drawSymbolTextBox.MakeEvent() );
     Go( &SYMBOL_EDITOR_DRAWING_TOOLS::PlaceAnchor,       EE_ACTIONS::placeSymbolAnchor.MakeEvent() );
     Go( &SYMBOL_EDITOR_DRAWING_TOOLS::ImportGraphics,    EE_ACTIONS::importGraphics.MakeEvent() );
     Go( &SYMBOL_EDITOR_DRAWING_TOOLS::RepeatDrawItem,    EE_ACTIONS::repeatDrawItem.MakeEvent() );
+    // clang-format on
 }

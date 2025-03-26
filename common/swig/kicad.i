@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 NBEE Embedded Systems, Miguel Angel Ajo <miguelangel@nbee.es>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -117,9 +117,6 @@ principle should be easily implemented by adapting the current STL containers.
 // SWIG is incompatible with std::unique_ptr
 %ignore GetNewConfig;
 
-// wrapper of BASE_SEQ (see typedef std::vector<PCB_LAYER_ID> BASE_SEQ;)
-%template(base_seqVect) std::vector<enum PCB_LAYER_ID>;
-
 // TODO: wrapper of BASE_SET (see std::bitset<PCB_LAYER_ID_COUNT> BASE_SET;)
 
 
@@ -159,6 +156,12 @@ typedef long time_t;
 
 // Shapes/geometry
 %include shape.i
+
+// std::optional type mappings
+%include optional.i
+
+// Mirror defs
+%include mirror.i
 
 // ignore warning relative to operator = and operator ++:
 #pragma SWIG nowarn=362,383

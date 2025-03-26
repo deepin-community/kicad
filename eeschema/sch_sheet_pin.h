@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -105,7 +105,8 @@ public:
      */
     bool IsMovableFromAnchorPoint() const override { return true; }
 
-    void Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset ) override;
+    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed ) override;
 
     /**
      * Calculate the graphic shape (a polygon) associated to the text.
@@ -165,7 +166,7 @@ public:
 
     void MirrorVertically( int aCenter ) override;
     void MirrorHorizontally( int aCenter ) override;
-    void Rotate( const VECTOR2I& aCenter ) override;
+    void Rotate( const VECTOR2I& aCenter, bool aRotateCCW ) override;
 
     bool Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const override
     {
@@ -186,7 +187,7 @@ public:
     bool HasConnectivityChanges( const SCH_ITEM* aItem,
                                  const SCH_SHEET_PATH* aInstance = nullptr ) const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 

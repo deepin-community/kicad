@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2012 Jean-Pierre Charras, jean-pierre.charras@ujf-grenoble.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -141,21 +141,36 @@ public:
     virtual int GetOwnClearance( PCB_LAYER_ID aLayer, wxString* aSource = nullptr ) const;
 
     /**
-     * Return any local clearance overrides set in the "classic" (ie: pre-rule) system.
+     * Return any clearance overrides set in the "classic" (ie: pre-rule) system.
      *
      * @param aSource [out] optionally reports the source as a user-readable string.
      * @return the clearance in internal units.
      */
-    virtual int GetLocalClearanceOverrides( wxString* aSource ) const { return 0; }
+    virtual std::optional<int> GetClearanceOverrides( wxString* aSource ) const
+    {
+        return std::optional<int>();
+    }
 
     /**
-     * Return any local clearances set in the "classic" (ie: pre-rule) system.  These are
-     * things like zone clearance which are **not** an override.
+     * Return any local clearances set in the "classic" (ie: pre-rule) system.
      *
-     * @param aSource [out] optionally reports the source as a user readable string.
-     * @return the clearance in internal units.
+     * @return the clearance (if any is specified) in internal units.
      */
-    virtual int GetLocalClearance( wxString* aSource ) const { return 0; }
+    virtual std::optional<int> GetLocalClearance() const
+    {
+        return std::optional<int>();
+    }
+
+    /**
+     * Return any local clearances set in the "classic" (ie: pre-rule) system.
+     *
+     * @param aSource [out] optionally reports the source as a user-readable string.
+     * @return the clearance (if any is specified) in internal units.
+     */
+    virtual std::optional<int> GetLocalClearance( wxString* aSource ) const
+    {
+        return std::optional<int>();
+    }
 
     /**
      * Return the #NETCLASS for this item.
@@ -191,8 +206,8 @@ public:
     void SetTeardropMaxWidth( int aMaxWidth ) { m_teardropParams.m_TdMaxWidth = aMaxWidth; }
     int GetTeardropMaxWidth() const { return m_teardropParams.m_TdMaxWidth; }
 
-    void SetTeardropCurvePts( int aPointCount ) { m_teardropParams.m_CurveSegCount = aPointCount; }
-    int GetTeardropCurvePts() const { return m_teardropParams.m_CurveSegCount; }
+    void SetTeardropCurved( bool aCurve ) { m_teardropParams.m_CurvedEdges = aCurve; }
+    bool GetTeardropCurved() const { return m_teardropParams.m_CurvedEdges; }
 
     void SetTeardropPreferZoneConnections( bool aPrefer ) { m_teardropParams.m_TdOnPadsInZones = !aPrefer; }
     bool GetTeardropPreferZoneConnections() const { return !m_teardropParams.m_TdOnPadsInZones; }

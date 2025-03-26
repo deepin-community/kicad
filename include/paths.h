@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -53,11 +53,6 @@ public:
     static wxString GetUserPluginsPath();
 
     /**
-     * Gets the user path for 3d viewer plugin
-     */
-    static wxString GetUserPlugins3DPath();
-
-    /**
      * Gets the default path we point users to create projects
      */
     static wxString GetDefaultUserProjectsPath();
@@ -71,6 +66,11 @@ public:
      * Gets the default path we point users to create projects
      */
     static wxString GetDefaultUserFootprintsPath();
+
+    /**
+     * Gets the default path we point users to create projects
+     */
+    static wxString GetDefaultUserDesignBlocksPath();
 
     /**
      * Gets the default path we point users to create projects
@@ -102,6 +102,11 @@ public:
      * Gets the stock (install) footprints path
      */
     static wxString GetStockFootprintsPath();
+
+    /**
+     * Gets the stock (install) footprints path
+     */
+    static wxString GetStockDesignBlocksPath();
 
     /**
      * Gets the stock (install) 3dmodels path
@@ -154,9 +159,14 @@ public:
     static wxString GetInstanceCheckerPath();
 
     /**
+     * Gets a path to use for user-visible log files
+     */
+    static wxString GetLogsPath();
+
+    /**
      * Attempts to create a given path if it does not exist
      */
-    static bool EnsurePathExists( const wxString& aPath );
+    static bool EnsurePathExists( const wxString& aPath, bool aPathToFile = false );
 
     /**
      * Ensures/creates user default paths
@@ -182,7 +192,7 @@ public:
     static wxString GetOSXKicadDataDir();
 #endif
 
-#ifdef __WXMSW__
+#ifdef _WIN32
     /**
      * @return The directory the font config support files can be found
      */
@@ -234,7 +244,7 @@ private:
      */
     static void getUserDocumentPath( wxFileName& aPath );
 
-#ifdef __WXMSW__
+#ifdef _WIN32
     /**
      * Gets the root of the kicad install on Windows specifically.
      * KiCad on Windows has a pseudo posix folder structure contained in its installed folder

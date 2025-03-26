@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 Henner Zeller <h.zeller@acm.org>
- * Copyright (C) 2016-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,9 +22,9 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "panel_symbol_chooser.h"
+
 #include <pgm_base.h>
-#include <symbol_library.h>         // For SYMBOL_LIBRARY_FILTER
-#include <panel_symbol_chooser.h>
 #include <kiface_base.h>
 #include <sch_base_frame.h>
 #include <project_sch.h>
@@ -36,6 +36,8 @@
 #include <project/project_file.h>
 #include <eeschema_settings.h>
 #include <symbol_editor_settings.h>
+#include <symbol_library.h>         // For SYMBOL_LIBRARY_FILTER
+#include <symbol_lib_table.h>
 #include <wx/button.h>
 #include <wx/clipbrd.h>
 #include <wx/panel.h>
@@ -43,6 +45,7 @@
 #include <wx/splitter.h>
 #include <wx/timer.h>
 #include <wx/wxhtml.h>
+#include <wx/log.h>
 
 
 wxString PANEL_SYMBOL_CHOOSER::g_symbolSearchString;
@@ -76,8 +79,8 @@ PANEL_SYMBOL_CHOOSER::PANEL_SYMBOL_CHOOSER( SCH_BASE_FRAME* aFrame, wxWindow* aP
     PROJECT_FILE&             project = m_frame->Prj().GetProjectFile();
 
     // Make sure settings are loaded before we start running multi-threaded symbol loaders
-    Pgm().GetSettingsManager().GetAppSettings<EESCHEMA_SETTINGS>();
-    Pgm().GetSettingsManager().GetAppSettings<SYMBOL_EDITOR_SETTINGS>();
+    Pgm().GetSettingsManager().GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
+    Pgm().GetSettingsManager().GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" );
 
     m_adapter = SYMBOL_TREE_MODEL_ADAPTER::Create( m_frame, libs );
     SYMBOL_TREE_MODEL_ADAPTER* adapter = static_cast<SYMBOL_TREE_MODEL_ADAPTER*>( m_adapter.get() );
@@ -96,7 +99,9 @@ PANEL_SYMBOL_CHOOSER::PANEL_SYMBOL_CHOOSER( SCH_BASE_FRAME* aFrame, wxWindow* aP
                 bool pinned = alg::contains( session.pinned_symbol_libs, nickname )
                                 || alg::contains( project.m_PinnedSymbolLibs, nickname );
 
-                if( libs->FindRow( nickname )->GetIsVisible() )
+                SYMBOL_LIB_TABLE_ROW* row = libs->FindRow( nickname );
+
+                if( row && row->GetIsVisible() )
                     adapter->AddLibrary( nickname, pinned );
             }
         }
@@ -143,7 +148,7 @@ PANEL_SYMBOL_CHOOSER::PANEL_SYMBOL_CHOOSER( SCH_BASE_FRAME* aFrame, wxWindow* aP
 
                         for( const std::pair<int, wxString>& fieldDef : i.Fields )
                         {
-                            LIB_FIELD* field = storageList.back().GetFieldById( fieldDef.first );
+                            SCH_FIELD* field = storageList.back().GetFieldById( fieldDef.first );
 
                             if( field )
                                 field->SetText( fieldDef.second );
@@ -166,13 +171,15 @@ PANEL_SYMBOL_CHOOSER::PANEL_SYMBOL_CHOOSER( SCH_BASE_FRAME* aFrame, wxWindow* aP
     processList( aAlreadyPlaced, already_placed_storage, already_placed );
 
     adapter->DoAddLibrary( wxT( "-- " ) + _( "Recently Used" ) + wxT( " --" ), wxEmptyString,
-                           history_list, false, true );
+                           history_list, false, true )
+            .m_IsRecentlyUsedGroup = true;
 
     if( !aHistoryList.empty() )
         adapter->SetPreselectNode( aHistoryList[0].LibId, aHistoryList[0].Unit );
 
     adapter->DoAddLibrary( wxT( "-- " ) + _( "Already Placed" ) + wxT( " --" ), wxEmptyString,
-                           already_placed, false, true );
+                           already_placed, false, true )
+            .m_IsAlreadyPlacedGroup = true;
 
     const std::vector< wxString > libNicknames = libs->GetLogicalLibs();
 
@@ -265,6 +272,8 @@ PANEL_SYMBOL_CHOOSER::PANEL_SYMBOL_CHOOSER( SCH_BASE_FRAME* aFrame, wxWindow* aP
     Bind( EVT_LIBITEM_SELECTED, &PANEL_SYMBOL_CHOOSER::onSymbolSelected, this );
     Bind( EVT_LIBITEM_CHOSEN, &PANEL_SYMBOL_CHOOSER::onSymbolChosen, this );
     Bind( wxEVT_CHAR_HOOK, &PANEL_SYMBOL_CHOOSER::OnChar, this );
+    aFrame->Bind( wxEVT_MENU_OPEN, &PANEL_SYMBOL_CHOOSER::onMenuOpen, this );
+    aFrame->Bind( wxEVT_MENU_CLOSE, &PANEL_SYMBOL_CHOOSER::onMenuClose, this );
 
     if( m_fp_sel_ctrl )
     {
@@ -288,6 +297,8 @@ PANEL_SYMBOL_CHOOSER::PANEL_SYMBOL_CHOOSER( SCH_BASE_FRAME* aFrame, wxWindow* aP
 
 PANEL_SYMBOL_CHOOSER::~PANEL_SYMBOL_CHOOSER()
 {
+    m_frame->Unbind( wxEVT_MENU_OPEN, &PANEL_SYMBOL_CHOOSER::onMenuOpen, this );
+    m_frame->Unbind( wxEVT_MENU_CLOSE, &PANEL_SYMBOL_CHOOSER::onMenuClose, this );
     Unbind( wxEVT_TIMER, &PANEL_SYMBOL_CHOOSER::onCloseTimer, this );
     Unbind( EVT_LIBITEM_SELECTED, &PANEL_SYMBOL_CHOOSER::onSymbolSelected, this );
     Unbind( EVT_LIBITEM_CHOSEN, &PANEL_SYMBOL_CHOOSER::onSymbolChosen, this );
@@ -335,6 +346,20 @@ PANEL_SYMBOL_CHOOSER::~PANEL_SYMBOL_CHOOSER()
 }
 
 
+void PANEL_SYMBOL_CHOOSER::onMenuOpen( wxMenuEvent& aEvent )
+{
+    m_tree->BlockPreview( true );
+    aEvent.Skip();
+}
+
+
+void PANEL_SYMBOL_CHOOSER::onMenuClose( wxMenuEvent& aEvent )
+{
+    m_tree->BlockPreview( false );
+    aEvent.Skip();
+}
+
+
 void PANEL_SYMBOL_CHOOSER::OnChar( wxKeyEvent& aEvent )
 {
     if( aEvent.GetKeyCode() == WXK_ESCAPE )
@@ -371,7 +396,9 @@ wxPanel* PANEL_SYMBOL_CHOOSER::constructRightPanel( wxWindow* aParent )
     }
     else
     {
-        EESCHEMA_SETTINGS* cfg = Pgm().GetSettingsManager().GetAppSettings<EESCHEMA_SETTINGS>();
+        SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
+        EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
+
         backend = (EDA_DRAW_PANEL_GAL::GAL_TYPE) cfg->m_Graphics.canvas_type;
     }
 
@@ -545,7 +572,7 @@ void PANEL_SYMBOL_CHOOSER::showFootprintFor( LIB_ID const& aLibId )
     if( !symbol )
         return;
 
-    LIB_FIELD* fp_field = symbol->GetFieldById( FOOTPRINT_FIELD );
+    SCH_FIELD* fp_field = symbol->GetFieldById( FOOTPRINT_FIELD );
     wxString   fp_name = fp_field ? fp_field->GetFullText() : wxString( "" );
 
     showFootprint( fp_name );
@@ -604,17 +631,11 @@ void PANEL_SYMBOL_CHOOSER::populateFootprintSelector( LIB_ID const& aLibId )
 
     if( symbol != nullptr )
     {
-        LIB_PINS   temp_pins;
-        LIB_FIELD* fp_field = symbol->GetFieldById( FOOTPRINT_FIELD );
+        int        pinCount = symbol->GetPins( 0 /* all units */, 1 /* single bodyStyle */ ).size();
+        SCH_FIELD* fp_field = symbol->GetFieldById( FOOTPRINT_FIELD );
         wxString   fp_name = fp_field ? fp_field->GetFullText() : wxString( "" );
 
-        // All units, but only a single De Morgan variant.
-        if( symbol->HasAlternateBodyStyle() )
-            symbol->GetPins( temp_pins, 0, 1 );
-        else
-            symbol->GetPins( temp_pins );
-
-        m_fp_sel_ctrl->FilterByPinCount( temp_pins.size() );
+        m_fp_sel_ctrl->FilterByPinCount( pinCount );
         m_fp_sel_ctrl->FilterByFootprintFilters( symbol->GetFPFilters(), true );
         m_fp_sel_ctrl->SetDefaultFootprint( fp_name );
         m_fp_sel_ctrl->UpdateList();

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 CERN
- * Copyright (C) 2018-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,12 +22,14 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <wx/checkbox.h>
 #include <wx/combo.h>
 #include <wx/filedlg.h>
 #include <wx/dirdlg.h>
 #include <wx/textctrl.h>
 
 #include <bitmaps.h>
+#include <embedded_files.h>
 #include <kiway.h>
 #include <kiway_player.h>
 #include <kiway_express.h>
@@ -37,6 +39,7 @@
 #include <env_paths.h>
 #include <pgm_base.h>
 #include <widgets/wx_grid.h>
+#include <widgets/filedlg_open_embed_file.h>
 #include <widgets/grid_text_button_helpers.h>
 #include <eda_doc.h>
 
@@ -111,6 +114,7 @@ void GRID_CELL_TEXT_BUTTON::StartingKey( wxKeyEvent& event )
     default:
         if( isPrintable )
             textEntry->WriteText( static_cast<wxChar>( ch ) );
+
         break;
     }
 }
@@ -171,11 +175,11 @@ class TEXT_BUTTON_SYMBOL_CHOOSER : public wxComboCtrl
 public:
     TEXT_BUTTON_SYMBOL_CHOOSER( wxWindow* aParent, DIALOG_SHIM* aParentDlg,
                                 const wxString& aPreselect ) :
-            wxComboCtrl( aParent ),
+            wxComboCtrl( aParent, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize( 0, 0 ) ),
             m_dlg( aParentDlg ),
             m_preselect( aPreselect )
     {
-        SetButtonBitmaps( KiBitmap( BITMAPS::small_library ) );
+        SetButtonBitmaps( KiBitmapBundle( BITMAPS::small_library ) );
 
         // win32 fix, avoids drawing the "native dropdown caret"
         Customize( wxCC_IFLAG_HAS_NONSTANDARD_BUTTON );
@@ -233,14 +237,14 @@ class TEXT_BUTTON_FP_CHOOSER : public wxComboCtrl
 public:
     TEXT_BUTTON_FP_CHOOSER( wxWindow* aParent, DIALOG_SHIM* aParentDlg,
                             const wxString& aSymbolNetlist, const wxString& aPreselect ) :
-            wxComboCtrl( aParent, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize,
+            wxComboCtrl( aParent, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize( 0, 0 ),
                          wxTE_PROCESS_ENTER | wxBORDER_NONE ),
             m_dlg( aParentDlg ),
             m_preselect( aPreselect ),
             m_symbolNetlist( aSymbolNetlist.ToStdString() )
     {
         m_buttonFpChooserLock = false;
-        SetButtonBitmaps( KiBitmap( BITMAPS::small_library ) );
+        SetButtonBitmaps( KiBitmapBundle( BITMAPS::small_library ) );
 
         // win32 fix, avoids drawing the "native dropdown caret"
         Customize( wxCC_IFLAG_HAS_NONSTANDARD_BUTTON );
@@ -273,7 +277,8 @@ protected:
         {
             if( !m_symbolNetlist.empty() )
             {
-                KIWAY_EXPRESS event( FRAME_FOOTPRINT_CHOOSER, MAIL_SYMBOL_NETLIST, m_symbolNetlist );
+                KIWAY_EXPRESS event( FRAME_FOOTPRINT_CHOOSER, MAIL_SYMBOL_NETLIST,
+                                     m_symbolNetlist );
                 frame->KiwayMailIn( event );
             }
 
@@ -289,10 +294,12 @@ protected:
 protected:
     DIALOG_SHIM* m_dlg;
     wxString     m_preselect;
+
     // Lock flag to lock the button to show the FP chooser
     // true when the button is busy, waiting all footprints loaded to
     // avoid running more than once the FP chooser
     bool         m_buttonFpChooserLock;
+
     /*
      * Symbol netlist format:
      *   pinNumber pinName <tab> pinNumber pinName...
@@ -323,16 +330,26 @@ void GRID_CELL_FPID_EDITOR::Create( wxWindow* aParent, wxWindowID aId,
 class TEXT_BUTTON_URL : public wxComboCtrl
 {
 public:
-    TEXT_BUTTON_URL( wxWindow* aParent, DIALOG_SHIM* aParentDlg, SEARCH_STACK* aSearchStack ) :
-            wxComboCtrl( aParent, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize,
+    TEXT_BUTTON_URL( wxWindow* aParent, DIALOG_SHIM* aParentDlg, SEARCH_STACK* aSearchStack,
+                     EMBEDDED_FILES* aFiles ) :
+            wxComboCtrl( aParent, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize( 0, 0 ),
                          wxTE_PROCESS_ENTER | wxBORDER_NONE ),
             m_dlg( aParentDlg ),
-            m_searchStack( aSearchStack )
+            m_searchStack( aSearchStack ),
+            m_files( aFiles )
     {
-        SetButtonBitmaps( KiBitmap( BITMAPS::www ) );
+        UpdateButtonBitmaps();
 
         // win32 fix, avoids drawing the "native dropdown caret"
         Customize( wxCC_IFLAG_HAS_NONSTANDARD_BUTTON );
+
+        // Bind event to handle text changes
+        Bind( wxEVT_TEXT, &TEXT_BUTTON_URL::OnTextChange, this );
+    }
+
+    ~TEXT_BUTTON_URL()
+    {
+        Unbind( wxEVT_TEXT, &TEXT_BUTTON_URL::OnTextChange, this );
     }
 
 protected:
@@ -343,29 +360,71 @@ protected:
 
     void OnButtonClick() override
     {
+        m_dlg->PrepareForModalSubDialog();
+
         wxString filename = GetValue();
 
-        if( !filename.IsEmpty() && filename != wxT( "~" ) )
-            GetAssociatedDocument( m_dlg, GetValue(), &m_dlg->Prj(), m_searchStack );
+        if( filename.IsEmpty() || filename == wxT( "~" ) )
+        {
+            FILEDLG_OPEN_EMBED_FILE customize;
+            wxFileDialog openFileDialog( this, _( "Open file" ), "", "", "All files (*.*)|*.*",
+                                         wxFD_OPEN | wxFD_FILE_MUST_EXIST );
+            openFileDialog.SetCustomizeHook( customize );
+
+            if( openFileDialog.ShowModal() == wxID_OK )
+            {
+                filename = openFileDialog.GetPath();
+                wxFileName fn( filename );
+
+                if( customize.GetEmbed() )
+                {
+                    EMBEDDED_FILES::EMBEDDED_FILE* result = m_files->AddFile( fn, false );
+                    SetValue( result->GetLink() );
+                }
+                else
+                {
+                    SetValue( "file://" + filename );
+                }
+            }
+        }
+        else
+        {
+            GetAssociatedDocument( m_dlg, GetValue(), &m_dlg->Prj(), m_searchStack, m_files );
+        }
+
+        m_dlg->CleanupAfterModalSubDialog();
     }
 
-    DIALOG_SHIM* m_dlg;
-    SEARCH_STACK* m_searchStack;
+    void OnTextChange(wxCommandEvent& event)
+    {
+        UpdateButtonBitmaps();
+        event.Skip(); // Ensure that other handlers can process this event too
+    }
+
+    void UpdateButtonBitmaps()
+    {
+        if( GetValue().IsEmpty() )
+            SetButtonBitmaps( KiBitmapBundle( BITMAPS::small_folder ) );
+        else
+            SetButtonBitmaps( KiBitmapBundle( BITMAPS::www ) );
+    }
+
+protected:
+    DIALOG_SHIM*    m_dlg;
+    SEARCH_STACK*   m_searchStack;
+    EMBEDDED_FILES* m_files;
 };
 
 
-void GRID_CELL_URL_EDITOR::Create( wxWindow* aParent, wxWindowID aId,
-                                   wxEvtHandler* aEventHandler )
+void GRID_CELL_URL_EDITOR::Create( wxWindow* aParent, wxWindowID aId, wxEvtHandler* aEventHandler )
 {
-    m_control = new TEXT_BUTTON_URL( aParent, m_dlg, m_searchStack );
+    m_control = new TEXT_BUTTON_URL( aParent, m_dlg, m_searchStack, m_files );
     WX_GRID::CellEditorSetMargins( Combo() );
 
 #if wxUSE_VALIDATORS
     // validate text in textctrl, if validator is set
     if ( m_validator )
-    {
         Combo()->SetValidator( *m_validator );
-    }
 #endif
 
     wxGridCellEditor::Create( aParent, aId, aEventHandler );
@@ -379,7 +438,7 @@ public:
                               wxString* aCurrentDir, const wxString& aFileFilter = wxEmptyString,
                               bool aNormalize = false,
                               const wxString& aNormalizeBasePath = wxEmptyString ) :
-            wxComboCtrl( aParent, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize,
+            wxComboCtrl( aParent, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize( 0, 0 ),
                          wxTE_PROCESS_ENTER | wxBORDER_NONE ),
             m_dlg( aParentDlg ),
             m_grid( aGrid ),
@@ -388,7 +447,7 @@ public:
             m_normalizeBasePath( aNormalizeBasePath ),
             m_fileFilter( aFileFilter )
     {
-        SetButtonBitmaps( KiBitmap( BITMAPS::small_folder ) );
+        SetButtonBitmaps( KiBitmapBundle( BITMAPS::small_folder ) );
 
         // win32 fix, avoids drawing the "native dropdown caret"
         Customize( wxCC_IFLAG_HAS_NONSTANDARD_BUTTON );
@@ -399,7 +458,7 @@ public:
                               std::function<wxString( WX_GRID* grid, int row )> aFileFilterFn,
                               bool aNormalize = false,
                               const wxString& aNormalizeBasePath = wxEmptyString ) :
-            wxComboCtrl( aParent, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize,
+            wxComboCtrl( aParent, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize( 0, 0 ),
                          wxTE_PROCESS_ENTER | wxBORDER_NONE ),
             m_dlg( aParentDlg ),
             m_grid( aGrid ),
@@ -408,7 +467,7 @@ public:
             m_normalizeBasePath( aNormalizeBasePath ),
             m_fileFilterFn( std::move( aFileFilterFn ) )
     {
-        SetButtonBitmaps( KiBitmap( BITMAPS::small_folder ) );
+        SetButtonBitmaps( KiBitmapBundle( BITMAPS::small_folder ) );
 
         // win32 fix, avoids drawing the "native dropdown caret"
         Customize( wxCC_IFLAG_HAS_NONSTANDARD_BUTTON );
@@ -423,6 +482,8 @@ protected:
 
     void OnButtonClick() override
     {
+        m_dlg->PrepareForModalSubDialog();
+
         if( m_fileFilterFn )
             m_fileFilter = m_fileFilterFn( m_grid, m_grid->GetGridCursorRow() );
 
@@ -493,8 +554,11 @@ protected:
                 *m_currentDir = relPath;
             }
         }
+
+        m_dlg->CleanupAfterModalSubDialog();
     }
 
+protected:
     DIALOG_SHIM* m_dlg;
     WX_GRID*     m_grid;
     wxString*    m_currentDir;
@@ -510,20 +574,23 @@ void GRID_CELL_PATH_EDITOR::Create( wxWindow* aParent, wxWindowID aId,
                                     wxEvtHandler* aEventHandler )
 {
     if( m_fileFilterFn )
-        m_control = new TEXT_BUTTON_FILE_BROWSER( aParent, m_dlg, m_grid, m_currentDir, m_fileFilterFn,
-                                                  m_normalize, m_normalizeBasePath );
+    {
+        m_control = new TEXT_BUTTON_FILE_BROWSER( aParent, m_dlg, m_grid, m_currentDir,
+                                                  m_fileFilterFn, m_normalize,
+                                                  m_normalizeBasePath );
+    }
     else
-        m_control = new TEXT_BUTTON_FILE_BROWSER( aParent, m_dlg, m_grid, m_currentDir, m_fileFilter,
-                                                  m_normalize, m_normalizeBasePath );
+    {
+        m_control = new TEXT_BUTTON_FILE_BROWSER( aParent, m_dlg, m_grid, m_currentDir,
+                                                  m_fileFilter, m_normalize, m_normalizeBasePath );
+    }
 
     WX_GRID::CellEditorSetMargins( Combo() );
 
 #if wxUSE_VALIDATORS
     // validate text in textctrl, if validator is set
     if ( m_validator )
-    {
         Combo()->SetValidator( *m_validator );
-    }
 #endif
 
     wxGridCellEditor::Create( aParent, aId, aEventHandler );

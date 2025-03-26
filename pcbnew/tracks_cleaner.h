@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,6 +24,7 @@
 #ifndef KICAD_TRACKS_CLEANER_H
 #define KICAD_TRACKS_CLEANER_H
 
+#include <mutex>
 #include <pcb_track.h>
 #include <board.h>
 
@@ -56,7 +57,14 @@ public:
                        bool aDeleteUnconnected, bool aDeleteTracksinPad, bool aDeleteDanglingVias,
                        REPORTER* aReporter = nullptr );
 
+    void SetFilter( const std::function<bool( BOARD_CONNECTED_ITEM* aItem )>& aFilter )
+    {
+        m_filter = aFilter;
+    }
+
 private:
+    bool filterItem( BOARD_CONNECTED_ITEM* aItem );
+
     /*
      * Removes track segments which are connected to more than one net (short circuits).
      */
@@ -89,12 +97,21 @@ private:
     bool mergeCollinearSegments( PCB_TRACK* aSeg1, PCB_TRACK* aSeg2 );
 
     /**
+     * helper function
+     * test if 2 segments are colinear.  Does not modify the connectivity
+     * @return true if the segments are colinear
+     * @param aSeg1 is the reference
+     * @param aSeg2 is the candidate
+     */
+    bool testMergeCollinearSegments( PCB_TRACK* aSeg1, PCB_TRACK* aSeg2, PCB_TRACK* aDummySeg = nullptr );
+
+    /**
      * @return true if a track end position is a node, i.e. a end connected
      * to more than one item.
      * @param aTrack is the track to test.
      * @param aTstStart = true ot test the start point of the track or false for end point
      */
-    bool testTrackEndpointIsNode( PCB_TRACK* aTrack, bool aTstStart );
+    bool testTrackEndpointIsNode( PCB_TRACK* aTrack, bool aTstStart, bool aTstEnd );
 
     void removeItems( std::set<BOARD_ITEM*>& aItems );
 
@@ -109,6 +126,9 @@ private:
 
     // Cache connections.  O(n^2) is awful, but it beats O(2n^3).
     std::map<PCB_TRACK*, std::vector<BOARD_CONNECTED_ITEM*>> m_connectedItemsCache;
+
+    std::function<bool( BOARD_CONNECTED_ITEM* aItem )>       m_filter;
+    std::mutex m_mutex;
 };
 
 

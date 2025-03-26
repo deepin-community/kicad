@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,46 +18,17 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef JOB_PCB_DRC_H
-#define JOB_PCB_DRC_H
+#pragma once
 
-#include <kicommon.h>
-#include <layer_ids.h>
-#include <wx/string.h>
-#include <widgets/report_severity.h>
-#include "job.h"
+#include <jobs/job_rc.h>
 
-class KICOMMON_API JOB_PCB_DRC : public JOB
+class KICOMMON_API JOB_PCB_DRC : public JOB_RC
 {
 public:
-    JOB_PCB_DRC( bool aIsCli );
-
-    wxString m_filename;
-    wxString m_outputFile;
+    JOB_PCB_DRC();
+    wxString GetDefaultDescription() const override;
+    wxString GetSettingsDialogTitle() const override;
 
     bool m_reportAllTrackErrors;
-
-    enum class UNITS
-    {
-        INCHES,
-        MILLIMETERS,
-        MILS
-    };
-
-    UNITS m_units;
-
-    int m_severity;
-
-    enum class OUTPUT_FORMAT
-    {
-        REPORT,
-        JSON
-    };
-
-    OUTPUT_FORMAT m_format;
-
-    bool m_exitCodeViolations;
     bool m_parity;
 };
-
-#endif

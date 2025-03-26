@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2017-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -30,6 +30,7 @@
 #include <board.h>
 #include <board_commit.h>
 #include <gal/graphics_abstraction_layer.h>
+#include <geometry/geometry_utils.h>
 #include <pad.h>
 #include <pcb_group.h>
 #include <pcb_generator.h>
@@ -48,6 +49,7 @@
 #include <drc/drc_item.h>
 #include <drc/drc_rule.h>
 #include <drc/drc_interactive_courtyard_clearance.h>
+#include <view/view_controls.h>
 
 
 int EDIT_TOOL::Swap( const TOOL_EVENT& aEvent )
@@ -125,8 +127,8 @@ int EDIT_TOOL::Swap( const TOOL_EVENT& aEvent )
             // Flip both if needed
             if( aFP->IsFlipped() != bFP->IsFlipped() )
             {
-                aFP->Flip( aPos, false );
-                bFP->Flip( bPos, false );
+                aFP->Flip( aPos, FLIP_DIRECTION::TOP_BOTTOM );
+                bFP->Flip( bPos, FLIP_DIRECTION::TOP_BOTTOM );
             }
 
             // Set orientation
@@ -196,13 +198,13 @@ int EDIT_TOOL::PackAndMoveFootprints( const TOOL_EVENT& aEvent )
     {
         commit.Modify( item );
         item->SetFlags( IS_MOVING );
-        footprintsBbox.Merge( item->GetBoundingBox( false, false ) );
+        footprintsBbox.Merge( item->GetBoundingBox( false ) );
     }
 
     SpreadFootprints( &footprintsToPack, footprintsBbox.Normalize().GetOrigin(), false );
 
     if( doMoveSelection( aEvent, &commit, true ) )
-        commit.Push( _( "Pack footprints" ) );
+        commit.Push( _( "Pack Footprints" ) );
     else
         commit.Revert();
 
@@ -252,39 +254,41 @@ VECTOR2I EDIT_TOOL::getSafeMovement( const VECTOR2I& aMovement, const BOX2I& aSo
 {
     typedef std::numeric_limits<int> coord_limits;
 
-    int max = coord_limits::max();
-    int min = -max;
+    static const double max = coord_limits::max() - (int) COORDS_PADDING;
+    static const double min = -max;
 
-    double left = aBBoxOffset.x + aSourceBBox.GetPosition().x;
-    double top = aBBoxOffset.y + aSourceBBox.GetPosition().y;
-
-    double right = left + aSourceBBox.GetSize().x;
-    double bottom = top + aSourceBBox.GetSize().y;
+    BOX2D testBox( aSourceBBox.GetPosition(), aSourceBBox.GetSize() );
+    testBox.Offset( aBBoxOffset );
 
     // Do not restrict movement if bounding box is already out of bounds
-    if( left < min || top < min || right > max || bottom > max )
+    if( testBox.GetLeft() < min || testBox.GetTop() < min || testBox.GetRight() > max
+        || testBox.GetBottom() > max )
+    {
         return aMovement;
+    }
 
-    // Constrain moving bounding box to coordinates limits
-    VECTOR2D tryMovement( aMovement );
-    VECTOR2D bBoxOrigin( aSourceBBox.GetPosition() + aBBoxOffset );
-    VECTOR2D clampedBBoxOrigin = GetClampedCoords( bBoxOrigin + tryMovement, COORDS_PADDING );
+    testBox.Offset( aMovement );
 
-    tryMovement = clampedBBoxOrigin - bBoxOrigin;
+    if( testBox.GetLeft() < min )
+        testBox.Offset( min - testBox.GetLeft(), 0 );
 
-    VECTOR2D bBoxEnd( aSourceBBox.GetEnd() + aBBoxOffset );
-    VECTOR2D clampedBBoxEnd = GetClampedCoords( bBoxEnd + tryMovement, COORDS_PADDING );
+    if( max < testBox.GetRight() )
+        testBox.Offset( -( testBox.GetRight() - max ), 0 );
 
-    tryMovement = clampedBBoxEnd - bBoxEnd;
+    if( testBox.GetTop() < min )
+        testBox.Offset( 0, min - testBox.GetTop() );
 
-    return GetClampedCoords<double, int>( tryMovement );
+    if( max < testBox.GetBottom() )
+        testBox.Offset( 0, -( testBox.GetBottom() - max ) );
+
+    return KiROUND( testBox.GetPosition() - aBBoxOffset - aSourceBBox.GetPosition() );
 }
 
 
 bool EDIT_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, BOARD_COMMIT* aCommit, bool aAutoStart )
 {
-    bool moveWithReference = aEvent.IsAction( &PCB_ACTIONS::moveWithReference );
-    bool moveIndividually = aEvent.IsAction( &PCB_ACTIONS::moveIndividually );
+    const bool moveWithReference = aEvent.IsAction( &PCB_ACTIONS::moveWithReference );
+    const bool moveIndividually = aEvent.IsAction( &PCB_ACTIONS::moveIndividually );
 
     PCB_BASE_EDIT_FRAME*               editFrame = getEditFrame<PCB_BASE_EDIT_FRAME>();
     PCBNEW_SETTINGS*                   cfg = editFrame->GetPcbNewSettings();
@@ -303,6 +307,7 @@ bool EDIT_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, BOARD_COMMIT* aCommit
                 sTool->FilterCollectorForMarkers( aCollector );
                 sTool->FilterCollectorForHierarchy( aCollector, true );
                 sTool->FilterCollectorForFreePads( aCollector );
+                sTool->FilterCollectorForTableCells( aCollector );
             },
             true /* prompt user regarding locked items */ );
 
@@ -417,11 +422,10 @@ bool EDIT_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, BOARD_COMMIT* aCommit
 
     bool            restore_state = false;
     VECTOR2I        originalPos;
-    VECTOR2I        totalMovement;
     VECTOR2D        bboxMovement;
     BOX2I           originalBBox;
     bool            updateBBox = true;
-    LSET            layers( editFrame->GetActiveLayer() );
+    LSET            layers( { editFrame->GetActiveLayer() } );
     PCB_GRID_HELPER grid( m_toolMgr, editFrame->GetMagneticItemsSettings() );
     TOOL_EVENT      copy = aEvent;
     TOOL_EVENT*     evt = &copy;
@@ -503,12 +507,7 @@ bool EDIT_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, BOARD_COMMIT* aCommit
 
                     for( EDA_ITEM* item : sel_items )
                     {
-                        BOX2I viewBBOX = item->ViewBBox();
-
-                        if( originalBBox.GetWidth() == 0 && originalBBox.GetHeight() == 0 )
-                            originalBBox = viewBBOX;
-                        else
-                            originalBBox.Merge( viewBBOX );
+                        originalBBox.Merge( item->ViewBBox() );
                     }
 
                     updateBBox = false;
@@ -524,7 +523,6 @@ bool EDIT_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, BOARD_COMMIT* aCommit
                 selection.SetReferencePoint( m_cursor );
 
                 prevPos = m_cursor;
-                totalMovement += movement;
                 bboxMovement += movement;
 
                 // Drag items to the current cursor position
@@ -764,11 +762,17 @@ bool EDIT_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, BOARD_COMMIT* aCommit
             displayConstraintsMessage( hv45Mode );
             evt->SetPassEvent( false );
         }
+        else if( evt->IsAction( &ACTIONS::increment ) )
+        {
+            m_toolMgr->RunSynchronousAction( ACTIONS::increment, aCommit,
+                                             evt->Parameter<ACTIONS::INCREMENT>() );
+        }
         else if( ZONE_FILLER_TOOL::IsZoneFillAction( evt )
                  || evt->IsAction( &PCB_ACTIONS::moveExact )
                  || evt->IsAction( &PCB_ACTIONS::moveWithReference )
                  || evt->IsAction( &PCB_ACTIONS::copyWithReference )
                  || evt->IsAction( &PCB_ACTIONS::positionRelative )
+                 || evt->IsAction( &PCB_ACTIONS::positionRelativeInteractively )
                  || evt->IsAction( &ACTIONS::redo ) )
         {
             wxBell();

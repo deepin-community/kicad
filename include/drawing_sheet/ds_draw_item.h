@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -63,7 +63,7 @@ public:
     DS_DATA_ITEM* GetPeer() const { return m_peer; }
     int GetIndexInPeer() const { return m_index; }
 
-    void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    std::vector<int> ViewGetLayers() const override;
 
     virtual void SetEnd( const VECTOR2I& aPos ) { /* not all types will need this */ }
 
@@ -155,7 +155,7 @@ public:
 
     void PrintWsItem( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset ) override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -190,7 +190,7 @@ public:
 
     void PrintWsItem( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset ) override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -243,7 +243,7 @@ public:
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -290,7 +290,7 @@ public:
     const BOX2I GetBoundingBox() const override;
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override { return false; }
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -343,7 +343,7 @@ public:
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -380,7 +380,7 @@ public:
 
     const BOX2I GetBoundingBox() const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -400,7 +400,7 @@ private:
 class DS_DRAW_ITEM_LIST
 {
 public:
-    DS_DRAW_ITEM_LIST( const EDA_IU_SCALE& aIuScale ) :
+    DS_DRAW_ITEM_LIST( const EDA_IU_SCALE& aIuScale, int aFlags = 0 ) :
         m_iuScale( aIuScale )
     {
         m_idx = 0;
@@ -411,6 +411,7 @@ public:
         m_titleBlock = nullptr;
         m_project = nullptr;
         m_isFirstPage = true;
+        m_flags = aFlags;
         m_properties = nullptr;
     }
 
@@ -578,6 +579,7 @@ protected:
     wxString           m_pageNumber;      ///< The actual page number displayed in the title block.
     wxString           m_sheetLayer;      // for text variable references
     const PROJECT*     m_project;         // for project-based text variable references
+    int                m_flags;
 
     const std::map<wxString, wxString>* m_properties;    // for text variable references
 };

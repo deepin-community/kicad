@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2020 Ian McInerney <ian.s.mcinerney at ieee.org>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -191,7 +191,7 @@ bool PCB_EDITOR_CONDITIONS::get45degModeFunc( const SELECTION& aSelection, PCB_B
     SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
 
     if( aFrame->IsType( FRAME_PCB_EDITOR ) )
-        return mgr.GetAppSettings<PCBNEW_SETTINGS>()->m_Use45DegreeLimit;
+        return mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" )->m_Use45DegreeLimit;
     else
-        return mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>()->m_Use45Limit;
+        return mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" )->m_Use45Limit;
 }

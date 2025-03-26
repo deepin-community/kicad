@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -26,13 +26,11 @@
 #include <string_utils.h>
 #include <wx/crt.h>
 
-#include <macros.h>
-#include <wx/tokenzr.h>
-
 #include <locale_io.h>
 
-#define ARG_DRILL_SHAPE_OPTION "--drill-shape-opt"
-
+#define ARG_MODE_SEPARATE "--mode-separate"
+#define ARG_MODE_MULTIPAGE "--mode-multipage"
+#define ARG_MODE_SINGLE "--mode-single"
 
 CLI::PCB_EXPORT_PDF_COMMAND::PCB_EXPORT_PDF_COMMAND() : PCB_EXPORT_BASE_COMMAND( "pdf" )
 {
@@ -58,6 +56,22 @@ CLI::PCB_EXPORT_PDF_COMMAND::PCB_EXPORT_PDF_COMMAND() : PCB_EXPORT_BASE_COMMAND(
             .help( UTF8STDSTR( _( "Include the border and title block" ) ) )
             .flag();
 
+    m_argParser.add_argument( "--sp", ARG_SKETCH_PADS_ON_FAB_LAYERS )
+            .help( UTF8STDSTR( _( ARG_SKETCH_PADS_ON_FAB_LAYERS_DESC ) ) )
+            .flag();
+
+    m_argParser.add_argument( "--hdnp", ARG_HIDE_DNP_FPS_ON_FAB_LAYERS )
+            .help( UTF8STDSTR( _( ARG_HIDE_DNP_FPS_ON_FAB_LAYERS_DESC ) ) )
+            .flag();
+
+    m_argParser.add_argument( "--sdnp", ARG_SKETCH_DNP_FPS_ON_FAB_LAYERS )
+            .help( UTF8STDSTR( _( ARG_SKETCH_DNP_FPS_ON_FAB_LAYERS_DESC ) ) )
+            .flag();
+
+    m_argParser.add_argument( "--cdnp", ARG_CROSSOUT_DNP_FPS_ON_FAB_LAYERS )
+            .help( UTF8STDSTR( _( ARG_CROSSOUT_DNP_FPS_ON_FAB_LAYERS_DESC ) ) )
+            .flag();
+
     m_argParser.add_argument( ARG_NEGATIVE_SHORT, ARG_NEGATIVE )
             .help( UTF8STDSTR( _( ARG_NEGATIVE_DESC ) ) )
             .flag();
@@ -72,10 +86,36 @@ CLI::PCB_EXPORT_PDF_COMMAND::PCB_EXPORT_PDF_COMMAND() : PCB_EXPORT_BASE_COMMAND(
             .metavar( "THEME_NAME" );
 
     m_argParser.add_argument( ARG_DRILL_SHAPE_OPTION )
-            .help( UTF8STDSTR( _( "Set pad/via drill shape option (0 = no shape, 1 = "
-                                  "small shape, 2 = actual shape)" ) ) )
+            .help( UTF8STDSTR( _( ARG_DRILL_SHAPE_OPTION_DESC ) ) )
             .scan<'i', int>()
             .default_value( 2 );
+
+    m_argParser.add_argument( "--cl", ARG_COMMON_LAYERS )
+            .default_value( std::string() )
+            .help( UTF8STDSTR(
+                    _( "Layers to include on each plot, comma separated list of untranslated "
+                       "layer names to include such as "
+                       "F.Cu,B.Cu" ) ) )
+            .metavar( "COMMON_LAYER_LIST" );
+
+    m_argParser.add_argument( ARG_PLOT_INVISIBLE_TEXT )
+            .help( UTF8STDSTR( _( ARG_PLOT_INVISIBLE_TEXT_DESC ) ) )
+            .flag();
+
+    m_argParser.add_argument( ARG_MODE_SINGLE )
+            .help( UTF8STDSTR(
+                    _( "Generates a single file with the output arg path acting as the complete "
+                       "directory and filename path. COMMON_LAYER_LIST does not function in this "
+                       "mode. Instead LAYER_LIST controls all layers plotted." ) ) )
+            .flag();
+
+    m_argParser.add_argument( ARG_MODE_SEPARATE )
+            .help( UTF8STDSTR( _( "Plot the layers to individual PDF files" ) ) )
+            .flag();
+
+    m_argParser.add_argument( ARG_MODE_MULTIPAGE )
+            .help( UTF8STDSTR( _( "Plot the layers to a single PDF file with multiple pages" ) ) )
+            .flag();
 }
 
 
@@ -86,10 +126,10 @@ int CLI::PCB_EXPORT_PDF_COMMAND::doPerform( KIWAY& aKiway )
     if( baseExit != EXIT_CODES::OK )
         return baseExit;
 
-    std::unique_ptr<JOB_EXPORT_PCB_PDF> pdfJob( new JOB_EXPORT_PCB_PDF( true ) );
+    std::unique_ptr<JOB_EXPORT_PCB_PDF> pdfJob( new JOB_EXPORT_PCB_PDF() );
 
     pdfJob->m_filename = m_argInput;
-    pdfJob->m_outputFile = m_argOutput;
+    pdfJob->SetConfiguredOutputPath( m_argOutput );
     pdfJob->m_drawingSheet = m_argDrawingSheet;
     pdfJob->SetVarOverrides( m_argDefineVars );
 
@@ -101,17 +141,45 @@ int CLI::PCB_EXPORT_PDF_COMMAND::doPerform( KIWAY& aKiway )
 
     pdfJob->m_plotFootprintValues = !m_argParser.get<bool>( ARG_EXCLUDE_VALUE );
     pdfJob->m_plotRefDes = !m_argParser.get<bool>( ARG_EXCLUDE_REFDES );
+    pdfJob->m_plotInvisibleText = m_argParser.get<bool>( ARG_PLOT_INVISIBLE_TEXT );
 
-    pdfJob->m_plotBorderTitleBlocks = m_argParser.get<bool>( ARG_INCLUDE_BORDER_TITLE );
+    pdfJob->m_plotDrawingSheet = m_argParser.get<bool>( ARG_INCLUDE_BORDER_TITLE );
 
     pdfJob->m_mirror = m_argParser.get<bool>( ARG_MIRROR );
     pdfJob->m_blackAndWhite = m_argParser.get<bool>( ARG_BLACKANDWHITE );
     pdfJob->m_colorTheme = From_UTF8( m_argParser.get<std::string>( ARG_THEME ).c_str() );
     pdfJob->m_negative = m_argParser.get<bool>( ARG_NEGATIVE );
 
-    pdfJob->m_drillShapeOption = m_argParser.get<int>( ARG_DRILL_SHAPE_OPTION );
+    pdfJob->m_sketchPadsOnFabLayers = m_argParser.get<bool>( ARG_SKETCH_PADS_ON_FAB_LAYERS );
+    pdfJob->m_hideDNPFPsOnFabLayers = m_argParser.get<bool>( ARG_HIDE_DNP_FPS_ON_FAB_LAYERS );
+    pdfJob->m_sketchDNPFPsOnFabLayers = m_argParser.get<bool>( ARG_SKETCH_DNP_FPS_ON_FAB_LAYERS );
+    pdfJob->m_crossoutDNPFPsOnFabLayers = m_argParser.get<bool>( ARG_CROSSOUT_DNP_FPS_ON_FAB_LAYERS );
+
+    int drillShape = m_argParser.get<int>( ARG_DRILL_SHAPE_OPTION );
+    pdfJob->m_drillShapeOption = static_cast<JOB_EXPORT_PCB_PDF::DRILL_MARKS>( drillShape );
 
     pdfJob->m_printMaskLayer = m_selectedLayers;
+
+    bool argModeMulti = m_argParser.get<bool>( ARG_MODE_MULTIPAGE );
+    bool argModeSeparate = m_argParser.get<bool>( ARG_MODE_SEPARATE );
+    bool argModeSingle = m_argParser.get<bool>( ARG_MODE_SINGLE );
+
+    if( argModeMulti && argModeSeparate )
+    {
+        wxFprintf( stderr, _( "Cannot use more than one mode flag\n" ) );
+        return EXIT_CODES::ERR_ARGS;
+    }
+
+    wxString layers = From_UTF8( m_argParser.get<std::string>( ARG_COMMON_LAYERS ).c_str() );
+    bool     blah = false;
+    pdfJob->m_printMaskLayersToIncludeOnAllLayers = convertLayerStringList( layers, blah );
+
+    if( argModeMulti )
+        pdfJob->m_pdfGenMode = JOB_EXPORT_PCB_PDF::GEN_MODE::ONE_PAGE_PER_LAYER_ONE_FILE;
+    else if( argModeSeparate )
+        pdfJob->m_pdfGenMode = JOB_EXPORT_PCB_PDF::GEN_MODE::ALL_LAYERS_SEPARATE_FILE;
+    else if( argModeSingle )
+        pdfJob->m_pdfGenMode = JOB_EXPORT_PCB_PDF::GEN_MODE::ALL_LAYERS_ONE_FILE;
 
     LOCALE_IO dummy;    // Switch to "C" locale
     int exitCode = aKiway.ProcessJob( KIWAY::FACE_PCB, pdfJob.get() );

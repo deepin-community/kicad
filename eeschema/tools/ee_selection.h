@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2022 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -46,7 +46,7 @@ public:
 
     EDA_ITEM* GetTopLeftItem( bool onlyModules = false ) const override;
 
-    BOX2I GetBoundingBox( bool aOnlyVisible = false ) const override;
+    BOX2I GetBoundingBox() const override;
 
     void SetScreen( SCH_SCREEN* aScreen ) { m_screen = aScreen; }
     SCH_SCREEN* GetScreen() { return m_screen; }

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -47,6 +47,7 @@ SCH_SEARCH_PANE::SCH_SEARCH_PANE( SCH_EDIT_FRAME* aFrame ) :
     m_notebook->SetFont( infoFont );
 
     AddSearcher( new SYMBOL_SEARCH_HANDLER( aFrame ) );
+    AddSearcher( new POWER_SEARCH_HANDLER( aFrame ) );
     AddSearcher( new TEXT_SEARCH_HANDLER( aFrame ) );
     AddSearcher( new LABEL_SEARCH_HANDLER( aFrame ) );
 }

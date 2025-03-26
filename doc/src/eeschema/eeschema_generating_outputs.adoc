@@ -11,31 +11,29 @@ image::images/eeschema_print.png[Print dialog]
 
 ==== Printing options
 
-**Print drawing sheet:** Include the drawing sheet border and
+* **Print drawing sheet:** Include the drawing sheet border and
 title block in the printed schematic.
 
-**Output mode:** Print the schematic in color or black and white.
+* **Output mode:** Print the schematic in color or black and white.
 
-**Print background color:** Include the background color in the printed
-schematic. This option is only enabled if **Print in black and white only** is
-disabled.
+* **Print background color:** Include the background color in the printed
+schematic. This option is only enabled when printing in color.
 
-**Use a different color theme for printing:** Select a different color scheme
+* **Use a different color theme for printing:** Select a different color scheme
 for printing than the one selected for display in the Schematic Editor.
 
-**Page Setup...:** Opens a page setup dialog for setting paper size and
+* **Page Setup...:** Opens a page setup dialog for setting paper size and
 orientation.
 
-**Preview:** Opens a print preview dialog.
+* **Close:** Closes the dialog without printing.
 
-**Close:** Closes the dialog without printing.
-
-**Print:** Opens the system print dialog.
+* **Print:** Opens the system print dialog.
 
 NOTE: Printing uses platform- and printer-specific drivers and may have
 unexpected results. When printing to a file, *Plotting* is recommended instead
 of *Printing*.
 
+[[plotting]]
 === Plotting
 
 KiCad can plot schematics to a file using **File** -> **Plot...**. 
@@ -55,40 +53,59 @@ as a separate page in a single PDF file.
 
 ==== Plotting options
 
-**Output directory:** Specify the location to save plotted files. If this is a
-relative path, it is created relative to the project directory.
+* **Output directory:** Specify the location to save plotted files. If this is a
+  relative path, it is created relative to the project directory. This path can
+  use <<text-variables,text variables>>, including both project text variables
+  and built-in text variables.
 
-**Output Format:** Select the format to plot in. Some formats have different
-options than others.
+* **Output Format:** Select the format to plot in. Some formats have different
+  options than others.
 
-**Page size:** Sets the page size to use for the plotted output. This can be set
-to match the schematic size or to another sheet size.
+* **Page size:** Sets the page size to use for the plotted output. This can be
+  set to match the schematic size or to another sheet size.
 
-**Plot drawing sheet:** Include the drawing sheet border and title block in the
-printed schematic.
+* **Plot drawing sheet:** Include the drawing sheet border and title block in
+  the printed schematic.
 
-**Output mode:** Sets the output to color or black and white. Not all output
-formats support color.
+* **Output mode:** Sets the output to color or black and white. Not all output
+  formats support color.
 
-**Color theme:** Selects the color theme to use for the plotted output.
+* **Color theme:** Selects the color theme to use for the plotted output.
 
-**Plot background color:** Includes the schematic background color in the
-plotted output. The background color will not be plotted if the output format
-does not support color or the output mode is black and white.
+* **Plot background color:** Includes the schematic background color in the
+  plotted output. The background color will not be plotted if the output format
+  does not support color or the output mode is black and white.
 
-**Minimum line width:** Selects the minimum width for lines.
+* **Minimum line width:** Selects the minimum width for lines. Any lines
+  narrower than this width will be plotted with this minimum width.
 
-**Position and units:** Sets the plotter origin and units. This option only
-applies for HPGL output.
+* **Position and units:** Sets the plotter origin and units. This option only
+  applies for HPGL output.
 
-**Pen width:** Sets the plotter's pen width. This option only applies for HPGL output.
+* **Pen width:** Sets the plotter's pen width. This option only applies for HPGL
+  output.
 
-**Generate property popups:** Enables or disables the interactive PDF features
-described below. This option only applies for PDF output.
+* **Generate property popups:** Enables the interactive PDF features described
+  below. This option only applies for PDF output.
 
-**Open file after plot:** automatically opens the plotted output file when
+* **Generate clickable links for hierarchical elements:** Enables clickable
+  hierarchical sheets, hierarchical sheet pins, and hierarchical labels. When
+  enabled, clicking a hierarchical sheet or sheet pin in the PDF will open the
+  PDF page for that subsheet. Clicking a hierarchical label will open the page
+  for the parent sheet. If **Generate property popups** is also enabled, links
+  will be generated instead of property popups for hierarchical sheets, pins,
+  and labels (i.e. this option takes priority). This option only applies for PDF
+  output.
+
+* **Generate metadata from AUTHOR and SUBJECT variables:** Sets the Author and
+  Subject PDF document properties for the generated PDF based on the `AUTHOR`
+  and `SUBJECT` <<schematic-setup-text-variables,project text variables>>, if you have
+  defined them. This option only applies for PDF output.
+
+* **Open file after plot:** automatically opens the plotted output file when
 plotting is complete.
 
+[[interactive-pdf-features]]
 ==== Interactive PDF features
 
 Plotted PDFs can optionally have several interactive features.
@@ -102,11 +119,15 @@ image::images/pdf_interactive_symbol_details.png[scaledwidth="50%",alt="symbol f
   information.
   ** Symbols display their symbol fields.
   ** Hierarchical subsheets display their sheetname and filename, as well as an
-     option to enter the sheet itself.
+     option to enter the sheet itself. This is replaced by a direct link to the
+     subsheet if the **Generate clickable links for hierarchical elements**
+     option is enabled.
   ** Labels display the resolved net and netclass.
   ** Buses display their members.
 
-NOTE: Some of these features are not supported in all PDF readers.
+NOTE: Some of these features are not supported in all PDF readers. The clickable
+      links generated by the **Generate clickable links for hierarchical elements**
+      option are more widely supported than other interactive features.
 
 [[bom-export]]
 === Generating a bill of materials
@@ -129,12 +150,13 @@ you press the **Export** button at the bottom of the dialog.
 
 The exported BOM will contain exactly the components (rows) and fields (columns)
 shown in the **Edit** tab, with the same grouping and sorting. Components with
-the **Exclude from BOM** attribute set are shown in the **Edit** tab but will
-not be included in the BOM export. Components with the DNP (do not populate)
+the **Exclude from BOM** attribute set are hidden in the **Edit** tab and not
+included in the BOM export unless the **Show 'Exclude from BOM'** box is checked.
+Components with the DNP (do not populate)
 attribute set can be optionally excluded from both the table in the **Edit** tab
 and the exported BOM by checking the **Exclude DNP** box. You can also limit the
 displayed components to those in the current sheet, the current sheet and all of
-its subsheets, or the entire schematic.
+its subsheets, or the entire schematic by adjusting the **Scope** settings.
 
 image::images/symbol_fields_table_edit.png[Symbol Fields Table Edit tab]
 
@@ -351,6 +373,8 @@ KiCad supports several netlist formats:
   the <<eeschema_schematic_to_pcb.adoc#schematic-to-pcb,"Update PCB from Schematic">>
   tool should be used instead of importing a KiCad netlist into the PCB editor.
 * OrCAD PCB2 format, for designing PCBs with OrCAD.
+* Allegro format, for designing PCBs with Allegro.
+* PADS format, for designing PCBs with PADS.
 * CADSTAR format, for designing PCBs with CADSTAR.
 * Spice format, for use with various external circuit simulators.
 
@@ -371,8 +395,8 @@ Netlists are exported with the Export Netlist dialog (**File**->**Export**->**Ne
 
 image::images/eeschema_netlist_dialog_kicad.png[alt="KiCad netlist export",scaledwidth="70%"]
 
-KiCad supports exporting netlists in several formats: KiCad, OrcadPCB2, CADSTAR,
-Spice, and Spice Model. Each format can be selected by selecting the
+KiCad supports exporting netlists in several formats: KiCad, OrcadPCB2, Allegro,
+PADS, CADSTAR, Spice, and Spice Model. Each format can be selected by selecting the
 corresponding tab at the top of the window. Some netlist formats have additional
 options.
 
@@ -394,23 +418,26 @@ image::images/eeschema_netlist_dialog_spice.png[alt="Spice netlist export",scale
 
 The Spice netlist format offers several options.
 
-When the **use current sheet as root** is selected, only the current sheet is
-exported to a subcircuit model. Otherwise, the entire schematic sheet is
-exported.
-
-The **save all voltages** option adds a `.save all` command to the netlist,
-which causes the simulator to save all node voltages. The **save all currents**
-option adds a `.probe alli` command to the netlist, which causes the simulator
-save all node currents. The **save all power dissipations** adds `.probe`
-commands to save the power dissipation in each component.
+* When the **use current sheet as root** is selected, only the current sheet is
+  exported to a subcircuit model. Otherwise, the entire schematic sheet is
+  exported.
+* The **Save all voltages** option adds a `.save all` command to the netlist,
+  which causes the simulator to save all node voltages.
+* The **Save all currents** option adds a `.probe alli` command to the netlist,
+  which causes the simulator save all node currents.
+* The **Save all power dissipations** adds `.probe` commands to save the power
+  dissipation in each component.
+* The **Save all digital event data** removes the `esave none` command from the
+  netlist, which causes digital event data to be saved. Digital event data may
+  consume a lot of memory.
 
 NOTE: Exact behavior may vary between simulation tools.
 
 Passive symbol values are automatically adjusted to be compatible with various
 Spice simulators. Specifically:
 
-* `&mu;` and `M` as unit prefixes are replaced with `u` and `Meg`, respectively
-* Units are removed (e.g. `4.7k&ohm;` is changed to `4.7k`)
+* `&#956;` and `M` as unit prefixes are replaced with `u` and `Meg`, respectively
+* Units are removed (e.g. `4.7k&#8486;` is changed to `4.7k`)
 * Values in RKM format are rewritten to be Spice-compatible (e.g. `4u7` is
   changed to `4.7u`)
 

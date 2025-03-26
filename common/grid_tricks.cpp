@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2012-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,7 +29,7 @@
 #include <wx/clipbrd.h>
 #include <wx/log.h>
 #include <wx/stc/stc.h>
-#include <widgets/grid_readonly_text_helpers.h>
+#include <widgets/grid_text_helpers.h>
 
 
 // It works for table data on clipboard for an Excel spreadsheet,
@@ -41,7 +41,9 @@
 
 GRID_TRICKS::GRID_TRICKS( WX_GRID* aGrid ) :
     m_grid( aGrid ),
-    m_addHandler( []( wxCommandEvent& ) {} )
+    m_addHandler( []( wxCommandEvent& ) {} ),
+    m_enableSingleClickEdit( true ),
+    m_multiCellEditEnabled( true )
 {
     init();
 }
@@ -49,7 +51,9 @@ GRID_TRICKS::GRID_TRICKS( WX_GRID* aGrid ) :
 
 GRID_TRICKS::GRID_TRICKS( WX_GRID* aGrid, std::function<void( wxCommandEvent& )> aAddHandler ) :
     m_grid( aGrid ),
-    m_addHandler( aAddHandler )
+    m_addHandler( aAddHandler ),
+    m_enableSingleClickEdit( true ),
+    m_multiCellEditEnabled( true )
 {
     init();
 }
@@ -91,7 +95,8 @@ void GRID_TRICKS::init()
 bool GRID_TRICKS::isTextEntry( int aRow, int aCol )
 {
     wxGridCellEditor* editor = m_grid->GetCellEditor( aRow, aCol );
-    bool              retval = ( dynamic_cast<wxTextEntry*>( editor ) );
+    bool              retval = ( dynamic_cast<wxTextEntry*>( editor )
+                              || dynamic_cast<GRID_CELL_STC_EDITOR*>( editor ) );
 
     editor->DecRef();
     return retval;
@@ -206,7 +211,7 @@ void GRID_TRICKS::onGridCellLeftClick( wxGridEvent& aEvent )
 
         if( toggleCell( row, col, true ) )
             toggled = true;
-        else if( showEditor( row, col ) )
+        else if( m_enableSingleClickEdit && showEditor( row, col ) )
             return;
 
         // Apply checkbox changes to multi-selection.
@@ -355,10 +360,15 @@ void GRID_TRICKS::showPopupMenu( wxMenu& menu, wxGridEvent& aEvent )
                  _( "Clear selected cells placing original contents on clipboard" ) );
     menu.Append( GRIDTRICKS_ID_COPY, _( "Copy" ) + "\tCtrl+C",
                  _( "Copy selected cells to clipboard" ) );
-    menu.Append( GRIDTRICKS_ID_PASTE, _( "Paste" ) + "\tCtrl+V",
-                 _( "Paste clipboard cells to matrix at current cell" ) );
-    menu.Append( GRIDTRICKS_ID_DELETE, _( "Delete" ) + "\tDel",
-                 _( "Clear contents of selected cells" ) );
+
+    if( m_multiCellEditEnabled )
+    {
+        menu.Append( GRIDTRICKS_ID_PASTE, _( "Paste" ) + "\tCtrl+V",
+                     _( "Paste clipboard cells to matrix at current cell" ) );
+        menu.Append( GRIDTRICKS_ID_DELETE, _( "Delete" ) + "\tDel",
+                     _( "Clear contents of selected cells" ) );
+    }
+
     menu.Append( GRIDTRICKS_ID_SELECT, _( "Select All" ) + "\tCtrl+A",
                  _( "Select all cells" ) );
 
@@ -398,7 +408,8 @@ void GRID_TRICKS::showPopupMenu( wxMenu& menu, wxGridEvent& aEvent )
         if( wxTheClipboard->IsSupported( wxDF_TEXT )
             || wxTheClipboard->IsSupported( wxDF_UNICODETEXT ) )
         {
-            menu.Enable( GRIDTRICKS_ID_PASTE, true );
+            if( m_grid->IsEditable() )
+                menu.Enable( GRIDTRICKS_ID_PASTE, true );
         }
 
         wxTheClipboard->Close();
@@ -711,6 +722,9 @@ void GRID_TRICKS::paste_clipboard()
 
 void GRID_TRICKS::paste_text( const wxString& cb_text )
 {
+    if( !m_multiCellEditEnabled )
+        return;
+
     wxGridTableBase*   tbl = m_grid->GetTable();
 
     const int cur_row = m_grid->GetGridCursorRow();

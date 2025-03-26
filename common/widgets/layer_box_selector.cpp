@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2014-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -47,42 +47,11 @@ bool LAYER_SELECTOR::SetLayersHotkeys( bool value )
 }
 
 
-void LAYER_SELECTOR::DrawColorSwatch( wxBitmap& aLayerbmp, const COLOR4D& aBackground,
-                                      const COLOR4D& aColor )
-{
-    wxMemoryDC bmpDC;
-    wxBrush    brush;
-
-    // Prepare Bitmap
-    bmpDC.SelectObject( aLayerbmp );
-
-    brush.SetStyle( wxBRUSHSTYLE_SOLID );
-
-    if( aBackground != COLOR4D::UNSPECIFIED )
-    {
-        brush.SetColour( aBackground.WithAlpha( 1.0 ).ToColour() );
-        bmpDC.SetBrush( brush );
-        bmpDC.DrawRectangle( 0, 0, aLayerbmp.GetWidth(), aLayerbmp.GetHeight() );
-    }
-
-    brush.SetColour( aColor.ToColour() );
-    bmpDC.SetBrush( brush );
-    bmpDC.DrawRectangle( 0, 0, aLayerbmp.GetWidth(), aLayerbmp.GetHeight() );
-
-    bmpDC.SetBrush( *wxTRANSPARENT_BRUSH );
-    bmpDC.SetPen( *wxBLACK_PEN );
-    bmpDC.DrawRectangle( 0, 0, aLayerbmp.GetWidth(), aLayerbmp.GetHeight() );
-}
-
-
 LAYER_BOX_SELECTOR::LAYER_BOX_SELECTOR( wxWindow* parent, wxWindowID id, const wxPoint& pos,
                                         const wxSize& size, int n, const wxString choices[] ) :
         wxBitmapComboBox( parent, id, wxEmptyString, pos, size, n, choices, wxCB_READONLY ),
         LAYER_SELECTOR()
 {
-    if( choices != nullptr )
-        ResyncBitmapOnly();
-
 #ifdef __WXMAC__
     GetParent()->Connect( wxEVT_CHAR_HOOK, wxKeyEventHandler( LAYER_BOX_SELECTOR::onKeyDown ),
                           nullptr, this );
@@ -129,19 +98,6 @@ int LAYER_BOX_SELECTOR::SetLayerSelection( int layer )
     // Not Found
     SetSelection( -1 );
     return -1;
-}
-
-
-void LAYER_BOX_SELECTOR::ResyncBitmapOnly()
-{
-    DPI_SCALING_COMMON dpi( nullptr, this );
-    int size = static_cast<int>( dpi.GetScaleFactor() * 14 );
-
-    for( int i = 0; i < (int) GetCount(); ++i )
-    {
-        wxBitmap layerbmp( size, size );
-        DrawColorSwatch( layerbmp, getLayerColor( LAYER_PCB_BACKGROUND ), getLayerColor( i ) );
-    }
 }
 
 

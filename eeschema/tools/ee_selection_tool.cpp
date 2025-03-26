@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2019 CERN
- * Copyright (C) 2019-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,7 +32,6 @@
 #include <ee_selection_tool.h>
 #include <eeschema_id.h>
 #include <symbol_edit_frame.h>
-#include <lib_item.h>
 #include <symbol_viewer_frame.h>
 #include <math/util.h>
 #include <geometry/shape_rect.h>
@@ -46,12 +45,13 @@
 #include <sch_item.h>
 #include <sch_line.h>
 #include <sch_bus_entry.h>
-#include <sch_junction.h>
 #include <sch_marker.h>
 #include <sch_no_connect.h>
+#include <sch_render_settings.h>
 #include <sch_sheet.h>
 #include <sch_sheet_pin.h>
-#include <lib_shape.h>
+#include <sch_table.h>
+#include <sch_tablecell.h>
 #include <schematic.h>
 #include <tool/tool_event.h>
 #include <tool/tool_manager.h>
@@ -65,6 +65,7 @@
 #include <wx/log.h>
 
 #include "symb_transforms_utils.h"
+
 
 SELECTION_CONDITION EE_CONDITIONS::SingleSymbol = []( const SELECTION& aSel )
 {
@@ -167,6 +168,7 @@ EE_SELECTION_TOOL::EE_SELECTION_TOOL() :
         m_unit( 0 ),
         m_bodyStyle( 0 )
 {
+    m_filter.SetDefaults();
     m_selection.Clear();
 }
 
@@ -196,6 +198,22 @@ static std::vector<KICAD_T> connectedTypes =
     SCH_JUNCTION_T
 };
 
+static std::vector<KICAD_T> connectedLineTypes =
+{
+    SCH_ITEM_LOCATE_WIRE_T,
+    SCH_ITEM_LOCATE_BUS_T
+};
+
+static std::vector<KICAD_T> crossProbingTypes =
+{
+    SCH_SYMBOL_T,
+    SCH_PIN_T,
+    SCH_SHEET_T
+};
+
+static std::vector<KICAD_T> lineTypes = { SCH_LINE_T };
+static std::vector<KICAD_T> sheetTypes = { SCH_SHEET_T };
+static std::vector<KICAD_T> tableCellTypes = { SCH_TABLECELL_T };
 
 bool EE_SELECTION_TOOL::Init()
 {
@@ -215,16 +233,12 @@ bool EE_SELECTION_TOOL::Init()
         m_isSymbolViewer = symbolViewerFrame != nullptr;
     }
 
-    auto linesSelection =        E_C::MoreThan( 0 ) &&
-                                 E_C::OnlyTypes( { SCH_ITEM_LOCATE_WIRE_T, SCH_ITEM_LOCATE_BUS_T,
-                                                   SCH_ITEM_LOCATE_GRAPHIC_LINE_T } );
-    auto wireOrBusSelection =    E_C::Count( 1 ) &&
-                                 E_C::OnlyTypes( { SCH_ITEM_LOCATE_WIRE_T,
-                                                   SCH_ITEM_LOCATE_BUS_T } );
+    auto linesSelection =        E_C::MoreThan( 0 ) && E_C::OnlyTypes( lineTypes );
+    auto wireOrBusSelection =    E_C::Count( 1 )    && E_C::OnlyTypes( connectedLineTypes );
     auto connectedSelection =    E_C::Count( 1 )    && E_C::OnlyTypes( connectedTypes );
-    auto sheetSelection =        E_C::Count( 1 )    && E_C::OnlyTypes( { SCH_SHEET_T } );
-    auto crossProbingSelection = E_C::MoreThan( 0 ) &&
-                                 E_C::HasTypes( { SCH_SYMBOL_T, SCH_PIN_T, SCH_SHEET_T } );
+    auto sheetSelection =        E_C::Count( 1 )    && E_C::OnlyTypes( sheetTypes );
+    auto crossProbingSelection = E_C::MoreThan( 0 ) && E_C::HasTypes( crossProbingTypes );
+    auto tableCellSelection =    E_C::MoreThan( 0 ) && E_C::OnlyTypes( tableCellTypes );
 
     auto schEditSheetPageNumberCondition =
             [&] ( const SELECTION& aSel )
@@ -232,7 +246,7 @@ bool EE_SELECTION_TOOL::Init()
                 if( m_isSymbolEditor || m_isSymbolViewer )
                     return false;
 
-                return E_C::LessThan( 2 )( aSel ) && E_C::OnlyTypes( { SCH_SHEET_T } )( aSel );
+                return E_C::LessThan( 2 )( aSel ) && E_C::OnlyTypes( sheetTypes )( aSel );
             };
 
     auto schEditCondition =
@@ -280,10 +294,14 @@ bool EE_SELECTION_TOOL::Init()
                         && !symbEditorFrame->IsSymbolAlias();
             };
 
-    auto& menu = m_menu.GetMenu();
+    auto& menu = m_menu->GetMenu();
 
     menu.AddItem( EE_ACTIONS::clearHighlight,     haveHighlight && EE_CONDITIONS::Idle, 1 );
     menu.AddSeparator(                            haveHighlight && EE_CONDITIONS::Idle, 1 );
+
+    menu.AddItem( ACTIONS::selectColumns,         tableCellSelection && EE_CONDITIONS::Idle, 2 );
+    menu.AddItem( ACTIONS::selectRows,            tableCellSelection && EE_CONDITIONS::Idle, 2 );
+    menu.AddItem( ACTIONS::selectTable,           tableCellSelection && EE_CONDITIONS::Idle, 2 );
 
     menu.AddSeparator( 100 );
     menu.AddItem( EE_ACTIONS::drawWire,           schEditCondition && EE_CONDITIONS::Empty, 100 );
@@ -295,11 +313,10 @@ bool EE_SELECTION_TOOL::Init()
 
     menu.AddItem( EE_ACTIONS::enterSheet,         sheetSelection && EE_CONDITIONS::Idle, 150 );
     menu.AddItem( EE_ACTIONS::selectOnPCB,
-                  crossProbingSelection && EE_CONDITIONS::Idle, 150 );
+                  crossProbingSelection && schEditCondition && EE_CONDITIONS::Idle, 150 );
     menu.AddItem( EE_ACTIONS::leaveSheet,         belowRootSheetCondition, 150 );
 
     menu.AddSeparator( 200 );
-    menu.AddItem( EE_ACTIONS::selectConnection,   connectedSelection && EE_CONDITIONS::Idle, 250 );
     menu.AddItem( EE_ACTIONS::placeJunction,      wireOrBusSelection && EE_CONDITIONS::Idle, 250 );
     menu.AddItem( EE_ACTIONS::placeLabel,         wireOrBusSelection && EE_CONDITIONS::Idle, 250 );
     menu.AddItem( EE_ACTIONS::placeClassLabel,    wireOrBusSelection && EE_CONDITIONS::Idle, 250 );
@@ -307,7 +324,8 @@ bool EE_SELECTION_TOOL::Init()
     menu.AddItem( EE_ACTIONS::placeHierLabel,     wireOrBusSelection && EE_CONDITIONS::Idle, 250 );
     menu.AddItem( EE_ACTIONS::breakWire,          linesSelection     && EE_CONDITIONS::Idle, 250 );
     menu.AddItem( EE_ACTIONS::slice,              linesSelection     && EE_CONDITIONS::Idle, 250 );
-    menu.AddItem( EE_ACTIONS::importSheetPin,     sheetSelection     && EE_CONDITIONS::Idle, 250 );
+    menu.AddItem( EE_ACTIONS::placeSheetPin,      sheetSelection     && EE_CONDITIONS::Idle, 250 );
+    menu.AddItem( EE_ACTIONS::syncSheetPins,      sheetSelection     && EE_CONDITIONS::Idle, 250 );
     menu.AddItem( EE_ACTIONS::assignNetclass,     connectedSelection && EE_CONDITIONS::Idle, 250 );
     menu.AddItem( EE_ACTIONS::editPageNumber,     schEditSheetPageNumberCondition, 250 );
 
@@ -318,7 +336,7 @@ bool EE_SELECTION_TOOL::Init()
                   haveSymbol && symbolDisplayNameIsEditable && EE_CONDITIONS::Empty, 400 );
 
     menu.AddSeparator( 1000 );
-    m_frame->AddStandardSubMenus( m_menu );
+    m_frame->AddStandardSubMenus( *m_menu.get() );
 
     m_disambiguateTimer.SetOwner( this );
     Connect( wxEVT_TIMER, wxTimerEventHandler( EE_SELECTION_TOOL::onDisambiguationExpire ),
@@ -338,6 +356,9 @@ void EE_SELECTION_TOOL::Reset( RESET_REASON aReason )
         // properties (as they are already deleted while a new sheet is loaded)
         m_selection.Clear();
     }
+
+    if( aReason == RESET_REASON::SHUTDOWN )
+        return;
 
     if( aReason == TOOL_BASE::MODEL_RELOAD || aReason == TOOL_BASE::SUPERMODEL_RELOAD )
     {
@@ -384,7 +405,7 @@ int EE_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
                     return pin->GetOrientation();
                 else
                 {
-                    LIB_PIN dummy( *pin->GetLibPin() );
+                    SCH_PIN dummy( *pin );
                     RotateAndMirrorPin( dummy, parent->GetOrientation() );
                     return dummy.GetOrientation();
                 }
@@ -537,7 +558,7 @@ int EE_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
             }
 
             if( !selCancelled )
-                m_menu.ShowContextMenu( m_selection );
+                m_menu->ShowContextMenu( m_selection );
         }
         else if( evt->IsDblClick( BUT_LEFT ) )
         {
@@ -583,7 +604,13 @@ int EE_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
             if( SCH_EDIT_FRAME* schframe = dynamic_cast<SCH_EDIT_FRAME*>( m_frame ) )
                 schframe->FocusOnItem( nullptr );
 
-            if( hasModifier() || drag_action == MOUSE_DRAG_ACTION::SELECT )
+            EE_COLLECTOR collector;
+
+            if( CollectHits( collector, evt->DragOrigin(), { SCH_TABLECELL_T } ) )
+            {
+                selectTableCells( static_cast<SCH_TABLE*>( collector[0]->GetParent() ) );
+            }
+            else if( hasModifier() || drag_action == MOUSE_DRAG_ACTION::SELECT )
             {
                 selectMultiple();
             }
@@ -597,15 +624,15 @@ int EE_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
                 {
                     if( static_cast<SYMBOL_EDIT_FRAME*>( m_frame )->IsSymbolAlias() )
                     {
-                        m_selection = RequestSelection( { LIB_FIELD_T } );
+                        m_selection = RequestSelection( { SCH_FIELD_T } );
                     }
                     else
                     {
-                        m_selection = RequestSelection( { LIB_SHAPE_T,
-                                                          LIB_TEXT_T,
-                                                          LIB_TEXTBOX_T,
-                                                          LIB_PIN_T,
-                                                          LIB_FIELD_T } );
+                        m_selection = RequestSelection( { SCH_SHAPE_T,
+                                                          SCH_TEXT_T,
+                                                          SCH_TEXTBOX_T,
+                                                          SCH_PIN_T,
+                                                          SCH_FIELD_T } );
                     }
                 }
                 else
@@ -619,9 +646,9 @@ int EE_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
                     // drag_is_move option exists only in schematic editor, not in symbol editor
                     // (m_frame->eeconfig() returns nullptr in Symbol Editor)
                     if( m_isSymbolEditor || m_frame->eeconfig()->m_Input.drag_is_move )
-                        m_toolMgr->RunSynchronousAction( EE_ACTIONS::move, nullptr );
+                        m_toolMgr->RunAction( EE_ACTIONS::move );
                     else
-                        m_toolMgr->RunSynchronousAction( EE_ACTIONS::drag, nullptr );
+                        m_toolMgr->RunAction( EE_ACTIONS::drag );
                 }
                 else
                 {
@@ -638,6 +665,27 @@ int EE_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
         {
             m_toolMgr->RunAction( EE_ACTIONS::navigateForward );
         }
+        else if( evt->Action() == TA_MOUSE_WHEEL )
+        {
+            int field = -1;
+
+            if( evt->Modifier() == ( MD_SHIFT | MD_ALT ) )
+                field = 0;
+            else if( evt->Modifier() == ( MD_CTRL | MD_ALT ) )
+                field = 1;
+            // any more?
+
+            if( field >= 0 )
+            {
+                const int          delta = evt->Parameter<int>();
+                ACTIONS::INCREMENT incParams{
+                    delta > 0 ? 1 : -1,
+                    field,
+                };
+
+                m_toolMgr->RunAction( ACTIONS::increment, incParams );
+            }
+        }
         else if( evt->Category() == TC_COMMAND && evt->Action() == TA_CHOICE_MENU_CHOICE )
         {
             m_disambiguateTimer.Stop();
@@ -651,6 +699,15 @@ int EE_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
 
                 if( symbol )
                     static_cast<SCH_EDIT_FRAME*>( m_frame )->SelectUnit( symbol, unit );
+            }
+            else if( *evt->GetCommandId() >= ID_POPUP_SCH_SELECT_BASE
+                     && *evt->GetCommandId() <= ID_POPUP_SCH_SELECT_ALT )
+            {
+                SCH_SYMBOL* symbol = dynamic_cast<SCH_SYMBOL*>( m_selection.Front() );
+                int bodyStyle = ( *evt->GetCommandId() - ID_POPUP_SCH_SELECT_BASE ) + 1;
+
+                if( symbol && symbol->GetBodyStyle() != bodyStyle )
+                    static_cast<SCH_EDIT_FRAME*>( m_frame )->FlipBodyStyle( symbol );
             }
             else if( *evt->GetCommandId() >= ID_POPUP_SCH_ALT_PIN_FUNCTION
                      && *evt->GetCommandId() <= ID_POPUP_SCH_ALT_PIN_FUNCTION_END )
@@ -706,11 +763,12 @@ int EE_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
 
                         switch( pinOrientation( item ) )
                         {
-                        case PIN_ORIENTATION::PIN_LEFT:
-                            stub = VECTOR2I( 1 * wireGrid.x, 0 );
-                            break;
+                        default:
                         case PIN_ORIENTATION::PIN_RIGHT:
                             stub = VECTOR2I( -1 * wireGrid.x, 0 );
+                            break;
+                        case PIN_ORIENTATION::PIN_LEFT:
+                            stub = VECTOR2I( 1 * wireGrid.x, 0 );
                             break;
                         case PIN_ORIENTATION::PIN_UP:
                             stub = VECTOR2I( 0, 1 * wireGrid.y );
@@ -800,11 +858,12 @@ int EE_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
 
                         switch( pinOrientation( item ) )
                         {
-                        case PIN_ORIENTATION::PIN_LEFT:
-                            label->SetSpinStyle( SPIN_STYLE::SPIN::RIGHT );
-                            break;
+                        default:
                         case PIN_ORIENTATION::PIN_RIGHT:
                             label->SetSpinStyle( SPIN_STYLE::SPIN::LEFT );
+                            break;
+                        case PIN_ORIENTATION::PIN_LEFT:
+                            label->SetSpinStyle( SPIN_STYLE::SPIN::RIGHT );
                             break;
                         case PIN_ORIENTATION::PIN_UP:
                             label->SetSpinStyle( SPIN_STYLE::SPIN::BOTTOM );
@@ -975,7 +1034,7 @@ int EE_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
         {
             if( displayWireCursor )
             {
-                m_nonModifiedCursor = KICURSOR::LINE_WIRE_ADD;
+                m_nonModifiedCursor = KICURSOR::LINE_WIRE;
             }
             else if( displayBusCursor )
             {
@@ -1044,11 +1103,11 @@ OPT_TOOL_EVENT EE_SELECTION_TOOL::autostartEvent( TOOL_EVENT* aEvent, EE_GRID_HE
                 newEvt = EE_ACTIONS::drawLines.MakeEvent();
         }
         else if( aItem->Type() == SCH_LABEL_T || aItem->Type() == SCH_HIER_LABEL_T
-                 || aItem->Type() == SCH_SHEET_PIN_T )
+                 || aItem->Type() == SCH_SHEET_PIN_T || aItem->Type() == SCH_GLOBAL_LABEL_T )
         {
             SCH_LABEL_BASE* label = static_cast<SCH_LABEL_BASE*>( aItem );
             SCH_CONNECTION  possibleConnection( label->Schematic()->ConnectionGraph() );
-            possibleConnection.ConfigureFromLabel( label->GetText() );
+            possibleConnection.ConfigureFromLabel( label->GetShownText( false ) );
 
             if( possibleConnection.IsBus() )
                 newEvt = EE_ACTIONS::drawBus.MakeEvent();
@@ -1056,15 +1115,14 @@ OPT_TOOL_EVENT EE_SELECTION_TOOL::autostartEvent( TOOL_EVENT* aEvent, EE_GRID_HE
         else if( aItem->Type() == SCH_SYMBOL_T )
         {
             const SCH_SYMBOL* symbol = static_cast<const SCH_SYMBOL*>( aItem );
+            const SCH_PIN*    pin = symbol->GetPin( pos );
 
-            wxCHECK( symbol, OPT_TOOL_EVENT() );
-
-            const SCH_PIN* pin = symbol->GetPin( pos );
-
-            wxCHECK( pin, OPT_TOOL_EVENT() );
+            if( !pin )
+                return OPT_TOOL_EVENT();
 
             if( !pin->IsVisible()
-                && !( m_frame->eeconfig()->m_Appearance.show_hidden_pins ) )
+                && !( m_frame->eeconfig()->m_Appearance.show_hidden_pins
+                      || m_frame->GetRenderSettings()->m_ShowHiddenPins ) )
             {
                 return OPT_TOOL_EVENT();
             }
@@ -1147,7 +1205,9 @@ bool EE_SELECTION_TOOL::CollectHits( EE_COLLECTOR& aCollector, const VECTOR2I& a
     {
         aCollector.Collect( m_frame->GetScreen(), aScanTypes, aWhere, m_unit, m_bodyStyle );
 
-        if( m_frame->eeconfig()->m_Selection.select_pin_selects_symbol )
+        // If pins are disabled in the filter, they will be removed later.  Let's add the parent
+        // so that people can use pins to select symbols in this case.
+        if( !m_filter.pins )
         {
             int originalCount = aCollector.GetCount();
 
@@ -1178,20 +1238,20 @@ void EE_SELECTION_TOOL::narrowSelection( EE_COLLECTOR& collector, const VECTOR2I
         if( symbolEditorFrame )
         {
             // Do not select invisible items if they are not displayed
-            EDA_ITEM* item = static_cast<EDA_ITEM*>( collector[i] );
+            EDA_ITEM* item = collector[i];
 
-            if( item->Type() == LIB_FIELD_T )
+            if( item->Type() == SCH_FIELD_T )
             {
-                if( !static_cast<LIB_FIELD*>( item )->IsVisible()
+                if( !static_cast<SCH_FIELD*>( item )->IsVisible()
                     && !symbolEditorFrame->GetShowInvisibleFields() )
                 {
                     collector.Remove( i );
                     continue;
                 }
             }
-            else if( item->Type() == LIB_PIN_T )
+            else if( item->Type() == SCH_PIN_T )
             {
-                if( !static_cast<LIB_PIN*>( item )->IsVisible()
+                if( !static_cast<SCH_PIN*>( item )->IsVisible()
                     && !symbolEditorFrame->GetShowInvisiblePins() )
                 {
                     collector.Remove( i );
@@ -1207,6 +1267,12 @@ void EE_SELECTION_TOOL::narrowSelection( EE_COLLECTOR& collector, const VECTOR2I
         }
 
         if( aCheckLocked && collector[i]->IsLocked() )
+        {
+            collector.Remove( i );
+            continue;
+        }
+
+        if( !itemPassesFilter( collector[i] ) )
         {
             collector.Remove( i );
             continue;
@@ -1270,9 +1336,9 @@ bool EE_SELECTION_TOOL::selectPoint( EE_COLLECTOR& aCollector, const VECTOR2I& a
             {
                 SCH_LINE* line = (SCH_LINE*) aCollector[i];
 
-                if( HitTestPoints( line->GetStartPoint(), aWhere, aCollector.m_Threshold ) )
+                if( line->GetStartPoint().Distance( aWhere ) <= aCollector.m_Threshold )
                     flags = STARTPOINT;
-                else if( HitTestPoints( line->GetEndPoint(), aWhere, aCollector.m_Threshold ) )
+                else if( line->GetEndPoint().Distance( aWhere ) <= aCollector.m_Threshold )
                     flags = ENDPOINT;
                 else
                     flags = STARTPOINT | ENDPOINT;
@@ -1381,7 +1447,7 @@ int EE_SELECTION_TOOL::SelectAll( const TOOL_EVENT& aEvent )
     {
         if( EDA_ITEM* item = dynamic_cast<EDA_ITEM*>( item_pair.first ) )
         {
-            if( Selectable( item ) )
+            if( Selectable( item ) && itemPassesFilter( item ) )
             {
                 if( item->Type() == SCH_LINE_T )
                     item->SetFlags( STARTPOINT | ENDPOINT );
@@ -1451,8 +1517,8 @@ void EE_SELECTION_TOOL::GuessSelectionCandidates( EE_COLLECTOR& collector, const
     {
         EDA_ITEM*   item = collector[ i ];
         SCH_LINE*   line = dynamic_cast<SCH_LINE*>( item );
-        LIB_SHAPE*  shape = dynamic_cast<LIB_SHAPE*>( item );
-        SCH_SYMBOL* symbol = dynamic_cast<SCH_SYMBOL*>( item );
+        SCH_SHAPE*  shape = dynamic_cast<SCH_SHAPE*>( item );
+        SCH_TABLE*  table = dynamic_cast<SCH_TABLE*>( item );
 
         // Lines are hard to hit.  Give them a bit more slop to still be considered "exact".
         if( line || ( shape && shape->GetShape() == SHAPE_T::POLY )
@@ -1463,10 +1529,9 @@ void EE_SELECTION_TOOL::GuessSelectionCandidates( EE_COLLECTOR& collector, const
             if( item->HitTest( aPos, pixelThreshold ) )
                 exactHits.insert( item );
         }
-        else if( symbol && m_frame->eeconfig()->m_Selection.select_pin_selects_symbol )
+        else if( table )
         {
-            if( symbol->GetBodyAndPinsBoundingBox().Contains( aPos ) )
-                exactHits.insert( item );
+            // Consider table cells exact, but not the table itself
         }
         else
         {
@@ -1487,15 +1552,13 @@ void EE_SELECTION_TOOL::GuessSelectionCandidates( EE_COLLECTOR& collector, const
         {
             EDA_ITEM* item = collector[ i ];
 
-            if( !exactHits.count( item ) )
+            if( !exactHits.contains( item ) )
                 collector.Transfer( item );
         }
     }
 
     // Find the closest item.  (Note that at this point all hits are either exact or non-exact.)
-    VECTOR2I  pos( aPos );
-    SEG       poss( m_isSymbolEditor ? mapCoords( pos ) : pos,
-                    m_isSymbolEditor ? mapCoords( pos ) : pos );
+    SEG       poss( aPos, aPos );
     EDA_ITEM* closest = nullptr;
     int       closestDist = INT_MAX / 4;
 
@@ -1509,7 +1572,7 @@ void EE_SELECTION_TOOL::GuessSelectionCandidates( EE_COLLECTOR& collector, const
         // with a zero distance over anything inside it.
         bool dominating = false;
 
-        if( exactHits.count( item ) )
+        if( exactHits.contains( item ) )
         {
             if( item->Type() == SCH_PIN_T || item->Type() == SCH_JUNCTION_T )
             {
@@ -1525,8 +1588,7 @@ void EE_SELECTION_TOOL::GuessSelectionCandidates( EE_COLLECTOR& collector, const
 
             if( line )
             {
-                dist = KiROUND( DistanceLinePoint( line->GetStartPoint(),
-                                                   line->GetEndPoint(), pos ) );
+                dist = line->GetSeg().Distance( aPos );
             }
             else if( field )
             {
@@ -1575,14 +1637,14 @@ void EE_SELECTION_TOOL::GuessSelectionCandidates( EE_COLLECTOR& collector, const
 
                 SHAPE_RECT rect( bbox.GetPosition(), bbox.GetWidth(), bbox.GetHeight() );
 
-                if( bbox.Contains( pos ) )
-                    dist = KiROUND( EuclideanNorm( bbox.GetCenter() - pos ) );
+                if( bbox.Contains( aPos ) )
+                    dist = bbox.GetCenter().Distance( aPos );
                 else
                     rect.Collide( poss, closestDist, &dist );
             }
             else
             {
-                dist = KiROUND( EuclideanNorm( bbox.GetCenter() - pos ) );
+                dist = bbox.GetCenter().Distance( aPos );
             }
         }
         else
@@ -1631,8 +1693,12 @@ void EE_SELECTION_TOOL::GuessSelectionCandidates( EE_COLLECTOR& collector, const
 }
 
 
-EE_SELECTION& EE_SELECTION_TOOL::RequestSelection( const std::vector<KICAD_T>& aScanTypes )
+EE_SELECTION& EE_SELECTION_TOOL::RequestSelection( const std::vector<KICAD_T>& aScanTypes,
+                                                   bool aPromoteCellSelections )
 {
+    bool anyUnselected = false;
+    bool anySelected = false;
+
     if( m_selection.Empty() )
     {
         VECTOR2D cursorPos = getViewControls()->GetCursorPosition( true );
@@ -1645,7 +1711,6 @@ EE_SELECTION& EE_SELECTION_TOOL::RequestSelection( const std::vector<KICAD_T>& a
     else        // Trim an existing selection by aFilterList
     {
         bool isMoving = false;
-        bool anyUnselected = false;
 
         for( int i = (int) m_selection.GetSize() - 1; i >= 0; --i )
         {
@@ -1659,14 +1724,133 @@ EE_SELECTION& EE_SELECTION_TOOL::RequestSelection( const std::vector<KICAD_T>& a
             }
         }
 
-        if( anyUnselected )
-            m_toolMgr->ProcessEvent( EVENTS::UnselectedEvent );
-
         if( !isMoving )
             updateReferencePoint();
     }
 
+    if( aPromoteCellSelections )
+    {
+        std::set<EDA_ITEM*> parents;
+
+        for( int i = (int) m_selection.GetSize() - 1; i >= 0; --i )
+        {
+            EDA_ITEM* item = (EDA_ITEM*) m_selection.GetItem( i );
+
+            if( item->Type() == SCH_TABLECELL_T )
+            {
+                parents.insert( item->GetParent() );
+                unselect( item );
+                anyUnselected = true;
+            }
+        }
+
+        for( EDA_ITEM* parent : parents )
+        {
+            if( !parent->IsSelected() )
+            {
+                select( parent );
+                anySelected = true;
+            }
+        }
+    }
+
+    if( anyUnselected )
+        m_toolMgr->ProcessEvent( EVENTS::UnselectedEvent );
+
+    if( anySelected )
+        m_toolMgr->ProcessEvent( EVENTS::SelectedEvent );
+
     return m_selection;
+}
+
+
+bool EE_SELECTION_TOOL::itemPassesFilter( EDA_ITEM* aItem )
+{
+    if( !aItem )
+        return false;
+
+    // Locking is not yet exposed uniformly in the schematic
+#if 0
+    if( SCH_ITEM* schItem = dynamic_cast<SCH_ITEM*>( aItem ) )
+    {
+        if( schItem->IsLocked() && !m_filter.lockedItems )
+            return false;
+    }
+#endif
+
+    switch( aItem->Type() )
+    {
+    case SCH_SYMBOL_T:
+    case SCH_SHEET_T:
+        if( !m_filter.symbols )
+            return false;
+
+        break;
+
+    case SCH_PIN_T:
+    case SCH_SHEET_PIN_T:
+        if( !m_filter.pins )
+            return false;
+
+        break;
+
+    case SCH_LINE_T:
+    {
+        switch( static_cast<SCH_LINE*>( aItem )->GetLayer() )
+        {
+        case LAYER_WIRE:
+        case LAYER_BUS:
+            if( !m_filter.wires )
+                return false;
+
+            break;
+
+        default:
+            if( !m_filter.graphics )
+                return false;
+        }
+
+       break;
+    }
+
+    case SCH_SHAPE_T:
+        if( !m_filter.graphics )
+            return false;
+
+        break;
+
+    case SCH_TEXT_T:
+    case SCH_TEXTBOX_T:
+    case SCH_TABLE_T:
+    case SCH_TABLECELL_T:
+    case SCH_FIELD_T:
+        if( !m_filter.text )
+            return false;
+
+        break;
+
+    case SCH_LABEL_T:
+    case SCH_GLOBAL_LABEL_T:
+    case SCH_HIER_LABEL_T:
+        if( !m_filter.labels )
+            return false;
+
+        break;
+
+    case SCH_BITMAP_T:
+        if( !m_filter.images )
+            return false;
+
+        break;
+
+    default:
+        if( !m_filter.otherItems )
+            return false;
+
+        break;
+    }
+
+    return true;
 }
 
 
@@ -1675,12 +1859,7 @@ void EE_SELECTION_TOOL::updateReferencePoint()
     VECTOR2I refP( 0, 0 );
 
     if( m_selection.Size() > 0 )
-    {
-        if( m_isSymbolEditor )
-            refP = static_cast<LIB_ITEM*>( m_selection.GetTopLeftItem() )->GetPosition();
-        else
-            refP = static_cast<SCH_ITEM*>( m_selection.GetTopLeftItem() )->GetPosition();
-    }
+        refP = static_cast<SCH_ITEM*>( m_selection.GetTopLeftItem() )->GetPosition();
 
     m_selection.SetReferencePoint( refP );
 }
@@ -1701,6 +1880,11 @@ const TOOL_ACTION* allowedActions[] = { &ACTIONS::panUp,          &ACTIONS::panD
 
 bool EE_SELECTION_TOOL::selectMultiple()
 {
+    // Block selection not allowed in symbol viewer frame: no actual code to handle
+    // a selection, so return to avoid to draw a selection rectangle, and to avoid crashes.
+    if( m_frame->IsType( FRAME_T::FRAME_SCH_VIEWER ) )
+        return false;
+
     bool cancelled = false;     // Was the tool canceled while it was running?
     m_multiple = true;          // Multiple selection mode is active
     KIGFX::VIEW* view = getView();
@@ -1836,7 +2020,7 @@ bool EE_SELECTION_TOOL::selectMultiple()
                 if( m_frame->GetRenderSettings()->m_ShowPinsElectricalType )
                     item->SetFlags( SHOW_ELEC_TYPE );
 
-                if( Selectable( item ) )
+                if( Selectable( item ) && itemPassesFilter( item ) )
                 {
                     if( item->Type() == SCH_LINE_T )
                     {
@@ -1888,6 +2072,7 @@ bool EE_SELECTION_TOOL::selectMultiple()
                     item->SetFlags( SHOW_ELEC_TYPE );
 
                 if( Selectable( item )
+                        && itemPassesFilter( item )
                         && !item->GetParent()->HasFlag( CANDIDATE )
                         && item->HitTest( selectionRect, !isGreedy ) )
                 {
@@ -1927,6 +2112,112 @@ bool EE_SELECTION_TOOL::selectMultiple()
 
     // Stop drawing the selection box
     view->Remove( &area );
+    m_multiple = false;         // Multiple selection mode is inactive
+
+    if( !cancelled )
+        m_selection.ClearReferencePoint();
+
+    return cancelled;
+}
+
+
+bool EE_SELECTION_TOOL::selectTableCells( SCH_TABLE* aTable )
+{
+    bool cancelled = false;     // Was the tool canceled while it was running?
+    m_multiple = true;          // Multiple selection mode is active
+
+    for( SCH_TABLECELL* cell : aTable->GetCells() )
+    {
+        if( cell->IsSelected() )
+            cell->SetFlags( CANDIDATE );
+        else
+            cell->ClearFlags( CANDIDATE );
+    }
+
+    auto wasSelected =
+            []( EDA_ITEM* aItem )
+            {
+                return ( aItem->GetFlags() & CANDIDATE ) > 0;
+            };
+
+    while( TOOL_EVENT* evt = Wait() )
+    {
+        if( evt->IsCancelInteractive() || evt->IsActivate() )
+        {
+            cancelled = true;
+            break;
+        }
+        else if( evt->IsDrag( BUT_LEFT ) )
+        {
+            getViewControls()->SetAutoPan( true );
+
+            BOX2I selectionRect( evt->DragOrigin(), evt->Position() - evt->DragOrigin() );
+            selectionRect.Normalize();
+
+            for( SCH_TABLECELL* cell : aTable->GetCells() )
+            {
+                bool doSelect = false;
+
+                if( cell->HitTest( selectionRect, false ) )
+                {
+                    if( m_subtractive )
+                        doSelect = false;
+                    else if( m_exclusive_or )
+                        doSelect = !wasSelected( cell );
+                    else
+                        doSelect = true;
+                }
+                else if( wasSelected( cell ) )
+                {
+                    doSelect = m_additive || m_subtractive || m_exclusive_or;
+                }
+
+                if( doSelect && !cell->IsSelected() )
+                    select( cell );
+                else if( !doSelect && cell->IsSelected() )
+                    unselect( cell );
+            }
+        }
+        else if( evt->IsMouseUp( BUT_LEFT ) )
+        {
+            m_selection.SetIsHover( false );
+
+            bool anyAdded = false;
+            bool anySubtracted = false;
+
+            for( SCH_TABLECELL* cell : aTable->GetCells() )
+            {
+                if( cell->IsSelected() && !wasSelected( cell ) )
+                    anyAdded = true;
+                else if( wasSelected( cell ) && !cell->IsSelected() )
+                    anySubtracted = true;
+            }
+
+            // Inform other potentially interested tools
+            if( anyAdded )
+                m_toolMgr->ProcessEvent( EVENTS::SelectedEvent );
+
+            if( anySubtracted )
+                m_toolMgr->ProcessEvent( EVENTS::UnselectedEvent );
+
+            break;  // Stop waiting for events
+        }
+        else
+        {
+            // Allow some actions for navigation
+            for( int i = 0; allowedActions[i]; ++i )
+            {
+                if( evt->IsAction( allowedActions[i] ) )
+                {
+                    evt->SetPassEvent();
+                    break;
+                }
+            }
+        }
+    }
+
+    getViewControls()->SetAutoPan( false );
+
     m_multiple = false;         // Multiple selection mode is inactive
 
     if( !cancelled )
@@ -2015,6 +2306,105 @@ int EE_SELECTION_TOOL::SelectConnection( const TOOL_EVENT& aEvent )
 }
 
 
+int EE_SELECTION_TOOL::SelectColumns( const TOOL_EVENT& aEvent )
+{
+    std::set<std::pair<SCH_TABLE*, int>> columns;
+    bool                                 added = false;
+
+    for( EDA_ITEM* item : m_selection )
+    {
+        if( SCH_TABLECELL* cell = dynamic_cast<SCH_TABLECELL*>( item ) )
+        {
+            SCH_TABLE* table = static_cast<SCH_TABLE*>( cell->GetParent() );
+            columns.insert( std::make_pair( table, cell->GetColumn() ) );
+        }
+    }
+
+    for( auto& [ table, col ] : columns )
+    {
+        for( int row = 0; row < table->GetRowCount(); ++row )
+        {
+            SCH_TABLECELL* cell = table->GetCell( row, col );
+
+            if( !cell->IsSelected() )
+            {
+                select( table->GetCell( row, col ) );
+                added = true;
+            }
+        }
+    }
+
+    if( added )
+        m_toolMgr->ProcessEvent( EVENTS::SelectedEvent );
+
+    return 0;
+}
+
+
+int EE_SELECTION_TOOL::SelectRows( const TOOL_EVENT& aEvent )
+{
+    std::set<std::pair<SCH_TABLE*, int>> rows;
+    bool                                 added = false;
+
+    for( EDA_ITEM* item : m_selection )
+    {
+        if( SCH_TABLECELL* cell = dynamic_cast<SCH_TABLECELL*>( item ) )
+        {
+            SCH_TABLE* table = static_cast<SCH_TABLE*>( cell->GetParent() );
+            rows.insert( std::make_pair( table, cell->GetRow() ) );
+        }
+    }
+
+    for( auto& [ table, row ] : rows )
+    {
+        for( int col = 0; col < table->GetColCount(); ++col )
+        {
+            SCH_TABLECELL* cell = table->GetCell( row, col );
+
+            if( !cell->IsSelected() )
+            {
+                select( table->GetCell( row, col ) );
+                added = true;
+            }
+        }
+    }
+
+    if( added )
+        m_toolMgr->ProcessEvent( EVENTS::SelectedEvent );
+
+    return 0;
+}
+
+
+int EE_SELECTION_TOOL::SelectTable( const TOOL_EVENT& aEvent )
+{
+    std::set<SCH_TABLE*> tables;
+    bool                 added = false;
+
+    for( EDA_ITEM* item : m_selection )
+    {
+        if( SCH_TABLECELL* cell = dynamic_cast<SCH_TABLECELL*>( item ) )
+            tables.insert( static_cast<SCH_TABLE*>( cell->GetParent() ) );
+    }
+
+    ClearSelection();
+
+    for( SCH_TABLE* table : tables )
+    {
+        if( !table->IsSelected() )
+        {
+            select( table );
+            added = true;
+        }
+    }
+
+    if( added )
+        m_toolMgr->ProcessEvent( EVENTS::SelectedEvent );
+
+    return 0;
+}
+
+
 int EE_SELECTION_TOOL::ClearSelection( const TOOL_EVENT& aEvent )
 {
     ClearSelection();
@@ -2030,51 +2420,46 @@ void EE_SELECTION_TOOL::ZoomFitCrossProbeBBox( const BOX2I& aBBox )
     BOX2I bbox = aBBox;
     bbox.Normalize();
 
-    VECTOR2I bbSize = bbox.Inflate( bbox.GetWidth() * 0.2f ).GetSize();
+    VECTOR2I bbSize = bbox.Inflate( KiROUND( bbox.GetWidth() * 0.2f ) ).GetSize();
     VECTOR2D screenSize = getView()->GetViewport().GetSize();
 
-    // This code tries to come up with a zoom factor that doesn't simply zoom in
-    // to the cross probed symbol, but instead shows a reasonable amount of the
-    // circuit around it to provide context.  This reduces or eliminates the need
-    // to manually change the zoom because it's too close.
+    // This code tries to come up with a zoom factor that doesn't simply zoom in to the cross
+    // probed symbol, but instead shows a reasonable amount of the circuit around it to provide
+    // context.  This reduces the need to manually change the zoom because it's too close.
 
-    // Using the default text height as a constant to compare against, use the
-    // height of the bounding box of visible items for a footprint to figure out
-    // if this is a big symbol (like a processor) or a small symbol (like a resistor).
-    // This ratio is not useful by itself as a scaling factor.  It must be "bent" to
-    // provide good scaling at varying symbol sizes.  Bigger symbols need less
-    // scaling than small ones.
+    // Using the default text height as a constant to compare against, use the height of the
+    // bounding box of visible items for a footprint to figure out if this is a big symbol (like
+    // a processor) or a small symbol (like a resistor).  This ratio is not useful by itself as a
+    // scaling factor.  It must be "bent" to provide good scaling at varying symbol sizes.  Bigger
+    // symbols need less scaling than small ones.
     double currTextHeight = schIUScale.MilsToIU( DEFAULT_TEXT_SIZE );
 
     double compRatio = bbSize.y / currTextHeight; // Ratio of symbol to text height
     double compRatioBent = 1.0;
 
-    // LUT to scale zoom ratio to provide reasonable schematic context.  Must work
-    // with symbols of varying sizes (e.g. 0402 package and 200 pin BGA).
-    // "first" is used as the input and "second" as the output
-    //
-    // "first" = compRatio (symbol height / default text height)
-    // "second" = Amount to scale ratio by
-    std::vector<std::pair<double, double>> lut{ { 1.25, 16 }, // 32
-                                                { 2.5, 12 },  //24
-                                                { 5, 8 },     // 16
-                                                { 6, 6 },     //
-                                                { 10, 4 },    //8
-                                                { 20, 2 },    //4
-                                                { 40, 1.5 },  // 2
-                                                { 100, 1 } };
+    // LUT to scale zoom ratio to provide reasonable schematic context.  Must work with symbols
+    // of varying sizes (e.g. 0402 package and 200 pin BGA).
+    // Each entry represents a compRatio (symbol height / default text height) and an amount to
+    // scale by.
+    std::vector<std::pair<double, double>> lut{ { 1.25,  16 },
+                                                {  2.5,  12 },
+                                                {    5,   8 },
+                                                {    6,   6 },
+                                                {   10,   4 },
+                                                {   20,   2 },
+                                                {   40, 1.5 },
+                                                {  100,   1 } };
 
     std::vector<std::pair<double, double>>::iterator it;
 
     // Large symbol default is last LUT entry (1:1).
     compRatioBent = lut.back().second;
 
-    // Use LUT to do linear interpolation of "compRatio" within "first", then
-    // use that result to linearly interpolate "second" which gives the scaling
-    // factor needed.
+    // Use LUT to do linear interpolation of "compRatio" within "first", then use that result to
+    // linearly interpolate "second" which gives the scaling factor needed.
     if( compRatio >= lut.front().first )
     {
-        for( it = lut.begin(); it < lut.end() - 1; it++ )
+        for( it = lut.begin(); it < lut.end() - 1; ++it )
         {
             if( it->first <= compRatio && next( it )->first >= compRatio )
             {
@@ -2091,24 +2476,23 @@ void EE_SELECTION_TOOL::ZoomFitCrossProbeBBox( const BOX2I& aBBox )
         compRatioBent = lut.front().second; // Small symbol default is first entry
     }
 
-    // This is similar to the original KiCad code that scaled the zoom to make sure
-    // symbols were visible on screen.  It's simply a ratio of screen size to
-    // symbol size, and its job is to zoom in to make the component fullscreen.
-    // Earlier in the code the symbol BBox is given a 20% margin to add some
-    // breathing room. We compare the height of this enlarged symbol bbox to the
-    // default text height.  If a symbol will end up with the sides clipped, we
-    // adjust later to make sure it fits on screen.
+    // This is similar to the original KiCad code that scaled the zoom to make sure symbols were
+    // visible on screen.  It's simply a ratio of screen size to symbol size, and its job is to
+    // zoom in to make the component fullscreen.  Earlier in the code the symbol BBox is given a
+    // 20% margin to add some breathing room.  We compare the height of this enlarged symbol bbox
+    // to the default text height.  If a symbol will end up with the sides clipped, we adjust
+    // later to make sure it fits on screen.
     screenSize.x = std::max( 10.0, screenSize.x );
     screenSize.y = std::max( 10.0, screenSize.y );
     double ratio = std::max( -1.0, fabs( bbSize.y / screenSize.y ) );
 
     // Original KiCad code for how much to scale the zoom
-    double kicadRatio =
-            std::max( fabs( bbSize.x / screenSize.x ), fabs( bbSize.y / screenSize.y ) );
+    double kicadRatio = std::max( fabs( bbSize.x / screenSize.x ),
+                                  fabs( bbSize.y / screenSize.y ) );
 
-    // If the width of the part we're probing is bigger than what the screen width
-    // will be after the zoom, then punt and use the KiCad zoom algorithm since it
-    // guarantees the part's width will be encompassed within the screen.
+    // If the width of the part we're probing is bigger than what the screen width will be after
+    // the zoom, then punt and use the KiCad zoom algorithm since it guarantees the part's width
+    // will be encompassed within the screen.
     if( bbSize.x > screenSize.x * ratio * compRatioBent )
     {
         // Use standard KiCad zoom for parts too wide to fit on screen/
@@ -2118,8 +2502,8 @@ void EE_SELECTION_TOOL::ZoomFitCrossProbeBBox( const BOX2I& aBBox )
                     "Part TOO WIDE for screen.  Using normal KiCad zoom ratio: %1.5f", ratio );
     }
 
-    // Now that "compRatioBent" holds our final scaling factor we apply it to the
-    // original fullscreen zoom ratio to arrive at the final ratio itself.
+    // Now that "compRatioBent" holds our final scaling factor we apply it to the original
+    // fullscreen zoom ratio to arrive at the final ratio itself.
     ratio *= compRatioBent;
 
     bool alwaysZoom = false; // DEBUG - allows us to minimize zooming or not
@@ -2188,7 +2572,7 @@ void EE_SELECTION_TOOL::RebuildSelection()
     {
         LIB_SYMBOL* start = static_cast<SYMBOL_EDIT_FRAME*>( m_frame )->GetCurSymbol();
 
-        for( LIB_ITEM& item : start->GetDrawItems() )
+        for( SCH_ITEM& item : start->GetDrawItems() )
         {
             if( item.IsSelected() )
                 select( &item );
@@ -2231,7 +2615,7 @@ bool EE_SELECTION_TOOL::Selectable( const EDA_ITEM* aItem, const VECTOR2I* aPos,
 
     // Do not allow selection of anything except fields when the current symbol in the symbol
     // editor is a derived symbol.
-    if( symEditFrame && symEditFrame->IsSymbolAlias() && aItem->Type() != LIB_FIELD_T )
+    if( symEditFrame && symEditFrame->IsSymbolAlias() && aItem->Type() != SCH_FIELD_T )
         return false;
 
     switch( aItem->Type() )
@@ -2240,18 +2624,27 @@ bool EE_SELECTION_TOOL::Selectable( const EDA_ITEM* aItem, const VECTOR2I* aPos,
     {
         const SCH_PIN* pin = static_cast<const SCH_PIN*>( aItem );
 
+        if( symEditFrame )
+        {
+            if( pin->GetUnit() && pin->GetUnit() != symEditFrame->GetUnit() )
+                return false;
+
+            if( pin->GetBodyStyle() && pin->GetBodyStyle() != symEditFrame->GetBodyStyle() )
+                return false;
+        }
+
         if( !pin->IsVisible() && !m_frame->GetShowAllPins() )
             return false;
 
-        if( m_frame->eeconfig()->m_Selection.select_pin_selects_symbol )
+        if( !m_filter.pins )
         {
             // Pin anchors have to be allowed for auto-starting wires.
             if( aPos )
             {
-                EE_GRID_HELPER grid( m_toolMgr );
+                EE_GRID_HELPER    grid( m_toolMgr );
+                GRID_HELPER_GRIDS pinGrid = grid.GetItemGrid( pin );
 
-                if( pin->IsPointClickableAnchor( grid.BestSnapAnchor(
-                            *aPos, grid.GetItemGrid( static_cast<const SCH_ITEM*>( aItem ) ) ) ) )
+                if( pin->IsPointClickableAnchor( grid.BestSnapAnchor( *aPos, pinGrid ) ) )
                     return true;
             }
 
@@ -2270,20 +2663,27 @@ bool EE_SELECTION_TOOL::Selectable( const EDA_ITEM* aItem, const VECTOR2I* aPos,
     case LIB_SYMBOL_T:    // In symbol_editor we do not want to select the symbol itself.
         return false;
 
-    case LIB_FIELD_T:     // LIB_FIELD object can always be edited.
-        break;
+    case SCH_FIELD_T:     // SCH_FIELD objects are not unit/body-style-specific.
+    {
+        const SCH_FIELD* field = static_cast<const SCH_FIELD*>( aItem );
 
-    case LIB_SHAPE_T:
-    case LIB_TEXT_T:
-    case LIB_PIN_T:
+        if( !field->IsVisible() && !( symEditFrame && symEditFrame->GetShowInvisibleFields() ) )
+            return false;
+
+        break;
+    }
+
+    case SCH_SHAPE_T:
+    case SCH_TEXT_T:
+    case SCH_TEXTBOX_T:
         if( symEditFrame )
         {
-            LIB_ITEM* lib_item = (LIB_ITEM*) aItem;
+            const SCH_ITEM* sch_item = static_cast<const SCH_ITEM*>( aItem );
 
-            if( lib_item->GetUnit() && lib_item->GetUnit() != symEditFrame->GetUnit() )
+            if( sch_item->GetUnit() && sch_item->GetUnit() != symEditFrame->GetUnit() )
                 return false;
 
-            if( lib_item->GetBodyStyle() && lib_item->GetBodyStyle() != symEditFrame->GetBodyStyle() )
+            if( sch_item->GetBodyStyle() && sch_item->GetBodyStyle() != symEditFrame->GetBodyStyle() )
                 return false;
         }
 
@@ -2291,6 +2691,16 @@ bool EE_SELECTION_TOOL::Selectable( const EDA_ITEM* aItem, const VECTOR2I* aPos,
 
     case SCH_MARKER_T:  // Always selectable
         return true;
+
+    case SCH_TABLECELL_T:
+    {
+        const SCH_TABLECELL* cell = static_cast<const SCH_TABLECELL*>( aItem );
+
+        if( cell->GetColSpan() == 0 || cell->GetRowSpan() == 0 )
+            return false;
+
+        break;
+    }
 
     default:            // Suppress warnings
         break;
@@ -2333,8 +2743,6 @@ void EE_SELECTION_TOOL::unselect( EDA_ITEM* aItem )
 
 void EE_SELECTION_TOOL::highlight( EDA_ITEM* aItem, int aMode, SELECTION* aGroup )
 {
-    KICAD_T itemType = aItem->Type();
-
     if( aMode == SELECTED )
         aItem->SetSelected();
     else if( aMode == BRIGHTENED )
@@ -2365,17 +2773,15 @@ void EE_SELECTION_TOOL::highlight( EDA_ITEM* aItem, int aMode, SELECTION* aGroup
     if( aGroup && aMode != BRIGHTENED )
         getView()->Hide( aItem, true );
 
-    if( itemType == SCH_PIN_T || itemType == SCH_FIELD_T || itemType == SCH_SHEET_PIN_T )
+    if( aItem->GetParent() && aItem->GetParent()->Type() != SCHEMATIC_T )
         getView()->Update( aItem->GetParent(), KIGFX::REPAINT );
-    else
-        getView()->Update( aItem, KIGFX::REPAINT );
+
+    getView()->Update( aItem, KIGFX::REPAINT );
 }
 
 
 void EE_SELECTION_TOOL::unhighlight( EDA_ITEM* aItem, int aMode, SELECTION* aGroup )
 {
-    KICAD_T itemType = aItem->Type();
-
     if( aMode == SELECTED )
     {
         aItem->ClearSelected();
@@ -2416,17 +2822,17 @@ void EE_SELECTION_TOOL::unhighlight( EDA_ITEM* aItem, int aMode, SELECTION* aGro
                 } );
     }
 
-    if( itemType == SCH_PIN_T || itemType == SCH_FIELD_T || itemType == SCH_SHEET_PIN_T )
+    if( aItem->GetParent() && aItem->GetParent()->Type() != SCHEMATIC_T )
         getView()->Update( aItem->GetParent(), KIGFX::REPAINT );
-    else
-        getView()->Update( aItem, KIGFX::REPAINT );
+
+    getView()->Update( aItem, KIGFX::REPAINT );
 }
 
 
 bool EE_SELECTION_TOOL::selectionContains( const VECTOR2I& aPoint ) const
 {
     const unsigned GRIP_MARGIN = 20;
-    double         margin = getView()->ToWorld( GRIP_MARGIN );
+    int            margin = KiROUND( getView()->ToWorld( GRIP_MARGIN ) );
 
     // Check if the point is located within any of the currently selected items bounding boxes
     for( EDA_ITEM* item : m_selection )
@@ -2449,6 +2855,10 @@ void EE_SELECTION_TOOL::setTransitions()
     Go( &EE_SELECTION_TOOL::Main,                EE_ACTIONS::selectionActivate.MakeEvent() );
     Go( &EE_SELECTION_TOOL::SelectNode,          EE_ACTIONS::selectNode.MakeEvent() );
     Go( &EE_SELECTION_TOOL::SelectConnection,    EE_ACTIONS::selectConnection.MakeEvent() );
+    Go( &EE_SELECTION_TOOL::SelectColumns,       ACTIONS::selectColumns.MakeEvent() );
+    Go( &EE_SELECTION_TOOL::SelectRows,          ACTIONS::selectRows.MakeEvent() );
+    Go( &EE_SELECTION_TOOL::SelectTable,         ACTIONS::selectTable.MakeEvent() );
+
     Go( &EE_SELECTION_TOOL::ClearSelection,      EE_ACTIONS::clearSelection.MakeEvent() );
 
     Go( &EE_SELECTION_TOOL::AddItemToSel,        EE_ACTIONS::addItemToSel.MakeEvent() );

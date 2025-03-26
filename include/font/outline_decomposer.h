@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2021 Ola Rinta-Koski
- * Copyright (C) 2021-2024 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * Outline font class
  *
@@ -41,6 +41,14 @@
 
 namespace KIFONT
 {
+
+constexpr int GLYPH_DEFAULT_DPI = 72;  ///< FreeType default
+
+// The FreeType default of 72 DPI is not enough for outline decomposition;
+// so we'll use something larger than that.
+constexpr int GLYPH_RESOLUTION  = 1152;
+constexpr double GLYPH_SIZE_SCALER = GLYPH_DEFAULT_DPI / (double) GLYPH_RESOLUTION;
+
 struct CONTOUR
 {
     std::vector<VECTOR2D> m_Points;
@@ -69,13 +77,6 @@ private:
     void newContour();
 
     void addContourPoint( const VECTOR2D& p );
-
-    bool approximateBezierCurve( std::vector<VECTOR2D>& result,
-                                 const std::vector<VECTOR2D>& bezier ) const;
-    bool approximateQuadraticBezierCurve( std::vector<VECTOR2D>& result,
-                                          const std::vector<VECTOR2D>& bezier ) const;
-    bool approximateCubicBezierCurve( std::vector<VECTOR2D>& result,
-                                      const std::vector<VECTOR2D>& bezier ) const;
 
     /**
      * @return 1 if aContour is in clockwise order, -1 if it is in counterclockwise order,

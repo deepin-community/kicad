@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2004-2023 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -140,38 +140,103 @@ void DRC_TEST_PROVIDER_MATCHED_LENGTH::checkLengths( const DRC_CONSTRAINT& aCons
 void DRC_TEST_PROVIDER_MATCHED_LENGTH::checkSkews( const DRC_CONSTRAINT& aConstraint,
                                                    const std::vector<CONNECTION>& aMatchedConnections )
 {
-    double avgLength = 0;
-
-    for( const DRC_LENGTH_REPORT::ENTRY& ent : aMatchedConnections )
-        avgLength += ent.total;
-
-    avgLength /= (double) aMatchedConnections.size();
-
-    for( const auto& ent : aMatchedConnections )
+    auto checkSkewsImpl = [this, &aConstraint]( const std::vector<CONNECTION>& connections )
     {
-        int skew = KiROUND( ent.total - avgLength );
-        if( aConstraint.GetValue().HasMax() && abs( skew ) > aConstraint.GetValue().Max() )
+        double   maxLength = 0;
+        wxString maxNetname;
+
+        for( const DRC_LENGTH_REPORT::ENTRY& ent : connections )
         {
-            std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_SKEW_OUT_OF_RANGE );
-            wxString msg;
-
-            msg.Printf( _( "(%s max skew %s; actual %s; average net length %s; actual %s)" ),
-                          aConstraint.GetName(),
-                          MessageTextFromValue( aConstraint.GetValue().Max() ),
-                          MessageTextFromValue( skew ),
-                          MessageTextFromValue( avgLength ),
-                          MessageTextFromValue( ent.total ) );
-
-            drcItem->SetErrorMessage( drcItem->GetErrorText() + " " + msg );
-
-            for( BOARD_CONNECTED_ITEM* offendingTrack : ent.items )
-                drcItem->SetItems( offendingTrack );
-
-            drcItem->SetViolatingRule( aConstraint.GetParentRule() );
-
-            reportViolation( drcItem, ( *ent.items.begin() )->GetPosition(),
-                             ( *ent.items.begin() )->GetLayer() );
+            if( ent.total > maxLength )
+            {
+                maxLength = ent.total;
+                maxNetname = ent.netname;
+            }
         }
+
+        for( const auto& ent : connections )
+        {
+            int  skew = KiROUND( ent.total - maxLength );
+            bool fail_min = false;
+            bool fail_max = false;
+
+            if( aConstraint.GetValue().HasMax() && abs( skew ) > aConstraint.GetValue().Max() )
+                fail_max = true;
+            else if( aConstraint.GetValue().HasMin() && abs( skew ) < aConstraint.GetValue().Min() )
+                fail_min = true;
+
+            if( fail_min || fail_max )
+            {
+                std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_SKEW_OUT_OF_RANGE );
+                wxString                  msg;
+
+                if( fail_min )
+                {
+                    msg.Printf( _( "(%s min skew %s; actual %s; target net length %s (from %s); "
+                                   "actual %s)" ),
+                                aConstraint.GetName(),
+                                MessageTextFromValue( aConstraint.GetValue().Min() ),
+                                MessageTextFromValue( skew ), MessageTextFromValue( maxLength ),
+                                maxNetname, MessageTextFromValue( ent.total ) );
+                }
+                else
+                {
+                    msg.Printf( _( "(%s max skew %s; actual %s; target net length %s (from %s); "
+                                   "actual %s)" ),
+                                aConstraint.GetName(),
+                                MessageTextFromValue( aConstraint.GetValue().Max() ),
+                                MessageTextFromValue( skew ), MessageTextFromValue( maxLength ),
+                                maxNetname, MessageTextFromValue( ent.total ) );
+                }
+
+                drcItem->SetErrorMessage( drcItem->GetErrorText() + " " + msg );
+
+                for( BOARD_CONNECTED_ITEM* offendingTrack : ent.items )
+                    drcItem->SetItems( offendingTrack );
+
+                drcItem->SetViolatingRule( aConstraint.GetParentRule() );
+
+                reportViolation( drcItem, ( *ent.items.begin() )->GetPosition(),
+                                 ( *ent.items.begin() )->GetLayer() );
+            }
+        }
+    };
+
+    if( aConstraint.GetOption( DRC_CONSTRAINT::OPTIONS::SKEW_WITHIN_DIFF_PAIRS ) )
+    {
+        // Find all pairs of nets in the matched connections
+        std::map<int, CONNECTION> netcodeMap;
+
+        for( const DRC_LENGTH_REPORT::ENTRY& ent : aMatchedConnections )
+            netcodeMap[ent.netcode] = ent;
+
+        std::vector<std::vector<CONNECTION>> matchedDiffPairs;
+
+        for( auto& [netcode, connection] : netcodeMap )
+        {
+            NETINFO_ITEM* matchedNet = m_board->DpCoupledNet( connection.netinfo );
+
+            if( matchedNet )
+            {
+                int matchedNetcode = matchedNet->GetNetCode();
+
+                if( netcodeMap.count( matchedNetcode ) )
+                {
+                    std::vector<CONNECTION> pair{ connection, netcodeMap[matchedNetcode] };
+                    matchedDiffPairs.emplace_back( std::move( pair ) );
+                    netcodeMap.erase( matchedNetcode );
+                }
+            }
+        }
+
+        // Test all found pairs of nets
+        for( const std::vector<CONNECTION>& matchedDiffPair : matchedDiffPairs )
+            checkSkewsImpl( matchedDiffPair );
+    }
+    else
+    {
+        // Test all matched nets as a group
+        checkSkewsImpl( aMatchedConnections );
     }
 }
 
@@ -295,6 +360,7 @@ bool DRC_TEST_PROVIDER_MATCHED_LENGTH::runInternal( bool aDelayReportMode )
             ent.items = nitem.second;
             ent.netcode = nitem.first;
             ent.netname = m_board->GetNetInfo().GetNetItem( ent.netcode )->GetNetname();
+            ent.netinfo = m_board->GetNetInfo().GetNetItem( ent.netcode );
 
             ent.viaCount = 0;
             ent.totalRoute = 0;

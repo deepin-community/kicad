@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2022 CERN
- * Copyright (C) 2004-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,7 +34,6 @@
 #include "scintilla_tricks.h"
 
 class SCH_EDIT_FRAME;
-class LIB_FIELD;
 
 
 /**
@@ -54,16 +53,17 @@ public:
     SCH_FIELD( const VECTOR2I& aPos, int aFieldId, SCH_ITEM* aParent,
                const wxString& aName = wxEmptyString );
 
-    SCH_FIELD( SCH_ITEM* aParent, int aFieldId, const wxString& aName = wxEmptyString );
+    SCH_FIELD( SCH_ITEM* aParent, int aFieldId = INVALID_FIELD,
+               const wxString& aName = wxEmptyString );
 
     SCH_FIELD( const SCH_FIELD& aText );
 
-    ~SCH_FIELD()
+    ~SCH_FIELD() override
     { }
 
     SCH_FIELD& operator=( const SCH_FIELD& aField );
 
-    static inline bool ClassOf( const EDA_ITEM* aItem )
+    static bool ClassOf( const EDA_ITEM* aItem )
     {
         return aItem && SCH_FIELD_T == aItem->Type();
     }
@@ -91,6 +91,11 @@ public:
         }
 
         return false;
+    }
+
+    wxString GetFriendlyName() const override
+    {
+        return _( "Field" );
     }
 
     bool IsHypertext() const override
@@ -121,6 +126,7 @@ public:
 
     /**
      * Get the initial name of the field set at creation (or set by SetName()).
+     *
      * This is the raw field name with no translation and no change.
      */
     const wxString& GetInternalName() { return m_name; }
@@ -130,9 +136,11 @@ public:
     void SetId( int aId );
 
     /**
-     * Gets the fields name as displayed on the schematic or
-     * in the symbol fields table. This is either the same as GetName() or
-     * if the field has a variable for name, the variable namer with the ${} stripped.
+     * Get the fields name as displayed on the schematic or
+     * in the symbol fields table.
+     *
+     * This is either the same as GetName() or if the field has a variable for name, the
+     * variable name with the ${} stripped.
      */
     wxString GetShownName() const;
     wxString GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraText,
@@ -141,9 +149,21 @@ public:
     wxString GetShownText( bool aAllowExtraText, int aDepth = 0 ) const override;
 
     /**
-     * Return true if both the name and value of the field are empty.  Whitespace
-     * does not count as non-empty
-    */
+     * Return the text of a field.
+     *
+     * If the field is the reference field, the unit number is used to create a pseudo reference
+     * text.  If the base reference field is U, the string U?A will be returned for unit = 1.
+     *
+     * @param unit - The package unit number.  Only effects reference field.
+     * @return Field text.
+     */
+    wxString GetFullText( int unit = 1 ) const;
+
+    /**
+     * Return true if both the name and value of the field are empty.
+     *
+     * Whitespace does not count as non-empty.
+     */
     bool IsEmpty()
     {
         wxString name( m_name );
@@ -165,7 +185,9 @@ public:
             m_lastResolvedColor = aField->m_lastResolvedColor;
     }
 
-    void ViewGetLayers( int aLayers[], int& aCount ) const override;
+    std::vector<int> ViewGetLayers() const override;
+
+    SCH_LAYER_ID GetDefaultLayer() const;
 
     /**
      * Adjusters to allow EDA_TEXT to draw/print/etc. text in absolute coords.
@@ -184,6 +206,9 @@ public:
     GR_TEXT_H_ALIGN_T GetEffectiveHorizJustify() const;
     GR_TEXT_V_ALIGN_T GetEffectiveVertJustify() const;
 
+    void SetEffectiveHorizJustify( GR_TEXT_H_ALIGN_T );
+    void SetEffectiveVertJustify( GR_TEXT_V_ALIGN_T );
+
     bool IsNameShown() const { return m_showName; }
     void SetNameShown( bool aShown = true ) { m_showName = aShown; }
 
@@ -200,18 +225,13 @@ public:
 
     void SwapData( SCH_ITEM* aItem ) override;
 
-    /**
-     * Copy parameters from a LIB_FIELD source.
-     *
-     * Pointers and specific values (position) are not copied.
-     *
-     * @param aSource is the LIB_FIELD to read.
-     */
-    void ImportValues( const LIB_FIELD& aSource );
-
-    bool IsMandatory() const;
-
     int GetPenWidth() const override;
+
+    bool IsAutoAdded() const { return m_autoAdded; }
+    void SetAutoAdded( bool aAutoAdded ) { m_autoAdded = aAutoAdded; }
+
+    bool ShowInChooser() const { return m_showInChooser; }
+    void SetShowInChooser( bool aShow = true ) { m_showInChooser = aShow; }
 
     void ClearCaches() override;
     void ClearRenderCache() override;
@@ -220,44 +240,27 @@ public:
     GetRenderCache( const wxString& forResolvedText, const VECTOR2I& forPosition,
                     TEXT_ATTRIBUTES& aAttrs ) const;
 
-    void Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset ) override;
-
     void Move( const VECTOR2I& aMoveVector ) override
     {
         Offset( aMoveVector );
     }
 
-    void Rotate( const VECTOR2I& aCenter ) override;
+    void Rotate( const VECTOR2I& aCenter, bool aRotateCCW ) override;
 
-    /**
-     * @copydoc SCH_ITEM::MirrorVertically()
-     *
-     * This overload does nothing.  Fields are never mirrored alone.  They are moved
-     * when the parent symbol is mirrored.  This function is only needed by the
-     * pure function of the master class.
-     */
-    void MirrorVertically( int aCenter ) override
-    {
-    }
+    void MirrorVertically( int aCenter ) override;
+    void MirrorHorizontally( int aCenter ) override;
 
-    /**
-     * @copydoc SCH_ITEM::MirrorHorizontally()
-     *
-     * This overload does nothing.  Fields are never mirrored alone.  They are moved
-     * when the parent symbol is mirrored.  This function is only needed by the
-     * pure function of the master class.
-     */
-    void MirrorHorizontally( int aCenter ) override
-    {
-    }
+    void BeginEdit( const VECTOR2I& aStartPoint ) override;
+    void CalcEdit( const VECTOR2I& aPosition ) override;
 
-    void OnScintillaCharAdded( SCINTILLA_TRICKS* aScintillaTricks, wxStyledTextEvent &aEvent ) const;
+    void OnScintillaCharAdded( SCINTILLA_TRICKS* aScintillaTricks,
+                               wxStyledTextEvent &aEvent ) const;
 
     bool Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const override;
 
     bool Replace( const EDA_SEARCH_DATA& aSearchData, void* aAuxData = nullptr ) override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider ) const override;
+    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 
     BITMAPS GetMenuImage() const override;
@@ -274,16 +277,40 @@ public:
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
 
-    void Plot( PLOTTER* aPlotter, bool aBackground,
-               const SCH_PLOT_SETTINGS& aPlotSettings ) const override;
+    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
+                const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed ) override;
+
+    void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
+               int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override;
 
     EDA_ITEM* Clone() const override;
+
+    /**
+     * Copy parameters from a SCH_FIELD source.
+     *
+     * @note Pointers and specific values (position) are not copied.
+     *
+     * @param aSource is the SCH_FIELD to read.
+     */
+    void ImportValues( const SCH_FIELD& aSource );
+
+    /**
+     * Copy parameters of this field to another field.
+     *
+     * @note Pointers are not copied.
+     *
+     * @param aTarget Target field to copy values to.
+     */
+    void Copy( SCH_FIELD* aTarget ) const;
+
+    bool IsMandatory() const;
 
     bool operator <( const SCH_ITEM& aItem ) const override;
 
     double Similarity( const SCH_ITEM& aItem ) const override;
 
     bool operator==( const SCH_ITEM& aItem ) const override;
+    bool operator==( const SCH_FIELD& aItem ) const;
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -294,15 +321,32 @@ protected:
 
     const KIFONT::METRICS& getFontMetrics() const override { return GetFontMetrics(); }
 
+    /**
+     * @copydoc SCH_ITEM::compare()
+     *
+     * The field specific sort order is as follows:
+     *
+     *      - Field ID, REFERENCE, VALUE, etc.
+     *      - Field string, case insensitive compare.
+     *      - Field horizontal (X) position.
+     *      - Field vertical (Y) position.
+     *      - Field width.
+     *      - Field height.
+     */
+    int compare( const SCH_ITEM& aOther, int aCompareFlags = 0 ) const override;
+
 private:
     int      m_id;         ///< Field index, @see enum MANDATORY_FIELD_T
 
     wxString m_name;
 
-    bool     m_showName;   ///< Render the field name in addition to its value
+    bool     m_showName;        ///< Render the field name in addition to its value
     bool     m_allowAutoPlace;  ///< This field can be autoplaced
     bool     m_isNamedVariable; ///< If the field name is a variable name, e.g. ${DNP}
                                 ///< then the value field is forced to be the same as the name
+
+    bool     m_autoAdded;       ///< Was this field automatically added to a LIB_SYMBOL?
+    bool     m_showInChooser;   ///< This field is available as a data column for the chooser
 
     mutable bool                                        m_renderCacheValid;
     mutable VECTOR2I                                    m_renderCachePos;

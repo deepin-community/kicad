@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2021-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -89,18 +89,17 @@ bool SELECTION::Contains( EDA_ITEM* aItem ) const
 }
 
 
-/// Returns the center point of the selection area bounding box.
 VECTOR2I SELECTION::GetCenter() const
 {
-    bool hasOnlyText = true;
+    static const std::vector<KICAD_T> textTypes = { SCH_TEXT_T, SCH_LABEL_LOCATE_ANY_T };
+    bool                              hasOnlyText = true;
 
     // If the selection contains only texts calculate the center as the mean of all positions
     // instead of using the center of the total bounding box. Otherwise rotating the selection will
     // also translate it.
-
     for( EDA_ITEM* item : m_items )
     {
-        if( !item->IsType( { SCH_TEXT_T, SCH_LABEL_LOCATE_ANY_T } ) )
+        if( !item->IsType( textTypes ) )
         {
             hasOnlyText = false;
             break;
@@ -130,7 +129,7 @@ VECTOR2I SELECTION::GetCenter() const
 }
 
 
-BOX2I SELECTION::GetBoundingBox( bool aOnlyVisible ) const
+BOX2I SELECTION::GetBoundingBox() const
 {
     BOX2I bbox;
 
@@ -201,28 +200,70 @@ const std::vector<KIGFX::VIEW_ITEM*> SELECTION::updateDrawList() const
 
 bool SELECTION::AreAllItemsIdentical() const
 {
-    return ( std::all_of( m_items.begin() + 1, m_items.end(),
-                    [&]( const EDA_ITEM* r )
-                    {
-                        return r->Type() == m_items.front()->Type();
-                    } ) );
+    return std::all_of( m_items.begin() + 1, m_items.end(),
+            [&]( const EDA_ITEM* r )
+            {
+                return r->Type() == m_items.front()->Type();
+            } );
 }
 
 
 bool SELECTION::OnlyContains( std::vector<KICAD_T> aList ) const
 {
-    return ( std::all_of( m_items.begin(), m_items.end(),
+    return std::all_of( m_items.begin(), m_items.end(),
             [&]( const EDA_ITEM* r )
             {
                 return r->IsType( aList );
-            } ) );
+            } );
 }
 
 
-const std::vector<EDA_ITEM*> SELECTION::GetItemsSortedBySelectionOrder() const
+std::vector<EDA_ITEM*> SELECTION::GetItemsSortedByTypeAndXY( bool leftBeforeRight,
+                                                             bool topBeforeBottom ) const
 {
-    using pairedIterators =
-            std::pair<decltype( m_items.begin() ), decltype( m_itemsOrders.begin() )>;
+    std::vector<EDA_ITEM*> sorted_items = std::vector<EDA_ITEM*>( m_items.begin(), m_items.end() );
+
+    std::sort( sorted_items.begin(), sorted_items.end(),
+               [&]( EDA_ITEM* a, EDA_ITEM* b )
+               {
+                   if( a->Type() == b->Type() )
+                   {
+                       const VECTOR2I aPos = a->GetSortPosition();
+                       const VECTOR2I bPos = b->GetSortPosition();
+
+                       if( aPos.x == bPos.x )
+                       {
+                           // Ensure deterministic sort
+                           if( aPos.y == bPos.y )
+                               return a->m_Uuid < b->m_Uuid;
+
+                           if( topBeforeBottom )
+                               return aPos.y < bPos.y;
+                           else
+                               return aPos.y > bPos.y;
+                       }
+                       else if( leftBeforeRight )
+                       {
+                           return aPos.x < bPos.x;
+                       }
+                       else
+                       {
+                           return aPos.x > bPos.x;
+                       }
+                   }
+                   else
+                   {
+                       return a->Type() < b->Type();
+                   }
+               } );
+    return sorted_items;
+}
+
+
+std::vector<EDA_ITEM*> SELECTION::GetItemsSortedBySelectionOrder() const
+{
+    using pairedIterators = std::pair<decltype( m_items.begin() ),
+                                      decltype( m_itemsOrders.begin() )>;
 
     // Create a vector of all {selection item, selection order} iterator pairs
     std::vector<pairedIterators> pairs;

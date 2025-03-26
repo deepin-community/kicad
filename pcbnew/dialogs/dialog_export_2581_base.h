@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.0.0-0-g0efcecf02)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -26,14 +26,14 @@ class STD_BITMAP_BUTTON;
 #include <wx/icon.h>
 #include <wx/button.h>
 #include <wx/sizer.h>
+#include <wx/statline.h>
 #include <wx/choice.h>
 #include <wx/spinctrl.h>
 #include <wx/checkbox.h>
-#include <wx/statbox.h>
+#include <wx/gbsizer.h>
 #include <wx/dialog.h>
 
 ///////////////////////////////////////////////////////////////////////////
-
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class DIALOG_EXPORT_2581_BASE
@@ -47,6 +47,8 @@ class DIALOG_EXPORT_2581_BASE : public DIALOG_SHIM
 		wxStaticText* m_lblBrdFile;
 		wxTextCtrl* m_outputFileName;
 		STD_BITMAP_BUTTON* m_browseButton;
+		wxStaticText* m_fileFormatLabel;
+		wxStaticLine* m_staticline1;
 		wxStaticText* m_lblUnits;
 		wxChoice* m_choiceUnits;
 		wxStaticText* m_lblPrecision;
@@ -54,6 +56,8 @@ class DIALOG_EXPORT_2581_BASE : public DIALOG_SHIM
 		wxStaticText* m_lblVersion;
 		wxChoice* m_versionChoice;
 		wxCheckBox* m_cbCompress;
+		wxStaticText* m_columnsLabel;
+		wxStaticLine* m_staticline2;
 		wxStaticText* m_lblOEM;
 		wxChoice* m_oemRef;
 		wxStaticText* m_staticText6;
@@ -78,7 +82,7 @@ class DIALOG_EXPORT_2581_BASE : public DIALOG_SHIM
 
 	public:
 
-		DIALOG_EXPORT_2581_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Export IPC-2581"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 531,358 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+		DIALOG_EXPORT_2581_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Export IPC-2581"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
 
 		~DIALOG_EXPORT_2581_BASE();
 

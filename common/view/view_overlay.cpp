@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
@@ -261,6 +261,7 @@ struct VIEW_OVERLAY::COMMAND_BITMAP_TEXT : public VIEW_OVERLAY::COMMAND
     EDA_ANGLE m_angle;
 };
 
+
 VIEW_OVERLAY::VIEW_OVERLAY()
 {
 }
@@ -298,21 +299,19 @@ const BOX2I VIEW_OVERLAY::ViewBBox() const
 
 void VIEW_OVERLAY::ViewDraw( int aLayer, VIEW* aView ) const
 {
-    auto gal = aView->GetGAL();
-    gal->PushDepth();
-    gal->SetLayerDepth( gal->GetMinDepth() );
+    GAL& gal = *aView->GetGAL();
+
+    GAL_SCOPED_ATTRS scopedAttrs( gal, GAL_SCOPED_ATTRS::LAYER_DEPTH );
+    gal.SetLayerDepth( gal.GetMinDepth() );
 
     for( const VIEW_OVERLAY::COMMAND* cmd : m_commands )
         cmd->Execute( aView );
-
-    gal->PopDepth();
 }
 
 
-void VIEW_OVERLAY::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> VIEW_OVERLAY::ViewGetLayers() const
 {
-    aLayers[0] = LAYER_GP_OVERLAY;
-    aCount = 1;
+    return { LAYER_GP_OVERLAY };
 }
 
 
@@ -420,10 +419,12 @@ void VIEW_OVERLAY::SetStrokeColor( const COLOR4D& aColor )
     m_commands.push_back( new COMMAND_SET_COLOR( true, aColor ) );
 }
 
+
 void VIEW_OVERLAY::SetLineWidth( double aLineWidth )
 {
     m_commands.push_back( new COMMAND_SET_WIDTH( aLineWidth ) );
 }
+
 
 void VIEW_OVERLAY::Cross( const VECTOR2D& aP, int aSize )
 {

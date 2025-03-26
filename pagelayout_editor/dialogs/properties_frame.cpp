@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2013 CERN
- * Copyright (C) 2021-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Jean-Pierre Charras, jp.charras at wanadoo.fr
  *
  * This program is free software; you can redistribute it and/or
@@ -76,7 +76,8 @@ PROPERTIES_FRAME::PROPERTIES_FRAME( PL_EDITOR_FRAME* aParent ) :
         m_textRightMargin( aParent, m_rightMarginLabel, m_rightMarginCtrl, m_rightMarginUnits ),
         m_textTopMargin( aParent, m_topMarginLabel, m_topMarginCtrl, m_topMarginUnits ),
         m_textBottomMargin( aParent, m_bottomMarginLabel, m_bottomMarginCtrl, m_bottomMarginUnits ),
-        m_lineWidth( aParent, m_lineWidthLabel, m_lineWidthCtrl, m_lineWidthUnits )
+        m_lineWidth( aParent, m_lineWidthLabel, m_lineWidthCtrl, m_lineWidthUnits ),
+        m_propertiesDirty( false )
 {
     m_parent = aParent;
 
@@ -123,7 +124,11 @@ PROPERTIES_FRAME::PROPERTIES_FRAME( PL_EDITOR_FRAME* aParent ) :
     m_textColorSwatch->SetDefaultColor( COLOR4D::UNSPECIFIED );
     m_textColorSwatch->SetSwatchBackground( aParent->GetDrawBgColor() );
 
-    m_buttonOK->SetDefault();
+    m_textColorSwatch->Bind( COLOR_SWATCH_CHANGED,
+            [this]( wxCommandEvent& event )
+            {
+                m_propertiesDirty = true;
+            } );
 
     // ensure sizers are up to date
     // (fix an issue on GTK but should not create issues on other platforms):
@@ -145,17 +150,6 @@ PROPERTIES_FRAME::PROPERTIES_FRAME( PL_EDITOR_FRAME* aParent ) :
 PROPERTIES_FRAME::~PROPERTIES_FRAME()
 {
     delete m_scintillaTricks;
-}
-
-
-void PROPERTIES_FRAME::OnPageChanged( wxNotebookEvent& event )
-{
-    if( event.GetSelection() == 0 )
-        m_buttonOK->SetDefault();
-    else
-        m_buttonGeneralOptsOK->SetDefault();
-
-    event.Skip();
 }
 
 
@@ -304,7 +298,7 @@ void PROPERTIES_FRAME::CopyPrmsFromItemToPanel( DS_DATA_ITEM* aItem )
         m_constraintY.SetDoubleValue( fromMM( item->m_BoundingBoxSize.y ) );
 
         // Font Options
-        m_fontCtrl->SetFontSelection( item->m_Font );
+        m_fontCtrl->SetFontSelection( item->m_Font, true /*silent mode */ );
 
         m_bold->Check( item->m_Bold );
         m_italic->Check( item->m_Italic );
@@ -316,9 +310,10 @@ void PROPERTIES_FRAME::CopyPrmsFromItemToPanel( DS_DATA_ITEM* aItem )
 
         switch( item->m_Hjustify )
         {
-        case GR_TEXT_H_ALIGN_LEFT:   m_alignLeft->Check(); break;
-        case GR_TEXT_H_ALIGN_CENTER: m_alignCenter->Check(); break;
-        case GR_TEXT_H_ALIGN_RIGHT:  m_alignRight->Check(); break;
+        case GR_TEXT_H_ALIGN_LEFT:          m_alignLeft->Check();   break;
+        case GR_TEXT_H_ALIGN_CENTER:        m_alignCenter->Check(); break;
+        case GR_TEXT_H_ALIGN_RIGHT:         m_alignRight->Check();  break;
+        case GR_TEXT_H_ALIGN_INDETERMINATE:                         break;
         }
 
         for( BITMAP_BUTTON* btn : { m_vAlignTop, m_vAlignMiddle, m_vAlignBottom } )
@@ -326,9 +321,10 @@ void PROPERTIES_FRAME::CopyPrmsFromItemToPanel( DS_DATA_ITEM* aItem )
 
         switch( item->m_Vjustify )
         {
-        case GR_TEXT_V_ALIGN_TOP:    m_vAlignTop->Check(); break;
-        case GR_TEXT_V_ALIGN_CENTER: m_vAlignMiddle->Check(); break;
-        case GR_TEXT_V_ALIGN_BOTTOM: m_vAlignBottom->Check(); break;
+        case GR_TEXT_V_ALIGN_TOP:           m_vAlignTop->Check();    break;
+        case GR_TEXT_V_ALIGN_CENTER:        m_vAlignMiddle->Check(); break;
+        case GR_TEXT_V_ALIGN_BOTTOM:        m_vAlignBottom->Check(); break;
+        case GR_TEXT_V_ALIGN_INDETERMINATE:                          break;
         }
 
         // Text size
@@ -412,6 +408,8 @@ void PROPERTIES_FRAME::onHAlignButton( wxCommandEvent& aEvent )
         if( btn->IsChecked() && btn != aEvent.GetEventObject() )
             btn->Check( false );
     }
+
+    m_propertiesDirty = true;
 }
 
 
@@ -422,10 +420,12 @@ void PROPERTIES_FRAME::onVAlignButton( wxCommandEvent& aEvent )
         if( btn->IsChecked() && btn != aEvent.GetEventObject() )
             btn->Check( false );
     }
+
+    m_propertiesDirty = true;
 }
 
 
-void PROPERTIES_FRAME::OnAcceptPrms( wxCommandEvent& event )
+void PROPERTIES_FRAME::OnAcceptPrms()
 {
     PL_SELECTION_TOOL* selTool = m_parent->GetToolManager()->GetTool<PL_SELECTION_TOOL>();
     PL_SELECTION&      selection = selTool->GetSelection();
@@ -450,11 +450,42 @@ void PROPERTIES_FRAME::OnAcceptPrms( wxCommandEvent& event )
     // Refresh values, exactly as they are converted, to avoid any mistake
     CopyPrmsFromGeneralToPanel();
 
+    m_propertiesDirty = false;
+
     m_parent->OnModify();
 
     // Rebuild the draw list with the new parameters
     m_parent->GetCanvas()->DisplayDrawingSheet();
     m_parent->GetCanvas()->Refresh();
+}
+
+
+void PROPERTIES_FRAME::onModify( wxCommandEvent& aEvent )
+{
+    m_propertiesDirty = true;
+}
+
+
+void PROPERTIES_FRAME::onTextFocusLost( wxFocusEvent& aEvent )
+{
+    m_propertiesDirty = true;
+    aEvent.Skip();      // Mandatory in wxFocusEvent
+}
+
+
+void PROPERTIES_FRAME::OnUpdateUI( wxUpdateUIEvent& aEvent )
+{
+    if( m_propertiesDirty )
+    {
+        // Clear m_propertiesDirty now. Otherwise OnAcceptPrms() is called multiple
+        // times (probably by each updated widget)
+        m_propertiesDirty = false;
+        CallAfter(
+                [this]()
+                {
+                    OnAcceptPrms();
+                } );
+    }
 }
 
 
@@ -636,6 +667,7 @@ void PROPERTIES_FRAME::onScintillaCharAdded( wxStyledTextEvent &aEvent )
 void PROPERTIES_FRAME::onScintillaFocusLost( wxFocusEvent& aEvent )
 {
     m_stcText->AutoCompCancel();
+    m_propertiesDirty = true;
     aEvent.Skip();
 }
 

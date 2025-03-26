@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,8 +22,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-
-#include <common.h>
 #include <page_info.h>
 #include <macros.h>
 #include <eda_units.h>
@@ -85,7 +83,8 @@ const PAGE_INFO PAGE_INFO::pageGERBER( VECTOR2D( 32000, 32000 ), wxT( "GERBER" )
 const PAGE_INFO PAGE_INFO::pageUser( VECTOR2D( 17000, 11000 ), Custom, wxPAPER_NONE );
 
 // US paper sizes
-const PAGE_INFO  PAGE_INFO::pageUSLetter( VECTOR2D( 11000, 8500  ),  wxT( "USLetter" ), wxPAPER_LETTER );
+const PAGE_INFO  PAGE_INFO::pageUSLetter( VECTOR2D( 11000, 8500  ),  wxT( "USLetter" ),
+                                          wxPAPER_LETTER );
 const PAGE_INFO PAGE_INFO::pageUSLegal( VECTOR2D( 14000, 8500 ), wxT( "USLegal" ), wxPAPER_LEGAL );
 const PAGE_INFO  PAGE_INFO::pageUSLedger( VECTOR2D( 17000, 11000 ), wxT( "USLedger" ),
                                           wxPAPER_TABLOID );
@@ -203,7 +202,7 @@ void PAGE_INFO::SetPortrait( bool aIsPortrait )
 static double clampWidth( double aWidthInMils )
 {
 /*  was giving EESCHEMA single component SVG plotter grief
-    However a minimal test is made to avoid values that crashes Kicad
+    However a minimal test is made to avoid values that crashes KiCad
     if( aWidthInMils < 4000 )       // 4" is about a baseball card
         aWidthInMils = 4000;
     else if( aWidthInMils > 44000 ) //44" is plotter size
@@ -211,6 +210,7 @@ static double clampWidth( double aWidthInMils )
 */
     if( aWidthInMils < 10 )
         aWidthInMils = 10;
+
     return aWidthInMils;
 }
 
@@ -219,7 +219,7 @@ static double clampHeight( double aHeightInMils )
 {
 /*  was giving EESCHEMA single component SVG plotter grief
     clamping is best done at the UI, i.e. dialog, levels
-    However a minimal test is made to avoid values that crashes Kicad
+    However a minimal test is made to avoid values that crashes KiCad
     if( aHeightInMils < 4000 )
         aHeightInMils = 4000;
     else if( aHeightInMils > 44000 )
@@ -272,19 +272,21 @@ void PAGE_INFO::SetHeightMils( double aHeightInMils )
 }
 
 
-void PAGE_INFO::Format( OUTPUTFORMATTER* aFormatter, int aNestLevel, int aControlBits ) const
+void PAGE_INFO::Format( OUTPUTFORMATTER* aFormatter ) const
 {
-    aFormatter->Print( aNestLevel, "(paper %s", aFormatter->Quotew( GetType() ).c_str() );
+    aFormatter->Print( "(paper %s", aFormatter->Quotew( GetType() ).c_str() );
 
     // The page dimensions are only required for user defined page sizes.
     // Internally, the page size is in mils
     if( GetType() == PAGE_INFO::Custom )
-        aFormatter->Print( 0, " %g %g",
+    {
+        aFormatter->Print( " %g %g",
                            GetWidthMils() * 25.4 / 1000.0,
                            GetHeightMils() * 25.4 / 1000.0 );
+    }
 
     if( !IsCustom() && IsPortrait() )
-        aFormatter->Print( 0, " portrait" );
+        aFormatter->Print( " portrait" );
 
-    aFormatter->Print( 0, ")\n" );
+    aFormatter->Print( ")" );
 }

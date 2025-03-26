@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2010 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,7 +25,7 @@
 #include <bitmaps.h>
 #include <sch_painter.h>
 #include <symbol_edit_frame.h>
-#include <lib_pin.h>
+#include <sch_pin.h>
 #include <dialog_pin_properties.h>
 #include <confirm.h>
 #include <kiplatform/ui.h>
@@ -36,7 +36,7 @@
 #include <widgets/std_bitmap_button.h>
 #include <wx/hyperlink.h>
 
-class ALT_PIN_DATA_MODEL : public wxGridTableBase, public std::vector<LIB_PIN::ALT>
+class ALT_PIN_DATA_MODEL : public wxGridTableBase, public std::vector<SCH_PIN::ALT>
 {
 public:
     ALT_PIN_DATA_MODEL( EDA_UNITS aUserUnits )
@@ -99,7 +99,7 @@ public:
         }
     }
 
-    void AppendRow( const LIB_PIN::ALT& aAlt )
+    void AppendRow( const SCH_PIN::ALT& aAlt )
     {
         push_back( aAlt );
 
@@ -123,7 +123,8 @@ public:
 };
 
 
-DIALOG_PIN_PROPERTIES::DIALOG_PIN_PROPERTIES( SYMBOL_EDIT_FRAME* parent, LIB_PIN* aPin ) :
+DIALOG_PIN_PROPERTIES::DIALOG_PIN_PROPERTIES( SYMBOL_EDIT_FRAME* parent, SCH_PIN* aPin,
+                                              bool aFocusPinNumber ) :
     DIALOG_PIN_PROPERTIES_BASE( parent ),
     m_frame( parent ),
     m_pin( aPin ),
@@ -137,8 +138,8 @@ DIALOG_PIN_PROPERTIES::DIALOG_PIN_PROPERTIES( SYMBOL_EDIT_FRAME* parent, LIB_PIN
     m_initialized( false )
 {
     // Creates a dummy pin to show on a panel, inside this dialog:
-    m_dummyParent = new LIB_SYMBOL( *m_pin->GetParent() );
-    m_dummyPin = new LIB_PIN( *m_pin );
+    m_dummyParent = new LIB_SYMBOL( *static_cast<LIB_SYMBOL*>( m_pin->GetParentSymbol() ) );
+    m_dummyPin = new SCH_PIN( *m_pin );
     m_dummyPin->SetParent( m_dummyParent );
     m_dummyParent->SetShowPinNames( true );
     m_dummyParent->SetShowPinNumbers( true );
@@ -173,8 +174,10 @@ DIALOG_PIN_PROPERTIES::DIALOG_PIN_PROPERTIES( SYMBOL_EDIT_FRAME* parent, LIB_PIN
         m_sdbSizerButtonsCancel
     };
 
-    // Default alternates turndown to whether or not alternates exist, or if we've had it open before
-    m_alternatesTurndown->Collapse( m_pin->GetAlternates().size() == 0 && !s_alternatesTurndownOpen);
+    // Default alternates turndown to whether or not alternates exist, or if we've had it open
+    // before
+    m_alternatesTurndown->Collapse( m_pin->GetAlternates().size() == 0
+                                 && !s_alternatesTurndownOpen );
 
     // wxwidgets doesn't call the OnCollapseChange even at init, so we update this value if
     // the alternates pane defaults to open
@@ -197,7 +200,7 @@ DIALOG_PIN_PROPERTIES::DIALOG_PIN_PROPERTIES( SYMBOL_EDIT_FRAME* parent, LIB_PIN
                                                              OnAddAlternate( aEvent );
                                                          } ) );
 
-    if( aPin->GetParent()->HasAlternateBodyStyle() )
+    if( aPin->GetParentSymbol()->HasAlternateBodyStyle() )
     {
         m_alternatesTurndown->Collapse();
         m_alternatesTurndown->Disable();
@@ -223,7 +226,8 @@ DIALOG_PIN_PROPERTIES::DIALOG_PIN_PROPERTIES( SYMBOL_EDIT_FRAME* parent, LIB_PIN
     m_addAlternate->GetParent()->Layout();
 
     SetupStandardButtons();
-    SetInitialFocus( m_textPinName );
+
+    SetInitialFocus( aFocusPinNumber ? m_textPinNumber : m_textPinName );
 
     // Now all widgets have the size fixed, call FinishDialogSettings
     finishDialogSettings();
@@ -262,12 +266,13 @@ bool DIALOG_PIN_PROPERTIES::TransferDataToWindow()
     m_textPinName->SetValue( m_pin->GetName() );
     m_nameSize.SetValue( m_pin->GetNameTextSize() );
     m_posX.SetValue( m_origPos.x );
-    m_posY.SetValue( -m_origPos.y );
+    m_posY.SetValue( m_origPos.y );
     m_textPinNumber->SetValue( m_pin->GetNumber() );
     m_numberSize.SetValue( m_pin->GetNumberTextSize() );
     m_pinLength.SetValue( m_pin->GetLength() );
-    m_checkApplyToAllParts->Enable( m_pin->GetParent()->IsMulti() );
-    m_checkApplyToAllParts->SetValue( m_pin->GetParent()->IsMulti() && m_pin->GetUnit() == 0 );
+    m_checkApplyToAllParts->Enable( m_pin->GetParentSymbol()->IsMulti() );
+    m_checkApplyToAllParts->SetValue( m_pin->GetParentSymbol()->IsMulti()
+                                   && m_pin->GetUnit() == 0 );
     m_checkApplyToAllBodyStyles->SetValue( m_pin->GetBodyStyle() == 0 );
     m_checkShow->SetValue( m_pin->IsVisible() );
 
@@ -301,12 +306,12 @@ bool DIALOG_PIN_PROPERTIES::TransferDataToWindow()
         commonUnitsToolTip = _( "If checked, this pin will exist in all units." );
     }
 
-    if( !m_pin->GetParent()->IsMulti() )
+    if( !m_pin->GetParentSymbol()->IsMulti() )
         commonUnitsToolTip = _( "This symbol only has one unit. This control has no effect." );
 
     m_checkApplyToAllParts->SetToolTip( commonUnitsToolTip );
 
-    for( const std::pair<const wxString, LIB_PIN::ALT>& alt : m_pin->GetAlternates() )
+    for( const std::pair<const wxString, SCH_PIN::ALT>& alt : m_pin->GetAlternates() )
         m_alternatesDataModel->AppendRow( alt.second );
 
     return true;
@@ -335,13 +340,13 @@ bool DIALOG_PIN_PROPERTIES::TransferDataFromWindow()
     if( !DIALOG_SHIM::TransferDataFromWindow() )
         return false;
 
-    VECTOR2I newPos( m_posX.GetValue(), -m_posY.GetValue() );
+    VECTOR2I newPos( m_posX.GetIntValue(), m_posY.GetIntValue() );
 
     const int standard_grid = 50;
 
     // Only show the warning if the position has been changed
     if( ( m_origPos != newPos )
-        && (( m_posX.GetValue() % standard_grid ) || ( m_posY.GetValue() % standard_grid ) ) )
+        && ( ( m_posX.GetValue() % standard_grid ) || ( m_posY.GetValue() % standard_grid ) ) )
     {
         wxString msg = wxString::Format( _( "This pin is not on a %d mils grid which will make it "
                                             "difficult to connect to in the schematic.\n"
@@ -353,30 +358,27 @@ bool DIALOG_PIN_PROPERTIES::TransferDataFromWindow()
 
     m_pin->SetName( m_textPinName->GetValue() );
     m_pin->SetNumber( m_textPinNumber->GetValue() );
-    m_pin->SetNameTextSize( m_nameSize.GetValue() );
-    m_pin->SetNumberTextSize( m_numberSize.GetValue() );
+    m_pin->SetNameTextSize( m_nameSize.GetIntValue() );
+    m_pin->SetNumberTextSize( m_numberSize.GetIntValue() );
     m_pin->SetOrientation( PinOrientationCode( m_choiceOrientation->GetSelection() ) );
     m_pin->SetPosition( newPos );
-    m_pin->ChangeLength( m_pinLength.GetValue() );
+    m_pin->ChangeLength( m_pinLength.GetIntValue() );
     m_pin->SetType( m_choiceElectricalType->GetPinTypeSelection() );
     m_pin->SetShape( m_choiceStyle->GetPinShapeSelection() );
     m_pin->SetBodyStyle( m_checkApplyToAllBodyStyles->GetValue() ? 0 : m_frame->GetBodyStyle() );
     m_pin->SetUnit( m_checkApplyToAllParts->GetValue() ? 0 : m_frame->GetUnit() );
     m_pin->SetVisible( m_checkShow->GetValue() );
 
-    std::map<wxString, LIB_PIN::ALT>& alternates = m_pin->GetAlternates();
+    std::map<wxString, SCH_PIN::ALT>& alternates = m_pin->GetAlternates();
     alternates.clear();
 
-    for( const LIB_PIN::ALT& alt : *m_alternatesDataModel )
+    for( const SCH_PIN::ALT& alt : *m_alternatesDataModel )
         alternates[ alt.m_Name ] = alt;
 
     return true;
 }
 
 
-/*
- * Draw (on m_panelShowPin) the pin according to current settings in dialog
- */
 void DIALOG_PIN_PROPERTIES::OnPaintShowPanel( wxPaintEvent& event )
 {
     wxPaintDC dc( m_panelShowPin );
@@ -390,6 +392,8 @@ void DIALOG_PIN_PROPERTIES::OnPaintShowPanel( wxPaintEvent& event )
 
     // Calculate a suitable scale to fit the available draw area
     BOX2I  bBox = m_dummyPin->GetBoundingBox( true, true, false );
+    bBox.Inflate( schIUScale.MilsToIU( DANGLING_SYMBOL_SIZE ) );
+
     double xscale = (double) dc_size.x / bBox.GetWidth();
     double yscale = (double) dc_size.y / bBox.GetHeight();
     double scale = std::min( xscale, yscale );
@@ -399,15 +403,15 @@ void DIALOG_PIN_PROPERTIES::OnPaintShowPanel( wxPaintEvent& event )
     dc.SetUserScale( scale, scale );
     GRResetPenAndBrush( &dc );
 
-    LIB_SYMBOL_OPTIONS opts;
-    opts.force_draw_pin_text = true;
-    opts.draw_hidden_fields = true;
-    opts.show_connect_point = true;
+    SCH_RENDER_SETTINGS renderSettings( *symbolEditor->GetRenderSettings() );
+    renderSettings.m_ShowPinNumbers = true;
+    renderSettings.m_ShowPinNames = true;
+    renderSettings.m_ShowHiddenFields = true;
+    renderSettings.m_ShowConnectionPoints = true;
+    renderSettings.m_Transform = TRANSFORM();
+    renderSettings.SetPrintDC( &dc );
 
-    RENDER_SETTINGS* renderSettings = symbolEditor->GetRenderSettings();
-    renderSettings->SetPrintDC( &dc );
-
-    m_dummyPin->Print( renderSettings, -bBox.Centre(), (void*) &opts, DefaultTransform, false );
+    m_dummyPin->Print( &renderSettings, 0, 0, -bBox.Centre(), false, false );
 
     event.Skip();
 }
@@ -420,10 +424,10 @@ void DIALOG_PIN_PROPERTIES::OnPropertiesChange( wxCommandEvent& event )
 
     m_dummyPin->SetName( m_textPinName->GetValue() );
     m_dummyPin->SetNumber( m_textPinNumber->GetValue() );
-    m_dummyPin->SetNameTextSize( m_nameSize.GetValue() );
-    m_dummyPin->SetNumberTextSize( m_numberSize.GetValue() );
+    m_dummyPin->SetNameTextSize( m_nameSize.GetIntValue() );
+    m_dummyPin->SetNumberTextSize( m_numberSize.GetIntValue() );
     m_dummyPin->SetOrientation( PinOrientationCode( m_choiceOrientation->GetSelection() ) );
-    m_dummyPin->SetLength( m_pinLength.GetValue() );
+    m_dummyPin->SetLength( m_pinLength.GetIntValue() );
     m_dummyPin->SetType( m_choiceElectricalType->GetPinTypeSelection() );
     m_dummyPin->SetShape( m_choiceStyle->GetPinShapeSelection() );
     m_dummyPin->SetVisible( m_checkShow->GetValue() );
@@ -433,6 +437,7 @@ void DIALOG_PIN_PROPERTIES::OnPropertiesChange( wxCommandEvent& event )
 
     m_panelShowPin->Refresh();
 }
+
 
 wxString DIALOG_PIN_PROPERTIES::getSyncPinsMessage()
 {
@@ -450,7 +455,7 @@ void DIALOG_PIN_PROPERTIES::OnAddAlternate( wxCommandEvent& event )
     if( !m_alternatesGrid->CommitPendingChanges() )
         return;
 
-    LIB_PIN::ALT newAlt;
+    SCH_PIN::ALT newAlt;
     newAlt.m_Name = wxEmptyString;
     newAlt.m_Type = m_pin->GetType();
     newAlt.m_Shape = m_pin->GetShape();
@@ -535,6 +540,8 @@ void DIALOG_PIN_PROPERTIES::OnUpdateUI( wxUpdateUIEvent& event )
         m_delayedFocusColumn = -1;
     }
 }
+
+
 void DIALOG_PIN_PROPERTIES::OnCollapsiblePaneChange( wxCollapsiblePaneEvent& event )
 {
     if( !event.GetCollapsed() )

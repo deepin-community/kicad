@@ -6,7 +6,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,7 +37,23 @@
 %ignore GAL_SET::set(int, bool);
 %ignore GAL_SET::set(int);
 
+// Disable warning 476 (Initialization using std::initializer_list).
+// (SWIG doc say it is mainly a info message)
+#pragma SWIG nowarn=476
+
+%{
+#include <layer_ids.h>
+#include <lseq.h>
+#include <lset.h>
+#include <pcbnew_scripting_helpers.h>
+%}
+
+// wrapper of BASE_SEQ (see typedef std::vector<PCB_LAYER_ID> BASE_SEQ;)
+%template(base_seqVect) std::vector<enum PCB_LAYER_ID>;
+
 %include layer_ids.h
+%include lseq.h
+%include lset.h
 
 // Extend LSET by 2 methods to add or remove layers from the layer list
 // Mainly used to add or remove layers of a pad layer list
@@ -47,6 +63,9 @@
     LSET removeLayer( PCB_LAYER_ID aLayer) { return self->reset(aLayer); }
     LSET addLayerSet( LSET aLayerSet)    { return *self |= aLayerSet; }
     LSET removeLayerSet( LSET aLayerSet) { return *self &= ~aLayerSet; }
+    std::string FmtHex() { return self->FmtHex(); }
+    std::string FmtBin() { return self->FmtBin(); }
+    int ParseHex( const std::string& aString ) { return self->ParseHex( aString ); }
 
     %pythoncode
     %{
@@ -63,7 +82,3 @@
         return self.removeLayerSet( layers )
     %}
 }
-%{
-#include <layer_ids.h>
-#include <pcbnew_scripting_helpers.h>
-%}

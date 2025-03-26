@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,6 +27,7 @@
 #include <kiface_ids.h>
 #include <kiway.h>
 #include <macros.h>
+#include <pgm_base.h>
 #include <python_scripting.h>
 #include <tools/pcb_actions.h>
 
@@ -35,6 +36,10 @@
 #include <Python.h>
 #include <wx/string.h>
 #include <launch_ext.h>
+
+#ifdef KICAD_IPC_API
+#include <api/api_plugin_manager.h>
+#endif
 
 using initfunc = PyObject* (*)(void);
 
@@ -106,6 +111,12 @@ int SCRIPTING_TOOL::reloadPlugins( const TOOL_EVENT& aEvent )
         return -1;
     }
 
+#ifdef KICAD_IPC_API
+    // TODO move this elsewhere when SWIG plugins are removed
+    if( Pgm().GetCommonSettings()->m_Api.enable_server )
+        Pgm().GetPluginManager().ReloadPlugins();
+#endif
+
     if( !m_isFootprintEditor )
     {
         // Action plugins can be modified, therefore the plugins menu must be updated:
@@ -156,6 +167,6 @@ int SCRIPTING_TOOL::showPluginFolder( const TOOL_EVENT& aEvent )
 
 void SCRIPTING_TOOL::setTransitions()
 {
-    Go( &SCRIPTING_TOOL::reloadPlugins,     PCB_ACTIONS::pluginsReload.MakeEvent() );
+    Go( &SCRIPTING_TOOL::reloadPlugins,     ACTIONS::pluginsReload.MakeEvent() );
     Go( &SCRIPTING_TOOL::showPluginFolder,  PCB_ACTIONS::pluginsShowFolder.MakeEvent() );
 }

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2004-2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2004-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,6 +23,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <api/api_plugin_manager.h>
 #include <base_screen.h>
 #include <bitmaps.h>
 #include <confirm.h>
@@ -35,6 +36,7 @@
 #include <gal/graphics_abstraction_layer.h>
 #include <id.h>
 #include <kiface_base.h>
+#include <kiplatform/ui.h>
 #include <lockfile.h>
 #include <macros.h>
 #include <math/vector2wx.h>
@@ -50,6 +52,7 @@
 #include <tool/actions.h>
 #include <tool/action_toolbar.h>
 #include <tool/common_tools.h>
+#include <tool/grid_helper.h>
 #include <tool/grid_menu.h>
 #include <tool/selection_conditions.h>
 #include <tool/tool_dispatcher.h>
@@ -59,15 +62,17 @@
 #include <trace_helpers.h>
 #include <view/view.h>
 #include <drawing_sheet/ds_draw_item.h>
+#include <view/view_controls.h>
 #include <widgets/msgpanel.h>
 #include <widgets/properties_panel.h>
+#include <widgets/net_inspector_panel.h>
 #include <wx/event.h>
 #include <wx/snglinst.h>
 #include <widgets/ui_common.h>
 #include <widgets/search_pane.h>
 #include <wx/dirdlg.h>
 #include <wx/filedlg.h>
-#include <wx/msgdlg.h>
+#include <wx/debug.h>
 #include <wx/socket.h>
 
 #include <wx/snglinst.h>
@@ -114,11 +119,11 @@ EDA_DRAW_FRAME::EDA_DRAW_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrame
     m_drawBgColor         = COLOR4D( BLACK );   // the background color of the draw canvas:
                                                 // BLACK for Pcbnew, BLACK or WHITE for Eeschema
     m_colorSettings       = nullptr;
-    m_msgFrameHeight      = EDA_MSG_PANEL::GetRequiredHeight( this );
     m_polarCoords         = false;
     m_findReplaceData     = std::make_unique<EDA_SEARCH_DATA>();
     m_hotkeyPopup         = nullptr;
     m_propertiesPanel     = nullptr;
+    m_netInspectorPanel   = nullptr;
 
     SetUserUnits( EDA_UNITS::MILLIMETRES );
 
@@ -128,61 +133,29 @@ EDA_DRAW_FRAME::EDA_DRAW_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrame
     {
         CreateStatusBar( 8 )->SetDoubleBuffered( true );
 
-    // set the size of the status bar subwindows:
+        GetStatusBar()->SetFont( KIUI::GetStatusFont( this ) );
 
-        wxWindow* stsbar = GetStatusBar();
-        int       spacer = KIUI::GetTextSize( wxT( "M" ), stsbar ).x * 2;
-
-        int dims[] =
-        {
-            // remainder of status bar on far left is set to a default or whatever is left over.
-            -1,
-
-            // When using GetTextSize() remember the width of character '1' is not the same
-            // as the width of '0' unless the font is fixed width, and it usually won't be.
-
-            // zoom:
-            KIUI::GetTextSize( wxT( "Z 762000" ), stsbar ).x,
-
-            // cursor coords
-            KIUI::GetTextSize( wxT( "X 1234.1234  Y 1234.1234" ), stsbar ).x,
-
-            // delta distances
-            KIUI::GetTextSize( wxT( "dx 1234.1234  dy 1234.1234  dist 1234.1234" ), stsbar ).x,
-
-            // grid size
-            KIUI::GetTextSize( wxT( "grid X 1234.1234  Y 1234.1234" ), stsbar ).x,
-
-            // units display, Inches is bigger than mm
-            KIUI::GetTextSize( _( "Inches" ), stsbar ).x,
-
-            // Size for the "Current Tool" panel; longest string from SetTool()
-            KIUI::GetTextSize( wxT( "Add layer alignment target" ), stsbar ).x,
-
-            // constraint mode
-            KIUI::GetTextSize( _( "Constrain to H, V, 45" ), stsbar ).x
-        };
-
-        for( size_t ii = 1; ii < arrayDim( dims ); ii++ )
-            dims[ii] += spacer;
-
-        SetStatusWidths( arrayDim( dims ), dims );
-        stsbar->SetFont( KIUI::GetStatusFont( this ) );
+        // set the size of the status bar subwindows:
+        updateStatusBarWidths();
     }
+
+    m_messagePanel = new EDA_MSG_PANEL( this, -1, wxPoint( 0, m_frameSize.y ), wxDefaultSize );
+    m_messagePanel->SetBackgroundColour( COLOR4D( LIGHTGRAY ).ToColour() );
+    m_msgFrameHeight = m_messagePanel->GetBestSize().y;
 
     // Create child subwindows.
     GetClientSize( &m_frameSize.x, &m_frameSize.y );
     m_framePos.x   = m_framePos.y = 0;
     m_frameSize.y -= m_msgFrameHeight;
 
-    m_messagePanel  = new EDA_MSG_PANEL( this, -1, wxPoint( 0, m_frameSize.y ),
-                                         wxSize( m_frameSize.x, m_msgFrameHeight ) );
-
-    m_messagePanel->SetBackgroundColour( COLOR4D( LIGHTGRAY ).ToColour() );
+    m_messagePanel->SetSize( m_frameSize.x, m_msgFrameHeight );
 
     Bind( wxEVT_DPI_CHANGED,
           [&]( wxDPIChangedEvent& )
           {
+              if( ( GetWindowStyle() & wxFRAME_NO_TASKBAR ) == 0 )
+                  updateStatusBarWidths();
+
               wxMoveEvent dummy;
               OnMove( dummy );
 
@@ -190,11 +163,13 @@ EDA_DRAW_FRAME::EDA_DRAW_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrame
               // especially important even for first launches as the constructor of the window
               // here usually doesn't have the correct dpi awareness yet
               m_frameSize.y += m_msgFrameHeight;
-              m_msgFrameHeight = EDA_MSG_PANEL::GetRequiredHeight( this );
+              m_msgFrameHeight = m_messagePanel->GetBestSize().y;
               m_frameSize.y -= m_msgFrameHeight;
 
               m_messagePanel->SetPosition( wxPoint( 0, m_frameSize.y ) );
               m_messagePanel->SetSize( m_frameSize.x, m_msgFrameHeight );
+
+              // Don't skip, otherwise the frame gets too big
           } );
 }
 
@@ -318,9 +293,9 @@ void EDA_DRAW_FRAME::ToggleUserUnits()
 }
 
 
-void EDA_DRAW_FRAME::CommonSettingsChanged( bool aEnvVarsChanged, bool aTextVarsChanged )
+void EDA_DRAW_FRAME::CommonSettingsChanged( int aFlags )
 {
-    EDA_BASE_FRAME::CommonSettingsChanged( aEnvVarsChanged, aTextVarsChanged );
+    EDA_BASE_FRAME::CommonSettingsChanged( aFlags );
 
     COMMON_SETTINGS*      settings = Pgm().GetCommonSettings();
     KIGFX::VIEW_CONTROLS* viewControls = GetCanvas()->GetViewControls();
@@ -419,7 +394,7 @@ void EDA_DRAW_FRAME::OnUpdateSelectGrid( wxUpdateUIEvent& aEvent )
     wxCHECK( config(), /* void */ );
 
     int idx = config()->m_Window.grid.last_size_idx;
-    idx = alg::clamp( 0, idx, (int) m_gridSelectBox->GetCount() - 1 );
+    idx = std::clamp( idx, 0, (int) m_gridSelectBox->GetCount() - 1 );
 
     if( idx != m_gridSelectBox->GetSelection() )
         m_gridSelectBox->SetSelection( idx );
@@ -451,8 +426,9 @@ void EDA_DRAW_FRAME::OnUpdateSelectZoom( wxUpdateUIEvent& aEvent )
         if( rel_error < last_approx )
         {
             last_approx = rel_error;
+
             // zoom IDs in m_zoomSelectBox start with 1 (leaving 0 for auto-zoom choice)
-            new_selection = jj+1;
+            new_selection = jj + 1;
         }
     }
 
@@ -460,9 +436,10 @@ void EDA_DRAW_FRAME::OnUpdateSelectZoom( wxUpdateUIEvent& aEvent )
         m_zoomSelectBox->SetSelection( new_selection );
 }
 
+
 void EDA_DRAW_FRAME::PrintPage( const RENDER_SETTINGS* aSettings )
 {
-    DisplayErrorMessage( this, wxT("EDA_DRAW_FRAME::PrintPage() error") );
+    DisplayErrorMessage( this, wxT( "EDA_DRAW_FRAME::PrintPage() error" ) );
 }
 
 
@@ -499,6 +476,7 @@ void EDA_DRAW_FRAME::OnSelectGrid( wxCommandEvent& event )
 
     UpdateStatusBar();
     m_canvas->Refresh();
+
     // Needed on Windows because clicking on m_gridSelectBox remove the focus from m_canvas
     // (Windows specific
     m_canvas->SetFocus();
@@ -551,6 +529,12 @@ void EDA_DRAW_FRAME::SetGridOverrides( bool aOverride )
 }
 
 
+std::unique_ptr<GRID_HELPER> EDA_DRAW_FRAME::MakeGridHelper()
+{
+    return nullptr;
+}
+
+
 void EDA_DRAW_FRAME::UpdateZoomSelectBox()
 {
     if( m_zoomSelectBox == nullptr )
@@ -588,6 +572,7 @@ void EDA_DRAW_FRAME::OnSelectZoom( wxCommandEvent& event )
     m_toolManager->RunAction( ACTIONS::zoomPreset, id );
     UpdateStatusBar();
     m_canvas->Refresh();
+
     // Needed on Windows because clicking on m_zoomSelectBox remove the focus from m_canvas
     // (Windows specific
     m_canvas->SetFocus();
@@ -683,6 +668,47 @@ void EDA_DRAW_FRAME::OnSize( wxSizeEvent& SizeEv )
 }
 
 
+void EDA_DRAW_FRAME::updateStatusBarWidths()
+{
+    wxWindow* stsbar = GetStatusBar();
+    int       spacer = KIUI::GetTextSize( wxT( "M" ), stsbar ).x * 2;
+
+    int dims[] = {
+        // remainder of status bar on far left is set to a default or whatever is left over.
+        -1,
+
+        // When using GetTextSize() remember the width of character '1' is not the same
+        // as the width of '0' unless the font is fixed width, and it usually won't be.
+
+        // zoom:
+        KIUI::GetTextSize( wxT( "Z 762000" ), stsbar ).x,
+
+        // cursor coords
+        KIUI::GetTextSize( wxT( "X 1234.1234  Y 1234.1234" ), stsbar ).x,
+
+        // delta distances
+        KIUI::GetTextSize( wxT( "dx 1234.1234  dy 1234.1234  dist 1234.1234" ), stsbar ).x,
+
+        // grid size
+        KIUI::GetTextSize( wxT( "grid X 1234.1234  Y 1234.1234" ), stsbar ).x,
+
+        // units display, Inches is bigger than mm
+        KIUI::GetTextSize( _( "Inches" ), stsbar ).x,
+
+        // Size for the "Current Tool" panel; longest string from SetTool()
+        KIUI::GetTextSize( wxT( "Add layer alignment target" ), stsbar ).x,
+
+        // constraint mode
+        KIUI::GetTextSize( _( "Constrain to H, V, 45" ), stsbar ).x
+    };
+
+    for( size_t ii = 1; ii < arrayDim( dims ); ii++ )
+        dims[ii] += spacer;
+
+    SetStatusWidths( arrayDim( dims ), dims );
+}
+
+
 void EDA_DRAW_FRAME::UpdateStatusBar()
 {
     SetStatusText( GetZoomLevelIndicator(), 1 );
@@ -770,8 +796,9 @@ void EDA_DRAW_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
     {
         if( COMMON_TOOLS* cmnTool = m_toolManager->GetTool<COMMON_TOOLS>() )
         {
-            aCfg->m_System.last_imperial_units = static_cast<int>( cmnTool->GetLastImperialUnits() );
-            aCfg->m_System.last_metric_units   = static_cast<int>( cmnTool->GetLastMetricUnits() );
+            aCfg->m_System.last_imperial_units =
+                    static_cast<int>( cmnTool->GetLastImperialUnits() );
+            aCfg->m_System.last_metric_units = static_cast<int>( cmnTool->GetLastMetricUnits() );
         }
     }
 }
@@ -951,7 +978,6 @@ void EDA_DRAW_FRAME::Zoom_Automatique( bool aWarpPointer )
 }
 
 
-// Find the first child dialog.
 std::vector<wxWindow*> EDA_DRAW_FRAME::findDialogs()
 {
     std::vector<wxWindow*> dialogs;
@@ -981,8 +1007,9 @@ void EDA_DRAW_FRAME::FocusOnLocation( const VECTOR2I& aPos )
 
     for( wxWindow* dialog : findDialogs() )
     {
-        dialogScreenRects.emplace_back( ToVECTOR2D( GetCanvas()->ScreenToClient( dialog->GetScreenPosition() ) ),
-                                        ToVECTOR2D( dialog->GetSize() ) );
+        dialogScreenRects.emplace_back(
+                ToVECTOR2D( GetCanvas()->ScreenToClient( dialog->GetScreenPosition() ) ),
+                ToVECTOR2D( dialog->GetSize() ) );
     }
 
     // Center if we're behind an obscuring dialog, or within 10% of its edge
@@ -1000,10 +1027,10 @@ void EDA_DRAW_FRAME::FocusOnLocation( const VECTOR2I& aPos )
         {
             GetCanvas()->GetView()->SetCenter( aPos, dialogScreenRects );
         }
-        catch( const ClipperLib::clipperException& exc )
+        catch( const Clipper2Lib::Clipper2Exception& e )
         {
-            wxLogError( wxT( "Clipper library error '%s' occurred centering object." ),
-                        exc.what() );
+            wxFAIL_MSG( wxString::Format( wxT( "Clipper2 exception occurred centering object: %s" ),
+                                          e.what() ) );
         }
     }
 
@@ -1190,16 +1217,18 @@ void EDA_DRAW_FRAME::ShowChangedLanguage()
     {
         wxAuiPaneInfo& search_pane_info = m_auimgr.GetPane( m_searchPane );
         search_pane_info.Caption( _( "Search" ) );
-
-        m_searchPane->OnLanguageChange();
     }
 
     if( m_propertiesPanel )
     {
         wxAuiPaneInfo& properties_pane_info = m_auimgr.GetPane( m_propertiesPanel );
         properties_pane_info.Caption( _( "Properties" ) );
+    }
 
-        m_propertiesPanel->OnLanguageChanged();
+    if( m_netInspectorPanel )
+    {
+        wxAuiPaneInfo& net_inspector_panel_info = m_auimgr.GetPane( m_netInspectorPanel );
+        net_inspector_panel_info.Caption( _( "Net Inspector" ) );
     }
 }
 
@@ -1338,4 +1367,99 @@ bool EDA_DRAW_FRAME::SaveCanvasImageToFile( const wxString& aFileName,
 
     image.Destroy();
     return retv;
+}
+
+
+bool EDA_DRAW_FRAME::IsPluginActionButtonVisible( const PLUGIN_ACTION& aAction,
+                                                  APP_SETTINGS_BASE* aCfg )
+{
+    wxCHECK( aCfg, aAction.show_button );
+
+    for( const auto& [identifier, visible] : aCfg->m_Plugins.actions )
+    {
+        if( identifier == aAction.identifier )
+            return visible;
+    }
+
+    return aAction.show_button;
+}
+
+
+std::vector<const PLUGIN_ACTION*> EDA_DRAW_FRAME::GetOrderedPluginActions(
+    PLUGIN_ACTION_SCOPE aScope, APP_SETTINGS_BASE* aCfg )
+{
+    std::vector<const PLUGIN_ACTION*> actions;
+    wxCHECK( aCfg, actions );
+
+#ifdef KICAD_IPC_API
+
+    API_PLUGIN_MANAGER& mgr = Pgm().GetPluginManager();
+    std::vector<const PLUGIN_ACTION*> unsorted = mgr.GetActionsForScope( aScope );
+    std::map<wxString, const PLUGIN_ACTION*> actionMap;
+    std::set<const PLUGIN_ACTION*> handled;
+
+    for( const PLUGIN_ACTION* action : unsorted )
+        actionMap[action->identifier] = action;
+
+    for( const auto& identifier : aCfg->m_Plugins.actions | std::views::keys )
+    {
+        if( actionMap.contains( identifier ) )
+        {
+            const PLUGIN_ACTION* action = actionMap[ identifier ];
+            actions.emplace_back( action );
+            handled.insert( action );
+        }
+    }
+
+    for( const auto& action : actionMap | std::views::values )
+    {
+        if( !handled.contains( action ) )
+            actions.emplace_back( action );
+    }
+
+#endif
+
+    return actions;
+}
+
+
+void EDA_DRAW_FRAME::addApiPluginTools()
+{
+#ifdef KICAD_IPC_API
+    API_PLUGIN_MANAGER& mgr = Pgm().GetPluginManager();
+
+    mgr.ButtonBindings().clear();
+
+    std::vector<const PLUGIN_ACTION*> actions =
+            GetOrderedPluginActions( PluginActionScope(), config() );
+
+    for( const PLUGIN_ACTION* action : actions )
+    {
+        if( !IsPluginActionButtonVisible( *action, config() ) )
+            continue;
+
+        const wxBitmapBundle& icon = KIPLATFORM::UI::IsDarkTheme() && action->icon_dark.IsOk()
+                                             ? action->icon_dark
+                                             : action->icon_light;
+
+        wxAuiToolBarItem* button = m_mainToolBar->AddTool( wxID_ANY, wxEmptyString, icon,
+                                                           action->name );
+
+        Connect( button->GetId(), wxEVT_COMMAND_MENU_SELECTED,
+                 wxCommandEventHandler( EDA_DRAW_FRAME::OnApiPluginInvoke ) );
+
+        mgr.ButtonBindings().insert( { button->GetId(), action->identifier } );
+    }
+#endif
+}
+
+
+void EDA_DRAW_FRAME::OnApiPluginInvoke( wxCommandEvent& aEvent )
+{
+#ifdef KICAD_IPC_API
+    API_PLUGIN_MANAGER& mgr = Pgm().GetPluginManager();
+
+    if( mgr.ButtonBindings().count( aEvent.GetId() ) )
+        mgr.InvokeAction( mgr.ButtonBindings().at( aEvent.GetId() ) );
+#endif
 }

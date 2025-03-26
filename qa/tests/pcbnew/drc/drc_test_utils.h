@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,15 +37,8 @@
  * Define a stream function for logging #PCB_MARKER test assertions.
  *
  * This has to be in the same namespace as #PCB_MARKER
- *
- * Note: this assumes there is not a operator<< for this type in the main
- * Pcbnew library. If one is introduced there, this one should be removed.
- *
- * TODO: convert to boost_test_print_type when Boost minver > 1.64. This
- * will keep testing logging and application-level operator<< implementations
- * separate, as they should be.
  */
-std::ostream& operator<<( std::ostream& os, const PCB_MARKER& aMarker );
+std::ostream& boost_test_print_type( std::ostream& os, const PCB_MARKER& aMarker );
 
 
 namespace KI_TEST

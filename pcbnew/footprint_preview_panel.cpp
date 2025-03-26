@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2017 Chris Pavlina <pavlina.chris@gmail.com>
  * Copyright (C) 2016 Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
@@ -143,7 +143,8 @@ void FOOTPRINT_PREVIEW_PANEL::renderFootprint( std::shared_ptr<FOOTPRINT> aFootp
 
 void FOOTPRINT_PREVIEW_PANEL::fitToCurrentFootprint()
 {
-    BOX2I bbox = m_currentFootprint->GetBoundingBox( false, false );
+    bool  includeText = m_currentFootprint->TextOnly();
+    BOX2I bbox = m_currentFootprint->GetBoundingBox( includeText );
 
     if( bbox.GetSize().x > 0 && bbox.GetSize().y > 0 )
     {
@@ -276,7 +277,7 @@ FOOTPRINT_PREVIEW_PANEL* FOOTPRINT_PREVIEW_PANEL::New( KIWAY* aKiway, wxWindow* 
     panel->GetGAL()->SetGridVisibility( gridCfg.show );
 
     //Bounds checking cannot include number of elements as an index!
-    int    gridIdx = alg::clamp( 0, gridCfg.last_size_idx, (int) gridCfg.grids.size() - 1 );
+    int    gridIdx = std::clamp( gridCfg.last_size_idx, 0, (int) gridCfg.grids.size() - 1 );
     double gridSizeX = EDA_UNIT_UTILS::UI::DoubleValueFromString( pcbIUScale, EDA_UNITS::MILS,
                                                                   gridCfg.grids[gridIdx].x );
     double gridSizeY = EDA_UNIT_UTILS::UI::DoubleValueFromString( pcbIUScale, EDA_UNITS::MILS,

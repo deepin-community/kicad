@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -34,9 +34,6 @@ class PCB_LAYER_BOX_SELECTOR;
 
 ///////////////////////////////////////////////////////////////////////////
 
-#define ID_SPECIFIED_NET_TO_NETCLASS_VALUES 1000
-#define ID_ALL_TRACKS_VIAS 1001
-
 ///////////////////////////////////////////////////////////////////////////////
 /// Class DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS_BASE
 ///////////////////////////////////////////////////////////////////////////////
@@ -47,9 +44,10 @@ class DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS_BASE : public DIALOG_SHIM
 	protected:
 		wxCheckBox* m_references;
 		wxCheckBox* m_values;
-		wxCheckBox* m_otherFields;
+		wxCheckBox* m_footprintFields;
 		wxCheckBox* m_footprintGraphics;
 		wxCheckBox* m_footprintDimensions;
+		wxCheckBox* m_otherFootprintTexts;
 		wxCheckBox* m_boardGraphics;
 		wxCheckBox* m_boardText;
 		wxCheckBox* m_boardDimensions;

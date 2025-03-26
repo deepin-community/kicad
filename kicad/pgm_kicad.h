@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2014 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,6 +27,10 @@
 
 #include <pgm_base.h>
 #include <bin_mod.h>
+
+#ifdef KICAD_IPC_API
+#include <api/api_handler_common.h>
+#endif
 
 /**
  * PGM_KICAD
@@ -66,6 +70,12 @@ public:
 protected:
 
     BIN_MOD         m_bm;
+
+#ifdef KICAD_IPC_API
+    // In PGM_SINGLE_TOP because PGM_BASE is in kicommon, and this can't be in the DLL
+    // because it depends on things like EDA_TEXT and EDA_SHAPE that aren't in the DLL
+    std::unique_ptr<API_HANDLER_COMMON> m_api_common_handler;
+#endif
 };
 
 

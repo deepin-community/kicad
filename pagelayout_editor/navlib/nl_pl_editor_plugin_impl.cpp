@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2024 3Dconnexion
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -133,7 +133,7 @@ static void add_category( const std::string& aCategoryPath, CATEGORY_STORE& aCat
     {
         std::string parentPath = aCategoryPath.substr( 0, pos );
 
-        if( aCategoryStore.find( parentPath ) == aCategoryStore.end() )
+        if( !aCategoryStore.contains( parentPath ) )
         {
             add_category( parentPath, aCategoryStore );
             parent_iter = aCategoryStore.find( parentPath );
@@ -159,7 +159,7 @@ static void add_category( const std::string& aCategoryPath, CATEGORY_STORE& aCat
  */
 static void try_add_category( const std::string& aCategoryPath, CATEGORY_STORE& aCategoryStore )
 {
-    if( aCategoryStore.find( aCategoryPath ) == aCategoryStore.end() )
+    if( !aCategoryStore.contains( aCategoryPath ) )
     {
         add_category( aCategoryPath, aCategoryStore );
     }
@@ -223,7 +223,7 @@ void NL_PL_EDITOR_PLUGIN_IMPL::exportCommandsAndImages()
                 const wxStreamBuffer* streamBuffer = imageStream.GetOutputStreamBuffer();
                 TDx::CImage tdxImage = TDx::CImage::FromData( "", 0, name.c_str() );
                 tdxImage.AssignImage(
-                        std::string( static_cast<const char*>( streamBuffer->GetBufferStart() ),
+                        std::string( std::bit_cast<const char*>( streamBuffer->GetBufferStart() ),
                                      streamBuffer->GetBufferSize() ),
                         0 );
 
@@ -448,8 +448,8 @@ long NL_PL_EDITOR_PLUGIN_IMPL::SetActiveCommand( std::string commandId )
         return navlib::make_result_code( navlib::navlib_errc::invalid_operation );
     }
 
-    std::list<TOOL_ACTION*> actions = ACTION_MANAGER::GetActionList();
-    for( const auto action : actions )
+    for( std::list<TOOL_ACTION*> actions = ACTION_MANAGER::GetActionList();
+         const auto action : actions )
     {
         if( action == nullptr )
         {

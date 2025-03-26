@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -198,3 +198,21 @@ bool ClipLine( const BOX2I *aClipBox, int &x1, int &y1, int &x2, int &y2 )
     return false;
 }
 
+
+bool KIGEOM::BoxHitTest( const VECTOR2I& aHitter, const BOX2I& aHittee, int aAccuracy )
+{
+    const BOX2I hittee = aHittee.GetInflated( aAccuracy );
+    return hittee.Contains( aHitter );
+}
+
+
+bool KIGEOM::BoxHitTest( const BOX2I& aHitter, const BOX2I& aHittee, bool aHitteeContained,
+                         int aAccuracy )
+{
+    const BOX2I hitter = aHitter.GetInflated( aAccuracy );
+
+    if( aHitteeContained )
+        return hitter.Contains( aHittee );
+
+    return hitter.Intersects( aHittee );
+}

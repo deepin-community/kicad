@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2017-2023 KiCad Developers, see change_log.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2023 CERN (www.cern.ch)
  *
  * This program is free software; you can redistribute it and/or
@@ -39,9 +39,7 @@ class KIFACE_BASE;
 class TOOL_MANAGER;
 class KIWAY_EXPRESS;
 
-#define WX_EVENT_LOOP      wxGUIEventLoop
-class WX_EVENT_LOOP;
-
+class wxGUIEventLoop;
 class wxSocketServer;
 class wxSocketBase;
 class wxSocketEvent;
@@ -180,7 +178,7 @@ public:
 
 protected:
 
-    /// event handler, routes to derivative specific virtual KiwayMailIn()
+    /// Event handler, routes to derivative specific virtual #KiwayMailIn().
     void kiway_express( KIWAY_EXPRESS& aEvent );
 
     /**
@@ -191,14 +189,14 @@ protected:
     // variables for modal behavior support, only used by a few derivatives.
     bool            m_modal;        // true if frame is intended to be modal, not modeless
 
-    ///< Points to nested event_loop. NULL means not modal and dismissed.
-    WX_EVENT_LOOP*  m_modal_loop;
+    /// Points to nested event_loop. NULL means not modal and dismissed.
+    wxGUIEventLoop* m_modal_loop;
     wxWindow*       m_modal_resultant_parent; // the window caller in modal mode
     wxString        m_modal_string;
     bool            m_modal_ret_val;    // true if a selection was made
 
     wxSocketServer*             m_socketServer;
-    std::vector<wxSocketBase*>  m_sockets;         ///< interprocess communication
+    std::vector<wxSocketBase*>  m_sockets;         /// Interprocess communication.
 
 #ifndef SWIG
     DECLARE_EVENT_TABLE()

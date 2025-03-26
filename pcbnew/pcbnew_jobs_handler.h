@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -36,25 +36,31 @@ class PCBNEW_JOBS_HANDLER : public JOB_DISPATCHER
 public:
     PCBNEW_JOBS_HANDLER( KIWAY* aKiway );
     int JobExportStep( JOB* aJob );
+    int JobExportRender( JOB* aJob );
     int JobExportSvg( JOB* aJob );
     int JobExportDxf( JOB* aJob );
     int JobExportPdf( JOB* aJob );
     int JobExportGerber( JOB* aJob );
     int JobExportGerbers( JOB* aJob );
+    int JobExportGencad( JOB* aJob );
     int JobExportDrill( JOB* aJob );
     int JobExportPos( JOB* aJob );
     int JobExportFpUpgrade( JOB* aJob );
     int JobExportFpSvg( JOB* aJob );
     int JobExportDrc( JOB* aJob );
     int JobExportIpc2581( JOB* aJob );
+    int JobExportOdb( JOB* aJob );
 
 private:
+    BOARD* getBoard( const wxString& aPath = wxEmptyString );
     void populateGerberPlotOptionsFromJob( PCB_PLOT_PARAMS&       aPlotOpts,
                                            JOB_EXPORT_PCB_GERBER* aJob );
     int  doFpExportSvg( JOB_FP_EXPORT_SVG* aSvgJob, const FOOTPRINT* aFootprint );
     void loadOverrideDrawingSheet( BOARD* brd, const wxString& aSheetPath );
 
     DS_PROXY_VIEW_ITEM* getDrawingSheetProxyView( BOARD* aBrd );
+
+    BOARD* m_cliBoard;
 };
 
 #endif

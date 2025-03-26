@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,15 +28,7 @@
 
 namespace KI_TEST
 {
-/**
- * Predicate to check an image pixel matches color and alpha
- *
- * @param  aImage  the image to check
- * @param  aX      pixel x-coordinate
- * @param  aY      pixel y-coordinate
- * @param  aColor  expected color (alpha is 1.0 if image doesn't support alpha)
- * @return         true if colour match
- */
+
 bool IsImagePixelOfColor( const wxImage& aImage, int aX, int aY, const KIGFX::COLOR4D& aColor )
 {
     const wxSize imageSize = aImage.GetSize();
@@ -64,15 +56,49 @@ bool IsImagePixelOfColor( const wxImage& aImage, int aX, int aY, const KIGFX::CO
     return true;
 }
 
+
+bool ImagesHaveSamePixels( const wxImage& aImgA, const wxImage& aImgB )
+{
+    if( aImgA.GetSize() != aImgB.GetSize() )
+    {
+        BOOST_TEST_INFO( "Image sizes differ: " << aImgA.GetSize().GetWidth() << "x"
+                                                << aImgA.GetSize().GetHeight() << " vs "
+                                                << aImgB.GetSize().GetWidth() << "x"
+                                                << aImgB.GetSize().GetHeight() );
+        return false;
+    }
+
+    for( int y = 0; y < aImgA.GetHeight(); ++y )
+    {
+        for( int x = 0; x < aImgA.GetWidth(); ++x )
+        {
+            const int rA = aImgA.GetRed( x, y );
+            const int gA = aImgA.GetGreen( x, y );
+            const int bA = aImgA.GetBlue( x, y );
+
+            const int rB = aImgB.GetRed( x, y );
+            const int gB = aImgB.GetGreen( x, y );
+            const int bB = aImgB.GetBlue( x, y );
+
+            if( rA != rB || gA != gB || bA != bB )
+            {
+                BOOST_TEST_INFO( "Pixel (" << x << ", " << y << ") differs: "
+                                           << "A(" << rA << ", " << gA << ", " << bA << ") "
+                                           << "B(" << rB << ", " << gB << ", " << bB << ")" );
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 } // namespace KI_TEST
 
 
-namespace BOOST_TEST_PRINT_NAMESPACE_OPEN
-{
-void print_log_value<wxImage>::operator()( std::ostream& os, wxImage const& aImage )
+std::ostream& boost_test_print_type( std::ostream& os, wxImage const& aImage )
 {
     const wxSize size = aImage.GetSize();
     os << "wxImage[" << size.x << "x" << size.y << "]";
+    return os;
 }
-} // namespace BOOST_TEST_PRINT_NAMESPACE_OPEN
-BOOST_TEST_PRINT_NAMESPACE_CLOSE

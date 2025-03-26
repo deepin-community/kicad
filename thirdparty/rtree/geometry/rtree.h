@@ -22,7 +22,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Copyright (C) 2013 CERN
  *
  * This program is free software; you can redistribute it and/or
@@ -50,6 +50,7 @@
 
 // NOTE These next few lines may be win32 specific, you may need to modify them to compile on other platform
 #include <cassert>
+#include <climits>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2016 CERN
- * Copyright (C) 2016-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * @author Wayne Stambaugh <stambaughw@gmail.com>
  *
@@ -82,7 +82,7 @@ public:
     virtual int GetModifyHash() const = 0;
 
     virtual void SaveLibrary( const wxString& aFileName,
-                              const STRING_UTF8_MAP* aProperties = nullptr );
+                              const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Load information from some input file format that this #SCH_IO implementation
@@ -114,7 +114,7 @@ public:
      */
     virtual SCH_SHEET* LoadSchematicFile( const wxString& aFileName, SCHEMATIC* aSchematic,
                                           SCH_SHEET*             aAppendToMe = nullptr,
-                                          const STRING_UTF8_MAP* aProperties = nullptr );
+                                          const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Write \a aSchematic to a storage file in a format that this #SCH_IO implementation
@@ -143,7 +143,7 @@ public:
      */
     virtual void SaveSchematicFile( const wxString& aFileName, SCH_SHEET* aSheet,
                                     SCHEMATIC*             aSchematic,
-                                    const STRING_UTF8_MAP* aProperties = nullptr );
+                                    const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Populate a list of #LIB_SYMBOL alias names contained within the library \a aLibraryPath.
@@ -162,7 +162,7 @@ public:
      * @throw IO_ERROR if the library cannot be found, the part library cannot be loaded.
      */
     virtual void EnumerateSymbolLib( wxArrayString& aSymbolNameList, const wxString& aLibraryPath,
-                                     const STRING_UTF8_MAP* aProperties = nullptr );
+                                     const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Populate a list of #LIB_SYMBOL aliases contained within the library \a aLibraryPath.
@@ -185,7 +185,7 @@ public:
      */
     virtual void EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList,
                                      const wxString& aLibraryPath,
-                                     const STRING_UTF8_MAP* aProperties = nullptr );
+                                     const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Load a #LIB_SYMBOL object having \a aPartName from the \a aLibraryPath containing
@@ -209,7 +209,7 @@ public:
      *                 is thrown in the case where aAliasName cannot be found.
      */
     virtual LIB_SYMBOL* LoadSymbol( const wxString& aLibraryPath, const wxString& aPartName,
-                                    const STRING_UTF8_MAP* aProperties = nullptr );
+                                    const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Write \a aSymbol to an existing library located at \a aLibraryPath.  If a #LIB_SYMBOL
@@ -233,7 +233,7 @@ public:
      * @throw IO_ERROR if there is a problem saving.
      */
     virtual void SaveSymbol( const wxString& aLibraryPath, const LIB_SYMBOL* aSymbol,
-                             const STRING_UTF8_MAP* aProperties = nullptr );
+                             const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Delete the entire #LIB_SYMBOL associated with \a aAliasName from the library
@@ -254,7 +254,7 @@ public:
      * @throw IO_ERROR if there is a problem finding the alias or the library or deleting it.
      */
     virtual void DeleteSymbol( const wxString& aLibraryPath, const wxString& aSymbolName,
-                               const STRING_UTF8_MAP* aProperties = nullptr );
+                               const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Append supported #SCH_IO options to \a aListToAppenTo along with internationalized
@@ -280,7 +280,7 @@ public:
      *   This would require a 3 column list, and introducing wx GUI knowledge to
      *   #SCH_IO, which has been avoided to date.
      */
-    virtual void GetLibraryOptions( STRING_UTF8_MAP* aListToAppendTo ) const override;
+    virtual void GetLibraryOptions( std::map<std::string, UTF8>* aListToAppendTo ) const override;
 
     /**
      * @return true if this plugin supports libraries that contain sub-libraries.
@@ -300,6 +300,17 @@ public:
      * @param aNames will be filled with a list of sub-libraries within this symbol library
      */
     virtual void GetSubLibraryNames( std::vector<wxString>& aNames ) {}
+
+    /**
+     * Gets a description of a sublibrary.
+     *
+     * Has no effect if SupportsSubLibraries() returns false.
+     *
+     * @param aName contains the name of the sublibrary for which the description is retrieved
+     *
+     * @return the description of the sublibrary
+     */
+    virtual wxString GetSubLibraryDescription( const wxString& aName ) { return wxEmptyString; }
 
     /**
      * Retrieves a list of (custom) field names that are present on symbols in this library.

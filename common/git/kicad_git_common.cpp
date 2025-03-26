@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,8 +23,12 @@
 
 #include "kicad_git_common.h"
 
+#include <kiplatform/secrets.h>
+
 #include <wx/filename.h>
 #include <wx/log.h>
+#include <wx/textfile.h>
+#include <wx/utils.h>
 #include <map>
 #include <vector>
 
@@ -32,8 +36,10 @@ KIGIT_COMMON::KIGIT_COMMON( git_repository* aRepo ) :
         m_repo( aRepo ), m_connType( GIT_CONN_TYPE::GIT_CONN_LOCAL ), m_testedTypes( 0 )
 {}
 
+
 KIGIT_COMMON::~KIGIT_COMMON()
 {}
+
 
 git_repository* KIGIT_COMMON::GetRepo() const
 {
@@ -42,6 +48,7 @@ git_repository* KIGIT_COMMON::GetRepo() const
 
 wxString KIGIT_COMMON::GetCurrentBranchName() const
 {
+    wxCHECK( m_repo, wxEmptyString );
     git_reference* head = nullptr;
 
     int retval = git_repository_head( &head, m_repo );
@@ -68,12 +75,15 @@ wxString KIGIT_COMMON::GetCurrentBranchName() const
 
     git_reference_free( branch );
 
-    return branchName;
+    return wxString( branchName );
 }
 
 
 std::vector<wxString> KIGIT_COMMON::GetBranchNames() const
 {
+    if( !m_repo )
+        return {};
+
     std::vector<wxString> branchNames;
     std::map<git_time_t, wxString> branchNamesMap;
     wxString firstName;
@@ -127,6 +137,7 @@ std::vector<wxString> KIGIT_COMMON::GetBranchNames() const
 
 std::vector<wxString> KIGIT_COMMON::GetProjectDirs()
 {
+    wxCHECK( m_repo, {} );
     std::vector<wxString> projDirs;
 
     git_oid oid;
@@ -252,7 +263,8 @@ std::pair<std::set<wxString>,std::set<wxString>> KIGIT_COMMON::GetDifferentFiles
 
 
             git_diff*        diff;
-            git_diff_options diff_opts = GIT_DIFF_OPTIONS_INIT;
+            git_diff_options diff_opts;
+            git_diff_init_options( &diff_opts, GIT_DIFF_OPTIONS_VERSION );
 
             if( git_diff_tree_to_tree( &diff, m_repo, parent_tree, tree, &diff_opts ) == GIT_OK )
             {
@@ -359,6 +371,7 @@ bool KIGIT_COMMON::HasLocalCommits() const
 
 bool KIGIT_COMMON::HasPushAndPullRemote() const
 {
+    wxCHECK( m_repo, false );
     git_remote* remote = nullptr;
 
     if( git_remote_lookup( &remote, m_repo, "origin" ) != GIT_OK )
@@ -381,6 +394,222 @@ bool KIGIT_COMMON::HasPushAndPullRemote() const
 
     // Check if both URLs are valid (i.e., not NULL)
     return fetch_url && push_url;
+}
+
+
+wxString KIGIT_COMMON::GetRemotename() const
+{
+    wxCHECK( m_repo, wxEmptyString );
+
+    wxString retval;
+    git_reference* head = nullptr;
+    git_reference* upstream = nullptr;
+
+    if( git_repository_head( &head, m_repo ) != GIT_OK )
+        return retval;
+
+    if( git_branch_upstream( &upstream, head ) == GIT_OK )
+    {
+        git_buf     remote_name = GIT_BUF_INIT_CONST( nullptr, 0 );
+
+        if( git_branch_remote_name( &remote_name, m_repo, git_reference_name( upstream ) ) == GIT_OK )
+        {
+            retval = remote_name.ptr;
+            git_buf_dispose( &remote_name );
+        }
+
+        git_reference_free( upstream );
+    }
+
+    git_reference_free( head );
+
+    return retval;
+}
+
+void KIGIT_COMMON::SetSSHKey( const wxString& aKey )
+{
+    auto it = std::find( m_publicKeys.begin(), m_publicKeys.end(), aKey );
+
+    if( it != m_publicKeys.end() )
+        m_publicKeys.erase( it );
+
+    m_publicKeys.insert( m_publicKeys.begin(), aKey );
+}
+
+
+wxString KIGIT_COMMON::GetGitRootDirectory() const
+{
+    if( !m_repo )
+        return wxEmptyString;
+
+    const char *path = git_repository_path( m_repo );
+    wxString    retval = path;
+    return retval;
+}
+
+
+void KIGIT_COMMON::updatePublicKeys()
+{
+    m_publicKeys.clear();
+
+    wxFileName keyFile( wxGetHomeDir(), wxEmptyString );
+    keyFile.AppendDir( ".ssh" );
+    keyFile.SetFullName( "id_rsa" );
+
+    if( keyFile.FileExists() )
+        m_publicKeys.push_back( keyFile.GetFullPath() );
+
+    keyFile.SetFullName( "id_dsa" );
+
+    if( keyFile.FileExists() )
+        m_publicKeys.push_back( keyFile.GetFullPath() );
+
+    keyFile.SetFullName( "id_ecdsa" );
+
+    if( keyFile.FileExists() )
+        m_publicKeys.push_back( keyFile.GetFullPath() );
+
+    keyFile.SetFullName( "id_ed25519" );
+
+    if( keyFile.FileExists() )
+        m_publicKeys.push_back( keyFile.GetFullPath() );
+
+    // Parse SSH config file for hostname information
+    wxFileName sshConfig( wxGetHomeDir(), wxEmptyString );
+    sshConfig.AppendDir( ".ssh" );
+    sshConfig.SetFullName( "config" );
+
+    if( sshConfig.FileExists() )
+    {
+        wxTextFile configFile( sshConfig.GetFullPath() );
+        configFile.Open();
+
+        bool match = false;
+
+        for( wxString line = configFile.GetFirstLine(); !configFile.Eof(); line = configFile.GetNextLine() )
+        {
+            line.Trim( false ).Trim( true );
+
+            if( line.StartsWith( "Host " ) )
+                match = false;
+
+            // The difference here is that we are matching either "Hostname" or "Host" to get the
+            // match.  This is because in the absence of a "Hostname" line, the "Host" line is used
+            if( line.StartsWith( "Host" ) && line.Contains( m_hostname ) )
+                match = true;
+
+            if( match && line.StartsWith( "IdentityFile" ) )
+            {
+                wxString keyPath = line.AfterFirst( ' ' ).Trim( false ).Trim( true );
+
+                // Expand ~ to home directory if present
+                if( keyPath.StartsWith( "~" ) )
+                    keyPath.Replace( "~", wxGetHomeDir(), false );
+
+                // Add the public key to the beginning of the list
+                if( wxFileName::FileExists( keyPath ) )
+                    SetSSHKey( keyPath );
+            }
+        }
+
+        configFile.Close();
+    }
+}
+
+
+void KIGIT_COMMON::UpdateCurrentBranchInfo()
+{
+    wxCHECK( m_repo, /* void */ );
+
+    // We want to get the current branch's upstream url as well as the stored password
+    // if one exists given the url and username.
+
+    wxString remote_name = GetRemotename();
+    git_remote* remote = nullptr;
+
+    if( git_remote_lookup( &remote, m_repo, remote_name.ToStdString().c_str() ) == GIT_OK )
+    {
+        const char* url = git_remote_url( remote );
+
+        if( url )
+            m_remote = url;
+
+        git_remote_free( remote );
+    }
+
+    // Find the stored password if it exists
+    KIPLATFORM::SECRETS::GetSecret( m_remote, m_username, m_password );
+
+    updateConnectionType();
+    updatePublicKeys();
+}
+
+void KIGIT_COMMON::updateConnectionType()
+{
+    if( m_remote.StartsWith( "https://" ) || m_remote.StartsWith( "http://" ) )
+        m_connType = GIT_CONN_TYPE::GIT_CONN_HTTPS;
+    else if( m_remote.StartsWith( "ssh://" ) || m_remote.StartsWith( "git@" ) || m_remote.StartsWith( "git+ssh://" ) )
+        m_connType = GIT_CONN_TYPE::GIT_CONN_SSH;
+    else
+        m_connType = GIT_CONN_TYPE::GIT_CONN_LOCAL;
+
+    if( m_connType != GIT_CONN_TYPE::GIT_CONN_LOCAL )
+    {
+        wxString uri = m_remote;
+        size_t atPos = uri.find( '@' );
+
+        if( atPos != wxString::npos )
+        {
+            size_t protoEnd = uri.find( "//" );
+
+            if( protoEnd != wxString::npos )
+            {
+                wxString credentials = uri.Mid( protoEnd + 2, atPos - protoEnd - 2 );
+                size_t colonPos = credentials.find( ':' );
+
+                if( colonPos != wxString::npos )
+                {
+                    m_username = credentials.Left( colonPos );
+                    m_password = credentials.Mid( colonPos + 1, credentials.Length() - colonPos - 1 );
+                }
+                else
+                {
+                    m_username = credentials;
+                }
+            }
+            else
+            {
+                m_username = uri.Left( atPos );
+            }
+        }
+
+        if( m_remote.StartsWith( "git@" ) )
+        {
+            // SSH format: git@hostname:path
+            size_t colonPos = m_remote.find( ':' );
+            if( colonPos != wxString::npos )
+                m_hostname = m_remote.Mid( 4, colonPos - 4 );
+        }
+        else
+        {
+            // other URL format: proto://[user@]hostname/path
+            size_t hostStart = m_remote.find( "://" ) + 2;
+            size_t hostEnd = m_remote.find( '/', hostStart );
+            wxString host;
+
+            if( hostEnd != wxString::npos )
+                host = m_remote.Mid( hostStart, hostEnd - hostStart );
+            else
+                host = m_remote.Mid( hostStart );
+
+            atPos = host.find( '@' );
+
+            if( atPos != wxString::npos )
+                m_hostname = host.Mid( atPos + 1 );
+            else
+                m_hostname = host;
+        }
+    }
 }
 
 
@@ -413,16 +642,19 @@ extern "C" int progress_cb( const char* str, int len, void* data )
     return 0;
 }
 
+
 extern "C" int transfer_progress_cb( const git_transfer_progress* aStats, void* aPayload )
 {
     KIGIT_COMMON* parent = (KIGIT_COMMON*) aPayload;
     wxString      progressMessage = wxString::Format( _( "Received %u of %u objects" ),
-                                                      aStats->received_objects, aStats->total_objects );
+                                                      aStats->received_objects,
+                                                      aStats->total_objects );
 
     parent->UpdateProgress( aStats->received_objects, aStats->total_objects, progressMessage );
 
     return 0;
 }
+
 
 extern "C" int update_cb( const char* aRefname, const git_oid* aFirst, const git_oid* aSecond,
                           void* aPayload )
@@ -459,15 +691,15 @@ extern "C" int update_cb( const char* aRefname, const git_oid* aFirst, const git
 extern "C" int push_transfer_progress_cb( unsigned int aCurrent, unsigned int aTotal, size_t aBytes,
                                           void* aPayload )
 {
-    int64_t           progress = 100;
+    long long     progress = 100;
     KIGIT_COMMON* parent = (KIGIT_COMMON*) aPayload;
 
     if( aTotal != 0 )
     {
-        progress = ( aCurrent * 100 ) / aTotal;
+        progress = ( aCurrent * 100ll ) / aTotal;
     }
 
-    wxString progressMessage = wxString::Format( _( "Writing objects: %d%% (%d/%d), %d bytes" ),
+    wxString progressMessage = wxString::Format( _( "Writing objects: %lld%% (%u/%u), %zu bytes" ),
                                                  progress, aCurrent, aTotal, aBytes );
     parent->UpdateProgress( aCurrent, aTotal, progressMessage );
 
@@ -496,7 +728,7 @@ extern "C" int push_update_reference_cb( const char* aRefname, const char* aStat
 
 
 extern "C" int credentials_cb( git_cred** aOut, const char* aUrl, const char* aUsername,
-                                unsigned int aAllowedTypes, void* aPayload )
+                               unsigned int aAllowedTypes, void* aPayload )
 {
     KIGIT_COMMON* parent = static_cast<KIGIT_COMMON*>( aPayload );
 
@@ -526,16 +758,22 @@ extern "C" int credentials_cb( git_cred** aOut, const char* aUrl, const char* aU
                 && !( parent->TestedTypes() & GIT_CREDTYPE_SSH_KEY ) )
     {
         // SSH key authentication
-        wxString sshKey = parent->GetSSHKey();
+        wxString sshKey = parent->GetNextPublicKey();
+
+        if( sshKey.IsEmpty() )
+        {
+            parent->TestedTypes() |= GIT_CREDTYPE_SSH_KEY;
+            return GIT_PASSTHROUGH;
+        }
+
         wxString sshPubKey = sshKey + ".pub";
         wxString username = parent->GetUsername().Trim().Trim( false );
         wxString password = parent->GetPassword().Trim().Trim( false );
 
         git_cred_ssh_key_new( aOut, username.ToStdString().c_str(),
-                                sshPubKey.ToStdString().c_str(),
-                                sshKey.ToStdString().c_str(),
-                                password.ToStdString().c_str() );
-        parent->TestedTypes() |= GIT_CREDTYPE_SSH_KEY;
+                              sshPubKey.ToStdString().c_str(),
+                              sshKey.ToStdString().c_str(),
+                              password.ToStdString().c_str() );
     }
     else
     {

@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
+// C++ code generated with wxFormBuilder (version 4.1.0-0-g733bf3d)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -32,7 +32,7 @@ DIALOG_TEXT_PROPERTIES_BASE::DIALOG_TEXT_PROPERTIES_BASE( wxWindow* parent, wxWi
 	m_textEntrySizer = new wxGridBagSizer( 2, 3 );
 	m_textEntrySizer->SetFlexibleDirection( wxBOTH );
 	m_textEntrySizer->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
-	m_textEntrySizer->SetEmptyCellSize( wxSize( 0,12 ) );
+	m_textEntrySizer->SetEmptyCellSize( wxSize( 0,6 ) );
 
 	m_textLabel = new wxStaticText( this, wxID_ANY, _("Text:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_textLabel->Wrap( -1 );
@@ -84,7 +84,7 @@ DIALOG_TEXT_PROPERTIES_BASE::DIALOG_TEXT_PROPERTIES_BASE( wxWindow* parent, wxWi
 	m_textEntrySizer->Add( bSizer41, wxGBPosition( 1, 5 ), wxGBSpan( 1, 1 ), wxEXPAND|wxALIGN_RIGHT|wxLEFT, 5 );
 
 	m_excludeFromSim = new wxCheckBox( this, wxID_ANY, _("Exclude from simulation"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_textEntrySizer->Add( m_excludeFromSim, wxGBPosition( 1, 0 ), wxGBSpan( 1, 2 ), wxTOP, 10 );
+	m_textEntrySizer->Add( m_excludeFromSim, wxGBPosition( 1, 0 ), wxGBSpan( 1, 2 ), wxTOP|wxBOTTOM, 10 );
 
 	m_fontLabel = new wxStaticText( this, wxID_ANY, _("Font:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_fontLabel->Wrap( -1 );
@@ -99,83 +99,83 @@ DIALOG_TEXT_PROPERTIES_BASE::DIALOG_TEXT_PROPERTIES_BASE( wxWindow* parent, wxWi
 	wxBoxSizer* bSizeCtrlSizer;
 	bSizeCtrlSizer = new wxBoxSizer( wxHORIZONTAL );
 
-	m_separator1 = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( 21,21 ), wxBU_AUTODRAW|wxBORDER_NONE );
+	m_separator1 = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
 	m_separator1->Enable( false );
 
 	bSizeCtrlSizer->Add( m_separator1, 0, wxALIGN_CENTER_VERTICAL|wxLEFT, 5 );
 
-	m_bold = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( 21,21 ), wxBU_AUTODRAW|wxBORDER_NONE );
+	m_bold = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
 	m_bold->SetToolTip( _("Bold") );
 
 	bSizeCtrlSizer->Add( m_bold, 0, wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_italic = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( 21,21 ), wxBU_AUTODRAW|wxBORDER_NONE );
+	m_italic = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
 	m_italic->SetToolTip( _("Italic") );
 
 	bSizeCtrlSizer->Add( m_italic, 0, wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_separator2 = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( 21,21 ), wxBU_AUTODRAW|wxBORDER_NONE );
+	m_separator2 = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
 	m_separator2->Enable( false );
 
 	bSizeCtrlSizer->Add( m_separator2, 0, wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_hAlignLeft = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( 21,21 ), wxBU_AUTODRAW|wxBORDER_NONE );
+	m_hAlignLeft = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
 	m_hAlignLeft->SetToolTip( _("Align left") );
 
 	bSizeCtrlSizer->Add( m_hAlignLeft, 0, wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_hAlignCenter = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( 21,21 ), wxBU_AUTODRAW|wxBORDER_NONE );
+	m_hAlignCenter = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
 	m_hAlignCenter->SetToolTip( _("Align horizontal center") );
 
 	bSizeCtrlSizer->Add( m_hAlignCenter, 0, wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_hAlignRight = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( 21,21 ), wxBU_AUTODRAW|wxBORDER_NONE );
+	m_hAlignRight = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
 	m_hAlignRight->SetToolTip( _("Align right") );
 
 	bSizeCtrlSizer->Add( m_hAlignRight, 0, wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_separator3 = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( 21,21 ), wxBU_AUTODRAW|wxBORDER_NONE );
+	m_separator3 = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
 	m_separator3->Enable( false );
 
 	bSizeCtrlSizer->Add( m_separator3, 0, wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_vAlignTop = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( 21,21 ), wxBU_AUTODRAW|wxBORDER_NONE );
+	m_vAlignTop = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
 	m_vAlignTop->SetToolTip( _("Align top") );
 
 	bSizeCtrlSizer->Add( m_vAlignTop, 0, wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_vAlignCenter = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( 21,21 ), wxBU_AUTODRAW|wxBORDER_NONE );
+	m_vAlignCenter = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
 	m_vAlignCenter->SetToolTip( _("Align vertical center") );
 
 	bSizeCtrlSizer->Add( m_vAlignCenter, 0, wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_vAlignBottom = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( 21,21 ), wxBU_AUTODRAW|wxBORDER_NONE );
+	m_vAlignBottom = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
 	m_vAlignBottom->SetToolTip( _("Align bottom") );
 
 	bSizeCtrlSizer->Add( m_vAlignBottom, 0, wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_separator4 = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( 21,21 ), wxBU_AUTODRAW|wxBORDER_NONE );
+	m_separator4 = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
 	m_separator4->Enable( false );
 
 	bSizeCtrlSizer->Add( m_separator4, 0, wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_horizontal = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( 21,21 ), wxBU_AUTODRAW|wxBORDER_NONE );
+	m_horizontal = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
 	m_horizontal->SetToolTip( _("Horizontal text") );
 
 	bSizeCtrlSizer->Add( m_horizontal, 0, wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_vertical = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( 21,21 ), wxBU_AUTODRAW|wxBORDER_NONE );
+	m_vertical = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
 	m_vertical->SetToolTip( _("Vertical text") );
 
 	bSizeCtrlSizer->Add( m_vertical, 0, wxALIGN_CENTER_VERTICAL, 5 );
 
-	m_separator5 = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize( 21,21 ), wxBU_AUTODRAW|wxBORDER_NONE );
+	m_separator5 = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
 	m_separator5->Enable( false );
 
 	bSizeCtrlSizer->Add( m_separator5, 0, wxALIGN_CENTER_VERTICAL, 5 );
 
 
-	m_textEntrySizer->Add( bSizeCtrlSizer, wxGBPosition( 3, 3 ), wxGBSpan( 1, 2 ), wxEXPAND|wxALIGN_CENTER_VERTICAL, 5 );
+	m_textEntrySizer->Add( bSizeCtrlSizer, wxGBPosition( 3, 3 ), wxGBSpan( 1, 3 ), wxEXPAND|wxALIGN_CENTER_VERTICAL, 5 );
 
 	m_textSizeLabel = new wxStaticText( this, wxID_ANY, _("Text size:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_textSizeLabel->Wrap( -1 );
@@ -308,6 +308,34 @@ DIALOG_TEXT_PROPERTIES_BASE::DIALOG_TEXT_PROPERTIES_BASE( wxWindow* parent, wxWi
 	m_textEntrySizer->AddGrowableCol( 3 );
 
 	bMainSizer->Add( m_textEntrySizer, 1, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 10 );
+
+	m_fgSymbolEditor = new wxFlexGridSizer( 0, 3, 0, 0 );
+	m_fgSymbolEditor->AddGrowableCol( 0 );
+	m_fgSymbolEditor->AddGrowableCol( 2 );
+	m_fgSymbolEditor->SetFlexibleDirection( wxBOTH );
+	m_fgSymbolEditor->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+
+	m_privateCheckbox = new wxCheckBox( this, wxID_ANY, _("Private to Symbol Editor"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_privateCheckbox->SetValue(true);
+	m_fgSymbolEditor->Add( m_privateCheckbox, 0, wxRIGHT, 5 );
+
+
+	m_fgSymbolEditor->Add( 60, 0, 1, wxEXPAND, 5 );
+
+	m_commonToAllUnits = new wxCheckBox( this, wxID_ANY, _("Common to all units"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_fgSymbolEditor->Add( m_commonToAllUnits, 0, wxRIGHT|wxLEFT, 5 );
+
+
+	m_fgSymbolEditor->Add( 0, 0, 1, wxEXPAND, 5 );
+
+
+	m_fgSymbolEditor->Add( 0, 0, 1, wxEXPAND, 5 );
+
+	m_commonToAllBodyStyles = new wxCheckBox( this, wxID_ANY, _("Common to all body styles"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_fgSymbolEditor->Add( m_commonToAllBodyStyles, 0, wxALL, 5 );
+
+
+	bMainSizer->Add( m_fgSymbolEditor, 0, wxEXPAND|wxRIGHT|wxLEFT, 10 );
 
 	m_sdbSizer1 = new wxStdDialogButtonSizer();
 	m_sdbSizer1OK = new wxButton( this, wxID_OK );

@@ -1,8 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017 KiCad Developers, see AUTHORS.TXT for contributors.
- * Copyright (C) 2017-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  * @author Kristoffer Ödmark
  *
  * This program is free software; you can redistribute it and/or
@@ -33,20 +32,21 @@
 #include <pad.h>
 #include <pcb_group.h>
 #include <pcb_generator.h>
-#include <pcb_shape.h>
 #include <pcb_text.h>
-#include <pcb_textbox.h>
+#include <pcb_table.h>
 #include <zone.h>
 #include <locale_io.h>
-#include <netinfo.h>
 #include <pcb_io/kicad_sexpr/pcb_io_kicad_sexpr.h>
 #include <pcb_io/kicad_sexpr/pcb_io_kicad_sexpr_parser.h>
 #include <kicad_clipboard.h>
-#include "confirm.h"
+#include <kidialog.h>
+#include <io/kicad/kicad_io_utils.h>
 
 CLIPBOARD_IO::CLIPBOARD_IO():
         PCB_IO_KICAD_SEXPR(CTL_FOR_CLIPBOARD ),
-        m_formatter()
+        m_formatter(),
+        m_writer( &CLIPBOARD_IO::clipboardWriter ),
+        m_reader( &CLIPBOARD_IO::clipboardReader )
 {
     m_out = &m_formatter;
 }
@@ -63,6 +63,58 @@ void CLIPBOARD_IO::SetBoard( BOARD* aBoard )
 }
 
 
+void CLIPBOARD_IO::clipboardWriter( const wxString& aData )
+{
+    wxLogNull         doNotLog; // disable logging of failed clipboard actions
+    auto clipboard = wxTheClipboard;
+    wxClipboardLocker clipboardLock( clipboard );
+
+    if( !clipboardLock || !clipboard->IsOpened() )
+        return;
+
+    clipboard->SetData( new wxTextDataObject( aData ) );
+
+    clipboard->Flush();
+
+#ifndef __WXOSX__
+    // This section exists to return the clipboard data, ensuring it has fully
+    // been processed by the system clipboard.  This appears to be needed for
+    // extremely large clipboard copies on asynchronous linux clipboard managers
+    // such as KDE's Klipper. However, a read back of the data on OSX before the
+    // clipboard is closed seems to cause an ASAN error (heap-buffer-overflow)
+    // since it uses the cached version of the clipboard data and not the system
+    // clipboard data.
+    if( clipboard->IsSupported( wxDF_TEXT ) || clipboard->IsSupported( wxDF_UNICODETEXT ) )
+    {
+        wxTextDataObject data;
+        clipboard->GetData( data );
+        ignore_unused( data.GetText() );
+    }
+#endif
+}
+
+
+wxString CLIPBOARD_IO::clipboardReader()
+{
+    wxLogNull doNotLog; // disable logging of failed clipboard actions
+
+    auto clipboard = wxTheClipboard;
+    wxClipboardLocker clipboardLock( clipboard );
+
+    if( !clipboardLock )
+        return wxEmptyString;
+
+    if( clipboard->IsSupported( wxDF_TEXT ) || clipboard->IsSupported( wxDF_UNICODETEXT ) )
+    {
+        wxTextDataObject data;
+        clipboard->GetData( data );
+        return data.GetText();
+    }
+
+    return wxEmptyString;
+}
+
+
 void CLIPBOARD_IO::SaveSelection( const PCB_SELECTION& aSelected, bool isFootprintEditor )
 {
     VECTOR2I refPoint( 0, 0 );
@@ -76,6 +128,67 @@ void CLIPBOARD_IO::SaveSelection( const PCB_SELECTION& aSelected, bool isFootpri
 
     // Prepare net mapping that assures that net codes saved in a file are consecutive integers
     m_mapping->SetBoard( m_board );
+
+    auto deleteUnselectedCells =
+            []( PCB_TABLE* aTable )
+            {
+                int minCol = aTable->GetColCount();
+                int maxCol = -1;
+                int minRow = aTable->GetRowCount();
+                int maxRow = -1;
+
+                for( int row = 0; row < aTable->GetRowCount(); ++row )
+                {
+                    for( int col = 0; col < aTable->GetColCount(); ++col )
+                    {
+                        PCB_TABLECELL* cell = aTable->GetCell( row, col );
+
+                        if( cell->IsSelected() )
+                        {
+                            minRow = std::min( minRow, row );
+                            maxRow = std::max( maxRow, row );
+                            minCol = std::min( minCol, col );
+                            maxCol = std::max( maxCol, col );
+                        }
+                        else
+                        {
+                            cell->SetFlags( STRUCT_DELETED );
+                        }
+                    }
+                }
+
+                wxCHECK_MSG( maxCol >= minCol && maxRow >= minRow, /*void*/,
+                             wxT( "No selected cells!" ) );
+
+                // aTable is always a clone in the clipboard case
+                int destRow = 0;
+
+                for( int row = minRow; row <= maxRow; row++ )
+                    aTable->SetRowHeight( destRow++, aTable->GetRowHeight( row ) );
+
+                int destCol = 0;
+
+                for( int col = minCol; col <= maxCol; col++ )
+                    aTable->SetColWidth( destCol++, aTable->GetColWidth( col ) );
+
+                aTable->DeleteMarkedCells();
+                aTable->SetColCount( ( maxCol - minCol ) + 1 );
+                aTable->Normalize();
+            };
+
+    std::set<PCB_TABLE*> promotedTables;
+
+    auto parentIsPromoted =
+            [&]( PCB_TABLECELL* cell ) -> bool
+            {
+                for( PCB_TABLE* table : promotedTables )
+                {
+                    if( table->m_Uuid == cell->GetParent()->m_Uuid )
+                        return true;
+                }
+
+                return false;
+            };
 
     if( aSelected.Size() == 1 && aSelected.Front()->Type() == PCB_FOOTPRINT_T )
     {
@@ -109,47 +222,60 @@ void CLIPBOARD_IO::SaveSelection( const PCB_SELECTION& aSelected, bool isFootpri
         LIB_ID id( "clipboard", dummy.AsString() );
         partialFootprint.SetFPID( id );
 
-        for( const EDA_ITEM* item : aSelected )
+        for( EDA_ITEM* item : aSelected )
         {
             if( !item->IsBOARD_ITEM() )
                 continue;
 
-            const BOARD_ITEM* boardItem = static_cast<const BOARD_ITEM*>( item );
-            const PCB_GROUP*  group = boardItem->Type() == PCB_GROUP_T
-                                              ? static_cast<const PCB_GROUP*>( boardItem )
-                                              : nullptr;
-            BOARD_ITEM* clone = nullptr;
+            BOARD_ITEM* boardItem = static_cast<BOARD_ITEM*>( item );
+            BOARD_ITEM* copy = nullptr;
 
-            if( const PCB_FIELD* field = dynamic_cast<const PCB_FIELD*>( item ) )
+            if( PCB_FIELD* field = dynamic_cast<PCB_FIELD*>( item ) )
             {
-                if( field->IsMandatoryField() )
+                if( field->IsMandatory() )
                     continue;
             }
 
-            if( group )
-                clone = static_cast<BOARD_ITEM*>( group->DeepClone() );
+            if( boardItem->Type() == PCB_GROUP_T )
+            {
+                copy = static_cast<PCB_GROUP*>( boardItem )->DeepClone();
+            }
+            else if( boardItem->Type() == PCB_GENERATOR_T )
+            {
+                copy = static_cast<PCB_GENERATOR*>( boardItem )->DeepClone();
+            }
+            else if( item->Type() == PCB_TABLECELL_T )
+            {
+                if( parentIsPromoted( static_cast<PCB_TABLECELL*>( item ) ) )
+                    continue;
+
+                copy = static_cast<BOARD_ITEM*>( item->GetParent()->Clone() );
+                promotedTables.insert( static_cast<PCB_TABLE*>( copy ) );
+            }
             else
-                clone = static_cast<BOARD_ITEM*>( boardItem->Clone() );
+            {
+                copy = static_cast<BOARD_ITEM*>( boardItem->Clone() );
+            }
 
             // If it is only a footprint, clear the nets from the pads
-            if( PAD* pad = dynamic_cast<PAD*>( clone ) )
+            if( PAD* pad = dynamic_cast<PAD*>( copy ) )
                pad->SetNetCode( 0 );
 
-           // Don't copy group membership information for the 1st level objects being copied
-           // since the group they belong to isn't being copied.
-           clone->SetParentGroup( nullptr );
+            // Don't copy group membership information for the 1st level objects being copied
+            // since the group they belong to isn't being copied.
+            copy->SetParentGroup( nullptr );
 
             // Add the pad to the new footprint before moving to ensure the local coords are
             // correct
-            partialFootprint.Add( clone );
+            partialFootprint.Add( copy );
 
             // A list of not added items, when adding items to the footprint
             // some PCB_TEXT (reference and value) cannot be added to the footprint
             std::vector<BOARD_ITEM*> skipped_items;
 
-            if( group )
+            if( copy->Type() == PCB_GROUP_T || copy->Type() == PCB_GENERATOR_T )
             {
-                clone->RunOnDescendants(
+                copy->RunOnDescendants(
                         [&]( BOARD_ITEM* descendant )
                         {
                             // One cannot add an additional mandatory field to a given footprint:
@@ -158,7 +284,7 @@ void CLIPBOARD_IO::SaveSelection( const PCB_SELECTION& aSelected, bool isFootpri
 
                             if( const PCB_FIELD* field = dynamic_cast<const PCB_FIELD*>( item ) )
                             {
-                                if( field->IsMandatoryField() )
+                                if( field->IsMandatory() )
                                     can_add = false;
                             }
 
@@ -170,14 +296,14 @@ void CLIPBOARD_IO::SaveSelection( const PCB_SELECTION& aSelected, bool isFootpri
             }
 
             // locate the reference point at (0, 0) in the copied items
-            clone->Move( -refPoint );
+            copy->Move( -refPoint );
 
             // Now delete items, duplicated but not added:
-            for( BOARD_ITEM* skp_item : skipped_items )
+            for( BOARD_ITEM* skipped_item : skipped_items )
             {
-                static_cast<PCB_GROUP*>( clone )->RemoveItem( skp_item );
-                skp_item->SetParentGroup( nullptr );
-                delete skp_item;
+                static_cast<PCB_GROUP*>( copy )->RemoveItem( skipped_item );
+                skipped_item->SetParentGroup( nullptr );
+                delete skipped_item;
             }
         }
 
@@ -187,7 +313,10 @@ void CLIPBOARD_IO::SaveSelection( const PCB_SELECTION& aSelected, bool isFootpri
 
         partialFootprint.MoveAnchorPosition( moveVector );
 
-        Format( &partialFootprint, 0 );
+        for( PCB_TABLE* table : promotedTables )
+            deleteUnselectedCells( table );
+
+        Format( &partialFootprint );
 
         partialFootprint.SetParent( nullptr );
     }
@@ -197,15 +326,12 @@ void CLIPBOARD_IO::SaveSelection( const PCB_SELECTION& aSelected, bool isFootpri
         // This means we also need layers and nets
         LOCALE_IO io;
 
-        m_formatter.Print( 0, "(kicad_pcb (version %d) (generator \"pcbnew\") (generator_version \"%s\")\n",
-                           SEXPR_BOARD_FILE_VERSION, GetMajorMinorVersion().c_str().AsChar() );
-
-        m_formatter.Print( 0, "\n" );
+        m_formatter.Print( "(kicad_pcb (version %d) (generator \"pcbnew\") (generator_version %s)",
+                           SEXPR_BOARD_FILE_VERSION,
+                           m_formatter.Quotew( GetMajorMinorVersion() ).c_str() );
 
         formatBoardLayers( m_board );
         formatNetInformation( m_board );
-
-        m_formatter.Print( 0, "\n" );
 
         for( EDA_ITEM* item : aSelected )
         {
@@ -255,6 +381,14 @@ void CLIPBOARD_IO::SaveSelection( const PCB_SELECTION& aSelected, bool isFootpri
             {
                 copy = static_cast<PCB_GENERATOR*>( boardItem )->DeepClone();
             }
+            else if( item->Type() == PCB_TABLECELL_T )
+            {
+                if( parentIsPromoted( static_cast<PCB_TABLECELL*>( item ) ) )
+                    continue;
+
+                copy = static_cast<BOARD_ITEM*>( item->GetParent()->Clone() );
+                promotedTables.insert( static_cast<PCB_TABLE*>( copy ) );
+            }
             else
             {
                 copy = static_cast<BOARD_ITEM*>( boardItem->Clone() );
@@ -274,8 +408,8 @@ void CLIPBOARD_IO::SaveSelection( const PCB_SELECTION& aSelected, bool isFootpri
                     // will already have its own mandatory fields.
                     if( PCB_FIELD* field = dynamic_cast<PCB_FIELD*>( copy ) )
                     {
-                        if( field->IsMandatoryField() )
-                            field->SetId( footprint->GetFieldCount() );
+                        if( field->IsMandatory() )
+                            field->SetId( footprint->GetNextFieldId() );
                     }
 
                     copy = footprint;
@@ -286,15 +420,23 @@ void CLIPBOARD_IO::SaveSelection( const PCB_SELECTION& aSelected, bool isFootpri
                 // locate the reference point at (0, 0) in the copied items
                 copy->Move( -refPoint );
 
-                Format( copy, 1 );
+                if( copy->Type() == PCB_TABLE_T )
+                {
+                    PCB_TABLE* table = static_cast<PCB_TABLE*>( copy );
+
+                    if( promotedTables.count( table ) )
+                        deleteUnselectedCells( table );
+                }
+
+                Format( copy );
 
                 if( copy->Type() == PCB_GROUP_T || copy->Type() == PCB_GENERATOR_T )
                 {
                     copy->RunOnDescendants(
-                            [&]( BOARD_ITEM* titem )
+                            [&]( BOARD_ITEM* descendant )
                             {
-                                titem->SetLocked( false );
-                                Format( titem, 1 );
+                                descendant->SetLocked( false );
+                                Format( descendant );
                             } );
                 }
 
@@ -302,59 +444,22 @@ void CLIPBOARD_IO::SaveSelection( const PCB_SELECTION& aSelected, bool isFootpri
                 delete copy;
             }
         }
-        m_formatter.Print( 0, "\n)" );
+
+        m_formatter.Print( ")" );
     }
+
+    std::string prettyData = m_formatter.GetString();
+    KICAD_FORMAT::Prettify( prettyData, true );
 
     // These are placed at the end to minimize the open time of the clipboard
-    wxLogNull         doNotLog; // disable logging of failed clipboard actions
-    auto clipboard = wxTheClipboard;
-    wxClipboardLocker clipboardLock( clipboard );
-
-    if( !clipboardLock || !clipboard->IsOpened() )
-        return;
-
-    clipboard->SetData( new wxTextDataObject( wxString( m_formatter.GetString().c_str(),
-                                                        wxConvUTF8 ) ) );
-
-    clipboard->Flush();
-
-    #ifndef __WXOSX__
-    // This section exists to return the clipboard data, ensuring it has fully
-    // been processed by the system clipboard.  This appears to be needed for
-    // extremely large clipboard copies on asynchronous linux clipboard managers
-    // such as KDE's Klipper. However, a read back of the data on OSX before the
-    // clipboard is closed seems to cause an ASAN error (heap-buffer-overflow)
-    // since it uses the cached version of the clipboard data and not the system
-    // clipboard data.
-    if( clipboard->IsSupported( wxDF_TEXT ) || clipboard->IsSupported( wxDF_UNICODETEXT ) )
-    {
-        wxTextDataObject data;
-        clipboard->GetData( data );
-        ignore_unused( data.GetText() );
-    }
-    #endif
+    m_writer( wxString( prettyData.c_str(), wxConvUTF8 ) );
 }
 
 
 BOARD_ITEM* CLIPBOARD_IO::Parse()
 {
     BOARD_ITEM* item;
-    wxString result;
-
-    wxLogNull doNotLog; // disable logging of failed clipboard actions
-
-    auto clipboard = wxTheClipboard;
-    wxClipboardLocker clipboardLock( clipboard );
-
-    if( !clipboardLock )
-        return nullptr;
-
-    if( clipboard->IsSupported( wxDF_TEXT ) || clipboard->IsSupported( wxDF_UNICODETEXT ) )
-    {
-        wxTextDataObject data;
-        clipboard->GetData( data );
-        result = data.GetText();
-    }
+    wxString result = m_reader();
 
     try
     {
@@ -370,7 +475,7 @@ BOARD_ITEM* CLIPBOARD_IO::Parse()
 
 
 void CLIPBOARD_IO::SaveBoard( const wxString& aFileName, BOARD* aBoard,
-                              const STRING_UTF8_MAP* aProperties )
+                              const std::map<std::string, UTF8>* aProperties )
 {
     init( aProperties );
 
@@ -379,63 +484,25 @@ void CLIPBOARD_IO::SaveBoard( const wxString& aFileName, BOARD* aBoard,
     // Prepare net mapping that assures that net codes saved in a file are consecutive integers
     m_mapping->SetBoard( aBoard );
 
-    STRING_FORMATTER    formatter;
+    m_formatter.Print( "(kicad_pcb (version %d) (generator \"pcbnew\") (generator_version %s)",
+                  SEXPR_BOARD_FILE_VERSION,
+                  m_formatter.Quotew( GetMajorMinorVersion() ).c_str() );
 
-    m_out = &formatter;
+    Format( aBoard );
 
-    m_out->Print( 0, "(kicad_pcb (version %d) (generator \"pcbnew\") (generator_version \"%s\")\n", SEXPR_BOARD_FILE_VERSION, GetMajorMinorVersion().c_str().AsChar() );
+    m_formatter.Print( ")" );
 
-    Format( aBoard, 1 );
+    std::string prettyData = m_formatter.GetString();
+    KICAD_FORMAT::Prettify( prettyData, true );
 
-    m_out->Print( 0, ")\n" );
-
-    wxLogNull doNotLog; // disable logging of failed clipboard actions
-
-    auto clipboard = wxTheClipboard;
-    wxClipboardLocker clipboardLock( clipboard );
-
-    if( !clipboardLock )
-        return;
-
-    clipboard->SetData( new wxTextDataObject(
-                wxString( m_formatter.GetString().c_str(), wxConvUTF8 ) ) );
-    clipboard->Flush();
-
-    // This section exists to return the clipboard data, ensuring it has fully
-    // been processed by the system clipboard.  This appears to be needed for
-    // extremely large clipboard copies on asynchronous linux clipboard managers
-    // such as KDE's Klipper
-    if( clipboard->IsSupported( wxDF_TEXT ) || clipboard->IsSupported( wxDF_UNICODETEXT ) )
-    {
-        wxTextDataObject data;
-        clipboard->GetData( data );
-        ignore_unused( data.GetText() );
-    }
+    m_writer( wxString( prettyData.c_str(), wxConvUTF8 ) );
 }
 
 
 BOARD* CLIPBOARD_IO::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
-                                const STRING_UTF8_MAP* aProperties, PROJECT* aProject )
+                                const std::map<std::string, UTF8>* aProperties, PROJECT* aProject )
 {
-    std::string result;
-
-    wxLogNull doNotLog; // disable logging of failed clipboard actions
-
-    fontconfig::FONTCONFIG::SetReporter( nullptr );
-
-    auto clipboard = wxTheClipboard;
-    wxClipboardLocker clipboardLock( clipboard );
-
-    if( !clipboardLock )
-        return nullptr;
-
-    if( clipboard->IsSupported( wxDF_TEXT ) || clipboard->IsSupported( wxDF_UNICODETEXT ) )
-    {
-        wxTextDataObject data;
-        clipboard->GetData( data );
-
-        result = data.GetText().mb_str();
-    }
+    std::string result( m_reader().mb_str() );
 
     std::function<bool( wxString, int, wxString, wxString )> queryUser =
             [&]( wxString aTitle, int aIcon, wxString aMessage, wxString aAction ) -> bool

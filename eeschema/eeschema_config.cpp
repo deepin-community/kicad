@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2014-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -26,14 +26,18 @@
 #include <kiway.h>
 #include <symbol_edit_frame.h>
 #include <dialogs/panel_gal_display_options.h>
+#include <filename_resolver.h>
 #include <pgm_base.h>
 #include <project/project_file.h>
+#include <project/project_local_settings.h>
 #include <project/net_settings.h>
 #include <sch_edit_frame.h>
 #include <sch_painter.h>
 #include <schematic.h>
+#include <widgets/design_block_pane.h>
 #include <widgets/hierarchy_pane.h>
 #include <widgets/sch_search_pane.h>
+#include <widgets/panel_sch_selection_filter.h>
 #include <widgets/properties_panel.h>
 #include <settings/app_settings.h>
 #include <settings/settings_manager.h>
@@ -41,6 +45,8 @@
 #include <drawing_sheet/ds_data_model.h>
 #include <zoom_defines.h>
 #include <sim/spice_settings.h>
+#include <tool/tool_manager.h>
+#include <tools/ee_selection_tool.h>
 
 
 /// Helper for all the old plotting/printing code while it still exists
@@ -65,20 +71,53 @@ bool SCH_EDIT_FRAME::LoadProjectSettings()
 
     BASE_SCREEN::m_DrawingSheetFileName = settings.m_SchDrawingSheetFileName;
 
-    // Load the drawing sheet from the filename stored in BASE_SCREEN::m_DrawingSheetFileName.
-    // If empty, or not existing, the default drawing sheet is loaded.
-    wxString filename = DS_DATA_MODEL::ResolvePath( BASE_SCREEN::m_DrawingSheetFileName,
-                                                    Prj().GetProjectPath() );
+    PROJECT_LOCAL_SETTINGS& localSettings = Prj().GetLocalSettings();
 
-    if( !DS_DATA_MODEL::GetTheInstance().LoadDrawingSheet( filename ) )
-        ShowInfoBarError( _( "Error loading drawing sheet." ), true );
+    EE_SELECTION_TOOL* selTool = GetToolManager()->GetTool<EE_SELECTION_TOOL>();
+    selTool->GetFilter() = localSettings.m_SchSelectionFilter;
+    m_selectionFilterPanel->SetCheckboxesFromFilter( localSettings.m_SchSelectionFilter );
 
     return true;
 }
 
 
+void SCH_EDIT_FRAME::LoadDrawingSheet()
+{
+    // Load the drawing sheet from the filename stored in BASE_SCREEN::m_DrawingSheetFileName.
+    // If empty, or not existing, the default drawing sheet is loaded.
+
+    SCHEMATIC_SETTINGS& settings = Schematic().Settings();
+    FILENAME_RESOLVER resolver;
+    resolver.SetProject( &Prj() );
+    resolver.SetProgramBase( &Pgm() );
+
+    wxString filename = resolver.ResolvePath( settings.m_SchDrawingSheetFileName,
+                                              Prj().GetProjectPath(),
+                                              Schematic().GetEmbeddedFiles() );
+    wxString msg;
+
+    if( !DS_DATA_MODEL::GetTheInstance().LoadDrawingSheet( filename, &msg ) )
+        ShowInfoBarError( msg, true );
+}
+
+
 void SCH_EDIT_FRAME::ShowSchematicSetupDialog( const wxString& aInitialPage )
 {
+    static std::mutex dialogMutex; // Local static mutex
+
+    std::unique_lock<std::mutex> dialogLock( dialogMutex, std::try_to_lock );
+
+    // One dialog at a time.
+    if( !dialogLock.owns_lock() )
+    {
+        if( m_schematicSetupDialog && m_schematicSetupDialog->IsShown() )
+        {
+            m_schematicSetupDialog->Raise(); // Brings the existing dialog to the front
+        }
+
+        return;
+    }
+
     SCH_SCREENS screens( Schematic().Root() );
     std::vector<std::shared_ptr<BUS_ALIAS>> oldAliases;
 
@@ -93,12 +132,16 @@ void SCH_EDIT_FRAME::ShowSchematicSetupDialog( const wxString& aInitialPage )
     if( !aInitialPage.IsEmpty() )
         dlg.SetInitialPage( aInitialPage, wxEmptyString );
 
+    // Assign dlg to the m_schematicSetupDialog pointer to track its status.
+    m_schematicSetupDialog = &dlg;
+
+    // TODO: is QuasiModal required here?
     if( dlg.ShowQuasiModal() == wxID_OK )
     {
         // Mark document as modified so that project settings can be saved as part of doc save
         OnModify();
 
-        Kiway().CommonSettingsChanged( false, true );
+        Kiway().CommonSettingsChanged( TEXTVARS_CHANGED );
 
         Prj().IncrementTextVarsTicker();
         Prj().IncrementNetclassesTicker();
@@ -117,7 +160,8 @@ void SCH_EDIT_FRAME::ShowSchematicSetupDialog( const wxString& aInitialPage )
 
         std::vector<std::shared_ptr<BUS_ALIAS>> newAliases;
 
-        for( SCH_SCREEN* screen = screens.GetFirst(); screen != nullptr; screen = screens.GetNext() )
+        for( SCH_SCREEN* screen = screens.GetFirst(); screen != nullptr;
+             screen = screens.GetNext() )
         {
             for( const std::shared_ptr<BUS_ALIAS>& alias : screen->GetBusAliases() )
                 newAliases.push_back( alias );
@@ -129,6 +173,9 @@ void SCH_EDIT_FRAME::ShowSchematicSetupDialog( const wxString& aInitialPage )
         RefreshOperatingPointDisplay();
         GetCanvas()->Refresh();
     }
+
+    // Reset m_schematicSetupDialog after the dialog is closed
+    m_schematicSetupDialog = nullptr;
 }
 
 
@@ -138,7 +185,7 @@ int SCH_EDIT_FRAME::GetSchematicJunctionSize()
 
     const std::shared_ptr<NET_SETTINGS>& netSettings = Prj().GetProjectFile().NetSettings();
     int sizeChoice = Schematic().Settings().m_JunctionSizeChoice;
-    int dotSize = netSettings->m_DefaultNetClass->GetWireWidth() * sizeMultipliers[ sizeChoice ];
+    int dotSize = netSettings->GetDefaultNetclass()->GetWireWidth() * sizeMultipliers[sizeChoice];
 
     return std::max( dotSize, 1 );
 }
@@ -166,15 +213,20 @@ void SCH_EDIT_FRAME::saveProjectSettings()
 
     if( !BASE_SCREEN::m_DrawingSheetFileName.IsEmpty() )
     {
-        wxFileName layoutfn( DS_DATA_MODEL::ResolvePath( BASE_SCREEN::m_DrawingSheetFileName,
-                                                         Prj().GetProjectPath() ) );
+        FILENAME_RESOLVER resolve;
+        resolve.SetProject( &Prj() );
+        resolve.SetProgramBase( &Pgm() );
+
+        wxFileName layoutfn( resolve.ResolvePath( BASE_SCREEN::m_DrawingSheetFileName,
+                                                  Prj().GetProjectPath(),
+                                                  Schematic().GetEmbeddedFiles() ) );
 
         bool success = true;
 
         if( !layoutfn.IsAbsolute() )
             success = layoutfn.MakeAbsolute( Prj().GetProjectPath() );
 
-        if( success && layoutfn.IsOk() && !layoutfn.FileExists() )
+        if( success && layoutfn.IsOk() && !layoutfn.FileExists() && layoutfn.HasName() )
         {
             if( layoutfn.DirExists() && layoutfn.IsDirWritable() )
                 DS_DATA_MODEL::GetTheInstance().Save( layoutfn.GetFullPath() );
@@ -189,6 +241,11 @@ void SCH_EDIT_FRAME::SaveProjectLocalSettings()
 {
     if( m_schematic )
         m_schematic->RecordERCExclusions();
+
+    PROJECT_LOCAL_SETTINGS& localSettings = Prj().GetLocalSettings();
+    EE_SELECTION_TOOL* selTool = GetToolManager()->GetTool<EE_SELECTION_TOOL>();
+
+    localSettings.m_SchSelectionFilter = selTool->GetFilter();
 }
 
 
@@ -215,6 +272,7 @@ void SCH_EDIT_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
 
     GetRenderSettings()->m_ShowPinsElectricalType = false;
     GetRenderSettings()->m_ShowPinNumbers = false;
+    GetRenderSettings()->m_ShowPinAltIcons = cfg->m_Appearance.show_pin_alt_icons;
     GetRenderSettings()->SetDefaultFont( cfg->m_Appearance.default_font );
 }
 
@@ -264,12 +322,27 @@ void SCH_EDIT_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
         cfg->m_AuiPanels.float_net_nav_panel = netNavigatorPane.IsFloating();
 
         if( netNavigatorPane.IsDocked() )
+        {
             cfg->m_AuiPanels.net_nav_panel_docked_size = m_netNavigator->GetSize();
+        }
         else
         {
             cfg->m_AuiPanels.net_nav_panel_float_pos = netNavigatorPane.floating_pos;
             cfg->m_AuiPanels.net_nav_panel_float_size = netNavigatorPane.floating_size;
         }
+
+        wxAuiPaneInfo& designBlocksPane = m_auimgr.GetPane( DesignBlocksPaneName() );
+        cfg->m_AuiPanels.design_blocks_show = designBlocksPane.IsShown();
+
+        if( designBlocksPane.IsDocked() )
+            cfg->m_AuiPanels.design_blocks_panel_docked_width = m_designBlocksPane->GetSize().x;
+        else
+        {
+            cfg->m_AuiPanels.design_blocks_panel_float_height = designBlocksPane.floating_size.y;
+            cfg->m_AuiPanels.design_blocks_panel_float_width = designBlocksPane.floating_size.x;
+        }
+
+        m_designBlocksPane->SaveSettings();
     }
 }
 

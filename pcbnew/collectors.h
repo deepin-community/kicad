@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2007-2008 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2004-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,6 +32,7 @@
 
 #include <collector.h>
 #include <layer_ids.h>              // LAYER_COUNT, layer defs
+#include <lset.h>
 #include <view/view.h>
 #include <board_item.h>
 
@@ -75,11 +76,6 @@ public:
      * @return true if should include, else false.
      */
     virtual bool IncludeSecondary() const = 0;
-
-    /**
-     * @return true if footprint texts marked as "no show" should be ignored.
-     */
-    virtual bool IgnoreHiddenFPText() const = 0;
 
     /**
      * @return true if should ignore footprint text on back layers
@@ -346,7 +342,6 @@ public:
         m_includeSecondary          = true;
 #endif
 
-        m_ignoreHiddenFPText        = true; // g_ModuleTextNOVColor;
         m_ignoreFPTextOnBack        = true;
         m_ignoreFPTextOnFront       = false;
         m_ignoreFootprintsOnBack    = true; // !Show_footprints_Cmp;
@@ -403,49 +398,43 @@ public:
     void SetIncludeSecondary( bool include ) { m_includeSecondary = include; }
 
     /**
-     * @return true if MTexts marked as "no show" should be ignored.
-     */
-    bool IgnoreHiddenFPText() const override { return m_ignoreHiddenFPText; }
-    void SetIgnoreMTextsMarkedNoShow( bool ignore ) { m_ignoreHiddenFPText = ignore; }
-
-    /**
-     * @return true if should ignore MTexts on back layers
+     * @return true if should ignore Footprint Text on back layers
      */
     bool IgnoreFPTextOnBack() const override { return m_ignoreFPTextOnBack; }
-    void SetIgnoreMTextsOnBack( bool ignore ) { m_ignoreFPTextOnBack = ignore; }
+    void SetIgnoreFPTextOnBack( bool ignore ) { m_ignoreFPTextOnBack = ignore; }
 
     /**
-     * @return true if should ignore MTexts on front layers
+     * @return true if should ignore Footprint Text on front layers
      */
     bool IgnoreFPTextOnFront() const override { return m_ignoreFPTextOnFront; }
-    void SetIgnoreMTextsOnFront( bool ignore ) { m_ignoreFPTextOnFront = ignore; }
+    void SetIgnoreFPTextOnFront( bool ignore ) { m_ignoreFPTextOnFront = ignore; }
 
     /**
-     * @return true if should ignore MODULEs on the back side
+     * @return true if should ignore Footprints on the back side.
      */
     bool IgnoreFootprintsOnBack() const override { return m_ignoreFootprintsOnBack; }
-    void SetIgnoreModulesOnBack( bool ignore ) { m_ignoreFootprintsOnBack = ignore; }
+    void SetIgnoreFootprintsOnBack( bool ignore ) { m_ignoreFootprintsOnBack = ignore; }
 
     /**
-     * @return true if should ignore MODULEs on component layer.
+     * @return true if should ignore Footprints on the front side.
      */
     bool IgnoreFootprintsOnFront() const override { return m_ignoreFootprintsOnFront; }
-    void SetIgnoreModulesOnFront( bool ignore ) { m_ignoreFootprintsOnFront = ignore; }
+    void SetIgnoreFootprintsOnFront( bool ignore ) { m_ignoreFootprintsOnFront = ignore; }
 
     /**
-     * @return true if should ignore Pads on Back Side.
+     * @return true if should ignore pads on back side.
      */
     bool IgnorePadsOnBack() const override { return m_ignorePadsOnBack; }
     void SetIgnorePadsOnBack(bool ignore) { m_ignorePadsOnBack = ignore; }
 
     /**
-     * @return true if should ignore PADSs on Front Side.
+     * @return true if should ignore pads on front side.
      */
     bool IgnorePadsOnFront() const override { return m_ignorePadsOnFront; }
     void SetIgnorePadsOnFront(bool ignore) { m_ignorePadsOnFront = ignore; }
 
     /**
-     * @return true if should ignore through-hole PADSs.
+     * @return true if should ignore through-hole pads.
      */
     bool IgnoreThroughHolePads() const override { return m_ignoreThroughHolePads; }
     void SetIgnoreThroughHolePads(bool ignore) { m_ignoreThroughHolePads = ignore; }
@@ -454,13 +443,13 @@ public:
      * @return true if should ignore footprints values.
      */
     bool IgnoreFPValues() const override { return m_ignoreFPValues; }
-    void SetIgnoreModulesVals(bool ignore) { m_ignoreFPValues = ignore; }
+    void SetIgnoreFPValues( bool ignore) { m_ignoreFPValues = ignore; }
 
     /**
      * @return true if should ignore footprints references.
      */
     bool IgnoreFPReferences() const override { return m_ignoreFPReferences; }
-    void SetIgnoreModulesRefs(bool ignore) { m_ignoreFPReferences = ignore; }
+    void SetIgnoreFPReferences( bool ignore) { m_ignoreFPReferences = ignore; }
 
     bool IgnoreThroughVias() const override { return m_ignoreThroughVias; }
     void SetIgnoreThroughVias( bool ignore ) { m_ignoreThroughVias = ignore; }
@@ -493,7 +482,6 @@ private:
     bool    m_ignoreLockedItems;
     bool    m_includeSecondary;
 
-    bool    m_ignoreHiddenFPText;
     bool    m_ignoreFPTextOnBack;
     bool    m_ignoreFPTextOnFront;
     bool    m_ignoreFootprintsOnBack;

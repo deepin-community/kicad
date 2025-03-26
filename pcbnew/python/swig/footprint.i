@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 NBEE Embedded Systems, Miguel Angel Ajo <miguelangel@nbee.es>
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -86,7 +86,7 @@
       if self.HasFieldByName(key):
         self.GetFieldByName(key).SetText(value)
       else:
-        field = PCB_FIELD(self, self.GetFieldCount(), key)
+        field = PCB_FIELD(self, self.GetNextFieldId(), key)
         field.SetText(value)
         self.AddField(field)
 
@@ -97,8 +97,13 @@
       """ Sets footprint fields map. """
       for k, v in fields.items():
         self.SetField(k, v)
-
     %}
+
+    // Compatibility shim
+    const BOX2I GetBoundingBox( bool aIncludeText, bool includeHiddenText ) const
+    {
+        return ( $self )->GetBoundingBox( aIncludeText );
+    }
 }
 
 

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -59,6 +59,7 @@
 #include <wx/statline.h>
 #include <wx/stattext.h>
 #include <wx/button.h>
+#include <wx/msgdlg.h>
 
 
 CVPCB_MAINFRAME::CVPCB_MAINFRAME( KIWAY* aKiway, wxWindow* aParent ) :
@@ -284,10 +285,11 @@ void CVPCB_MAINFRAME::setupUIConditions()
 #define ENABLE( x ) ACTION_CONDITIONS().Enable( x )
 #define CHECK( x )  ACTION_CONDITIONS().Check( x )
 
-    mgr->SetConditions( CVPCB_ACTIONS::saveAssociationsToSchematic, ENABLE( cond.ContentModified() ) );
-    mgr->SetConditions( CVPCB_ACTIONS::saveAssociationsToFile,      ENABLE( cond.ContentModified() ) );
-    mgr->SetConditions( ACTIONS::undo,                              ENABLE( cond.UndoAvailable() ) );
-    mgr->SetConditions( ACTIONS::redo,                              ENABLE( cond.RedoAvailable() ) );
+    mgr->SetConditions( CVPCB_ACTIONS::saveAssociationsToSchematic,
+                        ENABLE( cond.ContentModified() ) );
+    mgr->SetConditions( CVPCB_ACTIONS::saveAssociationsToFile, ENABLE( cond.ContentModified() ) );
+    mgr->SetConditions( ACTIONS::undo,                         ENABLE( cond.UndoAvailable() ) );
+    mgr->SetConditions( ACTIONS::redo,                         ENABLE( cond.RedoAvailable() ) );
 
     auto compFilter =
             [this] ( const SELECTION& )
@@ -347,6 +349,7 @@ void CVPCB_MAINFRAME::setupEventHandlers()
                 GetToolManager()->RunAction( CVPCB_ACTIONS::saveAssociationsToSchematic );
                 Close( true );
             }, wxID_OK );
+
     Bind( wxEVT_BUTTON,
             [this]( wxCommandEvent& )
             {
@@ -502,7 +505,7 @@ void CVPCB_MAINFRAME::updateFootprintViewerOnIdle( wxIdleEvent& aEvent )
     Unbind( wxEVT_IDLE, &CVPCB_MAINFRAME::updateFootprintViewerOnIdle, this );
     m_viewerPendingUpdate = false;
 
-    // On some plateforms (OSX) the focus is lost when the viewers (fp and 3D viewers)
+    // On some platforms (OSX) the focus is lost when the viewers (fp and 3D viewers)
     // are opened and refreshed when a new footprint is selected.
     // If the listbox has the focus before selecting a new footprint, it will be forced
     // after selection.
@@ -842,7 +845,7 @@ void CVPCB_MAINFRAME::DisplayStatus()
     if( fp )    // can be NULL if no netlist loaded
     {
         msg = wxString::Format( _( "Description: %s;  Keywords: %s" ),
-                                fp->GetDescription(),
+                                fp->GetDesc(),
                                 fp->GetKeywords() );
     }
 
@@ -893,7 +896,7 @@ bool CVPCB_MAINFRAME::LoadFootprintFiles()
         return false;
     }
 
-    WX_PROGRESS_REPORTER progressReporter( this, _( "Loading Footprint Libraries" ), 2 );
+    WX_PROGRESS_REPORTER progressReporter( this, _( "Loading Footprint Libraries" ), 1 );
 
     m_FootprintsList->ReadFootprintFiles( fptbl, nullptr, &progressReporter );
 
@@ -1176,10 +1179,10 @@ void CVPCB_MAINFRAME::SetStatusText( const wxString& aText, int aNumber )
 {
     switch( aNumber )
     {
-    case 0:  m_statusLine1->SetLabel( aText );          break;
-    case 1:  m_statusLine2->SetLabel( aText );          break;
-    case 2:  m_statusLine3->SetLabel( aText );          break;
-    default: wxFAIL_MSG( "Invalid status row number" ); break;
+    case 0:  m_statusLine1->SetLabel( aText );                 break;
+    case 1:  m_statusLine2->SetLabel( aText );                 break;
+    case 2:  m_statusLine3->SetLabel( aText );                 break;
+    default: wxFAIL_MSG( wxT( "Invalid status row number" ) ); break;
     }
 }
 
@@ -1204,10 +1207,12 @@ void CVPCB_MAINFRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
         m_cannotClose = true;
         readNetListAndFpFiles( payload );
         m_cannotClose = false;
+
         /* @todo
         Go into SCH_EDIT_FRAME::OnOpenCvpcb( wxCommandEvent& event ) and trim GNL_ALL down.
         */
         break;
+
     case MAIL_RELOAD_LIB:
         m_cannotClose = true;
         LoadFootprintFiles();
@@ -1215,6 +1220,7 @@ void CVPCB_MAINFRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
         BuildLibrariesList();
         m_cannotClose = false;
         break;
+
     default:
         ;       // ignore most
     }

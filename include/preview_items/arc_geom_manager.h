@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2017-2021 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,7 +29,6 @@
 
 namespace KIGFX {
 namespace PREVIEW {
-
 
 /**
  * Manage the construction of a circular arc though sequential setting of critical points:
@@ -133,6 +132,7 @@ private:
     bool m_angleSnap = false;
     bool m_directionLocked = false;
 };
+
 }       // PREVIEW
 }       // KIGFX
 

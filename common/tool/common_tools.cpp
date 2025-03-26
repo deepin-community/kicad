@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014-2016 CERN
- * Copyright (C) 2020-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -40,6 +40,8 @@
 #include <tool/actions.h>
 #include <tool/common_tools.h>
 #include <tool/tool_manager.h>
+#include <tool/selection_tool.h>
+#include <tool/grid_helper.h>
 #include <view/view.h>
 #include <view/view_controls.h>
 #include "macros.h"
@@ -53,14 +55,17 @@ COMMON_TOOLS::COMMON_TOOLS() :
 {
 }
 
+
 void COMMON_TOOLS::Reset( RESET_REASON aReason )
 {
     m_frame = getEditFrame<EDA_DRAW_FRAME>();
+    m_grids.clear();
+
+    if( aReason == RESET_REASON::SHUTDOWN )
+        return;
 
     GRID_SETTINGS& settings = m_toolMgr->GetSettings()->m_Window.grid;
     EDA_IU_SCALE   scale = m_frame->GetIuScale();
-
-    m_grids.clear();
 
     for( GRID& gridDef : settings.grids )
     {
@@ -98,14 +103,19 @@ int COMMON_TOOLS::SelectionTool( const TOOL_EVENT& aEvent )
 }
 
 
-// Cursor control
 int COMMON_TOOLS::CursorControl( const TOOL_EVENT& aEvent )
 {
-    ACTIONS::CURSOR_EVENT_TYPE type = aEvent.Parameter<ACTIONS::CURSOR_EVENT_TYPE>();
+    ACTIONS::CURSOR_EVENT_TYPE   type = aEvent.Parameter<ACTIONS::CURSOR_EVENT_TYPE>();
+    std::unique_ptr<GRID_HELPER> grid = m_frame->MakeGridHelper();
+    VECTOR2D                     gridSize;
+
+    if( grid )
+        gridSize = grid->GetGridSize( grid->GetSelectionGrid( m_frame->GetCurrentSelection() ) );
+    else
+        gridSize = getView()->GetGAL()->GetGridSize();
 
     bool     mirroredX = getView()->IsMirroredX();
     VECTOR2D cursor = getViewControls()->GetRawCursorPosition( false );
-    VECTOR2D gridSize = getView()->GetGAL()->GetGridSize();
 
     switch( type )
     {
@@ -294,6 +304,12 @@ int COMMON_TOOLS::ZoomFitObjects( const TOOL_EVENT& aEvent )
 }
 
 
+int COMMON_TOOLS::ZoomFitSelection( const TOOL_EVENT& aEvent )
+{
+    return doZoomFit( ZOOM_FIT_SELECTION );
+}
+
+
 int COMMON_TOOLS::doZoomFit( ZOOM_FIT_TYPE_T aFitType )
 {
     KIGFX::VIEW*        view   = getView();
@@ -323,6 +339,16 @@ int COMMON_TOOLS::doZoomFit( ZOOM_FIT_TYPE_T aFitType )
             bBox = m_frame->GetDocumentExtents( false );
         else
             aFitType = ZOOM_FIT_ALL; // Just do a "Zoom to Fit" for unsupported editors
+    }
+
+    if( aFitType == ZOOM_FIT_SELECTION )
+    {
+        SELECTION& selection = m_frame->GetCurrentSelection();
+
+        if( selection.Empty() )
+            return 0;
+
+        bBox = selection.GetBoundingBox();
     }
 
     // If the screen is empty then use the default view bbox
@@ -374,13 +400,41 @@ int COMMON_TOOLS::doZoomFit( ZOOM_FIT_TYPE_T aFitType )
 }
 
 
+int COMMON_TOOLS::CenterSelection( const TOOL_EVENT& aEvent )
+{
+    return doCenter( CENTER_TYPE::CENTER_SELECTION );
+}
+
+
 int COMMON_TOOLS::CenterContents( const TOOL_EVENT& aEvent )
 {
-    EDA_DRAW_PANEL_GAL* canvas = m_frame->GetCanvas();
-    BOX2I bBox = getModel<EDA_ITEM>()->ViewBBox();
+    return doCenter( CENTER_TYPE::CENTER_CONTENTS );
+}
 
-    if( bBox.GetWidth() == 0 || bBox.GetHeight() == 0 )
-        bBox = canvas->GetDefaultViewBBox();
+
+int COMMON_TOOLS::doCenter( CENTER_TYPE aCenterType )
+{
+    EDA_DRAW_PANEL_GAL* canvas = m_frame->GetCanvas();
+
+    BOX2I bBox;
+
+    if( aCenterType == CENTER_TYPE::CENTER_SELECTION )
+    {
+        SELECTION& selection = m_frame->GetCurrentSelection();
+
+        // No selection: do nothing
+        if( selection.Empty() )
+            return 0;
+
+        bBox = selection.GetBoundingBox().Centre();
+    }
+    else
+    {
+        bBox = getModel<EDA_ITEM>()->ViewBBox();
+
+        if( bBox.GetWidth() == 0 || bBox.GetHeight() == 0 )
+            bBox = canvas->GetDefaultViewBBox();
+    }
 
     getView()->SetCenter( bBox.Centre() );
 
@@ -436,7 +490,6 @@ int COMMON_TOOLS::doZoomToPreset( int idx, bool aCenterOnCursor )
 }
 
 
-// Grid control
 int COMMON_TOOLS::GridNext( const TOOL_EVENT& aEvent )
 {
     int& currentGrid = m_toolMgr->GetSettings()->m_Window.grid.last_size_idx;
@@ -473,7 +526,7 @@ int COMMON_TOOLS::GridPreset( int idx, bool aFromHotkey )
 {
     int& currentGrid = m_toolMgr->GetSettings()->m_Window.grid.last_size_idx;
 
-    currentGrid = alg::clamp( 0, idx, (int) m_grids.size() - 1 );
+    currentGrid = std::clamp( idx, 0, (int) m_grids.size() - 1 );
 
     return OnGridChanged( aFromHotkey );
 }
@@ -715,8 +768,10 @@ void COMMON_TOOLS::setTransitions()
     Go( &COMMON_TOOLS::ZoomCenter,          ACTIONS::zoomCenter.MakeEvent() );
     Go( &COMMON_TOOLS::ZoomFitScreen,       ACTIONS::zoomFitScreen.MakeEvent() );
     Go( &COMMON_TOOLS::ZoomFitObjects,      ACTIONS::zoomFitObjects.MakeEvent() );
+    Go( &COMMON_TOOLS::ZoomFitSelection,    ACTIONS::zoomFitSelection.MakeEvent() );
     Go( &COMMON_TOOLS::ZoomPreset,          ACTIONS::zoomPreset.MakeEvent() );
     Go( &COMMON_TOOLS::CenterContents,      ACTIONS::centerContents.MakeEvent() );
+    Go( &COMMON_TOOLS::CenterSelection,     ACTIONS::centerSelection.MakeEvent() );
 
     // Grid control
     Go( &COMMON_TOOLS::GridNext,            ACTIONS::gridNext.MakeEvent() );

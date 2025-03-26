@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2021 Ola Rinta-Koski <gitlab@rinta-koski.net>
- * Copyright (C) 2021-2024 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +29,10 @@
 #include <geometry/shape_poly_set.h>
 #include <font/fontconfig.h>
 #include <font/outline_font.h>
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#include FT_SFNT_NAMES_H
+#include FT_TRUETYPE_TABLES_H
 #include FT_GLYPH_H
 #include FT_BBOX_H
 #include <trigo.h>
@@ -54,7 +58,37 @@ OUTLINE_FONT::OUTLINE_FONT() :
 }
 
 
+OUTLINE_FONT::EMBEDDING_PERMISSION OUTLINE_FONT::GetEmbeddingPermission() const
+{
+    TT_OS2* os2 = reinterpret_cast<TT_OS2*>( FT_Get_Sfnt_Table( m_face, FT_SFNT_OS2 ) );
+
+    // If this table isn't present, we can't assume anything
+    if( !os2 )
+        return EMBEDDING_PERMISSION::RESTRICTED;
+
+    // This allows the font to be exported from KiCad
+    if( os2->fsType == FT_FSTYPE_INSTALLABLE_EMBEDDING )
+        return EMBEDDING_PERMISSION::INSTALLABLE;
+
+    // We don't support bitmap fonts, so this disables embedding
+    if( os2->fsType & FT_FSTYPE_BITMAP_EMBEDDING_ONLY )
+        return EMBEDDING_PERMISSION::RESTRICTED;
+
+    // This allows us to use the font in KiCad but not export
+    if( os2->fsType & FT_FSTYPE_EDITABLE_EMBEDDING )
+        return EMBEDDING_PERMISSION::EDITABLE;
+
+    // This is not actually supported by KiCad ATM(2024)
+    if( os2->fsType & FT_FSTYPE_PREVIEW_AND_PRINT_EMBEDDING )
+        return EMBEDDING_PERMISSION::PRINT_PREVIEW_ONLY;
+
+    // Anything else that is not explicitly enabled we treat as restricted.
+    return EMBEDDING_PERMISSION::RESTRICTED;
+}
+
+
 OUTLINE_FONT* OUTLINE_FONT::LoadFont( const wxString& aFontName, bool aBold, bool aItalic,
+                                      const std::vector<wxString>* aEmbeddedFiles,
                                       bool aForDrawingSheet )
 {
     std::unique_ptr<OUTLINE_FONT> font = std::make_unique<OUTLINE_FONT>();
@@ -63,7 +97,9 @@ OUTLINE_FONT* OUTLINE_FONT::LoadFont( const wxString& aFontName, bool aBold, boo
     int      faceIndex;
     using fc = fontconfig::FONTCONFIG;
 
-    fc::FF_RESULT retval = Fontconfig()->FindFont( aFontName, fontFile, faceIndex, aBold, aItalic );
+
+    fc::FF_RESULT retval = Fontconfig()->FindFont( aFontName, fontFile, faceIndex, aBold, aItalic,
+                                                   aEmbeddedFiles );
 
     if( retval == fc::FF_RESULT::FF_ERROR )
         return nullptr;
@@ -98,7 +134,7 @@ FT_Error OUTLINE_FONT::loadFace( const wxString& aFontFileName, int aFaceIndex )
         // m_face = handle to face object
         // 0 = char width in 1/64th of points ( 0 = same as char height )
         // faceSize() = char height in 1/64th of points
-        // GLYPH_RESOLUTION = horizontal device resolution (288dpi, 4x default)
+        // GLYPH_RESOLUTION = horizontal device resolution (1152dpi, 16x default)
         // 0 = vertical device resolution ( 0 = same as horizontal )
         FT_Set_Char_Size( m_face, 0, faceSize(), GLYPH_RESOLUTION, 0 );
     }
@@ -107,10 +143,6 @@ FT_Error OUTLINE_FONT::loadFace( const wxString& aFontFileName, int aFaceIndex )
 }
 
 
-/**
- * Compute the distance (interline) between 2 lines of text (for multiline texts).  This is
- * the distance between baselines, not the space between line bounding boxes.
- */
 double OUTLINE_FONT::GetInterline( double aGlyphHeight, const METRICS& aFontMetrics ) const
 {
     double glyphToFontHeight = 1.0;
@@ -262,25 +294,28 @@ VECTOR2I OUTLINE_FONT::getTextAsGlyphs( BOX2I* aBBox, std::vector<std::unique_pt
 struct GLYPH_CACHE_KEY {
     FT_Face        face;
     hb_codepoint_t codepoint;
-    double         scaler;
+    VECTOR2D       scale;
     bool           forDrawingSheet;
     bool           fakeItalic;
     bool           fakeBold;
     bool           mirror;
+    bool           supersub;
     EDA_ANGLE      angle;
 
     bool operator==(const GLYPH_CACHE_KEY& rhs ) const
     {
         return face == rhs.face
                 && codepoint == rhs.codepoint
-                && scaler == rhs.scaler
+                && scale == rhs.scale
                 && forDrawingSheet == rhs.forDrawingSheet
                 && fakeItalic == rhs.fakeItalic
                 && fakeBold == rhs.fakeBold
                 && mirror == rhs.mirror
+                && supersub == rhs.supersub
                 && angle == rhs.angle;
     }
 };
+
 
 namespace std
 {
@@ -289,14 +324,8 @@ namespace std
     {
         std::size_t operator()( const GLYPH_CACHE_KEY& k ) const
         {
-            return hash<const void*>()( k.face )
-                        ^ hash<unsigned>()( k.codepoint )
-                        ^ hash<double>()( k.scaler )
-                        ^ hash<double>()( k.forDrawingSheet )
-                        ^ hash<int>()( k.fakeItalic )
-                        ^ hash<int>()( k.fakeBold )
-                        ^ hash<int>()( k.mirror )
-                        ^ hash<int>()( k.angle.AsTenthsOfADegree() );
+            return hash_val( k.face, k.codepoint, k.scale.x, k.scale.y, k.forDrawingSheet,
+                             k.fakeItalic, k.fakeBold, k.mirror, k.supersub, k.angle.AsDegrees() );
         }
     };
 }
@@ -312,11 +341,10 @@ VECTOR2I OUTLINE_FONT::getTextAsGlyphsUnlocked( BOX2I* aBBox,
     VECTOR2D glyphSize = aSize;
     FT_Face  face = m_face;
     double   scaler = faceSize();
+    bool     supersub = IsSuperscript( aTextStyle ) || IsSubscript( aTextStyle );
 
-    if( IsSubscript( aTextStyle ) || IsSuperscript( aTextStyle ) )
-    {
+    if( supersub )
         scaler = subscriptSize();
-    }
 
     // set glyph resolution so that FT_Load_Glyph() results are good enough for decomposing
     FT_Set_Char_Size( face, 0, scaler, GLYPH_RESOLUTION, 0 );
@@ -354,8 +382,8 @@ VECTOR2I OUTLINE_FONT::getTextAsGlyphsUnlocked( BOX2I* aBBox,
 
         if( aGlyphs )
         {
-            GLYPH_CACHE_KEY key = { face, glyphInfo[i].codepoint, scaler, m_forDrawingSheet,
-                                    m_fakeItal, m_fakeBold, aMirror, aAngle };
+            GLYPH_CACHE_KEY key = { face, glyphInfo[i].codepoint, scaleFactor, m_forDrawingSheet,
+                                    m_fakeItal, m_fakeBold, aMirror, supersub, aAngle };
             GLYPH_DATA&     glyphData = s_glyphCache[ key ];
 
             if( glyphData.m_Contours.empty() )
@@ -467,7 +495,8 @@ VECTOR2I OUTLINE_FONT::getTextAsGlyphsUnlocked( BOX2I* aBBox,
                     }
 
                     // Some lovely TTF fonts decided that winding didn't matter for outlines that
-                    // don't have holes, so holes that don't fit in any outline are added as outlines
+                    // don't have holes, so holes that don't fit in any outline are added as
+                    // outlines.
                     if( !added_hole )
                         glyph->AddOutline( std::move( hole ) );
                 }
@@ -510,7 +539,7 @@ VECTOR2I OUTLINE_FONT::getTextAsGlyphsUnlocked( BOX2I* aBBox,
 #undef OUTLINEFONT_RENDER_AS_PIXELS
 #ifdef OUTLINEFONT_RENDER_AS_PIXELS
 /*
- * WIP: eeschema (and PDF output?) should use pixel rendering instead of linear segmentation
+ * WIP: Eeschema (and PDF output?) should use pixel rendering instead of linear segmentation
  */
 void OUTLINE_FONT::RenderToOpenGLCanvas( KIGFX::OPENGL_GAL& aGal, const wxString& aString,
                                          const VECTOR2D& aGlyphSize, const VECTOR2I& aPosition,
@@ -518,7 +547,9 @@ void OUTLINE_FONT::RenderToOpenGLCanvas( KIGFX::OPENGL_GAL& aGal, const wxString
 {
     hb_buffer_t* buf = hb_buffer_create();
     hb_buffer_add_utf8( buf, UTF8( aString ).c_str(), -1, 0, -1 );
-    hb_buffer_guess_segment_properties( buf ); // guess direction, script, and language based on contents
+
+    // guess direction, script, and language based on contents
+    hb_buffer_guess_segment_properties( buf );
 
     unsigned int         glyphCount;
     hb_glyph_info_t*     glyphInfo = hb_buffer_get_glyph_infos( buf, &glyphCount );
@@ -560,4 +591,5 @@ void OUTLINE_FONT::RenderToOpenGLCanvas( KIGFX::OPENGL_GAL& aGal, const wxString
 
     hb_buffer_destroy( buf );
 }
+
 #endif //OUTLINEFONT_RENDER_AS_PIXELS

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2008-2018 Jean-Pierre Charras, jean-pierre.charras@ujf-grenoble.fr
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,6 +31,7 @@
 #define ZONE_SETTINGS_H_
 
 #include <layer_ids.h>
+#include <lset.h>
 #include <zones.h>
 #include <geometry/eda_angle.h>
 #include <teardrop/teardrop_types.h>
@@ -59,6 +60,12 @@ enum class ISLAND_REMOVAL_MODE
     ALWAYS = 0,
     NEVER,
     AREA
+};
+
+enum class RULE_AREA_PLACEMENT_SOURCE_TYPE
+{
+    SHEETNAME = 0,
+    COMPONENT_CLASS
 };
 
 /**
@@ -124,6 +131,13 @@ private:
      */
     bool m_isRuleArea;
 
+    /**
+     * Placement rule area data
+     */
+    bool                            m_ruleAreaPlacementEnabled;
+    RULE_AREA_PLACEMENT_SOURCE_TYPE m_ruleAreaPlacementSourceType;
+    wxString                        m_ruleAreaPlacementSource;
+
     bool            m_keepoutDoNotAllowCopperPour;
     bool            m_keepoutDoNotAllowVias;
     bool            m_keepoutDoNotAllowTracks;
@@ -183,9 +197,24 @@ public:
     void SetPadConnection( ZONE_CONNECTION aPadConnection ) { m_padConnection = aPadConnection; }
 
     /**
+     * Accessor to determine if any keepout parameters are set
+     */
+    bool HasKeepoutParametersSet() const
+    {
+        return m_keepoutDoNotAllowTracks || m_keepoutDoNotAllowVias || m_keepoutDoNotAllowPads
+               || m_keepoutDoNotAllowFootprints || m_keepoutDoNotAllowCopperPour;
+    }
+
+    /**
      * Accessors to parameters used in Rule Area zones:
      */
     bool GetIsRuleArea() const { return m_isRuleArea; }
+    bool GetRuleAreaPlacementEnabled() const { return m_ruleAreaPlacementEnabled; }
+    RULE_AREA_PLACEMENT_SOURCE_TYPE GetRuleAreaPlacementSourceType() const
+    {
+        return m_ruleAreaPlacementSourceType;
+    }
+    wxString GetRuleAreaPlacementSource() const { return m_ruleAreaPlacementSource; }
     bool GetDoNotAllowCopperPour() const { return m_keepoutDoNotAllowCopperPour; }
     bool GetDoNotAllowVias() const { return m_keepoutDoNotAllowVias; }
     bool GetDoNotAllowTracks() const { return m_keepoutDoNotAllowTracks; }
@@ -193,6 +222,15 @@ public:
     bool GetDoNotAllowFootprints() const { return m_keepoutDoNotAllowFootprints; }
 
     void SetIsRuleArea( bool aEnable ) { m_isRuleArea = aEnable; }
+    void SetRuleAreaPlacementEnabled( bool aEnabled ) { m_ruleAreaPlacementEnabled = aEnabled; }
+    void SetRuleAreaPlacementSourceType( RULE_AREA_PLACEMENT_SOURCE_TYPE aType )
+    {
+        m_ruleAreaPlacementSourceType = aType;
+    }
+    void SetRuleAreaPlacementSource( const wxString& aSource )
+    {
+        m_ruleAreaPlacementSource = aSource;
+    }
     void SetDoNotAllowCopperPour( bool aEnable ) { m_keepoutDoNotAllowCopperPour = aEnable; }
     void SetDoNotAllowVias( bool aEnable ) { m_keepoutDoNotAllowVias = aEnable; }
     void SetDoNotAllowTracks( bool aEnable ) { m_keepoutDoNotAllowTracks = aEnable; }

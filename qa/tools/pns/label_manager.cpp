@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2022 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -166,8 +166,10 @@ void LABEL_MANAGER::recalculate()
 {
     int iterLimit = 5;
 
+    return;
     while( iterLimit > 0 )
     {
+
         bool collisionsFound = false;
 
         for( int i = 0; i < m_labels.size(); i++ )

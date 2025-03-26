@@ -4,7 +4,7 @@
  * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
  * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 1992-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -133,10 +133,9 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
                         ID_GEN_EXPORT_FILE_VRML, BITMAPS::export3d );
     submenuExport->Add( _( "IDFv3..." ), _( "Export IDF 3D board representation" ),
                         ID_GEN_EXPORT_FILE_IDF3, BITMAPS::export_idf );
-    submenuExport->Add( _( "STEP..." ), _( "Export STEP 3D board representation" ),
+    submenuExport->Add( _( "STEP / GLB / BREP / XAO / PLY / STL..." ),
+                        _( "Export STEP / GLB / BREP / XAO / PLY / STL 3D board representation" ),
                         ID_GEN_EXPORT_FILE_STEP, BITMAPS::export_step );
-    submenuExport->Add( _( "SVG..." ), _( "Export SVG board representation" ),
-                        ID_GEN_PLOT_SVG, BITMAPS::export_svg );
     submenuExport->Add( _( "Footprint Association (.cmp) File..." ),
                         _( "Export footprint association file (*.cmp) for schematic back annotation" ),
                         ID_PCB_GEN_CMP_FILE, BITMAPS::export_cmp );
@@ -167,6 +166,8 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     submenuFabOutputs->Add( PCB_ACTIONS::generateGerbers );
     submenuFabOutputs->Add( PCB_ACTIONS::generateDrillFiles );
     submenuFabOutputs->Add( PCB_ACTIONS::generateIPC2581File );
+    submenuFabOutputs->Add( PCB_ACTIONS::generateODBPPFile );
+
     submenuFabOutputs->Add( PCB_ACTIONS::generatePosFile );
     submenuFabOutputs->Add( PCB_ACTIONS::generateReportFile );
     submenuFabOutputs->Add( PCB_ACTIONS::generateD356File );
@@ -227,6 +228,15 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     //
     ACTION_MENU* viewMenu = new ACTION_MENU( false, selTool );
 
+    ACTION_MENU* showHidePanels = new ACTION_MENU( false, selTool );
+    showHidePanels->SetTitle( _( "Panels" ) );
+    showHidePanels->Add( ACTIONS::showProperties,                 ACTION_MENU::CHECK );
+    showHidePanels->Add( PCB_ACTIONS::showSearch,                 ACTION_MENU::CHECK );
+    showHidePanels->Add( PCB_ACTIONS::showLayersManager,          ACTION_MENU::CHECK );
+    showHidePanels->Add( PCB_ACTIONS::showNetInspector,           ACTION_MENU::CHECK );
+    viewMenu->Add( showHidePanels );
+
+    viewMenu->AppendSeparator();
     viewMenu->Add( ACTIONS::showFootprintBrowser );
     viewMenu->Add( ACTIONS::show3DViewer );
 
@@ -276,11 +286,6 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
 
     viewMenu->Add( PCB_ACTIONS::flipBoard,                  ACTION_MENU::CHECK );
 
-    viewMenu->AppendSeparator();
-    viewMenu->Add( ACTIONS::showProperties,                 ACTION_MENU::CHECK );
-    viewMenu->Add( PCB_ACTIONS::showSearch,                 ACTION_MENU::CHECK );
-    viewMenu->Add( PCB_ACTIONS::showLayersManager,          ACTION_MENU::CHECK );
-
 #ifdef __APPLE__
     viewMenu->AppendSeparator();
 #endif
@@ -295,7 +300,7 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     placeMenu->Add( PCB_ACTIONS::drawRuleArea );
 
     ACTION_MENU* muwaveSubmenu = new ACTION_MENU( false, selTool );
-    muwaveSubmenu->SetTitle( _( "Add Microwave Shape" ) );
+    muwaveSubmenu->SetTitle( _( "Draw Microwave Shapes" ) );
     muwaveSubmenu->SetIcon( BITMAPS::mw_add_line );
     muwaveSubmenu->Add( PCB_ACTIONS::microwaveCreateLine );
     muwaveSubmenu->Add( PCB_ACTIONS::microwaveCreateGap );
@@ -310,16 +315,18 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     placeMenu->Add( PCB_ACTIONS::drawRectangle );
     placeMenu->Add( PCB_ACTIONS::drawCircle );
     placeMenu->Add( PCB_ACTIONS::drawPolygon );
+    placeMenu->Add( PCB_ACTIONS::drawBezier );
     placeMenu->Add( PCB_ACTIONS::placeReferenceImage );
     placeMenu->Add( PCB_ACTIONS::placeText );
     placeMenu->Add( PCB_ACTIONS::drawTextBox );
+    placeMenu->Add( PCB_ACTIONS::drawTable );
 
     placeMenu->AppendSeparator();
     ACTION_MENU* dimensionSubmenu = new ACTION_MENU( false, selTool );
-    dimensionSubmenu->SetTitle( _( "Add Dimension" ) );
+    dimensionSubmenu->SetTitle( _( "Draw Dimensions" ) );
     dimensionSubmenu->SetIcon( BITMAPS::add_aligned_dimension );
-    dimensionSubmenu->Add( PCB_ACTIONS::drawAlignedDimension );
     dimensionSubmenu->Add( PCB_ACTIONS::drawOrthogonalDimension );
+    dimensionSubmenu->Add( PCB_ACTIONS::drawAlignedDimension );
     dimensionSubmenu->Add( PCB_ACTIONS::drawCenterDimension );
     dimensionSubmenu->Add( PCB_ACTIONS::drawRadialDimension );
     dimensionSubmenu->Add( PCB_ACTIONS::drawLeader );
@@ -345,7 +352,6 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
 
     placeMenu->Add( autoplaceSubmenu );
 
-
     //-- Route Menu ----------------------------------------------------------
     //
     ACTION_MENU* routeMenu = new ACTION_MENU( false, selTool );
@@ -369,7 +375,6 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     //
     ACTION_MENU* inspectMenu = new ACTION_MENU( false, selTool );
 
-    inspectMenu->Add( PCB_ACTIONS::listNets );
     inspectMenu->Add( PCB_ACTIONS::boardStatistics );
     inspectMenu->Add( ACTIONS::measureTool );
 
@@ -402,6 +407,10 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     toolsMenu->Add( ACTIONS::showFootprintEditor );
     toolsMenu->Add( PCB_ACTIONS::updateFootprints );
 
+    //Zones management
+    toolsMenu->AppendSeparator();
+    toolsMenu->Add( PCB_ACTIONS::zonesManager );
+
     if( ADVANCED_CFG::GetCfg().m_EnableGenerators )
     {
         toolsMenu->AppendSeparator();
@@ -427,11 +436,19 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
         toolsMenu->Add( PCB_ACTIONS::showPythonConsole );
     }
 
+    ACTION_MENU* multichannelSubmenu = new ACTION_MENU( false, selTool );
+    multichannelSubmenu->SetTitle( _( "Multi-Channel" ) );
+    multichannelSubmenu->SetIcon( BITMAPS::mode_module );
+    multichannelSubmenu->Add( PCB_ACTIONS::generatePlacementRuleAreas );
+    multichannelSubmenu->Add( PCB_ACTIONS::repeatLayout );
+
+    toolsMenu->Add( multichannelSubmenu );
+
     ACTION_MENU* submenuActionPlugins = new ACTION_MENU( false, selTool );
     submenuActionPlugins->SetTitle( _( "External Plugins" ) );
     submenuActionPlugins->SetIcon( BITMAPS::puzzle_piece );
 
-    submenuActionPlugins->Add( PCB_ACTIONS::pluginsReload );
+    submenuActionPlugins->Add( ACTIONS::pluginsReload );
     submenuActionPlugins->Add( PCB_ACTIONS::pluginsShowFolder );
 
     // Populate the Action Plugin sub-menu: Must be done before Add

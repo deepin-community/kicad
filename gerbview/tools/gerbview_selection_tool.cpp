@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2017 Jon Evans <jon@craftyjon.com>
- * Copyright (C) 2017-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -127,12 +127,12 @@ bool GERBVIEW_SELECTION_TOOL::Init()
 {
     std::shared_ptr<HIGHLIGHT_MENU> highlightSubMenu = std::make_shared<HIGHLIGHT_MENU>();
     highlightSubMenu->SetTool( this );
-    m_menu.RegisterSubMenu( highlightSubMenu );
+    m_menu->RegisterSubMenu( highlightSubMenu );
 
-    m_menu.GetMenu().AddMenu( highlightSubMenu.get() );
-    m_menu.GetMenu().AddSeparator( 1000 );
+    m_menu->GetMenu().AddMenu( highlightSubMenu.get() );
+    m_menu->GetMenu().AddSeparator( 1000 );
 
-    getEditFrame<GERBVIEW_FRAME>()->AddStandardSubMenus( m_menu );
+    getEditFrame<GERBVIEW_FRAME>()->AddStandardSubMenus( *m_menu.get() );
 
     return true;
 }
@@ -142,7 +142,7 @@ void GERBVIEW_SELECTION_TOOL::Reset( RESET_REASON aReason )
 {
     m_frame = getEditFrame<GERBVIEW_FRAME>();
 
-    if( aReason == TOOL_BASE::MODEL_RELOAD )
+    if( aReason == TOOL_BASE::MODEL_RELOAD || aReason == RESET_REASON::SHUTDOWN )
     {
         // Remove pointers to the selected items from containers
         // without changing their properties (as they are already deleted
@@ -191,7 +191,7 @@ int GERBVIEW_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
             // Show selection before opening menu
             m_frame->GetCanvas()->ForceRefresh();
 
-            m_menu.ShowContextMenu( m_selection );
+            m_menu->ShowContextMenu( m_selection );
         }
         else if( evt->IsDblClick( BUT_MIDDLE ) )
         {

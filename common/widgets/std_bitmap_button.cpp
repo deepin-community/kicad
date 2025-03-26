@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2016 Anil8735(https://stackoverflow.com/users/3659387/anil8753)
  *                    from https://stackoverflow.com/a/37274011
- * Copyright (C) 2020-2023 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,19 +41,10 @@ STD_BITMAP_BUTTON::STD_BITMAP_BUTTON( wxWindow* aParent, wxWindowID aId,
 {
     if( aSize == wxDefaultSize )
     {
-#ifndef __WXMSW__
         wxSize defaultSize = wxButton::GetDefaultSize( aParent );
-        defaultSize.IncBy( 1 );
-#else
-        // wxButton::GetDefaultSize does not work on Windows, it's based on some archiac
-        // ascii text size logic that does not hold true in modern Windows at hi dpi scaling
-        // instead spawn a button, grab it's size and then toss it :D
-        wxButton* dummyButton = new wxButton( this, wxID_ANY );
-        dummyButton->SetLabelText( "Z" );
 
-        wxSize defaultSize = dummyButton->GetSize();
-        dummyButton->Hide();
-        delete dummyButton;
+#ifndef __WXMSW__
+        defaultSize.IncBy( 1 );
 #endif
         SetMinSize( defaultSize );
     }
@@ -163,10 +154,10 @@ void STD_BITMAP_BUTTON::OnLeftButtonUp( wxMouseEvent& aEvent )
     Refresh();
 
     wxEvtHandler* pEventHandler = GetEventHandler();
-    wxASSERT( pEventHandler );
+    wxCHECK( pEventHandler, /* void */ );
 
     pEventHandler->CallAfter(
-            [=]()
+            [this]()
             {
                 wxCommandEvent evt( wxEVT_BUTTON, GetId() );
                 evt.SetEventObject( this );
@@ -235,9 +226,10 @@ void STD_BITMAP_BUTTON::OnPaint( wxPaintEvent& WXUNUSED( aEvent ) )
     // wxRendereNative doesn't handle dark mode on OSX.
     drawBackground( r1 );
 #else
-    #ifdef __WXMSW__
-        r1.width += 1;
-    #endif
+
+#ifdef __WXMSW__
+    r1.width += 1;
+#endif
 
     wxRendererNative::Get().DrawPushButton( this, dc, r1, m_stateButton );
 #endif

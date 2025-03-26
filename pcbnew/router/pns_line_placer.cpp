@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2017 CERN
- * Copyright (C) 2016-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -72,8 +72,16 @@ void LINE_PLACER::setWorld( NODE* aWorld )
 
 const VIA LINE_PLACER::makeVia( const VECTOR2I& aP )
 {
-    const LAYER_RANGE layers( m_sizes.ViaType() == VIATYPE::THROUGH ? F_Cu : m_sizes.GetLayerTop(),
-                              m_sizes.ViaType() == VIATYPE::THROUGH ? B_Cu : m_sizes.GetLayerBottom() );
+    // fixme: should belong to KICAD_IFACE
+    auto iface = Router()->GetInterface();
+
+    int start = m_sizes.ViaType() == VIATYPE::THROUGH ?iface->GetPNSLayerFromBoardLayer( F_Cu ) : m_sizes.GetLayerTop();
+    int end = m_sizes.ViaType() == VIATYPE::THROUGH ? iface->GetPNSLayerFromBoardLayer( B_Cu ) : m_sizes.GetLayerBottom();
+
+    const PNS_LAYER_RANGE layers(
+        start ,
+        end
+    );
 
     return VIA( aP, layers, m_sizes.ViaDiameter(), m_sizes.ViaDrill(), nullptr, m_sizes.ViaType() );
 }
@@ -545,7 +553,7 @@ bool LINE_PLACER::cursorDistMinimum( const SHAPE_LINE_CHAIN& aL, const VECTOR2I&
 }
 
 
-bool LINE_PLACER::rhWalkBase( const VECTOR2I& aP, LINE& aWalkLine, int aCollisionMask,
+bool LINE_PLACER::rhWalkBase( const VECTOR2I& aP, LINE& aWalkLine, int aCollisionMask, PNS::PNS_MODE aMode,
                               bool& aViaOk )
 {
     LINE walkFull( m_head );
@@ -563,6 +571,7 @@ bool LINE_PLACER::rhWalkBase( const VECTOR2I& aP, LINE& aWalkLine, int aCollisio
     walkaround.SetLogger( Logger() );
     walkaround.SetIterationLimit( Settings().WalkaroundIterationLimit() );
     walkaround.SetItemMask( aCollisionMask );
+    walkaround.SetAllowedPolicies( { WALKAROUND::WP_CCW, WALKAROUND::WP_CW } );
 
     int round = 0;
 
@@ -573,7 +582,7 @@ bool LINE_PLACER::rhWalkBase( const VECTOR2I& aP, LINE& aWalkLine, int aCollisio
         PNS_DBG( Dbg(), BeginGroup, wxString::Format( "walk-round-%d", round ), 0 );
         round++;
 
-        aViaOk = buildInitialLine( walkP, l1, round == 0 );
+        aViaOk = buildInitialLine( walkP, l1, aMode, round == 0 );
         PNS_DBG( Dbg(), AddItem, &l1, BLUE, 20000, wxT( "walk-base-l1" ) );
 
         if( l1.EndsWithVia() )
@@ -597,46 +606,55 @@ bool LINE_PLACER::rhWalkBase( const VECTOR2I& aP, LINE& aWalkLine, int aCollisio
         optimizer.SetEffortLevel( OPTIMIZER::MERGE_SEGMENTS );
         optimizer.SetCollisionMask( aCollisionMask );
 
-        int len_cw = wr.statusCw != WALKAROUND::STUCK ? wr.lineCw.CLine().Length()
+        using WALKAROUND::WP_CW;
+        using WALKAROUND::WP_CCW;
+
+        int len_cw = wr.status[WP_CW] != WALKAROUND::ST_STUCK ? wr.lines[WP_CW].CLine().Length()
                                                       : std::numeric_limits<int>::max();
-        int len_ccw = wr.statusCcw != WALKAROUND::STUCK ? wr.lineCcw.CLine().Length()
+        int len_ccw = wr.status[WP_CCW] != WALKAROUND::ST_STUCK ? wr.lines[WP_CCW].CLine().Length()
                                                         : std::numeric_limits<int>::max();
 
-        if( wr.statusCw == WALKAROUND::DONE )
+
+        if( wr.status[ WP_CW ] == WALKAROUND::ST_DONE )
         {
-            PNS_DBG( Dbg(), AddItem, &wr.lineCw, BLUE, 20000, wxT( "wf-result-cw-preopt" ) );
+            PNS_DBG( Dbg(), AddItem, &wr.lines[WP_CW], BLUE, 20000, wxT( "wf-result-cw-preopt" ) );
             LINE tmpHead, tmpTail;
 
-            if( splitHeadTail( wr.lineCw, m_tail, tmpHead, tmpTail ) )
+
+            OPTIMIZER::Optimize( &wr.lines[WP_CW], OPTIMIZER::MERGE_SEGMENTS, m_currentNode );
+
+            if( splitHeadTail( wr.lines[WP_CW], m_tail, tmpHead, tmpTail ) )
             {
                 optimizer.Optimize( &tmpHead );
-                wr.lineCw.SetShape( tmpTail.CLine () );
-                wr.lineCw.Line().Append( tmpHead.CLine( ) );
+                wr.lines[WP_CW].SetShape( tmpTail.CLine () );
+                wr.lines[WP_CW].Line().Append( tmpHead.CLine( ) );
             }
 
-            PNS_DBG( Dbg(), AddItem, &wr.lineCw, RED, 20000, wxT( "wf-result-cw-postopt" ) );
-            len_cw = wr.lineCw.CLine().Length();
-            bestLine = wr.lineCw;
+            PNS_DBG( Dbg(), AddItem, &wr.lines[WP_CW], RED, 20000, wxT( "wf-result-cw-postopt" ) );
+            len_cw = wr.lines[WP_CW].CLine().Length();
+            bestLine = wr.lines[WP_CW];
         }
 
-        if( wr.statusCcw == WALKAROUND::DONE )
+        if( wr.status[WP_CCW] == WALKAROUND::ST_DONE )
         {
-            PNS_DBG( Dbg(), AddItem, &wr.lineCcw, BLUE, 20000, wxT( "wf-result-ccw-preopt" ) );
+            PNS_DBG( Dbg(), AddItem, &wr.lines[WP_CCW], BLUE, 20000, wxT( "wf-result-ccw-preopt" ) );
 
             LINE tmpHead, tmpTail;
 
-            if( splitHeadTail( wr.lineCw, m_tail, tmpHead, tmpTail ) )
+            OPTIMIZER::Optimize( &wr.lines[WP_CCW], OPTIMIZER::MERGE_SEGMENTS, m_currentNode );
+
+            if( splitHeadTail( wr.lines[WP_CCW], m_tail, tmpHead, tmpTail ) )
             {
                 optimizer.Optimize( &tmpHead );
-                wr.lineCw.SetShape( tmpTail.CLine () );
-                wr.lineCw.Line().Append( tmpHead.CLine( ) );
+                wr.lines[WP_CCW].SetShape( tmpTail.CLine () );
+                wr.lines[WP_CCW].Line().Append( tmpHead.CLine( ) );
             }
 
-            PNS_DBG( Dbg(), AddItem, &wr.lineCcw, RED, 20000, wxT( "wf-result-ccw-postopt" ) );
-            len_ccw = wr.lineCcw.CLine().Length();
+            PNS_DBG( Dbg(), AddItem, &wr.lines[WP_CCW], RED, 20000, wxT( "wf-result-ccw-postopt" ) );
+            len_ccw = wr.lines[WP_CCW].CLine().Length();
 
             if( len_ccw < len_cw )
-                bestLine = wr.lineCcw;
+                bestLine = wr.lines[WP_CCW];
         }
 
         int bestLength = len_cw < len_ccw ? len_cw : len_ccw;
@@ -656,9 +674,10 @@ bool LINE_PLACER::rhWalkBase( const VECTOR2I& aP, LINE& aWalkLine, int aCollisio
 
         SHAPE_LINE_CHAIN l_cw, l_ccw;
 
-        if( wr.statusCw != WALKAROUND::STUCK )
+
+        if( wr.status[WP_CW] != WALKAROUND::ST_STUCK )
         {
-            validCw = cursorDistMinimum( wr.lineCw.CLine(), aP, hugThresholdLength, l_cw );
+            validCw = cursorDistMinimum( wr.lines[WP_CW].CLine(), aP, hugThresholdLength, l_cw );
 
             if( validCw )
                 distCw = ( aP - l_cw.CPoint( -1 ) ).EuclideanNorm();
@@ -668,9 +687,9 @@ bool LINE_PLACER::rhWalkBase( const VECTOR2I& aP, LINE& aWalkLine, int aCollisio
                                                                                          : "colliding" ) );
         }
 
-        if( wr.statusCcw != WALKAROUND::STUCK )
+        if( wr.status[WP_CCW] != WALKAROUND::ST_STUCK )
         {
-            validCcw = cursorDistMinimum( wr.lineCcw.CLine(), aP, hugThresholdLength, l_ccw );
+            validCcw = cursorDistMinimum( wr.lines[WP_CCW].CLine(), aP, hugThresholdLength, l_ccw );
 
             if( validCcw )
                 distCcw = ( aP - l_ccw.CPoint( -1 ) ).EuclideanNorm();
@@ -729,7 +748,7 @@ bool LINE_PLACER::rhWalkOnly( const VECTOR2I& aP, LINE& aNewHead, LINE& aNewTail
     int effort = 0;
     bool viaOk = false;
 
-    if( ! rhWalkBase( aP, walkFull, ITEM::ANY_T, viaOk ) )
+    if( ! rhWalkBase( aP, walkFull, ITEM::ANY_T, RM_Walkaround, viaOk ) )
         return false;
 
     switch( Settings().OptimizerEffort() )
@@ -795,7 +814,7 @@ bool LINE_PLACER::rhWalkOnly( const VECTOR2I& aP, LINE& aNewHead, LINE& aNewTail
 
 bool LINE_PLACER::rhMarkObstacles( const VECTOR2I& aP, LINE& aNewHead, LINE& aNewTail )
 {
-    buildInitialLine( aP, m_head );
+    buildInitialLine( aP, m_head, RM_MarkObstacles );
     m_head.SetBlockingObstacle( nullptr );
 
     auto obs = m_currentNode->NearestObstacle( &m_head );
@@ -806,18 +825,18 @@ bool LINE_PLACER::rhMarkObstacles( const VECTOR2I& aP, LINE& aNewHead, LINE& aNe
     if( obs )
     {
         int              clearance = m_currentNode->GetClearance( obs->m_item, &m_head, false );
-        SHAPE_LINE_CHAIN hull = obs->m_item->Hull( clearance, m_head.Width() );
+        SHAPE_LINE_CHAIN hull = obs->m_item->Hull( clearance, m_head.Width(), m_head.Layer() );
         VECTOR2I         nearest;
 
         DIRECTION_45::CORNER_MODE cornerMode = Settings().GetCornerMode();
 
         if( cornerMode == DIRECTION_45::MITERED_90 || cornerMode == DIRECTION_45::ROUNDED_90 )
-            nearest = hull.BBox().ClosestPointTo( aP );
+            nearest = hull.BBox().NearestPoint( aP );
         else
             nearest = hull.NearestPoint( aP );
 
         if( ( nearest - aP ).EuclideanNorm() < m_head.Width() / 2 )
-            buildInitialLine( nearest, m_head );
+            buildInitialLine( nearest, m_head, RM_MarkObstacles );
     }
 
     // Note: Something like the below could be used to implement a "stop at first obstacle" mode,
@@ -911,7 +930,7 @@ bool LINE_PLACER::rhShoveOnly( const VECTOR2I& aP, LINE& aNewHead, LINE& aNewTai
 
     bool viaOk = false;
 
-    if( ! rhWalkBase( aP, walkSolids, ITEM::SOLID_T, viaOk ) )
+    if( ! rhWalkBase( aP, walkSolids, ITEM::SOLID_T, RM_Shove, viaOk ) )
         return false;
 
     m_currentNode = m_shove->CurrentNode();
@@ -937,7 +956,9 @@ bool LINE_PLACER::rhShoveOnly( const VECTOR2I& aP, LINE& aNewHead, LINE& aNewTai
 
     }
 
-    SHOVE::SHOVE_STATUS status = m_shove->ShoveLines( newHead );
+    m_shove->ClearHeads();
+    m_shove->AddHeads( newHead, SHOVE::SHP_SHOVE );
+    bool shoveOk = m_shove->Run() == SHOVE::SH_OK;
 
     m_currentNode = m_shove->CurrentNode();
 
@@ -965,12 +986,10 @@ bool LINE_PLACER::rhShoveOnly( const VECTOR2I& aP, LINE& aNewHead, LINE& aNewTai
         effort |= OPTIMIZER::SMART_PADS;
     }
 
-    if( status == SHOVE::SH_OK  || status == SHOVE::SH_HEAD_MODIFIED )
+    if( shoveOk )
     {
-        if( status == SHOVE::SH_HEAD_MODIFIED )
-            newHead = m_shove->NewHead();
-
-        OPTIMIZER optimizer( m_currentNode );
+        if( m_shove->HeadsModified() )
+            newHead = m_shove->GetModifiedHead( 0 );
 
         if( newHead.EndsWithVia() )
         {
@@ -984,9 +1003,8 @@ bool LINE_PLACER::rhShoveOnly( const VECTOR2I& aP, LINE& aNewHead, LINE& aNewTai
         if( newHead.EndsWithVia() )
             aNewHead.AppendVia( newHead.Via() );
 
-        optimizer.SetEffortLevel( effort );
-        optimizer.SetCollisionMask( ITEM::ANY_T );
-        optimizer.Optimize( &aNewHead );
+        OPTIMIZER::Optimize( &aNewHead, effort, m_currentNode );
+        PNS_DBG( Dbg(), AddItem, aNewHead.Clone(), GREEN, 1000000, "head-sh-postopt" );
 
         return true;
     }
@@ -1782,6 +1800,7 @@ void LINE_PLACER::removeLoops( NODE* aNode, LINE& aLatest )
         return;
 
     std::set<LINKED_ITEM *> toErase;
+    aLatest.ClearLinks();
     aNode->Add( aLatest, true );
 
     for( int s = 0; s < aLatest.LinkCount(); s++ )
@@ -1894,7 +1913,8 @@ void LINE_PLACER::simplifyNewLine( NODE* aNode, LINKED_ITEM* aLatest )
 
     // And now we can proceed with assembling the final line and optimizing it.
 
-    LINE l = aNode->AssembleLine( aLatest );
+    LINE l_orig = aNode->AssembleLine( aLatest );
+    LINE l( l_orig );
 
     bool optimized = OPTIMIZER::Optimize( &l, OPTIMIZER::MERGE_COLINEAR, aNode );
 
@@ -1904,9 +1924,10 @@ void LINE_PLACER::simplifyNewLine( NODE* aNode, LINKED_ITEM* aLatest )
 
     if( optimized || simplified.PointCount() != l.PointCount() )
     {
-        aNode->Remove( l );
+        aNode->Remove( l_orig );
         l.SetShape( simplified );
         aNode->Add( l );
+        PNS_DBG( Dbg(), AddItem, &l, RED, 100000, wxT("simplified"));
     }
 }
 
@@ -1954,7 +1975,7 @@ void LINE_PLACER::SetOrthoMode( bool aOrthoMode )
 }
 
 
-bool LINE_PLACER::buildInitialLine( const VECTOR2I& aP, LINE& aHead, bool aForceNoVia )
+bool LINE_PLACER::buildInitialLine( const VECTOR2I& aP, LINE& aHead, PNS::PNS_MODE aMode, bool aForceNoVia )
 {
     SHAPE_LINE_CHAIN l;
     DIRECTION_45 guessedDir = m_mouseTrailTracer.GetPosture( aP );
@@ -2009,13 +2030,13 @@ bool LINE_PLACER::buildInitialLine( const VECTOR2I& aP, LINE& aHead, bool aForce
     VIA v( makeVia( aP ) );
     v.SetNet( aHead.Net() );
 
-    if( Settings().Mode() == RM_MarkObstacles )
+    if( aMode == RM_MarkObstacles )
     {
         aHead.AppendVia( v );
         return true;
     }
 
-    const int collMask = ( Settings().Mode() == RM_Walkaround ) ? ITEM::ANY_T : ITEM::SOLID_T;
+    const int collMask = ( aMode == RM_Walkaround ) ? ITEM::ANY_T : ITEM::SOLID_T;
     const int iterLimit = Settings().ViaForcePropIterationLimit();
 
     for( int attempt = 0; attempt < 2; attempt++)
@@ -2054,6 +2075,7 @@ void LINE_PLACER::GetModifiedNets( std::vector<NET_HANDLE>& aNets ) const
 bool LINE_PLACER::AbortPlacement()
 {
     m_world->KillChildren();
+    m_lastNode = nullptr;
     return true;
 }
 

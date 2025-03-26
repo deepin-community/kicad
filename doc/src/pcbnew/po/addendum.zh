@@ -6,8 +6,4 @@ PO4A-HEADER: mode=after; position=^\[\[contributors\]\]; beginboundary=\[\[
 
 Qinghan Hu <qinghan.hu@gmail.com>, 2023.
 
-taotieren <admin@taotieren.com>, 2019-2023.
-
-Telegram 简体中文交流群: https://t.me/KiCad_zh_CN
-
-译者注：英文双引号包含的中文为软件的功能操作。
+taotieren <admin@taotieren.com>, 2019-2024.

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE( Empty )
 
     // can do this on an empty image
     empty.Rotate( true );
-    empty.Mirror( true );
+    empty.Mirror( FLIP_DIRECTION::TOP_BOTTOM );
 }
 
 
@@ -223,7 +223,7 @@ BOOST_AUTO_TEST_CASE( RotateImage )
  */
 BOOST_AUTO_TEST_CASE( MirrorImage )
 {
-    m_4tile.Mirror( true );
+    m_4tile.Mirror( FLIP_DIRECTION::TOP_BOTTOM );
 
     const wxImage* img_data = m_4tile.GetImageData();
     BOOST_REQUIRE_NE( img_data, nullptr );
@@ -242,6 +242,39 @@ BOOST_AUTO_TEST_CASE( MirrorImage )
         BOOST_CHECK_PREDICATE(
                 KI_TEST::IsImagePixelOfColor, ( *img_data )( c.m_x )( c.m_y )( c.m_color ) );
     }
+}
+
+/**
+ * Check setting image data by SetImage produces saveable data
+ * via SaveImageData.
+ *
+ * Regression test for: https://gitlab.com/kicad/code/kicad/-/issues/19772
+ */
+BOOST_AUTO_TEST_CASE( SetImageOutputsData )
+{
+    BITMAP_BASE bitmap;
+    wxImage     img( 2, 2 );
+    img.SetRGB( 0, 0, 0, 255, 0 );
+    img.SetRGB( 1, 0, 0, 0, 255 );
+    img.SetRGB( 0, 1, 255, 0, 0 );
+    img.SetRGB( 1, 1, 0, 0, 255 );
+
+    // Set the wxImage directly, not via a stream/file
+    // (this happens, e.g. when the clipboard gives you a wxImage)
+    bitmap.SetImage( img );
+
+    wxMemoryOutputStream mos;
+    BOOST_CHECK( bitmap.SaveImageData( mos ) );
+
+    BOOST_REQUIRE( mos.GetSize() > 0 );
+
+    // check the output is the same as the input
+    wxMemoryInputStream mis( mos );
+    wxImage             img2;
+
+    BOOST_CHECK( img2.LoadFile( mis, wxBITMAP_TYPE_PNG ) );
+
+    BOOST_CHECK_PREDICATE( KI_TEST::ImagesHaveSamePixels, (img) ( img2 ) );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

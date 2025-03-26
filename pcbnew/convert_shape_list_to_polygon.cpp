@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2015 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -157,21 +157,26 @@ static bool isCopperOutside( const FOOTPRINT* aFootprint, SHAPE_POLY_SET& aShape
 
     for( PAD* pad : aFootprint->Pads() )
     {
-        SHAPE_POLY_SET poly = aShape.CloneDropTriangulation();
+        pad->Padstack().ForEachUniqueLayer(
+            [&]( PCB_LAYER_ID aLayer )
+            {
+                SHAPE_POLY_SET poly = aShape.CloneDropTriangulation();
 
-        poly.ClearArcs();
+                poly.ClearArcs();
 
-        poly.BooleanIntersection( *pad->GetEffectivePolygon( ERROR_INSIDE ),
-                                  SHAPE_POLY_SET::PM_FAST );
+                poly.BooleanIntersection( *pad->GetEffectivePolygon( aLayer, ERROR_INSIDE ) );
 
-        if( poly.OutlineCount() == 0 )
-        {
-            VECTOR2I padPos = pad->GetPosition();
-            wxLogTrace( traceBoardOutline, wxT( "Tested pad (%d, %d): outside" ),
-                        padPos.x, padPos.y );
-            padOutside = true;
+                if( poly.OutlineCount() == 0 )
+                {
+                    VECTOR2I padPos = pad->GetPosition();
+                    wxLogTrace( traceBoardOutline, wxT( "Tested pad (%d, %d): outside" ),
+                                padPos.x, padPos.y );
+                    padOutside = true;
+                }
+            } );
+
+        if( padOutside )
             break;
-        }
 
         VECTOR2I padPos = pad->GetPosition();
         wxLogTrace( traceBoardOutline, wxT( "Tested pad (%d, %d): not outside" ),
@@ -349,15 +354,13 @@ bool doConvertOutlineToPolygon( std::vector<PCB_SHAPE*>& aShapeList, SHAPE_POLY_
                         std::swap( pstart, pend );
                     }
 
+                    // Snap the arc start point to avoid potential self-intersections
+                    pstart = prevPt;
+
                     SHAPE_ARC sarc( pstart, pmid, pend, 0 );
 
                     SHAPE_LINE_CHAIN arcChain;
                     arcChain.Append( sarc, aErrorMax );
-
-                    // if this arc is after another object, pop off the first point
-                    // the previous point from the last object should be already close enough as part of chaining
-                    if( prevGraphic != nullptr )
-                        arcChain.Remove( 0 );
 
                     if( !aAllowUseArcsInPolygons )
                         arcChain.ClearArcs();
@@ -395,11 +398,7 @@ bool doConvertOutlineToPolygon( std::vector<PCB_SHAPE*>& aShapeList, SHAPE_POLY_
                     }
 
                     // Ensure the approximated Bezier shape is built
-                    // a good value is between (Bezier curve width / 2) and (Bezier curve width)
-                    // ( and at least 0.05 mm to avoid very small segments)
-                    int min_segm_length = std::max( pcbIUScale.mmToIU( 0.05 ),
-                                                    graphic->GetWidth() );
-                    graphic->RebuildBezierToSegmentsPointsList( min_segm_length );
+                    graphic->RebuildBezierToSegmentsPointsList( ARC_HIGH_DEF );
 
                     if( reverse )
                     {
@@ -453,6 +452,47 @@ bool doConvertOutlineToPolygon( std::vector<PCB_SHAPE*>& aShapeList, SHAPE_POLY_
                 // Finished, or ran into trouble...
                 if( close_enough( startPt, prevPt, aChainingEpsilon ) )
                 {
+                    if( startPt != prevPt && currContour.PointCount() > 2 )
+                    {
+                        // Snap the last shape's endpoint to the outline startpoint
+                        PCB_SHAPE* owner = fetchOwner( currContour.CSegment( -1 ) );
+
+                        if( currContour.IsArcEnd( currContour.PointCount() - 1 ) )
+                        {
+                            SHAPE_ARC arc = currContour.Arc(
+                                    currContour.ArcIndex( currContour.PointCount() - 1 ) );
+
+                            // Snap the arc endpoint
+                            SHAPE_ARC sarc( arc.GetP0(), arc.GetArcMid(), startPt, 0 );
+
+                            SHAPE_LINE_CHAIN arcChain;
+                            arcChain.Append( sarc, aErrorMax );
+
+                            if( !aAllowUseArcsInPolygons )
+                                arcChain.ClearArcs();
+
+                            // Set shapeOwners for arcChain points created by appending the sarc:
+                            for( int ii = 1; ii < arcChain.PointCount(); ++ii )
+                            {
+                                shapeOwners[std::make_pair( arcChain.CPoint( ii - 1 ),
+                                                            arcChain.CPoint( ii ) )] = owner;
+                            }
+
+                            currContour.RemoveShape( currContour.PointCount() - 1 );
+                            currContour.Append( arcChain );
+                        }
+                        else
+                        {
+                            // Snap the segment endpoint
+                            currContour.SetPoint( -1, startPt );
+
+                            shapeOwners[std::make_pair( currContour.CPoint( -2 ),
+                                                        currContour.CPoint( -1 ) )] = owner;
+                        }
+
+                        prevPt = startPt;
+                    }
+
                     currContour.SetClosed( true );
                     break;
                 }
@@ -616,38 +656,24 @@ bool TestBoardOutlinesGraphicItems( BOARD* aBoard, int aMinDist,
     // Get all the shapes into 'items', then keep only those on layer == Edge_Cuts.
     items.Collect( aBoard, { PCB_SHAPE_T } );
 
-    std::vector<PCB_SHAPE*> segList;
+    std::vector<PCB_SHAPE*> shapeList;
 
     for( int ii = 0; ii < items.GetCount(); ii++ )
     {
         PCB_SHAPE* seg = static_cast<PCB_SHAPE*>( items[ii] );
 
         if( seg->GetLayer() == Edge_Cuts )
-            segList.push_back( seg );
-    }
-
-    for( FOOTPRINT* fp : aBoard->Footprints() )
-    {
-        PCB_TYPE_COLLECTOR fpItems;
-        fpItems.Collect( fp, { PCB_SHAPE_T } );
-
-        for( int ii = 0; ii < fpItems.GetCount(); ii++ )
-        {
-            PCB_SHAPE* fpSeg = static_cast<PCB_SHAPE*>( fpItems[ii] );
-
-            if( fpSeg->GetLayer() == Edge_Cuts )
-                segList.push_back( fpSeg );
-        }
+            shapeList.push_back( seg );
     }
 
     // Now Test validity of collected items
-    for( PCB_SHAPE* graphic : segList )
+    for( PCB_SHAPE* shape : shapeList )
     {
-        switch( graphic->GetShape() )
+        switch( shape->GetShape() )
         {
         case SHAPE_T::RECTANGLE:
         {
-            VECTOR2I seg = graphic->GetEnd() - graphic->GetStart();
+            VECTOR2I seg = shape->GetEnd() - shape->GetStart();
             int dim = seg.EuclideanNorm();
 
             if( dim <= min_dist )
@@ -658,7 +684,7 @@ bool TestBoardOutlinesGraphicItems( BOARD* aBoard, int aMinDist,
                 {
                     (*aErrorHandler)( wxString::Format( _( "(rectangle has null or very small "
                                                            "size: %d nm)" ), dim ),
-                                      graphic, nullptr, graphic->GetStart() );
+                                      shape, nullptr, shape->GetStart() );
                 }
             }
             break;
@@ -666,7 +692,7 @@ bool TestBoardOutlinesGraphicItems( BOARD* aBoard, int aMinDist,
 
         case SHAPE_T::CIRCLE:
         {
-            int r = graphic->GetRadius();
+            int r = shape->GetRadius();
 
             if( r <= min_dist )
             {
@@ -676,7 +702,7 @@ bool TestBoardOutlinesGraphicItems( BOARD* aBoard, int aMinDist,
                 {
                     (*aErrorHandler)( wxString::Format( _( "(circle has null or very small "
                                                            "radius: %d nm)" ), r ),
-                                      graphic, nullptr, graphic->GetStart() );
+                                      shape, nullptr, shape->GetStart() );
                 }
             }
             break;
@@ -684,7 +710,7 @@ bool TestBoardOutlinesGraphicItems( BOARD* aBoard, int aMinDist,
 
         case SHAPE_T::SEGMENT:
         {
-            VECTOR2I seg = graphic->GetEnd() - graphic->GetStart();
+            VECTOR2I seg = shape->GetEnd() - shape->GetStart();
             int dim = seg.EuclideanNorm();
 
             if( dim <= min_dist )
@@ -695,7 +721,7 @@ bool TestBoardOutlinesGraphicItems( BOARD* aBoard, int aMinDist,
                 {
                     (*aErrorHandler)( wxString::Format( _( "(segment has null or very small "
                                                            "length: %d nm)" ), dim ),
-                                      graphic, nullptr, graphic->GetStart() );
+                                      shape, nullptr, shape->GetStart() );
                 }
             }
             break;
@@ -705,9 +731,9 @@ bool TestBoardOutlinesGraphicItems( BOARD* aBoard, int aMinDist,
         {
             // Arc size can be evaluated from the distance between arc middle point and arc ends
             // We do not need a precise value, just an idea of its size
-            VECTOR2I arcMiddle = graphic->GetArcMid();
-            VECTOR2I seg1 = arcMiddle - graphic->GetStart();
-            VECTOR2I seg2 = graphic->GetEnd() - arcMiddle;
+            VECTOR2I arcMiddle = shape->GetArcMid();
+            VECTOR2I seg1 = arcMiddle - shape->GetStart();
+            VECTOR2I seg2 = shape->GetEnd() - arcMiddle;
             int dim = seg1.EuclideanNorm() + seg2.EuclideanNorm();
 
             if( dim <= min_dist )
@@ -718,7 +744,7 @@ bool TestBoardOutlinesGraphicItems( BOARD* aBoard, int aMinDist,
                 {
                     (*aErrorHandler)( wxString::Format( _( "(arc has null or very small size: "
                                                            "%d nm)" ), dim ),
-                                      graphic, nullptr, graphic->GetStart() );
+                                      shape, nullptr, shape->GetStart() );
                 }
             }
             break;
@@ -731,7 +757,7 @@ bool TestBoardOutlinesGraphicItems( BOARD* aBoard, int aMinDist,
             break;
 
         default:
-            UNIMPLEMENTED_FOR( graphic->SHAPE_T_asString() );
+            UNIMPLEMENTED_FOR( shape->SHAPE_T_asString() );
             return false;
         }
     }
@@ -829,7 +855,7 @@ bool BuildBoardPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, int aE
 
         // If null area, uses the global bounding box.
         if( ( bbbox.GetWidth() ) == 0 || ( bbbox.GetHeight() == 0 ) )
-            bbbox = aBoard->ComputeBoundingBox();
+            bbbox = aBoard->ComputeBoundingBox( false );
 
         // Ensure non null area. If happen, gives a minimal size.
         if( ( bbbox.GetWidth() ) == 0 || ( bbbox.GetHeight() == 0 ) )
@@ -889,7 +915,7 @@ void buildBoardBoundingBoxPoly( const BOARD* aBoard, SHAPE_POLY_SET& aOutline )
 
     // If null area, uses the global bounding box.
     if( ( bbbox.GetWidth() ) == 0 || ( bbbox.GetHeight() == 0 ) )
-        bbbox = aBoard->ComputeBoundingBox();
+        bbbox = aBoard->ComputeBoundingBox( false );
 
     // Ensure non null area. If happen, gives a minimal size.
     if( ( bbbox.GetWidth() ) == 0 || ( bbbox.GetHeight() == 0 ) )

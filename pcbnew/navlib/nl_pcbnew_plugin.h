@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 3Dconnexion
- * Copyright (C) 2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -25,6 +25,8 @@
 
 #ifndef NL_PCBNEW_PLUGIN_H_
 #define NL_PCBNEW_PLUGIN_H_
+
+#include <memory>
 
 // Forward declarations.
 class PCB_DRAW_PANEL_GAL;
@@ -54,7 +56,7 @@ public:
     void SetFocus( bool aFocus );
 
 private:
-    NL_PCBNEW_PLUGIN_IMPL* m_impl;
+    std::unique_ptr<NL_PCBNEW_PLUGIN_IMPL> m_impl;
 };
 
 #endif // NL_PCBNEW_PLUGIN_H_

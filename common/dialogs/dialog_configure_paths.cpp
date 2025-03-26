@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2015 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2015-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,21 +24,26 @@
 
 #include <dialogs/dialog_configure_paths.h>
 
+#include <algorithm>
+
 #include <bitmaps.h>
 #include <confirm.h>
+#include <kidialog.h>
 #include <validators.h>
 #include <dialogs/html_message_box.h>
+#include <settings/common_settings.h>
 #include <filename_resolver.h>
 #include <env_vars.h>
 #include <grid_tricks.h>
 #include <pgm_base.h>
-#include <widgets/wx_grid.h>
 #include <widgets/grid_text_button_helpers.h>
 #include <widgets/grid_text_helpers.h>
 #include <widgets/std_bitmap_button.h>
+#include <widgets/wx_grid.h>
+#include <widgets/wx_grid_autosizer.h>
 
-#include <algorithm>
 #include <wx/dirdlg.h>
+
 
 enum TEXT_VAR_GRID_COLUMNS
 {
@@ -60,29 +65,25 @@ DIALOG_CONFIGURE_PATHS::DIALOG_CONFIGURE_PATHS( wxWindow* aParent ) :
     m_errorGrid( nullptr ),
     m_errorRow( -1 ),
     m_errorCol( -1 ),
-    m_gridWidth( 0 ),
-    m_gridWidthsDirty( true ),
-    m_helpBox( nullptr ),
-    m_heightBeforeHelp( 400 )
+    m_helpBox( nullptr )
 {
+    m_heightBeforeHelp = FromDIP ( 400 );
     m_btnAddEnvVar->SetBitmap( KiBitmapBundle( BITMAPS::small_plus ) );
     m_btnDeleteEnvVar->SetBitmap( KiBitmapBundle( BITMAPS::small_trash ) );
+
+    m_EnvVars->SetMinSize( FromDIP( m_EnvVars->GetMinSize() ) );
 
     m_EnvVars->ClearRows();
     m_EnvVars->AppendCols( 1 );     // for the isExternal flags
     m_EnvVars->HideCol( TV_FLAG_COL );
-#ifndef __WXMAC__
-    // macos crashes on languages at least using non-ascii characters for the column header here of all places
-    // if we use native column headers, so guard it for windows to still look nice
     m_EnvVars->UseNativeColHeader( true );
-#endif
 
     wxGridCellAttr* attr = new wxGridCellAttr;
     attr->SetEditor( new GRID_CELL_PATH_EDITOR( this, m_EnvVars, &m_curdir, wxEmptyString ) );
     m_EnvVars->SetColAttr( TV_VALUE_COL, attr );
 
     // Give a bit more room for combobox editors
-    m_EnvVars->SetDefaultRowSize( m_EnvVars->GetDefaultRowSize() + 4 );
+    m_EnvVars->SetDefaultRowSize( m_EnvVars->GetDefaultRowSize() + FromDIP( 4 ) );
 
     m_EnvVars->PushEventHandler( new GRID_TRICKS( m_EnvVars,
                                                   [this]( wxCommandEvent& aEvent )
@@ -99,6 +100,13 @@ DIALOG_CONFIGURE_PATHS::DIALOG_CONFIGURE_PATHS( wxWindow* aParent ) :
     m_EnvVars->Connect( wxEVT_GRID_CELL_CHANGING,
                         wxGridEventHandler( DIALOG_CONFIGURE_PATHS::OnGridCellChanging ),
                         nullptr, this );
+
+    m_gridAutosizer = std::make_unique<WX_GRID_AUTOSIZER>( *m_EnvVars,
+                                                           WX_GRID_AUTOSIZER::COL_MIN_WIDTHS{
+                                                                   { TV_NAME_COL, 72 },
+                                                                   { TV_VALUE_COL, 120 },
+                                                           },
+                                                           TV_VALUE_COL );
 
     GetSizer()->SetSizeHints( this );
     Centre();
@@ -348,19 +356,6 @@ void DIALOG_CONFIGURE_PATHS::OnRemoveEnvVar( wxCommandEvent& event )
 
 void DIALOG_CONFIGURE_PATHS::OnUpdateUI( wxUpdateUIEvent& event )
 {
-    if( m_gridWidthsDirty )
-    {
-        int width = m_EnvVars->GetClientRect().GetWidth();
-
-        m_EnvVars->AutoSizeColumn( TV_NAME_COL );
-        m_EnvVars->SetColSize( TV_NAME_COL, std::max( 72, m_EnvVars->GetColSize( TV_NAME_COL ) ) );
-
-        m_EnvVars->SetColSize( TV_VALUE_COL, std::max( 120, width - m_EnvVars->GetColSize( TV_NAME_COL ) ) );
-
-        m_gridWidth = m_EnvVars->GetSize().GetX();
-        m_gridWidthsDirty = false;
-    }
-
     // Handle a grid error.  This is delayed to OnUpdateUI so that we can change focus even when
     // the original validation was triggered from a killFocus event.
     if( m_errorGrid )
@@ -379,15 +374,6 @@ void DIALOG_CONFIGURE_PATHS::OnUpdateUI( wxUpdateUIEvent& event )
         grid->EnableCellEditControl( true );
         grid->ShowCellEditControl();
     }
-}
-
-
-void DIALOG_CONFIGURE_PATHS::OnGridSize( wxSizeEvent& event )
-{
-    if( event.GetSize().GetX() != m_gridWidth )
-        m_gridWidthsDirty = true;
-
-    event.Skip();
 }
 
 

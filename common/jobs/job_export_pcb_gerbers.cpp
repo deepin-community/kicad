@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright (C) 2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,12 +19,35 @@
  */
 
 #include <jobs/job_export_pcb_gerbers.h>
+#include <jobs/job_registry.h>
+#include <i18n_utility.h>
 
-
-JOB_EXPORT_PCB_GERBERS::JOB_EXPORT_PCB_GERBERS( bool aIsCli ) :
-        JOB_EXPORT_PCB_GERBER( "gerbers", aIsCli ),
+JOB_EXPORT_PCB_GERBERS::JOB_EXPORT_PCB_GERBERS() :
+        JOB_EXPORT_PCB_GERBER( "gerbers" ),
         m_layersIncludeOnAll(),
         m_layersIncludeOnAllSet( false ),
-        m_useBoardPlotParams( false )
+        m_useBoardPlotParams( false ),
+        m_createJobsFile( true )
 {
+    m_params.emplace_back( new JOB_PARAM<bool>( "layers_include_on_all_set", &m_layersIncludeOnAllSet,
+                                                m_layersIncludeOnAllSet ) );
+
+    m_params.emplace_back( new JOB_PARAM_LSEQ( "layers_include_on_all", &m_layersIncludeOnAll,
+                                                m_layersIncludeOnAll ) );
 }
+
+
+wxString JOB_EXPORT_PCB_GERBERS::GetDefaultDescription() const
+{
+    return _( "Export Gerbers" );
+}
+
+
+wxString JOB_EXPORT_PCB_GERBERS::GetSettingsDialogTitle() const
+{
+    return _( "Export Gerbers Job Settings" );
+}
+
+
+REGISTER_JOB( pcb_export_gerbers, _HKI( "PCB: Export Gerbers" ), KIWAY::FACE_PCB,
+              JOB_EXPORT_PCB_GERBERS );

@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2014 CERN
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -62,7 +62,7 @@ enum FRAME_T
 
     FRAME_CALC,
 
-    KIWAY_PLAYER_COUNT,         // counts subset of FRAME_T's which are KIWAY_PLAYER derivatives
+    KIWAY_PLAYER_COUNT, // counts subset of FRAME_T's which are KIWAY_PLAYER derivatives
 
     // C++ project manager is not a KIWAY_PLAYER
     KICAD_MAIN_FRAME_T = KIWAY_PLAYER_COUNT,
@@ -80,12 +80,14 @@ enum FRAME_T
     PANEL_SCH_ANNO_OPTIONS,
     PANEL_SCH_COLORS,
     PANEL_SCH_FIELD_NAME_TEMPLATES,
+    PANEL_SCH_SIMULATOR,
 
     PANEL_FP_DISPLAY_OPTIONS,
     PANEL_FP_GRIDS,
     PANEL_FP_EDIT_OPTIONS,
     PANEL_FP_COLORS,
-    PANEL_FP_DEFAULT_VALUES,
+    PANEL_FP_DEFAULT_FIELDS,
+    PANEL_FP_DEFAULT_GRAPHICS_VALUES,
     PANEL_FP_ORIGINS_AXES,
 
     PANEL_PCB_DISPLAY_OPTS,
@@ -111,11 +113,12 @@ enum FRAME_T
 
     // Library table dialogs are transient and are never returned
     DIALOG_CONFIGUREPATHS,
+    DIALOG_DESIGN_BLOCK_LIBRARY_TABLE,
     DIALOG_SCH_LIBRARY_TABLE,
     DIALOG_PCB_LIBRARY_TABLE
 };
 
-    //TEXT_EDITOR_FRAME_T,
+//TEXT_EDITOR_FRAME_T,
 
 
 #endif  // FRAME_T_H_

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -75,6 +75,7 @@ private:
     void OnUpdateUI( wxUpdateUIEvent& ) override;
     void OnNetSelectionUpdated( wxCommandEvent& event ) override;
     void OnRemoveIslandsSelection( wxCommandEvent& event ) override;
+    void OnPadInZoneSelection( wxCommandEvent& event ) override;
 
     void          readNetInformation();
     void          readFilteringAndSortingCriteria();
@@ -137,6 +138,7 @@ int InvokeCopperZonesEditor( PCB_BASE_FRAME* aCaller, ZONE_SETTINGS* aSettings,
 {
     DIALOG_COPPER_ZONE dlg( aCaller, aSettings, aConvertSettings );
 
+    // TODO: why does this need QuasiModal?
     return dlg.ShowQuasiModal();
 }
 
@@ -383,6 +385,7 @@ bool DIALOG_COPPER_ZONE::TransferDataToWindow()
     wxCommandEvent event;
     OnStyleSelection( event );
     OnNetSelectionUpdated( event );
+    OnPadInZoneSelection( event );
 
     Fit();
 
@@ -472,6 +475,15 @@ void DIALOG_COPPER_ZONE::OnNetSelectionUpdated( wxCommandEvent& event )
 void DIALOG_COPPER_ZONE::OnRemoveIslandsSelection( wxCommandEvent& event )
 {
     m_islandThreshold.Enable( m_cbRemoveIslands->GetSelection() == 2 );
+}
+
+
+void DIALOG_COPPER_ZONE::OnPadInZoneSelection( wxCommandEvent& event )
+{
+    int  selection = m_PadInZoneOpt->GetSelection();
+    bool enabled = selection == 1 || selection == 2;
+    m_antipadClearance.Enable( enabled );
+    m_spokeWidth.Enable( enabled );
 }
 
 

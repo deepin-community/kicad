@@ -2,7 +2,7 @@
  * KiRouter - a push-and-(sometimes-)shove PCB router
  *
  * Copyright (C) 2013-2014 CERN
- * Copyright (C) 2016-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -55,6 +55,7 @@ static bool shouldWeConsiderHoleCollisions( const ITEM* aItem, const ITEM* aHead
     {
         const ITEM* parentI = holeI->ParentPadVia();
         const ITEM* parentH = holeH->ParentPadVia();
+
         if( !parentH || !parentI )
             return true;
 
@@ -73,7 +74,7 @@ static bool shouldWeConsiderHoleCollisions( const ITEM* aItem, const ITEM* aHead
         // identical and belonging to the same net as non-colliding.
 
         if( parentViaI && parentViaH && parentViaI->Pos() == parentViaH->Pos()
-            && parentViaI->Diameter() == parentViaH->Diameter()
+            && parentViaI->PadstackMatches( *parentViaH )
             && parentViaI->Net() == parentViaH->Net()
             && parentViaI->Drill() == parentViaH->Drill() )
             return false;
@@ -90,18 +91,39 @@ static bool shouldWeConsiderHoleCollisions( const ITEM* aItem, const ITEM* aHead
 }
 
 
-bool ITEM::collideSimple( const ITEM* aHead, const NODE* aNode,
+std::set<int> ITEM::RelevantShapeLayers( const ITEM* aOther ) const
+{
+    std::vector<int> myLayers = UniqueShapeLayers();
+    std::vector<int> otherLayers = aOther->UniqueShapeLayers();
+
+    if( !HasUniqueShapeLayers() && !aOther->HasUniqueShapeLayers() )
+        return { -1 };
+
+    // TODO(JE) at this point we should also mask off the layers of each item.
+    // In the case that one item is a via and the other is a track, we don't want to test
+    // more than once even if the via has multiple unique layers
+
+    std::set<int> relevantLayers;
+
+    std::set_union( myLayers.begin(), myLayers.end(), otherLayers.begin(), otherLayers.end(),
+                    std::inserter( relevantLayers, relevantLayers.begin() ) );
+
+    return relevantLayers;
+}
+
+
+bool ITEM::collideSimple( const ITEM* aHead, const NODE* aNode, int aLayer,
                           COLLISION_SEARCH_CONTEXT* aCtx ) const
 {
     // Note: if 'this' is a pad or a via then its hole is a separate PNS::ITEM in the node's
     // index and we don't need to deal with holeI here.  The same is *not* true of the routing
     // "head", so we do need to handle holeH.
-
-    const SHAPE* shapeI = Shape();
     int          lineWidthI = 0;
 
-    const SHAPE* shapeH = aHead->Shape();
+    //const SHAPE* shapeH = aHead->Shape();
     const HOLE*  holeH = aHead->Hole();
+    const HOLE*  holeI = Hole();
+
     int          lineWidthH = 0;
     bool         collisionsFound = false;
 
@@ -118,20 +140,24 @@ bool ITEM::collideSimple( const ITEM* aHead, const NODE* aNode,
     if( const auto line = dyn_cast<const LINE*>( this ) )
     {
         if( line->EndsWithVia() )
-            collisionsFound |= line->Via().collideSimple( aHead, aNode, aCtx );
+            collisionsFound |= line->Via().collideSimple( aHead, aNode, aLayer, aCtx );
     }
 
     if( const auto line = dyn_cast<const LINE*>( aHead ) )
     {
         if( line->EndsWithVia() )
-            collisionsFound |= line->Via().collideSimple( this, aNode, aCtx );
+            collisionsFound |= line->Via().collideSimple( this, aNode, aLayer, aCtx );
     }
 
     // And a special case for the "head" via's hole.
-    if( holeH && shouldWeConsiderHoleCollisions( this, holeH ) )
+    if( aHead->HasHole() && shouldWeConsiderHoleCollisions( this, holeH ) )
     {
-        if( collideSimple( holeH, aNode, aCtx ) )
+        if( Net() != holeH->Net() && collideSimple( holeH, aNode, aLayer, aCtx ) )
             collisionsFound = true;
+    }
+    if( HasHole() && shouldWeConsiderHoleCollisions( holeI, aHead ) )
+    {
+        collisionsFound |= holeI->collideSimple( aHead, aNode, aLayer, aCtx );
     }
 
     // Sadly collision routines ignore SHAPE_POLY_LINE widths so we have to pass them in as part
@@ -170,7 +196,8 @@ bool ITEM::collideSimple( const ITEM* aHead, const NODE* aNode,
         // a pad associated with a "free" pin (NIC) doesn't have a net until it has been used
         clearance = -1;
     }
-    else if( aNode->GetRuleResolver()->IsKeepout( this, aHead, &enforce ) )
+    else if( aNode->GetRuleResolver()->IsKeepout( this, aHead, &enforce )
+             || aNode->GetRuleResolver()->IsKeepout( aHead, this, &enforce ) )
     {
         if( enforce )
             clearance = 0;    // keepouts are exact boundary; no clearance
@@ -204,6 +231,9 @@ bool ITEM::collideSimple( const ITEM* aHead, const NODE* aNode,
                                    || aNode->GetRuleResolver()->IsNonPlatedSlot( this );
 
         bool checkNetTie = aNode->GetRuleResolver()->IsInNetTie( this );
+
+        const SHAPE* shapeI = Shape( aLayer );
+        const SHAPE* shapeH = aHead->Shape( aLayer );
 
         if( checkCastellation || checkNetTie )
         {
@@ -270,9 +300,10 @@ bool ITEM::collideSimple( const ITEM* aHead, const NODE* aNode,
 }
 
 
-bool ITEM::Collide( const ITEM* aOther, const NODE* aNode, COLLISION_SEARCH_CONTEXT *aCtx ) const
+bool ITEM::Collide( const ITEM* aOther, const NODE* aNode, int aLayer,
+                    COLLISION_SEARCH_CONTEXT *aCtx ) const
 {
-    if( collideSimple( aOther, aNode, aCtx ) )
+    if( collideSimple( aOther, aNode, aLayer, aCtx ) )
         return true;
 
     return false;
@@ -311,7 +342,7 @@ const std::string ITEM::Format() const
     ss << KindStr() << " ";
 
     if( iface )
-        ss << "net " << iface->GetNetCode( Net() ) << " ";
+        ss << "net " << iface->GetNetName( Net() ) << " ";
 
     ss << "layers " << m_layers.Start() << " " << m_layers.End();
     return ss.str();
@@ -324,6 +355,12 @@ const NODE* ITEM::OwningNode() const
         return static_cast<const NODE*>( ParentPadVia()->Owner() );
     else
         return static_cast<const NODE*>( Owner() );
+}
+
+LINKED_ITEM::UNIQ_ID LINKED_ITEM::genNextUid()
+{
+    static UNIQ_ID uidCount = 0; // fixme: make atomic
+    return uidCount++;
 }
 
 } // namespace PNS

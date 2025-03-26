@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2021 Andrew Lutsenko, anlutsenko at gmail dot com
- * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -267,7 +267,7 @@ void PANEL_PACKAGES_VIEW::setPackageDetails( const PACKAGE_VIEW_DATA& aPackageDa
                 for( const std::pair<const std::string, wxString>& entry : contact.contact )
                 {
                     details << wxT( "<li>" );
-                    details << entry.first + wxT( ": " ) + format_entry( entry );
+                    details << entry.first << wxT( ": " ) + format_entry( entry );
                     details << wxT( "</li>" );
                 }
 
@@ -286,7 +286,7 @@ void PANEL_PACKAGES_VIEW::setPackageDetails( const PACKAGE_VIEW_DATA& aPackageDa
         for( const std::pair<const std::string, wxString>& entry : package.resources )
         {
             details << wxT( "<li>" );
-            details << entry.first + wxT( ": " );
+            details << entry.first << wxT( ": " );
             details << format_entry( entry ) + wxT( "</li>" );
         }
 
@@ -524,10 +524,10 @@ void PANEL_PACKAGES_VIEW::OnDownloadVersionClicked( wxCommandEvent& event )
     const wxString& url = *ver_it->download_url;
 
     SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-    KICAD_SETTINGS*   app_settings = mgr.GetAppSettings<KICAD_SETTINGS>();
+    KICAD_SETTINGS*   cfg = mgr.GetAppSettings<KICAD_SETTINGS>( "kicad" );
 
     wxWindow* topLevelParent = wxGetTopLevelParent( this );
-    wxFileDialog dialog( topLevelParent, _( "Save Package" ), app_settings->m_PcmLastDownloadDir,
+    wxFileDialog dialog( topLevelParent, _( "Save Package" ), cfg->m_PcmLastDownloadDir,
                          wxString::Format( wxT( "%s_v%s.zip" ), package.identifier, version ),
                          wxT( "ZIP files (*.zip)|*.zip" ), wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
 
@@ -535,7 +535,7 @@ void PANEL_PACKAGES_VIEW::OnDownloadVersionClicked( wxCommandEvent& event )
         return;
 
     wxString path = dialog.GetPath();
-    app_settings->m_PcmLastDownloadDir = wxPathOnly( path );
+    cfg->m_PcmLastDownloadDir = wxPathOnly( path );
 
     std::ofstream output( path.ToUTF8(), std::ios_base::binary );
 
@@ -689,6 +689,12 @@ void PANEL_PACKAGES_VIEW::updatePackageList()
         {
             sizer->Add( panel, 0, wxEXPAND );
             panel->Show();
+
+            if( !m_currentSelected )
+            {
+                wxMouseEvent dummy;
+                panel->OnClick( dummy );
+            }
         }
         else
         {

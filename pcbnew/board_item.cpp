@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2012 Jean-Pierre Charras, jean-pierre.charras@ujf-grenoble.fr
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 1992-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,6 +31,7 @@
 #include <macros.h>
 #include <board.h>
 #include <board_design_settings.h>
+#include <lset.h>
 #include <pcb_group.h>
 #include <pcb_generator.h>
 #include <footprint.h>
@@ -84,13 +85,15 @@ bool BOARD_ITEM::IsLocked() const
 
 STROKE_PARAMS BOARD_ITEM::GetStroke() const
 {
-    wxCHECK( false, STROKE_PARAMS( pcbIUScale.mmToIU( DEFAULT_LINE_WIDTH ) ) );
+    wxFAIL_MSG( wxString( "GetStroke() not defined by " ) + GetClass() );
+
+    return STROKE_PARAMS( pcbIUScale.mmToIU( DEFAULT_LINE_WIDTH ) );
 }
 
 
 void BOARD_ITEM::SetStroke( const STROKE_PARAMS& aStroke )
 {
-    wxCHECK( false, /* void */ );
+    wxFAIL_MSG( wxString( "SetStroke() not defined by " ) + GetClass() );
 }
 
 
@@ -100,15 +103,63 @@ const KIFONT::METRICS& BOARD_ITEM::GetFontMetrics() const
 }
 
 
-wxString BOARD_ITEM::GetLayerName() const
+int BOARD_ITEM::BoardLayerCount() const
 {
     const BOARD* board = GetBoard();
 
     if( board )
+        return board->GetLayerSet().count();
+
+    return 64;
+}
+
+
+int BOARD_ITEM::BoardCopperLayerCount() const
+{
+    const BOARD* board = GetBoard();
+
+    if( board )
+        return board->GetCopperLayerCount();
+
+    return 32;
+}
+
+
+LSET BOARD_ITEM::BoardLayerSet() const
+{
+    const BOARD* board = GetBoard();
+
+    if( board )
+        return board->GetEnabledLayers();
+
+    return LSET::AllLayersMask();
+}
+
+
+wxString BOARD_ITEM::GetLayerName() const
+{
+    if( const BOARD* board = GetBoard() )
         return board->GetLayerName( m_layer );
 
     // If no parent, return standard name
     return BOARD::GetStandardLayerName( m_layer );
+}
+
+
+bool BOARD_ITEM::IsSideSpecific() const
+{
+    if( ( GetLayerSet() & LSET::SideSpecificMask() ).any() )
+        return true;
+
+    if( const BOARD* board = GetBoard() )
+    {
+        LAYER_T principalLayerType = board->GetLayerType( m_layer );
+
+        if( principalLayerType == LT_FRONT || principalLayerType == LT_BACK )
+            return true;
+    }
+
+    return false;
 }
 
 
@@ -145,14 +196,13 @@ wxString BOARD_ITEM::layerMaskDescribe() const
 }
 
 
-void BOARD_ITEM::ViewGetLayers( int aLayers[], int& aCount ) const
+std::vector<int> BOARD_ITEM::ViewGetLayers() const
 {
     // Basic fallback
-    aCount = 1;
-    aLayers[0] = m_layer;
-
     if( IsLocked() )
-        aLayers[aCount++] = LAYER_LOCKED_ITEM_SHADOW;
+        return { m_layer, LAYER_LOCKED_ITEM_SHADOW };
+
+    return { m_layer };
 }
 
 
@@ -247,9 +297,24 @@ std::shared_ptr<SHAPE_SEGMENT> BOARD_ITEM::GetEffectiveHoleShape() const
 
 FOOTPRINT* BOARD_ITEM::GetParentFootprint() const
 {
+    // EDA_ITEM::IsType is too slow here.
+    auto isContainer = []( BOARD_ITEM_CONTAINER* aTest )
+    {
+        switch( aTest->Type() )
+        {
+        case PCB_GROUP_T:
+        case PCB_GENERATOR_T:
+        case PCB_TABLE_T:
+            return true;
+
+        default:
+            return false;
+        }
+    };
+
     BOARD_ITEM_CONTAINER* ancestor = GetParent();
 
-    while( ancestor && ancestor->Type() == PCB_GROUP_T )
+    while( ancestor && isContainer( ancestor ) )
         ancestor = ancestor->GetParent();
 
     if( ancestor && ancestor->Type() == PCB_FOOTPRINT_T )
@@ -293,9 +358,15 @@ void BOARD_ITEM::Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle )
 }
 
 
-void BOARD_ITEM::Flip( const VECTOR2I& aCentre, bool aFlipLeftRight )
+void BOARD_ITEM::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
     wxMessageBox( wxT( "virtual BOARD_ITEM::Flip used, should not occur" ), GetClass() );
+}
+
+
+void BOARD_ITEM::Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
+{
+    wxMessageBox( wxT( "virtual BOARD_ITEM::Mirror used, should not occur" ), GetClass() );
 }
 
 
@@ -318,8 +389,8 @@ static struct BOARD_ITEM_DESC
         {
             layerEnum.Undefined( UNDEFINED_LAYER );
 
-            for( LSEQ seq = LSET::AllLayersMask().Seq(); seq; ++seq )
-                layerEnum.Map( *seq, LSET::Name( *seq ) );
+            for( PCB_LAYER_ID layer : LSET::AllLayersMask().Seq() )
+                layerEnum.Map( layer, LSET::Name( layer ) );
         }
 
         PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();

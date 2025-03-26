@@ -2,7 +2,7 @@
  * This program source code file is part of KICAD, a free EDA CAD application.
  *
  * Copyright (C) 2011-2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2016-2023 Kicad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,7 +36,6 @@
 
 class BOARD;
 class FOOTPRINT;
-class STRING_UTF8_MAP;
 class PROJECT;
 class PROGRESS_REPORTER;
 
@@ -127,7 +126,7 @@ public:
      *                 possible.
      */
     virtual BOARD* LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
-                         const STRING_UTF8_MAP* aProperties = nullptr, PROJECT* aProject = nullptr );
+                         const std::map<std::string, UTF8>* aProperties = nullptr, PROJECT* aProject = nullptr );
 
     /**
      * Return a container with the cached library footprints generated in the last call to
@@ -158,7 +157,7 @@ public:
      * @throw IO_ERROR if there is a problem saving or exporting.
      */
     virtual void SaveBoard( const wxString& aFileName, BOARD* aBoard,
-                            const STRING_UTF8_MAP* aProperties = nullptr );
+                            const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Return a list of footprint names contained within the library at @a aLibraryPath.
@@ -175,7 +174,7 @@ public:
      * @throw IO_ERROR if the library cannot be found, or footprint cannot be loaded.
      */
     virtual void FootprintEnumerate( wxArrayString& aFootprintNames, const wxString& aLibraryPath,
-                                     bool aBestEfforts, const STRING_UTF8_MAP* aProperties = nullptr );
+                                     bool aBestEfforts, const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Generate a timestamp representing all the files in the library (including the library
@@ -184,26 +183,6 @@ public:
      * Timestamps should not be considered ordered, they either match or they don't.
      */
     virtual long long GetLibraryTimestamp( const wxString& aLibraryPath ) const = 0;
-
-    /**
-     * If possible, prefetches the specified library (e.g. performing downloads). Does not parse.
-     * Threadsafe.
-     *
-     * This is a no-op for libraries that cannot be prefetched.  Plugins that cannot prefetch
-     * need not override this; a default no-op is provided.
-     *
-     * @param aLibraryPath is a locator for the "library", usually a directory, file, or URL
-     *                     containing several footprints.
-     *
-     * @param aProperties is an associative array that can be used to tell the plugin anything
-     *                    needed about how to perform with respect to @a aLibraryPath.  The
-     *                    caller continues to own this object (plugin may not delete it), and
-     *                    plugins should expect it to be optionally NULL.
-     *
-     * @throw IO_ERROR if there is an error prefetching the library.
-     */
-    virtual void PrefetchLib( const wxString& aLibraryPath,
-                              const STRING_UTF8_MAP* aProperties = nullptr );
 
     /**
      * Load a single footprint from @a aFootprintPath and put its name in @a aFootprintNameOut.
@@ -223,7 +202,7 @@ public:
      * @throw   IO_ERROR if the footprint cannot be found or read.
      */
     virtual FOOTPRINT* ImportFootprint( const wxString& aFootprintPath, wxString& aFootprintNameOut,
-                                        const STRING_UTF8_MAP* aProperties = nullptr );
+                                        const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Load a footprint having @a aFootprintName from the @a aLibraryPath containing a library
@@ -249,7 +228,7 @@ public:
     virtual FOOTPRINT* FootprintLoad( const wxString& aLibraryPath,
                                       const wxString& aFootprintName,
                                       bool  aKeepUUID = false,
-                                      const STRING_UTF8_MAP* aProperties = nullptr );
+                                      const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * A version of FootprintLoad() for use after FootprintEnumerate() for more efficient
@@ -257,13 +236,13 @@ public:
      */
     virtual const FOOTPRINT* GetEnumeratedFootprint( const wxString& aLibraryPath,
                                                      const wxString& aFootprintName,
-                                                     const STRING_UTF8_MAP* aProperties = nullptr );
+                                                     const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Check for the existence of a footprint.
      */
     virtual bool FootprintExists( const wxString& aLibraryPath, const wxString& aFootprintName,
-                                  const STRING_UTF8_MAP* aProperties = nullptr );
+                                  const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Write @a aFootprint to an existing library located at @a aLibraryPath.
@@ -282,7 +261,7 @@ public:
      * @throw IO_ERROR if there is a problem saving.
      */
     virtual void FootprintSave( const wxString& aLibraryPath, const FOOTPRINT* aFootprint,
-                                const STRING_UTF8_MAP* aProperties = nullptr );
+                                const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Delete @a aFootprintName from the library at @a aLibraryPath.
@@ -299,7 +278,7 @@ public:
      * @throw IO_ERROR if there is a problem finding the footprint or the library, or deleting it.
      */
     virtual void FootprintDelete( const wxString& aLibraryPath, const wxString& aFootprintName,
-                                  const STRING_UTF8_MAP* aProperties = nullptr );
+                                  const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Append supported PLUGIN options to @a aListToAppenTo along with internationalized
@@ -328,7 +307,7 @@ public:
      *  This would require a 3 column list, and introducing wx GUI knowledge to
      * PLUGIN, which has been avoided to date.
      */
-    virtual void GetLibraryOptions( STRING_UTF8_MAP* aListToAppendTo ) const override;
+    virtual void GetLibraryOptions( std::map<std::string, UTF8>* aListToAppendTo ) const override;
 
     virtual ~PCB_IO()
     {};
@@ -343,7 +322,7 @@ protected:
     BOARD* m_board;
 
     /// Properties passed via Save() or Load(), no ownership, may be NULL.
-    const STRING_UTF8_MAP* m_props;
+    const std::map<std::string, UTF8>* m_props;
 };
 
 #endif // PCB_IO_H_

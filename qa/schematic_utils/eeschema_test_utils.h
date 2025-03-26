@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2019-2023 KiCad Developers, see AUTHORS.TXT for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -49,17 +49,9 @@ namespace KI_TEST
 class SCHEMATIC_TEST_FIXTURE
 {
 public:
-    SCHEMATIC_TEST_FIXTURE()
-        : m_schematic( nullptr ),
-          m_pi( SCH_IO_MGR::FindPlugin( SCH_IO_MGR::SCH_KICAD ) ),
-          m_manager( true )
-    { }
+    SCHEMATIC_TEST_FIXTURE();
 
-    virtual ~SCHEMATIC_TEST_FIXTURE()
-    {
-        m_schematic.Reset();
-        m_pi.reset();
-    }
+    ~SCHEMATIC_TEST_FIXTURE();
 
 protected:
     virtual void LoadSchematic( const wxString& aRelativePath );

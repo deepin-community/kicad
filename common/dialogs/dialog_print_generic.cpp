@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2018 CERN
- * Copyright (C) 2020-2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * Author: Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -19,10 +19,10 @@
 
 #include <dialogs/dialog_print_generic.h>
 
-#include <confirm.h>
 #include <eda_draw_frame.h>
 #include <printout.h>
 #include <pgm_base.h>
+#include <confirm.h>
 
 #include <wx/print.h>
 #include <wx/printdlg.h>
@@ -35,14 +35,15 @@ static constexpr double MAX_SCALE = 100.0;
 
 /**
  * Custom print preview frame.
- * This derived preview frame remembers its size and position during a session
+ *
+ * This derived preview frame remembers its size and position during a session.
  */
 class KI_PREVIEW_FRAME : public wxPreviewFrame
 {
 public:
     KI_PREVIEW_FRAME( wxPrintPreview* aPreview, wxWindow* aParent,
-                       const wxString& aTitle, const wxPoint& aPos = wxDefaultPosition,
-                       const wxSize& aSize = wxDefaultSize ) :
+                      const wxString& aTitle, const wxPoint& aPos = wxDefaultPosition,
+                      const wxSize& aSize = wxDefaultSize ) :
         wxPreviewFrame( aPreview, aParent, aTitle, aPos, aSize )
     {
     }
@@ -152,7 +153,7 @@ double DIALOG_PRINT_GENERIC::getScaleValue()
 
         if( !m_scaleCustomText->GetValue().ToDouble( &scale ) )
         {
-            DisplayInfoMessage( nullptr, _( "Warning: Bad scale number" ) );
+            DisplayInfoMessage( nullptr, _( "Warning: scale is not a number." ) );
             scale = 1.0;
         }
 
@@ -160,23 +161,24 @@ double DIALOG_PRINT_GENERIC::getScaleValue()
         {
             scale = MAX_SCALE;
             setScaleValue( scale );
-            DisplayInfoMessage( nullptr,
-                wxString::Format( _( "Warning: Scale option set to a very large value.\n"
-                                     " Clamped to %f" ), scale ) );
+            DisplayInfoMessage( nullptr, wxString::Format( _( "Warning: scale set to a very large "
+                                                              "value.\nIt will be clamped to %f." ),
+                                                           scale ) );
         }
         else if( scale < MIN_SCALE )
         {
             scale = MIN_SCALE;
             setScaleValue( scale );
-            DisplayInfoMessage( nullptr,
-                wxString::Format( _( "Warning: Scale option set to a very small value.\n"
-                                     " Clamped to %f" ), scale ) );
+            DisplayInfoMessage( nullptr, wxString::Format( _( "Warning: scale set to a very small "
+                                                              "value.\nIt will be clamped to %f." ),
+                                                           scale ) );
         }
 
         return scale;
     }
 
-    wxCHECK( false, 1.0 );
+    wxFAIL_MSG( wxT( "No scale option selected." ) );
+    return 1.0;
 }
 
 
@@ -270,7 +272,7 @@ void DIALOG_PRINT_GENERIC::onPrintPreview( wxCommandEvent& event )
     // Must be called after InitializeWithModality because otherwise in some wxWidget
     // versions it is not always taken in account
     frame->SetMinSize( wxSize( 650, 500 ) );
-    frame->SetSize( (m_parent->GetSize() * 3) / 4 );
+    frame->SetSize( ( m_parent->GetSize() * 3 ) / 4 );
 
     frame->Raise(); // Needed on Ubuntu/Unity to display the frame
     frame->Show( true );

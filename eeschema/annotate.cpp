@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2004-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,7 +28,7 @@
 #include <sch_edit_frame.h>
 #include <schematic.h>
 #include <sch_commit.h>
-#include <erc_settings.h>
+#include <erc/erc_settings.h>
 #include <sch_reference_list.h>
 #include <symbol_library.h>
 #include <tools/ee_selection.h>
@@ -39,8 +39,7 @@
 void SCH_EDIT_FRAME::mapExistingAnnotation( std::map<wxString, wxString>& aMap )
 {
     SCH_REFERENCE_LIST references;
-
-    Schematic().GetSheets().GetSymbols( references );
+    Schematic().Hierarchy().GetSymbols( references );
 
     for( size_t i = 0; i < references.GetCount(); i++ )
     {
@@ -58,10 +57,11 @@ void SCH_EDIT_FRAME::mapExistingAnnotation( std::map<wxString, wxString>& aMap )
 }
 
 
-void SCH_EDIT_FRAME::DeleteAnnotation( ANNOTATE_SCOPE_T aAnnotateScope, bool aRecursive )
+void SCH_EDIT_FRAME::DeleteAnnotation( ANNOTATE_SCOPE_T aAnnotateScope, bool aRecursive,
+                                       REPORTER& aReporter )
 {
 
-    SCH_SHEET_LIST sheets = Schematic().GetSheets();
+    SCH_SHEET_LIST sheets = Schematic().Hierarchy();
     SCH_SCREEN*    screen = GetScreen();
     SCH_SHEET_PATH currentSheet = GetCurrentSheet();
     SCH_COMMIT     commit( this );
@@ -72,7 +72,26 @@ void SCH_EDIT_FRAME::DeleteAnnotation( ANNOTATE_SCOPE_T aAnnotateScope, bool aRe
             SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( aItem );
             commit.Modify( aItem, aScreen );
 
-            symbol->ClearAnnotation( aSheet, aResetPrefixes );
+            // aSheet == nullptr means all sheets
+            if( !aSheet || symbol->IsAnnotated( aSheet ) )
+            {
+                wxString msg;
+
+                if( symbol->GetUnitCount() > 1 )
+                {
+                    msg.Printf( _( "Cleared annotation for %s (unit %s)." ),
+                                symbol->GetValue( true, aSheet, false ),
+                                symbol->SubReference( symbol->GetUnit(), false ) );
+                }
+                else
+                {
+                    msg.Printf( _( "Cleared annotation for %s." ),
+                                symbol->GetValue( true, aSheet, false ) );
+                }
+
+                symbol->ClearAnnotation( aSheet, aResetPrefixes );
+                aReporter.Report( msg, RPT_SEVERITY_ACTION );
+            }
         };
 
     auto clearSheetAnnotation =
@@ -200,7 +219,7 @@ void SCH_EDIT_FRAME::AnnotateSymbols( SCH_COMMIT* aCommit, ANNOTATE_SCOPE_T  aAn
 
     SCH_REFERENCE_LIST references;
     SCH_SCREENS        screens( Schematic().Root() );
-    SCH_SHEET_LIST     sheets = Schematic().GetSheets();
+    SCH_SHEET_LIST     sheets = Schematic().Hierarchy();
     SCH_SHEET_PATH     currentSheet = GetCurrentSheet();
 
 
@@ -376,7 +395,7 @@ void SCH_EDIT_FRAME::AnnotateSymbols( SCH_COMMIT* aCommit, ANNOTATE_SCOPE_T  aAn
             if( symbol->GetUnitCount() > 1 )
             {
                 msg.Printf( _( "Updated %s (unit %s) from %s to %s." ),
-                            symbol->GetValueFieldText( true, sheet, false ),
+                            symbol->GetValue( true, sheet, false ),
                             symbol->SubReference( symbol->GetUnit(), false ),
                             prevRef,
                             newRef );
@@ -384,7 +403,7 @@ void SCH_EDIT_FRAME::AnnotateSymbols( SCH_COMMIT* aCommit, ANNOTATE_SCOPE_T  aAn
             else
             {
                 msg.Printf( _( "Updated %s from %s to %s." ),
-                            symbol->GetValueFieldText( true, sheet, false ),
+                            symbol->GetValue( true, sheet, false ),
                             prevRef,
                             newRef );
             }
@@ -394,14 +413,14 @@ void SCH_EDIT_FRAME::AnnotateSymbols( SCH_COMMIT* aCommit, ANNOTATE_SCOPE_T  aAn
             if( symbol->GetUnitCount() > 1 )
             {
                 msg.Printf( _( "Annotated %s (unit %s) as %s." ),
-                            symbol->GetValueFieldText( true, sheet, false ),
+                            symbol->GetValue( true, sheet, false ),
                             symbol->SubReference( symbol->GetUnit(), false ),
                             newRef );
             }
             else
             {
                 msg.Printf( _( "Annotated %s as %s." ),
-                            symbol->GetValueFieldText( true, sheet, false ),
+                            symbol->GetValue( true, sheet, false ),
                             newRef );
             }
         }
@@ -444,14 +463,14 @@ int SCH_EDIT_FRAME::CheckAnnotate( ANNOTATION_ERROR_HANDLER aErrorHandler,
 {
     SCH_REFERENCE_LIST  referenceList;
     constexpr bool      includePowerSymbols = false;
-    SCH_SHEET_LIST      sheets = Schematic().GetSheets();
+    SCH_SHEET_LIST      sheets = Schematic().Hierarchy();
     SCH_SHEET_PATH      currentSheet = GetCurrentSheet();
 
     // Build the list of symbols
     switch( aAnnotateScope )
     {
     case ANNOTATE_ALL:
-        Schematic().GetSheets().GetSymbols( referenceList );
+        sheets.GetSymbols( referenceList );
         break;
 
     case ANNOTATE_CURRENT_SHEET:

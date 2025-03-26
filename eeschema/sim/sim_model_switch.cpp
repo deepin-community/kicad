@@ -1,7 +1,7 @@
 /* This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2022 Mikolaj Wielgus
- * Copyright (C) 2022 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -66,8 +66,13 @@ std::string SPICE_GENERATOR_SWITCH::ItemParams() const
 {
     std::string result;
 
-    for( const SIM_MODEL::PARAM& param : GetInstanceParams() )
+    for( int ii = 0; ii < m_model.GetParamCount(); ++ii )
     {
+        const SIM_MODEL::PARAM& param = m_model.GetParam( ii );
+
+        if( !param.info.isSpiceInstanceParam )
+            continue;
+
         // The only instance param is "ic", which is positional.
         std::string value = param.value;
 
@@ -79,7 +84,7 @@ std::string SPICE_GENERATOR_SWITCH::ItemParams() const
 }
 
 
-std::vector<std::reference_wrapper<const SIM_MODEL::PIN>> SPICE_GENERATOR_SWITCH::GetPins() const
+std::vector<std::reference_wrapper<const SIM_MODEL_PIN>> SPICE_GENERATOR_SWITCH::GetPins() const
 {
     switch( m_model.GetType() )
     {

@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  * @author Jon Evans <jon@craftyjon.com>
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 
 
 /**
- * A toggle button renderer for a wxGrid, similar to BITMAP_TOGGLE
+ * A toggle button renderer for a wxGrid, similar to #BITMAP_TOGGLE.
  */
 class GRID_BITMAP_TOGGLE_RENDERER : public wxGridCellRenderer
 {
@@ -42,7 +42,7 @@ public:
                int aRow, int aCol, bool aIsSelected ) override;
 
     wxSize GetBestSize( wxGrid& aGrid, wxGridCellAttr& aAttr, wxDC& aDc,
-                        int aRow, int aCol) override;
+                        int aRow, int aCol ) override;
 
 private:
     wxBitmapBundle m_bitmapChecked;

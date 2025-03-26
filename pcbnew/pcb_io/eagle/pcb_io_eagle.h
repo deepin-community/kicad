@@ -2,7 +2,7 @@
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
  * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2012-2023 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,6 +32,7 @@
 
 #include <eda_units.h>
 #include <layer_ids.h>
+#include <lset.h>
 #include <netclass.h>
 
 #include <map>
@@ -128,7 +129,7 @@ struct ERULES
  * Works with Eagle 6.x XML board files and footprints to implement the Pcbnew #PLUGIN API
  * or a portion of it.
  */
-class PCB_IO_EAGLE : public PCB_IO, public LAYER_REMAPPABLE_PLUGIN
+class PCB_IO_EAGLE : public PCB_IO, public LAYER_MAPPABLE_PLUGIN
 {
 public:
     const IO_BASE::IO_FILE_DESC GetBoardFileDesc() const override
@@ -146,16 +147,16 @@ public:
     bool CanReadFootprint( const wxString& aFileName ) const override;
 
     BOARD* LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
-                      const STRING_UTF8_MAP* aProperties = nullptr, PROJECT* aProject = nullptr ) override;
+                      const std::map<std::string, UTF8>* aProperties = nullptr, PROJECT* aProject = nullptr ) override;
 
     std::vector<FOOTPRINT*> GetImportedCachedLibraryFootprints() override;
 
     void FootprintEnumerate( wxArrayString& aFootprintNames, const wxString& aLibraryPath,
-                             bool aBestEfforts, const STRING_UTF8_MAP* aProperties = nullptr) override;
+                             bool aBestEfforts, const std::map<std::string, UTF8>* aProperties = nullptr) override;
 
     FOOTPRINT* FootprintLoad( const wxString& aLibraryPath, const wxString& aFootprintName,
                               bool  aKeepUUID = false,
-                              const STRING_UTF8_MAP* aProperties = nullptr ) override;
+                              const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     long long GetLibraryTimestamp( const wxString& aLibraryPath ) const override
     {
@@ -187,7 +188,7 @@ public:
 
 private:
     /// initialize PLUGIN like a constructor would, and futz with fresh BOARD if needed.
-    void init( const STRING_UTF8_MAP* aProperties );
+    void init( const std::map<std::string, UTF8>* aProperties );
 
     bool checkHeader( const wxString& aFileName ) const;
 

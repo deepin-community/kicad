@@ -70,7 +70,8 @@ package.
 * If you want to construct a new symbol library table from scratch, select
   the third option.
 
-Symbol library management is described in more detail <<managing-symbol-libraries,later>>.
+Symbol library management, including how to re-run this initial configuration,
+is described in more detail <<managing-symbol-libraries,later>>.
 
 === The Schematic Editor User Interface
 
@@ -80,10 +81,11 @@ The main Schematic Editor user interface is shown above. The center contains the
 main editing canvas, which is surrounded by:
 
 * Top toolbars (file management, zoom tools, editing tools)
-* Left toolbar (display options), <<navigating-between-sheets,Hierarchy Navigator>>
-  and <<properties-manager,Properties Manager>> at left
+* Left toolbar (display options), <<navigating-between-sheets,Hierarchy Navigator>>,
+  <<properties-manager,Properties Manager>>, and the <<selection,selection filter>> at left
 * Message panel and status bar at bottom
-* Right toolbar (drawing and design tools)
+* Right toolbar (drawing and design tools) and
+  <<schematic-design-blocks,Design Block panel>> at right
 
 === Navigating the editing canvas
 
@@ -151,7 +153,8 @@ directory. The location is platform-specific:
 KiCad can import hotkey settings from a `user.hotkeys` file using the **Import
 Hotkeys** button in the hotkey editor.
 
-=== Mouse operations and selection
+[[selection]]
+=== Selection and the selection filter
 
 Selecting items in the editing canvas is done with the left mouse button.
 Single-clicking on an object will select it. Clicking and dragging will perform
@@ -192,6 +195,14 @@ The following modifier keys apply when dragging to perform a box selection:
   | Remove item(s) from the existing selection.
 |====
 
+The selection filter panel in the lower left corner of the Schematic Editor window controls which types of
+objects can be selected with the mouse.  Turning off selection of unwanted object types makes it
+easier to select items in a busy schematic.  The "All items" checkbox is a shortcut to turn the other
+items on and off.  You can right-click any object type in the
+selection filter to quickly change the filter to only allow selecting that type of object.
+
+image::images/selection_filter.png[]
+
 Selecting an object displays information about the object in the message panel
 at the bottom of the window. Double-clicking an object opens a window to edit
 the object's properties.
@@ -212,11 +223,11 @@ Schematic Editor.
 | image:images/icons/grid_24.png[grid visibility icon]
     | Turns grid display on/off.
 
-    *Note:* by default, hiding the grid does not disable grid snapping.
+    *Note:* by default, hiding the grid does not disable <<snapping,grid snapping>>.
     This behavior can be changed in the Display Options section of Preferences.
 
 | image:images/icons/grid_override_24.png[grid override enable button]
-    | Turns item-specific grid overrides on/off.
+    | Turns item-specific <<snapping,grid overrides>> on/off.
 
 | image:images/icons/unit_inch_24.png[inch unit icon]
 
@@ -240,10 +251,15 @@ Schematic Editor.
     | Switches between free angle, 90 degree mode, and 45 degree mode for
       placement of new wires, buses, and graphical shapes.
 
+| image:images/icons/annotate_24.png[automatic annotation icon]
+    | Turns automatic <<reference-designators-and-symbol-annotation,symbol annotation>> on/off.
+      When on, symbols will have their reference designators automatically set to the lowest
+      available reference when they are added to the schematic.
+
 | image:images/icons/hierarchy_nav_24.png[hierarchy navigator icon]
-    | Opens and closes the docked hierarchy navigator pane.
+    | Opens and closes the docked <<navigating-between-sheets,Hierarchy Navigator>> panel.
 
 | image:images/icons/tools_24.png[Properties Manager icon]
-    | Opens and closes the docked Properties Manager pane.
+    | Opens and closes the docked <<editing-symbol-properties,Properties Manager>> panel.
 
 |=======================================================================

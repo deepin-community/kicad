@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 2020-2021 KiCad Developers.
+ * Copyright The KiCad Developers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,8 +39,6 @@ PNS_LOG_PLAYER::PNS_LOG_PLAYER()
 
 PNS_LOG_PLAYER::~PNS_LOG_PLAYER()
 {
-    if( m_debugDecorator )
-        delete m_debugDecorator;
 }
 
 void PNS_LOG_PLAYER::createRouter()
@@ -52,7 +50,9 @@ void PNS_LOG_PLAYER::createRouter()
     m_router->SetInterface( m_iface.get() );
     m_router->ClearWorld();
     m_router->SyncWorld();
-    m_router->LoadSettings( new PNS::ROUTING_SETTINGS( nullptr, "" ) );
+
+    m_routingSettings.reset( new PNS::ROUTING_SETTINGS( nullptr, "" ) );
+    m_router->LoadSettings( m_routingSettings.get() );
     m_router->Settings().SetMode( PNS::RM_Walkaround );
     m_router->Sizes().SetTrackWidth( 250000 );
 
@@ -83,6 +83,9 @@ const PNS_LOG_FILE::COMMIT_STATE PNS_LOG_PLAYER::GetRouterUpdatedItems()
     }
 
     // fixme: update the state with the head trace (not supported in current testsuite)
+    // Note: we own the head items (cloned inside GetUpdatedItems) - we need to delete them!
+    for( auto head : heads )
+        delete head;
 
     return state;
 }
@@ -99,14 +102,29 @@ void PNS_LOG_PLAYER::ReplayLog( PNS_LOG_FILE* aLog, int aStartEventIndex, int aF
     int eventIdx = 0;
     int totalEvents = aLog->Events().size();
 
+    m_router->SetMode( aLog->GetMode() );
+
     for( auto evt : aLog->Events() )
     {
         if( eventIdx < aFrom || ( aTo >= 0 && eventIdx > aTo ) )
             continue;
 
-        auto  item = aLog->ItemById( evt );
-        ITEM* ritem = item ? m_router->GetWorld()->FindItemByParent( item ) : nullptr;
-        int routingLayer = ritem ? ritem->Layers().Start() : F_Cu;
+        auto  items = aLog->ItemsById( evt );
+        PNS::ITEM_SET ritems;
+
+        printf("items: %zu\n", items.size() );
+        ITEM* ritem = nullptr;
+
+        if( items.size() && items[0] )
+            ritem = m_router->GetWorld()->FindItemByParent( items[0] );
+
+        int routingLayer = ritem ? ritem->Layers().Start() : evt.layer;
+
+        for( BOARD_CONNECTED_ITEM* item : items )
+        {
+            if( ITEM* routerItem = m_router->GetWorld()->FindItemByParent( item ) )
+                ritems.Add( routerItem );
+        }
 
         eventIdx++;
 
@@ -114,28 +132,31 @@ void PNS_LOG_PLAYER::ReplayLog( PNS_LOG_FILE* aLog, int aStartEventIndex, int aF
         {
         case LOGGER::EVT_START_ROUTE:
         {
+            wxString msg;
             PNS::SIZES_SETTINGS sizes( m_router->Sizes() );
-            m_iface->SetStartLayer( routingLayer );
+            m_iface->SetStartLayerFromPNS( routingLayer );
             m_iface->ImportSizes( sizes, ritem, nullptr, evt.p );
             m_router->UpdateSizes( sizes );
 
             m_debugDecorator->NewStage( "route-start", 0, PNSLOGINFO );
             m_viewTracker->SetStage( m_debugDecorator->GetStageCount() - 1 );
 
-            auto msg = wxString::Format( "event [%d/%d]: route-start (%d, %d)", eventIdx,
-                                         totalEvents, evt.p.x, evt.p.y );
+            bool status = m_router->StartRouting( evt.p, ritem, routingLayer );
+
+            msg = wxString::Format( "event [%d/%d]: route-start (%d, %d), layer %d, startitem %p status %d", eventIdx,
+                                         totalEvents, evt.p.x, evt.p.y, routingLayer, ritem, status ? 1 : 0 );
 
             m_debugDecorator->Message( msg );
             m_reporter->Report( msg );
 
-            m_router->StartRouting( evt.p, ritem, routingLayer );
             break;
         }
 
+        case LOGGER::EVT_START_MULTIDRAG:
         case LOGGER::EVT_START_DRAG:
         {
             PNS::SIZES_SETTINGS sizes( m_router->Sizes() );
-            m_iface->SetStartLayer( routingLayer );
+            m_iface->SetStartLayerFromPNS( routingLayer );
             m_iface->ImportSizes( sizes, ritem, nullptr, evt.p );
             m_router->UpdateSizes( sizes );
 
@@ -148,7 +169,7 @@ void PNS_LOG_PLAYER::ReplayLog( PNS_LOG_FILE* aLog, int aStartEventIndex, int aF
             m_debugDecorator->Message( msg );
             m_reporter->Report( msg );
 
-            bool rv = m_router->StartDragging( evt.p, ritem, 0 );
+            bool rv = m_router->StartDragging( evt.p, ritems, 0 );
             break;
         }
 
@@ -262,7 +283,8 @@ void PNS_LOG_PLAYER::ReplayLog( PNS_LOG_FILE* aLog, int aStartEventIndex, int aF
 
         for( auto item : removed )
         {
-            wxASSERT_MSG( item->Parent() != nullptr, "removed an item with no parent uuid?" );
+            // fixme: should we check for that?
+            // wxASSERT_MSG( item->Parent() != nullptr, "removed an item with no parent uuid?" );
 
             if( item->Parent() )
                 removedKIIDs.insert( item->Parent()->m_Uuid );
@@ -351,17 +373,19 @@ void PNS_LOG_VIEW_TRACKER::SetStage( int aStage )
 void PNS_LOG_VIEW_TRACKER::HideItem( PNS::ITEM* aItem )
 {
     ENTRY ent;
-    ent.isHideOp = true;
-    ent.item = aItem;
-    m_vitems[m_currentStage].push_back( ent );
+    ent.m_isHideOp = true;
+    ent.m_item = aItem;
+    ent.m_ownedItem = nullptr; // I don't own it!
+    m_vitems[m_currentStage].push_back( std::move( ent ) );
 }
 
 void PNS_LOG_VIEW_TRACKER::DisplayItem( const PNS::ITEM* aItem )
 {
     ENTRY ent;
-    ent.isHideOp = false;
-    ent.item = aItem->Clone();
-    m_vitems[m_currentStage].push_back( ent );
+    ent.m_isHideOp = false;
+    ent.m_item = aItem->Clone();
+    ent.m_ownedItem.reset( ent.m_item ); //delete me when ENTRY is deleted
+    m_vitems[m_currentStage].push_back( std::move( ent ) );
     //printf("DBG disp cur %d cnt %d\n", m_currentStage, m_vitems[m_currentStage].size() );
 }
 

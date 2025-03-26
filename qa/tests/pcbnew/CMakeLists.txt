@@ -34,9 +34,11 @@ set( QA_PCBNEW_SRCS
     test_array_pad_name_provider.cpp
     test_board_item.cpp
     test_generator_load_save.cpp
+    test_graphics_load_save.cpp
     test_graphics_import_mgr.cpp
     test_group_load_save.cpp
     test_footprint_load_save.cpp
+    test_fp_lib_load_save.cpp
     test_io_mgr.cpp
     test_lset.cpp
     test_pns_basics.cpp
@@ -47,6 +49,7 @@ set( QA_PCBNEW_SRCS
     test_save_load.cpp
     test_tracks_cleaner.cpp
     test_triangulation.cpp
+    test_multichannel.cpp
     test_zone.cpp
     test_zone_filler.cpp
 
@@ -58,11 +61,17 @@ set( QA_PCBNEW_SRCS
     drc/test_drc_copper_graphics.cpp
     drc/test_drc_copper_sliver.cpp
     drc/test_solder_mask_bridging.cpp
+    drc/test_drc_multi_netclasses.cpp
+    drc/test_drc_skew.cpp
+    drc/test_drc_component_classes.cpp
+    drc/test_drc_incorrect_text_mirror.cpp
 
     pcb_io/altium/test_altium_rule_transformer.cpp
     pcb_io/altium/test_altium_pcblib_import.cpp
     pcb_io/cadstar/test_cadstar_footprints.cpp
     pcb_io/eagle/test_eagle_lbr_import.cpp
+
+    pcb_io/kicad_sexpr/test_kicad_sexpr.cpp
 
     group_saveload.cpp
 )
@@ -106,6 +115,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/polygon
     ${CMAKE_SOURCE_DIR}/common/geometry
     ${CMAKE_SOURCE_DIR}/qa/qa_utils
+    ${CMAKE_SOURCE_DIR}/qa/mocks/include
     ${INC_AFTER}
 )
 
@@ -143,3 +153,5 @@ if( WIN32 )
 endif()
 
 kicad_add_boost_test( qa_pcbnew qa_pcbnew )
+
+setup_qa_env( qa_pcbnew )
