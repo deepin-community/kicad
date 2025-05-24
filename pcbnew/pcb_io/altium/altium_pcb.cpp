@@ -289,7 +289,9 @@ std::vector<PCB_LAYER_ID> ALTIUM_PCB::GetKicadLayersToIterate( ALTIUM_LAYER aAlt
         }
 
         klayer = Eco1_User;
-        m_board->SetEnabledLayers( m_board->GetEnabledLayers() | LSET( { klayer } ) );
+
+        if( m_board )
+            m_board->SetEnabledLayers( m_board->GetEnabledLayers() | LSET( { klayer } ) );
     }
 
     return { klayer };
@@ -1636,18 +1638,11 @@ void ALTIUM_PCB::HelperParseDimensions6Linear( const ADIMENSION6& aElem )
 
     switch( aElem.textunit )
     {
-    case ALTIUM_UNIT::INCHES:
-        dimension->SetUnits( EDA_UNITS::INCHES );
-        break;
-    case ALTIUM_UNIT::MILS:
-        dimension->SetUnits( EDA_UNITS::MILS );
-        break;
-    case ALTIUM_UNIT::MILLIMETERS:
-    case ALTIUM_UNIT::CENTIMETER:
-        dimension->SetUnits( EDA_UNITS::MILLIMETRES );
-        break;
-    default:
-        break;
+    case ALTIUM_UNIT::INCH: dimension->SetUnits( EDA_UNITS::INCH );   break;
+    case ALTIUM_UNIT::MILS: dimension->SetUnits( EDA_UNITS::MILS ); break;
+    case ALTIUM_UNIT::MM:   dimension->SetUnits( EDA_UNITS::MM );   break;
+    case ALTIUM_UNIT::CM:   dimension->SetUnits( EDA_UNITS::MM );   break;
+    default:                                                        break;
     }
 
     m_board->Add( dimension.release(), ADD_MODE::APPEND );
@@ -1694,18 +1689,11 @@ void ALTIUM_PCB::HelperParseDimensions6Radial(const ADIMENSION6 &aElem)
 
     switch( aElem.textunit )
     {
-    case ALTIUM_UNIT::INCHES:
-        dimension->SetUnits( EDA_UNITS::INCHES );
-        break;
-    case ALTIUM_UNIT::MILS:
-        dimension->SetUnits( EDA_UNITS::MILS );
-        break;
-    case ALTIUM_UNIT::MILLIMETERS:
-    case ALTIUM_UNIT::CENTIMETER:
-        dimension->SetUnits( EDA_UNITS::MILLIMETRES );
-        break;
-    default:
-        break;
+    case ALTIUM_UNIT::INCH: dimension->SetUnits( EDA_UNITS::INCH );   break;
+    case ALTIUM_UNIT::MILS: dimension->SetUnits( EDA_UNITS::MILS ); break;
+    case ALTIUM_UNIT::MM:   dimension->SetUnits( EDA_UNITS::MM );   break;
+    case ALTIUM_UNIT::CM:   dimension->SetUnits( EDA_UNITS::MM );   break;
+    default:                                                        break;
     }
 
     if( aElem.textPoint.empty() )
@@ -2048,6 +2036,39 @@ void ALTIUM_PCB::ParseModelsData( const ALTIUM_PCB_COMPOUND_FILE&     aAltiumPcb
         m_EmbeddedModels.insert( std::make_pair(
                 elem.id, ALTIUM_EMBEDDED_MODEL_DATA( storageName, elem.rotation, elem.z_offset,
                                                      std::move( stepContent ) ) ) );
+    }
+
+    // Append _<index> to duplicate filenames
+    std::map<wxString, std::vector<wxString>> nameIdMap;
+
+    for( auto& [id, data] : m_EmbeddedModels )
+        nameIdMap[data.m_modelname].push_back( id );
+
+    for( auto& [name, ids] : nameIdMap )
+    {
+        for( size_t i = 1; i < ids.size(); i++ )
+        {
+            const wxString& id = ids[i];
+
+            auto modelTuple = m_EmbeddedModels.find( id );
+
+            if( modelTuple == m_EmbeddedModels.end() )
+                continue;
+
+            wxString modelName = modelTuple->second.m_modelname;
+
+            if( modelName.Contains( "." ) )
+            {
+                wxString ext;
+                wxString baseName = modelName.BeforeLast( '.', &ext );
+
+                modelTuple->second.m_modelname = baseName + '_' + std::to_string( i ) + '.' + ext;
+            }
+            else
+            {
+                modelTuple->second.m_modelname = modelName + '_' + std::to_string( i );
+            }
+        }
     }
 
     if( reader.GetRemainingBytes() != 0 )
@@ -3513,7 +3534,11 @@ void ALTIUM_PCB::ConvertPads6ToFootprintItemOnCopper( FOOTPRINT* aFootprint, con
         {
             size_t i = 0;
 
-            for( PCB_LAYER_ID layer : LAYER_RANGE( In2_Cu, In30_Cu, MAX_CU_LAYERS ) )
+            LSET intLayers = aFootprint->BoardLayerSet();
+            intLayers &= LSET::InternalCuMask();
+            intLayers.set( In1_Cu, false ); // Already handled above
+
+            for( PCB_LAYER_ID layer : intLayers )
             {
                 setCopperGeometry( layer, aElem.sizeAndShape->inner_shape[i],
                                    VECTOR2I( aElem.sizeAndShape->inner_size[i].x,
@@ -3542,7 +3567,7 @@ void ALTIUM_PCB::ConvertPads6ToFootprintItemOnCopper( FOOTPRINT* aFootprint, con
 
     case ALTIUM_LAYER::BOTTOM_LAYER:
         pad->SetLayer( B_Cu );
-        pad->SetLayerSet( PAD::SMDMask().Flip() );
+        pad->SetLayerSet( PAD::SMDMask().FlipStandardLayers() );
         break;
 
     case ALTIUM_LAYER::MULTI_LAYER:

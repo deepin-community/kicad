@@ -83,9 +83,6 @@ DIALOG_TEXT_PROPERTIES_BASE::DIALOG_TEXT_PROPERTIES_BASE( wxWindow* parent, wxWi
 	m_cbLocked = new wxCheckBox( this, wxID_ANY, _("Locked"), wxDefaultPosition, wxDefaultSize, 0 );
 	gbSizer1->Add( m_cbLocked, wxGBPosition( 0, 0 ), wxGBSpan( 1, 3 ), wxRIGHT|wxLEFT, 5 );
 
-	m_Visible = new wxCheckBox( this, wxID_ANY, _("Visible"), wxDefaultPosition, wxDefaultSize, 0 );
-	gbSizer1->Add( m_Visible, wxGBPosition( 0, 4 ), wxGBSpan( 1, 1 ), wxRIGHT, 5 );
-
 	m_LayerLabel = new wxStaticText( this, wxID_ANY, _("Layer:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_LayerLabel->Wrap( -1 );
 	gbSizer1->Add( m_LayerLabel, wxGBPosition( 1, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxTOP|wxBOTTOM|wxLEFT, 5 );
@@ -97,15 +94,24 @@ DIALOG_TEXT_PROPERTIES_BASE::DIALOG_TEXT_PROPERTIES_BASE( wxWindow* parent, wxWi
 	bSizer7 = new wxBoxSizer( wxHORIZONTAL );
 
 	m_cbKnockout = new wxCheckBox( this, wxID_ANY, _("Knockout"), wxDefaultPosition, wxDefaultSize, 0 );
-	bSizer7->Add( m_cbKnockout, 1, wxTOP|wxBOTTOM|wxRIGHT, 15 );
+	bSizer7->Add( m_cbKnockout, 0, wxALIGN_CENTER_VERTICAL, 10 );
+
+
+	bSizer7->Add( 20, 0, 1, wxEXPAND, 5 );
 
 	m_KeepUpright = new wxCheckBox( this, wxID_ANY, _("Keep upright"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_KeepUpright->SetToolTip( _("Keep text upright") );
 
-	bSizer7->Add( m_KeepUpright, 1, wxALIGN_CENTER_VERTICAL, 5 );
+	bSizer7->Add( m_KeepUpright, 0, wxALIGN_CENTER_VERTICAL, 10 );
 
 
-	gbSizer1->Add( bSizer7, wxGBPosition( 1, 4 ), wxGBSpan( 1, 3 ), wxEXPAND, 5 );
+	bSizer7->Add( 20, 0, 1, wxEXPAND, 5 );
+
+	m_Visible = new wxCheckBox( this, wxID_ANY, _("Show"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer7->Add( m_Visible, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT, 10 );
+
+
+	gbSizer1->Add( bSizer7, wxGBPosition( 1, 4 ), wxGBSpan( 1, 3 ), wxEXPAND|wxTOP|wxBOTTOM, 10 );
 
 	m_fontLabel = new wxStaticText( this, wxID_ANY, _("Font:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_fontLabel->Wrap( -1 );
@@ -257,7 +263,7 @@ DIALOG_TEXT_PROPERTIES_BASE::DIALOG_TEXT_PROPERTIES_BASE( wxWindow* parent, wxWi
 
 	m_statusLine = new wxStaticText( this, wxID_ANY, _("Parent footprint description"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_statusLine->Wrap( -1 );
-	bMargins->Add( m_statusLine, 0, wxBOTTOM|wxRIGHT|wxLEFT, 3 );
+	bMargins->Add( m_statusLine, 0, wxBOTTOM|wxRIGHT|wxLEFT|wxEXPAND, 3 );
 
 
 	bMainSizer->Add( bMargins, 0, wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT|wxTOP, 12 );

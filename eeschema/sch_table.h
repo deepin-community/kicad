@@ -53,8 +53,8 @@ public:
     void SetStrokeExternal( bool aDoStroke ) { m_strokeExternal = aDoStroke; }
     bool StrokeExternal() const              { return m_strokeExternal; }
 
-    void SetStrokeHeader( bool aDoStroke ) { m_strokeHeader = aDoStroke; }
-    bool StrokeHeader() const              { return m_strokeHeader; }
+    void SetStrokeHeaderSeparator( bool aDoStroke ) { m_StrokeHeaderSeparator = aDoStroke; }
+    bool StrokeHeaderSeparator() const              { return m_StrokeHeaderSeparator; }
 
     void SetBorderStroke( const STROKE_PARAMS& aParams ) { m_borderStroke = aParams; }
     const STROKE_PARAMS& GetBorderStroke() const { return m_borderStroke; }
@@ -224,6 +224,9 @@ public:
     void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
                 const VECTOR2I& offset, bool aForceNoFill, bool aDimmed ) override;
 
+    void DrawBorders( const std::function<void( const VECTOR2I& aPt1, const VECTOR2I& aPt2,
+                                                const STROKE_PARAMS& aStroke )>& aCallback ) const;
+
     void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override;
 
@@ -244,7 +247,7 @@ public:
 
 protected:
     bool                        m_strokeExternal;
-    bool                        m_strokeHeader;
+    bool                        m_StrokeHeaderSeparator;
     STROKE_PARAMS               m_borderStroke;
     bool                        m_strokeRows;
     bool                        m_strokeColumns;

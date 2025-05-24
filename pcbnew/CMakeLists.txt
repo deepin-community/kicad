@@ -55,7 +55,6 @@ set( PCBNEW_DIALOGS
     dialogs/dialog_footprint_associations_base.cpp
     dialogs/dialog_footprint_checker.cpp
     dialogs/dialog_footprint_checker_base.cpp
-    dialogs/dialog_footprint_chooser.cpp
     dialogs/dialog_footprint_properties.cpp
     dialogs/dialog_footprint_properties_base.cpp
     dialogs/dialog_footprint_properties_fp_editor.cpp
@@ -395,6 +394,7 @@ set( PCBNEW_CLASS_SRCS
     tools/global_edit_tool.cpp
     tools/group_tool.cpp
     tools/footprint_editor_control.cpp
+    tools/footprint_chooser_selection_tool.cpp
     tools/item_modification_routine.cpp
     tools/pad_tool.cpp
     tools/pcb_control.cpp
@@ -649,8 +649,14 @@ foreach(file ${markdownFiles})
     add_dependencies(generate_headers ${filename}_gen)
 
     # Mark the output header as a dependency of the source file
+    get_source_file_property(existing_depends dialogs/panel_setup_rules.cpp OBJECT_DEPENDS)
+    if(NOT existing_depends OR existing_depends STREQUAL "NOTFOUND")
+        set(existing_depends "")
+    else()
+        set(existing_depends "${existing_depends};")
+    endif()
     set_source_files_properties(dialogs/panel_setup_rules.cpp
-        PROPERTIES OBJECT_DEPENDS "${outputHeader}")
+        PROPERTIES OBJECT_DEPENDS "${existing_depends}${outputHeader}")
 endforeach()
 
 if( APPLE )

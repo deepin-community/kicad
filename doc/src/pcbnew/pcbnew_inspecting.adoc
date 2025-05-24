@@ -3,9 +3,9 @@
 == Inspecting a board
 
 [[design-rule-checking]]
-=== Design rule checking
+=== Design rules checking
 
-The design rule checker is used to verify that the PCB meets all the requirements established in
+The Design Rules Checker (DRC) tool is used to verify that the PCB meets all the requirements established in
 the Board Setup dialog and that all pads are connected according to the netlist or schematic.
 KiCad can automatically prevent some design rule violations while routing tracks, but many others
 cannot be prevented automatically.  This means it is important to use the design rule checker
@@ -684,8 +684,8 @@ the braces is included in the DRC violation's description. The text variable
 must be placed at the start of the text object in order to trigger a violation.
 
 For example, a text item containing `${DRC_ERROR TODO}Length match tracks` will
-appear in the board as just the text "Length match tracks", and will generate an
-ERC error named "TODO" with "Length matches tracks" in the description.
+appear in the board as just the text "Length match tracks", and will generate a
+DRC error named "TODO" with "Length matches tracks" in the description.
 
 ==== DRC report file
 
@@ -726,10 +726,25 @@ DRC report file is given below.
 [[board-statistics]]
 === Board Statistics
 
-The Board Statistics dialog shows a summary of the board's contents, including the number of
-components, pads and vias; each by their own types as well as the overall board size.
+The Board Statistics dialog shows a summary of the board's contents, including the size of the
+board and counts of various types of items. Open the Board Statistics dialog with **Inspect** ->
+**Show Board Statistics**.
 
 image::images/Pcbnew_board_statistics.png[scaledwidth="70%"]
+
+The **General** tab gives counts of various types of objects:
+
+* Footprints, separated by type (THT, SMD, or unspecified) and board side
+* Pads, separated by type (THT, SMD, connector, or NPTH)
+* Vias, separated by type (through, blind/buried, or micro)
+
+It also displays the board width, height, and area.
+
+The **Drill Holes** tab lists every unique type of drill hole on the board. Each type of hole
+is listed with its characteristics (shape, X and Y size, plating, pad or via type, and start
+and stop layers) and the count of that type of hole.
+
+You can save the board statistics to a file by clicking the **Generate Report File...** button.
 
 [[measurement-tool]]
 === Measurement tool
@@ -803,7 +818,9 @@ You can optionally filter the list based on a search string. When no filter is
 used, all items in the design are listed in the corresponding tab. Items are
 filtered based on their properties:
 
-* Footprints are filtered by their reference designator and value
+* Footprints are filtered by the contents of their fields. You can select whether
+  to search hidden fields by enabling the **Search Hidden Fields** option in the
+  image:images/icons/config_16.png[] menu
 * Zones are filtered by the zone name
 * Net and ratsnest items are filtered by the net name
 * Text (text, textboxes, and dimensions) is filtered by the text content
@@ -878,7 +895,9 @@ Each layer or type of object in the list can be individually shown or hidden by
 clicking its corresponding visibility icon. PCB layers can have their colors
 customized; double-click on the color swatch next to the item type to edit the
 item's color and opacity. To use the colors selected in the Board Setup dialog's
-Physical Stackup editor, enable the **use board stackup colors** option.
+Physical Stackup editor, enable the **use board stackup colors** option. If you
+enable the **use PCB editor copper colors** option, copper layers in the 3D
+viewer will use the colors configured in the PCB editor canvas.
 
 You can save an appearance configuration as a preset, or load a configuration
 from a preset, using the **Preset** selector at the bottom. The kbd:[Ctrl+Tab]
@@ -1034,7 +1053,7 @@ You can group nets by their net class by clicking image:images/icons/options_gen
 To create a new custom group, click image:images/icons/options_generic_16_16.png[] ->
 **Add Custom Group**. Any nets that contain the specified pattern in their name will be shown as
 part of the group and not shown outside of the group. For example, the pattern `CAN` matches the
-nets `CAN_RX` and `CAN_TX`.
+nets `CAN_RX` and `CAN_TX`. Patterns are not case sensitive.
 
 The pattern can also use regular expressions to match nets if the pattern is surrounded in slashes.
 For example, the pattern `/^AN/` matches nets `AN0`, `AN1`, etc., but not `CAN`.

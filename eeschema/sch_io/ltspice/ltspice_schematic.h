@@ -110,7 +110,8 @@ public:
         VLEFT,    // Vertical Left Justification
         VRIGHT,   // Vertical Right Justification
         VCENTER,  // Vertical Center Justification
-        VTOP      // Vertical Top Justification.
+        VTOP,      // Vertical Top Justification.
+        INVISIBLE
     };
 
     /**
@@ -261,6 +262,7 @@ public:
     {
         VECTOR2I               SheetSize;
         int                    Version;
+        int                    VersionMinor;
         int                    SheetNumber;
         std::vector<LT_SYMBOL> Symbols;
         std::vector<LINE>      Lines;
@@ -306,7 +308,7 @@ public:
     void GetAscAndAsyFilePaths( const wxDir& aDir, bool aRecursive,
                                 std::map<wxString, wxString>& aMapOfAscFiles,
                                 std::map<wxString, wxString>& aMapOfAsyFiles,
-                                const wxString&               aBase = wxEmptyString );
+                                const std::vector<wxString>&  aBaseDirs = {} );
 
     /**
      * Used to get symbols list present in asc file.
@@ -348,6 +350,8 @@ public:
 
     LT_SYMBOL SymbolBuilder( const wxString& aAscFileName, const wxString& aAsyFileContent,
                              LT_ASC& aAscFile );
+
+    LT_SYMBOL MakeDummySymbol( const wxString& aAscFileName );
 
     const wxFileName& GetLTspiceDataDir() { return m_ltspiceDataDir; }
 

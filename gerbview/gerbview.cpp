@@ -32,7 +32,7 @@
 #include <gestfich.h>
 #include <kiface_base.h>
 #include <macros.h>
-#include <nlohmann/json.hpp>
+#include <json_common.h>
 #include <pgm_base.h>
 #include <richio.h>
 #include <settings/settings_manager.h>
@@ -55,7 +55,7 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
 
     IFACE( const char* aName, KIWAY::FACE_T aType ) :
             KIFACE_BASE( aName, aType ),
-            UNITS_PROVIDER( gerbIUScale, EDA_UNITS::MILLIMETRES )
+            UNITS_PROVIDER( gerbIUScale, EDA_UNITS::MM )
     {}
 
     bool OnKifaceStart( PGM_BASE* aProgram, int aCtlBits, KIWAY* aKiway ) override;

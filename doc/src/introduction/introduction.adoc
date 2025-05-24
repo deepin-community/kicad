@@ -6,6 +6,8 @@
 
 = Introduction
 
+include::../version.adoc[]
+
 [[copyright]]
 *Copyright*
 
@@ -28,6 +30,13 @@ Jon Evans, Graham Keeth
 The KiCad project welcomes feedback, bug reports, and suggestions related to the software or its
 documentation. For more information on how to submit feedback or report an issue, please see the
 instructions at https://www.kicad.org/help/report-an-issue/
+
+*Software and Documentation Version*
+
+This user manual is based on KiCad {kicad-version-long}. Functionality and
+appearance may be different in other versions of KiCad.
+
+Documentation revision: `{doc-commit}`.
 
 [[publication_date]]
 *Publication date*
@@ -59,8 +68,8 @@ Some of the most notable new features include:
   components together. Component classes can be used in the PCB editor for
   applying DRC rules to related components, or as part of multichannel
   (repeated) layouts.
-- Padstacks have been added, allowing independent control over pad/via sizes and
-  and shapes for each board layer. Via tenting can also be controlled per-via
+- Padstacks have been added, allowing independent control over pad/via sizes and 
+  shapes for each board layer. Via tenting can also be controlled per-via
   and per-side.
 - The PCB Editor now supports multichannel layouts, where the layout for one
   section of a board can be repeated multiple times and applied to other parts

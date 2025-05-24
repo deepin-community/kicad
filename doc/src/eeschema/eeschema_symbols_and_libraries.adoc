@@ -252,7 +252,7 @@ symbols were referred to as aliases.
 ==== Symbol Editor overview
 
 KiCad provides a symbol editing tool that allows you to create libraries; add,
-edit, delete, or transfer symbols between libraries; 
+edit, delete, or transfer symbols between libraries; export symbols to files;
 and import symbols from files. The Symbol Editor can be launched from the KiCad
 Project Manager or from the Schematic Editor (**Tools** -> **Symbol Editor**).
 You can also open the Symbol Editor from the
@@ -333,32 +333,31 @@ be saved.
 |image:images/icons/mirror_v_24.png[Mirror vertically icon]|Mirror vertically.
 
 |image:images/icons/part_properties_24.png[Symbol properties icon]
-|Edit the current symbol properties.
+|Edit the <<symbol-properties,current symbol's properties>>.
 
 |image:images/icons/pin_table_24.png[Pin table icon]
-|Edit the symbol's pins in a tabular interface.
+|Edit the <<pin-table,symbol's pins in a tabular interface>>.
 
 |image:images/icons/datasheet_24.png[Datasheet icon]
 |Open the symbol's datasheet, if it is defined.
 
 |image:images/icons/erc_24.png[ERC icon]
-|Test the current symbol for design errors.
+|Run the <<checking-symbols,symbol checker>> to test the current symbol for design errors.
 
 |image:images/icons/morgan1_24.png[Normal body style icon]
-|Select the normal body style. The button is disabled if the current
+|Select the <<symbol-units-and-body-styles,normal body style>>. The button is disabled if the current
 symbol does not have an alternate body style.
 
 |image:images/icons/morgan2_24.png[Alternate body style icon]
-|Select the alternate body style. The button is disabled if the current
+|Select the <<symbol-units-and-body-styles,alternate body style>>. The button is disabled if the current
 symbol does not have an alternate body style.
 
 |image:images/symbol_editor_unit_selector.png[alt="Unit dropdown",width="80%"]
-|Select the unit of a multi-unit symbol to display. The drop down control will
-be disabled if the current symbol is not derived from a symbol with multiple
-units.
+|Select the unit of a <<symbol-units-and-body-styles,multi-unit symbol>> to display. The drop down control will
+be disabled if the current symbol does not have multiple units.
 
 |image:images/icons/pin2pin_24.png[Synchronized pin edit mode icon]
-|Enable synchronized pins edit mode. When this mode is enabled, any pin
+|Enable <<synchronized-pin-edit-mode,synchronized pin edit mode>>. When this mode is enabled, any pin
 modifications are propagated to all other symbol units. Pin number changes are
 not propagated. This mode is automatically enabled for symbols with multiple
 interchangeable units and cannot be enabled for symbols with only one unit.
@@ -378,16 +377,12 @@ The left toolbar provides options to change the display of items in the Symbol E
 |Toggle grid visibility on and off.
 
 |image:images/icons/grid_override_24.png[Grid override icon]
-|Toggle grid overrides on and off.
+|Toggle item-specific <<snapping,grid overrides>> on and off.
 
 |image:images/icons/unit_inch_24.png[Inch unit icon]
-|Set units to inches.
-
-|image:images/icons/unit_mil_24.png[Millimeter unit icon]
-|Set units to mils (0.001 inch).
-
-|image:images/icons/unit_mm_24.png[Millimeter unit icon]
-|Set units to millimeters.
+ image:images/icons/unit_mil_24.png[Millimeter unit icon]
+ image:images/icons/unit_mm_24.png[Millimeter unit icon]
+|Set units to inches, mils (0.001 inch), or millimeters.
 
 |image:images/icons/cursor_shape_24.png[Cursor shape icon]
 |Toggle full screen cursor on and off.
@@ -405,7 +400,7 @@ The left toolbar provides options to change the display of items in the Symbol E
 |Toggle display of library and symbol tree.
 
 |image:images/icons/tools_24.png[Symbol tree icon]
-|Toggle display of Properties Manager panel.
+|Toggle display of <<editing-symbol-properties,Properties Manager>> panel.
 |=======================================================================
 
 ===== Right toolbar tools
@@ -423,40 +418,40 @@ select tool will open the properties dialog for the object under the
 cursor.
 
 |image:images/icons/pin_24.png[Pin icon]
-|Pin tool. Left-click to add a new pin.
+|Pin tool. Left-click to add a new <<symbol-pins,pin>>.
 
 |image:images/icons/text_24.png[Text icon]
-|Graphical text tool. Left-click to add a new graphical text item.
+|Graphical text tool. Left-click to add a new <<symbol-graphics,graphical text item>>.
 
 |image:images/icons/add_textbox_24.png[Textbox icon]
-|Graphical textbox tool. Left-click to add a new graphical textbox item.
+|Graphical textbox tool. Left-click to add a new <<symbol-graphics,graphical textbox item>>.
 
 |image:images/icons/add_rectangle_24.png[Add rectangle icon]
 |Rectangle tool. Left-click to begin drawing the first corner of a
-graphical rectangle. Left-click again to place the opposite corner of
+<<symbol-graphics,graphical rectangle>>. Left-click again to place the opposite corner of
 the rectangle.
 
 |image:images/icons/add_circle_24.png[Add circle icon]
-|Circle tool. Left-click to begin drawing a new graphical circle from
+|Circle tool. Left-click to begin drawing a new <<symbol-graphics,graphical circle>> from
 the center. Left-click again to define the radius of the circle.
 
 |image:images/icons/add_arc_24.png[Add arc icon]
-|Arc tool. Left-click to begin drawing a new graphical arc item from the
+|Arc tool. Left-click to begin drawing a new <<symbol-graphics,graphical arc item>> from the
 first arc end point. Left-click again to define the second arc end point.
 Adjust the radius by dragging the arc center point.
 
 |image:images/icons/add_bezier_24.png[Add bezier icon]
-|Bezier curve tool. Left-click to begin drawing a new graphical bezier curve
-item. First click for the start point, then for the control points and the
+|Bezier curve tool. Left-click to begin drawing a new <<symbol-graphics,graphical bezier curve item>>.
+First click for the start point, then for the control points and the
 end point. Adjust the curve by dragging the points.
 
 |image:images/icons/add_graphical_segments_24.png[Add line icon]
-|Connected line tool. Left-click to begin drawing a new graphical line item
+|Connected line tool. Left-click to begin drawing a new <<symbol-graphics,graphical line item>>
 in the current symbol. Left-click for each additional connected line.
 Double-left-click to complete the line.
 
 |image:images/icons/add_graphical_polygon_24.png[Add line icon]
-|Connected line tool. Left-click to begin drawing a new graphical line item
+|Connected line tool. Left-click to begin drawing a new <<symbol-graphics,graphical line item>>
 in the current symbol. Left-click for each additional connected line.
 Double-left-click to complete the line.
 
@@ -496,6 +491,11 @@ different library (including a new library), and a new name can be set for the
 symbol. Alternatively, you can use **File** -> **Save Copy As...**, which
 behaves the same as **Save As** except that the original symbol remains open
 rather than switching to the new symbol.
+
+To create a new file containing only the current symbol, click **File** ->
+**Export** -> **Symbol...**. This file will be a standard symbol library file
+which will contain only one symbol. The library will not be added to your
+library table.
 
 The editor can also open symbols from the schematic. To edit a symbol from the
 schematic, right click a symbol in the Schematic Editor and select
@@ -706,7 +706,33 @@ footprint beginning with `SOIC-`. The filter `SOT?23` matches `SOT23` as well as
 
 image::images/eeschema_libedit_footprint.png[alt="Footprint filters",scaledwidth="70%"]
 
+[[sym-embedding-files]]
+==== Embedding files
 
+External files can be embedded within a symbol.
+Embedding a file stores a copy of the file inside the symbol. The symbol
+can then refer to the embedded copy of the file instead of the external file,
+which makes the symbol more portable as it doesn't rely on an external file,
+although the symbol library's filesize is increased as a result. In symbols this
+is especially useful for embedding datasheets and <<sim-library,SPICE models>>.
+Files embedded in a symbol are deduplicated when the symbol is added to a
+schematic: if a file is embedded in a symbol, and multiple instances of that
+symbol are added to the schematic, only one copy of the file will be embedded,
+and all of the schematic instances will refer to the same embedded file. Files
+embedded in a schematic cannot be referred to in the parent schematic. File
+embedding is explained in more detail in the
+<<sch-embedding-files,Schematic Setup documentation>>.
+
+image::images/sym_embedded_files.png[]
+
+NOTE: You can add a datasheet, or a SPICE model, to a symbol and embed it in one
+      step. To do so, browse for a datasheet (in the Symbol Properties dialog)
+      or a SPICE model (in the SPICE Model Editor) and enable the **Embed File**
+      checkbox in the file browser while choosing a file. This embeds the
+      file and automatically uses the embedded reference as the file path
+      instead of the path to the external file.
+
+[[symbol-units-and-body-styles]]
 ==== Symbol Units and Alternate Body Styles
 
 Symbols can have more than one unit per package, each with different graphics
@@ -780,6 +806,7 @@ image::images/eeschema_libedit_unit3.png[alt="Relay unit C",scaledwidth="45%"]
 Unit A does not have the same symbol and pin layout as Units B and C, so the
 units are not interchangeable.
 
+[[symbol-graphics]]
 ==== Symbol Graphics
 
 Graphical elements create the visual representation of a symbol and
@@ -834,6 +861,7 @@ The properties of a graphic element are:
   is edited in the Symbol Editor. The shape will be hidden when the symbol is
   added to a schematic.
 
+[[symbol-pins]]
 ==== Symbol Pins
 
 You can create and insert a pin by clicking on the
@@ -889,6 +917,8 @@ image::images/eeschema_libedit_pin_properties_style.png[alt="Pin graphic styles"
 
 Each pin in a symbol has an electrical type, such as input, output, or
 tri-state.
+
+image::images/eeschema_libedit_pin_properties_type.png[alt="Pin graphic styles",scaledwidth="95%"]
 
 Choosing the correct electrical type is important for the schematic ERC tool.
 ERC will check that pins are connected appropriately, for example ensuring that
@@ -998,6 +1028,7 @@ pins in the symbol by right clicking the pin and selecting **Push Pin Length**,
 **Push Pin Name Size**, or **Push Pin Number Size**, respectively. All other
 pins in the symbol will be updated.
 
+[[synchronized-pin-edit-mode]]
 ===== Defining Pins for Multiple Units and Alternate Symbolic Representations
 
 Symbols with multiple units and/or graphical representations are particularly
@@ -1033,6 +1064,7 @@ select the appropriate unit using the
 image:images/symbol_editor_unit_selector.png[unit selection dropdown]
 drop down control.
 
+[[pin-table]]
 ===== Pin Table
 
 Another way to edit pins is to use the Pin Table, which is accessible via the

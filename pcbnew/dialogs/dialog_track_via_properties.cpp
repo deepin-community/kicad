@@ -37,7 +37,7 @@
 #include <board_commit.h>
 
 
-DIALOG_TRACK_VIA_PROPERTIES::DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_FRAME* aParent,
+DIALOG_TRACK_VIA_PROPERTIES::DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_EDIT_FRAME* aParent,
                                                           const PCB_SELECTION& aItems ) :
         DIALOG_TRACK_VIA_PROPERTIES_BASE( aParent ),
         m_frame( aParent ),
@@ -537,7 +537,31 @@ void DIALOG_TRACK_VIA_PROPERTIES::onUnitsChanged( wxCommandEvent& aEvent )
 }
 
 
-bool DIALOG_TRACK_VIA_PROPERTIES::confirmPadChange( const std::vector<PAD*>& changingPads )
+bool DIALOG_TRACK_VIA_PROPERTIES::confirmShortingNets( int aNet, const std::set<int>& shortingNets )
+{
+    wxString msg;
+
+    if( shortingNets.size() == 1 )
+    {
+        msg.Printf( _( "Applying these changes will short net %s with %s." ),
+                    m_netSelector->GetValue(),
+                    m_frame->GetBoard()->FindNet( *shortingNets.begin() )->GetNetname() );
+    }
+    else
+    {
+        msg.Printf( _( "Applying these changes will short net %s with other nets." ),
+                    m_netSelector->GetValue() );
+    }
+
+    KIDIALOG dlg( this, msg, _( "Confirmation" ), wxOK | wxCANCEL | wxICON_WARNING );
+    dlg.SetOKCancelLabels( _( "Apply Anyway" ), _( "Cancel Changes" ) );
+    dlg.DoNotShowCheckbox( __FILE__, __LINE__ );
+
+    return dlg.ShowModal() == wxID_OK;
+}
+
+
+bool DIALOG_TRACK_VIA_PROPERTIES::confirmPadChange( const std::set<PAD*>& changingPads )
 {
     wxString msg;
 
@@ -577,6 +601,27 @@ bool DIALOG_TRACK_VIA_PROPERTIES::confirmPadChange( const std::vector<PAD*>& cha
 
 bool DIALOG_TRACK_VIA_PROPERTIES::TransferDataFromWindow()
 {
+    std::shared_ptr<CONNECTIVITY_DATA> connectivity = m_frame->GetBoard()->GetConnectivity();
+    std::vector<PCB_TRACK*>            selected_tracks;
+    std::set<PCB_TRACK*>               connected_tracks;
+
+    for( EDA_ITEM* item : m_items )
+    {
+        if( PCB_TRACK* track = dynamic_cast<PCB_TRACK*>( item ) )
+            selected_tracks.push_back( track );
+    }
+
+    static const std::vector<KICAD_T> trackTypes = { PCB_TRACE_T, PCB_ARC_T, PCB_VIA_T };
+
+    for( PCB_TRACK* selected_track : selected_tracks )
+    {
+        for( BOARD_CONNECTED_ITEM* connected_item : connectivity->GetConnectedItems( selected_track, trackTypes ) )
+        {
+            if( PCB_TRACK* track = dynamic_cast<PCB_TRACK*>( connected_item ) )
+                connected_tracks.insert( track );
+        }
+    }
+
     // Check for malformed data ONLY; design rules and constraints are the business of DRC.
 
     if( m_vias )
@@ -628,51 +673,50 @@ bool DIALOG_TRACK_VIA_PROPERTIES::TransferDataFromWindow()
     bool         changeLock = m_lockedCbox->Get3StateValue() != wxCHK_UNDETERMINED;
     bool         setLock = m_lockedCbox->Get3StateValue() == wxCHK_CHECKED;
 
-    for( EDA_ITEM* item : m_items )
+    for( PCB_TRACK* track : selected_tracks )
     {
-        commit.Modify( item );
+        commit.Modify( track );
 
-        switch( item->Type() )
+        switch( track->Type() )
         {
             case PCB_TRACE_T:
             case PCB_ARC_T:
             {
                 wxASSERT( m_tracks );
-                PCB_TRACK* t = static_cast<PCB_TRACK*>( item );
 
                 if( !m_trackStartX.IsIndeterminate() )
-                    t->SetStartX( m_trackStartX.GetIntValue() );
+                    track->SetStartX( m_trackStartX.GetIntValue() );
 
                 if( !m_trackStartY.IsIndeterminate() )
-                    t->SetStartY( m_trackStartY.GetIntValue() );
+                    track->SetStartY( m_trackStartY.GetIntValue() );
 
                 if( !m_trackEndX.IsIndeterminate() )
-                    t->SetEndX( m_trackEndX.GetIntValue() );
+                    track->SetEndX( m_trackEndX.GetIntValue() );
 
                 if( !m_trackEndY.IsIndeterminate() )
-                    t->SetEndY( m_trackEndY.GetIntValue() );
+                    track->SetEndY( m_trackEndY.GetIntValue() );
 
                 if( !m_trackWidth.IsIndeterminate() )
-                    t->SetWidth( m_trackWidth.GetIntValue() );
+                    track->SetWidth( m_trackWidth.GetIntValue() );
 
                 int layer = m_TrackLayerCtrl->GetLayerSelection();
 
                 if( layer != UNDEFINED_LAYER )
-                    t->SetLayer( (PCB_LAYER_ID) layer );
+                    track->SetLayer( (PCB_LAYER_ID) layer );
 
                 if ( m_trackHasSolderMask->Get3StateValue() != wxCHK_UNDETERMINED )
-                    t->SetHasSolderMask( m_trackHasSolderMask->GetValue() );
+                    track->SetHasSolderMask( m_trackHasSolderMask->GetValue() );
 
                 if( !m_trackMaskMargin.IsIndeterminate() )
                 {
                     if( m_trackMaskMargin.IsNull() )
-                        t->SetLocalSolderMaskMargin( {} );
+                        track->SetLocalSolderMaskMargin( {} );
                     else
-                        t->SetLocalSolderMaskMargin( m_trackMaskMargin.GetIntValue() );
+                        track->SetLocalSolderMaskMargin( m_trackMaskMargin.GetIntValue() );
                 }
 
                 if( changeLock )
-                    t->SetLocked( setLock );
+                    track->SetLocked( setLock );
 
                 break;
             }
@@ -680,30 +724,30 @@ bool DIALOG_TRACK_VIA_PROPERTIES::TransferDataFromWindow()
             case PCB_VIA_T:
             {
                 wxASSERT( m_vias );
-                PCB_VIA* v = static_cast<PCB_VIA*>( item );
+                PCB_VIA* via = static_cast<PCB_VIA*>( track );
 
                 if( !m_viaX.IsIndeterminate() )
-                    v->SetPosition( VECTOR2I( m_viaX.GetIntValue(), v->GetPosition().y ) );
+                    via->SetPosition( VECTOR2I( m_viaX.GetIntValue(), via->GetPosition().y ) );
 
                 if( !m_viaY.IsIndeterminate() )
-                    v->SetPosition( VECTOR2I( v->GetPosition().x, m_viaY.GetIntValue() ) );
+                    via->SetPosition( VECTOR2I( via->GetPosition().x, m_viaY.GetIntValue() ) );
 
                 if( m_viaNotFree->Get3StateValue() != wxCHK_UNDETERMINED )
-                    v->SetIsFree( !m_viaNotFree->GetValue() );
+                    via->SetIsFree( !m_viaNotFree->GetValue() );
 
                 if( !m_viaDiameter.IsIndeterminate() )
-                    v->SetPadstack( *m_viaStack );
+                    via->SetPadstack( *m_viaStack );
 
                 switch( m_ViaTypeChoice->GetSelection() )
                 {
                 case 0:
-                    v->SetViaType( VIATYPE::THROUGH );
+                    via->SetViaType( VIATYPE::THROUGH );
                     break;
                 case 1:
-                    v->SetViaType( VIATYPE::MICROVIA );
+                    via->SetViaType( VIATYPE::MICROVIA );
                     break;
                 case 2:
-                    v->SetViaType( VIATYPE::BLIND_BURIED );
+                    via->SetViaType( VIATYPE::BLIND_BURIED );
                     break;
                 default:
                     break;
@@ -715,29 +759,29 @@ bool DIALOG_TRACK_VIA_PROPERTIES::TransferDataFromWindow()
                 if( startLayer != UNDEFINED_LAYER )
                 {
                     m_viaStack->Drill().start = startLayer;
-                    v->SetTopLayer( startLayer );
+                    via->SetTopLayer( startLayer );
                 }
 
                 if( endLayer != UNDEFINED_LAYER )
                 {
                     m_viaStack->Drill().end = endLayer;
-                    v->SetBottomLayer( endLayer );
+                    via->SetBottomLayer( endLayer );
                 }
 
-                v->SanitizeLayers();
+                via->SanitizeLayers();
 
                 switch( m_annularRingsCtrl->GetSelection() )
                 {
                 case 0:
-                    v->Padstack().SetUnconnectedLayerMode(
+                    via->Padstack().SetUnconnectedLayerMode(
                             PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL );
                     break;
                 case 1:
-                    v->Padstack().SetUnconnectedLayerMode(
+                    via->Padstack().SetUnconnectedLayerMode(
                             PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END );
                     break;
                 case 2:
-                    v->Padstack().SetUnconnectedLayerMode(
+                    via->Padstack().SetUnconnectedLayerMode(
                             PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_ALL );
                     break;
                 default:
@@ -747,23 +791,23 @@ bool DIALOG_TRACK_VIA_PROPERTIES::TransferDataFromWindow()
                 switch( m_tentingFrontCtrl->GetSelection() )
                 {
                 default:
-                case 0: v->Padstack().FrontOuterLayers().has_solder_mask.reset();  break;
-                case 1: v->Padstack().FrontOuterLayers().has_solder_mask = true;   break;
-                case 2: v->Padstack().FrontOuterLayers().has_solder_mask = false;  break;
+                case 0: via->Padstack().FrontOuterLayers().has_solder_mask.reset();  break;
+                case 1: via->Padstack().FrontOuterLayers().has_solder_mask = true;   break;
+                case 2: via->Padstack().FrontOuterLayers().has_solder_mask = false;  break;
                 }
 
                 switch( m_tentingBackCtrl->GetSelection() )
                 {
                 default:
-                case 0: v->Padstack().BackOuterLayers().has_solder_mask.reset();  break;
-                case 1: v->Padstack().BackOuterLayers().has_solder_mask = true;   break;
-                case 2: v->Padstack().BackOuterLayers().has_solder_mask = false;  break;
+                case 0: via->Padstack().BackOuterLayers().has_solder_mask.reset();  break;
+                case 1: via->Padstack().BackOuterLayers().has_solder_mask = true;   break;
+                case 2: via->Padstack().BackOuterLayers().has_solder_mask = false;  break;
                 }
 
                 if( !m_viaDrill.IsIndeterminate() )
-                    v->SetDrill( m_viaDrill.GetIntValue() );
+                    via->SetDrill( m_viaDrill.GetIntValue() );
 
-                TEARDROP_PARAMETERS* targetParams = &v->GetTeardropParams();
+                TEARDROP_PARAMETERS* targetParams = &via->GetTeardropParams();
 
                 if( m_cbTeardrops->Get3StateValue() != wxCHK_UNDETERMINED )
                     targetParams->m_Enabled = m_cbTeardrops->GetValue();
@@ -791,7 +835,7 @@ bool DIALOG_TRACK_VIA_PROPERTIES::TransferDataFromWindow()
                     targetParams->m_CurvedEdges = m_curvedEdges->GetValue();
 
                 if( changeLock )
-                    v->SetLocked( setLock );
+                    via->SetLocked( setLock );
 
                 break;
             }
@@ -802,74 +846,76 @@ bool DIALOG_TRACK_VIA_PROPERTIES::TransferDataFromWindow()
         }
     }
 
-    commit.Push( _( "Edit Track/Via Properties" ) );
+    std::set<int>  shortingNets;
+    int            newNetCode = m_netSelector->GetSelectedNetcode();
+    std::set<PAD*> changingPads;
 
-    // Pushing the commit will have updated the connectivity so we can now test to see if we
-    // need to update any pad nets.
-
-    auto              connectivity = m_frame->GetBoard()->GetConnectivity();
-    int               newNetCode = m_netSelector->GetSelectedNetcode();
-    bool              updateNets = false;
-    std::vector<PAD*> changingPads;
-
-    if ( !m_netSelector->IsIndeterminate() )
-    {
-        updateNets = true;
-
-        for( EDA_ITEM* item : m_items )
-        {
-            BOARD_CONNECTED_ITEM* boardItem = static_cast<BOARD_CONNECTED_ITEM*>( item );
-            auto connectedItems = connectivity->GetConnectedItems( boardItem,
-                    { PCB_TRACE_T, PCB_ARC_T, PCB_PAD_T, PCB_VIA_T, PCB_FOOTPRINT_T }, true );
-
-            for ( BOARD_CONNECTED_ITEM* citem : connectedItems )
+    // Do NOT use the connectivity code here.  It will propagate through zones, and we haven't
+    // refilled those yet so it's going to pick up a whole bunch of other nets any time the track
+    // width was increased.
+    auto collide =
+            [&]( BOARD_CONNECTED_ITEM* a, BOARD_CONNECTED_ITEM* b )
             {
-                if( citem->Type() == PCB_PAD_T )
+                for( PCB_LAYER_ID layer : LSET( a->GetLayerSet() & b->GetLayerSet() ).Seq() )
                 {
-                    PAD* pad = static_cast<PAD*>( citem );
+                    if( a->GetEffectiveShape( layer )->Collide( b->GetEffectiveShape( layer ).get() ) )
+                        return true;
+                }
 
-                    if( pad->GetNetCode() != newNetCode && !alg::contains( changingPads, citem ) )
-                        changingPads.push_back( pad );
+                return false;
+            };
+
+    for( PCB_TRACK* track : connected_tracks )
+    {
+        for( PCB_TRACK* other : m_frame->GetBoard()->Tracks() )
+        {
+            if( other->GetNetCode() == track->GetNetCode() || other->GetNetCode() == newNetCode )
+                continue;
+
+            if( collide( track, other ) )
+                shortingNets.insert( other->GetNetCode() );
+        }
+
+        for( FOOTPRINT* footprint : m_frame->GetBoard()->Footprints() )
+        {
+            for( PAD* pad : footprint->Pads() )
+            {
+                if( pad->GetNetCode() == newNetCode )
+                    continue;
+
+                if( collide( track, pad ) )
+                {
+                    if( pad->GetNetCode() == track->GetNetCode() )
+                        changingPads.insert( pad );
+                    else
+                        shortingNets.insert( pad->GetNetCode() );
                 }
             }
         }
     }
 
-    if( changingPads.size() && !confirmPadChange( changingPads ) )
-        updateNets = false;
-
-    if( updateNets )
+    if( shortingNets.size() && !confirmShortingNets( newNetCode, shortingNets ) )
     {
-        for( EDA_ITEM* item : m_items )
-        {
-            commit.Modify( item );
-
-            switch( item->Type() )
-            {
-                case PCB_TRACE_T:
-                case PCB_ARC_T:
-                    static_cast<PCB_TRACK*>( item )->SetNetCode( newNetCode );
-                    break;
-
-                case PCB_VIA_T:
-                    static_cast<PCB_VIA*>( item )->SetNetCode( newNetCode );
-                    break;
-
-                default:
-                    wxASSERT( false );
-                    break;
-            }
-        }
-
-        for( PAD* pad : changingPads )
-        {
-            commit.Modify( pad );
-            pad->SetNetCode( newNetCode );
-        }
-
-        commit.Push( _( "Update Nets" ) );
+        commit.Revert();
+        return true;
     }
 
+    if( !m_netSelector->IsIndeterminate() )
+    {
+        if( changingPads.empty() || confirmPadChange( changingPads ) )
+        {
+            for( PCB_TRACK* track : selected_tracks )
+                track->SetNetCode( newNetCode );
+
+            for( PAD* pad : changingPads )
+            {
+                commit.Modify( pad );
+                pad->SetNetCode( newNetCode );
+            }
+        }
+    }
+
+    commit.Push( _( "Edit Track/Via Properties" ) );
     return true;
 }
 

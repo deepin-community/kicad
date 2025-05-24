@@ -515,12 +515,16 @@ int PCB_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
 
                 if( doDrag )
                 {
-                    bool isTracks = m_selection.GetSize() > 0
-                            && m_selection.OnlyContains( { PCB_TRACE_T, PCB_ARC_T, PCB_VIA_T } );
+                    size_t segs = m_selection.CountType( PCB_TRACE_T );
+                    size_t arcs = m_selection.CountType( PCB_ARC_T );
+                    size_t vias = m_selection.CountType( PCB_VIA_T );
+                    // Note: multi-track dragging is currently supported, but not multi-via
+                    bool   routable = ( segs >= 1 || arcs >= 1 || vias == 1 )
+                                        && ( segs + arcs + vias == m_selection.GetSize() );
 
-                    if( isTracks && trackDragAction == TRACK_DRAG_ACTION::DRAG )
+                    if( routable && trackDragAction == TRACK_DRAG_ACTION::DRAG )
                         m_toolMgr->RunAction( PCB_ACTIONS::drag45Degree );
-                    else if( isTracks && trackDragAction == TRACK_DRAG_ACTION::DRAG_FREE_ANGLE )
+                    else if( routable && trackDragAction == TRACK_DRAG_ACTION::DRAG_FREE_ANGLE )
                         m_toolMgr->RunAction( PCB_ACTIONS::dragFreeAngle );
                     else
                         m_toolMgr->RunAction( PCB_ACTIONS::move );
@@ -2162,6 +2166,9 @@ int PCB_SELECTION_TOOL::syncSelectionWithNets( const TOOL_EVENT& aEvent )
 
 void PCB_SELECTION_TOOL::doSyncSelection( const std::vector<BOARD_ITEM*>& aItems, bool aWithNets )
 {
+    if( m_selection.Front() && m_selection.Front()->IsMoving() )
+        return;
+
     ClearSelection( true /*quiet mode*/ );
 
     // Perform individual selection of each item before processing the event.
@@ -2794,7 +2801,7 @@ bool PCB_SELECTION_TOOL::Selectable( const BOARD_ITEM* aItem, bool checkVisibili
     const PCB_DISPLAY_OPTIONS& options = frame()->GetDisplayOptions();
 
     auto visibleLayers =
-            [&]()
+            [&]() -> LSET
             {
                 if( m_isFootprintEditor )
                 {
@@ -2966,6 +2973,9 @@ bool PCB_SELECTION_TOOL::Selectable( const BOARD_ITEM* aItem, bool checkVisibili
     case PCB_FIELD_T:
         field = static_cast<const PCB_FIELD*>( aItem );
 
+        if( !field->IsVisible() )
+            return false;
+
         if( field->IsReference() && !view()->IsLayerVisible( LAYER_FP_REFERENCES ) )
             return false;
 
@@ -2976,12 +2986,6 @@ bool PCB_SELECTION_TOOL::Selectable( const BOARD_ITEM* aItem, bool checkVisibili
         KI_FALLTHROUGH;
     case PCB_TEXT_T:
         text = static_cast<const PCB_TEXT*>( aItem );
-
-        if( !text->IsVisible() )
-        {
-            if( !m_isFootprintEditor )
-                return false;
-        }
 
         if( !layerVisible( text->GetLayer() ) )
             return false;
@@ -3016,10 +3020,7 @@ bool PCB_SELECTION_TOOL::Selectable( const BOARD_ITEM* aItem, bool checkVisibili
         KI_FALLTHROUGH;
 
     case PCB_SHAPE_T:
-        // Note: LAYER_SHAPES does not control the visibility of a PCB_SHAPE_T, only
-        // the opacity of filled areas
-        // The visibility is managed by the item layer
-        if( options.m_FilledShapeOpacity == 0.0 )
+        if( options.m_FilledShapeOpacity == 0.0 && static_cast<const PCB_SHAPE*>( aItem )->IsFilled() )
             return false;
 
         KI_FALLTHROUGH;
@@ -3716,6 +3717,9 @@ void PCB_SELECTION_TOOL::FilterCollectorForHierarchy( GENERAL_COLLECTOR& aCollec
     {
         if( aCollector[j]->GetParent() )
             aCollector[j]->GetParent()->ClearFlags( CANDIDATE );
+
+        if( aCollector[j]->GetParentFootprint() )
+            aCollector[j]->GetParentFootprint()->ClearFlags( CANDIDATE );
     }
 
     if( aMultiselect )
@@ -3727,11 +3731,11 @@ void PCB_SELECTION_TOOL::FilterCollectorForHierarchy( GENERAL_COLLECTOR& aCollec
     for( int j = 0; j < aCollector.GetCount(); )
     {
         BOARD_ITEM* item = aCollector[j];
-        BOARD_ITEM* parent = item->GetParent();
+        FOOTPRINT*  fp = item->GetParentFootprint();
         BOARD_ITEM* start = item;
 
-        if( !m_isFootprintEditor && parent && parent->Type() == PCB_FOOTPRINT_T )
-            start = parent;
+        if( !m_isFootprintEditor && fp )
+            start = fp;
 
         // If a group is entered, disallow selections of objects outside the group.
         if( m_enteredGroup && !PCB_GROUP::WithinScope( item, m_enteredGroup, m_isFootprintEditor ) )
@@ -3756,7 +3760,7 @@ void PCB_SELECTION_TOOL::FilterCollectorForHierarchy( GENERAL_COLLECTOR& aCollec
         }
 
         // Footprints are a bit easier as they can't be nested.
-        if( parent && ( parent->GetFlags() & CANDIDATE ) )
+        if( fp && ( fp->GetFlags() & CANDIDATE ) )
         {
             // Remove children of selected items
             aCollector.Remove( item );
@@ -3883,7 +3887,7 @@ void PCB_SELECTION_TOOL::FilterCollectorForFootprints( GENERAL_COLLECTOR& aColle
     }
 
     auto visibleLayers =
-            [&]()
+            [&]() -> LSET
             {
                 if( m_isFootprintEditor )
                 {

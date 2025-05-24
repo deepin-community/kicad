@@ -1,7 +1,36 @@
+kicad (9.0.2+dfsg-1) unstable; urgency=medium
+
+  * [2c5aa4f] New upstream version 9.0.2+dfsg
+  * [1e1cda8] d/copyright: Replace old FSF address with URL
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Sat, 10 May 2025 11:34:36 +0200
+
+kicad (9.0.1+dfsg-1) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [23d6e54] New upstream version 9.0.1+dfsg
+  * [3682fc3] d/control: Increase Standards-Version to 4.7.2
+    + No further changes needed.
+  * [3f344b9] d/kicad-demos.install: Add new subfolder to install
+
+  [ RICCIARDI-Adrien ]
+  * [1c64540] Rebuild patch queue from patch-queue branch
+    + Updated patch:
+      fixes/Adjusting-content-in-the-desktop-files.patch
+      See also
+      https://salsa.debian.org/electronics-team/KiCad/kicad/-/merge_requests/2
+
+  [ John Paul Adrian Glaubitz ]
+  * [5f03e00] d/rules: Add needed linking for armel m68k powerpc sh4
+    (Closes: #1098791)
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Fri, 04 Apr 2025 16:07:28 +0200
+
 kicad (9.0.0+dfsg-1) unstable; urgency=medium
 
   * [90a9b14] d/gbp.conf: Filter out one more PDF file
   * [a4131fc] New upstream version 9.0.0+dfsg
+    (Closes: #1098475)
   * [651264e] d/control: Add new needed Build-Deps
   * [46e8aec] d/kicad.install.in: Add libkiapi to sequencer
   * [80f8e81] d/rules: Add new CMAKE option to DEB_KICAD_CMAKE_OPTS
@@ -12,6 +41,7 @@ kicad (9.0.0+dfsg-1) unstable; urgency=medium
   * [83f540d] d/rules: Remove more unwanted files in kicad-demos
   * [c50fcfa] d/rules: Use upper case, not one char variable names
   * [3104e18] d/control: Increase Standards-Version to 4.7.1
+    + No further changes needed.
   * [b04b0d0] d/control: Bump Bre/Sug/Rec versions to >=/<< 9.0.0~
   * [5069e37] d/t/control: Sort entries by wrap-and-sort
 
@@ -85,7 +115,7 @@ kicad (8.0.2+dfsg-1) unstable; urgency=medium
   * [4568d39] d/copyright: Updating due upstream modifications
   * [db730d5] New upstream version 8.0.2+dfsg
   * [b2841ed] d/control: Increase Standards-Version to 4.7.0
-    + No further changes needed.
+  yy  + No further changes needed.
   * [d788d27] d/k.lintian-overrides: Ignore ships-undeclared-shared-library
   * [5a6d93d] d/copyright: Small adjustment on filtered content
 

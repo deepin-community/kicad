@@ -50,8 +50,8 @@
 COMMON_TOOLS::COMMON_TOOLS() :
     TOOL_INTERACTIVE( "common.Control" ),
     m_frame( nullptr ),
-    m_imperialUnit( EDA_UNITS::INCHES ),
-    m_metricUnit( EDA_UNITS::MILLIMETRES )
+    m_imperialUnit( EDA_UNITS::INCH ),
+    m_metricUnit( EDA_UNITS::MM )
 {
 }
 
@@ -69,9 +69,9 @@ void COMMON_TOOLS::Reset( RESET_REASON aReason )
 
     for( GRID& gridDef : settings.grids )
     {
-        double gridSizeX = EDA_UNIT_UTILS::UI::DoubleValueFromString( scale, EDA_UNITS::MILLIMETRES,
+        double gridSizeX = EDA_UNIT_UTILS::UI::DoubleValueFromString( scale, EDA_UNITS::MM,
                                                                       gridDef.x );
-        double gridSizeY = EDA_UNIT_UTILS::UI::DoubleValueFromString( scale, EDA_UNITS::MILLIMETRES,
+        double gridSizeY = EDA_UNIT_UTILS::UI::DoubleValueFromString( scale, EDA_UNITS::MM,
                                                                       gridDef.y );
 
         m_grids.emplace_back( KiROUND<double, int>( gridSizeX ),
@@ -627,7 +627,7 @@ int COMMON_TOOLS::GridProperties( const TOOL_EVENT& aEvent )
 int COMMON_TOOLS::GridOrigin( const TOOL_EVENT& aEvent )
 {
     VECTOR2I           origin = m_frame->GetGridOrigin();
-    WX_PT_ENTRY_DIALOG dlg( m_frame, _( "Grid Origin" ), _( "X:" ), _( "Y:" ), origin );
+    WX_PT_ENTRY_DIALOG dlg( m_frame, _( "Grid Origin" ), _( "X:" ), _( "Y:" ), origin, true );
 
     if( dlg.ShowModal() == wxID_OK )
     {
@@ -679,6 +679,9 @@ int COMMON_TOOLS::TogglePolarCoords( const TOOL_EVENT& aEvent )
 
 int COMMON_TOOLS::ResetLocalCoords( const TOOL_EVENT& aEvent )
 {
+    if( !m_frame->GetScreen() )     // Can happen in footprint chooser frame
+        return 0;
+
     const KIGFX::VC_SETTINGS& vcSettings = m_toolMgr->GetCurrentToolVC();
 
     // Use either the active tool forced cursor position or the general settings

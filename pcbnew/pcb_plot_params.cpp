@@ -31,6 +31,7 @@
 #include <plotters/plotter.h>
 #include <io/kicad/kicad_io_utils.h>
 #include <settings/color_settings.h>
+#include <lseq.h>
 
 
 #define PLOT_LINEWIDTH_DEFAULT    ( DEFAULT_TEXT_WIDTH * IU_PER_MM )
@@ -102,10 +103,11 @@ PCB_PLOT_PARAMS::PCB_PLOT_PARAMS()
 
     // we used 0.1mils for SVG step before, but nm precision is more accurate, so we use nm
     m_svgPrecision               = SVG_PRECISION_DEFAULT;
+    m_svgFitPageToBoard          = false;
     m_plotDrawingSheet           = false;
     m_plotMode                   = FILLED;
-    m_DXFPolygonMode = true;
-    m_DXFUnits = DXF_UNITS::INCHES;
+    m_DXFPolygonMode             = true;
+    m_DXFUnits                   = DXF_UNITS::INCH;
     m_useAuxOrigin               = false;
     m_HPGLPenNum                 = 1;
     m_HPGLPenSpeed               = 20;        // this param is always in cm/s
@@ -115,7 +117,6 @@ PCB_PLOT_PARAMS::PCB_PLOT_PARAMS()
     m_plotReference              = true;
     m_plotValue                  = true;
     m_plotFPText                 = true;
-    m_plotInvisibleText          = false;
     m_sketchPadsOnFabLayers      = false;
     m_hideDNPFPsOnFabLayers      = false;
     m_sketchDNPFPsOnFabLayers    = true;
@@ -180,8 +181,12 @@ void PCB_PLOT_PARAMS::Format( OUTPUTFORMATTER* aFormatter ) const
 
     aFormatter->Print( "(layerselection 0x%s)", m_layerSelection.FmtHex().c_str() );
 
-    aFormatter->Print( "(plot_on_all_layers_selection 0x%s)",
-                       m_plotOnAllLayersSelection.FmtHex().c_str() );
+    LSET commonLayers;
+
+    for( PCB_LAYER_ID commonLayer : m_plotOnAllLayersSequence )
+        commonLayers.set( commonLayer );
+
+    aFormatter->Print( "(plot_on_all_layers_selection 0x%s)", commonLayers.FmtHex().c_str() );
 
     KICAD_FORMAT::FormatBool( aFormatter, "disableapertmacros", m_gerberDisableApertMacros );
     KICAD_FORMAT::FormatBool( aFormatter, "usegerberextensions", m_useGerberProtelExtensions );
@@ -220,7 +225,7 @@ void PCB_PLOT_PARAMS::Format( OUTPUTFORMATTER* aFormatter ) const
     // DXF options
     KICAD_FORMAT::FormatBool( aFormatter, getTokenName( T_dxfpolygonmode ), m_DXFPolygonMode );
     KICAD_FORMAT::FormatBool( aFormatter, getTokenName( T_dxfimperialunits ),
-                              m_DXFUnits == DXF_UNITS::INCHES );
+                              m_DXFUnits == DXF_UNITS::INCH );
     KICAD_FORMAT::FormatBool( aFormatter, getTokenName( T_dxfusepcbnewfont ),
                               m_textMode != PLOT_TEXT_MODE::NATIVE );
 
@@ -229,7 +234,6 @@ void PCB_PLOT_PARAMS::Format( OUTPUTFORMATTER* aFormatter ) const
 
     KICAD_FORMAT::FormatBool( aFormatter, getTokenName( T_plot_black_and_white ), m_blackAndWhite );
 
-    KICAD_FORMAT::FormatBool( aFormatter, "plotinvisibletext", m_plotInvisibleText );
     KICAD_FORMAT::FormatBool( aFormatter, "sketchpadsonfab", m_sketchPadsOnFabLayers );
     KICAD_FORMAT::FormatBool( aFormatter, "plotpadnumbers", m_plotPadNumbers );
     KICAD_FORMAT::FormatBool( aFormatter, "hidednponfab", m_hideDNPFPsOnFabLayers );
@@ -256,7 +260,7 @@ bool PCB_PLOT_PARAMS::IsSameAs( const PCB_PLOT_PARAMS &aPcbPlotParams ) const
     if( m_layerSelection != aPcbPlotParams.m_layerSelection )
         return false;
 
-    if( m_plotOnAllLayersSelection != aPcbPlotParams.m_plotOnAllLayersSelection )
+    if( m_plotOnAllLayersSequence != aPcbPlotParams.m_plotOnAllLayersSequence )
         return false;
 
     if( m_useGerberProtelExtensions != aPcbPlotParams.m_useGerberProtelExtensions )
@@ -332,9 +336,6 @@ bool PCB_PLOT_PARAMS::IsSameAs( const PCB_PLOT_PARAMS &aPcbPlotParams ) const
         return false;
 
     if( m_plotFPText != aPcbPlotParams.m_plotFPText )
-        return false;
-
-    if( m_plotInvisibleText != aPcbPlotParams.m_plotInvisibleText )
         return false;
 
     if( m_sketchPadsOnFabLayers != aPcbPlotParams.m_sketchPadsOnFabLayers )
@@ -651,22 +652,27 @@ void PCB_PLOT_PARAMS_PARSER::Parse( PCB_PLOT_PARAMS* aPcbPlotParams )
 
             if( cur.find_first_of( "0x" ) == 0 )
             {
-                // The layers were renumbered in 5e0abadb23425765e164f49ee2f893e94ddb97fc, but there wasn't
-                // a board file version change with it, so this value is the one immediately after that happened.
+                LSET layers;
+
+                // The layers were renumbered in 5e0abadb23425765e164f49ee2f893e94ddb97fc, but
+                // there wasn't a board file version change with it, so this value is the one
+                // immediately after that happened.
                 if( m_boardFileVersion < 20240819 )
                 {
                     BASE_SET legacyLSET( LEGACY_PCB_LAYER_ID_COUNT );
 
                     // skip the leading 2 0x bytes.
                     legacyLSET.ParseHex( cur.c_str() + 2, cur.size() - 2 );
-                    aPcbPlotParams->SetPlotOnAllLayersSelection( remapLegacyLayerLSET( legacyLSET ) );
+
+                    layers = remapLegacyLayerLSET( legacyLSET );
                 }
                 else
                 {
                     // skip the leading 2 0x bytes.
-                    aPcbPlotParams->m_plotOnAllLayersSelection.ParseHex( cur.c_str() + 2,
-                                                                         cur.size() - 2 );
+                    layers.ParseHex( cur.c_str() + 2, cur.size() - 2 );
                 }
+
+                aPcbPlotParams->SetPlotOnAllLayersSequence( layers.SeqStackupForPlotting() );
             }
             else
             {
@@ -723,7 +729,7 @@ void PCB_PLOT_PARAMS_PARSER::Parse( PCB_PLOT_PARAMS* aPcbPlotParams )
 
         case T_excludeedgelayer:
             if( !parseBool() )
-                aPcbPlotParams->m_plotOnAllLayersSelection.set( Edge_Cuts );
+                aPcbPlotParams->m_plotOnAllLayersSequence.push_back( Edge_Cuts );
 
             break;
 
@@ -781,8 +787,7 @@ void PCB_PLOT_PARAMS_PARSER::Parse( PCB_PLOT_PARAMS* aPcbPlotParams )
             break;
 
         case T_dxfimperialunits:
-            aPcbPlotParams->m_DXFUnits = parseBool() ? DXF_UNITS::INCHES
-                                                         : DXF_UNITS::MILLIMETERS;
+            aPcbPlotParams->m_DXFUnits = parseBool() ? DXF_UNITS::INCH : DXF_UNITS::MM;
             break;
 
         case T_dxfusepcbnewfont:
@@ -802,8 +807,8 @@ void PCB_PLOT_PARAMS_PARSER::Parse( PCB_PLOT_PARAMS* aPcbPlotParams )
             aPcbPlotParams->m_blackAndWhite = parseBool();
             break;
 
-        case T_plotinvisibletext:
-            aPcbPlotParams->m_plotInvisibleText = parseBool();
+        case T_plotinvisibletext:   // legacy token; no longer supported
+            parseBool();
             break;
 
         case T_sketchpadsonfab:

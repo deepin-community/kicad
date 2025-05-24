@@ -29,7 +29,6 @@
 #include <kidialog.h>
 #include <kiway.h>
 #include <widgets/wx_infobar.h>
-#include <tools/ee_actions.h>
 #include <tools/symbol_editor_drawing_tools.h>
 #include <symbol_edit_frame.h>
 #include <symbol_library.h>
@@ -694,7 +693,9 @@ public:
 
     SYMBOL_SAVE_AS_HANDLER( LIB_SYMBOL_LIBRARY_MANAGER& aLibMgr, CONFLICT_STRATEGY aStrategy,
                             bool aValueFollowsName ) :
-            m_libMgr( aLibMgr ), m_strategy( aStrategy ), m_valueFollowsName( aValueFollowsName )
+            m_libMgr( aLibMgr ),
+            m_strategy( aStrategy ),
+            m_valueFollowsName( aValueFollowsName )
     {
     }
 
@@ -935,101 +936,105 @@ void SYMBOL_EDIT_FRAME::saveSymbolCopyAs( bool aOpenCopy )
     wxString msg;
     bool     done = false;
 
-    // This is the function that will be called when the user clicks OK in the dialog
-    // and checks if the proposed name has problems, and asks for clarification.
-    const auto dialogValidatorFunc = [&]( const wxString& newLib, const wxString& newName ) -> int
-    {
-        if( newLib.IsEmpty() )
-        {
-            wxMessageBox( _( "A library must be specified." ) );
-            return wxID_CANCEL;
-        }
-
-        if( newName.IsEmpty() )
-        {
-            wxMessageBox( _( "Symbol must have a name." ) );
-            return wxID_CANCEL;
-        }
-
-        if( m_libMgr->IsLibraryReadOnly( newLib ) )
-        {
-            msg = wxString::Format( _( "Library '%s' is read-only. Choose a "
-                                       "different library to save the symbol '%s' to." ),
-                                    newLib, newName );
-            wxMessageBox( msg );
-            return wxID_CANCEL;
-        }
-
-        /**
-         * If we save over a symbol that is in the inheritance chain of the symbol we're saving,
-         * we'll end up with a circular inheritance chain, which is bad.
-         */
-        const auto& [inAncestry, inDescendents] =
-                CheckSavingIntoOwnInheritance( *m_libMgr, *symbol, newName, newLib );
-
-        if( inAncestry )
-        {
-            msg = wxString::Format( _( "Symbol '%s' cannot replace another symbol '%s' that it "
-                                       "descends from" ),
-                                    symbolName, newName );
-            wxMessageBox( msg );
-            return wxID_CANCEL;
-        }
-
-        if( inDescendents )
-        {
-            msg = wxString::Format( _( "Symbol '%s' cannot replace another symbol '%s' that is "
-                                       "a descendent of it." ),
-                                    symbolName, newName );
-            wxMessageBox( msg );
-            return wxID_CANCEL;
-        }
-
-        const std::vector<wxString> conflicts =
-                CheckForParentalChainConflicts( *m_libMgr, *symbol, newName, newLib );
-
-        if( conflicts.size() == 1 && conflicts.front() == newName )
-        {
-            // The simplest case is when the symbol itself has a conflict
-            msg = wxString::Format( _( "Symbol '%s' already exists in library '%s'."
-                                       "Do you want to overwrite it?" ),
-                                    newName, newLib );
-
-            KIDIALOG errorDlg( this, msg, _( "Confirmation" ), wxOK | wxCANCEL | wxICON_WARNING );
-            errorDlg.SetOKLabel( _( "Overwrite" ) );
-
-            return errorDlg.ShowModal() == wxID_OK ? ID_OVERWRITE_CONFLICTS : (int) wxID_CANCEL;
-        }
-        else if( !conflicts.empty() )
-        {
-            // If there are conflicts in the parental chain, we need to ask the user
-            // if they want to overwrite all of them.
-            // A more complex UI might allow the user to re-parent the symbol to an existing
-            // symbol in the target lib, or rename all the parents somehow.
-            msg = wxString::Format( _( "The following symbols in the inheritance chain of '%s' "
-                                       "already exist in library '%s':\n" ),
-                                    symbolName, newLib );
-
-            for( const wxString& conflict : conflicts )
-                msg += wxString::Format( "  %s\n", conflict );
-
-            msg += _( "\nDo you want to overwrite all of them, or rename the new symbols?" );
-
-            KIDIALOG errorDlg( this, msg, _( "Confirmation" ),
-                               wxYES_NO | wxCANCEL | wxICON_WARNING );
-            errorDlg.SetYesNoCancelLabels( _( "Overwrite All" ), _( "Rename All" ), _( "Cancel" ) );
-
-            switch( errorDlg.ShowModal() )
+    // This is the function that will be called when the user clicks OK in the dialog and checks
+    // if the proposed name has problems, and asks for clarification.
+    const auto dialogValidatorFunc =
+            [&]( const wxString& newLib, const wxString& newName ) -> int
             {
-            case wxID_YES: return ID_OVERWRITE_CONFLICTS;
-            case wxID_NO: return ID_RENAME_CONFLICTS;
-            default: break;
-            }
-            return wxID_CANCEL;
-        }
+                if( newLib.IsEmpty() )
+                {
+                    wxMessageBox( _( "A library must be specified." ) );
+                    return wxID_CANCEL;
+                }
 
-        return wxID_OK;
-    };
+                if( newName.IsEmpty() )
+                {
+                    wxMessageBox( _( "Symbol must have a name." ) );
+                    return wxID_CANCEL;
+                }
+
+                if( m_libMgr->IsLibraryReadOnly( newLib ) )
+                {
+                    msg = wxString::Format( _( "Library '%s' is read-only. Choose a "
+                                               "different library to save the symbol '%s' to." ),
+                                            newLib, newName );
+                    wxMessageBox( msg );
+                    return wxID_CANCEL;
+                }
+
+                /**
+                 * If we save over a symbol that is in the inheritance chain of the symbol we're
+                 * saving, we'll end up with a circular inheritance chain, which is bad.
+                 */
+                const auto& [inAncestry, inDescendents] =
+                        CheckSavingIntoOwnInheritance( *m_libMgr, *symbol, newName, newLib );
+
+                if( inAncestry )
+                {
+                    msg = wxString::Format( _( "Symbol '%s' cannot replace another symbol '%s' "
+                                               "that it descends from" ),
+                                            symbolName, newName );
+                    wxMessageBox( msg );
+                    return wxID_CANCEL;
+                }
+
+                if( inDescendents )
+                {
+                    msg = wxString::Format( _( "Symbol '%s' cannot replace another symbol '%s' "
+                                               "that is a descendent of it." ),
+                                            symbolName, newName );
+                    wxMessageBox( msg );
+                    return wxID_CANCEL;
+                }
+
+                const std::vector<wxString> conflicts =
+                        CheckForParentalChainConflicts( *m_libMgr, *symbol, newName, newLib );
+
+                if( conflicts.size() == 1 && conflicts.front() == newName )
+                {
+                    // The simplest case is when the symbol itself has a conflict
+                    msg = wxString::Format( _( "Symbol '%s' already exists in library '%s'. "
+                                               "Do you want to overwrite it?" ),
+                                            newName, newLib );
+
+                    KIDIALOG errorDlg( this, msg, _( "Confirmation" ),
+                                       wxOK | wxCANCEL | wxICON_WARNING );
+                    errorDlg.SetOKLabel( _( "Overwrite" ) );
+
+                    return errorDlg.ShowModal() == wxID_OK ? ID_OVERWRITE_CONFLICTS
+                                                           : (int) wxID_CANCEL;
+                }
+                else if( !conflicts.empty() )
+                {
+                    // If there are conflicts in the parental chain, we need to ask the user
+                    // if they want to overwrite all of them.
+                    // A more complex UI might allow the user to re-parent the symbol to an
+                    // existing symbol in the target lib, or rename all the parents somehow.
+                    msg = wxString::Format( _( "The following symbols in the inheritance chain of "
+                                               "'%s' already exist in library '%s':\n" ),
+                                            symbolName, newLib );
+
+                    for( const wxString& conflict : conflicts )
+                        msg += wxString::Format( "  %s\n", conflict );
+
+                    msg += _( "\nDo you want to overwrite all of them, or rename the new symbols?" );
+
+                    KIDIALOG errorDlg( this, msg, _( "Confirmation" ),
+                                       wxYES_NO | wxCANCEL | wxICON_WARNING );
+                    errorDlg.SetYesNoCancelLabels( _( "Overwrite All" ), _( "Rename All" ),
+                                                   _( "Cancel" ) );
+
+                    switch( errorDlg.ShowModal() )
+                    {
+                    case wxID_YES: return ID_OVERWRITE_CONFLICTS;
+                    case wxID_NO: return ID_RENAME_CONFLICTS;
+                    default: break;
+                    }
+                    return wxID_CANCEL;
+                }
+
+                return wxID_OK;
+            };
 
     auto strategy = SYMBOL_SAVE_AS_HANDLER::CONFLICT_STRATEGY::OVERWRITE;
 
@@ -1043,14 +1048,11 @@ void SYMBOL_EDIT_FRAME::saveSymbolCopyAs( bool aOpenCopy )
         switch( ret )
         {
         case wxID_CANCEL:
-        {
             return;
-        }
 
         case wxID_OK: // No conflicts
         case ID_OVERWRITE_CONFLICTS:
         case ID_RENAME_CONFLICTS:
-        {
             symbolName = dlg.GetSymbolName();
             libraryName = dlg.GetTextSelection();
 
@@ -1059,7 +1061,6 @@ void SYMBOL_EDIT_FRAME::saveSymbolCopyAs( bool aOpenCopy )
 
             done = true;
             break;
-        }
 
         case ID_MAKE_NEW_LIBRARY:
         {
@@ -1081,6 +1082,144 @@ void SYMBOL_EDIT_FRAME::saveSymbolCopyAs( bool aOpenCopy )
 
     if( aOpenCopy )
         LoadSymbol( symbolName, libraryName, 1 );
+}
+
+
+void SYMBOL_EDIT_FRAME::ExportSymbol()
+{
+    wxString msg;
+    LIB_SYMBOL* symbol = getTargetSymbol();
+
+    if( !symbol )
+    {
+        ShowInfoBarError( _( "There is no symbol selected to save." ) );
+        return;
+    }
+
+    wxFileName fn;
+
+    fn.SetName( symbol->GetName().Lower() );
+    fn.SetExt( FILEEXT::KiCadSymbolLibFileExtension );
+
+    wxFileDialog dlg( this, _( "Export Symbol" ), m_mruPath, fn.GetFullName(),
+                      FILEEXT::KiCadSymbolLibFileWildcard(), wxFD_SAVE );
+
+    if( dlg.ShowModal() == wxID_CANCEL )
+        return;
+
+    auto strategy = SYMBOL_SAVE_AS_HANDLER::CONFLICT_STRATEGY::OVERWRITE;
+
+    fn = dlg.GetPath();
+    fn.MakeAbsolute();
+
+    wxString                    libraryName;
+    std::unique_ptr<LIB_SYMBOL> flattenedSymbol = symbol->Flatten();
+
+    for( const wxString& candidate : m_libMgr->GetLibraryNames() )
+    {
+        if( m_libMgr->GetLibrary( candidate )->GetFullURI( true ) == fn.GetFullPath() )
+            libraryName = candidate;
+    }
+
+    if( !libraryName.IsEmpty() )
+    {
+        SYMBOL_SAVE_AS_HANDLER saver( *m_libMgr, strategy, false );
+
+        if( m_libMgr->IsLibraryReadOnly( libraryName ) )
+        {
+            msg = wxString::Format( _( "Library '%s' is read-only." ), libraryName );
+            DisplayError( this, msg );
+            return;
+        }
+
+        if( m_libMgr->SymbolExists( symbol->GetName(), libraryName ) )
+        {
+            msg = wxString::Format( _( "Symbol '%s' already exists in library '%s'." ),
+                                    symbol->GetName(), libraryName );
+
+            KIDIALOG errorDlg( this, msg, _( "Confirmation" ), wxOK | wxCANCEL | wxICON_WARNING );
+            errorDlg.SetOKLabel( _( "Overwrite" ) );
+            errorDlg.DoNotShowCheckbox( __FILE__, __LINE__ );
+
+            if( errorDlg.ShowModal() == wxID_CANCEL )
+                return;
+        }
+
+        saver.DoSave( *flattenedSymbol, symbol->GetName(), libraryName );
+
+        SyncLibraries( false );
+        return;
+    }
+
+    LIB_SYMBOL* old_symbol = nullptr;
+    SCH_IO_MGR::SCH_FILE_T pluginType = SCH_IO_MGR::GuessPluginTypeFromLibPath( fn.GetFullPath() );
+
+    if( pluginType == SCH_IO_MGR::SCH_FILE_UNKNOWN )
+        pluginType = SCH_IO_MGR::SCH_KICAD;
+
+    IO_RELEASER<SCH_IO> pi( SCH_IO_MGR::FindPlugin( pluginType ) );
+
+    if( fn.FileExists() )
+    {
+        try
+        {
+            old_symbol = pi->LoadSymbol( fn.GetFullPath(), symbol->GetName() );
+        }
+        catch( const IO_ERROR& ioe )
+        {
+            msg.Printf( _( "Error occurred attempting to load symbol library file '%s'." ),
+                        fn.GetFullPath() );
+            DisplayErrorMessage( this, msg, ioe.What() );
+            return;
+        }
+
+        if( old_symbol )
+        {
+            msg.Printf( _( "Symbol %s already exists in library '%s'." ),
+                        UnescapeString( symbol->GetName() ),
+                        fn.GetFullName() );
+
+            KIDIALOG errorDlg( this, msg, _( "Confirmation" ), wxOK | wxCANCEL | wxICON_WARNING );
+            errorDlg.SetOKLabel( _( "Overwrite" ) );
+            errorDlg.DoNotShowCheckbox( __FILE__, __LINE__ );
+
+            if( errorDlg.ShowModal() == wxID_CANCEL )
+                return;
+        }
+    }
+
+    if( !fn.IsDirWritable() )
+    {
+        msg.Printf( _( "Insufficient permissions to save library '%s'." ), fn.GetFullPath() );
+        DisplayError( this, msg );
+        return;
+    }
+
+    try
+    {
+        if( !fn.FileExists() )
+            pi->CreateLibrary( fn.GetFullPath() );
+
+        // The flattened symbol is most likely what the user would want.  As some point in
+        // the future as more of the symbol library inheritance is implemented, this may have
+        // to be changes to save symbols of inherited symbols.
+        pi->SaveSymbol( fn.GetFullPath(), flattenedSymbol.release() );
+    }
+    catch( const IO_ERROR& ioe )
+    {
+        msg.Printf( _( "Failed to create symbol library file '%s'." ), fn.GetFullPath() );
+        DisplayErrorMessage( this, msg, ioe.What() );
+        msg.Printf( _( "Error creating symbol library '%s'." ), fn.GetFullName() );
+        SetStatusText( msg );
+        return;
+    }
+
+    m_mruPath = fn.GetPath();
+
+    msg.Printf( _( "Symbol %s saved to library '%s'." ),
+                UnescapeString( symbol->GetName() ),
+                fn.GetFullPath() );
+    SetStatusText( msg );
 }
 
 

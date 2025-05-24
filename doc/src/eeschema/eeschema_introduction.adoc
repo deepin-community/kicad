@@ -2,10 +2,8 @@
 
 == Introduction to the KiCad Schematic Editor
 
-=== Description
-
-The KiCad Schematic Editor is a schematic capture software distributed as a
-part of KiCad and available under the following operating systems:
+The KiCad Schematic Editor is a schematic capture application distributed as a
+part of KiCad and available for the following operating systems:
 
 * Linux
 * Apple macOS
@@ -14,21 +12,24 @@ part of KiCad and available under the following operating systems:
 Regardless of the OS, all KiCad files are 100% compatible from one OS to
 another.
 
-The Schematic Editor is an integrated application where all functions of
-drawing, control, layout, library management and access to the PCB design
-software are carried out within the editor itself.
+The Schematic Editor is an integrated application where all functions of 
+schematic drawing, PCB footprint selection, library management, and data
+transfer to and from the PCB design software are carried out within the editor
+itself.
 
-The KiCad Schematic Editor is intended to cooperate with the KiCad PCB Editor,
-which is KiCad's printed circuit design software. It can also export netlist
-files, which lists all the electrical connections, for other packages.
+The KiCad Schematic Editor is intended to communicate directly with the KiCad
+PCB Editor for designing printed circuit boards without using any intermediate
+files. It can also export netlist files, which list all the electrical
+connections, for other packages.
 
 The Schematic Editor includes a symbol library editor, which can create and
 edit symbols and manage libraries.
 It also integrates the following additional but essential functions needed for
 modern schematic capture software:
 
-* Electrical rules check (ERC) for the automatic control of incorrect and missing
+* Electrical rules check (ERC) for automatic detection of incorrect and missing
   connections
+* Circuit simulation using ngspice
 * Export of plot files in many formats (Postscript, PDF, HPGL, and SVG)
 * Bill of Materials generation (via Python or XSLT scripts, which allow many flexible formats).
 
@@ -146,9 +147,9 @@ is active.
 Hotkeys are stored in the file `user.hotkeys` in KiCad's configuration
 directory. The location is platform-specific:
 
-* Windows: `%APPDATA%\kicad\8.0\user.hotkeys`
-* Linux: `~/.config/kicad/8.0/user.hotkeys`
-* macOS: `~/Library/Preferences/kicad/8.0/user.hotkeys`
+* Windows: `%APPDATA%\kicad\9.0\user.hotkeys`
+* Linux: `~/.config/kicad/9.0/user.hotkeys`
+* macOS: `~/Library/Preferences/kicad/9.0/user.hotkeys`
 
 KiCad can import hotkey settings from a `user.hotkeys` file using the **Import
 Hotkeys** button in the hotkey editor.

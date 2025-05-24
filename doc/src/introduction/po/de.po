@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: \n"
-"POT-Creation-Date: \n"
+"POT-Creation-Date: 2025-04-03 19:03+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -9,23 +9,23 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Poedit 3.4.4\n"
+"X-Generator: Poedit 3.4\n"
 "X-Poedit-Bookmarks: -1,-1,-1,-1,-1,-1,17,-1,-1,-1\n"
 
 #. type: Title =
-#: introduction.adoc:7
+#: src/introduction/introduction.adoc:7
 #, no-wrap
 msgid "Introduction"
 msgstr "Einleitung"
 
 #. type: Plain text
-#: introduction.adoc:11
+#: src/introduction/introduction.adoc:13
 #, no-wrap
 msgid "*Copyright*\n"
 msgstr "*Copyright*\n"
 
 #. type: Plain text
-#: introduction.adoc:17
+#: src/introduction/introduction.adoc:19
 msgid ""
 "This document is Copyright (C) 2021-2024 by its contributors as listed "
 "below. You may distribute it and/or modify it under the terms of either the "
@@ -41,31 +41,31 @@ msgstr ""
 "und/oder verändern."
 
 #. type: Plain text
-#: introduction.adoc:19
+#: src/introduction/introduction.adoc:21
 msgid "All trademarks within this guide belong to their legitimate owners."
 msgstr ""
 "Alle in diesem Leitfaden genannten Marken sind Eigentum ihrer rechtmäßigen "
 "Inhaber."
 
 #. type: Plain text
-#: introduction.adoc:22
+#: src/introduction/introduction.adoc:24
 #, no-wrap
 msgid "*Contributors*\n"
 msgstr "*Mitwirkende*\n"
 
 #. type: Plain text
-#: introduction.adoc:24
+#: src/introduction/introduction.adoc:26
 msgid "Jon Evans, Graham Keeth"
 msgstr "Jon Evans, Graham Keeth"
 
 #. type: Plain text
-#: introduction.adoc:27
+#: src/introduction/introduction.adoc:29
 #, no-wrap
 msgid "*Feedback*\n"
 msgstr "*Feedback*\n"
 
 #. type: Plain text
-#: introduction.adoc:31
+#: src/introduction/introduction.adoc:33
 msgid ""
 "The KiCad project welcomes feedback, bug reports, and suggestions related to "
 "the software or its documentation. For more information on how to submit "
@@ -79,24 +79,45 @@ msgstr ""
 "issue/"
 
 #. type: Plain text
-#: introduction.adoc:34
+#: src/introduction/introduction.adoc:35
+#, no-wrap
+msgid "*Software and Documentation Version*\n"
+msgstr "Version der Software und Dokumentation\n"
+
+#. type: Plain text
+#: src/introduction/introduction.adoc:38
+msgid ""
+"This user manual is based on KiCad {kicad-version-long}. Functionality and "
+"appearance may be different in other versions of KiCad."
+msgstr ""
+"Dieses Benutzerhandbuch basiert auf KiCad {kicad-version-long}. "
+"Funktionalität und Aussehen können sich in anderen Versionen von KiCad "
+"unterscheiden."
+
+#. type: Plain text
+#: src/introduction/introduction.adoc:40
+msgid "Documentation revision: `{doc-commit}`."
+msgstr "Revision der Dokumentation: `{doc-commit}`."
+
+#. type: Plain text
+#: src/introduction/introduction.adoc:43
 #, no-wrap
 msgid "*Publication date*\n"
 msgstr "*Datum der Veröffentlichung*\n"
 
 #. type: Plain text
-#: introduction.adoc:36
-msgid "2024-02-14"
-msgstr "2024-02-14"
+#: src/introduction/introduction.adoc:45
+msgid "2025-02-18"
+msgstr "2025-02-18"
 
 #. type: Title ==
-#: introduction.adoc:39
+#: src/introduction/introduction.adoc:48
 #, no-wrap
 msgid "Welcome"
 msgstr "Willkommen"
 
 #. type: Plain text
-#: introduction.adoc:46
+#: src/introduction/introduction.adoc:55
 msgid ""
 "KiCad is a free and open-source electronics design automation (EDA) suite. "
 "It features schematic capture, integrated circuit simulation, printed "
@@ -113,253 +134,232 @@ msgstr ""
 "Systemanforderungen und läuft unter Linux, Windows und macOS."
 
 #. type: Plain text
-#: introduction.adoc:49
+#: src/introduction/introduction.adoc:58
 msgid ""
-"KiCad 8.0 is the most recent major release.  It includes hundreds of new "
+"KiCad 9.0 is the most recent major release.  It includes hundreds of new "
 "features and bug fixes.  Some of the most notable new features include:"
 msgstr ""
-"KiCad 8.0 ist die neueste Hauptversion. Sie enthält Hunderte neuer "
+"KiCad 9.0 ist die neueste Hauptversion. Sie enthält Hunderte neuer "
 "Funktionen und Fehlerkorrekturen. Einige der bemerkenswertesten neuen "
 "Funktionen sind:"
 
 #. type: Plain text
-#: introduction.adoc:54
+#: src/introduction/introduction.adoc:63
 msgid ""
-"A Properties Panel in the Schematic, Symbol, and Footprint editors, which "
-"lets you quickly view and edit properties of selected objects. This works "
-"even when multiple different types of objects are selected at once. This "
-"expands on the Properties Panel in the PCB editor, which was introduced in "
-"version 7.0."
+"You can now define output jobsets, which can generate multiple output files "
+"from your schematic and PCB design files at the click of a button. Jobsets "
+"can be used to generate fabrication outputs, run ERC and DRC, and perform "
+"other automated tasks. You can also reuse jobset definitions between "
+"projects."
 msgstr ""
-"Ein Eigenschaftenfeld im Schaltplan-, Symbol- und Footprinteditor, mit der "
-"Sie die Eigenschaften ausgewählter Objekte schnell anzeigen und bearbeiten "
-"können. Dies funktioniert auch, wenn mehrere verschiedene Objekttypen "
-"gleichzeitig ausgewählt sind. Dies ist eine Erweiterung des "
-"Eigenschaftenfeldes im Leiterplatteneditor, das in Version 7.0 eingeführt "
-"wurde."
+"Sie können jetzt Ausgabesätze definieren, die auf Knopfdruck mehrere "
+"Ausgabedateien aus Ihren Schaltplan- und Leiterplatten-Designdateien "
+"generieren können. Ausgabesätze können verwendet werden, um "
+"Fertigungsausgaben zu erzeugen, ERC und DRC auszuführen und andere "
+"automatisierte Aufgaben durchzuführen. Sie können die Definition von "
+"Ausgabesätzen auch projektübergreifend wiederverwenden."
 
 #. type: Plain text
-#: introduction.adoc:57
+#: src/introduction/introduction.adoc:65
 msgid ""
-"HTTP libraries, which allow connecting KiCad to a networked component "
-"database or ERP system via a REST API. The REST endpoint can provide symbol "
-"and footprint mappings and other metadata."
+"The interactive router has been improved in many ways, including adding the "
+"ability to drag multiple traces. Performance has also been improved."
 msgstr ""
-"HTTP-Bibliotheken, die eine Verbindung zwischen KiCad und einer vernetzten "
-"Komponentendatenbank oder einem ERP-System über eine REST-API ermöglichen. "
-"Der REST-Endpoint kann Symbol- und Footprint-Zuordnungen und andere "
-"Metadaten bereitstellen."
+"Der interaktive Router wurde in vielerlei Hinsicht verbessert, unter anderem "
+"durch die Möglichkeit, mehrere Leiterbahnen zu ziehen. Auch die Leistung "
+"wurde verbessert."
 
 #. type: Plain text
-#: introduction.adoc:60
+#: src/introduction/introduction.adoc:67
 msgid ""
-"A search panel in the Schematic editor, which lets you search for symbols, "
-"labels, and schematic text. This mirrors the search panel in the PCB editor, "
-"which was added in version 7.0."
+"Nets can now have multiple net classes assigned, with cascading properties "
+"based on net class priority."
 msgstr ""
-"Ein Suchfeld im Schaltplaneditor, mit dem Sie nach Symbolen, Beschriftungen "
-"und Schaltplantext suchen können. Dieses funktioniert wie das Suchfeld im "
-"Leiterplatteneditor, das in Version 7.0 hinzugefügt wurde."
+"Netzen können nun mehrere Netzklassen zugewiesen werden, mit kaskadierenden "
+"Eigenschaften auf der Grundlage der Netzklassenpriorität."
 
 #. type: Plain text
-#: introduction.adoc:63
+#: src/introduction/introduction.adoc:71
 msgid ""
-"The Symbol Fields Table has been expanded and now includes a fully-featured "
-"and customizable BOM export tool. The legacy BOM export tool, which uses "
-"external scripts to generate a BOM in the desired format, is still available."
+"Symbols can be assigned to component classes, which conceptually group "
+"related components together. Component classes can be used in the PCB editor "
+"for applying DRC rules to related components, or as part of multichannel "
+"(repeated) layouts."
 msgstr ""
-"Die Tabelle der Symbolfelder wurde erweitert und enthält jetzt ein voll "
-"funktionsfähiges und anpassbares Stücklistenexport-Tool. Das bisherige "
-"Stücklistenexport-Tool, das externe Skripte verwendet, um eine Stückliste im "
-"gewünschten Format zu erzeugen, ist weiterhin verfügbar."
+"Symbole können Komponentenklassen zugewiesen werden, die konzeptionell "
+"verwandte Komponenten zusammenfassen. Komponentenklassen können im "
+"Leiterplatteneditor für die Anwendung von DRC-Regeln auf verwandte "
+"Komponenten oder als Teil von mehrkanaligen (wiederholten) Layouts verwendet "
+"werden."
 
 #. type: Plain text
-#: introduction.adoc:70
+#: src/introduction/introduction.adoc:74
 msgid ""
-"The SPICE simulator interface has been expanded and overhauled. The "
-"simulator tool now supports several new analysis types (FFTs, noise "
-"simulations, pole-zero simulations, and s-parameter analyses). The simulator "
-"result plots can now include user-defined signals, including mathematical "
-"operations, and the cursor and waveform measurement tools have been "
-"improved. Operating point analysis results can be displayed on the schematic "
-"itself to show the simulated operating point of each node."
+"Padstacks have been added, allowing independent control over pad/via sizes "
+"and shapes for each board layer. Via tenting can also be controlled per-via "
+"and per-side."
 msgstr ""
-"Die Schnittstelle des SPICE-Simulators wurde erweitert und überarbeitet. Das "
-"Simulatorwerkzeug unterstützt jetzt mehrere neue Analysetypen (FFTs, "
-"Rauschsimulationen, Pol-Nullstellen-Simulationen und S-Parameter-Analysen). "
-"Die Ergebnisdiagramme des Simulators können jetzt benutzerdefinierte Signale "
-"enthalten, einschließlich mathematischer Operationen, und die Cursor- und "
-"Wellenformmesswerkzeuge wurden verbessert. Die Ergebnisse der "
-"Arbeitspunktanalyse können auf dem Schaltplan selbst angezeigt werden, um "
-"den simulierten Arbeitspunkt jedes Knotens darzustellen."
+"Es wurden Padstacks hinzugefügt, die eine unabhängige Kontrolle über Pad-/"
+"Via-Größen und -Formen für jede Leiterplattenlage ermöglichen. Via-Tenting "
+"kann auch pro Via und pro Seite gesteuert werden."
 
 #. type: Plain text
-#: introduction.adoc:73
+#: src/introduction/introduction.adoc:77
 msgid ""
-"The command-line interface has been expanded, and now includes support for "
-"running ERC/DRC, exporting to more formats, and specifying text variables, "
-"among other improvements."
+"The PCB Editor now supports multichannel layouts, where the layout for one "
+"section of a board can be repeated multiple times and applied to other parts "
+"of the design that should be laid out in the same way."
 msgstr ""
-"Die Kommandozeilenschnittstelle wurde erweitert und bietet nun unter anderem "
-"Unterstützung für die Ausführung von ERC/DRC, den Export in weitere Formate "
-"und Festlegen von Textvariablen."
+"Der Leiterplatteneditor unterstützt jetzt Mehrkanal-Layouts, bei denen das "
+"Layout für einen Abschnitt einer Leiterplatte mehrfach wiederholt und auf "
+"andere Teile des Designs angewendet werden kann, die auf die gleiche Weise "
+"layoutet werden sollen."
 
 #. type: Plain text
-#: introduction.adoc:75
+#: src/introduction/introduction.adoc:80
 msgid ""
-"A net navigator tool has been added in the Schematic editor, which displays "
-"the locations of a highlighted net across a schematic hierarchy."
+"The selection filter is now available in the Schematic and Symbol Editors.  "
+"This complements the selection filter in the PCB and Footprint Editors, "
+"which were added in version 6.0."
 msgstr ""
-"Der Schaltplaneditor wurde um ein Netznavigationswerkzeug erweitert, das die "
-"Positionen eines markierten Netzes über eine Schaltplanhierarchie hinweg "
-"anzeigt."
+"Der Auswahlfilter ist jetzt in den Schaltplan- und Symbol-Editoren "
+"verfügbar.  Dies ergänzt den Auswahlfilter in den Leiterplatten- und "
+"Footprint-Editoren, die in Version 6.0 hinzugefügt wurden."
 
 #. type: Plain text
-#: introduction.adoc:77
+#: src/introduction/introduction.adoc:82
 msgid ""
-"Grids can now be automatically overridden for specific object types, for "
-"example to use a finer grid for moving text and a coarser grid for symbols."
+"External files, such as datasheets, drawing sheets, 3D models, and fonts, "
+"can be embedded in a schematic or board file for greater portability."
 msgstr ""
-"Raster können jetzt automatisch für bestimmte Objekttypen überschrieben "
-"werden, z. B. um ein feineres Raster für Fließtext und ein gröberes Raster "
-"für Symbole zu verwenden."
+"Externe Dateien, wie z. B. Datenblätter, Zeichnungsblätter, 3D-Modelle und "
+"Schriftarten, können in eine Schaltplan- oder Leiterplattendatei eingebettet "
+"werden, um die Portabilität zu erhöhen."
 
 #. type: Plain text
-#: introduction.adoc:81
+#: src/introduction/introduction.adoc:85
 msgid ""
-"Power symbols are now easier to work with, as their assigned net is now "
-"determined by the symbol value rather than the pin name. Where before "
-"changing a power symbol's net required editing the symbol in the symbol "
-"editor, in version 8 you can change the net directly in the schematic."
+"New design rule checks have been added for creepage, differential pair skew, "
+"and acute angles between tracks. Clearance and Creepage checks now display "
+"the minimum clearance/creepage path visually."
 msgstr ""
-"Leistungssymbole sind jetzt einfacher zu handhaben, da das ihnen zugewiesene "
-"Netz jetzt durch den Symbolwert und nicht mehr durch den Pin-Namen bestimmt "
-"wird. Musste bisher das Netz eines Leistungssymbols im Symboleditor "
-"bearbeitet werden, so können Sie in Version 8 das Netz direkt im Schaltplan "
-"ändern."
+"Es wurden neue Entwurfsregelprüfungen für Kriechstrecken, differentielle "
+"Paarverschiebungen und spitze Winkel zwischen Leiterbahnen hinzugefügt. Die "
+"Luft- und Kriechstreckenprüfungen zeigen jetzt den minimalen Luft-/Kriechweg "
+"visuell an."
 
 #. type: Plain text
-#: introduction.adoc:83
+#: src/introduction/introduction.adoc:87
 msgid ""
-"A graphical comparison tool has been added to compare symbols and footprints "
-"between libraries and the copies embedded in schematics and PCBs."
+"Board designs can be exported in the ODB++ format, which includes complete "
+"fabrication and assembly information in a single archive."
 msgstr ""
-"Ein grafisches Vergleichswerkzeug wurde hinzugefügt, um Symbole und "
-"Footprints zwischen Bibliotheken und den in Schaltplänen und Leiterplatten "
-"eingebetteten Kopien zu vergleichen."
-
-#. type: Plain text
-#: introduction.adoc:85
-msgid ""
-"Board designs can be exported to the IPC-2581 format, which includes "
-"complete fabrication and assembly information in a single file."
-msgstr ""
-"Leiterplattenentwürfe können in das IPC-2581-Format exportiert werden, das "
+"Leiterplattenentwürfe können in das OBD++-Format exportiert werden, das "
 "vollständige Fertigungs- und Montageinformationen in einer einzigen Datei "
 "enthält."
 
 #. type: Plain text
-#: introduction.adoc:88
+#: src/introduction/introduction.adoc:90
 msgid ""
-"The interactive length tuning tools in the PCB editor have been overhauled.  "
-"Length tuning meanders are now persistent objects that can be easily "
-"modified after they are initially created."
+"The 3D model exporter has been improved to support more formats. It also "
+"supports modelling more copper details from the board and provides more "
+"options to control which data is included."
 msgstr ""
-"Die interaktiven Werkzeuge zur Längenabstimmung im Leiterplatteneditor "
-"wurden überarbeitet. Mäander für die Längenabstimmung sind jetzt dauerhafte "
-"Objekte, die nach ihrer Erstellung leicht geändert werden können."
+"Der 3D-Modellexport wurde verbessert und unterstützt nun mehr Formate. Er "
+"unterstützt auch die Modellierung von mehr Kupferdetails auf der "
+"Leiterplatte und bietet mehr Optionen, um zu steuern, welche Daten enthalten "
+"sind."
 
 #. type: Plain text
-#: introduction.adoc:90
+#: src/introduction/introduction.adoc:92
 msgid ""
-"Symbol fields are now synced to footprints in the PCB, so schematic symbol "
-"metadata is available in the board design."
+"The KiCad Project Manager now supports git operations for projects that are "
+"version controlled using git."
 msgstr ""
-"Die Symbolfelder werden jetzt mit den Footprints auf der Leiterplatte "
-"synchronisiert, so dass die Metadaten der Schaltplansymbole auch im "
-"Leiterplattenentwurf verfügbar sind."
+"Der KiCad-Projektmanager unterstützt jetzt Git-Operationen für Projekte, die "
+"mit Git versionskontrolliert sind."
 
 #. type: Plain text
-#: introduction.adoc:92
+#: src/introduction/introduction.adoc:94
 msgid ""
-"Graphical polygons on copper PCB layers can now have nets assigned, which "
-"can be useful for creating electrical structures with a precise shape."
+"The Schematic and PCB Editors can now draw and edit tables for displaying "
+"tabular data."
 msgstr ""
-"Grafischen Polygonen auf Kupferlagen der Leiterplatte können nun Netze "
-"zugewiesen werden, was für die Erstellung von elektrischen Strukturen mit "
-"präziser Form nützlich sein kann."
+"Die Schaltplan- und Leiterplatteneditoren können nun Tabellen zur "
+"Darstellung von tabellarischen Daten erstellen und bearbeiten."
 
 #. type: Plain text
-#: introduction.adoc:94
-msgid ""
-"\"Pin helper\" tools have been added to the Schematic editor to quickly "
-"break out symbol pins to wires, nets, or no-connects."
-msgstr ""
-"Der Schaltplaneditor wurde um \"Pin-Helfer\"-Werkzeuge erweitert, mit denen "
-"sich Symbol-Pins schnell in Verbindungen, Netze oder Keine-Verbindungen "
-"aufteilen lassen."
+#: src/introduction/introduction.adoc:95
+msgid "A bezier curve tool has been added in all editors."
+msgstr "Ein Bézierkurven-Werkzeug wurde in allen Editoren hinzugefügt."
 
 #. type: Plain text
-#: introduction.adoc:96
+#: src/introduction/introduction.adoc:98
 msgid ""
-"The 3D Viewer now has an appearance panel that improves user control over "
-"how board designs are visualized in 3D."
+"New positioning shape modification tools have been added in the PCB and "
+"Footprint Editors, including an interactive positioning tool, an outset "
+"shape tool, and a dogbone corner tool."
 msgstr ""
-"Der 3D-Viewer verfügt jetzt über ein Erscheinungsbild-Panel, mit dem der "
-"Benutzer bessere Einstellungsmöglichkeiten für die 3D-Visualisierung seiner "
-"Platinenentwürfe hat."
+"Im Leiterplatten- und im Footprint-Editor wurden neue Werkzeuge zur Änderung "
+"der Positionierungsform hinzugefügt, einschließlich eines interaktiven "
+"Positionierungswerkzeugs, eines Werkzeugs für die Außenform und eines "
+"Werkzeugs zur Erstellung von Hundeknochenecken."
 
 #. type: Plain text
-#: introduction.adoc:101
+#: src/introduction/introduction.adoc:102
 msgid ""
-"New importers and improvements to existing importers. Version 8 adds support "
-"for importing EasyEDA (JLCEDA) Standard and Professional Edition projects "
-"and libraries, CADSTAR symbol and footprint libraries, Solidworks PCB board "
-"files, Altium Designer symbol and integrated libraries, EAGLE symbol "
-"libraries, and LTSpice schematics."
+"Improved snapping features have been added while editing shapes in the PCB "
+"and Footprint Editors. You can snap to endpoints, intersections, and "
+"projections from other snapping points. Graphical indicators are shown that "
+"describe the active snapping point."
 msgstr ""
-"Neue und Verbesserungen an bestehenden Importwerkzeugen. Version 8 bietet "
-"Unterstützung für den Import von EasyEDA (JLCEDA) Standard und Professional "
-"Edition Projekten und Bibliotheken, CADSTAR Symbol- und Footprint-"
-"Bibliotheken, Solidworks PCB Platinen-Dateien, Altium Designer Symbol- und "
-"integrierten Bibliotheken, EAGLE Symbol-Bibliotheken und LTSpice "
-"Schaltplänen."
+"Bei der Bearbeitung von Formen im Leiterplatten- und Footprinteditor wurden "
+"die Fangfunktionen verbessert. Sie können an Endpunkten, Schnittpunkten und "
+"Projektionen von anderen Fangpunkten fangen. Es werden grafische Indikatoren "
+"angezeigt, die den aktiven Fangpunkt beschreiben."
 
 #. type: Plain text
-#: introduction.adoc:103
+#: src/introduction/introduction.adoc:107
 msgid ""
-"New and improved exporters, including copper geometry in STEP exports and "
-"Cadence Allegro netlist export."
+"A new IPC API has been developed for creating PCB Editor plugins and "
+"scripts.  In version 9, this is only available in the PCB Editor. In future "
+"versions of KiCad, this will also be available in the Schematic Editor. The "
+"legacy SWIG-based plugin system still exists, but will be removed in a "
+"future version of KiCad."
 msgstr ""
-"Neue und verbesserte Exportwerkzeuge, einschließlich Kupfergeometrien in "
-"STEP-Exporten und Cadence Allegro Netzlistenexporten."
+"Für die Erstellung von Leiterplatteneditor Plugins und Skripten wurde eine "
+"neue IPC API entwickelt. In Version 9 ist dies nur im Leiterplatteneditor "
+"verfügbar. In zukünftigen Versionen von KiCad wird dies auch im "
+"Schaltplaneditor verfügbar sein. Das alte SWIG-basierte Plugin-System "
+"existiert noch, wird aber in einer zukünftigen Version von KiCad entfernt "
+"werden."
 
 #. type: Plain text
-#: introduction.adoc:104
+#: src/introduction/introduction.adoc:109
 msgid ""
-"Significant improvements to the Symbol, Footprint, and 3D Model libraries."
+"Significant improvements have been made to the Symbol, Footprint, and 3D "
+"Model libraries."
 msgstr ""
-"Wesentliche Verbesserungen an den Symbol-, Footprint- und 3D-"
-"Modellbibliotheken."
+"An den Symbol-, Footprint- und 3D-Modellbibliotheken wurden erhebliche "
+"Verbesserungen vorgenommen."
 
 #. type: Plain text
-#: introduction.adoc:108
+#: src/introduction/introduction.adoc:112
 msgid ""
-"A full listing of new features and changes in KiCad 8.0 can be found https://"
-"www.kicad.org/blog/2024/02/Version-8.0.0-Released/[here]."
+"A full listing of new features and changes in KiCad 9.0 can be found https://"
+"www.kicad.org/blog/2025/02/Version-9.0.0-Released/[here]."
 msgstr ""
-"Eine vollständige Liste der neuen Funktionen und Änderungen in KiCad 8.0 "
-"finden Sie unter https://www.kicad.org/blog/2024/02/Version-8.0.0-Released/"
-"[hier]."
+"Eine vollständige Liste der neuen Funktionen und Änderungen in KiCad 9.0 "
+"finden Sie https://www.kicad.org/blog/2025/02/Version-9.0.0-Released/[hier]."
 
 #. type: Title ==
-#: introduction.adoc:110
+#: src/introduction/introduction.adoc:114
 #, no-wrap
 msgid "Installing and Upgrading KiCad"
 msgstr "Installieren und aktualisieren von KiCad"
 
 #. type: Plain text
-#: introduction.adoc:116
+#: src/introduction/introduction.adoc:120
 msgid ""
 "KiCad maintains compatibility and support with the maintained versions of "
 "Microsoft Windows, Apple macOS, and a number of Linux distributions.  Some "
@@ -374,7 +374,7 @@ msgstr ""
 "Versionsinformationen und Anweisungen für Ihre Plattform."
 
 #. type: Plain text
-#: introduction.adoc:121
+#: src/introduction/introduction.adoc:125
 msgid ""
 "KiCad may compile and run on platforms that are not officially supported.  "
 "The KiCad development team makes no guarantees that KiCad will continue to "
@@ -389,7 +389,7 @@ msgstr ""
 "für weitere Details zu unterstützten Plattformen und Hardwareanforderungen."
 
 #. type: Plain text
-#: introduction.adoc:130
+#: src/introduction/introduction.adoc:134
 msgid ""
 "KiCad uses a \"major.minor.point\" release version format.  Major releases "
 "bring new features and other significant changes to the code.  Minor "
@@ -418,13 +418,13 @@ msgstr ""
 "Hauptversion geöffnet werden."
 
 #. type: Title ===
-#: introduction.adoc:131
+#: src/introduction/introduction.adoc:135
 #, no-wrap
 msgid "Migrating from Previous Versions"
 msgstr "Migration von früheren Versionen"
 
 #. type: Plain text
-#: introduction.adoc:137
+#: src/introduction/introduction.adoc:141
 msgid ""
 "In general, to migrate a design to a new version of KiCad, simply open the "
 "project with the new version, then open the schematic and PCB and save each "
@@ -440,7 +440,7 @@ msgstr ""
 "Handbuchs behandelt."
 
 #. type: Plain text
-#: introduction.adoc:141
+#: src/introduction/introduction.adoc:145
 #, no-wrap
 msgid ""
 "Make sure to save a backup of your design before opening it with a new version of KiCad.\n"
@@ -449,7 +449,7 @@ msgid ""
 msgstr "Stellen Sie sicher, dass Sie eine Sicherungskopie Ihres Entwurfs speichern, bevor Sie ihn mit einer neuen Version von KiCad öffnen. Sobald die Entwürfe in einer neuen Hauptversion von KiCad gespeichert sind, können sie nicht mehr mit früheren Hauptversionen geöffnet werden.\n"
 
 #. type: Plain text
-#: introduction.adoc:146
+#: src/introduction/introduction.adoc:150
 msgid ""
 "The symbol library format changed in KiCad 6.0.  To continue editing symbol "
 "libraries made with a previous version of KiCad, these libraries need to be "
@@ -465,13 +465,13 @@ msgstr ""
 "wurden, können weiterhin geöffnet und im Nur-Lese-Modus verwendet werden."
 
 #. type: Title ==
-#: introduction.adoc:148
+#: src/introduction/introduction.adoc:152
 #, no-wrap
 msgid "KiCad Workflow"
 msgstr "KiCad-Workflow"
 
 #. type: Plain text
-#: introduction.adoc:154
+#: src/introduction/introduction.adoc:158
 msgid ""
 "This section presents a high-level overview of the typical KiCad workflow.  "
 "Note that KiCad is a flexible software system, and there are other ways of "
@@ -486,7 +486,7 @@ msgstr ""
 "späteren Kapiteln dieses Handbuchs."
 
 #. type: Plain text
-#: introduction.adoc:158
+#: src/introduction/introduction.adoc:162
 #, no-wrap
 msgid ""
 "A number of tutorials and guided lessons in using KiCad have been created by community\n"
@@ -495,13 +495,13 @@ msgid ""
 msgstr "Eine Reihe von Tutorials und geführten Lektionen zur Verwendung von KiCad wurden von Mitgliedern der Gemeinschaft erstellt. Diese Ressourcen können für einige neue Benutzer eine gute Möglichkeit sein, KiCad zu erlernen. Weitere Informationen finden Sie im Abschnitt \"Weiterführende Literatur\" am Ende dieses Kapitels.\n"
 
 #. type: Title ===
-#: introduction.adoc:160
+#: src/introduction/introduction.adoc:164
 #, no-wrap
 msgid "Basic Terminology"
 msgstr "Grundlegende Begriffe"
 
 #. type: Plain text
-#: introduction.adoc:166
+#: src/introduction/introduction.adoc:170
 msgid ""
 "KiCad uses a number of terms that are fairly standard in the area of "
 "electronics design automation (EDA) software, and some that are more "
@@ -519,7 +519,7 @@ msgstr ""
 "definiert."
 
 #. type: Plain text
-#: introduction.adoc:169
+#: src/introduction/introduction.adoc:173
 msgid ""
 "A **schematic** is a collection of one or more pages (sheets) of circuit "
 "schematic drawings.  Each KiCad schematic file represents a single sheet."
@@ -529,7 +529,7 @@ msgstr ""
 "einzelnes Blatt dar."
 
 #. type: Plain text
-#: introduction.adoc:174
+#: src/introduction/introduction.adoc:178
 msgid ""
 "A **hierarchical schematic** is a schematic consisting of multiple pages "
 "nested inside each other.  KiCad supports hierarchical schematics, but there "
@@ -545,7 +545,7 @@ msgstr ""
 "Teilschaltkreises zu erstellen."
 
 #. type: Plain text
-#: introduction.adoc:182
+#: src/introduction/introduction.adoc:186
 msgid ""
 "A **symbol** is a circuit element that can be placed on a schematic.  "
 "Symbols can represent physical electrical components, such as a resistor or "
@@ -568,7 +568,7 @@ msgstr ""
 "sie in vielen Schaltplänen verwendet werden können."
 
 #. type: Plain text
-#: introduction.adoc:190
+#: src/introduction/introduction.adoc:194
 msgid ""
 "A **netlist** is a representation of a schematic that is used to convey "
 "information to another program.  There are many netlist formats used by "
@@ -592,7 +592,7 @@ msgstr ""
 "ist dies als Teil des normalen Arbeitsablaufs nicht notwendig."
 
 #. type: Plain text
-#: introduction.adoc:195
+#: src/introduction/introduction.adoc:199
 msgid ""
 "A **printed circuit board**, or PCB, is a design document that represents "
 "the physical implementation of a schematic (or technically, a netlist).  "
@@ -608,7 +608,7 @@ msgstr ""
 "einige von der Community erstellte Add-ons diese Funktionalität bieten."
 
 #. type: Plain text
-#: introduction.adoc:200
+#: src/introduction/introduction.adoc:204
 msgid ""
 "A **footprint** is a circuit element that can be placed on a PCB.  "
 "Footprints often represent physical electrical components, but can also be "
@@ -626,7 +626,7 @@ msgstr ""
 "mit Footprint-Pads assoziiert."
 
 #. type: Plain text
-#: introduction.adoc:203
+#: src/introduction/introduction.adoc:207
 msgid ""
 "A **worksheet** is a drawing template, typically containing a title block "
 "and frame, that is used as the template for schematic sheets and PCB "
@@ -637,7 +637,7 @@ msgstr ""
 "und Leiterplattenzeichnungen verwendet wird."
 
 #. type: Plain text
-#: introduction.adoc:207
+#: src/introduction/introduction.adoc:211
 #, no-wrap
 msgid ""
 "**Plotting** is the process of creating manufacturing outputs from a design.  These outputs may\n"
@@ -649,7 +649,7 @@ msgstr ""
 "menschenlesbare Formate wie PDF-Zeichnungen sein.\n"
 
 #. type: Plain text
-#: introduction.adoc:211
+#: src/introduction/introduction.adoc:215
 #, no-wrap
 msgid ""
 "**Ngspice** is a mixed-signal circuit simulator, originally based on Berkeley SPICE, that is\n"
@@ -661,13 +661,13 @@ msgstr ""
 "Schaltungssimulationen auf KiCad-Schaltplänen durchführen und die Ergebnisse grafisch darstellen.\n"
 
 #. type: Title ===
-#: introduction.adoc:213
+#: src/introduction/introduction.adoc:217
 #, no-wrap
 msgid "KiCad Components"
 msgstr "KiCad-Komponenten"
 
 #. type: Plain text
-#: introduction.adoc:225
+#: src/introduction/introduction.adoc:229
 msgid ""
 "KiCad consists of a number of different software components, some of which "
 "are integrated together to facilitate the PCB design workflow, and some of "
@@ -701,7 +701,7 @@ msgstr ""
 "Anleitungen und andere Dokumentation ansehen."
 
 #. type: Plain text
-#: introduction.adoc:228
+#: src/introduction/introduction.adoc:232
 msgid ""
 "The main KiCad components are usually started from the launcher buttons in "
 "the KiCad project manager window.  These components include:"
@@ -711,7 +711,7 @@ msgstr ""
 "Komponenten gehören:"
 
 #. type: Table
-#: introduction.adoc:240
+#: src/introduction/introduction.adoc:244
 #, no-wrap
 msgid ""
 "|Component name|Description\n"
@@ -735,13 +735,13 @@ msgstr ""
 "|Zeichnungsblatteditor |Erstellen und Bearbeiten von Arbeitsblattdateien\n"
 
 #. type: Title ===
-#: introduction.adoc:243
+#: src/introduction/introduction.adoc:247
 #, no-wrap
 msgid "User Interface"
 msgstr "Benutzeroberfläche"
 
 #. type: Plain text
-#: introduction.adoc:247
+#: src/introduction/introduction.adoc:251
 msgid ""
 "KiCad has a number of user interface behaviors that are common to all the "
 "different editor windows.  Some of these behaviors are described in more "
@@ -753,7 +753,7 @@ msgstr ""
 "beschrieben."
 
 #. type: Plain text
-#: introduction.adoc:253
+#: src/introduction/introduction.adoc:257
 msgid ""
 "Objects can be selected by clicking on them or by dragging a selection "
 "window around them. Dragging from left to right will result in a selection "
@@ -773,7 +773,7 @@ msgstr ""
 "Dialogfelds Voreinstellungen beschrieben."
 
 #. type: Plain text
-#: introduction.adoc:263
+#: src/introduction/introduction.adoc:267
 msgid ""
 "KiCad editors have the concept of a **tool** which can be thought of as a "
 "mode that the editor is in.  The default tool is the selection tool, which "
@@ -802,96 +802,40 @@ msgstr ""
 "durch Drücken von kbd:[Esc] die aktuelle Auswahl gelöscht, sofern eine "
 "solche existiert."
 
-#. type: Title ===
-#: introduction.adoc:265
-#, no-wrap
-msgid "KiCad Projects and Files"
-msgstr "KiCad Projekte und Dateien"
-
-#. type: Plain text
-#: introduction.adoc:270 introduction.adoc:282 introduction.adoc:293
-#, no-wrap
-msgid ""
-"This section of the KiCad documentation has not yet been written.  We\n"
-"      appreciate your patience as our small team of volunteer documentation\n"
-"      writers work to update and expand the documentation.\n"
-msgstr "Dieser Teil der KiCad-Dokumentation ist noch nicht geschrieben worden. Wir danken Ihnen für Ihre Geduld, während unser kleines Team von freiwilligen Autoren an der Aktualisierung und Erweiterung der Dokumentation arbeitet.\n"
-
-#. type: Plain text
-#: introduction.adoc:272
-msgid "File types and project structure"
-msgstr "Dateitypen und Projektstruktur"
-
-#. type: Plain text
-#: introduction.adoc:273
-msgid "Project workflow"
-msgstr "Projekt-Workflow"
-
-#. type: Plain text
-#: introduction.adoc:274
-msgid "Schematic <> PCB workflow"
-msgstr "Schaltplan <> Leiterplatten-Arbeitsablauf"
-
-#. type: Plain text
-#: introduction.adoc:275
-msgid "Standalone vs. project mode for schematic and PCB editors"
-msgstr "Standalone- vs. Projektmodus für Schaltplan- und Leiterplatteneditoren"
-
-#. type: Title ===
-#: introduction.adoc:277
-#, no-wrap
-msgid "Symbol and Footprint Libraries"
-msgstr "Symbol- und Footprintbibliotheken"
-
-#. type: Plain text
-#: introduction.adoc:284
-msgid "Relationship between libraries and design files"
-msgstr "Beziehung zwischen Bibliotheken und Projektdateien"
-
-#. type: Plain text
-#: introduction.adoc:285
-msgid "Global vs project libraries"
-msgstr "Globale vs. Projektbibliotheken"
-
-#. type: Plain text
-#: introduction.adoc:286
-msgid "The KiCad library project (built-in global libraries)"
-msgstr "Das KiCad-Bibliotheksprojekt (eingebaute globale Bibliotheken)"
-
-#. type: Title ===
-#: introduction.adoc:288
-#, no-wrap
-msgid "Accessory Tools"
-msgstr "Zubehör-Tools"
-
-#. type: Plain text
-#: introduction.adoc:295
-msgid "GerbView"
-msgstr "Gerber-Betrachter"
-
-#. type: Plain text
-#: introduction.adoc:296
-msgid "PCB Calculator"
-msgstr "Berechnungswerkzeuge"
-
-#. type: Plain text
-#: introduction.adoc:297
-msgid "Bitmap2Component"
-msgstr "Bildumwandler"
-
-#. type: Plain text
-#: introduction.adoc:298
-msgid "Worksheet Editor (pl_editor)"
-msgstr "Arbeitsblatt Editor (pl_editor)"
-
+#. [[projects-and-files]]
+#. === KiCad Projects and Files
+#. NOTE: This section of the KiCad documentation has not yet been written.  We
+#. appreciate your patience as our small team of volunteer documentation
+#. writers work to update and expand the documentation.
+#. - File types and project structure
+#. - Project workflow
+#. - Schematic <> PCB workflow
+#. - Standalone vs. project mode for schematic and PCB editors
+#. [[symbol-and-footprint-libraries]]
+#. === Symbol and Footprint Libraries
+#. NOTE: This section of the KiCad documentation has not yet been written.  We
+#. appreciate your patience as our small team of volunteer documentation
+#. writers work to update and expand the documentation.
+#. - Relationship between libraries and design files
+#. - Global vs project libraries
+#. - The KiCad library project (built-in global libraries)
+#. [[accessory-tools]]
+#. === Accessory Tools
+#. NOTE: This section of the KiCad documentation has not yet been written.  We
+#. appreciate your patience as our small team of volunteer documentation
+#. writers work to update and expand the documentation.
+#. - GerbView
+#. - PCB Calculator
+#. - Bitmap2Component
+#. - Worksheet Editor (pl_editor)
 #. type: Title ==
-#: introduction.adoc:301
+#: src/introduction/introduction.adoc:307
 #, no-wrap
 msgid "Further Reading"
 msgstr "Weiterführende Literatur"
 
 #. type: Plain text
-#: introduction.adoc:305
+#: src/introduction/introduction.adoc:311
 msgid ""
 "The latest version of this manual can be found in multiple languages at "
 "https://docs.kicad.org Manuals for previous versions of KiCad can also be "
@@ -902,7 +846,7 @@ msgstr ""
 "Sie ebenfalls auf dieser Website."
 
 #. type: Plain text
-#: introduction.adoc:310
+#: src/introduction/introduction.adoc:316
 msgid ""
 "The KiCad user community includes a number of forums and chat platforms that "
 "are operated independently from the KiCad development team but are fully "
@@ -918,7 +862,7 @@ msgstr ""
 "finden Sie unter der Rubrik Community auf https://www.kicad.org"
 
 #. type: Plain text
-#: introduction.adoc:313
+#: src/introduction/introduction.adoc:319
 msgid ""
 "Users interested in compiling KiCad from source and/or contributing to KiCad "
 "development should visit our developer documentation site at https://dev-"
@@ -930,3 +874,229 @@ msgstr ""
 "Dokumentations-Website für Entwickler unter https://dev-docs.kicad.org "
 "besuchen, um Anweisungen, Richtlinien und technische Informationen über die "
 "KiCad-Codebasis zu erhalten."
+
+#~ msgid ""
+#~ "A Properties Panel in the Schematic, Symbol, and Footprint editors, which "
+#~ "lets you quickly view and edit properties of selected objects. This works "
+#~ "even when multiple different types of objects are selected at once. This "
+#~ "expands on the Properties Panel in the PCB editor, which was introduced "
+#~ "in version 7.0."
+#~ msgstr ""
+#~ "Ein Eigenschaftenfeld im Schaltplan-, Symbol- und Footprinteditor, mit "
+#~ "der Sie die Eigenschaften ausgewählter Objekte schnell anzeigen und "
+#~ "bearbeiten können. Dies funktioniert auch, wenn mehrere verschiedene "
+#~ "Objekttypen gleichzeitig ausgewählt sind. Dies ist eine Erweiterung des "
+#~ "Eigenschaftenfeldes im Leiterplatteneditor, das in Version 7.0 eingeführt "
+#~ "wurde."
+
+#~ msgid ""
+#~ "HTTP libraries, which allow connecting KiCad to a networked component "
+#~ "database or ERP system via a REST API. The REST endpoint can provide "
+#~ "symbol and footprint mappings and other metadata."
+#~ msgstr ""
+#~ "HTTP-Bibliotheken, die eine Verbindung zwischen KiCad und einer "
+#~ "vernetzten Komponentendatenbank oder einem ERP-System über eine REST-API "
+#~ "ermöglichen. Der REST-Endpoint kann Symbol- und Footprint-Zuordnungen und "
+#~ "andere Metadaten bereitstellen."
+
+#~ msgid ""
+#~ "A search panel in the Schematic editor, which lets you search for "
+#~ "symbols, labels, and schematic text. This mirrors the search panel in the "
+#~ "PCB editor, which was added in version 7.0."
+#~ msgstr ""
+#~ "Ein Suchfeld im Schaltplaneditor, mit dem Sie nach Symbolen, "
+#~ "Beschriftungen und Schaltplantext suchen können. Dieses funktioniert wie "
+#~ "das Suchfeld im Leiterplatteneditor, das in Version 7.0 hinzugefügt wurde."
+
+#~ msgid ""
+#~ "The Symbol Fields Table has been expanded and now includes a fully-"
+#~ "featured and customizable BOM export tool. The legacy BOM export tool, "
+#~ "which uses external scripts to generate a BOM in the desired format, is "
+#~ "still available."
+#~ msgstr ""
+#~ "Die Tabelle der Symbolfelder wurde erweitert und enthält jetzt ein voll "
+#~ "funktionsfähiges und anpassbares Stücklistenexport-Tool. Das bisherige "
+#~ "Stücklistenexport-Tool, das externe Skripte verwendet, um eine Stückliste "
+#~ "im gewünschten Format zu erzeugen, ist weiterhin verfügbar."
+
+#~ msgid ""
+#~ "The SPICE simulator interface has been expanded and overhauled. The "
+#~ "simulator tool now supports several new analysis types (FFTs, noise "
+#~ "simulations, pole-zero simulations, and s-parameter analyses). The "
+#~ "simulator result plots can now include user-defined signals, including "
+#~ "mathematical operations, and the cursor and waveform measurement tools "
+#~ "have been improved. Operating point analysis results can be displayed on "
+#~ "the schematic itself to show the simulated operating point of each node."
+#~ msgstr ""
+#~ "Die Schnittstelle des SPICE-Simulators wurde erweitert und überarbeitet. "
+#~ "Das Simulatorwerkzeug unterstützt jetzt mehrere neue Analysetypen (FFTs, "
+#~ "Rauschsimulationen, Pol-Nullstellen-Simulationen und S-Parameter-"
+#~ "Analysen). Die Ergebnisdiagramme des Simulators können jetzt "
+#~ "benutzerdefinierte Signale enthalten, einschließlich mathematischer "
+#~ "Operationen, und die Cursor- und Wellenformmesswerkzeuge wurden "
+#~ "verbessert. Die Ergebnisse der Arbeitspunktanalyse können auf dem "
+#~ "Schaltplan selbst angezeigt werden, um den simulierten Arbeitspunkt jedes "
+#~ "Knotens darzustellen."
+
+#~ msgid ""
+#~ "The command-line interface has been expanded, and now includes support "
+#~ "for running ERC/DRC, exporting to more formats, and specifying text "
+#~ "variables, among other improvements."
+#~ msgstr ""
+#~ "Die Kommandozeilenschnittstelle wurde erweitert und bietet nun unter "
+#~ "anderem Unterstützung für die Ausführung von ERC/DRC, den Export in "
+#~ "weitere Formate und Festlegen von Textvariablen."
+
+#~ msgid ""
+#~ "A net navigator tool has been added in the Schematic editor, which "
+#~ "displays the locations of a highlighted net across a schematic hierarchy."
+#~ msgstr ""
+#~ "Der Schaltplaneditor wurde um ein Netznavigationswerkzeug erweitert, das "
+#~ "die Positionen eines markierten Netzes über eine Schaltplanhierarchie "
+#~ "hinweg anzeigt."
+
+#~ msgid ""
+#~ "Grids can now be automatically overridden for specific object types, for "
+#~ "example to use a finer grid for moving text and a coarser grid for "
+#~ "symbols."
+#~ msgstr ""
+#~ "Raster können jetzt automatisch für bestimmte Objekttypen überschrieben "
+#~ "werden, z. B. um ein feineres Raster für Fließtext und ein gröberes "
+#~ "Raster für Symbole zu verwenden."
+
+#~ msgid ""
+#~ "Power symbols are now easier to work with, as their assigned net is now "
+#~ "determined by the symbol value rather than the pin name. Where before "
+#~ "changing a power symbol's net required editing the symbol in the symbol "
+#~ "editor, in version 8 you can change the net directly in the schematic."
+#~ msgstr ""
+#~ "Leistungssymbole sind jetzt einfacher zu handhaben, da das ihnen "
+#~ "zugewiesene Netz jetzt durch den Symbolwert und nicht mehr durch den Pin-"
+#~ "Namen bestimmt wird. Musste bisher das Netz eines Leistungssymbols im "
+#~ "Symboleditor bearbeitet werden, so können Sie in Version 8 das Netz "
+#~ "direkt im Schaltplan ändern."
+
+#~ msgid ""
+#~ "A graphical comparison tool has been added to compare symbols and "
+#~ "footprints between libraries and the copies embedded in schematics and "
+#~ "PCBs."
+#~ msgstr ""
+#~ "Ein grafisches Vergleichswerkzeug wurde hinzugefügt, um Symbole und "
+#~ "Footprints zwischen Bibliotheken und den in Schaltplänen und "
+#~ "Leiterplatten eingebetteten Kopien zu vergleichen."
+
+#~ msgid ""
+#~ "The interactive length tuning tools in the PCB editor have been "
+#~ "overhauled.  Length tuning meanders are now persistent objects that can "
+#~ "be easily modified after they are initially created."
+#~ msgstr ""
+#~ "Die interaktiven Werkzeuge zur Längenabstimmung im Leiterplatteneditor "
+#~ "wurden überarbeitet. Mäander für die Längenabstimmung sind jetzt "
+#~ "dauerhafte Objekte, die nach ihrer Erstellung leicht geändert werden "
+#~ "können."
+
+#~ msgid ""
+#~ "Symbol fields are now synced to footprints in the PCB, so schematic "
+#~ "symbol metadata is available in the board design."
+#~ msgstr ""
+#~ "Die Symbolfelder werden jetzt mit den Footprints auf der Leiterplatte "
+#~ "synchronisiert, so dass die Metadaten der Schaltplansymbole auch im "
+#~ "Leiterplattenentwurf verfügbar sind."
+
+#~ msgid ""
+#~ "Graphical polygons on copper PCB layers can now have nets assigned, which "
+#~ "can be useful for creating electrical structures with a precise shape."
+#~ msgstr ""
+#~ "Grafischen Polygonen auf Kupferlagen der Leiterplatte können nun Netze "
+#~ "zugewiesen werden, was für die Erstellung von elektrischen Strukturen mit "
+#~ "präziser Form nützlich sein kann."
+
+#~ msgid ""
+#~ "\"Pin helper\" tools have been added to the Schematic editor to quickly "
+#~ "break out symbol pins to wires, nets, or no-connects."
+#~ msgstr ""
+#~ "Der Schaltplaneditor wurde um \"Pin-Helfer\"-Werkzeuge erweitert, mit "
+#~ "denen sich Symbol-Pins schnell in Verbindungen, Netze oder Keine-"
+#~ "Verbindungen aufteilen lassen."
+
+#~ msgid ""
+#~ "The 3D Viewer now has an appearance panel that improves user control over "
+#~ "how board designs are visualized in 3D."
+#~ msgstr ""
+#~ "Der 3D-Viewer verfügt jetzt über ein Erscheinungsbild-Panel, mit dem der "
+#~ "Benutzer bessere Einstellungsmöglichkeiten für die 3D-Visualisierung "
+#~ "seiner Platinenentwürfe hat."
+
+#~ msgid ""
+#~ "New importers and improvements to existing importers. Version 8 adds "
+#~ "support for importing EasyEDA (JLCEDA) Standard and Professional Edition "
+#~ "projects and libraries, CADSTAR symbol and footprint libraries, "
+#~ "Solidworks PCB board files, Altium Designer symbol and integrated "
+#~ "libraries, EAGLE symbol libraries, and LTSpice schematics."
+#~ msgstr ""
+#~ "Neue und Verbesserungen an bestehenden Importwerkzeugen. Version 8 bietet "
+#~ "Unterstützung für den Import von EasyEDA (JLCEDA) Standard und "
+#~ "Professional Edition Projekten und Bibliotheken, CADSTAR Symbol- und "
+#~ "Footprint-Bibliotheken, Solidworks PCB Platinen-Dateien, Altium Designer "
+#~ "Symbol- und integrierten Bibliotheken, EAGLE Symbol-Bibliotheken und "
+#~ "LTSpice Schaltplänen."
+
+#~ msgid ""
+#~ "New and improved exporters, including copper geometry in STEP exports and "
+#~ "Cadence Allegro netlist export."
+#~ msgstr ""
+#~ "Neue und verbesserte Exportwerkzeuge, einschließlich Kupfergeometrien in "
+#~ "STEP-Exporten und Cadence Allegro Netzlistenexporten."
+
+#, no-wrap
+#~ msgid "KiCad Projects and Files"
+#~ msgstr "KiCad Projekte und Dateien"
+
+#, no-wrap
+#~ msgid ""
+#~ "This section of the KiCad documentation has not yet been written.  We\n"
+#~ "      appreciate your patience as our small team of volunteer documentation\n"
+#~ "      writers work to update and expand the documentation.\n"
+#~ msgstr "Dieser Teil der KiCad-Dokumentation ist noch nicht geschrieben worden. Wir danken Ihnen für Ihre Geduld, während unser kleines Team von freiwilligen Autoren an der Aktualisierung und Erweiterung der Dokumentation arbeitet.\n"
+
+#~ msgid "File types and project structure"
+#~ msgstr "Dateitypen und Projektstruktur"
+
+#~ msgid "Project workflow"
+#~ msgstr "Projekt-Workflow"
+
+#~ msgid "Schematic <> PCB workflow"
+#~ msgstr "Schaltplan <> Leiterplatten-Arbeitsablauf"
+
+#~ msgid "Standalone vs. project mode for schematic and PCB editors"
+#~ msgstr ""
+#~ "Standalone- vs. Projektmodus für Schaltplan- und Leiterplatteneditoren"
+
+#, no-wrap
+#~ msgid "Symbol and Footprint Libraries"
+#~ msgstr "Symbol- und Footprintbibliotheken"
+
+#~ msgid "Relationship between libraries and design files"
+#~ msgstr "Beziehung zwischen Bibliotheken und Projektdateien"
+
+#~ msgid "Global vs project libraries"
+#~ msgstr "Globale vs. Projektbibliotheken"
+
+#~ msgid "The KiCad library project (built-in global libraries)"
+#~ msgstr "Das KiCad-Bibliotheksprojekt (eingebaute globale Bibliotheken)"
+
+#, no-wrap
+#~ msgid "Accessory Tools"
+#~ msgstr "Zubehör-Tools"
+
+#~ msgid "GerbView"
+#~ msgstr "Gerber-Betrachter"
+
+#~ msgid "PCB Calculator"
+#~ msgstr "Berechnungswerkzeuge"
+
+#~ msgid "Bitmap2Component"
+#~ msgstr "Bildumwandler"
+
+#~ msgid "Worksheet Editor (pl_editor)"
+#~ msgstr "Arbeitsblatt Editor (pl_editor)"

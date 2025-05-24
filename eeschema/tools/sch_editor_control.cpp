@@ -64,10 +64,10 @@
 #include <symbol_viewer_frame.h>
 #include <tool/picker_tool.h>
 #include <tool/tool_manager.h>
-#include <tools/ee_actions.h>
-#include <tools/ee_selection.h>
-#include <tools/ee_selection_tool.h>
-#include <tools/ee_tool_utils.h>
+#include <tools/sch_actions.h>
+#include <tools/sch_selection.h>
+#include <tools/sch_selection_tool.h>
+#include <tools/sch_tool_utils.h>
 #include <tools/sch_edit_table_tool.h>
 #include <drawing_sheet/ds_proxy_undo_item.h>
 #include <eda_list_dialog.h>
@@ -149,7 +149,7 @@ int SCH_EDITOR_CONTROL::Revert( const TOOL_EVENT& aEvent )
     if( m_frame->GetCurrentSheet().Last() != &root )
     {
         m_toolMgr->RunAction( ACTIONS::cancelInteractive );
-        m_toolMgr->RunAction( EE_ACTIONS::clearSelection );
+        m_toolMgr->RunAction( SCH_ACTIONS::clearSelection );
 
         // Store the current zoom level into the current screen before switching
         m_frame->GetScreen()->m_LastZoomLevel = m_frame->GetCanvas()->GetView()->GetScale();
@@ -345,9 +345,8 @@ void SCH_EDITOR_CONTROL::doCrossProbeSchToPcb( const TOOL_EVENT& aEvent, bool aF
     if( m_probingPcbToSch || m_frame->IsSyncingSelection() )
         return;
 
-    EE_SELECTION_TOOL*      selTool = m_toolMgr->GetTool<EE_SELECTION_TOOL>();
-
-    EE_SELECTION& selection = aForce ? selTool->RequestSelection() : selTool->GetSelection();
+    SCH_SELECTION_TOOL* selTool = m_toolMgr->GetTool<SCH_SELECTION_TOOL>();
+    SCH_SELECTION&      selection = aForce ? selTool->RequestSelection() : selTool->GetSelection();
 
     m_frame->SendSelectItemsToPcb( selection.GetItemsSortedBySelectionOrder(), aForce );
 }
@@ -358,7 +357,7 @@ int SCH_EDITOR_CONTROL::ExportSymbolsToLibrary( const TOOL_EVENT& aEvent )
     bool savePowerSymbols = IsOK( m_frame,
                                   _( "Include power symbols in schematic to the library?" ) );
 
-    bool createNew = aEvent.IsAction( &EE_ACTIONS::exportSymbolsToNewLibrary );
+    bool createNew = aEvent.IsAction( &SCH_ACTIONS::exportSymbolsToNewLibrary );
 
     SCH_SHEET_LIST     sheets = m_frame->Schematic().BuildSheetListSortedByPageNumbers();
     SCH_REFERENCE_LIST symbols;
@@ -567,7 +566,7 @@ int SCH_EDITOR_CONTROL::SimProbe( const TOOL_EVENT& aEvent )
     picker->SetClickHandler(
             [this, simFrame]( const VECTOR2D& aPosition )
             {
-                EE_SELECTION_TOOL* selTool = m_toolMgr->GetTool<EE_SELECTION_TOOL>();
+                SCH_SELECTION_TOOL* selTool = m_toolMgr->GetTool<SCH_SELECTION_TOOL>();
 
                 // We do not really want to keep an item selected in schematic,
                 // so clear the current selection
@@ -589,15 +588,20 @@ int SCH_EDITOR_CONTROL::SimProbe( const TOOL_EVENT& aEvent )
                         WX_STRING_REPORTER reporter;
                         SIM_LIB_MGR        mgr( &m_frame->Prj() );
 
-                        SIM_MODEL&  model = mgr.CreateModel( &sheet, *symbol, reporter ).model;
+                        std::vector<EMBEDDED_FILES*> embeddedFilesStack;
+                        embeddedFilesStack.push_back( m_frame->Schematic().GetEmbeddedFiles() );
+                        embeddedFilesStack.push_back( symbol->GetEmbeddedFiles() );
+
+                        mgr.SetFilesStack( embeddedFilesStack );
+
+                        SIM_MODEL& model = mgr.CreateModel( &sheet, *symbol, reporter ).model;
 
                         if( reporter.HasMessage() )
                             THROW_IO_ERROR( reporter.GetMessages() );
 
                         SPICE_ITEM spiceItem;
                         spiceItem.refName = symbol->GetRef( &sheet ).ToStdString();
-                        std::vector<std::string> currentNames =
-                                model.SpiceGenerator().CurrentNames( spiceItem );
+                        std::vector<std::string> currentNames = model.SpiceGenerator().CurrentNames( spiceItem );
 
                         if( currentNames.size() == 0 )
                         {
@@ -640,13 +644,13 @@ int SCH_EDITOR_CONTROL::SimProbe( const TOOL_EVENT& aEvent )
     picker->SetMotionHandler(
             [this, picker]( const VECTOR2D& aPos )
             {
-                EE_COLLECTOR collector;
+                SCH_COLLECTOR collector;
                 collector.m_Threshold = KiROUND( getView()->ToWorld( HITTEST_THRESHOLD_PIXELS ) );
                 collector.Collect( m_frame->GetScreen(), { SCH_ITEM_LOCATE_WIRE_T,
                                                            SCH_PIN_T,
                                                            SCH_SHEET_PIN_T }, aPos );
 
-                EE_SELECTION_TOOL* selectionTool = m_toolMgr->GetTool<EE_SELECTION_TOOL>();
+                SCH_SELECTION_TOOL* selectionTool = m_toolMgr->GetTool<SCH_SELECTION_TOOL>();
                 selectionTool->GuessSelectionCandidates( collector, aPos );
 
                 EDA_ITEM* item = collector.GetCount() == 1 ? collector[ 0 ] : nullptr;
@@ -691,7 +695,7 @@ int SCH_EDITOR_CONTROL::SimProbe( const TOOL_EVENT& aEvent )
             [this]( const int& aFinalState )
             {
                 if( m_pickerItem )
-                    m_toolMgr->GetTool<EE_SELECTION_TOOL>()->UnbrightenItem( m_pickerItem );
+                    m_toolMgr->GetTool<SCH_SELECTION_TOOL>()->UnbrightenItem( m_pickerItem );
 
                 if( !m_frame->GetHighlightedConnection().IsEmpty() )
                 {
@@ -704,9 +708,9 @@ int SCH_EDITOR_CONTROL::SimProbe( const TOOL_EVENT& aEvent )
                 // Wake the selection tool after exiting to ensure the cursor gets updated
                 // and deselect previous selection from simulator to avoid any issue
                 // ( avoid crash in some cases when the SimProbe tool is deselected )
-                EE_SELECTION_TOOL* selectionTool = m_toolMgr->GetTool<EE_SELECTION_TOOL>();
+                SCH_SELECTION_TOOL* selectionTool = m_toolMgr->GetTool<SCH_SELECTION_TOOL>();
                 selectionTool->ClearSelection();
-                m_toolMgr->PostAction( EE_ACTIONS::selectionActivate );
+                m_toolMgr->PostAction( SCH_ACTIONS::selectionActivate );
             } );
 
     m_toolMgr->RunAction( ACTIONS::pickerTool, &aEvent );
@@ -728,8 +732,8 @@ int SCH_EDITOR_CONTROL::SimTune( const TOOL_EVENT& aEvent )
     picker->SetClickHandler(
             [this]( const VECTOR2D& aPosition )
             {
-                EE_SELECTION_TOOL* selTool = m_toolMgr->GetTool<EE_SELECTION_TOOL>();
-                EDA_ITEM*          item = nullptr;
+                SCH_SELECTION_TOOL* selTool = m_toolMgr->GetTool<SCH_SELECTION_TOOL>();
+                EDA_ITEM*           item = nullptr;
                 selTool->SelectPoint( aPosition, { SCH_SYMBOL_T, SCH_FIELD_T }, &item );
 
                 if( !item )
@@ -764,11 +768,11 @@ int SCH_EDITOR_CONTROL::SimTune( const TOOL_EVENT& aEvent )
     picker->SetMotionHandler(
             [this]( const VECTOR2D& aPos )
             {
-                EE_COLLECTOR collector;
+                SCH_COLLECTOR collector;
                 collector.m_Threshold = KiROUND( getView()->ToWorld( HITTEST_THRESHOLD_PIXELS ) );
                 collector.Collect( m_frame->GetScreen(), { SCH_SYMBOL_T, SCH_FIELD_T }, aPos );
 
-                EE_SELECTION_TOOL* selectionTool = m_toolMgr->GetTool<EE_SELECTION_TOOL>();
+                SCH_SELECTION_TOOL* selectionTool = m_toolMgr->GetTool<SCH_SELECTION_TOOL>();
                 selectionTool->GuessSelectionCandidates( collector, aPos );
 
                 EDA_ITEM* item = collector.GetCount() == 1 ? collector[ 0 ] : nullptr;
@@ -789,14 +793,14 @@ int SCH_EDITOR_CONTROL::SimTune( const TOOL_EVENT& aEvent )
             [this]( const int& aFinalState )
             {
                 if( m_pickerItem )
-                    m_toolMgr->GetTool<EE_SELECTION_TOOL>()->UnbrightenItem( m_pickerItem );
+                    m_toolMgr->GetTool<SCH_SELECTION_TOOL>()->UnbrightenItem( m_pickerItem );
 
                 // Wake the selection tool after exiting to ensure the cursor gets updated
                 // and deselect previous selection from simulator to avoid any issue
                 // ( avoid crash in some cases when the SimTune tool is deselected )
-                EE_SELECTION_TOOL* selectionTool = m_toolMgr->GetTool<EE_SELECTION_TOOL>();
+                SCH_SELECTION_TOOL* selectionTool = m_toolMgr->GetTool<SCH_SELECTION_TOOL>();
                 selectionTool->ClearSelection();
-                m_toolMgr->PostAction( EE_ACTIONS::selectionActivate );
+                m_toolMgr->PostAction( SCH_ACTIONS::selectionActivate );
             } );
 
     m_toolMgr->RunAction( ACTIONS::pickerTool, &aEvent );
@@ -812,7 +816,7 @@ static VECTOR2D CLEAR;
 static bool highlightNet( TOOL_MANAGER* aToolMgr, const VECTOR2D& aPosition )
 {
     SCH_EDIT_FRAME*     editFrame     = static_cast<SCH_EDIT_FRAME*>( aToolMgr->GetToolHolder() );
-    EE_SELECTION_TOOL*  selTool       = aToolMgr->GetTool<EE_SELECTION_TOOL>();
+    SCH_SELECTION_TOOL* selTool       = aToolMgr->GetTool<SCH_SELECTION_TOOL>();
     SCH_EDITOR_CONTROL* editorControl = aToolMgr->GetTool<SCH_EDITOR_CONTROL>();
     SCH_CONNECTION*     conn          = nullptr;
     SCH_ITEM*           item          = nullptr;
@@ -913,9 +917,9 @@ int SCH_EDITOR_CONTROL::ClearHighlight( const TOOL_EVENT& aEvent )
 
 int SCH_EDITOR_CONTROL::AssignNetclass( const TOOL_EVENT& aEvent )
 {
-    EE_SELECTION_TOOL*    selectionTool = m_toolMgr->GetTool<EE_SELECTION_TOOL>();
-    SCHEMATIC&            schematic = m_frame->Schematic();
-    SCH_SCREEN*           screen = m_frame->GetCurrentSheet().LastScreen();
+    SCH_SELECTION_TOOL* selectionTool = m_toolMgr->GetTool<SCH_SELECTION_TOOL>();
+    SCHEMATIC&          schematic = m_frame->Schematic();
+    SCH_SCREEN*         screen = m_frame->GetCurrentSheet().LastScreen();
 
     const SCH_CONNECTION* conn = nullptr;
     VECTOR2D connPos;
@@ -1287,7 +1291,7 @@ int SCH_EDITOR_CONTROL::Undo( const TOOL_EVENT& aEvent )
     undo_list->ReversePickersListOrder();
     m_frame->PushCommandToRedoList( undo_list );
 
-    m_toolMgr->GetTool<EE_SELECTION_TOOL>()->RebuildSelection();
+    m_toolMgr->GetTool<SCH_SELECTION_TOOL>()->RebuildSelection();
 
     m_frame->GetCanvas()->Refresh();
     m_frame->OnModify();
@@ -1318,7 +1322,7 @@ int SCH_EDITOR_CONTROL::Redo( const TOOL_EVENT& aEvent )
     list->ReversePickersListOrder();
     m_frame->PushCommandToUndoList( list );
 
-    m_toolMgr->GetTool<EE_SELECTION_TOOL>()->RebuildSelection();
+    m_toolMgr->GetTool<SCH_SELECTION_TOOL>()->RebuildSelection();
 
     m_frame->GetCanvas()->Refresh();
     m_frame->OnModify();
@@ -1329,9 +1333,9 @@ int SCH_EDITOR_CONTROL::Redo( const TOOL_EVENT& aEvent )
 
 bool SCH_EDITOR_CONTROL::doCopy( bool aUseDuplicateClipboard )
 {
-    EE_SELECTION_TOOL* selTool = m_toolMgr->GetTool<EE_SELECTION_TOOL>();
-    EE_SELECTION&      selection = selTool->RequestSelection();
-    SCHEMATIC&         schematic = m_frame->Schematic();
+    SCH_SELECTION_TOOL* selTool = m_toolMgr->GetTool<SCH_SELECTION_TOOL>();
+    SCH_SELECTION&      selection = selTool->RequestSelection();
+    SCHEMATIC&          schematic = m_frame->Schematic();
 
     if( selection.Empty() )
         return false;
@@ -1372,7 +1376,7 @@ bool SCH_EDITOR_CONTROL::doCopy( bool aUseDuplicateClipboard )
     KICAD_FORMAT::Prettify( prettyData, true );
 
     if( selection.IsHover() )
-        m_toolMgr->RunAction( EE_ACTIONS::clearSelection );
+        m_toolMgr->RunAction( SCH_ACTIONS::clearSelection );
 
     if( aUseDuplicateClipboard )
     {
@@ -1441,8 +1445,8 @@ int SCH_EDITOR_CONTROL::Copy( const TOOL_EVENT& aEvent )
 
 int SCH_EDITOR_CONTROL::CopyAsText( const TOOL_EVENT& aEvent )
 {
-    EE_SELECTION_TOOL* selTool = m_toolMgr->GetTool<EE_SELECTION_TOOL>();
-    EE_SELECTION&      selection = selTool->RequestSelection();
+    SCH_SELECTION_TOOL* selTool = m_toolMgr->GetTool<SCH_SELECTION_TOOL>();
+    SCH_SELECTION&      selection = selTool->RequestSelection();
 
     if( selection.Empty() )
         return false;
@@ -1450,7 +1454,7 @@ int SCH_EDITOR_CONTROL::CopyAsText( const TOOL_EVENT& aEvent )
     wxString itemsAsText = GetSelectedItemsAsText( selection );
 
     if( selection.IsHover() )
-        m_toolMgr->RunAction( EE_ACTIONS::clearSelection );
+        m_toolMgr->RunAction( SCH_ACTIONS::clearSelection );
 
     return SaveClipboard( itemsAsText.ToStdString() );
 }
@@ -1650,14 +1654,15 @@ int SCH_EDITOR_CONTROL::Paste( const TOOL_EVENT& aEvent )
         return 0;
     }
 
-    EE_SELECTION_TOOL* selTool = m_toolMgr->GetTool<EE_SELECTION_TOOL>();
-    std::string        content;
-    VECTOR2I           eventPos;
+    SCH_SELECTION_TOOL* selTool = m_toolMgr->GetTool<SCH_SELECTION_TOOL>();
+    std::string         content;
+    VECTOR2I            eventPos;
 
     SCH_SHEET   tempSheet;
     SCH_SCREEN* tempScreen = new SCH_SCREEN( &m_frame->Schematic() );
+    std::unique_ptr<wxImage> clipImg = GetImageFromClipboard();
 
-    if( std::unique_ptr<wxImage> clipImg = GetImageFromClipboard() )
+    if( !aEvent.IsAction( &ACTIONS::duplicate ) && clipImg )
     {
         // Just image data
         auto bitmap = std::make_unique<SCH_BITMAP>();
@@ -1717,14 +1722,20 @@ int SCH_EDITOR_CONTROL::Paste( const TOOL_EVENT& aEvent )
     EESCHEMA_SETTINGS::PANEL_ANNOTATE& annotate = m_frame->eeconfig()->m_AnnotatePanel;
     int annotateStartNum = m_frame->Schematic().Settings().m_AnnotateStartNum;
 
-    PASTE_MODE pasteMode = PASTE_MODE::UNIQUE_ANNOTATIONS;
+    PASTE_MODE pasteMode = annotate.automatic ? PASTE_MODE::RESPECT_OPTIONS : PASTE_MODE::REMOVE_ANNOTATIONS;
+    bool       forceRemoveAnnotations = false;
 
     if( aEvent.IsAction( &ACTIONS::pasteSpecial ) )
     {
-        DIALOG_PASTE_SPECIAL dlg( m_frame, &pasteMode );
+        PASTE_MODE           pasteModeSpecial = pasteMode;
+        DIALOG_PASTE_SPECIAL dlg( m_frame, &pasteModeSpecial );
 
         if( dlg.ShowModal() == wxID_CANCEL )
             return 0;
+
+        // We have to distinguish if removing was explicit
+        forceRemoveAnnotations = ( pasteModeSpecial == PASTE_MODE::REMOVE_ANNOTATIONS );
+        pasteMode = pasteModeSpecial;
     }
 
     bool forceKeepAnnotations = pasteMode != PASTE_MODE::REMOVE_ANNOTATIONS;
@@ -1754,6 +1765,9 @@ int SCH_EDITOR_CONTROL::Paste( const TOOL_EVENT& aEvent )
         if( item.LastScreen() )
             loadedScreens[item.Last()->GetFileName()] = item.LastScreen();
     }
+
+    // Get set of sheet names in the current schematic to prevent duplicate sheet names on paste.
+    std::set<wxString> existingSheetNames = pasteRoot.LastScreen()->GetSheetNames();
 
     // Build symbol list for reannotation of duplicates
     SCH_REFERENCE_LIST existingRefs;
@@ -1862,6 +1876,17 @@ int SCH_EDITOR_CONTROL::Paste( const TOOL_EVENT& aEvent )
                 symbol->SetLibSymbol( libSymbol );
             }
 
+            // If the symbol is already in the schematic we have to always keep the
+            // annotations. The exception is if the user has chosen to remove them.
+            for( const SCH_SYMBOL_INSTANCE& instance : symbol->GetInstances() )
+            {
+                if( !existingRefsSet.contains( instance.m_Reference ) )
+                {
+                    forceKeepAnnotations = !forceRemoveAnnotations;
+                    break;
+                }
+            }
+
             for( SCH_SHEET_PATH& sheetPath : sheetPathsForScreen )
                 updatePastedSymbol( symbol, sheetPath, clipPath, forceKeepAnnotations );
 
@@ -1870,7 +1895,7 @@ int SCH_EDITOR_CONTROL::Paste( const TOOL_EVENT& aEvent )
             // is not already in the hierarchy.  If we don't already have a copy of the
             // symbol, we just keep the existing KIID data as it is likely the same symbol
             // being moved around the schematic
-            bool needsNewKiid = ( pasteMode != PASTE_MODE::UNIQUE_ANNOTATIONS );
+            bool needsNewKiid = ( pasteMode == PASTE_MODE::UNIQUE_ANNOTATIONS );
 
             for( const SCH_SYMBOL_INSTANCE& instance : symbol->GetInstances() )
             {
@@ -1892,16 +1917,16 @@ int SCH_EDITOR_CONTROL::Paste( const TOOL_EVENT& aEvent )
                     const_cast<KIID&>( pin->m_Uuid ) = KIID();
                     pin->SetConnectivityDirty();
                 }
-            }
 
-            for( SCH_SHEET_PATH& sheetPath : sheetPathsForScreen )
-            {
-                // Ignore symbols from a non-existant library.
-                if( libSymbol )
+                for( SCH_SHEET_PATH& sheetPath : sheetPathsForScreen )
                 {
-                    SCH_REFERENCE schReference( symbol, sheetPath );
-                    schReference.SetSheetNumber( sheetPath.GetVirtualPageNumber() );
-                    pastedSymbols[sheetPath].AddItem( schReference );
+                    // Ignore symbols from a non-existant library.
+                    if( libSymbol )
+                    {
+                        SCH_REFERENCE schReference( symbol, sheetPath );
+                        schReference.SetSheetNumber( sheetPath.GetVirtualPageNumber() );
+                        pastedSymbols[sheetPath].AddItem( schReference );
+                    }
                 }
             }
         }
@@ -1923,14 +1948,13 @@ int SCH_EDITOR_CONTROL::Paste( const TOOL_EVENT& aEvent )
             // duplicate sheet names
             hierarchy = m_frame->Schematic().Hierarchy();
 
-            //@todo: it might be better to just iterate through the sheet names
-            // in this screen instead of the whole hierarchy.
             int uniquifier = std::max( 0, wxAtoi( number ) ) + 1;
 
-            while( hierarchy.NameExists( candidateName ) )
+            while( existingSheetNames.count( candidateName ) )
                 candidateName = wxString::Format( wxT( "%s%d" ), baseName, uniquifier++ );
 
             nameField.SetText( candidateName );
+            existingSheetNames.emplace( candidateName );
 
             wxFileName     fn = sheet->GetFileName();
             SCH_SCREEN*    existingScreen = nullptr;
@@ -2171,10 +2195,10 @@ int SCH_EDITOR_CONTROL::Paste( const TOOL_EVENT& aEvent )
     allScreens.PruneOrphanedSheetInstances( m_frame->Prj().GetProjectName(), sheets );
 
     // Now clear the previous selection, select the pasted items, and fire up the "move" tool.
-    m_toolMgr->RunAction( EE_ACTIONS::clearSelection );
-    m_toolMgr->RunAction<EDA_ITEMS*>( EE_ACTIONS::addItemsToSel, &loadedItems );
+    m_toolMgr->RunAction( SCH_ACTIONS::clearSelection );
+    m_toolMgr->RunAction<EDA_ITEMS*>( SCH_ACTIONS::addItemsToSel, &loadedItems );
 
-    EE_SELECTION& selection = selTool->GetSelection();
+    SCH_SELECTION& selection = selTool->GetSelection();
 
     if( !selection.Empty() )
     {
@@ -2275,7 +2299,7 @@ int SCH_EDITOR_CONTROL::Paste( const TOOL_EVENT& aEvent )
             selection.SetReferencePoint( item->GetPosition() );
         }
 
-        if( m_toolMgr->RunSynchronousAction( EE_ACTIONS::move, &commit ) )
+        if( m_toolMgr->RunSynchronousAction( SCH_ACTIONS::move, &commit ) )
         {
             // Pushing the commit will update the connectivity.
             commit.Push( _( "Paste" ) );
@@ -2298,16 +2322,16 @@ int SCH_EDITOR_CONTROL::Paste( const TOOL_EVENT& aEvent )
 
 int SCH_EDITOR_CONTROL::EditWithSymbolEditor( const TOOL_EVENT& aEvent )
 {
-    EE_SELECTION_TOOL* selTool = m_toolMgr->GetTool<EE_SELECTION_TOOL>();
-    EE_SELECTION&      selection = selTool->RequestSelection( { SCH_SYMBOL_T } );
-    SCH_SYMBOL*        symbol = nullptr;
-    SYMBOL_EDIT_FRAME* symbolEditor;
+    SCH_SELECTION_TOOL* selTool = m_toolMgr->GetTool<SCH_SELECTION_TOOL>();
+    SCH_SELECTION&      selection = selTool->RequestSelection( { SCH_SYMBOL_T } );
+    SCH_SYMBOL*         symbol = nullptr;
+    SYMBOL_EDIT_FRAME*  symbolEditor;
 
     if( selection.GetSize() >= 1 )
         symbol = (SCH_SYMBOL*) selection.Front();
 
     if( selection.IsHover() )
-        m_toolMgr->RunAction( EE_ACTIONS::clearSelection );
+        m_toolMgr->RunAction( SCH_ACTIONS::clearSelection );
 
     if( !symbol )
     {
@@ -2337,11 +2361,11 @@ int SCH_EDITOR_CONTROL::EditWithSymbolEditor( const TOOL_EVENT& aEvent )
         if( wxWindow* blocking_win = symbolEditor->Kiway().GetBlockingDialog() )
             blocking_win->Close( true );
 
-        if( aEvent.IsAction( &EE_ACTIONS::editWithLibEdit ) )
+        if( aEvent.IsAction( &SCH_ACTIONS::editWithLibEdit ) )
         {
             symbolEditor->LoadSymbolFromSchematic( symbol );
         }
-        else if( aEvent.IsAction( &EE_ACTIONS::editLibSymbolWithLibEdit ) )
+        else if( aEvent.IsAction( &SCH_ACTIONS::editLibSymbolWithLibEdit ) )
         {
             symbolEditor->LoadSymbol( symbol->GetLibId(), symbol->GetUnit(),
                                       symbol->GetBodyStyle() );
@@ -2887,33 +2911,33 @@ void SCH_EDITOR_CONTROL::setTransitions()
     Go( &SCH_EDITOR_CONTROL::Open,                  ACTIONS::open.MakeEvent() );
     Go( &SCH_EDITOR_CONTROL::Save,                  ACTIONS::save.MakeEvent() );
     Go( &SCH_EDITOR_CONTROL::SaveAs,                ACTIONS::saveAs.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::SaveCurrSheetCopyAs,   EE_ACTIONS::saveCurrSheetCopyAs.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::SaveCurrSheetCopyAs,   SCH_ACTIONS::saveCurrSheetCopyAs.MakeEvent() );
     Go( &SCH_EDITOR_CONTROL::Revert,                ACTIONS::revert.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ShowSchematicSetup,    EE_ACTIONS::schematicSetup.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ShowSchematicSetup,    SCH_ACTIONS::schematicSetup.MakeEvent() );
     Go( &SCH_EDITOR_CONTROL::PageSetup,             ACTIONS::pageSettings.MakeEvent() );
     Go( &SCH_EDITOR_CONTROL::Print,                 ACTIONS::print.MakeEvent() );
     Go( &SCH_EDITOR_CONTROL::Plot,                  ACTIONS::plot.MakeEvent() );
     Go( &SCH_EDITOR_CONTROL::Quit,                  ACTIONS::quit.MakeEvent() );
 
-    Go( &SCH_EDITOR_CONTROL::RescueSymbols,         EE_ACTIONS::rescueSymbols.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::RemapSymbols,          EE_ACTIONS::remapSymbols.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::RescueSymbols,         SCH_ACTIONS::rescueSymbols.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::RemapSymbols,          SCH_ACTIONS::remapSymbols.MakeEvent() );
 
-    Go( &SCH_EDITOR_CONTROL::CrossProbeToPcb,       EVENTS::PointSelectedEvent );
-    Go( &SCH_EDITOR_CONTROL::CrossProbeToPcb,       EVENTS::SelectedEvent );
-    Go( &SCH_EDITOR_CONTROL::CrossProbeToPcb,       EVENTS::UnselectedEvent );
-    Go( &SCH_EDITOR_CONTROL::CrossProbeToPcb,       EVENTS::ClearedEvent );
-    Go( &SCH_EDITOR_CONTROL::ExplicitCrossProbeToPcb, EE_ACTIONS::selectOnPCB.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::CrossProbeToPcb,         EVENTS::PointSelectedEvent );
+    Go( &SCH_EDITOR_CONTROL::CrossProbeToPcb,         EVENTS::SelectedEvent );
+    Go( &SCH_EDITOR_CONTROL::CrossProbeToPcb,         EVENTS::UnselectedEvent );
+    Go( &SCH_EDITOR_CONTROL::CrossProbeToPcb,         EVENTS::ClearedEvent );
+    Go( &SCH_EDITOR_CONTROL::ExplicitCrossProbeToPcb, SCH_ACTIONS::selectOnPCB.MakeEvent() );
 
-    Go( &SCH_EDITOR_CONTROL::SimProbe,              EE_ACTIONS::simProbe.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::SimTune,               EE_ACTIONS::simTune.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::SimProbe,              SCH_ACTIONS::simProbe.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::SimTune,               SCH_ACTIONS::simTune.MakeEvent() );
 
-    Go( &SCH_EDITOR_CONTROL::HighlightNet,          EE_ACTIONS::highlightNet.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ClearHighlight,        EE_ACTIONS::clearHighlight.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::HighlightNetCursor,    EE_ACTIONS::highlightNetTool.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::HighlightNet,          SCH_ACTIONS::highlightNet.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ClearHighlight,        SCH_ACTIONS::clearHighlight.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::HighlightNetCursor,    SCH_ACTIONS::highlightNetTool.MakeEvent() );
     Go( &SCH_EDITOR_CONTROL::UpdateNetHighlighting, EVENTS::SelectedItemsModified );
-    Go( &SCH_EDITOR_CONTROL::UpdateNetHighlighting, EE_ACTIONS::updateNetHighlighting.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::UpdateNetHighlighting, SCH_ACTIONS::updateNetHighlighting.MakeEvent() );
 
-    Go( &SCH_EDITOR_CONTROL::AssignNetclass,        EE_ACTIONS::assignNetclass.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::AssignNetclass,        SCH_ACTIONS::assignNetclass.MakeEvent() );
 
     Go( &SCH_EDITOR_CONTROL::Undo,                  ACTIONS::undo.MakeEvent() );
     Go( &SCH_EDITOR_CONTROL::Redo,                  ACTIONS::redo.MakeEvent() );
@@ -2926,53 +2950,49 @@ void SCH_EDITOR_CONTROL::setTransitions()
 
     Go( &SCH_EDITOR_CONTROL::GridFeedback,          EVENTS::GridChangedByKeyEvent );
 
-    Go( &SCH_EDITOR_CONTROL::EditWithSymbolEditor,  EE_ACTIONS::editWithLibEdit.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::EditWithSymbolEditor,
-        EE_ACTIONS::editLibSymbolWithLibEdit.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ShowCvpcb,             EE_ACTIONS::assignFootprints.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ImportFPAssignments,   EE_ACTIONS::importFPAssignments.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::Annotate,              EE_ACTIONS::annotate.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::IncrementAnnotations,  EE_ACTIONS::incrementAnnotations.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::EditSymbolFields,      EE_ACTIONS::editSymbolFields.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::EditSymbolLibraryLinks,
-        EE_ACTIONS::editSymbolLibraryLinks.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ShowPcbNew,            EE_ACTIONS::showPcbNew.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::UpdatePCB,             ACTIONS::updatePcbFromSchematic.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::UpdateFromPCB,         ACTIONS::updateSchematicFromPcb.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ExportNetlist,         EE_ACTIONS::exportNetlist.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::GenerateBOM,           EE_ACTIONS::generateBOM.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::GenerateBOMLegacy,     EE_ACTIONS::generateBOMLegacy.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::DrawSheetOnClipboard,  EE_ACTIONS::drawSheetOnClipboard.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::EditWithSymbolEditor,   SCH_ACTIONS::editWithLibEdit.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::EditWithSymbolEditor,   SCH_ACTIONS::editLibSymbolWithLibEdit.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ShowCvpcb,              SCH_ACTIONS::assignFootprints.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ImportFPAssignments,    SCH_ACTIONS::importFPAssignments.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::Annotate,               SCH_ACTIONS::annotate.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::IncrementAnnotations,   SCH_ACTIONS::incrementAnnotations.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::EditSymbolFields,       SCH_ACTIONS::editSymbolFields.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::EditSymbolLibraryLinks, SCH_ACTIONS::editSymbolLibraryLinks.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ShowPcbNew,             SCH_ACTIONS::showPcbNew.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::UpdatePCB,              ACTIONS::updatePcbFromSchematic.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::UpdateFromPCB,          ACTIONS::updateSchematicFromPcb.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ExportNetlist,          SCH_ACTIONS::exportNetlist.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::GenerateBOM,            SCH_ACTIONS::generateBOM.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::GenerateBOMLegacy,      SCH_ACTIONS::generateBOMLegacy.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::DrawSheetOnClipboard,   SCH_ACTIONS::drawSheetOnClipboard.MakeEvent() );
 
-    Go( &SCH_EDITOR_CONTROL::ShowSearch,            EE_ACTIONS::showSearch.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ShowHierarchy,         EE_ACTIONS::showHierarchy.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ShowNetNavigator,      EE_ACTIONS::showNetNavigator.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ToggleProperties,      ACTIONS::showProperties.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ToggleLibraryTree,     EE_ACTIONS::showDesignBlockPanel.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ToggleLibraryTree,     EE_ACTIONS::showDesignBlockPanel.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ShowSearch,             SCH_ACTIONS::showSearch.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ShowHierarchy,          SCH_ACTIONS::showHierarchy.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ShowNetNavigator,       SCH_ACTIONS::showNetNavigator.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ToggleProperties,       ACTIONS::showProperties.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ToggleLibraryTree,      SCH_ACTIONS::showDesignBlockPanel.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ToggleLibraryTree,      SCH_ACTIONS::showDesignBlockPanel.MakeEvent() );
 
-    Go( &SCH_EDITOR_CONTROL::ToggleHiddenPins,      EE_ACTIONS::toggleHiddenPins.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ToggleHiddenFields,    EE_ACTIONS::toggleHiddenFields.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ToggleDirectiveLabels, EE_ACTIONS::toggleDirectiveLabels.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ToggleERCWarnings,     EE_ACTIONS::toggleERCWarnings.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ToggleERCErrors,       EE_ACTIONS::toggleERCErrors.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ToggleERCExclusions,   EE_ACTIONS::toggleERCExclusions.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::MarkSimExclusions,     EE_ACTIONS::markSimExclusions.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ToggleOPVoltages,      EE_ACTIONS::toggleOPVoltages.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ToggleOPCurrents,      EE_ACTIONS::toggleOPCurrents.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::TogglePinAltIcons,     EE_ACTIONS::togglePinAltIcons.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ChangeLineMode,        EE_ACTIONS::lineModeFree.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ChangeLineMode,        EE_ACTIONS::lineMode90.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ChangeLineMode,        EE_ACTIONS::lineMode45.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::NextLineMode,          EE_ACTIONS::lineModeNext.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ToggleAnnotateAuto,    EE_ACTIONS::toggleAnnotateAuto.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ToggleHiddenPins,       SCH_ACTIONS::toggleHiddenPins.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ToggleHiddenFields,     SCH_ACTIONS::toggleHiddenFields.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ToggleDirectiveLabels,  SCH_ACTIONS::toggleDirectiveLabels.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ToggleERCWarnings,      SCH_ACTIONS::toggleERCWarnings.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ToggleERCErrors,        SCH_ACTIONS::toggleERCErrors.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ToggleERCExclusions,    SCH_ACTIONS::toggleERCExclusions.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::MarkSimExclusions,      SCH_ACTIONS::markSimExclusions.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ToggleOPVoltages,       SCH_ACTIONS::toggleOPVoltages.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ToggleOPCurrents,       SCH_ACTIONS::toggleOPCurrents.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::TogglePinAltIcons,      SCH_ACTIONS::togglePinAltIcons.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ChangeLineMode,         SCH_ACTIONS::lineModeFree.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ChangeLineMode,         SCH_ACTIONS::lineMode90.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ChangeLineMode,         SCH_ACTIONS::lineMode45.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::NextLineMode,           SCH_ACTIONS::lineModeNext.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ToggleAnnotateAuto,     SCH_ACTIONS::toggleAnnotateAuto.MakeEvent() );
 
-    Go( &SCH_EDITOR_CONTROL::ReloadPlugins,         ACTIONS::pluginsReload.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ReloadPlugins,          ACTIONS::pluginsReload.MakeEvent() );
 
-    Go( &SCH_EDITOR_CONTROL::RepairSchematic,       EE_ACTIONS::repairSchematic.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::RepairSchematic,        SCH_ACTIONS::repairSchematic.MakeEvent() );
 
-    Go( &SCH_EDITOR_CONTROL::ExportSymbolsToLibrary,
-        EE_ACTIONS::exportSymbolsToLibrary.MakeEvent() );
-    Go( &SCH_EDITOR_CONTROL::ExportSymbolsToLibrary,
-        EE_ACTIONS::exportSymbolsToNewLibrary.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ExportSymbolsToLibrary, SCH_ACTIONS::exportSymbolsToLibrary.MakeEvent() );
+    Go( &SCH_EDITOR_CONTROL::ExportSymbolsToLibrary, SCH_ACTIONS::exportSymbolsToNewLibrary.MakeEvent() );
 }

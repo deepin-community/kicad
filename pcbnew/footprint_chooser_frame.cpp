@@ -35,11 +35,21 @@
 #include <settings/settings_manager.h>
 #include <footprint_editor_settings.h>
 #include <footprint_chooser_frame.h>
+#include <tool/tool_manager.h>
+#include <tool/tool_dispatcher.h>
+#include <tool/common_tools.h>
+#include <tool/zoom_tool.h>
+#include <tools/footprint_chooser_selection_tool.h>
+#include <tools/pcb_actions.h>
+#include <tools/pcb_picker_tool.h>
+#include <tools/pcb_viewer_tools.h>
 #include "wx/display.h"
+#include <footprint_preview_panel.h>
 #include <3d_canvas/eda_3d_canvas.h>
 #include <project_pcb.h>
 #include <widgets/bitmap_button.h>
 #include <3d_viewer/eda_3d_viewer_frame.h>
+#include <tools/pcb_editor_conditions.h>
 
 
 static wxArrayString s_FootprintHistoryList;
@@ -117,7 +127,8 @@ FOOTPRINT_CHOOSER_FRAME::FOOTPRINT_CHOOSER_FRAME( KIWAY* aKiway, wxWindow* aPare
 
     frameSizer->Add( m_chooserPanel, 1, wxEXPAND );
 
-    SetBoard( new BOARD() );
+    SetCanvas( m_chooserPanel->GetViewerPanel()->GetPreviewPanel()->GetCanvas() );
+    SetBoard( m_chooserPanel->GetViewerPanel()->GetPreviewPanel()->GetBoard() );
 
     // This board will only be used to hold a footprint for viewing
     GetBoard()->SetBoardUse( BOARD_USE::FPHOLDER );
@@ -176,6 +187,27 @@ FOOTPRINT_CHOOSER_FRAME::FOOTPRINT_CHOOSER_FRAME( KIWAY* aKiway, wxWindow* aPare
     Layout();
     m_chooserPanel->FinishSetup();
 
+    // Create the manager and dispatcher & route draw panel events to the dispatcher
+    m_toolManager = new TOOL_MANAGER;
+    m_toolManager->SetEnvironment( GetBoard(), GetCanvas()->GetView(),
+                                   GetCanvas()->GetViewControls(), GetViewerSettingsBase(), this );
+    m_actions = new PCB_ACTIONS();
+    m_toolDispatcher = new TOOL_DISPATCHER( m_toolManager );
+    GetCanvas()->SetEventDispatcher( m_toolDispatcher );
+
+    m_toolManager->RegisterTool( new COMMON_TOOLS );    // for std context menus (zoom & grid)
+    m_toolManager->RegisterTool( new PCB_PICKER_TOOL ); // for setting grid origin
+    m_toolManager->RegisterTool( new ZOOM_TOOL );
+    m_toolManager->RegisterTool( new PCB_VIEWER_TOOLS );
+    m_toolManager->RegisterTool( new FOOTPRINT_CHOOSER_SELECTION_TOOL );
+
+    m_toolManager->GetTool<PCB_VIEWER_TOOLS>()->SetFootprintFrame( true );
+    m_toolManager->GetTool<PCB_VIEWER_TOOLS>()->SetIsDefaultTool( true );
+
+    m_toolManager->InitTools();
+
+    setupUIConditions();
+
     // Connect Events
     m_grButton3DView->Connect( wxEVT_COMMAND_BUTTON_CLICKED ,
                                wxCommandEventHandler( FOOTPRINT_CHOOSER_FRAME::on3DviewReq ),
@@ -203,6 +235,9 @@ FOOTPRINT_CHOOSER_FRAME::~FOOTPRINT_CHOOSER_FRAME()
     wxCloseEvent dummy;
     m_preview3DCanvas->Show();
     m_preview3DCanvas->OnCloseWindow( dummy );
+
+    // Disconnect board, which is owned by FOOTPRINT_PREVIEW_PANEL.
+    m_pcb = nullptr;
 
     // Disconnect Events
     m_grButton3DView->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED,
@@ -270,8 +305,7 @@ void FOOTPRINT_CHOOSER_FRAME::Show3DViewerFrame()
 }
 
 
-void FOOTPRINT_CHOOSER_FRAME::Update3DView( bool aMarkDirty,
-                                            bool aRefresh, const wxString* aTitle )
+void FOOTPRINT_CHOOSER_FRAME::Update3DView( bool aMarkDirty, bool aRefresh, const wxString* aTitle )
 {
     LIB_ID fpID = m_chooserPanel->GetSelectedLibId();
     wxString footprintName;
@@ -481,6 +515,12 @@ void FOOTPRINT_CHOOSER_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
 }
 
 
+BOARD_ITEM_CONTAINER* FOOTPRINT_CHOOSER_FRAME::GetModel() const
+{
+    return static_cast<FOOTPRINT_PREVIEW_PANEL*>( m_chooserPanel->GetViewerPanel()->GetPreviewPanel() )->GetCurrentFootprint();
+}
+
+
 bool FOOTPRINT_CHOOSER_FRAME::ShowModal( wxString* aFootprint, wxWindow* aParent )
 {
     if( aFootprint && !aFootprint->IsEmpty() )
@@ -586,19 +626,16 @@ void FOOTPRINT_CHOOSER_FRAME::closeFootprintChooser( wxCommandEvent& aEvent )
 void FOOTPRINT_CHOOSER_FRAME::onFpChanged( wxCommandEvent& event )
 {
     updateViews();
+
+    GetToolManager()->RunAction( ACTIONS::measureTool );
 }
 
 
 void FOOTPRINT_CHOOSER_FRAME::build3DCanvas()
 {
-    // Create the dummy board used by the 3D canvas
-    m_dummyBoard = GetBoard();
-    m_dummyBoard->SetProject( &Prj(), true );
-
-    // This board will only be used to hold a footprint for viewing
-    m_dummyBoard->SetBoardUse( BOARD_USE::FPHOLDER );
-
-    m_boardAdapter.SetBoard( m_dummyBoard );
+    // initialize m_boardAdapter used by the 3D canvas
+    BOARD* dummyBoard = GetBoard();
+    m_boardAdapter.SetBoard( dummyBoard );
     m_boardAdapter.m_IsBoardView = false;
     m_boardAdapter.m_IsPreviewer = true;   // Force display 3D models, regardless the 3D viewer options
 
@@ -609,17 +646,17 @@ void FOOTPRINT_CHOOSER_FRAME::build3DCanvas()
 
     // Build the 3D canvas
     m_preview3DCanvas = new EDA_3D_CANVAS( m_chooserPanel->m_RightPanel,
-                                        OGL_ATT_LIST::GetAttributesList( ANTIALIASING_MODE::AA_8X ),
-                                        m_boardAdapter, m_currentCamera,
-                                        PROJECT_PCB::Get3DCacheManager( &Prj() ) );
+                                           OGL_ATT_LIST::GetAttributesList( ANTIALIASING_MODE::AA_8X ),
+                                           m_boardAdapter, m_currentCamera,
+                                           PROJECT_PCB::Get3DCacheManager( &Prj() ) );
 
     m_chooserPanel->m_RightPanelSizer->Add( m_preview3DCanvas, 1, wxEXPAND, 5 );
     m_chooserPanel->m_RightPanel->Layout();
 
-    BOARD_DESIGN_SETTINGS& dummy_bds = m_dummyBoard->GetDesignSettings();
+    BOARD_DESIGN_SETTINGS& dummy_bds = dummyBoard->GetDesignSettings();
     dummy_bds.SetBoardThickness( pcbIUScale.mmToIU( 1.6 ) );
     dummy_bds.SetEnabledLayers( LSET::FrontMask() | LSET::BackMask() );
-    BOARD_STACKUP& dummy_board_stackup = m_dummyBoard->GetDesignSettings().GetStackupDescriptor();
+    BOARD_STACKUP& dummy_board_stackup = dummyBoard->GetDesignSettings().GetStackupDescriptor();
     dummy_board_stackup.RemoveAll();
     dummy_board_stackup.BuildDefaultStackupList( &dummy_bds, 2 );
 }
@@ -680,16 +717,6 @@ void FOOTPRINT_CHOOSER_FRAME::onFpViewReq( wxCommandEvent& event )
 void FOOTPRINT_CHOOSER_FRAME::updateViews()
 {
     EDA_3D_VIEWER_FRAME* viewer3D = Get3DViewerFrame();
-    bool reloadFp = viewer3D || m_preview3DCanvas->IsShown();
-
-    if( reloadFp )
-    {
-        m_dummyBoard->DeleteAllFootprints();
-
-        if( m_chooserPanel->m_CurrFootprint )
-            m_dummyBoard->Add( (FOOTPRINT*)m_chooserPanel->m_CurrFootprint->Clone() );
-
-    }
 
     if( m_preview3DCanvas->IsShown() )
     {
@@ -714,4 +741,36 @@ void FOOTPRINT_CHOOSER_FRAME::updatePanelsVisibility()
 
     updateViews();
 }
+
+
+void FOOTPRINT_CHOOSER_FRAME::setupUIConditions()
+{
+    PCB_BASE_FRAME::setupUIConditions();
+
+    ACTION_MANAGER*       mgr = m_toolManager->GetActionManager();
+    PCB_EDITOR_CONDITIONS cond( this );
+
+    wxASSERT( mgr );
+
+    // clang-format off
+#define CHECK( x )  ACTION_CONDITIONS().Check( x )
+
+    mgr->SetConditions( ACTIONS::toggleGrid,           CHECK( cond.GridVisible() ) );
+    mgr->SetConditions( ACTIONS::toggleCursorStyle,    CHECK( cond.FullscreenCursor() ) );
+
+    mgr->SetConditions( ACTIONS::millimetersUnits,     CHECK( cond.Units( EDA_UNITS::MM ) ) );
+    mgr->SetConditions( ACTIONS::inchesUnits,          CHECK( cond.Units( EDA_UNITS::INCH ) ) );
+    mgr->SetConditions( ACTIONS::milsUnits,            CHECK( cond.Units( EDA_UNITS::MILS ) ) );
+
+    mgr->SetConditions( PCB_ACTIONS::toggleHV45Mode,   CHECK( cond.Get45degMode() ) );
+
+    mgr->SetConditions( PCB_ACTIONS::showPadNumbers,   CHECK( cond.PadNumbersDisplay() ) );
+    mgr->SetConditions( PCB_ACTIONS::padDisplayMode,   CHECK( !cond.PadFillDisplay() ) );
+    mgr->SetConditions( PCB_ACTIONS::textOutlines,     CHECK( !cond.TextFillDisplay() ) );
+    mgr->SetConditions( PCB_ACTIONS::graphicsOutlines, CHECK( !cond.GraphicsFillDisplay() ) );
+
+#undef CHECK
+    // clang-format on
+}
+
 

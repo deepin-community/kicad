@@ -160,11 +160,7 @@ EDA_DRAW_PANEL_GAL::EDA_DRAW_PANEL_GAL( wxWindow* aParentWindow, wxWindowID aWin
     Connect( m_refreshTimer.GetId(), wxEVT_TIMER,
              wxTimerEventHandler( EDA_DRAW_PANEL_GAL::onRefreshTimer ), nullptr, this );
 
-    // Set up timer to execute OnShow() method when the window appears on the screen
-    m_onShowTimer.SetOwner( this );
-    Connect( m_onShowTimer.GetId(), wxEVT_TIMER,
-             wxTimerEventHandler( EDA_DRAW_PANEL_GAL::onShowTimer ), nullptr, this );
-    m_onShowTimer.Start( 10 );
+    Connect( wxEVT_SHOW, wxShowEventHandler( EDA_DRAW_PANEL_GAL::onShowEvent ), nullptr, this );
 }
 
 
@@ -443,6 +439,8 @@ void EDA_DRAW_PANEL_GAL::StopDrawing()
     m_refreshTimer.Stop();
     m_drawingEnabled = false;
 
+    Disconnect( wxEVT_SHOW, wxShowEventHandler( EDA_DRAW_PANEL_GAL::onShowEvent ), nullptr, this );
+
     Disconnect( wxEVT_PAINT, wxPaintEventHandler( EDA_DRAW_PANEL_GAL::onPaint ), nullptr, this );
 
     Disconnect( wxEVT_IDLE, wxIdleEventHandler( EDA_DRAW_PANEL_GAL::onIdle ), nullptr, this );
@@ -650,11 +648,10 @@ void EDA_DRAW_PANEL_GAL::onRefreshTimer( wxTimerEvent& aEvent )
 }
 
 
-void EDA_DRAW_PANEL_GAL::onShowTimer( wxTimerEvent& aEvent )
+void EDA_DRAW_PANEL_GAL::onShowEvent( wxShowEvent& aEvent )
 {
     if( m_gal && m_gal->IsInitialized() && m_gal->IsVisible() )
     {
-        m_onShowTimer.Stop();
         OnShow();
     }
 }

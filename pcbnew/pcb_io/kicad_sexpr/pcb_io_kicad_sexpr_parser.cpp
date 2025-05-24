@@ -626,8 +626,13 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseEDA_TEXT( EDA_TEXT* aText )
             break;
 
         case T_hide:
-            aText->SetVisible( !parseMaybeAbsentBool( true ) );
+        {
+            // In older files, the hide token appears bare, and indicates hide==true.
+            // In newer files, it will be an explicit bool in a list like (hide yes)
+            bool hide = parseMaybeAbsentBool( true );
+            aText->SetVisible( !hide );
             break;
+        }
 
         default:
             Expecting( "font, justify, or hide" );
@@ -736,6 +741,8 @@ FP_3DMODEL* PCB_IO_KICAD_SEXPR_PARSER::parse3DModel()
 
         case T_hide:
         {
+            // In older files, the hide token appears bare, and indicates hide==true.
+            // In newer files, it will be an explicit bool in a list like (hide yes)
             bool hide = parseMaybeAbsentBool( true );
             n3D->m_Show = !hide;
             break;
@@ -1152,7 +1159,7 @@ BOARD* PCB_IO_KICAD_SEXPR_PARSER::parseBOARD_unchecked()
             }
 
             // Make sure the destination layer is enabled, even if not in the file
-            m_board->SetEnabledLayers( m_board->GetEnabledLayers().set( destLayer ) );
+            m_board->SetEnabledLayers( LSET( m_board->GetEnabledLayers() ).set( destLayer ) );
 
             const auto visitItem = [&]( BOARD_ITEM& curr_item )
             {
@@ -2117,7 +2124,9 @@ LSET PCB_IO_KICAD_SEXPR_PARSER::parseLayersForCuItemWithSoldermask()
 
     if( ( ( layerMask & LSET::InternalCuMask() ).any()
               && ( layerMask & LSET( { F_Mask, B_Mask } ) ).any() ) )
-                   Expecting( "no mask layer when track is on internal layer" );
+    {
+        Expecting( "no mask layer when track is on internal layer" );
+    }
 
     if( ( layerMask & LSET( { F_Cu, B_Mask } ) ).count() > 1 )
           Expecting( "copper and mask on the same side" );
@@ -2982,7 +2991,7 @@ PCB_SHAPE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_SHAPE( BOARD_ITEM* aParent )
     case T_gr_vector:
     case T_gr_line:
     case T_fp_line:
-        // Default PCB_SHAPE type is S_SEGMENT.
+        shape->SetShape( SHAPE_T::SEGMENT );
         token = NextTok();
 
         if( token == T_locked )
@@ -3046,7 +3055,15 @@ PCB_SHAPE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_SHAPE( BOARD_ITEM* aParent )
     }
 
     default:
-        Expecting( "gr_arc, gr_circle, gr_curve, gr_line, gr_poly, gr_rect or gr_bbox" );
+        if( aParent && aParent->Type() == PCB_FOOTPRINT_T )
+        {
+            Expecting( "fp_arc, fp_circle, fp_curve, fp_line, fp_poly or fp_rect" );
+        }
+        else
+        {
+            Expecting( "gr_arc, gr_circle, gr_curve, gr_vector, gr_line, gr_poly, gr_rect or "
+                       "gr_bbox" );
+        }
     }
 
     bool foundFill = false;
@@ -3111,8 +3128,8 @@ PCB_SHAPE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_SHAPE( BOARD_ITEM* aParent )
 
                 switch( token )
                 {
-                // T_yes was used to indicate filling when first introduced,
-                // so treat it like a solid fill since that was the only fill available
+                // T_yes was used to indicate filling when first introduced, so treat it like a
+                // solid fill since that was the only fill available at the time.
                 case T_yes:
                 case T_solid:
                     shape->SetFilled( true );
@@ -3130,19 +3147,15 @@ PCB_SHAPE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_SHAPE( BOARD_ITEM* aParent )
 
             break;
 
-        // We continue to parse the status field but it is no longer written
-        case T_status:
+        case T_status:      // legacy token; ignore value
             parseHex();
             NeedRIGHT();
             break;
 
-        // Handle (locked) from 5.99 development, and (locked yes) from modern times
+        // Handle "(locked)" from 5.99 development, and "(locked yes)" from modern times
         case T_locked:
-        {
-            bool locked = parseMaybeAbsentBool( true );
-            shape->SetLocked( locked );
+            shape->SetLocked( parseMaybeAbsentBool( true ) );
             break;
-        }
 
         case T_net:
             if( !shape->SetNetCode( getNetCode( parseInt( "net number" ) ), /* aNoAssert */ true ) )
@@ -3150,6 +3163,7 @@ PCB_SHAPE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_SHAPE( BOARD_ITEM* aParent )
                 wxLogError( _( "Invalid net ID in\nfile: '%s'\nline: %d\noffset: %d." ),
                             CurSource(), CurLineNumber(), CurOffset() );
             }
+
             NeedRIGHT();
             break;
 
@@ -3353,6 +3367,18 @@ PCB_TEXT* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TEXT( BOARD_ITEM* aParent, PCB_TEX
     NeedLEFT();
 
     parsePCB_TEXT_effects( text.get(), aBaseText );
+
+    if( parentFP )
+    {
+        // Convert hidden footprint text (which is no longer supported) into a hidden field
+        if( !text->IsVisible() && text->Type() == PCB_TEXT_T )
+            return new PCB_FIELD( text.get(), -1 );
+    }
+    else
+    {
+        // Hidden PCB text is no longer supported
+        text->SetVisible( true );
+    }
 
     return text.release();
 }
@@ -3779,7 +3805,7 @@ PCB_TABLE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TABLE( BOARD_ITEM* aParent )
                     break;
 
                 case T_header:
-                    table->SetStrokeHeader( parseBool() );
+                    table->SetStrokeHeaderSeparator( parseBool() );
                     NeedRIGHT();
                     break;
 
@@ -3952,7 +3978,7 @@ PCB_DIMENSION_BASE* PCB_IO_KICAD_SEXPR_PARSER::parseDIMENSION( BOARD_ITEM* aPare
 
             if( isLegacyDimension )
             {
-                EDA_UNITS units = EDA_UNITS::MILLIMETRES;
+                EDA_UNITS units = EDA_UNITS::MM;
 
                 if( !EDA_UNIT_UTILS::FetchUnitsFromString( dim->GetText(), units ) )
                     dim->SetAutoUnits( true ); //Not determined => use automatic units
@@ -5512,10 +5538,11 @@ bool PCB_IO_KICAD_SEXPR_PARSER::parsePAD_option( PAD* aPad )
             // Custom shaped pads have a "anchor pad", which is the reference
             // for connection calculations.
             // Because this is an anchor, only the 2 very basic shapes are managed:
-            // circle and rect. The default is circle
+            // circle and rect.
             switch( token )
             {
-                case T_circle:  // default
+                case T_circle:
+                    aPad->SetAnchorPadShape( PADSTACK::ALL_LAYERS, PAD_SHAPE::CIRCLE );
                     break;
 
                 case T_rect:
@@ -5817,10 +5844,11 @@ void PCB_IO_KICAD_SEXPR_PARSER::parsePadstack( PAD* aPad )
                              // Custom shaped pads have a "anchor pad", which is the reference
                              // for connection calculations.
                              // Because this is an anchor, only the 2 very basic shapes are managed:
-                             // circle and rect. The default is circle
+                             // circle and rect.
                              switch( token )
                              {
-                             case T_circle: // default
+                             case T_circle:
+                                 padstack.SetAnchorShape( PAD_SHAPE::CIRCLE, curLayer );
                                  break;
 
                              case T_rect:

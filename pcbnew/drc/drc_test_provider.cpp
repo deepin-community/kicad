@@ -21,6 +21,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "pcb_table.h"
 #include <drc/drc_item.h>
 #include <drc/drc_test_provider.h>
 #include <pcb_track.h>
@@ -43,7 +44,8 @@ DRC_TEST_PROVIDER_REGISTRY::~DRC_TEST_PROVIDER_REGISTRY()
 
 
 DRC_TEST_PROVIDER::DRC_TEST_PROVIDER() :
-        UNITS_PROVIDER( pcbIUScale, EDA_UNITS::MILLIMETRES ), m_drcEngine( nullptr )
+        UNITS_PROVIDER( pcbIUScale, EDA_UNITS::MM ),
+        m_drcEngine( nullptr )
 {
 }
 
@@ -228,6 +230,27 @@ int DRC_TEST_PROVIDER::forEachGeometryItem( const std::vector<KICAD_T>& aTypes, 
 
                 n++;
             }
+            else if( item->Type() == PCB_TABLE_T )
+            {
+                if( typeMask[ PCB_TABLE_T ] )
+                {
+                    if( !aFunc( item ) )
+                        return n;
+
+                    n++;
+                }
+
+                if( typeMask[ PCB_TABLECELL_T ] )
+                {
+                    for( PCB_TABLECELL* cell : static_cast<PCB_TABLE*>( item )->GetCells() )
+                    {
+                        if( !aFunc( cell ) )
+                            return n;
+
+                        n++;
+                    }
+                }
+            }
         }
     }
 
@@ -340,9 +363,9 @@ int DRC_TEST_PROVIDER::forEachGeometryItem( const std::vector<KICAD_T>& aTypes, 
 
 bool DRC_TEST_PROVIDER::isInvisibleText( const BOARD_ITEM* aItem ) const
 {
-    if( const PCB_TEXT* text = dynamic_cast<const PCB_TEXT*>( aItem ) )
+    if( const PCB_FIELD* field = dynamic_cast<const PCB_FIELD*>( aItem ) )
     {
-        if( !text->IsVisible() )
+        if( !field->IsVisible() )
             return true;
     }
 

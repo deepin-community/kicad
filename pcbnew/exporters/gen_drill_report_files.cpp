@@ -179,10 +179,7 @@ bool GENDRILL_WRITER_BASE::genDrillMapFile( const wxString& aFullFileName, PLOT_
     {
         DXF_PLOTTER* dxf_plotter = new DXF_PLOTTER;
 
-        if( m_unitsMetric )
-            dxf_plotter->SetUnits( DXF_UNITS::MILLIMETERS );
-        else
-            dxf_plotter->SetUnits( DXF_UNITS::INCHES );
+        dxf_plotter->SetUnits( m_unitsMetric ? DXF_UNITS::MM : DXF_UNITS::INCH );
 
         plotter = dxf_plotter;
         plotter->SetPageSettings( page_info );
@@ -431,10 +428,10 @@ bool GENDRILL_WRITER_BASE::GenDrillReportFile( const wxString& aFullFileName )
 
     int conventional_layer_num = 1;
 
-    for( PCB_LAYER_ID layer : cu.Seq() )
+    for( PCB_LAYER_ID layer : cu.UIOrder() )
     {
         out.Print( 0, "    L%-2d:  %-25s %s\n",
-                   conventional_layer_num,
+                   conventional_layer_num++,
                    TO_UTF8( m_pcb->GetLayerName( layer ) ),
                    layerName( layer ).c_str() );             // generic layer name
     }

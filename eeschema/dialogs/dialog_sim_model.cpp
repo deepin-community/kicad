@@ -44,6 +44,8 @@
 #include <sch_edit_frame.h>
 #include <sim/sim_model_l_mutual.h>
 #include <sim/spice_circuit_model.h>
+#include <widgets/filedlg_open_embed_file.h>
+#include <wx/filedlg.h>
 #include <wx/log.h>
 
 using CATEGORY = SIM_MODEL::PARAM::CATEGORY;
@@ -80,6 +82,17 @@ DIALOG_SIM_MODEL<T>::DIALOG_SIM_MODEL( wxWindow* aParent, EDA_BASE_FRAME* aFrame
     m_browseButton->SetBitmap( KiBitmapBundle( BITMAPS::small_folder ) );
     m_infoBar->AddCloseButton();
 
+    if constexpr (std::is_same_v<T, SCH_SYMBOL>)
+    {
+        SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( &aSymbol );
+        m_filesStack.push_back( symbol->Schematic()->GetEmbeddedFiles() );
+    }
+
+    m_filesStack.push_back( aSymbol.GetEmbeddedFiles() );
+
+    m_libraryModelsMgr.SetFilesStack( m_filesStack );
+    m_builtinModelsMgr.SetFilesStack( m_filesStack );
+
     for( SCH_PIN* pin : aSymbol.GetPins() )
     {
         // De Morgan conversions are equivalences, not additional items to simulate
@@ -104,10 +117,7 @@ DIALOG_SIM_MODEL<T>::DIALOG_SIM_MODEL( wxWindow* aParent, EDA_BASE_FRAME* aFrame
     m_paramGridMgr->Bind( wxEVT_PG_SELECTED, &DIALOG_SIM_MODEL::onParamGridSelectionChange, this );
 
     wxPropertyGrid* grid = m_paramGrid->GetGrid();
-
-    // In wx 3.0 the color will be wrong sometimes.
     grid->SetCellDisabledTextColour( wxSystemSettings::GetColour( wxSYS_COLOUR_GRAYTEXT ) );
-
     grid->Bind( wxEVT_SET_FOCUS, &DIALOG_SIM_MODEL::onParamGridSetFocus, this );
     grid->Bind( wxEVT_UPDATE_UI, &DIALOG_SIM_MODEL::onUpdateUI, this );
 
@@ -132,8 +142,6 @@ DIALOG_SIM_MODEL<T>::DIALOG_SIM_MODEL( wxWindow* aParent, EDA_BASE_FRAME* aFrame
     m_pinAssignmentsGrid->PushEventHandler( new GRID_TRICKS( m_pinAssignmentsGrid ) );
 
     m_subcktLabel->SetFont( KIUI::GetInfoFont( m_subcktLabel ) );
-
-    // Now all widgets have the size fixed, call FinishDialogSettings
     finishDialogSettings();
 }
 
@@ -368,8 +376,11 @@ bool DIALOG_SIM_MODEL<T>::TransferDataFromWindow()
         path = m_libraryPathText->GetValue();
         wxFileName fn( path );
 
-        if( fn.MakeRelativeTo( Prj().GetProjectPath() ) && !fn.GetFullPath().StartsWith( ".." ) )
+        if( !path.starts_with( FILEEXT::KiCadUriPrefix ) && fn.MakeRelativeTo( Prj().GetProjectPath() )
+            && !fn.GetFullPath().StartsWith( ".." ) )
+        {
             path = fn.GetFullPath();
+        }
 
         if( m_modelListBox->GetSelection() >= 0 )
             name = m_modelListBox->GetStringSelection().ToStdString();
@@ -1249,8 +1260,11 @@ void DIALOG_SIM_MODEL<T>::onBrowseButtonClick( wxCommandEvent& aEvent )
 {
     static wxString s_mruPath;
 
-    wxString     path = s_mruPath.IsEmpty() ? Prj().GetProjectPath() : s_mruPath;
-    wxFileDialog dlg( this, _( "Browse Models" ), path );
+    wxString                path = s_mruPath.IsEmpty() ? Prj().GetProjectPath() : s_mruPath;
+    wxFileDialog            dlg( this, _( "Browse Models" ), path );
+    FILEDLG_OPEN_EMBED_FILE customize( false );
+
+    dlg.SetCustomizeHook( customize );
 
     if( dlg.ShowModal() == wxID_CANCEL )
         return;
@@ -1259,11 +1273,17 @@ void DIALOG_SIM_MODEL<T>::onBrowseButtonClick( wxCommandEvent& aEvent )
 
     path = dlg.GetPath();
     wxFileName fn( path );
-
     s_mruPath = fn.GetPath();
 
-    if( fn.MakeRelativeTo( Prj().GetProjectPath() ) && !fn.GetFullPath().StartsWith( wxS( ".." ) ) )
+    if( customize.GetEmbed() )
+    {
+        EMBEDDED_FILES::EMBEDDED_FILE* result = m_filesStack[0]->AddFile( fn, false );
+        path = result->GetLink();
+    }
+    else if( fn.MakeRelativeTo( Prj().GetProjectPath() ) && !fn.GetFullPath().StartsWith( wxS( ".." ) ) )
+    {
         path = fn.GetFullPath();
+    }
 
     WX_STRING_REPORTER reporter;
 
@@ -1316,6 +1336,9 @@ void DIALOG_SIM_MODEL<T>::onFilterCharHook( wxKeyEvent& aKeyStroke )
 template <typename T>
 void DIALOG_SIM_MODEL<T>::onModelFilter( wxCommandEvent& aEvent )
 {
+    if( library() == nullptr )  // No library loaded
+        return;
+
     wxArrayString modelNames;
     wxString      current = m_modelListBox->GetStringSelection();
     wxString      filter = wxT( "*" ) + m_modelFilter->GetValue() + wxT( "*" );

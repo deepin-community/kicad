@@ -1,6 +1,43 @@
 
 == Introduction to the KiCad PCB Editor
 
+The KiCad PCB Editor is a PCB layout application distributed as a
+part of KiCad and available for the following operating systems:
+
+* Linux
+* Apple macOS
+* Windows
+
+Regardless of the OS, all KiCad files are 100% compatible from one OS to
+another.
+
+The PCB Editor is an integrated application where all functions of placing
+footprints, routing tracks, library management, and data transfer to and from
+the schematic capture software are carried out within the editor itself.
+
+The KiCad PCB Editor is intended to communicate directly with the KiCad
+Schematic Editor for designing printed circuit boards from schematics without
+using any intermediate files. It can also import netlist files, which list all
+the electrical connections, from other packages.
+
+The PCB Editor includes a footprint library editor, which can create and
+edit footprints and manage libraries.
+It also integrates the following additional but essential functions needed for
+modern PCB design software:
+
+* Design rules check (DRC) for automatic detection of design rule violations
+  such as incorrect and missing connections, copper clearance and minimum width
+  violations, and many other design issues
+* Scriptable design rules for specifying rules with complex constraints and
+  conditions
+* An interactive router with multiple modes of operation (push-and-shove,
+  walkaround, highlight collisions) and support for differential pair routing
+  as well as length and skew tuning
+* Export of fabrication and plot files in many formats (Gerber, IPC-2581,
+  ODB{pp}, GenCAD, PDF, SVG, and HPGL)
+* A 3D viewer and 3D model generation in many formats (STEP, GLB, BREP, XAO,
+  PLY, STL, IDF, and VRML)
+
 [[initial-configuration]]
 === Initial configuration
 
@@ -99,9 +136,9 @@ on what is selected or what tool is active.
 Hotkeys are stored in the file `user.hotkeys` in KiCad's configuration
 directory. The location is platform-specific:
 
-* Windows: `%APPDATA%\kicad\8.0\user.hotkeys`
-* Linux: `~/.config/kicad/8.0/user.hotkeys`
-* macOS: `~/Library/Preferences/kicad/8.0/user.hotkeys`
+* Windows: `%APPDATA%\kicad\9.0\user.hotkeys`
+* Linux: `~/.config/kicad/9.0/user.hotkeys`
+* macOS: `~/Library/Preferences/kicad/9.0/user.hotkeys`
 
 KiCad can import hotkey settings from a `user.hotkeys` file using the **Import
 Hotkeys** button in the hotkey editor.

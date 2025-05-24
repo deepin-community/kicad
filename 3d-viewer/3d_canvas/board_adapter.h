@@ -112,17 +112,14 @@ public:
      */
     std::map<int, COLOR4D> GetLayerColors() const;
 
-    /**
-     * Build the copper color list used by the board editor, and store it in m_BoardEditorColors
-     */
-    void GetBoardEditorCopperLayerColors( PCBNEW_SETTINGS* aCfg );
-
     std::map<int, COLOR4D> GetDefaultColors() const;
     void SetLayerColors( const std::map<int, COLOR4D>& aColors );
 
     std::bitset<LAYER_3D_END> GetVisibleLayers() const;
     std::bitset<LAYER_3D_END> GetDefaultVisibleLayers() const;
     void SetVisibleLayers( const std::bitset<LAYER_3D_END>& aLayers );
+
+    bool GetUseBoardEditorCopperLayerColors() const;
 
     /**
      * Function to be called by the render when it need to reload the settings for the board.
@@ -210,15 +207,7 @@ public:
      * @param aLayerId the layer to get the color information.
      * @return the color in SFVEC3F format.
      */
-    SFVEC4F GetLayerColor( PCB_LAYER_ID aLayerId ) const;
-
-    /**
-     * Get the technical color of a layer.
-     *
-     * @param aItemId the item id to get the color information.
-     * @return the color in SFVEC3F format.
-     */
-    SFVEC4F GetItemColor( int aItemId ) const;
+    SFVEC4F GetLayerColor( int aLayerId ) const;
 
     /**
      * @param[in] aColor is the color mapped.
@@ -352,14 +341,14 @@ public:
      */
     const MAP_POLY& GetPolyMap() const noexcept { return m_layers_poly; }
 
-    const SHAPE_POLY_SET* GetFrontPlatedPadAndGraphicPolys()
+    const SHAPE_POLY_SET* GetFrontPlatedCopperPolys()
     {
-        return m_frontPlatedPadAndGraphicPolys;
+        return m_frontPlatedCopperPolys;
     }
 
-    const SHAPE_POLY_SET* GetBackPlatedPadAndGraphicPolys()
+    const SHAPE_POLY_SET* GetBackPlatedCopperPolys()
     {
-        return m_backPlatedPadAndGraphicPolys;
+        return m_backPlatedCopperPolys;
     }
 
     const MAP_POLY& GetHoleIdPolysMap() const noexcept { return m_layerHoleIdPolys; }
@@ -386,7 +375,7 @@ private:
                                    int aInflateValue );
 
     void addPads( const FOOTPRINT* aFootprint, CONTAINER_2D_BASE* aDstContainer,
-                  PCB_LAYER_ID aLayerId, bool aSkipPlatedPads, bool aSkipNonPlatedPads );
+                  PCB_LAYER_ID aLayerId );
 
     void addFootprintShapes( const FOOTPRINT* aFootprint, CONTAINER_2D_BASE* aDstContainer,
                              PCB_LAYER_ID aLayerId,
@@ -455,6 +444,7 @@ public:
     SFVEC4F           m_UserCommentsColor;
     SFVEC4F           m_ECO1Color;
     SFVEC4F           m_ECO2Color;
+    SFVEC4F           m_UserDefinedLayerColor[45];
 
     std::map<int, COLOR4D> m_ColorOverrides;  ///< allows to override color scheme colors
     std::map<int, COLOR4D> m_BoardEditorColors; ///< list of colors used by the board editor
@@ -462,7 +452,6 @@ public:
 private:
     BOARD*            m_board;
     S3D_CACHE*        m_3dModelManager;
-    COLOR_SETTINGS*   m_colors;
 
     VECTOR2I          m_boardPos;             ///< Board center position in board internal units.
     VECTOR2I          m_boardSize;            ///< Board size in board internal units.
@@ -472,8 +461,6 @@ private:
     MAP_POLY          m_layers_poly;          ///< Amalgamated polygon contours for various types
                                               ///<   of items
 
-    SHAPE_POLY_SET*   m_frontPlatedPadAndGraphicPolys;
-    SHAPE_POLY_SET*   m_backPlatedPadAndGraphicPolys;
     SHAPE_POLY_SET*   m_frontPlatedCopperPolys;
     SHAPE_POLY_SET*   m_backPlatedCopperPolys;
 

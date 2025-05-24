@@ -46,7 +46,7 @@
 #include <zoom_defines.h>
 #include <sim/spice_settings.h>
 #include <tool/tool_manager.h>
-#include <tools/ee_selection_tool.h>
+#include <tools/sch_selection_tool.h>
 
 
 /// Helper for all the old plotting/printing code while it still exists
@@ -65,7 +65,7 @@ bool SCH_EDIT_FRAME::LoadProjectSettings()
     GetRenderSettings()->m_LabelSizeRatio  = settings.m_LabelSizeRatio;
     GetRenderSettings()->m_TextOffsetRatio = settings.m_TextOffsetRatio;
     GetRenderSettings()->m_PinSymbolSize   = settings.m_PinSymbolSize;
-
+    GetRenderSettings()->m_SymbolLineWidth = settings.m_DefaultLineWidth;
     GetRenderSettings()->SetDashLengthRatio( settings.m_DashedLineDashRatio );
     GetRenderSettings()->SetGapLengthRatio( settings.m_DashedLineGapRatio );
 
@@ -73,7 +73,7 @@ bool SCH_EDIT_FRAME::LoadProjectSettings()
 
     PROJECT_LOCAL_SETTINGS& localSettings = Prj().GetLocalSettings();
 
-    EE_SELECTION_TOOL* selTool = GetToolManager()->GetTool<EE_SELECTION_TOOL>();
+    SCH_SELECTION_TOOL* selTool = GetToolManager()->GetTool<SCH_SELECTION_TOOL>();
     selTool->GetFilter() = localSettings.m_SchSelectionFilter;
     m_selectionFilterPanel->SetCheckboxesFromFilter( localSettings.m_SchSelectionFilter );
 
@@ -93,7 +93,7 @@ void SCH_EDIT_FRAME::LoadDrawingSheet()
 
     wxString filename = resolver.ResolvePath( settings.m_SchDrawingSheetFileName,
                                               Prj().GetProjectPath(),
-                                              Schematic().GetEmbeddedFiles() );
+                                              { Schematic().GetEmbeddedFiles() } );
     wxString msg;
 
     if( !DS_DATA_MODEL::GetTheInstance().LoadDrawingSheet( filename, &msg ) )
@@ -151,6 +151,7 @@ void SCH_EDIT_FRAME::ShowSchematicSetupDialog( const wxString& aInitialPage )
         GetRenderSettings()->m_LabelSizeRatio  = Schematic().Settings().m_LabelSizeRatio;
         GetRenderSettings()->m_TextOffsetRatio = Schematic().Settings().m_TextOffsetRatio;
         GetRenderSettings()->m_PinSymbolSize   = Schematic().Settings().m_PinSymbolSize;
+        GetRenderSettings()->m_SymbolLineWidth = Schematic().Settings().m_DefaultLineWidth;
 
         GetRenderSettings()->SetDashLengthRatio( Schematic().Settings().m_DashedLineDashRatio );
         GetRenderSettings()->SetGapLengthRatio( Schematic().Settings().m_DashedLineGapRatio );
@@ -219,7 +220,7 @@ void SCH_EDIT_FRAME::saveProjectSettings()
 
         wxFileName layoutfn( resolve.ResolvePath( BASE_SCREEN::m_DrawingSheetFileName,
                                                   Prj().GetProjectPath(),
-                                                  Schematic().GetEmbeddedFiles() ) );
+                                                  { Schematic().GetEmbeddedFiles() } ) );
 
         bool success = true;
 
@@ -243,7 +244,7 @@ void SCH_EDIT_FRAME::SaveProjectLocalSettings()
         m_schematic->RecordERCExclusions();
 
     PROJECT_LOCAL_SETTINGS& localSettings = Prj().GetLocalSettings();
-    EE_SELECTION_TOOL* selTool = GetToolManager()->GetTool<EE_SELECTION_TOOL>();
+    SCH_SELECTION_TOOL*     selTool = GetToolManager()->GetTool<SCH_SELECTION_TOOL>();
 
     localSettings.m_SchSelectionFilter = selTool->GetFilter();
 }

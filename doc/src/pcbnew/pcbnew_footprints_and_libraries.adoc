@@ -183,8 +183,9 @@ board. Footprints can contain:
   placed on physical layers (e.g. silkscreen or soldermask) or nonphysical
   layers. Graphic shapes can also be placed on copper layers, in which case they
   can make electrical connections.
-- 3D models for mechanical CAD and visualization. 3D models are external files
-  that footprints can link to; they are not embedded in footprints.
+- 3D models for mechanical CAD and visualization. 3D models are normally
+  external files that footprints can link to, but they can optionally be
+  embedded in footprints.
 - Metadata associated with the footprint.
 
 Footprints in KiCad are organized into footprint libraries, which contain zero
@@ -373,9 +374,9 @@ Placement and drawing tools are located in the right toolbar.
     | <<fp-graphical-objects,Add a textbox>>.
 | image:images/icons/table_24.png[]
     | <<fp-graphical-objects,Add a table>>.
-| image:images/icons/add_aligned_dimension_24.png[]
+| image:images/icons/add_orthogonal_dimension_24.png[]
 
-  image:images/icons/add_orthogonal_dimension_24.png[]
+  image:images/icons/add_aligned_dimension_24.png[]
 
   image:images/icons/add_center_dimension_24.png[]
 
@@ -662,9 +663,13 @@ footprint to short different nets.
 image::images/footprint_editor_properties_clearance.png[]
 
 **Pad clearance** controls the minimum clearance between the footprint's pads and any copper shape
-(tracks, vias, pads, zones) on a different net.  This value is normally set to `0` which will cause
+(tracks, vias, pads, zones) on a different net.  This value is normally empty, which will cause
 the pad clearance to be inherited from the board's design rules and netclass rules. This value can
-be overridden for individual pads by setting the pad's clearance to a nonzero value.
+be overridden for individual pads by setting the pad's clearance to a nonblank value.
+
+NOTE: Prior to KiCad version 9, a pad clearance of `0` caused the pad clearance value to be inherited.
+      In KiCad 9 and later, a pad clearance of `0` sets the clearance to `0`, while a blank pad
+      clearance causes the clearance to be inherited.
 
 The aperture appearing on any technical layer will have the same shape and size as the pad shape on
 the copper layer(s).  In the PCB manufacturing process, the manufacturer will often change the
@@ -745,16 +750,16 @@ be shown in the footprint preview as well as in the full PCB 3D view when the
 footprint is added to a board. Footprint models can be in STEP, VRML, or
 <<idf-component-outlines,IDF>> format. The models are specified as paths to the
 model files, which can contain xref:../kicad/kicad.adoc#path-variables[path variables]
-such as `${KIPRJMOD}` or `${KICAD8_3DMODEL_DIR}`. Click the **Configure Paths**
+such as `${KIPRJMOD}` or `${KICAD9_3DMODEL_DIR}`. Click the **Configure Paths**
 button to configure path variables. If there is a problem loading a model file
 from the specified path, an icon in the leftmost column will indicate an error.
 
 NOTE: KiCad will automatically resolve versioned path variables from
       older versions of KiCad to the value of the corresponding variable from
       the current KiCad version, as long as the old variable is not explicitly
-      defined itself. For example, `$\{KICAD7_FOOTPRINT_DIR\}` will
-      automatically resolve to the value of `$\{KICAD8_FOOTPRINT_DIR\}` if there
-      is no `KICAD7_FOOTPRINT_DIR` variable defined.
+      defined itself. For example, `$\{KICAD8_FOOTPRINT_DIR\}` will
+      automatically resolve to the value of `$\{KICAD9_FOOTPRINT_DIR\}` if there
+      is no `KICAD8_FOOTPRINT_DIR` variable defined.
 
 NOTE: Many footprints in KiCad's standard library do not yet have model files
       created for them. However, these footprints may contain a path to a 3D
@@ -774,7 +779,8 @@ column of the model table.
 External files can be embedded within a footprint.
 Embedding a file stores a copy of the file inside the footprint. The footprint
 can then refer to the embedded copy of the file instead of the external file,
-which makes the footprint more portable as it doesn't rely on an external file.
+which makes the footprint more portable as it doesn't rely on an external file,
+although the footprint's filesize is increased as a result.
 In footprints this is especially useful for embedding 3D models. Files embedded
 in a footprint are deduplicated when the footprint is added to a board: if a
 file is embedded in a footprint, and multiple instances of that footprint are
@@ -785,16 +791,23 @@ in more detail in the <<pcb-embedding-files,Board Setup documentation>>.
 
 image::images/fp_embedded_files.png[]
 
+NOTE: You can add a 3D model to a footprint and embed it in one step. To do so,
+      add a 3D model in the **3D Models**, and enable the **Embed File**
+      checkbox in the file browser while choosing a model. This embeds the
+      file and automatically uses the embedded reference as the file path
+      instead of the path to the external file.
+
 [[footprint-pads]]
 ==== Footprint pads
 
 Pads are added to a footprint by clicking the image:images/icons/pad_24.png[] button in the
-right toolbar, then clicking again in the desired location in the canvas. The tool will continue
+right toolbar, then clicking again in the desired location in the canvas. The tool continues
 adding new pads each time you click on the canvas until you cancel the tool (kbd:[Esc]).
 
-New pads in SMD footprints are SMD by default, while new pads in Through Hole and Unspecified
-footprints will be through hole. Each new pad will have its pad number incremented by 1 relative to
-the previous pad number.
+New pads have their pad type set by the <<footprint-attributes,footprint's type>>, though you can
+change the pad type later. New pads in SMD footprints are SMD by default, while pads in Through Hole
+and Unspecified footprints are through hole. Each new pad has its pad number incremented by 1 relative
+to the previous pad number.
 
 [[footprint-pad-properties]]
 ===== Pad properties
@@ -920,12 +933,16 @@ shape rather than one of the default shapes.  This can be used to achieve differ
 using thermal reliefs and custom pad shapes.
 
 **Relief gap** controls the length of the thermal spokes, or the gap between the pad's shape and
-the filled copper area of the zone. This value is normally set to `0` which will cause the relief
+the filled copper area of the zone. This value is normally empty which will cause the relief
 gap to be inherited from the connecting zone's settings.
 
 **Spoke width** controls the width of the spokes generated when the zone connection mode is
-**Thermal Relief**. This value is normally set to `0` which will cause the spoke width to be
+**Thermal Relief**. This value is normally empty which will cause the spoke width to be
 inherited from the connecting zone's settings.
+
+NOTE: Prior to KiCad version 9, a relief gap or spoke width of `0` caused that value to be inherited.
+      In KiCad 9 and later, a relief gap or spoke width of `0` sets that value to `0`, while a blank
+      value causes the value to be inherited.
 
 ====== Clearance Overrides tab
 
@@ -935,9 +952,13 @@ mask/paste expansion.
 image::images/pad_properties_overrides.png[scaledwidth="70%"]
 
 **Pad clearance** controls the minimum clearance between the pad and any copper shape (tracks,
-vias, pads, zones) on a different net.  This value is normally set to `0` which will cause the pad
+vias, pads, zones) on a different net.  This value is normally empty which will cause the pad
 clearance to be inherited from any clearance override set on the footprint, or the board's design
-rules and netclass rules if the footprint clearance is also set to `0`.
+rules and netclass rules if the footprint clearance is also empty.
+
+NOTE: Prior to KiCad version 9, a pad clearance of `0` caused the pad clearance value to be inherited.
+      In KiCad 9 and later, a pad clearance of `0` sets the clearance to `0`, while a blank pad
+      clearance causes the clearance to be inherited.
 
 The aperture appearing on any technical layer will have the same shape and size as the pad shape on
 the copper layer(s).  In the PCB manufacturing process, the manufacturer will often change the
@@ -1288,6 +1309,7 @@ The footprint checker checks for:
 * Through hole pads without a hole
 * Plated through hole pads not on any copper layers
 * Plated through hole pads without a copper annulus
+* Plated through hole pads with a hole that isn't fully within the pad
 * Surface mount pads on both the front and back
 * Surface mount pads with mismatched copper and paste/mask layers (front copper
   and back paste/mask, or vice versa)

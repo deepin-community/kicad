@@ -28,6 +28,7 @@
 #include <i18n_utility.h>
 #include <pcb_painter.h>
 #include <api/board/board_types.pb.h>
+#include <string_utils.h>
 
 
 PCB_FIELD::PCB_FIELD( FOOTPRINT* aParent, int aFieldId, const wxString& aName ) :
@@ -56,6 +57,7 @@ void PCB_FIELD::Serialize( google::protobuf::Any &aContainer ) const
 
     field.set_name( GetCanonicalName().ToStdString() );
     field.mutable_id()->set_id( GetId() );
+    field.set_visible( IsVisible() );
 
     aContainer.PackFrom( field );
 }
@@ -81,6 +83,8 @@ bool PCB_FIELD::Deserialize( const google::protobuf::Any &aContainer )
         anyText.PackFrom( field.text() );
         PCB_TEXT::Deserialize( anyText );
     }
+
+    SetVisible( field.visible() );
 
     if( field.text().layer() == kiapi::board::types::BoardLayer::BL_UNKNOWN )
         SetLayer( F_SilkS );
@@ -139,12 +143,27 @@ bool PCB_FIELD::IsMandatory() const
 }
 
 
+bool PCB_FIELD::IsHypertext() const
+{
+    return IsURL( GetShownText( false ) );
+}
+
+
 wxString PCB_FIELD::GetTextTypeDescription() const
 {
     if( IsMandatory() )
         return GetCanonicalFieldName( m_id );
     else
         return _( "User Field" );
+}
+
+
+bool PCB_FIELD::Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const
+{
+    if( !IsVisible() && !aSearchData.searchAllFields )
+        return false;
+
+    return PCB_TEXT::Matches( aSearchData, aAuxData );
 }
 
 
@@ -268,6 +287,11 @@ static struct PCB_FIELD_DESC
         propMgr.InheritsAfter( TYPE_HASH( PCB_FIELD ), TYPE_HASH( BOARD_ITEM ) );
         propMgr.InheritsAfter( TYPE_HASH( PCB_FIELD ), TYPE_HASH( PCB_TEXT ) );
         propMgr.InheritsAfter( TYPE_HASH( PCB_FIELD ), TYPE_HASH( EDA_TEXT ) );
+
+        propMgr.AddProperty( new PROPERTY<PCB_FIELD, wxString>( _HKI( "Name" ),
+                     NO_SETTER( PCB_FIELD, wxString ), &PCB_FIELD::GetCanonicalName ) )
+                .SetIsHiddenFromLibraryEditors()
+                .SetIsHiddenFromPropertiesManager();
 
         // These properties, inherited from EDA_TEXT, have no sense for the board editor
         propMgr.Mask( TYPE_HASH( PCB_FIELD ), TYPE_HASH( EDA_TEXT ), _HKI( "Hyperlink" ) );

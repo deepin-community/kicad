@@ -271,9 +271,7 @@ void RENDER_3D_OPENGL::setupMaterials()
 
 void RENDER_3D_OPENGL::setLayerMaterial( PCB_LAYER_ID aLayerID )
 {
-    EDA_3D_VIEWER_SETTINGS::RENDER_SETTINGS& cfg = m_boardAdapter.m_Cfg->m_Render;
-
-    if( cfg.use_board_editor_copper_colors && IsCopperLayer( aLayerID ) )
+    if( m_boardAdapter.GetUseBoardEditorCopperLayerColors() && IsCopperLayer( aLayerID ) )
     {
         COLOR4D copper_color = m_boardAdapter.m_BoardEditorColors[aLayerID];
         m_materials.m_Copper.m_Diffuse = SFVEC3F( copper_color.r, copper_color.g,
@@ -362,9 +360,33 @@ void RENDER_3D_OPENGL::setLayerMaterial( PCB_LAYER_ID aLayerID )
         break;
 
     default:
+    {
+        int layer3D = MapPCBLayerTo3DLayer( aLayerID );
+
+        // Note: MUST do this in LAYER_3D space; User_1..User_45 are NOT contiguous
+        if( layer3D >= LAYER_3D_USER_1 && layer3D <= LAYER_3D_USER_45 )
+        {
+            int user_idx = layer3D - LAYER_3D_USER_1;
+
+            m_materials.m_Plastic.m_Diffuse = m_boardAdapter.m_UserDefinedLayerColor[ user_idx ];
+            m_materials.m_Plastic.m_Ambient = SFVEC3F( m_materials.m_Plastic.m_Diffuse.r * 0.05f,
+                                                       m_materials.m_Plastic.m_Diffuse.g * 0.05f,
+                                                       m_materials.m_Plastic.m_Diffuse.b * 0.05f );
+
+            m_materials.m_Plastic.m_Specular = SFVEC3F( m_materials.m_Plastic.m_Diffuse.r * 0.7f,
+                                                        m_materials.m_Plastic.m_Diffuse.g * 0.7f,
+                                                        m_materials.m_Plastic.m_Diffuse.b * 0.7f );
+
+            m_materials.m_Plastic.m_Shininess = 0.078125f * 128.0f;
+            m_materials.m_Plastic.m_Emissive  = SFVEC3F( 0.0f, 0.0f, 0.0f );
+            OglSetMaterial( m_materials.m_Plastic, 1.0f );
+            break;
+        }
+
         m_materials.m_Copper.m_Diffuse = m_boardAdapter.m_CopperColor;
         OglSetMaterial( m_materials.m_Copper, 1.0f );
         break;
+    }
     }
 }
 

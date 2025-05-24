@@ -22,7 +22,6 @@
 #include <cli/exit_codes.h>
 #include "jobs/job_export_pcb_pdf.h"
 #include <kiface_base.h>
-#include <layer_ids.h>
 #include <string_utils.h>
 #include <wx/crt.h>
 
@@ -36,7 +35,8 @@ CLI::PCB_EXPORT_PDF_COMMAND::PCB_EXPORT_PDF_COMMAND() : PCB_EXPORT_BASE_COMMAND(
 {
     m_argParser.add_description( UTF8STDSTR( _( "Generate PDF from a list of layers" ) ) );
 
-    addLayerArg( true );
+    addLayerArg();
+    addCommonLayersArg();
     addDrawingSheetArg();
     addDefineArg();
 
@@ -54,6 +54,10 @@ CLI::PCB_EXPORT_PDF_COMMAND::PCB_EXPORT_PDF_COMMAND() : PCB_EXPORT_BASE_COMMAND(
 
     m_argParser.add_argument( "--ibt", ARG_INCLUDE_BORDER_TITLE )
             .help( UTF8STDSTR( _( "Include the border and title block" ) ) )
+            .flag();
+
+    m_argParser.add_argument( ARG_SUBTRACT_SOLDERMASK )
+            .help( UTF8STDSTR( _( "Subtract soldermask from silkscreen" ) ) )
             .flag();
 
     m_argParser.add_argument( "--sp", ARG_SKETCH_PADS_ON_FAB_LAYERS )
@@ -90,16 +94,8 @@ CLI::PCB_EXPORT_PDF_COMMAND::PCB_EXPORT_PDF_COMMAND() : PCB_EXPORT_BASE_COMMAND(
             .scan<'i', int>()
             .default_value( 2 );
 
-    m_argParser.add_argument( "--cl", ARG_COMMON_LAYERS )
-            .default_value( std::string() )
-            .help( UTF8STDSTR(
-                    _( "Layers to include on each plot, comma separated list of untranslated "
-                       "layer names to include such as "
-                       "F.Cu,B.Cu" ) ) )
-            .metavar( "COMMON_LAYER_LIST" );
-
-    m_argParser.add_argument( ARG_PLOT_INVISIBLE_TEXT )
-            .help( UTF8STDSTR( _( ARG_PLOT_INVISIBLE_TEXT_DESC ) ) )
+    m_argParser.add_argument( DEPRECATED_ARG_PLOT_INVISIBLE_TEXT )
+            .help( UTF8STDSTR( _( DEPRECATED_ARG_PLOT_INVISIBLE_TEXT_DESC ) ) )
             .flag();
 
     m_argParser.add_argument( ARG_MODE_SINGLE )
@@ -121,11 +117,6 @@ CLI::PCB_EXPORT_PDF_COMMAND::PCB_EXPORT_PDF_COMMAND() : PCB_EXPORT_BASE_COMMAND(
 
 int CLI::PCB_EXPORT_PDF_COMMAND::doPerform( KIWAY& aKiway )
 {
-    int baseExit = PCB_EXPORT_BASE_COMMAND::doPerform( aKiway );
-
-    if( baseExit != EXIT_CODES::OK )
-        return baseExit;
-
     std::unique_ptr<JOB_EXPORT_PCB_PDF> pdfJob( new JOB_EXPORT_PCB_PDF() );
 
     pdfJob->m_filename = m_argInput;
@@ -141,9 +132,12 @@ int CLI::PCB_EXPORT_PDF_COMMAND::doPerform( KIWAY& aKiway )
 
     pdfJob->m_plotFootprintValues = !m_argParser.get<bool>( ARG_EXCLUDE_VALUE );
     pdfJob->m_plotRefDes = !m_argParser.get<bool>( ARG_EXCLUDE_REFDES );
-    pdfJob->m_plotInvisibleText = m_argParser.get<bool>( ARG_PLOT_INVISIBLE_TEXT );
 
     pdfJob->m_plotDrawingSheet = m_argParser.get<bool>( ARG_INCLUDE_BORDER_TITLE );
+    pdfJob->m_subtractSolderMaskFromSilk = m_argParser.get<bool>( ARG_SUBTRACT_SOLDERMASK );
+
+    if( m_argParser.get<bool>( DEPRECATED_ARG_PLOT_INVISIBLE_TEXT ) )
+        wxFprintf( stdout, DEPRECATED_ARD_PLOT_INVISIBLE_TEXT_WARNING );
 
     pdfJob->m_mirror = m_argParser.get<bool>( ARG_MIRROR );
     pdfJob->m_blackAndWhite = m_argParser.get<bool>( ARG_BLACKANDWHITE );
@@ -156,9 +150,7 @@ int CLI::PCB_EXPORT_PDF_COMMAND::doPerform( KIWAY& aKiway )
     pdfJob->m_crossoutDNPFPsOnFabLayers = m_argParser.get<bool>( ARG_CROSSOUT_DNP_FPS_ON_FAB_LAYERS );
 
     int drillShape = m_argParser.get<int>( ARG_DRILL_SHAPE_OPTION );
-    pdfJob->m_drillShapeOption = static_cast<JOB_EXPORT_PCB_PDF::DRILL_MARKS>( drillShape );
-
-    pdfJob->m_printMaskLayer = m_selectedLayers;
+    pdfJob->m_drillShapeOption = static_cast<DRILL_MARKS>( drillShape );
 
     bool argModeMulti = m_argParser.get<bool>( ARG_MODE_MULTIPAGE );
     bool argModeSeparate = m_argParser.get<bool>( ARG_MODE_SEPARATE );
@@ -170,9 +162,8 @@ int CLI::PCB_EXPORT_PDF_COMMAND::doPerform( KIWAY& aKiway )
         return EXIT_CODES::ERR_ARGS;
     }
 
-    wxString layers = From_UTF8( m_argParser.get<std::string>( ARG_COMMON_LAYERS ).c_str() );
-    bool     blah = false;
-    pdfJob->m_printMaskLayersToIncludeOnAllLayers = convertLayerStringList( layers, blah );
+    pdfJob->m_argLayers = From_UTF8( m_argParser.get<std::string>( ARG_LAYERS ).c_str() );
+    pdfJob->m_argCommonLayers = From_UTF8( m_argParser.get<std::string>( ARG_COMMON_LAYERS ).c_str() );
 
     if( argModeMulti )
         pdfJob->m_pdfGenMode = JOB_EXPORT_PCB_PDF::GEN_MODE::ONE_PAGE_PER_LAYER_ONE_FILE;
@@ -182,7 +173,5 @@ int CLI::PCB_EXPORT_PDF_COMMAND::doPerform( KIWAY& aKiway )
         pdfJob->m_pdfGenMode = JOB_EXPORT_PCB_PDF::GEN_MODE::ALL_LAYERS_ONE_FILE;
 
     LOCALE_IO dummy;    // Switch to "C" locale
-    int exitCode = aKiway.ProcessJob( KIWAY::FACE_PCB, pdfJob.get() );
-
-    return exitCode;
+    return aKiway.ProcessJob( KIWAY::FACE_PCB, pdfJob.get() );
 }

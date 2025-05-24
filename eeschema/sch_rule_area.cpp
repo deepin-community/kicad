@@ -37,6 +37,7 @@
 #include <sch_rule_area.h>
 #include <sch_screen.h>
 #include <sch_sheet_path.h>
+#include <geometry/shape_rect.h>
 
 
 wxString SCH_RULE_AREA::GetClass() const
@@ -228,9 +229,7 @@ void SCH_RULE_AREA::RefreshContainedItemsAndDirectives(
         assert( labelConnectionPoints.size() == 1 );
 
         if( GetPolyShape().CollideEdge( labelConnectionPoints[0], nullptr, 5 ) )
-        {
             addDirective( label, view );
-        }
     }
 
     // If directives have changed, we need to force an update of the contained items connectivity
@@ -249,9 +248,7 @@ void SCH_RULE_AREA::RefreshContainedItemsAndDirectives(
                                    lineItem->GetLineWidth() );
 
             if( GetPolyShape().Collide( &lineSeg ) )
-            {
                 addContainedItem( areaItem );
-            }
         }
         else if( areaItem->IsType(
                          { SCH_PIN_T, SCH_LABEL_T, SCH_GLOBAL_LABEL_T, SCH_HIER_LABEL_T } ) )
@@ -260,13 +257,25 @@ void SCH_RULE_AREA::RefreshContainedItemsAndDirectives(
             assert( connectionPoints.size() == 1 );
 
             if( GetPolyShape().Collide( connectionPoints[0] ) )
-            {
                 addContainedItem( areaItem );
-            }
         }
         else if( areaItem->IsType( { SCH_SYMBOL_T } ) )
         {
-            addContainedItem( areaItem );
+            SCH_SYMBOL*      symbol = static_cast<SCH_SYMBOL*>( areaItem );
+            const BOX2I      symbolBb = symbol->GetBoundingBox();
+            const SHAPE_RECT rect( symbolBb );
+
+            if( GetPolyShape().Collide( &rect ) )
+            {
+                addContainedItem( areaItem );
+
+                // Add child pins which are within the rule area
+                for( SCH_PIN* pin : symbol->GetPins() )
+                {
+                    if( GetPolyShape().Collide( pin->GetPosition() ) )
+                        addContainedItem( pin );
+                }
+            }
         }
     }
 }

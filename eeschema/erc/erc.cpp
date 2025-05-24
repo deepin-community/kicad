@@ -878,7 +878,7 @@ int ERC_TESTER::TestNoConnectPins()
                         addOther( pin->GetPosition(), pin );
                 }
             }
-            else if( item->IsConnectable() )
+            else if( item->IsConnectable() && item->Type() != SCH_NO_CONNECT_T )
             {
                 for( const VECTOR2I& pt : item->GetConnectionPoints() )
                     addOther( pt, item );
@@ -1387,8 +1387,8 @@ int ERC_TESTER::TestLibSymbolIssues()
 
             wxCHECK2( libSymbolInSchematic, continue );
 
-            wxString       libName = symbol->GetLibId().GetLibNickname();
-            LIB_TABLE_ROW* libTableRow = libTable->FindRow( libName, true );
+            wxString             libName = symbol->GetLibId().GetLibNickname();
+            const LIB_TABLE_ROW* libTableRow = libTable->FindRow( libName, true );
 
             if( !libTableRow )
             {
@@ -1411,8 +1411,24 @@ int ERC_TESTER::TestLibSymbolIssues()
                 {
                     std::shared_ptr<ERC_ITEM> ercItem = ERC_ITEM::Create( ERCE_LIB_SYMBOL_ISSUES );
                     ercItem->SetItems( symbol );
-                    msg.Printf( _( "The library '%s' is not enabled in the current configuration" ),
+                    msg.Printf( _( "The symbol library '%s' is not enabled in the current configuration" ),
                                 UnescapeString( libName ) );
+                    ercItem->SetErrorMessage( msg );
+
+                    markers.emplace_back( new SCH_MARKER( ercItem, symbol->GetPosition() ) );
+                }
+
+                continue;
+            }
+            else if( !libTableRow->LibraryExists() )
+            {
+                if( m_settings.IsTestEnabled( ERCE_LIB_SYMBOL_ISSUES ) )
+                {
+                    std::shared_ptr<ERC_ITEM> ercItem = ERC_ITEM::Create( ERCE_LIB_SYMBOL_ISSUES );
+                    ercItem->SetItems( symbol );
+                    msg.Printf( _( "The symbol library '%s' was not found at '%s'." ),
+                                UnescapeString( libName ),
+                                libTableRow->GetFullURI( true ) );
                     ercItem->SetErrorMessage( msg );
 
                     markers.emplace_back( new SCH_MARKER( ercItem, symbol->GetPosition() ) );
@@ -1617,7 +1633,7 @@ int ERC_TESTER::TestFootprintFilters()
             {
                 std::shared_ptr<ERC_ITEM> ercItem = ERC_ITEM::Create( ERCE_FOOTPRINT_LINK_ISSUES );
                 msg.Printf( _( "Assigned footprint (%s) doesn't match footprint filters (%s)." ),
-                            lowerItemName,
+                            footprint.GetUniStringLibItemName(),
                             wxJoin( filters, ' ' ) );
                 ercItem->SetErrorMessage( msg );
                 ercItem->SetItems( sch_symbol );

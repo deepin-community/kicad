@@ -35,6 +35,7 @@
 #include <sim/sim_library_ibis.h>
 #include <sch_symbol.h>
 
+class EMBEDDED_FILES;
 
 // Some probable wxWidgets bugs encountered when writing this class:
 // 1. There are rendering problems with wxPropertyGrid on Linux, GTK, Xorg when
@@ -124,16 +125,17 @@ private:
     bool isIbisLoaded() { return dynamic_cast<const SIM_LIBRARY_IBIS*>( library() ); }
 
 private:
-    EDA_BASE_FRAME*         m_frame;
-    T&                      m_symbol;
-    std::vector<SCH_FIELD>& m_fields;
+    EDA_BASE_FRAME*              m_frame;
+    T&                           m_symbol;
+    std::vector<SCH_FIELD>&      m_fields;
 
-    SIM_LIB_MGR             m_libraryModelsMgr;
-    SIM_LIB_MGR             m_builtinModelsMgr;
-    wxString                m_prevLibrary;
-    const SIM_MODEL*        m_prevModel;
+    std::vector<EMBEDDED_FILES*> m_filesStack;
+    SIM_LIB_MGR                  m_libraryModelsMgr;
+    SIM_LIB_MGR                  m_builtinModelsMgr;
+    wxString                     m_prevLibrary;
+    const SIM_MODEL*             m_prevModel;
 
-    std::map<wxString, int> m_modelListBoxEntryToLibraryIdx;
+    std::map<wxString, int>            m_modelListBoxEntryToLibraryIdx;
 
     std::vector<SCH_PIN*>                          m_sortedPartPins; ///< Pins of the current part.
     std::map<SIM_MODEL::DEVICE_T, SIM_MODEL::TYPE> m_curModelTypeOfDeviceType;

@@ -291,8 +291,13 @@ COLOR4D PCB_RENDER_SETTINGS::GetColor( const BOARD_ITEM* aItem, int aLayer ) con
     // Normal selection
     if( aItem->IsSelected() )
     {
-        auto it_selected = m_layerColorsSel.find( aLayer );
-        color = it_selected == m_layerColorsSel.end() ? color.Brightened( 0.8 ) : it_selected->second;
+        // Selection for tables is done with a background wash, so pass in nullptr to GetColor()
+        // so we just get the "normal" (un-selected/un-brightened) color for the borders.
+        if( aItem->Type() != PCB_TABLE_T && aItem->Type() != PCB_TABLECELL_T )
+        {
+            auto it_selected = m_layerColorsSel.find( aLayer );
+            color = it_selected == m_layerColorsSel.end() ? color.Brightened( 0.8 ) : it_selected->second;
+        }
     }
 
     // Some graphic objects are BOARD_CONNECTED_ITEM, but they are seen here as
@@ -659,6 +664,9 @@ bool PCB_PAINTER::Draw( const VIEW_ITEM* aItem, int aLayer )
         break;
 
     case PCB_FIELD_T:
+        draw( static_cast<const PCB_FIELD*>( item ), aLayer );
+        break;
+
     case PCB_TEXT_T:
         draw( static_cast<const PCB_TEXT*>( item ), aLayer );
         break;
@@ -1225,10 +1233,8 @@ void PCB_PAINTER::draw( const PCB_VIA* aVia, int aLayer )
 void PCB_PAINTER::draw( const PAD* aPad, int aLayer )
 {
     COLOR4D      color = m_pcbSettings.GetColor( aPad, aLayer );
-
-    const int copperLayer = IsPadCopperLayer( aLayer ) ? aLayer - LAYER_PAD_COPPER_START : aLayer;
-
-    const PCB_LAYER_ID& pcbLayer = static_cast<PCB_LAYER_ID>( copperLayer );
+    const int    copperLayer = IsPadCopperLayer( aLayer ) ? aLayer - LAYER_PAD_COPPER_START : aLayer;
+    PCB_LAYER_ID pcbLayer = static_cast<PCB_LAYER_ID>( copperLayer );
 
     if( IsNetnameLayer( aLayer ) )
     {
@@ -1433,6 +1439,13 @@ void PCB_PAINTER::draw( const PAD* aPad, int aLayer )
         m_gal->SetIsStroke( false );
         double widthFactor = ADVANCED_CFG::GetCfg().m_HoleWallPaintingMultiplier;
         double lineWidth = widthFactor * m_holePlatingThickness;
+
+        // Prevent the hole wall from being drawn too thin (at least two pixels)
+        // or too thick (cap at the size of the pad )
+        lineWidth = std::max( lineWidth, 2.0 / m_gal->GetWorldScale() );
+        lineWidth = std::min( lineWidth, aPad->GetSizeX() / 2.0 );
+        lineWidth = std::min( lineWidth, aPad->GetSizeY() / 2.0 );
+
         m_gal->SetFillColor( color );
 
         std::shared_ptr<SHAPE_SEGMENT> slot = aPad->GetEffectiveHoleShape();
@@ -1796,10 +1809,14 @@ void PCB_PAINTER::draw( const PCB_SHAPE* aShape, int aLayer )
     int        thickness = getLineThickness( aShape->GetWidth() );
     LINE_STYLE lineStyle = aShape->GetStroke().GetLineStyle();
 
+    if( lineStyle == LINE_STYLE::DEFAULT )
+        lineStyle = LINE_STYLE::SOLID;
+
     if( IsSolderMaskLayer( aLayer )
-        && aShape->HasSolderMask()
-        && IsExternalCopperLayer( aShape->GetLayer() ) )
+            && aShape->HasSolderMask()
+            && IsExternalCopperLayer( aShape->GetLayer() ) )
     {
+        lineStyle = LINE_STYLE::SOLID;
         thickness += aShape->GetSolderMaskExpansion() * 2;
     }
 
@@ -1815,7 +1832,7 @@ void PCB_PAINTER::draw( const PCB_SHAPE* aShape, int aLayer )
         if( aShape->GetNetCode() <= NETINFO_LIST::UNCONNECTED )
             return;
 
-        wxString netname = aShape->GetDisplayNetname();
+        const wxString& netname = aShape->GetDisplayNetname();
 
         if( netname.IsEmpty() )
             return;
@@ -1836,6 +1853,10 @@ void PCB_PAINTER::draw( const PCB_SHAPE* aShape, int aLayer )
     {
         color = m_pcbSettings.GetColor( aShape, aLayer );
         thickness = thickness + m_lockedShadowMargin;
+
+        // Note: on LAYER_LOCKED_ITEM_SHADOW always draw shadow shapes as continuous lines
+        // otherwise the look is very strange and ugly
+        lineStyle = LINE_STYLE::SOLID;
     }
 
     if( outline_mode )
@@ -1848,9 +1869,7 @@ void PCB_PAINTER::draw( const PCB_SHAPE* aShape, int aLayer )
     m_gal->SetFillColor( color );
     m_gal->SetStrokeColor( color );
 
-    // Note: on LAYER_LOCKED_ITEM_SHADOW always draw shadow shapes as continuous lines
-    // otherwise the look is very strange and ugly
-    if( lineStyle <= LINE_STYLE::FIRST_TYPE || aLayer == LAYER_LOCKED_ITEM_SHADOW )
+    if( lineStyle == LINE_STYLE::SOLID || aShape->IsFilled() )
     {
         switch( aShape->GetShape() )
         {
@@ -1880,7 +1899,7 @@ void PCB_PAINTER::draw( const PCB_SHAPE* aShape, int aLayer )
             {
                 m_gal->DrawSegment( aShape->GetStart(), aShape->GetEnd(), thickness );
             }
-            else
+            else if( lineStyle == LINE_STYLE::SOLID )
             {
                 m_gal->SetIsFill( true );
                 m_gal->SetIsStroke( false );
@@ -1916,7 +1935,7 @@ void PCB_PAINTER::draw( const PCB_SHAPE* aShape, int aLayer )
                 m_gal->SetIsFill( true );
                 m_gal->SetIsStroke( false );
 
-                if( thickness > 0 )
+                if( lineStyle == LINE_STYLE::SOLID && thickness > 0 )
                 {
                     m_gal->DrawSegment( pts[0], pts[1], thickness );
                     m_gal->DrawSegment( pts[1], pts[2], thickness );
@@ -1956,7 +1975,7 @@ void PCB_PAINTER::draw( const PCB_SHAPE* aShape, int aLayer )
                 m_gal->DrawArcSegment( aShape->GetCenter(), aShape->GetRadius(), startAngle,
                                        endAngle - startAngle, thickness, m_maxError );
             }
-            else
+            else if( lineStyle == LINE_STYLE::SOLID )
             {
                 m_gal->SetIsFill( true );
                 m_gal->SetIsStroke( false );
@@ -1976,18 +1995,25 @@ void PCB_PAINTER::draw( const PCB_SHAPE* aShape, int aLayer )
             else
             {
                 m_gal->SetIsFill( aShape->IsFilled() );
-                m_gal->SetIsStroke( thickness > 0 );
+                m_gal->SetIsStroke( lineStyle == LINE_STYLE::SOLID && thickness > 0 );
                 m_gal->SetLineWidth( thickness );
 
                 int radius = aShape->GetRadius();
 
-                if( thickness < 0 )
+                if( lineStyle == LINE_STYLE::SOLID && thickness > 0 )
                 {
-                    radius += thickness / 2;
-                    radius = std::max( radius, 0 );
+                    m_gal->DrawCircle( aShape->GetStart(), radius );
                 }
+                else if( aShape->IsFilled() )
+                {
+                    if( thickness < 0 )
+                    {
+                        radius += thickness / 2;
+                        radius = std::max( radius, 0 );
+                    }
 
-                m_gal->DrawCircle( aShape->GetStart(), radius );
+                    m_gal->DrawCircle( aShape->GetStart(), radius );
+                }
             }
             break;
 
@@ -2008,7 +2034,7 @@ void PCB_PAINTER::draw( const PCB_SHAPE* aShape, int aLayer )
                 m_gal->SetIsFill( true );
                 m_gal->SetIsStroke( false );
 
-                if( thickness > 0 )
+                if( lineStyle == LINE_STYLE::SOLID && thickness > 0 )
                 {
                     for( int ii = 0; ii < shape.OutlineCount(); ++ii )
                         m_gal->DrawSegmentChain( shape.Outline( ii ), thickness );
@@ -2016,24 +2042,23 @@ void PCB_PAINTER::draw( const PCB_SHAPE* aShape, int aLayer )
 
                 if( aShape->IsFilled() )
                 {
-                    // On Opengl, a not convex filled polygon is usually drawn by using triangles
-                    // as primitives. CacheTriangulation() can create basic triangle primitives to
-                    // draw the polygon solid shape on Opengl.  GLU tessellation is much slower,
-                    // so currently we are using our tessellation.
-                    if( m_gal->IsOpenGlEngine() && !shape.IsTriangulationUpToDate() )
-                        shape.CacheTriangulation( true, true );
-
-
-                    if( thickness >= 0 )
-                    {
-                        m_gal->DrawPolygon( shape );
-                    }
-                    else
+                    if( thickness < 0 )
                     {
                         SHAPE_POLY_SET deflated_shape = shape;
                         deflated_shape.Inflate( thickness / 2, CORNER_STRATEGY::ROUND_ALL_CORNERS,
                                                 m_maxError );
                         m_gal->DrawPolygon( deflated_shape );
+                    }
+                    else
+                    {
+                        // On Opengl, a not convex filled polygon is usually drawn by using
+                        // triangles as primitives. CacheTriangulation() can create basic triangle
+                        // primitives to draw the polygon solid shape on Opengl.  GLU tessellation
+                        // is much slower, so currently we are using our tessellation.
+                        if( m_gal->IsOpenGlEngine() && !shape.IsTriangulationUpToDate() )
+                            shape.CacheTriangulation( true, true );
+
+                        m_gal->DrawPolygon( shape );
                     }
                 }
             }
@@ -2060,7 +2085,7 @@ void PCB_PAINTER::draw( const PCB_SHAPE* aShape, int aLayer )
             else
             {
                 m_gal->SetIsFill( aShape->IsFilled() );
-                m_gal->SetIsStroke( thickness > 0 );
+                m_gal->SetIsStroke( lineStyle == LINE_STYLE::SOLID && thickness > 0 );
                 m_gal->SetLineWidth( thickness );
 
                 if( aShape->GetBezierPoints().size() > 2 )
@@ -2082,7 +2107,8 @@ void PCB_PAINTER::draw( const PCB_SHAPE* aShape, int aLayer )
             break;
         }
     }
-    else
+
+    if( lineStyle != LINE_STYLE::SOLID )
     {
         if( !outline_mode )
         {
@@ -2186,11 +2212,18 @@ void PCB_PAINTER::draw( const PCB_REFERENCE_IMAGE* aBitmap, int aLayer )
 }
 
 
+void PCB_PAINTER::draw( const PCB_FIELD* aField, int aLayer )
+{
+    if( aField->IsVisible() )
+        draw( static_cast<const PCB_TEXT*>( aField ), aLayer );
+}
+
+
 void PCB_PAINTER::draw( const PCB_TEXT* aText, int aLayer )
 {
     wxString resolvedText( aText->GetShownText( true ) );
 
-    if( resolvedText.Length() == 0 || !aText->GetAttributes().m_Visible )
+    if( resolvedText.Length() == 0 )
         return;
 
     if( aLayer == LAYER_LOCKED_ITEM_SHADOW )    // happens only if locked
@@ -2246,8 +2279,19 @@ void PCB_PAINTER::draw( const PCB_TEXT* aText, int aLayer )
 
         if( m_gal->IsFlippedX() && !aText->IsSideSpecific() )
         {
+            // We do not want to change the mirroring for this kind of text
+            // on the mirrored canvas
+            // (not mirrored is draw not mirrored and mirrored is draw mirrored)
+            // So we need to recalculate the text position to keep it at the same position
+            // on the canvas
             VECTOR2I textPos = aText->GetTextPos();
             VECTOR2I textWidth = VECTOR2I( aText->GetTextBox().GetWidth(), 0 );
+
+            if( aText->GetHorizJustify() == GR_TEXT_H_ALIGN_RIGHT )
+                textWidth.x = -textWidth.x;
+            else if( aText->GetHorizJustify() == GR_TEXT_H_ALIGN_CENTER )
+                textWidth.x = 0;
+
             RotatePoint( textWidth, VECTOR2I( 0, 0 ), aText->GetDrawRotation() );
 
             if( attrs.m_Mirrored )
@@ -2337,13 +2381,6 @@ void PCB_PAINTER::draw( const PCB_TEXTBOX* aTextBox, int aLayer )
         m_gal->DrawPolygon( dpts );
     }
 
-    if( aTextBox->Type() == PCB_TABLECELL_T )
-    {
-        // Selection for tables is done with a background wash, so pass in nullptr to GetColor()
-        // so we just get the "normal" (un-selected/un-brightened) color for the borders.
-        color = m_pcbSettings.GetColor( nullptr, aLayer );
-    }
-
     m_gal->SetFillColor( color );
     m_gal->SetStrokeColor( color );
     m_gal->SetIsFill( true );
@@ -2425,53 +2462,30 @@ void PCB_PAINTER::draw( const PCB_TEXTBOX* aTextBox, int aLayer )
     }
 }
 
-
 void PCB_PAINTER::draw( const PCB_TABLE* aTable, int aLayer )
 {
     if( aTable->GetCells().empty() )
         return;
 
     for( PCB_TABLECELL* cell : aTable->GetCells() )
-        draw( static_cast<PCB_TEXTBOX*>( cell ), aLayer );
+    {
+        if( cell->GetColSpan() > 0 || cell->GetRowSpan() > 0 )
+            draw( static_cast<PCB_TEXTBOX*>( cell ), aLayer );
+    }
 
-    VECTOR2I  pos = aTable->GetPosition();
-    VECTOR2I  end = aTable->GetEnd();
+    COLOR4D color = m_pcbSettings.GetColor( aTable, aLayer );
 
-    // Selection for tables is done with a background wash, so pass in nullptr to GetColor()
-    // so we just get the "normal" (un-selected/un-brightened) color for the borders.
-    COLOR4D    color = m_pcbSettings.GetColor( nullptr, aLayer );
-    int        lineWidth;
-    LINE_STYLE lineStyle;
-
-    auto setupStroke =
-            [&]( const STROKE_PARAMS& stroke )
+    aTable->DrawBorders(
+            [&]( const VECTOR2I& ptA, const VECTOR2I& ptB, const STROKE_PARAMS& stroke )
             {
-                lineWidth = getLineThickness( stroke.GetWidth() );
-                lineStyle = stroke.GetLineStyle();
+                int        lineWidth = getLineThickness( stroke.GetWidth() );
+                LINE_STYLE lineStyle = stroke.GetLineStyle();
 
                 m_gal->SetIsFill( false );
                 m_gal->SetIsStroke( true );
                 m_gal->SetStrokeColor( color );
                 m_gal->SetLineWidth( lineWidth );
-            };
 
-    auto strokeShape =
-            [&]( const SHAPE& shape )
-            {
-                STROKE_PARAMS::Stroke( &shape, lineStyle, lineWidth, &m_pcbSettings,
-                        [&]( VECTOR2I a, VECTOR2I b )
-                        {
-                            // DrawLine has problem with 0 length lines so enforce minimum
-                            if( a == b )
-                                m_gal->DrawLine( a+1, b );
-                            else
-                                m_gal->DrawLine( a, b );
-                        } );
-            };
-
-    auto strokeLine =
-            [&]( VECTOR2I ptA, VECTOR2I ptB )
-            {
                 if( lineStyle <= LINE_STYLE::FIRST_TYPE )
                 {
                     m_gal->DrawLine( ptA, ptB );
@@ -2479,87 +2493,18 @@ void PCB_PAINTER::draw( const PCB_TABLE* aTable, int aLayer )
                 else
                 {
                     SHAPE_SEGMENT seg( ptA, ptB );
-                    strokeShape( seg );
+
+                    STROKE_PARAMS::Stroke( &seg, lineStyle, lineWidth, &m_pcbSettings,
+                            [&]( VECTOR2I a, VECTOR2I b )
+                            {
+                                // DrawLine has problem with 0 length lines so enforce minimum
+                                if( a == b )
+                                    m_gal->DrawLine( a+1, b );
+                                else
+                                    m_gal->DrawLine( a, b );
+                            } );
                 }
-            };
-
-    auto strokeRect =
-            [&]( VECTOR2I ptA, VECTOR2I ptB )
-            {
-                if( lineStyle <= LINE_STYLE::FIRST_TYPE )
-                {
-                    m_gal->DrawRectangle( ptA, ptB );
-                }
-                else
-                {
-                    SHAPE_RECT rect( BOX2I( ptA, ptB - ptA ) );
-                    strokeShape( rect );
-                }
-            };
-
-    if( aTable->GetSeparatorsStroke().GetWidth() >= 0 )
-    {
-        setupStroke( aTable->GetSeparatorsStroke() );
-
-        if( aTable->StrokeColumns() )
-        {
-            for( int col = 0; col < aTable->GetColCount() - 1; ++col )
-            {
-                for( int row = 0; row < aTable->GetRowCount(); ++row )
-                {
-                    PCB_TABLECELL* cell = aTable->GetCell( row, col );
-                    VECTOR2I       topRight( cell->GetEndX(), cell->GetStartY() );
-
-                    if( !cell->GetTextAngle().IsHorizontal() )
-                        topRight = VECTOR2I( cell->GetStartX(), cell->GetEndY() );
-
-                    if( cell->GetColSpan() > 0 && cell->GetRowSpan() > 0 )
-                        strokeLine( topRight, cell->GetEnd() );
-                }
-            }
-        }
-
-        if( aTable->StrokeRows() )
-        {
-            for( int row = 0; row < aTable->GetRowCount() - 1; ++row )
-            {
-                for( int col = 0; col < aTable->GetColCount(); ++col )
-                {
-                    PCB_TABLECELL* cell = aTable->GetCell( row, col );
-                    VECTOR2I       botLeft( cell->GetStartX(), cell->GetEndY() );
-
-                    if( !cell->GetTextAngle().IsHorizontal() )
-                        botLeft = VECTOR2I( cell->GetEndX(), cell->GetStartY() );
-
-                    if( cell->GetColSpan() > 0 && cell->GetRowSpan() > 0 )
-                        strokeLine( botLeft, cell->GetEnd() );
-                }
-            }
-        }
-    }
-
-    if( aTable->GetBorderStroke().GetWidth() >= 0 )
-    {
-        PCB_TABLECELL* first = aTable->GetCell( 0, 0 );
-
-        setupStroke( aTable->GetBorderStroke() );
-
-        if( aTable->StrokeHeader() )
-        {
-            if( !first->GetTextAngle().IsHorizontal() )
-                strokeLine( VECTOR2I( first->GetEndX(), pos.y ), VECTOR2I( first->GetEndX(), first->GetEndY() ) );
-            else
-                strokeLine( VECTOR2I( pos.x, first->GetEndY() ), VECTOR2I( end.x, first->GetEndY() ) );
-        }
-
-        if( aTable->StrokeExternal() )
-        {
-            RotatePoint( pos, aTable->GetPosition(), first->GetTextAngle() );
-            RotatePoint( end, aTable->GetPosition(), first->GetTextAngle() );
-
-            strokeRect( pos, end );
-        }
-    }
+            } );
 
     // Highlight selected tablecells with a background wash.
     for( PCB_TABLECELL* cell : aTable->GetCells() )
@@ -2749,6 +2694,9 @@ void PCB_PAINTER::draw( const ZONE* aZone, int aLayer )
     COLOR4D              color = m_pcbSettings.GetColor( aZone, layer );
     std::deque<VECTOR2D> corners;
     ZONE_DISPLAY_MODE    displayMode = m_pcbSettings.m_ZoneDisplayMode;
+
+    if( aZone->IsTeardropArea() )
+        displayMode = ZONE_DISPLAY_MODE::SHOW_FILLED;
 
     // Draw the outline
     if( !IsZoneFillLayer( aLayer ) )

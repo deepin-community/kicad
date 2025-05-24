@@ -71,6 +71,13 @@ EDA_ITEM* PCB_TRACK::Clone() const
 }
 
 
+void PCB_TRACK::CopyFrom( const BOARD_ITEM* aOther )
+{
+    wxCHECK( aOther && aOther->Type() == PCB_TRACE_T, /* void */ );
+    *this = *static_cast<const PCB_TRACK*>( aOther );
+}
+
+
 PCB_ARC::PCB_ARC( BOARD_ITEM* aParent, const SHAPE_ARC* aArc ) :
     PCB_TRACK( aParent, PCB_ARC_T )
 {
@@ -83,6 +90,13 @@ PCB_ARC::PCB_ARC( BOARD_ITEM* aParent, const SHAPE_ARC* aArc ) :
 EDA_ITEM* PCB_ARC::Clone() const
 {
     return new PCB_ARC( *this );
+}
+
+
+void PCB_ARC::CopyFrom( const BOARD_ITEM* aOther )
+{
+    wxCHECK( aOther && aOther->Type() == PCB_ARC_T, /* void */ );
+    *this = *static_cast<const PCB_ARC*>( aOther );
 }
 
 
@@ -133,6 +147,13 @@ PCB_VIA& PCB_VIA::operator=( const PCB_VIA &aOther )
     m_isFree = aOther.m_isFree;
 
     return *this;
+}
+
+
+void PCB_VIA::CopyFrom( const BOARD_ITEM* aOther )
+{
+    wxCHECK( aOther && aOther->Type() == PCB_VIA_T, /* void */ );
+    *this = *static_cast<const PCB_VIA*>( aOther );
 }
 
 
@@ -962,9 +983,8 @@ bool PCB_TRACK::IsOnLayer( PCB_LAYER_ID aLayer ) const
         return true;
     }
 
-    if( m_hasSolderMask
-            && ( ( aLayer == F_Mask && m_layer == F_Cu )
-                       || ( aLayer == B_Mask && m_layer == B_Cu ) ) )
+    if( m_hasSolderMask && (   ( aLayer == F_Mask && m_layer == F_Cu )
+                            || ( aLayer == B_Mask && m_layer == B_Cu ) ) )
     {
         return true;
     }
@@ -1207,15 +1227,10 @@ void PCB_VIA::SanitizeLayers()
 
 bool PCB_VIA::FlashLayer( LSET aLayers ) const
 {
-    for( size_t ii = 0; ii < aLayers.size(); ++ii )
+    for( PCB_LAYER_ID layer : aLayers )
     {
-        if( aLayers.test( ii ) )
-        {
-            PCB_LAYER_ID layer = PCB_LAYER_ID( ii );
-
-            if( FlashLayer( layer ) )
-                return true;
-        }
+        if( FlashLayer( layer ) )
+            return true;
     }
 
     return false;
@@ -1229,14 +1244,15 @@ bool PCB_VIA::FlashLayer( int aLayer ) const
         return true;
 
     const BOARD* board = GetBoard();
+    PCB_LAYER_ID layer = static_cast<PCB_LAYER_ID>( aLayer );
 
     if( !board )
         return true;
 
-    if( !IsOnLayer( static_cast<PCB_LAYER_ID>( aLayer ) ) )
+    if( !IsOnLayer( layer ) )
         return false;
 
-    if( !IsCopperLayer( aLayer ) )
+    if( !IsCopperLayer( layer ) )
         return true;
 
     switch( Padstack().UnconnectedLayerMode() )
@@ -1246,7 +1262,7 @@ bool PCB_VIA::FlashLayer( int aLayer ) const
 
     case PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END:
     {
-        if( aLayer == Padstack().Drill().start || aLayer == Padstack().Drill().end )
+        if( layer == Padstack().Drill().start || layer == Padstack().Drill().end )
             return true;
 
         // Check for removal below
@@ -1258,14 +1274,18 @@ bool PCB_VIA::FlashLayer( int aLayer ) const
         break;
     }
 
-    // Must be static to keep from raising its ugly head in performance profiles
-    static std::initializer_list<KICAD_T> connectedTypes = { PCB_TRACE_T, PCB_ARC_T, PCB_VIA_T,
-                                                             PCB_PAD_T };
-
-    if( GetZoneLayerOverride( static_cast<PCB_LAYER_ID>( aLayer ) ) == ZLO_FORCE_FLASHED )
+    if( GetZoneLayerOverride( layer ) == ZLO_FORCE_FLASHED )
+    {
         return true;
+    }
     else
-        return board->GetConnectivity()->IsConnectedOnLayer( this, static_cast<PCB_LAYER_ID>( aLayer ), connectedTypes );
+    {
+        // Must be static to keep from raising its ugly head in performance profiles
+        static std::initializer_list<KICAD_T> nonZoneTypes = { PCB_TRACE_T, PCB_ARC_T, PCB_VIA_T,
+                                                               PCB_PAD_T };
+
+        return board->GetConnectivity()->IsConnectedOnLayer( this, layer, nonZoneTypes );
+    }
 }
 
 
@@ -1299,17 +1319,21 @@ void PCB_VIA::GetOutermostConnectedLayers( PCB_LAYER_ID* aTopmost,
     *aTopmost = UNDEFINED_LAYER;
     *aBottommost = UNDEFINED_LAYER;
 
-    static std::initializer_list<KICAD_T> connectedTypes = { PCB_TRACE_T, PCB_ARC_T, PCB_VIA_T,
-                                                             PCB_PAD_T };
+    static std::initializer_list<KICAD_T> nonZoneTypes = { PCB_TRACE_T, PCB_ARC_T, PCB_VIA_T,
+                                                           PCB_PAD_T };
 
     for( int layer = TopLayer(); layer <= BottomLayer(); ++layer )
     {
         bool connected = false;
 
         if( GetZoneLayerOverride( static_cast<PCB_LAYER_ID>( layer ) ) == ZLO_FORCE_FLASHED )
+        {
             connected = true;
-        else if( GetBoard()->GetConnectivity()->IsConnectedOnLayer( this, layer, connectedTypes ) )
+        }
+        else if( GetBoard()->GetConnectivity()->IsConnectedOnLayer( this, layer, nonZoneTypes ) )
+        {
             connected = true;
+        }
 
         if( connected )
         {
@@ -1387,7 +1411,7 @@ double PCB_TRACK::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
             return LOD_HIDE;
 
         // Netnames will be shown only if zoom is appropriate
-        return lodScaleForThreshold( m_width, pcbIUScale.mmToIU( 4.0 ) );
+        return lodScaleForThreshold( aView, m_width, pcbIUScale.mmToIU( 4.0 ) );
     }
 
     if( aLayer == LAYER_LOCKED_ITEM_SHADOW )
@@ -1471,17 +1495,11 @@ double PCB_VIA::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
 {
     PCB_PAINTER*         painter = static_cast<PCB_PAINTER*>( aView->GetPainter() );
     PCB_RENDER_SETTINGS* renderSettings = painter->GetSettings();
-    LSET                 visible = LSET::AllLayersMask();
+    const BOARD*         board = GetBoard();
 
     // Meta control for hiding all vias
     if( !aView->IsLayerVisible( LAYER_VIAS ) )
         return LOD_HIDE;
-
-    // Handle board visibility
-    if( const BOARD* board = GetBoard() )
-        visible = board->GetVisibleLayers() & board->GetEnabledLayers();
-
-    int width = GetWidth( ToLAYER_ID( aLayer ) );
 
     // In high contrast mode don't show vias that don't cross the high-contrast layer
     if( renderSettings->GetHighContrast() )
@@ -1493,10 +1511,7 @@ double PCB_VIA::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
         else if( LSET::BackTechMask().Contains( highContrastLayer ) )
             highContrastLayer = B_Cu;
 
-        if( !IsCopperLayer( highContrastLayer ) )
-            return LOD_HIDE;
-
-        if( GetViaType() != VIATYPE::THROUGH )
+        if( IsCopperLayer( highContrastLayer ) && GetViaType() != VIATYPE::THROUGH )
         {
             if( IsCopperLayerLowerThan( Padstack().Drill().start, highContrastLayer  )
                 || IsCopperLayerLowerThan( highContrastLayer, Padstack().Drill().end ) )
@@ -1508,21 +1523,37 @@ double PCB_VIA::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
 
     if( IsHoleLayer( aLayer ) )
     {
+        LSET visible;
+
+        if( board )
+        {
+            visible = board->GetVisibleLayers();
+            visible &= board->GetEnabledLayers();
+        }
+        else
+        {
+            visible = LSET::AllLayersMask();
+        }
+
         if( m_viaType == VIATYPE::THROUGH )
         {
             // Show a through via's hole if any physical layer is shown
-            if( !( visible & LSET::PhysicalLayersMask() ).any() )
+            visible &= LSET::PhysicalLayersMask();
+
+            if( !visible.any() )
                 return LOD_HIDE;
         }
         else
         {
             // Show a blind or micro via's hole if it crosses a visible layer
-            if( !( visible & GetLayerSet() ).any() )
+            visible &= GetLayerSet();
+
+            if( !visible.any() )
                 return LOD_HIDE;
         }
 
         // The hole won't be visible anyway at this scale
-        return (double) pcbIUScale.mmToIU( 0.25 ) / GetDrillValue();
+        return lodScaleForThreshold( aView, GetDrillValue(), pcbIUScale.mmToIU( 0.25 ) );
     }
     else if( IsNetnameLayer( aLayer ) )
     {
@@ -1534,17 +1565,35 @@ double PCB_VIA::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
         }
         else
         {
+            LSET visible;
+
+            if( board )
+            {
+                visible = board->GetVisibleLayers();
+                visible &= board->GetEnabledLayers();
+            }
+            else
+            {
+                visible = LSET::AllLayersMask();
+            }
+
             // Hide netnames unless pad is flashed to a visible layer
             if( !FlashLayer( visible ) )
                 return LOD_HIDE;
         }
 
+        int width = GetWidth( ToLAYER_ID( aLayer ) );
+
         // Netnames will be shown only if zoom is appropriate
-        return width == 0 ? LOD_HIDE : ( (double) pcbIUScale.mmToIU( 10 ) / width );
+        return lodScaleForThreshold( aView, width, pcbIUScale.mmToIU( 10 ) );
     }
 
     if( !IsCopperLayer( aLayer ) )
-        return (double) pcbIUScale.mmToIU( 0.6 ) / width;
+    {
+        int width = GetWidth( ToLAYER_ID( aLayer ) );
+
+        return lodScaleForThreshold( aView, width, pcbIUScale.mmToIU( 0.6 ) );
+    }
 
     return LOD_SHOW;
 }

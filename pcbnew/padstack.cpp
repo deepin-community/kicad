@@ -248,7 +248,7 @@ bool PADSTACK::Deserialize( const google::protobuf::Any& aContainer )
             if( thermals.has_width() )
                 CopperLayer( ALL_LAYERS ).thermal_spoke_width = thermals.width().value_nm();
 
-            SetThermalSpokeAngle( thermals.angle().value_degrees(), F_Cu );
+            SetThermalSpokeAngle( EDA_ANGLE( thermals.angle().value_degrees(), DEGREES_T ), F_Cu );
         }
     }
     else
@@ -596,6 +596,8 @@ int PADSTACK::Compare( const PADSTACK* aPadstackRef, const PADSTACK* aPadstackCm
         };
 
     aPadstackRef->ForEachUniqueLayer( compareCopperProps );
+    if( diff )
+        return diff;
 
     if( ( diff = static_cast<int>( aPadstackRef->DrillShape() ) -
           static_cast<int>( aPadstackCmp->DrillShape() ) ) != 0 )
@@ -989,6 +991,8 @@ PCB_LAYER_ID PADSTACK::EffectiveLayerFor( PCB_LAYER_ID aLayer ) const
 
             // We're asked for an inner copper layer not present in the board.  There is no right
             // answer here, so fall back on the front shape
+            wxFAIL_MSG( "Asked for inner padstack layer not present on the board" );
+
             return ALL_LAYERS;
         }
 
@@ -1036,11 +1040,13 @@ const PADSTACK::COPPER_LAYER_PROPS& PADSTACK::CopperLayer( PCB_LAYER_ID aLayer )
 {
     PCB_LAYER_ID layer = EffectiveLayerFor( aLayer );
 
-    wxCHECK_MSG( m_copperProps.contains( layer ), m_copperProps.at( ALL_LAYERS ),
+    auto it = m_copperProps.find( layer );
+
+    wxCHECK_MSG( it != m_copperProps.end(), m_copperProps.at( ALL_LAYERS ),
         "Attempt to retrieve layer " + std::string( magic_enum::enum_name( layer ) ) + " from a "
         "padstack that does not contain it" );
 
-    return m_copperProps.at( layer );
+    return it->second;
 }
 
 

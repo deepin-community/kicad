@@ -25,6 +25,9 @@
 #include <confirm.h>
 
 #include <git2.h>
+#include <git/kicad_git_memory.h>
+#include <git/kicad_git_common.h>
+#include <git/git_repo_mixin.h>
 #include <gestfich.h>
 
 #include <cerrno>
@@ -42,9 +45,6 @@ DIALOG_GIT_REPOSITORY::DIALOG_GIT_REPOSITORY( wxWindow* aParent, git_repository*
         DIALOG_GIT_REPOSITORY_BASE( aParent ),
         m_repository( aRepository ),
         m_prevFile( wxEmptyString ),
-        m_tested( 0 ),
-        m_failedTest( false ),
-        m_testError( wxEmptyString ),
         m_tempRepo( false )
 {
     m_txtURL->SetFocus();
@@ -68,12 +68,17 @@ DIALOG_GIT_REPOSITORY::DIALOG_GIT_REPOSITORY( wxWindow* aParent, git_repository*
 
     if( !m_txtURL->GetValue().IsEmpty() )
         updateURLData();
+    else
+        m_ConnType->SetSelection( static_cast<int>( KIGIT_COMMON::GIT_CONN_TYPE::GIT_CONN_LOCAL ) );
 
-    SetupStandardButtons();
-    updateAuthControls();
 
+    SetupStandardButtons( { { wxID_HELP, _( "Test Connection" ) } } );
     Layout();
+    finishDialogSettings();
+
+    updateAuthControls();
 }
+
 
 DIALOG_GIT_REPOSITORY::~DIALOG_GIT_REPOSITORY()
 {
@@ -140,6 +145,13 @@ void DIALOG_GIT_REPOSITORY::setDefaultSSHKey()
 }
 
 
+void DIALOG_GIT_REPOSITORY::onCbCustom( wxCommandEvent& event )
+{
+    updateAuthControls();
+    event.Skip();
+}
+
+
 void DIALOG_GIT_REPOSITORY::OnUpdateUI( wxUpdateUIEvent& event )
 {
     // event.Enable( !m_txtName->GetValue().IsEmpty() && !m_txtURL->GetValue().IsEmpty() );
@@ -160,6 +172,7 @@ void DIALOG_GIT_REPOSITORY::SetEncrypted( bool aEncrypted )
         m_txtPassword->Disable();
     }
 }
+
 
 std::tuple<bool,wxString,wxString,wxString> DIALOG_GIT_REPOSITORY::isValidHTTPS( const wxString& url )
 {
@@ -228,6 +241,7 @@ void DIALOG_GIT_REPOSITORY::updateURLData()
 
         if( valid )
         {
+            m_fullURL = url;
             m_ConnType->SetSelection( static_cast<int>( KIGIT_COMMON::GIT_CONN_TYPE::GIT_CONN_HTTPS ) );
             SetUsername( username );
             SetPassword( password );
@@ -235,7 +249,6 @@ void DIALOG_GIT_REPOSITORY::updateURLData()
 
             if( m_txtName->GetValue().IsEmpty() )
                 m_txtName->SetValue( get_repo_name( repoAddress ) );
-
         }
     }
     else if( url.Contains( "ssh://" ) || url.Contains( "git@" ) )
@@ -244,6 +257,7 @@ void DIALOG_GIT_REPOSITORY::updateURLData()
 
         if( valid )
         {
+            m_fullURL = url;
             m_ConnType->SetSelection( static_cast<int>( KIGIT_COMMON::GIT_CONN_TYPE::GIT_CONN_SSH ) );
             m_txtUsername->SetValue( username );
             m_txtURL->SetValue( repoAddress );
@@ -259,6 +273,11 @@ void DIALOG_GIT_REPOSITORY::updateURLData()
 
 void DIALOG_GIT_REPOSITORY::OnTestClick( wxCommandEvent& event )
 {
+    if( m_txtURL->GetValue().Trim().Trim( false ).IsEmpty() )
+        return;
+
+    wxString error;
+    bool success = false;
     git_remote* remote = nullptr;
     git_remote_callbacks callbacks;
     git_remote_init_callbacks( &callbacks, GIT_REMOTE_CALLBACKS_VERSION );
@@ -266,81 +285,40 @@ void DIALOG_GIT_REPOSITORY::OnTestClick( wxCommandEvent& event )
     // We track if we have already tried to connect.
     // If we have, the server may come back to offer another connection
     // type, so we need to keep track of how many times we have tried.
-    m_tested = 0;
 
-    callbacks.credentials = []( git_cred** aOut, const char* aUrl, const char* aUsername,
-                                unsigned int aAllowedTypes, void* aPayload ) -> int
-    {
-        DIALOG_GIT_REPOSITORY* dialog = static_cast<DIALOG_GIT_REPOSITORY*>( aPayload );
-
-        if( dialog->GetRepoType() == KIGIT_COMMON::GIT_CONN_TYPE::GIT_CONN_LOCAL )
-            return GIT_PASSTHROUGH;
-
-        if( aAllowedTypes & GIT_CREDTYPE_USERNAME
-            && !( dialog->GetTested() & GIT_CREDTYPE_USERNAME ) )
-        {
-            wxString username = dialog->GetUsername().Trim().Trim( false );
-            git_cred_username_new( aOut, username.ToStdString().c_str() );
-            dialog->GetTested() |= GIT_CREDTYPE_USERNAME;
-        }
-        else if( dialog->GetRepoType() == KIGIT_COMMON::GIT_CONN_TYPE::GIT_CONN_HTTPS
-                 && ( aAllowedTypes & GIT_CREDTYPE_USERPASS_PLAINTEXT )
-                 && !( dialog->GetTested() & GIT_CREDTYPE_USERPASS_PLAINTEXT ) )
-        {
-            wxString username = dialog->GetUsername().Trim().Trim( false );
-            wxString password = dialog->GetPassword().Trim().Trim( false );
-
-            git_cred_userpass_plaintext_new( aOut, username.ToStdString().c_str(),
-                                             password.ToStdString().c_str() );
-            dialog->GetTested() |= GIT_CREDTYPE_USERPASS_PLAINTEXT;
-        }
-        else if( dialog->GetRepoType() == KIGIT_COMMON::GIT_CONN_TYPE::GIT_CONN_SSH
-                 && ( aAllowedTypes & GIT_CREDTYPE_SSH_KEY )
-                 && !( dialog->GetTested() & GIT_CREDTYPE_SSH_KEY ) )
-        {
-            // SSH key authentication
-            wxString sshKey = dialog->GetRepoSSHPath();
-            wxString sshPubKey = sshKey + ".pub";
-            wxString username = dialog->GetUsername().Trim().Trim( false );
-            wxString password = dialog->GetPassword().Trim().Trim( false );
-
-            git_cred_ssh_key_new( aOut, username.ToStdString().c_str(),
-                                  sshPubKey.ToStdString().c_str(), sshKey.ToStdString().c_str(),
-                                  password.ToStdString().c_str() );
-            dialog->GetTested() |= GIT_CREDTYPE_SSH_KEY;
-        }
-        else
-        {
-            return GIT_PASSTHROUGH;
-        }
-
-        return GIT_OK;
-    };
-
-    callbacks.payload = this;
+    KIGIT_COMMON common( m_repository );
+    common.SetRemote( m_txtURL->GetValue() );
+    callbacks.credentials = credentials_cb;
+    common.SetPassword( m_txtPassword->GetValue() );
+    common.SetUsername( m_txtUsername->GetValue() );
+    common.SetSSHKey( m_fpSSHKey->GetFileName().GetFullPath() );
+    KIGIT_REPO_MIXIN repoMixin( &common );
+    callbacks.payload = &repoMixin;
 
     wxString txtURL = m_txtURL->GetValue();
-    git_remote_create_with_fetchspec( &remote, m_repository, "origin", txtURL.ToStdString().c_str(),
+    git_remote_create_with_fetchspec( &remote, m_repository, "origin", txtURL.mbc_str(),
                                       "+refs/heads/*:refs/remotes/origin/*" );
+    KIGIT::GitRemotePtr remotePtr( remote );
 
-    if( git_remote_connect( remote, GIT_DIRECTION_FETCH, &callbacks, nullptr, nullptr ) != GIT_OK )
-        SetTestResult( true, git_error_last()->message );
+    if( git_remote_connect( remote, GIT_DIRECTION_FETCH, &callbacks, nullptr, nullptr ) == GIT_OK )
+        success = true;
     else
-        SetTestResult( false, wxEmptyString );
+        error = KIGIT_COMMON::GetLastGitError();
 
     git_remote_disconnect( remote );
-    git_remote_free( remote );
 
-    auto dlg = wxMessageDialog( this, wxEmptyString, _( "Test connection" ), wxOK | wxICON_INFORMATION );
+    auto dlg = wxMessageDialog( this, wxEmptyString, _( "Test Connection" ),
+                                wxOK | wxICON_INFORMATION );
 
-    if( !m_failedTest )
+    if( success )
     {
         dlg.SetMessage( _( "Connection successful" ) );
     }
     else
     {
-        dlg.SetMessage( wxString::Format( _( "Could not connect to '%s' " ), m_txtURL->GetValue() ) );
-        dlg.SetExtendedMessage( m_testError );
+        dlg.SetMessage( wxString::Format( _( "Could not connect to '%s' " ),
+                                          m_txtURL->GetValue() ) );
+        dlg.SetExtendedMessage( error );
     }
 
     dlg.ShowModal();
@@ -413,13 +391,6 @@ void DIALOG_GIT_REPOSITORY::OnOKClick( wxCommandEvent& event )
 {
     // Save the repository details
 
-    if( m_txtName->GetValue().IsEmpty() )
-    {
-        DisplayErrorMessage( this, _( "Missing information" ),
-                             _( "Please enter a name for the repository" ) );
-        return;
-    }
-
     if( m_txtURL->GetValue().IsEmpty() )
     {
         DisplayErrorMessage( this, _( "Missing information" ),
@@ -435,28 +406,29 @@ void DIALOG_GIT_REPOSITORY::updateAuthControls()
 {
     if( m_ConnType->GetSelection() == static_cast<int>( KIGIT_COMMON::GIT_CONN_TYPE::GIT_CONN_LOCAL ) )
     {
-        m_panelAuth->Show( false );
+        m_panelAuth->Enable( false );
     }
     else
     {
-        m_panelAuth->Show( true );
+        m_panelAuth->Enable( true );
 
         if( m_ConnType->GetSelection() == static_cast<int>( KIGIT_COMMON::GIT_CONN_TYPE::GIT_CONN_SSH ) )
         {
-            m_fpSSHKey->Show( true );
-            m_labelSSH->Show( true );
-            m_labelPass1->SetLabel( _( "SSH Key Password" ) );
+            m_cbCustom->Enable( true );
+            m_fpSSHKey->Enable( m_cbCustom->IsChecked() );
+            m_txtUsername->Enable( m_cbCustom->IsChecked() );
+            m_txtPassword->Enable( m_cbCustom->IsChecked() );
+            m_labelPass1->SetLabel( _( "SSH key password:" ) );
         }
         else
         {
-            m_fpSSHKey->Show( false );
-            m_labelSSH->Show( false );
-            m_labelPass1->SetLabel( _( "Password" ) );
-            setDefaultSSHKey();
+            m_cbCustom->Enable( false );
+            m_fpSSHKey->Enable( false );
+            m_txtUsername->Enable( true );
+            m_txtPassword->Enable( true );
+            m_labelPass1->SetLabel( _( "Password:" ) );
         }
     }
-
-    Layout();
 }
 
 

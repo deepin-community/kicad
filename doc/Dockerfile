@@ -1,11 +1,14 @@
 FROM registry.gitlab.com/kicad/kicad-ci/doc_containers:latest AS doc-build-env
 
+ARG DOC_COMMIT="commit-default"
+ENV DOC_COMMIT="${DOC_COMMIT}"
+
 WORKDIR /src
 COPY . .
 
 RUN mkdir -p build
 WORKDIR /src/build
-RUN cmake -DBUILD_FORMATS="html;pdf" ../
+RUN cmake -DBUILD_FORMATS="html;pdf" -DDOC_COMMIT=${DOC_COMMIT} ../
 RUN make
 RUN cpack
 

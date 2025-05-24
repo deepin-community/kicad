@@ -245,8 +245,9 @@ You can only use the properties dialog to edit one item at a time. To edit
 multiple items, use the Properties Manager, described below. There are also
 other tools that can be used to edit specific types of objects in bulk, such as
 the <<eeschema-edit-text-and-graphics-properties,Edit Text and Graphics tool>>
-for editing text, labels, and graphic shapes, or the
-<<symbol-fields-table,Symbol Fields Table>> for editing symbol fields in bulk.
+for editing visual properties of text, symbol fields, labels, and graphic
+shapes, or the <<symbol-fields-table,Symbol Fields Table>> for editing symbol
+fields in bulk.
 
 You can also view and edit item properties using the Properties Manager. The
 Properties Manager is a docked panel that displays the properties of the
@@ -384,6 +385,8 @@ To edit the properties of a symbol in the schematic, open its properties dialog
 
 image::images/en/dialog_component_properties.png[alt="Symbol Properties dialog",scaledwidth="70%"]
 
+// TODO: update with summary of tabs, including alternate pin functions and embedded files. See footprint properties description.
+
 The Symbol Properties window displays all the fields of a symbol in a table. New
 fields can be added, and existing fields can be deleted, edited, reordered,
 moved, or resized. Fields can be arbitrarily named, but names beginning with
@@ -402,28 +405,50 @@ NOTE: Formatting options for symbol fields can be shown or hidden by
       right-clicking on the header row of the symbol field table and enabling or
       disabling the desired columns. Not all columns are shown by default.
 
+Several fields have special behavior:
+
+* The **Footprint** field defines which footprint will correspond to the symbol
+  in the board design. When the footprint field is selected, you can click the
+  image:images/icons/small_library_16.png[] button to open the
+  <<assigning-footprints-in-symbol-properties,footprint chooser>> to assign a
+  footprint to the symbol. See the <<assigning-footprints,Assigning Footprints>>
+  section for other ways to assign footprints.
+* The **Datasheet** field can contain the manufacturer's datasheet for the
+  symbol. You can right click a symbol in the editing canvas and choose
+  **Show Datasheet** (kbd:[D]) to open the datasheet listed in the symbol. A
+  symbol's datasheet can be a local file or a file at a remote URL, like the
+  manufacturer's website. You can choose a local file using a file browser by
+  selecting the datasheet field in the symbol's properties, then clicking the
+  image:images/icons/www_16.png[] button. If you enable the **Embed File**
+  checkbox in the file browser, the datasheet will be embedded in the schematic
+  instead of being referenced as an an external file. This means the datasheet
+  will be available on any computer. For more information, see the
+  <<sch-embedding-files,embedded files documentation>>.
+
 Symbols have several attributes that affect how the symbols are treated by other
 parts of KiCad.
 
-**Exclude from simulation** prevents the symbol from being included in SPICE
-simulations. Symbols that are excluded from simulation appear desaturated and
-with a grey "X" over them in the schematic. The color of the "X" is configurable
-by editing the "Excluded-from-simulation Markers" color in the selected
-colorscheme. The visual marker (the "X" and the desaturation) can be disabled
-completely by unchecking **Mark items which are excluded from simulation** in
-the Schematic Editor preferences.
+* **Exclude from simulation** prevents the symbol from being included in SPICE
+  simulations. Symbols that are excluded from simulation are drawn with a grey
+  outline around them and a simulation waveform icon to their bottom right, as
+  shown below. The color of the outline and icon is configurable
+  by editing the "Excluded-from-simulation Markers" color in the selected
+  colorscheme. The visual marker (the outline and the icon) can be disabled
+  completely by disabling **View** -> **Mark items which are excluded from simulation**.
 
-**Exclude from bill of materials** prevents the component from being included in
-<<bom-export,BOM exports>>.
+image::images/exclude_from_sim_symbol.png[alt="Symbol with Exclude From Simulation property set"]
 
-**Exclude from board** means that the symbol is schematic-only, and a
-corresponding footprint will not be added to the PCB.
+* **Exclude from bill of materials** prevents the component from being included in
+  <<bom-export,BOM exports>>.
 
-**Do not populate** means that the component should not be attached to the PCB,
-although a corresponding footprint should still be added to the board. DNP
-symbols appear desaturated and with a red "X" over them in the schematic, as
-shown below. The color of the "X" is configurable by editing the "DNP Markers"
-color in the selected colorscheme.
+* **Exclude from board** means that the symbol is schematic-only, and a
+  corresponding footprint will not be added to the PCB.
+
+* **Do not populate** means that the component should not be attached to the PCB,
+  although a corresponding footprint should still be added to the board. DNP
+  symbols appear desaturated and with a red "X" over them in the schematic, as
+  shown below. The color of the "X" is configurable by editing the "DNP Markers"
+  color in the selected colorscheme.
 
 image::images/dnp_symbol.png[alt="Symbol with DNP property set",scaledwidth="30%"]
 
@@ -453,6 +478,10 @@ copy of the symbol to match the copy in the library. The **Change Symbol...**
 button is used to swap the current symbol to a different
 symbol in the library. These functions are described
 <<updating-and-exchanging-symbols,later>>.
+
+The **Simulation Model...** button opens the
+<<simulation-model-editor,Simulation Model Editor>> for specifying the symbol's
+behavior in <<simulator,SPICE simulations>>.
 
 ===== Editing symbol fields individually
 
@@ -1449,7 +1478,12 @@ Each net class can have unique graphic properties that determine how wires of
 that net class are displayed in the schematic. Wire and bus thicknesses, color,
 and line style (solid, dashed, dotted, etc.) can all be adjusted. Setting the
 color to transparent will use the theme's default wire/bus color for the
-net class, which is configurable in <<preferences-colors,Preferences>>.
+net class, which is configurable in <<preferences-colors,Preferences>>. By
+default any color that is configured for a net class controls the color is used
+to draw wires in that net class. If the **Highlight netclass colors** setting is
+enabled in the Display Options section of the Schematic Editor preferences, this
+color will instead be used to draw a highlight around wires in that netclass,
+and the wires themselves will always be drawn with the color scheme's wire color.
 
 You can also set board design rules for each net class, although the DRC fields
 are hidden by default. Right click the header row to show or hide additional
@@ -1466,8 +1500,12 @@ properties, any missing values will be taken from the `Default` net class.
 
 The bottom pane lists pattern-based net class assignments. Each row has a net
 name pattern and a net class; nets with names that match the pattern are assigned
-to the specified net class. If a net matches multiple patterns, the first match
-is used. Pattern-based net class assignments are dynamic: when a new net is added
+to the specified net class. If a net matches multiple patterns, the net is
+assigned to all of the matching net classes. You can sort the list of net class
+assignment patterns by pattern or by net class name by clicking on the
+corresponding column header.
+
+Pattern-based net class assignments are dynamic: when a new net is added
 that matches an existing pattern, it will be assigned to the associated net class
 automatically. Net patterns can use both wildcards (`*` to match any number of
 any characters, including none, and `?` to match any character) and
@@ -1775,17 +1813,37 @@ kbd:[/] hotkey switches line posture.
 [[bitmap-images]]
 ==== Bitmap Images
 
-Bitmap images can be added to the schematic with the
-image:images/icons/image_24.png[Add bitmap image icon] button. Images in the
-schematic can be moved and scaled. The properties dialog allows setting a
-location and scale as well as converting the image to greyscale.
+KiCad supports inserting images into the schematic. These are purely for
+reference during the design process and play no electrical role.
+
+To add a reference image, use the image:images/icons/image_24.png[] button on
+the right toolbar and select the desired reference image file. Click in the
+canvas to place the image.
+
+Once the image has been added to the canvas, you can reposition it using the
+move tool (kbd:[M]) or by dragging it in the canvas. You can scale it by
+dragging the editing handles at the corners of the image. The image is scaled
+around its reference point; in other words, the reference point is the point in
+the image that always stays in the same position in the canvas, no matter how
+the image is scaled. The reference point is shown as a fifth editing handle.
+Initially it is at the center of the image, but you can reposition the reference
+point by dragging it in the canvas.
+
+image::images/image_properties.png[]
+
+You can also reposition or scale the image in its properties dialog (kbd:[E]).
+You can set the image's exact **Position X** and **Y** in the **General** tab,
+and set an exact **Scale** factor in the **Image** tab. You can also
+**Convert to Greyscale** if you wish. Position and scale in this dialog are
+relative to the center of the image, not its interactive reference point.
 
 [[eeschema-edit-text-and-graphics-properties]]
 ==== Bulk editing text and graphics
 
-Properties of text and graphics can be edited in bulk using the *Edit Text and
-Graphic Properties* dialog (**Tools** -> **Edit Text and Graphic
-Properties...**). The tool can also modify visual properties of wires and buses.
+Properties of text and graphics, including symbol fields, can be edited in bulk
+using the *Edit Text and Graphic Properties* dialog
+(**Edit** -> **Edit Text and Graphic Properties...**). The tool can also modify
+visual properties of wires and buses.
 
 image::images/eeschema_edit_text_and_graphics_properties.png[scaledwidth="70%"]
 
@@ -1838,8 +1896,9 @@ Graphic and wire properties that can be modified are *line width*, *line style*
 [[sheet-title-block]]
 ==== Sheet title block
 
-The title block is edited with the Page Settings tool
-(image:images/icons/sheetset_24.png[Page Settings tool]).
+The drawing sheet's title block is edited with the Page Settings tool
+(image:images/icons/sheetset_24.png[Page Settings tool]). You can also open this
+tool by double clicking anywhere on any part of the drawing sheet.
 
 image::images/en/page_settings.png[alt="Page settings dialog",scaledwidth="80%"]
 
@@ -1849,10 +1908,17 @@ that field will be updated in the title block of all sheets, rather than only
 the current sheet.
 
 You can set the date to today's or any other date by pressing the left arrow
-button next to **Issue Date**. Note that the date in the schematic will not be
-automatically updated.
+button next to **Issue Date**. Note that the date listed in the schematic title
+block is not automatically updated. It is only updated when changed in this
+dialog.
 
-A drawing sheet template file can also be selected.
+A drawing sheet file can also be selected to replace the default drawing sheet.
+When choosing a drawing sheet, you can enable the **Embed File** checkbox in the
+file browser to embed the drawing sheet in the schematic instead of referencing
+an external file. This means the schematic will appear the same when it is
+opened on another computer that does not have the drawing sheet file available
+at the same external file path. For more information, see the
+<<sch-embedding-files,embedded files documentation>>.
 
 image::images/en/title_block.png[alt="Title block",scaledwidth="80%"]
 
@@ -2084,33 +2150,58 @@ External files can be embedded within a schematic. Embedding a file stores a
 copy of the file inside the schematic file. The design can then refer to the
 embedded copy of the file instead of the external file, which makes the project
 more portable as it doesn't rely on an external file. Fonts, datasheets, drawing
-sheets, and 3D models can be embedded and used within KiCad. Other arbitrary
-files can also be embedded to store them in the project for later export, but
-they are not used by any KiCad functionality.
+sheets, SPICE models, and footprint 3D models can be embedded and used within
+KiCad. Other arbitrary files can also be embedded to store them in the project
+for later export, but they are not used by any KiCad functionality. Files
+embedded in a schematic necessarily increase the schematic's file size, although
+files are compressed before being embedded to minimize the space required.
 
 image::images/embedded_files.png[]
 
-Embedded files are managed in the Embedded Files section of Schematic Setup. To
+Embedded files are managed in the Embedded Files section of Schematic Setup. All
+files embedded in a schematic are shown here. To
 embed a file inside a schematic, click the
 image:images/icons/small_folder_16.png[] button and select the file. The file is
 then embedded inside the schematic and is listed in the embedded files list
-along with its internal reference. The internal reference is a unique identifier
+along with its __embedded reference__. The embedded reference is a unique identifier
 for the embedded file that begins with `kicad-embed://`. You can use the
-internal reference elsewhere in the Schematic Editor to refer to the embedded
-file as if it were an external file path. You can copy the internal reference by
+embedded reference elsewhere in the Schematic Editor to refer to the embedded
+file as if it were an external file path. You can copy the embedded reference by
 right clicking and selecting **Copy Embedded Reference**. To remove an embedded
 file, click the image:images/icons/small_trash_16.png[] button. Any remaining
 links to the removed file will become invalid.
+
+NOTE: Datasheets, SPICE models, and drawing sheets can be embedded directly
+      using the file browser when you add them to a symbol
+      (<<editing-symbol-properties,datasheets>> and <<sim-library,SPICE models>>)
+      or to a schematic (<<sheet-title-block,drawing sheets>>) by enabling the
+      **Embed Files** option in the file browser. This is a single-step shortcut
+      for adding the files in Schematic Setup and then referring to them by
+      their embedded reference; the result is the same.
 
 To embed any fonts used in a schematic, check the **Embed fonts** checkbox. All
 fonts used in the schematic will be embedded, so text using that font can be
 edited on any computer regardless of whether the font file is installed.
 
+You can also <<sym-embedding-files,embed files in a library symbol>>.
+Such files will be available within the symbol, but not within the larger
+schematic or in other symbols. Files embedded in a symbol are deduplicated
+when the symbol is added to a schematic: if a file is embedded in a symbol, and
+multiple instances of that symbol are added to the schematic, only one copy of
+the file will be embedded, and all of the symbol instances will refer to the
+same embedded file.
+
 As an example, to embed a datasheet in a project and use it within several
 symbols, you could embed the datasheet using the schematic setup dialog, copy
 the internal reference, and paste the internal reference into the datasheet
 field of each symbol that uses that datasheet. Each symbol would then have a
-portable reference to the embedded datasheet.
+portable reference to the embedded datasheet. Alternatively, you could embed the
+datasheet within the library symbol. In this case, each symbol will already have
+the datasheet embedded when the symbol is added to a schematic. A more
+convenient way to achieve the same thing, however, is to open the symbol's
+properties dialog, browse for a datasheet file, and enable the **Embed File**
+option in the file browser. Again, this could be done for a symbol in the
+schematic or for a symbol in the source symbol library.
 
 Files can also be embedded in xref:../pcbnew/pcbnew.adoc#pcb-embedding-files[boards].
 

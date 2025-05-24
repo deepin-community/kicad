@@ -84,6 +84,8 @@ int SCH_TEXTBOX::GetLegacyTextMargin() const
 
 void SCH_TEXTBOX::MirrorHorizontally( int aCenter )
 {
+    SCH_SHAPE::MirrorHorizontally( aCenter );
+
     // Text is NOT really mirrored; it just has its justification flipped
     if( GetTextAngle() == ANGLE_HORIZONTAL )
     {
@@ -97,6 +99,8 @@ void SCH_TEXTBOX::MirrorHorizontally( int aCenter )
 
 void SCH_TEXTBOX::MirrorVertically( int aCenter )
 {
+    SCH_SHAPE::MirrorVertically( aCenter );
+
     // Text is NOT really mirrored; it just has its justification flipped
     if( GetTextAngle() == ANGLE_VERTICAL )
     {
@@ -407,13 +411,26 @@ bool SCH_TEXTBOX::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) 
 }
 
 
+bool SCH_TEXTBOX::IsHypertext() const
+{
+    if( HasHyperlink() )
+        return true;
+
+    return IsURL( GetShownText( false ) );
+}
+
+
 void SCH_TEXTBOX::DoHypertextAction( EDA_DRAW_FRAME* aFrame ) const
 {
     wxCHECK_MSG( IsHypertext(), /* void */,
                  wxT( "Calling a hypertext menu on a SCH_TEXTBOX with no hyperlink?" ) );
 
     SCH_NAVIGATE_TOOL* navTool = aFrame->GetToolManager()->GetTool<SCH_NAVIGATE_TOOL>();
-    navTool->HypertextCommand( m_hyperlink );
+
+    if( HasHyperlink() )
+        navTool->HypertextCommand( m_hyperlink );
+    else
+        navTool->HypertextCommand( GetShownText( false ) );
 }
 
 
@@ -445,27 +462,6 @@ void SCH_TEXTBOX::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS
     int                  penWidth = GetEffectivePenWidth( renderSettings );
     COLOR4D              color = GetStroke().GetColor();
     COLOR4D              bg = renderSettings->GetBackgroundColor();
-    LINE_STYLE           lineStyle = GetStroke().GetLineStyle();
-
-    if( penWidth > 0 )
-    {
-        if( !aPlotter->GetColorMode() || color == COLOR4D::UNSPECIFIED )
-            color = renderSettings->GetLayerColor( m_layer );
-
-        if( aDimmed )
-        {
-            color.Desaturate( );
-            color = color.Mix( bg, 0.5f );
-        }
-
-        if( lineStyle == LINE_STYLE::DEFAULT )
-            lineStyle = LINE_STYLE::SOLID;
-
-        aPlotter->SetColor( color );
-        aPlotter->SetDash( penWidth, lineStyle );
-        aPlotter->Rect( m_start, m_end, FILL_T::NO_FILL, penWidth );
-        aPlotter->SetDash( penWidth, LINE_STYLE::SOLID );
-    }
 
     KIFONT::FONT* font = getDrawFont();
 
@@ -682,7 +678,6 @@ static struct SCH_TEXTBOX_DESC
 
         propMgr.Mask( TYPE_HASH( SCH_TEXTBOX ), TYPE_HASH( EDA_SHAPE ), _HKI( "Shape" ) );
 
-        propMgr.Mask( TYPE_HASH( SCH_TEXTBOX ), TYPE_HASH( EDA_TEXT ), _HKI( "Visible" ) );
         propMgr.Mask( TYPE_HASH( SCH_TEXTBOX ), TYPE_HASH( EDA_TEXT ), _HKI( "Width" ) );
         propMgr.Mask( TYPE_HASH( SCH_TEXTBOX ), TYPE_HASH( EDA_TEXT ), _HKI( "Height" ) );
         propMgr.Mask( TYPE_HASH( SCH_TEXTBOX ), TYPE_HASH( EDA_TEXT ), _HKI( "Thickness" ) );

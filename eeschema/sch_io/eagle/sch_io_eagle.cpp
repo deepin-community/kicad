@@ -1674,13 +1674,13 @@ SCH_IO_EAGLE::findNearestLinePoint( const VECTOR2I&         aPoint,
     VECTOR2I   nearestPoint;
     const SEG* nearestLine = nullptr;
 
-    float d, mindistance = std::numeric_limits<float>::max();
+    double d, mindistance = std::numeric_limits<double>::max();
 
     // Find the nearest start, middle or end of a line from the list of lines.
     for( const SEG& line : aLines )
     {
         VECTOR2I testpoint = line.A;
-        d = sqrt( abs( ( ( aPoint.x - testpoint.x ) ^ 2 ) + ( ( aPoint.y - testpoint.y ) ^ 2 ) ) );
+        d = aPoint.Distance( testpoint );
 
         if( d < mindistance )
         {
@@ -1690,7 +1690,7 @@ SCH_IO_EAGLE::findNearestLinePoint( const VECTOR2I&         aPoint,
         }
 
         testpoint = line.Center();
-        d = sqrt( abs( ( ( aPoint.x - testpoint.x ) ^ 2 ) + ( ( aPoint.y - testpoint.y ) ^ 2 ) ) );
+        d = aPoint.Distance( testpoint );
 
         if( d < mindistance )
         {
@@ -1700,7 +1700,7 @@ SCH_IO_EAGLE::findNearestLinePoint( const VECTOR2I&         aPoint,
         }
 
         testpoint = line.B;
-        d = sqrt( abs( ( ( aPoint.x - testpoint.x ) ^ 2 ) + ( ( aPoint.y - testpoint.y ) ^ 2 ) ) );
+        d = aPoint.Distance( testpoint );
 
         if( d < mindistance )
         {
@@ -2349,7 +2349,7 @@ SCH_ITEM* SCH_IO_EAGLE::loadSymbolWire( std::unique_ptr<LIB_SYMBOL>& aSymbol,
     if( aWire->curve )
     {
         SCH_SHAPE* arc = new SCH_SHAPE( SHAPE_T::ARC, LAYER_DEVICE );
-        VECTOR2I   center = ConvertArcCenter( begin, end, *aWire->curve * -1 );
+        VECTOR2I   center = ConvertArcCenter( begin, end, *aWire->curve );
         double     radius = sqrt( ( ( center.x - begin.x ) * ( center.x - begin.x ) ) +
                                   ( ( center.y - begin.y ) * ( center.y - begin.y ) ) );
 
@@ -2372,7 +2372,9 @@ SCH_ITEM* SCH_IO_EAGLE::loadSymbolWire( std::unique_ptr<LIB_SYMBOL>& aSymbol,
 
         arc->SetCenter( center );
         arc->SetStart( begin );
-        arc->SetArcAngleAndEnd( EDA_ANGLE( *aWire->curve * -1, DEGREES_T ), true );
+
+        // KiCad rotates the other way.
+        arc->SetArcAngleAndEnd( -EDA_ANGLE( *aWire->curve, DEGREES_T ), true );
         arc->SetUnit( aGateNumber );
 
         return arc;

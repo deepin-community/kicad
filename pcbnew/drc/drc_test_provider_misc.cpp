@@ -168,7 +168,7 @@ void DRC_TEST_PROVIDER_MISC::testDisabledLayers()
                 return true;
             };
 
-    LSET disabledLayers = m_board->GetEnabledLayers().flip();
+    LSET disabledLayers = LSET( m_board->GetEnabledLayers() ).flip();
 
     // Perform the test only for copper layers
     disabledLayers &= LSET::AllCuMask();
@@ -296,8 +296,7 @@ void DRC_TEST_PROVIDER_MISC::testTextVars()
 
     static const std::vector<KICAD_T> itemTypes = {
         PCB_FIELD_T,
-        PCB_TEXT_T,
-        PCB_TEXTBOX_T,
+        PCB_TEXT_T, PCB_TEXTBOX_T, PCB_TABLECELL_T,
         PCB_DIMENSION_T
     };
 

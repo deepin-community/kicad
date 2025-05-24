@@ -68,6 +68,8 @@ struct RULE_AREA_COMPAT_DATA
     bool                      m_doCopy = false;
     wxString                  m_errorMsg;
     TMATCH::COMPONENT_MATCHES m_matchingComponents;
+    std::unordered_set<BOARD_ITEM*> m_affectedItems;
+    std::unordered_set<BOARD_ITEM*> m_groupableItems;
 };
 
 struct RULE_AREA
@@ -143,8 +145,8 @@ private:
                                       std::shared_ptr<CONNECTIVITY_DATA> aConnectivity,
                                       const SHAPE_POLY_SET& aRAPoly, RULE_AREA* aRA, FOOTPRINT* aFp,
                                       const REPEAT_LAYOUT_OPTIONS& aOpts ) const;
-    void       fixupZoneNets( ZONE* aRefZone, ZONE* aTargetZone,
-                              TMATCH::COMPONENT_MATCHES& aComponentMatches );
+    void       fixupNet( BOARD_CONNECTED_ITEM* aRef, BOARD_CONNECTED_ITEM* aTarget,
+                         TMATCH::COMPONENT_MATCHES& aComponentMatches );
 
     bool pruneExistingGroups( COMMIT& aCommit, const std::unordered_set<BOARD_ITEM*>& aItemsToCheck );
 

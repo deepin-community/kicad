@@ -30,7 +30,6 @@
 #include <gal/graphics_abstraction_layer.h>
 #include <kiplatform/ui.h>
 #include <pcb_base_frame.h>
-#include <pcbnew_settings.h>
 #include <preview_items/ruler_item.h>
 #include <pgm_base.h>
 #include <settings/settings_manager.h>
@@ -51,14 +50,17 @@ bool PCB_VIEWER_TOOLS::Init()
     CONDITIONAL_MENU& ctxMenu = m_menu->GetMenu();
 
     // "Cancel" goes at the top of the context menu when a tool is active
-    ctxMenu.AddItem( ACTIONS::cancelInteractive, activeToolCondition, 1 );
-    ctxMenu.AddSeparator( 1 );
+    if( !m_isDefaultTool )
+    {
+        ctxMenu.AddItem( ACTIONS::cancelInteractive,     activeToolCondition, 1 );
+        ctxMenu.AddSeparator( 1 );
+    }
 
-    ctxMenu.AddCheckItem( PCB_ACTIONS::toggleHV45Mode, activeToolCondition, 2 );
-    ctxMenu.AddSeparator(                              activeToolCondition, 2 );
+    ctxMenu.AddCheckItem( PCB_ACTIONS::toggleHV45Mode,   activeToolCondition, 2 );
+    ctxMenu.AddSeparator(                                activeToolCondition, 2 );
 
-    ctxMenu.AddItem( ACTIONS::copy,     activeToolCondition, 3 );
-    ctxMenu.AddSeparator(               activeToolCondition, 3 );
+    ctxMenu.AddItem( ACTIONS::copy,                      activeToolCondition, 3 );
+    ctxMenu.AddSeparator(                                activeToolCondition, 3 );
 
     frame()->AddStandardSubMenus( *m_menu.get() );
 
@@ -100,6 +102,23 @@ int PCB_VIEWER_TOOLS::Show3DViewer( const TOOL_EVENT& aEvent )
 template<class T> void Flip( T& aValue )
 {
     aValue = !aValue;
+}
+
+
+int PCB_VIEWER_TOOLS::ToggleHV45Mode( const TOOL_EVENT& toolEvent )
+{
+    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+
+    if( frame()->IsType( FRAME_PCB_EDITOR ) )
+        Flip( mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" )->m_Use45DegreeLimit );
+    else if( frame()->IsType( FRAME_FOOTPRINT_EDITOR ) )
+        Flip( mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" )->m_Use45Limit );
+    else
+        Flip( frame()->GetViewerSettingsBase()->m_ViewersDisplay.m_Use45Limit );
+
+    frame()->UpdateStatusBar();
+
+    return 0;
 }
 
 
@@ -275,6 +294,11 @@ int PCB_VIEWER_TOOLS::MeasureTool( const TOOL_EVENT& aEvent )
             {
                 cleanup();
             }
+            else if( m_isDefaultTool )
+            {
+                view.SetVisible( &ruler, false );
+                view.Remove( &ruler );
+            }
             else
             {
                 frame()->PopTool( aEvent );
@@ -324,8 +348,10 @@ int PCB_VIEWER_TOOLS::MeasureTool( const TOOL_EVENT& aEvent )
 
             if( frame()->IsType( FRAME_PCB_EDITOR ) )
                 force45Deg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" )->m_Use45DegreeLimit;
-            else
+            else if( frame()->IsType( FRAME_FOOTPRINT_EDITOR ) )
                 force45Deg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" )->m_Use45Limit;
+            else
+                force45Deg = frame()->GetViewerSettingsBase()->m_ViewersDisplay.m_Use45Limit;
 
             twoPtMgr.SetAngleSnap( force45Deg );
             twoPtMgr.SetEnd( cursorPos );
@@ -401,6 +427,8 @@ void PCB_VIEWER_TOOLS::setTransitions()
 {
     // clang-format off
     Go( &PCB_VIEWER_TOOLS::Show3DViewer,      ACTIONS::show3DViewer.MakeEvent() );
+
+    Go( &PCB_VIEWER_TOOLS::ToggleHV45Mode,    PCB_ACTIONS::toggleHV45Mode.MakeEvent() );
 
     // Display modes
     Go( &PCB_VIEWER_TOOLS::ShowPadNumbers,    PCB_ACTIONS::showPadNumbers.MakeEvent() );

@@ -28,7 +28,7 @@
 #include <base_units.h>
 #include <bitmap_base.h>
 #include <build_version.h>
-#include <ee_selection.h>
+#include <sch_selection.h>
 #include <font/fontconfig.h>
 #include <io/kicad/kicad_io_utils.h>
 #include <locale_io.h>
@@ -493,7 +493,7 @@ void SCH_IO_KICAD_SEXPR::Format( SCH_SHEET* aSheet )
 }
 
 
-void SCH_IO_KICAD_SEXPR::Format( EE_SELECTION* aSelection, SCH_SHEET_PATH* aSelectionPath,
+void SCH_IO_KICAD_SEXPR::Format( SCH_SELECTION* aSelection, SCH_SHEET_PATH* aSelectionPath,
                                  SCHEMATIC& aSchematic, OUTPUTFORMATTER* aFormatter,
                                  bool aForClipboard )
 {
@@ -1417,9 +1417,9 @@ void SCH_IO_KICAD_SEXPR::saveTable( SCH_TABLE* aTable )
 
     m_out->Print( "(border" );
     KICAD_FORMAT::FormatBool( m_out, "external", aTable->StrokeExternal() );
-    KICAD_FORMAT::FormatBool( m_out, "header", aTable->StrokeHeader() );
+    KICAD_FORMAT::FormatBool( m_out, "header", aTable->StrokeHeaderSeparator() );
 
-    if( aTable->StrokeExternal() || aTable->StrokeHeader() )
+    if( aTable->StrokeExternal() || aTable->StrokeHeaderSeparator() )
         aTable->GetBorderStroke().Format( m_out, schIUScale );
 
     m_out->Print( ")" );               // Close `border` token.
@@ -1697,14 +1697,24 @@ void SCH_IO_KICAD_SEXPR::SaveLibrary( const wxString& aLibraryPath,
     wxString oldFileName = m_cache->GetFileName();
 
     if( !m_cache->IsFile( aLibraryPath ) )
-    {
         m_cache->SetFileName( aLibraryPath );
-    }
 
     // This is a forced save.
     m_cache->SetModified();
     m_cache->Save();
     m_cache->SetFileName( oldFileName );
+}
+
+
+bool SCH_IO_KICAD_SEXPR::CanReadLibrary( const wxString& aLibraryPath ) const
+{
+    if( !SCH_IO::CanReadLibrary( aLibraryPath ) )
+        return false;
+
+    // Above just checks for proper extension; now check that it actually exists
+
+    wxFileName fn( aLibraryPath );
+    return fn.IsOk() && fn.FileExists();
 }
 
 
@@ -1785,7 +1795,6 @@ std::vector<LIB_SYMBOL*> SCH_IO_KICAD_SEXPR::ParseLibSymbols( std::string& aSymb
 
 void SCH_IO_KICAD_SEXPR::FormatLibSymbol( LIB_SYMBOL* symbol, OUTPUTFORMATTER & formatter )
 {
-
     LOCALE_IO toggle;     // toggles on, then off, the C locale.
     SCH_IO_KICAD_SEXPR_LIB_CACHE::SaveSymbol( symbol, formatter );
 }

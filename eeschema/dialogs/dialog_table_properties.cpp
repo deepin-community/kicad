@@ -22,7 +22,6 @@
  */
 
 #include <kiplatform/ui.h>
-#include <ee_actions.h>
 #include <sch_edit_frame.h>
 #include <widgets/color_swatch.h>
 #include <widgets/grid_color_swatch_helpers.h>
@@ -189,7 +188,7 @@ bool DIALOG_TABLE_PROPERTIES::TransferDataToWindow()
     //
 
     m_borderCheckbox->SetValue( m_table->StrokeExternal() );
-    m_headerBorder->SetValue( m_table->StrokeHeader() );
+    m_headerBorder->SetValue( m_table->StrokeHeaderSeparator() );
 
     if( m_table->GetBorderStroke().GetWidth() >= 0 )
         m_borderWidth.SetValue( m_table->GetBorderStroke().GetWidth() );
@@ -203,11 +202,11 @@ bool DIALOG_TABLE_PROPERTIES::TransferDataToWindow()
     else
         m_borderStyleCombo->SetSelection( 0 );
 
-    m_borderWidth.Enable( m_table->StrokeExternal() || m_table->StrokeHeader() );
-    m_borderColorLabel->Enable( m_table->StrokeExternal() || m_table->StrokeHeader() );
-    m_borderColorSwatch->Enable( m_table->StrokeExternal() || m_table->StrokeHeader() );
-    m_borderStyleLabel->Enable( m_table->StrokeExternal() || m_table->StrokeHeader() );
-    m_borderStyleCombo->Enable( m_table->StrokeExternal() || m_table->StrokeHeader() );
+    m_borderWidth.Enable( m_table->StrokeExternal() || m_table->StrokeHeaderSeparator() );
+    m_borderColorLabel->Enable( m_table->StrokeExternal() || m_table->StrokeHeaderSeparator() );
+    m_borderColorSwatch->Enable( m_table->StrokeExternal() || m_table->StrokeHeaderSeparator() );
+    m_borderStyleLabel->Enable( m_table->StrokeExternal() || m_table->StrokeHeaderSeparator() );
+    m_borderStyleCombo->Enable( m_table->StrokeExternal() || m_table->StrokeHeaderSeparator() );
 
     bool rows = m_table->StrokeRows() && m_table->GetSeparatorsStroke().GetWidth() >= 0;
     bool cols = m_table->StrokeColumns() && m_table->GetSeparatorsStroke().GetWidth() >= 0;
@@ -281,15 +280,16 @@ void DIALOG_TABLE_PROPERTIES::getContextualTextVars( const wxString& aCrossRef,
 void DIALOG_TABLE_PROPERTIES::onBorderChecked( wxCommandEvent& aEvent )
 {
     bool border = m_borderCheckbox->GetValue();
+    bool headerSeparator = m_headerBorder->GetValue();
 
-    if( border && m_borderWidth.GetValue() < 0 )
+    if( ( border || headerSeparator ) && m_borderWidth.GetValue() < 0 )
         m_borderWidth.SetValue( m_frame->eeconfig()->m_Drawing.default_line_thickness );
 
-    m_borderWidth.Enable( border );
-    m_borderColorLabel->Enable( border );
-    m_borderColorSwatch->Enable( border );
-    m_borderStyleLabel->Enable( border );
-    m_borderStyleCombo->Enable( border );
+    m_borderWidth.Enable( border || headerSeparator );
+    m_borderColorLabel->Enable( border || headerSeparator );
+    m_borderColorSwatch->Enable( border || headerSeparator );
+    m_borderStyleLabel->Enable( border || headerSeparator );
+    m_borderStyleCombo->Enable( border || headerSeparator );
 
     bool row = m_rowSeparators->GetValue();
     bool col = m_colSeparators->GetValue();
@@ -345,11 +345,11 @@ bool DIALOG_TABLE_PROPERTIES::TransferDataFromWindow()
     }
 
     m_table->SetStrokeExternal( m_borderCheckbox->GetValue() );
-    m_table->SetStrokeHeader( m_headerBorder->GetValue() );
+    m_table->SetStrokeHeaderSeparator( m_headerBorder->GetValue() );
     {
         STROKE_PARAMS stroke = m_table->GetBorderStroke();
 
-        if( m_borderCheckbox->GetValue() )
+        if( m_borderCheckbox->GetValue() || m_headerBorder->GetValue() )
             stroke.SetWidth( std::max( 0, m_borderWidth.GetIntValue() ) );
         else
             stroke.SetWidth( -1 );

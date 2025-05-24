@@ -230,7 +230,6 @@ void GERBVIEW_FRAME::doCloseWindow()
     // No more vetos
     m_isClosing = true;
     GetCanvas()->StopDrawing();
-    GetCanvas()->GetView()->Clear();
 
     if( m_toolManager )
         m_toolManager->DeactivateTool();
@@ -775,7 +774,7 @@ LSET GERBVIEW_FRAME::GetVisibleLayers() const
 }
 
 
-void GERBVIEW_FRAME::SetVisibleLayers( LSET aLayerMask )
+void GERBVIEW_FRAME::SetVisibleLayers( const LSET& aLayerMask )
 {
     if( GetCanvas() )
     {
@@ -1130,8 +1129,8 @@ void GERBVIEW_FRAME::setupUIConditions()
     mgr->SetConditions( ACTIONS::togglePolarCoords, CHECK( cond.PolarCoordinates() ) );
     mgr->SetConditions( ACTIONS::toggleCursorStyle, CHECK( cond.FullscreenCursor() ) );
 
-    mgr->SetConditions( ACTIONS::millimetersUnits,  CHECK( cond.Units( EDA_UNITS::MILLIMETRES ) ) );
-    mgr->SetConditions( ACTIONS::inchesUnits,       CHECK( cond.Units( EDA_UNITS::INCHES ) ) );
+    mgr->SetConditions( ACTIONS::millimetersUnits,  CHECK( cond.Units( EDA_UNITS::MM ) ) );
+    mgr->SetConditions( ACTIONS::inchesUnits,       CHECK( cond.Units( EDA_UNITS::INCH ) ) );
     mgr->SetConditions( ACTIONS::milsUnits,         CHECK( cond.Units( EDA_UNITS::MILS ) ) );
 
     auto flashedDisplayOutlinesCond =

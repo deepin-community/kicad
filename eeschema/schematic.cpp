@@ -22,7 +22,7 @@
 #include <connection_graph.h>
 #include <core/ignore.h>
 #include <core/kicad_algo.h>
-#include <ee_collectors.h>
+#include <sch_collectors.h>
 #include <erc/erc_settings.h>
 #include <font/outline_font.h>
 #include <netlist_exporter_spice.h>
@@ -73,6 +73,16 @@ SCHEMATIC::SCHEMATIC( PROJECT* aPrj ) :
                 SCH_SHEET_PATH sheetPath = CurrentSheet();
 
                 wxString newValue = aItem->Get<wxString>( aProperty );
+
+                if( field->GetId() == REFERENCE_FIELD )
+                {
+                    symbol->SetRef( &sheetPath, newValue );
+
+                    // The user might want to change all the units to the new ref.  Or they
+                    // might not.  Since we have no way of knowing, we default to the most
+                    // concrete action (change only the selected reference).
+                    return;
+                }
 
                 wxString ref = symbol->GetRef( &sheetPath );
                 int      unit = symbol->GetUnit();

@@ -29,7 +29,6 @@ namespace CLI
 {
 #define ARG_NO_X2 "--no-x2"
 #define ARG_NO_NETLIST "--no-netlist"
-#define ARG_SUBTRACT_SOLDERMASK "--subtract-soldermask"
 #define ARG_DISABLE_APERTURE_MACROS "--disable-aperture-macros"
 #define ARG_USE_DRILL_FILE_ORIGIN "--use-drill-file-origin"
 #define ARG_PRECISION "--precision"
@@ -38,7 +37,7 @@ namespace CLI
 class PCB_EXPORT_GERBER_COMMAND : public PCB_EXPORT_BASE_COMMAND
 {
 public:
-    PCB_EXPORT_GERBER_COMMAND( const std::string& aName );
+    PCB_EXPORT_GERBER_COMMAND( const std::string& aName, bool aOutputIsDir = false );
     PCB_EXPORT_GERBER_COMMAND();
 
 protected:

@@ -72,7 +72,7 @@
 using namespace PCB_KEYS_T;
 
 
-FP_CACHE_ITEM::FP_CACHE_ITEM( FOOTPRINT* aFootprint, const WX_FILENAME& aFileName ) :
+FP_CACHE_ENTRY::FP_CACHE_ENTRY( FOOTPRINT* aFootprint, const WX_FILENAME& aFileName ) :
         m_filename( aFileName ),
         m_footprint( aFootprint )
 { }
@@ -106,7 +106,7 @@ void FP_CACHE::Save( FOOTPRINT* aFootprintFilter )
 
     for( auto it = m_footprints.begin(); it != m_footprints.end(); ++it )
     {
-        FP_CACHE_ITEM*              fpCacheEntry = it->second;
+        FP_CACHE_ENTRY*             fpCacheEntry = it->second;
         std::unique_ptr<FOOTPRINT>& footprint = fpCacheEntry->GetFootprint();
 
         if( aFootprintFilter && footprint.get() != aFootprintFilter )
@@ -212,7 +212,7 @@ void FP_CACHE::Load()
                     THROW_IO_ERROR( wxEmptyString );   // caught locally, just below...
 
                 footprint->SetFPID( LIB_ID( wxEmptyString, fpName ) );
-                m_footprints.insert( fpName, new FP_CACHE_ITEM( footprint, fn ) );
+                m_footprints.insert( fpName, new FP_CACHE_ENTRY( footprint, fn ) );
             }
             catch( const IO_ERROR& ioe )
             {
@@ -235,7 +235,7 @@ void FP_CACHE::Load()
 
 void FP_CACHE::Remove( const wxString& aFootprintName )
 {
-    FP_CACHE_FOOTPRINT_MAP::const_iterator it = m_footprints.find( aFootprintName );
+    auto it = m_footprints.find( aFootprintName );
 
     if( it == m_footprints.end() )
     {
@@ -265,9 +265,7 @@ void FP_CACHE::SetPath( const wxString& aPath )
 
 
     for( const auto& footprint : GetFootprints() )
-    {
         footprint.second->SetFilePath( aPath );
-    }
 }
 
 
@@ -1152,6 +1150,10 @@ void PCB_IO_KICAD_SEXPR::format( const FOOTPRINT* aFootprint ) const
 
     for( const PCB_FIELD* field : aFootprint->GetFields() )
     {
+        // 9.0 can have nullptr PCB_FIELDs.  This is no longer true in 10.0.
+        if( !field )
+            continue;
+
         m_out->Print( "(property %s %s",
                       m_out->Quotew( field->GetCanonicalName() ).c_str(),
                       m_out->Quotew( field->GetText() ).c_str() );
@@ -1958,11 +1960,11 @@ void PCB_IO_KICAD_SEXPR::formatTenting( const PADSTACK& aPadstack ) const
 
 void PCB_IO_KICAD_SEXPR::format( const PCB_TEXT* aText ) const
 {
-    FOOTPRINT*  parentFP = aText->GetParentFootprint();
-    std::string prefix;
-    std::string type;
-    VECTOR2I    pos = aText->GetTextPos();
-    bool        isField = dynamic_cast<const PCB_FIELD*>( aText ) != nullptr;
+    FOOTPRINT*       parentFP = aText->GetParentFootprint();
+    std::string      prefix;
+    std::string      type;
+    VECTOR2I         pos = aText->GetTextPos();
+    const PCB_FIELD* field = dynamic_cast<const PCB_FIELD*>( aText );
 
     // Always format dimension text as gr_text
     if( dynamic_cast<const PCB_DIMENSION_BASE*>( aText ) )
@@ -1981,7 +1983,7 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_TEXT* aText ) const
         prefix = "gr";
     }
 
-    if( !isField )
+    if( !field )
     {
         m_out->Print( "(%s_text %s %s",
                       prefix.c_str(),
@@ -2001,23 +2003,21 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_TEXT* aText ) const
 
     formatLayer( aText->GetLayer(), aText->IsKnockout() );
 
-    if( parentFP && !aText->IsVisible() )
+    if( field && !field->IsVisible() )
         KICAD_FORMAT::FormatBool( m_out, "hide", true );
 
     KICAD_FORMAT::FormatUuid( m_out, aText->m_Uuid );
 
-    int ctl_flags = m_ctl | CTL_OMIT_HIDE;
-
     // Currently, texts have no specific color and no hyperlink.
     // so ensure they are never written in kicad_pcb file
-    ctl_flags |= CTL_OMIT_COLOR | CTL_OMIT_HYPERLINK;
+    int ctl_flags = CTL_OMIT_COLOR | CTL_OMIT_HYPERLINK;
 
     aText->EDA_TEXT::Format( m_out, ctl_flags );
 
     if( aText->GetFont() && aText->GetFont()->IsOutline() )
         formatRenderCache( aText );
 
-    if( !isField )
+    if( !field )
         m_out->Print( ")" );
 }
 
@@ -2077,8 +2077,7 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_TEXTBOX* aTextBox ) const
 
     KICAD_FORMAT::FormatUuid( m_out, aTextBox->m_Uuid );
 
-    // PCB_TEXTBOXes are never hidden, so always omit "hide" attribute
-    aTextBox->EDA_TEXT::Format( m_out, m_ctl | CTL_OMIT_HIDE );
+    aTextBox->EDA_TEXT::Format( m_out, 0 );
 
     if( aTextBox->Type() != PCB_TABLECELL_T )
     {
@@ -2106,9 +2105,9 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_TABLE* aTable ) const
 
     m_out->Print( "(border" );
     KICAD_FORMAT::FormatBool( m_out, "external", aTable->StrokeExternal() );
-    KICAD_FORMAT::FormatBool( m_out, "header", aTable->StrokeHeader() );
+    KICAD_FORMAT::FormatBool( m_out, "header", aTable->StrokeHeaderSeparator() );
 
-    if( aTable->StrokeExternal() || aTable->StrokeHeader() )
+    if( aTable->StrokeExternal() || aTable->StrokeHeaderSeparator() )
         aTable->GetBorderStroke().Format( m_out, pcbIUScale );
 
     m_out->Print( ")" );                // Close `border` token.
@@ -2804,9 +2803,9 @@ void PCB_IO_KICAD_SEXPR::FootprintEnumerate( wxArrayString& aFootprintNames, con
 
 
 const FOOTPRINT* PCB_IO_KICAD_SEXPR::getFootprint( const wxString& aLibraryPath,
-                                           const wxString& aFootprintName,
-                                           const std::map<std::string, UTF8>* aProperties,
-                                           bool checkModified )
+                                                   const wxString& aFootprintName,
+                                                   const std::map<std::string, UTF8>* aProperties,
+                                                   bool checkModified )
 {
     LOCALE_IO   toggle;     // toggles on, then off, the C locale.
 
@@ -2821,10 +2820,9 @@ const FOOTPRINT* PCB_IO_KICAD_SEXPR::getFootprint( const wxString& aLibraryPath,
         // do nothing with the error
     }
 
-    FP_CACHE_FOOTPRINT_MAP& footprints = m_cache->GetFootprints();
-    auto                    it = footprints.find( aFootprintName );
+    auto it = m_cache->GetFootprints().find( aFootprintName );
 
-    if( it == footprints.end() )
+    if( it == m_cache->GetFootprints().end() )
         return nullptr;
 
     return it->second->GetFootprint().get();
@@ -2901,7 +2899,7 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR::FootprintLoad( const wxString& aLibraryPath,
 
 
 void PCB_IO_KICAD_SEXPR::FootprintSave( const wxString& aLibraryPath, const FOOTPRINT* aFootprint,
-                                const std::map<std::string, UTF8>* aProperties )
+                                        const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO   toggle;     // toggles on, then off, the C locale.
 
@@ -2938,7 +2936,6 @@ void PCB_IO_KICAD_SEXPR::FootprintSave( const wxString& aLibraryPath, const FOOT
 
     wxString footprintName = aFootprint->GetFPID().GetLibItemName();
 
-    FP_CACHE_FOOTPRINT_MAP& footprints = m_cache->GetFootprints();
     wxString fpName = aFootprint->GetFPID().GetLibItemName().wx_str();
     ReplaceIllegalFileNameChars( fpName, '_' );
 
@@ -2962,12 +2959,12 @@ void PCB_IO_KICAD_SEXPR::FootprintSave( const wxString& aLibraryPath, const FOOT
 
     wxString fullPath = fn.GetFullPath();
     wxString fullName = fn.GetFullName();
-    FP_CACHE_FOOTPRINT_MAP::const_iterator it = footprints.find( footprintName );
+    auto     it = m_cache->GetFootprints().find( footprintName );
 
-    if( it != footprints.end() )
+    if( it != m_cache->GetFootprints().end() )
     {
         wxLogTrace( traceKicadPcbPlugin, wxT( "Removing footprint file '%s'." ), fullPath );
-        footprints.erase( footprintName );
+        m_cache->GetFootprints().erase( footprintName );
         wxRemoveFile( fullPath );
     }
 
@@ -2992,8 +2989,9 @@ void PCB_IO_KICAD_SEXPR::FootprintSave( const wxString& aLibraryPath, const FOOT
     footprint->SetParentGroup( nullptr );
 
     wxLogTrace( traceKicadPcbPlugin, wxT( "Creating s-expr footprint file '%s'." ), fullPath );
-    footprints.insert( footprintName,
-                       new FP_CACHE_ITEM( footprint, WX_FILENAME( fn.GetPath(), fullName ) ) );
+    m_cache->GetFootprints().insert( footprintName,
+                                     new FP_CACHE_ENTRY( footprint,
+                                                         WX_FILENAME( fn.GetPath(), fullName ) ) );
     m_cache->Save( footprint );
 }
 

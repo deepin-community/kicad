@@ -720,9 +720,9 @@ void BE_SHAPE_CIRCLE::ShortenChildDueToGV( std::shared_ptr<GRAPH_NODE>& a1,
     EDA_ANGLE angle1 = EDA_ANGLE( a1->m_pos - m_pos );
     EDA_ANGLE angle2 = EDA_ANGLE( a2->m_pos - m_pos );
 
-    while( angle1 < 0 )
+    while( angle1 < ANGLE_0 )
         angle1 += ANGLE_360;
-    while( angle2 < 0 )
+    while( angle2 < ANGLE_0 )
         angle2 += ANGLE_360;
     while( angle1 > ANGLE_360 )
         angle1 -= ANGLE_360;
@@ -2280,6 +2280,13 @@ void CREEPAGE_GRAPH::GeneratePaths( double aMaxWeight, PCB_LAYER_ID aLayer, bool
                       return !!gn && gn->m_parent && gn->m_connectDirectly
                              && ( gn->m_type != GRAPH_NODE::TYPE::VIRTUAL );
                   } );
+
+    std::sort( nodes.begin(), nodes.end(),
+              []( std::shared_ptr<GRAPH_NODE> gn1, std::shared_ptr<GRAPH_NODE> gn2 )
+              {
+                  return ( gn1->m_parent < gn2->m_parent ) || ( gn1->m_parent == gn2->m_parent
+                                                                && gn1->m_net < gn2->m_net );
+              } );
 
     auto processNodes = [&]( size_t i, size_t j ) -> bool
     {

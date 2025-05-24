@@ -91,7 +91,6 @@ BOARD_ADAPTER::BOARD_ADAPTER() :
         m_IsPreviewer( false ),
         m_board( nullptr ),
         m_3dModelManager( nullptr ),
-        m_colors( nullptr ),
         m_layerZcoordTop(),
         m_layerZcoordBottom()
 {
@@ -137,13 +136,14 @@ BOARD_ADAPTER::BOARD_ADAPTER() :
     m_ECO1Color          = SFVEC4F( 0.70, 0.10, 0.10,  1.0 );
     m_ECO2Color          = SFVEC4F( 0.70, 0.10, 0.10,  1.0 );
 
+    for( int ii = 0; ii < 45; ++ii )
+        m_UserDefinedLayerColor[ii] = SFVEC4F( 0.70, 0.10, 0.10, 1.0 );
+
     m_platedPadsFront = nullptr;
     m_platedPadsBack = nullptr;
     m_offboardPadsFront = nullptr;
     m_offboardPadsBack = nullptr;
 
-    m_frontPlatedPadAndGraphicPolys = nullptr;
-    m_backPlatedPadAndGraphicPolys = nullptr;
     m_frontPlatedCopperPolys = nullptr;
     m_backPlatedCopperPolys = nullptr;
 
@@ -229,11 +229,12 @@ void BOARD_ADAPTER::ReloadColorSettings() noexcept
 
     SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
     PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
+    COLOR_SETTINGS*   colors = mgr.GetColorSettings( cfg ? cfg->m_ColorTheme : wxString( "" ) );
 
-    if( cfg )
+    if( colors )
     {
-        m_colors = Pgm().GetSettingsManager().GetColorSettings( cfg->m_ColorTheme );
-        GetBoardEditorCopperLayerColors( cfg );
+        for( int layer = F_Cu; layer < PCB_LAYER_ID_COUNT; ++layer )
+            m_BoardEditorColors[ layer ] = colors->GetColor( layer );
     }
 }
 
@@ -262,7 +263,15 @@ bool BOARD_ADAPTER::Is3dLayerEnabled( PCB_LAYER_ID aLayer,
     case Cmts_User: return aVisibilityFlags.test( LAYER_3D_USER_COMMENTS );
     case Eco1_User: return aVisibilityFlags.test( LAYER_3D_USER_ECO1 );
     case Eco2_User: return aVisibilityFlags.test( LAYER_3D_USER_ECO2 );
-    default:        return m_board && m_board->IsLayerVisible( aLayer );
+    default:
+    {
+        int layer3D = MapPCBLayerTo3DLayer( aLayer );
+
+        if( layer3D != UNDEFINED_LAYER )
+            return aVisibilityFlags.test( layer3D );
+
+        return m_board && m_board->IsLayerVisible( aLayer );
+    }
     }
 }
 
@@ -465,26 +474,14 @@ void BOARD_ADAPTER::InitSettings( REPORTER* aStatusReporter, REPORTER* aWarningR
     const float zpos_copperTop_back  = m_layerZcoordTop[B_Cu];
     const float zpos_copperTop_front = m_layerZcoordTop[F_Cu];
 
-    // Fill not copper layers zpos with a dummy position
-    // (m_layerZcoordTop[B_Cu]with a small margin)
-    // Some important layer position will be set later
+    // Fill not copper layers zpos
     for( int layer_id = 0; layer_id < PCB_LAYER_ID_COUNT; layer_id++ )
     {
         if( IsCopperLayer( (PCB_LAYER_ID)layer_id ) )
             continue;
 
-        m_layerZcoordBottom[(PCB_LAYER_ID)layer_id] = zpos_copperTop_back - 2.0f * zpos_offset;
-        m_layerZcoordTop[(PCB_LAYER_ID) layer_id] =
-                m_layerZcoordBottom[(PCB_LAYER_ID) layer_id] - m_backCopperThickness3DU;
-    }
-
-    // calculate z position for each technical layer
-    // Solder mask and Solder paste have the same Z position
-    for( PCB_LAYER_ID layer_id :
-         { B_Adhes, B_Mask, B_Paste, F_Adhes, F_Mask, F_Paste, B_SilkS, F_SilkS } )
-    {
-        float zposTop = 0.0;
-        float zposBottom = 0.0;
+        float zposBottom = zpos_copperTop_front + 2.0f * zpos_offset;
+        float zposTop = zposBottom + m_frontCopperThickness3DU;
 
         switch( layer_id )
         {
@@ -532,8 +529,8 @@ void BOARD_ADAPTER::InitSettings( REPORTER* aStatusReporter, REPORTER* aWarningR
             break;
         }
 
-        m_layerZcoordTop[layer_id] = zposTop;
-        m_layerZcoordBottom[layer_id] = zposBottom;
+        m_layerZcoordTop[(PCB_LAYER_ID)layer_id] = zposTop;
+        m_layerZcoordBottom[(PCB_LAYER_ID)layer_id] = zposBottom;
     }
 
     m_boardCenter = SFVEC3F( m_boardPos.x * m_biuTo3Dunits, m_boardPos.y * m_biuTo3Dunits, 0.0f );
@@ -580,6 +577,9 @@ void BOARD_ADAPTER::InitSettings( REPORTER* aStatusReporter, REPORTER* aWarningR
     m_UserCommentsColor  = to_SFVEC4F( colors[ LAYER_3D_USER_COMMENTS ] );
     m_ECO1Color          = to_SFVEC4F( colors[ LAYER_3D_USER_ECO1 ] );
     m_ECO2Color          = to_SFVEC4F( colors[ LAYER_3D_USER_ECO2 ] );
+
+    for( int layer = LAYER_3D_USER_1; layer <= LAYER_3D_USER_45; ++layer )
+        m_UserDefinedLayerColor[ layer - LAYER_3D_USER_1 ] = to_SFVEC4F( colors[ layer ] );
 }
 
 
@@ -602,25 +602,12 @@ std::map<int, COLOR4D> BOARD_ADAPTER::GetDefaultColors() const
     colors[ LAYER_3D_USER_ECO1 ]         = BOARD_ADAPTER::g_DefaultECOs;
     colors[ LAYER_3D_USER_ECO2 ]         = BOARD_ADAPTER::g_DefaultECOs;
 
+    COLOR_SETTINGS* settings = Pgm().GetSettingsManager().GetColorSettings( wxEmptyString );
+
+    for( int layer = LAYER_3D_USER_1; layer <= LAYER_3D_USER_45; ++layer )
+        colors[ layer ] = settings->GetColor( layer );
+
     return colors;
-}
-
-
-void BOARD_ADAPTER::GetBoardEditorCopperLayerColors( PCBNEW_SETTINGS* aCfg )
-{
-    m_BoardEditorColors.clear();
-
-    if( m_copperLayersCount <= 0 )
-        return;
-
-    COLOR_SETTINGS* settings = Pgm().GetSettingsManager().GetColorSettings( aCfg->m_ColorTheme );
-
-    LSET copperLayers = LSET::AllCuMask();
-
-    for( auto layer : LAYER_RANGE( F_Cu, B_Cu, m_copperLayersCount ) )
-    {
-        m_BoardEditorColors[ layer ] = settings->GetColor( layer );
-    }
 }
 
 
@@ -747,7 +734,12 @@ void BOARD_ADAPTER::SetLayerColors( const std::map<int, COLOR4D>& aColors )
     COLOR_SETTINGS* settings = Pgm().GetSettingsManager().GetColorSettings();
 
     for( const auto& [ layer, color ] : aColors )
+    {
         settings->SetColor( layer, color );
+
+        if( layer >= LAYER_3D_USER_1 && layer <= LAYER_3D_USER_45 )
+            m_UserDefinedLayerColor[ layer - LAYER_3D_USER_1 ] = GetColor( color );
+    }
 
     Pgm().GetSettingsManager().SaveColorSettings( settings, "3d_viewer" );
 }
@@ -769,6 +761,9 @@ void BOARD_ADAPTER::SetVisibleLayers( const std::bitset<LAYER_3D_END>& aLayers )
     m_Cfg->m_Render.show_eco1                      = aLayers.test( LAYER_3D_USER_ECO1 );
     m_Cfg->m_Render.show_eco2                      = aLayers.test( LAYER_3D_USER_ECO2 );
 
+    for( int layer = LAYER_3D_USER_1; layer <= LAYER_3D_USER_45; ++layer )
+        m_Cfg->m_Render.show_user[ layer - LAYER_3D_USER_1 ] = aLayers.test( layer );
+
     m_Cfg->m_Render.show_footprints_normal         = aLayers.test( LAYER_3D_TH_MODELS );
     m_Cfg->m_Render.show_footprints_insert         = aLayers.test( LAYER_3D_SMD_MODELS );
     m_Cfg->m_Render.show_footprints_virtual        = aLayers.test( LAYER_3D_VIRTUAL_MODELS );
@@ -789,6 +784,46 @@ std::bitset<LAYER_3D_END> BOARD_ADAPTER::GetVisibleLayers() const
 {
     std::bitset<LAYER_3D_END> ret;
 
+    if( m_board && m_board->IsFootprintHolder() )
+    {
+        if( m_Cfg->m_Render.preview_show_board_body )
+        {
+            ret.set( LAYER_3D_BOARD,             m_Cfg->m_Render.show_board_body );
+            ret.set( LAYER_3D_SOLDERMASK_TOP,    m_Cfg->m_Render.show_soldermask_top );
+            ret.set( LAYER_3D_SOLDERMASK_BOTTOM, m_Cfg->m_Render.show_soldermask_bottom );
+            ret.set( LAYER_3D_SOLDERPASTE,       m_Cfg->m_Render.show_solderpaste );
+            ret.set( LAYER_3D_ADHESIVE,          m_Cfg->m_Render.show_adhesive );
+        }
+
+        ret.set( LAYER_3D_COPPER_TOP,        true );
+        ret.set( LAYER_3D_COPPER_BOTTOM,     true );
+        ret.set( LAYER_3D_SILKSCREEN_TOP,    true );
+        ret.set( LAYER_3D_SILKSCREEN_BOTTOM, true );
+        ret.set( LAYER_3D_USER_COMMENTS,     true );
+        ret.set( LAYER_3D_USER_DRAWINGS,     true );
+        ret.set( LAYER_3D_USER_ECO1,         true );
+        ret.set( LAYER_3D_USER_ECO2,         true );
+
+        for( int layer = LAYER_3D_USER_1; layer <= LAYER_3D_USER_45; ++layer )
+            ret.set( layer, true );
+
+        ret.set( LAYER_FP_REFERENCES,        true );
+        ret.set( LAYER_FP_VALUES,            true );
+        ret.set( LAYER_FP_TEXT,              true );
+
+        ret.set( LAYER_3D_TH_MODELS,         true );
+        ret.set( LAYER_3D_SMD_MODELS,        true );
+        ret.set( LAYER_3D_VIRTUAL_MODELS,    true );
+        ret.set( LAYER_3D_MODELS_NOT_IN_POS, true );
+        ret.set( LAYER_3D_MODELS_MARKED_DNP, true );
+
+        ret.set( LAYER_3D_BOUNDING_BOXES,    m_Cfg->m_Render.show_model_bbox );
+        ret.set( LAYER_3D_OFF_BOARD_SILK,    m_Cfg->m_Render.show_off_board_silk );
+        ret.set( LAYER_3D_AXES,              m_Cfg->m_Render.show_axis );
+
+        return ret;
+    }
+
     ret.set( LAYER_3D_BOARD,             m_Cfg->m_Render.show_board_body );
     ret.set( LAYER_3D_COPPER_TOP,        m_Cfg->m_Render.show_copper_top );
     ret.set( LAYER_3D_COPPER_BOTTOM,     m_Cfg->m_Render.show_copper_bottom );
@@ -802,6 +837,9 @@ std::bitset<LAYER_3D_END> BOARD_ADAPTER::GetVisibleLayers() const
     ret.set( LAYER_3D_USER_DRAWINGS,     m_Cfg->m_Render.show_drawings );
     ret.set( LAYER_3D_USER_ECO1,         m_Cfg->m_Render.show_eco1 );
     ret.set( LAYER_3D_USER_ECO2,         m_Cfg->m_Render.show_eco2 );
+
+    for( int layer = LAYER_3D_USER_1; layer <= LAYER_3D_USER_45; ++layer )
+        ret.set( layer, m_Cfg->m_Render.show_user[ layer - LAYER_3D_USER_1 ] );
 
     ret.set( LAYER_FP_REFERENCES,        m_Cfg->m_Render.show_fp_references );
     ret.set( LAYER_FP_VALUES,            m_Cfg->m_Render.show_fp_values );
@@ -845,7 +883,10 @@ std::bitset<LAYER_3D_END> BOARD_ADAPTER::GetVisibleLayers() const
             return ret;
 
         const PCB_PLOT_PARAMS& plotParams = m_board->GetPlotOptions();
-        LSET layers = plotParams.GetLayerSelection() | plotParams.GetPlotOnAllLayersSelection();
+        LSET                   layers = plotParams.GetLayerSelection();
+
+        for( PCB_LAYER_ID commonLayer : plotParams.GetPlotOnAllLayersSequence() )
+            layers.set( commonLayer );
 
         ret.set( LAYER_3D_BOARD,             true );
         ret.set( LAYER_3D_COPPER_TOP,        layers.test( F_Cu ) );
@@ -861,6 +902,9 @@ std::bitset<LAYER_3D_END> BOARD_ADAPTER::GetVisibleLayers() const
         ret.set( LAYER_3D_USER_ECO1,         layers.test( Eco1_User ) );
         ret.set( LAYER_3D_USER_ECO2,         layers.test( Eco2_User ) );
 
+        for( int layer = LAYER_3D_USER_1; layer <= LAYER_3D_USER_45; ++layer )
+            ret.set( layer, layers.test( Map3DLayerToPCBLayer( layer ) ) );
+
         ret.set( LAYER_FP_REFERENCES, plotParams.GetPlotReference() );
         ret.set( LAYER_FP_VALUES,     plotParams.GetPlotValue() );
         ret.set( LAYER_FP_TEXT,       plotParams.GetPlotFPText() );
@@ -868,26 +912,6 @@ std::bitset<LAYER_3D_END> BOARD_ADAPTER::GetVisibleLayers() const
     else if( LAYER_PRESET_3D* preset = m_Cfg->FindPreset( m_Cfg->m_CurrentPreset ) )
     {
         ret = preset->layers;
-    }
-    else
-    {
-        ret.set( LAYER_3D_BOARD,             m_Cfg->m_Render.show_board_body );
-        ret.set( LAYER_3D_COPPER_TOP,        m_Cfg->m_Render.show_copper_top );
-        ret.set( LAYER_3D_COPPER_BOTTOM,     m_Cfg->m_Render.show_copper_bottom );
-        ret.set( LAYER_3D_SILKSCREEN_TOP,    m_Cfg->m_Render.show_silkscreen_top );
-        ret.set( LAYER_3D_SILKSCREEN_BOTTOM, m_Cfg->m_Render.show_silkscreen_bottom );
-        ret.set( LAYER_3D_SOLDERMASK_TOP,    m_Cfg->m_Render.show_soldermask_top );
-        ret.set( LAYER_3D_SOLDERMASK_BOTTOM, m_Cfg->m_Render.show_soldermask_bottom );
-        ret.set( LAYER_3D_SOLDERPASTE,       m_Cfg->m_Render.show_solderpaste );
-        ret.set( LAYER_3D_ADHESIVE,          m_Cfg->m_Render.show_adhesive );
-        ret.set( LAYER_3D_USER_COMMENTS,     m_Cfg->m_Render.show_comments );
-        ret.set( LAYER_3D_USER_DRAWINGS,     m_Cfg->m_Render.show_drawings );
-        ret.set( LAYER_3D_USER_ECO1,         m_Cfg->m_Render.show_eco1 );
-        ret.set( LAYER_3D_USER_ECO2,         m_Cfg->m_Render.show_eco2 );
-
-        ret.set( LAYER_FP_REFERENCES,        m_Cfg->m_Render.show_fp_references );
-        ret.set( LAYER_FP_VALUES,            m_Cfg->m_Render.show_fp_values );
-        ret.set( LAYER_FP_TEXT,              m_Cfg->m_Render.show_fp_text );
     }
 
     return ret;
@@ -912,6 +936,9 @@ std::bitset<LAYER_3D_END> BOARD_ADAPTER::GetDefaultVisibleLayers() const
     ret.set( LAYER_3D_USER_ECO1,         false );
     ret.set( LAYER_3D_USER_ECO2,         false );
 
+    for( int layer = LAYER_3D_USER_1; layer <= LAYER_3D_USER_45; ++layer )
+        ret.set( layer, false );
+
     ret.set( LAYER_FP_REFERENCES,        true );
     ret.set( LAYER_FP_VALUES,            true );
     ret.set( LAYER_FP_TEXT,              true );
@@ -927,6 +954,12 @@ std::bitset<LAYER_3D_END> BOARD_ADAPTER::GetDefaultVisibleLayers() const
     ret.set( LAYER_3D_AXES,              true );
 
     return ret;
+}
+
+
+bool BOARD_ADAPTER::GetUseBoardEditorCopperLayerColors() const
+{
+    return m_Cfg->m_Render.use_board_editor_copper_colors && !m_board->IsFootprintHolder();
 }
 
 
@@ -992,19 +1025,14 @@ float BOARD_ADAPTER::GetFootprintZPos( bool aIsFlipped ) const
 }
 
 
-SFVEC4F BOARD_ADAPTER::GetLayerColor( PCB_LAYER_ID aLayerId ) const
+SFVEC4F BOARD_ADAPTER::GetLayerColor( int aLayerId ) const
 {
+    if( aLayerId >= LAYER_3D_USER_1 && aLayerId <= LAYER_3D_USER_45 )
+        aLayerId = Map3DLayerToPCBLayer( aLayerId );
+
     wxASSERT( aLayerId < PCB_LAYER_ID_COUNT );
 
-    const COLOR4D color = m_colors->GetColor( aLayerId );
-
-    return SFVEC4F( color.r, color.g, color.b, color.a );
-}
-
-
-SFVEC4F BOARD_ADAPTER::GetItemColor( int aItemId ) const
-{
-    return GetColor( m_colors->GetColor( aItemId ) );
+    return GetColor( m_BoardEditorColors.at( aLayerId ) );
 }
 
 

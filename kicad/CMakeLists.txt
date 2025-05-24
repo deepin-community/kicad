@@ -17,8 +17,8 @@ include_directories(
     )
 
 set( KICAD_SRCS
-    dialogs/dialog_jobset_output_options.cpp
-    dialogs/dialog_jobset_output_options_base.cpp
+    dialogs/dialog_destination.cpp
+    dialogs/dialog_destination_base.cpp
     dialogs/dialog_copyfiles_job_settings.cpp
     dialogs/dialog_copyfiles_job_settings_base.cpp
     dialogs/dialog_executecommand_job_settings.cpp
@@ -61,6 +61,7 @@ set( KICAD_CLI_SRCS
     cli/command_pcb_export_gerbers.cpp
     cli/command_pcb_export_gencad.cpp
     cli/command_pcb_export_ipc2581.cpp
+    cli/command_pcb_export_ipcd356.cpp
     cli/command_pcb_export_odb.cpp
     cli/command_pcb_export_pdf.cpp
     cli/command_pcb_export_pos.cpp

@@ -61,10 +61,13 @@ std::string NAME_GENERATOR::Generate( const std::string& aProposedName )
 }
 
 
-NETLIST_EXPORTER_SPICE::NETLIST_EXPORTER_SPICE( SCHEMATIC_IFACE* aSchematic ) :
+NETLIST_EXPORTER_SPICE::NETLIST_EXPORTER_SPICE( SCHEMATIC* aSchematic ) :
     NETLIST_EXPORTER_BASE( aSchematic ),
     m_libMgr( &aSchematic->Prj() )
 {
+    std::vector<EMBEDDED_FILES*> embeddedFilesStack;
+    embeddedFilesStack.push_back( aSchematic->GetEmbeddedFiles() );
+    m_libMgr.SetFilesStack( embeddedFilesStack );
 }
 
 
@@ -455,7 +458,7 @@ void NETLIST_EXPORTER_SPICE::readModel( SCH_SHEET_PATH& aSheet, SCH_SYMBOL& aSym
         auto spiceGenerator = static_cast<const SPICE_GENERATOR_IBIS&>( ibisModel->SpiceGenerator() );
 
         wxString    cacheFilepath = cacheFn.GetPath( wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR );
-        std::string modelData = spiceGenerator.IbisDevice( aItem, m_schematic->Prj(),
+        std::string modelData = spiceGenerator.IbisDevice( aItem, m_schematic,
                                                            cacheFilepath, aReporter );
 
         cacheFile.Write( wxString( modelData ) );

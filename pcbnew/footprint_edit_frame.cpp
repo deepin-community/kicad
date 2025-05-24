@@ -192,19 +192,33 @@ FOOTPRINT_EDIT_FRAME::FOOTPRINT_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     // NOTE: KifaceSettings() will return PCBNEW_SETTINGS if we started from pcbnew
     LoadSettings( GetSettings() );
 
+    // Enable one internal layer, because footprints support keepout areas that can be on
+    // internal layers only (therefore on the first internal layer).  This is needed to handle
+    // these keepout in internal layers only.
+    GetBoard()->SetCopperLayerCount( 3 );
+    GetBoard()->SetLayerName( In1_Cu, _( "Inner layers" ) );
+
     float proportion = GetFootprintEditorSettings()->m_AuiPanels.properties_splitter;
     m_propertiesPanel->SetSplitterProportion( proportion );
 
-    // Must be set after calling LoadSettings() to be sure these parameters are not dependent
-    // on what is read in stored settings.  Enable one internal layer, because footprints
-    // support keepout areas that can be on internal layers only (therefore on the first internal
-    // layer).  This is needed to handle these keepout in internal layers only.
-    GetBoard()->SetCopperLayerCount( 3 );
-    GetBoard()->SetEnabledLayers( GetBoard()->GetEnabledLayers().set( In1_Cu ) );
-    GetBoard()->SetVisibleLayers( GetBoard()->GetEnabledLayers() );
-    GetBoard()->SetLayerName( In1_Cu, _( "Inner layers" ) );
-
     SetActiveLayer( F_SilkS );
+
+    // Fetch a COPY of the config as a lot of these initializations are going to overwrite our
+    // data.
+    int libWidth = 0;
+    FOOTPRINT_EDITOR_SETTINGS::AUI_PANELS aui_cfg;
+
+    if( FOOTPRINT_EDITOR_SETTINGS* cfg = dynamic_cast<FOOTPRINT_EDITOR_SETTINGS*>( GetSettings() ) )
+    {
+        libWidth = cfg->m_LibWidth;
+        aui_cfg = cfg->m_AuiPanels;
+    }
+    else
+    {
+        // keep gcc quiet about uninitalized vars:
+        aui_cfg.appearance_panel_tab = 0;
+        aui_cfg.right_panel_width = -1;
+    }
 
     m_auimgr.SetManagedWindow( this );
 
@@ -264,20 +278,21 @@ FOOTPRINT_EDIT_FRAME::FOOTPRINT_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     FinishAUIInitialization();
 
     // Apply saved visibility stuff at the end
+    wxAuiPaneInfo& treePane = m_auimgr.GetPane( "Footprints" );
+    wxAuiPaneInfo& layersManager = m_auimgr.GetPane( "LayersManager" );
+
+    if( libWidth > 0 )
+        SetAuiPaneSize( m_auimgr, treePane, libWidth, -1 );
+
+    if( aui_cfg.right_panel_width > 0 )
+        SetAuiPaneSize( m_auimgr, layersManager, aui_cfg.right_panel_width, -1 );
+
+    m_appearancePanel->SetTabIndex( aui_cfg.appearance_panel_tab );
+
     if( FOOTPRINT_EDITOR_SETTINGS* cfg = dynamic_cast<FOOTPRINT_EDITOR_SETTINGS*>( GetSettings() ) )
     {
-        wxAuiPaneInfo& treePane = m_auimgr.GetPane( "Footprints" );
-        wxAuiPaneInfo& layersManager = m_auimgr.GetPane( "LayersManager" );
-
-        if( cfg->m_LibWidth > 0 )
-            SetAuiPaneSize( m_auimgr, treePane, cfg->m_LibWidth, -1 );
-
-        if( cfg->m_AuiPanels.right_panel_width > 0 )
-            SetAuiPaneSize( m_auimgr, layersManager, cfg->m_AuiPanels.right_panel_width, -1 );
-
         m_appearancePanel->SetUserLayerPresets( cfg->m_LayerPresets );
         m_appearancePanel->ApplyLayerPreset( cfg->m_ActiveLayerPreset );
-        m_appearancePanel->SetTabIndex( cfg->m_AuiPanels.appearance_panel_tab );
     }
 
     // restore the last footprint from the project, if any, after the library has been init'ed
@@ -524,6 +539,40 @@ void FOOTPRINT_EDIT_FRAME::restoreLastFootprint()
 }
 
 
+void FOOTPRINT_EDIT_FRAME::updateEnabledLayers()
+{
+    // Enable one internal layer, because footprints support keepout areas that can be on
+    // internal layers only (therefore on the first internal layer).  This is needed to handle
+    // these keepout in internal layers only.
+    GetBoard()->SetCopperLayerCount( 3 );
+    GetBoard()->SetLayerName( In1_Cu, _( "Inner layers" ) );
+
+    // Don't drop pre-existing user layers
+    LSET enabledLayers = GetBoard()->GetEnabledLayers();
+
+    m_originalFootprintCopy->RunOnDescendants(
+            [&]( BOARD_ITEM* child )
+            {
+                LSET childLayers = child->GetLayerSet() & LSET::UserDefinedLayersMask();
+
+                for( PCB_LAYER_ID layer : childLayers )
+                    enabledLayers.set( layer );
+            } );
+
+    // Enable any layers that the user has gone to the trouble to name
+    SETTINGS_MANAGER&          mgr = Pgm().GetSettingsManager();
+    FOOTPRINT_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" );
+
+    for( const PCB_LAYER_ID& user : LSET::UserDefinedLayersMask() )
+    {
+        if( cfg->m_DesignSettings.m_UserLayerNames.contains( LSET::Name( user ).ToStdString() ) )
+            enabledLayers.set( user );
+    }
+
+    GetBoard()->SetEnabledLayers( enabledLayers );
+}
+
+
 void FOOTPRINT_EDIT_FRAME::ReloadFootprint( FOOTPRINT* aFootprint )
 {
     GetBoard()->DeleteAllFootprints();
@@ -538,25 +587,32 @@ void FOOTPRINT_EDIT_FRAME::ReloadFootprint( FOOTPRINT* aFootprint )
     // ("old" footprints can have null uuids that create issues in fp editor)
     aFootprint->FixUuids();
 
+    updateEnabledLayers();
+
+    // Footprint Editor layer visibility is kept in the view, not the board (because the board
+    // just delegates to the project file, which we don't have).
+    for( PCB_LAYER_ID layer : GetBoard()->GetEnabledLayers() )
+        GetCanvas()->GetView()->SetLayerVisible( layer, true );
+
     const wxString libName = aFootprint->GetFPID().GetLibNickname();
 
     if( IsCurrentFPFromBoard() )
     {
-        const wxString msg =
-                wxString::Format( _( "Editing %s from board.  Saving will update the board only." ),
-                                  aFootprint->GetReference() );
-        const wxString openLibLink =
-                wxString::Format( _( "Open in library %s" ), UnescapeString( libName ) );
+        const wxString msg = wxString::Format( _( "Editing %s from board.  Saving will update the board only." ),
+                                               aFootprint->GetReference() );
+        const wxString openLibLink = wxString::Format( _( "Open in library %s" ),
+                                                       UnescapeString( libName ) );
 
-        const auto openLibraryCopy = [this]( wxHyperlinkEvent& aEvent )
-        {
-            GetToolManager()->RunAction( PCB_ACTIONS::editLibFpInFpEditor );
-        };
+        const auto openLibraryCopy =
+                [this]( wxHyperlinkEvent& aEvent )
+                {
+                    GetToolManager()->RunAction( PCB_ACTIONS::editLibFpInFpEditor );
+                };
 
         if( WX_INFOBAR* infobar = GetInfoBar() )
         {
-            wxHyperlinkCtrl* button =
-                    new wxHyperlinkCtrl( infobar, wxID_ANY, openLibLink, wxEmptyString );
+            wxHyperlinkCtrl* button = new wxHyperlinkCtrl( infobar, wxID_ANY, openLibLink,
+                                                           wxEmptyString );
             button->Bind( wxEVT_COMMAND_HYPERLINK, openLibraryCopy );
 
             infobar->RemoveAllButtons();
@@ -577,10 +633,11 @@ void FOOTPRINT_EDIT_FRAME::ReloadFootprint( FOOTPRINT* aFootprint )
         {
             wxString link = _( "Save as editable copy" );
 
-            const auto saveAsEditableCopy = [this, aFootprint]( wxHyperlinkEvent& aEvent )
-            {
-                SaveFootprintAs( aFootprint );
-            };
+            const auto saveAsEditableCopy =
+                    [this, aFootprint]( wxHyperlinkEvent& aEvent )
+                    {
+                        SaveFootprintAs( aFootprint );
+                    };
 
             wxHyperlinkCtrl* button = new wxHyperlinkCtrl( infobar, wxID_ANY, link, wxEmptyString );
             button->Bind( wxEVT_COMMAND_HYPERLINK, saveAsEditableCopy );
@@ -598,6 +655,7 @@ void FOOTPRINT_EDIT_FRAME::ReloadFootprint( FOOTPRINT* aFootprint )
     }
 
     UpdateMsgPanel();
+    UpdateUserInterface();
 }
 
 
@@ -983,6 +1041,10 @@ void FOOTPRINT_EDIT_FRAME::ShowChangedLanguage()
 void FOOTPRINT_EDIT_FRAME::OnModify()
 {
     PCB_BASE_FRAME::OnModify();
+
+    if( m_isClosing )
+        return;
+
     Update3DView( true, true );
     GetLibTree()->RefreshLibTree();
 
@@ -1250,8 +1312,8 @@ void FOOTPRINT_EDIT_FRAME::setupUIConditions()
     mgr->SetConditions( ACTIONS::toggleGrid,             CHECK( cond.GridVisible() ) );
     mgr->SetConditions( ACTIONS::toggleGridOverrides,    CHECK( cond.GridOverrides() ) );
     mgr->SetConditions( ACTIONS::toggleCursorStyle,      CHECK( cond.FullscreenCursor() ) );
-    mgr->SetConditions( ACTIONS::millimetersUnits,       CHECK( cond.Units( EDA_UNITS::MILLIMETRES ) ) );
-    mgr->SetConditions( ACTIONS::inchesUnits,            CHECK( cond.Units( EDA_UNITS::INCHES ) ) );
+    mgr->SetConditions( ACTIONS::millimetersUnits,       CHECK( cond.Units( EDA_UNITS::MM ) ) );
+    mgr->SetConditions( ACTIONS::inchesUnits,            CHECK( cond.Units( EDA_UNITS::INCH ) ) );
     mgr->SetConditions( ACTIONS::milsUnits,              CHECK( cond.Units( EDA_UNITS::MILS ) ) );
 
     mgr->SetConditions( ACTIONS::cut,                    ENABLE( cond.HasItems() ) );
@@ -1408,6 +1470,7 @@ void FOOTPRINT_EDIT_FRAME::CommonSettingsChanged( int aFlags )
     GetGalDisplayOptions().ReadWindowSettings( cfg->m_Window );
 
     GetBoard()->GetDesignSettings() = cfg->m_DesignSettings;
+    updateEnabledLayers();
 
     GetCanvas()->GetView()->UpdateAllLayersColor();
     GetCanvas()->GetView()->MarkTargetDirty( KIGFX::TARGET_NONCACHED );

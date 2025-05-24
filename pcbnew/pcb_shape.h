@@ -46,6 +46,8 @@ public:
 
     ~PCB_SHAPE() override;
 
+    void CopyFrom( const BOARD_ITEM* aOther ) override;
+
     static bool ClassOf( const EDA_ITEM* aItem )
     {
         return aItem && PCB_SHAPE_T == aItem->Type();
@@ -109,7 +111,7 @@ public:
      * Make a set of SHAPE objects representing the PCB_SHAPE.  Caller owns the objects.
      */
     std::shared_ptr<SHAPE> GetEffectiveShape( PCB_LAYER_ID aLayer = UNDEFINED_LAYER,
-            FLASHING aFlash = FLASHING::DEFAULT ) const override;
+                                              FLASHING aFlash = FLASHING::DEFAULT ) const override;
 
     bool IsProxyItem() const override { return m_proxyItem; }
     void SetIsProxyItem( bool aIsProxy = true ) override;

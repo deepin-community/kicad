@@ -81,10 +81,11 @@ BOARD::BOARD() :
         m_timeStamp( 1 ),
         m_paper( PAGE_INFO::A4 ),
         m_project( nullptr ),
-        m_userUnits( EDA_UNITS::MILLIMETRES ),
+        m_userUnits( EDA_UNITS::MM ),
         m_designSettings( new BOARD_DESIGN_SETTINGS( nullptr, "board.design_settings" ) ),
         m_NetInfo( this ),
-        m_embedFonts( false )
+        m_embedFonts( false ),
+        m_embeddedFilesDelegate( nullptr )
 {
     // A too small value do not allow connecting 2 shapes (i.e. segments) not exactly connected
     // A too large value do not allow safely connecting 2 shapes like very short segments.
@@ -267,7 +268,8 @@ void BOARD::IncrementTimeStamp()
         || !m_LayerExpressionCache.empty()
         || !m_ZoneBBoxCache.empty()
         || m_CopperItemRTreeCache
-        || m_maxClearanceValue.has_value() )
+        || m_maxClearanceValue.has_value()
+        || !m_itemByIdCache.empty() )
     {
         std::unique_lock<std::shared_mutex> writeLock( m_CachesMutex );
 
@@ -292,6 +294,8 @@ void BOARD::IncrementTimeStamp()
         m_CopperZoneRTreeCache.clear();
 
         m_maxClearanceValue.reset();
+
+        m_itemByIdCache.clear();
     }
 }
 
@@ -538,16 +542,13 @@ void BOARD::RunOnDescendants( const std::function<void ( BOARD_ITEM* )>& aFuncti
         for( PCB_MARKER* marker : m_markers )
             aFunction( marker );
 
+        for( PCB_GROUP* group : m_groups )
+            aFunction( group );
+
         for( FOOTPRINT* footprint : m_footprints )
         {
             aFunction( footprint );
             footprint->RunOnDescendants( aFunction, aDepth + 1 );
-        }
-
-        for( PCB_GROUP* group : m_groups )
-        {
-            aFunction( group );
-            group->RunOnDescendants( aFunction, aDepth + 1 );
         }
 
         for( BOARD_ITEM* drawing : m_drawings )
@@ -828,7 +829,7 @@ int BOARD::LayerDepth( PCB_LAYER_ID aStartLayer, PCB_LAYER_ID aEndLayer ) const
 }
 
 
-LSET BOARD::GetEnabledLayers() const
+const LSET& BOARD::GetEnabledLayers() const
 {
     return GetDesignSettings().GetEnabledLayers();
 }
@@ -842,13 +843,13 @@ bool BOARD::IsLayerVisible( PCB_LAYER_ID aLayer ) const
 }
 
 
-LSET BOARD::GetVisibleLayers() const
+const LSET& BOARD::GetVisibleLayers() const
 {
     return m_project ? m_project->GetLocalSettings().m_VisibleLayers : LSET::AllLayersMask();
 }
 
 
-void BOARD::SetEnabledLayers( LSET aLayerSet )
+void BOARD::SetEnabledLayers( const LSET& aLayerSet )
 {
     GetDesignSettings().SetEnabledLayers( aLayerSet );
 }
@@ -860,7 +861,7 @@ bool BOARD::IsLayerEnabled( PCB_LAYER_ID aLayer ) const
 }
 
 
-void BOARD::SetVisibleLayers( LSET aLayerSet )
+void BOARD::SetVisibleLayers( const LSET& aLayerSet )
 {
     if( m_project )
         m_project->GetLocalSettings().m_VisibleLayers = aLayerSet;
@@ -1187,6 +1188,23 @@ void BOARD::FinalizeBulkRemove( std::vector<BOARD_ITEM*>& aRemovedItems )
 }
 
 
+void BOARD::BulkRemoveStaleTeardrops( BOARD_COMMIT& aCommit )
+{
+    for( int ii = (int) m_zones.size() - 1; ii >= 0; --ii )
+    {
+        ZONE* zone = m_zones[ii];
+
+        if( zone->IsTeardropArea() && zone->HasFlag( STRUCT_DELETED ) )
+        {
+            m_itemByIdCache.erase( zone->m_Uuid );
+            m_zones.erase( m_zones.begin() + ii );
+            m_connectivity->Remove( zone );
+            aCommit.Removed( zone );
+        }
+    }
+}
+
+
 void BOARD::Remove( BOARD_ITEM* aBoardItem, REMOVE_MODE aRemoveMode )
 {
     // find these calls and fix them!  Don't send me no stinking' nullptr.
@@ -1453,8 +1471,19 @@ void BOARD::DeleteAllFootprints()
 {
     for( FOOTPRINT* footprint : m_footprints )
     {
-        m_itemByIdCache.erase( footprint->m_Uuid );
         delete footprint;
+    }
+
+    m_footprints.clear();
+    IncrementTimeStamp();
+}
+
+
+void BOARD::DetachAllFootprints()
+{
+    for( FOOTPRINT* footprint : m_footprints )
+    {
+        footprint->SetParent( nullptr );
     }
 
     m_footprints.clear();
@@ -2199,25 +2228,6 @@ PAD* BOARD::GetPad( const PCB_TRACK* aTrace, ENDPOINT_T aEndPoint ) const
 }
 
 
-PAD* BOARD::GetPadFast( const VECTOR2I& aPosition, LSET aLayerSet ) const
-{
-    for( FOOTPRINT* footprint : Footprints() )
-    {
-        for( PAD* pad : footprint->Pads() )
-        {
-        if( pad->GetPosition() != aPosition )
-            continue;
-
-        // Pad found, it must be on the correct layer
-        if( ( pad->GetLayerSet() & aLayerSet ).any() )
-            return pad;
-        }
-    }
-
-    return nullptr;
-}
-
-
 PAD* BOARD::GetPad( std::vector<PAD*>& aPadList, const VECTOR2I& aPosition, LSET aLayerSet ) const
 {
     // Search aPadList for aPosition
@@ -2602,8 +2612,8 @@ bool BOARD::GetBoardPolygonOutlines( SHAPE_POLY_SET& aOutlines,
 
 EMBEDDED_FILES* BOARD::GetEmbeddedFiles()
 {
-    if( IsFootprintHolder() )
-        return static_cast<EMBEDDED_FILES*>( GetFirstFootprint() );
+    if( m_embeddedFilesDelegate )
+        return static_cast<EMBEDDED_FILES*>( m_embeddedFilesDelegate );
 
     return static_cast<EMBEDDED_FILES*>( this );
 }
@@ -2611,8 +2621,8 @@ EMBEDDED_FILES* BOARD::GetEmbeddedFiles()
 
 const EMBEDDED_FILES* BOARD::GetEmbeddedFiles() const
 {
-    if( IsFootprintHolder() )
-        return static_cast<const EMBEDDED_FILES*>( GetFirstFootprint() );
+    if( m_embeddedFilesDelegate )
+        return static_cast<const EMBEDDED_FILES*>( m_embeddedFilesDelegate );
 
     return static_cast<const EMBEDDED_FILES*>( this );
 }

@@ -31,9 +31,11 @@
 #include <sch_item.h>
 #include <template_fieldnames.h>
 #include <general.h>
+#include <string_utils.h>
 #include "scintilla_tricks.h"
 
 class SCH_EDIT_FRAME;
+class SCH_TEXT;
 
 
 /**
@@ -55,6 +57,8 @@ public:
 
     SCH_FIELD( SCH_ITEM* aParent, int aFieldId = INVALID_FIELD,
                const wxString& aName = wxEmptyString );
+
+    SCH_FIELD( SCH_TEXT* aText );
 
     SCH_FIELD( const SCH_FIELD& aText );
 
@@ -100,7 +104,10 @@ public:
 
     bool IsHypertext() const override
     {
-        return GetCanonicalName() == wxT( "Intersheetrefs" );
+        if( GetCanonicalName() == wxT( "Intersheetrefs" ) )
+            return true;
+
+        return IsURL( GetShownText( false ) );
     }
 
     void DoHypertextAction( EDA_DRAW_FRAME* aFrame ) const override;
@@ -213,12 +220,12 @@ public:
     void SetNameShown( bool aShown = true ) { m_showName = aShown; }
 
     /**
-     * Named variables are fields whose names are variables like ${VAR}.
+     * Generated fields are fields whose names are variables like ${VAR}.
      *
      * The shown name of these fields is VAR and the value is resolved from
      * ${VAR}
      */
-    bool IsNamedVariable() const { return m_isNamedVariable; }
+    bool IsGeneratedField() const { return m_isGeneratedField; }
 
     bool CanAutoplace() const { return m_allowAutoPlace; }
     void SetCanAutoplace( bool aCanPlace ) { m_allowAutoPlace = aCanPlace; }
@@ -309,6 +316,17 @@ public:
 
     double Similarity( const SCH_ITEM& aItem ) const override;
 
+    /**
+     * Output the object to \a aFormatter in s-expression form.
+     *
+     * @param aFormatter The #OUTPUTFORMATTER object to write to.
+     * @param aControlBits The control bit definition for object specific formatting.
+     * @throw IO_ERROR on write error.
+     */
+    void Format( OUTPUTFORMATTER* aFormatter, int aControlBits ) const override;
+
+    bool IsDefaultFormatting() const override;
+
     bool operator==( const SCH_ITEM& aItem ) const override;
     bool operator==( const SCH_FIELD& aItem ) const;
 
@@ -340,13 +358,13 @@ private:
 
     wxString m_name;
 
-    bool     m_showName;        ///< Render the field name in addition to its value
-    bool     m_allowAutoPlace;  ///< This field can be autoplaced
-    bool     m_isNamedVariable; ///< If the field name is a variable name, e.g. ${DNP}
-                                ///< then the value field is forced to be the same as the name
+    bool     m_showName;         ///< Render the field name in addition to its value
+    bool     m_allowAutoPlace;   ///< This field can be autoplaced
+    bool     m_isGeneratedField; ///< If the field name is a variable name (e.g. ${DNP}) then
+                                 ///<   the value field is forced to be the same as the name
 
-    bool     m_autoAdded;       ///< Was this field automatically added to a LIB_SYMBOL?
-    bool     m_showInChooser;   ///< This field is available as a data column for the chooser
+    bool     m_autoAdded;        ///< Was this field automatically added to a LIB_SYMBOL?
+    bool     m_showInChooser;    ///< This field is available as a data column for the chooser
 
     mutable bool                                        m_renderCacheValid;
     mutable VECTOR2I                                    m_renderCachePos;

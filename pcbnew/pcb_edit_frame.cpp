@@ -283,10 +283,12 @@ PCB_EDIT_FRAME::PCB_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
                     &PCB_EDIT_FRAME::onPluginAvailabilityChanged, this );
 #endif
 
-    m_propertiesPanel = new PCB_PROPERTIES_PANEL( this, this );
+    // Fetch a COPY of the config as a lot of these initializations are going to overwrite our
+    // data.
+    PCBNEW_SETTINGS::AUI_PANELS aui_cfg = GetPcbNewSettings()->m_AuiPanels;
 
-    float proportion = GetPcbNewSettings()->m_AuiPanels.properties_splitter;
-    m_propertiesPanel->SetSplitterProportion( proportion );
+    m_propertiesPanel = new PCB_PROPERTIES_PANEL( this, this );
+    m_propertiesPanel->SetSplitterProportion( aui_cfg.properties_splitter );
 
     m_selectionFilterPanel = new PANEL_SELECTION_FILTER( this );
 
@@ -324,17 +326,22 @@ PCB_EDIT_FRAME::PCB_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_auimgr.AddPane( m_appearancePanel, EDA_PANE().Name( wxS( "LayersManager" ) )
                       .Right().Layer( 4 )
                       .Caption( _( "Appearance" ) ).PaneBorder( false )
-                      .MinSize( FromDIP( 180 ), -1 )
-                      .BestSize( FromDIP( 180 ), -1 )
-                      .FloatingSize( FromDIP( 180 ), -1 )
+                      .MinSize( m_appearancePanel->GetMinSize().x, -1 )
+#ifdef __WXMAC__
+                      // Best size for this pane is calculated larger than necessary on wxMac
+                      .BestSize( m_appearancePanel->GetMinSize().x, -1 )
+#else
+                      .BestSize( m_appearancePanel->GetBestSize().x, -1 )
+#endif
+                      .FloatingSize( m_appearancePanel->GetBestSize() )
                       .CloseButton( false ) );
 
     m_auimgr.AddPane( m_selectionFilterPanel, EDA_PANE().Name( wxS( "SelectionFilter" ) )
                       .Right().Layer( 4 ).Position( 2 )
                       .Caption( _( "Selection Filter" ) ).PaneBorder( false )
-                      .MinSize( FromDIP( 180 ), -1 )
-                      .BestSize( FromDIP( 180 ), -1 )
-                      .FloatingSize( FromDIP( 180 ), -1 )
+                      .MinSize( m_selectionFilterPanel->GetMinSize().x, -1  )
+                      .BestSize( m_selectionFilterPanel->GetBestSize().x, -1 )
+                      .FloatingSize( m_selectionFilterPanel->GetBestSize() )
                       .CloseButton( false ) );
 
     m_auimgr.AddPane( m_propertiesPanel, EDA_PANE().Name( PropertiesPaneName() )
@@ -380,40 +387,36 @@ PCB_EDIT_FRAME::PCB_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
 
     FinishAUIInitialization();
 
-    if( PCBNEW_SETTINGS* settings = dynamic_cast<PCBNEW_SETTINGS*>( config() ) )
+    if( aui_cfg.right_panel_width > 0 )
     {
-        if( settings->m_AuiPanels.right_panel_width > 0 )
-        {
-            wxAuiPaneInfo& layersManager = m_auimgr.GetPane( wxS( "LayersManager" ) );
-            SetAuiPaneSize( m_auimgr, layersManager, settings->m_AuiPanels.right_panel_width, -1 );
-        }
-
-        if( settings->m_AuiPanels.properties_panel_width > 0 && m_propertiesPanel )
-        {
-            wxAuiPaneInfo& propertiesPanel = m_auimgr.GetPane( PropertiesPaneName() );
-            SetAuiPaneSize( m_auimgr, propertiesPanel,
-                            settings->m_AuiPanels.properties_panel_width, -1 );
-        }
-
-        if( settings->m_AuiPanels.search_panel_height > 0
-            && ( settings->m_AuiPanels.search_panel_dock_direction == wxAUI_DOCK_TOP
-                || settings->m_AuiPanels.search_panel_dock_direction == wxAUI_DOCK_BOTTOM ) )
-        {
-            wxAuiPaneInfo& searchPane = m_auimgr.GetPane( SearchPaneName() );
-            searchPane.Direction( settings->m_AuiPanels.search_panel_dock_direction );
-            SetAuiPaneSize( m_auimgr, searchPane, -1, settings->m_AuiPanels.search_panel_height );
-        }
-        else if( settings->m_AuiPanels.search_panel_width > 0
-                && ( settings->m_AuiPanels.search_panel_dock_direction == wxAUI_DOCK_LEFT
-                    || settings->m_AuiPanels.search_panel_dock_direction == wxAUI_DOCK_RIGHT ) )
-        {
-            wxAuiPaneInfo& searchPane = m_auimgr.GetPane( SearchPaneName() );
-            searchPane.Direction( settings->m_AuiPanels.search_panel_dock_direction );
-            SetAuiPaneSize( m_auimgr, searchPane, settings->m_AuiPanels.search_panel_width, -1 );
-        }
-
-        m_appearancePanel->SetTabIndex( settings->m_AuiPanels.appearance_panel_tab );
+        wxAuiPaneInfo& layersManager = m_auimgr.GetPane( wxS( "LayersManager" ) );
+        SetAuiPaneSize( m_auimgr, layersManager, aui_cfg.right_panel_width, -1 );
     }
+
+    if( aui_cfg.properties_panel_width > 0 && m_propertiesPanel )
+    {
+        wxAuiPaneInfo& propertiesPanel = m_auimgr.GetPane( PropertiesPaneName() );
+        SetAuiPaneSize( m_auimgr, propertiesPanel, aui_cfg.properties_panel_width, -1 );
+    }
+
+    if( aui_cfg.search_panel_height > 0
+        && ( aui_cfg.search_panel_dock_direction == wxAUI_DOCK_TOP
+            || aui_cfg.search_panel_dock_direction == wxAUI_DOCK_BOTTOM ) )
+    {
+        wxAuiPaneInfo& searchPane = m_auimgr.GetPane( SearchPaneName() );
+        searchPane.Direction( aui_cfg.search_panel_dock_direction );
+        SetAuiPaneSize( m_auimgr, searchPane, -1, aui_cfg.search_panel_height );
+    }
+    else if( aui_cfg.search_panel_width > 0
+            && ( aui_cfg.search_panel_dock_direction == wxAUI_DOCK_LEFT
+                || aui_cfg.search_panel_dock_direction == wxAUI_DOCK_RIGHT ) )
+    {
+        wxAuiPaneInfo& searchPane = m_auimgr.GetPane( SearchPaneName() );
+        searchPane.Direction( aui_cfg.search_panel_dock_direction );
+        SetAuiPaneSize( m_auimgr, searchPane, aui_cfg.search_panel_width, -1 );
+    }
+
+    m_appearancePanel->SetTabIndex( aui_cfg.appearance_panel_tab );
 
     {
         m_layerPairSettings = std::make_unique<LAYER_PAIR_SETTINGS>();
@@ -563,11 +566,11 @@ PCB_EDIT_FRAME::PCB_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
         m_eventCounterTimer->Start( 1000 );
     }
 
-    Bind( EDA_EVT_CLOSE_DIALOG_BOOK_REPORTER, &PCB_EDIT_FRAME::onCloseModelessBookReporterDialogs,
-          this );
     m_acceptedExts.emplace( FILEEXT::KiCadPcbFileExtension, &PCB_ACTIONS::ddAppendBoard );
     m_acceptedExts.emplace( FILEEXT::LegacyPcbFileExtension, &PCB_ACTIONS::ddAppendBoard );
     DragAcceptFiles( true );
+
+    Bind( EDA_EVT_CLOSE_DIALOG_BOOK_REPORTER, &PCB_EDIT_FRAME::onCloseModelessBookReporterDialogs, this );
 }
 
 
@@ -809,8 +812,8 @@ void PCB_EDIT_FRAME::setupUIConditions()
     mgr->SetConditions( ACTIONS::toggleGridOverrides, CHECK( cond.GridOverrides() ) );
     mgr->SetConditions( ACTIONS::toggleCursorStyle,   CHECK( cond.FullscreenCursor() ) );
     mgr->SetConditions( ACTIONS::togglePolarCoords,   CHECK( cond.PolarCoordinates() ) );
-    mgr->SetConditions( ACTIONS::millimetersUnits,    CHECK( cond.Units( EDA_UNITS::MILLIMETRES ) ) );
-    mgr->SetConditions( ACTIONS::inchesUnits,         CHECK( cond.Units( EDA_UNITS::INCHES ) ) );
+    mgr->SetConditions( ACTIONS::millimetersUnits,    CHECK( cond.Units( EDA_UNITS::MM ) ) );
+    mgr->SetConditions( ACTIONS::inchesUnits,         CHECK( cond.Units( EDA_UNITS::INCH ) ) );
     mgr->SetConditions( ACTIONS::milsUnits,           CHECK( cond.Units( EDA_UNITS::MILS ) ) );
 
     mgr->SetConditions( ACTIONS::cut,          ENABLE( cond.HasItems() ) );
@@ -1502,11 +1505,11 @@ void PCB_EDIT_FRAME::SetGridColor( const COLOR4D& aColor )
 }
 
 
-void PCB_EDIT_FRAME::SetActiveLayer( PCB_LAYER_ID aLayer )
+void PCB_EDIT_FRAME::SetActiveLayer( PCB_LAYER_ID aLayer, bool aForceRedraw )
 {
     const PCB_LAYER_ID oldLayer = GetActiveLayer();
 
-    if( oldLayer == aLayer )
+    if( oldLayer == aLayer && !aForceRedraw )
         return;
 
     PCB_BASE_FRAME::SetActiveLayer( aLayer );
@@ -1525,7 +1528,7 @@ void PCB_EDIT_FRAME::SetActiveLayer( PCB_LAYER_ID aLayer )
     *
     * For pads/vias, this is to avoid clutter when there are pad/via layers
     * that vary in flash (i.e. clearance from the hole or pad edge), padstack
-    * shape on eahc layer or clearances on each layer.
+    * shape on each layer or clearances on each layer.
     *
     * For tracks, this follows the same logic as pads/vias, but in theory could
     * have their own set of independent clearance layers to allow track clearance
@@ -1647,7 +1650,9 @@ void PCB_EDIT_FRAME::onBoardLoaded()
     m_appearancePanel->ApplyLayerPreset( localSettings.m_ActiveLayerPreset );
 
     if( GetBoard()->GetDesignSettings().IsLayerEnabled( localSettings.m_ActiveLayer ) )
-        SetActiveLayer( localSettings.m_ActiveLayer );
+        SetActiveLayer( localSettings.m_ActiveLayer, true );
+    else
+        SetActiveLayer( GetActiveLayer(), true );   // Make sure to repaint even if not switching
 
     PROJECT_FILE& projectFile = Prj().GetProjectFile();
 
@@ -1750,13 +1755,16 @@ void PCB_EDIT_FRAME::SetLastPath( LAST_PATH_TYPE aType, const wxString& aLastPat
 void PCB_EDIT_FRAME::OnModify()
 {
     PCB_BASE_FRAME::OnModify();
+    m_ZoneFillsDirty = true;
+
+    if( m_isClosing )
+        return;
 
     Update3DView( true, GetPcbNewSettings()->m_Display.m_Live3DRefresh );
 
     if( !GetTitle().StartsWith( wxT( "*" ) ) )
         UpdateTitle();
 
-    m_ZoneFillsDirty = true;
 }
 
 
@@ -2273,10 +2281,8 @@ static void processTextItem( const PCB_TEXT& aSrc, PCB_TEXT& aDest,
     }
     else
     {
-        // Careful: the visible bit and position are also set by SetAttributes()
-        bool visible = aDest.IsVisible();
+        // Careful: SetAttributes() will clobber the position
         aDest.SetAttributes( aSrc );
-        aDest.SetVisible( visible );
         aDest.SetFPRelativePosition( aSrc.GetFPRelativePosition() );
     }
 

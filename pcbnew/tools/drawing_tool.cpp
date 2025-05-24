@@ -931,7 +931,11 @@ int DRAWING_TOOL::PlaceText( const TOOL_EVENT& aEvent )
                                   COORDS_PADDING );
         m_controls->ForceCursorPosition( true, cursorPos );
 
-        if( evt->IsCancelInteractive() || ( text && evt->IsAction( &ACTIONS::undo ) ) )
+        if( evt->IsDrag() )
+        {
+            continue;
+        }
+        else if( evt->IsCancelInteractive() || ( text && evt->IsAction( &ACTIONS::undo ) ) )
         {
             if( text )
             {
@@ -996,16 +1000,17 @@ int DRAWING_TOOL::PlaceText( const TOOL_EVENT& aEvent )
                 text->SetLayer( layer );
                 text->SetAttributes( textAttrs );
                 text->SetTextPos( cursorPos );
-                text->SetFlags( IS_NEW );  // Prevent double undo commits
+                text->SetFlags( IS_NEW ); // Prevent double undo commits
 
                 DIALOG_TEXT_PROPERTIES textDialog( m_frame, text );
-                bool cancelled;
+                bool                   cancelled;
 
-                RunMainStack( [&]()
-                              {
-                                  // QuasiModal required for Scintilla auto-complete
-                                  cancelled = !textDialog.ShowQuasiModal();
-                              } );
+                RunMainStack(
+                        [&]()
+                        {
+                            // QuasiModal required for Scintilla auto-complete
+                            cancelled = !textDialog.ShowQuasiModal();
+                        } );
 
                 if( cancelled || NoPrintableChars( text->GetText() ) )
                 {
@@ -1070,15 +1075,15 @@ int DRAWING_TOOL::PlaceText( const TOOL_EVENT& aEvent )
             m_controls->CaptureCursor( text != nullptr );
             m_controls->SetAutoPan( text != nullptr );
         }
-        else if( text && (   evt->IsMotion()
-                          || evt->IsAction( &PCB_ACTIONS::refreshPreview ) ) )
+        else if( text && ( evt->IsMotion() || evt->IsAction( &PCB_ACTIONS::refreshPreview ) ) )
         {
             text->SetPosition( cursorPos );
             selection().SetReferencePoint( cursorPos );
             m_view->Update( &selection() );
         }
-        else if( text && (   ZONE_FILLER_TOOL::IsZoneFillAction( evt )
-                          || evt->IsAction( &ACTIONS::redo ) ) )
+        else if( text
+                 && ( ZONE_FILLER_TOOL::IsZoneFillAction( evt )
+                      || evt->IsAction( &ACTIONS::redo ) ) )
         {
             wxBell();
         }
@@ -1911,7 +1916,7 @@ int DRAWING_TOOL::PlaceImportedGraphics( const TOOL_EVENT& aEvent )
     }
 
     // Turn shapes on if they are off, so that the created object will be visible after completion
-    m_frame->SetObjectVisible( LAYER_SHAPES );
+    m_frame->SetObjectVisible( LAYER_FILLED_SHAPES );
 
     if( !m_view->IsLayerVisible( layer ) )
     {
@@ -2108,25 +2113,6 @@ int DRAWING_TOOL::SetAnchor( const TOOL_EVENT& aEvent )
 }
 
 
-int DRAWING_TOOL::ToggleHV45Mode( const TOOL_EVENT& toolEvent )
-{
-#define TOGGLE( a ) a = !a
-
-    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-
-    if( frame()->IsType( FRAME_PCB_EDITOR ) )
-        TOGGLE( mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" )->m_Use45DegreeLimit );
-    else
-        TOGGLE( mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" )->m_Use45Limit );
-
-    UpdateStatusBar();
-
-    return 0;
-
-#undef TOGGLE
-}
-
-
 /**
  * Update a #PCB_SHAPE from the current state of a #TWO_POINT_GEOMETRY_MANAGER.
  */
@@ -2173,7 +2159,7 @@ bool DRAWING_TOOL::drawShape( const TOOL_EVENT& aTool, PCB_SHAPE** aGraphic,
     }
 
     // Turn shapes on if they are off, so that the created object will be visible after completion
-    m_frame->SetObjectVisible( LAYER_SHAPES );
+    m_frame->SetObjectVisible( LAYER_FILLED_SHAPES );
 
     // geometric construction manager
     KIGFX::PREVIEW::TWO_POINT_GEOMETRY_MANAGER twoPointMgr;
@@ -2573,9 +2559,6 @@ bool DRAWING_TOOL::drawArc( const TOOL_EVENT& aTool, PCB_SHAPE** aGraphic,
         m_stroke.SetColor( COLOR4D::UNSPECIFIED );
     }
 
-    // Turn shapes on if they are off, so that the created object will be visible after completion
-    m_frame->SetObjectVisible( LAYER_SHAPES );
-
     // Arc geometric construction manager
     KIGFX::PREVIEW::ARC_GEOM_MANAGER arcManager;
 
@@ -2878,9 +2861,6 @@ std::unique_ptr<PCB_SHAPE> DRAWING_TOOL::drawOneBezier( const TOOL_EVENT&   aToo
         m_stroke.SetLineStyle( LINE_STYLE::DEFAULT );
         m_stroke.SetColor( COLOR4D::UNSPECIFIED );
     }
-
-    // Turn shapes on if they are off, so that the created object will be visible after completion
-    m_frame->SetObjectVisible( LAYER_SHAPES );
 
     // Arc geometric construction manager
     KIGFX::PREVIEW::BEZIER_GEOM_MANAGER bezierManager;
@@ -4171,8 +4151,6 @@ void DRAWING_TOOL::setTransitions()
     Go( &DRAWING_TOOL::DrawRectangle,         PCB_ACTIONS::drawTextBox.MakeEvent() );
     Go( &DRAWING_TOOL::PlaceImportedGraphics, PCB_ACTIONS::placeImportedGraphics.MakeEvent() );
     Go( &DRAWING_TOOL::SetAnchor,             PCB_ACTIONS::setAnchor.MakeEvent() );
-
-    Go( &DRAWING_TOOL::ToggleHV45Mode,        PCB_ACTIONS::toggleHV45Mode.MakeEvent() );
 
     Go( &DRAWING_TOOL::PlaceTuningPattern,    PCB_ACTIONS::tuneSingleTrack.MakeEvent() );
     Go( &DRAWING_TOOL::PlaceTuningPattern,    PCB_ACTIONS::tuneDiffPair.MakeEvent() );

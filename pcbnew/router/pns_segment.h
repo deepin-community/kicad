@@ -19,8 +19,8 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __PNS_SEGMENT_H
-#define __PNS_SEGMENT_H
+#ifndef PNS_SEGMENT_H
+#define PNS_SEGMENT_H
 
 #include <math/vector2d.h>
 
@@ -53,6 +53,9 @@ public:
         LINKED_ITEM( SEGMENT_T ),
         m_seg( aSeg, aParentLine.Width() )
     {
+        m_parent = nullptr;
+        m_sourceItem = aParentLine.GetSourceItem();
+
         m_net = aParentLine.Net();
         m_layers = aParentLine.Layers();
         m_marker = aParentLine.Marker();
@@ -108,7 +111,8 @@ public:
         m_seg.SetSeg( SEG (tmp.B , tmp.A ) );
     }
 
-    const SHAPE_LINE_CHAIN Hull( int aClearance, int aWalkaroundThickness, int aLayer = -1 ) const override;
+    const SHAPE_LINE_CHAIN Hull( int aClearance, int aWalkaroundThickness,
+                                 int aLayer = -1 ) const override;
 
     virtual VECTOR2I Anchor( int n ) const override
     {

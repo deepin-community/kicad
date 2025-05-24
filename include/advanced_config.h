@@ -489,15 +489,6 @@ public:
     bool m_EnableGenerators;
 
     /**
-     * Enable git integration.
-     *
-     * Setting name: "EnableGit"
-     * Valid values: 0 or 1
-     * Default value: 0
-     */
-    bool m_EnableGit;
-
-    /**
      * Enable option to load lib files with text editor.
      *
      * Setting name: "EnableLibWithText"
@@ -749,6 +740,22 @@ public:
      * Default value: 25
      */
     int m_NetInspectorBulkUpdateOptimisationThreshold;
+
+    /**
+     * The line width in mils for the exclude from simulation outline.
+     *
+     * Setting name: "ExcludeFromSimulationLineWidth"
+     * Default value: 25
+     */
+    int m_ExcludeFromSimulationLineWidth;
+
+    /**
+     * The interval in milliseconds to refresh the git icons in the project tree.
+     *
+     * Setting name: "GitIconRefreshInterval"
+     * Default value: 10000
+     */
+    int m_GitIconRefreshInterval;
 
     ///@}
 

@@ -145,19 +145,33 @@ class TEXT_ITEMS_GRID_TABLE : public wxGridTableBase
     std::vector<TEXT_ITEM_INFO> m_items;
 
 public:
-    TEXT_ITEMS_GRID_TABLE( bool aForFieldProps ) : m_forFieldProps( aForFieldProps ) {}
+    TEXT_ITEMS_GRID_TABLE( bool aForFieldProps ) :
+            m_forFieldProps( aForFieldProps )
+    {}
 
     int GetNumberRows() override { return m_items.size(); }
-    int GetNumberCols() override { return 3; }
+    int GetNumberCols() override { return m_forFieldProps ? 3 : 2; }
 
     wxString GetColLabelValue( int aCol ) override
     {
-        switch( aCol )
+        if( m_forFieldProps )
         {
-        case 0: return m_forFieldProps ? _( "Value" ) : _( "Text Items" );
-        case 1: return _( "Show" );
-        case 2: return _( "Layer" );
-        default: return wxEmptyString;
+            switch( aCol )
+            {
+            case 0: return _( "Value" );
+            case 1: return _( "Show" );
+            case 2: return _( "Layer" );
+            default: return wxEmptyString;
+            }
+        }
+        else
+        {
+            switch( aCol )
+            {
+            case 0: return _( "Text Items" );
+            case 1: return _( "Layer" );
+            default: return wxEmptyString;
+            }
         }
     }
 
@@ -173,12 +187,24 @@ public:
 
     bool CanGetValueAs( int aRow, int aCol, const wxString& aTypeName ) override
     {
-        switch( aCol )
+        if( m_forFieldProps )
         {
-        case 0: return aTypeName == wxGRID_VALUE_STRING;
-        case 1: return aTypeName == wxGRID_VALUE_BOOL;
-        case 2: return aTypeName == wxGRID_VALUE_NUMBER;
-        default: wxFAIL; return false;
+            switch( aCol )
+            {
+            case 0: return aTypeName == wxGRID_VALUE_STRING;
+            case 1: return aTypeName == wxGRID_VALUE_BOOL;
+            case 2: return aTypeName == wxGRID_VALUE_NUMBER;
+            default: wxFAIL; return false;
+            }
+        }
+        else
+        {
+            switch( aCol )
+            {
+            case 0: return aTypeName == wxGRID_VALUE_STRING;
+            case 1: return aTypeName == wxGRID_VALUE_NUMBER;
+            default: wxFAIL; return false;
+            }
         }
     }
 
@@ -204,7 +230,8 @@ public:
     long GetValueAsLong( int row, int col ) override { return m_items[row].m_Layer; }
     void SetValueAsLong( int row, int col, long value ) override
     {
-        if( col == 2 )
+        if( col == GetNumberCols() - 1 )    // only last column uses a long value
+                                            // (probably useless test)
             m_items[row].m_Layer = static_cast<PCB_LAYER_ID>( value );
     }
 
@@ -279,15 +306,9 @@ PANEL_FP_EDITOR_FIELD_DEFAULTS::PANEL_FP_EDITOR_FIELD_DEFAULTS( wxWindow*       
     m_textItemsGrid->SetSelectionMode( wxGrid::wxGridSelectRows );
 
     attr = new wxGridCellAttr;
-    attr->SetRenderer( new wxGridCellBoolRenderer() );
-    attr->SetReadOnly(); // not really; we delegate interactivity to GRID_TRICKS
-    attr->SetAlignment( wxALIGN_CENTER, wxALIGN_CENTER );
-    m_textItemsGrid->SetColAttr( 1, attr );
-
-    attr = new wxGridCellAttr;
     attr->SetRenderer( new GRID_CELL_LAYER_RENDERER( nullptr ) );
     attr->SetEditor( new GRID_CELL_LAYER_SELECTOR( nullptr, {} ) );
-    m_textItemsGrid->SetColAttr( 2, attr );
+    m_textItemsGrid->SetColAttr( 1, attr );
 
     m_layerNameitemsGrid->SetDefaultRowSize( m_layerNameitemsGrid->GetDefaultRowSize() + 4 );
 
@@ -297,7 +318,10 @@ PANEL_FP_EDITOR_FIELD_DEFAULTS::PANEL_FP_EDITOR_FIELD_DEFAULTS( wxWindow*       
 
     attr = new wxGridCellAttr;
     attr->SetRenderer( new GRID_CELL_LAYER_RENDERER( nullptr ) );
-    attr->SetEditor( new GRID_CELL_LAYER_SELECTOR( nullptr, LSET::AllTechMask() | LSET::AllCuMask() | Edge_Cuts | Margin ) );
+    LSET forbiddenLayers = LSET::AllCuMask() | LSET::AllTechMask();
+    forbiddenLayers.set( Edge_Cuts );
+    forbiddenLayers.set( Margin );
+    attr->SetEditor( new GRID_CELL_LAYER_SELECTOR( nullptr, forbiddenLayers ) );
     m_layerNameitemsGrid->SetColAttr( 0, attr );
 
 
@@ -319,7 +343,7 @@ void PANEL_FP_EDITOR_FIELD_DEFAULTS::loadFPSettings( const FOOTPRINT_EDITOR_SETT
     m_fieldPropsGrid->GetTable()->DeleteRows( 0, m_fieldPropsGrid->GetNumberRows() );
     m_fieldPropsGrid->GetTable()->AppendRows( 2 );
 
-    for( int i : { REFERENCE_FIELD, VALUE_FIELD } )
+    for( int i = 0; i < std::min<int>( 2, (int) aCfg->m_DesignSettings.m_DefaultFPTextItems.size() ); ++i )
     {
         TEXT_ITEM_INFO item = aCfg->m_DesignSettings.m_DefaultFPTextItems[i];
 
@@ -329,16 +353,20 @@ void PANEL_FP_EDITOR_FIELD_DEFAULTS::loadFPSettings( const FOOTPRINT_EDITOR_SETT
     }
 
     m_textItemsGrid->GetTable()->DeleteRows( 0, m_textItemsGrid->GetNumberRows() );
-    m_textItemsGrid->GetTable()->AppendRows( aCfg->m_DesignSettings.m_DefaultFPTextItems.size()
-                                             - 2 );
+
+    // if aCfg->m_DesignSettings.m_DefaultFPTextItems.size() is > 2 (0 and 1 are ref and value),
+    // some extra texts must be added to the list of default texts
+    int extra_texts_cnt = (int) aCfg->m_DesignSettings.m_DefaultFPTextItems.size() - 2;
+
+    if( extra_texts_cnt > 0 )
+        m_textItemsGrid->GetTable()->AppendRows( extra_texts_cnt );
 
     for( int i = 2; i < (int) aCfg->m_DesignSettings.m_DefaultFPTextItems.size(); ++i )
     {
         TEXT_ITEM_INFO item = aCfg->m_DesignSettings.m_DefaultFPTextItems[i];
 
         m_textItemsGrid->GetTable()->SetValue( i - 2, 0, item.m_Text );
-        m_textItemsGrid->GetTable()->SetValueAsBool( i - 2, 1, item.m_Visible );
-        m_textItemsGrid->GetTable()->SetValueAsLong( i - 2, 2, item.m_Layer );
+        m_textItemsGrid->GetTable()->SetValueAsLong( i - 2, 1, item.m_Layer );
     }
 
     for( auto& item : aCfg->m_DesignSettings.m_UserLayerNames )
@@ -416,10 +444,9 @@ bool PANEL_FP_EDITOR_FIELD_DEFAULTS::TransferDataFromWindow()
     for( int i = 0; i < m_textItemsGrid->GetNumberRows(); ++i )
     {
         wxString text = table->GetValue( i, 0 );
-        bool visible = table->GetValueAsBool( i, 1 );
-        PCB_LAYER_ID layer = static_cast<PCB_LAYER_ID>( table->GetValueAsLong( i, 2 ) );
+        PCB_LAYER_ID layer = static_cast<PCB_LAYER_ID>( table->GetValueAsLong( i, 1 ) );
 
-        cfg.m_DefaultFPTextItems.emplace_back( text, visible, layer );
+        cfg.m_DefaultFPTextItems.emplace_back( text, true, layer );
     }
 
     cfg.m_UserLayerNames.clear();
@@ -510,8 +537,13 @@ void PANEL_FP_EDITOR_FIELD_DEFAULTS::OnAddTextItem( wxCommandEvent& event )
 
     int newRow = m_textItemsGrid->GetNumberRows();
     table->AppendRows( 1 );
-    table->SetValueAsBool( newRow, 1, table->GetValueAsBool( newRow - 1, 1 ) );
-    table->SetValueAsLong( newRow, 2, table->GetValueAsLong( newRow - 1, 2 ) );
+
+    long defaultBoardLayer = F_SilkS;
+
+    if( newRow > 0 )
+         defaultBoardLayer = table->GetValueAsLong( newRow - 1, 1 );
+
+    table->SetValueAsLong( newRow, 1, defaultBoardLayer );
 
     m_textItemsGrid->MakeCellVisible( newRow, 0 );
     m_textItemsGrid->SetGridCursor( newRow, 0 );

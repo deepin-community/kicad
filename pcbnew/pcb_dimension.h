@@ -70,9 +70,9 @@ enum class DIM_TEXT_POSITION
  */
 enum class DIM_UNITS_MODE
 {
-    INCHES,
+    INCH,       // Do not use IN: it conflicts with a Windows header
     MILS,
-    MILLIMETRES,
+    MM,
     AUTOMATIC
 };
 
@@ -376,6 +376,9 @@ protected:
     std::vector<std::shared_ptr<SHAPE>> m_shapes;
 
     bool       m_inClearRenderCache;      ///< re-entrancy guard
+
+    // a flag to protect against reentrance
+    bool m_busy;
 };
 
 

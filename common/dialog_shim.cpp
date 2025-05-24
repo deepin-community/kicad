@@ -42,43 +42,6 @@
 
 #include <algorithm>
 
-/// Toggle a window's "enable" status to disabled, then enabled on destruction.
-class WDO_ENABLE_DISABLE
-{
-    wxWindow* m_win;
-
-public:
-
-    WDO_ENABLE_DISABLE( wxWindow* aWindow ) :
-        m_win( aWindow )
-    {
-        if( m_win )
-            m_win->Disable();
-    }
-
-    ~WDO_ENABLE_DISABLE()
-    {
-        if( m_win )
-        {
-            m_win->Enable();
-            m_win->Raise(); // let's focus back on the parent window
-        }
-    }
-
-    void SuspendForTrueModal()
-    {
-        if( m_win )
-            m_win->Enable();
-    }
-
-    void ResumeAfterTrueModal()
-    {
-        if( m_win )
-            m_win->Disable();
-    }
-};
-
-
 BEGIN_EVENT_TABLE( DIALOG_SHIM, wxDialog )
     EVT_CHAR_HOOK( DIALOG_SHIM::OnCharHook )
 END_EVENT_TABLE()
@@ -87,17 +50,17 @@ END_EVENT_TABLE()
 DIALOG_SHIM::DIALOG_SHIM( wxWindow* aParent, wxWindowID id, const wxString& title,
                           const wxPoint& pos, const wxSize& size, long style,
                           const wxString& name ) :
-            wxDialog( aParent, id, title, pos, size, style, name ),
-            KIWAY_HOLDER( nullptr, KIWAY_HOLDER::DIALOG ),
-            m_units( EDA_UNITS::MILLIMETRES ),
-            m_useCalculatedSize( false ),
-            m_firstPaintEvent( true ),
-            m_initialFocusTarget( nullptr ),
-            m_isClosing( false ),
-            m_qmodal_loop( nullptr ),
-            m_qmodal_showing( false ),
-            m_qmodal_parent_disabler( nullptr ),
-            m_parentFrame( nullptr )
+        wxDialog( aParent, id, title, pos, size, style, name ),
+        KIWAY_HOLDER( nullptr, KIWAY_HOLDER::DIALOG ),
+        m_units( EDA_UNITS::MM ),
+        m_useCalculatedSize( false ),
+        m_firstPaintEvent( true ),
+        m_initialFocusTarget( nullptr ),
+        m_isClosing( false ),
+        m_qmodal_loop( nullptr ),
+        m_qmodal_showing( false ),
+        m_qmodal_parent_disabler( nullptr ),
+        m_parentFrame( nullptr )
 {
     KIWAY_HOLDER* kiwayHolder = nullptr;
     m_initialSize = size;
@@ -521,15 +484,7 @@ int DIALOG_SHIM::ShowModal()
 
 int DIALOG_SHIM::ShowQuasiModal()
 {
-    // This is an exception safe way to zero a pointer before returning.
-    // Yes, even though DismissModal() clears this first normally, this is
-    // here in case there's an exception before the dialog is dismissed.
-    struct NULLER
-    {
-        void*&  m_what;
-        NULLER( void*& aPtr ) : m_what( aPtr ) {}
-        ~NULLER() { m_what = nullptr; }   // indeed, set it to NULL on destruction
-    } clear_this( (void*&) m_qmodal_loop );
+    NULLER raii_nuller( (void*&) m_qmodal_loop );
 
     // release the mouse if it's currently captured as the window having it
     // will be disabled when this dialog is shown -- but will still keep the
@@ -545,7 +500,7 @@ int DIALOG_SHIM::ShowQuasiModal()
                                                   "window?" ) );
 
     // quasi-modal: disable only my "optimal" parent
-    m_qmodal_parent_disabler = new WDO_ENABLE_DISABLE( parent );
+    m_qmodal_parent_disabler = new WINDOW_DISABLER( parent );
 
     // Apple in its infinite wisdom will raise a disabled window before even passing
     // us the event, so we have no way to stop it.  Instead, we must set an order on
@@ -698,9 +653,43 @@ void DIALOG_SHIM::OnCharHook( wxKeyEvent& aEvt )
             return;
         }
     }
-    // shift-return (Mac default) or Ctrl-Return (GTK) for OK
-    else if( ( aEvt.GetKeyCode() == WXK_RETURN || aEvt.GetKeyCode() == WXK_NUMPAD_ENTER )
-             && ( aEvt.ShiftDown() || aEvt.ControlDown() ) )
+    // shift-return (Mac default) or Ctrl-Return (GTK) for new line input
+    else if( ( aEvt.GetKeyCode() == WXK_RETURN || aEvt.GetKeyCode() == WXK_NUMPAD_ENTER ) && aEvt.ShiftDown() )
+    {
+        wxObject* eventSource = aEvt.GetEventObject();
+
+        if( wxTextCtrl* textCtrl = dynamic_cast<wxTextCtrl*>( eventSource ) )
+        {
+#if defined( __WXMAC__ ) || defined( __WXMSW__ )
+            wxString eol = "\r\n";
+#else
+            wxString eol = "\n";
+#endif
+
+            long pos = textCtrl->GetInsertionPoint();
+            textCtrl->WriteText( eol );
+            textCtrl->SetInsertionPoint( pos + eol.length() );
+            return;
+        }
+        else if( wxStyledTextCtrl* scintilla = dynamic_cast<wxStyledTextCtrl*>( eventSource ) )
+        {
+            wxString eol = "\n";
+            switch( scintilla->GetEOLMode() )
+            {
+            case wxSTC_EOL_CRLF: eol = "\r\n"; break;
+            case wxSTC_EOL_CR: eol = "\r"; break;
+            case wxSTC_EOL_LF: eol = "\n"; break;
+            }
+
+            long pos = scintilla->GetCurrentPos();
+            scintilla->InsertText( pos, eol );
+            scintilla->GotoPos( pos + eol.length() );
+            return;
+        }
+        return;
+    }
+    // command-return (Mac default) or Ctrl-Return (GTK) for OK
+    else if( ( aEvt.GetKeyCode() == WXK_RETURN || aEvt.GetKeyCode() == WXK_NUMPAD_ENTER ) && aEvt.ControlDown() )
     {
         wxPostEvent( this, wxCommandEvent( wxEVT_COMMAND_BUTTON_CLICKED, wxID_OK ) );
         return;

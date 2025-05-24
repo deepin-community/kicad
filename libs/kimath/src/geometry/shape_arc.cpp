@@ -247,7 +247,7 @@ bool SHAPE_ARC::IsEffectiveLine() const
     SEG v1 = SEG( m_start, m_mid );
     SEG v2 = SEG( m_mid, m_end );
 
-    return v1.ApproxCollinear( v2 );
+    return v1.ApproxCollinear( v2 ) && (v1.B - v1.A).Dot(v2.B - v2.A) > 0;
 }
 
 
@@ -473,7 +473,7 @@ bool SHAPE_ARC::NearestPoints( const SHAPE_CIRCLE& aCircle, VECTOR2I& aPtA, VECT
         }
     }
 
-    std::vector<VECTOR2I> pts = { m_start, m_end, circle1.NearestPoint( GetCenter() ) };
+    std::vector<VECTOR2I> pts = { m_start, m_end, circle1.NearestPoint( aCircle.GetCenter() ) };
 
     for( const VECTOR2I& pt : pts )
     {

@@ -285,78 +285,81 @@ bool ZONE_FILLER::Fill( const std::vector<ZONE*>& aZones, bool aCheck, wxWindow*
 
     LSET boardCuMask = m_board->GetEnabledLayers() & LSET::AllCuMask();
 
-    auto findHighestPriorityZone = [&]( const BOX2I& aBBox, const PCB_LAYER_ID aItemLayer,
-                                        const int                                aNetcode,
-                                        const std::function<bool( const ZONE* )> aTestFn ) -> ZONE*
-    {
-        unsigned highestPriority = 0;
-        ZONE*    highestPriorityZone = nullptr;
-
-        for( ZONE* zone : m_board->Zones() )
-        {
-            // Rule areas are not filled
-            if( zone->GetIsRuleArea() )
-                continue;
-
-            if( zone->GetAssignedPriority() < highestPriority )
-                continue;
-
-            if( !zone->IsOnLayer( aItemLayer ) )
-                continue;
-
-            // Degenerate zones will cause trouble; skip them
-            if( zone->GetNumCorners() <= 2 )
-                continue;
-
-            if( !zone->GetBoundingBox().Intersects( aBBox ) )
-                continue;
-
-            if( !aTestFn( zone ) )
-                continue;
-
-            // Prefer highest priority and matching netcode
-            if( zone->GetAssignedPriority() > highestPriority || zone->GetNetCode() == aNetcode )
+    auto findHighestPriorityZone =
+            [&]( const BOX2I& bbox, PCB_LAYER_ID itemLayer, int netcode,
+                 const std::function<bool( const ZONE* )>& testFn ) -> ZONE*
             {
-                highestPriority = zone->GetAssignedPriority();
-                highestPriorityZone = zone;
-            }
-        }
+                unsigned highestPriority = 0;
+                ZONE*    highestPriorityZone = nullptr;
 
-        return highestPriorityZone;
-    };
+                for( ZONE* zone : m_board->Zones() )
+                {
+                    // Rule areas are not filled
+                    if( zone->GetIsRuleArea() )
+                        continue;
 
-    auto isInPourKeepoutArea = [&]( const BOX2I& aBBox, const PCB_LAYER_ID aItemLayer,
-                                    const VECTOR2I aTestPoint ) -> bool
-    {
-        for( ZONE* zone : m_board->Zones() )
-        {
-            if( !zone->GetIsRuleArea() )
-                continue;
+                    if( zone->GetAssignedPriority() < highestPriority )
+                        continue;
 
-            if( !zone->HasKeepoutParametersSet() )
-                continue;
+                    if( !zone->IsOnLayer( itemLayer ) )
+                        continue;
 
-            if( !zone->GetDoNotAllowCopperPour() )
-                continue;
+                    // Degenerate zones will cause trouble; skip them
+                    if( zone->GetNumCorners() <= 2 )
+                        continue;
 
-            if( !zone->IsOnLayer( aItemLayer ) )
-                continue;
+                    if( !zone->GetBoundingBox().Intersects( bbox ) )
+                        continue;
 
-            // Degenerate zones will cause trouble; skip them
-            if( zone->GetNumCorners() <= 2 )
-                continue;
+                    if( !testFn( zone ) )
+                        continue;
 
-            if( !zone->GetBoundingBox().Intersects( aBBox ) )
-                continue;
+                    // Prefer highest priority and matching netcode
+                    if( zone->GetAssignedPriority() > highestPriority
+                            || zone->GetNetCode() == netcode )
+                    {
+                        highestPriority = zone->GetAssignedPriority();
+                        highestPriorityZone = zone;
+                    }
+                }
 
-            if( zone->Outline()->Contains( aTestPoint ) )
-                return true;
-        }
+                return highestPriorityZone;
+            };
 
-        return false;
-    };
+    auto isInPourKeepoutArea =
+            [&]( const BOX2I& bbox, PCB_LAYER_ID itemLayer, const VECTOR2I& testPoint ) -> bool
+            {
+                for( ZONE* zone : m_board->Zones() )
+                {
+                    if( !zone->GetIsRuleArea() )
+                        continue;
+
+                    if( !zone->HasKeepoutParametersSet() )
+                        continue;
+
+                    if( !zone->GetDoNotAllowCopperPour() )
+                        continue;
+
+                    if( !zone->IsOnLayer( itemLayer ) )
+                        continue;
+
+                    // Degenerate zones will cause trouble; skip them
+                    if( zone->GetNumCorners() <= 2 )
+                        continue;
+
+                    if( !zone->GetBoundingBox().Intersects( bbox ) )
+                        continue;
+
+                    if( zone->Outline()->Contains( testPoint ) )
+                        return true;
+                }
+
+                return false;
+            };
 
     // Determine state of conditional via flashing
+    // This is now done completely deterministically prior to filling due to the pathological
+    // case presented in https://gitlab.com/kicad/code/kicad/-/issues/12964.
     for( PCB_TRACK* track : m_board->Tracks() )
     {
         if( track->Type() == PCB_VIA_T )
@@ -370,15 +373,16 @@ bool ZONE_FILLER::Fill( const std::vector<ZONE*>& aZones, bool aCheck, wxWindow*
 
             BOX2I    bbox = via->GetBoundingBox();
             VECTOR2I center = via->GetPosition();
-            int      testRadius = via->GetDrillValue() / 2 + 1;
-            unsigned netcode = via->GetNetCode();
+            int      holeRadius = via->GetDrillValue() / 2 + 1;
+            int      netcode = via->GetNetCode();
             LSET     layers = via->GetLayerSet() & boardCuMask;
 
             // Checking if the via hole touches the zone outline
-            auto viaTestFn = [&]( const ZONE* aZone ) -> bool
-            {
-                return aZone->Outline()->Contains( center, -1, testRadius );
-            };
+            auto viaTestFn =
+                    [&]( const ZONE* aZone ) -> bool
+                    {
+                        return aZone->Outline()->Contains( center, -1, holeRadius );
+                    };
 
             for( PCB_LAYER_ID layer : layers.Seq() )
             {
@@ -414,13 +418,14 @@ bool ZONE_FILLER::Fill( const std::vector<ZONE*>& aZones, bool aCheck, wxWindow*
 
             BOX2I    bbox = pad->GetBoundingBox();
             VECTOR2I center = pad->GetPosition();
-            unsigned netcode = pad->GetNetCode();
+            int      netcode = pad->GetNetCode();
             LSET     layers = pad->GetLayerSet() & boardCuMask;
 
-            auto padTestFn = [&]( const ZONE* aZone ) -> bool
-            {
-                return aZone->Outline()->Contains( center );
-            };
+            auto padTestFn =
+                    [&]( const ZONE* aZone ) -> bool
+                    {
+                        return aZone->Outline()->Contains( center );
+                    };
 
             for( PCB_LAYER_ID layer : layers.Seq() )
             {
@@ -1913,30 +1918,48 @@ bool ZONE_FILLER::fillNonCopperZone( const ZONE* aZone, PCB_LAYER_ID aLayer,
     aFillPolys = aSmoothedOutline;
     aFillPolys.BooleanSubtract( clearanceHoles );
 
+    auto subtractKeepout =
+            [&]( ZONE* candidate )
+            {
+                if( !candidate->GetIsRuleArea() )
+                    return;
+
+                if( !candidate->HasKeepoutParametersSet() )
+                    return;
+
+                if( candidate->GetDoNotAllowCopperPour() && candidate->IsOnLayer( aLayer ) )
+                {
+                    if( candidate->GetBoundingBox().Intersects( zone_boundingbox ) )
+                    {
+                        if( candidate->Outline()->ArcCount() == 0 )
+                        {
+                            aFillPolys.BooleanSubtract( *candidate->Outline() );
+                        }
+                        else
+                        {
+                            SHAPE_POLY_SET keepoutOutline( *candidate->Outline() );
+                            keepoutOutline.ClearArcs();
+                            aFillPolys.BooleanSubtract( keepoutOutline );
+                        }
+                    }
+                }
+            };
+
     for( ZONE* keepout : m_board->Zones() )
     {
-        if( !keepout->GetIsRuleArea() )
-            continue;
+        if( checkForCancel( m_progressReporter ) )
+            return false;
 
-        if( !keepout->HasKeepoutParametersSet() )
-            continue;
+        subtractKeepout( keepout );
+    }
 
-        if( keepout->GetDoNotAllowCopperPour() && keepout->IsOnLayer( aLayer ) )
-        {
-            if( keepout->GetBoundingBox().Intersects( zone_boundingbox ) )
-            {
-                if( keepout->Outline()->ArcCount() == 0 )
-                {
-                    aFillPolys.BooleanSubtract( *keepout->Outline() );
-                }
-                else
-                {
-                    SHAPE_POLY_SET keepoutOutline( *keepout->Outline() );
-                    keepoutOutline.ClearArcs();
-                    aFillPolys.BooleanSubtract( keepoutOutline );
-                }
-            }
-        }
+    for( FOOTPRINT* footprint : m_board->Footprints() )
+    {
+        if( checkForCancel( m_progressReporter ) )
+            return false;
+
+        for( ZONE* keepout : footprint->Zones() )
+            subtractKeepout( keepout );
     }
 
     // Features which are min_width should survive pruning; features that are *less* than
@@ -2081,23 +2104,25 @@ void ZONE_FILLER::buildThermalSpokes( const ZONE* aZone, PCB_LAYER_ID aLayer,
                     VECTOR2I half_size( box.GetWidth() / 2, box.GetHeight() / 2 );
 
                     // Function to find intersection of line with box edge
-                    auto intersectLineBox = [&](const VECTOR2D& direction) -> VECTOR2I {
-                        double dx = direction.x;
-                        double dy = direction.y;
+                    auto intersectLineBox =
+                            [&](const VECTOR2D& direction) -> VECTOR2I
+                            {
+                                double dx = direction.x;
+                                double dy = direction.y;
 
-                        // Short-circuit the axis cases because they will be degenerate in the
-                        // intersection test
-                        if( direction.x == 0 )
-                            return VECTOR2I( 0, dy * half_size.y );
-                        else if( direction.y == 0 )
-                            return VECTOR2I( dx * half_size.x, 0 );
+                                // Short-circuit the axis cases because they will be degenerate in the
+                                // intersection test
+                                if( direction.x == 0 )
+                                    return VECTOR2I( 0, dy * half_size.y );
+                                else if( direction.y == 0 )
+                                    return VECTOR2I( dx * half_size.x, 0 );
 
-                        // We are going to intersect with one side or the other.  Whichever
-                        // we hit first is the fraction of the spoke length we keep
-                        double tx = std::min( half_size.x / std::abs( dx ),
-                                              half_size.y / std::abs( dy ) );
-                        return VECTOR2I( dx * tx, dy * tx );
-                    };
+                                // We are going to intersect with one side or the other.  Whichever
+                                // we hit first is the fraction of the spoke length we keep
+                                double tx = std::min( half_size.x / std::abs( dx ),
+                                                      half_size.y / std::abs( dy ) );
+                                return VECTOR2I( dx * tx, dy * tx );
+                            };
 
                     // Precalculate angles for four cardinal directions
                     const EDA_ANGLE angles[4] = {
@@ -2175,9 +2200,8 @@ void ZONE_FILLER::buildThermalSpokes( const ZONE* aZone, PCB_LAYER_ID aLayer,
                     {
                         // Do not create this spoke if neither point is in the pad.
                         if( !pad->GetEffectivePolygon( aLayer, ERROR_OUTSIDE )->Contains( seg.B ) )
-                        {
                             continue;
-                        }
+
                         seg.Reverse();
                     }
 
@@ -2187,13 +2211,16 @@ void ZONE_FILLER::buildThermalSpokes( const ZONE* aZone, PCB_LAYER_ID aLayer,
                     {
                         VECTOR2I direction = ( seg.B - seg.A ).Resize( spoke_half_w );
                         VECTOR2I offset = direction.Perpendicular().Resize( spoke_half_w );
-                        // Extend the spoke edges by half the spoke width to capture convex pad shapes with a maximum of 45 degrees.
+                        // Extend the spoke edges by half the spoke width to capture convex pad shapes
+                        // with a maximum of 45 degrees.
                         SEG segL( seg.A - direction - offset, seg.B + direction - offset );
                         SEG segR( seg.A - direction + offset, seg.B + direction + offset );
+
                         // Only create this spoke if both edges intersect the pad and thermal outline
                         if( trimToOutline( segL ) && trimToOutline( segR ) )
                         {
-                            // Extend the spoke by the minimum thickness for the zone to ensure full connection width
+                            // Extend the spoke by the minimum thickness for the zone to ensure full
+                            // connection width
                             direction = direction.Resize( aZone->GetMinThickness() );
 
                             SHAPE_LINE_CHAIN spoke;
@@ -2224,7 +2251,8 @@ void ZONE_FILLER::buildThermalSpokes( const ZONE* aZone, PCB_LAYER_ID aLayer,
             dummy_pad.SetPosition( VECTOR2I( 0, 0 ) );
             dummy_pad.SetOffset( aLayer, VECTOR2I( 0, 0 ) );
 
-            BOX2I spokesBox = dummy_pad.GetBoundingBox();
+            BOX2I    spokesBox = dummy_pad.GetBoundingBox( aLayer );
+            VECTOR2I padSize = pad->GetSize( aLayer );
 
             // Add the half width of the zone mininum width to the inflate amount to account for
             // the fact that the deflation procedure will shrink the results by half the half the
@@ -2235,8 +2263,7 @@ void ZONE_FILLER::buildThermalSpokes( const ZONE* aZone, PCB_LAYER_ID aLayer,
             // when rotated at 45 degrees.  So we just build spokes at 0 degrees and rotate
             // them later.
             if( pad->GetShape( aLayer ) == PAD_SHAPE::CIRCLE
-                || ( pad->GetShape( aLayer ) == PAD_SHAPE::OVAL
-                     && pad->GetSizeX() == pad->GetSizeY() ) )
+                    || ( pad->GetShape( aLayer ) == PAD_SHAPE::OVAL && padSize.x == padSize.y ) )
             {
                 buildSpokesFromOrigin( spokesBox, ANGLE_0 );
 

@@ -68,6 +68,24 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
         return false;
     }
 
+    PAGE_INFO existingPageInfo = m_board->GetPageSettings();
+    VECTOR2I  existingAuxOrigin = m_board->GetDesignSettings().GetAuxOrigin();
+
+    if( m_plotOpts.GetFormat() == PLOT_FORMAT::SVG && m_plotOpts.GetSvgFitPagetoBoard() ) // Page is board boundary size
+    {
+        BOX2I     bbox = m_board->ComputeBoundingBox( false );
+        PAGE_INFO currPageInfo = m_board->GetPageSettings();
+
+        currPageInfo.SetWidthMils( bbox.GetWidth() / pcbIUScale.IU_PER_MILS );
+        currPageInfo.SetHeightMils( bbox.GetHeight() / pcbIUScale.IU_PER_MILS );
+
+        m_board->SetPageSettings( currPageInfo );
+        m_plotOpts.SetUseAuxOrigin( true );
+
+        VECTOR2I origin = bbox.GetOrigin();
+        m_board->GetDesignSettings().SetAuxOrigin( origin );
+    }
+
     // To reuse logic, in single plot mode, we want to kick any extra layers from the main list to commonLayers
     LSEQ layersToPlot;
     LSEQ commonLayers;
@@ -88,7 +106,7 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
         commonLayers = aCommonLayers;
     }
 
-    size_t finalPageCount = 0;
+    int finalPageCount = 0;
 
     for( PCB_LAYER_ID layer : layersToPlot )
     {
@@ -108,18 +126,17 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
     wxString msg;
     bool     success = true;
     PLOTTER* plotter = nullptr;
+    int      pageNum = 1;
 
-    for( size_t i = 0, pageNum = 1; i < layersToPlot.size(); i++ )
+    for( size_t i = 0; i < layersToPlot.size(); i++ )
     {
         PCB_LAYER_ID layer = layersToPlot[i];
 
         if( copperLayerShouldBeSkipped( layer ) )
             continue;
 
-        LSEQ plotSequence = getPlotSequence( layer, commonLayers );
-
-        wxString layerName = m_board->GetLayerName( layer );
-
+        LSEQ       plotSequence = getPlotSequence( layer, commonLayers );
+        wxString   layerName = m_board->GetLayerName( layer );
         wxFileName fn;
 
         if( aOutputPathIsSingle )
@@ -129,7 +146,7 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
         else
         {
             wxFileName brdFn = m_board->GetFileName();
-            fn.Assign( aOutputPath, brdFn.GetName() );
+            fn.Assign( aOutputPath, brdFn.GetName(), fileExt );
 
             // Use Gerber Extensions based on layer number
             // (See http://en.wikipedia.org/wiki/Gerber_File)
@@ -137,13 +154,9 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
                 fileExt = GetGerberProtelExtension( layer );
 
             if( m_plotOpts.GetFormat() == PLOT_FORMAT::PDF && m_plotOpts.m_PDFSingle )
-            {
                 fn.SetExt( GetDefaultPlotExtension( PLOT_FORMAT::PDF ) );
-            }
             else
-            {
                 BuildPlotFileName( &fn, aOutputPath, layerName, fileExt );
-            }
         }
 
         if( jobfile_writer )
@@ -158,7 +171,7 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
                     && m_plotOpts.m_PDFSingle ) )
         {
             // this will only be used by pdf
-            wxString pageNumber = wxString::Format( "%zu", pageNum );
+            wxString pageNumber = wxString::Format( "%d", pageNum );
             wxString pageName = layerName;
             wxString sheetName = layerName;
 
@@ -203,31 +216,31 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
                 && i != layersToPlot.size() - 1 )
             {
                 wxString     pageNumber = wxString::Format( "%zu", pageNum + 1 );
-                size_t       nextI = i;
-                PCB_LAYER_ID nextLayer;
+                size_t       nextI = i + 1;
+                PCB_LAYER_ID nextLayer = layersToPlot[nextI];
 
-                do
+                while( copperLayerShouldBeSkipped( nextLayer ) && nextI < layersToPlot.size() - 1 )
                 {
                     ++nextI;
                     nextLayer = layersToPlot[nextI];
-                } while( copperLayerShouldBeSkipped( nextLayer )
-                         && ( nextI < layersToPlot.size() - 1 ) );
+                }
 
-                wxString     pageName = m_board->GetLayerName( nextLayer );
-                wxString     sheetName = layerName;
+                layerName = m_board->GetLayerName( nextLayer );
+
+                wxString pageName = layerName;
+                wxString sheetName = layerName;
 
                 static_cast<PDF_PLOTTER*>( plotter )->ClosePage();
                 static_cast<PDF_PLOTTER*>( plotter )->StartPage( pageNumber, pageName );
-                setupPlotterNewPDFPage( plotter, m_board, &m_plotOpts, sheetName, sheetPath,
-                                        pageNumber, finalPageCount );
+                setupPlotterNewPDFPage( plotter, m_board, &m_plotOpts, layerName, sheetName,
+                                        sheetPath, pageNumber, finalPageCount );
             }
-
 
             // last page
             if( m_plotOpts.GetFormat() != PLOT_FORMAT::PDF
-                || !m_plotOpts.m_PDFSingle
-                || i == aLayersToPlot.size() - 1
-                || pageNum == finalPageCount )
+                    || !m_plotOpts.m_PDFSingle
+                    || i == aLayersToPlot.size() - 1
+                    || pageNum == finalPageCount )
             {
                 plotter->EndPlot();
                 delete plotter->RenderSettings();
@@ -262,6 +275,13 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
     }
 
     m_reporter->ReportTail( _( "Done." ), RPT_SEVERITY_INFO );
+
+    if( m_plotOpts.GetFormat() == PLOT_FORMAT::SVG && m_plotOpts.GetSvgFitPagetoBoard() )
+    {
+        // restore the original page and aux origin
+        m_board->SetPageSettings( existingPageInfo );
+        m_board->GetDesignSettings().SetAuxOrigin( existingAuxOrigin );
+    }
 
     return success;
 }
@@ -337,21 +357,21 @@ void PCB_PLOTTER::PlotJobToPlotOpts( PCB_PLOT_PARAMS& aOpts, JOB_EXPORT_PCB_PLOT
         aOpts.SetIncludeGerberNetlistInfo( gJob->m_includeNetlistAttributes );
         aOpts.SetCreateGerberJobFile( gJob->m_createJobsFile );
         aOpts.SetGerberPrecision( gJob->m_precision );
-        aOpts.SetSubtractMaskFromSilk( gJob->m_subtractSolderMaskFromSilk );
     }
 
     if( aJob->m_plotFormat == JOB_EXPORT_PCB_PLOT::PLOT_FORMAT::SVG )
     {
         JOB_EXPORT_PCB_SVG* svgJob = static_cast<JOB_EXPORT_PCB_SVG*>( aJob );
         aOpts.SetSvgPrecision( svgJob->m_precision );
+        aOpts.SetSvgFitPageToBoard( svgJob->m_fitPageToBoard );
     }
 
     if( aJob->m_plotFormat == JOB_EXPORT_PCB_PLOT::PLOT_FORMAT::DXF )
     {
         JOB_EXPORT_PCB_DXF* dxfJob = static_cast<JOB_EXPORT_PCB_DXF*>( aJob );
-        aOpts.SetDXFPlotUnits( dxfJob->m_dxfUnits == JOB_EXPORT_PCB_DXF::DXF_UNITS::INCHES
-                                            ? DXF_UNITS::INCHES
-                                            : DXF_UNITS::MILLIMETERS );
+        aOpts.SetDXFPlotUnits( dxfJob->m_dxfUnits == JOB_EXPORT_PCB_DXF::DXF_UNITS::INCH
+                                                                                ? DXF_UNITS::INCH
+                                                                                : DXF_UNITS::MM );
 
         aOpts.SetPlotMode( dxfJob->m_plotGraphicItemsUsingContours ? OUTLINE_MODE::SKETCH
                                                                    : OUTLINE_MODE::FILLED );
@@ -370,7 +390,7 @@ void PCB_PLOTTER::PlotJobToPlotOpts( PCB_PLOT_PARAMS& aOpts, JOB_EXPORT_PCB_PLOT
 
     aOpts.SetUseAuxOrigin( aJob->m_useDrillOrigin );
     aOpts.SetPlotFrameRef( aJob->m_plotDrawingSheet );
-    aOpts.SetPlotInvisibleText( aJob->m_plotInvisibleText );
+    aOpts.SetSubtractMaskFromSilk( aJob->m_subtractSolderMaskFromSilk );
     aOpts.SetPlotReference( aJob->m_plotRefDes );
     aOpts.SetPlotValue( aJob->m_plotFootprintValues );
     aOpts.SetSketchPadsOnFabLayers( aJob->m_sketchPadsOnFabLayers );
@@ -383,8 +403,8 @@ void PCB_PLOTTER::PlotJobToPlotOpts( PCB_PLOT_PARAMS& aOpts, JOB_EXPORT_PCB_PLOT
     aOpts.SetMirror( aJob->m_mirror );
     aOpts.SetNegative( aJob->m_negative );
 
-    aOpts.SetLayerSelection( aJob->m_printMaskLayer );
-    aOpts.SetPlotOnAllLayersSelection( aJob->m_printMaskLayersToIncludeOnAllLayers );
+    aOpts.SetLayerSelection( aJob->m_plotLayerSequence );
+    aOpts.SetPlotOnAllLayersSequence( aJob->m_plotOnAllLayersSequence );
 
     switch( aJob->m_plotFormat )
     {
@@ -399,16 +419,10 @@ void PCB_PLOTTER::PlotJobToPlotOpts( PCB_PLOT_PARAMS& aOpts, JOB_EXPORT_PCB_PLOT
 
     switch( aJob->m_drillShapeOption )
     {
-    case JOB_EXPORT_PCB_PLOT::DRILL_MARKS::NO_DRILL_SHAPE:
-        aOpts.SetDrillMarksType( DRILL_MARKS::NO_DRILL_SHAPE );
-        break;
-    case JOB_EXPORT_PCB_PLOT::DRILL_MARKS::SMALL_DRILL_SHAPE:
-        aOpts.SetDrillMarksType( DRILL_MARKS::SMALL_DRILL_SHAPE );
-        break;
+    case DRILL_MARKS::NO_DRILL_SHAPE:    aOpts.SetDrillMarksType( DRILL_MARKS::NO_DRILL_SHAPE );    break;
+    case DRILL_MARKS::SMALL_DRILL_SHAPE: aOpts.SetDrillMarksType( DRILL_MARKS::SMALL_DRILL_SHAPE ); break;
     default:
-    case JOB_EXPORT_PCB_PLOT::DRILL_MARKS::FULL_DRILL_SHAPE:
-        aOpts.SetDrillMarksType( DRILL_MARKS::FULL_DRILL_SHAPE );
-        break;
+    case DRILL_MARKS::FULL_DRILL_SHAPE:  aOpts.SetDrillMarksType( DRILL_MARKS::FULL_DRILL_SHAPE );  break;
     }
 
     SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();

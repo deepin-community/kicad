@@ -29,8 +29,7 @@
 #include <eda_3d_viewer_frame.h>
 #include <pcbnew_settings.h>
 #include <project.h>
-#include <settings/settings_manager.h>
-#include <settings/color_settings.h>
+#include <board.h>
 #include <tool/tool_manager.h>
 #include <tools/pcb_actions.h>
 #include <tools/eda_3d_actions.h>
@@ -48,44 +47,87 @@
 /// Render Row abbreviation to reduce source width.
 #define RR  APPEARANCE_CONTROLS_3D::APPEARANCE_SETTING_3D
 
+// clang-format off
 /// Template for object appearance settings
 const APPEARANCE_CONTROLS_3D::APPEARANCE_SETTING_3D APPEARANCE_CONTROLS_3D::s_layerSettings[] = {
 
-    //     text                              id                           tooltip
-    RR( _HKI( "Board Body" ), LAYER_3D_BOARD, _HKI( "Show board body" ) ),
-    RR( _HKI( "F.Cu" ), LAYER_3D_COPPER_TOP, _HKI( "Show front copper / surface finish color" ) ),
-    RR( _HKI( "B.Cu" ), LAYER_3D_COPPER_BOTTOM, _HKI( "Show back copper / surface finish color" ) ),
-    RR( _HKI( "Adhesive" ), LAYER_3D_ADHESIVE, _HKI( "Show adhesive" ) ),
-    RR( _HKI( "Solder Paste" ), LAYER_3D_SOLDERPASTE, _HKI( "Show solder paste" ) ),
-    RR( _HKI( "F.Silkscreen" ), LAYER_3D_SILKSCREEN_TOP, _HKI( "Show front silkscreen" ) ),
-    RR( _HKI( "B.Silkscreen" ), LAYER_3D_SILKSCREEN_BOTTOM, _HKI( "Show back silkscreen" ) ),
-    RR( _HKI( "F.Mask" ), LAYER_3D_SOLDERMASK_TOP, _HKI( "Show front solder mask" ) ),
-    RR( _HKI( "B.Mask" ), LAYER_3D_SOLDERMASK_BOTTOM, _HKI( "Show back solder mask" ) ),
-    RR( _HKI( "User.Drawings" ), LAYER_3D_USER_DRAWINGS, _HKI( "Show user drawings layer" ) ),
-    RR( _HKI( "User.Comments" ), LAYER_3D_USER_COMMENTS, _HKI( "Show user comments layer" ) ),
-    RR( _HKI( "User.Eco1" ), LAYER_3D_USER_ECO1, _HKI( "Show user ECO1 layer" ) ),
-    RR( _HKI( "User.Eco2" ), LAYER_3D_USER_ECO2, _HKI( "Show user ECO2 layer" ) ),
+    //        text                           id                        tooltip
+    RR( _HKI( "Board Body" ),    LAYER_3D_BOARD,             _HKI( "Show board body" ) ),
+    RR(  wxS( "F.Cu" ),          LAYER_3D_COPPER_TOP,        _HKI( "Show front copper / surface finish color" ) ),
+    RR(  wxS( "B.Cu" ),          LAYER_3D_COPPER_BOTTOM,     _HKI( "Show back copper / surface finish color" ) ),
+    RR( _HKI( "Adhesive" ),      LAYER_3D_ADHESIVE,          _HKI( "Show adhesive" ) ),
+    RR( _HKI( "Solder Paste" ),  LAYER_3D_SOLDERPASTE,       _HKI( "Show solder paste" ) ),
+    RR(  wxS( "F.Silkscreen" ),  LAYER_3D_SILKSCREEN_TOP,    _HKI( "Show front silkscreen" ) ),
+    RR(  wxS( "B.Silkscreen" ),  LAYER_3D_SILKSCREEN_BOTTOM, _HKI( "Show back silkscreen" ) ),
+    RR(  wxS( "F.Mask" ),        LAYER_3D_SOLDERMASK_TOP,    _HKI( "Show front solder mask" ) ),
+    RR(  wxS( "B.Mask" ),        LAYER_3D_SOLDERMASK_BOTTOM, _HKI( "Show back solder mask" ) ),
+    RR(  wxS( "User.Drawings" ), LAYER_3D_USER_DRAWINGS,     _HKI( "Show user drawings layer" ) ),
+    RR(  wxS( "User.Comments" ), LAYER_3D_USER_COMMENTS,     _HKI( "Show user comments layer" ) ),
+    RR(  wxS( "User.Eco1" ),     LAYER_3D_USER_ECO1,         _HKI( "Show user ECO1 layer" ) ),
+    RR(  wxS( "User.Eco2" ),     LAYER_3D_USER_ECO2,         _HKI( "Show user ECO2 layer" ) ),
+    RR(  wxS( "User.1" ),        LAYER_3D_USER_1,            _HKI( "Show user defined layer 1" ) ),
+    RR(  wxS( "User.2" ),        LAYER_3D_USER_2,            _HKI( "Show user defined layer 2" ) ),
+    RR(  wxS( "User.3" ),        LAYER_3D_USER_3,            _HKI( "Show user defined layer 3" ) ),
+    RR(  wxS( "User.4" ),        LAYER_3D_USER_4,            _HKI( "Show user defined layer 4" ) ),
+    RR(  wxS( "User.5" ),        LAYER_3D_USER_5,            _HKI( "Show user defined layer 5" ) ),
+    RR(  wxS( "User.6" ),        LAYER_3D_USER_6,            _HKI( "Show user defined layer 6" ) ),
+    RR(  wxS( "User.7" ),        LAYER_3D_USER_7,            _HKI( "Show user defined layer 7" ) ),
+    RR(  wxS( "User.8" ),        LAYER_3D_USER_8,            _HKI( "Show user defined layer 8" ) ),
+    RR(  wxS( "User.9" ),        LAYER_3D_USER_9,            _HKI( "Show user defined layer 9" ) ),
+    RR(  wxS( "User.10" ),       LAYER_3D_USER_10,           _HKI( "Show user defined layer 10" ) ),
+    RR(  wxS( "User.11" ),       LAYER_3D_USER_11,           _HKI( "Show user defined layer 11" ) ),
+    RR(  wxS( "User.12" ),       LAYER_3D_USER_12,           _HKI( "Show user defined layer 12" ) ),
+    RR(  wxS( "User.13" ),       LAYER_3D_USER_13,           _HKI( "Show user defined layer 13" ) ),
+    RR(  wxS( "User.14" ),       LAYER_3D_USER_14,           _HKI( "Show user defined layer 14" ) ),
+    RR(  wxS( "User.15" ),       LAYER_3D_USER_15,           _HKI( "Show user defined layer 15" ) ),
+    RR(  wxS( "User.16" ),       LAYER_3D_USER_16,           _HKI( "Show user defined layer 16" ) ),
+    RR(  wxS( "User.17" ),       LAYER_3D_USER_17,           _HKI( "Show user defined layer 17" ) ),
+    RR(  wxS( "User.18" ),       LAYER_3D_USER_18,           _HKI( "Show user defined layer 18" ) ),
+    RR(  wxS( "User.19" ),       LAYER_3D_USER_19,           _HKI( "Show user defined layer 19" ) ),
+    RR(  wxS( "User.20" ),       LAYER_3D_USER_20,           _HKI( "Show user defined layer 20" ) ),
+    RR(  wxS( "User.21" ),       LAYER_3D_USER_21,           _HKI( "Show user defined layer 21" ) ),
+    RR(  wxS( "User.22" ),       LAYER_3D_USER_22,           _HKI( "Show user defined layer 22" ) ),
+    RR(  wxS( "User.23" ),       LAYER_3D_USER_23,           _HKI( "Show user defined layer 23" ) ),
+    RR(  wxS( "User.24" ),       LAYER_3D_USER_24,           _HKI( "Show user defined layer 24" ) ),
+    RR(  wxS( "User.25" ),       LAYER_3D_USER_25,           _HKI( "Show user defined layer 25" ) ),
+    RR(  wxS( "User.26" ),       LAYER_3D_USER_26,           _HKI( "Show user defined layer 26" ) ),
+    RR(  wxS( "User.27" ),       LAYER_3D_USER_27,           _HKI( "Show user defined layer 27" ) ),
+    RR(  wxS( "User.28" ),       LAYER_3D_USER_28,           _HKI( "Show user defined layer 28" ) ),
+    RR(  wxS( "User.29" ),       LAYER_3D_USER_29,           _HKI( "Show user defined layer 29" ) ),
+    RR(  wxS( "User.30" ),       LAYER_3D_USER_30,           _HKI( "Show user defined layer 30" ) ),
+    RR(  wxS( "User.31" ),       LAYER_3D_USER_31,           _HKI( "Show user defined layer 31" ) ),
+    RR(  wxS( "User.32" ),       LAYER_3D_USER_32,           _HKI( "Show user defined layer 32" ) ),
+    RR(  wxS( "User.33" ),       LAYER_3D_USER_33,           _HKI( "Show user defined layer 33" ) ),
+    RR(  wxS( "User.34" ),       LAYER_3D_USER_34,           _HKI( "Show user defined layer 34" ) ),
+    RR(  wxS( "User.35" ),       LAYER_3D_USER_35,           _HKI( "Show user defined layer 35" ) ),
+    RR(  wxS( "User.36" ),       LAYER_3D_USER_36,           _HKI( "Show user defined layer 36" ) ),
+    RR(  wxS( "User.37" ),       LAYER_3D_USER_37,           _HKI( "Show user defined layer 37" ) ),
+    RR(  wxS( "User.38" ),       LAYER_3D_USER_38,           _HKI( "Show user defined layer 38" ) ),
+    RR(  wxS( "User.39" ),       LAYER_3D_USER_39,           _HKI( "Show user defined layer 39" ) ),
+    RR(  wxS( "User.40" ),       LAYER_3D_USER_40,           _HKI( "Show user defined layer 40" ) ),
+    RR(  wxS( "User.41" ),       LAYER_3D_USER_41,           _HKI( "Show user defined layer 41" ) ),
+    RR(  wxS( "User.42" ),       LAYER_3D_USER_42,           _HKI( "Show user defined layer 42" ) ),
+    RR(  wxS( "User.43" ),       LAYER_3D_USER_43,           _HKI( "Show user defined layer 43" ) ),
+    RR(  wxS( "User.44" ),       LAYER_3D_USER_44,           _HKI( "Show user defined layer 44" ) ),
+    RR(  wxS( "User.45" ),       LAYER_3D_USER_45,           _HKI( "Show user defined layer 45" ) ),
     RR(),
-    RR( _HKI( "Through-hole Models" ), LAYER_3D_TH_MODELS, EDA_3D_ACTIONS::showTHT ),
-    RR( _HKI( "SMD Models" ), LAYER_3D_SMD_MODELS, EDA_3D_ACTIONS::showSMD ),
-    RR( _HKI( "Virtual Models" ), LAYER_3D_VIRTUAL_MODELS, EDA_3D_ACTIONS::showVirtual ),
-    RR( _HKI( "Models not in POS File" ), LAYER_3D_MODELS_NOT_IN_POS,
-        EDA_3D_ACTIONS::showNotInPosFile ),
-    RR( _HKI( "Models marked DNP" ), LAYER_3D_MODELS_MARKED_DNP, EDA_3D_ACTIONS::showDNP ),
-    RR( _HKI( "Model Bounding Boxes" ), LAYER_3D_BOUNDING_BOXES, EDA_3D_ACTIONS::showBBoxes ),
+    RR( _HKI( "Through-hole Models" ),    LAYER_3D_TH_MODELS,         EDA_3D_ACTIONS::showTHT ),
+    RR( _HKI( "SMD Models" ),             LAYER_3D_SMD_MODELS,        EDA_3D_ACTIONS::showSMD ),
+    RR( _HKI( "Virtual Models" ),         LAYER_3D_VIRTUAL_MODELS,    EDA_3D_ACTIONS::showVirtual ),
+    RR( _HKI( "Models not in POS File" ), LAYER_3D_MODELS_NOT_IN_POS, EDA_3D_ACTIONS::showNotInPosFile ),
+    RR( _HKI( "Models marked DNP" ),      LAYER_3D_MODELS_MARKED_DNP, EDA_3D_ACTIONS::showDNP ),
+    RR( _HKI( "Model Bounding Boxes" ),   LAYER_3D_BOUNDING_BOXES,    EDA_3D_ACTIONS::showBBoxes ),
     RR(),
-    RR( _HKI( "Values" ), LAYER_FP_VALUES, _HKI( "Show footprint values" ) ),
-    RR( _HKI( "References" ), LAYER_FP_REFERENCES, _HKI( "Show footprint references" ) ),
-    RR( _HKI( "Footprint Text" ), LAYER_FP_TEXT, _HKI( "Show all footprint text" ) ),
-    RR( _HKI( "Off-board Silkscreen" ), LAYER_3D_OFF_BOARD_SILK,
-        _HKI( "Do not clip silk layers to board outline" ) ),
+    RR( _HKI( "Values" ),               LAYER_FP_VALUES,            _HKI( "Show footprint values" ) ),
+    RR( _HKI( "References" ),           LAYER_FP_REFERENCES,        _HKI( "Show footprint references" ) ),
+    RR( _HKI( "Footprint Text" ),       LAYER_FP_TEXT,              _HKI( "Show all footprint text" ) ),
+    RR( _HKI( "Off-board Silkscreen" ), LAYER_3D_OFF_BOARD_SILK,    _HKI( "Do not clip silk layers to board outline" ) ),
     RR(),
-    RR( _HKI( "3D Axis" ), LAYER_3D_AXES, EDA_3D_ACTIONS::showAxis ),
-    RR( _HKI( "Background Start" ), LAYER_3D_BACKGROUND_TOP,
-        _HKI( "Background gradient start color" ) ),
-    RR( _HKI( "Background End" ), LAYER_3D_BACKGROUND_BOTTOM,
-        _HKI( "Background gradient end color" ) ),
+    RR( _HKI( "3D Axis" ),              LAYER_3D_AXES,              EDA_3D_ACTIONS::showAxis ),
+    RR( _HKI( "Background Start" ),     LAYER_3D_BACKGROUND_TOP,    _HKI( "Background gradient start color" ) ),
+    RR( _HKI( "Background End" ),       LAYER_3D_BACKGROUND_BOTTOM, _HKI( "Background gradient end color" ) ),
 };
+// clang-format on
 
 // The list of IDs that can have colors coming from the board stackup, and cannot be
 // modified if use colors from stackup is activated
@@ -135,15 +177,14 @@ APPEARANCE_CONTROLS_3D::APPEARANCE_CONTROLS_3D( EDA_3D_VIEWER_FRAME* aParent,
                 cfg->m_UseStackupColors = aEvent.IsChecked();
 
                 UpdateLayerCtls();
-                syncLayerPresetSelection();
                 m_frame->NewDisplay( true );
             } );
 
     m_cbUseBoardEditorCopperColors = new wxCheckBox( m_panelLayers, wxID_ANY,
-                                                     _( "Use board editor copper colors" ) );
+                                                     _( "Use PCB editor copper colors" ) );
     m_cbUseBoardEditorCopperColors->SetFont( infoFont );
-    m_cbUseBoardEditorCopperColors->SetToolTip(
-                _( "Use the board editor copper colors (openGL only)" ) );
+    m_cbUseBoardEditorCopperColors->SetToolTip( _( "Use the board editor layer colors for copper "
+                                                   "layers (realtime renderer only)" ) );
 
     m_cbUseBoardEditorCopperColors->Bind( wxEVT_CHECKBOX,
             [this]( wxCommandEvent& aEvent )
@@ -152,14 +193,12 @@ APPEARANCE_CONTROLS_3D::APPEARANCE_CONTROLS_3D( EDA_3D_VIEWER_FRAME* aParent,
                 cfg->m_Render.use_board_editor_copper_colors = aEvent.IsChecked();
 
                 UpdateLayerCtls();
-                syncLayerPresetSelection();
                 m_frame->NewDisplay( true );
             } );
 
-
-    m_panelLayersSizer->Add( m_cbUseBoardStackupColors, 0, wxEXPAND | wxTOP | wxLEFT | wxRIGHT, 7 );
+    m_panelLayersSizer->Add( m_cbUseBoardStackupColors, 0, wxEXPAND | wxTOP | wxLEFT | wxRIGHT, 5 );
     m_panelLayersSizer->Add( m_cbUseBoardEditorCopperColors, 0,
-                             wxEXPAND | wxTOP | wxLEFT | wxRIGHT, 7 );
+                             wxEXPAND | wxALL, 5 );
 
     m_cbLayerPresets->SetToolTip( wxString::Format( _( "Save and restore color and visibility "
                                                        "combinations.\n"
@@ -273,22 +312,19 @@ void APPEARANCE_CONTROLS_3D::CommonSettingsChanged()
     rebuildControls();
 
     UpdateLayerCtls();
-    syncLayerPresetSelection();
+
+    const wxString& currentPreset = m_frame->GetAdapter().m_Cfg->m_CurrentPreset;
+
+    if( currentPreset == FOLLOW_PCB || currentPreset == FOLLOW_PLOT_SETTINGS )
+        updateLayerPresetWidget( currentPreset );
+    else
+        syncLayerPresetSelection();
 }
 
 
 void APPEARANCE_CONTROLS_3D::ApplyLayerPreset( const wxString& aPresetName )
 {
-    if( aPresetName == FOLLOW_PCB || aPresetName == FOLLOW_PLOT_SETTINGS )
-    {
-        m_frame->GetAdapter().m_Cfg->m_CurrentPreset = aPresetName;
-        UpdateLayerCtls();
-        m_frame->NewDisplay( true );
-    }
-    else if( LAYER_PRESET_3D* preset = m_frame->GetAdapter().m_Cfg->FindPreset( aPresetName ) )
-    {
-        doApplyLayerPreset( *preset );
-    }
+    doApplyLayerPreset( aPresetName );
 
     // Move to front of MRU list
     if( m_presetMRU.Index( aPresetName ) != wxNOT_FOUND )
@@ -420,6 +456,10 @@ void APPEARANCE_CONTROLS_3D::OnLayerVisibilityChanged( int aLayer, bool isVisibl
 
     default:
         visibleLayers.set( aLayer, isVisible );
+
+        if( aLayer >= LAYER_3D_USER_1 && aLayer <= LAYER_3D_USER_45 )
+            killFollow = true;
+
         break;
     }
 
@@ -453,7 +493,6 @@ void APPEARANCE_CONTROLS_3D::onColorSwatchChanged( COLOR_SWATCH* aSwatch )
     std::map<int, COLOR4D>    colors = m_frame->GetAdapter().GetLayerColors();
 
     m_frame->GetAdapter().SetVisibleLayers( visibleLayers );
-    m_frame->GetAdapter().SetLayerColors( colors );
 
     int     layer = aSwatch->GetId();
     COLOR4D newColor = aSwatch->GetSwatchColor();
@@ -467,7 +506,12 @@ void APPEARANCE_CONTROLS_3D::onColorSwatchChanged( COLOR_SWATCH* aSwatch )
 
     m_frame->GetAdapter().SetLayerColors( colors );
 
-    syncLayerPresetSelection();
+    const wxString& currentPreset = m_frame->GetAdapter().m_Cfg->m_CurrentPreset;
+
+    if( currentPreset == FOLLOW_PCB || currentPreset == FOLLOW_PLOT_SETTINGS )
+        updateLayerPresetWidget( currentPreset );
+    else
+        syncLayerPresetSelection();
 
     m_frame->NewDisplay( true );
 }
@@ -480,6 +524,7 @@ void APPEARANCE_CONTROLS_3D::rebuildLayers()
     std::bitset<LAYER_3D_END> visibleLayers = m_frame->GetAdapter().GetVisibleLayers();
     std::map<int, COLOR4D>    colors = m_frame->GetAdapter().GetLayerColors();
     std::map<int, COLOR4D>    defaultColors = m_frame->GetAdapter().GetDefaultColors();
+    LSET                      enabled = m_frame->GetBoard()->GetEnabledLayers();
 
     m_layerSettings.clear();
     m_layersOuterSizer->Clear( true );
@@ -534,8 +579,13 @@ void APPEARANCE_CONTROLS_3D::rebuildLayers()
 
                 sizer->AddSpacer( 5 );
 
-                wxStaticText* label = new wxStaticText( m_windowLayers, layer,
-                                                        aSetting->GetLabel() );
+                wxString     layerName = aSetting->GetLabel();
+                PCB_LAYER_ID boardLayer = Map3DLayerToPCBLayer( layer );
+
+                if( boardLayer != UNDEFINED_LAYER )
+                    layerName = m_frame->GetBoard()->GetLayerName( boardLayer );
+
+                wxStaticText* label = new wxStaticText( m_windowLayers, layer, layerName );
                 label->Wrap( -1 );
                 label->SetToolTip( aSetting->GetTooltip() );
 
@@ -580,9 +630,18 @@ void APPEARANCE_CONTROLS_3D::rebuildLayers()
         std::unique_ptr<APPEARANCE_SETTING_3D>& setting = m_layerSettings.back();
 
         if( setting->m_Spacer )
+        {
             m_layersOuterSizer->AddSpacer( m_pointSize );
+        }
+        else if( setting->m_Id >= LAYER_3D_USER_1 && setting->m_Id <= LAYER_3D_USER_45 )
+        {
+            if( enabled.test( Map3DLayerToPCBLayer( setting->m_Id ) ) )
+                appendLayer( setting );
+        }
         else
+        {
             appendLayer( setting );
+        }
 
         m_layerSettingsMap[setting->m_Id] = setting.get();
     }
@@ -731,17 +790,11 @@ void APPEARANCE_CONTROLS_3D::onLayerPresetChanged( wxCommandEvent& aEvent )
 
     if( index == 0 )
     {
-        name = FOLLOW_PCB;
-        cfg->m_CurrentPreset = name;
-        UpdateLayerCtls();
-        m_frame->NewDisplay( true );
+        doApplyLayerPreset( FOLLOW_PCB );
     }
     else if( index == 1 )
     {
-        name = FOLLOW_PLOT_SETTINGS;
-        cfg->m_CurrentPreset = name;
-        UpdateLayerCtls();
-        m_frame->NewDisplay( true );
+        doApplyLayerPreset( FOLLOW_PLOT_SETTINGS );
     }
     else if( index == count - 3 )
     {
@@ -827,10 +880,9 @@ void APPEARANCE_CONTROLS_3D::onLayerPresetChanged( wxCommandEvent& aEvent )
         resetSelection();
         return;
     }
-    else if( LAYER_PRESET_3D* preset = cfg->FindPreset( m_cbLayerPresets->GetStringSelection() ) )
+    else
     {
-        name = preset->name;
-        doApplyLayerPreset( *preset );
+        doApplyLayerPreset( m_cbLayerPresets->GetStringSelection() );
     }
 
     // Move to front of MRU list
@@ -843,16 +895,28 @@ void APPEARANCE_CONTROLS_3D::onLayerPresetChanged( wxCommandEvent& aEvent )
 }
 
 
-void APPEARANCE_CONTROLS_3D::doApplyLayerPreset( const LAYER_PRESET_3D& aPreset )
+void APPEARANCE_CONTROLS_3D::doApplyLayerPreset( const wxString& aPresetName )
 {
     BOARD_ADAPTER& adapter = m_frame->GetAdapter();
 
-    adapter.m_Cfg->m_CurrentPreset = aPreset.name;
-    adapter.SetVisibleLayers( aPreset.layers );
-    adapter.SetLayerColors( aPreset.colors );
+    if( aPresetName == FOLLOW_PCB || aPresetName == FOLLOW_PLOT_SETTINGS )
+    {
+        adapter.m_Cfg->m_CurrentPreset = aPresetName;
+        adapter.SetVisibleLayers( adapter.GetVisibleLayers() );
+    }
+    else if( LAYER_PRESET_3D* preset = adapter.m_Cfg->FindPreset( aPresetName ) )
+    {
+        adapter.m_Cfg->m_CurrentPreset = aPresetName;
+        adapter.SetVisibleLayers( preset->layers );
+        adapter.SetLayerColors( preset->colors );
 
-    if( aPreset.name.Lower() == _( "legacy colors" ) )
-        adapter.m_Cfg->m_UseStackupColors = false;
+        if( preset->name.Lower() == _( "legacy colors" ) )
+            adapter.m_Cfg->m_UseStackupColors = false;
+    }
+    else
+    {
+        return;
+    }
 
     UpdateLayerCtls();
     m_frame->NewDisplay( true );

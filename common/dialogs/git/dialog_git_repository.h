@@ -36,12 +36,6 @@ public:
                            wxString aURL = wxEmptyString );
     ~DIALOG_GIT_REPOSITORY() override;
 
-    void SetTestResult( bool aFailed, const wxString& aError )
-    {
-        m_failedTest = aFailed;
-        m_testError = aError;
-    }
-
     void SetRepoType( KIGIT_COMMON::GIT_CONN_TYPE aType )
     {
         m_ConnType->SetSelection( static_cast<int>( aType ) );
@@ -78,6 +72,8 @@ public:
         return url;
     }
 
+    const wxString& GetFullURL() const { return m_fullURL; }
+
     void     SetUsername( const wxString& aUsername ) { m_txtUsername->SetValue( aUsername ); }
     wxString GetUsername() const { return m_txtUsername->GetValue(); }
 
@@ -86,8 +82,6 @@ public:
 
     void     SetRepoSSHPath( const wxString& aPath ) { m_fpSSHKey->SetFileName( aPath ); m_prevFile = aPath; }
     wxString GetRepoSSHPath() const { return m_fpSSHKey->GetFileName().GetFullPath(); }
-
-    unsigned& GetTested() { return m_tested; }
 
     void     SetEncrypted( bool aEncrypted = true );
 
@@ -100,6 +94,7 @@ private:
     void OnTestClick( wxCommandEvent& event ) override;
 
     void OnFileUpdated( wxFileDirPickerEvent& event ) override;
+    void onCbCustom( wxCommandEvent& event ) override;
 
     void setDefaultSSHKey();
 
@@ -112,12 +107,9 @@ private:
 
 private:
     git_repository* m_repository;
+    wxString        m_fullURL;
 
     wxString        m_prevFile;
-
-    unsigned        m_tested;
-    bool            m_failedTest;
-    wxString        m_testError;
 
     bool            m_tempRepo;
     wxString        m_tempPath;

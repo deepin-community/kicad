@@ -22,7 +22,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <ee_collectors.h>
+#include <sch_collectors.h>
 #include <sch_commit.h>
 #include <sch_edit_frame.h>
 #include <widgets/msgpanel.h>
@@ -1040,6 +1040,7 @@ void SCH_SYMBOL::UpdateFields( const SCH_SHEET_PATH* aPath, bool aUpdateStyle, b
                     SCH_FIELD newField( VECTOR2I( 0, 0 ), GetNextFieldId(), this,
                                         libField->GetCanonicalName() );
                     schField = AddField( newField );
+                    schField->ImportValues( *libField );
                 }
             }
 
@@ -1230,7 +1231,7 @@ const SCH_PIN* SCH_SYMBOL::GetPin( const VECTOR2I& aPos ) const
         if( pin_bodyStyle > 0 && pin_bodyStyle != GetBodyStyle() )
             continue;
 
-        if( pin->IsPointClickableAnchor( aPos ) )
+        if( pin->GetPosition() == aPos )
             return pin.get();
     }
 
@@ -1421,7 +1422,14 @@ bool SCH_SYMBOL::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, i
         if( range.IsEmpty() )
             range = wxS( "~A" );
 
-        SIM_LIB_MGR   simLibMgr( &schematic->Prj() );
+        SIM_LIB_MGR simLibMgr( &schematic->Prj() );
+
+        std::vector<EMBEDDED_FILES*> embeddedFilesStack;
+        embeddedFilesStack.push_back( schematic->GetEmbeddedFiles() );
+        embeddedFilesStack.push_back( GetLibSymbolRef()->GetEmbeddedFiles() );
+
+        simLibMgr.SetFilesStack( embeddedFilesStack );
+
         NULL_REPORTER devnull;
         SIM_MODEL&    model = simLibMgr.CreateModel( aPath, const_cast<SCH_SYMBOL&>( *this ),
                                                      devnull ).model;
@@ -2136,6 +2144,12 @@ void SCH_SYMBOL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
 BITMAPS SCH_SYMBOL::GetMenuImage() const
 {
     return BITMAPS::add_component;
+}
+
+
+EMBEDDED_FILES* SCH_SYMBOL::GetEmbeddedFiles()
+{
+    return GetLibSymbolRef()->GetEmbeddedFiles();
 }
 
 
@@ -3032,7 +3046,7 @@ static struct SCH_SYMBOL_DESC
                     return false;
                 };
 
-        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, int>( _HKI( "Unit" ),
+        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, wxString>( _HKI( "Unit" ),
                     &SCH_SYMBOL::SetUnitProp, &SCH_SYMBOL::GetUnitProp ) )
                 .SetAvailableFunc( multiUnit );
 

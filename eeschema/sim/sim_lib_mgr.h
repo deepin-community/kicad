@@ -31,6 +31,7 @@
 #include <sim/sim_library.h>
 #include <sim/sim_model.h>
 
+class EMBEDDED_FILES;
 class PROJECT;
 class SCH_SYMBOL;
 
@@ -44,6 +45,9 @@ public:
     void SetForceFullParse() { m_forceFullParse = true; }
 
     void Clear();
+
+    void SetFilesStack( std::vector<EMBEDDED_FILES*> aFilesStack ) { m_embeddedFilesStack = aFilesStack; }
+
 
     void SetLibrary( const wxString& aLibraryPath, REPORTER& aReporter );
 
@@ -74,12 +78,12 @@ public:
     std::map<wxString, std::reference_wrapper<const SIM_LIBRARY>> GetLibraries() const;
     std::vector<std::reference_wrapper<SIM_MODEL>> GetModels() const;
 
-    static wxString ResolveLibraryPath( const wxString& aLibraryPath, const PROJECT* aProject,
-                                        REPORTER& aReporter );
+    wxString ResolveLibraryPath( const wxString& aLibraryPath, REPORTER& aReporter );
     wxString ResolveEmbeddedLibraryPath( const wxString& aLibPath, const wxString& aRelativeLib,
                                          REPORTER& aReporter );
 
 private:
+    std::vector<EMBEDDED_FILES*>                     m_embeddedFilesStack;
     const PROJECT*                                   m_project;
     bool                                             m_forceFullParse;
     std::map<wxString, std::unique_ptr<SIM_LIBRARY>> m_libraries;

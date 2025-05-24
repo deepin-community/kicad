@@ -76,9 +76,6 @@ else()
     find_package( A2X REQUIRED )
 endif()
 
-include( KiCadDocumentation )
-add_subdirectory( src )
-
 # Start with the package version being unknown, then prove otherwise
 set( CPACK_PACKAGE_VERSION "unknown" )
 
@@ -132,6 +129,36 @@ if( GIT_FOUND )
     message (STATUS "Setting package version to ${CPACK_PACKAGE_VERSION}")
 endif()
 
+# Figure out version strings in various formats for documentation text
+include( VersionInfo )
+
+# default values
+set( KICAD_VERSION_LONG "0.0.0" ) # 9.0.1 or Nightly
+set( KICAD_VERSION_SHORT "0.0") # 9.0 or 9.99
+set( KICAD_VERSION_MAJOR "0") # 9
+
+string( REGEX MATCH
+        "([0-9]+)\\.([0-9]+)\\.([0-9]+)"
+        KICAD_VERSION_LONG
+        ${DOC_VERSION}
+    )
+if( CMAKE_MATCH_COUNT EQUAL 3 )
+    set( KICAD_VERSION_SHORT "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}" )
+    set( KICAD_VERSION_MAJOR "${CMAKE_MATCH_1}" )
+    # for master, use "X.99" as long version info and "Nightly" as short version info
+    if( CMAKE_MATCH_2 STREQUAL "99" )
+        set( KICAD_VERSION_LONG "${KICAD_VERSION_MAJOR}.99" )
+        set( KICAD_VERSION_SHORT "Nightly" )
+    endif()
+else()
+    # probably not necessary to error here, but something has gone seriously wrong.
+    message( FATAL_ERROR "Unable to extract KiCad application version info from provided version information" )
+endif()
+
+message( STATUS "Setting KICAD_VERSION_LONG=${KICAD_VERSION_LONG}" )
+message( STATUS "Setting KICAD_VERSION_SHORT=${KICAD_VERSION_SHORT}" )
+message( STATUS "Setting KICAD_VERSION_MAJOR=${KICAD_VERSION_MAJOR}" )
+
 # If there is more than one build format, do not bother transforming the
 # package name, otherwise if there's only one, add it to the package name
 list( LENGTH BUILD_FORMATS BUILD_FORMATS_LENGTH )
@@ -146,3 +173,6 @@ set( CPACK_GENERATOR "TGZ" )
 set( CPACK_INCLUDE_TOPLEVEL_DIRECTORY ON )
 set( CPACK_PACKAGE_FILE_NAME "kicad-doc${PACKAGE_BUILD_FORMAT}-${CPACK_PACKAGE_VERSION}" )
 include( CPack )
+
+include( KiCadDocumentation )
+add_subdirectory( src )
