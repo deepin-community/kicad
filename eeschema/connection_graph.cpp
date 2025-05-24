@@ -280,7 +280,7 @@ void CONNECTION_SUBGRAPH::getAllConnectedItems( std::set<std::pair<SCH_SHEET_PAT
 
     while( sg->m_absorbed_by )
     {
-        wxASSERT( sg->m_graph == sg->m_absorbed_by->m_graph );
+        wxCHECK2( sg->m_graph == sg->m_absorbed_by->m_graph, continue );
         sg = sg->m_absorbed_by;
     }
 
@@ -482,7 +482,7 @@ CONNECTION_SUBGRAPH::GetNetclassesForDriver( SCH_ITEM* aItem ) const
 
 void CONNECTION_SUBGRAPH::Absorb( CONNECTION_SUBGRAPH* aOther )
 {
-    wxASSERT( m_sheet == aOther->m_sheet );
+    wxCHECK( m_sheet == aOther->m_sheet, /* void */ );
 
     for( SCH_ITEM* item : aOther->m_items )
     {
@@ -856,6 +856,7 @@ std::set<std::pair<SCH_SHEET_PATH, SCH_ITEM*>> CONNECTION_GRAPH::ExtractAffected
         // Find the primary subgraph on this sheet
         while( aSubgraph->m_absorbed_by )
         {
+            // Should we skip this if the absorbed by sub-graph is not this sub-grap?
             wxASSERT( aSubgraph->m_graph == aSubgraph->m_absorbed_by->m_graph );
             aSubgraph = aSubgraph->m_absorbed_by;
         }
@@ -863,6 +864,7 @@ std::set<std::pair<SCH_SHEET_PATH, SCH_ITEM*>> CONNECTION_GRAPH::ExtractAffected
         // Find the top most connected subgraph on all sheets
         while( aSubgraph->m_hier_parent )
         {
+            // Should we skip this if the absorbed by sub-graph is not this sub-grap?
             wxASSERT( aSubgraph->m_graph == aSubgraph->m_hier_parent->m_graph );
             aSubgraph = aSubgraph->m_hier_parent;
         }
@@ -1349,13 +1351,13 @@ void CONNECTION_GRAPH::updateItemConnectivity( const SCH_SHEET_PATH& aSheet,
 
         thread_pool& tp = GetKiCadThreadPool();
 
-        tp.push_loop( connection_vec.size(),
-                [&]( const int a, const int b)
-                {
-                    for( int ii = a; ii < b; ++ii )
-                        update_lambda( connection_vec[ii] );
-                });
-        tp.wait_for_tasks();
+        auto results = tp.parallelize_loop( connection_vec.size(),
+                                [&]( const int a, const int b)
+                                {
+                                    for( int ii = a; ii < b; ++ii )
+                                        update_lambda( connection_vec[ii] );
+                                });
+        results.wait();
     }
 }
 
@@ -1418,7 +1420,7 @@ void CONNECTION_GRAPH::buildItemSubGraphs()
 
                     SCH_CONNECTION* connected_conn = connected_item->Connection( &sheet );
 
-                    wxASSERT( connected_conn );
+                    wxCHECK2( connected_conn, continue );
 
                     if( connected_conn->SubgraphCode() == 0 )
                     {
@@ -1506,13 +1508,13 @@ void CONNECTION_GRAPH::resolveAllDrivers()
 
     thread_pool& tp = GetKiCadThreadPool();
 
-    tp.push_loop( dirty_graphs.size(),
-            [&]( const int a, const int b)
-            {
-                for( int ii = a; ii < b; ++ii )
-                    update_lambda( dirty_graphs[ii] );
-            });
-    tp.wait_for_tasks();
+    auto results = tp.parallelize_loop( dirty_graphs.size(),
+                        [&]( const int a, const int b)
+                        {
+                            for( int ii = a; ii < b; ++ii )
+                                update_lambda( dirty_graphs[ii] );
+                        });
+    results.wait();
 
     // Now discard any non-driven subgraphs from further consideration
 
@@ -1575,7 +1577,7 @@ void CONNECTION_GRAPH::collectAllDriverValues()
             }
             default:
             {
-                UNITS_PROVIDER unitsProvider( schIUScale, EDA_UNITS::MILLIMETRES );
+                UNITS_PROVIDER unitsProvider( schIUScale, EDA_UNITS::MM );
 
                 wxLogTrace( ConnTrace, wxS( "Unexpected strong driver %s" ),
                             driver->GetItemDescription( &unitsProvider, true ) );
@@ -1845,7 +1847,7 @@ void CONNECTION_GRAPH::processSubGraphs()
                     }
                     else
                     {
-                        UNITS_PROVIDER unitsProvider( schIUScale, EDA_UNITS::MILLIMETRES );
+                        UNITS_PROVIDER unitsProvider( schIUScale, EDA_UNITS::MM );
 
                         wxLogTrace( ConnTrace,
                                     wxS( "%ld (%s) weakly driven by unique sheet pin %s, "
@@ -2009,6 +2011,7 @@ void CONNECTION_GRAPH::processSubGraphs()
                         }
                         else
                         {
+                            // Should we skip this if the driver type is not one of these types?
                             wxASSERT( driver->Type() == SCH_LABEL_T ||
                                       driver->Type() == SCH_GLOBAL_LABEL_T ||
                                       driver->Type() == SCH_HIER_LABEL_T );
@@ -2146,14 +2149,14 @@ void CONNECTION_GRAPH::buildConnectionGraph( std::function<void( SCH_ITEM* )>* a
 
     thread_pool& tp = GetKiCadThreadPool();
 
-    tp.push_loop( m_driver_subgraphs.size(),
-            [&]( const int a, const int b)
-            {
-                for( int ii = a; ii < b; ++ii )
-                    m_driver_subgraphs[ii]->UpdateItemConnections();
-            });
+    auto results = tp.parallelize_loop( m_driver_subgraphs.size(),
+                            [&]( const int a, const int b)
+                            {
+                                for( int ii = a; ii < b; ++ii )
+                                    m_driver_subgraphs[ii]->UpdateItemConnections();
+                            });
 
-    tp.wait_for_tasks();
+    results.wait();
 
     // Next time through the subgraphs, we do some post-processing to handle things like
     // connecting bus members to their neighboring subgraphs, and then propagate connections
@@ -2237,6 +2240,7 @@ void CONNECTION_GRAPH::buildConnectionGraph( std::function<void( SCH_ITEM* )>* a
     for( CONNECTION_SUBGRAPH* subgraph : m_driver_subgraphs )
     {
         // All SGs should have been processed by propagateToNeighbors above
+        // Should we skip all of this if the subgraph is not dirty?
         wxASSERT_MSG( !subgraph->m_dirty,
                       wxS( "Subgraph not processed by propagateToNeighbors!" ) );
 
@@ -2248,7 +2252,8 @@ void CONNECTION_GRAPH::buildConnectionGraph( std::function<void( SCH_ITEM* )>* a
         wxLogTrace( ConnTrace, wxS( "%lu (%s) has multiple bus parents" ),
                     subgraph->m_code, conn->Name() );
 
-        wxASSERT( conn->IsNet() );
+        // Should we skip everything after this if this is not a net?
+        wxCHECK2( conn->IsNet(), continue );
 
         for( const auto& ii : subgraph->m_bus_parents )
         {
@@ -2352,13 +2357,13 @@ void CONNECTION_GRAPH::buildConnectionGraph( std::function<void( SCH_ITEM* )>* a
                 return 1;
             };
 
-    tp.push_loop( m_driver_subgraphs.size(),
-            [&]( const int a, const int b)
-            {
-                for( int ii = a; ii < b; ++ii )
-                    updateItemConnectionsTask( m_driver_subgraphs[ii] );
-            });
-    tp.wait_for_tasks();
+    auto results2 = tp.parallelize_loop( m_driver_subgraphs.size(),
+                            [&]( const int a, const int b)
+                            {
+                                for( int ii = a; ii < b; ++ii )
+                                    updateItemConnectionsTask( m_driver_subgraphs[ii] );
+                            });
+    results2.wait();
 
     m_net_code_to_subgraphs_map.clear();
     m_net_name_to_subgraphs_map.clear();
@@ -2597,6 +2602,8 @@ void CONNECTION_GRAPH::propagateToNeighbors( CONNECTION_SUBGRAPH* aSubgraph, boo
                         candidate->m_hier_parent = aParent;
                         aParent->m_hier_children.insert( candidate );
 
+                        // Should we skip adding the candidate to the list if the parent and candidate subgraphs
+                        // are not the same?
                         wxASSERT( candidate->m_graph == aParent->m_graph );
 
                         search_list.push_back( candidate );
@@ -2703,8 +2710,11 @@ void CONNECTION_GRAPH::propagateToNeighbors( CONNECTION_SUBGRAPH* aSubgraph, boo
                     continue;
                 }
 
-                auto neighbor_conn = neighbor->m_driver_connection;
-                auto neighbor_name = neighbor_conn->Name();
+                SCH_CONNECTION* neighbor_conn = neighbor->m_driver_connection;
+
+                wxCHECK2( neighbor_conn, continue );
+
+                wxString neighbor_name = neighbor_conn->Name();
 
                 // Matching name: no update needed
                 if( neighbor_name == member->Name() )
@@ -2715,7 +2725,8 @@ void CONNECTION_GRAPH::propagateToNeighbors( CONNECTION_SUBGRAPH* aSubgraph, boo
                     continue;
 
                 // Safety check against infinite recursion
-                wxASSERT( neighbor_conn->IsNet() );
+                wxCHECK2_MSG( neighbor_conn->IsNet(), continue,
+                              wxS( "\"" ) + neighbor_name + wxS( "\" is not a net." ) );
 
                 wxLogTrace( ConnTrace, wxS( "%lu (%s) connected to bus member %s (local %s)" ),
                             neighbor->m_code, neighbor_name, member->Name(), member->LocalName() );
@@ -2925,6 +2936,7 @@ std::shared_ptr<SCH_CONNECTION> CONNECTION_GRAPH::getDefaultConnection( SCH_ITEM
 SCH_CONNECTION* CONNECTION_GRAPH::matchBusMember( SCH_CONNECTION* aBusConnection,
                                                   SCH_CONNECTION* aSearch )
 {
+    // Should we return a null pointer if the connection is not a bus connection?
     wxASSERT( aBusConnection->IsBus() );
 
     SCH_CONNECTION* match = nullptr;
@@ -3007,6 +3019,7 @@ std::vector<const CONNECTION_SUBGRAPH*> CONNECTION_GRAPH::GetBusesNeedingMigrati
     for( CONNECTION_SUBGRAPH* subgraph : m_subgraphs )
     {
         // Graph is supposed to be up-to-date before calling this
+        // Should we continue if the subgraph is not up to date?
         wxASSERT( !subgraph->m_dirty );
 
         if( !subgraph->m_driver )
@@ -3086,6 +3099,7 @@ CONNECTION_SUBGRAPH* CONNECTION_GRAPH::FindSubgraphByName( const wxString& aNetN
     for( CONNECTION_SUBGRAPH* sg : it->second )
     {
         // Cache is supposed to be valid by now
+        // Should we continue if the cache is not valid?
         wxASSERT( sg && !sg->m_absorbed && sg->m_driver_connection );
 
         if( sg->m_sheet == aPath && sg->m_driver_connection->Name() == aNetName )
@@ -3103,6 +3117,7 @@ CONNECTION_SUBGRAPH* CONNECTION_GRAPH::FindFirstSubgraphByName( const wxString& 
     if( it == m_net_name_to_subgraphs_map.end() )
         return nullptr;
 
+    // Should this return a nullptr if the map entry is empty?
     wxASSERT( !it->second.empty() );
 
     return it->second[0];
@@ -3153,6 +3168,7 @@ int CONNECTION_GRAPH::RunERC()
         wxCHECK2( subgraph, continue );
 
         // Graph is supposed to be up-to-date before calling RunERC()
+        // Should we continue if the subgraph is not up to date?
         wxASSERT( !subgraph->m_dirty );
 
         if( subgraph->m_absorbed )
@@ -3460,6 +3476,7 @@ bool CONNECTION_GRAPH::ercCheckBusToBusEntryConflicts( const CONNECTION_SUBGRAPH
     {
         bus_wire = bus_entry->m_connected_bus_item;
 
+        // Should we continue if the type is not a line?
         wxASSERT( bus_wire->Type() == SCH_LINE_T );
 
         // In some cases, the connection list (SCH_CONNECTION*) can be null.
@@ -3611,6 +3628,16 @@ bool CONNECTION_GRAPH::ercCheckNoConnects( const CONNECTION_SUBGRAPH* aSubgraph 
         for( SCH_HIERLABEL* hierLabel : aSubgraph->m_hier_ports )
         {
             if( hierLabel->GetPosition() == noConnectPos )
+                return true;
+        }
+
+        for( SCH_ITEM* item : screen->Items().Overlapping( SCH_SYMBOL_T, noConnectPos ) )
+        {
+            SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
+
+            const SCH_PIN* test_pin = symbol->GetPin( noConnectPos );
+
+            if( test_pin && test_pin->GetType() == ELECTRICAL_PINTYPE::PT_NC )
                 return true;
         }
 

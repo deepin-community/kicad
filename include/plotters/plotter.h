@@ -51,8 +51,8 @@ using KIGFX::RENDER_SETTINGS;
 // Units (inch/mm for DXF plotter
 enum class DXF_UNITS
 {
-    INCHES = 0,
-    MILLIMETERS = 1
+    INCH = 0,   // Do not use MM: it conficts with a Windows header
+    MM = 1
 };
 
 
@@ -137,6 +137,9 @@ public:
 
     virtual void SetPageSettings( const PAGE_INFO& aPageSettings ) { m_pageInfo = aPageSettings; }
     PAGE_INFO& PageSettings() { return m_pageInfo; }
+
+    void SetPlotMirrored( bool aMirror ) { m_plotMirror = aMirror; };
+    bool GetPlotMirrored() const { return m_plotMirror; }
 
     /**
      * Set the line width for the next drawing.

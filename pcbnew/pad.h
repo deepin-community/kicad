@@ -60,6 +60,8 @@ public:
     PAD( const PAD& aPad );
     PAD& operator=( const PAD &aOther );
 
+    void CopyFrom( const BOARD_ITEM* aOther ) override;
+
     void Serialize( google::protobuf::Any &aContainer ) const override;
     bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
@@ -431,7 +433,7 @@ public:
         m_polyDirty[ERROR_OUTSIDE] = true;
     }
 
-    void SetLayerSet( const LSET& aLayers ) override   { m_padStack.SetLayerSet( aLayers ); }
+    void SetLayerSet( const LSET& aLayers ) override   { m_padStack.SetLayerSet( aLayers ); SetDirty(); }
     LSET GetLayerSet() const override           { return m_padStack.LayerSet(); }
 
     void SetAttribute( PAD_ATTRIB aAttribute );
@@ -456,13 +458,15 @@ public:
     std::optional<int> GetLocalSolderMaskMargin() const { return m_padStack.SolderMaskMargin(); }
     void               SetLocalSolderMaskMargin( std::optional<int> aMargin )
     {
-        m_padStack.SolderMaskMargin() = aMargin;
+        m_padStack.SolderMaskMargin( F_Mask ) = aMargin;
+        m_padStack.SolderMaskMargin( B_Mask ) = aMargin;
     }
 
     std::optional<int> GetLocalSolderPasteMargin() const { return m_padStack.SolderPasteMargin(); }
     void               SetLocalSolderPasteMargin( std::optional<int> aMargin )
     {
-        m_padStack.SolderPasteMargin() = aMargin;
+        m_padStack.SolderPasteMargin( F_Paste ) = aMargin;
+        m_padStack.SolderPasteMargin( B_Paste ) = aMargin;
     }
 
     std::optional<double> GetLocalSolderPasteMarginRatio() const
@@ -471,7 +475,8 @@ public:
     }
     void SetLocalSolderPasteMarginRatio( std::optional<double> aRatio )
     {
-        m_padStack.SolderPasteMarginRatio() = aRatio;
+        m_padStack.SolderPasteMarginRatio( F_Paste ) = aRatio;
+        m_padStack.SolderPasteMarginRatio( B_Paste ) = aRatio;
     }
 
     void SetLocalZoneConnection( ZONE_CONNECTION aType ) { m_padStack.ZoneConnection() = aType; }
@@ -835,6 +840,7 @@ public:
      * The bounding box is cached, so this will be efficient most of the time.
      */
     const BOX2I GetBoundingBox() const override;
+    const BOX2I GetBoundingBox( PCB_LAYER_ID aLayer ) const;
 
     /**
      * Compare two pads and return 0 if they are equal.
@@ -916,9 +922,6 @@ protected:
 private:
     const SHAPE_COMPOUND& buildEffectiveShape( PCB_LAYER_ID aLayer ) const;
 
-    void addPadPrimitivesToPolygon( PCB_LAYER_ID aLayer, SHAPE_POLY_SET* aMergedPolygon, int aError,
-                                    ERROR_LOC aErrorLoc ) const;
-
     void doCheckPad( PCB_LAYER_ID aLayer, UNITS_PROVIDER* aUnitsProvider, bool aForPadProperties,
                      const std::function<void( int aErrorCode,
                                                const wxString& aMsg )>& aErrorHandler ) const;
@@ -945,6 +948,9 @@ private:
     mutable std::mutex                        m_polyBuildingLock;
     mutable LAYER_POLYGON_MAP                 m_effectivePolygons;
     mutable int                               m_effectiveBoundingRadius;
+    // Last zoom level used to draw the pad: the LAYER_PAD_HOLEWALLS layer shape
+    // depend on the zoom level. So keep trace on the last used zoom level
+    mutable double                            m_lastGalZoomLevel;
 
     int               m_subRatsnest;        // Variable used to handle subnet (block) number in
                                             //   ratsnest computations
@@ -955,6 +961,6 @@ private:
 
     int         m_lengthPadToDie;   // Length net from pad to die, inside the package
 
-    std::mutex                                  m_zoneLayerOverridesMutex;
+    mutable std::mutex                          m_zoneLayerOverridesMutex;
     std::map<PCB_LAYER_ID, ZONE_LAYER_OVERRIDE> m_zoneLayerOverrides;
 };

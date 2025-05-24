@@ -82,6 +82,8 @@ API_HANDLER_PCB::API_HANDLER_PCB( PCB_EDIT_FRAME* aFrame ) :
             &API_HANDLER_PCB::handleGetTitleBlockInfo );
     registerHandler<ExpandTextVariables, ExpandTextVariablesResponse>(
             &API_HANDLER_PCB::handleExpandTextVariables );
+    registerHandler<GetBoardOrigin, types::Vector2>( &API_HANDLER_PCB::handleGetBoardOrigin );
+    registerHandler<SetBoardOrigin, Empty>( &API_HANDLER_PCB::handleSetBoardOrigin );
 
     registerHandler<InteractiveMoveItems, Empty>( &API_HANDLER_PCB::handleInteractiveMoveItems );
     registerHandler<GetNets, NetsResponse>( &API_HANDLER_PCB::handleGetNets );
@@ -475,9 +477,23 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_PCB::handleCreateUpdateItemsIntern
         else
         {
             BOARD_ITEM* boardItem = *optItem;
-            commit->Modify( boardItem );
-            boardItem->SwapItemData( item.get() );
-            boardItem->Serialize( newItem );
+
+            // Footprints can't be modified by CopyFrom at the moment because the commit system
+            // doesn't currently know what to do with a footprint that has had its children
+            // replaced with other children; which results in things like the view not having its
+            // cached geometry for footprint children updated when you move a footprint around.
+            if( boardItem->Type() == PCB_FOOTPRINT_T )
+            {
+                commit->Remove( boardItem );
+                item->Serialize( newItem );
+                commit->Add( item.release() );
+            }
+            else
+            {
+                commit->Modify( boardItem );
+                boardItem->CopyFrom( item.get() );
+                boardItem->Serialize( newItem );
+            }
         }
 
         aItemHandler( status, newItem );
@@ -486,7 +502,7 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_PCB::handleCreateUpdateItemsIntern
     if( !m_activeClients.count( aClientName ) )
     {
         pushCurrentCommit( aClientName, aCreate ? _( "Created items via API" )
-                                                : _( "Added items via API" ) );
+                                                : _( "Modified items via API" ) );
     }
 
 
@@ -718,6 +734,7 @@ HANDLER_RESULT<Empty> API_HANDLER_PCB::handleClearSelection(
 
     TOOL_MANAGER* mgr = frame()->GetToolManager();
     mgr->RunAction( PCB_ACTIONS::selectionClear );
+    frame()->Refresh();
 
     return Empty();
 }
@@ -749,6 +766,7 @@ HANDLER_RESULT<SelectionResponse> API_HANDLER_PCB::handleAddToSelection(
     }
 
     selectionTool->AddItemsToSel( &toAdd );
+    frame()->Refresh();
 
     SelectionResponse response;
 
@@ -785,6 +803,7 @@ HANDLER_RESULT<SelectionResponse> API_HANDLER_PCB::handleRemoveFromSelection(
     }
 
     selectionTool->RemoveItemsFromSel( &toRemove );
+    frame()->Refresh();
 
     SelectionResponse response;
 
@@ -866,6 +885,92 @@ HANDLER_RESULT<GraphicsDefaultsResponse> API_HANDLER_PCB::handleGetGraphicsDefau
 }
 
 
+HANDLER_RESULT<types::Vector2> API_HANDLER_PCB::handleGetBoardOrigin(
+        const HANDLER_CONTEXT<GetBoardOrigin>& aCtx )
+{
+    if( HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.board() );
+        !documentValidation )
+    {
+        return tl::unexpected( documentValidation.error() );
+    }
+
+    VECTOR2I origin;
+    const BOARD_DESIGN_SETTINGS& settings = frame()->GetBoard()->GetDesignSettings();
+
+    switch( aCtx.Request.type() )
+    {
+    case BOT_GRID:
+        origin = settings.GetGridOrigin();
+        break;
+
+    case BOT_DRILL:
+        origin = settings.GetAuxOrigin();
+        break;
+
+    default:
+    case BOT_UNKNOWN:
+    {
+        ApiResponseStatus e;
+        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+        e.set_error_message( "Unexpected origin type" );
+        return tl::unexpected( e );
+    }
+    }
+
+    types::Vector2 reply;
+    PackVector2( reply, origin );
+    return reply;
+}
+
+HANDLER_RESULT<Empty> API_HANDLER_PCB::handleSetBoardOrigin(
+        const HANDLER_CONTEXT<SetBoardOrigin>& aCtx )
+{
+    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
+        return tl::unexpected( *busy );
+
+    if( HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.board() );
+        !documentValidation )
+    {
+        return tl::unexpected( documentValidation.error() );
+    }
+
+    BOARD_DESIGN_SETTINGS& settings = frame()->GetBoard()->GetDesignSettings();
+    VECTOR2I origin = UnpackVector2( aCtx.Request.origin() );
+
+    switch( aCtx.Request.type() )
+    {
+    case BOT_GRID:
+        settings.SetGridOrigin( origin );
+        frame()->Refresh();
+        break;
+
+    case BOT_DRILL:
+    {
+        PCB_EDIT_FRAME* f = frame();
+
+        frame()->CallAfter( [f, origin]()
+                            {
+                                TOOL_MANAGER* mgr = f->GetToolManager();
+                                mgr->RunAction( PCB_ACTIONS::drillSetOrigin, origin );
+                                f->Refresh();
+                            } );
+        break;
+    }
+
+    default:
+    case BOT_UNKNOWN:
+    {
+        ApiResponseStatus e;
+        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+        e.set_error_message( "Unexpected origin type" );
+        return tl::unexpected( e );
+    }
+    }
+
+    return Empty();
+}
+
+
 HANDLER_RESULT<GetBoundingBoxResponse> API_HANDLER_PCB::handleGetBoundingBox(
         const HANDLER_CONTEXT<GetBoundingBox>& aCtx )
 {
@@ -910,10 +1015,11 @@ HANDLER_RESULT<GetBoundingBoxResponse> API_HANDLER_PCB::handleGetBoundingBox(
 HANDLER_RESULT<PadShapeAsPolygonResponse> API_HANDLER_PCB::handleGetPadShapeAsPolygon(
         const HANDLER_CONTEXT<GetPadShapeAsPolygon>& aCtx )
 {
-    HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.board() );
-
-    if( !documentValidation )
+    if( HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.board() );
+        !documentValidation )
+    {
         return tl::unexpected( documentValidation.error() );
+    }
 
     PadShapeAsPolygonResponse response;
     PCB_LAYER_ID layer = FromProtoEnum<PCB_LAYER_ID, board::types::BoardLayer>( aCtx.Request.layer() );
@@ -1036,7 +1142,7 @@ HANDLER_RESULT<Empty> API_HANDLER_PCB::handleInteractiveMoveItems(
     mgr->RunAction<EDA_ITEMS*>( PCB_ACTIONS::selectItems, &toSelect );
 
     COMMIT* commit = getCurrentCommit( aCtx.ClientName );
-    mgr->PostAction( PCB_ACTIONS::move, commit );
+    mgr->PostAPIAction( PCB_ACTIONS::move, commit );
 
     return Empty();
 }

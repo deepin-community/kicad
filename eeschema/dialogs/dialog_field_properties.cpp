@@ -35,7 +35,7 @@
 #include <common.h>
 #include <string_utils.h>
 #include <sch_edit_frame.h>
-#include <ee_collectors.h>
+#include <sch_collectors.h>
 #include <sch_symbol.h>
 #include <template_fieldnames.h>
 #include <symbol_library.h>
@@ -75,6 +75,18 @@ DIALOG_FIELD_PROPERTIES::DIALOG_FIELD_PROPERTIES( SCH_BASE_FRAME* aParent, const
             } );
 
     m_StyledTextCtrl->SetEOLMode( wxSTC_EOL_LF );   // Normalize EOL across platforms
+
+#ifdef __WXGTK__
+    m_StyledTextCtrl->SetExtraAscent( 6 );
+    m_StyledTextCtrl->SetExtraDescent( 2 );
+#elif defined ( __WXMSW__ )
+    // Do nothing: SetExtraAscent() + SetExtraDescent(), when set to a value not 0
+    // Generate a strange bug: the text is not always shown (Perhaps a wxMSW bug)
+    // and this call is not needed on WXMSW
+#else
+    m_StyledTextCtrl->SetExtraAscent( 1 );
+    m_StyledTextCtrl->SetExtraDescent( 2 );
+#endif
 
 #ifdef _WIN32
     // Without this setting, on Windows, some esoteric unicode chars create display issue
@@ -272,7 +284,7 @@ DIALOG_FIELD_PROPERTIES::DIALOG_FIELD_PROPERTIES( SCH_BASE_FRAME* aParent, const
 
     init();
 
-    if( m_isSheetFilename || m_field->IsNamedVariable() )
+    if( m_isSheetFilename || m_field->IsGeneratedField() )
     {
         m_StyledTextCtrl->Enable( false );
         m_TextCtrl->Enable( false );
@@ -358,7 +370,7 @@ void DIALOG_FIELD_PROPERTIES::OnTextValueSelectButtonClick( wxCommandEvent& aEve
     else
         fpid = m_TextCtrl->GetValue();
 
-    if( KIWAY_PLAYER* frame = Kiway().Player( FRAME_FOOTPRINT_CHOOSER, true ) )
+    if( KIWAY_PLAYER* frame = Kiway().Player( FRAME_FOOTPRINT_CHOOSER, true, this ) )
     {
         KIWAY_EXPRESS event( FRAME_FOOTPRINT_CHOOSER, MAIL_SYMBOL_NETLIST, m_netlist );
         frame->KiwayMailIn( event );
@@ -543,17 +555,17 @@ bool DIALOG_FIELD_PROPERTIES::TransferDataFromWindow()
 }
 
 
-void DIALOG_FIELD_PROPERTIES::updateText( EDA_TEXT* aText )
+void DIALOG_FIELD_PROPERTIES::updateText( SCH_FIELD* aField )
 {
-    if( aText->GetTextWidth() != m_size )
-        aText->SetTextSize( VECTOR2I( m_size, m_size ) );
+    if( aField->GetTextWidth() != m_size )
+        aField->SetTextSize( VECTOR2I( m_size, m_size ) );
 
-    aText->SetFont( m_font );
-    aText->SetVisible( m_isVisible );
-    aText->SetTextAngle( m_isVertical ? ANGLE_VERTICAL : ANGLE_HORIZONTAL );
-    aText->SetItalic( m_isItalic );
-    aText->SetBold( m_isBold );
-    aText->SetTextColor( m_color );
+    aField->SetFont( m_font );
+    aField->SetVisible( m_isVisible );
+    aField->SetTextAngle( m_isVertical ? ANGLE_VERTICAL : ANGLE_HORIZONTAL );
+    aField->SetItalic( m_isItalic );
+    aField->SetBold( m_isBold );
+    aField->SetTextColor( m_color );
 }
 
 

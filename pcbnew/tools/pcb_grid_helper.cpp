@@ -31,6 +31,7 @@
 #include <pcb_dimension.h>
 #include <pcb_shape.h>
 #include <footprint.h>
+#include <pcb_table.h>
 #include <pad.h>
 #include <pcb_group.h>
 #include <pcb_reference_image.h>
@@ -1096,12 +1097,56 @@ void PCB_GRID_HELPER::computeAnchors( const std::vector<BOARD_ITEM*>& aItems,
 }
 
 
+// Padstacks report a set of "unique" layers, which may each represent one or more
+// "real" layers. This function takes a unique layer and checks if it applies to the
+// given "real" layer.
+static bool PadstackUniqueLayerAppliesToLayer( const PADSTACK& aPadStack, PCB_LAYER_ID aPadstackUniqueLayer,
+                                               const PCB_LAYER_ID aRealLayer )
+{
+    switch( aPadStack.Mode() )
+    {
+    case PADSTACK::MODE::NORMAL:
+    {
+        // Normal mode padstacks are the same on every layer, so they'll apply to any
+        // "real" copper layer.
+        return IsCopperLayer( aRealLayer );
+    }
+    case PADSTACK::MODE::FRONT_INNER_BACK:
+    {
+        switch( aPadstackUniqueLayer )
+        {
+        case F_Cu:
+        case B_Cu:
+            // The outer-layer uhique layers only apply to those exact "real" layers
+            return aPadstackUniqueLayer == aRealLayer;
+        case PADSTACK::INNER_LAYERS:
+            // But the inner layers apply to any inner layer
+            return IsInnerCopperLayer( aRealLayer );
+        default:
+            wxFAIL_MSG( wxString::Format( "Unexpected padstack unique layer %d in FRONT_INNER_BACK mode",
+                                          aPadstackUniqueLayer ) );
+            break;
+        }
+        break;
+    }
+    case PADSTACK::MODE::CUSTOM:
+    {
+        // Custom modes are unique per layer, so it's 1:1
+        return aRealLayer == aPadstackUniqueLayer;
+    }
+    }
+
+    return false;
+};
+
+
 void PCB_GRID_HELPER::computeAnchors( BOARD_ITEM* aItem, const VECTOR2I& aRefPos, bool aFrom,
                                       const PCB_SELECTION_FILTER_OPTIONS* aSelectionFilter )
 {
     KIGFX::VIEW*         view = m_toolMgr->GetView();
     RENDER_SETTINGS*     settings = view->GetPainter()->GetSettings();
     const std::set<int>& activeLayers = settings->GetHighContrastLayers();
+    const PCB_LAYER_ID   activeHighContrastPrimaryLayer = settings->GetPrimaryHighContrastLayer();
     bool                 isHighContrast = settings->GetHighContrast();
 
     auto checkVisibility =
@@ -1374,7 +1419,9 @@ void PCB_GRID_HELPER::computeAnchors( BOARD_ITEM* aItem, const VECTOR2I& aRefPos
                 pad->Padstack().ForEachUniqueLayer(
                         [&]( PCB_LAYER_ID aLayer )
                         {
-                            if( !isHighContrast || activeLayers.count( aLayer ) )
+                            if( !isHighContrast
+                                || PadstackUniqueLayerAppliesToLayer( pad->Padstack(), aLayer,
+                                                                      activeHighContrastPrimaryLayer ) )
                                 handlePadShape( pad, aLayer );
                         } );
             }
@@ -1416,7 +1463,9 @@ void PCB_GRID_HELPER::computeAnchors( BOARD_ITEM* aItem, const VECTOR2I& aRefPos
                 pad->Padstack().ForEachUniqueLayer(
                         [&]( PCB_LAYER_ID aLayer )
                         {
-                            if( !isHighContrast || activeLayers.count( aLayer ) )
+                            if( !isHighContrast
+                                || PadstackUniqueLayerAppliesToLayer( pad->Padstack(), aLayer,
+                                                                      activeHighContrastPrimaryLayer ) )
                                 handlePadShape( pad, aLayer );
                         } );
             }
@@ -1437,6 +1486,42 @@ void PCB_GRID_HELPER::computeAnchors( BOARD_ITEM* aItem, const VECTOR2I& aRefPos
 
             if( checkVisibility( aItem ) )
                 handleShape( static_cast<PCB_SHAPE*>( aItem ) );
+
+            break;
+
+        case PCB_TABLE_T:
+            if( aFrom )
+            {
+                if( aSelectionFilter && !aSelectionFilter->text )
+                    break;
+            }
+            else
+            {
+                if( !m_magneticSettings->graphics )
+                    break;
+            }
+
+            if( checkVisibility( aItem ) )
+            {
+                PCB_TABLE* table = static_cast<PCB_TABLE*>( aItem );
+                EDA_ANGLE  drawAngle = table->GetCell( 0, 0 )->GetDrawRotation();
+
+                VECTOR2I topLeft = table->GetCell( 0, 0 )->GetCornersInSequence( drawAngle )[0];
+                VECTOR2I bottomLeft =
+                        table->GetCell( table->GetRowCount() - 1, 0 )->GetCornersInSequence( drawAngle )[3];
+                VECTOR2I topRight =
+                        table->GetCell( 0, table->GetColCount() - 1 )->GetCornersInSequence( drawAngle )[1];
+                VECTOR2I bottomRight =
+                        table->GetCell( table->GetRowCount() - 1, table->GetColCount() - 1 )
+                                ->GetCornersInSequence( drawAngle )[2];
+
+                addAnchor( topLeft, CORNER | SNAPPABLE, table, POINT_TYPE::PT_END );
+                addAnchor( bottomLeft, CORNER | SNAPPABLE, table, POINT_TYPE::PT_END );
+                addAnchor( topRight, CORNER | SNAPPABLE, table, POINT_TYPE::PT_END );
+                addAnchor( bottomRight, CORNER | SNAPPABLE, table, POINT_TYPE::PT_END );
+
+                addAnchor( table->GetCenter(), ORIGIN, table, POINT_TYPE::PT_MID );
+            }
 
             break;
 

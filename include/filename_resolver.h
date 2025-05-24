@@ -75,7 +75,7 @@ public:
      * @retval      true        success.
      * @retval      false       failure.
      */
-    bool SetProject( PROJECT* aProject, bool* flgChanged = nullptr );
+    bool SetProject( const PROJECT* aProject, bool* flgChanged = nullptr );
 
     wxString GetProjectDir() const;
 
@@ -100,10 +100,11 @@ public:
      *
      * @param aFileName The configured file path to resolve.
      * @param aWorkingPath The current working path for relative path resolutions.
-     * @param aFiles The embedded files object to use for embedded file resolution.
+     * @param aEmbeddedFilesStack is a list of pointers to the embedded files list.  They will
+     *                            be searched from the front of the list.
      */
     wxString ResolvePath( const wxString& aFileName, const wxString& aWorkingPath,
-                          const EMBEDDED_FILES* aFiles );
+                          std::vector<const EMBEDDED_FILES*> aEmbeddedFilesStack );
 
     /**
      * Produce a relative path based on the existing search directories or returns the same path
@@ -172,7 +173,7 @@ private:
     std::list<SEARCH_PATH> m_paths;         ///< List of base paths to search from.
     int                    m_errflags;
     PGM_BASE*              m_pgm;
-    PROJECT*               m_project;
+    const PROJECT*         m_project;
     wxString               m_curProjDir;
 };
 

@@ -53,10 +53,8 @@ class KIID_PATH;
 class SCH_SCREEN;
 class LIB_SYMBOL;
 class MSG_PANEL_ITEM;
-class NETLIST_OBJECT_LIST;
 class SYMBOL_LIB;
 class SYMBOL_LIBS;
-class EE_COLLECTOR;
 class SCH_SCREEN;
 class SCH_COMMIT;
 
@@ -522,21 +520,37 @@ public:
         SetValueFieldText( aRef );
     }
 
-    int GetUnitProp() const
+    wxString GetUnitProp() const
     {
-        return GetUnitSelection( &Schematic()->CurrentSheet() );
+        int unit = GetUnitSelection( &Schematic()->CurrentSheet() );
+
+        if( HasUnitDisplayName( unit ) )
+            return GetUnitDisplayName( unit );
+        else
+            return SubReference( unit, false );
     }
 
-    void SetUnitProp( int aUnit )
+    void SetUnitProp( const wxString& aUnit )
     {
-        if( aUnit < 1 )
-            return;
+        for( int unit = 1; unit <= GetUnitCount(); unit++ )
+        {
+            if( HasUnitDisplayName( unit ) && GetUnitDisplayName( unit ) == aUnit )
+            {
+                SetUnitSelection( &Schematic()->CurrentSheet(), unit );
+                SetUnit( unit );
+                return;
+            }
+        }
 
-        if( aUnit > GetUnitCount() )
-            aUnit = GetUnitCount();
-
-        SetUnitSelection( &Schematic()->CurrentSheet(), aUnit );
-        SetUnit( aUnit );
+        for( int unit = 1; unit <= GetUnitCount(); unit++ )
+        {
+            if( SubReference( unit, false ) == aUnit )
+            {
+                SetUnitSelection( &Schematic()->CurrentSheet(), unit );
+                SetUnit( unit );
+                return;
+            }
+        }
     }
 
     int GetBodyStyleProp() const
@@ -694,6 +708,12 @@ public:
 
     /// Set the selected unit of this symbol for all sheets.
     void SetUnitSelection( int aUnitSelection );
+
+    /**
+     * SCH_SYMBOLs don't currently support embedded files, but their LIB_SYMBOL counterparts
+     * do.
+     */
+    EMBEDDED_FILES* GetEmbeddedFiles() override;
 
     void Move( const VECTOR2I& aMoveVector ) override
     {

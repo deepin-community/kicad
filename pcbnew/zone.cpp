@@ -112,6 +112,13 @@ ZONE& ZONE::operator=( const ZONE& aOther )
 }
 
 
+void ZONE::CopyFrom( const BOARD_ITEM* aOther )
+{
+    wxCHECK( aOther && aOther->Type() == PCB_ZONE_T, /* void */ );
+    *this = *static_cast<const ZONE*>( aOther );
+}
+
+
 ZONE::~ZONE()
 {
     delete m_Poly;
@@ -964,7 +971,12 @@ void ZONE::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
         fillsCopy[oldLayer] = *shapePtr;
     }
 
-    SetLayerSet( GetLayerSet().Flip( GetBoard()->GetCopperLayerCount() ) );
+    LSET flipped;
+
+    for( PCB_LAYER_ID layer : GetLayerSet() )
+        flipped.set( GetBoard()->FlipLayer( layer ) );
+
+    SetLayerSet( flipped );
 
     for( auto& [oldLayer, shape] : fillsCopy )
     {
@@ -2000,7 +2012,7 @@ static struct ZONE_DESC
                     groupFill )
                 .SetAvailableFunc( isCopperZone );
 
-        propMgr.AddProperty( new PROPERTY<ZONE, EDA_ANGLE>( _HKI( "Orientation" ),
+        propMgr.AddProperty( new PROPERTY<ZONE, EDA_ANGLE>( _HKI( "Hatch Orientation" ),
                     &ZONE::SetHatchOrientation, &ZONE::GetHatchOrientation,
                     PROPERTY_DISPLAY::PT_DEGREE ),
                     groupFill )

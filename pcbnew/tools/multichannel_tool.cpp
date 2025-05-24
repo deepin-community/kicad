@@ -98,8 +98,8 @@ bool MULTICHANNEL_TOOL::identifyComponentsInRuleArea( ZONE*                 aRul
     {
     case RULE_AREA_PLACEMENT_SOURCE_TYPE::SHEETNAME:
     {
-        ruleText =
-                wxT( "A.memberOfSheet('" ) + aRuleArea->GetRuleAreaPlacementSource() + wxT( "')" );
+        ruleText = wxT( "A.memberOfSheetOrChildren('" ) + aRuleArea->GetRuleAreaPlacementSource()
+                   + wxT( "')" );
         break;
     }
     case RULE_AREA_PLACEMENT_SOURCE_TYPE::COMPONENT_CLASS:
@@ -501,12 +501,10 @@ int MULTICHANNEL_TOOL::RepeatLayout( const TOOL_EVENT& aEvent, ZONE* aRefZone )
         if( !targetArea.second.m_isOk )
             continue;
 
-        std::unordered_set<BOARD_ITEM*> affectedItems;
-        std::unordered_set<BOARD_ITEM*> groupableItems;
 
         if( !copyRuleAreaContents( targetArea.second.m_matchingComponents, &commit, m_areas.m_refRA,
-                                   targetArea.first, m_areas.m_options, affectedItems,
-                                   groupableItems ) )
+                                   targetArea.first, m_areas.m_options, targetArea.second.m_affectedItems,
+                                   targetArea.second.m_groupableItems ) )
         {
             auto errMsg = wxString::Format(
                     _( "Copy Rule Area contents failed between rule areas '%s' and '%s'." ),
@@ -522,25 +520,33 @@ int MULTICHANNEL_TOOL::RepeatLayout( const TOOL_EVENT& aEvent, ZONE* aRefZone )
 
             return -1;
         }
-
-        if( m_areas.m_options.m_groupItems )
-        {
-            pruneExistingGroups( commit, affectedItems );
-
-            PCB_GROUP* grp = new PCB_GROUP( board() );
-
-            commit.Add( grp );
-
-            for( BOARD_ITEM* item : groupableItems )
-            {
-                commit.Stage( item, CHT_GROUP );
-            }
-        }
-
         totalCopied++;
     }
 
+
     commit.Push( _( "Repeat layout" ) );
+
+    if( m_areas.m_options.m_groupItems )
+    {
+        BOARD_COMMIT grpCommit( GetManager(), true );
+
+        for( auto& targetArea : m_areas.m_compatMap )
+        {
+            pruneExistingGroups( grpCommit, targetArea.second.m_affectedItems );
+
+            PCB_GROUP* grp = new PCB_GROUP( board() );
+
+            grpCommit.Add( grp );
+
+            for( BOARD_ITEM* item : targetArea.second.m_groupableItems )
+            {
+                grpCommit.Stage( item, CHT_GROUP );
+            }
+        }
+
+        grpCommit.Push( _( "Group repeated items" ) );
+    }
+
 
     if( Pgm().IsGUI() )
     {
@@ -739,8 +745,14 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( TMATCH::COMPONENT_MATCHES& aMatche
 
             BOARD_ITEM* copied = static_cast<BOARD_ITEM*>( item->Clone() );
 
+            if( item->Type() == PCB_VIA_T )
+            {
+                fixupNet( static_cast<BOARD_CONNECTED_ITEM*>( item ), static_cast<BOARD_CONNECTED_ITEM*>( copied ),
+                          aMatches );
+            }
             copied->Move( disp );
             copied->SetParentGroup( nullptr );
+            const_cast<KIID&>( copied->m_Uuid ) = KIID();
             aGroupableItems.insert( copied );
             aCommit->Add( copied );
         }
@@ -842,7 +854,7 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( TMATCH::COMPONENT_MATCHES& aMatche
                     continue;
 
                 ZONE* targetZone = static_cast<ZONE*>( item->Clone() );
-                fixupZoneNets( zone, targetZone, aMatches );
+                fixupNet( zone, targetZone, aMatches );
 
                 copied = targetZone;
             }
@@ -851,6 +863,7 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( TMATCH::COMPONENT_MATCHES& aMatche
             {
                 copied->ClearFlags();
                 copied->SetParentGroup( nullptr );
+                const_cast<KIID&>( copied->m_Uuid ) = KIID();
                 copied->Move( disp );
                 aGroupableItems.insert( copied );
                 aCommit->Add( copied );
@@ -918,19 +931,18 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( TMATCH::COMPONENT_MATCHES& aMatche
     return true;
 }
 
-
 /**
- * @brief Attempts to modify the assigned net of a copied zone
+ * @brief Attempts to modify the assigned net of copied items, especially intended for zones and vias
  *
  */
-void MULTICHANNEL_TOOL::fixupZoneNets( ZONE* aRefZone, ZONE* aTargetZone,
-                                       TMATCH::COMPONENT_MATCHES& aComponentMatches )
+void MULTICHANNEL_TOOL::fixupNet( BOARD_CONNECTED_ITEM* aRef, BOARD_CONNECTED_ITEM* aTarget,
+                                  TMATCH::COMPONENT_MATCHES& aComponentMatches )
 {
     auto                                     connectivity = board()->GetConnectivity();
-    const std::vector<BOARD_CONNECTED_ITEM*> refZoneConnectedPads =
-            connectivity->GetNetItems( aRefZone->GetNetCode(), { PCB_PAD_T } );
+    const std::vector<BOARD_CONNECTED_ITEM*> refConnectedPads =
+            connectivity->GetNetItems( aRef->GetNetCode(), { PCB_PAD_T } );
 
-    for( const BOARD_CONNECTED_ITEM* refConItem : refZoneConnectedPads )
+    for( const BOARD_CONNECTED_ITEM* refConItem : refConnectedPads )
     {
         if( refConItem->Type() != PCB_PAD_T )
             continue;
@@ -946,7 +958,7 @@ void MULTICHANNEL_TOOL::fixupZoneNets( ZONE* aRefZone, ZONE* aTargetZone,
             if( !targetFpPads.empty() )
             {
                 int targetNetCode = targetFpPads[0]->GetNet()->GetNetCode();
-                aTargetZone->SetNetCode( targetNetCode );
+                aTarget->SetNetCode( targetNetCode );
 
                 break;
             }
@@ -998,14 +1010,21 @@ bool MULTICHANNEL_TOOL::resolveConnectionTopology( RULE_AREA* aRefArea, RULE_ARE
 bool MULTICHANNEL_TOOL::pruneExistingGroups( COMMIT& aCommit,
                                              const std::unordered_set<BOARD_ITEM*>& aItemsToRemove )
 {
-    for( PCB_GROUP* grp : board()->Groups() )
+    std::deque<PCB_GROUP*> pending ( board()->Groups() );
+    while( !pending.empty() )
     {
+        auto grp = pending.front();
+        pending.pop_front();
+
         std::unordered_set<BOARD_ITEM*>& grpItems = grp->GetItems();
         size_t n_erased = 0;
 
         for( BOARD_ITEM* refItem : grpItems )
         {
-            //printf("check ref %p [%s]\n", refItem, refItem->GetTypeDesc().c_str().AsChar() );
+
+            if( refItem->Type() == PCB_GROUP_T )
+                pending.push_back( static_cast<PCB_GROUP*>(refItem) );
+                
             for( BOARD_ITEM* testItem : aItemsToRemove )
             {
                 if( refItem->m_Uuid == testItem->m_Uuid )
@@ -1021,7 +1040,6 @@ bool MULTICHANNEL_TOOL::pruneExistingGroups( COMMIT& aCommit,
             aCommit.Stage( grp, CHT_REMOVE );
         }
 
-        //printf("Grp %p items %d pruned %d air %d\n", grp,grpItems.size(), (int) n_erased, (int) aItemsToRemove.size() );
     }
 
     return false;

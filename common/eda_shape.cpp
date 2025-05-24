@@ -1416,6 +1416,122 @@ std::vector<VECTOR2I> EDA_SHAPE::GetRectCorners() const
 }
 
 
+std::vector<VECTOR2I> EDA_SHAPE::GetCornersInSequence( EDA_ANGLE angle ) const
+{
+    std::vector<VECTOR2I> pts;
+
+    angle.Normalize();
+
+    BOX2I bbox = getBoundingBox();
+    bbox.Normalize();
+
+    if( angle.IsCardinal() )
+    {
+        if( angle == ANGLE_0 )
+        {
+            pts.emplace_back( VECTOR2I( bbox.GetLeft(), bbox.GetTop() ) );
+            pts.emplace_back( VECTOR2I( bbox.GetRight(), bbox.GetTop() ) );
+            pts.emplace_back( VECTOR2I( bbox.GetRight(), bbox.GetBottom() ) );
+            pts.emplace_back( VECTOR2I( bbox.GetLeft(), bbox.GetBottom() ) );
+        }
+        else if( angle == ANGLE_90 )
+        {
+            pts.emplace_back( VECTOR2I( bbox.GetLeft(), bbox.GetBottom() ) );
+            pts.emplace_back( VECTOR2I( bbox.GetLeft(), bbox.GetTop() ) );
+            pts.emplace_back( VECTOR2I( bbox.GetRight(), bbox.GetTop() ) );
+            pts.emplace_back( VECTOR2I( bbox.GetRight(), bbox.GetBottom() ) );
+        }
+        else if( angle == ANGLE_180 )
+        {
+            pts.emplace_back( VECTOR2I( bbox.GetRight(), bbox.GetBottom() ) );
+            pts.emplace_back( VECTOR2I( bbox.GetLeft(), bbox.GetBottom() ) );
+            pts.emplace_back( VECTOR2I( bbox.GetLeft(), bbox.GetTop() ) );
+            pts.emplace_back( VECTOR2I( bbox.GetRight(), bbox.GetTop() ) );
+        }
+        else if( angle == ANGLE_270 )
+        {
+            pts.emplace_back( VECTOR2I( bbox.GetRight(), bbox.GetTop() ) );
+            pts.emplace_back( VECTOR2I( bbox.GetRight(), bbox.GetBottom() ) );
+            pts.emplace_back( VECTOR2I( bbox.GetLeft(), bbox.GetBottom() ) );
+            pts.emplace_back( VECTOR2I( bbox.GetLeft(), bbox.GetTop() ) );
+        }
+    }
+    else
+    {
+        // This function was originally located in pcb_textbox.cpp and was later moved to eda_shape.cpp.
+        // As a result of this move, access to getCorners was lost, since it is defined in the PCB_SHAPE
+        // class within pcb_shape.cpp and is not available in the current context.
+        //
+        // Additionally, GetRectCorners() cannot be used here, as it assumes the rectangle is rotated by
+        // a cardinal angle. In non-cardinal cases, it returns incorrect values (e.g., (0, 0)).
+        //
+        // To address this, a portion of the getCorners implementation for SHAPE_T::POLY elements
+        // has been replicated here to restore the correct behavior.
+        std::vector<VECTOR2I> corners;
+
+        for( int ii = 0; ii < GetPolyShape().OutlineCount(); ++ii )
+        {
+            for( const VECTOR2I& pt : GetPolyShape().Outline( ii ).CPoints() )
+                corners.emplace_back( pt );
+        }
+
+        while( corners.size() < 4 )
+            corners.emplace_back( corners.back() + VECTOR2I( 10, 10 ) );
+
+        VECTOR2I minX = corners[0];
+        VECTOR2I maxX = corners[0];
+        VECTOR2I minY = corners[0];
+        VECTOR2I maxY = corners[0];
+
+        for( const VECTOR2I& corner : corners )
+        {
+            if( corner.x < minX.x )
+                minX = corner;
+
+            if( corner.x > maxX.x )
+                maxX = corner;
+
+            if( corner.y < minY.y )
+                minY = corner;
+
+            if( corner.y > maxY.y )
+                maxY = corner;
+        }
+
+        if( angle < ANGLE_90 )
+        {
+            pts.emplace_back( minX );
+            pts.emplace_back( minY );
+            pts.emplace_back( maxX );
+            pts.emplace_back( maxY );
+        }
+        else if( angle < ANGLE_180 )
+        {
+            pts.emplace_back( maxY );
+            pts.emplace_back( minX );
+            pts.emplace_back( minY );
+            pts.emplace_back( maxX );
+        }
+        else if( angle < ANGLE_270 )
+        {
+            pts.emplace_back( maxX );
+            pts.emplace_back( maxY );
+            pts.emplace_back( minX );
+            pts.emplace_back( minY );
+        }
+        else
+        {
+            pts.emplace_back( minY );
+            pts.emplace_back( maxX );
+            pts.emplace_back( maxY );
+            pts.emplace_back( minX );
+        }
+    }
+
+    return pts;
+}
+
+
 void EDA_SHAPE::computeArcBBox( BOX2I& aBBox ) const
 {
     // Start, end, and each inflection point the arc crosses will enclose the entire arc.
@@ -1906,7 +2022,7 @@ int EDA_SHAPE::Compare( const EDA_SHAPE* aOther ) const
 
     if( m_shape == SHAPE_T::ARC )
     {
-        TEST_PT( m_arcCenter, aOther->m_arcCenter );
+        TEST_PT( GetArcMid(), aOther->GetArcMid() );
     }
     else if( m_shape == SHAPE_T::BEZIER )
     {
@@ -2220,32 +2336,35 @@ static struct EDA_SHAPE_DESC
         PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
         REGISTER_TYPE( EDA_SHAPE );
 
-        auto isNotPolygonOrCircle = []( INSPECTABLE* aItem ) -> bool
-        {
-            // Polygons, unlike other shapes, have no meaningful start or end coordinates
-            if( EDA_SHAPE* shape = dynamic_cast<EDA_SHAPE*>( aItem ) )
-                return shape->GetShape() != SHAPE_T::POLY && shape->GetShape() != SHAPE_T::CIRCLE;
+        auto isNotPolygonOrCircle =
+                []( INSPECTABLE* aItem ) -> bool
+                {
+                    // Polygons, unlike other shapes, have no meaningful start or end coordinates
+                    if( EDA_SHAPE* shape = dynamic_cast<EDA_SHAPE*>( aItem ) )
+                        return shape->GetShape() != SHAPE_T::POLY && shape->GetShape() != SHAPE_T::CIRCLE;
 
-            return false;
-        };
+                    return false;
+                };
 
-        auto isCircle = []( INSPECTABLE* aItem ) -> bool
-        {
-            // Polygons, unlike other shapes, have no meaningful start or end coordinates
-            if( EDA_SHAPE* shape = dynamic_cast<EDA_SHAPE*>( aItem ) )
-                return shape->GetShape() == SHAPE_T::CIRCLE;
+        auto isCircle =
+                []( INSPECTABLE* aItem ) -> bool
+                {
+                    // Polygons, unlike other shapes, have no meaningful start or end coordinates
+                    if( EDA_SHAPE* shape = dynamic_cast<EDA_SHAPE*>( aItem ) )
+                        return shape->GetShape() == SHAPE_T::CIRCLE;
 
-            return false;
-        };
+                    return false;
+                };
 
-        auto isRectangle = []( INSPECTABLE* aItem ) -> bool
-        {
-            // Polygons, unlike other shapes, have no meaningful start or end coordinates
-            if( EDA_SHAPE* shape = dynamic_cast<EDA_SHAPE*>( aItem ) )
-                return shape->GetShape() == SHAPE_T::RECTANGLE;
+        auto isRectangle =
+                []( INSPECTABLE* aItem ) -> bool
+                {
+                    // Polygons, unlike other shapes, have no meaningful start or end coordinates
+                    if( EDA_SHAPE* shape = dynamic_cast<EDA_SHAPE*>( aItem ) )
+                        return shape->GetShape() == SHAPE_T::RECTANGLE;
 
-            return false;
-        };
+                    return false;
+                };
 
         const wxString shapeProps = _HKI( "Shape Properties" );
 
@@ -2296,13 +2415,13 @@ static struct EDA_SHAPE_DESC
 
         propMgr.AddProperty( new PROPERTY<EDA_SHAPE, int>( _HKI( "Width" ),
                     &EDA_SHAPE::SetRectangleWidth, &EDA_SHAPE::GetRectangleWidth,
-                    PROPERTY_DISPLAY::PT_COORD, ORIGIN_TRANSFORMS::ABS_Y_COORD ),
+                    PROPERTY_DISPLAY::PT_SIZE, ORIGIN_TRANSFORMS::NOT_A_COORD ),
                     shapeProps )
                 .SetAvailableFunc( isRectangle );
 
         propMgr.AddProperty( new PROPERTY<EDA_SHAPE, int>( _HKI( "Height" ),
                     &EDA_SHAPE::SetRectangleHeight, &EDA_SHAPE::GetRectangleHeight,
-                    PROPERTY_DISPLAY::PT_COORD, ORIGIN_TRANSFORMS::ABS_Y_COORD ),
+                    PROPERTY_DISPLAY::PT_SIZE, ORIGIN_TRANSFORMS::NOT_A_COORD ),
                     shapeProps )
                 .SetAvailableFunc( isRectangle );
 

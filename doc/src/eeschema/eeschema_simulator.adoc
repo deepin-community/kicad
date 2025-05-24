@@ -53,6 +53,7 @@ compatibility mode selected, ngspice may not support the same value notations as
 KiCad, so care should be taken when using raw SPICE elements and simulation
 directives.
 
+[[simulation-model-editor]]
 === Assigning models
 
 You need to assign simulation models to symbols before you can simulate your
@@ -68,7 +69,11 @@ simulation model to a symbol, open the Symbol Properties dialog and click the
 **Simulation Model...** button, which opens the Simulation Model Editor dialog.
 
 You can exclude a symbol from simulation entirely by checking the
-**exclude from simulation** checkbox in the Symbol Properties dialog.
+**exclude from simulation** checkbox in the Symbol Properties dialog. Symbols
+with this attribute set are drawn with a grey outline and a small simulation
+icon next to them, as shown below.
+
+image::images/exclude_from_sim_symbol.png[]
 
 [[sim-inferred]]
 ==== Inferred models
@@ -162,6 +167,7 @@ image::images/sim_SME_from_file.png[alt="Interface to set-up library models from
 
 The path to the file can be absolute, or relative to the project folder. The path can also be relative to the value of `SPICE_LIB_DIR` if you have
 xref:../kicad/kicad.adoc#kicad-environment-variables[defined that path variable].
+If you enable the **Embed File** checkbox in the file browser, the library file will be <<sch-embedding-files,embedded>> in the schematic (or symbol library). This makes the schematic (or schematic) more portable as it doesn't rely on an external library file.
 The library filename is saved in the symbol's `Sim.Library` field.
 
 **Model** is the name of the desired model in the model file. A model file may contain multiple models, and if so they will all be shown in the list. You can filter the list of models using the search box. The selected model is listed in the symbol's `Sim.Name` field.
@@ -476,6 +482,10 @@ values based on simulation results. Each time the component value is tuned, the
 simulation is re-run with the new component value. You can tune the value of
 passive resistors, inductors, and capacitors, or the voltage or current of DC
 voltage and current sources.
+
+NOTE: You can only tune components when running analyses that result in a plot.
+      In other words, you cannot tune components when running an operating point
+      analysis.
 
 To tune a component, use **Simulation** -> **Add Tuned Value...**, the keyboard
 shortcut kbd:[T], or the image:images/icons/sim_tune_24.png[tune icon] button in

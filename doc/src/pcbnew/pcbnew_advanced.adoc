@@ -25,63 +25,63 @@ image::images/pcbnew_preferences_display.png[scaledwidth="50%"]
 **Grid thickness:** Controls how thick grid lines or dots are drawn.
 
 **Min grid spacing:** Controls the minimum distance, in pixels, between two grid lines. Grid lines
-that violate this minimum spacing will not be drawn, regardless of the current grid setting.
+  that violate this minimum spacing will not be drawn, regardless of the current grid setting.
 
 **Snap to grid:** Controls when drawing and editing operations will be snapped to coordinates on
-the active grid.  "Always" will enable snapping even when the grid is hidden; "When grid shown"
-will enable snapping only when the grid is visible.
+  the active grid.  "Always" will enable snapping even when the grid is hidden; "When grid shown"
+  will enable snapping only when the grid is visible.
 
 NOTE: Grid snapping can be temporarily disabled by holding down kbd:[Ctrl].
 
 **Cursor shape:** Controls whether the editing cursor is drawn as a small crosshair or a
-full-screen crosshair (a set of lines covering the entire drawing canvas).  The editing cursor
-shows where the next drawing or editing action will occur and will be snapped to a grid location
-if snapping is enabled.
+  full-screen crosshair (a set of lines covering the entire drawing canvas).  The editing cursor
+  shows where the next drawing or editing action will occur and will be snapped to a grid location
+  if snapping is enabled.
 
 **Always show crosshairs:** Controls whether the editing cursor is shown all the time or only
-when an editing or drawing tool is active.
+  when an editing or drawing tool is active.
 
 **Net names:** Controls whether or not net name labels are drawn on copper objects. These labels
-are guides for editing only and do not appear in fabrication outputs.
+  are guides for editing only and do not appear in fabrication outputs.
 
 **Show pad numbers:** Controls whether or not pad number labels are drawn on footprint pads.
 
 **Show pad <no net> indicator:** Controls whether or not pads with no net are indicated with a
-special marker.
+  special marker.
 
 **Track clearance:** Controls whether or not clearance outlines around tracks and vias are shown.
-Clearance outlines are shown as thin shapes around objects that indicate the minimum clearance to
-other objects, as defined by constraints and design rules.
+  Clearance outlines are shown as thin shapes around objects that indicate the minimum clearance to
+  other objects, as defined by constraints and design rules.
 
 **Show pad clearance:** Controls whether or not clearance outlines around pads are shown.
 
 **Center view on cross-probed items:** When the Schematic and PCB Editors are
-both running, controls whether clicking a component or pin in Eeschema will
-center the PCB Editor view on the corresponding footprint or pad.
+  both running, controls whether clicking a component or pin in Eeschema will
+  center the PCB Editor view on the corresponding footprint or pad.
 
 **Zoom to fit cross-probed items:** Controls whether the view will be zoomed to show a
-cross-probed footprint or pad.
+  cross-probed footprint or pad.
 
 **Highlight cross-probed nets:** Controls whether or not nets highlighted in Eeschema will be
-highlighted in the PCB Editor when the highlight tool is activated in both tools.
+  highlighted in the PCB Editor when the highlight tool is activated in both tools.
 
 ==== Editing options
 
 image::images/pcbnew_preferences_editing.png[scaledwidth="50%"]
 
 **Flip board items L/R:** Controls the direction board items will be flipped when moving them
-between the top and bottom layers.  When checked, items are flipped Left-to-Right (about the
-Vertical axis); when unchecked, items are flipped Top-to-Bottom (about the Horizontal axis).
+  between the top and bottom layers.  When checked, items are flipped Left-to-Right (about the
+  Vertical axis); when unchecked, items are flipped Top-to-Bottom (about the Horizontal axis).
 
 **Step for rotate commands:** Controls how far the selected object(s) will be rotated each time the
-Rotate command is used.
+  Rotate command is used.
 
 **Allow free pads:** Controls whether or not the pads of footprints can be unlocked and edited or
-moved separately from the footprint.
+  moved separately from the footprint.
 
 **Magnetic points:** This section controls object snapping, also called magnetic points.  Object
-snapping takes precedence over grid snapping when it is enabled.  Object snapping only works to
-objects on the active layer. Hold kbd:[Shift] to temporarily disable object snapping.
+  snapping takes precedence over grid snapping when it is enabled.  Object snapping only works to
+  objects on the active layer. Hold kbd:[Shift] to temporarily disable object snapping.
 
 **Snap to pads:** Controls when the editing cursor will snap to pad origins.
 
@@ -90,31 +90,31 @@ objects on the active layer. Hold kbd:[Shift] to temporarily disable object snap
 **Snap to graphics:** Controls when the editing cursor will snap to graphic shape points.
 
 **Always show selected ratsnest:** When enabled, the ratsnest for a selected footprint will always
-be shown even if the global ratsnest is hidden.
+  be shown even if the global ratsnest is hidden.
 
 **Show ratsnest with curved lines:** Controls whether ratsnest lines are drawn straight or curved.
 
 **Mouse drag track behavior:** Controls the action that will occur when you drag a track segment
-with the mouse: "Move" will move the track segment independent of any others.  "Drag (45 degree
-mode)" will invoke the push-and-shove router to drag the track, respecting design rules and keeping
-other track segments attached.  "Drag (free angle)" will move the nearest corner of the track
-segment, highlighting collisions with other objects but not moving them out of the way.
+  with the mouse: "Move" will move the track segment independent of any others.  "Drag (45 degree
+  mode)" will invoke the push-and-shove router to drag the track, respecting design rules and keeping
+  other track segments attached.  "Drag (free angle)" will move the nearest corner of the track
+  segment, highlighting collisions with other objects but not moving them out of the way.
 
 **Limit actions to 45 degrees from start** Controls whether lines drawn with the graphic
-drawing tools can take on any angle. Note that this only affects drawing new lines: lines can be
-edited to take on any angle.
+  drawing tools can take on any angle. Note that this only affects drawing new lines: lines can be
+  edited to take on any angle.
 
 **Show page limits:** Controls whether or not the page boundary is drawn as a rectangle.
 
 **Refill zones after Zone Properties dialog:** Controls whether or not zones are automatically
-refilled after editing the properties of any zone.  This may be disabled on complicated designs or
-slower computers to improve responsiveness.
+  refilled after editing the properties of any zone.  This may be disabled on complicated designs or
+  slower computers to improve responsiveness.
 
 ==== Colors
 
 image::images/pcbnew_preferences_colors.png[scaledwidth="50%"]
 
-KiCad supports switching between different color themes to match your preferences. Kicad 8.0
+KiCad supports switching between different color themes to match your preferences. Kicad 9.0
 comes with two built-in color themes: "KiCad Default" is a new theme designed to have good
 contrast and balance for most cases and is the default for new installations. "KiCad Classic" is
 the default theme from KiCad 5.1 and earlier versions. Neither of these built-in themes can be
@@ -162,8 +162,8 @@ removed plugins and update the list.
 image::images/pcbnew_preferences_origin_axes.png[scaledwidth="50%"]
 
 **Display origin:** Determines which coordinate origin is used for coordinate display in the
-editing canvas. The page origin is fixed at the corner of the page. The drill/place file origin and
-the grid origin can be moved by the user.
+  editing canvas. The page origin is fixed at the corner of the page. The drill/place file origin and
+  the grid origin can be moved by the user.
 
 **X axis:** Controls whether X-coordinates increase to the right or to the left.
 
@@ -252,9 +252,9 @@ xref:../eeschema/eeschema.adoc#text-variables[variables that can be used in the 
     braces is included in the descriptive text for the DRC violation. The text
     variable must be at the beginning of the text item.
 
-    For example, a text item containing `${DRC_ERROR TODO}Length match traces`
-    will display as the text "Length match traces" and generate a DRC error
-    named "TODO" with the description "Length match traces".
+    For example, a text item containing `${DRC_ERROR TODO}Length match tracks`
+    will display as the text "Length match tracks" and generate a DRC error
+    named "TODO" with the description "Length match tracks".
 | `DRC_WARNING <warningname>`
   | Generates a DRC warning named `<warningname>`. This behaves the same as
     `DRC_ERROR`, except a warning is generated rather than an error.
@@ -315,8 +315,8 @@ In the syntax descriptions below, items in `<angle brackets>` represent keywords
 and items in `[square brackets]` represent keywords or values that are optional or only sometimes required.
 
 The Custom Rules file must start with a version header defining the version of the rules language.
-As of KiCad 8.0, the version is `1`.  The syntax of the version header is `(version <number>)`. So
-in KiCad 8.0 the header should read:
+As of KiCad 9.0, the version is `1`.  The syntax of the version header is `(version <number>)`. So
+in KiCad 9.0 the header should read:
 
     (version 1)
 
@@ -589,7 +589,13 @@ Numeric constraint values can use simple math expressions, for example
   | Checks the total number of connections (spokes) to a pad. An error will be raised for each
     pad that has fewer than the specified number of spokes.
 | `physical_clearance` | min
-  | Checks the clearance between two objects on a given layer (including non-copper layers).
+  | Checks the clearance between two objects, regardless of their nets. This includes objects
+    with the same net and objects on non-copper layers. Only objects on physical layers and
+    courtyard layers are checked: this means copper, adhesive, paste, silkscreen, mask,
+    courtyard, and edge cut layers. Physical clearance is only checked between objects on the
+    same layer, except for objects on `Edge.Cuts`, which are treated as if they are on all layers.
+    In other words, physical clearance can be checked between objects on `Edge.Cuts` and objects
+    on any of the other physical layers.
 
     While this can perform more general-purpose checks than `clearance`, it is much slower.  Use
     `clearance` where possible.
@@ -697,18 +703,35 @@ These properties apply to copper objects that can have a net assigned (pads, via
     be used to compare the nets of two objects with better performance, for example
     `A.Net == B.Net` is faster than `A.NetName == B.NetName`.
 | `NetClass` | string
-  | The list of all net classes for the copper object. This is a priority
-    ordered, comma delimited list where a net has multiple net classes assigned.
+a| The list of all net classes for the copper object. This is a priority
+ordered, comma delimited list where a net has multiple net classes assigned.
 
-    Note that this list may include the `Default` net class, even if other net
-    classes have been explicitly assigned to the net, because the `Default` net
-    class provides fallback properties and design rules for any properties not
-    defined by explicit net classes. See the
-    <<board-setup-net-classes,net class documentation>> for more details.
+Note that this list may include the `Default` net class, even if other net
+classes have been explicitly assigned to the net, because the `Default` net
+class provides fallback properties and design rules for any properties not
+defined by explicit net classes. See the
+<<board-setup-net-classes,net class documentation>> for more details.
 
-    To check if a copper object is a member of a particular net class,
-    regardless of any other net classes it may be a part of, use
-    `hasNetclass(<netclass>)`.
+In an expression, an object's `NetClass` property and a net class string are
+equal to each other if the string matches any of the net classes in the list, or
+if the string matches the full ordered list. For example, if an object belongs
+to the `HV` and `Default` net classes, all of the following expressions are
+true:
+
+* `A.NetClass == 'HV'`
+* `A.NetClass == 'Default'`
+* `A.NetClass == 'HV,Default'`
+
+The following expressions are false, however:
+
+* `A.NetClass == 'LV'`
+* `A.NetClass == 'LV,Default'`
+* `A.NetClass == 'Default,HV'`
+
+You can also check if a copper object is a member of a particular net class,
+regardless of any other net classes it may be a part of, using
+`hasNetclass(<netclass>)`. You can check if a copper object's net classes exactly
+match a given list of net classes using `hasExactNetclass(<netclass list>)`.
 
 | `NetName` | string
   | The name of the net for the copper object.
@@ -735,13 +758,32 @@ These properties apply to footprints.
 | Property    | Data type | Description
 | `Clearance_Override` | dimension | The copper clearance override set for the footprint.
 | `Component_Class` | string
-  | The name of the component class set for the footprint. This is an alphabetically ordered,
-    comma delimited list where a footprint has multiple component classes assigned.
+a| The name of the component class set for the footprint. This is an alphabetically ordered,
+comma delimited list where a footprint has multiple component classes assigned.
 
-    Note that while footprints have a `Component_Class` property, footprint child
-    objects (such as pads) do not. To check if an object belongs to a footprint
-    with a specific component class, use the `memberOfFootprint('${Class:x}')`
-    function.
+In an expression, a footprint's `Component_Class` property and a component class string are
+equal to each other if the string matches any of the component classes in the list, or
+if the string matches the full ordered list. For example, if a footprint belongs to the
+`Connector` and `HV` component classes in that order, all of the following expressions are true:
+
+* `A.Component_Class == 'Connector'`
+* `A.Component_Class == 'HV'`
+* `A.Component_Class == 'Connector,HV'`
+
+The following expressions are false, however:
+
+* `A.Component_Class == 'LV'`
+* `A.Component_Class == 'Connector,LV'`
+* `A.Component_Class == 'HV,Connector'`
+
+Note that while `Component_Class` is a footprint property, footprint children, such as pads
+or graphics, are considered to be members of any component class that their parent footprint
+is a member of. For example, if a footprint is has the component class `HV`, the condition
+`A.Component_Class == 'HV'` is true both for the footprint as well as for its pads and other
+children.
+
+You can also check if an object is part of a footprint with a specific component class using
+the `memberOfFootprint('${Class:x}')` function.
 | `Do_not_Populate` | boolean | True if the footprint's "Do not populate" attribute is set.
 | `Exclude_From_Position_Files` | boolean
   | True if the footprint's "Exclude from position files" attribute is set.
@@ -751,7 +793,8 @@ These properties apply to footprints.
   | True if the footprint's "Exempt from courtyard requirement" attribute is set.
 | `Keywords` | string | The "Keywords" from the library footprint.
 | `Library_Description` | string
-  | The link to the library footprint in `library_name:footprint_name` format.
+  | The footprint's description in the footprint library. This is the footprint's
+    description property, not the contents of the footprint field named `Description`.
 | `Library_Link` | string
   | The link to the library footprint in `library_name:footprint_name` format.
 | `Not_in_Schematic` | boolean
@@ -921,6 +964,9 @@ These properties apply to text objects (footprint fields, free text labels, etc)
 | `Italic` | boolean | True if the text is italic.
 | `Knockout` | boolean | True if the text has the knockout property set.
 | `Mirrored` | boolean | True if the text is mirrored.
+| `Name` | string
+  | The name of a footprint field. For text objects that are not
+    footprint fields, this is an empty string.
 | `Text` | string | The contents of the text object.
 | `Thickness` | dimension | Thickness of the stroke of the font.
 | `Width` | dimension | Width of a character in the font.
@@ -938,7 +984,7 @@ The following functions can be called on objects in custom rule expressions:
 | Function | Objects | Description
 | `enclosedByArea('x')` | `A` or `B`
     | Returns true if all of the object is inside the named rule area or zone.  Note that
-      `enclosedByArea()` is slower than `intersectsArea(). Use `intersectsArea()` where possible. 
+      `enclosedByArea()` is slower than `intersectsArea()`. Use `intersectsArea()` where possible.
 | `existsOnLayer('layer_id')` | `A` or `B`
     | Returns true if the object exists on the given board layer.  `layer_id` is a string
       containing the name of a board layer.
@@ -953,6 +999,9 @@ The following functions can be called on objects in custom rule expressions:
       Note that only footprints have component classes, so this function will only return true if the object is
       a footprint. In most cases, you will want to check if an object is part of a footprint that has a specific
       component class. For this query, see the `memberOfFootprint()` expression function.
+| `hasExactNetclass('x')` | `A` or `B`
+    | Returns true if the set of net classes assigned to the object exactly matches the named set of net
+      classes `x`.
 | `hasNetclass('x')` | `A` or `B`
     | Returns true if the set of net classes assigned to the object contains the named net class `x`.
 | `inDiffPair('x')` | `A` or `B`
@@ -1041,8 +1090,15 @@ The following functions can be called on objects in custom rule expressions:
     * A component class, in the form `${Class:ClassName}`. The `Class` keyword is not case-sensitive,
       but component class names are case-sensitive. The function will return true if the object is a
       member of a footprint with the named component class.
-| `memberOfSheet('x')` |  `A` or `B` | Returns true if the object is a member of a schematic sheet
-named `x`.
+| `memberOfSheet('x')` |  `A` or `B`
+  | Returns true if the object is a member of a schematic sheet named `x`. The sheet path can contain
+    wildcards `\*` and `?`. This does not check subsheets: objects in child hierarchical sheets of `x`
+    are not considered members of `x`. To check if an object is in a sheet or any of that sheet's child
+    sheets, use `memberOfSheetOrChildren()`.
+| `memberOfSheetOrChildren('x')` |  `A` or `B`
+  | Returns true if the object is a member of a schematic sheet named `x` or any of its child hierarchical
+    sheets. The sheet path can contain wildcards `\*` and `?`.
+    Note: this function was added in KiCad 9.0.2.
 |====
 
 ==== Custom design rule examples
@@ -1073,6 +1129,10 @@ named `x`.
 (rule "copper keepout"
     (constraint disallow track via zone)
     (condition "A.intersectsArea('zone3')"))
+  
+(rule "minimum creepage distance for high voltage nets"
+    (condition "A.hasNetclass('HV'))
+    (constraint creepage (min 5mm)))
 
 ----
 
@@ -1207,7 +1267,7 @@ be used to create footprint creation plugins for the Footprint Editor.
 This manual covers general scripting concepts for the Board Editor's `pcbnew` API as well as for
 the footprint wizard API. Users wishing to write or modify scripts should also
 use the Doxygen documentation for these APIs located at
-https://docs.kicad.org/doxygen-python-nightly/namespaces.html[https://docs.kicad.org/doxygen-python-nightly/namespaces.html].
+https://docs.kicad.org/doxygen-python-9.0/namespaces.html[https://docs.kicad.org/doxygen-python-9.0/namespaces.html].
 
 KiCad 6 or newer requires Python 3 for scripting support. Python 2 is no longer supported.
 
@@ -1230,9 +1290,9 @@ of the `plugins` folder is by default:
 [options="header",cols="20%,80%"]
 |====
 | Platform | Path
-| Linx     | `~/.local/share/kicad/8.0/scripting/plugins`
-| macOS    | `~/Documents/KiCad/8.0/scripting/plugins`
-| Windows  | `%HOME%\Documents\KiCad\8.0\scripting\plugins`
+| Linx     | `~/.local/share/kicad/9.0/scripting/plugins`
+| macOS    | `~/Documents/KiCad/9.0/scripting/plugins`
+| Windows  | `%HOME%\Documents\KiCad\9.0\scripting\plugins`
 |====
 
 NOTE: The type of plugin is determined by the Python class it inherits from. Inheriting from
@@ -1247,7 +1307,7 @@ by the `pcbnew` module in Python.
 
 NOTE: Because the API is tightly coupled to KiCad's internals, the API will change over time and is not
       considered stable. Consult the
-      https://docs.kicad.org/doxygen-python-nightly/namespaces.html[doxygen documentation]
+      https://docs.kicad.org/doxygen-python-9.0/namespaces.html[doxygen documentation]
       for the most up-to-date API reference, and be sure to use the documentation for the appropriate
       version of KiCad.
 

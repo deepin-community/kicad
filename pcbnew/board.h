@@ -425,6 +425,12 @@ public:
                                                               PCB_TRACE_T, PCB_SHAPE_T } );
 
     /**
+     * Remove all teardrop zones with the STRUCT_DELETED flag set.  This avoids O(n^2) traversal
+     * over the zone list.
+     */
+    void BulkRemoveStaleTeardrops( BOARD_COMMIT& aCommit );
+
+    /**
      * Must be used if Add() is used using a BULK_x ADD_MODE to generate a change event for
      * listeners.
      */
@@ -462,6 +468,11 @@ public:
      * Remove all footprints from the deque and free the memory associated with them.
      */
     void DeleteAllFootprints();
+
+    /**
+     * Remove all footprints without deleting.  Footprint lifecycle MUST be managed elsewhere.
+     */
+    void DetachAllFootprints();
 
     /**
      * @return null if aID is null. Returns an object of Type() == NOT_USED if the aID is not found.
@@ -596,14 +607,16 @@ public:
      *
      * @return the enabled layers in bit-mapped form.
      */
-    LSET GetEnabledLayers() const;
+    const LSET& GetEnabledLayers() const;
+    LSET GetLayerSet() const override { return GetEnabledLayers(); }
 
     /**
      * A proxy function that calls the correspondent function in m_BoardSettings.
      *
      * @param aLayerMask the new bit-mask of enabled layers.
      */
-    void SetEnabledLayers( LSET aLayerMask );
+    void SetEnabledLayers( const LSET& aLayerMask );
+    void SetLayerSet( const LSET& aLayerMask ) override { SetEnabledLayers( aLayerMask ); }
 
     /**
      * A proxy function that calls the correspondent function in m_BoardSettings
@@ -627,7 +640,7 @@ public:
      *
      * @return the visible layers in bit-mapped form.
      */
-    LSET  GetVisibleLayers() const;
+    const LSET& GetVisibleLayers() const;
 
     /**
      * A proxy function that calls the correspondent function in m_BoardSettings
@@ -635,7 +648,7 @@ public:
      *
      * @param aLayerMask is the new bit-mask of visible layers.
      */
-    void SetVisibleLayers( LSET aLayerMask );
+    void SetVisibleLayers( const LSET& aLayerMask );
 
     // these 2 functions are not tidy at this time, since there are PCB_LAYER_IDs that
     // are not stored in the bitmap.
@@ -1106,17 +1119,6 @@ public:
     PAD* GetPad( const PCB_TRACK* aTrace, ENDPOINT_T aEndPoint ) const;
 
     /**
-     * Return pad found at \a aPosition on \a aLayerMask using the fast search method.
-     * <p>
-     * The fast search method only works if the pad list has already been built.
-     * </p>
-     * @param aPosition A VECTOR2I object containing the position to hit test.
-     * @param aLayerMask A layer or layers to mask the hit test.
-     * @return A pointer to a PAD object if found or NULL if not found.
-     */
-    PAD* GetPadFast( const VECTOR2I& aPosition, LSET aLayerMask ) const;
-
-    /**
      * Locate the pad connected at \a aPosition on \a aLayer starting at list position
      * \a aPad
      * <p>
@@ -1275,6 +1277,8 @@ public:
     EMBEDDED_FILES* GetEmbeddedFiles() override;
     const EMBEDDED_FILES* GetEmbeddedFiles() const;
 
+    void SetEmbeddedFilesDelegate( EMBEDDED_FILES* aDelegate ) { m_embeddedFilesDelegate = aDelegate; }
+
     /**
      * Get the list of all outline fonts used in the board
      */
@@ -1405,6 +1409,10 @@ private:
     std::vector<BOARD_LISTENER*> m_listeners;
 
     bool                         m_embedFonts;
+
+    // Used for dummy boards, such as a footprint holder, where we don't want to make a copy
+    // of all the parent's embedded data.
+    EMBEDDED_FILES*              m_embeddedFilesDelegate;
 
     COMPONENT_CLASS_MANAGER m_componentClassManager;
 };

@@ -479,9 +479,18 @@ bool BOARD_NETLIST_UPDATER::updateFootprintParameters( FOOTPRINT* aPcbFootprint,
     // in the order they are stored in the symbol.
     bool same = true;
 
-    for( std::pair<wxString, wxString> field : compFields )
+    for( const auto& [name, value] : compFields )
     {
-        if( fpFieldsAsMap.count( field.first ) == 0 || fpFieldsAsMap[field.first] != field.second )
+        if( fpFieldsAsMap.count( name ) == 0 || fpFieldsAsMap[name] != value )
+        {
+            same = false;
+            break;
+        }
+    }
+
+    for( const auto& [name, value] : fpFieldsAsMap )
+    {
+        if( compFields.count( name ) == 0 )
         {
             same = false;
             break;
@@ -1281,6 +1290,9 @@ bool BOARD_NETLIST_UPDATER::UpdateNetlist( NETLIST& aNetlist )
 
                 if( m_replaceFootprints && component->GetFPID() != footprint->GetFPID() )
                     tmp = replaceFootprint( aNetlist, footprint, component );
+
+                if( !tmp )
+                    tmp = footprint;
 
                 if( tmp )
                 {

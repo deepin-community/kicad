@@ -229,6 +229,7 @@ int FOOTPRINT_EDITOR_CONTROL::NewFootprint( const TOOL_EVENT& aEvent )
     tryToSaveFootprintInLibrary( *newFootprint, selected );
 
     m_frame->UpdateView();
+    m_frame->GetCanvas()->ForceRefresh();
     m_frame->Update3DView( true, true );
 
     m_frame->SyncLibraryTree( false );
@@ -529,8 +530,12 @@ int FOOTPRINT_EDITOR_CONTROL::RenameFootprint( const TOOL_EVENT& aEvent )
     }
 
     wxDataViewItem treeItem = m_frame->GetLibTreeAdapter()->FindItem( fpID );
-    m_frame->UpdateLibraryTree( treeItem, footprint );
-    m_frame->FocusOnLibID( LIB_ID( libraryName, newName ) );
+
+    if( footprint )
+    {
+        m_frame->UpdateLibraryTree( treeItem, footprint );
+        m_frame->FocusOnLibID( LIB_ID( libraryName, newName ) );
+    }
 
     return 0;
 }
@@ -636,6 +641,7 @@ int FOOTPRINT_EDITOR_CONTROL::OpenDirectory( const TOOL_EVENT& aEvent )
 
         if( !path.IsEmpty() && wxDirExists( path ) )
             LaunchExternal( path );
+
         return 0;
     }
 
@@ -723,7 +729,8 @@ int FOOTPRINT_EDITOR_CONTROL::ShowDatasheet( const TOOL_EVENT& aEvent )
         {
             // Only absolute URLs are supported
             SEARCH_STACK* searchStack = nullptr;
-            GetAssociatedDocument( m_frame, *url, &m_frame->Prj(), searchStack, footprint );
+            GetAssociatedDocument( m_frame, *url, &m_frame->Prj(), searchStack,
+                                   { m_frame->GetBoard(), footprint } );
         }
     }
     return 0;

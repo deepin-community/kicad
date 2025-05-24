@@ -6,7 +6,9 @@
 
 = KiCad
 
-_Reference manual_
+include::../version.adoc[]
+
+_KiCad {kicad-version-short} Reference Manual_
 
 [[copyright]]
 *Copyright*
@@ -29,6 +31,13 @@ Jean-Pierre Charras, Fabrizio Tappero, Jon Evans, Graham Keeth.
 The KiCad project welcomes feedback, bug reports, and suggestions related to the software or its
 documentation.  For more information on how to submit feedback or report an issue, please see the
 instructions at https://www.kicad.org/help/report-an-issue/
+
+*Software and Documentation Version*
+
+This user manual is based on KiCad {kicad-version-long}. Functionality and
+appearance may be different in other versions of KiCad.
+
+Documentation revision: `{doc-commit}`.
 
 == Introduction
 
@@ -194,13 +203,13 @@ previous version.
 
 [[config-file-location]]
 KiCad stores the settings files in a folder inside your user directory.  Each KiCad version will
-use a different versioned subfolder. For KiCad 8, those folders are:
+use a different versioned subfolder. For KiCad 9, those folders are:
 
 [width="75%",cols="25%,75%"]
 |===========================
-|Windows |`%APPDATA%\kicad\8.0`
-|Linux   |`~/.config/kicad/8.0`
-|macOS  |`/Users/<username>/Library/Preferences/kicad/8.0`
+|Windows |`%APPDATA%\kicad\9.0`
+|Linux   |`~/.config/kicad/9.0`
+|macOS  |`/Users/<username>/Library/Preferences/kicad/9.0`
 |===========================
 
 === Migrating files from previous versions
@@ -421,6 +430,12 @@ unchanged, image:images/icons/git_modified_16.png[] indicates a file has
 uncommitted changes, and image:images/icons/git_add_16.png[] indicates a file is
 not tracked. No icons are shown if the project is not part of a Git repository.
 
+NOTE: You can disable KiCad's Git integration features in the **Version Control**
+      page of the Preferences dialog. The preferences also let you configure the
+      remote update interval and the default commit author information.
+
+==== Adding version control to an existing project
+
 If an existing project is not already under version control, you can initialize
 a new Git repository in the project by right clicking on one of the files in the
 project files tree and clicking **Version Control** ->
@@ -428,22 +443,31 @@ project files tree and clicking **Version Control** ->
 initializing a repository in this way. Configuring the repository requires the
 following information:
 
-* **Name**: A name for the repository. This field can be anything and is not used.
-* **Location**: The URL or file path to the remote.
-* **Connection Type**: The protocol for connecting to the remote.
-  This can be HTTPS, SSH, or local (file). HTTPS connections use username and
-  password authentication. SSH connections use a username, private key, and an
-  optional password for the keyfile. Local connections do not use
-  authentication. You can check the connection and authentication by clicking
-  the **Test** button.
+* **Location**: The URL or file path to the remote. HTTPS, SSH, and local (file)
+  connections are supported. The format of the URL is used to automatically
+  determine the type of connection and set the authentication options accordingly.
+* **SSH private key**: The SSH private keyfile to use for authentication (SSH
+  connections only).
+* **User name**: The user name to use for authentication. For SSH connections,
+  the user name is often `git`.
+* **Password**: The password to use for authentication (HTTPS connections only).
+* **SSH key password**: The passphrase for your SSH key, if you have configured
+  one (SSH connections only).
+  
+You can check the connection and authentication by clicking the
+**Test Connection** button.
 
 image::images/git_add_project_to_repository.png[]
+
+==== Cloning an existing repository
 
 To clone an existing repository and open the cloned project, use **File** ->
 **Clone Project from Repository...**. You can clone a remote repository using
 SSH or HTTPS, or clone a local repository. The configuration settings for
 cloning are the same as the settings for configuring a new repository and remote
 for an existing project.
+
+==== Tracking project changes with Git
 
 When you have made changes that you want to commit, you can commit either the
 entire project (right click -> **Version Control** -> **Commit Project...**) or
@@ -620,8 +644,8 @@ installed in varying locations:
 * 3D model files used in footprint definitions
 
 For instance, the path to the `connect.pretty` footprint library,
-when using the `KICAD8_FOOTPRINT_DIR` path variable, would be defined as
-`$\{KICAD8_FOOTPRINT_DIR\}/connect.pretty`.
+when using the `KICAD9_FOOTPRINT_DIR` path variable, would be defined as
+`$\{KICAD9_FOOTPRINT_DIR\}/connect.pretty`.
 
 The *Preferences* -> *Configure Paths...* menu
 allows you to define paths for some built-in KiCad path variables,
@@ -639,15 +663,15 @@ NOTE: KiCad will automatically resolve versioned path variables from
 
 [width="100%",cols="30%,70%",]
 |=================================================================
-|`KICAD8_3DMODEL_DIR`
+|`KICAD9_3DMODEL_DIR`
   |Base path of KiCad's standard 3D footprint model library
   files.
-|`KICAD8_3RD_PARTY`
+|`KICAD9_3RD_PARTY`
   |Location for plugins, libraries, and color themes installed by the
   <<plugin-content-manager,Plugin and Content Manager>>.
-|`KICAD8_FOOTPRINT_DIR` |Base path of KiCad's standard footprint library files.
-|`KICAD8_SYMBOL_DIR` |Base path of KiCad's standard symbol library files.
-|`KICAD8_TEMPLATE_DIR` |Location of KiCad's standard project template library files.
+|`KICAD9_FOOTPRINT_DIR` |Base path of KiCad's standard footprint library files.
+|`KICAD9_SYMBOL_DIR` |Base path of KiCad's standard symbol library files.
+|`KICAD9_TEMPLATE_DIR` |Location of KiCad's standard project template library files.
 |`KICAD_USER_TEMPLATE_DIR` |Location of personal project templates.
 |`SPICE_LIB_DIR`
   |Location of personal xref:../eeschema/eeschema.adoc#sim-library[simulation model libraries].
@@ -727,11 +751,11 @@ in the project directory.
 [[jobsets]]
 == Jobsets
 
-KiCad lets you configure a list of outputs that are all generated with a single click. The list of output jobs and where they will be saved is called a __jobset__. For example, a jobset might contain jobs to generate Gerber files, assembly data, a bill of materials, PDF plots of the schematic and PCB, while also running ERC and DRC checks, with all of the outputs saved to a compressed archive. The full list of available jobs is given <<job-types,below>>.
+KiCad lets you configure a list of outputs that are all generated with a single click. The list of output jobs and the destinations where they will be saved is called a __jobset__. For example, a jobset might contain jobs to generate Gerber files, assembly data, a bill of materials, PDF plots of the schematic and PCB, while also running ERC and DRC checks, with all of the outputs saved to a compressed archive. The full list of available jobs is given <<job-types,below>>.
 
 Each __job__ in a jobset defines a single type of generated output, such as a bill of materials or a set of Gerbers. A job can be configured in the same way as if the output was manually generated from the schematic or board editor. The configuration for each job is stored in the jobset and remembered when you load the jobset later. Jobs are configured individually, so if you include the same type of job multiple times in a single jobset, each job will have its own independent configuration. For example, this lets you generate PDF outputs in color as well as black and white.
 
-In addition to the jobs, jobsets also contain __jobset output__ configurations, which define a list of jobs to run and how to store their outputs. Jobset output configurations can simply store the chosen jobs' output files in a specified location, or they can add the output files to a compressed archive. Each jobset output configuration can select a different subset of jobs from the full list of jobs in the jobset. You can run each jobset output individually or run all jobset outputs at once. As an example, you could set up one jobset output configuration that generates PDFs of the board and schematic and copies them to an external location, while another jobset output configuration generates the fabrication files and compresses them in a zip archive to send to the board manufacturer.
+In addition to the jobs, jobsets also contain __destinations__, which define a list of jobs to run and how to store their outputs. A jobset destination can simply store the chosen jobs' output files in a specified location, or it can add the output files to a compressed archive. Each jobset destination can select a different subset of jobs from the full list of jobs in the jobset. You can run each jobset destination individually or run all jobset destinations at once. As an example, you could set up one jobset destination that generates PDFs of the board and schematic and copies them to an external location, while another destination generates the fabrication files and compresses them in a zip archive to send to the board manufacturer.
 
 Projects can have multiple jobsets, with each jobset defining a different list of jobs and output configurations. Each jobset is stored in a `.kicad_jobset` file, which can be specific to a single project, copied between projects, or even stored in a central location and shared between projects.
 
@@ -739,39 +763,41 @@ To use a jobset, first create a new jobset file in the KiCad project manager (**
 
 image::images/jobset_overview.png[]
 
-Once you create or open a jobset, it is displayed in a new tab in the project manager. The list of jobs is shown in the middle and the list of jobset outputs is shown on the right. New jobsets will not contain any jobs or outputs. When you make changes to a jobset, you can save the changes by clicking the **Save Jobset** button.
+Once you create or open a jobset, it is displayed in a new tab in the project manager. The list of jobs is shown in the middle and the list of jobset destinations is shown on the right. New jobsets will not contain any jobs, but a destination is automatically created to save outputs to a folder. When you make changes to a jobset, you can save the changes by clicking the **Save Jobset** button.
 
 === Defining jobs
 
 To add a new job, click the image:images/icons/small_plus_16.png[] button under the Jobs list. In the Add New Job dialog that appears, select the desired type of job. You can filter which types of jobs are shown in the list by typing in the **Filter** textbox at the bottom.
 
-When you select a job and press **OK**, the configuration dialog for that type of output will appear. Each output configuration dialog provides the same options you would have if you manually generated that type of output from the schematic or board editor.
+When you select a job and press **OK**, the settings dialog for that type of output will appear. Each job settings dialog provides the same options you would have if you manually generated that type of output from the schematic or board editor.
 
-NOTE: Output filenames and paths specified in job configurations are relative to the <<jobset-outputs,jobset output>> folder or archive root. You can use certain xref:../eeschema/eeschema.adoc#text-variables[text variables], like `${PROJECTNAME}`, `${CURRENT_DATE}`, and xref:../eeschema/eeschema.adoc#schematic-setup-text-variables[project text variables].
+NOTE: Output filenames and paths specified in job settings are relative to the <<jobset-destinations,jobset destination>> folder or archive root. You can use certain xref:../eeschema/eeschema.adoc#text-variables[text variables], like `${PROJECTNAME}`, `${CURRENT_DATE}`, and xref:../eeschema/eeschema.adoc#schematic-setup-text-variables[project text variables].
 
 image::images/jobset_job_settings_export_sch_pdf.png[]
 
-When you accept the output configuration dialog, the job is added to the list of jobs, where you can optionally change the new job's description from its default. To change a job's description or settings later, right click the job in the list and select **Edit Job Description** or **Edit Job Settings...**. Double clicking on a job also edits its settings. To remove a job, select the job and click the image:images/icons/small_trash_16.png[] button. To reorder the list, select a job and move it up or down using the image:images/icons/small_up_16.png[] or image:images/icons/small_down_16.png[] buttons.
+When you accept the job settings dialog, the job is added to the list of jobs, where you can optionally change the new job's description from its default. To change a job's description or settings later, right click the job in the list and select **Edit Job Description** or **Edit Job Settings...**. Double clicking on a job also edits its settings. To remove a job, select the job and click the image:images/icons/small_trash_16.png[] button. To reorder the list, select a job and move it up or down using the image:images/icons/small_up_16.png[] or image:images/icons/small_down_16.png[] buttons.
 
-[[jobset-outputs]]
-=== Defining jobset outputs
+[[jobset-destinations]]
+=== Defining jobset destinations
 
-You cannot generate any outputs from a jobset until you add a jobset output configuration. To add a jobset output, click the image:images/icons/small_plus_16.png[] button under the Outputs list. When the Add New Output dialog appears, select a type of output:
+You cannot generate any outputs from a jobset until you add a jobset destination. One destination is created automatically when a jobset is created, but you can add as many destinations as you need.
+
+To add a jobset destination, click the image:images/icons/small_plus_16.png[] button under the Destinations list. When the Add New Destination dialog appears, select a type of destination:
 
 * **Archive** saves the outputs generated by the jobs in a compressed zip archive.
 * **Folder** saves the outputs generated by the jobs uncompressed in a folder.
 
-Once you have selected a type of output, the Output Options dialog appears. 
+Once you have selected a type of output, the Destination options dialog appears. 
 
-image::images/jobset_archive_output_options.png[]
+image::images/jobset_archive_destination_options.png[]
 
-Here you can select which jobs will be run as part of this jobset output, as well as the folder or archive name that will be used to store them. By default all jobs are enabled. You can also set a description for the output which will be displayed in the Outputs list. The output path controls where the files generated by the jobs will be saved. The path here can be absolute or relative to the project directory, and it can use <<kicad-environment-variables,path variables>> or certain text variables (`${PROJECTNAME}`, `${CURRENT_DATE}`, and xref:../eeschema/eeschema.adoc#schematic-setup-text-variables[project text variables]). Filenames defined in job configurations are relative to the jobset output directory or archive root.
+Here you can select which jobs will be run as part of this jobset destination, as well as the folder or archive name that will be used to store them. By default all jobs are enabled. You can also set a description for the destination to be displayed in the Destinations list. The output path controls where the files generated by the jobs will be saved. The path here can be absolute or relative to the project directory, and it can use <<kicad-environment-variables,path variables>> or certain text variables (`${PROJECTNAME}`, `${CURRENT_DATE}`, and xref:../eeschema/eeschema.adoc#schematic-setup-text-variables[project text variables]). Filenames defined in job configurations are relative to the jobset destination directory or archive root.
 
-When you click **OK** in this dialog, the new jobset output is added to the Outputs list. You can modify an existing jobset output configuration by clicking its image:images/icons/config_16.png[] button, or remove it by clicking its image:images/icons/small_trash_16.png[] button.
+When you click **OK** in this dialog, the new jobset destination is added to the Destinations list. You can modify an existing jobset destination by clicking its image:images/icons/config_16.png[] button, or remove it by clicking its image:images/icons/small_trash_16.png[] button.
 
-After configuring your jobs and outputs, you can generate an individual set of outputs by clicking the **Generate** button for the desired output configuration. You can run all outputs at once by clicking the **Generate All Outputs** button.
+After configuring your jobs and destinations, you can generate an individual set of outputs by clicking the **Generate** button for the desired destination. You can run all destinations at once by clicking the **Generate All Destinations** button.
 
-If a jobset output runs and generates its outputs successfully, a blue check is shown that indicates the last run was successful. If a jobset output fails to complete successfully, a red exclamation point is shown to indicate the run was not successful. Clicking on the success/failure indicator will display the Job Output Run Log dialog, which displays the status of each job in the jobset output configuration. Clicking on a specific job will display the logged output from that job, if there is any.
+If a jobset destination runs and generates its outputs successfully, a blue check is shown that indicates the last run was successful. If a jobset destination fails to complete successfully, a red exclamation point is shown to indicate the run was not successful. Clicking on the success/failure indicator will display the Jobset Run Log dialog, which displays the status of each job in the jobset destination. Clicking on a specific job will display the logged output from that job, if there is any.
 
 image::images/jobset_run_log.png[]
 
@@ -791,7 +817,7 @@ The following types of jobs are available:
       | Exports the board design to a xref:../pcbnew/pcbnew.adoc#fabrication_outputs_and_plotting[DXF file].
 | PCB: Export Gerbers
       | Exports the board design to xref:../pcbnew/pcbnew.adoc#fabrication_outputs_and_plotting[Gerber files], with one file per selected layer.
-| PCB: Export IPC2581
+| PCB: Export IPC-2581
       | Exports the board design in xref:../pcbnew/pcbnew.adoc#ipc-2581-export[IPC-2581 format].
 | PCB: Export ODB{pp}
       | Exports the board design in xref:../pcbnew/pcbnew.adoc#odb-export[ODB{pp} format].
@@ -821,8 +847,8 @@ The following types of jobs are available:
       | Exports a xref:../eeschema/eeschema.adoc#bom-export[bill of materials] from the schematic.
 | Schematic: Perform ERC
       | Performs an xref:../eeschema/eeschema.adoc#erc[Electrical Rule Check] on the schematic and generates a report. If ERC violations are found, this job can optionally report a job failure.
-| Special: Copy files
-      | Copies the specified file to the specified destination. A failure to copy the files can optionally cause the output job to fail. You can control whether files in the destination should be overwritten or not.
+| Special: Copy Files
+      | Copies the specified file to the specified location. A failure to copy the files can optionally cause the output job to fail. You can control whether files in the output location should be overwritten or not.
 | Special: Execute Command
       | Executes an arbitrary command. Output from the command can optionally be logged to a file. You can either ignore non-zero output codes or cause them to fail the output job.
 |====
@@ -851,7 +877,7 @@ image::images/template_selected.png[scaledwidth="80%"]
 === Template locations
 
 KiCad looks for system templates in the path defined in the
-`KICAD8_TEMPLATE_DIR` path variable, and user templates in the path defined in
+`KICAD9_TEMPLATE_DIR` path variable, and user templates in the path defined in
 `KICAD_USER_TEMPLATE_DIR`. However, you can browse for templates in an arbitrary
 directory using the **Folder** control at the top of the dialog.
 

@@ -5,7 +5,9 @@
 
 = Drawing Sheet Editor
 
-_Reference manual_
+include::../version.adoc[]
+
+_KiCad {kicad-version-short} Reference Manual_
 
 [[copyright]]
 *Copyright*
@@ -28,6 +30,13 @@ Jean-Pierre Charras, Graham Keeth
 The KiCad project welcomes feedback, bug reports, and suggestions related to the software or its
 documentation. For more information on how to submit feedback or report an issue, please see the
 instructions at https://www.kicad.org/help/report-an-issue/
+
+*Software and Documentation Version*
+
+This user manual is based on KiCad {kicad-version-long}. Functionality and
+appearance may be different in other versions of KiCad.
+
+Documentation revision: `{doc-commit}`.
 
 //Since docbook "article" is more compact, I have to separate this page
 <<<<<

@@ -632,7 +632,15 @@ void RENDER_3D_RAYTRACE_BASE::Reload( REPORTER* aStatusReporter, REPORTER* aWarn
             break;
 
         default:
-            if( m_boardAdapter.m_Cfg->m_Render.differentiate_plated_copper )
+        {
+            int layer3D = MapPCBLayerTo3DLayer( layer_id );
+
+            // Note: MUST do this in LAYER_3D space; User_1..User_45 are NOT contiguous
+            if( layer3D >= LAYER_3D_USER_1 && layer3D <= LAYER_3D_USER_45 )
+            {
+                layerColor = m_boardAdapter.m_UserDefinedLayerColor[ layer3D - LAYER_3D_USER_1 ];
+            }
+            else if( m_boardAdapter.m_Cfg->m_Render.differentiate_plated_copper )
             {
                 layerColor = SFVEC3F( 184.0f / 255.0f, 115.0f / 255.0f, 50.0f / 255.0f );
                 materialLayer = &m_materials.m_NonPlatedCopper;
@@ -644,6 +652,7 @@ void RENDER_3D_RAYTRACE_BASE::Reload( REPORTER* aStatusReporter, REPORTER* aWarn
             }
 
             break;
+        }
         }
 
         createItemsFromContainer( container2d, layer_id, materialLayer, layerColor, 0.0f );
@@ -1282,8 +1291,12 @@ void RENDER_3D_RAYTRACE_BASE::load3DModels( CONTAINER_3D& aDstContainer,
                     continue;
 
                 // get it from cache
-                const S3DMODEL* modelPtr =
-                        cacheMgr->GetModel( model.m_Filename, footprintBasePath, fp );
+                std::vector<const EMBEDDED_FILES*> embeddedFilesStack;
+                embeddedFilesStack.push_back( fp->GetEmbeddedFiles() );
+                embeddedFilesStack.push_back( m_boardAdapter.GetBoard()->GetEmbeddedFiles() );
+
+                const S3DMODEL* modelPtr = cacheMgr->GetModel( model.m_Filename, footprintBasePath,
+                                                               embeddedFilesStack );
 
                 // only add it if the return is not NULL.
                 if( modelPtr )

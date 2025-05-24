@@ -139,6 +139,9 @@ APP_SETTINGS_BASE::APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaV
             reinterpret_cast<int*>( &m_SearchPane.selection_zoom ),
             static_cast<int>( SEARCH_PANE::SELECTION_ZOOM::PAN ) ) );
 
+    m_params.emplace_back( new PARAM<bool>( "search_pane.search_hidden_fields",
+            &m_SearchPane.search_hidden_fields, true ) );
+
     m_params.emplace_back( new PARAM<bool>( "system.first_run_shown",
             &m_System.first_run_shown, false ) ); //@todo RFB remove? - not used
 
@@ -157,11 +160,11 @@ APP_SETTINGS_BASE::APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaV
     else
     {
         m_params.emplace_back( new PARAM<int>( "system.units",
-                &m_System.units, static_cast<int>( EDA_UNITS::MILLIMETRES ) ) );
+                &m_System.units, static_cast<int>( EDA_UNITS::MM ) ) );
     }
 
     m_params.emplace_back( new PARAM<int>( "system.last_metric_units",
-            &m_System.last_metric_units, static_cast<int>( EDA_UNITS::MILLIMETRES ) ) );
+            &m_System.last_metric_units, static_cast<int>( EDA_UNITS::MM ) ) );
 
     m_params.emplace_back( new PARAM<int>( "system.last_imperial_units",
             &m_System.last_imperial_units, static_cast<int>( EDA_UNITS::MILS ) ) );

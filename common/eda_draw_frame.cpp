@@ -96,9 +96,10 @@ EDA_DRAW_FRAME::EDA_DRAW_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrame
                                 const wxString& aTitle, const wxPoint& aPos, const wxSize& aSize,
                                 long aStyle, const wxString& aFrameName,
                                 const EDA_IU_SCALE& aIuScale ) :
-    KIWAY_PLAYER( aKiway, aParent, aFrameType, aTitle, aPos, aSize, aStyle, aFrameName, aIuScale ),
-    m_socketServer( nullptr ),
-    m_lastToolbarIconSize( 0 )
+        KIWAY_PLAYER( aKiway, aParent, aFrameType, aTitle, aPos, aSize, aStyle, aFrameName,
+                      aIuScale ),
+        m_socketServer( nullptr ),
+        m_lastToolbarIconSize( 0 )
 {
     m_mainToolBar         = nullptr;
     m_drawToolBar         = nullptr;
@@ -125,7 +126,7 @@ EDA_DRAW_FRAME::EDA_DRAW_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrame
     m_propertiesPanel     = nullptr;
     m_netInspectorPanel   = nullptr;
 
-    SetUserUnits( EDA_UNITS::MILLIMETRES );
+    SetUserUnits( EDA_UNITS::MM );
 
     m_auimgr.SetFlags( wxAUI_MGR_DEFAULT );
 
@@ -176,7 +177,8 @@ EDA_DRAW_FRAME::EDA_DRAW_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrame
 
 EDA_DRAW_FRAME::~EDA_DRAW_FRAME()
 {
-    saveCanvasTypeSetting( m_canvasType );
+    if( !m_openGLFailureOccured )
+        saveCanvasTypeSetting( m_canvasType );
 
     delete m_actions;
     delete m_toolManager;
@@ -283,8 +285,7 @@ void EDA_DRAW_FRAME::ToggleUserUnits()
     }
     else
     {
-        SetUserUnits( GetUserUnits() == EDA_UNITS::INCHES ? EDA_UNITS::MILLIMETRES
-                                                          : EDA_UNITS::INCHES );
+        SetUserUnits( GetUserUnits() == EDA_UNITS::INCH ? EDA_UNITS::MM : EDA_UNITS::INCH );
         unitsChangeRefresh();
 
         wxCommandEvent e( EDA_EVT_UNITS_CHANGED );
@@ -648,10 +649,10 @@ void EDA_DRAW_FRAME::DisplayUnitsMsg()
 
     switch( GetUserUnits() )
     {
-    case EDA_UNITS::INCHES:      msg = _( "inches" ); break;
-    case EDA_UNITS::MILS:        msg = _( "mils" );   break;
-    case EDA_UNITS::MILLIMETRES: msg = _( "mm" );     break;
-    default:                     msg = _( "Units" );  break;
+    case EDA_UNITS::INCH: msg = _( "inches" ); break;
+    case EDA_UNITS::MILS: msg = _( "mils" );   break;
+    case EDA_UNITS::MM:   msg = _( "mm" );     break;
+    default:              msg = _( "Units" );  break;
     }
 
     SetStatusText( msg, 5 );
@@ -1235,7 +1236,7 @@ void EDA_DRAW_FRAME::ShowChangedLanguage()
 
 void EDA_DRAW_FRAME::UpdateProperties()
 {
-    if( !m_propertiesPanel || !m_propertiesPanel->IsShownOnScreen() )
+    if( m_isClosing || !m_propertiesPanel || !m_propertiesPanel->IsShownOnScreen() )
         return;
 
     m_propertiesPanel->UpdateData();
@@ -1276,9 +1277,9 @@ void EDA_DRAW_FRAME::setupUnits( APP_SETTINGS_BASE* aCfg )
     switch( static_cast<EDA_UNITS>( aCfg->m_System.units ) )
     {
     default:
-    case EDA_UNITS::MILLIMETRES: m_toolManager->RunAction( ACTIONS::millimetersUnits ); break;
-    case EDA_UNITS::INCHES:      m_toolManager->RunAction( ACTIONS::inchesUnits );      break;
-    case EDA_UNITS::MILS:        m_toolManager->RunAction( ACTIONS::milsUnits );        break;
+    case EDA_UNITS::MM:   m_toolManager->RunAction( ACTIONS::millimetersUnits ); break;
+    case EDA_UNITS::INCH: m_toolManager->RunAction( ACTIONS::inchesUnits );      break;
+    case EDA_UNITS::MILS: m_toolManager->RunAction( ACTIONS::milsUnits );        break;
     }
 }
 
@@ -1295,7 +1296,7 @@ void EDA_DRAW_FRAME::GetUnitPair( EDA_UNITS& aPrimaryUnit, EDA_UNITS& aSecondary
         if( cmnTool )
             aSecondaryUnits = cmnTool->GetLastMetricUnits();
         else
-            aSecondaryUnits = EDA_UNITS::MILLIMETRES;
+            aSecondaryUnits = EDA_UNITS::MM;
     }
     else
     {

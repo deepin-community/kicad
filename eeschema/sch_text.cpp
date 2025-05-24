@@ -416,6 +416,17 @@ wxString SCH_TEXT::GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraTe
     std::function<bool( wxString* )> textResolver =
             [&]( wxString* token ) -> bool
             {
+                if( SCH_SYMBOL* sch_symbol = dynamic_cast<SCH_SYMBOL*>( m_parent ) )
+                {
+                    if( sch_symbol->ResolveTextVar( aPath, token, aDepth + 1 ) )
+                        return true;
+                }
+                else if( LIB_SYMBOL* lib_symbol = dynamic_cast<LIB_SYMBOL*>( m_parent ) )
+                {
+                    if( lib_symbol->ResolveTextVar( token, aDepth + 1 ) )
+                        return true;
+                }
+
                 if( sheet )
                 {
                     if( sheet->ResolveTextVar( aPath, token, aDepth + 1 ) )
@@ -771,7 +782,6 @@ static struct SCH_TEXT_DESC
         propMgr.InheritsAfter( TYPE_HASH( SCH_TEXT ), TYPE_HASH( EDA_TEXT ) );
 
         propMgr.Mask( TYPE_HASH( SCH_TEXT ), TYPE_HASH( EDA_TEXT ), _HKI( "Mirrored" ) );
-        propMgr.Mask( TYPE_HASH( SCH_TEXT ), TYPE_HASH( EDA_TEXT ), _HKI( "Visible" ) );
         propMgr.Mask( TYPE_HASH( SCH_TEXT ), TYPE_HASH( EDA_TEXT ), _HKI( "Width" ) );
         propMgr.Mask( TYPE_HASH( SCH_TEXT ), TYPE_HASH( EDA_TEXT ), _HKI( "Height" ) );
         propMgr.Mask( TYPE_HASH( SCH_TEXT ), TYPE_HASH( EDA_TEXT ), _HKI( "Thickness" ) );

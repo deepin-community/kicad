@@ -79,9 +79,9 @@ mouse.  The palette will show the most recently used tool when it is closed.
     | <<text-objects,Add a textbox>>.
 | image:images/icons/table_24.png[]
     | <<tables,Add a table>>.
-| image:images/icons/add_aligned_dimension_24.png[]
+| image:images/icons/add_orthogonal_dimension_24.png[]
 
-  image:images/icons/add_orthogonal_dimension_24.png[]
+  image:images/icons/add_aligned_dimension_24.png[]
 
   image:images/icons/add_center_dimension_24.png[]
 
@@ -255,7 +255,7 @@ Show the Properties Manager with **View** -> **Panels** -> **Properties** or the
 image:images/icons/tools_24.png[Properties Manager icon] button on the left toolbar.
 
 Several tools are available for editing properties of specific types of objects in bulk.
-For text and graphical items, you can use the
+For text and graphical items, including footprint fields and dimensions, you can use the
 <<pcbnew-edit-text-and-graphics-properties,Edit Text and Graphics Properties tool>>. Tracks and vias
 can be bulk-edited using the <<track-and-via-properties,Edit Track and Via Properties tool>>.
 Teardrop properties can be edited with the <<editing-teardrops,Edit Teardrops tool>>.
@@ -846,7 +846,7 @@ gray outline around the tracks being routed.  The clearance outline can be disab
 the Clearance Outlines setting in the Display Options section of the Preferences dialog.
 
 NOTE: The clearance outline shows the maximum clearance from the routed net to any other copper on
-      the PCB.  It is possible to use custom design rules to specify different clearances for a net
+      the current layer.  It is possible to use custom design rules to specify different clearances for a net
       to different objects.  These clearances will be respected by the router, but only the largest
       clearance value will be shown visually.
 
@@ -1019,9 +1019,13 @@ in the Net Classes section of the Board Setup will be used (unless overridden by
 rule).
 
 You can also place microvias and blind/buried vias while routing. Use the hotkey kbd:[Ctrl+V] to
-place a microvia and kbd:[Alt+Shift+V] to place a blind/buried via.  Microvias may only be placed
-such that they connect one of the outer copper layers to an adjacent layer.  Blind/buried vias
-may be placed on any layer.
+place a microvia and kbd:[Alt+Shift+V] to place a blind/buried via.  While regular vias always go
+through every board layer, microvias and blind/buried vias can start and end on any layer, not just
+the outer layers.
+
+NOTE: For the purposes of DRC, microvias are not considered drilled holes as they are laser
+      drilled rather than mechanically drilled. See the <<list-of-drc-checks,DRC documentation>>
+      for more information.
 
 Vias placed by the router are considered to be part of a routed track.  This means that the via net
 can be updated automatically (just like track nets can), for example when updating the PCB from the
@@ -1080,7 +1084,7 @@ Selecting tracks with this technique can be used to quickly delete an entire rou
 There are two different drag commands that can be used to reposition a track segment.  The Drag
 (45-degree mode) command, hotkey kbd:[D], is used to drag tracks using the router.  If the router
 mode is set to Shove, dragging with this command will shove nearby tracks.  If the router mode is
-set to Walk Around, dragging with this command will walk around or stop at obstacles.  Multiple traces can be dragged at once using this command. The Drag
+set to Walk Around, dragging with this command will walk around or stop at obstacles.  Multiple tracks can be dragged at once using this command. The Drag
 Free Angle command, hotkey kbd:[G], is used to split a track segment into two and drag the new
 corner to any location.  Drag Free Angle behaves like the Highlight Collisions router mode:
 obstacles will not be avoided or shoved, only highlighted.
@@ -1264,37 +1268,37 @@ The following cleanup actions are available and will be performed when selected:
   the cleanup operation. If unchecked, zone fills will not be changed.
 
 * *Delete tracks connecting different nets:* removes any track segments that short
-multiple nets.
+  multiple nets.
 
 * *Delete redundant vias:* remove vias that are redundant because they are located
-on top of another via or on top of a through hole pad.
+  on top of another via or on top of a through hole pad.
 
 * *Delete vias connected on only one layer:* removes vias that are only connected
-to copper on a single layer and are therefore unnecessary.
+  to copper on a single layer and are therefore unnecessary.
 
 * *Merge co-linear tracks:* merges any track segments that are connected and
-co-linear into a single equivalent track segment.
+  co-linear into a single equivalent track segment.
 
 * *Delete tracks unconnected at one end:* removes track segments that have at
-least one dangling end.
+  least one dangling end.
 
 * *Delete tracks fully inside pads:* removes tracks that have both start and end
-points within a pad and are therefore unnecessary.
+  points within a pad and are therefore unnecessary.
 
 You can also filter the objects that will be cleaned up by net, netclass, layer,
 or selection.
 
 * **Filter items by net:** limits the cleanup to tracks and vias assigned to the
-specified net.
+  specified net.
 
 * **Filter items by netclass:** limits the cleanup to tracks and vias in the
-specified netclass.
+  specified netclass.
 
 * **Filter items by layer:** limits the cleanup to tracks and vias on the
-specified layer.
+  specified layer.
 
 * **Selected items only:** limits the cleanup to just the selected tracks and
-vias.
+  vias.
 
 Any changes that will be applied to the board are displayed at the bottom of the
 dialog after clicking the **Build Changes** button. After building the changes,
@@ -1317,7 +1321,8 @@ footprints instead of pads; all unrouted pads in the selected footprints will be
 points.
 
 If you want to route a number of tracks _to_ a set of pads, instead of _from_ the pads, you can use
-the Route Selected From Other End tool (kbd:[Shift+E]). This tool works the same way as the Route
+the Route Selected From Other End tool. Select the pads you want to use as ending points, then right
+click and choose **Route Selected From Other End** (kbd:[Shift+E]). This tool works the same way as the Route
 Selected tool, except it uses each selected pad as an end point rather than a starting point. The
 starting point for each track is the other end of the ratsnest line for each selected pad.
 
@@ -1845,6 +1850,39 @@ The following conversion types are available:
   thickness. The source segment is not removed following conversion, but remains
   selected so that it can be easily deleted if desired.
 
+===== Importing vector graphics
+
+You can add graphic shapes from an external vector graphics file by importing
+the file into KiCad. DXF and SVG files are supported. To import the file, use
+**File** -> **Import** -> **Graphics...** (kbd:[Ctrl+Shift+F]).
+
+Imported vector graphics are part of the design like any other graphic shape.
+In other words, they have an assigned board layer, they are included in
+fabrication outputs, and shapes on copper layers can make electrical
+connections.
+
+image::images/import_vector_graphics.png[]
+
+The Import Vector Graphics File dialog has several options:
+
+* **File** specifies the vector graphics file to import.
+* **Import Scale** sets the scale factor for the import.
+* **DXF default line width** sets the line width for any items in a DXF file
+  that do not specify a line width. It has no effect when not importing DXF
+  files.
+* **DXF default units** sets the default unit for DXF files with unspecified
+  units. It has no effect when not importing DXF files.
+* If **Place At** is enabled, the imported shapes are placed at the specified
+  location, relative to the PCB Editor's <<grids-and-snapping,page origin>>. If
+  it is disabled, the imported shapes are placed interactively.
+* If **Layer** is enabled, the imported shapes are placed onto the selected
+  layer. If it is disabled, the shapes are placed onto the active layer.
+* If **Group imported items** is enabled, all shapes imported from the vector
+  graphics file are added to a <<groups,group>>.
+* If **Fix discontinuities** is enabled, any shape discontinuities smaller than
+  the specified **tolerance** are filled by extending each segment until they
+  intersect or adding an additional segment.
+
 [[text-objects]]
 ==== Text objects
 
@@ -1869,22 +1907,27 @@ image::images/text_properties_dialog.png[scaledwidth="70%"]
   Copper zones will fill around the rectangular bounding box of text objects.
 
 * There are several formatting options: text can be bolded, italicized, left/right/center aligned,
-  and reversed. Regular text objects (not text boxes) can also have their vertical alignment
-  adjusted. The **knockout** option, which is also limited to regular text objects, adds a solid
-  rectangle surrounding the text and makes the text itself a negative cutout.
+  top/bottom/center aligned, and reversed.
+  
+* The **knockout** option adds a solid rectangle surrounding the text and makes the text itself a
+  negative cutout. This feature is only available for regular text objects, not text boxes.
 
 * The **Font** dropdown lets you select a font for the text. You can use any TTF font available on
   your system, or the built-in KiCad stroke font.
 
-NOTE: User fonts are not embedded in the project. If the project is opened on another computer
-that does not have the selected font installed, a different font will be substituted. For maximum
-compatibility, use the KiCad font. Also consider converting text objects to polygons before sharing
-a project (right click a text object -> **Create from Selection** ->
-**Create Polygon from Selection...**). Text converted to polygons is not editable as text, but will
-render identically on any computer.
+NOTE: User fonts are not embedded by default in the project. If the project is opened on another computer
+      that does not have the selected font installed, a different font will be substituted. You can
+      optionally embed into the board file any fonts used by the design in the
+      <<pcb-embedding-files,**Embedded Files** section of Board Setup>>. For maximum compatibility without
+      embedding, use the KiCad font. Also consider converting text objects to polygons before sharing a
+      project (right click a text object -> **Create from Selection** -> **Create Polygon from Selection...**).
+      Text converted to polygons is not editable as text, but will render identically on any computer.
 
 * You can adjust the text size with the **text width** and **text height** controls. When you are using
-  the KiCad font, you can also adjust the stroke width with the **thickness** control.
+  the KiCad font, you can also adjust the stroke width with the **thickness** control. The
+  **Update Thickness According to Text Size** button automatically sets the text thickness according to
+  the text size: the thickness for normal text is set to the size divided by 8, and the thickness for
+  bold text is set to the size divided by 5.
 
 * **Position X** and **position Y** control the text object's location. These properties are not
   available for text boxes.
@@ -1892,12 +1935,14 @@ render identically on any computer.
 * **Orientation** is the rotation angle of the text object. You can select an angle in 90 degree
   increments from the dropdown, or type in an arbitrary angle.
 
-* Text boxes additionally have options controlling their border. The **border** checkbox makes the
-    border visible or invisible. For visible borders, you can adjust the border's thickness with
-    the **border width** control and the line style with the **border style** control (solid, dashed,
-    dotted, dash-dot, or dash-dot-dot). You can also adjust the padding on each side of text in a
-    text box (padding can be set using the <<editing-object-properties,Properties Manager>>, but not
-    using the Text Box Properties dialog).
+Text boxes additionally have options controlling their border.
+
+* The **border** checkbox makes the border visible or invisible. For visible borders, you can adjust
+  the border's thickness with the **border width** control and the line style with the **border style**
+  control (solid, dashed, dotted, dash-dot, or dash-dot-dot).
+
+* The **margins** between the border and the text on each side of a text box can be set using the
+  <<editing-object-properties,Properties Manager>>. Margins cannot be set in the Text Box Properties dialog.
 
 NOTE: You can customize the default style of newly-created text objects in the Text & Graphics
       Defaults section of the Board Setup dialog.
@@ -2055,6 +2100,12 @@ image::images/dimensions_dialog.png[scaledwidth="70%"]
 
 * **Precision:** Select how many digits of precision to display.
 
+* **Arrow direction:** Select whether the dimension object's arrow(s) point inwards towards the value
+  text or outwards away from the text. The arrow direction can also be set while drawing a dimension
+  by right clicking and selecting **Switch Dimension Arrows**.
+
+* **Suppress trailing zeroes:** Select whether to hide trailing zeroes in the value text.
+
 ===== Dimension text options
 
 Most of the dimension text options are identical to those options available for other graphical
@@ -2082,6 +2133,8 @@ are also available:
 
 ===== Leader options
 
+Leader dimensions have unique options:
+
 image::images/dimensions_leader.png[scaledwidth="70%"]
 
 * **Value:** Enter the text to show at the end of the leader line.
@@ -2091,8 +2144,9 @@ image::images/dimensions_leader.png[scaledwidth="70%"]
 [[pcbnew-edit-text-and-graphics-properties]]
 ==== Bulk editing text and graphics
 
-Properties of text and graphics, including dimensions, can be edited in bulk using the *Edit Text and
-Graphics Properties* dialog (**Edit** -> **Edit Text & Graphic Properties...**).
+Properties of text and graphics, including footprint fields and dimensions, can
+be edited in bulk using the *Edit Text and Graphics Properties* dialog
+(**Edit** -> **Edit Text & Graphic Properties...**).
 
 image::images/pcbnew_edit_text_and_graphics_properties.png[scaledwidth="70%"]
 
@@ -2109,12 +2163,13 @@ of changing graphic properties). If no filters are enabled, all objects in the
 selected scope will be modified. For filters with a text box, wildcards are
 supported: `*` matches any characters, and `?` matches any single character.
 
-* *Filter items by layer* filters to items on the specified board layer.
+* *By layer* filters to items on the specified board layer.
 
-* *Filter items by parent reference designator* filters to fields in the
-  footprint with the specified reference designator. *Filter items by parent
-  footprint library id* filters to fields in footprint with the specified library
-  identifier.
+* *By parent reference designator* filters to fields in the
+  footprint with the specified reference designator.
+
+* *By parent footprint library link* filters to fields in footprint with the
+  specified library link (library and footprint name).
 
 * *Selected items only* filters to the current selection.
 
@@ -2135,8 +2190,8 @@ change, but can also be toggled to a third "leave unchanged" state.
 
 * Text properties that can be modified are *font*, *text width*, *text height*,
   *text thickness* (KiCad font only), emphasis (*bold* and *italic*), orientation
-  (*keep upright*), and alignment (*center on footprint*). Footprint text can also
-  have its *visibility* set.
+  (*keep upright*), and alignment (*center on footprint*). Footprint fields can also
+  have their *visibility* set.
 
 ==== Cleaning up graphics
 
@@ -2157,6 +2212,33 @@ The following cleanup actions are available and will be performed when selected:
 
 Any changes that will be applied to the board are displayed at the bottom of the
 dialog. They are not applied until you press the **Update PCB** button.
+
+[[sheet-title-block]]
+==== Sheet title block
+
+The drawing sheet's title block is edited with the Page Settings tool
+(image:images/icons/sheetset_24.png[Page Settings tool]). You can also open this
+tool by double clicking on any part of the drawing sheet.
+
+image::images/page_settings.png[alt="Page settings dialog",scaledwidth="80%"]
+
+Each field in the title block can be edited, as well as the paper size and
+orientation.
+
+You can set the date to today's or any other date by pressing the left arrow
+button next to **Issue Date**. Note that the date listed in the board title
+block is not automatically updated. It is only updated when changed in this
+dialog.
+
+A drawing sheet file can also be selected to replace the default drawing sheet.
+When choosing a drawing sheet, you can enable the **Embed File** checkbox in the
+file browser to embed the drawing sheet in the board instead of referencing
+an external file. This means the board will appear the same when it is
+opened on another computer that does not have the drawing sheet file available
+at the same external file path. For more information, see the
+<<pcb-embedding-files,embedded files documentation>>.
+
+image::images/title_block.png[alt="Title block",scaledwidth="80%"]
 
 [[pcb-rule-areas]]
 === Rule areas (keepouts)
@@ -2219,14 +2301,14 @@ NOTE: Even with no basic rules selected, rule areas can still be used to define
 Most objects can be locked through their properties dialogs, by using the right-click context menu,
 or by using the Toggle Lock hotkey (kbd:[L]).  Locking an item makes it more difficult to select,
 move, or modify the object, which can prevent unintended modifications. Locked objects cannot be
-selected unless the "Locked items" checkbox is enabled in the selection filter.  Attempting to
+selected unless the **Locked items** checkbox is enabled in the selection filter.  Attempting to
 move locked items will result in a warning dialog:
 
 image::images/pcbnew_locked_items_dialog.png[]
 
-Selecting "Override Locks" in this dialog will allow moving the locked items.  Selecting "OK" will
+Selecting **Override Locks** in this dialog will allow moving the locked items.  Selecting **OK** will
 allow you to move any unlocked items in the selection; leaving the locked items behind.  Selecting
-"Do not show again" will remember your choice for the rest of your session.
+**Do not show again** will remember your choice for the rest of your session.
 
 NOTE: You can forget this choice and re-enable the lock override prompt for the
       current session by unchecking
@@ -2452,11 +2534,12 @@ You can assign symbols to channels in two ways, either using xref:../eeschema/ee
 
 ==== Multichannel design procedure: board
 
-In the board, each channel is represented with a <<pcb-rule-areas,rule area>> with its rules configured for placement. You need to add a rule area for each channel. One rule area will be the _reference_, containing manually placed and routed footprints. The other rule areas will have the reference placement and routing copied to them. Placement rule areas need the following settings configured in their properties:
+In the board, each channel is represented with a <<pcb-rule-areas,rule area>> with its rules configured for placement. You need to add a rule area for each channel. One rule area is the _reference_, containing manually placed and routed footprints. The other rule areas are _targets_ and have the reference placement and routing copied to them. Placement rule areas, whether for reference or target channels, need the following settings configured in their properties:
 
 - The options in the **Placement** tab should be configured to select the hierarchical sheet or component class that contains the channel's components.
 - The options in the **Keepouts** tab should typically be unselected, unless there is a specific type of item that needs to be excluded from the rule area.
 - The rule area's **layers** should be set based on which layers are considered part of the channel. An item will be copied from the reference channel to a target channel only if the item's layer is enabled in both the reference and target rule areas.
+- The **area name** is used to label the rule area when it is listed in the Repeat Layout dialog. While not strictly required, it will be hard for you to distinguish rule areas in the GUI unless each rule area has a unique name.
 
 image::images/rule_area_placement.png[]
 
@@ -2493,12 +2576,6 @@ There are several options to control which items from the reference channel are 
 
 After clicking **OK**, the layout from the reference channel will be applied to the target channels. When the repeat layout is completed, each channel can be individually edited like any other part of the board design.
 
-=== Importing vector drawings
-
-NOTE: This section of the KiCad documentation has not yet been written.  We
-      appreciate your patience as our small team of volunteer documentation
-      writers work to update and expand the documentation.
-
 [[pcb-reference-images]]
 === Using reference images
 
@@ -2508,16 +2585,27 @@ reference during the design process and are not included in any fabrication
 outputs.
 
 To add a reference image, use the image:images/icons/image_24.png[] button on
-the right toolbar and select the desired reference image file.
+the right toolbar and select the desired reference image file. Click in the
+canvas to place the image.
 
-Once the image has been added to the canvas, you can scale it by dragging the
-editing canvas or open its properties dialog (kbd:[E]) and set the scale
-explicitly in the **Image** tab. Here you can also **Convert to Greyscale** if
-you wish.
+Once the image has been added to the canvas, you can reposition it using the
+move tool (kbd:[M]) or by dragging it in the canvas. You can scale it by
+dragging the editing handles at the corners of the image. The image is scaled
+around its reference point; in other words, the reference point is the point in
+the image that always stays in the same position in the canvas, no matter how
+the image is scaled. The reference point is shown as a fifth editing handle.
+Initially it is at the center of the image, but you can reposition the reference
+point by dragging it in the canvas.
 
 image::images/reference_image.png[]
 
-Reference images have an associated layer; they are shown and hidden along with
+You can also reposition or scale the image in its properties dialog (kbd:[E]).
+You can set the image's exact **Position X** and **Y** in the **General** tab,
+and set an exact **Scale** factor in the **Image** tab. You can also
+**Convert to Greyscale** if you wish. Position and scale in this dialog are
+relative to the center of the image, not its interactive reference point.
+
+Reference images have an associated board layer; they are shown and hidden along with
 this layer. The layer initially associated with a reference image is the layer
 that was active when the image was added. You can change the associated layer
 in the image's properties.

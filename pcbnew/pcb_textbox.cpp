@@ -41,14 +41,13 @@
 #include <api/api_utils.h>
 #include <api/board/board_types.pb.h>
 
-
 PCB_TEXTBOX::PCB_TEXTBOX( BOARD_ITEM* aParent, KICAD_T aType ) :
     PCB_SHAPE( aParent, aType, SHAPE_T::RECTANGLE ),
     EDA_TEXT( pcbIUScale ),
     m_borderEnabled( true )
 {
     SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
-    SetVertJustify( GR_TEXT_V_ALIGN_TOP );
+    SetVertJustify( GR_TEXT_V_ALIGN_CENTER );
     SetMultilineAllowed( true );
 
     int defaultMargin = GetLegacyTextMargin();
@@ -58,9 +57,15 @@ PCB_TEXTBOX::PCB_TEXTBOX( BOARD_ITEM* aParent, KICAD_T aType ) :
     m_marginBottom = defaultMargin;
 }
 
-
 PCB_TEXTBOX::~PCB_TEXTBOX()
 {
+}
+
+
+void PCB_TEXTBOX::CopyFrom( const BOARD_ITEM* aOther )
+{
+    wxCHECK( aOther && aOther->Type() == PCB_TEXTBOX_T, /* void */ );
+    *this = *static_cast<const PCB_TEXTBOX*>( aOther );
 }
 
 
@@ -97,7 +102,6 @@ void PCB_TEXTBOX::Serialize( google::protobuf::Any &aContainer ) const
     attrs->set_italic( IsItalic() );
     attrs->set_bold( IsBold() );
     attrs->set_underlined( GetAttributes().m_Underlined );
-    attrs->set_visible( IsVisible() );
     attrs->set_mirrored( IsMirrored() );
     attrs->set_multiline( IsMultilineAllowed() );
     attrs->set_keep_upright( IsKeepUpright() );
@@ -133,7 +137,6 @@ bool PCB_TEXTBOX::Deserialize( const google::protobuf::Any &aContainer )
         attrs.m_Bold = text.attributes().bold();
         attrs.m_Italic = text.attributes().italic();
         attrs.m_Underlined = text.attributes().underlined();
-        attrs.m_Visible = text.attributes().visible();
         attrs.m_Mirrored = text.attributes().mirrored();
         attrs.m_Multiline = text.attributes().multiline();
         attrs.m_KeepUpright = text.attributes().keep_upright();
@@ -262,89 +265,6 @@ void PCB_TEXTBOX::SetTextAngle( const EDA_ANGLE& aAngle )
 }
 
 
-std::vector<VECTOR2I> PCB_TEXTBOX::GetAnchorAndOppositeCorner() const
-{
-    std::vector<VECTOR2I> pts;
-    EDA_ANGLE             textAngle( GetDrawRotation() );
-
-    textAngle.Normalize();
-
-    if( textAngle.IsCardinal() )
-    {
-        BOX2I bbox = PCB_SHAPE::GetBoundingBox();
-        bbox.Normalize();
-
-        if( textAngle == ANGLE_0 )
-        {
-            pts.emplace_back( VECTOR2I( bbox.GetLeft(), bbox.GetTop() ) );
-            pts.emplace_back( VECTOR2I( bbox.GetRight(), bbox.GetTop() ) );
-        }
-        else if( textAngle == ANGLE_90 )
-        {
-            pts.emplace_back( VECTOR2I( bbox.GetLeft(), bbox.GetBottom() ) );
-            pts.emplace_back( VECTOR2I( bbox.GetLeft(), bbox.GetTop() ) );
-        }
-        else if( textAngle == ANGLE_180 )
-        {
-            pts.emplace_back( VECTOR2I( bbox.GetRight(), bbox.GetBottom() ) );
-            pts.emplace_back( VECTOR2I( bbox.GetLeft(), bbox.GetBottom() ) );
-        }
-        else if( textAngle == ANGLE_270 )
-        {
-            pts.emplace_back( VECTOR2I( bbox.GetRight(), bbox.GetTop() ) );
-            pts.emplace_back( VECTOR2I( bbox.GetRight(), bbox.GetBottom() ) );
-        }
-    }
-    else
-    {
-        std::vector<VECTOR2I> corners = GetCorners();
-
-        VECTOR2I minX = corners[0];
-        VECTOR2I maxX = corners[0];
-        VECTOR2I minY = corners[0];
-        VECTOR2I maxY = corners[0];
-
-        for( const VECTOR2I& corner : corners )
-        {
-            if( corner.x < minX.x )
-                minX = corner;
-
-            if( corner.x > maxX.x )
-                maxX = corner;
-
-            if( corner.y < minY.y )
-                minY = corner;
-
-            if( corner.y > maxY.y )
-                maxY = corner;
-        }
-
-        if( textAngle < ANGLE_90 )
-        {
-            pts.emplace_back( minX );
-            pts.emplace_back( minY );
-        }
-        else if( textAngle < ANGLE_180 )
-        {
-            pts.emplace_back( maxY );
-            pts.emplace_back( minX );
-        }
-        else if( textAngle < ANGLE_270 )
-        {
-            pts.emplace_back( maxX );
-            pts.emplace_back( maxY );
-        }
-        else
-        {
-            pts.emplace_back( minY );
-            pts.emplace_back( maxX );
-        }
-    }
-
-    return pts;
-}
-
-
 VECTOR2I PCB_TEXTBOX::GetDrawPos() const
 {
     return GetDrawPos( false );
@@ -353,40 +273,104 @@ VECTOR2I PCB_TEXTBOX::GetDrawPos() const
 
 VECTOR2I PCB_TEXTBOX::GetDrawPos( bool aIsFlipped ) const
 {
-    std::vector<VECTOR2I> corners = GetAnchorAndOppositeCorner();
-    GR_TEXT_H_ALIGN_T     effectiveAlignment = GetHorizJustify();
+    EDA_ANGLE             drawAngle = GetDrawRotation();
+    std::vector<VECTOR2I> corners = GetCornersInSequence( drawAngle );
+    GR_TEXT_H_ALIGN_T     horizontalAlignment = GetHorizJustify();
+    GR_TEXT_V_ALIGN_T     verticalAlignment = GetVertJustify();
     VECTOR2I              textAnchor;
     VECTOR2I              offset;
+
+    // Calculate midpoints
+    VECTOR2I midTop = ( corners[0] + corners[1] ) / 2;
+    VECTOR2I midBottom = ( corners[3] + corners[2] ) / 2;
+    VECTOR2I midLeft = ( corners[0] + corners[3] ) / 2;
+    VECTOR2I midRight = ( corners[1] + corners[2] ) / 2;
+    VECTOR2I center = ( corners[0] + corners[1] + corners[2] + corners[3] ) / 4;
 
     if( IsMirrored() != aIsFlipped )
     {
         switch( GetHorizJustify() )
         {
-        case GR_TEXT_H_ALIGN_LEFT:          effectiveAlignment = GR_TEXT_H_ALIGN_RIGHT;   break;
-        case GR_TEXT_H_ALIGN_CENTER:        effectiveAlignment = GR_TEXT_H_ALIGN_CENTER;  break;
-        case GR_TEXT_H_ALIGN_RIGHT:         effectiveAlignment = GR_TEXT_H_ALIGN_LEFT;    break;
-        case GR_TEXT_H_ALIGN_INDETERMINATE: wxFAIL_MSG( wxT( "Legal only in dialogs" ) ); break;
+        case GR_TEXT_H_ALIGN_LEFT: horizontalAlignment = GR_TEXT_H_ALIGN_RIGHT; break;
+        case GR_TEXT_H_ALIGN_CENTER: horizontalAlignment = GR_TEXT_H_ALIGN_CENTER; break;
+        case GR_TEXT_H_ALIGN_RIGHT: horizontalAlignment = GR_TEXT_H_ALIGN_LEFT; break;
+        case GR_TEXT_H_ALIGN_INDETERMINATE:
+            horizontalAlignment = GR_TEXT_H_ALIGN_INDETERMINATE;
+            break;
         }
     }
 
-    switch( effectiveAlignment )
+    wxASSERT_MSG(
+            horizontalAlignment != GR_TEXT_H_ALIGN_INDETERMINATE
+                    && verticalAlignment != GR_TEXT_V_ALIGN_INDETERMINATE,
+            wxS( "Indeterminate state legal only in dialogs. Horizontal and vertical alignment "
+                 "must be set before calling PCB_TEXTBOX::GetDrawPos." ) );
+
+    if( horizontalAlignment == GR_TEXT_H_ALIGN_INDETERMINATE
+        || verticalAlignment == GR_TEXT_V_ALIGN_INDETERMINATE )
     {
-    case GR_TEXT_H_ALIGN_LEFT:
-        textAnchor = corners[0];
-        offset = VECTOR2I( GetMarginLeft(), GetMarginTop() );
-        break;
-    case GR_TEXT_H_ALIGN_CENTER:
-        textAnchor = ( corners[0] + corners[1] ) / 2;
-        offset = VECTOR2I( 0, GetMarginTop() );
-        break;
-    case GR_TEXT_H_ALIGN_RIGHT:
-        textAnchor = corners[1];
-        offset = VECTOR2I( -GetMarginRight(), GetMarginTop() );
-        break;
-    case GR_TEXT_H_ALIGN_INDETERMINATE:
-        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
-        break;
+        return center;
     }
+
+    if( horizontalAlignment == GR_TEXT_H_ALIGN_LEFT && verticalAlignment == GR_TEXT_V_ALIGN_TOP )
+    {
+        textAnchor = corners[0];
+    }
+    else if( horizontalAlignment == GR_TEXT_H_ALIGN_CENTER
+             && verticalAlignment == GR_TEXT_V_ALIGN_TOP )
+    {
+        textAnchor = midTop;
+    }
+    else if( horizontalAlignment == GR_TEXT_H_ALIGN_RIGHT
+             && verticalAlignment == GR_TEXT_V_ALIGN_TOP )
+    {
+        textAnchor = corners[1];
+    }
+    else if( horizontalAlignment == GR_TEXT_H_ALIGN_LEFT
+             && verticalAlignment == GR_TEXT_V_ALIGN_CENTER )
+    {
+        textAnchor = midLeft;
+    }
+    else if( horizontalAlignment == GR_TEXT_H_ALIGN_CENTER
+             && verticalAlignment == GR_TEXT_V_ALIGN_CENTER )
+    {
+        textAnchor = center;
+    }
+    else if( horizontalAlignment == GR_TEXT_H_ALIGN_RIGHT
+             && verticalAlignment == GR_TEXT_V_ALIGN_CENTER )
+    {
+        textAnchor = midRight;
+    }
+    else if( horizontalAlignment == GR_TEXT_H_ALIGN_LEFT
+             && verticalAlignment == GR_TEXT_V_ALIGN_BOTTOM )
+    {
+        textAnchor = corners[3];
+    }
+    else if( horizontalAlignment == GR_TEXT_H_ALIGN_CENTER
+             && verticalAlignment == GR_TEXT_V_ALIGN_BOTTOM )
+    {
+        textAnchor = midBottom;
+    }
+    else if( horizontalAlignment == GR_TEXT_H_ALIGN_RIGHT
+             && verticalAlignment == GR_TEXT_V_ALIGN_BOTTOM )
+    {
+        textAnchor = corners[2];
+    }
+
+    int marginLeft = GetMarginLeft();
+    int marginRight = GetMarginRight();
+    int marginTop = GetMarginTop();
+    int marginBottom = GetMarginBottom();
+
+    if( horizontalAlignment == GR_TEXT_H_ALIGN_LEFT )
+        offset.x = marginLeft;
+    else if( horizontalAlignment == GR_TEXT_H_ALIGN_RIGHT )
+        offset.x = -marginRight;
+
+    if( verticalAlignment == GR_TEXT_V_ALIGN_TOP )
+        offset.y = marginTop;
+    else if( verticalAlignment == GR_TEXT_V_ALIGN_BOTTOM )
+        offset.y = -marginBottom;
 
     RotatePoint( offset, GetDrawRotation() );
     return textAnchor + offset;
@@ -456,7 +440,8 @@ wxString PCB_TEXTBOX::GetShownText( bool aAllowExtraText, int aDepth ) const
     }
 
     KIFONT::FONT*         font = getDrawFont();
-    std::vector<VECTOR2I> corners = GetAnchorAndOppositeCorner();
+    EDA_ANGLE             drawAngle = GetDrawRotation();
+    std::vector<VECTOR2I> corners = GetCornersInSequence( drawAngle );
     int                   colWidth = ( corners[1] - corners[0] ).EuclideanNorm();
 
     if( GetTextAngle().IsHorizontal() )
@@ -513,18 +498,23 @@ void PCB_TEXTBOX::Move( const VECTOR2I& aMoveVector )
 void PCB_TEXTBOX::Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle )
 {
     PCB_SHAPE::Rotate( aRotCentre, aAngle );
-    EDA_TEXT::SetTextAngle( ( GetTextAngle() + aAngle ).Normalize90() );
+    EDA_TEXT::SetTextAngle( ( GetTextAngle() + aAngle ).Normalize() );
 
     if( GetTextAngle().IsCardinal() && GetShape() != SHAPE_T::RECTANGLE )
     {
-        std::vector<VECTOR2I> corners = GetCorners();
+        // To convert the polygon to its equivalent rectangle, we use GetCornersInSequence( drawAngle )
+        // but this method uses the polygon bounding box.
+        // set the line thickness to 0 to get the actual rectangle corner
+        int lineWidth = GetWidth();
+        SetWidth( 0 );
+        EDA_ANGLE             drawAngle = GetDrawRotation();
+        std::vector<VECTOR2I> corners = GetCornersInSequence( drawAngle );
+        SetWidth( lineWidth );
         VECTOR2I              diag = corners[2] - corners[0];
         EDA_ANGLE             angle = GetTextAngle();
 
         SetShape( SHAPE_T::RECTANGLE );
         SetStart( corners[0] );
-
-        angle.Normalize();
 
         if( angle == ANGLE_90 )
             SetEnd( VECTOR2I( corners[0].x + abs( diag.x ), corners[0].y - abs( diag.y ) ) );
@@ -816,7 +806,6 @@ static struct PCB_TEXTBOX_DESC
         propMgr.Mask( TYPE_HASH( PCB_TEXTBOX ), TYPE_HASH( EDA_SHAPE ), _HKI( "Line Width" ) );
         propMgr.Mask( TYPE_HASH( PCB_TEXTBOX ), TYPE_HASH( EDA_SHAPE ), _HKI( "Line Style" ) );
         propMgr.Mask( TYPE_HASH( PCB_TEXTBOX ), TYPE_HASH( EDA_SHAPE ), _HKI( "Filled" ) );
-        propMgr.Mask( TYPE_HASH( PCB_TEXTBOX ), TYPE_HASH( EDA_TEXT ), _HKI( "Visible" ) );
         propMgr.Mask( TYPE_HASH( PCB_TEXTBOX ), TYPE_HASH( EDA_TEXT ), _HKI( "Color" ) );
 
         const wxString borderProps = _( "Border Properties" );

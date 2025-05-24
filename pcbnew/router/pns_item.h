@@ -20,8 +20,8 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __PNS_ITEM_H
-#define __PNS_ITEM_H
+#ifndef PNS_ITEM_H
+#define PNS_ITEM_H
 
 #include <memory>
 #include <set>
@@ -119,6 +119,7 @@ public:
         m_movable = true;
         m_kind = aKind;
         m_parent = nullptr;
+        m_sourceItem = nullptr;
         m_owner = nullptr;
         m_marker = 0;
         m_rank = -1;
@@ -135,6 +136,7 @@ public:
         m_movable = aOther.m_movable;
         m_kind = aOther.m_kind;
         m_parent = aOther.m_parent;
+        m_sourceItem = aOther.m_sourceItem;
         m_owner = nullptr;
         m_marker = aOther.m_marker;
         m_rank = aOther.m_rank;
@@ -186,8 +188,18 @@ public:
      */
     std::string KindStr() const;
 
-    void SetParent( BOARD_ITEM* aParent ) { m_parent = aParent; }
+    void SetParent( BOARD_ITEM* aParent )
+    {
+        m_parent = aParent;
+
+        if( m_parent )
+            m_sourceItem = m_parent;
+    }
+
     BOARD_ITEM* Parent() const { return m_parent; }
+
+    void SetSourceItem( BOARD_ITEM* aSourceItem ) { m_sourceItem = aSourceItem; }
+    BOARD_ITEM* GetSourceItem() const { return m_sourceItem; }
 
     /**
      * @return the BOARD_ITEM, even if it's not the direct parent.
@@ -301,19 +313,23 @@ private:
                         COLLISION_SEARCH_CONTEXT* aCtx ) const;
 
 protected:
-    PnsKind       m_kind;
+    PnsKind         m_kind;
+    BOARD_ITEM*     m_parent;       // The parent BOARD_ITEM, used when there is a 1:1 map
+                                    //   between the PNS::ITEM and the BOARD_ITEM.
+    BOARD_ITEM*     m_sourceItem;   // The progenator BOARD_ITEM for when there is NOT a 1:1 map.
+                                    //   For instance, dragging a track might produce multiple
+                                    //   segments, none of which can be directly mapped to the
+                                    //   track.
+    PNS_LAYER_RANGE m_layers;
 
-    BOARD_ITEM*   m_parent;
-    PNS_LAYER_RANGE   m_layers;
-
-    bool          m_movable;
-    NET_HANDLE    m_net;
-    mutable int   m_marker;
-    int           m_rank;
-    bool          m_routable;
-    bool          m_isVirtual;
-    bool          m_isFreePad;
-    bool          m_isCompoundShapePrimitive;
+    bool            m_movable;
+    NET_HANDLE      m_net;
+    mutable int     m_marker;
+    int             m_rank;
+    bool            m_routable;
+    bool            m_isVirtual;
+    bool            m_isFreePad;
+    bool            m_isCompoundShapePrimitive;
 };
 
 template<typename T, typename S>
@@ -333,4 +349,4 @@ std::unique_ptr< typename std::remove_const<T>::type > Clone( const T& aItem )
 
 }
 
-#endif    // __PNS_ITEM_H
+#endif    // PNS_ITEM_H

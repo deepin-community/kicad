@@ -75,8 +75,7 @@ ZONE* TEARDROP_MANAGER::createTeardrop( TEARDROP_VARIANT aTeardropVariant,
     teardrop->SetZoneName( aTeardropVariant == TD_TYPE_PADVIA ? MAGIC_TEARDROP_PADVIA_NAME
                                                               : MAGIC_TEARDROP_TRACK_NAME );
     teardrop->SetIslandRemovalMode( ISLAND_REMOVAL_MODE::NEVER );
-    teardrop->SetBorderDisplayStyle( ZONE_BORDER_DISPLAY_STYLE::DIAGONAL_FULL,
-                                     pcbIUScale.mmToIU( 0.1 ), true );
+    teardrop->SetBorderDisplayStyle( ZONE_BORDER_DISPLAY_STYLE::INVISIBLE_BORDER, 0, false );
 
     SHAPE_POLY_SET* outline = teardrop->Outline();
     outline->NewOutline();
@@ -96,12 +95,47 @@ ZONE* TEARDROP_MANAGER::createTeardrop( TEARDROP_VARIANT aTeardropVariant,
 }
 
 
+ZONE* TEARDROP_MANAGER::createTeardropMask( TEARDROP_VARIANT aTeardropVariant,
+                                            std::vector<VECTOR2I>& aPoints, PCB_TRACK* aTrack ) const
+{
+    ZONE* teardrop = new ZONE( m_board );
+
+    teardrop->SetTeardropAreaType( aTeardropVariant == TD_TYPE_PADVIA ? TEARDROP_TYPE::TD_VIAPAD
+                                                                      : TEARDROP_TYPE::TD_TRACKEND );
+    teardrop->SetLayer( aTrack->GetLayer() == F_Cu ? F_Mask : B_Mask );
+    teardrop->SetMinThickness( pcbIUScale.mmToIU( 0.0254 ) );  // The minimum zone thickness
+    teardrop->SetIsFilled( false );
+    teardrop->SetIslandRemovalMode( ISLAND_REMOVAL_MODE::NEVER );
+    teardrop->SetBorderDisplayStyle( ZONE_BORDER_DISPLAY_STYLE::INVISIBLE_BORDER, 0, false );
+
+    SHAPE_POLY_SET* outline = teardrop->Outline();
+    outline->NewOutline();
+
+    for( const VECTOR2I& pt: aPoints )
+        outline->Append( pt.x, pt.y );
+
+    if( int expansion = aTrack->GetSolderMaskExpansion() )
+    {
+        teardrop->SetMinThickness( std::max( teardrop->GetMinThickness(), expansion ) );
+
+        outline->Inflate( expansion, CORNER_STRATEGY::CHAMFER_ALL_CORNERS,
+                          m_board->GetDesignSettings().m_MaxError );
+    }
+
+    // Until we know better (ie: pay for a potentially very expensive zone refill), the teardrop
+    // fill is the same as its outline.
+    teardrop->SetFilledPolysList( teardrop->GetLayer(), *teardrop->Outline() );
+    teardrop->SetIsFilled( true );
+
+    return teardrop;
+}
+
+
 void TEARDROP_MANAGER::RemoveTeardrops( BOARD_COMMIT& aCommit,
                                         const std::vector<BOARD_ITEM*>* dirtyPadsAndVias,
                                         const std::set<PCB_TRACK*>* dirtyTracks )
 {
     std::shared_ptr<CONNECTIVITY_DATA> connectivity = m_board->GetConnectivity();
-    std::vector<ZONE*>                 stale_teardrops;
 
     auto isStale =
             [&]( ZONE* zone )
@@ -135,14 +169,10 @@ void TEARDROP_MANAGER::RemoveTeardrops( BOARD_COMMIT& aCommit,
     for( ZONE* zone : m_board->Zones() )
     {
         if( zone->IsTeardropArea() && isStale( zone ) )
-            stale_teardrops.push_back( zone );
+            zone->SetFlags( STRUCT_DELETED );
     }
 
-    for( ZONE* td : stale_teardrops )
-    {
-        m_board->Remove( td, REMOVE_MODE::BULK );
-        aCommit.Removed( td );
-    }
+    m_board->BulkRemoveStaleTeardrops( aCommit );
 }
 
 
@@ -162,19 +192,13 @@ void TEARDROP_MANAGER::UpdateTeardrops( BOARD_COMMIT& aCommit,
     // Old teardrops must be removed, to ensure a clean teardrop rebuild
     if( aForceFullUpdate )
     {
-        std::vector<ZONE*> teardrops;
-
         for( ZONE* zone : m_board->Zones() )
         {
             if( zone->IsTeardropArea() )
-                teardrops.push_back( zone );
+                zone->SetFlags( STRUCT_DELETED );
         }
 
-        for( ZONE* td : teardrops )
-        {
-            m_board->Remove( td, REMOVE_MODE::BULK );
-            aCommit.Removed( td );
-        }
+        m_board->BulkRemoveStaleTeardrops( aCommit );
     }
 
     std::shared_ptr<CONNECTIVITY_DATA> connectivity = m_board->GetConnectivity();
@@ -230,6 +254,13 @@ void TEARDROP_MANAGER::UpdateTeardrops( BOARD_COMMIT& aCommit,
                 m_createdTdList.push_back( new_teardrop );
 
                 aCommit.Added( new_teardrop );
+
+                if( track->HasSolderMask() && ( track->GetLayer() == F_Cu || track->GetLayer() == B_Cu ) )
+                {
+                    ZONE* new_teardrop_mask = createTeardropMask( TD_TYPE_PADVIA, points, track );
+                    m_board->Add( new_teardrop_mask, ADD_MODE::BULK_INSERT );
+                    aCommit.Added( new_teardrop_mask );
+                }
             }
         }
 
@@ -266,6 +297,13 @@ void TEARDROP_MANAGER::UpdateTeardrops( BOARD_COMMIT& aCommit,
                 m_createdTdList.push_back( new_teardrop );
 
                 aCommit.Added( new_teardrop );
+
+                if( track->HasSolderMask() && ( track->GetLayer() == F_Cu || track->GetLayer() == B_Cu ) )
+                {
+                    ZONE* new_teardrop_mask = createTeardropMask( TD_TYPE_PADVIA, points, track );
+                    m_board->Add( new_teardrop_mask, ADD_MODE::BULK_INSERT );
+                    aCommit.Added( new_teardrop_mask );
+                }
             }
         }
     }
@@ -283,19 +321,13 @@ void TEARDROP_MANAGER::UpdateTeardrops( BOARD_COMMIT& aCommit,
 
 void TEARDROP_MANAGER::DeleteTrackToTrackTeardrops( BOARD_COMMIT& aCommit )
 {
-    std::vector<ZONE*> stale_teardrops;
-
     for( ZONE* zone : m_board->Zones() )
     {
         if( zone->IsTeardropArea() && zone->GetTeardropAreaType() == TEARDROP_TYPE::TD_TRACKEND )
-            stale_teardrops.push_back( zone );
+            zone->SetFlags( STRUCT_DELETED );
     }
 
-    for( ZONE* td : stale_teardrops )
-    {
-        m_board->Remove( td, REMOVE_MODE::BULK );
-        aCommit.Removed( td );
-    }
+    m_board->BulkRemoveStaleTeardrops( aCommit );
 }
 
 
@@ -447,6 +479,13 @@ void TEARDROP_MANAGER::AddTeardropsOnTracks( BOARD_COMMIT& aCommit,
                     m_createdTdList.push_back( new_teardrop );
 
                     aCommit.Added( new_teardrop );
+
+                    if( track->HasSolderMask() && ( track->GetLayer() == F_Cu || track->GetLayer() == B_Cu ) )
+                    {
+                        ZONE* new_teardrop_mask = createTeardropMask( TD_TYPE_TRACKEND, points, track );
+                        m_board->Add( new_teardrop_mask, ADD_MODE::BULK_INSERT );
+                        aCommit.Added( new_teardrop_mask );
+                    }
                 }
             }
         }

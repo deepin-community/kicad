@@ -30,18 +30,13 @@ class KICOMMON_API JOB_RC : public JOB
 public:
     JOB_RC( const std::string& aType );
 
-    wxString m_filename;
-
     enum class UNITS
     {
-        INCHES,
-        MILLIMETERS,
+        INCH,       // Do not use IN: it conflicts with a Windows header
+        MM,
         MILS
     };
 
-    UNITS m_units;
-
-    int m_severity;
 
     enum class OUTPUT_FORMAT
     {
@@ -49,7 +44,11 @@ public:
         JSON
     };
 
+public:
+    wxString      m_filename;
+    UNITS         m_units;
+    int           m_severity;
     OUTPUT_FORMAT m_format;
 
-    bool m_exitCodeViolations;
+    bool          m_exitCodeViolations;
 };

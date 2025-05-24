@@ -54,6 +54,7 @@ public:
 
     ///< Launch a tool to measure between points.
     int MeasureTool( const TOOL_EVENT& aEvent );
+    int ToggleHV45Mode( const TOOL_EVENT& aEvent );
 
     // Display modes
     int ShowPadNumbers( const TOOL_EVENT& aEvent );
@@ -78,6 +79,11 @@ public:
     void SetFootprintFrame( bool aIsFrame )
     {
         m_footprintFrame = aIsFrame;
+    }
+
+    void SetIsDefaultTool( bool aIsDefaultTool )
+    {
+        m_isDefaultTool = aIsDefaultTool;
     }
 
     bool IsFootprintFrame() const
@@ -116,7 +122,9 @@ protected:
         return board()->GetFirstFootprint();
     }
 
+protected:
     bool m_footprintFrame;  ///< Is this tool associated with a footprint frame
+    bool m_isDefaultTool;   ///< Indicates no selection tool is present in the current toolset
 };
 
 #endif

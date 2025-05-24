@@ -7,6 +7,8 @@
 
 = Getting Started in KiCad
 
+include::../version.adoc[]
+
 [[copyright]]
 *Copyright*
 
@@ -35,8 +37,15 @@ The KiCad project welcomes feedback, bug reports, and suggestions related to the
 documentation. For more information on how to submit feedback or report an issue, please see the
 instructions at https://www.kicad.org/help/report-an-issue/
 
+*Software and Documentation Version*
+
+This user manual is based on KiCad {kicad-version-long}. Functionality and
+appearance may be different in other versions of KiCad.
+
+Documentation revision: `{doc-commit}`.
+
 [[introduction-to-kicad]]
-== Introduction to KiCad Version 9
+== Introduction to KiCad {kicad-version-short}
 
 KiCad is an open-source software suite for creating electronic circuit schematics, printed
 circuit boards (PCBs), and associated part descriptions. KiCad supports an integrated design

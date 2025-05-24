@@ -21,7 +21,7 @@
 #pragma once
 
 #include <kicommon.h>
-#include <kicommon.h>
+#include <plotprint_opts.h>
 #include <layer_ids.h>
 #include <lseq.h>
 #include <wx/string.h>
@@ -41,6 +41,10 @@ public:
     };
 
     JOB_EXPORT_PCB_PLOT( PLOT_FORMAT aFormat, const std::string& aType, bool aOutputIsDirectory );
+
+public:
+    std::optional<wxString> m_argLayers;
+    std::optional<wxString> m_argCommonLayers;
 
     PLOT_FORMAT m_plotFormat;
 
@@ -63,19 +67,12 @@ public:
     bool m_plotFootprintValues;
     bool m_plotRefDes;
     bool m_plotDrawingSheet;
+    bool m_subtractSolderMaskFromSilk;
     bool m_plotPadNumbers;
-    bool m_plotInvisibleText;
 
-    LSEQ m_printMaskLayer;
+    LSEQ m_plotLayerSequence;
     ///< Layers to include on all individual layer prints
-    LSEQ m_printMaskLayersToIncludeOnAllLayers;
-
-    enum class DRILL_MARKS
-    {
-        NO_DRILL_SHAPE = 0,
-        SMALL_DRILL_SHAPE = 1,
-        FULL_DRILL_SHAPE = 2
-    };
+    LSEQ m_plotOnAllLayersSequence;
 
     ///< Used by SVG & PDF
     DRILL_MARKS m_drillShapeOption;

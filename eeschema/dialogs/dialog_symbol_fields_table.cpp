@@ -38,13 +38,13 @@
 #include <sch_commit.h>
 #include <sch_edit_frame.h>
 #include <sch_reference_list.h>
-#include <schematic.h>
 #include <tools/sch_editor_control.h>
 #include <kiplatform/ui.h>
 #include <widgets/grid_text_button_helpers.h>
 #include <widgets/bitmap_button.h>
 #include <widgets/std_bitmap_button.h>
 #include <widgets/wx_grid.h>
+#include <widgets/grid_checkbox.h>
 #include <wx/debug.h>
 #include <wx/ffile.h>
 #include <wx/grid.h>
@@ -78,13 +78,13 @@ enum
 class FIELDS_EDITOR_GRID_TRICKS : public GRID_TRICKS
 {
 public:
-    FIELDS_EDITOR_GRID_TRICKS( DIALOG_SHIM* aParent, WX_GRID* aGrid,
-                               wxDataViewListCtrl*            aFieldsCtrl,
-                               FIELDS_EDITOR_GRID_DATA_MODEL* aDataModel ) :
+    FIELDS_EDITOR_GRID_TRICKS( DIALOG_SHIM* aParent, WX_GRID* aGrid, wxDataViewListCtrl* aFieldsCtrl,
+                               FIELDS_EDITOR_GRID_DATA_MODEL* aDataModel, EMBEDDED_FILES* aFiles ) :
             GRID_TRICKS( aGrid ),
             m_dlg( aParent ),
             m_fieldsCtrl( aFieldsCtrl ),
-            m_dataModel( aDataModel )
+            m_dataModel( aDataModel ),
+            m_files( aFiles )
     {}
 
 protected:
@@ -113,8 +113,7 @@ protected:
             // pick a footprint using the footprint picker.
             wxString fpid = m_grid->GetCellValue( m_grid->GetGridCursorRow(), FOOTPRINT_FIELD );
 
-            if( KIWAY_PLAYER* frame = m_dlg->Kiway().Player( FRAME_FOOTPRINT_CHOOSER, true,
-                                                             m_dlg ) )
+            if( KIWAY_PLAYER* frame = m_dlg->Kiway().Player( FRAME_FOOTPRINT_CHOOSER, true, m_dlg ) )
             {
                 if( frame->ShowModal( &fpid, m_dlg ) )
                     m_grid->SetCellValue( m_grid->GetGridCursorRow(), FOOTPRINT_FIELD, fpid );
@@ -124,10 +123,9 @@ protected:
         }
         else if (event.GetId() == MYID_SHOW_DATASHEET )
         {
-            wxString datasheet_uri = m_grid->GetCellValue( m_grid->GetGridCursorRow(),
-                                                           DATASHEET_FIELD );
+            wxString datasheet_uri = m_grid->GetCellValue( m_grid->GetGridCursorRow(), DATASHEET_FIELD );
             GetAssociatedDocument( m_dlg, datasheet_uri, &m_dlg->Prj(),
-                                   PROJECT_SCH::SchSearchS( &m_dlg->Prj() ) );
+                                   PROJECT_SCH::SchSearchS( &m_dlg->Prj() ), { m_files } );
         }
         else
         {
@@ -164,9 +162,11 @@ protected:
         }
     }
 
-    DIALOG_SHIM*        m_dlg;
-    wxDataViewListCtrl* m_fieldsCtrl;
+private:
+    DIALOG_SHIM*                   m_dlg;
+    wxDataViewListCtrl*            m_fieldsCtrl;
     FIELDS_EDITOR_GRID_DATA_MODEL* m_dataModel;
+    EMBEDDED_FILES*                m_files;
 };
 
 
@@ -197,11 +197,17 @@ DIALOG_SYMBOL_FIELDS_TABLE::DIALOG_SYMBOL_FIELDS_TABLE( SCH_EDIT_FRAME* parent,
     m_labelBomExportPresets->SetFont( KIUI::GetInfoFont( this ) );
 
     m_fieldsCtrl->AppendTextColumn( _( "Field" ), wxDATAVIEW_CELL_INERT, 0, wxALIGN_LEFT, 0 );
-    m_fieldsCtrl->AppendTextColumn( _( "Label" ), wxDATAVIEW_CELL_EDITABLE, 0, wxALIGN_LEFT, 0 );
-    m_fieldsCtrl->AppendToggleColumn( _( "Show" ), wxDATAVIEW_CELL_ACTIVATABLE, 0,
-                                      wxALIGN_CENTER, 0 );
-    m_fieldsCtrl->AppendToggleColumn( _( "Group By" ), wxDATAVIEW_CELL_ACTIVATABLE, 0,
-                                      wxALIGN_CENTER, 0 );
+    m_fieldsCtrl->AppendTextColumn( _( "Column Label" ), wxDATAVIEW_CELL_EDITABLE, 0, wxALIGN_LEFT, 0 );
+
+    // The two next columns look better when on 2 lines
+    // Unfortunately this is not handled on WXMSW
+    #ifdef __WXMSW__
+    m_fieldsCtrl->AppendToggleColumn( _( "Show Column" ), wxDATAVIEW_CELL_ACTIVATABLE, 0, wxALIGN_CENTER, 0 );
+    m_fieldsCtrl->AppendToggleColumn( _( "Group By" ), wxDATAVIEW_CELL_ACTIVATABLE, 0, wxALIGN_CENTER, 0 );
+    #else
+    m_fieldsCtrl->AppendToggleColumn( _( "Show\nColumn" ), wxDATAVIEW_CELL_ACTIVATABLE, 0, wxALIGN_CENTER, 0 );
+    m_fieldsCtrl->AppendToggleColumn( _( "Group\nBy" ), wxDATAVIEW_CELL_ACTIVATABLE, 0, wxALIGN_CENTER, 0 );
+    #endif
 
     // GTK asserts if the number of columns doesn't match the data, but we still don't want
     // to display the canonical names.  So we'll insert a column for them, but keep it 0 width.
@@ -210,11 +216,23 @@ DIALOG_SYMBOL_FIELDS_TABLE::DIALOG_SYMBOL_FIELDS_TABLE( SCH_EDIT_FRAME* parent,
     // SetWidth( wxCOL_WIDTH_AUTOSIZE ) fails here on GTK, so we calculate the title sizes and
     // set the column widths ourselves.
     wxDataViewColumn* column = m_fieldsCtrl->GetColumn( SHOW_FIELD_COLUMN );
-    m_showColWidth = KIUI::GetTextSize( column->GetTitle(), m_fieldsCtrl ).x + COLUMN_MARGIN;
+    #ifdef __WXMSW__
+    m_showColWidth = KIUI::GetTextSize( column->GetTitle(), m_fieldsCtrl ).x,
+    #else
+    m_showColWidth = std::max( KIUI::GetTextSize( column->GetTitle().Before( '\n' ), m_fieldsCtrl ).x,
+                               KIUI::GetTextSize( column->GetTitle().After( '\n' ), m_fieldsCtrl ).x );
+    #endif
+    m_showColWidth += COLUMN_MARGIN;
     column->SetMinWidth( m_showColWidth );
 
     column = m_fieldsCtrl->GetColumn( GROUP_BY_COLUMN );
-    m_groupByColWidth = KIUI::GetTextSize( column->GetTitle(), m_fieldsCtrl ).x + COLUMN_MARGIN;
+    #ifdef __WXMSW__
+    m_groupByColWidth = KIUI::GetTextSize( column->GetTitle(), m_fieldsCtrl ).x,
+    #else
+    m_groupByColWidth = std::max( KIUI::GetTextSize( column->GetTitle().Before( '\n' ), m_fieldsCtrl ).x,
+                                  KIUI::GetTextSize( column->GetTitle().After( '\n' ), m_fieldsCtrl ).x );
+    #endif
+    m_groupByColWidth += COLUMN_MARGIN;
     column->SetMinWidth( m_groupByColWidth );
 
     // The fact that we're a list should keep the control from reserving space for the
@@ -222,7 +240,11 @@ DIALOG_SYMBOL_FIELDS_TABLE::DIALOG_SYMBOL_FIELDS_TABLE( SCH_EDIT_FRAME* parent,
     m_fieldsCtrl->SetIndent( 0 );
 
     m_filter->SetDescriptiveText( _( "Filter" ) );
-    m_dataModel = new FIELDS_EDITOR_GRID_DATA_MODEL( m_symbolsList );
+
+    wxGridCellAttr* attr = new wxGridCellAttr;
+    attr->SetEditor( new GRID_CELL_URL_EDITOR( this, PROJECT_SCH::SchSearchS( &Prj() ),
+                                               { &m_parent->Schematic() } ) );
+    m_dataModel = new FIELDS_EDITOR_GRID_DATA_MODEL( m_symbolsList, attr );
 
     LoadFieldNames();   // loads rows into m_fieldsCtrl and columns into m_dataModel
 
@@ -231,21 +253,18 @@ DIALOG_SYMBOL_FIELDS_TABLE::DIALOG_SYMBOL_FIELDS_TABLE( SCH_EDIT_FRAME* parent,
     m_fieldNameColWidth = 0;
     m_labelColWidth = 0;
 
-    int colWidth = 0;
-
     for( int row = 0; row < m_fieldsCtrl->GetItemCount(); ++row )
     {
         const wxString& displayName = m_fieldsCtrl->GetTextValue( row, DISPLAY_NAME_COLUMN );
-        colWidth = std::max( colWidth, KIUI::GetTextSize( displayName, m_fieldsCtrl ).x );
+        m_fieldNameColWidth = std::max( m_fieldNameColWidth, KIUI::GetTextSize( displayName, m_fieldsCtrl ).x );
 
         const wxString& label = m_fieldsCtrl->GetTextValue( row, LABEL_COLUMN );
-        colWidth = std::max( colWidth, KIUI::GetTextSize( label, m_fieldsCtrl ).x );
+        m_labelColWidth = std::max( m_labelColWidth, KIUI::GetTextSize( label, m_fieldsCtrl ).x );
     }
 
-    m_fieldNameColWidth = colWidth + 20;
-    m_labelColWidth = colWidth + 20;
+    int colWidth = std::max( m_fieldNameColWidth, m_labelColWidth ) + 30;
 
-    int fieldsMinWidth = m_fieldNameColWidth + m_labelColWidth + m_groupByColWidth + m_showColWidth;
+    int fieldsMinWidth = colWidth + colWidth + m_groupByColWidth + m_showColWidth;
 
     m_fieldsCtrl->GetColumn( DISPLAY_NAME_COLUMN )->SetWidth( m_fieldNameColWidth );
     m_fieldsCtrl->GetColumn( LABEL_COLUMN )->SetWidth( m_labelColWidth );
@@ -264,7 +283,7 @@ DIALOG_SYMBOL_FIELDS_TABLE::DIALOG_SYMBOL_FIELDS_TABLE( SCH_EDIT_FRAME* parent,
 
     // add Cut, Copy, and Paste to wxGrid
     m_grid->PushEventHandler( new FIELDS_EDITOR_GRID_TRICKS( this, m_grid, m_fieldsCtrl,
-                                                             m_dataModel ) );
+                                                             m_dataModel, &m_parent->Schematic() ) );
 
     // give a bit more room for comboboxes
     m_grid->SetDefaultRowSize( m_grid->GetDefaultRowSize() + 4 );
@@ -295,14 +314,12 @@ DIALOG_SYMBOL_FIELDS_TABLE::DIALOG_SYMBOL_FIELDS_TABLE( SCH_EDIT_FRAME* parent,
             BOM_FIELD field;
             field.name = fieldName;
             field.show = !fieldName.StartsWith( wxT( "__" ), &field.name );
-            field.groupBy = std::find( m_job->m_fieldsGroupBy.begin(), m_job->m_fieldsGroupBy.end(),
-                                       field.name )
-                            != m_job->m_fieldsGroupBy.end();
+            field.groupBy = alg::contains( m_job->m_fieldsGroupBy, field.name );
 
             if( ( m_job->m_fieldsLabels.size() > i ) && !m_job->m_fieldsLabels[i].IsEmpty() )
                 field.label = m_job->m_fieldsLabels[i];
-            else if( IsTextVar( field.name ) )
-                field.label = GetTextVars( field.name );
+            else if( IsGeneratedField( field.name ) )
+                field.label = GetGeneratedFieldDisplayName( field.name );
             else
                 field.label = field.name;
 
@@ -414,43 +431,43 @@ void DIALOG_SYMBOL_FIELDS_TABLE::SetupColumnProperties( int aCol )
     if( m_dataModel->ColIsReference( aCol ) )
     {
         attr->SetReadOnly();
-        m_grid->SetColAttr( aCol, attr );
+        m_dataModel->SetColAttr( attr, aCol );
     }
     else if( m_dataModel->GetColFieldName( aCol ) == GetCanonicalFieldName( FOOTPRINT_FIELD ) )
     {
         attr->SetEditor( new GRID_CELL_FPID_EDITOR( this, wxEmptyString ) );
-        m_grid->SetColAttr( aCol, attr );
+        m_dataModel->SetColAttr( attr, aCol );
     }
     else if( m_dataModel->GetColFieldName( aCol ) == GetCanonicalFieldName( DATASHEET_FIELD ) )
     {
         // set datasheet column viewer button
         attr->SetEditor( new GRID_CELL_URL_EDITOR( this, PROJECT_SCH::SchSearchS( &Prj() ),
-                                                   &m_parent->Schematic() ) );
-        m_grid->SetColAttr( aCol, attr );
+                                                   { &m_parent->Schematic() } ) );
+        m_dataModel->SetColAttr( attr, aCol );
     }
     else if( m_dataModel->ColIsQuantity( aCol ) || m_dataModel->ColIsItemNumber( aCol ) )
     {
         attr->SetReadOnly();
-        m_grid->SetColAttr( aCol, attr );
         attr->SetAlignment( wxALIGN_RIGHT, wxALIGN_CENTER );
         attr->SetRenderer( new wxGridCellNumberRenderer() );
+        m_dataModel->SetColAttr( attr, aCol );
     }
     else if( m_dataModel->ColIsAttribute( aCol ) )
     {
         attr->SetAlignment( wxALIGN_CENTER, wxALIGN_CENTER );
-        attr->SetRenderer( new wxGridCellBoolRenderer() );
+        attr->SetRenderer( new GRID_CELL_CHECKBOX_RENDERER() );
         attr->SetReadOnly();    // not really; we delegate interactivity to GRID_TRICKS
-        m_grid->SetColAttr( aCol, attr );
+        m_dataModel->SetColAttr( attr, aCol );
     }
-    else if( IsTextVar( m_dataModel->GetColFieldName( aCol ) ) )
+    else if( IsGeneratedField( m_dataModel->GetColFieldName( aCol ) ) )
     {
         attr->SetReadOnly();
-        m_grid->SetColAttr( aCol, attr );
+        m_dataModel->SetColAttr( attr, aCol );
     }
     else
     {
         attr->SetEditor( m_grid->GetDefaultEditor() );
-        m_grid->SetColAttr( aCol, attr );
+        m_dataModel->SetColAttr( attr, aCol );
     }
 }
 
@@ -540,10 +557,10 @@ bool DIALOG_SYMBOL_FIELDS_TABLE::TransferDataToWindow()
     if( !wxDialog::TransferDataFromWindow() )
         return false;
 
-    TOOL_MANAGER*      toolMgr = m_parent->GetToolManager();
-    EE_SELECTION_TOOL* selectionTool = toolMgr->GetTool<EE_SELECTION_TOOL>();
-    EE_SELECTION&      selection = selectionTool->GetSelection();
-    SCH_SYMBOL*        symbol = nullptr;
+    TOOL_MANAGER*       toolMgr = m_parent->GetToolManager();
+    SCH_SELECTION_TOOL* selectionTool = toolMgr->GetTool<SCH_SELECTION_TOOL>();
+    SCH_SELECTION&      selection = selectionTool->GetSelection();
+    SCH_SYMBOL*         symbol = nullptr;
 
     UpdateScope();
 
@@ -628,13 +645,7 @@ bool DIALOG_SYMBOL_FIELDS_TABLE::TransferDataFromWindow()
     SCH_COMMIT     commit( m_parent );
     SCH_SHEET_PATH currentSheet = m_parent->GetCurrentSheet();
 
-    std::function<void( SCH_SYMBOL&, SCH_SHEET_PATH & aPath )> changeHandler =
-            [&commit]( SCH_SYMBOL& aSymbol, SCH_SHEET_PATH& aPath ) -> void
-            {
-                commit.Modify( &aSymbol, aPath.LastScreen() );
-            };
-
-    m_dataModel->ApplyData( changeHandler );
+    m_dataModel->ApplyData( commit, m_schSettings.m_TemplateFieldNames );
 
     commit.Push( wxS( "Symbol Fields Table Edit" ) );
 
@@ -714,7 +725,7 @@ void DIALOG_SYMBOL_FIELDS_TABLE::LoadFieldNames()
     }
 
     for( const wxString& fieldName : userFieldNames )
-        AddField( fieldName, GetTextVars( fieldName ), true, false );
+        AddField( fieldName, GetGeneratedFieldDisplayName( fieldName ), true, false );
 
     // Add any templateFieldNames which aren't already present in the userFieldNames
     for( const TEMPLATE_FIELDNAME& templateFieldname :
@@ -722,8 +733,8 @@ void DIALOG_SYMBOL_FIELDS_TABLE::LoadFieldNames()
     {
         if( userFieldNames.count( templateFieldname.m_Name ) == 0 )
         {
-            AddField( templateFieldname.m_Name, GetTextVars( templateFieldname.m_Name ), false,
-                      false );
+            AddField( templateFieldname.m_Name, GetGeneratedFieldDisplayName( templateFieldname.m_Name ),
+                      false, false );
         }
     }
 }
@@ -754,7 +765,7 @@ void DIALOG_SYMBOL_FIELDS_TABLE::OnAddField( wxCommandEvent& event )
         }
     }
 
-    AddField( fieldName, GetTextVars( fieldName ), true, false, true );
+    AddField( fieldName, GetGeneratedFieldDisplayName( fieldName ), true, false, true );
 
     SetupColumnProperties( m_dataModel->GetColsCount() - 1 );
 
@@ -1048,6 +1059,11 @@ void DIALOG_SYMBOL_FIELDS_TABLE::OnColMove( wxGridEvent& aEvent )
             {
                 int newPos = m_grid->GetColPos( origPos );
 
+#ifdef __WXMAC__
+                if( newPos < origPos )
+                    newPos += 1;
+#endif
+
                 m_dataModel->MoveColumn( origPos, newPos );
 
                 // "Unmove" the column since we've moved the column internally
@@ -1189,8 +1205,7 @@ void DIALOG_SYMBOL_FIELDS_TABLE::OnTableRangeSelected( wxGridRangeSelectEvent& a
     }
     else if( m_radioSelect->GetValue() )
     {
-        EE_SELECTION_TOOL* selTool = m_parent->GetToolManager()->GetTool<EE_SELECTION_TOOL>();
-
+        SCH_SELECTION_TOOL*    selTool = m_parent->GetToolManager()->GetTool<SCH_SELECTION_TOOL>();
         std::vector<SCH_ITEM*> items( symbols.begin(), symbols.end() );
 
         if( refs.size() > 0 )
@@ -1925,7 +1940,7 @@ void DIALOG_SYMBOL_FIELDS_TABLE::doApplyBomPreset( const BOM_PRESET& aPreset )
 
         // Properties like label, etc. will be added in the next loop
         if( !found )
-            AddField( fieldName, GetTextVars( fieldName ), false, false );
+            AddField( fieldName, GetGeneratedFieldDisplayName( fieldName ), false, false );
     }
 
     // Sync all fields

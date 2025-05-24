@@ -72,6 +72,7 @@ set( KICOMMON_SRCS
     jobs/job_export_pcb_gerber.cpp
     jobs/job_export_pcb_gerbers.cpp
     jobs/job_export_pcb_ipc2581.cpp
+    jobs/job_export_pcb_ipcd356.cpp
     jobs/job_export_pcb_odb.cpp
     jobs/job_export_pcb_pdf.cpp
     jobs/job_export_pcb_plot.cpp
@@ -431,6 +432,7 @@ set( COMMON_WIDGET_SRCS
     widgets/gal_options_panel_base.cpp
     widgets/grid_bitmap_toggle.cpp
     widgets/grid_button.cpp
+    widgets/grid_checkbox.cpp
     widgets/grid_color_swatch_helpers.cpp
     widgets/grid_combobox.cpp
     widgets/grid_icon_text_helpers.cpp
@@ -810,7 +812,6 @@ set( PCB_COMMON_SRCS
     ${CMAKE_SOURCE_DIR}/pcbnew/netlist_reader/kicad_netlist_reader.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/netlist_reader/legacy_netlist_reader.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/netlist_reader/netlist_reader.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/pad_custom_shape_functions.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_draw_panel_gal.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/netlist_reader/pcb_netlist.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_origin_transforms.cpp

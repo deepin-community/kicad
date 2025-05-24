@@ -12,18 +12,18 @@ image::images/eeschema_print.png[Print dialog]
 ==== Printing options
 
 * **Print drawing sheet:** Include the drawing sheet border and
-title block in the printed schematic.
+  title block in the printed schematic.
 
 * **Output mode:** Print the schematic in color or black and white.
 
 * **Print background color:** Include the background color in the printed
-schematic. This option is only enabled when printing in color.
+  schematic. This option is only enabled when printing in color.
 
 * **Use a different color theme for printing:** Select a different color scheme
-for printing than the one selected for display in the Schematic Editor.
+  for printing than the one selected for display in the Schematic Editor.
 
 * **Page Setup...:** Opens a page setup dialog for setting paper size and
-orientation.
+  orientation.
 
 * **Close:** Closes the dialog without printing.
 
@@ -103,7 +103,7 @@ as a separate page in a single PDF file.
   defined them. This option only applies for PDF output.
 
 * **Open file after plot:** automatically opens the plotted output file when
-plotting is complete.
+  plotting is complete.
 
 [[interactive-pdf-features]]
 ==== Interactive PDF features
@@ -330,7 +330,7 @@ the operating system and may vary based on installation location.
 [options="header",cols="30%,70%"]
 |===
 |Operating System |Location
-|Windows |`C:\Program Files\KiCad\8.0\bin\scripting\plugins\`
+|Windows |`C:\Program Files\KiCad\9.0\bin\scripting\plugins\`
 |Linux |`/usr/share/kicad/plugins/`
 |macOS |`/Applications/KiCad/KiCad.app/Contents/SharedSupport/plugins/`
 |===

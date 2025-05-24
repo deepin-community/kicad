@@ -72,7 +72,11 @@ public:
 
     bool IsMandatory() const;
 
+    bool IsHypertext() const;
+
     wxString GetTextTypeDescription() const override;
+
+    bool Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const override;
 
     wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 

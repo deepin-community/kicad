@@ -31,6 +31,8 @@
 #include <pcb_shape.h>
 #include <pcb_generator.h>
 #include <pcb_text.h>
+#include <pcb_table.h>
+#include <pcb_tablecell.h>
 #include <board_commit.h>
 #include <layer_ids.h>
 #include <kidialog.h>
@@ -1430,24 +1432,32 @@ bool PNS_KICAD_IFACE_BASE::syncZone( PNS::NODE* aWorld, ZONE* aZone, SHAPE_POLY_
 }
 
 
-bool PNS_KICAD_IFACE_BASE::syncTextItem( PNS::NODE* aWorld, PCB_TEXT* aText, PCB_LAYER_ID aLayer )
+bool PNS_KICAD_IFACE_BASE::syncTextItem( PNS::NODE* aWorld, BOARD_ITEM* aItem, PCB_LAYER_ID aLayer )
 {
-    if( !IsKicadCopperLayer( aLayer ) || !aText->IsVisible() )
+    if( !IsKicadCopperLayer( aLayer ) )
         return false;
+
+    if( ( aItem->Type() == PCB_FIELD_T || aItem->Type() == PCB_TEXT_T )
+             && !static_cast<PCB_TEXT*>( aItem )->IsVisible() )
+    {
+        return false;
+    }
 
     std::unique_ptr<PNS::SOLID> solid = std::make_unique<PNS::SOLID>();
     SHAPE_SIMPLE*               shape = new SHAPE_SIMPLE;
 
     solid->SetLayer( GetPNSLayerFromBoardLayer( aLayer ) );
     solid->SetNet( nullptr );
-    solid->SetParent( aText );
+    solid->SetParent( aItem );
     solid->SetShape( shape );   // takes ownership
     solid->SetRoutable( false );
 
     SHAPE_POLY_SET cornerBuffer;
 
-    aText->TransformShapeToPolygon( cornerBuffer, aText->GetLayer(), 0,
+    aItem->TransformShapeToPolygon( cornerBuffer, aItem->GetLayer(), 0,
                                     m_board->GetDesignSettings().m_MaxError, ERROR_OUTSIDE );
+
+    cornerBuffer.Simplify();
 
     if( !cornerBuffer.OutlineCount() )
         return false;
@@ -1481,6 +1491,7 @@ bool PNS_KICAD_IFACE_BASE::syncGraphicalItem( PNS::NODE* aWorld, PCB_SHAPE* aIte
             else
             {
                 solid->SetLayer( GetPNSLayerFromBoardLayer( aItem->GetLayer() ) );
+                solid->SetRoutable( aItem->Type() != PCB_TABLECELL_T );
             }
 
             if( aItem->GetLayer() == Edge_Cuts )
@@ -1677,6 +1688,10 @@ void PNS_KICAD_IFACE_BASE::SyncWorld( PNS::NODE *aWorld )
         {
             syncTextItem( aWorld, static_cast<PCB_TEXT*>( gitem ), gitem->GetLayer() );
         }
+        else if( gitem->Type() == PCB_TABLE_T )
+        {
+            syncTextItem( aWorld, static_cast<PCB_TABLE*>( gitem ), gitem->GetLayer() );
+        }
     }
 
     SHAPE_POLY_SET  buffer;
@@ -1730,6 +1745,10 @@ void PNS_KICAD_IFACE_BASE::SyncWorld( PNS::NODE *aWorld )
             else if( item->Type() == PCB_TEXT_T )
             {
                 syncTextItem( aWorld, static_cast<PCB_TEXT*>( item ), item->GetLayer() );
+            }
+            else if( item->Type() == PCB_TABLE_T )
+            {
+                syncTextItem( aWorld, static_cast<PCB_TABLE*>( item ), item->GetLayer() );
             }
         }
     }
@@ -2062,6 +2081,14 @@ BOARD_CONNECTED_ITEM* PNS_KICAD_IFACE::createBoardItem( PNS::ITEM* aItem )
         new_arc->SetWidth( arc->Width() );
         new_arc->SetLayer( GetBoardLayerFromPNSLayer( arc->Layers().Start() ) );
         new_arc->SetNet( net );
+
+        if( aItem->GetSourceItem() && aItem->GetSourceItem()->IsType( { PCB_TRACE_T, PCB_ARC_T } ) )
+        {
+            PCB_TRACK* sourceTrack = static_cast<PCB_TRACK*>( aItem->GetSourceItem() );
+            new_arc->SetHasSolderMask( sourceTrack->HasSolderMask() );
+            new_arc->SetLocalSolderMaskMargin( sourceTrack->GetLocalSolderMaskMargin() );
+        }
+
         newBoardItem = new_arc;
         break;
     }
@@ -2076,6 +2103,14 @@ BOARD_CONNECTED_ITEM* PNS_KICAD_IFACE::createBoardItem( PNS::ITEM* aItem )
         track->SetWidth( seg->Width() );
         track->SetLayer( GetBoardLayerFromPNSLayer( seg->Layers().Start() ) );
         track->SetNet( net );
+
+        if( aItem->GetSourceItem() && aItem->GetSourceItem()->IsType( { PCB_TRACE_T, PCB_ARC_T } ) )
+        {
+            PCB_TRACK* sourceTrack = static_cast<PCB_TRACK*>( aItem->GetSourceItem() );
+            track->SetHasSolderMask( sourceTrack->HasSolderMask() );
+            track->SetLocalSolderMaskMargin( sourceTrack->GetLocalSolderMaskMargin() );
+        }
+
         newBoardItem = track;
         break;
     }
@@ -2092,6 +2127,14 @@ BOARD_CONNECTED_ITEM* PNS_KICAD_IFACE::createBoardItem( PNS::ITEM* aItem )
         via_board->SetIsFree( via->IsFree() );
         via_board->SetLayerPair( GetBoardLayerFromPNSLayer( via->Layers().Start() ),
                                  GetBoardLayerFromPNSLayer( via->Layers().End() ) );
+
+        if( aItem->GetSourceItem() && aItem->GetSourceItem()->Type() == PCB_VIA_T )
+        {
+            PCB_VIA* sourceVia = static_cast<PCB_VIA*>( aItem->GetSourceItem() );
+            via_board->SetFrontTentingMode( sourceVia->GetFrontTentingMode() );
+            via_board->SetBackTentingMode( sourceVia->GetBackTentingMode() );
+        }
+
         newBoardItem = via_board;
         break;
     }

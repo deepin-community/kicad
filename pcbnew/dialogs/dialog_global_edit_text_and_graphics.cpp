@@ -67,10 +67,10 @@ enum
 
 static bool       g_modifyReferences;
 static bool       g_modifyValues;
-static bool       g_modifyFootprintFields;
+static bool       g_modifyOtherFootprintFields;
 static bool       g_modifyFootprintGraphics;
 static bool       g_modifyFootprintDimensions;
-static bool       g_modifyOtherFootprintTexts;
+static bool       g_modifyFootprintTexts;
 static bool       g_modifyBoardText;
 static bool       g_modifyBoardGraphics;
 static bool       g_filterByLayer;
@@ -138,12 +138,13 @@ DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS( PCB_
 
     if( !m_isBoardEditor )
     {
-        m_otherFootprintTexts->SetLabel( _( "Other footprint text items" ) );
+        m_footprintTexts->SetLabel( _( "Text items" ) );
         m_footprintGraphics->SetLabel( _( "Graphic items" ) );
         m_footprintDimensions->SetLabel( _( "Dimension items" ) );
 
         m_boardText->Show( false );
         m_boardGraphics->Show( false );
+        m_boardDimensions->Show( false );
 
         m_referenceFilterOpt->Show( false );
         m_referenceFilter->Show( false );
@@ -162,6 +163,7 @@ DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS( PCB_
 
     m_grid->SetCellHighlightPenWidth( 0 );
     m_grid->SetDefaultCellFont( KIUI::GetInfoFont( this ) );
+    m_grid->SetDefaultRowSize( m_grid->GetDefaultRowSize() - FromDIP( 2 ) );
 
     if( g_setToSpecifiedValues == true )
         m_setToSpecifiedValues->SetValue( true );
@@ -179,10 +181,10 @@ DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::~DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS()
 {
     g_modifyReferences = m_references->GetValue();
     g_modifyValues = m_values->GetValue();
-    g_modifyFootprintFields = m_footprintFields->GetValue();
+    g_modifyOtherFootprintFields = m_otherFootprintFields->GetValue();
     g_modifyFootprintGraphics = m_footprintGraphics->GetValue();
     g_modifyFootprintDimensions = m_footprintDimensions->GetValue();
-    g_modifyOtherFootprintTexts = m_otherFootprintTexts->GetValue();
+    g_modifyFootprintTexts = m_footprintTexts->GetValue();
 
     if( m_isBoardEditor )
     {
@@ -213,10 +215,10 @@ bool DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::TransferDataToWindow()
 
     m_references->SetValue( g_modifyReferences );
     m_values->SetValue( g_modifyValues );
-    m_footprintFields->SetValue( g_modifyFootprintFields );
+    m_otherFootprintFields->SetValue( g_modifyOtherFootprintFields );
     m_footprintGraphics->SetValue( g_modifyFootprintGraphics );
     m_footprintDimensions->SetValue( g_modifyFootprintDimensions );
-    m_otherFootprintTexts->SetValue( g_modifyOtherFootprintTexts );
+    m_footprintTexts->SetValue( g_modifyFootprintTexts );
 
     if( m_isBoardEditor )
     {
@@ -308,7 +310,7 @@ bool DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::TransferDataToWindow()
     SET_BOOL_VALUE(  ROW_FAB,    COL_TEXT_ITALIC, bds.m_TextItalic[ LAYER_CLASS_FAB ] );
     SET_BOOL_VALUE(  ROW_OTHERS, COL_TEXT_ITALIC, bds.m_TextItalic[ LAYER_CLASS_OTHERS ] );
 
-    m_grid->SetCellValue(  ROW_HEADER, COL_TEXT_UPRIGHT, _( "Upright" ) );
+    m_grid->SetCellValue(  ROW_HEADER, COL_TEXT_UPRIGHT, _( "Keep Upright" ) );
     SET_BOOL_VALUE(  ROW_SILK,   COL_TEXT_UPRIGHT, bds.m_TextUpright[ LAYER_CLASS_SILK ] );
     SET_BOOL_VALUE(  ROW_COPPER, COL_TEXT_UPRIGHT, bds.m_TextUpright[ LAYER_CLASS_COPPER ] );
     SET_BOOL_VALUE(  ROW_FAB,    COL_TEXT_UPRIGHT, bds.m_TextUpright[ LAYER_CLASS_FAB ] );
@@ -364,6 +366,7 @@ void DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::processItem( BOARD_COMMIT& aCommit, B
 {
     aCommit.Modify( aItem );
 
+    PCB_FIELD*          field = dynamic_cast<PCB_FIELD*>( aItem );
     PCB_TEXT*           text = dynamic_cast<PCB_TEXT*>( aItem );
     PCB_SHAPE*          shape = dynamic_cast<PCB_SHAPE*>( aItem );
     PCB_DIMENSION_BASE* dimension = dynamic_cast<PCB_DIMENSION_BASE*>( aItem );
@@ -412,15 +415,18 @@ void DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::processItem( BOARD_COMMIT& aCommit, B
 
             if( parentFP )
             {
-                if( m_visible->Get3StateValue() != wxCHK_UNDETERMINED )
-                    text->SetVisible( m_visible->GetValue() );
-
                 if( m_keepUpright->Get3StateValue() != wxCHK_UNDETERMINED )
                     text->SetKeepUpright( m_keepUpright->GetValue() );
 
                 if( m_centerOnFP->GetValue() == wxCHK_CHECKED )
                     text->SetTextPos( text->GetParent()->GetCenter() );
             }
+        }
+
+        if( field )
+        {
+            if( m_visible->Get3StateValue() != wxCHK_UNDETERMINED )
+                field->SetVisible( m_visible->GetValue() );
         }
 
         if( !m_lineWidth.IsIndeterminate() )
@@ -549,18 +555,20 @@ bool DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::TransferDataFromWindow()
         if( m_values->GetValue() )
             visitItem( commit, &fp->Value() );
 
-        if( m_footprintFields->GetValue() )
+        for( PCB_FIELD* field : fp->GetFields() )
         {
-            for( PCB_FIELD* field : fp->GetFields() )
-            {
-                if( field->IsReference() )
-                    continue;
+            if( field->IsReference() )
+                continue;
 
-                if( field->IsValue() )
-                    continue;
+            if( field->IsValue() )
+                continue;
 
+            if( m_otherFootprintFields->GetValue() )
                 visitItem( commit, field );
-            }
+            else if( m_references->GetValue() && field->GetText() == wxT( "${REFERENCE}" ) )
+                visitItem( commit, field );
+            else if( m_values->GetValue() && field->GetText() == wxT( "${VALUE}" ) )
+                visitItem( commit, field );
         }
 
         // Go through all other footprint items
@@ -570,7 +578,13 @@ bool DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::TransferDataFromWindow()
 
             if( itemType == PCB_TEXT_T || itemType == PCB_TEXTBOX_T )
             {
-                if( m_otherFootprintTexts->GetValue() )
+                EDA_TEXT* textItem = dynamic_cast<EDA_TEXT*>( boardItem );
+
+                if( m_footprintTexts->GetValue() )
+                    visitItem( commit, boardItem );
+                else if( m_references->GetValue() && textItem->GetText() == wxT( "${REFERENCE}" ) )
+                    visitItem( commit, boardItem );
+                else if( m_values->GetValue() && textItem->GetText() == wxT( "${VALUE}" ) )
                     visitItem( commit, boardItem );
             }
             else if( BaseType( itemType ) == PCB_DIMENSION_T )
@@ -603,7 +617,7 @@ bool DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::TransferDataFromWindow()
                 if( m_boardDimensions->GetValue() )
                     visitItem( commit, boardItem );
             }
-            else if( itemType == PCB_SHAPE_T || BaseType( itemType ) == PCB_DIMENSION_T )
+            else if( itemType == PCB_SHAPE_T )
             {
                 if( m_boardGraphics->GetValue() )
                     visitItem( commit, boardItem );

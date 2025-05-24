@@ -30,6 +30,19 @@ macro( KiCadDocumentation DOCNAME )
     add_custom_target( ${DOCNAME} ALL )
     add_custom_target( ${DOCNAME}_updatepo_all )
 
+    # All docs need the version info from git describe
+    set( VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/version.adoc" )
+    add_custom_target( ${DOCNAME}_git_version
+        COMMAND ${CMAKE_COMMAND}
+            -DOUTPUT_FILE=${VERSION_FILE}
+            -DKICAD_VERSION_LONG=${KICAD_VERSION_LONG}
+            -DKICAD_VERSION_SHORT=${KICAD_VERSION_SHORT}
+            -DDOC_COMMIT=${DOC_COMMIT}
+            -P ${PROJECT_SOURCE_DIR}/CMakeModules/WriteVersionInclude.cmake
+        BYPRODUCTS ${VERSION_FILE}
+        DEPENDS ${PROJECT_SOURCE_DIR}/CMakeModules/WriteVersionInclude.cmake
+        COMMENT "Generating asciidoc include file with version information" )
+
     # Get a list of all the doc chapters
     file( GLOB DOCCHAPTERFILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/${DOCNAME}_*.adoc )
 
@@ -157,6 +170,7 @@ macro( KiCadDocumentation DOCNAME )
                     ${LANGUAGE} )
 
             add_dependencies( ${DOCNAME}_html_${LANGUAGE} ${DOCNAME}_translate_${LANGUAGE} )
+            add_dependencies( ${DOCNAME}_html_${LANGUAGE} ${DOCNAME}_git_version )
             add_dependencies( ${DOCNAME} ${DOCNAME}_html_${LANGUAGE} )
 
             install( FILES ${CMAKE_CURRENT_BINARY_DIR}/${LANGUAGE}/${DOCNAME}.html DESTINATION ${KICAD_DOC_PATH}/${LANGUAGE} COMPONENT html-${LANGUAGE} )
@@ -212,6 +226,7 @@ macro( KiCadDocumentation DOCNAME )
                     ${LANGUAGE} )
 
             add_dependencies( ${DOCNAME}_pdf_${LANGUAGE} ${DOCNAME}_translate_${LANGUAGE} )
+            add_dependencies( ${DOCNAME}_pdf_${LANGUAGE} ${DOCNAME}_git_version )
             add_dependencies( ${DOCNAME} ${DOCNAME}_pdf_${LANGUAGE} )
 
             # We must generate PDF using asciidoctor-web-pdf *before* generating HTML if both are
@@ -234,6 +249,7 @@ macro( KiCadDocumentation DOCNAME )
                     ${LANGUAGE} )
 
             add_dependencies( ${DOCNAME}_epub_${LANGUAGE} ${DOCNAME}_translate_${LANGUAGE} )
+            add_dependencies( ${DOCNAME}_epub_${LANGUAGE} ${DOCNAME}_git_version )
             add_dependencies( ${DOCNAME} ${DOCNAME}_epub_${LANGUAGE} )
 
             # Make the epub target depend on the PDF build as the targets have a race

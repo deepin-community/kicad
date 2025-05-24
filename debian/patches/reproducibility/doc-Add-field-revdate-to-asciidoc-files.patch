@@ -36,7 +36,7 @@ index c852dc7..7bbad39 100644
  :ascii-ids:
  
 diff --git a/doc/src/eeschema/eeschema.adoc b/doc/src/eeschema/eeschema.adoc
-index d83800d..0939c38 100644
+index a126c0f..a5ec506 100644
 --- a/doc/src/eeschema/eeschema.adoc
 +++ b/doc/src/eeschema/eeschema.adoc
 @@ -1,5 +1,6 @@
@@ -58,7 +58,7 @@ index 255dc15..457fb9f 100644
  :ascii-ids:
  
 diff --git a/doc/src/getting_started_in_kicad/getting_started_in_kicad.adoc b/doc/src/getting_started_in_kicad/getting_started_in_kicad.adoc
-index 64fd7b9..c5584c2 100644
+index 14fa227..1895c6c 100644
 --- a/doc/src/getting_started_in_kicad/getting_started_in_kicad.adoc
 +++ b/doc/src/getting_started_in_kicad/getting_started_in_kicad.adoc
 @@ -1,5 +1,6 @@
@@ -69,7 +69,7 @@ index 64fd7b9..c5584c2 100644
  :ascii-ids:
  :experimental:
 diff --git a/doc/src/kicad/kicad.adoc b/doc/src/kicad/kicad.adoc
-index 80f1f9b..e3b5668 100644
+index b0abb0c..e8d5486 100644
 --- a/doc/src/kicad/kicad.adoc
 +++ b/doc/src/kicad/kicad.adoc
 @@ -1,5 +1,6 @@

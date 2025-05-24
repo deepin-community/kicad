@@ -122,6 +122,7 @@ DIALOG_TEXT_PROPERTIES::DIALOG_TEXT_PROPERTIES( PCB_BASE_EDIT_FRAME* aParent, PC
         {
             title = _( "Footprint Text Properties" );
             m_TextLabel->SetLabel( _( "Text:" ) );
+            m_Visible->Show( false );
         }
 
         SetInitialFocus( m_SingleLineText );
@@ -153,10 +154,7 @@ DIALOG_TEXT_PROPERTIES::DIALOG_TEXT_PROPERTIES( PCB_BASE_EDIT_FRAME* aParent, PC
         SetInitialFocus( m_MultiLineText );
         m_SingleLineSizer->Show( false );
 
-        // This option makes sense only for footprint texts; texts on board are always visible.
-        m_Visible->SetValue( true );
         m_Visible->Show( false );
-
         m_KeepUpright->Show( false );
         m_statusLine->Show( false );
 
@@ -332,9 +330,10 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataToWindow()
     m_posX.SetValue( m_item->GetFPRelativePosition().x );
     m_posY.SetValue( m_item->GetFPRelativePosition().y );
 
-    m_Visible->SetValue( m_item->IsVisible() );
+    if( m_Visible->IsShown() )
+        m_Visible->SetValue( m_item->IsVisible() );
 
-    if( parentFP )
+    if( m_KeepUpright->IsShown() )
         m_KeepUpright->SetValue( m_item->IsKeepUpright() );
 
     m_bold->Check( m_item->IsBold() );
@@ -526,7 +525,8 @@ bool DIALOG_TEXT_PROPERTIES::TransferDataFromWindow()
 
     m_item->SetTextAngle( m_orientation.GetAngleValue().Normalize() );
 
-    m_item->SetVisible( m_Visible->GetValue() );
+    if( m_Visible->IsShown() )
+        m_item->SetVisible( m_Visible->GetValue() );
 
     if( m_KeepUpright->IsShown() )
         m_item->SetKeepUpright( m_KeepUpright->GetValue() );

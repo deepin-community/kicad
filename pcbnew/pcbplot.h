@@ -163,8 +163,9 @@ PLOTTER* StartPlotBoard( BOARD* aBoard, const PCB_PLOT_PARAMS* aPlotOpts, int aL
                          const int aPageCount = 1);
 
 void setupPlotterNewPDFPage( PLOTTER* aPlotter, BOARD* aBoard, const PCB_PLOT_PARAMS* aPlotOpts,
-                             const wxString& aSheetName, const wxString& aSheetPath,
-                             const wxString& aPageNumber, int aPageCount );
+                             const wxString& aLayerName, const wxString& aSheetName,
+                             const wxString& aSheetPath, const wxString& aPageNumber,
+                             int aPageCount );
         /**
  * Plot a sequence of board layer IDs.
  *
@@ -192,7 +193,7 @@ void PlotInteractiveLayer( BOARD* aBoard, PLOTTER* aPlotter, const PCB_PLOT_PARA
  * @param aPlotOpt is the plot options (files, sketch). Has meaning for some formats only.
  */
 void PlotOneBoardLayer( BOARD* aBoard, PLOTTER* aPlotter, PCB_LAYER_ID aLayer,
-                        const PCB_PLOT_PARAMS& aPlotOpt );
+                        const PCB_PLOT_PARAMS& aPlotOpt, bool isPrimaryLayer );
 
 /**
  * Plot copper or technical layers.

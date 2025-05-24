@@ -176,10 +176,10 @@ void SCH_PAINTER::draw( const EDA_ITEM* aItem, int aLayer, bool aDimmed )
         draw( static_cast<const SCH_TABLE*>( aItem ), aLayer, aDimmed );
         break;
     case SCH_LABEL_T:
-        draw( static_cast<const SCH_LABEL*>( aItem ), aLayer );
+        draw( static_cast<const SCH_LABEL*>( aItem ), aLayer, aDimmed );
         break;
     case SCH_DIRECTIVE_LABEL_T:
-        draw( static_cast<const SCH_DIRECTIVE_LABEL*>( aItem ), aLayer );
+        draw( static_cast<const SCH_DIRECTIVE_LABEL*>( aItem ), aLayer, aDimmed );
         break;
     case SCH_FIELD_T:
         draw( static_cast<const SCH_FIELD*>( aItem ), aLayer, aDimmed );
@@ -188,7 +188,7 @@ void SCH_PAINTER::draw( const EDA_ITEM* aItem, int aLayer, bool aDimmed )
         draw( static_cast<const SCH_HIERLABEL*>( aItem ), aLayer, aDimmed );
         break;
     case SCH_GLOBAL_LABEL_T:
-        draw( static_cast<const SCH_GLOBALLABEL*>( aItem ), aLayer );
+        draw( static_cast<const SCH_GLOBALLABEL*>( aItem ), aLayer, aDimmed );
         break;
     case SCH_SHEET_T:
         draw( static_cast<const SCH_SHEET*>( aItem ), aLayer );
@@ -294,7 +294,7 @@ float SCH_PAINTER::getShadowWidth( bool aForHighlight ) const
 
 
 COLOR4D SCH_PAINTER::getRenderColor( const SCH_ITEM* aItem, int aLayer, bool aDrawingShadows,
-                                     bool aDimmed ) const
+                                     bool aDimmed, bool aIgnoreNets ) const
 {
     COLOR4D color = m_schSettings.GetLayerColor( aLayer );
 
@@ -366,7 +366,14 @@ COLOR4D SCH_PAINTER::getRenderColor( const SCH_ITEM* aItem, int aLayer, bool aDr
         }
         else if( aItem->IsType( { SCH_LABEL_LOCATE_ANY_T } ) )
         {
-            color = static_cast<const SCH_LABEL_BASE*>( aItem )->GetLabelColor();
+            const SCH_LABEL_BASE* label = static_cast<const SCH_LABEL_BASE*>( aItem );
+
+            if( label->GetTextColor() != COLOR4D::UNSPECIFIED )
+                color = label->GetTextColor();                      // override color
+            else if( aIgnoreNets )
+                color = m_schSettings.GetLayerColor( aLayer );      // layer color
+            else
+                color = label->GetLabelColor();                     // net/netclass color
         }
         else if( aItem->Type() == SCH_FIELD_T )
         {
@@ -1757,7 +1764,7 @@ void SCH_PAINTER::draw( const SCH_TEXT* aText, int aLayer, bool aDimmed )
     }
     else
     {
-        if( aText->IsHypertext() && aText->IsRollover() )
+        if( aText->IsHypertext() && aText->IsRollover() && !aText->IsMoving() )
         {
             m_gal->SetStrokeColor( m_schSettings.GetLayerColor( LAYER_HOVERED ) );
             m_gal->SetFillColor( m_schSettings.GetLayerColor( LAYER_HOVERED ) );
@@ -1876,7 +1883,7 @@ void SCH_PAINTER::draw( const SCH_TEXTBOX* aTextBox, int aLayer, bool aDimmed )
                 attrs.m_Angle = aTextBox->GetDrawRotation();
                 attrs.m_StrokeWidth = KiROUND( getTextThickness( aTextBox ) );
 
-                if( aTextBox->IsHypertext() && aTextBox->IsRollover() )
+                if( aTextBox->IsHypertext() && aTextBox->IsRollover() && !aTextBox->IsMoving() )
                 {
                     m_gal->SetStrokeColor( m_schSettings.GetLayerColor( LAYER_HOVERED ) );
                     m_gal->SetFillColor( m_schSettings.GetLayerColor( LAYER_HOVERED ) );
@@ -1999,19 +2006,12 @@ void SCH_PAINTER::draw( const SCH_TABLE* aTable, int aLayer, bool aDimmed )
     if( aLayer == LAYER_SELECTION_SHADOWS )
         return;
 
-    VECTOR2I pos = aTable->GetPosition();
-    VECTOR2I end = aTable->GetEnd();
-
-    int        lineWidth;
-    COLOR4D    color;
-    LINE_STYLE lineStyle;
-
-    auto setupStroke =
-            [&]( const STROKE_PARAMS& stroke )
+    aTable->DrawBorders(
+            [&]( const VECTOR2I& ptA, const VECTOR2I& ptB, const STROKE_PARAMS& stroke )
             {
-                lineWidth = stroke.GetWidth();
-                color = stroke.GetColor();
-                lineStyle = stroke.GetLineStyle();
+                int        lineWidth = stroke.GetWidth();
+                COLOR4D    color = stroke.GetColor();
+                LINE_STYLE lineStyle = stroke.GetLineStyle();
 
                 if( lineWidth == 0 )
                     lineWidth = m_schSettings.GetDefaultPenWidth();
@@ -2026,25 +2026,7 @@ void SCH_PAINTER::draw( const SCH_TABLE* aTable, int aLayer, bool aDimmed )
                 m_gal->SetIsStroke( true );
                 m_gal->SetStrokeColor( color );
                 m_gal->SetLineWidth( (float) lineWidth );
-            };
 
-    auto strokeShape =
-            [&]( const SHAPE& shape )
-            {
-                STROKE_PARAMS::Stroke( &shape, lineStyle, lineWidth, &m_schSettings,
-                        [&]( const VECTOR2I& a, const VECTOR2I& b )
-                        {
-                            // DrawLine has problem with 0 length lines so enforce minimum
-                            if( a == b )
-                                m_gal->DrawLine( a+1, b );
-                            else
-                                m_gal->DrawLine( a, b );
-                        } );
-            };
-
-    auto strokeLine =
-            [&]( const VECTOR2I& ptA, const VECTOR2I& ptB )
-            {
                 if( lineStyle <= LINE_STYLE::FIRST_TYPE )
                 {
                     m_gal->DrawLine( ptA, ptB );
@@ -2052,92 +2034,17 @@ void SCH_PAINTER::draw( const SCH_TABLE* aTable, int aLayer, bool aDimmed )
                 else
                 {
                     SHAPE_SEGMENT seg( ptA, ptB );
-                    strokeShape( seg );
+                    STROKE_PARAMS::Stroke( &seg, lineStyle, lineWidth, &m_schSettings,
+                            [&]( const VECTOR2I& a, const VECTOR2I& b )
+                            {
+                                // DrawLine has problem with 0 length lines so enforce minimum
+                                if( a == b )
+                                    m_gal->DrawLine( a+1, b );
+                                else
+                                    m_gal->DrawLine( a, b );
+                            } );
                 }
-            };
-
-    auto strokeRect =
-            [&]( const VECTOR2I& ptA, const VECTOR2I& ptB )
-            {
-                if( lineStyle <= LINE_STYLE::FIRST_TYPE )
-                {
-                    m_gal->DrawRectangle( ptA, ptB );
-                }
-                else
-                {
-                    SHAPE_RECT rect( BOX2I( ptA, ptB - ptA ) );
-                    strokeShape( rect );
-                }
-            };
-
-    if( aTable->GetSeparatorsStroke().GetWidth() >= 0 )
-    {
-        setupStroke( aTable->GetSeparatorsStroke() );
-
-        if( aTable->StrokeColumns() )
-        {
-            for( int col = 0; col < aTable->GetColCount() - 1; ++col )
-            {
-                for( int row = 0; row < aTable->GetRowCount(); ++row )
-                {
-                    SCH_TABLECELL* cell = aTable->GetCell( row, col );
-                    VECTOR2I       topRight( cell->GetEndX(), cell->GetStartY() );
-
-                    if( !cell->GetTextAngle().IsHorizontal() )
-                        topRight = VECTOR2I( cell->GetStartX(), cell->GetEndY() );
-
-                    if( cell->GetColSpan() > 0 && cell->GetRowSpan() > 0 )
-                        strokeLine( topRight, cell->GetEnd() );
-                }
-            }
-        }
-
-        if( aTable->StrokeRows() )
-        {
-            for( int row = 0; row < aTable->GetRowCount() - 1; ++row )
-            {
-                for( int col = 0; col < aTable->GetColCount(); ++col )
-                {
-                    SCH_TABLECELL* cell = aTable->GetCell( row, col );
-                    VECTOR2I       botLeft( cell->GetStartX(), cell->GetEndY() );
-
-                    if( !cell->GetTextAngle().IsHorizontal() )
-                        botLeft = VECTOR2I( cell->GetEndX(), cell->GetStartY() );
-
-                    if( cell->GetColSpan() > 0 && cell->GetRowSpan() > 0 )
-                        strokeLine( botLeft, cell->GetEnd() );
-                }
-            }
-        }
-    }
-
-    if( aTable->GetBorderStroke().GetWidth() >= 0 )
-    {
-        SCH_TABLECELL* first = aTable->GetCell( 0, 0 );
-
-        setupStroke( aTable->GetBorderStroke() );
-
-        if( aTable->StrokeHeader() )
-        {
-            if( !first->GetTextAngle().IsHorizontal() )
-                strokeLine( VECTOR2I( first->GetEndX(), pos.y ),
-                            VECTOR2I( first->GetEndX(), first->GetEndY() ) );
-            else
-                strokeLine( VECTOR2I( pos.x, first->GetEndY() ),
-                            VECTOR2I( end.x, first->GetEndY() ) );
-        }
-
-        if( aTable->StrokeExternal() )
-        {
-            if( !first->GetTextAngle().IsHorizontal() )
-            {
-                RotatePoint( pos, aTable->GetPosition(), ANGLE_90 );
-                RotatePoint( end, aTable->GetPosition(), ANGLE_90 );
-            }
-
-            strokeRect( pos, end );
-        }
-    }
+            } );
 }
 
 
@@ -2170,7 +2077,7 @@ void SCH_PAINTER::draw( const SCH_SYMBOL* aSymbol, int aLayer )
     if( !drawingShadows || eeconfig()->m_Selection.draw_selected_children )
     {
         for( const SCH_FIELD& field : aSymbol->GetFields() )
-            draw( &field, aLayer, DNP || markExclusion );
+            draw( &field, aLayer, DNP );
     }
 
     if( isFieldsLayer( aLayer ) )
@@ -2242,7 +2149,7 @@ void SCH_PAINTER::draw( const SCH_SYMBOL* aSymbol, int aLayer )
     }
 
     draw( &tempSymbol, aLayer, false, aSymbol->GetUnit(), aSymbol->GetBodyStyle(),
-          DNP || markExclusion );
+          DNP );
 
     for( unsigned i = 0; i < tempPins.size(); ++i )
     {
@@ -2255,9 +2162,9 @@ void SCH_PAINTER::draw( const SCH_SYMBOL* aSymbol, int aLayer )
                                                         // IS_SHOWN_AS_BITMAP
     }
 
-    if( DNP || markExclusion )
+    if( DNP )
     {
-        int      layer = DNP ? LAYER_DNP_MARKER : LAYER_EXCLUDED_FROM_SIM;
+        int      layer = LAYER_DNP_MARKER;
         BOX2I    bbox = aSymbol->GetBodyBoundingBox();
         BOX2I    pins = aSymbol->GetBodyAndPinsBoundingBox();
         VECTOR2D margins( std::max( bbox.GetX() - pins.GetX(), pins.GetEnd().x - bbox.GetEnd().x ),
@@ -2282,6 +2189,40 @@ void SCH_PAINTER::draw( const SCH_SYMBOL* aSymbol, int aLayer )
         m_gal->DrawSegment( pt1, pt2, strokeWidth );
         std::swap( pt1.x, pt2.x );
         m_gal->DrawSegment( pt1, pt2, strokeWidth );
+    }
+
+    if( markExclusion )
+    {
+        int   layer = LAYER_EXCLUDED_FROM_SIM;
+        BOX2I bbox = aSymbol->GetBodyBoundingBox();
+        int   strokeWidth = schIUScale.MilsToIU( ADVANCED_CFG::GetCfg().m_ExcludeFromSimulationLineWidth );
+
+        bbox.Inflate( KiROUND( strokeWidth * 0.5 ) );
+
+        GAL_SCOPED_ATTRS scopedAttrs( *m_gal, GAL_SCOPED_ATTRS::ALL_ATTRS );
+        m_gal->AdvanceDepth();
+        m_gal->SetIsStroke( true );
+        m_gal->SetIsFill( true );
+        m_gal->SetStrokeColor( m_schSettings.GetLayerColor( layer ).WithAlpha( 0.5 ) );
+        m_gal->SetFillColor( m_schSettings.GetLayerColor( layer ).WithAlpha( 0.5 ) );
+
+        m_gal->DrawSegment( bbox.GetPosition(), VECTOR2D( bbox.GetEnd().x, bbox.GetY() ), strokeWidth );
+        m_gal->DrawSegment( VECTOR2D( bbox.GetEnd().x, bbox.GetY() ), bbox.GetEnd(), strokeWidth );
+        m_gal->DrawSegment( bbox.GetEnd(), VECTOR2D( bbox.GetX(), bbox.GetEnd().y ), strokeWidth );
+        m_gal->DrawSegment( VECTOR2D( bbox.GetX(), bbox.GetEnd().y ), bbox.GetPosition(), strokeWidth );
+
+        int offset = 2 * strokeWidth;
+        VECTOR2D center = bbox.GetEnd() + VECTOR2D( offset + strokeWidth, -offset );
+        VECTOR2D left = center + VECTOR2D( -offset, 0 );
+        VECTOR2D right = center + VECTOR2D( offset, 0 );
+        VECTOR2D top = center + VECTOR2D( 0, offset );
+        VECTOR2D bottom = center + VECTOR2D( 0, -offset );
+
+        m_gal->SetFillColor( m_schSettings.GetLayerColor( layer ).WithAlpha( 0.1 ) );
+        m_gal->DrawCircle( center, offset );
+        m_gal->AdvanceDepth();
+        m_gal->SetFillColor( m_schSettings.GetLayerColor( layer ).WithAlpha( 0.5 ) );
+        m_gal->DrawCurve( left, top, bottom, right, 1 );
     }
 }
 
@@ -2390,7 +2331,7 @@ void SCH_PAINTER::draw( const SCH_FIELD* aField, int aLayer, bool aDimmed )
         if( drawingShadows )
             attributes.m_StrokeWidth += getShadowWidth( !aField->IsSelected() );
 
-        if( aField->IsHypertext() && aField->IsRollover() )
+        if( aField->IsHypertext() && aField->IsRollover() && !aField->IsMoving() )
         {
             m_gal->SetStrokeColor( m_schSettings.GetLayerColor( LAYER_HOVERED ) );
             m_gal->SetFillColor( m_schSettings.GetLayerColor( LAYER_HOVERED ) );
@@ -2439,7 +2380,7 @@ void SCH_PAINTER::draw( const SCH_FIELD* aField, int aLayer, bool aDimmed )
 }
 
 
-void SCH_PAINTER::draw( const SCH_GLOBALLABEL* aLabel, int aLayer )
+void SCH_PAINTER::draw( const SCH_GLOBALLABEL* aLabel, int aLayer, bool aDimmed )
 {
     bool drawingShadows = aLayer == LAYER_SELECTION_SHADOWS;
 
@@ -2460,7 +2401,7 @@ void SCH_PAINTER::draw( const SCH_GLOBALLABEL* aLabel, int aLayer )
     if( drawingShadows && !( aLabel->IsBrightened() || aLabel->IsSelected() ) )
         return;
 
-    COLOR4D color = getRenderColor( aLabel, LAYER_GLOBLABEL, drawingShadows );
+    COLOR4D color = getRenderColor( aLabel, LAYER_GLOBLABEL, drawingShadows, aDimmed, true );
 
     if( drawingDangling )
     {
@@ -2502,7 +2443,7 @@ void SCH_PAINTER::draw( const SCH_GLOBALLABEL* aLabel, int aLayer )
 }
 
 
-void SCH_PAINTER::draw( const SCH_LABEL* aLabel, int aLayer )
+void SCH_PAINTER::draw( const SCH_LABEL* aLabel, int aLayer, bool aDimmed )
 {
     bool drawingShadows = aLayer == LAYER_SELECTION_SHADOWS;
 
@@ -2523,7 +2464,7 @@ void SCH_PAINTER::draw( const SCH_LABEL* aLabel, int aLayer )
     if( drawingShadows && !( aLabel->IsBrightened() || aLabel->IsSelected() ) )
         return;
 
-    COLOR4D color = getRenderColor( aLabel, LAYER_HIERLABEL, drawingShadows );
+    COLOR4D color = getRenderColor( aLabel, LAYER_HIERLABEL, drawingShadows, aDimmed, true );
 
     if( drawingDangling )
     {
@@ -2562,7 +2503,7 @@ void SCH_PAINTER::draw( const SCH_HIERLABEL* aLabel, int aLayer, bool aDimmed )
     if( drawingShadows && !( aLabel->IsBrightened() || aLabel->IsSelected() ) )
         return;
 
-    COLOR4D color = getRenderColor( aLabel, LAYER_HIERLABEL, drawingShadows, aDimmed );
+    COLOR4D color = getRenderColor( aLabel, LAYER_HIERLABEL, drawingShadows, aDimmed, true );
 
     if( drawingDangling )
     {
@@ -2595,7 +2536,7 @@ void SCH_PAINTER::draw( const SCH_HIERLABEL* aLabel, int aLayer, bool aDimmed )
 }
 
 
-void SCH_PAINTER::draw( const SCH_DIRECTIVE_LABEL* aLabel, int aLayer )
+void SCH_PAINTER::draw( const SCH_DIRECTIVE_LABEL* aLabel, int aLayer, bool aDimmed )
 {
     if( !eeconfig()->m_Appearance.show_directive_labels && !aLabel->IsSelected() )
         return;
@@ -2617,7 +2558,7 @@ void SCH_PAINTER::draw( const SCH_DIRECTIVE_LABEL* aLabel, int aLayer )
     if( drawingShadows && !( aLabel->IsBrightened() || aLabel->IsSelected() ) )
         return;
 
-    COLOR4D color = getRenderColor( aLabel, LAYER_NETCLASS_REFS, drawingShadows );
+    COLOR4D color = getRenderColor( aLabel, LAYER_NETCLASS_REFS, drawingShadows, aDimmed, true );
 
     if( aLayer == LAYER_DANGLING )
     {
@@ -2676,10 +2617,10 @@ void SCH_PAINTER::draw( const SCH_SHEET* aSheet, int aLayer )
     if( !drawingShadows || eeconfig()->m_Selection.draw_selected_children )
     {
         for( const SCH_FIELD& field : aSheet->GetFields() )
-            draw( &field, aLayer, DNP || markExclusion );
+            draw( &field, aLayer, DNP );
 
         for( SCH_SHEET_PIN* sheetPin : aSheet->GetPins() )
-            draw( static_cast<SCH_HIERLABEL*>( sheetPin ), aLayer, DNP || markExclusion );
+            draw( static_cast<SCH_HIERLABEL*>( sheetPin ), aLayer, DNP );
     }
 
     if( isFieldsLayer( aLayer ) )
@@ -2712,9 +2653,9 @@ void SCH_PAINTER::draw( const SCH_SHEET* aSheet, int aLayer )
         m_gal->DrawRectangle( pos, pos + size );
     }
 
-    if( DNP || markExclusion )
+    if( DNP )
     {
-        int      layer = DNP ? LAYER_DNP_MARKER : LAYER_EXCLUDED_FROM_SIM;
+        int      layer = LAYER_DNP_MARKER;
         BOX2I    bbox = aSheet->GetBodyBoundingBox();
         BOX2I    pins = aSheet->GetBoundingBox();
         VECTOR2D margins( std::max( bbox.GetX() - pins.GetX(), pins.GetEnd().x - bbox.GetEnd().x ),
@@ -2738,6 +2679,40 @@ void SCH_PAINTER::draw( const SCH_SHEET* aSheet, int aLayer )
         m_gal->DrawSegment( pt1, pt2, strokeWidth );
         std::swap( pt1.x, pt2.x );
         m_gal->DrawSegment( pt1, pt2, strokeWidth );
+    }
+
+    if( markExclusion )
+    {
+        int   layer = LAYER_EXCLUDED_FROM_SIM;
+        BOX2I bbox = aSheet->GetBodyBoundingBox();
+        int   strokeWidth = schIUScale.MilsToIU( ADVANCED_CFG::GetCfg().m_ExcludeFromSimulationLineWidth );
+
+        bbox.Inflate( KiROUND( strokeWidth * 0.5 ) );
+
+        GAL_SCOPED_ATTRS scopedAttrs( *m_gal, GAL_SCOPED_ATTRS::ALL_ATTRS );
+        m_gal->AdvanceDepth();
+        m_gal->SetIsStroke( true );
+        m_gal->SetIsFill( true );
+        m_gal->SetStrokeColor( m_schSettings.GetLayerColor( layer ).WithAlpha( 0.5 ) );
+        m_gal->SetFillColor( m_schSettings.GetLayerColor( layer ).WithAlpha( 0.5 ) );
+
+        m_gal->DrawSegment( bbox.GetPosition(), VECTOR2D( bbox.GetEnd().x, bbox.GetY() ), strokeWidth );
+        m_gal->DrawSegment( VECTOR2D( bbox.GetEnd().x, bbox.GetY() ), bbox.GetEnd(), strokeWidth );
+        m_gal->DrawSegment( bbox.GetEnd(), VECTOR2D( bbox.GetX(), bbox.GetEnd().y ), strokeWidth );
+        m_gal->DrawSegment( VECTOR2D( bbox.GetX(), bbox.GetEnd().y ), bbox.GetPosition(), strokeWidth );
+
+        int offset = 2 * strokeWidth;
+        VECTOR2D center = bbox.GetEnd() + VECTOR2D( offset + strokeWidth, -offset );
+        VECTOR2D left = center + VECTOR2D( -offset, 0 );
+        VECTOR2D right = center + VECTOR2D( offset, 0 );
+        VECTOR2D top = center + VECTOR2D( 0, offset );
+        VECTOR2D bottom = center + VECTOR2D( 0, -offset );
+
+        m_gal->SetFillColor( m_schSettings.GetLayerColor( layer ).WithAlpha( 0.1 ) );
+        m_gal->DrawCircle( center, offset );
+        m_gal->AdvanceDepth();
+        m_gal->SetFillColor( m_schSettings.GetLayerColor( layer ).WithAlpha( 0.5 ) );
+        m_gal->DrawCurve( left, top, bottom, right, 1 );
     }
 }
 

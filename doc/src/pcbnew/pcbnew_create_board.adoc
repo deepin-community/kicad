@@ -336,21 +336,29 @@ all violations of that type, see the <<design-rule-checking,DRC documentation>>.
 External files can be embedded within a board file. Embedding a file stores a copy of the file
 inside the board file. The design can then refer to the embedded copy of the file instead of the
 external file, which makes the project more portable as it doesn't rely on an external file.
-Fonts, datasheets, drawing sheets, and 3D models can be embedded and used within KiCad. Other
+Fonts, datasheets, drawing sheets, SPICE models, and footprint 3D models can be embedded and used within KiCad. Other
 arbitrary files can also be embedded to store them in the project for later export, but they are
-not used by any KiCad functionality.
+not used by any KiCad functionality. Files embedded in a board necessarily increase the board's
+file size, although files are compressed before being embedded to minimize the space required.
 
 image::images/embedded_files.png[]
 
-Embedded files are managed in the Embedded Files section of Board Setup. To embed a file inside a
+Embedded files are managed in the Embedded Files section of Board Setup. All files embedded in a board
+are shown here. To embed a file inside a
 board, click the image:images/icons/small_folder_16.png[] button and select the file. The file is
-then embedded inside the PCB and is listed in the embedded files list along with its internal
-reference. The internal reference is a unique identifier for the embedded file that begins with
-`kicad-embed://`. You can use the internal reference elsewhere in the Board Editor to refer to the
-embedded file as if it were an external file path. You can copy the internal reference by right
+then embedded inside the PCB and is listed in the embedded files list along with its
+__embedded reference__. The embedded reference is a unique identifier for the embedded file that begins with
+`kicad-embed://`. You can use the embedded reference elsewhere in the Board Editor to refer to the
+embedded file as if it were an external file path. You can copy the embedded reference by right
 clicking and selecting **Copy Embedded Reference**. To remove an embedded file, click the
 image:images/icons/small_trash_16.png[] button. Any remaining links to the removed file will become
 invalid.
+
+NOTE: 3D models and drawing sheets can be embedded directly using the file browser when you add them
+      to a footprint (<<editing-symbol-properties,3D models>>) or to a board
+      (<<sheet-title-block,drawing sheets>>) by enabling the **Embed Files** option in the file
+      browser.  This is a single-step shortcut for adding the files in Board Setup and then
+      referring to them by their embedded reference; the result is the same.
 
 To embed any fonts used in a board, check the **Embed fonts** checkbox. All fonts used in the board
 design will be embedded, so text using that font can be edited on any computer regardless of whether
@@ -368,7 +376,10 @@ the model using the Board Setup dialog, copy the internal reference, and paste t
 as a 3D model path in each footprint that uses that model. Alternatively, you could embed the model
 within a single footprint, either in the board or in the source footprint library. In this case, the
 footprint itself is portable if you export the footprints from the board, and the model embedding is
-managed in the footprint's properties rather than Board Setup.
+managed in the footprint's properties rather than Board Setup. A more convenient way to achieve the
+same thing, however, is to open the footprint's properties dialog, add a 3D model file, and enable
+the **Embed File** option in the file browser. Again, this could be done for a footprint in the
+board or for a footprint in the source footprint library.
 
 Files can also be embedded in xref:../eeschema/eeschema.adoc#sch-embedding-files[schematics].
 

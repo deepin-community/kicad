@@ -17,7 +17,7 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <ee_actions.h>
+#include <sch_actions.h>
 #include <sch_edit_frame.h>
 #include <sch_painter.h>
 #include <sch_symbol.h>
@@ -35,7 +35,7 @@ void SCH_SEARCH_HANDLER::ActivateItem( long aItemRow )
     std::vector<long> item = { aItemRow };
     SelectItems( item );
 
-    m_frame->GetToolManager()->RunAction( EE_ACTIONS::properties, true );
+    m_frame->GetToolManager()->RunAction( SCH_ACTIONS::properties, true );
 }
 
 
@@ -104,7 +104,7 @@ void SCH_SEARCH_HANDLER::SelectItems( std::vector<long>& aItemRows )
     EDA_ITEMS                   selectedItems;
     std::vector<SCH_SEARCH_HIT> selectedHits;
 
-    m_frame->GetToolManager()->RunAction( EE_ACTIONS::clearSelection );
+    m_frame->GetToolManager()->RunAction( SCH_ACTIONS::clearSelection );
 
     for( long row : aItemRows )
     {
@@ -135,7 +135,7 @@ void SCH_SEARCH_HANDLER::SelectItems( std::vector<long>& aItemRows )
         }
 
         if( selectedItems.size() )
-            m_frame->GetToolManager()->RunAction<EDA_ITEMS*>( EE_ACTIONS::addItemsToSel, &selectedItems );
+            m_frame->GetToolManager()->RunAction<EDA_ITEMS*>( SCH_ACTIONS::addItemsToSel, &selectedItems );
 
         switch( settings.selection_zoom )
         {
@@ -174,7 +174,10 @@ int SYMBOL_SEARCH_HANDLER::Search( const wxString& aQuery )
 {
     m_hitlist.clear();
 
-    SCH_SEARCH_DATA frp;
+    APP_SETTINGS_BASE::SEARCH_PANE& settings = m_frame->config()->m_SearchPane;
+    SCH_SEARCH_DATA                 frp;
+
+    frp.searchAllFields = settings.search_hidden_fields;
     frp.findString = aQuery;
 
     // Try to handle whatever the user throws at us (substring, wildcards, regex, etc.)
@@ -255,7 +258,10 @@ int POWER_SEARCH_HANDLER::Search( const wxString& aQuery )
 {
     m_hitlist.clear();
 
-    SCH_SEARCH_DATA frp;
+    APP_SETTINGS_BASE::SEARCH_PANE& settings = m_frame->config()->m_SearchPane;
+    SCH_SEARCH_DATA                 frp;
+
+    frp.searchAllFields = settings.search_hidden_fields;
     frp.findString = aQuery;
 
     // Try to handle whatever the user throws at us (substring, wildcards, regex, etc.)
@@ -326,7 +332,10 @@ int TEXT_SEARCH_HANDLER::Search( const wxString& aQuery )
 {
     m_hitlist.clear();
 
-    SCH_SEARCH_DATA frp;
+    APP_SETTINGS_BASE::SEARCH_PANE& settings = m_frame->config()->m_SearchPane;
+    SCH_SEARCH_DATA                 frp;
+
+    frp.searchAllFields = settings.search_hidden_fields;
     frp.findString = aQuery;
 
     // Try to handle whatever the user throws at us (substring, wildcards, regex, etc.)
@@ -410,7 +419,10 @@ int LABEL_SEARCH_HANDLER::Search( const wxString& aQuery )
 {
     m_hitlist.clear();
 
-    SCH_SEARCH_DATA frp;
+    APP_SETTINGS_BASE::SEARCH_PANE& settings = m_frame->config()->m_SearchPane;
+    SCH_SEARCH_DATA                 frp;
+
+    frp.searchAllFields = settings.search_hidden_fields;
     frp.findString = aQuery;
 
     // Try to handle whatever the user throws at us (substring, wildcards, regex, etc.)

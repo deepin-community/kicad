@@ -50,10 +50,10 @@ enum class ALTIUM_UNIT
 {
     UNKNOWN = 0,
 
-    INCHES      = 1,
-    MILS        = 2,
-    MILLIMETERS = 3,
-    CENTIMETER  = 4
+    INCH    = 1,
+    MILS    = 2,
+    MM      = 3,
+    CM      = 4
 };
 
 enum class ALTIUM_CLASS_KIND
@@ -598,14 +598,14 @@ struct ACOMPONENTBODY6
     int                  kind             = 0;
     int                  subpolyindex     = 0;
     int                  unionindex       = 0;
-    int                  arc_resolution   = 0;;
+    int                  arc_resolution   = 0;
     bool                 is_shape_based   = false;
     int                  cavity_height    = 0;
     int                  standoff_height  = 0;
     int                  overall_height   = 0;
     int                  body_projection  = 0;
     int                  body_color_3d    = 0;
-    int                  body_opacity_3d  = 0;
+    double               body_opacity_3d  = 0.0;
     wxString             identifier;
     wxString             texture;
     int                  texture_center_x = 0;

@@ -19,7 +19,7 @@ stages:
 build_container:
   stage: build
   script:
-    - docker build -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME" .
+    - docker build -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME" --build-arg DOC_COMMIT="$CI_COMMIT_SHORT_SHA" .
     - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
     - container_id=$(docker run -d -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME" ls)
     - mkdir -p artifacts
@@ -43,16 +43,18 @@ build_container_mr:
 # Deploy on the web the latest container
 # This will trigger the pipeline in the "kicad/services/kicad-doc-website"
 # This job will run only on the master branch of the main project(KiCad/KiCad Web Services/kicad-doc)
-deploy_doc_on the_www:
+deploy_doc_on_the_www:
   stage: deploy_container
   trigger:
     project: kicad/services/kicad-doc-website
     branch: master
   only:
-    - master@kicad/services/kicad-doc # Execute only on master commit in the main repo
+    - master@kicad/services/kicad-doc
+    - 9.0@kicad/services/kicad-doc
+    - 8.0@kicad/services/kicad-doc
     - 7.0@kicad/services/kicad-doc
     - 6.0@kicad/services/kicad-doc
-    - 5.1@kicad/services/kicad-doc # Execute only on master commit in the main repo
-    - 4.0@kicad/services/kicad-doc # Execute only on master commit in the main repo
+    - 5.1@kicad/services/kicad-doc
+    - 4.0@kicad/services/kicad-doc
   except:
     - merge_requests  # Do not execute on merge request

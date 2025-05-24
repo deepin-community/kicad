@@ -22,7 +22,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <ee_actions.h>
+#include <sch_actions.h>
 #include <sch_edit_frame.h>
 #include <tool/tool_manager.h>
 #include <schematic.h>
@@ -33,7 +33,7 @@
 #include <sch_bitmap.h>
 #include <sch_sheet_pin.h>
 #include <sch_table.h>
-#include <tools/ee_selection_tool.h>
+#include <tools/sch_selection_tool.h>
 #include <drawing_sheet/ds_proxy_undo_item.h>
 #include <tool/actions.h>
 #include <wx/log.h>
@@ -303,11 +303,9 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
         eda_item->ClearEditFlags();
         eda_item->ClearTempFlags();
 
-        SCH_ITEM*   schItem = dynamic_cast<SCH_ITEM*>( eda_item );
-
         // Set connectable object connectivity status.
-        auto updateConnectivityFlag =
-                [&]()
+        auto propagateConnectivityDamage =
+                [&]( SCH_ITEM* schItem )
                 {
                     if( schItem->IsConnectable() )
                     {
@@ -349,10 +347,12 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
                     }
                 };
 
+        SCH_ITEM* schItem = dynamic_cast<SCH_ITEM*>( eda_item );
+
         if( status == UNDO_REDO::NEWITEM )
         {
             if( schItem )
-                updateConnectivityFlag();
+                propagateConnectivityDamage( schItem );
 
             // If we are removing the current sheet, get out first
             if( eda_item->Type() == SCH_SHEET_T )
@@ -361,7 +361,7 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
                 refreshHierarchy = true;
 
                 if( static_cast<SCH_SHEET*>( eda_item )->GetScreen() == GetScreen() )
-                    GetToolManager()->PostAction( EE_ACTIONS::leaveSheet );
+                    GetToolManager()->PostAction( SCH_ACTIONS::leaveSheet );
             }
 
             RemoveFromScreen( eda_item, screen );
@@ -378,7 +378,7 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
             }
 
             if( schItem )
-                updateConnectivityFlag();
+                propagateConnectivityDamage( schItem );
 
             // deleted items are re-inserted on undo
             AddToScreen( eda_item, screen );
@@ -416,7 +416,7 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
 
             if( schItem )
             {
-                updateConnectivityFlag();
+                propagateConnectivityDamage( schItem );
                 AddCopyForRepeatItem( schItem );
 
                 if( schItem->Type() == SCH_SHEET_T )
@@ -433,7 +433,7 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
             wxCHECK2( itemCopy, continue );
 
             if( schItem->HasConnectivityChanges( itemCopy, &GetCurrentSheet() ) )
-                updateConnectivityFlag();
+                propagateConnectivityDamage( schItem );
 
             // The root sheet is a pseudo object that owns the root screen object but is not on
             // the root screen so do not attempt to remove it from the screen it owns.
@@ -563,7 +563,7 @@ void SCH_EDIT_FRAME::RollbackSchematicFromUndo()
 
         delete undo;
 
-        m_toolManager->GetTool<EE_SELECTION_TOOL>()->RebuildSelection();
+        m_toolManager->GetTool<SCH_SELECTION_TOOL>()->RebuildSelection();
     }
 
     GetCanvas()->Refresh();

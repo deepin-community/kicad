@@ -30,10 +30,7 @@
 #include "stripline.h"
 #include "units.h"
 
-// const to convert a attenuation / loss from log to decibel
-const double LOG2DB = 20.0 / log( 10.0 );
-
-STRIPLINE::STRIPLINE() : TRANSLINE()
+STRIPLINE::STRIPLINE() : TRANSLINE(), unit_prop_delay( 0.0 )
 {
     m_Name = "StripLine";
     Init();
@@ -41,7 +38,7 @@ STRIPLINE::STRIPLINE() : TRANSLINE()
 
 
 // -------------------------------------------------------------------
-// calculate characteristic impedance and conductor loss (in log/meter)
+// calculate characteristic impedance and conductor loss (in db/meter)
 double STRIPLINE::lineImpedance( double height, double& ac )
 {
     double ZL;
@@ -98,7 +95,7 @@ void STRIPLINE::calcAnalyze()
     m_parameters[Z0_PRM] = 2.0
                            / ( 1.0 / lineImpedance( 2.0 * a + t, ac1 )
                                    + 1.0 / lineImpedance( 2.0 * ( h - a ) - t, ac2 ) );
-    m_parameters[LOSS_CONDUCTOR_PRM]  = LOG2DB * m_parameters[PHYS_LEN_PRM] * ( ac1 + ac2 );
+    m_parameters[LOSS_CONDUCTOR_PRM]  = m_parameters[PHYS_LEN_PRM] * ( ac1 + ac2 );
     m_parameters[LOSS_DIELECTRIC_PRM] = LOG2DB * m_parameters[PHYS_LEN_PRM]
                                         * ( M_PI / C0 ) * m_parameters[FREQUENCY_PRM]
                                         * sqrt( m_parameters[EPSILONR_PRM] )
@@ -107,6 +104,8 @@ void STRIPLINE::calcAnalyze()
     m_parameters[ANG_L_PRM] = 2.0 * M_PI * m_parameters[PHYS_LEN_PRM]
                               * sqrt( m_parameters[EPSILONR_PRM] ) * m_parameters[FREQUENCY_PRM]
                               / C0; // in radians
+
+    unit_prop_delay = calcUnitPropagationDelay( m_parameters[EPSILON_EFF_PRM] );
 }
 
 
@@ -166,10 +165,11 @@ void STRIPLINE::show_results()
 {
 
     setResult( 0, m_parameters[EPSILON_EFF_PRM], "" );
-    setResult( 1, m_parameters[LOSS_CONDUCTOR_PRM], "dB" );
-    setResult( 2, m_parameters[LOSS_DIELECTRIC_PRM], "dB" );
+    setResult( 1, unit_prop_delay, "ps/cm" );
+    setResult( 2, m_parameters[LOSS_CONDUCTOR_PRM], "dB" );
+    setResult( 3, m_parameters[LOSS_DIELECTRIC_PRM], "dB" );
 
-    setResult( 3, m_parameters[SKIN_DEPTH_PRM] / UNIT_MICRON, "µm" );
+    setResult( 4, m_parameters[SKIN_DEPTH_PRM] / UNIT_MICRON, "µm" );
 }
 
 

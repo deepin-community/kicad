@@ -36,6 +36,7 @@
 #include <wx/filename.h>
 #include <wx/log.h>
 #include <wx/menu.h>
+#include <wx/wfstream.h>
 
 /* ---------- GRID_TRICKS for embedded files grid ---------- */
 
@@ -317,7 +318,7 @@ void PANEL_EMBEDDED_FILES::onAddEmbeddedFiles( wxCommandEvent& event )
 {
     // TODO: Update strings to reflect that multiple files can be selected.
     wxFileDialog fileDialog( this, _( "Select a file to embed" ), wxEmptyString, wxEmptyString,
-                             _( "All files|*.*" ),
+                             _( "All Files" ) + wxT( " (*.*)|*.*" ),
                              wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE );
 
     if( fileDialog.ShowModal() == wxID_OK )
@@ -445,9 +446,10 @@ void PANEL_EMBEDDED_FILES::onExportFiles( wxCommandEvent& event )
         if( skip_file )
             continue;
 
-        wxFFile ffile( fileName.GetFullPath(), wxT( "w" ) );
 
-        if( !ffile.IsOpened() )
+        wxFFileOutputStream out( fileName.GetFullPath() );
+
+        if( !out.IsOk() )
         {
             wxString msg = wxString::Format( _( "Failed to open file '%s'." ),
                         fileName.GetFullName() );
@@ -457,12 +459,15 @@ void PANEL_EMBEDDED_FILES::onExportFiles( wxCommandEvent& event )
             continue;
         }
 
-        if( !ffile.Write( file->decompressedData.data(), file->decompressedData.size() ) )
+        out.Write( file->decompressedData.data(), file->decompressedData.size() );
+
+        if( !out.IsOk() || ( out.LastWrite() != file->decompressedData.size() ) )
         {
             wxString msg = wxString::Format( _( "Failed to write file '%s'." ),
                         fileName.GetFullName() );
 
             KIDIALOG errorDlg( m_parent, msg, _( "Error" ), wxOK | wxICON_ERROR );
+
             errorDlg.ShowModal();
         }
     }

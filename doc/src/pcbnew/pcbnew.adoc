@@ -6,7 +6,9 @@
 
 = PCB Editor
 
-_Reference manual_
+include::../version.adoc[]
+
+_KiCad {kicad-version-short} Reference Manual_
 
 NOTE: This manual is in the process of being revised to cover the latest stable
       release version of KiCad.  It contains some sections that have not yet
@@ -36,6 +38,13 @@ Jean-Pierre Charras, Fabrizio Tappero, Wayne Stambaugh, Cirilo Bernardo, Jon Eva
 The KiCad project welcomes feedback, bug reports, and suggestions related to the software or its
 documentation. For more information on how to submit feedback or report an issue, please see the
 instructions at https://www.kicad.org/help/report-an-issue/
+
+*Software and Documentation Version*
+
+This user manual is based on KiCad {kicad-version-long}. Functionality and
+appearance may be different in other versions of KiCad.
+
+Documentation revision: `{doc-commit}`.
 
 include::pcbnew_introduction.adoc[po4a]
 

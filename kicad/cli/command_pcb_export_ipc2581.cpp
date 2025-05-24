@@ -45,7 +45,7 @@ CLI::PCB_EXPORT_IPC2581_COMMAND::PCB_EXPORT_IPC2581_COMMAND() :
     addDrawingSheetArg();
     addDefineArg();
 
-    m_argParser.add_description( std::string( "Export the PCB in IPC2581 format" ) );
+    m_argParser.add_description( std::string( "Export the PCB in IPC-2581 format" ) );
 
     m_argParser.add_argument( ARG_PRECISION )
             .help( std::string( "Precision" ) )
@@ -59,7 +59,7 @@ CLI::PCB_EXPORT_IPC2581_COMMAND::PCB_EXPORT_IPC2581_COMMAND() :
 
     m_argParser.add_argument( ARG_VERSION )
             .default_value( std::string( "C" ) )
-            .help( std::string( "IPC2581 standard version" ) )
+            .help( std::string( "IPC-2581 standard version" ) )
             .choices( "B", "C" );
 
     m_argParser.add_argument( ARG_UNITS )
@@ -102,11 +102,6 @@ CLI::PCB_EXPORT_IPC2581_COMMAND::PCB_EXPORT_IPC2581_COMMAND() :
 
 int CLI::PCB_EXPORT_IPC2581_COMMAND::doPerform( KIWAY& aKiway )
 {
-    int exitCode = PCB_EXPORT_BASE_COMMAND::doPerform( aKiway );
-
-    if( exitCode != EXIT_CODES::OK )
-        return exitCode;
-
     std::unique_ptr<JOB_EXPORT_PCB_IPC2581> ipc2581Job( new JOB_EXPORT_PCB_IPC2581() );
 
     ipc2581Job->m_filename = m_argInput;
@@ -131,9 +126,9 @@ int CLI::PCB_EXPORT_IPC2581_COMMAND::doPerform( KIWAY& aKiway )
 
     wxString units = From_UTF8( m_argParser.get<std::string>( ARG_UNITS ).c_str() );
     if( units == "mm" )
-        ipc2581Job->m_units = JOB_EXPORT_PCB_IPC2581::IPC2581_UNITS::MILLIMETERS;
+        ipc2581Job->m_units = JOB_EXPORT_PCB_IPC2581::IPC2581_UNITS::MM;
     else if( units == "in" )
-        ipc2581Job->m_units = JOB_EXPORT_PCB_IPC2581::IPC2581_UNITS::INCHES;
+        ipc2581Job->m_units = JOB_EXPORT_PCB_IPC2581::IPC2581_UNITS::INCH;
 
     ipc2581Job->m_colInternalId =
             From_UTF8( m_argParser.get<std::string>( ARG_BOM_COL_INT_ID ).c_str() );
@@ -146,7 +141,5 @@ int CLI::PCB_EXPORT_IPC2581_COMMAND::doPerform( KIWAY& aKiway )
             From_UTF8( m_argParser.get<std::string>( ARG_BOM_COL_DIST ).c_str() );
 
     LOCALE_IO dummy;
-    exitCode = aKiway.ProcessJob( KIWAY::FACE_PCB, ipc2581Job.get() );
-
-    return exitCode;
+    return aKiway.ProcessJob( KIWAY::FACE_PCB, ipc2581Job.get() );
 }

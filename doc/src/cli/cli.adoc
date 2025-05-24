@@ -6,7 +6,9 @@
 
 = KiCad Command-Line Interface
 
-_Reference manual_
+include::../version.adoc[]
+
+_KiCad {kicad-version-short} Reference Manual_
 
 [[copyright]]
 *Copyright*
@@ -31,6 +33,13 @@ The KiCad project welcomes feedback, bug reports, and suggestions related to the
 documentation. For more information on how to submit feedback or report an issue, please see the
 instructions at https://www.kicad.org/help/report-an-issue/
 
+*Software and Documentation Version*
+
+This user manual is based on KiCad {kicad-version-long}. Functionality and
+appearance may be different in other versions of KiCad.
+
+Documentation revision: `{doc-commit}`.
+
 == Introduction to the KiCad Command-Line Interface
 
 KiCad provides a command-line interface, which is available by running the
@@ -42,8 +51,8 @@ from a legacy file format to a modern format.
 NOTE: On macOS, the `kicad-cli` executable is located at
       `/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli`.
 
-The `kicad-cli` command has 5 subcommands: `fp`, `pcb`, `sch`, `sym`, and
-`version`. Each subcommand may have its own subcommands and arguments. For
+The `kicad-cli` command has 6 subcommands: `fp`, `jobset`, `pcb`, `sch`, `sym`,
+and `version`. Each subcommand may have its own subcommands and arguments. For
 example, to export Gerber files from a PCB you could run
 `kicad-cli pcb export gerbers example.kicad_pcb`.
 
@@ -99,7 +108,7 @@ Optional arguments:
 | `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`
     | Plot graphics of DNP footprints in sketch mode on fab layers.
 | `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`
-    | Plot an 'X' over the courtyard of DNP footprints on fab layers, and strikeout their reference designators.
+    | Plot an "X" over the courtyard of DNP footprints on fab layers, and strikeout their reference designators.
 | `--black-and-white`
     | Export footprints in black and white.
 |====
@@ -146,6 +155,40 @@ Optional arguments:
 | `--force`
     | Re-save the input library even if it is already in the current file format.
 |====
+
+== Jobset commands
+
+The `jobset run` command runs a predefined xref:../kicad/kicad.adoc#jobsets[jobset].
+
+Usage: `kicad-cli jobset run [--help] [--stop-on-error] [--file JOB_FILE] [--output OUTPUT] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Project file to use with the jobset.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the jobset command.
+| `--stop-on-error`
+    | As jobs are executed in sequence, stop running after a job fails. If not
+      given, jobs will continue executing after any job fails.
+| `-f <jobset file>`, `--file <jobset file>`
+    | The jobset file (`.kicad_jobset`) to run.
+| `--output <output ID>`
+    | The jobset output to generate. If no output is specified, all outputs will
+      be generated. The output is specified as a unique ID. The ID for each
+      output is printed by the `jobset run` command when `--output` is not used.
+      It can also be found in the `.kicad_jobset` file under the output's `id`
+      key.
+|====
+
 
 == PCB commands
 
@@ -233,9 +276,9 @@ Optional arguments:
 | `-f`, `--force`
     | Overwrite output file.
 | `--no-unspecified`
-    | Exclude 3D models of components with 'unspecified' footprint type.
+    | Exclude 3D models of components with "unspecified" footprint type.
 | `--no-dnp`
-    | Exclude 3D models of components with 'Do not populate' attribute.
+    | Exclude 3D models of components with "Do not populate" attribute.
 | `--grid-origin`
     | Use grid origin as origin of output file.
 | `--drill-origin`
@@ -344,7 +387,7 @@ Optional arguments:
 
 The `pcb export dxf` command exports a board design to a DXF file.
 
-Usage: `kicad-cli pcb export dxf [--help] [--output OUTPUT_FILE] [--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-refdes] [--exclude-value] [--use-contours] [--use-drill-origin] [--include-border-title] [--output-units UNITS] [--drill-shape-opt VAR] [--common-layers COMMON_LAYER_LIST] [--mode-single] [--mode-multi] [--plot-invisible-text] INPUT_FILE`
+Usage: `kicad-cli pcb export dxf [--help] [--output OUTPUT_FILE] [--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-refdes] [--exclude-value] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--subtract-soldermask] [--use-contours] [--use-drill-origin] [--include-border-title] [--output-units UNITS] [--drill-shape-opt VAR] [--common-layers COMMON_LAYER_LIST] [--mode-single] [--mode-multi] [--plot-invisible-text] INPUT_FILE`
 
 Positional arguments:
 
@@ -376,6 +419,16 @@ Optional arguments:
     | Exclude footprint reference designators from plot.
 | `--ev`, `--exclude-value`
     | Exclude footprint values from plot.
+| `--sp`, `--sketch-pads-on-fab-layers`
+    | Draw pad outlines and their numbers on front and back fab layers.
+| `--hdnp`, `--hide-DNP-footprints-on-fab-layers`
+    | Don't plot text and graphics of DNP footprints on fab layers.
+| `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`
+    | Plot graphics of DNP footprints in sketch mode on fab layers.
+| `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`
+    | Plot an "X" over the courtyard of DNP footprints on fab layers, and strikeout their reference designators.
+| `--subtract-soldermask`
+    | Remove silkscreen from areas without soldermask.
 | `--uc`, `--use-contours`
     | Plot graphic items using their contours.
 | `--udo`, `--use-drill-origin`
@@ -395,7 +448,9 @@ Optional arguments:
 | `--mode-multi`
     | Generates one or more files with behavior similar to the KiCad GUI plotting. The given output path specifies a directory in which files may be output.
 | `--plot-invisible-text`
-    | Force plotting of values and references, even if they are invisible.
+    | Force plotting of values and references, even if they are invisible. This argument is deprecated as of KiCad
+      9.0.1 and has no effect. It will be removed in a future version of KiCad. To plot invisible text, edit the
+      board so that the text is no longer invisible.
 |====
 
 === PCB GenCAD export
@@ -447,7 +502,7 @@ NOTE: Be aware that there are two distinct Gerber export commands, `gerber` and
       one PCB layer per file. The `gerbers` command is typically the correct
       command to use for having a PCB fabricated.
 
-Usage: `kicad-cli pcb export gerbers [--help] [--output OUTPUT_FILE] [--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-refdes] [--exclude-value] [--include-border-title] [--no-x2] [--no-netlist] [--subtract-soldermask] [--disable-aperture-macros] [--use-drill-file-origin] [--precision PRECISION] [--no-protel-ext] [--plot-invisible-text] [--common-layers COMMON_LAYER_LIST] [--board-plot-params] INPUT_FILE`
+Usage: `kicad-cli pcb export gerbers [--help] [--output OUTPUT_FILE] [--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-refdes] [--exclude-value] [--include-border-title] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--no-x2] [--no-netlist] [--subtract-soldermask] [--disable-aperture-macros] [--use-drill-file-origin] [--precision PRECISION] [--no-protel-ext] [--plot-invisible-text] [--common-layers COMMON_LAYER_LIST] [--board-plot-params] INPUT_FILE`
 
 Positional arguments:
 
@@ -481,6 +536,14 @@ Optional arguments:
     | Exclude footprint values from plot.
 | `--ibt`, `--include-border-title`
     | Include the sheet border and title block.
+| `--sp`, `--sketch-pads-on-fab-layers`
+    | Draw pad outlines and their numbers on front and back fab layers.
+| `--hdnp`, `--hide-DNP-footprints-on-fab-layers`
+    | Don't plot text and graphics of DNP footprints on fab layers.
+| `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`
+    | Plot graphics of DNP footprints in sketch mode on fab layers.
+| `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`
+    | Plot an "X" over the courtyard of DNP footprints on fab layers, and strikeout their reference designators.
 | `--no-x2`
     | Do not use the extended X2 format.
 | `--no-netlist`
@@ -498,7 +561,9 @@ Optional arguments:
     | Use `.gbr` file extension instead of Protel file extensions (`.gbl`,
       `.gtl`, etc.).
 | `--plot-invisible-text`
-    | Force plotting of values and references, even if they are invisible.
+    | Force plotting of values and references, even if they are invisible. This argument is deprecated as of KiCad
+      9.0.1 and has no effect. It will be removed in a future version of KiCad. To plot invisible text, edit the
+      board so that the text is no longer invisible.
 | `--cl <layer list>`, `--common-layers <layer list>`
     | A comma-separated list of layer names to plot on all layers, such as
       `F.Cu,B.Cu`.
@@ -517,11 +582,11 @@ NOTE: Be aware that there are two distinct Gerber export commands, `gerber` and
       one PCB layer per file. The `gerbers` command is typically the correct
       command to use for having a PCB fabricated.
 
-WARNING: the `pcb export gerber` command is deprecated in KiCad 9.0 and will be
+WARNING: The `pcb export gerber` command is deprecated in KiCad 9.0 and will be
          removed in KiCad 10.0. Please use the `pcb export gerbers` command
          instead.
 
-Usage: `kicad-cli pcb export gerber [--help] [--output OUTPUT_FILE] [--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-refdes] [--exclude-value] [--include-border-title] [--no-x2] [--no-netlist] [--subtract-soldermask] [--disable-aperture-macros] [--use-drill-file-origin] [--precision PRECISION] [--no-protel-ext] [--plot-invisible-text] INPUT_FILE`
+Usage: `kicad-cli pcb export gerber [--help] [--output OUTPUT_FILE] [--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-refdes] [--exclude-value] [--include-border-title] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--no-x2] [--no-netlist] [--subtract-soldermask] [--disable-aperture-macros] [--use-drill-file-origin] [--precision PRECISION] [--no-protel-ext] [--plot-invisible-text] INPUT_FILE`
 
 Positional arguments:
 
@@ -556,6 +621,14 @@ Optional arguments:
     | Exclude footprint values from plot.
 | `--ibt`, `--include-border-title`
     | Include the sheet border and title block.
+| `--sp`, `--sketch-pads-on-fab-layers`
+    | Draw pad outlines and their numbers on front and back fab layers.
+| `--hdnp`, `--hide-DNP-footprints-on-fab-layers`
+    | Don't plot text and graphics of DNP footprints on fab layers.
+| `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`
+    | Plot graphics of DNP footprints in sketch mode on fab layers.
+| `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`
+    | Plot an "X" over the courtyard of DNP footprints on fab layers, and strikeout their reference designators.
 | `--no-x2`
     | Do not use the extended X2 format.
 | `--no-netlist`
@@ -573,7 +646,9 @@ Optional arguments:
     | Use `.gbr` file extension instead of Protel file extensions (`.gbl`,
       `.gtl`, etc.).
 | `--plot-invisible-text`
-    | Force plotting of values and references, even if they are invisible.
+    | Force plotting of values and references, even if they are invisible. This argument is deprecated as of KiCad
+      9.0.1 and has no effect. It will be removed in a future version of KiCad. To plot invisible text, edit the
+      board so that the text is no longer invisible.
 |====
 
 === PCB GLB export
@@ -606,9 +681,9 @@ Optional arguments:
 | `-f`, `--force`
     | Overwrite output file.
 | `--no-unspecified`
-    | Exclude 3D models of components with 'unspecified' footprint type.
+    | Exclude 3D models of components with "unspecified" footprint type.
 | `--no-dnp`
-    | Exclude 3D models of components with 'Do not populate' attribute.
+    | Exclude 3D models of components with "Do not populate" attribute.
 | `--grid-origin`
     | Use grid origin as origin of output file.
 | `--drill-origin`
@@ -710,6 +785,31 @@ Optional arguments:
       column. This can be any footprint field, or blank to omit this column.
 |====
 
+=== PCB IPC-D-356 export
+
+The `pcb export ipcd356` command generates an IPC-D-356 netlist from the board design.
+
+Usage: `kicad-cli pcb export ipcd356 [--help] [--output OUTPUT_FILE] INPUT_FILE`
+
+Positional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `INPUT_FILE`
+    | Board file to export.
+|====
+
+Optional arguments:
+
+[width="100%",cols="30%,70%"]
+|====
+| `-h`, `--help`
+    | Show help for the IPC-D-356 export command.
+| `-o <output filename>`, `--output <output filename>`
+    | The output filename. When this argument is not used, the output filename
+      will be the same as the input file, with the `.d356` file extension.
+|====
+
 === PCB ODB++ export
 
 The `pcb export odb` command exports a board design in ODB++ format.
@@ -753,7 +853,7 @@ Optional arguments:
 
 The `pcb export pdf` command exports a board design to a PDF file. Each layer can be plotted as its own file or as a sheet within a single file.
 
-Usage: `kicad-cli pcb export pdf [--help] [--output OUTPUT_FILE] [--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--mirror] [--exclude-refdes] [--exclude-value] [--include-border-title] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--negative] [--black-and-white] [--theme THEME_NAME] [--drill-shape-opt VAR] [--common-layers COMMON_LAYER_LIST] [--plot-invisible-text] [--mode-single] [--mode-separate] [--mode-multipage] INPUT_FILE`
+Usage: `kicad-cli pcb export pdf [--help] [--output OUTPUT_FILE] [--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--mirror] [--exclude-refdes] [--exclude-value] [--include-border-title] [--subtract-soldermask] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--negative] [--black-and-white] [--theme THEME_NAME] [--drill-shape-opt VAR] [--common-layers COMMON_LAYER_LIST] [--plot-invisible-text] [--mode-single] [--mode-separate] [--mode-multipage] INPUT_FILE`
 
 Positional arguments:
 
@@ -789,6 +889,8 @@ Optional arguments:
     | Exclude footprint values from plot.
 | `--ibt`, `--include-border-title`
     | Include the sheet border and title block.
+| `--subtract-soldermask`
+    | Remove silkscreen from areas without soldermask.
 | `--sp`, `--sketch-pads-on-fab-layers`
     | Draw pad outlines and their numbers on front and back fab layers.
 | `--hdnp`, `--hide-DNP-footprints-on-fab-layers`
@@ -796,7 +898,7 @@ Optional arguments:
 | `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`
     | Plot graphics of DNP footprints in sketch mode on fab layers.
 | `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`
-    | Plot an 'X' over the courtyard of DNP footprints on fab layers, and strikeout their reference designators.
+    | Plot an "X" over the courtyard of DNP footprints on fab layers, and strikeout their reference designators.
 | `-n`, `--negative`
     | Plot in negative.
 | `--black-and-white`
@@ -811,7 +913,9 @@ Optional arguments:
     | A comma-separated list of layer names to plot on all layers, such as
       `F.Cu,B.Cu`.
 | `--plot-invisible-text`
-    | Force plotting of values and references, even if they are invisible.
+    | Force plotting of values and references, even if they are invisible. This argument is deprecated as of KiCad
+      9.0.1 and has no effect. It will be removed in a future version of KiCad. To plot invisible text, edit the
+      board so that the text is no longer invisible.
 | `--mode-single`
     | Generates a single file with the output arg path acting as the complete directory and filename path. `COMMON_LAYER_LIST` does not function in this mode. Instead `LAYER_LIST` controls all layers plotted.
 | `--mode-separate`
@@ -849,9 +953,9 @@ Optional arguments:
 | `-f`, `--force`
     | Overwrite output file.
 | `--no-unspecified`
-    | Exclude 3D models of components with 'unspecified' footprint type.
+    | Exclude 3D models of components with "unspecified" footprint type.
 | `--no-dnp`
-    | Exclude 3D models of components with 'Do not populate' attribute.
+    | Exclude 3D models of components with "Do not populate" attribute.
 | `--grid-origin`
     | Use grid origin as origin of output file.
 | `--drill-origin`
@@ -978,9 +1082,9 @@ Optional arguments:
 | `-f`, `--force`
     | Overwrite output file.
 | `--no-unspecified`
-    | Exclude 3D models of components with 'unspecified' footprint type.
+    | Exclude 3D models of components with "unspecified" footprint type.
 | `--no-dnp`
-    | Exclude 3D models of components with 'Do not populate' attribute.
+    | Exclude 3D models of components with "Do not populate" attribute.
 | `--grid-origin`
     | Use grid origin as origin of output file.
 | `--drill-origin`
@@ -1060,9 +1164,9 @@ Optional arguments:
 | `-f`, `--force`
     | Overwrite output file.
 | `--no-unspecified`
-    | Exclude 3D models of components with 'unspecified' footprint type.
+    | Exclude 3D models of components with "unspecified" footprint type.
 | `--no-dnp`
-    | Exclude 3D models of components with 'Do not populate' attribute.
+    | Exclude 3D models of components with "Do not populate" attribute.
 | `--grid-origin`
     | Use grid origin as origin of output file.
 | `--drill-origin`
@@ -1113,7 +1217,7 @@ Optional arguments:
 
 The `pcb export svg` command exports a board design to an SVG file.
 
-Usage: `kicad-cli pcb export svg [--help] [--output OUTPUT_FILE] [--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--mirror] [--theme THEME_NAME] [--negative] [--black-and-white] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--page-size-mode MODE] [--exclude-drawing-sheet] [--drill-shape-opt SHAPE_OPTION] [--common-layers COMMON_LAYER_LIST] [--mode-single] [--mode-multi] [--plot-invisible-text] INPUT_FILE`
+Usage: `kicad-cli pcb export svg [--help] [--output OUTPUT_FILE] [--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--subtract-soldermask] [--mirror] [--theme THEME_NAME] [--negative] [--black-and-white] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--page-size-mode MODE] [--fit-page-to-board] [--exclude-drawing-sheet] [--drill-shape-opt SHAPE_OPTION] [--common-layers COMMON_LAYER_LIST] [--mode-single] [--mode-multi] [--plot-invisible-text] INPUT_FILE`
 
 Positional arguments:
 
@@ -1141,6 +1245,8 @@ Optional arguments:
 | `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`
     | Add or override project variable definitions. Can be used multiple times
       to define multiple variables.
+| `--subtract-soldermask`
+    | Remove silkscreen from areas without soldermask.
 | `-m`, `--mirror`
     | Mirror the board. This can be useful for showing bottom layers.
 | `-t <theme name>`, `--theme <theme name>`
@@ -1157,12 +1263,14 @@ Optional arguments:
 | `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`
     | Plot graphics of DNP footprints in sketch mode on fab layers.
 | `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`
-    | Plot an 'X' over the courtyard of DNP footprints on fab layers, and strikeout their reference designators.
+    | Plot an "X" over the courtyard of DNP footprints on fab layers, and strikeout their reference designators.
 | `--page-size-mode <mode>`
     | Set page sizing mode. Options are `0` (default), `1`, or `2`. `0` sets the
       output page size to fit the entire sheet, including drawing sheet frame
       and title block. `1` sets the output page size to match the current page
       size. `2` sets the output page size to the size of the board itself.
+| `--fit-page-to-board`
+    | Set the SVG size to match the board outline. This is equivalent to `--page-size-mode 2`.
 | `--exclude-drawing-sheet`
     | Plot SVG without a drawing sheet.
 | `--drill-shape-opt`
@@ -1176,7 +1284,9 @@ Optional arguments:
 | `--mode-multi`
     | Generates one or more files with behavior similar to the KiCad GUI plotting. The given output path specifies a directory in which files may be output.
 | `--plot-invisible-text`
-    | Force plotting of values and references, even if they are invisible.
+    | Force plotting of values and references, even if they are invisible. This argument is deprecated as of KiCad
+      9.0.1 and has no effect. It will be removed in a future version of KiCad. To plot invisible text, edit the
+      board so that the text is no longer invisible.
 |====
 
 === PCB VRML export
@@ -1208,9 +1318,9 @@ Optional arguments:
 | `-f`, `--force`
     | Overwrite output file.
 | `--no-unspecified`
-    | Exclude 3D models of components with 'unspecified' footprint type.
+    | Exclude 3D models of components with "unspecified" footprint type.
 | `--no-dnp`
-    | Exclude 3D models of components with 'Do not populate' attribute.
+    | Exclude 3D models of components with "Do not populate" attribute.
 | `--user-origin <output origin>`
     | Specify a custom origin for the output file, with X and Y coordinates. For
       example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is
@@ -1255,9 +1365,9 @@ Optional arguments:
 | `-f`, `--force`
     | Overwrite output file.
 | `--no-unspecified`
-    | Exclude 3D models of components with 'unspecified' footprint type.
+    | Exclude 3D models of components with "unspecified" footprint type.
 | `--no-dnp`
-    | Exclude 3D models of components with 'Do not populate' attribute.
+    | Exclude 3D models of components with "Do not populate" attribute.
 | `--grid-origin`
     | Use grid origin as origin of output file.
 | `--drill-origin`
@@ -1363,13 +1473,13 @@ Optional arguments:
     | Set board rotation around pivot point, in degrees, with the format
       `'X,Y,Z'`, e.g. `'-45,0,45'` for isometric view.
 | `--light-top <intensity>`
-    | Top light intensity, format `'R,G,B'' or a single number, range: 0-1.
+    | Top light intensity, format `'R,G,B'` or a single number, range: 0-1.
 | `--light-bottom <intensity>`
-    | Bottom light intensity, format `'R,G,B'' or a single number, range: 0-1.
+    | Bottom light intensity, format `'R,G,B'` or a single number, range: 0-1.
 | `--light-side <intensity>`
-    | Side lights intensity, format `'R,G,B'' or a single number, range: 0-1.
+    | Side lights intensity, format `'R,G,B'` or a single number, range: 0-1.
 | `--light-camera <intensity>`
-    | Camera light intensity, format `'R,G,B'' or a single number, range: 0-1.
+    | Camera light intensity, format `'R,G,B'` or a single number, range: 0-1.
 | `--light-side-elevation <elevation>`
     | Side lights elevation angle in degrees, range: 0-90.
 |====
@@ -1472,11 +1582,11 @@ Optional arguments:
       for a list of fields). Default: "Reference,Value,Footprint,${QUANTITY},${DNP}".
 | `--labels <labels>`
     | An ordered list of labels to apply the exported fields (default:
-      "Refs,Value,Footprint,Qty,DNP").
+      `"Refs,Value,Footprint,Qty,DNP"`).
 | `--group-by <fields>`
     | Fields to group references by when field values match.
 | `--sort-field <fields>`
-    | Field name to sort by (default: "Reference").
+    | Field name to sort by (default: `"Reference"`).
 | `--sort-asc`
     | If given, sort in ascending order. If not given, sort in descending order.
 | `--filter <filter>`
@@ -1484,15 +1594,15 @@ Optional arguments:
 | `--exclude-dnp`
     | Exclude symbols with the "Do not populate" attribute.
 | `--include-excluded-from-bom`
-    | Include symbols marked 'Exclude from BOM'.
+    | Include symbols marked "Exclude from BOM".
 | `--field-delimiter <delimiter>`
-    | Separator between output fields/columns (default: ",").
+    | Separator between output fields/columns (default: `","`).
 | `--string-delimiter <delimiter>`
     | Character to surround fields with (none by default).
 | `--ref-delimiter <delimiter>`
-    | Character to place between individual references (default: ",").
+    | Character to place between individual references (default: `","`).
 | `--ref-range-delimiter <delimiter>`
-    | Character to place in ranges of references (default: "-"). Leave blank for
+    | Character to place in ranges of references (default: `"-"`). Leave blank for
       no ranges.
 | `--keep-tabs`
     | Keep tab characters from input fields. Stripped by default.
@@ -1885,7 +1995,7 @@ Optional arguments:
 
 == Version commands
 
-The `version` subcommand prints the KiCad version. Without any arguments, it
+The `version` command prints the KiCad version. Without any arguments, it
 simply prints the version number, for example `7.0.7`. You can print the version
 in several other formats using the `--format` argument.
 

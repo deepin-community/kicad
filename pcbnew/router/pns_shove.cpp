@@ -98,15 +98,18 @@ SHOVE::ROOT_LINE_ENTRY* SHOVE::replaceLine( LINE& aOld, LINE& aNew, bool aInclud
 
     if( aOld.EndsWithVia() )
     {
+        LINKED_ITEM* viaLink = nullptr;
         for( LINKED_ITEM* lnk : aOld.Links() )
         {
             if( lnk->OfKind( ITEM::VIA_T ) )
             {
-                aOld.Unlink( lnk );
+                viaLink = lnk;
+                break;
             }
         }
+        if( viaLink )
+            aOld.Unlink( viaLink );
     }
-
 
     bool  foundPredecessor = false;
     ROOT_LINE_ENTRY *rootEntry = nullptr;
@@ -219,6 +222,7 @@ LINE SHOVE::assembleLine( const LINKED_ITEM* aSeg, int* aIndex, bool aPreCleanup
     if( aPreCleanup )
     {
         LINE cleaned;
+
         if (preShoveCleanup( &cur, &cleaned ) )
             return cleaned;
     }
@@ -302,12 +306,14 @@ bool SHOVE::shoveLineFromLoneVia( const LINE& aCurLine, const LINE& aObstacleLin
 /*
  * Re-walk aObstacleLine around the given set of hulls, returning the result in aResultLine.
  */
-bool SHOVE::shoveLineToHullSet( const LINE& aCurLine, const LINE& aObstacleLine,
-                                               LINE& aResultLine, const HULL_SET& aHulls, bool aPermitAdjustingEndpoints )
+bool SHOVE::shoveLineToHullSet( const LINE& aCurLine, const LINE& aObstacleLine, LINE& aResultLine,
+                                const HULL_SET& aHulls, bool aPermitAdjustingStart,
+                                bool aPermitAdjustingEnd )
 {
-    const int c_ENDPOINT_ON_HULL_THRESHOLD = 10000;
+    const int c_ENDPOINT_ON_HULL_THRESHOLD = 1000;
     int attempt;
-    
+    bool permitAdjustingEndpoints = aPermitAdjustingStart || aPermitAdjustingEnd;
+
     PNS_DBG( Dbg(), BeginGroup, "shove-details", 1 );
 
     for( attempt = 0; attempt < 4; attempt++ )
@@ -319,7 +325,7 @@ bool SHOVE::shoveLineToHullSet( const LINE& aCurLine, const LINE& aObstacleLine,
         LINE l( aObstacleLine );
         SHAPE_LINE_CHAIN path( l.CLine() );
 
-        if( aPermitAdjustingEndpoints )
+        if( permitAdjustingEndpoints && l.SegmentCount() >= 1 )
         {
             auto minDistP = [&]( VECTOR2I pref, int& mdist, int& minhull ) -> VECTOR2I
             {
@@ -342,15 +348,6 @@ bool SHOVE::shoveLineToHullSet( const LINE& aCurLine, const LINE& aObstacleLine,
                     {
                         bool reject = false;
 
-                        /*for( int j = 0; j < (int) aHulls.size(); j++ )
-                        {
-                            if ( i != j && aHulls[j].PointInside( p ) )
-                            {
-                                reject = true;
-                                break;
-                            }
-                        }*/
-                        
                         if( !reject )
                         {
                             min_dist = dist;
@@ -369,14 +366,14 @@ bool SHOVE::shoveLineToHullSet( const LINE& aCurLine, const LINE& aObstacleLine,
 
             PNS_DBG( Dbg(), Message, wxString::Format( "mindists : %d %d hulls %d %d\n", minDist0, minDist1, minhull0, minhull1 ) );
 
-            if( minDist1 < c_ENDPOINT_ON_HULL_THRESHOLD )
+            if( minDist1 < c_ENDPOINT_ON_HULL_THRESHOLD && aPermitAdjustingEnd )
             {
                 l.Line().Append( p1 );
                 obs = l.CLine();
                 path = l.CLine();
             }
 
-            if( minDist0 < c_ENDPOINT_ON_HULL_THRESHOLD )
+            if( minDist0 < c_ENDPOINT_ON_HULL_THRESHOLD && aPermitAdjustingStart )
             {
                 l.Line().Insert( 0, p0 );
                 obs = l.CLine();
@@ -507,6 +504,20 @@ bool SHOVE::ShoveObstacleLine( const LINE& aCurLine, const LINE& aObstacleLine,
     const int cHullFailureExpansionFactor = 1000;
     int extraHullExpansion = 0;
 
+    bool voeStart = false, voeEnd = false;
+    const JOINT* jtStart = nullptr;
+    const JOINT* jtEnd = nullptr;
+
+    if( aObstacleLine.PointCount() >= 2 )
+    {
+        jtStart = m_currentNode->FindJoint( aObstacleLine.CPoint( 0 ), &aObstacleLine );
+        jtEnd = m_currentNode->FindJoint( aObstacleLine.CPoint( -1 ), &aObstacleLine );
+    }
+
+    if( jtStart )
+        voeStart = jtStart->Via() != nullptr;
+    if( jtEnd )
+        voeEnd = jtEnd->Via() != nullptr;
 
     aResultLine.ClearLinks();
     bool viaOnEnd = aCurLine.EndsWithVia();
@@ -583,9 +594,10 @@ bool SHOVE::ShoveObstacleLine( const LINE& aCurLine, const LINE& aObstacleLine,
                 hulls.push_back( aCurLine.Via().Hull( viaClearance, obstacleLineWidth, layer ) );
             }
 
-            bool permitMovingEndpoints = (attempt >= 2);
+            bool permitMovingStart = (attempt >= 2) && !voeStart;
+            bool permitMovingEnd = (attempt >= 2) && !voeEnd;
 
-            if (shoveLineToHullSet( aCurLine, obstacleLine, aResultLine, hulls, permitMovingEndpoints ) )
+            if (shoveLineToHullSet( aCurLine, obstacleLine, aResultLine, hulls, permitMovingStart, permitMovingEnd ) )
             {
                 if( obsVia )
                     aResultLine.AppendVia( *obsVia );
@@ -938,21 +950,21 @@ NODE* SHOVE::reduceSpringback( const ITEM_SET& aHeadSet )
     SPRINGBACK_TAG& spTag = m_nodeStack.back();
 
     for( int i = 0; i < spTag.m_draggedVias.size(); i++ )
-            {
-                if (spTag.m_draggedVias[i].valid)
-                {
-                    m_headLines[i].prevVia = m_headLines[i].theVia = spTag.m_draggedVias[i];
-                    m_headLines[i].geometryModified = true;
-                    PNS_DBG( Dbg(), Message,
-                             wxString::Format( "restore-springback-via depth=%d %d %d %d %d ",
-                                               spTag.m_node->Depth(),
-                                               (int) m_nodeStack.size(),
-                                               m_headLines[i].theVia->pos.x,
-                                               m_headLines[i].theVia->pos.y,
-                                               m_headLines[i].theVia->layers.Start(),
-                                               m_headLines[i].theVia->layers.End() ) );
-                }
-            }
+    {
+        if (spTag.m_draggedVias[i].valid)
+        {
+            m_headLines[i].prevVia = m_headLines[i].theVia = spTag.m_draggedVias[i];
+            m_headLines[i].geometryModified = true;
+            PNS_DBG( Dbg(), Message,
+                     wxString::Format( "restore-springback-via depth=%d %d %d %d %d ",
+                                       spTag.m_node->Depth(),
+                                       (int) m_nodeStack.size(),
+                                       m_headLines[i].theVia->pos.x,
+                                       m_headLines[i].theVia->pos.y,
+                                       m_headLines[i].theVia->layers.Start(),
+                                       m_headLines[i].theVia->layers.End() ) );
+        }
+    }
 
     return m_nodeStack.back().m_node;
 }
@@ -1357,6 +1369,7 @@ SHOVE::SHOVE_STATUS SHOVE::onReverseCollidingVia( LINE& aCurrent, VIA* aObstacle
     PNS_DBGN( Dbg(), EndGroup );
 
     int currentRank = aCurrent.Rank();
+    unwindLineStack( &aCurrent );
     replaceLine( aCurrent, shoved, true, false );
 
     if( !pushLineStack( shoved ) )
@@ -1394,6 +1407,7 @@ void SHOVE::unwindLineStack( const LINKED_ITEM* aSeg )
                 if( via )
                 {
                     i->ClearLinks();
+                    i->Line().Clear();
                     i->LinkVia( via );
                 }
                 i++;
@@ -1413,7 +1427,7 @@ void SHOVE::unwindLineStack( const LINKED_ITEM* aSeg )
 
     for( std::vector<LINE>::iterator i = m_optimizerQueue.begin(); i != m_optimizerQueue.end() ; )
     {
-        if( i->ContainsLink( aSeg ) )
+        if( i->ContainsLink( aSeg ) && !aSeg->OfKind( ITEM::VIA_T ) )
             i = m_optimizerQueue.erase( i );
         else
             i++;
@@ -1581,6 +1595,37 @@ bool SHOVE::fixupViaCollisions( const LINE* aCurrent, OBSTACLE& obs )
     return false;
 }
 
+bool SHOVE::patchTadpoleVia( ITEM* nearest, LINE& current )
+{
+    if (current.CLine().PointCount() < 1 )
+        return false;
+
+//    PNS_DBG(Dbg(), Message, wxString::Format( "cp %d %d", current.CLine().CPoint(-1).x, current.CLine().CPoint(-1).y ) );
+
+    auto jtViaEnd = m_currentNode->FindJoint( current.CLine().CPoint(-1), &current );
+
+//    PNS_DBG(Dbg(), Message, wxString::Format( "jt %p",  jtViaEnd ) );
+
+    if ( !jtViaEnd )
+        return false;
+
+    auto viaEnd = jtViaEnd->Via();
+
+    if (! viaEnd )
+        return false;
+
+    bool colliding = m_currentNode->CheckColliding( viaEnd ).has_value();
+
+//    PNS_DBG(Dbg(), Message, wxString::Format( "patch-tadpole viaEnd %p colliding %d", viaEnd, colliding?1:0 ) );
+
+    if( viaEnd && !current.EndsWithVia() && colliding )
+    {
+        current.LinkVia( viaEnd );
+    }
+
+    return false;
+}
+
 /*
  * Resolve the next collision.
  */
@@ -1658,9 +1703,8 @@ SHOVE::SHOVE_STATUS SHOVE::shoveIteration( int aIter )
 
     ITEM* ni = nearest->m_item;
 
-    UNITS_PROVIDER up( pcbIUScale, EDA_UNITS::MILLIMETRES );
+    UNITS_PROVIDER up( pcbIUScale, EDA_UNITS::MM );
     PNS_DBG( Dbg(), Message, wxString::Format( wxT( "NI: %s (%s) %p %d" ),
-
                                                ni->Format(),
                                                ni->Parent() ? ni->Parent()->GetItemDescription( &up, false )
                                                             : wxString( wxT( "null" ) ),
@@ -1678,6 +1722,8 @@ SHOVE::SHOVE_STATUS SHOVE::shoveIteration( int aIter )
         case ITEM::VIA_T:
         {
             PNS_DBG( Dbg(), BeginGroup, wxString::Format( wxT( "iter %d: reverse-collide-via" ), aIter ), 0 );
+
+            patchTadpoleVia( ni, currentLine );
 
             // TODO(JE) viastacks -- via-via collisions here?
             if( currentLine.EndsWithVia()
@@ -1711,6 +1757,8 @@ SHOVE::SHOVE_STATUS SHOVE::shoveIteration( int aIter )
             LINE revLine = assembleLine( static_cast<SEGMENT*>( ni ) );
 
             popLineStack();
+            unwindLineStack( &revLine );
+            patchTadpoleVia( ni, currentLine );
 
             if( currentLine.EndsWithVia()
                 && currentLine.Via().Collide( (SEGMENT*) ni, m_currentNode, currentLine.Layer() ) )
@@ -2223,33 +2271,16 @@ void SHOVE::removeHeads()
 {
     auto iface = Router()->GetInterface();
 
-    for( auto& headEntry : m_headLines )
+    NODE::ITEM_VECTOR removed, added;
+
+    m_currentNode->GetUpdatedItems( removed, added );
+
+    for( auto& item : added )
     {
-        if( headEntry.newHead )
+        auto rootEntry = findRootLine( static_cast<LINKED_ITEM*>( item ) );
+        if( rootEntry && rootEntry->isHead )
         {
-            //nodeStats( Dbg(), m_currentNode, "pre-remove-new" );
-            int n_lc = headEntry.newHead->LinkCount();
-            removeHead(m_currentNode, *headEntry.newHead );
-            //nodeStats( Dbg(), m_currentNode, "post-remove-new" );
-
-
-            wxString msg = wxString::Format(
-                    "remove newhead [net %-20s]: sc %d lc %d\n",
-                    iface->GetNetName( headEntry.newHead->Net() ).c_str().AsChar(),
-                    headEntry.newHead->SegmentCount(), n_lc );
-            PNS_DBG( Dbg(), Message, msg );
-        }
-        else if( headEntry.origHead )
-        {
-            wxString msg = wxString::Format(
-                    "remove orighead [net %-20s]: sc %d lc %d node %p depth %d\n",
-                    iface->GetNetName( headEntry.origHead->Net() ).c_str().AsChar(),
-                    headEntry.origHead->SegmentCount(), headEntry.origHead->LinkCount(),
-                    headEntry.origHead->OwningNode(), m_currentNode->Depth() );
-            PNS_DBG( Dbg(), Message, msg );
-
-            removeHead( m_currentNode, *headEntry.origHead );
-
+            m_currentNode->Remove( item );
         }
     }
 }
@@ -2464,7 +2495,10 @@ SHOVE::SHOVE_STATUS SHOVE::Run()
 
             currentHeadId++;
 
-            m_currentNode->LockJoint( head.CPoint( 0 ), &head, true );
+            if( head.PointCount() > 0 )
+            {
+                m_currentNode->LockJoint( head.CPoint( 0 ), &head, true );
+            }
 
             if( !head.EndsWithVia() )
                 m_currentNode->LockJoint( head.CPoint( -1 ), &head, true );
@@ -2487,6 +2521,10 @@ SHOVE::SHOVE_STATUS SHOVE::Run()
             headRoot->isHead = true;
             headRoot->rootLine = new PNS::LINE( *headLineEntry.origHead );
             headRoot->policy = headLineEntry.policy;
+            if( head.EndsWithVia() )
+            {
+                m_rootLineHistory[ headLineEntry.origHead->Via().Uid() ] = headRoot;
+            }
 
 
             PNS_DBG( Dbg(), Message,

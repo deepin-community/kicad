@@ -76,6 +76,7 @@ private:
 bool DRC_TEST_PROVIDER_CREEPAGE::Run()
 {
     m_board = m_drcEngine->GetBoard();
+    m_reportedPairs.clear();
 
     if( !m_drcEngine->IsErrorLimitExceeded( DRCE_CREEPAGE ) )
     {
@@ -253,7 +254,7 @@ double DRC_TEST_PROVIDER_CREEPAGE::GetMaxConstraint( const std::vector<int>& aNe
                             bci1.SetNetCode( aNet1 );
                             bci2.SetNetCode( aNet2 );
 
-                            for( PCB_LAYER_ID layer : LSET::AllCuMask().CuStack() )
+                            for( PCB_LAYER_ID layer : LSET::AllCuMask( m_board->GetCopperLayerCount() ) )
                             {
                                 bci1.SetLayer( layer );
                                 bci2.SetLayer( layer );

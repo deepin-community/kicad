@@ -81,6 +81,13 @@ PCB_TEXT::~PCB_TEXT()
 }
 
 
+void PCB_TEXT::CopyFrom( const BOARD_ITEM* aOther )
+{
+    wxCHECK( aOther && aOther->Type() == PCB_TEXT_T, /* void */ );
+    *this = *static_cast<const PCB_TEXT*>( aOther );
+}
+
+
 void PCB_TEXT::Serialize( google::protobuf::Any &aContainer ) const
 {
     using namespace kiapi::common;
@@ -277,9 +284,6 @@ void PCB_TEXT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_IT
 
     if( aFrame->GetName() == PCB_EDIT_FRAME_NAME && IsLocked() )
         aList.emplace_back( _( "Status" ), _( "Locked" ) );
-
-    if( parentFP )
-        aList.emplace_back( _( "Display" ), IsVisible() ? _( "Yes" ) : _( "No" ) );
 
     aList.emplace_back( _( "Layer" ), GetLayerName() );
 
@@ -639,9 +643,6 @@ static struct PCB_TEXT_DESC
 
                     return false;
                 };
-
-        propMgr.OverrideAvailability( TYPE_HASH( PCB_TEXT ), TYPE_HASH( EDA_TEXT ),
-                                      _HKI( "Visible" ), isFootprintText );
 
         propMgr.OverrideAvailability( TYPE_HASH( PCB_TEXT ), TYPE_HASH( EDA_TEXT ),
                                       _HKI( "Keep Upright" ), isFootprintText );

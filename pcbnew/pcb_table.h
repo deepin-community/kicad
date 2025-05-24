@@ -52,8 +52,8 @@ public:
     void SetStrokeExternal( bool aDoStroke ) { m_strokeExternal = aDoStroke; }
     bool StrokeExternal() const              { return m_strokeExternal; }
 
-    void SetStrokeHeader( bool aDoStroke ) { m_strokeHeader = aDoStroke; }
-    bool StrokeHeader() const              { return m_strokeHeader; }
+    void SetStrokeHeaderSeparator( bool aDoStroke ) { m_StrokeHeaderSeparator = aDoStroke; }
+    bool StrokeHeaderSeparator() const              { return m_StrokeHeaderSeparator; }
 
     void SetBorderStroke( const STROKE_PARAMS& aParams ) { m_borderStroke = aParams; }
     const STROKE_PARAMS& GetBorderStroke() const { return m_borderStroke; }
@@ -98,6 +98,7 @@ public:
     bool StrokeRows() const              { return m_strokeRows; }
 
     void RunOnChildren( const std::function<void( BOARD_ITEM* )>& aFunction ) const override;
+    void RunOnDescendants( const std::function<void( BOARD_ITEM* )>& aFunction, int aDepth = 0 ) const override;
 
     void SetPosition( const VECTOR2I& aPos ) override;
     VECTOR2I GetPosition() const override;
@@ -204,6 +205,9 @@ public:
 
     const BOX2I GetBoundingBox() const override;
 
+    void DrawBorders( const std::function<void( const VECTOR2I& aPt1, const VECTOR2I& aPt2,
+                                                const STROKE_PARAMS& aStroke )>& aCallback ) const;
+
     // @copydoc BOARD_ITEM::GetEffectiveShape
     std::shared_ptr<SHAPE> GetEffectiveShape( PCB_LAYER_ID aLayer = UNDEFINED_LAYER,
                                               FLASHING aFlash = FLASHING::DEFAULT ) const override;
@@ -252,7 +256,7 @@ protected:
 
 protected:
     bool                        m_strokeExternal;
-    bool                        m_strokeHeader;
+    bool                        m_StrokeHeaderSeparator;
     STROKE_PARAMS               m_borderStroke;
     bool                        m_strokeRows;
     bool                        m_strokeColumns;

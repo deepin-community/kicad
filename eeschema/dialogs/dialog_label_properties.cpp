@@ -109,7 +109,7 @@ DIALOG_LABEL_PROPERTIES::DIALOG_LABEL_PROPERTIES( SCH_EDIT_FRAME* aParent,
     m_grid->SetDefaultRowSize( m_grid->GetDefaultRowSize() + 4 );
 
     m_grid->SetTable( m_fields );
-    m_grid->PushEventHandler( new FIELDS_GRID_TRICKS( m_grid, this, nullptr,
+    m_grid->PushEventHandler( new FIELDS_GRID_TRICKS( m_grid, this, {},
                                                       [&]( wxCommandEvent& aEvent )
                                                       {
                                                           OnAddField( aEvent );
@@ -223,6 +223,10 @@ DIALOG_LABEL_PROPERTIES::DIALOG_LABEL_PROPERTIES( SCH_EDIT_FRAME* aParent,
         if( cfg->m_Appearance.edit_label_width > 0 && cfg->m_Appearance.edit_label_height > 0 )
             SetSize( cfg->m_Appearance.edit_label_width, cfg->m_Appearance.edit_label_height );
     }
+
+    // Bind the event to handle filtering
+    m_valueCombo->Bind( wxEVT_TEXT, &DIALOG_LABEL_PROPERTIES::OnLabelFilter, this );
+    m_valueCombo->Bind( wxEVT_COMBOBOX, &DIALOG_LABEL_PROPERTIES::OnLabelItemSelected, this );
 }
 
 
@@ -243,6 +247,9 @@ DIALOG_LABEL_PROPERTIES::~DIALOG_LABEL_PROPERTIES()
 
     if( m_helpWindow )
         m_helpWindow->Destroy();
+
+    m_valueCombo->Unbind( wxEVT_TEXT, &DIALOG_LABEL_PROPERTIES::OnLabelFilter, this );
+    m_valueCombo->Unbind( wxEVT_COMBOBOX, &DIALOG_LABEL_PROPERTIES::OnLabelItemSelected, this );
 }
 
 
@@ -300,12 +307,10 @@ bool DIALOG_LABEL_PROPERTIES::TransferDataToWindow()
         for( const std::shared_ptr<BUS_ALIAS>& busAlias : busAliases )
             existingLabels.insert( wxT( "{" ) + busAlias->GetName() + wxT( "}" ) );
 
-        wxArrayString existingLabelArray;
-
         for( const wxString& label : existingLabels )
-            existingLabelArray.push_back( label );
+            m_existingLabelArray.push_back( label );
 
-        m_valueCombo->Append( existingLabelArray );
+        m_valueCombo->Append( m_existingLabelArray );
     }
 
     // Push a copy of each field into m_updateFields
@@ -428,7 +433,7 @@ bool DIALOG_LABEL_PROPERTIES::TransferDataFromWindow()
         return false;
 
     // Don't allow text to disappear; it can be difficult to correct if you can't select it
-    if( !m_textSize.Validate( 0.01, 1000.0, EDA_UNITS::MILLIMETRES ) )
+    if( !m_textSize.Validate( 0.01, 1000.0, EDA_UNITS::MM ) )
         return false;
 
     SCH_COMMIT commit( m_Parent );
@@ -813,3 +818,109 @@ void DIALOG_LABEL_PROPERTIES::OnSizeGrid( wxSizeEvent& event )
 }
 
 
+/**
+ * Handles the filtering of items in the wxComboBox based on user input.
+ *
+ * This function is triggered by the wxEVT_TEXT event whenever the user types
+ * or modifies the text in the combo box. It filters the dropdown list
+ * to show only those items that match the user's input.
+ *
+ * Key Steps:
+ * - Prevents re-entry using a static flag `isFiltering` to avoid recursion
+ *   caused by wxComboBox events triggered during item updates.
+ * - Compares the current input with the previously entered text to avoid
+ *   unnecessary filtering if the text hasn't changed.
+ * - Filters the items from `m_existingLabelArray` to match the user's input.
+ * - Updates the combo box with the filtered items while preserving the user's
+ *   input and cursor position.
+ *
+ * @param event The wxCommandEvent associated with the wxEVT_TEXT event.
+ */
+void DIALOG_LABEL_PROPERTIES::OnLabelFilter( wxCommandEvent& event )
+{
+    static bool isFiltering = false;
+
+    if( isFiltering )
+        return;
+
+    isFiltering = true;
+
+    wxString currentLabelText = m_valueCombo->GetValue();
+
+    // Check if the text has changed compared to the previous value
+    if( currentLabelText != m_previousLabelText )
+    {
+        m_previousLabelText = currentLabelText;
+
+        long insertionPoint = m_valueCombo->GetInsertionPoint();
+
+        wxArrayString filteredLabels;
+
+        if( currentLabelText.IsEmpty() )
+        {
+            filteredLabels = m_existingLabelArray;
+        }
+        else
+        {
+            wxString filterText = currentLabelText.Lower();
+
+            std::copy_if( m_existingLabelArray.begin(), m_existingLabelArray.end(),
+                          std::back_inserter( filteredLabels ),
+                          [&filterText]( const wxString& label )
+                          {
+                              return label.Lower().Contains( filterText );
+                          } );
+        }
+
+        m_valueCombo->Freeze();
+        m_valueCombo->Clear();
+        m_valueCombo->Append( filteredLabels );
+        m_valueCombo->Thaw();
+
+        m_valueCombo->ChangeValue( currentLabelText );
+        m_valueCombo->SetInsertionPoint( insertionPoint );
+
+        if( filteredLabels.size() > 0 && !currentLabelText.empty() )
+        {
+            wxString filterText = currentLabelText.Lower();
+
+            auto it = std::find_if( filteredLabels.begin(), filteredLabels.end(),
+                                    [&filterText]( const wxString& label )
+                                    {
+                                        return label.Lower().StartsWith( filterText );
+                                    } );
+
+            if( it != filteredLabels.end() )
+            {
+                wxString suggestion = *it;
+                m_valueCombo->ChangeValue( suggestion );
+                m_valueCombo->SetInsertionPoint( filterText.length() );
+                m_valueCombo->SetSelection( filterText.length(), suggestion.length() );
+            }
+        }
+    }
+
+    isFiltering = false;
+}
+
+
+/**
+ * Handles the selection of an item from the wxComboBox dropdown.
+ *
+ * This function is triggered by the wxEVT_COMBOBOX event when the user selects
+ * an item from the dropdown list. It ensures that the selected item's value
+ * is preserved and that filtering logic does not interfere with the selection process.
+ *
+ * Key Steps:
+ * - Updates the `m_previousText` to match the selected value to prevent
+ *   re-filtering based on the selection.
+ * - Uses a static flag `isHandlingSelection` to ensure filtering is not
+ *   unnecessarily triggered by the selection.
+ *
+ * @param event The wxCommandEvent associated with the wxEVT_COMBOBOX event.
+ */
+void DIALOG_LABEL_PROPERTIES::OnLabelItemSelected( wxCommandEvent& event )
+{
+    wxString selectedValue = m_valueCombo->GetValue();
+    m_previousLabelText = selectedValue;
+}

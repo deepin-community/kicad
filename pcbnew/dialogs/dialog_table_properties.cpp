@@ -211,7 +211,7 @@ bool DIALOG_TABLE_PROPERTIES::TransferDataToWindow()
     m_cbLocked->SetValue( m_table->IsLocked() );
 
     m_borderCheckbox->SetValue( m_table->StrokeExternal() );
-    m_headerBorder->SetValue( m_table->StrokeHeader() );
+    m_headerBorder->SetValue( m_table->StrokeHeaderSeparator() );
 
     if( m_table->GetBorderStroke().GetWidth() >= 0 )
         m_borderWidth.SetValue( m_table->GetBorderStroke().GetWidth() );
@@ -223,9 +223,9 @@ bool DIALOG_TABLE_PROPERTIES::TransferDataToWindow()
     else
         m_borderStyleCombo->SetSelection( 0 );
 
-    m_borderWidth.Enable( m_table->StrokeExternal() || m_table->StrokeHeader() );
-    m_borderStyleLabel->Enable( m_table->StrokeExternal() || m_table->StrokeHeader() );
-    m_borderStyleCombo->Enable( m_table->StrokeExternal() || m_table->StrokeHeader() );
+    m_borderWidth.Enable( m_table->StrokeExternal() || m_table->StrokeHeaderSeparator() );
+    m_borderStyleLabel->Enable( m_table->StrokeExternal() || m_table->StrokeHeaderSeparator() );
+    m_borderStyleCombo->Enable( m_table->StrokeExternal() || m_table->StrokeHeaderSeparator() );
 
     bool rows = m_table->StrokeRows() && m_table->GetSeparatorsStroke().GetWidth() >= 0;
     bool cols = m_table->StrokeColumns() && m_table->GetSeparatorsStroke().GetWidth() >= 0;
@@ -250,6 +250,32 @@ bool DIALOG_TABLE_PROPERTIES::TransferDataToWindow()
     return true;
 }
 
+void DIALOG_TABLE_PROPERTIES::onHeaderChecked( wxCommandEvent& aEvent )
+{
+    BOARD_DESIGN_SETTINGS& bds = m_frame->GetDesignSettings();
+    PCB_LAYER_ID           currentLayer = ToLAYER_ID( m_LayerSelectionCtrl->GetLayerSelection() );
+    int                    defaultLineThickness = bds.GetLineThickness( currentLayer );
+
+    bool border = m_borderCheckbox->GetValue();
+    bool header = m_headerBorder->GetValue();
+
+    if( ( border || header ) && m_borderWidth.GetValue() < 0 )
+        m_borderWidth.SetValue( defaultLineThickness );
+
+    m_borderWidth.Enable( border || header );
+    m_borderStyleLabel->Enable( border || header );
+    m_borderStyleCombo->Enable( border || header );
+
+    bool row = m_rowSeparators->GetValue();
+    bool col = m_colSeparators->GetValue();
+
+    if( ( row || col ) && m_separatorsWidth.GetValue() < 0 )
+        m_separatorsWidth.SetValue( defaultLineThickness );
+
+    m_separatorsWidth.Enable( row || col );
+    m_separatorsStyleLabel->Enable( row || col );
+    m_separatorsStyleCombo->Enable( row || col );
+}
 
 void DIALOG_TABLE_PROPERTIES::onBorderChecked( wxCommandEvent& aEvent )
 {
@@ -258,13 +284,14 @@ void DIALOG_TABLE_PROPERTIES::onBorderChecked( wxCommandEvent& aEvent )
     int                    defaultLineThickness = bds.GetLineThickness( currentLayer );
 
     bool border = m_borderCheckbox->GetValue();
+    bool header = m_headerBorder->GetValue();
 
-    if( border && m_borderWidth.GetValue() < 0 )
+    if( ( border || header ) && m_borderWidth.GetValue() < 0 )
         m_borderWidth.SetValue( defaultLineThickness );
 
-    m_borderWidth.Enable( border );
-    m_borderStyleLabel->Enable( border );
-    m_borderStyleCombo->Enable( border );
+    m_borderWidth.Enable( border || header );
+    m_borderStyleLabel->Enable( border || header );
+    m_borderStyleCombo->Enable( border || header );
 
     bool row = m_rowSeparators->GetValue();
     bool col = m_colSeparators->GetValue();
@@ -312,6 +339,10 @@ bool DIALOG_TABLE_PROPERTIES::TransferDataFromWindow()
 
             wxString txt = m_grid->GetCellValue( row, col );
 
+            // Don't insert grey colour value back in to table cell
+            if( tableCell->GetColSpan() == 0 || tableCell->GetRowSpan() == 0 )
+                txt = wxEmptyString;
+
             // convert any text variable cross-references to their UUIDs
             txt = board->ConvertCrossReferencesToKIIDs( txt );
 
@@ -326,6 +357,7 @@ bool DIALOG_TABLE_PROPERTIES::TransferDataFromWindow()
 #endif
 
             tableCell->SetText( txt );
+            tableCell->SetLayer( ToLAYER_ID( m_LayerSelectionCtrl->GetLayerSelection() ) );
         }
     }
 
@@ -333,11 +365,11 @@ bool DIALOG_TABLE_PROPERTIES::TransferDataFromWindow()
     m_table->SetLocked( m_cbLocked->GetValue() );
 
     m_table->SetStrokeExternal( m_borderCheckbox->GetValue() );
-    m_table->SetStrokeHeader( m_headerBorder->GetValue() );
+    m_table->SetStrokeHeaderSeparator( m_headerBorder->GetValue() );
     {
         STROKE_PARAMS stroke = m_table->GetBorderStroke();
 
-        if( m_borderCheckbox->GetValue() )
+        if( m_borderCheckbox->GetValue() || m_headerBorder->GetValue() )
             stroke.SetWidth( std::max( 0, m_borderWidth.GetIntValue() ) );
         else
             stroke.SetWidth( -1 );

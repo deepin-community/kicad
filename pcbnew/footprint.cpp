@@ -310,6 +310,13 @@ void FOOTPRINT::Serialize( google::protobuf::Any &aContainer ) const
     attrs->set_exempt_from_courtyard_requirement( AllowMissingCourtyard() );
     attrs->set_do_not_populate( IsDNP() );
 
+    if( m_attributes & FP_THROUGH_HOLE )
+        attrs->set_mounting_style( types::FootprintMountingStyle::FMS_THROUGH_HOLE );
+    else if( m_attributes & FP_SMD )
+        attrs->set_mounting_style( types::FootprintMountingStyle::FMS_SMD );
+    else
+        attrs->set_mounting_style( types::FootprintMountingStyle::FMS_UNSPECIFIED );
+
     types::Footprint* def = footprint.mutable_definition();
 
     def->mutable_id()->CopyFrom( kiapi::common::LibIdToProto( GetFPID() ) );
@@ -439,6 +446,22 @@ bool FOOTPRINT::Deserialize( const google::protobuf::Any &aContainer )
         mandatoryField.mutable_id()->set_id( DESCRIPTION_FIELD );
         buf.PackFrom( mandatoryField );
         GetField( DESCRIPTION_FIELD )->Deserialize( buf );
+    }
+
+    m_attributes = 0;
+
+    switch( footprint.attributes().mounting_style() )
+    {
+    case types::FootprintMountingStyle::FMS_THROUGH_HOLE:
+        m_attributes |= FP_THROUGH_HOLE;
+        break;
+
+    case types::FootprintMountingStyle::FMS_SMD:
+        m_attributes |= FP_SMD;
+        break;
+
+    default:
+        break;
     }
 
     SetBoardOnly( footprint.attributes().not_in_schematic() );
@@ -980,6 +1003,27 @@ FOOTPRINT& FOOTPRINT::operator=( const FOOTPRINT& aOther )
 }
 
 
+void FOOTPRINT::CopyFrom( const BOARD_ITEM* aOther )
+{
+    wxCHECK( aOther && aOther->Type() == PCB_FOOTPRINT_T, /* void */ );
+    *this = *static_cast<const FOOTPRINT*>( aOther );
+
+    for( PAD* pad : m_pads )
+        pad->SetDirty();
+}
+
+
+void FOOTPRINT::InvalidateGeometryCaches()
+{
+    m_boundingBoxCacheTimeStamp = 0;
+    m_textExcludedBBoxCacheTimeStamp = 0;
+    m_hullCacheTimeStamp = 0;
+
+    m_courtyard_cache_back_hash.Clear();
+    m_courtyard_cache_front_hash.Clear();
+}
+
+
 bool FOOTPRINT::IsConflicting() const
 {
     return HasFlag( COURTYARD_CONFLICT );
@@ -1114,6 +1158,7 @@ void FOOTPRINT::Add( BOARD_ITEM* aBoardItem, ADD_MODE aMode, bool aSkipConnectiv
             m_drawings.push_back( aBoardItem );
         else
             m_drawings.push_front( aBoardItem );
+
         break;
 
     case PCB_PAD_T:
@@ -1121,6 +1166,7 @@ void FOOTPRINT::Add( BOARD_ITEM* aBoardItem, ADD_MODE aMode, bool aSkipConnectiv
             m_pads.push_back( static_cast<PAD*>( aBoardItem ) );
         else
             m_pads.push_front( static_cast<PAD*>( aBoardItem ) );
+
         break;
 
     case PCB_ZONE_T:
@@ -1128,6 +1174,7 @@ void FOOTPRINT::Add( BOARD_ITEM* aBoardItem, ADD_MODE aMode, bool aSkipConnectiv
             m_zones.push_back( static_cast<ZONE*>( aBoardItem ) );
         else
             m_zones.insert( m_zones.begin(), static_cast<ZONE*>( aBoardItem ) );
+
         break;
 
     case PCB_GROUP_T:
@@ -1135,6 +1182,7 @@ void FOOTPRINT::Add( BOARD_ITEM* aBoardItem, ADD_MODE aMode, bool aSkipConnectiv
             m_groups.push_back( static_cast<PCB_GROUP*>( aBoardItem ) );
         else
             m_groups.insert( m_groups.begin(), static_cast<PCB_GROUP*>( aBoardItem ) );
+
         break;
 
     default:
@@ -1455,15 +1503,17 @@ const BOX2I FOOTPRINT::GetBoundingBox( bool aIncludeText ) const
     // Groups do not contribute to the rect, only their members
     if( aIncludeText || noDrawItems )
     {
-        // Only PCB_TEXT and PCB_FIELD items are independently selectable;
-        // PCB_TEXTBOX items go in with other graphic items above.
+        // Only PCB_TEXT and PCB_FIELD items are independently selectable; PCB_TEXTBOX items go
+        // in with other graphic items above.
         for( PCB_TEXT* text : texts )
         {
             if( !isFPEdit && m_privateLayers.test( text->GetLayer() ) )
                 continue;
 
-            if( text->IsVisible() )
-                bbox.Merge( text->GetBoundingBox() );
+            if( text->Type() == PCB_FIELD_T && !text->IsVisible() )
+                continue;
+
+            bbox.Merge( text->GetBoundingBox() );
         }
 
         // This can be further optimized when aIncludeInvisibleText is true, but currently
@@ -2207,10 +2257,7 @@ void FOOTPRINT::RunOnDescendants( const std::function<void( BOARD_ITEM* )>& aFun
             aFunction( zone  );
 
         for( PCB_GROUP* group : m_groups )
-        {
             aFunction( group );
-            group->RunOnDescendants( aFunction, aDepth + 1 );
-        }
 
         for( BOARD_ITEM* drawing : m_drawings )
         {
@@ -2710,7 +2757,7 @@ BOARD_ITEM* FOOTPRINT::DuplicateItem( const BOARD_ITEM* aItem, bool aAddToFootpr
                         Add( aCurrItem );
                     } );
 
-            Add( new_item );
+            Add( group );
         }
 
         new_item = group;
@@ -3516,6 +3563,44 @@ void FOOTPRINT::CheckNetTiePadGroups( const std::function<void( const wxString& 
 }
 
 
+void FOOTPRINT::CheckClippedSilk( const std::function<void( BOARD_ITEM* aItemA,
+                                                            BOARD_ITEM* aItemB,
+                                                            const VECTOR2I& aPt )>& aErrorHandler )
+{
+    auto checkColliding =
+            [&]( BOARD_ITEM* item, BOARD_ITEM* other )
+            {
+                for( PCB_LAYER_ID silk : { F_SilkS, B_SilkS } )
+                {
+                    PCB_LAYER_ID mask = silk == F_SilkS ? F_Mask : B_Mask;
+
+                    if( !item->IsOnLayer( silk ) || !other->IsOnLayer( mask ) )
+                        continue;
+
+                    std::shared_ptr<SHAPE> itemShape = item->GetEffectiveShape( silk );
+                    std::shared_ptr<SHAPE> otherShape = other->GetEffectiveShape( mask );
+                    int                    actual;
+                    VECTOR2I               pos;
+
+                    if( itemShape->Collide( otherShape.get(), 0, &actual, &pos ) )
+                        aErrorHandler( item, other, pos );
+                }
+            };
+
+    for( BOARD_ITEM* item : m_drawings )
+    {
+        for( BOARD_ITEM* other : m_drawings )
+        {
+            if( other != item )
+                checkColliding( item, other );
+        }
+
+        for( PAD* pad : m_pads )
+            checkColliding( item, pad );
+    }
+}
+
+
 void FOOTPRINT::swapData( BOARD_ITEM* aImage )
 {
     wxASSERT( aImage->Type() == PCB_FOOTPRINT_T );
@@ -3837,8 +3922,7 @@ bool FOOTPRINT::cmp_zones::operator()( const ZONE* aFirst, const ZONE* aSecond )
 
 void FOOTPRINT::TransformPadsToPolySet( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer,
                                         int aClearance, int aMaxError, ERROR_LOC aErrorLoc,
-                                        bool aSkipNPTHPadsWihNoCopper, bool aSkipPlatedPads,
-                                        bool aSkipNonPlatedPads ) const
+                                        bool aSkipNPTHPadsWihNoCopper ) const
 {
     auto processPad =
         [&]( const PAD* pad, PCB_LAYER_ID padLayer )
@@ -3847,24 +3931,6 @@ void FOOTPRINT::TransformPadsToPolySet( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aL
 
             switch( aLayer )
             {
-            case F_Cu:
-                if( aSkipPlatedPads && pad->FlashLayer( F_Mask ) )
-                    return;
-
-                if( aSkipNonPlatedPads && !pad->FlashLayer( F_Mask ) )
-                    return;
-
-                break;
-
-            case B_Cu:
-                if( aSkipPlatedPads && pad->FlashLayer( B_Mask ) )
-                    return;
-
-                if( aSkipNonPlatedPads && !pad->FlashLayer( B_Mask ) )
-                    return;
-
-                break;
-
             case F_Mask:
             case B_Mask:
                 clearance.x += pad->GetSolderMaskExpansion( padLayer );
@@ -3931,8 +3997,6 @@ void FOOTPRINT::TransformFPShapesToPolySet( SHAPE_POLY_SET& aBuffer, PCB_LAYER_I
                                             bool aIncludeText, bool aIncludeShapes,
                                             bool aIncludePrivateItems ) const
 {
-    std::vector<const PCB_TEXT*> texts; // List of PCB_TEXTs to convert
-
     for( BOARD_ITEM* item : GraphicalItems() )
     {
         if( GetPrivateLayers().test( item->GetLayer() ) && !aIncludePrivateItems )
@@ -3942,19 +4006,23 @@ void FOOTPRINT::TransformFPShapesToPolySet( SHAPE_POLY_SET& aBuffer, PCB_LAYER_I
         {
             PCB_TEXT* text = static_cast<PCB_TEXT*>( item );
 
-            if( aLayer != UNDEFINED_LAYER && text->GetLayer() == aLayer && text->IsVisible() )
-                texts.push_back( text );
+            if( aLayer != UNDEFINED_LAYER && text->GetLayer() == aLayer )
+                text->TransformTextToPolySet( aBuffer, aClearance, aError, aErrorLoc );
         }
 
         if( item->Type() == PCB_TEXTBOX_T && aIncludeText )
         {
             PCB_TEXTBOX* textbox = static_cast<PCB_TEXTBOX*>( item );
 
-            if( aLayer != UNDEFINED_LAYER && textbox->GetLayer() == aLayer && textbox->IsVisible() )
+            if( aLayer != UNDEFINED_LAYER && textbox->GetLayer() == aLayer )
             {
                 // border
                 if( textbox->IsBorderEnabled() )
-                    textbox->PCB_SHAPE::TransformShapeToPolygon( aBuffer, aLayer, 0, aError, aErrorLoc );
+                {
+                    textbox->PCB_SHAPE::TransformShapeToPolygon( aBuffer, aLayer, 0, aError,
+                                                                 aErrorLoc );
+                }
+
                 // text
                 textbox->TransformTextToPolySet( aBuffer, 0, aError, aErrorLoc );
             }
@@ -3974,12 +4042,9 @@ void FOOTPRINT::TransformFPShapesToPolySet( SHAPE_POLY_SET& aBuffer, PCB_LAYER_I
         for( const PCB_FIELD* field : m_fields )
         {
             if( field && field->GetLayer() == aLayer && field->IsVisible() )
-                texts.push_back( field );
+                field->TransformTextToPolySet( aBuffer, aClearance, aError, aErrorLoc );
         }
     }
-
-    for( const PCB_TEXT* text : texts )
-        text->TransformTextToPolySet( aBuffer, aClearance, aError, aErrorLoc );
 }
 
 

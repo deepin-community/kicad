@@ -27,6 +27,7 @@
 #include "panel_preview_3d_model.h"
 #include <dialogs/dialog_unit_entry.h>
 #include <3d_canvas/eda_3d_canvas.h>
+#include <3d_rendering/opengl/render_3d_opengl.h>
 #include <tool/tool_manager.h>
 #include <tool/tool_dispatcher.h>
 #include <tools/eda_3d_actions.h>
@@ -64,11 +65,10 @@ PANEL_PREVIEW_3D_MODEL::PANEL_PREVIEW_3D_MODEL( wxWindow* aParent, PCB_BASE_FRAM
     m_dummyBoard = new BOARD();
 
     m_dummyBoard->SetProject( &aFrame->Prj(), true );
+    m_dummyBoard->SetEmbeddedFilesDelegate( aFrame->GetBoard() );
 
     // This board will only be used to hold a footprint for viewing
     m_dummyBoard->SetBoardUse( BOARD_USE::FPHOLDER );
-
-    m_bodyStyleShowAll = true;
 
     BOARD_DESIGN_SETTINGS parent_bds = aFrame->GetDesignSettings();
     BOARD_DESIGN_SETTINGS& dummy_bds = m_dummyBoard->GetDesignSettings();
@@ -225,16 +225,6 @@ void PANEL_PREVIEW_3D_MODEL::loadSettings()
         m_previewPane->SetAnimationEnabled( cfg->m_Camera.animation_enabled );
         m_previewPane->SetMovingSpeedMultiplier( cfg->m_Camera.moving_speed_multiplier );
         m_previewPane->SetProjectionMode( cfg->m_Camera.projection_mode );
-
-        // Ensure the board body is always shown, and do not use the settings of the 3D viewer
-        cfg->m_Render.show_copper_top = m_bodyStyleShowAll;
-        cfg->m_Render.show_copper_bottom = m_bodyStyleShowAll;
-        cfg->m_Render.show_soldermask_top = m_bodyStyleShowAll;
-        cfg->m_Render.show_soldermask_bottom = m_bodyStyleShowAll;
-        cfg->m_Render.show_solderpaste = m_bodyStyleShowAll;
-        cfg->m_Render.show_zones = m_bodyStyleShowAll;
-        cfg->m_Render.show_board_body = m_bodyStyleShowAll;
-        cfg->m_Render.use_board_editor_copper_colors = false;
     }
 }
 
@@ -286,7 +276,7 @@ wxString PANEL_PREVIEW_3D_MODEL::formatRotationValue( double aValue )
 wxString PANEL_PREVIEW_3D_MODEL::formatOffsetValue( double aValue )
 {
     // Convert from internal units (mm) to user units
-    if( m_userUnits == EDA_UNITS::INCHES )
+    if( m_userUnits == EDA_UNITS::INCH )
         aValue /= 25.4;
     else if( m_userUnits == EDA_UNITS::MILS )
         aValue /= 25.4 / 1e3;
@@ -405,13 +395,7 @@ void PANEL_PREVIEW_3D_MODEL::setBodyStyleView( wxCommandEvent& event )
     if( !cfg )
         return;
 
-    m_bodyStyleShowAll = !m_bodyStyleShowAll;
-
-    cfg->m_Render.show_soldermask_top = m_bodyStyleShowAll;
-    cfg->m_Render.show_soldermask_bottom = m_bodyStyleShowAll;
-    cfg->m_Render.show_solderpaste = m_bodyStyleShowAll;
-    cfg->m_Render.show_zones = m_bodyStyleShowAll;
-    cfg->m_Render.show_board_body = m_bodyStyleShowAll;
+    cfg->m_Render.preview_show_board_body = !cfg->m_Render.preview_show_board_body;
 
     m_previewPane->ReloadRequest();
     m_previewPane->Refresh();
@@ -444,7 +428,9 @@ void PANEL_PREVIEW_3D_MODEL::View3DSettings( wxCommandEvent& event )
 
 void PANEL_PREVIEW_3D_MODEL::doIncrementScale( wxSpinEvent& event, double aSign )
 {
-    wxSpinButton* spinCtrl = (wxSpinButton*) event.GetEventObject();
+    wxSpinButton* spinCtrl = dynamic_cast<wxSpinButton*>( event.GetEventObject() );
+
+    wxCHECK( spinCtrl, /* void */ );
 
     wxTextCtrl * textCtrl = xscale;
 
@@ -471,7 +457,10 @@ void PANEL_PREVIEW_3D_MODEL::doIncrementScale( wxSpinEvent& event, double aSign 
 
 void PANEL_PREVIEW_3D_MODEL::doIncrementRotation( wxSpinEvent& aEvent, double aSign )
 {
-    wxSpinButton* spinCtrl = (wxSpinButton*) aEvent.GetEventObject();
+    wxSpinButton* spinCtrl = dynamic_cast<wxSpinButton*>( aEvent.GetEventObject() );
+
+    wxCHECK( spinCtrl, /* void */ );
+
     wxTextCtrl* textCtrl = xrot;
 
     if( spinCtrl == m_spinYrot )
@@ -497,7 +486,9 @@ void PANEL_PREVIEW_3D_MODEL::doIncrementRotation( wxSpinEvent& aEvent, double aS
 
 void PANEL_PREVIEW_3D_MODEL::doIncrementOffset( wxSpinEvent& event, double aSign )
 {
-    wxSpinButton* spinCtrl = (wxSpinButton*) event.GetEventObject();
+    wxSpinButton* spinCtrl = dynamic_cast<wxSpinButton*>( event.GetEventObject() );
+
+    wxCHECK( spinCtrl, /* void */ );
 
     wxTextCtrl * textCtrl = xoff;
 
@@ -511,7 +502,7 @@ void PANEL_PREVIEW_3D_MODEL::doIncrementOffset( wxSpinEvent& event, double aSign
     if( wxGetMouseState().ShiftDown( ) )
         step_mm = OFFSET_INCREMENT_MM_FINE;
 
-    if( m_userUnits == EDA_UNITS::MILS || m_userUnits == EDA_UNITS::INCHES )
+    if( m_userUnits == EDA_UNITS::MILS || m_userUnits == EDA_UNITS::INCH )
     {
         step_mm = 25.4*OFFSET_INCREMENT_MIL/1000;
 
@@ -533,7 +524,9 @@ void PANEL_PREVIEW_3D_MODEL::doIncrementOffset( wxSpinEvent& event, double aSign
 
 void PANEL_PREVIEW_3D_MODEL::onMouseWheelScale( wxMouseEvent& event )
 {
-    wxTextCtrl* textCtrl = (wxTextCtrl*) event.GetEventObject();
+    wxTextCtrl* textCtrl = dynamic_cast<wxTextCtrl*>( event.GetEventObject() );
+
+    wxCHECK( textCtrl, /* void */ );
 
     double step = SCALE_INCREMENT;
 
@@ -556,7 +549,9 @@ void PANEL_PREVIEW_3D_MODEL::onMouseWheelScale( wxMouseEvent& event )
 
 void PANEL_PREVIEW_3D_MODEL::onMouseWheelRot( wxMouseEvent& event )
 {
-    wxTextCtrl* textCtrl = (wxTextCtrl*) event.GetEventObject();
+    wxTextCtrl* textCtrl = dynamic_cast<wxTextCtrl*>( event.GetEventObject() );
+
+    wxCHECK( textCtrl, /* void */ );
 
     double step = ROTATION_INCREMENT;
 
@@ -579,14 +574,16 @@ void PANEL_PREVIEW_3D_MODEL::onMouseWheelRot( wxMouseEvent& event )
 
 void PANEL_PREVIEW_3D_MODEL::onMouseWheelOffset( wxMouseEvent& event )
 {
-    wxTextCtrl* textCtrl = (wxTextCtrl*) event.GetEventObject();
+    wxTextCtrl* textCtrl = dynamic_cast<wxTextCtrl*>( event.GetEventObject() );
+
+    wxCHECK( textCtrl, /* void */ );
 
     double step_mm = OFFSET_INCREMENT_MM;
 
     if( event.ShiftDown( ) )
         step_mm = OFFSET_INCREMENT_MM_FINE;
 
-    if( m_userUnits == EDA_UNITS::MILS || m_userUnits == EDA_UNITS::INCHES )
+    if( m_userUnits == EDA_UNITS::MILS || m_userUnits == EDA_UNITS::INCH )
     {
         step_mm = 25.4*OFFSET_INCREMENT_MIL/1000.0;
 

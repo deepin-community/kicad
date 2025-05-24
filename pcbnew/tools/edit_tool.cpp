@@ -358,6 +358,7 @@ bool EDIT_TOOL::Init()
                                                       && notMovingCondition );
 
     menu.AddItem( PCB_ACTIONS::routerRouteSelected,     isRoutable );
+    menu.AddItem( PCB_ACTIONS::routerRouteSelectedFromEnd, isRoutable );
     menu.AddItem( PCB_ACTIONS::unrouteSelected,         isRoutable );
     menu.AddItem( PCB_ACTIONS::routerAutorouteSelected, isRoutable );
     menu.AddItem( PCB_ACTIONS::moveIndividually,  SELECTION_CONDITIONS::MoreThan( 1 )
@@ -1598,7 +1599,7 @@ int EDIT_TOOL::ModifyLines( const TOOL_EVENT& aEvent )
 
     commit.Push( pairwise_line_routine->GetCommitDescription() );
 
-    if( const std::optional<wxString> msg = pairwise_line_routine->GetStatusMessage() )
+    if( const std::optional<wxString> msg = pairwise_line_routine->GetStatusMessage( segmentCount ) )
         frame()->ShowInfoBarMsg( *msg );
 
     return 0;
@@ -1942,6 +1943,12 @@ int EDIT_TOOL::Properties( const TOOL_EVENT& aEvent )
         }
     }
 
+    if( m_dragging )
+    {
+        m_toolMgr->PostAction( PCB_ACTIONS::updateLocalRatsnest, VECTOR2I() );
+        m_toolMgr->PostAction( PCB_ACTIONS::refreshPreview );
+    }
+
     return 0;
 }
 
@@ -2003,8 +2010,6 @@ int EDIT_TOOL::Rotate( const TOOL_EVENT& aEvent )
     if( selection.Empty() )
         return 0;
 
-    // A single textbox "walks" if we rotate it around its position, as we keep resetting which
-    // corner is the origin.
     if( selection.Size() == 1 && dynamic_cast<PCB_TEXTBOX*>( selection.Front() ) )
     {
         selection.SetReferencePoint( static_cast<PCB_TEXTBOX*>( selection.Front() )->GetCenter() );
@@ -2066,7 +2071,10 @@ int EDIT_TOOL::Rotate( const TOOL_EVENT& aEvent )
         m_toolMgr->ProcessEvent( EVENTS::SelectedItemsModified );
 
         if( m_dragging )
+        {
             m_toolMgr->PostAction( PCB_ACTIONS::updateLocalRatsnest, VECTOR2I() );
+            m_toolMgr->PostAction( PCB_ACTIONS::refreshPreview );
+        }
     }
 
     // Restore the old reference so any mouse dragging that occurs doesn't make the selection jump
@@ -2230,7 +2238,10 @@ int EDIT_TOOL::Mirror( const TOOL_EVENT& aEvent )
     m_toolMgr->ProcessEvent( EVENTS::SelectedItemsModified );
 
     if( m_dragging )
+    {
         m_toolMgr->PostAction( PCB_ACTIONS::updateLocalRatsnest, VECTOR2I() );
+        m_toolMgr->PostAction( PCB_ACTIONS::refreshPreview );
+    }
 
     return 0;
 }
@@ -2305,7 +2316,10 @@ int EDIT_TOOL::JustifyText( const TOOL_EVENT& aEvent )
     m_toolMgr->ProcessEvent( EVENTS::SelectedItemsModified );
 
     if( m_dragging )
+    {
         m_toolMgr->PostAction( PCB_ACTIONS::updateLocalRatsnest, VECTOR2I() );
+        m_toolMgr->PostAction( PCB_ACTIONS::refreshPreview );
+    }
 
     return 0;
 }
@@ -2386,7 +2400,10 @@ int EDIT_TOOL::Flip( const TOOL_EVENT& aEvent )
     m_toolMgr->ProcessEvent( EVENTS::SelectedItemsModified );
 
     if( m_dragging )
+    {
         m_toolMgr->PostAction( PCB_ACTIONS::updateLocalRatsnest, VECTOR2I() );
+        m_toolMgr->PostAction( PCB_ACTIONS::refreshPreview );
+    }
 
     // Restore the old reference so any mouse dragging that occurs doesn't make the selection jump
     // to this now invalid reference
@@ -2471,7 +2488,7 @@ void EDIT_TOOL::DeleteItems( const PCB_SELECTION& aItems, bool aIsCut )
         BOARD_ITEM* board_item = static_cast<BOARD_ITEM*>( item );
         FOOTPRINT*  parentFP = board_item->GetParentFootprint();
 
-        if( board_item->GetParentGroup() )
+        if( board_item->GetParentGroup() && !parentFP )
             commit.Stage( board_item, CHT_UNGROUP );
 
         switch( item->Type() )
@@ -2498,6 +2515,16 @@ void EDIT_TOOL::DeleteItems( const PCB_SELECTION& aItems, bool aIsCut )
         }
 
         case PCB_TEXT_T:
+        case PCB_SHAPE_T:
+        case PCB_TEXTBOX_T:
+        case PCB_TABLE_T:
+        case PCB_REFERENCE_IMAGE_T:
+        case PCB_DIMENSION_T:
+        case PCB_DIM_ALIGNED_T:
+        case PCB_DIM_LEADER_T:
+        case PCB_DIM_CENTER_T:
+        case PCB_DIM_RADIAL_T:
+        case PCB_DIM_ORTHOGONAL_T:
             if( parentFP )
             {
                 commit.Modify( parentFP );
@@ -2509,20 +2536,6 @@ void EDIT_TOOL::DeleteItems( const PCB_SELECTION& aItems, bool aIsCut )
                 commit.Remove( board_item );
             }
 
-            itemsDeleted++;
-            break;
-
-        case PCB_SHAPE_T:
-        case PCB_TEXTBOX_T:
-        case PCB_TABLE_T:
-        case PCB_REFERENCE_IMAGE_T:
-        case PCB_DIMENSION_T:
-        case PCB_DIM_ALIGNED_T:
-        case PCB_DIM_LEADER_T:
-        case PCB_DIM_CENTER_T:
-        case PCB_DIM_RADIAL_T:
-        case PCB_DIM_ORTHOGONAL_T:
-            commit.Remove( board_item );
             itemsDeleted++;
             break;
 
@@ -2578,8 +2591,6 @@ void EDIT_TOOL::DeleteItems( const PCB_SELECTION& aItems, bool aIsCut )
                     commit.Modify( zone );
                     zone->RemoveCutout( outlineIdx, holeIdx );
                     zone->UnFill();
-
-                    // TODO Refill zone when KiCad supports auto re-fill
 
                     // Update the display
                     zone->HatchBorder();
@@ -2813,7 +2824,10 @@ int EDIT_TOOL::MoveExact( const TOOL_EVENT& aEvent )
         m_toolMgr->ProcessEvent( EVENTS::SelectedItemsModified );
 
         if( m_dragging )
+        {
             m_toolMgr->PostAction( PCB_ACTIONS::updateLocalRatsnest, VECTOR2I() );
+            m_toolMgr->PostAction( PCB_ACTIONS::refreshPreview );
+        }
     }
 
     return 0;

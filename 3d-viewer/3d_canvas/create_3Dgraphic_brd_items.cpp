@@ -188,23 +188,23 @@ void BOARD_ADAPTER::addShape( const PCB_DIMENSION_BASE* aDimension, CONTAINER_2D
 
 void BOARD_ADAPTER::addFootprintShapes( const FOOTPRINT* aFootprint, CONTAINER_2D_BASE* aContainer,
                                         PCB_LAYER_ID aLayerId,
-                                        const std::bitset<LAYER_3D_END>& aVisibilityFlags )
+                                        const std::bitset<LAYER_3D_END>& aFlags )
 {
     KIGFX::GAL_DISPLAY_OPTIONS empty_opts;
 
-    for( PCB_FIELD* field : aFootprint->GetFields() )
+    for( PCB_FIELD* field : aFootprint->GetFields( true /* visibleOnly */ ) )
     {
-        if( field->GetLayer() == aLayerId && field->IsVisible() )
-        {
-            if( !aVisibilityFlags.test( LAYER_FP_TEXT ) )
-                continue;
-            else if( field->IsReference() && !aVisibilityFlags.test( LAYER_FP_REFERENCES ) )
-                continue;
-            else if( field->IsValue() && !aVisibilityFlags.test( LAYER_FP_VALUES ) )
-                continue;
+        if( !aFlags.test( LAYER_FP_TEXT ) )
+            continue;
 
+        if( field->IsReference() && !aFlags.test( LAYER_FP_REFERENCES ) )
+            continue;
+
+        if( field->IsValue() && !aFlags.test( LAYER_FP_VALUES ) )
+            continue;
+
+        if( field->GetLayer() == aLayerId )
             addText( field, aContainer, field );
-        }
     }
 
     for( BOARD_ITEM* item : aFootprint->GraphicalItems() )
@@ -215,19 +215,17 @@ void BOARD_ADAPTER::addFootprintShapes( const FOOTPRINT* aFootprint, CONTAINER_2
         {
             PCB_TEXT* text = static_cast<PCB_TEXT*>( item );
 
-            if( text->GetLayer() == aLayerId && text->IsVisible() )
-            {
-                if( !aVisibilityFlags.test( LAYER_FP_TEXT ) )
-                    continue;
-                else if( text->GetText() == wxT( "${REFERENCE}" )
-                         && !aVisibilityFlags.test( LAYER_FP_REFERENCES ) )
-                    continue;
-                else if( text->GetText() == wxT( "${VALUE}" )
-                         && !aVisibilityFlags.test( LAYER_FP_VALUES ) )
-                    continue;
+            if( !aFlags.test( LAYER_FP_TEXT ) )
+                continue;
 
+            if( text->GetText() == wxT( "${REFERENCE}" ) && !aFlags.test( LAYER_FP_REFERENCES ) )
+                continue;
+
+            if( text->GetText() == wxT( "${VALUE}" ) && !aFlags.test( LAYER_FP_VALUES ) )
+                continue;
+
+            if( text->GetLayer() == aLayerId )
                 addText( text, aContainer, text );
-            }
 
             break;
         }
@@ -283,7 +281,7 @@ void BOARD_ADAPTER::addFootprintShapes( const FOOTPRINT* aFootprint, CONTAINER_2
 }
 
 
-void BOARD_ADAPTER::createTrackWithMargin( const PCB_TRACK*   aTrack,
+void BOARD_ADAPTER::createTrackWithMargin( const PCB_TRACK* aTrack,
                                            CONTAINER_2D_BASE* aDstContainer, PCB_LAYER_ID aLayer,
                                            int aMargin )
 {
@@ -505,7 +503,7 @@ void BOARD_ADAPTER::createPadWithHole( const PAD* aPad, CONTAINER_2D_BASE* aDstC
 
 
 void BOARD_ADAPTER::addPads( const FOOTPRINT* aFootprint, CONTAINER_2D_BASE* aContainer,
-                             PCB_LAYER_ID aLayerId, bool aSkipPlatedPads, bool aSkipNonPlatedPads )
+                             PCB_LAYER_ID aLayerId )
 {
     for( PAD* pad : aFootprint->Pads() )
     {
@@ -529,24 +527,6 @@ void BOARD_ADAPTER::addPads( const FOOTPRINT* aFootprint, CONTAINER_2D_BASE* aCo
 
         switch( aLayerId )
         {
-        case F_Cu:
-            if( aSkipPlatedPads && pad->FlashLayer( F_Mask ) )
-                continue;
-
-            if( aSkipNonPlatedPads && !pad->FlashLayer( F_Mask ) )
-                continue;
-
-            break;
-
-        case B_Cu:
-            if( aSkipPlatedPads && pad->FlashLayer( B_Mask ) )
-                continue;
-
-            if( aSkipNonPlatedPads && !pad->FlashLayer( B_Mask ) )
-                continue;
-
-            break;
-
         case F_Mask:
         case B_Mask:
             margin.x += pad->GetSolderMaskExpansion( aLayerId );
@@ -793,11 +773,18 @@ void BOARD_ADAPTER::addShape( const PCB_TEXTBOX* aTextBox, CONTAINER_2D_BASE* aC
 void BOARD_ADAPTER::addTable( const PCB_TABLE* aTable, CONTAINER_2D_BASE* aContainer,
                               const BOARD_ITEM* aOwner )
 {
-    // JEY TODO: tables
-    // add borders
+    aTable->DrawBorders(
+            [&]( const VECTOR2I& ptA, const VECTOR2I& ptB, const STROKE_PARAMS& stroke )
+            {
+                addROUND_SEGMENT_2D( aContainer, TO_SFVEC2F( ptA ), TO_SFVEC2F( ptB ),
+                                     TO_3DU( stroke.GetWidth() ), *aOwner );
+            } );
 
     for( PCB_TABLECELL* cell : aTable->GetCells() )
-        addText( cell, aContainer, aOwner );
+    {
+        if( cell->GetColSpan() > 0 && cell->GetRowSpan() > 0 )
+            addText( cell, aContainer, aOwner );
+    }
 }
 
 

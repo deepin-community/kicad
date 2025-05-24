@@ -23,7 +23,8 @@
 #include <common.h>
 #include <widgets/wx_grid.h>
 #include <sch_reference_list.h>
-#include <schematic_settings.h>
+#include <sch_commit.h>
+#include <sch_screen.h>
 #include "string_utils.h"
 
 #include "fields_data_model.h"
@@ -60,14 +61,18 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::updateDataStoreSymbolField( const SCH_SYMBOL
     else if( const SCH_FIELD* field = aSymbol.GetFieldByName( aFieldName ) )
     {
         if( field->IsPrivate() )
+        {
             m_dataStore[aSymbol.m_Uuid][aFieldName] = wxEmptyString;
-        else
-            m_dataStore[aSymbol.m_Uuid][aFieldName] = field->GetText();
+            return;
+        }
+
+        wxString value = aSymbol.Schematic()->ConvertKIIDsToRefs( field->GetText() );
+        m_dataStore[aSymbol.m_Uuid][aFieldName] = value;
     }
-    else if( IsTextVar( aFieldName ) )
+    else if( IsGeneratedField( aFieldName ) )
     {
-        // Handle fields with variables as names that are not present in the symbol
-        // by giving them the correct value
+        // Handle generated fields with variables as names (e.g. ${QUANTITY}) that are not present in
+        // the symbol by giving them the correct value
         m_dataStore[aSymbol.m_Uuid][aFieldName] = aFieldName;
     }
     else
@@ -108,19 +113,19 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::RenameColumn( int aCol, const wxString& newN
 }
 
 
-int FIELDS_EDITOR_GRID_DATA_MODEL::GetFieldNameCol( const wxString& aFieldName )
+int FIELDS_EDITOR_GRID_DATA_MODEL::GetFieldNameCol( const wxString& aFieldName ) const
 {
     for( size_t i = 0; i < m_cols.size(); i++ )
     {
         if( m_cols[i].m_fieldName == aFieldName )
-            return (int) i;
+            return static_cast<int>( i );
     }
 
     return -1;
 }
 
 
-const std::vector<BOM_FIELD> FIELDS_EDITOR_GRID_DATA_MODEL::GetFieldsOrdered()
+std::vector<BOM_FIELD> FIELDS_EDITOR_GRID_DATA_MODEL::GetFieldsOrdered()
 {
     std::vector<BOM_FIELD> fields;
 
@@ -137,12 +142,16 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::SetFieldsOrder( const std::vector<wxString>&
 
     for( const wxString& newField : aNewOrder )
     {
-        for( size_t i = 0; i < m_cols.size(); i++ )
+        if( foundCount >= m_cols.size() )
+            break;
+
+        for( DATA_MODEL_COL& col : m_cols )
         {
-            if( m_cols[i].m_fieldName == newField )
+            if( col.m_fieldName == newField )
             {
-                std::swap( m_cols[foundCount], m_cols[i] );
+                std::swap( m_cols[foundCount], col );
                 foundCount++;
+                break;
             }
         }
     }
@@ -167,6 +176,29 @@ wxString FIELDS_EDITOR_GRID_DATA_MODEL::GetValue( int aRow, int aCol )
     {
         return GetValue( m_rows[aRow], aCol );
     }
+}
+
+
+wxGridCellAttr* FIELDS_EDITOR_GRID_DATA_MODEL::GetAttr( int aRow, int aCol,
+                                                        wxGridCellAttr::wxAttrKind aKind )
+{
+    if( GetColFieldName( aCol ) == GetCanonicalFieldName( DATASHEET_FIELD )
+            || IsURL( GetValue( m_rows[aRow], aCol ) ) )
+    {
+        if( m_urlEditor )
+        {
+            m_urlEditor->IncRef();
+            return enhanceAttr( m_urlEditor, aRow, aCol, aKind );
+        }
+    }
+
+    if( m_colAttrs[aCol] )
+    {
+        m_colAttrs[aCol]->IncRef();
+        return enhanceAttr( m_colAttrs[aCol], aRow, aCol, aKind );
+    }
+
+    return nullptr;
 }
 
 
@@ -196,19 +228,28 @@ wxString FIELDS_EDITOR_GRID_DATA_MODEL::GetValue( const DATA_MODEL_ROW& group, i
                 return INDETERMINATE_STATE;
             }
 
-            wxString refFieldValue;
+            wxString refFieldValue = m_dataStore[symbolID][m_cols[aCol].m_fieldName];
 
-            // Only resolve vars on actual variables, otherwise we want to get
-            // our values out of the datastore so we can show/export un-applied values
-            if( resolveVars
-                && ( IsTextVar( m_cols[aCol].m_fieldName )
-                     || IsTextVar( m_dataStore[symbolID][m_cols[aCol].m_fieldName] ) ) )
+            if( resolveVars )
             {
-                refFieldValue = getFieldShownText( ref, m_cols[aCol].m_fieldName );
-            }
-            else
-            {
-                refFieldValue = m_dataStore[symbolID][m_cols[aCol].m_fieldName];
+                if( IsGeneratedField( m_cols[aCol].m_fieldName ) )
+                {
+                    // Generated fields (e.g. ${QUANTITY}) can't have un-applied values as they're
+                    // read-only.  Resolve them against the field.
+                    refFieldValue = getFieldShownText( ref, m_cols[aCol].m_fieldName );
+                }
+                else if( refFieldValue.Contains( wxT( "${" ) ) )
+                {
+                    // Resolve variables in the un-applied value using the parent symbol and instance
+                    // data.
+                    std::function<bool( wxString* )> symbolResolver =
+                            [&]( wxString* token ) -> bool
+                            {
+                                return ref.GetSymbol()->ResolveTextVar( &ref.GetSheetPath(), token );
+                            };
+
+                    refFieldValue = ExpandTextVars( refFieldValue, & symbolResolver );
+                }
             }
 
             if( listMixedValues )
@@ -275,11 +316,11 @@ wxString FIELDS_EDITOR_GRID_DATA_MODEL::GetValue( const DATA_MODEL_ROW& group, i
 
 void FIELDS_EDITOR_GRID_DATA_MODEL::SetValue( int aRow, int aCol, const wxString& aValue )
 {
-    wxCHECK_RET( aCol >= 0 && aCol < (int) m_cols.size(), wxS( "Invalid column number" ) );
+    wxCHECK_RET( aCol >= 0 && aCol < static_cast<int>( m_cols.size() ), wxS( "Invalid column number" ) );
 
-    // Can't modify references or text variables column, e.g. ${QUANTITY}
+    // Can't modify references or generated fields (e.g. ${QUANTITY})
     if( ColIsReference( aCol )
-        || ( IsTextVar( m_cols[aCol].m_fieldName ) && !ColIsAttribute( aCol ) ) )
+        || ( IsGeneratedField( m_cols[aCol].m_fieldName ) && !ColIsAttribute( aCol ) ) )
     {
         return;
     }
@@ -295,35 +336,35 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::SetValue( int aRow, int aCol, const wxString
 
 bool FIELDS_EDITOR_GRID_DATA_MODEL::ColIsReference( int aCol )
 {
-    wxCHECK( aCol >= 0 && aCol < (int) m_cols.size(), false );
+    wxCHECK( aCol >= 0 && aCol < static_cast<int>( m_cols.size() ), false );
     return m_cols[aCol].m_fieldName == GetCanonicalFieldName( REFERENCE_FIELD );
 }
 
 
 bool FIELDS_EDITOR_GRID_DATA_MODEL::ColIsValue( int aCol )
 {
-    wxCHECK( aCol >= 0 && aCol < (int) m_cols.size(), false );
+    wxCHECK( aCol >= 0 && aCol < static_cast<int>( m_cols.size() ), false );
     return m_cols[aCol].m_fieldName == GetCanonicalFieldName( VALUE_FIELD );
 }
 
 
 bool FIELDS_EDITOR_GRID_DATA_MODEL::ColIsQuantity( int aCol )
 {
-    wxCHECK( aCol >= 0 && aCol < (int) m_cols.size(), false );
+    wxCHECK( aCol >= 0 && aCol < static_cast<int>( m_cols.size() ), false );
     return m_cols[aCol].m_fieldName == QUANTITY_VARIABLE;
 }
 
 
 bool FIELDS_EDITOR_GRID_DATA_MODEL::ColIsItemNumber( int aCol )
 {
-    wxCHECK( aCol >= 0 && aCol < (int) m_cols.size(), false );
+    wxCHECK( aCol >= 0 && aCol < static_cast<int>( m_cols.size() ), false );
     return m_cols[aCol].m_fieldName == ITEM_NUMBER_VARIABLE;
 }
 
 
 bool FIELDS_EDITOR_GRID_DATA_MODEL::ColIsAttribute( int aCol )
 {
-    wxCHECK( aCol >= 0 && aCol < (int) m_cols.size(), false );
+    wxCHECK( aCol >= 0 && aCol < static_cast<int>( m_cols.size() ), false );
     return isAttribute( m_cols[aCol].m_fieldName );
 }
 
@@ -441,20 +482,19 @@ bool FIELDS_EDITOR_GRID_DATA_MODEL::groupMatch( const SCH_REFERENCE& lhRef,
     for( size_t i = 0; i < m_cols.size(); ++i )
     {
         //Handled already
-        if( (int) i == refCol )
+        if( static_cast<int>( i ) == refCol )
             continue;
 
         if( !m_cols[i].m_group )
             continue;
 
-        // If the field is a variable, we need to resolve it through the symbol
-        // to get the actual current value, otherwise we need to pull it out of the
-        // store so the refresh can regroup based on values that haven't been applied
-        // to the schematic yet.
+        // If the field is generated (e.g. ${QUANTITY}), we need to resolve it through the symbol
+        // to get the actual current value; otherwise we need to pull it out of the store so the
+        // refresh can regroup based on values that haven't been applied to the schematic yet.
         wxString lh, rh;
 
-        if( IsTextVar( m_cols[i].m_fieldName )
-            || IsTextVar( m_dataStore[lhRefID][m_cols[i].m_fieldName] ) )
+        if( IsGeneratedField( m_cols[i].m_fieldName )
+            || IsGeneratedField( m_dataStore[lhRefID][m_cols[i].m_fieldName] ) )
         {
             lh = getFieldShownText( lhRef, m_cols[i].m_fieldName );
         }
@@ -463,8 +503,8 @@ bool FIELDS_EDITOR_GRID_DATA_MODEL::groupMatch( const SCH_REFERENCE& lhRef,
             lh = m_dataStore[lhRefID][m_cols[i].m_fieldName];
         }
 
-        if( IsTextVar( m_cols[i].m_fieldName )
-            || IsTextVar( m_dataStore[rhRefID][m_cols[i].m_fieldName] ) )
+        if( IsGeneratedField( m_cols[i].m_fieldName )
+            || IsGeneratedField( m_dataStore[rhRefID][m_cols[i].m_fieldName] ) )
         {
             rh = getFieldShownText( rhRef, m_cols[i].m_fieldName );
         }
@@ -498,9 +538,9 @@ wxString FIELDS_EDITOR_GRID_DATA_MODEL::getFieldShownText( const SCH_REFERENCE& 
             return field->GetShownText( &aRef.GetSheetPath(), false );
     }
 
-    // Handle fields with variables as names that are not present in the symbol
-    // by giving them the correct value by resolving against the symbol
-    if( IsTextVar( aFieldName ) )
+    // Handle generated fields with variables as names (e.g. ${QUANTITY}) that are not present in
+    // the symbol by giving them the correct value by resolving against the symbol
+    if( IsGeneratedField( aFieldName ) )
     {
         int                   depth = 0;
         const SCH_SHEET_PATH& path = aRef.GetSheetPath();
@@ -589,11 +629,13 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::RebuildRows()
 
     m_rows.clear();
 
+    EDA_COMBINED_MATCHER matcher( m_filter.Lower(), CTX_SEARCH );
+
     for( unsigned i = 0; i < m_symbolsList.GetCount(); ++i )
     {
         SCH_REFERENCE ref = m_symbolsList[i];
 
-        if( !m_filter.IsEmpty() && !WildCompareString( m_filter, ref.GetFullRef(), false ) )
+        if( !m_filter.IsEmpty() && !matcher.Find( ref.GetFullRef().Lower() ) )
             continue;
 
         if( m_excludeDNP && ( ref.GetSymbol()->GetDNP()
@@ -757,22 +799,18 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::ExpandAfterSort()
 }
 
 
-void FIELDS_EDITOR_GRID_DATA_MODEL::ApplyData(
-        std::function<void( SCH_SYMBOL&, SCH_SHEET_PATH& )> symbolChangeHandler )
+void FIELDS_EDITOR_GRID_DATA_MODEL::ApplyData( SCH_COMMIT& aCommit, TEMPLATES& aTemplateFieldnames )
 {
     for( unsigned i = 0; i < m_symbolsList.GetCount(); ++i )
     {
         SCH_SYMBOL& symbol = *m_symbolsList[i].GetSymbol();
 
-        symbolChangeHandler( symbol, m_symbolsList[i].GetSheetPath() );
+        aCommit.Modify( &symbol, m_symbolsList[i].GetSheetPath().LastScreen() );
 
         const std::map<wxString, wxString>& fieldStore = m_dataStore[symbol.m_Uuid];
 
-        for( const std::pair<wxString, wxString> srcData : fieldStore )
+        for( const auto& [srcName, srcValue] : fieldStore )
         {
-            const wxString& srcName = srcData.first;
-            const wxString& srcValue = srcData.second;
-
             // Attributes bypass the field logic, so handle them first
             if( isAttribute( srcName ) )
             {
@@ -780,9 +818,9 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::ApplyData(
                 continue;
             }
 
-            // Skip special fields with variables as names (e.g. ${QUANTITY}),
+            // Skip generated fields with variables as names (e.g. ${QUANTITY});
             // they can't be edited
-            if( IsTextVar( srcName ) )
+            if( IsGeneratedField( srcName ) )
                 continue;
 
             SCH_FIELD* destField = symbol.FindField( srcName );
@@ -805,6 +843,12 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::ApplyData(
             {
                 const VECTOR2I symbolPos = symbol.GetPosition();
                 destField = symbol.AddField( SCH_FIELD( symbolPos, -1, &symbol, srcName ) );
+                destField->SetTextAngle( symbol.GetField( REFERENCE_FIELD )->GetTextAngle() );
+
+                if( const TEMPLATE_FIELDNAME* srcTemplate = aTemplateFieldnames.GetFieldName( srcName ) )
+                    destField->SetVisible( srcTemplate->m_Visible );
+                else
+                    destField->SetVisible( false );
             }
 
             if( !destField )
@@ -813,24 +857,13 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::ApplyData(
             if( destField->GetId() == REFERENCE_FIELD )
             {
                 // Reference is not editable from this dialog
+                continue;
             }
-            else if( destField->GetId() == VALUE_FIELD )
-            {
-                // Value field cannot be empty
-                if( !srcValue.IsEmpty() )
-                    symbol.SetValueFieldText( srcValue );
-            }
-            else if( destField->GetId() == FOOTPRINT_FIELD )
-            {
-                symbol.SetFootprintFieldText( srcValue );
-            }
-            else
-            {
-                destField->SetText( srcValue );
-            }
+
+            destField->SetText( symbol.Schematic()->ConvertRefsToKIIDs( srcValue ) );
         }
 
-        for( int ii = symbol.GetFields().size() - 1; ii >= 0; ii-- )
+        for( int ii = static_cast<int>( symbol.GetFields().size() ) - 1; ii >= 0; ii-- )
         {
             if( symbol.GetFields()[ii].IsMandatory() || symbol.GetFields()[ii].IsPrivate() )
                 continue;
@@ -879,15 +912,17 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::ApplyBomPreset( const BOM_PRESET& aPreset )
         SetGroupColumn( i, false );
     }
 
+    std::set<wxString> seen;
     std::vector<wxString> order;
 
     // Set columns that are present and shown
-    for( BOM_FIELD field : aPreset.fieldsOrdered )
+    for( const BOM_FIELD& field : aPreset.fieldsOrdered )
     {
         // Ignore empty fields
-        if(!field.name)
+        if( !field.name || seen.count( field.name ) )
             continue;
 
+        seen.insert( field.name );
         order.emplace_back( field.name );
 
         int col = GetFieldNameCol( field.name );
@@ -900,7 +935,9 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::ApplyBomPreset( const BOM_PRESET& aPreset )
             col = GetFieldNameCol( field.name );
         }
         else
+        {
             SetColLabelValue( col, field.label );
+        }
 
         SetGroupColumn( col, field.groupBy );
         SetShowColumn( col, field.show );
@@ -956,7 +993,7 @@ wxString FIELDS_EDITOR_GRID_DATA_MODEL::Export( const BOM_FMT_PRESET& settings )
     for( size_t col = 0; col < m_cols.size(); col++ )
     {
         if( m_cols[col].m_show )
-            last_col = (int) col;
+            last_col = static_cast<int>( col );
     }
 
     // No shown columns
@@ -978,8 +1015,10 @@ wxString FIELDS_EDITOR_GRID_DATA_MODEL::Export( const BOM_FMT_PRESET& settings )
                 }
 
                 if( !settings.stringDelimiter.IsEmpty() )
+                {
                     field.Replace( settings.stringDelimiter,
                                    settings.stringDelimiter + settings.stringDelimiter );
+                }
 
                 return settings.stringDelimiter + field + settings.stringDelimiter
                        + ( last ? wxString( wxS( "\n" ) ) : settings.fieldDelimiter );
@@ -991,14 +1030,14 @@ wxString FIELDS_EDITOR_GRID_DATA_MODEL::Export( const BOM_FMT_PRESET& settings )
         if( !m_cols[col].m_show )
             continue;
 
-        out.Append( formatField( m_cols[col].m_label, col == (size_t) last_col ) );
+        out.Append( formatField( m_cols[col].m_label, col == static_cast<size_t>( last_col ) ) );
     }
 
     // Data rows
     for( size_t row = 0; row < m_rows.size(); row++ )
     {
         // Don't output child rows
-        if( GetRowFlags( (int) row ) == CHILD_ITEM )
+        if( GetRowFlags( static_cast<int>( row ) ) == CHILD_ITEM )
             continue;
 
         for( size_t col = 0; col < m_cols.size(); col++ )
@@ -1006,10 +1045,10 @@ wxString FIELDS_EDITOR_GRID_DATA_MODEL::Export( const BOM_FMT_PRESET& settings )
             if( !m_cols[col].m_show )
                 continue;
 
-            // Get the unanottated version of the field, e.g. no ">   " or "v   " by
-            out.Append( formatField( GetExportValue( (int) row, (int) col, settings.refDelimiter,
-                                                     settings.refRangeDelimiter ),
-                                     col == (size_t) last_col ) );
+            // Get the unannotated version of the field, e.g. no ">   " or "v   " by
+            out.Append( formatField( GetExportValue( static_cast<int>( row ), static_cast<int>( col ),
+                                                     settings.refDelimiter, settings.refRangeDelimiter ),
+                                     col == static_cast<size_t>( last_col ) ) );
         }
     }
 
@@ -1023,13 +1062,20 @@ void FIELDS_EDITOR_GRID_DATA_MODEL::AddReferences( const SCH_REFERENCE_LIST& aRe
     {
         if( !m_symbolsList.Contains( ref ) )
         {
+            SCH_SYMBOL* symbol = ref.GetSymbol();
+
             m_symbolsList.AddItem( ref );
 
             // Update the fields of every reference
-            for( const SCH_FIELD& field : ref.GetSymbol()->GetFields() )
+            for( const SCH_FIELD& field : symbol->GetFields() )
             {
                 if( !field.IsPrivate() )
-                    m_dataStore[ref.GetSymbol()->m_Uuid][field.GetCanonicalName()] = field.GetText();
+                {
+                    wxString name = field.GetCanonicalName();
+                    wxString value = symbol->Schematic()->ConvertKIIDsToRefs( field.GetText() );
+
+                    m_dataStore[symbol->m_Uuid][name] = value;
+                }
             }
         }
     }

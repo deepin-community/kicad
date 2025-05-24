@@ -123,7 +123,7 @@ public:
 #define PAD_DESC( pad ) wxString::Format( _( "Pad %s" ), ( pad )->GetNumber() )
 
 
-UNITS_PROVIDER g_unitsProvider( pcbIUScale, EDA_UNITS::MILLIMETRES );
+UNITS_PROVIDER g_unitsProvider( pcbIUScale, EDA_UNITS::MM );
 
 
 bool primitiveNeedsUpdate( const std::shared_ptr<PCB_SHAPE>& a,
@@ -161,7 +161,7 @@ bool primitiveNeedsUpdate( const std::shared_ptr<PCB_SHAPE>& a,
 
         // Arc center is calculated and so may have round-off errors when parents are
         // differentially rotated.
-        if( ( a->GetCenter() - b->GetCenter() ).EuclideanNorm() > pcbIUScale.mmToIU( 0.0005 ) )
+        if( ( a->GetArcMid() - b->GetArcMid() ).EuclideanNorm() > pcbIUScale.mmToIU( 0.0005 ) )
             return true;
 
         break;
@@ -448,7 +448,7 @@ bool shapeNeedsUpdate( const PCB_SHAPE& curr_shape, const PCB_SHAPE& ref_shape )
 
         // Arc center is calculated and so may have round-off errors when parents are
         // differentially rotated.
-        if( ( curr_shape.GetCenter() - ref_shape.GetCenter() ).EuclideanNorm() > pcbIUScale.mmToIU( 0.0005 ) )
+        if( ( curr_shape.GetArcMid() - ref_shape.GetArcMid() ).EuclideanNorm() > pcbIUScale.mmToIU( 0.0005 ) )
             return true;
 
         break;
@@ -572,8 +572,6 @@ bool zoneNeedsUpdate( const ZONE* a, const ZONE* b, REPORTER* aReporter )
 bool FOOTPRINT::FootprintNeedsUpdate( const FOOTPRINT* aLibFP, int aCompareFlags,
                                       REPORTER* aReporter )
 {
-    UNITS_PROVIDER unitsProvider( pcbIUScale, EDA_UNITS::MILLIMETRES );
-
     wxASSERT( aLibFP );
     bool diff = false;
 
@@ -837,10 +835,10 @@ bool DRC_TEST_PROVIDER_LIBRARY_PARITY::Run()
         if( !reportProgress( ii++, (int) board->Footprints().size(), progressDelta ) )
             return false;   // DRC cancelled
 
-        LIB_ID                  fpID = footprint->GetFPID();
-        wxString                libName = fpID.GetLibNickname();
-        wxString                fpName = fpID.GetLibItemName();
-        const FP_LIB_TABLE_ROW* libTableRow = nullptr;
+        LIB_ID               fpID = footprint->GetFPID();
+        wxString             libName = fpID.GetLibNickname();
+        wxString             fpName = fpID.GetLibItemName();
+        const LIB_TABLE_ROW* libTableRow = nullptr;
 
         if( libName.IsEmpty() )
         {
@@ -862,7 +860,7 @@ bool DRC_TEST_PROVIDER_LIBRARY_PARITY::Run()
             {
                 std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_LIB_FOOTPRINT_ISSUES );
                 msg.Printf( _( "The current configuration does not include the footprint library '%s'." ),
-                            libName );
+                            UnescapeString( libName ) );
                 drcItem->SetErrorMessage( msg );
                 drcItem->SetItems( footprint );
                 reportViolation( drcItem, footprint->GetCenter(), UNDEFINED_LAYER );
@@ -876,7 +874,7 @@ bool DRC_TEST_PROVIDER_LIBRARY_PARITY::Run()
             {
                 std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_LIB_FOOTPRINT_ISSUES );
                 msg.Printf( _( "The footprint library '%s' is not enabled in the current configuration." ),
-                            libName );
+                            UnescapeString( libName ) );
                 drcItem->SetErrorMessage( msg );
                 drcItem->SetItems( footprint );
                 reportViolation( drcItem, footprint->GetCenter(), UNDEFINED_LAYER );
@@ -889,8 +887,9 @@ bool DRC_TEST_PROVIDER_LIBRARY_PARITY::Run()
             if( !m_drcEngine->IsErrorLimitExceeded( DRCE_LIB_FOOTPRINT_ISSUES ) )
             {
                 std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_LIB_FOOTPRINT_ISSUES );
-                msg.Printf( _( "The footprint library '%s' was not found." ),
-                            libName );
+                msg.Printf( _( "The footprint library '%s' was not found at '%s'." ),
+                            UnescapeString( libName ),
+                            libTableRow->GetFullURI( true ) );
                 drcItem->SetErrorMessage( msg );
                 drcItem->SetItems( footprint );
                 reportViolation( drcItem, footprint->GetCenter(), UNDEFINED_LAYER );

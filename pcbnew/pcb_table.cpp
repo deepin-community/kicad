@@ -33,7 +33,7 @@
 PCB_TABLE::PCB_TABLE( BOARD_ITEM* aParent, int aLineWidth ) :
         BOARD_ITEM_CONTAINER( aParent, PCB_TABLE_T ),
         m_strokeExternal( true ),
-        m_strokeHeader( true ),
+        m_StrokeHeaderSeparator( true ),
         m_borderStroke( aLineWidth, LINE_STYLE::DEFAULT, COLOR4D::UNSPECIFIED ),
         m_strokeRows( true ),
         m_strokeColumns( true ),
@@ -47,7 +47,7 @@ PCB_TABLE::PCB_TABLE( const PCB_TABLE& aTable ) :
         BOARD_ITEM_CONTAINER( aTable )
 {
     m_strokeExternal = aTable.m_strokeExternal;
-    m_strokeHeader = aTable.m_strokeHeader;
+    m_StrokeHeaderSeparator = aTable.m_StrokeHeaderSeparator;
     m_borderStroke = aTable.m_borderStroke;
     m_strokeRows = aTable.m_strokeRows;
     m_strokeColumns = aTable.m_strokeColumns;
@@ -81,7 +81,7 @@ void PCB_TABLE::swapData( BOARD_ITEM* aImage )
     std::swap( m_isLocked, table->m_isLocked );
 
     std::swap( m_strokeExternal, table->m_strokeExternal );
-    std::swap( m_strokeHeader, table->m_strokeHeader );
+    std::swap( m_StrokeHeaderSeparator, table->m_StrokeHeaderSeparator );
     std::swap( m_borderStroke, table->m_borderStroke );
     std::swap( m_strokeRows, table->m_strokeRows );
     std::swap( m_strokeColumns, table->m_strokeColumns );
@@ -190,13 +190,8 @@ void PCB_TABLE::Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle )
     if( GetCells().empty() )
         return;
 
-    bool translate = GetCell( 0, 0 )->GetTextAngle() + aAngle == ANGLE_180;
-
     for( PCB_TABLECELL* cell : m_cells )
         cell->Rotate( aRotCentre, aAngle );
-
-    if( translate )
-        Move( GetPosition() - GetEnd() );
 
     Normalize();
 }
@@ -204,6 +199,11 @@ void PCB_TABLE::Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle )
 
 void PCB_TABLE::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
+    EDA_ANGLE originalAngle = m_cells[0]->GetTextAngle();
+
+    Rotate( aCentre, -originalAngle );
+    Normalize();
+
     for( PCB_TABLECELL* cell : m_cells )
         cell->Flip( aCentre, aFlipDirection );
 
@@ -218,7 +218,26 @@ void PCB_TABLE::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
         rowOffset += GetColCount();
     }
 
+    VECTOR2I currentPos = GetPosition();
+
+    int      firstWidth = m_colWidths.begin()->second;
+    VECTOR2I translationVector = VECTOR2I( firstWidth, 0 );
+
+    VECTOR2I position = currentPos - translationVector;
+    SetPosition( position );
+
+    std::map<int, int> newColWidths;
+    for( int col = 0; col < GetColCount(); ++col )
+    {
+        newColWidths[col] = m_colWidths[GetColCount() - 1 - col];
+    }
+
+    m_colWidths = std::move( newColWidths );
+
     SetLayer( GetBoard()->FlipLayer( GetLayer() ) );
+    Normalize();
+
+    Rotate( aCentre, originalAngle );
     Normalize();
 }
 
@@ -227,6 +246,17 @@ void PCB_TABLE::RunOnChildren( const std::function<void( BOARD_ITEM* )>& aFuncti
 {
     for( PCB_TABLECELL* cell : m_cells )
         aFunction( cell );
+}
+
+
+void PCB_TABLE::RunOnDescendants( const std::function<void( BOARD_ITEM* )>& aFunction, int aDepth ) const
+{
+    for( PCB_TABLECELL* cell : m_cells )
+    {
+        aFunction( cell );
+
+        cell->RunOnDescendants( aFunction, aDepth + 1 );
+    }
 }
 
 
@@ -241,64 +271,102 @@ const BOX2I PCB_TABLE::GetBoundingBox() const
 }
 
 
-std::shared_ptr<SHAPE> PCB_TABLE::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHING aFlash ) const
+void PCB_TABLE::DrawBorders( const std::function<void( const VECTOR2I& aPt1, const VECTOR2I& aPt2,
+                                                       const STROKE_PARAMS& aStroke )>& aCallback ) const
 {
-    VECTOR2I                        origin = GetPosition();
-    VECTOR2I                        end = GetEnd();
-    std::shared_ptr<SHAPE_COMPOUND> shape = std::make_shared<SHAPE_COMPOUND>();
+    EDA_ANGLE             drawAngle = GetCell( 0, 0 )->GetDrawRotation();
+    std::vector<VECTOR2I> topLeft = GetCell( 0, 0 )->GetCornersInSequence( drawAngle );
+    std::vector<VECTOR2I> bottomLeft = GetCell( GetRowCount() - 1, 0 )->GetCornersInSequence( drawAngle );
+    std::vector<VECTOR2I> topRight = GetCell( 0, GetColCount() - 1 )->GetCornersInSequence( drawAngle );
+    std::vector<VECTOR2I> bottomRight =
+            GetCell( GetRowCount() - 1, GetColCount() - 1 )->GetCornersInSequence( drawAngle );
+    STROKE_PARAMS         stroke;
 
-    std::vector<VECTOR2I> pts;
-
-    pts.emplace_back( origin );
-    pts.emplace_back( end.x, origin.y );
-    pts.emplace_back( end );
-    pts.emplace_back( origin.x, end.y );
-
-    shape->AddShape( new SHAPE_SIMPLE( pts ) );
-
-    auto addSeg =
-            [&shape]( const VECTOR2I& ptA, const VECTOR2I& ptB, int width )
-            {
-                shape->AddShape( new SHAPE_SEGMENT( ptA, ptB, width ) );
-            };
-
-    if( StrokeColumns() && GetSeparatorsStroke().GetWidth() >= 0)
+    for( int col = 0; col < GetColCount() - 1; ++col )
     {
-        for( int col = 0; col < GetColCount() - 1; ++col )
-        {
-            for( int row = 0; row < GetRowCount(); ++row )
-            {
-                PCB_TABLECELL* cell = GetCell( row, col );
-                VECTOR2I       topRight( cell->GetEndX(), cell->GetStartY() );
+        if( StrokeColumns() )
+            stroke = GetSeparatorsStroke();
+        else
+            continue;
 
-                if( cell->GetColSpan() > 0 && cell->GetRowSpan() > 0 )
-                    addSeg( topRight, cell->GetEnd(), GetSeparatorsStroke().GetWidth() );
-            }
+        for( int row = 0; row < GetRowCount(); ++row )
+        {
+            PCB_TABLECELL* cell = GetCell( row, col );
+
+            if( cell->GetColSpan() == 0 )
+                continue;
+
+            if( col + cell->GetColSpan() == GetColCount() )
+                continue;
+
+            std::vector<VECTOR2I> corners = cell->GetCornersInSequence( drawAngle );
+
+            if( corners.size() == 4 )
+                aCallback( corners[1], corners[2], stroke );
         }
     }
 
-    if( StrokeRows() && GetSeparatorsStroke().GetWidth() >= 0 )
+    for( int row = 0; row < GetRowCount() - 1; ++row )
     {
-        for( int row = 0; row < GetRowCount() - 1; ++row )
-        {
-            for( int col = 0; col < GetColCount(); ++col )
-            {
-                PCB_TABLECELL* cell = GetCell( row, col );
-                VECTOR2I       botLeft( cell->GetStartX(), cell->GetEndY() );
+        if( row == 0 && StrokeHeaderSeparator() )
+            stroke = GetBorderStroke();
+        else if( StrokeRows() )
+            stroke = GetSeparatorsStroke();
+        else
+            continue;
 
-                if( cell->GetColSpan() > 0 && cell->GetRowSpan() > 0 )
-                    addSeg( botLeft, cell->GetEnd(), GetSeparatorsStroke().GetWidth() );
-            }
+        for( int col = 0; col < GetColCount(); ++col )
+        {
+            PCB_TABLECELL* cell = GetCell( row, col );
+
+            if( cell->GetRowSpan() == 0 )
+                continue;
+
+            if( row + cell->GetRowSpan() == GetRowCount() )
+                continue;
+
+            std::vector<VECTOR2I> corners = cell->GetCornersInSequence( drawAngle );
+
+            if( corners.size() == 4 )
+                aCallback( corners[2], corners[3], stroke );
         }
     }
 
     if( StrokeExternal() && GetBorderStroke().GetWidth() >= 0 )
     {
-        addSeg( pts[0], pts[1], GetBorderStroke().GetWidth() );
-        addSeg( pts[1], pts[2], GetBorderStroke().GetWidth() );
-        addSeg( pts[2], pts[3], GetBorderStroke().GetWidth() );
-        addSeg( pts[3], pts[0], GetBorderStroke().GetWidth() );
+        aCallback( topLeft[0], topRight[1], GetBorderStroke() );
+        aCallback( topRight[1], bottomRight[2], GetBorderStroke() );
+        aCallback( bottomRight[2], bottomLeft[3], GetBorderStroke() );
+        aCallback( bottomLeft[3], topLeft[0], GetBorderStroke() );
     }
+}
+
+
+std::shared_ptr<SHAPE> PCB_TABLE::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHING aFlash ) const
+{
+    EDA_ANGLE             drawAngle = GetCell( 0, 0 )->GetDrawRotation();
+    std::vector<VECTOR2I> topLeft = GetCell( 0, 0 )->GetCornersInSequence( drawAngle );
+    std::vector<VECTOR2I> bottomLeft = GetCell( GetRowCount() - 1, 0 )->GetCornersInSequence( drawAngle );
+    std::vector<VECTOR2I> topRight = GetCell( 0, GetColCount() - 1 )->GetCornersInSequence( drawAngle );
+    std::vector<VECTOR2I> bottomRight =
+            GetCell( GetRowCount() - 1, GetColCount() - 1 )->GetCornersInSequence( drawAngle );
+
+    std::shared_ptr<SHAPE_COMPOUND> shape = std::make_shared<SHAPE_COMPOUND>();
+
+    std::vector<VECTOR2I> pts;
+
+    pts.emplace_back( topLeft[3] );
+    pts.emplace_back( topRight[2] );
+    pts.emplace_back( bottomRight[2] );
+    pts.emplace_back( bottomLeft[3] );
+
+    shape->AddShape( new SHAPE_SIMPLE( pts ) );
+
+    DrawBorders(
+            [&shape]( const VECTOR2I& ptA, const VECTOR2I& ptB, const STROKE_PARAMS& stroke )
+            {
+                shape->AddShape( new SHAPE_SEGMENT( ptA, ptB, stroke.GetWidth() ) );
+            } );
 
     return shape;
 }
@@ -313,7 +381,7 @@ void PCB_TABLE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID a
     if( StrokeColumns() || StrokeRows() )
         gap = std::max( gap, aClearance + GetSeparatorsStroke().GetWidth() / 2 );
 
-    if( StrokeExternal() || StrokeHeader() )
+    if( StrokeExternal() || StrokeHeaderSeparator() )
         gap = std::max( gap, aClearance + GetBorderStroke().GetWidth() / 2 );
 
     for( PCB_TABLECELL* cell : m_cells )
@@ -448,7 +516,7 @@ bool PCB_TABLE::operator==( const PCB_TABLE& aOther ) const
     if( m_strokeExternal != aOther.m_strokeExternal )
         return false;
 
-    if( m_strokeHeader != aOther.m_strokeHeader )
+    if( m_StrokeHeaderSeparator != aOther.m_StrokeHeaderSeparator )
         return false;
 
     if( m_borderStroke != aOther.m_borderStroke )
@@ -494,7 +562,7 @@ double PCB_TABLE::Similarity( const BOARD_ITEM& aOther ) const
     if( m_strokeExternal != other.m_strokeExternal )
         similarity *= 0.9;
 
-    if( m_strokeHeader != other.m_strokeHeader )
+    if( m_StrokeHeaderSeparator != other.m_StrokeHeaderSeparator )
         similarity *= 0.9;
 
     if( m_borderStroke != other.m_borderStroke )
@@ -559,7 +627,7 @@ static struct PCB_TABLE_DESC
                     tableProps );
 
         propMgr.AddProperty( new PROPERTY<PCB_TABLE, bool>( _HKI( "Header Border" ),
-                    &PCB_TABLE::SetStrokeHeader, &PCB_TABLE::StrokeHeader ),
+                    &PCB_TABLE::SetStrokeHeaderSeparator, &PCB_TABLE::StrokeHeaderSeparator ),
                     tableProps );
 
         propMgr.AddProperty( new PROPERTY<PCB_TABLE, int>( _HKI( "Border Width" ),

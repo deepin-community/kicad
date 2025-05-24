@@ -62,7 +62,9 @@ used, all items in the design are listed in the corresponding tab. Items from
 the entire schematic are listed, not just items in the current sheet. Items are
 filtered based on their properties:
 
-* Symbols and power symbols are filtered by all non-hidden fields
+* Symbols and power symbols are filtered by the contents of their fields. You
+  can select whether to search hidden fields by enabling the
+  **Search Hidden Fields** option in the image:images/icons/config_16.png[] menu
 * Text (text and textboxes) is filtered by the text content
 * Labels are filtered by their netnames
 
@@ -155,9 +157,9 @@ the schematic editor will cause the corresponding net or nets to be highlighted
 in the PCB editor, and vice versa.
 
 [[erc]]
-=== Electrical Rules Check
+=== Electrical rules checking
 
-The Electrical Rules Check (ERC) tool checks for certain errors in your
+The Electrical Rules Checker (ERC) tool checks for certain errors in your
 schematic, such as unconnected pins, unconnected hierarchical symbols, shorted
 outputs or other illegal connections, etc. ERC violations are reported as errors
 or warnings depending on the severity of the issue detected.

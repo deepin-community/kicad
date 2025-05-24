@@ -69,6 +69,13 @@ PCB_SHAPE::~PCB_SHAPE()
 }
 
 
+void PCB_SHAPE::CopyFrom( const BOARD_ITEM* aOther )
+{
+    wxCHECK( aOther && aOther->Type() == PCB_SHAPE_T, /* void */ );
+    *this = *static_cast<const PCB_SHAPE*>( aOther );
+}
+
+
 void PCB_SHAPE::Serialize( google::protobuf::Any &aContainer ) const
 {
     using namespace kiapi::common;
@@ -649,13 +656,11 @@ void PCB_SHAPE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
 
 wxString PCB_SHAPE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    FOOTPRINT* parentFP = nullptr;
+    FOOTPRINT* parentFP = GetParentFootprint();
 
-    if( EDA_DRAW_FRAME* frame = dynamic_cast<EDA_DRAW_FRAME*>( aUnitsProvider ) )
-    {
-        if( frame->GetName() == PCB_EDIT_FRAME_NAME )
-            parentFP = GetParentFootprint();
-    }
+    // Don't report parent footprint info from footprint editor, viewer, etc.
+    if( GetBoard() && GetBoard()->GetBoardUse() == BOARD_USE::FPHOLDER )
+        parentFP = nullptr;
 
     if( IsOnCopperLayer() )
     {

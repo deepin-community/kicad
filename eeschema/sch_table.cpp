@@ -38,7 +38,7 @@
 SCH_TABLE::SCH_TABLE( int aLineWidth ) :
         SCH_ITEM( nullptr, SCH_TABLE_T ),
         m_strokeExternal( true ),
-        m_strokeHeader( true ),
+        m_StrokeHeaderSeparator( true ),
         m_borderStroke( aLineWidth, LINE_STYLE::DEFAULT, COLOR4D::UNSPECIFIED ),
         m_strokeRows( true ),
         m_strokeColumns( true ),
@@ -53,7 +53,7 @@ SCH_TABLE::SCH_TABLE( const SCH_TABLE& aTable ) :
         SCH_ITEM( aTable )
 {
     m_strokeExternal = aTable.m_strokeExternal;
-    m_strokeHeader = aTable.m_strokeHeader;
+    m_StrokeHeaderSeparator = aTable.m_StrokeHeaderSeparator;
     m_borderStroke = aTable.m_borderStroke;
     m_strokeRows = aTable.m_strokeRows;
     m_strokeColumns = aTable.m_strokeColumns;
@@ -86,7 +86,7 @@ void SCH_TABLE::SwapData( SCH_ITEM* aItem )
     SCH_TABLE* table = static_cast<SCH_TABLE*>( aItem );
 
     std::swap( m_strokeExternal, table->m_strokeExternal );
-    std::swap( m_strokeHeader, table->m_strokeHeader );
+    std::swap( m_StrokeHeaderSeparator, table->m_StrokeHeaderSeparator );
     std::swap( m_borderStroke, table->m_borderStroke );
     std::swap( m_strokeRows, table->m_strokeRows );
     std::swap( m_strokeColumns, table->m_strokeColumns );
@@ -371,7 +371,7 @@ void SCH_TABLE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBod
     {
         setupStroke( GetBorderStroke() );
 
-        if( StrokeHeader() )
+        if( StrokeHeaderSeparator() )
         {
             SCH_TABLECELL* cell = GetCell( 0, 0 );
             strokeLine( VECTOR2I( pos.x, cell->GetEndY() ), VECTOR2I( end.x, cell->GetEndY() ) );
@@ -460,6 +460,78 @@ bool SCH_TABLE::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) co
 }
 
 
+void SCH_TABLE::DrawBorders( const std::function<void( const VECTOR2I& aPt1, const VECTOR2I& aPt2,
+                                                       const STROKE_PARAMS& aStroke )>& aCallback ) const
+{
+    EDA_ANGLE drawAngle = GetCell( 0, 0 )->GetTextAngle();
+
+    std::vector<VECTOR2I> topLeft = GetCell( 0, 0 )->GetCornersInSequence( drawAngle );
+    std::vector<VECTOR2I> bottomLeft = GetCell( GetRowCount() - 1, 0 )->GetCornersInSequence( drawAngle );
+    std::vector<VECTOR2I> topRight = GetCell( 0, GetColCount() - 1 )->GetCornersInSequence( drawAngle );
+    std::vector<VECTOR2I> bottomRight =
+            GetCell( GetRowCount() - 1, GetColCount() - 1 )->GetCornersInSequence( drawAngle );
+    STROKE_PARAMS         stroke;
+
+    for( int col = 0; col < GetColCount() - 1; ++col )
+    {
+        if( StrokeColumns() )
+            stroke = GetSeparatorsStroke();
+        else
+            continue;
+
+        for( int row = 0; row < GetRowCount(); ++row )
+        {
+            SCH_TABLECELL* cell = GetCell( row, col );
+
+            if( cell->GetColSpan() == 0 )
+                continue;
+
+            if( col + cell->GetColSpan() == GetColCount() )
+                continue;
+
+            std::vector<VECTOR2I> corners = cell->GetCornersInSequence( drawAngle );
+
+            if( corners.size() == 4 )
+                aCallback( corners[1], corners[2], stroke );
+        }
+    }
+
+    for( int row = 0; row < GetRowCount() - 1; ++row )
+    {
+        if( row == 0 && StrokeHeaderSeparator() )
+            stroke = GetBorderStroke();
+        else if( StrokeRows() )
+            stroke = GetSeparatorsStroke();
+        else
+            continue;
+
+        for( int col = 0; col < GetColCount(); ++col )
+        {
+            SCH_TABLECELL* cell = GetCell( row, col );
+
+            if( cell->GetRowSpan() == 0 )
+                continue;
+
+            if( row + cell->GetRowSpan() == GetRowCount() )
+                continue;
+
+            std::vector<VECTOR2I> corners = cell->GetCornersInSequence( drawAngle );
+
+            if( corners.size() == 4 )
+                aCallback( corners[2], corners[3], stroke );
+        }
+    }
+
+    if( StrokeExternal() && GetBorderStroke().GetWidth() >= 0 )
+    {
+        aCallback( topLeft[0], topRight[1], GetBorderStroke() );
+        aCallback( topRight[1], bottomRight[2], GetBorderStroke() );
+        aCallback( bottomRight[2], bottomLeft[3], GetBorderStroke() );
+        aCallback( bottomLeft[3], topLeft[0], GetBorderStroke() );
+    }
+}
+
+
 void SCH_TABLE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                       int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed )
 {
@@ -470,18 +542,13 @@ void SCH_TABLE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& 
         return;
 
     RENDER_SETTINGS* settings = aPlotter->RenderSettings();
-    VECTOR2I         pos = GetPosition();
-    VECTOR2I         end = GetEnd();
-    int              lineWidth;
-    COLOR4D          color;
-    LINE_STYLE       lineStyle;
 
-    auto setupStroke =
-            [&]( const STROKE_PARAMS& stroke )
+    DrawBorders(
+            [&]( const VECTOR2I& ptA, const VECTOR2I& ptB, const STROKE_PARAMS& stroke )
             {
-                lineWidth = stroke.GetWidth();
-                color = stroke.GetColor();
-                lineStyle = stroke.GetLineStyle();
+                int        lineWidth = stroke.GetWidth();
+                COLOR4D    color = stroke.GetColor();
+                LINE_STYLE lineStyle = stroke.GetLineStyle();
 
                 if( lineWidth == 0 )
                 {
@@ -502,74 +569,10 @@ void SCH_TABLE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& 
 
                 aPlotter->SetColor( color );
                 aPlotter->SetDash( lineWidth, lineStyle );
-            };
 
-    if( GetSeparatorsStroke().GetWidth() >= 0 )
-    {
-        setupStroke( GetSeparatorsStroke() );
-
-        if( StrokeColumns() )
-        {
-            for( int col = 0; col < GetColCount() - 1; ++col )
-            {
-                for( int row = 0; row < GetRowCount(); ++row )
-                {
-                    SCH_TABLECELL* cell = GetCell( row, col );
-
-                    if( cell->GetColSpan() > 0 && cell->GetRowSpan() > 0 )
-                    {
-                        aPlotter->MoveTo( VECTOR2I( cell->GetEndX(), cell->GetStartY() ) );
-                        aPlotter->FinishTo( VECTOR2I( cell->GetEndX(), cell->GetEndY() ) );
-                    }
-                }
-            }
-        }
-
-        if( StrokeRows() )
-        {
-            for( int row = 0; row < GetRowCount() - 1; ++row )
-            {
-                for( int col = 0; col < GetColCount(); ++col )
-                {
-                    SCH_TABLECELL* cell = GetCell( row, 0 );
-
-                    if( cell->GetColSpan() > 0 && cell->GetRowSpan() > 0 )
-                    {
-                        aPlotter->MoveTo( VECTOR2I( cell->GetStartX(), cell->GetEndY() ) );
-                        aPlotter->FinishTo( VECTOR2I( cell->GetEndX(), cell->GetEndY() ) );
-                    }
-                }
-            }
-        }
-    }
-
-    if( GetBorderStroke().GetWidth() >= 0 )
-    {
-        setupStroke( GetBorderStroke() );
-        SCH_TABLECELL* cell = GetCell( 0, 0 );
-
-        if( StrokeHeader() )
-        {
-            if( !cell->GetTextAngle().IsHorizontal() )
-            {
-                aPlotter->MoveTo( VECTOR2I( cell->GetEndX(), pos.y ) );
-                aPlotter->FinishTo( VECTOR2I( cell->GetEndX(), cell->GetEndY() ) );
-            }
-            else
-            {
-                aPlotter->MoveTo( VECTOR2I( pos.x, cell->GetEndY() ) );
-                aPlotter->FinishTo( VECTOR2I( end.x, cell->GetEndY() ) );
-            }
-         }
-
-        if( StrokeExternal() )
-        {
-            RotatePoint( pos, GetPosition(), cell->GetTextAngle() );
-            RotatePoint( end, GetPosition(), cell->GetTextAngle() );
-
-            aPlotter->Rect( pos, end, FILL_T::NO_FILL, lineWidth );
-        }
-    }
+                aPlotter->MoveTo( ptA );
+                aPlotter->FinishTo( ptB );
+            } );
 }
 
 
@@ -649,7 +652,7 @@ static struct SCH_TABLE_DESC
                     tableProps );
 
         propMgr.AddProperty( new PROPERTY<SCH_TABLE, bool>( _HKI( "Header Border" ),
-                    &SCH_TABLE::SetStrokeHeader, &SCH_TABLE::StrokeHeader ),
+                    &SCH_TABLE::SetStrokeHeaderSeparator, &SCH_TABLE::StrokeHeaderSeparator ),
                     tableProps );
 
         propMgr.AddProperty( new PROPERTY<SCH_TABLE, int>( _HKI( "Border Width" ),

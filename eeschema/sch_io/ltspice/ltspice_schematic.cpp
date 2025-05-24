@@ -202,7 +202,7 @@ void LTSPICE_SCHEMATIC::Load( SCHEMATIC* aSchematic, SCH_SHEET* aRootSheet,
 void LTSPICE_SCHEMATIC::GetAscAndAsyFilePaths( const wxDir& aDir, bool aRecursive,
                                                std::map<wxString, wxString>& aMapOfAscFiles,
                                                std::map<wxString, wxString>& aMapOfAsyFiles,
-                                               const wxString&               aBase )
+                                               const std::vector<wxString>&  aBaseDirs )
 {
     wxString filename;
 
@@ -231,23 +231,22 @@ void LTSPICE_SCHEMATIC::GetAscAndAsyFilePaths( const wxDir& aDir, bool aRecursiv
                 }
             };
 
-            wxString elementName1 = ( aBase + path.GetName() ).Lower();
-            wxString elementName2 = path.GetName().Lower();
+            // Add dir1/dir2/cmp, dir2/cmp, cmp
             wxString extension = path.GetExt().Lower();
 
-            if( extension == wxS( "asc" ) )
+            for( size_t i = 0; i < aBaseDirs.size() + 1; i++ )
             {
-                logToMap( aMapOfAscFiles, elementName1 );
+                wxString alias;
 
-                if( !aBase.IsEmpty() )
-                    logToMap( aMapOfAscFiles, elementName2 );
-            }
-            else if( extension == wxS( "asy" ) )
-            {
-                logToMap( aMapOfAsyFiles, elementName1 );
+                for( size_t j = i; j < aBaseDirs.size(); j++ )
+                    alias << aBaseDirs[j].Lower() << '/';
 
-                if( !aBase.IsEmpty() )
-                    logToMap( aMapOfAsyFiles, elementName2 );
+                alias << path.GetName().Lower();
+
+                if( extension == wxS( "asc" ) )
+                    logToMap( aMapOfAscFiles, alias );
+                else if( extension == wxS( "asy" ) )
+                    logToMap( aMapOfAsyFiles, alias );
             }
 
             cont = aDir.GetNext( &filename );
@@ -263,8 +262,10 @@ void LTSPICE_SCHEMATIC::GetAscAndAsyFilePaths( const wxDir& aDir, bool aRecursiv
             wxFileName path( aDir.GetName(), filename );
             wxDir      subDir( path.GetFullPath() );
 
-            GetAscAndAsyFilePaths( subDir, true, aMapOfAscFiles, aMapOfAsyFiles,
-                                   filename + wxS( "/" ) );
+            std::vector<wxString> newBase = aBaseDirs;
+            newBase.push_back( filename );
+
+            GetAscAndAsyFilePaths( subDir, true, aMapOfAscFiles, aMapOfAsyFiles, newBase );
 
             cont = aDir.GetNext( &filename );
         }
@@ -488,9 +489,11 @@ LTSPICE_SCHEMATIC::JUSTIFICATION LTSPICE_SCHEMATIC::getTextJustification( const 
     justificationMap["TOP"] = JUSTIFICATION::TOP;
     justificationMap["VBOTTOM"] = JUSTIFICATION::VBOTTOM;
     justificationMap["VTOP"] = JUSTIFICATION::VTOP;
+    justificationMap["INVISIBLE"] = JUSTIFICATION::INVISIBLE;
 
     if( justificationMap.find( aValue.Upper() ) == justificationMap.end() )
-        THROW_IO_ERROR( _( "Expecting LEFT, CENTER, RIGHT, TOP, BOTTOM, VLEFT, VRIGHT, VCENTER, VTOP or VBOTTOM" ) );
+        THROW_IO_ERROR( _( "Expecting LEFT, CENTER, RIGHT, TOP, BOTTOM, VLEFT, VRIGHT, VCENTER, "
+                           "VTOP, VBOTTOM or INVISIBLE" ) );
 
     return justificationMap[ aValue.Upper() ];
 }
@@ -774,6 +777,26 @@ LTSPICE_SCHEMATIC::LT_SYMBOL LTSPICE_SCHEMATIC::SymbolBuilder( const wxString& a
 }
 
 
+LTSPICE_SCHEMATIC::LT_SYMBOL LTSPICE_SCHEMATIC::MakeDummySymbol( const wxString& aAscFileName )
+{
+    LT_SYMBOL lt_symbol;
+
+    lt_symbol.Name = aAscFileName;
+    lt_symbol.SymbolType = LTSPICE_SCHEMATIC::SYMBOLTYPE::CELL;
+    lt_symbol.SymbolOrientation = LTSPICE_SCHEMATIC::ORIENTATION::R0;
+
+    RECTANGLE rect;
+    rect.LineWidth = getLineWidth( "NORMAL" );
+    rect.LineStyle = LINESTYLE::SOLID;
+    rect.BotRight = VECTOR2I( 20, 20 );
+    rect.TopLeft = VECTOR2I( -20, -20 );
+
+    lt_symbol.Rectangles.push_back( rect );
+
+    return lt_symbol;
+}
+
+
 std::vector<LTSPICE_SCHEMATIC::LT_ASC> LTSPICE_SCHEMATIC::StructureBuilder()
 {
     // Initialising Symbol Struct
@@ -788,6 +811,7 @@ std::vector<LTSPICE_SCHEMATIC::LT_ASC> LTSPICE_SCHEMATIC::StructureBuilder()
         ascFile.SheetSize = VECTOR2I( 0, 0 );
         ascFile.Symbols = symbolArray;
         ascFile.Version = 0;
+        ascFile.VersionMinor = 0;
         ascFile.SheetNumber = 0;
 
         int lineNumber = 1;
@@ -825,12 +849,28 @@ std::vector<LTSPICE_SCHEMATIC::LT_ASC> LTSPICE_SCHEMATIC::StructureBuilder()
 
                 symbolName.Replace( '\\', '/' );
 
-                LT_SYMBOL lt_symbol = SymbolBuilder( symbolName, ascFile );
-                lt_symbol.Offset = pointCheck( posX, posY, lineNumber, fileName );
-                lt_symbol.SymbolOrientation = getSymbolRotationOrMirror( rotate_mirror_option );
+                try
+                {
+                    LT_SYMBOL lt_symbol = SymbolBuilder( symbolName, ascFile );
+                    lt_symbol.Offset = pointCheck( posX, posY, lineNumber, fileName );
+                    lt_symbol.SymbolOrientation = getSymbolRotationOrMirror( rotate_mirror_option );
 
-                ascFile.Symbols.push_back( lt_symbol );
-                ascFile.BoundingBox.Merge( lt_symbol.Offset );
+                    ascFile.Symbols.push_back( lt_symbol );
+                    ascFile.BoundingBox.Merge( lt_symbol.Offset );
+                }
+                catch( IO_ERROR& e )
+                {
+                    if( m_reporter )
+                        m_reporter->Report( e.What(), RPT_SEVERITY_ERROR );
+
+                    // Use dummy symbol
+                    LT_SYMBOL lt_symbol = MakeDummySymbol( symbolName );
+                    lt_symbol.Offset = pointCheck( posX, posY, lineNumber, fileName );
+                    lt_symbol.SymbolOrientation = getSymbolRotationOrMirror( rotate_mirror_option );
+
+                    ascFile.Symbols.push_back( lt_symbol );
+                    ascFile.BoundingBox.Merge( lt_symbol.Offset );
+                }
             }
             else if( element == "WIRE" )
             {
@@ -1122,7 +1162,17 @@ std::vector<LTSPICE_SCHEMATIC::LT_ASC> LTSPICE_SCHEMATIC::StructureBuilder()
             else if( element == "VERSION" )
             {
                 wxString versionNumber = tokens[1];
-                ascFile.Version = integerCheck( versionNumber, lineNumber, fileName );
+                if( versionNumber.Contains( '.' ) )
+                {
+                    wxString majorStr = versionNumber.BeforeFirst( '.' );
+                    wxString minorStr = versionNumber.AfterFirst( '.' );
+                    ascFile.Version = integerCheck( majorStr, lineNumber, fileName );
+                    ascFile.VersionMinor = integerCheck( minorStr, lineNumber, fileName );
+                }
+                else
+                {
+                    ascFile.Version = integerCheck( versionNumber, lineNumber, fileName );
+                }
             }
 
             lineNumber++;

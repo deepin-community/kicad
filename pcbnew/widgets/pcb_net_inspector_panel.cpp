@@ -399,6 +399,8 @@ void PCB_NET_INSPECTOR_PANEL::buildNetsList( bool rebuildColumns )
 
     m_in_build_nets_list = true;
 
+    m_netsList->Freeze();
+
     PROJECT_LOCAL_SETTINGS& localSettings = Pgm().GetSettingsManager().Prj().GetLocalSettings();
     PANEL_NET_INSPECTOR_SETTINGS* cfg = &localSettings.m_NetInspectorPanel;
 
@@ -570,6 +572,8 @@ void PCB_NET_INSPECTOR_PANEL::buildNetsList( bool rebuildColumns )
             nc = -1;
         }
     }
+
+    m_netsList->Thaw(); // Must thaw before reselecting to avoid windows selection bug
 
     if( !sel.IsEmpty() )
     {
@@ -1303,8 +1307,9 @@ void PCB_NET_INSPECTOR_PANEL::onAddGroup()
     if( std::find_if( m_custom_group_rules.begin(), m_custom_group_rules.end(),
                       [&]( std::unique_ptr<EDA_COMBINED_MATCHER>& rule )
                       {
-                          return rule->GetPattern().Upper() == newGroupName.Upper();
-                      } ) == m_custom_group_rules.end() )
+                          return rule->GetPattern() == newGroupName;
+                      } )
+        == m_custom_group_rules.end() )
     {
         m_custom_group_rules.push_back( std::make_unique<EDA_COMBINED_MATCHER>( newGroupName,
                                                                                 CTX_NET ) );

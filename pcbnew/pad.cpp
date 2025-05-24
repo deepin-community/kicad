@@ -64,6 +64,9 @@
 #include "kiface_base.h"
 #include "pcbnew_settings.h"
 
+#include <pcb_group.h>
+#include <gal/graphics_abstraction_layer.h>
+
 using KIGFX::PCB_PAINTER;
 using KIGFX::PCB_RENDER_SETTINGS;
 
@@ -106,6 +109,8 @@ PAD::PAD( FOOTPRINT* parent ) :
 
     for( PCB_LAYER_ID layer : LAYER_RANGE( F_Cu, B_Cu, BoardCopperLayerCount() ) )
         m_zoneLayerOverrides[layer] = ZLO_NONE;
+
+    m_lastGalZoomLevel = 0.0;
 }
 
 
@@ -133,6 +138,13 @@ PAD& PAD::operator=( const PAD &aOther )
     m_effectiveBoundingRadius = aOther.m_effectiveBoundingRadius;
 
     return *this;
+}
+
+
+void PAD::CopyFrom( const BOARD_ITEM* aOther )
+{
+    wxCHECK( aOther && aOther->Type() == PCB_PAD_T, /* void */ );
+    *this = *static_cast<const PAD*>( aOther );
 }
 
 
@@ -201,6 +213,8 @@ void PAD::ClearZoneLayerOverrides()
 
 const ZONE_LAYER_OVERRIDE& PAD::GetZoneLayerOverride( PCB_LAYER_ID aLayer ) const
 {
+    std::unique_lock<std::mutex> cacheLock( m_zoneLayerOverridesMutex );
+
     static const ZONE_LAYER_OVERRIDE defaultOverride = ZLO_NONE;
     auto it = m_zoneLayerOverrides.find( aLayer );
     return it != m_zoneLayerOverrides.end() ? it->second : defaultOverride;
@@ -328,7 +342,7 @@ PCB_LAYER_ID PAD::GetPrincipalLayer() const
 
 bool PAD::FlashLayer( LSET aLayers ) const
 {
-    for( PCB_LAYER_ID layer : aLayers.Seq() )
+    for( PCB_LAYER_ID layer : aLayers )
     {
         if( FlashLayer( layer ) )
             return true;
@@ -393,12 +407,7 @@ bool PAD::FlashLayer( int aLayer, bool aOnlyCheckIfPermitted ) const
 
         if( const BOARD* board = GetBoard() )
         {
-            // Must be static to keep from raising its ugly head in performance profiles
-            static std::initializer_list<KICAD_T> types = { PCB_TRACE_T, PCB_ARC_T, PCB_VIA_T,
-                                                            PCB_PAD_T };
-
-            if( auto it = m_zoneLayerOverrides.find( static_cast<PCB_LAYER_ID>( aLayer ) );
-                it != m_zoneLayerOverrides.end() && it->second == ZLO_FORCE_FLASHED )
+            if( GetZoneLayerOverride( layer ) == ZLO_FORCE_FLASHED )
             {
                 return true;
             }
@@ -408,7 +417,11 @@ bool PAD::FlashLayer( int aLayer, bool aOnlyCheckIfPermitted ) const
             }
             else
             {
-                return board->GetConnectivity()->IsConnectedOnLayer( this, aLayer, types );
+                // Must be static to keep from raising its ugly head in performance profiles
+                static std::initializer_list<KICAD_T> nonZoneTypes = { PCB_TRACE_T, PCB_ARC_T,
+                                                                       PCB_VIA_T, PCB_PAD_T };
+
+                return board->GetConnectivity()->IsConnectedOnLayer( this, aLayer, nonZoneTypes );
             }
         }
     }
@@ -559,8 +572,8 @@ std::shared_ptr<SHAPE> PAD::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHING fla
 
     aLayer = Padstack().EffectiveLayerFor( aLayer );
 
-    wxASSERT_MSG( m_effectiveShapes.contains( aLayer ) && m_effectiveShapes.at( aLayer ),
-                  wxT( "Null shape in PAD::GetEffectiveShape!" ) );
+    wxCHECK_MSG( m_effectiveShapes.contains( aLayer ) && m_effectiveShapes.at( aLayer ), nullptr,
+                 wxT( "Null shape in PAD::GetEffectiveShape!" ) );
 
     return m_effectiveShapes[aLayer];
 }
@@ -596,18 +609,28 @@ void PAD::BuildEffectiveShapes() const
     m_effectiveBoundingBox = BOX2I();
 
     Padstack().ForEachUniqueLayer(
-        [&]( PCB_LAYER_ID aLayer )
-        {
-            const SHAPE_COMPOUND& layerShape = buildEffectiveShape( aLayer );
-            m_effectiveBoundingBox.Merge( layerShape.BBox() );
-        } );
+            [&]( PCB_LAYER_ID aLayer )
+            {
+                const SHAPE_COMPOUND& layerShape = buildEffectiveShape( aLayer );
+                m_effectiveBoundingBox.Merge( layerShape.BBox() );
+            } );
 
     // Hole shape
     m_effectiveHoleShape = nullptr;
 
     VECTOR2I half_size = m_padStack.Drill().size / 2;
-    int      half_width = std::min( half_size.x, half_size.y );
-    VECTOR2I half_len( half_size.x - half_width, half_size.y - half_width );
+    int      half_width;
+    VECTOR2I half_len;
+
+    if( m_padStack.Drill().shape == PAD_DRILL_SHAPE::CIRCLE )
+    {
+        half_width = half_size.x;
+    }
+    else
+    {
+        half_width = std::min( half_size.x, half_size.y );
+        half_len = VECTOR2I( half_size.x - half_width, half_size.y - half_width );
+    }
 
     RotatePoint( half_len, GetOrientation() );
 
@@ -832,6 +855,13 @@ const BOX2I PAD::GetBoundingBox() const
 }
 
 
+// Thermal spokes are built on the bounding box, so we must have a layer-specific version
+const BOX2I PAD::GetBoundingBox( PCB_LAYER_ID aLayer ) const
+{
+    return buildEffectiveShape( aLayer ).BBox();
+}
+
+
 void PAD::SetAttribute( PAD_ATTRIB aAttribute )
 {
     if( m_attribute != aAttribute )
@@ -985,8 +1015,12 @@ void PAD::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
     m_padStack.FlipLayers( copperLayerCount );
 
     // Flip pads layers after padstack geometry
-    LSET layerSet = m_padStack.LayerSet();
-    SetLayerSet( layerSet.Flip( copperLayerCount ) );
+    LSET flipped;
+
+    for( PCB_LAYER_ID layer : m_padStack.LayerSet() )
+        flipped.set( GetBoard()->FlipLayer( layer ) );
+
+    SetLayerSet( flipped );
 
     // Flip the basic shapes, in custom pads
     FlipPrimitives( aFlipDirection );
@@ -1539,13 +1573,11 @@ wxString PAD::ShowPadAttr() const
 
 wxString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    FOOTPRINT* parentFP = nullptr;
+    FOOTPRINT* parentFP = GetParentFootprint();
 
-    if( EDA_DRAW_FRAME* frame = dynamic_cast<EDA_DRAW_FRAME*>( aUnitsProvider ) )
-    {
-        if( frame->GetName() == PCB_EDIT_FRAME_NAME )
-            parentFP = GetParentFootprint();
-    }
+    // Don't report parent footprint info from footprint editor, viewer, etc.
+    if( GetBoard() && GetBoard()->GetBoardUse() == BOARD_USE::FPHOLDER )
+        parentFP = nullptr;
 
     if( GetAttribute() == PAD_ATTRIB::NPTH )
     {
@@ -1735,7 +1767,7 @@ double PAD::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
         return LOD_HIDE;
 
     // Handle Render tab switches
-    const PCB_LAYER_ID& pcbLayer = static_cast<PCB_LAYER_ID>( aLayer );
+    //const PCB_LAYER_ID& pcbLayer = static_cast<PCB_LAYER_ID>( aLayer );
 
     if( !IsFlipped() && !aView->IsLayerVisible( LAYER_FOOTPRINTS_FR ) )
         return LOD_HIDE;
@@ -1743,11 +1775,13 @@ double PAD::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
     if( IsFlipped() && !aView->IsLayerVisible( LAYER_FOOTPRINTS_BK ) )
         return LOD_HIDE;
 
-    LSET visible = board->GetVisibleLayers() & board->GetEnabledLayers();
-
     if( IsHoleLayer( aLayer ) )
     {
-        if( !( visible & LSET::PhysicalLayersMask() ).any() )
+        LSET visiblePhysical = board->GetVisibleLayers();
+        visiblePhysical &= board->GetEnabledLayers();
+        visiblePhysical &= LSET::PhysicalLayersMask();
+
+        if( !visiblePhysical.any() )
             return LOD_HIDE;
     }
     else if( IsNetnameLayer( aLayer ) )
@@ -1760,6 +1794,9 @@ double PAD::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
         }
         else
         {
+            LSET visible = board->GetVisibleLayers();
+            visible &= board->GetEnabledLayers();
+
             // Hide netnames unless pad is flashed to a visible layer
             if( !FlashLayer( visible ) )
                 return LOD_HIDE;
@@ -1768,16 +1805,25 @@ double PAD::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
         // Netnames will be shown only if zoom is appropriate
         const int minSize = std::min( GetBoundingBox().GetWidth(), GetBoundingBox().GetHeight() );
 
-        return lodScaleForThreshold( minSize, pcbIUScale.mmToIU( 0.5 ) );
+        return lodScaleForThreshold( aView, minSize, pcbIUScale.mmToIU( 0.5 ) );
     }
 
-    VECTOR2L padSize = GetShape( pcbLayer ) != PAD_SHAPE::CUSTOM
-                       ? VECTOR2L( GetSize( pcbLayer ) ) : GetBoundingBox().GetSize();
+    // Hole walls always need a repaint when zoom level changes after the last
+    // LAYER_PAD_HOLEWALLS shape rebuild
+    if( aLayer == LAYER_PAD_HOLEWALLS )
+    {
+        if( aView->GetGAL()->GetZoomFactor() != m_lastGalZoomLevel )
+        {
+            aView->Update( this, KIGFX::REPAINT );
+            m_lastGalZoomLevel = aView->GetGAL()->GetZoomFactor();
+        }
+    }
 
-    int64_t minSide = std::min( padSize.x, padSize.y );
+    VECTOR2L padSize = GetBoundingBox().GetSize();
+    int64_t  minSide = std::min( padSize.x, padSize.y );
 
     if( minSide > 0 )
-        return std::min( (double) pcbIUScale.mmToIU( 0.2 ) / minSide, 3.5 );
+        return std::min( lodScaleForThreshold( aView, minSide, pcbIUScale.mmToIU( 0.2 ) ), 3.5 );
 
     return LOD_SHOW;
 }
@@ -2131,6 +2177,12 @@ std::vector<PCB_SHAPE*> PAD::Recombine( bool aIsDryRun, int maxError )
 
         if( !aIsDryRun )
         {
+            // If the editor was inside a group when the pad was exploded, the added exploded shapes
+            // will be part of the group.  Remove them here before duplicating; we don't want the
+            // primitives to wind up in a group.
+            if( PCB_GROUP* group = fpShape->GetParentGroup(); group )
+                group->RemoveItem( fpShape );
+
             PCB_SHAPE* primitive = static_cast<PCB_SHAPE*>( fpShape->Duplicate() );
 
             primitive->SetParent( nullptr );
@@ -2475,6 +2527,145 @@ double PAD::Similarity( const BOARD_ITEM& aOther ) const
     similarity *= Padstack().Similarity( other.Padstack() );
 
     return similarity;
+}
+
+
+void PAD::AddPrimitivePoly( PCB_LAYER_ID aLayer, const SHAPE_POLY_SET& aPoly, int aThickness,
+                            bool aFilled )
+{
+    // If aPoly has holes, convert it to a polygon with no holes.
+    SHAPE_POLY_SET poly_no_hole;
+    poly_no_hole.Append( aPoly );
+
+    if( poly_no_hole.HasHoles() )
+        poly_no_hole.Fracture();
+
+    // There should never be multiple shapes, but if there are, we split them into
+    // primitives so that we can edit them both.
+    for( int ii = 0; ii < poly_no_hole.OutlineCount(); ++ii )
+    {
+        SHAPE_POLY_SET poly_outline( poly_no_hole.COutline( ii ) );
+        PCB_SHAPE* item = new PCB_SHAPE();
+        item->SetShape( SHAPE_T::POLY );
+        item->SetFilled( aFilled );
+        item->SetPolyShape( poly_outline );
+        item->SetStroke( STROKE_PARAMS( aThickness, LINE_STYLE::SOLID ) );
+        item->SetParent( this );
+        m_padStack.AddPrimitive( item, aLayer );
+    }
+
+    SetDirty();
+}
+
+
+void PAD::AddPrimitivePoly( PCB_LAYER_ID aLayer, const std::vector<VECTOR2I>& aPoly, int aThickness,
+                            bool aFilled )
+{
+    PCB_SHAPE* item = new PCB_SHAPE( nullptr, SHAPE_T::POLY );
+    item->SetFilled( aFilled );
+    item->SetPolyPoints( aPoly );
+    item->SetStroke( STROKE_PARAMS( aThickness, LINE_STYLE::SOLID ) );
+    item->SetParent( this );
+    m_padStack.AddPrimitive( item, aLayer );
+    SetDirty();
+}
+
+
+void PAD::ReplacePrimitives( PCB_LAYER_ID aLayer, const std::vector<std::shared_ptr<PCB_SHAPE>>& aPrimitivesList )
+{
+    // clear old list
+    DeletePrimitivesList( aLayer );
+
+    // Import to the given shape list
+    if( aPrimitivesList.size() )
+        AppendPrimitives( aLayer, aPrimitivesList );
+
+    SetDirty();
+}
+
+
+void PAD::AppendPrimitives( PCB_LAYER_ID aLayer, const std::vector<std::shared_ptr<PCB_SHAPE>>& aPrimitivesList )
+{
+    // Add duplicates of aPrimitivesList to the pad primitives list:
+    for( const std::shared_ptr<PCB_SHAPE>& prim : aPrimitivesList )
+        AddPrimitive( aLayer, new PCB_SHAPE( *prim ) );
+
+    SetDirty();
+}
+
+
+void PAD::AddPrimitive( PCB_LAYER_ID aLayer, PCB_SHAPE* aPrimitive )
+{
+    aPrimitive->SetParent( this );
+    m_padStack.AddPrimitive( aPrimitive, aLayer );
+
+    SetDirty();
+}
+
+
+void PAD::DeletePrimitivesList( PCB_LAYER_ID aLayer )
+{
+    if( aLayer == UNDEFINED_LAYER )
+    {
+        m_padStack.ForEachUniqueLayer(
+            [&]( PCB_LAYER_ID l )
+            {
+                m_padStack.ClearPrimitives( l );
+            } );
+    }
+    else
+    {
+        m_padStack.ClearPrimitives( aLayer);
+    }
+
+    SetDirty();
+}
+
+
+void PAD::MergePrimitivesAsPolygon( PCB_LAYER_ID aLayer, SHAPE_POLY_SET* aMergedPolygon,
+                                    ERROR_LOC aErrorLoc ) const
+{
+    const BOARD* board = GetBoard();
+    int          maxError = board ? board->GetDesignSettings().m_MaxError : ARC_HIGH_DEF;
+
+    aMergedPolygon->RemoveAllContours();
+
+    // Add the anchor pad shape in aMergedPolygon, others in aux_polyset:
+    // The anchor pad is always at 0,0
+    VECTOR2I padSize = GetSize( aLayer );
+
+    switch( GetAnchorPadShape( aLayer ) )
+    {
+    case PAD_SHAPE::RECTANGLE:
+    {
+        SHAPE_RECT rect( -padSize.x / 2, -padSize.y / 2, padSize.x, padSize.y );
+        aMergedPolygon->AddOutline( rect.Outline() );
+        break;
+    }
+
+    default:
+    case PAD_SHAPE::CIRCLE:
+        TransformCircleToPolygon( *aMergedPolygon, VECTOR2I( 0, 0 ), padSize.x / 2, maxError,
+                                  aErrorLoc );
+        break;
+    }
+
+    SHAPE_POLY_SET polyset;
+
+    for( const std::shared_ptr<PCB_SHAPE>& primitive : m_padStack.Primitives( aLayer ) )
+    {
+        if( !primitive->IsProxyItem() )
+            primitive->TransformShapeToPolygon( polyset, UNDEFINED_LAYER, 0, maxError, aErrorLoc );
+    }
+
+    polyset.Simplify();
+
+    // Merge all polygons with the initial pad anchor shape
+    if( polyset.OutlineCount() )
+    {
+        aMergedPolygon->BooleanAdd( polyset );
+        aMergedPolygon->Fracture();
+    }
 }
 
 

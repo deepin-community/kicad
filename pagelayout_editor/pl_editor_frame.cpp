@@ -94,7 +94,7 @@ PL_EDITOR_FRAME::PL_EDITOR_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
         m_mruImagePath( wxEmptyString )
 {
     m_maximizeByDefault = true;
-    SetUserUnits( EDA_UNITS::MILLIMETRES );
+    SetUserUnits( EDA_UNITS::MM );
 
     m_showBorderAndTitleBlock   = true; // true for reference drawings.
     DS_DATA_MODEL::GetTheInstance().m_EditMode = true;
@@ -301,8 +301,8 @@ void PL_EDITOR_FRAME::setupUIConditions()
 
     mgr->SetConditions( ACTIONS::toggleGrid,        CHECK( cond.GridVisible() ) );
     mgr->SetConditions( ACTIONS::toggleCursorStyle, CHECK( cond.FullscreenCursor() ) );
-    mgr->SetConditions( ACTIONS::millimetersUnits,  CHECK( cond.Units( EDA_UNITS::MILLIMETRES ) ) );
-    mgr->SetConditions( ACTIONS::inchesUnits,       CHECK( cond.Units( EDA_UNITS::INCHES ) ) );
+    mgr->SetConditions( ACTIONS::millimetersUnits,  CHECK( cond.Units( EDA_UNITS::MM ) ) );
+    mgr->SetConditions( ACTIONS::inchesUnits,       CHECK( cond.Units( EDA_UNITS::INCH ) ) );
     mgr->SetConditions( ACTIONS::milsUnits,         CHECK( cond.Units( EDA_UNITS::MILS ) ) );
 
     mgr->SetConditions( ACTIONS::cut,               ENABLE( SELECTION_CONDITIONS::NotEmpty ) );
@@ -374,6 +374,9 @@ void PL_EDITOR_FRAME::OnModify()
     EDA_BASE_FRAME::OnModify();
 
     GetScreen()->SetContentModified();
+
+    if( m_isClosing )
+        return;
 
     UpdateTitleAndInfo();
 }
@@ -703,9 +706,9 @@ void PL_EDITOR_FRAME::DisplayGridMsg()
 
     switch( GetUserUnits() )
     {
-    case EDA_UNITS::INCHES:      gridformatter = wxS( "grid %.3f" ); break;
-    case EDA_UNITS::MILLIMETRES: gridformatter = wxS( "grid %.4f" ); break;
-    default:                     gridformatter = wxS( "grid %f" );   break;
+    case EDA_UNITS::INCH: gridformatter = wxS( "grid %.3f" ); break;
+    case EDA_UNITS::MM:   gridformatter = wxS( "grid %.4f" ); break;
+    default:              gridformatter = wxS( "grid %f" );   break;
     }
 
     double grid = EDA_UNIT_UTILS::UI::ToUserUnit( drawSheetIUScale, GetUserUnits(),
@@ -765,11 +768,11 @@ void PL_EDITOR_FRAME::UpdateStatusBar()
 
     switch( GetUserUnits() )
     {
-    case EDA_UNITS::INCHES:      SetStatusText( _( "inches" ), 6 ); break;
-    case EDA_UNITS::MILS:        SetStatusText( _( "mils" ), 6 );   break;
-    case EDA_UNITS::MILLIMETRES: SetStatusText( _( "mm" ), 6 );     break;
-    case EDA_UNITS::UNSCALED:    SetStatusText( wxEmptyString, 6 ); break;
-    default:                     wxASSERT( false );                 break;
+    case EDA_UNITS::INCH:     SetStatusText( _( "inches" ), 6 ); break;
+    case EDA_UNITS::MILS:     SetStatusText( _( "mils" ), 6 );   break;
+    case EDA_UNITS::MM:       SetStatusText( _( "mm" ), 6 );     break;
+    case EDA_UNITS::UNSCALED: SetStatusText( wxEmptyString, 6 ); break;
+    default:                  wxASSERT( false );                 break;
     }
 
     wxString line;

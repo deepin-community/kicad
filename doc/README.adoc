@@ -28,7 +28,7 @@ documentation and the tool used to generate the HTML outputs.
 
 * https://www.po4a.org/[po4a] v0.44 < version < v0.55 is used to translate the English
 AsciiDoc documentation to other languages before the last compilation steps.
-* CMake >= 2.8
+* CMake >= 3.0
 * gettext >= 0.18
 
 === Debian / Ubuntu
@@ -124,6 +124,25 @@ Currently, the available languages are : `ca`, `de`, `en`, `es`, `fr`, `id`,
 `it`, `ja`, `pl`, `ru`  and `zh`, however, any language code can be selected.
 Only translated documents will be built, so for some languages there may only
 be a partial documentation output.
+
+==== DOC_VERSION and DOC_COMMIT
+
+These variables are used to set the version information printed in the
+documentation. By default, these are set to reasonable values, so anyone
+building the docs does not necessarily need to set these variables.
+
+* `DOC_VERSION`: The current KiCad application version described by the docs
+being built, in `major.minor.patch` format. If not specified, the value set in
+this repository is used (see `CMakeModules/VersionInfo.cmake`).
+* `DOC_COMMIT`: This is intended to be set to the current documentation commit
+hash (i.e. the most recent commit hash in this repo). This value is printed
+verbatim in the docs. If not specified, it is defaulted to the value of
+`DOC_VERSION`, so the `major.minor.patch` version is printed instead of the
+documentation commit hash.
+
+Note that the defaults are fine for local development where you don't care
+about the documentation containing accurate version numbers, commit hashes,
+etc. The defaults are also probably fine for downstream packaging usecases.
 
 ==== SINGLE_LANGUAGE
 

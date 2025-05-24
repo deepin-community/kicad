@@ -466,7 +466,7 @@ LSEQ LSET::SeqStackupForPlotting() const
 }
 
 
-LSET& LSET::Flip( int aCopperLayersCount )
+LSET& LSET::FlipStandardLayers( int aCopperLayersCount )
 {
     LSET oldMask = *this;
 
@@ -495,6 +495,8 @@ LSET& LSET::Flip( int aCopperLayersCount )
     {
         if( oldMask.test( pair.first ) )
             set( pair.second );
+
+        oldMask.set( pair.first, false );
     }
 
     if( aCopperLayersCount >= 4 )
@@ -510,6 +512,12 @@ LSET& LSET::Flip( int aCopperLayersCount )
             }
         }
     }
+
+    oldMask.ClearCopperLayers();
+
+    // Copy across any remaining, non-side-specific layers
+    for( PCB_LAYER_ID layer : oldMask )
+        set( layer );
 
     return *this;
 }
@@ -536,23 +544,23 @@ PCB_LAYER_ID LSET::ExtractLayer() const
 }
 
 
-LSET LSET::FrontAssembly()
+const LSET& LSET::FrontAssembly()
 {
-    static const LSET saved( { F_SilkS, F_Mask, F_Fab, F_CrtYd } );
+    static LSET saved( { F_SilkS, F_Mask, F_Fab, F_CrtYd } );
     return saved;
 }
 
 
-LSET LSET::BackAssembly()
+const LSET& LSET::BackAssembly()
 {
-    static const LSET saved( { B_SilkS, B_Mask, B_Fab, B_CrtYd } );
+    static LSET saved( { B_SilkS, B_Mask, B_Fab, B_CrtYd } );
     return saved;
 }
 
 
-LSET LSET::InternalCuMask()
+const LSET& LSET::InternalCuMask()
 {
-    static const LSET saved( { In1_Cu,  In2_Cu,  In3_Cu,  In4_Cu,  In5_Cu,  In6_Cu,
+    static LSET saved( { In1_Cu,  In2_Cu,  In3_Cu,  In4_Cu,  In5_Cu,  In6_Cu,
                                In7_Cu,  In8_Cu,  In9_Cu,  In10_Cu, In11_Cu, In12_Cu,
                                In13_Cu, In14_Cu, In15_Cu, In16_Cu, In17_Cu, In18_Cu,
                                In19_Cu, In20_Cu, In21_Cu, In22_Cu, In23_Cu, In24_Cu,
@@ -561,7 +569,7 @@ LSET LSET::InternalCuMask()
 }
 
 
-LSET LSET::AllCuMask( int aCuLayerCount )
+LSET allCuMask( int aCuLayerCount )
 {
     LSET ret;
 
@@ -572,84 +580,109 @@ LSET LSET::AllCuMask( int aCuLayerCount )
 }
 
 
+LSET LSET::AllCuMask( int aCuLayerCount )
+{
+    static LSET savedMax = allCuMask( MAX_CU_LAYERS );
+    static LSET cache;
+    static int  cacheCuLayerCount = -1;
+
+    if( aCuLayerCount == MAX_CU_LAYERS )
+        return savedMax;
+
+    if( aCuLayerCount != cacheCuLayerCount )
+    {
+        cache = allCuMask( aCuLayerCount );
+        cacheCuLayerCount = aCuLayerCount;
+    }
+
+    return cache;
+}
+
+
+LSET allNonCuMask()
+{
+    LSET mask = LSET().set();
+
+    for( auto it = mask.copper_layers_begin(); it != mask.copper_layers_end(); ++it )
+        mask.reset( *it );
+
+    return mask;
+}
+
+
 LSET LSET::AllNonCuMask()
 {
-    LSET saved = LSET().set();
-
-    for( auto it = saved.copper_layers_begin(); it != saved.copper_layers_end(); ++it )
-        saved.reset( *it );
-
+    static LSET saved = allNonCuMask();
     return saved;
 }
 
 
-LSET LSET::ExternalCuMask()
+const LSET& LSET::ExternalCuMask()
 {
-    static const LSET saved( { F_Cu, B_Cu } );
+    static LSET saved( { F_Cu, B_Cu } );
     return saved;
 }
 
 
-LSET LSET::AllLayersMask()
+const LSET& LSET::AllLayersMask()
 {
-    static const LSET saved = LSET().set();
+    static LSET saved = LSET().set();
     return saved;
 }
 
 
-LSET LSET::BackTechMask()
+const LSET& LSET::BackTechMask()
 {
-    static const LSET saved( { B_SilkS, B_Mask, B_Adhes, B_Paste, B_CrtYd, B_Fab } );
+    static LSET saved( { B_SilkS, B_Mask, B_Adhes, B_Paste, B_CrtYd, B_Fab } );
     return saved;
 }
 
 
-LSET LSET::BackBoardTechMask()
+const LSET& LSET::BackBoardTechMask()
 {
-    static const LSET saved( { B_SilkS, B_Mask, B_Adhes, B_Paste } );
+    static LSET saved( { B_SilkS, B_Mask, B_Adhes, B_Paste } );
     return saved;
 }
 
 
-LSET LSET::FrontTechMask()
+const LSET& LSET::FrontTechMask()
 {
-    static const LSET saved( { F_SilkS, F_Mask, F_Adhes, F_Paste, F_CrtYd, F_Fab } );
+    static LSET saved( { F_SilkS, F_Mask, F_Adhes, F_Paste, F_CrtYd, F_Fab } );
     return saved;
 }
 
 
-LSET LSET::FrontBoardTechMask()
+const LSET& LSET::FrontBoardTechMask()
 {
-    static const LSET saved( { F_SilkS, F_Mask, F_Adhes, F_Paste } );
+    static LSET saved( { F_SilkS, F_Mask, F_Adhes, F_Paste } );
     return saved;
 }
 
 
-LSET LSET::AllTechMask()
+const LSET& LSET::AllTechMask()
 {
-    static const LSET saved = BackTechMask() | FrontTechMask();
+    static LSET saved = BackTechMask() | FrontTechMask();
     return saved;
 }
 
 
-LSET LSET::AllBoardTechMask()
+const LSET& LSET::AllBoardTechMask()
 {
-    static const LSET saved = BackBoardTechMask() | FrontBoardTechMask();
+    static LSET saved = BackBoardTechMask() | FrontBoardTechMask();
     return saved;
 }
 
 
-LSET LSET::UserMask()
+const LSET& LSET::UserMask()
 {
-    static const LSET saved( { Dwgs_User, Cmts_User, Eco1_User, Eco2_User, Edge_Cuts, Margin } );
-
+    static LSET saved( { Dwgs_User, Cmts_User, Eco1_User, Eco2_User, Edge_Cuts, Margin } );
     return saved;
 }
 
 
-LSET LSET::PhysicalLayersMask()
+const LSET& LSET::PhysicalLayersMask()
 {
-    static const LSET saved = AllBoardTechMask() | AllCuMask();
+    static LSET saved = AllBoardTechMask() | AllCuMask();
     return saved;
 }
 
@@ -672,30 +705,30 @@ LSET LSET::UserDefinedLayersMask( int aUserDefinedLayerCount )
 }
 
 
-LSET LSET::FrontMask()
+const LSET& LSET::FrontMask()
 {
-    static const LSET saved = FrontTechMask().set( F_Cu );
+    static LSET saved = LSET( FrontTechMask() ).set( F_Cu );
     return saved;
 }
 
 
-LSET LSET::BackMask()
+const LSET& LSET::BackMask()
 {
-    static const LSET saved = BackTechMask().set( B_Cu );
+    static LSET saved = LSET( BackTechMask() ).set( B_Cu );
     return saved;
 }
 
 
-LSET LSET::SideSpecificMask()
+const LSET& LSET::SideSpecificMask()
 {
-    static const LSET saved = BackTechMask() | FrontTechMask() | AllCuMask();
+    static LSET saved = BackTechMask() | FrontTechMask() | AllCuMask();
     return saved;
 }
 
 
-LSET LSET::ForbiddenFootprintLayers()
+const LSET& LSET::ForbiddenFootprintLayers()
 {
-    static const LSET saved = InternalCuMask();
+    static LSET saved = LSET( InternalCuMask() ).set( In1_Cu, false );
     return saved;
 }
 
@@ -780,7 +813,7 @@ GAL_SET GAL_SET::DefaultVisible()
         LAYER_DRAW_BITMAPS,
         LAYER_PADS,
         LAYER_ZONES,
-        LAYER_SHAPES,
+        LAYER_FILLED_SHAPES,
         LAYER_LOCKED_ITEM_SHADOW,
         LAYER_CONFLICTS_SHADOW
     };

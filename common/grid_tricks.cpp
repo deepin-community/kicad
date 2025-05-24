@@ -232,13 +232,15 @@ void GRID_TRICKS::onGridCellLeftClick( wxGridEvent& aEvent )
 
             wxString newVal = m_grid->GetCellValue( row, col );
 
-            for( int affectedRow = m_sel_row_start; affectedRow < m_sel_row_count; ++affectedRow )
+            for( int otherRow = m_sel_row_start; otherRow < m_sel_row_start + m_sel_row_count; ++otherRow )
             {
-                if( affectedRow == row )
+                if( otherRow == row )
                     continue;
 
-                m_grid->SetCellValue( affectedRow, col, newVal );
+                m_grid->SetCellValue( otherRow, col, newVal );
             }
+
+            return;
         }
     }
 
@@ -852,6 +854,9 @@ void GRID_TRICKS::cutcopy( bool doCopy, bool doDelete )
     // fill txt with a format that is compatible with most spreadsheets
     for( int row = m_sel_row_start;  row < m_sel_row_start + m_sel_row_count;  ++row )
     {
+        if( !txt.IsEmpty() )
+            txt += ROW_SEP;
+
         for( int col = m_sel_col_start;  col < m_sel_col_start + m_sel_col_count; ++col )
         {
             if( !m_grid->IsColShown( col ) )
@@ -870,8 +875,6 @@ void GRID_TRICKS::cutcopy( bool doCopy, bool doDelete )
                     tbl->SetValue( row, col, wxEmptyString );
             }
         }
-
-        txt += ROW_SEP;
     }
 
     if( doCopy )

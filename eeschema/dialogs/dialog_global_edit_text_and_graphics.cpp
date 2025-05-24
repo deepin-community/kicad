@@ -34,7 +34,7 @@
 #include <schematic.h>
 #include <sch_commit.h>
 #include <tool/tool_manager.h>
-#include <tools/ee_selection_tool.h>
+#include <tools/sch_selection_tool.h>
 #include <tools/sch_edit_tool.h>
 #include <widgets/unit_binder.h>
 #include <widgets/font_choice.h>
@@ -69,7 +69,7 @@ static bool       g_filterSelected;
 class DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS : public DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS_BASE
 {
     SCH_EDIT_FRAME*        m_parent;
-    EE_SELECTION           m_selection;
+    SCH_SELECTION          m_selection;
 
     UNIT_BINDER            m_textSize;
     UNIT_BINDER            m_lineWidth;
@@ -162,7 +162,7 @@ DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::~DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS()
 
 bool DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::TransferDataToWindow()
 {
-    EE_SELECTION_TOOL* selectionTool = m_parent->GetToolManager()->GetTool<EE_SELECTION_TOOL>();
+    SCH_SELECTION_TOOL* selectionTool = m_parent->GetToolManager()->GetTool<SCH_SELECTION_TOOL>();
     m_selection = selectionTool->GetSelection();
 
     m_references->SetValue( g_modifyReferences );
@@ -284,9 +284,6 @@ void DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::processItem( SCH_COMMIT* aCommit,
             eda_text->SetVertJustify( vAlign );
         }
 
-        if( m_visible->Get3StateValue() != wxCHK_UNDETERMINED )
-            eda_text->SetVisible( m_visible->GetValue() );
-
         if( m_italic->Get3StateValue() != wxCHK_UNDETERMINED )
             eda_text->SetItalic( m_italic->GetValue() );
 
@@ -320,6 +317,9 @@ void DIALOG_GLOBAL_EDIT_TEXT_AND_GRAPHICS::processItem( SCH_COMMIT* aCommit,
 
     if( SCH_FIELD* sch_field = dynamic_cast<SCH_FIELD*>( aItem ) )
     {
+        if( m_visible->Get3StateValue() != wxCHK_UNDETERMINED )
+            sch_field->SetVisible( m_visible->GetValue() );
+
         if( m_showFieldNames->Get3StateValue() != wxCHK_UNDETERMINED )
             sch_field->SetNameShown( m_showFieldNames->GetValue() );
     }

@@ -43,6 +43,8 @@ public:
 
     ~PCB_TEXTBOX();
 
+    void CopyFrom( const BOARD_ITEM* aOther ) override;
+
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
         return aItem && PCB_TEXTBOX_T == aItem->Type();
@@ -96,13 +98,7 @@ public:
 
     wxString GetShownText( bool aAllowExtraText, int aDepth = 0 ) const override;
 
-    /// PCB_TEXTBOXes are always visible:
-    void SetVisible( bool aVisible ) override { /* do nothing */}
-    bool IsVisible() const override { return true; }
-
     bool Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const override;
-
-    std::vector<VECTOR2I> GetAnchorAndOppositeCorner() const;
 
     void Move( const VECTOR2I& aMoveVector ) override;
 
@@ -168,11 +164,14 @@ public:
     bool operator==( const BOARD_ITEM& aBoardItem ) const override;
 
 protected:
-    bool m_borderEnabled; ///< Controls drawing the border (as defined by the stroke members)
+    EDA_ANGLE getDrawRotation() const override { return GetDrawRotation(); }
 
     virtual void swapData( BOARD_ITEM* aImage ) override;
 
     const KIFONT::METRICS& getFontMetrics() const override { return GetFontMetrics(); }
+
+protected:
+    bool m_borderEnabled; ///< Controls drawing the border (as defined by the stroke members)
 
 private:
     int  m_marginLeft;

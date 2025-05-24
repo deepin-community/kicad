@@ -26,6 +26,7 @@
 #include <plotters/plotter.h>
 #include <layer_ids.h>
 #include <plotprint_opts.h>
+#include <lseq.h>
 
 class COLOR_SETTINGS;
 class PCB_PLOT_PARAMS_PARSER;
@@ -111,8 +112,6 @@ public:
     void        SetCrossoutDNPFPsOnFabLayers( bool aFlag ) { m_crossoutDNPFPsOnFabLayers = aFlag; }
     bool        GetCrossoutDNPFPsOnFabLayers() const { return m_crossoutDNPFPsOnFabLayers; }
 
-    void        SetPlotInvisibleText( bool aFlag ) { m_plotInvisibleText = aFlag; }
-    bool        GetPlotInvisibleText() const { return m_plotInvisibleText; }
     void        SetPlotValue( bool aFlag ) { m_plotValue = aFlag; }
     bool        GetPlotValue() const { return m_plotValue; }
     void        SetPlotReference( bool aFlag ) { m_plotReference = aFlag; }
@@ -155,6 +154,9 @@ public:
     void        SetSvgPrecision( unsigned aPrecision );
     unsigned    GetSvgPrecision() const { return m_svgPrecision; }
 
+    void        SetSvgFitPageToBoard( int aSvgFitPageToBoard ) { m_svgFitPageToBoard = aSvgFitPageToBoard; }
+    bool        GetSvgFitPagetoBoard() const { return m_svgFitPageToBoard; }
+
     void        SetBlackAndWhite( bool blackAndWhite ) { m_blackAndWhite = blackAndWhite; }
     unsigned    GetBlackAndWhite() const { return m_blackAndWhite; }
 
@@ -164,12 +166,8 @@ public:
     void        SetLayerSelection( LSET aSelection )    { m_layerSelection = aSelection; }
     LSET        GetLayerSelection() const               { return m_layerSelection; }
 
-    void        SetPlotOnAllLayersSelection( LSET aSelection )
-    {
-        m_plotOnAllLayersSelection = aSelection;
-    }
-
-    LSET        GetPlotOnAllLayersSelection() const { return m_plotOnAllLayersSelection; }
+    void        SetPlotOnAllLayersSequence( LSEQ aSeq ) { m_plotOnAllLayersSequence = aSeq; }
+    LSEQ        GetPlotOnAllLayersSequence() const      { return m_plotOnAllLayersSequence; }
 
     void        SetUseAuxOrigin( bool aAux ) { m_useAuxOrigin = aAux; }
     bool        GetUseAuxOrigin() const { return m_useAuxOrigin; }
@@ -209,7 +207,7 @@ private:
 
     PLOT_FORMAT     m_format;           /// Plot format type (chooses the driver to be used)
     LSET            m_layerSelection;
-    LSET            m_plotOnAllLayersSelection;
+    LSEQ            m_plotOnAllLayersSequence;
 
     bool            m_skipNPTH_Pads;    /// Used to disable NPTH pads plotting on copper layers
     OUTLINE_MODE    m_plotMode;         /// FILLED or SKETCH for filled objects.
@@ -262,6 +260,7 @@ private:
 
     /// Precision of coordinates in SVG: accepted 3 - 6; 6 is the internal resolution of Pcbnew
     unsigned   m_svgPrecision;
+    bool        m_svgFitPageToBoard;
 
     bool       m_useAuxOrigin;          ///< Plot gerbers using auxiliary (drill) origin instead
                                         ///<   of absolute coordinates
@@ -274,7 +273,6 @@ private:
     bool       m_plotReference;         ///< Enable plotting of part references
     bool       m_plotValue;             ///< Enable plotting of part values
     bool       m_plotFPText;
-    bool       m_plotInvisibleText;     ///< Force plotting of fields marked invisible
 
     bool       m_sketchPadsOnFabLayers; ///< Plots pads outlines on fab layers
     int        m_sketchPadLineWidth;

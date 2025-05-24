@@ -42,6 +42,7 @@ extern APIIMPORT wxPGGlobalVarsClass* wxPGGlobalVars;
 
 PROPERTIES_PANEL::PROPERTIES_PANEL( wxWindow* aParent, EDA_BASE_FRAME* aFrame ) :
         wxPanel( aParent ),
+        m_SuppressGridChangeEvents( 0 ),
         m_frame( aFrame ),
         m_splitter_key_proportion( -1 )
 {
@@ -168,8 +169,29 @@ void PROPERTIES_PANEL::OnLanguageChanged( wxCommandEvent& aEvent )
 }
 
 
+class SUPPRESS_GRID_CHANGED_EVENTS
+{
+public:
+    SUPPRESS_GRID_CHANGED_EVENTS( PROPERTIES_PANEL* aPanel ) :
+            m_panel( aPanel )
+    {
+        m_panel->m_SuppressGridChangeEvents++;
+    }
+
+    ~SUPPRESS_GRID_CHANGED_EVENTS()
+    {
+        m_panel->m_SuppressGridChangeEvents--;
+    }
+
+private:
+    PROPERTIES_PANEL* m_panel;
+};
+
+
 void PROPERTIES_PANEL::rebuildProperties( const SELECTION& aSelection )
 {
+    SUPPRESS_GRID_CHANGED_EVENTS raii( this );
+
     auto reset =
             [&]()
             {
@@ -369,7 +391,13 @@ bool PROPERTIES_PANEL::getItemValue( EDA_ITEM* aItem, PROPERTY_BASE* aProperty, 
         converted = any.GetAs( &aValue );
 
     if( !converted )
-        wxFAIL_MSG( wxS( "Could not convert wxAny to wxVariant" ) );
+    {
+        wxString propName = aProperty->Name();
+        propName.Replace( ' ', '_' );
+        wxFAIL_MSG( wxString::Format( wxS( "Could not convert wxAny to wxVariant for %s::%s" ),
+                                      aItem->GetClass(),
+                                      propName ) );
+    }
 
     return converted;
 }
@@ -434,12 +462,17 @@ void PROPERTIES_PANEL::onShow( wxShowEvent& aEvent )
 
 void PROPERTIES_PANEL::onCharHook( wxKeyEvent& aEvent )
 {
-    if( aEvent.GetKeyCode() == WXK_TAB && !aEvent.ShiftDown() && m_grid->IsAnyModified() )
+    // m_grid->IsAnyModified() doesn't work for the first modification
+    if( aEvent.GetKeyCode() == WXK_TAB && !aEvent.ShiftDown() )
     {
+        wxVariant oldValue = m_grid->GetSelectedProperty()->GetValue();
+
         m_grid->CommitChangesFromEditor();
 
-        // Pass the tab key on so the default property grid tab behavior is honored.
-        aEvent.Skip();
+        // If there was no change, treat it as a navigation key
+        if( oldValue == m_grid->GetSelectedProperty()->GetValue() )
+            aEvent.Skip();
+
         return;
     }
 

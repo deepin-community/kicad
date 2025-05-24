@@ -9,6 +9,11 @@ include /usr/share/dpkg/buildflags.mk
 CFLAGS+=$(CPPFLAGS)
 CXXFLAGS+=$(CPPFLAGS)
 
+# workaround for https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81358
+ifneq (,$(filter $(DEB_HOST_ARCH), armel m68k powerpc sh4))
+    export DEB_LDFLAGS_MAINT_APPEND += -Wl,--no-as-needed -latomic -Wl,--as-needed
+endif
+
 # out of tree build folder for kicad application
 DEB_BUILD_DIR=debian/build
 # default install folder

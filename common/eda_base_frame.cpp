@@ -24,6 +24,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "kicad_manager_frame.h"
 #include <eda_base_frame.h>
 
 #include <advanced_config.h>
@@ -173,7 +174,7 @@ EDA_BASE_FRAME::EDA_BASE_FRAME( wxWindow* aParent, FRAME_T aFrameType, const wxS
         wxFrame( aParent, wxID_ANY, aTitle, aPos, aSize, aStyle, aFrameName ),
         TOOLS_HOLDER(),
         KIWAY_HOLDER( aKiway, KIWAY_HOLDER::FRAME ),
-        UNITS_PROVIDER( aIuScale, EDA_UNITS::MILLIMETRES )
+        UNITS_PROVIDER( aIuScale, EDA_UNITS::MM )
 {
     commonInit( aFrameType );
 }
@@ -502,22 +503,6 @@ void EDA_BASE_FRAME::ReCreateMenuBar()
 }
 
 
-void EDA_BASE_FRAME::SetMenuBar( wxMenuBar* menu_bar )
-{
-    wxFrame::SetMenuBar( menu_bar );
-
-    // Move Help menu back to end of menubar
-
-    int pos = GetMenuBar()->FindMenu( _( "&Help" ) + wxS( " " ) );
-
-    if( pos != wxNOT_FOUND )
-    {
-        wxMenu* helpMenu = GetMenuBar()->Remove( pos );
-        GetMenuBar()->Append( helpMenu, _( "&Help" ) + wxS( " " ) );
-    }
-}
-
-
 void EDA_BASE_FRAME::AddStandardHelpMenu( wxMenuBar* aMenuBar )
 {
     COMMON_CONTROL* commonControl = m_toolManager->GetTool<COMMON_CONTROL>();
@@ -533,13 +518,7 @@ void EDA_BASE_FRAME::AddStandardHelpMenu( wxMenuBar* aMenuBar )
     helpMenu->AppendSeparator();
     helpMenu->Add( ACTIONS::about );
 
-    // Trailing space keeps OSX from hijacking our menu (and disabling everything in it).
-    aMenuBar->Append( helpMenu, _( "&Help" ) + wxS( " " ) );
-
-    // This change is only needed on macOS, and creates a bug on Windows
-    #ifdef __WXMAC__
-    helpMenu->wxMenu::SetTitle( _( "&Help" ) + wxS( " " ) );
-    #endif
+    aMenuBar->Append( helpMenu, _( "&Help" ) );
 }
 
 
@@ -1088,7 +1067,15 @@ void EDA_BASE_FRAME::ShowPreferences( wxString aStartPage, wxString aStartParent
         KIFACE*                 kiface = nullptr;
         std::vector<int>        expand;
 
-        Kiway().GetActions( hotkeysPanel->ActionsList() );
+        wxWindow* kicadMgr_window = wxWindow::FindWindowByName( KICAD_MANAGER_FRAME_NAME );
+
+        if( KICAD_MANAGER_FRAME* kicadMgr = static_cast<KICAD_MANAGER_FRAME*>( kicadMgr_window ) )
+        {
+            ACTION_MANAGER* actionMgr = kicadMgr->GetToolManager()->GetActionManager();
+
+            for( const auto& [name, action] : actionMgr->GetActions() )
+                hotkeysPanel->ActionsList().push_back( action );
+        }
 
         book->AddLazyPage(
                 []( wxWindow* aParent ) -> wxWindow*
@@ -1105,16 +1092,11 @@ void EDA_BASE_FRAME::ShowPreferences( wxString aStartPage, wxString aStartParent
 
         book->AddPage( hotkeysPanel, _( "Hotkeys" ) );
 
-        // This currently allows pre-defined repositories that we
-        // don't use, so keep it disabled at the moment
-        if( ADVANCED_CFG::GetCfg().m_EnableGit && false )
-        {
-            book->AddLazyPage(
-                    []( wxWindow* aParent ) -> wxWindow*
-                    {
-                        return new PANEL_GIT_REPOS( aParent );
-                    }, _( "Version Control" ) );
-        }
+        book->AddLazyPage(
+                []( wxWindow* aParent ) -> wxWindow*
+                {
+                    return new PANEL_GIT_REPOS( aParent );
+                }, _( "Version Control" ) );
 
 #ifdef KICAD_USE_SENTRY
         book->AddLazyPage(

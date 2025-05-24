@@ -22,30 +22,20 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-/*
- * Fields are texts attached to a symbol, some of which have a special meaning.
- * Fields 0 and 1 are very important: reference and value.
- * Field 2 is used as default footprint name.
- * Field 3 is used to point to a datasheet (usually a URL).
- * Fields 4+ are user fields.  They can be renamed and can appear in reports.
- */
-
 #include <wx/log.h>
 #include <wx/menu.h>
 
 #include <advanced_config.h>
 #include <base_units.h>
 #include <common.h>     // for ExpandTextVars
+#include <ctl_flags.h>
 #include <sch_edit_frame.h>
 #include <plotters/plotter.h>
+#include <richio.h>
+#include <io/kicad/kicad_io_utils.h>
 #include <bitmaps.h>
-#include <core/mirror.h>
 #include <kiway.h>
 #include <symbol_library.h>
-#include <sch_symbol.h>
-#include <sch_field.h>
-#include <sch_label.h>
-#include <schematic.h>
 #include <settings/color_settings.h>
 #include <string_utils.h>
 #include <trace_helpers.h>
@@ -64,7 +54,7 @@ SCH_FIELD::SCH_FIELD( const VECTOR2I& aPos, int aFieldId, SCH_ITEM* aParent,
         m_id( 0 ),
         m_showName( false ),
         m_allowAutoPlace( true ),
-        m_isNamedVariable( false ),
+        m_isGeneratedField( false ),
         m_autoAdded( false ),
         m_showInChooser( true ),
         m_renderCacheValid( false ),
@@ -83,9 +73,17 @@ SCH_FIELD::SCH_FIELD( const VECTOR2I& aPos, int aFieldId, SCH_ITEM* aParent,
 }
 
 
-SCH_FIELD::SCH_FIELD( SCH_ITEM* aParent, int aFieldId, const wxString& aName) :
+SCH_FIELD::SCH_FIELD( SCH_ITEM* aParent, int aFieldId, const wxString& aName ) :
         SCH_FIELD( VECTOR2I(), aFieldId, aParent, aName )
 {
+}
+
+
+SCH_FIELD::SCH_FIELD( SCH_TEXT* aText ) :
+        SCH_FIELD( VECTOR2I(), INVALID_FIELD, nullptr, wxEmptyString )
+{
+    SCH_ITEM::operator=( *aText );
+    EDA_TEXT::operator=( *aText );
 }
 
 
@@ -93,14 +91,14 @@ SCH_FIELD::SCH_FIELD( const SCH_FIELD& aField ) :
         SCH_ITEM( aField ),
         EDA_TEXT( aField )
 {
-    m_private         = aField.m_private;
-    m_id              = aField.m_id;
-    m_name            = aField.m_name;
-    m_showName        = aField.m_showName;
-    m_allowAutoPlace  = aField.m_allowAutoPlace;
-    m_isNamedVariable = aField.m_isNamedVariable;
-    m_autoAdded       = aField.m_autoAdded;
-    m_showInChooser   = aField.m_showInChooser;
+    m_private          = aField.m_private;
+    SetId( aField.m_id );  // will also set the layer
+    m_name             = aField.m_name;
+    m_showName         = aField.m_showName;
+    m_allowAutoPlace   = aField.m_allowAutoPlace;
+    m_isGeneratedField = aField.m_isGeneratedField;
+    m_autoAdded        = aField.m_autoAdded;
+    m_showInChooser    = aField.m_showInChooser;
 
     m_renderCache.clear();
 
@@ -123,12 +121,12 @@ SCH_FIELD& SCH_FIELD::operator=( const SCH_FIELD& aField )
 {
     EDA_TEXT::operator=( aField );
 
-    m_private         = aField.m_private;
-    m_id              = aField.m_id;
-    m_name            = aField.m_name;
-    m_showName        = aField.m_showName;
-    m_allowAutoPlace  = aField.m_allowAutoPlace;
-    m_isNamedVariable = aField.m_isNamedVariable;
+    m_private          = aField.m_private;
+    SetId( aField.m_id );  // will also set the layer
+    m_name             = aField.m_name;
+    m_showName         = aField.m_showName;
+    m_allowAutoPlace   = aField.m_allowAutoPlace;
+    m_isGeneratedField = aField.m_isGeneratedField;
 
     m_renderCache.clear();
 
@@ -207,7 +205,7 @@ void SCH_FIELD::SetId( int aId )
 
 wxString SCH_FIELD::GetShownName() const
 {
-    return m_isNamedVariable ? GetTextVars( GetName() ) : GetName();
+    return m_isGeneratedField ? GetGeneratedFieldDisplayName( GetName() ) : GetName();
 }
 
 
@@ -512,9 +510,92 @@ void SCH_FIELD::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBod
 }
 
 
+// The following is taken from EDA_TEXT::Format because after 9.0.0, the `(hide yes)` property
+// was removed from EDA_TEXT but not EDA_FIELD, but to preserve compatibility with 9.0.0, it
+// needs to be written inside the effects block.
+void SCH_FIELD::Format( OUTPUTFORMATTER* aFormatter, int aControlBits ) const
+{
+    aFormatter->Print( "(effects" );
+
+    aFormatter->Print( "(font" );
+
+    if( GetFont() && !GetFont()->GetName().IsEmpty() )
+        aFormatter->Print( "(face %s)", aFormatter->Quotew( GetFont()->NameAsToken() ).c_str() );
+
+    // Text size
+    aFormatter->Print( "(size %s %s)",
+                       EDA_UNIT_UTILS::FormatInternalUnits( m_IuScale, GetTextHeight() ).c_str(),
+                       EDA_UNIT_UTILS::FormatInternalUnits( m_IuScale, GetTextWidth() ).c_str() );
+
+    if( GetLineSpacing() != 1.0 )
+    {
+        aFormatter->Print( "(line_spacing %s)",
+                           FormatDouble2Str( GetLineSpacing() ).c_str() );
+    }
+
+    if( GetTextThickness() )
+    {
+        aFormatter->Print( "(thickness %s)",
+                EDA_UNIT_UTILS::FormatInternalUnits( m_IuScale, GetTextThickness() ).c_str() );
+    }
+
+    if( IsBold() )
+        KICAD_FORMAT::FormatBool( aFormatter, "bold", true );
+
+    if( IsItalic() )
+        KICAD_FORMAT::FormatBool( aFormatter, "italic", true );
+
+    if( !( aControlBits & CTL_OMIT_COLOR ) && GetTextColor() != COLOR4D::UNSPECIFIED )
+    {
+        aFormatter->Print( "(color %d %d %d %s)",
+                           KiROUND( GetTextColor().r * 255.0 ),
+                           KiROUND( GetTextColor().g * 255.0 ),
+                           KiROUND( GetTextColor().b * 255.0 ),
+                           FormatDouble2Str( GetTextColor().a ).c_str() );
+    }
+
+    aFormatter->Print( ")"); // (font
+
+    if( IsMirrored() || GetHorizJustify() != GR_TEXT_H_ALIGN_CENTER
+                     || GetVertJustify() != GR_TEXT_V_ALIGN_CENTER )
+    {
+        aFormatter->Print( "(justify");
+
+        if( GetHorizJustify() != GR_TEXT_H_ALIGN_CENTER )
+            aFormatter->Print( GetHorizJustify() == GR_TEXT_H_ALIGN_LEFT ? " left" : " right" );
+
+        if( GetVertJustify() != GR_TEXT_V_ALIGN_CENTER )
+            aFormatter->Print( GetVertJustify() == GR_TEXT_V_ALIGN_TOP ? " top" : " bottom" );
+
+        if( IsMirrored() )
+            aFormatter->Print( " mirror" );
+
+        aFormatter->Print( ")" ); // (justify
+    }
+
+    // The relevant difference from EDA_TEXT::Format
+    if( !IsVisible() )
+        KICAD_FORMAT::FormatBool( aFormatter, "hide", true );
+
+    if( !( aControlBits & CTL_OMIT_HYPERLINK ) && HasHyperlink() )
+        aFormatter->Print( "(href %s)", aFormatter->Quotew( GetHyperlink() ).c_str() );
+
+    aFormatter->Print( ")" ); // (effects
+}
+
+
+bool SCH_FIELD::IsDefaultFormatting() const
+{
+    return ( IsVisible()
+             && EDA_TEXT::IsDefaultFormatting()
+           );
+}
+
+
 void SCH_FIELD::ImportValues( const SCH_FIELD& aSource )
 {
     SetAttributes( aSource );
+    SetVisible( aSource.IsVisible() );
     SetNameShown( aSource.IsNameShown() );
     SetCanAutoplace( aSource.CanAutoplace() );
 }
@@ -531,7 +612,7 @@ void SCH_FIELD::SwapData( SCH_ITEM* aItem )
     std::swap( m_layer, item->m_layer );
     std::swap( m_showName, item->m_showName );
     std::swap( m_allowAutoPlace, item->m_allowAutoPlace );
-    std::swap( m_isNamedVariable, item->m_isNamedVariable );
+    std::swap( m_isGeneratedField, item->m_isGeneratedField );
     std::swap( m_private, item->m_private );
     SwapText( *item );
     SwapAttributes( *item );
@@ -863,7 +944,14 @@ void SCH_FIELD::OnScintillaCharAdded( SCINTILLA_TRICKS* aScintillaTricks,
                     NULL_REPORTER   devnull;
                     SCH_SHEET_PATH& sheet = schematic->CurrentSheet();
                     SIM_LIB_MGR     mgr( &schematic->Prj() );
-                    SIM_MODEL&      model = mgr.CreateModel( &sheet, *symbol, devnull ).model;
+
+                    std::vector<EMBEDDED_FILES*> embeddedFilesStack;
+                    embeddedFilesStack.push_back( schematic->GetEmbeddedFiles() );
+                    embeddedFilesStack.push_back( symbol->GetEmbeddedFiles() );
+
+                    mgr.SetFilesStack( embeddedFilesStack );
+
+                    SIM_MODEL& model = mgr.CreateModel( &sheet, *symbol, devnull ).model;
 
                     for( wxString pin : model.GetPinNames() )
                     {
@@ -1170,31 +1258,39 @@ void SCH_FIELD::DoHypertextAction( EDA_DRAW_FRAME* aFrame ) const
 
     if( IsHypertext() )
     {
-        SCH_LABEL_BASE* label = static_cast<SCH_LABEL_BASE*>( m_parent );
-        SCH_SHEET_PATH* sheet = &label->Schematic()->CurrentSheet();
-        wxMenu          menu;
-        wxString        href;
+        wxString         href;
+        SCH_GLOBALLABEL* global = dynamic_cast<SCH_GLOBALLABEL*>( m_parent );
 
-        std::vector<std::pair<wxString, wxString>> pages;
-
-        label->GetIntersheetRefs( sheet, &pages );
-
-        for( int i = 0; i < (int) pages.size(); ++i )
+        if( global && m_id == INTERSHEET_REFS )
         {
-            menu.Append( i + START_ID, wxString::Format( _( "Go to Page %s (%s)" ),
-                                                         pages[i].first,
-                                                         pages[i].second ) );
+            SCH_SHEET_PATH* sheet = &global->Schematic()->CurrentSheet();
+            wxMenu          menu;
+
+            std::vector<std::pair<wxString, wxString>> pages;
+
+            global->GetIntersheetRefs( sheet, &pages );
+
+            for( int i = 0; i < (int) pages.size(); ++i )
+            {
+                menu.Append( i + START_ID, wxString::Format( _( "Go to Page %s (%s)" ),
+                                                             pages[i].first,
+                                                             pages[i].second ) );
+            }
+
+            menu.AppendSeparator();
+            menu.Append( 999 + START_ID, _( "Back to Previous Selected Sheet" ) );
+
+            int sel = aFrame->GetPopupMenuSelectionFromUser( menu ) - START_ID;
+
+            if( sel >= 0 && sel < (int) pages.size() )
+                href = wxT( "#" ) + pages[ sel ].first;
+            else if( sel == 999 )
+                href = SCH_NAVIGATE_TOOL::g_BackLink;
         }
-
-        menu.AppendSeparator();
-        menu.Append( 999 + START_ID, _( "Back to Previous Selected Sheet" ) );
-
-        int sel = aFrame->GetPopupMenuSelectionFromUser( menu ) - START_ID;
-
-        if( sel >= 0 && sel < (int) pages.size() )
-            href = wxT( "#" ) + pages[ sel ].first;
-        else if( sel == 999 )
-            href = SCH_NAVIGATE_TOOL::g_BackLink;
+        else if( IsURL( GetShownText( false ) ) )
+        {
+            href = GetShownText( false );
+        }
 
         if( !href.IsEmpty() )
         {
@@ -1208,18 +1304,17 @@ void SCH_FIELD::DoHypertextAction( EDA_DRAW_FRAME* aFrame ) const
 void SCH_FIELD::SetName( const wxString& aName )
 {
     m_name = aName;
-    m_isNamedVariable = m_name.StartsWith( wxT( "${" ) );
+    m_isGeneratedField = ::IsGeneratedField( aName );
 
-    if( m_isNamedVariable )
+    if( m_isGeneratedField )
         EDA_TEXT::SetText( aName );
 }
 
 
 void SCH_FIELD::SetText( const wxString& aText )
 {
-    // Don't allow modification of text value when using named variables
-    // as field name.
-    if( m_isNamedVariable )
+    // Don't allow modification of text value of generated fields.
+    if( m_isGeneratedField )
         return;
 
     // Mandatory fields should not have leading or trailing whitespace.
@@ -1445,14 +1540,13 @@ void SCH_FIELD::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& 
 
     aPlotter->PlotText( textpos, color, text, attrs, font, GetFontMetrics() );
 
-    if( IsHypertext() && Schematic() )
+    // Plot intersheet refs (only global labels have them)
+    if( m_parent && m_parent->Type() == SCH_GLOBAL_LABEL_T && m_id == INTERSHEET_REFS && Schematic() )
     {
         SCH_LABEL_BASE*                            label = static_cast<SCH_LABEL_BASE*>( m_parent );
         std::vector<std::pair<wxString, wxString>> pages;
         std::vector<wxString>                      pageHrefs;
         BOX2I                                      bbox = GetBoundingBox();
-
-        wxCHECK( label, /* void */ );
 
         label->GetIntersheetRefs( &Schematic()->CurrentSheet(), &pages );
 
@@ -1585,7 +1679,7 @@ bool SCH_FIELD::operator==( const SCH_FIELD& aOther ) const
     if( GetPosition() != aOther.GetPosition() )
         return false;
 
-    if( IsNamedVariable() != aOther.IsNamedVariable() )
+    if( IsGeneratedField() != aOther.IsGeneratedField() )
         return false;
 
     if( IsNameShown() != aOther.IsNameShown() )
@@ -1626,7 +1720,7 @@ double SCH_FIELD::Similarity( const SCH_ITEM& aOther ) const
     if( GetPosition() != field.GetPosition() )
         similarity *= 0.5;
 
-    if( IsNamedVariable() != field.IsNamedVariable() )
+    if( IsGeneratedField() != field.IsGeneratedField() )
         similarity *= 0.5;
 
     if( IsNameShown() != field.IsNameShown() )
@@ -1787,17 +1881,17 @@ static struct SCH_FIELD_DESC
 
         propMgr.Mask( TYPE_HASH( SCH_FIELD ), TYPE_HASH( EDA_TEXT ), _HKI( "Orientation" ) );
 
-        auto isNotNamedVariable =
+        auto isNotGeneratedField =
                 []( INSPECTABLE* aItem ) -> bool
                 {
                     if( SCH_FIELD* field = dynamic_cast<SCH_FIELD*>( aItem ) )
-                        return !field->IsNamedVariable();
+                        return !field->IsGeneratedField();
 
                     return true;
                 };
 
         propMgr.OverrideWriteability( TYPE_HASH( SCH_FIELD ), TYPE_HASH( EDA_TEXT ), _HKI( "Text" ),
-                                      isNotNamedVariable );
+                                      isNotGeneratedField );
 
 
         auto isNonMandatoryField =
