@@ -1,0 +1,380 @@
+(kicad_sch
+	(version 20250114)
+	(generator "eeschema")
+	(generator_version "9.0")
+	(uuid "7abd3be7-a6f7-4166-945f-55e9cf7bc262")
+	(paper "A4")
+	(lib_symbols)
+	(bus_entry
+		(at 129.54 104.14)
+		(size 2.54 2.54)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2dc5458e-5008-4d1d-b469-1c13dac2b630")
+	)
+	(bus_entry
+		(at 119.38 104.14)
+		(size 2.54 2.54)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6a7975bc-34be-47a4-94d6-44d8418f2ae0")
+	)
+	(bus_entry
+		(at 129.54 95.25)
+		(size 2.54 2.54)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "716f91c6-0f01-4472-8b64-42671e7e5d82")
+	)
+	(bus_entry
+		(at 119.38 95.25)
+		(size 2.54 2.54)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "75e3f974-4dd5-4aa5-b9bd-755de7be48a0")
+	)
+	(bus_entry
+		(at 127 86.36)
+		(size 2.54 2.54)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "79eb5443-8687-45d5-89a9-282a55b27f4c")
+	)
+	(bus_entry
+		(at 119.38 86.36)
+		(size 2.54 2.54)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ff02d121-2871-4565-9607-31e78df8b28a")
+	)
+	(bus
+		(pts
+			(xy 118.11 104.14) (xy 119.38 104.14)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "15f70a11-29e9-40bc-a99b-f8a6d3fa23eb")
+	)
+	(wire
+		(pts
+			(xy 121.92 91.44) (xy 121.92 88.9)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1aab1741-7975-4e30-9205-828e1e370fc8")
+	)
+	(bus
+		(pts
+			(xy 119.38 95.25) (xy 129.54 95.25)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2b6a13e0-9420-457a-8670-9f13a291d32f")
+	)
+	(wire
+		(pts
+			(xy 132.08 106.68) (xy 132.08 109.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "35af2ed8-8f74-416f-a98f-1cbf9b7b3cac")
+	)
+	(bus
+		(pts
+			(xy 119.38 104.14) (xy 129.54 104.14)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4ef27da8-2eb5-4eca-b990-e66a05651729")
+	)
+	(wire
+		(pts
+			(xy 121.92 106.68) (xy 121.92 109.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6b277b6c-d58a-4a2d-8c5a-0af464d72a3c")
+	)
+	(bus
+		(pts
+			(xy 129.54 104.14) (xy 144.78 104.14)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "94275ed7-0cd0-4dbc-b8c1-65efeb291cb1")
+	)
+	(bus
+		(pts
+			(xy 118.11 86.36) (xy 119.38 86.36)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a0467472-00aa-4ea1-83bb-463a0dc6e61d")
+	)
+	(bus
+		(pts
+			(xy 127 86.36) (xy 144.78 86.36)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ac88e3af-c173-459a-a8ac-6a98c95d6202")
+	)
+	(wire
+		(pts
+			(xy 129.54 91.44) (xy 129.54 88.9)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "adbeae1e-e06c-46fa-9d67-82bb0a8d5c44")
+	)
+	(bus
+		(pts
+			(xy 118.11 95.25) (xy 119.38 95.25)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b083db4c-5688-4580-b496-bb61e959a85b")
+	)
+	(wire
+		(pts
+			(xy 121.92 100.33) (xy 121.92 97.79)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b5af0b49-d02d-4af1-ab0b-624aad3a05d6")
+	)
+	(bus
+		(pts
+			(xy 119.38 86.36) (xy 127 86.36)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bba3b8a8-ae7d-4012-a024-c852d2c26a80")
+	)
+	(bus
+		(pts
+			(xy 129.54 95.25) (xy 144.78 95.25)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c298541b-a25e-4cad-9581-1c82e4e8e758")
+	)
+	(wire
+		(pts
+			(xy 132.08 97.79) (xy 132.08 100.33)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c36f6ce9-528b-431b-9963-90cb2d0ea16f")
+	)
+	(label "USB2{USB}"
+		(at 118.11 104.14 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "0189c031-7b4b-47e3-9d36-118ef880046f")
+	)
+	(label "USB1.DN"
+		(at 132.08 100.33 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "31b904dd-2f52-4daf-8211-9147beb5f8fb")
+	)
+	(label "{USB}"
+		(at 118.11 86.36 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "491b4df0-94e3-4ad8-9595-8ecdf583a62f")
+	)
+	(label "DP"
+		(at 121.92 91.44 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "85a02d21-e41d-445d-b150-e8c4d047c16f")
+	)
+	(label "USB1.DP"
+		(at 121.92 100.33 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "88ef259c-2c60-4f11-ad1f-1fbb4d598db8")
+	)
+	(label "USB1{USB}"
+		(at 118.11 95.25 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "b8a8dcb3-41e6-4c93-abfc-179f04a31121")
+	)
+	(label "DN"
+		(at 129.54 91.44 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "ba36b08d-00ca-4b64-a321-9b655599ef60")
+	)
+	(label "USB2.DP"
+		(at 121.92 109.22 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "bc51e60c-bc60-4c57-b8f9-6220273c5618")
+	)
+	(label "USB2.DN"
+		(at 132.08 109.22 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "c36c266c-1829-42f1-b104-2d2357e5d861")
+	)
+	(sheet
+		(at 144.78 82.55)
+		(size 12.7 25.4)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "b06d9cc3-0393-4ebf-a27a-f1ec03e38671")
+		(property "Sheetname" "USB"
+			(at 144.78 81.8384 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "usb.kicad_sch"
+			(at 144.78 108.5346 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(pin "UB{USB}" input
+			(at 144.78 95.25 180)
+			(uuid "6d15ee7b-35a3-4c5d-a5cb-e5c10a97217d")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "{USB}" input
+			(at 144.78 104.14 180)
+			(uuid "41811f03-c11f-494c-905e-dd2cb824021f")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "UA{USB}" input
+			(at 144.78 86.36 180)
+			(uuid "fef1598b-0fa3-4a95-a7f4-6f177be44ae8")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(instances
+			(project "bus_alias"
+				(path "/7abd3be7-a6f7-4166-945f-55e9cf7bc262"
+					(page "2")
+				)
+			)
+		)
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+	(embedded_fonts no)
+)

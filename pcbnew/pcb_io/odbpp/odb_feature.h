@@ -23,9 +23,8 @@
 #define _ODB_FEATURE_H_
 
 #include "odb_attribute.h"
-#include "pad.h"
 #include "convert_basic_shapes_to_polygon.h"
-#include "footprint.h"
+
 #include <list>
 #include "math/vector2d.h"
 #include "odb_defines.h"
@@ -44,6 +43,8 @@ class ODB_PAD;
 class ODB_SURFACE;
 class ODB_FEATURE;
 class PCB_IO_ODBPP;
+class FOOTPRINT;
+class PAD;
 class PCB_VIA;
 
 class FEATURES_MANAGER : public ATTR_MANAGER
@@ -76,6 +77,8 @@ public:
     void AddVia( const PCB_VIA* aVia, PCB_LAYER_ID aLayer );
 
     void AddViaDrillHole( const PCB_VIA* aVia, PCB_LAYER_ID aLayer );
+
+    void AddViaProtection( const PCB_VIA* aVia, bool drill, PCB_LAYER_ID aLayer );
 
     bool AddContour( const SHAPE_POLY_SET& aPolySet, int aOutline = 0,
                      FILL_T aFillType = FILL_T::FILLED_SHAPE );

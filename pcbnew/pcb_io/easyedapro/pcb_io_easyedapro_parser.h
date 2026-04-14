@@ -55,7 +55,7 @@ public:
     template <typename T>
     static T ScaleSize( T aValue )
     {
-        return KiROUND( aValue * 25400 / 500 ) * 500;
+        return KiROUND( aValue * 25400.0 / 500.0 ) * 500;
     }
 
     template <typename T>
@@ -86,7 +86,7 @@ public:
                                                        bool aInFill ) const;
 
     SHAPE_LINE_CHAIN ParseContour( nlohmann::json polyData, bool aInFill,
-                                   double aArcAccuracy = SHAPE_ARC::DefaultAccuracyForPCB() ) const;
+                                   int aMaxError = SHAPE_ARC::DefaultAccuracyForPCB() ) const;
 
 private:
     BOARD*   m_board;

@@ -56,6 +56,9 @@ struct CREATE_ARRAY_DIALOG_ENTRIES
     long     m_GridStagger               = 1;
     bool     m_GridStaggerRows           = true;
     bool     m_GridPositionCentreOnItems = true;
+    bool     m_GridPositionItemsInPlace  = true;
+
+    bool     m_GridRenumberPads          = true;
     long     m_GridNumberingAxis         = 0;           // h then v
     bool     m_GridNumReverseAlt         = false;
     long     m_GridNumStartSet           = 1;           // use specified start
@@ -70,6 +73,8 @@ struct CREATE_ARRAY_DIALOG_ENTRIES
     long      m_CircCentreX              = 0;
     long      m_CircCentreY              = 0;
     EDA_ANGLE m_CircAngle                = ANGLE_90;
+    long      m_CircleDirection          = 0;        // clockwise
+    EDA_ANGLE m_CircOffsetAngle          = ANGLE_0;
     long      m_CircCount                = 4;
     bool      m_CircFullCircle           = 0;
     long      m_CircNumStartSet          = 1;        // use specified start
@@ -78,6 +83,8 @@ struct CREATE_ARRAY_DIALOG_ENTRIES
     long      m_CircNumberingStep        = 1;
     bool      m_CircRotatationStep       = false;
     long      m_ArrayTypeTab             = 0;       // start on grid view
+    bool      m_SelectionArrange         = false;
+    bool      m_SelectionDuplicate       = true;    // Duplicate by default
     bool      m_FootprintKeepAnnotations = false;
     bool      m_FootprintReannotate      = true;    // Assign unique by default
 };
@@ -131,6 +138,7 @@ DIALOG_CREATE_ARRAY::DIALOG_CREATE_ARRAY( PCB_BASE_FRAME*                 aParen
         m_hCentre( aParent, m_labelCentreX, m_entryCentreX, m_unitLabelCentreX ),
         m_vCentre( aParent, m_labelCentreY, m_entryCentreY, m_unitLabelCentreY ),
         m_circAngle( aParent, m_labelCircAngle, m_entryCircAngle, m_unitLabelCircAngle ),
+        m_circOffset( aParent, m_labelCircOffset, m_entryCircOffset, m_unitLabelCircOffset ),
         m_cfg_persister( pcbIUScale, s_arrayOptions.m_OptionsSet )
 {
     // Configure display origin transforms
@@ -157,6 +165,7 @@ DIALOG_CREATE_ARRAY::DIALOG_CREATE_ARRAY( PCB_BASE_FRAME*                 aParen
     m_choiceCircNumbering->SetSelection( 0 );
 
     m_circAngle.SetUnits( EDA_UNITS::DEGREES );
+    m_circOffset.SetUnits( EDA_UNITS::DEGREES );
 
     // bind grid options to persister
     m_cfg_persister.Add( *m_entryNx, s_arrayOptions.m_GridNx );
@@ -170,8 +179,10 @@ DIALOG_CREATE_ARRAY::DIALOG_CREATE_ARRAY( PCB_BASE_FRAME*                 aParen
 
     m_cfg_persister.Add( *m_staggerRows, s_arrayOptions.m_GridStaggerRows );
 
+    m_cfg_persister.Add( *m_rbItemsRemainInPlace, s_arrayOptions.m_GridPositionItemsInPlace );
     m_cfg_persister.Add( *m_rbCentreOnSource, s_arrayOptions.m_GridPositionCentreOnItems );
 
+    m_cfg_persister.Add( *m_cbRenumberPads, s_arrayOptions.m_GridRenumberPads );
     m_cfg_persister.Add( *m_radioBoxGridNumberingAxis, s_arrayOptions.m_GridNumberingAxis );
     m_cfg_persister.Add( *m_checkBoxGridReverseNumbering, s_arrayOptions.m_GridNumReverseAlt );
 
@@ -191,6 +202,8 @@ DIALOG_CREATE_ARRAY::DIALOG_CREATE_ARRAY( PCB_BASE_FRAME*                 aParen
 
     m_cfg_persister.Add( *m_checkBoxFullCircle, s_arrayOptions.m_CircFullCircle );
     m_cfg_persister.Add( m_circAngle, s_arrayOptions.m_CircAngle );
+    m_cfg_persister.Add( m_circOffset, s_arrayOptions.m_CircOffsetAngle );
+    m_cfg_persister.Add( *m_rbCircDirection, s_arrayOptions.m_CircleDirection );
     m_cfg_persister.Add( *m_entryCircCount, s_arrayOptions.m_CircCount );
     m_cfg_persister.Add( *m_entryRotateItemsCb, s_arrayOptions.m_CircRotatationStep );
 
@@ -200,6 +213,9 @@ DIALOG_CREATE_ARRAY::DIALOG_CREATE_ARRAY( PCB_BASE_FRAME*                 aParen
     m_cfg_persister.Add( *m_entryCircNumberingStep, s_arrayOptions.m_CircNumberingStep );
 
     m_cfg_persister.Add( *m_gridTypeNotebook, s_arrayOptions.m_ArrayTypeTab );
+
+    m_cfg_persister.Add( *m_radioBtnArrangeSelection, s_arrayOptions.m_SelectionArrange );
+    m_cfg_persister.Add( *m_radioBtnDuplicateSelection, s_arrayOptions.m_SelectionDuplicate );
 
     m_cfg_persister.Add( *m_radioBtnKeepRefs, s_arrayOptions.m_FootprintKeepAnnotations );
     m_cfg_persister.Add( *m_radioBtnUniqueRefs, s_arrayOptions.m_FootprintReannotate );
@@ -237,28 +253,28 @@ void DIALOG_CREATE_ARRAY::OnSelectCenterButton( wxCommandEvent& event )
 {
     event.Skip();
 
-    PCB_PICKER_TOOL* pickerTool = m_frame->GetToolManager()->GetTool<PCB_PICKER_TOOL>();
+    TOOL_MANAGER*    toolMgr = m_frame->GetToolManager();
+    PCB_PICKER_TOOL* pickerTool = toolMgr->GetTool<PCB_PICKER_TOOL>();
     wxCHECK( pickerTool, /* void */ );
+
+    // Keep the dialog visible, but disable while picking.
+    // Hiding the dialog on GTK causes the controls to not accept their new values
+    Disable();
 
     if( event.GetEventObject() == m_btnSelectCenterItem )
     {
-        m_frame->GetToolManager()->RunAction(
-                PCB_ACTIONS::selectItemInteractively,
-                PCB_PICKER_TOOL::INTERACTIVE_PARAMS{ this, _( "Select center item..." ) } );
+        toolMgr->RunAction( PCB_ACTIONS::selectItemInteractively,
+                            PCB_PICKER_TOOL::INTERACTIVE_PARAMS { this, _( "Select center item..." ) } );
     }
     else if( event.GetEventObject() == m_btnSelectCenterPoint )
     {
-        m_frame->GetToolManager()->RunAction(
-                PCB_ACTIONS::selectPointInteractively,
-                PCB_PICKER_TOOL::INTERACTIVE_PARAMS{ this, _( "Select center point..." ) } );
+        toolMgr->RunAction( PCB_ACTIONS::selectPointInteractively,
+                            PCB_PICKER_TOOL::INTERACTIVE_PARAMS { this, _( "Select center point..." ) } );
     }
     else
     {
         wxFAIL_MSG( "Unknown event source" );
     }
-
-    // Hide, but do not close, the dialog
-    Hide();
 }
 
 
@@ -310,7 +326,7 @@ void DIALOG_CREATE_ARRAY::UpdatePickedItem( const EDA_ITEM* aItem )
         m_vCentre.SetValue( aItem->GetPosition().y );
     }
 
-    Show( true );
+    Enable( true );
 }
 
 
@@ -322,7 +338,7 @@ void DIALOG_CREATE_ARRAY::UpdatePickedPoint( const std::optional<VECTOR2I>& aPoi
         m_vCentre.SetValue( aPoint->y );
     }
 
-    Show( true );
+    Enable( true );
 }
 
 
@@ -427,7 +443,7 @@ bool DIALOG_CREATE_ARRAY::TransferDataFromWindow()
         newGrid->m_horizontalThenVertical = m_radioBoxGridNumberingAxis->GetSelection() == 0;
         newGrid->m_reverseNumberingAlternate = m_checkBoxGridReverseNumbering->GetValue();
 
-        newGrid->SetShouldNumber( m_isFootprintEditor );
+        newGrid->SetShouldNumber( m_isFootprintEditor && m_cbRenumberPads->GetValue() );
 
         if( m_isFootprintEditor )
         {
@@ -471,10 +487,13 @@ bool DIALOG_CREATE_ARRAY::TransferDataFromWindow()
         auto   newCirc = std::make_unique<ARRAY_CIRCULAR_OPTIONS>();
         bool   ok = true;
         double angle = EDA_UNIT_UTILS::UI::DoubleValueFromString( m_entryCircAngle->GetValue() );
+        double offset = EDA_UNIT_UTILS::UI::DoubleValueFromString( m_entryCircOffset->GetValue() );
 
         newCirc->m_centre.x = m_hCentre.GetIntValue();
         newCirc->m_centre.y = m_vCentre.GetIntValue();
         newCirc->m_angle = EDA_ANGLE( angle, DEGREES_T );
+        newCirc->m_angleOffset = EDA_ANGLE( offset, DEGREES_T );
+        newCirc->m_clockwise = m_rbCircDirection->GetSelection() == 0;
 
         ok = validateLongEntry(*m_entryCircCount, newCirc->m_nPts, _("point count"), errors);
 
@@ -511,6 +530,7 @@ bool DIALOG_CREATE_ARRAY::TransferDataFromWindow()
         // assign pointer and ownership here
         m_settings = std::move( newSettings );
 
+        m_settings->SetShouldArrangeSelection( m_radioBtnArrangeSelection->GetValue() );
         m_settings->SetSShouldReannotateFootprints( m_radioBtnUniqueRefs->GetValue() );
 
         // persist the control state for next time
@@ -557,9 +577,16 @@ void DIALOG_CREATE_ARRAY::setControlEnablement()
         m_gridPadNumberingPanel->Show( true );
         m_circularPadNumberingPanel->Show( true );
 
+        // In no pad re-numbering, everything is disabled
+        bool renumber_pads = m_cbRenumberPads->GetValue();
+
+        m_radioBoxGridNumberingAxis->Enable( renumber_pads );
+        m_checkBoxGridReverseNumbering->Enable( renumber_pads );
+        m_rbGridStartNumberingOpt->Enable( renumber_pads );
+
         // If we set the start number, we can set the other options,
         // otherwise it's a hardcoded linear array
-        const bool use_set_start_grid = m_rbGridStartNumberingOpt->GetSelection() == 1;
+        const bool use_set_start_grid = renumber_pads && m_rbGridStartNumberingOpt->GetSelection() == 1;
 
         m_radioBoxGridNumberingScheme->Enable( use_set_start_grid );
         m_labelPriAxisNumbering->Enable( use_set_start_grid );
@@ -574,12 +601,14 @@ void DIALOG_CREATE_ARRAY::setControlEnablement()
 
         // We can only set an offset if we're setting the start number
         m_labelGridNumberingOffset->Enable( use_set_start_grid );
+        m_labelGridNumberingStep->Enable( use_set_start_grid );
         m_entryGridPriNumberingOffset->Enable( use_set_start_grid );
+        m_entryGridPriNumberingStep->Enable( use_set_start_grid );
         m_entryGridSecNumberingOffset->Enable( use_set_start_grid && num2d );
         m_entryGridSecNumberingStep->Enable( use_set_start_grid && num2d );
 
         // disable the circular number offset in the same way
-        const bool use_set_start_circ = m_rbCircStartNumberingOpt->GetSelection() == 1;
+        const bool use_set_start_circ = renumber_pads && m_rbCircStartNumberingOpt->GetSelection() == 1;
         m_entryCircNumberingStart->Enable( use_set_start_circ );
     }
     else
@@ -607,6 +636,11 @@ void DIALOG_CREATE_ARRAY::setControlEnablement()
         m_circularPadNumberingPanel->Show( false );
 
         m_footprintReannotatePanel->Show( true );
+    }
+
+    if( m_radioBtnArrangeSelection->GetValue() )
+    {
+        m_footprintReannotatePanel->Show( false );
     }
 }
 

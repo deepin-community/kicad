@@ -63,12 +63,10 @@ SCH_DRAW_PANEL::SCH_DRAW_PANEL( wxWindow* aParentWindow, wxWindowID aWindowId,
 
     m_painter.reset( new KIGFX::SCH_PAINTER( m_gal ) );
 
-    COLOR_SETTINGS* cs = nullptr;
+    COLOR_SETTINGS* cs = ::GetColorSettings( DEFAULT_THEME );
 
-    if( auto frame = dynamic_cast<SCH_BASE_FRAME*>( GetParentEDAFrame() ) )
+    if( SCH_BASE_FRAME* frame = dynamic_cast<SCH_BASE_FRAME*>( GetParentEDAFrame() ) )
         cs = frame->GetColorSettings();
-    else
-        cs = Pgm().GetSettingsManager().GetColorSettings();
 
     wxASSERT( cs );
     m_painter->GetSettings()->LoadColors( cs );
@@ -155,6 +153,9 @@ void SCH_DRAW_PANEL::setDefaultLayerDeps()
     for( int i = 0; i < KIGFX::VIEW::VIEW_MAX_LAYERS; i++ )
         m_view->SetLayerTarget( i, target );
 
+    m_view->SetLayerTarget( LAYER_SCHEMATIC_ANCHOR, KIGFX::TARGET_NONCACHED );
+    m_view->SetLayerDisplayOnly( LAYER_SCHEMATIC_ANCHOR );
+
     // Bitmaps are draw on a non cached GAL layer:
     m_view->SetLayerTarget( LAYER_DRAW_BITMAPS, KIGFX::TARGET_NONCACHED );
 
@@ -175,6 +176,9 @@ void SCH_DRAW_PANEL::setDefaultLayerDeps()
 
     m_view->SetLayerTarget( LAYER_SELECTION_SHADOWS, KIGFX::TARGET_OVERLAY );
     m_view->SetLayerDisplayOnly( LAYER_SELECTION_SHADOWS ) ;
+
+    m_view->SetLayerDisplayOnly( LAYER_NET_COLOR_HIGHLIGHT );
+    m_view->SetLayerDisplayOnly( LAYER_DANGLING );
 }
 
 

@@ -84,30 +84,31 @@ struct SLC_CASES
                                VECTOR2I( 24142136,  10000000 ),
                                VECTOR2I( 0,         20000000 ), 0 );
 
-        Circle1Arc.Append( ArcCircle );
+        Circle1Arc.Append( ArcCircle, ARC_HIGH_DEF );
         Circle1Arc.SetClosed( true );
 
-        Circle2Arcs.Append( Arc0a );
-        Circle2Arcs.Append( Arc0b );
+        Circle2Arcs.Append( Arc0a, ARC_HIGH_DEF );
+        Circle2Arcs.Append( Arc0b, ARC_HIGH_DEF );
         Circle2Arcs.SetClosed( true );
 
-        ArcsCoincident.Append( Arc0a );
-        ArcsCoincident.Append( Arc1 );
+        ArcsCoincident.Append( Arc0a, ARC_HIGH_DEF );
+        ArcsCoincident.Append( Arc1, ARC_HIGH_DEF );
 
-        ArcsCoincidentClosed=ArcsCoincident;
+        ArcsCoincidentClosed = ArcsCoincident;
         ArcsCoincidentClosed.SetClosed( true );
 
-        ArcsIndependent.Append( Arc0a );
-        ArcsIndependent.Append( Arc2 );
+        ArcsIndependent.Append( Arc0a, ARC_HIGH_DEF );
+        ArcsIndependent.Append( Arc2, ARC_HIGH_DEF );
 
-        DuplicateArcs=ArcsCoincident;
-        DuplicateArcs.Append( Arc1 ); //should add a segment between end of the chain and new copy of the arc
+        DuplicateArcs = ArcsCoincident;
+        DuplicateArcs.Append( Arc1, ARC_HIGH_DEF ); // should add a segment between end of the chain
+                                                    // and new copy of the arc
 
-        ArcAndPoint.Append( Arc0a );
+        ArcAndPoint.Append( Arc0a, ARC_HIGH_DEF );
         ArcAndPoint.Append( VECTOR2I( 233450000, 228360000 ) );
 
         ArcsAndSegMixed = ArcAndPoint;
-        ArcsAndSegMixed.Append( Arc2 );
+        ArcsAndSegMixed.Append( Arc2, ARC_HIGH_DEF );
 
         OnePoint.Append( VECTOR2I( 233450000, 228360000 ) );
 
@@ -118,7 +119,7 @@ struct SLC_CASES
         ThreePoints.Append( VECTOR2I( 263450000, 308360000 ) );
 
         SegAndArcCoincident.Append( VECTOR2I( 0, 20000000 ) );
-        SegAndArcCoincident.Append( Arc3 );
+        SegAndArcCoincident.Append( Arc3, ARC_HIGH_DEF );
     }
 };
 
@@ -189,9 +190,11 @@ BOOST_AUTO_TEST_CASE( ArcToPolyline )
             VECTOR2I( 1500, 0 ),
     } );
 
-    SHAPE_LINE_CHAIN arc_insert1( SHAPE_ARC( VECTOR2I( 0, -100 ), VECTOR2I( 0, -200 ), ANGLE_180 ) );
+    SHAPE_LINE_CHAIN arc_insert1( SHAPE_ARC( VECTOR2I( 0, -100 ), VECTOR2I( 0, -200 ), ANGLE_180 ),
+                                  false, ARC_HIGH_DEF );
 
-    SHAPE_LINE_CHAIN arc_insert2( SHAPE_ARC( VECTOR2I( 0, 500 ), VECTOR2I( 0, 400 ), ANGLE_180 ) );
+    SHAPE_LINE_CHAIN arc_insert2( SHAPE_ARC( VECTOR2I( 0, 500 ), VECTOR2I( 0, 400 ), ANGLE_180 ),
+                                  false, ARC_HIGH_DEF );
 
     BOOST_CHECK_EQUAL( base_chain.CShapes().size(), base_chain.CPoints().size() );
     BOOST_CHECK_EQUAL( arc_insert1.CShapes().size(), arc_insert1.CPoints().size() );
@@ -201,7 +204,7 @@ BOOST_AUTO_TEST_CASE( ArcToPolyline )
     BOOST_CHECK( GEOM_TEST::IsOutlineValid( arc_insert1 ) );
     BOOST_CHECK( GEOM_TEST::IsOutlineValid( arc_insert2 ) );
 
-    base_chain.Insert( 0, SHAPE_ARC( VECTOR2I( 0, -100 ), VECTOR2I( 0, -200 ), ANGLE_180 ) );
+    base_chain.Insert( 0, SHAPE_ARC( VECTOR2I( 0, -100 ), VECTOR2I( 0, -200 ), ANGLE_180 ), ARC_HIGH_DEF );
     BOOST_CHECK( GEOM_TEST::IsOutlineValid( base_chain ) );
     BOOST_CHECK_EQUAL( base_chain.CShapes().size(), base_chain.CPoints().size() );
 
@@ -222,7 +225,8 @@ BOOST_AUTO_TEST_CASE( ArcToPolylineLargeCoords )
             VECTOR2I( 1500000, 0 ),
     } );
 
-    base_chain.Append( SHAPE_ARC( VECTOR2I( 200000, 0 ), VECTOR2I( 300000, 100000 ), ANGLE_180 ) );
+    base_chain.Append( SHAPE_ARC( VECTOR2I( 200000, 0 ), VECTOR2I( 300000, 100000 ), ANGLE_180 ),
+                       ARC_HIGH_DEF );
 
     BOOST_CHECK( GEOM_TEST::IsOutlineValid( base_chain ) );
     BOOST_CHECK_EQUAL( base_chain.PointCount(), 11 );
@@ -260,11 +264,11 @@ BOOST_AUTO_TEST_CASE( SetClosedDuplicatePoint )
     // Test from issue #9843
     SHAPE_LINE_CHAIN chain;
 
-    chain.Append(
-            SHAPE_ARC( { -859598, 2559876 }, { -1632771, 1022403 }, { -3170244, 249230 }, 0 ) );
+    chain.Append( SHAPE_ARC( { -859598, 2559876 }, { -1632771, 1022403 }, { -3170244, 249230 }, 0 ),
+                  ARC_HIGH_DEF );
 
-    chain.Append(
-            SHAPE_ARC( { -3170244, -1657832 }, { -292804, -317564 }, { 1047464, 2559876 }, 0 ) );
+    chain.Append( SHAPE_ARC( { -3170244, -1657832 }, { -292804, -317564 }, { 1047464, 2559876 }, 0 ),
+                  ARC_HIGH_DEF );
 
     chain.Append( VECTOR2I( -859598, 2559876 ) ); // add point that is equal to first arc start
 
@@ -678,7 +682,7 @@ BOOST_AUTO_TEST_CASE( AppendArc )
     {
         SHAPE_ARC arc( VECTOR2I( 100000, 0 ), VECTOR2I( 0, 2499 ), VECTOR2I( -100000, 0 ), 0 );
         SHAPE_LINE_CHAIN chain;
-        chain.Append( arc, 5000 );
+        chain.Append( arc, ARC_HIGH_DEF );
         BOOST_CHECK( GEOM_TEST::IsOutlineValid( chain ) );
         BOOST_CHECK_EQUAL( chain.ArcCount(), 0 );
         BOOST_CHECK_EQUAL( chain.PointCount(), 2 );
@@ -691,7 +695,7 @@ BOOST_AUTO_TEST_CASE( AppendArc )
     {
         SHAPE_ARC        arc( VECTOR2I( 100000, 0 ), VECTOR2I( 0, 0 ), VECTOR2I( 100000, 0 ), 0 );
         SHAPE_LINE_CHAIN chain;
-        chain.Append( arc, 5000 );
+        chain.Append( arc, ARC_HIGH_DEF );
         BOOST_CHECK( GEOM_TEST::IsOutlineValid( chain ) );
         BOOST_CHECK_EQUAL( chain.ArcCount(), 1 );
         BOOST_CHECK_EQUAL( chain.PointCount(), 10 );
@@ -704,7 +708,7 @@ BOOST_AUTO_TEST_CASE( AppendArc )
     {
         SHAPE_ARC        arc( VECTOR2I( 2499, 0 ), VECTOR2I( 0, 0 ), VECTOR2I( 2499, 0 ), 0 );
         SHAPE_LINE_CHAIN chain;
-        chain.Append( arc, 5000 );
+        chain.Append( arc, ARC_HIGH_DEF );
         BOOST_CHECK( GEOM_TEST::IsOutlineValid( chain ) );
         BOOST_CHECK_EQUAL( chain.ArcCount(), 0 );
         BOOST_CHECK_EQUAL( chain.PointCount(), 1 );
@@ -715,7 +719,7 @@ BOOST_AUTO_TEST_CASE( AppendArc )
     {
         SHAPE_ARC        arc( VECTOR2I( 1767, 0 ), VECTOR2I( 2499, 2499 ), VECTOR2I( 0, 1767 ), 0 );
         SHAPE_LINE_CHAIN chain;
-        chain.Append( arc, 5000 );
+        chain.Append( arc, ARC_HIGH_DEF );
         BOOST_CHECK( GEOM_TEST::IsOutlineValid( chain ) );
         BOOST_CHECK_EQUAL( chain.ArcCount(), 0 );
         BOOST_CHECK_EQUAL( chain.PointCount(), 2 );
@@ -727,7 +731,7 @@ BOOST_AUTO_TEST_CASE( AppendArc )
     {
         SHAPE_ARC        arc( VECTOR2I( 2499, 0 ), VECTOR2I( 2499, 0 ), VECTOR2I( 2499, 0 ), 0 );
         SHAPE_LINE_CHAIN chain;
-        chain.Append( arc, 5000 );
+        chain.Append( arc, ARC_HIGH_DEF );
         BOOST_CHECK( GEOM_TEST::IsOutlineValid( chain ) );
         BOOST_CHECK_EQUAL( chain.ArcCount(), 0 );
         BOOST_CHECK_EQUAL( chain.PointCount(), 1 );
@@ -738,7 +742,7 @@ BOOST_AUTO_TEST_CASE( AppendArc )
     {
         SHAPE_ARC        arc( VECTOR2I( 2499, 0 ), VECTOR2I( 2500, 0 ), VECTOR2I( 2501, 0 ), 0 );
         SHAPE_LINE_CHAIN chain;
-        chain.Append( arc, 5000 );
+        chain.Append( arc, ARC_HIGH_DEF );
         BOOST_CHECK( GEOM_TEST::IsOutlineValid( chain ) );
         BOOST_CHECK_EQUAL( chain.ArcCount(), 0 );
         BOOST_CHECK_EQUAL( chain.PointCount(), 2 );
@@ -750,7 +754,7 @@ BOOST_AUTO_TEST_CASE( AppendArc )
     {
         SHAPE_ARC arc( VECTOR2I( -100000, 0 ), VECTOR2I( 0, 1 ), VECTOR2I( 100000, 0 ), 0 );
         SHAPE_LINE_CHAIN chain;
-        chain.Append( arc, 5000 );
+        chain.Append( arc, ARC_HIGH_DEF );
         BOOST_CHECK( GEOM_TEST::IsOutlineValid( chain ) );
         BOOST_CHECK_EQUAL( chain.ArcCount(), 0 );
         BOOST_CHECK_EQUAL( chain.PointCount(), 2 );
@@ -769,8 +773,8 @@ BOOST_AUTO_TEST_CASE( ArcWrappingToStartSharedPoints )
 
     // Start a chain with the two arcs
     SHAPE_LINE_CHAIN chain;
-    chain.Append( arc1 );
-    chain.Append( arc2 );
+    chain.Append( arc1, ARC_HIGH_DEF );
+    chain.Append( arc2, ARC_HIGH_DEF );
     BOOST_CHECK_EQUAL( chain.PointCount(), 13 );
     //BOOST_CHECK( GEOM_TEST::IsOutlineValid( chain ) );
 
@@ -829,7 +833,7 @@ BOOST_AUTO_TEST_CASE( Split )
     SHAPE_LINE_CHAIN chain( { seg1.A, seg1.B } );
     BOOST_CHECK_EQUAL( chain.PointCount(), 2 );
     // Add first arc
-    chain.Append( arc );
+    chain.Append( arc, ARC_HIGH_DEF );
     BOOST_CHECK_EQUAL( chain.PointCount(), 9 );
     // Add two points (seg2)
     chain.Append( seg2.A );
@@ -904,14 +908,14 @@ BOOST_AUTO_TEST_CASE( Slice )
     SHAPE_LINE_CHAIN chain( { VECTOR2I( 0, 0 ), VECTOR2I( 0, 100000 ), VECTOR2I( 100000, 0 ) } );
     BOOST_CHECK_EQUAL( chain.PointCount(), 3 );
     // Add first arc
-    chain.Append( firstArc );
+    chain.Append( firstArc, ARC_HIGH_DEF );
     BOOST_CHECK_EQUAL( chain.PointCount(), 10 );
     // Add two points (target segment)
     chain.Append( targetSegment.A );
     chain.Append( targetSegment.B );
     BOOST_CHECK_EQUAL( chain.PointCount(), 12 );
     // Add a second arc
-    chain.Append( secondArc );
+    chain.Append( secondArc, ARC_HIGH_DEF );
     BOOST_CHECK_EQUAL( chain.PointCount(), 20 );
     BOOST_CHECK( GEOM_TEST::IsOutlineValid( chain ) );
 
@@ -920,7 +924,7 @@ BOOST_AUTO_TEST_CASE( Slice )
     //////////////////////////////////////////////////////////
     BOOST_TEST_CONTEXT( "Case 1: Start at arc endpoint, finish middle of arc" )
     {
-        SHAPE_LINE_CHAIN sliceResult = chain.Slice( 9, 18 );
+        SHAPE_LINE_CHAIN sliceResult = chain.Slice( 9, 18, ARC_HIGH_DEF );
         BOOST_CHECK( GEOM_TEST::IsOutlineValid( sliceResult ) );
 
         BOOST_CHECK_EQUAL( sliceResult.ArcCount(), 1 );
@@ -955,7 +959,7 @@ BOOST_AUTO_TEST_CASE( Slice )
     //////////////////////////////////////////////////////////////////
     BOOST_TEST_CONTEXT( "Case 2: Start at middle of an arc, finish at arc startpoint" )
     {
-        SHAPE_LINE_CHAIN sliceResult = chain.Slice( 5, 12 );
+        SHAPE_LINE_CHAIN sliceResult = chain.Slice( 5, 12, ARC_HIGH_DEF );
         BOOST_CHECK( GEOM_TEST::IsOutlineValid( sliceResult ) );
 
         BOOST_CHECK_EQUAL( sliceResult.ArcCount(), 1 );
@@ -994,7 +998,7 @@ BOOST_AUTO_TEST_CASE( Slice )
     //////////////////////////////////////////////////////////////////
     BOOST_TEST_CONTEXT( "Case 3: Full arc, nothing else" )
     {
-        SHAPE_LINE_CHAIN sliceResult = chain.Slice( 3, 9 );
+        SHAPE_LINE_CHAIN sliceResult = chain.Slice( 3, 9, ARC_HIGH_DEF );
         BOOST_CHECK( GEOM_TEST::IsOutlineValid( sliceResult ) );
 
         BOOST_CHECK_EQUAL( sliceResult.ArcCount(), 1 );
@@ -1024,7 +1028,7 @@ BOOST_AUTO_TEST_CASE( Slice )
     //////////////////////////////////////////////////////////////////
     BOOST_TEST_CONTEXT( "Case 4:  Full arc, and straight segments to next arc start" )
     {
-        SHAPE_LINE_CHAIN sliceResult = chain.Slice( 3, 12 );
+        SHAPE_LINE_CHAIN sliceResult = chain.Slice( 3, 12, ARC_HIGH_DEF );
         BOOST_CHECK( GEOM_TEST::IsOutlineValid( sliceResult ) );
 
         BOOST_CHECK_EQUAL( sliceResult.ArcCount(), 1 );
@@ -1058,7 +1062,7 @@ BOOST_AUTO_TEST_CASE( Slice )
         SHAPE_LINE_CHAIN chainCopy = chain;
         chainCopy.Append( VECTOR2I( 400000, 400000 ) );
 
-        SHAPE_LINE_CHAIN sliceResult = chainCopy.Slice( 11, -1 );
+        SHAPE_LINE_CHAIN sliceResult = chainCopy.Slice( 11, -1, ARC_HIGH_DEF );
         BOOST_CHECK( GEOM_TEST::IsOutlineValid( sliceResult ) );
         BOOST_CHECK_EQUAL( sliceResult.GetPoint( -1 ), VECTOR2I( 400000, 400000 ) );
     }
@@ -1067,7 +1071,7 @@ BOOST_AUTO_TEST_CASE( Slice )
     {
         SHAPE_LINE_CHAIN chainCopy = SLC_CASES().OnePoint;
 
-        SHAPE_LINE_CHAIN sliceResult = chainCopy.Slice( 0, -1 );
+        SHAPE_LINE_CHAIN sliceResult = chainCopy.Slice( 0, -1, ARC_HIGH_DEF );
         BOOST_CHECK_EQUAL( sliceResult.PointCount(), 1 );
         BOOST_CHECK_EQUAL( sliceResult.GetPoint( 0 ), VECTOR2I( 233450000, 228360000 ) );
         BOOST_CHECK_EQUAL( sliceResult.GetPoint( -1 ), VECTOR2I( 233450000, 228360000 ) ); // Same as index 0
@@ -1077,7 +1081,7 @@ BOOST_AUTO_TEST_CASE( Slice )
     {
         SHAPE_LINE_CHAIN chainCopy = SLC_CASES().TwoPoints;
 
-        SHAPE_LINE_CHAIN sliceResult = chainCopy.Slice( 0, -1 );
+        SHAPE_LINE_CHAIN sliceResult = chainCopy.Slice( 0, -1, ARC_HIGH_DEF );
         BOOST_CHECK_EQUAL( sliceResult.PointCount(), 2 );
         BOOST_CHECK_EQUAL( sliceResult.GetPoint( 0 ), VECTOR2I( 233450000, 228360000 ) );
         BOOST_CHECK_EQUAL( sliceResult.GetPoint( 1 ), VECTOR2I( 263450000, 258360000 ) );
@@ -1086,7 +1090,7 @@ BOOST_AUTO_TEST_CASE( Slice )
 
     BOOST_TEST_CONTEXT( "Case 8: Full 2nd arc, nothing else" )
     {
-        SHAPE_LINE_CHAIN sliceResult = chain.Slice( 12, 19 );
+        SHAPE_LINE_CHAIN sliceResult = chain.Slice( 12, 19, ARC_HIGH_DEF );
         BOOST_CHECK( GEOM_TEST::IsOutlineValid( sliceResult ) );
 
         BOOST_CHECK_EQUAL( sliceResult.ArcCount(), 1 );
@@ -1113,7 +1117,7 @@ BOOST_AUTO_TEST_CASE( Slice )
 
     BOOST_TEST_CONTEXT( "Case 9: Start at middle of a 2nd arc, finish at end" )
     {
-        SHAPE_LINE_CHAIN sliceResult = chain.Slice( 16, 19 );
+        SHAPE_LINE_CHAIN sliceResult = chain.Slice( 16, 19, ARC_HIGH_DEF );
         BOOST_CHECK( GEOM_TEST::IsOutlineValid( sliceResult ) );
 
         BOOST_CHECK_EQUAL( sliceResult.ArcCount(), 1 );
@@ -1147,9 +1151,9 @@ BOOST_AUTO_TEST_CASE( Slice )
     BOOST_TEST_CONTEXT( "Case 10: New chain, start at arc middle, finish at end" )
     {
         SHAPE_LINE_CHAIN chain10;
-        chain10.Append( firstArc );
+        chain10.Append( firstArc, ARC_HIGH_DEF );
 
-        SHAPE_LINE_CHAIN sliceResult = chain10.Slice( 3, 6 );
+        SHAPE_LINE_CHAIN sliceResult = chain10.Slice( 3, 6, ARC_HIGH_DEF );
         BOOST_CHECK( GEOM_TEST::IsOutlineValid( sliceResult ) );
 
         BOOST_CHECK_EQUAL( sliceResult.ArcCount(), 1 );
@@ -1193,7 +1197,7 @@ BOOST_AUTO_TEST_CASE( NearestPointPt )
     SHAPE_LINE_CHAIN chain( { seg1.A, seg1.B } );
     BOOST_CHECK_EQUAL( chain.PointCount(), 2 );
     // Add first arc
-    chain.Append( arc );
+    chain.Append( arc, ARC_HIGH_DEF );
     BOOST_CHECK_EQUAL( chain.PointCount(), 9 );
     // Add two points (seg2)
     chain.Append( seg2.A );
@@ -1244,6 +1248,419 @@ BOOST_AUTO_TEST_CASE( ReplaceChain )
     baseChain.Replace( baseChain.PointCount() - 1, baseChain.PointCount() - 1, VECTOR2I( -1, -1 ) );
 
     BOOST_CHECK_EQUAL( baseChain.CLastPoint(), VECTOR2I( -1, -1 ) );
+}
+
+
+BOOST_AUTO_TEST_CASE( CompareGeometry )
+{
+    SHAPE_LINE_CHAIN chain1;
+    chain1.Append( 0, 0 );
+    chain1.Append( 100, 0 );
+    chain1.Append( 100, 100 );
+    chain1.Append( 0, 100 );
+    chain1.SetClosed( true );
+
+    SHAPE_LINE_CHAIN chain2 = chain1;
+
+    // 1. Identical chains
+    BOOST_CHECK( chain1.CompareGeometry( chain2 ) );
+
+    // 2. Different chains
+    chain2.SetPoint( 2, VECTOR2I( 101, 101 ) );
+    BOOST_CHECK( !chain1.CompareGeometry( chain2 ) );
+
+    // 3. Epsilon tolerance
+    BOOST_CHECK( chain1.CompareGeometry( chain2, false, 2 ) );
+
+    // 4. Cyclical compare (chain1 but points in started at different vertex)
+    SHAPE_LINE_CHAIN chain3;
+    chain3.Append( 100, 0 );
+    chain3.Append( 100, 100 );
+    chain3.Append( 0, 100 );
+    chain3.Append( 0, 0 );
+    chain3.SetClosed( true );
+
+    BOOST_CHECK( !chain1.CompareGeometry( chain3, false ) );
+    BOOST_CHECK( chain1.CompareGeometry( chain3, true ) );
+
+    // 5. Different number of points
+    chain3.Append( 50, 50 ); // Add a point
+    BOOST_CHECK( !chain1.CompareGeometry( chain3, true ) );
+
+    // 6. Simplify check (chain1 should match chain4 because CompareGeometry calls Simplify())
+    SHAPE_LINE_CHAIN chain4;
+    chain4.Append( 0, 0 );
+    chain4.Append( 50, 0 ); // Collinear point
+    chain4.Append( 100, 0 );
+    chain4.Append( 100, 100 );
+    chain4.Append( 0, 100 );
+    chain4.SetClosed( true );
+
+    BOOST_CHECK( chain1.CompareGeometry( chain4 ) );
+}
+
+
+BOOST_AUTO_TEST_CASE( CompareGeometryReversed )
+{
+    // Square
+    const std::vector<VECTOR2I> ptsA = {
+        { 0, 0 },
+        { 100, 0 },
+        { 100, 100 },
+        { 0, 100 },
+    };
+    // Same points, same start, reversed
+    const std::vector<VECTOR2I> ptsB = {
+        { 0, 0 },
+        { 0, 100 },
+        { 100, 100 },
+        { 100, 0 },
+    };
+
+    SHAPE_LINE_CHAIN chainA( ptsA, true );
+    SHAPE_LINE_CHAIN chainB( ptsB, true );
+
+    BOOST_TEST( !chainA.CompareGeometry( chainB, false ) );
+    BOOST_TEST( chainA.CompareGeometry( chainB, true ) );
+}
+
+
+/**
+ * Test for issue #22597: Simplify with tolerance should reduce a polygon
+ * created from a rotated rounded rectangle (many small line segments approximating arcs).
+ * This polygon has 164 points that form a rounded rectangle rotated 45 degrees.
+ */
+BOOST_AUTO_TEST_CASE( SimplifyWithToleranceIssue22597 )
+{
+    SHAPE_LINE_CHAIN chain;
+
+    // All 164 points from the reproduction case in issue #22597.
+    // Coordinates are in nanometers (KiCad internal units).
+    chain.Append( VECTOR2I( 135095398, 233618441 ) );
+    chain.Append( VECTOR2I( 135024554, 233546880 ) );
+    chain.Append( VECTOR2I( 134887999, 233398857 ) );
+    chain.Append( VECTOR2I( 134757514, 233245455 ) );
+    chain.Append( VECTOR2I( 134633313, 233086923 ) );
+    chain.Append( VECTOR2I( 134515595, 232923519 ) );
+    chain.Append( VECTOR2I( 134404553, 232755507 ) );
+    chain.Append( VECTOR2I( 134300366, 232583161 ) );
+    chain.Append( VECTOR2I( 134203203, 232406759 ) );
+    chain.Append( VECTOR2I( 134113222, 232226587 ) );
+    chain.Append( VECTOR2I( 134030567, 232042939 ) );
+    chain.Append( VECTOR2I( 133955377, 231856111 ) );
+    chain.Append( VECTOR2I( 133887768, 231666408 ) );
+    chain.Append( VECTOR2I( 133827854, 231474135 ) );
+    chain.Append( VECTOR2I( 133775731, 231279607 ) );
+    chain.Append( VECTOR2I( 133731482, 231083137 ) );
+    chain.Append( VECTOR2I( 133695180, 230885045 ) );
+    chain.Append( VECTOR2I( 133666884, 230685652 ) );
+    chain.Append( VECTOR2I( 133646639, 230485281 ) );
+    chain.Append( VECTOR2I( 133634480, 230284257 ) );
+    chain.Append( VECTOR2I( 133630425, 230082907 ) );
+    chain.Append( VECTOR2I( 133634480, 229881557 ) );
+    chain.Append( VECTOR2I( 133646639, 229680533 ) );
+    chain.Append( VECTOR2I( 133666884, 229480162 ) );
+    chain.Append( VECTOR2I( 133695180, 229280769 ) );
+    chain.Append( VECTOR2I( 133731482, 229082677 ) );
+    chain.Append( VECTOR2I( 133775731, 228886207 ) );
+    chain.Append( VECTOR2I( 133827854, 228691679 ) );
+    chain.Append( VECTOR2I( 133887768, 228499406 ) );
+    chain.Append( VECTOR2I( 133955377, 228309703 ) );
+    chain.Append( VECTOR2I( 134030567, 228122875 ) );
+    chain.Append( VECTOR2I( 134113222, 227939227 ) );
+    chain.Append( VECTOR2I( 134203203, 227759055 ) );
+    chain.Append( VECTOR2I( 134300366, 227582653 ) );
+    chain.Append( VECTOR2I( 134404553, 227410307 ) );
+    chain.Append( VECTOR2I( 134515595, 227242295 ) );
+    chain.Append( VECTOR2I( 134633313, 227078891 ) );
+    chain.Append( VECTOR2I( 134757514, 226920359 ) );
+    chain.Append( VECTOR2I( 134887999, 226766957 ) );
+    chain.Append( VECTOR2I( 135024554, 226618934 ) );
+    chain.Append( VECTOR2I( 135095398, 226547373 ) );
+    chain.Append( VECTOR2I( 148530427, 213112344 ) );
+    chain.Append( VECTOR2I( 148601988, 213041500 ) );
+    chain.Append( VECTOR2I( 148750011, 212904945 ) );
+    chain.Append( VECTOR2I( 148903413, 212774460 ) );
+    chain.Append( VECTOR2I( 149061945, 212650259 ) );
+    chain.Append( VECTOR2I( 149225349, 212532541 ) );
+    chain.Append( VECTOR2I( 149393361, 212421499 ) );
+    chain.Append( VECTOR2I( 149565707, 212317312 ) );
+    chain.Append( VECTOR2I( 149742109, 212220149 ) );
+    chain.Append( VECTOR2I( 149922281, 212130168 ) );
+    chain.Append( VECTOR2I( 150105929, 212047514 ) );
+    chain.Append( VECTOR2I( 150292757, 211972323 ) );
+    chain.Append( VECTOR2I( 150482460, 211904715 ) );
+    chain.Append( VECTOR2I( 150674733, 211844800 ) );
+    chain.Append( VECTOR2I( 150869261, 211792677 ) );
+    chain.Append( VECTOR2I( 151065731, 211748428 ) );
+    chain.Append( VECTOR2I( 151263823, 211712126 ) );
+    chain.Append( VECTOR2I( 151463216, 211683830 ) );
+    chain.Append( VECTOR2I( 151710655, 211863478 ) );  // Suspicious point
+    chain.Append( VECTOR2I( 151864611, 211651426 ) );
+    chain.Append( VECTOR2I( 152065961, 211647371 ) );
+    chain.Append( VECTOR2I( 152267311, 211651426 ) );
+    chain.Append( VECTOR2I( 152468335, 211663586 ) );
+    chain.Append( VECTOR2I( 152668706, 211683830 ) );
+    chain.Append( VECTOR2I( 152868099, 211712126 ) );
+    chain.Append( VECTOR2I( 153066191, 211748428 ) );
+    chain.Append( VECTOR2I( 153262661, 211792677 ) );
+    chain.Append( VECTOR2I( 153457189, 211844800 ) );
+    chain.Append( VECTOR2I( 153649462, 211904715 ) );
+    chain.Append( VECTOR2I( 153839165, 211972323 ) );
+    chain.Append( VECTOR2I( 154025993, 212047514 ) );
+    chain.Append( VECTOR2I( 154209641, 212130168 ) );
+    chain.Append( VECTOR2I( 154389813, 212220149 ) );
+    chain.Append( VECTOR2I( 154566215, 212317312 ) );
+    chain.Append( VECTOR2I( 154738561, 212421499 ) );
+    chain.Append( VECTOR2I( 154906573, 212532541 ) );
+    chain.Append( VECTOR2I( 155069977, 212650259 ) );
+    chain.Append( VECTOR2I( 155228509, 212774460 ) );
+    chain.Append( VECTOR2I( 155381911, 212904945 ) );
+    chain.Append( VECTOR2I( 155529934, 213041500 ) );
+    chain.Append( VECTOR2I( 155601495, 213112344 ) );
+    chain.Append( VECTOR2I( 160551242, 218062092 ) );
+    chain.Append( VECTOR2I( 160622086, 218133653 ) );
+    chain.Append( VECTOR2I( 160758641, 218281676 ) );
+    chain.Append( VECTOR2I( 160889126, 218435078 ) );
+    chain.Append( VECTOR2I( 161013327, 218593610 ) );
+    chain.Append( VECTOR2I( 161131045, 218757014 ) );
+    chain.Append( VECTOR2I( 161242087, 218925026 ) );
+    chain.Append( VECTOR2I( 161346274, 219097372 ) );
+    chain.Append( VECTOR2I( 161443437, 219273774 ) );
+    chain.Append( VECTOR2I( 161533418, 219453946 ) );
+    chain.Append( VECTOR2I( 161616072, 219637594 ) );
+    chain.Append( VECTOR2I( 161691263, 219824422 ) );
+    chain.Append( VECTOR2I( 161758871, 220014125 ) );
+    chain.Append( VECTOR2I( 161818786, 220206398 ) );
+    chain.Append( VECTOR2I( 161870909, 220400926 ) );
+    chain.Append( VECTOR2I( 161915158, 220597396 ) );
+    chain.Append( VECTOR2I( 161951460, 220795488 ) );
+    chain.Append( VECTOR2I( 161979756, 220994881 ) );
+    chain.Append( VECTOR2I( 162000000, 221195252 ) );
+    chain.Append( VECTOR2I( 162012160, 221396276 ) );
+    chain.Append( VECTOR2I( 162016215, 221597626 ) );
+    chain.Append( VECTOR2I( 162012160, 221798976 ) );
+    chain.Append( VECTOR2I( 162000000, 222000000 ) );
+    chain.Append( VECTOR2I( 161979756, 222200371 ) );
+    chain.Append( VECTOR2I( 161951460, 222399764 ) );
+    chain.Append( VECTOR2I( 161915158, 222597856 ) );
+    chain.Append( VECTOR2I( 161870909, 222794326 ) );
+    chain.Append( VECTOR2I( 161818786, 222988854 ) );
+    chain.Append( VECTOR2I( 161758871, 223181127 ) );
+    chain.Append( VECTOR2I( 161691263, 223370830 ) );
+    chain.Append( VECTOR2I( 161616072, 223557658 ) );
+    chain.Append( VECTOR2I( 161533418, 223741306 ) );
+    chain.Append( VECTOR2I( 161443437, 223921478 ) );
+    chain.Append( VECTOR2I( 161346274, 224097880 ) );
+    chain.Append( VECTOR2I( 161242087, 224270226 ) );
+    chain.Append( VECTOR2I( 161131045, 224438238 ) );
+    chain.Append( VECTOR2I( 161013327, 224601642 ) );
+    chain.Append( VECTOR2I( 160889126, 224760174 ) );
+    chain.Append( VECTOR2I( 160758641, 224913576 ) );
+    chain.Append( VECTOR2I( 160622086, 225061599 ) );
+    chain.Append( VECTOR2I( 160551242, 225133160 ) );
+    chain.Append( VECTOR2I( 147116213, 238568188 ) );
+    chain.Append( VECTOR2I( 147044657, 238639037 ) );
+    chain.Append( VECTOR2I( 146896633, 238775592 ) );
+    chain.Append( VECTOR2I( 146743231, 238906077 ) );
+    chain.Append( VECTOR2I( 146584699, 239030279 ) );
+    chain.Append( VECTOR2I( 146421295, 239147996 ) );
+    chain.Append( VECTOR2I( 146253283, 239259039 ) );
+    chain.Append( VECTOR2I( 146080936, 239363226 ) );
+    chain.Append( VECTOR2I( 145904534, 239460389 ) );
+    chain.Append( VECTOR2I( 145724362, 239550371 ) );
+    chain.Append( VECTOR2I( 145540714, 239633024 ) );
+    chain.Append( VECTOR2I( 145353886, 239708216 ) );
+    chain.Append( VECTOR2I( 145164182, 239775824 ) );
+    chain.Append( VECTOR2I( 144971909, 239835739 ) );
+    chain.Append( VECTOR2I( 144777380, 239887863 ) );
+    chain.Append( VECTOR2I( 144580910, 239932111 ) );
+    chain.Append( VECTOR2I( 144382818, 239968413 ) );
+    chain.Append( VECTOR2I( 144183424, 239996709 ) );
+    chain.Append( VECTOR2I( 143983053, 240016953 ) );
+    chain.Append( VECTOR2I( 143782029, 240029113 ) );
+    chain.Append( VECTOR2I( 143580679, 240033169 ) );
+    chain.Append( VECTOR2I( 143379329, 240029113 ) );
+    chain.Append( VECTOR2I( 143178305, 240016953 ) );
+    chain.Append( VECTOR2I( 142977934, 239996709 ) );
+    chain.Append( VECTOR2I( 142778540, 239968413 ) );
+    chain.Append( VECTOR2I( 142580448, 239932111 ) );
+    chain.Append( VECTOR2I( 142383978, 239887863 ) );
+    chain.Append( VECTOR2I( 142189449, 239835739 ) );
+    chain.Append( VECTOR2I( 141997176, 239775824 ) );
+    chain.Append( VECTOR2I( 141807472, 239708216 ) );
+    chain.Append( VECTOR2I( 141620644, 239633024 ) );
+    chain.Append( VECTOR2I( 141436996, 239550371 ) );
+    chain.Append( VECTOR2I( 141256824, 239460389 ) );
+    chain.Append( VECTOR2I( 141080422, 239363226 ) );
+    chain.Append( VECTOR2I( 140908075, 239259039 ) );
+    chain.Append( VECTOR2I( 140740063, 239147996 ) );
+    chain.Append( VECTOR2I( 140576659, 239030279 ) );
+    chain.Append( VECTOR2I( 140418127, 238906077 ) );
+    chain.Append( VECTOR2I( 140264725, 238775592 ) );
+    chain.Append( VECTOR2I( 140116701, 238639037 ) );
+    chain.Append( VECTOR2I( 140045145, 238568188 ) );
+
+    chain.SetClosed( true );
+
+    BOOST_CHECK( GEOM_TEST::IsOutlineValid( chain ) );
+    int originalPointCount = chain.PointCount();
+    BOOST_CHECK_EQUAL( originalPointCount, 164 );
+
+    // With 2mm tolerance (2000000 nm), the many small segments approximating arcs
+    // should be simplified significantly. A properly working algorithm should
+    // reduce the point count substantially.
+    chain.Simplify( 2000000 );
+
+    int simplifiedCount = chain.PointCount();
+    BOOST_TEST_MESSAGE( "Simplified point count: " << simplifiedCount );
+
+    BOOST_CHECK( GEOM_TEST::IsOutlineValid( chain ) );
+    BOOST_CHECK_LT( simplifiedCount, originalPointCount );
+
+    // The polygon is a rotated rounded rectangle with 4 corners.
+    // A 2mm tolerance should reduce it to approximately 4-8 points.
+    // If it's only slightly reduced, there may be an issue.
+    BOOST_CHECK_LE( simplifiedCount, 20 );
+}
+
+
+BOOST_AUTO_TEST_CASE( SelfIntersecting_NoIntersection_OpenChain )
+{
+    SHAPE_LINE_CHAIN chain( { { 0, 0 }, { 1000, 0 }, { 2000, 1000 }, { 3000, 0 } } );
+
+    BOOST_CHECK( !chain.SelfIntersecting() );
+}
+
+
+BOOST_AUTO_TEST_CASE( SelfIntersecting_NoIntersection_ClosedChain )
+{
+    SHAPE_LINE_CHAIN chain( { { 0, 0 }, { 10000, 0 }, { 10000, 10000 }, { 0, 10000 } } );
+    chain.SetClosed( true );
+
+    BOOST_CHECK( !chain.SelfIntersecting() );
+}
+
+
+BOOST_AUTO_TEST_CASE( SelfIntersecting_CrossingSegments )
+{
+    // An X shape: two segments that cross
+    //   (0,0)-(10000,10000) and (10000,0)-(0,10000)
+    SHAPE_LINE_CHAIN chain( { { 0, 0 }, { 10000, 10000 }, { 10000, 0 }, { 0, 10000 } } );
+
+    auto result = chain.SelfIntersecting();
+    BOOST_REQUIRE( result.has_value() );
+    BOOST_CHECK_EQUAL( result->index_our, 0 );
+    BOOST_CHECK_EQUAL( result->index_their, 2 );
+}
+
+
+BOOST_AUTO_TEST_CASE( SelfIntersecting_ClosedFigureEight )
+{
+    // Closed bowtie: segments (0,0)-(10000,10000) and (10000,0)-(0,10000) cross at center
+    SHAPE_LINE_CHAIN chain( { { 0, 0 }, { 10000, 10000 }, { 10000, 0 }, { 0, 10000 } } );
+    chain.SetClosed( true );
+
+    BOOST_CHECK( chain.SelfIntersecting().has_value() );
+}
+
+
+BOOST_AUTO_TEST_CASE( SelfIntersecting_VertexOnSegment )
+{
+    // Third vertex lies exactly on the first segment
+    SHAPE_LINE_CHAIN chain( { { 0, 0 }, { 20000, 0 }, { 20000, 10000 }, { 10000, 0 },
+                              { 10000, -10000 } } );
+
+    auto result = chain.SelfIntersecting();
+    BOOST_REQUIRE( result.has_value() );
+    BOOST_CHECK_EQUAL( result->p.x, 10000 );
+    BOOST_CHECK_EQUAL( result->p.y, 0 );
+}
+
+
+BOOST_AUTO_TEST_CASE( SelfIntersecting_TwoSegments )
+{
+    SHAPE_LINE_CHAIN chain( { { 0, 0 }, { 10000, 0 } } );
+
+    BOOST_CHECK( !chain.SelfIntersecting() );
+}
+
+
+BOOST_AUTO_TEST_CASE( SelfIntersecting_SinglePoint )
+{
+    SHAPE_LINE_CHAIN chain;
+    chain.Append( VECTOR2I( 0, 0 ) );
+
+    BOOST_CHECK( !chain.SelfIntersecting() );
+}
+
+
+BOOST_AUTO_TEST_CASE( SelfIntersecting_AdjacentSegmentsIgnored )
+{
+    // A simple zigzag where adjacent segments share endpoints but don't self-intersect
+    SHAPE_LINE_CHAIN chain( { { 0, 0 }, { 5000, 10000 }, { 10000, 0 }, { 15000, 10000 },
+                              { 20000, 0 } } );
+
+    BOOST_CHECK( !chain.SelfIntersecting() );
+}
+
+
+BOOST_AUTO_TEST_CASE( SelfIntersecting_ClosedTriangle )
+{
+    SHAPE_LINE_CHAIN chain( { { 0, 0 }, { 10000, 0 }, { 5000, 10000 } } );
+    chain.SetClosed( true );
+
+    BOOST_CHECK( !chain.SelfIntersecting() );
+}
+
+
+BOOST_AUTO_TEST_CASE( SelfIntersecting_ClosedLastFirstNotFalsePositive )
+{
+    // Closed rectangle. The last segment shares its endpoint with the first segment.
+    // This must NOT be reported as a self-intersection.
+    SHAPE_LINE_CHAIN chain( { { 0, 0 }, { 10000, 0 }, { 10000, 10000 }, { 0, 10000 } } );
+    chain.SetClosed( true );
+
+    BOOST_CHECK( !chain.SelfIntersecting() );
+}
+
+
+BOOST_AUTO_TEST_CASE( SelfIntersecting_SpatiallyDistant )
+{
+    // Segments are far apart spatially, exercising the bbox rejection path
+    SHAPE_LINE_CHAIN chain( { { 0, 0 }, { 1000, 0 },
+                              { 1000, 1000000 }, { 2000, 1000000 },
+                              { 2000, 2000000 }, { 3000, 2000000 } } );
+
+    BOOST_CHECK( !chain.SelfIntersecting() );
+}
+
+
+BOOST_AUTO_TEST_CASE( SelfIntersecting_LargeNonIntersecting )
+{
+    // Build a spiral-like chain with many segments that don't self-intersect
+    SHAPE_LINE_CHAIN chain;
+
+    for( int i = 0; i < 200; i++ )
+        chain.Append( VECTOR2I( i * 1000, ( i % 2 ) * 5000 ) );
+
+    BOOST_CHECK( !chain.SelfIntersecting() );
+}
+
+
+BOOST_AUTO_TEST_CASE( SelfIntersecting_LargeWithCrossing )
+{
+    // Many non-intersecting segments, then one that crosses back over an earlier one
+    SHAPE_LINE_CHAIN chain;
+
+    for( int i = 0; i < 50; i++ )
+        chain.Append( VECTOR2I( i * 1000, 0 ) );
+
+    // Last segment crosses back over the first few segments
+    chain.Append( VECTOR2I( 5000, 10000 ) );
+    chain.Append( VECTOR2I( 5000, -10000 ) );
+
+    BOOST_CHECK( chain.SelfIntersecting().has_value() );
 }
 
 

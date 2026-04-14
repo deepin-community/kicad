@@ -19,10 +19,11 @@
  */
 
 #include <generate_alias_info.h>
+#include <ki_exception.h>
 #include <string_utils.h>
 #include <template_fieldnames.h>
 #include <lib_symbol.h>
-#include <symbol_lib_table.h>
+#include <libraries/symbol_library_adapter.h>
 #include <wx/log.h>
 
 static const wxString DescriptionFormat = wxS(
@@ -43,24 +44,18 @@ static const wxString FieldFormat = wxS(
     "   <td><b>__NAME__</b></td>"
     "   <td>__VALUE__</td>"
     "</tr>" );
-static const wxString DatasheetLinkFormat = wxS( "<a href=\"__HREF__\">__TEXT__</a>" );
+static const wxString LinkFormat = wxS( "<a href=\"__HREF__\">__TEXT__</a>" );
 
 
 class FOOTPRINT_INFO_GENERATOR
 {
-    wxString m_html;
-    SYMBOL_LIB_TABLE* m_sym_lib_table;
-    LIB_ID const m_lib_id;
-    LIB_SYMBOL* m_symbol;
-    int m_unit;
-
 public:
-    FOOTPRINT_INFO_GENERATOR( SYMBOL_LIB_TABLE* aSymbolLibTable, LIB_ID const& aLibId, int aUnit )
-        : m_html( DescriptionFormat ),
-          m_sym_lib_table( aSymbolLibTable ),
-          m_lib_id( aLibId ),
-          m_symbol( nullptr ),
-          m_unit( aUnit )
+    FOOTPRINT_INFO_GENERATOR( SYMBOL_LIBRARY_ADAPTER* aLibs, LIB_ID const& aLibId, int aUnit ) :
+            m_html( DescriptionFormat ),
+            m_libs( aLibs ),
+            m_lib_id( aLibId ),
+            m_symbol( nullptr ),
+            m_unit( aUnit )
     { }
 
     /**
@@ -68,14 +63,17 @@ public:
      */
     void GenerateHtml()
     {
-        wxCHECK_RET( m_sym_lib_table, "Symbol library table pointer is not valid" );
+        wxCHECK_RET( m_libs, "Symbol library manager adapter pointer is not valid" );
 
         if( !m_lib_id.IsValid() )
+        {
+            ClearPlaceholders();
             return;
+        }
 
         try
         {
-            m_symbol = m_sym_lib_table->LoadSymbol( m_lib_id );
+            m_symbol = m_libs->LoadSymbol( m_lib_id );
         }
         catch( const IO_ERROR& ioe )
         {
@@ -83,6 +81,7 @@ public:
                         m_lib_id.GetLibItemName().wx_str(),
                         m_lib_id.GetLibNickname().wx_str(),
                         ioe.What() );
+            ClearPlaceholders();
             return;
         }
 
@@ -93,6 +92,10 @@ public:
             SetHtmlDesc();
             SetHtmlKeywords();
             SetHtmlFieldTable();
+        }
+        else
+        {
+            ClearPlaceholders();
         }
     }
 
@@ -109,7 +112,6 @@ protected:
     {
         m_html.Replace( wxS( "__NAME__" ), EscapeHTML( UnescapeString( m_symbol->GetName() ) ) );
     }
-
 
     void SetHtmlAliasOf()
     {
@@ -130,17 +132,15 @@ protected:
                 root_desc = parent->GetDesc();
             }
 
-            m_html.Replace( wxS( "__ALIASOF__" ),
-                            wxString::Format(  AliasOfFormat,
-                                               EscapeHTML( UnescapeString( root_name ) ),
-                                               EscapeHTML( root_desc ) ) );
+            m_html.Replace( wxS( "__ALIASOF__" ), wxString::Format( AliasOfFormat,
+                                                                    EscapeHTML( UnescapeString( root_name ) ),
+                                                                    EscapeHTML( root_desc ) ) );
         }
     }
 
-
     void SetHtmlDesc()
     {
-        wxString esc_desc = EscapeHTML( UnescapeString( m_symbol->GetDescription() ) );
+        wxString esc_desc = EscapeHTML( UnescapeString( m_symbol->GetShownDescription() ) );
 
         // Add line breaks
         esc_desc.Replace( wxS( "\n" ), wxS( "<br>" ) );
@@ -151,18 +151,15 @@ protected:
         m_html.Replace( wxS( "__DESC__" ), wxString::Format( DescFormat, esc_desc ) );
     }
 
-
     void SetHtmlKeywords()
     {
-        wxString keywords = m_symbol->GetKeyWords();
+        wxString keywords = m_symbol->GetShownKeyWords();
 
         if( keywords.empty() )
             m_html.Replace( wxS( "__KEY__" ), wxEmptyString );
         else
-            m_html.Replace( wxS( "__KEY__" ),
-                            wxString::Format( KeywordsFormat, EscapeHTML( keywords ) ) );
+            m_html.Replace( wxS( "__KEY__" ), wxString::Format( KeywordsFormat, EscapeHTML( keywords ) ) );
     }
-
 
     wxString GetHtmlFieldRow( const SCH_FIELD& aField ) const
     {
@@ -174,7 +171,7 @@ protected:
 
         switch( aField.GetId() )
         {
-        case DATASHEET_FIELD:
+        case FIELD_T::DATASHEET:
             text = m_symbol->GetDatasheetField().GetShownText( false );
 
             if( text.IsEmpty() || text == wxT( "~" ) )
@@ -183,7 +180,7 @@ protected:
             }
             else
             {
-                wxString datasheetlink = DatasheetLinkFormat;
+                wxString datasheetlink = LinkFormat;
                 datasheetlink.Replace( wxS( "__HREF__" ), EscapeHTML( text ) );
 
                 if( text.Length() > 75 )
@@ -196,18 +193,34 @@ protected:
 
             break;
 
-        case VALUE_FIELD:
+        case FIELD_T::VALUE:
             // showing the value just repeats the name, so that's not much use...
             return wxEmptyString;
 
-        case REFERENCE_FIELD:
+        case FIELD_T::REFERENCE:
             text = aField.GetFullText( m_unit > 0 ? m_unit : 1 );
             fieldhtml.Replace( wxS( "__VALUE__" ), EscapeHTML( text ) );
             break;
 
         default:
             text = aField.GetShownText( false );
-            fieldhtml.Replace( wxS( "__VALUE__" ), EscapeHTML( text ) );
+
+            if( aField.HasHypertext() )
+            {
+                wxString link = LinkFormat;
+                link.Replace( wxS( "__HREF__" ), EscapeHTML( text ) );
+
+                if( text.Length() > 75 )
+                    text = text.Left( 72 ) + wxT( "..." );
+
+                link.Replace( wxS( "__TEXT__" ), EscapeHTML( text ) );
+
+                fieldhtml.Replace( wxS( "__VALUE__" ), link );
+            }
+            else
+            {
+                fieldhtml.Replace( wxS( "__VALUE__" ), EscapeHTML( text ) );
+            }
         }
 
         return fieldhtml;
@@ -224,11 +237,11 @@ protected:
         for( const SCH_FIELD* field: fields )
             fieldtable += GetHtmlFieldRow( *field );
 
-        if( m_symbol->IsAlias() )
+        if( m_symbol->IsDerived() )
         {
             std::shared_ptr<LIB_SYMBOL> parent = m_symbol->GetParent().lock();
 
-            // Append all of the unique parent fields if this is an alias.
+            // Append all of the unique parent fields if this is a derived symbol.
             if( parent )
             {
                 std::vector<SCH_FIELD*> parentFields;
@@ -237,7 +250,7 @@ protected:
 
                 for( const SCH_FIELD* parentField : parentFields )
                 {
-                    if( m_symbol->FindField( parentField->GetCanonicalName() ) )
+                    if( m_symbol->GetField( parentField->GetCanonicalName() ) )
                         continue;
 
                     fieldtable += GetHtmlFieldRow( *parentField );
@@ -247,12 +260,28 @@ protected:
 
         m_html.Replace( wxS( "__FIELDS__" ), fieldtable );
     }
+
+    void ClearPlaceholders()
+    {
+        m_html.Replace( wxS( "__NAME__" ), wxEmptyString );
+        m_html.Replace( wxS( "__ALIASOF__" ), wxEmptyString );
+        m_html.Replace( wxS( "__DESC__" ), wxEmptyString );
+        m_html.Replace( wxS( "__KEY__" ), wxEmptyString );
+        m_html.Replace( wxS( "__FIELDS__" ), wxEmptyString );
+    }
+
+private:
+    wxString                        m_html;
+    SYMBOL_LIBRARY_ADAPTER* m_libs;
+    LIB_ID const                    m_lib_id;
+    LIB_SYMBOL*                     m_symbol;
+    int                             m_unit;
 };
 
 
-wxString GenerateAliasInfo( SYMBOL_LIB_TABLE* aSymLibTable, LIB_ID const& aLibId, int aUnit )
+wxString GenerateAliasInfo( SYMBOL_LIBRARY_ADAPTER* aLibs, LIB_ID const& aLibId, int aUnit )
 {
-    FOOTPRINT_INFO_GENERATOR gen( aSymLibTable, aLibId, aUnit );
+    FOOTPRINT_INFO_GENERATOR gen( aLibs, aLibId, aUnit );
     gen.GenerateHtml();
     return gen.GetHtml();
 }

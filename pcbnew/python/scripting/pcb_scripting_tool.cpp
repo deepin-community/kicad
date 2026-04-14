@@ -23,19 +23,25 @@
 
 #include "pcb_scripting_tool.h"
 
+#include <Python.h>
+
+#include <wx/string.h>
+#include <wx/filename.h>
+#include <wx/msgdlg.h>
+
+#include <pybind11/eval.h>
+
 #include <action_plugin.h>
 #include <kiface_ids.h>
 #include <kiway.h>
 #include <macros.h>
 #include <pgm_base.h>
+#include <settings/common_settings.h>
 #include <python_scripting.h>
+#include <string_utils.h>
 #include <tools/pcb_actions.h>
-
-#include <pybind11/eval.h>
-
-#include <Python.h>
-#include <wx/string.h>
 #include <launch_ext.h>
+#include <confirm.h>
 
 #ifdef KICAD_IPC_API
 #include <api/api_plugin_manager.h>
@@ -57,6 +63,29 @@ void SCRIPTING_TOOL::Reset( RESET_REASON aReason )
 }
 
 
+/* Legacy init based on https://peps.python.org/pep-0489/ */
+static PyObject* module_legacy_init( PyModuleDef* def )
+{
+    PyModuleDef_Slot* slots = def->m_slots;
+    def->m_slots = NULL;
+    PyObject* mod = PyModule_Create( def );
+    while( mod && slots->slot )
+    {
+        if( slots->slot == Py_mod_exec )
+        {
+            int ( *mod_exec )( PyObject* ) = (int ( * )( PyObject* )) slots->value;
+            if( mod_exec( mod ) != 0 )
+            {
+                Py_DECREF( mod );
+                mod = NULL;
+            }
+        }
+        ++slots;
+    }
+    return mod;
+}
+
+
 bool SCRIPTING_TOOL::Init()
 {
     PyLOCK    lock;
@@ -66,8 +95,38 @@ bool SCRIPTING_TOOL::Init()
     {
         KIFACE* kiface = frame()->Kiway().KiFACE( KIWAY::FACE_PCB );
         initfunc pcbnew_init = reinterpret_cast<initfunc>( kiface->IfaceOrAddress( KIFACE_SCRIPTING_LEGACY ) );
-        PyImport_AddModule( pymodule.c_str() );
-        PyObject* mod = pcbnew_init();
+
+        // swig-4.4.0 implements PEP-489 multi-phase initialization.
+        // Handle both old single-phase and new multi-phase initialization.
+        // Modules that use multi-phase initialization will return a PyModuleDef, so then we force a legacy single-phase initialization.
+        PyObject* module_or_module_def = pcbnew_init();
+        if( !module_or_module_def )
+        {
+            wxMessageBox(
+                    wxString::Format( _( "Failed first phase initializing Python module '%s', through Python C API." ),
+                                      pymodule.c_str() ),
+                    _( "Scripting init" ), wxOK | wxICON_ERROR );
+            return false;
+        }
+
+        PyObject* mod = NULL;
+        if( PyObject_TypeCheck( module_or_module_def, &PyModuleDef_Type ) )
+        {
+            mod = module_legacy_init( (PyModuleDef*) module_or_module_def );
+            if( !mod )
+            {
+                wxMessageBox( wxString::Format(
+                                      _( "Failed second phase initializing Python module '%s', through Python C API." ),
+                                      pymodule.c_str() ),
+                              _( "Scripting init" ), wxOK | wxICON_ERROR );
+                return false;
+            }
+        }
+        else
+        {
+            mod = module_or_module_def;
+        }
+
         PyObject* sys_mod = PyImport_GetModuleDict();
         PyDict_SetItemString( sys_mod, "_pcbnew", mod );
         Py_DECREF( mod );
@@ -122,7 +181,7 @@ int SCRIPTING_TOOL::reloadPlugins( const TOOL_EVENT& aEvent )
         // Action plugins can be modified, therefore the plugins menu must be updated:
         frame()->ReCreateMenuBar();
         // Recreate top toolbar to add action plugin buttons
-        frame()->ReCreateHToolbar();
+        frame()->RecreateToolbars();
         // Post a size event to force resizing toolbar by the AUI manager:
         frame()->PostSizeEvent();
     }
@@ -154,7 +213,38 @@ pcbnew.LoadPlugins( sys_path, user_path, third_party_path )
 void SCRIPTING_TOOL::ShowPluginFolder()
 {
     wxString pluginpath( SCRIPTING::PyPluginsPath( SCRIPTING::PATH_TYPE::USER ) );
-    LaunchExternal( pluginpath );
+
+    if( wxFileName::DirExists( pluginpath ) )
+    {
+        if( !LaunchExternal( pluginpath ) )
+        {
+            wxMessageBox( wxString::Format( _( "Unable to open plugin directory '%s'." ), pluginpath ),
+                          _( "Plugin Directory" ), wxOK | wxICON_ERROR );
+        }
+
+        return;
+    }
+
+    wxString msg = wxString::Format( _( "The plugin directory '%s' does not exist.  Create it?" ), pluginpath );
+
+    KICAD_MESSAGE_DIALOG dlg( nullptr, msg, _( "Plugin Directory" ), wxYES_NO | wxICON_QUESTION );
+
+    if( dlg.ShowModal() == wxID_YES )
+    {
+        if( wxFileName::Mkdir( pluginpath, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL ) )
+        {
+            if( !LaunchExternal( pluginpath ) )
+            {
+                wxMessageBox( wxString::Format( _( "Unable to open plugin directory '%s'." ), pluginpath ),
+                              _( "Plugin Directory" ), wxOK | wxICON_ERROR );
+            }
+        }
+        else
+        {
+            wxMessageBox( wxString::Format( _( "Unable to create plugin directory '%s'." ), pluginpath ),
+                          _( "Plugin Directory" ), wxOK | wxICON_ERROR );
+        }
+    }
 }
 
 

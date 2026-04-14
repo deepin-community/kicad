@@ -46,6 +46,7 @@ DIFF_PAIR_PLACER::DIFF_PAIR_PLACER( ROUTER* aRouter ) :
     m_shove = nullptr;
     m_currentNode = nullptr;
     m_lastNode = nullptr;
+    m_lastFixNode = nullptr;
     m_placingVia = false;
     m_viaDiameter = 0;
     m_viaDrill = 0;
@@ -57,6 +58,7 @@ DIFF_PAIR_PLACER::DIFF_PAIR_PLACER( ROUTER* aRouter ) :
     m_currentEndItem = nullptr;
     m_currentTraceOk = false;
     m_idle = true;
+    m_hasFixedAnything = false;
 }
 
 DIFF_PAIR_PLACER::~DIFF_PAIR_PLACER()
@@ -199,7 +201,6 @@ bool DIFF_PAIR_PLACER::attemptWalk( NODE* aNode, DIFF_PAIR* aCurrent, DIFF_PAIR&
                                     bool aPFirst, bool aWindCw, bool aSolidsOnly )
 {
     WALKAROUND walkaround( aNode, Router() );
-    WALKAROUND::STATUS wf1;
 
     walkaround.SetSolidsOnly( aSolidsOnly );
     walkaround.SetIterationLimit( Settings().WalkaroundIterationLimit() );
@@ -290,7 +291,6 @@ bool DIFF_PAIR_PLACER::tryWalkDp( NODE* aNode, DIFF_PAIR &aPair, bool aSolidsOnl
 
         if( attemptWalk( tmp, &aPair, p, pfirst, wind_cw, aSolidsOnly ) )
         {
-        //    double len = p.TotalLength();
             double cl   = 1 + p.CoupledLength();
             double skew = p.Skew();
 
@@ -299,7 +299,7 @@ bool DIFF_PAIR_PLACER::tryWalkDp( NODE* aNode, DIFF_PAIR &aPair, bool aSolidsOnl
             if( score < bestScore )
             {
                 bestScore = score;
-                best = p;
+                best = std::move( p );
             }
         }
 
@@ -385,8 +385,11 @@ bool DIFF_PAIR_PLACER::rhShoveOnly( const VECTOR2I& aP )
         if( m_shove->HeadsModified( 1 ))
             nLine = m_shove->GetModifiedHead(1);
 
-        if( !m_currentNode->CheckColliding( &m_currentTrace.PLine() ) &&
-            !m_currentNode->CheckColliding( &m_currentTrace.NLine() ) )
+        // Update m_currentTrace with the shoved shapes so FixRoute() commits correct geometry
+        m_currentTrace.SetShape( pLine.CLine(), nLine.CLine() );
+
+        if( !m_currentNode->CheckColliding( &pLine ) &&
+            !m_currentNode->CheckColliding( &nLine ) )
         {
             m_fitOk = true;
         }
@@ -396,7 +399,7 @@ bool DIFF_PAIR_PLACER::rhShoveOnly( const VECTOR2I& aP )
         // bring back previous state
         m_currentTrace.SetShape( pLine.CLine(), nLine.CLine() );
     }
-    
+
 
     return m_fitOk;
 }
@@ -639,9 +642,11 @@ bool DIFF_PAIR_PLACER::Start( const VECTOR2I& aP, ITEM* aStartItem )
     m_currentEnd = p;
     m_placingVia = false;
     m_chainedPlacement = false;
+    m_hasFixedAnything = false;
     m_currentTraceOk = false;
     m_currentTrace = DIFF_PAIR();
     m_currentTrace.SetNets( m_netP, m_netN );
+    m_lastFixNode = nullptr;
 
     initPlacement();
 
@@ -738,8 +743,8 @@ bool DIFF_PAIR_PLACER::routeHead( const VECTOR2I& aP )
 
         if( m_placingVia )
         {
-            m_currentTrace.AppendVias ( makeVia( m_currentTrace.CP().CPoint( -1 ), m_netP ),
-                                        makeVia( m_currentTrace.CN().CPoint( -1 ), m_netN ) );
+            m_currentTrace.AppendVias ( makeVia( m_currentTrace.CP().CLastPoint(), m_netP ),
+                                        makeVia( m_currentTrace.CN().CLastPoint(), m_netN ) );
         }
         else
         {
@@ -777,10 +782,18 @@ bool DIFF_PAIR_PLACER::Move( const VECTOR2I& aP , ITEM* aEndItem )
 
 void DIFF_PAIR_PLACER::UpdateSizes( const SIZES_SETTINGS& aSizes )
 {
+    int prevDiffPairWidth = m_sizes.DiffPairWidth();
+
     m_sizes = aSizes;
 
     if( !m_idle )
     {
+        // When continuing from an existing track in connected-track-width mode, preserve the
+        // inherited diff pair width rather than reverting to the netclass default. This matches
+        // the guard in LINE_PLACER::UpdateSizes() for single tracks.
+        if( !m_sizes.TrackWidthIsExplicit() && m_hasFixedAnything )
+            m_sizes.SetDiffPairWidth( prevDiffPairWidth );
+
         m_currentTrace.SetWidth( m_sizes.DiffPairWidth() );
         m_currentTrace.SetGap( m_sizes.DiffPairGap() );
 
@@ -842,9 +855,15 @@ bool DIFF_PAIR_PLACER::FixRoute( const VECTOR2I& aP, ITEM* aEndItem, bool aForce
     topo.SimplifyLine( &lineN );
 
     m_prevPair = m_currentTrace.EndingPrimitives();
+    m_lastFixNode = m_lastNode;
+
+    // avoid an use-after-free error (CommitPlacement calls NODE::Commit which will invalidate the shove heads state. Need to rethink the memory management).
+    if( Settings().Mode() == RM_Shove )
+        m_shove = std::make_unique<SHOVE>( m_world, Router() );
 
     CommitPlacement();
     m_placingVia = false;
+    m_lastFixNode = nullptr;
 
     if( m_snapOnTarget || aForceFinish )
     {
@@ -853,6 +872,7 @@ bool DIFF_PAIR_PLACER::FixRoute( const VECTOR2I& aP, ITEM* aEndItem, bool aForce
     }
     else
     {
+        m_hasFixedAnything = true;
         initPlacement();
         return false;
     }
@@ -862,6 +882,7 @@ bool DIFF_PAIR_PLACER::FixRoute( const VECTOR2I& aP, ITEM* aEndItem, bool aForce
 bool DIFF_PAIR_PLACER::AbortPlacement()
 {
     m_world->KillChildren();
+    m_lastNode = nullptr;
     return true;
 }
 
@@ -874,9 +895,10 @@ bool DIFF_PAIR_PLACER::HasPlacedAnything() const
 
 bool DIFF_PAIR_PLACER::CommitPlacement()
 {
-    if( m_lastNode )
-        Router()->CommitRouting( m_lastNode );
+    if( m_lastFixNode )
+        Router()->CommitRouting( m_lastFixNode );
 
+    m_lastFixNode = nullptr;
     m_lastNode = nullptr;
     m_currentNode = nullptr;
     return true;

@@ -24,6 +24,7 @@
 #ifndef DIALOG_TABLECELL_PROPERTIES_H
 #define DIALOG_TABLECELL_PROPERTIES_H
 
+#include <wx/hyperlink.h>
 #include <widgets/unit_binder.h>
 #include <wx/valnum.h>
 
@@ -33,7 +34,9 @@
 class PCB_BASE_EDIT_FRAME;
 class PCB_TABLE;
 class PCB_TABLECELL;
-
+class SCINTILLA_TRICKS;
+class HTML_MESSAGE_BOX;
+class wxHyperlinkCtrl;
 
 class DIALOG_TABLECELL_PROPERTIES : public DIALOG_TABLECELL_PROPERTIES_BASE
 {
@@ -46,9 +49,8 @@ public:
         TABLECELL_PROPS_EDIT_TABLE
     };
 
-    DIALOG_TABLECELL_PROPERTIES( PCB_BASE_EDIT_FRAME* aParentFrame,
-                                 std::vector<PCB_TABLECELL*> aCells );
-
+    DIALOG_TABLECELL_PROPERTIES( PCB_BASE_EDIT_FRAME* aParentFrame, std::vector<PCB_TABLECELL*> aCells );
+    ~DIALOG_TABLECELL_PROPERTIES();
     ///< @return the value depending on the way the dialog was closed.
     enum TABLECELL_PROPS_RETVALUE GetReturnValue() { return m_returnValue; }
 
@@ -58,21 +60,35 @@ private:
 
     void onHAlignButton( wxCommandEvent& aEvent );
     void onVAlignButton( wxCommandEvent& aEvent );
-
+    void onTextSize( wxCommandEvent& aEvent ) override;
+    void onAutoTextThickness( wxCommandEvent& aEvent ) override;
+    void onBoldToggle( wxCommandEvent& aEvent ) override;
     void onEditTable( wxCommandEvent& aEvent ) override;
 
-private:
-    PCB_BASE_EDIT_FRAME*          m_frame;
-    PCB_TABLE*                    m_table;
-    std::vector<PCB_TABLECELL*>   m_cells;
+    virtual void onMultiLineTCLostFocus( wxFocusEvent& event ) { event.Skip(); }
 
-    UNIT_BINDER                   m_textHeight;
-    UNIT_BINDER                   m_textWidth;
-    UNIT_BINDER                   m_textThickness;
-    UNIT_BINDER                   m_marginLeft;
-    UNIT_BINDER                   m_marginTop;
-    UNIT_BINDER                   m_marginRight;
-    UNIT_BINDER                   m_marginBottom;
+    void OnSystemColourChanged( wxSysColourChangedEvent& event );
+    void UpdateTheme( void );
+
+    void onSyntaxHelp( wxHyperlinkEvent& aEvent ) override;
+
+private:
+    PCB_BASE_EDIT_FRAME*        m_frame;
+    PCB_TABLE*                  m_table;
+    std::vector<PCB_TABLECELL*> m_cells;
+
+    UNIT_BINDER m_textHeight;
+    UNIT_BINDER m_textWidth;
+    UNIT_BINDER m_textThickness;
+    UNIT_BINDER m_marginLeft;
+    UNIT_BINDER m_marginTop;
+    UNIT_BINDER m_marginRight;
+    UNIT_BINDER m_marginBottom;
+
+    wxStyledTextCtrl* m_cellText;
+    SCINTILLA_TRICKS* m_scintillaTricks;
+
+    HTML_MESSAGE_BOX* m_helpWindow;
 
     enum TABLECELL_PROPS_RETVALUE m_returnValue; // the option that closed the dialog
 };

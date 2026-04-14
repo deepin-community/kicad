@@ -29,10 +29,14 @@
 #include <mock_pgm_base.h>
 #include <settings/settings_manager.h>
 #include <pcbnew_settings.h>
+#include <qa_utils/error_handlers.h>
 
 #include <wx/image.h>
 #include <wx/init.h>
 #include <wx/app.h>
+
+BOOST_TEST_GLOBAL_FIXTURE( KI_SIGNAL_HANDLER_FIXTURE );
+BOOST_TEST_GLOBAL_FIXTURE( KI_STACK_TRACE_FIXTURE );
 
 bool init_unit_test()
 {
@@ -53,6 +57,9 @@ bool init_unit_test()
         Pgm().InitPgm( true, true, true );
         Pgm().GetSettingsManager().RegisterSettings( new PCBNEW_SETTINGS, false );
         Pgm().GetSettingsManager().Load();
+
+        const MOCK_PGM_BASE& program = static_cast<MOCK_PGM_BASE&>( Pgm() );
+        Pgm().GetSettingsManager().LoadProject( "" );
     }
 
     return ok;

@@ -25,13 +25,12 @@
 #include <string_utils.h>
 #include <wx/crt.h>
 
-#include <locale_io.h>
-
 #define ARG_MODE_SEPARATE "--mode-separate"
 #define ARG_MODE_MULTIPAGE "--mode-multipage"
 #define ARG_MODE_SINGLE "--mode-single"
 
-CLI::PCB_EXPORT_PDF_COMMAND::PCB_EXPORT_PDF_COMMAND() : PCB_EXPORT_BASE_COMMAND( "pdf" )
+CLI::PCB_EXPORT_PDF_COMMAND::PCB_EXPORT_PDF_COMMAND() :
+        PCB_EXPORT_BASE_COMMAND( "pdf", IO_TYPE::FILE, IO_TYPE::DIRECTORY )
 {
     m_argParser.add_description( UTF8STDSTR( _( "Generate PDF from a list of layers" ) ) );
 
@@ -94,10 +93,6 @@ CLI::PCB_EXPORT_PDF_COMMAND::PCB_EXPORT_PDF_COMMAND() : PCB_EXPORT_BASE_COMMAND(
             .scan<'i', int>()
             .default_value( 2 );
 
-    m_argParser.add_argument( DEPRECATED_ARG_PLOT_INVISIBLE_TEXT )
-            .help( UTF8STDSTR( _( DEPRECATED_ARG_PLOT_INVISIBLE_TEXT_DESC ) ) )
-            .flag();
-
     m_argParser.add_argument( ARG_MODE_SINGLE )
             .help( UTF8STDSTR(
                     _( "Generates a single file with the output arg path acting as the complete "
@@ -112,6 +107,23 @@ CLI::PCB_EXPORT_PDF_COMMAND::PCB_EXPORT_PDF_COMMAND() : PCB_EXPORT_BASE_COMMAND(
     m_argParser.add_argument( ARG_MODE_MULTIPAGE )
             .help( UTF8STDSTR( _( "Plot the layers to a single PDF file with multiple pages" ) ) )
             .flag();
+
+    m_argParser.add_argument( ARG_SCALE )
+            .help( UTF8STDSTR( _( ARG_SCALE_DESC ) ) )
+            .scan<'g', double>()
+            .default_value( 1.0 )
+            .metavar( "SCALE" );
+
+    m_argParser.add_argument( ARG_BACKGROUND_COLOR )
+            .default_value( std::string() )
+            .help( UTF8STDSTR( _( ARG_BACKGROUND_COLOR_DESC ) ) )
+            .metavar( "COLOR" );
+
+    m_argParser.add_argument( ARG_CHECK_ZONES )
+            .help( UTF8STDSTR( _( ARG_CHECK_ZONES_DESC ) ) )
+            .flag();
+
+    addVariantsArg();
 }
 
 
@@ -123,6 +135,9 @@ int CLI::PCB_EXPORT_PDF_COMMAND::doPerform( KIWAY& aKiway )
     pdfJob->SetConfiguredOutputPath( m_argOutput );
     pdfJob->m_drawingSheet = m_argDrawingSheet;
     pdfJob->SetVarOverrides( m_argDefineVars );
+
+    if( !m_argVariantNames.empty() )
+        pdfJob->m_variant = m_argVariantNames.front();
 
     if( !wxFile::Exists( pdfJob->m_filename ) )
     {
@@ -136,18 +151,23 @@ int CLI::PCB_EXPORT_PDF_COMMAND::doPerform( KIWAY& aKiway )
     pdfJob->m_plotDrawingSheet = m_argParser.get<bool>( ARG_INCLUDE_BORDER_TITLE );
     pdfJob->m_subtractSolderMaskFromSilk = m_argParser.get<bool>( ARG_SUBTRACT_SOLDERMASK );
 
-    if( m_argParser.get<bool>( DEPRECATED_ARG_PLOT_INVISIBLE_TEXT ) )
-        wxFprintf( stdout, DEPRECATED_ARD_PLOT_INVISIBLE_TEXT_WARNING );
-
     pdfJob->m_mirror = m_argParser.get<bool>( ARG_MIRROR );
     pdfJob->m_blackAndWhite = m_argParser.get<bool>( ARG_BLACKANDWHITE );
     pdfJob->m_colorTheme = From_UTF8( m_argParser.get<std::string>( ARG_THEME ).c_str() );
     pdfJob->m_negative = m_argParser.get<bool>( ARG_NEGATIVE );
+    pdfJob->m_scale = m_argParser.get<double>( ARG_SCALE );
+    pdfJob->m_checkZonesBeforePlot = m_argParser.get<bool>( ARG_CHECK_ZONES );
 
     pdfJob->m_sketchPadsOnFabLayers = m_argParser.get<bool>( ARG_SKETCH_PADS_ON_FAB_LAYERS );
+    if( pdfJob->m_sketchPadsOnFabLayers )
+        pdfJob->m_plotPadNumbers = true;
     pdfJob->m_hideDNPFPsOnFabLayers = m_argParser.get<bool>( ARG_HIDE_DNP_FPS_ON_FAB_LAYERS );
     pdfJob->m_sketchDNPFPsOnFabLayers = m_argParser.get<bool>( ARG_SKETCH_DNP_FPS_ON_FAB_LAYERS );
     pdfJob->m_crossoutDNPFPsOnFabLayers = m_argParser.get<bool>( ARG_CROSSOUT_DNP_FPS_ON_FAB_LAYERS );
+
+    wxString bgColor = From_UTF8( m_argParser.get<std::string>( ARG_BACKGROUND_COLOR ).c_str() );
+    if( bgColor != wxEmptyString )
+        pdfJob->m_pdfBackgroundColor = bgColor;
 
     int drillShape = m_argParser.get<int>( ARG_DRILL_SHAPE_OPTION );
     pdfJob->m_drillShapeOption = static_cast<DRILL_MARKS>( drillShape );
@@ -166,12 +186,14 @@ int CLI::PCB_EXPORT_PDF_COMMAND::doPerform( KIWAY& aKiway )
     pdfJob->m_argCommonLayers = From_UTF8( m_argParser.get<std::string>( ARG_COMMON_LAYERS ).c_str() );
 
     if( argModeMulti )
+    {
         pdfJob->m_pdfGenMode = JOB_EXPORT_PCB_PDF::GEN_MODE::ONE_PAGE_PER_LAYER_ONE_FILE;
+        pdfJob->m_pdfSingle = true;
+    }
     else if( argModeSeparate )
         pdfJob->m_pdfGenMode = JOB_EXPORT_PCB_PDF::GEN_MODE::ALL_LAYERS_SEPARATE_FILE;
     else if( argModeSingle )
         pdfJob->m_pdfGenMode = JOB_EXPORT_PCB_PDF::GEN_MODE::ALL_LAYERS_ONE_FILE;
 
-    LOCALE_IO dummy;    // Switch to "C" locale
     return aKiway.ProcessJob( KIWAY::FACE_PCB, pdfJob.get() );
 }

@@ -3,6 +3,7 @@
 [[schematic-to-pcb]]
 == Forward and back annotation
 
+[[update-pcb-from-schematic]]
 === Update PCB from Schematic (forward annotation)
 
 Use the Update PCB from Schematic tool to sync design information from the
@@ -45,20 +46,25 @@ The tool has several options to control its behavior.
 | Re-link footprints to schematic symbols based on their reference designators
 | Footprints are normally linked to schematic symbols via a unique identifier
 created when the symbol is added to the schematic. A symbol's unique identifier
-cannot be changed.
+cannot be changed, but will be lost when the symbol is deleted, even if a symbol
+with the same reference designator replaces it.
 
-If checked, each footprint in the PCB will be re-linked to the symbol that has
-the same reference designator as the footprint.
+If checked, each footprint in the PCB will be re-linked such that each footprint
+has its unique identifier updated to match the symbol that has the same
+reference designator as the footprint.
 
-If unchecked, footprints and symbols will be linked by unique identifier as
-usual, rather than by reference designator. Each footprint's reference
-designator will be updated to match the reference designator of its linked
-symbol.
+This option should generally be left unchecked. See <<re-linking,below>> for more
+details on when to use this option.
 
-This option should generally be left unchecked. It is useful for specific
-workflows that rely on changing the links between schematic symbols and
-footprints, such as refactoring a schematic for easier layout or replicating
-layout between identical channels of a design.
+| Group footprints based on symbol group
+| If checked, footprints will be added to groups in the PCB if their linked symbols are <<groups,grouped>>.
+
+| Replace footprints with those specified by symbols
+| If checked, footprints in the PCB will be replaced with the footprint that is
+specified in the corresponding schematic symbol.
+
+If unchecked, footprints that are already in the PCB will not be changed, even
+if the schematic symbol is updated to specify a different footprint.
 
 | Delete footprints with no symbols
 | If checked, any footprint in the PCB without a corresponding symbol in the
@@ -67,20 +73,81 @@ attribute will be unaffected.
 
 If unchecked, footprints without a corresponding symbol will not be deleted.
 
-| Replace footprints with those specified in the schematic
-| If checked, footprints in the PCB will be replaced with the footprint that is
-specified in the corresponding schematic symbol.
-
-If unchecked, footprints that are already in the PCB will not be changed, even
-if the schematic symbol is updated to specify a different footprint.
-
-| Delete/replace footprints even if locked
+| Override locks
 | If checked, locking a footprint will not affect whether a footprint is deleted
 or replaced based on changes in the schematic.
 
 If unchecked, locked footprints will never be deleted or replaced even if they
 otherwise would be.
+
+| Update footprint fields from symbols
+| If checked, new and updated fields in symbols will be transferred to the
+corresponding footprints, keeping symbol and footprint fields in sync.
+
+If unchecked, footprint fields will not be updated when fields change in the
+corresponding symbols.
+
+| Remove footprint fields not found in symbols
+| If checked, footprint fields will be removed if they do not exist in the corresponding symbol.
+
+If unchecked, footprint fields that do not exist in the corresponding symbol
+will not be removed, allowing footprints to have additional fields compared to
+the corresponding symbols.
+
 |===
+
+[[re-linking]]
+==== Re-linking symbols and footprints
+
+Symbols and footprints are linked together using unique identifiers (also
+called UUIDs). These are handled automatically within KiCad and are not usually
+visible to users. They allow a symbol and its partner footprint to keep their
+connection between schematic and PCB, even if the reference designator is
+changed. New objects get assigned their identifiers upon creation.
+
+===== Re-linking by unique identifier (default)
+
+In normal use, the **Re-link footprints to schematic symbols based on their
+reference designators** option should be unchecked. In this mode, symbols with
+the same identifier as a footprint will update that footprint, regardless of the
+reference designator. Symbols which have an identifier that doesn't match any
+footprint will add a new footprint linked to that identifier.
+
+For example, in the below schematic, both `R1` and `R2` are linked via their
+unique IDs to footprints on the PCB:
+
+image::images/Forward_annotation_linking_-_ID_link_before_update.png[alt="Forward annotation linking by unique identifier, before a change in reference designator",scaledwidth=70%]
+
+If symbol reference designators are changed in the schematic (e.g. by
+re-annotation), running the **Update PCB from Schematic** process will update
+the reference designators on the PCB.
+
+image::images/Forward_annotation_linking_-_ID_link_after_update.png[alt="Forward annotation linking by unique identifier, after a change in reference designator",scaledwidth=70%]
+
+===== Re-linking by reference designator
+
+If the checkbox is checked, the linking process is done using the reference
+designators. This can be useful for workflows that result in a symbol being
+deleted and replaced by another one, rather than being updated in-place. For
+example, cut-and-pasting a block of schematic or a sheet and copy-pasting and
+re-annotating will usually break the identifier-based links.
+
+For example in the below case, the resistors `R1` and `R2` have been
+deleted and replaced, then re-annotated. While the reference designators are
+the same, the internal identifiers have changed. Updating the PCB by identifier
+would cause the existing footprints to be deleted and new ones added - to KiCad,
+the existing footprints have no matching symbol. This would cause the footprints
+to lose their positions and need placing again.
+
+image::images/Forward_annotation_linking_-_RefDes_link_before_update.png[alt="Forward annotation linking by reference designator, after deleting and replacing symbols, but before updating the PCB",scaledwidth=70%]
+
+Re-linking the footprints by reference designator causes KiCad to re-create
+the links, using the matching reference designators as a guide.
+
+image::images/Forward_annotation_linking_-_RefDes_link_after_update.png[alt="Forward annotation linking by reference designator, after updating the PCB",scaledwidth=70%]
+
+Because the links have been re-established, the next forward annotation should
+use the normal identifier-based linking (i.e. the checkbox should be unchecked).
 
 [[backannotation]]
 === Update Schematic from PCB (back annotation)
@@ -132,15 +199,17 @@ If unchecked, symbol reference designators will not be updated.
 | If checked, symbol values will be updated to match the values of the linked
 footprints.
 
-| Values
+If unchecked, symbol values will not be updated.
+
+| Attributes
 | If checked, symbol attributes (like exclude from BOM and DNP) will be updated
 to match the corresponding attributes of the linked footprints.
 
-If unchecked, symbol values will not be updated.
+If unchecked, symbol attributes will not be updated.
 
 | Footprint assignments
 | If checked, footprint assignments will be updated for symbols which have had
-their footprints changed or replaced in the board. 
+their footprints changed or replaced in the board.
 
 If unchecked, symbol footprint assignments will not be updated.
 
@@ -149,12 +218,14 @@ If unchecked, symbol footprint assignments will not be updated.
 been made in the board. Net labels will be updated or added to the schematic as
 necessary to match the board.
 
+If unchecked, net names will not be updated in the schematic.
+
 | Other fields
 | If checked, other symbol fields will be updated to match the corresponding
 fields of the linked footprints. Reference designator, value, and footprint are
 each controlled by their own separate option.
 
-If unchecked, net names will not be updated in the schematic.
+If unchecked, other fields will not be updated in the schematic.
 |===
 
 NOTE: The xref:../pcbnew/pcbnew.adoc#geographical-re-annotation[Geographical Reannotation]

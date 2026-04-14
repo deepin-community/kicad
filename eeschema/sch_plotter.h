@@ -43,37 +43,11 @@ using KIGFX::RENDER_SETTINGS;
 class PDF_PLOTTER;
 class REPORTER;
 
-enum class HPGL_PLOT_ORIGIN_AND_UNITS
-{
-    PLOTTER_BOT_LEFT,
-    PLOTTER_CENTER,
-    USER_FIT_PAGE,
-    USER_FIT_CONTENT,
-};
-
-
 enum PageFormatReq
 {
     PAGE_SIZE_AUTO,
     PAGE_SIZE_A4,
     PAGE_SIZE_A
-};
-
-
-enum class HPGL_PAGE_SIZE
-{
-    DEFAULT = 0,
-    SIZE_A5,
-    SIZE_A4,
-    SIZE_A3,
-    SIZE_A2,
-    SIZE_A1,
-    SIZE_A0,
-    SIZE_A,
-    SIZE_B,
-    SIZE_C,
-    SIZE_D,
-    SIZE_E,
 };
 
 
@@ -83,11 +57,10 @@ struct SCH_PLOT_OPTS
     bool                  m_plotDrawingSheet;
     std::vector<wxString> m_plotPages;
 
+    bool           m_plotHopOver;
     bool           m_blackAndWhite;
     int            m_pageSizeSelect;
     bool           m_useBackgroundColor;
-    double         m_HPGLPenSize; // for HPGL format only: pen size
-    HPGL_PAGE_SIZE m_HPGLPaperSizeSelect;
     bool           m_PDFPropertyPopups;
     bool           m_PDFHierarchicalLinks;
     bool           m_PDFMetadata;
@@ -95,24 +68,25 @@ struct SCH_PLOT_OPTS
 
     wxString       m_outputDirectory;
     wxString       m_outputFile;
+    wxString       m_variant;
 
-    HPGL_PLOT_ORIGIN_AND_UNITS m_HPGLPlotOrigin;
+    // has meaning only with DXF plotter: set DXF units in DXF file
+    DXF_UNITS      m_DXF_File_Unit;
 
     SCH_PLOT_OPTS() :
         m_plotAll( true ),
         m_plotDrawingSheet( true ),
+        m_plotHopOver( false ),
         m_blackAndWhite( false ),
         m_pageSizeSelect( 0 ),
         m_useBackgroundColor( true ),
-        m_HPGLPenSize( 1.0 ),
-        m_HPGLPaperSizeSelect( HPGL_PAGE_SIZE::DEFAULT ),
         m_PDFPropertyPopups( false ),
         m_PDFHierarchicalLinks( false ),
         m_PDFMetadata( false ),
         m_theme(),
         m_outputDirectory(),
         m_outputFile(),
-        m_HPGLPlotOrigin( HPGL_PLOT_ORIGIN_AND_UNITS::USER_FIT_CONTENT )
+        m_DXF_File_Unit( DXF_UNITS::INCH )
     {
 
     }
@@ -172,14 +146,6 @@ protected:
                           RENDER_SETTINGS* aRenderSettings, const VECTOR2I& aPlotOffset,
                           double aScale, const SCH_PLOT_OPTS& aPlotOpts );
 
-
-    // HPGL
-    void createHPGLFiles( const SCH_PLOT_OPTS& aPlotOpts, SCH_RENDER_SETTINGS* aRenderSettings,
-                          REPORTER* aReporter );
-    bool plotOneSheetHpgl( const wxString& aFileName, SCH_SCREEN* aScreen,
-                           const PAGE_INFO& aPageInfo, RENDER_SETTINGS* aRenderSettings,
-                           const VECTOR2I& aPlot0ffset, double aScale,
-                           const SCH_PLOT_OPTS& aPlotOpts );
 
     // PS
     void createPSFiles( const SCH_PLOT_OPTS& aPlotOpts, SCH_RENDER_SETTINGS* aRenderSettings,

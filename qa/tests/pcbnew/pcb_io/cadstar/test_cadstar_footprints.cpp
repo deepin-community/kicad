@@ -40,7 +40,7 @@ struct CADSTAR_IMPORT_FIXTURE
     CADSTAR_IMPORT_FIXTURE() {}
 
     PCB_IO_CADSTAR_ARCHIVE cstarPlugin;
-    PCB_IO_KICAD_SEXPR             kicadPlugin;
+    PCB_IO_KICAD_SEXPR     kicadPlugin;
 };
 
 
@@ -68,8 +68,10 @@ BOOST_AUTO_TEST_CASE( CadstarFootprintImport )
         wxArrayString cstarFootprintNames;
         wxArrayString kicadFootprintNames;
 
-        cstarPlugin.FootprintEnumerate( cstarFootprintNames, cstarLibraryPath, true, nullptr );
-        kicadPlugin.FootprintEnumerate( kicadFootprintNames, kicadLibraryPath, true, nullptr );
+        BOOST_REQUIRE_NO_THROW(
+            cstarPlugin.FootprintEnumerate( cstarFootprintNames, cstarLibraryPath, true, nullptr ) );
+        BOOST_REQUIRE_NO_THROW(
+            kicadPlugin.FootprintEnumerate( kicadFootprintNames, kicadLibraryPath, true, nullptr ) );
 
         BOOST_CHECK_EQUAL( cstarFootprintNames.GetCount(), kicadFootprintNames.GetCount() );
 
@@ -77,7 +79,8 @@ BOOST_AUTO_TEST_CASE( CadstarFootprintImport )
         {
             wxString footprintName = cstarFootprintNames[i];
 
-            BOOST_TEST_CONTEXT( wxString::Format( wxT( "Import '%s' from '%s'" ), footprintName,
+            BOOST_TEST_CONTEXT( wxString::Format( wxT( "Import '%s' from '%s'" ),
+                                                  footprintName,
                                                   libName.first ) )
             {
                 FOOTPRINT* eagleFp = cstarPlugin.FootprintLoad( cstarLibraryPath, footprintName,
@@ -87,8 +90,8 @@ BOOST_AUTO_TEST_CASE( CadstarFootprintImport )
                 BOOST_CHECK_EQUAL( "REF**", eagleFp->GetReference() );
                 BOOST_CHECK_EQUAL( footprintName, eagleFp->GetValue() );
 
-                FOOTPRINT* kicadFp =
-                        kicadPlugin.FootprintLoad( kicadLibraryPath, footprintName, true, nullptr );
+                FOOTPRINT* kicadFp = kicadPlugin.FootprintLoad( kicadLibraryPath, footprintName,
+                                                                true, nullptr );
                 BOOST_CHECK( kicadFp );
 
                 KI_TEST::CheckFootprint( kicadFp, eagleFp );

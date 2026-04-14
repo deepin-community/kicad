@@ -37,6 +37,14 @@ void FormatBool( OUTPUTFORMATTER* aOut, const wxString& aKey, bool aValue )
     aOut->Print( "(%ls %s)", aKey.wc_str(), aValue ? "yes" : "no" );
 }
 
+void FormatOptBool( OUTPUTFORMATTER* aOut, const wxString& aKey, std::optional<bool> aValue )
+{
+    if( aValue.has_value() )
+        FormatBool( aOut, aKey, aValue.value() );
+    else
+        aOut->Print( "(%ls none)", aKey.wc_str() );
+}
+
 
 void FormatUuid( OUTPUTFORMATTER* aOut, const KIID& aUuid )
 {
@@ -86,7 +94,7 @@ void FormatStreamData( OUTPUTFORMATTER& aOut, const wxStreamBuffer& aStream )
  *  )
  * )
  */
-void Prettify( std::string& aSource, bool aCompactSave )
+void Prettify( std::string& aSource, FORMAT_MODE aMode )
 {
     // Configuration
     const char quoteChar = '"';
@@ -102,6 +110,9 @@ void Prettify( std::string& aSource, bool aCompactSave )
     // which contain potentially long sets of string tokens within a single list.
     const int  consecutiveTokenWrapThreshold = 72;
 
+    const bool textSpecialCase = aMode == FORMAT_MODE::COMPACT_TEXT_PROPERTIES;
+    const bool libSpecialCase  = aMode == FORMAT_MODE::LIBRARY_TABLE;
+
     std::string formatted;
     formatted.reserve( aSource.length() );
 
@@ -109,12 +120,14 @@ void Prettify( std::string& aSource, bool aCompactSave )
     auto seek = cursor;
 
     int  listDepth = 0;
+    int  libDepth = 0;
     char lastNonWhitespace = 0;
     bool inQuote = false;
     bool hasInsertedSpace = false;
     bool inMultiLineList = false;
     bool inXY = false;
     bool inShortForm = false;
+    bool inLibRow = false;
     int  shortFormDepth = 0;
     int  column = 0;
     int  backslashCount = 0;    // Count of successive backslash read since any other char
@@ -164,8 +177,20 @@ void Prettify( std::string& aSource, bool aCompactSave )
                 while( ++seek != aSource.end() && isalpha( *seek ) )
                     token += *seek;
 
-                return token == "font" || token == "stroke" || token == "fill"
+                return token == "font" || token == "stroke" || token == "fill" || token == "teardrop"
                         || token == "offset" || token == "rotate" || token == "scale";
+            };
+
+    auto isLib =
+            [&]( std::string::iterator aIt )
+            {
+                seek = aIt;
+                std::string token;
+
+                while( ++seek != aSource.end() && isalpha( *seek ) )
+                    token += *seek;
+
+                return token == "lib";
             };
 
     while( cursor != aSource.end() )
@@ -187,7 +212,7 @@ void Prettify( std::string& aSource, bool aCompactSave )
                     formatted.push_back( ' ' );
                     column++;
                 }
-                else if( inShortForm )
+                else if( inShortForm || inLibRow )
                 {
                     formatted.push_back( ' ' );
                 }
@@ -209,7 +234,8 @@ void Prettify( std::string& aSource, bool aCompactSave )
             if( *cursor == '(' && !inQuote )
             {
                 bool currentIsXY = isXY( cursor );
-                bool currentIsShortForm = aCompactSave && isShortForm( cursor );
+                bool currentIsShortForm = textSpecialCase && isShortForm( cursor );
+                bool currentIsLib = libSpecialCase && isLib( cursor );
 
                 if( formatted.empty() )
                 {
@@ -222,7 +248,7 @@ void Prettify( std::string& aSource, bool aCompactSave )
                     formatted += " (";
                     column += 2;
                 }
-                else if( inShortForm )
+                else if( inShortForm || inLibRow )
                 {
                     formatted += " (";
                     column += 2;
@@ -241,6 +267,11 @@ void Prettify( std::string& aSource, bool aCompactSave )
                     inShortForm = true;
                     shortFormDepth = listDepth;
                 }
+                else if( currentIsLib )
+                {
+                    inLibRow = true;
+                    libDepth = listDepth;
+                }
 
                 listDepth++;
             }
@@ -253,6 +284,11 @@ void Prettify( std::string& aSource, bool aCompactSave )
                 {
                     formatted.push_back( ')' );
                     column++;
+                }
+                else if( inLibRow && listDepth == libDepth )
+                {
+                    formatted.push_back( ')' );
+                    inLibRow = false;
                 }
                 else if( lastNonWhitespace == ')' || inMultiLineList )
                 {

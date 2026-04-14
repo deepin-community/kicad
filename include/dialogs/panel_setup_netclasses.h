@@ -48,6 +48,8 @@ public:
 
     void ImportSettingsFrom( const std::shared_ptr<NET_SETTINGS>& aNetSettings );
 
+    void UpdateDelayProfileNames( const std::vector<wxString>& aNames ) const;
+
 private:
     void OnAddNetclassClick( wxCommandEvent& event ) override;
     void OnRemoveNetclassClick( wxCommandEvent& event ) override;
@@ -66,6 +68,7 @@ private:
     void onUnitsChanged( wxCommandEvent& aEvent );
 
     bool validateNetclassName( int aRow, const wxString& aName, bool focusFirst = true );
+    bool validateNetclassClearance( int aRow );
 
     void rebuildNetclassDropdowns();
 

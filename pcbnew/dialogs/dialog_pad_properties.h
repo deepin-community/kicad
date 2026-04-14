@@ -28,9 +28,10 @@
 #define _DIALOG_PAD_PROPERTIES_H_
 
 #include <pcb_base_frame.h>
+
 #include <wx/valnum.h>
+
 #include <board.h>
-#include <footprint.h>
 #include <padstack.h>
 #include <pcb_shape.h>
 #include <origin_viewitem.h>
@@ -38,6 +39,9 @@
 #include <widgets/text_ctrl_eval.h>
 #include <pcb_draw_panel_gal.h>
 #include <widgets/unit_binder.h>
+#include <widgets/margin_offset_binder.h>
+
+class PAD;
 
 /**
  * DIALOG_PAD_PROPERTIES, derived from DIALOG_PAD_PROPERTIES_BASE,
@@ -83,11 +87,16 @@ private:
 
     void OnUpdateUINonCopperWarning( wxUpdateUIEvent& event ) override;
 
+    void onBackDrillChoice( wxCommandEvent& event ) override;
+    void onTopPostMachining( wxCommandEvent& event ) override;
+    void onBottomPostMachining( wxCommandEvent& event ) override;
+
     void OnPadShapeSelection( wxCommandEvent& event ) override;
     void OnDrillShapeSelected( wxCommandEvent& event ) override;
-	void onChangePadMode( wxCommandEvent& event ) override;
+	void onChangePadDrawMode( wxCommandEvent& event ) override;
 	void OnOffsetCheckbox( wxCommandEvent& event ) override;
 	void OnPadToDieCheckbox( wxCommandEvent& event ) override;
+    void OnPadToDieDelayCheckbox( wxCommandEvent& event ) override;
 
     void PadOrientEvent( wxCommandEvent& event ) override;
     void PadTypeSelected( wxCommandEvent& event ) override;
@@ -124,6 +133,16 @@ private:
     void onModify( wxCommandEvent& aEvent ) override;
     void onModify( wxSpinDoubleEvent& aEvent ) override;
 
+    // Return the largest chamfer ratio allowed by the current pad shape
+    double getMaxChamferRatio() const;
+
+    // Return the largest corner radius allowed by the current pad shape
+    double getMaxCornerRadius() const;
+
+    void updateAllowedPadChamferCorners();
+
+    void onPadShapeSelection( bool aUpdateSpokeAngle );
+
 private:
     PCB_BASE_FRAME* m_parent;
     PAD*            m_currentPad;       // pad currently being edited
@@ -155,6 +174,7 @@ private:
     UNIT_BINDER m_sizeX, m_sizeY;
     UNIT_BINDER m_offsetX, m_offsetY;
     UNIT_BINDER m_padToDie;
+    UNIT_BINDER m_padToDieDelay;
     UNIT_BINDER m_trapDelta;
     UNIT_BINDER m_cornerRadius;
     UNIT_BINDER m_cornerRatio;
@@ -164,14 +184,21 @@ private:
     UNIT_BINDER m_holeX, m_holeY;
     UNIT_BINDER m_clearance;
     UNIT_BINDER m_maskMargin;
-    UNIT_BINDER m_pasteMargin;
-    UNIT_BINDER m_pasteMarginRatio;
+    MARGIN_OFFSET_BINDER m_pasteMargin;
     UNIT_BINDER m_thermalGap;
     UNIT_BINDER m_spokeWidth;
     UNIT_BINDER m_spokeAngle;
     UNIT_BINDER m_pad_orientation;
     UNIT_BINDER m_teardropMaxLenSetting;
     UNIT_BINDER m_teardropMaxHeightSetting;
+
+    UNIT_BINDER m_topPostMachineSize1Binder;
+    UNIT_BINDER m_topPostMachineSize2Binder;
+    UNIT_BINDER m_bottomPostMachineSize1Binder;
+    UNIT_BINDER m_bottomPostMachineSize2Binder;
+
+    UNIT_BINDER m_backDrillTopSizeBinder;
+    UNIT_BINDER m_backDrillBottomSizeBinder;
 };
 
 

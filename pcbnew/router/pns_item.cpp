@@ -27,23 +27,12 @@
 #include <geometry/shape_compound.h>
 #include <geometry/shape_poly_set.h>
 
+#include <board_item.h>
+
+
 typedef VECTOR2I::extended_type ecoord;
 
 namespace PNS {
-
-static void dumpObstacles( const PNS::NODE::OBSTACLES &obstacles )
-{
-    printf( "&&&& %zu obstacles: \n", obstacles.size() );
-
-    for( const auto& obs : obstacles )
-    {
-        printf( "%p [%s] - %p [%s], clearance %d\n",
-                obs.m_head, obs.m_head->KindStr().c_str(),
-                obs.m_item, obs.m_item->KindStr().c_str(),
-                obs.m_clearance );
-    }
-}
-
 
 // prune self-collisions, i.e. a via/pad annular ring with its own hole
 static bool shouldWeConsiderHoleCollisions( const ITEM* aItem, const ITEM* aHead )
@@ -152,9 +141,11 @@ bool ITEM::collideSimple( const ITEM* aHead, const NODE* aNode, int aLayer,
     // And a special case for the "head" via's hole.
     if( aHead->HasHole() && shouldWeConsiderHoleCollisions( this, holeH ) )
     {
-        if( Net() != holeH->Net() && collideSimple( holeH, aNode, aLayer, aCtx ) )
-            collisionsFound = true;
+        // Skip net check when doing hole-to-hole collisions.
+        if( Kind() == HOLE_T || Net() != holeH->Net() )
+            collisionsFound |= collideSimple( holeH, aNode, aLayer, aCtx );
     }
+
     if( HasHole() && shouldWeConsiderHoleCollisions( holeI, aHead ) )
     {
         collisionsFound |= holeI->collideSimple( aHead, aNode, aLayer, aCtx );

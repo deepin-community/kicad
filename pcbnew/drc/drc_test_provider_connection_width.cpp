@@ -32,7 +32,6 @@
 #include <board.h>
 #include <board_connected_item.h>
 #include <board_design_settings.h>
-#include <drc/drc_rule.h>
 #include <drc/drc_item.h>
 #include <drc/drc_test_provider.h>
 #include <drc/drc_rtree.h>
@@ -49,6 +48,7 @@
 #include <pcb_track.h>
 #include <pad.h>
 #include <zone.h>
+#include <advanced_config.h>
 
 /*
     Checks for copper connections that are less than the specified minimum width
@@ -88,24 +88,13 @@ class DRC_TEST_PROVIDER_CONNECTION_WIDTH : public DRC_TEST_PROVIDER
 {
 public:
     DRC_TEST_PROVIDER_CONNECTION_WIDTH()
-    {
-    }
+    {}
 
-    virtual ~DRC_TEST_PROVIDER_CONNECTION_WIDTH()
-    {
-    }
+    virtual ~DRC_TEST_PROVIDER_CONNECTION_WIDTH() = default;
 
     virtual bool Run() override;
 
-    virtual const wxString GetName() const override
-    {
-        return wxT( "copper width" );
-    };
-
-    virtual const wxString GetDescription() const override
-    {
-        return wxT( "Checks copper nets for connections less than a specified minimum" );
-    }
+    virtual const wxString GetName() const override { return wxT( "copper width" ); };
 
 private:
     wxString layerDesc( PCB_LAYER_ID aLayer );
@@ -118,8 +107,7 @@ public:
     POLYGON_TEST( int aLimit ) :
         VERTEX_SET( 0 ),
         m_limit( aLimit )
-    {
-    };
+    {};
 
     bool FindPairs( const SHAPE_LINE_CHAIN& aPoly )
     {
@@ -162,7 +150,6 @@ public:
     {
         return m_hits;
     }
-
 
     /**
      * Checks to see if there is a "substantial" protrusion in each polygon produced by the cut from
@@ -244,7 +231,6 @@ public:
         return ( same_point( p, aA ) || ( x_change && y_change ) );
     }
 
-
     VERTEX* getKink( VERTEX* aPt ) const
     {
         // The point needs to be at a concave surface
@@ -312,17 +298,22 @@ wxString DRC_TEST_PROVIDER_CONNECTION_WIDTH::layerDesc( PCB_LAYER_ID aLayer )
 bool DRC_TEST_PROVIDER_CONNECTION_WIDTH::Run()
 {
     if( m_drcEngine->IsErrorLimitExceeded( DRCE_CONNECTION_WIDTH ) )
+    {
+        REPORT_AUX( wxT( "Connection width violations ignored. Tests not run." ) );
         return true;    // Continue with other tests
+    }
 
     if( !reportPhase( _( "Checking nets for minimum connection width..." ) ) )
         return false;   // DRC cancelled
 
-    LSET   copperLayerSet = m_drcEngine->GetBoard()->GetEnabledLayers() & LSET::AllCuMask();
-    LSEQ   copperLayers = copperLayerSet.Seq();
     BOARD* board = m_drcEngine->GetBoard();
     int    epsilon = board->GetDesignSettings().GetDRCEpsilon();
 
-    // A neck in a zone fill will be DRCEpsilon smaller on *each* side
+    // Zone knockouts can be approximated, and always have extra clearance built in
+    epsilon += board->GetDesignSettings().m_MaxError + pcbIUScale.mmToIU( ADVANCED_CFG::GetCfg().m_ExtraClearance );
+
+    // A neck in a zone fill can be between two knockouts. In this case it will be epsilon smaller
+    // on -each- side.
     epsilon *= 2;
 
     /*
@@ -330,8 +321,7 @@ bool DRC_TEST_PROVIDER_CONNECTION_WIDTH::Run()
      * each distinct minWidth, and then decide if any copper which failed that minWidth actually
      * was required to abide by it or not.
      */
-    std::set<int> distinctMinWidths
-                        = m_drcEngine->QueryDistinctConstraints( CONNECTION_WIDTH_CONSTRAINT );
+    std::set<int> distinctMinWidths = m_drcEngine->QueryDistinctConstraints( CONNECTION_WIDTH_CONSTRAINT );
 
     if( m_drcEngine->IsCancelled() )
         return false;   // DRC cancelled
@@ -379,10 +369,7 @@ bool DRC_TEST_PROVIDER_CONNECTION_WIDTH::Run()
                 ITEMS_POLY& itemsPoly = dataset[ { aNetcode, aLayer } ];
 
                 for( BOARD_ITEM* item : itemsPoly.Items )
-                {
-                    item->TransformShapeToPolygon( itemsPoly.Poly, aLayer, 0, ARC_HIGH_DEF,
-                                                   ERROR_OUTSIDE );
-                }
+                    item->TransformShapeToPolygon( itemsPoly.Poly, aLayer, 0, ARC_HIGH_DEF, ERROR_OUTSIDE );
 
                 itemsPoly.Poly.Fracture();
 
@@ -429,9 +416,8 @@ bool DRC_TEST_PROVIDER_CONNECTION_WIDTH::Run()
 
                         std::vector<BOARD_ITEM*> contributingItems;
 
-                        for( auto* item : board->m_CopperItemRTreeCache->GetObjectsAt( location,
-                                                                                       aLayer,
-                                                                                       aMinWidth ) )
+                        for( BOARD_ITEM* item : board->m_CopperItemRTreeCache->GetObjectsAt( location, aLayer,
+                                                                                             aMinWidth ) )
                         {
                             if( item->HitTest( location, aMinWidth ) )
                                 contributingItems.push_back( item );
@@ -445,9 +431,7 @@ bool DRC_TEST_PROVIDER_CONNECTION_WIDTH::Run()
                             auto obj_list = rtree->GetObjectsAt( location, aLayer, aMinWidth );
 
                             if( !obj_list.empty() && zone->HitTestFilledArea( aLayer, location, aMinWidth ) )
-                            {
                                 contributingItems.push_back( zone );
-                            }
                         }
 
                         if( !contributingItems.empty() )
@@ -460,7 +444,7 @@ bool DRC_TEST_PROVIDER_CONNECTION_WIDTH::Run()
 
                             if( c.Value().Min() == aMinWidth )
                             {
-                                auto     drce = DRC_ITEM::Create( DRCE_CONNECTION_WIDTH );
+                                std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_CONNECTION_WIDTH );
                                 wxString msg;
 
                                 msg = formatMsg( _( "(%s minimum connection width %s; actual %s)" ),
@@ -470,13 +454,13 @@ bool DRC_TEST_PROVIDER_CONNECTION_WIDTH::Run()
 
                                 msg += wxS( " " ) + layerDesc( aLayer );
 
-                                drce->SetErrorMessage( drce->GetErrorText() + wxS( " " ) + msg );
-                                drce->SetViolatingRule( c.GetParentRule() );
+                                drcItem->SetErrorDetail( msg );
+                                drcItem->SetViolatingRule( c.GetParentRule() );
 
                                 for( BOARD_ITEM* item : contributingItems )
-                                    drce->AddItem( item );
+                                    drcItem->AddItem( item );
 
-                                reportViolation( drce, location, aLayer );
+                                reportTwoPointGeometry( drcItem, location, span.A, span.B, aLayer );
                             }
                         }
                     }
@@ -487,7 +471,7 @@ bool DRC_TEST_PROVIDER_CONNECTION_WIDTH::Run()
                 return 1;
             };
 
-    for( PCB_LAYER_ID layer : copperLayers )
+    for( PCB_LAYER_ID layer : LSET::AllCuMask( board->GetCopperLayerCount() ) )
     {
         for( ZONE* zone : board->m_DRCCopperZones )
         {
@@ -521,7 +505,6 @@ bool DRC_TEST_PROVIDER_CONNECTION_WIDTH::Run()
     }
 
     thread_pool&                     tp = GetKiCadThreadPool();
-    std::vector<std::future<size_t>> returns;
     size_t                           total_effort = 0;
 
     for( const auto& [ netLayer, itemsPoly ] : dataset )
@@ -529,14 +512,21 @@ bool DRC_TEST_PROVIDER_CONNECTION_WIDTH::Run()
 
     total_effort += std::max( (size_t) 1, total_effort ) * distinctMinWidths.size();
 
+    std::vector<std::future<size_t>> returns;
     returns.reserve( dataset.size() );
 
     for( const auto& [ netLayer, itemsPoly ] : dataset )
     {
-        returns.emplace_back( tp.submit( build_netlayer_polys, netLayer.Netcode, netLayer.Layer ) );
+        int netcode = netLayer.Netcode;
+        PCB_LAYER_ID layer = netLayer.Layer;
+        returns.emplace_back( tp.submit_task(
+                [&, netcode, layer]()
+                {
+                    return build_netlayer_polys( netcode, layer );
+                } ) );
     }
 
-    for( std::future<size_t>& ret : returns )
+    for( auto& ret : returns )
     {
         std::future_status status = ret.wait_for( std::chrono::milliseconds( 250 ) );
 
@@ -557,11 +547,15 @@ bool DRC_TEST_PROVIDER_CONNECTION_WIDTH::Run()
             if( minWidth - epsilon <= 0 )
                 continue;
 
-            returns.emplace_back( tp.submit( min_checker, itemsPoly, netLayer.Layer, minWidth ) );
+            returns.emplace_back( tp.submit_task(
+                    [min_checker, &itemsPoly, &netLayer, minWidth]()
+                    {
+                        return min_checker( itemsPoly, netLayer.Layer, minWidth );
+                    } ) );
         }
     }
 
-    for( std::future<size_t>& ret : returns )
+    for( auto& ret : returns )
     {
         std::future_status status = ret.wait_for( std::chrono::milliseconds( 250 ) );
 

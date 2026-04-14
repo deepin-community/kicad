@@ -32,7 +32,6 @@
 #include <sch_validators.h>
 #include <validators.h>
 #include <sch_edit_frame.h>
-#include <symbol_library.h>
 #include <schematic.h>
 #include <template_fieldnames.h>
 #include <widgets/grid_text_button_helpers.h>
@@ -63,8 +62,6 @@ enum
 
 static wxString netList( SCH_SYMBOL* aSymbol, SCH_SHEET_PATH& aSheetPath )
 {
-    wxCHECK( aSymbol && aSymbol->GetLibSymbolRef(), wxEmptyString );
-
     /*
      * Symbol netlist format:
      *   pinNumber pinName <tab> pinNumber pinName...
@@ -81,19 +78,39 @@ static wxString netList( SCH_SYMBOL* aSymbol, SCH_SHEET_PATH& aSheetPath )
 
     if( lib_symbol )
     {
-        for( SCH_PIN* pin : lib_symbol->GetPins( 0 /* all units */, 1 /* single bodyStyle */ ) )
-            pins.push_back( pin->GetNumber() + ' ' + pin->GetShownName() );
+        for( SCH_PIN* pin : lib_symbol->GetGraphicalPins( 0 /* all units */, 1 /* single bodyStyle */ ) )
+        {
+            bool                  valid = false;
+            std::vector<wxString> expanded = pin->GetStackedPinNumbers( &valid );
+
+            if( valid && !expanded.empty() )
+            {
+                for( const wxString& num : expanded )
+                    pins.push_back( num + ' ' + pin->GetShownName() );
+            }
+            else
+            {
+                pins.push_back( pin->GetNumber() + ' ' + pin->GetShownName() );
+            }
+        }
     }
 
     if( !pins.IsEmpty() )
-        netlist << EscapeString( wxJoin( pins, '\t' ), CTX_LINE );
+    {
+        wxString dbg = wxJoin( pins, '\t' );
+        wxLogTrace( "FOOTPRINT_CHOOSER", wxS( "Chooser payload pins: %s" ), dbg );
+        netlist << EscapeString( dbg, CTX_LINE );
+    }
 
     netlist << wxS( "\r" );
 
-    wxArrayString fpFilters = aSymbol->GetLibSymbolRef()->GetFPFilters();
+    if( lib_symbol )
+    {
+        wxArrayString fpFilters = lib_symbol->GetFPFilters();
 
-    if( !fpFilters.IsEmpty() )
-        netlist << EscapeString( wxJoin( fpFilters, ' ' ), CTX_LINE );
+        if( !fpFilters.IsEmpty() )
+            netlist << EscapeString( wxJoin( fpFilters, ' ' ), CTX_LINE );
+    }
 
     netlist << wxS( "\r" );
 
@@ -111,11 +128,28 @@ static wxString netList( LIB_SYMBOL* aSymbol )
     wxString      netlist;
     wxArrayString pins;
 
-    for( SCH_PIN* pin : aSymbol->GetPins( 0 /* all units */, 1 /* single bodyStyle */ ) )
-        pins.push_back( pin->GetNumber() + ' ' + pin->GetShownName() );
+    for( SCH_PIN* pin : aSymbol->GetGraphicalPins( 0 /* all units */, 1 /* single bodyStyle */ ) )
+    {
+        bool valid = false;
+        std::vector<wxString> expanded = pin->GetStackedPinNumbers( &valid );
+
+        if( valid && !expanded.empty() )
+        {
+            for( const wxString& num : expanded )
+                pins.push_back( num + ' ' + pin->GetShownName() );
+        }
+        else
+        {
+            pins.push_back( pin->GetNumber() + ' ' + pin->GetShownName() );
+        }
+    }
 
     if( !pins.IsEmpty() )
-        netlist << EscapeString( wxJoin( pins, '\t' ), CTX_LINE );
+    {
+        wxString dbg = wxJoin( pins, '\t' );
+        wxLogTrace( "FOOTPRINT_CHOOSER", wxS( "Chooser payload pins: %s" ), dbg );
+        netlist << EscapeString( dbg, CTX_LINE );
+    }
 
     netlist << wxS( "\r" );
 
@@ -138,12 +172,12 @@ FIELDS_GRID_TABLE::FIELDS_GRID_TABLE( DIALOG_SHIM* aDialog, SCH_BASE_FRAME* aFra
         m_part( aSymbol ),
         m_filesStack( aFilesStack ),
         m_symbolNetlist( netList( aSymbol ) ),
-        m_fieldNameValidator( FIELD_NAME ),
-        m_referenceValidator( REFERENCE_FIELD ),
-        m_valueValidator( VALUE_FIELD ),
-        m_urlValidator( FIELD_VALUE ),
-        m_nonUrlValidator( FIELD_VALUE ),
-        m_filepathValidator( SHEETFILENAME )
+        m_fieldNameValidator( FIELD_T::USER ),
+        m_referenceValidator( FIELD_T::REFERENCE ),
+        m_valueValidator( FIELD_T::VALUE ),
+        m_urlValidator( FIELD_T::USER ),
+        m_nonUrlValidator( FIELD_T::USER ),
+        m_filepathValidator( FIELD_T::SHEET_FILENAME )
 {
     initGrid( aGrid );
 }
@@ -156,12 +190,12 @@ FIELDS_GRID_TABLE::FIELDS_GRID_TABLE( DIALOG_SHIM* aDialog, SCH_EDIT_FRAME* aFra
         m_parentType( SCH_SYMBOL_T ),
         m_part( aSymbol->GetLibSymbolRef().get() ),
         m_symbolNetlist( netList( aSymbol, aFrame->GetCurrentSheet() ) ),
-        m_fieldNameValidator( FIELD_NAME ),
-        m_referenceValidator( REFERENCE_FIELD ),
-        m_valueValidator( VALUE_FIELD ),
-        m_urlValidator( FIELD_VALUE ),
-        m_nonUrlValidator( FIELD_VALUE ),
-        m_filepathValidator( SHEETFILENAME )
+        m_fieldNameValidator( FIELD_T::USER ),
+        m_referenceValidator( FIELD_T::REFERENCE ),
+        m_valueValidator( FIELD_T::VALUE ),
+        m_urlValidator( FIELD_T::USER ),
+        m_nonUrlValidator( FIELD_T::USER ),
+        m_filepathValidator( FIELD_T::SHEET_FILENAME )
 {
     m_filesStack.push_back( aSymbol->Schematic() );
 
@@ -178,12 +212,12 @@ FIELDS_GRID_TABLE::FIELDS_GRID_TABLE( DIALOG_SHIM* aDialog, SCH_EDIT_FRAME* aFra
         m_dialog( aDialog ),
         m_parentType( SCH_SHEET_T ),
         m_part( nullptr ),
-        m_fieldNameValidator( FIELD_NAME ),
-        m_referenceValidator( SHEETNAME_V ),
-        m_valueValidator( VALUE_FIELD ),
-        m_urlValidator( FIELD_VALUE ),
-        m_nonUrlValidator( FIELD_VALUE ),
-        m_filepathValidator( SHEETFILENAME_V )
+        m_fieldNameValidator( FIELD_T::USER ),
+        m_referenceValidator( FIELD_T::SHEET_NAME ),
+        m_valueValidator( FIELD_T::VALUE ),
+        m_urlValidator( FIELD_T::USER ),
+        m_nonUrlValidator( FIELD_T::USER ),
+        m_filepathValidator( FIELD_T::SHEET_FILENAME )
 {
     m_filesStack.push_back( aSheet->Schematic() );
 
@@ -197,12 +231,12 @@ FIELDS_GRID_TABLE::FIELDS_GRID_TABLE( DIALOG_SHIM* aDialog, SCH_EDIT_FRAME* aFra
         m_dialog( aDialog ),
         m_parentType( SCH_LABEL_LOCATE_ANY_T ),
         m_part( nullptr ),
-        m_fieldNameValidator( FIELD_NAME ),
-        m_referenceValidator( 0 ),
-        m_valueValidator( 0 ),
-        m_urlValidator( FIELD_VALUE ),
-        m_nonUrlValidator( FIELD_VALUE ),
-        m_filepathValidator( 0 )
+        m_fieldNameValidator( FIELD_T::USER ),
+        m_referenceValidator( FIELD_T::USER ),
+        m_valueValidator( FIELD_T::USER ),
+        m_urlValidator( FIELD_T::USER ),
+        m_nonUrlValidator( FIELD_T::USER ),
+        m_filepathValidator( FIELD_T::USER )
 {
     m_filesStack.push_back( aLabel->Schematic() );
 
@@ -221,6 +255,15 @@ int FIELDS_GRID_TABLE::GetMandatoryRowCount() const
     }
 
     return mandatoryRows;
+}
+
+
+void FIELDS_GRID_TABLE::push_back( const SCH_FIELD& aField )
+{
+    std::vector<SCH_FIELD>::push_back( aField );
+
+    m_isInherited.resize( size() );
+    m_parentFields.resize( size() );
 }
 
 
@@ -253,11 +296,11 @@ void FIELDS_GRID_TABLE::initGrid( WX_GRID* aGrid )
     }
     else
     {
-        GRID_CELL_STC_EDITOR* valueEditor = new GRID_CELL_STC_EDITOR( true,
+        GRID_CELL_STC_EDITOR* valueEditor = new GRID_CELL_STC_EDITOR( true, true,
                 [this]( wxStyledTextEvent& aEvent, SCINTILLA_TRICKS* aScintillaTricks )
                 {
-                    SCH_FIELD& valueField = static_cast<SCH_FIELD&>( this->at( VALUE_FIELD ) );
-                    valueField.OnScintillaCharAdded( aScintillaTricks, aEvent );
+                    SCH_FIELD* valueField = this->GetField( FIELD_T::VALUE );
+                    valueField->OnScintillaCharAdded( aScintillaTricks, aEvent );
                 } );
 
         m_valueAttr->SetEditor( valueEditor );
@@ -376,6 +419,8 @@ void FIELDS_GRID_TABLE::initGrid( WX_GRID* aGrid )
 
     m_eval = std::make_unique<NUMERIC_EVALUATOR>( m_frame->GetUserUnits() );
 
+    aGrid->SetupColumnAutosizer( FDC_VALUE );
+
     m_frame->Bind( EDA_EVT_UNITS_CHANGED, &FIELDS_GRID_TABLE::onUnitsChanged, this );
 }
 
@@ -397,6 +442,9 @@ FIELDS_GRID_TABLE::~FIELDS_GRID_TABLE()
     m_netclassAttr->DecRef();
     m_fontAttr->DecRef();
     m_colorAttr->DecRef();
+
+    for( SCH_FIELD& field : m_parentFields )
+        field.SetParent( nullptr );
 
     m_frame->Unbind( EDA_EVT_UNITS_CHANGED, &FIELDS_GRID_TABLE::onUnitsChanged, this );
 }
@@ -537,35 +585,36 @@ wxGridCellAttr* FIELDS_GRID_TABLE::GetAttr( int aRow, int aCol, wxGridCellAttr::
     wxCHECK( aRow < GetNumberRows(), nullptr );
 
     const SCH_FIELD& field = getField( aRow );
-    wxGridCellAttr*  tmp;
+    wxGridCellAttr*  attr = nullptr;
 
     switch( aCol )
     {
     case FDC_NAME:
         if( field.IsMandatory() )
         {
-            tmp = m_fieldNameAttr->Clone();
-            tmp->SetReadOnly( true );
-            return enhanceAttr( tmp, aRow, aCol, aKind );
+            attr = m_fieldNameAttr->Clone();
+            attr->SetReadOnly( true );
         }
         else
         {
             m_fieldNameAttr->IncRef();
-            return enhanceAttr( m_fieldNameAttr, aRow, aCol, aKind );
+            attr = m_fieldNameAttr;
         }
 
+        break;
+
     case FDC_VALUE:
-        if( m_parentType == SCH_SYMBOL_T && field.GetId() == REFERENCE_FIELD )
+        if( field.GetId() == FIELD_T::REFERENCE )
         {
             m_referenceAttr->IncRef();
-            return enhanceAttr( m_referenceAttr, aRow, aCol, aKind );
+            attr = m_referenceAttr;
         }
-        else if( m_parentType == SCH_SYMBOL_T && field.GetId() == VALUE_FIELD )
+        else if( field.GetId() == FIELD_T::VALUE )
         {
             m_valueAttr->IncRef();
-            return enhanceAttr( m_valueAttr, aRow, aCol, aKind );
+            attr = m_valueAttr;
         }
-        else if( m_parentType == SCH_SYMBOL_T && field.GetId() == FOOTPRINT_FIELD )
+        else if( field.GetId() == FIELD_T::FOOTPRINT )
         {
             // Power symbols have do not appear in the board, so don't allow
             // a footprint (m_part can be nullptr when loading a old schematic
@@ -573,34 +622,34 @@ wxGridCellAttr* FIELDS_GRID_TABLE::GetAttr( int aRow, int aCol, wxGridCellAttr::
             if( m_part && m_part->IsPower() )
             {
                 m_readOnlyAttr->IncRef();
-                return enhanceAttr( m_readOnlyAttr, aRow, aCol, aKind );
+                attr = m_readOnlyAttr;
             }
             else
             {
                 m_footprintAttr->IncRef();
-                return enhanceAttr( m_footprintAttr, aRow, aCol, aKind );
+                attr = m_footprintAttr;
             }
         }
-        else if( m_parentType == SCH_SYMBOL_T && field.GetId() == DATASHEET_FIELD )
+        else if( field.GetId() == FIELD_T::DATASHEET )
         {
             m_urlAttr->IncRef();
-            return enhanceAttr( m_urlAttr, aRow, aCol, aKind );
+            attr = m_urlAttr;
         }
-        else if( m_parentType == SCH_SHEET_T && field.GetId() == SHEETNAME )
+        else if( field.GetId() == FIELD_T::SHEET_NAME )
         {
             m_referenceAttr->IncRef();
-            return enhanceAttr( m_referenceAttr, aRow, aCol, aKind );
+            attr = m_referenceAttr;
         }
-        else if( m_parentType == SCH_SHEET_T && field.GetId() == SHEETFILENAME )
+        else if( field.GetId() == FIELD_T::SHEET_FILENAME )
         {
             m_filepathAttr->IncRef();
-            return enhanceAttr( m_filepathAttr, aRow, aCol, aKind );
+            attr = m_filepathAttr;
         }
         else if( ( m_parentType == SCH_LABEL_LOCATE_ANY_T )
                 && field.GetCanonicalName() == wxT( "Netclass" ) )
         {
             m_netclassAttr->IncRef();
-            return enhanceAttr( m_netclassAttr, aRow, aCol, aKind );
+            attr = m_netclassAttr;
         }
         else
         {
@@ -611,34 +660,39 @@ wxGridCellAttr* FIELDS_GRID_TABLE::GetAttr( int aRow, int aCol, wxGridCellAttr::
             const TEMPLATE_FIELDNAME* templateFn =
                     settings ? settings->m_TemplateFieldNames.GetFieldName( fn ) : nullptr;
 
-            if( ( templateFn && templateFn->m_URL ) || field.IsHypertext() )
+            if( ( templateFn && templateFn->m_URL ) || field.HasHypertext() )
             {
                 m_urlAttr->IncRef();
-                return enhanceAttr( m_urlAttr, aRow, aCol, aKind );
+                attr = m_urlAttr;
             }
             else
             {
                 m_nonUrlAttr->IncRef();
-                return enhanceAttr( m_nonUrlAttr, aRow, aCol, aKind );
+                attr = m_nonUrlAttr;
             }
         }
+
+        break;
 
     case FDC_TEXT_SIZE:
     case FDC_POSX:
     case FDC_POSY:
-        return enhanceAttr( nullptr, aRow, aCol, aKind );
+        break;
 
     case FDC_H_ALIGN:
         m_hAlignAttr->IncRef();
-        return enhanceAttr( m_hAlignAttr, aRow, aCol, aKind );
+        attr = m_hAlignAttr;
+        break;
 
     case FDC_V_ALIGN:
         m_vAlignAttr->IncRef();
-        return enhanceAttr( m_vAlignAttr, aRow, aCol, aKind );
+        attr = m_vAlignAttr;
+        break;
 
     case FDC_ORIENTATION:
         m_orientationAttr->IncRef();
-        return enhanceAttr( m_orientationAttr, aRow, aCol, aKind );
+        attr = m_orientationAttr;
+        break;
 
     case FDC_SHOWN:
     case FDC_SHOW_NAME:
@@ -647,20 +701,50 @@ wxGridCellAttr* FIELDS_GRID_TABLE::GetAttr( int aRow, int aCol, wxGridCellAttr::
     case FDC_ALLOW_AUTOPLACE:
     case FDC_PRIVATE:
         m_boolAttr->IncRef();
-        return enhanceAttr( m_boolAttr, aRow, aCol, aKind );
+        attr = m_boolAttr;
+        break;
 
     case FDC_FONT:
         m_fontAttr->IncRef();
-        return enhanceAttr( m_fontAttr, aRow, aCol, aKind );
+        attr = m_fontAttr;
+        break;
 
     case FDC_COLOR:
         m_colorAttr->IncRef();
-        return enhanceAttr( m_colorAttr, aRow, aCol, aKind );
+        attr = m_colorAttr;
+        break;
 
     default:
-        wxFAIL;
-        return enhanceAttr( nullptr, aRow, aCol, aKind );
+        attr = nullptr;
+        break;
     }
+
+    if( !attr )
+        return nullptr;
+
+    attr = enhanceAttr( attr, aRow, aCol, aKind );
+
+    if( IsInherited( aRow ) )
+    {
+        wxGridCellAttr* text_attr = attr ? attr->Clone() : new wxGridCellAttr;
+        wxFont font;
+
+        if( !text_attr->HasFont() )
+            font = wxSystemSettings::GetFont( wxSYS_DEFAULT_GUI_FONT );
+        else
+            font = text_attr->GetFont();
+
+        font.MakeItalic();
+        text_attr->SetFont( font );
+        text_attr->SetTextColour( wxSystemSettings::GetColour( wxSYS_COLOUR_GRAYTEXT ) );
+
+        if( attr )
+            attr->DecRef();
+
+        attr = text_attr;
+    }
+
+    return attr;
 }
 
 
@@ -685,28 +769,16 @@ wxString FIELDS_GRID_TABLE::GetValue( int aRow, int aCol )
     case FDC_NAME:
         // Use default field names for mandatory and system fields because they are translated
         // according to the current locale
-        if( m_parentType == SCH_SYMBOL_T || m_parentType == LIB_SYMBOL_T )
-        {
-            if( field.IsMandatory() )
-                return GetDefaultFieldName( aRow, DO_TRANSLATE );
-            else
-                return field.GetName( false );
-        }
-        else if( m_parentType == SCH_SHEET_T )
-        {
-            if( field.IsMandatory() )
-                return SCH_SHEET::GetDefaultFieldName( field.GetId(), DO_TRANSLATE );
-            else
-                return field.GetName( false );
-        }
-        else if( m_parentType == SCH_LABEL_LOCATE_ANY_T )
+        if( m_parentType == SCH_LABEL_LOCATE_ANY_T )
         {
             return SCH_LABEL_BASE::GetDefaultFieldName( field.GetCanonicalName(), false );
         }
         else
         {
-            wxFAIL_MSG( wxS( "Unhandled field owner type." ) );
-            return field.GetName( false );
+            if( field.IsMandatory() )
+                return GetDefaultFieldName( field.GetId(), DO_TRANSLATE );
+            else
+                return field.GetName( false );
         }
 
     case FDC_VALUE:
@@ -813,11 +885,11 @@ void FIELDS_GRID_TABLE::SetValue( int aRow, int aCol, const wxString &aValue )
     VECTOR2I   pos;
     wxString   value = aValue;
 
-    switch( aCol )
+    if( aCol != FDC_VALUE )
+        value.Trim( true ).Trim( false );
+
+    if( aCol == FDC_TEXT_SIZE || aCol == FDC_POSX || aCol == FDC_POSY )
     {
-    case FDC_TEXT_SIZE:
-    case FDC_POSX:
-    case FDC_POSY:
         m_eval->SetDefaultUnits( m_frame->GetUserUnits() );
 
         if( m_eval->Process( value ) )
@@ -825,11 +897,6 @@ void FIELDS_GRID_TABLE::SetValue( int aRow, int aCol, const wxString &aValue )
             m_evalOriginal[ { aRow, aCol } ] = value;
             value = m_eval->Result();
         }
-
-        break;
-
-    default:
-        break;
     }
 
     switch( aCol )
@@ -839,19 +906,17 @@ void FIELDS_GRID_TABLE::SetValue( int aRow, int aCol, const wxString &aValue )
         break;
 
     case FDC_VALUE:
-    {
-        if( m_parentType == SCH_SHEET_T && field.GetId() == SHEETFILENAME )
+        if( m_parentType == SCH_SHEET_T && field.GetId() == FIELD_T::SHEET_FILENAME )
         {
             value = EnsureFileExtension( value, FILEEXT::KiCadSchematicFileExtension );
         }
-        else if( m_parentType == LIB_SYMBOL_T && field.GetId() == VALUE_FIELD )
+        else if( m_parentType == LIB_SYMBOL_T && field.GetId() == FIELD_T::VALUE )
         {
             value = EscapeString( value, CTX_LIBID );
         }
 
         field.SetText( UnescapeString( value ) );
         break;
-    }
 
     case FDC_SHOWN:
         field.SetVisible( BoolFromString( value ) );
@@ -871,8 +936,6 @@ void FIELDS_GRID_TABLE::SetValue( int aRow, int aCol, const wxString &aValue )
             horizontalJustification = GR_TEXT_H_ALIGN_CENTER;
         else if( value == _( "Right" ) )
             horizontalJustification = GR_TEXT_H_ALIGN_RIGHT;
-        else
-            wxFAIL_MSG( wxT( "unknown horizontal alignment: " ) + value );
 
         // Note that we must set justifications before we can ask if they're flipped.  If the old
         // justification is center then it won't know (whereas if the new justification is center
@@ -895,8 +958,6 @@ void FIELDS_GRID_TABLE::SetValue( int aRow, int aCol, const wxString &aValue )
             verticalJustification = GR_TEXT_V_ALIGN_CENTER;
         else if( value == _( "Bottom" ) )
             verticalJustification = GR_TEXT_V_ALIGN_BOTTOM;
-        else
-            wxFAIL_MSG( wxT( "unknown vertical alignment: " ) + value);
 
         // Note that we must set justifications before we can ask if they're flipped.  If the old
         // justification is center then it won't know (whereas if the new justification is center
@@ -918,8 +979,7 @@ void FIELDS_GRID_TABLE::SetValue( int aRow, int aCol, const wxString &aValue )
         break;
 
     case FDC_TEXT_SIZE:
-        field.SetTextSize( VECTOR2I( m_frame->ValueFromString( value ),
-                                     m_frame->ValueFromString( value ) ) );
+        field.SetTextSize( VECTOR2I( m_frame->ValueFromString( value ), m_frame->ValueFromString( value ) ) );
         break;
 
     case FDC_ORIENTATION:
@@ -948,8 +1008,7 @@ void FIELDS_GRID_TABLE::SetValue( int aRow, int aCol, const wxString &aValue )
         if( value == DEFAULT_FONT_NAME )
             field.SetFont( nullptr );
         else if( value == KICAD_FONT_NAME )
-            field.SetFont( KIFONT::FONT::GetFont( wxEmptyString, field.IsBold(),
-                                                  field.IsItalic() ) );
+            field.SetFont( KIFONT::FONT::GetFont( wxEmptyString, field.IsBold(), field.IsItalic() ) );
         else
             field.SetFont( KIFONT::FONT::GetFont( aValue, field.IsBold(), field.IsItalic() ) );
 
@@ -1046,27 +1105,102 @@ bool FIELDS_GRID_TABLE::BoolFromString( const wxString& aValue ) const
 }
 
 
+SCH_FIELD* FIELDS_GRID_TABLE::GetField( FIELD_T aFieldId )
+{
+    for( SCH_FIELD& field : *this )
+    {
+        if( field.GetId() == aFieldId )
+            return &field;
+    }
+
+    return nullptr;
+}
+
+
+int FIELDS_GRID_TABLE::GetFieldRow( FIELD_T aFieldId )
+{
+    for( int ii = 0; ii < (int) this->size(); ++ii )
+    {
+        if( this->at( ii ).GetId() == aFieldId )
+            return ii;
+    }
+
+    return -1;
+}
+
+void FIELDS_GRID_TABLE::AddInheritedField( const SCH_FIELD& aParent )
+{
+    push_back( aParent );
+    back().SetParent( m_part );
+    m_isInherited.back() = true;
+    m_parentFields.back() = aParent;
+}
+
+bool FIELDS_GRID_TABLE::EraseRow( size_t aRow )
+{
+    if( m_isInherited.size() > aRow )
+    {
+        // You can't erase inherited fields, but you can reset them to the parent value.
+        if( m_isInherited[aRow] )
+        {
+            at( aRow ) = m_parentFields[aRow];
+            return false;
+        }
+
+        m_isInherited.erase( m_isInherited.begin() + aRow );
+    }
+
+    if( m_parentFields.size() > aRow )
+        m_parentFields.erase( m_parentFields.begin() + aRow );
+
+    std::vector<SCH_FIELD>::erase( begin() + aRow );
+    return true;
+}
+
+void FIELDS_GRID_TABLE::SwapRows( size_t a, size_t b )
+{
+    wxCHECK( a < this->size() && b < this->size(), /*void*/ );
+
+    std::swap( at( a ), at( b ) );
+
+    bool tmpInherited = m_isInherited[a];
+    m_isInherited[a] = m_isInherited[b];
+    m_isInherited[b] = tmpInherited;
+
+    std::swap( m_parentFields[a], m_parentFields[b] );
+}
+
+
 void FIELDS_GRID_TABLE::DetachFields()
 {
     for( SCH_FIELD& field : *this )
         field.SetParent( nullptr );
+
+    for( SCH_FIELD& field : m_parentFields )
+        field.SetParent( nullptr );
+}
+
+
+int FIELDS_GRID_TRICKS::getFieldRow( FIELD_T aFieldId )
+{
+    return static_cast<FIELDS_GRID_TABLE*>( m_grid->GetTable() )->GetFieldRow( aFieldId );
 }
 
 
 void FIELDS_GRID_TRICKS::showPopupMenu( wxMenu& menu, wxGridEvent& aEvent )
 {
-    if( m_grid->GetGridCursorRow() == FOOTPRINT_FIELD && m_grid->GetGridCursorCol() == FDC_VALUE
-        && !m_grid->IsReadOnly( FOOTPRINT_FIELD, FDC_VALUE ) )
+    if( m_grid->GetGridCursorRow() == getFieldRow( FIELD_T::FOOTPRINT )
+        && m_grid->GetGridCursorCol() == FDC_VALUE
+        && !m_grid->IsReadOnly( getFieldRow( FIELD_T::FOOTPRINT ), FDC_VALUE ) )
     {
-        menu.Append( MYID_SELECT_FOOTPRINT, _( "Select Footprint..." ),
-                     _( "Browse for footprint" ) );
+        menu.Append( MYID_SELECT_FOOTPRINT, _( "Select Footprint..." ), _( "Browse for footprint" ) );
         menu.AppendSeparator();
     }
-    else if( m_grid->GetGridCursorRow() == DATASHEET_FIELD
-           && m_grid->GetGridCursorCol() == FDC_VALUE )
+    else if( m_grid->GetGridCursorRow() == getFieldRow( FIELD_T::DATASHEET )
+           && m_grid->GetGridCursorCol() == FDC_VALUE
+           && !m_grid->IsReadOnly( getFieldRow( FIELD_T::DATASHEET ), FDC_VALUE ) )
     {
-        menu.Append( MYID_SHOW_DATASHEET, _( "Show Datasheet" ),
-                     _( "Show datasheet in browser" ) );
+        menu.Append( MYID_SHOW_DATASHEET, _( "Show Datasheet" ), _( "Show datasheet in browser" ) );
         menu.AppendSeparator();
     }
 
@@ -1079,19 +1213,19 @@ void FIELDS_GRID_TRICKS::doPopupSelection( wxCommandEvent& event )
     if( event.GetId() == MYID_SELECT_FOOTPRINT )
     {
         // pick a footprint using the footprint picker.
-        wxString fpid = m_grid->GetCellValue( FOOTPRINT_FIELD, FDC_VALUE );
+        wxString fpid = m_grid->GetCellValue( getFieldRow( FIELD_T::FOOTPRINT ), FDC_VALUE );
 
         if( KIWAY_PLAYER* frame = m_dlg->Kiway().Player( FRAME_FOOTPRINT_CHOOSER, true, m_dlg ) )
         {
             if( frame->ShowModal( &fpid, m_dlg ) )
-                m_grid->SetCellValue( FOOTPRINT_FIELD, FDC_VALUE, fpid );
+                m_grid->SetCellValue( getFieldRow( FIELD_T::FOOTPRINT ), FDC_VALUE, fpid );
 
             frame->Destroy();
         }
     }
     else if (event.GetId() == MYID_SHOW_DATASHEET )
     {
-        wxString datasheet_uri = m_grid->GetCellValue( DATASHEET_FIELD, FDC_VALUE );
+        wxString datasheet_uri = m_grid->GetCellValue( getFieldRow( FIELD_T::DATASHEET ), FDC_VALUE );
 
         GetAssociatedDocument( m_dlg, datasheet_uri, &m_dlg->Prj(), PROJECT_SCH::SchSearchS( &m_dlg->Prj() ),
                                m_filesStack );

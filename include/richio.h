@@ -40,34 +40,7 @@
 
 #include <ki_exception.h>
 #include <kicommon.h>
-
-/**
- * This is like sprintf() but the output is appended to a std::string instead of to a
- * character array.
- *
- * @param aResult is the string to append to, previous text is not clear()ed.
- * @param aFormat is a printf() style format string.
- * @return the count of bytes appended to the result string, no terminating nul is included.
- */
-KICOMMON_API int
-#if defined(__GNUG__)
-    __attribute__ ((format (printf, 2, 3)))
-#endif
-    StrPrintf( std::string* aResult, const char* aFormat, ... );
-
-
-/**
- * This is like sprintf() but the output is returned in a std::string instead of to a
- * character array.
- *
- * @param format is a printf() style format string.
- * @return std::string - the result of the sprintf().
- */
-KICOMMON_API std::string
-#if defined(__GNUG__)
-    __attribute__ ((format (printf, 1, 2)))
-#endif
-    StrPrintf( const char* format, ... );
+#include <io/kicad/kicad_io_utils.h>
 
 
 /**
@@ -82,7 +55,7 @@ KICOMMON_API std::string
 KICOMMON_API wxString SafeReadFile( const wxString& aFilePath, const wxString& aReadType );
 
 
-#define LINE_READER_LINE_DEFAULT_MAX        1000000
+#define LINE_READER_LINE_DEFAULT_MAX        16000000
 #define LINE_READER_LINE_INITIAL_SIZE       5000
 
 /**
@@ -474,6 +447,11 @@ public:
         return m_mystring;
     }
 
+    std::string& MutableString()
+    {
+        return m_mystring;
+    }
+
 protected:
     void write( const char* aOutBuf, int aCount ) override;
 
@@ -515,8 +493,9 @@ protected:
 class KICOMMON_API PRETTIFIED_FILE_OUTPUTFORMATTER : public OUTPUTFORMATTER
 {
 public:
-    PRETTIFIED_FILE_OUTPUTFORMATTER( const wxString& aFileName, const wxChar* aMode = wxT( "wt" ),
-                                     char aQuoteChar = '"' );
+    PRETTIFIED_FILE_OUTPUTFORMATTER( const wxString& aFileName,
+            KICAD_FORMAT::FORMAT_MODE aFormatMode = KICAD_FORMAT::FORMAT_MODE::NORMAL,
+            const wxChar* aMode = wxT( "wt" ), char aQuoteChar = '"' );
 
     ~PRETTIFIED_FILE_OUTPUTFORMATTER();
 
@@ -532,6 +511,7 @@ protected:
 private:
     FILE* m_fp;
     std::string m_buf;
+    KICAD_FORMAT::FORMAT_MODE m_mode;
 };
 
 

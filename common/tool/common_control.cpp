@@ -42,6 +42,10 @@
 #include <dialogs/dialog_configure_paths.h>
 #include <eda_doc.h>
 #include <wx/msgdlg.h>
+#include <executable_names.h>
+#include <gestfich.h>
+#include <tools/kicad_manager_actions.h>
+#include <confirm.h>
 
 #define URL_GET_INVOLVED wxS( "https://go.kicad.org/contribute/" )
 #define URL_DONATE wxS( "https://go.kicad.org/app-donate" )
@@ -137,8 +141,7 @@ int COMMON_CONTROL::ShowLibraryTable( const TOOL_EVENT& aEvent )
         try     // Kicad frame was not available, try to start it
         {
             if( KIFACE* kiface = m_frame->Kiway().KiFACE( KIWAY::FACE_SCH ) )
-                kiface->CreateKiWindow( m_frame, DIALOG_DESIGN_BLOCK_LIBRARY_TABLE,
-                                        &m_frame->Kiway() );
+                kiface->CreateKiWindow( m_frame, DIALOG_DESIGN_BLOCK_LIBRARY_TABLE, &m_frame->Kiway() );
         }
         catch( ... )
         {
@@ -188,6 +191,87 @@ int COMMON_CONTROL::ShowPlayer( const TOOL_EVENT& aEvent )
 }
 
 
+int COMMON_CONTROL::Quit( const TOOL_EVENT& aEvent )
+{
+    m_frame->CallAfter(
+            [this]()
+            {
+                m_frame->Kiway().OnKiCadExit();
+            } );
+
+    return 0;
+}
+
+
+class TERMINATE_HANDLER : public wxProcess
+{
+public:
+    TERMINATE_HANDLER( const wxString& appName )
+    { }
+
+    void OnTerminate( int pid, int status ) override
+    {
+        delete this;
+    }
+};
+
+
+int COMMON_CONTROL::Execute( const wxString& aExecutible, const wxString& aParam )
+{
+    TERMINATE_HANDLER* callback = new TERMINATE_HANDLER( aExecutible );
+
+    bool isKicadBinary = false;
+
+    if( aExecutible == GERBVIEW_EXE || aExecutible == BITMAPCONVERTER_EXE
+        || aExecutible == PCB_CALCULATOR_EXE || aExecutible == PL_EDITOR_EXE
+        || aExecutible == EESCHEMA_EXE || aExecutible == PCBNEW_EXE )
+    {
+        isKicadBinary = true;
+    }
+
+    long pid = ExecuteFile( aExecutible, aParam, callback, isKicadBinary );
+
+    if( pid > 0 )
+    {
+#ifdef __WXMAC__
+        wxString script;
+
+        script.Printf( wxS( "tell application \"System Events\" to tell application process \"%s\"\n"
+                            "   set frontmost to true\n"
+                            "end tell" ),
+                       aExecutible );
+
+        // This non-parameterized use of wxExecute is fine because script is not derived
+        // from user input.
+        wxExecute( wxString::Format( "osascript -e '%s'", script ) );
+#endif
+    }
+    else
+    {
+        delete callback;
+    }
+
+    return 0;
+}
+
+
+int COMMON_CONTROL::Execute( const TOOL_EVENT& aEvent )
+{
+    wxString execFile;
+    wxString param;
+
+    if( aEvent.IsAction( &ACTIONS::showCalculatorTools ) )
+        execFile = PCB_CALCULATOR_EXE;
+    else
+        wxFAIL_MSG( "Execute(): unexpected request" );
+
+    if( execFile.IsEmpty() )
+        return 0;
+
+    return Execute( execFile, param );
+}
+
+
 int COMMON_CONTROL::ShowProjectManager( const TOOL_EVENT& aEvent )
 {
     // Note: dynamic_cast doesn't work over the Kiway() on MacOS.  We have to use static_cast
@@ -195,13 +279,9 @@ int COMMON_CONTROL::ShowProjectManager( const TOOL_EVENT& aEvent )
     EDA_BASE_FRAME* top = static_cast<EDA_BASE_FRAME*>( m_frame->Kiway().GetTop() );
 
     if( top && top->GetFrameType() == KICAD_MAIN_FRAME_T )
-    {
         showFrame( top );
-    }
     else
-    {
-        wxMessageDialog( m_frame, _( "Can not switch to project manager in stand-alone mode." ) );
-    }
+        KICAD_MESSAGE_DIALOG( m_frame, _( "Can not switch to project manager in stand-alone mode." ) );
 
     return 0;
 }
@@ -245,8 +325,8 @@ int COMMON_CONTROL::ShowHelp( const TOOL_EVENT& aEvent )
             msg = wxString::Format( _( "Help file '%s' or\n'%s' could not be found.\n"
                                        "Do you want to access the KiCad online help?" ),
                                     names[0], names[1] );
-            wxMessageDialog dlg( nullptr, msg, _( "File Not Found" ),
-                                 wxYES_NO | wxNO_DEFAULT | wxCANCEL );
+            KICAD_MESSAGE_DIALOG dlg( nullptr, msg, _( "File Not Found" ),
+                                      wxYES_NO | wxNO_DEFAULT | wxCANCEL );
 
             if( dlg.ShowModal() != wxID_YES )
                 return -1;
@@ -265,8 +345,8 @@ int COMMON_CONTROL::ShowHelp( const TOOL_EVENT& aEvent )
             msg = wxString::Format( _( "Help file '%s' could not be found.\n"
                                        "Do you want to access the KiCad online help?" ),
                                     base_name );
-            wxMessageDialog dlg( nullptr, msg, _( "File Not Found" ),
-                                 wxYES_NO | wxNO_DEFAULT | wxCANCEL );
+            KICAD_MESSAGE_DIALOG dlg( nullptr, msg, _( "File Not Found" ),
+                                      wxYES_NO | wxNO_DEFAULT | wxCANCEL );
 
             if( dlg.ShowModal() != wxID_YES )
                 return -1;
@@ -347,6 +427,8 @@ int COMMON_CONTROL::ReportBug( const TOOL_EVENT& aEvent )
 
 void COMMON_CONTROL::setTransitions()
 {
+    Go( &COMMON_CONTROL::Quit,               ACTIONS::quit.MakeEvent() );
+
     Go( &COMMON_CONTROL::OpenPreferences,    ACTIONS::openPreferences.MakeEvent() );
     Go( &COMMON_CONTROL::ConfigurePaths,     ACTIONS::configurePaths.MakeEvent() );
     Go( &COMMON_CONTROL::ShowLibraryTable,   ACTIONS::showSymbolLibTable.MakeEvent() );
@@ -356,6 +438,7 @@ void COMMON_CONTROL::setTransitions()
     Go( &COMMON_CONTROL::ShowPlayer,         ACTIONS::showSymbolEditor.MakeEvent() );
     Go( &COMMON_CONTROL::ShowPlayer,         ACTIONS::showFootprintBrowser.MakeEvent() );
     Go( &COMMON_CONTROL::ShowPlayer,         ACTIONS::showFootprintEditor.MakeEvent() );
+    Go( &COMMON_CONTROL::Execute,            ACTIONS::showCalculatorTools.MakeEvent() );
     Go( &COMMON_CONTROL::ShowProjectManager, ACTIONS::showProjectManager.MakeEvent() );
 
     Go( &COMMON_CONTROL::ShowHelp,           ACTIONS::gettingStarted.MakeEvent() );

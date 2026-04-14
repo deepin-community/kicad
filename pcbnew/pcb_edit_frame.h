@@ -32,11 +32,13 @@ class PCB_SCREEN;
 class BOARD;
 class BOARD_COMMIT;
 class BOARD_ITEM_CONTAINER;
+class DESIGN_BLOCK;
 class DIALOG_BOOK_REPORTER;
 class FOOTPRINT;
 class PCB_TRACK;
 class PCB_VIA;
 class PAD;
+class PCB_SELECTION;
 class PCB_TARGET;
 class PCB_GROUP;
 class PCB_DIMENSION_BASE;
@@ -49,7 +51,6 @@ class GENERAL_COLLECTORS_GUIDE;
 class SELECTION;
 class PCB_MARKER;
 class BOARD_ITEM;
-class PCB_LAYER_BOX_SELECTOR;
 class NETLIST;
 class REPORTER;
 struct PARSE_ERROR;
@@ -59,6 +60,7 @@ class BOARD_NETLIST_UPDATER;
 class ACTION_MENU;
 class TOOL_ACTION;
 class DIALOG_BOARD_SETUP;
+class PCB_DESIGN_BLOCK_PANE;
 
 #ifdef KICAD_IPC_API
 class KICAD_API_SERVER;
@@ -132,7 +134,7 @@ public:
      */
     void ExecuteRemoteCommand( const char* cmdline ) override;
 
-    void KiwayMailIn( KIWAY_EXPRESS& aEvent ) override;
+    void KiwayMailIn( KIWAY_MAIL_EVENT& aEvent ) override;
 
     /**
      * Used to find items by selection synchronization spec string.
@@ -154,27 +156,35 @@ public:
      */
     void FindNext( bool reverse = false );
 
-    /**
-     * Open a dialog frame to create plot and drill files relative to the current board.
-     */
-    void ToPlotter( int aID );
-
-    // User interface update command event handlers.
-    void OnUpdateLayerSelectBox( wxUpdateUIEvent& aEvent );
-
     bool LayerManagerShown();
     bool PropertiesShown();
     bool NetInspectorShown();
 
     void OnUpdateSelectViaSize( wxUpdateUIEvent& aEvent );
     void OnUpdateSelectTrackWidth( wxUpdateUIEvent& aEvent );
-    void OnUpdateSelectAutoWidth( wxUpdateUIEvent& aEvent );
-
-    void RunEeschema();
 
     void UpdateTrackWidthSelectBox( wxChoice* aTrackWidthSelectBox, bool aShowNetclass,
                                     bool aShowEdit );
     void UpdateViaSizeSelectBox( wxChoice* aViaSizeSelectBox, bool aShowNetclass, bool aShowEdit );
+
+    /**
+     * Update the variant selection dropdown with the current board's variant names.
+     *
+     * If the currently selected variant is no longer available, the default (no variant)
+     * will be selected.
+     */
+    void UpdateVariantSelectionCtrl();
+
+    /**
+     * Set the current variant on the board and update the drawing sheet's cached
+     * variant name and description accordingly.
+     */
+    void SetCurrentVariant( const wxString& aVariantName );
+
+    /**
+     * Event handler for variant selection changes in the toolbar.
+     */
+    void onVariantSelected( wxCommandEvent& aEvent );
 
     /**
      * Return the angle used for rotate operations.
@@ -251,11 +261,7 @@ public:
     void Process_Special_Functions( wxCommandEvent& event );
     void Tracks_and_Vias_Size_Event( wxCommandEvent& event );
 
-    void ReCreateHToolbar() override;
-    void ReCreateAuxiliaryToolbar() override;
-    void ReCreateVToolbar() override;
-    void ReCreateOptToolbar() override;
-    void UpdateToolbarControlSizes() override;
+
 
     /**
      * Recreate the layer box by clearing the old list and building a new one from the new
@@ -314,7 +320,7 @@ public:
     ///< @copydoc EDA_DRAW_FRAME::UseGalCanvas()
     void ActivateGalCanvas() override;
 
-    void ShowBoardSetupDialog( const wxString& aInitialPage = wxEmptyString );
+    void ShowBoardSetupDialog( const wxString& aInitialPage = wxEmptyString, wxWindow* aParent = nullptr );
 
     void PrepareLayerIndicator( bool aForceRebuild = false );
 
@@ -323,6 +329,11 @@ public:
     void ToggleNetInspector();
 
     void ToggleSearch();
+
+    bool IsSearchPaneShown() { return m_auimgr.GetPane( SearchPaneName() ).IsShown(); }
+    void FocusSearch();
+
+    void ToggleLibraryTree() override;
 
     /**
      * Create an ASCII footprint position file.
@@ -333,6 +344,7 @@ public:
      * @param aNoTHItems true to include only footprints with no TH pads no matter
      *                   the footprint flag
      * @param aExcludeDNP true to exclude footprints flagged DNP
+     * @param aExcludeBOM true to exclude footprints flagged exclude from BOM
      * @param aTopSide true to list footprints on front (top) side.
      * @param aBottomSide true to list footprints on back (bottom) side, if \a aTopSide and
      *                    \a aTopSide are true, list footprints on both sides.
@@ -342,59 +354,14 @@ public:
      * @return the number of footprints found on aSide side or -1 if the file could not be created.
      */
     int DoGenFootprintsPositionFile( const wxString& aFullFileName, bool aUnitsMM, bool aOnlySMD,
-                                     bool aNoTHItems, bool aExcludeDNP, bool aTopSide, bool aBottomSide,
-                                     bool aFormatCSV, bool aUseAuxOrigin, bool aNegateBottomX );
-
-    /**
-     * Call #DoGenFootprintsReport to create a footprint report file
-     */
-    void GenFootprintsReport( wxCommandEvent& event );
-
-    /**
-     * Create and IPC2581 output file
-    */
-    void GenIPC2581File( wxCommandEvent& event );
-
-    /**
-     * Create and Generate ODB++ output files
-    */
-    void GenODBPPFiles( wxCommandEvent& event );
-
-    /**
-     * Create an ASCII footprint report file giving some infos on footprints and board outlines.
-     *
-     * @param aFullFilename the full file name of the file to create
-     * @param aUnitsMM false to use inches, true to use mm in coordinates
-     * @return true if OK, false if error
-     */
-    bool DoGenFootprintsReport( const wxString& aFullFilename, bool aUnitsMM );
-
-    void GenD356File( wxCommandEvent& event );
+                                     bool aNoTHItems, bool aExcludeDNP, bool aExcludeBOM, bool aTopSide,
+                                     bool aBottomSide, bool aFormatCSV, bool aUseAuxOrigin,
+                                     bool aNegateBottomX );
 
     void OnFileHistory( wxCommandEvent& event );
     void OnClearFileHistory( wxCommandEvent& aEvent );
 
-    /**
-     * Call #Files_io_from_id with the wxCommandEvent id.
-     *
-     * @param event is the command event handler.
-     */
-    void Files_io( wxCommandEvent& event );
-
-    /**
-     * Read and write board files according to \a aId.
-     *
-     * Valid event IDs are:
-     *  - ID_LOAD_FILE
-     *  - ID_MENU_RECOVER_BOARD_AUTOSAVE
-     *  - ID_NEW_BOARD
-     *  - ID_SAVE_BOARD
-     *  - ID_COPY_BOARD_AS
-     *  - ID_SAVE_BOARD_AS
-     *
-     * @param aId is an event ID coming from file command events:
-     */
-    bool Files_io_from_id( int aId );
+    bool SaveBoard( bool aSaveAs = false, bool aSaveCopy = false );
 
     /**
      * Load a KiCad board (.kicad_pcb) from \a aFileName.
@@ -464,12 +431,15 @@ public:
     ///< @copydoc PCB_BASE_FRAME::SetPageSettings()
     void SetPageSettings( const PAGE_INFO& aPageSettings ) override;
 
-    /**
-     * Recreates a .cmp file from the current loaded board.
-     *
-     * This is the same as created by CvPcb and can be used if this file is lost.
-     */
-    void RecreateCmpFileFromBoard( wxCommandEvent& aEvent );
+    bool SaveBoardAsDesignBlock( const wxString& aLibraryName );
+
+    bool SaveSelectionAsDesignBlock( const wxString& aLibraryName );
+
+    bool UpdateDesignBlockFromBoard( const LIB_ID& aLibId );
+
+    bool UpdateDesignBlockFromSelection( const LIB_ID& aLibId );
+
+    PCB_DESIGN_BLOCK_PANE* GetDesignBlockPane() const { return m_designBlocksPane; }
 
     /**
      * Save footprints in a library:
@@ -484,21 +454,6 @@ public:
      */
     void ExportFootprintsToLibrary( bool aStoreInNewLib, const wxString& aLibName = wxEmptyString,
                                     wxString* aLibPath = nullptr );
-
-    /**
-     * Create a BOM file from the current loaded board.
-     */
-    void RecreateBOMFileFromBoard( wxCommandEvent& aEvent );
-
-    /**
-     * Create a file in  GenCAD 1.4 format from the current board.
-     */
-    void ExportToGenCAD( wxCommandEvent& event );
-
-    /**
-     * Export the current BOARD to a VRML file.
-     */
-    void OnExportVRML( wxCommandEvent& event );
 
     /**
      * Create the file(s) exporting current BOARD to a VRML file.
@@ -530,14 +485,9 @@ public:
                           const wxString& a3D_Subdir, double aXRef, double aYRef );
 
     /**
-     * Export the current BOARD to a IDFv3 board and lib files.
-     */
-    void OnExportIDF3( wxCommandEvent& event );
-
-    /**
      * Export the current BOARD to a Hyperlynx HYP file.
      */
-    void OnExportHyperlynx( wxCommandEvent& event );
+    void OnExportHyperlynx();
 
     /**
      * Create an IDF3 compliant BOARD (*.emn) and LIBRARY (*.emp) file.
@@ -558,7 +508,7 @@ public:
     /**
      * Export the current BOARD to a STEP assembly.
      */
-    void OnExportSTEP( wxCommandEvent& event );
+    void OnExportSTEP();
 
     /**
      * Export the current BOARD to a specctra dsn file.
@@ -593,9 +543,14 @@ public:
      * @param aCommit commit that should store the changes.
      */
     void ExchangeFootprint( FOOTPRINT* aExisting, FOOTPRINT* aNew, BOARD_COMMIT& aCommit,
-                            bool deleteExtraTexts = true, bool resetTextLayers = true,
-                            bool resetTextEffects = true, bool resetFabricationAttrs = true,
-                            bool resetTextContent = true, bool reset3DModels = true,
+                            bool deleteExtraTexts = true,
+                            bool resetTextLayers = true,
+                            bool resetTextEffects = true,
+                            bool resetTextPositions = true,
+                            bool resetTextContent = true,
+                            bool resetFabricationAttrs = true,
+                            bool resetClearanceOverrides = true,
+                            bool reset3DModels = true,
                             bool* aUpdated = nullptr );
 
     /**
@@ -704,6 +659,11 @@ public:
     void ShowChangedLanguage() override;
 
     /**
+     * Update the state of the GUI after a new board is loaded or created.
+     */
+    void OnBoardLoaded();
+
+    /**
      * Set the main window title bar text.
      *
      * If file name defined by PCB_SCREEN::m_FileName is not set, the title is set to the
@@ -741,6 +701,16 @@ public:
 
     DIALOG_BOOK_REPORTER* GetFootprintDiffDialog();
 
+    /**
+     * Perform auto save when the board has been modified and not saved within the
+     * auto save interval.
+     *
+     * @return true if the auto save was successful.
+     */
+    bool DoAutoSave();
+
+    void ClearToolbarControl( int aId ) override;
+
     DECLARE_EVENT_TABLE()
 
 protected:
@@ -749,13 +719,13 @@ protected:
      */
     struct LAYER_TOOLBAR_ICON_VALUES
     {
-        int     previous_requested_scale;
+        int     previous_icon_size;
         COLOR4D previous_Route_Layer_TOP_color;
         COLOR4D previous_Route_Layer_BOTTOM_color;
         COLOR4D previous_background_color;
 
         LAYER_TOOLBAR_ICON_VALUES()
-                : previous_requested_scale( 0 ),
+                : previous_icon_size( 0 ),
                   previous_Route_Layer_TOP_color( COLOR4D::UNSPECIFIED ),
                   previous_Route_Layer_BOTTOM_color( COLOR4D::UNSPECIFIED ),
                   previous_background_color( COLOR4D::UNSPECIFIED )
@@ -766,6 +736,8 @@ protected:
     LAYER_TOOLBAR_ICON_VALUES m_prevIconVal;
 
     void doReCreateMenuBar() override;
+
+    void configureToolbars() override;
 
     // The Tool Framework initialization
     void setupTools();
@@ -784,9 +756,9 @@ protected:
     void buildActionPluginMenus( ACTION_MENU* aActionMenu );
 
     /**
-     * Append action plugin buttons to main toolbar
+     * Append action plugin buttons to given toolbar
      */
-    void AddActionPluginTools();
+    void addActionPluginTools( ACTION_TOOLBAR* aToolbar );
 
     /**
      * Execute action plugin's Run() method and updates undo buffer.
@@ -812,17 +784,12 @@ protected:
     PLUGIN_ACTION_SCOPE PluginActionScope() const override { return PLUGIN_ACTION_SCOPE::PCB; }
 
     /**
-     * Update the state of the GUI after a new board is loaded or created.
-     */
-    void onBoardLoaded();
-
-    /**
      * Perform auto save when the board has been modified and not saved within the
      * auto save interval.
      *
      * @return true if the auto save was successful.
      */
-    bool doAutoSave() override;
+    bool doAutoSave() override { return DoAutoSave(); }
 
     /**
      * Load the given filename but sets the path to the current project path.
@@ -832,6 +799,20 @@ protected:
      */
     bool importFile( const wxString& aFileName, int aFileType,
                      const std::map<std::string, UTF8>* aProperties = nullptr );
+
+    /**
+     * @brief Save a board object to a file
+     *
+     * @param aBoard The board object to save
+     * @param aFileName The file name to save the board to
+     * @param aHeadless If true, suppresses informational output (e.g. to be used from the API)
+     *
+     * @return
+     */
+    bool saveBoardAsFile( BOARD* aBoard, const wxString& aFileName, bool aHeadless = false );
+
+    bool saveSelectionToDesignBlock( const wxString& aNickname, PCB_SELECTION& aSelection, DESIGN_BLOCK& aBlock );
+
 
     bool canCloseWindow( wxCloseEvent& aCloseEvent ) override;
     void doCloseWindow() override;
@@ -854,18 +835,20 @@ protected:
 #endif
 
 public:
-    PCB_LAYER_BOX_SELECTOR* m_SelLayerBox; // a combo box to display and select active layer
-
     wxChoice* m_SelTrackWidthBox;        // a choice box to display and select current track width
     wxChoice* m_SelViaSizeBox;           // a choice box to display and select current via diameter
+    wxChoice* m_CurrentVariantCtrl;      // a choice box to display and select current variant
 
-    bool m_show_layer_manager_tools;
-    bool m_show_search;
-    bool m_show_net_inspector;
+    bool      m_ShowLayerManagerTools;
+    bool      m_ShowSearch;
+    bool      m_ShowNetInspector;
 
-    bool m_ZoneFillsDirty;          // Board has been modified since last zone fill.
+    bool      m_ZoneFillsDirty;          // Board has been modified since last zone fill.
 
-    bool m_probingSchToPcb;         // Recursion guard when synchronizing selection from schematic
+    bool      m_ProbingSchToPcb;         // Recursion guard when synchronizing selection from schematic
+
+    void StartCrossProbeFlash( const std::vector<BOARD_ITEM*>& aItems );
+    void OnCrossProbeFlashTimer( wxTimerEvent& aEvent );
 
 private:
     friend struct PCB::IFACE;
@@ -878,26 +861,35 @@ private:
      * the list of assignable hot keys since it's only available as an advanced configuration
      * option.
      */
-    TOOL_ACTION* m_exportNetlistAction;
+    TOOL_ACTION*           m_exportNetlistAction;
 
-    DIALOG_FIND* m_findDialog;
-    DIALOG_BOOK_REPORTER* m_inspectDrcErrorDlg;
-    DIALOG_BOOK_REPORTER* m_inspectClearanceDlg;
-    DIALOG_BOOK_REPORTER* m_inspectConstraintsDlg;
-    DIALOG_BOOK_REPORTER* m_footprintDiffDlg;
-    DIALOG_BOARD_SETUP*   m_boardSetupDlg;
+    DIALOG_FIND*           m_findDialog;
+    DIALOG_BOOK_REPORTER*  m_inspectDrcErrorDlg;
+    DIALOG_BOOK_REPORTER*  m_inspectClearanceDlg;
+    DIALOG_BOOK_REPORTER*  m_inspectConstraintsDlg;
+    DIALOG_BOOK_REPORTER*  m_footprintDiffDlg;
+    DIALOG_BOARD_SETUP*    m_boardSetupDlg;
+
+    std::vector<LIB_ID>    m_designBlockHistoryList;
+    PCB_DESIGN_BLOCK_PANE* m_designBlocksPane;
 
     const std::map<std::string, UTF8>* m_importProperties; // Properties used for non-KiCad import.
 
     /**
      * Keep track of viewport so that track net labels can be adjusted when it changes.
      */
-    BOX2D        m_lastNetnamesViewport;
+    BOX2D             m_lastNetnamesViewport;
 
-    wxTimer*     m_eventCounterTimer;
+    wxTimer*          m_eventCounterTimer;
+
+    // Cross-probe flashing support
+    wxTimer           m_crossProbeFlashTimer;          ///< Timer to toggle selection visibility for flash
+    int               m_crossProbeFlashPhase = 0;      ///< Phase counter
+    std::vector<KIID> m_crossProbeFlashItems;          ///< Items to flash (by UUID)
+    bool              m_crossProbeFlashing = false;    ///< Currently flashing guard
 
 #ifdef KICAD_IPC_API
-    std::unique_ptr<API_HANDLER_PCB> m_apiHandler;
+    std::unique_ptr<API_HANDLER_PCB>    m_apiHandler;
     std::unique_ptr<API_HANDLER_COMMON> m_apiHandlerCommon;
 #endif
 };

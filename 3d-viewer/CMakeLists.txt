@@ -3,7 +3,6 @@ add_compile_definitions( PCBNEW )
 
 include_directories(BEFORE ${INC_BEFORE})
 include_directories(
-    ${CMAKE_CURRENT_BINARY_DIR}
     ../pcbnew
     3d_canvas
     3d_cache
@@ -38,6 +37,7 @@ set(3D-VIEWER_SRCS
     3d_rendering/opengl/create_scene.cpp
     3d_rendering/opengl/render_3d_opengl.cpp
     3d_rendering/opengl/layer_triangles.cpp
+    3d_rendering/opengl/3d_spheres_gizmo.cpp
     ${DIR_RAY_ACC}/accelerator_3d.cpp
     ${DIR_RAY_ACC}/bvh_packet_traversal.cpp
     ${DIR_RAY_ACC}/bvh_pbrt.cpp
@@ -66,6 +66,7 @@ set(3D-VIEWER_SRCS
     ${DIR_RAY_3D}/bbox_3d_ray.cpp
     ${DIR_RAY_3D}/cylinder_3d.cpp
     ${DIR_RAY_3D}/dummy_block_3d.cpp
+    ${DIR_RAY_3D}/frustum_3d.cpp
     ${DIR_RAY_3D}/layer_item_3d.cpp
     ${DIR_RAY_3D}/object_3d.cpp
     ${DIR_RAY_3D}/plane_3d.cpp
@@ -81,7 +82,7 @@ set(3D-VIEWER_SRCS
     3d_rendering/test_cases.cpp
     3d_rendering/trackball.cpp
     3d_viewer/3d_menubar.cpp
-    3d_viewer/3d_toolbar.cpp
+    3d_viewer/toolbars_3d.cpp
     3d_viewer/tools/eda_3d_actions.cpp
     3d_viewer/tools/eda_3d_conditions.cpp
     3d_viewer/tools/eda_3d_controller.cpp
@@ -97,6 +98,7 @@ set(3D-VIEWER_SRCS
     dialogs/dialog_select_3d_model.cpp
     dialogs/panel_preview_3d_model_base.cpp
     dialogs/panel_preview_3d_model.cpp
+    dialogs/dialog_export_3d_image.cpp
     dialogs/panel_3D_display_options.cpp
     dialogs/panel_3D_display_options_base.cpp
     dialogs/panel_3D_opengl_options.cpp
@@ -107,6 +109,18 @@ set(3D-VIEWER_SRCS
 
 add_library(3d-viewer STATIC ${3D-VIEWER_SRCS})
 add_dependencies( 3d-viewer pcbcommon )
+
+if( KICAD_USE_PCH )
+    target_precompile_headers( 3d-viewer
+        PRIVATE
+            <3d_canvas/board_adapter.h>
+            <clipper2/clipper.h>
+            <kiid.h>
+            <board.h>
+            <pgm_base.h>
+            <wx/wx.h>
+            )
+endif()
 
 target_link_libraries( 3d-viewer
     PRIVATE
@@ -122,6 +136,13 @@ target_link_libraries( 3d-viewer
 
 add_subdirectory( 3d_cache )
 
-message( STATUS "Including 3Dconnexion SpaceMouse navigation support in 3d-viewer" )
-add_subdirectory( 3d_navlib )
-target_link_libraries( 3d-viewer PRIVATE 3d-viewer_navlib)
+
+if( UNIX AND NOT APPLE )
+    message( STATUS "Including libspnav support in 3d-viewer" )
+    add_subdirectory( 3d_spacenav )
+    target_link_libraries( 3d-viewer PRIVATE 3d-viewer_spacenav )
+else()
+    message( STATUS "Including 3Dconnexion SpaceMouse navigation support in 3d-viewer" )
+    add_subdirectory( 3d_navlib )
+    target_link_libraries( 3d-viewer PRIVATE 3d-viewer_navlib)
+endif()

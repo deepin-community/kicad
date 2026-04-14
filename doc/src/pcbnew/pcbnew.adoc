@@ -19,8 +19,8 @@ NOTE: This manual is in the process of being revised to cover the latest stable
 [[copyright]]
 *Copyright*
 
-This document is Copyright (C) 2010-2024 by its contributors as listed
-below. You may distribute it and/or modify it under the terms of either
+This document is Copyright The KiCad Documentation Contributors.
+You may distribute it and/or modify it under the terms of either
 the GNU General Public License  (http://www.gnu.org/licenses/gpl.html),
 version 3 or later, or the Creative Commons Attribution License
 (http://creativecommons.org/licenses/by/3.0/), version 3.0 or later.
@@ -54,11 +54,17 @@ include::pcbnew_create_board.adoc[po4a]
 
 include::pcbnew_editing.adoc[po4a]
 
+include::pcbnew_schematic_to_pcb.adoc[po4a]
+
 include::pcbnew_inspecting.adoc[po4a]
+
+include::pcbnew_importing.adoc[po4a]
 
 include::pcbnew_generating_outputs.adoc[po4a]
 
 include::pcbnew_footprints_and_libraries.adoc[po4a]
+
+include::pcbnew_design_blocks.adoc[po4a]
 
 include::pcbnew_advanced.adoc[po4a]
 

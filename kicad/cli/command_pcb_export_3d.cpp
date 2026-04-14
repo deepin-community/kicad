@@ -50,6 +50,7 @@
 #define ARG_FUSE_SHAPES "--fuse-shapes"
 #define ARG_FILL_ALL_VIAS "--fill-all-vias"
 #define ARG_NO_OPTIMIZE_STEP "--no-optimize-step"
+#define ARG_NO_EXTRA_PAD_THICKNESS "--no-extra-pad-thickness"
 #define ARG_NET_FILTER "--net-filter"
 #define ARG_FORMAT "--format"
 #define ARG_VRML_UNITS "--units"
@@ -68,14 +69,14 @@ CLI::PCB_EXPORT_3D_COMMAND::PCB_EXPORT_3D_COMMAND( const std::string&        aNa
         m_format( aFormat )
 {
     m_argParser.add_description( aDescription );
-    addCommonArgs( true, true, false, false );
+    addCommonArgs( true, true, IO_TYPE::FILE, IO_TYPE::FILE );
     addDefineArg();
 
     if( m_format == JOB_EXPORT_PCB_3D::FORMAT::UNKNOWN )
     {
         m_argParser.add_argument( ARG_FORMAT )
                 .default_value( std::string( "step" ) )
-                .help( UTF8STDSTR( _( "Output file format, options: step, brep, xao, glb "
+                .help( UTF8STDSTR( _( "Output file format, options: step, stepz, brep, xao, glb "
                                       "(binary glTF), ply, stl" ) ) );
     }
 
@@ -86,13 +87,14 @@ CLI::PCB_EXPORT_3D_COMMAND::PCB_EXPORT_3D_COMMAND( const std::string&        aNa
     m_argParser.add_argument( ARG_NO_UNSPECIFIED )
             .help( UTF8STDSTR( _( "Exclude 3D models for components with 'Unspecified' footprint "
                                   "type" ) ) )
-            .implicit_value( true )
-            .default_value( false );
+            .flag();
 
     m_argParser.add_argument( ARG_NO_DNP )
             .help( UTF8STDSTR( _( "Exclude 3D models for components with 'Do not populate' "
                                   "attribute" ) ) )
             .flag();
+
+    addVariantsArg();
 
     if( m_format != JOB_EXPORT_PCB_3D::FORMAT::UNKNOWN
         && m_format != JOB_EXPORT_PCB_3D::FORMAT::VRML )
@@ -165,6 +167,10 @@ CLI::PCB_EXPORT_3D_COMMAND::PCB_EXPORT_3D_COMMAND( const std::string&        aNa
                 .help( UTF8STDSTR( _( "Don't cut via holes in conductor layers." ) ) )
                 .flag();
 
+        m_argParser.add_argument( ARG_NO_EXTRA_PAD_THICKNESS )
+                .help( UTF8STDSTR( _( "Disable extra pad thickness (pads will have normal thickness)" ) ) )
+                .flag();
+
         m_argParser.add_argument( ARG_MIN_DISTANCE )
                 .default_value( std::string( "0.01mm" ) )
                 .help( UTF8STDSTR( _( "Minimum distance between points to treat them as separate "
@@ -177,7 +183,7 @@ CLI::PCB_EXPORT_3D_COMMAND::PCB_EXPORT_3D_COMMAND( const std::string&        aNa
                                       "wildcard" ) ) );
     }
 
-    if( m_format == JOB_EXPORT_PCB_3D::FORMAT::STEP )
+    if( m_format == JOB_EXPORT_PCB_3D::FORMAT::STEP || m_format == JOB_EXPORT_PCB_3D::FORMAT::STEPZ )
     {
         m_argParser.add_argument( ARG_NO_OPTIMIZE_STEP )
                 .help( UTF8STDSTR( _( "Do not optimize STEP file (enables writing parametric "
@@ -231,6 +237,7 @@ int CLI::PCB_EXPORT_3D_COMMAND::doPerform( KIWAY& aKiway )
         params.m_ExportSoldermask = m_argParser.get<bool>( ARG_INCLUDE_SOLDERMASK );
         params.m_FuseShapes = m_argParser.get<bool>( ARG_FUSE_SHAPES );
         params.m_FillAllVias = m_argParser.get<bool>( ARG_FILL_ALL_VIAS );
+        params.m_ExtraPadThickness = !m_argParser.get<bool>( ARG_NO_EXTRA_PAD_THICKNESS );
         params.m_BoardOnly = m_argParser.get<bool>( ARG_BOARD_ONLY );
         params.m_NetFilter = From_UTF8( m_argParser.get<std::string>( ARG_NET_FILTER ).c_str() );
         params.m_ComponentFilter =
@@ -238,7 +245,7 @@ int CLI::PCB_EXPORT_3D_COMMAND::doPerform( KIWAY& aKiway )
 
     }
 
-    if( m_format == JOB_EXPORT_PCB_3D::FORMAT::STEP )
+    if( m_format == JOB_EXPORT_PCB_3D::FORMAT::STEP || m_format == JOB_EXPORT_PCB_3D::FORMAT::STEPZ )
     {
         params.m_OptimizeStep = !m_argParser.get<bool>( ARG_NO_OPTIMIZE_STEP );
     }
@@ -246,6 +253,10 @@ int CLI::PCB_EXPORT_3D_COMMAND::doPerform( KIWAY& aKiway )
     params.m_IncludeUnspecified = !m_argParser.get<bool>( ARG_NO_UNSPECIFIED );
     params.m_IncludeDNP = !m_argParser.get<bool>( ARG_NO_DNP );
     params.m_Overwrite = m_argParser.get<bool>( ARG_FORCE );
+
+    if( !m_argVariantNames.empty() )
+        step->m_variant = m_argVariantNames.front();
+
     step->SetConfiguredOutputPath( m_argOutput );
 
     step->m_filename = m_argInput;
@@ -258,6 +269,8 @@ int CLI::PCB_EXPORT_3D_COMMAND::doPerform( KIWAY& aKiway )
 
         if( format == wxS( "step" ) )
             step->m_format = JOB_EXPORT_PCB_3D::FORMAT::STEP;
+        else if( format == wxS( "stpz" ) )
+            step->m_format = JOB_EXPORT_PCB_3D::FORMAT::STEPZ;
         else if( format == wxS( "brep" ) )
             step->m_format = JOB_EXPORT_PCB_3D::FORMAT::BREP;
         else if( format == wxS( "xao" ) )
@@ -268,6 +281,10 @@ int CLI::PCB_EXPORT_3D_COMMAND::doPerform( KIWAY& aKiway )
             step->m_format = JOB_EXPORT_PCB_3D::FORMAT::PLY;
         else if( format == wxS( "stl" ) )
             step->m_format = JOB_EXPORT_PCB_3D::FORMAT::STL;
+        else if( format == wxS( "u3d" ) )
+            step->m_format = JOB_EXPORT_PCB_3D::FORMAT::U3D;
+        else if( format == wxS( "pdf" ) )
+            step->m_format = JOB_EXPORT_PCB_3D::FORMAT::PDF;
         else
         {
             wxFprintf( stderr, _( "Invalid format specified\n" ) );

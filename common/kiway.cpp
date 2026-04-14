@@ -24,20 +24,21 @@
 
 #include <cstring>
 
+#include <app_monitor.h>
 #include <core/ignore.h>
 #include <macros.h>
 #include <kiway.h>
 #include <kiway_player.h>
-#include <kiway_express.h>
+#include <kiway_mail.h>
 #include <pgm_base.h>
 #include <config.h>
-#include <core/arraydim.h>
 #include <id.h>
 #include <kiplatform/app.h>
 #include <kiplatform/environment.h>
 #include <settings/settings_manager.h>
 #include <tool/action_manager.h>
 #include <logging.h>
+#include <local_history.h>
 
 #include <wx/dynlib.h>
 #include <wx/stdpaths.h>
@@ -45,18 +46,15 @@
 #include <wx/utils.h>
 #include <confirm.h>
 
-#ifdef KICAD_USE_SENTRY
-#include <sentry.h>
-#endif
-
-KIFACE* KIWAY::m_kiface[KIWAY_FACE_COUNT];
-int     KIWAY::m_kiface_version[KIWAY_FACE_COUNT];
+std::array<KIFACE*, KIWAY::FACE_T::KIWAY_FACE_COUNT> KIWAY::m_kiface;
+std::array<int, KIWAY::FACE_T::KIWAY_FACE_COUNT>     KIWAY::m_kiface_version;
 
 
 
 KIWAY::KIWAY( int aCtlBits, wxFrame* aTop ):
-     m_ctl( aCtlBits ), m_top( nullptr ), m_blockingDialog( wxID_NONE )
+     m_ctl( aCtlBits ), m_top( nullptr ), m_blockingDialog( wxID_NONE ), m_local_history( nullptr )
 {
+    m_local_history = new LOCAL_HISTORY();
     SetTop( aTop );     // hook player_destroy_handler() into aTop.
 
     // Set the array of all known frame window IDs to empty = wxID_NONE,
@@ -67,6 +65,12 @@ KIWAY::KIWAY( int aCtlBits, wxFrame* aTop ):
     //   to allow a call to wxWindow::FindWindowById() using a FRAME_T frame type
     for( int n = 0; n < KIWAY_PLAYER_COUNT; n++ )
         m_playerFrameId[n] = wxID_NONE;
+}
+
+
+KIWAY::~KIWAY()
+{
+    delete m_local_history;
 }
 
 
@@ -134,7 +138,15 @@ const wxString KIWAY::dso_search_path( FACE_T aFaceId )
     {
         // The 2 *.cpp program launchers: single_top.cpp and kicad.cpp expect
         // the *.kiface's to reside in same directory as their binaries do.
-        path = wxStandardPaths::Get().GetExecutablePath();
+        wxString appDir;
+
+        // When running inside an AppImage, the bundled ld-linux is invoked as a wrapper
+        // which causes /proc/self/exe to resolve to the dynamic linker rather than the
+        // actual binary. Use APPDIR to construct the correct executable path.
+        if( wxGetEnv( wxT( "APPDIR" ), &appDir ) )
+            path = appDir + wxT( "/usr/bin/kicad" );
+        else
+            path = wxStandardPaths::Get().GetExecutablePath();
     }
 
     wxFileName fn = path;
@@ -202,11 +214,8 @@ KIFACE* KIWAY::KiFACE( FACE_T aFaceId, bool doLoad )
 {
     // Since this will be called from python, cannot assume that code will
     // not pass a bad aFaceId.
-    if( (unsigned) aFaceId >= arrayDim( m_kiface ) )
+    if( (unsigned) aFaceId >= m_kiface.size() )
     {
-        // @todo : throw an exception here for python's benefit, at least that
-        // way it gets some explanatory text.
-
         wxASSERT_MSG( 0, wxT( "caller has a bug, passed a bad aFaceId" ) );
         return nullptr;
     }
@@ -260,16 +269,8 @@ KIFACE* KIWAY::KiFACE( FACE_T aFaceId, bool doLoad )
 
         setlocale( lc_new_type, user_locale.c_str() );
 
-#ifdef KICAD_USE_SENTRY
-        if( Pgm().IsSentryOptedIn() )
-        {
-            msg = wxString::Format( "Loading kiface %d", aFaceId );
-            sentry_value_t crumb = sentry_value_new_breadcrumb( "navigation", msg.utf8_str() );
-            sentry_value_set_by_key( crumb, "category", sentry_value_new_string( "kiway.kiface" ) );
-            sentry_value_set_by_key( crumb, "level", sentry_value_new_string( "info" ) );
-            sentry_add_breadcrumb( crumb );
-        }
-#endif
+        msg = wxString::Format( "Loading kiface %d", aFaceId );
+        APP_MONITOR::AddNavigationBreadcrumb( msg, "kiway.kiface" );
 
         if( !success )
         {
@@ -409,9 +410,6 @@ KIWAY_PLAYER* KIWAY::Player( FRAME_T aFrameType, bool doCreate, wxTopLevelWindow
     // not pass a bad aFrameType.
     if( (unsigned) aFrameType >= KIWAY_PLAYER_COUNT )
     {
-        // @todo : throw an exception here for python's benefit, at least that
-        // way it gets some explanatory text.
-
         wxASSERT_MSG( 0, wxT( "caller has a bug, passed a bad aFrameType" ) );
         return nullptr;
     }
@@ -426,17 +424,8 @@ KIWAY_PLAYER* KIWAY::Player( FRAME_T aFrameType, bool doCreate, wxTopLevelWindow
     {
         try
         {
-#ifdef KICAD_USE_SENTRY
-            if( Pgm().IsSentryOptedIn() )
-            {
-                wxString       msg = wxString::Format( "Creating window type %d", aFrameType );
-                sentry_value_t crumb = sentry_value_new_breadcrumb( "navigation", msg.utf8_str() );
-                sentry_value_set_by_key( crumb, "category",
-                                         sentry_value_new_string( "kiway.player" ) );
-                sentry_value_set_by_key( crumb, "level", sentry_value_new_string( "info" ) );
-                sentry_add_breadcrumb( crumb );
-            }
-#endif
+            wxString msg = wxString::Format( "Creating window type %d", aFrameType );
+            APP_MONITOR::AddNavigationBreadcrumb( msg, "kiway.player" );
 
             FACE_T  face_type = KifaceType( aFrameType );
             KIFACE* kiface = KiFACE( face_type );
@@ -452,8 +441,9 @@ KIWAY_PLAYER* KIWAY::Player( FRAME_T aFrameType, bool doCreate, wxTopLevelWindow
                                             m_ctl       // questionable need, these same flags
                                                         // were passed to KIFACE::OnKifaceStart()
                                             );
+            if( frame )
+                m_playerFrameId[aFrameType].store( frame->GetId() );
 
-            m_playerFrameId[aFrameType].store( frame->GetId() );
             return frame;
         }
         catch( ... )
@@ -473,9 +463,6 @@ bool KIWAY::PlayerClose( FRAME_T aFrameType, bool doForce )
     // not pass a bad aFrameType.
     if( (unsigned) aFrameType >= KIWAY_PLAYER_COUNT )
     {
-        // @todo : throw an exception here for python's benefit, at least that
-        // way it gets some explanatory text.
-
         wxASSERT_MSG( 0, wxT( "caller has a bug, passed a bad aFrameType" ) );
         return false;
     }
@@ -485,17 +472,8 @@ bool KIWAY::PlayerClose( FRAME_T aFrameType, bool doForce )
     if( frame == nullptr ) // Already closed
         return true;
 
-#ifdef KICAD_USE_SENTRY
-    if( Pgm().IsSentryOptedIn() )
-    {
-        wxString       msg = wxString::Format( "Closing window type %d", aFrameType );
-        sentry_value_t crumb = sentry_value_new_breadcrumb( "navigation", msg.utf8_str() );
-        sentry_value_set_by_key( crumb, "category",
-                                 sentry_value_new_string( "kiway.playerclose" ) );
-        sentry_value_set_by_key( crumb, "level", sentry_value_new_string( "info" ) );
-        sentry_add_breadcrumb( crumb );
-    }
-#endif
+    wxString msg = wxString::Format( "Closing window type %d", aFrameType );
+    APP_MONITOR::AddNavigationBreadcrumb( msg, "kiway.playerclose" );
 
     if( frame->NonUserClose( doForce ) )
     {
@@ -525,11 +503,15 @@ void KIWAY::PlayerDidClose( FRAME_T aFrameType )
 
 
 void KIWAY::ExpressMail( FRAME_T aDestination, MAIL_T aCommand, std::string& aPayload,
-                         wxWindow* aSource )
+                         wxWindow* aSource, bool aFromOtherThread  )
 {
-    KIWAY_EXPRESS   mail( aDestination, aCommand, aPayload, aSource );
+    std::unique_ptr<KIWAY_MAIL_EVENT> mail =
+            std::make_unique<KIWAY_MAIL_EVENT>( aDestination, aCommand, aPayload, aSource );
 
-    ProcessEvent( mail );
+    if( aFromOtherThread )
+        QueueEvent( mail.release() );
+    else
+        ProcessEvent( *mail );
 }
 
 
@@ -637,14 +619,39 @@ void KIWAY::CommonSettingsChanged( int aFlags )
 }
 
 
+void KIWAY::ClearFileHistory()
+{
+    if( m_ctl & KFCTL_CPP_PROJECT_SUITE )
+    {
+        // A dynamic_cast could be better, but creates link issues
+        // (some basic_frame functions not found) on some platforms,
+        // so a static_cast is used.
+        EDA_BASE_FRAME* top = static_cast<EDA_BASE_FRAME*>( m_top );
+
+        if( top )
+            top->ClearFileHistory();
+    }
+
+    for( unsigned i=0;  i < KIWAY_PLAYER_COUNT;  ++i )
+    {
+        KIWAY_PLAYER* frame = GetPlayerFrame( ( FRAME_T )i );
+
+        if( frame )
+            frame->ClearFileHistory();
+    }
+}
+
+
 void KIWAY::ProjectChanged()
 {
-#ifdef KICAD_USE_SENTRY
-    sentry_value_t crumb = sentry_value_new_breadcrumb( "navigation", "Changing project" );
-    sentry_value_set_by_key( crumb, "category", sentry_value_new_string( "kiway.projectchanged" ) );
-    sentry_value_set_by_key( crumb, "level", sentry_value_new_string( "info" ) );
-    sentry_add_breadcrumb( crumb );
-#endif
+    // Skip project change notifications during application shutdown to avoid
+    // clearing savers and re-registering them unnecessarily
+    if( PgmOrNull() && Pgm().m_Quitting )
+        return;
+
+    APP_MONITOR::AddNavigationBreadcrumb( "Changing project", "kiway.projectchanged" );
+
+    LocalHistory().ClearAllSavers();
 
     if( m_ctl & KFCTL_CPP_PROJECT_SUITE )
     {
@@ -656,6 +663,13 @@ void KIWAY::ProjectChanged()
         if( top )
             top->ProjectChanged();
     }
+
+    // Cancel an in-progress load of libraries; handled through the schematic and PCB ifaces
+    if ( KIFACE* schface = KiFACE( KIWAY::FACE_SCH ) )
+        schface->ProjectChanged();
+
+    if ( KIFACE* pcbface = KiFACE( KIWAY::FACE_PCB ) )
+        pcbface->ProjectChanged();
 
     for( unsigned i=0;  i < KIWAY_PLAYER_COUNT;  ++i )
     {
@@ -684,7 +698,7 @@ void KIWAY::SetBlockingDialog( wxWindow* aWin )
 
 bool KIWAY::ProcessEvent( wxEvent& aEvent )
 {
-    KIWAY_EXPRESS* mail = dynamic_cast<KIWAY_EXPRESS*>( &aEvent );
+    KIWAY_MAIL_EVENT* mail = dynamic_cast<KIWAY_MAIL_EVENT*>( &aEvent );
 
     if( mail )
     {
@@ -708,11 +722,30 @@ bool KIWAY::ProcessEvent( wxEvent& aEvent )
 }
 
 
-int KIWAY::ProcessJob( KIWAY::FACE_T aFace, JOB* job, REPORTER* aReporter )
+void KIWAY::QueueEvent( wxEvent* aEvent )
+{
+    KIWAY_MAIL_EVENT* mail = dynamic_cast<KIWAY_MAIL_EVENT*>( aEvent );
+
+    if( mail )
+    {
+        FRAME_T dest = mail->Dest();
+
+        // see if recipient is alive
+        KIWAY_PLAYER* alive = Player( dest, false );
+
+        if( alive )
+        {
+            alive->GetEventHandler()->QueueEvent( aEvent );
+        }
+    }
+}
+
+
+int KIWAY::ProcessJob( KIWAY::FACE_T aFace, JOB* job, REPORTER* aReporter, PROGRESS_REPORTER* aProgressReporter )
 {
     KIFACE* kiface = KiFACE( aFace );
 
-    return kiface->HandleJob( job, aReporter );
+    return kiface->HandleJob( job, aReporter, aProgressReporter );
 }
 
 

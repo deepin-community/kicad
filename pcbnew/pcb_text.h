@@ -32,6 +32,7 @@
 class LINE_READER;
 class MSG_PANEL_ITEM;
 class FOOTPRINT;
+class HTML_MESSAGE_BOX;
 
 
 class PCB_TEXT : public BOARD_ITEM, public EDA_TEXT
@@ -48,10 +49,7 @@ public:
 
     void CopyFrom( const BOARD_ITEM* aOther ) override;
 
-    static inline bool ClassOf( const EDA_ITEM* aItem )
-    {
-        return aItem && PCB_TEXT_T == aItem->Type();
-    }
+    static inline bool ClassOf( const EDA_ITEM* aItem ) { return aItem && PCB_TEXT_T == aItem->Type(); }
 
     bool IsType( const std::vector<KICAD_T>& aScanTypes ) const override
     {
@@ -67,10 +65,10 @@ public:
         return false;
     }
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    void Serialize( google::protobuf::Any& aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any& aContainer ) override;
 
-    void StyleFromSettings( const BOARD_DESIGN_SETTINGS& settings ) override;
+    void StyleFromSettings( const BOARD_DESIGN_SETTINGS& settings, bool aCheckSide ) override;
 
     /**
      * Called when rotating the parent footprint.
@@ -81,20 +79,11 @@ public:
 
     bool Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const override;
 
-    virtual VECTOR2I GetPosition() const override
-    {
-        return EDA_TEXT::GetTextPos();
-    }
+    virtual VECTOR2I GetPosition() const override { return EDA_TEXT::GetTextPos(); }
 
-    virtual void SetPosition( const VECTOR2I& aPos ) override
-    {
-        EDA_TEXT::SetTextPos( aPos );
-    }
+    virtual void SetPosition( const VECTOR2I& aPos ) override { EDA_TEXT::SetTextPos( aPos ); }
 
-    void Move( const VECTOR2I& aMoveVector ) override
-    {
-        EDA_TEXT::Offset( aMoveVector );
-    }
+    void Move( const VECTOR2I& aMoveVector ) override { EDA_TEXT::Offset( aMoveVector ); }
 
     void Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle ) override;
 
@@ -106,6 +95,7 @@ public:
 
     bool TextHitTest( const VECTOR2I& aPoint, int aAccuracy = 0 ) const override;
     bool TextHitTest( const BOX2I& aRect, bool aContains, int aAccuracy = 0 ) const override;
+    bool TextHitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const;
 
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy ) const override
     {
@@ -117,10 +107,12 @@ public:
         return TextHitTest( aRect, aContained, aAccuracy );
     }
 
-    wxString GetClass() const override
+    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override
     {
-        return wxT( "PCB_TEXT" );
+        return TextHitTest( aPoly, aContained );
     }
+
+    wxString GetClass() const override { return wxT( "PCB_TEXT" ); }
 
     /**
      * Function TransformTextToPolySet
@@ -130,23 +122,29 @@ public:
      * @param aClearance the clearance around the text
      * @param aMaxError the maximum error to allow when approximating curves
      */
-    void TransformTextToPolySet( SHAPE_POLY_SET& aBuffer, int aClearance, int aMaxError,
-                                 ERROR_LOC aErrorLoc ) const;
+    void TransformTextToPolySet( SHAPE_POLY_SET& aBuffer, int aClearance, int aMaxError, ERROR_LOC aErrorLoc ) const;
 
-    void TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer, int aClearance,
-                                  int aMaxError, ERROR_LOC aErrorLoc,
-                                  bool aIgnoreLineWidth = false ) const override;
+    void TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer, int aClearance, int aMaxError,
+                                  ERROR_LOC aErrorLoc, bool aIgnoreLineWidth = false ) const override;
 
     // @copydoc BOARD_ITEM::GetEffectiveShape
-    virtual std::shared_ptr<SHAPE>
-    GetEffectiveShape( PCB_LAYER_ID aLayer = UNDEFINED_LAYER,
-                       FLASHING aFlash = FLASHING::DEFAULT ) const override;
+    virtual std::shared_ptr<SHAPE> GetEffectiveShape( PCB_LAYER_ID aLayer = UNDEFINED_LAYER,
+                                                      FLASHING     aFlash = FLASHING::DEFAULT ) const override;
+
+    SHAPE_POLY_SET GetKnockoutCache( const KIFONT::FONT* aFont, const wxString& forResolvedText, int aMaxError ) const;
 
     virtual wxString GetTextTypeDescription() const;
 
     wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
+
+    /**
+     * Display a syntax help window for text variables and expressions.
+     * @param aParentWindow Parent window for the help dialog
+     * @return Pointer to the modeless help dialog
+     */
+    static HTML_MESSAGE_BOX* ShowSyntaxHelp( wxWindow* aParentWindow );
 
     /**
      * @return the text rotation for drawings and plotting the footprint rotation is taken
@@ -171,7 +169,7 @@ public:
     bool operator==( const PCB_TEXT& aOther ) const;
     bool operator==( const BOARD_ITEM& aBoardItem ) const override;
 
-#if defined(DEBUG)
+#if defined( DEBUG )
     virtual void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
 #endif
 
@@ -180,14 +178,20 @@ protected:
      * Build a nominally rectangular bounding box for the rendered text.  (It's not a BOX2I
      * because it will be a diamond shape for non-cardinally rotated text.)
      */
-    void buildBoundingHull( SHAPE_POLY_SET* aBuffer, const SHAPE_POLY_SET& aRenderedText,
-                            int aClearance ) const;
+    void buildBoundingHull( SHAPE_POLY_SET* aBuffer, const SHAPE_POLY_SET& aRenderedText, int aClearance ) const;
 
     virtual void swapData( BOARD_ITEM* aImage ) override;
 
     int getKnockoutMargin() const;
 
     const KIFONT::METRICS& getFontMetrics() const override { return GetFontMetrics(); }
+
+private:
+    mutable wxString        m_knockout_cache_text;
+    mutable TEXT_ATTRIBUTES m_knockout_cache_text_attrs;
+    mutable EDA_ANGLE       m_knockout_cache_angle;
+    mutable VECTOR2I        m_knockout_cache_pos;
+    mutable SHAPE_POLY_SET  m_knockout_cache;
 };
 
-#endif  // #define PCB_TEXT_H
+#endif // #define PCB_TEXT_H

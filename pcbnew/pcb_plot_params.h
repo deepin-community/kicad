@@ -34,7 +34,7 @@ class PCB_PLOT_PARAMS_PARSER;
 /**
  * Parameters and options when plotting/printing a board.
  */
-class PCB_PLOT_PARAMS
+class PCB_PLOT_PARAMS : public PLOT_PARAMS
 {
 public:
     PCB_PLOT_PARAMS();
@@ -64,13 +64,13 @@ public:
         m_textMode = aVal;
     }
 
-    PLOT_TEXT_MODE GetTextMode() const
+    PLOT_TEXT_MODE GetTextMode() const override
     {
         return m_textMode;
     }
 
-    void        SetPlotMode( OUTLINE_MODE aPlotMode ) { m_plotMode = aPlotMode; }
-    OUTLINE_MODE GetPlotMode() const { return m_plotMode; }
+    void        SetDXFPlotMode( DXF_OUTLINE_MODE aPlotMode ) { m_DXFPlotMode = aPlotMode; }
+    DXF_OUTLINE_MODE GetDXFPlotMode() const override { return m_DXFPlotMode; }
 
     void        SetPlotPadNumbers( bool aFlag ) { m_plotPadNumbers = aFlag; }
     bool        GetPlotPadNumbers() const { return m_plotPadNumbers; }
@@ -158,16 +158,16 @@ public:
     bool        GetSvgFitPagetoBoard() const { return m_svgFitPageToBoard; }
 
     void        SetBlackAndWhite( bool blackAndWhite ) { m_blackAndWhite = blackAndWhite; }
-    unsigned    GetBlackAndWhite() const { return m_blackAndWhite; }
+    bool        GetBlackAndWhite() const { return m_blackAndWhite; }
 
     void        SetSubtractMaskFromSilk( bool aSubtract ) { m_subtractMaskFromSilk = aSubtract; }
     bool        GetSubtractMaskFromSilk() const { return m_subtractMaskFromSilk; }
 
-    void        SetLayerSelection( LSET aSelection )    { m_layerSelection = aSelection; }
-    LSET        GetLayerSelection() const               { return m_layerSelection; }
+    void        SetLayerSelection( const LSET& aSelection ) { m_layerSelection = aSelection; }
+    LSET        GetLayerSelection() const { return m_layerSelection; }
 
     void        SetPlotOnAllLayersSequence( LSEQ aSeq ) { m_plotOnAllLayersSequence = aSeq; }
-    LSEQ        GetPlotOnAllLayersSequence() const      { return m_plotOnAllLayersSequence; }
+    LSEQ        GetPlotOnAllLayersSequence() const { return m_plotOnAllLayersSequence; }
 
     void        SetUseAuxOrigin( bool aAux ) { m_useAuxOrigin = aAux; }
     bool        GetUseAuxOrigin() const { return m_useAuxOrigin; }
@@ -178,46 +178,49 @@ public:
     void        SetA4Output( int aForce ) { m_A4Output = aForce; }
     bool        GetA4Output() const { return m_A4Output; }
 
-    // For historical reasons, this parameter is stored in mils
-    // (but is in mm in hpgl files...)
-    double      GetHPGLPenDiameter() const { return m_HPGLPenDiam; }
-    bool        SetHPGLPenDiameter( double aValue );
-
-    // This parameter is always in cm, due to hpgl file format constraint
-    int         GetHPGLPenSpeed() const { return m_HPGLPenSpeed; }
-    bool        SetHPGLPenSpeed( int aValue );
-
-    void        SetHPGLPenNum( int aVal ) { m_HPGLPenNum = aVal; }
-    int         GetHPGLPenNum() const { return m_HPGLPenNum; }
-
     void        SetDashedLineDashRatio( double aVal ) { m_dashedLineDashRatio = aVal; }
     double      GetDashedLineDashRatio() const { return m_dashedLineDashRatio; }
 
     void        SetDashedLineGapRatio( double aVal ) { m_dashedLineGapRatio = aVal; }
     double      GetDashedLineGapRatio() const { return m_dashedLineGapRatio; }
 
+    void        SetDXFMultiLayeredExportOption( bool aFlag ) { m_DXFExportAsMultiLayeredFile = aFlag; }
+    bool        GetDXFMultiLayeredExportOption() const { return m_DXFExportAsMultiLayeredFile; }
+
+    void        SetLayersToExport( std::vector<std::pair<PCB_LAYER_ID, wxString>> & aVal ) { m_layersToExport = aVal; }
+    std::vector<std::pair<PCB_LAYER_ID, wxString>> GetLayersToExport() const { return m_layersToExport; }
+
+    /**
+     * Return the layer this item is on.
+     */
+    PCB_LAYER_ID GetLayer() const { return m_layer; }
+    void         SetLayer( PCB_LAYER_ID aLayer ) { m_layer = aLayer; }
+
+    void        SetPDFBackgroundColor( const COLOR4D& aColor ) { m_PDFBackgroundColor = aColor; }
+    COLOR4D     GetPDFBackgroundColor() const { return m_PDFBackgroundColor; }
+
 public:
     bool        m_PDFFrontFPPropertyPopups;   ///< Generate PDF property popup menus for footprints
     bool        m_PDFBackFPPropertyPopups;    ///<   on front and/or back of board
     bool        m_PDFMetadata;                ///< Generate PDF metadata for SUBJECT and AUTHOR
     bool        m_PDFSingle;                  ///< Generate a single PDF file for all layers
+    COLOR4D     m_PDFBackgroundColor;         ///< Background color to use if m_PDFUseBackgroundColor is true
 
 private:
     friend class PCB_PLOT_PARAMS_PARSER;
 
-    PLOT_FORMAT     m_format;           /// Plot format type (chooses the driver to be used)
-    LSET            m_layerSelection;
-    LSEQ            m_plotOnAllLayersSequence;
+    PLOT_FORMAT      m_format;           /// Plot format type (chooses the driver to be used)
+    LSET             m_layerSelection;
+    LSEQ             m_plotOnAllLayersSequence;
 
-    bool            m_skipNPTH_Pads;    /// Used to disable NPTH pads plotting on copper layers
-    OUTLINE_MODE    m_plotMode;         /// FILLED or SKETCH for filled objects.
-    bool            m_plotPadNumbers;   /// Plot pad numbers when sketching pads on fab layers
-    DRILL_MARKS     m_drillMarks;       /// Holes can be not plotted, have a small mark, or be
+    bool             m_skipNPTH_Pads;   /// Used to disable NPTH pads plotting on copper layers
+    bool             m_plotPadNumbers;  /// Plot pad numbers when sketching pads on fab layers
+    DRILL_MARKS      m_drillMarks;      /// Holes can be not plotted, have a small mark, or be
                                         ///   plotted in actual size
-    PLOT_TEXT_MODE  m_textMode;
-
-    DXF_UNITS       m_DXFUnits;
-    bool            m_DXFPolygonMode;   /// In polygon mode, each item to plot is converted to a
+    PLOT_TEXT_MODE   m_textMode;
+    DXF_OUTLINE_MODE m_DXFPlotMode;     /// FILLED or SKETCH for filled objects.
+    DXF_UNITS        m_DXFUnits;
+    bool             m_DXFPolygonMode;  /// In polygon mode, each item to plot is converted to a
                                         ///   polygon and all polygons are merged.
 
     bool       m_A4Output;              /// Autoscale the plot to fit an A4 (landscape?) sheet
@@ -293,11 +296,6 @@ private:
                                         ///<   strictly obey line width settings. Only used to plot
                                         ///<   pads and tracks.
 
-    int        m_HPGLPenNum;            ///< HPGL only: pen number selection(1 to 9)
-    int        m_HPGLPenSpeed;          ///< HPGL only: pen speed, always in cm/s (1 to 99 cm/s)
-    double     m_HPGLPenDiam;           ///< HPGL only: pen diameter in MILS, useful to fill areas
-                                        ///< However, it is in mm in hpgl files.
-
     double     m_dashedLineDashRatio;
     double     m_dashedLineGapRatio;
 
@@ -305,6 +303,12 @@ private:
 
     /// Dummy colors object that can be created if there is no Pgm context
     std::shared_ptr<COLOR_SETTINGS> m_default_colors;
+
+    bool m_DXFExportAsMultiLayeredFile;
+
+    std::vector<std::pair<PCB_LAYER_ID, wxString>> m_layersToExport;
+
+    PCB_LAYER_ID m_layer;
 };
 
 

@@ -25,6 +25,8 @@
 #include "pcb_generator.h"
 
 #include <board.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 PCB_GENERATOR::PCB_GENERATOR( BOARD_ITEM* aParent, PCB_LAYER_ID aLayer ) :
@@ -44,46 +46,17 @@ PCB_GENERATOR* PCB_GENERATOR::DeepClone() const
     PCB_GENERATOR* newGenerator = static_cast<PCB_GENERATOR*>( Clone() );
     newGenerator->m_items.clear();
 
-    for( BOARD_ITEM* member : m_items )
+    for( EDA_ITEM* member : m_items )
     {
         if( member->Type() == PCB_GROUP_T )
             newGenerator->AddItem( static_cast<PCB_GROUP*>( member )->DeepClone() );
+        else if( member->Type() == PCB_GENERATOR_T )
+            newGenerator->AddItem( static_cast<PCB_GENERATOR*>( member )->DeepClone() );
         else
             newGenerator->AddItem( static_cast<BOARD_ITEM*>( member->Clone() ) );
     }
 
     return newGenerator;
-}
-
-
-void PCB_GENERATOR::EditStart( GENERATOR_TOOL* aTool, BOARD* aBoard, BOARD_COMMIT* aCommit )
-{
-    aCommit->Modify( this );
-}
-
-
-void PCB_GENERATOR::EditPush( GENERATOR_TOOL* aTool, BOARD* aBoard, BOARD_COMMIT* aCommit,
-                              const wxString& aCommitMsg, int aCommitFlags )
-{
-    aCommit->Push( aCommitMsg, aCommitFlags );
-}
-
-
-void PCB_GENERATOR::EditRevert( GENERATOR_TOOL* aTool, BOARD* aBoard, BOARD_COMMIT* aCommit )
-{
-    aCommit->Revert();
-}
-
-
-void PCB_GENERATOR::Remove( GENERATOR_TOOL* aTool, BOARD* aBoard, BOARD_COMMIT* aCommit )
-{
-    aCommit->Remove( this );
-}
-
-
-bool PCB_GENERATOR::Update( GENERATOR_TOOL* aTool, BOARD* aBoard, BOARD_COMMIT* aCommit )
-{
-    return true;
 }
 
 
@@ -157,18 +130,6 @@ void PCB_GENERATOR::baseMirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDir
     else
         MIRROR( m_origin.x, aCentre.x );
 }
-
-bool PCB_GENERATOR::AddItem( BOARD_ITEM* aItem )
-{
-    // Items can only be in one group at a time
-    if( aItem->GetParentGroup() )
-        aItem->GetParentGroup()->RemoveItem( aItem );
-
-    m_items.insert( aItem );
-    aItem->SetParentGroup( this );
-    return true;
-}
-
 
 LSET PCB_GENERATOR::GetLayerSet() const
 {

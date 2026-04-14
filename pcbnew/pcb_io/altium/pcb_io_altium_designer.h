@@ -31,8 +31,19 @@
 
 #include <map>
 #include <memory>
+#include <vector>
 
 class ALTIUM_PCB_COMPOUND_FILE;
+class BOARD;
+struct ALTIUM_PROJECT_VARIANT;
+
+/**
+ * Apply parsed Altium project variants to a board by setting FOOTPRINT_VARIANT
+ * data on each footprint whose reference matches a variant entry.
+ */
+void ApplyAltiumProjectVariantsToBoard( BOARD* aBoard,
+                                        const std::vector<ALTIUM_PROJECT_VARIANT>& aVariants );
+
 
 class PCB_IO_ALTIUM_DESIGNER : public PCB_IO, public LAYER_MAPPABLE_PLUGIN
 {
@@ -64,6 +75,8 @@ public:
                               bool              aKeepUUID = false,
                               const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
+    std::vector<FOOTPRINT*> GetImportedCachedLibraryFootprints() override;
+
     //bool FootprintExists( const wxString& aLibraryPath, const wxString& aFootprintName, const PROPERTIES* aProperties = nullptr );
 
     bool IsLibraryWritable( const wxString& aLibraryPath ) override { return false; }
@@ -85,8 +98,13 @@ public:
             const std::vector<INPUT_LAYER_DESC>& aInputLayerDescriptionVector );
 
 private:
-    std::map<wxString, std::vector<std::unique_ptr<ALTIUM_PCB_COMPOUND_FILE>>> m_fplibFiles;
+    struct ALTIUM_FILE_CACHE
+    {
+        std::vector<std::unique_ptr<ALTIUM_PCB_COMPOUND_FILE>> m_Files;
+        long long                                              m_Timestamp;
+    };
 
+    std::map<wxString, ALTIUM_FILE_CACHE> m_fplibFiles;
 
     void loadAltiumLibrary( const wxString& aLibraryPath );
 };

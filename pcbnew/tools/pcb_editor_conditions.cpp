@@ -31,6 +31,7 @@
 #include <pcb_base_frame.h>
 #include <tool/selection.h>
 #include <tools/pcb_editor_conditions.h>
+#include <geometry/geometry_utils.h>
 
 #include <functional>
 #include <wx/debug.h>
@@ -126,13 +127,13 @@ SELECTION_CONDITION PCB_EDITOR_CONDITIONS::ZoneDisplayMode( ZONE_DISPLAY_MODE aM
 }
 
 
-SELECTION_CONDITION PCB_EDITOR_CONDITIONS::Get45degMode()
+SELECTION_CONDITION PCB_EDITOR_CONDITIONS::FootprintViewerAutoZoom()
 {
     PCB_BASE_FRAME* drwFrame = dynamic_cast<PCB_BASE_FRAME*>( m_frame );
 
     wxASSERT( drwFrame );
 
-    return std::bind( &PCB_EDITOR_CONDITIONS::get45degModeFunc, _1, drwFrame );
+    return std::bind( &PCB_EDITOR_CONDITIONS::footprintViewerAutoZoom, _1, drwFrame );
 }
 
 
@@ -186,14 +187,8 @@ bool PCB_EDITOR_CONDITIONS::zoneDisplayModeFunc( const SELECTION& aSelection, PC
     return aFrame->GetDisplayOptions().m_ZoneDisplayMode == aMode;
 }
 
-bool PCB_EDITOR_CONDITIONS::get45degModeFunc( const SELECTION& aSelection, PCB_BASE_FRAME* aFrame )
-{
-    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
 
-    if( aFrame->IsType( FRAME_PCB_EDITOR ) )
-        return mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" )->m_Use45DegreeLimit;
-    else if( aFrame->IsType( FRAME_FOOTPRINT_EDITOR ) )
-        return mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" )->m_Use45Limit;
-    else
-        return aFrame->GetViewerSettingsBase()->m_ViewersDisplay.m_Use45Limit;
+bool PCB_EDITOR_CONDITIONS::footprintViewerAutoZoom( const SELECTION& aSelection, PCB_BASE_FRAME* aFrame )
+{
+    return static_cast<PCB_VIEWERS_SETTINGS_BASE*>( aFrame->config() )->m_FootprintViewerAutoZoomOnSelect;
 }

@@ -70,7 +70,9 @@ JOB_EXPORT_PCB_DRILL::JOB_EXPORT_PCB_DRILL() :
         m_zeroFormat( ZEROS_FORMAT::DECIMAL ),
         m_mapFormat( MAP_FORMAT::PDF ),
         m_gerberPrecision( 5 ),
-        m_generateMap( false )
+        m_generateMap( false ),
+        m_generateTenting( false ),
+        m_generateReport( false )
 {
     m_params.emplace_back( new JOB_PARAM<bool>( "excellon.mirror_y",
                                                 &m_excellonMirrorY,
@@ -108,6 +110,10 @@ JOB_EXPORT_PCB_DRILL::JOB_EXPORT_PCB_DRILL() :
                                                 &m_generateMap,
                                                 m_generateMap ) );
 
+    m_params.emplace_back( new JOB_PARAM<bool>( "generate_tenting",
+                                                &m_generateTenting,
+                                                m_generateTenting ) );
+
     m_params.emplace_back( new JOB_PARAM<MAP_FORMAT>( "map_format",
                                                       &m_mapFormat,
                                                       m_mapFormat ) );
@@ -115,6 +121,14 @@ JOB_EXPORT_PCB_DRILL::JOB_EXPORT_PCB_DRILL() :
     m_params.emplace_back( new JOB_PARAM<int>( "gerber_precision",
                                                &m_gerberPrecision,
                                                m_gerberPrecision ) );
+    
+    m_params.emplace_back( new JOB_PARAM<bool>( "generate_report",
+                                                &m_generateReport,
+                                                m_generateReport ) );
+
+    m_params.emplace_back( new JOB_PARAM<wxString>( "report_filename", 
+                                                        &m_reportPath, 
+                                                         m_reportPath ) );
 }
 
 

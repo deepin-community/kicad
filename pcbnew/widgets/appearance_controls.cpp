@@ -23,6 +23,7 @@
 #include <bitmaps.h>
 #include <board.h>
 #include <board_design_settings.h>
+#include <project/net_settings.h>
 #include <pad.h>
 #include <pcb_track.h>
 #include <eda_list_dialog.h>
@@ -33,6 +34,7 @@
 #include <pcb_edit_frame.h>
 #include <pcb_painter.h>
 #include <pcbnew_settings.h>
+#include <footprint_editor_settings.h>
 #include <project.h>
 #include <project/project_local_settings.h>
 #include <settings/color_settings.h>
@@ -60,6 +62,7 @@
 #include <wx/textdlg.h>
 #include <wx/bmpbuttn.h>        // needed on wxMSW for OnSetFocus()
 #include <core/profile.h>
+#include <pgm_base.h>
 
 
 NET_GRID_TABLE::NET_GRID_TABLE( PCB_BASE_FRAME* aFrame, wxColor aBackgroundColor ) :
@@ -219,16 +222,15 @@ int NET_GRID_TABLE::GetRowByNetcode( int aCode ) const
 
 void NET_GRID_TABLE::Rebuild()
 {
-    BOARD*              board = m_frame->GetBoard();
-    const NETNAMES_MAP& nets  = board->GetNetInfo().NetsByName();
-
-    KIGFX::PCB_RENDER_SETTINGS* rs = static_cast<KIGFX::PCB_RENDER_SETTINGS*>(
-            m_frame->GetCanvas()->GetView()->GetPainter()->GetSettings() );
+    BOARD*                      board = m_frame->GetBoard();
+    const NETNAMES_MAP&         nets  = board->GetNetInfo().NetsByName();
+    KIGFX::RENDER_SETTINGS*     renderSettings = m_frame->GetCanvas()->GetView()->GetPainter()->GetSettings();
+    KIGFX::PCB_RENDER_SETTINGS* rs = static_cast<KIGFX::PCB_RENDER_SETTINGS*>( renderSettings );
 
     std::set<int>&                 hiddenNets = rs->GetHiddenNets();
     std::map<int, KIGFX::COLOR4D>& netColors  = rs->GetNetColorMap();
 
-    int deleted = m_nets.size();
+    int deleted = (int) m_nets.size();
     m_nets.clear();
 
     if( GetView() )
@@ -243,8 +245,8 @@ void NET_GRID_TABLE::Rebuild()
 
         if( netCode > 0 && !pair.first.StartsWith( wxT( "unconnected-(" ) ) )
         {
-            COLOR4D color = netColors.count( netCode ) ? netColors.at( netCode ) :
-                            COLOR4D::UNSPECIFIED;
+            COLOR4D color = netColors.count( netCode ) ? netColors.at( netCode )
+                                                       : COLOR4D::UNSPECIFIED;
 
             bool visible = hiddenNets.count( netCode ) == 0;
 
@@ -261,7 +263,7 @@ void NET_GRID_TABLE::Rebuild()
 
     if( GetView() )
     {
-        wxGridTableMessage msg( this, wxGRIDTABLE_NOTIFY_ROWS_APPENDED, m_nets.size() );
+        wxGridTableMessage msg( this, wxGRIDTABLE_NOTIFY_ROWS_APPENDED, (int) m_nets.size() );
         GetView()->ProcessTableMessage( msg );
     }
 }
@@ -347,8 +349,10 @@ const APPEARANCE_CONTROLS::APPEARANCE_SETTING APPEARANCE_CONTROLS::s_objectSetti
     RR( _HKI( "DRC Errors" ),           LAYER_DRC_ERROR,          _HKI( "DRC violations with an Error severity" ) ),
     RR( _HKI( "DRC Exclusions" ),       LAYER_DRC_EXCLUSION,      _HKI( "DRC violations which have been individually excluded" ) ),
     RR( _HKI( "Anchors" ),              LAYER_ANCHOR,             _HKI( "Show footprint and text origins as a cross" ) ),
+    RR( _HKI( "Points" ),               LAYER_POINTS,             _HKI( "Show explicit snap points as crosses" ) ),
     RR( _HKI( "Locked Item Shadow" ),   LAYER_LOCKED_ITEM_SHADOW, _HKI( "Show a shadow on locked items" ) ),
     RR( _HKI( "Colliding Courtyards" ), LAYER_CONFLICTS_SHADOW,   _HKI( "Show colliding footprint courtyards" ) ),
+    RR( _HKI( "Board Area Shadow" ),    LAYER_BOARD_OUTLINE_AREA, _HKI( "Show board area shadow" ) ),
     RR( _HKI( "Drawing Sheet" ),        LAYER_DRAWINGSHEET,       _HKI( "Show drawing sheet borders and title block" ) ),
     RR( _HKI( "Grid" ),                 LAYER_GRID,               _HKI( "Show the (x,y) grid dots" ) )
     // clang-format on
@@ -366,7 +370,8 @@ static std::set<int> s_allowedInFpEditor =
             LAYER_FP_REFERENCES,
             LAYER_FP_TEXT,
             LAYER_DRAW_BITMAPS,
-            LAYER_GRID
+            LAYER_GRID,
+            LAYER_POINTS,
         };
 
 // These are the built-in layer presets that cannot be deleted
@@ -399,8 +404,7 @@ LAYER_PRESET APPEARANCE_CONTROLS::presetBackAssembly( _HKI( "Back Assembly View"
 LAYER_PRESET APPEARANCE_CONTROLS::m_lastBuiltinPreset;
 
 
-APPEARANCE_CONTROLS::APPEARANCE_CONTROLS( PCB_BASE_FRAME* aParent, wxWindow* aFocusOwner,
-                                          bool aFpEditorMode ) :
+APPEARANCE_CONTROLS::APPEARANCE_CONTROLS( PCB_BASE_FRAME* aParent, wxWindow* aFocusOwner, bool aFpEditorMode ) :
         APPEARANCE_CONTROLS_BASE( aParent ),
         m_frame( aParent ),
         m_focusOwner( aFocusOwner ),
@@ -414,10 +418,14 @@ APPEARANCE_CONTROLS::APPEARANCE_CONTROLS( PCB_BASE_FRAME* aParent, wxWindow* aFo
     // Correct the min size from wxformbuilder not using fromdip
     SetMinSize( FromDIP( GetMinSize() ) );
 
-    int screenHeight  = wxSystemSettings::GetMetric( wxSYS_SCREEN_Y );
-    m_iconProvider    = new ROW_ICON_PROVIDER( KIUI::c_IndicatorSizeDIP, this );
-    m_pointSize       = wxSystemSettings::GetFont( wxSYS_DEFAULT_GUI_FONT ).GetPointSize();
+    // We pregenerate the visibility bundles to reuse to reduce gdi exhaustion on windows
+    // We can get a crazy amount of nets and netclasses
+    m_visibleBitmapBundle = KiBitmapBundle( BITMAPS::visibility );
+    m_notVisibileBitmapBundle = KiBitmapBundle( BITMAPS::visibility_off );
 
+    int screenHeight   = wxSystemSettings::GetMetric( wxSYS_SCREEN_Y );
+    m_iconProvider     = new ROW_ICON_PROVIDER( KIUI::c_IndicatorSizeDIP, this );
+    m_pointSize        = wxSystemSettings::GetFont( wxSYS_DEFAULT_GUI_FONT ).GetPointSize();
     m_layerPanelColour = m_panelLayers->GetBackgroundColour().ChangeLightness( 110 );
     SetBorders( true, false, false, false );
 
@@ -520,7 +528,7 @@ APPEARANCE_CONTROLS::APPEARANCE_CONTROLS( PCB_BASE_FRAME* aParent, wxWindow* aFo
                 passOnFocus();
             } );
 
-    m_cbFlipBoard->SetValue( m_frame->GetCanvas()->GetView()->IsMirroredX() );
+    m_cbFlipBoard->SetValue( m_frame->GetDisplayOptions().m_FlipBoardView );
     m_cbFlipBoard->Bind( wxEVT_CHECKBOX,
             [&]( wxCommandEvent& aEvent )
             {
@@ -528,8 +536,8 @@ APPEARANCE_CONTROLS::APPEARANCE_CONTROLS( PCB_BASE_FRAME* aParent, wxWindow* aFo
                 syncLayerPresetSelection();
             } );
 
-    m_toggleGridRenderer = new GRID_BITMAP_TOGGLE_RENDERER(
-            KiBitmapBundle( BITMAPS::visibility ), KiBitmapBundle( BITMAPS::visibility_off ) );
+    m_toggleGridRenderer = new GRID_BITMAP_TOGGLE_RENDERER( m_visibleBitmapBundle,
+                                                            m_notVisibileBitmapBundle );
 
     m_netsGrid->RegisterDataType( wxT( "bool" ), m_toggleGridRenderer, new wxGridCellBoolEditor );
 
@@ -555,18 +563,16 @@ APPEARANCE_CONTROLS::APPEARANCE_CONTROLS( PCB_BASE_FRAME* aParent, wxWindow* aFo
     wxSize size = ConvertDialogToPixels( SWATCH_SIZE_SMALL_DU );
     m_netsGrid->SetColSize( NET_GRID_TABLE::COL_COLOR, size.x + cellPadding );
 
-    size = KiBitmapBundle( BITMAPS::visibility ).GetPreferredBitmapSizeFor( this );
+    size = m_visibleBitmapBundle.GetPreferredBitmapSizeFor( this );
     m_netsGrid->SetColSize( NET_GRID_TABLE::COL_VISIBILITY, size.x + cellPadding );
 
     m_netsGrid->SetDefaultCellFont( font );
     m_netsGrid->SetDefaultRowSize( font.GetPixelSize().y + rowHeightPadding );
 
-    m_netsGrid->GetGridWindow()->Bind( wxEVT_MOTION, &APPEARANCE_CONTROLS::OnNetGridMouseEvent,
-                                       this );
+    m_netsGrid->GetGridWindow()->Bind( wxEVT_MOTION, &APPEARANCE_CONTROLS::OnNetGridMouseEvent, this );
 
     // To handle middle click on color swatches
-    m_netsGrid->GetGridWindow()->Bind( wxEVT_MIDDLE_UP, &APPEARANCE_CONTROLS::OnNetGridMouseEvent,
-                                       this );
+    m_netsGrid->GetGridWindow()->Bind( wxEVT_MIDDLE_UP, &APPEARANCE_CONTROLS::OnNetGridMouseEvent, this );
 
     m_netsGrid->ShowScrollbars( wxSHOW_SB_NEVER, wxSHOW_SB_DEFAULT );
     m_netclassScrolledWindow->ShowScrollbars( wxSHOW_SB_NEVER, wxSHOW_SB_DEFAULT );
@@ -574,16 +580,17 @@ APPEARANCE_CONTROLS::APPEARANCE_CONTROLS( PCB_BASE_FRAME* aParent, wxWindow* aFo
     if( m_isFpEditor )
         m_notebook->RemovePage( 2 );
 
-    PCBNEW_SETTINGS* settings = m_frame->GetPcbNewSettings();
+    if( PCBNEW_SETTINGS* cfg = m_frame->GetPcbNewSettings() )
+    {
+        if( cfg->m_AuiPanels.appearance_expand_layer_display )
+            m_paneLayerDisplayOptions->Expand();
 
-    if( settings->m_AuiPanels.appearance_expand_layer_display )
-        m_paneLayerDisplayOptions->Expand();
-
-    if( settings->m_AuiPanels.appearance_expand_net_display )
-        m_paneNetDisplayOptions->Expand();
+        if( cfg->m_AuiPanels.appearance_expand_net_display )
+            m_paneNetDisplayOptions->Expand();
+    }
 
     loadDefaultLayerPresets();
-    rebuildLayerPresetsWidget();
+    rebuildLayerPresetsWidget( true );
     rebuildObjects();
     OnBoardChanged();
 
@@ -982,14 +989,9 @@ void APPEARANCE_CONTROLS::OnNetGridMouseEvent( wxMouseEvent& aEvent )
         wxString tip;
 
         if( cell.GetCol() == NET_GRID_TABLE::COL_VISIBILITY )
-        {
             tip.Printf( showOrHide, name );
-        }
         else if( cell.GetCol() == NET_GRID_TABLE::COL_COLOR )
-        {
-            tip = _( "Double click (or middle click) to change color; "
-                     "right click for more actions" );
-        }
+            tip = _( "Double click (or middle click) to change color; right click for more actions" );
 
         m_netsGrid->GetGridWindow()->SetToolTip( tip );
     }
@@ -1031,10 +1033,12 @@ void APPEARANCE_CONTROLS::OnLanguageChanged( wxCommandEvent& aEvent )
     if( m_notebook->GetPageCount() >= 3 )
         m_notebook->SetPageText( 2, _( "Nets" ) );
 
+    m_netsGrid->ClearSelection();
+
     Freeze();
     rebuildLayers();
     rebuildLayerContextMenu();
-    rebuildLayerPresetsWidget();
+    rebuildLayerPresetsWidget( false );
     rebuildViewportsWidget();
     rebuildObjects();
     rebuildNets();
@@ -1054,13 +1058,15 @@ void APPEARANCE_CONTROLS::OnLanguageChanged( wxCommandEvent& aEvent )
 
 void APPEARANCE_CONTROLS::OnBoardChanged()
 {
+    m_netsGrid->ClearSelection();
+
     Freeze();
     rebuildLayers();
     rebuildLayerContextMenu();
     syncColorsAndVisibility();
     syncObjectSettings();
     rebuildNets();
-    rebuildLayerPresetsWidget();
+    rebuildLayerPresetsWidget( true );
     syncLayerPresetSelection();
     rebuildViewportsWidget();
 
@@ -1172,6 +1178,8 @@ void APPEARANCE_CONTROLS::OnBoardCompositeUpdate( BOARD&                    aBoa
 
 void APPEARANCE_CONTROLS::handleBoardItemsChanged()
 {
+    m_netsGrid->ClearSelection();
+
     Freeze();
     rebuildNets();
     Thaw();
@@ -1297,7 +1305,7 @@ void APPEARANCE_CONTROLS::SetObjectVisible( GAL_LAYER_ID aLayer, bool isVisible 
 }
 
 
-void APPEARANCE_CONTROLS::setVisibleLayers( LSET aLayers )
+void APPEARANCE_CONTROLS::setVisibleLayers( const LSET& aLayers )
 {
     KIGFX::VIEW* view = m_frame->GetCanvas()->GetView();
 
@@ -1326,12 +1334,22 @@ void APPEARANCE_CONTROLS::setVisibleLayers( LSET aLayers )
 }
 
 
+bool APPEARANCE_CONTROLS::isLayerEnabled( PCB_LAYER_ID aLayer ) const
+{
+    // This used to be used for disabling some layers in the footprint editor, but
+    // now all layers are enabled in the footprint editor.
+    // But this function is the place to add logic if you do need to grey out a layer
+    // from the appearance panel for some reason.
+    return true;
+}
+
+
 void APPEARANCE_CONTROLS::setVisibleObjects( GAL_SET aLayers )
 {
+    KIGFX::VIEW* view = m_frame->GetCanvas()->GetView();
+
     if( m_isFpEditor )
     {
-        KIGFX::VIEW* view = m_frame->GetCanvas()->GetView();
-
         for( size_t i = 0; i < GAL_LAYER_INDEX( LAYER_ZONE_START ); i++ )
             view->SetLayerVisible( GAL_LAYER_ID_START + GAL_LAYER_ID( i ), aLayers.test( i ) );
     }
@@ -1341,7 +1359,26 @@ void APPEARANCE_CONTROLS::setVisibleObjects( GAL_SET aLayers )
         if( m_frame->IsType( FRAME_PCB_EDITOR ) )
             aLayers.set( LAYER_RATSNEST, m_frame->GetPcbNewSettings()->m_Display.m_ShowGlobalRatsnest );
 
+        m_frame->SetGridVisibility( aLayers.test( LAYER_GRID - GAL_LAYER_ID_START ) );
         m_frame->GetBoard()->SetVisibleElements( aLayers );
+
+        // Update VIEW layer visibility to stay in sync with board settings
+        for( size_t i = 0; i < GAL_LAYER_INDEX( LAYER_ZONE_START ) && i < aLayers.size(); i++ )
+        {
+            // Warning: all GAL layers are not handled by the apparence panel (i.e. LAYER_SELECT_OVERLAY)
+            // but only some, only set visiblity if the layer is handled by the APPEARANCE_CONTROLS
+            GAL_LAYER_ID gal_ly = GAL_LAYER_ID( i ) + GAL_LAYER_ID_START;
+
+            for( const APPEARANCE_SETTING& s_setting : s_objectSettings )
+            {
+                // See if this gal layer is handled
+                if( s_setting.id == gal_ly )
+                {
+                    view->SetLayerVisible( gal_ly, aLayers.test( i ) );
+                    break;
+                }
+            }
+        }
 
         m_frame->Update3DView( true, m_frame->GetPcbNewSettings()->m_Display.m_Live3DRefresh );
     }
@@ -1405,22 +1442,23 @@ void APPEARANCE_CONTROLS::UpdateDisplayOptions()
     case NET_COLOR_MODE::OFF:      m_rbNetColorOff->SetValue( true );      break;
     }
 
-    m_cbFlipBoard->SetValue( m_frame->GetCanvas()->GetView()->IsMirroredX() );
+    m_cbFlipBoard->SetValue( m_frame->GetDisplayOptions().m_FlipBoardView );
 
     if( !m_isFpEditor )
     {
-        PCBNEW_SETTINGS* cfg = m_frame->GetPcbNewSettings();
+        if( PCBNEW_SETTINGS* cfg = m_frame->GetPcbNewSettings() )
+        {
+            if( !cfg->m_Display.m_ShowGlobalRatsnest )
+                m_rbRatsnestNone->SetValue( true );
+            else if( cfg->m_Display.m_RatsnestMode == RATSNEST_MODE::ALL )
+                m_rbRatsnestAllLayers->SetValue( true );
+            else
+                m_rbRatsnestVisLayers->SetValue( true );
 
-        if( !cfg->m_Display.m_ShowGlobalRatsnest )
-            m_rbRatsnestNone->SetValue( true );
-        else if( cfg->m_Display.m_RatsnestMode == RATSNEST_MODE::ALL )
-            m_rbRatsnestAllLayers->SetValue( true );
-        else
-            m_rbRatsnestVisLayers->SetValue( true );
-
-        wxASSERT( m_objectSettingsMap.count( LAYER_RATSNEST ) );
-        APPEARANCE_SETTING* ratsnest = m_objectSettingsMap.at( LAYER_RATSNEST );
-        ratsnest->ctl_visibility->SetValue( cfg->m_Display.m_ShowGlobalRatsnest );
+            wxASSERT( m_objectSettingsMap.count( LAYER_RATSNEST ) );
+            APPEARANCE_SETTING* ratsnest = m_objectSettingsMap.at( LAYER_RATSNEST );
+            ratsnest->ctl_visibility->SetValue( cfg->m_Display.m_ShowGlobalRatsnest );
+        }
     }
 }
 
@@ -1454,7 +1492,7 @@ void APPEARANCE_CONTROLS::SetUserLayerPresets( std::vector<LAYER_PRESET>& aPrese
         m_presetMRU.Add( preset.name );
     }
 
-    rebuildLayerPresetsWidget();
+    rebuildLayerPresetsWidget( true );
 }
 
 
@@ -1463,9 +1501,14 @@ void APPEARANCE_CONTROLS::loadDefaultLayerPresets()
     m_layerPresets.clear();
 
     // Load the read-only defaults
-    for( const LAYER_PRESET& preset :
-         { presetAllLayers, presetNoLayers, presetAllCopper, presetInnerCopper, presetFront,
-           presetFrontAssembly, presetBack, presetBackAssembly } )
+    for( const LAYER_PRESET& preset : { presetAllLayers,
+                                        presetNoLayers,
+                                        presetAllCopper,
+                                        presetInnerCopper,
+                                        presetFront,
+                                        presetFrontAssembly,
+                                        presetBack,
+                                        presetBackAssembly } )
     {
         m_layerPresets[preset.name]          = preset;
         m_layerPresets[preset.name].readOnly = true;
@@ -1552,6 +1595,8 @@ void APPEARANCE_CONTROLS::rebuildLayers()
     COLOR4D         bgColor  = theme->GetColor( LAYER_PCB_BACKGROUND );
     bool            readOnly = theme->IsReadOnly();
 
+    FOOTPRINT_EDITOR_SETTINGS* cfg = GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" );
+
 #ifdef __WXMAC__
     wxSizerItem* m_windowLayersSizerItem = m_panelLayersSizer->GetItem( m_windowLayers );
     m_windowLayersSizerItem->SetFlag( m_windowLayersSizerItem->GetFlag() & ~wxTOP );
@@ -1572,18 +1617,16 @@ void APPEARANCE_CONTROLS::rebuildLayers()
 
                 // TODO(JE) consider restyling this indicator
                 INDICATOR_ICON* indicator = new INDICATOR_ICON( panel, *m_iconProvider,
-                                                                ROW_ICON_PROVIDER::STATE::OFF,
-                                                                layer );
+                                                                ROW_ICON_PROVIDER::STATE::OFF, layer );
 
-                COLOR_SWATCH* swatch = new COLOR_SWATCH( panel, COLOR4D::UNSPECIFIED, layer,
-                                                         bgColor, theme->GetColor( layer ),
-                                                         SWATCH_SMALL );
-                swatch->SetToolTip( _( "Double click or middle click for color change, "
-                                       "right click for menu" ) );
+                COLOR_SWATCH* swatch = new COLOR_SWATCH( panel, COLOR4D::UNSPECIFIED, layer, bgColor,
+                                                         theme->GetColor( layer ), SWATCH_SMALL );
+                swatch->SetToolTip( _( "Double click or middle click for color change, right click for menu" ) );
 
-                BITMAP_TOGGLE* btn_visible = new BITMAP_TOGGLE(
-                        panel, layer, KiBitmapBundle( BITMAPS::visibility ),
-                        KiBitmapBundle( BITMAPS::visibility_off ), aSetting->visible );
+                BITMAP_TOGGLE* btn_visible = new BITMAP_TOGGLE( panel, layer,
+                                                                m_visibleBitmapBundle,
+                                                                m_notVisibileBitmapBundle,
+                                                                aSetting->visible );
                 btn_visible->SetToolTip( _( "Show or hide this layer" ) );
 
                 wxStaticText* label = new wxStaticText( panel, layer, aSetting->label );
@@ -1621,10 +1664,8 @@ void APPEARANCE_CONTROLS::rebuildLayers()
                             onLayerVisibilityToggled( static_cast<PCB_LAYER_ID>( layerId ) );
                         } );
 
-                swatch->Bind( COLOR_SWATCH_CHANGED, &APPEARANCE_CONTROLS::OnColorSwatchChanged,
-                              this );
-                swatch->SetReadOnlyCallback( std::bind( &APPEARANCE_CONTROLS::onReadOnlySwatch,
-                                                        this ) );
+                swatch->Bind( COLOR_SWATCH_CHANGED, &APPEARANCE_CONTROLS::OnColorSwatchChanged, this );
+                swatch->SetReadOnlyCallback( std::bind( &APPEARANCE_CONTROLS::onReadOnlySwatch, this ) );
                 swatch->SetReadOnly( readOnly );
 
                 panel->Bind( wxEVT_RIGHT_DOWN, &APPEARANCE_CONTROLS::rightClickHandler, this );
@@ -1784,7 +1825,7 @@ void APPEARANCE_CONTROLS::rebuildLayers()
 
         m_layerSettingsMap[layer] = setting.get();
 
-        if( m_isFpEditor && LSET::ForbiddenFootprintLayers().test( layer ) )
+        if( !isLayerEnabled( layer ) )
         {
             setting->ctl_text->Disable();
             setting->ctl_color->SetToolTip( wxEmptyString );
@@ -1802,7 +1843,20 @@ void APPEARANCE_CONTROLS::rebuildLayers()
 
         std::unique_ptr<APPEARANCE_SETTING>& setting = *layer_it;
 
-        setting->label = board->GetLayerName( layer );
+        if( m_isFpEditor )
+        {
+            wxString canonicalName = LSET::Name( static_cast<PCB_LAYER_ID>( layer ) );
+
+            if( cfg->m_DesignSettings.m_UserLayerNames.contains( canonicalName.ToStdString() ) )
+                setting->label = cfg->m_DesignSettings.m_UserLayerNames[canonicalName.ToStdString()];
+            else
+                setting->label = board->GetStandardLayerName( layer );
+        }
+        else
+        {
+            setting->label = board->GetLayerName( layer );
+        }
+
         setting->id = layer;
         // Because non_cu_seq is created static, we must explicitly call wxGetTranslation for
         // texts which are internationalized
@@ -1815,7 +1869,7 @@ void APPEARANCE_CONTROLS::rebuildLayers()
 
         m_layerSettingsMap[layer] = setting.get();
 
-        if( m_isFpEditor && LSET::ForbiddenFootprintLayers().test( layer ) )
+        if( !isLayerEnabled( layer ) )
         {
             setting->ctl_text->Disable();
             setting->ctl_color->SetToolTip( wxEmptyString );
@@ -1865,17 +1919,15 @@ void APPEARANCE_CONTROLS::rebuildLayerContextMenu()
 
     m_layerContextMenu->AppendSeparator();
 
-    KIUI::AddMenuItem( m_layerContextMenu, ID_HIDE_ALL_BUT_ACTIVE,
-                       _( "Hide All Layers But Active" ), KiBitmap( BITMAPS::select_w_layer ) );
+    KIUI::AddMenuItem( m_layerContextMenu, ID_HIDE_ALL_BUT_ACTIVE, _( "Hide All Layers But Active" ),
+                       KiBitmap( BITMAPS::select_w_layer ) );
 
     m_layerContextMenu->AppendSeparator();
 
-    KIUI::AddMenuItem( m_layerContextMenu, ID_SHOW_ALL_NON_COPPER,
-                       _( "Show All Non Copper Layers" ),
+    KIUI::AddMenuItem( m_layerContextMenu, ID_SHOW_ALL_NON_COPPER, _( "Show All Non Copper Layers" ),
                        KiBitmap( BITMAPS::show_no_copper_layers ) );
 
-    KIUI::AddMenuItem( m_layerContextMenu, ID_HIDE_ALL_NON_COPPER,
-                       _( "Hide All Non Copper Layers" ),
+    KIUI::AddMenuItem( m_layerContextMenu, ID_HIDE_ALL_NON_COPPER, _( "Hide All Non Copper Layers" ),
                        KiBitmap( BITMAPS::show_all_copper_layers ) );
 
     m_layerContextMenu->AppendSeparator();
@@ -1888,8 +1940,7 @@ void APPEARANCE_CONTROLS::rebuildLayerContextMenu()
 
     m_layerContextMenu->AppendSeparator();
 
-    KIUI::AddMenuItem( m_layerContextMenu, ID_PRESET_FRONT_ASSEMBLY,
-                       _( "Show Only Front Assembly Layers" ),
+    KIUI::AddMenuItem( m_layerContextMenu, ID_PRESET_FRONT_ASSEMBLY, _( "Show Only Front Assembly Layers" ),
                        KiBitmap( BITMAPS::show_front_assembly_layers ) );
 
     KIUI::AddMenuItem( m_layerContextMenu, ID_PRESET_FRONT, _( "Show Only Front Layers" ),
@@ -1898,16 +1949,14 @@ void APPEARANCE_CONTROLS::rebuildLayerContextMenu()
     // Only show the internal layer option if internal layers are enabled
     if( m_frame->GetBoard()->GetCopperLayerCount() > 2 )
     {
-        KIUI::AddMenuItem( m_layerContextMenu, ID_PRESET_INNER_COPPER,
-                           _( "Show Only Inner Layers" ),
-                     KiBitmap( BITMAPS::show_all_copper_layers ) );
+        KIUI::AddMenuItem( m_layerContextMenu, ID_PRESET_INNER_COPPER, _( "Show Only Inner Layers" ),
+                           KiBitmap( BITMAPS::show_all_copper_layers ) );
     }
 
     KIUI::AddMenuItem( m_layerContextMenu, ID_PRESET_BACK, _( "Show Only Back Layers" ),
                        KiBitmap( BITMAPS::show_all_back_layers ) );
 
-    KIUI::AddMenuItem( m_layerContextMenu, ID_PRESET_BACK_ASSEMBLY,
-                       _( "Show Only Back Assembly Layers" ),
+    KIUI::AddMenuItem( m_layerContextMenu, ID_PRESET_BACK_ASSEMBLY, _( "Show Only Back Assembly Layers" ),
                        KiBitmap( BITMAPS::show_back_assembly_layers ) );
 }
 
@@ -2074,7 +2123,7 @@ void APPEARANCE_CONTROLS::onLayerLeftClick( wxMouseEvent& aEvent )
 
     PCB_LAYER_ID layer = ToLAYER_ID( eventSource->GetId() );
 
-    if( m_isFpEditor && LSET::ForbiddenFootprintLayers().test( layer ) )
+    if( !isLayerEnabled( layer ) )
         return;
 
     m_frame->SetActiveLayer( layer );
@@ -2103,8 +2152,7 @@ void APPEARANCE_CONTROLS::onLayerVisibilityToggled( PCB_LAYER_ID aLayer )
 }
 
 
-void APPEARANCE_CONTROLS::onObjectVisibilityChanged( GAL_LAYER_ID aLayer, bool isVisible,
-                                                     bool isFinal )
+void APPEARANCE_CONTROLS::onObjectVisibilityChanged( GAL_LAYER_ID aLayer, bool isVisible, bool isFinal )
 {
     // Special-case controls
     switch( aLayer )
@@ -2187,8 +2235,7 @@ void APPEARANCE_CONTROLS::rebuildObjects()
     int             swatchWidth = m_windowObjects->ConvertDialogToPixels( wxSize( 8, 0 ) ).x;
     int             labelWidth = 0;
 
-    int btnWidth =
-            KiBitmapBundle( BITMAPS::visibility ).GetPreferredLogicalSizeFor( m_windowObjects ).x;
+    int btnWidth = m_visibleBitmapBundle.GetPreferredLogicalSizeFor( m_windowObjects ).x;
 
     m_objectSettings.clear();
     m_objectsOuterSizer->Clear( true );
@@ -2197,16 +2244,18 @@ void APPEARANCE_CONTROLS::rebuildObjects()
     auto appendObject =
             [&]( const std::unique_ptr<APPEARANCE_SETTING>& aSetting )
             {
+                wxPanel*    panel = new wxPanel( m_windowObjects, wxID_ANY );
                 wxBoxSizer* sizer = new wxBoxSizer( wxHORIZONTAL );
+                panel->SetSizer( sizer );
                 int         layer = aSetting->id;
 
                 aSetting->visible = visible.Contains( ToGalLayer( layer ) );
                 COLOR4D color     = theme->GetColor( layer );
                 COLOR4D defColor  = theme->GetDefaultColor( layer );
 
-                if( color != COLOR4D::UNSPECIFIED )
+                if( color != COLOR4D::UNSPECIFIED || defColor != COLOR4D::UNSPECIFIED )
                 {
-                    COLOR_SWATCH* swatch = new COLOR_SWATCH( m_windowObjects, color, layer,
+                    COLOR_SWATCH* swatch = new COLOR_SWATCH( panel, color, layer,
                                                              bgColor, defColor, SWATCH_SMALL );
                     swatch->SetToolTip( _( "Left double click or middle click for color change, "
                                            "right click for menu" ) );
@@ -2214,11 +2263,9 @@ void APPEARANCE_CONTROLS::rebuildObjects()
                     sizer->Add( swatch, 0,  wxALIGN_CENTER_VERTICAL, 0 );
                     aSetting->ctl_color = swatch;
 
-                    swatch->Bind( COLOR_SWATCH_CHANGED, &APPEARANCE_CONTROLS::OnColorSwatchChanged,
-                                  this );
+                    swatch->Bind( COLOR_SWATCH_CHANGED, &APPEARANCE_CONTROLS::OnColorSwatchChanged, this );
 
-                    swatch->SetReadOnlyCallback( std::bind( &APPEARANCE_CONTROLS::onReadOnlySwatch,
-                                                            this ) );
+                    swatch->SetReadOnlyCallback( std::bind( &APPEARANCE_CONTROLS::onReadOnlySwatch, this ) );
                 }
                 else
                 {
@@ -2230,9 +2277,10 @@ void APPEARANCE_CONTROLS::rebuildObjects()
 
                 if( aSetting->can_control_visibility )
                 {
-                    btn_visible = new BITMAP_TOGGLE(
-                            m_windowObjects, layer, KiBitmapBundle( BITMAPS::visibility ),
-                            KiBitmapBundle( BITMAPS::visibility_off ), aSetting->visible );
+                    btn_visible = new BITMAP_TOGGLE( panel, layer,
+                                                     m_visibleBitmapBundle,
+                                                     m_notVisibileBitmapBundle,
+                                                     aSetting->visible );
 
                     tip.Printf( _( "Show or hide %s" ), aSetting->label.Lower() );
                     btn_visible->SetToolTip( tip );
@@ -2250,7 +2298,7 @@ void APPEARANCE_CONTROLS::rebuildObjects()
 
                 sizer->AddSpacer( 5 );
 
-                wxStaticText* label = new wxStaticText( m_windowObjects, layer, aSetting->label );
+                wxStaticText* label = new wxStaticText( panel, layer, aSetting->label );
                 label->Wrap( -1 );
                 label->SetToolTip( aSetting->tooltip );
 
@@ -2275,9 +2323,8 @@ void APPEARANCE_CONTROLS::rebuildObjects()
                     sizer->Add( label, 0, wxALIGN_CENTER_VERTICAL, 0 );
 #endif
 
-                    wxSlider* slider = new wxSlider( m_windowObjects, wxID_ANY, 100, 0, 100,
-                                                     wxDefaultPosition, wxDefaultSize,
-                                                     wxSL_HORIZONTAL );
+                    wxSlider* slider = new wxSlider( panel, wxID_ANY, 100, 0, 100,
+                                                     wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
 #ifdef __WXMAC__
                     slider->SetMinSize( wxSize( 80, 16 ) );
 #else
@@ -2314,7 +2361,7 @@ void APPEARANCE_CONTROLS::rebuildObjects()
                 }
 
                 aSetting->ctl_text = label;
-                m_objectsOuterSizer->Add( sizer, 0, wxEXPAND | wxLEFT | wxRIGHT, 5 );
+                m_objectsOuterSizer->Add( panel, 0, wxEXPAND | wxLEFT | wxRIGHT, 5 );
 
                 if( !aSetting->can_control_opacity )
                     m_objectsOuterSizer->AddSpacer( 2 );
@@ -2353,6 +2400,7 @@ void APPEARANCE_CONTROLS::rebuildObjects()
     }
 
     m_objectsOuterSizer->Layout();
+    m_windowObjects->FitInside();
 }
 
 
@@ -2406,9 +2454,9 @@ void APPEARANCE_CONTROLS::buildNetClassMenu( wxMenu& aMenu, bool isDefaultClass,
         aMenu.Append( new wxMenuItem( &aMenu, ID_SET_NET_COLOR, _( "Set Netclass Color" ),
                                       wxEmptyString, wxITEM_NORMAL ) );
 
-        wxMenuItem* schematicColor =
-                new wxMenuItem( &aMenu, ID_USE_SCHEMATIC_NET_COLOR, _( "Use Color from Schematic" ),
-                                wxEmptyString, wxITEM_NORMAL );
+        wxMenuItem* schematicColor = new wxMenuItem( &aMenu, ID_USE_SCHEMATIC_NET_COLOR,
+                                                     _( "Use Color from Schematic" ),
+                                                     wxEmptyString, wxITEM_NORMAL );
         std::shared_ptr<NETCLASS> nc = netSettings->GetNetClassByName( aName );
         const KIGFX::COLOR4D      ncColor = nc->GetSchematicColor();
         aMenu.Append( schematicColor );
@@ -2482,7 +2530,7 @@ void APPEARANCE_CONTROLS::rebuildNets()
                                         : COLOR4D::UNSPECIFIED;
 
                 setting->ctl_color = new COLOR_SWATCH( setting->ctl_panel, color, aId, bgColor,
-                                                        COLOR4D::UNSPECIFIED, SWATCH_SMALL );
+                                                       COLOR4D::UNSPECIFIED, SWATCH_SMALL );
                 setting->ctl_color->SetToolTip( _( "Left double click or middle click for color "
                                                    "change, right click for menu" ) );
 
@@ -2493,9 +2541,10 @@ void APPEARANCE_CONTROLS::rebuildNets()
                 if( isDefaultClass )
                     setting->ctl_color->Hide();
 
-                setting->ctl_visibility = new BITMAP_TOGGLE(
-                        setting->ctl_panel, aId, KiBitmapBundle( BITMAPS::visibility ),
-                        KiBitmapBundle( BITMAPS::visibility_off ), !hiddenClasses.count( name ) );
+                setting->ctl_visibility = new BITMAP_TOGGLE( setting->ctl_panel, aId,
+                                                             m_visibleBitmapBundle,
+                                                             m_notVisibileBitmapBundle,
+                                                             !hiddenClasses.count( name ) );
 
                 wxString tip;
                 tip.Printf( _( "Show or hide ratsnest for nets in %s" ), name );
@@ -2506,11 +2555,11 @@ void APPEARANCE_CONTROLS::rebuildNets()
 
                 int flags = wxALIGN_CENTER_VERTICAL;
 
-                sizer->Add( setting->ctl_color,      0, flags | wxRESERVE_SPACE_EVEN_IF_HIDDEN, 5 );
+                sizer->Add( setting->ctl_color, 0, flags | wxRESERVE_SPACE_EVEN_IF_HIDDEN, 5 );
                 sizer->AddSpacer( 7 );
-                sizer->Add( setting->ctl_visibility, 0, flags,                                  5 );
+                sizer->Add( setting->ctl_visibility, 0, flags, 5 );
                 sizer->AddSpacer( 3 );
-                sizer->Add( setting->ctl_text,       1, flags,                                  5 );
+                sizer->Add( setting->ctl_text, 1, flags, 5 );
 
                 m_netclassOuterSizer->Add( setting->ctl_panel, 0, wxEXPAND, 5 );
                 m_netclassOuterSizer->AddSpacer( 2 );
@@ -2605,30 +2654,49 @@ void APPEARANCE_CONTROLS::rebuildNets()
 }
 
 
-void APPEARANCE_CONTROLS::rebuildLayerPresetsWidget()
+void APPEARANCE_CONTROLS::rebuildLayerPresetsWidget( bool aReset )
 {
     m_viewportsLabel->SetLabel( wxString::Format( _( "Presets (%s+Tab):" ),
                                                   KeyNameFromKeyCode( PRESET_SWITCH_KEY ) ) );
 
     m_cbLayerPresets->Clear();
-    m_presetMRU.clear();
+
+    if( aReset )
+        m_presetMRU.clear();
 
     // Build the layers preset list.
     // By default, the presetAllLayers will be selected
     int idx = 0;
     int default_idx = 0;
+    std::vector<std::pair<wxString, void*>> userPresets;
 
-    for( std::pair<const wxString, LAYER_PRESET>& pair : m_layerPresets )
+    // m_layerPresets is alphabetical: m_presetMRU should also be alphabetical, but m_cbLayerPresets
+    // is split into build-in and user sections.
+    for( auto& [name, preset] : m_layerPresets )
     {
-        const wxString translatedName = wxGetTranslation( pair.first );
-        m_cbLayerPresets->Append( wxGetTranslation( translatedName ),
-                                  static_cast<void*>( &pair.second ) );
-        m_presetMRU.push_back( translatedName );
+        const wxString translatedName = wxGetTranslation( name );
+        void*          userData = static_cast<void*>( &preset );
 
-        if( pair.first == presetAllLayers.name )
+        if( preset.readOnly )
+            m_cbLayerPresets->Append( translatedName, userData );
+        else
+            userPresets.push_back( { name, userData } );
+
+        if( aReset )
+            m_presetMRU.push_back( translatedName );
+
+        if( name == presetAllLayers.name )
             default_idx = idx;
 
         idx++;
+    }
+
+    if( !userPresets.empty() )
+    {
+        m_cbLayerPresets->Append( wxT( "---" ) );
+
+        for( auto& [name, userData] : userPresets )
+            m_cbLayerPresets->Append( name, userData );
     }
 
     m_cbLayerPresets->Append( wxT( "---" ) );
@@ -2638,9 +2706,12 @@ void APPEARANCE_CONTROLS::rebuildLayerPresetsWidget()
     // At least the built-in presets should always be present
     wxASSERT( !m_layerPresets.empty() );
 
-    // Default preset: all layers
-    m_cbLayerPresets->SetSelection( default_idx );
-    m_currentPreset = &m_layerPresets[presetAllLayers.name];
+    if( aReset )
+    {
+        // Default preset: all layers
+        m_cbLayerPresets->SetSelection( default_idx );
+        m_currentPreset = &m_layerPresets[presetAllLayers.name];
+    }
 }
 
 
@@ -2672,8 +2743,7 @@ void APPEARANCE_CONTROLS::syncLayerPresetSelection()
         m_cbLayerPresets->SetSelection( m_cbLayerPresets->GetCount() - 3 ); // separator
     }
 
-    m_currentPreset = static_cast<LAYER_PRESET*>(
-            m_cbLayerPresets->GetClientData( m_cbLayerPresets->GetSelection() ) );
+    m_currentPreset = static_cast<LAYER_PRESET*>( m_cbLayerPresets->GetClientData( m_cbLayerPresets->GetSelection() ) );
 }
 
 
@@ -2724,13 +2794,7 @@ void APPEARANCE_CONTROLS::onLayerPresetChanged( wxCommandEvent& aEvent )
                     m_cbLayerPresets->SetSelection( m_cbLayerPresets->GetCount() - 3 );
             };
 
-    if( index == count - 3 )
-    {
-        // Separator: reject the selection
-        resetSelection();
-        return;
-    }
-    else if( index == count - 2 )
+    if( index == count - 2 )
     {
         // Save current state to new preset
         wxString name;
@@ -2760,7 +2824,8 @@ void APPEARANCE_CONTROLS::onLayerPresetChanged( wxCommandEvent& aEvent )
 
         if( !exists )
         {
-            index = m_cbLayerPresets->Insert( name, index - 1, static_cast<void*>( preset ) );
+            rebuildLayerPresetsWidget( false );
+            index = m_cbLayerPresets->FindString( name );
         }
         else if( preset->readOnly )
         {
@@ -2783,10 +2848,12 @@ void APPEARANCE_CONTROLS::onLayerPresetChanged( wxCommandEvent& aEvent )
             preset->flipBoard    = m_cbFlipBoard->GetValue();
 
             index = m_cbLayerPresets->FindString( name );
-            m_presetMRU.Remove( name );
+
+            if( m_presetMRU.Index( name ) != wxNOT_FOUND )
+                m_presetMRU.Remove( name );
         }
 
-        m_currentPreset      = preset;
+        m_currentPreset = preset;
         m_cbLayerPresets->SetSelection( index );
         m_presetMRU.Insert( name, 0 );
 
@@ -2824,16 +2891,23 @@ void APPEARANCE_CONTROLS::onLayerPresetChanged( wxCommandEvent& aEvent )
 
                 m_cbLayerPresets->Delete( idx );
                 m_currentPreset = nullptr;
-
-                m_presetMRU.Remove( presetName );
             }
+
+            if( m_presetMRU.Index( presetName ) != wxNOT_FOUND )
+                m_presetMRU.Remove( presetName );
         }
 
         resetSelection();
         return;
     }
+    else if( m_cbLayerPresets->GetString( index ) == wxT( "---" ) )
+    {
+        // Separator: reject the selection
+        resetSelection();
+        return;
+    }
 
-    // Store the objects visibility settings if the presedt is not a user preset,
+    // Store the objects visibility settings if the preset is not a user preset,
     // to be reused when selecting a new built-in layer preset, even if a previous
     // user preset has changed the object visibility
     if( !m_currentPreset || m_currentPreset->readOnly )
@@ -2863,7 +2937,9 @@ void APPEARANCE_CONTROLS::onLayerPresetChanged( wxCommandEvent& aEvent )
     {
         const wxString translatedName = wxGetTranslation( m_currentPreset->name );
 
-        m_presetMRU.Remove( translatedName );
+        if( m_presetMRU.Index( translatedName ) != wxNOT_FOUND )
+            m_presetMRU.Remove( translatedName );
+
         m_presetMRU.Insert( translatedName, 0 );
     }
 
@@ -2960,7 +3036,9 @@ void APPEARANCE_CONTROLS::onViewportChanged( wxCommandEvent& aEvent )
 
         if( !viewport->name.IsEmpty() )
         {
-            m_viewportMRU.Remove( viewport->name );
+            if( m_viewportMRU.Index( viewport->name ) != wxNOT_FOUND )
+                m_viewportMRU.Remove( viewport->name );
+
             m_viewportMRU.Insert( viewport->name, 0 );
         }
     }
@@ -2969,8 +3047,7 @@ void APPEARANCE_CONTROLS::onViewportChanged( wxCommandEvent& aEvent )
         // Save current state to new preset
         wxString name;
 
-        wxTextEntryDialog dlg( wxGetTopLevelParent( this ),
-                               _( "Viewport name:" ), _( "Save Viewport" ), name );
+        wxTextEntryDialog dlg( wxGetTopLevelParent( this ), _( "Viewport name:" ), _( "Save Viewport" ), name );
 
         if( dlg.ShowModal() != wxID_OK )
         {
@@ -2995,7 +3072,9 @@ void APPEARANCE_CONTROLS::onViewportChanged( wxCommandEvent& aEvent )
         {
             m_viewports[name].rect = m_frame->GetCanvas()->GetView()->GetViewport();
             index = m_cbViewports->FindString( name );
-            m_viewportMRU.Remove( name );
+
+            if( m_viewportMRU.Index( name ) != wxNOT_FOUND )
+                m_viewportMRU.Remove( name );
         }
 
         m_cbViewports->SetSelection( index );
@@ -3030,8 +3109,10 @@ void APPEARANCE_CONTROLS::onViewportChanged( wxCommandEvent& aEvent )
             {
                 m_viewports.erase( viewportName );
                 m_cbViewports->Delete( idx );
-                m_viewportMRU.Remove( viewportName );
             }
+
+            if( m_viewportMRU.Index( viewportName ) != wxNOT_FOUND )
+                m_viewportMRU.Remove( viewportName );
         }
 
         if( m_lastSelectedViewport )
@@ -3253,30 +3334,34 @@ void APPEARANCE_CONTROLS::onNetColorMode( wxCommandEvent& aEvent )
 
 void APPEARANCE_CONTROLS::onRatsnestMode( wxCommandEvent& aEvent )
 {
-    PCBNEW_SETTINGS* cfg = m_frame->GetPcbNewSettings();
-
-    if( m_rbRatsnestAllLayers->GetValue() )
+    if( PCBNEW_SETTINGS* cfg = m_frame->GetPcbNewSettings() )
     {
-        cfg->m_Display.m_ShowGlobalRatsnest = true;
-        cfg->m_Display.m_RatsnestMode = RATSNEST_MODE::ALL;
-    }
-    else if( m_rbRatsnestVisLayers->GetValue() )
-    {
-        cfg->m_Display.m_ShowGlobalRatsnest = true;
-        cfg->m_Display.m_RatsnestMode = RATSNEST_MODE::VISIBLE;
-    }
-    else
-    {
-        cfg->m_Display.m_ShowGlobalRatsnest = false;
+        if( m_rbRatsnestAllLayers->GetValue() )
+        {
+            cfg->m_Display.m_ShowGlobalRatsnest = true;
+            cfg->m_Display.m_RatsnestMode = RATSNEST_MODE::ALL;
+        }
+        else if( m_rbRatsnestVisLayers->GetValue() )
+        {
+            cfg->m_Display.m_ShowGlobalRatsnest = true;
+            cfg->m_Display.m_RatsnestMode = RATSNEST_MODE::VISIBLE;
+        }
+        else
+        {
+            cfg->m_Display.m_ShowGlobalRatsnest = false;
+        }
     }
 
     if( PCB_EDIT_FRAME* editframe = dynamic_cast<PCB_EDIT_FRAME*>( m_frame ) )
     {
-        editframe->SetElementVisibility( LAYER_RATSNEST, cfg->m_Display.m_ShowGlobalRatsnest );
+        if( PCBNEW_SETTINGS* cfg = m_frame->GetPcbNewSettings() )
+            editframe->SetElementVisibility( LAYER_RATSNEST, cfg->m_Display.m_ShowGlobalRatsnest );
+
         editframe->OnDisplayOptionsChanged();
         editframe->GetCanvas()->RedrawRatsnest();
         editframe->GetCanvas()->Refresh();
     }
+
     passOnFocus();
 }
 
@@ -3334,8 +3419,7 @@ void APPEARANCE_CONTROLS::onNetclassContextMenu( wxCommandEvent& aEvent )
             {
                 setting->ctl_color->SetSwatchColor( COLOR4D( 0, 0, 0, 0 ), true );
 
-                netSettings->GetNetClassByName( m_contextMenuNetclass )
-                        ->SetPcbColor( COLOR4D::UNSPECIFIED );
+                netSettings->GetNetClassByName( m_contextMenuNetclass )->SetPcbColor( COLOR4D::UNSPECIFIED );
                 netSettings->RecomputeEffectiveNetclasses();
 
                 view->UpdateAllLayersColor();
@@ -3348,8 +3432,7 @@ void APPEARANCE_CONTROLS::onNetclassContextMenu( wxCommandEvent& aEvent )
         {
             if( setting )
             {
-                std::shared_ptr<NETCLASS> nc =
-                        netSettings->GetNetClassByName( m_contextMenuNetclass );
+                std::shared_ptr<NETCLASS> nc = netSettings->GetNetClassByName( m_contextMenuNetclass );
                 const KIGFX::COLOR4D ncColor = nc->GetSchematicColor();
 
                 setting->ctl_color->SetSwatchColor( ncColor, true );
@@ -3470,8 +3553,7 @@ void APPEARANCE_CONTROLS::onReadOnlySwatch()
 {
     WX_INFOBAR* infobar = m_frame->GetInfoBar();
 
-    wxHyperlinkCtrl* button = new wxHyperlinkCtrl( infobar, wxID_ANY, _( "Open Preferences" ),
-                                                   wxEmptyString );
+    wxHyperlinkCtrl* button = new wxHyperlinkCtrl( infobar, wxID_ANY, _( "Open Preferences" ), wxEmptyString );
 
     button->Bind( wxEVT_COMMAND_HYPERLINK, std::function<void( wxHyperlinkEvent& aEvent )>(
             [&]( wxHyperlinkEvent& aEvent )
@@ -3483,8 +3565,8 @@ void APPEARANCE_CONTROLS::onReadOnlySwatch()
     infobar->AddButton( button );
     infobar->AddCloseButton();
 
-    infobar->ShowMessageFor( _( "The current color theme is read-only.  Create a new theme in "
-                                "Preferences to enable color editing." ),
+    infobar->ShowMessageFor( _( "The current color theme is read-only.  Create a new theme in Preferences to "
+                                "enable color editing." ),
                              10000, wxICON_INFORMATION );
 }
 

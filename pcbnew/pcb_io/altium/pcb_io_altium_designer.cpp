@@ -34,13 +34,97 @@
 #include <altium_pcb_compound_file.h>
 #include <io/io_utils.h>
 #include <io/altium/altium_binary_parser.h>
+#include <io/altium/altium_project_variants.h>
 #include <pcb_io/pcb_io.h>
 #include <reporter.h>
 
 #include <board.h>
+#include <footprint.h>
 
 #include <compoundfilereader.h>
 #include <utf.h>
+
+
+void ApplyAltiumProjectVariantsToBoard( BOARD* aBoard,
+                                        const std::vector<ALTIUM_PROJECT_VARIANT>& aVariants )
+{
+    std::map<wxString, FOOTPRINT*> fpByRef;
+    std::map<KIID, FOOTPRINT*>     fpByUid;
+
+    for( FOOTPRINT* fp : aBoard->Footprints() )
+    {
+        fpByRef[fp->GetReference()] = fp;
+
+        // The Altium PCB importer stores sourceUniqueID as the last element of the
+        // footprint path. Use it to disambiguate repeated designators.
+        const KIID_PATH& path = fp->GetPath();
+
+        if( path.size() >= 2 )
+            fpByUid[path.back()] = fp;
+    }
+
+    for( const ALTIUM_PROJECT_VARIANT& pv : aVariants )
+    {
+        aBoard->AddVariant( pv.name );
+
+        if( !pv.description.empty() && pv.description != pv.name )
+            aBoard->SetVariantDescription( pv.name, pv.description );
+
+        for( const ALTIUM_VARIANT_ENTRY& entry : pv.variations )
+        {
+            FOOTPRINT* target = nullptr;
+
+            // Prefer UniqueId matching to handle repeated designators correctly
+            if( !entry.uniqueId.empty() )
+            {
+                wxString normalizedUid = entry.uniqueId;
+
+                if( normalizedUid.starts_with( wxT( "\\" ) ) )
+                    normalizedUid = normalizedUid.Mid( 1 );
+
+                auto it = fpByUid.find( KIID( normalizedUid ) );
+
+                if( it != fpByUid.end() )
+                    target = it->second;
+            }
+
+            if( !target )
+            {
+                auto it = fpByRef.find( entry.designator );
+
+                if( it != fpByRef.end() )
+                    target = it->second;
+            }
+
+            if( !target )
+                continue;
+
+            FOOTPRINT_VARIANT* fpVariant = target->AddVariant( pv.name );
+
+            if( !fpVariant )
+                continue;
+
+            if( entry.kind == 1 )
+            {
+                fpVariant->SetDNP( true );
+                fpVariant->SetExcludedFromBOM( true );
+                fpVariant->SetExcludedFromPosFiles( true );
+            }
+            else if( entry.kind == 0 )
+            {
+                for( const auto& [key, value] : entry.alternateFields )
+                {
+                    if( key.CmpNoCase( wxS( "LibReference" ) ) == 0 )
+                        fpVariant->SetFieldValue( wxS( "Value" ), value );
+                    else if( key.CmpNoCase( wxS( "Description" ) ) == 0 )
+                        fpVariant->SetFieldValue( wxS( "Description" ), value );
+                    else if( key.CmpNoCase( wxS( "Footprint" ) ) == 0 )
+                        fpVariant->SetFieldValue( wxS( "Footprint" ), value );
+                }
+            }
+        }
+    }
+}
 
 PCB_IO_ALTIUM_DESIGNER::PCB_IO_ALTIUM_DESIGNER() :
         PCB_IO( wxS( "Altium Designer" ) )
@@ -74,7 +158,7 @@ std::map<wxString, PCB_LAYER_ID> PCB_IO_ALTIUM_DESIGNER::DefaultLayerMappingCall
 bool PCB_IO_ALTIUM_DESIGNER::checkFileHeader( const wxString& aFileName )
 {
     // Compound File Binary Format header
-    return IO_UTILS::fileStartsWithBinaryHeader( aFileName, IO_UTILS::COMPOUND_FILE_HEADER );
+    return IO_UTILS::fileHasBinaryHeader( aFileName, IO_UTILS::COMPOUND_FILE_HEADER );
 }
 
 
@@ -104,7 +188,8 @@ BOARD* PCB_IO_ALTIUM_DESIGNER::LoadBoard( const wxString& aFileName, BOARD* aApp
 
     m_board = aAppendToMe ? aAppendToMe : new BOARD();
 
-    fontconfig::FONTCONFIG::SetReporter( &WXLOG_REPORTER::GetInstance() );
+    // Collect the font substitution warnings (RAII - automatically reset on scope exit)
+    FONTCONFIG_REPORTER_SCOPE fontconfigScope( &LOAD_INFO_REPORTER::GetInstance() );
 
     // Give the filename to the board if it's new
     if( !aAppendToMe )
@@ -149,6 +234,14 @@ BOARD* PCB_IO_ALTIUM_DESIGNER::LoadBoard( const wxString& aFileName, BOARD* aApp
         THROW_IO_ERROR( exception.what() );
     }
 
+    if( m_props && m_props->count( "project_file" ) )
+    {
+        auto variants = ParseAltiumProjectVariants( m_props->at( "project_file" ) );
+
+        if( !variants.empty() )
+            ApplyAltiumProjectVariantsToBoard( m_board, variants );
+    }
+
     return m_board;
 }
 
@@ -157,55 +250,49 @@ long long PCB_IO_ALTIUM_DESIGNER::GetLibraryTimestamp( const wxString& aLibraryP
 {
     // File hasn't been loaded yet.
     if( aLibraryPath.IsEmpty() )
-    {
         return 0;
-    }
 
     wxFileName fn( aLibraryPath );
 
     if( fn.IsFileReadable() && fn.GetModificationTime().IsValid() )
-    {
         return fn.GetModificationTime().GetValue().GetValue();
-    }
     else
-    {
         return 0;
-    }
 }
 
 
 void PCB_IO_ALTIUM_DESIGNER::loadAltiumLibrary( const wxString& aLibraryPath )
 {
-    fontconfig::FONTCONFIG::SetReporter( nullptr );
+    // Suppress font substitution warnings (RAII - automatically restored on scope exit)
+    FONTCONFIG_REPORTER_SCOPE fontconfigScope( nullptr );
+
+    long long timestamp = GetLibraryTimestamp( aLibraryPath );
+
+    if( m_fplibFiles.contains( aLibraryPath ) && m_fplibFiles[aLibraryPath].m_Timestamp == timestamp )
+        return; // Already loaded
 
     try
     {
-        auto it = m_fplibFiles.find( aLibraryPath );
-
-        if( it != m_fplibFiles.end() )
-            return; // Already loaded
+        ALTIUM_FILE_CACHE& libFiles = m_fplibFiles[aLibraryPath];
 
         if( aLibraryPath.Lower().EndsWith( wxS( ".pcblib" ) ) )
         {
-            m_fplibFiles[aLibraryPath].emplace_back(
-                    std::make_unique<ALTIUM_PCB_COMPOUND_FILE>( aLibraryPath ) );
+            libFiles.m_Files.emplace_back( std::make_unique<ALTIUM_PCB_COMPOUND_FILE>( aLibraryPath ) );
         }
         else if( aLibraryPath.Lower().EndsWith( wxS( ".intlib" ) ) )
         {
-            std::unique_ptr<ALTIUM_PCB_COMPOUND_FILE> intCom =
-                    std::make_unique<ALTIUM_PCB_COMPOUND_FILE>( aLibraryPath );
+            std::unique_ptr<ALTIUM_PCB_COMPOUND_FILE> lib = std::make_unique<ALTIUM_PCB_COMPOUND_FILE>( aLibraryPath );
 
-            std::map<wxString, const CFB::COMPOUND_FILE_ENTRY*> pcbLibFiles =
-                    intCom->EnumDir( L"PCBLib" );
-
-            for( const auto& [pcbLibName, pcbCfe] : pcbLibFiles )
+            for( const auto& [pcbLibName, pcbCfe] : lib->EnumDir( L"PCBLib" ) )
             {
-                auto decodedStream = std::make_unique<ALTIUM_PCB_COMPOUND_FILE>();
+                std::unique_ptr<ALTIUM_PCB_COMPOUND_FILE> libFile = std::make_unique<ALTIUM_PCB_COMPOUND_FILE>();
 
-                if( intCom->DecodeIntLibStream( *pcbCfe, decodedStream.get() ) )
-                    m_fplibFiles[aLibraryPath].emplace_back( std::move( decodedStream ) );
+                if( lib->DecodeIntLibStream( *pcbCfe, libFile.get() ) )
+                    libFiles.m_Files.emplace_back( std::move( libFile ) );
             }
         }
+
+        libFiles.m_Timestamp = timestamp;
     }
     catch( CFB::CFBException& exception )
     {
@@ -220,17 +307,15 @@ void PCB_IO_ALTIUM_DESIGNER::FootprintEnumerate( wxArrayString&  aFootprintNames
 {
     loadAltiumLibrary( aLibraryPath );
 
-    auto it = m_fplibFiles.find( aLibraryPath );
-
-    if( it == m_fplibFiles.end() )
+    if( !m_fplibFiles.contains( aLibraryPath ) )
         return; // No footprint libraries in file, ignore.
 
     try
     {
-        for( auto& altiumLibFile : it->second )
+        for( std::unique_ptr<ALTIUM_PCB_COMPOUND_FILE>& altiumLibFile : m_fplibFiles[aLibraryPath].m_Files )
         {
             // Map code-page-dependent names to unicode names
-            std::map<wxString, wxString> patternMap = altiumLibFile->ListLibFootprints();
+            CASE_INSENSITIVE_MAP<wxString> patternMap = altiumLibFile->ListLibFootprints();
 
             const std::vector<std::string>  streamName = { "Library", "Data" };
             const CFB::COMPOUND_FILE_ENTRY* libraryData = altiumLibFile->FindStream( streamName );
@@ -279,8 +364,7 @@ void PCB_IO_ALTIUM_DESIGNER::FootprintEnumerate( wxArrayString&  aFootprintNames
                 }
                 else
                 {
-                    THROW_IO_ERROR(
-                            wxString::Format( "Component name not found: '%s'", fpPattern ) );
+                    THROW_IO_ERROR( wxString::Format( "Component name not found: '%s'", fpPattern ) );
                 }
 
                 parser.SkipSubrecord();
@@ -312,14 +396,12 @@ FOOTPRINT* PCB_IO_ALTIUM_DESIGNER::FootprintLoad( const wxString& aLibraryPath,
 {
     loadAltiumLibrary( aLibraryPath );
 
-    auto it = m_fplibFiles.find( aLibraryPath );
-
-    if( it == m_fplibFiles.end() )
+    if( !m_fplibFiles.contains( aLibraryPath ) )
         THROW_IO_ERROR( wxString::Format( _( "No footprints in library '%s'" ), aLibraryPath ) );
 
     try
     {
-        for( std::unique_ptr<ALTIUM_PCB_COMPOUND_FILE>& altiumLibFile : it->second )
+        for( std::unique_ptr<ALTIUM_PCB_COMPOUND_FILE>& altiumLibFile : m_fplibFiles[aLibraryPath].m_Files )
         {
             altiumLibFile->CacheLibModels();
             auto [dirName, fpCfe] = altiumLibFile->FindLibFootprintDirName( aFootprintName );
@@ -340,4 +422,15 @@ FOOTPRINT* PCB_IO_ALTIUM_DESIGNER::FootprintLoad( const wxString& aLibraryPath,
     THROW_IO_ERROR( wxString::Format( _( "Footprint '%s' not found in '%s'." ),
                                       aFootprintName,
                                       aLibraryPath ) );
+}
+
+
+std::vector<FOOTPRINT*> PCB_IO_ALTIUM_DESIGNER::GetImportedCachedLibraryFootprints()
+{
+    std::vector<FOOTPRINT*> footprints;
+
+    for( FOOTPRINT* fp : m_board->Footprints() )
+        footprints.push_back( fp );
+
+    return footprints;
 }

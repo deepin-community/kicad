@@ -27,16 +27,7 @@
 #include <string_utils.h>
 
 
-bool g_removeExtraLibFields      = false;
-bool g_resetEmptyLibFields       = false;
-bool g_resetLibFieldText         = true;
-bool g_resetLibFieldVisibilities = true;
-bool g_resetLibFieldEffects      = true;
-bool g_resetLibFieldPositions    = true;
-
-
-DIALOG_UPDATE_SYMBOL_FIELDS::DIALOG_UPDATE_SYMBOL_FIELDS( SYMBOL_EDIT_FRAME* aParent,
-                                                          LIB_SYMBOL* aSymbol ) :
+DIALOG_UPDATE_SYMBOL_FIELDS::DIALOG_UPDATE_SYMBOL_FIELDS( SYMBOL_EDIT_FRAME* aParent, LIB_SYMBOL* aSymbol ) :
         DIALOG_UPDATE_SYMBOL_FIELDS_BASE( aParent ),
         m_editFrame( aParent ),
         m_symbol( aSymbol)
@@ -44,38 +35,22 @@ DIALOG_UPDATE_SYMBOL_FIELDS::DIALOG_UPDATE_SYMBOL_FIELDS( SYMBOL_EDIT_FRAME* aPa
     wxASSERT( aParent );
     wxASSERT( aSymbol );
 
-    m_parentSymbolReadOnly->SetValue( UnescapeString( m_symbol->GetParent().lock()->GetName() ) );
+    if( std::shared_ptr<LIB_SYMBOL> parent = m_symbol->GetParent().lock() )
+        m_parentSymbolReadOnly->SetValue( UnescapeString( parent->GetName() ) );
 
-    for( int i = 0; i < MANDATORY_FIELD_COUNT; ++i )
+    for( FIELD_T fieldId : MANDATORY_FIELDS )
     {
-        m_fieldsBox->Append( GetDefaultFieldName( i, DO_TRANSLATE ) );
-        m_fieldsBox->Check( i, true );
+        m_mandatoryFieldListIndexes[fieldId] = m_fieldsBox->GetCount();
+        m_fieldsBox->Append( GetDefaultFieldName( fieldId, DO_TRANSLATE ) );
+        m_fieldsBox->Check( m_fieldsBox->GetCount() - 1, true );
     }
 
     updateFieldsList();
-
-    m_removeExtraBox->SetValue( g_removeExtraLibFields );
-    m_resetEmptyFields->SetValue( g_resetEmptyLibFields );
-    m_resetFieldText->SetValue( g_resetLibFieldText );
-    m_resetFieldVisibilities->SetValue( g_resetLibFieldVisibilities );
-    m_resetFieldEffects->SetValue( g_resetLibFieldEffects );
-    m_resetFieldPositions->SetValue( g_resetLibFieldPositions );
 
     SetupStandardButtons();
 
     // Now all widgets have the size fixed, call FinishDialogSettings
     finishDialogSettings();
-}
-
-
-DIALOG_UPDATE_SYMBOL_FIELDS::~DIALOG_UPDATE_SYMBOL_FIELDS()
-{
-    g_removeExtraLibFields = m_removeExtraBox->GetValue();
-    g_resetEmptyLibFields = m_resetEmptyFields->GetValue();
-    g_resetLibFieldText = m_resetFieldText->GetValue();
-    g_resetLibFieldVisibilities = m_resetFieldVisibilities->GetValue();
-    g_resetLibFieldEffects = m_resetFieldEffects->GetValue();
-    g_resetLibFieldPositions = m_resetFieldPositions->GetValue();
 }
 
 
@@ -105,17 +80,35 @@ void DIALOG_UPDATE_SYMBOL_FIELDS::updateFieldsList()
             fieldNames.insert( libField->GetName() );
     }
 
+    auto isMandatoryField =
+            [&]( int listbox_idx )
+            {
+                for( FIELD_T fieldId : MANDATORY_FIELDS )
+                {
+                    if( m_mandatoryFieldListIndexes[fieldId] == listbox_idx )
+                        return true;
+                }
+
+                return false;
+            };
+
     libFields.clear();
 
     // Update the listbox widget
-    for( unsigned i = m_fieldsBox->GetCount() - 1; i >= MANDATORY_FIELD_COUNT; --i )
-        m_fieldsBox->Delete( i );
+    for( int i = (int) m_fieldsBox->GetCount() - 1; i >= 0; --i )
+    {
+        if( !isMandatoryField( i ) )
+            m_fieldsBox->Delete( i );
+    }
 
     for( const wxString& fieldName : fieldNames )
         m_fieldsBox->Append( fieldName );
 
-    for( unsigned i = MANDATORY_FIELD_COUNT; i < m_fieldsBox->GetCount(); ++i )
-        m_fieldsBox->Check( i, true );
+    for( int i = 0; i < (int) m_fieldsBox->GetCount(); ++i )
+    {
+        if( !isMandatoryField( i ) )
+            m_fieldsBox->Check( i, true );
+    }
 }
 
 
@@ -131,7 +124,7 @@ void DIALOG_UPDATE_SYMBOL_FIELDS::onOkButtonClicked( wxCommandEvent& aEvent )
     wxBusyCursor dummy;
     SCH_COMMIT   commit( m_editFrame );
 
-    commit.Modify( m_symbol );
+    commit.Modify( m_symbol, m_editFrame->GetScreen() );
 
     // Create the set of fields to be updated
     m_updateFields.clear();
@@ -160,7 +153,10 @@ void DIALOG_UPDATE_SYMBOL_FIELDS::onOkButtonClicked( wxCommandEvent& aEvent )
 
         if( alg::contains( m_updateFields, field.GetName() ) )
         {
-            parentField = flattenedParent->FindField( field.GetName() );
+            if( field.IsMandatory() )
+                parentField = flattenedParent->GetField( field.GetId() );
+            else
+                parentField = flattenedParent->GetField( field.GetName() );
 
             if( parentField )
             {
@@ -202,7 +198,6 @@ void DIALOG_UPDATE_SYMBOL_FIELDS::onOkButtonClicked( wxCommandEvent& aEvent )
     }
 
     std::vector<SCH_FIELD*> parentFields;
-    int                     idx = result.size();
 
     flattenedParent->GetFields( parentFields );
 
@@ -211,9 +206,9 @@ void DIALOG_UPDATE_SYMBOL_FIELDS::onOkButtonClicked( wxCommandEvent& aEvent )
         if( !alg::contains( m_updateFields, parentField->GetName() ) )
             continue;
 
-        if( !m_symbol->FindField( parentField->GetName() ) )
+        if( !m_symbol->GetField( parentField->GetName() ) )
         {
-            result.emplace_back( m_symbol, idx++ );
+            result.emplace_back( m_symbol, FIELD_T::USER );
             SCH_FIELD* newField = &result.back();
 
             newField->SetName( parentField->GetCanonicalName() );

@@ -155,6 +155,11 @@ public:
      */
     virtual bool IgnoreZoneFills() const = 0;
 
+    /**
+     * @return true if should ignore items with no net.
+     */
+    virtual bool IgnoreNoNets() const = 0;
+
     virtual int Accuracy() const = 0;
 
     virtual double OnePixelInIU() const = 0;
@@ -327,7 +332,7 @@ public:
      * @param aVisibleLayerMask is the current visible layers (bit mask).
      * @param aPreferredLayer is the layer to search first.
      */
-    GENERAL_COLLECTORS_GUIDE( LSET aVisibleLayerMask, PCB_LAYER_ID aPreferredLayer,
+    GENERAL_COLLECTORS_GUIDE( const LSET& aVisibleLayerMask, PCB_LAYER_ID aPreferredLayer,
                               KIGFX::VIEW* aView )
     {
         static const VECTOR2I one( 1, 1 );
@@ -359,6 +364,7 @@ public:
         m_ignoreMicroVias           = false;
         m_ignoreTracks              = false;
         m_ignoreZoneFills           = true;
+        m_ignoreNoNets              = false;
 
         m_onePixelInIU = abs( aView->ToWorld( one, false ).x );
         m_accuracy = KiROUND( 5 * m_onePixelInIU );
@@ -375,7 +381,7 @@ public:
     {
         m_visibleLayers.set( aLayerId, isVisible );
     }
-    void SetLayerVisibleBits( LSET aLayerBits ) { m_visibleLayers = aLayerBits; }
+    void SetLayerVisibleBits( const LSET& aLayerBits ) { m_visibleLayers = aLayerBits; }
 
     /**
      * @return int - the preferred layer for HitTest()ing.
@@ -466,6 +472,9 @@ public:
     bool IgnoreZoneFills() const override { return m_ignoreZoneFills; }
     void SetIgnoreZoneFills( bool ignore ) { m_ignoreZoneFills = ignore; }
 
+    bool IgnoreNoNets() const override { return m_ignoreNoNets; }
+    void SetIgnoreNoNets( bool ignore ) { m_ignoreNoNets = ignore; }
+
     int  Accuracy() const override { return m_accuracy; }
     void SetAccuracy( int aValue ) { m_accuracy = aValue; }
 
@@ -496,6 +505,7 @@ private:
     bool    m_ignoreMicroVias;
     bool    m_ignoreTracks;
     bool    m_ignoreZoneFills;
+    bool    m_ignoreNoNets;
 
     double m_onePixelInIU;
     int    m_accuracy;

@@ -33,8 +33,14 @@
 #define  EDA_BASE_FRAME_H_
 
 
-#include <vector>
+#include <functional>
 #include <map>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include <memory>
+#include <nlohmann/json_fwd.hpp>
 
 #include <wx/aui/aui.h>
 #include <layer_ids.h>
@@ -43,7 +49,7 @@
 #include <kiway_holder.h>
 #include <tool/tools_holder.h>
 #include <widgets/ui_common.h>
-#include <widgets/wx_infobar.h>
+#include <widgets/wx_infobar_message_type.h>
 #include <undo_redo_container.h>
 #include <units_provider.h>
 #include <origin_transforms.h>
@@ -85,7 +91,13 @@ class APPEARANCE_CONTROLS_3D;
 struct WINDOW_SETTINGS;
 struct WINDOW_STATE;
 class ACTION_MENU;
+class ACTION_TOOLBAR;
+class ACTION_TOOLBAR_CONTROL;
 class TOOL_INTERACTIVE;
+class TOOLBAR_SETTINGS;
+class WX_INFOBAR;
+
+using ACTION_TOOLBAR_CONTROL_FACTORY = std::function<void( ACTION_TOOLBAR* )>;
 
 #define DEFAULT_MAX_UNDO_ITEMS 0
 #define ABS_MAX_UNDO_ITEMS (INT_MAX / 2)
@@ -195,6 +207,12 @@ public:
 
     virtual void OnSize( wxSizeEvent& aEvent );
 
+    /**
+     * Select the given action in the toolbar group which contains it, if any.
+     * This updates the displayed icon/tooltip and UI conditions for that group.
+     */
+    void SelectToolbarAction( const TOOL_ACTION& aAction );
+
     void OnMaximize( wxMaximizeEvent& aEvent );
 
     int GetAutoSaveInterval() const;
@@ -225,6 +243,8 @@ public:
 
     void CreateInfoBar();
 
+    void RestoreAuiLayout();
+
     void FinishAUIInitialization();
 
     /**
@@ -242,7 +262,7 @@ public:
      * @param aShowCloseButton true to show a close button on the right of the #WX_INFOBAR.
      */
     void ShowInfoBarError( const wxString& aErrorMsg, bool aShowCloseButton = false,
-                           WX_INFOBAR::MESSAGE_TYPE aType = WX_INFOBAR::MESSAGE_TYPE::GENERIC );
+                           INFOBAR_MESSAGE_TYPE aType = INFOBAR_MESSAGE_TYPE::GENERIC );
 
     /**
      * Show the #WX_INFOBAR displayed on the top of the canvas with a message and an error
@@ -393,11 +413,8 @@ public:
 
     /**
      * Remove all files from the file history.
-     *
-     * @param aFileHistory The FILE_HISTORY in use. If null, the main application file
-     *                     history is used
      */
-    void ClearFileHistory( FILE_HISTORY* aFileHistory = nullptr );
+    virtual void ClearFileHistory();
 
     /**
      * Update the list of recently opened files.
@@ -433,6 +450,35 @@ public:
      */
     virtual wxString GetCurrentFileName() const { return wxEmptyString; }
 
+    virtual void RecreateToolbars();
+
+    /**
+     * Update toolbars if desired toolbar icon changed.
+     */
+    void OnToolbarSizeChanged();
+
+    /**
+     * Update the sizes of any controls in the toolbars of the frame.
+     */
+    virtual void UpdateToolbarControlSizes();
+
+    /**
+     * Register a creation factory for toolbar controls that are present in this frame.
+     *
+     * The factory function takes a single argument of type `ACTION_TOOLBAR*`, which is the toolbar
+     * to add the controls to.
+     *
+     * @param aControlDesc is the control descriptor
+     * @param aControlFactory A functor that creates the custom controls and then adds them to the toolbar
+     */
+    void RegisterCustomToolbarControlFactory( const ACTION_TOOLBAR_CONTROL& aControlDesc,
+                                              const ACTION_TOOLBAR_CONTROL_FACTORY& aControlFactory );
+
+    /**
+     *
+     */
+    ACTION_TOOLBAR_CONTROL_FACTORY* GetCustomToolbarControlFactory( const std::string& aName );
+
     /**
      * Recreate the menu bar.
      *
@@ -444,6 +490,8 @@ public:
      * Add the standard KiCad help menu to the menubar.
      */
     void AddStandardHelpMenu( wxMenuBar* aMenuBar );
+
+    wxString GetRunMenuCommandDescription( const TOOL_ACTION& aAction );
 
     /**
      * Check if \a aFileName can be written.
@@ -461,22 +509,6 @@ public:
      * @return False if \a aFileName cannot be written.
      */
     bool IsWritable( const wxFileName& aFileName, bool aVerbose = true );
-
-    /**
-     * Check if an auto save file exists for \a aFileName and takes the appropriate action
-     * depending on the user input.
-     *
-     * If an auto save file exists for \a aFileName, the user is prompted if they wish to
-     * replace file \a aFileName with the auto saved file.  If the user chooses to replace the
-     * file, the backup file of \a aFileName is removed, \a aFileName is renamed to the backup
-     * file name, and the auto save file is renamed to \a aFileName.  If user chooses to keep
-     * the existing version of \a aFileName, the auto save file is removed.
-     *
-     * @param aFileName A wxFileName object containing the file name to check.
-     */
-    virtual void CheckForAutoSaveFile( const wxFileName& aFileName );
-
-    virtual void DeleteAutoSaveFile( const wxFileName& aFileName );
 
     /**
      * Update the status bar information.
@@ -508,7 +540,7 @@ public:
      */
     virtual void ProjectChanged() {}
 
-    const wxString& GetAboutTitle() const { return wxGetTranslation( m_aboutTitle ); }
+    wxString GetAboutTitle() const { return wxGetTranslation( m_aboutTitle ); }
 
     const wxString& GetUntranslatedAboutTitle() const { return m_aboutTitle; }
 
@@ -589,11 +621,15 @@ public:
      */
     virtual void OnModify();
 
+    bool IsClosing() const { return m_isClosing; }
+
     bool NonUserClose( bool aForce )
     {
         m_isNonUserClose = true;
         return Close( aForce );
     }
+
+    virtual void ClearToolbarControl( int aId ) { }
 
     /**
      * Update the UI in response to a change in the system colors.
@@ -613,6 +649,8 @@ protected:
     static constexpr int KICAD_AUI_TB_STYLE = wxAUI_TB_DEFAULT_STYLE | wxAUI_TB_PLAIN_BACKGROUND;
 
     virtual void doReCreateMenuBar() {}
+
+    virtual void configureToolbars();
 
     /**
      * Handle the auto save timer event.
@@ -696,6 +734,11 @@ protected:
     void AddMenuLanguageList( ACTION_MENU* aMasterMenu, TOOL_INTERACTIVE* aControlTool );
 
     /**
+     * An event handler called on a language menu selection.
+     */
+    void OnLanguageSelectionEvent( wxCommandEvent& aEvent );
+
+    /**
      * Execute action on accepted dropped file.
      *
      * Called in OnDropFiles() and should be populated with
@@ -707,6 +750,8 @@ protected:
     DECLARE_EVENT_TABLE()
 
 private:
+    void onUpdateUI( wxUpdateUIEvent& aEvent );
+
     /**
      * (with its unexpected name so it does not collide with the real OnWindowClose()
      * function provided in derived classes) is called just before a window
@@ -757,6 +802,7 @@ private:
 
     wxAuiManager            m_auimgr;
     wxString                m_perspective;       // wxAuiManager perspective.
+    std::unique_ptr<nlohmann::json> m_auiLayoutState;
     WX_INFOBAR*             m_infoBar;           // Infobar for the frame
     APPEARANCE_CONTROLS_3D* m_appearancePanel;
     wxString                m_configName;        // Prefix used to identify some params (frame
@@ -769,6 +815,7 @@ private:
     bool                    m_autoSavePending;
     bool                    m_autoSaveRequired;
     wxTimer*                m_autoSaveTimer;
+    bool                    m_autoSavePermissionError;
 
     int                     m_undoRedoCountMax;  // undo/Redo command Max depth
 
@@ -782,6 +829,9 @@ private:
     /// Map containing the UI update handlers registered with wx for each action.
     std::map<int, UIUpdateHandler> m_uiUpdateMap;
 
+    /// True once the single wxID_ANY UPDATE_UI handler has been bound.
+    bool m_uiUpdateHandlerBound;
+
     /// Set by the close window event handler after frames are asked if they can close.
     /// Allows other functions when called to know our state is cleanup.
     bool            m_isClosing;
@@ -793,6 +843,17 @@ private:
      * Associate file extensions with action to execute.
      */
     std::map<const wxString, TOOL_ACTION*> m_acceptedExts;
+
+    // Toolbar Settings - this is not owned by the frame
+    TOOLBAR_SETTINGS*    m_toolbarSettings;
+
+    // Toolbar UI elements
+    ACTION_TOOLBAR*      m_tbTopMain;
+    ACTION_TOOLBAR*      m_tbTopAux;  // Additional tools under main toolbar
+    ACTION_TOOLBAR*      m_tbRight;       // Drawing tools (typically on right edge of window)
+    ACTION_TOOLBAR*      m_tbLeft;    // Options (typically on left edge of window)
+
+    std::map<std::string, ACTION_TOOLBAR_CONTROL_FACTORY> m_toolbarControlFactories;
 };
 
 

@@ -51,11 +51,11 @@ PCB_FIELDS_GRID_TABLE::PCB_FIELDS_GRID_TABLE( PCB_BASE_FRAME* aFrame, DIALOG_SHI
                                               std::vector<EMBEDDED_FILES*> aFilesStack ) :
         m_frame( aFrame ),
         m_dialog( aDialog ),
-        m_fieldNameValidator( FIELD_NAME ),
-        m_referenceValidator( REFERENCE_FIELD ),
-        m_valueValidator( VALUE_FIELD ),
-        m_urlValidator( FIELD_VALUE ),
-        m_nonUrlValidator( FIELD_VALUE )
+        m_fieldNameValidator( FIELD_T::USER ),
+        m_referenceValidator( FIELD_T::REFERENCE ),
+        m_valueValidator( FIELD_T::VALUE ),
+        m_urlValidator( FIELD_T::USER ),
+        m_nonUrlValidator( FIELD_T::USER )
 {
     // Build the column attributes.
 
@@ -217,17 +217,17 @@ wxGridCellAttr* PCB_FIELDS_GRID_TABLE::GetAttr( int aRow, int aCol,
         return enhanceAttr( nullptr, aRow, aCol, aKind );
 
     case PFC_VALUE:
-        if( field.GetId() == REFERENCE_FIELD )
+        if( field.GetId() == FIELD_T::REFERENCE )
         {
             m_referenceAttr->IncRef();
             return enhanceAttr( m_referenceAttr, aRow, aCol, aKind );
         }
-        else if( field.GetId() == VALUE_FIELD )
+        else if( field.GetId() == FIELD_T::VALUE )
         {
             m_valueAttr->IncRef();
             return enhanceAttr( m_valueAttr, aRow, aCol, aKind );
         }
-        else if( field.GetId() == DATASHEET_FIELD || field.IsHypertext() )
+        else if( field.GetId() == FIELD_T::DATASHEET || field.HasHypertext() )
         {
             m_urlAttr->IncRef();
             return enhanceAttr( m_urlAttr, aRow, aCol, aKind );
@@ -345,13 +345,15 @@ void PCB_FIELDS_GRID_TABLE::SetValue( int aRow, int aCol, const wxString &aValue
     VECTOR2I  pos;
     wxString  value = aValue;
 
-    switch( aCol )
+    if( aCol != PFC_VALUE )
+        value.Trim( true ).Trim( false );
+
+    if( aCol == PFC_WIDTH
+     || aCol == PFC_HEIGHT
+     || aCol == PFC_THICKNESS
+     || aCol == PFC_XOFFSET
+     || aCol == PFC_YOFFSET )
     {
-    case PFC_WIDTH:
-    case PFC_HEIGHT:
-    case PFC_THICKNESS:
-    case PFC_XOFFSET:
-    case PFC_YOFFSET:
         m_eval->SetDefaultUnits( m_frame->GetUserUnits() );
 
         if( m_eval->Process( value ) )
@@ -359,11 +361,6 @@ void PCB_FIELDS_GRID_TABLE::SetValue( int aRow, int aCol, const wxString &aValue
             m_evalOriginal[ { aRow, aCol } ] = value;
             value = m_eval->Result();
         }
-
-        break;
-
-    default:
-        break;
     }
 
     switch( aCol )
@@ -430,7 +427,12 @@ void PCB_FIELDS_GRID_TABLE::SetValueAsLong( int aRow, int aCol, long aValue )
     {
     case PFC_LAYER:
         field.SetLayer( ToLAYER_ID( (int) aValue ) );
-        field.SetMirrored( IsBackLayer( field.GetLayer() ) );
+
+        if( BOARD* board = field.GetBoard() )
+            field.SetMirrored( board->IsBackLayer( field.GetLayer() ) );
+        else
+            field.SetMirrored( IsBackLayer( field.GetLayer() ) );
+
         break;
 
     default:

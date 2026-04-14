@@ -3,7 +3,7 @@ Date: Wed, 5 Jun 2024 18:27:22 +0200
 Subject: demos: Adjust MIME encoding to UTF8 of some libraries
 
 The used strings in the text files did get checked against current
-avaialble license and text files from STM.
+available license and text files from STM.
 ---
  demos/simulation/gain_control/vca810.lib           |  2 +-
  .../ST_SILICON_CARBIDE_SCHOTTKY_V9.LIB             | 38 +++++++++++-----------

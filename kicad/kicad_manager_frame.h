@@ -35,6 +35,7 @@ class PANEL_KICAD_LAUNCHER;
 class PLUGIN_CONTENT_MANAGER;
 class PROJECT_TREE;
 class PROJECT_TREE_PANE;
+class LOCAL_HISTORY_PANE;
 class UPDATE_MANAGER;
 
 /**
@@ -54,11 +55,14 @@ public:
     void doCloseWindow() override;
     void OnSize( wxSizeEvent& event ) override;
 
-    void OnArchiveFiles( wxCommandEvent& event );
-    void OnUnarchiveFiles( wxCommandEvent& event );
+    void UnarchiveFiles();
+    void RestoreLocalHistory();
+    void RestoreCommitFromHistory( const wxString& aHash );
+    void ToggleLocalHistory();
+    bool HistoryPanelShown();
 
     void OnOpenFileInTextEditor( wxCommandEvent& event );
-    void OnBrowseInFileExplorer( wxCommandEvent& event );
+    void OnEditAdvancedCfg( wxCommandEvent& event );
 
     void OnFileHistory( wxCommandEvent& event );
     void OnClearFileHistory( wxCommandEvent& aEvent );
@@ -76,15 +80,7 @@ public:
      */
     void HideTabsIfNeeded();
 
-    /**
-     * (Re)Create the left vertical toolbar
-     */
-    void RecreateBaseLeftToolbar();
-
-    wxString GetCurrentFileName() const override
-    {
-        return GetProjectFileName();
-    }
+    wxString GetCurrentFileName() const override;
 
     /**
      * @brief Creates a project and imports a non-KiCad Schematic and PCB
@@ -100,6 +96,11 @@ public:
                                 const std::vector<std::string>& aSchFileExtensions,
                                 const std::vector<std::string>& aPcbFileExtensions,
                                 int aSchFileType, int aPcbFileType );
+
+    /**
+     * Open dialog to import Altium project files.
+     */
+    void OnImportAltiumProjectFiles( wxCommandEvent& event );
 
     /**
      *  Open dialog to import CADSTAR Schematic and PCB Archive files.
@@ -120,6 +121,16 @@ public:
      *  Open dialog to import EasyEDA Pro schematic and board files.
      */
     void OnImportEasyEdaProFiles( wxCommandEvent& event );
+
+    /**
+     *  Open dialog to import PADS Logic schematic and PCB files.
+     */
+    void OnImportPadsProjectFiles( wxCommandEvent& event );
+
+    /**
+     *  Open dialog to import gEDA/gaf schematic and PCB files.
+     */
+    void OnImportGedaFiles( wxCommandEvent& event );
 
     /**
      * Prints the current working directory name and the project name on the text panel.
@@ -145,7 +156,13 @@ public:
      * Closes the project, and saves it if aSave is true;
      */
     bool CloseProject( bool aSave );
-    void LoadProject( const wxFileName& aProjectFileName );
+
+    /**
+     * Loads a new project
+     * @param aProjectFileName is the path to the project to load
+     * @return true if the project was successfully loaded
+     */
+    bool LoadProject( const wxFileName& aProjectFileName );
 
     void OpenJobsFile( const wxFileName& aFileName, bool aCreate = false,
                        bool aResaveProjectPreferences = true );
@@ -158,6 +175,8 @@ public:
     void ShowChangedLanguage() override;
     void CommonSettingsChanged( int aFlags ) override;
     void ProjectChanged() override;
+
+    void PreloadAllLibraries();
 
     /**
      * Called by sending a event with id = ID_INIT_WATCHED_PATHS
@@ -223,18 +242,19 @@ private:
 
     wxString help_name() override;
 
-    void language_change( wxCommandEvent& event );
-
     void updatePcmButtonBadge();
 
-    bool m_openSavedWindows;
-    int  m_leftWinWidth;
-    bool m_active_project;
+private:
+    bool                  m_openSavedWindows;
+    bool                  m_restoredFromHistory;  ///< Set after restore to mark editors dirty
+    int                   m_leftWinWidth;
+    bool                  m_active_project;
+    bool                  m_showHistoryPanel;
 
-    PROJECT_TREE_PANE*    m_leftWin;
+    PROJECT_TREE_PANE*    m_projectTreePane;
+    LOCAL_HISTORY_PANE*   m_historyPane;
     wxAuiNotebook*        m_notebook;
     PANEL_KICAD_LAUNCHER* m_launcher;
-    ACTION_TOOLBAR*       m_mainToolBar;
     int                   m_lastToolbarIconSize;
 
     std::shared_ptr<PLUGIN_CONTENT_MANAGER> m_pcm;

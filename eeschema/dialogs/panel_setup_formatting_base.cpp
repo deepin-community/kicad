@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -20,28 +20,6 @@ PANEL_SETUP_FORMATTING_BASE::PANEL_SETUP_FORMATTING_BASE( wxWindow* parent, wxWi
 
 	wxBoxSizer* bLeftColumn;
 	bLeftColumn = new wxBoxSizer( wxVERTICAL );
-
-	wxStaticBoxSizer* sbSizer1;
-	sbSizer1 = new wxStaticBoxSizer( new wxStaticBox( this, wxID_ANY, _("Annotations") ), wxVERTICAL );
-
-	wxBoxSizer* bSizer6;
-	bSizer6 = new wxBoxSizer( wxHORIZONTAL );
-
-	m_staticText26 = new wxStaticText( sbSizer1->GetStaticBox(), wxID_ANY, _("Symbol unit notation:"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_staticText26->Wrap( -1 );
-	bSizer6->Add( m_staticText26, 0, wxRIGHT|wxLEFT|wxALIGN_CENTER_VERTICAL, 5 );
-
-	wxString m_choiceSeparatorRefIdChoices[] = { _("A"), _(".A"), _("-A"), _("_A"), _(".1"), _("-1"), _("_1") };
-	int m_choiceSeparatorRefIdNChoices = sizeof( m_choiceSeparatorRefIdChoices ) / sizeof( wxString );
-	m_choiceSeparatorRefId = new wxChoice( sbSizer1->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, m_choiceSeparatorRefIdNChoices, m_choiceSeparatorRefIdChoices, 0 );
-	m_choiceSeparatorRefId->SetSelection( 0 );
-	bSizer6->Add( m_choiceSeparatorRefId, 1, wxEXPAND|wxRIGHT, 5 );
-
-
-	sbSizer1->Add( bSizer6, 0, wxEXPAND|wxBOTTOM|wxRIGHT, 5 );
-
-
-	bLeftColumn->Add( sbSizer1, 0, wxEXPAND|wxTOP|wxBOTTOM|wxRIGHT, 5 );
 
 	wxStaticBoxSizer* sbSizer4;
 	sbSizer4 = new wxStaticBoxSizer( new wxStaticBox( this, wxID_ANY, _("Text") ), wxVERTICAL );
@@ -108,7 +86,7 @@ PANEL_SETUP_FORMATTING_BASE::PANEL_SETUP_FORMATTING_BASE( wxWindow* parent, wxWi
 	sbSizer4->Add( fgSizer2, 1, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 
 
-	bLeftColumn->Add( sbSizer4, 0, wxEXPAND|wxBOTTOM|wxRIGHT, 5 );
+	bLeftColumn->Add( sbSizer4, 0, wxEXPAND|wxTOP|wxBOTTOM|wxRIGHT, 5 );
 
 	wxStaticBoxSizer* sbSizer41;
 	sbSizer41 = new wxStaticBoxSizer( new wxStaticBox( this, wxID_ANY, _("Symbols") ), wxVERTICAL );
@@ -155,9 +133,9 @@ PANEL_SETUP_FORMATTING_BASE::PANEL_SETUP_FORMATTING_BASE( wxWindow* parent, wxWi
 	gbSizer1->SetFlexibleDirection( wxBOTH );
 	gbSizer1->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
 
-	m_staticText261 = new wxStaticText( sbSizer2->GetStaticBox(), wxID_ANY, _("Junction dot size:"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_staticText261->Wrap( -1 );
-	gbSizer1->Add( m_staticText261, wxGBPosition( 0, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
+	m_junctionDotLabel = new wxStaticText( sbSizer2->GetStaticBox(), wxID_ANY, _("Junction dot size:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_junctionDotLabel->Wrap( -1 );
+	gbSizer1->Add( m_junctionDotLabel, wxGBPosition( 0, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
 
 	wxString m_choiceJunctionDotSizeChoices[] = { _("None"), _("Smallest"), _("Small"), _("Default"), _("Large"), _("Largest") };
 	int m_choiceJunctionDotSizeNChoices = sizeof( m_choiceJunctionDotSizeChoices ) / sizeof( wxString );
@@ -165,16 +143,26 @@ PANEL_SETUP_FORMATTING_BASE::PANEL_SETUP_FORMATTING_BASE( wxWindow* parent, wxWi
 	m_choiceJunctionDotSize->SetSelection( 3 );
 	gbSizer1->Add( m_choiceJunctionDotSize, wxGBPosition( 0, 1 ), wxGBSpan( 1, 2 ), wxALIGN_CENTER_VERTICAL|wxEXPAND, 5 );
 
+	m_hopOverLabel = new wxStaticText( sbSizer2->GetStaticBox(), wxID_ANY, _("Hop-over size:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_hopOverLabel->Wrap( -1 );
+	gbSizer1->Add( m_hopOverLabel, wxGBPosition( 1, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
+
+	wxString m_choiceHopOverSizeChoices[] = { _("None"), _("Smallest"), _("Small"), _("Medium"), _("Large"), _("Largest") };
+	int m_choiceHopOverSizeNChoices = sizeof( m_choiceHopOverSizeChoices ) / sizeof( wxString );
+	m_choiceHopOverSize = new wxChoice( sbSizer2->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, m_choiceHopOverSizeNChoices, m_choiceHopOverSizeChoices, 0 );
+	m_choiceHopOverSize->SetSelection( 0 );
+	gbSizer1->Add( m_choiceHopOverSize, wxGBPosition( 1, 1 ), wxGBSpan( 1, 2 ), wxEXPAND|wxALIGN_CENTER_VERTICAL, 5 );
+
 	m_connectionGridLabel = new wxStaticText( sbSizer2->GetStaticBox(), wxID_ANY, _("Connection grid:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_connectionGridLabel->Wrap( -1 );
-	gbSizer1->Add( m_connectionGridLabel, wxGBPosition( 1, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
+	gbSizer1->Add( m_connectionGridLabel, wxGBPosition( 2, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
 
 	m_connectionGridCtrl = new wxTextCtrl( sbSizer2->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
-	gbSizer1->Add( m_connectionGridCtrl, wxGBPosition( 1, 1 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxEXPAND, 5 );
+	gbSizer1->Add( m_connectionGridCtrl, wxGBPosition( 2, 1 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxEXPAND, 5 );
 
 	m_connectionGridUnits = new wxStaticText( sbSizer2->GetStaticBox(), wxID_ANY, _("mils"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_connectionGridUnits->Wrap( -1 );
-	gbSizer1->Add( m_connectionGridUnits, wxGBPosition( 1, 2 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
+	gbSizer1->Add( m_connectionGridUnits, wxGBPosition( 2, 2 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
 
 
 	gbSizer1->AddGrowableCol( 1 );
@@ -185,7 +173,7 @@ PANEL_SETUP_FORMATTING_BASE::PANEL_SETUP_FORMATTING_BASE( wxWindow* parent, wxWi
 	bLeftColumn->Add( sbSizer2, 1, wxEXPAND|wxTOP|wxBOTTOM|wxRIGHT, 5 );
 
 
-	bPanelSizer->Add( bLeftColumn, 1, wxEXPAND|wxBOTTOM|wxLEFT, 5 );
+	bPanelSizer->Add( bLeftColumn, 1, wxEXPAND|wxBOTTOM, 5 );
 
 	wxBoxSizer* bRightColumn;
 	bRightColumn = new wxBoxSizer( wxVERTICAL );
@@ -329,7 +317,7 @@ PANEL_SETUP_FORMATTING_BASE::PANEL_SETUP_FORMATTING_BASE( wxWindow* parent, wxWi
 	bRightColumn->Add( sbSizer7, 1, wxEXPAND|wxALL, 5 );
 
 
-	bPanelSizer->Add( bRightColumn, 1, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	bPanelSizer->Add( bRightColumn, 1, wxEXPAND|wxBOTTOM|wxLEFT, 5 );
 
 
 	this->SetSizer( bPanelSizer );

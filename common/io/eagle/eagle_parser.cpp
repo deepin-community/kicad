@@ -327,7 +327,8 @@ bool EURN::IsValid() const
         "footprint",
         "library",
         "package",
-        "symbol"
+        "symbol",
+        "fs.file"
     };
 
     if( validAssetTypes.count( assetType ) == 0 )
@@ -407,11 +408,29 @@ EROT Convert<EROT>( const wxString& aRot )
 
     value.spin    = aRot.find( 'S' ) != aRot.npos;
     value.mirror  = aRot.find( 'M' ) != aRot.npos;
-    value.degrees = strtod( aRot.c_str()
-                            + 1                        // skip leading 'R'
-                            + int( value.spin )       // skip optional leading 'S'
-                            + int( value.mirror ),    // skip optional leading 'M'
-                            nullptr );
+
+    size_t rPos = aRot.find( 'R' );
+
+    if( rPos == wxString::npos )
+    {
+        value.degrees = 0.0;
+        return value;
+    }
+
+    // Calculate the offset after 'R', 'S', and 'M'
+    size_t offset;
+
+    for( offset = 0; offset < aRot.size(); offset++ )
+    {
+        if( wxIsdigit( aRot[offset] ) )
+            break;
+    }
+
+    wxString degreesStr = aRot.Mid( offset );
+
+    // Use locale-independent conversion
+    if( !degreesStr.ToCDouble( &value.degrees ) )
+        value.degrees = 0.0;
 
     return value;
 }
@@ -504,7 +523,9 @@ VECTOR2I ConvertArcCenter( const VECTOR2I& aStart, const VECTOR2I& aEnd, double 
 
     if( !std::isnormal( dlen ) || !std::isnormal( aAngle ) )
     {
-        THROW_IO_ERROR( wxString::Format( _( "Invalid Arc with radius %f and angle %f" ),
+        // Note that we allow the floating point output here because this message is displayed to the user and should
+        // be in their locale.
+        THROW_IO_ERROR( wxString::Format( _( "Invalid Arc with radius %0.2f and angle %0.2f" ), //format:allow
                                           dlen,
                                           aAngle ) );
     }
@@ -1455,7 +1476,7 @@ EELEMENT::EELEMENT( wxXmlNode* aElement, IO_BASE* aIo ) :
     library = parseRequiredAttribute<wxString>( aElement, "library" );
     value   = parseRequiredAttribute<wxString>( aElement, "value" );
     std::string p = parseRequiredAttribute<std::string>( aElement, "package" );
-    ReplaceIllegalFileNameChars( &p, '_' );
+    ReplaceIllegalFileNameChars( p, '_' );
     package = wxString::FromUTF8( p.c_str() );
 
     x       = parseRequiredAttribute<ECOORD>( aElement, "x" );
@@ -1711,7 +1732,7 @@ EDEVICE::EDEVICE( wxXmlNode* aDevice, IO_BASE* aIo ) :
     if( pack )
     {
         std::string p( pack->c_str() );
-        ReplaceIllegalFileNameChars( &p, '_' );
+        ReplaceIllegalFileNameChars( p, '_' );
         package.Set( wxString::FromUTF8( p.c_str() ) );
     }
 
@@ -1917,11 +1938,13 @@ ESHEET::ESHEET( wxXmlNode* aSheet, IO_BASE* aIo ) :
     /*
      * <!ELEMENT sheet (description?, plain?, moduleinsts?, instances?, busses?, nets?)>
      */
-    description = parseOptionalAttribute<wxString>( aSheet, "description" );
-
     for( wxXmlNode* child = aSheet->GetChildren(); child; child = child->GetNext() )
     {
-        if( child->GetName() == "plain" )
+        if( child->GetName() == "description" )
+        {
+            description = std::make_optional<EDESCRIPTION>( child, aIo );
+        }
+        else if( child->GetName() == "plain" )
         {
             plain = std::make_unique<EPLAIN>( child, aIo );
         }
@@ -1932,8 +1955,7 @@ ESHEET::ESHEET( wxXmlNode* aSheet, IO_BASE* aIo ) :
             {
                 if( moduleinst->GetName() == "moduleinst" )
                 {
-                    std::unique_ptr<EMODULEINST> inst = std::make_unique<EMODULEINST>( moduleinst,
-                                                                                       aIo );
+                    std::unique_ptr<EMODULEINST> inst = std::make_unique<EMODULEINST>( moduleinst, aIo );
                     moduleinsts[ inst->name ] = std::move( inst );
                 }
             }
@@ -1942,8 +1964,7 @@ ESHEET::ESHEET( wxXmlNode* aSheet, IO_BASE* aIo ) :
         }
         else if( child->GetName() == "instances" )
         {
-            for( wxXmlNode* instance = child->GetChildren(); instance;
-                 instance = instance->GetNext() )
+            for( wxXmlNode* instance = child->GetChildren(); instance; instance = instance->GetNext() )
             {
                 if( instance->GetName() == "instance" )
                     instances.emplace_back( std::make_unique<EINSTANCE>( instance, aIo ) );

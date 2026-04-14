@@ -22,7 +22,6 @@
 
 #include <bitmaps.h>
 #include <macros.h>
-#include <symbol_library.h>
 #include <eeschema_id.h>
 #include <symbol_viewer_frame.h>
 #include <sch_painter.h>
@@ -31,66 +30,97 @@
 #include <tools/sch_actions.h>
 #include <tools/symbol_editor_control.h>
 #include <widgets/wx_menubar.h>
+#include <toolbars_symbol_viewer.h>
+#include <wx/choice.h>
 
-
-void SYMBOL_VIEWER_FRAME::ReCreateHToolbar()
+std::optional<TOOLBAR_CONFIGURATION> SYMBOL_VIEWER_TOOLBAR_SETTINGS::DefaultToolbarConfig( TOOLBAR_LOC aToolbar )
 {
-    if( m_mainToolBar )
+    TOOLBAR_CONFIGURATION config;
+
+    // clang-format off
+    switch( aToolbar )
     {
-        m_mainToolBar->ClearToolbar();
+    case TOOLBAR_LOC::LEFT:
+    case TOOLBAR_LOC::RIGHT:
+    case TOOLBAR_LOC::TOP_AUX:
+        return std::nullopt;
+
+    case TOOLBAR_LOC::TOP_MAIN:
+        config.AppendAction( SCH_ACTIONS::previousSymbol )
+              .AppendAction( SCH_ACTIONS::nextSymbol );
+
+        config.AppendSeparator()
+              .AppendAction( ACTIONS::zoomRedraw )
+              .AppendAction( ACTIONS::zoomInCenter )
+              .AppendAction( ACTIONS::zoomOutCenter )
+              .AppendAction( ACTIONS::zoomFitScreen );
+
+        config.AppendSeparator()
+              .AppendAction( SCH_ACTIONS::showElectricalTypes )
+              .AppendAction( SCH_ACTIONS::showPinNumbers );
+
+        config.AppendSeparator()
+              .AppendControl( ACTION_TOOLBAR_CONTROLS::bodyStyleSelector );
+
+        config.AppendSeparator()
+              .AppendControl( ACTION_TOOLBAR_CONTROLS::unitSelector );
+
+        config.AppendSeparator()
+              .AppendAction( ACTIONS::showDatasheet );
+
+        config.AppendSeparator()
+              .AppendAction( SCH_ACTIONS::addSymbolToSchematic );
+        break;
     }
-    else
-    {
-        m_mainToolBar = new ACTION_TOOLBAR( this, ID_H_TOOLBAR, wxDefaultPosition, wxDefaultSize,
-                                            KICAD_AUI_TB_STYLE | wxAUI_TB_HORZ_LAYOUT |
-                                            wxAUI_TB_HORIZONTAL );
-        m_mainToolBar->SetAuiManager( &m_auimgr );
-    }
 
-    m_mainToolBar->AddTool( ID_LIBVIEW_PREVIOUS, wxEmptyString,
-                            KiScaledBitmap( BITMAPS::lib_previous, this ),
-                            _( "Display previous symbol" ) );
-
-    m_mainToolBar->AddTool( ID_LIBVIEW_NEXT, wxEmptyString,
-                            KiScaledBitmap( BITMAPS::lib_next, this ),
-                            _( "Display next symbol" ) );
-
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( ACTIONS::zoomRedraw );
-    m_mainToolBar->Add( ACTIONS::zoomInCenter );
-    m_mainToolBar->Add( ACTIONS::zoomOutCenter );
-    m_mainToolBar->Add( ACTIONS::zoomFitScreen );
-
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( SCH_ACTIONS::showElectricalTypes,   ACTION_TOOLBAR::TOGGLE );
-    m_mainToolBar->Add( SCH_ACTIONS::showPinNumbers,        ACTION_TOOLBAR::TOGGLE );
-
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( SCH_ACTIONS::showDeMorganStandard,  ACTION_TOOLBAR::TOGGLE );
-    m_mainToolBar->Add( SCH_ACTIONS::showDeMorganAlternate, ACTION_TOOLBAR::TOGGLE );
-
-    m_mainToolBar->AddScaledSeparator( this );
-
-    if( m_unitChoice == nullptr )
-        m_unitChoice = new wxChoice( m_mainToolBar, ID_LIBVIEW_SELECT_UNIT_NUMBER,
-                                     wxDefaultPosition, wxSize( 150, -1 ) );
-    m_mainToolBar->AddControl( m_unitChoice );
-
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( ACTIONS::showDatasheet );
-
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( SCH_ACTIONS::addSymbolToSchematic );
-
-    // after adding the buttons to the toolbar, must call Realize() to reflect the changes
-    m_mainToolBar->KiRealize();
-
-    m_mainToolBar->Refresh();
+    // clang-format on
+    return config;
 }
 
 
-void SYMBOL_VIEWER_FRAME::ReCreateVToolbar()
+void SYMBOL_VIEWER_FRAME::configureToolbars()
 {
+    SCH_BASE_FRAME::configureToolbars();
+
+    // Toolbar widget for selecting the unit to show in the symbol viewer
+    auto unitChoiceFactory =
+            [this]( ACTION_TOOLBAR* aToolbar )
+            {
+                if( !m_unitChoice )
+                {
+                    m_unitChoice = new wxChoice( m_tbTopMain, ID_LIBVIEW_SELECT_UNIT_NUMBER,
+                                                 wxDefaultPosition, wxSize( 150, -1 ) );
+                }
+
+                aToolbar->Add( m_unitChoice );
+            };
+
+    auto bodyChoiceFactory =
+            [this]( ACTION_TOOLBAR* aToolbar )
+            {
+                if( !m_bodyStyleChoice )
+                {
+                    m_bodyStyleChoice = new wxChoice( m_tbTopMain, ID_LIBVIEW_SELECT_BODY_STYLE,
+                                                      wxDefaultPosition, wxSize( 150, -1 ) );
+                }
+
+                aToolbar->Add( m_bodyStyleChoice );
+            };
+
+    RegisterCustomToolbarControlFactory( ACTION_TOOLBAR_CONTROLS::unitSelector, unitChoiceFactory );
+    RegisterCustomToolbarControlFactory( ACTION_TOOLBAR_CONTROLS::bodyStyleSelector, bodyChoiceFactory );
+}
+
+
+void SYMBOL_VIEWER_FRAME::ClearToolbarControl( int aId )
+{
+    SCH_BASE_FRAME::ClearToolbarControl( aId );
+
+    switch( aId )
+    {
+    case ID_LIBVIEW_SELECT_UNIT_NUMBER: m_unitChoice = nullptr;      break;
+    case ID_LIBVIEW_SELECT_BODY_STYLE:  m_bodyStyleChoice = nullptr; break;
+    }
 }
 
 

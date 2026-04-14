@@ -24,30 +24,12 @@
  */
 
 /**
- * @file id.h
- *
  * @brief Common command IDs shared by more than one of the KiCad applications.
  *
  * Only place command IDs used in base window class event tables or shared
  * across multiple applications such as the zoom, grid, and language IDs.
- * Application specific IDs should be defined in the appropriate header
- * file to prevent the entire project from being rebuilt.
  *
- * However, we must avoid duplicate IDs in menus and toolbar items, when wxUpdateUIEvent
- * are associated to menuitems and/or toolbar items
- * The reason is the fact wxWidgets try to send a wxUpdateUIEvent event to a given window and,
- * if a wxUpdateUIEvent event function is not defined for a menuitem, wxWidgets
- * propagates this event ID to parents of the given window.
- * Therefore duplicate IDs could create strange behavior in menus and subtle bugs, depending
- * on the code inside the wxUpdateUIEvent event functions called in parent frames.
- * I did not seen this propagation to child frames, only to parent frames
- *
- * Issues exist only if 2 menus have the same ID, and only one menu is associated to
- * a wxUpdateUIEvent event, and this one is defined in a parent Window.
- * The probability it happens is low, but not null.
- *
- * Therefore we reserve room in ID list for each sub application.
- * Please, change these values if needed
+ * Most things should use the new ACTION framwork instead.
  */
 
 
@@ -69,11 +51,7 @@
 
 enum main_id
 {
-    ID_LOAD_FILE = wxID_HIGHEST,
-    ID_NEW_BOARD,
-    ID_SAVE_BOARD,
-    ID_SAVE_BOARD_AS,
-    ID_AUTO_SAVE_TIMER,
+    ID_AUTO_SAVE_TIMER = wxID_HIGHEST,
 
     // ID for menuitems used in our file history management,
     // when we do not use wxFILE_ID (restricted to 9 items)
@@ -84,20 +62,6 @@ enum main_id
     ID_FILE_LIST_CLEAR,
 
     ID_PREFERENCES_RESET_PANEL,
-
-    ID_GEN_PLOT,
-    ID_GEN_PLOT_PS,
-    ID_GEN_PLOT_HPGL,
-    ID_GEN_PLOT_GERBER,
-    ID_GEN_PLOT_SVG,
-    ID_GEN_PLOT_DXF,
-    ID_GEN_PLOT_PDF,
-
-    // id for toolbars
-    ID_H_TOOLBAR,
-    ID_V_TOOLBAR,
-    ID_OPT_TOOLBAR,
-    ID_AUX_TOOLBAR,
 
     ID_LANGUAGE_CHOICE,
     ID_LANGUAGE_DANISH,
@@ -135,12 +99,23 @@ enum main_id
     ID_LANGUAGE_SERBIAN,
     ID_LANGUAGE_THAI,
     ID_LANGUAGE_SWEDISH,
-    ID_LANGUAGE_UKRANIAN,
+    ID_LANGUAGE_UKRAINIAN,
+    ID_LANGUAGE_ARABIC,
+    ID_LANGUAGE_ESTONIAN,
+    ID_LANGUAGE_FARSI,
+    ID_LANGUAGE_CROATIAN,
+    ID_LANGUAGE_ROMANIAN,
+    ID_LANGUAGE_NORWEGIAN_BOKMAL,
+    ID_LANGUAGE_TAMIL,
+    ID_LANGUAGE_TELUGU,
+    ID_LANGUAGE_HINDI,
+    ID_LANGUAGE_GEORGIAN,
     ID_LANGUAGE_CHOICE_END,
 
     ID_ON_ZOOM_SELECT,
-
     ID_ON_GRID_SELECT,
+    ID_ON_OVERRIDE_LOCKS,
+    ID_ON_LAYER_SELECT,
 
     // Popup Menu (mouse Right button) (id consecutifs)
 
@@ -189,7 +164,7 @@ enum main_id
     // The extra here need to minimum be larger than MAX_BUS_UNFOLD_MENU_ITEMS +
     // MAX_UNIT_COUNT_PER_PACKAGE.
     // These values are stored in eeschema_id.h
-    ID_POPUP_MENU_END = ID_POPUP_MENU_START + 2048,
+    ID_POPUP_MENU_END = ID_POPUP_MENU_START + 4096,
 
     ID_END_LIST
 };

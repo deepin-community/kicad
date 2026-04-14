@@ -24,11 +24,16 @@
  */
 
 #include <macros.h>
+#include <pgm_base.h>
+#include <settings/settings_manager.h>
 #include <board.h>
+#include <component_classes/component_class_manager.h>
 #include <footprint.h>
 #include <lset.h>
+#include <pad.h>
 #include <pcb_group.h>
 #include <pcb_track.h>
+#include <pcb_shape.h>
 #include <tool/tool_manager.h>
 #include <tools/pcb_selection_tool.h>
 #include <tools/zone_filler_tool.h>
@@ -37,13 +42,17 @@
 #include <tools/pcb_tool_base.h>
 #include <tools/pcb_actions.h>
 #include <connectivity/connectivity_data.h>
+#include <connectivity/connectivity_algo.h>
 #include <teardrop/teardrop.h>
+#include <pcb_board_outline.h>
 
 #include <functional>
+#include <project/project_file.h>
 using namespace std::placeholders;
 
 
 BOARD_COMMIT::BOARD_COMMIT( TOOL_BASE* aTool ) :
+        COMMIT(),
         m_toolMgr( aTool->GetManager() ),
         m_isBoardEditor( false ),
         m_isFootprintEditor( false )
@@ -57,6 +66,7 @@ BOARD_COMMIT::BOARD_COMMIT( TOOL_BASE* aTool ) :
 
 
 BOARD_COMMIT::BOARD_COMMIT( EDA_DRAW_FRAME* aFrame ) :
+        COMMIT(),
         m_toolMgr( aFrame->GetToolManager() ),
         m_isBoardEditor( aFrame->IsType( FRAME_PCB_EDITOR ) ),
         m_isFootprintEditor( aFrame->IsType( FRAME_FOOTPRINT_EDITOR ) )
@@ -65,7 +75,8 @@ BOARD_COMMIT::BOARD_COMMIT( EDA_DRAW_FRAME* aFrame ) :
 
 
 BOARD_COMMIT::BOARD_COMMIT( TOOL_MANAGER* aMgr ) :
-    m_toolMgr( aMgr ),
+        COMMIT(),
+        m_toolMgr( aMgr ),
         m_isBoardEditor( false ),
         m_isFootprintEditor( false )
 {
@@ -77,10 +88,12 @@ BOARD_COMMIT::BOARD_COMMIT( TOOL_MANAGER* aMgr ) :
         m_isFootprintEditor = true;
 }
 
-BOARD_COMMIT::BOARD_COMMIT( TOOL_MANAGER* aMgr, bool aIsBoardEditor ) :
-    m_toolMgr( aMgr ),
-    m_isBoardEditor( aIsBoardEditor ),
-    m_isFootprintEditor( false )
+
+BOARD_COMMIT::BOARD_COMMIT( TOOL_MANAGER* aMgr, bool aIsBoardEditor, bool aIsFootprintEditor ) :
+        COMMIT(),
+        m_toolMgr( aMgr ),
+        m_isBoardEditor( aIsBoardEditor ),
+        m_isFootprintEditor( aIsFootprintEditor )
 {
 }
 
@@ -91,19 +104,14 @@ BOARD* BOARD_COMMIT::GetBoard() const
 }
 
 
-COMMIT& BOARD_COMMIT::Stage( EDA_ITEM* aItem, CHANGE_TYPE aChangeType, BASE_SCREEN* aScreen )
+COMMIT& BOARD_COMMIT::Stage( EDA_ITEM* aItem, CHANGE_TYPE aChangeType, BASE_SCREEN* aScreen, RECURSE_MODE aRecurse )
 {
-    // Many operations (move, rotate, etc.) are applied directly to a group's children, so they
-    // must be staged as well.
-    if( aChangeType == CHT_MODIFY )
+    if( aRecurse == RECURSE_MODE::RECURSE )
     {
         if( PCB_GROUP* group = dynamic_cast<PCB_GROUP*>( aItem ) )
         {
-            group->RunOnChildren(
-                    [&]( BOARD_ITEM* child )
-                    {
-                        Stage( child, aChangeType );
-                    } );
+            for( EDA_ITEM* member : group->GetItems() )
+                Stage( member, aChangeType, aScreen, aRecurse );
         }
     }
 
@@ -111,51 +119,56 @@ COMMIT& BOARD_COMMIT::Stage( EDA_ITEM* aItem, CHANGE_TYPE aChangeType, BASE_SCRE
 }
 
 
-COMMIT& BOARD_COMMIT::Stage( std::vector<EDA_ITEM*>& container, CHANGE_TYPE aChangeType,
-                             BASE_SCREEN* aScreen )
+COMMIT& BOARD_COMMIT::Stage( std::vector<EDA_ITEM*>& container, CHANGE_TYPE aChangeType, BASE_SCREEN* aScreen )
 {
     return COMMIT::Stage( container, aChangeType, aScreen );
 }
 
 
-COMMIT& BOARD_COMMIT::Stage( const PICKED_ITEMS_LIST& aItems, UNDO_REDO aModFlag,
-                             BASE_SCREEN* aScreen )
+COMMIT& BOARD_COMMIT::Stage( const PICKED_ITEMS_LIST& aItems, UNDO_REDO aModFlag, BASE_SCREEN* aScreen )
 {
     return COMMIT::Stage( aItems, aModFlag, aScreen );
 }
 
 
-void BOARD_COMMIT::dirtyIntersectingZones( BOARD_ITEM* item, int aChangeType )
+void BOARD_COMMIT::propagateDamage( BOARD_ITEM* aChangedItem, std::vector<ZONE*>* aStaleZones,
+                                    std::vector<BOX2I>& aStaleRuleAreas )
 {
-    wxCHECK( item, /* void */ );
+    wxCHECK( aChangedItem, /* void */ );
 
-    ZONE_FILLER_TOOL* zoneFillerTool = m_toolMgr->GetTool<ZONE_FILLER_TOOL>();
+    if( aStaleZones && aChangedItem->Type() == PCB_ZONE_T )
+        aStaleZones->push_back( static_cast<ZONE*>( aChangedItem ) );
 
-    if( item->Type() == PCB_ZONE_T )
-        zoneFillerTool->DirtyZone( static_cast<ZONE*>( item ) );
-
-    item->RunOnChildren( std::bind( &BOARD_COMMIT::dirtyIntersectingZones, this, _1, aChangeType ) );
+    aChangedItem->RunOnChildren( std::bind( &BOARD_COMMIT::propagateDamage, this, _1, aStaleZones, aStaleRuleAreas ),
+                                 RECURSE_MODE::NO_RECURSE );
 
     BOARD* board = static_cast<BOARD*>( m_toolMgr->GetModel() );
-    BOX2I  bbox = item->GetBoundingBox();
-    LSET   layers = item->GetLayerSet();
+    BOX2I  damageBBox = aChangedItem->GetBoundingBox();
+    LSET   damageLayers = aChangedItem->GetLayerSet();
 
-    if( layers.test( Edge_Cuts ) || layers.test( Margin ) )
-        layers = LSET::PhysicalLayersMask();
-    else
-        layers &= LSET::AllCuMask();
-
-    if( layers.any() )
+    if( m_isBoardEditor && aChangedItem->Type() == PCB_ZONE_T )
     {
-        for( ZONE* zone : board->Zones() )
-        {
-            if( zone->GetIsRuleArea() )
-                continue;
+        // A named zone can have custom DRC rules targetting it.
+        if( !static_cast<ZONE*>( aChangedItem )->GetZoneName().IsEmpty() )
+            aStaleRuleAreas.push_back( damageBBox );
+    }
 
-            if( ( zone->GetLayerSet() & layers ).any()
-                    && zone->GetBoundingBox().Intersects( bbox ) )
+    if( aStaleZones )
+    {
+        if( damageLayers.test( Edge_Cuts ) || damageLayers.test( Margin ) )
+            damageLayers = LSET::PhysicalLayersMask();
+        else
+            damageLayers &= LSET::AllCuMask();
+
+        if( damageLayers.any() )
+        {
+            for( ZONE* zone : board->Zones() )
             {
-                zoneFillerTool->DirtyZone( zone );
+                if( zone->GetIsRuleArea() )
+                    continue;
+
+                if( ( zone->GetLayerSet() & damageLayers ).any() && zone->GetBoundingBox().Intersects( damageBBox ) )
+                    aStaleZones->push_back( zone );
             }
         }
     }
@@ -164,11 +177,12 @@ void BOARD_COMMIT::dirtyIntersectingZones( BOARD_ITEM* item, int aChangeType )
 
 void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
 {
-    KIGFX::VIEW*        view = m_toolMgr->GetView();
+    KIGFX::PCB_VIEW*    view = static_cast<KIGFX::PCB_VIEW*>( m_toolMgr->GetView() );
     BOARD*              board = static_cast<BOARD*>( m_toolMgr->GetModel() );
     PCB_BASE_FRAME*     frame = dynamic_cast<PCB_BASE_FRAME*>( m_toolMgr->GetToolHolder() );
     PCB_SELECTION_TOOL* selTool = m_toolMgr->GetTool<PCB_SELECTION_TOOL>();
-
+    PCB_GROUP*          enteredGroup = selTool && !( aCommitFlags & SKIP_ENTERED_GROUP ) ? selTool->GetEnteredGroup()
+                                                                                         : nullptr;
     // Notification info
     PICKED_ITEMS_LIST   undoList;
     bool                itemsDeselected = false;
@@ -177,9 +191,12 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
     // Dirty flags and lists
     bool                     solderMaskDirty = false;
     bool                     autofillZones = false;
+    bool                     updateBoardBoundingBox = false;
     std::vector<BOARD_ITEM*> staleTeardropPadsAndVias;
     std::set<PCB_TRACK*>     staleTeardropTracks;
-    PCB_GROUP*               addedGroup = nullptr;
+    std::vector<ZONE*>       staleZonesStorage;
+    std::vector<ZONE*>*      staleZones = nullptr;
+    std::vector<BOX2I>       staleRuleAreas;
 
     if( Empty() )
         return;
@@ -195,22 +212,22 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
     std::vector<BOARD_ITEM*> bulkRemovedItems;
     std::vector<BOARD_ITEM*> itemsChanged;
 
-    if( m_isBoardEditor
-            && !( aCommitFlags & ZONE_FILL_OP )
-            && ( frame && frame->GetPcbNewSettings()->m_AutoRefillZones ) )
+    if( m_isBoardEditor && !( aCommitFlags & ZONE_FILL_OP )
+                        && ( frame && frame->GetPcbNewSettings()->m_AutoRefillZones ) )
     {
         autofillZones = true;
+        staleZones = &staleZonesStorage;
 
         for( ZONE* zone : board->Zones() )
             zone->CacheBoundingBox();
     }
 
-    for( COMMIT_LINE& ent : m_changes )
+    for( COMMIT_LINE& entry : m_entries )
     {
-        if( !ent.m_item || !ent.m_item->IsBOARD_ITEM() )
+        if( !entry.m_item || !entry.m_item->IsBOARD_ITEM() )
             continue;
 
-        BOARD_ITEM* boardItem = static_cast<BOARD_ITEM*>( ent.m_item );
+        BOARD_ITEM* boardItem = static_cast<BOARD_ITEM*>( entry.m_item );
 
         if( m_isBoardEditor )
         {
@@ -218,6 +235,11 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
                     || boardItem->IsOnLayer( F_Mask ) || boardItem->IsOnLayer( B_Mask ) )
             {
                 solderMaskDirty = true;
+            }
+
+            if( boardItem->GetLayer() == Edge_Cuts )
+            {
+                updateBoardBoundingBox = true;
             }
 
             if( !( aCommitFlags & SKIP_TEARDROPS ) )
@@ -251,7 +273,7 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
             }
         }
 
-        if( boardItem->IsSelected() )
+        if( boardItem->IsSelected() || ( m_isFootprintEditor && boardItem == board->GetFirstFootprint() ) )
             selectedModified = true;
     }
 
@@ -259,23 +281,36 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
     if( !staleTeardropPadsAndVias.empty() || !staleTeardropTracks.empty() )
         teardropMgr.RemoveTeardrops( *this, &staleTeardropPadsAndVias, &staleTeardropTracks );
 
-    for( COMMIT_LINE& ent : m_changes )
+    auto updateComponentClasses =
+            [this]( BOARD_ITEM* boardItem )
+            {
+                if( boardItem->Type() != PCB_FOOTPRINT_T )
+                    return;
+
+                FOOTPRINT* footprint = static_cast<FOOTPRINT*>( boardItem );
+                GetBoard()->GetComponentClassManager().RebuildRequiredCaches( footprint );
+            };
+
+    // We don't know that anything will be added to the entered group, but it does no harm to
+    // add it to the commit anyway.
+    if( enteredGroup )
+        Modify( enteredGroup );
+
+
+    for( COMMIT_LINE& entry : m_entries )
     {
-        if( !ent.m_item || !ent.m_item->IsBOARD_ITEM() )
+        if( !entry.m_item || !entry.m_item->IsBOARD_ITEM() )
             continue;
 
-        BOARD_ITEM* boardItem = static_cast<BOARD_ITEM*>( ent.m_item );
-        int         changeType = ent.m_type & CHT_TYPE;
-        int         changeFlags = ent.m_type & CHT_FLAGS;
+        BOARD_ITEM* boardItem = static_cast<BOARD_ITEM*>( entry.m_item );
+        int         changeType = entry.m_type & CHT_TYPE;
+        int         changeFlags = entry.m_type & CHT_FLAGS;
 
         switch( changeType )
         {
         case CHT_ADD:
-            if( selTool && selTool->GetEnteredGroup() && !boardItem->GetParentGroup()
-                    && PCB_GROUP::IsGroupableType( boardItem->Type() ) )
-            {
-                selTool->GetEnteredGroup()->AddItem( boardItem );
-            }
+            if( enteredGroup && boardItem->IsGroupableType() && !boardItem->GetParentGroup() )
+                enteredGroup->AddItem( boardItem );
 
             if( !( aCommitFlags & SKIP_UNDO ) )
                 undoList.PushItem( ITEM_PICKER( nullptr, boardItem, UNDO_REDO::NEWITEM ) );
@@ -284,14 +319,8 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
             {
                 if( m_isFootprintEditor )
                 {
-                    FOOTPRINT* parentFP = board->GetFirstFootprint();
-                    wxCHECK2_MSG( parentFP, continue, "Commit thinks this is footprint editor, but "
-                                                      "there is no first footprint!" );
-                    parentFP->Add( boardItem );
-                }
-                else if( FOOTPRINT* parentFP = boardItem->GetParentFootprint() )
-                {
-                    parentFP->Add( boardItem );
+                    if( FOOTPRINT* parentFP = board->GetFirstFootprint() )
+                        parentFP->Add( boardItem );
                 }
                 else
                 {
@@ -300,24 +329,27 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
                 }
             }
 
-            if( boardItem->Type() == PCB_GROUP_T || boardItem->Type() == PCB_GENERATOR_T )
-                addedGroup = static_cast<PCB_GROUP*>( boardItem );
-
-            if( m_isBoardEditor && autofillZones && boardItem->Type() != PCB_MARKER_T )
-                dirtyIntersectingZones( boardItem, changeType );
+            if( boardItem->Type() != PCB_MARKER_T )
+                propagateDamage( boardItem, staleZones, staleRuleAreas );
 
             if( view && boardItem->Type() != PCB_NETINFO_T )
                 view->Add( boardItem );
+
+            updateComponentClasses( boardItem );
 
             break;
 
         case CHT_REMOVE:
         {
-            FOOTPRINT* parentFP = boardItem->GetParentFootprint();
-            PCB_GROUP* parentGroup = boardItem->GetParentGroup();
+            EDA_GROUP* parentGroup = boardItem->GetParentGroup();
 
             if( !( aCommitFlags & SKIP_UNDO ) )
-                undoList.PushItem( ITEM_PICKER( nullptr, boardItem, UNDO_REDO::DELETED ) );
+            {
+                ITEM_PICKER itemWrapper( nullptr, boardItem, UNDO_REDO::DELETED );
+                itemWrapper.SetLink( entry.m_copy );
+                entry.m_copy = nullptr;   // We've transferred ownership to the undo list
+                undoList.PushItem( itemWrapper );
+            }
 
             if( boardItem->IsSelected() )
             {
@@ -327,14 +359,11 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
                 itemsDeselected = true;
             }
 
-            if( parentGroup && !( parentGroup->GetFlags() & STRUCT_DELETED ) )
+            if( parentGroup && !( parentGroup->AsEdaItem()->GetFlags() & STRUCT_DELETED ) )
                 parentGroup->RemoveItem( boardItem );
 
-            if( parentFP && !( parentFP->GetFlags() & STRUCT_DELETED ) )
-                ent.m_parent = parentFP->m_Uuid;
-
-            if( m_isBoardEditor && autofillZones && boardItem->Type() != PCB_MARKER_T )
-                dirtyIntersectingZones( boardItem, changeType );
+            if( boardItem->Type() != PCB_MARKER_T )
+                propagateDamage( boardItem, staleZones, staleRuleAreas );
 
             switch( boardItem->Type() )
             {
@@ -344,21 +373,23 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
 
             case PCB_TEXT_T:
             case PCB_PAD_T:
-            case PCB_SHAPE_T:            // a shape (normally not on copper layers)
-            case PCB_REFERENCE_IMAGE_T:  // a bitmap on an associated layer
-            case PCB_GENERATOR_T:        // a generator on a layer
-            case PCB_TEXTBOX_T:          // a line-wrapped (and optionally bordered) text item
-            case PCB_TABLE_T:            // rows and columns of tablecells
-            case PCB_TRACE_T:            // a track segment (segment on a copper layer)
-            case PCB_ARC_T:              // an arced track segment (segment on a copper layer)
-            case PCB_VIA_T:              // a via (like track segment on a copper layer)
-            case PCB_DIM_ALIGNED_T:      // a dimension (graphic item)
+            case PCB_SHAPE_T:
+            case PCB_REFERENCE_IMAGE_T:
+            case PCB_GENERATOR_T:
+            case PCB_TEXTBOX_T:
+            case PCB_BARCODE_T:
+            case PCB_TABLE_T:
+            case PCB_TRACE_T:
+            case PCB_ARC_T:
+            case PCB_VIA_T:
+            case PCB_DIM_ALIGNED_T:
             case PCB_DIM_CENTER_T:
             case PCB_DIM_RADIAL_T:
             case PCB_DIM_ORTHOGONAL_T:
-            case PCB_DIM_LEADER_T:       // a leader dimension
-            case PCB_TARGET_T:           // a target (graphic item)
-            case PCB_MARKER_T:           // a marker used to show something
+            case PCB_DIM_LEADER_T:
+            case PCB_TARGET_T:
+            case PCB_MARKER_T:
+            case PCB_POINT_T:
             case PCB_ZONE_T:
             case PCB_FOOTPRINT_T:
             case PCB_GROUP_T:
@@ -367,9 +398,10 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
 
                 if( !( changeFlags & CHT_DONE ) )
                 {
-                    if( parentFP )
+                    if( m_isFootprintEditor )
                     {
-                        parentFP->Remove( boardItem );
+                        if( FOOTPRINT* parentFP = board->GetFirstFootprint() )
+                            parentFP->Remove( boardItem );
                     }
                     else
                     {
@@ -393,74 +425,39 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
 
             // The item has been removed from the board; it is now owned by undo/redo.
             boardItem->SetFlags( UR_TRANSIENT );
-
             break;
         }
 
-        case CHT_UNGROUP:
-            if( PCB_GROUP* group = boardItem->GetParentGroup() )
-            {
-                if( !( aCommitFlags & SKIP_UNDO ) )
-                {
-                    ITEM_PICKER itemWrapper( nullptr, boardItem, UNDO_REDO::UNGROUP );
-                    itemWrapper.SetGroupId( group->m_Uuid );
-                    undoList.PushItem( itemWrapper );
-                }
-
-                group->RemoveItem( boardItem );
-            }
-
-            break;
-
-        case CHT_GROUP:
-            if( addedGroup )
-            {
-                addedGroup->AddItem( boardItem );
-
-                if( !( aCommitFlags & SKIP_UNDO ) )
-                    undoList.PushItem( ITEM_PICKER( nullptr, boardItem, UNDO_REDO::REGROUP ) );
-            }
-
-            break;
-
         case CHT_MODIFY:
         {
-            BOARD_ITEM* boardItemCopy = nullptr;
-
-            if( ent.m_copy && ent.m_copy->IsBOARD_ITEM() )
-                boardItemCopy = static_cast<BOARD_ITEM*>( ent.m_copy );
+            BOARD_ITEM* boardItemCopy = static_cast<BOARD_ITEM*>( entry.m_copy );
 
             if( !( aCommitFlags & SKIP_UNDO ) )
             {
                 ITEM_PICKER itemWrapper( nullptr, boardItem, UNDO_REDO::CHANGED );
-                wxASSERT( boardItemCopy );
-                itemWrapper.SetLink( boardItemCopy );
+                itemWrapper.SetLink( entry.m_copy );
+                entry.m_copy = nullptr;   // We've transferred ownership to the undo list
                 undoList.PushItem( itemWrapper );
             }
 
             if( !( aCommitFlags & SKIP_CONNECTIVITY ) )
             {
-                if( boardItemCopy )
-                    connectivity->MarkItemNetAsDirty( boardItemCopy );
-
+                connectivity->MarkItemNetAsDirty( boardItemCopy );
                 connectivity->Update( boardItem );
             }
 
-            if( m_isBoardEditor && autofillZones && boardItem->Type() != PCB_MARKER_T )
+            if( boardItem->Type() != PCB_MARKER_T )
             {
-                dirtyIntersectingZones( boardItemCopy, changeType );   // before
-                dirtyIntersectingZones( boardItem, changeType );       // after
+                propagateDamage( boardItemCopy, staleZones, staleRuleAreas );   // before
+                propagateDamage( boardItem, staleZones, staleRuleAreas );       // after
             }
 
-            if( view )
+            updateComponentClasses( boardItem );
+
+            if( view && boardItem->Type() != PCB_NETINFO_T )
                 view->Update( boardItem );
 
             itemsChanged.push_back( boardItem );
-
-            // if no undo entry is needed, the copy would create a memory leak
-            if( aCommitFlags & SKIP_UNDO )
-                delete ent.m_copy;
-
             break;
         }
 
@@ -469,17 +466,25 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
             break;
         }
 
+        // Delete any copies we still have ownership of
+        delete entry.m_copy;
+        entry.m_copy = nullptr;
+
         boardItem->ClearEditFlags();
-        boardItem->RunOnDescendants(
+        boardItem->RunOnChildren(
                 [&]( BOARD_ITEM* item )
                 {
                     item->ClearEditFlags();
-                } );
-    }
+                },
+                RECURSE_MODE::RECURSE );
+    } // ... and regenerate them.
+
+    // Invalidate component classes
+    board->GetComponentClassManager().InvalidateComponentClasses();
 
     if( m_isBoardEditor )
     {
-        size_t num_changes = m_changes.size();
+        size_t originalCount = m_entries.size();
 
         if( aCommitFlags & SKIP_CONNECTIVITY )
         {
@@ -504,6 +509,29 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
                 frame->HideSolderMask();
         }
 
+        if( updateBoardBoundingBox && view )
+        {
+            if( PCB_BOARD_OUTLINE* outline = board->BoardOutline() )
+            {
+                board->UpdateBoardOutline();
+
+                if( view->HasItem( outline ) )
+                    view->Update( outline );
+                else
+                    view->Add( outline );
+             }
+        }
+
+        if( PCBNEW_SETTINGS* cfg = GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" ) )
+        {
+            if( !staleRuleAreas.empty() && (   cfg->m_Display.m_TrackClearance == SHOW_WITH_VIA_ALWAYS
+                                            || cfg->m_Display.m_PadClearance ) )
+            {
+                if( view )
+                    view->UpdateCollidingItems( staleRuleAreas, { PCB_TRACE_T, PCB_ARC_T, PCB_VIA_T, PCB_PAD_T } );
+            }
+        }
+
         if( !staleTeardropPadsAndVias.empty() || !staleTeardropTracks.empty() )
         {
             teardropMgr.UpdateTeardrops( *this, &staleTeardropPadsAndVias, &staleTeardropTracks );
@@ -513,36 +541,36 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
         }
 
         // Log undo items for any connectivity or teardrop changes
-        for( size_t i = num_changes; i < m_changes.size(); ++i )
+        for( size_t i = originalCount; i < m_entries.size(); ++i )
         {
-            COMMIT_LINE& ent = m_changes[i];
+            COMMIT_LINE& entry = m_entries[i];
             BOARD_ITEM*  boardItem = nullptr;
             BOARD_ITEM*  boardItemCopy = nullptr;
 
-            if( ent.m_item && ent.m_item->IsBOARD_ITEM() )
-                boardItem = static_cast<BOARD_ITEM*>( ent.m_item );
+            if( entry.m_item && entry.m_item->IsBOARD_ITEM() )
+                boardItem = static_cast<BOARD_ITEM*>( entry.m_item );
 
-            if( ent.m_copy && ent.m_copy->IsBOARD_ITEM() )
-                boardItemCopy = static_cast<BOARD_ITEM*>( ent.m_copy );
+            if( entry.m_copy && entry.m_copy->IsBOARD_ITEM() )
+                boardItemCopy = static_cast<BOARD_ITEM*>( entry.m_copy );
 
             wxCHECK2( boardItem, continue );
 
             if( !( aCommitFlags & SKIP_UNDO ) )
             {
-                ITEM_PICKER itemWrapper( nullptr, boardItem, convert( ent.m_type & CHT_TYPE ) );
+                ITEM_PICKER itemWrapper( nullptr, boardItem, convert( entry.m_type & CHT_TYPE ) );
                 itemWrapper.SetLink( boardItemCopy );
                 undoList.PushItem( itemWrapper );
             }
             else
             {
-                delete ent.m_copy;
+                delete entry.m_copy;
             }
 
-            if( view )
+            if( view && boardItem->Type() != PCB_NETINFO_T )
             {
-                if( ( ent.m_type & CHT_TYPE ) == CHT_ADD )
+                if( ( entry.m_type & CHT_TYPE ) == CHT_ADD )
                     view->Add( boardItem );
-                else if( ( ent.m_type & CHT_TYPE ) == CHT_REMOVE )
+                else if( ( entry.m_type & CHT_TYPE ) == CHT_REMOVE )
                     view->Remove( boardItem );
                 else
                     view->Update( boardItem );
@@ -570,7 +598,16 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
         m_toolMgr->PostEvent( EVENTS::UnselectedEvent );
 
     if( autofillZones )
+    {
+        ZONE_FILLER_TOOL* zoneFillerTool = m_toolMgr->GetTool<ZONE_FILLER_TOOL>();
+
+        for( ZONE* zone : *staleZones )
+            zoneFillerTool->DirtyZone( zone );
+
         m_toolMgr->PostAction( PCB_ACTIONS::zoneFillDirty );
+    }
+
+    m_toolMgr->PostAction( PCB_ACTIONS::rehatchShapes );
 
     if( selectedModified )
         m_toolMgr->ProcessEvent( EVENTS::SelectedItemsModified );
@@ -596,8 +633,21 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
 }
 
 
-EDA_ITEM* BOARD_COMMIT::parentObject( EDA_ITEM* aItem ) const
+EDA_ITEM* BOARD_COMMIT::undoLevelItem( EDA_ITEM* aItem ) const
 {
+    // Easiest way to disallow both a parent and one of its children appearing in the list
+    // is to only ever add the parent when either can be legal (ie: in the board editor).
+    if( m_isBoardEditor && aItem->IsBOARD_ITEM() )
+    {
+        if( FOOTPRINT* footprint = static_cast<BOARD_ITEM*>( aItem )->GetParentFootprint() )
+            return footprint;
+    }
+
+    EDA_ITEM* parent = aItem->GetParent();
+
+    if( parent && parent->Type() == PCB_TABLE_T )
+        return parent;
+
     return aItem;
 }
 
@@ -611,10 +661,6 @@ EDA_ITEM* BOARD_COMMIT::makeImage( EDA_ITEM* aItem ) const
 EDA_ITEM* BOARD_COMMIT::MakeImage( EDA_ITEM* aItem )
 {
     EDA_ITEM* clone = aItem->Clone();
-
-    if( clone->IsBOARD_ITEM() )
-        static_cast<BOARD_ITEM*>( clone )->SetParentGroup( nullptr );
-
     clone->SetFlags( UR_TRANSIENT );
 
     return clone;
@@ -630,11 +676,22 @@ void BOARD_COMMIT::Revert()
 
     board->IncrementTimeStamp();   // clear caches
 
+    auto updateComponentClasses =
+            [this]( BOARD_ITEM* boardItem )
+            {
+                if( boardItem->Type() != PCB_FOOTPRINT_T )
+                    return;
+
+                FOOTPRINT* footprint = static_cast<FOOTPRINT*>( boardItem );
+                GetBoard()->GetComponentClassManager().RebuildRequiredCaches( footprint );
+            };
+
     std::vector<BOARD_ITEM*> bulkAddedItems;
     std::vector<BOARD_ITEM*> bulkRemovedItems;
     std::vector<BOARD_ITEM*> itemsChanged;
+    std::vector<BOARD_ITEM*> itemsToDelete;
 
-    for( COMMIT_LINE& entry : m_changes )
+    for( COMMIT_LINE& entry : m_entries )
     {
         if( !entry.m_item || !entry.m_item->IsBOARD_ITEM() )
             continue;
@@ -646,47 +703,43 @@ void BOARD_COMMIT::Revert()
         switch( changeType )
         {
         case CHT_ADD:
-            // Items are auto-added to the parent group by BOARD_ITEM::Duplicate(), not when
-            // the commit is pushed.
-            if( PCB_GROUP* parentGroup = boardItem->GetParentGroup() )
+            if( changeFlags & CHT_DONE )
             {
-                if( GetStatus( parentGroup ) == 0 )
-                    parentGroup->RemoveItem( boardItem );
+                if( boardItem->Type() != PCB_NETINFO_T )
+                    view->Remove( boardItem );
+
+                connectivity->Remove( boardItem );
+
+                if( m_isFootprintEditor )
+                {
+                    if( FOOTPRINT* parentFP = board->GetFirstFootprint() )
+                        parentFP->Remove( boardItem );
+                }
+                else
+                {
+                    board->Remove( boardItem, REMOVE_MODE::BULK );
+                    bulkRemovedItems.push_back( boardItem );
+                }
             }
 
-            if( !( changeFlags & CHT_DONE ) )
-                break;
-
-            view->Remove( boardItem );
-            connectivity->Remove( boardItem );
-
-            if( FOOTPRINT* parentFP = boardItem->GetParentFootprint() )
-            {
-                parentFP->Remove( boardItem );
-            }
-            else
-            {
-                board->Remove( boardItem, REMOVE_MODE::BULK );
-                bulkRemovedItems.push_back( boardItem );
-            }
-
-            break;
+            // Defer deletion until after OnItemsCompositeUpdate so that
+            // board listeners do not receive dangling pointers.
+            itemsToDelete.push_back( boardItem );
+            entry.m_item = nullptr;
+            continue;
 
         case CHT_REMOVE:
         {
             if( !( changeFlags & CHT_DONE ) )
                 break;
 
-            view->Add( boardItem );
-            connectivity->Add( boardItem );
+            if( boardItem->Type() != PCB_NETINFO_T )
+                view->Add( boardItem );
 
-            // Note: parent can be nullptr, because entry.m_parent is only set for children
-            // of footprints.
-            BOARD_ITEM* parent = board->GetItem( entry.m_parent );
-
-            if( parent && parent->Type() == PCB_FOOTPRINT_T )
+            if( m_isFootprintEditor )
             {
-                static_cast<FOOTPRINT*>( parent )->Add( boardItem, ADD_MODE::INSERT );
+                if( FOOTPRINT* parentFP = board->GetFirstFootprint() )
+                    parentFP->Add( boardItem, ADD_MODE::INSERT );
             }
             else
             {
@@ -694,32 +747,28 @@ void BOARD_COMMIT::Revert()
                 bulkAddedItems.push_back( boardItem );
             }
 
+            updateComponentClasses( boardItem );
             break;
         }
 
         case CHT_MODIFY:
         {
-            view->Remove( boardItem );
+            if( boardItem->Type() != PCB_NETINFO_T )
+                view->Remove( boardItem );
+
             connectivity->Remove( boardItem );
 
             wxASSERT( entry.m_copy && entry.m_copy->IsBOARD_ITEM() );
             BOARD_ITEM* boardItemCopy = static_cast<BOARD_ITEM*>( entry.m_copy );
             boardItem->SwapItemData( boardItemCopy );
 
-            if( PCB_GROUP* group = dynamic_cast<PCB_GROUP*>( boardItem ) )
-            {
-                group->RunOnChildren(
-                        [&]( BOARD_ITEM* child )
-                        {
-                            child->SetParentGroup( group );
-                        } );
-            }
+            if( boardItem->Type() != PCB_NETINFO_T )
+                view->Add( boardItem );
 
-            view->Add( boardItem );
             connectivity->Add( boardItem );
             itemsChanged.push_back( boardItem );
 
-            delete entry.m_copy;
+            updateComponentClasses( boardItem );
             break;
         }
 
@@ -728,11 +777,21 @@ void BOARD_COMMIT::Revert()
             break;
         }
 
+        // Delete any copies we still have ownership of
+        delete entry.m_copy;
+        entry.m_copy = nullptr;
+
         boardItem->ClearEditFlags();
     }
 
+    // Invalidate component classes
+    board->GetComponentClassManager().InvalidateComponentClasses();
+
     if( bulkAddedItems.size() > 0 || bulkRemovedItems.size() > 0 || itemsChanged.size() > 0 )
         board->OnItemsCompositeUpdate( bulkAddedItems, bulkRemovedItems, itemsChanged );
+
+    for( BOARD_ITEM* item : itemsToDelete )
+        delete item;
 
     if( m_isBoardEditor )
     {
@@ -749,4 +808,3 @@ void BOARD_COMMIT::Revert()
 
     clear();
 }
-

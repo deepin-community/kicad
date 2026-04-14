@@ -30,7 +30,9 @@
 #ifndef _GENDRILL_GERBER_WRITER_
 #define _GENDRILL_GERBER_WRITER_
 
-#include <gendrill_file_writer_base.h>
+#include "gendrill_writer_base.h"
+
+#include <wx/filename.h>
 
 class BOARD;
 
@@ -73,13 +75,13 @@ public:
      * @param aPlotDirectory is the output folder.
      * @param aGenDrill set to true to generate the EXCELLON drill file.
      * @param aGenMap set to true to generate a drill map file.
+     * @param aGenTenting set to true to generate tenting layer files.
      * @param aReporter is a #REPORTER to return activity or any message (can be NULL).
      *
      * @return True if successful, false if any error occurred
      */
-    bool CreateDrillandMapFilesSet( const wxString& aPlotDirectory,
-                                    bool aGenDrill, bool aGenMap,
-                                    REPORTER * aReporter = nullptr );
+    bool CreateDrillandMapFilesSet( const wxString& aPlotDirectory, bool aGenDrill, bool aGenMap,
+                                    bool aGenTenting, REPORTER* aReporter = nullptr );
 
 private:
     /**
@@ -91,7 +93,17 @@ private:
      *                   for blind buried vias, they are not always top and bottom layers/
      * @return hole count or -1 if the file cannot be created.
      */
-    int createDrillFile( wxString& aFullFilename, bool aIsNpth, DRILL_LAYER_PAIR aLayerPair );
+    int createDrillFile( wxString& aFullFilename, bool aIsNpth, const DRILL_SPAN& aSpan );
+
+    /**
+     * Create a Gerber X2 file for via protection features.
+     *
+     * @param aFullFilename is the full file name
+     * @param aFeature the protection feature this file represents
+     * @param aLayerPair is the first and last layer pair for the via drill. Usually is top and bottom.
+     */
+    int createProtectionFile( const wxString& aFullFilename, IPC4761_FEATURES aFeature,
+                              DRILL_LAYER_PAIR aLayerPair );
 
     /**
      * @param aPair is the layer pair.
@@ -102,8 +114,19 @@ private:
      *         layer pair names added, and for separate (PTH and NPTH) files, "-NPH" or "-NPTH"
      *         added.
      */
-    virtual const wxString getDrillFileName( DRILL_LAYER_PAIR aPair, bool aNPTH,
+    virtual const wxString getDrillFileName( const DRILL_SPAN& aSpan, bool aNPTH,
                                              bool aMerge_PTH_NPTH ) const override;
+
+    /**
+     * test for an existing via having the given feature IPC4761_FEATURES
+     * @param aFeature is the feature to find
+     * @return true if at least one via having this feature is found in m_holeListBuffer
+     */
+    bool hasViaType( IPC4761_FEATURES aFeature );
+
+    wxFileName getBackdrillLayerPairFileName( const DRILL_SPAN& aSpan ) const;
+    bool       writeBackdrillLayerPairFile( const wxString& aPlotDirectory, REPORTER* aReporter,
+                                            const DRILL_SPAN& aSpan );
 };
 
 #endif  //  #ifndef _GENDRILL_GERBER_WRITER_

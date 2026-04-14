@@ -2,4 +2,4 @@ fixes/Adjusting-content-in-the-desktop-files.patch
 reproducibility/doc-Add-field-revdate-to-asciidoc-files.patch
 debian-hacks/KiCadFullVersion-Drop-hyphen-in-the-string.patch
 fixes/demos-Adjust-MIME-encoding-to-UTF8-of-some-libraries.patch
-fixes/python-Use-raw-strings-expressions.patch
+fixes/Revert-changes-to-use-unified-po4a.patch

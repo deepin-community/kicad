@@ -21,6 +21,7 @@
 #include <magic_enum.hpp>
 #include <api/api_utils.h>
 #include <geometry/shape_poly_set.h>
+#include <kiid.h>
 #include <wx/log.h>
 
 const wxChar* const traceApi = wxT( "KICAD_API" );
@@ -38,6 +39,7 @@ KICOMMON_API std::optional<KICAD_T> TypeNameFromAny( const google::protobuf::Any
         { "type.googleapis.com/kiapi.board.types.BoardText", PCB_TEXT_T },
         { "type.googleapis.com/kiapi.board.types.BoardTextBox", PCB_TEXTBOX_T },
         { "type.googleapis.com/kiapi.board.types.BoardGraphicShape", PCB_SHAPE_T },
+        { "type.googleapis.com/kiapi.board.types.Barcode", PCB_BARCODE_T },
         { "type.googleapis.com/kiapi.board.types.Pad", PCB_PAD_T },
         { "type.googleapis.com/kiapi.board.types.Zone", PCB_ZONE_T },
         { "type.googleapis.com/kiapi.board.types.Dimension", PCB_DIMENSION_T },
@@ -121,10 +123,9 @@ KICOMMON_API void PackPolyLine( types::PolyLine& aOutput, const SHAPE_LINE_CHAIN
         if( vertex < 0 )
             break;
 
-        types::PolyLineNode* node = aOutput.mutable_nodes()->Add();
-
-        if( aSlc.IsPtOnArc( vertex ) )
+        if( aSlc.IsArcStart( vertex ) )
         {
+            types::PolyLineNode* node = aOutput.mutable_nodes()->Add();
             const SHAPE_ARC& arc = aSlc.Arc( aSlc.ArcIndex( vertex ) );
             node->mutable_arc()->mutable_start()->set_x_nm( arc.GetP0().x );
             node->mutable_arc()->mutable_start()->set_y_nm( arc.GetP0().y );
@@ -133,8 +134,9 @@ KICOMMON_API void PackPolyLine( types::PolyLine& aOutput, const SHAPE_LINE_CHAIN
             node->mutable_arc()->mutable_end()->set_x_nm( arc.GetP1().x );
             node->mutable_arc()->mutable_end()->set_y_nm( arc.GetP1().y );
         }
-        else
+        else if( !aSlc.IsPtOnArc( vertex ) )
         {
+            types::PolyLineNode* node = aOutput.mutable_nodes()->Add();
             node->mutable_point()->set_x_nm( aSlc.CPoint( vertex ).x );
             node->mutable_point()->set_y_nm( aSlc.CPoint( vertex ).y );
         }
@@ -230,6 +232,24 @@ KICOMMON_API KIGFX::COLOR4D UnpackColor( const types::Color& aInput )
     double a = std::clamp( aInput.a(), 0.0, 1.0 );
 
     return KIGFX::COLOR4D( r, g, b, a );
+}
+
+KICOMMON_API void PackSheetPath( types::SheetPath& aOutput, const KIID_PATH& aInput )
+{
+    aOutput.clear_path();
+
+    for( const KIID& entry : aInput )
+        aOutput.add_path()->set_value( entry.AsStdString() );
+}
+
+KICOMMON_API KIID_PATH UnpackSheetPath( const types::SheetPath& aInput )
+{
+    KIID_PATH output;
+
+    for( const types::KIID& sheet : aInput.path() )
+        output.push_back( KIID( sheet.value() ) );
+
+    return output;
 }
 
 } // namespace kiapi::common

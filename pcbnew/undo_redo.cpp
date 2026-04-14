@@ -27,12 +27,13 @@
 
 #include <functional>
 using namespace std::placeholders;
+#include <component_classes/component_class_manager.h>
 #include <macros.h>
 #include <pcb_edit_frame.h>
 #include <pcb_track.h>
 #include <pcb_group.h>
+#include <pcb_shape.h>
 #include <pcb_generator.h>
-#include <pcb_target.h>
 #include <footprint.h>
 #include <lset.h>
 #include <pad.h>
@@ -40,12 +41,14 @@ using namespace std::placeholders;
 #include <connectivity/connectivity_data.h>
 #include <tool/tool_manager.h>
 #include <tool/actions.h>
+#include <tools/pcb_actions.h>
 #include <tools/pcb_selection_tool.h>
 #include <tools/pcb_control.h>
 #include <tools/board_editor_control.h>
 #include <board_commit.h>
 #include <drawing_sheet/ds_proxy_undo_item.h>
 #include <wx/msgdlg.h>
+#include <pcb_board_outline.h>
 
 /* Functions to undo and redo edit commands.
  *  commands to undo are stored in CurrentScreen->m_UndoList
@@ -101,7 +104,7 @@ void PCB_BASE_EDIT_FRAME::saveCopyInUndoList( PICKED_ITEMS_LIST* commandToUndo,
                                               const PICKED_ITEMS_LIST& aItemsList,
                                               UNDO_REDO aCommandType )
 {
-    int preExisting = commandToUndo->GetCount();
+    int preExisting = (int) commandToUndo->GetCount();
 
     for( unsigned ii = 0; ii < aItemsList.GetCount(); ii++ )
         commandToUndo->PushItem( aItemsList.GetItemWrapper(ii) );
@@ -133,8 +136,6 @@ void PCB_BASE_EDIT_FRAME::saveCopyInUndoList( PICKED_ITEMS_LIST* commandToUndo,
         case UNDO_REDO::NEWITEM:
         case UNDO_REDO::DELETED:
         case UNDO_REDO::PAGESETTINGS:
-        case UNDO_REDO::REGROUP:
-        case UNDO_REDO::UNGROUP:
             break;
 
         default:
@@ -195,6 +196,32 @@ void PCB_BASE_EDIT_FRAME::AppendCopyToUndoList( const PICKED_ITEMS_LIST& aItemsL
 }
 
 
+/**
+ * Check whether the undo/redo list contains any items that could affect the board outline
+ * or shape hatching.  Used to skip expensive post-processing when only tracks changed.
+ */
+static bool undoListContainsShapesOrFootprints( const PICKED_ITEMS_LIST* aList )
+{
+    for( unsigned ii = 0; ii < aList->GetCount(); ++ii )
+    {
+        switch( aList->GetPickedItem( ii )->Type() )
+        {
+        case PCB_SHAPE_T:
+        case PCB_FOOTPRINT_T:
+        case PCB_TEXT_T:
+        case PCB_TEXTBOX_T:
+        case PCB_FIELD_T:
+            return true;
+
+        default:
+            break;
+        }
+    }
+
+    return false;
+}
+
+
 void PCB_BASE_EDIT_FRAME::RestoreCopyFromUndoList( wxCommandEvent& aEvent )
 {
     if( UndoRedoBlocked() )
@@ -209,8 +236,10 @@ void PCB_BASE_EDIT_FRAME::RestoreCopyFromUndoList( wxCommandEvent& aEvent )
     // Get the old list
     PICKED_ITEMS_LIST* list = PopCommandFromUndoList();
 
+    bool shapesChanged = undoListContainsShapesOrFootprints( list );
+
     // Undo the command
-    PutDataInPreviousState( list );
+    PutDataInPreviousState( list, shapesChanged );
 
     // Put the old list in RedoList
     list->ReversePickersListOrder();
@@ -220,6 +249,12 @@ void PCB_BASE_EDIT_FRAME::RestoreCopyFromUndoList( wxCommandEvent& aEvent )
 
     m_toolManager->ProcessEvent( { TC_MESSAGE, TA_UNDO_REDO_POST, AS_GLOBAL } );
     m_toolManager->PostEvent( EVENTS::SelectedItemsModified );
+
+    if( shapesChanged )
+    {
+        m_pcb->UpdateBoardOutline();
+        GetCanvas()->GetView()->Update( m_pcb->BoardOutline() );
+    }
 
     GetCanvas()->Refresh();
 }
@@ -239,8 +274,10 @@ void PCB_BASE_EDIT_FRAME::RestoreCopyFromRedoList( wxCommandEvent& aEvent )
     // Get the old list
     PICKED_ITEMS_LIST* list = PopCommandFromRedoList();
 
+    bool shapesChanged = undoListContainsShapesOrFootprints( list );
+
     // Redo the command
-    PutDataInPreviousState( list );
+    PutDataInPreviousState( list, shapesChanged );
 
     // Put the old list in UndoList
     list->ReversePickersListOrder();
@@ -251,19 +288,27 @@ void PCB_BASE_EDIT_FRAME::RestoreCopyFromRedoList( wxCommandEvent& aEvent )
     m_toolManager->ProcessEvent( EVENTS::UndoRedoPostEvent );
     m_toolManager->PostEvent( EVENTS::SelectedItemsModified );
 
+    if( shapesChanged )
+    {
+        m_pcb->UpdateBoardOutline();
+        GetCanvas()->GetView()->Update( m_pcb->BoardOutline() );
+    }
+
     GetCanvas()->Refresh();
 }
 
 
-void PCB_BASE_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
+void PCB_BASE_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList, bool aRehatchShapes )
 {
     bool not_found = false;
     bool reBuild_ratsnest = false;
     bool deep_reBuild_ratsnest = false;  // true later if pointers must be rebuilt
     bool solder_mask_dirty = false;
+    bool current_show_ratsnest = GetPcbNewSettings()->m_Display.m_ShowGlobalRatsnest;
+    std::vector<BOX2I> dirty_rule_areas;
 
-    auto view = GetCanvas()->GetView();
-    auto connectivity = GetBoard()->GetConnectivity();
+    KIGFX::PCB_VIEW* view = GetCanvas()->GetView();
+    std::shared_ptr<CONNECTIVITY_DATA> connectivity = GetBoard()->GetConnectivity();
 
     GetBoard()->IncrementTimeStamp();   // clear caches
 
@@ -277,6 +322,32 @@ void PCB_BASE_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
     };
 
     std::unordered_map<EDA_ITEM*, ITEM_CHANGE_TYPE> item_changes;
+
+    auto clear_local_ratsnest_flags =
+            [&]( EDA_ITEM* item )
+            {
+                switch( item->Type() )
+                {
+                case PCB_TRACE_T:
+                case PCB_ARC_T:
+                case PCB_VIA_T:
+                    static_cast<PCB_TRACK*>( item )->SetLocalRatsnestVisible( current_show_ratsnest );
+                    break;
+
+                case PCB_ZONE_T:
+                    static_cast<ZONE*>( item )->SetLocalRatsnestVisible( current_show_ratsnest );
+                    break;
+
+                case PCB_FOOTPRINT_T:
+                    for( PAD* pad : static_cast<FOOTPRINT*>( item )->Pads() )
+                        pad->SetLocalRatsnestVisible( current_show_ratsnest );
+
+                    break;
+
+                default:
+                    break;
+                }
+            };
 
     auto update_item_change_state =
             [&]( EDA_ITEM* item, ITEM_CHANGE_TYPE change_type )
@@ -294,7 +365,6 @@ void PCB_BASE_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
                 switch( item_itr->second )
                 {
                 case ITEM_CHANGE_TYPE::ADDED:
-                {
                     if( change_type == ITEM_CHANGE_TYPE::DELETED )
                     {
                         // The item was previously added, now deleted - as far as bulk callbacks
@@ -309,16 +379,14 @@ void PCB_BASE_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
 
                     // For all other cases, the item remains as ADDED as seen by the bulk callbacks
                     break;
-                }
+
                 case ITEM_CHANGE_TYPE::DELETED:
-                {
                     // This is an error condition - item has already been deleted so should not
                     // be operated on further
                     wxASSERT_MSG( false, wxT( "UndoRedo: should not alter already deleted item" ) );
                     break;
-                }
+
                 case ITEM_CHANGE_TYPE::CHANGED:
-                {
                     if( change_type == ITEM_CHANGE_TYPE::DELETED )
                     {
                         item_itr->second = ITEM_CHANGE_TYPE::DELETED;
@@ -327,13 +395,11 @@ void PCB_BASE_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
                     {
                         // This is an error condition - item has already been changed so should not
                         // be added
-                        wxASSERT_MSG( false,
-                                      wxT( "UndoRedo: should not add already changed item" ) );
+                        wxASSERT_MSG( false, wxT( "UndoRedo: should not add already changed item" ) );
                     }
 
                     // Otherwise, item remains CHANGED
                     break;
-                }
                 }
             };
 
@@ -355,13 +421,11 @@ void PCB_BASE_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
         UNDO_REDO status = aList->GetPickedItemStatus( ii );
 
         if( status != UNDO_REDO::DELETED
-                && status != UNDO_REDO::REGROUP
-                && status != UNDO_REDO::UNGROUP
                 && status != UNDO_REDO::DRILLORIGIN     // origin markers never on board
                 && status != UNDO_REDO::GRIDORIGIN      // origin markers never on board
                 && status != UNDO_REDO::PAGESETTINGS )  // nor are page settings proxy items
         {
-            if( GetBoard()->GetItem( eda_item->m_Uuid ) == DELETED_BOARD_ITEM::GetInstance() )
+            if( !GetBoard()->ResolveItem( eda_item->m_Uuid, true ) )
             {
                 // Remove this non existent item
                 aList->RemovePicker( ii );
@@ -429,106 +493,78 @@ void PCB_BASE_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
         switch( aList->GetPickedItemStatus( ii ) )
         {
         case UNDO_REDO::CHANGED:    /* Exchange old and new data for each item */
-        {
-            BOARD_ITEM*           item = (BOARD_ITEM*) eda_item;
-            BOARD_ITEM_CONTAINER* parent = GetBoard();
-            PCB_GROUP*            parentGroup = item->GetParentGroup();
-
-            if( item->GetParentFootprint() )
+            if( eda_item->IsBOARD_ITEM() )
             {
-                // We need the current item and it's parent, which may be different from what
-                // was stored if we're multiple frames up the undo stack.
-                item = GetBoard()->GetItem( item->m_Uuid );
-                parent = item->GetParentFootprint();
+                BOARD_ITEM*           item = static_cast<BOARD_ITEM*>( eda_item );
+                BOARD_ITEM*           image = static_cast<BOARD_ITEM*>( aList->GetPickedItemLink( ii ) );
+                BOARD_ITEM_CONTAINER* parent = GetBoard();
+
+                if( item->GetParentFootprint() )
+                {
+                    // We need the current item and it's parent, which may be different from what
+                    // was stored if we're multiple frames up the undo stack.
+                    item = GetBoard()->ResolveItem( item->m_Uuid );
+                    parent = item->GetParentFootprint();
+                }
+
+                view->Remove( item );
+                parent->Remove( item );
+
+                item->SwapItemData( image );
+
+                clear_local_ratsnest_flags( item );
+                item->ClearFlags( UR_TRANSIENT );
+                image->SetFlags( UR_TRANSIENT );
+
+                view->Add( item );
+                view->Hide( item, false );
+                parent->Add( item );
+
+                if( item->Type() == PCB_ZONE_T && static_cast<ZONE*>( item )->GetIsRuleArea() )
+                {
+                    dirty_rule_areas.push_back( item->GetBoundingBox() );
+                    dirty_rule_areas.push_back( image->GetBoundingBox() );
+                }
+
+                update_item_change_state( item, ITEM_CHANGE_TYPE::CHANGED );
             }
 
-            BOARD_ITEM* image = (BOARD_ITEM*) aList->GetPickedItemLink( ii );
-
-            view->Remove( item );
-
-            if( parentGroup )
-                parentGroup->RemoveItem( item );
-
-            parent->Remove( item );
-
-            item->SwapItemData( image );
-
-            item->ClearFlags( UR_TRANSIENT );
-            image->SetFlags( UR_TRANSIENT );
-
-            if( PCB_GROUP* group = dynamic_cast<PCB_GROUP*>( item ) )
-            {
-                group->RunOnChildren( [&]( BOARD_ITEM* child )
-                                      {
-                                          child->SetParentGroup( group );
-                                      } );
-            }
-
-            view->Add( item );
-            view->Hide( item, false );
-            parent->Add( item );
-
-            if( parentGroup )
-                parentGroup->AddItem( item );
-
-            update_item_change_state( item, ITEM_CHANGE_TYPE::CHANGED );
             break;
-        }
 
         case UNDO_REDO::NEWITEM:        /* new items are deleted */
-            aList->SetPickedItemStatus( UNDO_REDO::DELETED, ii );
-            GetModel()->Remove( (BOARD_ITEM*) eda_item, REMOVE_MODE::BULK );
-            update_item_change_state( eda_item, ITEM_CHANGE_TYPE::DELETED );
+            if( eda_item->IsBOARD_ITEM() )
+            {
+                aList->SetPickedItemStatus( UNDO_REDO::DELETED, ii );
+                GetModel()->Remove( static_cast<BOARD_ITEM*>( eda_item ), REMOVE_MODE::BULK );
+                update_item_change_state( eda_item, ITEM_CHANGE_TYPE::DELETED );
 
-            if( eda_item->Type() != PCB_NETINFO_T )
-                view->Remove( eda_item );
+                if( eda_item->Type() != PCB_NETINFO_T )
+                    view->Remove( eda_item );
 
-            eda_item->SetFlags( UR_TRANSIENT );
+                eda_item->SetFlags( UR_TRANSIENT );
+
+                if( eda_item->Type() == PCB_ZONE_T && static_cast<ZONE*>( eda_item )->GetIsRuleArea() )
+                    dirty_rule_areas.push_back( eda_item->GetBoundingBox() );
+            }
 
             break;
 
         case UNDO_REDO::DELETED:    /* deleted items are put in List, as new items */
-            aList->SetPickedItemStatus( UNDO_REDO::NEWITEM, ii );
-
-            eda_item->ClearFlags( UR_TRANSIENT );
-
-            GetModel()->Add( (BOARD_ITEM*) eda_item, ADD_MODE::BULK_APPEND );
-            update_item_change_state( eda_item, ITEM_CHANGE_TYPE::ADDED );
-
-            if( eda_item->Type() != PCB_NETINFO_T )
-                view->Add( eda_item );
-
-            break;
-
-        case UNDO_REDO::REGROUP:    /* grouped items are ungrouped */
-            aList->SetPickedItemStatus( UNDO_REDO::UNGROUP, ii );
-
             if( eda_item->IsBOARD_ITEM() )
             {
-                BOARD_ITEM* boardItem = static_cast<BOARD_ITEM*>( eda_item );
+                aList->SetPickedItemStatus( UNDO_REDO::NEWITEM, ii );
 
-                if( PCB_GROUP* group = boardItem->GetParentGroup() )
-                {
-                    aList->SetPickedItemGroupId( group->m_Uuid, ii );
+                clear_local_ratsnest_flags( eda_item );
+                eda_item->ClearFlags( UR_TRANSIENT );
 
-                    group->RemoveItem( boardItem );
-                }
-            }
+                GetModel()->Add( static_cast<BOARD_ITEM*>( eda_item ), ADD_MODE::BULK_APPEND );
+                update_item_change_state( eda_item, ITEM_CHANGE_TYPE::ADDED );
 
-            break;
+                if( eda_item->Type() != PCB_NETINFO_T )
+                    view->Add( eda_item );
 
-        case UNDO_REDO::UNGROUP:    /* ungrouped items are re-added to their previuos groups */
-            aList->SetPickedItemStatus( UNDO_REDO::REGROUP, ii );
-
-            if( eda_item->IsBOARD_ITEM() )
-            {
-                BOARD_ITEM* boardItem = static_cast<BOARD_ITEM*>( eda_item );
-
-                PCB_GROUP* group = dynamic_cast<PCB_GROUP*>(
-                        GetBoard()->GetItem( aList->GetPickedItemGroupId( ii ) ) );
-
-                if( group )
-                    group->AddItem( boardItem );
+                if( eda_item->Type() == PCB_ZONE_T && static_cast<ZONE*>( eda_item )->GetIsRuleArea() )
+                    dirty_rule_areas.push_back( eda_item->GetBoundingBox() );
             }
 
             break;
@@ -551,27 +587,71 @@ void PCB_BASE_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
         }
 
         case UNDO_REDO::PAGESETTINGS:
-        {
-            // swap current settings with stored settings
-            DS_PROXY_UNDO_ITEM  alt_item( this );
-            DS_PROXY_UNDO_ITEM* item = static_cast<DS_PROXY_UNDO_ITEM*>( eda_item );
-            item->Restore( this );
-            *item = std::move( alt_item );
+            if( eda_item->Type() == WS_PROXY_UNDO_ITEM_T || eda_item->Type() == WS_PROXY_UNDO_ITEM_PLUS_T )
+            {
+                // swap current settings with stored settings
+                DS_PROXY_UNDO_ITEM  alt_item( this );
+                DS_PROXY_UNDO_ITEM* item = static_cast<DS_PROXY_UNDO_ITEM*>( eda_item );
+                item->Restore( this );
+                *item = std::move( alt_item );
+            }
+
             break;
-        }
 
         default:
             wxFAIL_MSG( wxString::Format( wxT( "PutDataInPreviousState() error (unknown code %X)" ),
                                           aList->GetPickedItemStatus( ii ) ) );
             break;
         }
+
+        if( eda_item->Type() == PCB_FOOTPRINT_T )
+        {
+            FOOTPRINT* fp = static_cast<FOOTPRINT*>( eda_item );
+            fp->InvalidateComponentClassCache();
+            m_pcb->GetComponentClassManager().RebuildRequiredCaches( fp );
+        }
     }
 
     if( not_found )
         wxMessageBox( _( "Incomplete undo/redo operation: some items not found" ) );
 
+    // We have now swapped all the group parent and group member pointers.  But it is a
+    // risky proposition to bet on the pointers being invariant, so validate them all.
+    for( int ii = 0; ii < (int) aList->GetCount(); ++ii )
+    {
+        ITEM_PICKER& wrapper = aList->GetItemWrapper( ii );
+
+        if( wrapper.GetStatus() == UNDO_REDO::DELETED )
+            continue;
+
+        BOARD_ITEM* parentGroup = GetBoard()->ResolveItem( wrapper.GetGroupId(), true );
+        wrapper.GetItem()->SetParentGroup( dynamic_cast<PCB_GROUP*>( parentGroup ) );
+
+        if( EDA_GROUP* group = dynamic_cast<PCB_GROUP*>( wrapper.GetItem() ) )
+        {
+            // Items list may contain dodgy pointers, so don't use RemoveAll()
+            group->GetItems().clear();
+
+            for( const KIID& member : wrapper.GetGroupMembers() )
+            {
+                if( BOARD_ITEM* memberItem = GetBoard()->ResolveItem( member, true ) )
+                    group->AddItem( memberItem );
+            }
+        }
+
+        // And prepare for a redo by updating group info based on current image
+        if( EDA_ITEM* item = wrapper.GetLink() )
+            wrapper.SetLink( item );
+    }
+
     if( IsType( FRAME_PCB_EDITOR ) )
     {
+        if( !dirty_rule_areas.empty() && (   GetPcbNewSettings()->m_Display.m_TrackClearance == SHOW_WITH_VIA_ALWAYS
+                                          || GetPcbNewSettings()->m_Display.m_PadClearance ) )
+        {
+            view->UpdateCollidingItems( dirty_rule_areas, { PCB_TRACE_T, PCB_ARC_T, PCB_VIA_T, PCB_PAD_T } );
+        }
+
         if( reBuild_ratsnest || deep_reBuild_ratsnest )
         {
             // Connectivity may have changed; rebuild internal caches to remove stale items
@@ -582,6 +662,8 @@ void PCB_BASE_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
         if( solder_mask_dirty )
             HideSolderMask();
     }
+
+    GetBoard()->GetComponentClassManager().InvalidateComponentClasses();
 
     PCB_SELECTION_TOOL* selTool = m_toolManager->GetTool<PCB_SELECTION_TOOL>();
     selTool->RebuildSelection();
@@ -608,6 +690,9 @@ void PCB_BASE_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
             break;
         }
     }
+
+    if( aRehatchShapes )
+        GetToolManager()->PostAction( PCB_ACTIONS::rehatchShapes );
 
     if( added_items.size() > 0 || deleted_items.size() > 0 || changed_items.size() > 0 )
         GetBoard()->OnItemsCompositeUpdate( added_items, deleted_items, changed_items );
@@ -649,9 +734,6 @@ void PCB_BASE_EDIT_FRAME::ClearListAndDeleteItems( PICKED_ITEMS_LIST* aList )
                 wxASSERT_MSG( item->HasFlag( UR_TRANSIENT ),
                               "Item on undo/redo list not owned by undo/redo!" );
 
-                if( item->IsBOARD_ITEM() )
-                    static_cast<BOARD_ITEM*>( item )->SetParentGroup( nullptr );
-
                 delete item;
             } );
 }
@@ -664,5 +746,7 @@ void PCB_BASE_EDIT_FRAME::RollbackFromUndo()
     ClearListAndDeleteItems( undo );
     delete undo;
 
+    m_pcb->UpdateBoardOutline();
+    GetCanvas()->GetView()->Update( m_pcb->BoardOutline() );
     GetCanvas()->Refresh();
 }

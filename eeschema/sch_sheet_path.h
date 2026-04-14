@@ -32,10 +32,64 @@
 #define CLASS_DRAWSHEET_PATH_H
 
 #include <map>
+#include <memory>
 #include <optional>
 
 #include <kiid.h>
 #include <wx/string.h>
+
+class SCH_SYMBOL;
+class SCH_SHEET;
+
+/**
+ * Object to store and handle common variant information.
+ */
+class VARIANT
+{
+public:
+    VARIANT( const wxString& aName = wxEmptyString ) :
+        m_Name( aName ),
+        m_ExcludedFromSim( false ),
+        m_ExcludedFromBOM( false ),
+        m_ExcludedFromBoard( false ),
+        m_ExcludedFromPosFiles( false ),
+        m_DNP( false )
+    {
+    }
+
+    virtual ~VARIANT() = default;
+
+    wxString                     m_Name;
+    wxString                     m_Description;
+    bool                         m_ExcludedFromSim;
+    bool                         m_ExcludedFromBOM;
+    bool                         m_ExcludedFromBoard;
+    bool                         m_ExcludedFromPosFiles;
+    bool                         m_DNP;
+    std::map<wxString, wxString> m_Fields;
+};
+
+
+/**
+ * Variant information for a schematic symbol.
+ *
+ * Schematic symbol variants are a set of field and/or properties differentials against the default symbol
+ * values.  Each symbol instance may contain 0 or more variants.
+ *
+ * @note The #REFERENCE field is immutable across variants. Changing it would effectively be a new board.
+ */
+class SCH_SYMBOL_VARIANT : public VARIANT
+{
+public:
+    SCH_SYMBOL_VARIANT( const wxString& aName = wxEmptyString ) :
+        VARIANT( aName )
+    {}
+
+    void InitializeAttributes( const SCH_SYMBOL& aSymbol );
+
+    virtual ~SCH_SYMBOL_VARIANT() = default;
+};
+
 
 /**
  * A simple container for schematic symbol instance information.
@@ -49,12 +103,44 @@ struct SCH_SYMBOL_INSTANCE
     int       m_Unit = 1;
 
     // Do not use.  This is left over from the dubious decision to instantiate symbol value
-    // and footprint fields.
+    // and footprint fields.  This is now handle by variants.
     wxString  m_Value;
     wxString  m_Footprint;
 
     // The project name associated with this instance.
     wxString  m_ProjectName;
+
+    bool m_DNP = false;
+    bool m_ExcludedFromBOM = false;
+    bool m_ExcludedFromSim = false;
+    bool m_ExcludedFromBoard = false;
+    bool m_ExcludedFromPosFiles = false;
+
+    /// A list of symbol variants.
+    std::map<wxString, SCH_SYMBOL_VARIANT> m_Variants;
+};
+
+
+/**
+ * Variant information for a schematic sheet.
+ *
+ * Schematic sheet variants are a set of field and/or properties differentials against the default sheet
+ * values.  Each sheet instance may contain 0 or more variants.
+ *
+ * @note The exceptions to this are the #SHEET_NAME and #SHEET_FILENAME fields and the #SCH_SHEET::m_excludeFromBoard
+ *       property.  Changing any of these would effectively be a new board.  They are immutable and will always be
+ *       the sheet default value.
+ */
+class SCH_SHEET_VARIANT : public VARIANT
+{
+public:
+    SCH_SHEET_VARIANT( const wxString& aName = wxEmptyString ) :
+        VARIANT( aName )
+    {}
+
+    virtual ~SCH_SHEET_VARIANT() = default;
+
+    void InitializeAttributes( const SCH_SHEET& aSheet );
 };
 
 
@@ -69,6 +155,15 @@ struct SCH_SHEET_INSTANCE
 
     // The project name associated with this instance.
     wxString  m_ProjectName;
+
+    bool m_DNP = false;
+    bool m_ExcludedFromBOM = false;
+    bool m_ExcludedFromSim = false;
+    bool m_ExcludedFromBoard = false;
+    bool m_ExcludedFromPosFiles = false;
+
+    /// A list of sheet variants.
+    std::map<wxString, SCH_SHEET_VARIANT> m_Variants;
 };
 
 
@@ -138,6 +233,9 @@ public:
 
     SCH_SHEET_PATH& operator=( const SCH_SHEET_PATH& aOther );
 
+    // Move assignment operator
+    SCH_SHEET_PATH& operator=( SCH_SHEET_PATH&& aOther );
+
     SCH_SHEET_PATH operator+( const SCH_SHEET_PATH& aOther );
 
     ~SCH_SHEET_PATH() = default;
@@ -203,6 +301,8 @@ public:
 
     wxString GetPageNumber() const;
 
+    int GetPageNumberAsInt() const;
+
     const SCH_SHEET* GetSheet( unsigned aIndex ) const
     {
         SCH_SHEET* retv = nullptr;
@@ -212,8 +312,6 @@ public:
 
         return retv;
     }
-
-    bool IsFullPath() const;
 
     /**
      * Compare if this is the same sheet path as \a aSheetPathToTest.
@@ -263,14 +361,18 @@ public:
     SCH_SCREEN* LastScreen() const;
 
     bool GetExcludedFromSim() const;
+    bool GetExcludedFromSim( const wxString& aVariantName ) const;
     bool GetExcludedFromBOM() const;
+    bool GetExcludedFromBOM( const wxString& aVariantName ) const;
     bool GetExcludedFromBoard() const;
+    bool GetExcludedFromBoard( const wxString& aVariantName ) const;
     bool GetDNP() const;
+    bool GetDNP( const wxString& aVariantName ) const;
 
     /**
      * Fetch a SCH_ITEM by ID.
      */
-    SCH_ITEM* GetItem( const KIID& aID ) const;
+    SCH_ITEM* ResolveItem( const KIID& aID ) const;
 
     /**
      * Return the path of time stamps which do not changes even when editing sheet parameters.
@@ -291,9 +393,19 @@ public:
      *
      * The "normal" path instead uses the #KIID objects in the path that do not change
      * even when editing sheet parameters.
+     *
+     * @param aUseShortRootName If true, uses "/" as the root name. If false, uses the root
+     *                          schematic file name.
+     * @param aStripTrailingSeparator If true, removes the trailing "/" from the path.
+     * @param aEscapeSheetNames If true, escapes '/' characters in sheet names to "{slash}"
+     *                          for use in net name construction where '/' is used as a
+     *                          hierarchy separator. This ensures pattern matching for
+     *                          net classes works correctly with sheets that have '/' in
+     *                          their names.
      */
     wxString PathHumanReadable( bool aUseShortRootName = true,
-                                bool aStripTrailingSeparator = false ) const;
+                                bool aStripTrailingSeparator = false,
+                                bool aEscapeSheetNames = false ) const;
 
     /**
      * Update all the symbol references for this sheet path.
@@ -487,7 +599,8 @@ public:
      *
      * Also returns the sheet the item was found on in \a aPathOut.
      */
-    SCH_ITEM* GetItem( const KIID& aID, SCH_SHEET_PATH* aPathOut = nullptr ) const;
+    SCH_ITEM* ResolveItem( const KIID& aID, SCH_SHEET_PATH* aPathOut = nullptr,
+                           bool aAllowNullptrReturn = false ) const;
 
     /**
      * Fill an item cache for temporary use when many items need to be fetched.

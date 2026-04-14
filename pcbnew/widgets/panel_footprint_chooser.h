@@ -24,9 +24,9 @@
 #ifndef PANEL_FOOTPRINT_CHOOSER_H
 #define PANEL_FOOTPRINT_CHOOSER_H
 
+#include <wx/toplevel.h>
 #include <widgets/lib_tree.h>
 #include <fp_tree_model_adapter.h>
-#include <footprint_info.h>
 #include <widgets/footprint_preview_widget.h>
 
 class wxTimer;
@@ -34,6 +34,7 @@ class wxSplitterWindow;
 class wxBoxSizer;
 
 class PCB_BASE_FRAME;
+class FOOTPRINT;
 
 // When a new footprint is selected, a custom event is sent, for instance to update
 // 3D viewer. So declare a FP_SELECTION_EVENT event
@@ -58,6 +59,8 @@ public:
 
     ~PANEL_FOOTPRINT_CHOOSER();
 
+    void OnChar( wxKeyEvent& aEvent );
+
     void FinishSetup();
 
     void SetPreselect( const LIB_ID& aPreselect );
@@ -78,6 +81,10 @@ public:
     void Regenerate() { m_tree->Regenerate( true ); }
 
     FOOTPRINT_PREVIEW_WIDGET* GetViewerPanel() const { return m_preview_ctrl; }
+
+    wxSplitterWindow* GetVerticalSpliter() const { return m_vsplitter; }
+
+    wxPanel* GetDetailsPanel() const { return m_detailsPanel; }
 
 protected:
     static constexpr int DblClickDelay = 100; // milliseconds
@@ -109,6 +116,7 @@ public:
     const FOOTPRINT*          m_CurrFootprint;
 
 protected:
+    wxPanel*                  m_detailsPanel;
     wxTimer*                  m_dbl_click_timer;
     wxTimer*                  m_open_libs_timer;
     wxSplitterWindow*         m_hsplitter;
@@ -124,6 +132,8 @@ protected:
     std::function<bool( LIB_TREE_NODE& )>   m_filter;
     std::function<void()>                   m_acceptHandler;
     std::function<void()>                   m_escapeHandler;
+
+    std::vector<std::unique_ptr<FOOTPRINT>> m_historyFootprints;
 };
 
 #endif /* PANEL_FOOTPRINT_CHOOSER_H */

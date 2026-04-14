@@ -101,6 +101,7 @@ public:
     int HighlightNetCursor( const TOOL_EVENT& aEvent );
 
     int AssignNetclass( const TOOL_EVENT& aEvent );
+    int FindNetInInspector( const TOOL_EVENT& aEvent );
 
     int Undo( const TOOL_EVENT& aEvent );
     int Redo( const TOOL_EVENT& aEvent );
@@ -132,6 +133,7 @@ public:
     int ShowNetNavigator( const TOOL_EVENT& aEvent );
     int ToggleProperties( const TOOL_EVENT& aEvent );
     int ToggleLibraryTree( const TOOL_EVENT& aEvent );
+    int ToggleRemoteSymbolPanel( const TOOL_EVENT& aEvent );
 
     int ToggleHiddenPins( const TOOL_EVENT& aEvent );
     int ToggleHiddenFields( const TOOL_EVENT& aEvent );
@@ -145,14 +147,12 @@ public:
     int TogglePinAltIcons( const TOOL_EVENT& aEvent );
     int ChangeLineMode( const TOOL_EVENT& aEvent );
     int NextLineMode( const TOOL_EVENT& aEvent );
+    int OnAngleSnapModeChanged( const TOOL_EVENT& aEvent );
     int ToggleAnnotateAuto( const TOOL_EVENT& aEvent );
-    int ToggleAnnotateRecursive( const TOOL_EVENT& aEvent );
     int TogglePythonConsole( const TOOL_EVENT& aEvent );
     int ReloadPlugins( const TOOL_EVENT& aEvent );
 
     int GridFeedback( const TOOL_EVENT& aEvent );
-
-    int RepairSchematic( const TOOL_EVENT& aEvent );
 
     void AssignFootprints( const std::string& aChangedSetOfReferences );
 
@@ -177,6 +177,12 @@ public:
     }
 
     bool GetHighlightBusMembers() const { return m_highlightBusMembers; }
+
+    int PlaceLinkedDesignBlock( const TOOL_EVENT& aEvent );
+    int SaveToLinkedDesignBlock( const TOOL_EVENT& aEvent );
+
+    int AddVariant( const TOOL_EVENT& aEvent );
+    int RemoveVariant( const TOOL_EVENT& aEvent );
 
 private:
     ///< copy selection to clipboard or to m_duplicateClipboard

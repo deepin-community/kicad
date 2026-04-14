@@ -26,21 +26,31 @@
 #include <functional>
 #include <macros.h>
 #include <gal/graphics_abstraction_layer.h>
+#include <sch_group.h>
 #include <sch_item.h>
 #include <sch_line.h>
 #include <sch_table.h>
 #include <sch_tablecell.h>
 #include <sch_painter.h>
 #include <tool/tool_manager.h>
+#include <sch_tool_base.h>
 #include <settings/app_settings.h>
 #include <trigo.h>
 #include <view/view.h>
 #include "ee_grid_helper.h"
 
+EE_GRID_HELPER::EE_GRID_HELPER() :
+        GRID_HELPER()
+{
+}
+
 
 EE_GRID_HELPER::EE_GRID_HELPER( TOOL_MANAGER* aToolMgr ) :
         GRID_HELPER( aToolMgr, LAYER_SCHEMATIC_ANCHOR )
 {
+    if( !m_toolMgr )
+        return;
+
     KIGFX::VIEW* view = m_toolMgr->GetView();
 
     m_viewAxis.SetSize( 20000 );
@@ -60,6 +70,9 @@ EE_GRID_HELPER::EE_GRID_HELPER( TOOL_MANAGER* aToolMgr ) :
 
 EE_GRID_HELPER::~EE_GRID_HELPER()
 {
+    if( !m_toolMgr )
+        return;
+
     KIGFX::VIEW* view = m_toolMgr->GetView();
 
     view->Remove( &m_viewAxis );
@@ -144,15 +157,14 @@ VECTOR2I EE_GRID_HELPER::BestSnapAnchor( const VECTOR2I& aOrigin, GRID_HELPER_GR
 
     VECTOR2I pt = aOrigin;
     VECTOR2I snapDist( snapRange, snapRange );
-    bool     snapLineX = false;
-    bool     snapLineY = false;
-    bool     snapPoint = false;
     bool     gridChecked = false;
+    bool     snappedToAnchor = false;
 
     BOX2I    bb( VECTOR2I( aOrigin.x - snapRange / 2, aOrigin.y - snapRange / 2 ),
                  VECTOR2I( snapRange, snapRange ) );
 
     clearAnchors();
+    m_snapItem = std::nullopt;
 
     for( SCH_ITEM* item : queryVisible( bb, aSkip ) )
         computeAnchors( item, aOrigin );
@@ -172,42 +184,13 @@ VECTOR2I EE_GRID_HELPER::BestSnapAnchor( const VECTOR2I& aOrigin, GRID_HELPER_GR
 
     showConstructionGeometry( m_enableSnap );
 
-    SNAP_LINE_MANAGER&      snapLineManager = getSnapManager().GetSnapLineManager();
-    std::optional<VECTOR2I> snapLineOrigin = snapLineManager.GetSnapLineOrigin();
+    SNAP_LINE_MANAGER& snapLineManager = getSnapManager().GetSnapLineManager();
+    const VECTOR2D     gridSize = GetGridSize( aGrid );
 
-    if( m_enableSnapLine && m_snapItem && snapLineOrigin.has_value()
-        && m_skipPoint != *snapLineOrigin )
-    {
-        if( std::abs( snapLineOrigin->x - aOrigin.x ) < snapDist.x )
-        {
-            pt.x = snapLineOrigin->x;
-            snapDist.x = std::abs( pt.x - aOrigin.x );
-            snapLineX = true;
-        }
+    std::optional<VECTOR2I> guideSnap;
 
-        if( std::abs( snapLineOrigin->y - aOrigin.y ) < snapDist.y )
-        {
-            pt.y = snapLineOrigin->y;
-            snapDist.y = std::abs( pt.y - aOrigin.y );
-            snapLineY = true;
-        }
-
-        if( canUseGrid() && std::abs( nearestGrid.x - aOrigin.x ) < snapDist.x )
-        {
-            pt.x = nearestGrid.x;
-            snapDist.x = std::abs( nearestGrid.x - aOrigin.x );
-            snapLineX = false;
-        }
-
-        if( canUseGrid() && std::abs( nearestGrid.y - aOrigin.y ) < snapDist.y )
-        {
-            pt.y = nearestGrid.y;
-            snapDist.y = std::abs( nearestGrid.y - aOrigin.y );
-            snapLineY = false;
-        }
-
-        gridChecked = true;
-    }
+    if( m_enableSnapLine )
+        guideSnap = SnapToConstructionLines( aOrigin, nearestGrid, gridSize, snapRange );
 
     if( m_enableSnap && nearest && nearest->Distance( aOrigin ) < snapDist.EuclideanNorm() )
     {
@@ -217,45 +200,49 @@ VECTOR2I EE_GRID_HELPER::BestSnapAnchor( const VECTOR2I& aOrigin, GRID_HELPER_GR
             pt = nearestGrid;
             snapDist.x = std::abs( nearestGrid.x - aOrigin.x );
             snapDist.y = std::abs( nearestGrid.y - aOrigin.y );
-            snapPoint = false;
+            gridChecked = true;
         }
         else
         {
             pt = nearest->pos;
             snapDist.x = std::abs( nearest->pos.x - aOrigin.x );
             snapDist.y = std::abs( nearest->pos.y - aOrigin.y );
-            snapPoint = true;
+            snappedToAnchor = true;
+            gridChecked = true;
         }
-
-        snapLineX = false;
-        snapLineY = false;
-        gridChecked = true;
     }
 
-    if( canUseGrid() && !gridChecked )
-        pt = nearestGrid;
-
-    if( snapLineX || snapLineY )
+    if( guideSnap && m_skipPoint != *guideSnap )
     {
-        snapLineManager.SetSnapLineEnd( pt );
+        snapLineManager.SetSnapLineEnd( *guideSnap );
+        m_toolMgr->GetView()->SetVisible( &m_viewSnapPoint, false );
+        m_snapItem = std::nullopt;
+        return *guideSnap;
     }
-    else if( snapPoint )
+
+    if( snappedToAnchor )
     {
         m_snapItem = *nearest;
         m_viewSnapPoint.SetPosition( pt );
 
         snapLineManager.SetSnapLineOrigin( pt );
+        snapLineManager.SetSnapLineEnd( std::nullopt );
 
         if( m_toolMgr->GetView()->IsVisible( &m_viewSnapPoint ) )
-            m_toolMgr->GetView()->Update( &m_viewSnapPoint, KIGFX::GEOMETRY);
+            m_toolMgr->GetView()->Update( &m_viewSnapPoint, KIGFX::GEOMETRY );
         else
             m_toolMgr->GetView()->SetVisible( &m_viewSnapPoint, true );
+
+        return pt;
     }
-    else
-    {
-        snapLineManager.ClearSnapLine();
-        m_toolMgr->GetView()->SetVisible( &m_viewSnapPoint, false );
-    }
+
+    m_snapItem = std::nullopt;
+
+    if( canUseGrid() && !gridChecked )
+        pt = nearestGrid;
+
+    snapLineManager.SetSnapLineEnd( std::nullopt );
+    m_toolMgr->GetView()->SetVisible( &m_viewSnapPoint, false );
 
     return pt;
 }
@@ -326,13 +313,30 @@ std::set<SCH_ITEM*> EE_GRID_HELPER::queryVisible( const BOX2I& aArea,
     std::set<SCH_ITEM*>                       items;
     std::vector<KIGFX::VIEW::LAYER_ITEM_PAIR> selectedItems;
 
-    KIGFX::VIEW* view = m_toolMgr->GetView();
+    EDA_DRAW_FRAME* frame = dynamic_cast<EDA_DRAW_FRAME*>( m_toolMgr->GetToolHolder() );
+    KIGFX::VIEW*    view = m_toolMgr->GetView();
 
     view->Query( aArea, selectedItems );
 
     for( const KIGFX::VIEW::LAYER_ITEM_PAIR& it : selectedItems )
     {
+        if( !it.first->IsSCH_ITEM() )
+            continue;
+
         SCH_ITEM* item = static_cast<SCH_ITEM*>( it.first );
+
+        if( frame && frame->IsType( FRAME_SCH_SYMBOL_EDITOR ) )
+        {
+            // If we are in the symbol editor, don't use the symbol itself
+            if( item->Type() == LIB_SYMBOL_T )
+                continue;
+        }
+        else
+        {
+            // If we are not in the symbol editor, don't use symbol-editor-private items
+            if( item->IsPrivate() )
+                continue;
+        }
 
         // The item must be visible and on an active layer
         if( view->IsVisible( item ) && item->ViewGetLOD( it.second, view ) < view->GetScale() )
@@ -406,6 +410,28 @@ GRID_HELPER_GRIDS EE_GRID_HELPER::GetItemGrid( const EDA_ITEM* aItem ) const
     case SCH_BUS_WIRE_ENTRY_T:
         return GRID_WIRES;
 
+    // Groups need to get the grid of their children
+    case SCH_GROUP_T:
+    {
+        const SCH_GROUP* group = static_cast<const SCH_GROUP*>( aItem );
+
+        // Shouldn't happen
+        if( group->GetItems().empty() )
+            return GRID_CURRENT;
+
+        GRID_HELPER_GRIDS grid = GetItemGrid( *group->GetItems().begin() );
+
+        for( EDA_ITEM* item : static_cast<const SCH_GROUP*>( aItem )->GetItems() )
+        {
+            GRID_HELPER_GRIDS itemGrid = GetItemGrid( item );
+
+            if( GetGridSize( itemGrid ) > GetGridSize( grid ) )
+                grid = itemGrid;
+        }
+
+        return grid;
+    }
+
     default:
         return GRID_CURRENT;
     }
@@ -446,7 +472,7 @@ void EE_GRID_HELPER::computeAnchors( SCH_ITEM *aItem, const VECTOR2I &aRefPos, b
         if( aIncludeText )
         {
             addAnchor( aItem->GetPosition(), SNAPPABLE | CORNER, aItem );
-            addAnchor( dynamic_cast<SCH_SHAPE*>( aItem )->GetEnd(), SNAPPABLE | CORNER, aItem );
+            addAnchor( static_cast<SCH_SHAPE*>( aItem )->GetEnd(), SNAPPABLE | CORNER, aItem );
         }
 
         break;
@@ -486,6 +512,14 @@ void EE_GRID_HELPER::computeAnchors( SCH_ITEM *aItem, const VECTOR2I &aRefPos, b
         addAnchor( pin->GetPosition(), SNAPPABLE | ORIGIN, aItem );
         break;
     }
+
+    case SCH_GROUP_T:
+        for( EDA_ITEM* item : static_cast<SCH_GROUP*>( aItem )->GetItems() )
+        {
+            computeAnchors( static_cast<SCH_ITEM*>( item ), aRefPos, aFrom, aIncludeText );
+        }
+
+        break;
 
     default:
         break;

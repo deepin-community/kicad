@@ -31,7 +31,7 @@
 #include <drc/drc_engine.h>
 #include <drc/drc_item.h>
 #include <drc/drc_rule.h>
-#include <drc/drc_test_provider_clearance_base.h>
+#include <drc/drc_test_provider.h>
 #include "drc_rtree.h"
 
 /*
@@ -41,31 +41,20 @@
     - DRCE_DRILLED_HOLES_COLOCATED
 */
 
-class DRC_TEST_PROVIDER_HOLE_TO_HOLE : public DRC_TEST_PROVIDER_CLEARANCE_BASE
+class DRC_TEST_PROVIDER_HOLE_TO_HOLE : public DRC_TEST_PROVIDER
 {
 public:
     DRC_TEST_PROVIDER_HOLE_TO_HOLE () :
-            DRC_TEST_PROVIDER_CLEARANCE_BASE(),
+            DRC_TEST_PROVIDER(),
             m_board( nullptr ),
             m_largestHoleToHoleClearance( 0 )
-    {
-    }
+    {}
 
-    virtual ~DRC_TEST_PROVIDER_HOLE_TO_HOLE()
-    {
-    }
+    virtual ~DRC_TEST_PROVIDER_HOLE_TO_HOLE() = default;
 
     virtual bool Run() override;
 
-    virtual const wxString GetName() const override
-    {
-        return wxT( "hole_to_hole_clearance" );
-    };
-
-    virtual const wxString GetDescription() const override
-    {
-        return wxT( "Tests hole to hole spacing" );
-    }
+    virtual const wxString GetName() const override { return wxT( "hole_to_hole_clearance" ); };
 
 private:
     bool testHoleAgainstHole( BOARD_ITEM* aItem, SHAPE_CIRCLE* aHole, BOARD_ITEM* aOther );
@@ -98,7 +87,7 @@ bool DRC_TEST_PROVIDER_HOLE_TO_HOLE::Run()
     if( m_drcEngine->IsErrorLimitExceeded( DRCE_DRILLED_HOLES_TOO_CLOSE )
             && m_drcEngine->IsErrorLimitExceeded( DRCE_DRILLED_HOLES_COLOCATED ) )
     {
-        reportAux( wxT( "Hole to hole violations ignored. Tests not run." ) );
+        REPORT_AUX( wxT( "Hole to hole violations ignored. Tests not run." ) );
         return true;        // continue with other tests
     }
 
@@ -109,11 +98,10 @@ bool DRC_TEST_PROVIDER_HOLE_TO_HOLE::Run()
     if( m_drcEngine->QueryWorstConstraint( HOLE_TO_HOLE_CONSTRAINT, worstClearanceConstraint ) )
     {
         m_largestHoleToHoleClearance = worstClearanceConstraint.GetValue().Min();
-        reportAux( wxT( "Worst hole to hole : %d nm" ), m_largestHoleToHoleClearance );
     }
     else
     {
-        reportAux( wxT( "No hole to hole constraints found. Skipping check." ) );
+        REPORT_AUX( wxT( "No hole to hole constraints found. Skipping check." ) );
         return true;        // continue with other tests
     }
 
@@ -258,8 +246,6 @@ bool DRC_TEST_PROVIDER_HOLE_TO_HOLE::Run()
             return false;
     }
 
-    reportRuleStatistics();
-
     return !m_drcEngine->IsCancelled();
 }
 
@@ -296,9 +282,10 @@ bool DRC_TEST_PROVIDER_HOLE_TO_HOLE::testHoleAgainstHole( BOARD_ITEM* aItem, SHA
             if( aItem->m_Uuid > aOther->m_Uuid )
                 std::swap( aItem, aOther );
 
-            std::shared_ptr<DRC_ITEM> drce = DRC_ITEM::Create( DRCE_DRILLED_HOLES_COLOCATED );
-            drce->SetItems( aItem, aOther );
-            reportViolation( drce, aHole->GetCenter(), UNDEFINED_LAYER );
+            std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_DRILLED_HOLES_COLOCATED );
+            drcItem->SetItems( aItem, aOther );
+            reportTwoPointGeometry( drcItem, aHole->GetCenter(), aHole->GetCenter(), aHole->GetCenter(),
+                                    UNDEFINED_LAYER );
         }
     }
     else if( reportHole2Hole )
@@ -319,17 +306,14 @@ bool DRC_TEST_PROVIDER_HOLE_TO_HOLE::testHoleAgainstHole( BOARD_ITEM* aItem, SHA
             if( aItem->m_Uuid > aOther->m_Uuid )
                 std::swap( aItem, aOther );
 
-            std::shared_ptr<DRC_ITEM> drce = DRC_ITEM::Create( DRCE_DRILLED_HOLES_TOO_CLOSE );
-            wxString msg = formatMsg( _( "(%s min %s; actual %s)" ),
-                                      constraint.GetName(),
-                                      minClearance,
-                                      actual );
-
-            drce->SetErrorMessage( drce->GetErrorText() + wxS( " " ) + msg );
-            drce->SetItems( aItem, aOther );
-            drce->SetViolatingRule( constraint.GetParentRule() );
-
-            reportViolation( drce, aHole->GetCenter(), UNDEFINED_LAYER );
+            std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_DRILLED_HOLES_TOO_CLOSE );
+            drcItem->SetErrorDetail( formatMsg( _( "(%s min %s; actual %s)" ),
+                                                constraint.GetName(),
+                                                minClearance,
+                                                actual ) );
+            drcItem->SetItems( aItem, aOther );
+            drcItem->SetViolatingRule( constraint.GetParentRule() );
+            reportTwoShapeGeometry( drcItem, aHole->GetCenter(), aHole, otherHole.get(), UNDEFINED_LAYER, actual );
         }
     }
 

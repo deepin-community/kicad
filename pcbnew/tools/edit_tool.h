@@ -115,11 +115,20 @@ public:
     int Swap( const TOOL_EVENT& aEvent );
 
     /**
+     * Swap nets between selected pads and propagate to connected copper items
+     * (tracks, arcs, vias) for unconstrained pin swapping.
+     */
+    int SwapPadNets( const TOOL_EVENT& aEvent );
+    int SwapGateNets( const TOOL_EVENT& aEvent );
+
+
+    /**
      * Try to fit selected footprints inside a minimal area and start movement.
      */
     int PackAndMoveFootprints( const TOOL_EVENT& aEvent );
 
     int ChangeTrackWidth( const TOOL_EVENT& aEvent );
+    int ChangeTrackLayer( const TOOL_EVENT& aEvent );
 
     /**
      * Fillet (i.e. adds an arc tangent to) all selected straight tracks by a user defined radius.
@@ -202,6 +211,8 @@ private:
      */
     int copyToClipboardAsText( const TOOL_EVENT& aEvent );
 
+    int EditVertices( const TOOL_EVENT& aEvent );
+
     /**
      * Cut the current selection to the clipboard by formatting it as a fake pcb
      * see #AppendBoardFromClipboard for importing.
@@ -225,15 +236,6 @@ private:
 
     ///< Rebuilds the ratsnest for operations that require it outside the commit rebuild
     void rebuildConnectivity();
-
-    ///< Removes all items from the set which are children of other PCB_GROUP or PCB_GENERATOR
-    ///< items in the set
-    void removeNonRootItems( std::unordered_set<EDA_ITEM*>& items );
-
-    ///< Recursively adds any child items of the given item to the set
-    void getChildItemsOfGroupsAndGenerators( EDA_ITEM*                        item,
-                                             std::unordered_set<BOARD_ITEM*>& children );
-
 
 private:
     PCB_SELECTION_TOOL*   m_selectionTool;

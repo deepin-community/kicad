@@ -36,6 +36,8 @@
 #include <view/view_item.h>
 #include <kiid.h>
 
+class SHAPE_LINE_CHAIN;
+
 enum class BITMAPS : unsigned int;
 
 
@@ -45,12 +47,20 @@ enum class INSPECT_RESULT
     CONTINUE
 };
 
+enum RECURSE_MODE
+{
+    RECURSE,
+    NO_RECURSE,
+};
+
+#define IGNORE_PARENT_GROUP false
 
 /**
  * Additional flag values wxFindReplaceData::m_Flags
  */
 class UNITS_PROVIDER;
 class EDA_DRAW_FRAME;
+class EDA_GROUP;
 class MSG_PANEL_ITEM;
 class EMBEDDED_FILES;
 
@@ -88,7 +98,7 @@ typedef const INSPECTOR_FUNC& INSPECTOR;
 class EDA_ITEM : public KIGFX::VIEW_ITEM, public SERIALIZABLE
 {
 public:
-    virtual ~EDA_ITEM() { };
+    virtual ~EDA_ITEM() = default;
 
     /**
      * Returns the type of object.
@@ -101,7 +111,15 @@ public:
     inline KICAD_T Type() const { return m_structType; }
 
     EDA_ITEM* GetParent() const { return m_parent; }
-    virtual void SetParent( EDA_ITEM* aParent )   { m_parent = aParent; }
+    virtual void SetParent( EDA_ITEM* aParent );
+
+    virtual void SetParentGroup( EDA_GROUP* aGroup ) { m_group = aGroup; }
+    virtual EDA_GROUP* GetParentGroup() const { return m_group; }
+
+    KIID GetParentGroupId() const;
+
+    virtual bool IsLocked() const { return false; }
+    virtual void SetLocked( bool aLocked ) {}
 
     inline bool IsModified() const { return m_flags & IS_CHANGED; }
     inline bool IsNew() const { return m_flags & IS_NEW; }
@@ -112,7 +130,12 @@ public:
     inline bool IsBrightened() const { return m_flags & BRIGHTENED; }
 
     inline bool IsRollover() const { return m_isRollover; }
-    inline void SetIsRollover( bool aIsRollover ) { m_isRollover = aIsRollover; }
+    inline VECTOR2I GetRolloverPos() const { return m_rolloverPos; }
+    inline void SetIsRollover( bool aIsRollover, const VECTOR2I& aMousePos )
+    {
+        m_isRollover = aIsRollover;
+        m_rolloverPos = aMousePos;
+    }
 
     inline void SetSelected() { SetFlags( SELECTED ); }
     inline void SetBrightened() { SetFlags( BRIGHTENED ); }
@@ -143,7 +166,8 @@ public:
 
     EDA_ITEM_FLAGS GetTempFlags() const
     {
-        constexpr int mask = ( CANDIDATE | SELECTED_BY_DRAG | IS_LINKED | SKIP_STRUCT );
+        constexpr int mask = ( CANDIDATE | SELECTED_BY_DRAG | IS_LINKED | SKIP_STRUCT | SELECTION_CANDIDATE
+                               | CONNECTIVITY_CANDIDATE );
 
         return m_flags & mask;
     }
@@ -228,6 +252,18 @@ public:
     virtual bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const
     {
         return false;   // derived classes should override this function
+    }
+
+    /**
+     * Test if \a aPoly intersects this item.
+     *
+     * @param aPoly A reference to a #SHAPE_LINE_CHAIN object containing the polygon or polyline to test.
+     * @param aContained Set to true to test for containment instead of an intersection.
+     * @return True if \a aPoly contains or intersects the item.
+     */
+    virtual bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
+    {
+        return false; // derived classes should override this function
     }
 
     /**
@@ -329,11 +365,6 @@ public:
     }
 
     /**
-     * Return the class name.
-     */
-    virtual wxString GetClass() const = 0;
-
-    /**
      * Return a translated description of the type for this EDA_ITEM for display in user facing
      * messages.
      */
@@ -351,6 +382,11 @@ public:
      * @return The menu text string.
      */
     virtual wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const;
+
+    virtual wxString DisambiguateItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+    {
+        return GetItemDescription( aUnitsProvider, aFull );
+    }
 
     /**
      * Return a pointer to an image to be used in menus.
@@ -441,6 +477,7 @@ public:
     virtual std::vector<int> ViewGetLayers() const override;
 
     virtual EMBEDDED_FILES* GetEmbeddedFiles() { return nullptr; }
+    virtual const std::vector<wxString>* GetEmbeddedFonts() { return nullptr; }
 
 #if defined(DEBUG)
 
@@ -484,6 +521,8 @@ protected:
      */
     bool Matches( const wxString& aText, const EDA_SEARCH_DATA& aSearchData ) const;
 
+    EDA_ITEM* findParent( KICAD_T aType ) const;
+
 public:
     const KIID  m_Uuid;
 
@@ -497,9 +536,12 @@ private:
 
 protected:
     EDA_ITEM_FLAGS m_flags;
-    EDA_ITEM*      m_parent; ///< Linked list: Link (parent struct).
-    bool           m_forceVisible;
-    bool           m_isRollover;
+    EDA_ITEM*      m_parent;        ///< Owner.
+    EDA_GROUP*     m_group;         ///< The group this item belongs to, if any.  No ownership implied.
+
+    VECTOR2I m_rolloverPos;
+    bool     m_isRollover;
+    bool     m_forceVisible;
 };
 
 

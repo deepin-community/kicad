@@ -21,8 +21,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef KICAD_WX_GRID_H
-#define KICAD_WX_GRID_H
+#pragma once
 
 #include <bitset>
 #include <memory>
@@ -33,27 +32,75 @@
 #include <wx/grid.h>
 #include <wx/version.h>
 
+#include <kicommon.h>
 #include <libeval/numeric_evaluator.h>
 #include <units_provider.h>
 
 class wxTextEntryBase;
+class ROW_ICON_PROVIDER;
 
 
-class WX_GRID_TABLE_BASE : public wxGridTableBase
+enum KICOMMON_API GROUP_TYPE
 {
-protected:
-    wxGridCellAttr* enhanceAttr( wxGridCellAttr* aInputAttr, int aRow, int aCol,
-                                 wxGridCellAttr::wxAttrKind aKind  );
+    GROUP_SINGLETON,
+    GROUP_COLLAPSED,
+    GROUP_COLLAPSED_DURING_SORT,
+    GROUP_EXPANDED,
+    CHILD_ITEM
 };
 
 
-class WX_GRID : public wxGrid
+class KICOMMON_API WX_GRID_TABLE_BASE : public wxGridTableBase
+{
+public:
+    ~WX_GRID_TABLE_BASE() override
+    {
+        for( const auto& [col, attr] : m_colAttrs )
+            wxSafeDecRef( attr );
+    }
+
+    void SetColAttr( wxGridCellAttr* aAttr, int aCol ) override
+    {
+        wxSafeDecRef( m_colAttrs[aCol] );
+        m_colAttrs[aCol] = aAttr;
+    }
+
+    wxGridCellAttr* GetAttr( int aRow, int aCol, wxGridCellAttr::wxAttrKind aKind ) override
+    {
+        if( m_colAttrs[aCol] )
+        {
+            m_colAttrs[aCol]->IncRef();
+            return enhanceAttr( m_colAttrs[aCol], aRow, aCol, aKind );
+        }
+
+        return enhanceAttr( nullptr, aRow, aCol, aKind );
+    }
+
+    virtual bool IsExpanderColumn( int aCol ) const { return false; }
+    virtual GROUP_TYPE GetGroupType( int aRow ) const { return GROUP_SINGLETON; }
+
+    void Clear() override
+    {
+        if( GetNumberRows() )
+            DeleteRows( 0, GetNumberRows() );
+    }
+
+protected:
+    wxGridCellAttr* enhanceAttr( wxGridCellAttr* aInputAttr, int aRow, int aCol,
+                                 wxGridCellAttr::wxAttrKind aKind  );
+
+protected:
+    std::map<int, wxGridCellAttr*> m_colAttrs;
+};
+
+
+class KICOMMON_API WX_GRID : public wxGrid
 {
 public:
     // Constructor has to be wxFormBuilder-compatible
-    WX_GRID( wxWindow *parent, wxWindowID id,
-             const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize,
-             long style = wxWANTS_CHARS, const wxString& name = wxGridNameStr );
+    WX_GRID( wxWindow *parent, wxWindowID id, const wxPoint& pos = wxDefaultPosition,
+             const wxSize& size = wxDefaultSize, long style = wxWANTS_CHARS,
+             const wxString& name = wxGridNameStr );
 
     ~WX_GRID() override;
 
@@ -93,11 +140,6 @@ public:
     void ShowHideColumns( const wxString& shownColumns );
 
     /**
-     * A more performant version of ShowHideColumns (primarily for OnUpdateUI handlers).
-     */
-    void ShowHideColumns( const std::bitset<64>& aShownColumns );
-
-    /**
      * Hide wxGrid's SetTable() method with one which doesn't mess up the grid column
      * widths when setting the table.
      */
@@ -118,6 +160,28 @@ public:
     bool CommitPendingChanges( bool aQuietMode = false );
     bool CancelPendingChanges();
 
+    void OnAddRow( const std::function<std::pair<int, int>()>& aAdder );
+
+    /**
+     * Handles a row deletion event.  This is a bit tricky due to the potential for stale
+     * selections, so we code it only once here.
+     */
+    void OnDeleteRows( const std::function<void( int row )>& aDeleter );
+
+    void OnDeleteRows( const std::function<bool( int row )>& aFilter,
+                       const std::function<void( int row )>& aDeleter );
+
+    /**
+     * These aren't that tricky, but might as well share code.
+     */
+    void SwapRows( int aRowA, int aRowB );
+    void OnMoveRowUp( const std::function<void( int row )>& aMover );
+    void OnMoveRowDown( const std::function<void( int row )>& aMover );
+    void OnMoveRowUp( const std::function<bool( int row )>& aFilter,
+                      const std::function<void( int row )>& aMover );
+    void OnMoveRowDown( const std::function<bool( int row )>& aFilter,
+                        const std::function<void( int row )>& aMover );
+
     /**
      * Set a EUNITS_PROVIDER to enable use of unit- and eval-based Getters.
      *
@@ -128,6 +192,16 @@ public:
     void SetAutoEvalCols( const std::vector<int>& aCols ) { m_autoEvalCols = aCols; }
 
     /**
+     * Set the unit and unit data type to use for a given column
+     */
+    void SetAutoEvalColUnits( int col, EDA_UNITS aUnit, EDA_DATA_TYPE aUnitType );
+
+    /**
+     * Set the unit to use for a given column. The unit data type is inferred from the unit type
+     */
+    void SetAutoEvalColUnits( int col, EDA_UNITS aUnit );
+
+    /**
      * Apply standard KiCad unit and eval services to a numeric cell.
      *
      * @param aRow the cell row index to fetch.
@@ -136,7 +210,6 @@ public:
      * @return the value held by the cell in internal units.
      */
     int GetUnitValue( int aRow, int aCol );
-
 
     /**
      * Apply standard KiCad unit and eval services to a numeric cell.
@@ -190,10 +263,10 @@ public:
      * to the number of rows (even if the delete count is 0).  Needless to say, this makes using
      * DeleteRows for clearing a lot more cumbersome so we add a helper here.
      */
-    void ClearRows()
+    void ClearRows( bool aUpdateLabels = true )
     {
-        if( GetNumberRows() )
-            DeleteRows( 0, GetNumberRows() );
+        if( GetNumberRows() > 0 )
+            DeleteRows( 0, GetNumberRows(), aUpdateLabels );
     }
 
     /**
@@ -226,6 +299,18 @@ public:
             return wxGrid::DoGetBestSize();
     }
 
+    /**
+     * Set autosize behaviour using wxFormBuilder column widths as minimums, with a single specified
+     * growable column.
+     */
+    void SetupColumnAutosizer( int aFlexibleCol );
+
+    void SetGridWidthsDirty() { m_gridWidthsDirty = true; }
+
+    ROW_ICON_PROVIDER* GetRowIconProvider() const { return m_rowIconProvider; }
+
+    void RecomputeGridWidths();
+
 protected:
     /**
      * A re-implementation of wxGrid::DrawColLabel which left-aligns the first column and draws
@@ -250,16 +335,42 @@ protected:
 
     void onDPIChanged(wxDPIChangedEvent& event);
 
+    UNITS_PROVIDER* getUnitsProvider( int aCol ) const
+    {
+        if( m_unitsProviders.contains( aCol ) )
+            return m_unitsProviders.at( aCol );
+        else
+            return m_unitsProviders.begin()->second;
+    }
+
+    /**
+     * Returns the units and data type associated with a given column
+     */
+    std::pair<EDA_UNITS, EDA_DATA_TYPE> getColumnUnits( int aCol ) const;
+
+private:
+    void onSizeEvent( wxSizeEvent& aEvent );
+
 protected:
-    bool                               m_weOwnTable;
+    bool                       m_weOwnTable;
 
-    std::map<int, UNITS_PROVIDER*>     m_unitsProviders;
-    std::unique_ptr<NUMERIC_EVALUATOR> m_eval;
-    std::vector<int>                   m_autoEvalCols;
-
+    std::map<int, UNITS_PROVIDER*>                                 m_unitsProviders;
+    std::unique_ptr<NUMERIC_EVALUATOR>                             m_eval;
+    std::vector<int>                                               m_autoEvalCols;
+    std::unordered_map<int, std::pair<EDA_UNITS, EDA_DATA_TYPE>>   m_autoEvalColsUnits;
     std::map< std::pair<int, int>, std::pair<wxString, wxString> > m_evalBeforeAfter;
 
-    std::optional<wxSize>              m_minSizeOverride;
-};
+    std::optional<wxSize>      m_minSizeOverride;
 
-#endif //KICAD_WX_GRID_H
+    std::map<int, int>         m_autosizedCols;     // map of col : min_width
+    int                        m_flexibleCol;
+
+    bool                       m_gridWidthsDirty = true;
+    int                        m_gridWidth = 0;
+
+#ifdef __WXMSW__
+    bool                       m_firstSelectionRefreshDone = false;
+#endif
+
+    ROW_ICON_PROVIDER*         m_rowIconProvider;
+};

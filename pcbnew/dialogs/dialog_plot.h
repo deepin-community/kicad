@@ -41,13 +41,13 @@ class DIALOG_PLOT : public DIALOG_PLOT_BASE
 {
 public:
     DIALOG_PLOT( PCB_EDIT_FRAME* aEditFrame );
-    DIALOG_PLOT( PCB_EDIT_FRAME* aEditFrame, wxWindow* aParent,
-                 JOB_EXPORT_PCB_PLOT* aJob = nullptr );
+    DIALOG_PLOT( PCB_EDIT_FRAME* aEditFrame, wxWindow* aParent, JOB_EXPORT_PCB_PLOT* aJob = nullptr );
 
     virtual ~DIALOG_PLOT();
 
-private:
+    bool TransferDataToWindow() override;
 
+private:
     // Event called functions
     void Plot( wxCommandEvent& event ) override;
     void onOutputDirectoryBrowseClicked( wxCommandEvent& event ) override;
@@ -55,7 +55,6 @@ private:
     void OnRightClickAllLayers( wxMouseEvent& event );
     void SetPlotFormat( wxCommandEvent& event ) override;
     void OnChangeDXFPlotMode( wxCommandEvent& event ) override;
-    void OnSetScaleOpt( wxCommandEvent& event ) override;
     void CreateDrillFile( wxCommandEvent& event ) override;
     void OnGerberX2Checked( wxCommandEvent& event ) override;
     void onRunDRC( wxCommandEvent& event ) override;
@@ -67,21 +66,17 @@ private:
 
     void onDNPCheckbox( wxCommandEvent& event ) override;
     void onSketchPads( wxCommandEvent& event ) override;
+    void onPDFColorChoice( wxCommandEvent& event ) override;
 
     // other functions
-    void init_Dialog();      // main initialization
     void reInitDialog();     // initialization after calling drill dialog
     void applyPlotSettings();
     PLOT_FORMAT getPlotFormat();
-
-    void setPlotModeChoiceSelection( OUTLINE_MODE aPlotMode )
-    {
-        m_plotModeOpt->SetSelection( aPlotMode == SKETCH ? 1 : 0 );
-    }
+    wxString    getSelectedVariant() const;
 
     void arrangeAllLayersList( const LSEQ& aSeq );
-    void loadPlotParamsFromJob();
     void transferPlotParamsToJob();
+    void updatePdfColorOptions();
 
 private:
     PCB_EDIT_FRAME*     m_editFrame;
@@ -97,7 +92,6 @@ private:
     int                 m_widthAdjustMinValue;      // Global track width limits
     int                 m_widthAdjustMaxValue;      // tracks width will be "clipped" whenever the
                                                     // m_PSWidthAdjust to these limits.
-    UNIT_BINDER         m_defaultPenSize;
     UNIT_BINDER         m_trackWidthCorrection;
 
     wxString            m_DRCWarningTemplate;
@@ -110,10 +104,6 @@ private:
     STD_BITMAP_BUTTON*  m_bpMoveDown;
 
     JOB_EXPORT_PCB_PLOT* m_job;
-
-    /// The plot layer set that last time the dialog was opened.
-    static LSET         s_lastLayerSet;
-    static LSET         s_lastAllLayersSet;
 
     /// The plot on all layers ordering the last time the dialog was opened.
     static LSEQ         s_lastAllLayersOrder;

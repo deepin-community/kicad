@@ -29,7 +29,6 @@
  * with different plot formats.
  *
  * There are currently engines for:
- * HPGL
  * POSTSCRIPT
  * GERBER
  * DXF
@@ -39,10 +38,12 @@
 
 #include <trigo.h>
 #include <plotters/plotter.h>
+#include <text_eval/text_eval_wrapper.h>
 #include <geometry/shape_line_chain.h>
 #include <bezier_curves.h>
 #include <callback_gal.h>
 #include <math/util.h>      // for KiROUND
+#include <convert_basic_shapes_to_polygon.h>
 
 PLOTTER::PLOTTER( const PROJECT* aProject ) :
     m_project( aProject )
@@ -61,6 +62,7 @@ PLOTTER::PLOTTER( const PROJECT* aProject ) :
     m_IUsPerDecimil = 1;        // will be set later to the actual value
     m_iuPerDeviceUnit = 1;        // will be set later to the actual value
     m_renderSettings = nullptr;
+    m_layer = PCB_LAYER_ID::UNDEFINED_LAYER;
 }
 
 
@@ -267,7 +269,7 @@ void PLOTTER::PlotImage( const wxImage& aImage, const VECTOR2I& aPos, double aSc
     end.x += size.x;
     end.y += size.y;
 
-    Rect( start, end, FILL_T::NO_FILL );
+    Rect( start, end, FILL_T::NO_FILL, USE_DEFAULT_LINE_WIDTH, 0 );
 }
 
 
@@ -295,7 +297,7 @@ void PLOTTER::markerSquare( const VECTOR2I& position, int radius )
     corner.y = position.y + r;
     corner_list.push_back( corner );
 
-    PlotPoly( corner_list, FILL_T::NO_FILL, GetCurrentLineWidth() );
+    PlotPoly( corner_list, FILL_T::NO_FILL, GetCurrentLineWidth(), nullptr );
 }
 
 
@@ -328,7 +330,7 @@ void PLOTTER::markerLozenge( const VECTOR2I& position, int radius )
     corner.y = position.y + radius;
     corner_list.push_back( corner );
 
-    PlotPoly( corner_list, FILL_T::NO_FILL, GetCurrentLineWidth() );
+    PlotPoly( corner_list, FILL_T::NO_FILL, GetCurrentLineWidth(), nullptr );
 }
 
 
@@ -482,25 +484,10 @@ void PLOTTER::Marker( const VECTOR2I& position, int diametre, unsigned aShapeId 
 }
 
 
-void PLOTTER::segmentAsOval( const VECTOR2I& start, const VECTOR2I& end, int aWidth,
-                             OUTLINE_MODE aTraceMode )
+void PLOTTER::ThickOval( const VECTOR2I& aPos, const VECTOR2I& aSize, const EDA_ANGLE& aOrient,
+                         int aWidth, void* aData )
 {
-    VECTOR2I  center( ( start.x + end.x ) / 2, ( start.y + end.y ) / 2 );
-    VECTOR2I  size( end.x - start.x, end.y - start.y );
-    EDA_ANGLE orient( size );
-    orient = -orient;       // this is due to our Y axis orientation
-
-    size.x = size.EuclideanNorm() + aWidth;
-    size.y = aWidth;
-
-    FlashPadOval( center, size, orient, aTraceMode, nullptr );
-}
-
-
-void PLOTTER::sketchOval( const VECTOR2I& aPos, const VECTOR2I& aSize, const EDA_ANGLE& aOrient,
-                          int aWidth )
-{
-    SetCurrentLineWidth( aWidth );
+    SetCurrentLineWidth( aWidth, aData );
 
     EDA_ANGLE orient( aOrient );
     VECTOR2I  size( aSize );
@@ -531,70 +518,48 @@ void PLOTTER::sketchOval( const VECTOR2I& aPos, const VECTOR2I& aSize, const EDA
     corners.emplace_back( 0, -half_height );
 
     // Rotate and move to the actual position
-    for( size_t ii = 0; ii < corners.size(); ii++ )
+    for( VECTOR2I& corner : corners )
     {
-        RotatePoint( corners[ii], orient );
-        corners[ii] += aPos;
+        RotatePoint( corner, orient );
+        corner += aPos;
     }
 
     // Gen shape (2 lines and 2 180 deg arcs):
     MoveTo( corners[0] );
     FinishTo( corners[1] );
 
-    Arc( corners[2], -orient, ANGLE_180, radius, FILL_T::NO_FILL );
+    Arc( corners[2], -orient, ANGLE_180, radius, FILL_T::NO_FILL, aWidth );
 
     MoveTo( corners[3] );
     FinishTo( corners[4] );
 
-    Arc( corners[5], -orient, -ANGLE_180, radius, FILL_T::NO_FILL );
+    Arc( corners[5], -orient, -ANGLE_180, radius, FILL_T::NO_FILL, aWidth );
 }
 
 
-void PLOTTER::ThickSegment( const VECTOR2I& start, const VECTOR2I& end, int width,
-                            OUTLINE_MODE tracemode, void* aData )
+void PLOTTER::ThickSegment( const VECTOR2I& start, const VECTOR2I& end, int width, void* aData )
 {
-    if( tracemode == FILLED )
+    if( start == end )
     {
-        if( start == end )
-        {
-            Circle( start, width, FILL_T::FILLED_SHAPE, 0 );
-        }
-        else
-        {
-            SetCurrentLineWidth( width );
-            MoveTo( start );
-            FinishTo( end );
-        }
+        Circle( start, width, FILL_T::FILLED_SHAPE, 0 );
     }
     else
     {
-        SetCurrentLineWidth( -1 );
-        segmentAsOval( start, end, width, tracemode );
+        SetCurrentLineWidth( width );
+        MoveTo( start );
+        FinishTo( end );
     }
 }
 
 
 void PLOTTER::ThickArc( const VECTOR2D& centre, const EDA_ANGLE& aStartAngle,
-                        const EDA_ANGLE& aAngle, double aRadius, int aWidth,
-                        OUTLINE_MODE aTraceMode, void* aData )
+                        const EDA_ANGLE& aAngle, double aRadius, int aWidth, void* aData )
 {
-    if( aTraceMode == FILLED )
-    {
-        Arc( centre, aStartAngle, aAngle, aRadius, FILL_T::NO_FILL, aWidth );
-    }
-    else
-    {
-        SetCurrentLineWidth( -1 );
-        Arc( centre, aStartAngle, aAngle, aRadius - ( aWidth - m_currentPenWidth ) / 2,
-             FILL_T::NO_FILL, -1 );
-        Arc( centre, aStartAngle, aAngle, aRadius + ( aWidth - m_currentPenWidth ) / 2,
-             FILL_T::NO_FILL, -1 );
-    }
+    Arc( centre, aStartAngle, aAngle, aRadius, FILL_T::NO_FILL, aWidth );
 }
 
 
-void PLOTTER::ThickArc( const EDA_SHAPE& aArcShape, OUTLINE_MODE aTraceMode, void* aData,
-                        int aWidth )
+void PLOTTER::ThickArc( const EDA_SHAPE& aArcShape, void* aData, int aWidth )
 {
     VECTOR2D center = aArcShape.getCenter();
     VECTOR2D mid = aArcShape.GetArcMid();
@@ -615,80 +580,50 @@ void PLOTTER::ThickArc( const EDA_SHAPE& aArcShape, OUTLINE_MODE aTraceMode, voi
 
     double radius = ( start - center ).EuclideanNorm();
 
-    ThickArc( center, startAngle, angle, radius, aWidth, aTraceMode, aData );
+    ThickArc( center, startAngle, angle, radius, aWidth, aData );
 }
 
 
-void PLOTTER::ThickRect( const VECTOR2I& p1, const VECTOR2I& p2, int width,
-                         OUTLINE_MODE tracemode, void* aData )
+void PLOTTER::ThickRect( const VECTOR2I& p1, const VECTOR2I& p2, int width, void* aData )
 {
-    if( tracemode == FILLED )
-    {
-        Rect( p1, p2, FILL_T::NO_FILL, width );
-    }
-    else
-    {
-        SetCurrentLineWidth( -1 );
-        VECTOR2I offsetp1( p1.x - ( width - m_currentPenWidth ) / 2,
-                           p1.y - ( width - m_currentPenWidth ) / 2 );
-        VECTOR2I offsetp2( p2.x + ( width - m_currentPenWidth ) / 2,
-                           p2.y + ( width - m_currentPenWidth ) / 2 );
-        Rect( offsetp1, offsetp2, FILL_T::NO_FILL, -1 );
-        offsetp1.x += ( width - m_currentPenWidth );
-        offsetp1.y += ( width - m_currentPenWidth );
-        offsetp2.x -= ( width - m_currentPenWidth );
-        offsetp2.y -= ( width - m_currentPenWidth );
-        Rect( offsetp1, offsetp2, FILL_T::NO_FILL, -1 );
-    }
+    Rect( p1, p2, FILL_T::NO_FILL, width, 0 );
 }
 
 
-void PLOTTER::ThickCircle( const VECTOR2I& pos, int diametre, int width, OUTLINE_MODE tracemode,
-                           void* aData )
+void PLOTTER::ThickCircle( const VECTOR2I& pos, int diametre, int width, void* aData )
 {
-    if( tracemode == FILLED )
-    {
-        Circle( pos, diametre, FILL_T::NO_FILL, width );
-    }
-    else
-    {
-        SetCurrentLineWidth( -1 );
-        Circle( pos, diametre - width + m_currentPenWidth, FILL_T::NO_FILL, -1 );
-        Circle( pos, diametre + width - m_currentPenWidth, FILL_T::NO_FILL, -1 );
-    }
+    Circle( pos, diametre, FILL_T::NO_FILL, width );
 }
 
 
-void PLOTTER::FilledCircle( const VECTOR2I& pos, int diametre, OUTLINE_MODE tracemode, void* aData )
+void PLOTTER::FilledCircle( const VECTOR2I& pos, int diametre, void* aData )
 {
-    if( tracemode == FILLED )
-    {
-        Circle( pos, diametre, FILL_T::FILLED_SHAPE, 0 );
-    }
-    else
-    {
-        SetCurrentLineWidth( -1 );
-        Circle( pos, diametre, FILL_T::NO_FILL, -1 );
-    }
+    Circle( pos, diametre, FILL_T::FILLED_SHAPE, 0 );
 }
 
 
-void PLOTTER::PlotPoly( const SHAPE_LINE_CHAIN& aCornerList, FILL_T aFill, int aWidth, void* aData )
+void PLOTTER::ThickPoly( const SHAPE_POLY_SET& aPoly, int aWidth, void* aData )
+{
+    PlotPoly( aPoly.COutline( 0 ), FILL_T::NO_FILL, aWidth, aData );
+}
+
+
+void PLOTTER::PlotPoly( const SHAPE_LINE_CHAIN& aLineChain, FILL_T aFill, int aWidth, void* aData )
 {
     std::vector<VECTOR2I> cornerList;
-    cornerList.reserve( aCornerList.PointCount() );
+    cornerList.reserve( aLineChain.PointCount() );
 
-    for( int ii = 0; ii < aCornerList.PointCount(); ii++ )
-        cornerList.emplace_back( aCornerList.CPoint( ii ) );
+    for( int ii = 0; ii < aLineChain.PointCount(); ii++ )
+        cornerList.emplace_back( aLineChain.CPoint( ii ) );
 
-    if( aCornerList.IsClosed() && cornerList.front() != cornerList.back() )
-        cornerList.emplace_back( aCornerList.CPoint( 0 ) );
+    if( aLineChain.IsClosed() && cornerList.front() != cornerList.back() )
+        cornerList.emplace_back( aLineChain.CPoint( 0 ) );
 
     PlotPoly( cornerList, aFill, aWidth, aData );
 }
 
 
-void PLOTTER::Text( const VECTOR2I&       aPos,
+void PLOTTER::Text( const VECTOR2I&        aPos,
                     const COLOR4D&         aColor,
                     const wxString&        aText,
                     const EDA_ANGLE&       aOrient,
@@ -704,6 +639,13 @@ void PLOTTER::Text( const VECTOR2I&       aPos,
                     void*                  aData )
 {
     KIGFX::GAL_DISPLAY_OPTIONS empty_opts;
+    wxString                   text( aText );
+
+    if( text.Contains( wxS( "@{" ) ) )
+    {
+        EXPRESSION_EVALUATOR evaluator;
+        text = evaluator.Evaluate( text );
+    }
 
     SetColor( aColor );
 
@@ -745,9 +687,9 @@ void PLOTTER::Text( const VECTOR2I&       aPos,
     }
 
     if( !aFont )
-        aFont = KIFONT::FONT::GetFont();
+        aFont = KIFONT::FONT::GetFont( m_renderSettings->GetDefaultFont() );
 
-    aFont->Draw( &callback_gal, aText, aPos, attributes, aFontMetrics );
+    aFont->Draw( &callback_gal, text, aPos, attributes, aFontMetrics );
 }
 
 
@@ -760,6 +702,13 @@ void PLOTTER::PlotText( const VECTOR2I&        aPos,
                         void*                  aData )
 {
     KIGFX::GAL_DISPLAY_OPTIONS empty_opts;
+    wxString                   text( aText );
+
+    if( text.Contains( wxS( "@{" ) ) )
+    {
+        EXPRESSION_EVALUATOR evaluator;
+        text = evaluator.Evaluate( text );
+    }
 
     TEXT_ATTRIBUTES attributes = aAttributes;
     int penWidth = attributes.m_StrokeWidth;
@@ -790,7 +739,7 @@ void PLOTTER::PlotText( const VECTOR2I&        aPos,
             } );
 
     if( !aFont )
-        aFont = KIFONT::FONT::GetFont();
+        aFont = KIFONT::FONT::GetFont( m_renderSettings->GetDefaultFont() );
 
-    aFont->Draw( &callback_gal, aText, aPos, attributes, aFontMetrics );
+    aFont->Draw( &callback_gal, text, aPos, attributes, aFontMetrics );
 }

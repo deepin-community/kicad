@@ -77,6 +77,7 @@ struct CONSTRAINT
     wxString        m_RuleName;
     wxString        m_FromName;
     wxString        m_ToName;
+    bool            m_IsTimeDomain;
 };
 
 
@@ -169,6 +170,14 @@ public:
     virtual void ClearTemporaryCaches() {}
 
     virtual int ClearanceEpsilon() const { return 0; }
+
+    virtual const SHAPE_LINE_CHAIN& HullCache( const ITEM* aItem, int aClearance,
+                                               int aWalkaroundThickness, int aLayer )
+    {
+        static SHAPE_LINE_CHAIN empty;
+        empty = aItem->Hull( aClearance, aWalkaroundThickness, aLayer );
+        return empty;
+    }
 };
 
 
@@ -410,11 +419,13 @@ public:
      * @param aStopAtLockedJoints will terminate the line at the first locked joint encountered
      * @param aFollowLockedSegments will consider a joint between a locked segment and an unlocked
      *                              segment of the same width as a trivial joint.
+     * @param aAllowSegmentSizeMismatch will allow segments of different widths to be connected
      * @return the line
      */
     const LINE AssembleLine( LINKED_ITEM* aSeg, int* aOriginSegmentIndex = nullptr,
                              bool aStopAtLockedJoints = false,
-                             bool aFollowLockedSegments = false );
+                             bool aFollowLockedSegments = false,
+                             bool aAllowSegmentSizeMismatch = true );
 
     ///< Print the contents and joints structure.
     void Dump( bool aLong = false );

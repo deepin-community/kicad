@@ -40,10 +40,28 @@ activated, it stays active until a different tool is selected or the tool is
 canceled with the kbd:[Esc] key. The selection tool is always activated when any
 other tool is canceled.
 
+Some toolbar buttons have more than one tool available in a palette.
+These tools are indicated with a small arrow in the lower-right corner of the button:
+image:images/palette_buttons.png[]
+
+To show the palette, you can click and hold the mouse button on the button or click and drag the mouse.
+The palette will show the most recently selected item when it is closed.
+
+The default contents of the right toolbar are shown below.
+
+NOTE: You can edit the toolbar's contents in the **Toolbar** page of the Schematic Editor Preferences.
+
 [width="100%",cols="10%,90%",]
 |=======================================================================
 |image:images/icons/cursor_24.png[Selection tool icon]
+
+image:images/icons/lasso_24.png[lasso selection icon]
 |<<selection,Selection tool>> (the default tool)
+When the rectangular selection mode is active, clicking and dragging performs a rectangular selection.
+
+When the lasso selection mode is active, clicking and dragging performs a lasso selection.
+
+Only one selection mode is visible in the toolbar at a time; you can expand the palette to choose another tool by clicking and holding/dragging.
 
 |image:images/icons/net_highlight_schematic_24.png[Highlight net icon]
 |<<net-highlighting,Highlight a net>> by marking its wires and net labels with a different color.
@@ -81,24 +99,34 @@ can sometimes be ambiguous without a junction (i.e. if a wire end or a pin is
 not directly connected to another wire end).
 
 |image:images/icons/add_label_24.png[Local label icon]
-|Place a <<labels,local label>>. Local labels connect items located **in the same sheet**.
-For connections between two different sheets, use global or hierarchical labels.
 
-|image:images/icons/add_class_flag_24.png[Net class directive icon]
-|Place a <<netclass-directive,net class directive label>>.
+image:images/icons/add_class_flag_24.png[Net class directive icon]
+
+image:images/icons/add_glabel_24.png[Global label icon]
+
+image:images/icons/add_hierarchical_label_24.png[Hierarchical label icon]
+|Place a <<labels,local label>>,
+ <<netclass-directive,directive label>>,
+ <<labels,global label>>,
+ or
+ <<hierarchical-labels,hierarchical label>>.
+
+ <<labels,Local labels>> connect items located _in the same sheet_.
+ Local labels with the same name are connected as long as they are in the same sheet.
+
+ <<labels,Global labels>> connect items located anywhere in the schematic.
+ All global labels with the same name are connected, even when located on different sheets.
+
+ <<hierarchical-labels,Hierarchical labels>> are used to create a connection between a subsheet and the sheet's parent sheet.
+ See the <<hierarchical-schematics,Hierarchical Schematics>> section for more information about hierarchical labels, sheets, and pins.
+
+ Directive labels are used to assign <<netclass-directive,net classes to individual nets>>.
+ They can also be used to assign net classes and component classes to nets and symbols, respectively, inside <<schematic-rule-areas,rule areas>>.
+
+ Only one label type is visible in the toolbar at a time; you can expand the palette to choose another tool by clicking and holding/dragging.
 
 |image:images/icons/add_keepout_area_24.png[Directive rule area icon]
-|Place a <<netclass-directive,directive rule area>>.
-
-|image:images/icons/add_glabel_24.png[Global label icon]
-|Place a <<labels,global label>>. All global labels with the same name are connected, even
-when located on different sheets.
-
-|image:images/icons/add_hierarchical_label_24.png[Hierarchical label icon]
-|Place a <<hierarchical-labels,hierarchical label>>. Hierarchical labels are used to create a connection
-between a subsheet and the sheet's parent sheet. See the
-<<hierarchical-schematics,Hierarchical Schematics>> section for more information
-about hierarchical labels, sheets, and pins.
+|Place a <<schematic-rule-areas,rule area>>.
 
 |image:images/icons/add_hierarchical_subsheet_24.png[Hierarchical subsheet icon]
 |Place a <<drawing-hierarchical-sheets,hierarchical subsheet>>. You must specify the file name for this subsheet.
@@ -152,11 +180,12 @@ placed with the Wire tool. They do not connect anything.
 === Grids and snapping
 
 Schematic elements such as symbols, wires, text, and graphic lines are snapped
-to the grid when moving, dragging, and drawing them. Additionally, the wire tool
-snaps to pins even when grid snapping is disabled.
+to the grid when moving, dragging, and drawing them. Additionally, the wire and
+label tools snap to other connected items such as pins, wires, and labels even
+when grid snapping is disabled.
 
-Both grid and pin snapping can be disabled while moving the mouse by using the
-modifier keys in the table below.
+Both grid and connected object snapping can be disabled while moving the mouse
+by using the modifier keys in the table below.
 
 NOTE: On Apple keyboards, use the kbd:[Cmd] key instead of kbd:[Ctrl].
 
@@ -164,7 +193,7 @@ NOTE: On Apple keyboards, use the kbd:[Cmd] key instead of kbd:[Ctrl].
 |====
 | Modifier Key | Effect
 | kbd:[Ctrl] | Disable grid snapping.
-| kbd:[Shift] | Disable snapping wires to pins.
+| kbd:[Shift] | Disable connected object snapping.
 |====
 
 The default grid size is 50 mil (0.050") or 1.27 millimeters. This is the
@@ -268,9 +297,11 @@ image:images/icons/tools_24.png[Properties Manager icon] button on the left tool
 
 In properties dialogs and many other dialogs, any field that contains a numeric
 value can also accept a basic math expression that results in a numeric value.
+
 For example, a dimension may be entered as `2 * 2mm`, resulting in a value of
-`4mm`. Basic arithmetic operators as well as parentheses for defining order of
-operations are supported.
+`4mm`.  Basic arithmetic operators as well as parentheses for defining order of
+operations are supported. Units can also be specified, and unit conversions are
+performed automatically, so `1in + 1mm` evaluates to `26.4mm`.
 
 [[working-with-symbols]]
 === Working with symbols
@@ -570,10 +601,6 @@ The middle of the dialog has options to control what parts of the symbol will be
 updated. On the left, you can select which fields will be modified (updated or
 reset). On the right, you can select how to update those fields:
 
-* **Update symbol shape and pins**: the symbol's shape and pins are always
-  updated to match the library version of the symbol.
-* **Update keywords and footprint filters**: The symbol's keywords and footprint
-  filters are always updated to match the library version of the symbol.
 * **Remove fields if not in library symbol**: if selected, any fields that are
   in the schematic version of the symbol but not the library version will be
   deleted.
@@ -594,10 +621,16 @@ reset). On the right, you can select how to update those fields:
 * **Update/reset field positions**: if selected, fields in the schematic version
   of the symbol will be moved to match the locations of the fields in the
   library version of the symbol.
-* **Update/reset visibility of pin names/numbers**: if selected, the visibility
+* **Update symbol shape and pins**: the symbol's shape and pins are always
+  updated to match the library version of the symbol.
+* **Update keywords and footprint filters**: The symbol's keywords and footprint
+  filters are always updated to match the library version of the symbol.
+* **Update/reset pin name/number visibilities**: if selected, the visibility
   of pin names and numbers in the schematic version of the symbol will be
-  updated to match the visibility of the pin names and numbeers in the library
+  updated to match the visibility of the pin names and numbers in the library
   version of the symbol.
+* **Reset alternate pin functions**: if selected, alternate pin functions
+  selected for the symbol's pins will be reset to default pin functions.
 * **Update/reset symbol attributes**: if selected, the schematic symbol
   attributes (**do not populate**, **exclude from simulation**,
   **exclude from BOM**, **exclude from board**) will be updated to match the
@@ -691,8 +724,10 @@ either the schematic or library version of the symbol.
 ==== Symbol Fields Table
 
 The Symbol Fields Table allows you to view and modify field values for all
-symbols in a spreadsheet interface. You can open the Symbol Fields Table with
-the image:images/icons/spreadsheet_24.png[Symbol Fields Table icon] button.
+symbols in a spreadsheet interface.
+The Symbol Fields Table also acts as a <<bom-export,BOM export tool>>.
+You can open the Symbol Fields Table with the
+image:images/icons/spreadsheet_24.png[Symbol Fields Table icon] button.
 
 image::images/symbol_fields_table_edit.png[Symbol Fields Table]
 
@@ -704,15 +739,23 @@ selected cells will be copied (kbd:[Ctrl+C]) or pasted into (kbd:[Ctrl+V]) on a
 copy or paste action. Copying a range of cells from the table can be useful for
 creating a BOM. More details of copying and pasting cells are described below.
 
-Any symbol field can be shown or hidden using the *Show* checkboxes on the left
-or by right-clicking on the header of the table. New symbol fields can be added
-using the image:images/icons/small_plus_16.png[plus icon] button; a field with
-that name will be added to every symbol. Each field can have its own label,
-which doesn't have to be the same as the field name, and is used as the column
-header. Fields can be renamed with the
-image:images/icons/small_edit_16.png[pencil icon] button or deleted with the
-image:images/icons/small_trash_16.png[delete icon] button.
+The left pane contains a list of all available symbol fields, as well as some
+<<symbol-fields-table-virtual-fields,virtual fields>> such as Quantity and Item
+Number. You can add or remove any symbol field from the main table on using the
+*Include* checkboxes (fields can also be shown or hidden by right-clicking on the
+header of the main table). New symbol fields can be added using the
+image:images/icons/small_plus_16.png[plus icon] button; a field with that name
+will be added to every symbol. To rename the field, which changes the field name
+in all symbols, use the image:images/icons/small_edit_16.png[pencil icon]
+button. The image:images/icons/small_trash_16.png[delete icon] button deletes
+the field from all symbols.
+You can collapse this panel by clicking the image:images/icons/left_16.png[] button.
 
+Each field has its own column label, which is displayed at the top of the
+corresponding column in the symbol fields table and in exported BOMs. The column
+label for each field is shown in the second column of in the left pane. A column
+label does not have to match the field name. To change a field's column label,
+click in the **BOM Name** column for that field, then enter a new name.
 
 Similar symbols can optionally be grouped by any symbol field using the *Group
 By* checkboxes. Symbols are grouped into a single row in the table if all of
@@ -730,18 +773,26 @@ Custom presets can be deleted in this dialog or in the
 
 Symbols can be filtered by reference designator using the **Filter** textbox at
 the top. The filter supports wildcards: `*` matches any number of any
-characters, including none, and `?` matches any single character. You can also
-change the display scope, showing only symbols in the current sheet, the current
-sheet and all of its subsheets, or the entire project. Symbols with the
-DNP (do not populate) attribute set can be optionally excluded by checking
-the **Exclude DNP** box.
+characters, including none, and `?` matches any single character.
 
-You can cross-probe from this dialog by selecting a row in the table. Depending
-on the **Cross-probe action** setting at the bottom of the dialog, this can
-highlight the corresponding symbol in the schematic, select the corresponding
-symbol in the schematic, or do nothing. The selection action can also select the
-symbol's footprint in the board editor, depending on the PCB Editor
-cross-probing settings.
+You can also change the display scope using the dropdown menu to the right of the filter box.
+You can show only symbols in the current sheet,
+the current sheet and all of its subsheets, or the entire project.
+
+The image:images/icons/config_16.png[] menu contains some additional options for showing or hiding symbols.
+
+- **Include 'DNP' Symbols** includes or excludes symbols with the **Do Not Populate** attribute
+  from both the **Edit** tab and any BOM exports.
+- **Include 'Exclude from BOM' Symbols** includes or excludes symbols with the **Exclude from BOM** attribute
+  from the **Edit** tab.
+  Symbols with the **Exclude from BOM** attribute are always excluded from BOM exports.
+
+You can cross-probe from this dialog by selecting a row in the table.
+Depending on the cross-probe options selected in the image:images/icons/config_16.png[] menu,
+this can highlight the corresponding symbol in the schematic,
+select the corresponding symbol in the schematic, or do nothing.
+The selection action can also select the symbol's footprint in the board editor,
+depending on the PCB Editor cross-probing settings configured in Preferences.
 
 The Symbol Fields Table is also a bill of materials tool. You can use the
 **Export** button to save the symbol fields to an external file. The fields are
@@ -749,6 +800,7 @@ exported to the BOM exactly as they are currently shown in the spreadsheet view.
 File format settings are configured in the **Export** tab. For more information
 about exporting a BOM, see the <<bom-export,BOM tool documentation>>.
 
+[[symbol-fields-table-virtual-fields]]
 ===== Virtual fields
 
 If you create a field in the Symbol Fields Table whose name begins with a
@@ -821,7 +873,7 @@ NOTE: These techniques are also available in other dialogs with a grid control
 element.
 
 [[reference-designators-and-symbol-annotation]]
-=== Reference Designators and Symbol Annotation
+=== Reference designators and symbol annotation
 
 Reference designators are unique identifiers for components in a design. They
 are often printed on a PCB and in assembly diagrams, and allow you to match
@@ -902,27 +954,49 @@ Annotation messages can be filtered with the checkboxes at the bottom or saved
 to a report using the **Save...** button.
 
 [[electrical-connections]]
-=== Electrical Connections
+=== Electrical connections
 
-There are two primary ways to establish connections: wires and labels. Wires
-make direct connections, while labels connect to other labels with the same
-name. Both wires and labels are shown in the schematic below.
+Electrical connections in KiCad are known as _nets_, where each net represents a circuit node.
+All symbol pins on the same net are considered electrically connected.
+
+There are two primary ways to establish connections: <<wires,wires>> and <<labels,labels>>.
+Wires make direct connections between symbol pins and other wires, while labels connect to other labels with the same name.
+Both wires and labels are shown in the schematic below.
 
 image::images/wires_labels.png[alt="Wires labels",scaledwidth="90%"]
 
-Connections can also be made with buses and with implicit connections via
-hidden power pins.
+Connections can also be made with <<buses,buses>> and with implicit connections via
+<<hidden-power-pins,hidden power pins>>.
 
-This section will also discuss two special types of symbols
-that can be added with the "Power symbol" button on the right toolbar:
+[[net-name-assignment-rules]]
+==== Net name assignment rules
 
-* *Power symbols*: symbols for connecting wires to a power or ground net.
-* *PWR_FLAG*: a specific symbol for indicating that a net is powered when it is
-  not connected to a power output pin (for example, a power net that is supplied
-  by an off-board connector).
+Every net in the schematic is assigned a name, whether that name is specified by
+the user (using a label) or automatically generated by KiCad.
+
+When multiple labels are attached to the same net, the final net name is
+determined in the following order, from highest priority to lowest:
+
+1. <<labels,Global labels>>
+2. <<power-symbols,Power symbols>>
+3. <<labels,Local labels>>
+4. <<hierarchical-labels,Hierarchical labels>>
+5. <<hierarchical-sheet-pins,Hierarchical sheet pins>>
+   - Output sheet pins are higher priority than Input sheet pins
+
+If there are multiple labels of one type attached to a net, the names are sorted
+alphabetically and the first is used.
+
+If a net travels through multiple sheets of a
+<<hierarchical-schematics,hierarchy>>, it will take its name from the highest
+level of the hierarchy where it has a hierarchical label or local label. As
+usual, local labels take priority over hierarchical labels.
+
+If none of the label types above are attached to a net, the net's name is
+automatically generated based on the connected symbol pins.
 
 [[wires]]
-==== Wires
+=== Wires
 
 Wires are used to directly establish electrical connections between two points.
 To establish a connection, a segment of wire must be connected by its end to
@@ -944,7 +1018,7 @@ NOTE: Symbols, wires, and other elements that are not aligned to the grid can be
       **Align Elements to Grid**.
 
 [[drawing-and-editing-wires]]
-===== Drawing and editing wires
+==== Drawing and editing wires
 
 To begin connecting elements with wire, use the Wire tool
 image:images/icons/add_line_24.png[line tool icon] in the right toolbar
@@ -992,7 +1066,7 @@ is included in the selection, the junction size can also be edited here.
 image::images/wire_properties.png[alt="wire and bus properties dialog",scaledwidth="50%"]
 
 [[wire-junctions]]
-===== Wire Junctions
+==== Wire junctions
 
 Wires that cross are not implicitly connected. It is necessary to
 join them by explicitly adding a junction dot if a connection is desired
@@ -1012,9 +1086,21 @@ net class color.
 
 image::images/junction_properties.png[alt="junction properties dialog",scaledwidth="50%"]
 
+[[wire-hop-overs]]
+==== Wire hop-overs
+
+When wires cross without a junction dot, they do not connect.
+By default, this is drawn simply as one wire crossing through the other wire.
+However, you can configure such crossovers to be visually indicated with hop-overs instead of simple intersections, as shown in the schematic below.
+The size of hop-overs is configurable for a given schematic;
+all hop-overs in the schematic have the same size.
+
+image::images/hopover.png[]
+
+To enable display of hop-overs, open the <<schematic-setup-formatting,**Formatting** page of Schematic Setup>> and change the **Hop-over size** setting from **None** to another size.
 
 [[labels]]
-==== Labels
+=== Labels
 
 Labels are used to assign net names to wires and pins. Wires with the same net
 name are considered to be connected, so labels can be used to make connections
@@ -1049,17 +1135,29 @@ NOTE: Labels that have the same name will connect, regardless of the label type,
 TIP: You can convert from one type of label to another type of label using the
      <<change-to,Change To>> tools.
 
-===== Adding and editing labels
+==== Adding and editing labels
 
 After using the appropriate button or hotkey to create a label, the Label
 Properties dialog appears.
 
 image::images/global_label_properties.png[Global Label Properties dialog]
 
-The *Label* field sets the label's text, which determines the net that the label
-assigns to its attached wire. Label text supports <<text-markup,markup>> for
-overbars, subscripts, etc., as well as <<text-variables,variable substitution>>.
-Use the *Syntax help* link in the dialog for a summary.
+The *Label* field sets the label's name, which determines the net that the label assigns to its attached wire or pin.
+You can choose a label name from a list of nets that are already in the schematic by clicking the dropdown menu next to the
+label name field.
+
+NOTE: Net names can contain any character, including spaces and other special characters.
+
+Label text supports <<text-markup,markup>> for overbars, subscripts, etc., as
+well as <<text-variables,variable substitution>>. Use the *Syntax help* link in
+the dialog for a summary.
+
+When the **Multiple label input** option is enabled, the **Label** field
+supports entering multiple labels, with one label on each line. In this case,
+the dialog will create multiple independent labels in sequence, one per line.
+
+TIP: Multiple label input may be useful for copying labels from other sources,
+     such as a spreadsheet.
 
 There are several options to control the label's appearance. You can change the
 <<font,font>>, size, and color of the text, and set bold and italic emphasis.
@@ -1094,7 +1192,8 @@ field, or use kbd:[E]).
 After accepting the label properties, the label is attached to the cursor for
 placement. The connection point for a label is the small square in the corner of
 the label. The square disappears when the label is connected to a wire or the
-end of a pin.
+end of a pin. If multiple labels were specified in the dialog, each label is
+attached to the cursor for placement after the previous label is placed.
 
 image::images/unconnected_label.png[Unconnected label]
 
@@ -1107,7 +1206,7 @@ using the kbd:[E] hotkey, double-clicking on the label, or with
 **Properties...** in the right-click context menu.
 
 [[label-netclass]]
-===== Assigning net classes with labels
+==== Assigning net classes with labels
 
 In addition to assigning net names, labels can be used to assign net classes. A
 label field named `Net Class` assigns the specified net class to the net
@@ -1130,7 +1229,7 @@ For more information about assigning net classes, see the
 <<schematic-netclasses,net class documentation>>.
 
 [[intersheet-references]]
-===== Inter-sheet references
+==== Inter-sheet references
 
 Global labels can display inter-sheet references, which are a list of page
 numbers for other places in the schematic where the same global label appears.
@@ -1158,7 +1257,7 @@ in Schematic Setup rather than with the `Sheet References` field visibility
 control. The `Sheet References` field has no meaning for other types of labels.
 
 [[buses]]
-==== Buses
+=== Buses
 
 Buses are a way to group related signals in the schematic in order to
 simplify complicated designs.  Buses can be drawn like wires using the
@@ -1171,7 +1270,7 @@ thick blue lines in the center.
 image::images/sch_with_buses.png[alt="Example schematic with buses",scaledwidth="90%"]
 
 [[bus-members]]
-===== Bus members
+==== Bus members
 
 There are two types of bus in KiCad 6.0 and later: vector buses and
 group buses.
@@ -1182,6 +1281,11 @@ and end with a number.  Vector buses are named `<PREFIX>[M..N]` where
 is the last suffix number.  For example, the bus `DATA[0..7]` contains the
 signals `DATA0`, `DATA1`, and so on up to `DATA7`.  It doesn't matter which
 order `M` and `N` are specified in, but both must be non-negative.
+
+Vector bus prefixes cannot contain the characters `{`, `}`, `[`, or `]`, except as part of <<text-markup,markup for superscripts, subscripts, overbars, or text variables>>.
+Prefixes may contain spaces, but the spaces must be escaped.
+You can escape spaces in the prefix either by preceding the space with a backslash (`\`) or by surrounding the entire prefix with double quotes (`"`).
+For example, `DATA\ BUS[0..7]` and `"DATA BUS"[0..7]` are both valid vector bus names.
 
 A *group bus* is a collection of one or more signals and/or vector buses.
 Group buses can be used to bundle together related signals even when they
@@ -1205,13 +1309,18 @@ Group buses can also contain vector buses.  For example, the bus
 `MEMORY{A[7..0] D[7..0] OE WE}` contains both vector buses and plain signals,
 and will result in nets such as `MEMORY.A7` and `MEMORY.OE` on the PCB.
 
+Group bus names cannot contain the characters `{`, `}`, `[`, or `]`, except as part of <<text-markup,markup for superscripts, subscripts, overbars, or text variables>>.
+Group bus names and the constituent net names may contain spaces, but the spaces must be escaped.
+You can escape spaces either by preceding the space with a backslash (`\`) or by surrounding the entire group bus name or net name with double quotes (`"`).
+For example, `DATA\ BUS{SIGNAL\ 1 SIGNAL\ 2}`, `"DATA BUS"{"SIGNAL 1" "SIGNAL 2"}`, and `"DATA BUS"{SIGNAL\ 1 "SIGNAL 2"}` are all valid (and equivalent) labels for group buses.
+
 Bus wires can be drawn and connected in the same manner as signal wires,
 including using junctions to create connections between crossing wires.
 Like signals, buses cannot have more than one name -- if two conflicting
 labels are attached to the same bus, an ERC violation will be generated.
 
 [[connections-between-bus-members]]
-===== Connections between bus members
+==== Connections between bus members
 
 Pins connected between the same members of a bus must be connected by
 labels. It is not possible to connect a pin directly to a bus; this
@@ -1248,7 +1357,7 @@ menu, you can set the repetition parameters:
 ====
 
 [[bus-unfolding]]
-===== Bus unfolding
+==== Bus unfolding
 
 The unfold tool allows you to quickly break out signals from a bus.  To unfold a
 signal, right-click on a bus object (a bus wire, etc) and choose
@@ -1263,7 +1372,7 @@ can continue placing additional wire segments (for example, to connect to a
 component pin) and complete the wire in any of the normal ways.
 
 [[bus-aliases]]
-===== Bus aliases
+==== Bus aliases
 
 Bus aliases are shortcuts that allow you to work with large group buses
 more efficiently.  They allow you to define a group bus and give it a short
@@ -1282,9 +1391,9 @@ added to the alias definition.  In this example, we define an alias called
 
 After defining an alias, it can be used in a group bus label by putting the
 alias name inside the curly braces of the group bus: `{USB}`.  This has the
-same effect as labeling the bus `{DP DM VBUS}`.  You can also add a prefix
-name to the group, such as `USB1{USB}`, which results in nets such as
-`USB1.DP`.  For complicated buses, using aliases can
+same effect as labeling the bus `{DP DM VBUS}`: the nets will be `DP`, `DM`, and
+`VBUS`. You can also add a prefix name to the group, such as `USB1{USB}`, which
+results in nets such as `USB1.DP`.  For complicated buses, using aliases can
 make the labels on your schematic much shorter.  Keep in mind that the aliases
 are just a shortcut, and the name of the alias is not included in the netlist.
 
@@ -1297,8 +1406,39 @@ hierarchical design contain identically-named bus aliases, the aliases must all
 have the same members. <<list-of-erc-checks,ERC will report a violation>> if
 multiple bus aliases with the same name do not have consistent members.
 
+==== Bus example
+
+// The images for this section come from the
+// bus_alias project in the helpers directory.
+
+In the schematic below, a bus alias named `USB` is defined with members `DP`, `DN`.
+
+The root sheet has three buses, one with label `{USB}`, with no prefix, and two
+with prefixes: `USB1{USB}` and `USB2{USB}`. The first bus results in nets `DP`
+and `DN`, the second results in nets `USB1.DP` and `USB1.DN`, and the third
+results in nets `USB2.DP` and `USB2.DN`.
+
+image::images/bus_alias_usb_example_root.png[alt="Bus alias example, root sheet",scaledwidth="90%"]
+
+When connecting to a sub-sheet, the hierarchical labels (and therefore
+hierarchical sheet pins) are named with the same syntax. They need the same
+members as the connected bus. As for bus labels, hierarchical labels can define
+a prefix or not. In this case, the hierarchical labels are named `{USB}` (i.e.
+no prefix) and `UA{USB}` and `UB{USB}`.
+
+Within the subsheet, the hierarchical labels for the bus are what define the
+prefixes of displayed labels of unfolded bus members on that sheet. However,
+the nets resolve according to the connectivity with the parent sheet.
+
+For example, the bus member labeled `UB.DP` in the subsheet has the label prefix
+`UB` due to the hierarchical label, and the resolved net name `/USB1.DP` due
+to the name of the bus in the parent sheet that connects to that hierarchical
+label.
+
+image::images/bus_alias_usb_example_subsheet.png[alt="Bus alias example, subsheet sheet",scaledwidth="90%"]
+
 [[bus-migration]]
-===== Buses with more than one label
+==== Buses with more than one label
 
 KiCad 5.0 and earlier allowed the connection of bus wires with different labels
 together, and would join the members of these buses during netlisting. This
@@ -1318,7 +1458,7 @@ exist in the design, or you can choose a different name by manually entering it
 into the new name field.
 
 [[power-symbols]]
-==== Power Symbols
+=== Power symbols
 
 Power symbols are symbols that are conventionally used to represent a connection
 to a power net, such as `VCC` or `GND`. Power symbols are virtual: they do not
@@ -1347,32 +1487,6 @@ Instead of making a new symbol, you can also modify an existing power symbol in
 the schematic: changing its `Value` field will change the net the power symbol
 connects to.
 
-[[net-name-assignment-rules]]
-==== Net name assignment rules
-
-Every net in the schematic is assigned a name, whether that name is specified by
-the user or automatically generated by KiCad.
-
-When multiple labels are attached to the same net, the final net name is
-determined in the following order, from highest priority to lowest:
-
-1. Global labels
-2. <<power-symbols,Power symbols>>
-3. Local labels
-4. Hierarchical labels
-5. Hierarchical sheet pins
-
-If there are multiple labels of one type attached to a net, the names are sorted
-alphabetically and the first is used.
-
-If a net travels through multiple sheets of a
-<<hierarchical-schematics,hierarchy>>, it will take its name from the highest
-level of the hierarchy where it has a hierarchical label or local label. As
-usual, local labels take priority over hierarchical labels.
-
-If none of the label types above are attached to a net, the net's name is
-automatically generated based on the connected symbol pins.
-
 [[pwr-flag]]
 ==== PWR_FLAG
 
@@ -1387,24 +1501,9 @@ not driven by any Output Power pins.__
 The `PWR_FLAG` symbol is found in the `power` symbol library. The same effect
 can be achieved by connecting any power output pin to the net.
 
-[[no-connection-symbols]]
-==== No-connection flag
-
-No-connection flags (image:images/icons/noconn_24.png[No-connection icon]) are
-used to indicate that a pin is intentionally unconnected. These flags prevent
-"unconnected pin" <<erc,ERC warnings>> for pins that are intentionally
-unconnected. Also, while symbol pins that are stacked on top of each other are
-normally connected to the same net, if a no-connection flag is added to the
-stacked pins they will instead be connected to separate nets.
-
-Note that no-connection flags are distinct from the
-<<pin-electrical-types,"unconnected" symbol pin type>>, although they both
-prevent "unconnected pin" ERC warnings on the pin in question and prevent
-stacked pins from connecting to each other.
-
 [[power-symbols-connection]]
 [[hidden-power-pins]]
-==== Hidden Power Pins
+==== Hidden power pins
 
 When the power pins of a symbol are visible, they must be connected, as with any
 other signal. However, symbols are sometimes drawn with hidden power input pins,
@@ -1427,11 +1526,26 @@ NOTE: Hidden pins can be shown in the schematic by checking the **Show hidden
       There is also a toggle icon image:images/icons/hidden_pin_24.png[] on the
       left toolbar.
 
+[[no-connection-symbols]]
+=== No-connection flags
+
+No-connection flags (image:images/icons/noconn_24.png[No-connection icon]) are
+used to indicate that a pin is intentionally unconnected. These flags prevent
+"unconnected pin" <<erc,ERC warnings>> for pins that are intentionally
+unconnected. Also, while symbol pins that are stacked on top of each other are
+normally connected to the same net, if a no-connection flag is added to the
+stacked pins they will instead be connected to separate nets.
+
+Note that no-connection flags are distinct from the
+<<pin-electrical-types,"unconnected" symbol pin type>>, although they both
+prevent "unconnected pin" ERC warnings on the pin in question and prevent
+stacked pins from connecting to each other.
+
 [[schematic-netclasses]]
 === Net classes
 
 Net classes are named groupings of nets that can be assigned design rules (for the PCB)
-and graphical properties (for the schematic). 
+and graphical properties (for the schematic).
 
 More than one net class can be assigned to a net (through a combination of graphical
 assignments and net class patterns). For nets with multiple net classes assigned, an
@@ -1578,7 +1692,7 @@ In addition to the associated net class, you can edit the directive's **shape**
 NOTE: <<label-netclass,Net labels can also be used to assign net classes>> to
       nets by adding a `Net Class` field to the label.
 
-The Rule Area tool (image:images/icons/add_keepout_area_24.png[rule area button]) can be used to draw a shape to which net class directives can be attached.
+The <<schematic-rule-areas,Rule Area tool>> (image:images/icons/add_keepout_area_24.png[rule area button]) can be used to draw a shape to which net class directives can be attached.
 Any <<wires,wire>>, <<buses,bus>>, <<labels,label>>, or symbol pin which crosses or is inside the rule area
 will be assigned the net class of a net class directive attached to the rule area border. An
 example is shown in the image below; all wires passing through the rule area will be assigned
@@ -1592,15 +1706,75 @@ You can show or hide directive labels in the schematic using the **View** ->
 [[component-classes]]
 === Component classes
 
-Component classes are named groupings of components: they are assigned to symbols in the schematic and also apply to the corresponding footprints on the board. They are used to group symbols into channels for xref:../pcbnew/pcbnew.adoc#multichannel[multichannel designs] and can also be used to group footprints in xref:../pcbnew/pcbnew.adoc#custom-design-rules[custom DRC rules].
+Component classes are named groupings of components:
+they are assigned to symbols in the schematic or to footprints in the board,
+but however they are assigned they apply to both the symbols and the corresponding footprints.
+They can be used to group symbols into channels for xref:../pcbnew/pcbnew.adoc#multichannel[multichannel designs]
+and can also be used to group footprints in xref:../pcbnew/pcbnew.adoc#custom-design-rules[custom DRC rules].
 
 To assign a component class to a symbol, you can add a symbol field named `Component Class` to the symbol. The symbol will then be a member of the component class named by the field.
 
-You can also assign component classes using directive labels (image:images/icons/add_class_flag_24.png[directive label button]) in combination with rule areas (image:images/icons/add_keepout_area_24.png[rule area button]). The Rule Area tool can be used to draw a shape to which directive labels can be attached. Any symbol which crosses or is inside the rule area will be assigned to the component class specified by the directive label attached to the rule area border. An example is shown in the image below; R1 and R2 will be assigned to the `Channel 1` component class.
+You can also assign component classes using directive labels (image:images/icons/add_class_flag_24.png[directive label button]) in combination with <<schematic-rule-areas,rule areas>> (image:images/icons/add_keepout_area_24.png[rule area button]).
+The Rule Area tool can be used to draw a shape to which directive labels can be attached.
+Any symbol which crosses or is inside the rule area will be assigned to the component class specified by the directive label attached to the rule area border.
+An example is shown in the image below; R1 and R2 will be assigned to the `Channel 1` component class.
 
 image::images/component_class_rule_area.png[]
 
+Component classes can also be assigned in the xref:../pcbnew/pcbnew.adoc#component-classes[PCB Editor] by creating rules for automatic component class assignment.
+
 Components can have more than one class, and symbols take on a class if any of their sub-units have that class. If multiple `Component Class` fields are added to a directive label, or multiple directive labels with `Component Class` fields are applied to a rule area, the symbols in the rule area will take on all of the specified component classes.
+
+[[schematic-rule-areas]]
+=== Rule areas
+
+Rule areas are regions of the schematic that apply certain properties to the symbols and nets inside the area.
+
+You can use rule areas to apply any of the following <<editing-symbol-properties,attributes>> to the symbols inside the rule area:
+
+- Exclude from simulation
+- Exclude from bill of materials
+- Exclude from board
+- Do not populate
+
+A rule area that has any of those attributes enabled will apply the enabled attributes to all symbols that are fully or partially enclosed by the rule area.
+
+You can also use a rule area, in combination with a directive label, to apply <<schematic-netclasses,net classes>> and <<component-classes,component classes>> to symbols and nets inside the rule area.
+Any <<wires,wire>>, <<buses,bus>>, <<labels,label>>, or symbol pin which crosses or is inside the rule area will be assigned the net class specified by any directive labels attached to the rule area border.
+Any symbols that are fully or partially enclosed by the rule area will be assigned the component class specified by any attached directive labels.
+
+In the image below, all wires passing through the rule area will be assigned the `RAM_ADDR` net class.
+
+image::images/netclass_rule_area.png[alt="net class assignment by rule area",scaledwidth=50%]
+
+To draw a rule area, use the Rule Area tool (image:images/icons/add_keepout_area_24.png[rule area button] button).
+
+1. Click in the canvas to begin drawing the rule area outline.
+2. Click to place additional corners.
+3. Double click to complete the outline.
+
+The rule area tool obeys the selected line mode: the outline is restricted to horizontal, vertical, and 45 degree lines unless free angle mode is enabled.
+
+NOTE: You can switch line modes using kbd:[Shift+Space] or using the image:images/icons/lines_any_24.png[] / image:images/icons/lines90_24.png[] / image:images/icons/hv45mode_24.png[] flyout button group in the left toolbar.
+
+To use a rule area to assign a <<schematic-netclasses,net class>> or <<component-classes,component class>>, you must add a directive label to the rule area.
+
+1. Activate the directive label tool (image:images/icons/add_class_flag_24.png[] button on the right toolbar).
+   By default, the directive label tool is grouped in a <<schematic-editing-operations,palette>> with the other label tools and therefore may be hidden.
+2. In the directive label's properties dialog, set the label's `Net Class` and/or `Component Class` fields to the desired net class or component class, respectively.
+3. Place the directive label in the canvas so that the label's connection point is on the border of the rule area, as shown in the screenshot above.
+
+To enable <<editing-symbol-properties,attributes>> (exclude from simulation, exclude from BOM, exclude from board, or DNP) for the rule area, open the rule area's properties dialog (kbd:[E]).
+Any attributes that are enabled in the rule area's properties are applied to symbols that are fully or partially enclosed by the rule area.
+
+image::images/rule_area_properties.png[]
+
+You can also configure the graphical style of the rule area's border and fill here.
+The border can be set to any color or line width, and various line styles (solid, dashed, dotted, etc.) are available.
+If the line width is set to `0`, the default line width from the <<schematic-setup-formatting,**Formatting** page of Schematic Setup>> is used.
+The fill can be set to **None** (default), **Solid**, or one of several types of hatching.
+You can also configure the fill color.
+If either the border or fill color is not set, that color is taken from the Rule Areas color in the color theme.
 
 === Graphics and text
 
@@ -1642,11 +1816,17 @@ image::images/text_box_properties.png[alt="text box properties dialog",scaledwid
 
 ===== Links
 
-Text and text boxes can be made into a link by entering a target in the *Link*
-box in the text properties.
+In a text object, text box, or <<tables,table cell>>,
+any text beginning with `http://` or  `https://` is treated as a URL and automatically turned into a link.
+Clicking on such a link opens the URL in your web browser.
+If the text contains multiple URLs, each URL is turned into a separate link.
 
-You can link to different kinds of resources depending on the link target. The
-link target can be:
+Alternatively, you can explicitly turn an entire text object or text box into a link by entering a target in the *Link* box in the text properties.
+This turns the entire text item or text box into a clickable link.
+Such text can only link to a single URL, but the displayed text can be anything, rather than simply the URL.
+
+You can link to different kinds of resources depending on the link target.
+The target of an explicit link can be:
 
 * a sheet in the current schematic, using `#` followed by the page number
 * a local file on your machine, using a URL with the `file://` scheme
@@ -1689,15 +1869,15 @@ variables, and accessing symbol field values.
 | Overbar
   | `~{text}`
   | [overline]#text#
-| <<schematic-setup-text-variables,Variables>>
+| <<schematic-setup-text-variables,Project text variables>>
   | `${variable}`
   | _variable_value_
-| <<text-variables,Symbol Fields>>
+| <<text-variables,Built-in text variables>>
   | `${refdes:field}`
   | _field_value_ of symbol _refdes_
 |====
 
-NOTE: Variables must be defined in
+NOTE: Project text variables must be defined in
       <<schematic-setup-text-variables,Schematic Setup>> before they can be
       used. There are also a number of
       <<text-variables,built-in system text variables>>.
@@ -1711,17 +1891,31 @@ being interpreted as a simulation directive.
 [[tables]]
 ==== Tables
 
-You can use a table to organize text in a tabular format. Tables have customizable borders, cell sizes, colors, and headers.
+You can use a table to organize text in a tabular format.
+Tables have customizable borders, cell sizes, colors, and headers.
 
 image::images/table.png[]
 
-To place a table, use the image:images/icons/table_24.png[] button in the right toolbar. Click in the canvas to place the top left corner of the table, then click again to place the bottom right corner of the table and finish drawing the table. The bigger you draw the table, the more rows and columns will be added by default, but rows and columns can be added or deleted after the table is created.
+To place a table, use the image:images/icons/table_24.png[] button in the right toolbar.
+Click in the canvas to place the top left corner of the table,
+then click again to place the bottom right corner of the table and finish drawing the table.
+The bigger you draw the table, the more rows and columns will be added by default,
+but <<table-layout,rows and columns can be added or deleted>> after the table is created.
 
-===== Editing table properties
+Once you have created a table, you can <<table-properties,edit the table as a whole>>
+or <<table-cell-properties,edit cells individually>>.
+Creating a new table automatically opens the Table Properties dialog to edit the entire table.
 
-When you finish drawing a table, the Table Properties dialog appears. You can also open the Table Properties dialog in several other ways:
+You can export a table from KiCad into a CSV file by right clicking a table or table cell and clicking **Export Table to CSV...**.
 
-- Select any cell in the table, right click, and select **Edit Table** (kbd:[Ctrl] + kbd:[E])
+[[table-properties]]
+===== Editing a whole table
+
+You can edit an entire table with the Table Properties dialog.
+There are several ways to open the Table Properties dialog:
+
+- Create a new table. The Table Properties dialog opens automatically when the table is created.
+- Select any cell in the table, right click, and select **Edit Table** (kbd:[Ctrl] + kbd:[E]).
 - Select the entire table, right click, and select **Properties...** (kbd:[E]). You can select the entire table with a drag selection or by selecting a single cell, then right clicking and selecting **Select Table**.
 - Click the **Edit Table...** button in the Table Cell Properties dialog.
 
@@ -1731,7 +1925,11 @@ This dialog lets you edit the properties of the entire table, including the text
 
 NOTE: The properties for a table can also be edited in the <<editing-object-properties,Properties Manager>> when the entire table is selected.
 
-The left side of the dialog displays an editable grid of the entire table. You can edit the contents of any cell by clicking on the cell in the grid. You can also edit the text in a cell by selecting the cell and using the Properties Manager.
+The left side of the dialog displays an editable grid of the entire table.
+You can edit the contents of any cell by clicking on the cell in the grid.
+You can also edit the text in a cell by selecting the cell and using the Properties Manager.
+If you have tabular content in a spreadsheet or other table,
+you can copy and paste that content into the grid here.
 
 NOTE: Text in table cells supports the markup described in the <<text-markup,text markup section>> (superscripts, subscripts, strikethroughs, etc.).
 
@@ -1741,7 +1939,8 @@ The right side of the dialog contains formatting options for the table.
 - The **External border** and **Header border** checkboxes control whether there is a border drawn around the entire table and the cells in the top row, respectively. When **Header border** is enabled, the border below the cells in the top row is styled using these external border settings rather than the row/column line settings. The line width of the header borders is controlled by the **Width** field. When set to 0, the line width uses the default symbol line width configured in the **Formatting** panel of Schematic Setup. The line color is controlled by the **Color** picker, and the line style can be set to solid, dashed, dotted, dash-dot, or dash-dot-dot using the **Style** dropdown menu.
 - The **Row Lines** and **Column lines** checkboxes enable horizontal lines between rows and vertical lines between columns, respectively. These have the same formatting options as the external and header borders.
 
-===== Editing table cell properties
+[[table-cell-properties]]
+===== Editing individual table cells
 
 Instead of editing the properties of an entire table, you can also edit the properties of individual cells. This modifies selected cells, but does not affect other cells. To open the Table Cell Properties dialog, double click on a cell, or select a cell, right click, and choose **Properties...** (kbd:[E]). If you select multiple cells, the properties dialog will act on all of them at once.
 
@@ -1751,12 +1950,16 @@ NOTE: To select all cells in a row or column, select a cell in that row or colum
 
 image::images/table_cell_properties.png[]
 
-This dialog contains formatting options for the text in each cell.
+The left side of the dialog lets you edit the contents of the selected cell.
+The right side of the dialog contains formatting options for the selected cell.
 
 - **Horizontal alignment** and **Vertical alignment** control how text is positioned within the cell.
-- **Font** controls the text font used in the cell.
-- **Text size** controls the size of the text in the cell.
-- The **Bold** and **Italic** checkboxes bold and italicize the text, respectively. These are three-state checkboxes, which can be set to off, on, or no change. No change is useful when multiple cells with different bold/italic settings are being edited at the same time.
+- The **Font** dropdown lets you select a font for the text.
+  You can use any TTF font available on your system, or the built-in KiCad stroke font.
+- **Size** controls the size of the text in the cell.
+- The **Bold** and **Italic** checkboxes bold and italicize the text, respectively.
+  These are three-state checkboxes, which can be set to off, on, or no change.
+  No change is useful when multiple cells with different bold/italic settings are being edited at the same time.
 - The **Text color** and **Background fill** color pickers control the color of the text and the cell background, respectively.
 - The **Cell margins** textboxes control the amount of spacing around the top, bottom, left, and right of the text in the cell.
 
@@ -1764,6 +1967,7 @@ You can click the **Edit Table...** button to open the properties dialog for the
 
 NOTE: The properties for a table cell can also be edited in the <<editing-object-properties,Properties Manager>> when one or more table cells is selected.
 
+[[table-layout]]
 ===== Editing table layout
 
 The layout of a table (size and number of columns and rows) is initially set when you create a table, but you can also edit the layout after creation.
@@ -1925,6 +2129,100 @@ image::images/en/title_block.png[alt="Title block",scaledwidth="80%"]
 The sheet number (Sheet X/Y) is automatically updated, but sheet page numbers
 can also be manually set using **Edit** -> **Edit Sheet Page Number...**.
 
+[[groups]]
+=== Groups
+
+Groups let you treat multiple objects as a single object for the purposes of moving or rotating them.
+Each object in the group will maintain its position relative to the other objects in the group.
+When objects are grouped, it is difficult to accidentally edit them or move them relative to the other members of the group.
+Groups can have a name, which is displayed in the editing canvas when the group is selected.
+
+image::images/group.png[]
+
+Most types of objects in the Schematic Editor can be grouped: symbols, wires,
+labels, graphic items, and even other groups. Groups can contain multiple
+different types of objects at once.
+
+To add objects to a group, select them, then right click and choose
+**Grouping** -> **Group Items**,
+or click the image:images/icons/group_24.png[] button in the top toolbar.
+To remove all items from a group, select the group, right click, and choose
+**Grouping** -> **Ungroup Items**,
+or click the image:images/icons/group_ungroup_24.png[] button in the top toolbar.
+
+Once objects have been added to a group, selecting any of the objects will
+select the group as a whole instead of the constituent objects. To edit a
+specific object within a group, first select the group, the right click and
+choose **Enter Group**. Double clicking on a group also enters the group. When a
+group has been entered, objects within the group can be selected and edited
+individually without affecting the other objects in the group. To leave the
+group and stop editing its members individually, right click and select
+**Leave Group**, select an object outside the group, or use kbd:[Esc].
+
+There are several ways to modify which objects belong to a group. To remove
+objects from an existing group, enter the group, then select the objects you
+want to remove, right click, and choose **Grouping** -> **Remove Items**. To add
+items to a group, first ungroup all the items from the group. This will leave
+the group's former members selected. Then add the new item to the selection and
+group the selection. Note that without first ungrouping, this process would
+create a nested group: a new group containing the new item and the entire
+original group, not just the items in the original group.
+
+You can also add or remove objects from a group in the group's properties
+dialog. To open a group's properties dialog, press kbd:[E] or right click and
+click **Properties...**. The properties dialog lists the objects contained in
+the group. To add an additional object to the group, click the
+image:images/icons/small_plus_16.png[] button, then click on the desired object
+in the editing canvas. The object you click on will be added to the group. To
+remove an object, select it in the list, then click the
+image:images/icons/small_trash_16.png[] button.
+
+image::images/group_properties.png[]
+
+The **Library link** field is used for <<schematic-design-blocks,design blocks>>.
+It specifies the group's linked design block name and library in the format `<library>:<block>`.
+This field must be filled out correctly to link design block schematic groups to the corresponding block in the board and in the design block library.
+
+You can optionally transfer groups from the schematic to the PCB using the
+<<update-pcb-from-schematic,Update PCB from Schematic>> tool.
+If the **Group footprints based on symbol group** option is enabled,
+footprints in the PCB will be grouped if their linked symbols are grouped in the schematic.
+
+=== Aligning objects
+
+The align tool moves a selection of objects so that they are all aligned with a
+reference object. There are six different alignments to choose from, depending
+on which part of the objects you wish to align. Objects can be horizontally
+aligned by their left, center, or right edges, or they can be vertically aligned
+by their top, center, or bottom edges. Objects are only moved in one dimension,
+so objects stay in the same horizontal position when aligned vertically, and
+vice versa. To align objects by a given edge, select the objects, then right
+click and choose **Align/Distribute** -> **Align to Left** (or another alignment
+as desired).
+
+If the cursor is over an object in the selection, that object is used as the
+reference object. Otherwise, the reference object is the object in the selection
+which is located furthest in the alignment direction, for example the leftmost
+object when aligning by left edge, or the topmost object when aligning by top
+edge. The topmost object is used when aligning by vertical center, and the
+leftmost when aligning by horizontal center.
+
+image::images/align_before.png[title="Before alignment",caption="",alt="Resistors before aligning to top"]
+
+.After alignment
+image::images/align_after.png[title="After alignment",caption="",alt="Resistors after aligning to top"]
+
+In the example above, two circles are vertically aligned by their top edges,
+with the large circle as the reference object.
+The first image shows them before alignment and the second image shows them after alignment.
+In this case, the large circle is the topmost object before alignment,
+so it is chosen as the reference object if the cursor is not over the other circle.
+After alignment, the top edges of the circles are at the same position,
+but the horizontal positions of the circles are unchanged.
+
+NOTE: Symbols, labels, and other objects with pin connections are always moved so that their connection points remain on the grid,
+      even if this results in imperfect alignment with the other objects.
+
 === Schematic editing convenience functions
 
 There are several convenience features in the Schematic Editor that make some
@@ -1966,8 +2264,9 @@ resulting object: when a text object is converted to a label, the label's value
 ==== Swapping objects
 
 You can swap the position of two selected objects using the Swap command
-(kbd:[S]; also available in the right-click context menu). This works on
-symbols, labels, and graphical items. The first object is assigned the location
+(kbd:[Alt+S]; also available in the right-click context menu). This works on
+many schematic items, including symbols, symbol fields, labels, graphical
+items, and text. The first object is assigned the location
 and rotation of the second object, and vice versa. If there are more than two
 objects selected, the locations are cycled: the last object gets the position of
 the first object, the first object gets the location of the second, and so on.
@@ -1986,6 +2285,8 @@ The Schematic Setup window is used to set schematic options that are specific to
 the currently active schematic. For example, the Schematic Setup window contains
 formatting options, electrical rule configuration, net class setup, and schematic
 text variable setup.
+
+To open Schematic Setup, use **File** -> **Schematic Setup...** or press the image:images/icons/options_schematic_24.png[] button in the top toolbar.
 
 [[schematic-setup-formatting]]
 ==== Schematic formatting
@@ -2017,6 +2318,9 @@ packed global labels to overlap with each other.
 symbol does not override the default line width. *Pin symbol size* scales symbol
 pin graphic style annotations, such as the bubble on an inverted pin.
 
+*Hop-over size* sets the size of wire hop-overs, which are optionally drawn when one wire crosses another wire without connecting.
+By default the size is set to *None*, which means hop-overs are not drawn.
+
 *Junction dot size* sets the schematic's default wire junction dot size. The
 default size can be overridden by editing an individual junction dot's
 properties. *Connection width* specifies the grid size used for the
@@ -2024,8 +2328,9 @@ properties. *Connection width* specifies the grid size used for the
 a 50 mil grid for electrical connections, so this should usually remain set at
 50 mils.
 
-The Operating Point Overlay settings configure how operating point simulation
-results are displayed on the schematic canvas. The *significant digits* settings
+The Operating Point Overlay settings configure how
+<<sim-operating-point-annotations,operating point simulation annotations>> are
+displayed on the schematic canvas. The *significant digits* settings
 control the number of significant digits printed on voltage and current
 overlays. The *range* settings control the units used to display voltage and
 current measurements.
@@ -2123,18 +2428,15 @@ see the <<bus-aliases,bus alias documentation>>.
 
 image::images/schematic_setup_text_variables.png[alt="Schematic setup text variables",scaledwidth="70%"]
 
-Text replacement variables can be created in the Text Variables section. These
-variables allow you to substitute the variable name for any text string. This
-substitution happens anywhere the variable name is used inside the variable
-replacement syntax of `${VARIABLENAME}`.
+Text variables can be created in the Text Variables section.
+KiCad will substitute the variable name with the text string assigned to the variable.
+This substitution happens anywhere the variable name is used inside the variable replacement syntax of `${VARIABLENAME}`.
 
-For example, you could create a variable named `VERSION` and set the text
-substitution to `1.0`. Now, in any text object on the PCB, you can enter
-`${VERSION}` and KiCad will substitute `1.0`. If you change the substitution to
-`2.0`, every text object that includes `${VERSION}` will be updated
-automatically. You can also mix regular text and variables. For example, you
-can create a text object with the text `Version: ${VERSION}` which will be
-substituted as `Version: 1.0`.
+For example, you could create a variable named `VERSION` and set the text substitution to `1.0`.
+Now, in any text object in the schematic, you can enter `${VERSION}` and KiCad will display this as `1.0`.
+If you change the value to `2.0`, every text object that includes `${VERSION}` will be updated automatically.
+You can also mix regular text and variables.
+For example, you can create a text object with the text `Version: ${VERSION}` which will be displayed as `Version: 1.0`.
 
 Text variables can also be created in
 xref:../pcbnew/pcbnew.adoc#board-setup-text-variables[Board Setup].
@@ -2183,7 +2485,7 @@ To embed any fonts used in a schematic, check the **Embed fonts** checkbox. All
 fonts used in the schematic will be embedded, so text using that font can be
 edited on any computer regardless of whether the font file is installed.
 
-You can also <<sym-embedding-files,embed files in a library symbol>>.
+You can also <<sym-embedding-files,embed files in a symbol>>.
 Such files will be available within the symbol, but not within the larger
 schematic or in other symbols. Files embedded in a symbol are deduplicated
 when the symbol is added to a schematic: if a file is embedded in a symbol, and

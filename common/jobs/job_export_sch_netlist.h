@@ -22,7 +22,7 @@
 #define JOB_EXPORT_SCH_NETLIST_H
 
 #include <kicommon.h>
-#include <wx/string.h>
+#include <vector>
 #include "job.h"
 
 class KICOMMON_API JOB_EXPORT_SCH_NETLIST : public JOB
@@ -55,6 +55,9 @@ public:
     bool m_spiceSaveAllCurrents;
     bool m_spiceSaveAllDissipations;
     bool m_spiceSaveAllEvents;
+
+    // Variant names to export. Empty vector means default variant only.
+    std::vector<wxString> m_variantNames;
 };
 
 #endif

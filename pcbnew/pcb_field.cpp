@@ -22,6 +22,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <common.h>
+#include <view/view.h>
 #include <pcb_field.h>
 #include <footprint.h>
 #include <board_design_settings.h>
@@ -29,21 +31,34 @@
 #include <pcb_painter.h>
 #include <api/board/board_types.pb.h>
 #include <string_utils.h>
+#include <board.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
-PCB_FIELD::PCB_FIELD( FOOTPRINT* aParent, int aFieldId, const wxString& aName ) :
+PCB_FIELD::PCB_FIELD( FOOTPRINT* aParent, FIELD_T aFieldId, const wxString& aName ) :
         PCB_TEXT( aParent, PCB_FIELD_T ),
         m_id( aFieldId ),
+        m_ordinal( 0 ),
         m_name( aName )
 {
+    if( m_id == FIELD_T::USER )
+        m_ordinal = aParent->GetNextFieldOrdinal();
 }
 
 
-PCB_FIELD::PCB_FIELD( const PCB_TEXT& aText, int aFieldId, const wxString& aName ) :
-        PCB_TEXT( aText ),
+PCB_FIELD::PCB_FIELD( const PCB_TEXT& aText, FIELD_T aFieldId, const wxString& aName ) :
+        PCB_TEXT( aText.GetParent(), PCB_FIELD_T ),
         m_id( aFieldId ),
+        m_ordinal( static_cast<int>( aFieldId ) ),
         m_name( aName )
 {
+    // Copy the text properties from the PCB_TEXT
+    SetText( aText.GetText() );
+    SetVisible( aText.IsVisible() );
+    SetLayer( aText.GetLayer() );
+    SetPosition( aText.GetPosition() );
+    SetAttributes( aText.GetAttributes() );
 }
 
 
@@ -56,7 +71,7 @@ void PCB_FIELD::Serialize( google::protobuf::Any &aContainer ) const
     anyText.UnpackTo( field.mutable_text() );
 
     field.set_name( GetCanonicalName().ToStdString() );
-    field.mutable_id()->set_id( GetId() );
+    field.mutable_id()->set_id( (int) GetId() );
     field.set_visible( IsVisible() );
 
     aContainer.PackFrom( field );
@@ -71,7 +86,7 @@ bool PCB_FIELD::Deserialize( const google::protobuf::Any &aContainer )
         return false;
 
     if( field.has_id() )
-        setId( field.id().id() );
+        setId( (FIELD_T) field.id().id() );
 
     // Mandatory fields have a blank Name in the KiCad object
     if( !IsMandatory() )
@@ -95,55 +110,89 @@ bool PCB_FIELD::Deserialize( const google::protobuf::Any &aContainer )
 
 wxString PCB_FIELD::GetName( bool aUseDefaultName ) const
 {
-    if( m_parent && m_parent->Type() == PCB_FOOTPRINT_T )
-    {
-        if( IsMandatory() )
-            return GetCanonicalFieldName( m_id );
-        else if( m_name.IsEmpty() && aUseDefaultName )
-            return GetUserFieldName( m_id, !DO_TRANSLATE );
-        else
-            return m_name;
-    }
+    if( IsMandatory() )
+        return GetCanonicalFieldName( m_id );
+    else if( m_name.IsEmpty() && aUseDefaultName )
+        return GetUserFieldName( m_ordinal, !DO_TRANSLATE );
     else
-    {
-        wxFAIL_MSG( "Unhandled field owner type." );
         return m_name;
-    }
 }
 
 
 wxString PCB_FIELD::GetCanonicalName() const
 {
-    if( m_parent && m_parent->Type() == PCB_FOOTPRINT_T )
+    return GetName( true );
+}
+
+
+wxString PCB_FIELD::GetShownText( bool aAllowExtraText, int aDepth ) const
+{
+    wxUnusedVar( aAllowExtraText );
+
+    const FOOTPRINT* parentFootprint = GetParentFootprint();
+    const BOARD*     board = GetBoard();
+    wxString         text;
+    bool             hasVariantOverride = false;
+
+    if( parentFootprint && board )
     {
-        if( IsMandatory() )
-            return GetCanonicalFieldName( m_id );
-        else
-            return m_name;
-    }
-    else
-    {
-        if( m_parent )
+        const wxString& variantName = board->GetCurrentVariant();
+
+        if( !variantName.IsEmpty() && variantName.CmpNoCase( GetDefaultVariantName() ) != 0 )
         {
-            wxFAIL_MSG( wxString::Format( "Unhandled field owner type (id %d, parent type %d).",
-                                          m_id, m_parent->Type() ) );
+            if( const FOOTPRINT_VARIANT* variant = parentFootprint->GetVariant( variantName ) )
+            {
+                if( variant->HasFieldValue( GetName() ) )
+                {
+                    text = parentFootprint->GetFieldValueForVariant( variantName, GetName() );
+                    hasVariantOverride = true;
+                }
+            }
+        }
+    }
+
+    if( !hasVariantOverride )
+        text = GetText();
+
+    text = UnescapeString( text );
+
+    std::function<bool( wxString* )> resolver = [&]( wxString* token ) -> bool
+    {
+        if( token->IsSameAs( wxT( "LAYER" ) ) )
+        {
+            *token = GetLayerName();
+            return true;
         }
 
-        return m_name;
-    }
+        if( parentFootprint && parentFootprint->ResolveTextVar( token, aDepth + 1 ) )
+            return true;
+
+        if( board && board->ResolveTextVar( token, aDepth + 1 ) )
+            return true;
+
+        return false;
+    };
+
+    if( text.Contains( wxT( "${" ) ) || text.Contains( wxT( "@{" ) ) )
+        text = ResolveTextVars( text, &resolver, aDepth );
+
+    text.Replace( wxT( "<<<ESC_DOLLAR:" ), wxT( "${" ) );
+    text.Replace( wxT( "<<<ESC_AT:" ), wxT( "@{" ) );
+
+    return text;
 }
 
 
 bool PCB_FIELD::IsMandatory() const
 {
-    return m_id == REFERENCE_FIELD
-        || m_id == VALUE_FIELD
-        || m_id == DATASHEET_FIELD
-        || m_id == DESCRIPTION_FIELD;
+    return m_id == FIELD_T::REFERENCE
+        || m_id == FIELD_T::VALUE
+        || m_id == FIELD_T::DATASHEET
+        || m_id == FIELD_T::DESCRIPTION;
 }
 
 
-bool PCB_FIELD::IsHypertext() const
+bool PCB_FIELD::HasHypertext() const
 {
     return IsURL( GetShownText( false ) );
 }
@@ -174,16 +223,16 @@ wxString PCB_FIELD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFu
 
     switch( m_id )
     {
-    case REFERENCE_FIELD:
+    case FIELD_T::REFERENCE:
         return wxString::Format( _( "Reference field of %s" ), ref );
 
-    case VALUE_FIELD:
+    case FIELD_T::VALUE:
         return wxString::Format( _( "Value field of %s (%s)" ), ref, content );
 
-    case FOOTPRINT_FIELD:
+    case FIELD_T::FOOTPRINT:
         return wxString::Format( _( "Footprint field of %s (%s)" ), ref, content );
 
-    case DATASHEET_FIELD:
+    case FIELD_T::DATASHEET:
         return wxString::Format( _( "Datasheet field of %s (%s)" ), ref, content );
 
     default:
@@ -247,7 +296,21 @@ bool PCB_FIELD::operator==( const BOARD_ITEM& aOther ) const
 
 bool PCB_FIELD::operator==( const PCB_FIELD& aOther ) const
 {
-    return m_id == aOther.m_id && m_name == aOther.m_name && EDA_TEXT::operator==( aOther );
+    if( IsMandatory() != aOther.IsMandatory() )
+        return false;
+
+    if( IsMandatory() )
+    {
+        if( m_id != aOther.m_id )
+            return false;
+    }
+    else
+    {
+        if( m_ordinal != aOther.m_ordinal )
+            return false;
+    }
+
+    return m_name == aOther.m_name && EDA_TEXT::operator==( aOther );
 }
 
 

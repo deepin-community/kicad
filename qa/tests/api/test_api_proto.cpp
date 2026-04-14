@@ -38,8 +38,7 @@ BOOST_AUTO_TEST_SUITE( ApiProto )
 
 struct PROTO_TEST_FIXTURE
 {
-    PROTO_TEST_FIXTURE() :
-            m_settingsManager( true /* headless */ )
+    PROTO_TEST_FIXTURE()
     { }
 
     SETTINGS_MANAGER       m_settingsManager;
@@ -64,9 +63,14 @@ void testProtoFromKiCadObject( KiCadClass* aInput, ParentClass* aParent, bool aS
         std::unique_ptr<KiCadClass> output;
 
         if( aStrict )
+        {
             output = std::make_unique<KiCadClass>( aParent );
+        }
         else
-            output = std::make_unique<KiCadClass>( *static_cast<KiCadClass*>( aInput->Clone() ) );
+        {
+            std::unique_ptr<KiCadClass> cloned( static_cast<KiCadClass*>( aInput->Clone() ) );
+            output = std::make_unique<KiCadClass>( *cloned );
+        }
 
         bool deserializeResult = false;
         BOOST_REQUIRE_NO_THROW( deserializeResult = output->Deserialize( any ) );
@@ -104,14 +108,16 @@ BOOST_FIXTURE_TEST_CASE( BoardTypes, PROTO_TEST_FIXTURE )
             break;
 
         case PCB_ARC_T:
-            testProtoFromKiCadObject<kiapi::board::types::Arc>( track, m_board.get() );
+            testProtoFromKiCadObject<kiapi::board::types::Arc>( static_cast<PCB_ARC*>( track ),
+                                                                m_board.get() );
             break;
 
         case PCB_VIA_T:
             // Vias are not strict-checked at the moment because m_zoneLayerOverrides is not
             // currently exposed to the API
             // TODO(JE) enable strict when fixed
-            testProtoFromKiCadObject<kiapi::board::types::Via>( track, m_board.get(), false );
+            testProtoFromKiCadObject<kiapi::board::types::Via>( static_cast<PCB_VIA*>( track ),
+                                                                m_board.get(), false );
             break;
 
         default:
@@ -159,6 +165,8 @@ BOOST_FIXTURE_TEST_CASE( BoardTypes, PROTO_TEST_FIXTURE )
         // TODO(JE) Shapes
 
         // TODO(JE) Text
+
+        // TODO Barcodes
     }
 }
 

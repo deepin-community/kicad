@@ -19,10 +19,14 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "pns_meander_skew_placer.h"
+
+#include <core/typeinfo.h>
+#include <board_connected_item.h>
+
 #include "pns_node.h"
 #include "pns_itemset.h"
 #include "pns_topology.h"
-#include "pns_meander_skew_placer.h"
 #include "pns_solid.h"
 
 #include "pns_router.h"
@@ -35,8 +39,11 @@ MEANDER_SKEW_PLACER::MEANDER_SKEW_PLACER ( ROUTER* aRouter ) :
 {
     // Init temporary variables (do not leave uninitialized members)
     m_coupledLength = 0;
-    m_padToDieN = 0;
-    m_padToDieP = 0;
+    m_coupledDelay = 0;
+    m_padToDieLengthN = 0;
+    m_padToDieLengthP = 0;
+    m_padToDieDelayN = 0;
+    m_padToDieDelayP = 0;
 }
 
 
@@ -81,42 +88,70 @@ bool MEANDER_SKEW_PLACER::Start( const VECTOR2I& aP, ITEM* aStartItem )
     m_tunedPathP = topo.AssembleTuningPath( Router()->GetInterface(), m_originPair.PLine().GetLink( 0 ), &m_startPad_p,
                                             &m_endPad_p );
 
-    m_padToDieP = 0;
+    m_padToDieLengthP = 0;
+    m_padToDieDelayP = 0;
 
     if( m_startPad_p )
-        m_padToDieP += m_startPad_p->GetPadToDie();
+    {
+        m_padToDieLengthP += m_startPad_p->GetPadToDie();
+        m_padToDieDelayP += m_startPad_p->GetPadToDieDelay();
+    }
 
     if( m_endPad_p )
-        m_padToDieP += m_endPad_p->GetPadToDie();
+    {
+        m_padToDieLengthP += m_endPad_p->GetPadToDie();
+        m_padToDieDelayP += m_endPad_p->GetPadToDieDelay();
+    }
 
     m_tunedPathN = topo.AssembleTuningPath( Router()->GetInterface(), m_originPair.NLine().GetLink( 0 ), &m_startPad_n,
                                             &m_endPad_n );
 
-    m_padToDieN = 0;
+    m_padToDieLengthN = 0;
+    m_padToDieDelayN = 0;
 
     if( m_startPad_n )
-        m_padToDieN += m_startPad_n->GetPadToDie();
+    {
+        m_padToDieLengthN += m_startPad_n->GetPadToDie();
+        m_padToDieDelayN += m_startPad_n->GetPadToDieDelay();
+    }
 
     if( m_endPad_n )
-        m_padToDieN += m_endPad_n->GetPadToDie();
+    {
+        m_padToDieLengthN += m_endPad_n->GetPadToDie();
+        m_padToDieDelayN += m_endPad_n->GetPadToDieDelay();
+    }
 
     m_world->Remove( m_originLine );
 
     m_currentWidth = m_originLine.Width();
     m_currentEnd = VECTOR2I( 0, 0 );
 
+    const BOARD_CONNECTED_ITEM* conItem = static_cast<BOARD_CONNECTED_ITEM*>( aStartItem->GetSourceItem() );
+    m_netClass = conItem->GetEffectiveNetClass();
+    m_settings.m_netClass = m_netClass;
+
     if ( m_originPair.NetP() == m_originLine.Net() )
     {
-        m_coupledLength = m_padToDieN + lineLength( m_tunedPathN, m_startPad_n, m_endPad_n );
-        m_lastLength = m_padToDieP + lineLength( m_tunedPathP, m_startPad_p, m_endPad_p );
+        m_coupledLength = m_padToDieLengthN + lineLength( m_tunedPathN, m_startPad_n, m_endPad_n );
+        m_lastLength = m_padToDieLengthP + lineLength( m_tunedPathP, m_startPad_p, m_endPad_p );
+
+        m_coupledDelay = m_padToDieDelayN + lineDelay( m_tunedPathN, m_startPad_n, m_endPad_n );
+        m_lastDelay = m_padToDieDelayP + lineDelay( m_tunedPathP, m_startPad_p, m_endPad_p );
+
         m_tunedPath = m_tunedPathP;
     }
     else
     {
-        m_coupledLength = m_padToDieP + lineLength( m_tunedPathP, m_startPad_p, m_endPad_p );
-        m_lastLength = m_padToDieN + lineLength( m_tunedPathN, m_startPad_n, m_endPad_n );
+        m_coupledLength = m_padToDieLengthP + lineLength( m_tunedPathP, m_startPad_p, m_endPad_p );
+        m_lastLength = m_padToDieLengthN + lineLength( m_tunedPathN, m_startPad_n, m_endPad_n );
+
+        m_coupledDelay = m_padToDieDelayP + lineDelay( m_tunedPathP, m_startPad_p, m_endPad_p );
+        m_lastDelay = m_padToDieDelayN + lineDelay( m_tunedPathN, m_startPad_n, m_endPad_n );
+
         m_tunedPath = m_tunedPathN;
     }
+
+    calculateTimeDomainTargets();
 
     return true;
 }
@@ -125,10 +160,18 @@ bool MEANDER_SKEW_PLACER::Start( const VECTOR2I& aP, ITEM* aStartItem )
 long long int MEANDER_SKEW_PLACER::origPathLength() const
 {
     if ( m_originPair.NetP() == m_originLine.Net() )
-        return m_padToDieP + lineLength( m_tunedPath, m_startPad_p, m_endPad_p );
+        return m_padToDieLengthP + lineLength( m_tunedPath, m_startPad_p, m_endPad_p );
 
-    return m_padToDieN + lineLength( m_tunedPath, m_startPad_n, m_endPad_n );
+    return m_padToDieLengthN + lineLength( m_tunedPath, m_startPad_n, m_endPad_n );
+}
 
+
+int64_t MEANDER_SKEW_PLACER::origPathDelay() const
+{
+    if( m_originPair.NetP() == m_originLine.Net() )
+        return m_padToDieDelayP + lineDelay( m_tunedPath, m_startPad_p, m_endPad_p );
+
+    return m_padToDieDelayN + lineDelay( m_tunedPath, m_startPad_n, m_endPad_n );
 }
 
 
@@ -140,6 +183,8 @@ long long int MEANDER_SKEW_PLACER::CurrentSkew() const
 
 bool MEANDER_SKEW_PLACER::Move( const VECTOR2I& aP, ITEM* aEndItem )
 {
+    calculateTimeDomainTargets();
+
     bool isPositive = m_originPair.NetP() == m_originLine.Net();
 
     for( const ITEM* item : m_tunedPathP.CItems() )
@@ -168,9 +213,45 @@ bool MEANDER_SKEW_PLACER::Move( const VECTOR2I& aP, ITEM* aEndItem )
 }
 
 
-long long int MEANDER_SKEW_PLACER::TuningResult() const
+long long int MEANDER_SKEW_PLACER::TuningLengthResult() const
 {
     return m_lastLength - m_coupledLength;
 }
 
+
+int64_t MEANDER_SKEW_PLACER::TuningDelayResult() const
+{
+    return m_lastDelay - m_coupledDelay;
+}
+
+
+void MEANDER_SKEW_PLACER::calculateTimeDomainTargets()
+{
+    auto calculateTargetSkew = [this]( const int64_t targetSkewDelay )
+    {
+        const int64_t curSkewDelay = m_lastDelay - m_coupledDelay;
+        const int64_t skewDelayDifference = targetSkewDelay - curSkewDelay;
+
+        int64_t skewLengthDiff = m_router->GetInterface()->CalculateLengthForDelay(
+                std::abs( skewDelayDifference ), m_originPair.Width(), true, m_originPair.Gap(),
+                m_router->GetCurrentLayer(), m_netClass );
+
+        const int64_t curSkew = CurrentSkew();
+        skewLengthDiff = skewDelayDifference > 0 ? skewLengthDiff : -skewLengthDiff;
+
+        return static_cast<int>( curSkew + skewLengthDiff );
+    };
+
+    if( m_settings.m_isTimeDomain )
+    {
+        const int minSkew = calculateTargetSkew( m_settings.m_targetSkewDelay.Min() );
+        m_settings.m_targetSkew.SetMin( static_cast<int>( minSkew ) );
+
+        const int optSkew = calculateTargetSkew( m_settings.m_targetSkewDelay.Opt() );
+        m_settings.m_targetSkew.SetOpt( static_cast<int>( optSkew ) );
+
+        const int maxSkew = calculateTargetSkew( m_settings.m_targetSkewDelay.Max() );
+        m_settings.m_targetSkew.SetMax( static_cast<int>( maxSkew ) );
+    }
+}
 }

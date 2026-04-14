@@ -82,12 +82,17 @@ void NUMERIC_EVALUATOR::SetDefaultUnits( EDA_UNITS aUnits )
 {
     switch( aUnits )
     {
-    case EDA_UNITS::MM:       m_defaultUnits = Unit::MM;      break;
-    case EDA_UNITS::MILS:     m_defaultUnits = Unit::Mil;     break;
-    case EDA_UNITS::INCH:     m_defaultUnits = Unit::Inch;    break;
-    case EDA_UNITS::DEGREES:  m_defaultUnits = Unit::Degrees; break;
-    case EDA_UNITS::UNSCALED: m_defaultUnits = Unit::SI;      break;
-    default:                  m_defaultUnits = Unit::MM;      break;
+    case EDA_UNITS::MM:          m_defaultUnits = Unit::MM;           break;
+    case EDA_UNITS::MILS:        m_defaultUnits = Unit::Mil;          break;
+    case EDA_UNITS::INCH:        m_defaultUnits = Unit::Inch;         break;
+    case EDA_UNITS::DEGREES:     m_defaultUnits = Unit::Degrees;      break;
+    case EDA_UNITS::FS:          m_defaultUnits = Unit::Femtoseconds; break;
+    case EDA_UNITS::PS:          m_defaultUnits = Unit::Picoseconds;  break;
+    case EDA_UNITS::PS_PER_INCH: m_defaultUnits = Unit::PsPerInch;    break;
+    case EDA_UNITS::PS_PER_CM:   m_defaultUnits = Unit::PsPerCm;      break;
+    case EDA_UNITS::PS_PER_MM:   m_defaultUnits = Unit::PsPerMm;      break;
+    case EDA_UNITS::UNSCALED:    m_defaultUnits = Unit::SI;           break;
+    default:                     m_defaultUnits = Unit::MM;           break;
     }
 }
 
@@ -187,11 +192,75 @@ void NUMERIC_EVALUATOR::newString( const wxString& aString )
 }
 
 
+// Support for old school decimal separators (ie: "2K2") according to IEC 60062
+bool NUMERIC_EVALUATOR::IsOldSchoolDecimalSeparator( wxUniChar ch, double* siScaler )
+{
+    if(      ch == 'p' )           { *siScaler = 1.0e-12; return true; }
+    else if( ch == 'n' )           { *siScaler = 1.0e-9;  return true; }
+    else if( ch == wxT( "µ" )[0] ) { *siScaler = 1.0e-6;  return true; }
+    else if( ch == wxT( "μ" )[0] ) { *siScaler = 1.0e-6;  return true; }
+    else if( ch == 'u' )           { *siScaler = 1.0e-6;  return true; }
+    else if( ch == 'm' )           { *siScaler = 1.0e-3;  return true; }
+    else if( ch == 'L' )           { *siScaler = 1.0e-3;  return true; }
+    else if( ch == 'R' )           { *siScaler = 1.0;     return true; }
+    else if( ch == 'F' )           { *siScaler = 1.0;     return true; }
+    else if( ch == 'k' )           { *siScaler = 1.0e3;   return true; }
+    else if( ch == 'K' )           { *siScaler = 1.0e3;   return true; }
+    else if( ch == 'M' )           { *siScaler = 1.0e6;   return true; }
+    else if( ch == 'G' )           { *siScaler = 1.0e9;   return true; }
+    else if( ch == 'T' )           { *siScaler = 1.0e12;  return true; }
+    else return false;
+};
+
+
+// Limited version of above for 8-bit chars
+bool NUMERIC_EVALUATOR::IsOldSchoolDecimalSeparator( char ch, double* siScaler )
+{
+    switch( ch )
+    {
+    case 'p': *siScaler = 1.0e-12; return true;
+    case 'n': *siScaler = 1.0e-9;  return true;
+    case 'u': *siScaler = 1.0e-6;  return true;
+    case 'm': *siScaler = 1.0e-3;  return true;
+    case 'L': *siScaler = 1.0e-3;  return true;
+    case 'R': *siScaler = 1.0;     return true;
+    case 'F': *siScaler = 1.0;     return true;
+    case 'k': *siScaler = 1.0e3;   return true;
+    case 'K': *siScaler = 1.0e3;   return true;
+    case 'M': *siScaler = 1.0e6;   return true;
+    case 'G': *siScaler = 1.0e9;   return true;
+    case 'T': *siScaler = 1.0e12;  return true;
+    default:                       return false;
+    }
+};
+
+
+bool NUMERIC_EVALUATOR::IsDecimalSeparator( char ch, char localeSeparator, bool allowInfixNotation )
+{
+    double dummy;
+
+    if( ch == localeSeparator || ch == '.' || ch == ',' )
+        return true;
+
+    if( allowInfixNotation && IsOldSchoolDecimalSeparator( ch, &dummy ) )
+        return true;
+
+    return false;
+};
+
+
+bool NUMERIC_EVALUATOR::IsDigit( char ch )
+{
+    // the below static cast is to avoid partial unicode chars triggering an assert in isdigit on msvc
+    return isdigit( static_cast<unsigned char>( ch ) );
+}
+
+
 NUMERIC_EVALUATOR::Token NUMERIC_EVALUATOR::getToken()
 {
-    Token retval;
-    size_t idx;
+    bool allowInfix = m_defaultUnits == Unit::SI;
 
+    Token retval;
     retval.token = ENDS;
     retval.value.dValue = 0;
     retval.value.valid = false;
@@ -206,43 +275,6 @@ NUMERIC_EVALUATOR::Token NUMERIC_EVALUATOR::getToken()
     if( m_token.pos >= m_token.inputLen )
         return retval;
 
-    // Support for old school decimal separators (ie: "2K2")
-    auto isOldSchoolDecimalSeparator =
-            []( char ch, double* siScaler ) -> bool
-            {
-                switch( ch )
-                {
-                case 'a': *siScaler = 1.0e-18; return true;
-                case 'f': *siScaler = 1.0e-15; return true;
-                case 'p': *siScaler = 1.0e-12; return true;
-                case 'n': *siScaler = 1.0e-9;  return true;
-                case 'u': *siScaler = 1.0e-6;  return true;
-                case 'm': *siScaler = 1.0e-3;  return true;
-                case 'k':
-                case 'K': *siScaler = 1.0e3;   return true;
-                case 'M': *siScaler = 1.0e6;   return true;
-                case 'G': *siScaler = 1.0e9;   return true;
-                case 'T': *siScaler = 1.0e12;  return true;
-                case 'P': *siScaler = 1.0e15;  return true;
-                case 'E': *siScaler = 1.0e18;  return true;
-                default:                       return false;
-                }
-            };
-
-    auto isDecimalSeparator =
-            [&]( char ch ) -> bool
-            {
-                double dummy;
-
-                if( ch == m_localeDecimalSeparator || ch == '.' || ch == ',' )
-                    return true;
-
-                if( m_defaultUnits == Unit::SI && isOldSchoolDecimalSeparator( ch, &dummy ) )
-                    return true;
-
-                return false;
-            };
-
     // Lambda: get value as string, store into clToken.token and update current index.
     auto extractNumber =
             [&]( double* aScaler )
@@ -251,18 +283,18 @@ NUMERIC_EVALUATOR::Token NUMERIC_EVALUATOR::getToken()
                 double siScaler = 1.0;
                 char   ch = m_token.input[ m_token.pos ];
 
-                idx = 0;
+                size_t idx = 0;
 
                 do
                 {
-                    if( isDecimalSeparator( ch ) )
+                    if( IsDecimalSeparator( ch, m_localeDecimalSeparator, allowInfix ) )
                     {
                         if( haveSeparator )
                             break;
                         else
                             haveSeparator = true;
 
-                        if( isOldSchoolDecimalSeparator( ch, &siScaler ) )
+                        if( IsOldSchoolDecimalSeparator( ch, &siScaler ) )
                             *aScaler = siScaler;
 
                         m_token.token[ idx++ ] = m_localeDecimalSeparator;
@@ -274,15 +306,13 @@ NUMERIC_EVALUATOR::Token NUMERIC_EVALUATOR::getToken()
 
                     ch = m_token.input[++m_token.pos];
 
-                    // the below static cast is to avoid partial unicode chars triggering an
-                    // assert in isdigit on msvc
-                } while( isdigit( static_cast<unsigned char>( ch ) ) || isDecimalSeparator( ch ) );
+                } while( IsDigit( ch ) || IsDecimalSeparator( ch, m_localeDecimalSeparator, allowInfix ) );
 
                 m_token.token[ idx ] = 0;
             };
 
     // Lamda: Get unit for current token.
-    // Valid units are ", in, um, cm, mm, mil and thou. Returns Unit::Invalid otherwise.
+    // Valid units are ", in, um, cm, mm, mil, ps and thou. Returns Unit::Invalid otherwise.
     auto checkUnit =
             [&]( double* siScaler ) -> Unit
             {
@@ -313,6 +343,39 @@ NUMERIC_EVALUATOR::Token NUMERIC_EVALUATOR::getToken()
                 {
                     m_token.pos += 2;
                     return Unit::UM;
+                }
+
+                if( sizeLeft >= 5 && ch == 'p' && cptr[1] == 's' && cptr[2] == '/' && cptr[3] == 'i'
+                    && cptr[4] == 'n' && !isalnum( cptr[5] ) )
+                {
+                    m_token.pos += 5;
+                    return Unit::PsPerInch;
+                }
+
+                if( sizeLeft >= 5 && ch == 'p' && cptr[1] == 's' && cptr[2] == '/' && cptr[3] == 'c'
+                    && cptr[4] == 'm' && !isalnum( cptr[5] ) )
+                {
+                    m_token.pos += 5;
+                    return Unit::PsPerCm;
+                }
+
+                if( sizeLeft >= 5 && ch == 'p' && cptr[1] == 's' && cptr[2] == '/' && cptr[3] == 'm'
+                    && cptr[4] == 'm' && !isalnum( cptr[5] ) )
+                {
+                    m_token.pos += 5;
+                    return Unit::PsPerMm;
+                }
+
+                if( sizeLeft >= 2 && ch == 'f' && cptr[1] == 's' && !isalnum( cptr[2] ) )
+                {
+                    m_token.pos += 2;
+                    return Unit::Femtoseconds;
+                }
+
+                if( sizeLeft >= 2 && ch == 'p' && cptr[1] == 's' && !isalnum( cptr[2] ) )
+                {
+                    m_token.pos += 2;
+                    return Unit::Picoseconds;
                 }
 
                 if( sizeLeft >= 2 && ch == 'm' && cptr[ 1 ] == 'm' && !isalnum( cptr[ 2 ] ) )
@@ -347,8 +410,7 @@ NUMERIC_EVALUATOR::Token NUMERIC_EVALUATOR::getToken()
                     return Unit::Mil;
                 }
 
-                if( m_defaultUnits == Unit::SI && sizeLeft >= 1
-                        && isOldSchoolDecimalSeparator( ch, siScaler ) )
+                if( allowInfix && sizeLeft >= 1 && IsOldSchoolDecimalSeparator( ch, siScaler ) )
                 {
                     m_token.pos++;
                     return Unit::SI;
@@ -377,10 +439,8 @@ NUMERIC_EVALUATOR::Token NUMERIC_EVALUATOR::getToken()
     {
         /* End of input */
     }
-    else if( isdigit( static_cast<unsigned char>( ch ) ) || isDecimalSeparator( ch ) )
+    else if( IsDigit( ch ) || IsDecimalSeparator( ch, m_localeDecimalSeparator, allowInfix ) )
     {
-        // the above static cast is to avoid partial unicode chars triggering an assert in
-        // isdigit on msvc
         // VALUE
         extractNumber( &siScaler );
         retval.token = VALUE;
@@ -432,7 +492,7 @@ NUMERIC_EVALUATOR::Token NUMERIC_EVALUATOR::getToken()
             case Unit::MM:   retval.value.dValue = 1000.0 / 25.4;  break;
             case Unit::CM:   retval.value.dValue = 1000.0 / 2.54;  break;
             default:
-            case Unit::Invalid:                                   break;
+            case Unit::Invalid:                                    break;
             }
         }
         else if( m_defaultUnits == Unit::Degrees && convertFrom == Unit::Degrees )
@@ -442,6 +502,59 @@ NUMERIC_EVALUATOR::Token NUMERIC_EVALUATOR::getToken()
         else if( m_defaultUnits == Unit::SI )
         {
             retval.value.dValue = siScaler;
+        }
+        else if( m_defaultUnits == Unit::Picoseconds )
+        {
+            switch( convertFrom )
+            {
+            case Unit::Picoseconds: retval.value.dValue = 1.0;           break;
+            case Unit::Femtoseconds: retval.value.dValue = 1.0 / 1000.0; break;
+            default:
+            case Unit::Invalid:                                          break;
+            }
+        }
+        else if( m_defaultUnits == Unit::Femtoseconds )
+        {
+            switch( convertFrom )
+            {
+            case Unit::Picoseconds: retval.value.dValue = 1000.0; break;
+            case Unit::Femtoseconds: retval.value.dValue = 1.0;   break;
+            default:
+            case Unit::Invalid:                                   break;
+            }
+        }
+        else if( m_defaultUnits == Unit::PsPerInch )
+        {
+            switch( convertFrom )
+            {
+            case Unit::PsPerInch: retval.value.dValue = 1.0;  break;
+            case Unit::PsPerCm:   retval.value.dValue = 2.54; break;
+            case Unit::PsPerMm:   retval.value.dValue = 25.4; break;
+            default:
+            case Unit::Invalid:                               break;
+            }
+        }
+        else if( m_defaultUnits == Unit::PsPerCm )
+        {
+            switch( convertFrom )
+            {
+            case Unit::PsPerInch: retval.value.dValue = 1.0 / 2.54; break;
+            case Unit::PsPerCm:   retval.value.dValue = 1.0;        break;
+            case Unit::PsPerMm:   retval.value.dValue = 10.0;       break;
+            default:
+            case Unit::Invalid:                                     break;
+            }
+        }
+        else if( m_defaultUnits == Unit::PsPerMm )
+        {
+            switch( convertFrom )
+            {
+            case Unit::PsPerInch: retval.value.dValue = 1.0 / 25.4; break;
+            case Unit::PsPerCm:   retval.value.dValue = 1.0 / 10.0; break;
+            case Unit::PsPerMm:   retval.value.dValue = 1.0;        break;
+            default:
+            case Unit::Invalid:                                     break;
+            }
         }
     }
     else if( isalpha( ch ) )

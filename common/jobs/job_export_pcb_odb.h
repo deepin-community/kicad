@@ -21,7 +21,6 @@
 #define JOB_EXPORT_PCB_ODB_H
 
 #include <kicommon.h>
-#include <wx/string.h>
 #include "job.h"
 
 class KICOMMON_API JOB_EXPORT_PCB_ODB : public JOB
@@ -49,6 +48,7 @@ public:
 public:
     wxString       m_filename;
     wxString       m_drawingSheet;
+    wxString       m_variant;
 
     ODB_UNITS      m_units;
     int            m_precision;

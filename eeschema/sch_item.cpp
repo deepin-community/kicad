@@ -27,19 +27,17 @@
 #include <eeschema_settings.h>
 #include <eda_item.h>
 #include <sch_connection.h>
-#include <sch_item.h>
-#include <sch_screen.h>
-#include <sch_sheet_path.h>
+#include <sch_group.h>
+#include <sch_rule_area.h>
 #include <sch_draw_panel.h>
 #include <sch_edit_frame.h>
-#include <schematic.h>
-#include <symbol.h>
 #include <connection_graph.h>
-#include <trace_helpers.h>
-#include <general.h>
 #include <netclass.h>
 #include <project/project_file.h>
 #include <project/net_settings.h>
+#include <font/kicad_font_name.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 // Rendering fonts is expensive (particularly when using outline fonts).  At small effective
@@ -49,26 +47,7 @@
 #define BITMAP_FONT_SIZE_THRESHOLD 3
 
 
-wxString SCH_ITEM::GetUnitDescription( int aUnit )
-{
-    if( aUnit == 0 )
-        return _( "All" );
-    else
-        return LIB_SYMBOL::LetterSubReference( aUnit, 'A' );
-}
-
-
-wxString SCH_ITEM::GetBodyStyleDescription( int aBodyStyle )
-{
-    if( aBodyStyle == 0 )
-        return _( "All" );
-    else if( aBodyStyle == BODY_STYLE::DEMORGAN )
-        return _( "Alternate" );
-    else if( aBodyStyle == BODY_STYLE::BASE )
-        return _( "Standard" );
-    else
-        return wxT( "?" );
-}
+static const std::vector<KICAD_T> labelTypes = { SCH_LABEL_LOCATE_ANY_T };
 
 
 /* Constructor and destructor for SCH_ITEM */
@@ -116,6 +95,10 @@ SCH_ITEM::~SCH_ITEM()
     for( const auto& it : m_connection_map )
         delete it.second;
 
+    // Remove this item from any rule areas that contain it
+    for( SCH_RULE_AREA* ruleArea : m_rule_areas_cache )
+        ruleArea->RemoveItem( this );
+
     // Do not try to modify SCHEMATIC::ConnectionGraph()
     // if the schematic does not exist
     if( !SCHEMATIC::m_IsSchematicExists )
@@ -128,7 +111,39 @@ SCH_ITEM::~SCH_ITEM()
 }
 
 
-SCH_ITEM* SCH_ITEM::Duplicate( bool doClone ) const
+bool SCH_ITEM::IsGroupableType() const
+{
+    switch( Type() )
+    {
+    case SCH_SYMBOL_T:
+    case SCH_PIN_T:
+    case SCH_SHAPE_T:
+    case SCH_BITMAP_T:
+    case SCH_FIELD_T:
+    case SCH_TEXT_T:
+    case SCH_TEXTBOX_T:
+    case SCH_TABLE_T:
+    case SCH_GROUP_T:
+    case SCH_LINE_T:
+    case SCH_JUNCTION_T:
+    case SCH_NO_CONNECT_T:
+    case SCH_BUS_WIRE_ENTRY_T:
+    case SCH_BUS_BUS_ENTRY_T:
+    case SCH_LABEL_T:
+    case SCH_GLOBAL_LABEL_T:
+    case SCH_HIER_LABEL_T:
+    case SCH_RULE_AREA_T:
+    case SCH_DIRECTIVE_LABEL_T:
+    case SCH_SHEET_PIN_T:
+    case SCH_SHEET_T:
+        return true;
+    default:
+        return false;
+    }
+}
+
+
+SCH_ITEM* SCH_ITEM::Duplicate( bool addToParentGroup, SCH_COMMIT* aCommit, bool doClone ) const
 {
     SCH_ITEM* newItem = (SCH_ITEM*) Clone();
 
@@ -141,63 +156,114 @@ SCH_ITEM* SCH_ITEM::Duplicate( bool doClone ) const
             []( SCH_ITEM* aChild )
             {
                 aChild->ClearFlags( SELECTED | BRIGHTENED );
-            } );
+            },
+            RECURSE_MODE::NO_RECURSE );
+
+    if( addToParentGroup )
+    {
+        wxCHECK_MSG( aCommit, newItem, "Must supply a commit to update parent group" );
+
+        if( EDA_GROUP* group = newItem->GetParentGroup() )
+        {
+            aCommit->Modify( group->AsEdaItem(), nullptr, RECURSE_MODE::NO_RECURSE );
+            group->AddItem( newItem );
+        }
+    }
 
     return newItem;
 }
 
 
-void SCH_ITEM::SetUnitProp( int aUnit )
+wxString SCH_ITEM::GetUnitDisplayName( int aUnit, bool aLabel ) const
 {
-    if( GetParentSymbol() )
-        aUnit = std::min( aUnit, GetParentSymbol()->GetUnitCount() );
+    if( aUnit == 0 )
+        return aLabel ? _( "All units" ) : wxString( _HKI( "All units" ) );
+    else if( const SYMBOL* symbol = GetParentSymbol() )
+        return symbol->GetUnitDisplayName( aUnit, aLabel );
 
-    aUnit = std::max( aUnit, 0 );
-
-    m_unit = aUnit;
+    return wxEmptyString;
 }
 
 
-void SCH_ITEM::SetBodyStyleProp( int aBodyStyle )
+wxString SCH_ITEM::GetBodyStyleDescription( int aBodyStyle, bool aLabel ) const
 {
-    if( GetParentSymbol() && GetParentSymbol()->HasAlternateBodyStyle() )
-        aBodyStyle = std::min( aBodyStyle, (int) BODY_STYLE::DEMORGAN );
+    if( aBodyStyle == 0 )
+        return aLabel ? _( "All body styles" ) : wxString( _HKI( "All body styles" ) );
+    else if( const SYMBOL* symbol = GetParentSymbol() )
+        return symbol->GetBodyStyleDescription( aBodyStyle, aLabel );
 
-    aBodyStyle = std::max( aBodyStyle, 0 );
+    return wxEmptyString;
+}
 
-    m_bodyStyle = aBodyStyle;
+
+void SCH_ITEM::SetUnitString( const wxString& aUnit )
+{
+    if( aUnit == _HKI( "All units" ) )
+    {
+        m_unit = 0;
+        return;
+    }
+
+    if( SYMBOL* symbol = GetParentSymbol() )
+    {
+        for( int ii = 1; ii <= symbol->GetUnitCount(); ii++ )
+        {
+            if( symbol->GetUnitDisplayName( ii, false ) == aUnit )
+            {
+                m_unit = ii;
+                return;
+            }
+        }
+    }
+}
+
+
+wxString SCH_ITEM::GetUnitString() const
+{
+    return GetUnitDisplayName( m_unit, false );
+}
+
+void SCH_ITEM::SetBodyStyleProp( const wxString& aBodyStyle )
+{
+    if( aBodyStyle == _HKI( "All body styles" ) )
+    {
+        m_bodyStyle = 0;
+        return;
+    }
+
+    if( SYMBOL* symbol = GetParentSymbol() )
+    {
+        for( int bodyStyle : { BODY_STYLE::BASE, BODY_STYLE::DEMORGAN } )
+        {
+            if( symbol->GetBodyStyleDescription( bodyStyle, false ) == aBodyStyle )
+            {
+                m_bodyStyle = bodyStyle;
+                return;
+            }
+        }
+    }
+}
+
+
+wxString SCH_ITEM::GetBodyStyleProp() const
+{
+    return GetBodyStyleDescription( m_bodyStyle, false );
 }
 
 
 SCHEMATIC* SCH_ITEM::Schematic() const
 {
-    EDA_ITEM* parent = GetParent();
-
-    while( parent )
-    {
-        if( parent->Type() == SCHEMATIC_T )
-            return static_cast<SCHEMATIC*>( parent );
-        else
-            parent = parent->GetParent();
-    }
-
-    return nullptr;
+    return static_cast<SCHEMATIC*>( findParent( SCHEMATIC_T ) );
 }
 
 
 const SYMBOL* SCH_ITEM::GetParentSymbol() const
 {
-    const EDA_ITEM* parent = GetParent();
+    if( SYMBOL* sch_symbol = static_cast<SCH_SYMBOL*>( findParent( SCH_SYMBOL_T ) ) )
+        return sch_symbol;
 
-    while( parent )
-    {
-        if( parent->Type() == SCH_SYMBOL_T )
-            return static_cast<const SCH_SYMBOL*>( parent );
-        else if( parent->Type() == LIB_SYMBOL_T )
-            return static_cast<const LIB_SYMBOL*>( parent );
-        else
-            parent = parent->GetParent();
-    }
+    if( SYMBOL* lib_symbol = static_cast<LIB_SYMBOL*>( findParent( LIB_SYMBOL_T ) ) )
+        return lib_symbol;
 
     return nullptr;
 }
@@ -205,19 +271,186 @@ const SYMBOL* SCH_ITEM::GetParentSymbol() const
 
 SYMBOL* SCH_ITEM::GetParentSymbol()
 {
-    EDA_ITEM* parent = GetParent();
+    if( SYMBOL* sch_symbol = static_cast<SCH_SYMBOL*>( findParent( SCH_SYMBOL_T ) ) )
+        return sch_symbol;
 
-    while( parent )
-    {
-        if( parent->Type() == SCH_SYMBOL_T )
-            return static_cast<SCH_SYMBOL*>( parent );
-        else if( parent->Type() == LIB_SYMBOL_T )
-            return static_cast<LIB_SYMBOL*>( parent );
-        else
-            parent = parent->GetParent();
-    }
+    if( SYMBOL* lib_symbol = static_cast<LIB_SYMBOL*>( findParent( LIB_SYMBOL_T ) ) )
+        return lib_symbol;
 
     return nullptr;
+}
+
+
+bool SCH_ITEM::ResolveExcludedFromSim( const SCH_SHEET_PATH* aInstance,
+                                       const wxString& aVariantName ) const
+{
+    if( GetExcludedFromSim( aInstance, aVariantName ) )
+        return true;
+
+    for( SCH_RULE_AREA* area : m_rule_areas_cache )
+    {
+        if( area->GetExcludedFromSim( aInstance, aVariantName ) )
+            return true;
+    }
+
+    return false;
+}
+
+
+bool SCH_ITEM::ResolveExcludedFromBOM( const SCH_SHEET_PATH* aInstance,
+                                       const wxString& aVariantName ) const
+{
+    if( GetExcludedFromBOM( aInstance, aVariantName ) )
+        return true;
+
+    for( SCH_RULE_AREA* area : m_rule_areas_cache )
+    {
+        if( area->GetExcludedFromBOM( aInstance, aVariantName ) )
+            return true;
+    }
+
+    return false;
+}
+
+
+bool SCH_ITEM::ResolveExcludedFromBoard( const SCH_SHEET_PATH* aInstance,
+                                         const wxString& aVariantName ) const
+{
+    if( GetExcludedFromBoard( aInstance, aVariantName ) )
+        return true;
+
+    for( SCH_RULE_AREA* area : m_rule_areas_cache )
+    {
+        if( area->GetExcludedFromBoard( aInstance, aVariantName ) )
+            return true;
+    }
+
+    return false;
+}
+
+
+bool SCH_ITEM::ResolveExcludedFromPosFiles( const SCH_SHEET_PATH* aInstance,
+                                            const wxString& aVariantName ) const
+{
+    if( GetExcludedFromPosFiles( aInstance, aVariantName ) )
+        return true;
+
+    for( SCH_RULE_AREA* area : m_rule_areas_cache )
+    {
+        if( area->GetExcludedFromPosFiles( aInstance, aVariantName ) )
+            return true;
+    }
+
+    return false;
+}
+
+
+bool SCH_ITEM::ResolveDNP( const SCH_SHEET_PATH* aInstance, const wxString& aVariantName ) const
+{
+    if( GetDNP( aInstance, aVariantName ) )
+        return true;
+
+    for( SCH_RULE_AREA* area : m_rule_areas_cache )
+    {
+        if( area->GetDNP( aInstance, aVariantName ) )
+            return true;
+    }
+
+    return false;
+}
+
+
+wxString SCH_ITEM::ResolveText( const wxString& aText, const SCH_SHEET_PATH* aPath, int aDepth ) const
+{
+    // Use aDepth to track recursion across nested GetShownText/ResolveText calls
+    int depth = aDepth;
+
+    std::function<bool( wxString* )> libSymbolResolver =
+            [&]( wxString* token ) -> bool
+            {
+                LIB_SYMBOL* symbol = static_cast<LIB_SYMBOL*>( m_parent );
+                return symbol->ResolveTextVar( token, depth + 1 );
+            };
+
+    std::function<bool( wxString* )> symbolResolver =
+            [&]( wxString* token ) -> bool
+            {
+                SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( m_parent );
+                return symbol->ResolveTextVar( aPath, token, depth + 1 );
+            };
+
+    std::function<bool( wxString* )> schematicResolver =
+            [&]( wxString* token ) -> bool
+            {
+                if( !aPath )
+                    return false;
+
+                if( SCHEMATIC* schematic = Schematic() )
+                    return schematic->ResolveTextVar( aPath, token, depth + 1 );
+
+                return false;
+            };
+
+    std::function<bool( wxString* )> sheetResolver =
+            [&]( wxString* token ) -> bool
+            {
+                if( !aPath )
+                    return false;
+
+                SCH_SHEET* sheet = static_cast<SCH_SHEET*>( m_parent );
+
+                SCHEMATIC*     schematic = Schematic();
+                SCH_SHEET_PATH path = *aPath;
+                path.push_back( sheet );
+
+                bool retval = sheet->ResolveTextVar( &path, token, depth + 1 );
+
+                if( schematic )
+                    retval |= schematic->ResolveTextVar( &path, token, depth + 1 );
+
+                return retval;
+            };
+
+    std::function<bool( wxString* )> labelResolver =
+            [&]( wxString* token ) -> bool
+            {
+                if( !aPath )
+                    return false;
+
+                SCH_LABEL_BASE* label = static_cast<SCH_LABEL_BASE*>( m_parent );
+                return label->ResolveTextVar( aPath, token, depth + 1 );
+            };
+
+    wxString variantName;
+
+    if( SCHEMATIC* schematic = Schematic() )
+        variantName = schematic->GetCurrentVariant();
+
+    // Create a unified resolver that delegates to the appropriate resolver based on parent type
+    std::function<bool( wxString* )> fieldResolver =
+            [&]( wxString* token ) -> bool
+            {
+                bool resolved = false;
+
+                if( m_parent && m_parent->Type() == LIB_SYMBOL_T )
+                    resolved = libSymbolResolver( token );
+                else if( m_parent && m_parent->Type() == SCH_SYMBOL_T )
+                    resolved = symbolResolver( token );
+                else if( m_parent && m_parent->Type() == SCH_SHEET_T )
+                    resolved = sheetResolver( token );
+                else if( m_parent && m_parent->IsType( labelTypes ) )
+                    resolved = labelResolver( token );
+                else if( Schematic() )
+                {
+                    // Project-level and schematic-level variables
+                    resolved = Schematic()->Project().TextVarResolver( token );
+                    resolved |= schematicResolver( token );
+                }
+
+                return resolved;
+            };
+
+    return ResolveTextVars( aText, &fieldResolver, depth );
 }
 
 
@@ -243,7 +476,14 @@ SCH_CONNECTION* SCH_ITEM::Connection( const SCH_SHEET_PATH* aSheet ) const
         return nullptr;
 
     if( !aSheet )
-        aSheet = &Schematic()->CurrentSheet();
+    {
+        SCHEMATIC* sch = Schematic();
+
+        if( !sch )
+            return nullptr; // Item has been removed from schematic (e.g. SCH_PIN during symbol deletion)
+
+        aSheet = &sch->CurrentSheet();
+    }
 
     auto it = m_connection_map.find( *aSheet );
 
@@ -272,17 +512,21 @@ std::shared_ptr<NETCLASS> SCH_ITEM::GetEffectiveNetClass( const SCH_SHEET_PATH* 
 
     SCHEMATIC* schematic = Schematic();
 
-    if( schematic )
-    {
-        std::shared_ptr<NET_SETTINGS>& netSettings =
-                schematic->Prj().GetProjectFile().m_NetSettings;
-        SCH_CONNECTION* connection = Connection( aSheet );
+    if( !schematic || !schematic->IsValid() )
+        return nullNetclass;
 
-        if( connection )
-            return netSettings->GetEffectiveNetClass( connection->Name() );
-        else
-            return netSettings->GetDefaultNetclass();
-    }
+    std::shared_ptr<NET_SETTINGS>& netSettings = schematic->Project().GetProjectFile().m_NetSettings;
+
+    if( !netSettings )
+        return nullNetclass;
+
+    SCH_CONNECTION* connection = Connection( aSheet );
+
+    if( connection )
+        return netSettings->GetEffectiveNetClass( connection->Name() );
+
+    if( std::shared_ptr<NETCLASS> defaultNetclass = netSettings->GetDefaultNetclass() )
+        return defaultNetclass;
 
     return nullNetclass;
 }
@@ -365,9 +609,29 @@ const wxString& SCH_ITEM::GetCachedDriverName() const
 }
 
 
-void SCH_ITEM::SwapData( SCH_ITEM* aItem )
+void SCH_ITEM::swapData( SCH_ITEM* aItem )
 {
     UNIMPLEMENTED_FOR( GetClass() );
+}
+
+
+void SCH_ITEM::SwapItemData( SCH_ITEM* aImage )
+{
+    if( aImage == nullptr )
+        return;
+
+    EDA_ITEM* parent = GetParent();
+
+    SwapFlags( aImage );
+    std::swap( m_layer, aImage->m_layer );
+    std::swap( m_unit, aImage->m_unit );
+    std::swap( m_bodyStyle, aImage->m_bodyStyle );
+    std::swap( m_private, aImage->m_private );
+    std::swap( m_fieldsAutoplaced, aImage->m_fieldsAutoplaced );
+    std::swap( m_group, aImage->m_group );
+    swapData( aImage );
+
+    SetParent( parent );
 }
 
 
@@ -408,7 +672,7 @@ void SCH_ITEM::ClearCaches()
 
     clearTextCaches( this );
 
-    RunOnChildren( clearTextCaches );
+    RunOnChildren( clearTextCaches, RECURSE_MODE::NO_RECURSE );
 }
 
 
@@ -475,12 +739,25 @@ int SCH_ITEM::compare( const SCH_ITEM& aOther, int aCompareFlags ) const
 }
 
 
-const wxString& SCH_ITEM::GetDefaultFont() const
+int SCH_ITEM::GetMaxError() const
 {
-    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
+    if( SCHEMATIC* schematic = Schematic() )
+        return schematic->Settings().m_MaxError;
+    else
+        return schIUScale.mmToIU( ARC_LOW_DEF_MM );
+}
 
-    return cfg->m_Appearance.default_font;
+
+const wxString& SCH_ITEM::GetDefaultFont( const RENDER_SETTINGS* aSettings ) const
+{
+    static wxString defaultName = KICAD_FONT_NAME;
+
+    if( aSettings )
+        return aSettings->GetDefaultFont();
+    else if( EESCHEMA_SETTINGS* cfg = GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" ) )
+        return cfg->m_Appearance.default_font;
+    else
+        return defaultName;
 }
 
 
@@ -518,7 +795,7 @@ int SCH_ITEM::GetEffectivePenWidth( const SCH_RENDER_SETTINGS* aSettings ) const
 
 bool SCH_ITEM::RenderAsBitmap( double aWorldScale ) const
 {
-    if( IsHypertext() )
+    if( HasHypertext() )
         return false;
 
     if( const EDA_TEXT* text = dynamic_cast<const EDA_TEXT*>( this ) )
@@ -528,24 +805,34 @@ bool SCH_ITEM::RenderAsBitmap( double aWorldScale ) const
 }
 
 
-void SCH_ITEM::getSymbolEditorMsgPanelInfo( EDA_DRAW_FRAME* aFrame,
-                                            std::vector<MSG_PANEL_ITEM>& aList )
+void SCH_ITEM::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    wxString msg;
-
-    aList.emplace_back( _( "Type" ), GetFriendlyName() );
-
-    if( const SYMBOL* parent = GetParentSymbol() )
+    if( SYMBOL* symbol = GetParentSymbol() )
     {
-        if( parent->GetUnitCount() )
-            aList.emplace_back( _( "Unit" ), GetUnitDescription( m_unit ) );
+        if( symbol->IsMultiUnit() )
+            aList.emplace_back( _( "Unit" ), GetUnitDisplayName( GetUnit(), false ) );
 
-        if( parent->HasAlternateBodyStyle() )
-            aList.emplace_back( _( "Body Style" ), GetBodyStyleDescription( m_bodyStyle ) );
+        if( symbol->IsMultiBodyStyle() )
+            aList.emplace_back( _( "Body Style" ), GetBodyStyleDescription( GetBodyStyle(), true ) );
+
+        if( dynamic_cast<LIB_SYMBOL*>( symbol ) && IsPrivate() )
+            aList.emplace_back( _( "Private" ), wxEmptyString );
+    }
+}
+
+
+const std::vector<wxString>* SCH_ITEM::GetEmbeddedFonts()
+{
+    if( SCHEMATIC* schematic = Schematic() )
+        return schematic->GetEmbeddedFiles()->GetFontFiles();
+
+    if( SYMBOL* symbol = GetParentSymbol() )
+    {
+        if( EMBEDDED_FILES* symbolEmbeddedFiles = symbol->GetEmbeddedFiles() )
+            return symbolEmbeddedFiles->UpdateFontFiles();
     }
 
-    if( IsPrivate() )
-        aList.emplace_back( _( "Private" ), wxEmptyString );
+    return nullptr;
 }
 
 
@@ -569,7 +856,7 @@ static struct SCH_ITEM_DESC
                     if( SCH_ITEM* schItem = dynamic_cast<SCH_ITEM*>( aItem ) )
                     {
                         if( const SYMBOL* symbol = schItem->GetParentSymbol() )
-                            return symbol->IsMulti();
+                            return symbol->IsMultiUnit();
                     }
 
                     return false;
@@ -581,21 +868,54 @@ static struct SCH_ITEM_DESC
                     if( SCH_ITEM* schItem = dynamic_cast<SCH_ITEM*>( aItem ) )
                     {
                         if( const SYMBOL* symbol = schItem->GetParentSymbol() )
-                            return symbol->HasAlternateBodyStyle();
+                            return symbol->IsMultiBodyStyle();
                     }
 
                     return false;
                 };
 
-        propMgr.AddProperty( new PROPERTY<SCH_ITEM, int>( _HKI( "Unit" ),
-                    &SCH_ITEM::SetUnitProp, &SCH_ITEM::GetUnit ) )
+        propMgr.AddProperty( new PROPERTY<SCH_ITEM, wxString>( _HKI( "Unit" ),
+                    &SCH_ITEM::SetUnitString, &SCH_ITEM::GetUnitString ) )
                 .SetAvailableFunc( multiUnit )
-                .SetIsHiddenFromDesignEditors();
+                .SetIsHiddenFromDesignEditors()
+                .SetChoicesFunc( []( INSPECTABLE* aItem )
+                                 {
+                                     wxPGChoices choices;
+                                     choices.Add( _HKI( "All units" ), 0 );
 
-        propMgr.AddProperty( new PROPERTY<SCH_ITEM, int>( _HKI( "Body Style" ),
-                    &SCH_ITEM::SetBodyStyle, &SCH_ITEM::GetBodyStyle ) )
+                                     if( SCH_ITEM* item = dynamic_cast<SCH_ITEM*>( aItem ) )
+                                     {
+                                         if( SYMBOL* symbol = item->GetParentSymbol() )
+                                         {
+                                             for( int ii = 1; ii <= symbol->GetUnitCount(); ii++ )
+                                                 choices.Add( symbol->GetUnitDisplayName( ii, false ), ii );
+                                         }
+                                     }
+
+                                     return choices;
+                                 } );
+
+
+        propMgr.AddProperty( new PROPERTY<SCH_ITEM, wxString>( _HKI( "Body Style" ),
+                    &SCH_ITEM::SetBodyStyleProp, &SCH_ITEM::GetBodyStyleProp ) )
                 .SetAvailableFunc( multiBodyStyle )
-                .SetIsHiddenFromDesignEditors();
+                .SetIsHiddenFromDesignEditors()
+                .SetChoicesFunc( []( INSPECTABLE* aItem )
+                                 {
+                                     wxPGChoices choices;
+                                     choices.Add( _HKI( "All body styles" ) );
+
+                                     if( SCH_ITEM* item = dynamic_cast<SCH_ITEM*>( aItem ) )
+                                     {
+                                         if( SYMBOL* symbol = item->GetParentSymbol() )
+                                         {
+                                             for( int ii : { BODY_STYLE::BASE, BODY_STYLE::DEMORGAN } )
+                                                 choices.Add( symbol->GetBodyStyleDescription( ii, false ) );
+                                         }
+                                     }
+
+                                     return choices;
+                                  } );
 
         propMgr.AddProperty( new PROPERTY<SCH_ITEM, bool>( _HKI( "Private" ),
                     &SCH_ITEM::SetPrivate, &SCH_ITEM::IsPrivate ) )

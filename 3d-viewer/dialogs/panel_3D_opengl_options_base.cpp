@@ -32,7 +32,7 @@ PANEL_3D_OPENGL_OPTIONS_BASE::PANEL_3D_OPENGL_OPTIONS_BASE( wxWindow* parent, wx
 	m_checkBoxBoundingBoxes = new wxCheckBox( this, wxID_ANY, _("Show model bounding boxes"), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizerMargins->Add( m_checkBoxBoundingBoxes, 0, wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 
-	m_checkBoxCuThickness = new wxCheckBox( this, wxID_ANY, _("Show copper and tech layers thickness (very slow)"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_checkBoxCuThickness = new wxCheckBox( this, wxID_ANY, _("Show copper and tech layers thickness (slow)"), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizerMargins->Add( m_checkBoxCuThickness, 0, wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 
 	m_checkBoxHighlightOnRollOver = new wxCheckBox( this, wxID_ANY, _("Highlight items on rollover"), wxDefaultPosition, wxDefaultSize, 0 );
@@ -88,10 +88,10 @@ PANEL_3D_OPENGL_OPTIONS_BASE::PANEL_3D_OPENGL_OPTIONS_BASE( wxWindow* parent, wx
 	m_checkBoxDisableMoveThickness = new wxCheckBox( this, wxID_ANY, _("Disable thickness"), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizer3->Add( m_checkBoxDisableMoveThickness, 0, wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 
-	m_checkBoxDisableMoveVias = new wxCheckBox( this, wxID_ANY, _("Disable vias"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_checkBoxDisableMoveVias = new wxCheckBox( this, wxID_ANY, _("Disable uVia holes"), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizer3->Add( m_checkBoxDisableMoveVias, 0, wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 
-	m_checkBoxDisableMoveHoles = new wxCheckBox( this, wxID_ANY, _("Disable holes"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_checkBoxDisableMoveHoles = new wxCheckBox( this, wxID_ANY, _("Disable all plated holes"), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizer3->Add( m_checkBoxDisableMoveHoles, 0, wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 
 

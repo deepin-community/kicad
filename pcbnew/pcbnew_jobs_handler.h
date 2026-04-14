@@ -31,16 +31,20 @@ class FOOTPRINT;
 class JOB_EXPORT_PCB_GERBER;
 class JOB_EXPORT_PCB_GERBERS;
 class JOB_FP_EXPORT_SVG;
+class TOOL_MANAGER;
 
 class PCBNEW_JOBS_HANDLER : public JOB_DISPATCHER
 {
 public:
     PCBNEW_JOBS_HANDLER( KIWAY* aKiway );
+    virtual ~PCBNEW_JOBS_HANDLER();
+
     int JobExportStep( JOB* aJob );
     int JobExportRender( JOB* aJob );
     int JobExportSvg( JOB* aJob );
     int JobExportDxf( JOB* aJob );
     int JobExportPdf( JOB* aJob );
+    int JobExportPs( JOB* aJob );
     int JobExportGerber( JOB* aJob );
     int JobExportGerbers( JOB* aJob );
     int JobExportGencad( JOB* aJob );
@@ -52,6 +56,9 @@ public:
     int JobExportIpc2581( JOB* aJob );
     int JobExportOdb( JOB* aJob );
     int JobExportIpcD356( JOB* aJob );
+    int JobExportStats( JOB* aJob );
+    int JobUpgrade( JOB* aJob );
+    int JobImport( JOB* aJob );
 
 private:
     BOARD* getBoard( const wxString& aPath = wxEmptyString );
@@ -63,10 +70,14 @@ private:
                                            JOB_EXPORT_PCB_GERBERS* aJob );
     int  doFpExportSvg( JOB_FP_EXPORT_SVG* aSvgJob, const FOOTPRINT* aFootprint );
     void loadOverrideDrawingSheet( BOARD* brd, const wxString& aSheetPath );
+    wxString resolveJobOutputPath( JOB* aJob, BOARD* aBoard, const wxString* aDrawingSheet = nullptr );
 
     DS_PROXY_VIEW_ITEM* getDrawingSheetProxyView( BOARD* aBrd );
 
+    TOOL_MANAGER* getToolManager( BOARD* aBrd );
+
     BOARD* m_cliBoard;
+    std::unique_ptr<TOOL_MANAGER> m_toolManager;
 };
 
 #endif

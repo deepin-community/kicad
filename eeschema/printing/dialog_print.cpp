@@ -31,7 +31,16 @@
 #include <settings/settings_manager.h>
 #include <wx/print.h>
 #include <wx/printdlg.h>
+#include <wx/filename.h>
 #include "dialog_print.h"
+
+
+#include <dialogs/panel_printer_list.h>
+
+#include <advanced_config.h>
+#include <printing.h>
+#include <sch_plotter.h>
+
 #include "sch_printout.h"
 
 
@@ -89,7 +98,9 @@ DIALOG_PRINT::DIALOG_PRINT( SCH_EDIT_FRAME* aParent ) :
         m_parent( aParent )
 {
     wxASSERT( aParent );
-    m_useCairo = ADVANCED_CFG::GetCfg().m_EnableEeschemaPrintCairo;
+
+    // Show m_panelPrinters only if there are printers to list:
+    m_panelPrinters->Show( m_panelPrinters->AsPrintersAvailable() );
 
     SetupStandardButtons( { { wxID_OK,     _( "Print" )         },
                             { wxID_APPLY,  _( "Print Preview" ) },
@@ -97,16 +108,25 @@ DIALOG_PRINT::DIALOG_PRINT( SCH_EDIT_FRAME* aParent ) :
 
 #ifdef __WXMAC__
     // Problems with modal on wx-2.9 - Anyway preview is standard for OSX
-    m_sdbSizer1Apply->Hide();
+    m_sdbSizerApply->Hide();
 #endif
 #if defined(__WXGTK__)
     // Preview using Cairo does not work on GTK,
     // but this platform provide native print preview
-    if( m_useCairo )
-        m_sdbSizer1Apply->Hide();
+    m_sdbSizerApply->Hide();
 #endif
 
-    m_sdbSizer1OK->SetFocus();
+    // New printing subsystem has print preview on all platforms
+#if defined( _MSC_VER )
+    if( ADVANCED_CFG::GetCfg().m_UsePdfPrint )
+    {
+        m_sdbSizerApply->Hide();
+    }
+#endif
+
+    m_sdbSizerOK->SetFocus();
+
+    Layout();
 
     finishDialogSettings();
 }
@@ -236,12 +256,19 @@ void DIALOG_PRINT::OnPageSetup( wxCommandEvent& event )
 void DIALOG_PRINT::OnPrintPreview( wxCommandEvent& event )
 {
     SavePrintOptions();
+    wxPrintData& prn_data = m_parent->GetPageSetupData().GetPrintData();
+
+    wxString selectedPrinterName;
+
+    if( m_panelPrinters )
+        selectedPrinterName = m_panelPrinters->GetSelectedPrinterName();
+
+    prn_data.SetPrinterName( selectedPrinterName );
 
     // Pass two printout objects: for preview, and possible printing.
     wxString        title   = _( "Preview" );
-    wxPrintPreview* preview = new wxPrintPreview( new SCH_PRINTOUT( m_parent, title, m_useCairo ),
-                                                  new SCH_PRINTOUT( m_parent, title, m_useCairo ),
-                                                  &m_parent->GetPageSetupData().GetPrintData() );
+    wxPrintPreview* preview = new wxPrintPreview( new SCH_PRINTOUT( m_parent, title ),
+                                                  new SCH_PRINTOUT( m_parent, title ), &prn_data );
 
     preview->SetZoom( 100 );
 
@@ -282,9 +309,54 @@ bool DIALOG_PRINT::TransferDataFromWindow()
 
     SavePrintOptions();
 
+#ifndef __MINGW32__
+    if( ADVANCED_CFG::GetCfg().m_UsePdfPrint )
+    {
+        EESCHEMA_SETTINGS* cfg = m_parent->eeconfig();
+
+        SCH_RENDER_SETTINGS renderSettings( *m_parent->GetRenderSettings() );
+        renderSettings.m_ShowHiddenPins = false;
+        renderSettings.m_ShowHiddenFields = false;
+
+        COLOR_SETTINGS* cs = ::GetColorSettings( cfg->m_Printing.use_theme
+                                                ? cfg->m_Printing.color_theme
+                                                : cfg->m_ColorTheme );
+        renderSettings.LoadColors( cs );
+
+        SCH_PLOT_OPTS plotOpts;
+        plotOpts.m_plotDrawingSheet = cfg->m_Printing.title_block;
+        plotOpts.m_blackAndWhite = cfg->m_Printing.monochrome;
+        plotOpts.m_useBackgroundColor = cfg->m_Printing.background;
+        plotOpts.m_theme = cfg->m_Printing.use_theme ? cfg->m_Printing.color_theme
+                                                     : cfg->m_ColorTheme;
+
+        wxFileName tmp = wxFileName::CreateTempFileName( wxS( "eeschema_print" ) );
+        wxRemoveFile( tmp.GetFullPath() );
+        tmp.SetExt( wxS( "pdf" ) );
+        plotOpts.m_outputFile = tmp.GetFullPath();
+
+        SCH_PLOTTER plotter( m_parent );
+
+        Pgm().m_Printing = true;
+        plotter.Plot( PLOT_FORMAT::PDF, plotOpts, &renderSettings, nullptr );
+        Pgm().m_Printing = false;
+
+        KIPLATFORM::PRINTING::PRINT_RESULT result =
+                KIPLATFORM::PRINTING::PrintPDF( TO_UTF8( plotter.GetLastOutputFilePath() ) );
+
+        if( result != KIPLATFORM::PRINTING::PRINT_RESULT::OK &&
+            result != KIPLATFORM::PRINTING::PRINT_RESULT::CANCELLED )
+        {
+            DisplayError( this, KIPLATFORM::PRINTING::PrintResultToString( result ) );
+        }
+
+        return true;
+    }
+#endif
+
     int sheet_count = m_parent->Schematic().Root().CountSheets();
 
-    wxPrintData data = m_parent->GetPageSetupData().GetPrintData();
+    wxPrintData& data = m_parent->GetPageSetupData().GetPrintData();
 
 #if defined( __WXGTK__ ) && !wxCHECK_VERSION( 3, 2, 3 )
     // In GTK, the default bottom margin is bigger by 0.31 inches for
@@ -296,8 +368,9 @@ bool DIALOG_PRINT::TransferDataFromWindow()
     // Using custom page size avoids the problematic
     // gtk_page_setup_set_paper_size_and_default_margins call in wxWidgets.
 
-    wxPaperSize   paperId = data.GetPaperId();
-    const wxChar* paperType = nullptr;
+    wxPaperSize     paperId = data.GetPaperId();
+    PAGE_SIZE_TYPE  paperType = PAGE_SIZE_TYPE::A4; // default; overwritten below when matched
+    bool            havePaperType = false;
 
     // clang-format off
     std::set<wxPaperSize> letterSizes = {
@@ -324,13 +397,22 @@ bool DIALOG_PRINT::TransferDataFromWindow()
     // clang-format on
 
     if( letterSizes.count( paperId ) )
-        paperType = PAGE_INFO::USLetter;
+    {
+        paperType = PAGE_SIZE_TYPE::USLetter;
+        havePaperType = true;
+    }
     else if( legalSizes.count( paperId ) )
-        paperType = PAGE_INFO::USLegal;
+    {
+        paperType = PAGE_SIZE_TYPE::USLegal;
+        havePaperType = true;
+    }
     else if( a4Sizes.count( paperId ) )
-        paperType = PAGE_INFO::A4;
+    {
+        paperType = PAGE_SIZE_TYPE::A4;
+        havePaperType = true;
+    }
 
-    if( paperType )
+    if( havePaperType )
     {
         PAGE_INFO pageInfo( paperType, data.GetOrientation() == wxPORTRAIT );
 
@@ -346,6 +428,12 @@ bool DIALOG_PRINT::TransferDataFromWindow()
     }
 #endif
 
+    wxString selectedPrinterName;
+
+    if( m_panelPrinters )
+        selectedPrinterName = m_panelPrinters->GetSelectedPrinterName();
+    data.SetPrinterName( selectedPrinterName );
+
     wxPrintDialogData printDialogData( data );
     printDialogData.SetMaxPage( sheet_count );
 
@@ -353,7 +441,7 @@ bool DIALOG_PRINT::TransferDataFromWindow()
         printDialogData.EnablePageNumbers( true );
 
     wxPrinter printer( &printDialogData );
-    SCH_PRINTOUT printout( m_parent, _( "Print Schematic" ), m_useCairo );
+    SCH_PRINTOUT printout( m_parent, _( "Print Schematic" ) );
 
     Pgm().m_Printing = true;
     {

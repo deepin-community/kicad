@@ -24,37 +24,52 @@
 #include <dialogs/panel_data_collection.h>
 
 #include <advanced_config.h>
+#include <app_monitor.h>
 #include <bitmaps.h>
 #include <dialog_shim.h>
 #include <kiface_base.h>
 #include <kiplatform/policy.h>
 #include <kiplatform/ui.h>
-#include <pgm_base.h>
 #include <policy_keys.h>
 #include <id.h>
 #include <settings/common_settings.h>
 #include <settings/settings_manager.h>
 
 
-PANEL_DATA_COLLECTION::PANEL_DATA_COLLECTION( wxWindow* aParent ) :
-        PANEL_DATA_COLLECTION_BASE( aParent )
+PANEL_DATA_COLLECTION::PANEL_DATA_COLLECTION( std::shared_ptr<PANEL_DATA_COLLECTION_MODEL> aModel,
+                                              wxWindow* aParent, bool aWizard ) :
+        PANEL_DATA_COLLECTION_BASE( aParent ),
+        m_model( aModel ), m_wizard( aWizard )
 {
+}
+
+
+PANEL_DATA_COLLECTION::PANEL_DATA_COLLECTION( wxWindow* aParent ) :
+        PANEL_DATA_COLLECTION_BASE( aParent ), m_wizard( false )
+{
+    m_model = std::make_shared<PANEL_DATA_COLLECTION_MODEL>();
 }
 
 
 bool PANEL_DATA_COLLECTION::TransferDataToWindow()
 {
-    applySettingsToPanel();
-
-    KIPLATFORM::POLICY::PBOOL policyState =
-            KIPLATFORM::POLICY::GetPolicyBool( POLICY_KEY_DATACOLLECTION );
-
-    if( policyState != KIPLATFORM::POLICY::PBOOL::NOT_CONFIGURED )
+    if( !m_wizard )
     {
-        Disable();
-    }
+        applySettingsToPanel();
 
-    m_sentryUid->SetValue( Pgm().GetSentryId() );
+        KIPLATFORM::POLICY::PBOOL policyState =
+                KIPLATFORM::POLICY::GetPolicyBool( POLICY_KEY_DATACOLLECTION );
+
+        if( policyState != KIPLATFORM::POLICY::PBOOL::NOT_CONFIGURED )
+            Disable();
+
+        m_sentryUid->SetValue( APP_MONITOR::SENTRY::Instance()->GetSentryId() );
+    }
+    else
+    {
+        m_sentryUid->Hide();
+        m_buttonResetId->Hide();
+    }
 
     return true;
 }
@@ -62,7 +77,10 @@ bool PANEL_DATA_COLLECTION::TransferDataToWindow()
 
 bool PANEL_DATA_COLLECTION::TransferDataFromWindow()
 {
-    Pgm().SetSentryOptIn( m_cbOptIn->GetValue() );
+    m_model->m_enableSentry = m_cbOptIn->GetValue();
+
+    if( !m_wizard )
+        APP_MONITOR::SENTRY::Instance()->SetSentryOptIn( m_model->m_enableSentry );
 
     return true;
 }
@@ -76,12 +94,12 @@ void PANEL_DATA_COLLECTION::ResetPanel()
 
 void PANEL_DATA_COLLECTION::applySettingsToPanel()
 {
-    m_cbOptIn->SetValue( Pgm().IsSentryOptedIn() );
+    m_cbOptIn->SetValue( APP_MONITOR::SENTRY::Instance()->IsOptedIn() );
 }
 
 
 void PANEL_DATA_COLLECTION::OnResetIdClick( wxCommandEvent& aEvent )
 {
-    Pgm().ResetSentryId();
-    m_sentryUid->SetValue( Pgm().GetSentryId() );
+    APP_MONITOR::SENTRY::Instance()->ResetSentryId();
+    m_sentryUid->SetValue( APP_MONITOR::SENTRY::Instance()->GetSentryId() );
 }

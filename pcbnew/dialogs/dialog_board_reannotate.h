@@ -23,11 +23,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef DIALOG_BOARD_REANNOTATE_H
-#define DIALOG_BOARD_REANNOTATE_H
+#pragma once
 
-#include <board.h>
-#include <footprint.h>
 #include <dialogs/dialog_board_reannotate_base.h>
 #include <layer_ids.h>
 #include <netlist_reader/pcb_netlist.h>
@@ -58,21 +55,13 @@ enum ACTION_CODE
     EXCLUDE_REFDES
 };
 
-enum ANNOTATION_SCOPE
-{
-    ANNOTATE_ALL = 0,
-    ANNOTATE_FRONT,
-    ANNOTATE_BACK,
-    ANNOTATE_SELECTED
-};
-
 struct REFDES_CHANGE
 {
-    KIID        Uuid;
-    wxString    NewRefDes;          // The new reference designation (F_U21)
-    wxString    OldRefDesString;    // What the old refdes preamble + number was
-    bool        Front;              // True if on the front of the board
-    ACTION_CODE  Action;             // Used to skip (if #, etc)
+    KIID         Uuid;
+    wxString     NewRefDes;         // The new reference designation (F_U21)
+    wxString     OldRefDesString;   // What the old refdes preamble + number was
+    bool         Front;             // True if on the front of the board
+    ACTION_CODE  Action;            // Used to skip (if #, etc)
 };
 
 struct REFDES_INFO
@@ -80,17 +69,17 @@ struct REFDES_INFO
     KIID        Uuid;
     bool        Front;              // True if on the front of the board
     wxString    RefDesString;       // What its refdes is R1, C2
-    wxString    RefDesType;         // ie R, C, etc
+    wxString    RefDesPrefix;       // ie R, C, etc
     int         x, y;               // The coordinates
     int         roundedx, roundedy; // The coordinates after rounding.
-    ACTION_CODE  Action;             // Used to skip (if #, etc)
+    ACTION_CODE Action;             // Used to skip (if #, etc)
     LIB_ID      FPID;
 };
 
-struct REFDES_TYPE_STR
+struct REFDES_PREFIX_INFO
 {
-    wxString     RefDesType;
-    unsigned int LastUsedRefDes;
+    wxString               RefDesPrefix;
+    unsigned int           LastUsedRefDes;
     std::set<unsigned int> UnavailableRefs;
 };
 
@@ -99,7 +88,7 @@ class DIALOG_BOARD_REANNOTATE : public DIALOG_BOARD_REANNOTATE_BASE
 {
 public:
     DIALOG_BOARD_REANNOTATE( PCB_EDIT_FRAME* aParentFrame );
-    ~DIALOG_BOARD_REANNOTATE();
+    ~DIALOG_BOARD_REANNOTATE() = default;
 
 private:
     std::vector<wxRadioButton*> m_sortButtons = {
@@ -131,10 +120,7 @@ private:
             reannotate_left_up_bitmap
     };
 
-    void GetParameters( void );
-
-    /// Copy saved app settings to the dialog.
-    void InitValues( void );
+    bool TransferDataToWindow() override;
 
     void OnApplyClick( wxCommandEvent& event ) override;
     void OnCloseClick( wxCommandEvent& event ) override;
@@ -145,7 +131,7 @@ private:
     void ShowReport( const wxString& aMessage, SEVERITY aSeverity );
 
 	/// Create a list of the footprints and their coordinates.
-    void LogFootprints( const wxString& aMessage, const std::vector<REFDES_INFO>& aFootprints );
+    void LogFootprints( const std::vector<REFDES_INFO>& aFootprints );
 
     /// Create an audit trail of the changes.
     void LogChangePlan( void );
@@ -176,41 +162,20 @@ private:
     /// @return the string
     wxString CoordTowxString( int aX, int aY );
 
-    /// Make the text to summarize what is about to happen.
-    void MakeSampleText( wxString& aMessage );
-
     /// Check to make sure the prefix (if there is one) is properly constructed.
     void FilterPrefix( wxTextCtrl* aPrefix );
 
     /// Get the structure representing the information currently held for aRefDesPrefix or create one
     /// if it doesn't exist
-    REFDES_TYPE_STR* GetOrBuildRefDesInfo( const wxString& aRefDesPrefix, unsigned int aStartRefDes = 0 );
+    REFDES_PREFIX_INFO* GetOrBuildRefDesInfo( const wxString& aRefDesPrefix, int aStartRefDes = 1 );
 
+private:
     PCB_EDIT_FRAME*  m_frame;
     FOOTPRINTS       m_footprints;
-    PCB_SELECTION    m_selection;
 
-    std::vector<REFDES_CHANGE>  m_changeArray;
-    std::vector<REFDES_INFO>    m_frontFootprints;
-    std::vector<REFDES_INFO>    m_backFootprints;
-    std::vector<REFDES_TYPE_STR> m_refDesTypes;
-    std::vector<wxString>      m_excludeArray;
-
-    int m_sortCode;
-    int m_gridIndex;
-    int m_annotationScope;
-    int m_severity;
-
-    double m_sortGridx;
-    double m_sortGridy;
-
-    wxString m_frontPrefixString;
-    wxString m_backPrefixString;
-    wxString m_validPrefixes;
-
-    APP_SETTINGS_BASE* m_settings;
-
-    APP_SETTINGS_BASE* m_Config;
+    std::vector<REFDES_CHANGE>      m_changeArray;
+    std::vector<REFDES_INFO>        m_frontFootprints;
+    std::vector<REFDES_INFO>        m_backFootprints;
+    std::vector<REFDES_PREFIX_INFO> m_refDesPrefixInfos;
+    std::vector<wxString>           m_excludeArray;
 };
-
-#endif /* DIALOG_BOARD_REANNOTATE_H */

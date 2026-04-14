@@ -22,9 +22,12 @@
  */
 
 #include <vector>
+#include <map>
 
 #include <gal/cursors.h>
 #include <kiplatform/ui.h>
+#include <pgm_base.h>
+#include <settings/common_settings.h>
 
 // Cursor files
 #include <cursors/cursor-add.xpm>
@@ -45,9 +48,16 @@
 #include <cursors/cursor-xor.xpm>
 #include <cursors/cursor-zoom-in.xpm>
 #include <cursors/cursor-zoom-out.xpm>
+// Under MSW, the standard cursor is white on black.  Elsewhere it is black on white
+#ifdef __WINDOWS__
 #include <cursors/cursor_tune.xpm>
-#include <cursors/voltage_probe.xpm>
-#include <cursors/current_probe.xpm>
+#include <cursors/voltage_probe_win.xpm>
+#include <cursors/current_probe_win.xpm>
+#else
+#include <cursors/cursor_tune_black.xpm>
+#include <cursors/voltage_probe_black.xpm>
+#include <cursors/current_probe_black.xpm>
+#endif
 
 // HiDPI cursor files
 #include <cursors/cursor-add64.xpm>
@@ -68,9 +78,15 @@
 #include <cursors/cursor-xor64.xpm>
 #include <cursors/cursor-zoom-in64.xpm>
 #include <cursors/cursor-zoom-out64.xpm>
+#ifdef __WINDOWS__
 #include <cursors/cursor_tune64.xpm>
-#include <cursors/voltage_probe64.xpm>
-#include <cursors/current_probe64.xpm>
+#include <cursors/voltage_probe_win64.xpm>
+#include <cursors/current_probe_win64.xpm>
+#else
+#include <cursors/cursor_tune_black64.xpm>
+#include <cursors/voltage_probe_black64.xpm>
+#include <cursors/current_probe_black64.xpm>
+#endif
 
 
 // Under MSW, the standard cursor is white on black.  Elsewhere it is black on white
@@ -79,522 +95,345 @@
 #include <cursors/cursor-place64.xpm>
 #include <cursors/cursor-select-m.xpm>
 #include <cursors/cursor-select-m64.xpm>
+#include <cursors/cursor-warning.xpm>
+#include <cursors/cursor-warning64.xpm>
 #else
 #include <cursors/cursor-place-black.xpm>
 #include <cursors/cursor-place-black64.xpm>
 #include <cursors/cursor-select-m-black.xpm>
 #include <cursors/cursor-select-m-black64.xpm>
+#include <cursors/cursor-warning-black.xpm>
+#include <cursors/cursor-warning-black64.xpm>
 #endif
 
 #include <wx/bitmap.h>
 #include <wx/debug.h>
+#include <wx/bmpbndl.h>
 
 
-static const std::vector<CURSOR_STORE::CURSOR_DEF> standard_cursors = {
+static const std::map<KICURSOR, std::vector<CURSOR_STORE::CURSOR_DEF>> cursors_defs = {
     {
         KICURSOR::VOLTAGE_PROBE,
-        nullptr,
-        nullptr,
-        voltage_probe_xpm,
-        { 32, 32 },
-        { 1, 31 },
+        {
+            { voltage_probe_xpm, { 1, 31 } },
+            { voltage_probe64_xpm, { 1, 62 } }
+        }
     },
     {
         KICURSOR::CURRENT_PROBE,
-        nullptr,
-        nullptr,
-        current_probe_xpm,
-        { 32, 32 },
-        { 4, 27 },
+        {
+            { current_probe_xpm, { 4, 27 } },
+            { current_probe64_xpm, { 8, 54 } }
+        }
     },
     {
         KICURSOR::TUNE,
-        nullptr,
-        nullptr,
-        cursor_tune_xpm,
-        { 32, 32 },
-        { 1, 30 },
+        {
+            { cursor_tune_xpm, { 1, 30 } },
+            { cursor_tune64_xpm, { 2, 60 } }
+        }
     },
     {
         KICURSOR::PENCIL,
-        nullptr,
-        nullptr,
-        cursor_pencil_xpm,
-        { 32, 32 },
-        { 4, 27 },
+        {
+            { cursor_pencil_xpm, { 4, 27 } },
+            { cursor_pencil64_xpm, { 8, 54 } }
+        }
     },
     {
         KICURSOR::MOVING,
-        nullptr,
-        nullptr,
+        {
+            {
 #ifdef __WINDOWS__
-        cursor_select_m_xpm,
+                cursor_select_m_xpm,
 #else
-        cursor_select_m_black_xpm,
+                cursor_select_m_black_xpm,
 #endif
-        { 32, 32 },
-        { 1, 1 },
+                { 1, 1 }
+            },
+            {
+#ifdef __WINDOWS__
+                cursor_select_m64_xpm,
+#else
+                cursor_select_m_black64_xpm,
+#endif
+                { 2, 2 }
+            }
+        }
+    },
+    {
+        KICURSOR::WARNING,
+        {
+            {
+#ifdef __WINDOWS__
+                cursor_warning_xpm,
+#else
+                cursor_warning_black_xpm,
+#endif
+                { 1, 1 }
+            },
+            {
+#ifdef __WINDOWS__
+                cursor_warning64_xpm,
+#else
+                cursor_warning_black64_xpm,
+#endif
+                { 2, 2 }
+            }
+        }
     },
     {
         KICURSOR::REMOVE,
-        nullptr,
-        nullptr,
-        cursor_eraser_xpm,
-        { 32, 32 },
-        { 4, 4 },
+        {
+            { cursor_eraser_xpm, { 4, 4 } },
+            { cursor_eraser64_xpm, { 8, 8 } }
+        }
     },
     {
         KICURSOR::TEXT,
-        nullptr,
-        nullptr,
-        cursor_text_xpm,
-        { 32, 32 },
-        { 7, 7 },
+        {
+            { cursor_text_xpm, { 7, 7 } },
+            { cursor_text64_xpm, { 14, 14 } }
+        }
     },
     {
         KICURSOR::MEASURE,
-        nullptr,
-        nullptr,
-        cursor_measure_xpm,
-        { 32, 32 },
-        { 4, 4 },
+        {
+            { cursor_measure_xpm, { 4, 4 } },
+            { cursor_measure64_xpm, { 8, 8 } }
+        }
     },
     {
         KICURSOR::ADD,
-        nullptr,
-        nullptr,
-        cursor_add_xpm,
-        { 32, 32 },
-        { 7, 7 },
+        {
+            { cursor_add_xpm, { 7, 7 } },
+            { cursor_add64_xpm, { 14, 14 } }
+        }
     },
     {
         KICURSOR::SUBTRACT,
-        nullptr,
-        nullptr,
-        cursor_subtract_xpm,
-        { 32, 32 },
-        { 7, 7 },
+        {
+            { cursor_subtract_xpm, { 7, 7 } },
+            { cursor_subtract64_xpm, { 14, 14 } }
+        }
     },
     {
         KICURSOR::XOR,
-        nullptr,
-        nullptr,
-        cursor_xor_xpm,
-        { 32, 32 },
-        { 7, 7 },
+        {
+            { cursor_xor_xpm, { 7, 7 } },
+            { cursor_xor64_xpm, { 14, 14 } }
+        }
     },
     {
         KICURSOR::ZOOM_IN,
-        nullptr,
-        nullptr,
-        cursor_zoom_in_xpm,
-        { 32, 32 },
-        { 6, 6 },
+        {
+            { cursor_zoom_in_xpm, { 6, 6 } },
+            { cursor_zoom_in64_xpm, { 12, 12 } }
+        }
     },
     {
         KICURSOR::ZOOM_OUT,
-        nullptr,
-        nullptr,
-        cursor_zoom_out_xpm,
-        { 32, 32 },
-        { 6, 6 },
+        {
+            { cursor_zoom_out_xpm, { 6, 6 } },
+            { cursor_zoom_out64_xpm, { 12, 12 } }
+        }
     },
     {
         KICURSOR::LABEL_NET,
-        nullptr,
-        nullptr,
-        cursor_label_net_xpm,
-        { 32, 32 },
-        { 7, 7 },
+        {
+            { cursor_label_net_xpm, { 7, 7 } },
+            { cursor_label_net64_xpm, { 14, 14 } }
+        }
     },
     {
         KICURSOR::LABEL_GLOBAL,
-        nullptr,
-        nullptr,
-        cursor_label_global_xpm,
-        { 32, 32 },
-        { 7, 7 },
+        {
+            { cursor_label_global_xpm, { 7, 7 } },
+            { cursor_label_global64_xpm, { 14, 14 } }
+        }
     },
     {
         KICURSOR::COMPONENT,
-        nullptr,
-        nullptr,
-        cursor_component_xpm,
-        { 32, 32 },
-        { 7, 7 },
+        {
+            { cursor_component_xpm, { 7, 7 } },
+            { cursor_component64_xpm, { 14, 14 } }
+        }
     },
     {
         KICURSOR::SELECT_LASSO,
-        nullptr,
-        nullptr,
-        cursor_select_lasso_xpm,
-        { 32, 32 },
-        { 7, 7 },
+        {
+            { cursor_select_lasso_xpm, { 7, 7 } },
+            { cursor_select_lasso64_xpm, { 14, 14 } }
+        }
     },
     {
         KICURSOR::SELECT_WINDOW,
-        nullptr,
-        nullptr,
-        cursor_select_window_xpm,
-        { 32, 32 },
-        { 7, 10 },
+        {
+            { cursor_select_window_xpm, { 7, 10 } },
+            { cursor_select_window64_xpm, { 14, 20 } }
+        }
     },
     {
         KICURSOR::LINE_BUS,
-        nullptr,
-        nullptr,
-        cursor_line_bus_xpm,
-        { 32, 32 },
-        { 5, 26 },
+        {
+            { cursor_line_bus_xpm, { 5, 26 } },
+            { cursor_line_bus64_xpm, { 10, 52 } }
+        }
     },
     {
         KICURSOR::LINE_WIRE,
-        nullptr,
-        nullptr,
-        cursor_line_wire_xpm,
-        { 32, 32 },
-        { 5, 26 },
+        {
+            { cursor_line_wire_xpm, { 5, 26 } },
+            { cursor_line_wire64_xpm, { 10, 52 } }
+        }
     },
     {
         KICURSOR::LINE_GRAPHIC,
-        nullptr,
-        nullptr,
-        cursor_line_graphic_xpm,
-        { 32, 32 },
-        { 5, 26 },
+        {
+            { cursor_line_graphic_xpm, { 5, 26 } },
+            { cursor_line_graphic64_xpm, { 10, 52 } }
+        }
     },
     {
         KICURSOR::LABEL_HIER,
-        nullptr,
-        nullptr,
-        cursor_label_hier_xpm,
-        { 32, 32 },
-        { 7, 7 },
+        {
+            { cursor_label_hier_xpm, { 7, 7 } },
+            { cursor_label_hier64_xpm, { 14, 14 } }
+        }
     },
     {
         KICURSOR::PLACE,
-        nullptr,
-        nullptr,
+        {
+            {
 #ifdef __WINDOWS__
-        cursor_place_xpm,
+                cursor_place_xpm,
 #else
-        cursor_place_black_xpm,
+                cursor_place_black_xpm,
 #endif
-        { 32, 32 },
-        { 1, 1 },
-    },
-};
-
-
-static const std::vector<CURSOR_STORE::CURSOR_DEF> hidpi_cursors = {
-    {
-        KICURSOR::VOLTAGE_PROBE,
-        nullptr,
-        nullptr,
-        voltage_probe64_xpm,
-        { 64, 64 },
-        { 1, 62 },
-    },
-    {
-        KICURSOR::CURRENT_PROBE,
-        nullptr,
-        nullptr,
-        current_probe64_xpm,
-        { 64, 64 },
-        { 8, 54 },
-    },
-    {
-        KICURSOR::TUNE,
-        nullptr,
-        nullptr,
-        cursor_tune64_xpm,
-        { 64, 64 },
-        { 2, 60 },
-    },
-    {
-        KICURSOR::PENCIL,
-        nullptr,
-        nullptr,
-        cursor_pencil64_xpm,
-        { 64, 64 },
-        { 8, 54 },
-    },
-    {
-        KICURSOR::MOVING,
-        nullptr,
-        nullptr,
+                { 1, 1 }
+            },
+            {
 #ifdef __WINDOWS__
-        cursor_select_m64_xpm,
+                cursor_place64_xpm,
 #else
-        cursor_select_m_black64_xpm,
+                cursor_place_black64_xpm,
 #endif
-        { 64, 64 },
-        { 2, 2 },
-    },
-    {
-        KICURSOR::REMOVE,
-        nullptr,
-        nullptr,
-        cursor_eraser64_xpm,
-        { 64, 64 },
-        { 8, 8 },
-    },
-    {
-        KICURSOR::TEXT,
-        nullptr,
-        nullptr,
-        cursor_text64_xpm,
-        { 64, 64 },
-        { 14, 14 },
-    },
-    {
-        KICURSOR::MEASURE,
-        nullptr,
-        nullptr,
-        cursor_measure64_xpm,
-        { 64, 64 },
-        { 8, 8 },
-    },
-    {
-        KICURSOR::ADD,
-        nullptr,
-        nullptr,
-        cursor_add64_xpm,
-        { 64, 64 },
-        { 14, 14 },
-    },
-    {
-        KICURSOR::SUBTRACT,
-        nullptr,
-        nullptr,
-        cursor_subtract64_xpm,
-        { 64, 64 },
-        { 14, 14 },
-    },
-    {
-        KICURSOR::XOR,
-        nullptr,
-        nullptr,
-        cursor_xor64_xpm,
-        { 64, 64 },
-        { 14, 14 },
-    },
-    {
-        KICURSOR::ZOOM_IN,
-        nullptr,
-        nullptr,
-        cursor_zoom_in64_xpm,
-        { 64, 64 },
-        { 12, 12 },
-    },
-    {
-        KICURSOR::ZOOM_OUT,
-        nullptr,
-        nullptr,
-        cursor_zoom_out64_xpm,
-        { 64, 64 },
-        { 12, 12 },
-    },
-    {
-        KICURSOR::LABEL_NET,
-        nullptr,
-        nullptr,
-        cursor_label_net64_xpm,
-        { 64, 64 },
-        { 14, 14 },
-    },
-    {
-        KICURSOR::LABEL_GLOBAL,
-        nullptr,
-        nullptr,
-        cursor_label_global64_xpm,
-        { 64, 64 },
-        { 14, 14 },
-    },
-    {
-        KICURSOR::COMPONENT,
-        nullptr,
-        nullptr,
-        cursor_component64_xpm,
-        { 64, 64 },
-        { 14, 14 },
-    },
-    {
-        KICURSOR::SELECT_LASSO,
-        nullptr,
-        nullptr,
-        cursor_select_lasso64_xpm,
-        { 64, 64 },
-        { 14, 14 },
-    },
-    {
-        KICURSOR::SELECT_WINDOW,
-        nullptr,
-        nullptr,
-        cursor_select_window64_xpm,
-        { 64, 64 },
-        { 14, 20 },
-    },
-    {
-        KICURSOR::LINE_BUS,
-        nullptr,
-        nullptr,
-        cursor_line_bus64_xpm,
-        { 64, 64 },
-        { 10, 52 },
-    },
-    {
-        KICURSOR::LINE_WIRE,
-        nullptr,
-        nullptr,
-        cursor_line_wire64_xpm,
-        { 64, 64 },
-        { 10, 52 },
-    },
-    {
-        KICURSOR::LINE_GRAPHIC,
-        nullptr,
-        nullptr,
-        cursor_line_graphic64_xpm,
-        { 64, 64 },
-        { 10, 52 },
-    },
-    {
-        KICURSOR::LABEL_HIER,
-        nullptr,
-        nullptr,
-        cursor_label_hier64_xpm,
-        { 64, 64 },
-        { 14, 14 },
-    },
-    {
-        KICURSOR::PLACE,
-        nullptr,
-        nullptr,
-#ifdef __WINDOWS__
-        cursor_place64_xpm,
-#else
-        cursor_place_black64_xpm,
-#endif
-        { 64, 64 },
-        { 2, 2 },
-    },
-};
-
-/**
- * Construct a cursor for the given definition.
- *
- * How to do this depends on the platform, see
- * http://docs.wxwidgets.org/trunk/classwx_cursor.html
- *
- * @param  aDef the cursor definition
- * @return      a newly constructed cursor if the platform is supported,
- *              else wxNullCursor
- */
-wxCursor constructCursor( const CURSOR_STORE::CURSOR_DEF& aDef )
-{
-    if( aDef.m_xpm != nullptr )
-    {
-        wxImage xpmImage = wxImage( aDef.m_xpm );
-
-        xpmImage.SetOption( wxIMAGE_OPTION_CUR_HOTSPOT_X, aDef.m_hotspot.x );
-        xpmImage.SetOption( wxIMAGE_OPTION_CUR_HOTSPOT_Y, aDef.m_hotspot.y );
-
-        return wxCursor( xpmImage );
+                { 2, 2 }
+            }
+        }
     }
-    else if( aDef.m_image_data != nullptr && aDef.m_mask_data != nullptr )
+};
+
+
+CURSOR_STORE::CURSOR_STORE()
+{
+    for( const auto& [cursorId, defs] : cursors_defs )
     {
-#if defined( __WXMSW__ ) || defined( __WXMAC__ )
+        wxCHECK2( !defs.empty(), continue );
 
-        wxBitmap img_bitmap(
-                reinterpret_cast<const char*>( aDef.m_image_data ), aDef.m_size.x, aDef.m_size.y );
-        wxBitmap msk_bitmap(
-                reinterpret_cast<const char*>( aDef.m_mask_data ), aDef.m_size.x, aDef.m_size.y );
-        img_bitmap.SetMask( new wxMask( msk_bitmap ) );
+#if wxCHECK_VERSION( 3, 3, 0 )
+        // For wx 3.3+, create cursor bundles from the cursor definitions
+        std::vector<wxBitmap> bitmaps;
 
-        wxImage image( img_bitmap.ConvertToImage() );
+        for( const auto& [xpm, hotspot_def] : defs )
+        {
+            wxCHECK2( xpm, continue );
+            bitmaps.push_back( wxBitmap( xpm ) );
+        }
 
-#if defined( __WXMSW__ )
-        image.SetMaskColour( 255, 255, 255 );
-#endif
+        wxBitmapBundle bitmapBundle = wxBitmapBundle::FromBitmaps( bitmaps );
 
-        image.SetOption( wxIMAGE_OPTION_CUR_HOTSPOT_X, aDef.m_hotspot.x );
-        image.SetOption( wxIMAGE_OPTION_CUR_HOTSPOT_Y, aDef.m_hotspot.y );
+        wxPoint hotspot = defs[0].m_hotspot; // Use hotspot from standard cursor
+        m_bundleMap[cursorId] = wxCursorBundle( bitmapBundle, hotspot );
+#else
+        auto constructCursor = []( const CURSOR_STORE::CURSOR_DEF& aDef ) -> wxCursor
+        {
+            wxCHECK( aDef.m_xpm, wxNullCursor );
+            wxImage xpmImage = wxImage( aDef.m_xpm );
 
-        return wxCursor{ image };
+            xpmImage.SetOption( wxIMAGE_OPTION_CUR_HOTSPOT_X, aDef.m_hotspot.x );
+            xpmImage.SetOption( wxIMAGE_OPTION_CUR_HOTSPOT_Y, aDef.m_hotspot.y );
 
-#elif defined( __WXGTK__ ) || defined( __WXMOTIF__ )
-
-        return wxCursor{
-            reinterpret_cast<const char*>( aDef.m_image_data ),
-            aDef.m_size.x,
-            aDef.m_size.y,
-            aDef.m_hotspot.x,
-            aDef.m_hotspot.y,
-            reinterpret_cast<const char*>( aDef.m_mask_data ),
+            return wxCursor( xpmImage );
         };
 
-#else
-        wxASSERT_MSG( false, wxS( "Unknown platform for cursor construction." ) );
-        return wxNullCursor;
+        // Add standard cursor (first definition)
+        m_standardCursorMap[cursorId] = constructCursor( defs[0] );
+
+        // Add HiDPI cursor (second definition if available, otherwise fallback to standard)
+        if( defs.size() > 1 )
+            m_hidpiCursorMap[cursorId] = constructCursor( defs[1] );
+        else
+            m_hidpiCursorMap[cursorId] = m_standardCursorMap[cursorId];
 #endif
     }
-
-    wxASSERT_MSG( false, wxS( "Unknown to find cursor" ) );
-    return wxNullCursor;
 }
 
-
-CURSOR_STORE::CURSOR_STORE( const std::vector<CURSOR_DEF>& aDefs )
+#if wxCHECK_VERSION( 3, 3, 0 )
+const wxCursorBundle& CURSOR_STORE::storeGetBundle( KICURSOR aIdKey ) const
 {
-    for( const auto& def : aDefs )
-    {
-        m_store[def.m_id_key] = constructCursor( def );
-    }
-}
+    const auto find_iter = m_bundleMap.find( aIdKey );
 
-
-const wxCursor& CURSOR_STORE::Get( KICURSOR aIdKey ) const
-{
-    const auto find_iter = m_store.find( aIdKey );
-
-    if( find_iter != m_store.end() )
+    if( find_iter != m_bundleMap.end() )
         return find_iter->second;
 
-    wxASSERT_MSG( false, wxString::Format( "Could not find cursor with ID %d",
+    wxASSERT_MSG( false, wxString::Format( "Could not find cursor bundle with ID %d",
                                            static_cast<int>( aIdKey ) ) );
+
+    static const wxCursorBundle invalid;
+
+    return invalid;
+}
+#else
+const wxCursor& CURSOR_STORE::storeGetCursor( KICURSOR aIdKey, bool aHiDPI ) const
+{
+    const auto& store = aHiDPI ? m_hidpiCursorMap : m_standardCursorMap;
+    const auto  find_iter = store.find( aIdKey );
+
+    if( find_iter != store.end() )
+        return find_iter->second;
+
+    wxASSERT_MSG( false, wxString::Format( "Could not find cursor with ID %d", static_cast<int>( aIdKey ) ) );
+
     return wxNullCursor;
 }
+#endif
 
-
-const wxCursor CURSOR_STORE::GetCursor( KICURSOR aCursorType )
+/* static */
+const WX_CURSOR_TYPE CURSOR_STORE::GetCursor( KICURSOR aCursorType, bool aHiDPI )
 {
+    // Use a single cursor store instance
+    static CURSOR_STORE store;
+
+    bool useCustomCursors = true;
+
+    if( COMMON_SETTINGS* commonSettings = Pgm().GetCommonSettings() )
+        useCustomCursors = commonSettings->m_Appearance.use_custom_cursors;
+
+    if( !useCustomCursors )
+    {
+        wxStockCursor stock = GetStockCursor( aCursorType );
+
+        if( stock == wxCURSOR_MAX )
+            stock = wxCURSOR_ARROW;
+
+        return WX_CURSOR_TYPE( stock );
+    }
+
     wxStockCursor stock = GetStockCursor( aCursorType );
 
     if( stock != wxCURSOR_MAX )
-    {
-        return wxCursor( stock );
-    }
+        return WX_CURSOR_TYPE( stock );
 
-    static CURSOR_STORE store( standard_cursors );
-    return store.Get( aCursorType );
+#if wxCHECK_VERSION( 3, 3, 0 )
+    // For wx 3.3+, return the pre-built cursor bundle (aHiDPI is ignored as bundles contain both)
+    return store.storeGetBundle( aCursorType );
+#else
+    return store.storeGetCursor( aCursorType, aHiDPI );
+#endif
 }
 
-
-const wxCursor CURSOR_STORE::GetHiDPICursor( KICURSOR aCursorType )
-{
-    wxStockCursor stock = GetStockCursor( aCursorType );
-
-    if( stock != wxCURSOR_MAX )
-    {
-        return wxCursor( stock );
-    }
-
-    static CURSOR_STORE store( hidpi_cursors );
-    return store.Get( aCursorType );
-}
-
-
+/* static */
 wxStockCursor CURSOR_STORE::GetStockCursor( KICURSOR aCursorType )
 {
     wxStockCursor stockCursor;
@@ -618,9 +457,7 @@ wxStockCursor CURSOR_STORE::GetStockCursor( KICURSOR aCursorType )
     }
 
     if( !KIPLATFORM::UI::IsStockCursorOk( stockCursor ) )
-    {
         stockCursor = wxCURSOR_MAX;
-    }
 
     return stockCursor;
 }

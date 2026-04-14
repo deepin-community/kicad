@@ -48,7 +48,9 @@ attr
 autoplace_cost90
 autoplace_cost180
 aux_axis_origin
+backdrill
 back
+barcode
 best_length_ratio
 best_width_ratio
 bevelled
@@ -60,6 +62,7 @@ border
 bottom
 bottom_left
 bottom_right
+buried
 castellated_pads
 cells
 center
@@ -82,6 +85,7 @@ connect_pads
 copperpour
 copper_finish
 crossbar
+cross_hatch
 curve_points
 curved_edges
 custom
@@ -89,12 +93,16 @@ outline
 convexhull
 copper_line_width
 copper_text_dims
+counterbore
+countersink
 courtyard_line_width
 creepage
 data
 date
 defaults
 descr
+description
+die_delay
 die_length
 dielectric_constraints
 dimension
@@ -105,6 +113,8 @@ dimension_units
 dnp
 drawings
 drill
+duplicate_pad_numbers_are_jumpers
+ecc_level
 edge
 edge_clearance
 edge_cuts_line_width
@@ -128,6 +138,7 @@ face
 false
 feature1
 feature2
+field
 fill
 fill_segments
 filled_polygon
@@ -170,6 +181,7 @@ hatch
 hatch_thickness
 hatch_gap
 hatch_orientation
+hatch_position
 hatch_smoothing_level
 hatch_smoothing_value
 hatch_border_algorithm
@@ -187,6 +199,7 @@ island
 island_removal_mode
 island_area_min
 italic
+jumper_pad_groups
 justify
 keepout
 keep_end_layers
@@ -201,6 +214,7 @@ leader
 leader_length
 left
 legacy_teardrops
+lib_id
 linear
 line_spacing
 links
@@ -257,6 +271,7 @@ pad_prop_castellated
 pad_prop_testpoint
 pad_prop_heatsink
 pad_prop_mechanical
+pad_prop_pressfit
 padstack
 padvia
 prefer_zone_connections
@@ -273,8 +288,12 @@ pintype
 placed
 placement
 plus
+point
 polygon
 portrait
+post_machining
+front_post_machining
+back_post_machining
 precision
 prefix
 primitives
@@ -288,6 +307,7 @@ rect_delta
 reference
 remove_unused_layers
 render_cache
+reverse_hatch
 right
 rotate
 roundrect
@@ -316,6 +336,7 @@ solid
 span
 stackup
 start
+start_end_only
 status
 stroke
 style
@@ -325,13 +346,20 @@ table
 table_cell
 tags
 target
+text
 title
 title_block
 teardrop
 teardrops
 tedit
 tenting
+tertiary_drill
+covering
+plugging
+filling
+capping
 text_frame
+text_height
 text_position_mode
 thermal_width
 thermal_gap
@@ -356,6 +384,9 @@ true
 tstamp
 type
 units
+unit
+pins
+num
 units_format
 unlocked
 user
@@ -370,6 +401,8 @@ uvia_min_size
 uvia_size
 uvias_allowed
 value
+variant
+variants
 version
 via
 vias
@@ -392,4 +425,6 @@ zone_clearance
 zone_connect
 zone_layer_connections
 zone_type
+zone_defaults
 zones
+depth

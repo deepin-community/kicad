@@ -28,9 +28,9 @@
 #include <schematic.h>
 #include <sch_bus_entry.h>
 #include <sch_commit.h>
+#include <sch_group.h>
 #include <sch_junction.h>
 #include <sch_line.h>
-#include <sch_bitmap.h>
 #include <sch_sheet_pin.h>
 #include <sch_table.h>
 #include <tools/sch_selection_tool.h>
@@ -41,22 +41,16 @@
 
 /* Functions to undo and redo edit commands.
  *
- *  m_UndoList and m_RedoList handle a std::vector of PICKED_ITEMS_LIST
- *  Each PICKED_ITEMS_LIST handle a std::vector of pickers (class ITEM_PICKER),
- *  that store the list of schematic items that are concerned by the command to
- *  undo or redo and is created for each command to undo (handle also a command
- *  to redo). each picker has a pointer pointing to an item to undo or redo (in
- *  fact: deleted, added or modified), and has a pointer to a copy of this item,
- *  when this item has been modified (the old values of parameters are
- *  therefore saved)
+ *  m_UndoList and m_RedoList handle a std::vector of PICKED_ITEMS_LIST.  Each PICKED_ITEMS_LIST handles
+ *  a std::vector of ITEM_PICKER that store the list of schematic items that are concerned by the command
+ *  to undo or redo and is created for each command to undo/redo).  Each picker has a pointer pointing to
+ *  an item to undo or redo (in fact: deleted, added or modified), and has a pointer to a copy of this
+ *  item, when this item has been modified (the old values of parameters are therefore saved).
  *
  *  there are 3 cases:
  *  - delete item(s) command
  *  - change item(s) command
  *  - add item(s) command
- *  and 2 cases for block:
- *  - move list of items
- *  - mirror (Y) list of items
  *
  *  Undo command
  *  - delete item(s) command:
@@ -82,43 +76,17 @@
  *      => The list of item(s) is used to create a deleted list in undo
  *         list(same as a delete command)
  *
- *   Some block operations that change items can be undone without memorized
- *   items, just the coordinates of the transform: move list of items (undo/
- *   redo is made by moving with the opposite move vector) mirror (Y) and flip
- *   list of items (undo/redo is made by mirror or flip items) so they are
- *    handled specifically.
- *
- *  A problem is the hierarchical sheet handling.
- *  the data associated (sub-hierarchy, undo/redo list) is deleted only
- *  when the sheet is really deleted (i.e. when deleted from undo or redo list)
- *  This is handled by its destructor.
+ *  A problem is the hierarchical sheet handling.  The data associated (sub-hierarchy, undo/redo list) is
+ *  deleted only when the sheet is really deleted (i.e. when deleted from undo or redo list).  This is
+ *  handled by its destructor.
  */
 
-
-/* Used if undo / redo command:
- * swap data between Item and its copy, pointed by its picked item link member
- * swapped data is data modified by editing, so not all values are swapped
- */
-
-void SCH_EDIT_FRAME::SaveCopyInUndoList( SCH_SCREEN* aScreen, SCH_ITEM* aItem,
-                                         UNDO_REDO aCommandType, bool aAppend,
-                                         bool aDirtyConnectivity )
+void SCH_EDIT_FRAME::SaveCopyInUndoList( SCH_SCREEN* aScreen, SCH_ITEM* aItem, UNDO_REDO aCommandType,
+                                         bool aAppend )
 {
     PICKED_ITEMS_LIST* commandToUndo = nullptr;
 
     wxCHECK( aItem, /* void */ );
-
-    if( aDirtyConnectivity )
-    {
-        if( !aItem->IsConnectivityDirty() && aItem->Connection()
-            && ( aItem->Connection()->Name() == m_highlightedConn
-                 || aItem->Connection()->HasDriverChanged() ) )
-        {
-            m_highlightedConnChanged = true;
-        }
-
-        aItem->SetConnectivityDirty();
-    }
 
     PICKED_ITEMS_LIST* lastUndo = PopCommandFromUndoList();
 
@@ -142,7 +110,7 @@ void SCH_EDIT_FRAME::SaveCopyInUndoList( SCH_SCREEN* aScreen, SCH_ITEM* aItem,
     switch( aCommandType )
     {
     case UNDO_REDO::CHANGED: /* Create a copy of item */
-        itemWrapper.SetLink( aItem->Duplicate( true ) );
+        itemWrapper.SetLink( aItem->Duplicate( IGNORE_PARENT_GROUP, nullptr, true ) );
         commandToUndo->PushItem( itemWrapper );
         break;
 
@@ -152,8 +120,7 @@ void SCH_EDIT_FRAME::SaveCopyInUndoList( SCH_SCREEN* aScreen, SCH_ITEM* aItem,
         break;
 
     default:
-        wxFAIL_MSG( wxString::Format( wxT( "SaveCopyInUndoList() error (unknown code %X)" ),
-                                      aCommandType ) );
+        wxFAIL_MSG( wxString::Format( wxT( "SaveCopyInUndoList() error (unknown code %X)" ), aCommandType ) );
         break;
     }
 
@@ -172,9 +139,8 @@ void SCH_EDIT_FRAME::SaveCopyInUndoList( SCH_SCREEN* aScreen, SCH_ITEM* aItem,
 }
 
 
-void SCH_EDIT_FRAME::SaveCopyInUndoList( const PICKED_ITEMS_LIST& aItemsList,
-                                         UNDO_REDO aTypeCommand, bool aAppend,
-                                         bool aDirtyConnectivity )
+void SCH_EDIT_FRAME::SaveCopyInUndoList( const PICKED_ITEMS_LIST& aItemsList, UNDO_REDO aTypeCommand,
+                                         bool aAppend )
 {
     PICKED_ITEMS_LIST* commandToUndo = nullptr;
 
@@ -245,7 +211,7 @@ void SCH_EDIT_FRAME::SaveCopyInUndoList( const PICKED_ITEMS_LIST& aItemsList,
              * If this link is not null, the copy is already done
              */
             if( commandToUndo->GetPickedItemLink( ii ) == nullptr )
-                commandToUndo->SetPickedItemLink( sch_item->Duplicate( true ), ii );
+                commandToUndo->SetPickedItemLink( sch_item->Duplicate( IGNORE_PARENT_GROUP, nullptr, true ), ii );
 
             wxASSERT( commandToUndo->GetPickedItemLink( ii ) );
             break;
@@ -283,11 +249,12 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
     std::vector<SCH_ITEM*> bulkRemovedItems;
     std::vector<SCH_ITEM*> bulkChangedItems;
     std::set<SCH_TABLE*>   changedTables;
+    bool                   updateVariantCtrl = false;
     bool                   dirtyConnectivity = false;
     bool                   rebuildHierarchyNavigator = false;
     bool                   refreshHierarchy = false;
     SCH_CLEANUP_FLAGS      connectivityCleanUp = NO_CLEANUP;
-    SCH_SHEET_LIST         sheets;
+    SCH_SHEET_LIST         sheets= m_schematic->Hierarchy();
     bool                   clearedRepeatItems = false;
 
     // Undo in the reverse order of list creation: (this can allow stacked changes like the
@@ -295,9 +262,10 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
     // After hitting 0, subtracting 1 will roll the value over to its max representation
     for( unsigned ii = aList->GetCount() - 1; ii < std::numeric_limits<unsigned>::max(); ii-- )
     {
-        UNDO_REDO   status = aList->GetPickedItemStatus( ii );
-        EDA_ITEM*   eda_item = aList->GetPickedItem( ii );
-        SCH_SCREEN* screen = dynamic_cast<SCH_SCREEN*>( aList->GetScreenForItem( ii ) );
+        UNDO_REDO      status = aList->GetPickedItemStatus( ii );
+        EDA_ITEM*      eda_item = aList->GetPickedItem( ii );
+        SCH_SCREEN*    screen = dynamic_cast<SCH_SCREEN*>( aList->GetScreenForItem( ii ) );
+        SCH_SHEET_PATH undoSheet = sheets.FindSheetForScreen( screen );
 
         eda_item->SetFlags( aList->GetPickerFlags( ii ) );
         eda_item->ClearEditFlags();
@@ -315,16 +283,12 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
                         {
                             SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( schItem );
 
-                            wxCHECK( symbol, /* void */ );
-
-                            for( SCH_PIN* pin : symbol->GetPins() )
+                            for( SCH_PIN* pin : symbol->GetPins( &undoSheet ) )
                                 pin->SetConnectivityDirty();
                         }
                         else if( schItem->Type() == SCH_SHEET_T )
                         {
                             SCH_SHEET* sheet = static_cast<SCH_SHEET*>( schItem );
-
-                            wxCHECK( sheet, /* void */ );
 
                             for( SCH_SHEET_PIN* pin : sheet->GetPins() )
                                 pin->SetConnectivityDirty();
@@ -388,12 +352,6 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
         }
         else if( status == UNDO_REDO::PAGESETTINGS )
         {
-            // Lazy eval of sheet list; this is expensive even when unsorted
-            if( sheets.empty() )
-                sheets = m_schematic->Hierarchy();
-
-            SCH_SHEET_PATH undoSheet = sheets.FindSheetForScreen( screen );
-
             if( GetCurrentSheet() != undoSheet )
             {
                 SetCurrentSheet( undoSheet );
@@ -450,22 +408,28 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
 
                     wxCHECK2( origSheet && copySheet, continue );
 
-                    if( ( origSheet->GetName() != copySheet->GetName() )
-                      || ( origSheet->GetFileName() != copySheet->GetFileName() )
-                      || origSheet->HasPageNumberChanges( *copySheet ) )
+                    if( origSheet->GetName() != copySheet->GetName()
+                            || origSheet->GetFileName() != copySheet->GetFileName()
+                            || origSheet->HasPageNumberChanges( *copySheet ) )
                     {
                         rebuildHierarchyNavigator = true;
                     }
 
                     // Sheet name changes do not require rebuilding the hiearchy.
-                    if( ( origSheet->GetFileName() != copySheet->GetFileName() )
-                      || origSheet->HasPageNumberChanges( *copySheet ) )
+                    if( origSheet->GetFileName() != copySheet->GetFileName()
+                            || origSheet->HasPageNumberChanges( *copySheet ) )
                     {
                         refreshHierarchy = true;
                     }
+
+                    updateVariantCtrl = true;
                 }
 
-                schItem->SwapData( itemCopy );
+                if( schItem->Type() == SCH_SYMBOL_T )
+                    updateVariantCtrl = true;
+
+                schItem->SwapItemData( itemCopy );
+
                 bulkChangedItems.emplace_back( schItem );
 
                 // Special cases for items which have instance data
@@ -475,7 +439,7 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
                     SCH_FIELD*  field = static_cast<SCH_FIELD*>( schItem );
                     SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( schItem->GetParent() );
 
-                    if( field->GetId() == REFERENCE_FIELD )
+                    if( field->GetId() == FIELD_T::REFERENCE )
                     {
                         // Lazy eval of sheet list; this is expensive even when unsorted
                         if( sheets.empty() )
@@ -491,8 +455,7 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
                 break;
 
             default:
-                wxFAIL_MSG( wxString::Format( wxT( "Unknown undo/redo command %d" ),
-                                              aList->GetPickedItemStatus( ii ) ) );
+                wxFAIL_MSG( wxString::Format( wxT( "Unknown undo/redo command %d" ), status ) );
                 break;
             }
 
@@ -505,6 +468,35 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
             if( schItem != &Schematic().Root() )
                 AddToScreen( schItem, screen );
         }
+    }
+
+    // We have now swapped all the group parent and group member pointers.  But it is a
+    // risky proposition to bet on the pointers being invariant, so validate them all.
+    for( int ii = 0; ii < (int) aList->GetCount(); ++ii )
+    {
+        ITEM_PICKER& wrapper = aList->GetItemWrapper( ii );
+
+        if( wrapper.GetStatus() == UNDO_REDO::DELETED )
+            continue;
+
+        SCH_ITEM* parentGroup = Schematic().ResolveItem( wrapper.GetGroupId(), nullptr, true );
+        wrapper.GetItem()->SetParentGroup( dynamic_cast<SCH_GROUP*>( parentGroup ) );
+
+        if( EDA_GROUP* group = dynamic_cast<SCH_GROUP*>( wrapper.GetItem() ) )
+        {
+            // Items list may contain dodgy pointers, so don't use RemoveAll()
+            group->GetItems().clear();
+
+            for( const KIID& member : wrapper.GetGroupMembers() )
+            {
+                if( SCH_ITEM* memberItem = Schematic().ResolveItem( member, nullptr, true ) )
+                    group->AddItem( memberItem );
+            }
+        }
+
+        // And prepare for a redo by updating group info based on current image
+        if( EDA_ITEM* item = wrapper.GetLink() )
+            wrapper.SetLink( item );
     }
 
     GetCanvas()->GetView()->ClearHiddenFlags();
@@ -524,9 +516,8 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
 
     if( dirtyConnectivity )
     {
-        wxLogTrace( wxS( "CONN_PROFILE" ),
-                    wxS( "Undo/redo %s clean up connectivity rebuild." ),
-                    ( connectivityCleanUp == LOCAL_CLEANUP ) ? wxS( "local" ) : wxS( "global" ) );
+        wxLogTrace( wxS( "CONN_PROFILE" ), wxS( "Undo/redo %s clean up connectivity rebuild." ),
+                    connectivityCleanUp == LOCAL_CLEANUP ? wxS( "local" ) : wxS( "global" ) );
 
         SCH_COMMIT localCommit( m_toolManager );
 
@@ -534,11 +525,32 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
 
         if( connectivityCleanUp == GLOBAL_CLEANUP )
             SetSheetNumberAndCount();
+
+        // Restore hop over shapes of wires, if any
+        if( m_schematic->Settings().m_HopOverScale > 0.0 )
+        {
+            for( SCH_ITEM* item : GetScreen()->Items() )
+            {
+                if( item->Type() != SCH_LINE_T )
+                    continue;
+
+                SCH_LINE* line = static_cast<SCH_LINE*>( item );
+
+                if( line->IsWire() )
+                    UpdateHopOveredWires( line );
+            }
+        }
     }
 
     // Update the hierarchy navigator when there are sheet changes.
     if( rebuildHierarchyNavigator )
         UpdateHierarchyNavigator();
+
+    if( updateVariantCtrl && m_schematic )
+    {
+        m_schematic->LoadVariants();
+        UpdateVariantSelectionCtrl( m_schematic->GetVariantNamesForUI() );
+    }
 }
 
 

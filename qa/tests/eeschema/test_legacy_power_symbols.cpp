@@ -29,8 +29,7 @@
 
 struct LEGACY_POWER_SYMBOLS_TEST_FIXTURE
 {
-    LEGACY_POWER_SYMBOLS_TEST_FIXTURE() :
-            m_settingsManager( true /* headless */ )
+    LEGACY_POWER_SYMBOLS_TEST_FIXTURE()
     { }
 
     void CheckSymbols()
@@ -42,12 +41,12 @@ struct LEGACY_POWER_SYMBOLS_TEST_FIXTURE
             // Fix pre-8.0 legacy power symbols with invisible pins
             // that have mismatched pin names and value fields
             if( symbol->GetLibSymbolRef()
-                && symbol->GetLibSymbolRef()->IsPower()
+                && symbol->GetLibSymbolRef()->IsGlobalPower()
                 && symbol->GetAllLibPins().size() > 0
                 && symbol->GetAllLibPins()[0]->IsGlobalPower()
                 && !symbol->GetAllLibPins()[0]->IsVisible() )
             {
-                BOOST_CHECK_EQUAL( symbol->GetField( VALUE_FIELD )->GetText(),
+                BOOST_CHECK_EQUAL( symbol->GetField( FIELD_T::VALUE )->GetText(),
                                    symbol->GetAllLibPins()[0]->GetName() );
             }
         }

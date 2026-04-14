@@ -35,6 +35,7 @@
 #include <bitmaps.h>
 #include <richio.h>
 #include <string_utils.h>
+#include <confirm.h>
 
 PANEL_TEMPLATE_FIELDNAMES::PANEL_TEMPLATE_FIELDNAMES( wxWindow* aWindow,
                                                       TEMPLATES* aProjectTemplateMgr ) :
@@ -52,17 +53,17 @@ PANEL_TEMPLATE_FIELDNAMES::PANEL_TEMPLATE_FIELDNAMES( wxWindow* aWindow,
         m_global = true;
         m_templateMgr = &m_templateMgrInstance;
 
-        SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-        EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
-
-        if( cfg && !cfg->m_Drawing.field_names.IsEmpty() )
-            m_templateMgr->AddTemplateFieldNames( cfg->m_Drawing.field_names );
+        if( EESCHEMA_SETTINGS* cfg = GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" ) )
+        {
+            if( !cfg->m_Drawing.field_names.IsEmpty() )
+                m_templateMgr->AddTemplateFieldNames( cfg->m_Drawing.field_names );
+        }
     }
 
     m_addFieldButton->SetBitmap( KiBitmapBundle( BITMAPS::small_plus ) );
     m_deleteFieldButton->SetBitmap( KiBitmapBundle( BITMAPS::small_trash ) );
-
-    m_checkboxColWidth = m_grid->GetColSize( 1 );
+    m_bpMoveUp->SetBitmap( KiBitmapBundle( BITMAPS::small_up ) );
+    m_bpMoveDown->SetBitmap( KiBitmapBundle( BITMAPS::small_down ) );
 
     m_grid->SetUseNativeColLabels();
 
@@ -70,6 +71,7 @@ PANEL_TEMPLATE_FIELDNAMES::PANEL_TEMPLATE_FIELDNAMES( wxWindow* aWindow,
                                                        {
                                                            OnAddButtonClick( aEvent );
                                                        } ) );
+    m_grid->SetupColumnAutosizer( 0 );
     m_grid->SetSelectionMode( wxGrid::wxGridSelectRows );
 }
 
@@ -91,47 +93,50 @@ bool PANEL_TEMPLATE_FIELDNAMES::TransferDataToWindow()
 
 void PANEL_TEMPLATE_FIELDNAMES::OnAddButtonClick( wxCommandEvent& event )
 {
-    if( !m_grid->CommitPendingChanges() )
-        return;
+    m_grid->OnAddRow(
+            [&]() -> std::pair<int, int>
+            {
+                int row = m_grid->GetNumberRows();
+                TransferDataFromGrid();
 
-    int row = m_grid->GetNumberRows();
-    TransferDataFromGrid();
+                TEMPLATE_FIELDNAME newFieldname = TEMPLATE_FIELDNAME( _( "Untitled Field" ) );
+                newFieldname.m_Visible = false;
+                m_fields.insert( m_fields.end(), newFieldname );
 
-    TEMPLATE_FIELDNAME newFieldname = TEMPLATE_FIELDNAME( _( "Untitled Field" ) );
-    newFieldname.m_Visible = false;
-    m_fields.insert( m_fields.end(), newFieldname );
-    TransferDataToGrid();
-
-    // wx documentation is wrong, SetGridCursor does not make visible.
-    m_grid->MakeCellVisible( row, 0 );
-    m_grid->SetGridCursor( row, 0 );
+                TransferDataToGrid();
+                return { row, 0 };
+            } );
 }
 
 
 void PANEL_TEMPLATE_FIELDNAMES::OnDeleteButtonClick( wxCommandEvent& event )
 {
-    if( !m_grid->CommitPendingChanges() )
-        return;
+    m_grid->OnDeleteRows(
+            [&]( int row )
+            {
+                m_fields.erase( m_fields.begin() + row );
+                m_grid->DeleteRows( row );
+            } );
+}
 
-    wxArrayInt selectedRows = m_grid->GetSelectedRows();
 
-    if( selectedRows.empty() && m_grid->GetGridCursorRow() >= 0 )
-        selectedRows.push_back( m_grid->GetGridCursorRow() );
+void PANEL_TEMPLATE_FIELDNAMES::OnMoveUp( wxCommandEvent& event )
+{
+    m_grid->OnMoveRowUp(
+            [&]( int row )
+            {
+                m_grid->SwapRows( row, row - 1 );
+            } );
+}
 
-    if( selectedRows.empty() )
-        return;
 
-    // Reverse sort so deleting a row doesn't change the indexes of the other rows.
-    selectedRows.Sort( []( int* first, int* second ) { return *second - *first; } );
-
-    for( int row : selectedRows )
-    {
-        m_fields.erase( m_fields.begin() + row );
-        m_grid->DeleteRows( row );
-
-        m_grid->MakeCellVisible( std::max( 0, row-1 ), m_grid->GetGridCursorCol() );
-        m_grid->SetGridCursor( std::max( 0, row-1 ), m_grid->GetGridCursorCol() );
-    }
+void PANEL_TEMPLATE_FIELDNAMES::OnMoveDown( wxCommandEvent& event )
+{
+    m_grid->OnMoveRowDown(
+            [&]( int row )
+            {
+                m_grid->SwapRows( row, row + 1 );
+            } );
 }
 
 
@@ -206,11 +211,10 @@ bool PANEL_TEMPLATE_FIELDNAMES::TransferDataFromWindow()
             {
                 wxString msg;
 
-                msg.Printf( _( "The field name \"%s\" contains trailing and/or leading white"
-                               "space." ), field.m_Name );
+                msg.Printf( _( "The field name '%s' contains trailing and/or leading white space." ),
+                            field.m_Name );
 
-                wxMessageDialog dlg( this, msg, _( "Warning" ),
-                                     wxOK | wxCANCEL | wxCENTER | wxICON_WARNING );
+                KICAD_MESSAGE_DIALOG dlg( this, msg, _( "Warning" ), wxOK | wxCANCEL | wxCENTER | wxICON_WARNING );
 
                 dlg.SetExtendedMessage( _( "This may result in what appears to be duplicate field "
                                            "names but are actually unique names differing only by "
@@ -218,8 +222,8 @@ bool PANEL_TEMPLATE_FIELDNAMES::TransferDataFromWindow()
                                            "characters will have no effect on existing symbol "
                                            "field names." ) );
 
-                dlg.SetOKCancelLabels( wxMessageDialog::ButtonLabel( _( "Remove White Space" ) ),
-                                       wxMessageDialog::ButtonLabel( _( "Keep White Space" ) ) );
+                dlg.SetOKCancelLabels( KICAD_MESSAGE_DIALOG::ButtonLabel( _( "Remove White Space" ) ),
+                                       KICAD_MESSAGE_DIALOG::ButtonLabel( _( "Keep White Space" ) ) );
 
                 if( dlg.ShowModal() == wxID_OK )
                     field.m_Name = trimmedName;
@@ -231,45 +235,20 @@ bool PANEL_TEMPLATE_FIELDNAMES::TransferDataFromWindow()
 
     if( m_global )
     {
-        SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-        EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
-
-        if( cfg )
+        if( EESCHEMA_SETTINGS* cfg = GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" ) )
         {
             // Save global fieldname templates
             STRING_FORMATTER sf;
             m_templateMgr->Format( &sf, true );
 
             wxString record = From_UTF8( sf.GetString().c_str() );
-            record.Replace( wxT("  "), wxT(" "), true );  // double space to single
+            record.Replace( wxT( "  " ), wxT( " " ), true );  // double space to single
 
             cfg->m_Drawing.field_names = record.ToStdString();
         }
     }
 
     return true;
-}
-
-
-void PANEL_TEMPLATE_FIELDNAMES::AdjustGridColumns( int aWidth )
-{
-    if( aWidth <= 0 )
-        return;
-
-    // Account for scroll bars
-    aWidth -= ( m_grid->GetSize().x - m_grid->GetClientSize().x );
-
-    m_grid->SetColSize( 0, std::max( 72, aWidth - 2 * m_checkboxColWidth ) );
-    m_grid->SetColSize( 1, m_checkboxColWidth );
-    m_grid->SetColSize( 2, m_checkboxColWidth );
-}
-
-
-void PANEL_TEMPLATE_FIELDNAMES::OnSizeGrid( wxSizeEvent& event )
-{
-    AdjustGridColumns( event.GetSize().GetX() );
-
-    event.Skip();
 }
 
 

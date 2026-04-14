@@ -36,13 +36,6 @@
 
 #define PLOT_LINEWIDTH_DEFAULT    ( DEFAULT_TEXT_WIDTH * IU_PER_MM )
 
-#define HPGL_PEN_DIAMETER_MIN     0
-#define HPGL_PEN_DIAMETER_MAX     100.0     // Unit = mil
-#define HPGL_PEN_SPEED_MIN        1         // this param is always in cm/s
-#define HPGL_PEN_SPEED_MAX        99        // this param is always in cm/s
-#define HPGL_PEN_NUMBER_MIN       1
-#define HPGL_PEN_NUMBER_MAX       16
-
 #define SVG_PRECISION_MIN         3U
 #define SVG_PRECISION_MAX         6U
 #define SVG_PRECISION_DEFAULT     4
@@ -62,34 +55,6 @@ static const char* getTokenName( T aTok )
 }
 
 
-static bool setInt( int* aTarget, int aValue, int aMin, int aMax )
-{
-    int temp = aValue;
-
-    if( aValue < aMin )
-        temp = aMin;
-    else if( aValue > aMax )
-        temp = aMax;
-
-    *aTarget = temp;
-    return ( temp == aValue );
-}
-
-
-static bool setDouble( double* aTarget, double aValue, double aMin, double aMax )
-{
-    double temp = aValue;
-
-    if( aValue < aMin )
-        temp = aMin;
-    else if( aValue > aMax )
-        temp = aMax;
-
-    *aTarget = temp;
-    return ( temp == aValue );
-}
-
-
 PCB_PLOT_PARAMS::PCB_PLOT_PARAMS()
 {
     m_useGerberProtelExtensions  = false;
@@ -105,13 +70,10 @@ PCB_PLOT_PARAMS::PCB_PLOT_PARAMS()
     m_svgPrecision               = SVG_PRECISION_DEFAULT;
     m_svgFitPageToBoard          = false;
     m_plotDrawingSheet           = false;
-    m_plotMode                   = FILLED;
+    m_DXFPlotMode                = FILLED;
     m_DXFPolygonMode             = true;
     m_DXFUnits                   = DXF_UNITS::INCH;
     m_useAuxOrigin               = false;
-    m_HPGLPenNum                 = 1;
-    m_HPGLPenSpeed               = 20;        // this param is always in cm/s
-    m_HPGLPenDiam                = 15;        // in mils
     m_negative                   = false;
     m_A4Output                   = false;
     m_plotReference              = true;
@@ -134,14 +96,14 @@ PCB_PLOT_PARAMS::PCB_PLOT_PARAMS()
     m_widthAdjust                = 0.;
     m_textMode                   = PLOT_TEXT_MODE::DEFAULT;
     m_outputDirectory.clear();
-    m_layerSelection             = LSET( { F_SilkS, B_SilkS, F_Mask, B_Mask,
-                                         F_Paste, B_Paste, Edge_Cuts } )
+    m_layerSelection             = LSET( { F_SilkS, B_SilkS, F_Mask, B_Mask, F_Paste, B_Paste, Edge_Cuts } )
                                          | LSET::AllCuMask();
 
     m_PDFFrontFPPropertyPopups   = true;
     m_PDFBackFPPropertyPopups    = true;
     m_PDFMetadata                = true;
     m_PDFSingle                  = false;
+    m_PDFBackgroundColor         = COLOR4D::UNSPECIFIED;
 
     // This parameter controls if the NPTH pads will be plotted or not
     // it is a "local" parameter
@@ -154,6 +116,8 @@ PCB_PLOT_PARAMS::PCB_PLOT_PARAMS()
     m_colors                     = m_default_colors.get();
 
     m_blackAndWhite              = true;
+
+    m_DXFExportAsMultiLayeredFile = false;
 }
 
 
@@ -199,20 +163,15 @@ void PCB_PLOT_PARAMS::Format( OUTPUTFORMATTER* aFormatter ) const
     if( m_gerberPrecision != gbrDefaultPrecision )
         aFormatter->Print( "(gerberprecision %d)", m_gerberPrecision );
 
-    aFormatter->Print( "(dashed_line_dash_ratio %f)", GetDashedLineDashRatio() );
-    aFormatter->Print( "(dashed_line_gap_ratio %f)", GetDashedLineGapRatio() );
+    aFormatter->Print( "(dashed_line_dash_ratio %s)", FormatDouble2Str( GetDashedLineDashRatio() ).c_str() );
+    aFormatter->Print( "(dashed_line_gap_ratio %s)", FormatDouble2Str( GetDashedLineGapRatio() ).c_str() );
 
     // SVG options
     aFormatter->Print( "(svgprecision %d)", m_svgPrecision );
 
     KICAD_FORMAT::FormatBool( aFormatter, "plotframeref", m_plotDrawingSheet );
-    aFormatter->Print( "(mode %d)", GetPlotMode() == SKETCH ? 2 : 1 );
+    aFormatter->Print( "(mode %d)", GetDXFPlotMode() == SKETCH ? 2 : 1 );
     KICAD_FORMAT::FormatBool( aFormatter, "useauxorigin", m_useAuxOrigin );
-
-    // HPGL options
-    aFormatter->Print( "(hpglpennumber %d)", m_HPGLPenNum );
-    aFormatter->Print( "(hpglpenspeed %d)", m_HPGLPenSpeed );
-    aFormatter->Print( "(hpglpendiameter %f)", m_HPGLPenDiam );
 
     // PDF options
     KICAD_FORMAT::FormatBool( aFormatter, getTokenName( T_pdf_front_fp_property_popups ),
@@ -263,23 +222,26 @@ bool PCB_PLOT_PARAMS::IsSameAs( const PCB_PLOT_PARAMS &aPcbPlotParams ) const
     if( m_plotOnAllLayersSequence != aPcbPlotParams.m_plotOnAllLayersSequence )
         return false;
 
-    if( m_useGerberProtelExtensions != aPcbPlotParams.m_useGerberProtelExtensions )
-        return false;
+    if( m_format == PLOT_FORMAT::GERBER )
+    {
+        if( m_useGerberProtelExtensions != aPcbPlotParams.m_useGerberProtelExtensions )
+            return false;
 
-    if( m_gerberDisableApertMacros != aPcbPlotParams.m_gerberDisableApertMacros )
-        return false;
+        if( m_gerberDisableApertMacros != aPcbPlotParams.m_gerberDisableApertMacros )
+            return false;
 
-    if( m_useGerberX2format != aPcbPlotParams.m_useGerberX2format )
-        return false;
+        if( m_useGerberX2format != aPcbPlotParams.m_useGerberX2format )
+            return false;
 
-    if( m_includeGerberNetlistInfo != aPcbPlotParams.m_includeGerberNetlistInfo )
-        return false;
+        if( m_includeGerberNetlistInfo != aPcbPlotParams.m_includeGerberNetlistInfo )
+            return false;
 
-    if( m_createGerberJobFile != aPcbPlotParams.m_createGerberJobFile )
-        return false;
+        if( m_createGerberJobFile != aPcbPlotParams.m_createGerberJobFile )
+            return false;
 
-    if( m_gerberPrecision != aPcbPlotParams.m_gerberPrecision )
-        return false;
+        if( m_gerberPrecision != aPcbPlotParams.m_gerberPrecision )
+            return false;
+    }
 
     if( m_dashedLineDashRatio != aPcbPlotParams.m_dashedLineDashRatio )
         return false;
@@ -290,44 +252,50 @@ bool PCB_PLOT_PARAMS::IsSameAs( const PCB_PLOT_PARAMS &aPcbPlotParams ) const
     if( m_plotDrawingSheet != aPcbPlotParams.m_plotDrawingSheet )
         return false;
 
-    if( m_plotMode != aPcbPlotParams.m_plotMode )
-        return false;
+    if( m_format == PLOT_FORMAT::DXF )
+    {
+        if( m_DXFPlotMode != aPcbPlotParams.m_DXFPlotMode )
+            return false;
 
-    if( m_DXFPolygonMode != aPcbPlotParams.m_DXFPolygonMode )
-        return false;
+        if( m_DXFPolygonMode != aPcbPlotParams.m_DXFPolygonMode )
+            return false;
 
-    if( m_DXFUnits != aPcbPlotParams.m_DXFUnits )
-        return false;
+        if( m_DXFUnits != aPcbPlotParams.m_DXFUnits )
+            return false;
+
+        if( m_DXFExportAsMultiLayeredFile != aPcbPlotParams.m_DXFExportAsMultiLayeredFile )
+            return false;
+    }
 
     if( m_svgPrecision != aPcbPlotParams.m_svgPrecision )
         return false;
 
-    if( m_useAuxOrigin != aPcbPlotParams.m_useAuxOrigin )
-        return false;
+    if( m_format != PLOT_FORMAT::POST )
+    {
+        if( m_useAuxOrigin != aPcbPlotParams.m_useAuxOrigin )
+            return false;
+    }
 
-    if( m_HPGLPenNum != aPcbPlotParams.m_HPGLPenNum )
-        return false;
+    if( m_format == PLOT_FORMAT::POST || m_format == PLOT_FORMAT::SVG || m_format == PLOT_FORMAT::PDF )
+    {
+        if( m_negative != aPcbPlotParams.m_negative )
+            return false;
 
-    if( m_HPGLPenSpeed != aPcbPlotParams.m_HPGLPenSpeed )
-        return false;
+        if( m_mirror != aPcbPlotParams.m_mirror )
+            return false;
+    }
 
-    if( m_HPGLPenDiam != aPcbPlotParams.m_HPGLPenDiam )
-        return false;
+    if( m_format == PLOT_FORMAT::PDF )
+    {
+        if( m_PDFFrontFPPropertyPopups != aPcbPlotParams.m_PDFFrontFPPropertyPopups )
+            return false;
 
-    if( m_negative != aPcbPlotParams.m_negative )
-        return false;
+        if( m_PDFBackFPPropertyPopups != aPcbPlotParams.m_PDFBackFPPropertyPopups )
+            return false;
 
-    if( m_PDFFrontFPPropertyPopups != aPcbPlotParams.m_PDFFrontFPPropertyPopups )
-        return false;
-
-    if( m_PDFBackFPPropertyPopups != aPcbPlotParams.m_PDFBackFPPropertyPopups )
-        return false;
-
-    if( m_PDFMetadata != aPcbPlotParams.m_PDFMetadata )
-        return false;
-
-    if( m_A4Output != aPcbPlotParams.m_A4Output )
-        return false;
+        if( m_PDFMetadata != aPcbPlotParams.m_PDFMetadata )
+            return false;
+    }
 
     if( m_plotReference != aPcbPlotParams.m_plotReference )
         return false;
@@ -359,29 +327,35 @@ bool PCB_PLOT_PARAMS::IsSameAs( const PCB_PLOT_PARAMS &aPcbPlotParams ) const
     if( m_format != aPcbPlotParams.m_format )
         return false;
 
-    if( m_mirror != aPcbPlotParams.m_mirror )
-        return false;
+    if( m_format != PLOT_FORMAT::GERBER )
+    {
+        if( m_drillMarks != aPcbPlotParams.m_drillMarks )
+            return false;
 
-    if( m_drillMarks != aPcbPlotParams.m_drillMarks )
-        return false;
+        if( m_scaleSelection != aPcbPlotParams.m_scaleSelection )
+            return false;
 
-    if( m_scaleSelection != aPcbPlotParams.m_scaleSelection )
-        return false;
+        if( m_autoScale != aPcbPlotParams.m_autoScale )
+            return false;
 
-    if( m_autoScale != aPcbPlotParams.m_autoScale )
-        return false;
+        if( m_scale != aPcbPlotParams.m_scale )
+            return false;
+    }
 
-    if( m_scale != aPcbPlotParams.m_scale )
-        return false;
+    if( m_format == PLOT_FORMAT::POST )
+    {
+        if( m_A4Output != aPcbPlotParams.m_A4Output )
+            return false;
 
-    if( m_fineScaleAdjustX != aPcbPlotParams.m_fineScaleAdjustX )
-        return false;
+        if( m_fineScaleAdjustX != aPcbPlotParams.m_fineScaleAdjustX )
+            return false;
 
-    if( m_fineScaleAdjustY != aPcbPlotParams.m_fineScaleAdjustY )
-        return false;
+        if( m_fineScaleAdjustY != aPcbPlotParams.m_fineScaleAdjustY )
+            return false;
 
-    if( m_widthAdjust != aPcbPlotParams.m_widthAdjust )
-        return false;
+        if( m_widthAdjust != aPcbPlotParams.m_widthAdjust )
+            return false;
+    }
 
     if( m_textMode != aPcbPlotParams.m_textMode )
         return false;
@@ -393,18 +367,6 @@ bool PCB_PLOT_PARAMS::IsSameAs( const PCB_PLOT_PARAMS &aPcbPlotParams ) const
         return false;
 
     return true;
-}
-
-
-bool PCB_PLOT_PARAMS::SetHPGLPenDiameter( double aValue )
-{
-    return setDouble( &m_HPGLPenDiam, aValue, HPGL_PEN_DIAMETER_MIN, HPGL_PEN_DIAMETER_MAX );
-}
-
-
-bool PCB_PLOT_PARAMS::SetHPGLPenSpeed( int aValue )
-{
-    return setInt( &m_HPGLPenSpeed, aValue, HPGL_PEN_SPEED_MIN, HPGL_PEN_SPEED_MAX );
 }
 
 
@@ -741,29 +703,16 @@ void PCB_PLOT_PARAMS_PARSER::Parse( PCB_PLOT_PARAMS* aPcbPlotParams )
             aPcbPlotParams->m_plotViaOnMaskLayer = parseBool();
             break;
 
-        case T_mode:
-            aPcbPlotParams->SetPlotMode( parseInt( 0, 2 ) > 1 ? SKETCH : FILLED );
-            break;
-
         case T_useauxorigin:
             aPcbPlotParams->m_useAuxOrigin = parseBool();
             break;
 
+        case T_mode:
         case T_hpglpennumber:
-            aPcbPlotParams->m_HPGLPenNum = parseInt( HPGL_PEN_NUMBER_MIN, HPGL_PEN_NUMBER_MAX );
-            break;
-
         case T_hpglpenspeed:
-            aPcbPlotParams->m_HPGLPenSpeed = parseInt( HPGL_PEN_SPEED_MIN, HPGL_PEN_SPEED_MAX );
-            break;
-
-        case T_hpglpendiameter:
-            aPcbPlotParams->m_HPGLPenDiam = parseDouble();
-            break;
-
         case T_hpglpenoverlay:
-            // No more used. just here for compatibility with old versions
-            parseInt( 0, HPGL_PEN_DIAMETER_MAX );
+            // HPGL is no longer supported
+            parseInt( std::numeric_limits<int>::min(), std::numeric_limits<int>::max() );
             break;
 
         case T_pdf_front_fp_property_popups:
@@ -838,7 +787,7 @@ void PCB_PLOT_PARAMS_PARSER::Parse( PCB_PLOT_PARAMS* aPcbPlotParams )
         case T_outputformat:
             aPcbPlotParams->m_format = static_cast<PLOT_FORMAT>(
                     parseInt( static_cast<int>( PLOT_FORMAT::FIRST_FORMAT ),
-                            static_cast<int>( PLOT_FORMAT::LAST_FORMAT ) ) );
+                             static_cast<int>( PLOT_FORMAT::LAST_FORMAT ) ) );
             break;
 
         case T_mirror:

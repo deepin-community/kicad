@@ -67,15 +67,15 @@ BOOST_AUTO_TEST_CASE( DefaultProperties )
 
     // only get the root
     BOOST_CHECK_EQUAL( m_part_no_data.IsRoot(), true );
-    BOOST_CHECK_EQUAL( m_part_no_data.IsAlias(), false );
+    BOOST_CHECK_EQUAL( m_part_no_data.IsDerived(), false );
     BOOST_CHECK_EQUAL( m_part_no_data.SharedPtr().use_count(), 2 );
 
     // no sub units
     BOOST_CHECK_EQUAL( m_part_no_data.GetUnitCount(), 1 );
-    BOOST_CHECK_EQUAL( m_part_no_data.IsMulti(), false );
+    BOOST_CHECK_EQUAL( m_part_no_data.IsMultiUnit(), false );
 
-    // no conversion
-    BOOST_CHECK_EQUAL( m_part_no_data.HasAlternateBodyStyle(), false );
+    // single body style
+    BOOST_CHECK_EQUAL( m_part_no_data.HasDeMorganBodyStyles(), false );
 }
 
 
@@ -85,8 +85,8 @@ BOOST_AUTO_TEST_CASE( DefaultProperties )
 BOOST_AUTO_TEST_CASE( DefaultDrawings )
 {
     // default drawings exist
-    BOOST_CHECK_EQUAL( m_part_no_data.GetDrawItems().size(), MANDATORY_FIELD_COUNT );
-    BOOST_CHECK_EQUAL( m_part_no_data.GetPins().size(), 0 );
+    BOOST_CHECK_EQUAL( m_part_no_data.GetDrawItems().size(), 5 );
+    BOOST_CHECK_EQUAL( m_part_no_data.GetGraphicalPins( 0, 0 ).size(), 0 );
 }
 
 
@@ -102,19 +102,19 @@ BOOST_AUTO_TEST_CASE( DefaultFields )
     BOOST_CHECK_PREDICATE( KI_TEST::AreDefaultFieldsCorrect, ( fields ) );
 
     // but no more (we didn't set them)
-    BOOST_CHECK_EQUAL( fields.size(), MANDATORY_FIELD_COUNT );
+    BOOST_CHECK_EQUAL( fields.size(), 5 );
 
     // also check the default field accessors
     BOOST_CHECK_PREDICATE( KI_TEST::FieldNameIdMatches,
-            ( m_part_no_data.GetReferenceField() )( "Reference" )( MANDATORY_FIELD_T::REFERENCE_FIELD ) );
+            ( m_part_no_data.GetReferenceField() )( "Reference" )( (int) FIELD_T::REFERENCE ) );
     BOOST_CHECK_PREDICATE( KI_TEST::FieldNameIdMatches,
-            ( m_part_no_data.GetValueField() )( "Value" )( MANDATORY_FIELD_T::VALUE_FIELD ) );
+            ( m_part_no_data.GetValueField() )( "Value" )( (int) FIELD_T::VALUE ) );
     BOOST_CHECK_PREDICATE( KI_TEST::FieldNameIdMatches,
-            ( m_part_no_data.GetFootprintField() )( "Footprint" )( MANDATORY_FIELD_T::FOOTPRINT_FIELD ) );
+            ( m_part_no_data.GetFootprintField() )( "Footprint" )( (int) FIELD_T::FOOTPRINT ) );
     BOOST_CHECK_PREDICATE( KI_TEST::FieldNameIdMatches,
-            ( m_part_no_data.GetDatasheetField() )( "Datasheet" )( MANDATORY_FIELD_T::DATASHEET_FIELD) );
+            ( m_part_no_data.GetDatasheetField() )( "Datasheet" )( (int) FIELD_T::DATASHEET ) );
     BOOST_CHECK_PREDICATE( KI_TEST::FieldNameIdMatches,
-            ( m_part_no_data.GetDescriptionField() )( "Description" )( MANDATORY_FIELD_T::DESCRIPTION_FIELD) );
+            ( m_part_no_data.GetDescriptionField() )( "Description" )( (int) FIELD_T::DESCRIPTION ) );
 }
 
 
@@ -129,7 +129,7 @@ BOOST_AUTO_TEST_CASE( AddedFields )
     // Ctor takes non-const ref (?!)
     const std::string newFieldName = "new_field";
     wxString          nonConstNewFieldName = newFieldName;
-    fields.push_back( SCH_FIELD( nullptr, 42, nonConstNewFieldName ) );
+    fields.push_back( SCH_FIELD( nullptr, FIELD_T::USER, nonConstNewFieldName ) );
 
     // fairly roundabout way to add a field, but it is what it is
     m_part_no_data.SetFields( fields );
@@ -138,25 +138,14 @@ BOOST_AUTO_TEST_CASE( AddedFields )
     BOOST_CHECK_PREDICATE( KI_TEST::AreDefaultFieldsCorrect, ( fields ) );
 
     // and our new one
-    BOOST_REQUIRE_EQUAL( fields.size(), MANDATORY_FIELD_COUNT + 1 );
-
-    BOOST_CHECK_PREDICATE( KI_TEST::FieldNameIdMatches,
-            ( fields[MANDATORY_FIELD_COUNT] )( newFieldName )( 42 ) );
-
-    // Check by-id lookup
-
-    SCH_FIELD* gotNewField = m_part_no_data.GetFieldById( 42 );
-
-    BOOST_REQUIRE_NE( gotNewField, nullptr );
-
-    BOOST_CHECK_PREDICATE( KI_TEST::FieldNameIdMatches, ( *gotNewField )( newFieldName )( 42 ) );
+    BOOST_REQUIRE_EQUAL( fields.size(), 6 );
 
     // Check by-name lookup
 
-    gotNewField = m_part_no_data.FindField( newFieldName );
+    SCH_FIELD* gotNewField = m_part_no_data.GetField( newFieldName );
 
     BOOST_REQUIRE_NE( gotNewField, nullptr );
-    BOOST_CHECK_PREDICATE( KI_TEST::FieldNameIdMatches, ( *gotNewField )( newFieldName )( 42 ) );
+    BOOST_CHECK_PREDICATE( KI_TEST::FieldNameIdMatches, ( *gotNewField )( newFieldName )( 0 ) );
 }
 
 
@@ -394,18 +383,18 @@ BOOST_AUTO_TEST_CASE( Compare )
     testPart.SetLibId( id );
 
     // Unit count comparison tests.
-    testPart.SetUnitCount( 2 );
+    testPart.SetUnitCount( 2, true );
     BOOST_CHECK( m_part_no_data.Compare( testPart ) < 0 );
-    testPart.SetUnitCount( 1 );
-    m_part_no_data.SetUnitCount( 2 );
+    testPart.SetUnitCount( 1, true );
+    m_part_no_data.SetUnitCount( 2, true );
     BOOST_CHECK( m_part_no_data.Compare( testPart ) > 0 );
-    m_part_no_data.SetUnitCount( 1 );
+    m_part_no_data.SetUnitCount( 1, true );
 
     // Options flag comparison tests.
-    testPart.SetPower();
+    testPart.SetGlobalPower();
     BOOST_CHECK( m_part_no_data.Compare( testPart ) < 0 );
     testPart.SetNormal();
-    m_part_no_data.SetPower();
+    m_part_no_data.SetGlobalPower();
     BOOST_CHECK( m_part_no_data.Compare( testPart ) > 0 );
     m_part_no_data.SetNormal();
 
@@ -497,6 +486,14 @@ BOOST_AUTO_TEST_CASE( Compare )
     BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) < 0 );
     m_part_no_data.SetExcludedFromBoard( false );
 
+    // Include in position files support tests.
+    testPart.SetExcludedFromPosFiles( true );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) > 0 );
+    testPart.SetExcludedFromPosFiles( false );
+    m_part_no_data.SetExcludedFromPosFiles( true );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) < 0 );
+    m_part_no_data.SetExcludedFromPosFiles( false );
+
     // Show pin names flag comparison tests.
     m_part_no_data.SetShowPinNames( false );
     BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) < 0 );
@@ -545,7 +542,7 @@ BOOST_AUTO_TEST_CASE( GetUnitItems )
     // Two unique units with pin 1 assigned to unit 1 and body style 1 and pin 2 assigned to
     // unit 2 and body style 1.
     SCH_PIN* pin2 = new SCH_PIN( &m_part_no_data );
-    m_part_no_data.SetUnitCount( 2 );
+    m_part_no_data.SetUnitCount( 2, true );
     pin2->SetUnit( 2 );
     pin2->SetBodyStyle( 2 );
     pin2->SetNumber( "4" );
@@ -595,45 +592,44 @@ BOOST_AUTO_TEST_CASE( Inheritance )
     std::unique_ptr<LIB_SYMBOL> ref = std::make_unique<LIB_SYMBOL>( *parent );
 
     std::unique_ptr<LIB_SYMBOL> child = std::make_unique<LIB_SYMBOL>( "child", parent.get() );
-    BOOST_CHECK( child->IsAlias() );
+    BOOST_CHECK( child->IsDerived() );
     BOOST_CHECK_EQUAL( child->GetInheritanceDepth(), 1 );
 
-    std::unique_ptr<LIB_SYMBOL> grandChild = std::make_unique<LIB_SYMBOL>( "grandchild",
-                                                                           child.get() );
-    BOOST_CHECK( grandChild->IsAlias() );
+    std::unique_ptr<LIB_SYMBOL> grandChild = std::make_unique<LIB_SYMBOL>( "grandchild", child.get() );
+    BOOST_CHECK( grandChild->IsDerived() );
     BOOST_CHECK_EQUAL( grandChild->GetInheritanceDepth(), 2 );
 
     BOOST_CHECK( parent->GetRootSymbol().get() == parent.get() );
     BOOST_CHECK( child->GetRootSymbol().get() == parent.get() );
     BOOST_CHECK( grandChild->GetRootSymbol().get() == parent.get() );
 
-    LIB_SYMBOL_SPTR parentRef = child->GetParent().lock();
+    std::shared_ptr<LIB_SYMBOL> parentRef = child->GetParent().lock();
     BOOST_CHECK( parentRef );
     BOOST_CHECK( parentRef == parent->SharedPtr() );
     BOOST_CHECK_EQUAL( parent->SharedPtr().use_count(), 3 );
 
-    LIB_SYMBOL_SPTR childRef = grandChild->GetParent().lock();
+    std::shared_ptr<LIB_SYMBOL> childRef = grandChild->GetParent().lock();
     BOOST_CHECK( childRef );
     BOOST_CHECK( childRef == child->SharedPtr() );
     BOOST_CHECK_EQUAL( child->SharedPtr().use_count(), 3 );
 
     BOOST_CHECK_EQUAL( child->GetUnitCount(), 1 );
-    parent->SetUnitCount( 4 );
+    parent->SetUnitCount( 4, true );
     BOOST_CHECK_EQUAL( child->GetUnitCount(), 4 );
-    parent->SetUnitCount( 1 );
+    parent->SetUnitCount( 1, true );
 
-    parent->GetDatasheetField().SetText( "https://kicad/resistors.pdf" );
-    ref->GetDatasheetField().SetText( "https://kicad/resistors.pdf" );
+    parent->GetField( FIELD_T::DATASHEET )->SetText( "https://kicad/resistors.pdf" );
+    ref->GetField( FIELD_T::DATASHEET )->SetText( "https://kicad/resistors.pdf" );
 
     BOOST_CHECK( *parent == *ref );
 
     ref->SetName( "child" );
-    SCH_FIELD* field = new SCH_FIELD( nullptr, MANDATORY_FIELD_COUNT, "Manufacturer" );
+    SCH_FIELD* field = new SCH_FIELD( nullptr, FIELD_T::USER, "Manufacturer" );
     field->SetText( "KiCad" );
     child->AddField( field );
     field->SetParent( child.get() );
 
-    field = new SCH_FIELD( nullptr, MANDATORY_FIELD_COUNT, "Manufacturer" );
+    field = new SCH_FIELD( nullptr, FIELD_T::USER, "Manufacturer" );
     field->SetText( "KiCad" );
     ref->AddField( field );
     field->SetParent( ref.get() );
@@ -641,19 +637,19 @@ BOOST_AUTO_TEST_CASE( Inheritance )
     BOOST_CHECK( *ref == *child->Flatten() );
 
     ref->SetName( "grandchild" );
-    field = new SCH_FIELD( nullptr, MANDATORY_FIELD_COUNT + 1, "MPN" );
+    field = new SCH_FIELD( nullptr, FIELD_T::USER, "MPN" );
     field->SetText( "123456" );
     grandChild->AddField( field );
     field->SetParent( grandChild.get() );
 
-    field = new SCH_FIELD( nullptr, MANDATORY_FIELD_COUNT + 1, "MPN" );
+    field = new SCH_FIELD( nullptr, FIELD_T::USER, "MPN" );
     field->SetText( "123456" );
     ref->AddField( field );
     field->SetParent( ref.get() );
 
     BOOST_CHECK( *ref == *grandChild->Flatten() );
 
-    BOOST_CHECK_EQUAL( grandChild->Flatten()->GetDatasheetField().GetText(),
+    BOOST_CHECK_EQUAL( grandChild->Flatten()->GetField( FIELD_T::DATASHEET )->GetText(),
                        "https://kicad/resistors.pdf" );
 
     child->SetParent();
@@ -689,7 +685,7 @@ BOOST_AUTO_TEST_CASE( IsPowerTest )
     BOOST_CHECK( !symbol->IsPower() );
     BOOST_CHECK( symbol->IsNormal() );
 
-    symbol->SetPower();
+    symbol->SetGlobalPower();
     BOOST_CHECK( symbol->IsPower() );
     BOOST_CHECK( !symbol->IsNormal() );
 

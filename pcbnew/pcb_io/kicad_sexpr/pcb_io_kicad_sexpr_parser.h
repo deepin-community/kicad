@@ -30,14 +30,17 @@
 #ifndef _PCBNEW_PARSER_H_
 #define _PCBNEW_PARSER_H_
 
+#include <eda_units.h>
 #include <core/wx_stl_compat.h>
 #include <hashtables.h>
+#include <lib_id.h>
 #include <layer_ids.h>     // PCB_LAYER_ID
 #include <lset.h>
 #include <pcb_lexer.h>
 #include <kiid.h>
 #include <math/box2.h>
 #include <string_any_map.h>
+#include <padstack.h>
 
 #include <chrono>
 #include <unordered_map>
@@ -46,6 +49,8 @@
 class PCB_ARC;
 class BOARD;
 class BOARD_ITEM;
+class ZONE_SETTINGS;
+class BOARD_CONNECTED_ITEM;
 class BOARD_ITEM_CONTAINER;
 class PAD;
 class BOARD_DESIGN_SETTINGS;
@@ -54,14 +59,18 @@ class PCB_SHAPE;
 class PCB_REFERENCE_IMAGE;
 class EDA_TEXT;
 class PCB_TEXT;
+class PCB_TEXTBOX;
 class PCB_TRACK;
 class PCB_TABLE;
 class PCB_TABLECELL;
 class FOOTPRINT;
 class PCB_GROUP;
+class PCB_POINT;
 class PCB_TARGET;
 class PCB_VIA;
 class ZONE;
+struct ZONE_LAYER_PROPERTIES;
+class PCB_BARCODE;
 class FP_3DMODEL;
 class SHAPE_LINE_CHAIN;
 struct LAYER;
@@ -82,15 +91,15 @@ public:
     typedef std::unordered_map< wxString, KIID >            KIID_MAP;
 
     PCB_IO_KICAD_SEXPR_PARSER( LINE_READER* aReader, BOARD* aAppendToMe,
-                std::function<bool( wxString, int, wxString, wxString )> aQueryUserCallback,
-                PROGRESS_REPORTER* aProgressReporter = nullptr, unsigned aLineCount = 0 ) :
-        PCB_LEXER( aReader ),
-        m_board( aAppendToMe ),
-        m_appendToExisting( aAppendToMe != nullptr ),
-        m_progressReporter( aProgressReporter ),
-        m_lastProgressTime( std::chrono::steady_clock::now() ),
-        m_lineCount( aLineCount ),
-        m_queryUserCallback( std::move( aQueryUserCallback ) )
+                               std::function<bool( wxString, int, wxString, wxString )> aQueryUserCallback,
+                               PROGRESS_REPORTER* aProgressReporter = nullptr, unsigned aLineCount = 0 ) :
+            PCB_LEXER( aReader ),
+            m_board( aAppendToMe ),
+            m_appendToExisting( aAppendToMe != nullptr ),
+            m_progressReporter( aProgressReporter ),
+            m_lastProgressTime( std::chrono::steady_clock::now() ),
+            m_lineCount( aLineCount ),
+            m_queryUserCallback( std::move( aQueryUserCallback ) )
     {
         init();
     }
@@ -127,6 +136,12 @@ public:
      */
     bool IsValidBoardHeader();
 
+    /**
+     * Return any non-fatal parse warnings that occurred during parsing.
+     * These are errors that were handled gracefully but should be reported to the user.
+     */
+    const std::vector<wxString>& GetParseWarnings() const { return m_parseWarnings; }
+
 private:
 
     // Group membership info refers to other Uuids in the file.
@@ -141,6 +156,7 @@ private:
         wxString          name;
         bool              locked;
         KIID              uuid;
+        LIB_ID            libId;
         std::vector<KIID> memberUuids;
     };
 
@@ -221,17 +237,21 @@ private:
     void                 parsePCB_TEXT_effects( PCB_TEXT* aText, PCB_TEXT* aBaseText = nullptr );
     PCB_REFERENCE_IMAGE* parsePCB_REFERENCE_IMAGE( BOARD_ITEM* aParent );
     PCB_TEXTBOX*         parsePCB_TEXTBOX( BOARD_ITEM* aParent );
+    PCB_BARCODE*         parsePCB_BARCODE( BOARD_ITEM* aParent );
     PCB_TABLECELL*       parsePCB_TABLECELL( BOARD_ITEM* aParent );
     PCB_TABLE*           parsePCB_TABLE( BOARD_ITEM* aParent );
     PCB_DIMENSION_BASE*  parseDIMENSION( BOARD_ITEM* aParent );
 
     // Parse a footprint, but do not replace PARSE_ERROR with FUTURE_FORMAT_ERROR automatically.
     FOOTPRINT*  parseFOOTPRINT_unchecked( wxArrayString* aInitialComments = nullptr );
+    void        parseFootprintStackup( FOOTPRINT& aFootprint );
 
     PAD*        parsePAD( FOOTPRINT* aParent = nullptr );
 
     // Parse only the (option ...) inside a pad description
     bool        parsePAD_option( PAD* aPad );
+    void        parsePostMachining( PADSTACK::POST_MACHINING_PROPS& aProps );
+
     void        parsePadstack( PAD* aPad );
 
     PCB_ARC*    parseARC();
@@ -240,6 +260,7 @@ private:
     void        parseViastack( PCB_VIA* aVia );
     ZONE*       parseZONE( BOARD_ITEM_CONTAINER* aParent );
     PCB_TARGET* parsePCB_TARGET();
+    PCB_POINT*  parsePCB_POINT();
     BOARD*      parseBOARD();
     void        parseGROUP_members( GROUP_INFO& aGroupInfo );
     void        parseGROUP( BOARD_ITEM* aParent );
@@ -303,7 +324,14 @@ private:
 
     void parseMargins( int& aLeft, int& aTop, int& aRight, int& aBottom );
 
+    void parseZoneDefaults( ZONE_SETTINGS& aZoneSettings );
+
+    void parseZoneLayerProperty( std::map<PCB_LAYER_ID, ZONE_LAYER_PROPERTIES>& aProperties );
+
     std::pair<wxString, wxString> parseBoardProperty();
+
+    void parseVariants();
+    void parseFootprintVariant( FOOTPRINT* aFootprint );
 
     /**
      * Parses possible outline points and stores them into \p aPoly.  This accepts points
@@ -330,8 +358,6 @@ private:
      */
     void parseRenderCache( EDA_TEXT* text );
 
-    void parseTenting( PADSTACK& aPadstack );
-
     FP_3DMODEL* parse3DModel();
 
     /**
@@ -344,11 +370,11 @@ private:
 
     int parseBoardUnits();
 
-    int parseBoardUnits( const char* aExpected );
+    int parseBoardUnits( const char* aExpected, EDA_DATA_TYPE aDataType );
 
-    inline int parseBoardUnits( PCB_KEYS_T::T aToken )
+    inline int parseBoardUnits( const PCB_KEYS_T::T aToken, const EDA_DATA_TYPE aDataType = EDA_DATA_TYPE::DISTANCE )
     {
-        return parseBoardUnits( GetTokenText( aToken ) );
+        return parseBoardUnits( GetTokenText( aToken ), aDataType );
     }
 
     inline int parseInt()
@@ -370,6 +396,8 @@ private:
 
     bool parseBool();
 
+    std::optional<bool> parseOptBool();
+
     /**
      * Parses a boolean flag inside a list that existed before boolean normalization.
      *
@@ -381,6 +409,10 @@ private:
      * @return the parsed boolean
      */
     bool parseMaybeAbsentBool( bool aDefaultValue );
+
+    std::pair<std::optional<bool>, std::optional<bool>> parseFrontBackOptBool( bool aAllowLegacyFormat = false );
+
+    void parseNet( BOARD_CONNECTED_ITEM* aItem );
 
     /*
      * @return if m_appendToExisting, returns new KIID(), otherwise returns CurStr() as KIID.
@@ -426,6 +458,8 @@ private:
     std::vector<GENERATOR_INFO> m_generatorInfos;
 
     std::function<bool( wxString aTitle, int aIcon, wxString aMsg, wxString aAction )> m_queryUserCallback;
+
+    std::vector<wxString>       m_parseWarnings;    ///< Non-fatal warnings collected during parsing
 };
 
 

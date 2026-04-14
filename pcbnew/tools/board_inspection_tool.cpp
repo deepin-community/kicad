@@ -21,12 +21,17 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "tools/board_inspection_tool.h"
+
 #include <bitmaps.h>
+#include <collectors.h>
+#include <footprint.h>
 #include <pcb_group.h>
 #include <tool/tool_manager.h>
 #include <tools/pcb_selection_tool.h>
 #include <tools/pcb_picker_tool.h>
 #include <tools/edit_tool.h>
+#include <tools/drc_tool.h>
 #include <pcb_painter.h>
 #include <connectivity/connectivity_data.h>
 #include <drc/drc_engine.h>
@@ -34,16 +39,18 @@
 #include <dialogs/dialog_book_reporter.h>
 #include <dialogs/panel_setup_rules_base.h>
 #include <dialogs/dialog_footprint_associations.h>
+#include <dialogs/dialog_drc.h>
+#include <kiplatform/ui.h>
+#include <status_popup.h>
 #include <string_utils.h>
-#include <tools/board_inspection_tool.h>
-#include <fp_lib_table.h>
+#include <footprint_library_adapter.h>
 #include <pcb_shape.h>
-#include <pcbnew_settings.h>
 #include <widgets/appearance_controls.h>
 #include <widgets/wx_html_report_box.h>
 #include <widgets/footprint_diff_widget.h>
 #include <drc/drc_item.h>
 #include <pad.h>
+#include <pcb_track.h>
 #include <project_pcb.h>
 #include <view/view_controls.h>
 
@@ -59,7 +66,8 @@ BOARD_INSPECTION_TOOL::BOARD_INSPECTION_TOOL() :
 class NET_CONTEXT_MENU : public ACTION_MENU
 {
 public:
-    NET_CONTEXT_MENU() : ACTION_MENU( true )
+    NET_CONTEXT_MENU() :
+            ACTION_MENU( true )
     {
         SetIcon( BITMAPS::show_ratsnest );
         SetTitle( _( "Net Inspection Tools" ) );
@@ -206,6 +214,201 @@ wxString BOARD_INSPECTION_TOOL::getItemDescription( BOARD_ITEM* aItem )
 };
 
 
+void BOARD_INSPECTION_TOOL::filterCollectorForInspection( GENERAL_COLLECTOR& aCollector,
+                                                          const VECTOR2I& aPos )
+{
+    std::vector<BOARD_ITEM*> toAdd;
+
+    for( int i = 0; i < aCollector.GetCount(); ++i )
+    {
+        if( aCollector[i]->Type() == PCB_GROUP_T )
+        {
+            PCB_GROUP* group = static_cast<PCB_GROUP*>( aCollector[i] );
+
+            group->RunOnChildren(
+                    [&]( BOARD_ITEM* child )
+                    {
+                        if( child->Type() == PCB_GROUP_T )
+                            return;
+
+                        if( !child->HitTest( aPos ) )
+                            return;
+
+                        toAdd.push_back( child );
+
+                        if( child->Type() == PCB_FOOTPRINT_T )
+                        {
+                            for( PAD* pad : static_cast<FOOTPRINT*>( child )->Pads() )
+                            {
+                                if( pad->HitTest( aPos ) )
+                                    toAdd.push_back( pad );
+                            }
+                        }
+                    },
+                    RECURSE_MODE::RECURSE );
+        }
+    }
+
+    for( BOARD_ITEM* item : toAdd )
+        aCollector.Append( item );
+
+    bool hasPadOrTrack = false;
+
+    for( int i = 0; i < aCollector.GetCount(); ++i )
+    {
+        KICAD_T type = aCollector[i]->Type();
+
+        if( type == PCB_PAD_T || type == PCB_VIA_T || type == PCB_TRACE_T
+            || type == PCB_ARC_T || type == PCB_ZONE_T )
+        {
+            hasPadOrTrack = true;
+            break;
+        }
+    }
+
+    for( int i = aCollector.GetCount() - 1; i >= 0; --i )
+    {
+        BOARD_ITEM* item = aCollector[i];
+
+        if( hasPadOrTrack && item->Type() == PCB_FOOTPRINT_T )
+        {
+            aCollector.Remove( i );
+            continue;
+        }
+
+        if( item->Type() == PCB_GROUP_T )
+            aCollector.Remove( i );
+    }
+}
+
+
+BOARD_ITEM* BOARD_INSPECTION_TOOL::pickItemForInspection( const TOOL_EVENT& aEvent,
+                                                          const wxString& aPrompt,
+                                                          const std::vector<KICAD_T>& aTypes,
+                                                          BOARD_ITEM* aLockedHighlight )
+{
+    PCB_SELECTION_TOOL* selTool = m_toolMgr->GetTool<PCB_SELECTION_TOOL>();
+    PCB_PICKER_TOOL*    picker = m_toolMgr->GetTool<PCB_PICKER_TOOL>();
+    STATUS_TEXT_POPUP   statusPopup( m_frame );
+    BOARD_ITEM*         pickedItem = nullptr;
+    BOARD_ITEM*         highlightedItem = nullptr;
+    bool                done = false;
+
+    statusPopup.SetText( aPrompt );
+
+    picker->SetCursor( KICURSOR::BULLSEYE );
+    picker->SetSnapping( false );
+    picker->ClearHandlers();
+
+    picker->SetClickHandler(
+            [&]( const VECTOR2D& aPoint ) -> bool
+            {
+                m_toolMgr->RunAction( ACTIONS::selectionClear );
+
+                GENERAL_COLLECTORS_GUIDE guide = m_frame->GetCollectorsGuide();
+                GENERAL_COLLECTOR        collector;
+
+                collector.Collect( m_frame->GetBoard(), aTypes, aPoint, guide );
+
+                for( int i = collector.GetCount() - 1; i >= 0; --i )
+                {
+                    if( !selTool->Selectable( collector[i] ) )
+                        collector.Remove( i );
+                }
+
+                filterCollectorForInspection( collector, aPoint );
+
+                if( collector.GetCount() > 1 )
+                    selTool->GuessSelectionCandidates( collector, aPoint );
+
+                if( collector.GetCount() == 0 )
+                    return true;
+
+                pickedItem = collector[0];
+                statusPopup.Hide();
+
+                return false;
+            } );
+
+    picker->SetMotionHandler(
+            [&]( const VECTOR2D& aPos )
+            {
+                statusPopup.Move( KIPLATFORM::UI::GetMousePosition() + wxPoint( 20, -50 ) );
+
+                GENERAL_COLLECTORS_GUIDE guide = m_frame->GetCollectorsGuide();
+                GENERAL_COLLECTOR        collector;
+
+                collector.Collect( m_frame->GetBoard(), aTypes, aPos, guide );
+
+                for( int i = collector.GetCount() - 1; i >= 0; --i )
+                {
+                    if( !selTool->Selectable( collector[i] ) )
+                        collector.Remove( i );
+                }
+
+                filterCollectorForInspection( collector, aPos );
+
+                if( collector.GetCount() > 1 )
+                    selTool->GuessSelectionCandidates( collector, aPos );
+
+                BOARD_ITEM* item = collector.GetCount() >= 1 ? collector[0] : nullptr;
+
+                if( highlightedItem != item )
+                {
+                    if( highlightedItem && highlightedItem != aLockedHighlight )
+                        selTool->UnbrightenItem( highlightedItem );
+
+                    highlightedItem = item;
+
+                    if( highlightedItem && highlightedItem != aLockedHighlight )
+                        selTool->BrightenItem( highlightedItem );
+                }
+            } );
+
+    picker->SetCancelHandler(
+            [&]()
+            {
+                if( highlightedItem && highlightedItem != aLockedHighlight )
+                    selTool->UnbrightenItem( highlightedItem );
+
+                highlightedItem = nullptr;
+                statusPopup.Hide();
+                done = true;
+            } );
+
+    picker->SetFinalizeHandler(
+            [&]( const int& aFinalState )
+            {
+                if( highlightedItem && highlightedItem != aLockedHighlight )
+                    selTool->UnbrightenItem( highlightedItem );
+
+                highlightedItem = nullptr;
+
+                if( !pickedItem )
+                    done = true;
+            } );
+
+    statusPopup.Move( KIPLATFORM::UI::GetMousePosition() + wxPoint( 20, -50 ) );
+    statusPopup.Popup();
+    m_frame->GetCanvas()->SetStatusPopup( statusPopup.GetPanel() );
+
+    m_toolMgr->RunAction( ACTIONS::pickerTool, &aEvent );
+
+    while( !done && !pickedItem )
+    {
+        if( TOOL_EVENT* evt = Wait() )
+            evt->SetPassEvent();
+        else
+            break;
+    }
+
+    picker->ClearHandlers();
+    m_frame->GetCanvas()->SetStatusPopup( nullptr );
+
+    return pickedItem;
+}
+
+
 void BOARD_INSPECTION_TOOL::reportCompileError( REPORTER* r )
 {
     r->Report( "" );
@@ -272,40 +475,13 @@ wxString reportMax( PCB_BASE_FRAME* aFrame, DRC_CONSTRAINT& aConstraint )
 
 wxString BOARD_INSPECTION_TOOL::InspectDRCErrorMenuText( const std::shared_ptr<RC_ITEM>& aDRCItem )
 {
-    auto menuDescription =
-            [&]( const TOOL_ACTION& aAction )
-            {
-                wxString   menuItemLabel = aAction.GetMenuLabel();
-                wxMenuBar* menuBar = m_frame->GetMenuBar();
-
-                for( size_t ii = 0; ii < menuBar->GetMenuCount(); ++ii )
-                {
-                    for( wxMenuItem* menuItem : menuBar->GetMenu( ii )->GetMenuItems() )
-                    {
-                        if( menuItem->GetItemLabelText() == menuItemLabel )
-                        {
-                            wxString menuTitleLabel = menuBar->GetMenuLabelText( ii );
-
-                            menuTitleLabel.Replace( wxS( "&" ), wxS( "&&" ) );
-                            menuItemLabel.Replace( wxS( "&" ), wxS( "&&" ) );
-
-                            return wxString::Format( _( "Run %s > %s" ),
-                                                     menuTitleLabel,
-                                                     menuItemLabel );
-                        }
-                    }
-                }
-
-                return wxString::Format( _( "Run %s" ), aAction.GetFriendlyName() );
-            };
-
     if( aDRCItem->GetErrorCode() == DRCE_CLEARANCE
             || aDRCItem->GetErrorCode() == DRCE_EDGE_CLEARANCE
             || aDRCItem->GetErrorCode() == DRCE_HOLE_CLEARANCE
             || aDRCItem->GetErrorCode() == DRCE_DRILLED_HOLES_TOO_CLOSE
             || aDRCItem->GetErrorCode() == DRCE_STARVED_THERMAL )
     {
-        return menuDescription( PCB_ACTIONS::inspectClearance );
+        return m_frame->GetRunMenuCommandDescription( PCB_ACTIONS::inspectClearance );
     }
     else if( aDRCItem->GetErrorCode() == DRCE_TEXT_HEIGHT
             || aDRCItem->GetErrorCode() == DRCE_TEXT_THICKNESS
@@ -320,16 +496,11 @@ wxString BOARD_INSPECTION_TOOL::InspectDRCErrorMenuText( const std::shared_ptr<R
             || aDRCItem->GetErrorCode() == DRCE_CONNECTION_WIDTH
             || aDRCItem->GetErrorCode() == DRCE_ASSERTION_FAILURE )
     {
-        return menuDescription( PCB_ACTIONS::inspectConstraints );
+        return m_frame->GetRunMenuCommandDescription( PCB_ACTIONS::inspectConstraints );
     }
     else if( aDRCItem->GetErrorCode() == DRCE_LIB_FOOTPRINT_MISMATCH )
     {
-        return menuDescription( PCB_ACTIONS::diffFootprint );
-    }
-    else if( aDRCItem->GetErrorCode() == DRCE_DANGLING_TRACK
-             || aDRCItem->GetErrorCode() == DRCE_DANGLING_VIA )
-    {
-        return menuDescription( PCB_ACTIONS::cleanupTracksAndVias );
+        return m_frame->GetRunMenuCommandDescription( PCB_ACTIONS::diffFootprint );
     }
 
     return wxEmptyString;
@@ -338,10 +509,12 @@ wxString BOARD_INSPECTION_TOOL::InspectDRCErrorMenuText( const std::shared_ptr<R
 
 void BOARD_INSPECTION_TOOL::InspectDRCError( const std::shared_ptr<RC_ITEM>& aDRCItem )
 {
-    wxCHECK( m_frame, /* void */ );
+    DRC_TOOL* drcTool = m_toolMgr->GetTool<DRC_TOOL>();
 
-    BOARD_ITEM*           a = m_frame->GetBoard()->GetItem( aDRCItem->GetMainItemID() );
-    BOARD_ITEM*           b = m_frame->GetBoard()->GetItem( aDRCItem->GetAuxItemID() );
+    wxCHECK( drcTool && m_frame, /* void */ );
+
+    BOARD_ITEM*           a = m_frame->GetBoard()->ResolveItem( aDRCItem->GetMainItemID() );
+    BOARD_ITEM*           b = m_frame->GetBoard()->ResolveItem( aDRCItem->GetAuxItemID() );
     BOARD_CONNECTED_ITEM* ac = dynamic_cast<BOARD_CONNECTED_ITEM*>( a );
     BOARD_CONNECTED_ITEM* bc = dynamic_cast<BOARD_CONNECTED_ITEM*>( b );
     PCB_LAYER_ID          layer = m_frame->GetActiveLayer();
@@ -349,14 +522,8 @@ void BOARD_INSPECTION_TOOL::InspectDRCError( const std::shared_ptr<RC_ITEM>& aDR
     if( aDRCItem->GetErrorCode() == DRCE_LIB_FOOTPRINT_MISMATCH )
     {
         if( FOOTPRINT* footprint = dynamic_cast<FOOTPRINT*>( a ) )
-            DiffFootprint( footprint );
+            DiffFootprint( footprint, drcTool->GetDRCDialog() );
 
-        return;
-    }
-    else if( aDRCItem->GetErrorCode() == DRCE_DANGLING_TRACK
-             || aDRCItem->GetErrorCode() == DRCE_DANGLING_VIA )
-    {
-        m_toolMgr->RunAction( PCB_ACTIONS::cleanupTracksAndVias );
         return;
     }
 
@@ -380,7 +547,7 @@ void BOARD_INSPECTION_TOOL::InspectDRCError( const std::shared_ptr<RC_ITEM>& aDR
     {
         for( KIID id : aDRCItem->GetIDs() )
         {
-            bc = dynamic_cast<BOARD_CONNECTED_ITEM*>( m_frame->GetBoard()->GetItem( id ) );
+            bc = dynamic_cast<BOARD_CONNECTED_ITEM*>( m_frame->GetBoard()->ResolveItem( id, true ) );
 
             if( ac && bc && ac->GetNetCode() != bc->GetNetCode() )
                 break;
@@ -698,7 +865,7 @@ void BOARD_INSPECTION_TOOL::InspectDRCError( const std::shared_ptr<RC_ITEM>& aDR
 
     r->Flush();
 
-    dialog->Raise();
+    KIPLATFORM::UI::ReparentWindow( dialog, drcTool->GetDRCDialog() );
     dialog->Show( true );
 }
 
@@ -707,23 +874,84 @@ int BOARD_INSPECTION_TOOL::InspectClearance( const TOOL_EVENT& aEvent )
 {
     wxCHECK( m_frame, 0 );
 
-    PCB_SELECTION_TOOL*  selTool = m_toolMgr->GetTool<PCB_SELECTION_TOOL>();
+    PCB_SELECTION_TOOL* selTool = m_toolMgr->GetTool<PCB_SELECTION_TOOL>();
 
     wxCHECK( selTool, 0 );
 
     const PCB_SELECTION& selection = selTool->GetSelection();
+    BOARD_ITEM*          firstItem = nullptr;
+    BOARD_ITEM*          secondItem = nullptr;
 
-    if( selection.Size() != 2 )
+    if( selection.Size() == 2 )
     {
-        m_frame->ShowInfoBarError( _( "Select two items for a clearance resolution report." ) );
+        if( !selection.GetItem( 0 )->IsBOARD_ITEM() || !selection.GetItem( 1 )->IsBOARD_ITEM() )
+            return 0;
+
+        firstItem = static_cast<BOARD_ITEM*>( selection.GetItem( 0 ) );
+        secondItem = static_cast<BOARD_ITEM*>( selection.GetItem( 1 ) );
+
+        reportClearance( firstItem, secondItem );
         return 0;
     }
 
-    if( !selection.GetItem( 0 )->IsBOARD_ITEM() || !selection.GetItem( 1 )->IsBOARD_ITEM() )
+    // Selection size is not 2, so we need to use picker mode.
+    // If there is one item selected, use it as the first item.
+    if( selection.Size() == 1 && selection.GetItem( 0 )->IsBOARD_ITEM() )
+        firstItem = static_cast<BOARD_ITEM*>( selection.GetItem( 0 ) );
+
+    static const std::vector<KICAD_T> clearanceTypes = {
+        PCB_PAD_T,
+        PCB_VIA_T,
+        PCB_TRACE_T,
+        PCB_ARC_T,
+        PCB_ZONE_T,
+        PCB_SHAPE_T,
+        PCB_FOOTPRINT_T,
+        PCB_GROUP_T
+    };
+
+    Activate();
+
+    if( !firstItem )
+    {
+        firstItem = pickItemForInspection( aEvent,
+                                           _( "Select first item for clearance resolution..." ),
+                                           clearanceTypes, nullptr );
+
+        if( !firstItem )
+            return 0;
+    }
+
+    // Keep the first item highlighted while selecting the second
+    selTool->BrightenItem( firstItem );
+
+    secondItem = pickItemForInspection( aEvent,
+                                        _( "Select second item for clearance resolution..." ),
+                                        clearanceTypes, firstItem );
+
+    selTool->UnbrightenItem( firstItem );
+
+    if( !secondItem )
         return 0;
 
-    BOARD_ITEM* a = static_cast<BOARD_ITEM*>( selection.GetItem( 0 ) );
-    BOARD_ITEM* b = static_cast<BOARD_ITEM*>( selection.GetItem( 1 ) );
+    if( firstItem == secondItem )
+    {
+        m_frame->ShowInfoBarError( _( "Select two different items for clearance resolution." ) );
+        return 0;
+    }
+
+    reportClearance( firstItem, secondItem );
+
+    return 0;
+}
+
+
+void BOARD_INSPECTION_TOOL::reportClearance( BOARD_ITEM* aItemA, BOARD_ITEM* aItemB )
+{
+    wxCHECK( m_frame && aItemA && aItemB, /* void */ );
+
+    BOARD_ITEM* a = aItemA;
+    BOARD_ITEM* b = aItemB;
 
     if( a->Type() == PCB_GROUP_T )
     {
@@ -732,10 +960,10 @@ int BOARD_INSPECTION_TOOL::InspectClearance( const TOOL_EVENT& aEvent )
         if( ag->GetItems().empty() )
         {
             m_frame->ShowInfoBarError( _( "Cannot generate clearance report on empty group." ) );
-            return 0;
+            return;
         }
 
-        a = *ag->GetItems().begin();
+        a = static_cast<BOARD_ITEM*>( *ag->GetItems().begin() );
     }
 
     if( b->Type() == PCB_GROUP_T )
@@ -745,15 +973,14 @@ int BOARD_INSPECTION_TOOL::InspectClearance( const TOOL_EVENT& aEvent )
         if( bg->GetItems().empty() )
         {
             m_frame->ShowInfoBarError( _( "Cannot generate clearance report on empty group." ) );
-            return 0;
+            return;
         }
 
-        b = *bg->GetItems().begin();
+        b = static_cast<BOARD_ITEM*>( *bg->GetItems().begin() );
     }
 
-    // a or b could be null after group tests above.
     if( !a || !b )
-        return 0;
+        return;
 
     auto checkFootprint =
             [&]( FOOTPRINT* footprint ) -> BOARD_ITEM*
@@ -780,13 +1007,12 @@ int BOARD_INSPECTION_TOOL::InspectClearance( const TOOL_EVENT& aEvent )
     if( b->Type() == PCB_FOOTPRINT_T )
         b = checkFootprint( static_cast<FOOTPRINT*>( b ) );
 
-    // a or b could be null after footprint tests above.
     if( !a || !b )
-        return 0;
+        return;
 
     DIALOG_BOOK_REPORTER* dialog = m_frame->GetInspectClearanceDialog();
 
-    wxCHECK( dialog, 0 );
+    wxCHECK( dialog, /* void */ );
 
     dialog->DeleteAllPages();
 
@@ -929,7 +1155,6 @@ int BOARD_INSPECTION_TOOL::InspectClearance( const TOOL_EVENT& aEvent )
             if( compileError )
                 reportCompileError( r );
 
-            // Report a 0 clearance for solid connections
             r->Report( "" );
             r->Report( wxString::Format( _( "Resolved min clearance: %s." ),
                                          m_frame->StringFromValue( 0, true ) ) );
@@ -949,12 +1174,10 @@ int BOARD_INSPECTION_TOOL::InspectClearance( const TOOL_EVENT& aEvent )
 
         if( ac && bc && ac->GetNetCode() > 0 && ac->GetNetCode() == bc->GetNetCode() )
         {
-            // Same nets....
             r->Report( _( "Items belong to the same net. Min clearance is 0." ) );
         }
         else
         {
-            // Different nets (or one or both unconnected)....
             constraint = drcEngine->EvalRules( CLEARANCE_CONSTRAINT, a, b, layer, r );
             clearance = constraint.m_Value.Min();
 
@@ -1022,6 +1245,7 @@ int BOARD_INSPECTION_TOOL::InspectClearance( const TOOL_EVENT& aEvent )
                 r->Report( wxString::Format( _( "Resolved max uncoupled length: %s." ),
                                              reportMax( m_frame, constraint ) ) );
             }
+
             r->Flush();
         }
     }
@@ -1120,17 +1344,8 @@ int BOARD_INSPECTION_TOOL::InspectClearance( const TOOL_EVENT& aEvent )
 
         if( layer >= 0 )
         {
-            if( !pageAdded )
-            {
-                r = dialog->AddHTMLPage( _( "Hole" ) );
-                pageAdded = true;
-            }
-            else
-            {
-                r->Report( "" );
-                r->Report( "" );
-                r->Report( "" );
-            }
+            r = dialog->AddHTMLPage( _( "Hole" ) );
+            pageAdded = true;
 
             reportHeader( _( "Hole clearance resolution for:" ), a, b, layer, r );
 
@@ -1320,7 +1535,6 @@ int BOARD_INSPECTION_TOOL::InspectClearance( const TOOL_EVENT& aEvent )
 
     dialog->Raise();
     dialog->Show( true );
-    return 0;
 }
 
 
@@ -1330,15 +1544,44 @@ int BOARD_INSPECTION_TOOL::InspectConstraints( const TOOL_EVENT& aEvent )
 
     wxCHECK( m_frame, 0 );
 
-    PCB_SELECTION_TOOL*  selTool = m_toolMgr->GetTool<PCB_SELECTION_TOOL>();
+    PCB_SELECTION_TOOL* selTool = m_toolMgr->GetTool<PCB_SELECTION_TOOL>();
 
     wxCHECK( selTool, 0 );
 
     const PCB_SELECTION& selection = selTool->GetSelection();
+    BOARD_ITEM*          item = nullptr;
 
-    if( selection.Size() != 1 )
+    if( selection.Size() == 1 && selection.GetItem( 0 )->IsBOARD_ITEM() )
     {
-        m_frame->ShowInfoBarError( _( "Select an item for a constraints resolution report." ) );
+        item = static_cast<BOARD_ITEM*>( selection.GetItem( 0 ) );
+    }
+    else if( selection.Size() == 0 )
+    {
+        static const std::vector<KICAD_T> constraintTypes = {
+            PCB_PAD_T,
+            PCB_VIA_T,
+            PCB_TRACE_T,
+            PCB_ARC_T,
+            PCB_ZONE_T,
+            PCB_SHAPE_T,
+            PCB_FOOTPRINT_T,
+            PCB_FIELD_T,
+            PCB_TEXT_T,
+            PCB_TEXTBOX_T,
+            PCB_GROUP_T
+        };
+
+        Activate();
+
+        item = pickItemForInspection( aEvent, _( "Select item for constraints resolution..." ),
+                                      constraintTypes, nullptr );
+
+        if( !item )
+            return 0;
+    }
+    else
+    {
+        m_frame->ShowInfoBarError( _( "Select a single item for a constraints resolution report." ) );
         return 0;
     }
 
@@ -1347,11 +1590,6 @@ int BOARD_INSPECTION_TOOL::InspectConstraints( const TOOL_EVENT& aEvent )
     wxCHECK( dialog, 0 );
 
     dialog->DeleteAllPages();
-
-    if( !selection.GetItem( 0 )->IsBOARD_ITEM() )
-        return 0;
-
-    BOARD_ITEM*    item = static_cast<BOARD_ITEM*>( selection.GetItem( 0 ) );
     DRC_CONSTRAINT constraint;
 
     bool compileError = false;
@@ -1422,7 +1660,6 @@ int BOARD_INSPECTION_TOOL::InspectConstraints( const TOOL_EVENT& aEvent )
         r = dialog->AddHTMLPage( _( "Hole Size" ) );
         reportHeader( _( "Hole size resolution for:" ), item, r );
 
-        // PADSTACKS TODO: once we have padstacks we'll need to run this per-layer....
         constraint = EVAL_RULES( HOLE_SIZE_CONSTRAINT, item, nullptr, UNDEFINED_LAYER, r );
 
         if( compileError )
@@ -1433,6 +1670,53 @@ int BOARD_INSPECTION_TOOL::InspectConstraints( const TOOL_EVENT& aEvent )
                                      reportMin( m_frame, constraint ),
                                      reportOpt( m_frame, constraint ),
                                      reportMax( m_frame, constraint ) ) );
+
+        r->Flush();
+    }
+
+    if( item->Type() == PCB_PAD_T || item->Type() == PCB_SHAPE_T || dynamic_cast<PCB_TRACK*>( item ) )
+    {
+        r = dialog->AddHTMLPage( _( "Solder Mask" ) );
+        reportHeader( _( "Solder mask expansion resolution for:" ), item, r );
+
+        constraint = EVAL_RULES( SOLDER_MASK_EXPANSION_CONSTRAINT, item, nullptr, UNDEFINED_LAYER, r );
+
+        if( compileError )
+            reportCompileError( r );
+
+        r->Report( "" );
+        r->Report( wxString::Format( _( "Resolved solder mask expansion: %s." ),
+                                     reportOpt( m_frame, constraint ) ) );
+
+        r->Flush();
+    }
+
+    if( item->Type() == PCB_PAD_T )
+    {
+        r = dialog->AddHTMLPage( _( "Solder Paste" ) );
+        reportHeader( _( "Solder paste absolute clearance resolution for:" ), item, r );
+
+        constraint = EVAL_RULES( SOLDER_PASTE_ABS_MARGIN_CONSTRAINT, item, nullptr, UNDEFINED_LAYER, r );
+
+        if( compileError )
+            reportCompileError( r );
+
+        r->Report( "" );
+        r->Report( wxString::Format( _( "Resolved solder paste absolute clearance: %s." ),
+                                     reportOpt( m_frame, constraint ) ) );
+
+        reportHeader( _( "Solder paste relative clearance resolution for:" ), item, r );
+
+        constraint = EVAL_RULES( SOLDER_PASTE_REL_MARGIN_CONSTRAINT, item, nullptr, UNDEFINED_LAYER, r );
+
+        if( compileError )
+            reportCompileError( r );
+
+        r->Report( "" );
+        r->Report( "" );
+        r->Report( "" );
+        r->Report( wxString::Format( _( "Resolved solder paste relative clearance: %s." ),
+                                     reportOpt( m_frame, constraint ) ) );
 
         r->Flush();
     }
@@ -1541,8 +1825,7 @@ int BOARD_INSPECTION_TOOL::DiffFootprint( const TOOL_EVENT& aEvent )
                     if( !dynamic_cast<FOOTPRINT*>( item ) )
                         aCollector.Remove( item );
                 }
-            },
-            false /* ignore locked flag */ );
+            } );
 
     if( selection.Size() == 1 )
         DiffFootprint( static_cast<FOOTPRINT*>( selection.GetItem( 0 ) ) );
@@ -1577,13 +1860,14 @@ int BOARD_INSPECTION_TOOL::ShowFootprintLinks( const TOOL_EVENT& aEvent )
 }
 
 
-void BOARD_INSPECTION_TOOL::DiffFootprint( FOOTPRINT* aFootprint )
+void BOARD_INSPECTION_TOOL::DiffFootprint( FOOTPRINT* aFootprint, wxTopLevelWindow* aReparentTo )
 {
     DIALOG_BOOK_REPORTER* dialog = m_frame->GetFootprintDiffDialog();
 
     wxCHECK( dialog, /* void */ );
 
     dialog->DeleteAllPages();
+    dialog->SetUserItemID( aFootprint->m_Uuid );
 
     LIB_ID              fpID = aFootprint->GetFPID();
     wxString            libName = fpID.GetLibNickname();
@@ -1600,18 +1884,9 @@ void BOARD_INSPECTION_TOOL::DiffFootprint( FOOTPRINT* aFootprint )
     r->Report( "" );
 
     PROJECT*             project = aFootprint->GetBoard()->GetProject();
-    FP_LIB_TABLE*        libTable = PROJECT_PCB::PcbFootprintLibs( project );
-    const LIB_TABLE_ROW* libTableRow = nullptr;
+    FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( project );
 
-    try
-    {
-        libTableRow = libTable->FindRow( libName );
-    }
-    catch( const IO_ERROR& )
-    {
-    }
-
-    if( !libTableRow )
+    if( !adapter->HasLibrary( libName, false ) )
     {
         r->Report( _( "The library is not included in the current configuration." )
                    + wxS( "&nbsp;&nbsp;&nbsp" )
@@ -1619,7 +1894,7 @@ void BOARD_INSPECTION_TOOL::DiffFootprint( FOOTPRINT* aFootprint )
                    + wxS( "</a>" ) );
 
     }
-    else if( !libTable->HasLibrary( libName, true ) )
+    else if( !adapter->HasLibrary( libName, true ) )
     {
         r->Report( _( "The library is not enabled in the current configuration." )
                    + wxS( "&nbsp;&nbsp;&nbsp" )
@@ -1633,7 +1908,7 @@ void BOARD_INSPECTION_TOOL::DiffFootprint( FOOTPRINT* aFootprint )
 
         try
         {
-            libFootprint.reset( libTable->FootprintLoad( libName, fpName, true ) );
+            libFootprint.reset( adapter->LoadFootprint( libName, fpName, true ) );
         }
         catch( const IO_ERROR& )
         {
@@ -1658,7 +1933,11 @@ void BOARD_INSPECTION_TOOL::DiffFootprint( FOOTPRINT* aFootprint )
 
     r->Flush();
 
-    dialog->Raise();
+    if( aReparentTo )
+        KIPLATFORM::UI::ReparentWindow( dialog, aReparentTo );
+    else
+        dialog->Raise();
+
     dialog->Show( true );
 }
 
@@ -1681,14 +1960,14 @@ int BOARD_INSPECTION_TOOL::HighlightItem( const TOOL_EVENT& aEvent )
 {
     BOARD_ITEM* item = aEvent.Parameter<BOARD_ITEM*>();
 
-    m_frame->m_probingSchToPcb = true; // recursion guard
+    m_frame->m_ProbingSchToPcb = true; // recursion guard
     {
-        m_toolMgr->RunAction( PCB_ACTIONS::selectionClear );
+        m_toolMgr->RunAction( ACTIONS::selectionClear );
 
         if( item )
-            m_toolMgr->RunAction<EDA_ITEM*>( PCB_ACTIONS::selectItem, item );
+            m_toolMgr->RunAction<EDA_ITEM*>( ACTIONS::selectItem, item );
     }
-    m_frame->m_probingSchToPcb = false;
+    m_frame->m_ProbingSchToPcb = false;
 
     bool request3DviewRedraw = frame()->GetPcbNewSettings()->m_Display.m_Live3DRefresh;
 
@@ -1751,6 +2030,7 @@ int BOARD_INSPECTION_TOOL::HighlightItem( const TOOL_EVENT& aEvent )
     {
         GENERAL_COLLECTORS_GUIDE guide = m_frame->GetCollectorsGuide();
         guide.SetIgnoreZoneFills( false );
+        guide.SetIgnoreNoNets( true );
 
         PCB_LAYER_ID activeLayer = static_cast<PCB_LAYER_ID>( view()->GetTopLayer() );
         guide.SetPreferredLayer( activeLayer );
@@ -1769,7 +2049,7 @@ int BOARD_INSPECTION_TOOL::HighlightItem( const TOOL_EVENT& aEvent )
         bool saved         = filter.lockedItems;
         filter.lockedItems = true;
 
-        selectionTool->FilterCollectedItems( collector, true );
+        selectionTool->FilterCollectedItems( collector, true, nullptr );
 
         filter.lockedItems = saved;
 
@@ -1911,27 +2191,28 @@ int BOARD_INSPECTION_TOOL::ClearHighlight( const TOOL_EVENT& aEvent )
 int BOARD_INSPECTION_TOOL::LocalRatsnestTool( const TOOL_EVENT& aEvent )
 {
     PCB_PICKER_TOOL*  picker = m_toolMgr->GetTool<PCB_PICKER_TOOL>();
-    BOARD*            board = getModel<BOARD>();
 
     // Deactivate other tools; particularly important if another PICKER is currently running
     Activate();
 
     picker->SetCursor( KICURSOR::BULLSEYE );
+    picker->SetSnapping( false );
+    picker->ClearHandlers();
 
     picker->SetClickHandler(
-            [this, board]( const VECTOR2D& pt ) -> bool
+            [this]( const VECTOR2D& pt ) -> bool
             {
                 PCB_SELECTION_TOOL* selectionTool = m_toolMgr->GetTool<PCB_SELECTION_TOOL>();
 
-                m_toolMgr->RunAction( PCB_ACTIONS::selectionClear );
-                m_toolMgr->RunAction<CLIENT_SELECTION_FILTER>( PCB_ACTIONS::selectionCursor,
+                m_toolMgr->RunAction( ACTIONS::selectionClear );
+                m_toolMgr->RunAction<CLIENT_SELECTION_FILTER>( ACTIONS::selectionCursor,
                                                                EDIT_TOOL::PadFilter );
 
                 PCB_SELECTION& selection = selectionTool->GetSelection();
 
                 if( selection.Empty() )
                 {
-                    m_toolMgr->RunAction<CLIENT_SELECTION_FILTER>( PCB_ACTIONS::selectionCursor,
+                    m_toolMgr->RunAction<CLIENT_SELECTION_FILTER>( ACTIONS::selectionCursor,
                                                                    EDIT_TOOL::FootprintFilter );
                     selection = selectionTool->GetSelection();
                 }
@@ -1939,7 +2220,7 @@ int BOARD_INSPECTION_TOOL::LocalRatsnestTool( const TOOL_EVENT& aEvent )
                 if( selection.Empty() )
                 {
                     // Clear the previous local ratsnest if we click off all items
-                    for( FOOTPRINT* fp : board->Footprints() )
+                    for( FOOTPRINT* fp : getModel<BOARD>()->Footprints() )
                     {
                         for( PAD* pad : fp->Pads() )
                             pad->SetLocalRatsnestVisible( displayOptions().m_ShowGlobalRatsnest );
@@ -1972,11 +2253,11 @@ int BOARD_INSPECTION_TOOL::LocalRatsnestTool( const TOOL_EVENT& aEvent )
             } );
 
     picker->SetFinalizeHandler(
-            [this, board]( int aCondition )
+            [this]( int aCondition )
             {
                 if( aCondition != PCB_PICKER_TOOL::END_ACTIVATE )
                 {
-                    for( FOOTPRINT* fp : board->Footprints() )
+                    for( FOOTPRINT* fp : getModel<BOARD>()->Footprints() )
                     {
                         for( PAD* pad : fp->Pads() )
                             pad->SetLocalRatsnestVisible( displayOptions().m_ShowGlobalRatsnest );
@@ -2057,10 +2338,11 @@ void BOARD_INSPECTION_TOOL::calculateSelectionRatsnest( const VECTOR2I& aDelta )
         }
         else if( item->Type() == PCB_GROUP_T || item->Type() == PCB_GENERATOR_T )
         {
-            item->RunOnDescendants( [ &queued_items ]( BOARD_ITEM *aItem )
+            item->RunOnChildren( [ &queued_items ]( BOARD_ITEM *aItem )
                                     {
                                         queued_items.push_back( aItem );
-                                    } );
+                                    },
+                                    RECURSE_MODE::RECURSE );
         }
         else if( BOARD_CONNECTED_ITEM* boardItem = dyn_cast<BOARD_CONNECTED_ITEM*>( item ) )
         {

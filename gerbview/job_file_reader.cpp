@@ -32,7 +32,6 @@
 #include <wildcards_and_files_ext.h>
 #include <gerbview.h>
 #include <richio.h>
-#include <locale_io.h>
 #include <string_utils.h>
 #include <gerber_file_image.h>
 #include <gerber_file_image_list.h>
@@ -42,6 +41,7 @@
 #include <dialogs/html_message_box.h>
 #include <view/view.h>
 #include <wx/filedlg.h>
+#include <kiplatform/ui.h>
 
 
 using json = nlohmann::json;
@@ -110,8 +110,6 @@ bool GERBER_JOBFILE_READER::ReadGerberJobFile()
 
     if( jobFile == nullptr )
         return false;
-
-    LOCALE_IO toggleIo;
 
     FILE_LINE_READER jobfileReader( jobFile, m_filename.GetFullPath() );  // Will close jobFile
 
@@ -194,6 +192,8 @@ bool GERBVIEW_FRAME::LoadGerberJobFile( const wxString& aFullFileName )
                           filename.GetFullName(),
                           FILEEXT::GerberJobFileWildcard(),
                           wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_CHANGE_DIR );
+
+        KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
 
         if( dlg.ShowModal() == wxID_CANCEL )
             return false;

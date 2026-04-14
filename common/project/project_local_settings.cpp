@@ -33,11 +33,13 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
         JSON_SETTINGS( aFilename, SETTINGS_LOC::PROJECT, projectLocalSettingsVersion,
                        /* aCreateIfMissing = */ true, /* aCreateIfDefault = */ false,
                        /* aWriteFile = */ true ),
+        // clang-format off: suggestion is less readable.
         m_ActiveLayer( UNDEFINED_LAYER ),
         m_ContrastModeDisplay( HIGH_CONTRAST_MODE::NORMAL ),
         m_NetColorMode( NET_COLOR_MODE::RATSNEST ),
         m_AutoTrackWidth( true ),
         m_ZoneDisplayMode( ZONE_DISPLAY_MODE::SHOW_FILLED ),
+        m_PrototypeZoneFill( false ),
         m_TrackOpacity( 1.0 ),
         m_ViaOpacity( 1.0 ),
         m_PadOpacity( 1.0 ),
@@ -45,8 +47,10 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
         m_ShapeOpacity( 1.0 ),
         m_ImageOpacity( 0.6 ),
         m_PcbSelectionFilter(),
+        m_GitIntegrationDisabled( false ),
         m_project( aProject ),
         m_wasMigrated( false )
+// clang-format on: suggestion is less readable.
 {
     // Keep old files around
     m_deleteLegacyAfterMigration = false;
@@ -83,7 +87,7 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
             {
                 if( !aVal.is_array() || aVal.empty() )
                 {
-                    m_VisibleItems = GAL_SET::DefaultVisible();
+                    m_VisibleItems |= UserVisbilityLayers();
                     return;
                 }
 
@@ -201,11 +205,15 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
                            ZONE_DISPLAY_MODE::SHOW_FILLED, ZONE_DISPLAY_MODE::SHOW_FILLED,
                            ZONE_DISPLAY_MODE::SHOW_TRIANGULATION ) );
 
+    m_params.emplace_back( new PARAM<bool>( "board.prototype_zone_fills", &m_PrototypeZoneFill, false ) );
+
     m_params.emplace_back( new PARAM<wxString>( "git.repo_username", &m_GitRepoUsername, "" ) );
 
     m_params.emplace_back( new PARAM<wxString>( "git.repo_type", &m_GitRepoType, "" ) );
 
     m_params.emplace_back( new PARAM<wxString>( "git.ssh_key", &m_GitSSHKey, "" ) );
+
+    m_params.emplace_back( new PARAM<bool>( "git.integration_disabled", &m_GitIntegrationDisabled, false ) );
 
     m_params.emplace_back( new PARAM<wxString>( "net_inspector_panel.filter_text",
                                                 &m_NetInspectorPanel.filter_text, "" ) );
@@ -224,6 +232,8 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
                                             &m_NetInspectorPanel.show_zero_pad_nets, false ) );
     m_params.emplace_back( new PARAM<bool>( "net_inspector_panel.show_unconnected_nets",
                                             &m_NetInspectorPanel.show_unconnected_nets, false ) );
+    m_params.emplace_back( new PARAM<bool>( "net_inspector_panel.show_time_domain_details",
+                                            &m_NetInspectorPanel.show_time_domain_details, false ) );
     m_params.emplace_back( new PARAM<int>( "net_inspector_panel.sorting_column",
                                            &m_NetInspectorPanel.sorting_column, -1 ) );
     m_params.emplace_back( new PARAM<bool>( "net_inspector_panel.sort_ascending",
@@ -312,6 +322,7 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
                 ret["pins"]        = m_SchSelectionFilter.pins;
                 ret["graphics"]    = m_SchSelectionFilter.graphics;
                 ret["images"]      = m_SchSelectionFilter.images;
+                ret["ruleAreas"]   = m_SchSelectionFilter.ruleAreas;
                 ret["otherItems"]  = m_SchSelectionFilter.otherItems;
 
                 return ret;
@@ -329,6 +340,7 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
                 SetIfPresent( aVal, "pins", m_SchSelectionFilter.pins );
                 SetIfPresent( aVal, "graphics", m_SchSelectionFilter.graphics );
                 SetIfPresent( aVal, "images", m_SchSelectionFilter.images );
+                SetIfPresent( aVal, "ruleAreas", m_SchSelectionFilter.ruleAreas );
                 SetIfPresent( aVal, "otherItems", m_SchSelectionFilter.otherItems );
             },
             {
@@ -340,8 +352,12 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
                 { "pins", true },
                 { "graphics", true },
                 { "images", true },
+                { "ruleAreas", true },
                 { "otherItems", true }
             } ) );
+
+    m_params.emplace_back( new PARAM_LIST<wxString>( "schematic.hierarchy_collapsed",
+                                                    &m_SchHierarchyCollapsed, {} ) );
 
     registerMigration( 1, 2,
             [&]()
@@ -439,7 +455,7 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
 
                 if( Contains( ptr ) )
                 {
-                    if( At( ptr ).is_array() )
+                    if( At( ptr ).is_array() && !At( ptr ).empty() )
                         At( ptr ).push_back( LAYER_FILLED_SHAPES - GAL_LAYER_ID_START );
                     else
                         At( "board" ).erase( "visible_items" );

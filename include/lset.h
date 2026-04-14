@@ -77,6 +77,17 @@ public:
     }
 
     /**
+     * See if this layer set contains all layers in another set.
+     *
+     * @param aLayers is the set to check.
+     * @return true if every layer in @a aLayers is included in this set.
+     */
+    bool ContainsAll( const LSET& aLayers ) const
+    {
+        return aLayers.is_subset_of( *this );
+    }
+
+    /**
      * Return the fixed name association with @a aLayerId.
      *
      * @note These names must not be translated or changed.  They are used as tokens in the board
@@ -117,7 +128,12 @@ public:
     /**
      * Return a mask holding the requested number of Cu PCB_LAYER_IDs.
      */
-    static LSET AllCuMask( int aCuLayerCount = MAX_CU_LAYERS );
+    static LSET AllCuMask( int aCuLayerCount );
+
+    /**
+     * return AllCuMask( MAX_CU_LAYERS );
+     */
+    static const LSET& AllCuMask();
 
     /**
      * Return a mask holding the Front and Bottom layers.
@@ -190,14 +206,6 @@ public:
      * @param aUserDefinedLayerCount The number of user defined layers
      */
     static LSET UserDefinedLayersMask( int aUserDefinedLayerCount = MAX_USER_DEFINED_LAYERS );
-
-    /**
-     * Layers which are not allowed within footprint definitions.
-     *
-     * Currently internal copper layers and Margin.
-     */
-
-    static const LSET& ForbiddenFootprintLayers();
 
     /**
      * Return a sequence of copper layers in starting from the front/top
@@ -359,4 +367,3 @@ public:
 
 };
 #endif // LSET_H
-

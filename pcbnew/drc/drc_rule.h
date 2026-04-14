@@ -31,7 +31,7 @@
 #include <core/minoptmax.h>
 #include <layer_ids.h>
 #include <lset.h>
-#include <netclass.h>
+#include <eda_units.h>
 #include <zones.h>
 #include <libeval_compiler/libeval_compiler.h>
 #include <wx/intl.h>
@@ -63,6 +63,9 @@ enum DRC_CONSTRAINT_T
     THERMAL_RELIEF_GAP_CONSTRAINT,
     THERMAL_SPOKE_WIDTH_CONSTRAINT,
     MIN_RESOLVED_SPOKES_CONSTRAINT,
+    SOLDER_MASK_EXPANSION_CONSTRAINT,
+    SOLDER_PASTE_ABS_MARGIN_CONSTRAINT,
+    SOLDER_PASTE_REL_MARGIN_CONSTRAINT,
     DISALLOW_CONSTRAINT,
     VIA_DIAMETER_CONSTRAINT,
     LENGTH_CONSTRAINT,
@@ -75,23 +78,42 @@ enum DRC_CONSTRAINT_T
     PHYSICAL_HOLE_CLEARANCE_CONSTRAINT,
     ASSERTION_CONSTRAINT,
     CONNECTION_WIDTH_CONSTRAINT,
-    TRACK_ANGLE_CONSTRAINT
+    TRACK_ANGLE_CONSTRAINT,
+    VIA_DANGLING_CONSTRAINT,
+    BRIDGED_MASK_CONSTRAINT,
+    SOLDER_MASK_SLIVER_CONSTRAINT
 };
 
 
 enum DRC_DISALLOW_T
 {
-    DRC_DISALLOW_VIAS        = (1 << 0),
-    DRC_DISALLOW_MICRO_VIAS  = (1 << 1),
-    DRC_DISALLOW_BB_VIAS     = (1 << 2),
-    DRC_DISALLOW_TRACKS      = (1 << 3),
-    DRC_DISALLOW_PADS        = (1 << 4),
-    DRC_DISALLOW_ZONES       = (1 << 5),
-    DRC_DISALLOW_TEXTS       = (1 << 6),
-    DRC_DISALLOW_GRAPHICS    = (1 << 7),
-    DRC_DISALLOW_HOLES       = (1 << 8),
-    DRC_DISALLOW_FOOTPRINTS  = (1 << 9)
+    DRC_DISALLOW_THROUGH_VIAS = (1 << 0),
+    DRC_DISALLOW_MICRO_VIAS   = (1 << 1),
+    DRC_DISALLOW_BLIND_VIAS   = (1 << 2),
+    DRC_DISALLOW_BURIED_VIAS  = (1 << 3),
+    DRC_DISALLOW_TRACKS       = (1 << 4),
+    DRC_DISALLOW_PADS         = (1 << 5),
+    DRC_DISALLOW_ZONES        = (1 << 6),
+    DRC_DISALLOW_TEXTS        = (1 << 7),
+    DRC_DISALLOW_GRAPHICS     = (1 << 8),
+    DRC_DISALLOW_HOLES        = (1 << 9),
+    DRC_DISALLOW_FOOTPRINTS   = (1 << 10)
 };
+
+
+enum class DRC_IMPLICIT_SOURCE
+{
+    NONE,
+    BOARD_SETUP_CONSTRAINT,
+    BARCODE_DEFAULTS,
+    KEEPOUT,
+    NET_CLASS,
+    TUNING_PROFILE
+};
+
+
+constexpr int DRC_DISALLOW_VIAS = DRC_DISALLOW_THROUGH_VIAS;
+constexpr int DRC_DISALLOW_BB_VIAS = DRC_DISALLOW_BLIND_VIAS | DRC_DISALLOW_BURIED_VIAS;
 
 
 class DRC_RULE
@@ -110,9 +132,14 @@ public:
     void AddConstraint( DRC_CONSTRAINT& aConstraint );
     std::optional<DRC_CONSTRAINT> FindConstraint( DRC_CONSTRAINT_T aType );
 
+    bool IsImplicit() const { return m_implicitSource != DRC_IMPLICIT_SOURCE::NONE; }
+
+    void SetImplicitSource( const DRC_IMPLICIT_SOURCE aImplicitSource ) { m_implicitSource = aImplicitSource; }
+
+    DRC_IMPLICIT_SOURCE GetImplicitSource() const { return m_implicitSource; }
+
 public:
     bool                        m_Unary;
-    bool                        m_Implicit;
     KIID                        m_ImplicitItemId;
     wxString                    m_Name;
     wxString                    m_LayerSource;
@@ -120,6 +147,9 @@ public:
     DRC_RULE_CONDITION*         m_Condition;
     std::vector<DRC_CONSTRAINT> m_Constraints;
     SEVERITY                    m_Severity;
+
+private:
+    DRC_IMPLICIT_SOURCE m_implicitSource;
 };
 
 
@@ -141,7 +171,12 @@ public:
 
     enum class OPTIONS : std::size_t
     {
-        SKEW_WITHIN_DIFF_PAIRS = 0
+        SKEW_WITHIN_DIFF_PAIRS = 0,
+        SPACE_DOMAIN,
+        TIME_DOMAIN,
+
+        // Keep this last value - used to statically size the options bitset
+        NUM_OPTIONS
     };
 
     bool IsNull() const
@@ -161,7 +196,7 @@ public:
     {
         if( m_parentRule )
         {
-            if( m_parentRule->m_Implicit )
+            if( m_parentRule->IsImplicit() )
                 return m_parentRule->m_Name;
             else
                 return wxString::Format( _( "rule '%s'" ), m_parentRule->m_Name );
@@ -180,10 +215,14 @@ public:
 
     void SetOption( OPTIONS option ) { m_options.set( static_cast<std::size_t>( option ), true ); }
 
+    void ClearOption( OPTIONS option ) { m_options.set( static_cast<std::size_t>( option ), false ); }
+
     bool GetOption( OPTIONS option ) const
     {
         return m_options.test( static_cast<std::size_t>( option ) );
     }
+
+    void SetOptionsFromOther( const DRC_CONSTRAINT& aOther ) { m_options = aOther.m_options; }
 
 public:
     DRC_CONSTRAINT_T    m_Type;
@@ -196,8 +235,8 @@ public:
 private:
     wxString            m_name;          // For just-in-time constraints
     DRC_RULE*           m_parentRule;    // For constraints found in rules
-    std::bitset<1>      m_options;       // Constraint-specific option bits
-                                         // (indexed from DRC_CONSTRAINT::OPTIONS)
+    std::bitset<static_cast<int>( OPTIONS::NUM_OPTIONS )> m_options;       // Constraint-specific option bits
+                                                                           // (indexed from DRC_CONSTRAINT::OPTIONS)
 };
 
 

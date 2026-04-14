@@ -55,6 +55,7 @@ class DIALOG_GENDRILL_BASE : public DIALOG_SHIM
 		wxCheckBox* m_Check_Merge_PTH_NPTH;
 		wxCheckBox* m_altDrillMode;
 		wxRadioButton* m_rbGerberX2;
+		wxCheckBox* m_generateTentingLayers;
 		wxCheckBox* m_cbGenerateMap;
 		wxChoice* m_choiceDrillMap;
 		wxStaticText* m_optionsLabel;

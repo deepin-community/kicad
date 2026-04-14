@@ -36,6 +36,7 @@
 #include "eeschema_id.h"
 #include "sch_edit_frame.h"
 #include <widgets/wx_menubar.h>
+#include <widgets/panel_remote_symbol.h>
 #include <advanced_config.h>
 
 
@@ -115,10 +116,9 @@ void SCH_EDIT_FRAME::doReCreateMenuBar()
     ACTION_MENU* submenuExport = new ACTION_MENU( false, selTool );
     submenuExport->SetTitle( _( "Export" ) );
     submenuExport->SetIcon( BITMAPS::export_file );
-    submenuExport->Add( SCH_ACTIONS::drawSheetOnClipboard,      ACTION_MENU::NORMAL, _( "Drawing to Clipboard" ) );
-    submenuExport->Add( SCH_ACTIONS::exportNetlist,             ACTION_MENU::NORMAL, _( "Netlist..." ) );
-    submenuExport->Add( SCH_ACTIONS::exportSymbolsToLibrary,    ACTION_MENU::NORMAL, _( "Symbols to Library..." ) );
-    submenuExport->Add( SCH_ACTIONS::exportSymbolsToNewLibrary, ACTION_MENU::NORMAL, _( "Symbols to New Library..." ) );
+    submenuExport->Add( SCH_ACTIONS::drawSheetOnClipboard,   ACTION_MENU::NORMAL, _( "Drawing to Clipboard" ) );
+    submenuExport->Add( SCH_ACTIONS::exportNetlist,          ACTION_MENU::NORMAL, _( "Netlist..." ) );
+    submenuExport->Add( SCH_ACTIONS::exportSymbolsToLibrary, ACTION_MENU::NORMAL, _( "Symbols..." ) );
     fileMenu->Add( submenuExport );
 
     fileMenu->AppendSeparator();
@@ -165,10 +165,10 @@ void SCH_EDIT_FRAME::doReCreateMenuBar()
     ACTION_MENU* submenuAttributes = new ACTION_MENU( false, selTool );
     submenuAttributes->SetTitle( _( "Attributes" ) );
 
-    submenuAttributes->Add( SCH_ACTIONS::setExcludeFromSimulation, ACTION_MENU::CHECK );
-    submenuAttributes->Add( SCH_ACTIONS::setExcludeFromBOM, ACTION_MENU::CHECK );
-    submenuAttributes->Add( SCH_ACTIONS::setExcludeFromBoard, ACTION_MENU::CHECK );
-    submenuAttributes->Add( SCH_ACTIONS::setDNP, ACTION_MENU::CHECK );
+    submenuAttributes->Add( SCH_ACTIONS::setExcludeFromSim,    ACTION_MENU::CHECK );
+    submenuAttributes->Add( SCH_ACTIONS::setExcludeFromBOM,    ACTION_MENU::CHECK );
+    submenuAttributes->Add( SCH_ACTIONS::setExcludeFromBoard,  ACTION_MENU::CHECK );
+    submenuAttributes->Add( SCH_ACTIONS::setDNP,               ACTION_MENU::CHECK );
 
     editMenu->Add( submenuAttributes );
 
@@ -180,16 +180,21 @@ void SCH_EDIT_FRAME::doReCreateMenuBar()
     ACTION_MENU* showHidePanels = new ACTION_MENU( false, selTool );
     showHidePanels->SetTitle( _( "Panels" ) );
 
-    showHidePanels->Add( ACTIONS::showProperties, ACTION_MENU::CHECK );
-    showHidePanels->Add( ACTIONS::showSearch, ACTION_MENU::CHECK );
+    showHidePanels->Add( ACTIONS::showProperties,    ACTION_MENU::CHECK );
+    showHidePanels->Add( ACTIONS::showSearch,        ACTION_MENU::CHECK );
     showHidePanels->Add( SCH_ACTIONS::showHierarchy, ACTION_MENU::CHECK );
 
     if( ADVANCED_CFG::GetCfg().m_IncrementalConnectivity )
         showHidePanels->Add( SCH_ACTIONS::showNetNavigator, ACTION_MENU::CHECK );
 
-    if( ADVANCED_CFG::GetCfg().m_EnableDesignBlocks )
-        showHidePanels->Add( SCH_ACTIONS::showDesignBlockPanel, ACTION_MENU::CHECK,
-                             _( "Design Blocks" ) );
+    showHidePanels->Add( SCH_ACTIONS::showDesignBlockPanel, ACTION_MENU::CHECK, _( "Design Blocks" ) );
+    wxMenuItem* remoteSymbolItem = showHidePanels->Add( SCH_ACTIONS::showRemoteSymbolPanel, ACTION_MENU::CHECK, _( "Remote Symbols" ) );
+
+    if( m_remoteSymbolPane && !m_remoteSymbolPane->HasDataSources() )
+    {
+        remoteSymbolItem->Enable( false );
+        remoteSymbolItem->SetHelp( _( "Search signed-in remote symbol providers and download verified libraries." ) );
+    }
 
     viewMenu->Add( showHidePanels );
 
@@ -201,6 +206,7 @@ void SCH_EDIT_FRAME::doReCreateMenuBar()
     viewMenu->Add( ACTIONS::zoomOutCenter );
     viewMenu->Add( ACTIONS::zoomFitScreen );
     viewMenu->Add( ACTIONS::zoomFitObjects );
+    viewMenu->Add( ACTIONS::zoomFitSelection );
     viewMenu->Add( ACTIONS::zoomTool );
     viewMenu->Add( ACTIONS::zoomRedraw );
 
@@ -287,13 +293,13 @@ void SCH_EDIT_FRAME::doReCreateMenuBar()
     //
     ACTION_MENU* toolsMenu = new ACTION_MENU( false, selTool );
 
-    wxMenuItem* update = toolsMenu->Add( ACTIONS::updatePcbFromSchematic );
-    update->Enable( !Kiface().IsSingle() );
-
+    toolsMenu->Add( ACTIONS::updatePcbFromSchematic )->Enable( !Kiface().IsSingle() );
     toolsMenu->Add( SCH_ACTIONS::showPcbNew );
 
     if( !Kiface().IsSingle() )
         toolsMenu->Add( ACTIONS::showProjectManager );
+
+    toolsMenu->Add( ACTIONS::showCalculatorTools );
 
     toolsMenu->AppendSeparator();
     toolsMenu->Add( ACTIONS::showSymbolEditor );
@@ -302,9 +308,6 @@ void SCH_EDIT_FRAME::doReCreateMenuBar()
     toolsMenu->AppendSeparator();
     toolsMenu->Add( SCH_ACTIONS::rescueSymbols );
     toolsMenu->Add( SCH_ACTIONS::remapSymbols );
-
-    if( ADVANCED_CFG::GetCfg().m_ShowRepairSchematic )
-        toolsMenu->Add( SCH_ACTIONS::repairSchematic );
 
     toolsMenu->AppendSeparator();
     toolsMenu->Add( SCH_ACTIONS::editSymbolFields );
@@ -320,8 +323,14 @@ void SCH_EDIT_FRAME::doReCreateMenuBar()
     toolsMenu->Add( SCH_ACTIONS::generateBOMLegacy );
 
     toolsMenu->AppendSeparator();
-    update = toolsMenu->Add( ACTIONS::updateSchematicFromPcb );
-    update->Enable( !Kiface().IsSingle() );
+    toolsMenu->Add( ACTIONS::updateSchematicFromPcb )->Enable( !Kiface().IsSingle() );
+
+    toolsMenu->AppendSeparator();
+    ACTION_MENU* submenuVariants = new ACTION_MENU( false, selTool );
+    submenuVariants->SetTitle( _( "Variants" ) );
+    submenuVariants->Add( SCH_ACTIONS::addVariant );
+    submenuVariants->Add( SCH_ACTIONS::removeVariant );
+    toolsMenu->Add( submenuVariants );
 
 #ifdef KICAD_IPC_API
     toolsMenu->AppendSeparator();
@@ -334,8 +343,7 @@ void SCH_EDIT_FRAME::doReCreateMenuBar()
 
     prefsMenu->Add( ACTIONS::configurePaths );
     prefsMenu->Add( ACTIONS::showSymbolLibTable );
-    if( ADVANCED_CFG::GetCfg().m_EnableDesignBlocks )
-        prefsMenu->Add( ACTIONS::showDesignBlockLibTable );
+    prefsMenu->Add( ACTIONS::showDesignBlockLibTable );
     prefsMenu->Add( ACTIONS::openPreferences );
 
     prefsMenu->AppendSeparator();
@@ -356,5 +364,3 @@ void SCH_EDIT_FRAME::doReCreateMenuBar()
     SetMenuBar( menuBar );
     delete oldMenuBar;
 }
-
-

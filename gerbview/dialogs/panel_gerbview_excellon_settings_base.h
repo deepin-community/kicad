@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.0.0-0-g0efcecf)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -18,13 +18,13 @@
 #include <wx/colour.h>
 #include <wx/settings.h>
 #include <wx/statline.h>
-#include <wx/radiobox.h>
+#include <wx/radiobut.h>
+#include <wx/gbsizer.h>
 #include <wx/sizer.h>
 #include <wx/choice.h>
 #include <wx/panel.h>
 
 ///////////////////////////////////////////////////////////////////////////
-
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class PANEL_GERBVIEW_EXCELLON_SETTINGS_BASE
@@ -37,8 +37,12 @@ class PANEL_GERBVIEW_EXCELLON_SETTINGS_BASE : public RESETTABLE_PANEL
 		wxStaticText* m_fileFormatLabel;
 		wxStaticLine* m_staticline1;
 		wxStaticText* m_fileFormatHelp;
-		wxRadioBox* m_rbUnits;
-		wxRadioBox* m_rbZeroFormat;
+		wxStaticText* unitsLabel;
+		wxRadioButton* m_rbInches;
+		wxRadioButton* m_rbMM;
+		wxStaticText* zeroFormatLabel;
+		wxRadioButton* m_rbTZ;
+		wxRadioButton* m_rbLZ;
 		wxStaticText* m_coordinatesLabel;
 		wxStaticLine* m_staticline2;
 		wxStaticText* m_coordsFormatHelp;

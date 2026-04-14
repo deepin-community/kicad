@@ -33,7 +33,6 @@
 #include <sch_edit_frame.h>
 
 class CONNECTION_GRAPH;
-class SYMBOL_LIB_TABLE;
 class XNODE;
 
 #define GENERIC_INTERMEDIATE_NETLIST_EXT wxT( "xml" )
@@ -106,6 +105,16 @@ protected:
     XNODE* makeSymbols( unsigned aCtl );
 
     /**
+     * @return a sub-tree holding all the schematic groups.
+     */
+    XNODE* makeGroups();
+
+    /**
+     * @return a sub-tree holding all the design variants.
+     */
+    XNODE* makeVariants();
+
+    /**
      * Fill out a project "design" header into an XML node.
      * @return the design header
      */
@@ -144,7 +153,12 @@ protected:
     bool                m_resolveTextVars;   // Export textVar references resolved
 
 private:
+    void getSheetComponentClasses();
+
     std::set<wxString>  m_libraries;         // Set of library nicknames.
+
+    /// Map of all sheets to component classes covering the whole sheet
+    std::map<SCH_SHEET_PATH, std::unordered_set<wxString>> m_sheetComponentClasses;
 };
 
 #endif

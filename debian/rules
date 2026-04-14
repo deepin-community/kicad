@@ -79,7 +79,7 @@ override_dh_auto_configure:
 	###################################
 	# configuring KiCad documentation #
 	###################################
-	dh_auto_configure --sourcedirectory=$(CURDIR)/doc --builddirectory=$(DEB_BUILD_DIR)/doc -- $(DEB_DOC_CMAKE_OPTS)
+	dh_auto_configure -i --sourcedirectory=$(CURDIR)/doc --builddirectory=$(DEB_BUILD_DIR)/doc -- $(DEB_DOC_CMAKE_OPTS)
 
 override_dh_auto_build-arch:
 	##############################
@@ -117,7 +117,14 @@ override_dh_auto_install-indep: $(PREPROCESS_FILES:.in=)
 	##########################
 	dh_auto_install --destdir=$(INSTDIR) --sourcedirectory=$(CURDIR) --builddirectory=$(DEB_BUILD_DIR)/demos
 	# Remove any uneeded License or Readme related files in kicad-demos.
-	find $(INSTDIR)/usr/share/kicad/demos -type f \( -name "*.md" -o -name "LICENSE*" -o -name "README*" \) -exec rm {} \;
+	find $(INSTDIR)/usr/share/kicad/demos -type f \(\
+	    -name "*.md" -o \
+	    -name "license.txt" -o \
+	    -name "LICENSE*" -o \
+	    -name "README*" \
+	    \) -exec rm {} \;
+	# Remove any left over VCS control files.
+	find $(INSTDIR)/usr/share/kicad -type f -name ".gitmodules" -exec rm {} \;
 	##################################
 	# installing KiCad documentation #
 	##################################
@@ -164,7 +171,6 @@ override_dh_makeshlibs:
 		-X_pcbnew.$(DEB_HOST_MULTIARCH)
 
 override_dh_dwz:
-# dh_dwz is running out of memory on armhf, see #1091284
-ifneq ($(DEB_BUILD_ARCH),armhf)
-	dh_dwz
-endif
+# not running dh_dwz as it's  running into an error
+# ...
+# dwz: debian/kicad/usr/lib/kicad/_pcbnew.kiface: Too many DIEs (--max-die-limit=50000000), not optimizing

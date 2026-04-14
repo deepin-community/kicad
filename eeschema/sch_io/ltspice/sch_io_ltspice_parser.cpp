@@ -559,7 +559,7 @@ void SCH_IO_LTSPICE_PARSER::CreateBusEntry( LTSPICE_SCHEMATIC::LT_ASC& aAscfile,
 
 LABEL_FLAG_SHAPE getLabelShape( LTSPICE_SCHEMATIC::POLARITY aPolarity )
 {
-    if( aPolarity == LTSPICE_SCHEMATIC::POLARITY::INPUT )
+    if( aPolarity == LTSPICE_SCHEMATIC::POLARITY::PIN_INPUT )
         return LABEL_FLAG_SHAPE::L_INPUT;
     else if( aPolarity == LTSPICE_SCHEMATIC::POLARITY::OUTPUT )
         return LABEL_FLAG_SHAPE::L_OUTPUT;
@@ -829,7 +829,7 @@ SCH_SYMBOL* SCH_IO_LTSPICE_PARSER::CreatePowerSymbol( const VECTOR2I& aOffset,
                                      LINE_STYLE::SOLID ) );
 
     lib_symbol->AddDrawItem( shape );
-    lib_symbol->SetPower();
+    lib_symbol->SetGlobalPower();
 
     SCH_PIN* pin = new SCH_PIN( lib_symbol );
 
@@ -843,10 +843,10 @@ SCH_SYMBOL* SCH_IO_LTSPICE_PARSER::CreatePowerSymbol( const VECTOR2I& aOffset,
     SCH_SYMBOL* sch_symbol = new SCH_SYMBOL( *lib_symbol, libId, aSheet, 1 );
 
     sch_symbol->SetRef( aSheet, wxString::Format( wxS( "#GND%03d" ), m_powerSymbolIndex++ ) );
-    sch_symbol->GetField( REFERENCE_FIELD )->SetVisible( false );
+    sch_symbol->GetField( FIELD_T::REFERENCE )->SetVisible( false );
     sch_symbol->SetValueFieldText( wxS( "0" ) );
-    sch_symbol->GetField( VALUE_FIELD )->SetTextSize( ToKicadFontSize( aFontSize ) );
-    sch_symbol->GetField( VALUE_FIELD )->SetVisible( false );
+    sch_symbol->GetField( FIELD_T::VALUE )->SetTextSize( ToKicadFontSize( aFontSize ) );
+    sch_symbol->GetField( FIELD_T::VALUE )->SetVisible( false );
 
     sch_symbol->Move( ToKicadCoords( aOffset ) + m_originOffset );
 
@@ -915,7 +915,7 @@ SCH_IO_LTSPICE_PARSER::CreateSCH_LABEL( KICAD_T aType, const VECTOR2I& aOffset,
 
         label->SetSpinStyle( SPIN_STYLE::RIGHT );
 
-        SCH_FIELD field( { 0, 0 }, -1, label, wxS( "DATAFLAG" ) );
+        SCH_FIELD field( label, FIELD_T::USER, wxS( "DATAFLAG" ) );
         field.SetText( aValue );
         field.SetTextSize( ToKicadFontSize( aFontSize ) );
         field.SetVisible( true );
@@ -925,7 +925,7 @@ SCH_IO_LTSPICE_PARSER::CreateSCH_LABEL( KICAD_T aType, const VECTOR2I& aOffset,
     }
     else
     {
-        UNIMPLEMENTED_FOR( aType );
+        UNIMPLEMENTED_FOR( wxString::Format( wxT( "Type not supported %d" ), (int)aType ) );
     }
 
     if( label )
@@ -998,52 +998,39 @@ void SCH_IO_LTSPICE_PARSER::CreateFields( LTSPICE_SCHEMATIC::LT_SYMBOL& aLTSymbo
         value2 = wxEmptyString;
     }
 
+    auto addField =
+            [&]( const wxString& aFieldName, const wxString& aFieldValue )
+            {
+                SCH_FIELD newField( aSymbol, FIELD_T::USER, aFieldName );
+                newField.SetVisible( false );
+                newField.SetText( aFieldValue );
+                aSymbol->AddField( newField );
+            };
+
     aSymbol->SetRef( aSheet, instName );
     aSymbol->SetValueFieldText( value );
 
     if( !value2.IsEmpty() )
-    {
-        SCH_FIELD paramsField( { 0, 0 }, -1, aSymbol, wxS( "Value2" ) );
-        paramsField.SetVisible( false );
-        paramsField.SetText( value2 );
-        aSymbol->AddField( paramsField );
-    }
+        addField( wxS( "Value2" ), value2 );
 
-    auto setupNonInferredPassive = [&]( const wxString& aDevice, const wxString& aValueKey )
-    {
-        SCH_FIELD deviceField( { 0, 0 }, -1, aSymbol, wxS( "Sim.Device" ) );
-        deviceField.SetVisible( false );
-        deviceField.SetText( aDevice );
-        aSymbol->AddField( deviceField );
+    auto setupNonInferredPassive =
+            [&]( const wxString& aDevice, const wxString& aValueKey )
+            {
+                addField( wxS( "Sim.Device" ), aDevice );
+                addField( wxS( "Sim.Params" ), aValueKey + wxS( "=${VALUE}" ) );
+            };
 
-        SCH_FIELD paramsField( { 0, 0 }, -1, aSymbol, wxS( "Sim.Params" ) );
-        paramsField.SetVisible( false );
-        paramsField.SetText( aValueKey + wxS( "=${VALUE}" ) );
-        aSymbol->AddField( paramsField );
-    };
+    auto setupBehavioral =
+            [&]( const wxString& aDevice, const wxString& aType )
+            {
+                aSymbol->SetValueFieldText( wxS( "${Sim.Params}" ) );
 
-    auto setupBehavioral = [&]( const wxString& aDevice, const wxString& aType )
-    {
-        aSymbol->SetValueFieldText( wxS( "${Sim.Params}" ) );
+                addField( wxS( "Sim.Device" ), aDevice );
+                addField( wxS( "Sim.Type" ), aType );
+                addField( wxS( "Sim.Params" ), value );
+            };
 
-        SCH_FIELD deviceField( { 0, 0 }, -1, aSymbol, wxS( "Sim.Device" ) );
-        deviceField.SetVisible( false );
-        deviceField.SetText( aDevice );
-        aSymbol->AddField( deviceField );
-
-        SCH_FIELD typeField( { 0, 0 }, -1, aSymbol, wxS( "Sim.Type" ) );
-        typeField.SetVisible( false );
-        typeField.SetText( aType );
-        aSymbol->AddField( typeField );
-
-        SCH_FIELD paramsField( { 0, 0 }, -1, aSymbol, wxS( "Sim.Params" ) );
-        paramsField.SetVisible( false );
-        paramsField.SetText( value );
-        aSymbol->AddField( paramsField );
-    };
-
-    static const std::set<wxString> prefixWithGain = { wxS( "E" ), wxS( "F" ), wxS( "G" ),
-                                                       wxS( "H" ) };
+    static const std::set<wxString> prefixWithGain = { wxS( "E" ), wxS( "F" ), wxS( "G" ), wxS( "H" ) };
 
     if( prefix == wxS( "R" ) )
     {
@@ -1064,20 +1051,20 @@ void SCH_IO_LTSPICE_PARSER::CreateFields( LTSPICE_SCHEMATIC::LT_SYMBOL& aLTSymbo
     else if( prefix == wxS( "B" ) )
     {
         if( symbolName.StartsWith( wxS( "BV" ) ) )
-        {
             setupBehavioral( wxS( "V" ), wxS( "=" ) );
-        }
         else if( symbolName.StartsWith( wxS( "BI" ) ) )
-        {
             setupBehavioral( wxS( "I" ), wxS( "=" ) );
-        }
+    }
+    else if( prefix == wxS( "T" ) )
+    {
+        aSymbol->SetValueFieldText( wxS( "${Sim.Params}" ) );
+
+        addField( wxS( "Sim.Device" ), wxS( "TLINE" ) );
+        addField( wxS( "Sim.Params" ), value );
     }
     else if( prefix == wxS( "V" ) || symbolName == wxS( "I" ) )
     {
-        SCH_FIELD deviceField( { 0, 0 }, -1, aSymbol, wxS( "Sim.Device" ) );
-        deviceField.SetVisible( false );
-        deviceField.SetText( wxS( "SPICE" ) );
-        aSymbol->AddField( deviceField );
+        addField( wxS( "Sim.Device" ), wxS( "SPICE" ) );
 
         wxString simParams;
         simParams << "type=" << '"' << prefix << '"' << ' ';
@@ -1087,10 +1074,7 @@ void SCH_IO_LTSPICE_PARSER::CreateFields( LTSPICE_SCHEMATIC::LT_SYMBOL& aLTSymbo
         else
             simParams << "model=" << '"' << "${VALUE} ${VALUE2}" << '"' << ' ';
 
-        SCH_FIELD paramsField( { 0, 0 }, -1, aSymbol, wxS( "Sim.Params" ) );
-        paramsField.SetVisible( false );
-        paramsField.SetText( simParams );
-        aSymbol->AddField( paramsField );
+        addField( wxS( "Sim.Params" ), simParams );
     }
     else
     {
@@ -1121,43 +1105,27 @@ void SCH_IO_LTSPICE_PARSER::CreateFields( LTSPICE_SCHEMATIC::LT_SYMBOL& aLTSymbo
 
         if( !libFile.IsEmpty() )
         {
-            SCH_FIELD libField( { 0, 0 }, -1, aSymbol, wxS( "Sim.Library" ) );
-            libField.SetVisible( false );
-            libField.SetText( libFile );
-            aSymbol->AddField( libField );
-        }
-
-        if( type == wxS( "X" ) )
-        {
-            SCH_FIELD deviceField( { 0, 0 }, -1, aSymbol, wxS( "Sim.Device" ) );
-            deviceField.SetVisible( false );
-            deviceField.SetText( wxS( "SUBCKT" ) );
-            aSymbol->AddField( deviceField );
-        }
-        else
-        {
-            SCH_FIELD deviceField( { 0, 0 }, -1, aSymbol, wxS( "Sim.Device" ) );
-            deviceField.SetVisible( false );
-            deviceField.SetText( wxS( "SPICE" ) );
-            aSymbol->AddField( deviceField );
+            addField( wxS( "Sim.Library" ), libFile );
+            addField( wxS( "Sim.Name" ), symbolName );
         }
 
         wxString spiceLine = aLTSymbol.SymAttributes[wxS( "SPICELINE" )];
 
-        if( !spiceLine.IsEmpty() )
+        if( type == wxS( "X" ) )
         {
-            // TODO: append value
-            SCH_FIELD paramsField( { 0, 0 }, -1, aSymbol, wxS( "Sim.Params" ) );
-            paramsField.SetVisible( false );
-            paramsField.SetText( spiceLine );
-            aSymbol->AddField( paramsField );
+            addField( wxS( "Sim.Device" ), wxS( "SUBCKT" ) );
+
+            if( !spiceLine.IsEmpty() )
+                addField( wxS( "Sim.Params" ), spiceLine );
         }
         else
         {
-            SCH_FIELD modelField( { 0, 0 }, -1, aSymbol, wxS( "Sim.Params" ) );
-            modelField.SetVisible( false );
-            modelField.SetText( "model=\"" + value + "\"" );
-            aSymbol->AddField( modelField );
+            addField( wxS( "Sim.Device" ), wxS( "SPICE" ) );
+
+            if( !spiceLine.IsEmpty() )
+                addField( wxS( "Sim.Params" ), spiceLine );
+            else
+                addField( wxS( "Sim.Params" ), "model=\"" + value + "\"" );
         }
     }
 
@@ -1168,10 +1136,10 @@ void SCH_IO_LTSPICE_PARSER::CreateFields( LTSPICE_SCHEMATIC::LT_SYMBOL& aLTSymbo
         switch( lt_window.WindowNumber )
         {
         case -1: /* PartNum    */                                                     break;
-        case 0:  /* InstName   */ field = aSymbol->GetField( REFERENCE_FIELD );       break;
+        case 0:  /* InstName   */ field = aSymbol->GetField( FIELD_T::REFERENCE );    break;
         case 1:  /* Type       */                                                     break;
         case 2:  /* RefName    */                                                     break;
-        case 3:  /* Value      */ field = aSymbol->GetField( VALUE_FIELD );           break;
+        case 3:  /* Value      */ field = aSymbol->GetField( FIELD_T::VALUE );        break;
 
         case 5:  /* QArea      */                                                     break;
 
@@ -1181,8 +1149,8 @@ void SCH_IO_LTSPICE_PARSER::CreateFields( LTSPICE_SCHEMATIC::LT_SYMBOL& aLTSymbo
 
         case 16: /* Nec        */                                                     break;
 
-        case 38: /* SpiceModel */ field = aSymbol->FindField( wxS( "Sim.Name" ) );    break;
-        case 39: /* SpiceLine  */ field = aSymbol->FindField( wxS( "Sim.Params" ) );  break;
+        case 38: /* SpiceModel */ field = aSymbol->GetField( wxS( "Sim.Name" ) );     break;
+        case 39: /* SpiceLine  */ field = aSymbol->GetField( wxS( "Sim.Params" ) );   break;
         case 40: /* SpiceLine2 */                                                     break;
 
         /*

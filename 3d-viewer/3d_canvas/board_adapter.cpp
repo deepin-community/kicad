@@ -23,22 +23,27 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <gal/3d/camera.h>
 #include "board_adapter.h"
+
+#include <wx/log.h>
+
+#include <gal/3d/camera.h>
 #include <board_design_settings.h>
 #include <board_stackup_manager/board_stackup.h>
 #include <board_stackup_manager/stackup_predefined_prms.h>
 #include <3d_rendering/raytracing/shapes2D/polygon_2d.h>
 #include <board.h>
 #include <dialogs/dialog_color_picker.h>
+#include <footprint.h>
 #include <layer_range.h>
 #include <3d_math.h>
 #include "3d_fastmath.h"
 #include <geometry/geometry_utils.h>
 #include <lset.h>
 #include <pgm_base.h>
+#include <settings/color_settings.h>
 #include <settings/settings_manager.h>
-#include <wx/log.h>
+#include <pcb_track.h>
 #include <pcbnew_settings.h>
 #include <advanced_config.h>
 
@@ -113,6 +118,8 @@ BOARD_ADAPTER::BOARD_ADAPTER() :
     m_frontCopperThickness3DU      = DEFAULT_COPPER_THICKNESS     * m_biuTo3Dunits;
     m_backCopperThickness3DU       = DEFAULT_COPPER_THICKNESS     * m_biuTo3Dunits;
     m_nonCopperLayerThickness3DU   = DEFAULT_TECH_LAYER_THICKNESS * m_biuTo3Dunits;
+    m_frontMaskThickness3DU        = DEFAULT_TECH_LAYER_THICKNESS * m_biuTo3Dunits;
+    m_backMaskThickness3DU         = DEFAULT_TECH_LAYER_THICKNESS * m_biuTo3Dunits;
     m_solderPasteLayerThickness3DU = SOLDERPASTE_LAYER_THICKNESS  * m_biuTo3Dunits;
 
     m_trackCount = 0;
@@ -225,17 +232,11 @@ BOARD_ADAPTER::~BOARD_ADAPTER()
 
 void BOARD_ADAPTER::ReloadColorSettings() noexcept
 {
-    wxCHECK( PgmOrNull(), /* void */ );
+    PCBNEW_SETTINGS* cfg = GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
+    COLOR_SETTINGS*  cs = ::GetColorSettings( cfg ? cfg->m_ColorTheme : DEFAULT_THEME );
 
-    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-    PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
-    COLOR_SETTINGS*   colors = mgr.GetColorSettings( cfg ? cfg->m_ColorTheme : wxString( "" ) );
-
-    if( colors )
-    {
-        for( int layer = F_Cu; layer < PCB_LAYER_ID_COUNT; ++layer )
-            m_BoardEditorColors[ layer ] = colors->GetColor( layer );
-    }
+    for( int layer = F_Cu; layer < PCB_LAYER_ID_COUNT; ++layer )
+        m_BoardEditorColors[ layer ] = cs->GetColor( layer );
 }
 
 
@@ -276,27 +277,35 @@ bool BOARD_ADAPTER::Is3dLayerEnabled( PCB_LAYER_ID aLayer,
 }
 
 
-bool BOARD_ADAPTER::IsFootprintShown( FOOTPRINT_ATTR_T aFPAttributes ) const
+bool BOARD_ADAPTER::IsFootprintShown( const FOOTPRINT* aFootprint ) const
 {
     if( m_IsPreviewer )     // In panel Preview, footprints are always shown, of course
         return true;
 
-    if( aFPAttributes & FP_EXCLUDE_FROM_POS_FILES )
+    if( !aFootprint )
+        return false;
+
+    const wxString variantName = m_board ? m_board->GetCurrentVariant() : wxString();
+    const bool     excludedFromPos = aFootprint->GetExcludedFromPosFilesForVariant( variantName );
+    const bool     dnp = aFootprint->GetDNPForVariant( variantName );
+    const auto     attributes = static_cast<FOOTPRINT_ATTR_T>( aFootprint->GetAttributes() );
+
+    if( excludedFromPos )
     {
         if( !m_Cfg->m_Render.show_footprints_not_in_posfile )
             return false;
     }
 
-    if( aFPAttributes & FP_DNP )
+    if( dnp )
     {
         if( !m_Cfg->m_Render.show_footprints_dnp )
             return false;
     }
 
-    if( aFPAttributes & FP_SMD )
+    if( attributes & FP_SMD )
         return m_Cfg->m_Render.show_footprints_insert;
 
-    if( aFPAttributes & FP_THROUGH_HOLE )
+    if( attributes & FP_THROUGH_HOLE )
         return m_Cfg->m_Render.show_footprints_normal;
 
     return m_Cfg->m_Render.show_footprints_virtual;
@@ -322,7 +331,7 @@ unsigned int BOARD_ADAPTER::GetCircleSegmentCount( int aDiameterBIU ) const
 {
     wxASSERT( aDiameterBIU > 0 );
 
-    return GetArcToSegmentCount( aDiameterBIU / 2, ARC_HIGH_DEF, FULL_CIRCLE );
+    return GetArcToSegmentCount( aDiameterBIU / 2, m_board->GetDesignSettings().m_MaxError, FULL_CIRCLE );
 }
 
 
@@ -348,7 +357,7 @@ void BOARD_ADAPTER::InitSettings( REPORTER* aStatusReporter, REPORTER* aWarningR
     BOX2I bbbox;
 
     if( m_board )
-        bbbox = m_board->ComputeBoundingBox( !m_board->IsFootprintHolder() && haveOutline );
+        bbbox = m_board->ComputeBoundingBox( !m_board->IsFootprintHolder() && haveOutline, true );
 
     // Gives a non null size to avoid issues in zoom / scale calculations
     if( ( bbbox.GetWidth() == 0 ) && ( bbbox.GetHeight() == 0 ) )
@@ -381,6 +390,8 @@ void BOARD_ADAPTER::InitSettings( REPORTER* aStatusReporter, REPORTER* aWarningR
     m_frontCopperThickness3DU      = DEFAULT_COPPER_THICKNESS     * m_biuTo3Dunits;
     m_backCopperThickness3DU       = DEFAULT_COPPER_THICKNESS     * m_biuTo3Dunits;
     m_nonCopperLayerThickness3DU   = DEFAULT_TECH_LAYER_THICKNESS * m_biuTo3Dunits;
+    m_frontMaskThickness3DU        = DEFAULT_TECH_LAYER_THICKNESS * m_biuTo3Dunits;
+    m_backMaskThickness3DU         = DEFAULT_TECH_LAYER_THICKNESS * m_biuTo3Dunits;
     m_solderPasteLayerThickness3DU = SOLDERPASTE_LAYER_THICKNESS  * m_biuTo3Dunits;
 
     g_BevelThickness3DU = pcbIUScale.mmToIU( ADVANCED_CFG::GetCfg().m_3DRT_BevelHeight_um / 1000.0 )
@@ -392,7 +403,7 @@ void BOARD_ADAPTER::InitSettings( REPORTER* aStatusReporter, REPORTER* aWarningR
 
         if( bds.GetStackupDescriptor().GetCount() )
         {
-            int thickness = 0;
+            int body_thickness = 0;
 
             for( BOARD_STACKUP_ITEM* item : bds.GetStackupDescriptor().GetList() )
             {
@@ -400,31 +411,44 @@ void BOARD_ADAPTER::InitSettings( REPORTER* aStatusReporter, REPORTER* aWarningR
                 {
                 case BS_ITEM_TYPE_DIELECTRIC:
                     for( int sublayer = 0; sublayer < item->GetSublayersCount(); sublayer++ )
-                        thickness += item->GetThickness( sublayer );
+                        body_thickness += item->GetThickness( sublayer );
+
                     break;
 
                 case BS_ITEM_TYPE_COPPER:
                 {
                     // The copper thickness must be > 0 to avoid draw issues (divide by 0 for
                     // instance).   We use a minimal arbitrary value = 1 micrometer here:
-                    int copper_thickness = std::max( item->GetThickness(),
-                                                     pcbIUScale.mmToIU( 0.001 ) );
+                    int copper_thickness = std::max( item->GetThickness(), pcbIUScale.mmToIU( 0.001 ) );
 
                     if( item->GetBrdLayerId() == F_Cu )
                         m_frontCopperThickness3DU = copper_thickness * m_biuTo3Dunits;
                     else if( item->GetBrdLayerId() == B_Cu )
                         m_backCopperThickness3DU = copper_thickness * m_biuTo3Dunits;
                     else if( item->IsEnabled() )
-                        thickness += copper_thickness;
-                }
+                        body_thickness += copper_thickness;
+
                     break;
+                }
+
+                case BS_ITEM_TYPE_SOLDERMASK:
+                {
+                    // The mask thickness must be > 0 to avoid draw issues (divide by 0 for
+                    // instance).   We use a minimal arbitrary value = 1 micrometer here:
+                    int mask_thickness = std::max( item->GetThickness(), pcbIUScale.mmToIU( 0.001 ) );
+
+                    if( item->GetBrdLayerId() == F_Mask )
+                        m_frontMaskThickness3DU = mask_thickness * m_biuTo3Dunits;
+                    else if( item->GetBrdLayerId() == B_Mask )
+                        m_backMaskThickness3DU = mask_thickness * m_biuTo3Dunits;
+                }
 
                 default:
                     break;
                 }
             }
 
-            m_boardBodyThickness3DU = thickness * m_biuTo3Dunits;
+            m_boardBodyThickness3DU = body_thickness * m_biuTo3Dunits;
         }
     }
 
@@ -458,8 +482,7 @@ void BOARD_ADAPTER::InitSettings( REPORTER* aStatusReporter, REPORTER* aWarningR
         };
 
         m_layerZcoordBottom[layer_id] = m_boardBodyThickness3DU / 2.0
-                                        - ( m_boardBodyThickness3DU * layer_pos
-                                            / ( m_copperLayersCount - 1 ) );
+                                        - ( m_boardBodyThickness3DU * layer_pos / ( m_copperLayersCount - 1 ) );
 
         if( layer_pos < (m_copperLayersCount / 2) )
             m_layerZcoordTop[layer_id] = m_layerZcoordBottom[layer_id] + m_frontCopperThickness3DU;
@@ -475,29 +498,21 @@ void BOARD_ADAPTER::InitSettings( REPORTER* aStatusReporter, REPORTER* aWarningR
     const float zpos_copperTop_front = m_layerZcoordTop[F_Cu];
 
     // Fill not copper layers zpos
-    for( int layer_id = 0; layer_id < PCB_LAYER_ID_COUNT; layer_id++ )
+    for( int layer = 0; layer < PCB_LAYER_ID_COUNT; layer++ )
     {
-        if( IsCopperLayer( (PCB_LAYER_ID)layer_id ) )
+        PCB_LAYER_ID layer_id = ToLAYER_ID( layer );
+
+        if( IsCopperLayer( layer_id ) )
             continue;
 
-        float zposBottom = zpos_copperTop_front + 2.0f * zpos_offset;
-        float zposTop = zposBottom + m_frontCopperThickness3DU;
+        float zposBottom;
+        float zposTop;
 
         switch( layer_id )
         {
-        case B_Adhes:
-            zposBottom = zpos_copperTop_back - 2.0f * zpos_offset;
-            zposTop    = zposBottom - m_nonCopperLayerThickness3DU;
-            break;
-
-        case F_Adhes:
-            zposBottom = zpos_copperTop_front + 2.0f * zpos_offset;
-            zposTop    = zposBottom + m_nonCopperLayerThickness3DU;
-            break;
-
         case B_Mask:
             zposBottom = zpos_copperTop_back;
-            zposTop    = zpos_copperTop_back - m_nonCopperLayerThickness3DU;
+            zposTop    = zpos_copperTop_back - m_backMaskThickness3DU;
             break;
 
         case B_Paste:
@@ -507,7 +522,7 @@ void BOARD_ADAPTER::InitSettings( REPORTER* aStatusReporter, REPORTER* aWarningR
 
         case F_Mask:
             zposBottom = zpos_copperTop_front;
-            zposTop    = zpos_copperTop_front + m_nonCopperLayerThickness3DU;
+            zposTop    = zpos_copperTop_front + m_frontMaskThickness3DU;
             break;
 
         case F_Paste:
@@ -526,17 +541,26 @@ void BOARD_ADAPTER::InitSettings( REPORTER* aStatusReporter, REPORTER* aWarningR
             break;
 
         default:
+            if( m_board->IsBackLayer( layer_id ) )
+            {
+                zposBottom = zpos_copperTop_back - 2.0f * zpos_offset;
+                zposTop    = zposBottom - m_nonCopperLayerThickness3DU;
+            }
+            else
+            {
+                zposBottom = zpos_copperTop_front + 2.0f * zpos_offset;
+                zposTop    = zposBottom + m_nonCopperLayerThickness3DU;
+            }
             break;
         }
 
-        m_layerZcoordTop[(PCB_LAYER_ID)layer_id] = zposTop;
-        m_layerZcoordBottom[(PCB_LAYER_ID)layer_id] = zposBottom;
+        m_layerZcoordTop[layer_id] = zposTop;
+        m_layerZcoordBottom[layer_id] = zposBottom;
     }
 
     m_boardCenter = SFVEC3F( m_boardPos.x * m_biuTo3Dunits, m_boardPos.y * m_biuTo3Dunits, 0.0f );
 
-    SFVEC3F boardSize = SFVEC3F( m_boardSize.x * m_biuTo3Dunits, m_boardSize.y * m_biuTo3Dunits,
-                                 0.0f );
+    SFVEC3F boardSize = SFVEC3F( m_boardSize.x * m_biuTo3Dunits, m_boardSize.y * m_biuTo3Dunits, 0.0f );
     boardSize /= 2.0f;
 
     SFVEC3F boardMin = ( m_boardCenter - boardSize );
@@ -602,7 +626,7 @@ std::map<int, COLOR4D> BOARD_ADAPTER::GetDefaultColors() const
     colors[ LAYER_3D_USER_ECO1 ]         = BOARD_ADAPTER::g_DefaultECOs;
     colors[ LAYER_3D_USER_ECO2 ]         = BOARD_ADAPTER::g_DefaultECOs;
 
-    COLOR_SETTINGS* settings = Pgm().GetSettingsManager().GetColorSettings( wxEmptyString );
+    COLOR_SETTINGS* settings = ::GetColorSettings( DEFAULT_THEME );
 
     for( int layer = LAYER_3D_USER_1; layer <= LAYER_3D_USER_45; ++layer )
         colors[ layer ] = settings->GetColor( layer );
@@ -621,7 +645,7 @@ std::map<int, COLOR4D> BOARD_ADAPTER::GetLayerColors() const
     }
     else
     {
-        COLOR_SETTINGS* settings = Pgm().GetSettingsManager().GetColorSettings();
+        COLOR_SETTINGS* settings = ::GetColorSettings( DEFAULT_THEME );
 
         for( const auto& [ layer, defaultColor /* unused */ ] : GetDefaultColors() )
             colors[ layer ] = settings->GetColor( layer );
@@ -731,7 +755,7 @@ std::map<int, COLOR4D> BOARD_ADAPTER::GetLayerColors() const
 
 void BOARD_ADAPTER::SetLayerColors( const std::map<int, COLOR4D>& aColors )
 {
-    COLOR_SETTINGS* settings = Pgm().GetSettingsManager().GetColorSettings();
+    COLOR_SETTINGS* settings = ::GetColorSettings( DEFAULT_THEME );
 
     for( const auto& [ layer, color ] : aColors )
     {
@@ -748,6 +772,7 @@ void BOARD_ADAPTER::SetLayerColors( const std::map<int, COLOR4D>& aColors )
 void BOARD_ADAPTER::SetVisibleLayers( const std::bitset<LAYER_3D_END>& aLayers )
 {
     m_Cfg->m_Render.show_board_body                = aLayers.test( LAYER_3D_BOARD );
+    m_Cfg->m_Render.show_plated_barrels            = aLayers.test( LAYER_3D_PLATED_BARRELS );
     m_Cfg->m_Render.show_copper_top                = aLayers.test( LAYER_3D_COPPER_TOP );
     m_Cfg->m_Render.show_copper_bottom             = aLayers.test( LAYER_3D_COPPER_BOTTOM );
     m_Cfg->m_Render.show_silkscreen_top            = aLayers.test( LAYER_3D_SILKSCREEN_TOP );
@@ -776,7 +801,7 @@ void BOARD_ADAPTER::SetVisibleLayers( const std::bitset<LAYER_3D_END>& aLayers )
 
     m_Cfg->m_Render.show_model_bbox                = aLayers.test( LAYER_3D_BOUNDING_BOXES );
     m_Cfg->m_Render.show_off_board_silk            = aLayers.test( LAYER_3D_OFF_BOARD_SILK );
-    m_Cfg->m_Render.show_axis                      = aLayers.test( LAYER_3D_AXES );
+    m_Cfg->m_Render.show_navigator                 = aLayers.test( LAYER_3D_NAVIGATOR );
 }
 
 
@@ -784,7 +809,7 @@ std::bitset<LAYER_3D_END> BOARD_ADAPTER::GetVisibleLayers() const
 {
     std::bitset<LAYER_3D_END> ret;
 
-    if( m_board && m_board->IsFootprintHolder() )
+    if( m_IsPreviewer )
     {
         if( m_Cfg->m_Render.preview_show_board_body )
         {
@@ -795,6 +820,7 @@ std::bitset<LAYER_3D_END> BOARD_ADAPTER::GetVisibleLayers() const
             ret.set( LAYER_3D_ADHESIVE,          m_Cfg->m_Render.show_adhesive );
         }
 
+        ret.set( LAYER_3D_PLATED_BARRELS,    true );
         ret.set( LAYER_3D_COPPER_TOP,        true );
         ret.set( LAYER_3D_COPPER_BOTTOM,     true );
         ret.set( LAYER_3D_SILKSCREEN_TOP,    true );
@@ -819,12 +845,13 @@ std::bitset<LAYER_3D_END> BOARD_ADAPTER::GetVisibleLayers() const
 
         ret.set( LAYER_3D_BOUNDING_BOXES,    m_Cfg->m_Render.show_model_bbox );
         ret.set( LAYER_3D_OFF_BOARD_SILK,    m_Cfg->m_Render.show_off_board_silk );
-        ret.set( LAYER_3D_AXES,              m_Cfg->m_Render.show_axis );
+        ret.set( LAYER_3D_NAVIGATOR,         m_Cfg->m_Render.show_navigator );
 
         return ret;
     }
 
     ret.set( LAYER_3D_BOARD,             m_Cfg->m_Render.show_board_body );
+    ret.set( LAYER_3D_PLATED_BARRELS,    m_Cfg->m_Render.show_plated_barrels );
     ret.set( LAYER_3D_COPPER_TOP,        m_Cfg->m_Render.show_copper_top );
     ret.set( LAYER_3D_COPPER_BOTTOM,     m_Cfg->m_Render.show_copper_bottom );
     ret.set( LAYER_3D_SILKSCREEN_TOP,    m_Cfg->m_Render.show_silkscreen_top );
@@ -853,7 +880,7 @@ std::bitset<LAYER_3D_END> BOARD_ADAPTER::GetVisibleLayers() const
 
     ret.set( LAYER_3D_BOUNDING_BOXES,    m_Cfg->m_Render.show_model_bbox );
     ret.set( LAYER_3D_OFF_BOARD_SILK,    m_Cfg->m_Render.show_off_board_silk );
-    ret.set( LAYER_3D_AXES,              m_Cfg->m_Render.show_axis );
+    ret.set( LAYER_3D_NAVIGATOR,         m_Cfg->m_Render.show_navigator );
 
     if( m_Cfg->m_CurrentPreset == FOLLOW_PCB )
     {
@@ -905,9 +932,9 @@ std::bitset<LAYER_3D_END> BOARD_ADAPTER::GetVisibleLayers() const
         for( int layer = LAYER_3D_USER_1; layer <= LAYER_3D_USER_45; ++layer )
             ret.set( layer, layers.test( Map3DLayerToPCBLayer( layer ) ) );
 
-        ret.set( LAYER_FP_REFERENCES, plotParams.GetPlotReference() );
-        ret.set( LAYER_FP_VALUES,     plotParams.GetPlotValue() );
-        ret.set( LAYER_FP_TEXT,       plotParams.GetPlotFPText() );
+        ret.set( LAYER_FP_REFERENCES,        plotParams.GetPlotReference() );
+        ret.set( LAYER_FP_VALUES,            plotParams.GetPlotValue() );
+        ret.set( LAYER_FP_TEXT,              plotParams.GetPlotFPText() );
     }
     else if( LAYER_PRESET_3D* preset = m_Cfg->FindPreset( m_Cfg->m_CurrentPreset ) )
     {
@@ -923,6 +950,7 @@ std::bitset<LAYER_3D_END> BOARD_ADAPTER::GetDefaultVisibleLayers() const
     std::bitset<LAYER_3D_END> ret;
 
     ret.set( LAYER_3D_BOARD,             true );
+    ret.set( LAYER_3D_PLATED_BARRELS,    true );
     ret.set( LAYER_3D_COPPER_TOP,        true );
     ret.set( LAYER_3D_COPPER_BOTTOM,     true );
     ret.set( LAYER_3D_SILKSCREEN_TOP,    true );
@@ -951,7 +979,7 @@ std::bitset<LAYER_3D_END> BOARD_ADAPTER::GetDefaultVisibleLayers() const
 
     ret.set( LAYER_3D_BOUNDING_BOXES,    false );
     ret.set( LAYER_3D_OFF_BOARD_SILK,    false );
-    ret.set( LAYER_3D_AXES,              true );
+    ret.set( LAYER_3D_NAVIGATOR,         true );
 
     return ret;
 }
@@ -998,7 +1026,7 @@ bool BOARD_ADAPTER::createBoardPolygon( wxString* aErrorMsg )
     }
     else
     {
-        success = m_board->GetBoardPolygonOutlines( m_board_poly, nullptr, false, true );
+        success = m_board->GetBoardPolygonOutlines( m_board_poly, true, nullptr, false, true );
 
         if( !success && aErrorMsg )
             *aErrorMsg = _( "Board outline is missing or malformed. Run DRC for a full analysis." );
@@ -1044,9 +1072,8 @@ SFVEC4F BOARD_ADAPTER::GetColor( const COLOR4D& aColor ) const
 
 SFVEC2F BOARD_ADAPTER::GetSphericalCoord( int i ) const
 {
-    SFVEC2F sphericalCoord =
-            SFVEC2F( ( m_Cfg->m_Render.raytrace_lightElevation[i] + 90.0f ) / 180.0f,
-                       m_Cfg->m_Render.raytrace_lightAzimuth[i] / 180.0f );
+    SFVEC2F sphericalCoord = SFVEC2F( ( m_Cfg->m_Render.raytrace_lightElevation[i] + 90.0f ) / 180.0f,
+                                      m_Cfg->m_Render.raytrace_lightAzimuth[i] / 180.0f );
 
     sphericalCoord.x = glm::clamp( sphericalCoord.x, 0.0f, 1.0f );
     sphericalCoord.y = glm::clamp( sphericalCoord.y, 0.0f, 2.0f );

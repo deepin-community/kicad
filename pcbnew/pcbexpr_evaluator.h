@@ -25,7 +25,10 @@
 #ifndef PCBEXPR_EVALUATOR_H
 #define PCBEXPR_EVALUATOR_H
 
+#include <set>
 #include <unordered_map>
+
+#include <layer_ids.h>
 
 #include <properties/property.h>
 #include <properties/property_mgr.h>
@@ -46,6 +49,11 @@ public:
     virtual std::unique_ptr<LIBEVAL::VAR_REF> CreateVarRef( const wxString& aVar,
                                                             const wxString& aField ) override;
     virtual LIBEVAL::FUNC_CALL_REF CreateFuncCall( const wxString& aName ) override;
+
+    bool HasGeometryDependentFunctions() const { return m_hasGeometryDependentFunctions; }
+
+private:
+    bool m_hasGeometryDependentFunctions = false;
 };
 
 
@@ -188,22 +196,33 @@ public:
         return m_funcs[ name ];
     }
 
+    bool IsGeometryDependent( const wxString& name ) const
+    {
+        return m_geometryDependentFuncs.count( name ) > 0;
+    }
+
     const wxArrayString GetSignatures() const
     {
         return m_funcSigs;
     }
 
-    void RegisterFunc( const wxString& funcSignature, LIBEVAL::FUNC_CALL_REF funcPtr )
+    void RegisterFunc( const wxString& funcSignature, LIBEVAL::FUNC_CALL_REF funcPtr,
+                       bool aIsGeometryDependent = false )
     {
         wxString funcName = funcSignature.BeforeFirst( '(' );
-        m_funcs[std::string( funcName.Lower() )] = std::move( funcPtr );
+        wxString lower = funcName.Lower();
+        m_funcs[std::string( lower )] = std::move( funcPtr );
         m_funcSigs.Add( funcSignature );
+
+        if( aIsGeometryDependent )
+            m_geometryDependentFuncs.insert( lower );
     }
 
     void RegisterAllFunctions();
 
 private:
     std::map<wxString, LIBEVAL::FUNC_CALL_REF> m_funcs;
+    std::set<wxString>                         m_geometryDependentFuncs;
 
     wxArrayString m_funcSigs;
 };
@@ -213,6 +232,7 @@ class PCBEXPR_UNIT_RESOLVER : public LIBEVAL::UNIT_RESOLVER
 {
 public:
     const std::vector<wxString>& GetSupportedUnits() const override;
+    const std::vector<EDA_UNITS>& GetSupportedUnitsTypes() const override;
 
     wxString GetSupportedUnitsMessage() const override;
 
@@ -224,6 +244,7 @@ class PCBEXPR_UNITLESS_RESOLVER : public LIBEVAL::UNIT_RESOLVER
 {
 public:
     const std::vector<wxString>& GetSupportedUnits() const override;
+    const std::vector<EDA_UNITS>& GetSupportedUnitsTypes() const override;
 
     double Convert( const wxString& aString, int unitId ) const override;
 };
@@ -244,10 +265,11 @@ public:
 
     bool Evaluate( const wxString& aExpr );
     int  Result() const { return m_result; }
+    EDA_UNITS Units() const { return m_units; }
 
     void SetErrorCallback( std::function<void( const wxString& aMessage, int aOffset )> aCallback )
     {
-        m_compiler.SetErrorCallback( aCallback );
+        m_compiler.SetErrorCallback( std::move( aCallback ) );
     }
 
     bool IsErrorPending() const { return m_errorStatus.pendingError; }
@@ -255,6 +277,7 @@ public:
 
 private:
     int  m_result;
+    EDA_UNITS m_units;
 
     PCBEXPR_COMPILER      m_compiler;
     PCBEXPR_UCODE         m_ucode;

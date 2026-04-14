@@ -25,6 +25,7 @@
 #include <eeschema_settings.h>
 #include <macros.h>
 #include <pgm_base.h>
+#include <refdes_tracker.h>
 #include <schematic_settings.h>
 #include <settings/json_settings_internals.h>
 #include <settings/parameters.h>
@@ -45,8 +46,12 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
         m_PinSymbolSize( DEFAULT_TEXT_SIZE * schIUScale.IU_PER_MILS / 2 ),
         m_JunctionSizeChoice( 3 ),
         m_JunctionSize( DEFAULT_JUNCTION_DIAM * schIUScale.IU_PER_MILS ),
+        m_HopOverSizeChoice( 0 ),
+        m_HopOverScale( 0.0 ),
         m_ConnectionGridSize( DEFAULT_CONNECTION_GRID_MILS * schIUScale.IU_PER_MILS ),
         m_AnnotateStartNum( 0 ),
+        m_AnnotateSortOrder( 0 ),
+        m_AnnotateMethod( 0 ),
         m_IntersheetRefsShow( false ),
         m_IntersheetRefsListOwnPage( true ),
         m_IntersheetRefsFormatShort( false ),
@@ -58,22 +63,17 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
         m_OPO_VRange( wxS( "~V" ) ),
         m_OPO_IPrecision( 3 ),
         m_OPO_IRange( wxS( "~A" ) ),
-        m_SpiceCurSheetAsRoot( false ),
-        m_SpiceSaveAllVoltages( false ),
-        m_SpiceSaveAllCurrents( false ),
-        m_SpiceSaveAllDissipations( false ),
-        m_SpiceSaveAllEvents( true ),
-        m_SpiceModelCurSheetAsRoot( true ),
-        m_NgspiceSettings( nullptr )
+        m_MaxError( ARC_LOW_DEF_MM * schIUScale.IU_PER_MM ),
+        m_NgspiceSettings( nullptr ),
+        m_refDesTracker( nullptr )
 {
-    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
+    EESCHEMA_SETTINGS* cfg = GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
 
-    int defaultLineThickness =
-            cfg ? cfg->m_Drawing.default_line_thickness : DEFAULT_LINE_WIDTH_MILS;
+    int defaultLineThickness = cfg ? cfg->m_Drawing.default_line_thickness : DEFAULT_LINE_WIDTH_MILS;
     int defaultTextSize = cfg ? cfg->m_Drawing.default_text_size : DEFAULT_TEXT_SIZE;
     int defaultPinSymbolSize = cfg ? cfg->m_Drawing.pin_symbol_size : DEFAULT_TEXT_SIZE / 2;
     int defaultJunctionSizeChoice = cfg ? cfg->m_Drawing.junction_size_choice : 3;
+    int defaultHopOverSizeChoice = cfg ? cfg->m_Drawing.hop_over_size_choice : 0;
     bool defaultIntersheetsRefShow = cfg ? cfg->m_Drawing.intersheets_ref_show : false;
     bool defaultIntersheetsRefOwnPage = cfg ? cfg->m_Drawing.intersheets_ref_own_page : true;
     bool defaultIntersheetsRefFormatShort = cfg ? cfg->m_Drawing.intersheets_ref_short : false;
@@ -147,6 +147,9 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
     m_params.emplace_back( new PARAM<int>( "drawing.junction_size_choice",
             &m_JunctionSizeChoice, defaultJunctionSizeChoice ) );
 
+    m_params.emplace_back( new PARAM<int>( "drawing.hop_over_size_choice",
+            &m_HopOverSizeChoice, defaultHopOverSizeChoice ) );
+
     m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "drawing.field_names",
             [&]() -> nlohmann::json
             {
@@ -186,12 +189,11 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
                 }
 
                 // Read global fieldname templates
-                SETTINGS_MANAGER&  curr_mgr = Pgm().GetSettingsManager();
-                EESCHEMA_SETTINGS* curr_cfg =
-                        curr_mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
-
-                if( curr_cfg && !curr_cfg->m_Drawing.field_names.IsEmpty() )
-                    m_TemplateFieldNames.AddTemplateFieldNames( curr_cfg->m_Drawing.field_names );
+                if( EESCHEMA_SETTINGS* curr_cfg = GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" ) )
+                {
+                    if( !curr_cfg->m_Drawing.field_names.IsEmpty() )
+                        m_TemplateFieldNames.AddTemplateFieldNames( curr_cfg->m_Drawing.field_names );
+                }
             }, {} ) );
 
     m_params.emplace_back( new PARAM<wxString>( "bom_export_filename",
@@ -213,31 +215,6 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
     m_params.emplace_back( new PARAM<wxString>( "plot_directory",
             &m_PlotDirectoryName, "" ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "net_format_name",
-            &m_NetFormatName, "" ) );
-
-    m_params.emplace_back( new PARAM<bool>( "spice_current_sheet_as_root",
-            &m_SpiceCurSheetAsRoot, false ) );
-
-    m_params.emplace_back( new PARAM<bool>( "spice_save_all_voltages",
-            &m_SpiceSaveAllVoltages, false ) );
-
-    m_params.emplace_back( new PARAM<bool>( "spice_save_all_currents",
-            &m_SpiceSaveAllCurrents, false ) );
-
-    m_params.emplace_back( new PARAM<bool>( "spice_save_all_dissipations",
-            &m_SpiceSaveAllDissipations, false ) );
-
-    m_params.emplace_back( new PARAM<bool>( "space_save_all_events",
-            &m_SpiceSaveAllEvents, true ) );
-
-    m_params.emplace_back( new PARAM<bool>( "spice_model_current_sheet_as_root",
-            &m_SpiceModelCurSheetAsRoot, true ) );
-
-    m_params.emplace_back( new PARAM<wxString>( "spice_external_command",
-            &m_SpiceCommandString, "spice \"%I\"" ) );
-
-    // TODO(JE) should we keep these LIB_SYMBOL:: things around?
     m_params.emplace_back( new PARAM<int>( "subpart_id_separator",
             &m_SubpartIdSeparator, 0, 0, 126 ) );
 
@@ -247,7 +224,82 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
     m_params.emplace_back( new PARAM<int>( "annotate_start_num",
             &m_AnnotateStartNum, 0 ) );
 
+    m_params.emplace_back( new PARAM<int>( "annotation.sort_order",
+            &m_AnnotateSortOrder, 0, 0, 1 ) );
+
+    m_params.emplace_back( new PARAM<int>( "annotation.method",
+            &m_AnnotateMethod, 0, 0, 2 ) );
+
     m_NgspiceSettings = std::make_shared<NGSPICE_SETTINGS>( this, "ngspice" );
+
+    m_params.emplace_back( new PARAM_LAMBDA<bool>( "reuse_designators",
+            [&]() -> bool
+            {
+                return m_refDesTracker ? m_refDesTracker->GetReuseRefDes() : false;
+            },
+            [&]( bool aReuse )
+            {
+                if( !m_refDesTracker )
+                    m_refDesTracker = std::make_shared<REFDES_TRACKER>();
+
+                m_refDesTracker->SetReuseRefDes( aReuse );
+            }, true ) );
+
+    m_params.emplace_back( new PARAM_LAMBDA<std::string>( "used_designators",
+            [&]() -> std::string
+            {
+                if( m_refDesTracker )
+                    return m_refDesTracker->Serialize();
+
+                return std::string();
+            },
+            [&]( const std::string& aData )
+            {
+                if( !m_refDesTracker )
+                    m_refDesTracker = std::make_shared<REFDES_TRACKER>();
+
+                m_refDesTracker->Deserialize( aData );
+            }, {} ) );
+
+    m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "variants",
+            [&]() -> nlohmann::json
+            {
+                nlohmann::json ret = nlohmann::json::array();
+
+                for( const auto& [name, description] : m_VariantDescriptions )
+                {
+                    nlohmann::json entry;
+                    entry["name"] = name;
+
+                    if( !description.IsEmpty() )
+                        entry["description"] = description;
+
+                    ret.push_back( entry );
+                }
+
+                return ret;
+            },
+            [&]( const nlohmann::json& aJson )
+            {
+                m_VariantDescriptions.clear();
+
+                if( aJson.is_array() )
+                {
+                    for( const auto& entry : aJson )
+                    {
+                        if( entry.contains( "name" ) )
+                        {
+                            wxString name = entry["name"].get<wxString>();
+                            wxString desc;
+
+                            if( entry.contains( "description" ) )
+                                desc = entry["description"].get<wxString>();
+
+                            m_VariantDescriptions[name] = desc;
+                        }
+                    }
+                }
+            }, nlohmann::json::array() ) );
 
     registerMigration( 0, 1,
             [&]() -> bool

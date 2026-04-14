@@ -24,6 +24,7 @@
 #pragma once
 
 #include <eda_item.h>
+#include <eda_units.h>
 #include <preview_items/bezier_geom_manager.h>
 #include <layer_ids.h>
 
@@ -63,7 +64,6 @@ namespace PREVIEW
 
     private:
         const BEZIER_GEOM_MANAGER& m_constructMan;
-        const EDA_IU_SCALE&        m_iuScale;
         EDA_UNITS                  m_units;
     };
 } // namespace PREVIEW

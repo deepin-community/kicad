@@ -19,19 +19,22 @@
 
 #include "widgets/search_pane.h"
 
-
+#include <memory>
 #include <tool/action_menu.h>
+#include <tool/tool_dispatcher.h>
+#include <tool/tool_manager.h>
 #include <settings/app_settings.h>
 #include <eda_draw_frame.h>
 #include <bitmaps.h>
 #include <kiway.h>
 #include <widgets/search_pane_tab.h>
-#include <widgets/std_bitmap_button.h>
+#include <widgets/bitmap_button.h>
 
 
 #define ID_TOGGLE_ZOOM_TO_SELECTION    14000
 #define ID_TOGGLE_PAN_TO_SELECTION     14001
 #define ID_TOGGLE_SEARCH_HIDDEN_FIELDS 14002
+#define ID_TOGGLE_SEARCH_METADATA      14003
 
 
 class SEARCH_PANE_MENU : public ACTION_MENU
@@ -50,6 +53,8 @@ public:
         AppendSeparator();
         Add( _( "Search Hidden Fields" ), wxEmptyString,
              ID_TOGGLE_SEARCH_HIDDEN_FIELDS, BITMAPS::invisible_text, true );
+        Add( _( "Search Metadata" ), _( "Search library links, descriptions and keywords" ),
+             ID_TOGGLE_SEARCH_METADATA, BITMAPS::library, true );
 
         updateZoomPanCheckboxes();
     }
@@ -79,6 +84,12 @@ public:
             updateZoomPanCheckboxes();
             m_searchPane->RefreshSearch();
             break;
+
+        case ID_TOGGLE_SEARCH_METADATA:
+            settings.search_metadata = item->IsChecked();
+            updateZoomPanCheckboxes();
+            m_searchPane->RefreshSearch();
+            break;
         }
 
         return OPT_TOOL_EVENT();
@@ -92,10 +103,12 @@ private:
         wxMenuItem* zoomCb = FindItem( ID_TOGGLE_ZOOM_TO_SELECTION );
         wxMenuItem* panCb = FindItem( ID_TOGGLE_PAN_TO_SELECTION );
         wxMenuItem* hiddenFieldsCb = FindItem( ID_TOGGLE_SEARCH_HIDDEN_FIELDS );
+        wxMenuItem* metadataCb = FindItem( ID_TOGGLE_SEARCH_METADATA );
 
         zoomCb->Check( settings.selection_zoom == APP_SETTINGS_BASE::SEARCH_PANE::SELECTION_ZOOM::ZOOM );
         panCb->Check( settings.selection_zoom == APP_SETTINGS_BASE::SEARCH_PANE::SELECTION_ZOOM::PAN );
         hiddenFieldsCb->Check( settings.search_hidden_fields );
+        metadataCb->Check( settings.search_metadata );
     }
 
 private:
@@ -120,6 +133,7 @@ SEARCH_PANE::SEARCH_PANE( EDA_DRAW_FRAME* aFrame ) :
             } );
 
     m_frame->Bind( wxEVT_AUI_PANE_CLOSE, &SEARCH_PANE::OnClosed, this );
+    Bind( wxEVT_CHAR_HOOK, &SEARCH_PANE::OnCharHook, this );
 }
 
 
@@ -127,6 +141,9 @@ SEARCH_PANE::~SEARCH_PANE()
 {
     m_frame->Unbind( wxEVT_AUI_PANE_CLOSE, &SEARCH_PANE::OnClosed, this );
     m_frame->Unbind( EDA_LANG_CHANGED, &SEARCH_PANE::OnLanguageChange, this );
+    Unbind( wxEVT_CHAR_HOOK, &SEARCH_PANE::OnCharHook, this );
+
+    m_handlers.clear();
 
     delete m_menu;
 }
@@ -151,7 +168,7 @@ void SEARCH_PANE::OnLanguageChange( wxCommandEvent& aEvent )
 }
 
 
-void SEARCH_PANE::AddSearcher( SEARCH_HANDLER* aHandler )
+void SEARCH_PANE::AddSearcher( const std::shared_ptr<SEARCH_HANDLER>& aHandler )
 {
     SEARCH_PANE_TAB* tab = new SEARCH_PANE_TAB( aHandler, m_notebook );
 
@@ -179,8 +196,7 @@ void SEARCH_PANE::ClearAllResults()
 
 void SEARCH_PANE::OnSearchTextEntry( wxCommandEvent& aEvent )
 {
-    wxString query = m_searchCtrl1->GetValue();
-    m_lastQuery = query;
+    m_lastQuery = m_searchCtrl1->GetValue();
 
     RefreshSearch();
 }
@@ -213,4 +229,26 @@ void SEARCH_PANE::OnClosed( wxAuiManagerEvent& aEvent )
 SEARCH_PANE_TAB* SEARCH_PANE::GetCurrentTab() const
 {
     return dynamic_cast<SEARCH_PANE_TAB*>( m_notebook->GetCurrentPage() );
+}
+
+
+void SEARCH_PANE::OnCharHook( wxKeyEvent& aEvent )
+{
+    // Check if the event is from a child window of the search pane
+    wxWindow* eventObject = dynamic_cast<wxWindow*>( aEvent.GetEventObject() );
+
+    if( !eventObject || !IsDescendant( eventObject ) )
+    {
+        aEvent.Skip();
+        return;
+    }
+
+    // Try to let the tool framework handle the event
+    if( m_frame->GetToolDispatcher() )
+    {
+        m_frame->GetToolDispatcher()->DispatchWxEvent( aEvent );
+        return;
+    }
+
+    aEvent.Skip();
 }

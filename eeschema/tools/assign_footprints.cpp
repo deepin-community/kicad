@@ -40,6 +40,7 @@
 
 #include <wx/choicdlg.h>
 #include <wx/filedlg.h>
+#include <kiplatform/ui.h>
 
 
 void SCH_EDITOR_CONTROL::AssignFootprints( const std::string& aChangedSetOfReferences )
@@ -89,18 +90,18 @@ void SCH_EDITOR_CONTROL::AssignFootprints( const std::string& aChangedSetOfRefer
                     // For backwards-compatibility CvPcb currently updates all instances of a
                     // symbol (even though it lists these instances separately).
                     wxString        oldfp = refs[ii].GetFootprint();
+                    SCH_FIELD*      footprintField = symbol->GetField( FIELD_T::FOOTPRINT );
 
-                    if( oldfp.IsEmpty() && symbol->GetField( FOOTPRINT_FIELD )->IsVisible() )
-                        symbol->GetField( FOOTPRINT_FIELD )->SetVisible( false );
+                    if( oldfp.IsEmpty() && footprintField->IsVisible() )
+                        footprintField->SetVisible( false );
 
                     if( oldfp != footprint )
                     {
                         isChanged = true;
                         SCH_SCREEN* screen = refs[ii].GetSheetPath().LastScreen();
 
-                        commit.Modify( symbol, screen );
-
-                        symbol->SetFootprintFieldText( footprint );
+                        commit.Modify( symbol, screen, RECURSE_MODE::NO_RECURSE );
+                        footprintField->SetText( footprint );
                     }
                 }
             }
@@ -191,7 +192,7 @@ bool SCH_EDITOR_CONTROL::processCmpToFootprintLinkFile( const wxString& aFullFil
                 symbol->SetFootprintFieldText( footprint );
 
                 if( aForceVisibilityState )
-                    symbol->GetField( FOOTPRINT_FIELD )->SetVisible( aVisibilityState );
+                    symbol->GetField( FIELD_T::FOOTPRINT )->SetVisible( aVisibilityState );
             }
         }
     }
@@ -208,6 +209,8 @@ int SCH_EDITOR_CONTROL::ImportFPAssignments( const TOOL_EVENT& aEvent )
                       path, wxEmptyString,
                       FILEEXT::FootprintAssignmentFileWildcard(),
                       wxFD_OPEN | wxFD_FILE_MUST_EXIST );
+
+    KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
 
     if( dlg.ShowModal() == wxID_CANCEL )
         return 0;

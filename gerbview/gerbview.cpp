@@ -44,6 +44,9 @@
 #include <wildcards_and_files_ext.h>
 #include <wx/ffile.h>
 
+#include <dialogs/panel_toolbar_customization.h>
+#include <toolbars_gerber.h>
+
 using json = nlohmann::json;
 
 
@@ -78,8 +81,7 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
 
         case PANEL_GBR_GRIDS:
         {
-            SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-            GERBVIEW_SETTINGS* cfg = mgr.GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" );
+            GERBVIEW_SETTINGS* cfg = GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" );
             EDA_BASE_FRAME*    frame = aKiway->Player( FRAME_GERBER, false );
 
             if( frame )
@@ -90,6 +92,23 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
 
         case PANEL_GBR_COLORS:
             return new PANEL_GERBVIEW_COLOR_SETTINGS( aParent );
+
+        case PANEL_GBR_TOOLBARS:
+        {
+            GERBVIEW_SETTINGS* cfg = GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" );
+            TOOLBAR_SETTINGS*  tb  = GetToolbarSettings<GERBVIEW_TOOLBAR_SETTINGS>( "gerbview-toolbars" );
+
+            std::vector<TOOL_ACTION*>            actions;
+            std::vector<ACTION_TOOLBAR_CONTROL*> controls;
+
+            for( TOOL_ACTION* action : ACTION_MANAGER::GetActionList() )
+                actions.push_back( action );
+
+            for( ACTION_TOOLBAR_CONTROL* control : ACTION_TOOLBAR::GetCustomControlList( FRAME_GERBER ) )
+                controls.push_back( control );
+
+            return new PANEL_TOOLBAR_CUSTOMIZATION( aParent, cfg, tb, actions, controls );
+        }
 
         default:
             ;

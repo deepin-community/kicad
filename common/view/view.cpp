@@ -28,6 +28,7 @@
 
 #include <layer_ids.h>
 #include <trace_helpers.h>
+#include <wx/log.h>
 
 #include <view/view.h>
 #include <view/view_group.h>
@@ -38,6 +39,7 @@
 #include <gal/definitions.h>
 #include <gal/graphics_abstraction_layer.h>
 #include <gal/painter.h>
+#include <algorithm>
 
 #include <core/profile.h>
 
@@ -177,7 +179,7 @@ private:
         for( int layer : aLayers )
         {
             wxCHECK2_MSG( layer >= 0 && layer < VIEW::VIEW_MAX_LAYERS, continue,
-                          wxT( "Invalid layer number" ) );
+                          wxString::Format( wxT( "Invalid layer number: %d" ), layer ) );
             m_layers.push_back( layer );
         }
     }
@@ -244,7 +246,8 @@ VIEW::VIEW() :
     m_gal( nullptr ),
     m_useDrawPriority( false ),
     m_nextDrawPriority( 0 ),
-    m_reverseDrawOrder( false )
+    m_reverseDrawOrder( false ),
+    m_hasPendingItemUpdates( false )
 {
     // Set m_boundary to define the max area size. The default area size
     // is defined here as the max value of a int.
@@ -281,7 +284,7 @@ VIEW::VIEW() :
         l.target         = TARGET_CACHED;
     }
 
-    sortOrderedLayers();
+    SortOrderedLayers();
 
     m_preview.reset( new KIGFX::VIEW_GROUP() );
     Add( m_preview.get() );
@@ -302,8 +305,7 @@ void VIEW::Add( VIEW_ITEM* aItem, int aDrawPriority )
     if( !aItem->m_viewPrivData )
         aItem->m_viewPrivData = new VIEW_ITEM_DATA;
 
-    wxASSERT_MSG( aItem->m_viewPrivData->m_view == nullptr
-                    || aItem->m_viewPrivData->m_view == this,
+    wxASSERT_MSG( aItem->m_viewPrivData->m_view == nullptr || aItem->m_viewPrivData->m_view == this,
                   wxS( "Already in a different view!" ) );
 
     aItem->m_viewPrivData->m_view = this;
@@ -313,6 +315,15 @@ void VIEW::Add( VIEW_ITEM* aItem, int aDrawPriority )
     aItem->m_viewPrivData->m_cachedIndex = m_allItems->size();
 
     std::vector<int> layers = aItem->ViewGetLayers();
+
+    std::erase_if( layers, []( int layer )
+    {
+        return layer < 0 || layer >= VIEW_MAX_LAYERS;
+    } );
+
+    if( layers.empty() )
+        return;
+
     aItem->viewPrivData()->saveLayers( layers );
 
     m_allItems->push_back( aItem );
@@ -335,12 +346,17 @@ void VIEW::Remove( VIEW_ITEM* aItem )
 
     if( aItem && aItem->m_viewPrivData )
     {
-        wxCHECK( aItem->m_viewPrivData->m_view == this, /*void*/ );
+        if( aItem->m_viewPrivData->m_view != nullptr && aItem->m_viewPrivData->m_view != this )
+        {
+            wxLogDebug( wxT( "VIEW::Remove: item %s belongs to a different view" ), aItem->GetClass() );
+            return;
+        }
 
         std::vector<VIEW_ITEM*>::iterator item = m_allItems->end();
         int                               cachedIndex = aItem->m_viewPrivData->m_cachedIndex;
 
-        if( cachedIndex >= 0 && cachedIndex < static_cast<ssize_t>( m_allItems->size() )
+        if( cachedIndex >= 0
+            && cachedIndex < static_cast<ssize_t>( m_allItems->size() )
             && ( *m_allItems )[cachedIndex] == aItem )
         {
             item = m_allItems->begin() + cachedIndex;
@@ -360,7 +376,7 @@ void VIEW::Remove( VIEW_ITEM* aItem )
             if( s_gcCounter > 4096 )
             {
                 // Perform defragmentation
-                alg::delete_if( *m_allItems,
+                std::erase_if( *m_allItems,
                                 []( VIEW_ITEM* it )
                                 {
                                     return it == nullptr;
@@ -643,11 +659,12 @@ void VIEW::SetCenter( const VECTOR2D& aCenter, const std::vector<BOX2D>& obscuri
 }
 
 
-void VIEW::SetLayerOrder( int aLayer, int aRenderingOrder )
+void VIEW::SetLayerOrder( int aLayer, int aRenderingOrder, bool aAutoSort )
 {
     m_layers[aLayer].renderingOrder = aRenderingOrder;
 
-    sortOrderedLayers();
+    if( aAutoSort )
+        SortOrderedLayers();
 }
 
 
@@ -690,7 +707,7 @@ void VIEW::ReorderLayerData( std::unordered_map<int, int> aReorderMap )
     // Transfer reordered data (using the copy assignment operator ):
     m_layers = new_map;
 
-    sortOrderedLayers();
+    SortOrderedLayers();
 
     for( VIEW_ITEM* item : *m_allItems )
     {
@@ -708,6 +725,7 @@ void VIEW::ReorderLayerData( std::unordered_map<int, int> aReorderMap )
         viewData->reorderGroups( aReorderMap );
 
         viewData->m_requiredUpdate |= COLOR;
+        m_hasPendingItemUpdates = true;
     }
 
     UpdateItems();
@@ -895,7 +913,7 @@ void VIEW::ClearTopLayers()
 
 void VIEW::UpdateAllLayersOrder()
 {
-    sortOrderedLayers();
+    SortOrderedLayers();
 
     if( m_gal->IsVisible() )
     {
@@ -1081,7 +1099,9 @@ void VIEW::draw( VIEW_ITEM* aItem, bool aImmediate )
         if( it == m_layers.end() )
             continue;
 
-        m_gal->SetLayerDepth( it->second.renderingOrder );
+        if( m_gal )
+            m_gal->SetLayerDepth( it->second.renderingOrder );
+
         draw( aItem, layer, aImmediate );
     }
 }
@@ -1132,6 +1152,16 @@ void VIEW::Clear()
 {
     BOX2I r;
     r.SetMaximum();
+
+    // Invalidate viewPrivData for all items before clearing. This ensures that items
+    // which persist outside the view (like selection groups) won't have stale references
+    // to this view, which could cause issues if they're later removed and re-added.
+    for( VIEW_ITEM* item : *m_allItems )
+    {
+        if( item && item->m_viewPrivData )
+            item->m_viewPrivData->m_view = nullptr;
+    }
+
     m_allItems->clear();
 
     for( auto& [_, layer] : m_layers )
@@ -1262,7 +1292,7 @@ void VIEW::invalidateItem( VIEW_ITEM* aItem, int aUpdateFlags )
 }
 
 
-void VIEW::sortOrderedLayers()
+void VIEW::SortOrderedLayers()
 {
     int n = 0;
 
@@ -1458,6 +1488,9 @@ void VIEW::UpdateItems()
     if( !m_gal->IsVisible() || !m_gal->IsInitialized() )
         return;
 
+    if( !m_hasPendingItemUpdates )
+        return;
+
     unsigned int cntGeomUpdate = 0;
     bool         anyUpdated = false;
 
@@ -1543,15 +1576,23 @@ void VIEW::UpdateItems()
 
     KI_TRACE( traceGalProfile, wxS( "View update: total items %u, geom %u anyUpdated %u\n" ),
               cntTotal, cntGeomUpdate, (unsigned) anyUpdated );
+
+    m_hasPendingItemUpdates = false;
 }
 
 
 void VIEW::UpdateAllItems( int aUpdateFlags )
 {
+    if( aUpdateFlags == NONE )
+        return;
+
     for( VIEW_ITEM* item : *m_allItems )
     {
         if( item && item->viewPrivData() )
+        {
             item->viewPrivData()->m_requiredUpdate |= aUpdateFlags;
+            m_hasPendingItemUpdates = true;
+        }
     }
 }
 
@@ -1559,6 +1600,9 @@ void VIEW::UpdateAllItems( int aUpdateFlags )
 void VIEW::UpdateAllItemsConditionally( int aUpdateFlags,
                                         std::function<bool( VIEW_ITEM* )> aCondition )
 {
+    if( aUpdateFlags == NONE )
+        return;
+
     for( VIEW_ITEM* item : *m_allItems )
     {
         if( !item )
@@ -1567,7 +1611,10 @@ void VIEW::UpdateAllItemsConditionally( int aUpdateFlags,
         if( aCondition( item ) )
         {
             if( item->viewPrivData() )
+            {
                 item->viewPrivData()->m_requiredUpdate |= aUpdateFlags;
+                m_hasPendingItemUpdates = true;
+            }
         }
     }
 }
@@ -1581,7 +1628,13 @@ void VIEW::UpdateAllItemsConditionally( std::function<int( VIEW_ITEM* )> aItemFl
             continue;
 
         if( item->viewPrivData() )
-            item->viewPrivData()->m_requiredUpdate |= aItemFlagsProvider( item );
+        {
+            int flags = aItemFlagsProvider( item );
+            item->viewPrivData()->m_requiredUpdate |= flags;
+
+            if( flags != NONE )
+                m_hasPendingItemUpdates = true;
+        }
     }
 }
 
@@ -1592,7 +1645,8 @@ std::unique_ptr<VIEW> VIEW::DataReference() const
     std::unique_ptr<VIEW> ret = std::make_unique<VIEW>();
     ret->m_allItems = m_allItems;
     ret->m_layers = m_layers;
-    ret->sortOrderedLayers();
+    ret->m_hasPendingItemUpdates = m_hasPendingItemUpdates;
+    ret->SortOrderedLayers();
     return ret;
 }
 
@@ -1680,6 +1734,7 @@ void VIEW::Update( const VIEW_ITEM* aItem, int aUpdateFlags ) const
     assert( aUpdateFlags != NONE );
 
     viewData->m_requiredUpdate |= aUpdateFlags;
+    m_hasPendingItemUpdates = true;
 }
 
 

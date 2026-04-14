@@ -35,20 +35,20 @@
 #include <pcb_base_frame.h>
 #include <pcbnew_settings.h>
 #include <pgm_base.h>
-#include <fp_lib_table.h>
+#include <footprint_library_adapter.h>
 #include <settings/settings_manager.h>
 #include <widgets/lib_tree.h>
 #include <widgets/footprint_preview_widget.h>
-#include <widgets/wx_progress_reporters.h>
-#include <footprint_info_impl.h>
+#include <footprint.h>
 #include <project_pcb.h>
 #include <kiface_base.h>
 #include <tool/actions.h>
 #include <tool/tool_manager.h>
+#include <widgets/kistatusbar.h>
 
 // When a new footprint is selected, a custom event is sent, for instance to update
 // 3D viewer. So define a FP_SELECTION_EVENT event
-wxDEFINE_EVENT(FP_SELECTION_EVENT, wxCommandEvent);
+wxDEFINE_EVENT( FP_SELECTION_EVENT, wxCommandEvent );
 
 PANEL_FOOTPRINT_CHOOSER::PANEL_FOOTPRINT_CHOOSER( PCB_BASE_FRAME* aFrame, wxTopLevelWindow* aParent,
                                                   const wxArrayString& aFootprintHistoryList,
@@ -64,35 +64,32 @@ PANEL_FOOTPRINT_CHOOSER::PANEL_FOOTPRINT_CHOOSER( PCB_BASE_FRAME* aFrame, wxTopL
         m_escapeHandler( std::move( aEscapeHandler ) )
 {
     m_CurrFootprint = nullptr;
-    FP_LIB_TABLE*   fpTable = PROJECT_PCB::PcbFootprintLibs( &aFrame->Prj() );
+    FOOTPRINT_LIBRARY_ADAPTER* footprints = PROJECT_PCB::FootprintLibAdapter( &aFrame->Prj() );
 
-    // Load footprint files:
-    WX_PROGRESS_REPORTER* progressReporter = new WX_PROGRESS_REPORTER( aParent,
-                                                    _( "Loading Footprint Libraries" ), 1 );
-    GFootprintList.ReadFootprintFiles( fpTable, nullptr, progressReporter );
+    // Ensure libraries are loaded before building the tree. This is necessary when the footprint
+    // chooser is opened from contexts that don't preload libraries (e.g., from Eeschema).
+    footprints->AsyncLoad();
+    footprints->BlockUntilLoaded();
 
-    // Force immediate deletion of the WX_PROGRESS_REPORTER.  Do not use Destroy(), or use
-    // Destroy() followed by wxSafeYield() because on Windows, APP_PROGRESS_DIALOG and
-    // WX_PROGRESS_REPORTER have some side effects on the event loop manager.  For instance, a
-    // subsequent call to ShowModal() or ShowQuasiModal() for a dialog following the use of a
-    // WX_PROGRESS_REPORTER results in incorrect modal or quasi modal behavior.
-    delete progressReporter;
-
-    if( GFootprintList.GetErrorCount() )
-        GFootprintList.DisplayErrors( aParent );
-
-    m_adapter = FP_TREE_MODEL_ADAPTER::Create( aFrame, fpTable );
+    m_adapter = FP_TREE_MODEL_ADAPTER::Create( aFrame, footprints );
     FP_TREE_MODEL_ADAPTER* adapter = static_cast<FP_TREE_MODEL_ADAPTER*>( m_adapter.get() );
 
     std::vector<LIB_TREE_ITEM*> historyInfos;
 
     for( const wxString& item : aFootprintHistoryList )
     {
-        LIB_TREE_ITEM* fp_info = GFootprintList.GetFootprintInfo( item );
+        LIB_ID fpid;
 
-        // this can be null, for example, if the footprint has been deleted from a library.
-        if( fp_info != nullptr )
-            historyInfos.push_back( fp_info );
+        if( fpid.Parse( item ) >= 0 )
+            continue;
+
+        FOOTPRINT* fp = footprints->LoadFootprint( fpid, false );
+
+        if( fp != nullptr )
+        {
+            historyInfos.push_back( fp );
+            m_historyFootprints.push_back( std::unique_ptr<FOOTPRINT>( fp ) );
+        }
     }
 
     adapter->DoAddLibrary( wxT( "-- " ) + _( "Recently Used" ) + wxT( " --" ), wxEmptyString,
@@ -117,27 +114,28 @@ PANEL_FOOTPRINT_CHOOSER::PANEL_FOOTPRINT_CHOOSER( PCB_BASE_FRAME* aFrame, wxTopL
     m_hsplitter = new wxSplitterWindow( m_vsplitter, wxID_ANY, wxDefaultPosition, wxDefaultSize,
                                         wxSP_LIVE_UPDATE | wxSP_NOBORDER | wxSP_3DSASH );
 
-    //Avoid the splitter window being assigned as the Parent to additional windows
+    // Avoid the splitter window being assigned as the Parent to additional windows
     m_vsplitter->SetExtraStyle( wxWS_EX_TRANSIENT );
     m_hsplitter->SetExtraStyle( wxWS_EX_TRANSIENT );
 
-    auto detailsPanel = new wxPanel( m_vsplitter );
+    m_detailsPanel = new wxPanel( m_vsplitter );
     auto detailsSizer = new wxBoxSizer( wxVERTICAL );
-    detailsPanel->SetSizer( detailsSizer );
+    m_detailsPanel->SetSizer( detailsSizer );
 
-    m_details = new HTML_WINDOW( detailsPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize );
+    m_details = new HTML_WINDOW( m_detailsPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize );
     detailsSizer->Add( m_details, 1, wxEXPAND, 5 );
-    detailsPanel->Layout();
-    detailsSizer->Fit( detailsPanel );
+    m_detailsPanel->Layout();
+    detailsSizer->Fit( m_detailsPanel );
 
     m_vsplitter->SetSashGravity( 0.5 );
-    // Ensure the splitted areas are always shown (i.e. 0 size not allowed)
+
+    // Ensure splitted areas are always shown (i.e. 0 size not allowed) when m_detailsPanel is shown
     m_vsplitter->SetMinimumPaneSize( 80 );  // arbitrary value but reasonable min size
-    m_vsplitter->SplitHorizontally( m_hsplitter, detailsPanel );
+    m_vsplitter->SplitHorizontally( m_hsplitter, m_detailsPanel );
 
     sizer->Add( m_vsplitter, 1, wxEXPAND, 5 );
 
-    m_tree = new LIB_TREE( m_hsplitter, wxT( "footprints" ), fpTable, m_adapter,
+    m_tree = new LIB_TREE( m_hsplitter, wxT( "footprints" ), m_adapter,
                            LIB_TREE::FLAGS::ALL_WIDGETS, m_details );
 
     m_hsplitter->SetSashGravity( 0.8 );
@@ -174,37 +172,6 @@ PANEL_FOOTPRINT_CHOOSER::PANEL_FOOTPRINT_CHOOSER( PCB_BASE_FRAME* aFrame, wxTopL
                         wxKeyEventHandler( PANEL_FOOTPRINT_CHOOSER::OnDetailsCharHook ),
                         nullptr, this );
 
-    Bind( wxEVT_CHAR_HOOK,
-            [&]( wxKeyEvent& aEvent )
-            {
-                if( aEvent.GetKeyCode() == WXK_ESCAPE )
-                {
-                    wxObject* eventSource = aEvent.GetEventObject();
-
-                    if( wxTextCtrl* textCtrl = dynamic_cast<wxTextCtrl*>( eventSource ) )
-                    {
-                        // First escape cancels search string value
-                        if( textCtrl->GetValue() == m_tree->GetSearchString()
-                                && !m_tree->GetSearchString().IsEmpty() )
-                        {
-                            m_tree->SetSearchString( wxEmptyString );
-                            return;
-                        }
-                    }
-
-                    m_escapeHandler();
-                }
-                else
-                {
-                    // aEvent.Skip() should be sufficient to allow the normal key events to be
-                    // generated (at least according to the wxWidgets documentation).  And yet,
-                    // here we are.
-                    aEvent.DoAllowNextEvent();
-
-                    aEvent.Skip();
-                }
-            } );
-
     Layout();
 
     // Open the user's previously opened libraries on timer expiration.
@@ -222,8 +189,7 @@ PANEL_FOOTPRINT_CHOOSER::~PANEL_FOOTPRINT_CHOOSER()
     Unbind( EVT_LIBITEM_SELECTED, &PANEL_FOOTPRINT_CHOOSER::onFootprintSelected, this );
     Unbind( EVT_LIBITEM_CHOSEN, &PANEL_FOOTPRINT_CHOOSER::onFootprintChosen, this );
 
-    m_details->Disconnect( wxEVT_CHAR_HOOK,
-                           wxKeyEventHandler( PANEL_FOOTPRINT_CHOOSER::OnDetailsCharHook ),
+    m_details->Disconnect( wxEVT_CHAR_HOOK, wxKeyEventHandler( PANEL_FOOTPRINT_CHOOSER::OnDetailsCharHook ),
                            nullptr, this );
 
     // I am not sure the following two lines are necessary, but they will not hurt anyone
@@ -232,17 +198,7 @@ PANEL_FOOTPRINT_CHOOSER::~PANEL_FOOTPRINT_CHOOSER()
     delete m_dbl_click_timer;
     delete m_open_libs_timer;
 
-    PCBNEW_SETTINGS* cfg = nullptr;
-    try
-    {
-        cfg = Pgm().GetSettingsManager().GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
-    }
-    catch( const std::runtime_error& e )
-    {
-        wxFAIL_MSG( e.what() );
-    }
-
-    if( cfg )
+    if( PCBNEW_SETTINGS* cfg = GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" ) )
     {
         // Save any changes to column widths, etc.
         m_adapter->SaveSettings();
@@ -255,6 +211,27 @@ PANEL_FOOTPRINT_CHOOSER::~PANEL_FOOTPRINT_CHOOSER()
             cfg->m_FootprintChooser.sash_v = m_vsplitter->GetSashPosition();
 
         cfg->m_FootprintChooser.sort_mode = m_tree->GetSortMode();
+    }
+}
+
+
+void PANEL_FOOTPRINT_CHOOSER::OnChar( wxKeyEvent& aEvent )
+{
+    if( aEvent.GetKeyCode() == WXK_ESCAPE )
+    {
+        // First escape clears search string, second escape closes
+        if( !m_tree->GetSearchString().IsEmpty() )
+        {
+            m_tree->SetSearchString( wxEmptyString );
+            GetFocusTarget()->SetFocus();
+            return;
+        }
+
+        m_escapeHandler();
+    }
+    else
+    {
+        aEvent.Skip();
     }
 }
 
@@ -275,7 +252,7 @@ void PANEL_FOOTPRINT_CHOOSER::onMenuClose( wxMenuEvent& aEvent )
 
 void PANEL_FOOTPRINT_CHOOSER::FinishSetup()
 {
-    if( auto* settings = Pgm().GetSettingsManager().GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" ) )
+    if( PCBNEW_SETTINGS* settings = GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" ) )
     {
         auto horizPixelsFromDU =
                 [&]( int x ) -> int
@@ -341,7 +318,9 @@ void PANEL_FOOTPRINT_CHOOSER::onCloseTimer( wxTimerEvent& aEvent )
     }
 }
 
+
 #include <footprint_preview_panel.h>
+
 void PANEL_FOOTPRINT_CHOOSER::onOpenLibsTimer( wxTimerEvent& aEvent )
 {
     if( PCBNEW_SETTINGS* cfg = dynamic_cast<PCBNEW_SETTINGS*>( Kiface().KifaceSettings() ) )
@@ -366,7 +345,7 @@ void PANEL_FOOTPRINT_CHOOSER::onFootprintSelected( wxCommandEvent& aEvent )
         m_preview_ctrl->DisplayFootprint( lib_id );
     }
 
-    m_CurrFootprint = static_cast<FOOTPRINT_PREVIEW_PANEL*>(m_preview_ctrl->GetPreviewPanel())->GetCurrentFootprint();
+    m_CurrFootprint = static_cast<FOOTPRINT_PREVIEW_PANEL*>( m_preview_ctrl->GetPreviewPanel() )->GetCurrentFootprint();
 
     // Send a FP_SELECTION_EVENT event after a footprint change
     wxCommandEvent event( FP_SELECTION_EVENT, GetId() );
@@ -414,5 +393,3 @@ void PANEL_FOOTPRINT_CHOOSER::OnDetailsCharHook( wxKeyEvent& e )
         e.Skip();
     }
 }
-
-

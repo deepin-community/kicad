@@ -1,0 +1,8 @@
+{
+"description": "Inverting amplifier circuit made from a single opamp.",
+"keywords": "inverting amplifier",
+"fields": {
+"R1_value": "10k",
+"R2_value": "10k"
+}
+}

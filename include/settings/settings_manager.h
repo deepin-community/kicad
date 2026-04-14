@@ -25,7 +25,8 @@
 #include <mutex>
 #include <typeinfo>
 #include <core/wx_stl_compat.h> // for wxString hash
-#include <settings/color_settings.h>
+#include <settings/json_settings.h>
+#include <pgm_base.h>
 
 class COLOR_SETTINGS;
 class COMMON_SETTINGS;
@@ -41,13 +42,22 @@ class LOCKFILE;
 /// Project settings path will be <projectname> + this
 #define PROJECT_BACKUPS_DIR_SUFFIX wxT( "-backups" )
 
+#define DEFAULT_THEME wxString( wxT( "user" ) )
+
 
 class KICOMMON_API SETTINGS_MANAGER
 {
 public:
-    SETTINGS_MANAGER( bool aHeadless = false );
+    SETTINGS_MANAGER();
 
     ~SETTINGS_MANAGER();
+
+    /**
+     * @return true if the settings directory for this version of KiCad exists and has at least a
+     * common settings file (kicad_common.json).  Used to know whether or not the first-run wizard
+     * needs to be shown.
+     */
+    bool SettingsDirectoryValid() const;
 
     /**
      * @return true if settings load was successful
@@ -87,6 +97,16 @@ public:
      * @param aSettings is the object to release
      */
     void FlushAndRelease( JSON_SETTINGS* aSettings, bool aSave = true );
+
+    /**
+     * Reset all program settings to defaults.
+     */
+    void ResetToDefaults();
+
+    /**
+     * Clear saved file history from all settings files.
+     */
+    void ClearFileHistory();
 
     /**
      * Return a handle to the a given settings by type.
@@ -136,10 +156,55 @@ public:
         }
         else
         {
-            throw std::runtime_error( "Tried to GetAppSettings before registering" );
+            wxFAIL_MSG( wxString::Format( "Tried to GetAppSettings before registering: %s", aFilename ) );
         }
 
         m_app_settings_cache[typeHash] = ret;
+
+        return ret;
+    }
+
+    /**
+     * Return a handle to the given toolbar settings
+     *
+     * If the settings have already been loaded, returns the existing pointer.
+     * If the settings have not been loaded, creates a new object owned by the
+     * settings manager and returns a pointer to it.
+     *
+     * @tparam T is a type derived from TOOLBAR_SETTINGS.
+     * @param aFilename is used to find the correct settings under clang (where
+     *                  RTTI doesn't work across compile boundaries).
+     * @return a pointer to a loaded settings object.
+     */
+    template<typename T>
+    T* GetToolbarSettings( const wxString& aFilename )
+    {
+        T* ret = nullptr;
+
+#if defined(__clang__)
+        auto it = std::find_if( m_settings.begin(), m_settings.end(),
+                                [&]( const std::unique_ptr<JSON_SETTINGS>& aSettings )
+                                {
+                                    return aSettings->GetFilename() == aFilename;
+                                } );
+#else
+        auto it = std::find_if( m_settings.begin(), m_settings.end(),
+                                []( const std::unique_ptr<JSON_SETTINGS>& aSettings )
+                                {
+                                    return dynamic_cast<T*>( aSettings.get() );
+                                } );
+#endif
+
+        if( it != m_settings.end() )
+        {
+            // Do NOT use dynamic_cast here.  CLang will think it's the wrong class across
+            // compile boundaries and return nullptr.
+            ret = static_cast<T*>( it->get() );
+        }
+        else
+        {
+            ret = RegisterSettings( new T );
+        }
 
         return ret;
     }
@@ -152,22 +217,9 @@ public:
      * @param aName is the name of the color scheme to load.
      * @return a loaded COLOR_SETTINGS object.
      */
-    COLOR_SETTINGS* GetColorSettings( const wxString& aName = "user" );
+    COLOR_SETTINGS* GetColorSettings( const wxString& aName );
 
-    std::vector<COLOR_SETTINGS*> GetColorSettingsList()
-    {
-        std::vector<COLOR_SETTINGS*> ret;
-
-        for( const std::pair<const wxString, COLOR_SETTINGS*>& entry : m_color_settings )
-            ret.push_back( entry.second );
-
-        std::sort( ret.begin(), ret.end(), []( COLOR_SETTINGS* a, COLOR_SETTINGS* b )
-                                           {
-                                               return a->GetName() < b->GetName();
-                                           } );
-
-        return ret;
-    }
+    std::vector<COLOR_SETTINGS*> GetColorSettingsList();
 
     /**
      * Safely save a #COLOR_SETTINGS to disk, preserving any changes outside the given namespace.
@@ -214,28 +266,11 @@ public:
     wxString GetPathForSettingsFile( JSON_SETTINGS* aSettings );
 
     /**
-     * Handle the initialization of the user settings directory and migration from previous
-     * KiCad versions as needed.
+     * Handle migration of the settings from previous KiCad versions.
      *
-     * This method will check for the existence of the user settings path for this KiCad version.
-     * If it exists, settings load will proceed normally using that path.
-     *
-     * If that directory is empty or does not exist, the migration wizard will be launched, which
-     * will give users the option to migrate settings from a previous KiCad version (if one is
-     * found), manually specify a directory to migrate from, or start with default settings.
-     *
-     * @return true if migration was successful or not necessary, false otherwise.
+     * @return true if migration was successful, false otherwise.
      */
-    bool MigrateIfNeeded();
-
-    /**
-     * Helper for #DIALOG_MIGRATE_SETTINGS to specify a source for migration.
-     *
-     * @param aSource is a directory containing settings files to migrate from (can be empty).
-     */
-    void SetMigrationSource( const wxString& aSource ) { m_migration_source = aSource; }
-
-    void SetMigrateLibraryTables( bool aMigrate = true ) { m_migrateLibraryTables = aMigrate; }
+    bool MigrateFromPreviousVersion( const wxString& aSourcePath );
 
     /**
      * Retrieve the name of the most recent previous KiCad version that can be found in the
@@ -379,6 +414,12 @@ public:
     static wxString GetColorSettingsPath();
 
     /**
+     * Return the path where toolbar configuration files are stored; creating it if missing
+     * (normally ./toolbars/ under the user settings path).
+     */
+    static wxString GetToolbarSettingsPath();
+
+    /**
      * Parse the current KiCad build version and extracts the major and minor revision to use
      * as the name of the settings directory for this KiCad version.
      *
@@ -446,9 +487,6 @@ private:
 
 private:
 
-    /// True if running outside a UI context.
-    bool m_headless;
-
     /// The kiway this settings manager interacts with.
     KIWAY* m_kiway;
 
@@ -462,8 +500,6 @@ private:
 
     // Convenience shortcut
     COMMON_SETTINGS* m_common_settings;
-
-    wxString m_migration_source;
 
     /// If true, the symbol and footprint library tables will be migrated from the previous version.
     bool m_migrateLibraryTables;
@@ -480,10 +516,33 @@ private:
     /// Loaded project files, mapped according to project full name.
     std::map<wxString, PROJECT_FILE*> m_project_files;
 
-    /// Lock for loaded project (expand to multiple once we support MDI).
-    std::unique_ptr<LOCKFILE> m_project_lock;
-
     static wxString backupDateTimeFormat;
 };
+
+
+template<typename T>
+T* GetAppSettings( const char* aFilename )
+{
+    if( PGM_BASE* pgm = PgmOrNull() )
+        return pgm->GetSettingsManager().GetAppSettings<T>( aFilename );
+
+    return nullptr;
+}
+
+
+template<typename T>
+T* GetToolbarSettings( const wxString& aFilename )
+{
+    if( PGM_BASE* pgm = PgmOrNull() )
+        return pgm->GetSettingsManager().GetToolbarSettings<T>( aFilename );
+
+    return nullptr;
+}
+
+
+inline COLOR_SETTINGS* GetColorSettings( const wxString& aName )
+{
+    return Pgm().GetSettingsManager().GetColorSettings( aName );
+}
 
 #endif

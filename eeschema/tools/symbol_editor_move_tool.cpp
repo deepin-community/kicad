@@ -29,6 +29,7 @@
 #include <eda_item.h>
 #include <gal/graphics_abstraction_layer.h>
 #include <sch_shape.h>
+#include <sch_group.h>
 #include <sch_commit.h>
 #include <wx/debug.h>
 #include <view/view_controls.h>
@@ -152,8 +153,12 @@ bool SYMBOL_EDITOR_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COM
     VECTOR2I    prevPos;
     VECTOR2I    moveOffset;
 
-    if( !selection.Front()->IsNew() )
-        aCommit->Modify( m_frame->GetCurSymbol(), m_frame->GetScreen() );
+    // Axis locking for arrow key movement
+    enum class AXIS_LOCK { NONE, HORIZONTAL, VERTICAL };
+    AXIS_LOCK axisLock = AXIS_LOCK::NONE;
+    long      lastArrowKeyAction = 0;
+
+    aCommit->Modify( m_frame->GetCurSymbol(), m_frame->GetScreen() );
 
     m_cursor = controls->GetCursorPosition( !aEvent.DisableGridSnapping() );
 
@@ -232,8 +237,21 @@ bool SYMBOL_EDITOR_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COM
                     // Drag items to the current cursor position
                     for( EDA_ITEM* item : selection )
                     {
-                        moveItem( item, delta );
-                        updateItem( item, false );
+                        SCH_ITEM* schItem = static_cast<SCH_ITEM*>( item );
+
+                        moveItem( schItem, delta );
+                        updateItem( schItem, false );
+
+                        // While SCH_COMMIT::Push() will add any new items to the entered group,
+                        // we need to do it earlier so that the previews while moving are correct.
+                        if( SCH_GROUP* enteredGroup = m_selectionTool->GetEnteredGroup() )
+                        {
+                            if( schItem->IsGroupableType() && !item->GetParentGroup() )
+                            {
+                                aCommit->Modify( enteredGroup, m_frame->GetScreen(), RECURSE_MODE::NO_RECURSE );
+                                enteredGroup->AddItem( schItem );
+                            }
+                        }
                     }
 
                     m_anchorPos = m_cursor;
@@ -261,8 +279,66 @@ bool SYMBOL_EDITOR_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COM
             //------------------------------------------------------------------------
             // Follow the mouse
             //
-            m_cursor = grid.BestSnapAnchor( controls->GetCursorPosition( false ), snapLayer,
-                                            selection );
+            // We need to bypass refreshPreview action here because it is triggered by the move,
+            // so we were getting double-key events that toggled the axis locking if you
+            // pressed them in a certain order.
+            if( controls->GetSettings().m_lastKeyboardCursorPositionValid && !evt->IsAction( &ACTIONS::refreshPreview ) )
+            {
+                VECTOR2I keyboardPos( controls->GetSettings().m_lastKeyboardCursorPosition );
+                long action = controls->GetSettings().m_lastKeyboardCursorCommand;
+
+                grid.SetSnap( false );
+                m_cursor = grid.Align( keyboardPos, snapLayer );
+
+                // Update axis lock based on arrow key press
+                if( action == ACTIONS::CURSOR_LEFT || action == ACTIONS::CURSOR_RIGHT )
+                {
+                    if( axisLock == AXIS_LOCK::HORIZONTAL )
+                    {
+                        // Check if opposite horizontal key pressed to unlock
+                        if( ( lastArrowKeyAction == ACTIONS::CURSOR_LEFT && action == ACTIONS::CURSOR_RIGHT ) ||
+                            ( lastArrowKeyAction == ACTIONS::CURSOR_RIGHT && action == ACTIONS::CURSOR_LEFT ) )
+                        {
+                            axisLock = AXIS_LOCK::NONE;
+                        }
+                        // Same direction axis, keep locked
+                    }
+                    else
+                    {
+                        axisLock = AXIS_LOCK::HORIZONTAL;
+                    }
+                }
+                else if( action == ACTIONS::CURSOR_UP || action == ACTIONS::CURSOR_DOWN )
+                {
+                    if( axisLock == AXIS_LOCK::VERTICAL )
+                    {
+                        // Check if opposite vertical key pressed to unlock
+                        if( ( lastArrowKeyAction == ACTIONS::CURSOR_UP && action == ACTIONS::CURSOR_DOWN ) ||
+                            ( lastArrowKeyAction == ACTIONS::CURSOR_DOWN && action == ACTIONS::CURSOR_UP ) )
+                        {
+                            axisLock = AXIS_LOCK::NONE;
+                        }
+                        // Same direction axis, keep locked
+                    }
+                    else
+                    {
+                        axisLock = AXIS_LOCK::VERTICAL;
+                    }
+                }
+
+                lastArrowKeyAction = action;
+            }
+            else
+            {
+                m_cursor = grid.BestSnapAnchor( controls->GetCursorPosition( false ), snapLayer,
+                                                selection );
+            }
+
+            if( axisLock == AXIS_LOCK::HORIZONTAL )
+                m_cursor.y = prevPos.y;
+            else if( axisLock == AXIS_LOCK::VERTICAL )
+                m_cursor.x = prevPos.x;
+
             VECTOR2I delta( m_cursor - prevPos );
             m_anchorPos = m_cursor;
 
@@ -329,7 +405,7 @@ bool SYMBOL_EDITOR_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COM
                 {
                     SCH_PIN* curr_pin = static_cast<SCH_PIN*>( selection.Front() );
 
-                    if( pinTool->PlacePin( curr_pin ) )
+                    if( pinTool->PlacePin( aCommit, curr_pin ) )
                     {
                         // PlacePin() clears the current selection, which we don't want.  Not only
                         // is it a poor user experience, but it also prevents us from doing the
@@ -368,7 +444,7 @@ bool SYMBOL_EDITOR_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COM
         item->ClearEditFlags();
 
     if( unselect )
-        m_toolMgr->RunAction( SCH_ACTIONS::clearSelection );
+        m_toolMgr->RunAction( ACTIONS::selectionClear );
 
     m_moveInProgress = false;
     m_frame->PopTool( aEvent );
@@ -383,21 +459,17 @@ int SYMBOL_EDITOR_MOVE_TOOL::AlignElements( const TOOL_EVENT& aEvent )
     SCH_SELECTION& selection = m_selectionTool->RequestSelection();
     SCH_COMMIT     commit( m_toolMgr );
 
-    auto doMoveItem =
-            [&]( EDA_ITEM* item, const VECTOR2I& delta )
-            {
-                commit.Modify( item, m_frame->GetScreen() );
-                static_cast<SCH_ITEM*>( item )->Move( delta );
-                updateItem( item, true );
-            };
-
     for( EDA_ITEM* item : selection )
     {
         VECTOR2I newPos = grid.AlignGrid( item->GetPosition(), grid.GetItemGrid( item ) );
         VECTOR2I delta = newPos - item->GetPosition();
 
         if( delta != VECTOR2I( 0, 0 ) )
-            doMoveItem( item, delta );
+        {
+            commit.Modify( item, m_frame->GetScreen(), RECURSE_MODE::RECURSE );
+            static_cast<SCH_ITEM*>( item )->Move( delta );
+            updateItem( item, true );
+        };
 
         if( SCH_PIN* pin = dynamic_cast<SCH_PIN*>( item ) )
         {

@@ -30,18 +30,14 @@
 #ifndef __CONNECTIVITY_ALGO_H
 #define __CONNECTIVITY_ALGO_H
 
-#include <board.h>
-#include <pad.h>
-#include <footprint.h>
-#include <zone.h>
-
 #include <geometry/shape_poly_set.h>
 
-#include <memory>
 #include <algorithm>
-#include <functional>
-#include <vector>
 #include <deque>
+#include <functional>
+#include <list>
+#include <memory>
+#include <vector>
 
 #include <connectivity/connectivity_rtree.h>
 #include <connectivity/connectivity_data.h>
@@ -51,6 +47,7 @@ class CN_RATSNEST_NODES;
 class BOARD;
 class BOARD_CONNECTED_ITEM;
 class BOARD_ITEM;
+class FOOTPRINT;
 class ZONE;
 class PROGRESS_REPORTER;
 
@@ -84,6 +81,42 @@ public:
     bool operator<( CN_EDGE aOther ) const
     {
         return m_weight < aOther.m_weight;
+    }
+
+    /**
+     * Comparison operator for std::stable_sort.
+     *
+     * @param aOther the other edge to compare.
+     * @return true if this edge should come before aOther in the sorted order.
+     *
+     * Comparison order:
+     * 1. Compare source nodes by position (x, then y)
+     * 2. Then compare by weight
+     * 3. Then by visibility
+     * 4. If everything is equal, return false for stable ordering
+     */
+    bool StableSortCompare( const CN_EDGE& aOther ) const
+    {
+        const VECTOR2I& thisPos = GetSourcePos();
+        const VECTOR2I& otherPos = aOther.GetSourcePos();
+
+        // First compare by source node position
+        if( thisPos.x != otherPos.x )
+            return thisPos.x < otherPos.x;
+
+        if( thisPos.y != otherPos.y )
+            return thisPos.y < otherPos.y;
+
+        // Then compare by weight
+        if( m_weight != aOther.m_weight )
+            return m_weight < aOther.m_weight;
+
+        // Then by visibility
+        if( m_visible != aOther.m_visible )
+            return m_visible && !aOther.m_visible;
+
+        // If everything is equal, return false for stable ordering
+        return false;
     }
 
     std::shared_ptr<const CN_ANCHOR> GetSourceNode() const { return m_source; }
@@ -218,7 +251,7 @@ public:
     }
 
     void Build( BOARD* aBoard, PROGRESS_REPORTER* aReporter = nullptr );
-    void LocalBuild( std::shared_ptr<CONNECTIVITY_DATA> aGlobalConnectivity,
+    void LocalBuild( const std::shared_ptr<CONNECTIVITY_DATA>& aGlobalConnectivity,
                      const std::vector<BOARD_ITEM*>& aLocalItems );
 
     void Clear();
@@ -226,8 +259,7 @@ public:
     bool Remove( BOARD_ITEM* aItem );
     bool Add( BOARD_ITEM* aItem );
 
-    const CLUSTERS SearchClusters( CLUSTER_SEARCH_MODE aMode, const std::vector<KICAD_T>& aTypes,
-                                   int aSingleNet, CN_ITEM* rootItem = nullptr );
+    const CLUSTERS SearchClusters( CLUSTER_SEARCH_MODE aMode, bool aExcludeZones, int aSingleNet );
     const CLUSTERS SearchClusters( CLUSTER_SEARCH_MODE aMode );
 
     /**
@@ -286,6 +318,8 @@ private:
 
     void markItemNetAsDirty( const BOARD_ITEM* aItem );
 
+    void updateJumperPads();
+
 private:
     CONNECTIVITY_DATA*                                    m_parentConnectivityData;
     CN_LIST                                               m_itemList;
@@ -307,8 +341,11 @@ private:
 class CN_VISITOR
 {
 public:
-    CN_VISITOR( CN_ITEM* aItem ) :
-        m_item( aItem )
+    CN_VISITOR( CN_ITEM* aItem, std::vector<std::pair<BOARD_CONNECTED_ITEM*, int>>* aDeferredNetCodes,
+                std::mutex* aDeferredNetCodesMutex ) :
+        m_item( aItem ),
+        m_deferredNetCodes( aDeferredNetCodes ),
+        m_deferredNetCodesMutex( aDeferredNetCodesMutex )
     {}
 
     bool operator()( CN_ITEM* aCandidate );
@@ -320,6 +357,11 @@ protected:
 
 protected:
     CN_ITEM* m_item;        ///< The item we are looking for connections to.
+
+    /// Deferred net code changes collected during parallel connectivity search. Thread-safe
+    /// collection via mutex. Processed after parallel search completes.
+    std::vector<std::pair<BOARD_CONNECTED_ITEM*, int>>* m_deferredNetCodes;
+    std::mutex* m_deferredNetCodesMutex;
 };
 
 #endif

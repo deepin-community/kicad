@@ -130,6 +130,9 @@ public:
     /// How zones are drawn
     ZONE_DISPLAY_MODE m_ZoneDisplayMode;
 
+    /// Whether Zone fill should always be solid for performance with large boards.
+    bool m_PrototypeZoneFill;
+
     double m_TrackOpacity;     ///< Opacity override for all tracks
     double m_ViaOpacity;       ///< Opacity override for all types of via
     double m_PadOpacity;       ///< Opacity override for SMD pads and PTH
@@ -148,10 +151,16 @@ public:
     PCB_SELECTION_FILTER_OPTIONS m_PcbSelectionFilter;
     SCH_SELECTION_FILTER_OPTIONS m_SchSelectionFilter;
 
+    /// Collapsed nodes in the schematic hierarchy navigator
+    std::vector<wxString> m_SchHierarchyCollapsed;
+
     // Upstream git repo info
     wxString m_GitRepoUsername;
     wxString m_GitRepoType;
     wxString m_GitSSHKey;
+
+    /// If true, KiCad will not use Git integration for this project even if a .git directory exists
+    bool m_GitIntegrationDisabled;
 
 private:
     /// A link to the owning project

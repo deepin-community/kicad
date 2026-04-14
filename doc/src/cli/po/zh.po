@@ -1,20 +1,20 @@
 # SOME DESCRIPTIVE TITLE
 # Copyright (C) YEAR Free Software Foundation, Inc.
 # This file is distributed under the same license as the PACKAGE package.
-# taotieren <admin@taotieren.com>, 2024.
+# taotieren <admin@taotieren.com>, 2019 - 2025.
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: \n"
-"POT-Creation-Date: 2024-08-02 10:56+0800\n"
-"PO-Revision-Date: 2024-08-04 19:06+0800\n"
+"POT-Creation-Date: 2025-07-02 15:50+0800\n"
+"PO-Revision-Date: 2025-07-02 16:11+0800\n"
 "Last-Translator: taotieren <admin@taotieren.com>\n"
 "Language-Team: \n"
 "Language: zh\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Poedit 3.5\n"
+"X-Generator: Poedit 3.6\n"
 
 #. type: Title =
 #: cli.adoc:7
@@ -23,576 +23,1481 @@ msgid "KiCad Command-Line Interface"
 msgstr "KiCad 命令行界面"
 
 #. type: Plain text
-#: cli.adoc:10
-msgid "_Reference manual_"
-msgstr "_参考手册_"
+#: cli.adoc:12
+msgid "_KiCad {kicad-version-short} Reference Manual_"
+msgstr "_KiCad {kicad-version-short} 参考手册_"
 
 #. type: Plain text
-#: cli.adoc:13
+#: cli.adoc:15
 msgid "*Copyright*"
 msgstr "*版权*"
 
 #. type: Plain text
-#: cli.adoc:19
+#: cli.adoc:21
 msgid ""
-"This document is Copyright (C) 2023-2024 by its contributors as listed below. You "
-"may distribute it and/or modify it under the terms of either the GNU General "
-"Public License (http://www.gnu.org/licenses/gpl.html), version 3 or later, or the "
-"Creative Commons Attribution License (http://creativecommons.org/licenses/"
-"by/3.0/), version 3.0 or later."
+"This document is Copyright (C) 2023-2024 by its contributors as listed below. You may distribute it and/or modify it under the terms of either the GNU General Public License (http://www.gnu.org/licenses/gpl.html), version 3 or later, or the Creative Commons "
+"Attribution License (http://creativecommons.org/licenses/by/3.0/), version 3.0 or later."
 msgstr ""
-"本文档的版权归 （C） 2023-2024 所有，由下列贡献者提供。您可以根据 GNU 通用公共许可"
-"证 （http://www.gnu.org/licenses/gpl.html） 版本 3 或更高版本或知识共享署名许可证 "
-"（http://creativecommons.org/licenses/by/3.0/） 版本 3.0 或更高版本的条款分发和/或"
-"修改它。"
+"本文档的版权归 （C） 2023-2024 所有，由下列贡献者提供。您可以根据 GNU 通用公共许可证 （http://www.gnu.org/licenses/gpl.html） 版本 3 或更高版本或知识共享署名许可证 （http://creativecommons.org/licenses/by/3.0/） 版本 3.0 或更高版本的条款分发和/或修改它。"
 
 #. type: Plain text
-#: cli.adoc:21
+#: cli.adoc:23
 msgid "All trademarks within this guide belong to their legitimate owners."
 msgstr "本指南中的所有商标均属于其合法所有者。"
 
 #. type: Plain text
-#: cli.adoc:24
+#: cli.adoc:26
 msgid "*Contributors*"
 msgstr "*贡献者*"
 
 #. type: Plain text
-#: cli.adoc:26
+#: cli.adoc:28
 msgid "Graham Keeth"
 msgstr ""
 
 #. type: Plain text
-#: cli.adoc:29
+#: cli.adoc:31
 msgid "*Feedback*"
 msgstr "*反馈*"
 
 #. type: Plain text
-#: cli.adoc:33
-msgid ""
-"The KiCad project welcomes feedback, bug reports, and suggestions related to the "
-"software or its documentation. For more information on how to submit feedback or "
-"report an issue, please see the instructions at https://www.kicad.org/help/report-"
-"an-issue/"
-msgstr ""
-"KiCad 项目欢迎与软件或其文档相关的反馈、错误报告和建议。有关如何提交反馈或报告问题"
-"的更多信息，请参阅 https://www.kicad.org/help/report-an-issue/ 上的说明"
+#: cli.adoc:35
+msgid "The KiCad project welcomes feedback, bug reports, and suggestions related to the software or its documentation. For more information on how to submit feedback or report an issue, please see the instructions at https://www.kicad.org/help/report-an-issue/"
+msgstr "KiCad 项目欢迎与软件或其文档相关的反馈、错误报告和建议。有关如何提交反馈或报告问题的更多信息，请参阅 https://www.kicad.org/help/report-an-issue/ 上的说明"
+
+#. type: Plain text
+#: cli.adoc:37
+msgid "*Software and Documentation Version*"
+msgstr "*软件和文档版本*"
+
+#. type: Plain text
+#: cli.adoc:40
+msgid "This user manual is based on KiCad {kicad-version-long}. Functionality and appearance may be different in other versions of KiCad."
+msgstr "本用户手册基于 KiCad {kicad-version-long} 版本。其他版本的 KiCad 在功能和界面外观上可能存在差异。"
+
+#. type: Plain text
+#: cli.adoc:42
+msgid "Documentation revision: `{doc-commit}`."
+msgstr "文档修订版：`{doc-commit}`。"
 
 #. type: Title ==
-#: cli.adoc:34
+#: cli.adoc:43
 #, no-wrap
 msgid "Introduction to the KiCad Command-Line Interface"
 msgstr "KiCad 命令行界面简介"
 
 #. type: Plain text
-#: cli.adoc:41
+#: cli.adoc:50
 msgid ""
-"KiCad provides a command-line interface, which is available by running the `kicad-"
-"cli` binary. With the command-line interface, you can perform a number of actions "
-"on schematics, PCBs, symbols, and footprints in an automated fashion, such as "
-"plotting Gerber files from a PCB design or upgrading a symbol library from a "
-"legacy file format to a modern format."
-msgstr ""
-"KiCad 提供了一个命令行界面，可以通过运行 `kicad-cli` 二进制文件来使用。使用命令行"
-"界面，您可以以自动化方式对原理图、PCB、符号和封装执行许多操作，例如绘制 PCB 设计中"
-"的 Gerber 文件或将符号库从传统文件格式升级到现代格式。"
+"KiCad provides a command-line interface, which is available by running the `kicad-cli` binary. With the command-line interface, you can perform a number of actions on schematics, PCBs, symbols, and footprints in an automated fashion, such as plotting Gerber "
+"files from a PCB design or upgrading a symbol library from a legacy file format to a modern format."
+msgstr "KiCad 提供了一个命令行界面，可以通过运行 `kicad-cli` 二进制文件来使用。使用命令行界面，您可以以自动化方式对原理图、PCB、符号和封装执行许多操作，例如绘制 PCB 设计中的 Gerber 文件或将符号库从传统文件格式升级到现代格式。"
 
 #. type: Plain text
-#: cli.adoc:44
+#: cli.adoc:53
 #, no-wrap
 msgid ""
 "On macOS, the `kicad-cli` executable is located at\n"
 "      `/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli`.\n"
-msgstr ""
-"在 macOS 上，`kicad-cli` 可执行文件位于\n"
-"      `/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli`。\n"
+msgstr "在 macOS 上，`kicad-cli` 可执行文件位于 `/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli`。\n"
 
 #. type: Plain text
-#: cli.adoc:49
+#: cli.adoc:58
 msgid ""
-"The `kicad-cli` command has 5 subcommands: `fp`, `pcb`, `sch`, `sym`, and "
-"`version`. Each subcommand may have its own subcommands and arguments. For "
-"example, to export Gerber files from a PCB you could run `kicad-cli pcb export "
-"gerbers example.kicad_pcb`."
-msgstr ""
-"`kicad-cli` 命令有 5 个子命令： `fp`、`pcb`、`sch`、`sym` 和 `version`。每个子命令"
-"都可以有自己的子命令和参数。例如，要从 PCB 导出 Gerber 文件，您可以运行 `kicad-"
-"cli pcb export gerbers example.kicad_pcb` 。"
+"The `kicad-cli` command has 6 subcommands: `fp`, `jobset`, `pcb`, `sch`, `sym`, and `version`. Each subcommand may have its own subcommands and arguments. For example, to export Gerber files from a PCB you could run `kicad-cli pcb export gerbers "
+"example.kicad_pcb`."
+msgstr "`kicad-cli` 命令包含 6 个子命令： `fp`、`jobset`、`pcb`、`sch`、`sym` 和 `version`。每个子命令都可以有自己的子命令和参数。例如，要从 PCB 导出 Gerber 文件，您可以运行 `kicad-cli pcb export gerbers example.kicad_pcb` 。"
 
 #. type: Plain text
-#: cli.adoc:54
+#: cli.adoc:63
 msgid ""
-"You can add the `--help` or `-h` flag to see information about each subcommand. "
-"For example, running `kicad-cli pcb -h` prints usage information about the `pcb` "
-"subcommand, and `kicad-cli pcb export gerbers -h` prints usage information "
-"specifically for the `pcb export gerbers` subcommand."
-msgstr ""
-"您可以添加 `--help` 或 `-h` 标志来查看有关每个子命令的信息。例如，运行 `kicad-cli "
-"pcb -h` 打印有关 `pcb` 子命令的使用信息，而 `kicad-cli pcb export gerbers -h` 专门"
-"打印 `pcb export gerbers` 子命令的使用信息。"
+"You can add the `--help` or `-h` flag to see information about each subcommand. For example, running `kicad-cli pcb -h` prints usage information about the `pcb` subcommand, and `kicad-cli pcb export gerbers -h` prints usage information specifically for the "
+"`pcb export gerbers` subcommand."
+msgstr "您可以添加 `--help` 或 `-h` 标志来查看有关每个子命令的信息。例如，运行 `kicad-cli pcb -h` 打印有关 `pcb` 子命令的使用信息，而 `kicad-cli pcb export gerbers -h` 专门打印 `pcb export gerbers` 子命令的使用信息。"
 
 #. type: Title ==
-#: cli.adoc:55
+#: cli.adoc:64
 #, no-wrap
 msgid "Footprint commands"
 msgstr "封装命令"
 
 #. type: Plain text
-#: cli.adoc:59
-msgid ""
-"The `fp` subcommand exports footprints to another format or upgrades the "
-"footprint libraries to the current version of the KiCad footprint file format."
-msgstr ""
-"`fp` 子命令将封装导出为另一种格式，或将封装库升级到 KiCad 封装文件格式的当前版本。"
+#: cli.adoc:68
+msgid "The `fp` subcommand exports footprints to another format or upgrades the footprint libraries to the current version of the KiCad footprint file format."
+msgstr "`fp` 子命令将封装导出为另一种格式，或将封装库升级到 KiCad 封装文件格式的当前版本。"
 
 #. type: Title ===
-#: cli.adoc:60
+#: cli.adoc:69
 #, no-wrap
 msgid "Footprint export"
 msgstr "封装导出"
 
 #. type: Plain text
-#: cli.adoc:64
-msgid ""
-"The `fp export svg` command exports one or more footprints from the specified "
-"library into SVG files."
+#: cli.adoc:73
+msgid "The `fp export svg` command exports one or more footprints from the specified library into SVG files."
 msgstr "`fp export svg` 命令将指定库中的一个或多个封装导出到 SVG 文件中。"
 
 #. type: Plain text
-#: cli.adoc:68
+#: cli.adoc:75
 msgid ""
-"Usage: `kicad-cli fp export svg [--help] [--output OUTPUT_FILE] [--layers "
-"LAYER_LIST] [--define-var KEY=VALUE] [--theme VAR] [--footprint FOOTPRINT_NAME] "
-"[--black-and-white] INPUT_DIR`"
+"Usage: `kicad-cli fp export svg [--help] [--output OUTPUT_DIR] [--layers LAYER_LIST] [--define-var KEY=VALUE] [--theme VAR] [--footprint FOOTPRINT_NAME] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-footprints-on-fab-"
+"layers] [--crossout-DNP-footprints-on-fab-layers] [--black-and-white] INPUT_DIR`"
 msgstr ""
-"用法：`kicad-cli fp export svg [--help] [--output OUTPUT_FILE] [--layers "
-"LAYER_LIST] [--define-var KEY=VALUE] [--theme VAR] [--footprint FOOTPRINT_NAME] "
-"[--black-and-white] INPUT_DIR`"
 
 #. type: Plain text
-#: cli.adoc:70 cli.adoc:110 cli.adoc:145 cli.adoc:201 cli.adoc:262 cli.adoc:318
-#: cli.adoc:390 cli.adoc:451 cli.adoc:569 cli.adoc:623 cli.adoc:677 cli.adoc:740
-#: cli.adoc:795 cli.adoc:847 cli.adoc:907 cli.adoc:971 cli.adoc:1016 cli.adoc:1063
-#: cli.adoc:1095 cli.adoc:1145 cli.adoc:1193 cli.adoc:1223 cli.adoc:1275
-#: cli.adoc:1314
+#: cli.adoc:77 cli.adoc:142 cli.adoc:170 cli.adoc:209 cli.adoc:261 cli.adoc:339 cli.adoc:397 cli.adoc:481 cli.adoc:526 cli.adoc:618 cli.adoc:690 cli.adoc:823 cli.adoc:848 cli.adoc:887 cli.adoc:981 cli.adoc:1060 cli.adoc:1110 cli.adoc:1204 cli.adoc:1286
+#: cli.adoc:1364 cli.adoc:1454 cli.adoc:1501 cli.adoc:1579 cli.adoc:1656 cli.adoc:1712 cli.adoc:1776 cli.adoc:1823 cli.adoc:1852 cli.adoc:1905 cli.adoc:1956 cli.adoc:1983 cli.adoc:2035 cli.adoc:2087
 msgid "Positional arguments:"
 msgstr "位置参数："
 
 #. type: Table
-#: cli.adoc:74
+#: cli.adoc:80 cli.adoc:146 cli.adoc:1909
 #, no-wrap
-msgid ""
-"| `INPUT_DIR`\n"
-"    | Footprint library directory to export (`.pretty`).\n"
+msgid "`INPUT_DIR`"
 msgstr ""
-"| `INPUT_DIR`\n"
-"    | 要导出的封装库目录 （`.pretty`）。\n"
+
+#. type: Table
+#: cli.adoc:81
+#, no-wrap
+msgid "Footprint library directory to export (`.pretty`)."
+msgstr "要导出的封装库目录（`.pretty`）。"
 
 #. type: Plain text
-#: cli.adoc:77 cli.adoc:118 cli.adoc:209 cli.adoc:270 cli.adoc:326 cli.adoc:398
-#: cli.adoc:459 cli.adoc:516 cli.adoc:577 cli.adoc:631 cli.adoc:685 cli.adoc:748
-#: cli.adoc:803 cli.adoc:915 cli.adoc:979 cli.adoc:1024 cli.adoc:1071 cli.adoc:1103
-#: cli.adoc:1153 cli.adoc:1201 cli.adoc:1231 cli.adoc:1283 cli.adoc:1322
-#: cli.adoc:1346
+#: cli.adoc:84 cli.adoc:151 cli.adoc:178 cli.adoc:269 cli.adoc:347 cli.adoc:405 cli.adoc:489 cli.adoc:534 cli.adoc:626 cli.adoc:698 cli.adoc:774 cli.adoc:831 cli.adoc:856 cli.adoc:895 cli.adoc:989 cli.adoc:1068 cli.adoc:1118 cli.adoc:1212 cli.adoc:1294
+#: cli.adoc:1372 cli.adoc:1462 cli.adoc:1509 cli.adoc:1587 cli.adoc:1664 cli.adoc:1720 cli.adoc:1784 cli.adoc:1831 cli.adoc:1860 cli.adoc:1913 cli.adoc:1964 cli.adoc:1991 cli.adoc:2043 cli.adoc:2095 cli.adoc:2119
 msgid "Optional arguments:"
 msgstr "可选参数："
+
+#. type: Table
+#: cli.adoc:88 cli.adoc:155 cli.adoc:182 cli.adoc:219 cli.adoc:273 cli.adoc:351 cli.adoc:409 cli.adoc:493 cli.adoc:538 cli.adoc:630 cli.adoc:702 cli.adoc:778 cli.adoc:835 cli.adoc:862 cli.adoc:899 cli.adoc:993 cli.adoc:1072 cli.adoc:1122 cli.adoc:1216
+#: cli.adoc:1298 cli.adoc:1376 cli.adoc:1466 cli.adoc:1513 cli.adoc:1591 cli.adoc:1668 cli.adoc:1724 cli.adoc:1788 cli.adoc:1835 cli.adoc:1864 cli.adoc:1917 cli.adoc:1968 cli.adoc:1995 cli.adoc:2047 cli.adoc:2099
+#, no-wrap
+msgid "`-h`, `--help`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:89
+#, no-wrap
+msgid "Show help for the footprint SVG export command."
+msgstr "显示封装 SVG 导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:90 cli.adoc:157 cli.adoc:353 cli.adoc:411 cli.adoc:540 cli.adoc:901 cli.adoc:1124 cli.adoc:1378 cli.adoc:1790 cli.adoc:1919 cli.adoc:1997 cli.adoc:2049
+#, no-wrap
+msgid "`-o <output dir>`, `--output <output dir>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:93
+#, no-wrap
+msgid ""
+"The output folder for the exported files. One file is output for each\n"
+"      layer of each footprint in the library. When `--output` is not used,\n"
+"      the files are exported to the current directory."
+msgstr "导出文件的输出文件夹。当未使用 `--output` 时，文件将导出到当前目录。"
+
+#. type: Table
+#: cli.adoc:94 cli.adoc:418 cli.adoc:544 cli.adoc:635 cli.adoc:908 cli.adoc:1131 cli.adoc:1385
+#, no-wrap
+msgid "`-l <layer list>`, `--layers <layer list>`"
+msgstr ""
 
 #. type: Table
 #: cli.adoc:99
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the footprint SVG export command.\n"
-"| `-o <output dir>`, `--output <output dir>`\n"
-"    | The output directory for the exported files. When this argument is not\n"
-"      used, the files are exported to the current directory.\n"
-"| `-l <layer list>`, `--layers <layer list>`\n"
-"    | A comma-separated list of layer names to export from the footprint, such\n"
-"      as `F.Cu,B.Cu`. If no layers are given, all layers are exported.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `-t <theme name>`, `--theme <theme name>`\n"
-"    | The name of the theme to use for export. If no theme is given, the\n"
-"      footprint editor's currently selected theme is used.\n"
-"| `--fp <footprint>`, `--footprint <footprint>`\n"
-"    | The name of the specific footprint to export from the library. When this\n"
-"      argument is not used, all footprints in the library are exported.\n"
-"| `--black-and-white`\n"
-"    | Export footprints in black and white.\n"
+"A comma-separated list of layer names to export from the footprint, such\n"
+"      as `F.Cu,B.Cu`. If no layers are given, all layers are exported. Layer\n"
+"      names can be specified as canonical layer names (`F.Cu`, `In.1`, `F.Fab`,\n"
+"      etc.) or as user-defined (custom) layer names, but user-defined layer names\n"
+"      are matched first."
+msgstr "要从封装中导出的图层名称的逗号分隔列表，例如 `F.Cu,B.Cu`。如果未指定任何图层，则导出所有图层。图层名称可以指定为规范图层名称（如 `F.Cu`、`In.1`、`F.Fab` 等）或用户自定义（自定义）图层名称，但优先匹配用户自定义图层名称。"
+
+#. type: Table
+#: cli.adoc:100 cli.adoc:225 cli.adoc:278 cli.adoc:427 cli.adoc:498 cli.adoc:554 cli.adoc:644 cli.adoc:707 cli.adoc:786 cli.adoc:869 cli.adoc:917 cli.adoc:998 cli.adoc:1146 cli.adoc:1221 cli.adoc:1303 cli.adoc:1394 cli.adoc:1471 cli.adoc:1518 cli.adoc:1598
+#: cli.adoc:1674 cli.adoc:1797 cli.adoc:1872 cli.adoc:1926 cli.adoc:2003
+#, no-wrap
+msgid "`-D <variable name>=<value>`, `--define-var <variable_name>=<value>`"
 msgstr ""
-"|`-h`， `--help`\n"
-"    | 显示封装 SVG 导出命令的帮助。\n"
-"|`-o <output dir>`， `--output <output dir>`\n"
-"    | 导出文件的输出目录。不使用该参数时，文件将导出到当前目录。\n"
-"|`-l <layer list>`， `--layers <layer list>`\n"
-"    | 以逗号分隔的要从封装中导出的图层名称列表，如 `F.Cu,B.Cu`。如果没有给出图层，则导出所有图层。\n"
-"|`-D <variable name>=<value>`， `--define-var <variable_name>=<value>`\n"
-"    | 添加或覆盖工程变量定义。可多次使用以定义多个变量。\n"
-"|`-t <theme name>`， `--theme <theme name>`\n"
-"    | 用于导出的主题名称。如果没有给出主题，则使用封装编辑器当前选择的主题。\n"
-"|`--fp <footprint>`， `--footprint <footprint>`\n"
-"    | 要从库中导出的特定封装的名称。不使用此参数时，将导出库中的所有封装。\n"
-"|`--black-and-white`\n"
-"    | 导出黑白封装。\n"
+
+#. type: Table
+#: cli.adoc:102 cli.adoc:227 cli.adoc:280 cli.adoc:429 cli.adoc:500 cli.adoc:556 cli.adoc:646 cli.adoc:709 cli.adoc:788 cli.adoc:871 cli.adoc:919 cli.adoc:1000 cli.adoc:1148 cli.adoc:1223 cli.adoc:1305 cli.adoc:1396 cli.adoc:1473 cli.adoc:1520 cli.adoc:1600
+#: cli.adoc:1676 cli.adoc:1799 cli.adoc:1874 cli.adoc:1928 cli.adoc:2005
+#, no-wrap
+msgid ""
+"Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables."
+msgstr "添加或覆盖项目变量定义。可多次使用以定义多个变量。"
+
+#. type: Table
+#: cli.adoc:103 cli.adoc:942 cli.adoc:1171 cli.adoc:1401 cli.adoc:1800 cli.adoc:1875 cli.adoc:1929 cli.adoc:2006 cli.adoc:2053
+#, no-wrap
+msgid "`-t <theme name>`, `--theme <theme name>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:105
+#, no-wrap
+msgid ""
+"The name of the theme to use for export. If no theme is given, the\n"
+"      footprint editor's currently selected theme is used."
+msgstr "用于导出的主题名称。如果未指定主题，则使用封装编辑器当前选择的主题。"
+
+#. type: Table
+#: cli.adoc:106
+#, no-wrap
+msgid "`--fp <footprint>`, `--footprint <footprint>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:108
+#, no-wrap
+msgid ""
+"The name of the specific footprint to export from the library. When this\n"
+"      argument is not used, all footprints in the library are exported."
+msgstr "从库中导出的特定封装的名称。当未使用此参数时，库中的所有封装都会被导出。"
+
+#. type: Table
+#: cli.adoc:109 cli.adoc:434 cli.adoc:563 cli.adoc:653 cli.adoc:930 cli.adoc:1159 cli.adoc:1408
+#, no-wrap
+msgid "`--sp`, `--sketch-pads-on-fab-layers`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:110 cli.adoc:435 cli.adoc:564 cli.adoc:654 cli.adoc:931 cli.adoc:1160 cli.adoc:1409
+#, no-wrap
+msgid "Draw pad outlines and their numbers on front and back fab layers."
+msgstr "在正面和背面 Fab 层上绘制焊盘轮廓及其编号。"
+
+#. type: Table
+#: cli.adoc:111 cli.adoc:436 cli.adoc:565 cli.adoc:655 cli.adoc:932 cli.adoc:1161 cli.adoc:1410
+#, no-wrap
+msgid "`--hdnp`, `--hide-DNP-footprints-on-fab-layers`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:112 cli.adoc:437 cli.adoc:566 cli.adoc:656 cli.adoc:933 cli.adoc:1162 cli.adoc:1411
+#, no-wrap
+msgid "Don't plot text and graphics of DNP footprints on fab layers."
+msgstr "不要在 Fab 层上绘制 DNP 封装的文本和图形。"
+
+#. type: Table
+#: cli.adoc:113 cli.adoc:438 cli.adoc:567 cli.adoc:657 cli.adoc:934 cli.adoc:1163 cli.adoc:1412
+#, no-wrap
+msgid "`--sdnp`, `--sketch-DNP-footprints-on-fab-layers`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:114 cli.adoc:439 cli.adoc:568 cli.adoc:658 cli.adoc:935 cli.adoc:1164 cli.adoc:1413
+#, no-wrap
+msgid "Plot graphics of DNP footprints in sketch mode on fab layers."
+msgstr "在 Fab 层上以草图模式绘制 DNP 封装的图形。"
+
+#. type: Table
+#: cli.adoc:115 cli.adoc:440 cli.adoc:569 cli.adoc:659 cli.adoc:936 cli.adoc:1165 cli.adoc:1414
+#, no-wrap
+msgid "`--cdnp`, `--crossout-DNP-footprints-on-fab-layers`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:116 cli.adoc:441 cli.adoc:570 cli.adoc:660 cli.adoc:937 cli.adoc:1166 cli.adoc:1415
+#, no-wrap
+msgid "Plot an \"X\" over the courtyard of DNP footprints on fab layers, and strikeout their reference designators."
+msgstr "在 Fab 层上的 DNP 封装的外框上画一个 \"X\"，并划掉其位号。"
+
+#. type: Table
+#: cli.adoc:117 cli.adoc:940 cli.adoc:1169 cli.adoc:1406 cli.adoc:2059
+#, no-wrap
+msgid "`--black-and-white`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:118
+#, no-wrap
+msgid "Export footprints in black and white."
+msgstr "以黑白形式导出封装。"
 
 #. type: Title ===
-#: cli.adoc:101
+#: cli.adoc:120
 #, no-wrap
 msgid "Footprint upgrade"
 msgstr "封装升级"
 
 #. type: Plain text
-#: cli.adoc:106
+#: cli.adoc:126
 msgid ""
-"The `fp upgrade` command upgrades the the specified footprint library from a "
-"legacy footprint format to the native format for the current version of KiCad.  "
-"If the input library is already in the current file format, no action is taken."
-msgstr ""
-"`fp upgrade` 命令将指定的封装库从传统封装格式升级到当前版本的 KiCad 的原生格式。 "
-"如果输入库已采用当前文件格式，则不执行任何操作。"
+"The `fp upgrade` command converts the the specified footprint library from a legacy KiCad footprint format or a non-KiCad footprint format to the native format for the current version of KiCad. If the input library is already in the current file format, no "
+"action is taken."
+msgstr "`fp upgrade` 命令将指定的封装库从旧的 KiCad 封装格式或非 KiCad 封装格式转换为当前版本 KiCad 的原生格式。如果输入库已经采用当前文件格式，则不会采取任何操作。"
 
 #. type: Plain text
-#: cli.adoc:108
-msgid "Usage: `kicad-cli fp upgrade [-h] [--output OUTPUT_DIR] [--force] INPUT_DIR`"
-msgstr "用法：`kicad-cli fp upgrade [-h] [--output OUTPUT_DIR] [--force] INPUT_DIR`"
-
-#. type: Table
-#: cli.adoc:115
-#, no-wrap
-msgid ""
-"| `INPUT_DIR`\n"
-"    | Footprint library directory to upgrade (`.pretty`).\n"
-msgstr ""
-"| `INPUT_DIR` \n"
-"    | 要升级的封装库目录 （`.pretty`）。\n"
-
-#. type: Table
 #: cli.adoc:128
+msgid "Supported input footprint formats are:"
+msgstr "支持的输入封装格式为："
+
+#. type: Plain text
+#: cli.adoc:130
+msgid "KiCad footprint library (`.pretty` folder with `.kicad_mod` files)"
+msgstr "KiCad 封装库（包含 `.kicad_mod` 文件的 `.pretty` 文件夹）"
+
+#. type: Plain text
+#: cli.adoc:131
+msgid "KiCad (pre-5.0) footprint library (`.mod`, `.emp`)"
+msgstr "KiCad（5.0 之前版本）封装库（`.mod`、`.emp`）"
+
+#. type: Plain text
+#: cli.adoc:132
+msgid "Altium footprint library (`.PcbLib`)"
+msgstr "Altium 封装库 (`.PcbLib`)"
+
+#. type: Plain text
+#: cli.adoc:133 cli.adoc:2079
+msgid "Altium integrated library (`.IntLib`)"
+msgstr "Altium 集成库 (`.IntLib`)"
+
+#. type: Plain text
+#: cli.adoc:134
+msgid "CADSTAR PCB archive (`.cpa`)"
+msgstr "CADSTAR PCB 存档文件 (`.cpa`)"
+
+#. type: Plain text
+#: cli.adoc:135 cli.adoc:2081
+msgid "EAGLE XML library (`.lbr`)"
+msgstr "EAGLE XML 库 (`.lbr`)"
+
+#. type: Plain text
+#: cli.adoc:136 cli.adoc:2082
+msgid "EasyEDA (JLCEDA) Std file (`.json`)"
+msgstr "EasyEDA (JLCEDA) 标准版文件 (`.json`)"
+
+#. type: Plain text
+#: cli.adoc:137 cli.adoc:2083
+msgid "EasyEDA (JLCEDA) Pro file (`.elibz`, `.epro`, `.zip`)"
+msgstr "EasyEDA (JLCEDA) 专业版文件 (`.elibz`, `.epro`, `.zip`)"
+
+#. type: Plain text
+#: cli.adoc:138
+msgid "GEDA/PCB library (folder with `.fp` files)"
+msgstr "GEDA/PCB 库（包含 `.fp` 文件的文件夹）"
+
+#. type: Plain text
+#: cli.adoc:140
+msgid "Usage: `kicad-cli fp upgrade [--help] [--output OUTPUT_DIR] [--force] INPUT_DIR`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:148
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the footprint upgrade command.\n"
-"| `-o <output dir>`, `--output <output dir>`\n"
-"    | The output directory for the upgraded footprints. When this argument is\n"
-"      not used, the upgraded footprints are saved over the original footprints.\n"
-"| `--force`\n"
-"    | Re-save the input library even if it is already in the current file format.\n"
+"Footprint library directory to upgrade. For KiCad format footprint\n"
+"      libraries, this is the `.pretty` directory, not a `.kicad_mod` file."
+msgstr "要升级的封装库目录。对于 KiCad 格式的封装库，这是 `.pretty` 目录，而不是 `.kicad_mod` 文件。"
+
+#. type: Table
+#: cli.adoc:156
+#, no-wrap
+msgid "Show help for the footprint upgrade command."
+msgstr "显示封装升级命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:159
+#, no-wrap
+msgid ""
+"The output directory for the upgraded footprints. When `--output` is\n"
+"      not used, the upgraded footprints are saved over the original footprints."
+msgstr "升级后的封装的输出目录。当未使用 `--output` 时，升级后的封装将覆盖原始封装。"
+
+#. type: Table
+#: cli.adoc:160 cli.adoc:2104
+#, no-wrap
+msgid "`--force`"
 msgstr ""
-"|`-h`， `--help`\n"
-"    | 显示封装升级命令的帮助。\n"
-"|`-o <output dir>`， `--output <output dir>`\n"
-"    | 升级后封装的输出目录。不使用此参数时，升级后的封装会保存在原始封装之上。\n"
-"|`--force`\n"
-"    | 强制保存输入库，即使它已经是当前文件格式。\n"
+
+#. type: Table
+#: cli.adoc:161 cli.adoc:2105
+#, no-wrap
+msgid "Re-save the input library even if it is already in the current file format."
+msgstr "即使输入库已采用当前文件格式，仍需重新保存该库。"
 
 #. type: Title ==
-#: cli.adoc:130
+#: cli.adoc:163
+#, no-wrap
+msgid "Jobset commands"
+msgstr "jobset 命令"
+
+#. type: Plain text
+#: cli.adoc:166
+msgid "The `jobset run` command runs a predefined xref:../kicad/kicad.adoc#jobsets[jobset]."
+msgstr "`jobset run` 命令用于运行预先定义的 xref:../kicad/kicad.adoc#jobsets[jobset]。"
+
+#. type: Plain text
+#: cli.adoc:168
+msgid "Usage: `kicad-cli jobset run [--help] [--stop-on-error] [--file JOB_FILE] [--output OUTPUT] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:174 cli.adoc:213 cli.adoc:265 cli.adoc:343 cli.adoc:401 cli.adoc:485 cli.adoc:530 cli.adoc:622 cli.adoc:694 cli.adoc:770 cli.adoc:827 cli.adoc:852 cli.adoc:891 cli.adoc:985 cli.adoc:1064 cli.adoc:1114 cli.adoc:1208 cli.adoc:1290 cli.adoc:1368
+#: cli.adoc:1458 cli.adoc:1505 cli.adoc:1583 cli.adoc:1660 cli.adoc:1716 cli.adoc:1780 cli.adoc:1827 cli.adoc:1856 cli.adoc:1960 cli.adoc:1987 cli.adoc:2039 cli.adoc:2091
+#, no-wrap
+msgid "`INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:175
+#, no-wrap
+msgid "Project file to use with the jobset."
+msgstr "与 jobset 配合使用的工程文件。"
+
+#. type: Table
+#: cli.adoc:183
+#, no-wrap
+msgid "Show help for the jobset command."
+msgstr "显示 jobset 命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:184
+#, no-wrap
+msgid "`--stop-on-error`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:186
+#, no-wrap
+msgid ""
+"As jobs are executed in sequence, stop running after a job fails. If not\n"
+"      given, jobs will continue executing after any job fails."
+msgstr "由于任务按顺序执行，当某个任务失败时，将停止后续任务的执行。如果未指定此选项，则在任何任务失败后，后续任务将继续执行。"
+
+#. type: Table
+#: cli.adoc:187
+#, no-wrap
+msgid "`-f <jobset file>`, `--file <jobset file>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:188
+#, no-wrap
+msgid "The jobset file (`.kicad_jobset`) to run."
+msgstr "要运行的 jobset 文件（`.kicad_jobset`）。"
+
+#. type: Table
+#: cli.adoc:189
+#, no-wrap
+msgid "`--output <output ID>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:194
+#, no-wrap
+msgid ""
+"The jobset output to generate. If no output is specified, all outputs will\n"
+"      be generated. The output is specified as a unique ID. The ID for each\n"
+"      output is printed by the `jobset run` command when `--output` is not used.\n"
+"      It can also be found in the `.kicad_jobset` file under the output's `id`\n"
+"      key."
+msgstr "要生成的作业集输出。如果未指定输出，则将生成所有输出。输出通过唯一标识符进行指定。当未使用 `--output` 选项时，每个输出的标识符将由 `jobset run` 命令打印。该标识符还可在 `.kicad_jobset` 文件的输出 `id` 键下找到。"
+
+#. type: Title ==
+#: cli.adoc:197
 #, no-wrap
 msgid "PCB commands"
 msgstr "PCB 命令"
 
 #. type: Plain text
-#: cli.adoc:134
-msgid ""
-"The `pcb` command runs a design rule check or exports a board to various other "
-"file formats, including fabrication and 3D files."
-msgstr ""
-"`pcb` 命令运行设计规则检查或将电路板导出为各种其他文件格式，包括制造和 3D 文件。"
+#: cli.adoc:201
+msgid "The `pcb` command runs a design rule check or exports a board to various other file formats, including fabrication and 3D files."
+msgstr "`pcb` 命令用于执行设计规则检查或将电路板导出为多种其他文件格式，包括制造文件和 3D 文件。"
 
 #. type: Title ===
-#: cli.adoc:135
+#: cli.adoc:202
 #, no-wrap
 msgid "PCB DRC"
 msgstr "PCB DRC"
 
 #. type: Plain text
-#: cli.adoc:138
-msgid ""
-"The `pcb drc` command runs a design rule check on a board and generates a report."
-msgstr "`pcb drc` 命令在电路板上运行设计规则检查并生成报告。"
+#: cli.adoc:205
+msgid "The `pcb drc` command runs a design rule check on a board and generates a report."
+msgstr "`pcb drc` 命令对电路板执行设计规则检查并生成报告。"
 
 #. type: Plain text
-#: cli.adoc:143
+#: cli.adoc:207
 msgid ""
-"Usage: `kicad-cli pcb drc [--help] [--output OUTPUT_FILE] [--define-var "
-"KEY=VALUE] [--format FORMAT] [--all-track-errors] [--schematic-parity] [--units "
-"UNITS] [--severity-all] [--severity-error] [--severity-warning] [--severity-"
-"exclusions] [--exit-code-violations] INPUT_FILE`"
+"Usage: `kicad-cli pcb drc [--help] [--output OUTPUT_FILE] [--define-var KEY=VALUE] [--format FORMAT] [--all-track-errors] [--schematic-parity] [--units UNITS] [--severity-all] [--severity-error] [--severity-warning] [--severity-exclusions] [--exit-code-"
+"violations] INPUT_FILE`"
 msgstr ""
-"用法：`kicad-cli pcb drc [--help] [--output OUTPUT_FILE] [--define-var KEY=VALUE] "
-"[--format FORMAT] [--all-track-errors] [--schematic-parity] [--units UNITS] [--"
-"severity-all] [--severity-error] [--severity-warning] [--severity-exclusions] [--"
-"exit-code-violations] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:150
+#: cli.adoc:214
 #, no-wrap
-msgid ""
-"| `INPUT_FILE`\n"
-"    | Board file to run DRC on.\n"
-msgstr ""
-"| `INPUT_FILE` \n"
-"    | 要在其上运行 DRC 的电路板文件。\n"
+msgid "Board file to run DRC on."
+msgstr "用于运行 DRC 的电路板文件。"
 
 #. type: Table
-#: cli.adoc:187
+#: cli.adoc:220
+#, no-wrap
+msgid "Show help for the DRC command."
+msgstr "显示 DRC 命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:221 cli.adoc:1670
+#, no-wrap
+msgid "`-o <output filename>, `--output <output filename>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:224
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the DRC command.\n"
-"| `-o <output filename>, `--output <output filename>`\n"
-"    | Output filename for the generated DRC report. When this argument is not\n"
+"Output filename for the generated DRC report. When `--output` is not\n"
 "      used, the output filename will be the same as the input file, with the\n"
-"      `.rpt` or `.json` file extension, depending on the selected format.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `--format <format>`\n"
-"    | Report file format. Options are `report` (default) or `json`.\n"
-"| `--all-track-errors`\n"
-"    | Report all errors for each track.\n"
-"| `--schematic-parity`\n"
-"    | Test for parity between PCB and schematic.\n"
-"| `--units <unit>`\n"
-"    | Units to use in the report. Options are `mm` (default), `in`, or `mils`.\n"
-"| `--severity-all`\n"
-"    | Report all DRC violations. This is equivalent to using all of the other\n"
-"      DRC severity options.\n"
-"| `--severity-error`\n"
-"    | Report all error-level DRC violations. This can be combined with the other\n"
-"      DRC severity options.\n"
-"| `--severity-warning`\n"
-"    | Report all warning-level DRC violations. This can be combined with the\n"
-"      other DRC severity options.\n"
-"| `--severity-exclusions`\n"
-"    | Report all excluded DRC violations. This can be combined with the other\n"
-"      DRC severity options.\n"
-"| `--exit-code-violations`\n"
-"    | Return an exit code depending on whether or not DRC violations exist. The\n"
-"      exit code is 0 if no violations are found, and 5 if any violations are\n"
-"      found.\n"
+"      `.rpt` or `.json` file extension, depending on the selected format."
+msgstr "生成的 DRC 报告的输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，文件扩展名根据所选格式不同，分别为 `.rpt` 或 `.json`。"
+
+#. type: Table
+#: cli.adoc:228 cli.adoc:356 cli.adoc:1080 cli.adoc:1677 cli.adoc:2123
+#, no-wrap
+msgid "`--format <format>`"
 msgstr ""
-"|`-h`， `--help`\n"
-"    | 显示 DRC 命令的帮助。\n"
-"|`-o <output filename>`， `--output <output filename>`\n"
-"    | 生成的 DRC 报告的输出文件名。不使用该参数时，输出文件名将与输入文件相同，根据所选格式，文件扩展名为 `.rpt` 或 `.json`。\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | 添加或覆盖工程变量定义。可多次使用以定义多个变量。\n"
-"|`--format <format>`\n"
-"    | 报告文件格式。选项为 `report` （默认）或 `json` 。\n"
-"|`--all-track-errors`\n"
-"    | 报告每个布线的所有错误。\n"
-"|`--schematic-parity`\n"
-"    | 测试 PCB 和原理图之间的奇偶校验。\n"
-"|`--units <unit>`\n"
-"    | 要在报表中使用的单位。选项为 `mm`（默认）、`in` 或 `mils`。\n"
-"|`--severity-all`\n"
-"    | 报告所有 DRC 违规行为。这相当于使用所有其他 DRC 严重性选项。\n"
-"| `--severity-error` \n"
-"    | 报告所有错误级别的 DRC 违规行为。该选项可与其他 DRC 严重性选项结合使用。\n"
-"|`--severity-warning`\n"
-"    | 报告所有警告级别的 DRC 违规行为。该选项可与其他 DRC 严重性选项结合使用。\n"
-"|`--severity-exclusions`\n"
-"    | 报告所有排除在外的 DRC 违规行为。该选项可与其他 DRC 严重性选项结合使用。\n"
-"|`--exit-code-violations`\n"
-"    | 根据是否存在 DRC 违规，返回退出代码。如果没有发现违规，则退出代码为 0；如果发现违规，则退出代码为 5。\n"
+
+#. type: Table
+#: cli.adoc:229 cli.adoc:1678
+#, no-wrap
+msgid "Report file format. Options are `report` (default) or `json`."
+msgstr "报告文件格式。可选格式为 `report`（默认）或 `json`。"
+
+#. type: Table
+#: cli.adoc:230
+#, no-wrap
+msgid "`--all-track-errors`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:231
+#, no-wrap
+msgid "Report all errors for each track."
+msgstr "为每条布线报告所有错误。"
+
+#. type: Table
+#: cli.adoc:232
+#, no-wrap
+msgid "`--schematic-parity`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:233
+#, no-wrap
+msgid "Test for parity between PCB and schematic."
+msgstr "检查 PCB 与原理图之间的对齐情况。"
+
+#. type: Table
+#: cli.adoc:234 cli.adoc:877 cli.adoc:1083 cli.adoc:1679
+#, no-wrap
+msgid "`--units <unit>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:235 cli.adoc:1680
+#, no-wrap
+msgid "Units to use in the report. Options are `mm` (default), `in`, or `mils`."
+msgstr "报告中使用的单位。可选单位包括 `mm`（默认）、`in` 或 `mils`。"
+
+#. type: Table
+#: cli.adoc:236 cli.adoc:1681
+#, no-wrap
+msgid "`--severity-all`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:238
+#, no-wrap
+msgid ""
+"Report all DRC violations. This is equivalent to using all of the other\n"
+"      DRC severity options."
+msgstr "报告所有 DRC 违规行为。这相当于使用所有其他 DRC 严重性选项。"
+
+#. type: Table
+#: cli.adoc:239 cli.adoc:1684
+#, no-wrap
+msgid "`--severity-error`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:241
+#, no-wrap
+msgid ""
+"Report all error-level DRC violations. This can be combined with the other\n"
+"      DRC severity options."
+msgstr "报告所有错误级别的 DRC 违规项。此选项可与其他 DRC 严重性选项结合使用。"
+
+#. type: Table
+#: cli.adoc:242 cli.adoc:1687
+#, no-wrap
+msgid "`--severity-warning`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:244
+#, no-wrap
+msgid ""
+"Report all warning-level DRC violations. This can be combined with the\n"
+"      other DRC severity options."
+msgstr "报告所有警告级别的 DRC 违规。这可以与其他 DRC 严重性选项结合使用。"
+
+#. type: Table
+#: cli.adoc:245 cli.adoc:1690
+#, no-wrap
+msgid "`--severity-exclusions`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:247
+#, no-wrap
+msgid ""
+"Report all excluded DRC violations. This can be combined with the other\n"
+"      DRC severity options."
+msgstr "报告所有被排除的 DRC 违规行为。这可以与其他 DRC 严重性选项结合使用。"
+
+#. type: Table
+#: cli.adoc:248 cli.adoc:1693
+#, no-wrap
+msgid "`--exit-code-violations`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:251
+#, no-wrap
+msgid ""
+"Return an exit code depending on whether or not DRC violations exist. The\n"
+"      exit code is 0 if no violations are found, and 5 if any violations are\n"
+"      found."
+msgstr "根据是否存在 DRC 违规情况返回退出代码。如果未发现任何违规，退出代码为 0；如果发现任何违规，退出代码为 5。"
 
 #. type: Title ===
-#: cli.adoc:189
+#: cli.adoc:253
+#, no-wrap
+msgid "PCB BREP (OCCT) export"
+msgstr "PCB BREP (OCCT) 导出"
+
+#. type: Plain text
+#: cli.adoc:257
+msgid "The `pcb export brep` command exports a board design to a BREP (OCCT-native boundary representation) 3D model file."
+msgstr "`pcb export brep` 命令将电路板设计导出为 BREP（OCCT 原生边界表示）3D 模型文件。"
+
+#. type: Plain text
+#: cli.adoc:259
+msgid ""
+"Usage: `kicad-cli pcb export brep [--help] [--output OUTPUT_FILE] [--define-var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--grid-origin] [--drill-origin] [--subst-models] [--board-only] [--cut-vias-in-body] [--no-board-body] [--no-components] [--"
+"component-filter VAR] [--include-tracks] [--include-pads] [--include-zones] [--include-inner-copper] [--include-silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-vias] [--min-distance MIN_DIST] [--net-filter VAR] [--user-origin VAR] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:266 cli.adoc:344 cli.adoc:402 cli.adoc:486 cli.adoc:531 cli.adoc:623 cli.adoc:695 cli.adoc:771 cli.adoc:828 cli.adoc:853 cli.adoc:892 cli.adoc:986 cli.adoc:1065 cli.adoc:1115 cli.adoc:1209 cli.adoc:1291 cli.adoc:1369 cli.adoc:1459 cli.adoc:1506
+#, no-wrap
+msgid "Board file to export."
+msgstr "导出电路板文件。"
+
+#. type: Table
+#: cli.adoc:274
+#, no-wrap
+msgid "Show help for the BREP export command."
+msgstr "显示 BREP 导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:275 cli.adoc:495 cli.adoc:632 cli.adoc:704 cli.adoc:780 cli.adoc:837 cli.adoc:864 cli.adoc:995 cli.adoc:1074 cli.adoc:1218 cli.adoc:1300 cli.adoc:1468 cli.adoc:1515 cli.adoc:1593 cli.adoc:1726 cli.adoc:1837 cli.adoc:1866 cli.adoc:1970 cli.adoc:2101
+#, no-wrap
+msgid "`-o <output filename>`, `--output <output filename>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:277
+#, no-wrap
+msgid ""
+"The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.brep` file extension."
+msgstr "输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，并带有 `.brep` 文件扩展名。"
+
+#. type: Table
+#: cli.adoc:281 cli.adoc:710 cli.adoc:1001 cli.adoc:1224 cli.adoc:1306 cli.adoc:1474 cli.adoc:1521
+#, no-wrap
+msgid "`-f`, `--force`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:282 cli.adoc:711 cli.adoc:1002 cli.adoc:1225 cli.adoc:1307 cli.adoc:1475 cli.adoc:1522
+#, no-wrap
+msgid "Overwrite output file."
+msgstr "覆盖输出文件。"
+
+#. type: Table
+#: cli.adoc:283 cli.adoc:712 cli.adoc:1003 cli.adoc:1226 cli.adoc:1308 cli.adoc:1476 cli.adoc:1523
+#, no-wrap
+msgid "`--no-unspecified`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:284 cli.adoc:713 cli.adoc:1004 cli.adoc:1227 cli.adoc:1309 cli.adoc:1477 cli.adoc:1524
+#, no-wrap
+msgid "Exclude 3D models of components with \"unspecified\" footprint type."
+msgstr "排除具有 “未指定” 封装类型的元件的 3D 模型。"
+
+#. type: Table
+#: cli.adoc:285 cli.adoc:714 cli.adoc:1005 cli.adoc:1228 cli.adoc:1310 cli.adoc:1478 cli.adoc:1525
+#, no-wrap
+msgid "`--no-dnp`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:286 cli.adoc:715 cli.adoc:1006 cli.adoc:1229 cli.adoc:1311 cli.adoc:1479 cli.adoc:1526
+#, no-wrap
+msgid "Exclude 3D models of components with \"Do not populate\" attribute."
+msgstr "排除具有 “DNP” 属性的元件的 3D 模型。"
+
+#. type: Table
+#: cli.adoc:287 cli.adoc:716 cli.adoc:1007 cli.adoc:1230 cli.adoc:1312 cli.adoc:1527
+#, no-wrap
+msgid "`--grid-origin`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:288 cli.adoc:717 cli.adoc:1008 cli.adoc:1231 cli.adoc:1313 cli.adoc:1528
+#, no-wrap
+msgid "Use grid origin as origin of output file."
+msgstr "将网格原点作为输出文件的原点。"
+
+#. type: Table
+#: cli.adoc:289 cli.adoc:718 cli.adoc:1009 cli.adoc:1232 cli.adoc:1314 cli.adoc:1529
+#, no-wrap
+msgid "`--drill-origin`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:290 cli.adoc:719 cli.adoc:1010 cli.adoc:1233 cli.adoc:1315 cli.adoc:1530
+#, no-wrap
+msgid "Use drill origin as origin of output file."
+msgstr "将钻孔原点作为输出文件的原点。"
+
+#. type: Table
+#: cli.adoc:291 cli.adoc:720 cli.adoc:1011 cli.adoc:1234 cli.adoc:1316 cli.adoc:1531
+#, no-wrap
+msgid "`--subst-models`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:293 cli.adoc:1013 cli.adoc:1236 cli.adoc:1318 cli.adoc:1533
+#, no-wrap
+msgid ""
+"Replace VRML models in footprints with STEP or IGS models of the same\n"
+"      name, if they exist."
+msgstr "如果存在同名的 STEP 或 IGS 模型，则用它们替换封装中的 VRML 模型。"
+
+#. type: Table
+#: cli.adoc:294 cli.adoc:723 cli.adoc:1014 cli.adoc:1237 cli.adoc:1319 cli.adoc:1534
+#, no-wrap
+msgid "`--board-only`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:296 cli.adoc:725 cli.adoc:1016 cli.adoc:1239 cli.adoc:1321 cli.adoc:1536
+#, no-wrap
+msgid ""
+"Only include the board itself in the generated model; exclude all\n"
+"      component models."
+msgstr "仅将电路板本身包含在生成的模型中；排除所有元件模型。"
+
+#. type: Table
+#: cli.adoc:297 cli.adoc:726 cli.adoc:1017 cli.adoc:1240 cli.adoc:1322 cli.adoc:1537
+#, no-wrap
+msgid "`--cut-vias-in-body`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:298 cli.adoc:727 cli.adoc:1018 cli.adoc:1241 cli.adoc:1323 cli.adoc:1538
+#, no-wrap
+msgid "Cut via holes in board body even if conductor layers are not exported."
+msgstr "即使导电层未导出，仍需在电路板本体上开孔。"
+
+#. type: Table
+#: cli.adoc:299 cli.adoc:728 cli.adoc:1019 cli.adoc:1242 cli.adoc:1324 cli.adoc:1539
+#, no-wrap
+msgid "`--no-board-body`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:300 cli.adoc:729 cli.adoc:1020 cli.adoc:1243 cli.adoc:1325 cli.adoc:1540
+#, no-wrap
+msgid "Exclude board body."
+msgstr "排除电路板主体。"
+
+#. type: Table
+#: cli.adoc:301 cli.adoc:730 cli.adoc:1021 cli.adoc:1244 cli.adoc:1326 cli.adoc:1541
+#, no-wrap
+msgid "`--no-components`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:302 cli.adoc:731 cli.adoc:1022 cli.adoc:1245 cli.adoc:1327 cli.adoc:1542
+#, no-wrap
+msgid "Exclude 3D models for components."
+msgstr "排除元件的 3D 模型。"
+
+#. type: Table
+#: cli.adoc:303 cli.adoc:732 cli.adoc:1023 cli.adoc:1246 cli.adoc:1328 cli.adoc:1543
+#, no-wrap
+msgid "`--component-filter <reference designator list>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:305 cli.adoc:734 cli.adoc:1025 cli.adoc:1248 cli.adoc:1330 cli.adoc:1545
+#, no-wrap
+msgid ""
+"Only include component 3D models matching this list of reference\n"
+"      designators (comma-separated, wildcards supported)"
+msgstr "仅包含与以下位号列表匹配的元件 3D 模型（以逗号分隔，支持通配符）"
+
+#. type: Table
+#: cli.adoc:306 cli.adoc:735 cli.adoc:1026 cli.adoc:1249 cli.adoc:1331 cli.adoc:1546
+#, no-wrap
+msgid "`--include-tracks`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:307 cli.adoc:736 cli.adoc:1027 cli.adoc:1250 cli.adoc:1332 cli.adoc:1547
+#, no-wrap
+msgid "Include tracks and vias on outer conductor layers in export (time consuming)."
+msgstr "在导出时包含外层导电层上的布线和过孔（耗时）。"
+
+#. type: Table
+#: cli.adoc:308 cli.adoc:737 cli.adoc:1028 cli.adoc:1251 cli.adoc:1333 cli.adoc:1548
+#, no-wrap
+msgid "`--include-pads`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:309 cli.adoc:738 cli.adoc:1029 cli.adoc:1252 cli.adoc:1334 cli.adoc:1549
+#, no-wrap
+msgid "Include pads in export (time consuming)."
+msgstr "在导出时包含焊盘（耗时）。"
+
+#. type: Table
+#: cli.adoc:310 cli.adoc:739 cli.adoc:1030 cli.adoc:1253 cli.adoc:1335 cli.adoc:1550
+#, no-wrap
+msgid "`--include-zones`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:311 cli.adoc:740 cli.adoc:1031 cli.adoc:1254 cli.adoc:1336 cli.adoc:1551
+#, no-wrap
+msgid "Include zones in export (time consuming)."
+msgstr "在导出时包含敷铜（耗时）。"
+
+#. type: Table
+#: cli.adoc:312 cli.adoc:741 cli.adoc:1032 cli.adoc:1255 cli.adoc:1337 cli.adoc:1552
+#, no-wrap
+msgid "`--include-inner-copper`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:313 cli.adoc:742 cli.adoc:1033 cli.adoc:1256 cli.adoc:1338 cli.adoc:1553
+#, no-wrap
+msgid "Include elements on inner conductor layers in export."
+msgstr "在导出时包含内导体层中的元素。"
+
+#. type: Table
+#: cli.adoc:314 cli.adoc:743 cli.adoc:1034 cli.adoc:1257 cli.adoc:1339 cli.adoc:1554
+#, no-wrap
+msgid "`--include-silkscreen`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:315 cli.adoc:744 cli.adoc:1035 cli.adoc:1258 cli.adoc:1340 cli.adoc:1555
+#, no-wrap
+msgid "Include silkscreen graphics in export as a set of flat faces."
+msgstr "在导出时将丝印图形作为一组平面图形包含在内。"
+
+#. type: Table
+#: cli.adoc:316 cli.adoc:745 cli.adoc:1036 cli.adoc:1259 cli.adoc:1341 cli.adoc:1556
+#, no-wrap
+msgid "`--include-soldermask`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:317 cli.adoc:746 cli.adoc:1037 cli.adoc:1260 cli.adoc:1342 cli.adoc:1557
+#, no-wrap
+msgid "Include solder mask layers in export as a set of flat faces."
+msgstr "在导出时将阻焊层作为一组平面。"
+
+#. type: Table
+#: cli.adoc:318 cli.adoc:747 cli.adoc:1038 cli.adoc:1261 cli.adoc:1343 cli.adoc:1558
+#, no-wrap
+msgid "`--fuse-shapes`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:319 cli.adoc:748 cli.adoc:1039 cli.adoc:1262 cli.adoc:1344 cli.adoc:1559
+#, no-wrap
+msgid "Fuse overlapping geometry together in export (time consuming)."
+msgstr "在导出时将重叠的几何体合并在一起（耗时）。"
+
+#. type: Table
+#: cli.adoc:320 cli.adoc:749 cli.adoc:1040 cli.adoc:1263 cli.adoc:1345 cli.adoc:1560
+#, no-wrap
+msgid "`--fill-all-vias`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:321 cli.adoc:750 cli.adoc:1041 cli.adoc:1264 cli.adoc:1346 cli.adoc:1561
+#, no-wrap
+msgid "Don't cut via holes in conductor layers."
+msgstr "请勿通过导电层上的过孔进行切割。"
+
+#. type: Table
+#: cli.adoc:322 cli.adoc:751 cli.adoc:1042 cli.adoc:1265 cli.adoc:1347 cli.adoc:1562
+#, no-wrap
+msgid "`--min-distance <min distance>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:324 cli.adoc:753 cli.adoc:1044 cli.adoc:1267 cli.adoc:1349 cli.adoc:1564
+#, no-wrap
+msgid ""
+"Tolerance for considering two points to be in the same location. Default:\n"
+"      `0.01mm`."
+msgstr "将两个点视为位于同一位置的误差。默认值：`0.01mm`。"
+
+#. type: Table
+#: cli.adoc:325 cli.adoc:754 cli.adoc:1045 cli.adoc:1268 cli.adoc:1350 cli.adoc:1565
+#, no-wrap
+msgid "`--net-filter <net filter>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:326 cli.adoc:755 cli.adoc:1046 cli.adoc:1269 cli.adoc:1351 cli.adoc:1566
+#, no-wrap
+msgid "Only include copper items belonging to nets matching this wildcard."
+msgstr "仅包含与该通配符匹配的网络中的铜对象。"
+
+#. type: Table
+#: cli.adoc:327 cli.adoc:756 cli.adoc:1047 cli.adoc:1274 cli.adoc:1352 cli.adoc:1480 cli.adoc:1567
+#, no-wrap
+msgid "`--user-origin <output origin>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:330 cli.adoc:759 cli.adoc:1050 cli.adoc:1277 cli.adoc:1355 cli.adoc:1570
+#, no-wrap
+msgid ""
+"Specify a custom origin for the output file, with X and Y coordinates. For\n"
+"      example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is\n"
+"      millimeters."
+msgstr "指定输出文件的自定义原点，包括 X 和 Y 坐标。例如，`1x1in`、`1x1inch` 或 `25.4x25.4mm`。默认单位为毫米。"
+
+#. type: Title ===
+#: cli.adoc:332
 #, no-wrap
 msgid "PCB drill file export"
 msgstr "PCB 钻孔文件导出"
 
 #. type: Plain text
-#: cli.adoc:192
+#: cli.adoc:335
 msgid "The `pcb export drill` command exports a drill file from a board."
 msgstr "`pcb export drill` 命令从电路板导出钻孔文件。"
 
 #. type: Plain text
-#: cli.adoc:199
+#: cli.adoc:337
 msgid ""
-"Usage: `kicad-cli pcb export drill [--help] [--output OUTPUT_DIR] [--format "
-"FORMAT] [--drill-origin DRILL_ORIGIN] [--excellon-zeros-format ZEROS_FORMAT] [--"
-"excellon-oval-format OVAL_FORMAT] [--excellon-units UNITS] [--excellon-mirror-y] "
-"[--excellon-min-header] [--excellon-separate-th] [--generate-map] [--map-format "
-"MAP_FORMAT] [--gerber-precision VAR] INPUT_FILE`"
+"Usage: `kicad-cli pcb export drill [--help] [--output OUTPUT_DIR] [--format FORMAT] [--drill-origin DRILL_ORIGIN] [--excellon-zeros-format ZEROS_FORMAT] [--excellon-oval-format OVAL_FORMAT] [--excellon-units UNITS] [--excellon-mirror-y] [--excellon-min-"
+"header] [--excellon-separate-th] [--generate-map] [--map-format MAP_FORMAT] [--gerber-precision VAR] INPUT_FILE`"
 msgstr ""
-"用法：`kicad-cli pcb export drill [--help] [--output OUTPUT_DIR] [--format "
-"FORMAT] [--drill-origin DRILL_ORIGIN] [--excellon-zeros-format ZEROS_FORMAT] [--"
-"excellon-oval-format OVAL_FORMAT] [--excellon-units UNITS] [--excellon-mirror-y] "
-"[--excellon-min-header] [--excellon-separate-th] [--generate-map] [--map-format "
-"MAP_FORMAT] [--gerber-precision VAR] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:206 cli.adoc:267 cli.adoc:323 cli.adoc:395 cli.adoc:456 cli.adoc:513
-#: cli.adoc:574 cli.adoc:628 cli.adoc:682 cli.adoc:745 cli.adoc:800
+#: cli.adoc:352
 #, no-wrap
-msgid ""
-"| `INPUT_FILE`\n"
-"    | Board file to export.\n"
-msgstr ""
-"| `INPUT_FILE` \n"
-"    | 要导出的电路板文件。\n"
+msgid "Show help for the drill file export command."
+msgstr "显示钻孔文件导出命令的帮助信息。"
 
 #. type: Table
-#: cli.adoc:250
+#: cli.adoc:355
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the drill file export command.\n"
-"| `-o <output dir>`, `--output <output dir>`\n"
-"    | The output directory for the drill file. When this argument is not used,\n"
-"      the drill file is saved in the current directory.\n"
-"| `--format <format>`\n"
-"    | The drill file format. Options are `excellon` (default) or `gerber`.\n"
-"| `--drill-origin <origin>`\n"
-"    | The coordinate origin for the drill file. Options are `absolute` (default)\n"
+"The output directory for the drill file(s). When `--output` is not\n"
+"      used, the drill file(s) are saved in the current directory."
+msgstr "钻孔文件的输出目录。当未使用 `--output` 时，钻孔文件将保存在当前目录中。"
+
+#. type: Table
+#: cli.adoc:357
+#, no-wrap
+msgid "The drill file format. Options are `excellon` (default) or `gerber`."
+msgstr "钻孔文件格式。可选格式为 `excellon`（默认）或 `gerber`。"
+
+#. type: Table
+#: cli.adoc:358
+#, no-wrap
+msgid "`--drill-origin <origin>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:361
+#, no-wrap
+msgid ""
+"The coordinate origin for the drill file. Options are `absolute` (default)\n"
 "      to use the board's absolute origin or `plot` to use the board's\n"
-"      drill/placement origin.\n"
-"| `--excellon-zeros-format <format>`\n"
-"    | The zeros format for the drill file. Options are `decimal` (default),\n"
-"      `suppressleading`, `suppresstrailing`, or `keep`. Only applies to Excellon\n"
-"      format drill files.\n"
-"| `--excellon-oval-format <format>`\n"
-"    | Control the oval holes drill mode. Options are `route` and `alternate`\n"
-"    (default). Only applies to Excellon format drill files.\n"
-"| `-u <units>`, `--excellon-units <units>`\n"
-"    | The units for the drill file. Options are `mm` (default) or `in`. Only\n"
-"      applies to Excellon format drill files.\n"
-"| `--excellon-mirror-y`\n"
-"    | Mirror the drill file in the Y direction. Only applies to Excellon format\n"
-"      drill files.\n"
-"| `--excellon-min-header`\n"
-"    | Use a minimal header in the drill file. Only applies to Excellon format\n"
-"      drill files.\n"
-"| `--excellon-separate-th`\n"
-"    | Generate separate drill files for plated and non-plated through holes.\n"
-"      Only applies to Excellon format drill files.\n"
-"| `--generate-map`\n"
-"    | Generate a map file in addition to the drill file.\n"
-"| `--map-format <format>`\n"
-"    | The map file format. Options are `pdf` (default), `gerberx2`, `ps`, `dxf`,\n"
-"      or `svg`.\n"
-"| `--gerber-precision <precision>`\n"
-"    | The precision (number of digits) for the drill file. Valid options are `5`\n"
-"      or `6` (default).  Only applies to Gerber format drill files.\n"
+"      drill/placement origin."
+msgstr "钻孔文件的坐标原点。可选项包括 `absolute`（默认）使用电路板的绝对原点，或 `plot` 使用电路板的钻孔/布局原点。"
+
+#. type: Table
+#: cli.adoc:362
+#, no-wrap
+msgid "`--excellon-zeros-format <format>`"
 msgstr ""
-"|`-h`， `--help`\n"
-"    | 显示钻孔文件导出命令的帮助。\n"
-"|`-o <output dir>`， `--output <output dir>`\n"
-"    | 钻孔文件的输出目录。不使用此参数时，钻孔文件保存在当前目录下。\n"
-"|`--format <format>`\n"
-"    | 钻取文件格式。选项为 `excellon`（默认）或 `gerber`。\n"
-"|`--drill-origin <origin>`\n"
-"    | 钻孔文件的坐标原点。选项有 `absolute` （默认），用于使用电路板的绝对原点；或 `plot` ，用于使用电路板的钻孔/置位原点。\n"
-"|`--excellon-zeros-format <format>`\n"
-"    | 钻孔文件中零的表示格式。提供四种选项：`decimal`（默认，采用十进制格式）、`suppressleading`（省略前导零）、`suppresstrailing`（省略尾随零）、以及 `keep`（保留所有零）。这些设置仅在 Excellon 格式的钻孔文件中有效。 \n"
-"|`--excellon-oval-format <format>`\n"
-"    | 控制椭圆形通孔的钻孔策略。提供两种模式：`route`（布线模式）和 `alternate`（备用模式，默认选项）。这些设置仅在 Excellon 格式的钻孔文件中生效。 \n"
-"|`-U <units>`， `--excellon-units <units>`\n"
-"    | 钻孔文件的单位。选项为 `mm`（默认）或 `in`。仅适用于 Excellon 格式的钻孔文件。\n"
-"|`--excellon-mirror-y`\n"
-"    | 沿 Y 方向镜像钻孔文件。仅适用于 Excellon 格式的钻孔文件。\n"
-"|`--excellon-min-header`\n"
-"    | 在钻孔文件中使用最小的钻头。仅适用于 Excellon 格式的钻孔文件。\n"
-"|`--excellon-separate-th`\n"
-"    | 为电镀通孔和非电镀通孔生成不同的钻孔文件。 仅适用于 Excellon 格式的钻孔文件。\n"
-"|`--generate-map`\n"
-"    | 除了钻取文件之外，还生成映射文件。\n"
-"|`--map-format <format>`\n"
-"    | 映射文件格式。选项包括 `pdf`（默认）、`gerberx2`、`ps`、`dxf` 或 `svg`。\n"
-"|`--gerber-precision <precision>`\n"
-"    | 钻孔文件的精度（位数）。有效选项为 `5` 或 `6`（默认）。 仅适用于 Gerber 格式的钻孔文件。\n"
+
+#. type: Table
+#: cli.adoc:365
+#, no-wrap
+msgid ""
+"The zeros format for the drill file. Options are `decimal` (default),\n"
+"      `suppressleading`, `suppresstrailing`, or `keep`. Only applies to Excellon\n"
+"      format drill files."
+msgstr "钻孔文件的零导格式。可选项包括 `decimal`（默认十进制）、`suppressleading`（抑制前导）、`suppresstrailing`（抑制后导） 或 `keep`。仅适用于 Excellon 格式钻孔文件。"
+
+#. type: Table
+#: cli.adoc:366
+#, no-wrap
+msgid "`--excellon-oval-format <format>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:368
+#, no-wrap
+msgid ""
+"Control the oval holes drill mode. Options are `route` and `alternate`\n"
+"    (default). Only applies to Excellon format drill files."
+msgstr "控制椭圆形孔的钻孔模式。可选模式为 `route` 和 `alternate`（默认）。仅适用于 Excellon 格式的钻孔文件。"
+
+#. type: Table
+#: cli.adoc:369
+#, no-wrap
+msgid "`-u <units>`, `--excellon-units <units>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:371
+#, no-wrap
+msgid ""
+"The units for the drill file. Options are `mm` (default) or `in`. Only\n"
+"      applies to Excellon format drill files."
+msgstr "钻孔文件的单位。可选单位为 `mm`（默认）或 `in`。仅适用于 Excellon 格式钻孔文件。"
+
+#. type: Table
+#: cli.adoc:372
+#, no-wrap
+msgid "`--excellon-mirror-y`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:374
+#, no-wrap
+msgid ""
+"Mirror the drill file in the Y direction. Only applies to Excellon format\n"
+"      drill files."
+msgstr "将钻孔文件在 Y 方向上镜像。仅适用于 Excellon 格式的钻孔文件。"
+
+#. type: Table
+#: cli.adoc:375
+#, no-wrap
+msgid "`--excellon-min-header`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:377
+#, no-wrap
+msgid ""
+"Use a minimal header in the drill file. Only applies to Excellon format\n"
+"      drill files."
+msgstr "在钻孔文件中使用最小的钻头。仅适用于 Excellon 格式的钻孔文件。"
+
+#. type: Table
+#: cli.adoc:378
+#, no-wrap
+msgid "`--excellon-separate-th`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:380
+#, no-wrap
+msgid ""
+"Generate separate drill files for plated and non-plated through holes.\n"
+"      Only applies to Excellon format drill files."
+msgstr "为电镀孔和非电镀孔分别生成钻孔文件。 仅适用于 Excellon 格式的钻孔文件。"
+
+#. type: Table
+#: cli.adoc:381
+#, no-wrap
+msgid "`--generate-map`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:382
+#, no-wrap
+msgid "Generate a map file in addition to the drill file."
+msgstr "除了钻孔文件外，还生成一个映射文件。"
+
+#. type: Table
+#: cli.adoc:383
+#, no-wrap
+msgid "`--map-format <format>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:385
+#, no-wrap
+msgid ""
+"The map file format. Options are `pdf` (default), `gerberx2`, `ps`, `dxf`,\n"
+"      or `svg`."
+msgstr "映射文件格式。可选格式包括 `pdf`（默认）、`gerberx2`、`ps`、`dxf` 或 `svg`。"
+
+#. type: Table
+#: cli.adoc:386
+#, no-wrap
+msgid "`--gerber-precision <precision>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:388
+#, no-wrap
+msgid ""
+"The precision (number of digits) for the drill file. Valid options are `5`\n"
+"      or `6` (default).  Only applies to Gerber format drill files."
+msgstr "钻孔文件的精度（位数）。有效选项为 `5` 或 `6`（默认值）。仅适用于 Gerber 格式的钻孔文件。"
 
 #. type: Title ===
-#: cli.adoc:252
+#: cli.adoc:390
 #, no-wrap
 msgid "PCB DXF export"
 msgstr "PCB DXF 导出"
 
 #. type: Plain text
-#: cli.adoc:255
+#: cli.adoc:393
 msgid "The `pcb export dxf` command exports a board design to a DXF file."
 msgstr "`pcb export dxf` 命令将电路板设计导出为 DXF 文件。"
 
 #. type: Plain text
-#: cli.adoc:260
+#: cli.adoc:395
 msgid ""
-"Usage: `kicad-cli pcb export dxf [--help] [--output OUTPUT_FILE] [--layers "
-"LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-"
-"refdes] [--exclude-value] [--use-contours] [--include-border-title] [--output-"
-"units UNITS] INPUT_FILE`"
+"Usage: `kicad-cli pcb export dxf [--help] [--output OUTPUT_DIR] [--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-refdes] [--exclude-value] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-"
+"footprints-on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--subtract-soldermask] [--use-contours] [--use-drill-origin] [--include-border-title] [--output-units UNITS] [--drill-shape-opt VAR] [--common-layers COMMON_LAYER_LIST] [--mode-single] [--"
+"mode-multi] [--plot-invisible-text] [--scale SCALE] INPUT_FILE`"
 msgstr ""
-"用法：`kicad-cli pcb export dxf [--help] [--output OUTPUT_FILE] [--layers "
-"LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-"
-"refdes] [--exclude-value] [--use-contours] [--include-border-title] [--output-"
-"units UNITS] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:297
+#: cli.adoc:410 cli.adoc:494
+#, no-wrap
+msgid "Show help for the DXF export command."
+msgstr "显示 DXF 导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:417 cli.adoc:1130 cli.adoc:1384
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the DXF export command.\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | The output filename. When this argument is not used, the output filename\n"
-"      will be the same as the input file, with the `.dxf` file extension.\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
-"      specified in the board file.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `-l <layer list>`, `--layers <layer list>`\n"
-"    | A comma-separated list of layer names to export from the footprint, such\n"
-"      as `F.Cu,B.Cu`. At least one layer must be given.\n"
-"| `--erd`, `--exclude-refdes`\n"
-"    | Exclude footprint reference designators from plot.\n"
-"| `--ev`, `--exclude-value`\n"
-"    | Exclude footprint values from plot.\n"
-"| `--uc`, `--use-contours`\n"
-"    | Plot graphic items using their contours.\n"
-"| `-ibt`, `--include-border-title`\n"
-"    | Include sheet border and title block in plot.\n"
-"| `--ou <unit>`, `--output-units <unit>`\n"
-"    | Output units. Options are `mm` or `in` (default).\n"
+"The output folder or filename for the exported files. When `--mode-single`\n"
+"      is used, this is the output filename. If `--output` is not used, the\n"
+"      output filename will be the same as the input\n"
+"      file, with the `.pdf` file extension. When `--mode-multi` is used, this is\n"
+"      the output directory. If `--output` is not used, the files are exported\n"
+"      to the current directory."
+msgstr "导出文件的输出文件夹或文件名。当使用 `--mode-single` 时，此为输出文件名。如果未使用 `--output`，输出文件名将与输入文件相同，并带有 `.pdf` 文件扩展名。当使用 `--mode-multi` 时，此为输出目录。如果未使用 `--output`，文件将导出到当前目录。"
+
+#. type: Table
+#: cli.adoc:423
+#, no-wrap
+msgid ""
+"A comma-separated list of layer names to export from the footprint, such\n"
+"      as `F.Cu,B.Cu`. At least one layer must be given. Layer names can be\n"
+"      specified as canonical layer names (`F.Cu`, `In.1`, `F.Fab`, etc.) or as\n"
+"      user-defined (custom) layer names, but user-defined layer names are matched\n"
+"      first."
+msgstr "从封装中导出的图层名称列表，以逗号分隔，例如 `F.Cu,B.Cu`。必须至少指定一个图层。图层名称可以指定为规范图层名称（如 `F.Cu`、`In.1`、`F.Fab` 等）或用户自定义（自定义）图层名称，但优先匹配用户自定义图层名称。"
+
+#. type: Table
+#: cli.adoc:424 cli.adoc:551 cli.adoc:641 cli.adoc:783 cli.adoc:866 cli.adoc:914 cli.adoc:1143 cli.adoc:1391 cli.adoc:1794 cli.adoc:1869 cli.adoc:1923 cli.adoc:2000
+#, no-wrap
+msgid "`--drawing-sheet <sheet path>`"
 msgstr ""
-"|`-h`， `--help`\n"
-"    | 显示 DXF 导出命令的帮助。\n"
-"|`-o <output filename>`， `--output <output filename>`\n"
-"    | 输出文件名。如果不使用此参数，输出文件名将与输入文件相同，文件扩展名为 `.dxf`。\n"
-"|`--drawing-sheet <sheet path>`\n"
-"    | 在绘制中使用的图纸的路径，覆盖电路板文件中指定的图纸。\n"
-"|`-D <variable name>=<value>`， `--define-var <variable_name>=<value>`\n"
-"    | 添加或覆盖工程变量定义。可多次使用以定义多个变量。\n"
-"|`-l <layer list>`， `--layers <layer list>`\n"
-"    | 以逗号分隔的要从封装中导出的图层名称列表，如 `F.Cu,B.Cu`。必须至少给出一个图层。\n"
-"|`--erd`， `--exclude-refdes`\n"
-"    | 从绘制中排除封装位号。\n"
-"|`--ev`， `--exclude-value`\n"
-"    | 从绘制中排除封装值。\n"
-"|`--uc`， `--use-contours`\n"
-"    | 使用轮廓线绘制图形项目。\n"
-"|`-ibt`， `--include-border-title`\n"
-"    | 在绘制中包括图纸边框和标题块。\n"
-"|`--ou <unit>`， `--output-units <unit>`\n"
-"    | 输出单位。选项为 `mm` 或 `in` （默认）。\n"
+
+#. type: Table
+#: cli.adoc:426 cli.adoc:553 cli.adoc:643 cli.adoc:785 cli.adoc:868 cli.adoc:916 cli.adoc:1145 cli.adoc:1393
+#, no-wrap
+msgid ""
+"Path to drawing sheet to use in plot, overriding the drawing sheet\n"
+"      specified in the board file."
+msgstr "用于绘制的图纸路径，覆盖板文件中指定的图纸。"
+
+#. type: Table
+#: cli.adoc:430 cli.adoc:557 cli.adoc:647 cli.adoc:922 cli.adoc:1151
+#, no-wrap
+msgid "`--erd`, `--exclude-refdes`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:431 cli.adoc:558 cli.adoc:648 cli.adoc:923 cli.adoc:1152
+#, no-wrap
+msgid "Exclude footprint reference designators from plot."
+msgstr "从绘制中排除封装位号。"
+
+#. type: Table
+#: cli.adoc:432 cli.adoc:559 cli.adoc:649 cli.adoc:924 cli.adoc:1153
+#, no-wrap
+msgid "`--ev`, `--exclude-value`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:433 cli.adoc:560 cli.adoc:650 cli.adoc:925 cli.adoc:1154
+#, no-wrap
+msgid "Exclude footprint values from plot."
+msgstr "从绘制中排除封装值。"
+
+#. type: Table
+#: cli.adoc:442 cli.adoc:575 cli.adoc:665 cli.adoc:928 cli.adoc:1157 cli.adoc:1397
+#, no-wrap
+msgid "`--subtract-soldermask`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:443 cli.adoc:576 cli.adoc:666 cli.adoc:929 cli.adoc:1158 cli.adoc:1398
+#, no-wrap
+msgid "Remove silkscreen from areas without soldermask."
+msgstr "从没有阻焊层的区域去除丝印。"
+
+#. type: Table
+#: cli.adoc:444
+#, no-wrap
+msgid "`--uc`, `--use-contours`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:445
+#, no-wrap
+msgid "Plot graphic items using their contours."
+msgstr "使用轮廓绘制图形对象。"
+
+#. type: Table
+#: cli.adoc:446
+#, no-wrap
+msgid "`--udo`, `--use-drill-origin`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:447
+#, no-wrap
+msgid "Plot using the drill/place file origin."
+msgstr "使用钻孔/放置文件的原点进行绘制。"
+
+#. type: Table
+#: cli.adoc:448
+#, no-wrap
+msgid "`-ibt`, `--include-border-title`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:449
+#, no-wrap
+msgid "Include sheet border and title block in plot."
+msgstr "在绘制中包含图纸边框和标题栏。"
+
+#. type: Table
+#: cli.adoc:450
+#, no-wrap
+msgid "`--ou <unit>`, `--output-units <unit>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:451
+#, no-wrap
+msgid "Output units. Options are `mm` or `in` (default)."
+msgstr "输出单位。可选单位为 `mm` 或 `in`（默认）。"
+
+#. type: Table
+#: cli.adoc:452
+#, no-wrap
+msgid "`--drill-shape-opt <shape>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:454 cli.adoc:947 cli.adoc:1176 cli.adoc:1427
+#, no-wrap
+msgid ""
+"The shape of drill marks in the plot. Options are `0` for no drill marks,\n"
+"      `1` for small marks, or `2` for actual size marks (default)."
+msgstr "钻孔标记在图中的形状。选项包括：`0` 表示不显示钻孔标记，`1` 表示显示小标记，或 `2` 表示显示实际大小的标记（默认）。"
+
+#. type: Table
+#: cli.adoc:455 cli.adoc:591 cli.adoc:948 cli.adoc:1137 cli.adoc:1428
+#, no-wrap
+msgid "`--cl <layer list>`, `--common-layers <layer list>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:459 cli.adoc:952 cli.adoc:1432
+#, no-wrap
+msgid ""
+"A comma-separated list of layer names to plot on all layers, such as\n"
+"      `F.Cu,B.Cu`. Layer names can be specified as canonical layer names\n"
+"      (`F.Cu`, `In.1`, `F.Fab`, etc.) or as user-defined (custom) layer names,\n"
+"      but user-defined layer names are matched first."
+msgstr "在所有图层上绘制的图层名称的逗号分隔列表，例如 `F.Cu,B.Cu`。图层名称可以指定为规范图层名称（如 `F.Cu`、`In.1`、`F.Fab` 等）或用户自定义（自定义）图层名称，但优先匹配用户定义的图层名称。"
+
+#. type: Table
+#: cli.adoc:460 cli.adoc:957 cli.adoc:1177 cli.adoc:1433
+#, no-wrap
+msgid "`--mode-single`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:461 cli.adoc:1178 cli.adoc:1434
+#, no-wrap
+msgid "Generates a single file with the output arg path acting as the complete directory and filename path. `COMMON_LAYER_LIST` does not function in this mode. Instead `LAYER_LIST` controls all layers plotted."
+msgstr "生成一个单一文件，其中输出参数路径作为完整的目录和文件名路径。`COMMON_LAYER_LIST` 在此模式下不生效。相反，`LAYER_LIST` 控制所有绘制的图层。"
+
+#. type: Table
+#: cli.adoc:462 cli.adoc:1435
+#, no-wrap
+msgid "`--mode-multi`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:465
+#, no-wrap
+msgid ""
+"Plot the layers to one or more DXF files, with each file representing a\n"
+"      single layer from `LAYER_LIST`. The output path specifies the directory in\n"
+"      which the files will be written."
+msgstr "将图层绘制到一个或多个 DXF 文件中，每个文件代表 `LAYER_LIST` 中的一个单独图层。输出路径指定了文件将被写入的目录。"
+
+#. type: Table
+#: cli.adoc:466 cli.adoc:587 cli.adoc:677 cli.adoc:953 cli.adoc:1439
+#, no-wrap
+msgid "`--plot-invisible-text`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:469 cli.adoc:590 cli.adoc:680 cli.adoc:956 cli.adoc:1442
+#, no-wrap
+msgid ""
+"Force plotting of values and references, even if they are invisible. This argument is deprecated as of KiCad\n"
+"      9.0.1 and has no effect. It will be removed in a future version of KiCad. To plot invisible text, edit the\n"
+"      board so that the text is no longer invisible."
+msgstr "强制绘制值和位号，即使它们不可见。此参数自 KiCad 9.0.1起已废弃且无效。它将在未来版本的 KiCad 中被移除。要绘制不可见文本，请编辑电路板以使文本不再不可见。"
+
+#. type: Table
+#: cli.adoc:470 cli.adoc:967 cli.adoc:1193 cli.adoc:1443
+#, no-wrap
+msgid "`--scale <scale>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:472 cli.adoc:969 cli.adoc:1445
+#, no-wrap
+msgid ""
+"A scaling factor to use for plotting the PCB. The border and title block\n"
+"      are not scaled. A scale factor of 0 autoscales the plot."
+msgstr "用于绘制 PCB 的缩放比例。边框和标题栏不进行缩放。缩放比例为 0 时，绘图将自动调整比例。"
 
 #. type: Title ===
-#: cli.adoc:299
+#: cli.adoc:474
+#, no-wrap
+msgid "PCB GenCAD export"
+msgstr "PCB GenCAD 导出"
+
+#. type: Plain text
+#: cli.adoc:477
+msgid "The `pcb export gencad` command exports a board design to a GenCAD file."
+msgstr "`pcb export gencad` 命令将电路板设计导出为 GenCAD 文件。"
+
+#. type: Plain text
+#: cli.adoc:479
+msgid "Usage: `kicad-cli pcb export gencad [--help] [--output OUTPUT_FILE] [--define-var KEY=VALUE] [--flip-bottom-pads] [--unique-pins] [--unique-footprints] [--use-drill-origin] [--store-origin-coord] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:497
+#, no-wrap
+msgid ""
+"The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.cad` file extension."
+msgstr "输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，并带有 `.cad` 文件扩展名。"
+
+#. type: Table
+#: cli.adoc:501
+#, no-wrap
+msgid "`-f`, `--flip-bottom-pads`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:502
+#, no-wrap
+msgid "Flip bottom footprint padstacks."
+msgstr "翻转底部封装 padstacks。"
+
+#. type: Table
+#: cli.adoc:503
+#, no-wrap
+msgid "`--unique-pins`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:504
+#, no-wrap
+msgid "Generate unique pin names."
+msgstr "生成唯一的引脚名称。"
+
+#. type: Table
+#: cli.adoc:505
+#, no-wrap
+msgid "`--unique-footprints`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:506
+#, no-wrap
+msgid "Generate a new shape for each footprint instance (do not reuse shapes)."
+msgstr "为每个封装实例生成一个新形状（不要重复使用形状）。"
+
+#. type: Table
+#: cli.adoc:507
+#, no-wrap
+msgid "`--use-drill-origin`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:508
+#, no-wrap
+msgid "Use drill/place file origin as origin."
+msgstr "使用钻孔/放置文件的原点作为原点。"
+
+#. type: Table
+#: cli.adoc:509
+#, no-wrap
+msgid "`--store-origin-coord`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:510
+#, no-wrap
+msgid "Save the origin coordinates in the file."
+msgstr "将原始坐标保存到文件中。"
+
+#. type: Title ===
+#: cli.adoc:512
 #, no-wrap
 msgid "PCB Gerber export: one layer per file"
-msgstr "PCB Gerber 导出：每个文件一层"
+msgstr "PCB Gerber 文件导出：每个文件包含多个层"
 
 #. type: Plain text
-#: cli.adoc:303
-msgid ""
-"The `pcb export gerbers` command exports a board design to Gerber files, with one "
-"layer per file."
-msgstr "`pcb export gerbers` 命令将电路板设计导出到 Gerber 文件，每个文件一层。"
+#: cli.adoc:516
+msgid "The `pcb export gerbers` command exports a board design to Gerber files, with one layer per file."
+msgstr "`pcb export gerbers` 命令将电路板设计导出为 Gerber 文件，每个文件对应一层。"
 
 #. type: Plain text
-#: cli.adoc:309 cli.adoc:382
+#: cli.adoc:522 cli.adoc:610
 #, no-wrap
 msgid ""
 "Be aware that there are two distinct Gerber export commands, `gerber` and\n"
@@ -600,942 +1505,1494 @@ msgid ""
 "      Gerber file, while the `gerbers` command plots multiple Gerber files, with\n"
 "      one PCB layer per file. The `gerbers` command is typically the correct\n"
 "      command to use for having a PCB fabricated.\n"
-msgstr "请注意有两种不同的 Gerber 导出命令，即 `gerber` 和 `gerbers`。`gerber` 命令将多个 PCB 层绘制到单个 Gerber 文件中，而 `gerbers` 命令将多个 Gerber 文件绘制到单个 Gerber 文件中。在制作 PCB 时，通常应使用 `gerbers` 命令。\n"
+msgstr "请注意，Gerber 导出命令有两个不同的版本，即 `gerber` 和 `gerbers`。`gerber` 命令将多个 PCB 层绘制到一个 Gerber 文件中，而 `gerbers` 命令则将多个 Gerber 文件绘制出来，每个文件对应一个 PCB 层。通常情况下，`gerbers` 命令是用于 PCB 制造的正确命令。\n"
 
 #. type: Plain text
-#: cli.adoc:316
+#: cli.adoc:524
 msgid ""
-"Usage: `kicad-cli pcb export gerbers [--help] [--output OUTPUT_FILE] [--layers "
-"LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-"
-"refdes] [--exclude-value] [--include-border-title] [--no-x2] [--no-netlist] [--"
-"subtract-soldermask] [--disable-aperture-macros] [--use-drill-file-origin] [--"
-"precision PRECISION] [--no-protel-ext] [--common-layers COMMON_LAYER_LIST] [--"
-"board-plot-params] INPUT_FILE`"
+"Usage: `kicad-cli pcb export gerbers [--help] [--output OUTPUT_DIR] [--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-refdes] [--exclude-value] [--include-border-title] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-"
+"on-fab-layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--no-x2] [--no-netlist] [--subtract-soldermask] [--disable-aperture-macros] [--use-drill-file-origin] [--precision PRECISION] [--no-protel-ext] [--plot-"
+"invisible-text] [--common-layers COMMON_LAYER_LIST] [--board-plot-params] INPUT_FILE`"
 msgstr ""
-"用法：`kicad-cli pcb export gerbers [--help] [--output OUTPUT_FILE] [--layers "
-"LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-"
-"refdes] [--exclude-value] [--include-border-title] [--no-x2] [--no-netlist] [--"
-"subtract-soldermask] [--disable-aperture-macros] [--use-drill-file-origin] [--"
-"subtract-soldermask precision] [--no-protel-ext] [--common-layers "
-"COMMON_LAYER_LIST] [--board-plot-params] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:370
+#: cli.adoc:539 cli.adoc:631
+#, no-wrap
+msgid "Show help for the Gerber export command."
+msgstr "显示 Gerber 导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:543
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the Gerber export command.\n"
-"| `-o <output dir>`, `--output <output dir>`\n"
-"    | The output folder for the exported files. When this argument is not used,\n"
-"      the files are exported to the current directory.\n"
-"| `-l <layer list>`, `--layers <layer list>`\n"
-"    | A comma-separated list of layer names to plot from the board, such as\n"
+"The output folder for the exported files. One file is output for each\n"
+"      layer. When `--output` is not used, the files are exported to the\n"
+"      current directory."
+msgstr "导出文件的输出文件夹。当未使用 `--output` 时，文件将导出到当前目录。"
+
+#. type: Table
+#: cli.adoc:550
+#, no-wrap
+msgid ""
+"A comma-separated list of layer names to plot from the board, such as\n"
 "      `F.Cu,B.Cu`. If this argument is not used, all layers will be plotted.\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
-"      specified in the board file.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `--erd`, `--exclude-refdes`\n"
-"    | Exclude footprint reference designators from plot.\n"
-"| `--ev`, `--exclude-value`\n"
-"    | Exclude footprint values from plot.\n"
-"| `--ibt`, `--include-border-title`\n"
-"    | Include the sheet border and title block.\n"
-"| `--no-x2`\n"
-"    | Do not use the extended X2 format.\n"
-"| `--no-netlist`\n"
-"    | Do not include netlist attributes.\n"
-"| `--subtract-soldermask`\n"
-"    | Remove silkscreen from areas without soldermask.\n"
-"| `--disable-aperture-macros`\n"
-"    | Disable aperture macros.\n"
-"| `--use-drill-file-origin`\n"
-"    | Use drill/place file origin instead of absolute origin.\n"
-"| `--precision <precision>`\n"
-"    | The precision (number of digits) for the Gerber files. Valid options are\n"
-"      `5` or `6` (default).\n"
-"| `--no-protel-ext`\n"
-"    | Use `.gbr` file extension instead of Protel file extensions (`.gbl`,\n"
-"      `.gtl`, etc.).\n"
-"| `--cl <layer list>`, `--common-layers <layer list>`\n"
-"    | A comma-separated list of layer names to plot on all layers, such as\n"
-"      `F.Cu,B.Cu`.\n"
-"| `--board-plot-params`\n"
-"    | Use the Gerber plot settings already configured in the board file.\n"
+"      A seperate output file is plotted for each layer. Layer names can be\n"
+"      specified as canonical layer names (`F.Cu`, `In.1`, `F.Fab`, etc.) or as\n"
+"      user-defined (custom) layer names, but user-defined layer names are matched\n"
+"      first."
+msgstr "从电路板中绘制的图层名称的逗号分隔列表，例如 `F.Cu,B.Cu`。如果未使用此参数，则将绘制所有图层。每个图层都会生成一个单独的输出文件。图层名称可以指定为规范图层名称（如 `F.Cu`、`In.1`、`F.Fab` 等）或用户自定义（自定义）图层名称，但优先匹配用户自定义的图层名称。"
+
+#. type: Table
+#: cli.adoc:561 cli.adoc:651 cli.adoc:926 cli.adoc:1155
+#, no-wrap
+msgid "`--ibt`, `--include-border-title`"
 msgstr ""
-"|`-h`， `--help`\n"
-"    | 显示 Gerber 导出命令的帮助。\n"
-"|`-o <output dir>`， `--output <output dir>`\n"
-"    | 导出文件的输出文件夹。不使用该参数时，文件将导出到当前目录。\n"
-"|`-l <layer list>`， `--layers <layer list>`\n"
-"    | 以逗号分隔的图层名称列表，如 `F.Cu,B.Cu`。如果未使用此参数，则将绘制所有图层。\n"
-"|`--drawing-sheet <sheet path>`\n"
-"    | 在绘制中使用的图纸的路径，覆盖电路板文件中指定的图纸。\n"
-"|`-D <variable name>=<value>`， `--define-var <variable_name>=<value>`\n"
-"    | 添加或覆盖工程变量定义。可多次使用以定义多个变量。\n"
-"|`--erd`， `--exclude-refdes`\n"
-"    | 从绘制中排除封装位号。\n"
-"|`--ev`， `--exclude-value`\n"
-"    | 从绘制中排除封装值。\n"
-"|`--ibt`， `--include-border-title`\n"
-"    | 包括页面边框和标题块。\n"
-"|`--no-x2`\n"
-"    | 请勿使用扩展的 X2 格式。\n"
-"|`--no-netlist`\n"
-"    | 不要包含网表属性。\n"
-"|`--subtract-soldermask`\n"
-"    | 去除没有阻焊层区域的丝印。\n"
-"|`--disable-aperture-macros`\n"
-"    | 禁用光圈宏。\n"
-"|`--use-drill-file-origin`\n"
-"    | 使用钻孔/放置文件原点，而不是绝对原点。\n"
-"|`--precision <precision>`\n"
-"    | Gerber 文件的精度（位数）。有效选项为 `5` 或 `6`（默认）。\n"
-"|`--no-protel-ext`\n"
-"    | 使用 `.gbr` 文件扩展名而不是 Protel 文件扩展名（ `.gbl` 、 `.gtl` 等）。\n"
-"|`--cl <layer list>`， `--common-layers <layer list>`\n"
-"    | 以逗号分隔的图层名称列表，用于在所有图层上绘制，如 `F.Cu,B.Cu`。\n"
-"|`--board-plot-params`\n"
-"    | 使用已在电路板文件中配置的 Gerber 绘制设置。\n"
+
+#. type: Table
+#: cli.adoc:562 cli.adoc:652 cli.adoc:927 cli.adoc:1156
+#, no-wrap
+msgid "Include the sheet border and title block."
+msgstr "包含图纸边框和标题栏。"
+
+#. type: Table
+#: cli.adoc:571 cli.adoc:661
+#, no-wrap
+msgid "`--no-x2`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:572 cli.adoc:662
+#, no-wrap
+msgid "Do not use the extended X2 format."
+msgstr "请勿使用扩展的 X2 格式。"
+
+#. type: Table
+#: cli.adoc:573 cli.adoc:663
+#, no-wrap
+msgid "`--no-netlist`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:574 cli.adoc:664
+#, no-wrap
+msgid "Do not include netlist attributes."
+msgstr "请勿包含网表属性。"
+
+#. type: Table
+#: cli.adoc:577 cli.adoc:667
+#, no-wrap
+msgid "`--disable-aperture-macros`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:578 cli.adoc:668
+#, no-wrap
+msgid "Disable aperture macros."
+msgstr "禁用光圈宏。"
+
+#. type: Table
+#: cli.adoc:579 cli.adoc:669 cli.adoc:1089
+#, no-wrap
+msgid "`--use-drill-file-origin`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:580 cli.adoc:670
+#, no-wrap
+msgid "Use drill/place file origin instead of absolute origin."
+msgstr "使用钻孔/放置文件原点而非绝对原点。"
+
+#. type: Table
+#: cli.adoc:581 cli.adoc:671 cli.adoc:789 cli.adoc:872
+#, no-wrap
+msgid "`--precision <precision>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:583 cli.adoc:673
+#, no-wrap
+msgid ""
+"The precision (number of digits) for the Gerber files. Valid options are\n"
+"      `5` or `6` (default)."
+msgstr "Gerber 文件的精度（位数）。有效选项为 `5` 或 `6`（默认值）。"
+
+#. type: Table
+#: cli.adoc:584 cli.adoc:674
+#, no-wrap
+msgid "`--no-protel-ext`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:586 cli.adoc:676
+#, no-wrap
+msgid ""
+"Use `.gbr` file extension instead of Protel file extensions (`.gbl`,\n"
+"      `.gtl`, etc.)."
+msgstr "使用 `.gbr` 文件扩展名，而非 Protel 文件扩展名（如 `.gbl`、`.gtl` 等）。"
+
+#. type: Table
+#: cli.adoc:596 cli.adoc:1142
+#, no-wrap
+msgid ""
+"A comma-separated list of layer names to plot on all layers, such as\n"
+"      `F.Cu,B.Cu`. Each layer specified is included in every output file. Layer\n"
+"      names can be specified as canonical layer names (`F.Cu`, `In.1`, `F.Fab`,\n"
+"      etc.) or as user-defined (custom) layer names, but user-defined layer names\n"
+"      are matched first."
+msgstr "在所有图层上绘制的图层名称的逗号分隔列表，例如 `F.Cu,B.Cu`。每个指定的图层都会包含在每个输出文件中。图层名称可以指定为规范图层名称（如 `F.Cu`、`In.1`、`F.Fab` 等）或用户自定义（自定义）图层名称，但会优先匹配用户自定义的图层名称。"
+
+#. type: Table
+#: cli.adoc:597
+#, no-wrap
+msgid "`--board-plot-params`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:598
+#, no-wrap
+msgid "Use the Gerber plot settings already configured in the board file."
+msgstr "使用电路板文件中已配置的 Gerber 绘制设置。"
 
 #. type: Title ===
-#: cli.adoc:372
+#: cli.adoc:600
 #, no-wrap
 msgid "PCB Gerber export: multiple layers per file"
-msgstr "导出 PCB Gerber：每个文件可导出多个层"
+msgstr "PCB Gerber 文件导出：每个文件包含多个层"
 
 #. type: Plain text
-#: cli.adoc:376
-msgid ""
-"The `pcb export gerber` command exports one or more board layers to a single "
-"Gerber file."
-msgstr "`pcb export gerber` 命令将一个或多个板层导出到单个 Gerber 文件。"
+#: cli.adoc:604
+msgid "The `pcb export gerber` command exports one or more board layers to a single Gerber file."
+msgstr "`pcb export gerber` 命令将一个或多个电路板层导出到单个 Gerber 文件中。"
 
 #. type: Plain text
-#: cli.adoc:388
-msgid ""
-"Usage: `kicad-cli pcb export gerber [--help] [--output OUTPUT_FILE] [--layers "
-"LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-"
-"refdes] [--exclude-value] [--include-border-title] [--no-x2] [--no-netlist] [--"
-"subtract-soldermask] [--disable-aperture-macros] [--use-drill-file-origin] [--"
-"precision PRECISION] [--no-protel-ext] INPUT_FILE`"
-msgstr ""
-"用法：`kicad-cli pcb export gerber [--help] [--output OUTPUT_FILE] [--layers "
-"LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-"
-"refdes] [--exclude-value] [--include-border-title] [--no-x2] [--no-netlist] [--"
-"subtract-soldermask] [--disable-aperture-macros] [--use-drill-file-origin] [--"
-"subtract-soldermask precision] [--no-protel-ext] INPUT_FILE`"
-
-#. type: Table
-#: cli.adoc:438
+#: cli.adoc:614
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the Gerber export command.\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | The output filename. When this argument is not used, the output filename\n"
-"      will be the same as the input file, with the `.gbr` file extension.\n"
-"| `-l <layer list>`, `--layers <layer list>`\n"
-"    | A comma-separated list of layer names to plot from the board, such as\n"
-"      `F.Cu,B.Cu`. All layers will be plotted in the output file. At least one\n"
-"      layer must be given.\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
-"      specified in the board file.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `--erd`, `--exclude-refdes`\n"
-"    | Exclude footprint reference designators from plot.\n"
-"| `--ev`, `--exclude-value`\n"
-"    | Exclude footprint values from plot.\n"
-"| `--ibt`, `--include-border-title`\n"
-"    | Include the sheet border and title block.\n"
-"| `--no-x2`\n"
-"    | Do not use the extended X2 format.\n"
-"| `--no-netlist`\n"
-"    | Do not include netlist attributes.\n"
-"| `--subtract-soldermask`\n"
-"    | Remove silkscreen from areas without soldermask.\n"
-"| `--disable-aperture-macros`\n"
-"    | Disable aperture macros.\n"
-"| `--use-drill-file-origin`\n"
-"    | Use drill/place file origin instead of absolute origin.\n"
-"| `--precision <precision>`\n"
-"    | The precision (number of digits) for the Gerber files. Valid options are\n"
-"      `5` or `6` (default).\n"
-"| `--no-protel-ext`\n"
-"    | Use `.gbr` file extension instead of Protel file extensions (`.gbl`,\n"
-"      `.gtl`, etc.).\n"
+"The `pcb export gerber` command is deprecated in KiCad 9.0 and will be\n"
+"         removed in KiCad 10.0. Please use the `pcb export gerbers` command\n"
+"         instead.\n"
+msgstr "`pcb export gerber` 命令在 KiCad 9.0 中已废弃，并在 KiCad 10.0 中将被移除。请改用 `pcb export gerbers` 命令。\n"
+
+#. type: Plain text
+#: cli.adoc:616
+msgid ""
+"Usage: `kicad-cli pcb export gerber [--help] [--output OUTPUT_FILE] [--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-refdes] [--exclude-value] [--include-border-title] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-"
+"on-fab-layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--no-x2] [--no-netlist] [--subtract-soldermask] [--disable-aperture-macros] [--use-drill-file-origin] [--precision PRECISION] [--no-protel-ext] [--plot-"
+"invisible-text] INPUT_FILE`"
 msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示 Gerber 导出命令的帮助。\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | 输出文件名。不使用此参数时，输出文件名 将与输入文件相同，文件扩展名为 `.gbr`。\n"
-"| `-l <layer list>`, `--layers <layer list>`\n"
-"    | 以逗号分隔的要从电路板上绘制的图层名称列表，如 `F.Cu,B.Cu`。所有层都将绘制到输出文件中。必须至少给出一个 层。\n"
-"| `--drawing-sheet <sheet path>` \n"
-"    | 绘制时使用的绘制表路径，覆盖电路板文件中指定的绘制表。优先于电路板文件中指定的绘制纸。\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | 添加或覆盖工程变量定义。可多次使用 以定义多个变量。\n"
-"| `--erd`, `--exclude-refdes`\n"
-"    | 从绘制中排除封装位号。\n"
-"| `--ev`, `--exclude-value`\n"
-"    | 从绘制中排除封装值。\n"
-"| `--ibt`, `--include-border-title`\n"
-"    | 包含工作表边框和标题块。\n"
-"| `--no-x2`\n"
-"    | 不使用扩展 X2 格式。\n"
-"|`--no-netlist`\n"
-"    | 不包含网表属性。\n"
-"|`--subtract-soldermask`\n"
-"    | 去除无阻焊区域的丝印。\n"
-"| `--disable-aperture-macros`\n"
-"    | 禁用光圈宏。\n"
-"| `--use-drill-file-origin` \n"
-"    | 使用钻孔/放置文件原点，而不是绝对原点。\n"
-"| `--precision <precision>`\n"
-"    | Gerber 文件的精度（位数）。有效选项为 `5` 或 `6`（默认）。\n"
-"| `--no-protel-ext`\n"
-"    | 使用 `.gbr` 文件扩展名代替 Protel 文件扩展名（`.gbl`、`.gtl` 等）。\n"
+
+#. type: Table
+#: cli.adoc:634
+#, no-wrap
+msgid ""
+"The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.gbr` file extension."
+msgstr "输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，并带有 `.gbr` 文件扩展名。"
+
+#. type: Table
+#: cli.adoc:640
+#, no-wrap
+msgid ""
+"A comma-separated list of layer names to plot from the board, such as\n"
+"      `F.Cu,B.Cu`. All layers will be plotted in the output file. At least one\n"
+"      layer must be given. Layer names can be specified as canonical layer names\n"
+"      (`F.Cu`, `In.1`, `F.Fab`, etc.) or as user-defined (custom) layer names,\n"
+"      but user-defined layer names are matched first."
+msgstr "从电路板绘制的图层名称的逗号分隔列表，例如 `F.Cu,B.Cu`。所有图层都将在输出文件中绘制。必须至少指定一个图层。图层名称可以指定为规范图层名称（如 `F.Cu`、`In.1`、`F.Fab` 等），也可以指定为用户定义（自定义）的图层名称，但优先匹配用户定义的图层名称。"
 
 #. type: Title ===
-#: cli.adoc:440
+#: cli.adoc:682
 #, no-wrap
 msgid "PCB GLB export"
 msgstr "PCB GLB 导出"
 
 #. type: Plain text
-#: cli.adoc:444
-msgid ""
-"The `pcb export glb` command exports a board design to a GLB (binary GLTF) 3D "
-"file."
-msgstr "`pcb export glb` 命令将电路板设计导出为 GLB（二进制 GLTF）3D 文件。"
+#: cli.adoc:686
+msgid "The `pcb export glb` command exports a board design to a GLB (binary glTF) 3D model file."
+msgstr "`pcb export glb` 命令将电路板设计导出为 GLB（二进制 glTF）3D 模型文件。"
 
 #. type: Plain text
-#: cli.adoc:449
+#: cli.adoc:688
 msgid ""
-"Usage: `kicad-cli pcb export glb [--help] [--output OUTPUT_FILE] [--define-var "
-"KEY=VALUE] [--force] [--grid-origin] [--drill-origin] [--no-unspecified] [--no-"
-"dnp] [--subst-models] [--board-only] [--include-tracks] [--include-zones] [--min-"
-"distance MIN_DIST] [--user-origin VAR] INPUT_FILE`"
+"Usage: `kicad-cli pcb export glb [--help] [--output OUTPUT_FILE] [--define-var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--grid-origin] [--drill-origin] [--subst-models] [--board-only] [--cut-vias-in-body] [--no-board-body] [--no-components] [--"
+"component-filter VAR] [--include-tracks] [--include-pads] [--include-zones] [--include-inner-copper] [--include-silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-vias] [--min-distance MIN_DIST] [--net-filter VAR] [--user-origin VAR] INPUT_FILE`"
 msgstr ""
-"用法： `kicad-cli pcb export glb [--help] [--output OUTPUT_FILE] [--define-var "
-"KEY=VALUE] [--force] [--grid-origin] [--drill-origin] [--no-unspecified] [--no-"
-"dnp] [--subst-models] [--board-only] [--include-tracks] [--include-zones] [--min-"
-"distance MIN_DIST] [--user-origin VAR] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:497
+#: cli.adoc:703
+#, no-wrap
+msgid "Show help for the GLB export command."
+msgstr "显示 GLB 导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:706
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the GLB export command.\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | The output filename. When this argument is not used, the output filename\n"
-"      will be the same as the input file, with the `.glb` file extension.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `-f`, `--force`\n"
-"    | Overwrite output file.\n"
-"| `--grid-origin`\n"
-"    | Use grid origin as origin of output file.\n"
-"| `--drill-origin`\n"
-"    | Use drill origin as origin of output file.\n"
-"| `--no-unspecified`\n"
-"    | Exclude 3D models of components with 'unspecified' footprint type.\n"
-"| `--no-dnp`\n"
-"    | Exclude 3D models of components with 'Do not populate' attribute.\n"
-"| `--subst-models`\n"
-"    | Replace VRML models in footprints with STEP models of the same name, if\n"
-"      they exist.\n"
-"| `--board-only`\n"
-"    | Only include the board itself in the generated model; exclude all\n"
-"      component models.\n"
-"| `--include-tracks`\n"
-"    | Include tracks in export (time consuming).\n"
-"| `--include-zones`\n"
-"    | Include zones in export (time consuming).\n"
-"| `--min-distance <min distance>`\n"
-"    | Tolerance for considering two points to be in the same location. Default:\n"
-"      `0.01mm`.\n"
-"| `--user-origin <output origin>`\n"
-"    | Specify a custom origin for the output file, with X and Y coordinates. For\n"
-"      example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is\n"
-"      millimeters.\n"
-msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示 GLB 导出命令的帮助。\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | 输出文件名。不使用该参数时，输出文件名将与输入文件相同，文件扩展名为 `.glb`。\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | 添加或覆盖工程变量定义。可多次使用以定义多个变量。\n"
-"| `-f`, `--force`\n"
-"    | 强制覆盖输出文件。\n"
-"| `--grid-origin`\n"
-"    | 使用网格原点作为输出文件的原点。\n"
-"| `--drill-origin`\n"
-"    | 使用钻孔原点作为输出文件的原点。\n"
-"| `--no-unspecified`\n"
-"    | 排除封装类型为 \"未指定\" 的部件的 3D 模型。\n"
-"| `--no-dnp`\n"
-"    | 排除带有 \"不填充\" 属性的 3D 模型。\n"
-"| `--subst-models`\n"
-"    | 用同名 STEP 模型替换封装中的 VRML 模型（如果存在）。\n"
-"| `--board-only`\n"
-"    | 在生成的模型中只包含电路板本身；不包含所有元件模型。\n"
-"| `--include-tracks`\n"
-"    | 在导出时包含布线（耗时）。\n"
-"| `--include-zones`\n"
-"    | 导出时包含区域（耗时）。\n"
-"| `--min-distance <min distance>`\n"
-"    | 认为两个点在同一位置的误差。默认值：`0.01mm`。\n"
-"| `--user-origin <output origin>`\n"
-"    | 为输出文件指定自定义的原点，包括 X 和 Y 坐标。例如，`1x1in`、`1x1inch` 或 `25.4x25.4mm`。默认单位是毫米。.\n"
+"The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.glb` file extension."
+msgstr "输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，并带有 `.glb` 文件扩展名。"
+
+#. type: Table
+#: cli.adoc:722
+#, no-wrap
+msgid ""
+"Replace VRML models in footprints with STEP or IGS models of the same name, if\n"
+"      they exist."
+msgstr "如果存在同名的 STEP 或 IGS 模型，则用它们替换封装中的 VRML 模型。"
 
 #. type: Title ===
-#: cli.adoc:499
+#: cli.adoc:761
 #, no-wrap
 msgid "PCB IPC-2581 export"
 msgstr "PCB IPC-2581 导出"
 
 #. type: Plain text
-#: cli.adoc:502
+#: cli.adoc:764
 msgid "The `pcb export ipc2581` command exports a board design in IPC-2581 format."
-msgstr "`pcb export ipc2581` 命令以 IPC-2581 格式导出电路板设计。"
+msgstr "`pcb export ipc2581` 命令将电路板设计导出为 IPC-2581 格式。"
 
 #. type: Plain text
-#: cli.adoc:508
+#: cli.adoc:766
 msgid ""
-"Usage: `kicad-cli pcb export ipc2581 [--help] [--output OUTPUT_FILE] [--drawing-"
-"sheet SHEET_PATH] [--define-var KEY=VALUE] [--precision PRECISION] [--compress] "
-"[--version VAR] [--units VAR] [--bom-col-int-id FIELD_NAME] [--bom-col-mfg-pn "
-"FIELD_NAME] [--bom-col-mfg FIELD_NAME] [--bom-col-dist-pn FIELD_NAME] [--bom-col-"
-"dist FIELD_NAME] INPUT_FILE`"
+"Usage: `kicad-cli pcb export ipc2581 [--help] [--output OUTPUT_FILE] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--precision PRECISION] [--compress] [--version VAR] [--units VAR] [--bom-col-int-id FIELD_NAME] [--bom-col-mfg-pn FIELD_NAME] [--bom-"
+"col-mfg FIELD_NAME] [--bom-col-dist-pn FIELD_NAME] [--bom-col-dist FIELD_NAME] INPUT_FILE`"
 msgstr ""
-"用法： `kicad-cli pcb export ipc2581 [--help] [--output OUTPUT_FILE] [--drawing-"
-"sheet SHEET_PATH] [--define-var KEY=VALUE] [--precision PRECISION] [--compress] "
-"[--version VAR] [--units VAR] [--bom-col-int-id FIELD_NAME] [--bom-col-mfg-pn "
-"FIELD_NAME] [--bom-col-mfg FIELD_NAME] [--bom-col-dist-pn FIELD_NAME] [--bom-col-"
-"dist FIELD_NAME] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:556
+#: cli.adoc:779
+#, no-wrap
+msgid "Show help for the IPC-2581 export command."
+msgstr "显示 IPC-2581 导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:782
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the IPC-2581 export command.\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | The output filename. When this argument is not used, the output filename\n"
-"      will be the same as the input file, with the `.xml` file extension.\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
-"      specified in the board file.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `--precision <precision>`\n"
-"    | The precision (number of digits after the decimal separator) for the\n"
-"      exported file. The default is `3`.\n"
-"| `--compress`\n"
-"    | Compress output file as a ZIP file.\n"
-"| `--version <IPC-2581 standard version>`\n"
-"    | IPC-2581 standard version to use. Options are `B` or `C` (default).\n"
-"| `--units`\n"
-"    | Units to use in export. Options are `mm` (default) or `in`.\n"
-"| `--bom-col-int-id`\n"
-"    | Name of the part field to use for the Bill of Materials Internal ID\n"
-"      column. This can be any footprint field, or blank to omit this column.\n"
-"| `--bom-col-mfg-pn`\n"
-"    | Name of the part field to use for the Bill of Materials Manufacturer Part\n"
-"      Number column. This can be any footprint field, or blank to omit this\n"
-"      column.\n"
-"| `--bom-col-mfg`\n"
-"    | Name of the part field to use for the Bill of Materials Manufacturer\n"
-"      column. This can be any footprint field, or blank to omit this column.\n"
-"| `--bom-col-dist-pn`\n"
-"    | Name of the part field to use for the Bill of Materials Distributor Part\n"
-"      Number column. This can be any footprint field, or blank to omit this\n"
-"      column.\n"
-"| `--bom-col-dist`\n"
-"    | Name of the part field to use for the Bill of Materials Distributor\n"
-"      column. This can be any footprint field, or blank to omit this column.\n"
+"The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.xml` file extension."
+msgstr "输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，并带有 `.xml` 文件扩展名。"
+
+#. type: Table
+#: cli.adoc:791
+#, no-wrap
+msgid ""
+"The precision (number of digits after the decimal separator) for the\n"
+"      exported file. The default is `6`."
+msgstr "导出文件的精度（小数点后位数）。默认值为 `6`。"
+
+#. type: Table
+#: cli.adoc:792
+#, no-wrap
+msgid "`--compress`"
 msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示 IPC-2581 输出命令的帮助。\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | 输出文件名。不使用此参数时，输出文件名将与输入文件相同，文件扩展名为 `.xml`。\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | 在绘图中使用的图纸路径，优先于电路板文件中指定的图纸。\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | 添加或覆盖工程变量定义。可多次使用以定义多个变量。\n"
-"| `--precision <precision>`\n"
-"    | 导出文件的精度（小数点后的位数）。默认为 `3`。\n"
-"| `--compress`\n"
-"    | 将输出文件压缩为 ZIP 文件。\n"
-"| `--version <IPC-2581 standard version>`\n"
-"    | 要使用的 IPC-2581 标准版本。选项为 `B` 或 `C`（默认）。\n"
-"| `--units`\n"
-"    | 导出时要使用的单位。选项为 `mm`（默认）或 `in`。\n"
-"| `--bom-col-int-id`\n"
-"    | 定义 BOM 中零件内部 ID 的列标题。可以是任何封装字段，或留空以省略该列。\n"
-"| `--bom-col-mfg-pn`\n"
-"    | 定义 BOM 中制造商零件编号名称的列标题。可以是任何封装字段，或留空以省略该列。\n"
-"| `--bom-col-mfg`\n"
-"    | 定义 BOM 中制造商零件的列标题。可以是任何封装字段，或留空以省略该列。\n"
-"| `--bom-col-dist-pn`\n"
-"    | 定义 BOM 中分销商零件编号名称的列标题。可以是任何封装字段，或留空以省略该列。\n"
-"| `--bom-col-dist`\n"
-"    | 定义 BOM 中分销商零件的列标题。可以是任何封装字段，或留空以省略该列。\n"
+
+#. type: Table
+#: cli.adoc:793
+#, no-wrap
+msgid "Compress output file as a ZIP file."
+msgstr "将输出文件压缩为 ZIP 文件。"
+
+#. type: Table
+#: cli.adoc:794
+#, no-wrap
+msgid "`--version <IPC-2581 standard version>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:795
+#, no-wrap
+msgid "IPC-2581 standard version to use. Options are `B` or `C` (default)."
+msgstr "使用 IPC-2581 标准版本。可选项为 `B` 或 `C`（默认）。"
+
+#. type: Table
+#: cli.adoc:796
+#, no-wrap
+msgid "`--units`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:797
+#, no-wrap
+msgid "Units to use in export. Options are `mm` (default) or `in`."
+msgstr "用于导出的单位。可选单位为 `mm`（默认）或 `in`。"
+
+#. type: Table
+#: cli.adoc:798
+#, no-wrap
+msgid "`--bom-col-int-id`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:800
+#, no-wrap
+msgid ""
+"Name of the part field to use for the Bill of Materials Internal ID\n"
+"      column. This can be any footprint field, or blank to omit this column."
+msgstr "用于 BOM 内部 ID 列的元件字段名称。可以是任何封装字段，或留空以省略该列。"
+
+#. type: Table
+#: cli.adoc:801
+#, no-wrap
+msgid "`--bom-col-mfg-pn`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:804
+#, no-wrap
+msgid ""
+"Name of the part field to use for the Bill of Materials Manufacturer Part\n"
+"      Number column. This can be any footprint field, or blank to omit this\n"
+"      column."
+msgstr "用于 BOM 制造商元件编号列的元件字段名称。可以是任何封装字段，或留空以省略该列。"
+
+#. type: Table
+#: cli.adoc:805
+#, no-wrap
+msgid "`--bom-col-mfg`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:807
+#, no-wrap
+msgid ""
+"Name of the part field to use for the Bill of Materials Manufacturer\n"
+"      column. This can be any footprint field, or blank to omit this column."
+msgstr "用于 BOM 制造商列的元件字段名称。可以是任何封装字段，或留空以省略该列。"
+
+#. type: Table
+#: cli.adoc:808
+#, no-wrap
+msgid "`--bom-col-dist-pn`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:811
+#, no-wrap
+msgid ""
+"Name of the part field to use for the Bill of Materials Distributor Part\n"
+"      Number column. This can be any footprint field, or blank to omit this\n"
+"      column."
+msgstr "用于 BOM 分销商元件编号列的元件字段名称。可以是任何封装字段，或留空以省略该列。"
+
+#. type: Table
+#: cli.adoc:812
+#, no-wrap
+msgid "`--bom-col-dist`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:814
+#, no-wrap
+msgid ""
+"Name of the part field to use for the Bill of Materials Distributor\n"
+"      column. This can be any footprint field, or blank to omit this column."
+msgstr "用于 BOM 分销商列的元件字段名称。可以是任何封装字段，或留空以省略该列。"
 
 #. type: Title ===
-#: cli.adoc:558
+#: cli.adoc:816
+#, no-wrap
+msgid "PCB IPC-D-356 export"
+msgstr "PCB IPC-D-356 导出"
+
+#. type: Plain text
+#: cli.adoc:819
+msgid "The `pcb export ipcd356` command generates an IPC-D-356 netlist from the board design."
+msgstr "`pcb export ipcd356` 命令从电路板设计中生成 IPC-D-356 网表。"
+
+#. type: Plain text
+#: cli.adoc:821
+msgid "Usage: `kicad-cli pcb export ipcd356 [--help] [--output OUTPUT_FILE] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:836
+#, no-wrap
+msgid "Show help for the IPC-D-356 export command."
+msgstr "显示 IPC-D-356 导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:839
+#, no-wrap
+msgid ""
+"The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.d356` file extension."
+msgstr "输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，并带有 `.d356` 文件扩展名。"
+
+#. type: Title ===
+#: cli.adoc:841
+#, no-wrap
+msgid "PCB ODB++ export"
+msgstr "PCB ODB++ 导出"
+
+#. type: Plain text
+#: cli.adoc:844
+msgid "The `pcb export odb` command exports a board design in ODB++ format."
+msgstr "`pcb export odb` 命令将电路板设计导出为 ODB++ 格式。"
+
+#. type: Plain text
+#: cli.adoc:846
+msgid "Usage: `kicad-cli pcb export odb [--help] [--output OUTPUT_FILE] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--precision PRECISION] [--compression VAR] [--units VAR] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:863
+#, no-wrap
+msgid "Show help for the ODB++ export command."
+msgstr "显示 ODB++ 导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:865
+#, no-wrap
+msgid "The output filename, or folder name if no compression is used."
+msgstr "输出文件名，或在不使用压缩时为文件夹名。"
+
+#. type: Table
+#: cli.adoc:874
+#, no-wrap
+msgid ""
+"The precision (number of digits after the decimal separator) for the\n"
+"      exported file. The default is `2`."
+msgstr "导出文件的精度（小数点后位数）。默认值为 `2`。"
+
+#. type: Table
+#: cli.adoc:875
+#, no-wrap
+msgid "`--compression <mode>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:876
+#, no-wrap
+msgid "Compression mode. Options are `none`, `zip` (default), or `tgz`."
+msgstr "压缩模式。可选项为 `none`、`zip`（默认）或 `tgz`。"
+
+#. type: Table
+#: cli.adoc:878
+#, no-wrap
+msgid "Units to use in the output file. Options are `mm` (default) or `in`."
+msgstr "输出文件中使用的单位。可选单位为 `mm`（默认）或 `in`。"
+
+#. type: Title ===
+#: cli.adoc:880
 #, no-wrap
 msgid "PCB PDF export"
 msgstr "PCB PDF 导出"
 
 #. type: Plain text
-#: cli.adoc:561
-msgid "The `pcb export pdf` command exports a board design to a PDF file."
-msgstr "将 `pcb export pdf` 命令导出电路板设计为 PDF 文件。"
+#: cli.adoc:883
+msgid "The `pcb export pdf` command exports a board design to a PDF file. Each layer can be plotted as its own file or as a sheet within a single file."
+msgstr "`pcb export pdf` 命令将电路板设计导出为 PDF 文件。每个层可以单独导出为独立的文件，也可以作为单个文件中的一个页面进行导出。"
 
 #. type: Plain text
-#: cli.adoc:567
+#: cli.adoc:885
 msgid ""
-"Usage: `kicad-cli pcb export pdf [--help] [--output OUTPUT_FILE] [--layers "
-"LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--mirror] [--"
-"exclude-refdes] [--exclude-value] [--include-border-title] [--negative] [--black-"
-"and-white] [--theme THEME_NAME] [--drill-shape-opt VAR] INPUT_FILE`"
+"Usage: `kicad-cli pcb export pdf [--help] [--output OUTPUT_DIR] [--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--mirror] [--exclude-refdes] [--exclude-value] [--include-border-title] [--subtract-soldermask] [--sketch-pads-on-fab-"
+"layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--negative] [--black-and-white] [--theme THEME_NAME] [--drill-shape-opt VAR] [--common-layers COMMON_LAYER_LIST] [--plot-"
+"invisible-text] [--mode-single] [--mode-separate] [--mode-multipage] [--scale SCALE] [--bg-color COLOR] INPUT_FILE`"
 msgstr ""
-"用法： `kicad-cli pcb export pdf [--help] [--output OUTPUT_FILE] [--layers "
-"LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--mirror] [--"
-"exclude-refdes] [--exclude-value] [--include-border-title] [--negative] [--black-"
-"and-white] [--theme THEME_NAME] [--drill-shape-opt VAR] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:612
+#: cli.adoc:900
+#, no-wrap
+msgid "Show help for the PDF export command."
+msgstr "显示 PDF 导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:907
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the PDF export command.\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | The output filename. When this argument is not used, the output filename\n"
-"      will be the same as the input file, with the `.pdf` file extension.\n"
-"| `-l <layer list>`, `--layers <layer list>`\n"
-"    | A comma-separated list of layer names to export from the board, such as\n"
-"      `F.Cu,B.Cu`. At least one layer must be given.\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
-"      specified in the board file.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `-m`, `--mirror`\n"
-"    | Mirror the board. This can be useful for showing bottom layers.\n"
-"| `--erd`, `--exclude-refdes`\n"
-"    | Exclude footprint reference designators from plot.\n"
-"| `--ev`, `--exclude-value`\n"
-"    | Exclude footprint values from plot.\n"
-"| `--ibt`, `--include-border-title`\n"
-"    | Include the sheet border and title block.\n"
-"| `-n`, `--negative`\n"
-"    | Plot in negative.\n"
-"| `--black-and-white`\n"
-"    | Plot in black and white.\n"
-"| `-t <theme name>`, `--theme <theme name>`\n"
-"    | The name of the theme to use for export. If no theme is given, the\n"
-"      board editor's currently selected theme is used.\n"
-"| `--drill-shape-opt`\n"
-"    | The shape of drill marks in the plot. Options are `0` for no drill marks,\n"
-"      `1` for small marks, or `2` for actual size marks (default).\n"
+"The output folder or filename for the exported files. When `--mode-single`\n"
+"      or `--mode-multipage` is used, this is the output filename. If this\n"
+"      argument is not used, the output filename will be the same as the input\n"
+"      file, with the `.pdf` file extension. When `--mode-separate` is used, this is\n"
+"      the output directory. If `--output` is not used, the files are exported\n"
+"      to the current directory."
 msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示 PDF 导出命令的帮助信息。\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | 指定输出文件名。如果不使用此参数，输出文件名将与输入文件相同，但后缀为 `.pdf`。\n"
-"| `-l <layer list>`, `--layers <layer list>`\n"
-"    | 从电路板导出的图层名称列表，以逗号分隔，如 `F.Cu,B.Cu`。至少需要指定一个图层。\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | 指定在绘制过程中使用的图纸路径，覆盖电路板文件中指定的图纸。\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | 添加或覆盖工程变量定义。可多次使用以定义多个变量。\n"
-"| `-m`, `--mirror`\n"
-"    | 镜像电路板。这对于显示底层可能很有用。\n"
-"| `--erd`, `--exclude-refdes`\n"
-"    | 在绘制时排除元件封装的位号。\n"
-"| `--ev`, `--exclude-value`\n"
-"    | 在绘制时排除元件封装的值。\n"
-"| `--ibt`, `--include-border-title`\n"
-"    | 包含图纸边框和标题栏。\n"
-"| `-n`, `--negative`\n"
-"    | 以负片形式绘制。\n"
-"| `--black-and-white`\n"
-"    | 以黑白模式绘制。\n"
-"| `-t <theme name>`, `--theme <theme name>`\n"
-"    | 指定导出时使用主题的名称。如果没有给出主题，将使用电路板编辑器当前选定的主题。\n"
-"| `--drill-shape-opt`\n"
-"    | 绘制中钻孔标记的形状选项。可选值为 `0`（无钻孔标记）、`1`（小标记）或 `2`（实际尺寸标记，默认）。\n"
+
+#. type: Table
+#: cli.adoc:913 cli.adoc:1136
+#, no-wrap
+msgid ""
+"A comma-separated list of layer names to export from the board, such as\n"
+"      `F.Cu,B.Cu`. At least one layer must be given. Layer names can be\n"
+"      specified as canonical layer names (`F.Cu`, `In.1`, `F.Fab`, etc.) or as \n"
+"      user-defined (custom) layer names, but user-defined layer names are matched\n"
+"      first."
+msgstr "从电路板中导出的图层名称列表，以逗号分隔，例如 `F.Cu,B.Cu`。必须至少指定一个图层。图层名称可以指定为规范图层名称（如 `F.Cu`、`In.1`、`F.Fab` 等）或用户自定义（自定义）图层名称，但优先匹配用户自定义图层名称。"
+
+#. type: Table
+#: cli.adoc:920 cli.adoc:1149 cli.adoc:1399
+#, no-wrap
+msgid "`-m`, `--mirror`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:921 cli.adoc:1150 cli.adoc:1400
+#, no-wrap
+msgid "Mirror the board. This can be useful for showing bottom layers."
+msgstr "镜像电路板。这对于显示底层电路非常有用。"
+
+#. type: Table
+#: cli.adoc:938 cli.adoc:1167 cli.adoc:1404
+#, no-wrap
+msgid "`-n`, `--negative`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:939 cli.adoc:1168 cli.adoc:1405
+#, no-wrap
+msgid "Plot in negative."
+msgstr "在负片上绘制。"
+
+#. type: Table
+#: cli.adoc:941 cli.adoc:1170 cli.adoc:1407
+#, no-wrap
+msgid "Plot in black and white."
+msgstr "黑白绘制。"
+
+#. type: Table
+#: cli.adoc:944 cli.adoc:1173 cli.adoc:1403
+#, no-wrap
+msgid ""
+"The name of the theme to use for export. If no theme is given, the\n"
+"      board editor's currently selected theme is used."
+msgstr "用于导出的主题名称。如果未指定主题，则使用板编辑器当前选定的主题。"
+
+#. type: Table
+#: cli.adoc:945 cli.adoc:1174 cli.adoc:1425
+#, no-wrap
+msgid "`--drill-shape-opt`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:958
+#, no-wrap
+msgid "Generates a single file with the output arg path acting as the complete directory and filename path. `COMMON_LAYER_LIST` does not function in this mode. Instead `LAYER_LIST` controls all layers plotted. All specified layers are plotted on a single page."
+msgstr "生成一个单一文件，输出参数路径作为完整的目录和文件名路径。在此模式下，`COMMON_LAYER_LIST` 不起作用，而是由 `LAYER_LIST` 控制所有绘制的图层。所有指定的图层将绘制在同一页面上。"
+
+#. type: Table
+#: cli.adoc:959
+#, no-wrap
+msgid "`--mode-separate`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:962 cli.adoc:1182
+#, no-wrap
+msgid ""
+"Plot the layers to one or more PDF files, with each file representing a\n"
+"      single layer from `LAYER_LIST`. The output path specifies the directory in\n"
+"      which the files will be written."
+msgstr "将图层绘制为一个或多个 PDF 文件，每个文件代表 `LAYER_LIST` 中的一个单独图层。输出路径指定了文件将被写入的目录。"
+
+#. type: Table
+#: cli.adoc:963 cli.adoc:1179
+#, no-wrap
+msgid "`--mode-multipage`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:966
+#, no-wrap
+msgid ""
+"Plot the layers to a single PDF file with multiple pages, with each page\n"
+"      representing a single layer from `LAYER_LIST`. The output path specifies\n"
+"      the complete directory and filename path."
+msgstr "将图层绘制到一个包含多页的 PDF 文件中，每页代表 `LAYER_LIST` 中的一个单独图层。输出路径指定完整的目录和文件名路径。"
+
+#. type: Table
+#: cli.adoc:970
+#, no-wrap
+msgid "`--bg-color <color>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:972
+#, no-wrap
+msgid ""
+"A background color for the plot. The format can be hex (`#rrggbb` or\n"
+"      `#rrggbbaa`) or CSS (`rgb(r,g,b)` or `rgba(r,g,b,a)`)."
+msgstr "为图表设置背景颜色。格式可以是十六进制（`#rrggbb` 或 `#rrggbbaa`）或 CSS（`rgb(r,g,b)` 或 `rgba(r,g,b,a)`）。"
 
 #. type: Title ===
-#: cli.adoc:614
+#: cli.adoc:974
+#, no-wrap
+msgid "PCB PLY file export"
+msgstr "PCB PLY 文件导出"
+
+#. type: Plain text
+#: cli.adoc:977
+msgid "The `pcb export ply` command exports a board design to a PLY 3D model file."
+msgstr "`pcb export ply` 命令将电路板设计导出为 PLY 3D 模型文件。"
+
+#. type: Plain text
+#: cli.adoc:979
+msgid ""
+"Usage: `kicad-cli pcb export ply [--help] [--output OUTPUT_FILE] [--define-var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--grid-origin] [--drill-origin] [--subst-models] [--board-only] [--cut-vias-in-body] [--no-board-body] [--no-components] [--"
+"component-filter VAR] [--include-tracks] [--include-pads] [--include-zones] [--include-inner-copper] [--include-silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-vias] [--min-distance MIN_DIST] [--net-filter VAR] [--user-origin VAR] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:994
+#, no-wrap
+msgid "Show help for the PLY export command."
+msgstr "显示 PLY 导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:997
+#, no-wrap
+msgid ""
+"The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.ply` file extension."
+msgstr "输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，并带有 `.ply` 文件扩展名。"
+
+#. type: Title ===
+#: cli.adoc:1052
 #, no-wrap
 msgid "PCB position file export"
 msgstr "PCB 位置文件导出"
 
 #. type: Plain text
-#: cli.adoc:617
+#: cli.adoc:1055
 msgid "The `pcb export pos` command exports a position file from a board design."
 msgstr "`pcb export pos` 命令从电路板设计中导出位置文件。"
 
 #. type: Plain text
-#: cli.adoc:621
-msgid ""
-"Usage: `kicad-cli pcb export pos [--help] [--output OUTPUT_FILE] [--side VAR] [--"
-"format FORMAT] [--units UNITS] [--bottom-negate-x] [--use-drill-file-origin] [--"
-"smd-only] [--exclude-fp-th] [--exclude-dnp] [--gerber-board-edge] INPUT_FILE`"
+#: cli.adoc:1057
+msgid "Usage: `kicad-cli pcb export pos [--help] [--output OUTPUT_FILE] [--side VAR] [--format FORMAT] [--units UNITS] [--bottom-negate-x] [--use-drill-file-origin] [--smd-only] [--exclude-fp-th] [--exclude-dnp] [--gerber-board-edge] INPUT_FILE`"
 msgstr ""
-"用法： `kicad-cli pcb export pos [--help] [--output OUTPUT_FILE] [--side VAR] [--"
-"format FORMAT] [--units UNITS] [--bottom-negate-x] [--use-drill-file-origin] [--"
-"smd-only] [--exclude-fp-th] [--exclude-dnp] [--gerber-board-edge] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:664
+#: cli.adoc:1073
+#, no-wrap
+msgid "Show help for the position file export command."
+msgstr "显示位置文件导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:1076
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the position file export command.\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | The output filename. When this argument is not used, the output filename\n"
-"      will be the same as the input file, with the `.pos` file extension.\n"
-"| `--side <side>`\n"
-"    | The side of the board to export. Options are `front`, `back`, or `both`\n"
-"      (default). Gerber format does not support `both`.\n"
-"| `--format <format>`\n"
-"    | The position file format. Options are `ascii` (default), `csv`, or\n"
-"      `gerber`.\n"
-"| `--units <unit>`\n"
-"    | Units for position file. Options are `in` (default) or `mm`. This option\n"
-"      has no effect for Gerber format.\n"
-"| `--bottom-negate-x`\n"
-"    | Use negative X coordinates for footprints on the bottom layer. This\n"
-"      option has no effect for Gerber format.\n"
-"| `--use-drill-file-origin`\n"
-"    | Use drill/place file origin instead of absolute origin. This option has no\n"
-"      effect for Gerber format.\n"
-"| `--smd-only`\n"
-"    | Include only surface-mount components. This option has no effect for\n"
-"      Gerber format.\n"
-"| `--exclude-fp-th`\n"
-"    | Exclude all footprints with through-hole pads. This option has no effect\n"
-"      for Gerber format.\n"
-"| `--exclude-dnp`\n"
-"    | Exclude all footprints with \"Do not populate\" attribute.\n"
-"| `--gerber-board-edge`\n"
-"    | Include board edge layer in export (Gerber format only).\n"
+"The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.pos` file extension."
+msgstr "输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，并带有 `.pos` 文件扩展名。"
+
+#. type: Table
+#: cli.adoc:1077 cli.adoc:1605
+#, no-wrap
+msgid "`--side <side>`"
 msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示位置文件导出命令的帮助信息。\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | 设置输出文件名。如果不使用此参数，输出文件名将与输入文件相同，但后缀为 `.pos`。\n"
-"| `--side <side>`\n"
-"    | 指定要导出的电路板面。选项有 `front`（正面）、`back`（背面）或 `both`（双面，默认）。Gerber 格式不支持 `both` 选项。\n"
-"| `--format <format>`\n"
-"    | 位置文件的格式。选项有 `ascii`（默认）、`csv` 或 `gerber`。\n"
-"| `--units <unit>`\n"
-"    | 位置文件中的单位。选项有 `in`（英寸，默认）或 `mm`（毫米）。此选项对 Gerber 格式无效。\n"
-"| `--bottom-negate-x`\n"
-"    | 对底层的元件封装使用负 X 坐标。此选项对 Gerber 格式无效。\n"
-"| `--use-drill-file-origin`\n"
-"    | 使用钻孔/放置文件的原点而非绝对原点。此选项对 Gerber 格式无效。\n"
-"| `--smd-only`\n"
-"    | 只包含表面贴装技术 (SMT) 元件。此选项对 Gerber 格式无效。\n"
-"| `--exclude-fp-th`\n"
-"    | 排除所有带有通孔焊盘的封装。此选项对 Gerber 格式无效。\n"
-"| `--exclude-dnp`\n"
-"    | 排除所有具有 “不安装” (DNP) 属性的封装。\n"
-"| `--gerber-board-edge`\n"
-"    | 导出时包含电路板边缘层（仅限 Gerber 格式）。\n"
+
+#. type: Table
+#: cli.adoc:1079
+#, no-wrap
+msgid ""
+"The side of the board to export. Options are `front`, `back`, or `both`\n"
+"      (default). Gerber format does not support `both`."
+msgstr "要导出的电路板侧面。可选项为 `front`（正面）、`back`（背面）或 `both`（两面）（默认）。Gerber 格式不支持 `both`。"
+
+#. type: Table
+#: cli.adoc:1082
+#, no-wrap
+msgid ""
+"The position file format. Options are `ascii` (default), `csv`, or\n"
+"      `gerber`."
+msgstr "位置文件格式。可选格式包括 `ascii`（默认）、`csv` 或 `gerber`。"
+
+#. type: Table
+#: cli.adoc:1085
+#, no-wrap
+msgid ""
+"Units for position file. Options are `in` (default) or `mm`. This option\n"
+"      has no effect for Gerber format."
+msgstr "位置文件的单位。可选值为 `in`（默认）或 `mm`。此选项对 Gerber 格式无效。"
+
+#. type: Table
+#: cli.adoc:1086
+#, no-wrap
+msgid "`--bottom-negate-x`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1088
+#, no-wrap
+msgid ""
+"Use negative X coordinates for footprints on the bottom layer. This\n"
+"      option has no effect for Gerber format."
+msgstr "在底层的封装中使用负 X 坐标。此选项对 Gerber 格式无效。"
+
+#. type: Table
+#: cli.adoc:1091
+#, no-wrap
+msgid ""
+"Use drill/place file origin instead of absolute origin. This option has no\n"
+"      effect for Gerber format."
+msgstr "使用钻孔/放置文件原点而非绝对原点。此选项对 Gerber 格式无效。"
+
+#. type: Table
+#: cli.adoc:1092
+#, no-wrap
+msgid "`--smd-only`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1094
+#, no-wrap
+msgid ""
+"Include only surface-mount components. This option has no effect for\n"
+"      Gerber format."
+msgstr "仅包含表面贴装元件。此选项对 Gerber 格式无效。"
+
+#. type: Table
+#: cli.adoc:1095
+#, no-wrap
+msgid "`--exclude-fp-th`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1097
+#, no-wrap
+msgid ""
+"Exclude all footprints with through-hole pads. This option has no effect\n"
+"      for Gerber format."
+msgstr "排除所有带有通孔焊盘的焊盘。此选项对 Gerber 格式无效。"
+
+#. type: Table
+#: cli.adoc:1098 cli.adoc:1750
+#, no-wrap
+msgid "`--exclude-dnp`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1099
+#, no-wrap
+msgid "Exclude all footprints with \"Do not populate\" attribute."
+msgstr "排除所有具有 “DNP” 属性的封装。"
+
+#. type: Table
+#: cli.adoc:1100
+#, no-wrap
+msgid "`--gerber-board-edge`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1101
+#, no-wrap
+msgid "Include board edge layer in export (Gerber format only)."
+msgstr "在导出时包含电路板边缘层（仅限 Gerber 格式）。"
 
 #. type: Title ===
-#: cli.adoc:666
+#: cli.adoc:1103
+#, no-wrap
+msgid "PCB PostScript export"
+msgstr "PCB PostScript 导出"
+
+#. type: Plain text
+#: cli.adoc:1106
+msgid "The `pcb export ps` command exports a board design to a PostScript file."
+msgstr "`pcb export ps` 命令将电路板设计导出为 PostScript 文件。"
+
+#. type: Plain text
+#: cli.adoc:1108
+msgid ""
+"Usage: `kicad-cli pcb export ps [--help] [--output OUTPUT_DIR] [--layers LAYER_LIST] [--common-layers COMMON_LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE]... [--mirror] [--exclude-refdes] [--exclude-value] [--include-border-title] [--"
+"subtract-soldermask] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--negative] [--black-and-white] [--theme THEME_NAME] [--drill-shape-opt VAR] [--mode-"
+"single] [--mode-multi] [--track-width-correction TRACK_COR] [--x-scale-factor X_SCALE] [--y-scale-factor Y_SCALE] [--force-a4] [--scale SCALE] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1123
+#, no-wrap
+msgid "Show help for the PS export command."
+msgstr "显示 PS 导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:1183
+#, no-wrap
+msgid "`--C`, `--track-width-correction`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1186
+#, no-wrap
+msgid ""
+"A global correction, in millimeters, that is added to the size of tracks,\n"
+"      vias, and pads when plotted. This correction can be used to correct for\n"
+"      errors in the PostScript output device to achieve an exact-scale output."
+msgstr "全局校正，以毫米为单位，在绘制时添加到走线、过孔和焊盘的尺寸上。此校正可用于修正 PostScript 输出设备的误差，以实现精确比例的输出。"
+
+#. type: Table
+#: cli.adoc:1187
+#, no-wrap
+msgid "`--X`, `--x-scale-factor`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1188
+#, no-wrap
+msgid "X scale adjust for exact scale."
+msgstr "X 轴比例调整以实现精确比例。"
+
+#. type: Table
+#: cli.adoc:1189
+#, no-wrap
+msgid "`--Y`, `--y-scale-factor`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1190
+#, no-wrap
+msgid "Y scale adjust for exact scale."
+msgstr "Y 轴比例调整以实现精确比例。"
+
+#. type: Table
+#: cli.adoc:1191
+#, no-wrap
+msgid "`--A`, `--force-a4`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1192
+#, no-wrap
+msgid "Force A4 paper size."
+msgstr "强制使用 A4 纸张尺寸。"
+
+#. type: Table
+#: cli.adoc:1195
+#, no-wrap
+msgid ""
+"A scaling factor to use for plotting the pcb. The border and title block\n"
+"      are not scaled. A scale factor of 0 autoscales the plot."
+msgstr "用于绘制 PCB 的缩放比例因子。边框和标题栏不进行缩放。缩放因子为 0 时，自动调整绘图比例。"
+
+#. type: Title ===
+#: cli.adoc:1197
 #, no-wrap
 msgid "PCB STEP export"
 msgstr "PCB STEP 导出"
 
 #. type: Plain text
-#: cli.adoc:669
+#: cli.adoc:1200
 msgid "The `pcb export step` command exports a board design to a STEP file."
 msgstr "`pcb export step` 命令将电路板设计导出为 STEP 文件。"
 
 #. type: Plain text
-#: cli.adoc:675
+#: cli.adoc:1202
 msgid ""
-"Usage: `kicad-cli pcb export step [--help] [--output OUTPUT_FILE] [--define-var "
-"KEY=VALUE] [--force] [--grid-origin] [--drill-origin] [--no-unspecified] [--no-"
-"dnp] [--subst-models] [--board-only] [--include-tracks] [--include-zones] [--min-"
-"distance MIN_DIST] [--no-optimize-step] [--user-origin VAR] INPUT_FILE`"
+"Usage: `kicad-cli pcb export step [--help] [--output OUTPUT_FILE] [--define-var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--grid-origin] [--drill-origin] [--subst-models] [--board-only] [--cut-vias-in-body] [--no-board-body] [--no-components] [--"
+"component-filter VAR] [--include-tracks] [--include-pads] [--include-zones] [--include-inner-copper] [--include-silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-vias] [--min-distance MIN_DIST] [--net-filter VAR] [--no-optimize-step] [--user-"
+"origin VAR] INPUT_FILE`"
 msgstr ""
-"用法： `kicad-cli pcb export step [--help] [--output OUTPUT_FILE] [--define-var "
-"KEY=VALUE] [--force] [--grid-origin] [--drill-origin] [--no-unspecified] [--no-"
-"dnp] [--subst-models] [--board-only] [--include-tracks] [--include-zones] [--min-"
-"distance MIN_DIST] [--no-optimize-step] [--user-origin VAR] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:727
+#: cli.adoc:1217
+#, no-wrap
+msgid "Show help for the STEP file export command."
+msgstr "`pcb export gerbers` 命令将电路板设计导出为 Gerber 文件，每个文件对应一层。显示 STEP 文件导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:1220
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the STEP file export command.\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | The output filename. When this argument is not used, the output filename\n"
-"      will be the same as the input file, with the `.step` file extension.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `-f`, `--force`\n"
-"    | Overwrite output file.\n"
-"| `--grid-origin`\n"
-"    | Use grid origin as origin of output file.\n"
-"| `--drill-origin`\n"
-"    | Use drill origin as origin of output file.\n"
-"| `--no-unspecified`\n"
-"    | Exclude 3D models of components with 'unspecified' footprint type.\n"
-"| `--no-dnp`\n"
-"    | Exclude 3D models of components with 'Do not populate' attribute.\n"
-"| `--subst-models`\n"
-"    | Replace VRML models in footprints with STEP models of the same name, if\n"
-"      they exist.\n"
-"| `--board-only`\n"
-"    | Only include the board itself in the generated model; exclude all\n"
-"      component models.\n"
-"| `--include-tracks`\n"
-"    | Include tracks in export (time consuming).\n"
-"| `--include-zones`\n"
-"    | Include zones in export (time consuming).\n"
-"| `--min-distance <min distance>`\n"
-"    | Tolerance for considering two points to be in the same location. Default:\n"
-"      `0.01mm`.\n"
-"| `--no-optimize-step`\n"
-"    | Do not optimize STEP file. This enables writing parametric curves, which\n"
-"      reduces file sizes and write/read times, but may reduce compatibility with\n"
-"      other software.\n"
-"| `--user-origin <output origin>`\n"
-"    | Specify a custom origin for the output file, with X and Y coordinates. For\n"
-"      example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is\n"
-"      millimeters.\n"
+"The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.step` file extension."
+msgstr "输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，并带有`.step`文件扩展名。"
+
+#. type: Table
+#: cli.adoc:1270
+#, no-wrap
+msgid "`--no-optimize-step`"
 msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示 STEP 文件导出命令的帮助信息。\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | 设置输出文件名。若省略此参数，输出文件名会与输入文件相同，仅更改后缀为 `.step`。\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | 添加或重置工程的变量定义。可以多次使用以定义多个变量。\n"
-"| `-f`, `--force`\n"
-"    | 强制覆盖输出文件。\n"
-"| `--grid-origin`\n"
-"    | 使用网格原点作为输出文件的坐标原点。\n"
-"| `--drill-origin`\n"
-"    | 使用钻孔原点作为输出文件的坐标原点。\n"
-"| `--no-unspecified`\n"
-"    | 排除封装类型为“未指定”的元件 3D 模型。\n"
-"| `--no-dnp`\n"
-"    | 排除具有“不安装” (DNP) 属性的元件 3D 模型。\n"
-"| `--subst-models`\n"
-"    | 若有同名的 STEP 模型，则替换封装中的 VRML 模型。\n"
-"| `--board-only`\n"
-"    | 仅包含电路板自身在生成的模型中；排除所有元件模型。\n"
-"| `--include-tracks`\n"
-"    | 导出时包括线路（操作耗时）。\n"
-"| `--include-zones`\n"
-"    | 导出时包括区域（操作耗时）。\n"
-"| `--min-distance <min distance>`\n"
-"    | 定义判断两点位于同一位置的误差。默认值：`0.01 mm`。\n"
-"| `--no-optimize-step`\n"
-"    | 不对 STEP 文件进行优化。这样可以写入参数化曲线，减小文件大小和读写时间，但可能会影响与其他软件的兼容性。\n"
-"| `--user-origin <output origin>`\n"
-"    | 自定义输出文件的坐标原点，包括 X 和 Y 坐标。例如，`1x1in`、`1x1inch` 或 `25.4x25.4mm`。默认单位是毫米。\n"
+
+#. type: Table
+#: cli.adoc:1273
+#, no-wrap
+msgid ""
+"Do not optimize STEP file. This enables writing parametric curves, which\n"
+"      reduces file sizes and write/read times, but may reduce compatibility with\n"
+"      other software."
+msgstr "请勿优化 STEP 文件。此操作可实现参数化曲线的写入，从而减少文件大小并缩短写入/读取时间，但可能降低与其他软件的兼容性。"
 
 #. type: Title ===
-#: cli.adoc:729
+#: cli.adoc:1279
+#, no-wrap
+msgid "PCB STL export"
+msgstr "PCB STL 导出"
+
+#. type: Plain text
+#: cli.adoc:1282
+msgid "The `pcb export stl` command exports a board design to an STL 3D model file."
+msgstr "`pcb export stl` 命令将电路板设计导出为 STL 3D 模型文件。"
+
+#. type: Plain text
+#: cli.adoc:1284
+msgid ""
+"Usage: `kicad-cli pcb export stl [--help] [--output OUTPUT_FILE] [--define-var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--grid-origin] [--drill-origin] [--subst-models] [--board-only] [--cut-vias-in-body] [--no-board-body] [--no-components] [--"
+"component-filter VAR] [--include-tracks] [--include-pads] [--include-zones] [--include-inner-copper] [--include-silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-vias] [--min-distance MIN_DIST] [--net-filter VAR] [--user-origin VAR] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1299
+#, no-wrap
+msgid "Show help for the STL export command."
+msgstr "显示 STL 导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:1302
+#, no-wrap
+msgid ""
+"The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.stl` file extension."
+msgstr "输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，并带有 `.stl` 文件扩展名。"
+
+#. type: Title ===
+#: cli.adoc:1357
 #, no-wrap
 msgid "PCB SVG export"
 msgstr "PCB SVG 导出"
 
 #. type: Plain text
-#: cli.adoc:732
+#: cli.adoc:1360
 msgid "The `pcb export svg` command exports a board design to an SVG file."
 msgstr "`pcb export svg` 命令将电路板设计导出为 SVG 文件。"
 
 #. type: Plain text
-#: cli.adoc:738
+#: cli.adoc:1362
 msgid ""
-"Usage: `kicad-cli pcb export svg [--help] [--output OUTPUT_FILE] [--layers "
-"LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--mirror] [--"
-"theme THEME_NAME] [--negative] [--black-and-white] [--page-size-mode MODE] [--"
-"exclude-drawing-sheet] [--drill-shape-opt SHAPE_OPTION] INPUT_FILE`"
+"Usage: `kicad-cli pcb export svg [--help] [--output OUTPUT_DIR] [--layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--subtract-soldermask] [--mirror] [--theme THEME_NAME] [--negative] [--black-and-white] [--sketch-pads-on-fab-layers] "
+"[--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--page-size-mode MODE] [--fit-page-to-board] [--exclude-drawing-sheet] [--drill-shape-opt SHAPE_OPTION] [--common-layers "
+"COMMON_LAYER_LIST] [--mode-single] [--mode-multi] [--plot-invisible-text] [--scale SCALE] INPUT_FILE`"
 msgstr ""
-"用法： `kicad-cli pcb export svg [--help] [--output OUTPUT_FILE] [--layers "
-"LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--mirror] [--"
-"theme THEME_NAME] [--negative] [--black-and-white] [--page-size-mode MODE] [--"
-"exclude-drawing-sheet] [--drill-shape-opt SHAPE_OPTION] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:784
+#: cli.adoc:1377 cli.adoc:1996
+#, no-wrap
+msgid "Show help for the SVG file export command."
+msgstr "显示 SVG 文件导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:1390
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the SVG file export command.\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | The output filename. When this argument is not used, the output filename\n"
-"      will be the same as the input file, with the `.svg` file extension.\n"
-"| `-l <layer list>`, `--layers <layer list>`\n"
-"    | A comma-separated list of layer names to export from the board, such as\n"
-"      `F.Cu,B.Cu`. At least one layer must be given.\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
-"      specified in the board file.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `-m`, `--mirror`\n"
-"    | Mirror the board. This can be useful for showing bottom layers.\n"
-"| `-t <theme name>`, `--theme <theme name>`\n"
-"    | The name of the theme to use for export. If no theme is given, the\n"
-"      board editor's currently selected theme is used.\n"
-"| `-n`, `--negative`\n"
-"    | Plot in negative.\n"
-"| `--black-and-white`\n"
-"    | Plot in black and white.\n"
-"| `--page-size-mode <mode>`\n"
-"    | Set page sizing mode. Options are `0` (default), `1`, or `2`. `0` sets the\n"
+"A comma-separated list of layer names to export from the board, such as\n"
+"      `F.Cu,B.Cu`. At least one layer must be given. Layer names can be\n"
+"      specified as canonical layer names (`F.Cu`, `In.1`, `F.Fab`, etc.) or as\n"
+"      user-defined (custom) layer names, but user-defined layer names are matched\n"
+"      first."
+msgstr "从电路板导出的图层名称列表，以逗号分隔，例如 `F.Cu,B.Cu`。必须至少指定一个图层。图层名称可以指定为规范图层名称（如 `F.Cu`、`In.1`、`F.Fab` 等）或用户自定义（自定义）图层名称，但优先匹配用户自定义的图层名称。"
+
+#. type: Table
+#: cli.adoc:1416
+#, no-wrap
+msgid "`--page-size-mode <mode>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1420
+#, no-wrap
+msgid ""
+"Set page sizing mode. Options are `0` (default), `1`, or `2`. `0` sets the\n"
 "      output page size to fit the entire sheet, including drawing sheet frame\n"
 "      and title block. `1` sets the output page size to match the current page\n"
-"      size. `2` sets the output page size to the size of the board itself.\n"
-"| `--exclude-drawing-sheet`\n"
-"    | Plot SVG without a drawing sheet.\n"
-"| `--drill-shape-opt`\n"
-"    | The shape of drill marks in the plot. Options are `0` for no drill marks,\n"
-"      `1` for small marks, or `2` for actual size marks (default).\n"
+"      size. `2` sets the output page size to the size of the board itself."
+msgstr "设置页面尺寸模式。选项为 `0`（默认）、`1` 或 `2`。`0` 将输出页面尺寸设置为适合整个图纸，包括图框和标题框。`1` 将输出页面尺寸设置为与当前页面尺寸相匹配。`2` 将输出页面尺寸设置为图纸本身的尺寸。"
+
+#. type: Table
+#: cli.adoc:1421
+#, no-wrap
+msgid "`--fit-page-to-board`"
 msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示 SVG 文件导出命令的帮助信息。\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | 设定输出文件名。如果不使用此选项，输出文件名将与输入文件相同，仅修改扩展名为 `.svg`。\n"
-"| `-l <layer list>`, `--layers <layer list>`\n"
-"    | 一个由逗号分隔的图层名称列表，用于从电路板导出，例如 `F.Cu,B.Cu`。至少需要给出一个图层。\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | 指定用于绘图的图纸路径，覆盖电路板文件中指定的图纸。\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | 添加或重设工程变量定义。可多次使用以定义多个变量。\n"
-"| `-m`, `--mirror`\n"
-"    | 镜像电路板。这对于显示底层很有帮助。\n"
-"| `-t <theme name>`, `--theme <theme name>`\n"
-"    | 指定用于导出的主题名称。如果未给出主题，将使用电路板编辑器当前选定的主题。\n"
-"| `-n`, `--negative`\n"
-"    | 以负片模式绘制。\n"
-"| `--black-and-white`\n"
-"    | 以黑白模式绘制。\n"
-"| `--page-size-mode <mode>`\n"
-"    | 设置页面尺寸模式。选项为 `0`（默认），`1`，或 `2`。`0` 使输出页面尺寸适应整个图纸，包括图纸框架和标题栏。`1` 使输出页面尺寸匹配当前页面尺寸。`2` 使输出页面尺寸与电路板本身尺寸一致。\n"
-"| `--exclude-drawing-sheet`\n"
-"    | 绘制 SVG 时不包含图纸。\n"
-"| `--drill-shape-opt`\n"
-"    | 设定绘图中钻孔标记的形状。选项为 `0` 无钻孔标记，`1` 小标记，或 `2` 实际尺寸标记（默认）。\n"
+
+#. type: Table
+#: cli.adoc:1422
+#, no-wrap
+msgid "Set the SVG size to match the board outline. This is equivalent to `--page-size-mode 2`."
+msgstr "将 SVG 大小设置为与电路板外框匹配。这相当于 `--page-size-mode 2`。"
+
+#. type: Table
+#: cli.adoc:1423
+#, no-wrap
+msgid "`--exclude-drawing-sheet`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1424 cli.adoc:2012
+#, no-wrap
+msgid "Plot SVG without a drawing sheet."
+msgstr "在没有图框的情况下绘制 SVG。"
+
+#. type: Table
+#: cli.adoc:1438
+#, no-wrap
+msgid ""
+"Plot the layers to one or more SVG files, with each file representing a\n"
+"      single layer from `LAYER_LIST`. The output path specifies the directory in\n"
+"      which the files will be written."
+msgstr "将图层绘制到一个或多个 SVG 文件中，每个文件代表 `LAYER_LIST` 中的一个单独图层。输出路径指定了文件将被写入的目录。"
 
 #. type: Title ===
-#: cli.adoc:786
+#: cli.adoc:1447
 #, no-wrap
 msgid "PCB VRML export"
 msgstr "PCB VRML 导出"
 
 #. type: Plain text
-#: cli.adoc:789
-msgid "The `pcb export vrml` command exports a board design to a VRML 3D file."
+#: cli.adoc:1450
+msgid "The `pcb export vrml` command exports a board design to a VRML 3D model file."
 msgstr "`pcb export vrml` 命令将电路板设计导出为 VRML 3D 文件。"
 
 #. type: Plain text
-#: cli.adoc:793
-msgid ""
-"Usage: `kicad-cli pcb export vrml [--help] [--output OUTPUT_FILE] [--define-var "
-"KEY=VALUE] [--force] [--user-origin VAR] [--units VAR] [--models-dir VAR] [--"
-"models-relative] INPUT_FILE`"
+#: cli.adoc:1452
+msgid "Usage: `kicad-cli pcb export vrml [--help] [--output OUTPUT_FILE] [--define-var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--user-origin VAR] [--units VAR] [--models-dir VAR] [--models-relative] INPUT_FILE`"
 msgstr ""
-"用法：`kicad-cli pcb export vrml [--help] [--output OUTPUT_FILE] [--define-var "
-"KEY=VALUE] [--force] [--user-origin VAR] [--units VAR] [--models-dir VAR] [--"
-"models-relative] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:828
+#: cli.adoc:1467
+#, no-wrap
+msgid "Show help for the VRML export command."
+msgstr "显示 VRML 导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:1470
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the VRML export command.\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | The output filename. When this argument is not used, the output filename\n"
-"      will be the same as the input file, with the `.wrl` file extension.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `-f`, `--force`\n"
-"    | Overwrite output file.\n"
-"| `--user-origin <output origin>`\n"
-"    | Specify a custom origin for the output file, with X and Y coordinates. For\n"
+"The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.wrl` file extension."
+msgstr "输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，并带有 `.wrl` 文件扩展名。"
+
+#. type: Table
+#: cli.adoc:1483
+#, no-wrap
+msgid ""
+"Specify a custom origin for the output file, with X and Y coordinates. For\n"
 "      example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is\n"
-"      millimeters. If this option is not given, the board center is used.\n"
-"| `--units <units>`\n"
-"    | Units to use in the output file. Options are `mm`, `m`, `in` (default), or\n"
-"      `tenths` (tenths of an inch).\n"
-"| `--models-dir <output model directory>`\n"
-"    | Name of output directory to copy component models into. If not used,\n"
-"      component models are embedded into the output file.\n"
-"| `--models-relative`\n"
-"    | With `--models-dir`, use relative paths in the output file.\n"
+"      millimeters. If this option is not given, the board center is used."
+msgstr "指定输出文件的自定义原点，包括 X 和 Y 坐标。例如，`1x1in`、`1x1inch` 或 `25.4x25.4mm`。默认单位为毫米。如果未指定此选项，则使用电路板中心作为原点。"
+
+#. type: Table
+#: cli.adoc:1484
+#, no-wrap
+msgid "`--units <units>`"
 msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示 VRML 导出命令的帮助信息。\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | 输出文件名。当没有使用这个参数时，输出文件名将与输入文件相同，只是扩展名改为 `.wrl`。\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | 添加或覆盖工程变量定义。可以多次使用来定义多个变量。\n"
-"| `-f`, `--force`\n"
-"    | 强制覆盖输出文件。\n"
-"| `--user-origin <output origin>`\n"
-"    | 指定输出文件的自定义原点，带有 X 和 Y 坐标。例如，`1x1in`，`1x1inch`，或 `25.4x25.4mm`。默认单位是毫米。如果没有给出这个选项，将使用板中心作为原点。\n"
-"| `--units <units>`\n"
-"    | 输出文件中使用的单位。选项有 `mm`，`m`，`in`（默认），或 `tenths`（英寸的十分之一）。\n"
-"| `--models-dir <output model directory>`\n"
-"    | 将元件模型复制到的输出目录名称。如果不使用，元件模型将嵌入到输出文件中。\n"
-"| `--models-relative`\n"
-"    | 在使用 `--models-dir` 时，在输出文件中使用相对路径。\n"
+
+#. type: Table
+#: cli.adoc:1486
+#, no-wrap
+msgid ""
+"Units to use in the output file. Options are `mm`, `m`, `in` (default), or\n"
+"      `tenths` (tenths of an inch)."
+msgstr "输出文件中使用的单位。可选单位包括 `mm`、`m`、`in`（默认）或 `tenths`（英寸的十分之一）。"
+
+#. type: Table
+#: cli.adoc:1487
+#, no-wrap
+msgid "`--models-dir <output model directory>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1489
+#, no-wrap
+msgid ""
+"Name of output directory to copy component models into. If not used,\n"
+"      component models are embedded into the output file."
+msgstr "输出目录的名称，用于复制组件模型。如果未指定，组件模型将嵌入到输出文件中。"
+
+#. type: Table
+#: cli.adoc:1490
+#, no-wrap
+msgid "`--models-relative`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1491
+#, no-wrap
+msgid "With `--models-dir`, use relative paths in the output file."
+msgstr "使用 `--models-dir` 时，输出文件中使用相对路径。"
+
+#. type: Title ===
+#: cli.adoc:1493
+#, no-wrap
+msgid "PCB XAO export"
+msgstr "PCB XAO 导出"
+
+#. type: Plain text
+#: cli.adoc:1497
+msgid "The `pcb export xao` command exports a board design to an XAO (SALOME/Gmsh) 3D model file."
+msgstr "`pcb export xao` 命令将电路板设计导出为 XAO（SALOME/Gmsh）3D 模型文件。"
+
+#. type: Plain text
+#: cli.adoc:1499
+msgid ""
+"Usage: `kicad-cli pcb export xao [--help] [--output OUTPUT_FILE] [--define-var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--grid-origin] [--drill-origin] [--subst-models] [--board-only] [--cut-vias-in-body] [--no-board-body] [--no-components] [--"
+"component-filter VAR] [--include-tracks] [--include-pads] [--include-zones] [--include-inner-copper] [--include-silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-vias] [--min-distance MIN_DIST] [--net-filter VAR] [--user-origin VAR] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1514
+#, no-wrap
+msgid "Show help for the XAO export command."
+msgstr "显示 XAO 导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:1517
+#, no-wrap
+msgid ""
+"The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.xao` file extension."
+msgstr "输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，并带有 `.xao` 文件扩展名。"
+
+#. type: Title ===
+#: cli.adoc:1572
+#, no-wrap
+msgid "PCB render"
+msgstr "PCB 渲染"
+
+#. type: Plain text
+#: cli.adoc:1575
+msgid "The `pcb render` command generates a raytraced rendering of the 3D model of the board and saves it to a PNG or JPEG file."
+msgstr "`pcb render` 命令会生成电路板 3D 模型的光线追踪渲染图，并将其保存为 PNG 或 JPEG 文件。"
+
+#. type: Plain text
+#: cli.adoc:1577
+msgid ""
+"Usage: `kicad-cli pcb render [--help] [--output OUTPUT_FILE] [--define-var KEY=VALUE] [--width WIDTH] [--height HEIGHT] [--side SIDE] [--background BG] [--quality QUALITY] [--preset PRESET] [--floor] [--perspective] [--zoom ZOOM] [--pan VECTOR] [--pivot "
+"PIVOT] [--rotate ANGLES] [--light-top COLOR] [--light-bottom COLOR] [--light-side COLOR] [--light-camera COLOR] [--light-side-elevation ANGLE] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1584
+#, no-wrap
+msgid "Board file to render."
+msgstr "渲染电路板文件。"
+
+#. type: Table
+#: cli.adoc:1592
+#, no-wrap
+msgid "Show help for the render command."
+msgstr "显示渲染命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:1597
+#, no-wrap
+msgid ""
+"The output filename. This argument must be given. The file extension given\n"
+"      in this argument determines the output image file format. The filename\n"
+"      must end with either `.png` (for PNG files) or `.jpg`/`.jpeg` (for JPG\n"
+"      files)."
+msgstr "输出文件名。此参数必须指定。此参数中指定的文件扩展名决定了输出图像文件的格式。文件名必须以 `.png`（用于 PNG 文件）或 `.jpg`/`.jpeg`（用于 JPG 文件）结尾。"
+
+#. type: Table
+#: cli.adoc:1601
+#, no-wrap
+msgid "`-w <width>`, `--width <width>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1602
+#, no-wrap
+msgid "Image width in pixels. Default: `1600`."
+msgstr "图像宽度（以像素为单位）。默认值：`1600`。"
+
+#. type: Table
+#: cli.adoc:1603
+#, no-wrap
+msgid "`-h <height>`, `--height <height>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1604
+#, no-wrap
+msgid "Image height in pixels. Default: `900`."
+msgstr "图像高度（以像素为单位）。默认值：`900`。"
+
+#. type: Table
+#: cli.adoc:1606
+#, no-wrap
+msgid "The side of the board to render. Options are `top` (default), `bottom`, `left`, `right`, `front`, or `back`."
+msgstr "要渲染的板面。可选项包括 `top`（默认）、`bottom`、`left`、`right`、`front` 或 `back`。"
+
+#. type: Table
+#: cli.adoc:1607
+#, no-wrap
+msgid "`--background <background>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1610
+#, no-wrap
+msgid ""
+"Image background. Options are `default` (default), `transparent`, or\n"
+"      `opaque`. For PNG files, `default` is `transparent`. For JPG files,\n"
+"      `default` is `opaque`."
+msgstr "图像背景。可选项为 `default`（默认）、`transparent` 或 `opaque`。对于 PNG 文件，`default` 默认为 `transparent`。对于 JPG 文件， `default` 默认为 `opaque`。"
+
+#. type: Table
+#: cli.adoc:1611
+#, no-wrap
+msgid "`--quality <quality>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1613
+#, no-wrap
+msgid ""
+"Render quality. Options are `basic` (default), `high`, `user`. When `user`\n"
+"      is specified, the render settings stored in the project are used."
+msgstr "渲染质量。可选项包括 `base`（默认）、`high` 和 `user`。当指定 `user` 时，将使用项目中存储的渲染设置。"
+
+#. type: Table
+#: cli.adoc:1614
+#, no-wrap
+msgid "`--preset <color preset>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1616
+#, no-wrap
+msgid ""
+"Color preset. Options are `follow_pcb_editor`, `follow_plot_settings`\n"
+"      (default), or `legacy_preset_flag`."
+msgstr "颜色预设。可选项包括 `follow_pcb_editor`、`follow_plot_settings`（默认）或 `legacy_preset_flag`。"
+
+#. type: Table
+#: cli.adoc:1617
+#, no-wrap
+msgid "`--floor`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1618
+#, no-wrap
+msgid "Enables floor, shadows and post-processing, even if disabled in quality preset."
+msgstr "启用地面、阴影和后期处理效果，即使在质量预设中已禁用。"
+
+#. type: Table
+#: cli.adoc:1619
+#, no-wrap
+msgid "`--perspective`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1620
+#, no-wrap
+msgid "Use perspective projection instead of orthogonal."
+msgstr "使用透视投影而非正交投影。"
+
+#. type: Table
+#: cli.adoc:1621
+#, no-wrap
+msgid "`--zoom <zoom level>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1622
+#, no-wrap
+msgid "Camera zoom factor as an integer. Default: `1`."
+msgstr "相机变焦倍数，以整数形式表示。默认值：`1`。"
+
+#. type: Table
+#: cli.adoc:1623
+#, no-wrap
+msgid "`--pan <camera pan>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1624
+#, no-wrap
+msgid "Set camera pan location, in millimeters, with the format `'X,Y,Z'`, e.g. `'3,0,0'`."
+msgstr "设置摄像头平移位置，单位为毫米，格式为 `'X,Y,Z'`，例如 `'3,0,0'`。"
+
+#. type: Table
+#: cli.adoc:1625
+#, no-wrap
+msgid "`--pivot <pivot>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1627
+#, no-wrap
+msgid ""
+"Set pivot point relative to the board center in centimeters, with the\n"
+"      format `'X,Y,Z'` e.g. `'-10,2,0'`."
+msgstr "将枢轴点相对于板中心的位置以厘米为单位设置，格式为`'X,Y,Z'`，例如`'-10,2,0'`。"
+
+#. type: Table
+#: cli.adoc:1628
+#, no-wrap
+msgid "`--rotate <rotation>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1630
+#, no-wrap
+msgid ""
+"Set board rotation around pivot point, in degrees, with the format\n"
+"      `'X,Y,Z'`, e.g. `'-45,0,45'` for isometric view."
+msgstr "设置板面绕枢轴点的旋转角度，单位为度，格式为 `'X,Y,Z'`，例如 `'-45,0,45'` 用于等轴测视图。"
+
+#. type: Table
+#: cli.adoc:1631
+#, no-wrap
+msgid "`--light-top <intensity>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1632
+#, no-wrap
+msgid "Top light intensity, format `'R,G,B'` or a single number, range: 0-1."
+msgstr "顶部光强度，格式为 `'R,G,B'` 或单个数字，范围：0-1。"
+
+#. type: Table
+#: cli.adoc:1633
+#, no-wrap
+msgid "`--light-bottom <intensity>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1634
+#, no-wrap
+msgid "Bottom light intensity, format `'R,G,B'` or a single number, range: 0-1."
+msgstr "底部光强度，格式为 `'R,G,B'` 或单个数字，范围：0-1。"
+
+#. type: Table
+#: cli.adoc:1635
+#, no-wrap
+msgid "`--light-side <intensity>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1636
+#, no-wrap
+msgid "Side lights intensity, format `'R,G,B'` or a single number, range: 0-1."
+msgstr "侧灯亮度，格式为 `'R,G,B'` 或单个数字，范围：0-1。"
+
+#. type: Table
+#: cli.adoc:1637
+#, no-wrap
+msgid "`--light-camera <intensity>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1638
+#, no-wrap
+msgid "Camera light intensity, format `'R,G,B'` or a single number, range: 0-1."
+msgstr "相机光线强度，格式为 `'R,G,B'` 或单个数字，范围：0-1。"
+
+#. type: Table
+#: cli.adoc:1639
+#, no-wrap
+msgid "`--light-side-elevation <elevation>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1640
+#, no-wrap
+msgid "Side lights elevation angle in degrees, range: 0-90."
+msgstr "侧灯仰角（单位：度），范围：0-90。"
 
 #. type: Title ==
-#: cli.adoc:830
+#: cli.adoc:1642
 #, no-wrap
 msgid "Schematic commands"
 msgstr "原理图命令"
 
 #. type: Plain text
-#: cli.adoc:835
-msgid ""
-"The `sch` command runs an electrical rule check, exports a schematic to various "
-"other file formats, or exports a bill of materials or netlist. Each subcommand "
-"has its own options."
-msgstr ""
-"`sch` 命令用于运行电气规则检查，将原理图导出为其他各种文件格式，或导出物料清单或网"
-"表。每个子命令都有自己的选项。"
+#: cli.adoc:1647
+msgid "The `sch` command runs an electrical rule check, exports a schematic to various other file formats, or exports a bill of materials or netlist. Each subcommand has its own options."
+msgstr "`sch` 命令可运行电气规则检查、将原理图导出为各种其他文件格式，或导出 BOM 或网表。每个子命令都有自己的选项。"
 
 #. type: Title ===
-#: cli.adoc:836
+#: cli.adoc:1648
 #, no-wrap
 msgid "Schematic ERC"
 msgstr "原理图 ERC"
 
 #. type: Plain text
-#: cli.adoc:840
-msgid ""
-"The `sch erc` command runs an electrical rule check on a schematic and generates "
-"a report."
-msgstr "`sch erc` 命令对原理图运行电气规则检查并生成报告。"
+#: cli.adoc:1652
+msgid "The `sch erc` command runs an electrical rule check on a schematic and generates a report."
+msgstr "`sch erc` 命令对原理图进行电气规则检查并生成报告。"
 
 #. type: Plain text
-#: cli.adoc:845
-msgid ""
-"Usage: `kicad-cli sch erc [--help] [--output OUTPUT_FILE] [--define-var "
-"KEY=VALUE] [--format VAR] [--units VAR] [--severity-all] [--severity-error] [--"
-"severity-warning] [--severity-exclusions] [--exit-code-violations] INPUT_FILE`"
+#: cli.adoc:1654
+msgid "Usage: `kicad-cli sch erc [--help] [--output OUTPUT_FILE] [--define-var KEY=VALUE] [--format VAR] [--units VAR] [--severity-all] [--severity-error] [--severity-warning] [--severity-exclusions] [--exit-code-violations] INPUT_FILE`"
 msgstr ""
-"用法： `kicad-cli sch erc [--help] [--output OUTPUT_FILE] [--define-var "
-"KEY=VALUE] [--format VAR] [--units VAR] [--severity-all] [--severity-error] [--"
-"severity-warning] [--severity-exclusions] [--exit-code-violations] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:852
+#: cli.adoc:1661
 #, no-wrap
-msgid ""
-"| `INPUT_FILE`\n"
-"    | Schematic file to run ERC on.\n"
-msgstr ""
-"| `INPUT_FILE`\n"
-"    | 运行 ERC 的原理图文件。\n"
+msgid "Schematic file to run ERC on."
+msgstr "运行 ERC 的原理图文件。"
 
 #. type: Table
-#: cli.adoc:885
+#: cli.adoc:1669
+#, no-wrap
+msgid "Show help for the ERC command."
+msgstr "显示 ERC 命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:1673
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the ERC command.\n"
-"| `-o <output filename>, `--output <output filename>`\n"
-"    | Output filename for the generated ERC report. When this argument is not\n"
+"Output filename for the generated ERC report. When `--output` is not\n"
 "      used, the output filename will be the same as the input file, with the\n"
-"      `.rpt` or `.json` file extension, depending on the selected format.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `--format <format>`\n"
-"    | Report file format. Options are `report` (default) or `json`.\n"
-"| `--units <unit>`\n"
-"    | Units to use in the report. Options are `mm` (default), `in`, or `mils`.\n"
-"| `--severity-all`\n"
-"    | Report all ERC violations. This is equivalent to using all of the other\n"
-"      ERC severity options.\n"
-"| `--severity-error`\n"
-"    | Report all error-level ERC violations. This can be combined with the other\n"
-"      ERC severity options.\n"
-"| `--severity-warning`\n"
-"    | Report all warning-level ERC violations. This can be combined with the\n"
-"      other ERC severity options.\n"
-"| `--severity-exclusions`\n"
-"    | Report all excluded ERC violations. This can be combined with the other\n"
-"      ERC severity options.\n"
-"| `--exit-code-violations`\n"
-"    | Return an exit code depending on whether or not ERC violations exist. The\n"
+"      `.rpt` or `.json` file extension, depending on the selected format."
+msgstr "生成的 ERC 报告的输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，文件扩展名根据所选格式不同，分别为 `.rpt` 或 `.json`。"
+
+#. type: Table
+#: cli.adoc:1683
+#, no-wrap
+msgid ""
+"Report all ERC violations. This is equivalent to using all of the other\n"
+"      ERC severity options."
+msgstr "报告所有 ERC 违规行为。这相当于使用所有其他 ERC 严重性选项。"
+
+#. type: Table
+#: cli.adoc:1686
+#, no-wrap
+msgid ""
+"Report all error-level ERC violations. This can be combined with the other\n"
+"      ERC severity options."
+msgstr "报告所有错误级别的 ERC 违规行为。这可以与其他 ERC 严重性选项结合使用。"
+
+#. type: Table
+#: cli.adoc:1689
+#, no-wrap
+msgid ""
+"Report all warning-level ERC violations. This can be combined with the\n"
+"      other ERC severity options."
+msgstr "报告所有警告级别的 ERC 违规行为。这可以与其他 ERC 严重性选项结合使用。"
+
+#. type: Table
+#: cli.adoc:1692
+#, no-wrap
+msgid ""
+"Report all excluded ERC violations. This can be combined with the other\n"
+"      ERC severity options."
+msgstr "报告所有被排除的 ERC 违规行为。这可以与其他 ERC 严重性选项结合使用。"
+
+#. type: Table
+#: cli.adoc:1696
+#, no-wrap
+msgid ""
+"Return an exit code depending on whether or not ERC violations exist. The\n"
 "      exit code is 0 if no violations are found, and 5 if any violations are\n"
-"      found.\n"
-msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示 ERC 命令的帮助信息。\n"
-"| `-o <output filename>, `--output <output filename>`\n"
-"    | 生成的 ERC 报告的输出文件名。如果不使用此参数，输出文件名将与输入文件相同，后缀为 `.rpt` 或 `.json`，具体取决于所选的格式。\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | 添加或覆盖工程变量定义。可以多次使用以定义多个变量。\n"
-"| `--format <format>`\n"
-"    | 报告文件格式。选项有 `report`（默认）或 `json`。\n"
-"| `--units <unit>`\n"
-"    | 报告中使用的单位。选项有 `mm`（默认）、`in` 或 `mils`。\n"
-"| `--severity-all`\n"
-"    | 报告所有 ERC 违规。这相当于使用所有其他 ERC 严重性选项。\n"
-"| `--severity-error`\n"
-"    | 报告所有错误级别的 ERC 违规。可以与其他 ERC 严重性选项组合使用。\n"
-"| `--severity-warning`\n"
-"    | 报告所有警告级别的 ERC 违规。可以与其他 ERC 严重性选项组合使用。\n"
-"| `--severity-exclusions`\n"
-"    | 报告所有被排除的 ERC 违规。可以与其他 ERC 严重性选项组合使用。\n"
-"| `--exit-code-violations`\n"
-"    | 根据是否存在 ERC 违规返回退出代码。如果未发现违规，则退出代码为 `0`；如果找到任何违规，则退出代码为 `5`。\n"
+"      found."
+msgstr "根据是否存在 ERC 违规情况返回退出代码。如果未发现违规，退出代码为 0；如果发现任何违规，退出代码为 5。"
 
 #. type: Title ===
-#: cli.adoc:887
+#: cli.adoc:1698
 #, no-wrap
 msgid "Schematic bill of materials export"
-msgstr "原理图物料清单导出"
+msgstr "原理图 BOM 导出"
 
 #. type: Plain text
-#: cli.adoc:894
+#: cli.adoc:1705
 msgid ""
-"The `sch export bom` command exports a BOM from a schematic.  The BOM export has "
-"a number of options for controlling the format and included fields. This export "
-"method is equivalent to xref:../eeschema/eeschema.adoc#bom-export[exporting a "
-"BOM] from the symbol fields table."
-msgstr ""
-"`sch export bom` 命令从原理图中导出 BOM。 BOM 导出具有许多用于控制格式和包含字段的"
-"选项。此导出方法等同于 xref:../eeschema/eeschema.adoc#bom-export[导出 BOM] 从符号"
-"字段表。"
+"The `sch export bom` command exports a BOM from a schematic.  The BOM export has a number of options for controlling the format and included fields. This export method is equivalent to xref:../eeschema/eeschema.adoc#bom-export[exporting a BOM] from the "
+"symbol fields table."
+msgstr "`sch export bom` 命令从原理图导出 BOM。BOM 导出有多个选项可用于控制格式和包含的字段。此导出方法相当于从符号字段表导出 BOM (xref:../eeschema/eeschema.adoc#bom-export[导出 BOM])。"
 
 #. type: Plain text
-#: cli.adoc:897
+#: cli.adoc:1708
 #, no-wrap
 msgid ""
 "To export a BOM using the legacy XML and Python BOM script workflow, use\n"
@@ -1543,762 +3000,798 @@ msgid ""
 msgstr "要使用旧版 XML 和 Python BOM 脚本工作流导出 BOM，请使用 `sch export python-bom` 命令。\n"
 
 #. type: Plain text
-#: cli.adoc:905
+#: cli.adoc:1710
 msgid ""
-"Usage: `kicad-cli sch export bom [--help] [--output OUTPUT_FILE] [--preset "
-"PRESET] [--format-preset FMT_PRESET] [--fields FIELDS] [--labels LABELS] [--group-"
-"by GROUP_BY] [--sort-field SORT_BY] [--sort-asc] [--filter FILTER] [--exclude-"
-"dnp] [--field-delimiter FIELD_DELIM] [--string-delimiter STR_DELIM] [--ref-"
-"delimiter REF_DELIM] [--ref-range-delimiter REF_RANGE_DELIM] [--keep-tabs] [--"
-"keep-line-breaks] INPUT_FILE`"
+"Usage: `kicad-cli sch export bom [--help] [--output OUTPUT_FILE] [--preset PRESET] [--format-preset FMT_PRESET] [--fields FIELDS] [--labels LABELS] [--group-by GROUP_BY] [--sort-field SORT_BY] [--sort-asc] [--filter FILTER] [--exclude-dnp] [--include-"
+"excluded-from-bom] [--field-delimiter FIELD_DELIM] [--string-delimiter STR_DELIM] [--ref-delimiter REF_DELIM] [--ref-range-delimiter REF_RANGE_DELIM] [--keep-tabs] [--keep-line-breaks] INPUT_FILE`"
 msgstr ""
-"用法： `kicad-cli sch export bom [--help] [--output OUTPUT_FILE] [--preset "
-"PRESET] [--format-preset FMT_PRESET] [--fields FIELDS] [--labels LABELS] [--group-"
-"by GROUP_BY] [--sort-field SORT_BY] [--sort-asc] [--filter FILTER] [--exclude-"
-"dnp] [--field-delimiter FIELD_DELIM] [--string-delimiter STR_DELIM] [--ref-"
-"delimiter REF_DELIM] [--ref-range-delimiter REF_RANGE_DELIM] [--keep-tabs] [--"
-"keep-line-breaks] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:912 cli.adoc:976 cli.adoc:1021 cli.adoc:1068 cli.adoc:1100 cli.adoc:1198
-#: cli.adoc:1228
+#: cli.adoc:1717 cli.adoc:1781 cli.adoc:1828 cli.adoc:1857 cli.adoc:1910 cli.adoc:1961 cli.adoc:1988
 #, no-wrap
-msgid ""
-"| `INPUT_FILE`\n"
-"    | Schematic file to export.\n"
-msgstr ""
-"| `INPUT_FILE`\n"
-"    | 要导出的原理图文件。\n"
+msgid "Schematic file to export."
+msgstr "导出原理图文件。"
 
 #. type: Table
-#: cli.adoc:959
+#: cli.adoc:1725
+#, no-wrap
+msgid "Shows help message and exits"
+msgstr "显示帮助信息并退出"
+
+#. type: Table
+#: cli.adoc:1728
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Shows help message and exits\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | The output filename. When this argument is not used, the output filename\n"
-"      will be the same as the input file, with a `.csv` file extension.\n"
-"| `--preset <preset>`\n"
-"    | Use a named BOM preset setting from the schematic, e.g. `\"Grouped By Value\"`.\n"
-"| `--format-preset <format preset>`\n"
-"    | Use a named BOM format preset setting from the schematic, e.g. `CSV`.\n"
-"| `--fields <fields>`\n"
-"    | An ordered list of fields to export. `*` includes all fields. Special\n"
+"The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with a `.csv` file extension."
+msgstr "输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，并带有 `.csv` 文件扩展名。"
+
+#. type: Table
+#: cli.adoc:1729
+#, no-wrap
+msgid "`--preset <preset>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1730
+#, no-wrap
+msgid "Use a named BOM preset setting from the schematic, e.g. `\"Grouped By Value\"`."
+msgstr "使用原理图中的命名 BOM 预设设置，例如 `按值分组`。"
+
+#. type: Table
+#: cli.adoc:1731
+#, no-wrap
+msgid "`--format-preset <format preset>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1732
+#, no-wrap
+msgid "Use a named BOM format preset setting from the schematic, e.g. `CSV`."
+msgstr "使用原理图中的命名 BOM 格式预设设置，例如 `CSV`。"
+
+#. type: Table
+#: cli.adoc:1733
+#, no-wrap
+msgid "`--fields <fields>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1738
+#, no-wrap
+msgid ""
+"An ordered list of fields to export. `*` includes all fields. Special\n"
 "      symbol fields such as DNP or Exclude from board can be accessed with\n"
 "      `${DNP}` or `${EXCLUDE_FROM_BOARD}`, respectively (see the\n"
 "      xref:../eeschema/eeschema.adoc#text-variables[text variable documentation]\n"
-"      for a list of fields). Default: \"Reference,Value,Footprint,${QUANTITY},${DNP}\".\n"
-"| `--labels <labels>`\n"
-"    | An ordered list of labels to apply the exported fields (default:\n"
-"      \"Refs,Value,Footprint,Qty,DNP\").\n"
-"| `--group-by <fields>`\n"
-"    | Fields to group references by when field values match.\n"
-"| `--sort-field <fields>`\n"
-"    | Field name to sort by (default: \"Reference\").\n"
-"| `--sort-asc`\n"
-"    | If given, sort in ascending order. If not given, sort in descending order.\n"
-"| `--filter <filter>`\n"
-"    | Filter string to remove output lines.\n"
-"| `--exclude-dnp`\n"
-"    | Exclude symbols with the \"Do not populate\" attribute.\n"
-"| `--field-delimiter <delimiter>`\n"
-"    | Separator between output fields/columns (default: \",\").\n"
-"| `--string-delimiter <delimiter>`\n"
-"    | Character to surround fields with (none by default).\n"
-"| `--ref-delimiter <delimiter>`\n"
-"    | Character to place between individual references (default: \",\").\n"
-"| `--ref-range-delimiter <delimiter>`\n"
-"    | Character to place in ranges of references (default: \"-\"). Leave blank for\n"
-"      no ranges.\n"
-"| `--keep-tabs`\n"
-"    | Keep tab characters from input fields. Stripped by default.\n"
-"| `--keep-line-breaks`\n"
-"    | Keep line break characters from input fields. Stripped by default.\n"
+"      for a list of fields). Default: \"Reference,Value,Footprint,${QUANTITY},${DNP}\"."
+msgstr "要导出的字段的有序列表。`*` 表示导出所有字段。特殊符号字段（如 DNP 或 Exclude from board）可分别通过 `${DNP}` 或 `${EXCLUDE_FROM_BOARD}` 访问（参见 xref:../eeschema/eeschema.adoc#text-variables[文本变量文档] 以获取字段列表）。默认值：\"Reference、Value、Footprint、${QUANTITY}、${DNP}\"。"
+
+#. type: Table
+#: cli.adoc:1739
+#, no-wrap
+msgid "`--labels <labels>`"
 msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示帮助信息并退出。\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | 输出文件的名称。如果不使用此参数，输出文件名将与输入文件相同，但具有 `.csv` 的文件扩展名。\n"
-"| `--preset <preset>`\n"
-"    | 使用原理图中的命名 BOM 预设设置，例如 `\"按值分组\"`。\n"
-"| `--format-preset <format preset>`\n"
-"    | 使用原理图中的命名 BOM 格式预设设置，例如 `CSV`。\n"
-"| `--fields <fields>`\n"
-"    | 要导出的有序字段列表。`*` 表示包含所有字段。特殊符号字段如不安装 (DNP) 或排除在电路板上 (Exclude from board) 可以通过 `${DNP}` 或 `${EXCLUDE_FROM_BOARD}` 访问（参见文本变量文档以获取字段列表）。默认：\"Reference（位号）,Value（值）,Footprint（封装）,${QUANTITY}（数量）,${DNP}（不安装）\"。 \n"
-"| `--labels <labels>`\n"
-"    | 应用于导出字段的有序标签列表（默认：\"Refs（位号）,Value（值）,Footprint（封装）,Qty（数量）,DNP（不安装）\"）。\n"
-"| `--group-by <fields>`\n"
-"    | 当字段值匹配时，用于对位号进行分组的字段。\n"
-"| `--sort-field <fields>`\n"
-"    | 排序依据的字段名称（默认：\"Reference（位号）\"）。\n"
-"| `--sort-asc`\n"
-"    | 如果给出，则按升序排序。如果没有给出，则按降序排序。\n"
-"| `--filter <filter>`\n"
-"    | 移除输出行的过滤字符串。\n"
-"| `--exclude-dnp`\n"
-"    | 排除具有“不安装” (DNP) 属性的符号。\n"
-"| `--field-delimiter <delimiter>`\n"
-"    | 输出字段/列之间的分隔符（默认：\",\"）。\n"
-"| `--string-delimiter <delimiter>`\n"
-"    | 包裹字段的字符（默认不使用）。\n"
-"| `--ref-delimiter <delimiter>`\n"
-"    | 单个位号之间的分隔符（默认：\",\"）。\n"
-"| `--ref-range-delimiter <delimiter>`\n"
-"    | 位号范围内的分隔符（默认：\"-\"）。留空则无范围。\n"
-"| `--keep-tabs`\n"
-"    | 保留输入字段中的制表符。默认会去除。\n"
-"| `--keep-line-breaks`\n"
-"    | 保留输入字段中的换行符。默认会去除。\n"
+
+#. type: Table
+#: cli.adoc:1741
+#, no-wrap
+msgid ""
+"An ordered list of labels to apply the exported fields (default:\n"
+"      `\"Refs,Value,Footprint,Qty,DNP\"`)."
+msgstr "应用导出字段的标签有序列表（默认值：`\"Refs,Value,Footprint,Qty,DNP\"`）。"
+
+#. type: Table
+#: cli.adoc:1742
+#, no-wrap
+msgid "`--group-by <fields>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1743
+#, no-wrap
+msgid "Fields to group references by when field values match."
+msgstr "当字段值匹配时，用于按字段分组引用。"
+
+#. type: Table
+#: cli.adoc:1744
+#, no-wrap
+msgid "`--sort-field <fields>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1745
+#, no-wrap
+msgid "Field name to sort by (default: `\"Reference\"`)."
+msgstr "按字段名称排序（默认：`\"Reference\"`）。"
+
+#. type: Table
+#: cli.adoc:1746
+#, no-wrap
+msgid "`--sort-asc`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1747
+#, no-wrap
+msgid "If given, sort in ascending order. If not given, sort in descending order."
+msgstr "如果指定了排序方式，则按升序排序。如果未指定排序方式，则按降序排序。"
+
+#. type: Table
+#: cli.adoc:1748
+#, no-wrap
+msgid "`--filter <filter>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1749
+#, no-wrap
+msgid "Filter string to remove output lines."
+msgstr "过滤字符串以移除输出行。"
+
+#. type: Table
+#: cli.adoc:1751
+#, no-wrap
+msgid "Exclude symbols with the \"Do not populate\" attribute."
+msgstr "排除具有 \"DNP\" 性的符号。"
+
+#. type: Table
+#: cli.adoc:1752
+#, no-wrap
+msgid "`--include-excluded-from-bom`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1753
+#, no-wrap
+msgid "Include symbols marked \"Exclude from BOM\"."
+msgstr "包含标记为 “从 BOM 中排除” 的符号。"
+
+#. type: Table
+#: cli.adoc:1754
+#, no-wrap
+msgid "`--field-delimiter <delimiter>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1755
+#, no-wrap
+msgid "Separator between output fields/columns (default: `\",\"`)."
+msgstr "输出字段/列之间的分隔符（默认：`\",\"`）。"
+
+#. type: Table
+#: cli.adoc:1756
+#, no-wrap
+msgid "`--string-delimiter <delimiter>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1757
+#, no-wrap
+msgid "Character to surround fields with (none by default)."
+msgstr "用于包围字段的字符（默认为空）。"
+
+#. type: Table
+#: cli.adoc:1758
+#, no-wrap
+msgid "`--ref-delimiter <delimiter>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1759
+#, no-wrap
+msgid "Character to place between individual references (default: `\",\"`)."
+msgstr "用于分隔各个位号之间的字符（默认：`\",\"`）。"
+
+#. type: Table
+#: cli.adoc:1760
+#, no-wrap
+msgid "`--ref-range-delimiter <delimiter>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1762
+#, no-wrap
+msgid ""
+"Character to place in ranges of references (default: `\"-\"`). Leave blank for\n"
+"      no ranges."
+msgstr "用于指定位号范围的字符（默认值：`\"-\"`）。若不指定范围，请留空。"
+
+#. type: Table
+#: cli.adoc:1763
+#, no-wrap
+msgid "`--keep-tabs`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1764
+#, no-wrap
+msgid "Keep tab characters from input fields. Stripped by default."
+msgstr "保留输入字段中的制表符。默认情况下会被移除。"
+
+#. type: Table
+#: cli.adoc:1765
+#, no-wrap
+msgid "`--keep-line-breaks`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1766
+#, no-wrap
+msgid "Keep line break characters from input fields. Stripped by default."
+msgstr "保留输入字段中的换行符。默认情况下会被移除。"
 
 #. type: Title ===
-#: cli.adoc:961
+#: cli.adoc:1768
 #, no-wrap
 msgid "Schematic DXF export"
 msgstr "原理图 DXF 导出"
 
 #. type: Plain text
-#: cli.adoc:965
-msgid ""
-"The `sch export dxf` command exports a schematic to a DXF file. Each sheet in the "
-"design is exported to its own file."
-msgstr ""
-"`sch export dxf` 命令将原理图导出到 DXF 文件。设计中的每个图纸都导出到其自己的文件"
-"中。"
+#: cli.adoc:1772
+msgid "The `sch export dxf` command exports a schematic to a DXF file. Each sheet in the design is exported to its own file."
+msgstr "命令 `sch export dxf` 将原理图导出到 DXF 文件。设计中的每张图纸都会导出到各自的文件中。"
 
 #. type: Plain text
-#: cli.adoc:969
-msgid ""
-"Usage: `kicad-cli sch export dxf [--help] [--output OUTPUT_DIR] [--drawing-sheet "
-"SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME] [--black-and-white] [--"
-"exclude-drawing-sheet] [--pages PAGE_LIST] INPUT_FILE`"
+#: cli.adoc:1774
+msgid "Usage: `kicad-cli sch export dxf [--help] [--output OUTPUT_DIR] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME] [--black-and-white] [--exclude-drawing-sheet] [--default-font VAR] [--pages PAGE_LIST] INPUT_FILE`"
 msgstr ""
-"用法： `kicad-cli sch export dxf [--help] [--output OUTPUT_DIR] [--drawing-sheet "
-"SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME] [--black-and-white] [--"
-"exclude-drawing-sheet] [--pages PAGE_LIST] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:1004
+#: cli.adoc:1789
 #, no-wrap
-msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the DXF file export command.\n"
-"| `-o <output dir>`, `--output <output dir>`\n"
-"    | The output folder for the exported files. When this argument is not used,\n"
-"      the files are exported to the current directory.\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
-"      specified in the schematic file.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `-t <theme name>`, `--theme <theme name>`\n"
-"    | The name of the theme to use for export. If no theme is given, the\n"
-"      schematic editor's currently selected theme is used.\n"
-"| `-b`, `--black-and-white`\n"
-"    | Export schematic in black and white.\n"
-"| `-e`, `--exclude-drawing-sheet`\n"
-"    | Plot DXF without a drawing sheet.\n"
-"| `--pages <page list>`\n"
-"    | Comma-separated list of pages to export. Blank or unspecified means all\n"
-"      pages. To plot specific pages, give the root sheet as `INPUT_FILE` and\n"
-"      specify the desired output pages with the `--pages` argument.\n"
-msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示 DXF 文件导出命令的帮助信息。\n"
-"| `-o <output dir>`, `--output <output dir>`\n"
-"    | 导出文件的目标文件夹。如果不使用此参数，文件将被导出到当前目录。\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | 在绘制中使用的图纸路径，这将覆盖原理图文件中指定的图纸。\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | 添加或覆盖工程变量定义。可以多次使用来定义多个变量。\n"
-"| `-t <theme name>`, `--theme <theme name>`\n"
-"    | 用于导出的主题名称。如果未给出主题，将使用原理图编辑器当前选择的主题。\n"
-"| `-b`, `--black-and-white`\n"
-"    | 将原理图以黑白模式导出。\n"
-"| `-e`, `--exclude-drawing-sheet`\n"
-"    | 不使用图纸直接绘制 DXF。\n"
-"| `--pages <page list>`\n"
-"    | 要导出的页面的逗号分隔列表。空白或未指定则意味着导出所有页面。为了绘制特定页面，将根图纸作为 `INPUT_FILE` 给出，并使用 `--pages` 参数指定所需的输出页面。\n"
-
-#. type: Title ===
-#: cli.adoc:1006
-#, no-wrap
-msgid "Schematic HPGL export"
-msgstr "原理图 HPGL 导出"
-
-#. type: Plain text
-#: cli.adoc:1010
-msgid ""
-"The `sch export hpgl` command exports a schematic to an HPGL file for a pen "
-"plotter. Each sheet in the design is exported to its own file."
-msgstr ""
-"`sch export hpgl` 命令将原理图导出到笔式绘图仪的 HPGL 文件中。设计中的每个图纸都导"
-"出到其自己的文件中。"
-
-#. type: Plain text
-#: cli.adoc:1014
-msgid ""
-"Usage: `kicad-cli sch export hpgl [--help] [--output OUTPUT_DIR] [--drawing-sheet "
-"SHEET_PATH] [--define-var KEY=VALUE] [--exclude-drawing-sheet] [--pages "
-"PAGE_LIST] [--pen-size PEN_SIZE] [--origin ORIGIN] INPUT_FILE`"
-msgstr ""
-"用法： `kicad-cli sch export hpgl [--help] [--output OUTPUT_DIR] [--drawing-sheet "
-"SHEET_PATH] [--define-var KEY=VALUE] [--exclude-drawing-sheet] [--pages "
-"PAGE_LIST] [--pen-size PEN_SIZE] [--origin ORIGIN] INPUT_FILE`"
+msgid "Show help for the DXF file export command."
+msgstr "显示 DXF 文件导出命令的帮助信息。"
 
 #. type: Table
-#: cli.adoc:1051
+#: cli.adoc:1793 cli.adoc:1922
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the HPGL file export command.\n"
-"| `-o <output dir>`, `--output <output dir>`\n"
-"    | The output folder for the exported files. When this argument is not used,\n"
-"      the files are exported to the current directory.\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
-"      specified in the schematic file.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `-e`, `--exclude-drawing-sheet`\n"
-"    | Plot HPGL without a drawing sheet.\n"
-"| `--pages <page list>`\n"
-"    | Comma-separated list of pages to export. Blank or unspecified means all\n"
-"      pages. To plot specific pages, give the root sheet as `INPUT_FILE` and\n"
-"      specify the desired output pages with the `--pages` argument.\n"
-"| `-p <pen size>`, `--pen-size <pen size>`\n"
-"    | Set the pen width. The default pen size is 0.5 mm.\n"
-"| `-r <origin>`, `--origin <origin>`\n"
-"    | Set plotter origin and scale. Options are `0`, `1` (default), `2`, or `3`.\n"
-"      `0` sets the origin to the bottom left and uses plotter units. `1` sets\n"
-"      the origin to the center and uses plotter units. `2` scales to the page,\n"
-"      and `3` scales to the content within the page.\n"
+"The output folder for the exported files. One file is output for each\n"
+"      sheet. When `--output` is not used, the files are exported to the\n"
+"      current directory."
+msgstr "导出文件的输出文件夹。当未使用 `--output` 时，文件将导出到当前目录。"
+
+#. type: Table
+#: cli.adoc:1796 cli.adoc:1871 cli.adoc:1925 cli.adoc:2002
+#, no-wrap
+msgid ""
+"Path to drawing sheet to use in plot, overriding the drawing sheet\n"
+"      specified in the schematic file."
+msgstr "用于绘图的图框路径，覆盖原理图文件中指定的图框。"
+
+#. type: Table
+#: cli.adoc:1802 cli.adoc:1877 cli.adoc:1931 cli.adoc:2008
+#, no-wrap
+msgid ""
+"The name of the theme to use for export. If no theme is given, the\n"
+"      schematic editor's currently selected theme is used."
+msgstr "用于导出的主题名称。如果未指定主题，则使用原理图编辑器当前选择的主题。"
+
+#. type: Table
+#: cli.adoc:1803 cli.adoc:1878 cli.adoc:1932 cli.adoc:2009
+#, no-wrap
+msgid "`-b`, `--black-and-white`"
 msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示 HPGL 文件导出命令的帮助信息。\n"
-"| `-o <output dir>`, `--output <output dir>`\n"
-"    | 导出文件的目标文件夹。如果不使用此参数，文件将被导出到当前工作目录。\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | 用于绘制图纸路径，这将覆盖原理图文件中指定的图纸。\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>` \n"
-"    | 添加或覆盖工程中的变量定义。可多次使用以定义多个变量。\n"
-"| `-e`, `--exclude-drawing-sheet`\n"
-"    | 不使用图纸背景，仅绘制 HPGL 数据。\n"
-"| `--pages <page list>`\n"
-"    | 要导出的页面列表，由逗号分隔。留空或不指定则默认导出所有页面。若要绘制特定页面，请将根图纸作为 `INPUT_FILE` 并使用 `--pages` 参数指定所需输出的页面。\n"
-"| `-p <pen size>`, `--pen-size <pen size>`\n"
-"    | 设置笔触宽度。默认笔宽为 0.5 mm。\n"
-"| `-r <origin>`, `--origin <origin>`\n"
-"    | 设置绘图仪原点和比例。可选值为 `0`、`1`（默认）、`2` 或 `3`。`0` 将原点设置在左下角并使用绘图仪单位；`1` 将原点设置在中心并使用绘图仪单位；`2` 按页面比例缩放；`3` 按页面内内容进行缩放。\n"
+
+#. type: Table
+#: cli.adoc:1804 cli.adoc:1879 cli.adoc:1933 cli.adoc:2010
+#, no-wrap
+msgid "Export schematic in black and white."
+msgstr "以黑白形式导出原理图。"
+
+#. type: Table
+#: cli.adoc:1805 cli.adoc:1880 cli.adoc:1934 cli.adoc:2011
+#, no-wrap
+msgid "`-e`, `--exclude-drawing-sheet`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1806
+#, no-wrap
+msgid "Plot DXF without a drawing sheet."
+msgstr "在没有图框的情况下绘制 DXF。"
+
+#. type: Table
+#: cli.adoc:1807 cli.adoc:1882 cli.adoc:1936 cli.adoc:2013
+#, no-wrap
+msgid "`--default-font <font name>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1808 cli.adoc:1883 cli.adoc:1937 cli.adoc:2014
+#, no-wrap
+msgid "Default font name. Default: `\"KiCad Font\"`."
+msgstr "默认字体名称。默认值：`\"KiCad 字体\"`。"
+
+#. type: Table
+#: cli.adoc:1809 cli.adoc:1892 cli.adoc:1940 cli.adoc:2017
+#, no-wrap
+msgid "`-p <page list>`, `--pages <page list>`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1812 cli.adoc:1895 cli.adoc:1943 cli.adoc:2020
+#, no-wrap
+msgid ""
+"Comma-separated list of pages to export. Blank or unspecified means all\n"
+"      pages. To plot specific pages, give the root sheet as `INPUT_FILE` and\n"
+"      specify the desired output pages with the `--pages` argument."
+msgstr "以逗号分隔的要导出的页面列表。空白或未指定表示所有页面。要绘制特定页面，请将根页面作为 `INPUT_FILE` 指定，并使用 `--pages` 参数指定所需的输出页面。"
 
 #. type: Title ===
-#: cli.adoc:1053
+#: cli.adoc:1814
 #, no-wrap
 msgid "Schematic netlist export"
 msgstr "原理图网表导出"
 
 #. type: Plain text
-#: cli.adoc:1058
-msgid ""
-"The `sch export netlist` command exports a netlist in xref:../eeschema/eeschema."
-"adoc#netlist-formats[various formats] from a schematic."
-msgstr ""
-"`sch export netlist` 命令以 xref:../eeschema/eeschema.adoc#netlist-formats[各种格"
-"式] 格式导出网表。"
+#: cli.adoc:1819
+msgid "The `sch export netlist` command exports a netlist in xref:../eeschema/eeschema.adoc#netlist-formats[various formats] from a schematic."
+msgstr "命令 `sch export netlist` 将原理图中的网表以 xref:../eeschema/eeschema.adoc#netlist-formats[各种格式] 导出。"
 
 #. type: Plain text
-#: cli.adoc:1061
-msgid ""
-"Usage: `kicad-cli sch export netlist [--help] [--output OUTPUT_FILE] [--format "
-"FORMAT] INPUT_FILE`"
+#: cli.adoc:1821
+msgid "Usage: `kicad-cli sch export netlist [--help] [--output OUTPUT_FILE] [--format FORMAT] INPUT_FILE`"
 msgstr ""
-"用法： `kicad-cli sch export netlist [--help] [--output OUTPUT_FILE] [--format "
-"FORMAT] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:1082
+#: cli.adoc:1836
+#, no-wrap
+msgid "Show help for the netlist export command."
+msgstr "显示网表导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:1839
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the netlist export command.\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | The output filename. When this argument is not used, the output filename\n"
-"      will be the same as the input file, with a `.net` file extension.\n"
-"| `-f <format>`, `--format <format>`\n"
-"    | The netlist output format. Options are `kicadsexpr` (default), `kicadxml`,\n"
-"      `cadstar`, `orcadpcb2`, `spice`, or `spicemodel`.\n"
+"The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with a `.net` file extension."
+msgstr "输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，但文件扩展名为 `.net`。"
+
+#. type: Table
+#: cli.adoc:1840
+#, no-wrap
+msgid "`-f <format>`, `--format <format>`"
 msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示网络表导出命令的帮助信息。\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | 指定输出文件的名称。如果不使用此参数，输出文件名将与输入文件相同，但文件扩展名会更改为 `.net`。\n"
-"| `-f <format>`, `--format <format>`\n"
-"    | 网络表输出的格式。可选项包括 `kicadsexpr`（默认）、`kicadxml`、`cadstar`、`orcadpcb2`、`spice` 或 `spicemodel`。\n"
+
+#. type: Table
+#: cli.adoc:1842
+#, no-wrap
+msgid ""
+"The netlist output format. Options are `kicadsexpr` (default), `kicadxml`,\n"
+"      `cadstar`, `orcadpcb2`, `spice`, `spicemodel`, `pads`, or `allegro`."
+msgstr "网表输出格式。可选格式包括 `kicadsexpr`（默认）、`kicadxml`、`cadstar`、`orcadpcb2`、`spice`、`spicemodel`、`pads` 或 `allegro`。"
 
 #. type: Title ===
-#: cli.adoc:1084
+#: cli.adoc:1844
 #, no-wrap
 msgid "Schematic PDF export"
 msgstr "原理图 PDF 导出"
 
 #. type: Plain text
-#: cli.adoc:1088
-msgid ""
-"The `sch export pdf` command exports a schematic to a PDF file. Each sheet in the "
-"design is exported to its own page in the PDF file."
-msgstr ""
-"`sch export pdf` 命令将原理图导出为 PDF 文件。设计中的每张图纸都会导出到 PDF 文件"
-"中的单独页面。"
+#: cli.adoc:1848
+msgid "The `sch export pdf` command exports a schematic to a PDF file. Each sheet in the design is exported to its own page in the PDF file."
+msgstr "`sch export pdf` 命令将原理图导出到 PDF 文件。设计中的每个图纸都会导出到 PDF 文件中的单独页面。"
 
 #. type: Plain text
-#: cli.adoc:1093
+#: cli.adoc:1850
 msgid ""
-"Usage: `kicad-cli sch export pdf [--help] [--output OUTPUT_FILE] [--drawing-sheet "
-"SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME] [--black-and-white] [--"
-"exclude-drawing-sheet] [--exclude-pdf-property-popups] [--no-background-color] [--"
-"pages PAGE_LIST] INPUT_FILE`"
+"Usage: `kicad-cli sch export pdf [--help] [--output OUTPUT_FILE] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME] [--black-and-white] [--exclude-drawing-sheet] [--default-font VAR] [--exclude-pdf-property-popups] [--exclude-pdf-"
+"hierarchical-links] [--exclude-pdf-metadata] [--no-background-color] [--pages PAGE_LIST] INPUT_FILE`"
 msgstr ""
-"用法： `kicad-cli sch export pdf [--help] [--output OUTPUT_FILE] [--drawing-sheet "
-"SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME] [--black-and-white] [--"
-"exclude-drawing-sheet] [--exclude-pdf-property-popups] [--no-background-color] [--"
-"pages PAGE_LIST] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:1132
+#: cli.adoc:1865
+#, no-wrap
+msgid "Show help for the PDF file export command."
+msgstr "显示 PDF 文件导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:1868
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the PDF file export command.\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | The output filename. When this argument is not used, the output filename\n"
-"      will be the same as the input file, with a `.pdf` file extension.\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
-"      specified in the schematic file.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `-t <theme name>`, `--theme <theme name>`\n"
-"    | The name of the theme to use for export. If no theme is given, the\n"
-"      schematic editor's currently selected theme is used.\n"
-"| `-b`, `--black-and-white`\n"
-"    | Export schematic in black and white.\n"
-"| `-e`, `--exclude-drawing-sheet`\n"
-"    | Plot PDF without a drawing sheet.\n"
-"| `--exclude-pdf-property-popups`\n"
-"    | Do not generate property popups in PDF.\n"
-"| `-n`, `--no-background-color`\n"
-"    | Export schematic without a background color, regardless of theme.\n"
-"| `--pages <page list>`\n"
-"    | Comma-separated list of pages to export. Blank or unspecified means all\n"
-"      pages. To plot specific pages, give the root sheet as `INPUT_FILE` and\n"
-"      specify the desired output pages with the `--pages` argument.\n"
+"The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with a `.pdf` file extension."
+msgstr "输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，并带有 `.pdf` 文件扩展名。"
+
+#. type: Table
+#: cli.adoc:1881
+#, no-wrap
+msgid "Plot PDF without a drawing sheet."
+msgstr "绘制无图框的 PDF。"
+
+#. type: Table
+#: cli.adoc:1884
+#, no-wrap
+msgid "`--exclude-pdf-property-popups`"
 msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示 PDF 文件导出命令的帮助信息。\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | 指定输出文件的名称。如果不使用此参数，输出文件名将与输入文件相同，但文件扩展名会更改为 `.pdf`。\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | 指定在绘制中使用的图纸路径，覆盖原理图文件中指定的图纸。\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | 添加或覆盖工程变量定义。可以多次使用来定义多个变量。\n"
-"| `-t <theme name>`, `--theme <theme name>`\n"
-"    | 指定用于导出的主题名称。如果未给定主题，则使用原理图编辑器当前选择的主题。\n"
-"| `-b`, `--black-and-white`\n"
-"    | 以黑白模式导出原理图。\n"
-"| `-e`, `--exclude-drawing-sheet`\n"
-"    | 导出 PDF 时不包含图纸。\n"
-"| `--exclude-pdf-property-popups`\n"
-"    | 不在 PDF 中生成属性弹窗。\n"
-"| `-n`, `--no-background-color`\n"
-"    | 不使用背景色导出原理图，无论所选主题如何。\n"
-"| `--pages <page list>`\n"
-"    | 要导出的页面列表，以逗号分隔。空白或未指定则意味着所有页面。为了导出特定页面，将根图纸作为 `INPUT_FILE`，并使用 `--pages` 参数指定所需的输出页面。\n"
+
+#. type: Table
+#: cli.adoc:1885
+#, no-wrap
+msgid "Do not generate property popups in PDF."
+msgstr "请勿在 PDF 中生成属性弹出窗口。"
+
+#. type: Table
+#: cli.adoc:1886
+#, no-wrap
+msgid "`--exclude-pdf-hierarchical-links`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1887
+#, no-wrap
+msgid "Do not generate clickable links for hierarchical elements in PDF."
+msgstr "请勿为 PDF 中的层次结构元素生成可点击链接。"
+
+#. type: Table
+#: cli.adoc:1888
+#, no-wrap
+msgid "`--exclude-pdf-metadata`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1889
+#, no-wrap
+msgid "Do not generate PDF metadata from AUTHOR and SUBJECT variables."
+msgstr "请勿从 “作者” 和 “主题” 变量生成 PDF 元数据。"
+
+#. type: Table
+#: cli.adoc:1890 cli.adoc:1938 cli.adoc:2015
+#, no-wrap
+msgid "`-n`, `--no-background-color`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1891 cli.adoc:1939 cli.adoc:2016
+#, no-wrap
+msgid "Export schematic without a background color, regardless of theme."
+msgstr "无论主题如何，均以无背景色的形式导出原理图。"
 
 #. type: Title ===
-#: cli.adoc:1134
+#: cli.adoc:1897
 #, no-wrap
 msgid "Schematic PostScript export"
 msgstr "原理图 PostScript 导出"
 
 #. type: Plain text
-#: cli.adoc:1138
-msgid ""
-"The `sch export ps` command exports a schematic to a PostScript file. Each sheet "
-"in the design is exported to its own file."
-msgstr ""
-"`sch export ps` 命令将原理图导出到 PostScript 文件。设计中的每个图纸都导出到其自己"
-"的文件中。"
+#: cli.adoc:1901
+msgid "The `sch export ps` command exports a schematic to a PostScript file. Each sheet in the design is exported to its own file."
+msgstr "命令 `sch export ps` 将原理图导出到 PostScript 文件。设计中的每个图纸都会导出到各自的文件中。"
 
 #. type: Plain text
-#: cli.adoc:1143
+#: cli.adoc:1903
 msgid ""
-"Usage: `kicad-cli sch export ps [--help] [--output OUTPUT_DIR] [--drawing-sheet "
-"SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME] [--black-and-white] [--"
-"exclude-drawing-sheet] [--no-background-color] [--pages PAGE_LIST] INPUT_FILE`"
+"Usage: `kicad-cli sch export ps [--help] [--output OUTPUT_DIR] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME] [--black-and-white] [--exclude-drawing-sheet] [--default-font VAR] [--no-background-color] [--pages PAGE_LIST] "
+"INPUT_FILE`"
 msgstr ""
-"用法： `kicad-cli sch export ps [--help] [--output OUTPUT_DIR] [--drawing-sheet "
-"SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME] [--black-and-white] [--"
-"exclude-drawing-sheet] [--no-background-color] [--pages PAGE_LIST] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:1150
+#: cli.adoc:1918
 #, no-wrap
-msgid ""
-"| `INPUT_DIR`\n"
-"    | Schematic file to export.\n"
-msgstr ""
-"| `INPUT_DIR`\n"
-"    | 要导出的原理图文件。\n"
+msgid "Show help for the PS file export command."
+msgstr "显示 PS 文件导出命令的帮助信息。"
 
 #. type: Table
-#: cli.adoc:1180
+#: cli.adoc:1935
 #, no-wrap
-msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the PS file export command.\n"
-"| `-o <output dir>`, `--output <output dir>`\n"
-"    | The output folder for the exported files. When this argument is not used,\n"
-"      the files are exported to the current directory.\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
-"      specified in the schematic file.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `-t <theme name>`, `--theme <theme name>`\n"
-"    | The name of the theme to use for export. If no theme is given, the\n"
-"      schematic editor's currently selected theme is used.\n"
-"| `-b`, `--black-and-white`\n"
-"    | Export schematic in black and white.\n"
-"| `-e`, `--exclude-drawing-sheet`\n"
-"    | Plot PS without a drawing sheet.\n"
-"| `-n`, `--no-background-color`\n"
-"    | Export schematic without a background color, regardless of theme.\n"
-"| `--pages <page list>`\n"
-"    | Comma-separated list of pages to export. Blank or unspecified means all\n"
-"      pages. To plot specific pages, give the root sheet as `INPUT_FILE` and\n"
-"      specify the desired output pages with the `--pages` argument.\n"
-msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示 PS 文件导出命令的帮助信息。\n"
-"| `-o <output dir>`, `--output <output dir>`\n"
-"    | 指定导出文件的目标文件夹。如果不使用此参数，文件将被导出到当前目录。\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | 指定绘制中要使用的图纸路径，覆盖原理图文件中指定的图纸。\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | 添加或覆盖工程变量定义。可多次使用来定义多个变量。\n"
-"| `-t <theme name>`, `--theme <theme name>`\n"
-"    | 指定用于导出的主题名称。若不给出主题，则使用原理图编辑器当前选定的主题。\n"
-"| `-b`, `--black-and-white`\n"
-"    | 以黑白模式导出原理图。\n"
-"| `-e`, `--exclude-drawing-sheet`\n"
-"    | 绘制 PS 文件时排除图纸。\n"
-"| `-n`, `--no-background-color`\n"
-"    | 导出原理图时不使用背景色，不论主题设置。\n"
-"| `--pages <page list>`\n"
-"    | 要导出的页面列表，以逗号分隔。留空或未指定则表示所有页面。为了导出特定页面，将根图纸作为 `INPUT_FILE`，并利用 `--pages` 参数指定所需导出的页面。\n"
+msgid "Plot PS without a drawing sheet."
+msgstr "在没有图框的情况下绘制 PS。"
 
 #. type: Title ===
-#: cli.adoc:1182
+#: cli.adoc:1945
 #, no-wrap
 msgid "Schematic bill of materials export (legacy BOM scripts)"
-msgstr "原理图物料清单导出（旧版 BOM 脚本）"
+msgstr "原理图 BOM 导出（旧版 BOM 脚本）"
 
 #. type: Plain text
-#: cli.adoc:1189
+#: cli.adoc:1952
 msgid ""
-"The `sch export python-bom` command exports an XML BOM file from a schematic.  "
-"The XML BOM file can then be processed into your desired BOM format using a "
-"custom script or one of the scripts described in the xref:../eeschema/eeschema."
-"adoc#bom-export[schematic BOM export documentation]."
-msgstr ""
-"`sch export python-bom` 命令从原理图中导出XML BOM文件。 然后，可以使用自定义脚本或"
-"外部参照中描述的脚本之一将 XML BOM 文件处理为所需的 BOM 格式： xref:../eeschema/"
-"eeschema.adoc#bom-export[原理图 BOM 导出文档]。"
+"The `sch export python-bom` command exports an XML BOM file from a schematic.  The XML BOM file can then be processed into your desired BOM format using a custom script or one of the scripts described in the xref:../eeschema/eeschema.adoc#bom-"
+"export[schematic BOM export documentation]."
+msgstr "命令 `sch export python-bom` 可从原理图导出 XML BOM 文件。然后，可使用自定义脚本或 xref:../eeschema/eeschema.adoc#bom-export[原理图 BOM 导出文档] 中描述的脚本之一，将 XML BOM 文件处理成所需的 BOM 格式。"
 
 #. type: Plain text
-#: cli.adoc:1191
-msgid ""
-"Usage: `kicad-cli sch export python-bom [--help] [--output OUTPUT_FILE] "
-"INPUT_FILE`"
+#: cli.adoc:1954
+msgid "Usage: `kicad-cli sch export python-bom [--help] [--output OUTPUT_FILE] INPUT_FILE`"
 msgstr ""
-"用法： `kicad-cli sch export python-bom [--help] [--output OUTPUT_FILE] "
-"INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:1210
+#: cli.adoc:1969
+#, no-wrap
+msgid "Show help for the BOM export command."
+msgstr "显示 BOM 导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:1973
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the BOM export command.\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | The output filename. When this argument is not used, the output filename\n"
+"The output filename. When `--output` is not used, the output filename\n"
 "      will be the same as the input file, with a `-bom.xml` suffix and file\n"
-"      extension.\n"
-msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示 BOM 导出命令的帮助信息。\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | 指定输出文件的文件名。如果不使用此参数，输出文件名将默认与输入文件相同，仅在原文件名后添加 `-bom.xml` 后缀及文件扩展名。\n"
+"      extension."
+msgstr "输出文件名。当未使用 `--output` 时，输出文件名将与输入文件相同，并添加 `-bom.xml` 后缀和文件扩展名。"
 
 #. type: Title ===
-#: cli.adoc:1212
+#: cli.adoc:1975
 #, no-wrap
 msgid "Schematic SVG export"
 msgstr "原理图 SVG 导出"
 
 #. type: Plain text
-#: cli.adoc:1216
-msgid ""
-"The `sch export svg` command export a schematic to an SVG file. Each sheet in the "
-"design is exported to its own file."
-msgstr ""
-"`sch export svg` 命令将原理图导出为 SVG 文件。设计中的每个图纸都导出到其自己的文件"
-"中。"
+#: cli.adoc:1979
+msgid "The `sch export svg` command export a schematic to an SVG file. Each sheet in the design is exported to its own file."
+msgstr "命令 `sch export svg` 将原理图导出到 SVG 文件。设计中的每个图纸都会导出到各自的文件中。"
 
 #. type: Plain text
-#: cli.adoc:1221
+#: cli.adoc:1981
 msgid ""
-"Usage: `kicad-cli sch export svg [--help] [--output OUTPUT_DIR] [--drawing-sheet "
-"SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME] [--black-and-white] [--"
-"exclude-drawing-sheet] [--no-background-color] [--pages PAGE_LIST] INPUT_FILE`"
+"Usage: `kicad-cli sch export svg [--help] [--output OUTPUT_DIR] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME] [--black-and-white] [--exclude-drawing-sheet] [--default-font VAR] [--no-background-color] [--pages PAGE_LIST] "
+"INPUT_FILE`"
 msgstr ""
-"用法： `kicad-cli sch export svg [--help] [--output OUTPUT_DIR] [--drawing-sheet "
-"SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME] [--black-and-white] [--"
-"exclude-drawing-sheet] [--no-background-color] [--pages PAGE_LIST] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:1258
+#: cli.adoc:1999
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the SVG file export command.\n"
-"| `-o <output dir>`, `--output <output dir>`\n"
-"    | The output folder for the exported files. When this argument is not used,\n"
-"      the files are exported to the current directory.\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
-"      specified in the schematic file.\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | Add or override project variable definitions. Can be used multiple times\n"
-"      to define multiple variables.\n"
-"| `-t <theme name>`, `--theme <theme name>`\n"
-"    | The name of the theme to use for export. If no theme is given, the\n"
-"      schematic editor's currently selected theme is used.\n"
-"| `-b`, `--black-and-white`\n"
-"    | Export schematic in black and white.\n"
-"| `-e`, `--exclude-drawing-sheet`\n"
-"    | Plot SVG without a drawing sheet.\n"
-"| `-n`, `--no-background-color`\n"
-"    | Export schematic without a background color, regardless of theme.\n"
-"| `--pages <page list>`\n"
-"    | Comma-separated list of pages to export. Blank or unspecified means all\n"
-"      pages. To plot specific pages, give the root sheet as `INPUT_FILE` and\n"
-"      specify the desired output pages with the `--pages` argument.\n"
-msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示 SVG 文件导出命令的帮助信息。\n"
-"| `-o <output dir>`, `--output <output dir>`\n"
-"    | 指定导出文件的目标文件夹。如果不使用此参数，文件将被导出到当前工作目录。\n"
-"| `--drawing-sheet <sheet path>`\n"
-"    | 指定用于绘制的图纸路径，覆盖原理图文件中指定的图纸设置。\n"
-"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
-"    | 添加或覆盖工程变量定义。可多次使用以定义多个变量。\n"
-"| `-t <theme name>`, `--theme <theme name>`\n"
-"    | 指定用于导出的主题名称。若未指定主题，则使用原理图编辑器中当前选定的主题。\n"
-"| `-b`, `--black-and-white`\n"
-"    | 以黑白模式导出原理图。\n"
-"| `-e`, `--exclude-drawing-sheet`\n"
-"    | 在不使用图纸的情况下绘制 SVG。\n"
-"| `-n`, `--no-background-color`\n"
-"    | 导出原理图时不包含背景颜色，不受主题影响。\n"
-"| `--pages <page list>`\n"
-"    | 要导出的页面列表，由逗号分隔。留空或未指定则表示所有页面。要导出特定页面，请将根图纸作为 `INPUT_FILE`，并使用 `--pages` 参数指定所需的输出页面。\n"
+"The output folder for the exported files. When `--output` is not used,\n"
+"      the files are exported to the current directory."
+msgstr "导出文件的输出文件夹。当未使用 `--output` 时，文件将导出到当前目录。"
 
 #. type: Title ==
-#: cli.adoc:1260
+#: cli.adoc:2022
 #, no-wrap
 msgid "Symbol commands"
 msgstr "符号命令"
 
 #. type: Plain text
-#: cli.adoc:1264
-msgid ""
-"The `sym` subcommand exports symbols to another format or upgrades symbol "
-"libraries to the current version of the KiCad symbol file format."
-msgstr ""
-"`sym` 子命令将符号导出为另一种格式，或将符号库升级到 KiCad 符号文件格式的当前版"
-"本。"
+#: cli.adoc:2026
+msgid "The `sym` subcommand exports symbols to another format or upgrades symbol libraries to the current version of the KiCad symbol file format."
+msgstr "`sym` 子命令用于将符号导出到另一种格式，或将符号库升级到 KiCad 符号文件格式的当前版本。"
 
 #. type: Title ===
-#: cli.adoc:1265
+#: cli.adoc:2027
 #, no-wrap
 msgid "Symbol export"
-msgstr "符号导出"
+msgstr "符合导出"
 
 #. type: Plain text
-#: cli.adoc:1269
-msgid ""
-"The `sym export svg` command exports one or more symbols from the specified "
-"library into SVG files."
-msgstr "`sym export svg` 命令将指定库中的一个或多个符号导出到 SVG 文件中。"
+#: cli.adoc:2031
+msgid "The `sym export svg` command exports one or more symbols from the specified library into SVG files."
+msgstr "`sym export svg` 命令将指定库中的一个或多个符号导出为 SVG 文件。"
 
 #. type: Plain text
-#: cli.adoc:1273
-msgid ""
-"Usage: `kicad-cli sym export svg [--help] [--output OUTPUT_DIR] [--theme "
-"THEME_NAME] [--symbol SYMBOL] [--black-and-white] [--include-hidden-pins] [--"
-"include-hidden-fields] INPUT_FILE`"
+#: cli.adoc:2033
+msgid "Usage: `kicad-cli sym export svg [--help] [--output OUTPUT_DIR] [--theme THEME_NAME] [--symbol SYMBOL] [--black-and-white] [--include-hidden-pins] [--include-hidden-fields] INPUT_FILE`"
 msgstr ""
-"用法： `kicad-cli sym export svg [--help] [--output OUTPUT_DIR] [--theme "
-"THEME_NAME] [--symbol SYMBOL] [--black-and-white] [--include-hidden-pins] [--"
-"include-hidden-fields] INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:1280
+#: cli.adoc:2040
 #, no-wrap
-msgid ""
-"| `INPUT_FILE`\n"
-"    | Symbol library file to use for export.\n"
-msgstr ""
-"| `INPUT_FILE`\n"
-"    | 用于导出的符号库文件。\n"
+msgid "Symbol library file to use for export."
+msgstr "用于导出的符号库文件。"
 
 #. type: Table
-#: cli.adoc:1303
+#: cli.adoc:2048
+#, no-wrap
+msgid "Show help for the symbol SVG export command."
+msgstr "显示 SVG 导出命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:2052
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the symbol SVG export command.\n"
-"| `-o <output dir>`, `--output <output dir>`\n"
-"    | The output folder for the exported files. When this argument is not used,\n"
-"      the files are exported to the current directory.\n"
-"| `-t <theme name>`, `--theme <theme name>`\n"
-"    | The name of the theme to use for export. If no theme is given, the symbol\n"
-"      editor's currently selected theme is used.\n"
-"| `-s <symbol name>`, `--symbol <symbol name>`\n"
-"    | The specific symbol to export from the library. When this argument is\n"
-"      not used, all symbols in the library are exported.\n"
-"| `--black-and-white`\n"
-"    | Export symbols in black and white.\n"
-"| `--include-hidden-pins`\n"
-"    | Export hidden pins in the exported SVG.\n"
-"| `--include-hidden-fields`\n"
-"    | Export hidden symbol fields in the exported SVG.\n"
+"The output folder for the exported files. Each symbol in the input library\n"
+"      is output to a separate file. When `--output` is not used, the files\n"
+"      are exported to the current directory."
+msgstr "导出文件的输出文件夹。当未使用 `--output` 时，文件将导出到当前目录。"
+
+#. type: Table
+#: cli.adoc:2055
+#, no-wrap
+msgid ""
+"The name of the theme to use for export. If no theme is given, the symbol\n"
+"      editor's currently selected theme is used."
+msgstr "用于导出的主题名称。如果未指定主题，则使用符号编辑器当前选定的主题。"
+
+#. type: Table
+#: cli.adoc:2056
+#, no-wrap
+msgid "`-s <symbol name>`, `--symbol <symbol name>`"
 msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示符号 SVG 导出命令的帮助信息。\n"
-"| `-o <output dir>`, `--output <output dir>`\n"
-"    | 设置导出文件的输出文件夹。如果未使用此参数，文件将被导出到当前目录。\n"
-"| `-t <theme name>`, `--theme <theme name>`\n"
-"    | 指定用于导出的主题名称。如果没有给出主题，则使用符号编辑器中当前选择的主题。\n"
-"| `-s <symbol name>`, `--symbol <symbol name>`\n"
-"    | 指定从库中导出的特定符号。如果未使用此参数，则会导出库中的所有符号。\n"
-"| `--black-and-white`\n"
-"    | 以黑白模式导出符号。\n"
-"| `--include-hidden-pins`\n"
-"    | 在导出的 SVG 中包含隐藏引脚。\n"
-"| `--include-hidden-fields`\n"
-"    | 在导出的 SVG 中包含隐藏的符号字段。\n"
+
+#. type: Table
+#: cli.adoc:2058
+#, no-wrap
+msgid ""
+"The specific symbol to export from the library. When this argument is\n"
+"      not used, all symbols in the library are exported."
+msgstr "从库中导出的具体符号。当未使用此参数时，库中的所有符号均会被导出。"
+
+#. type: Table
+#: cli.adoc:2060
+#, no-wrap
+msgid "Export symbols in black and white."
+msgstr "以黑白形式导出符号。"
+
+#. type: Table
+#: cli.adoc:2061
+#, no-wrap
+msgid "`--include-hidden-pins`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2062
+#, no-wrap
+msgid "Export hidden pins in the exported SVG."
+msgstr "在导出的 SVG 中导出隐藏引脚。"
+
+#. type: Table
+#: cli.adoc:2063
+#, no-wrap
+msgid "`--include-hidden-fields`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2064
+#, no-wrap
+msgid "Export hidden symbol fields in the exported SVG."
+msgstr "在导出的 SVG 文件中导出隐藏的符号字段。"
 
 #. type: Title ===
-#: cli.adoc:1305
+#: cli.adoc:2066
 #, no-wrap
 msgid "Symbol upgrade"
 msgstr "符号升级"
 
 #. type: Plain text
-#: cli.adoc:1310
+#: cli.adoc:2072
 msgid ""
-"The `sym upgrade` command upgrades the the specified symbol library from a legacy "
-"symbol format to the native format for the current version of KiCad. If the input "
-"library is already in the current file format, no action is taken."
-msgstr ""
-"`sym upgrade` 命令将指定的符号库从传统符号格式升级到当前版本的 KiCad 的原生格式。"
-"如果输入库已采用当前文件格式，则不执行任何操作。"
+"The `sym upgrade` command converts the the specified symbol library from a legacy KiCad symbol format or a non-KiCad symbol format to the native format for the current version of KiCad. If the input library is already in the current file format, no action is "
+"taken."
+msgstr "`sym upgrade` 命令将指定的符号库从旧版 KiCad 符号格式或非 KiCad 符号格式转换为当前版本 KiCad 的原生格式。如果输入库已采用当前文件格式，则不执行任何操作。"
 
 #. type: Plain text
-#: cli.adoc:1312
-msgid ""
-"Usage: `kicad-cli sym upgrade [--help] [--output OUTPUT_FILE] [--force] "
-"INPUT_FILE`"
+#: cli.adoc:2074
+msgid "Supported input symbol formats are:"
+msgstr "支持的输入符号格式包括："
+
+#. type: Plain text
+#: cli.adoc:2076
+msgid "KiCad symbol library (`.kicad_sym`)"
+msgstr "KiCad 符号库（`.kicad_sym`）"
+
+#. type: Plain text
+#: cli.adoc:2077
+msgid "KiCad (pre-6.0) symbol library (`.lib`)"
+msgstr "KiCad（6.0之前版本）符号库（`.lib`）"
+
+#. type: Plain text
+#: cli.adoc:2078
+msgid "Altium schematic library (`.SchLib`)"
+msgstr "Altium 原理图库（`.SchLib`）"
+
+#. type: Plain text
+#: cli.adoc:2080
+msgid "CADSTAR parts library (`.lib`)"
+msgstr "CADSTAR 元件库（`.lib`）"
+
+#. type: Plain text
+#: cli.adoc:2085
+msgid "Usage: `kicad-cli sym upgrade [--help] [--output OUTPUT_FILE] [--force] INPUT_FILE`"
 msgstr ""
-"用法： `kicad-cli sym upgrade [--help] [--output OUTPUT_FILE] [--force] "
-"INPUT_FILE`"
 
 #. type: Table
-#: cli.adoc:1319
+#: cli.adoc:2092
 #, no-wrap
-msgid ""
-"| `INPUT_FILE`\n"
-"    | Symbol library to upgrade.\n"
-msgstr ""
-"| `INPUT_FILE`\n"
-"    | 要升级的符号库。\n"
+msgid "Symbol library to upgrade."
+msgstr "符号库升级。"
 
 #. type: Table
-#: cli.adoc:1332
+#: cli.adoc:2100
+#, no-wrap
+msgid "Show help for the symbol upgrade command."
+msgstr "显示符号升级命令的帮助信息。"
+
+#. type: Table
+#: cli.adoc:2103
 #, no-wrap
 msgid ""
-"| `-h`, `--help`\n"
-"    | Show help for the symbol upgrade command.\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | The output filename for the upgraded symbol library. When this argument is\n"
-"      not used, the upgraded symbol library is saved over the original library.\n"
-"| `--force`\n"
-"    | Re-save the input library even if it is already in the current file format.\n"
-msgstr ""
-"| `-h`, `--help`\n"
-"    | 显示符号升级命令的帮助信息。.\n"
-"| `-o <output filename>`, `--output <output filename>`\n"
-"    | 指定升级后符号库的输出文件名。如果不使用此参数，升级后的符号库将覆盖原来的库文件。\n"
-"| `--force`\n"
-"    | 即使输入的库已经是当前文件格式，也强制重新保存库文件。\n"
+"The output filename for the upgraded symbol library. When `--output` is\n"
+"      not used, the upgraded symbol library is saved over the original library."
+msgstr "升级后符号库的输出文件名。当未使用 `--output` 时，升级后的符号库将覆盖原始库。"
 
 #. type: Title ==
-#: cli.adoc:1334
+#: cli.adoc:2107
 #, no-wrap
 msgid "Version commands"
 msgstr "版本命令"
 
 #. type: Plain text
-#: cli.adoc:1339
-msgid ""
-"The `version` subcommand prints the KiCad version. Without any arguments, it "
-"simply prints the version number, for example `7.0.7`. You can print the version "
-"in several other formats using the `--format` argument."
-msgstr ""
-"`version` 子命令打印 KiCad 版本。没有任何参数，它只打印版本号，例如 `7.0.7`。您可"
-"以使用 `--format` 参数以其他几种格式打印版本。"
+#: cli.adoc:2112
+msgid "The `version` command prints the KiCad version. Without any arguments, it simply prints the version number, for example `7.0.7`. You can print the version in several other formats using the `--format` argument."
+msgstr "`version` 命令用于显示 KiCad 的版本信息。若不带任何参数，它将直接显示版本号，例如 `7.0.7`。您还可以通过使用 `--format` 参数以其他格式显示版本信息。"
 
 #. type: Plain text
-#: cli.adoc:1342
+#: cli.adoc:2115
 #, no-wrap
 msgid ""
 "Use `kicad-cli version --format about` for version information to include\n"
 "      when submitting bug reports or feature requests on Gitlab.\n"
-msgstr "在 Gitlab 上提交错误报告或功能请求时，请使用 `kicad-cli version --format about` 获取要包含的版本信息。\n"
+msgstr "使用 `kicad-cli version --format about` 命令获取版本信息，并在提交 GitLab 上的 bug 报告或功能请求时包含此信息。\n"
 
 #. type: Plain text
-#: cli.adoc:1344
+#: cli.adoc:2117
 msgid "Usage: `kicad-cli version [--help] [--format VAR]`"
-msgstr "用法： `kicad-cli version [--help] [--format VAR]`"
+msgstr ""
 
 #. type: Table
-#: cli.adoc:1356
+#: cli.adoc:2129
 #, no-wrap
 msgid ""
-"| `--format <format>`\n"
-"    | Format of the version number. Options are `plain` (default), `commit`, or\n"
+"Format of the version number. Options are `plain` (default), `commit`, or\n"
 "      `about`. `plain` prints the version number (e.g. `7.0.7`), which is the\n"
 "      default if the `--format` argument is not used. `commit` prints the hash\n"
 "      of the git commit for the build of KiCad you are using. `about` prints the\n"
 "      full version information, including library versions and basic system\n"
-"      information. You can use the `about` version information in bug reports.\n"
-msgstr ""
-"| `--format <format>`\n"
-"    | 版本号的格式。选项为 `plain`（默认）、`commit` 或 `about`。`plain` 打印版本号（例如 `7.0.7`），如果不使用 `--format` 参数，则为默认值。`commit` 打印您正在使用的 KiCad 构建的 git commit 的哈希值。`about` 打印完整版本信息，包括库版本和基本系统信息。您可以在 Bug 报告中使用 `关于` 版本信息。\n"
-"\n"
+"      information. You can use the `about` version information in bug reports."
+msgstr "版本号的格式。可选项包括 `plain`（默认）、`commit` 或 `about`。`plain` 显示版本号（例如 `7.0.7`），这是在未使用 `--format` 参数时的默认格式。`commit` 打印您正在使用的 KiCad 构建的 Git 提交哈希值。`about` 打印完整的版本信息，包括库版本和基本系统信息。您可以在错误报告中使用 `about` 版本信息。"
+
+#, no-wrap
+#~ msgid ""
+#~ "The output directory for the exported files. When this argument is not\n"
+#~ "      used, the files are exported to the current directory."
+#~ msgstr "导出文件的输出目录。当未使用此参数时，文件将导出到当前目录。"
+
+#, no-wrap
+#~ msgid ""
+#~ "The output filename. When this argument is not used, the output filename\n"
+#~ "      will be the same as the input file, with the `.dxf` file extension."
+#~ msgstr "输出文件名。当未使用此参数时，输出文件名将与输入文件相同，并带有 `.dxf` 文件扩展名。"
+
+#, no-wrap
+#~ msgid ""
+#~ "The output filename. When this argument is not used, the output filename\n"
+#~ "      will be the same as the input file, with the `.pdf` file extension."
+#~ msgstr "输出文件名。当未使用此参数时，输出文件名将与输入文件相同，并带有 `.pdf` 文件扩展名。"
+
+#, no-wrap
+#~ msgid "Plot the layers to individual PDF files."
+#~ msgstr "将图层分别保存为独立的 PDF 文件。"
+
+#, no-wrap
+#~ msgid "Plot the layers to a single PDF file with multiple pages."
+#~ msgstr "将各图层合并为一个包含多页的 PDF 文件。"
+
+#, no-wrap
+#~ msgid ""
+#~ "The output filename. When this argument is not used, the output filename\n"
+#~ "      will be the same as the input file, with the `.svg` file extension."
+#~ msgstr "输出文件名。当未使用此参数时，输出文件名将与输入文件相同，并带有 `.svg` 文件扩展名。"
+
+#, no-wrap
+#~ msgid "Schematic HPGL export"
+#~ msgstr "原理图 HPGL 导出"
+
+#~ msgid "The `sch export hpgl` command exports a schematic to an HPGL file for a pen plotter. Each sheet in the design is exported to its own file."
+#~ msgstr "命令 `sch export hpgl` 将原理图导出到用于笔式绘图仪的 HPGL 文件。设计中的每张图纸都会导出到各自的文件中。"
+
+#, no-wrap
+#~ msgid "Show help for the HPGL file export command."
+#~ msgstr "显示 HPGL 文件导出命令的帮助信息。"
+
+#, no-wrap
+#~ msgid "Plot HPGL without a drawing sheet."
+#~ msgstr "无需图框即可绘制 HPGL。"
+
+#, no-wrap
+#~ msgid "Set the pen width. The default pen size is 0.5 mm."
+#~ msgstr "设置笔宽。默认笔宽为 0.5mm。"
+
+#, no-wrap
+#~ msgid ""
+#~ "Set plotter origin and scale. Options are `0`, `1` (default), `2`, or `3`.\n"
+#~ "      `0` sets the origin to the bottom left and uses plotter units. `1` sets\n"
+#~ "      the origin to the center and uses plotter units. `2` scales to the page,\n"
+#~ "      and `3` scales to the content within the page."
+#~ msgstr "设置绘图仪原点和比例。可选值为 `0`、`1`（默认）、`2` 或 `3`。 `0` 将原点设置为左下角并使用绘图仪单位。`1` 将原点设置为中心并使用绘图仪单位。`2` 缩放至页面，`3` 缩放至页面内的内容。"

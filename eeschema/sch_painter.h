@@ -37,6 +37,7 @@ class SCH_PIN;
 class LIB_SYMBOL;
 class SCH_SYMBOL;
 class SCH_FIELD;
+class SCH_GROUP;
 class SCH_JUNCTION;
 class SCH_LABEL;
 class SCH_TEXT;
@@ -100,10 +101,13 @@ private:
     void draw( const SCH_BITMAP* aBitmap, int aLayer );
     void draw( const SCH_LINE* aLine, int aLayer );
     void draw( const SCH_BUS_ENTRY_BASE* aEntry, int aLayer );
+    void draw( const SCH_GROUP* aGroup, int aLayer );
 
     void drawPinDanglingIndicator( const SCH_PIN& aPin, const COLOR4D& aColor, bool aDrawingShadows,
                                    bool aBrightened );
 
+    void drawLocalPowerIcon( const VECTOR2D& aPos, double aSize, bool aRotate,
+                             const COLOR4D& aColor, bool aDrawingShadows, bool aBrightened );
     /**
      * Draw the target (an open square) for a wire or label which has no connection or is
      * being moved.
@@ -135,6 +139,9 @@ private:
     void triLine( const VECTOR2D& a, const VECTOR2D& b, const VECTOR2D& c );
 
     wxString expandLibItemTextVars( const wxString& aSourceText, const SCH_SYMBOL* aSymbolContext );
+
+    void drawLine( const VECTOR2I& aStartPoint, const VECTOR2I& aEndPoint, LINE_STYLE aLineStyle, 
+                   bool aDrawDirectLine = false, int aWidth = 0 );
 
 public:
     static std::vector<KICAD_T> g_ScaledSelectionTypes;

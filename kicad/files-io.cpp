@@ -22,32 +22,27 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-/**
- * @file kicad/files-io.cpp
- */
-
 #include <wx/dir.h>
 #include <wx/filedlg.h>
 #include <wx/dirdlg.h>
 
-#include <confirm.h>
-#include <dialogs/panel_kicad_launcher.h>
+#include <kiplatform/ui.h>
 #include <kiway.h>
 #include <project/project_archiver.h>
 #include <reporter.h>
 #include <settings/settings_manager.h>
 #include <wildcards_and_files_ext.h>
+#include <local_history.h>
 
 #include "kicad_manager_frame.h"
 
 
 void KICAD_MANAGER_FRAME::OnFileHistory( wxCommandEvent& event )
 {
-    wxFileName projFileName = GetFileFromHistory( event.GetId(), _( "KiCad project file" ) );
-    if( !projFileName.FileExists() )
-        return;
+    wxString filename = GetFileFromHistory( event.GetId(), _( "KiCad project file" ) );
 
-    LoadProject( projFileName );
+    if( !filename.IsEmpty() )
+        LoadProject( wxFileName( filename ) );
 }
 
 
@@ -57,15 +52,16 @@ void KICAD_MANAGER_FRAME::OnClearFileHistory( wxCommandEvent& aEvent )
 }
 
 
-void KICAD_MANAGER_FRAME::OnUnarchiveFiles( wxCommandEvent& event )
+void KICAD_MANAGER_FRAME::UnarchiveFiles()
 {
     wxFileName fn = Prj().GetProjectFullName();
 
     fn.SetExt( FILEEXT::ArchiveFileExtension );
 
-    wxFileDialog zipfiledlg( this, _( "Unzip Project" ), fn.GetPath(),
-                             fn.GetFullName(), FILEEXT::ZipFileWildcard(),
-                             wxFD_OPEN | wxFD_FILE_MUST_EXIST );
+    wxFileDialog zipfiledlg( this, _( "Unzip Project" ), fn.GetPath(), fn.GetFullName(),
+                             FILEEXT::ZipFileWildcard(), wxFD_OPEN | wxFD_FILE_MUST_EXIST );
+
+    KIPLATFORM::UI::AllowNetworkFileSystems( &zipfiledlg );
 
     if( zipfiledlg.ShowModal() == wxID_CANCEL )
         return;
@@ -90,45 +86,19 @@ void KICAD_MANAGER_FRAME::OnUnarchiveFiles( wxCommandEvent& event )
 
     STATUSBAR_REPORTER reporter( GetStatusBar(), 1 );
 
-    PROJECT_ARCHIVER::Unarchive( zipfiledlg.GetPath(), unzipDir, reporter );
-
-    if( unzipDir == Prj().GetProjectPath() )
+    if( PROJECT_ARCHIVER::Unarchive( zipfiledlg.GetPath(), unzipDir, reporter ) )
     {
-        wxString prjPath = Prj().GetProjectFullName();
+        wxArrayString projectFiles;
+        wxDir::GetAllFiles( unzipDir, &projectFiles,
+                            wxT( "*." ) + wxString::FromUTF8( FILEEXT::ProjectFileExtension ),
+                            wxDIR_FILES );
 
-        SETTINGS_MANAGER* mgr = GetSettingsManager();
-
-        mgr->UnloadProject( &Prj(), false );
-        mgr->LoadProject( prjPath );
-
-        RefreshProjectTree();
+        if( projectFiles.size() == 1 )
+            LoadProject( wxFileName( projectFiles[0] ) );
     }
 }
 
-
-void KICAD_MANAGER_FRAME::OnArchiveFiles( wxCommandEvent& event )
+void KICAD_MANAGER_FRAME::RestoreLocalHistory()
 {
-    wxFileName  fileName = GetProjectFileName();
-
-    fileName.SetExt( FILEEXT::ArchiveFileExtension );
-
-    wxFileDialog dlg( this, _( "Archive Project Files" ),
-                      fileName.GetPath(), fileName.GetFullName(),
-                      FILEEXT::ZipFileWildcard(), wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
-
-    if( dlg.ShowModal() == wxID_CANCEL )
-        return;
-
-    wxFileName zipFile = dlg.GetPath();
-
-    wxString currdirname = fileName.GetPathWithSep();
-    wxDir dir( currdirname );
-
-    if( !dir.IsOpened() )   // wxWidgets display a error message on issue.
-        return;
-
-    STATUSBAR_REPORTER reporter( GetStatusBar(), 1 );
-    PROJECT_ARCHIVER archiver;
-
-    archiver.Archive( currdirname, zipFile.GetFullPath(), reporter, true, true );
+    Kiway().LocalHistory().ShowRestoreDialog( Prj().GetProjectPath(), this );
 }

@@ -24,25 +24,32 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "footprint_wizard_frame.h"
+
+#include <wx/listbox.h>
+#include <wx/numformatter.h>
+#include <wx/statline.h>
+#include <wx/tokenzr.h>
+#include <wx/wupdlock.h>
+
+#include <json_common.h>
+
 #include <kiface_base.h>
 #include <pcb_draw_panel_gal.h>
 #include <pcb_edit_frame.h>
 #include <3d_viewer/eda_3d_viewer_frame.h>
+#include <gal/gal_display_options.h>
 #include <widgets/msgpanel.h>
 #include <bitmaps.h>
 #include <grid_tricks.h>
 #include <board.h>
+#include <project/net_settings.h>
+#include <footprint.h>
 #include <footprint_edit_frame.h>
 #include <footprint_editor_settings.h>
 #include <pcbnew_id.h>
-#include <pcbnew_settings.h>
-#include "footprint_wizard_frame.h"
-#include <wx/listbox.h>
-#include <wx/statline.h>
-#include <wx/tokenzr.h>
-#include <wx/numformatter.h>
-#include <wildcards_and_files_ext.h>
-#include <base_units.h>
+#include <widgets/aui_json_serializer.h>
+
 #include <pgm_base.h>
 #include <settings/color_settings.h>
 #include <settings/settings_manager.h>
@@ -50,9 +57,12 @@
 #include <tool/tool_dispatcher.h>
 #include <tool/action_toolbar.h>
 #include <tool/common_tools.h>
-#include "tools/pcb_selection_tool.h"
-#include "tools/pcb_control.h"
-#include "tools/pcb_actions.h"
+#include <tool/common_control.h>
+#include <tools/pcb_selection_tool.h>
+#include <tools/pcb_control.h>
+#include <tools/pcb_actions.h>
+#include <tools/footprint_wizard_tools.h>
+#include <toolbars_footprint_wizard.h>
 #include <python/scripting/pcb_scripting_tool.h>
 
 
@@ -64,9 +74,6 @@ BEGIN_EVENT_TABLE( FOOTPRINT_WIZARD_FRAME, PCB_BASE_EDIT_FRAME )
 
      // Toolbar events
     EVT_TOOL( ID_FOOTPRINT_WIZARD_SELECT_WIZARD, FOOTPRINT_WIZARD_FRAME::SelectCurrentWizard )
-    EVT_TOOL( ID_FOOTPRINT_WIZARD_RESET_TO_DEFAULT, FOOTPRINT_WIZARD_FRAME::DefaultParameters )
-    EVT_TOOL( ID_FOOTPRINT_WIZARD_NEXT, FOOTPRINT_WIZARD_FRAME::Process_Special_Functions )
-    EVT_TOOL( ID_FOOTPRINT_WIZARD_PREVIOUS, FOOTPRINT_WIZARD_FRAME::Process_Special_Functions )
     EVT_TOOL( ID_FOOTPRINT_WIZARD_DONE, FOOTPRINT_WIZARD_FRAME::ExportSelectedFootprint )
 
     // listbox events
@@ -145,14 +152,17 @@ FOOTPRINT_WIZARD_FRAME::FOOTPRINT_WIZARD_FRAME( KIWAY* aKiway, wxWindow* aParent
     m_toolManager->RegisterTool( new PCB_SELECTION_TOOL );  // for std context menus (zoom & grid)
     m_toolManager->RegisterTool( new SCRIPTING_TOOL );
     m_toolManager->RegisterTool( new COMMON_TOOLS );
+    m_toolManager->RegisterTool( new COMMON_CONTROL );
+    m_toolManager->RegisterTool( new FOOTPRINT_WIZARD_TOOLS );
     m_toolManager->InitTools();
 
     // Run the control tool, it is supposed to be always active
-    m_toolManager->InvokeTool( "pcbnew.InteractiveSelection" );
+    m_toolManager->InvokeTool( "common.InteractiveSelection" );
 
     // Create the toolbars
-    ReCreateHToolbar();
-    ReCreateVToolbar();
+    m_toolbarSettings = GetToolbarSettings<FOOTPRINT_WIZARD_TOOLBAR_SETTINGS>( "fpwizard-toolbars" );
+    configureToolbars();
+    RecreateToolbars();
 
     // Create the parameters panel
     m_parametersPanel = new wxPanel( this, wxID_ANY );
@@ -186,7 +196,7 @@ FOOTPRINT_WIZARD_FRAME::FOOTPRINT_WIZARD_FRAME( KIWAY* aKiway, wxWindow* aParent
 
     m_auimgr.SetManagedWindow( this );
 
-    m_auimgr.AddPane( m_mainToolBar, EDA_PANE().HToolbar().Name( "MainToolbar" ).Top().Layer(6) );
+    m_auimgr.AddPane( m_tbTopMain, EDA_PANE().HToolbar().Name( "TopMainToolbar" ).Top().Layer(6) );
     m_auimgr.AddPane( m_messagePanel, EDA_PANE().Messages().Name( "MsgPanel" ).Bottom().Layer(6)
                       .BestSize( -1, m_msgFrameHeight ) );
 
@@ -198,11 +208,15 @@ FOOTPRINT_WIZARD_FRAME::FOOTPRINT_WIZARD_FRAME( KIWAY* aKiway, wxWindow* aParent
     m_auimgr.AddPane( GetCanvas(), wxAuiPaneInfo().Name( "DrawFrame" ).CentrePane() );
 
     auto& galOpts = GetGalDisplayOptions();
-    galOpts.m_fullscreenCursor = true;
+    galOpts.SetCursorMode( KIGFX::CROSS_HAIR_MODE::FULLSCREEN_CROSS );
     galOpts.m_forceDisplayCursor = true;
     galOpts.m_axesEnabled = true;
 
+    // Switch to the canvas type set in config
+    resolveCanvasType();
+    GetCanvas()->SwitchBackend( m_canvasType );
     ActivateGalCanvas();
+
     updateView();
 
     SetActiveLayer( F_Cu );
@@ -280,9 +294,8 @@ void FOOTPRINT_WIZARD_FRAME::OnSize( wxSizeEvent& SizeEv )
 
 COLOR_SETTINGS* FOOTPRINT_WIZARD_FRAME::GetColorSettings( bool aForceRefresh ) const
 {
-    wxString currentTheme = GetFootprintEditorSettings()->m_ColorTheme;
-
-    return Pgm().GetSettingsManager().GetColorSettings( currentTheme );
+    FOOTPRINT_EDITOR_SETTINGS* cfg = GetFootprintEditorSettings();
+    return ::GetColorSettings( cfg ? cfg->m_ColorTheme : DEFAULT_THEME );
 }
 
 
@@ -380,7 +393,7 @@ void FOOTPRINT_WIZARD_FRAME::ReCreateParameterList()
     if( footprintWizard == nullptr )
         return;
 
-    m_parameterGrid->Freeze();
+    wxWindowUpdateLocker updateLock( m_parameterGrid );
 
     m_parameterGrid->ClearGrid();
     m_parameterGridPage = m_pageList->GetSelection();
@@ -423,18 +436,15 @@ void FOOTPRINT_WIZARD_FRAME::ReCreateParameterList()
             m_parameterGrid->SetCellRenderer( i, WIZ_COL_VALUE, new wxGridCellBoolRenderer );
         }
         // Parameters that can be selected from a list of multiple options
-        else if( units.Contains( wxT( "," ) ) )  // Indicates list of available options
+        else if( units.Contains( "," ) )  // Indicates list of available options
         {
-            wxStringTokenizer tokenizer( units, wxT( "," ) );
+            wxStringTokenizer tokenizer( units, "," );
             wxArrayString options;
 
             while( tokenizer.HasMoreTokens() )
-            {
                 options.Add( tokenizer.GetNextToken() );
-            }
 
-            m_parameterGrid->SetCellEditor( i, WIZ_COL_VALUE,
-                                            new wxGridCellChoiceEditor( options ) );
+            m_parameterGrid->SetCellEditor( i, WIZ_COL_VALUE, new wxGridCellChoiceEditor( options ) );
 
             units = wxT( "" );
         }
@@ -466,8 +476,6 @@ void FOOTPRINT_WIZARD_FRAME::ReCreateParameterList()
     }
 
     ResizeParamColumns();
-
-    m_parameterGrid->Thaw();
 }
 
 void FOOTPRINT_WIZARD_FRAME::ResizeParamColumns()
@@ -511,6 +519,7 @@ void FOOTPRINT_WIZARD_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
     PCB_BASE_FRAME::LoadSettings( cfg );
 
     m_auiPerspective = cfg->m_FootprintViewer.perspective;
+    m_viewerAuiState = std::make_unique<nlohmann::json>( cfg->m_FootprintViewer.aui_state );
 }
 
 
@@ -521,16 +530,32 @@ void FOOTPRINT_WIZARD_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
 
     PCB_BASE_FRAME::SaveSettings( cfg );
 
+#if wxCHECK_VERSION( 3, 3, 0 )
+    {
+        WX_AUI_JSON_SERIALIZER serializer( m_auimgr );
+        nlohmann::json state = serializer.Serialize();
+
+        if( state.is_null() || state.empty() )
+            cfg->m_FootprintViewer.aui_state = nlohmann::json();
+        else
+            cfg->m_FootprintViewer.aui_state = state;
+
+        cfg->m_FootprintViewer.perspective.clear();
+    }
+#else
     cfg->m_FootprintViewer.perspective = m_auimgr.SavePerspective().ToStdString();
+    cfg->m_FootprintViewer.aui_state = nlohmann::json();
+#endif
 }
 
 
 WINDOW_SETTINGS* FOOTPRINT_WIZARD_FRAME::GetWindowSettings( APP_SETTINGS_BASE* aCfg )
 {
-    auto cfg = dynamic_cast<PCBNEW_SETTINGS*>( aCfg );
-    wxASSERT( cfg );
+    if( PCBNEW_SETTINGS* cfg = dynamic_cast<PCBNEW_SETTINGS*>( aCfg ) )
+        return &cfg->m_FootprintWizard;
 
-    return cfg ? &cfg->m_FootprintWizard : nullptr;
+    wxFAIL_MSG( wxT( "FOOTPRINT_CHOOSER not running with PCBNEW_SETTINGS" ) );
+    return &aCfg->m_Window;     // non-null fail-safe
 }
 
 
@@ -569,70 +594,11 @@ void FOOTPRINT_WIZARD_FRAME::Update3DView( bool aMarkDirty, bool aRefresh, const
 }
 
 
-void FOOTPRINT_WIZARD_FRAME::ReCreateHToolbar()
-{
-    if( m_mainToolBar )
-    {
-        m_mainToolBar->ClearToolbar();
-    }
-    else
-    {
-        m_mainToolBar = new ACTION_TOOLBAR( this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-                                            KICAD_AUI_TB_STYLE | wxAUI_TB_HORZ_LAYOUT );
-        m_mainToolBar->SetAuiManager( &m_auimgr );
-    }
-
-    // Set up toolbar
-    m_mainToolBar->AddTool( ID_FOOTPRINT_WIZARD_SELECT_WIZARD, wxEmptyString,
-                            KiBitmap( BITMAPS::module_wizard ),
-                            _( "Select wizard script to run" ) );
-
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->AddTool( ID_FOOTPRINT_WIZARD_RESET_TO_DEFAULT, wxEmptyString,
-                            KiBitmap( BITMAPS::reload ),
-                            _( "Reset wizard parameters to default") );
-
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->AddTool( ID_FOOTPRINT_WIZARD_PREVIOUS, wxEmptyString,
-                            KiBitmap( BITMAPS::lib_previous ),
-                            _( "Select previous parameters page" ) );
-    m_mainToolBar->AddTool( ID_FOOTPRINT_WIZARD_NEXT, wxEmptyString,
-                            KiBitmap( BITMAPS::lib_next ),
-                            _( "Select next parameters page" ) );
-
-#if 0   // Currently: the 3D viewer is not useful
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( ACTIONS::show3DViewer );
-#endif
-
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( ACTIONS::zoomRedraw );
-    m_mainToolBar->Add( ACTIONS::zoomInCenter );
-    m_mainToolBar->Add( ACTIONS::zoomOutCenter );
-    m_mainToolBar->Add( ACTIONS::zoomFitScreen );
-
-    // The footprint wizard always can export the current footprint
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->AddTool( ID_FOOTPRINT_WIZARD_DONE,
-                            wxEmptyString, KiBitmap( BITMAPS::export_footprint_names ),
-                            _( "Export footprint to editor" ) );
-
-    // after adding the buttons to the toolbar, must call Realize() to
-    // reflect the changes
-    m_mainToolBar->Realize();
-}
-
-
 BOARD_ITEM_CONTAINER* FOOTPRINT_WIZARD_FRAME::GetModel() const
 {
     return GetBoard()->GetFirstFootprint();
 }
 
-
-void FOOTPRINT_WIZARD_FRAME::ReCreateVToolbar()
-{
-    // Currently, there is no vertical toolbar
-}
 
 void FOOTPRINT_WIZARD_FRAME::PythonPluginsReload()
 {

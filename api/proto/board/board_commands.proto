@@ -42,10 +42,43 @@ message BoardStackupResponse
   kiapi.board.BoardStackup stackup = 1;
 }
 
+// Changes the stackup for the given board according to the contents of the message (**not yet implemented**)
+// WARNING: any existing content on layers that are removed by this call is deleted.  This operation cannot be undone.
+// Returns BoardStackupResponse with the updated stackup, in normalized form
 message UpdateBoardStackup
 {
   kiapi.common.types.DocumentSpecifier board = 1;
   kiapi.board.BoardStackup stackup = 2;
+}
+
+message GetBoardEnabledLayers
+{
+  kiapi.common.types.DocumentSpecifier board = 1;
+}
+
+message BoardEnabledLayersResponse
+{
+  // The number of copper layers enabled in this board.
+  uint32 copper_layer_count = 1;
+
+  // A list of all layers enabled in this board, including copper layers and ones which cannot be disabled.
+  repeated kiapi.board.types.BoardLayer layers = 2;
+}
+
+// Changes which layers are enabled in the board stackup
+// WARNING: any existing content on layers that are removed by this call is deleted.  This operation cannot be undone.
+// Returns BoardEnabledLayersResponse with the updated layer set.
+message SetBoardEnabledLayers
+{
+  kiapi.common.types.DocumentSpecifier board = 1;
+
+  // The number of copper layers to enable in the board.  Currently, this must be an even number >= 2.
+  uint32 copper_layer_count = 2;
+
+  // The non-copper layers to enable.  Note that any copper layers in this list are ignored; copper layers are enabled
+  // by setting copper_layer_count.  Note that the F/B.Courtyard, Edge.Cuts, and Margin layers cannot be disabled and
+  // will be present in the board even if they are omitted from this list.
+  repeated kiapi.board.types.BoardLayer layers = 3;
 }
 
 message GetGraphicsDefaults
@@ -80,6 +113,20 @@ message SetBoardOrigin
   BoardOriginType type = 2;
 
   kiapi.common.types.Vector2 origin = 3;
+}
+
+message GetBoardLayerName
+{
+  kiapi.common.types.DocumentSpecifier board = 1;
+
+  kiapi.board.types.BoardLayer layer = 2;
+}
+
+message BoardLayerNameResponse
+{
+  // The name of the layer shown in the KiCad GUI, which may be a default value like "F.Cu" or may
+  // have been customized by the user.
+  string name = 1;
 }
 
 /*
@@ -187,6 +234,76 @@ message PadShapeAsPolygonResponse
 
   // The polygon representation of each pad
   repeated kiapi.common.types.PolygonWithHoles polygons = 2;
+}
+
+// Tests if the given set of items with padstacks (pads or vias) has content on the given set of layers.
+// This is a dynamic call rather than a property of the padstack because pads and vias can be set to only include
+// shapes on connected copper layers, and whether or not the pad is connected can't be determined in isolation.
+// To optimize API call performance, multiple items and multiple layers to test may be passed in with this
+// command message.  The return will include the results for each valid item on each valid layer.
+// Note that not all layers make sense for a given item (for example, testing against BL_UNDEFINED never makes
+// sense).  In general, the internal KiCad APIs will not return an error when testing non-sensical layers for a given
+// item, and instead will return a default of "true" for any such layers.
+message CheckPadstackPresenceOnLayers
+{
+  kiapi.common.types.DocumentSpecifier board = 1;
+
+  repeated kiapi.common.types.KIID items = 2;
+
+  repeated kiapi.board.types.BoardLayer layers = 3;
+}
+
+enum PadstackPresence
+{
+  PSP_UNKNOWN = 0;
+  PSP_PRESENT = 1;      // The padstack has a shape on a given layer (is flashed)
+  PSP_NOT_PRESENT = 2;  // The padstack has no shape on a given layer (is not flashed)
+}
+
+message PadstackPresenceEntry
+{
+  kiapi.common.types.KIID item = 1;
+  kiapi.board.types.BoardLayer layer = 2;
+  PadstackPresence presence = 3;
+}
+
+message PadstackPresenceResponse
+{
+  repeated PadstackPresenceEntry entries = 1;
+}
+
+// DRC markers
+
+enum DrcSeverity // Since 10.0
+{
+  DRS_UNKNOWN = 0;
+  DRS_WARNING = 1;
+  DRS_ERROR = 2;
+  DRS_EXCLUSION = 3;
+  DRS_IGNORE = 4;
+  DRS_INFO = 5;
+  DRS_ACTION = 6;
+  DRS_DEBUG = 7;
+  DRS_UNDEFINED = 8;
+}
+
+// Returns InjectDrcErrorResponse
+message InjectDrcError
+{
+  kiapi.common.types.DocumentSpecifier board = 1;
+
+  DrcSeverity severity = 2;
+
+  string message = 3;
+
+  kiapi.common.types.Vector2 position = 4;
+
+  repeated kiapi.common.types.KIID items = 5;
+}
+
+message InjectDrcErrorResponse
+{
+  kiapi.common.types.KIID marker = 1;
 }
 
 // PCB editor commands

@@ -25,6 +25,7 @@ usr/lib/@DEB_HOST_MULTIARCH@/libkicommon*
 usr/lib/@DEB_HOST_MULTIARCH@/libkigal*
 usr/lib/python3/dist-packages
 usr/share/applications
+usr/share/bash-completion/completions/kicad-cli
 usr/share/icons
 usr/share/kicad/plugins
 # installing the following file into the /u/s/d/kicad and symlink it to
@@ -37,4 +38,5 @@ usr/share/kicad/template
 usr/share/locale
 usr/share/metainfo
 usr/share/mime
+usr/share/zsh/site-functions/_kicad-cli
 debian/man/*                     usr/share/man/man1

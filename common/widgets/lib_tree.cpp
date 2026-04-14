@@ -23,8 +23,9 @@
  */
 
 #include <widgets/lib_tree.h>
-#include <widgets/std_bitmap_button.h>
+#include <widgets/bitmap_button.h>
 #include <core/kicad_algo.h>
+#include <algorithm>
 #include <macros.h>
 #include <bitmaps.h>
 #include <dialogs/eda_reorderable_list_dialog.h>
@@ -37,6 +38,7 @@
 #include <wx/settings.h>
 #include <wx/sizer.h>
 #include <wx/srchctrl.h>
+#include <wx/statline.h>
 #include <wx/popupwin.h>
 
 #include <eda_doc.h>                    // for GetAssociatedDocument()
@@ -48,7 +50,7 @@ constexpr int RECENT_SEARCHES_MAX = 10;
 std::map<wxString, std::vector<wxString>> g_recentSearches;
 
 
-LIB_TREE::LIB_TREE( wxWindow* aParent, const wxString& aRecentSearchesKey, LIB_TABLE* aLibTable,
+LIB_TREE::LIB_TREE( wxWindow* aParent, const wxString& aRecentSearchesKey,
                     wxObjectDataPtr<LIB_TREE_MODEL_ADAPTER>& aAdapter, int aFlags,
                     HTML_WINDOW* aDetails ) :
         wxPanel( aParent, wxID_ANY, wxDefaultPosition, wxDefaultSize,
@@ -78,19 +80,16 @@ LIB_TREE::LIB_TREE( wxWindow* aParent, const wxString& aRecentSearchesKey, LIB_T
 
         m_query_ctrl->ShowCancelButton( true );
 
-#ifdef __WXGTK__
-        // wxSearchCtrl vertical height is not calculated correctly on some GTK setups
-        // See https://gitlab.com/kicad/code/kicad/-/issues/9019
-        m_query_ctrl->SetMinSize( wxSize( -1, GetTextExtent( wxT( "qb" ) ).y + 10 ) );
-#endif
-
         m_debounceTimer = new wxTimer( this );
 
-        search_sizer->Add( m_query_ctrl, 1, wxEXPAND | wxRIGHT, 5 );
+        search_sizer->Add( m_query_ctrl, 1, wxALIGN_CENTER_VERTICAL|wxRIGHT, 4 );
 
-        m_sort_ctrl = new STD_BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition,
-                                             wxDefaultSize, wxBU_AUTODRAW|0 );
-        m_sort_ctrl->SetBitmap( KiBitmapBundle( BITMAPS::small_sort_desc ) );
+        wxStaticLine* separator = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL );
+        search_sizer->Add( separator, 0, wxEXPAND|wxTOP|wxBOTTOM, 3 );
+
+        m_sort_ctrl = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition,
+                                         wxDefaultSize, wxBU_AUTODRAW|0 );
+        m_sort_ctrl->SetBitmap( KiBitmapBundle( BITMAPS::config ) );
         m_sort_ctrl->Bind( wxEVT_LEFT_DOWN,
                 [&]( wxMouseEvent& aEvent )
                 {
@@ -132,10 +131,9 @@ LIB_TREE::LIB_TREE( wxWindow* aParent, const wxString& aRecentSearchesKey, LIB_T
                 } );
 
         m_sort_ctrl->Bind( wxEVT_CHAR_HOOK, &LIB_TREE::onTreeCharHook, this );
+        search_sizer->Add( m_sort_ctrl, 0, wxALIGN_CENTER_VERTICAL, 5 );
 
-        search_sizer->Add( m_sort_ctrl, 0, wxEXPAND, 5 );
-
-        sizer->Add( search_sizer, 0, wxEXPAND | wxBOTTOM, 5 );
+        sizer->Add( search_sizer, 0, wxEXPAND, 5 );
 
         m_query_ctrl->Bind( wxEVT_TEXT, &LIB_TREE::onQueryText, this );
 
@@ -143,7 +141,7 @@ LIB_TREE::LIB_TREE( wxWindow* aParent, const wxString& aRecentSearchesKey, LIB_T
         m_query_ctrl->Bind( wxEVT_CHAR_HOOK, &LIB_TREE::onQueryCharHook, this );
         m_query_ctrl->Bind( wxEVT_MOTION, &LIB_TREE::onQueryMouseMoved, this );
 
-#if defined( __WXOSX__ ) || wxCHECK_VERSION( 3, 3, 0 ) // Doesn't work properly on other ports
+#if defined( __WXOSX__ ) // Doesn't work properly on other ports
         m_query_ctrl->Bind( wxEVT_LEAVE_WINDOW,
                             [this]( wxMouseEvent& aEvt )
                             {
@@ -154,8 +152,7 @@ LIB_TREE::LIB_TREE( wxWindow* aParent, const wxString& aRecentSearchesKey, LIB_T
         m_query_ctrl->Bind( wxEVT_MENU,
                 [this]( wxCommandEvent& aEvent )
                 {
-                    wxString search;
-                    size_t   idx = aEvent.GetId() - 1;
+                    size_t idx = aEvent.GetId() - 1;
 
                     if( idx < g_recentSearches[ m_recentSearchesKey ].size() )
                         m_query_ctrl->SetValue( g_recentSearches[ m_recentSearchesKey ][idx] );
@@ -225,7 +222,7 @@ LIB_TREE::LIB_TREE( wxWindow* aParent, const wxString& aRecentSearchesKey, LIB_T
     {
         m_query_ctrl->SetDescriptiveText( _( "Filter" ) );
         m_query_ctrl->SetFocus();
-        m_query_ctrl->SetValue( wxEmptyString );
+        m_query_ctrl->ChangeValue( wxEmptyString );
         updateRecentSearchMenu();
 
         // Force an update of the adapter with the empty text to ensure preselect is done
@@ -284,7 +281,23 @@ LIB_TREE::~LIB_TREE()
         m_details_ctrl->Unbind( wxEVT_HTML_LINK_CLICKED, &LIB_TREE::onDetailsLink, this );
 
     m_hoverTimer.Stop();
-    destroyPreview();
+}
+
+
+void LIB_TREE::ShutdownPreviews()
+{
+    m_hoverTimer.Stop();
+    m_previewDisabled = true;
+
+    if( m_previewWindow )
+    {
+        // Shutdown the preview window's canvas
+        m_adapter->ShutdownPreview( m_previewWindow );
+
+        m_previewWindow->Hide();
+        m_previewWindow->Destroy();
+        m_previewWindow = nullptr;
+    }
 }
 
 
@@ -418,7 +431,7 @@ void LIB_TREE::updateRecentSearchMenu()
     if( !newEntry.IsEmpty() )
     {
         if( alg::contains( recents, newEntry ) )
-            alg::delete_matching( recents, newEntry );
+            std::erase( recents, newEntry );
 
         if( recents.size() >= RECENT_SEARCHES_MAX )
             recents.pop_back();
@@ -585,6 +598,11 @@ LIB_TREE::STATE LIB_TREE::getState() const
 
     state.selection = GetSelectedLibId();
 
+    state.scrollpos = {
+        m_tree_ctrl->HasScrollbar( wxHORIZONTAL ) ? m_tree_ctrl->GetScrollPos( wxHORIZONTAL ) : 0,
+        m_tree_ctrl->HasScrollbar( wxVERTICAL ) ? m_tree_ctrl->GetScrollPos( wxVERTICAL ) : 0
+    };
+
     return state;
 }
 
@@ -595,6 +613,10 @@ void LIB_TREE::setState( const STATE& aState )
 
     for( const wxDataViewItem& item : aState.expanded )
         m_tree_ctrl->Expand( item );
+
+    // TODO(JE) probably remove this; it fights with centerIfValid
+    // m_tree_ctrl->SetScrollPos( wxHORIZONTAL, aState.scrollpos.x );
+    // m_tree_ctrl->SetScrollPos( wxVERTICAL, aState.scrollpos.y );
 
     // wxDataViewCtrl cannot be frozen when a selection
     // command is issued, otherwise it selects a random item (Windows)
@@ -627,14 +649,35 @@ void LIB_TREE::onQueryCharHook( wxKeyEvent& aKeyStroke )
 {
     int hotkey = aKeyStroke.GetKeyCode();
 
-    if( aKeyStroke.GetModifiers() & wxMOD_CONTROL )
-        hotkey += MD_CTRL;
+    int mods = aKeyStroke.GetModifiers();
 
-    if( aKeyStroke.GetModifiers() & wxMOD_ALT )
-        hotkey += MD_ALT;
+    // the flag wxMOD_ALTGR is defined in wxWidgets as wxMOD_CONTROL|wxMOD_ALT
+    // So AltGr key cannot used as modifier key because it is the same as Alt key + Ctrl key.
+#if CAN_USE_ALTGR_KEY
+    if( wxmods & wxMOD_ALTGR )
+        mods |= MD_ALTGR;
+    else
+#endif
+    {
+        if( mods & wxMOD_CONTROL )
+            hotkey += MD_CTRL;
 
-    if( aKeyStroke.GetModifiers() & wxMOD_SHIFT )
+        if( mods & wxMOD_ALT )
+            hotkey += MD_ALT;
+    }
+
+    if( mods & wxMOD_SHIFT )
         hotkey += MD_SHIFT;
+
+#ifdef wxMOD_META
+    if( mods & wxMOD_META )
+        hotkey += MD_META;
+#endif
+
+#ifdef wxMOD_WIN
+    if( mods & wxMOD_WIN )
+        hotkey += MD_SUPER;
+#endif
 
     if( hotkey == ACTIONS::expandAll.GetHotKey()
         || hotkey == ACTIONS::expandAll.GetHotKeyAlt() )
@@ -705,7 +748,7 @@ void LIB_TREE::onQueryCharHook( wxKeyEvent& aKeyStroke )
 
 void LIB_TREE::onQueryMouseMoved( wxMouseEvent& aEvent )
 {
-#if defined( __WXOSX__ ) || wxCHECK_VERSION( 3, 3, 0 ) // Doesn't work properly on other ports
+#if defined( __WXOSX__ ) // Doesn't work properly on other ports
     wxPoint pos = aEvent.GetPosition();
     wxRect  ctrlRect = m_query_ctrl->GetScreenRect();
     int     buttonWidth = ctrlRect.GetHeight();         // Presume buttons are square
@@ -754,18 +797,6 @@ void LIB_TREE::hidePreview()
 
     if( m_previewWindow )
         m_previewWindow->Hide();
-}
-
-
-void LIB_TREE::destroyPreview()
-{
-    hidePreview();
-
-    if( m_previewWindow )
-    {
-        m_previewWindow->Destroy();
-        m_previewWindow = nullptr;
-    }
 }
 
 
@@ -859,14 +890,31 @@ void LIB_TREE::onTreeCharHook( wxKeyEvent& aKeyStroke )
         {
             int hotkey = aKeyStroke.GetKeyCode();
 
-            if( aKeyStroke.ShiftDown() )
+            int mods = aKeyStroke.GetModifiers();
+
+            if( mods & wxMOD_ALTGR )
+                hotkey |= MD_ALTGR;
+            else
+            {
+                if( mods & wxMOD_ALT )
+                    hotkey |= MD_ALT;
+
+                if( mods & wxMOD_CONTROL )
+                    hotkey |= MD_CTRL;
+            }
+
+            if( mods & wxMOD_SHIFT )
                 hotkey |= MD_SHIFT;
 
-            if( aKeyStroke.AltDown() )
-                hotkey |= MD_ALT;
+#ifdef wxMOD_META
+            if( mods & wxMOD_META )
+                hotkey |= MD_META;
+#endif
 
-            if( aKeyStroke.ControlDown() )
-                hotkey |= MD_CTRL;
+#ifdef wxMOD_WIN
+            if( mods & wxMOD_WIN )
+                hotkey |= MD_SUPER;
+#endif
 
             if( tool->GetManager()->GetActionManager()->RunHotKey( hotkey ) )
                 aKeyStroke.Skip( false );
@@ -1012,7 +1060,10 @@ void LIB_TREE::onHeaderContextMenu( wxDataViewEvent& aEvent )
                                          m_adapter->GetShownColumns() );
 
         if( dlg.ShowModal() == wxID_OK )
+        {
             m_adapter->SetShownColumns( dlg.EnabledList() );
+            Regenerate( true );
+        }
     }
 
     m_previewDisabled = false;

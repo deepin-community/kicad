@@ -30,10 +30,11 @@ class RC_ITEMS_PROVIDER;
 class ERC_REPORT
 {
 public:
-    ERC_REPORT( SCHEMATIC* aSchematic, EDA_UNITS aReportUnits );
+    ERC_REPORT( SCHEMATIC* aSchematic, EDA_UNITS aReportUnits,
+                std::shared_ptr<RC_ITEMS_PROVIDER> aMarkersProvider = nullptr );
 
     /**
-     * Returns the ERC report in "text" (human readable) format
+     * Returns the ERC report in "text" (human readable) format in the C-locale.
      *
      * @return The complete report
      */
@@ -47,7 +48,7 @@ public:
     bool WriteTextReport( const wxString& aFullFileName );
 
     /**
-     * Writes a JSON formatted ERC Report to the given file path
+     * Writes a JSON formatted ERC Report to the given file path in the c-locale
      *
      * @return True if the file write completed successfully, false otherwise
      */
@@ -56,6 +57,8 @@ public:
 private:
     SCHEMATIC*                         m_sch;
     EDA_UNITS                          m_reportUnits;
+    std::shared_ptr<RC_ITEMS_PROVIDER> m_markersProvider;
+    int                                m_reportedSeverities;
 };
 
 

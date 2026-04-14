@@ -16,23 +16,26 @@ NOTE: This section of the KiCad documentation has not yet been written.  We
 [[text-variables]]
 === Text variables
 
-KiCad supports text variables, which allow you to substitute the variable name
-with a defined text string. This substitution happens anywhere the variable name
-is used inside the variable replacement syntax of `${VARIABLENAME}`.
+KiCad supports text variables, which allow you to reference predefined variables by name in many kinds of text.
+KiCad will substitute the variable name with the text string assigned to the variable.
+Text variables can be used in schematic and PCB graphic text, symbol and footprint text, symbol and footprint fields, drawing sheet fields, label names, label fields, hierarchical sheet fields, and other text contexts.
+This substitution happens anywhere the variable name is used inside the variable replacement syntax of `${VARIABLENAME}`.
+
+For example, you could create a variable named `VERSION` and set the text substitution to `1.0`.
+Now, in any text object in the schematic, you can enter `${VERSION}` and KiCad will display this as `1.0`.
+If you change the value to `2.0`, every text object that includes `${VERSION}` will be updated automatically.
+You can also mix regular text and variables:
+a text object with the text `Version: ${VERSION}` will be displayed as `Version: 1.0`.
 
 You can define project text variables in the
 <<schematic-setup-text-variables,schematic>> or
-xref:../pcbnew/pcbnew.adoc#board-setup-text-variables[board setup]
-dialogs. Project text variables are defined for the whole project, so a project
-text variable defined in the Schematic Editor can also be used in the Board
-Editor.
+xref:../pcbnew/pcbnew.adoc#board-setup-text-variables[board setup] dialogs.
+These are referred to as project text variables because they are defined for the whole project,
+so a project text variable defined in the Schematic Editor can also be used in the Board Editor, and vice versa.
 
-There are also a number of built-in system text variables. System
-text variables may be available in some contexts and not others. The following
-system text variables can be used in schematic text, label names, label
-fields, hierarchical sheet fields, symbol text, symbol fields, and drawing
-sheet fields. There are also a number of
-xref:../pcbnew/pcbnew.adoc#text-variables[variables that can be used in the PCB Editor].
+The Schematic Editor also has a number of built-in system text variables, which are listed in the table below.
+System text variables may be available in some contexts and not others.
+There is an equivalent list of variables for the xref:../pcbnew/pcbnew.adoc#text-variables[PCB Editor].
 
 Variables used in hierarchical sheet fields refer to the properties of the
 hierarchical sheet, not the parent, unless otherwise noted. For example, `${#}`
@@ -54,6 +57,15 @@ example `MY_VAR: MY_VALUE`.
   | Sheet number.
 | `##`
   | Total number of schematic sheets.
+| `ADDR`
+  | Column (letter) and row (zero-indexed number) address of current table cell.
+    This variable is only available in <<tables,table>> cells.
+| `CELL(<row>, <col>)`
+  | Contents of the table cell indexed by `<row>` and `<col>` (zero-indexed).
+    This variable is only available in <<tables,table>> cells.
+| `COL`
+  | Column number (zero-indexed) of current table cell.
+    This variable is only available in <<tables,table>> cells.
 | `COMMENT1` - `COMMENT9`
   | Contents of drawing sheet's `Comment<n>` field.
 | `COMPANY`
@@ -74,6 +86,9 @@ example `MY_VAR: MY_VALUE`.
   | Project name, without a file extension.
 | `REVISION`
   | Contents of drawing sheet's `Revision` field.
+| `ROW`
+  | Row number (zero-indexed) of current table cell.
+    This variable is only available in <<tables,table>> cells.
 | `SHEETFILE`
   | Filename of the *current sheet*, with a file extension.
 | `SHEETNAME`
@@ -82,6 +97,16 @@ example `MY_VAR: MY_VALUE`.
   | Sheet path of the current sheet.
 | `TITLE`
   | Contents of drawing sheet's `Title` field.
+| `VARIANT`
+  | Name of the currently selected variant.
+| `VARIANT_DESC`
+  | Description of the currently selected variant.
+| `VCSHASH`
+  | Full hash of the project's current Git commit.
+    If the project is not part of a Git repository, resolves to "no hash".
+| `VCSSHORTHASH`
+  | Short (8 character) hash of the project's current Git commit.
+    If the project is not part of a Git repository, resolves to "no hash".
 | `<variablename>`
   | Contents of <<schematic-setup-text-variables,project text variable>>
   `<variablename>`.
@@ -95,49 +120,107 @@ example `MY_VAR: MY_VALUE`.
     Both built-in and user-defined fields are available. Built-in fields use all
     uppercase letters: for example, to access a symbol's value, use `${VALUE}`.
 
-    Built-in symbol fields are `DATASHEET`, `DESCRIPTION`, `FOOTPRINT`,
-    `FOOTPRINT_LIBRARY`, `FOOTPRINT_NAME`, `NET_CLASS(<pin_number>)`,
-    `NET_NAME(<pin_number>)`, `OP`, `PIN_NAME(<pin_number>)`, `REFERENCE`,
-    `SHORT_NET_NAME(<pin_number>)`, `SHORT_REFERENCE`, `SYMBOL_DESCRIPTION`,
-    `SYMBOL_KEYWORDS`, `SYMBOL_LIBRARY`, `SYMBOL_NAME`, `UNIT`, `VALUE`.
+    Built-in symbol fields are
+    `DATASHEET`,
+    `DESCRIPTION`,
+    `FOOTPRINT`,
+    `FOOTPRINT_LIBRARY`,
+    `FOOTPRINT_NAME`,
+    `NET_CLASS(<pin_number>)`,
+    `NET_NAME(<pin_number>)`,
+    `OP`,
+    `PIN_ALT_LIST(<pin_number>)`,
+    `PIN_BASE_NAME(<pin_number>)`,
+    `PIN_NAME(<pin_number>)`,
+    `REFERENCE`,
+    `REFERENCE(<pin_number>)`,
+    `SHORT_NET_NAME(<pin_number>)`,
+    `SHORT_REFERENCE`,
+    `SHORT_REFERENCE(<pin_number>)`,
+    `SYMBOL_DESCRIPTION`,
+    `SYMBOL_KEYWORDS`,
+    `SYMBOL_LIBRARY`,
+    `SYMBOL_NAME`,
+    `UNIT`,
+    `UNIT(<pin_number>)`,
+    and
+    `VALUE`.
 
-    Built-in symbol attributes are `DNP`, `EXCLUDE_FROM_BOARD`,
-    `EXCLUDE_FROM_BOM`, and `EXCLUDE_FROM_SIM`. These attributes expand to the
-    friendly name of the attribute if the attribute is set (e.g. `Excluded from
-    board` for `EXCLUDE_FROM_BOARD` and `DNP` for `DNP`), or to an empty string
-    if the attribute is not set.
+    Built-in symbol attributes are
+    `DNP`,
+    `EXCLUDE_FROM_BOARD`,
+    `EXCLUDE_FROM_BOM`,
+    and
+    `EXCLUDE_FROM_SIM`.
+    These attributes expand to the friendly name of the attribute if the attribute is set
+    (e.g. `Excluded from board` for `EXCLUDE_FROM_BOARD` and `DNP` for `DNP`),
+    or to an empty string if the attribute is not set.
 
-    Built-in sheet fields are `SHEETFILE`, `SHEETNAME`, and `SHEETPATH`. These
-    refer to the child sheet's filename, sheet name, and sheet path,
+    Built-in sheet fields are
+    `SHEETFILE`,
+    `SHEETNAME`,
+    and
+    `SHEETPATH`.
+    These refer to the child sheet's filename, sheet name, and sheet path,
     respectively, rather than the parent sheet's.
 
-    Built-in label fields are `CONNECTION_TYPE`, `NET_CLASS`, `NET_NAME`,
-    `OP`, `SHORT_NET_NAME`, and `INTERSHEETREFS` (global labels only).
+    Built-in label fields are
+    `CONNECTION_TYPE`,
+    `NET_CLASS`,
+    `NET_NAME`,
+    `OP`,
+    `SHORT_NET_NAME`,
+    and
+    `INTERSHEETREFS` (global labels only).
 
 | `<refdes>:<fieldname>`
   | Contents of field or attribute `<fieldname>` in symbol `<refdes>`.
-    
+
     Both built-in and user-defined fields are available. Built-in fields use all
     uppercase letters: for example, to access the value of `U1`, use
     `${U1:VALUE}`.
-    
-    Built-in symbol fields are `DATASHEET`, `DESCRIPTION`, `FOOTPRINT`,
-    `FOOTPRINT_LIBRARY`, `FOOTPRINT_NAME`, `NET_CLASS(<pin_number>)`,
-    `NET_NAME(<pin_number>)`, `OP`, `PIN_NAME(<pin_number>)`, `REFERENCE`,
-    `SHORT_NET_NAME(<pin_number>)`, `SYMBOL_DESCRIPTION`, `SYMBOL_KEYWORDS`,
-    `SYMBOL_LIBRARY`, `SYMBOL_NAME`, `UNIT`, `VALUE`.
 
-    Built-in symbol attributes are `DNP`, `EXCLUDE_FROM_BOARD`,
-    `EXCLUDE_FROM_BOM`, and `EXCLUDE_FROM_SIM`. These attributes expand to the
-    friendly name of the attribute if the attribute is set (e.g. `Excluded from
-    board` for `EXCLUDE_FROM_BOARD` and `DNP` for `DNP`), or to an empty string
-    if the attribute is not set.
+    Built-in symbol fields are
+    `DATASHEET`,
+    `DESCRIPTION`,
+    `FOOTPRINT`,
+    `FOOTPRINT_LIBRARY`,
+    `FOOTPRINT_NAME`,
+    `NET_CLASS(<pin_number>)`,
+    `NET_NAME(<pin_number>)`,
+    `OP`,
+    `PIN_NAME(<pin_number>)`,
+    `REFERENCE`,
+    `REFERENCE(<pin_number>)`,
+    `SHORT_NET_NAME(<pin_number>)`,
+    `SHORT_REFERENCE`,
+    `SHORT_REFERENCE(<pin_number>)`,
+    `SYMBOL_DESCRIPTION`,
+    `SYMBOL_KEYWORDS`,
+    `SYMBOL_LIBRARY`,
+    `SYMBOL_NAME`,
+    `UNIT`,
+    `UNIT(<pin_number>)`,
+    `VALUE`.
+
+    Built-in symbol attributes are
+    `DNP`,
+    `EXCLUDE_FROM_BOARD`,
+    `EXCLUDE_FROM_BOM`,
+    and
+    `EXCLUDE_FROM_SIM`.
+    These attributes expand to the friendly name of the attribute if the attribute is set
+    (e.g. `Excluded from board` for `EXCLUDE_FROM_BOARD` and `DNP` for `DNP`),
+    or to an empty string if the attribute is not set.
+
+    **Note:** If the symbol referenced by `<refdes>` is reannotated, i.e. receives a new reference designator,
+    `<refdes>` in the text variable will be automatically updated to the new reference designator so that the text variable continues to reference the same symbol.
 | `ERC_ERROR <errorname>`
   | Generates an <<text-var-erc,ERC error>> named `<errorname>`. Everything
     inside the braces resolves to an empty string, while everything after the
     braces is included in the descriptive text for the ERC violation. The text
     variable must be at the beginning of the text item.
-    
+
     For example, a text item containing `${ERC_ERROR TODO}Calculate resistor
     value` would display as the text "Calculate resistor value" and generate a
     ERC error named "TODO" with the description "Calculate resistor value".
@@ -145,6 +228,355 @@ example `MY_VAR: MY_VALUE`.
   | Generates an <<text-var-erc,ERC warning>> named `<warningname>`. This behaves
     the same as `ERC_ERROR`, except a warning is generated rather than an error.
 
+|====
+
+[[text-expressions]]
+=== Text expressions
+
+KiCad has a system for evaluating text expressions,
+which allows you to manipulate text, evaluate mathematical expressions in strings, and dynamically create strings based on other information.
+Text expressions can be used in schematic and PCB graphic text, symbol and footprint text, symbol and footprint fields, drawing sheet fields, and other text contexts.
+
+Text expressions are evaluated when the `@{expression}` syntax is used.
+Everything inside the braces is evaluated, and the entire expression, including the surrounding `@{}`, is replaced by the evaluated results.
+If the expression cannot be evaluated, the expression is not replaced and the original text is retained.
+
+As a basic example, a text object containing `1 plus 1 is @{1 + 1}` will read `1 plus 1 is 2`.
+
+Many expression functions are provided to perform more complex operations.
+The available expression functions are detailed in the tables below.
+For example, the absolute value of a number can be calculated using the `abs` function:
+`@{abs(-1)}` evaluates to `1`.
+
+A single text item can contain multiple text evaluations, and evaluations can be nested.
+You can also combine text evaluations with <<text-variables,text variables>>.
+For example, `@{max(1, 2, 3)}, @{max(4, 5, 6)}` evaluates to `3, 6`.
+If the text variable `var` is defined as `-10`, a text item containing
+`@{max(abs(${var}), 5)}` evaluates to `10`.
+
+Numbers can be written in scientific notation, so `@{2e3 + 1}` evaluates to `2001`.
+
+Text expressions support units.
+Results are always printed in SI units, and the unit is not printed.
+For example, `@{1mm + 1in}` evaluates to `26.4`. 
+
+In addition to numbers, some expression functions operate on strings.
+A string is text that is enclosed with single or double quotes, like `'string 1'` or `"string 2"`.
+An example of an expression function that operates on strings is `upper`, which converts a string to uppercase.
+`@{upper("string")}` evaluates to `STRING`.
+
+You can concatenate multiple strings or strings and numbers using the `concat` expression function or using the `+` operator:
+`@{concat("hello ", "world")}` and `@{"hello " + "world"}` both evaluate to `hello world`.
+`@{concat("revision ", 1)}` and `@{"revision " + 1}` both evaluate to `revision 1`.
+
+==== Mathematical and logical expressions
+
+The following arithmetic operations are available for operations between two numbers.
+The operators are all infix operators and obey order of operations.
+Parentheses can be used for grouping.
+For example, `@{3 + 4 * 3}` evaluates to `15`, and `@{(3 + 4) * 3}` evaluates to `21`.
+
+[options="header",cols="10%,50%,40%"]
+|====
+| Arithmetic operator | Description | Example
+| `+`
+  | Addition
+    
+    **Note:** `+` can also be used to concatenate two strings, or to concatenate a string and a number.
+  | `@{1 + 1}` = `2`
+| `-` | Subtraction | `@{1 - 1}` = `0`
+| `*` | Multiplication | `@{2 * 2}` = `4`
+| `/`
+  | Division (the expression is not evaluated if the divisor is `0`)
+  | `@{3 / 2}` = `1.5`
+
+    `@{1 / 0}` = `@{1 / 0}`
+| `%`
+  | Modulo (the expression is not evaluated if the divisor is `0`)
+  | `@{3 % 2}` = `1`
+
+    `@{3 % -2}` = `1`
+
+    `@{1 % 0}` = `@{1 % 0}`
+| `^`
+  | Exponentiation (right-associative)
+  | `@{2 ^ 3}` = `8`
+
+    `@{2 ^ 3 ^ 2}` = `512`
+|====
+
+The following expression functions are available for performing mathematical functions.
+For example, `@{abs(-1)}` evaluates to `1`.
+
+[options="header",cols="20%,50%,30%"]
+|====
+| Expression function | Description | Example
+| `abs(x)`
+  | Evaluates to the absolute value of `x`.
+  | `@{abs(-1)}` = `1`
+| `sqrt(x)`
+  | Evaluates to the square root of `x`.
+    The expression is not evaluated if `x` is negative.
+  | `@{sqrt(4)}` = `2`
+
+    `@{sqrt(-1)}` = `@{sqrt(-1)}`
+| `pow(x, y)` | Evaluates to `x` to the power of `y`. | `@{pow(2, 3)}` = `8`
+| `floor(x)`
+  | Evaluates to the greatest integer less than or equal to `x`.
+  | `@{floor(3.7)}` = `3`
+| `ceil(x)`
+  | Evaluates to the smallest integer greater than or equal to `x`.
+  | `@{ceil(3.2)}` = `4`
+| `round(x, [precision])`
+  | Evaluates to `x` rounded to the number of decimal places given by `precision`.
+    `precision` is optional; if it is not given, `x` is rounded to the nearest integer.
+  | `@{round(3.7)}` = `4`
+
+    `@{round(3.2)}` = `3`
+
+    `@{round(3.14159, 2)}` = `3.14`
+| `min(...)`
+  | Evaluates to the minimum of the given comma-separated values.
+  | `@{min(5, 3, 8, 1)}` = `1`
+| `max(...)`
+  | Evaluates to the maximum of the given comma-separated values.
+  | `@{max(5, 3, 8, 1)}` = `8`
+| `sum(...)`
+  | Evaluates to the sum of the given comma-separated values.
+  | `@{sum(1, 2, 3, 4)}` = `10`
+| `avg(...)`
+  | Evaluates to the average of the given comma-separated values.
+  | `@{avg(2, 4, 6)}` = `4`
+| `random()`
+  | Evaluates to a random number between `0` (inclusive) and `1` (exclusive).
+  | `0` &le; `@{random()}` &lt; `1`
+| `shunt(r1, r2)`
+  | Evaluates to the equivalent resistance of the two parallel resistances `r1` and `r2`: `(r1*r2) / (r1+r2)`.
+  | `@{shunt(10k, 10k)}` = `5000`
+| `db(ratio)`
+  | Converts the power ratio `ratio` to decibels: `10*log10(ratio)`.
+  | `@{db(2)}` &#x2248; `3`
+| `dbv(ratio)`
+  | Converts the voltage or current ratio `ratio` to decibels: `20*log10(ratio)`.
+  | `@{dbv(2)}` &#x2248; `6`
+| `fromdb(db)`
+  | Converts the quantity `db`, in decibels, to a power ratio: `10^(db/10)`.
+  | `@{fromdb(3)}` &#x2248; `2`
+| `fromdbv(db)`
+  | Converts the quantity `db`, in decibels, to a voltage or current ratio: `10^(db/20)`.
+  | `@{fromdbv(6)}` &#x2248; `2`
+| `enearest(value, [series])`
+  | Evaluates to the closest E-series standard value to `value` from the specified `series`.
+    Valid values for `series` are `"E3"`, `"E6"`, `"E12"`, `"E24"`, `"E48"`, `"E96"`, and `"E192"`.
+    `series` is optional; if it is not given, `"E24"` is used.
+  | `@{enearest(5)}` = `5.1`
+| `eup(value, [series])`
+  | Evaluates to the closest E-series standard value greater than `value` from the specified `series`.
+    Valid values for `series` are `"E3"`, `"E6"`, `"E12"`, `"E24"`, `"E48"`, `"E96"`, and `"E192"`.
+    `series` is optional; if it is not given, `"E24"` is used.
+  | `@{eup(5)}` = `5.1`
+| `edown(value, [series])`
+  | Evaluates to the closest E-series standard value less than `value` from the specified `series`.
+    Valid values for `series` are `"E3"`, `"E6"`, `"E12"`, `"E24"`, `"E48"`, `"E96"`, and `"E192"`.
+    `series` is optional; if it is not given, `"E24"` is used.
+  | `@{edown(5)}` = `4.7`
+|====
+
+==== Boolean expressions
+
+The following boolean operations are available.
+These operations evaluate to `1` if the expression is true or `0` if it is false.
+
+[options="header",cols="10%,50%,40%"]
+|====
+| Arithmetic operator | Description | Example
+| `<` | Less than | `@{1 < 2}` = `1`
+| `\<=` | Less than or equal to | `@{1 \<= 2}` = `1`
+| `>` | Greater than | `@{1 > 2}` = `0`
+| `>=` | Greater than or equal to | `@{1 >= 2}` = `0`
+| `==` | Equal to | `@{1 == 2}` = `0`
+| `!=` | Not equal to | `@{1 != 2}` = `1`
+|====
+
+The following expression functions are available for operating on the result of a boolean or mathematical expression.
+
+[options="header",cols="20%,50%,30%"]
+|====
+| Expression function | Description | Example
+| `if(condition, true_value, false_value)`
+  | Evaluates to `true_value` if `condition` evaluates to a true (non-zero) value.
+    Otherwise, evaluates to `false_value`.
+  | `@{if(0, "true", "false")}` = `false`
+
+    `@{if(1 < 2, 5, 10)}` = `5`
+|====
+
+==== String manipulation
+
+The following expression functions are available for manipulating strings.
+
+NOTE: Strings are text that is surrounded by single or double quotes.
+      For example, `"this is a string"` and `'this is also a string'`.
+
+[options="header",cols="20%,40%,40%"]
+|====
+| Expression function | Description | Example
+| `upper(str)`
+  | Evaluates to `str` converted to uppercase.
+  | `@{upper("hello world")}` = `HELLO WORLD`
+| `lower(str)`
+  | Evaluates to `str` converted to lowercase.
+  | `@{lower("HELLO WORLD")}` = `hello world`
+| `concat(...)`
+  | Evaluates to the given comma-separated strings or numbers concatenated together.
+
+    *Note:* strings and numbers can also be concatenated using the `+` operator.
+  | `@{concat("Hello", " ", "World")}` = `Hello World`
+
+    `@{concat("Count: ", 42, " items")}` = `Count: 42 items`
+
+    `@{"Count: " + 42 + " items"}` = `Count: 42 items`
+| `beforefirst(str, c)`
+  | Evaluates to the portion of `str` before the first occurrence of the character `c` in `str`.
+  | `@{beforefirst("hello.world.txt", ".")}` = `hello`
+| `beforelast(str, c)`
+  | Evaluates to the portion of `str` before the last occurrence of the character `c` in `str`.
+  | `@{beforelast("hello.world.txt", ".")}` = `hello.world`
+| `afterfirst(str, c)`
+  | Evaluates to the portion of `str` after the first occurrence of the character `c` in `str`.
+  | `@{afterfirst("hello.world.txt", ".")}` = `world.txt`
+| `afterlast(str, c)`
+  | Evaluates to the portion of `str` after the last occurrence of the character `c` in `str`.
+  | `@{afterlast("hello.world.txt", ".")}` = `txt`
+| `format(num, [precision])`
+  | Formats `num` as a string containing `num` rounded to `precision` decimal places.
+    `precision` is optional; if it is not given, `num` is rounded to 2 decimal places.
+
+    **Note:** `format()` behaves exactly the same as `fixed()`.
+  | `@{format(3.14159)}` = `3.14`
+
+    `@{format(3.14159, 3)}` = `3.142`
+
+    `@{format(1234.5)}` = `1234.50`
+| `fixed(num, [precision])`
+  | Formats `num` as a string containing `num` rounded to `precision` decimal places.
+    `precision` is optional; if it is not given, `num` is rounded to 2 decimal places.
+
+    **Note:** `fixed()` behaves exactly the same as `format()`.
+  | `@{fixed(3.14159)}` = `3.14`
+
+    `@{fixed(3.14159, 3)}` = `3.142`
+
+    `@{fixed(1234.5)}` = `1234.50`
+| `currency(amount, [symbol])`
+  | Formats `amount` as a string containing the currency symbol specified by `symbol` and a value with two decimal places.
+    `symbol` is optional; if it is not given, `"$"` is used.
+  | `@{currency(1234.56)}` = `$1234.56`
+
+    `@{currency(999.99, "€")}` = `€999.99`
+|====
+
+==== Date and time formatting
+
+The following expression functions are available for manipulating dates and times.
+
+[options="header",cols="20%,40%,40%"]
+|====
+| Expression function | Description | Example
+| `today()`
+  | Evaluates to the current date, represented as the number of days since the Unix epoch (00:00:00 UTC on 1970-01-01).
+
+  **Note:** this value can be formatted in various ways using the `dateformat()` function. You can add or subtract numbers to this value to get dates relative to the current date.
+  |
+| `now()`
+  | Evaluates to the current timestamp, represented as the number of seconds since the Unix epoch (00:00:00 UTC on 1970-01-01).
+
+  **Note:** you can add or subtract numbers to this value to get timestamps relative to the current timestamp.
+  |
+| `dateformat(days, [format])`
+  | Formats `days` as a string depending on the specified date `format`.
+    `days` is a number representing the number of days since the Unix epoch (00:00:00 UTC on 1970-01-01).
+    Valid values for `format` are `"ISO"`, `"US"`, `"EU"`, `"Chinese"`, `"Japanese"`, `"long"`, and `"short"`.
+    `format` is optional; if it is not given, `"ISO"` is used.
+  | `@{dateformat(0)}` = `1970-01-01`
+
+    `@{dateformat(0, "ISO")}` = `1970-01-01`
+
+    `@{dateformat(0, "short")}` = `Jan 1, 1970`
+| `weekdayname(days)`
+  | Evaluates to the day of the week of the date represented by `days`.
+    `days` is a number representing the number of days since the Unix epoch (00:00:00 UTC on 1970-01-01).
+  | `@{weekdayname(0)}` = `Thursday`
+|====
+
+==== Version control expressions
+
+The following expression functions are available for extracting version control system information about the project.
+If the project is not under version control, each expression function evaluates to `<unknown>`.
+
+Git is the only supported version control system for these expression functions.
+
+[options="header",cols="20%,80%"]
+|====
+| Expression function | Description
+| `vcsidentifier([length])`
+  | Evaluates to the current HEAD commit identifier, truncated to `length` characters.
+    `length` is optional; if it is not given, the commit identifier is truncated to 40 characters.
+    The minimum `length` is 4 characters.
+| `vcsbranch()`
+  | Evaluates to the current branch name.
+| `vcsauthor()`
+  | Evaluates to the current HEAD commit's author's name.
+| `vcsauthoremail()`
+  | Evaluates to the current HEAD commit's author's email address.
+| `vcscommitter()`
+  | Evaluates to the current HEAD commit's committer's name.
+| `vcscommitteremail()`
+  | Evaluates to the current HEAD commit's committer's email address.
+| `vcscommitdate([format])`
+  | Evaluates to the current HEAD commit's commit date.
+    Valid values for `format` are `"ISO"`, `"US"`, `"EU"`, `"Chinese"`, `"Japanese"`, `"long"`, and `"short"`.
+    `format` is optional; if it is not given, `"ISO"` is used.
+| `vcsnearestlabel([match], [anyTags])`
+  | Evaluates to the name of the matching tag closest to the HEAD commit.
+    `match` is an optional pattern (glob-style) to match tag names against;
+    if it is given, only tag names that match the pattern will be considered.
+    If it is not given, this is equivalent to the pattern `*`.
+    If `anyTags` is `0` or not given, only annotated tags will be considered.
+    If `anyTags` is `1`, all tags will be considered.
+| `vcslabeldistance([match], [anyTags])`
+  | Evaluates to the number of commits between HEAD and the matching tag closest to the HEAD commit.
+    `match` is an optional pattern (glob-style) to match tag names against;
+    if it is given, only tag names that match the pattern will be considered.
+    If it is not given, this is equivalent to the pattern `*`.
+    If `anyTags` is `0` or not given, only annotated tags will be considered.
+    If `anyTags` is `1`, all tags will be considered.
+| `vcsdirty([includeUntracked])`
+  | Evaluates to `1` if the repository is dirty, or `0` if it is not.
+    If `includeUntracked` is `0` or not given, untracked files will not contribute to the repository's dirty status.
+    If `includeUntracked` is 1, untracked files will contribute.
+| `vcsdirtysuffix([suffix], [includeUntracked])`
+  | Evaluates to the given `suffix` if the repository is dirty or an empty string if it is not.
+    `suffix` is optional; if it is not given, `-dirty` is used.
+    If `includeUntracked` is `0` or not given, untracked files will not contribute to the repository's dirty status.
+    If `includeUntracked` is 1, untracked files will contribute.
+| `vcsfileidentifier(file, [length])`
+  | Evaluates to the commit identifier of the last commit that modified the specified `file`,
+    truncated to `length` characters.
+    `length` is optional; if it is not given, the commit identifier is truncated to 40 characters.
+    The minimum `length` is 4 characters.
+| `vcsfileauthor(file)`
+  | Evaluates to the name of the author of the last commit that modified the specified `file`.
+| `vcsfileauthoremail(file)`
+  | Evaluates to the email address of the author of the last commit that modified the specified `file`.
+| `vcsfilecommitter(file)`
+  | Evaluates to the name of the committer of the last commit that modified the specified `file`.
+| `vcsfilecommitteremail(file)`
+  | Evaluates to the email address of the committer of the last commit that modified the specified `file`.
+| `vcsfilecommitdate(file, [format])`
+  | Evaluates to the commit date of the last commit that modified the specified `file`.
+    Valid values for `format` are `"ISO"`, `"US"`, `"EU"`, `"Chinese"`, `"Japanese"`, `"long"`, and `"short"`.
+    `format` is optional; if it is not given, `"ISO"` is used.
 |====
 
 ////
@@ -336,6 +768,7 @@ global symbol library table using the Configure Symbol Libraries dialog.
     },
     "name": "My Database Library",
     "description": "A database of components",
+    "globally_unique_keys": false,
     "source": {
         "type": "odbc",
         "dsn": "",
@@ -382,6 +815,22 @@ global symbol library table using the Configure Symbol Libraries dialog.
 
 NOTE: Database library files are in JSON format.  Standard JSON syntax rules apply.  To check if
 your file contains syntax errors, you may use a JSON validator or linter (available online). 
+
+===== Configuring top level settings
+
+`name`: The name of the library.
+
+`description`: A description of the library.
+
+`globally_unique_keys`: _optional, defaults to false_. Controls the format of the library link when
+placing parts in schematics. If `true` library link format is `LIB_NAME:KEY`. If `false` library
+link format is `LIB_NAME:SUB_LIB_NAME/KEY`. If `true` keys must be unique across all sub-libraries.
+When enabled this allows parts to be moved between sub-libraries without breaking the link in
+schematics (useful for library refactors and fixing miscategorized parts). When `false` keys only
+need to be unique within each individual sub-library.
+
+NOTE: Changing `globally_unique_keys` on an existing library will break library links for parts
+previously placed in schematics.
 
 ===== Configuring the source
 

@@ -26,6 +26,7 @@
 #include <core/typeinfo.h>
 #include <font/text_attributes.h>
 #include <layer_ids.h>
+#include <pin_type.h>
 #include <stroke_params.h>
 
 using namespace kiapi;
@@ -39,6 +40,7 @@ KICAD_T FromProtoEnum( types::KiCadObjectType aValue )
     case types::KiCadObjectType::KOT_PCB_FOOTPRINT:         return PCB_FOOTPRINT_T;
     case types::KiCadObjectType::KOT_PCB_PAD:               return PCB_PAD_T;
     case types::KiCadObjectType::KOT_PCB_SHAPE:             return PCB_SHAPE_T;
+    case types::KiCadObjectType::KOT_PCB_BARCODE:           return PCB_BARCODE_T;
     case types::KiCadObjectType::KOT_PCB_REFERENCE_IMAGE:   return PCB_REFERENCE_IMAGE_T;
     case types::KiCadObjectType::KOT_PCB_FIELD:             return PCB_FIELD_T;
     case types::KiCadObjectType::KOT_PCB_GENERATOR:         return PCB_GENERATOR_T;
@@ -53,6 +55,7 @@ KICAD_T FromProtoEnum( types::KiCadObjectType aValue )
     case types::KiCadObjectType::KOT_PCB_DIMENSION:         return PCB_DIMENSION_T;
     case types::KiCadObjectType::KOT_PCB_ZONE:              return PCB_ZONE_T;
     case types::KiCadObjectType::KOT_PCB_GROUP:             return PCB_GROUP_T;
+    case types::KiCadObjectType::KOT_SCH_GROUP:             return SCH_GROUP_T;
     case types::KiCadObjectType::KOT_SCH_MARKER:            return SCH_MARKER_T;
     case types::KiCadObjectType::KOT_SCH_JUNCTION:          return SCH_JUNCTION_T;
     case types::KiCadObjectType::KOT_SCH_NO_CONNECT:        return SCH_NO_CONNECT_T;
@@ -98,6 +101,7 @@ types::KiCadObjectType ToProtoEnum( KICAD_T aValue )
     case PCB_FOOTPRINT_T:        return types::KiCadObjectType::KOT_PCB_FOOTPRINT;
     case PCB_PAD_T:              return types::KiCadObjectType::KOT_PCB_PAD;
     case PCB_SHAPE_T:            return types::KiCadObjectType::KOT_PCB_SHAPE;
+    case PCB_BARCODE_T:          return types::KiCadObjectType::KOT_PCB_BARCODE;
     case PCB_REFERENCE_IMAGE_T:  return types::KiCadObjectType::KOT_PCB_REFERENCE_IMAGE;
     case PCB_FIELD_T:            return types::KiCadObjectType::KOT_PCB_FIELD;
     case PCB_GENERATOR_T:        return types::KiCadObjectType::KOT_PCB_GENERATOR;
@@ -126,6 +130,7 @@ types::KiCadObjectType ToProtoEnum( KICAD_T aValue )
     case SCH_TABLECELL_T:        return types::KiCadObjectType::KOT_SCH_TABLECELL;
     case SCH_LABEL_T:            return types::KiCadObjectType::KOT_SCH_LABEL;
     case SCH_GLOBAL_LABEL_T:     return types::KiCadObjectType::KOT_SCH_GLOBAL_LABEL;
+    case SCH_GROUP_T:            return types::KiCadObjectType::KOT_SCH_GROUP;
     case SCH_HIER_LABEL_T:       return types::KiCadObjectType::KOT_SCH_HIER_LABEL;
     case SCH_DIRECTIVE_LABEL_T:  return types::KiCadObjectType::KOT_SCH_DIRECTIVE_LABEL;
     case SCH_FIELD_T:            return types::KiCadObjectType::KOT_SCH_FIELD;
@@ -496,5 +501,56 @@ types::StrokeLineStyle ToProtoEnum( LINE_STYLE aValue )
     default:
         wxCHECK_MSG( false, types::StrokeLineStyle::SLS_UNKNOWN,
                      "Unhandled case in ToProtoEnum<LINE_STYLE>");
+    }
+}
+
+
+template<>
+ELECTRICAL_PINTYPE FromProtoEnum( types::ElectricalPinType aValue )
+{
+    switch( aValue )
+    {
+    case types::ElectricalPinType::EPT_INPUT:           return ELECTRICAL_PINTYPE::PT_INPUT;
+    case types::ElectricalPinType::EPT_OUTPUT:          return ELECTRICAL_PINTYPE::PT_OUTPUT;
+    case types::ElectricalPinType::EPT_BIDIRECTIONAL:   return ELECTRICAL_PINTYPE::PT_BIDI;
+    case types::ElectricalPinType::EPT_TRISTATE:        return ELECTRICAL_PINTYPE::PT_TRISTATE;
+    case types::ElectricalPinType::EPT_PASSIVE:         return ELECTRICAL_PINTYPE::PT_PASSIVE;
+    case types::ElectricalPinType::EPT_FREE:            return ELECTRICAL_PINTYPE::PT_NIC;
+    case types::ElectricalPinType::EPT_UNSPECIFIED:     return ELECTRICAL_PINTYPE::PT_UNSPECIFIED;
+    case types::ElectricalPinType::EPT_POWER_INPUT:     return ELECTRICAL_PINTYPE::PT_POWER_IN;
+    case types::ElectricalPinType::EPT_POWER_OUTPUT:    return ELECTRICAL_PINTYPE::PT_POWER_OUT;
+    case types::ElectricalPinType::EPT_OPEN_COLLECTOR:  return ELECTRICAL_PINTYPE::PT_OPENCOLLECTOR;
+    case types::ElectricalPinType::EPT_OPEN_EMITTER:    return ELECTRICAL_PINTYPE::PT_OPENEMITTER;
+    case types::ElectricalPinType::EPT_NO_CONNECT:      return ELECTRICAL_PINTYPE::PT_NC;
+    case types::ElectricalPinType::EPT_UNKNOWN:
+    default:
+        wxCHECK_MSG( false, ELECTRICAL_PINTYPE::PT_UNSPECIFIED,
+                     "Unhandled case in FromProtoEnum<types::ElectricalPinType>" );
+    }
+}
+
+
+template<>
+types::ElectricalPinType ToProtoEnum( ELECTRICAL_PINTYPE aValue )
+{
+    switch( aValue )
+    {
+    case ELECTRICAL_PINTYPE::PT_INPUT:         return types::ElectricalPinType::EPT_INPUT;
+    case ELECTRICAL_PINTYPE::PT_OUTPUT:        return types::ElectricalPinType::EPT_OUTPUT;
+    case ELECTRICAL_PINTYPE::PT_BIDI:          return types::ElectricalPinType::EPT_BIDIRECTIONAL;
+    case ELECTRICAL_PINTYPE::PT_TRISTATE:      return types::ElectricalPinType::EPT_TRISTATE;
+    case ELECTRICAL_PINTYPE::PT_PASSIVE:       return types::ElectricalPinType::EPT_PASSIVE;
+    case ELECTRICAL_PINTYPE::PT_NIC:           return types::ElectricalPinType::EPT_FREE;
+    case ELECTRICAL_PINTYPE::PT_UNSPECIFIED:   return types::ElectricalPinType::EPT_UNSPECIFIED;
+    case ELECTRICAL_PINTYPE::PT_POWER_IN:      return types::ElectricalPinType::EPT_POWER_INPUT;
+    case ELECTRICAL_PINTYPE::PT_POWER_OUT:     return types::ElectricalPinType::EPT_POWER_OUTPUT;
+    case ELECTRICAL_PINTYPE::PT_OPENCOLLECTOR: return types::ElectricalPinType::EPT_OPEN_COLLECTOR;
+    case ELECTRICAL_PINTYPE::PT_OPENEMITTER:   return types::ElectricalPinType::EPT_OPEN_EMITTER;
+    case ELECTRICAL_PINTYPE::PT_NC:            return types::ElectricalPinType::EPT_NO_CONNECT;
+    // Inherit shouldn't be serialized, it's an internal flag
+    case ELECTRICAL_PINTYPE::PT_INHERIT:
+    default:
+        wxCHECK_MSG( false, types::ElectricalPinType::EPT_UNKNOWN,
+                     "Unhandled case in ToProtoEnum<ELECTRICAL_PINTYPE>");
     }
 }

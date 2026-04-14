@@ -223,21 +223,37 @@ wxString LSET::Name( PCB_LAYER_ID aLayerId )
     case Rescue:            txt = wxT( "Rescue" );          break;
 
     default:
-
         if( aLayerId < 0 )
+        {
             txt = wxT( "UNDEFINED" );
+        }
         else if( static_cast<int>( aLayerId ) & 1 )
         {
             int offset = ( aLayerId - Rescue ) / 2;
-            txt = wxString::Format( wxT( "User.%d" ), offset );
+
+#if wxUSE_UNICODE_WCHAR
+            std::wstring offsetStr = std::to_wstring( offset );
+#else
+            std::string offsetStr = std::to_string( offset );
+#endif
+
+            txt = wxS( "User." );
+            txt << offsetStr;
         }
         else
         {
             int offset = ( aLayerId - B_Cu ) / 2;
-            txt = wxString::Format( wxT( "In%d.Cu" ), offset );
+
+#if wxUSE_UNICODE_WCHAR
+            std::wstring offsetStr = std::to_wstring( offset );
+#else
+            std::string offsetStr = std::to_string( offset );
+#endif
+
+            txt = wxS( "In" );
+            txt << offsetStr;
+            txt << wxS( ".Cu" );
         }
-
-
     }
 
     return txt;
@@ -561,10 +577,10 @@ const LSET& LSET::BackAssembly()
 const LSET& LSET::InternalCuMask()
 {
     static LSET saved( { In1_Cu,  In2_Cu,  In3_Cu,  In4_Cu,  In5_Cu,  In6_Cu,
-                               In7_Cu,  In8_Cu,  In9_Cu,  In10_Cu, In11_Cu, In12_Cu,
-                               In13_Cu, In14_Cu, In15_Cu, In16_Cu, In17_Cu, In18_Cu,
-                               In19_Cu, In20_Cu, In21_Cu, In22_Cu, In23_Cu, In24_Cu,
-                               In25_Cu, In26_Cu, In27_Cu, In28_Cu, In29_Cu, In30_Cu } );
+                         In7_Cu,  In8_Cu,  In9_Cu,  In10_Cu, In11_Cu, In12_Cu,
+                         In13_Cu, In14_Cu, In15_Cu, In16_Cu, In17_Cu, In18_Cu,
+                         In19_Cu, In20_Cu, In21_Cu, In22_Cu, In23_Cu, In24_Cu,
+                         In25_Cu, In26_Cu, In27_Cu, In28_Cu, In29_Cu, In30_Cu } );
     return saved;
 }
 
@@ -582,20 +598,18 @@ LSET allCuMask( int aCuLayerCount )
 
 LSET LSET::AllCuMask( int aCuLayerCount )
 {
-    static LSET savedMax = allCuMask( MAX_CU_LAYERS );
-    static LSET cache;
-    static int  cacheCuLayerCount = -1;
-
     if( aCuLayerCount == MAX_CU_LAYERS )
-        return savedMax;
+        return AllCuMask();
 
-    if( aCuLayerCount != cacheCuLayerCount )
-    {
-        cache = allCuMask( aCuLayerCount );
-        cacheCuLayerCount = aCuLayerCount;
-    }
+    return allCuMask( aCuLayerCount );
+}
 
-    return cache;
+
+const LSET& LSET::AllCuMask()
+{
+    static LSET s_savedMax = allCuMask( MAX_CU_LAYERS );
+
+    return s_savedMax;
 }
 
 
@@ -726,13 +740,6 @@ const LSET& LSET::SideSpecificMask()
 }
 
 
-const LSET& LSET::ForbiddenFootprintLayers()
-{
-    static LSET saved = LSET( InternalCuMask() ).set( In1_Cu, false );
-    return saved;
-}
-
-
 LSEQ LSET::UIOrder() const
 {
     LSEQ order = CuStack();
@@ -781,7 +788,8 @@ GAL_SET GAL_SET::DefaultVisible()
     static const GAL_LAYER_ID visible[] = {
         LAYER_VIAS,
         LAYER_VIA_MICROVIA,
-        LAYER_VIA_BBLIND,
+        LAYER_VIA_BLIND,
+        LAYER_VIA_BURIED,
         LAYER_VIA_THROUGH,
         // LAYER_HIDDEN_TEXT,    // DEPCREATED SINCE 9.0. Invisible text hidden by default
         LAYER_ANCHOR,
@@ -801,8 +809,7 @@ GAL_SET GAL_SET::DefaultVisible()
         LAYER_VIA_HOLEWALLS,
         LAYER_DRC_ERROR,
         LAYER_DRC_WARNING,
-        LAYER_DRC_SHAPE1,
-        LAYER_DRC_SHAPE2,
+        LAYER_DRC_SHAPES,
         // LAYER_DRC_EXCLUSION,      // DRC exclusions hidden by default
         LAYER_DRAWINGSHEET,
         LAYER_GP_OVERLAY,
@@ -815,7 +822,9 @@ GAL_SET GAL_SET::DefaultVisible()
         LAYER_ZONES,
         LAYER_FILLED_SHAPES,
         LAYER_LOCKED_ITEM_SHADOW,
-        LAYER_CONFLICTS_SHADOW
+        // LAYER_BOARD_OUTLINE_AREA,    // currently hidden by default
+        LAYER_CONFLICTS_SHADOW,
+        LAYER_POINTS
     };
 
     static const GAL_SET saved( visible, arrayDim( visible ) );

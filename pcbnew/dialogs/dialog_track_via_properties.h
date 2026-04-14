@@ -27,13 +27,14 @@
 #include <widgets/unit_binder.h>
 #include <optional>
 #include <layer_ids.h>
+#include <via_protection_ui_mixin.h>
 
 class PCB_SELECTION;
 class PCB_BASE_EDIT_FRAME;
 class PAD;
 class PADSTACK;
 
-class DIALOG_TRACK_VIA_PROPERTIES : public DIALOG_TRACK_VIA_PROPERTIES_BASE
+class DIALOG_TRACK_VIA_PROPERTIES : public DIALOG_TRACK_VIA_PROPERTIES_BASE, public VIA_PROTECTION_UI_MIXIN
 {
 public:
     DIALOG_TRACK_VIA_PROPERTIES( PCB_BASE_EDIT_FRAME* aParent, const PCB_SELECTION& aItems );
@@ -49,11 +50,12 @@ private:
     void onWidthEdit( wxCommandEvent& aEvent ) override;
     void onViaSelect( wxCommandEvent& aEvent ) override;
     void onViaEdit( wxCommandEvent& aEvent ) override;
-    void onTentingLinkToggle( wxCommandEvent& event ) override;
-    void onFrontTentingChanged( wxCommandEvent& event ) override;
     void onTrackEdit( wxCommandEvent& aEvent ) override;
     void onPadstackModeChanged( wxCommandEvent& aEvent ) override;
     void onEditLayerChanged( wxCommandEvent& aEvent ) override;
+    void onBackdrillChange( wxCommandEvent& aEvent ) override;
+    void onTopPostMachineChange( wxCommandEvent& aEvent ) override;
+    void onBottomPostMachineChange( wxCommandEvent& aEvent ) override;
 
     void onUnitsChanged( wxCommandEvent& aEvent );
     void onTeardropsUpdateUi( wxUpdateUIEvent& event ) override;
@@ -63,6 +65,9 @@ private:
 
     int getLayerDepth();
     void afterPadstackModeChanged();
+
+    ///< Get data from the PCB board and display it to dialog
+    bool TransferDataToWindow() override;
 
 private:
     PCB_BASE_EDIT_FRAME* m_frame;
@@ -75,6 +80,13 @@ private:
 
     UNIT_BINDER          m_viaX, m_viaY;
     UNIT_BINDER          m_viaDiameter, m_viaDrill;
+
+    UNIT_BINDER          m_backdrillFrontSize;
+    UNIT_BINDER          m_backdrillBackSize;
+    UNIT_BINDER          m_topPostMachineSize1;
+    UNIT_BINDER          m_topPostMachineSize2;
+    UNIT_BINDER          m_bottomPostMachineSize1;
+    UNIT_BINDER          m_bottomPostMachineSize2;
 
     UNIT_BINDER          m_teardropHDPercent;
     UNIT_BINDER          m_teardropLenPercent;
@@ -91,4 +103,5 @@ private:
     /// The currently-shown copper layer of the edited via(s)
     PCB_LAYER_ID m_editLayer;
     std::map<int, PCB_LAYER_ID> m_editLayerCtrlMap;
+    bool                        m_padstackDirty;
 };

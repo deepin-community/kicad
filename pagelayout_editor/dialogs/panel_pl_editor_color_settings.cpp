@@ -18,6 +18,7 @@
  */
 
 #include <pgm_base.h>
+#include <settings/color_settings.h>
 #include <settings/settings_manager.h>
 #include <pl_editor_settings.h>
 #include "panel_pl_editor_color_settings.h"
@@ -31,9 +32,8 @@ PANEL_PL_EDITOR_COLOR_SETTINGS::PANEL_PL_EDITOR_COLOR_SETTINGS( wxWindow* aParen
 
 bool PANEL_PL_EDITOR_COLOR_SETTINGS::TransferDataToWindow()
 {
-    SETTINGS_MANAGER&   mgr = Pgm().GetSettingsManager();
-    PL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<PL_EDITOR_SETTINGS>( "pl_editor" );
-    COLOR_SETTINGS*     current = Pgm().GetSettingsManager().GetColorSettings( cfg->m_ColorTheme );
+    PL_EDITOR_SETTINGS* cfg = GetAppSettings<PL_EDITOR_SETTINGS>( "pl_editor" );
+    COLOR_SETTINGS*     current = ::GetColorSettings( cfg ? cfg->m_ColorTheme : DEFAULT_THEME );
 
     int width    = 0;
     int height   = 0;
@@ -66,11 +66,11 @@ bool PANEL_PL_EDITOR_COLOR_SETTINGS::TransferDataFromWindow()
 
     if( sel >= 0 )
     {
-        SETTINGS_MANAGER&   mgr = Pgm().GetSettingsManager();
-        PL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<PL_EDITOR_SETTINGS>( "pl_editor" );
-        COLOR_SETTINGS*     colors = static_cast<COLOR_SETTINGS*>( m_themes->GetClientData( sel ) );
-
-        cfg->m_ColorTheme = colors->GetFilename();
+        if( PL_EDITOR_SETTINGS* cfg = GetAppSettings<PL_EDITOR_SETTINGS>( "pl_editor" ) )
+        {
+            COLOR_SETTINGS* colors = static_cast<COLOR_SETTINGS*>( m_themes->GetClientData( sel ) );
+            cfg->m_ColorTheme = colors->GetFilename();
+        }
     }
 
     return true;

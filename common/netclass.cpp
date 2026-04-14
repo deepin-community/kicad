@@ -59,6 +59,7 @@ NETCLASS::NETCLASS( const wxString& aName, bool aInitWithDefaults ) : m_isDefaul
 
     SetName( aName );
     SetPriority( -1 );
+    SetTuningProfile( wxEmptyString );
 
     // Colors are a special optional case - always set, but UNSPECIFIED used in place of optional
     SetPcbColor( COLOR4D::UNSPECIFIED );
@@ -101,6 +102,7 @@ void NETCLASS::ResetParents()
     SetBusWidthParent( this );
     SetSchematicColorParent( this );
     SetLineStyleParent( this );
+    SetTuningProfileParent( this );
 }
 
 
@@ -178,6 +180,9 @@ void NETCLASS::Serialize( google::protobuf::Any &aContainer ) const
     if( m_pcbColor != COLOR4D::UNSPECIFIED )
         PackColor( *board->mutable_color(), m_pcbColor );
 
+    if( m_tuningProfile != wxEmptyString )
+        board->set_tuning_profile( m_tuningProfile.ToUTF8() );
+
     project::NetClassSchematicSettings* schematic = nc.mutable_schematic();
 
     if( m_wireWidth )
@@ -244,6 +249,9 @@ bool NETCLASS::Deserialize( const google::protobuf::Any &aContainer )
     if( nc.board().has_color() )
         m_pcbColor = UnpackColor( nc.board().color() );
 
+    if( nc.board().has_tuning_profile() )
+        m_tuningProfile = wxString::FromUTF8( nc.board().tuning_profile() );
+
     if( nc.schematic().has_wire_width() )
         m_wireWidth = nc.schematic().wire_width().value_nm();
 
@@ -278,7 +286,7 @@ bool NETCLASS::ContainsNetclassWithName( const wxString& netclass ) const
     return std::any_of( m_constituents.begin(), m_constituents.end(),
                         [&netclass]( const NETCLASS* nc )
                         {
-                            return nc->GetName() == netclass;
+                            return nc && nc->GetName().Matches( netclass );
                         } );
 }
 
@@ -294,17 +302,23 @@ const wxString NETCLASS::GetHumanReadableName() const
 
     if( m_constituents.size() == 2 )
     {
-        name.Printf( _( "%s and %s" ), m_constituents[0]->GetName(), m_constituents[1]->GetName() );
+        name.Printf( _( "%s and %s" ),
+                     m_constituents[0]->GetName(),
+                     m_constituents[1]->GetName() );
     }
     else if( m_constituents.size() == 3 )
     {
-        name.Printf( _( "%s, %s and %s" ), m_constituents[0]->GetName(),
-                     m_constituents[1]->GetName(), m_constituents[2]->GetName() );
+        name.Printf( _( "%s, %s and %s" ),
+                     m_constituents[0]->GetName(),
+                     m_constituents[1]->GetName(),
+                     m_constituents[2]->GetName() );
     }
     else if( m_constituents.size() > 3 )
     {
-        name.Printf( _( "%s, %s and %d more" ), m_constituents[0]->GetName(),
-                     m_constituents[1]->GetName(), static_cast<int>( m_constituents.size() - 2 ) );
+        name.Printf( _( "%s, %s and %d more" ),
+                     m_constituents[0]->GetName(),
+                     m_constituents[1]->GetName(),
+                     static_cast<int>( m_constituents.size() - 2 ) );
     }
 
     return name;

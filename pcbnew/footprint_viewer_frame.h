@@ -40,6 +40,14 @@ class SELECTION;
 
 namespace PCB { struct IFACE; }
 
+enum class FPVIEWER_CONSTANTS
+{
+    NEW_PART      = 0,
+    NEXT_PART     = 1,
+    PREVIOUS_PART = 2,
+    RELOAD_PART   = 3
+};
+
 /**
  * Component library viewer main window.
  */
@@ -68,22 +76,32 @@ public:
     void ReCreateLibraryList();
 
     /**
-     * Update the ID_ADD_FOOTPRINT_TO_BOARD tool state in main toolbar.
-     */
-    void OnUpdateFootprintButton(  wxUpdateUIEvent& aEvent );
-
-    /**
      * Override from PCB_BASE_FRAME which reloads the footprint from the library without
      * setting the footprint watcher
      */
     void ReloadFootprint( FOOTPRINT* aFootprint ) override;
+
+    /**
+     * Export the current footprint name and close the library browser.
+     */
+    void AddFootprintToPCB();
+
+    /**
+     * Select and load the next or the previous footprint.
+     *
+     * If no current footprint, rebuild the list of footprints available in a given footprint
+     * library.
+     *
+     * @param aMode #NEXT_PART or #PREVIOUS_PART.
+     */
+    void SelectAndViewFootprint( FPVIEWER_CONSTANTS aMode );
 
     ///< @copydoc EDADRAW_FRAME::UpdateMsgPanel
     void UpdateMsgPanel() override;
 
     COLOR_SETTINGS* GetColorSettings( bool aForceRefresh = false ) const override;
 
-    void KiwayMailIn( KIWAY_EXPRESS& mail ) override;
+    void KiwayMailIn( KIWAY_MAIL_EVENT& mail ) override;
 
     void HardRedraw() override;
 
@@ -106,7 +124,6 @@ private:
     void OnSize( wxSizeEvent& event ) override;
 
     void ReCreateFootprintList();
-    void OnIterateFootprintList( wxCommandEvent& event );
 
     /**
      * Update the window title with current library information.
@@ -118,10 +135,6 @@ private:
     void doCloseWindow() override;
     void CloseFootprintViewer( wxCommandEvent& event );
     void OnExitKiCad( wxCommandEvent& event );
-
-    void ReCreateHToolbar() override;
-    void ReCreateVToolbar() override;
-    void ReCreateOptToolbar() override;
 
     void OnLibFilter( wxCommandEvent& aEvent );
     void OnFPFilter( wxCommandEvent& aEvent );
@@ -145,21 +158,6 @@ private:
      * that can be changed by the schematic editor or the library editor.
      */
     void OnActivate( wxActivateEvent& event );
-
-    /**
-     * Export the current footprint name and close the library browser.
-     */
-    void AddFootprintToPCB( wxCommandEvent& aEvent );
-
-    /**
-     * Select and load the next or the previous footprint.
-     *
-     * If no current footprint, rebuild the list of footprints available in a given footprint
-     * library.
-     *
-     * @param aMode #NEXT_PART or #PREVIOUS_PART.
-     */
-    void SelectAndViewFootprint( int aMode );
 
     /// @copydoc PCB_BASE_FRAME::Update3DView
     void Update3DView( bool aMarkDirty, bool aRefresh, const wxString* aTitle = nullptr ) override;

@@ -125,7 +125,7 @@ int SCH_NAVIGATE_TOOL::Forward( const TOOL_EVENT& aEvent )
         m_navIndex++;
 
         m_frame->GetToolManager()->RunAction( ACTIONS::cancelInteractive );
-        m_frame->GetToolManager()->RunAction( SCH_ACTIONS::clearSelection );
+        m_frame->GetToolManager()->RunAction( ACTIONS::selectionClear );
 
         m_frame->SetCurrentSheet( *m_navIndex );
         m_frame->DisplayCurrentSheet();
@@ -146,7 +146,7 @@ int SCH_NAVIGATE_TOOL::Back( const TOOL_EVENT& aEvent )
         m_navIndex--;
 
         m_frame->GetToolManager()->RunAction( ACTIONS::cancelInteractive );
-        m_frame->GetToolManager()->RunAction( SCH_ACTIONS::clearSelection );
+        m_frame->GetToolManager()->RunAction( ACTIONS::selectionClear );
 
         m_frame->SetCurrentSheet( *m_navIndex );
         m_frame->DisplayCurrentSheet();
@@ -206,7 +206,15 @@ bool SCH_NAVIGATE_TOOL::CanGoForward()
 
 bool SCH_NAVIGATE_TOOL::CanGoUp()
 {
-    return m_frame->GetCurrentSheet().Last() != &m_frame->Schematic().Root();
+    std::vector<SCH_SHEET*> topLevelSheets = m_frame->Schematic().GetTopLevelSheets();
+
+    for( SCH_SHEET* top_sheet : topLevelSheets )
+    {
+        if( m_frame->GetCurrentSheet().Last() == top_sheet )
+            return false;
+    }
+
+    return true;
 }
 
 
@@ -218,6 +226,9 @@ bool SCH_NAVIGATE_TOOL::CanGoPrevious()
 
 bool SCH_NAVIGATE_TOOL::CanGoNext()
 {
+    if( !m_frame->Schematic().IsValid() )
+        return false;
+
     return m_frame->GetCurrentSheet().GetVirtualPageNumber()
            < (int) m_frame->Schematic().Hierarchy().size();
 }
@@ -284,7 +295,7 @@ void SCH_NAVIGATE_TOOL::setTransitions()
 }
 
 
-void SCH_NAVIGATE_TOOL::pushToHistory( SCH_SHEET_PATH aPath )
+void SCH_NAVIGATE_TOOL::pushToHistory( const SCH_SHEET_PATH& aPath )
 {
     if( CanGoForward() )
         m_navHistory.erase( std::next( m_navIndex ), m_navHistory.end() );
@@ -296,17 +307,17 @@ void SCH_NAVIGATE_TOOL::pushToHistory( SCH_SHEET_PATH aPath )
 }
 
 
-void SCH_NAVIGATE_TOOL::changeSheet( SCH_SHEET_PATH aPath )
+void SCH_NAVIGATE_TOOL::changeSheet( const SCH_SHEET_PATH& aPath )
 {
     m_frame->GetToolManager()->RunAction( ACTIONS::cancelInteractive );
-    m_frame->GetToolManager()->RunAction( SCH_ACTIONS::clearSelection );
+    m_frame->GetToolManager()->RunAction( ACTIONS::selectionClear );
 
     // Store the current zoom level into the current screen before switching
     m_frame->GetScreen()->m_LastZoomLevel = m_frame->GetCanvas()->GetView()->GetScale();
 
     pushToHistory( aPath );
 
-    m_frame->FocusOnItem( nullptr );
+    m_frame->ClearFocus();
     m_frame->Schematic().SetCurrentSheet( aPath );
     m_frame->DisplayCurrentSheet();
 }

@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.0.0-0-g0efcecf02)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -13,8 +13,11 @@
 ///////////////////////////////////////////////////////////////////////////
 
 BEGIN_EVENT_TABLE( DIALOG_SHAPE_PROPERTIES_BASE, DIALOG_SHIM )
+	EVT_CHECKBOX( wxID_ANY, DIALOG_SHAPE_PROPERTIES_BASE::_wxFB_OnCheckBox )
+	EVT_CHECKBOX( wxID_ANY, DIALOG_SHAPE_PROPERTIES_BASE::_wxFB_OnCheckBox )
+	EVT_CHECKBOX( wxID_ANY, DIALOG_SHAPE_PROPERTIES_BASE::_wxFB_OnCheckBox )
 	EVT_CHECKBOX( wxID_ANY, DIALOG_SHAPE_PROPERTIES_BASE::_wxFB_onBorderChecked )
-	EVT_CHECKBOX( wxID_ANY, DIALOG_SHAPE_PROPERTIES_BASE::_wxFB_onFillChecked )
+	EVT_CHOICE( wxID_ANY, DIALOG_SHAPE_PROPERTIES_BASE::_wxFB_onFillChoice )
 	EVT_RADIOBUTTON( NO_FILL, DIALOG_SHAPE_PROPERTIES_BASE::_wxFB_onFillRadioButton )
 	EVT_RADIOBUTTON( FILLED_SHAPE, DIALOG_SHAPE_PROPERTIES_BASE::_wxFB_onFillRadioButton )
 	EVT_RADIOBUTTON( FILLED_WITH_BG_BODYCOLOR, DIALOG_SHAPE_PROPERTIES_BASE::_wxFB_onFillRadioButton )
@@ -34,6 +37,33 @@ DIALOG_SHAPE_PROPERTIES_BASE::DIALOG_SHAPE_PROPERTIES_BASE( wxWindow* parent, wx
 	m_infoBar->Hide();
 
 	mainSizer->Add( m_infoBar, 0, wxBOTTOM|wxEXPAND, 5 );
+
+	m_ruleAreaSizer = new wxBoxSizer( wxVERTICAL );
+
+	m_cbExcludeFromSim = new wxCheckBox( this, wxID_ANY, _("Exclude from simulation"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_ruleAreaSizer->Add( m_cbExcludeFromSim, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+
+
+	m_ruleAreaSizer->Add( 0, 10, 0, wxEXPAND, 5 );
+
+	m_cbExcludeFromBom = new wxCheckBox( this, wxID_ANY, _("Exclude from bill of materials"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_cbExcludeFromBom->SetToolTip( _("This is useful for adding symbols for board footprints such as fiducials\nand logos that you do not want to appear in the bill of materials export") );
+
+	m_ruleAreaSizer->Add( m_cbExcludeFromBom, 0, wxALL, 5 );
+
+	m_cbExcludeFromBoard = new wxCheckBox( this, wxID_ANY, _("Exclude from board"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_cbExcludeFromBoard->SetToolTip( _("This is useful for adding symbols that only get exported to the bill of materials but\nnot required to layout the board such as mechanical fasteners and enclosures") );
+
+	m_ruleAreaSizer->Add( m_cbExcludeFromBoard, 0, wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+
+	m_cbDNP = new wxCheckBox( this, wxID_ANY, _("Do not populate"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_ruleAreaSizer->Add( m_cbDNP, 0, wxBOTTOM|wxLEFT|wxRIGHT, 5 );
+
+
+	m_ruleAreaSizer->Add( 0, 5, 1, wxEXPAND, 5 );
+
+
+	mainSizer->Add( m_ruleAreaSizer, 1, wxEXPAND|wxALL, 5 );
 
 	wxBoxSizer* bColumns;
 	bColumns = new wxBoxSizer( wxHORIZONTAL );
@@ -112,15 +142,19 @@ DIALOG_SHAPE_PROPERTIES_BASE::DIALOG_SHAPE_PROPERTIES_BASE( wxWindow* parent, wx
 	m_fillSizer->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
 	m_fillSizer->SetEmptyCellSize( wxSize( 36,12 ) );
 
-	m_filledCtrl = new wxCheckBox( m_schematicPage, wxID_ANY, _("Filled shape"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_fillSizer->Add( m_filledCtrl, wxGBPosition( 0, 0 ), wxGBSpan( 1, 2 ), wxBOTTOM, 2 );
+	m_fillLabel = new wxStaticText( m_schematicPage, wxID_ANY, _("Fill:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_fillLabel->Wrap( -1 );
+	m_fillSizer->Add( m_fillLabel, wxGBPosition( 0, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
 
-	wxBoxSizer* bSizer81;
-	bSizer81 = new wxBoxSizer( wxHORIZONTAL );
+	wxString m_fillCtrlChoices[] = { _("None"), _("Solid"), _("Hatch"), _("Reverse Hatch"), _("Cross-hatch") };
+	int m_fillCtrlNChoices = sizeof( m_fillCtrlChoices ) / sizeof( wxString );
+	m_fillCtrl = new wxChoice( m_schematicPage, wxID_ANY, wxDefaultPosition, wxDefaultSize, m_fillCtrlNChoices, m_fillCtrlChoices, 0 );
+	m_fillCtrl->SetSelection( 0 );
+	m_fillSizer->Add( m_fillCtrl, wxGBPosition( 0, 1 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxEXPAND, 5 );
 
 	m_fillColorLabel = new wxStaticText( m_schematicPage, wxID_ANY, _("Fill color:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_fillColorLabel->Wrap( -1 );
-	bSizer81->Add( m_fillColorLabel, 0, wxRIGHT|wxALIGN_CENTER_VERTICAL, 5 );
+	m_fillSizer->Add( m_fillColorLabel, wxGBPosition( 1, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
 
 	m_panelFillColor = new wxPanel( m_schematicPage, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SIMPLE|wxTAB_TRAVERSAL );
 	wxBoxSizer* bSizer21;
@@ -133,10 +167,7 @@ DIALOG_SHAPE_PROPERTIES_BASE::DIALOG_SHAPE_PROPERTIES_BASE( wxWindow* parent, wx
 	m_panelFillColor->SetSizer( bSizer21 );
 	m_panelFillColor->Layout();
 	bSizer21->Fit( m_panelFillColor );
-	bSizer81->Add( m_panelFillColor, 0, wxALIGN_CENTER_VERTICAL, 5 );
-
-
-	m_fillSizer->Add( bSizer81, wxGBPosition( 1, 0 ), wxGBSpan( 1, 2 ), wxEXPAND, 5 );
+	m_fillSizer->Add( m_panelFillColor, wxGBPosition( 1, 1 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
 
 	m_helpLabel2 = new wxStaticText( m_schematicPage, wxID_ANY, _("Clear colors to use Schematic Editor colors."), wxDefaultPosition, wxDefaultSize, 0 );
 	m_helpLabel2->Wrap( -1 );
@@ -220,7 +251,7 @@ DIALOG_SHAPE_PROPERTIES_BASE::DIALOG_SHAPE_PROPERTIES_BASE( wxWindow* parent, wx
 	m_checkApplyToAllUnits = new wxCheckBox( this, wxID_ANY, _("Common to all &units in symbol"), wxDefaultPosition, wxDefaultSize, 0 );
 	bRight2->Add( m_checkApplyToAllUnits, 0, wxTOP|wxRIGHT, 5 );
 
-	m_checkApplyToAllBodyStyles = new wxCheckBox( this, wxID_ANY, _("Common to all body &styles (De Morgan)"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_checkApplyToAllBodyStyles = new wxCheckBox( this, wxID_ANY, _("Common to all body &styles"), wxDefaultPosition, wxDefaultSize, 0 );
 	bRight2->Add( m_checkApplyToAllBodyStyles, 0, wxTOP|wxBOTTOM|wxRIGHT, 5 );
 
 

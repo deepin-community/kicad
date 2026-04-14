@@ -68,10 +68,8 @@ EDA_ITEM* SCH_MARKER::Clone() const
 }
 
 
-void SCH_MARKER::SwapData( SCH_ITEM* aItem )
+void SCH_MARKER::swapData( SCH_ITEM* aItem )
 {
-    SCH_ITEM::SwapFlags( aItem );
-
     SCH_MARKER* item = static_cast<SCH_MARKER*>( aItem );
 
     std::swap( m_isLegacyMarker, item->m_isLegacyMarker );
@@ -79,12 +77,11 @@ void SCH_MARKER::SwapData( SCH_ITEM* aItem )
 
     std::swap( m_markerType, item->m_markerType );
     std::swap( m_excluded, item->m_excluded );
+    std::swap( m_comment, item->m_comment );
     std::swap( m_rcItem, item->m_rcItem );
 
     std::swap( m_scalingFactor, item->m_scalingFactor );
     std::swap( m_shapeBoundingBox, item->m_shapeBoundingBox );
-
-    std::swap( *((SCH_MARKER*) this), *((SCH_MARKER*) aItem ) );
 }
 
 
@@ -106,7 +103,7 @@ wxString SCH_MARKER::SerializeToString() const
             || m_rcItem->GetErrorCode() == ERCE_GENERIC_ERROR
             || m_rcItem->GetErrorCode() == ERCE_UNRESOLVED_VARIABLE )
     {
-        SCH_ITEM* sch_item = Schematic()->GetItem( erc->GetMainItemID() );
+        SCH_ITEM* sch_item = Schematic()->ResolveItem( erc->GetMainItemID() );
         SCH_ITEM* parent = static_cast<SCH_ITEM*>( sch_item->GetParent() );
         EDA_TEXT* text_item = dynamic_cast<EDA_TEXT*>( sch_item );
 
@@ -116,15 +113,18 @@ wxString SCH_MARKER::SerializeToString() const
 
         if( parent && parent->IsType( { SCH_SYMBOL_T, SCH_LABEL_T, SCH_SHEET_T } ) )
         {
-            return wxString::Format( wxT( "%s|%d|%d|%s|%s|%s|%s|%s" ),
-                                     m_rcItem->GetSettingsKey(),
-                                     m_Pos.x,
-                                     m_Pos.y,
-                                     parent->m_Uuid.AsString(),
-                                     text_item->GetText(),
-                                     sheetSpecificPath,
-                                     mainItemPath,
-                                     wxEmptyString );
+            if( text_item ) // should always be true, but Coverity doesn't know that
+            {
+                return wxString::Format( wxT( "%s|%d|%d|%s|%s|%s|%s|%s" ),
+                                         m_rcItem->GetSettingsKey(),
+                                         m_Pos.x,
+                                         m_Pos.y,
+                                         parent->m_Uuid.AsString(),
+                                         text_item->GetText(),
+                                         sheetSpecificPath,
+                                         mainItemPath,
+                                         wxEmptyString );
+            }
         }
     }
 
@@ -163,7 +163,7 @@ SCH_MARKER* SCH_MARKER::DeserializeFromString( const SCH_SHEET_LIST& aSheetList,
         if( !props[4].IsEmpty() )
         {
             KIID      uuid = niluuid;
-            SCH_ITEM* parent = aSheetList.GetItem( KIID( props[3] ) );
+            SCH_ITEM* parent = aSheetList.ResolveItem( KIID( props[3] ) );
 
             // Check fields and pins for a match
             parent->RunOnChildren(
@@ -174,7 +174,8 @@ SCH_MARKER* SCH_MARKER::DeserializeFromString( const SCH_SHEET_LIST& aSheetList,
                             if( text_item->GetText() == props[4] )
                                 uuid = child->m_Uuid;
                         }
-                    } );
+                    },
+                    RECURSE_MODE::NO_RECURSE );
 
             // If it's a symbol, we must also check non-overridden LIB_SYMBOL text children
             if( uuid == niluuid && parent->Type() == SCH_SYMBOL_T )
@@ -191,7 +192,8 @@ SCH_MARKER* SCH_MARKER::DeserializeFromString( const SCH_SHEET_LIST& aSheetList,
                                 if( text_item->GetText() == props[4] )
                                     uuid = child->m_Uuid;
                             }
-                        } );
+                        },
+                        RECURSE_MODE::NO_RECURSE );
             }
 
             if( uuid != niluuid )
@@ -254,7 +256,7 @@ SCH_MARKER* SCH_MARKER::DeserializeFromString( const SCH_SHEET_LIST& aSheetList,
         }
     }
 
-    SCH_MARKER* marker = new SCH_MARKER( ercItem, markerPos );
+    SCH_MARKER* marker = new SCH_MARKER( std::move( ercItem ), markerPos );
     marker->SetIsLegacyMarker( isLegacyMarker );
 
     return marker;
@@ -324,8 +326,7 @@ SCH_LAYER_ID SCH_MARKER::GetColorLayer() const
 
 KIGFX::COLOR4D SCH_MARKER::getColor() const
 {
-    COLOR_SETTINGS* colors = Pgm().GetSettingsManager().GetColorSettings();
-    return colors->GetColor( GetColorLayer() );
+    return ::GetColorSettings( DEFAULT_THEME )->GetColor( GetColorLayer() );
 }
 
 
@@ -340,16 +341,9 @@ SEVERITY SCH_MARKER::GetSeverity() const
 }
 
 
-void SCH_MARKER::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                        const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
-{
-    PrintMarker( aSettings, aOffset );
-}
-
-
 bool SCH_MARKER::Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const
 {
-    return SCH_ITEM::Matches( m_rcItem->GetErrorMessage(), aSearchData );
+    return SCH_ITEM::Matches( m_rcItem->GetErrorMessage( true ), aSearchData );
 }
 
 
@@ -362,7 +356,7 @@ const BOX2I SCH_MARKER::GetBoundingBox() const
 void SCH_MARKER::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
     aList.emplace_back( _( "Type" ), _( "Marker" ) );
-    aList.emplace_back( _( "Violation" ), m_rcItem->GetErrorMessage() );
+    aList.emplace_back( _( "Violation" ), m_rcItem->GetErrorMessage( true ) );
 
     switch( GetSeverity() )
     {
@@ -391,10 +385,10 @@ void SCH_MARKER::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
         EDA_ITEM* auxItem = nullptr;
 
         if( m_rcItem->GetMainItemID() != niluuid )
-            mainItem = aFrame->GetItem( m_rcItem->GetMainItemID() );
+            mainItem = aFrame->ResolveItem( m_rcItem->GetMainItemID() );
 
         if( m_rcItem->GetAuxItemID() != niluuid )
-            auxItem = aFrame->GetItem( m_rcItem->GetAuxItemID() );
+            auxItem = aFrame->ResolveItem( m_rcItem->GetAuxItemID() );
 
         if( mainItem )
             mainText = mainItem->GetItemDescription( aFrame, true );

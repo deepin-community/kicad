@@ -40,7 +40,7 @@
 
 CLI::JOBSET_RUN_COMMAND::JOBSET_RUN_COMMAND() : COMMAND( "run" )
 {
-    addCommonArgs( true, false, false, false );
+    addCommonArgs( true, false, IO_TYPE::FILE, IO_TYPE::FILE );
 
     m_argParser.add_description( UTF8STDSTR( _( "Runs a jobset file" ) ) );
 
@@ -80,14 +80,13 @@ int CLI::JOBSET_RUN_COMMAND::doPerform( KIWAY& aKiway )
 
     jobFile.LoadFromFile();
 
-    JOBS_RUNNER jobsRunner( &aKiway, &jobFile, project,
-                            &CLI_REPORTER::GetInstance() );
+    JOBS_RUNNER jobsRunner( &aKiway, &jobFile, project, CLI_REPORTER::GetInstance(), nullptr );
 
     int return_code = CLI::EXIT_CODES::SUCCESS;
 
     if( !outputKey.IsEmpty() )
     {
-        JOBSET_DESTINATION* destination = jobFile.GetDestination( outputKey );
+        JOBSET_DESTINATION* destination = jobFile.FindDestination( outputKey );
 
         if( destination == nullptr || !jobsRunner.RunJobsForDestination( destination, bail ) )
             return_code = CLI::EXIT_CODES::ERR_JOBS_RUN_FAILED;

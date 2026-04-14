@@ -8,6 +8,8 @@ background
 bezier
 bidirectional
 bitmap
+body_style
+body_styles
 bold
 border
 bottom
@@ -27,16 +29,19 @@ column_widths
 comment
 company
 convert
+cross_hatch
 data
 date
 default
 default_instance
+demorgan
 diameter
 diamond
 directive_label
 dnp
 do_not_autoplace
 dot
+duplicate_pin_numbers_are_jumpers
 edge_clock_high
 effects
 embedded_fonts
@@ -46,6 +51,7 @@ extends
 external
 exclude_from_sim
 face
+field
 fields_autoplaced
 file
 fill
@@ -54,7 +60,10 @@ footprint
 free
 generator
 generator_version
+global
 global_label
+group
+hatch
 header
 hide
 hierarchical_label
@@ -70,8 +79,10 @@ instances
 inverted
 inverted_clock
 in_bom
+in_pos_files
 iref
 italic
+jumper_pin_groups
 junction
 justify
 kicad_sch
@@ -84,6 +95,7 @@ lib_name
 lib_symbols
 line
 line_spacing
+local
 margins
 members
 mid
@@ -128,6 +140,7 @@ rectangle
 reference
 required
 rev
+reverse_hatch
 right
 round
 rows
@@ -160,6 +173,7 @@ unit_name
 unspecified
 uuid
 value
+variant
 version
 width
 wire

@@ -97,7 +97,6 @@ PAGED_DIALOG::PAGED_DIALOG( wxWindow* aParent, const wxString& aTitle, bool aSho
                              wxALIGN_CENTER_VERTICAL | wxRIGHT | wxLEFT, 5 );
     }
 
-
     if( !aAuxiliaryAction.IsEmpty() )
     {
         m_auxiliaryButton = new wxButton( this, wxID_ANY, aAuxiliaryAction );
@@ -124,21 +123,13 @@ PAGED_DIALOG::PAGED_DIALOG( wxWindow* aParent, const wxString& aTitle, bool aSho
     m_hash_key = aTitle;
 
     if( m_auxiliaryButton )
-    {
-        m_auxiliaryButton->Bind( wxEVT_COMMAND_BUTTON_CLICKED, &PAGED_DIALOG::onAuxiliaryAction,
-                                 this );
-    }
+        m_auxiliaryButton->Bind( wxEVT_COMMAND_BUTTON_CLICKED, &PAGED_DIALOG::onAuxiliaryAction, this );
 
     if( m_resetButton )
-    {
         m_resetButton->Bind( wxEVT_COMMAND_BUTTON_CLICKED, &PAGED_DIALOG::onResetButton, this );
-    }
 
     if( m_openPrefsDirButton )
-    {
-        m_openPrefsDirButton->Bind( wxEVT_COMMAND_BUTTON_CLICKED,
-                                    &PAGED_DIALOG::onOpenPreferencesButton, this );
-    }
+        m_openPrefsDirButton->Bind( wxEVT_COMMAND_BUTTON_CLICKED, &PAGED_DIALOG::onOpenPrefsDir, this );
 
     m_treebook->Bind( wxEVT_CHAR_HOOK, &PAGED_DIALOG::onCharHook, this );
     m_treebook->Bind( wxEVT_TREEBOOK_PAGE_CHANGED, &PAGED_DIALOG::onPageChanged, this );
@@ -161,7 +152,20 @@ void PAGED_DIALOG::finishInitialization()
     m_treebook->Layout();
     m_treebook->Fit();
 
-    finishDialogSettings();
+    // Add a bit of width to the treeCtrl for scrollbars
+    wxSize ctrlSize = m_treebook->GetTreeCtrl()->GetSize();
+    ctrlSize.x += 20;
+    m_treebook->GetTreeCtrl()->SetMinSize( ctrlSize );
+    m_treebook->Layout();
+
+    // Note: do NOT call finishDialogSettings() here.  At this point the lazy pages have not
+    // yet been resolved, so the sizer minimum is computed from empty placeholder pages.
+    // On GTK+X11, finishDialogSettings() stores a "resize to sizer minimum" operation that
+    // is deferred until the window is realized by the window manager.  If that deferred
+    // operation fires after onPageChanged() has already grown the dialog to fit the real
+    // page content, it shrinks the dialog back to the placeholder minimum, cutting off the
+    // bottom of the page.  The dialog minimum and size are correctly established by
+    // onPageChanged() once the selected page is resolved.
 }
 
 
@@ -195,21 +199,13 @@ PAGED_DIALOG::~PAGED_DIALOG()
     g_lastParentPage[ m_title ] = lastParentPage;
 
     if( m_auxiliaryButton )
-    {
-        m_auxiliaryButton->Unbind( wxEVT_COMMAND_BUTTON_CLICKED, &PAGED_DIALOG::onAuxiliaryAction,
-                                   this );
-    }
+        m_auxiliaryButton->Unbind( wxEVT_COMMAND_BUTTON_CLICKED, &PAGED_DIALOG::onAuxiliaryAction, this );
 
     if( m_resetButton )
-    {
         m_resetButton->Unbind( wxEVT_COMMAND_BUTTON_CLICKED, &PAGED_DIALOG::onResetButton, this );
-    }
 
     if( m_openPrefsDirButton )
-    {
-        m_openPrefsDirButton->Unbind( wxEVT_COMMAND_BUTTON_CLICKED,
-                                      &PAGED_DIALOG::onOpenPreferencesButton, this );
-    }
+        m_openPrefsDirButton->Unbind( wxEVT_COMMAND_BUTTON_CLICKED, &PAGED_DIALOG::onOpenPrefsDir, this );
 
     m_treebook->Unbind( wxEVT_CHAR_HOOK, &PAGED_DIALOG::onCharHook, this );
     m_treebook->Unbind( wxEVT_TREEBOOK_PAGE_CHANGED, &PAGED_DIALOG::onPageChanged, this );
@@ -483,7 +479,7 @@ void PAGED_DIALOG::onResetButton( wxCommandEvent& aEvent )
     }
 }
 
-void PAGED_DIALOG::onOpenPreferencesButton( wxCommandEvent& aEvent )
+void PAGED_DIALOG::onOpenPrefsDir( wxCommandEvent& aEvent )
 {
     wxString dir( PATHS::GetUserSettingsPath() );
     LaunchExternal( dir );

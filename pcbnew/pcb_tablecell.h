@@ -26,6 +26,7 @@
 
 
 #include <pcb_textbox.h>
+#include <board_item_container.h>
 
 
 class PCB_TABLECELL : public PCB_TEXTBOX
@@ -33,25 +34,15 @@ class PCB_TABLECELL : public PCB_TEXTBOX
 public:
     PCB_TABLECELL( BOARD_ITEM* parent );
 
-    static inline bool ClassOf( const EDA_ITEM* aItem )
-    {
-        return aItem && PCB_TABLECELL_T == aItem->Type();
-    }
+    static inline bool ClassOf( const EDA_ITEM* aItem ) { return aItem && PCB_TABLECELL_T == aItem->Type(); }
 
-    wxString GetClass() const override
-    {
-        return wxT( "PCB_TABLECELL" );
-    }
+    wxString GetClass() const override { return wxT( "PCB_TABLECELL" ); }
 
-    virtual wxString GetFriendlyName() const override
-    {
-        return _( "Table Cell" );
-    }
+    virtual wxString GetFriendlyName() const override { return _( "Table Cell" ); }
 
-    EDA_ITEM* Clone() const override
-    {
-        return new PCB_TABLECELL( *this );
-    }
+    EDA_ITEM* Clone() const override { return new PCB_TABLECELL( *this ); }
+
+    EDA_GROUP* GetParentGroup() const override { return GetParent()->GetParentGroup(); }
 
     int GetRow() const;
     int GetColumn() const;
@@ -59,11 +50,21 @@ public:
     // @return the spreadsheet nomenclature for the cell (ie: B3 for 2nd column, 3rd row)
     wxString GetAddr() const;
 
+    wxString GetShownText( bool aAllowExtraText, int aDepth = 0 ) const override;
+
     int  GetColSpan() const { return m_colSpan; }
     void SetColSpan( int aSpan ) { m_colSpan = aSpan; }
 
     int  GetRowSpan() const { return m_rowSpan; }
     void SetRowSpan( int aSpan ) { m_rowSpan = aSpan; }
+
+    int  GetRowHeight() const;
+    void SetRowHeight( int aHeight );
+
+    int  GetColumnWidth() const;
+    void SetColumnWidth( int aWidth );
+
+    bool IsFilledForHitTesting() const override { return true; }
 
     wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 

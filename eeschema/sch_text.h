@@ -59,6 +59,8 @@ public:
         return _( "Text" );
     }
 
+    KIFONT::FONT* GetDrawFont( const RENDER_SETTINGS* aSettings ) const override;
+
     virtual wxString GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraText,
                                    int aDepth = 0 ) const;
 
@@ -75,15 +77,21 @@ public:
     int GetSchTextSize() const { return GetTextWidth(); }
     void SetSchTextSize( int aSize ) { SetTextSize( VECTOR2I( aSize, aSize ) ); }
 
-    bool IsHypertext() const override
+    bool HasHypertext() const override;
+    bool HasHoveredHypertext() const override;
+    void DoHypertextAction( EDA_DRAW_FRAME* aFrame, const VECTOR2I& aMousePos ) const override;
+
+    void SetExcludedFromSim( bool aExclude, const SCH_SHEET_PATH* aInstance = nullptr,
+                             const wxString& aVariantName = wxEmptyString ) override
     {
-        return HasHyperlink();
+        m_excludedFromSim = aExclude;
     }
 
-    void DoHypertextAction( EDA_DRAW_FRAME* aFrame ) const override;
-
-    void SetExcludedFromSim( bool aExclude ) override { m_excludedFromSim = aExclude; }
-    bool GetExcludedFromSim() const override { return m_excludedFromSim; }
+    bool GetExcludedFromSim( const SCH_SHEET_PATH* aInstance = nullptr,
+                             const wxString& aVariantName = wxEmptyString ) const override
+    {
+        return m_excludedFromSim;
+    }
 
     /**
      * This offset depends on the orientation, the type of text, and the area required to
@@ -92,8 +100,6 @@ public:
      * @return the offset between the SCH_TEXT position and the text itself position
      */
     virtual VECTOR2I GetSchematicTextOffset( const RENDER_SETTINGS* aSettings ) const;
-
-    void SwapData( SCH_ITEM* aItem ) override;
 
     const BOX2I GetBoundingBox() const override;
 
@@ -146,12 +152,9 @@ public:
 
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
+    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override;
 
-    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                const VECTOR2I& offset, bool aForceNoFill, bool aDimmed ) override;
-
-    void PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                          const VECTOR2I& aOffset, bool aDimmed ) override {}
+    VECTOR2I GetOffsetToMatchSCH_FIELD( SCH_RENDER_SETTINGS* aRenderSettings ) const;
 
     void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override;
@@ -174,7 +177,7 @@ public:
     static HTML_MESSAGE_BOX* ShowSyntaxHelp( wxWindow* aParentWindow );
 
 protected:
-    KIFONT::FONT* getDrawFont() const override;
+    void swapData( SCH_ITEM* aItem ) override;
 
     const KIFONT::METRICS& getFontMetrics() const override { return GetFontMetrics(); }
 

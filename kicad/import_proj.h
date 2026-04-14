@@ -23,8 +23,10 @@
 #include <wx/filename.h>
 #include <core/typeinfo.h>
 #include <core/utf8.h>
+#include <frame_type.h>
 
 #include <map>
+#include <set>
 
 class KICAD_MANAGER_FRAME;
 
@@ -52,6 +54,11 @@ public:
      */
     void ImportFiles( int aImportedSchFileType, int aImportedPcbFileType );
 
+    /**
+     * @brief Converts PADS ASCII schematic and PCB files to KiCad type files.
+     */
+    void ImportPadsFiles();
+
     wxFileName m_InputFile;
     wxFileName m_TargetProj;
 
@@ -66,10 +73,17 @@ private:
     std::vector<wxString> m_schExtenstions;
     std::vector<wxString> m_pcbExtenstions;
 
-    void OutputCopyError( const wxFileName& aSrc, const wxFileName& aFileCopy );
     void ImportIndividualFile( KICAD_T aKicad_T, int aImportedFileType );
 
+    void doImport( const wxString& aFile, FRAME_T aFrameType, int aImportedFileType );
+
+    void addLocalLibraries( const std::set<wxString>& aLibName, FRAME_T aFrameType );
+
     void EasyEDAProProjectHandler();
+
+    void AltiumProjectHandler();
+
+    void GedaProjectHandler();
 };
 
 #endif

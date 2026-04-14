@@ -23,7 +23,6 @@
 
 #include <kicommon.h>
 #include <vector>
-#include <wx/string.h>
 #include "job.h"
 
 class KICOMMON_API JOB_EXPORT_SCH_BOM : public JOB
@@ -56,7 +55,10 @@ public:
     bool                  m_sortAsc;
     wxString              m_filterString;
     bool                  m_excludeDNP;
-    bool                  m_includeExcludedFromBOM;
+    bool                  m_groupSymbols;
+
+    // Variant names to export. Empty vector means default variant only.
+    std::vector<wxString> m_variantNames;
 };
 
 #endif

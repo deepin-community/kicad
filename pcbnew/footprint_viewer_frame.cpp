@@ -27,27 +27,33 @@
 #include <bitmaps.h>
 #include <board_commit.h>
 #include <board.h>
+#include <project/net_settings.h>
+#include <settings/color_settings.h>
 #include <footprint.h>
 #include <confirm.h>
 #include <eda_pattern_match.h>
 #include <footprint_info.h>
 #include <footprint_viewer_frame.h>
-#include <fp_lib_table.h>
+#include <footprint_library_adapter.h>
 #include <kiway.h>
-#include <kiway_express.h>
+#include <kiway_mail.h>
 #include <netlist_reader/pcb_netlist.h>
+#include <widgets/kistatusbar.h>
 #include <widgets/msgpanel.h>
 #include <widgets/wx_listbox.h>
 #include <widgets/wx_aui_utils.h>
 #include <gal/graphics_abstraction_layer.h>
+#include <pad.h>
 #include <pcb_draw_panel_gal.h>
 #include <pcb_painter.h>
 #include <pcbnew_id.h>
 #include <footprint_editor_settings.h>
 #include <pgm_base.h>
+#include <pcbnew_settings.h>
 #include <project_pcb.h>
 #include <project/project_file.h>
 #include <settings/settings_manager.h>
+#include <toolbars_footprint_viewer.h>
 #include <tool/action_toolbar.h>
 #include <tool/common_control.h>
 #include <tool/common_tools.h>
@@ -73,13 +79,6 @@
 
 using namespace std::placeholders;
 
-
-#define NEW_PART        0
-#define NEXT_PART       1
-#define PREVIOUS_PART   2
-#define RELOAD_PART     3
-
-
 BEGIN_EVENT_TABLE( FOOTPRINT_VIEWER_FRAME, PCB_BASE_FRAME )
     // Window events
     EVT_SIZE( FOOTPRINT_VIEWER_FRAME::OnSize )
@@ -89,13 +88,8 @@ BEGIN_EVENT_TABLE( FOOTPRINT_VIEWER_FRAME, PCB_BASE_FRAME )
     EVT_MENU( wxID_CLOSE, FOOTPRINT_VIEWER_FRAME::CloseFootprintViewer )
 
     // Toolbar events
-    EVT_TOOL( ID_MODVIEW_NEXT, FOOTPRINT_VIEWER_FRAME::OnIterateFootprintList )
-    EVT_TOOL( ID_MODVIEW_PREVIOUS, FOOTPRINT_VIEWER_FRAME::OnIterateFootprintList )
-    EVT_TOOL( ID_ADD_FOOTPRINT_TO_BOARD, FOOTPRINT_VIEWER_FRAME::AddFootprintToPCB )
     EVT_CHOICE( ID_ON_ZOOM_SELECT, FOOTPRINT_VIEWER_FRAME::OnSelectZoom )
     EVT_CHOICE( ID_ON_GRID_SELECT, FOOTPRINT_VIEWER_FRAME::OnSelectGrid )
-
-    EVT_UPDATE_UI( ID_ADD_FOOTPRINT_TO_BOARD, FOOTPRINT_VIEWER_FRAME::OnUpdateFootprintButton )
 
     EVT_TEXT( ID_MODVIEW_LIB_FILTER, FOOTPRINT_VIEWER_FRAME::OnLibFilter )
     EVT_TEXT( ID_MODVIEW_FOOTPRINT_FILTER, FOOTPRINT_VIEWER_FRAME::OnFPFilter )
@@ -226,13 +220,14 @@ FOOTPRINT_VIEWER_FRAME::FOOTPRINT_VIEWER_FRAME( KIWAY* aKiway, wxWindow* aParent
     m_toolManager->GetTool<PCB_VIEWER_TOOLS>()->SetFootprintFrame( true );
 
     m_toolManager->InitTools();
-    m_toolManager->InvokeTool( "pcbnew.InteractiveSelection" );
+    m_toolManager->InvokeTool( "common.InteractiveSelection" );
 
     setupUIConditions();
+
+    m_toolbarSettings = GetToolbarSettings<FOOTPRINT_VIEWER_TOOLBAR_SETTINGS>( "fpviewer-toolbars" );
+    configureToolbars();
+    RecreateToolbars();
     ReCreateMenuBar();
-    ReCreateHToolbar();
-    ReCreateVToolbar();
-    ReCreateOptToolbar();
 
     ReCreateLibraryList();
     UpdateTitle();
@@ -254,6 +249,8 @@ FOOTPRINT_VIEWER_FRAME::FOOTPRINT_VIEWER_FRAME( KIWAY* aKiway, wxWindow* aParent
         {
             GetBoard()->Add( footprint );
             setFPWatcher( footprint );
+
+            m_toolManager->RunAction( PCB_ACTIONS::rehatchShapes );
         }
     }
 
@@ -262,8 +259,8 @@ FOOTPRINT_VIEWER_FRAME::FOOTPRINT_VIEWER_FRAME( KIWAY* aKiway, wxWindow* aParent
     m_auimgr.SetManagedWindow( this );
 
     // Horizontal items; layers 4 - 6
-    m_auimgr.AddPane( m_mainToolBar, EDA_PANE().VToolbar().Name( "MainToolbar" ).Top().Layer(6) );
-    m_auimgr.AddPane( m_optionsToolBar, EDA_PANE().VToolbar().Name( "OptToolbar" ).Left().Layer(3) );
+    m_auimgr.AddPane( m_tbTopMain, EDA_PANE().VToolbar().Name( "TopMainToolbar" ).Top().Layer(6) );
+    m_auimgr.AddPane( m_tbLeft, EDA_PANE().VToolbar().Name( "LeftToolbar" ).Left().Layer(3) );
     m_auimgr.AddPane( m_messagePanel, EDA_PANE().Messages().Name( "MsgPanel" ).Bottom().Layer(6) );
 
     // Vertical items; layers 1 - 3
@@ -289,16 +286,8 @@ FOOTPRINT_VIEWER_FRAME::FOOTPRINT_VIEWER_FRAME( KIWAY* aKiway, wxWindow* aParent
     ActivateGalCanvas();
 
     // Restore last zoom and auto zoom option.  (If auto-zooming we'll adjust when we load the footprint.)
-    PCBNEW_SETTINGS* cfg = GetPcbNewSettings();
-    wxASSERT( cfg );
-    GetCanvas()->GetView()->SetScale( cfg->m_FootprintViewerZoom );
-
-    wxAuiToolBarItem* toolOpt = m_mainToolBar->FindTool( ID_FPVIEWER_AUTOZOOM_TOOL );
-
-    if( cfg->m_FootprintViewerAutoZoomOnSelect )
-        toolOpt->SetState( wxAUI_BUTTON_STATE_CHECKED );
-    else
-        toolOpt->SetState( 0 );
+    if( PCBNEW_SETTINGS* cfg = GetPcbNewSettings() )
+        GetCanvas()->GetView()->SetScale( cfg->m_FootprintViewerZoom );
 
     updateView();
     setupUnits( config() );
@@ -354,15 +343,21 @@ void FOOTPRINT_VIEWER_FRAME::setupUIConditions()
 
     wxASSERT( mgr );
 
+    auto addToBoardCond =
+            [this]( const SELECTION& )
+            {
+                return ( GetBoard()->GetFirstFootprint() != nullptr );
+            };
+
 #define ENABLE( x ) ACTION_CONDITIONS().Enable( x )
 #define CHECK( x )  ACTION_CONDITIONS().Check( x )
 
     mgr->SetConditions( ACTIONS::toggleGrid,        CHECK( cond.GridVisible() ) );
-    mgr->SetConditions( ACTIONS::toggleCursorStyle, CHECK( cond.FullscreenCursor() ) );
-    mgr->SetConditions( ACTIONS::millimetersUnits,  CHECK( cond.Units( EDA_UNITS::MM ) ) );
-    mgr->SetConditions( ACTIONS::inchesUnits,       CHECK( cond.Units( EDA_UNITS::INCH ) ) );
-    mgr->SetConditions( ACTIONS::milsUnits,         CHECK( cond.Units( EDA_UNITS::MILS ) ) );
+    mgr->SetConditions( ACTIONS::cursorSmallCrosshairs, CHECK( cond.CursorSmallCrosshairs() ) );
+    mgr->SetConditions( ACTIONS::cursorFullCrosshairs,  CHECK( cond.CursorFullCrosshairs() ) );
+    mgr->SetConditions( ACTIONS::cursor45Crosshairs,    CHECK( cond.Cursor45Crosshairs() ) );
 
+    mgr->SetConditions( PCB_ACTIONS::saveFpToBoard, ENABLE( addToBoardCond ) );
 
     mgr->SetConditions( ACTIONS::zoomTool,
                         CHECK( cond.CurrentTool( ACTIONS::zoomTool ) ) );
@@ -377,6 +372,8 @@ void FOOTPRINT_VIEWER_FRAME::setupUIConditions()
     mgr->SetConditions( PCB_ACTIONS::graphicsOutlines,   CHECK( !cond.GraphicsFillDisplay() ) );
     mgr->SetConditions( ACTIONS::toggleBoundingBoxes,    CHECK( cond.BoundingBoxes() ) );
 
+    mgr->SetConditions( PCB_ACTIONS::fpAutoZoom,         CHECK( cond.FootprintViewerAutoZoom() ) );
+
 #undef ENABLE
 #undef CHECK
 }
@@ -387,7 +384,7 @@ void FOOTPRINT_VIEWER_FRAME::doCloseWindow()
     // A workaround to avoid flicker, in modal mode when modview frame is destroyed,
     // when the aui toolbar is not docked (i.e. shown in a miniframe)
     // (useful on windows only)
-    m_mainToolBar->SetFocus();
+    m_tbTopMain->SetFocus();
 
     GetCanvas()->StopDrawing();
 
@@ -410,7 +407,7 @@ void FOOTPRINT_VIEWER_FRAME::ReCreateLibraryList()
 
     COMMON_SETTINGS*      cfg = Pgm().GetCommonSettings();
     PROJECT_FILE&         project = Kiway().Prj().GetProjectFile();
-    std::vector<wxString> nicknames = PROJECT_PCB::PcbFootprintLibs( &Prj() )->GetLogicalLibs();
+    std::vector<wxString> nicknames = PROJECT_PCB::FootprintLibAdapter( &Prj() )->GetLibraryNames();
     std::vector<wxString> pinnedMatches;
     std::vector<wxString> otherMatches;
 
@@ -435,7 +432,7 @@ void FOOTPRINT_VIEWER_FRAME::ReCreateLibraryList()
     }
     else
     {
-        wxStringTokenizer tokenizer( m_libFilter->GetValue() );
+        wxStringTokenizer tokenizer( m_libFilter->GetValue(), " \t\r\n", wxTOKEN_STRTOK );
 
         while( tokenizer.HasMoreTokens() )
         {
@@ -491,54 +488,53 @@ void FOOTPRINT_VIEWER_FRAME::ReCreateFootprintList()
     if( !getCurNickname() )
         setCurFootprintName( wxEmptyString );
 
-    auto fp_info_list = FOOTPRINT_LIST::GetInstance( Kiway() );
-
+    FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( &Prj() );
     wxString nickname = getCurNickname();
 
-    fp_info_list->ReadFootprintFiles( PROJECT_PCB::PcbFootprintLibs( &Prj() ), !nickname ? nullptr : &nickname );
+    if( !nickname )
+        return;
 
-    if( fp_info_list->GetErrorCount() )
-    {
-        fp_info_list->DisplayErrors( this );
+    std::vector<FOOTPRINT*> footprints = adapter->GetFootprints( nickname, true );
 
-        // For footprint libraries that support one footprint per file, there may have been
-        // valid footprints read so show the footprints that loaded properly.
-        if( fp_info_list->GetList().empty() )
-            return;
-    }
+    if( footprints.empty() )
+        return;
 
     std::set<wxString> excludes;
 
     if( !m_fpFilter->GetValue().IsEmpty() )
     {
-        wxStringTokenizer tokenizer( m_fpFilter->GetValue() );
+        wxStringTokenizer tokenizer( m_fpFilter->GetValue(), " \t\r\n", wxTOKEN_STRTOK );
 
         while( tokenizer.HasMoreTokens() )
         {
             const wxString       filterTerm = tokenizer.GetNextToken().Lower();
             EDA_COMBINED_MATCHER matcher( filterTerm, CTX_LIBITEM );
 
-            for( const std::unique_ptr<FOOTPRINT_INFO>& footprint : fp_info_list->GetList() )
+            for( FOOTPRINT* footprint : footprints )
             {
-                std::vector<SEARCH_TERM> searchTerms = footprint->GetSearchTerms();
-                int                      matched = matcher.ScoreTerms( searchTerms );
+                int matched = matcher.ScoreTerms( footprint->GetSearchTerms() );
 
-                if( filterTerm.IsNumber() && wxAtoi( filterTerm ) == (int)footprint->GetPadCount() )
+                if( filterTerm.IsNumber() && wxAtoi( filterTerm ) == (int)footprint->GetPadCount( DO_NOT_INCLUDE_NPTH ) )
                     matched++;
 
                 if( !matched )
-                    excludes.insert( footprint->GetFootprintName() );
+                    excludes.insert( footprint->GetFPID().GetLibItemName() );
             }
         }
     }
 
-    for( const std::unique_ptr<FOOTPRINT_INFO>& footprint : fp_info_list->GetList() )
+    for( FOOTPRINT* footprint : footprints )
     {
-        if( !excludes.count( footprint->GetFootprintName() ) )
-            m_fpList->Append( footprint->GetFootprintName() );
+        wxString fpName = footprint->GetFPID().GetLibItemName();
+
+        if( !excludes.count( fpName ) )
+            m_fpList->Append( fpName );
     }
 
-    int index = m_fpList->FindString( getCurFootprintName(), true );
+    int index = wxNOT_FOUND;
+
+    if( !getCurFootprintName().IsEmpty() )
+        index = m_fpList->FindString( getCurFootprintName(), true );
 
     if( index == wxNOT_FOUND )
     {
@@ -559,6 +555,9 @@ void FOOTPRINT_VIEWER_FRAME::ReCreateFootprintList()
     {
         m_fpList->SetSelection( index, true );
         m_fpList->EnsureVisible( index );
+
+        wxCommandEvent dummy;
+        ClickOnFootprintList( dummy );
     }
 }
 
@@ -616,8 +615,7 @@ void FOOTPRINT_VIEWER_FRAME::OnCharHook( wxKeyEvent& aEvent )
     else if( ( aEvent.GetKeyCode() == WXK_RETURN || aEvent.GetKeyCode() == WXK_NUMPAD_ENTER )
              && m_fpList->GetSelection() >= 0 )
     {
-        wxCommandEvent dummy;
-        AddFootprintToPCB( dummy );
+        AddFootprintToPCB();
     }
     else
     {
@@ -701,7 +699,7 @@ void FOOTPRINT_VIEWER_FRAME::ClickOnFootprintList( wxCommandEvent& aEvent )
     if( getCurFootprintName().CmpNoCase( name ) != 0 )
     {
         setCurFootprintName( name );
-        SelectAndViewFootprint( NEW_PART );
+        SelectAndViewFootprint( FPVIEWER_CONSTANTS::NEW_PART );
     }
 }
 
@@ -722,22 +720,22 @@ void FOOTPRINT_VIEWER_FRAME::displayFootprint( FOOTPRINT* aFootprint )
     }
 
     GetBoard()->Add( aFootprint );
+
+    m_toolManager->RunAction( PCB_ACTIONS::rehatchShapes );
 }
 
 
 void FOOTPRINT_VIEWER_FRAME::DClickOnFootprintList( wxMouseEvent& aEvent )
 {
-    wxCommandEvent evt;
-    AddFootprintToPCB( evt );
+    AddFootprintToPCB();
 }
 
 
-void FOOTPRINT_VIEWER_FRAME::AddFootprintToPCB( wxCommandEvent& aEvent )
+void FOOTPRINT_VIEWER_FRAME::AddFootprintToPCB()
 {
     if( GetBoard()->GetFirstFootprint() )
     {
         PCB_EDIT_FRAME*  pcbframe = (PCB_EDIT_FRAME*) Kiway().Player( FRAME_PCB_EDITOR, false );
-        PCBNEW_SETTINGS* cfg = pcbframe->GetPcbNewSettings();
 
         if( pcbframe == nullptr )      // happens when the board editor is not active (or closed)
         {
@@ -745,7 +743,8 @@ void FOOTPRINT_VIEWER_FRAME::AddFootprintToPCB( wxCommandEvent& aEvent )
             return;
         }
 
-        TOOL_MANAGER*   toolMgr = pcbframe->GetToolManager();
+        PCBNEW_SETTINGS* cfg = pcbframe->GetPcbNewSettings();
+        TOOL_MANAGER*    toolMgr = pcbframe->GetToolManager();
 
         if( toolMgr->GetTool<BOARD_EDITOR_CONTROL>()->PlacingFootprint() )
         {
@@ -758,11 +757,11 @@ void FOOTPRINT_VIEWER_FRAME::AddFootprintToPCB( wxCommandEvent& aEvent )
         if( blocking_dialog )
             blocking_dialog->Close( true );
 
-        toolMgr->RunAction( PCB_ACTIONS::selectionClear );
+        toolMgr->RunAction( ACTIONS::selectionClear );
         BOARD_COMMIT commit( pcbframe );
 
         // Create the "new" footprint
-        FOOTPRINT* newFootprint = (FOOTPRINT*) GetBoard()->GetFirstFootprint()->Duplicate();
+        FOOTPRINT* newFootprint = (FOOTPRINT*) GetBoard()->GetFirstFootprint()->Duplicate( IGNORE_PARENT_GROUP );
         newFootprint->SetParent( pcbframe->GetBoard() );
         newFootprint->SetLink( niluuid );
         newFootprint->SetFlags(IS_NEW ); // whatever
@@ -802,31 +801,31 @@ void FOOTPRINT_VIEWER_FRAME::AddFootprintToPCB( wxCommandEvent& aEvent )
 
 void FOOTPRINT_VIEWER_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
 {
-    PCBNEW_SETTINGS* cfg = dynamic_cast<PCBNEW_SETTINGS*>( aCfg );
-    wxCHECK( cfg, /*void*/ );
-
-    // We don't allow people to change this right now, so make sure it's on
-    GetWindowSettings( cfg )->cursor.always_show_cursor = true;
-
-    PCB_BASE_FRAME::LoadSettings( aCfg );
-
-    // Fetch display and grid settings from Footprint Editor
-    SETTINGS_MANAGER&          mgr = Pgm().GetSettingsManager();
-    FOOTPRINT_EDITOR_SETTINGS* fpedit = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" );
-
-    m_displayOptions = fpedit->m_Display;
-    GetGalDisplayOptions().ReadWindowSettings( fpedit->m_Window );
-
-    m_libListWidth = cfg->m_FootprintViewerLibListWidth;
-    m_fpListWidth = cfg->m_FootprintViewerFPListWidth;
-
-    // Set parameters to a reasonable value.
-    int maxWidth = cfg->m_FootprintViewer.state.size_x - 80;
-
-    if( m_libListWidth + m_fpListWidth > maxWidth )
+    if( PCBNEW_SETTINGS* cfg = dynamic_cast<PCBNEW_SETTINGS*>( aCfg ) )
     {
-        m_libListWidth = maxWidth * ( m_libListWidth / ( m_libListWidth + m_fpListWidth ) );
-        m_fpListWidth = maxWidth - m_libListWidth;
+        // We don't allow people to change this right now, so make sure it's on
+        GetWindowSettings( cfg )->cursor.always_show_cursor = true;
+
+        PCB_BASE_FRAME::LoadSettings( aCfg );
+
+        // Fetch display and grid settings from Footprint Editor
+        if( FOOTPRINT_EDITOR_SETTINGS* fpedit = GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" ) )
+        {
+            m_displayOptions = fpedit->m_Display;
+            GetGalDisplayOptions().ReadWindowSettings( fpedit->m_Window );
+        }
+
+        m_libListWidth = cfg->m_FootprintViewerLibListWidth;
+        m_fpListWidth = cfg->m_FootprintViewerFPListWidth;
+
+        // Set parameters to a reasonable value.
+        int maxWidth = cfg->m_FootprintViewer.state.size_x - 80;
+
+        if( m_libListWidth + m_fpListWidth > maxWidth )
+        {
+            m_libListWidth = maxWidth * ( m_libListWidth / ( m_libListWidth + m_fpListWidth ) );
+            m_fpListWidth = maxWidth - m_libListWidth;
+        }
     }
 }
 
@@ -844,8 +843,6 @@ void FOOTPRINT_VIEWER_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
     if( GetCanvas() && GetCanvas()->GetView() )
         cfg->m_FootprintViewerZoom = GetCanvas()->GetView()->GetScale();
 
-    wxAuiToolBarItem* toolOpt = m_mainToolBar->FindTool( ID_FPVIEWER_AUTOZOOM_TOOL );
-    cfg->m_FootprintViewerAutoZoomOnSelect = ( toolOpt->GetState() & wxAUI_BUTTON_STATE_CHECKED );
     cfg->m_FootprintViewerLibListWidth = m_libList->GetSize().x;
     cfg->m_FootprintViewerFPListWidth = m_fpList->GetSize().x;
 
@@ -854,22 +851,18 @@ void FOOTPRINT_VIEWER_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
 
 WINDOW_SETTINGS* FOOTPRINT_VIEWER_FRAME::GetWindowSettings( APP_SETTINGS_BASE* aCfg )
 {
-    PCBNEW_SETTINGS* cfg = dynamic_cast<PCBNEW_SETTINGS*>( aCfg );
-    wxCHECK_MSG( cfg, nullptr, wxT( "config not existing" ) );
+    if( PCBNEW_SETTINGS* cfg = dynamic_cast<PCBNEW_SETTINGS*>( aCfg ) )
+        return &cfg->m_FootprintViewer;
 
-    return &cfg->m_FootprintViewer;
+    wxFAIL_MSG( wxT( "FOOTPRINT_CHOOSER not running with PCBNEW_SETTINGS" ) );
+    return &aCfg->m_Window;     // non-null fail-safe
 }
 
 
 COLOR_SETTINGS* FOOTPRINT_VIEWER_FRAME::GetColorSettings( bool aForceRefresh ) const
 {
-    SETTINGS_MANAGER&          mgr = Pgm().GetSettingsManager();
-    FOOTPRINT_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" );
-
-    if( cfg )
-        return mgr.GetColorSettings( cfg->m_ColorTheme );
-    else
-        return mgr.GetColorSettings();
+    FOOTPRINT_EDITOR_SETTINGS* cfg = GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" );
+    return ::GetColorSettings( cfg ? cfg->m_ColorTheme : DEFAULT_THEME );
 }
 
 
@@ -913,7 +906,7 @@ void FOOTPRINT_VIEWER_FRAME::OnActivate( wxActivateEvent& event )
     if( event.GetActive() )
     {
         // Ensure we have the right library list:
-        std::vector< wxString > libNicknames = PROJECT_PCB::PcbFootprintLibs( &Prj() )->GetLogicalLibs();
+        std::vector< wxString > libNicknames = PROJECT_PCB::FootprintLibAdapter( &Prj() )->GetLibraryNames();
         bool                    stale = false;
 
         if( libNicknames.size() != m_libList->GetCount() )
@@ -941,17 +934,11 @@ void FOOTPRINT_VIEWER_FRAME::OnActivate( wxActivateEvent& event )
 }
 
 
-void FOOTPRINT_VIEWER_FRAME::OnUpdateFootprintButton( wxUpdateUIEvent& aEvent )
-{
-    aEvent.Enable( GetBoard()->GetFirstFootprint() != nullptr );
-}
-
-
 void FOOTPRINT_VIEWER_FRAME::ReloadFootprint( FOOTPRINT* aFootprint )
 {
     setCurNickname( aFootprint->GetFPID().GetLibNickname() );
     setCurFootprintName( aFootprint->GetFPID().GetLibItemName() );
-    SelectAndViewFootprint( RELOAD_PART );
+    SelectAndViewFootprint( FPVIEWER_CONSTANTS::RELOAD_PART );
 }
 
 
@@ -962,7 +949,7 @@ void FOOTPRINT_VIEWER_FRAME::HardRedraw()
     ReloadFootprint( GetBoard()->GetFirstFootprint() );
 }
 
-void FOOTPRINT_VIEWER_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
+void FOOTPRINT_VIEWER_FRAME::KiwayMailIn( KIWAY_MAIL_EVENT& mail )
 {
     switch( mail.Command() )
     {
@@ -989,42 +976,17 @@ COLOR4D FOOTPRINT_VIEWER_FRAME::GetGridColor()
 }
 
 
-void FOOTPRINT_VIEWER_FRAME::OnIterateFootprintList( wxCommandEvent& event )
-{
-    switch( event.GetId() )
-    {
-    case ID_MODVIEW_NEXT:
-        SelectAndViewFootprint( NEXT_PART );
-        break;
-
-    case ID_MODVIEW_PREVIOUS:
-        SelectAndViewFootprint( PREVIOUS_PART );
-        break;
-
-    default:
-        wxString id = wxString::Format( wxT( "%i" ), event.GetId() );
-        wxFAIL_MSG( wxT( "FOOTPRINT_VIEWER_FRAME::OnIterateFootprintList error: id = " ) + id );
-    }
-}
-
-
 void FOOTPRINT_VIEWER_FRAME::UpdateTitle()
 {
     wxString title;
+    LIBRARY_MANAGER& manager = Pgm().GetLibraryManager();
 
     if( !getCurNickname().IsEmpty() )
     {
-        try
-        {
-            FP_LIB_TABLE* libtable = PROJECT_PCB::PcbFootprintLibs( &Prj() );
-            const LIB_TABLE_ROW* row = libtable->FindRow( getCurNickname() );
-
-            title = getCurNickname() + wxT( " \u2014 " ) + row->GetFullURI( true );
-        }
-        catch( ... )
-        {
+        if( std::optional<wxString> optUri = manager.GetFullURI( LIBRARY_TABLE_TYPE::FOOTPRINT, getCurNickname(), true ) )
+            title = getCurNickname() + wxT( " \u2014 " ) + *optUri;
+        else
             title = _( "[no library selected]" );
-        }
     }
     else
     {
@@ -1037,20 +999,20 @@ void FOOTPRINT_VIEWER_FRAME::UpdateTitle()
 }
 
 
-void FOOTPRINT_VIEWER_FRAME::SelectAndViewFootprint( int aMode )
+void FOOTPRINT_VIEWER_FRAME::SelectAndViewFootprint( FPVIEWER_CONSTANTS aMode )
 {
     if( !getCurNickname() )
         return;
 
     int selection = m_fpList->FindString( getCurFootprintName(), true );
 
-    if( aMode == NEXT_PART )
+    if( aMode == FPVIEWER_CONSTANTS::NEXT_PART )
     {
         if( selection != wxNOT_FOUND && selection < (int)m_fpList->GetCount() - 1 )
             selection++;
     }
 
-    if( aMode == PREVIOUS_PART )
+    if( aMode == FPVIEWER_CONSTANTS::PREVIOUS_PART )
     {
         if( selection != wxNOT_FOUND && selection > 0 )
             selection--;
@@ -1070,13 +1032,13 @@ void FOOTPRINT_VIEWER_FRAME::SelectAndViewFootprint( int aMode )
         GetBoard()->DeleteAllFootprints();
         GetBoard()->RemoveUnusedNets( nullptr );
 
-        FOOTPRINT* footprint = PROJECT_PCB::PcbFootprintLibs( &Prj() )->FootprintLoad( getCurNickname(),
-                                                                        getCurFootprintName() );
+        FOOTPRINT* footprint = PROJECT_PCB::FootprintLibAdapter( &Prj() )->LoadFootprint( getCurNickname(),
+                                                                                          getCurFootprintName(), false );
 
         if( footprint )
             displayFootprint( footprint );
 
-        if( aMode != RELOAD_PART )
+        if( aMode != FPVIEWER_CONSTANTS::RELOAD_PART )
             setFPWatcher( footprint );
 
         Update3DView( true, true );
@@ -1096,12 +1058,14 @@ void FOOTPRINT_VIEWER_FRAME::updateView()
 
     m_toolManager->ResetTools( TOOL_BASE::MODEL_RELOAD );
 
-    wxAuiToolBarItem* toolOpt = m_mainToolBar->FindTool( ID_FPVIEWER_AUTOZOOM_TOOL );
+    PCBNEW_SETTINGS* cfg = dynamic_cast<PCBNEW_SETTINGS*>( config() );
+    wxCHECK( cfg, /* void */ );
 
-    if( toolOpt->GetState() & wxAUI_BUTTON_STATE_CHECKED )
+    if( cfg->m_FootprintViewerAutoZoomOnSelect )
         m_toolManager->RunAction( ACTIONS::zoomFitScreen );
     else
         m_toolManager->RunAction( ACTIONS::centerContents );
+
 
     UpdateMsgPanel();
 }
@@ -1123,4 +1087,3 @@ BOARD_ITEM_CONTAINER* FOOTPRINT_VIEWER_FRAME::GetModel() const
 {
     return GetBoard()->GetFirstFootprint();
 }
-

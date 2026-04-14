@@ -78,6 +78,10 @@ public:
     /// @copydoc GAL::DrawCircle()
     void DrawCircle( const VECTOR2D& aCenterPoint, double aRadius ) override;
 
+    /// @copydoc GAL::DrawHoleWall()
+    void DrawHoleWall( const VECTOR2D& aCenterPoint, double aHoleRadius,
+                       double aWallWidth ) override;
+
     /// @copydoc GAL::DrawArc()
     void DrawArc( const VECTOR2D& aCenterPoint, double aRadius, const EDA_ANGLE& aStartAngle,
                   const EDA_ANGLE& aAngle ) override;
@@ -522,7 +526,8 @@ protected:
     int                 m_wxBufferWidth;
     bool                m_isInitialized;       ///< Are Cairo image & surface ready to use
     COLOR4D             m_backgroundColor;     ///< Background color
-    wxCursor            m_currentwxCursor;     ///< wxCursor showing the current native cursor
+
+    WX_CURSOR_TYPE      m_currentwxCursor;     ///< wx cursor showing the current native cursor
 };
 
 } // namespace KIGFX

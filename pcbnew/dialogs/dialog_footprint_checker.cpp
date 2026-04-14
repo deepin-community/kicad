@@ -42,26 +42,19 @@ DIALOG_FOOTPRINT_CHECKER::DIALOG_FOOTPRINT_CHECKER( FOOTPRINT_EDIT_FRAME* aParen
         DIALOG_FOOTPRINT_CHECKER_BASE( aParent ),
         m_frame( aParent ),
         m_checksRun( false ),
-        m_severities( RPT_SEVERITY_ERROR | RPT_SEVERITY_WARNING ),
         m_centerMarkerOnIdle( nullptr )
 {
-    m_markersProvider = std::make_shared<DRC_ITEMS_PROVIDER>( m_frame->GetBoard(),
-                                                              MARKER_BASE::MARKER_DRC );
+    m_markersProvider = std::make_shared<DRC_ITEMS_PROVIDER>( m_frame->GetBoard(), MARKER_BASE::MARKER_DRC );
 
     m_markersTreeModel = new RC_TREE_MODEL( m_frame, m_markersDataView );
     m_markersDataView->AssociateModel( m_markersTreeModel );
-    m_markersTreeModel->Update( m_markersProvider, m_severities );
+    m_markersDataView->SetLayoutDirection( wxLayout_LeftToRight );
 
     if( m_frame->GetBoard()->GetFirstFootprint() == g_lastFootprint )
-    {
         m_checksRun = g_lastChecksRun;
-        updateDisplayedCounts();
-    }
 
     SetupStandardButtons( { { wxID_OK,     _( "Run Checks" ) },
                             { wxID_CANCEL, _( "Close" )      } } );
-
-    syncCheckboxes();
 
     finishDialogSettings();
 }
@@ -69,7 +62,7 @@ DIALOG_FOOTPRINT_CHECKER::DIALOG_FOOTPRINT_CHECKER( FOOTPRINT_EDIT_FRAME* aParen
 
 DIALOG_FOOTPRINT_CHECKER::~DIALOG_FOOTPRINT_CHECKER()
 {
-    m_frame->FocusOnItem( nullptr );
+    m_frame->ClearFocus();
 
     g_lastFootprint = m_frame->GetBoard()->GetFirstFootprint();
     g_lastChecksRun = m_checksRun;
@@ -78,28 +71,17 @@ DIALOG_FOOTPRINT_CHECKER::~DIALOG_FOOTPRINT_CHECKER()
 }
 
 
+void DIALOG_FOOTPRINT_CHECKER::updateData()
+{
+    m_markersTreeModel->Update( m_markersProvider, getSeverities() );
+    updateDisplayedCounts();
+}
+
+
 bool DIALOG_FOOTPRINT_CHECKER::TransferDataToWindow()
 {
+    updateData();
     return true;
-}
-
-
-bool DIALOG_FOOTPRINT_CHECKER::TransferDataFromWindow()
-{
-    return true;
-}
-
-
-// Don't globally define this; different facilities use different definitions of "ALL"
-static int RPT_SEVERITY_ALL = RPT_SEVERITY_WARNING | RPT_SEVERITY_ERROR | RPT_SEVERITY_EXCLUSION;
-
-
-void DIALOG_FOOTPRINT_CHECKER::syncCheckboxes()
-{
-    m_showAll->SetValue( m_severities == RPT_SEVERITY_ALL );
-    m_showErrors->SetValue( m_severities & RPT_SEVERITY_ERROR );
-    m_showWarnings->SetValue( m_severities & RPT_SEVERITY_WARNING );
-    m_showExclusions->SetValue( m_severities & RPT_SEVERITY_EXCLUSION );
 }
 
 
@@ -107,15 +89,11 @@ void DIALOG_FOOTPRINT_CHECKER::runChecks()
 {
     BOARD*     board = m_frame->GetBoard();
     FOOTPRINT* footprint = board->GetFirstFootprint();
-    wxString   msg;
 
     deleteAllMarkers();
 
     if( !footprint )
-    {
-        msg = _( "No footprint loaded." );
         return;
-    }
 
     auto errorHandler =
             [&]( const BOARD_ITEM* aItemA, const BOARD_ITEM* aItemB, const BOARD_ITEM* aItemC,
@@ -124,7 +102,7 @@ void DIALOG_FOOTPRINT_CHECKER::runChecks()
                 std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( aErrorCode );
 
                 if( !aMsg.IsEmpty() )
-                    drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " " ) + aMsg );
+                    drcItem->SetErrorDetail( aMsg );
 
                 drcItem->SetItems( aItemA, aItemB, aItemC );
 
@@ -144,19 +122,17 @@ void DIALOG_FOOTPRINT_CHECKER::runChecks()
 
     footprint->BuildCourtyardCaches( &outlineErrorHandler );
 
-    if( ( footprint->GetAttributes() & FP_ALLOW_MISSING_COURTYARD ) == 0
+    if( !footprint->AllowMissingCourtyard()
             && footprint->GetCourtyard( F_CrtYd ).OutlineCount() == 0
             && footprint->GetCourtyard( B_CrtYd ).OutlineCount() == 0 )
     {
-        errorHandler( footprint, nullptr, nullptr, DRCE_MISSING_COURTYARD, wxEmptyString,
-                      { 0, 0 } );
+        errorHandler( footprint, nullptr, nullptr, DRCE_MISSING_COURTYARD, wxEmptyString, { 0, 0 } );
     }
 
     footprint->CheckFootprintAttributes(
             [&]( const wxString& aMsg )
             {
-                errorHandler( footprint, nullptr, nullptr, DRCE_FOOTPRINT_TYPE_MISMATCH, aMsg,
-                              { 0, 0 } );
+                errorHandler( footprint, nullptr, nullptr, DRCE_FOOTPRINT_TYPE_MISMATCH, aMsg, { 0, 0 } );
             } );
 
     footprint->CheckPads( m_frame,
@@ -181,24 +157,20 @@ void DIALOG_FOOTPRINT_CHECKER::runChecks()
 
         footprint->CheckNetTies(
                 [&]( const BOARD_ITEM* aItemA, const BOARD_ITEM* aItemB, const BOARD_ITEM* aItemC,
-                     const VECTOR2I& aPosition )
+                     const VECTOR2I& aPt )
                 {
-                    errorHandler( aItemA, aItemB, aItemC, DRCE_SHORTING_ITEMS, wxEmptyString,
-                                  aPosition );
+                    errorHandler( aItemA, aItemB, aItemC, DRCE_SHORTING_ITEMS, wxEmptyString, aPt );
                 } );
     }
 
     footprint->CheckClippedSilk(
             [&]( BOARD_ITEM* aItemA, BOARD_ITEM* aItemB, const VECTOR2I& aPt )
             {
-                errorHandler( aItemA, aItemB, nullptr, DRCE_SILK_CLEARANCE, wxEmptyString, aPt );
+                errorHandler( aItemA, aItemB, nullptr, DRCE_SILK_MASK_CLEARANCE, wxEmptyString, aPt );
             } );
 
     m_checksRun = true;
-
-    m_markersTreeModel->Update( m_markersProvider, m_severities );
-    updateDisplayedCounts();
-
+    updateData();
     refreshEditor();
 }
 
@@ -216,6 +188,9 @@ void DIALOG_FOOTPRINT_CHECKER::SelectMarker( const PCB_MARKER* aMarker )
 
 void DIALOG_FOOTPRINT_CHECKER::centerMarkerIdleHandler( wxIdleEvent& aEvent )
 {
+    if( m_markersTreeModel->GetView()->IsFrozen() )
+        return;
+
     m_markersTreeModel->CenterMarker( m_centerMarkerOnIdle );
     m_centerMarkerOnIdle = nullptr;
     Unbind( wxEVT_IDLE, &DIALOG_FOOTPRINT_CHECKER::centerMarkerIdleHandler, this );
@@ -225,7 +200,6 @@ void DIALOG_FOOTPRINT_CHECKER::centerMarkerIdleHandler( wxIdleEvent& aEvent )
 void DIALOG_FOOTPRINT_CHECKER::OnRunChecksClick( wxCommandEvent& aEvent )
 {
     m_checksRun = false;
-
     runChecks();
 }
 
@@ -235,13 +209,11 @@ void DIALOG_FOOTPRINT_CHECKER::OnSelectItem( wxDataViewEvent& aEvent )
     BOARD*        board = m_frame->GetBoard();
     RC_TREE_NODE* node = RC_TREE_MODEL::ToNode( aEvent.GetItem() );
     const KIID&   itemID = node ? RC_TREE_MODEL::ToUUID( aEvent.GetItem() ) : niluuid;
-    BOARD_ITEM*   item = board->GetItem( itemID );
+    BOARD_ITEM*   item = board->ResolveItem( itemID, true );
 
     if( m_centerMarkerOnIdle )
     {
-        // we already came from a cross-probe of the marker in the document; don't go
-        // around in circles
-
+        // we already came from a cross-probe of the marker in the document; don't go around in circles
         aEvent.Skip();
         return;
     }
@@ -257,7 +229,7 @@ void DIALOG_FOOTPRINT_CHECKER::OnSelectItem( wxDataViewEvent& aEvent )
 
         if( rc_item->GetErrorCode() == DRCE_MALFORMED_COURTYARD )
         {
-            BOARD_ITEM* a = board->GetItem( rc_item->GetMainItemID() );
+            BOARD_ITEM* a = board->ResolveItem( rc_item->GetMainItemID(), true );
 
             if( a && ( a->GetFlags() & MALFORMED_B_COURTYARD ) > 0
                   && ( a->GetFlags() & MALFORMED_F_COURTYARD ) == 0 )
@@ -275,10 +247,10 @@ void DIALOG_FOOTPRINT_CHECKER::OnSelectItem( wxDataViewEvent& aEvent )
         }
         else
         {
-            BOARD_ITEM*  a = board->GetItem( rc_item->GetMainItemID() );
-            BOARD_ITEM*  b = board->GetItem( rc_item->GetAuxItemID() );
-            BOARD_ITEM*  c = board->GetItem( rc_item->GetAuxItem2ID() );
-            BOARD_ITEM*  d = board->GetItem( rc_item->GetAuxItem3ID() );
+            BOARD_ITEM*  a = board->ResolveItem( rc_item->GetMainItemID(), true );
+            BOARD_ITEM*  b = board->ResolveItem( rc_item->GetAuxItemID(), true );
+            BOARD_ITEM*  c = board->ResolveItem( rc_item->GetAuxItem2ID(), true );
+            BOARD_ITEM*  d = board->ResolveItem( rc_item->GetAuxItem3ID(), true );
 
             if( a || b || c || d )
                 violationLayers = LSET::AllLayersMask();
@@ -298,7 +270,7 @@ void DIALOG_FOOTPRINT_CHECKER::OnSelectItem( wxDataViewEvent& aEvent )
 
         if( violationLayers.count() )
             principalLayer = violationLayers.Seq().front();
-        else
+        else if( principalLayer >= 0 )
             violationLayers.set( principalLayer );
 
         WINDOW_THAWER thawer( m_frame );
@@ -330,41 +302,43 @@ void DIALOG_FOOTPRINT_CHECKER::OnLeftDClickItem( wxMouseEvent& event )
             Show( false );
     }
 
-    // Do not skip aVent here: this is not useful, and Pcbnew crashes
-    // if skipped (at least on Windows)
+    // Do not skip event here: this is not useful, and Pcbnew crashes if skipped (at least on MSW)
+}
+
+
+int DIALOG_FOOTPRINT_CHECKER::getSeverities() const
+{
+    int severities = 0;
+
+    if( m_showErrors->GetValue() )
+        severities |= RPT_SEVERITY_ERROR;
+
+    if( m_showWarnings->GetValue() )
+        severities |= RPT_SEVERITY_WARNING;
+
+    if( m_showExclusions->GetValue() )
+        severities |= RPT_SEVERITY_EXCLUSION;
+
+    return severities;
 }
 
 
 void DIALOG_FOOTPRINT_CHECKER::OnSeverity( wxCommandEvent& aEvent )
 {
-    int flag = 0;
-
     if( aEvent.GetEventObject() == m_showAll )
-        flag = RPT_SEVERITY_ALL;
-    else if( aEvent.GetEventObject() == m_showErrors )
-        flag = RPT_SEVERITY_ERROR;
-    else if( aEvent.GetEventObject() == m_showWarnings )
-        flag = RPT_SEVERITY_WARNING;
-    else if( aEvent.GetEventObject() == m_showExclusions )
-        flag = RPT_SEVERITY_EXCLUSION;
+    {
+        m_showErrors->SetValue( true );
+        m_showWarnings->SetValue( aEvent.IsChecked() );
+        m_showExclusions->SetValue( aEvent.IsChecked() );
+    }
 
-    if( aEvent.IsChecked() )
-        m_severities |= flag;
-    else if( aEvent.GetEventObject() == m_showAll )
-        m_severities = RPT_SEVERITY_ERROR;
-    else
-        m_severities &= ~flag;
-
-    syncCheckboxes();
-
-    m_markersTreeModel->Update( m_markersProvider, m_severities );
-    updateDisplayedCounts();
+    updateData();
 }
 
 
 void DIALOG_FOOTPRINT_CHECKER::OnCancelClick( wxCommandEvent& aEvent )
 {
-    m_frame->FocusOnItem( nullptr );
+    m_frame->ClearFocus();
 
     SetReturnCode( wxID_CANCEL );
 
@@ -392,7 +366,7 @@ void DIALOG_FOOTPRINT_CHECKER::refreshEditor()
 void DIALOG_FOOTPRINT_CHECKER::OnDeleteOneClick( wxCommandEvent& aEvent )
 {
     // Clear the selection.  It may be the selected DRC marker.
-    m_frame->GetToolManager()->RunAction( PCB_ACTIONS::selectionClear );
+    m_frame->GetToolManager()->RunAction( ACTIONS::selectionClear );
 
     m_markersTreeModel->DeleteCurrentItem( true );
 
@@ -416,7 +390,7 @@ void DIALOG_FOOTPRINT_CHECKER::OnDeleteAllClick( wxCommandEvent& event )
 void DIALOG_FOOTPRINT_CHECKER::deleteAllMarkers()
 {
     // Clear current selection list to avoid selection of deleted items
-    m_frame->GetToolManager()->RunAction( PCB_ACTIONS::selectionClear );
+    m_frame->GetToolManager()->RunAction( ACTIONS::selectionClear );
 
     m_markersTreeModel->DeleteItems( false, true, false );
     m_frame->GetBoard()->DeleteMARKERs( true, true );

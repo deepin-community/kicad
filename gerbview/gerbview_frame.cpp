@@ -19,6 +19,7 @@
  */
 
 #include <kiface_base.h>
+#include <settings/color_settings.h>
 #include <base_units.h>
 #include <pgm_base.h>
 #include <bitmaps.h>
@@ -34,6 +35,7 @@
 #include <drawing_sheet/ds_proxy_view_item.h>
 #include <lset.h>
 #include <settings/settings_manager.h>
+#include <toolbars_gerber.h>
 #include <tool/tool_manager.h>
 #include <tool/action_toolbar.h>
 #include <tool/tool_dispatcher.h>
@@ -57,9 +59,13 @@
 #include "widgets/gerbview_layer_widget.h"
 #include "widgets/dcode_selection_box.h"
 #include <dialog_draw_layers_settings.h>
-#include <zoom_defines.h>
 
+#if defined(__linux__) || defined(__FreeBSD__)
+#include <spacenav/spnav_2d_plugin.h>
+#else
 #include <navlib/nl_gerbview_plugin.h>
+#endif
+
 #include <wx/log.h>
 
 GERBVIEW_FRAME::GERBVIEW_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
@@ -125,7 +131,7 @@ GERBVIEW_FRAME::GERBVIEW_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     SetIcons( icon_bundle );
 
     // Be sure a page info is set. this default value will be overwritten later.
-    PAGE_INFO pageInfo( wxT( "GERBER" ) );
+    PAGE_INFO pageInfo( PAGE_SIZE_TYPE::GERBER );
     SetLayout( new GBR_LAYOUT() );
     SetPageSettings( pageInfo );
 
@@ -148,22 +154,22 @@ GERBVIEW_FRAME::GERBVIEW_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     setupTools();
     setupUIConditions();
     ReCreateMenuBar();
-    ReCreateHToolbar();
-    ReCreateOptToolbar();
-    ReCreateAuxiliaryToolbar();
+
+    m_toolbarSettings = GetToolbarSettings<GERBVIEW_TOOLBAR_SETTINGS>( "gerbview-toolbars" );
+    configureToolbars();
+    RecreateToolbars();
 
     m_auimgr.SetManagedWindow( this );
 
-    m_auimgr.AddPane( m_mainToolBar, EDA_PANE().HToolbar().Name( "MainToolbar" ).Top().Layer( 6 ) );
-    m_auimgr.AddPane( m_auxiliaryToolBar, EDA_PANE().HToolbar().Name( "AuxToolbar" ).Top()
-                      .Layer(4) );
-    m_auimgr.AddPane( m_messagePanel, EDA_PANE().Messages().Name( "MsgPanel" ).Bottom()
-                      .Layer( 6 ) );
-    m_auimgr.AddPane( m_optionsToolBar, EDA_PANE().VToolbar().Name( "OptToolbar" ).Left()
-                      .Layer( 3 ) );
-    m_auimgr.AddPane( m_LayersManager, EDA_PANE().Palette().Name( "LayersManager" ).Right()
-                      .Layer( 3 ).Caption( _( "Layers Manager" ) ).PaneBorder( false )
-                      .MinSize( 80, -1 ).BestSize( m_LayersManager->GetBestSize() ) );
+    m_auimgr.AddPane( m_tbTopMain, EDA_PANE().HToolbar().Name( "TopMainToolbar" ).Top().Layer( 6 ) );
+    m_auimgr.AddPane( m_tbTopAux, EDA_PANE().HToolbar().Name( "TopAuxToolbar" ).Top().Layer(4) );
+    m_auimgr.AddPane( m_messagePanel, EDA_PANE().Messages().Name( "MsgPanel" ).Bottom().Layer( 6 ) );
+    m_auimgr.AddPane( m_tbLeft, EDA_PANE().VToolbar().Name( "LeftToolbar" ).Left().Layer( 3 ) );
+    m_auimgr.AddPane( m_LayersManager,
+                      EDA_PANE().Palette().Name( "LayersManager" ).Right().Layer( 3 )
+                                .Caption( _( "Layers Manager" ) ).PaneBorder( false )
+                                .MinSize( FromDIP( 80 ), FromDIP( 80 ) )
+                                .BestSize( m_LayersManager->GetBestSize() ) );
 
     m_auimgr.AddPane( GetCanvas(), EDA_PANE().Canvas().Name( "DrawFrame" ).Center() );
 
@@ -318,46 +324,13 @@ void GERBVIEW_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
 {
     EDA_DRAW_FRAME::LoadSettings( aCfg );
 
-    if( aCfg->m_Window.grid.grids.empty() )
-    {
-        aCfg->m_Window.grid.grids = { GRID{ wxEmptyString, wxS( "100 mil" ), wxS( "100 mil" ) },
-                                      GRID{ wxEmptyString, wxS( "50 mil" ), wxS( "50 mil" ) },
-                                      GRID{ wxEmptyString, wxS( "25 mil" ), wxS( "25 mil" ) },
-                                      GRID{ wxEmptyString, wxS( "20 mil" ), wxS( "20 mil" ) },
-                                      GRID{ wxEmptyString, wxS( "10 mil" ), wxS( "10 mil" ) },
-                                      GRID{ wxEmptyString, wxS( "5 mil" ), wxS( "5 mil" ) },
-                                      GRID{ wxEmptyString, wxS( "2.5 mil" ), wxS( "2.5 mil" ) },
-                                      GRID{ wxEmptyString, wxS( "2 mil" ), wxS( "2 mil" ) },
-                                      GRID{ wxEmptyString, wxS( "1 mil" ), wxS( "1 mil" ) },
-                                      GRID{ wxEmptyString, wxS( "0.5 mil" ), wxS( "0.5 mil" ) },
-                                      GRID{ wxEmptyString, wxS( "0.2 mil" ), wxS( "0.2 mil" ) },
-                                      GRID{ wxEmptyString, wxS( "0.1 mil" ), wxS( "0.1 mil" ) },
-                                      GRID{ wxEmptyString, wxS( "5.0 mm" ), wxS( "5.0 mm" ) },
-                                      GRID{ wxEmptyString, wxS( "1.5 mm" ), wxS( "2.5 mm" ) },
-                                      GRID{ wxEmptyString, wxS( "1.0 mm" ), wxS( "1.0 mm" ) },
-                                      GRID{ wxEmptyString, wxS( "0.5 mm" ), wxS( "0.5 mm" ) },
-                                      GRID{ wxEmptyString, wxS( "0.25 mm" ), wxS( "0.25 mm" ) },
-                                      GRID{ wxEmptyString, wxS( "0.2 mm" ), wxS( "0.2 mm" ) },
-                                      GRID{ wxEmptyString, wxS( "0.1 mm" ), wxS( "0.1 mm" ) },
-                                      GRID{ wxEmptyString, wxS( "0.05 mm" ), wxS( "0.0 mm" ) },
-                                      GRID{ wxEmptyString, wxS( "0.025 mm" ), wxS( "0.0 mm" ) },
-                                      GRID{ wxEmptyString, wxS( "0.01 mm" ), wxS( "0.0 mm" ) } };
-    }
-
-    if( aCfg->m_Window.zoom_factors.empty() )
-    {
-        aCfg->m_Window.zoom_factors = { ZOOM_LIST_GERBVIEW };
-    }
-
     GERBVIEW_SETTINGS* cfg = dynamic_cast<GERBVIEW_SETTINGS*>( aCfg );
     wxCHECK( cfg, /*void*/ );
 
-    SetElementVisibility( LAYER_GERBVIEW_DRAWINGSHEET,
-                          cfg->m_Appearance.show_border_and_titleblock );
-    SetElementVisibility( LAYER_GERBVIEW_PAGE_LIMITS,
-                          cfg->m_Display.m_DisplayPageLimits );
+    SetElementVisibility( LAYER_GERBVIEW_DRAWINGSHEET, cfg->m_Appearance.show_border_and_titleblock );
+    SetElementVisibility( LAYER_GERBVIEW_PAGE_LIMITS, cfg->m_Display.m_DisplayPageLimits );
 
-    PAGE_INFO pageInfo( wxT( "GERBER" ) );
+    PAGE_INFO pageInfo( PAGE_SIZE_TYPE::GERBER );
     pageInfo.SetType( cfg->m_Appearance.page_type );
     SetPageSettings( pageInfo );
 
@@ -374,26 +347,23 @@ void GERBVIEW_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
 {
     EDA_DRAW_FRAME::SaveSettings( aCfg );
 
-    GERBVIEW_SETTINGS* cfg = dynamic_cast<GERBVIEW_SETTINGS*>( aCfg );
-    wxCHECK( cfg, /*void*/ );
+    if( GERBVIEW_SETTINGS* cfg = dynamic_cast<GERBVIEW_SETTINGS*>( aCfg ) )
+    {
+        cfg->m_Appearance.page_type = GetPageSettings().GetTypeAsString();
 
-    cfg->m_Appearance.page_type = GetPageSettings().GetType();
+        m_drillFileHistory.Save( &cfg->m_DrillFileHistory );
+        m_zipFileHistory.Save( &cfg->m_ZipFileHistory );
+        m_jobFileHistory.Save( &cfg->m_JobFileHistory );
+    }
 
-    m_drillFileHistory.Save( &cfg->m_DrillFileHistory );
-    m_zipFileHistory.Save( &cfg->m_ZipFileHistory );
-    m_jobFileHistory.Save( &cfg->m_JobFileHistory );
-
-    COLOR_SETTINGS* cs = Pgm().GetSettingsManager().GetColorSettings();
-    Pgm().GetSettingsManager().SaveColorSettings( cs, "gerbview" );
+    Pgm().GetSettingsManager().SaveColorSettings( ::GetColorSettings( DEFAULT_THEME ), "gerbview" );
 }
 
 
 COLOR_SETTINGS* GERBVIEW_FRAME::GetColorSettings( bool aForceRefresh ) const
 {
-    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-    GERBVIEW_SETTINGS* cfg = mgr.GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" );
-    wxString currentTheme = cfg->m_ColorTheme;
-    return mgr.GetColorSettings( currentTheme );
+    GERBVIEW_SETTINGS* cfg = GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" );
+    return ::GetColorSettings( cfg ? cfg->m_ColorTheme : DEFAULT_THEME );
 }
 
 
@@ -403,7 +373,10 @@ void GERBVIEW_FRAME::ReFillLayerWidget()
 
     m_LayersManager->ReFill();
     m_SelLayerBox->Resync();
-    ReCreateAuxiliaryToolbar();
+
+    // Re-build the various boxes in the toolbars
+    // TODO: Could this be made more precise instead of just blowing away all the toolbars?
+    RecreateToolbars();
 
     wxAuiPaneInfo&  lyrs = m_auimgr.GetPane( m_LayersManager );
     wxSize          bestz = m_LayersManager->GetBestSize();
@@ -441,7 +414,6 @@ void GERBVIEW_FRAME::SetElementVisibility( int aLayerID, bool aNewState )
         break;
 
     case LAYER_NEGATIVE_OBJECTS:
-    {
         gvconfig()->m_Appearance.show_negative_objects = aNewState;
 
         view->UpdateAllItemsConditionally( KIGFX::REPAINT,
@@ -454,7 +426,6 @@ void GERBVIEW_FRAME::SetElementVisibility( int aLayerID, bool aNewState )
                 } );
 
         break;
-    }
 
     case LAYER_GERBVIEW_DRAWINGSHEET:
         gvconfig()->m_Appearance.show_border_and_titleblock = aNewState;
@@ -655,18 +626,27 @@ void GERBVIEW_FRAME::UpdateXORLayers()
             view->SetLayerTarget( GERBER_DRAW_LAYER( i ), target );
 
         // We want the last visible layer, but deprioritize the active layer unless it's the
-        // only layer
-        if( ( lastVisibleLayer == -1 )
-            || ( view->IsLayerVisible( GERBER_DRAW_LAYER( i ) ) && i != GetActiveLayer() ) )
+        // only layer.  We must check visibility first to avoid selecting hidden layers.
+        if( view->IsLayerVisible( GERBER_DRAW_LAYER( i ) ) )
         {
-            lastVisibleLayer = i;
+            if( lastVisibleLayer == -1 || i != GetActiveLayer() )
+                lastVisibleLayer = i;
         }
     }
 
-    //We don't want to diff the last visible layer onto the background, etc.
+    // We don't want to diff the last visible layer onto the background, etc.
+    // In XOR mode, we must keep TARGET_NONCACHED for all layers including the last one.
+    // This is because OpenGL's cached items are flushed at the end of the frame, which
+    // occurs after XOR compositing. If we used TARGET_CACHED for the last layer, its
+    // items would be drawn on top of the XOR result instead of being included in the
+    // XOR calculation.
     if( lastVisibleLayer != -1 )
     {
-        view->SetLayerTarget( GERBER_DRAW_LAYER( lastVisibleLayer ), target );
+        if( gvconfig()->m_Display.m_XORMode )
+            view->SetLayerTarget( GERBER_DRAW_LAYER( lastVisibleLayer ), KIGFX::TARGET_NONCACHED );
+        else
+            view->SetLayerTarget( GERBER_DRAW_LAYER( lastVisibleLayer ), target );
+
         view->SetLayerDiff( GERBER_DRAW_LAYER( lastVisibleLayer ), false );
     }
 
@@ -687,8 +667,7 @@ void GERBVIEW_FRAME::UpdateTitleAndInfo()
 
         SetStatusText( wxEmptyString, 0 );
 
-        wxString info;
-        info.Printf( _( "Drawing layer not in use" ) );
+        wxString info = _( "Drawing layer not in use" );
         m_TextInfo->SetValue( info );
 
         if( KIUI::EnsureTextCtrlWidth( m_TextInfo, &info ) ) // Resized
@@ -714,7 +693,7 @@ void GERBVIEW_FRAME::UpdateTitleAndInfo()
 
         // Display Image Name and Layer Name (from the current gerber data):
         wxString status;
-        status.Printf( _( "Image name: \"%s\"  Layer name: \"%s\"" ),
+        status.Printf( _( "Image name: '%s'  Layer name: '%s'" ),
                        gerber->m_ImageName,
                        gerber->GetLayerParams().m_LayerName );
         SetStatusText( status, 0 );
@@ -746,14 +725,13 @@ bool GERBVIEW_FRAME::IsElementVisible( int aLayerID ) const
     {
     case LAYER_DCODES:                return gvconfig()->m_Appearance.show_dcodes;
     case LAYER_NEGATIVE_OBJECTS:      return gvconfig()->m_Appearance.show_negative_objects;
-    case LAYER_GERBVIEW_GRID:         return IsGridVisible();
+    case LAYER_GERBVIEW_GRID:         return gvconfig()->m_Window.grid.show;
     case LAYER_GERBVIEW_DRAWINGSHEET: return gvconfig()->m_Appearance.show_border_and_titleblock;
     case LAYER_GERBVIEW_PAGE_LIMITS:  return gvconfig()->m_Display.m_DisplayPageLimits;
     case LAYER_GERBVIEW_BACKGROUND:   return true;
 
     default:
-        wxFAIL_MSG( wxString::Format( wxT( "GERBVIEW_FRAME::IsElementVisible(): bad arg %d" ),
-                                      aLayerID ) );
+        wxFAIL_MSG( wxString::Format( wxT( "GERBVIEW_FRAME::IsElementVisible(): bad arg %d" ), aLayerID ) );
     }
 
     return true;
@@ -787,6 +765,9 @@ void GERBVIEW_FRAME::SetVisibleLayers( const LSET& aLayerMask )
                                                      gvconfig()->m_Appearance.show_dcodes && v );
         }
     }
+
+    if( gvconfig()->m_Display.m_XORMode )
+        UpdateXORLayers();
 }
 
 
@@ -1069,13 +1050,20 @@ void GERBVIEW_FRAME::ActivateGalCanvas()
     m_LayersManager->ReFill();
     m_LayersManager->ReFillRender();
 
-    ReCreateOptToolbar();
+    RecreateToolbars();
     ReCreateMenuBar();
 
     try
     {
         if( !m_spaceMouse )
+        {
+#if defined(__linux__) || defined(__FreeBSD__)
+            m_spaceMouse = std::make_unique<SPNAV_2D_PLUGIN>( galCanvas );
+            m_spaceMouse->SetScale( gerbIUScale.IU_PER_MILS / pcbIUScale.IU_PER_MILS );
+#else
             m_spaceMouse = std::make_unique<NL_GERBVIEW_PLUGIN>();
+#endif
+        }
 
         m_spaceMouse->SetCanvas( galCanvas );
     }
@@ -1105,7 +1093,7 @@ void GERBVIEW_FRAME::setupTools()
     m_toolManager->InitTools();
 
     // Run the selection tool, it is supposed to be always active
-    m_toolManager->InvokeTool( "gerbview.InteractiveSelection" );
+    m_toolManager->InvokeTool( "common.InteractiveSelection" );
 }
 
 
@@ -1127,11 +1115,9 @@ void GERBVIEW_FRAME::setupUIConditions()
 
     mgr->SetConditions( ACTIONS::toggleGrid,        CHECK( cond.GridVisible() ) );
     mgr->SetConditions( ACTIONS::togglePolarCoords, CHECK( cond.PolarCoordinates() ) );
-    mgr->SetConditions( ACTIONS::toggleCursorStyle, CHECK( cond.FullscreenCursor() ) );
-
-    mgr->SetConditions( ACTIONS::millimetersUnits,  CHECK( cond.Units( EDA_UNITS::MM ) ) );
-    mgr->SetConditions( ACTIONS::inchesUnits,       CHECK( cond.Units( EDA_UNITS::INCH ) ) );
-    mgr->SetConditions( ACTIONS::milsUnits,         CHECK( cond.Units( EDA_UNITS::MILS ) ) );
+    mgr->SetConditions( ACTIONS::cursorSmallCrosshairs, CHECK( cond.CursorSmallCrosshairs() ) );
+    mgr->SetConditions( ACTIONS::cursorFullCrosshairs,  CHECK( cond.CursorFullCrosshairs() ) );
+    mgr->SetConditions( ACTIONS::cursor45Crosshairs,    CHECK( cond.Cursor45Crosshairs() ) );
 
     auto flashedDisplayOutlinesCond =
         [this] ( const SELECTION& )
@@ -1214,16 +1200,18 @@ void GERBVIEW_FRAME::CommonSettingsChanged( int aFlags )
     EDA_DRAW_FRAME::CommonSettingsChanged( aFlags );
 
     // Update gal display options like cursor shape, grid options:
-    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-    GERBVIEW_SETTINGS* cfg = mgr.GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" );
+    if( GERBVIEW_SETTINGS* cfg = GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" ) )
+    {
+        GetGalDisplayOptions().ReadWindowSettings( cfg->m_Window );
 
-    GetGalDisplayOptions().ReadWindowSettings( cfg->m_Window );
+        PAGE_INFO pgInfo;
+        pgInfo.SetType( cfg->m_Appearance.page_type );
 
-    SetPageSettings( PAGE_INFO( gvconfig()->m_Appearance.page_type ) );
+        SetPageSettings( pgInfo );
+        SetElementVisibility( LAYER_DCODES, cfg->m_Appearance.show_dcodes );
+    }
 
     UpdateXORLayers();
-
-    SetElementVisibility( LAYER_DCODES, gvconfig()->m_Appearance.show_dcodes );
 
     GetCanvas()->GetView()->MarkTargetDirty( KIGFX::TARGET_NONCACHED );
     GetCanvas()->GetView()->UpdateAllItems( KIGFX::REPAINT );

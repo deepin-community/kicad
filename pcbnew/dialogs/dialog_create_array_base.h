@@ -23,8 +23,8 @@ class TEXT_CTRL_EVAL;
 #include <wx/sizer.h>
 #include <wx/statbox.h>
 #include <wx/radiobut.h>
-#include <wx/radiobox.h>
 #include <wx/checkbox.h>
+#include <wx/radiobox.h>
 #include <wx/choice.h>
 #include <wx/panel.h>
 #include <wx/bitmap.h>
@@ -72,6 +72,7 @@ class DIALOG_CREATE_ARRAY_BASE : public DIALOG_SHIM
 		wxRadioButton* m_rbCentreOnSource;
 		wxPanel* m_gridPadNumberingPanel;
 		wxBoxSizer* m_gridPadNumberingSizer;
+		wxCheckBox* m_cbRenumberPads;
 		wxRadioBox* m_radioBoxGridNumberingAxis;
 		wxCheckBox* m_checkBoxGridReverseNumbering;
 		wxRadioBox* m_rbGridStartNumberingOpt;
@@ -96,11 +97,15 @@ class DIALOG_CREATE_ARRAY_BASE : public DIALOG_SHIM
 		wxButton* m_btnSelectCenterPoint;
 		wxButton* m_btnSelectCenterItem;
 		wxCheckBox* m_checkBoxFullCircle;
+		wxRadioBox* m_rbCircDirection;
 		wxStaticText* m_labelCircAngle;
 		wxTextCtrl* m_entryCircAngle;
 		wxStaticText* m_unitLabelCircAngle;
 		wxStaticText* m_labelCircCount;
 		TEXT_CTRL_EVAL* m_entryCircCount;
+		wxStaticText* m_labelCircOffset;
+		TEXT_CTRL_EVAL* m_entryCircOffset;
+		wxStaticText* m_unitLabelCircOffset;
 		wxCheckBox* m_entryRotateItemsCb;
 		wxPanel* m_circularPadNumberingPanel;
 		wxStaticBoxSizer* m_circPadNumberingSizer;
@@ -111,6 +116,10 @@ class DIALOG_CREATE_ARRAY_BASE : public DIALOG_SHIM
 		wxTextCtrl* m_entryCircNumberingStart;
 		wxStaticText* m_labelCircNumStep;
 		wxTextCtrl* m_entryCircNumberingStep;
+		wxPanel* m_optionsPanel;
+		wxPanel* m_itemSourcePanel;
+		wxRadioButton* m_radioBtnDuplicateSelection;
+		wxRadioButton* m_radioBtnArrangeSelection;
 		wxPanel* m_footprintReannotatePanel;
 		wxRadioButton* m_radioBtnKeepRefs;
 		wxRadioButton* m_radioBtnUniqueRefs;

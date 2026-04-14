@@ -34,52 +34,26 @@ modern PCB design software:
   walkaround, highlight collisions) and support for differential pair routing
   as well as length and skew tuning
 * Export of fabrication and plot files in many formats (Gerber, IPC-2581,
-  ODB{pp}, GenCAD, PDF, SVG, and HPGL)
+  ODB{pp}, GenCAD, PDF, PostScript, and SVG)
 * A 3D viewer and 3D model generation in many formats (STEP, GLB, BREP, XAO,
   PLY, STL, IDF, and VRML)
-
-[[initial-configuration]]
-=== Initial configuration
-
-When the PCB Editor is run for the first time, if the global footprint table file `fp-lib-table` is not
-found in the KiCad configuration folder then the KiCad will ask how to create this file:
-
-image::images/en/fp_lib_table_initial_setup.png[footprint library table initial setup dialog]
-
-The first option is recommended (*Copy default global footprint library table
-(recommended)*). The default footprint library table includes all of the
-standard footprint libraries that are installed as part of KiCad.
-
-If this option is disabled, KiCad was unable to find the default global
-footprint library table. This probably means you did not install the standard
-footprint libraries with KiCad, or they are not installed where KiCad expects to
-find them. On some systems the KiCad libraries are installed as a separate package.
-
-* If you have installed the standard KiCad footprint libraries and want to use
-  them, but the first option is disabled, select the second option and browse to
-  the `fp-lib-table` file in the directory where the KiCad libraries were
-  installed.
-* If you already have a custom footprint library table that you would like to use,
-  select the second option and browse to your `fp-lib-table` file.
-* If you want to construct a new footprint library table from scratch, select
-  the third option.
-
-Footprint library management, including how to re-run this initial
-configuration, is described in more detail <<managing-footprint-libraries,later>>.
 
 === The PCB Editor user interface
 :experimental:
 
+// note: SVG template for this at kicad-doc/helpers/pcbnew_user_interface.svg
 image::images/pcbnew_user_interface.png[width=1000,scaledwidth=70%]
 
 The main PCB Editor user interface is shown above, with some key elements indicated:
 
 1. Top toolbars (file management, zoom tools, editing tools)
-2. Left toolbar (display options)
-3. Message panel and status bar
-4. Right toolbar (drawing and design tools)
-5. Appearance panel
-6. Selection filter panel
+2. <<left-toolbar-display-controls,Left toolbar (display options)>>
+3. <<editing-object-properties,Properties panel>>
+4. Message panel and status bar
+5. <<placement-and-drawing-operations,Right toolbar (drawing and design tools)>>
+6. <<appearance-panel,Appearance panel>>
+7. <<selection,Selection filter panel>>
+8. Editing canvas
 
 === Navigating the editing canvas
 
@@ -136,9 +110,9 @@ on what is selected or what tool is active.
 Hotkeys are stored in the file `user.hotkeys` in KiCad's configuration
 directory. The location is platform-specific:
 
-* Windows: `%APPDATA%\kicad\9.0\user.hotkeys`
-* Linux: `~/.config/kicad/9.0/user.hotkeys`
-* macOS: `~/Library/Preferences/kicad/9.0/user.hotkeys`
+* Windows: `%APPDATA%\kicad\10.0\user.hotkeys`
+* Linux: `~/.config/kicad/10.0/user.hotkeys`
+* macOS: `~/Library/Preferences/kicad/10.0/user.hotkeys`
 
 KiCad can import hotkey settings from a `user.hotkeys` file using the **Import
 Hotkeys** button in the hotkey editor.

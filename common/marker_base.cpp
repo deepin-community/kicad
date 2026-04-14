@@ -34,7 +34,7 @@
 #include "marker_base.h"
 #include <core/arraydim.h>
 #include <geometry/shape_line_chain.h>
-#include <render_settings.h>
+#include <geometry/geometry_utils.h>
 #include "dialogs/dialog_display_html_text_base.h"
 
 
@@ -85,11 +85,6 @@ MARKER_BASE::MARKER_BASE( int aScalingFactor, std::shared_ptr<RC_ITEM> aItem, MA
 }
 
 
-MARKER_BASE::~MARKER_BASE()
-{
-}
-
-
 bool MARKER_BASE::HitTestMarker( const VECTOR2I& aHitPosition, int aAccuracy ) const
 {
     const BOX2I bbox = GetBoundingBoxMarker().GetInflated( aAccuracy );
@@ -120,6 +115,16 @@ bool MARKER_BASE::HitTestMarker( const BOX2I& aRect, bool aContained, int aAccur
 }
 
 
+bool MARKER_BASE::HitTestMarker( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
+{
+    SHAPE_LINE_CHAIN shape;
+    ShapeToPolygon( shape );
+    shape.Move( m_Pos );
+
+    return KIGEOM::ShapeHitTest( aPoly, shape, aContained );
+}
+
+
 void MARKER_BASE::ShapeToPolygon( SHAPE_LINE_CHAIN& aPolygon, int aScale ) const
 {
     if( aScale < 0 )
@@ -144,16 +149,3 @@ BOX2I MARKER_BASE::GetBoundingBoxMarker() const
 }
 
 
-void MARKER_BASE::PrintMarker( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset )
-{
-    wxDC* DC = aSettings->GetPrintDC();
-
-    // Build the marker shape polygon in internal units:
-    std::vector<VECTOR2I> shape;
-    shape.reserve( CORNERS_COUNT );
-
-    for( const VECTOR2I& corner : MarkerShapeCorners )
-        shape.emplace_back( corner * MarkerScale() + m_Pos + aOffset );
-
-    GRClosedPoly( DC, CORNERS_COUNT, &shape[0], true, getColor() );
-}

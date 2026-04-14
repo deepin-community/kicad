@@ -62,7 +62,7 @@ ERC_ITEM ERC_ITEM::powerpinNotDriven( ERCE_POWERPIN_NOT_DRIVEN,
         wxT( "power_pin_not_driven" ) );
 
 ERC_ITEM ERC_ITEM::duplicatePinError( ERCE_DUPLICATE_PIN_ERROR,
-        _HKI( "Multiple pins with the same pin number" ),
+        _HKI( "Duplicate pins with different nets" ),
         wxT( "duplicate_pins" ) );
 
 ERC_ITEM ERC_ITEM::pinTableWarning( ERCE_PIN_TO_PIN_WARNING,
@@ -102,12 +102,12 @@ ERC_ITEM ERC_ITEM::noConnectDangling( ERCE_NOCONNECT_NOT_CONNECTED,
         wxT( "no_connect_dangling" ) );
 
 ERC_ITEM ERC_ITEM::labelDangling( ERCE_LABEL_NOT_CONNECTED,
-        _HKI( "Label not connected to anything" ),
+        _HKI( "Label not connected" ),
         wxT( "label_dangling" ) );
 
-ERC_ITEM ERC_ITEM::globalLabelDangling( ERCE_GLOBLABEL_DANGLING,
-        _HKI( "Global label not connected anywhere else in the schematic" ),
-        wxT( "global_label_dangling" ) );
+ERC_ITEM ERC_ITEM::isolatedPinLabel( ERCE_LABEL_SINGLE_PIN,
+        _HKI( "Label connected to only one pin" ),
+        wxT( "isolated_pin_label" ) );
 
 ERC_ITEM ERC_ITEM::similarLabels( ERCE_SIMILAR_LABELS,
         _HKI( "Labels are similar (lower/upper case difference only)"),
@@ -156,6 +156,18 @@ ERC_ITEM ERC_ITEM::busToBusConflict( ERCE_BUS_TO_BUS_CONFLICT,
 ERC_ITEM ERC_ITEM::busToNetConflict( ERCE_BUS_TO_NET_CONFLICT,
         _HKI( "Invalid connection between bus and net items" ),
         wxT( "bus_to_net_conflict" ) );
+
+ERC_ITEM ERC_ITEM::groundPinNotGround( ERCE_GROUND_PIN_NOT_GROUND,
+        _HKI( "Ground pin not connected to ground net" ),
+        wxT( "ground_pin_not_ground" ) );
+
+ERC_ITEM ERC_ITEM::stackedPinName( ERCE_STACKED_PIN_SYNTAX,
+        _HKI( "Pin name resembles stacked pin" ),
+        wxT( "stacked_pin_name" ) );
+
+ERC_ITEM ERC_ITEM::fieldNameWhitespace( ERCE_FIELD_NAME_WHITESPACE,
+        _HKI( "Field name has leading or trailing whitespace" ),
+        wxT( "field_name_whitespace" ) );
 
 ERC_ITEM ERC_ITEM::unresolvedVariable( ERCE_UNRESOLVED_VARIABLE,
         _HKI( "Unresolved text variable" ),
@@ -237,8 +249,8 @@ std::vector<std::reference_wrapper<RC_ITEM>> ERC_ITEM::allItemTypes(
             ERC_ITEM::powerpinNotDriven,
             ERC_ITEM::noConnectConnected,
             ERC_ITEM::noConnectDangling,
-            ERC_ITEM::globalLabelDangling,
             ERC_ITEM::labelDangling,
+            ERC_ITEM::isolatedPinLabel,
             ERC_ITEM::singleGlobalLabel,
             ERC_ITEM::sameLocalGlobalLabel,
             ERC_ITEM::wireDangling,
@@ -261,10 +273,14 @@ std::vector<std::reference_wrapper<RC_ITEM>> ERC_ITEM::allItemTypes(
             ERC_ITEM::busToBusConflict,
             ERC_ITEM::busToNetConflict,
             ERC_ITEM::netNotBusMember,
+            ERC_ITEM::groundPinNotGround,
 
             ERC_ITEM::heading_misc,
+            ERC_ITEM::stackedPinName,
+            ERC_ITEM::fieldNameWhitespace,
             ERC_ITEM::unannotated,
             ERC_ITEM::unresolvedVariable,
+            ERC_ITEM::undefinedNetclass,
             ERC_ITEM::simulationModelIssues,
             ERC_ITEM::similarLabels,
             ERC_ITEM::similarPower,
@@ -325,7 +341,8 @@ std::shared_ptr<ERC_ITEM> ERC_ITEM::Create( int aErrorCode )
     case ERCE_BUS_ENTRY_CONFLICT:      return std::make_shared<ERC_ITEM>( netNotBusMember );
     case ERCE_BUS_TO_BUS_CONFLICT:     return std::make_shared<ERC_ITEM>( busToBusConflict );
     case ERCE_BUS_TO_NET_CONFLICT:     return std::make_shared<ERC_ITEM>( busToNetConflict );
-    case ERCE_GLOBLABEL_DANGLING:      return std::make_shared<ERC_ITEM>( globalLabelDangling );
+    case ERCE_GROUND_PIN_NOT_GROUND:   return std::make_shared<ERC_ITEM>( groundPinNotGround );
+    case ERCE_LABEL_SINGLE_PIN:        return std::make_shared<ERC_ITEM>( isolatedPinLabel );
     case ERCE_UNRESOLVED_VARIABLE:     return std::make_shared<ERC_ITEM>( unresolvedVariable );
     case ERCE_UNDEFINED_NETCLASS:      return std::make_shared<ERC_ITEM>( undefinedNetclass );
     case ERCE_SIMULATION_MODEL:        return std::make_shared<ERC_ITEM>( simulationModelIssues );
@@ -344,6 +361,8 @@ std::shared_ptr<ERC_ITEM> ERC_ITEM::Create( int aErrorCode )
     case ERCE_MISSING_POWER_INPUT_PIN: return std::make_shared<ERC_ITEM>( missingPowerInputPin );
     case ERCE_MISSING_BIDI_PIN:        return std::make_shared<ERC_ITEM>( missingBidiPin );
     case ERCE_UNCONNECTED_WIRE_ENDPOINT: return std::make_shared<ERC_ITEM>( unconnectedWireEndpoint );
+    case ERCE_STACKED_PIN_SYNTAX:      return std::make_shared<ERC_ITEM>( stackedPinName );
+    case ERCE_FIELD_NAME_WHITESPACE:   return std::make_shared<ERC_ITEM>( fieldNameWhitespace );
     case ERCE_UNSPECIFIED:
     default:
         wxFAIL_MSG( wxS( "Unknown ERC error code" ) );
@@ -415,7 +434,7 @@ void ERC_TREE_MODEL::GetValue( wxVariant& aVariant, wxDataViewItem const& aItem,
             }
         }
 
-        msg += ercItem->GetErrorMessage();
+        msg += ercItem->GetErrorMessage( true );
         break;
 
     case RC_TREE_NODE::MAIN_ITEM:
@@ -425,7 +444,7 @@ void ERC_TREE_MODEL::GetValue( wxVariant& aVariant, wxDataViewItem const& aItem,
         }
         else
         {
-            msg = getItemDesc( schEditFrame->GetItem( ercItem->GetMainItemID() ),
+            msg = getItemDesc( schEditFrame->ResolveItem( ercItem->GetMainItemID() ),
                                ercItem->MainItemHasSheetPath() ? ercItem->GetMainItemSheetPath()
                                                                : schEditFrame->GetCurrentSheet() );
         }
@@ -433,18 +452,18 @@ void ERC_TREE_MODEL::GetValue( wxVariant& aVariant, wxDataViewItem const& aItem,
         break;
 
     case RC_TREE_NODE::AUX_ITEM:
-        msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItemID() ),
+        msg = getItemDesc( schEditFrame->ResolveItem( ercItem->GetAuxItemID() ),
                            ercItem->AuxItemHasSheetPath() ? ercItem->GetAuxItemSheetPath()
                                                           : schEditFrame->GetCurrentSheet() );
         break;
 
     case RC_TREE_NODE::AUX_ITEM2:
-        msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItem2ID() ),
+        msg = getItemDesc( schEditFrame->ResolveItem( ercItem->GetAuxItem2ID() ),
                            schEditFrame->GetCurrentSheet() );
         break;
 
     case RC_TREE_NODE::AUX_ITEM3:
-        msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItem3ID() ),
+        msg = getItemDesc( schEditFrame->ResolveItem( ercItem->GetAuxItem3ID() ),
                            schEditFrame->GetCurrentSheet() );
         break;
 

@@ -21,6 +21,7 @@
 #include <sch_edit_frame.h>
 #include <sch_painter.h>
 #include <sch_symbol.h>
+#include <sch_group.h>
 #include <sch_label.h>
 #include <sch_text.h>
 #include <sch_textbox.h>
@@ -104,7 +105,7 @@ void SCH_SEARCH_HANDLER::SelectItems( std::vector<long>& aItemRows )
     EDA_ITEMS                   selectedItems;
     std::vector<SCH_SEARCH_HIT> selectedHits;
 
-    m_frame->GetToolManager()->RunAction( SCH_ACTIONS::clearSelection );
+    m_frame->GetToolManager()->RunAction( ACTIONS::selectionClear );
 
     for( long row : aItemRows )
     {
@@ -128,14 +129,13 @@ void SCH_SEARCH_HANDLER::SelectItems( std::vector<long>& aItemRows )
 
     if( allHitsOnSamePage && !selectedHits.empty() )
     {
-        if( m_frame->GetCurrentSheet() != *selectedHits.front().sheetPath )
-        {
-            m_frame->SetCurrentSheet( *selectedHits.front().sheetPath );
-            m_frame->DisplayCurrentSheet();
-        }
+        SCH_SHEET_PATH* sheet = selectedHits.front().sheetPath;
+
+        if( m_frame->GetCurrentSheet() != *sheet )
+            m_frame->GetToolManager()->RunAction<SCH_SHEET_PATH*>( SCH_ACTIONS::changeSheet, sheet );
 
         if( selectedItems.size() )
-            m_frame->GetToolManager()->RunAction<EDA_ITEMS*>( SCH_ACTIONS::addItemsToSel, &selectedItems );
+            m_frame->GetToolManager()->RunAction<EDA_ITEMS*>( ACTIONS::selectItems, &selectedItems );
 
         switch( settings.selection_zoom )
         {
@@ -157,16 +157,18 @@ void SCH_SEARCH_HANDLER::SelectItems( std::vector<long>& aItemRows )
 SYMBOL_SEARCH_HANDLER::SYMBOL_SEARCH_HANDLER( SCH_EDIT_FRAME* aFrame ) :
         SCH_SEARCH_HANDLER( _HKI( "Symbols" ), aFrame )
 {
-    m_columns.emplace_back( _HKI( "Reference" ),   2,  wxLIST_FORMAT_LEFT );
-    m_columns.emplace_back( _HKI( "Value" ),       6,  wxLIST_FORMAT_LEFT );
-    m_columns.emplace_back( _HKI( "Footprint" ),   10, wxLIST_FORMAT_LEFT );
-    m_columns.emplace_back( _HKI( "Page" ),        1,  wxLIST_FORMAT_CENTER );
-    m_columns.emplace_back( wxT( "X" ),            3,  wxLIST_FORMAT_CENTER );
-    m_columns.emplace_back( wxT( "Y" ),            3,  wxLIST_FORMAT_CENTER );
-    m_columns.emplace_back( _HKI( "Excl. sim" ),   2,  wxLIST_FORMAT_CENTER );
-    m_columns.emplace_back( _HKI( "Excl. BOM" ),   2,  wxLIST_FORMAT_CENTER );
-    m_columns.emplace_back( _HKI( "Excl. board" ), 2,  wxLIST_FORMAT_CENTER );
-    m_columns.emplace_back( _HKI( "DNP" ),         2,  wxLIST_FORMAT_CENTER );
+    m_columns.emplace_back( _HKI( "Reference" ),            2, wxLIST_FORMAT_LEFT );
+    m_columns.emplace_back( _HKI( "Value" ),                6, wxLIST_FORMAT_LEFT );
+    m_columns.emplace_back( _HKI( "Footprint" ),           10, wxLIST_FORMAT_LEFT );
+    m_columns.emplace_back( _HKI( "Page" ),                 1, wxLIST_FORMAT_CENTER );
+    m_columns.emplace_back(  wxT( "X" ),                    3, wxLIST_FORMAT_CENTER );
+    m_columns.emplace_back(  wxT( "Y" ),                    3, wxLIST_FORMAT_CENTER );
+    m_columns.emplace_back( _HKI( "Excl. Sim" ),            2, wxLIST_FORMAT_CENTER );
+    m_columns.emplace_back( _HKI( "Excl. BOM" ),            2, wxLIST_FORMAT_CENTER );
+    m_columns.emplace_back( _HKI( "Excl. Board" ),          2, wxLIST_FORMAT_CENTER );
+    m_columns.emplace_back( _HKI( "DNP" ),                  2, wxLIST_FORMAT_CENTER );
+    m_columns.emplace_back( _HKI( "Library Link" ),         8, wxLIST_FORMAT_LEFT );
+    m_columns.emplace_back( _HKI( "Library Description" ), 10, wxLIST_FORMAT_LEFT );
 }
 
 
@@ -178,6 +180,7 @@ int SYMBOL_SEARCH_HANDLER::Search( const wxString& aQuery )
     SCH_SEARCH_DATA                 frp;
 
     frp.searchAllFields = settings.search_hidden_fields;
+    frp.searchMetadata = settings.search_metadata;
     frp.findString = aQuery;
 
     // Try to handle whatever the user throws at us (substring, wildcards, regex, etc.)
@@ -185,7 +188,7 @@ int SYMBOL_SEARCH_HANDLER::Search( const wxString& aQuery )
     frp.searchCurrentSheetOnly = false;
 
     auto search =
-            [frp]( SCH_ITEM* item, SCH_SHEET_PATH* sheet )
+            [&frp]( SCH_ITEM* item, SCH_SHEET_PATH* sheet )
             {
                 if( item && item->Type() == SCH_SYMBOL_T )
                 {
@@ -221,9 +224,9 @@ wxString SYMBOL_SEARCH_HANDLER::getResultCell( const SCH_SEARCH_HIT& aHit, int a
     if( aCol == 0 )
         return sym->GetRef( aHit.sheetPath, true );
     else if( aCol == 1 )
-        return sym->GetField( VALUE_FIELD )->GetShownText( aHit.sheetPath, false );
+        return sym->GetField( FIELD_T::VALUE )->GetShownText( aHit.sheetPath, false );
     else if( aCol == 2 )
-        return sym->GetField( FOOTPRINT_FIELD )->GetShownText( aHit.sheetPath, false );
+        return sym->GetField( FIELD_T::FOOTPRINT )->GetShownText( aHit.sheetPath, false );
     else if( aCol == 3 )
         return aHit.sheetPath->GetPageNumber();
     else if( aCol == 4 )
@@ -231,13 +234,17 @@ wxString SYMBOL_SEARCH_HANDLER::getResultCell( const SCH_SEARCH_HIT& aHit, int a
     else if( aCol == 5 )
         return m_frame->MessageTextFromValue( sym->GetPosition().y );
     else if( aCol == 6 )
-        return sym->GetExcludedFromSim() ? wxS( "X" ) : wxS( " " );
+        return sym->ResolveExcludedFromSim() ? wxS( "X" ) : wxS( " " );
     else if( aCol == 7 )
-        return sym->GetExcludedFromBOM() ? wxS( "X" ) : wxS( " " );
+        return sym->ResolveExcludedFromBOM() ? wxS( "X" ) : wxS( " " );
     else if( aCol == 8 )
-        return sym->GetExcludedFromBoard() ? wxS( "X" ) : wxS( " " );
+        return sym->ResolveExcludedFromBoard() ? wxS( "X" ) : wxS( " " );
     else if( aCol == 9 )
-        return sym->GetDNP() ? wxS( "X" ) : wxS( " " );
+        return sym->ResolveDNP( aHit.sheetPath, m_frame->Schematic().GetCurrentVariant() ) ? wxS( "X" ) : wxS( " " );
+    else if( aCol == 10 )
+        return sym->GetLibId().Format();
+    else if( aCol == 11 )
+        return sym->GetShownDescription();
 
     return wxEmptyString;
 }
@@ -262,6 +269,7 @@ int POWER_SEARCH_HANDLER::Search( const wxString& aQuery )
     SCH_SEARCH_DATA                 frp;
 
     frp.searchAllFields = settings.search_hidden_fields;
+    frp.searchMetadata = settings.search_metadata;
     frp.findString = aQuery;
 
     // Try to handle whatever the user throws at us (substring, wildcards, regex, etc.)
@@ -269,7 +277,7 @@ int POWER_SEARCH_HANDLER::Search( const wxString& aQuery )
     frp.searchCurrentSheetOnly = false;
 
     auto search =
-            [frp]( SCH_ITEM* item, SCH_SHEET_PATH* sheet )
+            [&frp]( SCH_ITEM* item, SCH_SHEET_PATH* sheet )
             {
                 if( item && item->Type() == SCH_SYMBOL_T )
                 {
@@ -305,7 +313,7 @@ wxString POWER_SEARCH_HANDLER::getResultCell( const SCH_SEARCH_HIT& aHit, int aC
     if( aCol == 0 )
         return sym->GetRef( aHit.sheetPath, true );
     else if( aCol == 1 )
-        return sym->GetField( VALUE_FIELD )->GetShownText( aHit.sheetPath, false );
+        return sym->GetField( FIELD_T::VALUE )->GetShownText( aHit.sheetPath, false );
     else if( aCol == 2 )
         return aHit.sheetPath->GetPageNumber();
     else if( aCol == 3 )
@@ -336,6 +344,7 @@ int TEXT_SEARCH_HANDLER::Search( const wxString& aQuery )
     SCH_SEARCH_DATA                 frp;
 
     frp.searchAllFields = settings.search_hidden_fields;
+    frp.searchMetadata = settings.search_metadata;
     frp.findString = aQuery;
 
     // Try to handle whatever the user throws at us (substring, wildcards, regex, etc.)
@@ -343,7 +352,7 @@ int TEXT_SEARCH_HANDLER::Search( const wxString& aQuery )
     frp.searchCurrentSheetOnly = false;
 
     auto search =
-            [frp]( SCH_ITEM* item, SCH_SHEET_PATH* sheet )
+            [&frp]( SCH_ITEM* item, SCH_SHEET_PATH* sheet )
             {
                 if( item->Type() == SCH_TEXT_T || item->Type() == SCH_TEXTBOX_T )
                 {
@@ -423,6 +432,7 @@ int LABEL_SEARCH_HANDLER::Search( const wxString& aQuery )
     SCH_SEARCH_DATA                 frp;
 
     frp.searchAllFields = settings.search_hidden_fields;
+    frp.searchMetadata = settings.search_metadata;
     frp.findString = aQuery;
 
     // Try to handle whatever the user throws at us (substring, wildcards, regex, etc.)
@@ -430,7 +440,7 @@ int LABEL_SEARCH_HANDLER::Search( const wxString& aQuery )
     frp.searchCurrentSheetOnly = false;
 
     auto search =
-            [frp]( SCH_ITEM* item, SCH_SHEET_PATH* sheet )
+            [&frp]( SCH_ITEM* item, SCH_SHEET_PATH* sheet )
             {
                 if( item->IsType( { SCH_LABEL_LOCATE_ANY_T } ) )
                 {
@@ -477,6 +487,71 @@ wxString LABEL_SEARCH_HANDLER::getResultCell( const SCH_SEARCH_HIT& aHit, int aC
         return m_frame->MessageTextFromValue( lbl->GetPosition().x );
     else if( aCol == 4 )
         return m_frame->MessageTextFromValue( lbl->GetPosition().y );
+
+    return wxEmptyString;
+}
+
+
+GROUP_SEARCH_HANDLER::GROUP_SEARCH_HANDLER( SCH_EDIT_FRAME* aFrame ) :
+        SCH_SEARCH_HANDLER( _HKI( "Groups" ), aFrame )
+{
+    m_columns.emplace_back( _HKI( "Name" ), 6, wxLIST_FORMAT_LEFT );
+    m_columns.emplace_back( _HKI( "Page" ), 2, wxLIST_FORMAT_CENTER );
+    m_columns.emplace_back( wxT( "X" ),     3, wxLIST_FORMAT_CENTER );
+    m_columns.emplace_back( wxT( "Y" ),     3, wxLIST_FORMAT_CENTER);
+}
+
+
+int GROUP_SEARCH_HANDLER::Search( const wxString& aQuery )
+{
+    m_hitlist.clear();
+
+    APP_SETTINGS_BASE::SEARCH_PANE& settings = m_frame->config()->m_SearchPane;
+    SCH_SEARCH_DATA                 frp;
+
+    frp.searchAllFields = settings.search_hidden_fields;
+    frp.searchMetadata = settings.search_metadata;
+    frp.findString = aQuery;
+
+    // Try to handle whatever the user throws at us (substring, wildcards, regex, etc.)
+    frp.matchMode = EDA_SEARCH_MATCH_MODE::PERMISSIVE;
+    frp.searchCurrentSheetOnly = false;
+
+    auto search =
+            [&frp]( SCH_ITEM* item, SCH_SHEET_PATH* sheet )
+            {
+                if( item->IsType( { SCH_GROUP_T } ) )
+                {
+                    SCH_GROUP* group = static_cast<SCH_GROUP*>( item );
+
+                    if( frp.findString.IsEmpty() || group->Matches( frp, sheet ) )
+                        return true;
+                }
+
+                return false;
+            };
+
+    FindAll( search );
+
+    return (int) m_hitlist.size();
+}
+
+
+wxString GROUP_SEARCH_HANDLER::getResultCell( const SCH_SEARCH_HIT& aHit, int aCol )
+{
+    SCH_GROUP* group = dynamic_cast<SCH_GROUP*>( aHit.item );
+
+    if( !group )
+        return wxEmptyString;
+
+    if( aCol == 0 )
+        return group->GetName();
+    else if( aCol == 1 )
+        return aHit.sheetPath->GetPageNumber();
+    else if( aCol == 2 )
+        return m_frame->MessageTextFromValue( group->GetPosition().x );
+    else if( aCol == 3 )
+        return m_frame->MessageTextFromValue( group->GetPosition().y );
 
     return wxEmptyString;
 }

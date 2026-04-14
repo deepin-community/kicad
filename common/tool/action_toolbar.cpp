@@ -33,34 +33,57 @@
 #include <memory>
 #include <pgm_base.h>
 #include <settings/common_settings.h>
+#include <trace_helpers.h>
 #include <tool/action_toolbar.h>
 #include <tool/actions.h>
 #include <tool/tool_action.h>
 #include <tool/tool_event.h>
 #include <tool/tool_interactive.h>
 #include <tool/tool_manager.h>
+#include <tool/ui/toolbar_configuration.h>
+#include <tool/ui/toolbar_context_menu_registry.h>
 #include <widgets/bitmap_button.h>
 #include <widgets/wx_aui_art_providers.h>
+
+#include <wx/log.h>
 #include <wx/popupwin.h>
 #include <wx/renderer.h>
 #include <wx/sizer.h>
 #include <wx/dcclient.h>
 #include <wx/settings.h>
 
+// Needed to handle adding the plugins to the toolbar
+// TODO (ISM): This should be better abstracted away from the toolbars
+#include <python_scripting.h>
+#include <api/api_plugin_manager.h>
 
-ACTION_GROUP::ACTION_GROUP( const std::string& aName,
+
+ACTION_GROUP::ACTION_GROUP( const std::string_view& aName )
+{
+    m_name = aName;
+    m_id   = ACTION_MANAGER::MakeActionId( m_name );
+    m_defaultAction = nullptr;
+}
+
+
+ACTION_GROUP::ACTION_GROUP( const std::string_view& aName,
                             const std::vector<const TOOL_ACTION*>& aActions )
+{
+    m_name = aName;
+    m_id   = ACTION_MANAGER::MakeActionId( m_name );
+
+    SetActions( aActions );
+}
+
+
+void ACTION_GROUP::SetActions( const std::vector<const TOOL_ACTION*>& aActions )
 {
     wxASSERT_MSG( aActions.size() > 0, wxS( "Action groups must have at least one action" ) );
 
     // The default action is just the first action in the vector
     m_actions       = aActions;
     m_defaultAction = m_actions[0];
-
-    m_name = aName;
-    m_id   = ACTION_MANAGER::MakeActionId( m_name );
 }
-
 
 int ACTION_GROUP::GetUIId() const
 {
@@ -83,8 +106,8 @@ void ACTION_GROUP::SetDefaultAction( const TOOL_ACTION& aDefault )
 }
 
 
-#define PALETTE_BORDER 4    // The border around the palette buttons on all sides
-#define BUTTON_BORDER  1    // The border on the sides of the buttons that touch other buttons
+#define PALETTE_BORDER FromDIP( 4 ) // The border around the palette buttons on all sides
+#define BUTTON_BORDER  FromDIP( 1 ) // The border on the sides of the buttons that touch other buttons
 
 
 ACTION_TOOLBAR_PALETTE::ACTION_TOOLBAR_PALETTE( wxWindow* aParent, bool aVertical ) :
@@ -107,27 +130,22 @@ ACTION_TOOLBAR_PALETTE::ACTION_TOOLBAR_PALETTE( wxWindow* aParent, bool aVertica
 
     m_panel->SetSizer( m_mainSizer );
 
-    Connect( wxEVT_CHAR_HOOK, wxCharEventHandler( ACTION_TOOLBAR_PALETTE::onCharHook ),
-             nullptr, this );
+    Connect( wxEVT_CHAR_HOOK, wxCharEventHandler( ACTION_TOOLBAR_PALETTE::onCharHook ), nullptr, this );
 }
 
 
 void ACTION_TOOLBAR_PALETTE::AddAction( const TOOL_ACTION& aAction )
 {
-    int            size = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
-    wxBitmapBundle normalBmp = KiBitmapBundle( aAction.GetIcon(), size );
-
-    int bmpWidth = normalBmp.GetPreferredBitmapSizeFor( this ).GetWidth();
-    int padding = ( m_buttonSize.GetWidth() - bmpWidth ) / 2;
-    wxSize bmSize( size, size );
-    bmSize *= KIPLATFORM::UI::GetContentScaleFactor( m_parent );
+    int            iconSize = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
+    wxBitmapBundle normalBmp = KiBitmapBundleDef( aAction.GetIcon(), iconSize );
+    int            paddingDip = ( ToDIP( m_buttonSize.GetWidth() ) - iconSize ) / 2;
 
     BITMAP_BUTTON* button = new BITMAP_BUTTON( m_panel, aAction.GetUIId() );
 
     button->SetIsToolbarButton();
     button->SetBitmap( normalBmp );
-    button->SetDisabledBitmap( KiDisabledBitmapBundle( aAction.GetIcon() ) );
-    button->SetPadding( padding );
+    button->SetDisabledBitmap( KiDisabledBitmapBundleDef( aAction.GetIcon(), iconSize ) );
+    button->SetPadding( paddingDip );
     button->SetToolTip( aAction.GetButtonTooltip() );
     button->AcceptDragInAsClick();
     button->SetBitmapCentered();
@@ -180,51 +198,70 @@ void ACTION_TOOLBAR_PALETTE::onCharHook( wxKeyEvent& aEvent )
 }
 
 
-ACTION_TOOLBAR::ACTION_TOOLBAR( EDA_BASE_FRAME* parent, wxWindowID id, const wxPoint& pos,
-                                const wxSize& size, long style ) :
-    wxAuiToolBar( parent, id, pos, size, style ),
-    m_paletteTimer( nullptr ),
-    m_auiManager( nullptr ),
-    m_toolManager( parent->GetToolManager() ),
-    m_palette( nullptr )
+ACTION_TOOLBAR::ACTION_TOOLBAR( EDA_BASE_FRAME* parent, wxWindowID id, const wxPoint& pos, const wxSize& size,
+                                long style ) :
+        wxAuiToolBar( parent, id, pos, size, style ),
+        m_parent( parent ),
+        m_paletteTimer( nullptr ),
+        m_auiManager( nullptr ),
+        m_toolManager( parent->GetToolManager() ),
+        m_palette( nullptr )
 {
     m_paletteTimer = new wxTimer( this );
 
     SetArtProvider( new WX_AUI_TOOLBAR_ART );
 
-    Connect( wxEVT_COMMAND_TOOL_CLICKED, wxAuiToolBarEventHandler( ACTION_TOOLBAR::onToolEvent ),
-             nullptr, this );
-    Connect( wxEVT_AUITOOLBAR_RIGHT_CLICK,
-             wxAuiToolBarEventHandler( ACTION_TOOLBAR::onToolRightClick ),
-             nullptr, this );
-    Connect( wxEVT_AUITOOLBAR_BEGIN_DRAG, wxAuiToolBarEventHandler( ACTION_TOOLBAR::onItemDrag ),
-             nullptr, this );
+    Connect( wxEVT_COMMAND_TOOL_CLICKED, wxAuiToolBarEventHandler( ACTION_TOOLBAR::onToolEvent ), nullptr, this );
+    Connect( wxEVT_AUITOOLBAR_RIGHT_CLICK, wxAuiToolBarEventHandler( ACTION_TOOLBAR::onRightClick ), nullptr, this );
+    Connect( wxEVT_AUITOOLBAR_BEGIN_DRAG, wxAuiToolBarEventHandler( ACTION_TOOLBAR::onItemDrag ), nullptr, this );
     Connect( wxEVT_LEFT_DOWN, wxMouseEventHandler( ACTION_TOOLBAR::onMouseClick ), nullptr, this );
     Connect( wxEVT_LEFT_UP, wxMouseEventHandler( ACTION_TOOLBAR::onMouseClick ), nullptr, this );
-    Connect( m_paletteTimer->GetId(), wxEVT_TIMER,
-             wxTimerEventHandler( ACTION_TOOLBAR::onTimerDone ), nullptr, this );
+    Connect( m_paletteTimer->GetId(), wxEVT_TIMER, wxTimerEventHandler( ACTION_TOOLBAR::onTimerDone ), nullptr, this );
 
-    Bind( wxEVT_SYS_COLOUR_CHANGED,
-          wxSysColourChangedEventHandler( ACTION_TOOLBAR::onThemeChanged ), this );
+    Bind( wxEVT_SIZE,
+          [&]( wxSizeEvent& aEvent )
+          {
+              CallAfter(
+                      [&]()
+                      {
+                          SetOverflowVisible( !GetToolBarFits() );
+                      } );
+
+              aEvent.Skip();
+          } );
+
+    Bind( wxEVT_SYS_COLOUR_CHANGED, wxSysColourChangedEventHandler( ACTION_TOOLBAR::onThemeChanged ), this );
+
+    Bind( wxEVT_DPI_CHANGED,
+          [&]( wxDPIChangedEvent& aEvent )
+          {
+#ifdef __WXMSW__
+              // Update values which are normally only initialized in wxAuiToolBar::Create
+              // FromDIP is no-op on backends other than wxMSW
+              m_toolPacking = FromDIP( 2 );
+              m_toolBorderPadding = FromDIP( 3 );
+
+              wxSize margin_lt = FromDIP( wxSize( 5, 5 ) );
+              wxSize margin_rb = FromDIP( wxSize( 2, 2 ) );
+              SetMargins( margin_lt.x, margin_lt.y, margin_rb.x, margin_rb.y );
+#endif
+
+              aEvent.Skip();
+          } );
 }
 
 
 ACTION_TOOLBAR::~ACTION_TOOLBAR()
 {
-    Disconnect( wxEVT_COMMAND_TOOL_CLICKED, wxAuiToolBarEventHandler( ACTION_TOOLBAR::onToolEvent ),
-                nullptr, this );
-    Disconnect( wxEVT_AUITOOLBAR_RIGHT_CLICK,
-                wxAuiToolBarEventHandler( ACTION_TOOLBAR::onToolRightClick ), nullptr, this );
-    Disconnect( wxEVT_AUITOOLBAR_BEGIN_DRAG, wxAuiToolBarEventHandler( ACTION_TOOLBAR::onItemDrag ),
-                nullptr, this );
-    Disconnect( wxEVT_LEFT_DOWN, wxMouseEventHandler( ACTION_TOOLBAR::onMouseClick ), nullptr,
-                this );
+    Disconnect( wxEVT_COMMAND_TOOL_CLICKED, wxAuiToolBarEventHandler( ACTION_TOOLBAR::onToolEvent ), nullptr, this );
+    Disconnect( wxEVT_AUITOOLBAR_RIGHT_CLICK, wxAuiToolBarEventHandler( ACTION_TOOLBAR::onRightClick ), nullptr, this );
+    Disconnect( wxEVT_AUITOOLBAR_BEGIN_DRAG, wxAuiToolBarEventHandler( ACTION_TOOLBAR::onItemDrag ), nullptr, this );
+    Disconnect( wxEVT_LEFT_DOWN, wxMouseEventHandler( ACTION_TOOLBAR::onMouseClick ), nullptr, this );
     Disconnect( wxEVT_LEFT_UP, wxMouseEventHandler( ACTION_TOOLBAR::onMouseClick ), nullptr, this );
-    Disconnect( m_paletteTimer->GetId(), wxEVT_TIMER,
-                wxTimerEventHandler( ACTION_TOOLBAR::onTimerDone ), nullptr, this );
+    Disconnect( m_paletteTimer->GetId(), wxEVT_TIMER, wxTimerEventHandler( ACTION_TOOLBAR::onTimerDone ), nullptr,
+                this );
 
-    Unbind( wxEVT_SYS_COLOUR_CHANGED,
-            wxSysColourChangedEventHandler( ACTION_TOOLBAR::onThemeChanged ), this );
+    Unbind( wxEVT_SYS_COLOUR_CHANGED, wxSysColourChangedEventHandler( ACTION_TOOLBAR::onThemeChanged ), this );
 
     delete m_paletteTimer;
 
@@ -237,6 +274,172 @@ ACTION_TOOLBAR::~ACTION_TOOLBAR()
 }
 
 
+std::list<ACTION_TOOLBAR_CONTROL*> ACTION_TOOLBAR::GetCustomControlList( FRAME_T aContext )
+{
+    std::list<ACTION_TOOLBAR_CONTROL*> controls;
+
+    for( ACTION_TOOLBAR_CONTROL* control : GetAllCustomControls() )
+    {
+        if( control->SupportedFor( aContext ) )
+            controls.push_back( control );
+    }
+
+    return controls;
+}
+
+
+void ACTION_TOOLBAR::ApplyConfiguration( const TOOLBAR_CONFIGURATION& aConfig )
+{
+    wxASSERT( GetParent() );
+
+    std::map<std::string, std::string> currentGroupItems;
+
+    for( const auto& [id, group] : m_actionGroups )
+    {
+        if( m_toolActions[group->GetUIId()] )
+            currentGroupItems[group->GetName()] = m_toolActions[group->GetUIId()]->GetName();
+    }
+
+    // Remove existing tools
+    ClearToolbar();
+
+    std::vector<TOOLBAR_ITEM> items = aConfig.GetToolbarItems();
+
+    // Add all the items to the toolbar
+    for( auto& item : items )
+    {
+        switch( item.m_Type )
+        {
+        case TOOLBAR_ITEM_TYPE::SEPARATOR:
+            AddScaledSeparator( GetParent() );
+            break;
+
+        case TOOLBAR_ITEM_TYPE::SPACER:
+            AddSpacer( item.m_Size );
+            break;
+
+        case TOOLBAR_ITEM_TYPE::TB_GROUP:
+        {
+            // Add a group of items to the toolbar
+            std::string                     groupName = item.m_GroupName.ToStdString();
+            std::vector<const TOOL_ACTION*> tools;
+            const TOOL_ACTION*              defaultTool = nullptr;
+
+            for( TOOLBAR_ITEM& groupItem : item.m_GroupItems )
+            {
+                switch( groupItem.m_Type )
+                {
+                case TOOLBAR_ITEM_TYPE::SEPARATOR:
+                case TOOLBAR_ITEM_TYPE::SPACER:
+                case TOOLBAR_ITEM_TYPE::TB_GROUP:
+                case TOOLBAR_ITEM_TYPE::CONTROL:
+                    wxFAIL_MSG( wxT( "Unsupported group item type" ) );
+                    continue;
+
+                case TOOLBAR_ITEM_TYPE::TOOL:
+                    TOOL_ACTION* grpAction = m_toolManager->GetActionManager()->FindAction( groupItem.m_ActionName );
+
+                    if( !grpAction )
+                    {
+                        wxFAIL_MSG( wxString::Format( wxT( "Unable to find group tool %s" ), groupItem.m_ActionName ) );
+                        continue;
+                    }
+
+                    tools.push_back( grpAction );
+
+                    if( currentGroupItems[groupName] == groupItem.m_ActionName )
+                        defaultTool = grpAction;
+                }
+            }
+
+            std::unique_ptr<ACTION_GROUP> group = std::make_unique<ACTION_GROUP>( groupName, tools );
+
+            if( defaultTool )
+                group->SetDefaultAction( *defaultTool );
+
+            AddGroup( std::move( group ) );
+
+            // Look up and attach context menu if one is registered for this group
+            auto menuFactory = TOOLBAR_CONTEXT_MENU_REGISTRY::GetGroupMenuFactory( groupName );
+
+            if( menuFactory && m_toolManager )
+            {
+                // Register the menu for each action in the group
+                for( const TOOL_ACTION* grpAction : tools )
+                    AddToolContextMenu( *grpAction, menuFactory( m_toolManager ) );
+            }
+
+            break;
+        }
+
+        case TOOLBAR_ITEM_TYPE::CONTROL:
+        {
+            // Add a custom control to the toolbar
+            EDA_BASE_FRAME* frame = static_cast<EDA_BASE_FRAME*>( GetParent() );
+            ACTION_TOOLBAR_CONTROL_FACTORY* factory = frame->GetCustomToolbarControlFactory( item.m_ControlName );
+
+            if( !factory )
+            {
+                wxFAIL_MSG( wxString::Format( wxT( "Unable to find control factory for %s" ), item.m_ControlName ) );
+                continue;
+            }
+
+            // The factory functions are responsible for adding the controls to the toolbar themselves
+            (*factory)( this );
+            break;
+        }
+
+        case TOOLBAR_ITEM_TYPE::TOOL:
+        {
+            TOOL_ACTION* action = m_toolManager->GetActionManager()->FindAction( item.m_ActionName );
+
+            if( !action )
+            {
+                wxFAIL_MSG( wxString::Format( wxT( "Unable to find toolbar tool %s" ), item.m_ActionName ) );
+                continue;
+            }
+
+            Add( *action );
+
+            // Look up and attach context menu if one is registered for this action
+            auto factory = TOOLBAR_CONTEXT_MENU_REGISTRY::GetMenuFactory( item.m_ActionName );
+
+            if( factory && m_toolManager )
+                AddToolContextMenu( *action, factory( m_toolManager ) );
+
+            break;
+        }
+        }
+    }
+
+    // Apply the configuration
+    KiRealize();
+}
+
+
+void ACTION_TOOLBAR::DoSetToolTipText( const wxString& aTip )
+{
+    // We use \t in short description to align accelerators in wxMenuItem
+    // But they should be converted when displaying tooltips
+    wxString tip = aTip;
+    tip.Replace( "\t", "  " );
+
+    wxAuiToolBar::DoSetToolTipText( tip );
+}
+
+
+void ACTION_TOOLBAR::Add( const TOOL_ACTION& aAction )
+{
+    wxASSERT_MSG( !aAction.CheckToolbarState( TOOLBAR_STATE::HIDDEN ),
+                  wxString::Format( "Attempting to add hidden action %s to the toolbar", aAction.GetName() ) );
+
+    bool isToggleEntry = aAction.CheckToolbarState( TOOLBAR_STATE::TOGGLE );
+    bool isCancellable = aAction.CheckToolbarState( TOOLBAR_STATE::CANCEL );
+
+    Add( aAction, isToggleEntry, isCancellable );
+}
+
+
 void ACTION_TOOLBAR::Add( const TOOL_ACTION& aAction, bool aIsToggleEntry, bool aIsCancellable )
 {
     wxASSERT( GetParent() );
@@ -244,11 +447,11 @@ void ACTION_TOOLBAR::Add( const TOOL_ACTION& aAction, bool aIsToggleEntry, bool 
                   wxS( "aIsCancellable requires aIsToggleEntry" ) );
 
     int toolId = aAction.GetUIId();
+    int iconSize = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
 
     AddTool( toolId, wxEmptyString,
-             KiBitmapBundle( aAction.GetIcon(),
-                             Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size ),
-             KiDisabledBitmapBundle( aAction.GetIcon() ),
+             KiBitmapBundleDef( aAction.GetIcon(), iconSize ),
+             KiDisabledBitmapBundleDef( aAction.GetIcon(), iconSize ),
              aIsToggleEntry ? wxITEM_CHECK : wxITEM_NORMAL,
              aAction.GetButtonTooltip(), wxEmptyString, nullptr );
 
@@ -261,12 +464,12 @@ void ACTION_TOOLBAR::Add( const TOOL_ACTION& aAction, bool aIsToggleEntry, bool 
 void ACTION_TOOLBAR::AddButton( const TOOL_ACTION& aAction )
 {
     int toolId = aAction.GetUIId();
+    int iconSize = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
 
     AddTool( toolId, wxEmptyString,
-             KiBitmapBundle( aAction.GetIcon(),
-                             Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size ),
-             KiDisabledBitmapBundle( aAction.GetIcon() ), wxITEM_NORMAL,
-             aAction.GetButtonTooltip(), wxEmptyString, nullptr );
+             KiBitmapBundleDef( aAction.GetIcon(), iconSize ),
+             KiDisabledBitmapBundleDef( aAction.GetIcon(), iconSize ),
+             wxITEM_NORMAL, aAction.GetButtonTooltip(), wxEmptyString, nullptr );
 
     m_toolKinds[ toolId ] = false;
     m_toolActions[ toolId ] = &aAction;
@@ -287,8 +490,15 @@ void ACTION_TOOLBAR::AddScaledSeparator( wxWindow* aWindow )
 }
 
 
-void ACTION_TOOLBAR::AddToolContextMenu( const TOOL_ACTION& aAction,
-                                         std::unique_ptr<ACTION_MENU> aMenu )
+void ACTION_TOOLBAR::Add( wxControl* aControl, const wxString& aLabel )
+{
+    wxASSERT( aControl );
+    m_controlIDs.push_back( aControl->GetId() );
+    AddControl( aControl, aLabel );
+}
+
+
+void ACTION_TOOLBAR::AddToolContextMenu( const TOOL_ACTION& aAction, std::unique_ptr<ACTION_MENU> aMenu )
 {
     int toolId = aAction.GetUIId();
 
@@ -296,28 +506,33 @@ void ACTION_TOOLBAR::AddToolContextMenu( const TOOL_ACTION& aAction,
 }
 
 
-void ACTION_TOOLBAR::AddGroup( ACTION_GROUP* aGroup, bool aIsToggleEntry )
+void ACTION_TOOLBAR::AddGroup( std::unique_ptr<ACTION_GROUP> aGroup )
 {
-    int                groupId       = aGroup->GetUIId();
+    int                groupId = aGroup->GetUIId();
     const TOOL_ACTION* defaultAction = aGroup->GetDefaultAction();
+    int                iconSize = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
 
     wxASSERT( GetParent() );
     wxASSERT( defaultAction );
 
-    m_toolKinds[ groupId ]    = aIsToggleEntry;
+    // Turn this into a toggle entry if any one of the actions is a toggle entry
+    bool isToggleEntry = false;
+
+    for( const auto& act : aGroup->GetActions() )
+        isToggleEntry |= act->CheckToolbarState( TOOLBAR_STATE::TOGGLE );
+
+    m_toolKinds[ groupId ]    = isToggleEntry;
     m_toolActions[ groupId ]  = defaultAction;
-    m_actionGroups[ groupId ] = aGroup;
+    m_actionGroups[ groupId ] = std::move( aGroup );
 
     // Add the main toolbar item representing the group
     AddTool( groupId, wxEmptyString,
-             KiBitmapBundle( defaultAction->GetIcon(),
-                             Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size ),
-             KiDisabledBitmapBundle( defaultAction->GetIcon() ),
-             aIsToggleEntry ? wxITEM_CHECK : wxITEM_NORMAL,
-             wxEmptyString, wxEmptyString, nullptr );
+             KiBitmapBundleDef( defaultAction->GetIcon(), iconSize ),
+             KiDisabledBitmapBundleDef( defaultAction->GetIcon(), iconSize ),
+             isToggleEntry ? wxITEM_CHECK : wxITEM_NORMAL, wxEmptyString, wxEmptyString, nullptr );
 
     // Select the default action
-    doSelectAction( aGroup, *defaultAction );
+    doSelectAction( m_actionGroups[ groupId ].get(), *defaultAction );
 }
 
 
@@ -335,6 +550,28 @@ void ACTION_TOOLBAR::SelectAction( ACTION_GROUP* aGroup, const TOOL_ACTION& aAct
 }
 
 
+void ACTION_TOOLBAR::SelectAction( const TOOL_ACTION& aAction )
+{
+    // Find the group that contains this action and select it
+    for( auto& [id, groupPtr] : m_actionGroups )
+    {
+        ACTION_GROUP* group = groupPtr.get();
+
+        bool inGroup = std::any_of( group->m_actions.begin(), group->m_actions.end(),
+                                     [&]( const TOOL_ACTION* action2 )
+                                     {
+                                         return aAction.GetId() == action2->GetId();
+                                     } );
+
+        if( inGroup )
+        {
+            doSelectAction( group, aAction );
+            break;
+        }
+    }
+}
+
+
 void ACTION_TOOLBAR::doSelectAction( ACTION_GROUP* aGroup, const TOOL_ACTION& aAction )
 {
     wxASSERT( GetParent() );
@@ -346,28 +583,43 @@ void ACTION_TOOLBAR::doSelectAction( ACTION_GROUP* aGroup, const TOOL_ACTION& aA
     if( !item )
         return;
 
+    int iconSize = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
+
     // Update the item information
     item->SetShortHelp( aAction.GetButtonTooltip() );
-    item->SetBitmap( KiBitmapBundle( aAction.GetIcon(),
-                                     Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size ) );
-    item->SetDisabledBitmap( KiDisabledBitmapBundle( aAction.GetIcon() ) );
+    item->SetBitmap( KiBitmapBundleDef( aAction.GetIcon(), iconSize ) );
+    item->SetDisabledBitmap( KiDisabledBitmapBundleDef( aAction.GetIcon(), iconSize ) );
 
     // Register a new handler with the new UI conditions
     if( m_toolManager )
     {
+        m_toolManager->GetToolHolder()->UnregisterUIUpdateHandler( groupId );
+
         const ACTION_CONDITIONS* cond = m_toolManager->GetActionManager()->GetCondition( aAction );
 
-        wxASSERT_MSG( cond, wxString::Format( "Missing UI condition for action %s",
-                                              aAction.GetName() ) );
-
-        m_toolManager->GetToolHolder()->UnregisterUIUpdateHandler( groupId );
-        m_toolManager->GetToolHolder()->RegisterUIUpdateHandler( groupId, *cond );
+        // Register the new UI condition to control this entry
+        if( cond )
+        {
+            m_toolManager->GetToolHolder()->RegisterUIUpdateHandler( groupId, *cond );
+        }
+        else
+        {
+            wxLogTrace( kicadTraceToolStack, wxString::Format( "No UI condition for action %s",
+                                                               aAction.GetName() ) );
+        }
     }
 
     // Update the currently selected action
     m_toolActions[ groupId ] = &aAction;
 
     Refresh();
+}
+
+
+void ACTION_TOOLBAR::UpdateControlWidths()
+{
+    for( int id : m_controlIDs )
+        UpdateControlWidth( id );
 }
 
 
@@ -378,8 +630,7 @@ void ACTION_TOOLBAR::UpdateControlWidth( int aID )
 
     // The control on the toolbar is stored inside the window field of the item
     wxControl* control = dynamic_cast<wxControl*>( item->GetWindow() );
-    wxASSERT_MSG( control,
-                  wxString::Format( "No control located in toolbar item with ID %d", aID ) );
+    wxASSERT_MSG( control, wxString::Format( "No control located in toolbar item with ID %d", aID ) );
 
     // Update the size the item has stored using the best size of the control
     control->InvalidateBestSize();
@@ -416,24 +667,33 @@ void ACTION_TOOLBAR::ClearToolbar()
     m_toolKinds.clear();
     m_toolActions.clear();
 
+    for( int id : m_controlIDs )
+    {
+        m_parent->ClearToolbarControl( id );
+        DestroyTool( id );
+    }
+
+    m_controlIDs.clear();
+
     // Remove the actual tools from the toolbar
     Clear();
 }
 
 
-void ACTION_TOOLBAR::SetToolBitmap( const TOOL_ACTION& aAction, const wxBitmap& aBitmap )
+void ACTION_TOOLBAR::SetToolBitmap( const TOOL_ACTION& aAction, const wxBitmapBundle& aBitmap )
 {
     int toolId = aAction.GetUIId();
-    wxAuiToolBar::SetToolBitmap( toolId, aBitmap );
 
     // Set the disabled bitmap: we use the disabled bitmap version of aBitmap.
     wxAuiToolBarItem* tb_item = wxAuiToolBar::FindTool( toolId );
 
-    if( tb_item )
-    {
-        tb_item->SetDisabledBitmap(
-                aBitmap.ConvertToDisabled( KIPLATFORM::UI::IsDarkTheme() ? 70 : 255 ) );
-    }
+    if( !tb_item )
+        return;
+
+    wxBitmap bm = aBitmap.GetBitmapFor( this );
+
+    tb_item->SetBitmap( aBitmap );
+    tb_item->SetDisabledBitmap( bm.ConvertToDisabled( KIPLATFORM::UI::IsDarkTheme() ? 70 : 255 ) );
 }
 
 
@@ -465,16 +725,55 @@ void ACTION_TOOLBAR::onToolEvent( wxAuiToolBarEvent& aEvent )
 
     bool handled = false;
 
-    if( m_toolManager && type == wxEVT_COMMAND_TOOL_CLICKED  && id >= TOOL_ACTION::GetBaseUIId() )
+    if( m_toolManager && type == wxEVT_COMMAND_TOOL_CLICKED )
     {
         const auto actionIt = m_toolActions.find( id );
+        const auto cancelIt = m_toolCancellable.find( id );
+        const auto groupIt  = m_actionGroups.find( id );
+
+        // Determine if the tool is actually cancellable
+        bool isCancellable = ( cancelIt != m_toolCancellable.end() ) ? cancelIt->second : false;
 
         // The toolbar item is toggled before the event is sent, so we check for it not being
         // toggled to see if it was toggled originally
-        if( m_toolCancellable[id] && !GetToolToggled( id ) )
+        if( isCancellable && !GetToolToggled( id ) )
         {
             // Send a cancel event
             m_toolManager->CancelTool();
+            handled = true;
+        }
+        else if( groupIt != m_actionGroups.end()
+                 && std::none_of( groupIt->second->GetActions().begin(),
+                                  groupIt->second->GetActions().end(),
+                                  []( const TOOL_ACTION* a )
+                                  {
+                                      return a->IsActivation();
+                                  } ) )
+        {
+            // For non-tool toggle groups (units, crosshair, line modes), cycle to the next
+            // action on click. Tool groups (route track, etc.) fall through and just dispatch
+            // the currently displayed action.
+            ACTION_GROUP*                          group   = groupIt->second.get();
+            const std::vector<const TOOL_ACTION*>& actions = group->GetActions();
+            const TOOL_ACTION*                     current = actionIt->second;
+
+            const TOOL_ACTION* next = actions[0];
+
+            for( size_t i = 0; i < actions.size(); ++i )
+            {
+                if( actions[i]->GetId() == current->GetId() )
+                {
+                    next = actions[( i + 1 ) % actions.size()];
+                    break;
+                }
+            }
+
+            evt = next->MakeEvent();
+            evt->SetHasPosition( false );
+            m_toolManager->ProcessEvent( *evt );
+            m_toolManager->GetToolHolder()->RefreshCanvas();
+
+            doSelectAction( group, *next );
             handled = true;
         }
         else if( actionIt != m_toolActions.end() )
@@ -494,7 +793,7 @@ void ACTION_TOOLBAR::onToolEvent( wxAuiToolBarEvent& aEvent )
 }
 
 
-void ACTION_TOOLBAR::onToolRightClick( wxAuiToolBarEvent& aEvent )
+void ACTION_TOOLBAR::onRightClick( wxAuiToolBarEvent& aEvent )
 {
     int toolId = aEvent.GetToolId();
 
@@ -502,9 +801,8 @@ void ACTION_TOOLBAR::onToolRightClick( wxAuiToolBarEvent& aEvent )
     if( toolId == -1 )
         return;
 
-    // Ensure that the ID used maps to a proper tool ID.
-    // If right-clicked on a group item, this is needed to get the ID of the currently selected
-    // action, since the event's ID is that of the group.
+    // Ensure that the ID maps to a proper tool ID. If right-clicked on a group item, this is needed
+    // to get the ID of the currently selected action, since the event's ID is that of the group.
     const auto actionIt = m_toolActions.find( toolId );
 
     if( actionIt != m_toolActions.end() )
@@ -643,9 +941,7 @@ void ACTION_TOOLBAR::popupPalette( wxAuiToolBarItem* aItem )
 
     wxWindow* toolParent = dynamic_cast<wxWindow*>( m_toolManager->GetToolHolder() );
 
-    wxASSERT( GetParent() );
-    wxASSERT( m_auiManager );
-    wxASSERT( toolParent );
+    wxCHECK( GetParent() && m_auiManager && toolParent, /* void */ );
 
     // Ensure the item we are using for the palette has a group associated with it.
     const auto it = m_actionGroups.find( aItem->GetId() );
@@ -653,7 +949,7 @@ void ACTION_TOOLBAR::popupPalette( wxAuiToolBarItem* aItem )
     if( it == m_actionGroups.end() )
         return;
 
-    ACTION_GROUP* group = it->second;
+    ACTION_GROUP* group = it->second.get();
 
     wxAuiPaneInfo& pane = m_auiManager->GetPane( this );
 
@@ -719,8 +1015,7 @@ void ACTION_TOOLBAR::popupPalette( wxAuiToolBarItem* aItem )
     // We handle the button events in the toolbar class, so connect the right handler
     m_palette->SetGroup( group );
     m_palette->SetButtonSize( toolRect );
-    m_palette->Connect( wxEVT_BUTTON, wxCommandEventHandler( ACTION_TOOLBAR::onPaletteEvent ),
-                        nullptr, this );
+    m_palette->Connect( wxEVT_BUTTON, wxCommandEventHandler( ACTION_TOOLBAR::onPaletteEvent ), nullptr, this );
 
 
     // Add the actions in the group to the palette and update their enabled state
@@ -738,7 +1033,8 @@ void ACTION_TOOLBAR::popupPalette( wxAuiToolBarItem* aItem )
     }
 
     // Release the mouse to ensure the first click will be recognized in the palette
-    ReleaseMouse();
+    if( HasCapture() )
+        ReleaseMouse();
 
     m_palette->SetPosition( pos );
     m_palette->Popup();
@@ -819,13 +1115,9 @@ bool ACTION_TOOLBAR::KiRealize()
         }
 
         if( retval && RealizeHelper( dc, true ) )
-        {
             m_horzHintSize = GetSize();
-        }
         else
-        {
             retval = false;
-        }
     }
     else
     {
@@ -836,13 +1128,9 @@ bool ACTION_TOOLBAR::KiRealize()
         }
 
         if( retval && RealizeHelper( dc, false ) )
-        {
             m_vertHintSize = GetSize();
-        }
         else
-        {
             retval = false;
-        }
     }
 
     Refresh( false );
@@ -862,15 +1150,75 @@ void ACTION_TOOLBAR::onThemeChanged( wxSysColourChangedEvent &aEvent )
 
 void ACTION_TOOLBAR::RefreshBitmaps()
 {
+    int iconSize = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
+
     for( const std::pair<int, const TOOL_ACTION*> pair : m_toolActions )
     {
         wxAuiToolBarItem* tool = FindTool( pair.first );
 
-        tool->SetBitmap(
-                KiBitmapBundle( pair.second->GetIcon(),
-                                Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size ) );
-        tool->SetDisabledBitmap( KiDisabledBitmapBundle( pair.second->GetIcon() ) );
+        tool->SetBitmap( KiBitmapBundleDef( pair.second->GetIcon(), iconSize ) );
+        tool->SetDisabledBitmap( KiDisabledBitmapBundleDef( pair.second->GetIcon(), iconSize ) );
     }
 
     Refresh();
 }
+
+/*
+ * Common controls for the toolbar
+ */
+ACTION_TOOLBAR_CONTROL ACTION_TOOLBAR_CONTROLS::gridSelect( "control.GridSelector",
+                                                            _( "Grid selector" ),
+                                                            _( "Grid Selection box" ),
+                                                            { FRAME_SCH,
+                                                              FRAME_SCH_SYMBOL_EDITOR,
+                                                              FRAME_SCH_VIEWER,
+                                                              FRAME_PCB_EDITOR,
+                                                              FRAME_FOOTPRINT_EDITOR,
+                                                              FRAME_FOOTPRINT_VIEWER,
+                                                              FRAME_GERBER,
+                                                              FRAME_PL_EDITOR } );
+
+
+ACTION_TOOLBAR_CONTROL ACTION_TOOLBAR_CONTROLS::zoomSelect( "control.ZoomSelector",
+                                                            _( "Zoom selector" ),
+                                                            _( "Zoom Selection box" ),
+                                                            { FRAME_SCH,
+                                                              FRAME_SCH_SYMBOL_EDITOR,
+                                                              FRAME_SCH_VIEWER,
+                                                              FRAME_PCB_EDITOR,
+                                                              FRAME_PCB_DISPLAY3D,
+                                                              FRAME_FOOTPRINT_EDITOR,
+                                                              FRAME_FOOTPRINT_VIEWER,
+                                                              FRAME_GERBER,
+                                                              FRAME_PL_EDITOR } );
+
+ACTION_TOOLBAR_CONTROL ACTION_TOOLBAR_CONTROLS::ipcScripting( "control.IPCPlugin",
+                                                              _( "IPC/Scripting plugins" ),
+                                                              _( "Region to hold the IPC/Scripting action buttons" ),
+                                                              { FRAME_SCH,
+                                                                FRAME_PCB_EDITOR } );
+
+ACTION_TOOLBAR_CONTROL ACTION_TOOLBAR_CONTROLS::layerSelector( "control.LayerSelector",
+                                                               _( "Layer selector" ),
+                                                               _( "Control to select the layer" ),
+                                                               { FRAME_PCB_EDITOR,
+                                                                 FRAME_FOOTPRINT_EDITOR,
+                                                                 FRAME_FOOTPRINT_VIEWER,
+                                                                 FRAME_GERBER } );
+
+ACTION_TOOLBAR_CONTROL ACTION_TOOLBAR_CONTROLS::unitSelector( "control.UnitSelector",
+                                                              _( "Symbol unit selector" ),
+                                                              _( "Displays the current unit" ),
+                                                              { FRAME_SCH_SYMBOL_EDITOR,
+                                                                FRAME_SCH_VIEWER } );
+
+ACTION_TOOLBAR_CONTROL ACTION_TOOLBAR_CONTROLS::bodyStyleSelector( "control.BodyStyleSelector",
+                                                                   _( "Symbol body style selector" ),
+                                                                   _( "Displays the current body style" ),
+                                                                   { FRAME_SCH_SYMBOL_EDITOR,
+                                                                     FRAME_SCH_VIEWER } );
+
+ACTION_TOOLBAR_CONTROL ACTION_TOOLBAR_CONTROLS::overrideLocks( "control.OverrideLocks",
+                                                               _( "Override locks" ),
+                                                               _( "Allow moving of locked items with the mouse" ),
+                                                               { FRAME_PCB_EDITOR } );

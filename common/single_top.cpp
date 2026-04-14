@@ -43,17 +43,26 @@
 #include <wx/html/htmlwin.h>
 
 #include <kiway.h>
+#include <build_version.h>
 #include <pgm_base.h>
+#include <app_monitor.h>
 #include <kiway_player.h>
 #include <macros.h>
 #include <confirm.h>
+#include <design_block_library_adapter.h>
+
 #include <settings/kicad_settings.h>
 #include <settings/settings_manager.h>
+#include <paths.h>
 
 #include <kiplatform/app.h>
 #include <kiplatform/environment.h>
 
 #include <git2.h>
+#include <thread_pool.h>
+
+#include <libraries/library_manager.h>
+#include <startwizard/startwizard.h>
 
 #ifdef KICAD_USE_SENTRY
 #include <sentry.h>
@@ -79,6 +88,9 @@ static struct PGM_SINGLE_TOP : public PGM_BASE
 
     void OnPgmExit()
     {
+        // Abort and wait on any background jobs
+        GetKiCadThreadPool().purge();
+        GetKiCadThreadPool().wait();
 
         Kiway.OnKiwayEnd();
 
@@ -258,14 +270,18 @@ struct APP_SINGLE_TOP : public wxApp
                     if( dlgs.back() == dialog )
                         dlgs.pop_back();
                     // If an out-of-order, remove all dialogs added after the closed one
-                    else if( auto it = std::find( dlgs.begin(), dlgs.end(), dialog );
-                             it != dlgs.end() )
+                    else if( auto it = std::find( dlgs.begin(), dlgs.end(), dialog ); it != dlgs.end() )
                         dlgs.erase( it, dlgs.end() );
                 }
             }
         }
 
         return Event_Skip;
+    }
+
+    void OnUnhandledException() override
+    {
+        Pgm().HandleException( std::current_exception(), true );
     }
 
 #if defined( DEBUG )
@@ -324,7 +340,19 @@ bool PGM_SINGLE_TOP::OnPgmInit()
 #endif
 
     // Initialize the git library before trying to initialize individual programs
-    git_libgit2_init();
+    int gitInit = git_libgit2_init();
+
+    if( gitInit < 0 )
+    {
+        const git_error* err = git_error_last();
+        wxString         msg = wxS( "Failed to initialize git library" );
+
+        if( err && err->message )
+            msg += wxS( ": " ) + wxString::FromUTF8( err->message );
+
+        wxLogError( msg );
+        return false;
+    }
 
     // Not all KiCad applications use the python stuff. skip python init
     // for these apps.
@@ -385,8 +413,23 @@ bool PGM_SINGLE_TOP::OnPgmInit()
 
     Kiway.SetTop( frame );
 
+    STARTWIZARD startWizard;
+    startWizard.CheckAndRun( frame );
+
+    // Load library tables after startup wizard
+    GetLibraryManager().LoadGlobalTables();
+
+    // Preload libraries, since for single-top this won't have been done earlier
+    if( KIFACE* topFrame = Kiway.KiFACE( KIWAY::KifaceType( TOP_FRAME ) ) )
+        topFrame->PreloadLibraries( &Kiway );
+
+    PreloadDesignBlockLibraries( &Kiway );
+
     App().SetTopWindow( frame );      // wxApp gets a face.
     App().SetAppDisplayName( frame->GetAboutTitle() );
+
+    wxString relaunchDisplayName = frame->GetAboutTitle() + " " + GetMajorMinorVersion();
+    KIPLATFORM::ENV::SetAppDetailsForWindow( frame, PATHS::GetExecutablePath(), relaunchDisplayName );
 
     // Allocate a slice of time to show the frame and update wxWidgets widgets
     // (especially setting valid sizes) after creating frame and before calling

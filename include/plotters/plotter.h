@@ -30,7 +30,6 @@
 #include <math/box2.h>
 #include <gr_text.h>
 #include <page_info.h>
-#include <outline_mode.h>
 #include <gal/color4d.h>
 #include <stroke_params.h>
 #include <render_settings.h>
@@ -75,6 +74,15 @@ enum class PLOT_FORMAT
 };
 
 /**
+ * Options to draw items with thickness ( segments, arcs, circles, texts...)
+ */
+enum DXF_OUTLINE_MODE
+{
+    SKETCH = 0,     // sketch mode: draw segments outlines only
+    FILLED = 1      // normal mode: solid segments
+};
+
+/**
  * Which kind of text to output with the PSLIKE plotters.
  *
  * You can:
@@ -93,6 +101,29 @@ enum class PLOT_TEXT_MODE
     NATIVE,
     PHANTOM,
     DEFAULT
+};
+
+class PLOT_PARAMS
+{
+public:
+    virtual DXF_OUTLINE_MODE GetDXFPlotMode() const { wxFAIL; return DXF_OUTLINE_MODE::FILLED; }
+    virtual PLOT_TEXT_MODE GetTextMode() const { return PLOT_TEXT_MODE::DEFAULT; }
+};
+
+
+/**
+ * @enum DXF_LAYER_OUTPUT_MODE
+ * @brief Specifies the output mode for the DXF layer.
+ *
+ * This enumeration is used to define the mode of output for the DXF layer.
+ * It allows the user to choose between retrieving the layer name or the color name.
+ */
+enum class DXF_LAYER_OUTPUT_MODE
+{
+    Layer_Name,
+    Layer_Color_Name,
+    Current_Layer_Name,
+    Current_Layer_Color_Name
 };
 
 /**
@@ -191,7 +222,38 @@ public:
                               double aScale, bool aMirror ) = 0;
 
     /**
+     * Sets the list of layers to export to the specified vector.
+     *
+     * This function updates the member variable m_layersToExport with the
+     * vector provided in aLayersToExport.
+     *
+     * @param aLayersToExport The vector containing the names of layers to export.
+     *                        This updates the internal list of layers that will
+     *                        be processed for export.
+     */
+    void SetLayersToExport( const std::vector<std::pair<PCB_LAYER_ID, wxString>>& aLayersToExport ) { m_layersToExport = aLayersToExport; }
+
+    /**
+     * @brief Gets the ID of the current layer.
+     *
+     * This function returns the ID of the layer that the current item is on.
+     *
+     * @return PCB_LAYER_ID The ID of the current layer.
+     */
+    PCB_LAYER_ID GetLayer() const { return m_layer; }
+
+    /**
+     * @brief Sets the ID of the current layer.
+     *
+     * This function sets the ID of the layer for the current item.
+     *
+     * @param aLayer The ID of the layer to be set.
+     */
+    void SetLayer( PCB_LAYER_ID aLayer ) { m_layer = aLayer; }
+
+    /**
      * Open or create the plot file \a aFullFilename.
+     * .
      *
      * @param aFullFilename is the full file name of the file to create.
      * @return true if success, false if the file cannot be created/opened.
@@ -212,17 +274,16 @@ public:
     int GetPlotterArcHighDef() const { return m_IUsPerDecimil * 2; }
 
     // Low level primitives
-    virtual void Rect( const VECTOR2I& p1, const VECTOR2I& p2, FILL_T fill,
-                       int width = USE_DEFAULT_LINE_WIDTH ) = 0;
-    virtual void Circle( const VECTOR2I& pos, int diametre, FILL_T fill,
-                         int width = USE_DEFAULT_LINE_WIDTH ) = 0;
+    virtual void Rect( const VECTOR2I& p1, const VECTOR2I& p2, FILL_T fill, int width,
+                       int aCornerRadius = 0 ) = 0;
+    virtual void Circle( const VECTOR2I& pos, int diametre, FILL_T fill, int width ) = 0;
 
     virtual void Arc( const VECTOR2D& aStart, const VECTOR2D& aMid, const VECTOR2D& aEnd,
-                      FILL_T aFill, int aWidth = USE_DEFAULT_LINE_WIDTH );
+                      FILL_T aFill, int aWidth );
 
     virtual void Arc( const VECTOR2D& aCenter, const EDA_ANGLE& aStartAngle,
                       const EDA_ANGLE& aAngle, double aRadius, FILL_T aFill,
-                      int aWidth = USE_DEFAULT_LINE_WIDTH );
+                      int aWidth );
 
     /**
      * Generic fallback: Cubic Bezier curve rendered as a polyline.
@@ -231,7 +292,7 @@ public:
      */
     virtual void BezierCurve( const VECTOR2I& aStart, const VECTOR2I& aControl1,
                               const VECTOR2I& aControl2, const VECTOR2I& aEnd,
-                              int aTolerance, int aLineThickness = USE_DEFAULT_LINE_WIDTH );
+                              int aTolerance, int aLineThickness );
 
     /**
      * Moveto/lineto primitive, moves the 'pen' to the specified direction.
@@ -274,20 +335,19 @@ public:
      * @param aWidth is the line width.
      * @param aData is an auxiliary info (mainly for gerber format).
      */
-    virtual void PlotPoly( const std::vector<VECTOR2I>& aCornerList, FILL_T aFill,
-                           int aWidth = USE_DEFAULT_LINE_WIDTH, void* aData = nullptr ) = 0;
+    virtual void PlotPoly( const std::vector<VECTOR2I>& aCornerList, FILL_T aFill, int aWidth,
+                           void* aData ) = 0;
 
     /**
      * Draw a polygon ( filled or not ).
      *
-     * @param aCornerList is the corners list (a SHAPE_LINE_CHAIN).
-     *        must be closed (IsClosed() == true) for a polygon. Otherwise this is a polyline.
+     * @param aLineChain is a list of segments and arcs.  Must be closed (IsClosed() == true) for
+     *                   a polygon. Otherwise this is a polyline.
      * @param aFill is the type of fill.
      * @param aWidth is the line width.
      * @param aData is an auxiliary info (mainly for gerber format).
      */
-    virtual void PlotPoly( const SHAPE_LINE_CHAIN& aCornerList, FILL_T aFill,
-                           int aWidth = USE_DEFAULT_LINE_WIDTH, void* aData = nullptr );
+    virtual void PlotPoly( const SHAPE_LINE_CHAIN& aLineChain, FILL_T aFill, int aWidth, void* aData );
 
     /**
      * Only PostScript plotters can plot bitmaps.
@@ -302,82 +362,72 @@ public:
     virtual void PlotImage( const wxImage& aImage, const VECTOR2I& aPos, double aScaleFactor );
 
     // Higher level primitives -- can be drawn as line, sketch or 'filled'
-    virtual void ThickSegment( const VECTOR2I& start, const VECTOR2I& end, int width,
-                               OUTLINE_MODE tracemode, void* aData );
+    virtual void ThickSegment( const VECTOR2I& start, const VECTOR2I& end, int width, void* aData );
 
-    virtual void ThickArc( const EDA_SHAPE& aArcShape, OUTLINE_MODE aTraceMode, void* aData,
-                           int aWidth );
+    virtual void ThickArc( const EDA_SHAPE& aArcShape, void* aData, int aWidth );
 
     virtual void ThickArc( const VECTOR2D& aCentre, const EDA_ANGLE& aStAngle,
-                           const EDA_ANGLE& aAngle, double aRadius, int aWidth,
-                           OUTLINE_MODE aTraceMode, void* aData );
+                           const EDA_ANGLE& aAngle, double aRadius, int aWidth, void* aData );
 
-    virtual void ThickRect( const VECTOR2I& p1, const VECTOR2I& p2, int width,
-                            OUTLINE_MODE tracemode, void* aData );
+    virtual void ThickRect( const VECTOR2I& p1, const VECTOR2I& p2, int width, void* aData );
 
-    virtual void ThickCircle( const VECTOR2I& pos, int diametre, int width, OUTLINE_MODE tracemode,
-                              void* aData );
+    virtual void ThickCircle( const VECTOR2I& pos, int diametre, int width, void* aData );
 
-    virtual void FilledCircle( const VECTOR2I& pos, int diametre, OUTLINE_MODE tracemode,
-                               void* aData );
+    virtual void FilledCircle( const VECTOR2I& pos, int diametre, void* aData );
 
+    virtual void ThickOval( const VECTOR2I& aPos, const VECTOR2I& aSize, const EDA_ANGLE& aOrient,
+                            int aWidth, void* aData );
+
+    virtual void ThickPoly( const SHAPE_POLY_SET& aPoly, int aWidth, void* aData );
 
     // Flash primitives
 
     /**
      * @param aPadPos Position of the shape (center of the rectangle.
      * @param aDiameter is the diameter of round pad.
-     * @param aTraceMode is the drawing mode, FILLED or SKETCH.
      * @param aData is an auxiliary info (mainly for gerber format attributes).
      */
-    virtual void FlashPadCircle( const VECTOR2I& aPadPos, int aDiameter, OUTLINE_MODE aTraceMode,
-                                 void* aData ) = 0;
+    virtual void FlashPadCircle( const VECTOR2I& aPadPos, int aDiameter, void* aData ) = 0;
 
     /**
      * @param aPadPos Position of the shape (center of the rectangle.
      * @param aSize is the size of oblong shape.
      * @param aPadOrient The rotation of the shape.
-     * @param aTraceMode is the drawing mode, FILLED or SKETCH.
      * @param aData an auxiliary info (mainly for gerber format attributes).
      */
     virtual void FlashPadOval( const VECTOR2I& aPadPos, const VECTOR2I& aSize,
-                               const EDA_ANGLE& aPadOrient, OUTLINE_MODE aTraceMode,
-                               void* aData ) = 0;
+                               const EDA_ANGLE& aPadOrient, void* aData ) = 0;
 
     /**
      * @param aPadPos Position of the shape (center of the rectangle).
      * @param aSize is the size of rounded rect.
      * @param aPadOrient The rotation of the shape.
-     * @param aTraceMode is the drawing mode, FILLED or SKETCH.
      * @param aData an auxiliary info (mainly for gerber format attributes).
      */
     virtual void FlashPadRect( const VECTOR2I& aPadPos, const VECTOR2I& aSize,
-                               const EDA_ANGLE& aPadOrient, OUTLINE_MODE aTraceMode,
-                               void* aData ) = 0;
+                               const EDA_ANGLE& aPadOrient, void* aData ) = 0;
 
     /**
      * @param aPadPos Position of the shape (center of the rectangle.
      * @param aSize is the size of rounded rect.
      * @param aCornerRadius Radius of the rounded corners.
      * @param aOrient The rotation of the shape.
-     * @param aTraceMode is the drawing mode, FILLED or SKETCH.
      * @param aData an auxiliary info (mainly for gerber format attributes).
      */
     virtual void FlashPadRoundRect( const VECTOR2I& aPadPos, const VECTOR2I& aSize,
                                     int aCornerRadius, const EDA_ANGLE& aOrient,
-                                    OUTLINE_MODE aTraceMode, void* aData ) = 0;
+                                    void* aData ) = 0;
 
     /**
      * @param aPadPos Position of the shape.
      * @param aSize is the size of round reference pad.
      * @param aPadOrient is the pad rotation, used only with aperture macros (Gerber plotter).
      * @param aPolygons the shape as polygon set.
-     * @param aTraceMode is the drawing mode, FILLED or SKETCH.
      * @param aData an auxiliary info (mainly for gerber format attributes).
      */
     virtual void FlashPadCustom( const VECTOR2I& aPadPos, const VECTOR2I& aSize,
                                  const EDA_ANGLE& aPadOrient, SHAPE_POLY_SET* aPolygons,
-                                 OUTLINE_MODE aTraceMode, void* aData ) = 0;
+                                 void* aData ) = 0;
 
     /**
      * Flash a trapezoidal pad.
@@ -386,12 +436,10 @@ public:
      * @param aCorners is the list of 4 corners positions, relative to the shape position,
      *                 pad orientation 0.
      * @param aPadOrient is the rotation of the shape.
-     * @param aTraceMode is the drawing mode, FILLED or SKETCH.
      * @param aData an auxiliary info (mainly for gerber format attributes).
      */
     virtual void FlashPadTrapez( const VECTOR2I& aPadPos, const VECTOR2I* aCorners,
-                                 const EDA_ANGLE& aPadOrient, OUTLINE_MODE aTraceMode,
-                                 void* aData ) = 0;
+                                 const EDA_ANGLE& aPadOrient, void* aData ) = 0;
 
     /**
      * Flash a regular polygon. Useful only in Gerber files to flash a regular polygon.
@@ -404,8 +452,7 @@ public:
      *              specific to the plotter.
      */
     virtual void FlashRegularPolygon( const VECTOR2I& aShapePos, int aDiameter, int aCornerCount,
-                                      const EDA_ANGLE& aOrient, OUTLINE_MODE aTraceMode,
-                                      void* aData ) = 0;
+                                      const EDA_ANGLE& aOrient, void* aData ) = 0;
 
     /**
      * Draw text with the plotter.
@@ -569,8 +616,7 @@ protected:
      * Winding direction: counter-clockwise in right-down coordinate system.
      */
     virtual void polyArc( const VECTOR2D& aCentre, const EDA_ANGLE& aStartAngle,
-                          const EDA_ANGLE& aAngle, double aRadius, FILL_T aFill,
-                          int aWidth = USE_DEFAULT_LINE_WIDTH );
+                          const EDA_ANGLE& aAngle, double aRadius, FILL_T aFill, int aWidth );
 
     // These are marker subcomponents
     /**
@@ -610,14 +656,6 @@ protected:
 
     // Helper function for sketched filler segment
 
-    /**
-     * Convert a thick segment and plot it as an oval
-     */
-    void segmentAsOval( const VECTOR2I& start, const VECTOR2I& end, int width,
-                        OUTLINE_MODE tracemode );
-
-    void sketchOval( const VECTOR2I& aPos, const VECTOR2I& aSize, const EDA_ANGLE& aOrient,
-                     int aWidth );
 
     // Coordinate and scaling conversion functions
 
@@ -654,13 +692,13 @@ protected:      // variables used in most of plotters:
      * because in Eeschema there are 0.1 IUs in a decimil (Eeschema
      * always works in mils internally) while PcbNew can work in decimil
      * or nanometers, so this value would be >= 1 */
-    double           m_IUsPerDecimil;
+     double           m_IUsPerDecimil;
 
     double           m_iuPerDeviceUnit;     // Device scale (from IUs to plotter device units;
                                             // usually decimils)
     VECTOR2I         m_plotOffset;          // Plot offset (in IUs)
     bool             m_plotMirror;          // X axis orientation (SVG)
-                                            // and plot mirrored (only for PS, PDF HPGL and SVG)
+                                            // and plot mirrored (only for PS, PDF and SVG)
     bool             m_mirrorIsHorizontal;  // true to mirror horizontally (else vertically)
     bool             m_yaxisReversed;       // true if the Y axis is top to bottom (SVG)
 
@@ -687,16 +725,20 @@ protected:      // variables used in most of plotters:
     RENDER_SETTINGS* m_renderSettings;
 
     const PROJECT*   m_project;
+    std::vector<std::pair<PCB_LAYER_ID, wxString>> m_layersToExport;
+
+    PCB_LAYER_ID m_layer;
 };
 
 
 class TITLE_BLOCK;
 
 void PlotDrawingSheet( PLOTTER* plotter, const PROJECT* aProject, const TITLE_BLOCK& aTitleBlock,
-                       const PAGE_INFO& aPageInfo, const std::map<wxString, wxString>*aProperties,
+                       const PAGE_INFO& aPageInfo, const std::map<wxString, wxString>* aProperties,
                        const wxString& aSheetNumber, int aSheetCount, const wxString& aSheetName,
-                       const wxString& aSheetPath, const wxString& aFilename,
-                       COLOR4D aColor = COLOR4D::UNSPECIFIED, bool aIsFirstPage = true );
+                       const wxString& aSheetPath, const wxString& aFilename, COLOR4D aColor = COLOR4D::UNSPECIFIED,
+                       bool aIsFirstPage = true, const wxString& aVariantName = wxEmptyString,
+                       const wxString& aVariantDesc = wxEmptyString );
 
 /**
  * Return the default plot extension for a format.

@@ -1,0 +1,200 @@
+:experimental:
+
+[[importing-schematics]]
+== Importing schematics from other applications
+
+KiCad can import complete schematics saved in several third-party EDA tool formats, converting
+them to KiCad's native format in a single step.  This allows you to migrate existing designs
+without having to recreate them from scratch.
+
+NOTE: Importing a schematic replaces the current schematic with the contents of the imported
+      file.  It does not merge the foreign schematic into an existing KiCad design.  After
+      import, save the schematic using **File** -> **Save** to create a KiCad `.kicad_sch` file.
+
+[[sch-import-how-to]]
+=== How to import a schematic
+
+To import a schematic from a supported third-party format, use
+**File** -> **Import** -> **Non-KiCad Schematic...**.
+
+An "Import Schematic" file dialog will open.  The dialog presents an "All supported formats"
+filter that includes all importable file types, as well as individual format filters.  Select
+the desired source file and click **Open**.
+
+KiCad reads the foreign file, converts it to KiCad format, and loads the result into the
+schematic editor.  If the importer encounters any issues during conversion, a report dialog
+will appear listing warnings and unsupported features.
+
+TIP: If you open a file using **File** -> **Open...** and the file is not a KiCad schematic,
+     the Schematic Editor will display a message directing you to use **File** -> **Import** ->
+     **Non-KiCad Schematic...** instead.
+
+[[sch-import-formats]]
+=== Supported formats
+
+KiCad supports importing schematics from the following EDA tools:
+
+[cols="1,2,2",options="header"]
+|===
+| Source EDA Tool
+| File Extension(s)
+| Notes
+
+| Altium Designer
+| `.SchDoc`
+| Multi-sheet designs are supported; each `.SchDoc` file corresponds to one sheet.
+
+| Eagle (Autodesk)
+| `.sch` (XML)
+| Eagle version 6.x and later (XML format).
+
+| LTspice
+| `.asc`
+| LTspice schematic and simulation files.
+
+| PADS Logic
+| `.asc`, `.txt`
+| PADS Logic ASCII export format.
+
+| CADSTAR Schematic Archive
+| `.csa`
+| Zuken CADSTAR schematic archive files.
+
+| gEDA / Lepton EDA
+| `.sch`
+| gEDA gschem and Lepton EDA schematic files.
+
+| EasyEDA (JLCEDA) Standard
+| `.json`
+| EasyEDA Standard edition JSON export.
+
+| EasyEDA (JLCEDA) Professional
+| `.epro`, `.zip`
+| EasyEDA Professional edition project files.
+|===
+
+NOTE: The Eagle `.sch` extension and the gEDA `.sch` extension are both used by their
+      respective tools.  KiCad identifies the correct format automatically based on the
+      file contents.
+
+NOTE: The PADS Logic `.asc` extension is shared with LTspice.  KiCad inspects the file
+      header to determine which format applies.
+
+[[sch-import-format-notes]]
+=== Format-specific notes
+
+[[sch-import-altium]]
+==== Altium Designer
+
+KiCad imports Altium Designer schematic files (`.SchDoc`).  Altium projects can contain
+multiple sheets, each saved as a separate `.SchDoc` file.  When you import one sheet, KiCad
+will also attempt to load the other sheets referenced by that project, reconstructing the
+sheet hierarchy.
+
+Symbols found in the source file are placed into a generated symbol library that is saved
+alongside the imported schematic.
+
+NOTE: If you have a complete Altium project (`.PrjPcb`) with both schematic and PCB files,
+      the KiCad Project Manager can import both in a single step.  Use **File** ->
+      **Import Non-KiCad Project...** -> **Altium Project...** and select the `.PrjPcb`
+      file.  The `.SchDoc` import described here is for schematic files imported on their
+      own.
+
+[[sch-import-eagle]]
+==== Eagle (Autodesk)
+
+KiCad imports Eagle XML schematic files (`.sch`), which are the format produced by Eagle
+version 6.x and later.  Eagle schematics store all sheets in a single file.
+
+Symbols are extracted from the embedded Eagle libraries and placed into a generated KiCad
+symbol library.
+
+NOTE: Binary Eagle files created by versions earlier than 6.x are not supported.  Open the
+      file in Eagle first and re-save it to convert to the XML format before importing.
+
+[[sch-import-ltspice]]
+==== LTspice
+
+KiCad imports LTspice schematic files (`.asc`).  These are the simulation schematics created
+by LTspice, which uses its own symbol library and netlist conventions.
+
+After import, the schematic will reflect the circuit topology from LTspice, but simulation
+directives and LTspice-specific elements such as SPICE parameters and behavioral sources may
+not convert fully.  Review the imported schematic and the
+<<simulator,KiCad SPICE simulator>> documentation before attempting to run simulations on
+an imported LTspice design.
+
+[[sch-import-pads]]
+==== PADS Logic
+
+KiCad imports PADS Logic schematic files (`.asc` or `.txt`).  These are the ASCII text
+exports produced by the PADS Logic schematic editor.  To generate this file from PADS Logic,
+use **File** -> **Export** and select the ASCII format.
+
+[[sch-import-cadstar]]
+==== CADSTAR Schematic Archive
+
+KiCad imports CADSTAR Schematic Archive files (`.csa`) from Zuken's CADSTAR tool.
+
+In addition to full schematic import, KiCad can use CADSTAR Parts Library files (`.lib`)
+as read-only symbol libraries through the Symbol Library Manager.
+
+[[sch-import-geda]]
+==== gEDA / Lepton EDA
+
+KiCad imports gEDA gschem and Lepton EDA schematic files (`.sch`).  These are ASCII text
+files produced by the gEDA suite or its fork, Lepton EDA.
+
+Symbols in gEDA schematics reference external `.sym` files from the gEDA system symbol
+library.  KiCad will search standard gEDA library locations for these symbol files during
+import.  Symbols that cannot be found are replaced with a fallback rectangular symbol.
+Hierarchical sheets are supported; KiCad will recursively import sub-schematics referenced
+by `source=` attributes on component instances.
+
+[[sch-import-easyeda]]
+==== EasyEDA (JLCEDA) Standard
+
+KiCad imports EasyEDA Standard edition schematic files (`.json`).  To obtain a file for
+import, export your design from EasyEDA using the **Export EasyEDA** option, which produces
+a JSON file.
+
+Symbols are extracted from the embedded library data within the JSON file and placed into a
+generated KiCad symbol library.
+
+[[sch-import-easyedapro]]
+==== EasyEDA (JLCEDA) Professional
+
+KiCad imports EasyEDA Professional edition project files (`.epro` or `.zip`).
+
+For projects containing multiple schematics, KiCad will present a project chooser dialog
+so you can select which schematic within the project to import.
+
+[[sch-import-after]]
+=== After importing
+
+After importing a schematic from a third-party tool, review the result and perform any
+necessary cleanup:
+
+. **Save the schematic:**  Use **File** -> **Save** to save the imported design as a KiCad
+  `.kicad_sch` file.  The file will be placed in the current project directory with the
+  project name.
+
+. **Run the Electrical Rules Check (ERC):**  Select **Inspect** -> **Electrical Rules Checker**
+  to identify any connectivity or symbol issues introduced during import.
+
+. **Review the import report:**  If the importer produced warnings, the report dialog will
+  have been shown automatically.  Review any warnings about unsupported features or items
+  that could not be converted.
+
+. **Remap symbols:**  Imported symbols are stored in a generated library created alongside
+  the schematic.  If you want to use KiCad standard library symbols instead, use
+  **Tools** -> **Edit Symbol Fields** to reassign symbols to your preferred library.  The
+  <<symbol-remapping,symbol remapping tool>> may also be useful.
+
+. **Assign footprints:**  Third-party schematics rarely use KiCad footprint references.
+  Use **Tools** -> **Assign Footprints** to link each symbol to an appropriate KiCad
+  footprint before proceeding to board layout.
+
+. **Check the drawing sheet:**  Imported schematics do not carry a KiCad drawing sheet
+  (title block).  The schematic editor will use an empty drawing sheet after import.  To
+  add a title block, open **File** -> **Page Settings** and choose a drawing sheet template.

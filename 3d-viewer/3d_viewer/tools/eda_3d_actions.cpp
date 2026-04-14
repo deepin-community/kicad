@@ -23,6 +23,7 @@
 #include <bitmaps.h>
 #include <3d_viewer_id.h>
 #include <3d_enums.h>
+#include <3d-viewer/3d_viewer/eda_3d_viewer_frame.h>
 #include "eda_3d_actions.h"
 #include "tool/tool_action.h"
 
@@ -38,7 +39,39 @@
 TOOL_ACTION EDA_3D_ACTIONS::controlActivate( TOOL_ACTION_ARGS()
         .Name( "3DViewer.Control" )
         .Scope( AS_GLOBAL )
-        .Flags( AF_ACTIVATE ) );
+        .Flags( AF_ACTIVATE )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN) );
+
+TOOL_ACTION EDA_3D_ACTIONS:: reloadBoard( TOOL_ACTION_ARGS()
+        .Name( "3DViewer.Control.reloadBoard" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Reload board" ) )
+        .Tooltip( _( "Reload board and refresh 3D view" ) )
+        .Icon( BITMAPS::import3d ) );
+
+TOOL_ACTION EDA_3D_ACTIONS::toggleRaytacing( TOOL_ACTION_ARGS()
+        .Name( "3DViewer.Control.toggleRaytacing" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Use raytracing" ) )
+        .Tooltip( _( "Render current view using Raytracing" ) )
+        .Icon( BITMAPS::ray_tracing )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE) );
+
+TOOL_ACTION EDA_3D_ACTIONS::copyToClipboard( TOOL_ACTION_ARGS()
+        .Name( "3DViewer.Control.copyToClipboard" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Copy 3D image to clipboard" ) )
+        .Tooltip( _( "Copy the current 3D image to the clipboard" ) )
+        .Icon( BITMAPS::copy )
+        .Parameter<EDA_3D_VIEWER_EXPORT_FORMAT>( EDA_3D_VIEWER_EXPORT_FORMAT::CLIPBOARD ) );
+
+TOOL_ACTION EDA_3D_ACTIONS::exportImage( TOOL_ACTION_ARGS()
+        .Name( "3DViewer.Control.exportImage" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Export Image..." ) )
+        .Tooltip( _( "Export the Current View as an image file" ) )
+        .Icon( BITMAPS::export_file )
+        .Parameter<EDA_3D_VIEWER_EXPORT_FORMAT>( EDA_3D_VIEWER_EXPORT_FORMAT::IMAGE ) );
 
 TOOL_ACTION EDA_3D_ACTIONS::pivotCenter( TOOL_ACTION_ARGS()
         .Name( "3DViewer.Control.pivotCenter" )
@@ -84,6 +117,7 @@ TOOL_ACTION EDA_3D_ACTIONS::rotateYCCW( TOOL_ACTION_ARGS()
 TOOL_ACTION EDA_3D_ACTIONS::rotateZCW( TOOL_ACTION_ARGS()
         .Name( "3DViewer.Control.rotateZclockwise" )
         .Scope( AS_GLOBAL )
+        .DefaultHotkey( MD_SHIFT + 'R' )
         .FriendlyName( _( "Rotate Z Clockwise" ) )
         .Icon( BITMAPS::rotate_cw_z )
         .Flags( AF_NONE )
@@ -92,6 +126,7 @@ TOOL_ACTION EDA_3D_ACTIONS::rotateZCW( TOOL_ACTION_ARGS()
 TOOL_ACTION EDA_3D_ACTIONS::rotateZCCW( TOOL_ACTION_ARGS()
         .Name( "3DViewer.Control.rotateZcounterclockwise" )
         .Scope( AS_GLOBAL )
+        .DefaultHotkey( 'R' )
         .FriendlyName( _( "Rotate Z Counterclockwise" ) )
         .Icon( BITMAPS::rotate_ccw_z )
         .Flags( AF_NONE )
@@ -157,7 +192,8 @@ TOOL_ACTION EDA_3D_ACTIONS::toggleOrtho( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Toggle Orthographic Projection" ) )
         .Tooltip( _( "Enable/disable orthographic projection" ) )
-        .Icon( BITMAPS::ortho ) );
+        .Icon( BITMAPS::ortho )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE ) );
 
 TOOL_ACTION EDA_3D_ACTIONS::viewFront( TOOL_ACTION_ARGS()
         .Name( "3DViewer.Control.viewFront" )
@@ -319,16 +355,16 @@ TOOL_ACTION EDA_3D_ACTIONS::showDNP( TOOL_ACTION_ARGS()
 
 TOOL_ACTION EDA_3D_ACTIONS::showBBoxes( TOOL_ACTION_ARGS()
         .Name( "3DViewer.Control.showBoundingBoxes" )
-         .Scope( AS_GLOBAL )
-         .FriendlyName( _( "Show Model Bounding Boxes" ) )
-         .Tooltip( _( "Show 3D model bounding boxes in realtime renderer" ) )
-         .Icon( BITMAPS::ortho )
-         .Flags( AF_NONE ) );
-
-TOOL_ACTION EDA_3D_ACTIONS::showAxis( TOOL_ACTION_ARGS()
-        .Name( "3DViewer.Control.showAxis" )
         .Scope( AS_GLOBAL )
-        .FriendlyName( _( "Show 3D Axis" ) )
+        .FriendlyName( _( "Show Model Bounding Boxes" ) )
+        .Tooltip( _( "Show 3D model bounding boxes in realtime renderer" ) )
+        .Icon( BITMAPS::ortho )
+        .Flags( AF_NONE ) );
+
+TOOL_ACTION EDA_3D_ACTIONS::showNavigator( TOOL_ACTION_ARGS()
+        .Name( "3DViewer.Control.showNavigator" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Show 3D Navigator" ) )
         .Icon( BITMAPS::axis3d_front )
         .Flags( AF_NONE ) );
 
@@ -337,5 +373,6 @@ TOOL_ACTION EDA_3D_ACTIONS::showLayersManager( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Show Appearance Manager" ) )
         .Tooltip( _( "Show/hide the appearance manager" ) )
-        .Icon( BITMAPS::layers_manager ) );
+        .Icon( BITMAPS::layers_manager )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE ) );
 

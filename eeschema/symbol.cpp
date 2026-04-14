@@ -22,6 +22,7 @@
  */
 
 #include <symbol.h>
+#include <sch_group.h>
 
 
 std::vector<int> SYMBOL::ViewGetLayers() const
@@ -51,5 +52,3 @@ std::vector<int> SYMBOL::ViewGetLayers() const
              LAYER_FIELDS,           LAYER_DEVICE_BACKGROUND, LAYER_SHAPES_BACKGROUND,
              LAYER_NOTES_BACKGROUND, LAYER_SELECTION_SHADOWS };
 }
-
-

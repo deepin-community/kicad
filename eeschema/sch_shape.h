@@ -27,6 +27,7 @@
 
 #include <sch_item.h>
 #include <eda_shape.h>
+#include <schematic.h>
 
 
 class SCH_SHAPE : public SCH_ITEM, public EDA_SHAPE
@@ -45,10 +46,11 @@ public:
         return wxT( "SCH_SHAPE" );
     }
 
-    void SwapData( SCH_ITEM* aItem ) override;
-
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
+    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override;
+
+    bool IsEndPoint( const VECTOR2I& aPoint ) const override;
 
     int GetPenWidth() const override                  { return GetStroke().GetWidth(); }
 
@@ -64,6 +66,16 @@ public:
             return LINE_STYLE::SOLID;
         else
             return m_stroke.GetLineStyle();
+    }
+
+    int GetHatchLineWidth() const override
+    {
+        return GetEffectiveWidth() / 2;
+    }
+
+    int GetHatchLineSpacing() const override
+    {
+        return GetHatchLineWidth() * 40;
     }
 
     void SetFilled( bool aFilled ) override;
@@ -102,12 +114,6 @@ public:
         return makeEffectiveShapes( aEdgeOnly, true );
     }
 
-    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed ) override;
-
-    void PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                          const VECTOR2I& aOffset, bool aDimmed ) override;
-
     void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override;
 
@@ -130,10 +136,16 @@ public:
 #endif
 
 protected:
+    void swapData( SCH_ITEM* aItem ) override;
+
     void setFilled( bool aFlag ) override
     {
         m_fill = aFlag ? FILL_T::FILLED_WITH_COLOR : FILL_T::NO_FILL;
     }
+
+    bool isMoving() const override { return IsMoving(); }
+
+    int getMaxError() const override { return GetMaxError(); }
 
     /**
      * @copydoc SCH_ITEM::compare()

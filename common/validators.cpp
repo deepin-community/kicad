@@ -53,32 +53,6 @@ FOOTPRINT_NAME_VALIDATOR::FOOTPRINT_NAME_VALIDATOR( wxString* aValue ) :
  }
 
 
-FILE_NAME_WITH_PATH_CHAR_VALIDATOR::FILE_NAME_WITH_PATH_CHAR_VALIDATOR( wxString* aValue ) :
-    wxTextValidator( wxFILTER_EXCLUDE_CHAR_LIST | wxFILTER_EMPTY, aValue )
-{
-    // The Windows (DOS) file system forbidden characters already include the forbidden
-    // file name characters for both Posix and OSX systems.  The characters *?|"<> are
-    // illegal and filtered by the validator, but /\: are valid (\ and : only on Windows.
-    wxString illegalChars = wxFileName::GetForbiddenChars( wxPATH_DOS );
-    wxTextValidator nameValidator( wxFILTER_EXCLUDE_CHAR_LIST );
-    wxArrayString illegalCharList;
-
-    for( unsigned i = 0;  i < illegalChars.size();  i++ )
-    {
-        if( illegalChars[i] == '/' )
-            continue;
-
-#if defined (__WINDOWS__)
-        if( illegalChars[i] == '\\' || illegalChars[i] == ':' )
-            continue;
-#endif
-        illegalCharList.Add( wxString( illegalChars[i] ) );
-    }
-
-    SetExcludes( illegalCharList );
-}
-
-
 ENV_VAR_NAME_VALIDATOR::ENV_VAR_NAME_VALIDATOR( wxString* aValue ) :
     wxTextValidator()
 {
@@ -191,60 +165,9 @@ void ENV_VAR_NAME_VALIDATOR::OnTextChanged( wxCommandEvent& event )
 }
 
 
-bool REGEX_VALIDATOR::Validate( wxWindow* aParent )
-{
-    // If window is disabled, simply return
-    if( !m_validatorWindow->IsEnabled() )
-        return true;
-
-    wxTextEntry* const textEntry = GetTextEntry();
-
-    if( !textEntry )
-        return false;
-
-    bool valid = true;
-    const wxString& value = textEntry->GetValue();
-
-    if( m_regEx.Matches( value ) )
-    {
-        size_t start, len;
-        m_regEx.GetMatch( &start, &len );
-
-        if( start != 0 || len != value.Length() ) // whole string must match
-            valid = false;
-    }
-    else    // no match at all
-    {
-        valid = false;
-    }
-
-    if( !valid )
-    {
-        m_validatorWindow->SetFocus();
-        DisplayErrorMessage( aParent, wxString::Format( _( "Incorrect value: %s" ), value ) );
-        return false;
-    }
-
-    return true;
-}
-
-
-void REGEX_VALIDATOR::compileRegEx( const wxString& aRegEx, int aFlags )
-{
-    if( !m_regEx.Compile( aRegEx, aFlags ) )
-    {
-        throw std::runtime_error( "REGEX_VALIDATOR: Invalid regular expression: "
-                + aRegEx.ToStdString() );
-    }
-
-    m_regExString = aRegEx;
-    m_regExFlags = aFlags;
-}
-
-
 NETNAME_VALIDATOR::NETNAME_VALIDATOR( wxString *aVal ) :
          wxTextValidator(),
-         m_allowSpaces( false )
+         m_allowSpaces( true )
 {
 }
 
@@ -310,18 +233,19 @@ void KIUI::ValidatorTransferToWindowWithoutEvents( wxValidator& aValidator )
 }
 
 
-FIELD_VALIDATOR::FIELD_VALIDATOR( int aFieldId, wxString* aValue ) :
-        wxTextValidator( wxFILTER_EXCLUDE_CHAR_LIST, aValue ), m_fieldId( aFieldId )
+FIELD_VALIDATOR::FIELD_VALIDATOR( FIELD_T aFieldId, wxString* aValue ) :
+        wxTextValidator( wxFILTER_EXCLUDE_CHAR_LIST, aValue ),
+        m_fieldId( aFieldId )
 {
     // Fields cannot contain carriage returns, line feeds, or tabs.
     wxString excludes( wxT( "\r\n\t" ) );
 
     // The reference and sheet name fields cannot contain spaces.
-    if( aFieldId == REFERENCE_FIELD )
+    if( aFieldId == FIELD_T::REFERENCE )
     {
         excludes += wxT( " " );
     }
-    else if( m_fieldId == SHEETNAME_V )
+    else if( m_fieldId == FIELD_T::SHEET_NAME )
     {
         excludes += wxT( "/" );
     }
@@ -329,7 +253,9 @@ FIELD_VALIDATOR::FIELD_VALIDATOR( int aFieldId, wxString* aValue ) :
     long style = GetStyle();
 
     // The reference, sheetname and sheetfilename fields cannot be empty.
-    if( aFieldId == REFERENCE_FIELD || aFieldId == SHEETNAME_V || aFieldId == SHEETFILENAME_V )
+    if( aFieldId == FIELD_T::REFERENCE
+        || aFieldId == FIELD_T::SHEET_NAME
+        || aFieldId == FIELD_T::SHEET_FILENAME )
     {
         style |= wxFILTER_EMPTY;
     }
@@ -340,7 +266,8 @@ FIELD_VALIDATOR::FIELD_VALIDATOR( int aFieldId, wxString* aValue ) :
 
 
 FIELD_VALIDATOR::FIELD_VALIDATOR( const FIELD_VALIDATOR& aValidator ) :
-        wxTextValidator( aValidator ), m_fieldId( aValidator.m_fieldId )
+        wxTextValidator( aValidator ),
+        m_fieldId( aValidator.m_fieldId )
 {
 }
 
@@ -362,18 +289,26 @@ bool FIELD_VALIDATOR::Validate( wxWindow* aParent )
 }
 
 
-bool FIELD_VALIDATOR::DoValidate( const wxString& aValue, wxWindow* aParent )
+wxString GetFieldValidationErrorMessage( FIELD_T aFieldId, const wxString& aValue )
 {
-    wxString msg;
+    FIELD_VALIDATOR validator( aFieldId );
+    wxString        msg;
 
-    if( HasFlag( wxFILTER_EMPTY ) && aValue.empty() )
-        msg.Printf( _( "The value of the field cannot be empty." ) );
+    if( validator.HasFlag( wxFILTER_EMPTY ) && aValue.empty() )
+    {
+        switch( aFieldId )
+        {
+        case FIELD_T::SHEET_NAME:     msg = _( "A sheet must have a name." );               break;
+        case FIELD_T::SHEET_FILENAME: msg = _( "A sheet must have a file specified." );     break;
+        default:                      msg = _( "The value of the field cannot be empty." ); break;
+        }
+    }
 
-    if( HasFlag( wxFILTER_EXCLUDE_CHAR_LIST ) && ContainsExcludedCharacters( aValue ) )
+    if( msg.empty() && validator.HasFlag( wxFILTER_EXCLUDE_CHAR_LIST ) )
     {
         wxArrayString badCharsFound;
 
-        for( const wxUniCharRef& excludeChar : GetCharExcludes() )
+        for( const wxUniCharRef& excludeChar : validator.GetCharExcludes() )
         {
             if( aValue.Find( excludeChar ) != wxNOT_FOUND )
             {
@@ -390,67 +325,82 @@ bool FIELD_VALIDATOR::DoValidate( const wxString& aValue, wxWindow* aParent )
             }
         }
 
-        wxString badChars;
-
-        for( size_t i = 0; i < badCharsFound.GetCount(); i++ )
+        if( !badCharsFound.IsEmpty() )
         {
-            if( !badChars.IsEmpty() )
+            wxString badChars;
+
+            for( size_t i = 0; i < badCharsFound.GetCount(); i++ )
             {
-                if( badCharsFound.GetCount() == 2 )
+                if( !badChars.IsEmpty() )
                 {
-                    badChars += _( " or " );
-                }
-                else
-                {
-                    if( i < badCharsFound.GetCount() - 2 )
-                        badChars += _( ", or " );
+                    if( badCharsFound.GetCount() == 2 )
+                    {
+                        badChars += _( " or " );
+                    }
                     else
-                        badChars += wxT( ", " );
+                    {
+                        if( i < badCharsFound.GetCount() - 2 )
+                            badChars += _( ", or " );
+                        else
+                            badChars += wxT( ", " );
+                    }
                 }
+
+                badChars += badCharsFound.Item( i );
             }
 
-            badChars += badCharsFound.Item( i );
+            switch( aFieldId )
+            {
+            case FIELD_T::REFERENCE:
+                msg.Printf( _( "The reference designator cannot contain %s character(s)." ), badChars );
+                break;
+
+            case FIELD_T::VALUE:
+                msg.Printf( _( "The value field cannot contain %s character(s)." ), badChars );
+                break;
+
+            case FIELD_T::FOOTPRINT:
+                msg.Printf( _( "The footprint field cannot contain %s character(s)." ), badChars );
+                break;
+
+            case FIELD_T::DATASHEET:
+                msg.Printf( _( "The datasheet field cannot contain %s character(s)." ), badChars );
+                break;
+
+            case FIELD_T::SHEET_NAME:
+                msg.Printf( _( "The sheet name cannot contain %s character(s)." ), badChars );
+                break;
+
+            case FIELD_T::SHEET_FILENAME:
+                msg.Printf( _( "The sheet filename cannot contain %s character(s)." ), badChars );
+                break;
+
+            default:
+                msg.Printf( _( "The field cannot contain %s character(s)." ), badChars );
+                break;
+            };
         }
+    }
 
-        switch( m_fieldId )
+    if( msg.empty() )
+    {
+        if( aFieldId == FIELD_T::REFERENCE && aValue.Contains( wxT( "${" ) ) )
         {
-        case REFERENCE_FIELD:
-            msg.Printf( _( "The reference designator cannot contain %s character(s)." ), badChars );
-            break;
-
-        case VALUE_FIELD:
-            msg.Printf( _( "The value field cannot contain %s character(s)." ), badChars );
-            break;
-
-        case FOOTPRINT_FIELD:
-            msg.Printf( _( "The footprint field cannot contain %s character(s)." ), badChars );
-            break;
-
-        case DATASHEET_FIELD:
-            msg.Printf( _( "The datasheet field cannot contain %s character(s)." ), badChars );
-            break;
-
-        case SHEETNAME_V:
-            msg.Printf( _( "The sheet name cannot contain %s character(s)." ), badChars );
-            break;
-
-        case SHEETFILENAME_V:
-            msg.Printf( _( "The sheet filename cannot contain %s character(s)." ), badChars );
-            break;
-
-        default:
-            msg.Printf( _( "The field cannot contain %s character(s)." ), badChars );
-            break;
-        };
+            msg.Printf( _( "The reference designator cannot contain text variable references" ) );
+        }
+        else if( aFieldId == FIELD_T::REFERENCE && UTIL::GetRefDesPrefix( aValue ).IsEmpty() )
+        {
+            msg.Printf( _( "References must start with a letter." ) );
+        }
     }
-    else if( m_fieldId == REFERENCE_FIELD && aValue.Contains( wxT( "${" ) ) )
-    {
-        msg.Printf( _( "The reference designator cannot contain text variable references" ) );
-    }
-    else if( m_fieldId == REFERENCE_FIELD && UTIL::GetRefDesPrefix( aValue ).IsEmpty() )
-    {
-        msg.Printf( _( "References must start with a letter." ) );
-    }
+
+    return msg;
+}
+
+
+bool FIELD_VALIDATOR::DoValidate( const wxString& aValue, wxWindow* aParent )
+{
+    wxString msg = GetFieldValidationErrorMessage( m_fieldId, aValue );
 
     if( !msg.empty() )
     {

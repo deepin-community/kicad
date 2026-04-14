@@ -22,7 +22,7 @@ PANEL_EESCHEMA_EDITING_OPTIONS_BASE::PANEL_EESCHEMA_EDITING_OPTIONS_BASE( wxWind
 	bLeftColumn->Add( m_editingLabel, 0, wxTOP|wxRIGHT|wxLEFT|wxEXPAND, 13 );
 
 	m_staticline3 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
-	bLeftColumn->Add( m_staticline3, 0, wxEXPAND|wxBOTTOM, 5 );
+	bLeftColumn->Add( m_staticline3, 0, wxEXPAND|wxTOP|wxBOTTOM, 2 );
 
 	wxBoxSizer* bSizer5;
 	bSizer5 = new wxBoxSizer( wxVERTICAL );
@@ -43,6 +43,16 @@ PANEL_EESCHEMA_EDITING_OPTIONS_BASE::PANEL_EESCHEMA_EDITING_OPTIONS_BASE( wxWind
 
 	bSizer5->Add( bSizer61, 1, wxEXPAND, 5 );
 
+	m_staticTextArcEdit = new wxStaticText( this, wxID_ANY, _("Arc editing mode:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextArcEdit->Wrap( -1 );
+	bSizer5->Add( m_staticTextArcEdit, 0, wxALL, 5 );
+
+	wxString m_choiceArcModeChoices[] = { _("Keep center, adjust radius"), _("Keep endpoints or direction of starting point"), _("Keep center and radius, adjust endpoints") };
+	int m_choiceArcModeNChoices = sizeof( m_choiceArcModeChoices ) / sizeof( wxString );
+	m_choiceArcMode = new wxChoice( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, m_choiceArcModeNChoices, m_choiceArcModeChoices, 0 );
+	m_choiceArcMode->SetSelection( 1 );
+	bSizer5->Add( m_choiceArcMode, 0, wxALL|wxEXPAND, 5 );
+
 	m_mouseDragIsDrag = new wxCheckBox( this, wxID_ANY, _("Mouse drag performs Drag (G) operation"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_mouseDragIsDrag->SetToolTip( _("If unchecked, mouse drag will perform move (M) operation") );
 
@@ -56,7 +66,15 @@ PANEL_EESCHEMA_EDITING_OPTIONS_BASE::PANEL_EESCHEMA_EDITING_OPTIONS_BASE( wxWind
 	m_escClearsNetHighlight = new wxCheckBox( this, wxID_ANY, _("<ESC> clears net highlighting"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_escClearsNetHighlight->SetToolTip( _("First <ESC> in selection tool clears selection, next clears net highlighting") );
 
-	bSizer5->Add( m_escClearsNetHighlight, 0, wxBOTTOM|wxLEFT|wxRIGHT|wxTOP, 5 );
+	bSizer5->Add( m_escClearsNetHighlight, 0, wxLEFT|wxRIGHT|wxTOP, 5 );
+
+	m_checkAutoAnnotate = new wxCheckBox( this, wxID_ANY, _("Automatically annotate symbols"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer5->Add( m_checkAutoAnnotate, 0, wxALL, 5 );
+
+	m_checkAllowUnconstrainedPinSwaps = new wxCheckBox( this, wxID_ANY, _("Allow unconstrained pin swaps"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_checkAllowUnconstrainedPinSwaps->SetToolTip( _("Allows swapping symbol pins' positions. May cause invalid design changes; use with caution.") );
+
+	bSizer5->Add( m_checkAllowUnconstrainedPinSwaps, 0, wxALL, 5 );
 
 
 	bLeftColumn->Add( bSizer5, 0, wxEXPAND|wxTOP|wxLEFT, 5 );
@@ -69,28 +87,56 @@ PANEL_EESCHEMA_EDITING_OPTIONS_BASE::PANEL_EESCHEMA_EDITING_OPTIONS_BASE( wxWind
 	bLeftColumn->Add( m_staticText26, 0, wxTOP|wxRIGHT|wxLEFT|wxEXPAND, 13 );
 
 	m_staticline4 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
-	bLeftColumn->Add( m_staticline4, 0, wxEXPAND|wxBOTTOM, 5 );
+	bLeftColumn->Add( m_staticline4, 0, wxEXPAND|wxTOP|wxBOTTOM, 2 );
 
-	wxBoxSizer* bSizer6;
-	bSizer6 = new wxBoxSizer( wxHORIZONTAL );
+	wxGridBagSizer* gbSizer1;
+	gbSizer1 = new wxGridBagSizer( 0, 0 );
+	gbSizer1->SetFlexibleDirection( wxBOTH );
+	gbSizer1->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
 
 	m_borderColorLabel = new wxStaticText( this, wxID_ANY, _("Sheet border:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_borderColorLabel->Wrap( -1 );
-	bSizer6->Add( m_borderColorLabel, 0, wxALIGN_CENTER_VERTICAL|wxBOTTOM|wxRIGHT, 5 );
+	gbSizer1->Add( m_borderColorLabel, wxGBPosition( 0, 0 ), wxGBSpan( 1, 1 ), wxALL, 5 );
 
 	m_borderColorSwatch = new COLOR_SWATCH( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0 );
 	m_borderColorSwatch->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_WINDOW ) );
 
-	bSizer6->Add( m_borderColorSwatch, 1, wxBOTTOM|wxRIGHT|wxLEFT|wxALIGN_CENTER_VERTICAL, 5 );
+	gbSizer1->Add( m_borderColorSwatch, wxGBPosition( 0, 1 ), wxGBSpan( 1, 1 ), wxALL, 5 );
 
 	m_backgroundColorLabel = new wxStaticText( this, wxID_ANY, _("Sheet background:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_backgroundColorLabel->Wrap( -1 );
-	bSizer6->Add( m_backgroundColorLabel, 0, wxALIGN_CENTER_VERTICAL|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	gbSizer1->Add( m_backgroundColorLabel, wxGBPosition( 0, 2 ), wxGBSpan( 1, 1 ), wxALL, 5 );
 
 	m_backgroundColorSwatch = new COLOR_SWATCH( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0 );
 	m_backgroundColorSwatch->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_WINDOW ) );
 
-	bSizer6->Add( m_backgroundColorSwatch, 1, wxBOTTOM|wxRIGHT|wxLEFT|wxALIGN_CENTER_VERTICAL, 5 );
+	gbSizer1->Add( m_backgroundColorSwatch, wxGBPosition( 0, 3 ), wxGBSpan( 1, 1 ), wxALL, 5 );
+
+	m_powerSymbolLabel = new wxStaticText( this, wxID_ANY, _("Power Symbols:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_powerSymbolLabel->Wrap( -1 );
+	gbSizer1->Add( m_powerSymbolLabel, wxGBPosition( 1, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxALL, 5 );
+
+	wxString m_choicePowerChoices[] = { _("Default"), _("Global"), _("Local") };
+	int m_choicePowerNChoices = sizeof( m_choicePowerChoices ) / sizeof( wxString );
+	m_choicePower = new wxChoice( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, m_choicePowerNChoices, m_choicePowerChoices, 0 );
+	m_choicePower->SetSelection( 0 );
+	m_choicePower->SetToolTip( _("Select the assigned type of new power symbol.\nDefault will follow the symbol definition.\nGlobal will convert new power symbols to global power symbols.\nLocal will convert new power symbols to a local power symbols.") );
+
+	gbSizer1->Add( m_choicePower, wxGBPosition( 1, 1 ), wxGBSpan( 1, 2 ), wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 5 );
+
+
+	bLeftColumn->Add( gbSizer1, 0, wxEXPAND|wxLEFT|wxTOP, 10 );
+
+	wxFlexGridSizer* fgSizer4;
+	fgSizer4 = new wxFlexGridSizer( 2, 4, 0, 0 );
+	fgSizer4->SetFlexibleDirection( wxBOTH );
+	fgSizer4->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+
+
+	bLeftColumn->Add( fgSizer4, 1, wxEXPAND, 5 );
+
+	wxBoxSizer* bSizer6;
+	bSizer6 = new wxBoxSizer( wxHORIZONTAL );
 
 
 	bLeftColumn->Add( bSizer6, 0, wxEXPAND|wxTOP|wxLEFT, 10 );
@@ -108,14 +154,14 @@ PANEL_EESCHEMA_EDITING_OPTIONS_BASE::PANEL_EESCHEMA_EDITING_OPTIONS_BASE( wxWind
 	bSizer8->Add( m_leftClickLabel, 0, wxTOP|wxRIGHT|wxLEFT|wxEXPAND, 13 );
 
 	m_staticline6 = new wxStaticLine( m_pageWinLin, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
-	bSizer8->Add( m_staticline6, 0, wxEXPAND|wxBOTTOM, 5 );
+	bSizer8->Add( m_staticline6, 0, wxEXPAND|wxTOP|wxBOTTOM, 2 );
 
 	wxBoxSizer* bSizer9;
 	bSizer9 = new wxBoxSizer( wxVERTICAL );
 
 	m_hint1 = new wxStaticText( m_pageWinLin, wxID_ANY, _("Left click (and drag) actions depend on 2 modifier keys:\nShift and Ctrl"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_hint1->Wrap( -1 );
-	bSizer9->Add( m_hint1, 0, wxALL, 5 );
+	bSizer9->Add( m_hint1, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
 
 	wxFlexGridSizer* fgSizerCmdsWinLin;
 	fgSizerCmdsWinLin = new wxFlexGridSizer( 0, 2, 0, 5 );
@@ -150,7 +196,7 @@ PANEL_EESCHEMA_EDITING_OPTIONS_BASE::PANEL_EESCHEMA_EDITING_OPTIONS_BASE( wxWind
 	bSizer9->Add( fgSizerCmdsWinLin, 0, wxEXPAND|wxTOP, 5 );
 
 
-	bSizer8->Add( bSizer9, 0, wxEXPAND|wxTOP|wxLEFT, 5 );
+	bSizer8->Add( bSizer9, 0, wxEXPAND|wxLEFT, 5 );
 
 
 	m_pageWinLin->SetSizer( bSizer8 );
@@ -227,7 +273,7 @@ PANEL_EESCHEMA_EDITING_OPTIONS_BASE::PANEL_EESCHEMA_EDITING_OPTIONS_BASE( wxWind
 	bLeftColumn->Add( m_leftClickCmdsBook, 1, wxEXPAND|wxTOP|wxBOTTOM, 5 );
 
 
-	bPanelSizer->Add( bLeftColumn, 0, wxEXPAND|wxRIGHT, 20 );
+	bPanelSizer->Add( bLeftColumn, 0, wxEXPAND|wxRIGHT, 35 );
 
 	wxBoxSizer* bRightColumn;
 	bRightColumn = new wxBoxSizer( wxVERTICAL );
@@ -237,7 +283,7 @@ PANEL_EESCHEMA_EDITING_OPTIONS_BASE::PANEL_EESCHEMA_EDITING_OPTIONS_BASE( wxWind
 	bRightColumn->Add( m_staticText32, 0, wxTOP|wxRIGHT|wxLEFT|wxEXPAND, 13 );
 
 	m_staticline10 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
-	bRightColumn->Add( m_staticline10, 0, wxEXPAND|wxBOTTOM, 5 );
+	bRightColumn->Add( m_staticline10, 0, wxEXPAND|wxTOP|wxBOTTOM, 2 );
 
 	wxBoxSizer* bSizer12;
 	bSizer12 = new wxBoxSizer( wxVERTICAL );
@@ -262,7 +308,7 @@ PANEL_EESCHEMA_EDITING_OPTIONS_BASE::PANEL_EESCHEMA_EDITING_OPTIONS_BASE( wxWind
 	bRightColumn->Add( m_staticText321, 0, wxTOP|wxRIGHT|wxLEFT|wxEXPAND, 13 );
 
 	m_staticline9 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
-	bRightColumn->Add( m_staticline9, 0, wxEXPAND|wxBOTTOM, 5 );
+	bRightColumn->Add( m_staticline9, 0, wxEXPAND|wxTOP|wxBOTTOM, 2 );
 
 	wxBoxSizer* bSizer13;
 	bSizer13 = new wxBoxSizer( wxVERTICAL );
@@ -318,7 +364,7 @@ PANEL_EESCHEMA_EDITING_OPTIONS_BASE::PANEL_EESCHEMA_EDITING_OPTIONS_BASE( wxWind
 	bRightColumn->Add( m_staticText322, 0, wxTOP|wxRIGHT|wxLEFT|wxEXPAND, 13 );
 
 	m_staticline8 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
-	bRightColumn->Add( m_staticline8, 0, wxEXPAND|wxBOTTOM, 5 );
+	bRightColumn->Add( m_staticline8, 0, wxEXPAND|wxTOP|wxBOTTOM, 2 );
 
 	wxBoxSizer* bSizer14;
 	bSizer14 = new wxBoxSizer( wxVERTICAL );

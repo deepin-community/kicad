@@ -33,15 +33,20 @@
 #include <board.h>
 #include <pcb_dimension.h>
 #include <pcb_text.h>
+#include <board_design_settings.h>
 #include <geometry/shape_compound.h>
 #include <geometry/shape_circle.h>
 #include <geometry/shape_segment.h>
+#include <geometry/shape_rect.h>
+#include <geometry/geometry_utils.h>
 #include <settings/color_settings.h>
 #include <settings/settings_manager.h>
 #include <trigo.h>
 #include <api/api_enums.h>
 #include <api/api_utils.h>
 #include <api/board/board_types.pb.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 static const int INWARD_ARROW_LENGTH_TO_HEAD_RATIO = 2;
@@ -442,11 +447,11 @@ wxString PCB_DIMENSION_BASE::GetValueText() const
 
     if( m_suppressZeroes )
     {
-        while( text.Last() == '0' )
+        while( text.EndsWith( '0' ) )
         {
             text.RemoveLast();
 
-            if( text.Last() == '.' || text.Last() == sep )
+            if( text.EndsWith( '.' ) || text.EndsWith( sep ) )
             {
                 text.RemoveLast();
                 break;
@@ -597,6 +602,23 @@ void PCB_DIMENSION_BASE::Mirror( const VECTOR2I& axis_pos, FLIP_DIRECTION aFlipD
 }
 
 
+void PCB_DIMENSION_BASE::StyleFromSettings( const BOARD_DESIGN_SETTINGS& settings, bool aCheckSide )
+{
+    PCB_TEXT::StyleFromSettings( settings, aCheckSide );
+
+    SetLineThickness( settings.GetLineThickness( m_layer ) );
+    SetUnitsMode( settings.m_DimensionUnitsMode );
+    SetUnitsFormat( settings.m_DimensionUnitsFormat );
+    SetPrecision( settings.m_DimensionPrecision );
+    SetSuppressZeroes( settings.m_DimensionSuppressZeroes );
+    SetTextPositionMode( settings.m_DimensionTextPosition );
+    SetKeepTextAligned( settings.m_DimensionKeepTextAligned );
+
+    Update();    // refresh text & geometry
+
+}
+
+
 void PCB_DIMENSION_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame,
                                           std::vector<MSG_PANEL_ITEM>& aList )
 {
@@ -725,12 +747,28 @@ bool PCB_DIMENSION_BASE::HitTest( const BOX2I& aRect, bool aContained, int aAccu
 }
 
 
+bool PCB_DIMENSION_BASE::HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
+{
+    // Note: Can't use GetEffectiveShape() because we want text as BoundingBox, not as graphics.
+    SHAPE_COMPOUND effShape;
+
+    // Add shapes
+    for( const std::shared_ptr<SHAPE>& shape : GetShapes() )
+        effShape.AddShape( shape );
+
+    if( aContained )
+        return TextHitTest( aPoly, aContained ) && KIGEOM::ShapeHitTest( aPoly, effShape, aContained );
+    else
+        return TextHitTest( aPoly, aContained ) || KIGEOM::ShapeHitTest( aPoly, effShape, aContained );
+}
+
+
 const BOX2I PCB_DIMENSION_BASE::GetBoundingBox() const
 {
     BOX2I bBox;
     int   xmin, xmax, ymin, ymax;
 
-    bBox    = GetTextBox();
+    bBox    = GetTextBox( nullptr );
     xmin    = bBox.GetX();
     xmax    = bBox.GetRight();
     ymin    = bBox.GetY();
@@ -947,7 +985,7 @@ void PCB_DIM_ALIGNED::updateGeometry()
 
     // Now that we have the text updated, we can determine how to draw the crossbar.
     // First we need to create an appropriate bounding polygon to collide with
-    BOX2I textBox = GetTextBox().Inflate( GetTextWidth() / 2, - GetEffectiveTextPenWidth() );
+    BOX2I textBox = GetTextBox( nullptr ).Inflate( GetTextWidth() / 2, - GetEffectiveTextPenWidth() );
 
     SHAPE_POLY_SET polyBox;
     polyBox.NewOutline();
@@ -1183,7 +1221,7 @@ void PCB_DIM_ORTHOGONAL::updateGeometry()
 
     // Now that we have the text updated, we can determine how to draw the crossbar.
     // First we need to create an appropriate bounding polygon to collide with
-    BOX2I textBox = GetTextBox().Inflate( GetTextWidth() / 2, GetEffectiveTextPenWidth() );
+    BOX2I textBox = GetTextBox( nullptr ).Inflate( GetTextWidth() / 2, GetEffectiveTextPenWidth() );
 
     SHAPE_POLY_SET polyBox;
     polyBox.NewOutline();
@@ -1400,7 +1438,7 @@ void PCB_DIM_LEADER::updateGeometry()
 
     // Now that we have the text updated, we can determine how to draw the second line
     // First we need to create an appropriate bounding polygon to collide with
-    BOX2I textBox = GetTextBox().Inflate( GetTextWidth() / 2, GetEffectiveTextPenWidth() * 2 );
+    BOX2I textBox = GetTextBox( nullptr ).Inflate( GetTextWidth() / 2, GetEffectiveTextPenWidth() * 2 );
 
     SHAPE_POLY_SET polyBox;
     polyBox.NewOutline();
@@ -1623,7 +1661,7 @@ void PCB_DIM_RADIAL::updateGeometry()
 
     // Now that we have the text updated, we can determine how to draw the second line
     // First we need to create an appropriate bounding polygon to collide with
-    BOX2I textBox = GetTextBox().Inflate( GetTextWidth() / 2, GetEffectiveTextPenWidth() );
+    BOX2I textBox = GetTextBox( nullptr ).Inflate( GetTextWidth() / 2, GetEffectiveTextPenWidth() );
 
     SHAPE_POLY_SET polyBox;
     polyBox.NewOutline();
@@ -1715,14 +1753,29 @@ BITMAPS PCB_DIM_CENTER::GetMenuImage() const
 
 const BOX2I PCB_DIM_CENTER::GetBoundingBox() const
 {
-    int halfWidth = VECTOR2I( m_end - m_start ).x + ( m_lineThickness / 2.0 );
-
     BOX2I bBox;
+    int   xmin, xmax, ymin, ymax;
 
-    bBox.SetX( m_start.x - halfWidth );
-    bBox.SetY( m_start.y - halfWidth );
-    bBox.SetWidth( halfWidth * 2 );
-    bBox.SetHeight( halfWidth * 2 );
+    xmin    = m_start.x;
+    xmax    = m_start.x;
+    ymin    = m_start.y;
+    ymax    = m_start.y;
+
+    for( const std::shared_ptr<SHAPE>& shape : GetShapes() )
+    {
+        BOX2I shapeBox = shape->BBox();
+        shapeBox.Inflate( m_lineThickness / 2 );
+
+        xmin = std::min( xmin, shapeBox.GetOrigin().x );
+        xmax = std::max( xmax, shapeBox.GetEnd().x );
+        ymin = std::min( ymin, shapeBox.GetOrigin().y );
+        ymax = std::max( ymax, shapeBox.GetEnd().y );
+    }
+
+    bBox.SetX( xmin );
+    bBox.SetY( ymin );
+    bBox.SetWidth( xmax - xmin + 1 );
+    bBox.SetHeight( ymax - ymin + 1 );
 
     bBox.Normalize();
 
@@ -1732,8 +1785,17 @@ const BOX2I PCB_DIM_CENTER::GetBoundingBox() const
 
 const BOX2I PCB_DIM_CENTER::ViewBBox() const
 {
-    return BOX2I( VECTOR2I( GetBoundingBox().GetPosition() ),
-                  VECTOR2I( GetBoundingBox().GetSize() ) );
+    return GetBoundingBox();
+}
+
+
+void PCB_DIM_CENTER::updateText()
+{
+    // Even if PCB_DIM_CENTER has no text, we still need to update its text position
+    // so GetTextPos() users get a valid value. Required at least for lasso hit-testing.
+    SetTextPos( m_start );
+
+    PCB_DIMENSION_BASE::updateText();
 }
 
 

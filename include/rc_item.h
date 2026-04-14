@@ -53,6 +53,8 @@ class RC_ITEMS_PROVIDER
 public:
     virtual void SetSeverities( int aSeverities ) = 0;
 
+    virtual int GetSeverities() const = 0;
+
     virtual int GetCount( int aSeverity = -1 ) const = 0;
 
     /**
@@ -99,6 +101,8 @@ public:
     virtual ~RC_ITEM() { }
 
     void SetErrorMessage( const wxString& aMessage ) { m_errorMessage = aMessage; }
+
+    void SetErrorDetail( const wxString& aMsg ) { SetErrorMessage( GetErrorText( true ) + wxS( " " ) + aMsg ); }
 
     void SetItems( const KIIDS& aIds ) { m_ids = aIds; }
 
@@ -158,15 +162,18 @@ public:
      * @return the error message describing the specific details of a RC_ITEM.  For instance,
      * "Clearance violation (netclass '100ohm' clearance 0.4000mm; actual 0.3200mm)"
      */
-    virtual wxString GetErrorMessage() const;
+    virtual wxString GetErrorMessage( bool aTranslate ) const;
 
     /**
      * @return the error text for the class of error of this RC_ITEM represents.  For instance,
      * "Clearance violation".
      */
-    wxString GetErrorText() const
+    wxString GetErrorText( bool aTranslate ) const
     {
-        return wxGetTranslation( m_errorTitle );
+        if( aTranslate )
+            return wxGetTranslation( m_errorTitle );
+        else
+            return m_errorTitle;
     }
 
     wxString GetSettingsKey() const
@@ -174,7 +181,7 @@ public:
         return m_settingsKey;
     }
 
-    virtual wxString GetViolatingRuleDesc() const
+    virtual wxString GetViolatingRuleDesc( bool aTranslate ) const
     {
         return wxEmptyString;
     }
@@ -219,6 +226,11 @@ public:
             delete child;
     }
 
+    // We own at least one list of raw pointers.  Don't let the compiler fill in copy c'tors that
+    // will only land us in trouble.
+    RC_TREE_NODE( const RC_TREE_NODE& ) = delete;
+    RC_TREE_NODE& operator=( const RC_TREE_NODE& ) = delete;
+
     NODE_TYPE                  m_Type;
     std::shared_ptr<RC_ITEM>   m_RcItem;
 
@@ -240,11 +252,18 @@ public:
         return static_cast<RC_TREE_NODE*>( aItem.GetID() );
     }
 
+    const wxDataViewCtrl* GetView() const { return m_view; }
+
     static KIID ToUUID( wxDataViewItem aItem );
 
     RC_TREE_MODEL( EDA_DRAW_FRAME* aParentFrame, wxDataViewCtrl* aView );
 
     ~RC_TREE_MODEL();
+
+    // We own at least one list of raw pointers.  Don't let the compiler fill in copy c'tors that
+    // will only land us in trouble.
+    RC_TREE_MODEL( const RC_TREE_MODEL& ) = delete;
+    RC_TREE_MODEL& operator=( const RC_TREE_MODEL& ) = delete;
 
     void Update( std::shared_ptr<RC_ITEMS_PROVIDER> aProvider, int aSeverities );
 
@@ -266,6 +285,14 @@ public:
     unsigned int GetColumnCount() const override { return 1; }
     wxString GetColumnType( unsigned int aCol ) const override { return "string"; }
     bool HasContainerColumns( wxDataViewItem const& aItem ) const override { return true; }
+
+    bool HasValue( const wxDataViewItem& item, unsigned col ) const override
+    {
+        if( m_tree.empty() )
+            return false;
+        else
+            return wxDataViewModel::HasValue( item, col );
+    }
 
     /**
      * Called by the wxDataView to fetch an item's value.

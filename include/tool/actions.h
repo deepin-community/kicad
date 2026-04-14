@@ -31,6 +31,13 @@
 
 #define LEGACY_HK_NAME( x ) x
 
+class PCB_SELECTION_TOOL;
+class GENERAL_COLLECTOR;
+
+using CLIENT_SELECTION_FILTER =
+        std::function<void( const VECTOR2I&, GENERAL_COLLECTOR&, PCB_SELECTION_TOOL* )>;
+
+
 /**
  * Gather all the actions that are shared by tools.
  *
@@ -103,6 +110,7 @@ public:
     static TOOL_ACTION mergeCells;
     static TOOL_ACTION unmergeCells;
     static TOOL_ACTION editTable;
+    static TOOL_ACTION exportTableCSV;
 
     // Find and Replace
     static TOOL_ACTION showSearch;
@@ -141,7 +149,9 @@ public:
     static TOOL_ACTION centerContents;
     static TOOL_ACTION centerSelection;
     static TOOL_ACTION toggleCursor;
-    static TOOL_ACTION toggleCursorStyle;
+    static TOOL_ACTION cursorSmallCrosshairs;
+    static TOOL_ACTION cursorFullCrosshairs;
+    static TOOL_ACTION cursor45Crosshairs;
     static TOOL_ACTION highContrastMode;
     static TOOL_ACTION highContrastModeCycle;
     static TOOL_ACTION toggleBoundingBoxes;
@@ -153,6 +163,7 @@ public:
     static TOOL_ACTION unpinLibrary;
     static TOOL_ACTION showLibraryTree;
     static TOOL_ACTION hideLibraryTree;
+
     static TOOL_ACTION libraryTreeSearch;
 
     /// Cursor control with keyboard
@@ -198,6 +209,44 @@ public:
     static TOOL_ACTION togglePolarCoords;
     static TOOL_ACTION resetLocalCoords;
 
+    // Selection
+    /// Activation of the selection tool
+    static TOOL_ACTION selectionActivate;
+
+    /// Select a single item under the cursor position
+    static TOOL_ACTION selectionCursor;
+
+    /// Set lasso selection mode
+    static TOOL_ACTION selectSetRect;
+    static TOOL_ACTION selectSetLasso;
+
+    /// Clear the current selection
+    static TOOL_ACTION selectionClear;
+
+    /// Select an item (specified as the event parameter).
+    static TOOL_ACTION selectItem;
+    static TOOL_ACTION unselectItem;
+    static TOOL_ACTION reselectItem;
+
+    /// Select a list of items (specified as the event parameter)
+    static TOOL_ACTION selectItems;
+    static TOOL_ACTION unselectItems;
+
+    /// Run a selection menu to select from a list of items
+    static TOOL_ACTION selectionMenu;
+
+    // Grouping
+    static TOOL_ACTION group;
+    static TOOL_ACTION ungroup;
+    static TOOL_ACTION addToGroup;
+    static TOOL_ACTION removeFromGroup;
+    static TOOL_ACTION groupEnter;
+    static TOOL_ACTION groupLeave;
+
+    // Group Tool
+    static TOOL_ACTION groupProperties;
+    static TOOL_ACTION pickNewGroupMember;
+
     // Common Tools
     static TOOL_ACTION selectionTool;
     static TOOL_ACTION measureTool;
@@ -211,6 +260,7 @@ public:
     static TOOL_ACTION showSymbolEditor;
     static TOOL_ACTION showFootprintBrowser;
     static TOOL_ACTION showFootprintEditor;
+    static TOOL_ACTION showCalculatorTools;
     static TOOL_ACTION updatePcbFromSchematic;
     static TOOL_ACTION updateSchematicFromPcb;
     static TOOL_ACTION showProperties;
@@ -220,6 +270,9 @@ public:
     static TOOL_ACTION updateMenu;
     static TOOL_ACTION activatePointEditor;
     static TOOL_ACTION cycleArcEditMode;
+    static TOOL_ACTION pointEditorArcKeepCenter;
+    static TOOL_ACTION pointEditorArcKeepEndpoint;
+    static TOOL_ACTION pointEditorArcKeepRadius;
     static TOOL_ACTION updatePreferences;
     static TOOL_ACTION selectLibTreeColumns;
 

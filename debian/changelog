@@ -1,3 +1,79 @@
+kicad (10.0.0+dfsg-1) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [2d7659c] d/gbp.conf: Adding some more files to filter out
+  * [a7b5c33] New upstream version 10.0.0+dfsg
+  * [5190e64] Rebuild patch queue from patch-queue branch
+    + Added patch:
+      fixes/Revert-changes-to-use-unified-po4a.patch
+    + Dropped patch (included upstream):
+      fixes/python-Use-raw-strings-expressions.patch
+  * [1b6a9e0] d/control: Add new needed build dependencies
+    + Thanks Matthias Geiger to spot the right ones.
+  * [49b6450] d/copyright: Update copyright information
+  * [d66816f] d/kicad-demos.install: Adjust sequencer data to install
+  * [6477777] d/kicad.install.in Adjust sequencer data to install
+  * [143ab94] d/rules: Don't call dh_dwz
+  * [c0ff04a] d/rules: Remove license.txt files too in kicad-demos
+  * [f38ec8a] d/control: Bump Bre/Sug/Rec versions to >=/<< 10.0.0~
+
+  [ Matthias Geiger ]
+  * [669669e] Update d/README.vendored-stuff
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Thu, 09 Apr 2026 17:17:35 +0200
+
+kicad (9.0.8+dfsg-1) unstable; urgency=medium
+
+  * [5be9246] d/control: Drop B-D on libboost-system-dev
+    (Closes: #1127217)
+  * [b057241] New upstream version 9.0.8+dfsg
+  * [bc1cded] d/control: Drop field Priority: optional
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Mon, 16 Mar 2026 19:39:37 +0200
+
+kicad (9.0.7+dfsg-1) unstable; urgency=medium
+
+  * [eb0edb5] New upstream version 9.0.7+dfsg
+  * [ace13a6] d/control: Increase Standards-Version to 4.7.3
+    + No further changes needed.
+  * [5726633] d/copyright: Update copyright information
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Sat, 03 Jan 2026 09:02:40 +0200
+
+kicad (9.0.6+dfsg-1) unstable; urgency=medium
+
+  * [55ebf80] New upstream version 9.0.6+dfsg
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Mon, 03 Nov 2025 18:44:05 +0200
+
+kicad (9.0.5+dfsg-1) unstable; urgency=medium
+
+  * [e1455f1] New upstream version 9.0.5+dfsg
+  * [0b7b915] d/rules: Remove VCS control files from install folder
+  * [f050c5c] d/copyright: Update copyright information
+  * [c6e17d9] d/kicad.lintian-overrides: Update content
+  * [b4b16b4] d/s/lintian-overrides: Use a more generic override
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Fri, 03 Oct 2025 11:54:38 +0200
+
+kicad (9.0.4+dfsg-1) unstable; urgency=medium
+
+  * [24f23f1] New upstream version 9.0.4+dfsg
+  * [234c290] d/kicad-demos.install: Adding more demos from upstream
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Sun, 24 Aug 2025 09:07:25 +0200
+
+kicad (9.0.3+dfsg-1) unstable; urgency=medium
+
+  [ Simon Richter ]
+  * [b6cdb99] Only configure directory that will be built
+  * [ac26b99] Split off build dependencies for documentation
+
+  [ Carsten Schoenert ]
+  * [0be6357] New upstream version 9.0.3+dfsg
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Wed, 16 Jul 2025 09:55:56 +0200
+
 kicad (9.0.2+dfsg-1) unstable; urgency=medium
 
   * [2c5aa4f] New upstream version 9.0.2+dfsg

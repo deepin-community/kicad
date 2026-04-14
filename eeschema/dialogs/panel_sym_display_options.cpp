@@ -26,16 +26,15 @@
 #include <pgm_base.h>
 #include <settings/settings_manager.h>
 #include <symbol_editor/symbol_editor_settings.h>
-#include <widgets/gal_options_panel.h>
+#include <dialogs/panel_gal_options.h>
 
 
-PANEL_SYM_DISPLAY_OPTIONS::PANEL_SYM_DISPLAY_OPTIONS( wxWindow*          aParent,
-                                                      APP_SETTINGS_BASE* aAppSettings ) :
+PANEL_SYM_DISPLAY_OPTIONS::PANEL_SYM_DISPLAY_OPTIONS( wxWindow* aParent, APP_SETTINGS_BASE* aAppSettings ) :
         PANEL_SYM_DISPLAY_OPTIONS_BASE( aParent )
 {
-    m_galOptsPanel = new GAL_OPTIONS_PANEL( this, aAppSettings );
+    m_galOptsPanel = new PANEL_GAL_OPTIONS( this, aAppSettings );
 
-    m_galOptionsSizer->Add( m_galOptsPanel, 1, wxEXPAND | wxRIGHT, 15 );
+    m_galOptionsSizer->Add( m_galOptsPanel, 1, wxEXPAND | wxRIGHT, 5 );
 }
 
 
@@ -50,10 +49,7 @@ void PANEL_SYM_DISPLAY_OPTIONS::loadSymEditorSettings( SYMBOL_EDITOR_SETTINGS* c
 
 bool PANEL_SYM_DISPLAY_OPTIONS::TransferDataToWindow()
 {
-    SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
-    SYMBOL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" );
-
-    loadSymEditorSettings( cfg );
+    loadSymEditorSettings( GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" ) );
 
     m_galOptsPanel->TransferDataToWindow();
 
@@ -63,14 +59,14 @@ bool PANEL_SYM_DISPLAY_OPTIONS::TransferDataToWindow()
 
 bool PANEL_SYM_DISPLAY_OPTIONS::TransferDataFromWindow()
 {
-    SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
-    SYMBOL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" );
-
-    cfg->m_ShowHiddenPins = m_checkShowHiddenPins->GetValue();
-    cfg->m_ShowHiddenFields = m_checkShowHiddenFields->GetValue();
-    cfg->m_ShowPinElectricalType = m_showPinElectricalTypes->GetValue();
-    cfg->m_ShowPinAltIcons = m_checkShowPinAltModeIcons->GetValue();
-    m_galOptsPanel->TransferDataFromWindow();
+    if( SYMBOL_EDITOR_SETTINGS* cfg = GetAppSettings<SYMBOL_EDITOR_SETTINGS>( "symbol_editor" ) )
+    {
+        cfg->m_ShowHiddenPins = m_checkShowHiddenPins->GetValue();
+        cfg->m_ShowHiddenFields = m_checkShowHiddenFields->GetValue();
+        cfg->m_ShowPinElectricalType = m_showPinElectricalTypes->GetValue();
+        cfg->m_ShowPinAltIcons = m_checkShowPinAltModeIcons->GetValue();
+        m_galOptsPanel->TransferDataFromWindow();
+    }
 
     return true;
 }

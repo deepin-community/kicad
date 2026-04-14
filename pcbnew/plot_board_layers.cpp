@@ -27,6 +27,7 @@
 #include <lset.h>
 #include <geometry/geometry_utils.h>
 #include <geometry/shape_segment.h>
+#include <trigo.h>
 #include <pcb_base_frame.h>
 #include <math/util.h>      // for KiROUND
 #include <board.h>
@@ -38,16 +39,15 @@
 #include <pcb_target.h>
 #include <pcb_dimension.h>
 #include <pcbplot.h>
+#include <plotters/plotter.h>
 #include <plotters/plotter_dxf.h>
-#include <plotters/plotter_hpgl.h>
 #include <plotters/plotter_gerber.h>
 #include <plotters/plotters_pslike.h>
 #include <pcb_painter.h>
 #include <gbr_metadata.h>
 #include <advanced_config.h>
 
-
-void GenerateLayerPoly( SHAPE_POLY_SET* aResult, BOARD *aBoard, PCB_LAYER_ID aLayer,
+void GenerateLayerPoly( SHAPE_POLY_SET* aResult, BOARD *aBoard, PLOTTER* aPlotter, PCB_LAYER_ID aLayer,
                         bool aPlotFPText, bool aPlotReferences, bool aPlotValues );
 
 
@@ -90,7 +90,7 @@ void PlotPolySet( BOARD* aBoard, PLOTTER* aPlotter, const PCB_PLOT_PARAMS& aPlot
  * Solder mask layers have a minimum thickness value and cannot be drawn like standard layers,
  * unless the minimum thickness is 0.
  */
-void PlotSolderMaskLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
+void PlotSolderMaskLayer( BOARD* aBoard, PLOTTER* aPlotter, const LSET& aLayerMask,
                           const PCB_PLOT_PARAMS& aPlotOpt )
 {
     if( aBoard->GetDesignSettings().m_SolderMaskMinWidth == 0 )
@@ -102,23 +102,23 @@ void PlotSolderMaskLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
     SHAPE_POLY_SET solderMask;
     PCB_LAYER_ID   layer = aLayerMask[B_Mask] ? B_Mask : F_Mask;
 
-    GenerateLayerPoly( &solderMask, aBoard, layer, aPlotOpt.GetPlotFPText(),
+    GenerateLayerPoly( &solderMask, aBoard, aPlotter, layer, aPlotOpt.GetPlotFPText(),
                        aPlotOpt.GetPlotReference(), aPlotOpt.GetPlotValue() );
 
     PlotPolySet( aBoard, aPlotter, aPlotOpt, &solderMask, layer );
 }
 
 
-void PlotClippedSilkLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
+void PlotClippedSilkLayer( BOARD* aBoard, PLOTTER* aPlotter, const LSET& aLayerMask,
                            const PCB_PLOT_PARAMS& aPlotOpt )
 {
     SHAPE_POLY_SET silkscreen, solderMask;
     PCB_LAYER_ID   silkLayer = aLayerMask[F_SilkS] ? F_SilkS : B_SilkS;
     PCB_LAYER_ID   maskLayer = aLayerMask[F_SilkS] ? F_Mask : B_Mask;
 
-    GenerateLayerPoly( &silkscreen, aBoard, silkLayer, aPlotOpt.GetPlotFPText(),
+    GenerateLayerPoly( &silkscreen, aBoard, aPlotter, silkLayer, aPlotOpt.GetPlotFPText(),
                        aPlotOpt.GetPlotReference(), aPlotOpt.GetPlotValue() );
-    GenerateLayerPoly( &solderMask, aBoard, maskLayer, aPlotOpt.GetPlotFPText(),
+    GenerateLayerPoly( &solderMask, aBoard, aPlotter, maskLayer, aPlotOpt.GetPlotFPText(),
                        aPlotOpt.GetPlotReference(), aPlotOpt.GetPlotValue() );
 
     silkscreen.BooleanSubtract( solderMask );
@@ -132,30 +132,16 @@ void PlotBoardLayers( BOARD* aBoard, PLOTTER* aPlotter, const LSEQ& aLayers,
     if( !aBoard || !aPlotter || aLayers.empty() )
         return;
 
-    // if a drill mark must be plotted,it must be plotted as a filled
-    // white shape *after* all other shapes are plotted, provided that
-    // the other shapes are not copper layers
-    int copperLayers = 0;
-    int nonCopperLayers = 0;
-
-    for( PCB_LAYER_ID layer : aLayers )
-    {
-        if( IsCopperLayer( layer ) )
-            copperLayers++;
-        else
-            nonCopperLayers++;
-    }
-
-    bool plot_mark = ( aPlotOptions.GetDrillMarksType() != DRILL_MARKS::NO_DRILL_SHAPE
-                       && copperLayers > 0 && nonCopperLayers > 0 );
-
     for( PCB_LAYER_ID layer : aLayers )
         PlotOneBoardLayer( aBoard, aPlotter, layer, aPlotOptions, layer == aLayers[0] );
 
-    if( plot_mark )
+    // Drill marks are plotted in white to knockout the pad if any layers of the pad are
+    // being plotted, and in black if the pad is not being plotted. For the former, this
+    // must happen after all other layers are plotted.
+    if( aPlotOptions.GetDrillMarksType() != DRILL_MARKS::NO_DRILL_SHAPE )
     {
-        aPlotter->SetColor( WHITE );
         BRDITEMS_PLOTTER itemplotter( aPlotter, aBoard, aPlotOptions );
+        itemplotter.SetLayerSet( aLayers );
         itemplotter.PlotDrillMarks();
     }
 }
@@ -187,6 +173,8 @@ void PlotInteractiveLayer( BOARD* aBoard, PLOTTER* aPlotter, const PCB_PLOT_PARA
 
         for( const PCB_FIELD* field : fp->GetFields() )
         {
+            wxCHECK2( field, continue );
+
             if( field->IsReference() || field->IsValue() )
                 continue;
 
@@ -256,9 +244,6 @@ void PlotOneBoardLayer( BOARD *aBoard, PLOTTER* aPlotter, PCB_LAYER_ID aLayer,
         {
         case B_Mask:
         case F_Mask:
-            // Disable plot pad holes
-            plotOpt.SetDrillMarksType( DRILL_MARKS::NO_DRILL_SHAPE );
-
             // Use outline mode for DXF
             plotOpt.SetDXFPlotPolygonMode( true );
 
@@ -339,7 +324,7 @@ void PlotOneBoardLayer( BOARD *aBoard, PLOTTER* aPlotter, PCB_LAYER_ID aLayer,
 /**
  * Plot any layer EXCEPT a solder-mask with an enforced minimum width.
  */
-void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
+void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, const LSET& aLayerMask,
                         const PCB_PLOT_PARAMS& aPlotOpt )
 {
     BRDITEMS_PLOTTER itemplotter( aPlotter, aBoard, aPlotOpt );
@@ -347,15 +332,15 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
 
     itemplotter.SetLayerSet( aLayerMask );
 
-    OUTLINE_MODE plotMode = aPlotOpt.GetPlotMode();
     bool onCopperLayer = ( LSET::AllCuMask() & aLayerMask ).any();
     bool onSolderMaskLayer = ( LSET( { F_Mask, B_Mask } ) & aLayerMask ).any();
     bool onSolderPasteLayer = ( LSET( { F_Paste, B_Paste } ) & aLayerMask ).any();
     bool onFrontFab = ( LSET( { F_Fab } ) & aLayerMask ).any();
     bool onBackFab  = ( LSET( { B_Fab } ) & aLayerMask ).any();
     bool sketchPads = ( onFrontFab || onBackFab ) && aPlotOpt.GetSketchPadsOnFabLayers();
+    const wxString variantName = aBoard->GetCurrentVariant();
 
-     // Plot edge layer and graphic items
+    // Plot edge layer and graphic items
     for( const BOARD_ITEM* item : aBoard->Drawings() )
         itemplotter.PlotBoardGraphicItem( item );
 
@@ -370,19 +355,20 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
     // Plot footprint pads
     for( FOOTPRINT* footprint : aBoard->Footprints() )
     {
+        const bool dnp = footprint->GetDNPForVariant( variantName );
+
         aPlotter->StartBlock( nullptr );
 
         for( PAD* pad : footprint->Pads() )
         {
-            OUTLINE_MODE padPlotMode = plotMode;
+            bool doSketchPads = false;
 
             if( !( pad->GetLayerSet() & aLayerMask ).any() )
             {
-                if( sketchPads &&
-                        ( ( onFrontFab && pad->GetLayerSet().Contains( F_Cu ) ) ||
-                          ( onBackFab && pad->GetLayerSet().Contains( B_Cu ) ) ) )
+                if( sketchPads && (   ( onFrontFab && pad->GetLayerSet().Contains( F_Cu ) )
+                                    || ( onBackFab && pad->GetLayerSet().Contains( B_Cu ) ) ) )
                 {
-                    padPlotMode = SKETCH;
+                    doSketchPads = true;
                 }
                 else
                 {
@@ -420,9 +406,8 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
                     color = aPlotOpt.ColorSettings()->GetColor( B_Fab );
             }
 
-            if( sketchPads &&
-                    ( ( onFrontFab && pad->GetLayerSet().Contains( F_Cu ) ) ||
-                      ( onBackFab && pad->GetLayerSet().Contains( B_Cu ) ) ) )
+            if( sketchPads && (   ( onFrontFab && pad->GetLayerSet().Contains( F_Cu ) )
+                                || ( onBackFab && pad->GetLayerSet().Contains( B_Cu ) ) ) )
             {
                 if( aPlotOpt.GetPlotPadNumbers() )
                     itemplotter.PlotPadNumber( pad, color );
@@ -448,10 +433,11 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
                     // Round shape have always the same x,y margin
                     // so define a unique value for other shapes that do not support different values
                     int mask_clearance = margin.x;
+                    // When clearance is same for x and y pad axis, calculations are more easy
+                    bool sameXYClearance = margin.x == margin.y;
 
                     // Now offset the pad size by margin + width_adj
-                    VECTOR2I padPlotsSize =
-                            pad->GetSize( aLayer ) + margin * 2 + VECTOR2I( width_adj, width_adj );
+                    VECTOR2I padPlotsSize = pad->GetSize( aLayer ) + margin * 2 + VECTOR2I( width_adj, width_adj );
 
                     // Store these parameters that can be modified to plot inflated/deflated pads shape
                     PAD_SHAPE padShape = pad->GetShape( aLayer );
@@ -483,7 +469,7 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
                             break;
                         }
 
-                        itemplotter.PlotPad( pad, aLayer, color, padPlotMode );
+                        itemplotter.PlotPad( pad, aLayer, color, doSketchPads );
                         break;
 
                     case PAD_SHAPE::RECTANGLE:
@@ -495,7 +481,7 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
                             pad->SetRoundRectCornerRadius( aLayer, mask_clearance );
                         }
 
-                        itemplotter.PlotPad( pad, aLayer, color, padPlotMode );
+                        itemplotter.PlotPad( pad, aLayer, color, doSketchPads );
                         break;
 
                     case PAD_SHAPE::TRAPEZOID:
@@ -506,7 +492,7 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
                         // we are using only margin.x as inflate/deflate value
                         if( mask_clearance == 0 )
                         {
-                            itemplotter.PlotPad( pad, aLayer, color, padPlotMode );
+                            itemplotter.PlotPad( pad, aLayer, color, doSketchPads );
                         }
                         else
                         {
@@ -527,8 +513,8 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
 
                             // Shape polygon can have holes so use InflateWithLinkedHoles(), not Inflate()
                             // which can create bad shapes if margin.x is < 0
-                            outline.InflateWithLinkedHoles( mask_clearance,
-                                                            CORNER_STRATEGY::ROUND_ALL_CORNERS, maxError );
+                            outline.InflateWithLinkedHoles( mask_clearance, CORNER_STRATEGY::ROUND_ALL_CORNERS,
+                                                            maxError );
                             dummy.DeletePrimitivesList();
                             dummy.AddPrimitivePoly( aLayer, outline, 0, true );
 
@@ -537,7 +523,7 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
                             // polygonal shape is built, we can clamp the anchor size
                             dummy.SetSize( aLayer, VECTOR2I( 0, 0 ) );
 
-                            itemplotter.PlotPad( &dummy, aLayer, color, padPlotMode );
+                            itemplotter.PlotPad( &dummy, aLayer, color, doSketchPads );
                         }
 
                         break;
@@ -551,34 +537,43 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
                         pad->SetSize( aLayer, padPlotsSize );
                         pad->SetRoundRectRadiusRatio( aLayer, radius_ratio );
 
-                        itemplotter.PlotPad( pad, aLayer, color, padPlotMode );
+                        itemplotter.PlotPad( pad, aLayer, color, doSketchPads );
                         break;
                     }
 
                     case PAD_SHAPE::CHAMFERED_RECT:
-                        if( mask_clearance == 0 )
+                        // for smaller/same rect size than initial shape (i.e. mask_clearance <= 0)
+                        // use the rect with size set to padPlotsSize. It gives a good shape
+                        if( mask_clearance <= 0 )
                         {
                             // the size can be slightly inflated by width_adj (PS/PDF only)
                             pad->SetSize( aLayer, padPlotsSize );
-                            itemplotter.PlotPad( pad, aLayer, color, padPlotMode );
+                            itemplotter.PlotPad( pad, aLayer, color, doSketchPads );
                         }
                         else
                         {
                             // Due to the polygonal shape of a CHAMFERED_RECT pad, the best way is to
-                            // convert the pad shape to a full polygon, inflate/deflate the polygon
+                            // convert the pad shape to a full polygon and inflate it
                             // and use a dummy  CUSTOM pad to plot the final shape.
+                            // However one can inflate polygon only if X,Y has same inflate value
+                            // if not the case, just use a rectangle having the padPlotsSize new size
                             PAD dummy( *pad );
                             // Build the dummy pad outline with coordinates relative to the pad position
                             // pad offset and orientation 0. The actual pos, offset and rotation will be
                             // taken in account later by the plot function
                             dummy.SetPosition( VECTOR2I( 0, 0 ) );
                             dummy.SetOffset( aLayer, VECTOR2I( 0, 0 ) );
+
+                            if( !sameXYClearance )
+                                dummy.SetSize( aLayer, padPlotsSize );
+
                             dummy.SetOrientation( ANGLE_0 );
                             SHAPE_POLY_SET outline;
-                            dummy.TransformShapeToPolygon( outline, UNDEFINED_LAYER, 0, maxError,
-                                                           ERROR_INSIDE );
-                            outline.InflateWithLinkedHoles( mask_clearance,
-                                                            CORNER_STRATEGY::ROUND_ALL_CORNERS, maxError );
+                            dummy.TransformShapeToPolygon( outline, aLayer, 0, maxError, ERROR_INSIDE );
+
+                            if( sameXYClearance )
+                                outline.InflateWithLinkedHoles( mask_clearance, CORNER_STRATEGY::ROUND_ALL_CORNERS,
+                                                                maxError );
 
                             // Initialize the dummy pad shape:
                             dummy.SetAnchorPadShape( aLayer, PAD_SHAPE::CIRCLE );
@@ -595,7 +590,7 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
                             dummy.SetOffset( aLayer, pad->GetOffset( aLayer ) );
                             dummy.SetOrientation( pad->GetOrientation() );
 
-                            itemplotter.PlotPad( &dummy, aLayer, color, padPlotMode );
+                            itemplotter.PlotPad( &dummy, aLayer, color, doSketchPads );
                         }
 
                         break;
@@ -621,10 +616,12 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
                         // anchor will be added to the pad shape when plotting the pad. So now the
                         // polygonal shape is built, we can clamp the anchor size
                         if( mask_clearance < 0 )  // we expect margin.x = margin.y for custom pads
+                        {
                             dummy.SetSize( aLayer, VECTOR2I( std::max( 0, padPlotsSize.x ),
                                                              std::max( 0, padPlotsSize.y ) ) );
+                        }
 
-                        itemplotter.PlotPad( &dummy, aLayer, color, padPlotMode );
+                        itemplotter.PlotPad( &dummy, aLayer, color, doSketchPads );
                         break;
                     }
                     }
@@ -640,19 +637,56 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
                 plotPadLayer( layer );
         }
 
-        if( footprint->IsDNP()
+        if( dnp
                 && !itemplotter.GetHideDNPFPsOnFabLayers()
                 && itemplotter.GetCrossoutDNPFPsOnFabLayers()
-                && ( ( onFrontFab && footprint->GetLayer() == F_Cu ) ||
-                     ( onBackFab && footprint->GetLayer() == B_Cu ) ) )
+                && (   ( onFrontFab && footprint->GetLayer() == F_Cu )
+                    || ( onBackFab && footprint->GetLayer() == B_Cu ) ) )
         {
-            BOX2I rect = footprint->GetBoundingHull().BBox();
-            int   width = aBoard->GetDesignSettings().m_LineThickness[ LAYER_CLASS_FAB ];
+            const SHAPE_POLY_SET& courtyard = footprint->GetCourtyard( footprint->GetLayer() );
+            VECTOR2I              center = footprint->GetPosition();
+            EDA_ANGLE             orient = footprint->GetOrientation();
 
-            aPlotter->ThickSegment( rect.GetOrigin(), rect.GetEnd(), width, FILLED, nullptr );
-            aPlotter->ThickSegment( VECTOR2I( rect.GetLeft(), rect.GetBottom() ),
-                                    VECTOR2I( rect.GetRight(), rect.GetTop() ),
-                                    width, FILLED, nullptr );
+            // Compute a tight oriented bounding box by un-rotating the shape into the
+            // footprint's local frame, taking the axis-aligned BBox there, then rotating
+            // the four corners back into world coordinates.
+            BOX2I localRect;
+
+            if( courtyard.IsEmpty() )
+            {
+                std::shared_ptr<SHAPE> shape = footprint->GetEffectiveShape();
+                shape->Rotate( -orient, center );
+                localRect = shape->BBox();
+            }
+            else
+            {
+                SHAPE_POLY_SET temp( courtyard );
+                temp.Rotate( -orient, center );
+                localRect = temp.BBox();
+            }
+
+            VECTOR2I corner1( localRect.GetLeft(), localRect.GetTop() );
+            VECTOR2I corner2( localRect.GetRight(), localRect.GetTop() );
+            VECTOR2I corner3( localRect.GetRight(), localRect.GetBottom() );
+            VECTOR2I corner4( localRect.GetLeft(), localRect.GetBottom() );
+
+            RotatePoint( corner1, center, orient );
+            RotatePoint( corner2, center, orient );
+            RotatePoint( corner3, center, orient );
+            RotatePoint( corner4, center, orient );
+
+            int width = aBoard->GetDesignSettings().m_LineThickness[ LAYER_CLASS_FAB ];
+
+            // Use DNP cross color from color scheme
+            COLOR4D dnpMarkerColor = aPlotOpt.ColorSettings()->GetColor( LAYER_DNP_MARKER );
+
+            if( dnpMarkerColor != COLOR4D::UNSPECIFIED )
+                aPlotter->SetColor( dnpMarkerColor );
+            else
+                aPlotter->SetColor( aPlotOpt.ColorSettings()->GetColor( onFrontFab ? F_Fab : B_Fab ) );
+
+            aPlotter->ThickSegment( corner1, corner3, width, nullptr );
+            aPlotter->ThickSegment( corner2, corner4, width, nullptr );
         }
 
         aPlotter->EndBlock( nullptr );
@@ -667,6 +701,17 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
         gbr_metadata.SetApertureAttrib( GBR_APERTURE_METADATA::GBR_APERTURE_ATTRIB_VIAPAD );
         gbr_metadata.SetNetAttribType( GBR_NETLIST_METADATA::GBR_NETINFO_NET );
     }
+
+    auto getMetadata =
+            [&]()
+            {
+                if( aPlotter->GetPlotterType() == PLOT_FORMAT::GERBER )
+                    return (void*) &gbr_metadata;
+                else if( aPlotter->GetPlotterType() == PLOT_FORMAT::DXF )
+                    return (void*) &aPlotOpt;
+                else
+                    return (void*) nullptr;
+            };
 
     aPlotter->StartBlock( nullptr );
 
@@ -699,7 +744,7 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
 
         int diameter = 0;
 
-        for( PCB_LAYER_ID layer : aLayerMask.Seq() )
+        for( PCB_LAYER_ID layer : aLayerMask )
             diameter = std::max( diameter, via->GetWidth( layer ) );
 
         diameter += 2 * via_margin + width_adj;
@@ -718,14 +763,9 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
 
         // If we're plotting a single layer, the color for that layer can be used directly.
         if( aLayerMask.count() == 1 )
-        {
             color = aPlotOpt.ColorSettings()->GetColor( aLayerMask.Seq()[0] );
-        }
         else
-        {
-            color = aPlotOpt.ColorSettings()->GetColor(
-                LAYER_VIAS + static_cast<int>( via->GetViaType() ) );
-        }
+            color = aPlotOpt.ColorSettings()->GetColor( LAYER_VIAS + static_cast<int>( via->GetViaType() ) );
 
         // Change UNSPECIFIED or WHITE to LIGHTGRAY because the white items are not seen on a
         // white paper or screen
@@ -733,7 +773,7 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
             color = LIGHTGRAY;
 
         aPlotter->SetColor( color );
-        aPlotter->FlashPadCircle( via->GetStart(), diameter, plotMode, &gbr_metadata );
+        aPlotter->FlashPadCircle( via->GetStart(), diameter, getMetadata() );
     }
 
     aPlotter->EndBlock( nullptr );
@@ -784,19 +824,17 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
             if( !arc->IsDegenerated( 10 /* in IU */ ) )
             {
                 aPlotter->ThickArc( arc->GetCenter(), arc->GetArcAngleStart(), arc->GetAngle(),
-                                    arc->GetRadius(), width, plotMode, &gbr_metadata );
+                                    arc->GetRadius(), width, getMetadata() );
             }
             else
             {
                 // Approximate this very small arc by a segment.
-                aPlotter->ThickSegment( track->GetStart(), track->GetEnd(), width, plotMode,
-                                        &gbr_metadata );
+                aPlotter->ThickSegment( track->GetStart(), track->GetEnd(), width, getMetadata() );
             }
         }
         else
         {
-            aPlotter->ThickSegment( track->GetStart(), track->GetEnd(), width, plotMode,
-                                    &gbr_metadata );
+            aPlotter->ThickSegment( track->GetStart(), track->GetEnd(), width, getMetadata() );
         }
     }
 
@@ -841,28 +879,26 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
     }
 
     aPlotter->EndBlock( nullptr );
-
-    // Adding drill marks, if required and if the plotter is able to plot them:
-    if( aPlotOpt.GetDrillMarksType() != DRILL_MARKS::NO_DRILL_SHAPE )
-        itemplotter.PlotDrillMarks();
 }
 
 
 /**
  * Plot outlines.
  */
-void PlotLayerOutlines( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
+void PlotLayerOutlines( BOARD* aBoard, PLOTTER* aPlotter, const LSET& aLayerMask,
                         const PCB_PLOT_PARAMS& aPlotOpt )
 {
     BRDITEMS_PLOTTER itemplotter( aPlotter, aBoard, aPlotOpt );
     itemplotter.SetLayerSet( aLayerMask );
+
+    int smallDrill = pcbIUScale.mmToIU( ADVANCED_CFG::GetCfg().m_SmallDrillMarkSize );
 
     SHAPE_POLY_SET outlines;
 
     for( PCB_LAYER_ID layer : aLayerMask.Seq( aLayerMask.SeqStackupForPlotting() ) )
     {
         outlines.RemoveAllContours();
-        aBoard->ConvertBrdLayerToPolygonalContours( layer, outlines );
+        aBoard->ConvertBrdLayerToPolygonalContours( layer, outlines, aPlotter->RenderSettings() );
 
         outlines.Simplify();
 
@@ -878,35 +914,36 @@ void PlotLayerOutlines( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
                 const SHAPE_LINE_CHAIN& path = ( kk == 0 ) ? outlines.COutline( ii )
                                                            : outlines.CHole( ii, kk - 1 );
 
-                aPlotter->PlotPoly( path, FILL_T::NO_FILL );
+                aPlotter->PlotPoly( path, FILL_T::NO_FILL, PLOTTER::USE_DEFAULT_LINE_WIDTH, nullptr );
             }
         }
 
         // Plot pad holes
         if( aPlotOpt.GetDrillMarksType() != DRILL_MARKS::NO_DRILL_SHAPE )
         {
-            int smallDrill = ( aPlotOpt.GetDrillMarksType() == DRILL_MARKS::SMALL_DRILL_SHAPE )
-                                  ? pcbIUScale.mmToIU( ADVANCED_CFG::GetCfg().m_SmallDrillMarkSize )
-                                  : INT_MAX;
-
             for( FOOTPRINT* footprint : aBoard->Footprints() )
             {
                 for( PAD* pad : footprint->Pads() )
                 {
                     if( pad->HasHole() )
                     {
-                        std::shared_ptr<SHAPE_SEGMENT> slot = pad->GetEffectiveHoleShape();
-
-                        if( slot->GetSeg().A == slot->GetSeg().B )  // circular hole
+                        if( pad->GetDrillSizeX() == pad->GetDrillSizeY() )
                         {
-                            int drill = std::min( smallDrill, slot->GetWidth() );
-                            aPlotter->Circle( pad->GetPosition(), drill, FILL_T::NO_FILL );
+                            int drill = pad->GetDrillSizeX();
+
+                            if( aPlotOpt.GetDrillMarksType() == DRILL_MARKS::SMALL_DRILL_SHAPE )
+                                drill = std::min( smallDrill, drill );
+
+                            aPlotter->ThickCircle( pad->ShapePos( layer ), drill,
+                                                   PLOTTER::USE_DEFAULT_LINE_WIDTH, nullptr );
                         }
                         else
                         {
                             // Note: small drill marks have no significance when applied to slots
-                            aPlotter->ThickSegment( slot->GetSeg().A, slot->GetSeg().B,
-                                                    slot->GetWidth(), SKETCH, nullptr );
+
+                            aPlotter->ThickOval( pad->ShapePos( layer ), pad->GetSize( layer ),
+                                                 pad->GetOrientation(), PLOTTER::USE_DEFAULT_LINE_WIDTH,
+                                                 nullptr );
                         }
                     }
                 }
@@ -922,7 +959,10 @@ void PlotLayerOutlines( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
             const PCB_VIA* via = static_cast<const PCB_VIA*>( track );
 
             if( via->GetLayerSet().Contains( layer ) )   // via holes can be not through holes
-                aPlotter->Circle( via->GetPosition(), via->GetDrillValue(), FILL_T::NO_FILL );
+            {
+                aPlotter->Circle( via->GetPosition(), via->GetDrillValue(), FILL_T::NO_FILL,
+                                  PLOTTER::USE_DEFAULT_LINE_WIDTH );
+            }
         }
     }
 }
@@ -931,18 +971,12 @@ void PlotLayerOutlines( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
 /**
  * Generates a SHAPE_POLY_SET representing the plotted items on a layer.
  */
-void GenerateLayerPoly( SHAPE_POLY_SET* aResult, BOARD *aBoard, PCB_LAYER_ID aLayer,
+void GenerateLayerPoly( SHAPE_POLY_SET* aResult, BOARD *aBoard, PLOTTER* aPlotter, PCB_LAYER_ID aLayer,
                          bool aPlotFPText, bool aPlotReferences, bool aPlotValues )
 {
-#define ERROR maxError, ERROR_OUTSIDE
-
     int             maxError = aBoard->GetDesignSettings().m_MaxError;
     SHAPE_POLY_SET  buffer;
-    SHAPE_POLY_SET* boardOutline = nullptr;
     int             inflate = 0;
-
-    if( aBoard->GetBoardPolygonOutlines( buffer ) )
-        boardOutline = &buffer;
 
     if( aLayer == F_Mask || aLayer == B_Mask )
     {
@@ -967,9 +1001,6 @@ void GenerateLayerPoly( SHAPE_POLY_SET* aResult, BOARD *aBoard, PCB_LAYER_ID aLa
                 if( !aPlotFPText )
                     return;
 
-                if( !aText.IsVisible() )
-                    return;
-
                 if( aText.GetText() == wxT( "${REFERENCE}" ) && !aPlotReferences )
                     return;
 
@@ -977,9 +1008,9 @@ void GenerateLayerPoly( SHAPE_POLY_SET* aResult, BOARD *aBoard, PCB_LAYER_ID aLa
                     return;
 
                 if( inflate != 0 )
-                    aText.TransformTextToPolySet( exactPolys, 0, ERROR );
+                    aText.TransformTextToPolySet( exactPolys, 0, maxError, ERROR_OUTSIDE );
 
-                aText.TransformTextToPolySet( *aResult, inflate, ERROR );
+                aText.TransformTextToPolySet( *aResult, inflate, maxError, ERROR_OUTSIDE );
             };
 
     // Generate polygons with arcs inside the shape or exact shape to minimize shape changes
@@ -990,19 +1021,21 @@ void GenerateLayerPoly( SHAPE_POLY_SET* aResult, BOARD *aBoard, PCB_LAYER_ID aLa
         for( const FOOTPRINT* footprint : aBoard->Footprints() )
         {
             if( inflate != 0 )
-                footprint->TransformPadsToPolySet( exactPolys, aLayer, 0, ERROR );
+                footprint->TransformPadsToPolySet( exactPolys, aLayer, 0, maxError, ERROR_OUTSIDE );
 
-            footprint->TransformPadsToPolySet( *aResult, aLayer, inflate, ERROR );
+            footprint->TransformPadsToPolySet( *aResult, aLayer, inflate, maxError, ERROR_OUTSIDE );
 
             for( const PCB_FIELD* field : footprint->GetFields() )
             {
+                wxCHECK2( field, continue );
+
                 if( field->IsReference() && !aPlotReferences )
                     continue;
 
                 if( field->IsValue() && !aPlotValues )
                     continue;
 
-                if( field->IsOnLayer( aLayer ) )
+                if( field->IsVisible() && field->IsOnLayer( aLayer ) )
                     handleFPTextItem( static_cast<const PCB_TEXT&>( *field ) );
             }
 
@@ -1017,9 +1050,9 @@ void GenerateLayerPoly( SHAPE_POLY_SET* aResult, BOARD *aBoard, PCB_LAYER_ID aLa
                     else
                     {
                         if( inflate != 0 )
-                            item->TransformShapeToPolygon( exactPolys, aLayer, 0, ERROR );
+                            item->TransformShapeToPolySet( exactPolys, aLayer, 0, maxError, ERROR_OUTSIDE );
 
-                        item->TransformShapeToPolygon( *aResult, aLayer, inflate, ERROR );
+                        item->TransformShapeToPolySet( *aResult, aLayer, inflate, maxError, ERROR_OUTSIDE );
                     }
                 }
             }
@@ -1035,9 +1068,9 @@ void GenerateLayerPoly( SHAPE_POLY_SET* aResult, BOARD *aBoard, PCB_LAYER_ID aLa
             int clearance = track->GetSolderMaskExpansion();
 
             if( inflate != 0 )
-                track->TransformShapeToPolygon( exactPolys, aLayer, clearance, ERROR );
+                track->TransformShapeToPolygon( exactPolys, aLayer, clearance, maxError, ERROR_OUTSIDE );
 
-            track->TransformShapeToPolygon( *aResult, aLayer, clearance + inflate, ERROR );
+            track->TransformShapeToPolygon( *aResult, aLayer, clearance + inflate, maxError, ERROR_OUTSIDE );
         }
 
         for( const BOARD_ITEM* item : aBoard->Drawings() )
@@ -1049,16 +1082,18 @@ void GenerateLayerPoly( SHAPE_POLY_SET* aResult, BOARD *aBoard, PCB_LAYER_ID aLa
                     const PCB_TEXT* text = static_cast<const PCB_TEXT*>( item );
 
                     if( inflate != 0 )
-                        text->TransformTextToPolySet( exactPolys, 0, ERROR );
+                        text->TransformTextToPolySet( exactPolys, 0, maxError, ERROR_OUTSIDE );
 
-                    text->TransformTextToPolySet( *aResult, inflate, ERROR );
+                    text->TransformTextToPolySet( *aResult, inflate, maxError, ERROR_OUTSIDE );
                 }
                 else
                 {
                     if( inflate != 0 )
-                        item->TransformShapeToPolygon( exactPolys, aLayer, 0, ERROR );
+                        item->TransformShapeToPolySet( exactPolys, aLayer, 0, maxError, ERROR_OUTSIDE,
+                                                       aPlotter->RenderSettings() );
 
-                    item->TransformShapeToPolygon( *aResult, aLayer, inflate, ERROR );
+                    item->TransformShapeToPolySet( *aResult, aLayer, inflate, maxError,
+                                                    ERROR_OUTSIDE, aPlotter->RenderSettings() );
                 }
             }
         }
@@ -1072,10 +1107,18 @@ void GenerateLayerPoly( SHAPE_POLY_SET* aResult, BOARD *aBoard, PCB_LAYER_ID aLa
             if( !zone->IsOnLayer( aLayer ) )
                 continue;
 
-            if( inflate != 0 )
-                zone->TransformSmoothedOutlineToPolygon( exactPolys, 0, ERROR, boardOutline );
+            SHAPE_POLY_SET* fillData = zone->GetFill( aLayer );
 
-            zone->TransformSmoothedOutlineToPolygon( *aResult, inflate, ERROR, boardOutline );
+            if( !fillData )
+                continue;
+
+            SHAPE_POLY_SET area = *fillData;
+
+            if( inflate != 0 )
+                exactPolys.Append( area );
+
+            area.Inflate( inflate, CORNER_STRATEGY::CHAMFER_ALL_CORNERS, maxError );
+            aResult->Append( area );
         }
     }
 
@@ -1099,10 +1142,9 @@ void GenerateLayerPoly( SHAPE_POLY_SET* aResult, BOARD *aBoard, PCB_LAYER_ID aLa
  *      page size is the 'drawing' page size,
  *      paper size is the physical page size
  */
-static void initializePlotter( PLOTTER* aPlotter, const BOARD* aBoard,
-                               const PCB_PLOT_PARAMS* aPlotOpts )
+static void initializePlotter( PLOTTER* aPlotter, const BOARD* aBoard, const PCB_PLOT_PARAMS* aPlotOpts )
 {
-    PAGE_INFO pageA4( wxT( "A4" ) );
+    PAGE_INFO pageA4( PAGE_SIZE_TYPE::A4 );
     const PAGE_INFO& pageInfo = aBoard->GetPageSettings();
     const PAGE_INFO* sheet_info;
     double paperscale; // Page-to-paper ratio
@@ -1129,10 +1171,10 @@ static void initializePlotter( PLOTTER* aPlotter, const BOARD* aBoard,
         paperscale  = 1;
 
         // Need autocentering only if scale is not 1:1
-        autocenter  = (aPlotOpts->GetScale() != 1.0);
+        autocenter  = (aPlotOpts->GetScale() != 1.0) || aPlotOpts->GetAutoScale();
     }
 
-    BOX2I    bbox = aBoard->ComputeBoundingBox( false );
+    BOX2I    bbox = aBoard->ComputeBoundingBox( false, false );
     VECTOR2I boardCenter = bbox.Centre();
     VECTOR2I boardSize = bbox.GetSize();
 
@@ -1194,24 +1236,28 @@ static void FillNegativeKnockout( PLOTTER *aPlotter, const BOX2I &aBbbox )
 
     BOX2I area = aBbbox;
     area.Inflate( margin );
-    aPlotter->Rect( area.GetOrigin(), area.GetEnd(), FILL_T::FILLED_SHAPE );
+    aPlotter->Rect( area.GetOrigin(), area.GetEnd(), FILL_T::FILLED_SHAPE, 0, 0 );
     aPlotter->SetColor( BLACK );
 }
 
 
-/**
- * Calculate the effective size of HPGL pens and set them in the plotter object
- */
-static void ConfigureHPGLPenSizes( HPGL_PLOTTER *aPlotter, const PCB_PLOT_PARAMS *aPlotOpts )
+static void plotPdfBackground( BOARD* aBoard, const PCB_PLOT_PARAMS* aPlotOpts, PLOTTER* aPlotter )
 {
-    // Compute penDiam (the value is given in mils) in pcb units, with plot scale (if Scale is 2,
-    // penDiam value is always m_HPGLPenDiam so apparent penDiam is actually penDiam / Scale
-    int penDiam = KiROUND( aPlotOpts->GetHPGLPenDiameter() * pcbIUScale.IU_PER_MILS / aPlotOpts->GetScale() );
+    const PAGE_INFO& pageInfo = aPlotter->PageSettings();
+    const VECTOR2I   plotOffset = aPlotter->GetPlotOffsetUserUnits();
+    const VECTOR2I   pageSizeIU( pageInfo.GetWidthIU( pcbIUScale.IU_PER_MILS ),
+                                 pageInfo.GetHeightIU( pcbIUScale.IU_PER_MILS ) );
 
-    // Set HPGL-specific options and start
-    aPlotter->SetPenSpeed( aPlotOpts->GetHPGLPenSpeed() );
-    aPlotter->SetPenNumber( aPlotOpts->GetHPGLPenNum() );
-    aPlotter->SetPenDiameter( penDiam );
+    if( aPlotter->GetColorMode()
+        && aPlotOpts->GetPDFBackgroundColor() != COLOR4D::UNSPECIFIED )
+    {
+        aPlotter->SetColor( aPlotOpts->GetPDFBackgroundColor() );
+
+        // Use plotter page size and offset so background matches the plotted output.
+        VECTOR2I end = plotOffset + pageSizeIU;
+
+        aPlotter->Rect( plotOffset, end, FILL_T::FILLED_SHAPE, 1.0 );
+    }
 }
 
 
@@ -1240,6 +1286,9 @@ PLOTTER* StartPlotBoard( BOARD *aBoard, const PCB_PLOT_PARAMS *aPlotOpts, int aL
         DXF_plotter->SetUnits( aPlotOpts->GetDXFPlotUnits() );
 
         plotter = DXF_plotter;
+
+        if( !aPlotOpts->GetLayersToExport().empty() )
+            plotter->SetLayersToExport( aPlotOpts->GetLayersToExport() );
         break;
 
     case PLOT_FORMAT::POST:
@@ -1255,22 +1304,16 @@ PLOTTER* StartPlotBoard( BOARD *aBoard, const PCB_PLOT_PARAMS *aPlotOpts, int aL
         break;
 
     case PLOT_FORMAT::HPGL:
-        HPGL_PLOTTER* HPGL_plotter;
-        HPGL_plotter = new HPGL_PLOTTER();
-
-        // HPGL options are a little more convoluted to compute, so they get their own function
-        ConfigureHPGLPenSizes( HPGL_plotter, aPlotOpts );
-        plotter = HPGL_plotter;
-        break;
+        wxLogError( _( "HPGL plotting is no longer supported as of KiCad 10.0" ) );
+        return nullptr;
 
     case PLOT_FORMAT::GERBER:
         // For Gerber plotter, a valid board layer must be set, in order to create a valid
         // Gerber header, especially the TF.FileFunction and .FilePolarity data
         if( aLayer < PCBNEW_LAYER_ID_START || aLayer >= PCB_LAYER_ID_COUNT )
         {
-            wxLogError( wxString::Format(
-                        "Invalid board layer %d, cannot build a valid Gerber file header",
-                        aLayer ) );
+            wxLogError( wxString::Format( "Invalid board layer %d, cannot build a valid Gerber file header",
+                                          aLayer ) );
         }
 
         plotter = new GERBER_PLOTTER();
@@ -1297,8 +1340,15 @@ PLOTTER* StartPlotBoard( BOARD *aBoard, const PCB_PLOT_PARAMS *aPlotOpts, int aL
     // page layout is not mirrored, so temporarily change mirror option for the page layout
     PCB_PLOT_PARAMS plotOpts = *aPlotOpts;
 
-    if( plotOpts.GetPlotFrameRef() && plotOpts.GetMirror() )
-        plotOpts.SetMirror( false );
+    if( plotOpts.GetPlotFrameRef() )
+    {
+        if( plotOpts.GetMirror() )
+            plotOpts.SetMirror( false );
+        if( plotOpts.GetScale() != 1.0 )
+            plotOpts.SetScale( 1.0 );
+        if( plotOpts.GetAutoScale() )
+            plotOpts.SetAutoScale( false );
+    }
 
     initializePlotter( plotter, aBoard, &plotOpts );
 
@@ -1321,28 +1371,36 @@ PLOTTER* StartPlotBoard( BOARD *aBoard, const PCB_PLOT_PARAMS *aPlotOpts, int aL
         }
 
         bool startPlotSuccess = false;
-        if (plotter->GetPlotterType() == PLOT_FORMAT::PDF)
+        try
         {
-            startPlotSuccess =
-                    static_cast<PDF_PLOTTER*>( plotter )->StartPlot( aPageNumber, aPageName );
+            if( plotter->GetPlotterType() == PLOT_FORMAT::PDF )
+                startPlotSuccess = static_cast<PDF_PLOTTER*>( plotter )->StartPlot( aPageNumber, aPageName );
+            else
+                startPlotSuccess = plotter->StartPlot( aPageName );
         }
-        else
+        catch( ... )
         {
-            startPlotSuccess = plotter->StartPlot( aPageName );
+            startPlotSuccess = false;
         }
 
 
         if( startPlotSuccess )
         {
+            if( aPlotOpts->GetFormat() == PLOT_FORMAT::PDF )
+                plotPdfBackground( aBoard, aPlotOpts, plotter );
+
             // Plot the frame reference if requested
             if( aPlotOpts->GetPlotFrameRef() )
             {
-                PlotDrawingSheet( plotter, aBoard->GetProject(), aBoard->GetTitleBlock(),
-                                  aBoard->GetPageSettings(), &aBoard->GetProperties(), aPageNumber,
-                                  aPageCount, aSheetName, aSheetPath, aBoard->GetFileName(),
-                                  renderSettings->GetLayerColor( LAYER_DRAWINGSHEET ) );
+                wxString variantName = aBoard->GetCurrentVariant();
+                wxString variantDesc = aBoard->GetVariantDescription( variantName );
 
-                if( aPlotOpts->GetMirror() )
+                PlotDrawingSheet( plotter, aBoard->GetProject(), aBoard->GetTitleBlock(), aBoard->GetPageSettings(),
+                                  &aBoard->GetProperties(), aPageNumber, aPageCount, aSheetName, aSheetPath,
+                                  aBoard->GetFileName(), renderSettings->GetLayerColor( LAYER_DRAWINGSHEET ), true,
+                                  variantName, variantDesc );
+
+                if( aPlotOpts->GetMirror() || aPlotOpts->GetScale() != 1.0 || aPlotOpts->GetAutoScale() )
                     initializePlotter( plotter, aBoard, aPlotOpts );
             }
 
@@ -1351,7 +1409,7 @@ PLOTTER* StartPlotBoard( BOARD *aBoard, const PCB_PLOT_PARAMS *aPlotOpts, int aL
             // done in the driver (if supported)
             if( aPlotOpts->GetNegative() )
             {
-                BOX2I bbox = aBoard->ComputeBoundingBox( false );
+                BOX2I bbox = aBoard->ComputeBoundingBox( false, false );
                 FillNegativeKnockout( plotter, bbox );
             }
 
@@ -1365,23 +1423,47 @@ PLOTTER* StartPlotBoard( BOARD *aBoard, const PCB_PLOT_PARAMS *aPlotOpts, int aL
 }
 
 
-void setupPlotterNewPDFPage( PLOTTER* aPlotter, BOARD* aBoard, const PCB_PLOT_PARAMS* aPlotOpts,
+void setupPlotterNewPDFPage( PLOTTER* aPlotter, BOARD* aBoard, PCB_PLOT_PARAMS* aPlotOpts,
                              const wxString& aLayerName, const wxString& aSheetName,
                              const wxString& aSheetPath, const wxString& aPageNumber,
                              int aPageCount )
 {
+    plotPdfBackground( aBoard, aPlotOpts, aPlotter );
+
+    aPlotter->RenderSettings()->SetLayerName( aLayerName );
+
     // Plot the frame reference if requested
     if( aPlotOpts->GetPlotFrameRef() )
     {
-        PlotDrawingSheet( aPlotter, aBoard->GetProject(), aBoard->GetTitleBlock(),
-                          aBoard->GetPageSettings(), &aBoard->GetProperties(), aPageNumber,
-                          aPageCount,
-                          aSheetName, aSheetPath, aBoard->GetFileName(),
-                          aPlotter->RenderSettings()->GetLayerColor( LAYER_DRAWINGSHEET ) );
+        // Mirror and scale shouldn't be applied to the drawing sheet
+        bool   revertOps = false;
+        bool   oldMirror = aPlotOpts->GetMirror();
+        bool   oldAutoScale = aPlotOpts->GetAutoScale();
+        double oldScale = aPlotOpts->GetScale();
 
-        if( aPlotOpts->GetMirror() )
+        if( oldMirror || oldAutoScale || oldScale != 1.0 )
+        {
+            aPlotOpts->SetMirror( false );
+            aPlotOpts->SetScale( 1.0 );
+            aPlotOpts->SetAutoScale( false );
             initializePlotter( aPlotter, aBoard, aPlotOpts );
-    }
+            revertOps = true;
+        }
 
-    aPlotter->RenderSettings()->SetLayerName( aLayerName );
+        wxString variantName = aBoard->GetCurrentVariant();
+        wxString variantDesc = aBoard->GetVariantDescription( variantName );
+
+        PlotDrawingSheet( aPlotter, aBoard->GetProject(), aBoard->GetTitleBlock(), aBoard->GetPageSettings(),
+                          &aBoard->GetProperties(), aPageNumber, aPageCount, aSheetName, aSheetPath,
+                          aBoard->GetFileName(), aPlotter->RenderSettings()->GetLayerColor( LAYER_DRAWINGSHEET ), true,
+                          variantName, variantDesc );
+
+        if( revertOps )
+        {
+            aPlotOpts->SetMirror( oldMirror );
+            aPlotOpts->SetScale( oldScale );
+            aPlotOpts->SetAutoScale( oldAutoScale );
+            initializePlotter( aPlotter, aBoard, aPlotOpts );
+        }
+    }
 }

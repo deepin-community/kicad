@@ -22,8 +22,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: 0.1\n"
-"POT-Creation-Date: 2024-11-04 08:04+0100\n"
-"PO-Revision-Date: 2024-11-15 08:06+0100\n"
+"POT-Creation-Date: 2025-10-29 08:04+0100\n"
+"PO-Revision-Date: 2025-11-01 03:24+0100\n"
 "Last-Translator: Marco Ciampa <ciampix@posteo.net>\n"
 "Language-Team: Italian <it@li.org>\n"
 "Language: Italian\n"
@@ -38,44 +38,49 @@ msgid "Getting Started in KiCad"
 msgstr "Introduzione a KiCad"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:12
+#: getting_started_in_kicad.adoc:14
 msgid "*Copyright*"
 msgstr "*Copyright*"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:17
+#: getting_started_in_kicad.adoc:19
 msgid ""
 "This document is Copyright (C) 2010-2024 by its contributors as listed "
 "below. You may distribute it and/or modify it under the terms of either the "
 "GNU General Public License (http://www.gnu.org/licenses/gpl.html), version 3 "
 "or later, or the Creative Commons Attribution License (http://"
 "creativecommons.org/licenses/by/3.0/), version 3.0 or later."
-msgstr "Questo documento è coperto dal Copyright (C) 2010-2024 dei suoi autori come elencati in seguito. È possibile distribuirlo e/o modificarlo nei termini sia della GNU General Public License (http://www.gnu.org/licenses/gpl.html), versione 3 o successive, che della Creative Commons Attribution License (http://creativecommons.org/licenses/by/3.0/), versione 3.0 o successive."
+msgstr ""
+"Questo documento è coperto dal Copyright (C) 2010-2024 dei suoi autori come "
+"elencati in seguito. È possibile distribuirlo e/o modificarlo nei termini "
+"sia della GNU General Public License (http://www.gnu.org/licenses/gpl.html), "
+"versione 3 o successive, che della Creative Commons Attribution License "
+"(http://creativecommons.org/licenses/by/3.0/), versione 3.0 o successive."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:19
+#: getting_started_in_kicad.adoc:21
 msgid "All trademarks within this guide belong to their legitimate owners."
 msgstr ""
 "Tutti i marchi registrati all'interno di questa guida appartengono ai loro "
 "legittimi proprietari."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:22
+#: getting_started_in_kicad.adoc:24
 msgid "*Contributors*"
 msgstr "*Collaboratori*"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:24
+#: getting_started_in_kicad.adoc:26
 msgid "Graham Keeth, Jon Evans, Glenn Peterson."
 msgstr "Graham Keeth, Jon Evans, Glenn Peterson."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:27
+#: getting_started_in_kicad.adoc:29
 msgid "*Former Contributors*"
 msgstr "*Collaboratori precedenti*"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:29
+#: getting_started_in_kicad.adoc:31
 msgid ""
 "David Jahshan, Phil Hutchinson, Fabrizio Tappero, Christina Jarron, Melroy "
 "van den Berg."
@@ -84,12 +89,12 @@ msgstr ""
 "van den Berg."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:33
+#: getting_started_in_kicad.adoc:35
 msgid "*Feedback*"
 msgstr "*Feedback*"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:37
+#: getting_started_in_kicad.adoc:39
 msgid ""
 "The KiCad project welcomes feedback, bug reports, and suggestions related to "
 "the software or its documentation. For more information on how to submit "
@@ -101,14 +106,31 @@ msgstr ""
 "su come inviare commenti o segnalare un problema, consultare le istruzioni "
 "su https://www.kicad.org/help/report-an-issue/"
 
-#. type: Title ==
-#: getting_started_in_kicad.adoc:39
-#, no-wrap
-msgid "Introduction to KiCad Version 8"
-msgstr "Introduzione a KiCad versione 8"
+#. type: Plain text
+#: getting_started_in_kicad.adoc:41
+msgid "*Software and Documentation Version*"
+msgstr "*Versione del software e della documentazione*"
 
 #. type: Plain text
+#: getting_started_in_kicad.adoc:44
+msgid ""
+"This user manual is based on KiCad {kicad-version-long}. Functionality and "
+"appearance may be different in other versions of KiCad."
+msgstr "Questo manuale utente è basato su KiCad {kicad-version-long}. Funzionalità e aspetto potrebbero variare in altre versioni di KiCad."
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:46
+msgid "Documentation revision: `{doc-commit}`."
+msgstr "Revisione documentazione: `{doc-commit}`."
+
+#. type: Title ==
 #: getting_started_in_kicad.adoc:48
+#, no-wrap
+msgid "Introduction to KiCad {kicad-version-short}"
+msgstr "Introduzione a KiCad versione {kicad-version-short}"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:57
 msgid ""
 "KiCad is an open-source software suite for creating electronic circuit "
 "schematics, printed circuit boards (PCBs), and associated part descriptions. "
@@ -132,7 +154,7 @@ msgstr ""
 "simulatore SPICE integrato per il controllo del comportamento circuitale."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:53
+#: getting_started_in_kicad.adoc:62
 msgid ""
 "KiCad runs on all major operating systems and a wide range of computer "
 "hardware. It supports PCBs with up to 32 copper layers and is suitable for "
@@ -150,22 +172,22 @@ msgstr ""
 "professionale."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:56
+#: getting_started_in_kicad.adoc:65
 msgid ""
 "The latest documentation for KiCad is available at https://docs.kicad.org. "
-"This document applies to KiCad version 8.0."
+"This document applies to KiCad version 9.0."
 msgstr ""
 "La documentazione più aggiornata di KiCad è disponibile su https://docs.kicad.org.\n"
-"Questo documento si riferisce a KiCad versione 8.0."
+"Questo documento si riferisce a KiCad versione 9.0."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:58
+#: getting_started_in_kicad.adoc:67
 #, no-wrap
 msgid "Downloading and installing KiCad"
 msgstr "Scaricamento e installazione di KiCad"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:62
+#: getting_started_in_kicad.adoc:71
 msgid ""
 "KiCad runs on many operating systems, including Microsoft Windows, Apple "
 "macOS, and many major Linux distributions."
@@ -174,19 +196,24 @@ msgstr ""
 "macOS e molte delle principali distribuzioni Linux."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:66
+#: getting_started_in_kicad.adoc:75
 msgid ""
-"You can find the most up to date instructions and download links at https://"
-"www.kicad.org/download/. These instructions are not included in this manual "
-"as they may change over time with the release of operating system updates."
-msgstr ""
-"Per trovare istruzioni aggiornate e collegamenti per il download consultare "
-"l'indirizzo https://www.kicad.org/download/. Queste istruzioni non sono "
-"incluse in questo manuale in quanto possono cambiare nel tempo e con il "
-"rilascio degli aggiornamenti del sistema operativo."
+"You can find the most up to date download links and installation "
+"instructions at https://www.kicad.org/download/. These instructions are not "
+"included in this manual as they may change over time with the release of "
+"operating system updates."
+msgstr "Si possono trovare istruzioni aggiornate e collegamenti per il download all'indirizzo https://www.kicad.org/download/. Queste istruzioni non sono incluse in questo manuale in quanto possono cambiare nel tempo e con il rilascio degli aggiornamenti del sistema operativo."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:76
+#: getting_started_in_kicad.adoc:79
+msgid ""
+"If you run into problems running KiCad on your system, check the list of "
+"known system-related issues and workarounds at https://www.kicad.org/help/"
+"known-system-related-issues/."
+msgstr "Se si riscontrano problemi durante l'esecuzione di KiCad sul proprio sistema, controllare l'elenco dei problemi noti relativi al sistema e alle relative soluzioni alternative su https://www.kicad.org/help/known-system-related-issues/."
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:89
 msgid ""
 "KiCad stable releases occur periodically per the https://dev-docs.kicad.org/"
 "en/rules-guidelines/release-policy/[KiCad Stable Release Policy]. New "
@@ -209,18 +236,18 @@ msgstr ""
 "anche durante lo sviluppo di nuove funzionalità."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:78
+#: getting_started_in_kicad.adoc:91
 #, no-wrap
 msgid "Support"
 msgstr "Supporto"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:80
+#: getting_started_in_kicad.adoc:93
 msgid "If you have ideas, remarks or questions, or if you just need help:"
 msgstr "Se avete idee, commenti o domande o se vi serve solamente un aiuto:"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:83
+#: getting_started_in_kicad.adoc:96
 msgid ""
 "The https://forum.kicad.info/[official KiCad user forum] is a great place to "
 "connect with other KiCad users and get help."
@@ -229,7 +256,7 @@ msgstr ""
 "sito per entrare in contatto con altri utenti KiCad ed ottenere aiuto."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:85
+#: getting_started_in_kicad.adoc:98
 msgid ""
 "Join our communities on https://www.kicad.org/community/chat/[Discord or "
 "IRC] for real-time discussion with users and developers."
@@ -238,7 +265,7 @@ msgstr ""
 "[Discord o IRC] per discutere in tempo reale con utenti e sviluppatori."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:87
+#: getting_started_in_kicad.adoc:100
 msgid ""
 "Check the KiCad website for https://www.kicad.org/help/learning-resources/"
 "[learning resources] made by the KiCad community."
@@ -247,13 +274,13 @@ msgstr ""
 "didattiche] presenti sul sito di KiCad create dalla comunità."
 
 #. type: Title ==
-#: getting_started_in_kicad.adoc:88
+#: getting_started_in_kicad.adoc:101
 #, no-wrap
 msgid "Basic Concepts and Workflow"
 msgstr "Concetti di base e diagramma di flusso"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:91
+#: getting_started_in_kicad.adoc:104
 msgid ""
 "The typical workflow in KiCad consists of two main tasks: drawing a "
 "schematic and laying out a circuit board."
@@ -262,7 +289,7 @@ msgstr ""
 "disegno di uno schema elettrico e progettazione di un circuito stampato."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:99
+#: getting_started_in_kicad.adoc:112
 msgid ""
 "The schematic is a symbolic representation of the circuit: which components "
 "are used and what connections are made between them. Schematic symbols are "
@@ -282,19 +309,19 @@ msgstr ""
 "per primo, in seguito si dispone i componenti nel circuito stampato."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:100
+#: getting_started_in_kicad.adoc:113
 #, no-wrap
 msgid "Example Schematic"
 msgstr "Schema elettrico di esempio"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:100
+#: getting_started_in_kicad.adoc:113
 #, no-wrap
 msgid "images/coldfire-schematic.png"
 msgstr "images/coldfire-schematic.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:108
+#: getting_started_in_kicad.adoc:121
 msgid ""
 "The board is the physical realization of the schematic, with component "
 "footprints positioned on the board and copper tracks making the connections "
@@ -311,19 +338,19 @@ msgstr ""
 "corrispondente sul circuito stampato."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:109
+#: getting_started_in_kicad.adoc:122
 #, no-wrap
 msgid "Example Layout"
 msgstr "Progetto di esempio"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:109
+#: getting_started_in_kicad.adoc:122
 #, no-wrap
 msgid "images/coldfire-layout.png"
 msgstr "images/coldfire-layout.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:116
+#: getting_started_in_kicad.adoc:129
 msgid ""
 "KiCad has separate windows for drawing the schematic (\"Schematic Editor\"), "
 "laying out the board (\"PCB Editor\"), and editing symbols and footprints "
@@ -340,31 +367,31 @@ msgstr ""
 "e impronte o modificare simboli e impronte esistenti."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:117
+#: getting_started_in_kicad.adoc:130
 #, no-wrap
 msgid "Example Symbol"
 msgstr "Simbolo di esempio"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:117
+#: getting_started_in_kicad.adoc:130
 #, no-wrap
 msgid "images/coldfire-symbol.png"
 msgstr "images/coldfire-symbol.png"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:118
+#: getting_started_in_kicad.adoc:131
 #, no-wrap
 msgid "Example Footprint"
 msgstr "Esempio di impronta"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:118
+#: getting_started_in_kicad.adoc:131
 #, no-wrap
 msgid "images/coldfire-footprint.png"
 msgstr "images/coldfire-footprint.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:127
+#: getting_started_in_kicad.adoc:140
 msgid ""
 "Finally, it is important to understand that KiCad has a project-based "
 "workflow.  A KiCad project is a folder with a project file, a schematic, a "
@@ -387,13 +414,13 @@ msgstr ""
 "associati ad uno specifico progetto."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:128
+#: getting_started_in_kicad.adoc:141
 #, no-wrap
 msgid "PCB Design Workflow"
 msgstr "Il flusso di progettazione di C.S."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:137
+#: getting_started_in_kicad.adoc:150
 msgid ""
 "Typically, the schematic is drawn first. This means adding symbols to the "
 "schematic and drawing the connections between them. Custom symbols may need "
@@ -414,7 +441,7 @@ msgstr ""
 "inizia la fase di layout."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:145
+#: getting_started_in_kicad.adoc:158
 msgid ""
 "The schematic describes which components are in the design and how they are "
 "connected; the board editor uses this information to make layout easier and "
@@ -422,19 +449,11 @@ msgid ""
 "requires careful placement of each footprint on the circuit board. After "
 "component placement, copper tracks are drawn between components based on the "
 "connections in the schematic as well as other electrical considerations, "
-"such as trace resistance, controlled impedance requirements, crosstalk, etc."
-msgstr ""
-"Lo schema descrive quali componenti sono presenti nel progetto e come sono "
-"collegati; l'editor del circuito stampato usa queste informazioni per "
-"semplificare la disposizione e prevenire discrepanze tra lo schema e il C."
-"S.. Il processo di layout richiede il posizionamento accurato di ciascuna "
-"impronta sul circuito stampato. Dopo il posizionamento dei componenti, le "
-"tracce di rame vengono tracciate tra i componenti in base alle connessioni "
-"nello schema e ad altre considerazioni elettriche, come resistenza di "
-"traccia, requisiti di impedenza controllata, diafonia, ecc."
+"such as track resistance, controlled impedance requirements, crosstalk, etc."
+msgstr "Lo schema descrive quali componenti sono presenti nel progetto e come sono collegati; l'editor del circuito stampato usa queste informazioni per semplificare la disposizione e prevenire discrepanze tra lo schema e il circuito stampato. Il processo di layout richiede il posizionamento accurato di ciascuna impronta sul circuito stampato. Dopo il posizionamento dei componenti, le tracce di rame vengono tracciate tra i componenti in base alle connessioni nello schema e ad altre considerazioni elettriche, come resistenza di traccia, requisiti di impedenza controllata, diafonia, ecc."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:150
+#: getting_started_in_kicad.adoc:163
 msgid ""
 "Often the schematic will need to be updated after layout has begun; the "
 "schematic changes can be easily pulled into the board design. The reverse "
@@ -448,7 +467,7 @@ msgstr ""
 "indietro allo schema per mantenere le due coerenti uno con l'altro."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:154
+#: getting_started_in_kicad.adoc:167
 msgid ""
 "When the board layout is complete and the board has passed the Design Rules "
 "Check (DRC), fabrication outputs are generated so that the board can be "
@@ -460,13 +479,13 @@ msgstr ""
 "circuiti stampati."
 
 #. type: Title ==
-#: getting_started_in_kicad.adoc:155
+#: getting_started_in_kicad.adoc:168
 #, no-wrap
 msgid "Tutorial Part 1: Project"
 msgstr "Tutorial parte 1: il progetto"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:163
+#: getting_started_in_kicad.adoc:176
 msgid ""
 "The first thing to do when starting a new design is to create a new "
 "project.  Opening KiCad will bring up the Project Manager. Click **File** -> "
@@ -484,19 +503,19 @@ msgstr ""
 "sottocartella con lo stesso nome del progetto."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:164
+#: getting_started_in_kicad.adoc:177
 #, no-wrap
 msgid "Project Manager After Creating a New Project"
 msgstr "Il gestore progetti dopo la creazione di un nuovo progetto"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:164
+#: getting_started_in_kicad.adoc:177
 #, no-wrap
 msgid "images/project-manager-new-project.png"
 msgstr "images/project-manager-new-project.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:170
+#: getting_started_in_kicad.adoc:183
 msgid ""
 "At left, the Project Files pane lists the files in the new project. There is "
 "a project file with the extension `.kicad_pro`, a schematic file with the "
@@ -509,7 +528,7 @@ msgstr ""
 "kicad_pcb`. Questi file condividono tutti lo stesso nome del progetto."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:175
+#: getting_started_in_kicad.adoc:188
 msgid ""
 "There may also be a `-backups` directory: KiCad will automatically create "
 "backups of your project when you save, and optionally at fixed time "
@@ -522,7 +541,7 @@ msgstr ""
 "**Preferenze** -> **Preferenze...** -> **Comuni** -> **Backup progetto**."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:178
+#: getting_started_in_kicad.adoc:191
 #, no-wrap
 msgid ""
 "Opening the Preferences dialog may trigger a library table configuration\n"
@@ -532,7 +551,7 @@ msgstr ""
 "      tabella delle librerie. Questa è descritta <<sym-lib-table-setup,di seguito>>.\n"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:181 getting_started_in_kicad.adoc:225
+#: getting_started_in_kicad.adoc:194 getting_started_in_kicad.adoc:238
 #, no-wrap
 msgid ""
 "On macOS, the Preferences dialog is in the **KiCad** menu, not the\n"
@@ -542,19 +561,19 @@ msgstr ""
 "      menu delle **Preferenze**.\n"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:182
+#: getting_started_in_kicad.adoc:195
 #, no-wrap
 msgid "Project Backup Settings"
 msgstr "Impostazioni di backup del progetto"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:182
+#: getting_started_in_kicad.adoc:195
 #, no-wrap
 msgid "images/project-backup-settings.png"
 msgstr "images/project-backup-settings.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:188
+#: getting_started_in_kicad.adoc:201
 msgid ""
 "At right of the Project Window, there are buttons to launch the various "
 "tools that KiCad provides. Launching these tools will automatically open the "
@@ -567,19 +586,19 @@ msgstr ""
 "dal progetto corrente. Iniziare aprendo l'editor degli schemi elettrici."
 
 #. type: Title ==
-#: getting_started_in_kicad.adoc:189
+#: getting_started_in_kicad.adoc:202
 #, no-wrap
 msgid "Tutorial Part 2: Schematic"
 msgstr "Tutorial parte 2: schemi elettrici"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:192
+#: getting_started_in_kicad.adoc:205
 #, no-wrap
 msgid "Symbol Library Table Setup"
 msgstr "Impostazione tabella librerie dei simboli"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:198
+#: getting_started_in_kicad.adoc:211
 msgid ""
 "The first time the schematic editor is opened, a dialog will appear asking "
 "how to configure the global symbol library table. The symbol library table "
@@ -597,7 +616,7 @@ msgstr ""
 "(raccomandato)**."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:205
+#: getting_started_in_kicad.adoc:218
 msgid ""
 "If KiCad cannot find the libraries in their expected installation location, "
 "this option will be disabled. In this case, the user should choose the "
@@ -612,7 +631,7 @@ msgstr ""
 "cartella del percorso data. Selezionare il file `sym-lib-table`."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:209
+#: getting_started_in_kicad.adoc:222
 msgid ""
 "The location of the default library table files depends on operating system "
 "and may vary based on installation location. Below are the defaults for each "
@@ -623,41 +642,41 @@ msgstr ""
 "posizioni predefinite per ogni sistema operativo:"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:211
-msgid "Windows: `C:\\Program Files\\KiCad\\8.0\\share\\kicad\\template\\`"
-msgstr "Windows: `C:\\Program Files\\KiCad\\8.0\\share\\kicad\\template\\`"
+#: getting_started_in_kicad.adoc:224
+msgid "Windows: `C:\\Program Files\\KiCad\\9.0\\share\\kicad\\template\\`"
+msgstr "Windows: `C:\\Program Files\\KiCad\\9.0\\share\\kicad\\template\\`"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:212
+#: getting_started_in_kicad.adoc:225
 msgid "Linux: `/usr/share/kicad/template/`"
 msgstr "Linux: `/usr/share/kicad/template/`"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:213
+#: getting_started_in_kicad.adoc:226
 msgid "macOS: `/Applications/KiCad/KiCad.app/Contents/SharedSupport/template/`"
 msgstr ""
 "macOS: `/Applications/KiCad/KiCad.app/Contents/SharedSupport/template/`"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:214
+#: getting_started_in_kicad.adoc:227
 #, no-wrap
 msgid "Symbol Library Table Configuration"
 msgstr "Configurazione tabella librerie simbolo"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:214
+#: getting_started_in_kicad.adoc:227
 #, no-wrap
 msgid "images/symbol-lib-table-configuration.png"
 msgstr "images/symbol-lib-table-configuration.png"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:216
+#: getting_started_in_kicad.adoc:229
 #, no-wrap
 msgid "Schematic Editor Basics"
 msgstr "Basi dell'editor degli schemi elettrici"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:222
+#: getting_started_in_kicad.adoc:235
 msgid ""
 "To pan around the schematic, click and drag with the middle mouse button or "
 "right mouse button. Zoom in and out with the mousewheel or kbd:[F1] and kbd:"
@@ -673,7 +692,7 @@ msgstr ""
 "**Preferenze...** -> **Mouse e Touchpad**."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:233
+#: getting_started_in_kicad.adoc:246
 msgid ""
 "By default, KiCad enables a mouse setting called **Center and Warp Cursor on "
 "Zoom**. When this feature is enabled, the mouse cursor is automatically "
@@ -695,42 +714,51 @@ msgstr ""
 "risulta scomodo, disabilitare la funzione nelle preferenze Mouse e Touchpad."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:234
+#: getting_started_in_kicad.adoc:247
 #, no-wrap
 msgid "Mouse and Touchpad Preferences"
 msgstr "Preferenze mouse e touchpad"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:234
+#: getting_started_in_kicad.adoc:247
 #, no-wrap
 msgid "images/mouse-and-touchpad-prefs.png"
 msgstr "images/mouse-and-touchpad-prefs.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:239
+#: getting_started_in_kicad.adoc:252
 msgid ""
 "The toolbar at the left side of the schematic editor screen contains basic "
 "display settings. The toolbar at the right side of the screen contains tools "
 "for editing the schematic."
-msgstr "La barra degli strumenti sul lato sinistro dell'editor degli schemi contiene le impostazioni di visualizzazione di base. La barra degli strumenti sul lato destro dello schermo contiene gli strumenti per modificare lo schema."
+msgstr ""
+"La barra degli strumenti sul lato sinistro dell'editor degli schemi contiene "
+"le impostazioni di visualizzazione di base. La barra degli strumenti sul "
+"lato destro dello schermo contiene gli strumenti per modificare lo schema."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:243
+#: getting_started_in_kicad.adoc:256
 msgid ""
 "Most tools in KiCad either have default hotkeys assigned, or can have custom "
 "hotkeys assigned. To view all hotkeys, go to **Help** -> **List Hotkeys..."
 "**.  Hotkeys can be changed in the **Hotkeys** panel of the Preferences "
 "dialog."
-msgstr "Alla maggior parte degli strumenti in KiCad sono assegnati comandi da tastiera predefiniti o possono essere assegnati comandi da tastiera personalizzati. Per visualizzare tutti i comandi da tastiera, andare su **Aiuto** -> **Elenco tasti...**. I comandi da tastiera possono essere modificati nel pannello **Comandi da tastiera** della finestra delle Preferenze."
+msgstr ""
+"Alla maggior parte degli strumenti in KiCad sono assegnati comandi da "
+"tastiera predefiniti o possono essere assegnati comandi da tastiera "
+"personalizzati. Per visualizzare tutti i comandi da tastiera, andare su "
+"**Aiuto** -> **Elenco tasti...**. I comandi da tastiera possono essere "
+"modificati nel pannello **Comandi da tastiera** della finestra delle "
+"Preferenze."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:244
+#: getting_started_in_kicad.adoc:257
 #, no-wrap
 msgid "Schematic Sheet Setup"
 msgstr "Impostazione foglio schema"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:249
+#: getting_started_in_kicad.adoc:262
 msgid ""
 "Before drawing anything in the schematic, set up the schematic sheet "
 "itself.  Click **File** -> **Page Settings**. Give the schematic a title and "
@@ -742,42 +770,51 @@ msgstr ""
 "carta."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:250
+#: getting_started_in_kicad.adoc:263
 #, no-wrap
 msgid "Schematic Page Settings"
 msgstr "Impostazioni pagina schema"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:250
+#: getting_started_in_kicad.adoc:263
 #, no-wrap
 msgid "images/schematic-page-setup.png"
 msgstr "images/schematic-page-setup.png"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:253
+#: getting_started_in_kicad.adoc:266
 #, no-wrap
 msgid "Adding Symbols to the Schematic"
 msgstr "Aggiunta di simboli allo schema"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:258
+#: getting_started_in_kicad.adoc:271
 msgid ""
 "Start making the circuit by adding some symbols to the schematic. Open the "
 "Choose Symbol dialog by clicking the **Add Symbols** button image:images/"
 "add_component_24.png[] on the right side of the window or pressing kbd:[A]."
-msgstr "Iniziare a creare il circuito aggiungendo alcuni simboli allo schema. Aprire la finestra di dialogo Scegliere simbolo facendo clic sul pulsante **Aggiungi simboli** image:images/add_component_24.png[] sul lato destro della finestra o premendo kbd:[A]."
+msgstr ""
+"Iniziare a creare il circuito aggiungendo alcuni simboli allo schema. Aprire "
+"la finestra di dialogo Scegliere simbolo facendo clic sul pulsante "
+"**Aggiungi simboli** image:images/add_component_24.png[] sul lato destro "
+"della finestra o premendo kbd:[A]."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:263
+#: getting_started_in_kicad.adoc:276
 msgid ""
 "This action will trigger the Footprint Library Table Setup dialog if it has "
 "not already been triggered. This dialog is equivalent to the <<sym-lib-table-"
 "setup,Symbol Library Table Setup dialog explained earlier>>, but for "
 "footprints instead of symbols."
-msgstr "Questa azione attiverà la finestra di dialogo per l'impostazione della tabella librerie di impronte se questa non è già stata attivata. Questa finestra di dialogo è equivalente alla <<sym-lib-table-setup,finestra di dialogo di impostazione della tabella librerie di simboli spiegata in precedenza>>, ma per le impronte anziché per i simboli."
+msgstr ""
+"Questa azione attiverà la finestra di dialogo per l'impostazione della "
+"tabella librerie di impronte se questa non è già stata attivata. Questa "
+"finestra di dialogo è equivalente alla <<sym-lib-table-setup,finestra di "
+"dialogo di impostazione della tabella librerie di simboli spiegata in "
+"precedenza>>, ma per le impronte anziché per i simboli."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:270
+#: getting_started_in_kicad.adoc:283
 msgid ""
 "Again, select the default option: **Copy default global footprint library "
 "table (recommended)**. If this is option is disabled, select the second "
@@ -795,7 +832,7 @@ msgstr ""
 "Selezionare il file `fp-lib-table` e fare clic su **OK**."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:275
+#: getting_started_in_kicad.adoc:288
 msgid ""
 "The Choose Symbol dialog lists the available symbol libraries and the "
 "component symbols contained within them. Basic devices like passive "
@@ -810,7 +847,7 @@ msgstr ""
 "LED, si trovano nelle altre librerie."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:278
+#: getting_started_in_kicad.adoc:291
 msgid ""
 "Scroll down to the `Device` library, expand it, and select the `LED` "
 "symbol.  Click **OK**, and click again to place the symbol in the schematic."
@@ -820,19 +857,19 @@ msgstr ""
 "per posizionare il simbolo nello schema."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:279
+#: getting_started_in_kicad.adoc:292
 #, no-wrap
 msgid "LED Symbol in Choose Symbol Dialog"
 msgstr "Il simbolo LED nella finestra di dialogo Scegli simbolo"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:279
+#: getting_started_in_kicad.adoc:292
 #, no-wrap
 msgid "images/symbol-led.png"
 msgstr "images/symbol-led.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:287
+#: getting_started_in_kicad.adoc:300
 msgid ""
 "Next, add a current-limiting resistor. Go back to the symbol chooser, but "
 "this time try searching for a resistor by entering `R` in the filter box at "
@@ -850,7 +887,7 @@ msgstr ""
 "simbolo di resistenza e aggiungerlo allo schema."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:290
+#: getting_started_in_kicad.adoc:303
 msgid ""
 "Finally, add a battery to power the LED. The `Device` library has a suitable "
 "`Battery_Cell` symbol."
@@ -859,66 +896,68 @@ msgstr ""
 "ha il simbolo appropriato `Battery_Cell`."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:291
+#: getting_started_in_kicad.adoc:304
 #, no-wrap
 msgid "Schematic with Symbols Placed"
 msgstr "Schema con simboli piazzati"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:291
+#: getting_started_in_kicad.adoc:304
 #, no-wrap
 msgid "images/symbols-placed.png"
 msgstr "images/symbols-placed.png"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:293
+#: getting_started_in_kicad.adoc:306
 #, no-wrap
 msgid "Selecting and Moving Objects"
 msgstr "Selezione e spostamento oggetti"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:296
+#: getting_started_in_kicad.adoc:310
 msgid ""
 "Next, position the symbols correctly relative to each other, as shown in the "
-"screenshot. Do this by selecting, moving, and rotating the symbols."
-msgstr ""
-"Poi, posizionare i simboli correttamente l'uno rispetto all'altro, come "
-"mostrato nello screenshot. A tale scopo, selezionare, spostare e ruotare i "
-"simboli."
+"screenshot. You will do this by selecting each symbol, then moving and "
+"rotating it."
+msgstr "Poi, posizionare i simboli correttamente l'uno rispetto all'altro, come mostrato nello screenshot. A tale scopo, selezionare e poi spostare e ruotare i simboli."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:297
+#: getting_started_in_kicad.adoc:311
 #, no-wrap
 msgid "Schematic with Symbols Moved and Rotated"
 msgstr "Schema con simboli spostati e ruotati"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:297
+#: getting_started_in_kicad.adoc:311
 #, no-wrap
 msgid "images/symbols-moved.png"
 msgstr "images/symbols-moved.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:304
+#: getting_started_in_kicad.adoc:318
 msgid ""
-"In KiCad 8.0, objects are selected by clicking on them while the selection "
-"tool is active. The selection tool is the default tool when no other tool is "
+"In KiCad, objects are selected by clicking on them while the selection tool "
+"is active. The selection tool is the default tool when no other tool is "
 "active, so you can enter the selection tool by quitting any active tool (kbd:"
 "[Esc]) or by clicking the image:images/cursor_24.png[\"Select tool icon\"] "
 "button in the right toolbar."
-msgstr "In KiCad 8.0, gli oggetti vengono selezionati facendo clic sopra di essi mentre è attivo lo strumento di selezione. Lo strumento di selezione è lo strumento predefinito quando nessun altro strumento è attivo, quindi si può entrare nello strumento di selezione chiudendo qualsiasi strumento attivo (kbd:[Esc]) o facendo clic sul pulsante image:images/cursor_24.png[\"Icona strumento di selezione\"] nella barra degli strumenti di destra."
+msgstr "In KiCad, gli oggetti vengono selezionati facendo clic sopra di essi mentre è attivo lo strumento di selezione. Lo strumento di selezione è lo strumento predefinito quando nessun altro strumento è attivo, quindi si può entrare nello strumento di selezione chiudendo qualsiasi strumento attivo (kbd:[Esc]) o facendo clic sul pulsante image:images/cursor_24.png[\"Icona strumento di selezione\"] nella barra degli strumenti di destra."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:308
+#: getting_started_in_kicad.adoc:322
 msgid ""
 "Additional objects can be added to the selection with kbd:[Shift]+click, or "
 "removed with kbd:[Ctrl+Shift]+click (macOS: kbd:[Cmd+Shift]+click). You can "
 "toggle an item's selection state with kbd:[Ctrl]+click (macOS: kbd:"
 "[Cmd]+click)."
-msgstr "Ulteriori oggetti possono essere aggiunti alla selezione con kbd:[Maiusc]+clic, o rimossi con kbd:[Ctrl+Maiusc]+clic (MacOS: kbd:[Cmd+Maiusc]+clic).È possibile commutare lo stato della selezione di un oggetto con kbd:[Ctrl]+clic (macOS: kbd:[Cmd]+clic)."
+msgstr ""
+"Ulteriori oggetti possono essere aggiunti alla selezione con kbd:"
+"[Maiusc]+clic, o rimossi con kbd:[Ctrl+Maiusc]+clic (MacOS: kbd:"
+"[Cmd+Maiusc]+clic).È possibile commutare lo stato della selezione di un "
+"oggetto con kbd:[Ctrl]+clic (macOS: kbd:[Cmd]+clic)."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:315
+#: getting_started_in_kicad.adoc:329
 msgid ""
 "Drag selection is also possible; dragging from left-to-right selects objects "
 "that are entirely enclosed by the selection box, while dragging right-to-"
@@ -936,7 +975,7 @@ msgstr ""
 "per aggiungere, sottrarre o commutare dalla selezione."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:321
+#: getting_started_in_kicad.adoc:335
 msgid ""
 "Note that it is possible to select an entire symbol (by clicking on the "
 "symbol shape itself) or to select one text field in the symbol without "
@@ -951,7 +990,7 @@ msgstr ""
 "testo selezionato e non sul resto del simbolo."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:328
+#: getting_started_in_kicad.adoc:342
 msgid ""
 "Selected objects are moved by pressing kbd:[M] and rotated by pressing kbd:"
 "[R].  The kbd:[G] hotkey (drag) can also be used to move objects. For moving "
@@ -969,31 +1008,25 @@ msgstr ""
 "possono essere cancellati con il tasto kbd:[Canc]."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:329
+#: getting_started_in_kicad.adoc:343
 #, no-wrap
 msgid "Wiring the Schematic"
 msgstr "Cablaggio dello schema"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:338
+#: getting_started_in_kicad.adoc:352
 msgid ""
 "The symbol pins all have small circles on them, indicating that they are not "
 "connected. Fix that by drawing wires between symbol pins as shown in the "
 "screenshot. Click the **Add a Wire** button image:images/add_line_24.png[] "
-"on the right-hand toolbar or use the kbd:[W] hotkey. Click to start drawing "
-"a wire, and finish drawing the wire by clicking on a symbol pin or double "
-"clicking anywhere. Pressing Escape will cancel drawing the wire."
-msgstr ""
-"I pin dei simboli hanno tutti dei piccoli cerchi a indicare che non sono "
-"collegati. Risolvere disegnando fili tra i pin dei simboli come mostrato "
-"nella schermata. Fare clic sul pulsante **Aggiungi un filo** image:images/"
-"add_line_24.png[] sulla barra degli strumenti di destra o utilizzare il "
-"tasto comando kbd:[W]. Fare clic per iniziare a disegnare un filo e finire "
-"di disegnare il filo facendo clic sul pin di un simbolo o facendo doppio "
-"clic in un punto qualsiasi. Premendo Esc si annullerà il disegno del filo."
+"on the right-hand toolbar or use the kbd:[W] hotkey. Click and release to "
+"start drawing a wire, and finish drawing the wire by clicking on a symbol "
+"pin or double clicking anywhere. Pressing Escape will cancel drawing the "
+"wire."
+msgstr "I pin dei simboli hanno tutti dei piccoli cerchi a indicare che non sono collegati. Risolvere disegnando fili tra i pin dei simboli come mostrato nella schermata. Fare clic sul pulsante **Aggiungi un filo** image:images/add_line_24.png[] sulla barra degli strumenti di destra o utilizzare il tasto comando kbd:[W]. Fare clic e rilasciare per iniziare a disegnare un filo e finire di disegnare il filo facendo clic sul pin di un simbolo o facendo doppio clic in un punto qualsiasi. Premendo Esc si annullerà il disegno del filo."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:342
+#: getting_started_in_kicad.adoc:356
 msgid ""
 "Another convenient method of drawing wires is to hover over an unconnected "
 "pin.  The mouse cursor will change to indicate that a wire can be drawn "
@@ -1006,19 +1039,19 @@ msgstr ""
 "inizierà quindi a disegnare un filo automaticamente."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:343
+#: getting_started_in_kicad.adoc:357
 #, no-wrap
 msgid "Schematic with Nets Wired"
 msgstr "Schema con collegamenti cablati"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:343
+#: getting_started_in_kicad.adoc:357
 #, no-wrap
 msgid "images/symbols-wired.png"
 msgstr "images/symbols-wired.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:347
+#: getting_started_in_kicad.adoc:361
 msgid ""
 "Next, add power and ground symbols to the schematic. While not strictly "
 "necessary in such a simple schematic, these make it easier to understand "
@@ -1029,7 +1062,7 @@ msgstr ""
 "comprensione di schemi di grandi dimensioni."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:353
+#: getting_started_in_kicad.adoc:367
 msgid ""
 "A number of power and ground symbols are available in the `Power` symbol "
 "library.  However, there is a shortcut for adding these symbols: click the "
@@ -1046,7 +1079,7 @@ msgstr ""
 "e alimentazione."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:355
+#: getting_started_in_kicad.adoc:369
 msgid ""
 "Add a VCC symbol and GND symbol and then connect them to the circuit with "
 "wires."
@@ -1055,7 +1088,7 @@ msgstr ""
 "con dei fili."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:362
+#: getting_started_in_kicad.adoc:376
 msgid ""
 "Finally, add a label to the wire between the LED and resistor. Again, this "
 "may not be necessary in a simple circuit, but it is good practice to label "
@@ -1064,22 +1097,30 @@ msgid ""
 "(`led`), and place the label into the schematic so that the square "
 "attachment point overlaps with the wire. Rotate and align the label as "
 "necessary."
-msgstr "Infine, aggiungere un'etichetta al filo tra il LED e la resistenza. Anche in questo caso, questo potrebbe non essere necessario in un circuito semplice, ma è buona norma etichettare le reti importanti. Fare clic sul pulsante **Aggiungi etichetta** image:images/add_label_24.png[] nella barra degli strumenti a destra (kbd:[L]), digitare un nome per l'etichetta (`led`) e posizionare l'etichetta nello schema in modo che il punto di attacco quadrato si sovrapponga al filo. Ruotare e allineare l'etichetta se necessario."
+msgstr ""
+"Infine, aggiungere un'etichetta al filo tra il LED e la resistenza. Anche in "
+"questo caso, questo potrebbe non essere necessario in un circuito semplice, "
+"ma è buona norma etichettare le reti importanti. Fare clic sul pulsante "
+"**Aggiungi etichetta** image:images/add_label_24.png[] nella barra degli "
+"strumenti a destra (kbd:[L]), digitare un nome per l'etichetta (`led`) e "
+"posizionare l'etichetta nello schema in modo che il punto di attacco "
+"quadrato si sovrapponga al filo. Ruotare e allineare l'etichetta se "
+"necessario."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:363
+#: getting_started_in_kicad.adoc:377
 #, no-wrap
 msgid "Schematic with Nets Labeled"
 msgstr "Schema con collegamenti etichettati"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:363
+#: getting_started_in_kicad.adoc:377
 #, no-wrap
 msgid "images/symbols-labeled.png"
 msgstr "images/symbols-labeled.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:368
+#: getting_started_in_kicad.adoc:382
 msgid ""
 "Note that labels and power symbols with the same name are connected "
 "together.  Another GND symbol or wire labeled `led` on this schematic page "
@@ -1093,19 +1134,19 @@ msgstr ""
 "visivamente."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:369
+#: getting_started_in_kicad.adoc:383
 #, no-wrap
 msgid "Annotation, Symbol Properties, and Footprints"
 msgstr "Annotazione, proprietà simbolo, e impronte"
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:371
+#: getting_started_in_kicad.adoc:385
 #, no-wrap
 msgid "Annotation"
 msgstr "Annotazione"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:374
+#: getting_started_in_kicad.adoc:388
 msgid ""
 "Each symbol needs a unique reference designator assigned to it. This process "
 "is also known as annotation."
@@ -1114,15 +1155,15 @@ msgstr ""
 "è noto anche come annotazione."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:378
+#: getting_started_in_kicad.adoc:392
 msgid ""
-"By default in KiCad 8.0, symbols are automatically annotated when they are "
-"added to the schematic. Automatic annotation can be enabled or disabled "
-"using the image:images/annotate_24.png[] button in the left toolbar."
-msgstr "Per impostazione predefinita in KiCad 8.0, i simboli vengono automaticamente annotati quando vengono aggiunti allo schema. L'annotazione automatica può essere abilitata o disabilitata utilizzando il pulsante image:images/annotate_24.png[] nella barra degli strumenti di sinistra."
+"By default, symbols are automatically annotated when they are added to the "
+"schematic. Automatic annotation can be enabled or disabled using the image:"
+"images/annotate_24.png[] button in the left toolbar."
+msgstr "Per impostazione predefinita, i simboli vengono automaticamente annotati quando vengono aggiunti allo schema. L'annotazione automatica può essere abilitata o disabilitata utilizzando il pulsante image:images/annotate_24.png[] nella barra degli strumenti di sinistra."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:382
+#: getting_started_in_kicad.adoc:396
 msgid ""
 "While it is not necessary for this guide, symbols can be manually annotated "
 "or reannotated using the **Fill in schematic symbol reference designators** "
@@ -1134,13 +1175,13 @@ msgstr ""
 "nella barra degli strumenti in alto."
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:383 getting_started_in_kicad.adoc:973
+#: getting_started_in_kicad.adoc:397 getting_started_in_kicad.adoc:1018
 #, no-wrap
 msgid "Symbol Properties"
 msgstr "Proprietà del simbolo"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:389
+#: getting_started_in_kicad.adoc:403
 msgid ""
 "Next, fill in values for each component. Select the LED, right-click, and "
 "select Properties... (kbd:[E]). This project will use a red LED, so change "
@@ -1157,7 +1198,7 @@ msgstr ""
 "riferimenti individualmente nelle proprietà di ciascun simbolo."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:392
+#: getting_started_in_kicad.adoc:406
 msgid ""
 "This project will use a 3V lithium coin cell battery, so change the `Value` "
 "field of `BT1` to `3V`. Change the resistor's value to `1k`."
@@ -1167,13 +1208,13 @@ msgstr ""
 "resistenza in `1k`."
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:394
+#: getting_started_in_kicad.adoc:408
 #, no-wrap
 msgid "Footprint Assignment"
 msgstr "Assegnamento impronte"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:399
+#: getting_started_in_kicad.adoc:413
 msgid ""
 "Finally, assign a footprint to each component. This defines how each "
 "component will attach to the PCB. Some symbols come with footprints pre-"
@@ -1186,7 +1227,7 @@ msgstr ""
 "possibili, quindi l'utente dovrà selezionare quella appropriata."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:403
+#: getting_started_in_kicad.adoc:417
 msgid ""
 "There are several ways to assign footprints, but one convenient way is to "
 "use the footprint assignment tool by clicking the image:images/"
@@ -1197,7 +1238,7 @@ msgstr ""
 "icon_cvpcb_24_24.png[] nella barra degli strumenti in alto."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:411
+#: getting_started_in_kicad.adoc:425
 msgid ""
 "The left pane of this window lists the available footprint libraries. The "
 "middle pane shows the symbols in the schematic. All of these symbols will "
@@ -1207,22 +1248,31 @@ msgid ""
 "on the desired footprint in the right pane. You can preview a footprint by "
 "right-clicking the footprint's name and selecting **View selected "
 "footprint**."
-msgstr "Il riquadro sinistro di questa finestra elenca le librerie di impronte disponibili. Il riquadro centrale mostra i simboli nello schema. A tutti questi simboli verranno assegnate delle impronte. Il riquadro di destra mostra le impronte impostabili per il simbolo selezionato nel riquadro centrale. Per assegnare un'impronta a un simbolo, selezionare il simbolo nel riquadro centrale e fare doppio clic sull'impronta desiderata nel riquadro di destra. Si può ottenere un'anteprima dell'impronta facendo clic con il pulsante destro del mouse su un'impronta e selezionando **Visualizza impronta selezionata**."
+msgstr ""
+"Il riquadro sinistro di questa finestra elenca le librerie di impronte "
+"disponibili. Il riquadro centrale mostra i simboli nello schema. A tutti "
+"questi simboli verranno assegnate delle impronte. Il riquadro di destra "
+"mostra le impronte impostabili per il simbolo selezionato nel riquadro "
+"centrale. Per assegnare un'impronta a un simbolo, selezionare il simbolo nel "
+"riquadro centrale e fare doppio clic sull'impronta desiderata nel riquadro "
+"di destra. Si può ottenere un'anteprima dell'impronta facendo clic con il "
+"pulsante destro del mouse su un'impronta e selezionando **Visualizza "
+"impronta selezionata**."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:412
+#: getting_started_in_kicad.adoc:426
 #, no-wrap
 msgid "Assign Footprint Tool"
 msgstr "Strumento per l'assegnamento impronte"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:412
+#: getting_started_in_kicad.adoc:426
 #, no-wrap
 msgid "images/footprint-assignment-tool.png"
 msgstr "images/footprint-assignment-tool.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:417
+#: getting_started_in_kicad.adoc:431
 msgid ""
 "Many footprints are included with KiCad, so the footprint assignment tool "
 "offers several ways to filter out footprints that aren't relevant to the "
@@ -1233,19 +1283,19 @@ msgstr ""
 "rilevanti per il simbolo in questione."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:418
+#: getting_started_in_kicad.adoc:432
 #, no-wrap
 msgid "Footprint Filter Buttons"
 msgstr "Pulsanti filtro impronte"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:418
+#: getting_started_in_kicad.adoc:432
 #, no-wrap
 msgid "images/footprint-assignment-filters.png"
 msgstr "images/footprint-assignment-filters.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:426
+#: getting_started_in_kicad.adoc:440
 msgid ""
 "[[footprint-filters]] The leftmost button image:images/"
 "module_filtered_list_24.png[] activates filters that can be defined in each "
@@ -1262,7 +1312,7 @@ msgstr ""
 "in alcune situazioni."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:429
+#: getting_started_in_kicad.adoc:443
 msgid ""
 "The middle button image:images/module_pin_filtered_list_24.png[] filters by "
 "pin count, so that only 8-pad footprints are shown for 8-pin symbols. This "
@@ -1273,7 +1323,7 @@ msgstr ""
 "di 8 pad per i simboli a 8 pin. Questo filtro è quasi sempre utile."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:434
+#: getting_started_in_kicad.adoc:448
 msgid ""
 "The right button image:images/module_library_list_24.png[] filters by "
 "selected library. Libraries are selected in the left pane; footprints not in "
@@ -1289,7 +1339,7 @@ msgstr ""
 "non entrambi."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:436
+#: getting_started_in_kicad.adoc:450
 msgid ""
 "The text box filters out footprints that don't match the text in the box.  "
 "This filter is disabled when the box is empty."
@@ -1298,31 +1348,84 @@ msgstr ""
 "casella. Questo filtro è disabilitato quando la casella è vuota."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:441
+#: getting_started_in_kicad.adoc:456
 msgid ""
 "Using the filters, find each of the footprints shown in the central column "
-"in the screenshot above. Assign each footprint to a symbol by selecting the "
-"symbol in the central column and then double clicking the appropriate "
-"footprint in the right column. Once all of the footprints have been "
-"assigned, click **OK**."
-msgstr "Usando i filtri, trovare ciascuna delle impronte mostrate nella colonna centrale della schermata qui sopra. Assegnare ogni impronta a un simbolo selezionando il simbolo nella colonna centrale e quindi facendo doppio clic sull'impronta appropriata nella colonna di destra. Una volta assegnate tutte le impronte, fare clic su **OK**."
+"in the screenshot above. The footprints for each symbol are also listed in "
+"the table below. Assign each footprint to a symbol by selecting the symbol "
+"in the central column and then double clicking the appropriate footprint in "
+"the right column. Once all of the footprints have been assigned, click "
+"**OK**."
+msgstr "Usando i filtri, trovare ciascuna delle impronte mostrate nella colonna centrale della schermata qui sopra. Nella tabella sottostante sono elencate anche le impronte di ciascun simbolo. Assegnare ogni impronta a un simbolo selezionando il simbolo nella colonna centrale e quindi facendo doppio clic sull'impronta appropriata nella colonna di destra. Una volta assegnate tutte le impronte, fare clic su **OK**."
+
+#. type: Table
+#: getting_started_in_kicad.adoc:459
+#, no-wrap
+msgid "Symbol Reference"
+msgstr "Riferimento del simbolo"
+
+#. type: Table
+#: getting_started_in_kicad.adoc:460
+#, no-wrap
+msgid "Footprint to assign"
+msgstr "Impronte da assegnare"
+
+#. type: Table
+#: getting_started_in_kicad.adoc:460
+#, no-wrap
+msgid "`BT1`"
+msgstr "`BT1`"
+
+#. type: Table
+#: getting_started_in_kicad.adoc:461
+#, no-wrap
+msgid "`Battery:BatteryHolder_Keystone_1058_1x2032`"
+msgstr "`Battery:BatteryHolder_Keystone_1058_1x2032`"
+
+#. type: Table
+#: getting_started_in_kicad.adoc:461
+#, no-wrap
+msgid "`D1`"
+msgstr "`D1`"
+
+#. type: Table
+#: getting_started_in_kicad.adoc:462
+#, no-wrap
+msgid "`LED_THT:LED_D5.0mm`"
+msgstr "`LED_THT:LED_D5.0mm`"
+
+#. type: Table
+#: getting_started_in_kicad.adoc:462
+#, no-wrap
+msgid "`R1`"
+msgstr "`R1`"
+
+#. type: Table
+#: getting_started_in_kicad.adoc:463
+#, no-wrap
+msgid "`Resistor_THT:R_Axial_DIN0309_L9.0mm_D3.2mm_P12.70mm_Horizontal`"
+msgstr "`Resistor_THT:R_Axial_DIN0309_L9.0mm_D3.2mm_P12.70mm_Horizontal`"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:445
+#: getting_started_in_kicad.adoc:468
 msgid ""
 "There are other ways to assign footprints; one way is through the symbol "
 "properties window. For more information on assigning footprints, see the "
 "xref:../eeschema/eeschema.adoc#assigning-footprints[manual]."
-msgstr "Ci sono altri modi per assegnare le impronte; un modo è attraverso la finestra delle proprietà del simbolo. Per ulteriori informazioni sull'assegnazione delle impronte, consultare il xref:../eeschema/eeschema.adoc#assigning-footprints[manuale]."
+msgstr ""
+"Ci sono altri modi per assegnare le impronte; un modo è attraverso la "
+"finestra delle proprietà del simbolo. Per ulteriori informazioni "
+"sull'assegnazione delle impronte, consultare il xref:../eeschema/eeschema."
+"adoc#assigning-footprints[manuale]."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:446
+#: getting_started_in_kicad.adoc:469
 #, no-wrap
 msgid "Electrical Rules Check"
 msgstr "Controllo regole elettriche"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:457
+#: getting_started_in_kicad.adoc:480
 msgid ""
 "The last remaining thing to do in the schematic is to check for electrical "
 "errors. KiCad's Electrical Rules Checker (ERC) cannot make sure that the "
@@ -1334,10 +1437,21 @@ msgid ""
 "severity, go to **File** -> **Schematic Setup...** -> **Electrical Rules** -"
 "> **Violation Severity**. It is a good idea to run ERC before starting "
 "layout."
-msgstr "L'ultima cosa da fare nello schema è controllare gli errori di natura elettrica. Il controllo delle regole elettriche (ERC) di KiCad non può garantire che il progetto nello schema funzioni, ma può verificare che non sussistano banali problemi di connessione come pin scollegati, uscite di alimentazione in cortocircuito o ingressi di alimentazione non alimentati. Esso verifica anche la presenza di altri errori come simboli non annotati e errori di battitura nelle etichette delle connessioni. Per visualizzare l'elenco completo delle regole elettriche e regolarne l'importanza, andare su **File**->**Impostazioni dello schema...** -> **Regole elettriche** -> **Importanza violazioni**. È sempre una buona idea avviare un controllo regole elettriche prima di avviare la stesura del circuito stampato."
+msgstr ""
+"L'ultima cosa da fare nello schema è controllare gli errori di natura "
+"elettrica. Il controllo delle regole elettriche (ERC) di KiCad non può "
+"garantire che il progetto nello schema funzioni, ma può verificare che non "
+"sussistano banali problemi di connessione come pin scollegati, uscite di "
+"alimentazione in cortocircuito o ingressi di alimentazione non alimentati. "
+"Esso verifica anche la presenza di altri errori come simboli non annotati e "
+"errori di battitura nelle etichette delle connessioni. Per visualizzare "
+"l'elenco completo delle regole elettriche e regolarne l'importanza, andare "
+"su **File**->**Impostazioni dello schema...** -> **Regole elettriche** -> "
+"**Importanza violazioni**. È sempre una buona idea avviare un controllo "
+"regole elettriche prima di avviare la stesura del circuito stampato."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:460
+#: getting_started_in_kicad.adoc:483
 msgid ""
 "Run an electrical rules check by clicking the **ERC** button (image:images/"
 "erc_24.png[]) in the top toolbar and then clicking **Run ERC**."
@@ -1347,7 +1461,7 @@ msgstr ""
 "quindi facendo clic su **Esegui ERC**."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:465
+#: getting_started_in_kicad.adoc:488
 msgid ""
 "Even in this simple schematic, KiCad has found two potential errors. The "
 "errors are listed in the ERC window, and arrows point to the violation "
@@ -1360,19 +1474,19 @@ msgstr ""
 "finestra ERC si evidenzia la freccia corrispondente."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:466
+#: getting_started_in_kicad.adoc:489
 #, no-wrap
 msgid "ERC Violation Messages"
 msgstr "Messaggi di violazione ERC"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:466
+#: getting_started_in_kicad.adoc:489
 #, no-wrap
 msgid "images/erc-messages.png"
 msgstr "images/erc-messages.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:472
+#: getting_started_in_kicad.adoc:495
 msgid ""
 "You can exclude individual violations or ignore entire classes of violations "
 "by right clicking on each error message. However, it's usually worth "
@@ -1387,7 +1501,7 @@ msgstr ""
 "farsi sfuggire dei problemi reali."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:479
+#: getting_started_in_kicad.adoc:502
 msgid ""
 "In this case, KiCad reports \"Input Power pin not driven by any Output Power "
 "pins\" for both the `VCC` and `GND` nets. This is a common KiCad ERC error.  "
@@ -1406,19 +1520,19 @@ msgstr ""
 "nello schema."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:480
+#: getting_started_in_kicad.adoc:503
 #, no-wrap
 msgid "PWR_FLAG Added to Schematic"
 msgstr "PWR_FLAG aggiunto allo schema"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:480
+#: getting_started_in_kicad.adoc:503
 #, no-wrap
 msgid "images/symbols-pwr-flag.png"
 msgstr "images/symbols-pwr-flag.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:486
+#: getting_started_in_kicad.adoc:509
 msgid ""
 "There is a special `PWR_FLAG` symbol in the `Power` symbol library that is "
 "used to solve this problem by telling KiCad that the nets are actually "
@@ -1432,74 +1546,83 @@ msgstr ""
 "senza alcuna violazione, lo schema sarà completo."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:487
+#: getting_started_in_kicad.adoc:510
 #, no-wrap
 msgid "Bill of Materials"
 msgstr "Distinta di base"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:490
+#: getting_started_in_kicad.adoc:513
 msgid ""
 "A final optional step is to generate a Bill of Materials listing all "
 "components used in the project. Click **Tools** -> **Generate Bill of "
 "Materials...**."
-msgstr "Un ultimo passaggio facoltativo consiste nel generare una distinta base che elenca tutti i componenti utilizzati nel progetto. Fare clic su **Strumenti** -> **Genera distinta materiali...**."
+msgstr ""
+"Un ultimo passaggio facoltativo consiste nel generare una distinta base che "
+"elenca tutti i componenti utilizzati nel progetto. Fare clic su "
+"**Strumenti** -> **Genera distinta materiali...**."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:491
+#: getting_started_in_kicad.adoc:514
 #, no-wrap
 msgid "BOM Dialog"
 msgstr "Finestra della DIBA"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:491
+#: getting_started_in_kicad.adoc:514
 #, no-wrap
 msgid "images/bom-generator.png"
 msgstr "images/bom-generator.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:496
+#: getting_started_in_kicad.adoc:519
 msgid ""
-"KiCad 8.0 has a GUI for BOM export. You can configure which symbol metadata "
-"will be exported, and how the symbols are grouped, in the **Edit** tab, and "
+"KiCad has a GUI for BOM export. You can configure which symbol metadata will "
+"be exported, and how the symbols are grouped, in the **Edit** tab, and "
 "configure the output format in the **Export** tab."
-msgstr "KiCad 8.0 ha una GUI per l'esportazione della DIBA. È possibile configurare quali metadati dei simboli saranno esportati e come i simboli verranno raggruppati nella scheda **Modifica** e configurare il formato di uscita nella scheda **Esporta**."
+msgstr "KiCad ha una GUI per l'esportazione della DIBA. È possibile configurare quali metadati dei simboli saranno esportati e come i simboli verranno raggruppati nella scheda **Modifica** e configurare il formato di uscita nella scheda **Esporta**."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:500
+#: getting_started_in_kicad.adoc:523
 msgid ""
 "For now, the default settings should be fine, but you can see a raw view of "
 "what will be exported in the preview pane. Specify an output file in the "
 "**Export** tab, then press the **Export** button."
-msgstr "Per ora, le impostazioni predefinite dovrebbero andare bene, ma è possibile osservare una vista grezza di ciò che verrà esportato nel riquadro di anteprima. Specificare un file di uscita nella scheda **Esporta**, e premere il pulsante **Esporta**."
+msgstr ""
+"Per ora, le impostazioni predefinite dovrebbero andare bene, ma è possibile "
+"osservare una vista grezza di ciò che verrà esportato nel riquadro di "
+"anteprima. Specificare un file di uscita nella scheda **Esporta**, e premere "
+"il pulsante **Esporta**."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:503
+#: getting_started_in_kicad.adoc:526
 msgid ""
 "The BOM should look like the below image when it is opened in a spreadsheet "
 "program."
-msgstr "La DIBA dovrebbe assomigliare all'immagine di seguito se aperta in un programma di gestione dei fogli elettronici."
+msgstr ""
+"La DIBA dovrebbe assomigliare all'immagine di seguito se aperta in un "
+"programma di gestione dei fogli elettronici."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:504
+#: getting_started_in_kicad.adoc:527
 #, no-wrap
 msgid "Generated BOM"
 msgstr "DIBA generata"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:504
+#: getting_started_in_kicad.adoc:527
 #, no-wrap
 msgid "images/bom.png"
 msgstr "images/bom.png"
 
 #. type: Title ==
-#: getting_started_in_kicad.adoc:506
+#: getting_started_in_kicad.adoc:529
 #, no-wrap
 msgid "Tutorial Part 3: Circuit Board"
 msgstr "Tutorial parte 3: il circuito stampato"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:509
+#: getting_started_in_kicad.adoc:532
 msgid ""
 "With the schematic completed, go back to the Project Window and open the PCB "
 "Editor, either by clicking the PCB Editor button or opening the board file."
@@ -1509,13 +1632,13 @@ msgstr ""
 "dello stampato."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:510
+#: getting_started_in_kicad.adoc:533
 #, no-wrap
 msgid "PCB Editor Basics"
 msgstr "Funzioni di base di modifica del circuito stampato"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:514
+#: getting_started_in_kicad.adoc:537
 msgid ""
 "Navigation in the PCB Editor is the same as the Schematic editor: pan by "
 "dragging with the middle mouse button or right mouse button, and zoom with "
@@ -1527,7 +1650,7 @@ msgstr ""
 "rotellina del mouse o tramite kbd:[F1]/kbd:[F2]."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:520
+#: getting_started_in_kicad.adoc:543
 msgid ""
 "The main part of the PCB Editor is a canvas where the board will be "
 "designed.  The toolbar on the left side has various display options for the "
@@ -1544,7 +1667,7 @@ msgstr ""
 "stampato."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:529
+#: getting_started_in_kicad.adoc:552
 #, no-wrap
 msgid ""
 "Some buttons on the right toolbar have a small triangle in the bottom\n"
@@ -1566,7 +1689,7 @@ msgstr ""
 "        lo strumento desiderato viene evidenziato.\n"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:533
+#: getting_started_in_kicad.adoc:556
 msgid ""
 "At far right is the Appearance Panel and Selection Filter. The Appearance "
 "panel is used to change visibility, colors, and opacity of PCB layers, "
@@ -1579,7 +1702,7 @@ msgstr ""
 "viene modificato facendo clic sul nome dello strato."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:537
+#: getting_started_in_kicad.adoc:560
 msgid ""
 "Below the Appearance Panel is the Selection Filter, which enables and "
 "disables selection of various types of PCB objects. This is useful to select "
@@ -1590,13 +1713,13 @@ msgstr ""
 "per selezionare elementi specifici in un layout affollato."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:538
+#: getting_started_in_kicad.adoc:561
 #, no-wrap
 msgid "Board Setup and Stackup"
 msgstr "Configurazione e impilamento della scheda"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:542
+#: getting_started_in_kicad.adoc:565
 msgid ""
 "Before designing the board, set the page size and add information to the "
 "title block. Click **File** -> **Page Settings...**, then choose an "
@@ -1608,19 +1731,19 @@ msgstr ""
 "inserire data, revisione e titolo."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:543
+#: getting_started_in_kicad.adoc:566
 #, no-wrap
 msgid "Layout Page Settings"
 msgstr "Impostazioni pagina"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:543
+#: getting_started_in_kicad.adoc:566
 #, no-wrap
 msgid "images/layout-page-setup.png"
 msgstr "images/layout-page-setup.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:549
+#: getting_started_in_kicad.adoc:572
 msgid ""
 "Next, go to **File** -> **Board Setup...** to define how the PCB will be "
 "manufactured. The most important settings are the stackup, i.e. what copper "
@@ -1634,7 +1757,7 @@ msgstr ""
 "tracce e via."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:553
+#: getting_started_in_kicad.adoc:576
 msgid ""
 "To set the stackup, open the **Board Stackup** -> **Physical Stackup** page "
 "of the Board Setup window. For this guide, leave the number of copper layers "
@@ -1646,19 +1769,19 @@ msgstr ""
 "potrebbero richiedere un numero maggiore di strati."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:554
+#: getting_started_in_kicad.adoc:577
 #, no-wrap
 msgid "Physical Stackup"
 msgstr "Stackup fisico"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:554
+#: getting_started_in_kicad.adoc:577
 #, no-wrap
 msgid "images/board-setup-stackup.png"
 msgstr "images/board-setup-stackup.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:561
+#: getting_started_in_kicad.adoc:584
 msgid ""
 "Next, go to the **Design Rules** -> **Constraints** page. The settings on "
 "this page specify the overriding design rules for everything in the board "
@@ -1675,45 +1798,41 @@ msgstr ""
 "del circuito stampato sia realizzabile."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:562
+#: getting_started_in_kicad.adoc:585
 #, no-wrap
 msgid "Constraints"
 msgstr "Vincoli"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:562
+#: getting_started_in_kicad.adoc:585
 #, no-wrap
 msgid "images/board-setup-constraints.png"
 msgstr "images/board-setup-constraints.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:568
+#: getting_started_in_kicad.adoc:591
 msgid ""
 "Finally, open the **Design Rules** -> **Net Classes** page. A net class is a "
 "set of design rules associated with a specific group of nets. This page "
 "lists the design rules for each net class in the design and allows assigning "
-"nets to each net class."
-msgstr ""
-"Infine, aprire la pagina **Regole di progettazione** -> **Netclass**. Una "
-"netclass è un insieme di regole di progettazione associate a un gruppo "
-"specifico di collegamenti. Questa pagina elenca le regole di progettazione "
-"per ciascuna netclass nel progetto e consente di associare specifici "
-"collegamenti a determinate netclass."
+"nets to each net class (nets can also be assigned to net classes in the "
+"schematic editor)."
+msgstr "Infine, aprire la pagina **Regole di progettazione** -> **Netclass**. Una netclass è un insieme di regole di progettazione associate a un gruppo specifico di collegamenti. Questa pagina elenca le regole di progettazione per ciascuna netclass nel progetto e consente di associare specifici collegamenti a determinate netclass (i collegamenti possono anche essere assegnati alle netclass nell'editor dello schema)."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:569
+#: getting_started_in_kicad.adoc:592
 #, no-wrap
 msgid "Net Classes"
 msgstr "Netclass"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:569
+#: getting_started_in_kicad.adoc:592
 #, no-wrap
 msgid "images/board-setup-net-classes.png"
 msgstr "images/board-setup-net-classes.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:574
+#: getting_started_in_kicad.adoc:597
 msgid ""
 "Track width and spacing can be managed manually by the designer during "
 "layout, but net classes are recommended because they provide an automatic "
@@ -1725,30 +1844,24 @@ msgstr ""
 "le regole di progettazione."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:581
+#: getting_started_in_kicad.adoc:604
 msgid ""
 "In this design, no net classes are specified, so all nets will belong to the "
 "`Default` net class. The default design rules for this net class are "
 "acceptable for this project, but other designs may have multiple net "
 "classes, each with different design rules. For example a board might have a "
-"`High Current` netclass with wide traces, or a `50 ohm` netclass with "
-"specific width and clearance rules for 50 ohm controlled-impedance traces."
-msgstr ""
-"In questo progetto, non è stato specificata nessuna net class perciò tutti i "
-"collegamenti appartengono alla netclass predefinita `Default`. Altri "
-"progetti possono avere più netclass, ciascuna con regole di progettazione "
-"diverse. Ad esempio, una scheda potrebbe avere una netclass `Alta corrente` "
-"con piste larghe, o una netclass `50 Ohm` con regole di larghezza e distanza "
-"specifiche per tracce a impedenza controllata di 50 Ohm."
+"`High Current` netclass with wide tracks, or a `50 ohm` netclass with "
+"specific width and clearance rules for 50 ohm controlled-impedance tracks."
+msgstr "In questo progetto, non è stato specificata nessuna net class perciò tutti i collegamenti appartengono alla netclass predefinita `Default`. Altri progetti possono avere più netclass, ciascuna con regole di progettazione diverse. Ad esempio, una scheda potrebbe avere una netclass `Alta corrente` con piste larghe, o una netclass `50 Ohm` con regole di larghezza e distanza specifiche per tracce a impedenza controllata di 50 Ohm."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:582
+#: getting_started_in_kicad.adoc:605
 #, no-wrap
 msgid "Importing Changes From Schematic"
 msgstr "Importazione cambiamenti dallo schema"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:587
+#: getting_started_in_kicad.adoc:610
 msgid ""
 "The schematic is complete, but there are not yet any components in the "
 "layout.  To import design data from the schematic into the layout, click "
@@ -1762,7 +1875,7 @@ msgstr ""
 "strumenti in alto."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:593
+#: getting_started_in_kicad.adoc:616
 msgid ""
 "Read through the messages in the **Changes To Be Applied** window, which "
 "will say that the three components in the schematic will be added to the "
@@ -1777,31 +1890,31 @@ msgstr ""
 "altre verrà modificata in seguito."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:594
+#: getting_started_in_kicad.adoc:617
 #, no-wrap
 msgid "Update PCB from Schematic"
 msgstr "Aggiornare il C.S. dallo schema"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:594
+#: getting_started_in_kicad.adoc:617
 #, no-wrap
 msgid "images/update-pcb-from-schematic.png"
 msgstr "images/update-pcb-from-schematic.png"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:595
+#: getting_started_in_kicad.adoc:618
 #, no-wrap
 msgid "Footprints Added"
 msgstr "Impronte aggiunte"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:595
+#: getting_started_in_kicad.adoc:618
 #, no-wrap
 msgid "images/footprints-added.png"
 msgstr "images/footprints-added.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:601
+#: getting_started_in_kicad.adoc:624
 msgid ""
 "In KiCad, updating the PCB with changes in the schematic is a manual "
 "process: the designer decides when it is appropriate to update the PCB with "
@@ -1816,13 +1929,13 @@ msgstr ""
 "schema** per mantenere lo schema e il layout sincronizzati."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:602
+#: getting_started_in_kicad.adoc:625
 #, no-wrap
 msgid "Drawing A Board Outline"
 msgstr "Disegnare il bordo scheda"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:606
+#: getting_started_in_kicad.adoc:629
 msgid ""
 "Now the three components have been placed, but the board itself has not been "
 "defined. The board is defined by drawing a board outline on the `Edge.Cuts` "
@@ -1833,7 +1946,7 @@ msgstr ""
 "`Edge.Cuts`."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:610
+#: getting_started_in_kicad.adoc:633
 msgid ""
 "It's often useful to draw the board outline with a coarse grid, which makes "
 "it easy to get round numbers for the board size. Switch to a coarse grid by "
@@ -1845,19 +1958,19 @@ msgstr ""
 "sopra la zona di lavoro."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:611
+#: getting_started_in_kicad.adoc:634
 #, no-wrap
 msgid "1mm grid"
 msgstr "griglia 1mm"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:611
+#: getting_started_in_kicad.adoc:634
 #, no-wrap
 msgid "images/coarse-grid.png"
 msgstr "images/coarse-grid.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:623
+#: getting_started_in_kicad.adoc:647
 msgid ""
 "To draw on the `Edge.Cuts` layer, click **Edge.Cuts** in the Layers tab of "
 "the Appearance panel at right. Choose the rectangle tool image:images/"
@@ -1866,31 +1979,32 @@ msgid ""
 "rectangle roughly surrounds the three footprints. The other graphic tools "
 "(line image:images/add_line_24.png[], arc image:images/add_arc_24.png[], "
 "circle image:images/add_circle_24.png[], polygon image:images/"
-"add_graphical_polygon_24.png[], or a combination of them) could also be used "
-"to define the board outline; the only requirement is that the outline is a "
-"single closed shape that doesn't intersect itself."
-msgstr "Per disegnare sul livello `Edge.Cuts`, fare clic su **Edge.Cuts** nella scheda Strati del pannello Aspetto a destra. Scegliere lo strumento rettangolo image:images/add_rectangle_24.png[] nella barra degli strumenti a destra e usarlo per disegnare un rettangolo che circonda approssimativamente le tre impronte. Anche gli altri strumenti grafici (linea image:images/add_line_24.png[], arco image:images/add_arc_24.png[], cerchio image:images/add_circle_24.png[] o poligono image:images/add_graphical_polygon_24.png[] o una combinazione di questi) possono essere usati per disegnare il bordo della scheda; l'unico requisito è che sia un'unica forma chiusa che non intersechi sé stessa."
+"add_graphical_polygon_24.png[], bezier image:images/add_bezier_24.png[], or "
+"a combination of them) could also be used to define the board outline; the "
+"only requirement is that the outline is a single closed shape that doesn't "
+"intersect itself."
+msgstr "Per disegnare sul livello `Edge.Cuts`, fare clic su **Edge.Cuts** nella scheda Strati del pannello Aspetto a destra. Scegliere lo strumento rettangolo image:images/add_rectangle_24.png[] nella barra degli strumenti a destra e fare clic sull'area di disegno per piazzare il primo angolo e poi clic ancora per piazzare l'angolo opposto in modo da disegnare un rettangolo che circonda approssimativamente le tre impronte. Anche gli altri strumenti grafici (linea image:images/add_line_24.png[], arco image:images/add_arc_24.png[], cerchio image:images/add_circle_24.png[], poligono image:images/add_graphical_polygon_24.png[], bezier image:images/add_bezier_24.png[] o una combinazione di questi) possono essere usati per disegnare il bordo della scheda; l'unico requisito è che sia un'unica forma chiusa che non intersechi sé stessa."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:624
+#: getting_started_in_kicad.adoc:648
 #, no-wrap
 msgid "Edge Cuts"
 msgstr "Edge Cuts"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:624
+#: getting_started_in_kicad.adoc:648
 #, no-wrap
 msgid "images/select-edge-cuts.png"
 msgstr "images/select-edge-cuts.png"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:626
+#: getting_started_in_kicad.adoc:650
 #, no-wrap
 msgid "Placing Footprints"
 msgstr "Piazzamento impronte"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:629
+#: getting_started_in_kicad.adoc:653
 msgid ""
 "The next step in the layout process is to arrange the footprints on the "
 "board.  In general, there are a several considerations for positioning "
@@ -1901,7 +2015,7 @@ msgstr ""
 "delle impronte:"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:632
+#: getting_started_in_kicad.adoc:656
 msgid ""
 "Some footprints may have exact requirements for their locations, such as "
 "connectors, indicators, or buttons and switches."
@@ -1910,7 +2024,7 @@ msgstr ""
 "connettori, indicatori o pulsanti e interruttori."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:635
+#: getting_started_in_kicad.adoc:659
 msgid ""
 "Some components may need to be placed according to electrical "
 "considerations.  Bypass capacitors should be close to the power pins of the "
@@ -1923,16 +2037,14 @@ msgstr ""
 "essere lontani da interferenze digitali."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:637
+#: getting_started_in_kicad.adoc:661
 msgid ""
 "Almost all components have a \"Courtyard\" (or two if both Front and Back "
-"are defined). Generally Courtyards should not intersect."
-msgstr ""
-"Quasi tutti i componenti hanno un \"ingombro\" (o due se sono definiti sia "
-"il fronte che il retro). Generalmente gli ingombri non devono intersecarsi."
+"are defined). Generally courtyards should not intersect."
+msgstr "Quasi tutti i componenti hanno un \"ingombro\" (N.d.T. 'courtyard') (o due se sono definiti sia il fronte che il retro). Generalmente gli ingombri non devono intersecarsi."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:642
+#: getting_started_in_kicad.adoc:666
 msgid ""
 "Otherwise components should be positioned for ease of routing. Connected "
 "components should generally be close together, and arranged to minimize "
@@ -1948,7 +2060,7 @@ msgstr ""
 "altre impronte."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:645
+#: getting_started_in_kicad.adoc:669
 msgid ""
 "For the purposes of this guide, the only placement goal is to make the "
 "routing process as simple as possible."
@@ -1957,7 +2069,7 @@ msgstr ""
 "processo di sbroglio il più semplice possibile."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:650
+#: getting_started_in_kicad.adoc:674
 msgid ""
 "Start by moving the battery holder `BT1` onto the back side of the board. "
 "Click it to select it, then press kbd:[M] to move it. Press kbd:[F] to flip "
@@ -1970,19 +2082,19 @@ msgstr ""
 "specchiato e le sue piazzole sono cambiate da rosso a blu."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:651
+#: getting_started_in_kicad.adoc:675
 #, no-wrap
 msgid "BT1 flipped to the back"
 msgstr "BT1 girato sotto"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:651
+#: getting_started_in_kicad.adoc:675
 #, no-wrap
 msgid "images/bt1-flipped.png"
 msgstr "images/bt1-flipped.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:655
+#: getting_started_in_kicad.adoc:679
 msgid ""
 "All PCB layers are viewed from front side of the board. Footprints on the "
 "bottom of the board are therefore upside down and appear mirrored."
@@ -1992,7 +2104,7 @@ msgstr ""
 "specchiate."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:659
+#: getting_started_in_kicad.adoc:683
 msgid ""
 "Each PCB layer has a unique color, which is shown by the swatches in the "
 "Layers tab of the Appearance panel. In the default color scheme, items on "
@@ -2005,7 +2117,7 @@ msgstr ""
 "mentre gli elementi sullo strato `B.Cu` (rame posteriore) sono blu."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:665
+#: getting_started_in_kicad.adoc:689
 msgid ""
 "Now place the other two components. One at a time, select each component, "
 "then move and rotate it with kbd:[M] and kbd:[R]. Watch the ratsnest lines "
@@ -2020,36 +2132,36 @@ msgstr ""
 "le linee intricate. La schermata sotto mostra una possibile disposizione."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:666
+#: getting_started_in_kicad.adoc:690
 #, no-wrap
 msgid "Footprints positioned optimally"
 msgstr "Impronte posizionate ottimamente"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:666
+#: getting_started_in_kicad.adoc:690
 #, no-wrap
 msgid "images/footprints-positioned.png"
 msgstr "images/footprints-positioned.png"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:668
+#: getting_started_in_kicad.adoc:692
 #, no-wrap
 msgid "Routing Tracks"
 msgstr "Sbroglio piste"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:670
+#: getting_started_in_kicad.adoc:694
 msgid ""
 "With the components in place, it's time to connect the pads with copper "
-"traces."
+"tracks."
 msgstr ""
 "Con i componenti a posto, è il momento di collegare le piazzole con le piste "
 "di rame."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:673
+#: getting_started_in_kicad.adoc:697
 msgid ""
-"The first trace will be drawn on the front of the board, so change the "
+"The first track will be drawn on the front of the board, so change the "
 "active layer to `F.Cu` in the Layers tab of the Appearance panel."
 msgstr ""
 "La prima pista verrà disegnata sulla parte anteriore (fronte) della scheda, "
@@ -2057,14 +2169,15 @@ msgstr ""
 "pannello Aspetto."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:680
+#: getting_started_in_kicad.adoc:704
 msgid ""
 "Click **Route Tracks** image:images/add_tracks_24.png[] in the right-hand "
-"toolbar or press kbd:[X]. Click on the `led` pad of `D1`. The ratsnest line "
-"indicates there is an unrouted connection to the `led` pad of `R1`, so click "
-"on that pad to draw a trace connecting the two pads. Clicking on the second "
-"pad completes the trace. The ratsnest line between the `led` pins is no "
-"longer drawn because the connection has been made in copper."
+"toolbar or press kbd:[X]. Click on the `led` pad of `D1` and release the "
+"mouse button. The ratsnest line indicates there is an unrouted connection to "
+"the `led` pad of `R1`, so click on that pad to draw a track connecting the "
+"two pads.  Clicking on the second pad completes the track. The ratsnest line "
+"between the `led` pins is no longer drawn because the connection has been "
+"made in copper."
 msgstr ""
 "Fare clic su **Sbroglia tracce** image:images/add_tracks_24.png[] nella "
 "barra degli strumenti a destra o premere kbd:[X]. Fare clic sulla piazzola "
@@ -2075,21 +2188,21 @@ msgstr ""
 "più disegnata perché la connessione è stata realizzata in rame."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:681
+#: getting_started_in_kicad.adoc:705
 #, no-wrap
 msgid "First connection routed"
 msgstr "Prima connessione sbrogliata"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:681
+#: getting_started_in_kicad.adoc:705
 #, no-wrap
 msgid "images/route-first-connection.png"
 msgstr "images/route-first-connection.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:687
+#: getting_started_in_kicad.adoc:711
 msgid ""
-"Now draw a trace between the `GND` pads of `BT1` and `D1`, starting with the "
+"Now draw a track between the `GND` pads of `BT1` and `D1`, starting with the "
 "`BT1` pad on the back of the board. Notice that the active layer "
 "automatically changed to `B.Cu` after clicking on the `BT1` pad. Click on "
 "the `D1` pad to finish the track."
@@ -2100,46 +2213,40 @@ msgstr ""
 "`BT1`. Fare clic sulla piazzola `D1` per terminare la pista."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:693
+#: getting_started_in_kicad.adoc:717
 msgid ""
 "While `BT1` has surface mount pads that are only on the bottom of the board, "
 "`D1` has through hole pads that can connect to tracks on both the front and "
 "back. Through hole pads are one way to make a connection between multiple "
 "layers. In this case, `D1` is a component on the front side of the board, "
-"but its through hole pads are used to connect to a trace on the back of the "
+"but its through hole pads are used to connect to a track on the back of the "
 "board."
 msgstr "Mentre `BT1` ha piazzole a montaggio superficiale che si trovano solo nella parte inferiore della scheda, `D1` ha piazzole con foro passante che possono collegarsi alle piste sia sulla parte anteriore che su quella posteriore. Le piazzole passanti sono un modo per creare una connessione tra più strati. In questo caso, `D1` è un componente sul lato anteriore della scheda, ma i suoi fori passanti vengono utilizzati per connettersi a una pista sul retro della scheda."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:699
+#: getting_started_in_kicad.adoc:723
 msgid ""
 "Another way to make a connection across layers is with a via. Start routing "
 "at the `VCC` pad of `BT1` on the back of the board. Press kbd:[V] and click "
 "halfway between `BT1` and `R1` to insert a via, which also switches the "
 "active layer to `F.Cu`. Complete the track on the top side of the board by "
 "clicking on the `VCC` pad of `R1`."
-msgstr ""
-"Un altro modo per stabilire una connessione tra strati è tramite un via. "
-"Iniziare lo sbroglio dalla piazzola `VC` di `BT1` sul retro della scheda. "
-"Premere kbd:[V] e fare clic a metà strada tra `BT` e `R1` per inserire un "
-"via, operazione che commuta anche lo strato attivo su `F.C`. Completare la "
-"pista sul lato superiore della scheda facendo clic sulla piazzola `VCC` di "
-"`R1`."
+msgstr "Un altro modo per stabilire una connessione tra strati è tramite un via. Iniziare lo sbroglio dalla piazzola `VC` di `BT1` sul retro della scheda. Premere kbd:[V] e fare clic a metà strada tra `BT` e `R1` per inserire un via, operazione che commuta anche lo strato attivo su `F.C`. Completare la pista sul lato superiore della scheda facendo clic sulla piazzola `VCC` di `R1`."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:700
+#: getting_started_in_kicad.adoc:724
 #, no-wrap
 msgid "All connections routed"
 msgstr "Tutte le connessioni sbrogliate"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:700
+#: getting_started_in_kicad.adoc:724
 #, no-wrap
 msgid "images/routing-complete.png"
 msgstr "images/routing-complete.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:705
+#: getting_started_in_kicad.adoc:729
 msgid ""
 "At this point, all connections are routed. This can be confirmed by looking "
 "at the status screen in the bottom left of the window, where the number of "
@@ -2150,22 +2257,22 @@ msgstr ""
 "finestra, dove il numero di connessioni non sbrogliate è indicato come 0."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:706
+#: getting_started_in_kicad.adoc:730
 #, no-wrap
 msgid "Placing Copper Zones"
 msgstr "Piazzamento zone rame"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:711
+#: getting_started_in_kicad.adoc:735
 msgid ""
 "Copper zones are regions of copper with an associated net. Zones "
 "automatically connect to copper objects belonging to the same net and avoid "
 "objects belonging to other nets. Zones are often used for ground and power "
-"connections because they provide a lower impedance connection than traces."
+"connections because they provide a lower impedance connection than tracks."
 msgstr "Le zone di rame sono regioni di rame con un collegamento (net) associato. Le zone si collegano automaticamente agli oggetti di rame che appartengono allo stesso collegamento ed evitano gli oggetti che appartengono ad altri collegamenti. Le zone sono spesso utilizzate per connessioni di terra e di alimentazione perché forniscono una connessione a impedenza inferiore rispetto alle piste."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:716
+#: getting_started_in_kicad.adoc:740
 msgid ""
 "Add a `GND` zone on the bottom of the board by switching to the bottom "
 "copper layer and clicking the **Add a filled zone** button image:images/"
@@ -2178,7 +2285,7 @@ msgstr ""
 "sul C.S per posizionare il primo vertice della zona."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:721
+#: getting_started_in_kicad.adoc:745
 msgid ""
 "In the Copper Zone Properties dialog that appears, select the `GND` net and "
 "make sure that the `B.Cu` layer is selected. Click **OK**, then click to "
@@ -2192,55 +2299,45 @@ msgstr ""
 "la zona."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:722
+#: getting_started_in_kicad.adoc:746
 #, no-wrap
 msgid "Zone outline"
 msgstr "Contorno zone"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:722
+#: getting_started_in_kicad.adoc:746
 #, no-wrap
 msgid "images/zone-outline.png"
 msgstr "images/zone-outline.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:733
+#: getting_started_in_kicad.adoc:757
 msgid ""
 "The zone outline is displayed on the canvas, but the zone is not yet filled "
 "-- there is no copper in the zone area, and therefore the zone is not making "
 "any electrical connections. Fill the zone with **Edit** -> **Fill All "
 "Zones** (kbd:[B]). Copper has been added to the zone, but it doesn't connect "
-"to the `VCC` or `led` pads and traces, and is clipped by the board edge. It "
-"overlaps with the `GND` trace drawn earlier, and it connects to the `GND` "
-"pads through thin traces. These are thermal reliefs, which make the pads "
+"to the `VCC` or `led` pads and tracks, and is clipped by the board edge. It "
+"overlaps with the `GND` track drawn earlier, and it connects to the `GND` "
+"pads through thin tracks. These are thermal reliefs, which make the pads "
 "easier to solder.  Thermal reliefs and other zone settings can be modified "
 "in the zone properties dialog."
-msgstr ""
-"Il contorno zona viene visualizzato sull'area di disegno, ma la zona non è "
-"ancora riempita: non c'è rame nell'area della zona e pertanto la zona non "
-"effettua alcun collegamento elettrico. Riempire la zona con **Modifica** -> "
-"**Riempi tutte le zone** (kbd:[B]). Il rame è stato aggiunto alla zona, ma "
-"non si collega alle piazzole e alle piste `VCC` o `led` ed è tagliato dal "
-"bordo della scheda. Si sovrappone alla pista `GND` disegnata in precedenza e "
-"si collega alla piazzola `GND` tramite piste sottili. Si tratta di supporti "
-"termici che facilitano la saldatura della piazzola. I supporti termici e "
-"altre impostazioni della zona possono essere modificati nella finestra di "
-"dialogo delle proprietà della zona."
+msgstr "Il contorno zona viene visualizzato sull'area di disegno, ma la zona non è ancora riempita: non c'è rame nell'area della zona e pertanto la zona non effettua alcun collegamento elettrico. Riempire la zona con **Modifica** -> **Riempi tutte le zone** (kbd:[B]). Il rame è stato aggiunto alla zona, ma non si collega alle piazzole e alle piste `VCC` o `led` ed è tagliato dal bordo della scheda. Si sovrappone alla pista `GND` disegnata in precedenza e si collega alla piazzola `GND` tramite piste sottili. Si tratta di supporti termici che facilitano la saldatura della piazzola. I supporti termici e altre impostazioni della zona possono essere modificati nella finestra di dialogo delle proprietà della zona."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:734
+#: getting_started_in_kicad.adoc:758
 #, no-wrap
 msgid "Filled copper zone"
 msgstr "Zone rame riempite"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:734
+#: getting_started_in_kicad.adoc:758
 #, no-wrap
 msgid "images/zone-filled.png"
 msgstr "images/zone-filled.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:740
+#: getting_started_in_kicad.adoc:764
 msgid ""
 "In KiCad, zones are not filled automatically when they are first drawn or "
 "modified, or when footprints within them are moved. Zones are refilled by "
@@ -2255,7 +2352,7 @@ msgstr ""
 "fabbricazione>>."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:746
+#: getting_started_in_kicad.adoc:770
 msgid ""
 "Sometimes filled zones can make it hard to see other objects in a crowded "
 "board design. Zones can be hidden except for their boundaries using the "
@@ -2271,7 +2368,7 @@ msgstr ""
 "nascondere il riempimento di una zona non equivale a svuotarla."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:750
+#: getting_started_in_kicad.adoc:774
 msgid ""
 "Zones can also be made transparent using the Appearance panel, and inactive "
 "layers can also be hidden or dimmed using the **Layer Display Options** in "
@@ -2283,26 +2380,26 @@ msgstr ""
 "Aspetto."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:752
+#: getting_started_in_kicad.adoc:776
 #, no-wrap
 msgid "Design Rule Checking"
 msgstr "Regole di progettazione"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:761
+#: getting_started_in_kicad.adoc:785
 msgid ""
 "Design Rule Checking is the layout equivalent of Electrical Rule Checking "
 "for the schematic. DRC looks for design mistakes like mismatches between the "
 "schematic and layout, copper regions that have insufficient clearance or are "
-"shorted together, and traces that do not connect to anything. Custom rules "
-"can also be written in KiCad 8.0. To view the full list of design rules that "
-"are checked and to adjust their severity, go to **File** -> **Board Setup..."
-"** -> **Design Rules** -> **Violation Severity**. Running DRC and fixing all "
+"shorted together, and tracks that do not connect to anything. You can also "
+"write custom DRC rules. To view the full list of design rules that are "
+"checked and to adjust their severity, go to **File** -> **Board Setup...** -"
+"> **Design Rules** -> **Violation Severity**. Running DRC and fixing all "
 "errors is strongly advised before generating <<fab,fabrication outputs>>."
-msgstr "Il controllo delle regole di progettazione (DRC) è l'equivalente del controllo delle regole elettriche del C.S. ma per lo schema. Il DRC cerca errori di progettazione come discrepanze tra lo schema e la scheda, regioni di rame che hanno una distanza insufficiente o sono in cortocircuito e tracce che non si collegano a nulla. In KiCad 8.0 si possono scrivere anche regole personalizzate. Per visualizzare l'elenco completo delle regole di progettazione già verificate e per modificarne la gravità, andare su **File** -> **Impostazione scheda...** -> **Regole di progettazione** -> **Gravità violazione**. Si consiglia di eseguire il DRC e correggere tutti gli errori prima di generare alcun <<fab,file di fabbricazione>>."
+msgstr "Il controllo delle regole di progettazione (DRC) è l'equivalente del controllo delle regole elettriche del circuito stampato ma per lo schema elettrico. Il DRC cerca errori di progettazione come discrepanze tra lo schema e la scheda, regioni di rame che hanno una distanza insufficiente o sono in cortocircuito e tracce che non si collegano a nulla. Si possono scrivere anche regole personalizzate. Per visualizzare l'elenco completo delle regole di progettazione che vengono controllate e per regolarne l'importanza, andare su **File** -> **Impostazione scheda...** -> **Regole di progettazione** -> **Importanza violazioni**. Si consiglia di eseguire il DRC e correggere tutti gli errori prima di generare alcun <<fab,file di fabbricazione>>."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:766
+#: getting_started_in_kicad.adoc:790
 msgid ""
 "Run a DRC check with **Inspect** -> **Design Rules Checker**, or use the "
 "button image:images/erc_24.png[] in the top toolbar. Click **Run DRC**. When "
@@ -2316,63 +2413,55 @@ msgstr ""
 "Chiudere la finestra DRC."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:773
+#: getting_started_in_kicad.adoc:797
 msgid ""
 "Now intentionally cause a DRC error by moving the resistor footprint to "
 "overlap the filled area of the zone. Use kbd:[D] (Drag) to move the resistor "
-"footprint slightly while keeping the traces attached to its pads. This "
+"footprint slightly while keeping the tracks attached to its pads. This "
 "creates a clearance violation because the `VCC` and `led` pads of the "
 "resistor are shorted to the `GND` zone fill. Ordinarily this would be fixed "
 "by refilling the zone, but don't refill the zone yet."
-msgstr ""
-"Ora causare intenzionalmente un errore DRC spostando l'impronta del "
-"resistore in modo che si sovrapponga all'area riempita della zona. "
-"Utilizzare kbd:[D] (Trascina) per spostare leggermente l'impronta del "
-"resistore mantenendo le tracce attaccate alle sue piazzole. Ciò crea una "
-"violazione della distanza perché le piazzole `VCC` e `led` del resistore "
-"sono in cortocircuito dal riempimento della zona `GND`. Normalmente questo "
-"problema verrebbe risolto riempiendo nuovamente la zona, ma non riempire "
-"ancora la zona."
+msgstr "Ora causare intenzionalmente un errore DRC spostando l'impronta della resistenza in modo che si sovrapponga all'area riempita della zona. Utilizzare kbd:[D] (Trascina) per spostare leggermente l'impronta della resistenza mantenendo le tracce attaccate alle sue piazzole. Ciò crea una violazione della distanza perché le piazzole `VCC` e `led` del resistore sono in cortocircuito dal riempimento della zona `GND`. Normalmente questo problema verrebbe risolto riempiendo nuovamente la zona, ma non riempire ancora la zona."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:774
+#: getting_started_in_kicad.adoc:798
 #, no-wrap
 msgid "Resistor footprint moved to violate clearance"
 msgstr "L'impronta del resistore è stata spostata per violare la distanza "
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:774
+#: getting_started_in_kicad.adoc:798
 #, no-wrap
 msgid "images/resistor-moved.png"
 msgstr "images/resistor-moved.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:784
+#: getting_started_in_kicad.adoc:808
 msgid ""
 "Run DRC again, but make sure to uncheck the **Refill all zones before "
 "performing DRC** checkbox. DRC reports 6 violations: for each pad of `R1`, "
 "there is a clearance violation between the pad and the zone, another "
 "clearance violation between the pad's through hole and the zone, and a third "
 "violation where the pad's solder mask opening exposes the copper of two "
-"different nets (the `GND` fill and the trace connected to the pad). Arrows "
+"different nets (the `GND` fill and the track connected to the pad). Arrows "
 "point to each violation in the canvas. Clicking on each violation message "
 "zooms in on the respective violation."
-msgstr "Eseguire nuovamente il DRC, ma assicurarsi di deselezionare la casella di controllo **Riempi tutte le zone prima di eseguire il DRC**. Il DRC segnala 6 violazioni: per ciascuna piazzola di `R1`, c'è una violazione di spazio tra la piazzola e la zona, un'altra violazione di spazio tra il foro passante della piazzola e la zona e una terza violazione dove l'apertura della maschera di saldatura espone il rame di due diverse connessioni (lo riempimento `GND` e la pista connessa alla piazzola). Le frecce indicano ciascuna violazione nell'area di disegno. Facendo clic su ciascun messaggio di violazione si ingrandisce la rispettiva violazione."
+msgstr "Eseguire nuovamente il DRC, ma assicurarsi di deselezionare la casella di controllo **Aggiorna tutte le zone prima di eseguire il DRC**. Il DRC segnala 6 violazioni: per ciascuna piazzola di `R1`, c'è una violazione di spazio tra la piazzola e la zona, un'altra violazione di spazio tra il foro passante della piazzola e la zona e una terza violazione dove l'apertura della maschera di saldatura espone il rame di due diverse connessioni (lo riempimento `GND` e la pista connessa alla piazzola). Le frecce indicano ciascuna violazione nell'area di disegno. Facendo clic su ciascun messaggio di violazione si ingrandisce la visualizzazione sulla rispettiva violazione."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:785
+#: getting_started_in_kicad.adoc:809
 #, no-wrap
 msgid "DRC errors due to clearance violation between R1 and GND"
 msgstr "Errori DRC dovuti alla violazione della distanza tra R1 e GND"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:785
+#: getting_started_in_kicad.adoc:809
 #, no-wrap
 msgid "images/drc-errors.png"
 msgstr "images/drc-errors.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:790
+#: getting_started_in_kicad.adoc:814
 msgid ""
 "Close the DRC dialog, press kbd:[B] to refill the zone, and re-run DRC.  "
 "Alternatively, check the **Refill all zones before performing DRC** checkbox "
@@ -2384,13 +2473,13 @@ msgstr ""
 "il DRC. Tutte le violazioni sono state corrette."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:791
+#: getting_started_in_kicad.adoc:815
 #, no-wrap
 msgid "3D Viewer"
 msgstr "Visualizzatore 3D"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:796
+#: getting_started_in_kicad.adoc:820
 msgid ""
 "KiCad offers a 3D viewer that is useful for inspecting the PCB. Open the 3D "
 "viewer with **View** -> **3D Viewer**. Pan by dragging with the middle mouse "
@@ -2406,7 +2495,7 @@ msgstr ""
 "batteria in basso."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:800
+#: getting_started_in_kicad.adoc:824
 msgid ""
 "A raytracing mode is available, which is slower but offers more accurate "
 "rendering. Switch to the raytracing mode with **Preferences** -> "
@@ -2417,19 +2506,19 @@ msgstr ""
 "**Raytracing**."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:801
+#: getting_started_in_kicad.adoc:825
 #, no-wrap
 msgid "Raytraced view of the PCB"
 msgstr "Vista raytracing del C.S."
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:801
+#: getting_started_in_kicad.adoc:825
 #, no-wrap
 msgid "images/raytracing.png"
 msgstr "images/raytracing.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:806
+#: getting_started_in_kicad.adoc:830
 msgid ""
 "Many of the footprints in KiCad's library come with 3D models, including all "
 "of the footprints used in this guide. Some footprints do not come with 3D "
@@ -2441,13 +2530,13 @@ msgstr ""
 "possono aggiungerne di propri>>."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:808
+#: getting_started_in_kicad.adoc:832
 #, no-wrap
 msgid "Fabrication Outputs"
 msgstr "File per la fabbricazione"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:811
+#: getting_started_in_kicad.adoc:835
 msgid ""
 "With the board design finished, the final step is to generate fabrication "
 "outputs so the board can be manufactured."
@@ -2457,7 +2546,7 @@ msgstr ""
 "scheda possa essere prodotta."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:815
+#: getting_started_in_kicad.adoc:839
 msgid ""
 "Open the Plot dialog with **File** -> **Plot...**. This dialog can plot the "
 "design in several formats, but Gerber is usually the right format for "
@@ -2469,7 +2558,7 @@ msgstr ""
 "produttore."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:824
+#: getting_started_in_kicad.adoc:848
 msgid ""
 "Specify an output directory so that the plotted files will be collected in a "
 "folder. Otherwise, the default settings are fine, but make sure all the "
@@ -2493,19 +2582,19 @@ msgstr ""
 "necessari per la fabbricazione di circuiti stampati."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:825
+#: getting_started_in_kicad.adoc:849
 #, no-wrap
 msgid "Plot dialog"
 msgstr "Finestra di dialogo tracciatura"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:825
+#: getting_started_in_kicad.adoc:849
 #, no-wrap
 msgid "images/fabrication-outputs.png"
 msgstr "images/fabrication-outputs.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:831
+#: getting_started_in_kicad.adoc:855
 msgid ""
 "Click **Plot** to generate the Gerber files. Also click **Generate Drill "
 "Files...** and then **Generate Drill File** to create files specifying the "
@@ -2518,25 +2607,25 @@ msgstr ""
 "scheda. Infine, chiuderela finestra di dialogo Traccia. Il progetto è finito."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:832
+#: getting_started_in_kicad.adoc:856
 #, no-wrap
 msgid "Generate Drill Files dialog"
 msgstr "Finestra di dialogo genera file forature"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:832
+#: getting_started_in_kicad.adoc:856
 #, no-wrap
 msgid "images/generate-drill-files.png"
 msgstr "images/generate-drill-files.png"
 
 #. type: Title ==
-#: getting_started_in_kicad.adoc:834
+#: getting_started_in_kicad.adoc:858
 #, no-wrap
 msgid "Tutorial Part 4: Custom Symbols and Footprints"
 msgstr "Tutorial parte 4: simboli e impronte personalizzati"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:839
+#: getting_started_in_kicad.adoc:863
 msgid ""
 "The circuit would be improved by adding a switch to turn the LED on and off. "
 "The process to add this switch will require creating a new symbol and "
@@ -2549,7 +2638,7 @@ msgstr ""
 "simbolo di interruttore e la creazione di un'impronta per l'interruttore."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:844
+#: getting_started_in_kicad.adoc:868
 msgid ""
 "The specific switch that will be used in this guide is the https://www."
 "nkkswitches.com/pdf/MtogglesBushing.pdf[NKK M2011S3A1W03], an SPST toggle "
@@ -2563,13 +2652,13 @@ msgstr ""
 "dell'ingombro."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:845
+#: getting_started_in_kicad.adoc:869
 #, no-wrap
 msgid "Library and Library Table Basics"
 msgstr "Nozioni base su librerie e tabella librerie"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:849
+#: getting_started_in_kicad.adoc:873
 msgid ""
 "Symbols and footprints are organized into libraries. A library can hold "
 "symbols or footprints, but not both."
@@ -2578,7 +2667,7 @@ msgstr ""
 "simboli o impronte, ma non entrambi."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:854
+#: getting_started_in_kicad.adoc:878
 msgid ""
 "KiCad keeps track of the user's symbol libraries and footprint libraries in "
 "the symbol library table and footprint library table, respectively. Each "
@@ -2591,7 +2680,7 @@ msgstr ""
 "di nomi di librerie e la posizione in cui ciascuna libreria esiste sul disco."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:861
+#: getting_started_in_kicad.adoc:885
 msgid ""
 "In addition to global symbol and footprint library tables, there are also "
 "project library tables for symbols and footprints. Symbols and footprints "
@@ -2609,7 +2698,7 @@ msgstr ""
 "tabelle delle librerie globali o alle tabelle specifiche del progetto."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:867
+#: getting_started_in_kicad.adoc:891
 msgid ""
 "The symbol library tables can be viewed or edited with **Preferences** -> "
 "**Manage Symbol Libraries...** in the Schematic Editor or Symbol Editor "
@@ -2628,19 +2717,19 @@ msgstr ""
 "progetto."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:868
+#: getting_started_in_kicad.adoc:892
 #, no-wrap
 msgid "symbol library table"
 msgstr "tabella librerie simboli"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:868
+#: getting_started_in_kicad.adoc:892
 #, no-wrap
 msgid "images/symbol-library-table.png"
 msgstr "images/symbol-library-table.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:876
+#: getting_started_in_kicad.adoc:900
 msgid ""
 "Often, paths to libraries are defined with path substitution variables. This "
 "enables a user to move all of their libraries to a new location without "
@@ -2648,10 +2737,17 @@ msgid ""
 "redefine the variable to point to the new location. KiCad's path "
 "substitution variables are edited with **Preferences** -> **Configure "
 "Paths...** in the Project Manager or any of the Editor windows."
-msgstr "Spesso i percorsi delle librerie sono definiti con variabili di sostituzione del percorso. Ciò consente a un utente di spostare tutte le proprie librerie in una nuova posizione senza modificare le tabelle delle librerie. L'unica cosa che deve essere cambiata è la definizione della variabile in modo che punti alla nuova posizione. Le variabili di sostituzione del percorso di KiCad vengono modificate con **Preferenze** -> **Configura percorsi...** nella Gestione del progetto o in qualsiasi finestra di editing."
+msgstr ""
+"Spesso i percorsi delle librerie sono definiti con variabili di sostituzione "
+"del percorso. Ciò consente a un utente di spostare tutte le proprie librerie "
+"in una nuova posizione senza modificare le tabelle delle librerie. L'unica "
+"cosa che deve essere cambiata è la definizione della variabile in modo che "
+"punti alla nuova posizione. Le variabili di sostituzione del percorso di "
+"KiCad vengono modificate con **Preferenze** -> **Configura percorsi...** "
+"nella Gestione del progetto o in qualsiasi finestra di editing."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:880
+#: getting_started_in_kicad.adoc:904
 msgid ""
 "One useful path substitution variable is `${KIPRJMOD}`. This variable always "
 "points at the current project directory, so it can be used for including "
@@ -2663,7 +2759,7 @@ msgstr ""
 "nella cartella del progetto."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:886
+#: getting_started_in_kicad.adoc:910
 msgid ""
 "On first run, KiCad <<sym-lib-table-setup,prompts the user to set up the "
 "symbol library table>> and <<fp-lib-table-setup,footprint library table>>. "
@@ -2679,7 +2775,7 @@ msgstr ""
 "eliminarle."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:889
+#: getting_started_in_kicad.adoc:913
 msgid ""
 "The location of the symbol and footprint library table files depends on "
 "operating system."
@@ -2688,37 +2784,37 @@ msgstr ""
 "dipende dal sistema operativo."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:891
+#: getting_started_in_kicad.adoc:915
 msgid ""
-"Windows: `%APPDATA%\\kicad\\8.0\\sym-lib-table` and `%APPDATA%"
-"\\kicad\\8.0\\fp-lib-table`"
-msgstr "Windows: `%APPDATA%\\kicad\\8.0\\sym-lib-table` e `%APPDATA%\\kicad\\8.0\\fp-lib-table`"
+"Windows: `%APPDATA%\\kicad\\9.0\\sym-lib-table` and `%APPDATA%"
+"\\kicad\\9.0\\fp-lib-table`"
+msgstr "Windows: `%APPDATA%\\kicad\\9.0\\sym-lib-table` e `%APPDATA%\\kicad\\9.0\\fp-lib-table`"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:892
+#: getting_started_in_kicad.adoc:916
 msgid ""
-"Linux: `~/.config/kicad/8.0/sym-lib-table` and `~/.config/kicad/8.0/fp-lib-"
+"Linux: `~/.config/kicad/9.0/sym-lib-table` and `~/.config/kicad/9.0/fp-lib-"
 "table`"
-msgstr "Linux: `~/.config/kicad/8.0/sym-lib-table` e `~/.config/kicad/8.0/fp-lib-table`"
+msgstr "Linux: `~/.config/kicad/9.0/sym-lib-table` e `~/.config/kicad/9.0/fp-lib-table`"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:893
-msgid "macOS: `~/Library/Preferences/kicad/8.0/sym-lib-table` and"
-msgstr "macOS: `~/Library/Preferences/kicad/8.0/sym-lib-table` e"
+#: getting_started_in_kicad.adoc:917
+msgid "macOS: `~/Library/Preferences/kicad/9.0/sym-lib-table` and"
+msgstr "macOS: `~/Library/Preferences/kicad/9.0/sym-lib-table` e"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:894
-msgid "`~/Library/Preferences/kicad/8.0/fp-lib-table`"
-msgstr "`~/Library/Preferences/kicad/8.0/fp-lib-table`"
+#: getting_started_in_kicad.adoc:918
+msgid "`~/Library/Preferences/kicad/9.0/fp-lib-table`"
+msgstr "`~/Library/Preferences/kicad/9.0/fp-lib-table`"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:895
+#: getting_started_in_kicad.adoc:919
 #, no-wrap
 msgid "Creating New Global or Project Libraries"
 msgstr "Creazione nuove librerie globali o di progetto"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:900
+#: getting_started_in_kicad.adoc:924
 msgid ""
 "The first step in drawing a new symbol or footprint is to choose a library "
 "in which to store it. For this guide, the switch symbol and footprint will "
@@ -2730,7 +2826,7 @@ msgstr ""
 "progetto."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:907
+#: getting_started_in_kicad.adoc:931
 msgid ""
 "Open the Symbol Editor from the Project Manager. Click **File** -> **New "
 "Library**, and select **Project**. Choose a name for the new library (e.g.  "
@@ -2749,13 +2845,13 @@ msgstr ""
 "simboli...**)."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:908
+#: getting_started_in_kicad.adoc:932
 #, no-wrap
 msgid "Creating New Symbols"
 msgstr "Creazione nuovi simboli"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:916
+#: getting_started_in_kicad.adoc:940
 msgid ""
 "Now create the switch symbol in the new library. With the `getting-started` "
 "library selected in the Libraries pane, click **File** -> **New Symbol...**. "
@@ -2773,36 +2869,75 @@ msgstr ""
 "predefiniti."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:921
+#: getting_started_in_kicad.adoc:945
 msgid ""
 "In the Libraries pane, the `M2011S3A1W03` symbol now appears under the "
 "`getting-started` library. In the canvas, a cross indicates the center of "
 "the footprint, and text has been added for the reference designator. For "
 "now, move the text away from the center of the symbol to get it out of the "
 "way."
-msgstr "Nel pannello Librerie, il simbolo `M2011S3A1W03` ora appare sotto la libreria `getting-started`. Nell'area di disegno, una croce indica il centro dell'impronta ed è stato aggiunto del testo per il riferimento. Per ora, spostare il testo lontano dal centro dell'impronta per toglierlo di mezzo."
+msgstr ""
+"Nel pannello Librerie, il simbolo `M2011S3A1W03` ora appare sotto la "
+"libreria `getting-started`. Nell'area di disegno, una croce indica il centro "
+"dell'impronta ed è stato aggiunto del testo per il riferimento. Per ora, "
+"spostare il testo lontano dal centro dell'impronta per toglierlo di mezzo."
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:922
+#: getting_started_in_kicad.adoc:946
 #, no-wrap
 msgid "Symbol Pins"
 msgstr "Piedini del simbolo"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:932
+#: getting_started_in_kicad.adoc:952
 msgid ""
-"Start drawing the symbol by adding a pin. Click the **Add a pin** button "
-"image:images/pin_24.png[] on the right toolbar. The Pin Properties dialog "
-"will appear. Set **Pin name** to `A`, **Pin number** to `2`, **Electrical "
-"type** to `Passive`, and **Orientation** to `Right`. Set **X Position** to "
-"`-200 mils` and **Y Position** to `0`. Click **OK**, then click on the "
-"canvas to place the pin.  If the pin moved after clicking **OK**, it might "
-"be necessary to edit the pin's properties again (double click the pin, or "
-"right click on the pin -> **Properties...**) to set the position correctly."
-msgstr "Iniziare a disegnare il simbolo aggiungendo un piedino. Fare clic sul pulsante **Aggiungi un pin** image:images/pin_24.png[] sulla barra degli strumenti a destra. Verrà visualizzata la finestra di dialogo Proprietà piedino. Impostare il **Nome pin** a `A`, il **Numero pin** a `2`, il **Tipo elettrico** a `Passivo` e l'**Orientamento** su `Destra`. Impostare la **Posizione X** a `-200 mils` e la **Posizione Y** a `0`. Fare clic su **OK**, quindi fare clic sull'area di disegno per posizionare il piedino. Se il pin si è spostato dopo aver fatto clic su **OK**, potrebbe essere necessario modificare nuovamente le proprietà del piedino (fare doppio clic sul piedino o fare clic con il pulsante destro del mouse sul piedino -> **Proprietà...**) per impostare la posizione corretta."
+"Start drawing the symbol by adding a pin. This symbol will not have a pin 1, "
+"so we will start with a pin numbered 2. Click the **Add a pin** button image:"
+"images/pin_24.png[] on the right toolbar. The Pin Properties dialog will "
+"appear. Set the pin properties as follows:"
+msgstr "Iniziare a disegnare il simbolo aggiungendo un pin. Questo simbolo non avrà un pin 1, quindi si inizierà con un pin numero 2. Fare clic sul pulsante **Aggiungi pin** image:images/pin_24.png[] sulla barra degli strumenti a destra. Apparirà la finestra di dialogo Proprietà pin. Impostare le proprietà del pin come segue:"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:941
+#: getting_started_in_kicad.adoc:954
+msgid "**Pin name**: `A`"
+msgstr "**Nome pin**: `A`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:955
+msgid "**Pin number**: `2`"
+msgstr "**Numero pin**: `2`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:956
+msgid "**Electrical type**: `Passive`"
+msgstr "**Tipo elettrico**: `Passivo`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:957
+msgid "**Orientation**: `Right`"
+msgstr "**Orientamanro**: `Destra`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:958
+msgid "**X Position**: `-200 mils`"
+msgstr "**Posizione X**: `-200 mils`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:959
+msgid "**Y Position**: `0`"
+msgstr "**Posizione Y**: `0`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:964
+msgid ""
+"Click **OK**, then click on the canvas to place the pin. If the pin moved "
+"after clicking **OK**, it might be necessary to edit the pin's properties "
+"again (double click the pin, or right click on the pin -> **Properties...**) "
+"to set the position correctly."
+msgstr "Fare clic su **OK** e poi sull'area di disegno per posizionare il piedino. Se il pin si è spostato dopo aver fatto clic su **OK**, potrebbe essere necessario modificare nuovamente le proprietà del piedino (fare doppio clic sul piedino o fare clic con il pulsante destro del mouse sul piedino -> **Proprietà...**) per impostare la posizione corretta."
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:973
 #, no-wrap
 msgid ""
 "It is strongly recommended to always use mils (or inches) in the Schematic\n"
@@ -2824,19 +2959,19 @@ msgstr ""
 "      non hanno alcun significato fisico.\n"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:942
+#: getting_started_in_kicad.adoc:974
 #, no-wrap
 msgid "pin properties"
 msgstr "proprietà del piedino"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:942
+#: getting_started_in_kicad.adoc:974
 #, no-wrap
 msgid "images/pin-properties.png"
 msgstr "images/pin-properties.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:946
+#: getting_started_in_kicad.adoc:978
 msgid ""
 "Add a second pin, but this time don't use the **Add a pin** tool. Instead, "
 "press kbd:[Insert]. A new pin numbered 3 is added to the symbol, just below "
@@ -2847,7 +2982,7 @@ msgstr ""
 "al simbolo, appena sotto il piedino 2."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:954
+#: getting_started_in_kicad.adoc:986
 #, no-wrap
 msgid ""
 "In many places in KiCad, pressing kbd:[Insert] will repeat the last action.\n"
@@ -2867,21 +3002,62 @@ msgstr ""
 "     e del circuito stampato.\n"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:958
+#: getting_started_in_kicad.adoc:993
 msgid ""
-"We want Pin 3 to be on the right side of the switch symbol, so edit the "
-"properties of pin 3 and change **X position** to `200 mils`, **Y position** "
-"to `0`, and **Orientation** to `Left`. Also, change **Pin name** to `B`."
-msgstr "Vogliamo che il piedino 3 sia sul lato destro del simbolo dell'interruttore, perciò modificare le proprietà del pin 3 e modificare la **Posizione X** a `200 mils`, la **Posizione Y** a `0`, e l'**Orientamento** a `Sinistra`. Cambiare anche il **Nome pin** in `B`."
+"We want Pin 3 to be on the right side of the switch symbol, so we will edit "
+"its properties to change the location and orientation. Instead of using the "
+"Pin Properties dialog, this time we can use the Properties Panel. This is a "
+"docked panel on the left side of the editing canvas that lets you view and "
+"edit the properties of the selected object or objects. To show or hide the "
+"Properties Panel, use the image:images/tools_24.png[] button in the left "
+"toolbar."
+msgstr "Vogliamo che il Pin 3 si trovi a destra del simbolo dell'interruttore, quindi ne modificheremo le proprietà per cambiarne la posizione e l'orientamento. Invece di utilizzare la finestra di dialogo Proprietà Pin, questa volta possiamo utilizzare il Pannello Proprietà. Si tratta di un pannello ancorato sul lato sinistro dell'area di modifica che consente di visualizzare e modificare le proprietà dell'oggetto o degli oggetti selezionati. Per visualizzare o nascondere il Pannello Proprietà, utilizzare il pulsante image:images/tools_24.png[] nella barra degli strumenti a sinistra."
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:995
+msgid ""
+"With pin 3 selected, use the Properties panel to set its properties as "
+"follows:"
+msgstr "Con il pin 3 selezionato, utilizzare il pannello Proprietà per impostarne le proprietà come segue:"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:997
+msgid "**Pin Name**: `B`"
+msgstr "**Nome pin**: `B`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:998
+msgid "**Position X**: `200 mils`"
+msgstr "**Posizione X**: `200 mils`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:999
+msgid "**Position Y**: `0`"
+msgstr "**Posizione Y**: `0`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1000
+msgid "**Orientation**: `Left`"
+msgstr "**Orientamento**: `Sinistra`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1003
+#, no-wrap
+msgid ""
+"The Properties Panel is available in every KiCad editor (Schematic, Board,\n"
+"      Symbol, and Footprint).\n"
+msgstr ""
+"Il pannello Proprietà è disponibile in tutti gli editor KiCad (Schema, Scheda,\n"
+"      Simbolo e Impronta).\n"
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:959
+#: getting_started_in_kicad.adoc:1004
 #, no-wrap
 msgid "Graphical Features"
 msgstr "Caratteristiche grafiche"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:966
+#: getting_started_in_kicad.adoc:1011
 msgid ""
 "With the pins placed, use the circle image:images/add_circle_24.png[] and "
 "line image:images/add_line_24.png[] tools to make the symbol look like an "
@@ -2898,7 +3074,7 @@ msgstr ""
 "nuovamente la griglia a 50 mils."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:970
+#: getting_started_in_kicad.adoc:1015
 msgid ""
 "Small grids are useful for graphical features, but **symbol pins must always "
 "be placed on a 50 mil (1.27 mm) grid**. Pins which are not aligned to a 50 "
@@ -2910,19 +3086,19 @@ msgstr ""
 "nello schema."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:971
+#: getting_started_in_kicad.adoc:1016
 #, no-wrap
 msgid "symbol drawn"
 msgstr "simbolo disegnato"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:971
+#: getting_started_in_kicad.adoc:1016
 #, no-wrap
 msgid "images/symbol-drawn.png"
 msgstr "images/symbol-drawn.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:981
+#: getting_started_in_kicad.adoc:1026
 msgid ""
 "Now edit the properties for the whole symbol with **File** -> **Symbol "
 "Properties**, or by double clicking on the canvas. Change the **Value** "
@@ -2940,7 +3116,7 @@ msgstr ""
 "visualmente più semplice."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:984
+#: getting_started_in_kicad.adoc:1029
 msgid ""
 "After clicking **OK**, move the value field's text lower so that it does not "
 "overlap with the symbol graphics."
@@ -2949,19 +3125,19 @@ msgstr ""
 "basso in modo che non si sovrapponga alla grafica del simbolo."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:985
+#: getting_started_in_kicad.adoc:1030
 #, no-wrap
 msgid "symbol properties"
 msgstr "proprietà del simbolo"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:985
+#: getting_started_in_kicad.adoc:1030
 #, no-wrap
 msgid "images/symbol-properties.png"
 msgstr "images/symbol-properties.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:988
+#: getting_started_in_kicad.adoc:1033
 msgid ""
 "The symbol is now complete. Save it and move on to creating a footprint."
 msgstr ""
@@ -2969,37 +3145,46 @@ msgstr ""
 "un'impronta."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:989
+#: getting_started_in_kicad.adoc:1034
 #, no-wrap
 msgid "Creating New Footprints"
 msgstr "Creazione di nuove impronte"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:997
+#: getting_started_in_kicad.adoc:1043
 msgid ""
 "Open the Footprint Editor and create a new project-specific footprint "
 "library named `getting-started.pretty` (**File** -> **New Library...**). As "
 "with symbol libraries, the new footprint library is added to the project "
 "library table. With the new library selected in the Libraries pane, create a "
-"new footprint (**File** -> **New Footprint...**). Set the name to "
-"`Switch_Toggle_SPST_NKK_M2011S3A1x03` and the type to `Through hole`."
-msgstr ""
-"Aprire l'editor delle impronte e creare una nuova libreria impronte "
-"specifica del progetto di nome `getting-started.pretty` (**File** -> **Nuova "
-"libreria...**). Come con le librerie di simboli, la nuova libreria di "
-"impronte viene aggiunta alla tabella librerie del progetto. Con la nuova "
-"libreria selezionata nel pannello delle librerie, creare una nuova impronta "
-"(**File** -> **Nuova impronta...**). Impostare il nome a "
-"`Switch_Toggle_SPST_NKK_M2011S3A1x03` e il tipo a `Fori passanti`."
+"new footprint (**File** -> **New Footprint...**). Edit the footprint's "
+"properties (image:images/module_options_24.png[] button in the top toolbar) "
+"and set the following properties:"
+msgstr "Aprire l'editor delle impronte e creare una nuova libreria impronte specifica del progetto di nome `getting-started.pretty` (**File** -> **Nuova libreria...**). Come con le librerie di simboli, la nuova libreria di impronte viene aggiunta alla tabella librerie del progetto. Con la nuova libreria selezionata nel pannello delle librerie, creare una nuova impronta (**File** -> **Nuova impronta...**). Modificare le proprietà dell'impronta (il pulsante image:images/module_options_24.png[] nella barra strumenti superiore) e importare le seguenti proprietà:"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1045
+msgid "**Footprint name**: `Switch_Toggle_SPST_NKK_M2011S3A1x03`"
+msgstr "**Nome impronta**: `Switch_Toggle_SPST_NKK_M2011S3A1x03`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1046
+msgid "**Value**: `Switch_Toggle_SPST_NKK_M2011S3A1x03`"
+msgstr "**Valore**: `Switch_Toggle_SPST_NKK_M2011S3A1x03`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1047
+msgid "**Component type**: `Through hole`"
+msgstr "**Tipo componente**: `Fori passanti`"
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:998
+#: getting_started_in_kicad.adoc:1048
 #, no-wrap
 msgid "Footprint Pads"
 msgstr "Piazzole impronte"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1007
+#: getting_started_in_kicad.adoc:1057
 msgid ""
 "The switch has two pins, numbered in the datasheet as 2 and 3, and spaced "
 "4.7 mm apart. For ease of placement, adjust the grid to match the pad "
@@ -3009,26 +3194,42 @@ msgid ""
 "mm`. Accept the dialog, go back to the editing canvas, and then switch to "
 "the new grid in the grid dropdown in the top toolbar, if it is not already "
 "selected."
-msgstr "L'interruttore ha due piedini, numerati nella scheda tecnica come 2 e 3 e distanziati di 4,7 mm l'uno dall'altro. Per facilitare il posizionamento, regolare la griglia in modo che corrisponda alla spaziatura delle piazzole. Aprire le proprietà della griglia facendo clic destro sul pulsante image:images/grid_24.png[] nella barra a sinistra e selezionare **Modifica griglia...*. Aggiungere una nuova griglia con il pulsante del segno più, in basso. Impostare la nuova dimensione X della griglia a `4.7 mm`. Accettare la modifica nella finestra di dialogo, quindi tornare all'area di lavoro e passare alla nuova griglia nell'elenco a discesa della barra superiore se non è già selezionata."
-
-#. type: Plain text
-#: getting_started_in_kicad.adoc:1013
-msgid ""
-"By convention, through-hole footprints have pin 1 located at (0,0) and are "
-"oriented with pin 1 in the top left. The SPST version of this switch does "
-"not have pin 1, so the footprint will leave (0,0) empty and place pads 2 and "
-"3 at (0, 4.7 mm) and (0, 9.4 mm). Note that in KiCad's default coordinate "
-"system, the positive Y-axis is oriented downwards."
 msgstr ""
-"Per convenzione, le impronte a foro passante hanno il pin 1 situato in (0,0) "
-"e sono orientate con il pin 1 in alto a sinistra. La versione SPST di questo "
-"interruttore non ha il pin 1, quindi l'impronta lascerà (0,0) vuoto e "
-"posizionerà i pad 2 e 3 a (0, 4,7 mm) e (0, 9,4 mm). Nota che nel sistema di "
-"coordinate predefinito di KiCad, l'asse Y positivo è orientato verso il "
-"basso."
+"L'interruttore ha due piedini, numerati nella scheda tecnica come 2 e 3 e "
+"distanziati di 4,7 mm l'uno dall'altro. Per facilitare il posizionamento, "
+"regolare la griglia in modo che corrisponda alla spaziatura delle piazzole. "
+"Aprire le proprietà della griglia facendo clic destro sul pulsante image:"
+"images/grid_24.png[] nella barra a sinistra e selezionare **Modifica "
+"griglia...*. Aggiungere una nuova griglia con il pulsante del segno più, in "
+"basso. Impostare la nuova dimensione X della griglia a `4.7 mm`. Accettare "
+"la modifica nella finestra di dialogo, quindi tornare all'area di lavoro e "
+"passare alla nuova griglia nell'elenco a discesa della barra superiore se "
+"non è già selezionata."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1022
+#: getting_started_in_kicad.adoc:1063
+msgid ""
+"By convention, through-hole footprints have pin 1 located at `(0,0)` and are "
+"oriented with pin 1 in the top left. The SPST version of this switch does "
+"not have pin 1, so the footprint will leave `(0,0)` empty and place pads 2 "
+"and 3 at `(0, 4.7 mm)` and `(0, 9.4 mm)`. Note that in KiCad's default "
+"coordinate system, the positive Y-axis is oriented downwards."
+msgstr "Per convenzione, le impronte a foro passante hanno il pin 1 situato in (0,0) e sono orientate con il pin 1 in alto a sinistra. La versione SPST di questo interruttore non ha il pin 1, quindi l'impronta lascerà (0,0) vuoto e posizionerà i pad 2 e 3 a (0, 4.7 mm) e (0, 9.4 mm). Si noti che nel sistema di coordinate predefinito di KiCad, l'asse Y positivo è orientato verso il basso."
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1067
+#, no-wrap
+msgid ""
+"The X and Y coordinates of the cursor are displayed in the status bar at\n"
+"      the bottom of the window. You can use this to check the coordinates when\n"
+"      you are drawing or placing something.\n"
+msgstr ""
+"Le coordinate X e Y del puntatore vengono visualizzate nella barra di stato\n"
+"      nella parte inferiore della finestra. Si può usare questa informazione\n"
+"      per controllare le coordinate quando si disegna o posiziona qualcosa.\n"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1076
 msgid ""
 "Use the **Add a pad** tool image:images/pad_24.png[] in the right toolbar to "
 "place a pad one grid division below the origin, which is (0, 4.7 mm). Press "
@@ -3038,35 +3239,40 @@ msgid ""
 "(maximum pin dimension) of 1.42 mm. Therefore set the hole diameter to 1.42 "
 "mm + 0.2 mm = `1.62 mm`, and the pad diameter to 1.62 mm + 2*0.15 mm = `1.92 "
 "mm` to provide a sufficient annular ring."
-msgstr "Usare lo strumento **Aggiungi piazzola** image:images/pad_24.png[] nella barra degli strumenti a destra per posizionare una piazzola una passo della griglia sotto l'origine, che è (0, 4,7 mm). Premere kbd:[Esc] per uscire dallo strumento piazzola, quindi fare doppio clic sulla piazzola per modificarne le proprietà. Modificare il numero della piazzola in `2` e verificare che la posizione sia corretta. I piedini dell'interruttore misurano 1,17 mm x 0,8 mm, il che dà una diagonale (dimensione massima del piedino) di 1,42 mm. Impostare quindi il diametro del foro su 1,42 mm + 0,2 mm = `1,62 mm` e il diametro della piazzola a 1,62 mm + 2*0,15 mm = `1,92 mm` per fornire un anulare sufficiente."
+msgstr ""
+"Usare lo strumento **Aggiungi piazzola** image:images/pad_24.png[] nella "
+"barra degli strumenti a destra per posizionare una piazzola una passo della "
+"griglia sotto l'origine, che è (0, 4,7 mm). Premere kbd:[Esc] per uscire "
+"dallo strumento piazzola, quindi fare doppio clic sulla piazzola per "
+"modificarne le proprietà. Modificare il numero della piazzola in `2` e "
+"verificare che la posizione sia corretta. I piedini dell'interruttore "
+"misurano 1,17 mm x 0,8 mm, il che dà una diagonale (dimensione massima del "
+"piedino) di 1,42 mm. Impostare quindi il diametro del foro su 1,42 mm + 0,2 "
+"mm = `1,62 mm` e il diametro della piazzola a 1,62 mm + 2*0,15 mm = `1,92 "
+"mm` per fornire un anulare sufficiente."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1023
+#: getting_started_in_kicad.adoc:1077
 #, no-wrap
 msgid "pad properties"
 msgstr "proprietà delle piazzole"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1023
+#: getting_started_in_kicad.adoc:1077
 #, no-wrap
 msgid "images/pad-properties.png"
 msgstr "images/pad-properties.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1028
+#: getting_started_in_kicad.adoc:1082
 msgid ""
-"Now use the **Add a pad** tool again to place the other pad at (0, 9.4 mm).  "
-"Notice that the pad number is automatically incremented and the properties "
-"including pad size and hole size are copied from the previous pad."
-msgstr ""
-"Ora usare nuovamente lo strumento **Aggiungi piazzola** per posizionare "
-"l'altra piazzola a (0,0 , 9,4 mm). Si noti che il numero della piazzola "
-"viene incrementato automaticamente e le proprietà, tra cui la dimensione "
-"della piazzola e la dimensione del foro, vengono copiate dalla piazzola "
-"precedente."
+"Now use the **Add a pad** tool again to place the other pad at `(0, 9.4 "
+"mm)`.  Notice that the pad number is automatically incremented and the "
+"properties including pad size and hole size are copied from the previous pad."
+msgstr "Ora usare nuovamente lo strumento **Aggiungi piazzola** per posizionare l'altra piazzola a (0,0 , 9.4 mm). Si noti che il numero della piazzola viene incrementato automaticamente e le proprietà, tra cui la dimensione della piazzola e la dimensione del foro, vengono copiate dalla piazzola precedente."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1035
+#: getting_started_in_kicad.adoc:1089
 msgid ""
 "With both pads placed, the annular rings look slightly small. The switch "
 "will be easier to solder and mechanically more robust if the annular rings "
@@ -3086,7 +3292,7 @@ msgstr ""
 "direttamente \"1,62+2*0,3\" e verrà valutato 2,22 mm."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1038
+#: getting_started_in_kicad.adoc:1092
 #, no-wrap
 msgid ""
 "Many text boxes in KiCad support mathematical expressions, including unit\n"
@@ -3096,7 +3302,7 @@ msgstr ""
 "      conversioni.\n"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1042
+#: getting_started_in_kicad.adoc:1096
 msgid ""
 "Make the same annular ring modification to the other pad as well. As a "
 "shortcut, right click on pad 2, click **Push Pad Properties to Other Pads..."
@@ -3108,13 +3314,13 @@ msgstr ""
 "clic su **Cambia piazzole nell'impronta corrente**."
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:1043
+#: getting_started_in_kicad.adoc:1097
 #, no-wrap
 msgid "Footprint Graphics"
 msgstr "Grafiche impronte"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1048
+#: getting_started_in_kicad.adoc:1102
 msgid ""
 "A good footprint will have the exact part outline drawn on the fabrication "
 "layer (`F.Fab`), a slightly larger outline on the silkscreen layer (`F."
@@ -3127,7 +3333,7 @@ msgstr ""
 "circonda l'intera impronta per evitare sovrapposizioni con altre impronte."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1060
+#: getting_started_in_kicad.adoc:1114
 msgid ""
 "Switch to the front fabrication layer by clicking **F.Fab** in the Layers "
 "panel at right. The fabrication outline should precisely match the physical "
@@ -3135,107 +3341,141 @@ msgid ""
 "image:images/add_line_24.png[], rectangle image:images/add_rectangle_24."
 "png[], or polygon image:images/add_graphical_polygon_24.png[] tools to draw "
 "the outline of the part as shown in the screenshot below. One way to "
-"precisely place the outline is to create a new grid with an X spacing of "
-"`7.9 mm` and a Y spacing of `13 mm`. Then adjust the grid origin by right-"
-"clicking the image:images/grid_24.png[] button and selecting **Grid Origin..."
-"**. Set the X origin is 7.9 mm / 2 = `3.95 mm` and the Y origin to 4.7 mm - "
-"(13 mm / 2) = `-1.8 mm`."
-msgstr "Passare allo strato di fabbricazione anteriore facendo clic su **F.Fab** nel pannello Strati a destra. Il contorno di fabbricazione deve corrispondere esattamente alle dimensioni fisiche del componente, che è largo 7,9 mm e alto 13 mm. Usare gli strumenti linea image:images/add_line_24.png[], rettangolo image:images/add_rectangle_24.png[] o poligono image:images/add_graphical_polygon_24.png[] per disegnare il contorno del componente come mostrato nella schermata sotto. Un modo per posizionare con precisione il contorno è creare una nuova griglia con spaziatura X di `7.9 mm` e Y di `13 mm`. Poi regolare l'origine della griglia facendo clic destro sul pulsante image:images/grid_24.png[] e selezionando **Origine griglia...**. Impostare l'X origine a 7.9 mm / 2 = `3.95 mm` a l'Y origine a 4.7 mm - (13 mm / 2) = `-1.8 mm`."
+"precisely place the outline is to create a new grid with the correct X and Y "
+"spacing, as we did for the pads. Make sure to uncheck the **Linked** "
+"checkbox in the Grid Settings dialog to allow unequal X and Y grid spacing. "
+"You can then adjust the grid origin by right clicking the image:images/"
+"grid_24.png[] button and selecting **Grid Origin...**."
+msgstr "Passare allo strato di fabbricazione anteriore facendo clic su **F.Fab** nel pannello Strati a destra. Il bordo di fabbricazione deve corrispondere esattamente alle dimensioni fisiche del componente, che è largo 7.9 mm e alto 13 mm. Usare gli strumenti linea image:images/add_line_24.png[], rettangolo image:images/add_rectangle_24.png[] o poligono image:images/add_graphical_polygon_24.png[] per disegnare il contorno del componente come mostrato nella schermata sotto. Un modo per posizionare con precisione il contorno è creare una nuova griglia con le corrette spaziature X e Y come abbiamo fatto per le piazzole. Assicurarsi di deselezionare la casella **Collegato** nella finestra delle impostazioni della griglia per permettere spaziature X e Y diseguali. Poi regolare l'origine della griglia facendo clic destro sul pulsante image:images/grid_24.png[] e selezionando **Origine griglia...**."
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1116
+msgid "Configure the grid spacing and origin as follows:"
+msgstr "Configurare l'origine e la spaziatura griglia come di seguito:"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1118
+msgid "X grid: `7.9 mm`"
+msgstr "X griglia: `7.9 mm`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1119
+msgid "Y grid: `13 mm`"
+msgstr "Y griglia: `13 mm`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1120
+msgid "X origin: 7.9 mm / 2 = `3.95 mm`"
+msgstr "Origine X: 7,9 mm / 2 = `3,95 mm`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1121
+msgid "Y origin: 4.7 mm - (13 mm / 2) = `-1.8 mm`."
+msgstr "Origine Y: 4,7 mm - (13 mm / 2) = `-1,8 mm`."
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1124
+msgid ""
+"The completed fabrication drawing is shown below, with corner coordinates "
+"annotated."
+msgstr "Di seguito è riportato il disegno di fabbricazione completato, con le coordinate degli angoli annotate."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1061
+#: getting_started_in_kicad.adoc:1125
 #, no-wrap
 msgid "fab outline coordinates"
 msgstr "coordinate contorni di fabbricazione"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1061
+#: getting_started_in_kicad.adoc:1125
 #, no-wrap
 msgid "images/fab-outline.png"
 msgstr "images/fab-outline.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1068
+#: getting_started_in_kicad.adoc:1132
 msgid ""
-"Next, switch to the `F.Silkscreen` layer. The silkscreen outline should be "
-"just outside of the part outline, so the silkscreen lines are moved outwards "
-"from the fabrication drawing by 0.11 mm (half of 0.10 mm fab line width, "
-"plus half of the 0.12 mm silkscreen line width). The exact coordinates are "
-"shown in the screenshot below, and helpful grid settings are:"
-msgstr ""
-"Successivamente, passare allo strato `F.Silkscreen`. Il contorno della "
-"serigrafia dovrebbe trovarsi appena all'esterno del contorno del componente, "
-"in modo che le linee della serigrafia vengano spostate verso l'esterno dal "
-"disegno di fabbricazione di 0,11 mm (metà della larghezza della linea di "
-"fabbricazione di 0,10 mm, più metà della larghezza della linea della "
-"serigrafia di 0,12 mm). Le coordinate esatte sono mostrate nella schermata "
-"qui sotto e le impostazioni utili della griglia sono:"
+"Next, switch to the `F.Silkscreen` layer. We want the silkscreen outline to "
+"be just outside of the part outline, so the silkscreen lines will be drawn "
+"0.11 mm to the outside of the lines on the fabrication layer (0.11 mm is "
+"half of the 0.10 mm fab line width, plus half of the 0.12 mm silkscreen line "
+"width). The exact coordinates are shown in the screenshot below, and helpful "
+"grid settings are:"
+msgstr "Successivamente, passare allo strato `F.Silkscreen`. Vogliamo che il contorno della serigrafia si trovi appena all'esterno del contorno del componente, in modo che le linee della serigrafia vengano spostate verso l'esterno dal disegno di fabbricazione di 0,11 mm (metà della larghezza della linea di fabbricazione di 0,10 mm, più metà della larghezza della linea della serigrafia di 0,12 mm). Le coordinate esatte sono mostrate nella schermata qui sotto e le impostazioni utili della griglia sono:"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1070
+#: getting_started_in_kicad.adoc:1134
 msgid "X grid: 7.9 mm + 2 * 0.11 mm = `8.12 mm`"
 msgstr "Griglia X: 7,9 mm + 2 * 0,11 mm = `8,12 mm`"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1071
+#: getting_started_in_kicad.adoc:1135
 msgid "Y grid: 13 mm + 2 * 0.11 mm = `13.22 mm`"
 msgstr "Griglia Y: 13 mm + 2 * 0,11 mm = `13,22 mm`"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1072
+#: getting_started_in_kicad.adoc:1136
 msgid "X origin: 8.12 mm / 2 = `4.06 mm`"
 msgstr "Origine X: 8,12 mm / 2 = `4,06 mm`"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1073
+#: getting_started_in_kicad.adoc:1137
 msgid "Y origin: -1.8 mm - 0.11 mm = `-1.91 mm`"
 msgstr "Origine Y: -1,8 mm - 0,11 mm = `-1,91 mm`"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1074
+#: getting_started_in_kicad.adoc:1138
 #, no-wrap
 msgid "silk outline coordinates"
 msgstr "coordinate contorno serigrafia"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1074
+#: getting_started_in_kicad.adoc:1138
 #, no-wrap
 msgid "images/silk-outline.png"
 msgstr "images/silk-outline.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1078
+#: getting_started_in_kicad.adoc:1142
 msgid ""
-"Finally, select the `F.Courtyard` layer. The courtyard outline should "
+"Finally, select the `F.Courtyard` layer. We want the courtyard outline to "
 "surround the part with a 0.25 mm clearance."
-msgstr ""
-"Infine, selezionare lo strato `F.Courtyard`. Il contorno dell'ingombro "
-"dovrebbe circondare il componente ad una distanza di 0,25 mm."
+msgstr "Infine, selezionare lo strato `F.Courtyard`. Vogliamo che il contorno dell'ingombro circondi il componente ad una distanza di 0,25 mm."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1083
+#: getting_started_in_kicad.adoc:1148
 msgid ""
-"Use a different strategy to draw this layer. Switch to a 1mm grid instead of "
-"a custom grid, and draw a rectangle roughly surrounding the footprint. "
-"Double click on the rectangle to edit its properties, and enter the corner "
-"coordinates of the rectangle directly -- they are shown in the screenshot "
-"below."
-msgstr "Usare una strategia diversa per disegnare questo strato. Passare a una griglia da 1mm anziché alla griglia Utente e disegnare un rettangolo che circonda approssimativamente l'impronta. Fare doppio clic sul rettangolo per modificarne le proprietà e inserire direttamente le coordinate dell'angolo del rettangolo -- sono mostrate nella schermata qui sotto."
+"For variety, we can use a different strategy to draw the shape on this "
+"layer.  Switch to a 1mm grid instead of a custom grid, and draw a rectangle "
+"roughly surrounding the footprint. Select the rectangle and press kbd:[E] to "
+"edit its properties, and enter the corner coordinates of the rectangle "
+"directly. The corner coordinates are:"
+msgstr "Per cambiare, usare una strategia diversa per disegnare questo strato. Passare a una griglia da 1mm invece di usare una griglia personalizzata e disegnare un rettangolo che circonda approssimativamente l'impronta. Selezionare il rettangolo e premere kbd:[E] per modificarne le proprietà e inserire direttamente le coordinate dell'angolo del rettangolo. Queste sono:"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1150
+msgid "Top left: `(-4.2, -2.05)`"
+msgstr "In alto a sinistra: `(-4.2, -2.05)`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1151
+msgid "Bottom right: `(4.2, 11.45)`"
+msgstr "In basso a destra: `(4.2, 11.45)`"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1084
+#: getting_started_in_kicad.adoc:1152
 #, no-wrap
 msgid "courtyard outline coordinates"
 msgstr "coordinate contorno ingombro"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1084
+#: getting_started_in_kicad.adoc:1152
 #, no-wrap
 msgid "images/courtyard-outline.png"
 msgstr "images/courtyard-outline.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1088
+#: getting_started_in_kicad.adoc:1156
 msgid ""
 "After completing the outlines, position the text as shown below. The "
 "footprint is complete."
@@ -3244,25 +3484,25 @@ msgstr ""
 "seguito. L'impronta è completa."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1089
+#: getting_started_in_kicad.adoc:1157
 #, no-wrap
 msgid "completed switch footprint"
 msgstr "impronta interruttore completa"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1089
+#: getting_started_in_kicad.adoc:1157
 #, no-wrap
 msgid "images/switch-footprint.png"
 msgstr "images/switch-footprint.png"
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:1091
+#: getting_started_in_kicad.adoc:1159
 #, no-wrap
 msgid "Kicad Library Conventions"
 msgstr "Convenzioni librerie KiCad"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1100
+#: getting_started_in_kicad.adoc:1168
 msgid ""
 "To maintain high-quality symbol and footprint libraries, KiCad has a https://"
 "klc.kicad.org/[KiCad Library Conventions] document, which is a set of "
@@ -3281,13 +3521,13 @@ msgstr ""
 "impronte presenti in questa guida."
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:1101
+#: getting_started_in_kicad.adoc:1169
 #, no-wrap
 msgid "Add Switch to Schematic"
 msgstr "Aggiungere interruttori allo schema"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1106
+#: getting_started_in_kicad.adoc:1174
 msgid ""
 "Now that the footprint is complete, the switch symbol can be modified so "
 "that the matching footprint is used for it by default."
@@ -3297,7 +3537,7 @@ msgstr ""
 "l'impronta corrispondente."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1111
+#: getting_started_in_kicad.adoc:1179
 msgid ""
 "Go back to the symbol editor and open the switch symbol. Edit the Symbol "
 "Properties. Click in the `Footprint` field, then click the library book icon "
@@ -3312,7 +3552,7 @@ msgstr ""
 "simbolo."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1114
+#: getting_started_in_kicad.adoc:1182
 msgid ""
 "The switch footprint is now assigned to this symbol by default; the "
 "footprint does not need to be manually selected each time the symbol is "
@@ -3323,19 +3563,19 @@ msgstr ""
 "volta che il simbolo viene aggiunto a uno schema."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1115
+#: getting_started_in_kicad.adoc:1183
 #, no-wrap
 msgid "switch footprint set as default for symbol"
 msgstr "cambiare l'impronta impostata come predefinita per il simbolo"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1115 getting_started_in_kicad.adoc:1161
+#: getting_started_in_kicad.adoc:1183 getting_started_in_kicad.adoc:1230
 #, no-wrap
 msgid "images/switch-symbol-footprint.png"
 msgstr "images/switch-symbol-footprint.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1119
+#: getting_started_in_kicad.adoc:1187
 msgid ""
 "Open the schematic, add a new symbol, and select the new switch symbol. Wire "
 "it to connect or disconnect the LED and the battery."
@@ -3345,58 +3585,60 @@ msgstr ""
 "batteria."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1123
+#: getting_started_in_kicad.adoc:1191
 msgid ""
 "It isn't necessary to manually choose a footprint for the switch, because "
 "the switch symbol already specifies a footprint. Run ERC to make sure that "
 "the modified schematic doesn't violate any electrical rules."
-msgstr "Non è necessario scegliere manualmente un'impronta per l'interruttore, perché il simbolo dell'interruttore specifica già un'impronta. Eseguire l'ERC per assicurarsi che lo schema modificato non violi alcuna regola elettrica."
+msgstr ""
+"Non è necessario scegliere manualmente un'impronta per l'interruttore, "
+"perché il simbolo dell'interruttore specifica già un'impronta. Eseguire "
+"l'ERC per assicurarsi che lo schema modificato non violi alcuna regola "
+"elettrica."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1124
+#: getting_started_in_kicad.adoc:1192
 #, no-wrap
 msgid "schematic edited to include switch"
 msgstr "schema modificato per includere l'interruttore"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1124
+#: getting_started_in_kicad.adoc:1192
 #, no-wrap
 msgid "images/schematic-with-switch.png"
 msgstr "images/schematic-with-switch.png"
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:1126
+#: getting_started_in_kicad.adoc:1194
 #, no-wrap
 msgid "Add Switch to Layout"
 msgstr "Aggiungere l'interruttore alla scheda"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1132
+#: getting_started_in_kicad.adoc:1201
 msgid ""
 "Make sure the schematic is saved, then open the Board Editor to add the "
 "symbol to the layout. Update the PCB with the schematic changes using "
 "**Tools** -> **Update PCB from Schematic...** and place the switch footprint "
-"onto the board as shown."
-msgstr ""
-"Assicurarsi di aver salvato lo schema, poi aprire l'editor scheda per "
-"aggiungere il simbolo al progetto. Aggiornare il circuito stampato con le "
-"modifiche allo schema usando **Strumenti** -> **Aggiorna C.S. dallo schema..."
-"** e posiziona l'impronta dell'interruttore sulla scheda come mostrato."
+"onto the board as shown. If needed, resize the board outline and copper zone "
+"(the copper zone will unfill if it is resized, but you can re-fill it as "
+"necessary with kbd:[B])."
+msgstr "Assicurarsi di aver salvato lo schema, poi aprire l'editor scheda per aggiungere il simbolo al progetto. Aggiornare il circuito stampato con le modifiche allo schema usando **Strumenti** -> **Aggiorna C.S. dallo schema...** e posizionare l'impronta dell'interruttore sulla scheda come mostrato. Se necessario, ridimensionare il bordo della scheda e la zona rame (la zona rame non verrà svuotata se ridimensionata, ma è possibile riempirla nuovamente se necessario con kbd:[B])."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1133 getting_started_in_kicad.adoc:1149
+#: getting_started_in_kicad.adoc:1202 getting_started_in_kicad.adoc:1218
 #, no-wrap
 msgid "board with switch added, before routing"
 msgstr "scheda con interruttore aggiunto, prima dello sbroglio"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1133
+#: getting_started_in_kicad.adoc:1202
 #, no-wrap
 msgid "images/board-with-switch-unrouted.png"
 msgstr "images/board-with-switch-unrouted.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1137
+#: getting_started_in_kicad.adoc:1206
 msgid ""
 "The ratsnest shows the new connections that need to be routed. Additionally, "
 "the connection between the battery and the resistor needs to be deleted."
@@ -3405,26 +3647,23 @@ msgstr ""
 "connessione tra la batteria e la resistenza deve essere eliminata."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1142
+#: getting_started_in_kicad.adoc:1211
 msgid ""
-"First, delete the unneeded traces. Select one of the traces between the "
+"First, delete the unneeded tracks. Select one of the tracks between the "
 "battery and the resistor -- it doesn't matter which. Press kbd:[U] several "
 "times to expand the selection to include all the segments between the "
 "battery and resistor. Press kbd:[Delete] to remove the connection."
 msgstr "Per primo, eliminare le piste non necessarie. Selezionare una delle piste tra la batteria e la resistenza, non importa quale. Premere kbd:[U] più volte per espandere la selezione e includere tutti i segmenti tra la batteria e la resistenza. Premere kbd:[Canc] per rimuovere la connessione."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1145
+#: getting_started_in_kicad.adoc:1214
 msgid ""
-"Route the new traces between the battery and the switch, and between the "
+"Route the new tracks between the battery and the switch, and between the "
 "switch and the resistor. Press kbd:[B] to refill the zones."
-msgstr ""
-"Sbrogliare le nuove piste tra la batteria e l'interruttore e tra "
-"l'interruttore e la resistenza. Premere kbd:[B] per riempire nuovamente le "
-"zone."
+msgstr "Sbrogliare le nuove piste tra la batteria e l'interruttore e tra l'interruttore e la resistenza. Premere kbd:[B] per riempire nuovamente le zone."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1148
+#: getting_started_in_kicad.adoc:1217
 msgid ""
 "Finally, re-run DRC to make sure the modified board doesn't violate any "
 "design rules."
@@ -3433,25 +3672,25 @@ msgstr ""
 "violi alcuna regola di progettazione."
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1149
+#: getting_started_in_kicad.adoc:1218
 #, no-wrap
 msgid "images/board-with-switch-routed.png"
 msgstr "images/board-with-switch-routed.png"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:1152
+#: getting_started_in_kicad.adoc:1221
 #, no-wrap
 msgid "Linking Symbols, Footprints, and 3D Models"
 msgstr "Collegare simboli, impronte, e modelli 3D"
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:1154
+#: getting_started_in_kicad.adoc:1223
 #, no-wrap
 msgid "Symbols and Footprints"
 msgstr "Simboli e impronte"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1160
+#: getting_started_in_kicad.adoc:1229
 msgid ""
 "As described in <<footprint-assignment,the footprint assignment section>>, "
 "each symbol in the schematic needs to have a footprint assigned to it during "
@@ -3465,13 +3704,13 @@ msgstr ""
 "`Impronta` delle proprietà del simbolo."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1161
+#: getting_started_in_kicad.adoc:1230
 #, no-wrap
 msgid "footprint field in symbol properties"
 msgstr "campo impronta nelle proprietà del simbolo"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1170
+#: getting_started_in_kicad.adoc:1239
 msgid ""
 "Symbols can specify a preselected footprint. Footprints do not need to be "
 "manually assigned to such symbols, because a footprint was chosen when the "
@@ -3494,7 +3733,7 @@ msgstr ""
 "come predefinita per il suo simbolo corrispondente."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1175
+#: getting_started_in_kicad.adoc:1244
 msgid ""
 "Symbols can also specify footprint filters, which can be used to hide "
 "footprints that are incompatible with the symbol. For example, the `74HC00` "
@@ -3509,19 +3748,19 @@ msgstr ""
 "<<footprint-filters, assegnamento impronte>>."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1176
+#: getting_started_in_kicad.adoc:1245
 #, no-wrap
 msgid "footprint filters for 74HC00"
 msgstr "filtri impronte per il 74HC00"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1176
+#: getting_started_in_kicad.adoc:1245
 #, no-wrap
 msgid "images/footprint-filters.png"
 msgstr "images/footprint-filters.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1180
+#: getting_started_in_kicad.adoc:1249
 msgid ""
 "The https://klc.kicad.org/symbol/s5/s5.2/[KLC requirements for footprint "
 "filters] contain some useful tips for effective footprint filters."
@@ -3530,13 +3769,13 @@ msgstr ""
 "contengono alcuni suggerimenti utili per creare dei filtri impronte efficaci."
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:1182
+#: getting_started_in_kicad.adoc:1251
 #, no-wrap
 msgid "Footprints and 3D Models"
 msgstr "Impronte e modelli 3D"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1189
+#: getting_started_in_kicad.adoc:1258
 msgid ""
 "3D models for components are stored in separate files. Filenames for the "
 "component's 3D model(s) are saved in the footprint. Any number of 3D models "
@@ -3552,19 +3791,19 @@ msgstr ""
 "Proprietà dell'impronta."
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1190
+#: getting_started_in_kicad.adoc:1259
 #, no-wrap
 msgid "footprint 3D model properties"
 msgstr "proprietà modelli 3D impronte"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1190
+#: getting_started_in_kicad.adoc:1259
 #, no-wrap
 msgid "images/footprint-3d-model.png"
 msgstr "images/footprint-3d-model.png"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1199
+#: getting_started_in_kicad.adoc:1268
 msgid ""
 "Both STEP (`.step`) and VRML (`.wrl`) 3D model formats are supported. STEP "
 "files are useful where dimensional accuracy is needed, while VRML files can "
@@ -3586,7 +3825,7 @@ msgstr ""
 "meccanici."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1204
+#: getting_started_in_kicad.adoc:1273
 msgid ""
 "Not all footprints in KiCad's library are provided with 3D models, but all "
 "footprints list a 3D model filename even if the 3D model does not exist. "
@@ -3599,7 +3838,7 @@ msgstr ""
 "secondo momento senza dover modificare l'impronta."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1210
+#: getting_started_in_kicad.adoc:1279
 msgid ""
 "https://www.freecadweb.org/[FreeCAD] together with the https://github.com/"
 "easyw/kicadStepUpMod/[StepUp Workbench] are useful for creating component 3D "
@@ -3614,19 +3853,19 @@ msgstr ""
 "e rotazione corretti."
 
 #. type: Title ==
-#: getting_started_in_kicad.adoc:1211
+#: getting_started_in_kicad.adoc:1280
 #, no-wrap
 msgid "Where To Go From Here"
 msgstr "Come continuare"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:1213
+#: getting_started_in_kicad.adoc:1282
 #, no-wrap
 msgid "More Learning Resources"
 msgstr "Ulteriori risorse di apprendimento"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1216
+#: getting_started_in_kicad.adoc:1285
 msgid ""
 "For more information on how to use KiCad, see the https://docs.kicad.org/"
 "[manual]."
@@ -3635,7 +3874,7 @@ msgstr ""
 "docs.kicad.org/[manuale]."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1222
+#: getting_started_in_kicad.adoc:1291
 msgid ""
 "Other resources include the https://forum.kicad.info/[official KiCad user "
 "forum], https://www.kicad.org/community/chat/[Discord or IRC], and "
@@ -3648,7 +3887,7 @@ msgstr ""
 "apprendimento] dalla comunità KiCad."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1227
+#: getting_started_in_kicad.adoc:1296
 msgid ""
 "To see more of what's possible with KiCad, browse the https://www.kicad.org/"
 "made-with-kicad/[Made With KiCad] section of the website, or open the demo "
@@ -3660,13 +3899,13 @@ msgstr ""
 "**)."
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:1228
+#: getting_started_in_kicad.adoc:1297
 #, no-wrap
 msgid "Help Improve KiCad"
 msgstr "Aiutaci a migliorare KiCad"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1232
+#: getting_started_in_kicad.adoc:1301
 msgid ""
 "To report a bug or request a feature, please use **Help** -> **Report a "
 "Bug** or open an issue on https://gitlab.com/kicad/code/kicad/-/"
@@ -3677,7 +3916,7 @@ msgstr ""
 "code/kicad/-/issues[Gitlab]."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1240
+#: getting_started_in_kicad.adoc:1309
 msgid ""
 "To contribute to KiCad's development, please see the https://dev-docs.kicad."
 "org/en/contribute/[Developer Contribution page]. Users can also help by "

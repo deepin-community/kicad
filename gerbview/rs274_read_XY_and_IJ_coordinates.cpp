@@ -114,7 +114,9 @@ VECTOR2I GERBER_FILE_IMAGE::ReadXYCoord( char*& aText, bool aExcellonMode )
             line.push_back( *( aText++ ) );
         }
 
-        double val = strtod( line.data(), nullptr );
+        double val;
+        wxString text( line.data() );
+        text.ToCDouble( &val );
 
         if( is_float )
         {
@@ -202,7 +204,10 @@ VECTOR2I GERBER_FILE_IMAGE::ReadIJCoord( char*& aText )
             line.push_back( *( aText++ ) );
         }
 
-        double val = strtod( line.data(), nullptr );
+        double val;
+        wxString text( line.data() );
+        text.Trim( true ).Trim( false );
+        text.ToCDouble( &val );
 
         if( is_float )
         {
@@ -300,6 +305,7 @@ int ReadInt( char*& text, bool aSkipSeparator = true )
  * @param aSkipSeparator set to true (default) to skip comma.
  * @return number read.
  */
+
 double ReadDouble( char*& text, bool aSkipSeparator = true )
 {
     double ret;
@@ -314,7 +320,37 @@ double ReadDouble( char*& text, bool aSkipSeparator = true )
     }
     else
     {
-        ret = strtod( text, &text );
+        wxString line( text );
+        line.Trim( false );
+
+        // Warning: in locales using ',' as separator, wxString::ToCDouble accept both '.' and ','
+        // as separator (wxWidgets 3.2.6 bug?, look fixed in 3.2.8). So because ',' is used also
+        // to separe 2 operands in Gerber strings, remove the first ',' that is a operand separator,
+        // not a float separator
+        line.Replace(","," ", false);
+        line.ToCDouble( &ret );
+        // Find the end of the float number. The float number contains only chars
+        // "0123456789." but can start by a '+' or '-' char.
+        // others chars (usually '+' '-' '$' ',' ) are separators between operands and are not members
+        // of the current float number
+        if( ( line[0] == '+' || line[0] == '-' ) && line.Length() > 1 && line[1] != '$' )
+        {
+            // It is the sign of a number, not an operator. Remove it to find the last digit
+            line[0] = '0';
+        }
+
+        auto endpos = line.find_first_not_of( "0123456789." );
+
+        if( endpos != wxString::npos )
+        {
+            // Advance the text pointer to the end of the number
+            text += endpos;
+        }
+        else
+        {
+            // If no non-number characters found, advance to the end of the string
+            text += line.length();
+        }
     }
 
     if( *text == ',' || isspace( *text ) )

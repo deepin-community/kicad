@@ -125,7 +125,6 @@ wxString AddFileExtListToFilter( const std::vector<std::string>& aExts )
 const std::string FILEEXT::BackupFileSuffix( "-bak" );
 const std::string FILEEXT::LockFilePrefix( "~" );
 const std::string FILEEXT::LockFileExtension( "lck" );
-const std::string FILEEXT::AutoSaveFilePrefix( "_autosave-" );
 
 const std::string FILEEXT::KiCadSymbolLibFileExtension( "kicad_sym" );
 const std::string FILEEXT::SchematicSymbolFileExtension( "sym" );
@@ -198,22 +197,24 @@ const std::string FILEEXT::JpegFileExtension( "jpg" );
 const std::string FILEEXT::TextFileExtension( "txt" );
 const std::string FILEEXT::MarkdownFileExtension( "md" );
 const std::string FILEEXT::CsvFileExtension( "csv" );
+const std::string FILEEXT::TsvFileExtension( "tsv" );
 const std::string FILEEXT::XmlFileExtension( "xml" );
 const std::string FILEEXT::JsonFileExtension( "json" );
 const std::string FILEEXT::PythonFileExtension( "py" );
 
 const std::string FILEEXT::StepFileExtension( "step" );
+const std::string FILEEXT::StepZFileAbrvExtension( "stpz" );
 const std::string FILEEXT::StepFileAbrvExtension( "stp" );
 const std::string FILEEXT::GltfBinaryFileExtension( "glb" );
 const std::string FILEEXT::BrepFileExtension( "brep" );
 const std::string FILEEXT::XaoFileExtension( "xao" );
 const std::string FILEEXT::PlyFileExtension( "ply" );
 const std::string FILEEXT::StlFileExtension( "stl" );
+const std::string FILEEXT::U3DFileExtension( "u3d" );
 
 const std::string FILEEXT::GencadFileExtension( "cad" );
 
-const wxString
-        FILEEXT::GerberFileExtensionsRegex( "(gbr|gko|pho|(g[tb][alops])|(gm?\\d\\d*)|(gp[tb]))" );
+const wxString FILEEXT::GerberFileExtensionsRegex( "(gbr|gko|pho|(g[tb][alops])|(gm?\\d\\d*)|(gp[tb]))" );
 
 const std::string FILEEXT::FootprintLibraryTableFileName( "fp-lib-table" );
 const std::string FILEEXT::SymbolLibraryTableFileName( "sym-lib-table" );
@@ -284,6 +285,12 @@ wxString FILEEXT::KiCadSchematicFileWildcard()
 }
 
 
+wxString FILEEXT::AltiumProjectFilesWildcard()
+{
+    return _( "Altium Project files" ) + AddFileExtListToFilter( { "PrjPcb" } );
+}
+
+
 wxString FILEEXT::CadstarArchiveFilesWildcard()
 {
     return _( "CADSTAR Archive files" ) + AddFileExtListToFilter( { "csa", "cpa" } );
@@ -293,6 +300,18 @@ wxString FILEEXT::CadstarArchiveFilesWildcard()
 wxString FILEEXT::EagleFilesWildcard()
 {
     return _( "Eagle XML files" ) + AddFileExtListToFilter( { "sch", "brd" } );
+}
+
+
+wxString FILEEXT::PADSProjectFilesWildcard()
+{
+    return _( "PADS ASCII files" ) + AddFileExtListToFilter( { "asc", "txt" } );
+}
+
+
+wxString FILEEXT::GedaProjectFilesWildcard()
+{
+    return _( "gEDA / Lepton EDA project files" ) + AddFileExtListToFilter( { "prj", "sch", "pcb" } );
 }
 
 
@@ -406,6 +425,12 @@ wxString FILEEXT::HtmlFileWildcard()
 wxString FILEEXT::CsvFileWildcard()
 {
     return _( "CSV Files" ) + AddFileExtListToFilter( { CsvFileExtension } );
+}
+
+
+wxString FILEEXT::CsvTsvFileWildcard()
+{
+    return _( "CSV/TSV Files" ) + AddFileExtListToFilter( { CsvFileExtension, TsvFileExtension } );
 }
 
 
@@ -554,6 +579,12 @@ wxString FILEEXT::PngFileWildcard()
 wxString FILEEXT::JpegFileWildcard()
 {
     return _( "Jpeg file" ) + AddFileExtListToFilter( { "jpg", "jpeg" } );
+}
+
+
+wxString FILEEXT::ImageFileWildcard()
+{
+    return _( "Image files" ) + AddFileExtListToFilter( { "png", "jpg", "jpeg", "bmp", "gif" } );
 }
 
 

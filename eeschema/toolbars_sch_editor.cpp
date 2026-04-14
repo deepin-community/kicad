@@ -33,369 +33,464 @@
 #include <eeschema_id.h>
 #include <pgm_base.h>
 #include <python_scripting.h>
+#include <tool/action_menu.h>
 #include <tool/tool_manager.h>
+#include <settings/common_settings.h>
 #include <tool/action_toolbar.h>
+#include <tool/ui/toolbar_context_menu_registry.h>
+#include <widgets/wx_infobar.h>
 #include <tools/sch_actions.h>
 #include <tools/sch_selection_tool.h>
-#include <widgets/design_block_pane.h>
 #include <widgets/hierarchy_pane.h>
 #include <widgets/wx_aui_utils.h>
+#include <widgets/sch_design_block_pane.h>
 #include <widgets/sch_properties_panel.h>
 #include <widgets/sch_search_pane.h>
+#include <toolbars_sch_editor.h>
+#include <wx/choice.h>
+#include <wx/stattext.h>
 
-/* Create  the main Horizontal Toolbar for the schematic editor
- */
-void SCH_EDIT_FRAME::ReCreateHToolbar()
+
+ACTION_TOOLBAR_CONTROL SCH_ACTION_TOOLBAR_CONTROLS::currentVariant( "control.currentVariant",
+                                                                    _( "Current variant" ),
+                                                                    _( "Selects the current schematic variant" ),
+                                                                    { FRAME_SCH } );
+
+
+std::optional<TOOLBAR_CONFIGURATION> SCH_EDIT_TOOLBAR_SETTINGS::DefaultToolbarConfig( TOOLBAR_LOC aToolbar )
 {
-    if( m_mainToolBar )
+    TOOLBAR_CONFIGURATION config;
+
+    // clang-format off
+    switch( aToolbar )
     {
-        m_mainToolBar->ClearToolbar();
+    case TOOLBAR_LOC::TOP_AUX:
+        return std::nullopt;
+
+    case TOOLBAR_LOC::LEFT:
+        config.AppendAction( ACTIONS::toggleGrid )
+              .WithContextMenu(
+                      []( TOOL_MANAGER* aToolMgr )
+                      {
+                          SCH_SELECTION_TOOL* selTool = aToolMgr->GetTool<SCH_SELECTION_TOOL>();
+                          auto               menu = std::make_unique<ACTION_MENU>( false, selTool );
+                          menu->Add( ACTIONS::gridProperties );
+                          return menu;
+                      } )
+              .AppendAction( ACTIONS::toggleGridOverrides )
+              .AppendGroup( TOOLBAR_GROUP_CONFIG( _( "Units" ) )
+                            .AddAction( ACTIONS::inchesUnits )
+                            .AddAction( ACTIONS::milsUnits )
+                            .AddAction( ACTIONS::millimetersUnits ) )
+              .AppendGroup( TOOLBAR_GROUP_CONFIG( _( "Crosshair modes" ) )
+                            .AddAction( ACTIONS::cursorSmallCrosshairs )
+                            .AddAction( ACTIONS::cursorFullCrosshairs )
+                            .AddAction( ACTIONS::cursor45Crosshairs ) );
+
+        config.AppendSeparator()
+              .AppendAction( SCH_ACTIONS::toggleHiddenPins );
+
+        config.AppendSeparator()
+              .AppendGroup( TOOLBAR_GROUP_CONFIG( _( "Line modes" ) )
+                            .AddAction( SCH_ACTIONS::lineModeFree )
+                            .AddAction( SCH_ACTIONS::lineMode90 )
+                            .AddAction( SCH_ACTIONS::lineMode45 ) );
+
+        config.AppendSeparator()
+              .AppendAction( SCH_ACTIONS::toggleAnnotateAuto );
+
+        config.AppendSeparator()
+              .AppendAction( SCH_ACTIONS::showHierarchy )
+              .AppendAction( ACTIONS::showProperties );
+
+        if( ADVANCED_CFG::GetCfg().m_DrawBoundingBoxes )
+            config.AppendAction( ACTIONS::toggleBoundingBoxes );
+
+        break;
+
+    case TOOLBAR_LOC::RIGHT:
+        config.AppendGroup( TOOLBAR_GROUP_CONFIG( _( "Selection modes" ) )
+                            .AddAction( ACTIONS::selectSetRect )
+                            .AddAction( ACTIONS::selectSetLasso ) )
+              .AppendAction( SCH_ACTIONS::highlightNetTool );
+
+        config.AppendSeparator()
+              .AppendAction( SCH_ACTIONS::placeSymbol )
+              .AppendAction( SCH_ACTIONS::placePower )
+              .AppendAction( SCH_ACTIONS::drawWire )
+              .AppendAction( SCH_ACTIONS::drawBus )
+              .AppendAction( SCH_ACTIONS::placeBusWireEntry )
+              .AppendAction( SCH_ACTIONS::placeNoConnect )
+              .AppendAction( SCH_ACTIONS::placeJunction )
+              .AppendGroup( TOOLBAR_GROUP_CONFIG( _( "Labels" ) )
+                            .AddAction( SCH_ACTIONS::placeLabel )
+                            .AddAction( SCH_ACTIONS::placeClassLabel )
+                            .AddAction( SCH_ACTIONS::placeGlobalLabel )
+                            .AddAction( SCH_ACTIONS::placeHierLabel ) )
+              .AppendAction( SCH_ACTIONS::drawRuleArea )
+              .AppendAction( SCH_ACTIONS::drawSheet )
+              .AppendAction( SCH_ACTIONS::placeSheetPin )
+              .AppendAction( SCH_ACTIONS::syncAllSheetsPins );
+
+        config.AppendSeparator()
+              .AppendAction( SCH_ACTIONS::placeSchematicText )
+              .AppendAction( SCH_ACTIONS::drawTextBox )
+              .AppendAction( SCH_ACTIONS::drawTable )
+              .AppendAction( SCH_ACTIONS::drawRectangle )
+              .AppendAction( SCH_ACTIONS::drawCircle )
+              .AppendAction( SCH_ACTIONS::drawArc )
+              .AppendAction( SCH_ACTIONS::drawBezier )
+              .AppendAction( SCH_ACTIONS::drawLines )
+              .AppendAction( SCH_ACTIONS::placeImage )
+              .AppendAction( ACTIONS::deleteTool );
+
+        break;
+
+    case TOOLBAR_LOC::TOP_MAIN:
+        if( Kiface().IsSingle() )   // not when under a project mgr
+        {
+            config.AppendAction( ACTIONS::doNew );
+            config.AppendAction( ACTIONS::open );
+        }
+
+        config.AppendAction( ACTIONS::save );
+
+        config.AppendSeparator()
+              .AppendAction( SCH_ACTIONS::schematicSetup );
+
+        config.AppendSeparator()
+              .AppendAction( ACTIONS::pageSettings )
+              .AppendAction( ACTIONS::print )
+              .AppendAction( ACTIONS::plot );
+
+        config.AppendSeparator()
+              .AppendAction( ACTIONS::paste );
+
+        config.AppendSeparator()
+              .AppendAction( ACTIONS::undo )
+              .AppendAction( ACTIONS::redo );
+
+        config.AppendSeparator()
+              .AppendAction( ACTIONS::find )
+              .AppendAction( ACTIONS::findAndReplace );
+
+        config.AppendSeparator()
+              .AppendAction( ACTIONS::zoomRedraw )
+              .AppendAction( ACTIONS::zoomInCenter )
+              .AppendAction( ACTIONS::zoomOutCenter )
+              .AppendAction( ACTIONS::zoomFitScreen )
+              .AppendAction( ACTIONS::zoomFitObjects )
+              .AppendAction( ACTIONS::zoomTool );
+
+        config.AppendSeparator()
+              .AppendAction( SCH_ACTIONS::navigateBack )
+              .AppendAction( SCH_ACTIONS::navigateUp )
+              .AppendAction( SCH_ACTIONS::navigateForward );
+
+        config.AppendSeparator()
+              .AppendAction( SCH_ACTIONS::rotateCCW )
+              .AppendAction( SCH_ACTIONS::rotateCW )
+              .AppendAction( SCH_ACTIONS::mirrorV )
+              .AppendAction( SCH_ACTIONS::mirrorH )
+              .AppendAction( ACTIONS::group )
+              .AppendAction( ACTIONS::ungroup );
+
+        config.AppendSeparator()
+              .AppendAction( ACTIONS::showSymbolEditor )
+              .AppendAction( ACTIONS::showSymbolBrowser )
+              .AppendAction( ACTIONS::showFootprintEditor );
+
+        config.AppendSeparator()
+              .AppendAction( SCH_ACTIONS::annotate )
+              .AppendAction( SCH_ACTIONS::runERC )
+              .AppendAction( SCH_ACTIONS::showSimulator )
+              .AppendAction( SCH_ACTIONS::assignFootprints )
+              .AppendAction( SCH_ACTIONS::editSymbolFields )
+              .AppendAction( SCH_ACTIONS::generateBOM );
+
+        config.AppendSeparator()
+              .AppendAction( SCH_ACTIONS::showPcbNew );
+
+        config.AppendControl( SCH_ACTION_TOOLBAR_CONTROLS::currentVariant );
+
+        // Insert all the IPC plugins here on the toolbar
+        // TODO (ISM): Move this to individual actions for each script
+        config.AppendControl( ACTION_TOOLBAR_CONTROLS::ipcScripting );
+
+        break;
     }
-    else
-    {
-        m_mainToolBar = new ACTION_TOOLBAR( this, ID_H_TOOLBAR,
-                                            wxDefaultPosition, wxDefaultSize,
-                                            KICAD_AUI_TB_STYLE | wxAUI_TB_HORZ_LAYOUT |
-                                            wxAUI_TB_HORIZONTAL );
-        m_mainToolBar->SetAuiManager( &m_auimgr );
-    }
 
-    // Set up toolbar
-    if( Kiface().IsSingle() )   // not when under a project mgr
-    {
-        m_mainToolBar->Add( ACTIONS::doNew );
-        m_mainToolBar->Add( ACTIONS::open );
-    }
+    // clang-format on
+    return config;
+}
 
-    m_mainToolBar->Add( ACTIONS::save );
 
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( SCH_ACTIONS::schematicSetup );
+void SCH_EDIT_FRAME::configureToolbars()
+{
+    SCH_BASE_FRAME::configureToolbars();
 
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( ACTIONS::pageSettings );
-    m_mainToolBar->Add( ACTIONS::print );
-    m_mainToolBar->Add( ACTIONS::plot );
+    // Variant selection drop down control on main tool bar.
+    auto variantSelectionCtrlFactory =
+            [this]( ACTION_TOOLBAR* aToolbar )
+            {
+                std::optional<wxString> currentVariantName = Schematic().GetCurrentVariant();
+                wxString tmp = currentVariantName ? *currentVariantName : GetDefaultVariantName();
 
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( ACTIONS::paste );
+                m_currentVariantCtrl = new wxChoice( aToolbar, ID_TOOLBAR_SCH_SELECT_VARAIANT, wxDefaultPosition,
+                                                     wxDefaultSize, Schematic().GetVariantNamesForUI(), 0,
+                                                     wxDefaultValidator, tmp );
 
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( ACTIONS::undo );
-    m_mainToolBar->Add( ACTIONS::redo );
+                m_currentVariantCtrl->SetToolTip( _( "Select the current variant to display and edit." ) );
+                aToolbar->Add( m_currentVariantCtrl );
+                UpdateVariantSelectionCtrl( Schematic().GetVariantNamesForUI() );
+            };
 
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( ACTIONS::find );
-    m_mainToolBar->Add( ACTIONS::findAndReplace );
+    RegisterCustomToolbarControlFactory( SCH_ACTION_TOOLBAR_CONTROLS::currentVariant, variantSelectionCtrlFactory );
 
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( ACTIONS::zoomRedraw );
-    m_mainToolBar->Add( ACTIONS::zoomInCenter );
-    m_mainToolBar->Add( ACTIONS::zoomOutCenter );
-    m_mainToolBar->Add( ACTIONS::zoomFitScreen );
-    m_mainToolBar->Add( ACTIONS::zoomFitObjects );
-    m_mainToolBar->Add( ACTIONS::zoomTool, ACTION_TOOLBAR::TOGGLE, ACTION_TOOLBAR::CANCEL );
-
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( SCH_ACTIONS::navigateBack );
-    m_mainToolBar->Add( SCH_ACTIONS::navigateUp );
-    m_mainToolBar->Add( SCH_ACTIONS::navigateForward );
-
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( SCH_ACTIONS::rotateCCW );
-    m_mainToolBar->Add( SCH_ACTIONS::rotateCW );
-    m_mainToolBar->Add( SCH_ACTIONS::mirrorV );
-    m_mainToolBar->Add( SCH_ACTIONS::mirrorH );
-
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( ACTIONS::showSymbolEditor );
-    m_mainToolBar->Add( ACTIONS::showSymbolBrowser );
-    m_mainToolBar->Add( ACTIONS::showFootprintEditor );
-
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( SCH_ACTIONS::annotate );
-    m_mainToolBar->Add( SCH_ACTIONS::runERC );
-    m_mainToolBar->Add( SCH_ACTIONS::showSimulator );
-    m_mainToolBar->Add( SCH_ACTIONS::assignFootprints );
-    m_mainToolBar->Add( SCH_ACTIONS::editSymbolFields );
-    m_mainToolBar->Add( SCH_ACTIONS::generateBOM );
-
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( SCH_ACTIONS::showPcbNew );
-
-    // Add scripting console and API plugins
-    bool scriptingAvailable = SCRIPTING::IsWxAvailable();
+    // IPC/Scripting plugin control
+    // TODO (ISM): Clean this up to make IPC actions just normal tool actions to get rid of this entire
+    // control
+    auto pluginControlFactory =
+            [this]( ACTION_TOOLBAR* aToolbar )
+            {
+                // Add scripting console and API plugins
+                bool scriptingAvailable = SCRIPTING::IsWxAvailable();
 
 #ifdef KICAD_IPC_API
-    bool haveApiPlugins = Pgm().GetCommonSettings()->m_Api.enable_server &&
-            !Pgm().GetPluginManager().GetActionsForScope( PLUGIN_ACTION_SCOPE::SCHEMATIC ).empty();
+                bool haveApiPlugins = Pgm().GetCommonSettings()->m_Api.enable_server
+                                        && !Pgm().GetPluginManager().GetActionsForScope( PluginActionScope() ).empty();
 #else
-    bool haveApiPlugins = false;
+                bool haveApiPlugins = false;
 #endif
 
-    if( scriptingAvailable || haveApiPlugins )
-    {
-        m_mainToolBar->AddScaledSeparator( this );
+                if( scriptingAvailable || haveApiPlugins )
+                {
+                    aToolbar->AddScaledSeparator( aToolbar->GetParent() );
 
-        if( haveApiPlugins )
-            addApiPluginTools();
-    }
+                    if( haveApiPlugins )
+                        AddApiPluginTools( aToolbar );
+                }
+            };
 
-    // after adding the tools to the toolbar, must call Realize() to reflect the changes
-    m_mainToolBar->KiRealize();
+    RegisterCustomToolbarControlFactory( ACTION_TOOLBAR_CONTROLS::ipcScripting, pluginControlFactory );
 }
 
 
-void SCH_EDIT_FRAME::ReCreateVToolbar()
+void SCH_EDIT_FRAME::ClearToolbarControl( int aId )
 {
-    if( m_drawToolBar )
+    SCH_BASE_FRAME::ClearToolbarControl( aId );
+
+    switch( aId )
     {
-        m_drawToolBar->ClearToolbar();
-    }
-    else
-    {
-        m_drawToolBar = new ACTION_TOOLBAR( this, ID_V_TOOLBAR, wxDefaultPosition, wxDefaultSize,
-                                            KICAD_AUI_TB_STYLE | wxAUI_TB_VERTICAL );
-        m_drawToolBar->SetAuiManager( &m_auimgr );
-    }
-
-    // Set up toolbar
-    // clang-format off
-    m_drawToolBar->Add( ACTIONS::selectionTool,          ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::highlightNetTool,   ACTION_TOOLBAR::TOGGLE );
-
-    m_drawToolBar->AddScaledSeparator( this );
-    m_drawToolBar->Add( SCH_ACTIONS::placeSymbol,        ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::placePower,         ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::drawWire,           ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::drawBus,            ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::placeBusWireEntry,  ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::placeNoConnect,     ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::placeJunction,      ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::placeLabel,         ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::placeClassLabel,    ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::drawRuleArea,       ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::placeGlobalLabel,   ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::placeHierLabel,     ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::drawSheet,          ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::placeSheetPin,      ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::syncAllSheetsPins );
-
-    m_drawToolBar->AddScaledSeparator( this );
-    m_drawToolBar->Add( SCH_ACTIONS::placeSchematicText, ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::drawTextBox,        ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::drawTable,          ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::drawRectangle,      ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::drawCircle,         ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::drawArc,            ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::drawBezier,         ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::drawLines,          ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( SCH_ACTIONS::placeImage,         ACTION_TOOLBAR::TOGGLE );
-    m_drawToolBar->Add( ACTIONS::deleteTool,             ACTION_TOOLBAR::TOGGLE );
-    // clang-format on
-
-    m_drawToolBar->KiRealize();
-}
-
-
-/* Create Vertical Left Toolbar (Option Toolbar)
- */
-void SCH_EDIT_FRAME::ReCreateOptToolbar()
-{
-    if( m_optionsToolBar )
-    {
-        m_optionsToolBar->ClearToolbar();
-    }
-    else
-    {
-        m_optionsToolBar = new ACTION_TOOLBAR( this, ID_OPT_TOOLBAR,
-                                               wxDefaultPosition, wxDefaultSize,
-                                               KICAD_AUI_TB_STYLE | wxAUI_TB_VERTICAL );
-        m_optionsToolBar->SetAuiManager( &m_auimgr );
-    }
-
-    m_optionsToolBar->Add( ACTIONS::toggleGrid,          ACTION_TOOLBAR::TOGGLE );
-    m_optionsToolBar->Add( ACTIONS::toggleGridOverrides, ACTION_TOOLBAR::TOGGLE );
-    m_optionsToolBar->Add( ACTIONS::inchesUnits,         ACTION_TOOLBAR::TOGGLE );
-    m_optionsToolBar->Add( ACTIONS::milsUnits,           ACTION_TOOLBAR::TOGGLE );
-    m_optionsToolBar->Add( ACTIONS::millimetersUnits,    ACTION_TOOLBAR::TOGGLE );
-    m_optionsToolBar->Add( ACTIONS::toggleCursorStyle,   ACTION_TOOLBAR::TOGGLE );
-
-    m_optionsToolBar->AddScaledSeparator( this );
-    m_optionsToolBar->Add( SCH_ACTIONS::toggleHiddenPins,    ACTION_TOOLBAR::TOGGLE );
-
-    m_optionsToolBar->AddScaledSeparator( this );
-    m_optionsToolBar->Add( SCH_ACTIONS::lineModeFree,        ACTION_TOOLBAR::TOGGLE );
-    m_optionsToolBar->Add( SCH_ACTIONS::lineMode90,          ACTION_TOOLBAR::TOGGLE );
-    m_optionsToolBar->Add( SCH_ACTIONS::lineMode45,          ACTION_TOOLBAR::TOGGLE );
-
-    m_optionsToolBar->AddScaledSeparator( this );
-    m_optionsToolBar->Add( SCH_ACTIONS::toggleAnnotateAuto,  ACTION_TOOLBAR::TOGGLE );
-
-    m_optionsToolBar->AddScaledSeparator( this );
-    m_optionsToolBar->Add( SCH_ACTIONS::showHierarchy,       ACTION_TOOLBAR::TOGGLE );
-    m_optionsToolBar->Add( ACTIONS::showProperties,          ACTION_TOOLBAR::TOGGLE );
-
-    if( ADVANCED_CFG::GetCfg().m_DrawBoundingBoxes )
-        m_optionsToolBar->Add( ACTIONS::toggleBoundingBoxes, ACTION_TOOLBAR::TOGGLE );
-
-    SCH_SELECTION_TOOL* selTool = m_toolManager->GetTool<SCH_SELECTION_TOOL>();
-    std::unique_ptr<ACTION_MENU> gridMenu = std::make_unique<ACTION_MENU>( false, selTool );
-    gridMenu->Add( ACTIONS::gridProperties );
-    m_optionsToolBar->AddToolContextMenu( ACTIONS::toggleGrid, std::move( gridMenu ) );
-
-    m_optionsToolBar->KiRealize();
-}
-
-
-void SCH_EDIT_FRAME::ToggleSearch()
-{
-    EESCHEMA_SETTINGS* cfg = eeconfig();
-
-    // Ensure m_show_search is up to date (the pane can be closed outside the menu)
-    m_show_search = m_auimgr.GetPane( SearchPaneName() ).IsShown();
-
-    m_show_search = !m_show_search;
-
-    wxAuiPaneInfo& searchPaneInfo = m_auimgr.GetPane( SearchPaneName() );
-    searchPaneInfo.Show( m_show_search );
-
-    if( m_show_search )
-    {
-        searchPaneInfo.Direction( cfg->m_AuiPanels.search_panel_dock_direction );
-
-        if( cfg->m_AuiPanels.search_panel_dock_direction == wxAUI_DOCK_TOP
-            || cfg->m_AuiPanels.search_panel_dock_direction == wxAUI_DOCK_BOTTOM )
-        {
-            SetAuiPaneSize( m_auimgr, searchPaneInfo, -1, cfg->m_AuiPanels.search_panel_height );
-        }
-        else if( cfg->m_AuiPanels.search_panel_dock_direction == wxAUI_DOCK_LEFT
-                 || cfg->m_AuiPanels.search_panel_dock_direction == wxAUI_DOCK_RIGHT )
-        {
-            SetAuiPaneSize( m_auimgr, searchPaneInfo, cfg->m_AuiPanels.search_panel_width, -1 );
-        }
-
-        m_searchPane->FocusSearch();
-        m_searchPane->RefreshSearch();
-    }
-    else
-    {
-        cfg->m_AuiPanels.search_panel_height = m_searchPane->GetSize().y;
-        cfg->m_AuiPanels.search_panel_width = m_searchPane->GetSize().x;
-        cfg->m_AuiPanels.search_panel_dock_direction = searchPaneInfo.dock_direction;
-        m_auimgr.Update();
+    case ID_TOOLBAR_SCH_SELECT_VARAIANT: m_currentVariantCtrl = nullptr; break;
     }
 }
 
 
-void SCH_EDIT_FRAME::ToggleProperties()
+void SCH_EDIT_FRAME::UpdateVariantSelectionCtrl( const wxArrayString& aVariantNames )
 {
-    if( !m_propertiesPanel )
+    if( !m_currentVariantCtrl )
         return;
 
-    bool show = !m_propertiesPanel->IsShownOnScreen();
+    // Fall back to the default if nothing is currently selected.
+    wxString currentSelection = GetDefaultVariantName();
+    int selectionIndex = m_currentVariantCtrl->GetSelection();
 
-    wxAuiPaneInfo& propertiesPaneInfo = m_auimgr.GetPane( PropertiesPaneName() );
-    propertiesPaneInfo.Show( show );
+    if( selectionIndex != wxNOT_FOUND )
+        currentSelection = m_currentVariantCtrl->GetString( selectionIndex );
 
-    updateSelectionFilterVisbility();
+    // Add all variant names, a separator, and "Add New Variant..." at the end
+    wxArrayString contents = aVariantNames;
+    contents.Add( wxS( "---" ) );
+    contents.Add( _( "Add New Design Variant..." ) );
 
-    EESCHEMA_SETTINGS* settings = eeconfig();
+    m_currentVariantCtrl->Set( contents );
 
-    if( show )
+    selectionIndex = m_currentVariantCtrl->FindString( currentSelection );
+
+    if( ( selectionIndex == wxNOT_FOUND ) && ( m_currentVariantCtrl->GetCount() != 0 ) )
+        selectionIndex = 0;
+
+    m_currentVariantCtrl->SetSelection( selectionIndex );
+}
+
+
+void SCH_EDIT_FRAME::onVariantSelected( wxCommandEvent& aEvent )
+{
+    if( aEvent.GetId() != ID_TOOLBAR_SCH_SELECT_VARAIANT )
+        return;
+
+    wxCHECK( m_currentVariantCtrl, /* void */ );
+
+    int selection = m_currentVariantCtrl->GetSelection();
+    int count = m_currentVariantCtrl->GetCount();
+
+    if( selection == wxNOT_FOUND || count == 0 )
+        return;
+
+    // "Add New Variant..." is always the last item, separator is second-to-last
+    if( selection == count - 1 )
     {
-        SetAuiPaneSize( m_auimgr, propertiesPaneInfo,
-                        settings->m_AuiPanels.properties_panel_width, -1 );
+        // Restore previous selection before showing dialog
+        int previousSelection = m_currentVariantCtrl->FindString(
+                Schematic().GetCurrentVariant().IsEmpty() ? GetDefaultVariantName()
+                                                          : Schematic().GetCurrentVariant() );
+
+        if( previousSelection != wxNOT_FOUND )
+            m_currentVariantCtrl->SetSelection( previousSelection );
+
+        ShowAddVariantDialog();
+        return;
     }
-    else
+
+    // Separator line - ignore selection
+    if( selection == count - 2 )
     {
-        settings->m_AuiPanels.properties_panel_width = m_propertiesPanel->GetSize().x;
-        m_auimgr.Update();
+        int previousSelection = m_currentVariantCtrl->FindString(
+                Schematic().GetCurrentVariant().IsEmpty() ? GetDefaultVariantName()
+                                                          : Schematic().GetCurrentVariant() );
+
+        if( previousSelection != wxNOT_FOUND )
+            m_currentVariantCtrl->SetSelection( previousSelection );
+
+        return;
+    }
+
+    wxString selectedString = m_currentVariantCtrl->GetString( selection );
+    wxString selectedVariant;
+
+    if( selectedString != GetDefaultVariantName() )
+        selectedVariant = selectedString;
+
+    Schematic().SetCurrentVariant( selectedVariant );
+    UpdateProperties();
+    HardRedraw();
+
+    // Refresh message panel for current selection
+    SCH_SELECTION_TOOL* selTool = m_toolManager->GetTool<SCH_SELECTION_TOOL>();
+
+    if( selTool )
+    {
+        SCH_SELECTION& sub_sel = selTool->GetSelection();
+
+        if( sub_sel.GetSize() == 1 )
+            SetMsgPanel( static_cast<EDA_ITEM*>( sub_sel.Front() ) );
     }
 }
 
 
-void SCH_EDIT_FRAME::ToggleSchematicHierarchy()
+bool SCH_EDIT_FRAME::ShowAddVariantDialog()
 {
-    EESCHEMA_SETTINGS* cfg = eeconfig();
+    // Create a dialog with both name and description fields
+    wxDialog dlg( this, wxID_ANY, _( "New Design Variant" ), wxDefaultPosition, wxDefaultSize,
+                  wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER );
 
-    wxCHECK( cfg, /* void */ );
+    wxBoxSizer* mainSizer = new wxBoxSizer( wxVERTICAL );
 
-    wxAuiPaneInfo&     hierarchy_pane = m_auimgr.GetPane( SchematicHierarchyPaneName() );
+    // Name field
+    wxStaticText* nameLabel = new wxStaticText( &dlg, wxID_ANY, _( "Variant name:" ) );
+    mainSizer->Add( nameLabel, 0, wxLEFT | wxRIGHT | wxTOP | wxEXPAND, 10 );
 
-    hierarchy_pane.Show( !hierarchy_pane.IsShown() );
+    mainSizer->AddSpacer( 3 );
 
-    updateSelectionFilterVisbility();
+    wxTextCtrl* nameCtrl = new wxTextCtrl( &dlg, wxID_ANY );
+    mainSizer->Add( nameCtrl, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10 );
 
-    if( hierarchy_pane.IsShown() )
+    // Description field
+    wxStaticText* descLabel = new wxStaticText( &dlg, wxID_ANY, _( "Description (optional):" ) );
+    mainSizer->Add( descLabel, 0, wxLEFT | wxRIGHT | wxTOP | wxEXPAND, 10 );
+
+    mainSizer->AddSpacer( 3 );
+
+    wxTextCtrl* descCtrl = new wxTextCtrl( &dlg, wxID_ANY, wxEmptyString, wxDefaultPosition,
+                                           wxSize( 300, 60 ), wxTE_MULTILINE );
+    mainSizer->Add( descCtrl, 1, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10 );
+
+    // Buttons
+    wxStdDialogButtonSizer* btnSizer = new wxStdDialogButtonSizer();
+    btnSizer->AddButton( new wxButton( &dlg, wxID_OK ) );
+    btnSizer->AddButton( new wxButton( &dlg, wxID_CANCEL ) );
+    btnSizer->Realize();
+    mainSizer->Add( btnSizer, 0, wxALL | wxALIGN_RIGHT, 5 );
+
+    dlg.SetSizer( mainSizer );
+    dlg.Fit();
+    dlg.Centre();
+    nameLabel->SetFocus();
+
+    if( dlg.ShowModal() == wxID_CANCEL )
+        return false;
+
+    wxString variantName = nameCtrl->GetValue().Trim().Trim( false );
+    wxString variantDesc = descCtrl->GetValue().Trim().Trim( false );
+
+    // Empty strings, reserved names, and duplicate variant names are not allowed.
+    if( variantName.IsEmpty() )
     {
-        if( hierarchy_pane.IsFloating() )
+        GetInfoBar()->ShowMessageFor( _( "Variant name cannot be empty." ), 10000, wxICON_ERROR );
+        return false;
+    }
+
+    // Check for reserved name (case-insensitive)
+    if( variantName.CmpNoCase( GetDefaultVariantName() ) == 0 )
+    {
+        GetInfoBar()->ShowMessageFor( wxString::Format( _( "'%s' is a reserved variant name." ),
+                                                         GetDefaultVariantName() ),
+                                      10000, wxICON_ERROR );
+        return false;
+    }
+
+    // Check for duplicate variant names (case-insensitive)
+    for( const wxString& existingName : Schematic().GetVariantNames() )
+    {
+        if( existingName.CmpNoCase( variantName ) == 0 )
         {
-            hierarchy_pane.FloatingSize( cfg->m_AuiPanels.hierarchy_panel_float_width,
-                                         cfg->m_AuiPanels.hierarchy_panel_float_height );
-            m_auimgr.Update();
-        }
-        else if( cfg->m_AuiPanels.hierarchy_panel_docked_width > 0 )
-        {
-            // SetAuiPaneSize also updates m_auimgr
-            SetAuiPaneSize( m_auimgr, hierarchy_pane,
-                            cfg->m_AuiPanels.hierarchy_panel_docked_width, -1 );
+            GetInfoBar()->ShowMessageFor( wxString::Format( _( "Variant '%s' already exists." ),
+                                                            existingName ),
+                                          10000, wxICON_ERROR );
+            return false;
         }
     }
-    else
-    {
-        if( hierarchy_pane.IsFloating() )
-        {
-            cfg->m_AuiPanels.hierarchy_panel_float_width  = hierarchy_pane.floating_size.x;
-            cfg->m_AuiPanels.hierarchy_panel_float_height = hierarchy_pane.floating_size.y;
-        }
-        else
-        {
-            cfg->m_AuiPanels.hierarchy_panel_docked_width = m_hierarchy->GetSize().x;
-        }
 
-        m_auimgr.Update();
-    }
+    // Add variant to the schematic
+    Schematic().AddVariant( variantName );
+
+    if( !variantDesc.IsEmpty() )
+        Schematic().SetVariantDescription( variantName, variantDesc );
+
+    // Update the variant selector and select the new variant
+    UpdateVariantSelectionCtrl( Schematic().GetVariantNamesForUI() );
+    SetCurrentVariant( variantName );
+    OnModify();
+    return true;
 }
 
 
-void SCH_EDIT_FRAME::ToggleLibraryTree()
+void SCH_EDIT_FRAME::SetCurrentVariant( const wxString& aVariantName )
 {
-    EESCHEMA_SETTINGS* cfg = eeconfig();
+    if( !m_currentVariantCtrl )
+        return;
 
-    wxCHECK( cfg, /* void */ );
+    wxString name = aVariantName.IsEmpty() ? GetDefaultVariantName() : aVariantName;
 
-    wxAuiPaneInfo& db_library_pane = m_auimgr.GetPane( DesignBlocksPaneName() );
+    int newSelection = m_currentVariantCtrl->FindString( name );
 
-    db_library_pane.Show( !db_library_pane.IsShown() );
+    if( newSelection == wxNOT_FOUND )
+        return;
 
-    if( db_library_pane.IsShown() )
+    int currentSelection = m_currentVariantCtrl->GetSelection();
+
+    wxString selectedString;
+
+    if( currentSelection != wxNOT_FOUND )
+        selectedString = m_currentVariantCtrl->GetString( currentSelection );
+
+    if( selectedString != name )
     {
-        if( db_library_pane.IsFloating() )
-        {
-            db_library_pane.FloatingSize( cfg->m_AuiPanels.design_blocks_panel_float_width,
-                                          cfg->m_AuiPanels.design_blocks_panel_float_height );
-            m_auimgr.Update();
-        }
-        else if( cfg->m_AuiPanels.design_blocks_panel_docked_width > 0 )
-        {
-            // SetAuiPaneSize also updates m_auimgr
-            SetAuiPaneSize( m_auimgr, db_library_pane,
-                            cfg->m_AuiPanels.design_blocks_panel_docked_width, -1 );
-        }
-    }
-    else
-    {
-        if( db_library_pane.IsFloating() )
-        {
-            cfg->m_AuiPanels.design_blocks_panel_float_width  = db_library_pane.floating_size.x;
-            cfg->m_AuiPanels.design_blocks_panel_float_height = db_library_pane.floating_size.y;
-        }
-        else
-        {
-            cfg->m_AuiPanels.design_blocks_panel_docked_width = m_designBlocksPane->GetSize().x;
-        }
+        m_currentVariantCtrl->SetSelection( newSelection );
+        Schematic().SetCurrentVariant( aVariantName );
 
-        m_auimgr.Update();
+        UpdateProperties();
+        HardRedraw();
     }
 }

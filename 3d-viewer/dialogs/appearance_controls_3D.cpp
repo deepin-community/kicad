@@ -18,9 +18,12 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <../3d_rendering/opengl/render_3d_opengl.h> // Must be included before any GL header
+
 #include <dialogs/appearance_controls_3D.h>
 
 #include <bitmaps.h>
+#include <settings/color_settings.h>
 #include <confirm.h>
 #include <pgm_base.h>
 #include <dpi_scaling_common.h>
@@ -35,6 +38,7 @@
 #include <tools/eda_3d_actions.h>
 #include <widgets/bitmap_toggle.h>
 #include <widgets/color_swatch.h>
+#include <widgets/wx_infobar.h>
 #include <widgets/grid_bitmap_toggle.h>
 #include <dialogs/eda_view_switcher.h>
 #include <wx/bmpbuttn.h>
@@ -42,17 +46,17 @@
 #include <wx/textdlg.h>
 #include <wx/checkbox.h>
 
-#include <../3d_rendering/opengl/render_3d_opengl.h>
+#include <algorithm>
 
 /// Render Row abbreviation to reduce source width.
 #define RR  APPEARANCE_CONTROLS_3D::APPEARANCE_SETTING_3D
 
-// clang-format off
 /// Template for object appearance settings
 const APPEARANCE_CONTROLS_3D::APPEARANCE_SETTING_3D APPEARANCE_CONTROLS_3D::s_layerSettings[] = {
 
     //        text                           id                        tooltip
     RR( _HKI( "Board Body" ),    LAYER_3D_BOARD,             _HKI( "Show board body" ) ),
+    RR( _HKI( "Plated Barrels" ),LAYER_3D_PLATED_BARRELS,    _HKI( "Show barrels of plated through-holes and vias" ) ),
     RR(  wxS( "F.Cu" ),          LAYER_3D_COPPER_TOP,        _HKI( "Show front copper / surface finish color" ) ),
     RR(  wxS( "B.Cu" ),          LAYER_3D_COPPER_BOTTOM,     _HKI( "Show back copper / surface finish color" ) ),
     RR( _HKI( "Adhesive" ),      LAYER_3D_ADHESIVE,          _HKI( "Show adhesive" ) ),
@@ -118,27 +122,26 @@ const APPEARANCE_CONTROLS_3D::APPEARANCE_SETTING_3D APPEARANCE_CONTROLS_3D::s_la
     RR( _HKI( "Models marked DNP" ),      LAYER_3D_MODELS_MARKED_DNP, EDA_3D_ACTIONS::showDNP ),
     RR( _HKI( "Model Bounding Boxes" ),   LAYER_3D_BOUNDING_BOXES,    EDA_3D_ACTIONS::showBBoxes ),
     RR(),
-    RR( _HKI( "Values" ),               LAYER_FP_VALUES,            _HKI( "Show footprint values" ) ),
-    RR( _HKI( "References" ),           LAYER_FP_REFERENCES,        _HKI( "Show footprint references" ) ),
-    RR( _HKI( "Footprint Text" ),       LAYER_FP_TEXT,              _HKI( "Show all footprint text" ) ),
-    RR( _HKI( "Off-board Silkscreen" ), LAYER_3D_OFF_BOARD_SILK,    _HKI( "Do not clip silk layers to board outline" ) ),
+    RR( _HKI( "Values" ),               LAYER_FP_VALUES,           _HKI( "Show footprint values" ) ),
+    RR( _HKI( "References" ),           LAYER_FP_REFERENCES,       _HKI( "Show footprint references" ) ),
+    RR( _HKI( "Footprint Text" ),       LAYER_FP_TEXT,             _HKI( "Show all footprint text" ) ),
+    RR( _HKI( "Off-board Silkscreen" ), LAYER_3D_OFF_BOARD_SILK,   _HKI( "Do not clip silk layers to board outline" ) ),
     RR(),
-    RR( _HKI( "3D Axis" ),              LAYER_3D_AXES,              EDA_3D_ACTIONS::showAxis ),
+    RR( _HKI( "3D Navigator" ),         LAYER_3D_NAVIGATOR,         EDA_3D_ACTIONS::showNavigator ),
     RR( _HKI( "Background Start" ),     LAYER_3D_BACKGROUND_TOP,    _HKI( "Background gradient start color" ) ),
     RR( _HKI( "Background End" ),       LAYER_3D_BACKGROUND_BOTTOM, _HKI( "Background gradient end color" ) ),
 };
-// clang-format on
 
 // The list of IDs that can have colors coming from the board stackup, and cannot be
 // modified if use colors from stackup is activated
-static std::vector<int> inStackupColors{ LAYER_3D_BOARD, LAYER_3D_COPPER_TOP,
-                                         LAYER_3D_COPPER_BOTTOM, LAYER_3D_SOLDERPASTE,
+static std::vector<int> inStackupColors{ LAYER_3D_BOARD,
+                                         LAYER_3D_COPPER_TOP, LAYER_3D_COPPER_BOTTOM,
+                                         LAYER_3D_SOLDERPASTE,
                                          LAYER_3D_SILKSCREEN_TOP, LAYER_3D_SILKSCREEN_BOTTOM,
                                          LAYER_3D_SOLDERMASK_TOP, LAYER_3D_SOLDERMASK_BOTTOM
                                         };
 
-APPEARANCE_CONTROLS_3D::APPEARANCE_CONTROLS_3D( EDA_3D_VIEWER_FRAME* aParent,
-                                                wxWindow* aFocusOwner ) :
+APPEARANCE_CONTROLS_3D::APPEARANCE_CONTROLS_3D( EDA_3D_VIEWER_FRAME* aParent, wxWindow* aFocusOwner ) :
         APPEARANCE_CONTROLS_3D_BASE( aParent ),
         m_frame( aParent ),
         m_focusOwner( aFocusOwner ),
@@ -200,18 +203,17 @@ APPEARANCE_CONTROLS_3D::APPEARANCE_CONTROLS_3D( EDA_3D_VIEWER_FRAME* aParent,
     m_panelLayersSizer->Add( m_cbUseBoardEditorCopperColors, 0,
                              wxEXPAND | wxALL, 5 );
 
-    m_cbLayerPresets->SetToolTip( wxString::Format( _( "Save and restore color and visibility "
-                                                       "combinations.\n"
+    m_cbLayerPresets->SetToolTip( wxString::Format( _( "Save and restore color and visibility combinations.\n"
                                                        "Use %s+Tab to activate selector.\n"
-                                                       "Successive Tabs while holding %s down will "
-                                                       "cycle through presets in the popup." ),
+                                                       "Successive Tabs while holding %s down will cycle through "
+                                                       "presets in the popup." ),
                                                     KeyNameFromKeyCode( PRESET_SWITCH_KEY ),
                                                     KeyNameFromKeyCode( PRESET_SWITCH_KEY ) ) );
 
     m_cbViewports->SetToolTip( wxString::Format( _( "Save and restore camera position and zoom.\n"
                                                     "Use %s+Tab to activate selector.\n"
-                                                    "Successive Tabs while holding %s down will "
-                                                    "cycle through viewports in the popup." ),
+                                                    "Successive Tabs while holding %s down will cycle through "
+                                                    "viewports in the popup." ),
                                                  KeyNameFromKeyCode( VIEWPORT_SWITCH_KEY ),
                                                  KeyNameFromKeyCode( VIEWPORT_SWITCH_KEY ) ) );
 
@@ -270,7 +272,7 @@ void APPEARANCE_CONTROLS_3D::rebuildControls()
 
     rebuildLayers();
     m_cbUseBoardStackupColors->SetLabel( _( "Use board stackup colors" ) );
-    rebuildLayerPresetsWidget();
+    rebuildLayerPresetsWidget( true );
     rebuildViewportsWidget();
 
     Thaw();
@@ -364,7 +366,7 @@ void APPEARANCE_CONTROLS_3D::SetUserViewports( std::vector<VIEWPORT3D>& aViewpor
     rebuildViewportsWidget();
 
     // Now is as good a time as any to initialize the layer presets as well.
-    rebuildLayerPresetsWidget();
+    rebuildLayerPresetsWidget( true );
 
     m_presetMRU.Add( FOLLOW_PCB );
     m_presetMRU.Add( FOLLOW_PLOT_SETTINGS );
@@ -431,6 +433,7 @@ void APPEARANCE_CONTROLS_3D::OnLayerVisibilityChanged( int aLayer, bool isVisibl
     case LAYER_3D_BOARD:
     case LAYER_3D_COPPER_TOP:
     case LAYER_3D_COPPER_BOTTOM:
+    case LAYER_3D_PLATED_BARRELS:
     case LAYER_3D_SILKSCREEN_BOTTOM:
     case LAYER_3D_SILKSCREEN_TOP:
     case LAYER_3D_SOLDERMASK_BOTTOM:
@@ -475,8 +478,7 @@ void APPEARANCE_CONTROLS_3D::OnLayerVisibilityChanged( int aLayer, bool isVisibl
 
     if( doFastRefresh && m_frame->GetAdapter().m_Cfg->m_Render.engine == RENDER_ENGINE::OPENGL )
     {
-        RENDER_3D_OPENGL* renderer =
-            static_cast<RENDER_3D_OPENGL*>( m_frame->GetCanvas()->GetCurrentRender() );
+        RENDER_3D_OPENGL* renderer = static_cast<RENDER_3D_OPENGL*>( m_frame->GetCanvas()->GetCurrentRender() );
         renderer->Load3dModelsIfNeeded();
         m_frame->GetCanvas()->Request_refresh();
     }
@@ -499,10 +501,35 @@ void APPEARANCE_CONTROLS_3D::onColorSwatchChanged( COLOR_SWATCH* aSwatch )
 
     colors[ layer ] = newColor;
 
-    if( layer == LAYER_3D_COPPER_TOP )
-        colors[ LAYER_3D_COPPER_BOTTOM ] = newColor;
-    else if( layer == LAYER_3D_COPPER_BOTTOM )
-        colors[ LAYER_3D_COPPER_TOP ] = newColor;
+    // The internals of the 3D viewer only supports a single color for copper, which must
+    // be applied to all copper layers.
+    COLOR_SWATCH* otherSwatch = nullptr;
+
+    const std::vector<int> copperIndices{
+        LAYER_3D_COPPER_TOP,
+        LAYER_3D_COPPER_BOTTOM,
+        LAYER_3D_PLATED_BARRELS,
+    };
+
+    // If the changed swatch is one of the copper layers, we need to update the other copper layers
+    if( std::find( copperIndices.begin(), copperIndices.end(), layer ) != copperIndices.end() )
+    {
+        for( int index : copperIndices )
+        {
+            if( layer != index && colors.count( index ) )
+            {
+                colors[index] = newColor;
+                otherSwatch = m_layerSettingsMap[index]->m_Ctl_color;
+            }
+        }
+    }
+
+    if( otherSwatch )
+    {
+        // Don't send an event, because that will cause an event loop
+        otherSwatch->SetSwatchColor( newColor, false );
+    }
+
 
     m_frame->GetAdapter().SetLayerColors( colors );
 
@@ -595,9 +622,10 @@ void APPEARANCE_CONTROLS_3D::rebuildLayers()
                 }
                 else
                 {
-                    BITMAP_TOGGLE* btn_visible = new BITMAP_TOGGLE(
-                            m_windowLayers, layer, KiBitmapBundle( BITMAPS::visibility ),
-                            KiBitmapBundle( BITMAPS::visibility_off ), aSetting->m_Visible );
+                    BITMAP_TOGGLE* btn_visible = new BITMAP_TOGGLE( m_windowLayers, layer,
+                                                                    KiBitmapBundle( BITMAPS::visibility ),
+                                                                    KiBitmapBundle( BITMAPS::visibility_off ),
+                                                                    aSetting->m_Visible );
 
                     btn_visible->Bind( TOGGLE_CHANGED,
                             [this]( wxCommandEvent& aEvent )
@@ -670,12 +698,8 @@ void APPEARANCE_CONTROLS_3D::UpdateLayerCtls()
 
             // if cfg->m_UseStackupColors is set, board colors cannot be modified locally, but
             // other colors can be
-            if( std::find( inStackupColors.begin(), inStackupColors.end(), setting->m_Id )
-                != inStackupColors.end() )
-            {
-                if( cfg )
-                    setting->m_Ctl_color->SetReadOnly( cfg->m_UseStackupColors );
-            }
+            if( alg::contains( inStackupColors, setting->m_Id ) && cfg )
+                setting->m_Ctl_color->SetReadOnly( cfg->m_UseStackupColors );
         }
     }
 
@@ -687,7 +711,7 @@ void APPEARANCE_CONTROLS_3D::UpdateLayerCtls()
 }
 
 
-void APPEARANCE_CONTROLS_3D::rebuildLayerPresetsWidget()
+void APPEARANCE_CONTROLS_3D::rebuildLayerPresetsWidget( bool aReset )
 {
     m_presetsLabel->SetLabel( wxString::Format( _( "Presets (%s+Tab):" ),
                                                 KeyNameFromKeyCode( PRESET_SWITCH_KEY ) ) );
@@ -699,6 +723,9 @@ void APPEARANCE_CONTROLS_3D::rebuildLayerPresetsWidget()
     m_cbLayerPresets->Append( _( "Follow PCB Editor" ) );
     m_cbLayerPresets->Append( _( "Follow PCB Plot Settings" ) );
 
+    if( !m_frame->GetAdapter().m_Cfg->m_LayerPresets.empty() )
+        m_cbLayerPresets->Append( wxT( "---" ) );
+
     for( const LAYER_PRESET_3D& preset : m_frame->GetAdapter().m_Cfg->m_LayerPresets )
         m_cbLayerPresets->Append( preset.name );
 
@@ -706,7 +733,8 @@ void APPEARANCE_CONTROLS_3D::rebuildLayerPresetsWidget()
     m_cbLayerPresets->Append( _( "Save preset..." ) );
     m_cbLayerPresets->Append( _( "Delete preset..." ) );
 
-    updateLayerPresetWidget( m_frame->GetAdapter().m_Cfg->m_CurrentPreset );
+    if( aReset )
+        updateLayerPresetWidget( m_frame->GetAdapter().m_Cfg->m_CurrentPreset );
 }
 
 
@@ -722,11 +750,8 @@ void APPEARANCE_CONTROLS_3D::syncLayerPresetSelection()
             presets.begin(), presets.end(),
             [&]( const LAYER_PRESET_3D& aPreset )
             {
-                if( aPreset.name.Lower() == _( "legacy colors" )
-                    && m_cbUseBoardStackupColors->GetValue() )
-                {
+                if( aPreset.name.Lower() == _( "legacy colors" ) && m_cbUseBoardStackupColors->GetValue() )
                     return false;
-                }
 
                 for( int layer = LAYER_3D_BOARD; layer < LAYER_3D_END; ++layer )
                 {
@@ -796,12 +821,6 @@ void APPEARANCE_CONTROLS_3D::onLayerPresetChanged( wxCommandEvent& aEvent )
     {
         doApplyLayerPreset( FOLLOW_PLOT_SETTINGS );
     }
-    else if( index == count - 3 )
-    {
-        // Separator: reject the selection
-        resetSelection();
-        return;
-    }
     else if( index == count - 2 )
     {
         wxTextEntryDialog dlg( wxGetTopLevelParent( this ), _( "Layer preset name:" ),
@@ -833,7 +852,8 @@ void APPEARANCE_CONTROLS_3D::onLayerPresetChanged( wxCommandEvent& aEvent )
         else
         {
             cfg->m_LayerPresets.emplace_back( name, visibleLayers, colors );
-            m_cbLayerPresets->SetSelection( m_cbLayerPresets->Insert( name, index - 1 ) );
+            rebuildLayerPresetsWidget( false );
+            m_cbLayerPresets->SetStringSelection( name );
         }
 
         cfg->m_CurrentPreset = name;
@@ -865,7 +885,7 @@ void APPEARANCE_CONTROLS_3D::onLayerPresetChanged( wxCommandEvent& aEvent )
             if( m_cbLayerPresets->FindString( name ) != wxNOT_FOUND )
                 m_cbLayerPresets->Delete( m_cbLayerPresets->FindString( name ) );
 
-            alg::delete_if( cfg->m_LayerPresets,
+            std::erase_if( cfg->m_LayerPresets,
                     [name]( const LAYER_PRESET_3D& preset )
                     {
                         return preset.name == name;
@@ -874,9 +894,16 @@ void APPEARANCE_CONTROLS_3D::onLayerPresetChanged( wxCommandEvent& aEvent )
             if( cfg->m_CurrentPreset == name )
                 cfg->m_CurrentPreset = wxEmptyString;
 
-            m_presetMRU.Remove( name );
+            if( m_presetMRU.Index( name ) >= 0 )
+                m_presetMRU.Remove( name );
         }
 
+        resetSelection();
+        return;
+    }
+    else if( m_cbLayerPresets->GetString( index ) == wxT( "---" ) )
+    {
+        // Separator: reject the selection
         resetSelection();
         return;
     }
@@ -957,7 +984,9 @@ void APPEARANCE_CONTROLS_3D::onViewportChanged( wxCommandEvent& aEvent )
 
         if( !viewport->name.IsEmpty() )
         {
-            m_viewportMRU.Remove( viewport->name );
+            if( m_viewportMRU.Index( viewport->name ) != wxNOT_FOUND )
+                m_viewportMRU.Remove( viewport->name );
+
             m_viewportMRU.Insert( viewport->name, 0 );
         }
     }
@@ -986,14 +1015,15 @@ void APPEARANCE_CONTROLS_3D::onViewportChanged( wxCommandEvent& aEvent )
         {
             m_viewports[name] = VIEWPORT3D( name, m_frame->GetCurrentCamera().GetViewMatrix() );
 
-            index = m_cbViewports->Insert( name, index-1,
-                                           static_cast<void*>( &m_viewports[name] ) );
+            index = m_cbViewports->Insert( name, index-1, static_cast<void*>( &m_viewports[name] ) );
         }
         else
         {
             m_viewports[name].matrix = m_frame->GetCurrentCamera().GetViewMatrix();
             index = m_cbViewports->FindString( name );
-            m_viewportMRU.Remove( name );
+
+            if( m_viewportMRU.Index( name ) != wxNOT_FOUND )
+                m_viewportMRU.Remove( name );
         }
 
         m_cbViewports->SetSelection( index );
@@ -1028,8 +1058,10 @@ void APPEARANCE_CONTROLS_3D::onViewportChanged( wxCommandEvent& aEvent )
             {
                 m_viewports.erase( viewportName );
                 m_cbViewports->Delete( idx );
-                m_viewportMRU.Remove( viewportName );
             }
+
+            if( m_viewportMRU.Index( viewportName ) != wxNOT_FOUND )
+                m_viewportMRU.Remove( viewportName );
         }
 
         if( m_lastSelectedViewport )
@@ -1076,5 +1108,3 @@ void APPEARANCE_CONTROLS_3D::passOnFocus()
 {
     m_focusOwner->SetFocus();
 }
-
-

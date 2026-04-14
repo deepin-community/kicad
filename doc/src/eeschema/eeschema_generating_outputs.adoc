@@ -38,7 +38,7 @@ of *Printing*.
 
 KiCad can plot schematics to a file using **File** -> **Plot...**. 
 
-The supported output formats are Postscript, PDF, SVG, DXF, and HPGL. 
+The supported output formats are Postscript, PDF, SVG, and DXF. 
 
 image::images/eeschema_plot.png[Plot dialog]
 
@@ -79,12 +79,6 @@ as a separate page in a single PDF file.
 * **Minimum line width:** Selects the minimum width for lines. Any lines
   narrower than this width will be plotted with this minimum width.
 
-* **Position and units:** Sets the plotter origin and units. This option only
-  applies for HPGL output.
-
-* **Pen width:** Sets the plotter's pen width. This option only applies for HPGL
-  output.
-
 * **Generate property popups:** Enables the interactive PDF features described
   below. This option only applies for PDF output.
 
@@ -101,6 +95,8 @@ as a separate page in a single PDF file.
   Subject PDF document properties for the generated PDF based on the `AUTHOR`
   and `SUBJECT` <<schematic-setup-text-variables,project text variables>>, if you have
   defined them. This option only applies for PDF output.
+
+* **Export units:** Sets the units (inches or millimeters) in the exported DXF file.
 
 * **Open file after plot:** automatically opens the plotted output file when
   plotting is complete.
@@ -148,23 +144,45 @@ you press the **Export** button at the bottom of the dialog.
 
 ==== BOM contents
 
-The exported BOM will contain exactly the components (rows) and fields (columns)
-shown in the **Edit** tab, with the same grouping and sorting. Components with
-the **Exclude from BOM** attribute set are hidden in the **Edit** tab and not
-included in the BOM export unless the **Show 'Exclude from BOM'** box is checked.
-Components with the DNP (do not populate)
-attribute set can be optionally excluded from both the table in the **Edit** tab
-and the exported BOM by checking the **Exclude DNP** box. You can also limit the
-displayed components to those in the current sheet, the current sheet and all of
-its subsheets, or the entire schematic by adjusting the **Scope** settings.
+The exported BOM will contain the components (rows) and fields (columns)
+shown in the **Edit** tab, with the same grouping and sorting.
+
+The **Exclude from BOM** and **Do not Populate** attributes affect the **Edit** tab
+and the exported BOM as follows:
+
+- Components with the **Exclude from BOM** attribute set are always excluded from BOM exports.
+  They are shown in the **Edit** tab
+  unless the **Include 'Exclude from BOM' Symbols** option is unchecked
+  in the image:images/icons/config_16.png[] menu.
+- Components with the **Do not Populate** (DNP) attribute set
+  are included in BOM exports and shown in the **Edit** tab
+  unless the **Include 'DNP' Symbols** option is unchecked
+  in the image:images/icons/config_16.png[] menu.
+
+You can filter the components that are exported by typing in the **Filter** textbox.
+This matches against symbols' references.
+Wildcards are supported:
+`*` matches any number of any characters, including none, and `?` matches any single character.
+
+You can also limit the displayed components to those in the current sheet,
+the current sheet and all of its subsheets,
+or the entire schematic using the dropdown menu next to the filter box.
 
 image::images/symbol_fields_table_edit.png[Symbol Fields Table Edit tab]
 
-Fields with the **Show** box checked will be included as columns in the BOM, and
-fields with the **Group By** box checked are used to group components together.
+The panel on the left side of the dialog contains a list of columns
+that are available to show in the **Edit** tab and include in the BOM.
+You can collapse this panel by clicking the image:images/icons/left_16.png[] button.
+
+Fields with the **Include** box checked will be shown in the **Edit** tab and included as columns in the BOM.
+You can also show or hide columns by right clicking the column header in the right part of the dialog
+and selecting the desired columns.
+To reorder the columns, drag a column header to the left or right.
+You can set an arbitrary name for each column by clicking in the **BOM Name** column and entering a new name.
+
+Fields with the **Group By** box checked are used to group components together.
 Components are grouped into the same line if all of their **Group By** fields
-are identical and the **Group symbols** box is checked. You can set an arbitrary
-column name for each field and reorder columns by dragging their headers.
+are identical and the **Group symbols** box at the top of the dialog is checked.
 
 Presets are available to configure the list of fields. Presets store which
 fields are displayed, which fields are used for grouping, and the column order.
@@ -330,7 +348,7 @@ the operating system and may vary based on installation location.
 [options="header",cols="30%,70%"]
 |===
 |Operating System |Location
-|Windows |`C:\Program Files\KiCad\9.0\bin\scripting\plugins\`
+|Windows |`C:\Program Files\KiCad\10.0\bin\scripting\plugins\`
 |Linux |`/usr/share/kicad/plugins/`
 |macOS |`/Applications/KiCad/KiCad.app/Contents/SharedSupport/plugins/`
 |===

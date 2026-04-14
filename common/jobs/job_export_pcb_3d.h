@@ -23,7 +23,6 @@
 
 #include <kicommon.h>
 #include <math/vector2d.h>
-#include <wx/string.h>
 #include "job.h"
 
 // Default value to chain 2 shapes when creating the board outlines
@@ -57,6 +56,7 @@ public:
             m_FuseShapes( false ),
             m_FillAllVias( false ),
             m_OptimizeStep( true ),
+            m_ExtraPadThickness( true ),
             m_Format( FORMAT::STEP ),
             m_OutputFile()
     {};
@@ -64,11 +64,14 @@ public:
     enum class FORMAT
     {
         STEP,
+        STEPZ,
         BREP,
         XAO,
         GLB,
         PLY,
-        STL
+        STL,
+        U3D,
+        PDF
     };
 
     wxString m_NetFilter;
@@ -98,6 +101,7 @@ public:
     bool     m_FuseShapes;
     bool     m_FillAllVias;
     bool     m_OptimizeStep;
+    bool     m_ExtraPadThickness;
     FORMAT   m_Format;
     wxString m_OutputFile;
 
@@ -119,12 +123,15 @@ public:
     {
         UNKNOWN, // defefer to arg
         STEP,
+        STEPZ,
         BREP,
         XAO,
         GLB,
         VRML,
         PLY,
-        STL
+        STL,
+        U3D,
+        PDF
     };
 
     enum class VRML_UNITS
@@ -138,6 +145,7 @@ public:
 public:
     bool                      m_hasUserOrigin;
     wxString                  m_filename;
+    wxString                  m_variant;
 
     JOB_EXPORT_PCB_3D::FORMAT m_format;
 

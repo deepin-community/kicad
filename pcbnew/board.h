@@ -27,10 +27,9 @@
 
 #include <board_item_container.h>
 #include <board_stackup_manager/board_stackup.h>
-#include <component_class_manager.h>
 #include <embedded_files.h>
-#include <common.h> // Needed for stl hash extensions
 #include <convert_shape_list_to_polygon.h> // for OUTLINE_ERROR_HANDLER
+#include <geometry/shape_poly_set.h>
 #include <hash.h>
 #include <layer_ids.h>
 #include <lset.h>
@@ -38,17 +37,22 @@
 #include <pcb_item_containers.h>
 #include <pcb_plot_params.h>
 #include <title_block.h>
-#include <tools/pcb_selection.h>
+#include <zone_settings.h>
 #include <shared_mutex>
+#include <unordered_set>
+#include <project.h>
 #include <list>
 
+struct HISTORY_FILE_DATA;
 class BOARD_DESIGN_SETTINGS;
 class BOARD_CONNECTED_ITEM;
 class BOARD_COMMIT;
+class COMPONENT_CLASS_MANAGER;
 class DRC_RTREE;
 class PCB_BASE_FRAME;
 class PCB_EDIT_FRAME;
 class PICKED_ITEMS_LIST;
+class LENGTH_DELAY_CALCULATION;
 class BOARD;
 class FOOTPRINT;
 class ZONE;
@@ -60,11 +64,18 @@ class PCB_MARKER;
 class MSG_PANEL_ITEM;
 class NETLIST;
 class REPORTER;
-class SHAPE_POLY_SET;
 class CONNECTIVITY_DATA;
 class COMPONENT;
 class PROJECT;
 class PROGRESS_REPORTER;
+class PCB_BOARD_OUTLINE;
+
+namespace KIGFX
+{
+class RENDER_SETTINGS;
+};
+
+
 namespace KIFONT
 {
     class OUTLINE_FONT;
@@ -113,6 +124,23 @@ struct PTR_PTR_LAYER_CACHE_KEY
         return A == other.A && B == other.B && Layer == other.Layer;
     }
 };
+
+struct LAYERS_CHECKED
+{
+    LAYERS_CHECKED() :
+            layers(),
+            has_error( false )
+    {}
+
+    LAYERS_CHECKED( PCB_LAYER_ID aLayer ) :
+            layers( { aLayer } ),
+            has_error( false )
+    {}
+
+    LSET layers;
+    bool has_error;
+};
+
 
 namespace std
 {
@@ -258,12 +286,12 @@ class BOARD_LISTENER
 public:
     virtual ~BOARD_LISTENER() { }
     virtual void OnBoardItemAdded( BOARD& aBoard, BOARD_ITEM* aBoardItem ) { }
-    virtual void OnBoardItemsAdded( BOARD& aBoard, std::vector<BOARD_ITEM*>& aBoardItem ) { }
+    virtual void OnBoardItemsAdded( BOARD& aBoard, std::vector<BOARD_ITEM*>& aBoardItems ) { }
     virtual void OnBoardItemRemoved( BOARD& aBoard, BOARD_ITEM* aBoardItem ) { }
-    virtual void OnBoardItemsRemoved( BOARD& aBoard, std::vector<BOARD_ITEM*>& aBoardItem ) { }
+    virtual void OnBoardItemsRemoved( BOARD& aBoard, std::vector<BOARD_ITEM*>& aBoardItems ) { }
     virtual void OnBoardNetSettingsChanged( BOARD& aBoard ) { }
     virtual void OnBoardItemChanged( BOARD& aBoard, BOARD_ITEM* aBoardItem ) { }
-    virtual void OnBoardItemsChanged( BOARD& aBoard, std::vector<BOARD_ITEM*>& aBoardItem ) { }
+    virtual void OnBoardItemsChanged( BOARD& aBoard, std::vector<BOARD_ITEM*>& aBoardItems ) { }
     virtual void OnBoardHighlightNetChanged( BOARD& aBoard ) { }
     virtual void OnBoardRatsnestChanged( BOARD& aBoard ) { }
     virtual void OnBoardCompositeUpdate( BOARD& aBoard, std::vector<BOARD_ITEM*>& aAddedItems,
@@ -291,7 +319,7 @@ enum class BOARD_USE
 /**
  * Information pertinent to a Pcbnew printed circuit board.
  */
-class BOARD : public BOARD_ITEM_CONTAINER, public EMBEDDED_FILES
+class BOARD : public BOARD_ITEM_CONTAINER, public EMBEDDED_FILES, public PROJECT::_ELEM
 {
 public:
     static inline bool ClassOf( const EDA_ITEM* aItem )
@@ -341,7 +369,13 @@ public:
 
     const GENERATORS& Generators() const { return m_generators; }
 
+    PCB_BOARD_OUTLINE*       BoardOutline() { return m_boardOutline; }
+    const PCB_BOARD_OUTLINE* BoardOutline() const { return m_boardOutline; }
+    void                     UpdateBoardOutline();
+
     const MARKERS& Markers() const { return m_markers; }
+
+    const PCB_POINTS& Points() const { return m_points; }
 
     // SWIG requires non-const accessors for some reason to make the custom iterators in board.i
     // work.  It would be good to remove this if we can figure out how to fix that.
@@ -367,6 +401,31 @@ public:
     const std::map<wxString, wxString>& GetProperties() const { return m_properties; }
     void SetProperties( const std::map<wxString, wxString>& aProps ) { m_properties = aProps; }
 
+    // Variant system
+    wxString GetCurrentVariant() const { return m_currentVariant; }
+    void SetCurrentVariant( const wxString& aVariant );
+
+    const std::vector<wxString>& GetVariantNames() const { return m_variantNames; }
+    void SetVariantNames( const std::vector<wxString>& aNames ) { m_variantNames = aNames; }
+
+    bool HasVariant( const wxString& aVariantName ) const;
+    void AddVariant( const wxString& aVariantName );
+    void DeleteVariant( const wxString& aVariantName );
+    void RenameVariant( const wxString& aOldName, const wxString& aNewName );
+
+    wxString GetVariantDescription( const wxString& aVariantName ) const;
+    void SetVariantDescription( const wxString& aVariantName, const wxString& aDescription );
+
+    /**
+     * Return the variant names for UI display.
+     *
+     * This returns a list suitable for populating UI controls, with the default variant
+     * included and the names sorted using the SortVariantNames helper.
+     *
+     * @return List of variant names including the default entry.
+     */
+    wxArrayString GetVariantNamesForUI() const;
+
     void GetContextualTextVars( wxArrayString* aVars ) const;
     bool ResolveTextVar( wxString* token, int aDepth ) const;
 
@@ -388,15 +447,11 @@ public:
     void           SetPosition( const VECTOR2I& aPos ) override;
     const VECTOR2I GetFocusPosition() const override { return GetBoundingBox().GetCenter(); }
 
-    bool IsEmpty() const
-    {
-        return m_drawings.empty() && m_footprints.empty() && m_tracks.empty() && m_zones.empty();
-    }
+    bool IsEmpty() const;
 
     void Move( const VECTOR2I& aMoveVector ) override;
 
-    void RunOnDescendants( const std::function<void ( BOARD_ITEM* )>& aFunction,
-                           int aDepth = 0 ) const override;
+    void RunOnChildren( const std::function<void( BOARD_ITEM* )>& aFunction, RECURSE_MODE aMode ) const override;
 
     void SetFileFormatVersionAtLoad( int aVersion ) { m_fileFormatVersionAtLoad = aVersion; }
     int GetFileFormatVersionAtLoad() const { return m_fileFormatVersionAtLoad; }
@@ -424,6 +479,18 @@ public:
                                                               PCB_GENERATOR_T, PCB_FOOTPRINT_T,
                                                               PCB_TRACE_T, PCB_SHAPE_T } );
 
+    bool HasItemsOnLayer( PCB_LAYER_ID aLayer );
+
+    /**
+     * Removes all owned items other than footprints existing on the given board layer, and modifies
+     * the stackup for multilayer items to remove the given layer where applicable.
+     * Used when removing an existing layer from the board via Board Setup or the API.
+     * Caller is responsible for clearing the selection before calling this.
+     * @param aLayer should be a layer enabled for this board
+     * @return true if any items were removed or modified
+     */
+    bool RemoveAllItemsOnLayer( PCB_LAYER_ID aLayer );
+
     /**
      * Remove all teardrop zones with the STRUCT_DELETED flag set.  This avoids O(n^2) traversal
      * over the zone list.
@@ -448,6 +515,8 @@ public:
      * in the board and updates them with the full embedded data.
     */
     void FixupEmbeddedData();
+
+    void RunOnNestedEmbeddedFiles( const std::function<void( EMBEDDED_FILES* )>& aFunction ) override;
 
     void CacheTriangulation( PROGRESS_REPORTER* aReporter = nullptr,
                              const std::vector<ZONE*>& aZones = {} );
@@ -475,9 +544,10 @@ public:
     void DetachAllFootprints();
 
     /**
-     * @return null if aID is null. Returns an object of Type() == NOT_USED if the aID is not found.
+     * @return null if aID is null. If \a aID cannot be resolved, returns either an object of
+     *         Type() == NOT_USED or null, depending on \a aAllowNullptrReturn.
      */
-    BOARD_ITEM* GetItem( const KIID& aID ) const;
+    BOARD_ITEM* ResolveItem( const KIID& aID, bool aAllowNullptrReturn = false ) const;
 
     void FillItemMap( std::map<KIID, EDA_ITEM*>& aMap );
 
@@ -707,6 +777,23 @@ public:
      * @return the BOARD_DESIGN_SETTINGS for this BOARD
      */
     BOARD_DESIGN_SETTINGS& GetDesignSettings() const;
+    void                   SetDesignSettings( const BOARD_DESIGN_SETTINGS& aSettings );
+
+    /**
+     * Invalidate the clearance cache for a specific item.
+     *
+     * Called by items when properties that could affect clearance change.
+     *
+     * @param aUuid the UUID of the item to invalidate.
+     */
+    void InvalidateClearanceCache( const KIID& aUuid );
+
+    /**
+     * Initialize the clearance cache for all board items.
+     *
+     * Pre-populates the cache to avoid delays during first render.
+     */
+    void InitializeClearanceCache();
 
     BOARD_STACKUP GetStackupOrDefault() const;
 
@@ -739,6 +826,9 @@ public:
      * i.e. have valid vertices to build a closed polygon.
      *
      * @param aOutlines is the #SHAPE_POLY_SET to fill in with outlines/holes.
+     * @param aInferOutlineIfNecessary if the edges do not define a closed shape then we'll approximate the
+     *                                 bounding box outline based on the edges, or failing that, any other items
+     *                                 on the board
      * @param aErrorHandler is an optional DRC_ITEM error handler.
      * @param aAllowUseArcsInPolygons = an optional option to allow adding arcs in
      *  SHAPE_LINE_CHAIN polylines/polygons when building outlines from aShapeList
@@ -748,10 +838,9 @@ public:
      * drawn on edge cut layer inside the board main outline.
      * @return true if success, false if a contour is not valid
      */
-    bool GetBoardPolygonOutlines( SHAPE_POLY_SET& aOutlines,
+    bool GetBoardPolygonOutlines( SHAPE_POLY_SET& aOutlines, bool aInferOutlineIfNecessary,
                                   OUTLINE_ERROR_HANDLER* aErrorHandler = nullptr,
-                                  bool aAllowUseArcsInPolygons = false,
-                                  bool aIncludeNPTHAsOutlines = false );
+                                  bool aAllowUseArcsInPolygons = false, bool aIncludeNPTHAsOutlines = false );
 
     /**
      * @return a epsilon value that is the max distance between 2 points to see them
@@ -772,8 +861,11 @@ public:
      *
      * @param aLayer is a copper layer, like B_Cu, etc.
      * @param aOutlines is the SHAPE_POLY_SET to fill in with items outline.
+     * @param aRenderSettings is used to convert a SHAPE_SEGMENT when not a simple segment.
+     * if not specified, a default setting will be used
      */
-    void ConvertBrdLayerToPolygonalContours( PCB_LAYER_ID aLayer, SHAPE_POLY_SET& aOutlines ) const;
+    void ConvertBrdLayerToPolygonalContours( PCB_LAYER_ID aLayer, SHAPE_POLY_SET& aOutlines,
+                                             KIGFX::RENDER_SETTINGS* aRenderSettings = nullptr ) const;
 
     /**
      * Return the ID of a layer.
@@ -821,6 +913,16 @@ public:
      * @return false if the index was out of range.
      */
     bool SetLayerDescr( PCB_LAYER_ID aIndex, const LAYER& aLayer );
+
+    /**
+     * @return true if the layer is a front layer, or a user layer designated "Off-board, front"
+     */
+    bool IsFrontLayer( PCB_LAYER_ID aLayer ) const;
+
+    /**
+     * @return true if the layer is a back layer, or a user layer designated "Off-board, back"
+     */
+    bool IsBackLayer( PCB_LAYER_ID aLayer ) const;
 
     /**
      * Return the type of the copper layer given by aLayer.
@@ -929,16 +1031,26 @@ public:
     }
 
     /**
+     * @return the number of PTH with Press-Fit fabr attribute
+     */
+    int GetPadWithPressFitAttrCount();
+
+    /**
+     * @return the number of PTH with Castellated fabr attribute
+     */
+    int GetPadWithCastellatedAttrCount();
+
+    /**
      * Calculate the bounding box containing all board items (or board edge segments).
      *
      * @param aBoardEdgesOnly is true if we are interested in board edge segments only.
      * @return the board's bounding box.
      */
-    BOX2I ComputeBoundingBox( bool aBoardEdgesOnly = false ) const;
+    BOX2I ComputeBoundingBox( bool aBoardEdgesOnly = false, bool aPhysicalLayersOnly = false ) const;
 
     const BOX2I GetBoundingBox() const override
     {
-        return ComputeBoundingBox( false );
+        return ComputeBoundingBox( false, false );
     }
 
     /**
@@ -952,7 +1064,7 @@ public:
      */
     const BOX2I GetBoardEdgesBoundingBox() const
     {
-        return ComputeBoundingBox( true );
+        return ComputeBoundingBox( true, true );
     }
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
@@ -1004,9 +1116,19 @@ public:
     void SynchronizeNetsAndNetClasses( bool aResetTrackAndViaSizes );
 
     /**
+     * Copy component class / component class generator information from the project settings
+     */
+    bool SynchronizeComponentClasses( const std::unordered_set<wxString>& aNewSheetPaths ) const;
+
+    /**
      * Copy the current project's text variables into the boards property cache.
      */
     void SynchronizeProperties();
+
+    /**
+     * Ensure that all time domain properties providers are in sync with current settings
+     */
+    void SynchronizeTuningProfileProperties();
 
     /**
      * Return the Similarity.  Because we compare board to board, we just return 1.0 here
@@ -1103,7 +1225,7 @@ public:
      * @param aLayerMask A layer or layers to mask the hit test.
      * @return A pointer to a PAD object if found or NULL if not found.
      */
-    PAD* GetPad( const VECTOR2I& aPosition, LSET aLayerMask ) const;
+    PAD* GetPad( const VECTOR2I& aPosition, const LSET& aLayerMask ) const;
     PAD* GetPad( const VECTOR2I& aPosition ) const
     {
         return GetPad( aPosition, LSET().set() );
@@ -1132,7 +1254,7 @@ public:
      * @param aLayerMask A layer or layers to mask the hit test.
      * @return a PAD object pointer to the connected pad.
      */
-    PAD* GetPad( std::vector<PAD*>& aPadList, const VECTOR2I& aPosition, LSET aLayerMask ) const;
+    PAD* GetPad( std::vector<PAD*>& aPadList, const VECTOR2I& aPosition, const LSET& aLayerMask ) const;
 
     /**
      * First empties then fills the vector with all pads and sorts them by increasing x
@@ -1152,9 +1274,9 @@ public:
      * This uses the connectivity data for the board to calculate connections
      *
      * @param aTrack Starting track (can also be a via) to check against for connection.
-     * @return a tuple containing <number, length, package length>
+     * @return a tuple containing <number, length, package length, delay, package delay>
      */
-    std::tuple<int, double, double> GetTrackLength( const PCB_TRACK& aTrack ) const;
+    std::tuple<int, double, double, double, double> GetTrackLength( const PCB_TRACK& aTrack ) const;
 
     /**
      * Collect all the TRACKs and VIAs that are members of a net given by aNetCode.
@@ -1257,20 +1379,6 @@ public:
      */
     wxString GroupsSanityCheckInternal( bool repair );
 
-    struct GroupLegalOpsField
-    {
-        bool create      : 1;
-        bool ungroup     : 1;
-        bool removeItems : 1;
-    };
-
-    /**
-     * Check which selection tool group operations are legal given the selection.
-     *
-     * @return bit field of legal ops.
-     */
-    GroupLegalOpsField GroupLegalOps( const PCB_SELECTION& selection ) const;
-
     bool LegacyTeardrops() const { return m_legacyTeardrops; }
     void SetLegacyTeardrops( bool aFlag ) { m_legacyTeardrops = aFlag; }
 
@@ -1290,9 +1398,57 @@ public:
     void EmbedFonts() override;
 
     /**
+     * Returns the track length calculator
+     */
+    LENGTH_DELAY_CALCULATION* GetLengthCalculation() const { return m_lengthDelayCalc.get(); }
+
+    /**
      * Gets the component class manager
      */
-    COMPONENT_CLASS_MANAGER& GetComponentClassManager() { return m_componentClassManager; }
+    COMPONENT_CLASS_MANAGER& GetComponentClassManager() { return *m_componentClassManager; }
+
+    PROJECT::ELEM ProjectElementType() override { return PROJECT::ELEM::BOARD; }
+
+    /**
+     * Serialize board into HISTORY_FILE_DATA for non-blocking history commit.
+     *
+     * This method is used as a saver callback for LOCAL_HISTORY during autosave operations.
+     * Serialization runs on the UI thread; Prettify and file I/O happen in the background.
+     *
+     * @param aProjectPath The path to check against this board's project path
+     * @param aFileData Output vector to append serialized data for history inclusion
+     */
+    void SaveToHistory( const wxString& aProjectPath, std::vector<HISTORY_FILE_DATA>& aFileData );
+
+    const std::unordered_map<KIID, BOARD_ITEM*>& GetItemByIdCache() const
+    {
+        return m_itemByIdCache;
+    }
+
+    /**
+     * Add an item to the item-by-id cache.
+     *
+     * This is called by FOOTPRINT::Add() when items are added to footprints that are already
+     * on the board, to keep the cache in sync.
+     */
+    void CacheItemById( BOARD_ITEM* aItem )
+    {
+        if( IsFootprintHolder() )
+            return;
+
+        m_itemByIdCache.insert( { aItem->m_Uuid, aItem } );
+    }
+
+    /**
+     * Remove an item from the item-by-id cache.
+     *
+     * This is called by FOOTPRINT::Remove() when items are removed from footprints that are
+     * already on the board, to keep the cache in sync.
+     */
+    void UncacheItemById( const KIID& aId )
+    {
+        m_itemByIdCache.erase( aId );
+    }
 
     // --------- Item order comparators ---------
 
@@ -1319,6 +1475,16 @@ public:
     std::shared_ptr<DRC_RTREE>                            m_CopperItemRTreeCache;
     mutable std::unordered_map<const ZONE*, BOX2I>        m_ZoneBBoxCache;
     mutable std::optional<int>                            m_maxClearanceValue;
+
+    mutable std::unordered_map<const BOARD_ITEM*, wxString> m_ItemNetclassCache;
+
+    // Zone name lookup cache for DRC rule area functions like enclosedByArea/intersectsArea.
+    // Maps zone names to vectors of matching zones to avoid O(n) zone iteration per lookup.
+    mutable std::unordered_map<wxString, std::vector<ZONE*>> m_ZonesByNameCache;
+
+    // Deflated zone outline cache for DRC area checks. Caches the deflated outline for each zone
+    // to avoid repeated expensive deflation operations during collidesWithArea calls.
+    mutable std::unordered_map<const ZONE*, SHAPE_POLY_SET> m_DeflatedZoneOutlineCache;
 
     // ------------ DRC caches -------------
     std::vector<ZONE*>    m_DRCZones;
@@ -1365,9 +1531,12 @@ private:
     GROUPS              m_groups;
     ZONES               m_zones;
     GENERATORS          m_generators;
+    PCB_BOARD_OUTLINE*  m_boardOutline;
+    PCB_POINTS          m_points;
 
-    // Cache for fast access to items in the containers above by KIID, including children
-    std::unordered_map<KIID, BOARD_ITEM*> m_itemByIdCache;
+    // Cache for fast access to items in the containers above by KIID, including children.
+    // Mutable because it's a performance cache that can be populated during const lookups.
+    mutable std::unordered_map<KIID, BOARD_ITEM*> m_itemByIdCache;
 
     std::map<int, LAYER> m_layers;                  // layer data
 
@@ -1385,6 +1554,11 @@ private:
     PCB_PLOT_PARAMS     m_plotOptions;
     PROJECT*            m_project;                  // project this board is a part of
     EDA_UNITS           m_userUnits;
+
+    // Variant system
+    wxString                        m_currentVariant;        // Currently active variant (empty = default)
+    std::vector<wxString>           m_variantNames;          // All variant names in the board
+    std::map<wxString, wxString>    m_variantDescriptions;   // Descriptions for each variant
 
     /**
      * All of the board design settings are stored as a JSON object inside the project file.  The
@@ -1414,7 +1588,8 @@ private:
     // of all the parent's embedded data.
     EMBEDDED_FILES*              m_embeddedFilesDelegate;
 
-    COMPONENT_CLASS_MANAGER m_componentClassManager;
+    std::unique_ptr<COMPONENT_CLASS_MANAGER>  m_componentClassManager;
+    std::unique_ptr<LENGTH_DELAY_CALCULATION> m_lengthDelayCalc;
 };
 
 

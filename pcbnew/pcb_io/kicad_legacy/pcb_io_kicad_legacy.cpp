@@ -57,10 +57,10 @@
 */
 
 
-#include <cerrno>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <fast_float/fast_float.h>
 #include <pcb_io/kicad_legacy/pcb_io_kicad_legacy.h>   // implement this here
 #include <wx/ffile.h>
 #include <wx/log.h>
@@ -68,16 +68,17 @@
 #include <wx/filename.h>
 #include <wx/wfstream.h>
 #include <wx/txtstrm.h>
+#include <wx/tokenzr.h>
 #include <boost/ptr_container/ptr_map.hpp>
 
 #include <string_utils.h>
-#include <locale_io.h>
 #include <macros.h>
 #include <filter_reader.h>
 #include <zones.h>
 
 #include <board.h>
 #include <board_design_settings.h>
+#include <project/net_settings.h>
 #include <footprint.h>
 #include <core/ignore.h>
 #include <pad.h>
@@ -97,7 +98,7 @@
 typedef PCB_IO_KICAD_LEGACY::BIU      BIU;
 
 
-typedef unsigned                LEG_MASK;
+typedef uint32_t                LEG_MASK;
 
 #define FIRST_LAYER             0
 #define FIRST_COPPER_LAYER      0
@@ -217,7 +218,7 @@ void PCB_IO_KICAD_LEGACY::checkpoint()
                                                             / std::max( 1U, m_lineCount ) );
 
             if( !m_progressReporter->KeepRefreshing() )
-                THROW_IO_ERROR( _( "Open cancelled by user." ) );
+                THROW_IO_ERROR( _( "Open canceled by user." ) );
 
             m_lastProgressLine = curLine;
         }
@@ -404,10 +405,9 @@ static inline int intParse( const char* next, const char** out = nullptr )
  * like "man strtol".  I can use this without casting, and its name says
  * what I am doing.
  */
-static inline long hexParse( const char* next, const char** out = nullptr )
+static inline uint32_t hexParse( const char* next, const char** out = nullptr )
 {
-    // please just compile this and be quiet, hide casting ugliness:
-    return strtol( next, (char**) out, 16 );
+    return (uint32_t) strtoul( next, (char**) out, 16 );
 }
 
 
@@ -469,8 +469,6 @@ bool PCB_IO_KICAD_LEGACY::CanReadFootprint( const wxString& aFileName ) const
 BOARD* PCB_IO_KICAD_LEGACY::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
                                  const std::map<std::string, UTF8>* aProperties, PROJECT* aProject )
 {
-    LOCALE_IO   toggle;     // toggles on, then off, the C locale.
-
     init( aProperties );
 
     std::unique_ptr<BOARD> boardDeleter;
@@ -503,7 +501,7 @@ BOARD* PCB_IO_KICAD_LEGACY::LoadBoard( const wxString& aFileName, BOARD* aAppend
         m_progressReporter->Report( wxString::Format( _( "Loading %s..." ), aFileName ) );
 
         if( !m_progressReporter->KeepRefreshing() )
-            THROW_IO_ERROR( _( "Open cancelled by user." ) );
+            THROW_IO_ERROR( _( "Open canceled by user." ) );
 
         while( reader.ReadLine() )
             m_lineCount++;
@@ -545,7 +543,7 @@ void PCB_IO_KICAD_LEGACY::loadAllSections( bool doAppend )
 
             // The footprint names in legacy libraries can contain the '/' and ':'
             // characters which will cause the FPID parser to choke.
-            ReplaceIllegalFileNameChars( &fpName );
+            ReplaceIllegalFileNameChars( fpName );
 
             if( !fpName.empty() )
                 fpid.Parse( fpName, true );
@@ -796,7 +794,7 @@ void PCB_IO_KICAD_LEGACY::loadSHEET()
                 {
                     m_error.Printf( _( "Unknown sheet type '%s' on line: %d." ),
                                     wname.GetData(),
-                                    m_reader->LineNumber() );
+                                    (int) m_reader->LineNumber() );
                     THROW_IO_ERROR( m_error );
                 }
 
@@ -805,7 +803,7 @@ void PCB_IO_KICAD_LEGACY::loadSHEET()
                 char*   orient = strtok_r( nullptr, delims, &data );
 
                 // only parse the width and height if page size is custom ("User")
-                if( wname == PAGE_INFO::Custom )
+                if( page.GetType() == PAGE_SIZE_TYPE::User )
                 {
                     if( width && height )
                     {
@@ -1140,7 +1138,7 @@ void PCB_IO_KICAD_LEGACY::loadSETUP()
             // the old visibility control does not make sense in current Pcbnew version,
             // and this code does not work.
 #if 0
-            int visibleElements = hexParse( line + SZ( "VisibleElements" ) );
+            uint32_t visibleElements = hexParse( line + SZ( "VisibleElements" ) );
 
             // Does not work: each old item should be tested one by one to set
             // visibility of new item list
@@ -1174,11 +1172,10 @@ void PCB_IO_KICAD_LEGACY::loadSETUP()
      * (the first value is not tested, because it is the netclass value)
      */
     BOARD_DESIGN_SETTINGS& designSettings = m_board->GetDesignSettings();
-    sort( designSettings.m_ViasDimensionsList.begin() + 1,
-          designSettings.m_ViasDimensionsList.end() );
+    sort( designSettings.m_ViasDimensionsList.begin() + 1, designSettings.m_ViasDimensionsList.end() );
     sort( designSettings.m_TrackWidthList.begin() + 1, designSettings.m_TrackWidthList.end() );
 
-    for( unsigned ii = 1; ii < designSettings.m_ViasDimensionsList.size() - 1; ii++ )
+    for( int ii = 1; ii < (int) designSettings.m_ViasDimensionsList.size() - 1; ii++ )
     {
         if( designSettings.m_ViasDimensionsList[ii] == designSettings.m_ViasDimensionsList[ii + 1] )
         {
@@ -1187,7 +1184,7 @@ void PCB_IO_KICAD_LEGACY::loadSETUP()
         }
     }
 
-    for( unsigned ii = 1; ii < designSettings.m_TrackWidthList.size() - 1; ii++ )
+    for( int ii = 1; ii < (int) designSettings.m_TrackWidthList.size() - 1; ii++ )
     {
         if( designSettings.m_TrackWidthList[ii] == designSettings.m_TrackWidthList[ii + 1] )
         {
@@ -1245,7 +1242,7 @@ void PCB_IO_KICAD_LEGACY::loadFOOTPRINT( FOOTPRINT* aFootprint )
             if( !text->IsVisible() && text->Type() == PCB_TEXT_T )
             {
                 aFootprint->Remove( text );
-                aFootprint->Add( new PCB_FIELD( text, -1 ) );
+                aFootprint->Add( new PCB_FIELD( *text, FIELD_T::USER ) );
                 delete text;
             }
         }
@@ -1258,7 +1255,7 @@ void PCB_IO_KICAD_LEGACY::loadFOOTPRINT( FOOTPRINT* aFootprint )
             int          layer_num = intParse( data, &data );
             PCB_LAYER_ID layer_id  = leg_layer2new( m_cu_count,  layer_num );
 
-            [[maybe_unused]] long edittime  = hexParse( data, &data );
+            [[maybe_unused]] uint32_t edittime = hexParse( data, &data );
 
             char*        uuid      = strtok_r( (char*) data, delims, (char**) &data );
 
@@ -1421,12 +1418,14 @@ void PCB_IO_KICAD_LEGACY::loadPAD( FOOTPRINT* aFootprint )
             switch( padchar )
             {
             case 'C':   padshape = static_cast<int>( PAD_SHAPE::CIRCLE );      break;
-            case 'R':   padshape = static_cast<int>( PAD_SHAPE::RECTANGLE );        break;
+            case 'R':   padshape = static_cast<int>( PAD_SHAPE::RECTANGLE );   break;
             case 'O':   padshape = static_cast<int>( PAD_SHAPE::OVAL );        break;
             case 'T':   padshape = static_cast<int>( PAD_SHAPE::TRAPEZOID );   break;
             default:
                 m_error.Printf( _( "Unknown padshape '%c=0x%02x' on line: %d of footprint: '%s'." ),
-                                padchar, padchar, m_reader->LineNumber(),
+                                padchar,
+                                padchar,
+                                (int) m_reader->LineNumber(),
                                 aFootprint->GetFPID().GetLibItemName().wx_str() );
                 THROW_IO_ERROR( m_error );
             }
@@ -1615,7 +1614,9 @@ void PCB_IO_KICAD_LEGACY::loadFP_SHAPE( FOOTPRINT* aFootprint )
     case 'P': shape = SHAPE_T::POLY;    break;
     default:
         m_error.Printf( _( "Unknown PCB_SHAPE type:'%c=0x%02x' on line %d of footprint '%s'." ),
-                        (unsigned char) line[1], (unsigned char) line[1], m_reader->LineNumber(),
+                        (unsigned char) line[1],
+                        (unsigned char) line[1],
+                        (int) m_reader->LineNumber(),
                         aFootprint->GetFPID().GetLibItemName().wx_str() );
         THROW_IO_ERROR( m_error );
     }
@@ -1813,7 +1814,37 @@ void PCB_IO_KICAD_LEGACY::load3D( FOOTPRINT* aFootprint )
 {
     FP_3DMODEL t3D;
 
-    char*   line;
+    // Lambda to parse three space-separated doubles using wxString::ToCDouble with C locale
+    auto parseThreeDoubles =
+            []( const char* str, double& x, double& y, double& z ) -> bool
+            {
+                wxString wxStr( str );
+                wxStr.Trim( true ).Trim( false );
+
+                wxStringTokenizer tokenizer( wxStr, " \t", wxTOKEN_STRTOK );
+
+                if( !tokenizer.HasMoreTokens() )
+                    return false;
+
+                wxString token1 = tokenizer.GetNextToken();
+
+                if( !token1.ToCDouble( &x ) || !tokenizer.HasMoreTokens() )
+                    return false;
+
+                wxString token2 = tokenizer.GetNextToken();
+
+                if( !token2.ToCDouble( &y ) || !tokenizer.HasMoreTokens() )
+                    return false;
+
+                wxString token3 = tokenizer.GetNextToken();
+
+                if( !token3.ToCDouble( &z ) )
+                    return false;
+
+                return true;
+            };
+
+    char* line;
 
     while( ( line = READLINE( m_reader ) ) != nullptr )
     {
@@ -1825,18 +1856,24 @@ void PCB_IO_KICAD_LEGACY::load3D( FOOTPRINT* aFootprint )
         }
         else if( TESTLINE( "Sc" ) )     // Scale
         {
-            sscanf( line + SZ( "Sc" ), "%lf %lf %lf\n", &t3D.m_Scale.x, &t3D.m_Scale.y,
-                    &t3D.m_Scale.z );
+            if (!parseThreeDoubles(line + SZ("Sc"), t3D.m_Scale.x, t3D.m_Scale.y, t3D.m_Scale.z))
+            {
+                THROW_IO_ERROR( wxT( "Invalid scale values in 3D model" ) );
+            }
         }
         else if( TESTLINE( "Of" ) )     // Offset
         {
-            sscanf( line + SZ( "Of" ), "%lf %lf %lf\n", &t3D.m_Offset.x, &t3D.m_Offset.y,
-                    &t3D.m_Offset.z );
+            if (!parseThreeDoubles(line + SZ("Of"), t3D.m_Offset.x, t3D.m_Offset.y, t3D.m_Offset.z))
+            {
+                THROW_IO_ERROR( wxT( "Invalid offset values in 3D model" ) );
+            }
         }
         else if( TESTLINE( "Ro" ) )     // Rotation
         {
-            sscanf( line + SZ( "Ro" ), "%lf %lf %lf\n", &t3D.m_Rotation.x, &t3D.m_Rotation.y,
-                    &t3D.m_Rotation.z );
+            if (!parseThreeDoubles(line + SZ("Ro"), t3D.m_Rotation.x, t3D.m_Rotation.y, t3D.m_Rotation.z))
+            {
+                THROW_IO_ERROR( wxT( "Invalid rotation values in 3D model" ) );
+            }
         }
         else if( TESTLINE( "$EndSHAPE3D" ) )
         {
@@ -1917,9 +1954,11 @@ void PCB_IO_KICAD_LEGACY::loadPCB_LINE()
 
                     dseg->SetLayer( leg_layer2new( m_cu_count,  layer ) );
                     break;
+
                 case 1:
                     ignore_unused( intParse( data ) );
                     break;
+
                 case 2:
                 {
                     EDA_ANGLE angle = degParse( data );
@@ -1929,15 +1968,16 @@ void PCB_IO_KICAD_LEGACY::loadPCB_LINE()
 
                     break;
                 }
+
                 case 3:
                     const_cast<KIID&>( dseg->m_Uuid ) = KIID( data );
                     break;
+
                 case 4:
-                {
                     // Ignore state data
                     hexParse( data );
                     break;
-                }
+
                 // Bezier Control Points
                 case 5:
                     x = biuParse( data );
@@ -2166,7 +2206,9 @@ void PCB_IO_KICAD_LEGACY::loadTrackList( int aStructType )
 
         assert( TESTLINE( "Po" ) );
 
-        VIATYPE viatype = static_cast<VIATYPE>( intParse( line + SZ( "Po" ), &data ) );
+        // legacy via type is 3 (through via) 2 (BLIND/BURIED) or 1 (MICROVIA)
+        int legacy_viatype = intParse( line + SZ( "Po" ), &data );
+
         BIU start_x = biuParse( data, &data );
         BIU start_y = biuParse( data, &data );
         BIU end_x   = biuParse( data, &data );
@@ -2226,33 +2268,40 @@ void PCB_IO_KICAD_LEGACY::loadTrackList( int aStructType )
             continue;
         }
 
-        PCB_TRACK* newTrack;
+        PCB_TRACK* newTrack = nullptr;
+        PCB_VIA* newVia = nullptr;
 
         switch( makeType )
         {
         default:
         case PCB_TRACE_T: newTrack = new PCB_TRACK( m_board ); break;
-        case PCB_VIA_T:   newTrack = new PCB_VIA( m_board );   break;
+        case PCB_VIA_T:   newVia = new PCB_VIA( m_board );     break;
         }
-
-        const_cast<KIID&>( newTrack->m_Uuid ) = KIID( uuid );
-        newTrack->SetPosition( VECTOR2I( start_x, start_y ) );
-        newTrack->SetEnd( VECTOR2I( end_x, end_y ) );
 
         if( makeType == PCB_VIA_T )     // Ensure layers are OK when possible:
         {
-            PCB_VIA *via = static_cast<PCB_VIA*>( newTrack );
-            via->SetViaType( viatype );
-            via->SetWidth( PADSTACK::ALL_LAYERS, width );
+            VIATYPE viatype = VIATYPE::THROUGH;
+
+            if( legacy_viatype == 1 )
+                viatype = VIATYPE::MICROVIA;
+            else if( legacy_viatype == 2 )
+                viatype = VIATYPE::BLIND;
+
+            newVia->SetViaType( viatype );
+            newVia->SetWidth( PADSTACK::ALL_LAYERS, width );
+
+            const_cast<KIID&>( newVia->m_Uuid ) = KIID( uuid );
+            newVia->SetPosition( VECTOR2I( start_x, start_y ) );
+            newVia->SetEnd( VECTOR2I( end_x, end_y ) );
 
             if( drill < 0 )
-                via->SetDrillDefault();
+                newVia->SetDrillDefault();
             else
-                via->SetDrill( drill );
+                newVia->SetDrill( drill );
 
-            if( via->GetViaType() == VIATYPE::THROUGH )
+            if( newVia->GetViaType() == VIATYPE::THROUGH )
             {
-                via->SetLayerPair( F_Cu, B_Cu );
+                newVia->SetLayerPair( F_Cu, B_Cu );
             }
             else
             {
@@ -2262,18 +2311,22 @@ void PCB_IO_KICAD_LEGACY::loadTrackList( int aStructType )
                 if( is_leg_copperlayer_valid( m_cu_count, back ) &&
                     is_leg_copperlayer_valid( m_cu_count, front ) )
                 {
-                    via->SetLayerPair( front, back );
+                    newVia->SetLayerPair( front, back );
                 }
                 else
                 {
-                    delete via;
-                    newTrack = nullptr;
+                    delete newVia;
+                    newVia = nullptr;
                 }
             }
         }
         else
         {
             newTrack->SetWidth( width );
+
+            const_cast<KIID&>( newTrack->m_Uuid ) = KIID( uuid );
+            newTrack->SetPosition( VECTOR2I( start_x, start_y ) );
+            newTrack->SetEnd( VECTOR2I( end_x, end_y ) );
 
             // A few legacy boards can have tracks on non existent layers, because
             // reducing the number of layers does not remove tracks on removed layers
@@ -2292,8 +2345,13 @@ void PCB_IO_KICAD_LEGACY::loadTrackList( int aStructType )
         if( newTrack )
         {
             newTrack->SetNetCode( getNetCode( net_code ) );
-
             m_board->Add( newTrack );
+        }
+
+        if( newVia )
+        {
+            newVia->SetNetCode( getNetCode( net_code ) );
+            m_board->Add( newVia );
         }
     }
 
@@ -2454,7 +2512,7 @@ void PCB_IO_KICAD_LEGACY::loadZONE_CONTAINER()
 
             if( !hopt )
             {
-                m_error.Printf( _( "Bad ZAux for CZONE_CONTAINER \"%s\"" ),
+                m_error.Printf( _( "Bad ZAux for CZONE_CONTAINER '%s'" ),
                                 zc->GetNetname().GetData() );
                 THROW_IO_ERROR( m_error );
             }
@@ -2465,7 +2523,7 @@ void PCB_IO_KICAD_LEGACY::loadZONE_CONTAINER()
             case 'E': outline_hatch = ZONE_BORDER_DISPLAY_STYLE::DIAGONAL_EDGE; break;
             case 'F': outline_hatch = ZONE_BORDER_DISPLAY_STYLE::DIAGONAL_FULL; break;
             default:
-                m_error.Printf( _( "Bad ZAux for CZONE_CONTAINER \"%s\"" ),
+                m_error.Printf( _( "Bad ZAux for CZONE_CONTAINER '%s'" ),
                                 zc->GetNetname().GetData() );
                 THROW_IO_ERROR( m_error );
             }
@@ -2480,7 +2538,7 @@ void PCB_IO_KICAD_LEGACY::loadZONE_CONTAINER()
 
             if( smoothing >= ZONE_SETTINGS::SMOOTHING_LAST || smoothing < 0 )
             {
-                m_error.Printf( _( "Bad ZSmoothing for CZONE_CONTAINER \"%s\"" ),
+                m_error.Printf( _( "Bad ZSmoothing for CZONE_CONTAINER '%s'" ),
                                 zc->GetNetname().GetData() );
                 THROW_IO_ERROR( m_error );
             }
@@ -2513,7 +2571,7 @@ void PCB_IO_KICAD_LEGACY::loadZONE_CONTAINER()
                 else if( !strcmp( token, "copperpour" ) )
                 {
                     token = strtok_r( nullptr, delims, (char**) &data );
-                    zc->SetDoNotAllowCopperPour( token && *token == 'N' );
+                    zc->SetDoNotAllowZoneFills( token && *token == 'N' );
                 }
 
                 token = strtok_r( nullptr, delims, (char**) &data );
@@ -2558,7 +2616,7 @@ void PCB_IO_KICAD_LEGACY::loadZONE_CONTAINER()
             case 'H': popt = ZONE_CONNECTION::THT_THERMAL; break;
             case 'X': popt = ZONE_CONNECTION::NONE;        break;
             default:
-                m_error.Printf( _( "Bad ZClearance padoption for CZONE_CONTAINER \"%s\"" ),
+                m_error.Printf( _( "Bad ZClearance padoption for CZONE_CONTAINER '%s'" ),
                                 zc->GetNetname().GetData() );
                 THROW_IO_ERROR( m_error );
             }
@@ -2846,34 +2904,34 @@ void PCB_IO_KICAD_LEGACY::loadPCB_TARGET()
 
 BIU PCB_IO_KICAD_LEGACY::biuParse( const char* aValue, const char** nptrptr )
 {
-    char*   nptr;
+    const char* end = aValue;
+    double      fval{};
+    fast_float::from_chars_result result = fast_float::from_chars( aValue, aValue + strlen( aValue ), fval,
+                                                                   fast_float::chars_format::skip_white_space );
+    end = result.ptr;
 
-    errno = 0;
-
-    double fval = strtod( aValue, &nptr );
-
-    if( errno )
+    if( result.ec != std::errc() )
     {
         m_error.Printf( _( "Invalid floating point number in file: '%s'\nline: %d, offset: %d" ),
                         m_reader->GetSource().GetData(),
-                        m_reader->LineNumber(),
-                        aValue - m_reader->Line() + 1 );
+                        (int) m_reader->LineNumber(),
+                        (int)( aValue - m_reader->Line() + 1 ) );
 
         THROW_IO_ERROR( m_error );
     }
 
-    if( aValue == nptr )
+    if( aValue == end )
     {
         m_error.Printf( _( "Missing floating point number in file: '%s'\nline: %d, offset: %d" ),
                         m_reader->GetSource().GetData(),
-                        m_reader->LineNumber(),
-                        aValue - m_reader->Line() + 1 );
+                        (int) m_reader->LineNumber(),
+                        (int)( aValue - m_reader->Line() + 1 ) );
 
         THROW_IO_ERROR( m_error );
     }
 
     if( nptrptr )
-        *nptrptr = nptr;
+        *nptrptr = end;
 
     fval *= diskToBiu;
 
@@ -2885,34 +2943,34 @@ BIU PCB_IO_KICAD_LEGACY::biuParse( const char* aValue, const char** nptrptr )
 
 EDA_ANGLE PCB_IO_KICAD_LEGACY::degParse( const char* aValue, const char** nptrptr )
 {
-    char*   nptr;
+    const char*                   end = aValue;
+    double                        fval{};
+    fast_float::from_chars_result result = fast_float::from_chars( aValue, aValue + strlen( aValue ), fval,
+                                                                   fast_float::chars_format::skip_white_space );
+    end = result.ptr;
 
-    errno = 0;
-
-    double fval = strtod( aValue, &nptr );
-
-    if( errno )
+    if( result.ec != std::errc() )
     {
         m_error.Printf( _( "Invalid floating point number in file: '%s'\nline: %d, offset: %d" ),
                         m_reader->GetSource().GetData(),
-                        m_reader->LineNumber(),
-                        aValue - m_reader->Line() + 1 );
+                        (int) m_reader->LineNumber(),
+                        (int)( aValue - m_reader->Line() + 1 ) );
 
         THROW_IO_ERROR( m_error );
     }
 
-    if( aValue == nptr )
+    if( aValue == end )
     {
         m_error.Printf( _( "Missing floating point number in file: '%s'\nline: %d, offset: %d" ),
                         m_reader->GetSource().GetData(),
-                        m_reader->LineNumber(),
-                        aValue - m_reader->Line() + 1 );
+                        (int) m_reader->LineNumber(),
+                        (int)( aValue - m_reader->Line() + 1 ) );
 
         THROW_IO_ERROR( m_error );
     }
 
     if( nptrptr )
-        *nptrptr = nptr;
+        *nptrptr = end;
 
     return EDA_ANGLE( fval, TENTHS_OF_A_DEGREE_T );
 }
@@ -3015,7 +3073,12 @@ bool LP_CACHE::IsModified()
 
 long long LP_CACHE::GetTimestamp( const wxString& aLibPath )
 {
-    return wxFileName( aLibPath ).GetModificationTime().GetValue().GetValue();
+    wxFileName fn( aLibPath );
+
+    if( fn.IsFileReadable() && fn.GetModificationTime().IsValid() )
+        return fn.GetModificationTime().GetValue().GetValue();
+    else
+        return 0;
 }
 
 
@@ -3113,7 +3176,7 @@ void LP_CACHE::LoadModules( LINE_READER* aReader )
 
             // The footprint names in legacy libraries can contain the '/' and ':'
             // characters which will cause the LIB_ID parser to choke.
-            ReplaceIllegalFileNameChars( &footprintName );
+            ReplaceIllegalFileNameChars( footprintName );
 
             // set the footprint name first thing, so exceptions can use name.
             fp_ptr->SetFPID( LIB_ID( wxEmptyString, footprintName ) );
@@ -3206,7 +3269,6 @@ void PCB_IO_KICAD_LEGACY::cacheLib( const wxString& aLibraryPath )
 void PCB_IO_KICAD_LEGACY::FootprintEnumerate( wxArrayString& aFootprintNames, const wxString& aLibPath,
                                         bool aBestEfforts, const std::map<std::string, UTF8>* aProperties )
 {
-    LOCALE_IO toggle;     // toggles on, then off, the C locale.
     wxString  errorMsg;
 
     init( aProperties );
@@ -3232,25 +3294,21 @@ void PCB_IO_KICAD_LEGACY::FootprintEnumerate( wxArrayString& aFootprintNames, co
 
 
 FOOTPRINT* PCB_IO_KICAD_LEGACY::FootprintLoad( const wxString& aLibraryPath,
-                                         const wxString& aFootprintName, bool aKeepUUID,
-                                         const std::map<std::string, UTF8>* aProperties )
+                                               const wxString& aFootprintName, bool aKeepUUID,
+                                               const std::map<std::string, UTF8>* aProperties )
 {
-    LOCALE_IO   toggle;     // toggles on, then off, the C locale.
-
     init( aProperties );
 
     cacheLib( aLibraryPath );
 
-    const FOOTPRINT_MAP&   footprints = m_cache->m_footprints;
+    const FOOTPRINT_MAP&          footprints = m_cache->m_footprints;
     FOOTPRINT_MAP::const_iterator it = footprints.find( TO_UTF8( aFootprintName ) );
 
     if( it == footprints.end() )
-    {
         return nullptr;
-    }
 
     // Return copy of already loaded FOOTPRINT
-    FOOTPRINT* copy = (FOOTPRINT*) it->second->Duplicate();
+    FOOTPRINT* copy = (FOOTPRINT*) it->second->Duplicate( IGNORE_PARENT_GROUP );
     copy->SetParent( nullptr );
     return copy;
 }
@@ -3284,8 +3342,6 @@ bool PCB_IO_KICAD_LEGACY::DeleteLibrary( const wxString& aLibraryPath,
 
 bool PCB_IO_KICAD_LEGACY::IsLibraryWritable( const wxString& aLibraryPath )
 {
-    LOCALE_IO   toggle;
-
     init( nullptr );
 
     cacheLib( aLibraryPath );

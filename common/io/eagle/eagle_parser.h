@@ -428,6 +428,9 @@ struct EAGLE_BASE
  *   The "/<VERSION>" is omitted when referencing the asset without specifying a particular version.
  *   For example, "urn:adsk.eagle:component:60986/2" references version 2 of component 60986 and
  *   "urn:adsk.eagle:library:60968" references library 60986 without specifying a version.
+ * 
+ * Autodesk Fusion can use a different format instead, e.g.:
+ * "urn:adsk.wipprod:fs.file:vf.RSKzNVZVQPeDNm7Bnfr3WQ"
  */
 struct EURN : public EAGLE_BASE
 {
@@ -1898,7 +1901,7 @@ struct ESHEET : public EAGLE_BASE
      * <!ELEMENT sheet (description?, plain?, moduleinsts?, instances?, busses?, nets?)>
      */
 
-    opt_wxString                                     description;
+    std::optional<EDESCRIPTION>                      description;
     std::unique_ptr<EPLAIN>                          plain;
     std::map<wxString, std::unique_ptr<EMODULEINST>> moduleinsts;
     std::vector<std::unique_ptr<EINSTANCE>>          instances;
@@ -1925,8 +1928,7 @@ struct EMODULE : public EAGLE_BASE
     ECOORD       dx;
     ECOORD       dy;
 
-    std::optional<EDESCRIPTION> description;
-
+    std::optional<EDESCRIPTION>                           description;
     std::map<wxString, std::unique_ptr<EPORT>>            ports;
     std::map<wxString, std::unique_ptr<EVARIANTDEF>>      variantdefs;
     std::map<wxString, std::unique_ptr<ESCHEMATIC_GROUP>> groups;

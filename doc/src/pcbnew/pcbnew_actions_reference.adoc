@@ -978,9 +978,9 @@ of these actions in the **Hotkeys** section of the preferences.
 | 3D Grid 5mm
   |
   | 
-| Show 3D Axis
+| Show 3D Navigator
   |
-  | 
+  | Show or hide the 3D Navigator widget for quick view orientation
 | Show Model Bounding Boxes
   |
   | Show 3D model bounding boxes in realtime renderer

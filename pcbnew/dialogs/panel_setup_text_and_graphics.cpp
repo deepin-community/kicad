@@ -56,20 +56,17 @@ enum
 };
 
 
-PANEL_SETUP_TEXT_AND_GRAPHICS::PANEL_SETUP_TEXT_AND_GRAPHICS( wxWindow*       aParentWindow,
-                                                              PCB_EDIT_FRAME* aFrame ) :
+PANEL_SETUP_TEXT_AND_GRAPHICS::PANEL_SETUP_TEXT_AND_GRAPHICS( wxWindow* aParentWindow, PCB_EDIT_FRAME* aFrame,
+                                                              BOARD_DESIGN_SETTINGS* aBrdSettings) :
         PANEL_SETUP_TEXT_AND_GRAPHICS_BASE( aParentWindow ),
         m_Frame( aFrame ),
-        m_BrdSettings( &m_Frame->GetBoard()->GetDesignSettings() ),
-        m_dimensionsPanel(
-                std::make_unique<PANEL_SETUP_DIMENSIONS>( this, *aFrame, *m_BrdSettings ) )
+        m_BrdSettings( aBrdSettings )
 {
     m_grid->SetUnitsProvider( m_Frame );
     m_grid->SetAutoEvalCols( { COL_LINE_THICKNESS,
                                COL_TEXT_WIDTH,
                                COL_TEXT_HEIGHT,
                                COL_TEXT_THICKNESS } );
-    m_grid->SetDefaultRowSize( m_grid->GetDefaultRowSize() + FromDIP( 4 ) );
     m_grid->SetUseNativeColLabels();
 
     // Work around a bug in wxWidgets where it fails to recalculate the grid height
@@ -96,9 +93,6 @@ PANEL_SETUP_TEXT_AND_GRAPHICS::PANEL_SETUP_TEXT_AND_GRAPHICS( wxWindow*       aP
 
     m_grid->PushEventHandler( new GRID_TRICKS( m_grid ) );
 
-    GetSizer()->Add( m_dimensionsPanel.get(), 0, wxEXPAND, 5 );
-
-	Layout();
 	m_mainSizer->Fit( this );
 
     m_Frame->Bind( EDA_EVT_UNITS_CHANGED, &PANEL_SETUP_TEXT_AND_GRAPHICS::onUnitsChanged, this );
@@ -157,10 +151,10 @@ bool PANEL_SETUP_TEXT_AND_GRAPHICS::TransferDataToWindow()
             SET_MILS_CELL( i, COL_TEXT_WIDTH, m_BrdSettings->m_TextSize[ i ].x );
             SET_MILS_CELL( i, COL_TEXT_HEIGHT, m_BrdSettings->m_TextSize[ i ].y );
             SET_MILS_CELL( i, COL_TEXT_THICKNESS, m_BrdSettings->m_TextThickness[ i ] );
-            m_grid->SetCellValue( i, COL_TEXT_ITALIC,
-                                  m_BrdSettings->m_TextItalic[ i ] ? wxT( "1" ) : wxT( "" ) );
-            m_grid->SetCellValue( i, COL_TEXT_UPRIGHT,
-                                  m_BrdSettings->m_TextUpright[ i ] ? wxT( "1" ) : wxT( "" ) );
+            m_grid->SetCellValue( i, COL_TEXT_ITALIC, m_BrdSettings->m_TextItalic[ i ] ? wxT( "1" )
+                                                                                       : wxT( "" ) );
+            m_grid->SetCellValue( i, COL_TEXT_UPRIGHT, m_BrdSettings->m_TextUpright[ i ] ? wxT( "1" )
+                                                                                         : wxT( "" ) );
 
             auto attr = new wxGridCellAttr;
             attr->SetRenderer( new wxGridCellBoolRenderer() );
@@ -181,10 +175,6 @@ bool PANEL_SETUP_TEXT_AND_GRAPHICS::TransferDataToWindow()
         m_grid->SetColMinimalWidth( col, m_grid->GetVisibleWidth( col ) );
 
     m_grid->SetRowLabelSize( m_grid->GetVisibleWidth( -1, true, true, true ) );
-
-    Layout();
-
-    m_dimensionsPanel->TransferDataToWindow();
 
     return true;
 }
@@ -233,8 +223,7 @@ bool PANEL_SETUP_TEXT_AND_GRAPHICS::TransferDataFromWindow()
         int textHeight = m_grid->GetUnitValue( i, COL_TEXT_HEIGHT );
         int textThickness = m_grid->GetUnitValue( i, COL_TEXT_THICKNESS );
 
-        if( textWidth < minSize || textHeight < minSize
-                || textWidth > maxSize || textHeight > maxSize )
+        if( textWidth < minSize || textHeight < minSize || textWidth > maxSize || textHeight > maxSize )
         {
             if( !errorsMsg.IsEmpty() )
                 errorsMsg += wxT( "\n\n" );
@@ -255,18 +244,20 @@ bool PANEL_SETUP_TEXT_AND_GRAPHICS::TransferDataFromWindow()
             if( !errorsMsg.IsEmpty() )
                 errorsMsg += wxT( "\n\n" );
 
-
             if( textThickness > textMaxThickness )
+            {
                 errorsMsg += wxString::Format( _( "%s: Text thickness is too large.\n"
                                                   "It will be truncated to %s" ),
                                                 m_grid->GetRowLabelValue( i ),
                                                 unitProvider->StringFromValue( textMaxThickness , true) );
-
+            }
             else if( textThickness < minWidth )
+            {
                 errorsMsg += wxString::Format( _( "%s: Text thickness is too small.\n"
                                                   "It will be truncated to %s" ),
                                                 m_grid->GetRowLabelValue( i ),
                                                 unitProvider->StringFromValue( minWidth , true ) );
+            }
 
             textThickness = std::min( textThickness, textMaxThickness );
             textThickness = std::max( textThickness, minWidth );
@@ -285,28 +276,17 @@ bool PANEL_SETUP_TEXT_AND_GRAPHICS::TransferDataFromWindow()
                 wxGridCellBoolEditor::IsTrueValue( m_grid->GetCellValue( i, COL_TEXT_UPRIGHT ) );
     }
 
-    m_dimensionsPanel->TransferDataFromWindow();
-
     if( errorsMsg.IsEmpty() )
         return true;
 
-    KIDIALOG dlg( wxGetTopLevelParent( this ), errorsMsg, KIDIALOG::KD_ERROR,
-                  _( "Parameter error" ) );
+    KIDIALOG dlg( wxGetTopLevelParent( m_grid ), errorsMsg, KIDIALOG::KD_ERROR, _( "Parameter error" ) );
     dlg.ShowModal();
 
     return false;
 }
 
 
-void PANEL_SETUP_TEXT_AND_GRAPHICS::ImportSettingsFrom( BOARD* aBoard )
+bool PANEL_SETUP_TEXT_AND_GRAPHICS::CommitPendingChanges()
 {
-    if( !m_grid->CommitPendingChanges() )
-        return;
-
-    BOARD_DESIGN_SETTINGS* savedSettings = m_BrdSettings;
-
-    m_BrdSettings = &aBoard->GetDesignSettings();
-    TransferDataToWindow();
-
-    m_BrdSettings = savedSettings;
+    return m_grid->CommitPendingChanges();
 }

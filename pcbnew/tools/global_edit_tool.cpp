@@ -24,6 +24,7 @@
 #include <zone_manager/dialog_zone_manager.h>
 #include <footprint.h>
 #include <pcb_track.h>
+#include <pcb_generator.h>
 #include <tool/tool_manager.h>
 #include <tools/pcb_actions.h>
 #include <tools/edit_tool.h>
@@ -35,7 +36,6 @@
 #include <tools/global_edit_tool.h>
 #include <dialogs/dialog_cleanup_graphics.h>
 #include <board_design_settings.h>
-#include <zone_manager/zone_manager_preference.h>
 
 
 GLOBAL_EDIT_TOOL::GLOBAL_EDIT_TOOL() :
@@ -107,13 +107,12 @@ int GLOBAL_EDIT_TOOL::ExchangeFootprints( const TOOL_EVENT& aEvent )
 }
 
 
-bool GLOBAL_EDIT_TOOL::swapBoardItem( BOARD_ITEM* aItem,
-                                      std::map<PCB_LAYER_ID, PCB_LAYER_ID>& aLayerMap )
+bool GLOBAL_EDIT_TOOL::swapBoardItem( BOARD_ITEM* aItem, std::map<PCB_LAYER_ID, PCB_LAYER_ID>& aLayerMap )
 {
     LSET originalLayers = aItem->GetLayerSet();
     LSET newLayers;
 
-    for( PCB_LAYER_ID original : originalLayers.Seq() )
+    for( PCB_LAYER_ID original : originalLayers )
     {
         if( aLayerMap.count( original ) )
             newLayers.set( aLayerMap[ original ] );
@@ -121,7 +120,7 @@ bool GLOBAL_EDIT_TOOL::swapBoardItem( BOARD_ITEM* aItem,
             newLayers.set( original );
     }
 
-    if( originalLayers.Seq() != newLayers.Seq() )
+    if( originalLayers != newLayers )
     {
         m_commit->Modify( aItem );
         aItem->SetLayerSet( newLayers );
@@ -170,6 +169,9 @@ int GLOBAL_EDIT_TOOL::SwapLayers( const TOOL_EVENT& aEvent )
             hasChanges |= swapBoardItem( segm, layerMap );
         }
     }
+
+    for( PCB_GENERATOR* generator : frame()->GetBoard()->Generators() )
+        hasChanges |= swapBoardItem( generator, layerMap );
 
     for( BOARD_ITEM* zone : frame()->GetBoard()->Zones() )
         hasChanges |= swapBoardItem( zone, layerMap );
@@ -242,12 +244,11 @@ int GLOBAL_EDIT_TOOL::ZonesManager( const TOOL_EVENT& aEvent )
     for( ZONE* zone : board->Zones() )
         commit.Modify( zone );
 
-    ZONE_SETTINGS       zoneInfo = board->GetDesignSettings().GetDefaultZoneSettings();
-    DIALOG_ZONE_MANAGER dlg( editFrame, &zoneInfo );
+    DIALOG_ZONE_MANAGER dlg( editFrame );
 
     int dialogResult = dlg.ShowQuasiModal();
 
-    if( dialogResult == wxID_OK && ZONE_MANAGER_PREFERENCE::GetRepourOnClose() )
+    if( dialogResult == wxID_OK && dlg.GetRepourOnClose() )
         dialogResult = ZONE_MANAGER_REPOUR;
 
     if( dialogResult == wxID_CANCEL )
@@ -260,31 +261,27 @@ int GLOBAL_EDIT_TOOL::ZonesManager( const TOOL_EVENT& aEvent )
 
     wxBusyCursor dummy;
 
-    // Undraw old zone outlines
+    // OnModify must be called first to clear the zone bounding box cache before
+    // we update the VIEW. Otherwise View->Update() will query stale cached values
+    // and the VIEW's R-Tree will be indexed with incorrect bounding boxes, causing
+    // single-click zone selection to fail.
+    editFrame->OnModify();
+
     for( ZONE* zone : board->Zones() )
         editFrame->GetCanvas()->GetView()->Update( zone );
-
-
-    board->GetDesignSettings().SetDefaultZoneSettings( zoneInfo );
-    commit.Push( _( "Modify zones properties with zone manager" ), SKIP_CONNECTIVITY );
-    editFrame->OnModify();
 
     //rebuildConnectivity
     board->BuildConnectivity();
 
-    if( TOOL_MANAGER* manger = GetManager() )
-    {
-        manger->PostEvent( EVENTS::ConnectivityChangedEvent );
-    }
+    if( TOOL_MANAGER* manager = GetManager() )
+        manager->PostEvent( EVENTS::ConnectivityChangedEvent );
 
     editFrame->GetCanvas()->RedrawRatsnest();
 
     if( dialogResult == ZONE_MANAGER_REPOUR )
     {
-        if( TOOL_MANAGER* manger = GetManager() )
-        {
-            manger->PostAction( PCB_ACTIONS::zoneFillAll );
-        }
+        if( TOOL_MANAGER* manager = GetManager() )
+            manager->PostAction( PCB_ACTIONS::zoneFillAll );
     }
 
     return 0;

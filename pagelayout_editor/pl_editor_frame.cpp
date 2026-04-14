@@ -49,6 +49,7 @@
 #include "pl_editor_id.h"
 #include "pl_editor_settings.h"
 #include "properties_frame.h"
+#include <toolbars_pl_editor.h>
 #include "tools/pl_actions.h"
 #include "tools/pl_selection_tool.h"
 #include "tools/pl_drawing_tools.h"
@@ -57,15 +58,19 @@
 #include "invoke_pl_editor_dialog.h"
 #include "tools/pl_editor_control.h"
 #include <view/view_controls.h>
-#include <zoom_defines.h>
 
 #include <wx/filedlg.h>
 #include <wx/print.h>
 #include <wx/treebook.h>
 #include <wx/msgdlg.h>
 #include <wx/log.h>
+#include <kiplatform/ui.h>
 
+#if defined(__linux__) || defined(__FreeBSD__)
+#include <spacenav/spnav_2d_plugin.h>
+#else
 #include <navlib/nl_pl_editor_plugin.h>
+#endif
 
 
 BEGIN_EVENT_TABLE( PL_EDITOR_FRAME, EDA_DRAW_FRAME )
@@ -134,9 +139,10 @@ PL_EDITOR_FRAME::PL_EDITOR_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     setupTools();
     setupUIConditions();
     ReCreateMenuBar();
-    ReCreateHToolbar();
-    ReCreateVToolbar();
-    ReCreateOptToolbar();
+
+    m_toolbarSettings = GetToolbarSettings<PL_EDITOR_TOOLBAR_SETTINGS>( "pl_editor-toolbars" );
+    configureToolbars();
+    RecreateToolbars();
 
     wxWindow* stsbar = GetStatusBar();
     int       spacer = KIUI::GetTextSize( wxT( "M" ), stsbar ).x * 2;
@@ -179,15 +185,15 @@ PL_EDITOR_FRAME::PL_EDITOR_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_propertiesPagelayout = new PROPERTIES_FRAME( this );
 
     // Rows; layers 4 - 6
-    m_auimgr.AddPane( m_mainToolBar, EDA_PANE().HToolbar().Name( "MainToolbar" )
+    m_auimgr.AddPane( m_tbTopMain, EDA_PANE().HToolbar().Name( "TopMainToolbar" )
                       .Top().Layer( 6 ) );
-    m_auimgr.AddPane( m_optionsToolBar, EDA_PANE().VToolbar().Name( "OptToolbar" )
+    m_auimgr.AddPane( m_tbLeft, EDA_PANE().VToolbar().Name( "LeftToolbar" )
                       .Left().Layer( 3 ) );
     m_auimgr.AddPane( m_messagePanel, EDA_PANE().Messages().Name( "MsgPanel" )
                       .Bottom().Layer( 6 ) );
 
     // Columns; layers 1 - 3
-    m_auimgr.AddPane( m_drawToolBar, EDA_PANE().VToolbar().Name( "ToolsToolbar" )
+    m_auimgr.AddPane( m_tbRight, EDA_PANE().VToolbar().Name( "RightToolbar" )
                       .Right().Layer( 2 ) );
 
     m_auimgr.AddPane( m_propertiesPagelayout, EDA_PANE().Palette().Name( "Props" )
@@ -234,7 +240,15 @@ PL_EDITOR_FRAME::PL_EDITOR_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     try
     {
         if( !m_spaceMouse )
+        {
+#if defined(__linux__) || defined(__FreeBSD__)
+            m_spaceMouse = std::make_unique<SPNAV_2D_PLUGIN>( GetCanvas() );
+            m_spaceMouse->SetScale( drawSheetIUScale.IU_PER_MILS / pcbIUScale.IU_PER_MILS );
+#else
             m_spaceMouse = std::make_unique<NL_PL_EDITOR_PLUGIN>();
+#endif
+        }
+
         m_spaceMouse->SetCanvas( GetCanvas() );
     }
     catch( const std::system_error& e )
@@ -279,7 +293,7 @@ void PL_EDITOR_FRAME::setupTools()
     m_toolManager->InitTools();
 
     // Run the selection tool, it is supposed to be always active
-    m_toolManager->InvokeTool( "plEditor.InteractiveSelection" );
+    m_toolManager->InvokeTool( "common.InteractiveSelection" );
 }
 
 
@@ -300,10 +314,6 @@ void PL_EDITOR_FRAME::setupUIConditions()
     mgr->SetConditions( ACTIONS::redo,              ENABLE( cond.RedoAvailable() ) );
 
     mgr->SetConditions( ACTIONS::toggleGrid,        CHECK( cond.GridVisible() ) );
-    mgr->SetConditions( ACTIONS::toggleCursorStyle, CHECK( cond.FullscreenCursor() ) );
-    mgr->SetConditions( ACTIONS::millimetersUnits,  CHECK( cond.Units( EDA_UNITS::MM ) ) );
-    mgr->SetConditions( ACTIONS::inchesUnits,       CHECK( cond.Units( EDA_UNITS::INCH ) ) );
-    mgr->SetConditions( ACTIONS::milsUnits,         CHECK( cond.Units( EDA_UNITS::MILS ) ) );
 
     mgr->SetConditions( ACTIONS::cut,               ENABLE( SELECTION_CONDITIONS::NotEmpty ) );
     mgr->SetConditions( ACTIONS::copy,              ENABLE( SELECTION_CONDITIONS::NotEmpty ) );
@@ -516,25 +526,6 @@ void PL_EDITOR_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
 {
     EDA_DRAW_FRAME::LoadSettings( aCfg );
 
-    if( aCfg->m_Window.grid.grids.empty() )
-    {
-        aCfg->m_Window.grid.grids = { GRID{ wxEmptyString, wxS( "5.00 mm" ), wxS( "5.00 mm" ) },
-                                      GRID{ wxEmptyString, wxS( "2.50 mm" ), wxS( "2.50 mm" ) },
-                                      GRID{ wxEmptyString, wxS( "2.00 mm" ), wxS( "2.00 mm" ) },
-                                      GRID{ wxEmptyString, wxS( "1.00 mm" ), wxS( "1.00 mm" ) },
-                                      GRID{ wxEmptyString, wxS( "0.50 mm" ), wxS( "0.50 mm" ) },
-                                      GRID{ wxEmptyString, wxS( "0.25 mm" ), wxS( "0.25 mm" ) },
-                                      GRID{ wxEmptyString, wxS( "0.20 mm" ), wxS( "0.20 mm" ) },
-                                      GRID{ wxEmptyString, wxS( "0.10 mm" ), wxS( "0.10 mm" ) } };
-    }
-
-    // Currently values read from config file are not used because the user cannot
-    // change this config
-    // if( aCfg->m_Window.zoom_factors.empty() )
-    {
-        aCfg->m_Window.zoom_factors = { ZOOM_LIST_PL_EDITOR };
-    }
-
     PL_EDITOR_SETTINGS* cfg = dynamic_cast<PL_EDITOR_SETTINGS*>( aCfg );
     wxCHECK( cfg, /*void*/ );
 
@@ -563,7 +554,7 @@ void PL_EDITOR_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
     cfg->m_PropertiesFrameWidth = m_propertiesFrameWidth;
     cfg->m_CornerOrigin         = m_originSelectChoice;
     cfg->m_BlackBackground      = GetDrawBgColor() == BLACK;
-    cfg->m_LastPaperSize        = GetPageSettings().GetType();
+    cfg->m_LastPaperSize        = GetPageSettings().GetTypeAsString();
     cfg->m_LastWasPortrait      = GetPageSettings().IsPortrait();
     cfg->m_LastCustomWidth      = PAGE_INFO::GetCustomWidthMils();
     cfg->m_LastCustomHeight     = PAGE_INFO::GetCustomHeightMils();
@@ -641,9 +632,8 @@ void PL_EDITOR_FRAME::CommonSettingsChanged( int aFlags )
 {
     EDA_DRAW_FRAME::CommonSettingsChanged( aFlags );
 
-    SETTINGS_MANAGER&   mgr = Pgm().GetSettingsManager();
-    PL_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<PL_EDITOR_SETTINGS>( "pl_editor" );
-    COLOR_SETTINGS*     colors = mgr.GetColorSettings( cfg->m_ColorTheme );
+    PL_EDITOR_SETTINGS* cfg = GetAppSettings<PL_EDITOR_SETTINGS>( "pl_editor" );
+    COLOR_SETTINGS*     colors = ::GetColorSettings( cfg ? cfg->m_ColorTheme : DEFAULT_THEME );
 
     // Update gal display options like cursor shape, grid options:
     GetGalDisplayOptions().ReadWindowSettings( cfg->m_Window );
@@ -758,10 +748,8 @@ void PL_EDITOR_FRAME::UpdateStatusBar()
     // Display absolute coordinates:
     VECTOR2D cursorPos = GetCanvas()->GetViewControls()->GetCursorPosition();
     VECTOR2D coord = cursorPos - originCoord;
-    double   dXpos =
-            EDA_UNIT_UTILS::UI::ToUserUnit( drawSheetIUScale, GetUserUnits(), coord.x * Xsign );
-    double dYpos =
-            EDA_UNIT_UTILS::UI::ToUserUnit( drawSheetIUScale, GetUserUnits(), coord.y * Ysign );
+    double   dXpos = EDA_UNIT_UTILS::UI::ToUserUnit( drawSheetIUScale, GetUserUnits(), coord.x * Xsign );
+    double   dYpos = EDA_UNIT_UTILS::UI::ToUserUnit( drawSheetIUScale, GetUserUnits(), coord.y * Ysign );
 
     wxString absformatter = wxT( "X %.4g  Y %.4g" );
     wxString locformatter = wxT( "dx %.4g  dy %.4g" );
@@ -798,29 +786,6 @@ void PL_EDITOR_FRAME::UpdateStatusBar()
     line.Printf( _("coord origin: %s"),
                  m_originSelectBox->GetString( m_originSelectChoice ).GetData() );
     SetStatusText( line, 5 );
-}
-
-
-void PL_EDITOR_FRAME::PrintPage( const RENDER_SETTINGS* aSettings )
-{
-    GetScreen()->SetVirtualPageNumber( GetPageNumberOption() ? 1 : 2 );
-    DS_DATA_MODEL& model = DS_DATA_MODEL::GetTheInstance();
-
-    for( DS_DATA_ITEM* dataItem : model.GetItems() )
-    {
-        // Ensure the scaling factor (used only in printing) of bitmaps is up to date
-        if( dataItem->GetType() == DS_DATA_ITEM::DS_BITMAP )
-        {
-            BITMAP_BASE* bitmap = static_cast<DS_DATA_ITEM_BITMAP*>( dataItem )->m_ImageBitmap;
-            bitmap->SetPixelSizeIu( drawSheetIUScale.IU_PER_MILS * 1000 / bitmap->GetPPI() );
-        }
-    }
-
-    PrintDrawingSheet( aSettings, GetScreen(), nullptr, drawSheetIUScale.IU_PER_MILS,
-                       wxEmptyString );
-
-    GetCanvas()->DisplayDrawingSheet();
-    GetCanvas()->Refresh();
 }
 
 
@@ -879,8 +844,9 @@ DS_DATA_ITEM* PL_EDITOR_FRAME::AddDrawingSheetItem( int aType )
     case DS_DATA_ITEM::DS_BITMAP:
     {
         wxFileDialog fileDlg( this, _( "Choose Image" ), m_mruImagePath, wxEmptyString,
-                              _( "Image Files" ) + wxS( " " ) + wxImage::GetImageExtWildcard(),
-                              wxFD_OPEN );
+                              FILEEXT::ImageFileWildcard(), wxFD_OPEN );
+
+        KIPLATFORM::UI::AllowNetworkFileSystems( &fileDlg );
 
         if( fileDlg.ShowModal() != wxID_OK )
             return nullptr;
@@ -906,8 +872,8 @@ DS_DATA_ITEM* PL_EDITOR_FRAME::AddDrawingSheetItem( int aType )
         // Set the scale factor for pl_editor (it is set for Eeschema by default)
         image->SetPixelSizeIu( drawSheetIUScale.IU_PER_MILS * 1000.0 / image->GetPPI() );
         item = new DS_DATA_ITEM_BITMAP( image );
+        break;
     }
-    break;
     }
 
     if( item == nullptr )

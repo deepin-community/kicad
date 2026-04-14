@@ -36,7 +36,34 @@
 #include <kiid.h>
 #include <mmh3_hash.h>
 #include <paths.h>
+#include <picosha2.h>
+#include <wildcards_and_files_ext.h>
 
+
+bool EMBEDDED_FILES::EMBEDDED_FILE::Validate()
+{
+    MMH3_HASH hash( EMBEDDED_FILES::Seed() );
+    hash.add( decompressedData );
+
+    is_valid = ( hash.digest().ToString() == data_hash );
+    return is_valid;
+}
+
+
+bool EMBEDDED_FILES::EMBEDDED_FILE::Validate_SHA256()
+{
+    std::string new_sha;
+    picosha2::hash256_hex_string( decompressedData, new_sha );
+
+    is_valid = ( new_sha == data_hash );
+    return is_valid;
+}
+
+
+wxString EMBEDDED_FILES::EMBEDDED_FILE::GetLink() const
+{
+    return wxString::Format( "%s://%s", FILEEXT::KiCadUriPrefix, name );
+}
 
 
 EMBEDDED_FILES::EMBEDDED_FILE* EMBEDDED_FILES::AddFile( const wxFileName& aName, bool aOverwrite )
@@ -165,7 +192,6 @@ void EMBEDDED_FILES::WriteEmbeddedFiles( OUTPUTFORMATTER& aOut, bool aWriteData 
         // Skip empty files
         if( file.compressedEncodedData.empty() )
         {
-            wxLogDebug( wxT( "Error: Embedded file '%s' is empty" ), file.name );
             continue;
         }
 
@@ -325,9 +351,45 @@ EMBEDDED_FILES::RETURN_CODE EMBEDDED_FILES::DecompressAndDecode( EMBEDDED_FILE& 
 }
 
 
+EMBEDDED_FILES::RETURN_CODE EMBEDDED_FILES::ComputeFileHash( const wxFileName& aFileName,
+                                                             std::string& aHash )
+{
+    wxFFileInputStream file( aFileName.GetFullPath() );
+
+    if( !file.IsOk() )
+        return RETURN_CODE::FILE_NOT_FOUND;
+
+    wxFileOffset length = file.GetLength();
+    std::vector<char> data( length );
+
+    if( !data.data() )
+        return RETURN_CODE::OUT_OF_MEMORY;
+
+    char* dataPtr = data.data();
+    wxFileOffset totalRead = 0;
+
+    while( !file.Eof() && totalRead < length )
+    {
+        file.Read( dataPtr, length - totalRead );
+        size_t bytesRead = file.LastRead();
+        dataPtr += bytesRead;
+        totalRead += bytesRead;
+    }
+
+    MMH3_HASH hash( EMBEDDED_FILES::Seed() );
+    hash.add( data );
+    aHash = hash.digest().ToString();
+
+    return RETURN_CODE::OK;
+}
+
+
 // Parsing method
 void EMBEDDED_FILES_PARSER::ParseEmbedded( EMBEDDED_FILES* aFiles )
 {
+    // embedded files are version 20240706 and uses also Bars as separator
+    SetKnowsBar( true );
+
     if( !aFiles )
         THROW_PARSE_ERROR( "No embedded files object provided", CurSource(), CurLine(),
                            CurLineNumber(), CurOffset() );
@@ -371,8 +433,10 @@ void EMBEDDED_FILES_PARSER::ParseEmbedded( EMBEDDED_FILES* aFiles )
 
             switch( token )
             {
-
             case T_checksum:
+                if( !file )
+                    Expecting( T_name );
+
                 NeedSYMBOLorNUMBER();
 
                 if( !IsSymbol( token ) )
@@ -383,6 +447,9 @@ void EMBEDDED_FILES_PARSER::ParseEmbedded( EMBEDDED_FILES* aFiles )
                 break;
 
             case T_data:
+                if( !file )
+                    Expecting( T_name);
+
                 try
                 {
                     NeedBAR();
@@ -419,7 +486,6 @@ void EMBEDDED_FILES_PARSER::ParseEmbedded( EMBEDDED_FILES* aFiles )
                 break;
 
             case T_name:
-
                 if( file )
                 {
                     wxLogTrace( wxT( "KICAD_EMBED" ),
@@ -435,30 +501,21 @@ void EMBEDDED_FILES_PARSER::ParseEmbedded( EMBEDDED_FILES* aFiles )
                 break;
 
             case T_type:
+                if( !file )
+                    Expecting( T_name );
 
                 token = NextTok();
 
                 switch( token )
                 {
-                case T_datasheet:
-                    file->type = EMBEDDED_FILES::EMBEDDED_FILE::FILE_TYPE::DATASHEET;
-                    break;
-                case T_font:
-                    file->type = EMBEDDED_FILES::EMBEDDED_FILE::FILE_TYPE::FONT;
-                    break;
-                case T_model:
-                    file->type = EMBEDDED_FILES::EMBEDDED_FILE::FILE_TYPE::MODEL;
-                    break;
-                case T_worksheet:
-                    file->type = EMBEDDED_FILES::EMBEDDED_FILE::FILE_TYPE::WORKSHEET;
-                    break;
-                case T_other:
-                    file->type = EMBEDDED_FILES::EMBEDDED_FILE::FILE_TYPE::OTHER;
-                    break;
-                default:
-                    Expecting( "datasheet, font, model, worksheet or other" );
-                    break;
+                case T_datasheet: file->type = EMBEDDED_FILES::EMBEDDED_FILE::FILE_TYPE::DATASHEET; break;
+                case T_font:      file->type = EMBEDDED_FILES::EMBEDDED_FILE::FILE_TYPE::FONT;      break;
+                case T_model:     file->type = EMBEDDED_FILES::EMBEDDED_FILE::FILE_TYPE::MODEL;     break;
+                case T_worksheet: file->type = EMBEDDED_FILES::EMBEDDED_FILE::FILE_TYPE::WORKSHEET; break;
+                case T_other:     file->type = EMBEDDED_FILES::EMBEDDED_FILE::FILE_TYPE::OTHER;     break;
+                default:          Expecting( "datasheet, font, model, worksheet or other" );        break;
                 }
+
                 NeedRIGHT();
                 break;
 
@@ -547,6 +604,7 @@ const std::vector<wxString>* EMBEDDED_FILES::UpdateFontFiles()
     return &m_fontFiles;
 }
 
+
 // Move constructor
 EMBEDDED_FILES::EMBEDDED_FILES( EMBEDDED_FILES&& other ) noexcept :
         m_files( std::move( other.m_files ) ),
@@ -556,6 +614,7 @@ EMBEDDED_FILES::EMBEDDED_FILES( EMBEDDED_FILES&& other ) noexcept :
 {
     other.m_embedFonts = false;
 }
+
 
 // Move assignment operator
 EMBEDDED_FILES& EMBEDDED_FILES::operator=(EMBEDDED_FILES&& other) noexcept
@@ -569,19 +628,37 @@ EMBEDDED_FILES& EMBEDDED_FILES::operator=(EMBEDDED_FILES&& other) noexcept
         m_embedFonts = other.m_embedFonts;
         other.m_embedFonts = false;
     }
+
     return *this;
 }
 
+
 // Copy constructor
-EMBEDDED_FILES::EMBEDDED_FILES( const EMBEDDED_FILES& other ) : m_embedFonts( other.m_embedFonts )
+EMBEDDED_FILES::EMBEDDED_FILES( const EMBEDDED_FILES& other ) :
+        m_embedFonts( other.m_embedFonts )
 {
     for( const auto& [name, file] : other.m_files )
-    {
         m_files[name] = new EMBEDDED_FILE( *file );
-    }
+
     m_fontFiles = other.m_fontFiles;
     m_fileAddedCallback = other.m_fileAddedCallback;
 }
+
+
+EMBEDDED_FILES::EMBEDDED_FILES( const EMBEDDED_FILES& other, bool aDeepCopy ) :
+        m_embedFonts( other.m_embedFonts )
+{
+    if( aDeepCopy )
+    {
+        for( const auto& [name, file] : other.m_files )
+            m_files[name] = new EMBEDDED_FILE( *file );
+
+        m_fontFiles = other.m_fontFiles;
+    }
+
+    m_fileAddedCallback = other.m_fileAddedCallback;
+}
+
 
 // Copy assignment operator
 EMBEDDED_FILES& EMBEDDED_FILES::operator=( const EMBEDDED_FILES& other )
@@ -589,13 +666,14 @@ EMBEDDED_FILES& EMBEDDED_FILES::operator=( const EMBEDDED_FILES& other )
     if( this != &other )
     {
         ClearEmbeddedFiles();
+
         for( const auto& [name, file] : other.m_files )
-        {
             m_files[name] = new EMBEDDED_FILE( *file );
-        }
+
         m_fontFiles = other.m_fontFiles;
         m_fileAddedCallback = other.m_fileAddedCallback;
         m_embedFonts = other.m_embedFonts;
     }
+
     return *this;
 }

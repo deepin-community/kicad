@@ -40,62 +40,66 @@
 
 KI_TEST::SCHEMATIC_TEST_FIXTURE::SCHEMATIC_TEST_FIXTURE() :
         m_schematic( nullptr ),
-        m_pi( SCH_IO_MGR::FindPlugin( SCH_IO_MGR::SCH_KICAD ) ),
-        m_manager( true )
+        m_pi( SCH_IO_MGR::FindPlugin( SCH_IO_MGR::SCH_KICAD ) )
 {
 }
 
 
 KI_TEST::SCHEMATIC_TEST_FIXTURE::~SCHEMATIC_TEST_FIXTURE()
 {
-    m_schematic.Reset();
-    m_pi.reset();
 }
 
 
-void KI_TEST::SCHEMATIC_TEST_FIXTURE::LoadSchematic( const wxString& aBaseName )
+void KI_TEST::SCHEMATIC_TEST_FIXTURE::LoadSchematic( const wxFileName& aFn )
 {
-    wxFileName fn = GetSchematicPath( aBaseName );
+    wxFileName fn( aFn );
 
-    BOOST_TEST_MESSAGE( fn.GetFullPath() );
+    BOOST_TEST_CHECKPOINT( "Loading schematic " << fn.GetFullPath() );
 
     wxFileName pro( fn );
     pro.SetExt( FILEEXT::ProjectFileExtension );
 
     // Schematic must be reset before a project is reloaded
-    m_schematic.Reset();
+    m_schematic.release();
+
     m_manager.LoadProject( pro.GetFullPath() );
 
-    m_manager.Prj().SetElem( PROJECT::ELEM::SCH_SYMBOL_LIBS, nullptr );
+    m_manager.Prj().SetElem( PROJECT::ELEM::LEGACY_SYMBOL_LIBS, nullptr );
 
-    m_schematic.SetProject( &m_manager.Prj() );
-    m_schematic.SetRoot( m_pi->LoadSchematicFile( fn.GetFullPath(), &m_schematic ) );
+    m_schematic = std::make_unique<SCHEMATIC>( &m_manager.Prj() );
+    m_schematic->Reset();
+    SCH_SHEET* defaultSheet = m_schematic->GetTopLevelSheet( 0 );
+
+    SCH_SHEET* root = m_pi->LoadSchematicFile( fn.GetFullPath(), m_schematic.get() );
+    m_schematic->AddTopLevelSheet( root );
+
+    m_schematic->RemoveTopLevelSheet( defaultSheet );
+    delete defaultSheet;
 
     BOOST_REQUIRE_EQUAL( m_pi->GetError().IsEmpty(), true );
 
-    m_schematic.CurrentSheet().push_back( &m_schematic.Root() );
 
-    SCH_SCREENS screens( m_schematic.Root() );
+    SCH_SCREENS screens( m_schematic->Root() );
 
     for( SCH_SCREEN* screen = screens.GetFirst(); screen; screen = screens.GetNext() )
         screen->UpdateLocalLibSymbolLinks();
 
-    SCH_SHEET_LIST sheets = m_schematic.BuildSheetListSortedByPageNumbers();
+    SCH_SHEET_LIST sheets = m_schematic->BuildSheetListSortedByPageNumbers();
 
     // Restore all of the loaded symbol instances from the root sheet screen.
-    if( m_schematic.RootScreen()->GetFileFormatVersionAtLoad() < 20221002 )
-        sheets.UpdateSymbolInstanceData( m_schematic.RootScreen()->GetSymbolInstances());
+    if( m_schematic->RootScreen()->GetFileFormatVersionAtLoad() < 20221002 )
+        sheets.UpdateSymbolInstanceData( m_schematic->RootScreen()->GetSymbolInstances() );
 
-    if( m_schematic.RootScreen()->GetFileFormatVersionAtLoad() < 20221110 )
-        sheets.UpdateSheetInstanceData( m_schematic.RootScreen()->GetSheetInstances());
+    if( m_schematic->RootScreen()->GetFileFormatVersionAtLoad() < 20221110 )
+        sheets.UpdateSheetInstanceData( m_schematic->RootScreen()->GetSheetInstances() );
 
-    if( m_schematic.RootScreen()->GetFileFormatVersionAtLoad() < 20221206 )
+    if( m_schematic->RootScreen()->GetFileFormatVersionAtLoad() < 20221206 )
     {
         for( SCH_SCREEN* screen = screens.GetFirst(); screen; screen = screens.GetNext() )
             screen->MigrateSimModels();
     }
 
-    if( m_schematic.RootScreen()->GetFileFormatVersionAtLoad() < 20230221 )
+    if( m_schematic->RootScreen()->GetFileFormatVersionAtLoad() < 20230221 )
         screens.FixLegacyPowerSymbolMismatches();
 
     sheets.AnnotatePowerSymbols();
@@ -114,11 +118,11 @@ void KI_TEST::SCHEMATIC_TEST_FIXTURE::LoadSchematic( const wxString& aBaseName )
 
     SCH_RULE_AREA::UpdateRuleAreasInScreens( all_screens, nullptr );
 
-    m_schematic.ConnectionGraph()->Recalculate( sheets, true );
+    m_schematic->ConnectionGraph()->Recalculate( sheets, true );
 }
 
 
-wxFileName KI_TEST::SCHEMATIC_TEST_FIXTURE::GetSchematicPath( const wxString& aBaseName )
+wxFileName KI_TEST::SCHEMATIC_TEST_FIXTURE::SchematicQAPath( const wxString& aBaseName )
 {
     wxFileName fn( KI_TEST::GetEeschemaTestDataDir() );
     fn.AppendDir( "netlists" );
@@ -133,7 +137,7 @@ wxFileName KI_TEST::SCHEMATIC_TEST_FIXTURE::GetSchematicPath( const wxString& aB
 template <typename Exporter>
 wxString TEST_NETLIST_EXPORTER_FIXTURE<Exporter>::GetNetlistPath( bool aTest )
 {
-    wxFileName netFile = m_schematic.Prj().GetProjectFullName();
+    wxFileName netFile = m_schematic->Project().GetProjectFullName();
 
     if( aTest )
         netFile.SetName( netFile.GetName() + "_test" );
@@ -147,14 +151,17 @@ wxString TEST_NETLIST_EXPORTER_FIXTURE<Exporter>::GetNetlistPath( bool aTest )
 template <typename Exporter>
 void TEST_NETLIST_EXPORTER_FIXTURE<Exporter>::WriteNetlist()
 {
+    wxString netlistPath = GetNetlistPath( true );
+    BOOST_TEST_CHECKPOINT( "Writing netlist " << netlistPath );
+
     // In case of a crash the file may not have been deleted.
-    if( wxFileExists( GetNetlistPath( true ) ) )
-        wxRemoveFile( GetNetlistPath( true ) );
+    if( wxFileExists( netlistPath ) )
+        wxRemoveFile( netlistPath );
 
     WX_STRING_REPORTER        reporter;
-    std::unique_ptr<Exporter> exporter = std::make_unique<Exporter>( &m_schematic );
+    std::unique_ptr<Exporter> exporter = std::make_unique<Exporter>( m_schematic.get() );
 
-    bool success = exporter->WriteNetlist( GetNetlistPath( true ), GetNetlistOptions(), reporter );
+    bool success = exporter->WriteNetlist( netlistPath, GetNetlistOptions(), reporter );
 
     BOOST_REQUIRE( success && reporter.GetMessages().IsEmpty() );
 }
@@ -164,14 +171,14 @@ template <typename Exporter>
 void TEST_NETLIST_EXPORTER_FIXTURE<Exporter>::Cleanup()
 {
     wxRemoveFile( GetNetlistPath( true ) );
-    m_schematic.Reset();
+    m_schematic->Reset();
 }
 
 
 template <typename Exporter>
 void TEST_NETLIST_EXPORTER_FIXTURE<Exporter>::TestNetlist( const wxString& aBaseName )
 {
-    LoadSchematic( aBaseName );
+    LoadSchematic( SchematicQAPath( aBaseName ) );
     WriteNetlist();
     CompareNetlists();
     Cleanup();

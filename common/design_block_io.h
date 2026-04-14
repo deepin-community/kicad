@@ -40,7 +40,8 @@ public:
         DESIGN_BLOCK_FILE_UNKNOWN = 0, ///< 0 is not a legal menu id on Mac
         KICAD_SEXP,                    ///< S-expression KiCad file format.
 
-        FILE_TYPE_NONE
+        FILE_TYPE_NONE,
+        NESTED_TABLE
     };
 
     static const wxString      ShowType( DESIGN_BLOCK_FILE_T aFileType );
@@ -76,10 +77,7 @@ public:
     }
 
     bool DesignBlockExists( const wxString& aLibraryPath, const wxString& aDesignBlockName,
-                            const std::map<std::string, UTF8>* aProperties = nullptr )
-    {
-        return DesignBlockLoad( aLibraryPath, aDesignBlockName, true, aProperties ) != nullptr;
-    }
+                            const std::map<std::string, UTF8>* aProperties = nullptr );
 
     DESIGN_BLOCK* ImportDesignBlock( const wxString&                    aDesignBlockPath,
                                      wxString&                          aDesignBlockNameOut,

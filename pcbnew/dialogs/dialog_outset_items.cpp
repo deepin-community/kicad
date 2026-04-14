@@ -27,11 +27,14 @@
 #include <board.h>
 #include <board_design_settings.h>
 #include <pcb_layer_box_selector.h>
+#include <wx/msgdlg.h>
+#include <confirm.h>
 
 /**
  * Some handy preset values for common outset distances.
  */
-static const std::vector<int> s_outsetPresetValue{
+static const std::vector<int> s_outsetPresetValue
+{
     // Outsetting a 0.1mm line to touch a 0.1mm line
     pcbIUScale.mmToIU( 0.1 ),
     // 0.12mm line to touch a 0.1mm line
@@ -51,7 +54,8 @@ static const std::vector<int> s_outsetPresetValue{
 
 // Ther user can also get the current board design settings widths
 // with the "Layer Default" button.
-static const std::vector<int> s_presetLineWidths{
+static const std::vector<int> s_presetLineWidths
+{
     // Courtyard
     pcbIUScale.mmToIU( 0.05 ),
     pcbIUScale.mmToIU( 0.1 ),
@@ -61,7 +65,8 @@ static const std::vector<int> s_presetLineWidths{
     pcbIUScale.mmToIU( 0.2 ),
 };
 
-static const std::vector<int> s_presetGridRounding{
+static const std::vector<int> s_presetGridRounding
+{
     // 0.01 is a common IPC grid round-off value
     pcbIUScale.mmToIU( 0.01 ),
 };
@@ -72,9 +77,11 @@ static std::vector<int> s_outsetRecentValues;
 static std::vector<int> s_lineWidthRecentValues;
 static std::vector<int> s_gridRoundingRecentValues;
 
-DIALOG_OUTSET_ITEMS::DIALOG_OUTSET_ITEMS( PCB_BASE_FRAME&             aParent,
-                                          OUTSET_ROUTINE::PARAMETERS& aParams ) :
-        DIALOG_OUTSET_ITEMS_BASE( &aParent ), m_parent( aParent ), m_params( aParams ),
+
+DIALOG_OUTSET_ITEMS::DIALOG_OUTSET_ITEMS( PCB_BASE_FRAME& aParent, OUTSET_ROUTINE::PARAMETERS& aParams ) :
+        DIALOG_OUTSET_ITEMS_BASE( &aParent ),
+        m_parent( aParent ),
+        m_params( aParams ),
         m_outset( &aParent, m_outsetLabel, m_outsetEntry, m_outsetUnit ),
         m_lineWidth( &aParent, m_lineWidthLabel, m_lineWidthEntry, m_lineWidthUnit ),
         m_roundingGrid( &aParent, m_gridRoundingLabel, m_gridRoundingEntry, m_gridRoundingUnit )
@@ -84,24 +91,24 @@ DIALOG_OUTSET_ITEMS::DIALOG_OUTSET_ITEMS( PCB_BASE_FRAME&             aParent,
     m_LayerSelectionCtrl->SetBoardFrame( &aParent );
     m_LayerSelectionCtrl->Resync();
 
-    const auto fillOptionList = [&]( UNIT_BINDER& aCombo, const std::vector<int>& aPresets,
-                                     const std::vector<int>& aRecentPresets )
-    {
-        std::vector<long long int> optionList;
-        optionList.reserve( aPresets.size() + aRecentPresets.size() );
+    const auto fillOptionList =
+            [&]( UNIT_BINDER& aCombo, const std::vector<int>& aPresets, const std::vector<int>& aRecentPresets )
+            {
+                std::vector<long long int> optionList;
+                optionList.reserve( aPresets.size() + aRecentPresets.size() );
 
-        for( const int val : aPresets )
-            optionList.push_back( val );
+                for( const int val : aPresets )
+                    optionList.push_back( val );
 
-        for( const int val : aRecentPresets )
-            optionList.push_back( val );
+                for( const int val : aRecentPresets )
+                    optionList.push_back( val );
 
-        // Sort the vector and remove duplicates
-        std::sort( optionList.begin(), optionList.end() );
-        optionList.erase( std::unique( optionList.begin(), optionList.end() ), optionList.end() );
+                // Sort the vector and remove duplicates
+                std::sort( optionList.begin(), optionList.end() );
+                optionList.erase( std::unique( optionList.begin(), optionList.end() ), optionList.end() );
 
-        aCombo.SetOptionsList( optionList );
-    };
+                aCombo.SetOptionsList( optionList );
+            };
 
     fillOptionList( m_outset, s_outsetPresetValue, s_outsetRecentValues );
     fillOptionList( m_lineWidth, s_presetLineWidths, s_lineWidthRecentValues );
@@ -111,9 +118,11 @@ DIALOG_OUTSET_ITEMS::DIALOG_OUTSET_ITEMS( PCB_BASE_FRAME&             aParent,
     finishDialogSettings();
 }
 
+
 DIALOG_OUTSET_ITEMS::~DIALOG_OUTSET_ITEMS()
 {
 }
+
 
 void DIALOG_OUTSET_ITEMS::OnLayerDefaultClick( wxCommandEvent& event )
 {
@@ -125,15 +134,18 @@ void DIALOG_OUTSET_ITEMS::OnLayerDefaultClick( wxCommandEvent& event )
     m_lineWidth.SetValue( defaultWidth );
 }
 
+
 void DIALOG_OUTSET_ITEMS::OnCopyLayersChecked( wxCommandEvent& event )
 {
     m_LayerSelectionCtrl->Enable( !m_copyLayers->GetValue() );
 }
 
+
 void DIALOG_OUTSET_ITEMS::OnRoundToGridChecked( wxCommandEvent& event )
 {
     m_gridRoundingEntry->Enable( m_roundToGrid->IsChecked() );
 }
+
 
 bool DIALOG_OUTSET_ITEMS::TransferDataToWindow()
 {
@@ -157,12 +169,19 @@ bool DIALOG_OUTSET_ITEMS::TransferDataToWindow()
     return true;
 }
 
+
 bool DIALOG_OUTSET_ITEMS::TransferDataFromWindow()
 {
+    if( m_lineWidth.GetIntValue() <= 0 )
+    {
+        DisplayErrorMessage( this, _( "Line width must be a positive value." ) );
+        return false;
+    }
+
     m_params.layer = ToLAYER_ID( m_LayerSelectionCtrl->GetLayerSelection() );
-    m_params.outsetDistance = m_outset.GetValue();
+    m_params.outsetDistance = m_outset.GetIntValue();
     m_params.roundCorners = m_roundCorners->GetValue();
-    m_params.lineWidth = m_lineWidth.GetValue();
+    m_params.lineWidth = m_lineWidth.GetIntValue();
 
     m_params.useSourceLayers = m_copyLayers->GetValue();
     m_params.useSourceWidths = m_copyWidths->GetValue();
@@ -172,23 +191,26 @@ bool DIALOG_OUTSET_ITEMS::TransferDataFromWindow()
     else
         m_params.gridRounding = std::nullopt;
 
-    s_gridRoundValuePersist = m_roundingGrid.GetValue();
+    s_gridRoundValuePersist = m_roundingGrid.GetIntValue();
 
     m_params.deleteSourceItems = m_deleteSourceItems->GetValue();
 
     // Keep the recent values list up to date
-    const auto saveRecentValue = []( std::vector<int>& aRecentValues, int aValue )
-    {
-        const auto it = std::find( aRecentValues.begin(), aRecentValues.end(), aValue );
-        // Already have it
-        if( it != aRecentValues.end() )
-            return;
+    const auto saveRecentValue =
+            []( std::vector<int>& aRecentValues, int aValue )
+            {
+                const auto it = std::find( aRecentValues.begin(), aRecentValues.end(), aValue );
 
-        aRecentValues.push_back( aValue );
-    };
+                // Already have it
+                if( it != aRecentValues.end() )
+                    return;
+
+                aRecentValues.push_back( aValue );
+            };
 
     saveRecentValue( s_outsetRecentValues, m_params.outsetDistance );
     saveRecentValue( s_lineWidthRecentValues, m_params.lineWidth );
+
     if( m_params.gridRounding )
         saveRecentValue( s_gridRoundingRecentValues, m_params.gridRounding.value() );
 

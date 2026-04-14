@@ -28,8 +28,8 @@
 #include <wx/bmpcbox.h>
 #include <wx/dcclient.h>
 
-#include <pin_shape_combobox.h>
-#include <pin_type_combobox.h>
+#include <pinshape_combobox.h>
+#include <pintype_combobox.h>
 
 #include <dialog_pin_properties_base.h>
 #include <widgets/unit_binder.h>
@@ -48,6 +48,7 @@ enum COL_ORDER
 
 
 class ALT_PIN_DATA_MODEL;
+class SYMBOL_PREVIEW_WIDGET;
 
 
 class DIALOG_PIN_PROPERTIES : public DIALOG_PIN_PROPERTIES_BASE
@@ -59,10 +60,6 @@ public:
     bool TransferDataToWindow() override;
     bool TransferDataFromWindow() override;
 
-    /**
-     * Draw (on m_panelShowPin) the pin according to current settings in dialog.
-     */
-    void OnPaintShowPanel( wxPaintEvent& event ) override;
     void OnPropertiesChange( wxCommandEvent& event ) override;
     void OnAddAlternate( wxCommandEvent& event ) override;
     void OnDeleteAlternate( wxCommandEvent& event ) override;
@@ -75,29 +72,30 @@ protected:
     wxString getSyncPinsMessage();
 
 private:
-    SYMBOL_EDIT_FRAME*  m_frame;
-    SCH_PIN*            m_pin;
+    SYMBOL_EDIT_FRAME*     m_frame;
+    SCH_PIN*               m_pin;
 
-    LIB_SYMBOL*         m_dummyParent;
-    SCH_PIN*            m_dummyPin;                   // a working copy used to show changes
+    LIB_SYMBOL*            m_dummyParent;
+    SCH_PIN*               m_dummyPin;                   // a working copy used to show changes
+    SYMBOL_PREVIEW_WIDGET* m_previewWidget;
 
-    UNIT_BINDER         m_posX;
-    UNIT_BINDER         m_posY;
-    UNIT_BINDER         m_pinLength;
-    UNIT_BINDER         m_nameSize;
-    UNIT_BINDER         m_numberSize;
+    UNIT_BINDER            m_posX;
+    UNIT_BINDER            m_posY;
+    UNIT_BINDER            m_pinLength;
+    UNIT_BINDER            m_nameSize;
+    UNIT_BINDER            m_numberSize;
 
-    VECTOR2I            m_origPos;
+    VECTOR2I               m_origPos;
 
-    ALT_PIN_DATA_MODEL* m_alternatesDataModel;
+    ALT_PIN_DATA_MODEL*    m_alternatesDataModel;
 
-    int                 m_delayedFocusRow;
-    int                 m_delayedFocusColumn;
+    int                    m_delayedFocusRow;
+    int                    m_delayedFocusColumn;
 
-    std::map<int, int>  m_originalColWidths;          // map col-number : orig-col-width
-    wxSize              m_size;
-    bool                m_initialized;
-    inline static bool  s_alternatesTurndownOpen = false;
+    std::map<int, int>     m_originalColWidths;          // map col-number : orig-col-width
+    wxSize                 m_size;
+    bool                   m_initialized;
+    inline static bool     s_alternatesTurndownOpen = false;
 };
 
 #endif // DIALOG_PIN_PROPERTIES_H

@@ -1,11 +1,10 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
 ///////////////////////////////////////////////////////////////////////////
 
-#include "widgets/bitmap_button.h"
 #include "widgets/std_bitmap_button.h"
 #include "widgets/wx_grid.h"
 
@@ -19,6 +18,12 @@ DIALOG_LIB_EDIT_PIN_TABLE_BASE::DIALOG_LIB_EDIT_PIN_TABLE_BASE( wxWindow* parent
 
 	wxBoxSizer* top_sizer;
 	top_sizer = new wxBoxSizer( wxVERTICAL );
+
+	wxBoxSizer* bSizer6;
+	bSizer6 = new wxBoxSizer( wxHORIZONTAL );
+
+	wxBoxSizer* bLeftGridSizer;
+	bLeftGridSizer = new wxBoxSizer( wxVERTICAL );
 
 	wxBoxSizer* bSummarySizer;
 	bSummarySizer = new wxBoxSizer( wxHORIZONTAL );
@@ -54,7 +59,7 @@ DIALOG_LIB_EDIT_PIN_TABLE_BASE::DIALOG_LIB_EDIT_PIN_TABLE_BASE( wxWindow* parent
 	bSummarySizer->Add( m_duplicate_pins, 0, wxRIGHT|wxLEFT|wxALIGN_CENTER_VERTICAL, 5 );
 
 
-	top_sizer->Add( bSummarySizer, 0, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 10 );
+	bLeftGridSizer->Add( bSummarySizer, 0, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 10 );
 
 	wxBoxSizer* bGridMarginsSizer;
 	bGridMarginsSizer = new wxBoxSizer( wxVERTICAL );
@@ -81,7 +86,8 @@ DIALOG_LIB_EDIT_PIN_TABLE_BASE::DIALOG_LIB_EDIT_PIN_TABLE_BASE( wxWindow* parent
 	m_grid->SetColSize( 9, 84 );
 	m_grid->SetColSize( 10, 84 );
 	m_grid->SetColSize( 11, 84 );
-	m_grid->SetColSize( 12, 66 );
+	m_grid->SetColSize( 12, 100 );
+	m_grid->SetColSize( 13, 100 );
 	m_grid->EnableDragColMove( false );
 	m_grid->EnableDragColSize( true );
 	m_grid->SetColLabelValue( 0, _("Count") );
@@ -97,7 +103,7 @@ DIALOG_LIB_EDIT_PIN_TABLE_BASE::DIALOG_LIB_EDIT_PIN_TABLE_BASE( wxWindow* parent
 	m_grid->SetColLabelValue( 10, _("Y Position") );
 	m_grid->SetColLabelValue( 11, _("Visible") );
 	m_grid->SetColLabelValue( 12, _("Unit") );
-	m_grid->SetColLabelValue( 13, _("De Morgan") );
+	m_grid->SetColLabelValue( 13, _("Body Style") );
 	m_grid->SetColLabelSize( 24 );
 	m_grid->SetColLabelAlignment( wxALIGN_CENTER, wxALIGN_CENTER );
 
@@ -115,7 +121,150 @@ DIALOG_LIB_EDIT_PIN_TABLE_BASE::DIALOG_LIB_EDIT_PIN_TABLE_BASE( wxWindow* parent
 	bGridMarginsSizer->Add( m_grid, 1, wxEXPAND|wxLEFT|wxRIGHT|wxTOP, 10 );
 
 
-	top_sizer->Add( bGridMarginsSizer, 1, wxEXPAND|wxRIGHT|wxLEFT, 5 );
+	bLeftGridSizer->Add( bGridMarginsSizer, 1, wxEXPAND|wxLEFT, 5 );
+
+
+	bSizer6->Add( bLeftGridSizer, 1, wxEXPAND, 5 );
+
+	wxBoxSizer* bRightPaneSizer;
+	bRightPaneSizer = new wxBoxSizer( wxVERTICAL );
+
+	wxBoxSizer* bSizerCols;
+	bSizerCols = new wxBoxSizer( wxHORIZONTAL );
+
+	wxBoxSizer* bSizerLeftCol;
+	bSizerLeftCol = new wxBoxSizer( wxVERTICAL );
+
+	m_cbGroup = new wxCheckBox( this, wxID_ANY, _("Group by name"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizerLeftCol->Add( m_cbGroup, 0, wxALL, 5 );
+
+	m_groupSelected = new wxButton( this, wxID_ANY, _("Group Selected Pins"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizerLeftCol->Add( m_groupSelected, 0, wxALL, 5 );
+
+
+	bSizerCols->Add( bSizerLeftCol, 0, wxEXPAND, 5 );
+
+
+	bSizerCols->Add( 0, 0, 1, wxEXPAND, 5 );
+
+	wxBoxSizer* bSizerRightCol;
+	bSizerRightCol = new wxBoxSizer( wxHORIZONTAL );
+
+	m_refreshButton = new STD_BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|0 );
+	bSizerRightCol->Add( m_refreshButton, 0, 0, 5 );
+
+	m_bMenu = new STD_BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|0 );
+	bSizerRightCol->Add( m_bMenu, 0, wxLEFT, 5 );
+
+
+	bSizerCols->Add( bSizerRightCol, 0, wxEXPAND, 5 );
+
+
+	bRightPaneSizer->Add( bSizerCols, 1, wxEXPAND|wxBOTTOM|wxLEFT, 5 );
+
+	wxGridBagSizer* gbSizer1;
+	gbSizer1 = new wxGridBagSizer( 5, 0 );
+	gbSizer1->SetFlexibleDirection( wxBOTH );
+	gbSizer1->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+
+	m_cbFilterByUnit = new wxCheckBox( this, wxID_ANY, _("Filter by unit:"), wxDefaultPosition, wxDefaultSize, 0 );
+	gbSizer1->Add( m_cbFilterByUnit, wxGBPosition( 0, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5 );
+
+	wxArrayString m_unitFilterChoices;
+	m_unitFilter = new wxChoice( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, m_unitFilterChoices, 0 );
+	m_unitFilter->SetSelection( 0 );
+	gbSizer1->Add( m_unitFilter, wxGBPosition( 0, 1 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
+
+	m_cbFilterByBodyStyle = new wxCheckBox( this, wxID_ANY, _("Filter by body style:"), wxDefaultPosition, wxDefaultSize, 0 );
+	gbSizer1->Add( m_cbFilterByBodyStyle, wxGBPosition( 1, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5 );
+
+	wxArrayString m_bodyStyleFilterChoices;
+	m_bodyStyleFilter = new wxChoice( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, m_bodyStyleFilterChoices, 0 );
+	m_bodyStyleFilter->SetSelection( 0 );
+	gbSizer1->Add( m_bodyStyleFilter, wxGBPosition( 1, 1 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL, 5 );
+
+	m_cbFilterSelected = new wxCheckBox( this, wxID_ANY, _("Filter by selection"), wxDefaultPosition, wxDefaultSize, 0 );
+	gbSizer1->Add( m_cbFilterSelected, wxGBPosition( 2, 0 ), wxGBSpan( 1, 2 ), wxRIGHT|wxLEFT|wxALIGN_CENTER_VERTICAL, 5 );
+
+
+	gbSizer1->AddGrowableCol( 1 );
+
+	bRightPaneSizer->Add( gbSizer1, 0, wxEXPAND|wxALL, 5 );
+
+
+	bRightPaneSizer->Add( 0, 35, 1, wxEXPAND, 5 );
+
+	wxStaticBoxSizer* sbSizer3;
+	sbSizer3 = new wxStaticBoxSizer( new wxStaticBox( this, wxID_ANY, _("Export") ), wxVERTICAL );
+
+	wxBoxSizer* bExportSizer;
+	bExportSizer = new wxBoxSizer( wxVERTICAL );
+
+	m_rbExportAllPins = new wxRadioButton( sbSizer3->GetStaticBox(), wxID_ANY, _("Export all pins"), wxDefaultPosition, wxDefaultSize, 0 );
+	bExportSizer->Add( m_rbExportAllPins, 0, wxBOTTOM|wxLEFT, 5 );
+
+	m_rbExportOnlyShownPins = new wxRadioButton( sbSizer3->GetStaticBox(), wxID_ANY, _("Export only shown pins"), wxDefaultPosition, wxDefaultSize, 0 );
+	bExportSizer->Add( m_rbExportOnlyShownPins, 0, wxBOTTOM|wxLEFT, 5 );
+
+	wxBoxSizer* bExportBtnSizer;
+	bExportBtnSizer = new wxBoxSizer( wxHORIZONTAL );
+
+	m_btnExportToFile = new wxButton( sbSizer3->GetStaticBox(), wxID_ANY, _("To File..."), wxDefaultPosition, wxDefaultSize, 0 );
+	bExportBtnSizer->Add( m_btnExportToFile, 1, wxALL, 5 );
+
+
+	bExportBtnSizer->Add( 5, 0, 0, wxEXPAND, 5 );
+
+	m_btnExportToClipboard = new wxButton( sbSizer3->GetStaticBox(), wxID_ANY, _("To Clipboard"), wxDefaultPosition, wxDefaultSize, 0 );
+	bExportBtnSizer->Add( m_btnExportToClipboard, 1, wxALL, 5 );
+
+
+	bExportSizer->Add( bExportBtnSizer, 0, wxEXPAND, 5 );
+
+
+	sbSizer3->Add( bExportSizer, 1, wxEXPAND, 5 );
+
+
+	bRightPaneSizer->Add( sbSizer3, 0, wxEXPAND|wxALL, 5 );
+
+	wxStaticBoxSizer* sbSizer2;
+	sbSizer2 = new wxStaticBoxSizer( new wxStaticBox( this, wxID_ANY, _("Import") ), wxVERTICAL );
+
+	wxBoxSizer* bImportSizer;
+	bImportSizer = new wxBoxSizer( wxVERTICAL );
+
+	m_rbReplaceAll = new wxRadioButton( sbSizer2->GetStaticBox(), wxID_ANY, _("Replace all existing pins"), wxDefaultPosition, wxDefaultSize, 0 );
+	bImportSizer->Add( m_rbReplaceAll, 0, wxBOTTOM|wxLEFT, 5 );
+
+	m_radioBtn1 = new wxRadioButton( sbSizer2->GetStaticBox(), wxID_ANY, _("Append to existing pins"), wxDefaultPosition, wxDefaultSize, 0 );
+	bImportSizer->Add( m_radioBtn1, 0, wxBOTTOM|wxLEFT, 5 );
+
+
+	sbSizer2->Add( bImportSizer, 1, wxEXPAND, 5 );
+
+	wxBoxSizer* bImportBtnSizer;
+	bImportBtnSizer = new wxBoxSizer( wxHORIZONTAL );
+
+	m_btnImportFromFile = new wxButton( sbSizer2->GetStaticBox(), wxID_ANY, _("From File..."), wxDefaultPosition, wxDefaultSize, 0 );
+	bImportBtnSizer->Add( m_btnImportFromFile, 1, wxTOP|wxRIGHT|wxLEFT, 5 );
+
+
+	bImportBtnSizer->Add( 5, 0, 0, wxEXPAND, 5 );
+
+	m_btnImportFromClipboard = new wxButton( sbSizer2->GetStaticBox(), wxID_ANY, _("From Clipboard"), wxDefaultPosition, wxDefaultSize, 0 );
+	bImportBtnSizer->Add( m_btnImportFromClipboard, 1, wxTOP|wxRIGHT|wxLEFT, 5 );
+
+
+	sbSizer2->Add( bImportBtnSizer, 0, wxBOTTOM|wxEXPAND, 5 );
+
+
+	bRightPaneSizer->Add( sbSizer2, 0, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 5 );
+
+
+	bSizer6->Add( bRightPaneSizer, 0, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 5 );
+
+
+	top_sizer->Add( bSizer6, 1, wxEXPAND, 5 );
 
 	wxBoxSizer* bBottomSizer;
 	bBottomSizer = new wxBoxSizer( wxHORIZONTAL );
@@ -124,40 +273,13 @@ DIALOG_LIB_EDIT_PIN_TABLE_BASE::DIALOG_LIB_EDIT_PIN_TABLE_BASE( wxWindow* parent
 	bSizer5 = new wxBoxSizer( wxHORIZONTAL );
 
 	m_addButton = new STD_BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|0 );
-	bSizer5->Add( m_addButton, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5 );
+	bSizer5->Add( m_addButton, 0, wxRIGHT|wxLEFT, 5 );
 
 	m_deleteButton = new STD_BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|0 );
-	bSizer5->Add( m_deleteButton, 0, wxALIGN_CENTER_VERTICAL|wxLEFT, 10 );
-
-	m_divider1 = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|0 );
-	m_divider1->Enable( false );
-
-	bSizer5->Add( m_divider1, 0, wxEXPAND|wxALL, 4 );
-
-	m_cbGroup = new wxCheckBox( this, wxID_ANY, _("Group by name"), wxDefaultPosition, wxDefaultSize, 0 );
-	bSizer5->Add( m_cbGroup, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT, 5 );
-
-	m_groupSelected = new wxButton( this, wxID_ANY, _("Group Selected"), wxDefaultPosition, wxDefaultSize, 0 );
-	bSizer5->Add( m_groupSelected, 0, wxALL|wxALIGN_CENTER_VERTICAL, 7 );
-
-	m_refreshButton = new STD_BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|0 );
-	bSizer5->Add( m_refreshButton, 0, wxALIGN_CENTER_VERTICAL|wxLEFT, 10 );
-
-	m_divider2 = new BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|0 );
-	m_divider2->Enable( false );
-
-	bSizer5->Add( m_divider2, 0, wxEXPAND|wxALL, 4 );
-
-	m_cbFilterByUnit = new wxCheckBox( this, wxID_ANY, _("Filter by unit:"), wxDefaultPosition, wxDefaultSize, 0 );
-	bSizer5->Add( m_cbFilterByUnit, 0, wxALIGN_CENTER_VERTICAL|wxTOP|wxBOTTOM, 5 );
-
-	wxArrayString m_unitFilterChoices;
-	m_unitFilter = new wxChoice( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, m_unitFilterChoices, 0 );
-	m_unitFilter->SetSelection( 0 );
-	bSizer5->Add( m_unitFilter, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5 );
+	bSizer5->Add( m_deleteButton, 0, wxRIGHT|wxLEFT, 15 );
 
 
-	bBottomSizer->Add( bSizer5, 0, wxEXPAND|wxTOP|wxBOTTOM|wxRIGHT, 5 );
+	bBottomSizer->Add( bSizer5, 0, wxEXPAND|wxTOP|wxRIGHT, 5 );
 
 
 	bBottomSizer->Add( 30, 0, 1, wxEXPAND, 5 );
@@ -188,13 +310,21 @@ DIALOG_LIB_EDIT_PIN_TABLE_BASE::DIALOG_LIB_EDIT_PIN_TABLE_BASE( wxWindow* parent
 	m_grid->Connect( wxEVT_GRID_CELL_LEFT_CLICK, wxGridEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnCellSelected ), NULL, this );
 	m_grid->Connect( wxEVT_GRID_EDITOR_SHOWN, wxGridEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnCellSelected ), NULL, this );
 	m_grid->Connect( wxEVT_SIZE, wxSizeEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnSize ), NULL, this );
-	m_addButton->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnAddRow ), NULL, this );
-	m_deleteButton->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnDeleteRow ), NULL, this );
 	m_cbGroup->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnRebuildRows ), NULL, this );
 	m_groupSelected->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnGroupSelected ), NULL, this );
 	m_refreshButton->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnRebuildRows ), NULL, this );
+	m_bMenu->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnMenu ), NULL, this );
 	m_cbFilterByUnit->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnFilterCheckBox ), NULL, this );
 	m_unitFilter->Connect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnFilterChoice ), NULL, this );
+	m_cbFilterByBodyStyle->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnFilterCheckBox ), NULL, this );
+	m_bodyStyleFilter->Connect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnFilterChoice ), NULL, this );
+	m_cbFilterSelected->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnFilterCheckBox ), NULL, this );
+	m_btnExportToFile->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnExportButtonClick ), NULL, this );
+	m_btnExportToClipboard->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnExportButtonClick ), NULL, this );
+	m_btnImportFromFile->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnImportButtonClick ), NULL, this );
+	m_btnImportFromClipboard->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnImportButtonClick ), NULL, this );
+	m_addButton->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnAddRow ), NULL, this );
+	m_deleteButton->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnDeleteRow ), NULL, this );
 	m_ButtonsCancel->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnCancel ), NULL, this );
 }
 
@@ -207,13 +337,21 @@ DIALOG_LIB_EDIT_PIN_TABLE_BASE::~DIALOG_LIB_EDIT_PIN_TABLE_BASE()
 	m_grid->Disconnect( wxEVT_GRID_CELL_LEFT_CLICK, wxGridEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnCellSelected ), NULL, this );
 	m_grid->Disconnect( wxEVT_GRID_EDITOR_SHOWN, wxGridEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnCellSelected ), NULL, this );
 	m_grid->Disconnect( wxEVT_SIZE, wxSizeEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnSize ), NULL, this );
-	m_addButton->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnAddRow ), NULL, this );
-	m_deleteButton->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnDeleteRow ), NULL, this );
 	m_cbGroup->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnRebuildRows ), NULL, this );
 	m_groupSelected->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnGroupSelected ), NULL, this );
 	m_refreshButton->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnRebuildRows ), NULL, this );
+	m_bMenu->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnMenu ), NULL, this );
 	m_cbFilterByUnit->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnFilterCheckBox ), NULL, this );
 	m_unitFilter->Disconnect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnFilterChoice ), NULL, this );
+	m_cbFilterByBodyStyle->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnFilterCheckBox ), NULL, this );
+	m_bodyStyleFilter->Disconnect( wxEVT_COMMAND_CHOICE_SELECTED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnFilterChoice ), NULL, this );
+	m_cbFilterSelected->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnFilterCheckBox ), NULL, this );
+	m_btnExportToFile->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnExportButtonClick ), NULL, this );
+	m_btnExportToClipboard->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnExportButtonClick ), NULL, this );
+	m_btnImportFromFile->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnImportButtonClick ), NULL, this );
+	m_btnImportFromClipboard->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnImportButtonClick ), NULL, this );
+	m_addButton->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnAddRow ), NULL, this );
+	m_deleteButton->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnDeleteRow ), NULL, this );
 	m_ButtonsCancel->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_LIB_EDIT_PIN_TABLE_BASE::OnCancel ), NULL, this );
 
 }

@@ -160,6 +160,7 @@ ASCH_SYMBOL::ASCH_SYMBOL( const std::map<wxString, wxString>& aProps )
 {
     wxASSERT( ReadRecord( aProps ) == ALTIUM_SCH_RECORD::COMPONENT );
 
+    uniqueid = ALTIUM_PROPS_UTILS::ReadString( aProps, "UNIQUEID", "" );
     currentpartid = ALTIUM_PROPS_UTILS::ReadInt( aProps, "CURRENTPARTID", ALTIUM_COMPONENT_NONE );
     libreference = ALTIUM_PROPS_UTILS::ReadString( aProps, "LIBREFERENCE", "" );
     sourcelibraryname = ALTIUM_PROPS_UTILS::ReadString( aProps, "SOURCELIBRARYNAME", "" );
@@ -218,7 +219,7 @@ ASCH_PIN::ASCH_PIN( const std::map<wxString, wxString>& aProps ) :
     symbolInnerEdge        = ASCH_PIN_SYMBOL::FromInt( symbolInnerEdgeInt );
 
     electrical = ReadEnum<ASCH_PIN_ELECTRICAL>( aProps, "ELECTRICAL", 0, 7,
-                                                ASCH_PIN_ELECTRICAL::INPUT );
+                                                ASCH_PIN_ELECTRICAL::PIN_INPUT );
 
     int pinconglomerate = ALTIUM_PROPS_UTILS::ReadInt( aProps, "PINCONGLOMERATE", 0 );
 
@@ -640,6 +641,7 @@ ASCH_SHEET_ENTRY::ASCH_SHEET_ENTRY( const std::map<wxString, wxString>& aProps )
     side = ReadEnum<ASCH_SHEET_ENTRY_SIDE>( aProps, "SIDE", 0, 3, ASCH_SHEET_ENTRY_SIDE::LEFT );
 
     name = ALTIUM_PROPS_UTILS::ReadString( aProps, "NAME", "" );
+    harnessType = ALTIUM_PROPS_UTILS::ReadString( aProps, "HARNESSTYPE", "" );
 
     iotype = ReadEnum<ASCH_PORT_IOTYPE>( aProps, "IOTYPE", 0, 3, ASCH_PORT_IOTYPE::UNSPECIFIED );
     style = ReadEnum<ASCH_PORT_STYLE>( aProps, "STYLE", 0, 7, ASCH_PORT_STYLE::NONE_HORIZONTAL );

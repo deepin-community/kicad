@@ -87,7 +87,6 @@ principle should be easily implemented by adapting the current STL containers.
 // headers/imports that must be included in the _wrapper.cpp at top
 
 %{
-    #include <outline_mode.h>
     #include <macros_swig.h>
     #include <kiid.h>
     #include <cstddef>
@@ -121,7 +120,6 @@ principle should be easily implemented by adapting the current STL containers.
 
 
 // header files that must be wrapped
-%include <outline_mode.h>
 %include macros_swig.h
 %include kiid.h
 %include core/typeinfo.h
@@ -173,6 +171,18 @@ typedef long time_t;
 
 #include <core/utf8.h>
 %include <core/utf8.h>
+
+
+%extend EDA_ITEM
+{
+    wxString PyGetClass() const { return self->GetClass(); }
+
+    %pythoncode
+    %{
+    def GetClass(self):
+        return self.PyGetClass()
+    %}
+}
 
 
 %extend UTF8

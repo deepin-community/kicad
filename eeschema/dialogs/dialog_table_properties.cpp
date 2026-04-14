@@ -29,6 +29,7 @@
 #include <widgets/grid_text_helpers.h>
 #include <grid_tricks.h>
 #include <settings/color_settings.h>
+#include <widgets/wx_infobar.h>
 #include <sch_table.h>
 #include <sch_commit.h>
 #include <tool/tool_manager.h>
@@ -63,8 +64,6 @@ DIALOG_TABLE_PROPERTIES::DIALOG_TABLE_PROPERTIES( SCH_EDIT_FRAME* aFrame, SCH_TA
     m_gridSizer->Add( m_grid, 1, wxEXPAND, 5 );
     m_grid->PushEventHandler( new GRID_TRICKS( m_grid ) );
 
-    wxColor coveredColor = wxSystemSettings::GetColour( wxSYS_COLOUR_GRAYTEXT );
-
     for( int row = 0; row < m_table->GetRowCount(); ++row )
     {
         for( int col = 0; col < m_table->GetColCount(); ++col )
@@ -79,7 +78,7 @@ DIALOG_TABLE_PROPERTIES::DIALOG_TABLE_PROPERTIES( SCH_EDIT_FRAME* aFrame, SCH_TA
             }
             else
             {
-                attr->SetEditor( new GRID_CELL_STC_EDITOR( true,
+                attr->SetEditor( new GRID_CELL_STC_EDITOR( true, false,
                         // onCharFn
                         [this]( wxStyledTextEvent& aEvent, SCINTILLA_TRICKS* aScintillaTricks )
                         {

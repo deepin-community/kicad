@@ -26,18 +26,20 @@
 
 #include <wx/debug.h>
 
+#include <settings/app_settings.h>
 #include <eda_shape.h>
 #include <tool/edit_points.h>
+#include <view/view_controls.h>
 
+class COMMIT;
 class SHAPE_POLY_SET;
 
 /**
  * A helper class interface to manage the edit points for a single item.
- * Create one ofthese, and it will provide a way to keep a list of points
- * updated.
+ * Create one ofthese, and it will provide a way to keep a list of points updated.
  *
- * For the moment this is implemented such that it mutates an external
- * #EDIT_POINTS object, but it might be able to also own the points.
+ * For the moment this is implemented such that it mutates an external #EDIT_POINTS object,
+ * but it might be able to also own the points.
  */
 class POINT_EDIT_BEHAVIOR
 {
@@ -55,33 +57,44 @@ public:
     /**
      * Update the list of the edit points for the item.
      *
-     * Be very careful not to overrun the list of points -
-     * this class knows how bug there are because it made them
-     * in the first place.
+     * Be very careful not to overrun the list of points - this class knows how big they are
+     * because it made them in the first place.
      *
-     * If item has changed such that that number of points needs to
-     * change, this method has to handle that (probably by clearing
-     * the list and refilling it).
+     * If item has changed such that that number of points needs to change, this method has to
+     * handle that (probably by clearing the list and refilling it).
+     *
+     * If the behavior itself must change (for instance, a rectangle is non-cardinallly rotated
+     * to a polygon), the method should return false.
      *
      * @param aPoints The list of edit points to update.
      */
-    virtual void UpdatePoints( EDIT_POINTS& aPoints ) = 0;
+    virtual bool UpdatePoints( EDIT_POINTS& aPoints ) = 0;
+
+    /**
+     * Finalize the edit operation. (optional)
+     *
+     * This is called once, after the user has finished editing a point (e.g. released the
+     * mouse button).
+     *
+     * @param aPoints The final positions of the edit points.
+     * @param aCommit The commit object to use to modify the item.
+     */
+    virtual void FinalizeItem( EDIT_POINTS& aPoints, COMMIT& aCommit ) {};
 
     /**
      * Update the item with the new positions of the edit points.
      *
-     * This method should all commit and add to the update list anything that
-     * is NOT the parent item of the EDIT_POINTs. For example, connected lines,
-     * parent tables, etc. The item itself is already handled (most behaviors
-     * don't need more than that).
+     * This method should all commit and add to the update list anything that is NOT the
+     * parent item of the EDIT_POINTs. For example, connected lines, parent tables, etc. The
+     * item itself is already handled (most behaviors don't need more than that).
      *
      * @param aEditedPoint The point that was dragged.
      *                     You can use this to check by address which point to update.
      * @param aPoints The new positions of the edit points.
      * @param aCommit The commit object to use to modify the item.
      * @param aUpdatedItems The list of items that were updated by the edit (not only the
-     *                     item that was being edited, but also any other items that were
-     *                     affected, e.g. by being conneted to the edited item).
+     *                      item that was being edited, but also any other items that were
+     *                      affected, e.g. by being conneted to the edited item).
      */
     virtual void UpdateItem( const EDIT_POINT& aEditedPoint, EDIT_POINTS& aPoints, COMMIT& aCommit,
                              std::vector<EDA_ITEM*>& aUpdatedItems ) = 0;
@@ -121,14 +134,16 @@ protected:
 /**
  * Class that implements "standard" polygon editing behavior.
  *
- * You still need to implement the POINT_EDIT_BEHAVIOR interface (in particular,
- * you may need to construct a poly set from or apply the poly set to an actual
- * object) but you can use the helper methods in this class to do the actual work.
+ * You still need to implement the POINT_EDIT_BEHAVIOR interface (in particular, you may
+ * need to construct a poly set from or apply the poly set to an actual object) but you can
+ * use the helper methods in this class to do the actual work.
  */
 class POLYGON_POINT_EDIT_BEHAVIOR : public POINT_EDIT_BEHAVIOR
 {
 public:
-    POLYGON_POINT_EDIT_BEHAVIOR( SHAPE_POLY_SET& aPolygon ) : m_polygon( aPolygon ) {}
+    POLYGON_POINT_EDIT_BEHAVIOR( SHAPE_POLY_SET& aPolygon ) :
+            m_polygon( aPolygon )
+    {}
 
     /**
      * Build the edit points for the given polygon outline.
@@ -153,9 +168,10 @@ public:
         BuildForPolyOutline( aPoints, m_polygon );
     }
 
-    void UpdatePoints( EDIT_POINTS& aPoints ) override
+    bool UpdatePoints( EDIT_POINTS& aPoints ) override
     {
         UpdatePointsFromOutline( m_polygon, aPoints );
+        return true;
     }
 
     void UpdateItem( const EDIT_POINT& aEditedPoint, EDIT_POINTS& aPoints, COMMIT& aCommit,
@@ -163,6 +179,8 @@ public:
     {
         UpdateOutlineFromPoints( m_polygon, aEditedPoint, aPoints );
     }
+
+    void FinalizeItem( EDIT_POINTS& aPoints, COMMIT& aCommit ) override;
 
 private:
     SHAPE_POLY_SET& m_polygon;
@@ -184,6 +202,12 @@ public:
     {
         wxASSERT( aPolygon.GetShape() == SHAPE_T::POLY );
     }
+
+    void UpdateItem( const EDIT_POINT& aEditedPoint, EDIT_POINTS& aPoints, COMMIT& aCommit,
+                     std::vector<EDA_ITEM*>& aUpdatedItems ) override
+    {
+        POLYGON_POINT_EDIT_BEHAVIOR::UpdateItem( aEditedPoint, aPoints, aCommit, aUpdatedItems );
+    }
 };
 
 
@@ -193,14 +217,15 @@ public:
 class EDA_SEGMENT_POINT_EDIT_BEHAVIOR : public POINT_EDIT_BEHAVIOR
 {
 public:
-    EDA_SEGMENT_POINT_EDIT_BEHAVIOR( EDA_SHAPE& aSegment ) : m_segment( aSegment )
+    EDA_SEGMENT_POINT_EDIT_BEHAVIOR( EDA_SHAPE& aSegment ) :
+            m_segment( aSegment )
     {
         wxASSERT( aSegment.GetShape() == SHAPE_T::SEGMENT );
     }
 
     void MakePoints( EDIT_POINTS& aPoints ) override;
 
-    void UpdatePoints( EDIT_POINTS& aPoints ) override;
+    bool UpdatePoints( EDIT_POINTS& aPoints ) override;
 
     void UpdateItem( const EDIT_POINT& aEditedPoint, EDIT_POINTS& aPoints, COMMIT& aCommit,
                      std::vector<EDA_ITEM*>& aUpdatedItems ) override;
@@ -228,14 +253,15 @@ private:
 class EDA_CIRCLE_POINT_EDIT_BEHAVIOR : public POINT_EDIT_BEHAVIOR
 {
 public:
-    EDA_CIRCLE_POINT_EDIT_BEHAVIOR( EDA_SHAPE& aCircle ) : m_circle( aCircle )
+    EDA_CIRCLE_POINT_EDIT_BEHAVIOR( EDA_SHAPE& aCircle ) :
+            m_circle( aCircle )
     {
         wxASSERT( aCircle.GetShape() == SHAPE_T::CIRCLE );
     }
 
     void MakePoints( EDIT_POINTS& aPoints ) override;
 
-    void UpdatePoints( EDIT_POINTS& aPoints ) override;
+    bool UpdatePoints( EDIT_POINTS& aPoints ) override;
 
     void UpdateItem( const EDIT_POINT& aEditedPoint, EDIT_POINTS& aPoints, COMMIT& aCommit,
                      std::vector<EDA_ITEM*>& aUpdatedItems ) override;
@@ -263,14 +289,16 @@ private:
 class EDA_BEZIER_POINT_EDIT_BEHAVIOR : public POINT_EDIT_BEHAVIOR
 {
 public:
-    EDA_BEZIER_POINT_EDIT_BEHAVIOR( EDA_SHAPE& aBezier ) : m_bezier( aBezier )
+    EDA_BEZIER_POINT_EDIT_BEHAVIOR( EDA_SHAPE& aBezier, int aMaxError ) :
+            m_bezier( aBezier ),
+            m_maxError( aMaxError )
     {
         wxASSERT( aBezier.GetShape() == SHAPE_T::BEZIER );
     }
 
     void MakePoints( EDIT_POINTS& aPoints ) override;
 
-    void UpdatePoints( EDIT_POINTS& aPoints ) override;
+    bool UpdatePoints( EDIT_POINTS& aPoints ) override;
 
     void UpdateItem( const EDIT_POINT& aEditedPoint, EDIT_POINTS& aPoints, COMMIT& aCommit,
                      std::vector<EDA_ITEM*>& aUpdatedItems ) override;
@@ -288,6 +316,7 @@ protected:
 
 private:
     EDA_SHAPE& m_bezier;
+    int        m_maxError;
 };
 
 
@@ -301,16 +330,16 @@ private:
 class EDA_TABLECELL_POINT_EDIT_BEHAVIOR : public POINT_EDIT_BEHAVIOR
 {
 public:
-    EDA_TABLECELL_POINT_EDIT_BEHAVIOR( EDA_SHAPE& aCell ) : m_cell( aCell )
+    EDA_TABLECELL_POINT_EDIT_BEHAVIOR( EDA_SHAPE& aCell ) :
+            m_cell( aCell )
     {
-        // While PCB_TEXTBOXES are not always RECTANGLEs, they are when they
-        // are TABLECELLs.
+        // Point editor only supports cardinally-rotated table cells.
         wxASSERT( aCell.GetShape() == SHAPE_T::RECTANGLE );
     }
 
     void MakePoints( EDIT_POINTS& aPoints ) override;
 
-    void UpdatePoints( EDIT_POINTS& aPoints ) override;
+    bool UpdatePoints( EDIT_POINTS& aPoints ) override;
 
 protected:
     enum TABLECELL_POINTS
@@ -324,3 +353,40 @@ protected:
 private:
     EDA_SHAPE& m_cell;
 };
+
+
+/**
+ * "Standard" arc editing behavior.
+ */
+class EDA_ARC_POINT_EDIT_BEHAVIOR : public POINT_EDIT_BEHAVIOR
+{
+public:
+    EDA_ARC_POINT_EDIT_BEHAVIOR( EDA_SHAPE& aArc, const ARC_EDIT_MODE& aArcEditMode,
+                                 KIGFX::VIEW_CONTROLS& aViewContols );
+
+    void MakePoints( EDIT_POINTS& aPoints ) override;
+
+    bool UpdatePoints( EDIT_POINTS& aPoints ) override;
+
+    void UpdateItem( const EDIT_POINT& aEditedPoint, EDIT_POINTS& aPoints, COMMIT& aCommit,
+                     std::vector<EDA_ITEM*>& aUpdatedItems ) override;
+
+    OPT_VECTOR2I Get45DegreeConstrainer( const EDIT_POINT& aEditedPoint, EDIT_POINTS& aPoints ) const override;
+
+private:
+    enum ARC_POINTS
+    {
+        ARC_START,
+        ARC_MID,
+        ARC_END,
+        ARC_CENTER,
+    };
+
+    EDA_SHAPE& m_arc;
+    // The arc edit mode, which is injected from the editor
+    const ARC_EDIT_MODE&  m_arcEditMode;
+    KIGFX::VIEW_CONTROLS& m_viewControls;
+};
+
+
+ARC_EDIT_MODE IncrementArcEditMode( ARC_EDIT_MODE aMode );

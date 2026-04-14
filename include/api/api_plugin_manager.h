@@ -104,6 +104,6 @@ private:
 
     std::unique_ptr<JSON_SCHEMA_VALIDATOR> m_schema_validator;
 
-    long m_lastPid;
-    wxTimer* m_raiseTimer;
+    [[maybe_unused]] long     m_lastPid;
+    [[maybe_unused]] wxTimer* m_raiseTimer;
 };

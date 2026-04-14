@@ -30,9 +30,12 @@
 #include <eda_units.h>
 #include <eda_draw_frame.h>
 #include <confirm.h>
+#include <dialog_shim.h>
 
 #include "widgets/unit_binder.h"
 #include "wx/dcclient.h"
+
+using namespace EDA_UNIT_UTILS::UI;
 
 
 wxDEFINE_EVENT( DELAY_FOCUS, wxCommandEvent );
@@ -53,16 +56,31 @@ UNIT_BINDER::UNIT_BINDER( UNITS_PROVIDER* aUnitsProvider, wxWindow* aEventSource
         m_eventSource( aEventSource ),
         m_unitLabel( aUnitLabel ),
         m_iuScale( &aUnitsProvider->GetIuScale() ),
+        m_units( aUnitsProvider->GetUserUnits() ),
         m_negativeZero( false ),
         m_dataType( EDA_DATA_TYPE::DISTANCE ),
         m_precision( 0 ),
         m_eval( aUnitsProvider->GetUserUnits() ),
+        m_allowEval( aAllowEval && ( !m_valueCtrl || dynamic_cast<wxTextEntry*>( m_valueCtrl ) ) ),
+        m_needsEval( false ),
+        m_selStart( 0 ),
+        m_selEnd( 0 ),
         m_unitsInValue( false ),
         m_originTransforms( aUnitsProvider->GetOriginTransforms() ),
         m_coordType( ORIGIN_TRANSFORMS::NOT_A_COORD )
 {
-    init( aUnitsProvider );
-    m_allowEval = aAllowEval && ( !m_valueCtrl || dynamic_cast<wxTextEntry*>( m_valueCtrl ) );
+    if( m_valueCtrl )
+    {
+        // Register the UNIT_BINDER for control state save/restore
+        wxWindow* parent = m_valueCtrl->GetParent();
+
+        while( parent && !dynamic_cast<DIALOG_SHIM*>( parent ) )
+            parent = parent->GetParent();
+
+        if( parent )
+            static_cast<DIALOG_SHIM*>( parent )->RegisterUnitBinder( this, m_valueCtrl );
+    }
+
     wxTextEntry* textEntry = dynamic_cast<wxTextEntry*>( m_valueCtrl );
 
     if( textEntry )
@@ -127,15 +145,6 @@ UNIT_BINDER::~UNIT_BINDER()
 }
 
 
-void UNIT_BINDER::init( UNITS_PROVIDER* aProvider )
-{
-    m_units     = aProvider->GetUserUnits();
-    m_needsEval = false;
-    m_selStart  = 0;
-    m_selEnd    = 0;
-}
-
-
 void UNIT_BINDER::SetUnits( EDA_UNITS aUnits )
 {
     m_units = aUnits;
@@ -167,9 +176,7 @@ void UNIT_BINDER::onUnitsChanged( wxCommandEvent& aEvent )
 {
     EDA_BASE_FRAME* provider = static_cast<EDA_BASE_FRAME*>( aEvent.GetClientData() );
 
-    if( m_units != EDA_UNITS::UNSCALED
-            && m_units != EDA_UNITS::DEGREES
-            && m_units != EDA_UNITS::PERCENT )
+    if( !UnitsInvariant() )
     {
         int temp = GetIntValue();
 
@@ -182,8 +189,7 @@ void UNIT_BINDER::onUnitsChanged( wxCommandEvent& aEvent )
             for( unsigned int i = 0; i < combo->GetCount(); i++ )
             {
                 const wxString value = combo->GetString( i );
-                long long int  conv = EDA_UNIT_UTILS::UI::ValueFromString( *m_iuScale, m_units,
-                                                                           value, m_dataType );
+                long long int  conv = ValueFromString( *m_iuScale, m_units, value, m_dataType );
                 comboValues.push_back( conv );
             }
         }
@@ -227,10 +233,13 @@ void UNIT_BINDER::onComboBox( wxCommandEvent& aEvent )
     wxCHECK( combo, /*void*/ );
 
     const wxString      value = combo->GetStringSelection();
-    const long long int conv =
-            EDA_UNIT_UTILS::UI::ValueFromString( *m_iuScale, m_units, value, m_dataType );
+    const long long int conv = ValueFromString( *m_iuScale, m_units, value, m_dataType );
 
-    SetValue( conv );
+    CallAfter(
+            [this, conv]
+            {
+                SetValue( conv );
+            } );
 
     aEvent.Skip();
 }
@@ -345,14 +354,12 @@ bool UNIT_BINDER::Validate( double aMin, double aMax, EDA_UNITS aUnits )
 
     // TODO: Validate() does not currently support m_dataType being anything other than DISTANCE
     // Note: aMin and aMax are not always given in internal units
-    if( GetValue() < EDA_UNIT_UTILS::UI::FromUserUnit( *m_iuScale, aUnits, aMin ) )
+    if( GetValue() < FromUserUnit( *m_iuScale, aUnits, aMin ) )
     {
-        double val_min_iu = EDA_UNIT_UTILS::UI::FromUserUnit( *m_iuScale, aUnits, aMin );
+        double val_min_iu = FromUserUnit( *m_iuScale, aUnits, aMin );
         m_errorMessage = wxString::Format( _( "%s must be at least %s." ),
                                            valueDescriptionFromLabel( m_label ),
-                                           EDA_UNIT_UTILS::UI::StringFromValue( *m_iuScale, m_units,
-                                                                                val_min_iu,
-                                                                                true ) );
+                                           StringFromValue( *m_iuScale, m_units, val_min_iu, true ) );
 
         textEntry->SelectAll();
 
@@ -362,14 +369,12 @@ bool UNIT_BINDER::Validate( double aMin, double aMax, EDA_UNITS aUnits )
         return false;
     }
 
-    if( GetValue() > EDA_UNIT_UTILS::UI::FromUserUnit( *m_iuScale, aUnits, aMax ) )
+    if( GetValue() > FromUserUnit( *m_iuScale, aUnits, aMax ) )
     {
-        double val_max_iu = EDA_UNIT_UTILS::UI::FromUserUnit( *m_iuScale, aUnits, aMax );
+        double val_max_iu = FromUserUnit( *m_iuScale, aUnits, aMax );
         m_errorMessage = wxString::Format( _( "%s must be less than %s." ),
                                            valueDescriptionFromLabel( m_label ),
-                                           EDA_UNIT_UTILS::UI::StringFromValue( *m_iuScale, m_units,
-                                                                                val_max_iu,
-                                                                                true ) );
+                                           StringFromValue( *m_iuScale, m_units, val_max_iu, true ) );
 
         textEntry->SelectAll();
 
@@ -386,8 +391,7 @@ bool UNIT_BINDER::Validate( double aMin, double aMax, EDA_UNITS aUnits )
 void UNIT_BINDER::SetValue( long long int aValue )
 {
     double   displayValue = m_originTransforms.ToDisplay( aValue, m_coordType );
-    wxString textValue = EDA_UNIT_UTILS::UI::StringFromValue( *m_iuScale, m_units, displayValue,
-                                                              false, m_dataType );
+    wxString textValue = StringFromValue( *m_iuScale, m_units, displayValue, false, m_dataType );
 
     if( displayValue == 0 && m_negativeZero )
         SetValue( wxT( "-" ) + textValue );
@@ -399,9 +403,8 @@ void UNIT_BINDER::SetValue( long long int aValue )
 void UNIT_BINDER::SetDoubleValue( double aValue )
 {
     double   displayValue = m_originTransforms.ToDisplay( aValue, m_coordType );
-    wxString textValue = EDA_UNIT_UTILS::UI::StringFromValue( *m_iuScale, m_units,
-                                                              setPrecision( displayValue, false ),
-                                                              false, m_dataType );
+    wxString textValue = StringFromValue( *m_iuScale, m_units, setPrecision( displayValue, false ), false,
+                                          m_dataType );
 
     if( displayValue == 0 && !std::signbit( displayValue ) && m_negativeZero )
         SetValue( wxT( "-" ) + textValue );
@@ -412,7 +415,7 @@ void UNIT_BINDER::SetDoubleValue( double aValue )
 
 void UNIT_BINDER::SetAngleValue( const EDA_ANGLE& aValue )
 {
-    SetDoubleValue( aValue.AsDegrees() );
+    SetDoubleValue( m_originTransforms.ToDisplay( aValue, m_coordType ) );
 }
 
 
@@ -448,8 +451,8 @@ void UNIT_BINDER::SetValue( const wxString& aValue )
 wxString UNIT_BINDER::getTextForValue( long long int aValue ) const
 {
     const double displayValue = m_originTransforms.ToDisplay( aValue, m_coordType );
-    wxString     textValue = EDA_UNIT_UTILS::UI::StringFromValue(
-            *m_iuScale, m_units, setPrecision( displayValue, false ), false, m_dataType );
+    wxString     textValue = StringFromValue( *m_iuScale, m_units, setPrecision( displayValue, false ), false,
+                                              m_dataType );
 
     if( displayValue == 0 && m_negativeZero )
         textValue = wxT( "-" ) + textValue;
@@ -461,8 +464,8 @@ wxString UNIT_BINDER::getTextForValue( long long int aValue ) const
 wxString UNIT_BINDER::getTextForDoubleValue( double aValue ) const
 {
     const double displayValue = m_originTransforms.ToDisplay( aValue, m_coordType );
-    wxString     textValue = EDA_UNIT_UTILS::UI::StringFromValue(
-            *m_iuScale, m_units, setPrecision( displayValue, false ), false, m_dataType );
+    wxString     textValue = StringFromValue(  *m_iuScale, m_units, setPrecision( displayValue, false ), false,
+                                               m_dataType );
 
     if( displayValue == 0 && !std::signbit( displayValue ) && m_negativeZero )
         textValue = wxT( "-" ) + textValue;
@@ -485,7 +488,7 @@ void UNIT_BINDER::ChangeDoubleValue( double aValue )
 
 void UNIT_BINDER::ChangeAngleValue( const EDA_ANGLE& aValue )
 {
-    ChangeDoubleValue( aValue.AsDegrees() );
+    ChangeDoubleValue( m_originTransforms.ToDisplay( aValue, m_coordType ) );
 }
 
 
@@ -517,7 +520,7 @@ void UNIT_BINDER::ChangeValue( const wxString& aValue )
 }
 
 
-long long int UNIT_BINDER::GetValue()
+long long int UNIT_BINDER::GetValue() const
 {
     wxTextEntry*  textEntry = dynamic_cast<wxTextEntry*>( m_valueCtrl );
     wxStaticText* staticText = dynamic_cast<wxStaticText*>( m_valueCtrl );
@@ -541,8 +544,7 @@ long long int UNIT_BINDER::GetValue()
         return 0;
     }
 
-    long long int displayValue = EDA_UNIT_UTILS::UI::ValueFromString( *m_iuScale, m_units, value,
-                                                                      m_dataType );
+    long long int displayValue = ValueFromString( *m_iuScale, m_units, value, m_dataType );
     return m_originTransforms.FromDisplay( displayValue, m_coordType );
 }
 
@@ -555,21 +557,19 @@ double UNIT_BINDER::setPrecision( double aValue, bool aValueUsesUserUnits ) cons
         int64_t tmp = aValue;
 
         if( !aValueUsesUserUnits )
-        {
-            tmp = EDA_UNIT_UTILS::UI::ToUserUnit( *m_iuScale, m_units, aValue ) * scale;
-        }
+            tmp = ToUserUnit( *m_iuScale, m_units, aValue ) * scale;
 
         aValue = static_cast<double>( tmp ) / scale;
 
         if( !aValueUsesUserUnits )
-            aValue = EDA_UNIT_UTILS::UI::FromUserUnit( *m_iuScale, m_units, aValue );
+            aValue = FromUserUnit( *m_iuScale, m_units, aValue );
     }
 
     return aValue;
 }
 
 
-double UNIT_BINDER::GetDoubleValue()
+double UNIT_BINDER::GetDoubleValue() const
 {
     wxTextEntry*  textEntry = dynamic_cast<wxTextEntry*>( m_valueCtrl );
     wxStaticText* staticText = dynamic_cast<wxStaticText*>( m_valueCtrl );
@@ -593,8 +593,7 @@ double UNIT_BINDER::GetDoubleValue()
         return 0.0;
     }
 
-    double displayValue = EDA_UNIT_UTILS::UI::DoubleValueFromString( *m_iuScale, m_units,
-                                                                     value, m_dataType );
+    double displayValue = DoubleValueFromString( *m_iuScale, m_units, value, m_dataType );
     displayValue = setPrecision( displayValue, false );
 
     return m_originTransforms.FromDisplay( displayValue, m_coordType );
@@ -603,7 +602,7 @@ double UNIT_BINDER::GetDoubleValue()
 
 EDA_ANGLE UNIT_BINDER::GetAngleValue()
 {
-    return EDA_ANGLE( GetDoubleValue(), DEGREES_T );
+    return m_originTransforms.FromDisplay( EDA_ANGLE( GetDoubleValue(), DEGREES_T ), m_coordType );
 }
 
 
@@ -615,9 +614,7 @@ void UNIT_BINDER::SetOptionsList( std::span<const long long int> aOptions )
     cb->Clear();
 
     for( long long int value : aOptions )
-    {
         cb->Append( getTextForValue( value ) );
-    }
 }
 
 
@@ -629,9 +626,7 @@ void UNIT_BINDER::SetDoubleOptionsList( std::span<const double> aOptions )
     cb->Clear();
 
     for( double value : aOptions )
-    {
         cb->Append( getTextForDoubleValue( value ) );
-    }
 }
 
 

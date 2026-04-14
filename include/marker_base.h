@@ -61,13 +61,13 @@ public:
 
     MARKER_BASE( int aScalingFactor, std::shared_ptr<RC_ITEM> aItem,
                  MARKER_T aType = MARKER_UNSPEC );
-    virtual ~MARKER_BASE();
+    virtual ~MARKER_BASE() {};
 
     /**
      * The scaling factor to convert polygonal shape coordinates to internal units.
      */
     int MarkerScale() const { return m_scalingFactor; }
-    void SetMarkerScale( int aScale ) { m_scalingFactor = aScale; }
+    void SetMarkerScale( int aScale ) const { m_scalingFactor = aScale; }
 
     /**
      * Return the shape polygon in internal units in a #SHAPE_LINE_CHAIN the coordinates
@@ -76,11 +76,6 @@ public:
      * @param aPolygon is the #SHAPE_LINE_CHAIN to fill with the shape.
      */
     void ShapeToPolygon( SHAPE_LINE_CHAIN& aPolygon, int aScale = -1 ) const;
-
-    /**
-     * Print the shape is the polygon defined in m_Corners (array of VECTOR2Is).
-     */
-    void PrintMarker( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset );
 
     /**
      * @return the position of this marker in internal units.
@@ -125,6 +120,11 @@ public:
     bool HitTestMarker( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const;
 
     /**
+     * Test if the given #SHAPE_LINE_CHAIN intersects or contains the bounds of this object.
+     */
+    bool HitTestMarker( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const;
+
+    /**
      * Return the orthogonal, bounding box of this object for display purposes.
      *
      * This box should be an enclosing perimeter for visible components of this
@@ -145,11 +145,10 @@ protected:
     wxString            m_comment;             ///< User supplied comment.
     std::shared_ptr<RC_ITEM> m_rcItem;
 
-    int                 m_scalingFactor;       ///< Scaling factor to convert corners coordinates
-                                               ///< to internal units coordinates.
-    BOX2I               m_shapeBoundingBox;    ///< Bounding box of the graphic symbol relative
-                                               ///< to the position of the shape in marker shape
-                                               ///< units.
+    mutable int         m_scalingFactor;       ///< Scaling factor to convert corners coordinates to internal
+                                               ///< units.  Dependant on current zoom.
+    BOX2I               m_shapeBoundingBox;    ///< Bounding box of the graphic symbol relative to the position
+                                               ///< of the shape in marker shape units.
 };
 
 

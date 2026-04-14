@@ -31,6 +31,7 @@
 #include <plotters/plotter.h>
 #include <bitmaps.h>
 #include <schematic.h>
+#include <geometry/geometry_utils.h>
 #include <sch_no_connect.h>
 #include <settings/color_settings.h>
 #include <default_values.h>    // For some default values
@@ -55,10 +56,8 @@ EDA_ITEM* SCH_NO_CONNECT::Clone() const
 }
 
 
-void SCH_NO_CONNECT::SwapData( SCH_ITEM* aItem )
+void SCH_NO_CONNECT::swapData( SCH_ITEM* aItem )
 {
-    SCH_ITEM::SwapFlags( aItem );
-
     wxCHECK_RET( ( aItem != nullptr ) && ( aItem->Type() == SCH_NO_CONNECT_T ),
                  wxT( "Cannot swap no connect data with invalid item." ) );
 
@@ -98,21 +97,6 @@ int SCH_NO_CONNECT::GetPenWidth() const
         return 1;
 
     return std::max( Schematic()->Settings().m_DefaultLineWidth, 1 );
-}
-
-
-void SCH_NO_CONNECT::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                            const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
-{
-    wxDC*   DC = aSettings->GetPrintDC();
-    int     half = GetSize() / 2;
-    int     penWidth = GetEffectivePenWidth( aSettings );
-    int     pX = m_pos.x + aOffset.x;
-    int     pY = m_pos.y + aOffset.y;
-    COLOR4D color = aSettings->GetLayerColor( LAYER_NOCONNECT );
-
-    GRLine( DC, pX - half, pY - half, pX + half, pY + half, penWidth, color );
-    GRLine( DC, pX + half, pY - half, pX - half, pY + half, penWidth, color );
 }
 
 
@@ -188,6 +172,12 @@ bool SCH_NO_CONNECT::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy
 }
 
 
+bool SCH_NO_CONNECT::HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
+{
+    return KIGEOM::BoxHitTest( aPoly, GetBoundingBox(), aContained );
+}
+
+
 void SCH_NO_CONNECT::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                            int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed )
 {
@@ -199,8 +189,13 @@ void SCH_NO_CONNECT::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_O
     int pY = m_pos.y;
     int penWidth = GetEffectivePenWidth( getRenderSettings( aPlotter ) );
 
+    COLOR4D color = aPlotter->RenderSettings()->GetLayerColor( LAYER_NOCONNECT );
+
+    if( color.m_text && Schematic() )
+        color = COLOR4D( ResolveText( *color.m_text, &Schematic()->CurrentSheet() ) );
+
     aPlotter->SetCurrentLineWidth( penWidth );
-    aPlotter->SetColor( aPlotter->RenderSettings()->GetLayerColor( LAYER_NOCONNECT ) );
+    aPlotter->SetColor( color );
     aPlotter->MoveTo( VECTOR2I( pX - delta, pY - delta ) );
     aPlotter->FinishTo( VECTOR2I( pX + delta, pY + delta ) );
     aPlotter->MoveTo( VECTOR2I( pX + delta, pY - delta ) );

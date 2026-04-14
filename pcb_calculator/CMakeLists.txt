@@ -11,7 +11,6 @@ set( PCB_CALCULATOR_SRCS
     common_data.cpp
     eseries.cpp
     params_read_write.cpp
-    pcb_calculator_control.cpp
     pcb_calculator_frame.cpp
     pcb_calculator_settings.cpp
     datafile_read_write.cpp
@@ -57,6 +56,7 @@ set( PCB_CALCULATOR_SRCS
     transline/coax.cpp
     transline/rectwaveguide.cpp
     transline/stripline.cpp
+    transline/c_stripline.cpp
     transline/twistedpair.cpp
     transline_dlg_funct.cpp
     attenuators/attenuator_classes.cpp

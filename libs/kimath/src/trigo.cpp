@@ -386,7 +386,7 @@ const VECTOR2D CalcArcCenter( const VECTOR2D& aStart, const VECTOR2D& aMid, cons
         return center;
     }
 
-    // Prevent div=0 errors
+    // Prevent div-by-0 errors
     if( xDelta_21 == 0.0 )
         xDelta_21 = std::numeric_limits<double>::epsilon();
 

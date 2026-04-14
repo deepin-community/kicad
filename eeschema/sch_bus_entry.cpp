@@ -27,6 +27,7 @@
 #include <core/mirror.h>
 #include <schematic.h>
 #include <geometry/shape_segment.h>
+#include <geometry/geometry_utils.h>
 #include <sch_bus_entry.h>
 #include <sch_edit_frame.h>
 #include <sch_junction.h>
@@ -40,6 +41,8 @@
 #include <connection_graph.h>
 #include "sch_painter.h"
 #include "plotters/plotter.h"
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 SCH_BUS_ENTRY_BASE::SCH_BUS_ENTRY_BASE( KICAD_T aType, const VECTOR2I& pos, bool aFlipY ) :
@@ -134,10 +137,8 @@ VECTOR2I SCH_BUS_ENTRY_BASE::GetEnd() const
 }
 
 
-void SCH_BUS_ENTRY_BASE::SwapData( SCH_ITEM* aItem )
+void SCH_BUS_ENTRY_BASE::swapData( SCH_ITEM* aItem )
 {
-    SCH_ITEM::SwapFlags( aItem );
-
     SCH_BUS_ENTRY_BASE* item = dynamic_cast<SCH_BUS_ENTRY_BASE*>( aItem );
     wxCHECK_RET( item, wxT( "Cannot swap bus entry data with invalid item." ) );
 
@@ -260,34 +261,6 @@ void SCH_BUS_BUS_ENTRY::GetEndPoints( std::vector< DANGLING_END_ITEM >& aItemLis
 
     DANGLING_END_ITEM item1( BUS_ENTRY_END, this, GetEnd() );
     aItemList.push_back( item1 );
-}
-
-
-void SCH_BUS_ENTRY_BASE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                                const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
-{
-    wxDC*   DC = aSettings->GetPrintDC();
-    COLOR4D color = ( GetBusEntryColor() == COLOR4D::UNSPECIFIED )
-                                                            ? aSettings->GetLayerColor( m_layer )
-                                                            : GetBusEntryColor();
-    VECTOR2I start = m_pos + aOffset;
-    VECTOR2I end = GetEnd() + aOffset;
-    int      penWidth = ( GetPenWidth() == 0 ) ? aSettings->GetDefaultPenWidth() : GetPenWidth();
-
-    if( GetEffectiveLineStyle() <= LINE_STYLE::FIRST_TYPE )
-    {
-        GRLine( DC, start.x, start.y, end.x, end.y, penWidth, color );
-    }
-    else
-    {
-        SHAPE_SEGMENT segment( start, end );
-
-        STROKE_PARAMS::Stroke( &segment, GetEffectiveLineStyle(), penWidth, aSettings,
-                               [&]( const VECTOR2I& a, const VECTOR2I& b )
-                               {
-                                   GRLine( DC, a.x, a.y, b.x, b.y, penWidth, color );
-                               } );
-    }
 }
 
 
@@ -446,13 +419,13 @@ bool SCH_BUS_ENTRY_BASE::HasConnectivityChanges( const SCH_ITEM* aItem,
 
 wxString SCH_BUS_WIRE_ENTRY::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString( _( "Bus to Wire Entry" ) );
+    return wxString( _( "Bus to wire entry" ) );
 }
 
 
 wxString SCH_BUS_BUS_ENTRY::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString( _( "Bus to Bus Entry" ) );
+    return wxString( _( "Bus to bus entry" ) );
 }
 
 
@@ -491,6 +464,13 @@ bool SCH_BUS_ENTRY_BASE::HitTest( const BOX2I& aRect, bool aContained, int aAccu
 }
 
 
+bool SCH_BUS_ENTRY_BASE::HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
+{
+    SHAPE_SEGMENT line( m_pos, GetEnd(), GetPenWidth() );
+    return KIGEOM::ShapeHitTest( aPoly, line, aContained );
+}
+
+
 void SCH_BUS_ENTRY_BASE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                                int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed )
 {
@@ -501,6 +481,9 @@ void SCH_BUS_ENTRY_BASE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PL
 
     COLOR4D color = ( GetBusEntryColor() == COLOR4D::UNSPECIFIED )
                             ? renderSettings->GetLayerColor( m_layer ) : GetBusEntryColor();
+
+    if( color.m_text && Schematic() )
+        color = COLOR4D( ResolveText( *color.m_text, &Schematic()->CurrentSheet() ) );
 
     int penWidth = ( GetPenWidth() == 0 ) ? renderSettings->GetDefaultPenWidth() : GetPenWidth();
 
@@ -665,17 +648,14 @@ static struct SCH_BUS_ENTRY_DESC
                              .Map( WIRE_STYLE::DASHDOTDOT, _HKI( "Dash-Dot-Dot" ) );
         }
 
-        propMgr.AddProperty( new PROPERTY_ENUM<SCH_BUS_ENTRY_BASE,
-                             WIRE_STYLE>( _HKI( "Line Style" ),
-                                          &SCH_BUS_ENTRY_BASE::SetWireStyle,
-                                          &SCH_BUS_ENTRY_BASE::GetWireStyle ) );
+        propMgr.AddProperty( new PROPERTY_ENUM<SCH_BUS_ENTRY_BASE, WIRE_STYLE>( _HKI( "Line Style" ),
+                    &SCH_BUS_ENTRY_BASE::SetWireStyle, &SCH_BUS_ENTRY_BASE::GetWireStyle ) );
 
         propMgr.AddProperty( new PROPERTY<SCH_BUS_ENTRY_BASE, int>( _HKI( "Line Width" ),
                     &SCH_BUS_ENTRY_BASE::SetPenWidth, &SCH_BUS_ENTRY_BASE::GetPenWidth,
                     PROPERTY_DISPLAY::PT_SIZE ) );
 
-        propMgr.AddProperty( new PROPERTY<SCH_BUS_ENTRY_BASE, COLOR4D>(
-                _HKI( "Color" ), &SCH_BUS_ENTRY_BASE::SetBusEntryColor,
-                &SCH_BUS_ENTRY_BASE::GetBusEntryColor ) );
+        propMgr.AddProperty( new PROPERTY<SCH_BUS_ENTRY_BASE, COLOR4D>( _HKI( "Color" ),
+                    &SCH_BUS_ENTRY_BASE::SetBusEntryColor, &SCH_BUS_ENTRY_BASE::GetBusEntryColor ) );
     }
 } _SCH_BUS_ENTRY_DESC;

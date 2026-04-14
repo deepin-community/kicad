@@ -95,6 +95,7 @@
  */
 
 
+#include <array>
 #include <atomic>
 #include <wx/defs.h>
 #include <wx/event.h>
@@ -134,6 +135,9 @@ class wxTopLevelWindow;
 class TOOL_ACTION;
 class JOB;
 class REPORTER;
+class PROGRESS_REPORTER;
+class STARTWIZARD_PROVIDER;
+class LOCAL_HISTORY;
 
 
 /**
@@ -242,7 +246,7 @@ struct KIFACE
      */
     virtual void GetActions( std::vector<TOOL_ACTION*>& aActions ) const = 0;
 
-    virtual int HandleJob( JOB* aJob, REPORTER* aReporter )
+    virtual int HandleJob( JOB* aJob, REPORTER* aReporter, PROGRESS_REPORTER* aProgressReporter )
     {
         return 0;
     }
@@ -251,6 +255,12 @@ struct KIFACE
     {
         return 0;
     }
+
+    virtual void PreloadLibraries( KIWAY* aKiway ) {}
+
+    virtual void CancelPreload( bool aBlock = true ) {}
+
+    virtual void ProjectChanged() {}
 };
 
 
@@ -301,7 +311,7 @@ public:
         KIWAY_FACE_COUNT
     };
 
-    ~KIWAY() throw () {}
+    ~KIWAY();
 
     /**
      * A simple mapping function which returns the FACE_T which is known to implement
@@ -376,7 +386,7 @@ public:
      * efficiently switch() based on @a aCommand in there.
      */
     virtual void ExpressMail( FRAME_T aDestination, MAIL_T aCommand, std::string& aPayload,
-                              wxWindow* aSource = nullptr );
+                              wxWindow* aSource = nullptr, bool aFromOtherThread = false );
 
     /**
      * Append all registered actions to the given list.
@@ -392,6 +402,11 @@ public:
     virtual PROJECT& Prj() const;
 
     /**
+     * Return the LOCAL_HISTORY associated with this KIWAY.
+     */
+    LOCAL_HISTORY& LocalHistory() { return *m_local_history; }
+
+    /**
      * Change the language and then calls ShowChangedLanguage() on all #KIWAY_PLAYERs.
      */
     virtual void SetLanguage( int aLanguage );
@@ -402,6 +417,12 @@ public:
      * Use after changing suite-wide options such as panning, autosave interval, etc.
      */
     virtual void CommonSettingsChanged( int aFlags = 0 );
+
+    /**
+     * Clear the wxWidgets file history on each open frame.  Preference records are handled
+     * by SETTINGS_MANAGER (as not all frames might be open).
+     */
+    void ClearFileHistory();
 
     /**
      * Calls ProjectChanged() on all KIWAY_PLAYERs.
@@ -432,7 +453,10 @@ public:
 
     bool ProcessEvent( wxEvent& aEvent ) override;
 
-    int  ProcessJob( KIWAY::FACE_T aFace, JOB* aJob, REPORTER* aReporter = nullptr );
+    void QueueEvent( wxEvent* aEvent ) override;
+
+    int  ProcessJob( KIWAY::FACE_T aFace, JOB* aJob, REPORTER* aReporter = nullptr,
+                     PROGRESS_REPORTER* aProgressReporter = nullptr );
     bool ProcessJobConfigDialog( KIWAY::FACE_T aFace, JOB* aJob, wxWindow* aWindow );
 
     /**
@@ -463,8 +487,8 @@ private:
      */
     KIWAY_PLAYER* GetPlayerFrame( FRAME_T aFrameType );
 
-    static KIFACE*  m_kiface[KIWAY_FACE_COUNT];
-    static int      m_kiface_version[KIWAY_FACE_COUNT];
+    static std::array<KIFACE*,KIWAY_FACE_COUNT>  m_kiface;
+    static std::array<int,KIWAY_FACE_COUNT>      m_kiface_version;
 
     int             m_ctl;
 
@@ -479,6 +503,8 @@ private:
     // Call: wxWindow::FindWindowById( m_playerFrameId[aFrameType] )
     // to know if still exists (or GetPlayerFrame( FRAME_T aFrameType )
     std::atomic<wxWindowID> m_playerFrameId[KIWAY_PLAYER_COUNT];
+
+    LOCAL_HISTORY*  m_local_history;
 };
 
 

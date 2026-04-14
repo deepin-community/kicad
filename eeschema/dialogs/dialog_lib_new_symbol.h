@@ -35,8 +35,8 @@ class DIALOG_LIB_NEW_SYMBOL : public DIALOG_LIB_NEW_SYMBOL_BASE
 {
 public:
     DIALOG_LIB_NEW_SYMBOL( EDA_DRAW_FRAME* aParent, const wxArrayString& aSymbolNames,
-                           const wxString&                         aInheritFromSymbolName,
-                           std::function<bool( wxString newName )> aValidator );
+                           const wxString& aInheritFromSymbolName,
+                           std::function<bool( const wxString& newName )> aValidator );
 
     ~DIALOG_LIB_NEW_SYMBOL();
 
@@ -84,6 +84,18 @@ public:
     void SetPinTextPosition( int position ) { m_pinTextPosition.SetValue( position ); }
     int GetPinTextPosition() { return m_pinTextPosition.GetValue(); }
 
+    void SetKeepDatasheet( bool keep ) { m_checkKeepDatasheet->SetValue( keep ); }
+    bool GetKeepDatasheet() { return m_checkKeepDatasheet->GetValue(); }
+
+    void SetKeepFootprint( bool keep ) { m_checkKeepFootprint->SetValue( keep ); }
+    bool GetKeepFootprint() { return m_checkKeepFootprint->GetValue(); }
+
+    void SetTransferUserFields( bool keep ) { m_checkTransferUserFields->SetValue( keep ); }
+    bool GetTransferUserFields() { return m_checkTransferUserFields->GetValue(); }
+
+    void SetKeepContentUserFields( bool keep ) { m_checkKeepContentUserFields->SetValue( keep ); }
+    bool GetKeepContentUserFields() { return m_checkKeepContentUserFields->GetValue(); }
+
     void SetShowPinNumber( bool show ) { m_checkShowPinNumber->SetValue( show ); }
     bool GetShowPinNumber() { return m_checkShowPinNumber->GetValue(); }
 
@@ -94,9 +106,11 @@ public:
     bool GetPinNameInside() { return m_checkShowPinNameInside->GetValue(); }
 
 protected:
+    bool TransferDataToWindow() override;
     bool TransferDataFromWindow() override;
 
     virtual void onPowerCheckBox( wxCommandEvent& aEvent ) override;
+    virtual void onCheckTransferUserFields( wxCommandEvent& aEvent ) override;
 
 private:
     void onParentSymbolSelect( wxCommandEvent& aEvent );
@@ -104,7 +118,8 @@ private:
     void syncControls( bool aIsDerivedPart );
 
 private:
-    UNIT_BINDER                             m_pinTextPosition;
-    std::function<bool( wxString newName )> m_validator;
-    bool                                    m_nameIsDefaulted;
+    UNIT_BINDER                                    m_pinTextPosition;
+    std::function<bool( const wxString& newName )> m_validator;
+    wxString                                       m_inheritFromSymbolName;
+    bool                                           m_nameIsDefaulted;
 };

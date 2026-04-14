@@ -101,10 +101,7 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     fileMenu->Add( ACTIONS::revert );
 
     fileMenu->AppendSeparator();
-    fileMenu->Add( _( "Resc&ue" ),
-                   _( "Clear board and get last rescue file automatically saved by PCB editor" ),
-                   ID_MENU_RECOVER_BOARD_AUTOSAVE,
-                   BITMAPS::rescue );
+    fileMenu->Add( PCB_ACTIONS::rescueAutosave );
 
     // Import submenu
     ACTION_MENU* submenuImport = new ACTION_MENU( false, selTool );
@@ -114,9 +111,7 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     submenuImport->Add( PCB_ACTIONS::importNetlist,          ACTION_MENU::NORMAL, _( "Netlist..." ) );
     submenuImport->Add( PCB_ACTIONS::importSpecctraSession,  ACTION_MENU::NORMAL, _( "Specctra Session..." ) );
     submenuImport->Add( PCB_ACTIONS::placeImportedGraphics,  ACTION_MENU::NORMAL, _( "Graphics..." ) );
-    submenuImport->Add( _( "Non-KiCad Board File..." ),
-                        _( "Import board file from other applications" ),
-                        ID_IMPORT_NON_KICAD_BOARD, BITMAPS::import_brd_file );
+    submenuImport->Add( PCB_ACTIONS::openNonKicadBoard );
 
     fileMenu->AppendSeparator();
     fileMenu->Add( submenuImport );
@@ -127,34 +122,18 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     submenuExport->SetIcon( BITMAPS::export_file );
 
     submenuExport->Add( PCB_ACTIONS::exportSpecctraDSN, ACTION_MENU::NORMAL, _( "Specctra DSN..." ) );
-    submenuExport->Add( _( "GenCAD..." ), _( "Export GenCAD board representation" ),
-                        ID_GEN_EXPORT_FILE_GENCADFORMAT, BITMAPS::post_gencad );
-    submenuExport->Add( _( "VRML..." ), _( "Export VRML 3D board representation" ),
-                        ID_GEN_EXPORT_FILE_VRML, BITMAPS::export3d );
-    submenuExport->Add( _( "IDFv3..." ), _( "Export IDF 3D board representation" ),
-                        ID_GEN_EXPORT_FILE_IDF3, BITMAPS::export_idf );
-    submenuExport->Add( _( "STEP / GLB / BREP / XAO / PLY / STL..." ),
-                        _( "Export STEP / GLB / BREP / XAO / PLY / STL 3D board representation" ),
-                        ID_GEN_EXPORT_FILE_STEP, BITMAPS::export_step );
-    submenuExport->Add( _( "Footprint Association (.cmp) File..." ),
-                        _( "Export footprint association file (*.cmp) for schematic back annotation" ),
-                        ID_PCB_GEN_CMP_FILE, BITMAPS::export_cmp );
-    submenuExport->Add( _( "Hyperlynx..." ), wxEmptyString,
-                        ID_GEN_EXPORT_FILE_HYPERLYNX, BITMAPS::export_step );
+    submenuExport->Add( PCB_ACTIONS::exportGenCAD,      ACTION_MENU::NORMAL, _( "GenCAD..." ) );
+    submenuExport->Add( PCB_ACTIONS::exportVRML,        ACTION_MENU::NORMAL, _( "VRML..." ) );
+    submenuExport->Add( PCB_ACTIONS::exportIDF,         ACTION_MENU::NORMAL, _( "IDFv3..." ) );
+    submenuExport->Add( PCB_ACTIONS::exportSTEP,        ACTION_MENU::NORMAL, _( "STEP/GLB/BREP/XAO/PLY/STL..." ) );
+    submenuExport->Add( PCB_ACTIONS::exportCmpFile,     ACTION_MENU::NORMAL, _( "Footprint Association (.cmp) File..." ) );
+    submenuExport->Add( PCB_ACTIONS::exportHyperlynx,   ACTION_MENU::NORMAL, _( "Hyperlynx..." ) );
 
     if( ADVANCED_CFG::GetCfg().m_ShowPcbnewExportNetlist && m_exportNetlistAction )
         submenuExport->Add( *m_exportNetlistAction );
 
     submenuExport->AppendSeparator();
-    submenuExport->Add( _( "Footprints to Library..." ),
-                        _( "Add footprints used on board to an existing footprint library\n"
-                           "(does not remove other footprints from this library)" ),
-                        ID_MENU_EXPORT_FOOTPRINTS_TO_LIBRARY, BITMAPS::library_archive );
-
-    submenuExport->Add( _( "Footprints to New Library..." ),
-                        _( "Create a new footprint library containing the footprints used on board\n"
-                           "(if the library already exists it will be replaced)" ),
-                        ID_MENU_EXPORT_FOOTPRINTS_TO_NEW_LIBRARY, BITMAPS::library_archive_as );
+    submenuExport->Add( PCB_ACTIONS::exportFootprints,  ACTION_MENU::NORMAL, _( "Footprints..." ) );
 
     fileMenu->Add( submenuExport );
 
@@ -200,8 +179,15 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     editMenu->Add( ACTIONS::doDelete );
 
     editMenu->AppendSeparator();
-    editMenu->Add( ACTIONS::selectAll );
-    editMenu->Add( ACTIONS::unselectAll );
+
+    // Select Submenu
+    ACTION_MENU* selectSubMenu = new ACTION_MENU( false, selTool );
+    selectSubMenu->SetTitle( _( "&Select" ) );
+
+    selectSubMenu->Add( ACTIONS::selectAll );
+    selectSubMenu->Add( ACTIONS::unselectAll );
+
+    editMenu->Add( selectSubMenu );
 
     editMenu->AppendSeparator();
     editMenu->Add( ACTIONS::find );
@@ -234,6 +220,10 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     showHidePanels->Add( PCB_ACTIONS::showSearch,                 ACTION_MENU::CHECK );
     showHidePanels->Add( PCB_ACTIONS::showLayersManager,          ACTION_MENU::CHECK );
     showHidePanels->Add( PCB_ACTIONS::showNetInspector,           ACTION_MENU::CHECK );
+
+    if( ADVANCED_CFG::GetCfg().m_EnablePcbDesignBlocks )
+        showHidePanels->Add( PCB_ACTIONS::showDesignBlockPanel, ACTION_MENU::CHECK, _( "Design Blocks" ) );
+
     viewMenu->Add( showHidePanels );
 
     viewMenu->AppendSeparator();
@@ -245,6 +235,7 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     viewMenu->Add( ACTIONS::zoomOutCenter );
     viewMenu->Add( ACTIONS::zoomFitScreen );
     viewMenu->Add( ACTIONS::zoomFitObjects );
+    viewMenu->Add( ACTIONS::zoomFitSelection );
     viewMenu->Add( ACTIONS::zoomTool );
     viewMenu->Add( ACTIONS::zoomRedraw );
 
@@ -320,6 +311,8 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     placeMenu->Add( PCB_ACTIONS::placeText );
     placeMenu->Add( PCB_ACTIONS::drawTextBox );
     placeMenu->Add( PCB_ACTIONS::drawTable );
+    placeMenu->Add( PCB_ACTIONS::placePoint );
+    placeMenu->Add( PCB_ACTIONS::placeBarcode );
 
     placeMenu->AppendSeparator();
     ACTION_MENU* dimensionSubmenu = new ACTION_MENU( false, selTool );
@@ -395,13 +388,16 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     //
     ACTION_MENU* toolsMenu = new ACTION_MENU( false, selTool );
 
-    wxMenuItem* update = toolsMenu->Add( ACTIONS::updatePcbFromSchematic );
-    update->Enable( !Kiface().IsSingle() );
-
+    toolsMenu->Add( ACTIONS::updatePcbFromSchematic )->Enable( !Kiface().IsSingle() );
     toolsMenu->Add( PCB_ACTIONS::showEeschema );
 
     if( !Kiface().IsSingle() )
         toolsMenu->Add( ACTIONS::showProjectManager );
+
+    toolsMenu->Add( ACTIONS::showCalculatorTools );
+
+    toolsMenu->AppendSeparator();
+    toolsMenu->Add( PCB_ACTIONS::drcRuleEditor );
 
     toolsMenu->AppendSeparator();
     toolsMenu->Add( ACTIONS::showFootprintEditor );
@@ -426,9 +422,11 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     toolsMenu->Add( PCB_ACTIONS::repairBoard );
 
     toolsMenu->AppendSeparator();
+    toolsMenu->Add( PCB_ACTIONS::collect3DModels );
+
+    toolsMenu->AppendSeparator();
     toolsMenu->Add( PCB_ACTIONS::boardReannotate );
-    update = toolsMenu->Add( ACTIONS::updateSchematicFromPcb );
-    update->Enable( !Kiface().IsSingle() );
+    toolsMenu->Add( ACTIONS::updateSchematicFromPcb )->Enable( !Kiface().IsSingle() );
 
     if( SCRIPTING::IsWxAvailable() )
     {
@@ -465,6 +463,10 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
 
     prefsMenu->Add( ACTIONS::configurePaths );
     prefsMenu->Add( ACTIONS::showFootprintLibTable );
+
+    if( ADVANCED_CFG::GetCfg().m_EnablePcbDesignBlocks )
+        prefsMenu->Add( ACTIONS::showDesignBlockLibTable );
+
     prefsMenu->Add( ACTIONS::openPreferences );
 
     prefsMenu->AppendSeparator();

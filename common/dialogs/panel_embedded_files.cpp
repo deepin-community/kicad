@@ -21,6 +21,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <eda_item.h>
+#include <confirm.h>
 #include <bitmaps.h>
 #include <dialogs/panel_embedded_files.h>
 #include <embedded_files.h>
@@ -31,17 +33,19 @@
 
 #include <wx/clipbrd.h>
 #include <wx/dirdlg.h>
-#include <wx/ffile.h>
 #include <wx/filedlg.h>
 #include <wx/filename.h>
 #include <wx/log.h>
 #include <wx/menu.h>
 #include <wx/wfstream.h>
+#include <wx/wupdlock.h>
+#include <kiplatform/ui.h>
 
 /* ---------- GRID_TRICKS for embedded files grid ---------- */
 
 EMBEDDED_FILES_GRID_TRICKS::EMBEDDED_FILES_GRID_TRICKS( WX_GRID* aGrid ) :
-        GRID_TRICKS( aGrid ), m_curRow( -1 )
+        GRID_TRICKS( aGrid ),
+        m_curRow( -1 )
 {
 }
 
@@ -88,13 +92,44 @@ void EMBEDDED_FILES_GRID_TRICKS::doPopupSelection( wxCommandEvent& event )
 /* ---------- End of GRID_TRICKS for embedded files grid ---------- */
 
 
-PANEL_EMBEDDED_FILES::PANEL_EMBEDDED_FILES( wxWindow* parent, EMBEDDED_FILES* aFiles ) :
-        PANEL_EMBEDDED_FILES_BASE( parent ), m_files( aFiles ), m_localFiles( new EMBEDDED_FILES() )
+PANEL_EMBEDDED_FILES::PANEL_EMBEDDED_FILES( wxWindow* aParent, EMBEDDED_FILES* aFiles, int aFlags,
+                                            std::vector<const EMBEDDED_FILES*> aInheritedFiles ) :
+        PANEL_EMBEDDED_FILES_BASE( aParent ),
+        m_files( aFiles ),
+        m_localFiles( new EMBEDDED_FILES() ),
+        m_inheritedFiles( std::move( aInheritedFiles ) )
 {
+    m_files_grid->SetUseNativeColLabels();
+
     for( auto& [name, file] : m_files->EmbeddedFileMap() )
     {
         EMBEDDED_FILES::EMBEDDED_FILE* newFile = new EMBEDDED_FILES::EMBEDDED_FILE( *file );
         m_localFiles->AddFile( newFile );
+    }
+
+    for( const EMBEDDED_FILES* inheritedFiles : m_inheritedFiles )
+    {
+        for( auto& [name, file] : inheritedFiles->EmbeddedFileMap() )
+        {
+            if( m_localFiles->HasFile( name ) )
+                continue;
+
+            EMBEDDED_FILES::EMBEDDED_FILE* newFile = new EMBEDDED_FILES::EMBEDDED_FILE( *file );
+            m_localFiles->AddFile( newFile );
+            m_inheritedFileNames.insert( name );
+        }
+    }
+
+    if( aFlags & NO_MARGINS )
+    {
+        m_filesGridSizer->Detach( m_files_grid );
+        m_filesGridSizer->Add( m_files_grid, 5, wxEXPAND, 5 );
+
+        m_buttonsSizer->Detach( m_browse_button );
+        m_buttonsSizer->Prepend( m_browse_button, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT, 5 );
+
+        m_buttonsSizer->Detach( m_export );
+        m_buttonsSizer->Add( m_export, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT, 5 );
     }
 
     // Set up the standard buttons
@@ -104,24 +139,26 @@ PANEL_EMBEDDED_FILES::PANEL_EMBEDDED_FILES( wxWindow* parent, EMBEDDED_FILES* aF
     m_files_grid->EnableAlternateRowColors();
 
     m_files_grid->PushEventHandler( new EMBEDDED_FILES_GRID_TRICKS( m_files_grid ) );
+    m_files_grid->SetupColumnAutosizer( 1 );
 
-    m_localFiles->SetFileAddedCallback( [this](EMBEDDED_FILES::EMBEDDED_FILE* file) {
-
-        for( int ii = 0; ii < m_files_grid->GetNumberRows(); ii++ )
-        {
-            if( m_files_grid->GetCellValue( ii, 1 ) == file->GetLink() )
+    m_localFiles->SetFileAddedCallback(
+            [this](EMBEDDED_FILES::EMBEDDED_FILE* file)
             {
-                m_files_grid->DeleteRows( ii );
-                break;
-            }
-        }
+                for( int ii = 0; ii < m_files_grid->GetNumberRows(); ii++ )
+                {
+                    if( m_files_grid->GetCellValue( ii, 1 ) == file->GetLink() )
+                    {
+                        m_files_grid->DeleteRows( ii );
+                        break;
+                    }
+                }
 
-        m_files_grid->AppendRows( 1 );
-        int ii = m_files_grid->GetNumberRows() - 1;
-        m_files_grid->SetCellValue( ii, 0, file->name );
-        m_files_grid->SetCellValue( ii, 1, file->GetLink() );
+                m_files_grid->AppendRows( 1 );
+                int ii = m_files_grid->GetNumberRows() - 1;
+                m_files_grid->SetCellValue( ii, 0, file->name );
+                m_files_grid->SetCellValue( ii, 1, file->GetLink() );
 
-    });
+            } );
 }
 
 
@@ -129,43 +166,17 @@ PANEL_EMBEDDED_FILES::~PANEL_EMBEDDED_FILES()
 {
     // Remove the GRID_TRICKS handler
     m_files_grid->PopEventHandler( true );
-}
-
-
-void PANEL_EMBEDDED_FILES::onSize( wxSizeEvent& event )
-{
-    resizeGrid();
-}
-
-
-void PANEL_EMBEDDED_FILES::resizeGrid()
-{
-    int panel_width = GetClientRect().GetWidth();
-    int first_width = m_files_grid->GetColSize( 0 );
-    int second_width = m_files_grid->GetColSize( 1 );
-
-    double ratio;
-
-    if( first_width + second_width > 0 )
-        ratio = (double)first_width / (double)( first_width + second_width );
-    else
-        ratio = 0.3;
-
-
-    m_files_grid->SetColSize( 0, panel_width * ratio );
-    m_files_grid->SetColSize( 1, panel_width * ( 1 - ratio ) );
-    Layout();
+    delete m_localFiles;
 }
 
 
 bool PANEL_EMBEDDED_FILES::TransferDataToWindow()
 {
     m_files_grid->ClearGrid();
-
-    if( m_files_grid->GetNumberRows() > 0 )
-        m_files_grid->DeleteRows( 0, m_files_grid->GetNumberRows() );
+    m_files_grid->ClearRows();
 
     int ii = 0;
+
     for( auto& [name, file] : m_localFiles->EmbeddedFileMap() )
     {
         while( m_files_grid->GetNumberRows() < ii + 1 )
@@ -178,25 +189,69 @@ bool PANEL_EMBEDDED_FILES::TransferDataToWindow()
     }
 
     m_cbEmbedFonts->SetValue( m_files->GetAreFontsEmbedded() );
-
-    resizeGrid();
-
     return true;
 }
 
 
 bool PANEL_EMBEDDED_FILES::TransferDataFromWindow()
 {
+    std::optional<bool> deleteReferences;
+
+    auto confirmDelete =
+            [&]() -> bool
+            {
+                if( EDA_ITEM* parent = dynamic_cast<EDA_ITEM*>( m_files ) )
+                {
+                    if( parent->Type() == PCB_T )
+                    {
+                        return IsOK( m_parent, _( "Deleted embedded files are also referenced in some footprints.\n"
+                                                  "Delete from footprints as well?" ) );
+                    }
+                    else if( parent->Type() == SCHEMATIC_T )
+                    {
+                        return IsOK( m_parent, _( "Deleted embedded files are also referenced in some symbols.\n"
+                                                  "Delete from symbols as well?" ) );
+                    }
+                }
+
+                wxFAIL_MSG( wxT( "Unexpected embedded files owner" ) );
+                return false;
+            };
+
+    for( const auto& [name, file] : m_files->EmbeddedFileMap() )
+    {
+        if( !m_localFiles->HasFile( name ) )
+        {
+            m_files->RunOnNestedEmbeddedFiles(
+                    [&]( EMBEDDED_FILES* nested_files )
+                    {
+                        if( nested_files->HasFile( name ) )
+                        {
+                            if( !deleteReferences.has_value() )
+                                deleteReferences = confirmDelete();
+
+                            if( deleteReferences.value() )
+                                nested_files->RemoveFile( name, true );
+                        }
+                    } );
+        }
+
+        if( deleteReferences.has_value() && deleteReferences.value() == false )
+            break;
+    }
+
     m_files->ClearEmbeddedFiles();
 
     std::vector<EMBEDDED_FILES::EMBEDDED_FILE*> files;
 
-    for( auto it = m_localFiles->EmbeddedFileMap().begin();
-         it != m_localFiles->EmbeddedFileMap().end(); it++ )
-        files.push_back( it->second );
+    for( const auto& [name, file] : m_localFiles->EmbeddedFileMap() )
+        files.push_back( file );
 
-    for( auto& file : files )
+    for( EMBEDDED_FILES::EMBEDDED_FILE* file : files )
     {
+        if( m_inheritedFileNames.count( file->name ) )
+            continue;
+
         m_files->AddFile( file );
         m_localFiles->RemoveFile( file->name, false );
     }
@@ -209,7 +264,8 @@ bool PANEL_EMBEDDED_FILES::TransferDataFromWindow()
 
 void PANEL_EMBEDDED_FILES::onFontEmbedClick( wxCommandEvent& event )
 {
-    Freeze();
+    wxWindowUpdateLocker updateLock( this );
+
     int row_pos = m_files_grid->GetGridCursorRow();
     int col_pos = m_files_grid->GetGridCursorCol();
     wxString row_name;
@@ -237,8 +293,7 @@ void PANEL_EMBEDDED_FILES::onFontEmbedClick( wxCommandEvent& event )
 
         for( KIFONT::OUTLINE_FONT* font : fonts )
         {
-            EMBEDDED_FILES::EMBEDDED_FILE* result =
-                    m_localFiles->AddFile( font->GetFileName(), true );
+            EMBEDDED_FILES::EMBEDDED_FILE* result = m_localFiles->AddFile( font->GetFileName(), true );
 
             if( !result )
             {
@@ -246,11 +301,6 @@ void PANEL_EMBEDDED_FILES::onFontEmbedClick( wxCommandEvent& event )
                                                                     font->GetFileName() ) );
                 continue;
             }
-
-            m_files_grid->AppendRows( 1 );
-            int ii = m_files_grid->GetNumberRows() - 1;
-            m_files_grid->SetCellValue( ii, 0, result->name );
-            m_files_grid->SetCellValue( ii, 1, result->GetLink() );
         }
     }
 
@@ -269,8 +319,6 @@ void PANEL_EMBEDDED_FILES::onFontEmbedClick( wxCommandEvent& event )
             }
         }
     }
-
-    Thaw();
 }
 
 
@@ -281,13 +329,40 @@ EMBEDDED_FILES::EMBEDDED_FILE* PANEL_EMBEDDED_FILES::AddEmbeddedFile( const wxSt
 
     if( m_localFiles->HasFile( name ) )
     {
-        wxString msg = wxString::Format( _( "File '%s' already exists." ), name );
+        EMBEDDED_FILES::EMBEDDED_FILE* existingFile = m_localFiles->GetEmbeddedFile( name );
+        std::string newFileHash;
 
-        KIDIALOG errorDlg( m_parent, msg, _( "Confirmation" ), wxOK | wxCANCEL | wxICON_WARNING );
-        errorDlg.SetOKLabel( _( "Overwrite" ) );
-
-        if( errorDlg.ShowModal() != wxID_OK )
+        if( EMBEDDED_FILES::ComputeFileHash( fileName, newFileHash ) != EMBEDDED_FILES::RETURN_CODE::OK )
+        {
+            wxString msg = wxString::Format( _( "Failed to read file '%s'." ), name );
+            KIDIALOG errorDlg( m_parent, msg, _( "Error" ), wxOK | wxICON_ERROR );
+            errorDlg.ShowModal();
             return nullptr;
+        }
+
+        if( existingFile && existingFile->data_hash == newFileHash )
+        {
+            return existingFile;
+        }
+
+        wxString msg = wxString::Format(
+                _( "A file named '%s' is already embedded, but the file on disk has different "
+                   "content.\n\nDo you want to replace the embedded file with the new version?" ),
+                name );
+
+        KIDIALOG dlg( m_parent, msg, _( "Embedded File Conflict" ),
+                      wxYES_NO | wxCANCEL | wxICON_WARNING );
+        dlg.SetYesNoLabels( _( "Replace" ), _( "Reuse Existing" ) );
+
+        int result = dlg.ShowModal();
+
+        if( result == wxID_CANCEL )
+            return nullptr;
+
+        if( result == wxID_NO )
+        {
+            return existingFile;
+        }
 
         for( int ii = 0; ii < m_files_grid->GetNumberRows(); ii++ )
         {
@@ -321,12 +396,14 @@ void PANEL_EMBEDDED_FILES::onAddEmbeddedFiles( wxCommandEvent& event )
                              _( "All Files" ) + wxT( " (*.*)|*.*" ),
                              wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE );
 
+    KIPLATFORM::UI::AllowNetworkFileSystems( &fileDialog );
+
     if( fileDialog.ShowModal() == wxID_OK )
     {
         wxArrayString paths;
         fileDialog.GetPaths( paths );
 
-        for( wxString path : paths )
+        for( const wxString& path : paths )
             AddEmbeddedFile( path );
     }
 }
@@ -338,6 +415,14 @@ bool PANEL_EMBEDDED_FILES::RemoveEmbeddedFile( const wxString& aFileName )
 
     if( name.StartsWith( FILEEXT::KiCadUriPrefix ) )
         name = name.Mid( FILEEXT::KiCadUriPrefix.size() + 3 );
+
+    if( m_inheritedFileNames.count( name ) )
+    {
+        wxString msg = _( "Embedded files inherited from a parent symbol cannot be removed." );
+
+        DisplayErrorMessage( this, msg );
+        return false;
+    }
 
     int row = std::max( 0, m_files_grid->GetGridCursorRow() );
 
@@ -363,21 +448,13 @@ bool PANEL_EMBEDDED_FILES::RemoveEmbeddedFile( const wxString& aFileName )
 
 void PANEL_EMBEDDED_FILES::onDeleteEmbeddedFile( wxCommandEvent& event )
 {
-    int row = m_files_grid->GetGridCursorRow();
+    m_files_grid->OnDeleteRows(
+            [&]( int row )
+            {
+                wxString name = m_files_grid->GetCellValue( row, 0 );
 
-    if( row < 0 )
-        return;
-
-    wxString name = m_files_grid->GetCellValue( row, 0 );
-
-    m_localFiles->RemoveFile( name );
-
-    m_files_grid->DeleteRows( row );
-
-    if( row < m_files_grid->GetNumberRows() )
-        m_files_grid->SetGridCursor( row, 0 );
-    else if( m_files_grid->GetNumberRows() > 0 )
-        m_files_grid->SetGridCursor( m_files_grid->GetNumberRows() - 1, 0 );
+                RemoveEmbeddedFile( name );
+            } );
 }
 
 
@@ -396,11 +473,9 @@ void PANEL_EMBEDDED_FILES::onExportFiles( wxCommandEvent& event )
 
         if( fileName.FileExists() )
         {
-            wxString msg = wxString::Format( _( "File '%s' already exists." ),
-                        fileName.GetFullName() );
+            wxString msg = wxString::Format( _( "File '%s' already exists." ), fileName.GetFullName() );
 
-            KIDIALOG errorDlg( m_parent, msg, _( "Confirmation" ),
-                                wxOK | wxCANCEL | wxICON_WARNING );
+            KIDIALOG errorDlg( m_parent, msg, _( "Confirmation" ), wxOK | wxCANCEL | wxICON_WARNING );
             errorDlg.SetOKCancelLabels( _( "Overwrite" ), _( "Skip" ) );
             errorDlg.DoNotShowCheckbox( __FILE__, __LINE__ );
 
@@ -415,11 +490,9 @@ void PANEL_EMBEDDED_FILES::onExportFiles( wxCommandEvent& event )
             if( !fileName.IsDirWritable() )
             {
 #ifndef __WXMAC__
-                wxString msg = wxString::Format( _( "Directory '%s' is not writable." ),
-                                                    fileName.GetFullName() );
+                wxString msg = wxString::Format( _( "Directory '%s' is not writable." ), fileName.GetFullName() );
 #else
-                wxString msg = wxString::Format( _( "Folder '%s' is not writable." ),
-                                                    fileName.GetPath() );
+                wxString msg = wxString::Format( _( "Folder '%s' is not writable." ), fileName.GetPath() );
 #endif
                 // Don't set a 'do not show again' checkbox for this dialog
                 KIDIALOG errorDlg( m_parent, msg, _( "Error" ), wxYES_NO | wxCANCEL | wxICON_ERROR );
@@ -451,8 +524,7 @@ void PANEL_EMBEDDED_FILES::onExportFiles( wxCommandEvent& event )
 
         if( !out.IsOk() )
         {
-            wxString msg = wxString::Format( _( "Failed to open file '%s'." ),
-                        fileName.GetFullName() );
+            wxString msg = wxString::Format( _( "Failed to open file '%s'." ), fileName.GetFullName() );
 
             KIDIALOG errorDlg( m_parent, msg, _( "Error" ), wxOK | wxICON_ERROR );
             errorDlg.ShowModal();
@@ -463,8 +535,7 @@ void PANEL_EMBEDDED_FILES::onExportFiles( wxCommandEvent& event )
 
         if( !out.IsOk() || ( out.LastWrite() != file->decompressedData.size() ) )
         {
-            wxString msg = wxString::Format( _( "Failed to write file '%s'." ),
-                        fileName.GetFullName() );
+            wxString msg = wxString::Format( _( "Failed to write file '%s'." ), fileName.GetFullName() );
 
             KIDIALOG errorDlg( m_parent, msg, _( "Error" ), wxOK | wxICON_ERROR );
 

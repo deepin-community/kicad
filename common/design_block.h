@@ -21,16 +21,29 @@
  * or you may write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
+
+#ifndef DESIGN_BLOCK_H
+#define DESIGN_BLOCK_H
+
 #include <kicommon.h>
 #include <lib_id.h>
+#include <lib_tree_item.h>
 #include <json_common.h>
 
 
-class KICOMMON_API DESIGN_BLOCK
+class KICOMMON_API DESIGN_BLOCK : public LIB_TREE_ITEM
 {
 public:
+    // LIB_TREE_ITEM interface
+    LIB_ID GetLIB_ID() const override { return GetLibId(); }
+    wxString GetName() const override { return m_lib_id.GetLibItemName(); }
+    wxString GetLibNickname() const override { return m_lib_id.GetLibNickname(); }
+    wxString GetDesc() override { return GetLibDescription(); }
+    std::vector<SEARCH_TERM>& GetSearchTerms() override;
+
     void          SetLibId( const LIB_ID& aName ) { m_lib_id = aName; }
     const LIB_ID& GetLibId() const { return m_lib_id; }
+    LIB_ID& GetLibId() { return m_lib_id; }
 
     const wxString& GetLibDescription() const { return m_libDescription; }
     void            SetLibDescription( const wxString& aDesc ) { m_libDescription = aDesc; }
@@ -41,12 +54,11 @@ public:
     const wxString& GetSchematicFile() const { return m_schematicFile; }
     void            SetSchematicFile( const wxString& aFile ) { m_schematicFile = aFile; }
 
-    void SetFields( nlohmann::ordered_map<wxString, wxString>& aFields )
-    {
-        m_fields = std::move( aFields );
-    }
+    const wxString& GetBoardFile() const { return m_boardFile; }
+    void            SetBoardFile( const wxString& aFile ) { m_boardFile = aFile; }
 
     const nlohmann::ordered_map<wxString, wxString>& GetFields() const { return m_fields; }
+    nlohmann::ordered_map<wxString, wxString>& GetFields() { return m_fields; }
 
     DESIGN_BLOCK() = default;
 
@@ -55,9 +67,13 @@ public:
 
 private:
     LIB_ID m_lib_id;
-    wxString m_schematicFile;  ///< File name and path for schematic symbol.
+    wxString m_schematicFile;  ///< File name and path for schematic file.
+    wxString m_boardFile;      ///< File name and path for board file
     wxString m_libDescription; ///< File name and path for documentation file.
-    wxString m_keywords;       ///< Search keywords to find footprint in library.
+    wxString m_keywords;       ///< Search keywords to find design block in library.
 
     nlohmann::ordered_map<wxString, wxString> m_fields;
+    std::vector<SEARCH_TERM> m_searchTerms;
 };
+
+#endif

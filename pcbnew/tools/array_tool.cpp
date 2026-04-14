@@ -26,7 +26,9 @@
 #include <array_options.h>
 #include <array_pad_number_provider.h>
 #include <dialogs/dialog_create_array.h>
+#include <footprint.h>
 #include <pad.h>
+#include <pcb_generator.h>
 #include <pcb_group.h>
 #include <tools/board_reannotate_tool.h>
 #include <tools/pcb_selection_tool.h>
@@ -121,14 +123,84 @@ void ARRAY_TOOL::onDialogClosed( wxCloseEvent& aEvent )
 
     wxCHECK( m_selection, /* void */ );
 
-    PCB_SELECTION& selection = *m_selection;
-
+    PCB_SELECTION&  selection = *m_selection;
     PCB_BASE_FRAME* editFrame = getEditFrame<PCB_BASE_FRAME>();
+    BOARD_COMMIT    commit( editFrame );
 
-    BOARD_COMMIT commit( editFrame );
+    const int arraySize = m_array_opts->GetArraySize();
 
-    FOOTPRINT* const fp =
-            m_isFootprintEditor ? editFrame->GetBoard()->GetFirstFootprint() : nullptr;
+    if( m_array_opts->ShouldArrangeSelection() )
+    {
+        std::set<FOOTPRINT*> fpDeDupe;
+
+        EDA_ITEMS sortedSelection = selection.GetItemsSortedBySelectionOrder();
+        int       selectionIndex = 0;
+
+        BOARD_ITEM* firstItem = nullptr;
+
+        for( int arrayIndex = 0; arrayIndex < arraySize; ++arrayIndex )
+        {
+            BOARD_ITEM* item = nullptr;
+
+            // Get the next valid item to arrange
+            for( ; selectionIndex < (int) sortedSelection.size(); selectionIndex++ )
+            {
+                item = nullptr;
+
+                if( !sortedSelection[selectionIndex]->IsBOARD_ITEM() )
+                    continue;
+
+                item = static_cast<BOARD_ITEM*>( sortedSelection[selectionIndex] );
+
+                FOOTPRINT* parentFootprint = item->GetParentFootprint();
+
+                // If it is not the footprint editor, then move the parent footprint instead.
+                if( !m_isFootprintEditor && parentFootprint )
+                {
+                    // It is possible to select multiple footprint child objects in the board editor.
+                    // Do not create multiple copies of the same footprint when this occurs.
+                    if( fpDeDupe.count( parentFootprint ) == 0 )
+                    {
+                        fpDeDupe.emplace( parentFootprint );
+                        item = parentFootprint;
+                    }
+                    else
+                    {
+                        item = nullptr;
+                        continue;
+                    }
+                }
+
+                // Found a valid item
+                selectionIndex++;
+                break;
+            }
+
+            // Must be out of items to arrange, we're done
+            if( item == nullptr )
+                break;
+
+            commit.Modify( item, nullptr, RECURSE_MODE::RECURSE );
+
+            // Transform is a relative move, so when arranging the transform needs to start from
+            // the same point for each item, e.g. the first item's position
+            if( firstItem == nullptr )
+                firstItem = item;
+            else
+                item->SetPosition( firstItem->GetPosition() );
+
+            TransformItem( *m_array_opts, arrayIndex, *item );
+        }
+
+        // Make sure we did something...
+        if( firstItem != nullptr )
+            commit.Push( _( "Arrange selection" ) );
+
+        return;
+    }
+
+    FOOTPRINT* const fp = m_isFootprintEditor ? editFrame->GetBoard()->GetFirstFootprint()
+                                              : nullptr;
 
     // Collect a list of pad numbers that will _not_ be counted as "used"
     // when finding the next pad numbers.
@@ -146,9 +218,9 @@ void ARRAY_TOOL::onDialogClosed( wxCloseEvent& aEvent )
 
     ARRAY_PAD_NUMBER_PROVIDER pad_number_provider( unchangingPadNumbers, *m_array_opts );
 
-    EDA_ITEMS all_added_items;
+    const bool will_reannotate = !m_isFootprintEditor && m_array_opts->ShouldReannotateFootprints();
+    EDA_ITEMS  all_added_items;
 
-    int arraySize = m_array_opts->GetArraySize();
     // Iterate in reverse so the original items go last, and we can
     // use them for the positions of the clones.
     for( int ptN = arraySize - 1; ptN >= 0; --ptN )
@@ -156,12 +228,13 @@ void ARRAY_TOOL::onDialogClosed( wxCloseEvent& aEvent )
         PCB_SELECTION        items_for_this_block;
         std::set<FOOTPRINT*> fpDeDupe;
 
-        for( int i = 0; i < m_selection->Size(); ++i )
+        for( EDA_ITEM* eda_item : selection )
+
         {
-            if( !selection[i]->IsBOARD_ITEM() )
+            if( !eda_item->IsBOARD_ITEM() )
                 continue;
 
-            BOARD_ITEM* item = static_cast<BOARD_ITEM*>( selection[i] );
+            BOARD_ITEM* item = static_cast<BOARD_ITEM*>( eda_item );
 
             FOOTPRINT* parentFootprint = item->GetParentFootprint();
 
@@ -191,7 +264,7 @@ void ARRAY_TOOL::onDialogClosed( wxCloseEvent& aEvent )
                 // we might still modify it (position or label)
                 this_item = item;
 
-                commit.Modify( this_item );
+                commit.Modify( this_item, nullptr, RECURSE_MODE::RECURSE );
 
                 TransformItem( *m_array_opts, arraySize - 1, *this_item );
             }
@@ -206,7 +279,7 @@ void ARRAY_TOOL::onDialogClosed( wxCloseEvent& aEvent )
 
                     // Don't bother incrementing pads: the footprint won't update until commit,
                     // so we can only do this once
-                    this_item = fp->DuplicateItem( item );
+                    this_item = fp->DuplicateItem( true, &commit, item );
                 }
                 else
                 {
@@ -214,8 +287,8 @@ void ARRAY_TOOL::onDialogClosed( wxCloseEvent& aEvent )
                     {
                     case PCB_FOOTPRINT_T:
                     case PCB_SHAPE_T:
+                    case PCB_BARCODE_T:
                     case PCB_REFERENCE_IMAGE_T:
-                    case PCB_GENERATOR_T:
                     case PCB_TEXT_T:
                     case PCB_TEXTBOX_T:
                     case PCB_TABLE_T:
@@ -227,11 +300,18 @@ void ARRAY_TOOL::onDialogClosed( wxCloseEvent& aEvent )
                     case PCB_DIM_RADIAL_T:
                     case PCB_DIM_ORTHOGONAL_T:
                     case PCB_DIM_LEADER_T:
+                    case PCB_POINT_T:
                     case PCB_TARGET_T:
-                    case PCB_ZONE_T: this_item = item->Duplicate(); break;
+                    case PCB_ZONE_T:
+                        this_item = item->Duplicate( true, &commit );
+                        break;
+
+                    case PCB_GENERATOR_T:
+                        this_item = static_cast<PCB_GENERATOR*>( item )->DeepClone();
+                        break;
 
                     case PCB_GROUP_T:
-                        this_item = static_cast<PCB_GROUP*>( item )->DeepDuplicate();
+                        this_item = static_cast<PCB_GROUP*>( item )->DeepDuplicate( true, &commit );
                         break;
 
                     default:
@@ -240,37 +320,41 @@ void ARRAY_TOOL::onDialogClosed( wxCloseEvent& aEvent )
                     }
                 }
 
-                // Add new items to selection (footprints in the selection will be reannotated)
-                items_for_this_block.Add( this_item );
-
                 if( this_item )
                 {
                     // Because aItem is/can be created from a selected item, and inherits from
                     // it this state, reset the selected stated of aItem:
                     this_item->ClearSelected();
 
-                    this_item->RunOnDescendants(
+                    this_item->RunOnChildren(
                             []( BOARD_ITEM* aItem )
                             {
                                 aItem->ClearSelected();
-                            } );
+                            },
+                            RECURSE_MODE::RECURSE );
 
                     // We're iterating backwards, so the first item is the last in the array
                     TransformItem( *m_array_opts, arraySize - ptN - 1, *this_item );
 
                     // If a group is duplicated, add also created members to the board
-                    if( this_item->Type() == PCB_GROUP_T )
+                    if( this_item->Type() == PCB_GROUP_T  ||
+                        this_item->Type() == PCB_GENERATOR_T )
                     {
-                        this_item->RunOnDescendants(
+                        this_item->RunOnChildren(
                                 [&]( BOARD_ITEM* aItem )
                                 {
                                     commit.Add( aItem );
-                                } );
+                                },
+                                RECURSE_MODE::RECURSE );
                     }
 
                     commit.Add( this_item );
                 }
             }
+
+            // Add new items to selection (footprints in the selection will be reannotated)
+            if( this_item )
+                items_for_this_block.Add( this_item );
 
             // attempt to renumber items if the array parameters define
             // a complete numbering scheme to number by (as opposed to
@@ -291,7 +375,9 @@ void ARRAY_TOOL::onDialogClosed( wxCloseEvent& aEvent )
             }
         }
 
-        if( !m_isFootprintEditor && m_array_opts->ShouldReannotateFootprints() )
+        // Do not reannotate the first item, or it will skip its own numbering and
+        // the array annotations will shift by one cell.
+        if( will_reannotate && ptN != arraySize - 1 )
         {
             m_toolMgr->GetTool<BOARD_REANNOTATE_TOOL>()->ReannotateDuplicates( items_for_this_block,
                                                                                all_added_items );
@@ -302,13 +388,13 @@ void ARRAY_TOOL::onDialogClosed( wxCloseEvent& aEvent )
     }
 
     // Make sure original items are selected (e.g. interactive point select may clear it)
-    for( int i = 0; i < m_selection->Size(); ++i )
+    for( EDA_ITEM* eda_item : selection )
     {
-        all_added_items.push_back( selection[i] );
+        all_added_items.push_back( eda_item );
     }
 
-    m_toolMgr->RunAction( PCB_ACTIONS::selectionClear );
-    m_toolMgr->RunAction<EDA_ITEMS*>( PCB_ACTIONS::selectItems, &all_added_items );
+    m_toolMgr->RunAction( ACTIONS::selectionClear );
+    m_toolMgr->RunAction<EDA_ITEMS*>( ACTIONS::selectItems, &all_added_items );
 
     commit.Push( _( "Create Array" ) );
 

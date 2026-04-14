@@ -1,33 +1,77 @@
 :experimental:
 
 [[hierarchical-schematics]]
-== Hierarchical schematics
+== Multiple sheets and hierarchical schematics
 
-=== Introduction
+Schematics can contain multiple sheets,
+which can be arranged and connected to each other in several ways.
+Schematic sheets are organized in a hierarchy, with some sheets organized at the top level of the hierarchy ("top-level sheets"), and others organized as subsheets of top-level sheets or other subsheets ("hierarchical sheets").
+Hierarchical sheets are drawn inside another sheet and are organized under that sheet in the schematic hierarchy.
+Hierarchical sheets can be included in a hierarchy multiple times, if desired.
 
-In KiCad, multi-sheet schematics are hierarchical: there is a single root sheet,
-and additional sheets are created as subsheets of either the root sheet or
-another subsheet. Sheets can be included in a hierarchy multiple times, if
-desired.
+NOTE: Before KiCad 10.0, all multi-sheet schematics in KiCad were hierarchical.
+      Schematics could only have a single top-level sheet,
+      and all other sheets were created as subsheets of the root sheet or other subsheets.
+      Beginning in KiCad 10.0, schematics can have multiple top-level sheets.
 
-Carefully drawing a schematic as a hierarchical design improves schematic
-legibility and reduces repetitive drawing.
+Creating a multi-sheet schematic starts from the first sheet.
+The process is to create a new sheet, either as a top-level sheet or a hierarchical sheet,
+then draw the circuit in the subsheet and make the necessary <<hierarchical-labels,electrical connections between sheets>>.
+Connections can be made between nets in different sheets using global labels.
+For hierarchical sheets, you can also make connections from a subsheet to the parent sheet using hierarchical labels and hierarchical sheet pins.
 
-Creating a hierarchical schematic starts from the root sheet. The process is to
-create a subsheet, then draw the circuit in the subsheet and make the necessary
-electrical connections between sheets. Connections can be made between nets in a
-subsheet and nets in the parent sheet using hierarchical pins and labels, or
-between any two nets in the hierarchy using global labels.
+Carefully considering the best way to organize sheets in a schematic,
+including whether to draw the schematic hierarchically,
+improves schematic legibility and reduces repetitive drawing.
+
+=== Adding top-level sheets to a design
+
+The most basic way to add new sheets to a design in KiCad is to add new top-level sheets.
+This puts new sheets at the same level of the hierarchy as the existing root sheet,
+creating a flat schematic where sheets are at the same level rather than nested.
+Unlike hierarchical subsheets, top-level sheets are not subsheets and are not displayed as sheet symbols in another sheet.
+You cannot make hierarchical connections between top-level sheets;
+net connections between top-level sheets can only be made using global labels and global power symbols.
+Each top-level sheet is saved as a separate `.kicad_sch` file.
+
+image::images/hierarchy_flat.png[]
+
+To create a new top-level sheet, right click in the Schematic Hierarchy panel and choose **New Top-Level Sheet**
+(if the Schematic Hierarchy panel is not shown, you can show it with **View** -> **Panels** -> **Hierarchy Navigator**).
+After choosing a sheet name for the new sheet, the sheet is added to the hierarchy.
+You can choose a new page number for the sheet by right clicking it in the hierarchy and choosing **Edit Page Number**
+or rename the sheet by right clicking and choosing **Rename**.
 
 [[drawing-hierarchical-sheets]]
-=== Adding sheets to a design
+=== Adding hierarchical subsheets to a design
 
-You can add a subsheet to a design with the Add Hierarchical Sheet tool
+Another way to add additional sheets to a design is using hierarchical subsheets.
+Subsheets are drawn as a sheet symbol inside of another sheet.
+The new subsheet is placed beneath the parent sheet in the sheet hierarchy.
+A net in a sheet can be connected to a subsheet, and vice versa,
+through a hierarchical sheet pin at the parent sheet level and a matching hierarchical label in the subsheet.
+Like top-level sheets, each new hierarchical subsheet is saved as a separate `.kicad_sch` file.
+
+image::images/hierarchy_multichannel.png[]
+
+When you add a hierarchical subsheet, you can either create a new sheet or reuse an existing sheet.
+By reusing an existing sheet, you can use the sheet multiple times in a design.
+The existing sheet file is used for each instantiation; no new sheet file is created when it is reused.
+Any edits to the contents of one hierarchical sheet instantiation also affect the other instantiations.
+The only thing that varies between instantiations of a hierarchical sheet are the reference designators of the symbols in the sheet, which are unique between instantiations.
+
+NOTE: Sheet files can be shared between multiple projects to allow design reuse
+between projects. However, this is not recommended due to path portability
+concerns and the risk of unintentionally changing other projects while editing a
+shared sheet.
+
+You can add a hierarchical subsheet to a design with the Add Hierarchical Sheet tool
 (kbd:[S] hotkey, or the
 image:images/icons/add_hierarchical_subsheet_24.png[Add Hierarchical Sheet icon]
 button in the right toolbar). Launch the tool, then click twice in the canvas to
-draw the upper left and lower right corners of the subsheet symbol. Make the
-sheet outline large enough to fit the
+draw the upper left and lower right corners of the subsheet symbol
+(you can also click and drag).
+Make the sheet outline large enough to fit the
 <<hierarchical-sheet-pins,hierarchical pins you will add later>>.
 
 image::images/draw_hierarchical_sheet.png[Drawing a hierarchical sheet]
@@ -54,11 +98,6 @@ A single sheet file can be used more than once in a project by
 specifying the same filename for each repeated sheet; the circuit drawn in the
 sheet will be instantiated once per usage, and any edits in once instance will
 be reflected in the other instances. 
-
-NOTE: Sheet files can be shared between multiple projects to allow design reuse
-between projects. However, this is not recommended due to path portability
-concerns and the risk of unintentionally changing other projects while editing a
-shared sheet.
 
 The sheet's *page number* is configurable here. The page number is displayed in
 the sheet <<sheet-title-block,title block>> and the
@@ -91,6 +130,11 @@ The Sheet Properties dialog can be accessed at any time by selecting a sheet
 symbol and using the kbd:[E] hotkey, or by right-clicking on a sheet symbol and
 selecting **Properties...**.
 
+Once a new sheet has been added,
+you can <<navigating-between-sheets,open it>> to draw a circuit in it as you would in any other schematic sheet.
+You can also drag and drop a selection of existing circuit elements onto the child sheet symbol,
+which moves the selection into the child sheet.
+
 [[navigating-between-sheets]]
 === Navigating between sheets
 
@@ -115,12 +159,10 @@ opens that sheet in the editing canvas. You can also use the hierarchy
 navigator to rename or renumber a sheet by right clicking on the sheet name and
 selecting **Edit page number** or **Rename**.
 
-image::images/hierarchy_navigator_pane.png[alt="hierarchy navigator",scaledwidth="50%"]
-
-=== Electrical connections between sheets
+image::images/hierarchy_video.png[alt="hierarchy navigator"]
 
 [[hierarchical-labels]]
-==== Label overview
+=== Electrical connections between sheets
 
 Electrical connections between sheets are made with <<labels,labels>>. There are
 several kinds of labels in KiCad, each with a different connection scope.
@@ -130,13 +172,14 @@ several kinds of labels in KiCad, each with a different connection scope.
   the image:images/icons/add_label_24.png[Local Label icon] button.
 
 * *Global labels* make connections anywhere in a schematic, regardless of sheet.
+  Therefore global labels can be used to make connections between sheets whether the sheets are top-level or hierarchical.
   Global labels are added with the
   image:images/icons/add_glabel_24.png[Global Label icon] button.
 
-* *Hierarchical labels* connect to *hierarchical sheet pins* accessible in the
+* *Hierarchical labels* in a hierarchical subsheet connect to *hierarchical sheet pins* accessible in the
   parent sheet. Hierarchical designs rely on hierarchical labels and pins to
   make connections between parent sheets and child sheets. You can think of
-  sheet pins as defining the interface for a sheet; hierarchical
+  sheet pins as defining the interface for a subsheet; hierarchical
   labels within the child sheet connect to corresponding sheet pins which are
   visible in the parent sheet. Hierarchical labels are added inside a child
   sheet using the
@@ -152,8 +195,8 @@ NOTE: <<hidden-power-pins,Hidden power pins>> can also be considered global
 [[hierarchical-sheet-pins]]
 ==== Hierarchical sheet pins
 
-After placing hierarchical labels within the subsheet, matching *hierarchical
-sheet pins* can be added to the subsheet symbol in the parent sheet. You can
+After placing hierarchical labels within a subsheet, matching hierarchical
+sheet pins can be added to the subsheet symbol in the parent sheet. You can
 then make connections to the hierarchical pins with wires, labels, and buses.
 Hierarchical sheet pins in a subsheet symbol are connected to the matching
 hierarchical labels in the subsheet itself.
@@ -208,6 +251,8 @@ symbol, only one tab will be available, with the labels and sheet pins for that
 specific sheet. If the tool was started globally, i.e. with the
 image:images/icons/import_hierarchical_label_24.png[] button or with **Place**
 -> **Sync Sheet Pins**, a tab will be shown for each hierarchical sheet.
+If a sheet was selected in the editing canvas when the tool was launched,
+the dialog will open to that sheet's tab.
 
 The icon in each tab indicates whether the hierarchical sheet pins on the sheet
 symbol are correctly matched with the hierarchical labels inside the sheet. If
@@ -256,53 +301,58 @@ Any changes made in the Sync Sheet Pins dialog are applied immediately, before
 the dialog is closed. To cancel a change made in the Sync Sheet Pins dialog, use
 Undo.
 
-=== Hierarchical design examples
+=== Multipage and hierarchical design examples
 
-Hierarchical designs can be put into one of several categories:
+Multipage schematics in KiCad can be arranged in several ways.
+Which schematic organization is most appropriate depends on the design.
 
-* *Simple:* each sheet is used only once.
-* *Complex:* some sheets are instantiated multiple times.
-* *Flat:* a sub-case of a *simple* hierarchy, without connections between
-  subsheets and their parent. Flat hierarchies can be used to represent a
-  non-hierarchical design.
+A design that conceptually contains nested blocks lends itself well to a hierarchical organization,
+especially if some of the blocks are repeated, because each block can be represented as a hierarchical subsheet.
+On the other hand, designs that conceptually don't contain a hierarchy might be better represented using top-level sheets.
+You can also both strategies in the same schematic, using multiple top-level sheets while also using hierarchical subsheets.
 
-Each hierarchy model can be useful; the most appropriate one depends on the
-design.
+Some examples of different schematic organizations are shown below.
 
-==== Simple hierarchy
+==== Flat schematics
 
-An example of a simple hierarchy is the `video` demo project included with
-KiCad. The root sheet contains seven unique subsheets, each with hierarchical
-labels and sheet pins linking the sheets to each other in the root sheet. Two of
-the subsheet symbols are shown below.
+Flat schematics contain multiple top-level sheets; each top-level sheet follows the previous sheet, and all top-level sheets are at the same level of the hierarchy.
+None of the top-level sheets are nested under another sheet.
+
+In the example below there are three top-level sheets, each with a name and a page number.
+They are not hierarchically nested, so hierarchical connections with hierarchical labels and sheet pins are impossible.
+Any net connections between sheets must be made with global labels (and global power symbols).
+
+image::images/hierarchy_flat.png[]
+
+==== Hierarchical schematics
+
+An example of a hierarchical design is the `video` demo project included with KiCad.
+The root sheet contains seven unique subsheets,
+each with hierarchical labels and sheet pins linking the sheets to each other in the root sheet.
+Each of the seven subsheets is used once; none are reused
+(see the next section for an example of reusing subsheets).
+Two of the subsheet symbols are shown below.
 
 image::images/eeschema_simple_hierarchy.png[alt="Simple hierarchy from video demo project",scaledwidth="80%"]
 
-==== Complex Hierarchy
+The subsheets are drawn as sheet symbols in the root sheet,
+meaning they are placed under the root sheet in the schematic hierarchy.
 
-The `complex_hierarchy` demo project is an example of a complex hierarchy.
-The root sheet contains two subsheet symbols, which both refer to the same sheet
-file (`ampli_ht.kicad_sch`). This allows the design to include two copies of the
-same amplifier circuit. Although the two sheet symbols refer to the same
-filename, the sheet names are unique (`ampli_ht_vertical` and
-`ampli_ht_horizontal`). Inside each subsheet the circuits are identical except
-for the reference designators, which as always are unique.
+image::images/hierarchy_video.png[]
 
-This project contains no sheet pin connections. The only connections between the
-root sheet and the subsheets are global power connections made with
-<<power-symbols,power symbols>>. However, sheets in a complex hierarchy could
-include sheet pin connections if appropriate for the design.
+==== Reusing hierarchical subsheets
 
-image::images/eeschema_complex_hierarchy.png[alt="Complex hierarchy from complex_hierarchy demo project",scaledwidth="80%"]
+The `multichannel` demo project is an example of using a subsheet multiple times.
+The root sheet contains four subsheet symbols, which both refer to the same sheet file (`channel_strip.kicad_sch`).
+This allows the design to include four copies of the same audio mixer channel circuit.
+Although the four sheet symbols all refer to the same filename, the sheet names are unique (`CH1`, `CH2`, `CH3`, and `CH4`).
+Inside each subsheet the circuits are identical except for the reference designators, which as always are unique.
+The subsheets each have a single hierarchical label/pin connection to the root sheet,
+which contains the summing amplifier circuit that combines the output of each channel.
 
-[[flat-hierarchy]]
-==== Flat hierarchy
+image::images/hierarchy_multichannel_schematic.png[]
 
-The `flat_hierarchy` demo project is an example of a flat hierarchy. The root
-sheet contains two unique subsheet symbols with no hierarchical sheet pins. The
-root sheet in this project does nothing except hold the subsheets, and the
-subsheets are used only as additional pages in the schematic.
+The subsheets are drawn as sheet symbols in the root sheet,
+meaning they are placed under the root sheet in the schematic hierarchy.
 
-NOTE: This is the simplest way to create multi-page schematics in KiCad.
-
-image::images/eeschema_flat_hierarchy.png[alt="Flat hierarchy from flat_hierarchy demo project",scaledwidth="80%"]
+image::images/hierarchy_multichannel.png[]

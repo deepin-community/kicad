@@ -48,6 +48,9 @@ public:
 
     wxString GetResultCell( int aRow, int aCol ) override
     {
+        if( m_frame->IsClosing() )
+            return wxEmptyString;
+
         if( aRow >= static_cast<int>( m_hitlist.size() ) )
             return wxEmptyString;
 
@@ -108,6 +111,17 @@ class LABEL_SEARCH_HANDLER : public SCH_SEARCH_HANDLER
 {
 public:
     LABEL_SEARCH_HANDLER( SCH_EDIT_FRAME* aFrame );
+
+    int Search( const wxString& aQuery ) override;
+
+protected:
+    wxString getResultCell( const SCH_SEARCH_HIT& hit, int aCol ) override;
+};
+
+class GROUP_SEARCH_HANDLER : public SCH_SEARCH_HANDLER
+{
+public:
+    GROUP_SEARCH_HANDLER( SCH_EDIT_FRAME* aFrame );
 
     int Search( const wxString& aQuery ) override;
 

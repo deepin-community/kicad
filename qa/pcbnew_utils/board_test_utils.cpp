@@ -23,6 +23,7 @@
 
 #include <pcbnew_utils/board_test_utils.h>
 
+#include <iostream>
 #include <filesystem>
 
 #include <wx/filename.h>
@@ -36,14 +37,34 @@
 #include <kiid.h>
 #include <pad.h>
 #include <pcb_shape.h>
+#include <pcb_track.h>
 #include <zone.h>
 #include <zone_filler.h>
+#include <length_delay_calculation/length_delay_calculation.h>
+#include <drc/drc_cache_generator.h>
 #include <pcbnew_utils/board_file_utils.h>
 #include <settings/settings_manager.h>
 #include <tool/tool_manager.h>
 
 #define CHECK_ENUM_CLASS_EQUAL( L, R )                                                      \
     BOOST_CHECK_EQUAL( static_cast<int>( L ), static_cast<int>( R ) )
+
+
+std::ostream& boost_test_print_type( std::ostream& os, const VIATYPE& aViaType )
+{
+    // clang-format off
+    switch( aViaType )
+    {
+        case VIATYPE::THROUGH:      os << "THROUGH";        break;
+        case VIATYPE::BLIND:        os << "BLIND";          break;
+        case VIATYPE::BURIED:       os << "BURIED";         break;
+        case VIATYPE::MICROVIA:     os << "MICROVIA";       break;
+        default:
+            os << "UNKNOWN_VIA_TYPE(" << static_cast<int>( aViaType ) << ")";
+    }
+    // clang-format on
+    return os;
+}
 
 
 namespace KI_TEST
@@ -84,9 +105,17 @@ void LoadBoard( SETTINGS_MANAGER& aSettingsManager, const wxString& aRelPath,
     wxFileName  rulesFile( absPath + ".kicad_dru" );
 
     if( projectFile.Exists() )
+    {
         aSettingsManager.LoadProject( projectFile.GetFullPath() );
+        BOOST_TEST_MESSAGE( "Loading project file: " << projectFile.GetFullPath() );
+    }
     else if( legacyProject.Exists() )
+    {
         aSettingsManager.LoadProject( legacyProject.GetFullPath() );
+        BOOST_TEST_MESSAGE( "Loading project file: " << projectFile.GetFullPath() );
+    }
+    else
+        BOOST_TEST_MESSAGE( "Could not load project: " << projectFile.GetFullPath() );
 
     BOOST_TEST_MESSAGE( "Loading board file: " << boardPath );
 
@@ -98,12 +127,14 @@ void LoadBoard( SETTINGS_MANAGER& aSettingsManager, const wxString& aRelPath,
         BOOST_TEST_ERROR( ioe.What() );
     }
 
-    BOOST_REQUIRE( aBoard );
+    BOOST_REQUIRE_MESSAGE( aBoard, "aBoard is null or invalid" );
 
     if( projectFile.Exists() || legacyProject.Exists() )
         aBoard->SetProject( &aSettingsManager.Prj() );
 
     auto m_DRCEngine = std::make_shared<DRC_ENGINE>( aBoard.get(), &aBoard->GetDesignSettings() );
+
+    BOOST_TEST_CHECKPOINT( "Init drc engine" );
 
     if( rulesFile.Exists() )
         m_DRCEngine->InitEngine( rulesFile );
@@ -111,14 +142,73 @@ void LoadBoard( SETTINGS_MANAGER& aSettingsManager, const wxString& aRelPath,
         m_DRCEngine->InitEngine( wxFileName() );
 
     aBoard->GetDesignSettings().m_DRCEngine = m_DRCEngine;
-    aBoard->BuildListOfNets();
-    aBoard->BuildConnectivity();
+
+    BOOST_TEST_CHECKPOINT( "Build list of nets" );
+    try
+    {
+        aBoard->BuildListOfNets();
+    }
+    catch( const std::exception& e )
+    {
+        BOOST_TEST_ERROR( "Exception in BuildListOfNets: " << e.what() );
+        return;
+    }
+
+    BOOST_TEST_CHECKPOINT( "Build connectivity" );
+    try
+    {
+        aBoard->BuildConnectivity();
+    }
+    catch( const std::exception& e )
+    {
+        BOOST_TEST_ERROR( "Exception in BuildConnectivity: " << e.what() );
+        return;
+    }
+
+    BOOST_TEST_CHECKPOINT( "Synchronize Tuning Profile Properties" );
+    try
+    {
+        aBoard->GetLengthCalculation()->SynchronizeTuningProfileProperties();
+    }
+    catch( const std::exception& e )
+    {
+        BOOST_TEST_ERROR( "Exception in SynchronizeTimeDomainProperties: " << e.what() );
+        return;
+    }
+
+    if( aBoard->GetProject() )
+    {
+        std::unordered_set<wxString> dummy;
+        BOOST_TEST_CHECKPOINT( "Synchronize Component Classes" );
+        try
+        {
+            aBoard->SynchronizeComponentClasses( dummy );
+        }
+        catch( const std::exception& e )
+        {
+            BOOST_TEST_ERROR( "Exception in SynchronizeComponentClasses: " << e.what() );
+            return;
+        }
+
+        BOOST_TEST_CHECKPOINT( "Run DRC cache generator" );
+        try
+        {
+            DRC_CACHE_GENERATOR cacheGenerator;
+            cacheGenerator.SetDRCEngine( m_DRCEngine.get() );
+            cacheGenerator.Run();
+        }
+        catch( const std::exception& e )
+        {
+            BOOST_TEST_ERROR( "Exception in DRC cache generator: " << e.what() );
+            return;
+        }
+    }
 }
 
 
 BOARD_ITEM& RequireBoardItemWithTypeAndId( const BOARD& aBoard, KICAD_T aItemType, const KIID& aID )
 {
-    BOARD_ITEM* item = aBoard.GetItem( aID );
+    BOARD_ITEM* item = aBoard.ResolveItem( aID, true );
 
     BOOST_REQUIRE( item );
     BOOST_REQUIRE_EQUAL( item->Type(), aItemType );
@@ -263,6 +353,8 @@ void LoadAndTestFootprintFile( const wxString& aLibRelativePath, const wxString&
 
 void FillZones( BOARD* m_board )
 {
+    BOOST_TEST_CHECKPOINT( "Filling zones" );
+
     TOOL_MANAGER toolMgr;
     toolMgr.SetEnvironment( m_board, nullptr, nullptr, nullptr, nullptr );
 
@@ -279,6 +371,7 @@ void FillZones( BOARD* m_board )
     if( filler.Fill( toFill, false, nullptr ) )
         commit.Push( _( "Fill Zone(s)" ), SKIP_UNDO | SKIP_SET_DIRTY | ZONE_FILL_OP | SKIP_CONNECTIVITY );
 
+    BOOST_TEST_CHECKPOINT( "Building connectivity (after zone fill)" );
     m_board->BuildConnectivity();
 }
 
@@ -396,6 +489,10 @@ void CheckFootprint( const FOOTPRINT* expected, const FOOTPRINT* fp )
             // TODO
             break;
 
+        case PCB_BARCODE_T:
+            // TODO
+            break;
+
         default:
             BOOST_ERROR( "KICAD_T not known" );
             break;
@@ -414,9 +511,12 @@ void CheckFootprint( const FOOTPRINT* expected, const FOOTPRINT* fp )
 
     // TODO: Groups
 
-    // Use FootprintNeedsUpdate as sanity check (which should do the same thing as our manually coded checks)
-    // If we get the reporter working, and COMPARE_FLAGS::DRC is enough for us, we can remove the old code
-    BOOST_CHECK( !const_cast<FOOTPRINT*>(expected)->FootprintNeedsUpdate(fp, BOARD_ITEM::COMPARE_FLAGS::DRC, nullptr) );
+    // Use FootprintNeedsUpdate as sanity check (which should do many of the same checks as above,
+    // but neither is guaranteed to be complete).
+    WX_STRING_REPORTER reporter;
+
+    if( const_cast<FOOTPRINT*>(expected)->FootprintNeedsUpdate(fp, BOARD_ITEM::COMPARE_FLAGS::DRC, &reporter) )
+        BOOST_REQUIRE_MESSAGE( false,  reporter.GetMessages() );
 }
 
 
@@ -452,12 +552,13 @@ void CheckFpPad( const PAD* expected, const PAD* pad )
         BOOST_CHECK_EQUAL( expected->GetPinFunction(), pad->GetPinFunction() );
         BOOST_CHECK_EQUAL( expected->GetPinType(), pad->GetPinType() );
         BOOST_CHECK_EQUAL( expected->GetPadToDieLength(), pad->GetPadToDieLength() );
+        BOOST_CHECK_EQUAL( expected->GetPadToDieDelay(), pad->GetPadToDieDelay() );
         BOOST_CHECK_EQUAL( expected->GetLocalSolderMaskMargin().value_or( 0 ),
-                                  pad->GetLocalSolderMaskMargin().value_or( 0 ) );
+                           pad->GetLocalSolderMaskMargin().value_or( 0 ) );
         BOOST_CHECK_EQUAL( expected->GetLocalSolderPasteMargin().value_or( 0 ),
-                                  pad->GetLocalSolderPasteMargin().value_or( 0 ) );
+                           pad->GetLocalSolderPasteMargin().value_or( 0 ) );
         BOOST_CHECK_EQUAL( expected->GetLocalSolderPasteMarginRatio().value_or( 0 ),
-                                  pad->GetLocalSolderPasteMarginRatio().value_or( 0 ) );
+                           pad->GetLocalSolderPasteMarginRatio().value_or( 0 ) );
         BOOST_CHECK_EQUAL( expected->GetLocalClearance().value_or( 0 ),
                            pad->GetLocalClearance().value_or( 0 ) );
         CHECK_ENUM_CLASS_EQUAL( expected->GetLocalZoneConnection(), pad->GetLocalZoneConnection() );
@@ -492,7 +593,6 @@ void CheckFpPad( const PAD* expected, const PAD* pad )
                               pad->GetPrimitives( PADSTACK::ALL_LAYERS ).at( i ).get() );
             }
         }
-
     }
 }
 
@@ -521,8 +621,7 @@ void CheckFpText( const PCB_TEXT* expected, const PCB_TEXT* text )
         BOOST_CHECK_EQUAL( expected->GetHorizJustify(), text->GetHorizJustify() );
         BOOST_CHECK_EQUAL( expected->GetVertJustify(), text->GetVertJustify() );
         BOOST_CHECK_EQUAL( expected->IsMirrored(), text->IsMirrored() );
-        BOOST_CHECK_EQUAL( expected->GetFontName(),
-                           text->GetFontName() ); // TODO: bold/italic setting?
+        BOOST_CHECK_EQUAL( expected->GetFontName(), text->GetFontName() );
 
         // TODO: render cache?
     }
@@ -603,7 +702,7 @@ void CheckFpZone( const ZONE* expected, const ZONE* zone )
         BOOST_CHECK_EQUAL( expected->GetMinIslandArea(), zone->GetMinIslandArea() );
 
         BOOST_CHECK_EQUAL( expected->GetIsRuleArea(), zone->GetIsRuleArea() );
-        BOOST_CHECK_EQUAL( expected->GetDoNotAllowCopperPour(), zone->GetDoNotAllowCopperPour() );
+        BOOST_CHECK_EQUAL( expected->GetDoNotAllowZoneFills(), zone->GetDoNotAllowZoneFills() );
         BOOST_CHECK_EQUAL( expected->GetDoNotAllowVias(), zone->GetDoNotAllowVias() );
         BOOST_CHECK_EQUAL( expected->GetDoNotAllowTracks(), zone->GetDoNotAllowTracks() );
         BOOST_CHECK_EQUAL( expected->GetDoNotAllowPads(), zone->GetDoNotAllowPads() );
@@ -655,5 +754,169 @@ void CheckShapePolySet( const SHAPE_POLY_SET* expected, const SHAPE_POLY_SET* po
         }
     }
 }
+
+
+void PrintBoardStats( const BOARD* aBoard, const std::string& aBoardName )
+{
+    if( !aBoard )
+    {
+        BOOST_TEST_MESSAGE( aBoardName << ": FAILED TO LOAD" );
+        return;
+    }
+
+    int trackCount = 0;
+    int viaCount = 0;
+    int arcCount = 0;
+
+    for( PCB_TRACK* track : aBoard->Tracks() )
+    {
+        switch( track->Type() )
+        {
+        case PCB_TRACE_T: trackCount++; break;
+        case PCB_VIA_T: viaCount++; break;
+        case PCB_ARC_T: arcCount++; break;
+        default: break;
+        }
+    }
+
+    int smdPadCount = 0;
+    int thPadCount = 0;
+
+    for( FOOTPRINT* fp : aBoard->Footprints() )
+    {
+        for( PAD* pad : fp->Pads() )
+        {
+            if( pad->GetAttribute() == PAD_ATTRIB::SMD )
+                smdPadCount++;
+            else
+                thPadCount++;
+        }
+    }
+
+    std::ostringstream ss;
+    ss << "\n=== Board Statistics: " << aBoardName << " ===\n"
+       << "  Layers: " << aBoard->GetCopperLayerCount() << "\n"
+       << "  Nets: " << aBoard->GetNetCount() << "\n"
+       << "  Footprints: " << aBoard->Footprints().size() << "\n"
+       << "  Tracks: " << trackCount << "\n"
+       << "  Vias: " << viaCount << "\n"
+       << "  Arcs: " << arcCount << "\n"
+       << "  SMD Pads: " << smdPadCount << "\n"
+       << "  TH Pads: " << thPadCount << "\n"
+       << "  Zones: " << aBoard->Zones().size();
+
+    BOOST_TEST_MESSAGE( ss.str() );
+}
+
+
+REPORTER& CAPTURING_REPORTER::Report( const wxString& aText, SEVERITY aSeverity )
+{
+    MESSAGE msg;
+    msg.text = aText;
+    msg.severity = aSeverity;
+    m_messages.push_back( msg );
+
+    switch( aSeverity )
+    {
+    case RPT_SEVERITY_ERROR:   m_errorCount++; break;
+    case RPT_SEVERITY_WARNING: m_warningCount++; break;
+    case RPT_SEVERITY_INFO:
+    case RPT_SEVERITY_ACTION:  m_infoCount++; break;
+    default: break;
+    }
+
+    return *this;
+}
+
+
+void CAPTURING_REPORTER::PrintAllMessages( const std::string& aContext ) const
+{
+    if( m_messages.empty() )
+    {
+        BOOST_TEST_MESSAGE( aContext << ": No messages" );
+        return;
+    }
+
+    BOOST_TEST_MESSAGE( aContext << ": " << m_messages.size() << " messages (" << m_errorCount << " errors, "
+                                 << m_warningCount << " warnings)" );
+
+    for( const MESSAGE& msg : m_messages )
+    {
+        const char* severityStr = "???";
+
+        switch( msg.severity )
+        {
+        case RPT_SEVERITY_ERROR:   severityStr = "ERROR"; break;
+        case RPT_SEVERITY_WARNING: severityStr = "WARN "; break;
+        case RPT_SEVERITY_INFO:    severityStr = "INFO "; break;
+        case RPT_SEVERITY_ACTION:  severityStr = "ACT  "; break;
+        case RPT_SEVERITY_DEBUG:   severityStr = "DEBUG"; break;
+        default:                   severityStr = "     "; break;
+        }
+
+        BOOST_TEST_MESSAGE( "  [" << severityStr << "] " << msg.text );
+    }
+}
+
+
+std::unique_ptr<BOARD> LoadBoardWithCapture( PCB_IO& aIoPlugin, const std::string& aFilePath, REPORTER* aReporter )
+{
+    std::unique_ptr<BOARD> board = std::make_unique<BOARD>();
+
+    if( aReporter )
+        aIoPlugin.SetReporter( aReporter );
+
+    try
+    {
+        aIoPlugin.LoadBoard( aFilePath, board.get(), nullptr, nullptr );
+        return board;
+    }
+    catch( const IO_ERROR& e )
+    {
+        if( aReporter )
+            aReporter->Report( wxString::Format( "IO_ERROR: %s", e.What() ), RPT_SEVERITY_ERROR );
+        return nullptr;
+    }
+    catch( const std::exception& e )
+    {
+        if( aReporter )
+            aReporter->Report( wxString::Format( "Exception: %s", e.what() ), RPT_SEVERITY_ERROR );
+        return nullptr;
+    }
+    catch( ... )
+    {
+        if( aReporter )
+            aReporter->Report( "Unknown exception during load", RPT_SEVERITY_ERROR );
+        return nullptr;
+    }
+}
+
+
+BOARD* CACHED_BOARD_LOADER::GetCachedBoard( const std::string& aFilePath )
+{
+    return getCachedBoard( aFilePath, false, nullptr );
+}
+
+
+BOARD* CACHED_BOARD_LOADER::LoadAndCache( const std::string& aFilePath, REPORTER* aReporter )
+{
+    return getCachedBoard( aFilePath, true, aReporter );
+}
+
+
+BOARD* CACHED_BOARD_LOADER::getCachedBoard( PCB_IO& aIoPlugin, const std::string& aFilePath, bool aForceReload,
+                                            REPORTER* aReporter )
+{
+    auto it = m_boardCache.find( aFilePath );
+
+    if( it != m_boardCache.end() && !aForceReload )
+        return it->second.get();
+
+    auto               board = KI_TEST::LoadBoardWithCapture( aIoPlugin, aFilePath, aReporter );
+    BOARD*             raw = board.get();
+    m_boardCache[aFilePath] = std::move( board );
+    return raw;
+}
+
 
 } // namespace KI_TEST

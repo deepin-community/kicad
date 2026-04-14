@@ -28,7 +28,6 @@
 #include "ar_matrix.h"
 #include <lset.h>
 #include <math/util.h>      // for KiROUND
-#include <math_for_graphics.h>
 #include <trigo.h>
 
 #include <pcb_shape.h>
@@ -407,7 +406,10 @@ void AR_MATRIX::traceCircle( int ux0, int uy0, int ux1, int uy1, int lg, int lay
     int x1, y1;     // End point.
     int ii;
 
-    radius = KiROUND( Distance( ux0, uy0, ux1, uy1 ) );
+    VECTOR2I pt1( ux0, uy0 );
+    VECTOR2I pt2( ux1, uy1 );
+
+    radius = pt1.Distance( pt2 );
 
     x0 = x1 = radius;
     y0 = y1 = 0;
@@ -437,8 +439,8 @@ void AR_MATRIX::traceCircle( int ux0, int uy0, int ux1, int uy1, int lg, int lay
 }
 
 
-void AR_MATRIX::traceFilledCircle(
-        int cx, int cy, int radius, LSET aLayerMask, int color, AR_MATRIX::CELL_OP op_logic )
+void AR_MATRIX::traceFilledCircle( int cx, int cy, int radius, const LSET& aLayerMask, int color,
+                                   AR_MATRIX::CELL_OP op_logic )
 {
     int    row, col;
     int    ux0, uy0, ux1, uy1;
@@ -567,7 +569,10 @@ void AR_MATRIX::traceArc( int ux0, int uy0, int ux1, int uy1, const EDA_ANGLE& a
     int       ii;
     EDA_ANGLE angle, startAngle;
 
-    radius = KiROUND( Distance( ux0, uy0, ux1, uy1 ) );
+    VECTOR2I pt1( ux0, uy0 );
+    VECTOR2I pt2( ux1, uy1 );
+
+    radius = pt1.Distance( pt2 );
 
     x0 = ux1 - ux0;
     y0 = uy1 - uy0;
@@ -602,7 +607,7 @@ void AR_MATRIX::traceArc( int ux0, int uy0, int ux1, int uy1, const EDA_ANGLE& a
 
 
 void AR_MATRIX::TraceFilledRectangle( int ux0, int uy0, int ux1, int uy1, double angle,
-                                      LSET aLayerMask, int color, AR_MATRIX::CELL_OP op_logic )
+                                      const LSET& aLayerMask, int color, AR_MATRIX::CELL_OP op_logic )
 {
     int row, col;
     int cx, cy; // Center of rectangle
@@ -632,7 +637,9 @@ void AR_MATRIX::TraceFilledRectangle( int ux0, int uy0, int ux1, int uy1, double
 
     cx = ( ux0 + ux1 ) / 2;
     cy = ( uy0 + uy1 ) / 2;
-    radius = KiROUND( Distance( ux0, uy0, cx, cy ) );
+    VECTOR2I pt1( ux0, uy0 );
+    VECTOR2I pt2( cx, cy );
+    radius = pt1.Distance( pt2 );
 
     // Calculating coordinate limits belonging to the rectangle.
     row_max = ( cy + radius ) / m_GridRouting;
@@ -689,7 +696,7 @@ void AR_MATRIX::TraceFilledRectangle( int ux0, int uy0, int ux1, int uy1, double
 }
 
 
-void AR_MATRIX::TraceFilledRectangle( int ux0, int uy0, int ux1, int uy1, LSET aLayerMask,
+void AR_MATRIX::TraceFilledRectangle( int ux0, int uy0, int ux1, int uy1, const LSET& aLayerMask,
                                       int color, AR_MATRIX::CELL_OP op_logic )
 {
     int row, col;
@@ -751,8 +758,7 @@ void AR_MATRIX::TraceFilledRectangle( int ux0, int uy0, int ux1, int uy1, LSET a
 }
 
 
-void AR_MATRIX::TraceSegmentPcb( PCB_SHAPE* aShape, int aColor, int aMargin,
-                                 AR_MATRIX::CELL_OP op_logic )
+void AR_MATRIX::TracePcbShape( PCB_SHAPE* aShape, int aColor, int aMargin, AR_MATRIX::CELL_OP op_logic )
 {
     int half_width = ( aShape->GetWidth() / 2 ) + aMargin;
 
@@ -793,8 +799,8 @@ void AR_MATRIX::TraceSegmentPcb( PCB_SHAPE* aShape, int aColor, int aMargin,
  *  (aKeepOut ... 0). The decreasing value depends on the distance to the first rectangle
  *  Therefore the cost is high in rect x0,y0 to x1,y1, and decrease outside this rectangle
  */
-void AR_MATRIX::CreateKeepOutRectangle(
-        int ux0, int uy0, int ux1, int uy1, int marge, int aKeepOut, LSET aLayerMask )
+void AR_MATRIX::CreateKeepOutRectangle( int ux0, int uy0, int ux1, int uy1, int marge,
+                                        int aKeepOut, const LSET& aLayerMask )
 {
     int       row, col;
     int       row_min, row_max, col_min, col_max, pmarge;

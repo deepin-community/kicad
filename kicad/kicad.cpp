@@ -44,12 +44,15 @@
 #include <richio.h>
 #include <settings/settings_manager.h>
 #include <settings/kicad_settings.h>
+#include <../include/startwizard/startwizard.h>
 #include <systemdirsappend.h>
+#include <thread_pool.h>
 #include <trace_helpers.h>
 #include <wildcards_and_files_ext.h>
 #include <confirm.h>
 
-#include <git2.h>
+#include <git/git_backend.h>
+#include <git/libgit_backend.h>
 #include <stdexcept>
 
 #include "pgm_kicad.h"
@@ -64,6 +67,10 @@
 
 // a dummy to quiet linking with EDA_BASE_FRAME::config();
 #include <kiface_base.h>
+
+#include <libraries/library_manager.h>
+
+
 KIFACE_BASE& Kiface()
 {
     // This function should never be called.  It is only referenced from
@@ -97,11 +104,18 @@ bool PGM_KICAD::OnPgmInit()
     }
 #endif
 
-    // Initialize the git library before trying to initialize individual programs
-    git_libgit2_init();
+    // Initialize the git backend before trying to initialize individual programs
+    SetGitBackend( new LIBGIT_BACKEND() );
+    GetGitBackend()->Init();
 
     static const wxCmdLineEntryDesc desc[] = {
         { wxCMD_LINE_OPTION, "f", "frame", "Frame to load", wxCMD_LINE_VAL_STRING, 0 },
+        { wxCMD_LINE_SWITCH, "n", "new", "New instance of KiCad, does not attempt to load previously open files",
+          wxCMD_LINE_VAL_NONE, 0 },
+#ifndef __WXOSX__
+        { wxCMD_LINE_SWITCH, nullptr, "software-rendering", "Use software rendering instead of OpenGL",
+          wxCMD_LINE_VAL_NONE, 0 },
+#endif
         { wxCMD_LINE_PARAM, nullptr, nullptr, "File to load", wxCMD_LINE_VAL_STRING,
           wxCMD_LINE_PARAM_MULTIPLE | wxCMD_LINE_PARAM_OPTIONAL },
         { wxCMD_LINE_NONE, nullptr, nullptr, nullptr, wxCMD_LINE_VAL_NONE, 0 }
@@ -156,6 +170,13 @@ bool PGM_KICAD::OnPgmInit()
         Kiway.SetCtlBits( KFCTL_STANDALONE );
     }
 
+#ifndef __WXMAC__
+    if( parser.Found( "software-rendering" ) )
+    {
+        wxSetEnv( "KICAD_SOFTWARE_RENDERING", "1" );
+    }
+#endif
+
     bool skipPythonInit = false;
 
     if( appType == FRAME_BM2CMP || appType == FRAME_PL_EDITOR || appType == FRAME_GERBER
@@ -165,10 +186,12 @@ bool PGM_KICAD::OnPgmInit()
     if( !InitPgm( false, skipPythonInit ) )
         return false;
 
+
     m_bm.InitSettings( new KICAD_SETTINGS );
     GetSettingsManager().RegisterSettings( PgmSettings() );
     GetSettingsManager().SetKiway( &Kiway );
     m_bm.Init();
+
 
     // Add search paths to feed the PGM_KICAD::SysSearch() function,
     // currently limited in support to only look for project templates
@@ -217,6 +240,9 @@ bool PGM_KICAD::OnPgmInit()
         managerFrame = new KICAD_MANAGER_FRAME( nullptr, wxT( "KiCad" ), wxDefaultPosition,
                                                 wxWindow::FromDIP( wxSize( 775, -1 ), NULL ) );
         frame = managerFrame;
+
+        STARTWIZARD startWizard;
+        startWizard.CheckAndRun( frame );
     }
     else
     {
@@ -239,7 +265,12 @@ bool PGM_KICAD::OnPgmInit()
 
     Kiway.SetTop( frame );
 
+    KIPLATFORM::ENV::SetAppDetailsForWindow( frame, '"' + wxStandardPaths::Get().GetExecutablePath() + '"' + " -n",
+                                             frame->GetTitle() );
+
     KICAD_SETTINGS* settings = static_cast<KICAD_SETTINGS*>( PgmSettings() );
+
+    GetLibraryManager().LoadGlobalTables();
 
 #ifdef KICAD_IPC_API
     m_api_server = std::make_unique<KICAD_API_SERVER>();
@@ -304,19 +335,15 @@ bool PGM_KICAD::OnPgmInit()
     }
     else if( managerFrame )
     {
-        if( App().argc > 1 )
+        if( parser.GetParamCount() > 0 )
         {
-            wxFileName tmp = App().argv[1];
+            wxFileName tmp = parser.GetParam( 0 );
 
-            if( tmp.GetExt() != FILEEXT::ProjectFileExtension
-                && tmp.GetExt() != FILEEXT::LegacyProjectFileExtension )
+            if( tmp.GetExt() != FILEEXT::ProjectFileExtension && tmp.GetExt() != FILEEXT::LegacyProjectFileExtension )
             {
-                wxString msg;
-
-                msg.Printf( _( "File '%s'\ndoes not appear to be a valid KiCad project file." ),
-                            tmp.GetFullPath() );
-                wxMessageDialog dlg( nullptr, msg, _( "Error" ), wxOK | wxICON_EXCLAMATION );
-                dlg.ShowModal();
+                DisplayErrorMessage( nullptr, wxString::Format( _( "File '%s'\n"
+                                                                   "does not appear to be a KiCad project file." ),
+                                                                tmp.GetFullPath() ) );
             }
             else
             {
@@ -325,7 +352,7 @@ bool PGM_KICAD::OnPgmInit()
         }
 
         // If no file was given as an argument, check that there was a file open.
-        if( projToLoad.IsEmpty() && settings->m_OpenProjects.size() )
+        if( projToLoad.IsEmpty() && settings->m_OpenProjects.size() && !parser.FoundSwitch( "new" ) )
         {
             wxString last_pro = settings->m_OpenProjects.front();
             settings->m_OpenProjects.erase( settings->m_OpenProjects.begin() );
@@ -338,21 +365,25 @@ bool PGM_KICAD::OnPgmInit()
             }
         }
 
+        bool loaded = false;
+
         // Do not attempt to load a non-existent project file.
         if( !projToLoad.empty() )
         {
             wxFileName fn( projToLoad );
 
-            if( fn.Exists() )
+            if( fn.Exists() && (   fn.GetExt() == FILEEXT::ProjectFileExtension
+                                || fn.GetExt() == FILEEXT::LegacyProjectFileExtension ) )
             {
                 fn.MakeAbsolute();
 
                 if( appType == KICAD_MAIN_FRAME_T )
-                {
-                    managerFrame->LoadProject( fn );
-                }
+                    loaded = managerFrame->LoadProject( fn );
             }
         }
+
+        if( !loaded && appType == KICAD_MAIN_FRAME_T )
+            managerFrame->PreloadAllLibraries();
     }
 
     frame->Show( true );
@@ -374,6 +405,10 @@ int PGM_KICAD::OnPgmRun()
 
 void PGM_KICAD::OnPgmExit()
 {
+    // Abort and wait on any background jobs
+    GetKiCadThreadPool().purge();
+    GetKiCadThreadPool().wait();
+
     Kiway.OnKiwayEnd();
 
 #ifdef KICAD_IPC_API
@@ -390,7 +425,9 @@ void PGM_KICAD::OnPgmExit()
     // especially wxSingleInstanceCheckerImpl earlier than wxApp and earlier
     // than static destruction would.
     Destroy();
-    git_libgit2_shutdown();
+    GetGitBackend()->Shutdown();
+    delete GetGitBackend();
+    SetGitBackend( nullptr );
 }
 
 
@@ -479,7 +516,7 @@ struct APP_KICAD : public wxApp
         return true;
     }
 
-    int  OnExit()           override
+    int OnExit() override
     {
         program.OnPgmExit();
 
@@ -489,7 +526,8 @@ struct APP_KICAD : public wxApp
         return wxApp::OnExit();
     }
 
-    int OnRun()             override
+
+    int OnRun() override
     {
         try
         {
@@ -502,6 +540,13 @@ struct APP_KICAD : public wxApp
 
         return -1;
     }
+
+
+    void OnUnhandledException() override
+    {
+        Pgm().HandleException( std::current_exception(), true );
+    }
+
 
     int FilterEvent( wxEvent& aEvent ) override
     {

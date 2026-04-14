@@ -67,10 +67,9 @@ PANEL_EESCHEMA_COLOR_SETTINGS::PANEL_EESCHEMA_COLOR_SETTINGS( wxWindow* aParent 
 {
     m_colorNamespace = "schematic";
 
-    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
     COMMON_SETTINGS*   common_settings = Pgm().GetCommonSettings();
-    EESCHEMA_SETTINGS* app_settings = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
-    COLOR_SETTINGS*    current = mgr.GetColorSettings( app_settings->m_ColorTheme );
+    EESCHEMA_SETTINGS* app_settings = GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
+    COLOR_SETTINGS*    current = ::GetColorSettings( app_settings ? app_settings->m_ColorTheme : DEFAULT_THEME );
 
     // Saved theme doesn't exist?  Reset to default
     if( current->GetFilename() != app_settings->m_ColorTheme )
@@ -95,7 +94,7 @@ PANEL_EESCHEMA_COLOR_SETTINGS::PANEL_EESCHEMA_COLOR_SETTINGS( wxWindow* aParent 
     m_galDisplayOptions.ReadConfig( *common_settings, app_settings->m_Window, this );
     m_galDisplayOptions.m_forceDisplayCursor = false;
 
-    m_galType = static_cast<EDA_DRAW_PANEL_GAL::GAL_TYPE>( app_settings->m_Graphics.canvas_type );
+    m_galType = static_cast<EDA_DRAW_PANEL_GAL::GAL_TYPE>( common_settings->m_Graphics.canvas_type );
 }
 
 
@@ -122,10 +121,8 @@ bool PANEL_EESCHEMA_COLOR_SETTINGS::TransferDataFromWindow()
     if( !saveCurrentTheme( true ) )
         return false;
 
-    SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
-    EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
-
-    cfg->m_ColorTheme = m_currentSettings->GetFilename();
+    if( EESCHEMA_SETTINGS* cfg = GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" ) )
+        cfg->m_ColorTheme = m_currentSettings->GetFilename();
 
     return true;
 }
@@ -250,7 +247,7 @@ void PANEL_EESCHEMA_COLOR_SETTINGS::createPreviewItems()
 
     std::vector<DANGLING_END_ITEM> endPointsByType;
 
-    m_page       = new PAGE_INFO( PAGE_INFO::Custom );
+    m_page       = new PAGE_INFO( PAGE_SIZE_TYPE::User );
     m_titleBlock = new TITLE_BLOCK;
     m_titleBlock->SetTitle( _( "Color Preview" ) );
     m_titleBlock->SetDate( wxDateTime::Now().FormatDate() );
@@ -441,12 +438,9 @@ void PANEL_EESCHEMA_COLOR_SETTINGS::createPreviewItems()
         addItem( symbol );
     }
 
-    SCH_SHEET* s = new SCH_SHEET(
-            /* aParent */ nullptr,
-            /* aPosition */ MILS_POINT( 4000, 1300 ),
-            /* aSize */ VECTOR2I( schIUScale.MilsToIU( 800 ), schIUScale.MilsToIU( 1300 ) ) );
-    s->GetFields().at( SHEETNAME ).SetText( wxT( "SHEET" ) );
-    s->GetFields().at( SHEETFILENAME ).SetText( _( "/path/to/sheet" ) );
+    SCH_SHEET* s = new SCH_SHEET( nullptr, MILS_POINT( 4000, 1300 ), MILS_POINT( 800, 1300 ) );
+    s->GetField( FIELD_T::SHEET_NAME )->SetText( wxT( "SHEET" ) );
+    s->GetField( FIELD_T::SHEET_FILENAME )->SetText( _( "/path/to/sheet" ) );
     s->AutoplaceFields( nullptr, AUTOPLACE_AUTO );
     addItem( s );
 

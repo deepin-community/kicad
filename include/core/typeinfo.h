@@ -98,6 +98,7 @@ enum KICAD_T
     PCB_ARC_T,               ///< class PCB_ARC, an arc track segment on a copper layer
     PCB_MARKER_T,            ///< class PCB_MARKER, a marker used to show something
     PCB_DIMENSION_T,         ///< class PCB_DIMENSION_BASE: abstract dimension meta-type
+    PCB_BARCODE_T,           ///< class PCB_BARCODE, a barcode (graphic item)
     PCB_DIM_ALIGNED_T,       ///< class PCB_DIM_ALIGNED, a linear dimension (graphic item)
     PCB_DIM_LEADER_T,        ///< class PCB_DIM_LEADER, a leader dimension (graphic item)
     PCB_DIM_CENTER_T,        ///< class PCB_DIM_CENTER, a center point marking (graphic item)
@@ -108,6 +109,8 @@ enum KICAD_T
     PCB_ITEM_LIST_T,         ///< class BOARD_ITEM_LIST, a list of board items
     PCB_NETINFO_T,           ///< class NETINFO_ITEM, a description of a net
     PCB_GROUP_T,             ///< class PCB_GROUP, a set of BOARD_ITEMs
+    PCB_BOARD_OUTLINE_T,     ///< class PCB_BOARD_OUTLINE_T, a pcb board outline item
+    PCB_POINT_T,             ///< class PCB_POINT, a 0-dimensional point
 
     // Be prudent with these types:
     // they should be used only to locate a specific field type among PCB_FIELD_Ts
@@ -122,7 +125,8 @@ enum KICAD_T
     // N.B. If you add a type here, be sure to add it below to the BaseType()
     PCB_LOCATE_STDVIA_T,
     PCB_LOCATE_UVIA_T,
-    PCB_LOCATE_BBVIA_T,
+    PCB_LOCATE_BLINDVIA_T,
+    PCB_LOCATE_BURIEDVIA_T,
     PCB_LOCATE_TEXT_T,
     PCB_LOCATE_HOLE_T,
     PCB_LOCATE_PTH_T,
@@ -170,6 +174,7 @@ enum KICAD_T
     SCH_RULE_AREA_T,
     SCH_DIRECTIVE_LABEL_T,
     SCH_SYMBOL_T,
+    SCH_GROUP_T,
     SCH_SHEET_PIN_T,
     SCH_SHEET_T,
 
@@ -336,7 +341,8 @@ constexpr bool IsInstantiableType( const KICAD_T aType )
 
     case PCB_LOCATE_STDVIA_T:
     case PCB_LOCATE_UVIA_T:
-    case PCB_LOCATE_BBVIA_T:
+    case PCB_LOCATE_BLINDVIA_T:
+    case PCB_LOCATE_BURIEDVIA_T:
     case PCB_LOCATE_TEXT_T:
     case PCB_LOCATE_HOLE_T:
     case PCB_LOCATE_PTH_T:
@@ -388,6 +394,7 @@ constexpr bool IsEeschemaType( const KICAD_T aType )
     case SCH_FIELD_T:
     case SCH_SYMBOL_T:
     case SCH_SHEET_PIN_T:
+    case SCH_GROUP_T:
     case SCH_SHEET_T:
     case SCH_PIN_T:
 
@@ -431,6 +438,7 @@ constexpr bool IsPcbnewType( const KICAD_T aType )
     case PCB_FIELD_T:
     case PCB_TEXT_T:
     case PCB_TEXTBOX_T:
+    case PCB_BARCODE_T:
     case PCB_TABLE_T:
     case PCB_TABLECELL_T:
     case PCB_TRACE_T:
@@ -444,6 +452,7 @@ constexpr bool IsPcbnewType( const KICAD_T aType )
     case PCB_DIM_RADIAL_T:
     case PCB_DIM_ORTHOGONAL_T:
     case PCB_TARGET_T:
+    case PCB_POINT_T:
     case PCB_ZONE_T:
     case PCB_ITEM_LIST_T:
     case PCB_NETINFO_T:
@@ -456,7 +465,8 @@ constexpr bool IsPcbnewType( const KICAD_T aType )
     case PCB_FIELD_LOCATE_DATASHEET_T:
     case PCB_LOCATE_STDVIA_T:
     case PCB_LOCATE_UVIA_T:
-    case PCB_LOCATE_BBVIA_T:
+    case PCB_LOCATE_BLINDVIA_T:
+    case PCB_LOCATE_BURIEDVIA_T:
     case PCB_LOCATE_TEXT_T:
     case PCB_LOCATE_HOLE_T:
     case PCB_LOCATE_PTH_T:
@@ -468,6 +478,7 @@ constexpr bool IsPcbnewType( const KICAD_T aType )
     case PCB_SHAPE_LOCATE_ARC_T:
     case PCB_SHAPE_LOCATE_POLY_T:
     case PCB_SHAPE_LOCATE_BEZIER_T:
+    case PCB_BOARD_OUTLINE_T:
         return true;
 
     default:

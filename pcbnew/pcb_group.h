@@ -32,6 +32,7 @@
 
 #include <board_commit.h>
 #include <board_item.h>
+#include <eda_group.h>
 #include <lset.h>
 #include <unordered_set>
 
@@ -48,10 +49,15 @@ class VIEW;
  * containing a group implicitly contains its members. However other operations on sets of
  * items, like committing, updating the view, etc the set is explicit.
  */
-class PCB_GROUP : public BOARD_ITEM
+class PCB_GROUP : public BOARD_ITEM, public EDA_GROUP
 {
 public:
     PCB_GROUP( BOARD_ITEM* aParent );
+
+    void Serialize( google::protobuf::Any &aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+
+    EDA_ITEM* AsEdaItem() override { return this; }
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
@@ -63,34 +69,7 @@ public:
         return wxT( "PCB_GROUP" );
     }
 
-    wxString GetName() const { return m_name; }
-    void SetName( const wxString& aName ) { m_name = aName; }
-
-    std::unordered_set<BOARD_ITEM*>& GetItems()
-    {
-        return m_items;
-    }
-
-    const std::unordered_set<BOARD_ITEM*>& GetItems() const
-    {
-        return m_items;
-    }
-
-    /**
-     * Add item to group. Does not take ownership of item.
-     *
-     * @return true if item was added (false if item belongs to a different group).
-     */
-    virtual bool AddItem( BOARD_ITEM* aItem );
-
-    /**
-     * Remove item from group.
-     *
-     * @return true if item was removed (false if item was not in the group).
-     */
-    virtual bool RemoveItem( BOARD_ITEM* aItem );
-
-    void RemoveAll();
+    std::unordered_set<BOARD_ITEM*> GetBoardItems() const;
 
     /*
      * Search for highest level group inside of aScope, containing item.
@@ -99,7 +78,7 @@ public:
      * @param isFootprintEditor true if we should stop promoting at the footprint level
      * @return group inside of aScope, containing item, if exists, otherwise, nullptr
      */
-    static PCB_GROUP* TopLevelGroup( BOARD_ITEM* aItem, PCB_GROUP* aScope, bool isFootprintEditor );
+    static EDA_GROUP* TopLevelGroup( BOARD_ITEM* aItem, EDA_GROUP* aScope, bool isFootprintEditor );
 
     static bool WithinScope( BOARD_ITEM* aItem, PCB_GROUP* aScope, bool isFootprintEditor );
 
@@ -142,14 +121,17 @@ public:
     EDA_ITEM* Clone() const override;
 
     /*
-     * Clone() this and all descendants
+     * Clone this and all descendants
      */
     PCB_GROUP* DeepClone() const;
 
     /*
-     * Duplicate() this and all descendants
+     * Duplicate this and all descendants
+     *
+     * @param addToParentGroup if the original is part of a group then the new member will also
+     *                         be added to said group
      */
-    PCB_GROUP* DeepDuplicate() const;
+    PCB_GROUP* DeepDuplicate( bool addToParentGroup, BOARD_COMMIT* aCommit = nullptr ) const;
 
     /// @copydoc BOARD_ITEM::IsOnLayer
     bool IsOnLayer( PCB_LAYER_ID aLayer ) const override;
@@ -159,6 +141,9 @@ public:
 
     /// @copydoc EDA_ITEM::HitTest
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
+
+    /// @copydoc EDA_ITEM::HitTest
+    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override;
 
     /// @copydoc EDA_ITEM::GetBoundingBox
     const BOX2I GetBoundingBox() const override;
@@ -198,28 +183,17 @@ public:
     /// @copydoc EDA_ITEM::GetMsgPanelInfo
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 
+    /// @copydoc EDA_ITEM::Matches
+    bool Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const override;
+
     ///< @copydoc BOARD_ITEM::RunOnChildren
-    void RunOnChildren( const std::function<void ( BOARD_ITEM* )>& aFunction ) const override;
-
-    ///< @copydoc BOARD_ITEM::RunOnDescendants
-    void RunOnDescendants( const std::function<void( BOARD_ITEM* )>& aFunction,
-                           int aDepth = 0 ) const override;
-
-    /**
-     * Check if the proposed type can be added to a group
-     * @param aType KICAD_T type to check
-     * @return true if the type can belong to a group, false otherwise
-     */
-    static bool IsGroupableType( KICAD_T aType );
+    void RunOnChildren( const std::function<void( BOARD_ITEM* )>& aFunction, RECURSE_MODE aMode ) const override;
 
 protected:
     PCB_GROUP( BOARD_ITEM* aParent, KICAD_T idtype, PCB_LAYER_ID aLayer = F_Cu );
 
     /// @copydoc BOARD_ITEM::swapData
     void swapData( BOARD_ITEM* aImage ) override;
-
-    std::unordered_set<BOARD_ITEM*> m_items;     // Members of the group
-    wxString                        m_name;      // Optional group name
 };
 
 #endif // CLASS_PCB_GROUP_H_

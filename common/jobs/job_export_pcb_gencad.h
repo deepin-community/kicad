@@ -24,13 +24,13 @@
 #include <kicommon.h>
 #include <kicommon.h>
 #include <layer_ids.h>
-#include <wx/string.h>
 #include "job.h"
 
 class KICOMMON_API JOB_EXPORT_PCB_GENCAD : public JOB
 {
 public:
     JOB_EXPORT_PCB_GENCAD();
+    wxString GetDefaultDescription() const override;
     wxString GetSettingsDialogTitle() const override;
 
     wxString m_filename;

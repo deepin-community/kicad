@@ -88,6 +88,21 @@ public:
     void SetUserDefinedSignals( const std::map<int, wxString>& aSignals );
 
     /**
+     * Creates a column at the end of m_signalsGrid named "Cursor n" ( n = m_customCursorsCnt ),
+     * increases m_customCursorsCnt,
+     * emplaces a vector to m_cursorFormatsDyn,
+     * and update widgets
+     */
+    void CreateNewCursor();
+
+    /**
+     * Deletes last m_signalsGrid "Cursor n" column,
+     * removes vector's m_cursorFormatsDyn last entry,
+     * reduces m_customCursorsCnt by one, and update widgets
+     */
+    void DeleteCursor();
+
+    /**
      * Add a new trace to the current plot.
      *
      * @param aName is the device/net name.
@@ -101,12 +116,12 @@ public:
      */
     SPICE_VALUE_FORMAT GetCursorFormat( int aCursorId, int aValueCol ) const
     {
-        return m_cursorFormats[ aCursorId ][ aValueCol ];
+        return m_cursorFormatsDyn[aCursorId][aValueCol];
     }
 
     void SetCursorFormat( int aCursorId, int aValueCol, const SPICE_VALUE_FORMAT& aFormat )
     {
-        m_cursorFormats[ aCursorId ][ aValueCol ] = aFormat;
+        m_cursorFormatsDyn[ aCursorId ][ aValueCol ] = aFormat;
 
         wxCommandEvent dummy;
         onPlotCursorUpdate( dummy );
@@ -161,6 +176,11 @@ public:
      */
     const SPICE_CIRCUIT_MODEL* GetExporter() const;
 
+    bool IsSimConsoleShown();
+    void ToggleSimConsole();
+    bool IsSimSidePanelShown();
+    void ToggleSimSidePanel();
+
     bool DarkModePlots() const { return m_darkMode; }
     void ToggleDarkModePlots();
 
@@ -191,10 +211,12 @@ public:
      */
     void ApplyPreferences( const SIM_PREFERENCES& aPrefs );
 
-    // adjust the sash dimension of splitter windows after reading
-    // the config settings
-    // must be called after the config settings are read, and once the
-    // frame is initialized (end of the Ctor)
+    /**
+     * Adjust the sash dimension of splitter windows after reading
+     * the config settings
+     * must be called after the config settings are read, and once the
+     * frame is initialized (end of the Ctor)
+     */
     void SetSubWindowsSashSize();
 
     /**
@@ -250,6 +272,18 @@ private:
                       std::vector<double>* aDataX = nullptr, bool aClearData = false );
 
     /**
+     * A common toggler for the two main wxSplitterWindow s
+     */
+    void TogglePanel( wxPanel* aPanel, wxSplitterWindow* aSplitterWindow, int& aSashPosition );
+
+    /**
+     * Init handler for custom cursors
+     *
+     * Called once in class's body
+     */
+    void CustomCursorsInit();
+
+    /**
      * Rebuild the list of signals available from the netlist.
      *
      * Note: this is not the filtered list.  See rebuildSignalsGrid() for that.
@@ -272,6 +306,16 @@ private:
     void updatePlotCursors();
 
     /**
+     * Updates m_signalsGrid cursor widget, column rendering and attributes
+     *
+     * @param t is the type of the enum that holds m_signalsGrid column indexing
+     * @param u a cursor "ID". Applies a 2 integer offset against the enum indexing
+     * @param r is a wxGrid widget's row
+     */
+    template <typename T, typename U, typename R>
+    void signalsGridCursorUpdate( T t, U u, R r );
+
+    /**
      * Apply user-defined signals to the SPICE session.
      */
     void applyUserDefinedSignals();
@@ -292,6 +336,16 @@ private:
      * Return X axis for a given simulation type.
      */
     SIM_TRACE_TYPE getXAxisType( SIM_TYPE aType ) const;
+
+    struct MULTI_RUN_STEP;
+
+    void clearMultiRunState( bool aClearTraces );
+    void prepareMultiRunState();
+    std::vector<MULTI_RUN_STEP> calculateMultiRunSteps( const std::vector<TUNER_SLIDER*>& aTuners ) const;
+    std::string multiRunTraceKey( const wxString& aVectorName, int aTraceType ) const;
+    void recordMultiRunData( const wxString& aVectorName, int aTraceType,
+                             const std::vector<double>& aX, const std::vector<double>& aY );
+    bool hasMultiRunTrace( const wxString& aVectorName, int aTraceType ) const;
 
     wxString getNoiseSource() const;
 
@@ -320,6 +374,8 @@ private:
     bool loadLegacyWorkbook( const wxString & aPath );
     bool loadJsonWorkbook( const wxString & aPath );
 
+    void SaveCursorToWorkbook( nlohmann::json& aTraceJs, TRACE* aTrace, int aCursorId );
+
     void onPlotCursorUpdate( wxCommandEvent& aEvent );
 
 public:
@@ -332,12 +388,41 @@ private:
     std::vector<wxString>        m_signals;
     std::map<int, wxString>      m_userDefinedSignals;
     std::list<TUNER_SLIDER*>     m_tuners;
+    std::map<const TUNER_SLIDER*, double> m_tunerOverrides;
+
+    struct MULTI_RUN_TRACE
+    {
+        int traceType = SPT_UNKNOWN;
+        std::vector<double> xValues;
+        std::vector<std::vector<double>> yValues;
+    };
+
+    struct MULTI_RUN_STEP
+    {
+        std::map<const TUNER_SLIDER*, double> overrides;
+    };
+
+    struct MULTI_RUN_STATE
+    {
+        bool active = false;
+        std::vector<TUNER_SLIDER*> tuners;
+        std::vector<MULTI_RUN_STEP> steps;
+        size_t currentStep = 0;
+        size_t storedSteps = 0;
+        bool storePending = false;
+        std::map<std::string, MULTI_RUN_TRACE> traces;
+    };
+
+    MULTI_RUN_STATE             m_multiRunState;
 
     ///< SPICE expressions need quoted versions of the netnames since KiCad allows '-' and '/'
     ///< in netnames.
     std::vector<wxString>        m_netnames;
 
     SPICE_VALUE_FORMAT           m_cursorFormats[3][2];
+
+    // Holds cursor formating for m_cursorsGrid, includes m_cursorFormats[3][2], TODO: merge.
+    std::vector<std::vector<SPICE_VALUE_FORMAT>> m_cursorFormatsDyn;
 
     // Variables for temporary storage:
     int                          m_splitterLeftRightSashPosition;
@@ -349,6 +434,9 @@ private:
     unsigned int                 m_plotNumber;
     wxTimer                      m_refreshTimer;
     SIM_PREFERENCES              m_preferences;
+
+    // Count all available cursors in m_signalsGrid
+    int                          m_customCursorsCnt; // Defaults to 2 + 1
 };
 
 #endif // SIMULATOR_FRAME_UI_H

@@ -51,8 +51,6 @@ public:
 
     const KIID GetUUID() const override { return m_Uuid; }
 
-    void SwapData( SCH_ITEM* aItem ) override;
-
     wxString SerializeToString() const;
     static SCH_MARKER* DeserializeFromString( const SCH_SHEET_LIST& aSheetList,
                                               const wxString& data );
@@ -62,9 +60,6 @@ public:
     SCH_LAYER_ID GetColorLayer() const;
 
     SEVERITY GetSeverity() const override;
-
-    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed ) override;
 
     void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override
@@ -140,6 +135,8 @@ public:
 #endif
 
 protected:
+    void swapData( SCH_ITEM* aItem ) override;
+
     KIGFX::COLOR4D getColor() const override;
 
     bool m_isLegacyMarker; ///< True if marker was deserialized from a file version < 20230121.

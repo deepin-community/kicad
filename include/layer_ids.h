@@ -231,12 +231,13 @@ enum GAL_LAYER_ID: int
      /// Meta control for all vias opacity/visibility.
     LAYER_VIAS               = GAL_LAYER_ID_START +  0,
     LAYER_VIA_MICROVIA       = GAL_LAYER_ID_START +  1, /// Draw micro vias.
-    LAYER_VIA_BBLIND         = GAL_LAYER_ID_START +  2, /// Draw blind/buried vias.
-    LAYER_VIA_THROUGH        = GAL_LAYER_ID_START +  3, /// Draw usual through hole vias.
+    LAYER_VIA_BLIND          = GAL_LAYER_ID_START +  2, /// Draw blind vias.
+    LAYER_VIA_BURIED         = GAL_LAYER_ID_START +  3, /// Draw buried vias.
+    LAYER_VIA_THROUGH        = GAL_LAYER_ID_START +  4, /// Draw usual through hole vias.
 
     /// Handle color for not plated holes (holes, not pads).
-    LAYER_NON_PLATEDHOLES    = GAL_LAYER_ID_START +  4,
-    LAYER_FP_TEXT            = GAL_LAYER_ID_START +  5,
+    LAYER_NON_PLATEDHOLES    = GAL_LAYER_ID_START +  5,
+    LAYER_FP_TEXT            = GAL_LAYER_ID_START +  6,
 
 //  LAYER_MOD_TEXT_BK deprecated                  +  6,
 
@@ -311,8 +312,13 @@ enum GAL_LAYER_ID: int
     /// Copper graphic shape opacity/visibility (color ignored).
     LAYER_FILLED_SHAPES      = GAL_LAYER_ID_START + 41,
 
-    LAYER_DRC_SHAPE1         = GAL_LAYER_ID_START + 42,  ///< Custom shape for DRC marker.
-    LAYER_DRC_SHAPE2         = GAL_LAYER_ID_START + 43,  ///< Custom shape for DRC marker.
+    LAYER_DRC_SHAPES         = GAL_LAYER_ID_START + 42,  ///< Custom shapes for DRC markers.
+//  LAYER_DRC_SHAPE2         = GAL_LAYER_ID_START + 43,  ///< Deprecated since 10.0
+
+    LAYER_BOARD_OUTLINE_AREA = GAL_LAYER_ID_START + 44, ///< PCB board outline
+
+    /// PCB reference/manual snap points visibility
+    LAYER_POINTS             = GAL_LAYER_ID_START + 45,
 
     // Add layers below this point that do not have visibility controls, so don't need explicit
     // enum values
@@ -343,6 +349,10 @@ enum GAL_LAYER_ID: int
     LAYER_BITMAP_START,
     LAYER_BITMAP_END = LAYER_BITMAP_START + PCB_LAYER_ID_COUNT,
 
+    /// Virtual layers for points per board layer.
+    LAYER_POINT_START,
+    LAYER_POINT_END = LAYER_POINT_START + PCB_LAYER_ID_COUNT,
+
     // Layers for drawing on-canvas UI
     LAYER_UI_START,
     LAYER_UI_END = LAYER_UI_START + GAL_UI_LAYER_COUNT,
@@ -359,6 +369,7 @@ enum GAL_LAYER_ID: int
 #define PAD_COPPER_LAYER_FOR( boardLayer ) ( LAYER_PAD_COPPER_START + boardLayer )
 #define VIA_COPPER_LAYER_FOR( boardLayer ) ( LAYER_VIA_COPPER_START + boardLayer )
 #define CLEARANCE_LAYER_FOR( boardLayer ) ( LAYER_CLEARANCE_START + boardLayer )
+#define POINT_LAYER_FOR( boardLayer ) ( LAYER_POINT_START + boardLayer )
 
 constexpr int GAL_LAYER_ID_COUNT = GAL_LAYER_ID_END - GAL_LAYER_ID_START;
 
@@ -480,6 +491,7 @@ enum SCH_LAYER_ID : int
     LAYER_BRIGHTENED,
     LAYER_HIDDEN,
     LAYER_NET_COLOR_HIGHLIGHT,
+    LAYER_DRAG_NET_COLLISION,
     LAYER_SELECTION_SHADOWS,
     LAYER_SCHEMATIC_DRAWINGSHEET,
     LAYER_SCHEMATIC_PAGE_LIMITS,
@@ -488,6 +500,7 @@ enum SCH_LAYER_ID : int
     LAYER_SCHEMATIC_ANCHOR,
     LAYER_OP_VOLTAGES,
     LAYER_OP_CURRENTS,
+    LAYER_GROUP,
 
     SCH_LAYER_ID_END
 };
@@ -601,9 +614,10 @@ enum LAYER_3D_ID : int
         LAYER_3D_VIRTUAL_MODELS,
         LAYER_3D_MODELS_NOT_IN_POS,
         LAYER_3D_MODELS_MARKED_DNP,
-        LAYER_3D_AXES,
+        LAYER_3D_NAVIGATOR,
         LAYER_3D_BOUNDING_BOXES,
         LAYER_3D_OFF_BOARD_SILK,
+        LAYER_3D_PLATED_BARRELS,
 
         LAYER_3D_END
 };
@@ -718,7 +732,8 @@ inline bool IsViaPadLayer( int aLayer )
 {
     return aLayer == LAYER_VIA_THROUGH
             || aLayer == LAYER_VIA_MICROVIA
-            || aLayer == LAYER_VIA_BBLIND;
+            || aLayer == LAYER_VIA_BLIND
+            || aLayer == LAYER_VIA_BURIED;
 }
 
 inline bool IsHoleLayer( int aLayer )
@@ -878,6 +893,12 @@ inline bool IsViaCopperLayer( int aLayer )
 inline bool IsClearanceLayer( int aLayer )
 {
     return aLayer >= LAYER_CLEARANCE_START && aLayer <= LAYER_CLEARANCE_END;
+}
+
+
+inline bool IsPointsLayer( int aLayer )
+{
+    return aLayer >= LAYER_POINT_START && aLayer <= LAYER_POINT_END;
 }
 
 

@@ -196,6 +196,10 @@ enum UnconnectedLayerRemoval
 
   // Remove annular rings on unconnected layers, but preserve start and end layers even if unconnected.
   ULR_REMOVE_EXCEPT_START_AND_END = 3;
+
+  // Keep annular rings only on the start and end layers regardless of connections.
+  // Since: 10.0.0
+  ULR_START_END_ONLY = 4;
 }
 
 // The shape of a pad on a given layer
@@ -294,15 +298,31 @@ message PadStackLayer
 
 enum SolderMaskMode
 {
-  SMM_UNKOWN = 0;
+  SMM_UNKNOWN = 0;
   SMM_MASKED = 1;
   SMM_UNMASKED = 2;
   SMM_FROM_DESIGN_RULES = 3;
 }
 
+enum ViaCoveringMode
+{
+  VCM_UNKNOWN = 0;
+  VCM_COVERED = 1;
+  VCM_UNCOVERED = 2;
+  VCM_FROM_DESIGN_RULES = 3;
+}
+
+enum ViaPluggingMode
+{
+  VPM_UNKNOWN = 0;
+  VPM_PLUGGED = 1;
+  VPM_UNPLUGGED = 2;
+  VPM_FROM_DESIGN_RULES = 3;
+}
+
 enum SolderPasteMode
 {
-  SPM_UNKOWN = 0;
+  SPM_UNKNOWN = 0;
   SPM_PASTE = 1;
   SPM_NO_PASTE = 2;
   SPM_FROM_DESIGN_RULES = 3;
@@ -319,6 +339,9 @@ message PadStackOuterLayer
 
   // NOTE: At present, KiCad does not support different solder paste expansion settings for the top and bottom layers
   SolderPasteOverrides solder_paste_settings = 4;
+
+  ViaPluggingMode plugging_mode = 5;
+  ViaCoveringMode covering_mode = 6;
 }
 
 enum DrillShape
@@ -327,6 +350,30 @@ enum DrillShape
   DS_CIRCLE = 1;
   DS_OBLONG = 2;
   DS_UNDEFINED = 3;
+}
+
+enum ViaDrillCappingMode
+{
+  VDCM_UNKNOWN = 0;
+  VDCM_CAPPED = 1;
+  VDCM_UNCAPPED = 2;
+  VDCM_FROM_DESIGN_RULES = 3;
+}
+
+enum ViaDrillFillingMode
+{
+  VDFM_UNKNOWN = 0;
+  VDFM_FILLED = 1;
+  VDFM_UNFILLED = 2;
+  VDFM_FROM_DESIGN_RULES = 3;
+}
+
+enum ViaDrillPostMachiningMode
+{
+  VDPM_UNKNOWN = 0;
+  VDPM_NOT_POST_MACHINED = 1;
+  VDPM_COUNTERBORE = 2;
+  VDPM_COUNTERSINK = 3;
 }
 
 message DrillProperties
@@ -342,6 +389,19 @@ message DrillProperties
   kiapi.common.types.Vector2 diameter = 3;
 
   DrillShape shape = 4;
+
+  ViaDrillCappingMode capped = 5;
+
+  ViaDrillFillingMode filled = 6;
+
+}
+
+message PostMachiningProperties
+{
+  ViaDrillPostMachiningMode mode = 1;
+  int32 size = 2;
+  int32 depth = 3;
+  int32 angle = 4;
 }
 
 // A pad stack definition for a multilayer pad or via.
@@ -372,6 +432,15 @@ message PadStack
 
   // Controls for how copper zones connect to the padstack
   ZoneConnectionSettings zone_settings = 9;
+
+  // Optional secondary drill hit for backdrilling
+  DrillProperties secondary_drill = 10;
+
+  // Optional tertiary drill hit for backdrilling
+  DrillProperties tertiary_drill = 11;
+
+  PostMachiningProperties front_post_machining = 12;
+  PostMachiningProperties back_post_machining = 13;
 }
 
 enum ViaType
@@ -387,6 +456,12 @@ enum ViaType
   // Microvias, blind/buried vias, can have arbitrary start and end layers, but also have different
   // size defaults and design rules
   VT_MICRO = 3;
+
+  // Blind vias start on an outer layer and end in the middle
+  VT_BLIND = 4;  // Since V10
+
+  // Buried vias start and end on inner layers
+  VT_BURIED = 5;  // Since V10
 }
 
 // Represents a via
@@ -464,6 +539,18 @@ message ThermalSpokeSettings
   kiapi.common.types.Distance gap = 3;
 }
 
+message SymbolPinInfo
+{
+  // The pin name for the associated symbol pin, if one exists
+  string name = 1;
+
+  // The electrical type of the associated symbol pin, if one exists (EPT_UNKNOWN if not)
+  kiapi.common.types.ElectricalPinType type = 2;
+
+  // True if the pin is attached to a no-connect marker in the schematic
+  bool no_connect = 3;
+}
+
 message Pad
 {
   kiapi.common.types.KIID id = 1;
@@ -478,6 +565,16 @@ message Pad
 
   // Copper-to-copper clearance override
   kiapi.common.types.Distance copper_clearance_override = 8;
+
+  // Since: 9.0.4
+  kiapi.common.types.Distance pad_to_die_length = 9;
+
+  // Information about the associated symbol pin, if one exists
+  // Since: 9.0.7
+  SymbolPinInfo symbol_pin = 10;
+
+  // Since: 10.0.0
+  kiapi.common.types.Time pad_to_die_delay = 11;
 }
 
 enum ZoneType
@@ -570,6 +667,8 @@ enum PlacementRuleSourceType
   PRST_UNKNOWN = 0;
   PRST_SHEET_NAME = 1;
   PRST_COMPONENT_CLASS = 2;
+  PRST_GROUP = 3;
+  PRST_DESIGN_BLOCK = 4;
 }
 
 message RuleAreaSettings
@@ -608,6 +707,14 @@ message ZoneFilledPolygons
   kiapi.common.types.PolySet shapes = 2;
 }
 
+message ZoneLayerProperties
+{
+  BoardLayer layer = 1;
+
+  kiapi.common.types.Vector2 hatching_offset = 2;
+}
+
+
 message Zone
 {
   kiapi.common.types.KIID id = 1;
@@ -634,6 +741,8 @@ message Zone
   ZoneBorderSettings border = 11;
 
   kiapi.common.types.LockedState locked = 12;
+
+  repeated ZoneLayerProperties layer_properties = 13;
 }
 
 // An aligned dimension is drawn parallel to the line segment between the start and end points
@@ -791,7 +900,9 @@ message ReferenceImage
 
 message Group
 {
-  // TODO
+  kiapi.common.types.KIID id = 1;
+  string name = 2;
+  repeated kiapi.common.types.KIID items = 3;
 }
 
 message FieldId
@@ -827,6 +938,9 @@ message FootprintAttributes
   bool exempt_from_courtyard_requirement = 6;
   bool do_not_populate = 7;
   FootprintMountingStyle mounting_style = 8;
+
+  // Since: 9.0.7
+  bool allow_soldermask_bridges = 9;
 }
 
 message NetTieDefinition
@@ -860,6 +974,19 @@ message Footprint3DModel
   double opacity = 6;
 }
 
+message JumperGroup
+{
+  repeated string pad_names = 1;
+}
+
+message JumperSettings
+{
+  /// If true, duplicate pad names in this footprint are jumpered together
+  bool duplicate_names_are_jumpered = 1;
+
+  repeated JumperGroup groups = 2;
+}
+
 // A footprint definition (i.e. what would be in a library)
 message Footprint
 {
@@ -877,6 +1004,8 @@ message Footprint
 
   // All footprint items except for mandatory fields
   repeated google.protobuf.Any items = 11;
+
+  JumperSettings jumpers = 12;
 }
 
 // An instance of a footprint on a board
@@ -896,4 +1025,22 @@ message FootprintInstance
 
   FootprintAttributes attributes = 11;
   FootprintDesignRuleOverrides overrides  = 12;
+
+  // The sheet path to the associated symbol for this footprint instance, if one exists
+  kiapi.common.types.SheetPath symbol_path = 13;
+
+  // The name of the hierarchical sheet the associated symbol for this footprint exists on,
+  // or the empty string if there is no associated symbol
+  // Since: 9.0.7
+  string symbol_sheet_name = 14;
+
+  // The filename of the hierarchical sheet the associated symbol for this footprint exists on,
+  // or the empty string if there is no associated symbol
+  // Since: 9.0.7
+  string symbol_sheet_filename = 15;
+
+  // The the footprint filters given by the symbol this footprint is associated with,
+  // or the empty string if there is no associated symbol
+  // Since: 9.0.7
+  string symbol_footprint_filters = 16;
 }

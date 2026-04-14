@@ -11,6 +11,7 @@ include_directories(
     ./dialogs
     ./widgets
     ./dialog_about
+    ${CMAKE_SOURCE_DIR}/libs/sexpr/include
     ${CMAKE_SOURCE_DIR}/resources/bitmaps_png
     ${CMAKE_SOURCE_DIR}/3d-viewer
     ${CMAKE_SOURCE_DIR}/pcbnew
@@ -21,8 +22,13 @@ include_directories(
 # Get the GAL Target
 add_subdirectory( gal )
 
-# Only for win32 cross compilation using MXE
-add_compile_definitions( $<$<AND:$<BOOL:${WIN32}>,$<BOOL:${MSYS}>>:GLEW_STATIC> )
+# Get the netlist reader library
+add_subdirectory( netlist_reader )
+
+# Get the shared PADS format support library
+add_subdirectory( io/pads )
+
+
 
 
 # The build version string defaults to the value in the KiCadVersion.cmake file.
@@ -47,6 +53,28 @@ add_custom_target(
     COMMENT "Generating version string header"
     )
 
+add_custom_target(
+    banned_functions ALL
+    COMMAND ${CMAKE_COMMAND}
+        -DBANNED_DIRS="${PROJECT_SOURCE_DIR}/common/io;${PROJECT_SOURCE_DIR}/pcbnew/pcb_io;${PROJECT_SOURCE_DIR}/eeschema/sch_io"
+        -P ${KICAD_CMAKE_MODULE_PATH}/CheckBannedFunctions.cmake
+)
+
+if( NOT (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_BINARY_DIR} ) )
+    file( GLOB REMOTE_PROVIDER_SCHEMA_FILES
+        ${CMAKE_SOURCE_DIR}/resources/schemas/kicad-remote-*.json
+    )
+
+    add_custom_target( remote_provider_schema_build_copy
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/schemas
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${REMOTE_PROVIDER_SCHEMA_FILES}
+            ${CMAKE_BINARY_DIR}/schemas
+        DEPENDS ${REMOTE_PROVIDER_SCHEMA_FILES}
+        COMMENT "Copying remote provider schema files into build directory"
+    )
+endif()
+
 # A shared library used by multiple *.kiface files and one or two program
 # launchers.  Object files can migrate into here over time, but only if they are
 # surely needed and certainly used from more than one place without recompilation.
@@ -60,7 +88,34 @@ set( KICOMMON_SRCS
 
     # Gal
     gal/color4d.cpp
-    gal/opengl/gl_context_mgr.cpp
+
+    # KiCad GL
+    kicad_gl/gl_utils.cpp
+    kicad_gl/gl_context_mgr.cpp
+
+    # Git
+    git/git_add_to_index_handler.cpp
+    git/git_branch_handler.cpp
+    git/git_clone_handler.cpp
+    git/git_commit_handler.cpp
+    git/git_config_handler.cpp
+    git/git_compare_handler.cpp
+    git/git_init_handler.cpp
+    git/project_git_utils.cpp
+    git/git_pull_handler.cpp
+    git/git_push_handler.cpp
+    git/git_remove_from_index_handler.cpp
+    git/git_remove_vcs_handler.cpp
+    git/git_resolve_conflict_handler.cpp
+    git/git_revert_handler.cpp
+    git/git_status_handler.cpp
+    git/git_switch_branch_handler.cpp
+    git/git_sync_handler.cpp
+    git/kicad_git_common.cpp
+    git/kicad_git_errors.cpp
+    git/git_backend.cpp
+    git/libgit_backend.cpp
+
     # Jobs
     jobs/job.cpp
     jobs/job_dispatcher.cpp
@@ -71,12 +126,15 @@ set( KICOMMON_SRCS
     jobs/job_export_pcb_dxf.cpp
     jobs/job_export_pcb_gerber.cpp
     jobs/job_export_pcb_gerbers.cpp
+    jobs/job_export_pcb_hpgl.cpp
     jobs/job_export_pcb_ipc2581.cpp
     jobs/job_export_pcb_ipcd356.cpp
     jobs/job_export_pcb_odb.cpp
     jobs/job_export_pcb_pdf.cpp
+    jobs/job_export_pcb_stats.cpp
     jobs/job_export_pcb_plot.cpp
     jobs/job_export_pcb_pos.cpp
+    jobs/job_export_pcb_ps.cpp
     jobs/job_export_pcb_svg.cpp
     jobs/job_export_pcb_gencad.cpp
     jobs/job_export_pcb_3d.cpp
@@ -89,15 +147,25 @@ set( KICOMMON_SRCS
     jobs/jobset.cpp
     jobs/job_fp_export_svg.cpp
     jobs/job_fp_upgrade.cpp
+    jobs/job_pcb_import.cpp
     jobs/job_pcb_render.cpp
     jobs/job_pcb_drc.cpp
     jobs/job_rc.cpp
     jobs/job_sch_erc.cpp
     jobs/job_sym_export_svg.cpp
     jobs/job_sym_upgrade.cpp
+    jobs/job_pcb_upgrade.cpp
+    jobs/job_sch_upgrade.cpp
+
+    local_history.cpp
+    history_lock.cpp
 
     kicad_curl/kicad_curl.cpp
     kicad_curl/kicad_curl_easy.cpp
+
+    libraries/library_manager.cpp
+    libraries/library_table.cpp
+    libraries/library_table_parser.cpp
 
     settings/app_settings.cpp
     settings/aui_settings.cpp
@@ -113,34 +181,58 @@ set( KICOMMON_SRCS
     settings/settings_manager.cpp
 
     project/board_project_settings.cpp
+    project/component_class_settings.cpp
     project/net_settings.cpp
     project/project_archiver.cpp
     project/project_file.cpp
     project/project_local_settings.cpp
+    project/tuning_profiles.cpp
 
-    dialogs/dialog_migrate_settings.cpp
-    dialogs/dialog_migrate_settings_base.cpp
+    text_eval/text_eval_wrapper.cpp
+    text_eval/text_eval_parser.cpp
+    text_eval/text_eval_vcs.cpp
+
+    # This is basically a settings object, but for the toolbar
+    tool/ui/toolbar_configuration.cpp
+    tool/ui/toolbar_context_menu_registry.cpp
+
     dialogs/dialog_rc_job.cpp
     dialogs/dialog_rc_job_base.cpp
+    dialogs/dialog_restore_local_history.cpp
+    dialogs/dialog_HTML_reporter_base.cpp
+    dialogs/panel_startwizard_libraries_base.cpp
+    dialogs/panel_startwizard_privacy_base.cpp
+    dialogs/panel_startwizard_settings_base.cpp
 
+    grid_tricks.cpp
+    widgets/aui_json_serializer.cpp
     widgets/bitmap_button.cpp
+    widgets/grid_combobox.cpp
+    widgets/grid_icon_text_helpers.cpp
+    widgets/grid_text_button_helpers.cpp
+    widgets/grid_text_helpers.cpp
     widgets/html_window.cpp
+    widgets/indicator_icon.cpp
     widgets/kistatusbar.cpp
     widgets/number_badge.cpp
     widgets/progress_reporter_base.cpp
+    widgets/report_severity.cpp
     widgets/std_bitmap_button.cpp
     widgets/ui_common.cpp
+    widgets/up_down_tree.cpp
+    widgets/wx_grid.cpp
     widgets/wx_html_report_panel.cpp
     widgets/wx_html_report_panel_base.cpp
+    widgets/wx_html_report_box.cpp
 
     database/database_lib_settings.cpp
 
-    design_block_lib_table.cpp
+    design_block.cpp
     design_block_io.cpp
-    design_block_info.cpp
-    design_block_info_impl.cpp
+    design_block_library_adapter.cpp
 
     advanced_config.cpp
+    app_monitor.cpp
     asset_archive.cpp
     array_axis.cpp
     array_options.cpp
@@ -157,8 +249,11 @@ set( KICOMMON_SRCS
     dpi_scaling.cpp
     dpi_scaling_common.cpp
     dsnlexer.cpp
+    eda_doc.cpp
     eda_pattern_match.cpp
     eda_units.cpp
+    embedded_files.cpp
+    env_paths.cpp
     env_vars.cpp
     exceptions.cpp
     gestfich.cpp
@@ -168,10 +263,9 @@ set( KICOMMON_SRCS
     kidialog.cpp
     kiid.cpp
     kiway.cpp
-    kiway_express.cpp
+    kiway_mail.cpp
     kiway_holder.cpp
     launch_ext.cpp
-    lib_table_base.cpp
     layer_id.cpp
     lib_id.cpp
     locale_io.cpp
@@ -181,10 +275,20 @@ set( KICOMMON_SRCS
     netclass.cpp
     notifications_manager.cpp
     page_info.cpp
+    oauth/oauth_loopback_server.cpp
+    oauth/oauth_pkce.cpp
+    oauth/oauth_session.cpp
+    oauth/secure_token_store.cpp
     paths.cpp
     project.cpp
+    remote_provider_client.cpp
+    remote_provider_metadata.cpp
+    remote_provider_models.cpp
+    remote_provider_settings.cpp
+    remote_provider_utils.cpp
     reporter.cpp
     richio.cpp
+    scintilla_tricks.cpp
     search_stack.cpp
     searchhelpfilefullpath.cpp
     string_utils.cpp
@@ -195,6 +299,7 @@ set( KICOMMON_SRCS
     trace_helpers.cpp
     wildcards_and_files_ext.cpp
     wx_filename.cpp
+    xnode.cpp
 
     singleton.cpp
     pgm_base.cpp
@@ -207,7 +312,18 @@ set( KICOMMON_SRCS
 
     api/serializable.cpp
     api/api_utils.cpp
+
+    startwizard/startwizard.cpp
+    startwizard/startwizard_provider_libraries.cpp
+    startwizard/startwizard_provider_privacy.cpp
+    startwizard/startwizard_provider_settings.cpp
     )
+
+if( UNIX AND NOT APPLE )
+    list( APPEND KICOMMON_SRCS
+        spacenav/libspnav_driver.cpp
+    )
+endif()
 
 if( KICAD_IPC_API )
     set( KICOMMON_SRCS
@@ -225,6 +341,23 @@ add_library( kicommon SHARED
     ${KICOMMON_SRCS}
     )
 
+if( KICAD_USE_PCH )
+    target_precompile_headers( kicommon
+        PRIVATE
+            <kicommon.h>
+            <algorithm>
+            <map>
+            <memory>
+            <optional>
+            <set>
+            <string>
+            <vector>
+            <kiid.h>
+            <pgm_base.h>
+            <wx/wx.h>
+             )
+endif()
+
 set_target_properties(kicommon PROPERTIES CXX_VISIBILITY_PRESET hidden)
 
 target_link_libraries( kicommon
@@ -234,12 +367,17 @@ target_link_libraries( kicommon
     kiplatform
     nlohmann_json
     nlohmann_json_schema_validator
+    FastFloat::fast_float
     fmt::fmt
     CURL::libcurl
     picosha2
+    rapidcsv
+    sexpr
+    glad
     ${ZSTD_LIBRARY}
     ${wxWidgets_LIBRARIES}
     ${LIBGIT2_LIBRARIES}
+    ${SPNAV_LIBRARIES}
 
     # needed by kiid to allow linking for Boost for the UUID against bcrypt (msys2 only)
     ${EXTRA_LIBS}
@@ -258,7 +396,7 @@ if( KICAD_USE_SENTRY )
     target_link_libraries( kicommon
         sentry )
 
-    set_property(SOURCE pgm_base.cpp APPEND PROPERTY COMPILE_DEFINITIONS KICAD_SENTRY_DSN="${KICAD_SENTRY_DSN}")
+    set_property(SOURCE app_monitor.cpp APPEND PROPERTY COMPILE_DEFINITIONS KICAD_SENTRY_DSN="${KICAD_SENTRY_DSN}")
 endif()
 
 if( KICAD_IPC_API )
@@ -318,6 +456,10 @@ target_include_directories( kicommon
 
 add_dependencies( kicommon pegtl version_header )
 
+if( TARGET remote_provider_schema_build_copy )
+    add_dependencies( kicommon remote_provider_schema_build_copy )
+endif()
+
 if( MSVC )
     target_sources( kicommon PRIVATE ${CMAKE_SOURCE_DIR}/resources/msw/kicommon-dll.rc )
 endif()
@@ -349,20 +491,17 @@ set( COMMON_DLG_SRCS
     dialogs/dialog_color_picker_base.cpp
     dialogs/dialog_configure_paths.cpp
     dialogs/dialog_configure_paths_base.cpp
+    dialogs/dialog_design_block_properties.cpp
+    dialogs/dialog_design_block_properties_base.cpp
     dialogs/dialog_display_html_text_base.cpp
     dialogs/dialog_edit_library_tables.cpp
-    dialogs/dialog_embed_files.cpp
-    dialogs/dialog_global_lib_table_config.cpp
-    dialogs/dialog_global_lib_table_config_base.cpp
-    dialogs/dialog_global_design_block_lib_table_config.cpp
     dialogs/dialog_grid_settings.cpp
     dialogs/dialog_grid_settings_base.cpp
+    dialogs/dialog_group_properties.cpp
+    dialogs/dialog_group_properties_base.cpp
     dialogs/dialog_hotkey_list.cpp
-    dialogs/dialog_HTML_reporter_base.cpp
     dialogs/dialog_import_choose_project.cpp
     dialogs/dialog_import_choose_project_base.cpp
-    dialogs/dialog_locked_items_query.cpp
-    dialogs/dialog_locked_items_query_base.cpp
     dialogs/dialog_multi_unit_entry.cpp
     dialogs/dialog_page_settings_base.cpp
     dialogs/dialog_paste_special.cpp
@@ -392,53 +531,65 @@ set( COMMON_DLG_SRCS
     dialogs/panel_design_block_lib_table.cpp
     dialogs/panel_embedded_files.cpp
     dialogs/panel_embedded_files_base.cpp
-    dialogs/panel_gal_display_options.cpp
+    dialogs/panel_base_display_options.cpp
+    dialogs/panel_base_display_options.cpp
     dialogs/panel_hotkeys_editor.cpp
     dialogs/panel_image_editor.cpp
     dialogs/panel_image_editor_base.cpp
+    dialogs/panel_gal_options.cpp
+    dialogs/panel_gal_options_base.cpp
     dialogs/panel_grid_settings.cpp
     dialogs/panel_grid_settings_base.cpp
+    dialogs/panel_maintenance.cpp
+    dialogs/panel_maintenance_base.cpp
     dialogs/panel_mouse_settings.cpp
     dialogs/panel_mouse_settings_base.cpp
+    dialogs/panel_spacemouse.cpp
+    dialogs/panel_spacemouse_base.cpp
     dialogs/panel_packages_and_updates.cpp
     dialogs/panel_packages_and_updates_base.cpp
     dialogs/panel_plugin_settings.cpp
     dialogs/panel_plugin_settings_base.cpp
     dialogs/panel_setup_netclasses.cpp
+    dialogs/panel_printer_list.cpp
+    dialogs/panel_printer_list_base.cpp
+
     dialogs/panel_setup_netclasses_base.cpp
     dialogs/panel_setup_severities.cpp
     dialogs/panel_text_variables.cpp
     dialogs/panel_text_variables_base.cpp
+    dialogs/panel_toolbar_customization.cpp
+    dialogs/panel_toolbar_customization_base.cpp
+
+    dialogs/rule_editor_dialog_base.cpp
+
+    libraries/lib_table_grid_data_model.cpp
     )
 
 if( KICAD_USE_SENTRY )
     list( APPEND COMMON_DLG_SRCS
     dialogs/panel_data_collection.cpp
-    dialogs/panel_data_collection_base.cpp )
+    dialogs/panel_data_collection_base.cpp
+    )
 endif()
 
 set( COMMON_WIDGET_SRCS
     widgets/app_progress_dialog.cpp
+    widgets/wx_bitmap_combobox.cpp
     widgets/bitmap_toggle.cpp
     widgets/button_row_panel.cpp
     widgets/color_swatch.cpp
+    widgets/design_block_pane.cpp
     widgets/filter_combobox.cpp
     widgets/font_choice.cpp
     widgets/footprint_choice.cpp
     widgets/footprint_diff_widget.cpp
     widgets/footprint_preview_widget.cpp
     widgets/footprint_select_widget.cpp
-    widgets/gal_options_panel.cpp
-    widgets/gal_options_panel_base.cpp
     widgets/grid_bitmap_toggle.cpp
     widgets/grid_button.cpp
     widgets/grid_checkbox.cpp
     widgets/grid_color_swatch_helpers.cpp
-    widgets/grid_combobox.cpp
-    widgets/grid_icon_text_helpers.cpp
-    widgets/grid_text_button_helpers.cpp
-    widgets/grid_text_helpers.cpp
-    widgets/indicator_icon.cpp
     widgets/wx_infobar.cpp
     widgets/layer_box_selector.cpp
     widgets/layer_presentation.cpp
@@ -447,6 +598,7 @@ set( COMMON_WIDGET_SRCS
     widgets/mathplot.cpp
     widgets/msgpanel.cpp
     widgets/paged_dialog.cpp
+    widgets/panel_design_block_chooser.cpp
     widgets/properties_panel.cpp
     widgets/search_pane.cpp
     widgets/search_pane_base.cpp
@@ -454,6 +606,7 @@ set( COMMON_WIDGET_SRCS
     widgets/split_button.cpp
     widgets/stepped_slider.cpp
     widgets/text_ctrl_eval.cpp
+    widgets/margin_offset_binder.cpp
     widgets/unit_binder.cpp
     widgets/widget_save_restore.cpp
     widgets/widget_hotkey_list.cpp
@@ -464,14 +617,13 @@ set( COMMON_WIDGET_SRCS
     widgets/wx_combobox.cpp
     widgets/wx_dataviewctrl.cpp
     widgets/wx_ellipsized_static_text.cpp
-    widgets/wx_grid.cpp
-    widgets/wx_grid_autosizer.cpp
-    widgets/wx_html_report_box.cpp
     widgets/wx_listbox.cpp
     widgets/wx_panel.cpp
     widgets/wx_progress_reporters.cpp
     widgets/wx_splitter_window.cpp
     widgets/wx_treebook.cpp
+    widgets/webview_panel.cpp
+    widgets/zoom_correction_ctrl.cpp
     )
 
 set( COMMON_DRAWING_SHEET_SRCS
@@ -487,6 +639,7 @@ set( COMMON_DRAWING_SHEET_SRCS
 
 set( COMMON_PREVIEW_ITEMS_SRCS
     preview_items/anchor_debug.cpp
+    preview_items/angle_item.cpp
     preview_items/arc_assistant.cpp
     preview_items/arc_geom_manager.cpp
     preview_items/bezier_assistant.cpp
@@ -509,8 +662,9 @@ set( PLOTTERS_CONTROL_SRCS
     plotters/plotter.cpp
     plotters/DXF_plotter.cpp
     plotters/GERBER_plotter.cpp
-    plotters/HPGL_plotter.cpp
     plotters/PDF_plotter.cpp
+    plotters/pdf_stroke_font.cpp
+    plotters/pdf_outline_font.cpp
     plotters/PS_plotter.cpp
     plotters/SVG_plotter.cpp
     plotters/common_plot_functions.cpp
@@ -522,6 +676,7 @@ set( COMMON_IO_SRCS
     io/altium/altium_binary_parser.cpp
     io/altium/altium_ascii_parser.cpp
     io/altium/altium_parser_utils.cpp
+    io/altium/altium_project_variants.cpp
     io/altium/altium_props_utils.cpp
 
     # Cadstar
@@ -538,6 +693,16 @@ set( COMMON_IO_SRCS
     # EasyEDA pro
     io/easyedapro/easyedapro_parser.cpp
     io/easyedapro/easyedapro_import_utils.cpp
+
+    io/csv.cpp
+    )
+
+set ( COMMON_TRANSLINE_CALCULATION_SRCS
+    transline_calculations/transline_calculation_base.cpp
+    transline_calculations/microstrip.cpp
+    transline_calculations/coupled_microstrip.cpp
+    transline_calculations/stripline.cpp
+    transline_calculations/coupled_stripline.cpp
     )
 
 set( COMMON_IMPORT_GFX_SRCS
@@ -548,19 +713,6 @@ set( COMMON_IMPORT_GFX_SRCS
     import_gfx/svg_import_plugin.cpp
     )
 
-set( COMMON_GIT_SRCS
-    git/git_add_to_index_handler.cpp
-    git/git_clone_handler.cpp
-    git/git_commit_handler.cpp
-    git/git_pull_handler.cpp
-    git/git_push_handler.cpp
-    git/git_remove_from_index_handler.cpp
-    git/git_resolve_conflict_handler.cpp
-    git/git_revert_handler.cpp
-    git/git_sync_handler.cpp
-    git/kicad_git_common.cpp
-    git/kicad_git_errors.cpp
-    )
 
 set( COMMON_SRCS
     ${LIB_KICAD_SRCS}
@@ -573,7 +725,7 @@ set( COMMON_SRCS
     ${COMMON_IO_SRCS}
 	${FONT_SRCS}
     ${COMMON_IMPORT_GFX_SRCS}
-    ${COMMON_GIT_SRCS}
+    ${COMMON_TRANSLINE_CALCULATION_SRCS}
     base_screen.cpp
     bin_mod.cpp
     bitmap_base.cpp
@@ -585,13 +737,11 @@ set( COMMON_SRCS
     gr_text.cpp
     eda_base_frame.cpp
     eda_dde.cpp
-    eda_doc.cpp
     eda_draw_frame.cpp
+    eda_group.cpp
     eda_item.cpp
     eda_shape.cpp
     eda_text.cpp
-    embedded_files.cpp
-    env_paths.cpp
     executable_names.cpp
     filename_resolver.cpp
     file_history.cpp
@@ -600,23 +750,25 @@ set( COMMON_SRCS
     footprint_info.cpp
     gbr_metadata.cpp
     gr_basic.cpp
-    grid_tricks.cpp
     hotkey_store.cpp
     hotkeys_basic.cpp
+    inspectable.cpp
     kiface_base.cpp
     kiway_player.cpp
     lib_table_grid_tricks.cpp
+    lib_table_notebook_panel.cpp
     lib_tree_model.cpp
     lib_tree_model_adapter.cpp
+    design_block_tree_model_adapter.cpp
     marker_base.cpp
     origin_transforms.cpp
+    pin_numbers.cpp
     printout.cpp
     ptree.cpp
     rc_item.cpp
     refdes_utils.cpp
     reference_image.cpp
     render_settings.cpp
-    scintilla_tricks.cpp
     status_popup.cpp
     stroke_params.cpp
     template_fieldnames.cpp
@@ -624,7 +776,6 @@ set( COMMON_SRCS
     undo_redo_container.cpp
     validators.cpp
     drawing_sheet/ds_painter.cpp
-    xnode.cpp
     view/wx_view_controls.cpp
     )
 
@@ -641,12 +792,14 @@ set( COMMON_SRCS
     tool/construction_manager.cpp
     tool/common_tools.cpp
     tool/conditional_menu.cpp
+    tool/design_block_control.cpp
     tool/edit_constraints.cpp
     tool/edit_points.cpp
     tool/editor_conditions.cpp
     tool/embed_tool.cpp
     tool/grid_helper.cpp
     tool/grid_menu.cpp
+    tool/group_tool.cpp
     tool/library_editor_control.cpp
     tool/picker_tool.cpp
     tool/point_editor_behavior.cpp
@@ -683,7 +836,14 @@ set( COMMON_SRCS
     api/api_enums.cpp
     )
 
-if( KICAD_IPC_API )
+# This needs to be in the common library until draw_panel_gal is moved to kicommon
+if( UNIX AND NOT APPLE )
+    list( APPEND COMMON_SRCS
+        spacenav/spnav_2d_plugin.cpp
+    )
+endif()
+
+    if( KICAD_IPC_API )
     set( COMMON_SRCS
         ${COMMON_SRCS}
         api/api_handler_common.cpp
@@ -693,9 +853,33 @@ endif()
 
 add_library( common STATIC
     ${COMMON_SRCS}
+    $<TARGET_OBJECTS:netlist_reader_obj>
     )
 
+if( KICAD_USE_PCH )
+    target_precompile_headers( common
+        PRIVATE
+            <kicommon.h>
+            <algorithm>
+            <map>
+            <memory>
+            <optional>
+            <set>
+            <string>
+            <vector>
+            <clipper2/clipper.h>
+            <eda_draw_frame.h>
+            <kiid.h>
+            <pgm_base.h>
+            <wx/wx.h>
+             )
+endif()
+
 add_dependencies( common version_header )
+
+if( TARGET remote_provider_schema_build_copy )
+    add_dependencies( common remote_provider_schema_build_copy )
+endif()
 add_dependencies( common compoundfilereader )  # used by altium_parser.cpp
 
 target_link_libraries( common
@@ -757,7 +941,6 @@ target_include_directories( common SYSTEM PUBLIC
     )
 
 set( PCB_COMMON_SRCS
-    fp_lib_table.cpp
     hash_eda.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_base_frame.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcbexpr_evaluator.cpp
@@ -768,19 +951,26 @@ set( PCB_COMMON_SRCS
     ${CMAKE_SOURCE_DIR}/pcbnew/teardrop/teardrop_parameters.cpp     #needed by board_design_settings.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/router/pns_meander.cpp               #needed by board_design_settings.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/board.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/component_class_manager.cpp          #needed by board.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/component_classes/component_class.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/component_classes/component_class_assignment_rule.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/component_classes/component_class_cache_proxy.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/component_classes/component_class_manager.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/board_item.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/pcb_barcode.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_dimension.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_shape.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_group.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_marker.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/footprint.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/footprint_library_adapter.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/fix_board_shape.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/layer_utils.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/netinfo_item.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/netinfo_list.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pad.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pad_utils.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/padstack.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/pcb_point.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_target.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_reference_image.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_field.cpp
@@ -793,6 +983,7 @@ set( PCB_COMMON_SRCS
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_track.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_generator.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/zone.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/zone_utils.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/collectors.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/connectivity/connectivity_algo.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/connectivity/connectivity_items.cpp
@@ -827,6 +1018,7 @@ set( PCB_COMMON_SRCS
     ${CMAKE_SOURCE_DIR}/pcbnew/teardrop/teardrop_parameters.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/teardrop/teardrop_utils.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/zone_settings.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/pcb_board_outline.cpp
 
     # IO files
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_io/pcb_io.cpp
@@ -842,7 +1034,13 @@ set( PCB_COMMON_SRCS
     ${CMAKE_SOURCE_DIR}/pcbnew/tools/pcb_editor_conditions.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/tools/pcb_viewer_tools.cpp
 
+    ${CMAKE_SOURCE_DIR}/pcbnew/length_delay_calculation/length_delay_calculation.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/length_delay_calculation/length_delay_calculation_item.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/length_delay_calculation/tuning_profile_parameters_user_defined.cpp
+
     widgets/net_selector.cpp
+    widgets/netclass_selector.cpp
+    widgets/area_selector.cpp
 )
 
 set( PCB_COMMON_SRCS
@@ -851,12 +1049,23 @@ set( PCB_COMMON_SRCS
     ${CMAKE_SOURCE_DIR}/pcbnew/api/api_pcb_utils.cpp
 )
 
-# add -DPCBNEW to compilation of these PCBNEW sources
-set_source_files_properties( ${PCB_COMMON_SRCS} PROPERTIES
-    COMPILE_DEFINITIONS "PCBNEW"
-    )
-
 add_library( pcbcommon STATIC ${PCB_COMMON_SRCS} )
+
+if( KICAD_USE_PCH )
+    target_precompile_headers( pcbcommon
+        PRIVATE
+            <vector>
+            <map>
+            <memory>
+            <unordered_map>
+            <board.h>
+            <footprint.h>
+            <zone.h>
+            <connectivity/connectivity_data.h>
+            <drc/drc_engine.h> )
+endif()
+
+target_compile_definitions(pcbcommon PRIVATE PCBNEW)
 
 target_include_directories( pcbcommon PRIVATE
     )
@@ -867,11 +1076,16 @@ target_link_libraries( pcbcommon PUBLIC
     delaunator
     kimath
     kiplatform
+    nanoflann
+    zint
 )
 
-message( STATUS "Including 3Dconnexion SpaceMouse navigation support in pcbcommon" )
-add_subdirectory( ../pcbnew/navlib ./navlib)
-target_link_libraries( pcbcommon PUBLIC pcbnew_navlib)
+if( APPLE OR NOT UNIX )
+    # On Windows/MacOS, the SpaceMouse support is provided by the navlib subdirectory
+    message( STATUS "Including 3Dconnexion SpaceMouse navigation support in pcbcommon" )
+    add_subdirectory( ../pcbnew/navlib ./navlib)
+    target_link_libraries( pcbcommon PUBLIC pcbnew_navlib)
+endif()
 
 add_dependencies( pcbcommon delaunator )
 
@@ -889,6 +1103,13 @@ generate_lemon_grammar(
     libeval_compiler
     libeval_compiler/libeval_compiler.cpp
     libeval_compiler/grammar.lemon
+    )
+
+generate_lemon_grammar(
+    kicommon
+    text_eval
+    text_eval/text_eval_wrapper.cpp
+    text_eval/text_eval.lemon
     )
 
 # auto-generate stroke_params_lexer.h and stroke_params_keywords.cpp

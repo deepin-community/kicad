@@ -90,7 +90,7 @@ public:
 
         bool opengl_AA_disableOnMove;
         bool opengl_thickness_disableOnMove;
-        bool opengl_vias_disableOnMove;
+        bool opengl_microvias_disableOnMove;
         bool opengl_holes_disableOnMove;
         bool opengl_render_bbox_only_OnMove;
         bool opengl_copper_thickness;
@@ -126,8 +126,9 @@ public:
         std::vector<int> raytrace_lightAzimuth;     // 0 .. 359
 
         bool show_adhesive;
-        bool show_axis;
+        bool show_navigator;
         bool show_board_body;
+        bool show_plated_barrels;
         bool show_comments;
         bool show_drawings;
         bool show_eco1;

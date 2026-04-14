@@ -64,12 +64,12 @@ Load() TODO's
 #include <font/fontconfig.h>
 #include <geometry/geometry_utils.h>
 #include <string_utils.h>
-#include <locale_io.h>
 #include <trigo.h>
 #include <progress_reporter.h>
 #include <project.h>
 #include <board.h>
 #include <board_design_settings.h>
+#include <project/net_settings.h>
 #include <footprint.h>
 #include <pad.h>
 #include <pcb_track.h>
@@ -126,7 +126,7 @@ void PCB_IO_EAGLE::setKeepoutSettingsToZone( ZONE* aZone, int aLayer ) const
         aZone->SetIsRuleArea( true );
         aZone->SetDoNotAllowVias( true );
         aZone->SetDoNotAllowTracks( true );
-        aZone->SetDoNotAllowCopperPour( true );
+        aZone->SetDoNotAllowZoneFills( true );
         aZone->SetDoNotAllowPads( true );
         aZone->SetDoNotAllowFootprints( false );
 
@@ -140,7 +140,7 @@ void PCB_IO_EAGLE::setKeepoutSettingsToZone( ZONE* aZone, int aLayer ) const
         aZone->SetIsRuleArea( true );
         aZone->SetDoNotAllowVias( true );
         aZone->SetDoNotAllowTracks( false );
-        aZone->SetDoNotAllowCopperPour( false );
+        aZone->SetDoNotAllowZoneFills( false );
         aZone->SetDoNotAllowPads( false );
         aZone->SetDoNotAllowFootprints( false );
 
@@ -151,7 +151,7 @@ void PCB_IO_EAGLE::setKeepoutSettingsToZone( ZONE* aZone, int aLayer ) const
         aZone->SetIsRuleArea( true );
         aZone->SetDoNotAllowVias( false );
         aZone->SetDoNotAllowTracks( false );
-        aZone->SetDoNotAllowCopperPour( true );
+        aZone->SetDoNotAllowZoneFills( true );
         aZone->SetDoNotAllowPads( false );
         aZone->SetDoNotAllowFootprints( false );
 
@@ -230,7 +230,7 @@ PCB_IO_EAGLE::PCB_IO_EAGLE() :
         m_doneCount( 0 ),
         m_lastProgressCount( 0 ),
         m_totalCount( 0 ),
-        m_mod_time( wxDateTime::Now() )
+        m_timestamp( wxDateTime::Now().GetValue().GetValue() )
 {
     using namespace std::placeholders;
 
@@ -302,11 +302,10 @@ void PCB_IO_EAGLE::checkpoint()
     {
         if( ++m_doneCount > m_lastProgressCount + PROGRESS_DELTA )
         {
-            m_progressReporter->SetCurrentProgress( ( (double) m_doneCount )
-                                                    / std::max( 1U, m_totalCount ) );
+            m_progressReporter->SetCurrentProgress( ( (double) m_doneCount ) / std::max( 1U, m_totalCount ) );
 
             if( !m_progressReporter->KeepRefreshing() )
-                THROW_IO_ERROR( _( "Open cancelled by user." ) );
+                THROW_IO_ERROR( _( "File import canceled by user." ) );
 
             m_lastProgressCount = m_doneCount;
         }
@@ -325,10 +324,10 @@ VECTOR2I inline PCB_IO_EAGLE::kicad_fontsize( const ECOORD& d, int aTextThicknes
 BOARD* PCB_IO_EAGLE::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
                                 const std::map<std::string, UTF8>* aProperties, PROJECT* aProject )
 {
-    LOCALE_IO       toggle;     // toggles on, then off, the C locale.
     wxXmlNode*      doc;
 
-    fontconfig::FONTCONFIG::SetReporter( &WXLOG_REPORTER::GetInstance() );
+    // Collect the font substitution warnings (RAII - automatically reset on scope exit)
+    FONTCONFIG_REPORTER_SCOPE fontconfigScope( &LOAD_INFO_REPORTER::GetInstance() );
 
     init( aProperties );
 
@@ -348,7 +347,7 @@ BOARD* PCB_IO_EAGLE::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
             m_progressReporter->Report( wxString::Format( _( "Loading %s..." ), aFileName ) );
 
             if( !m_progressReporter->KeepRefreshing() )
-                THROW_IO_ERROR( _( "Open cancelled by user." ) );
+                THROW_IO_ERROR( _( "File import canceled by user." ) );
         }
 
         wxFileName fn = aFileName;
@@ -392,11 +391,14 @@ BOARD* PCB_IO_EAGLE::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
         NETCLASS defaults( wxT( "dummy" ) );
 
         auto finishNetclass =
-                [&]( std::shared_ptr<NETCLASS> netclass )
+                [&]( const std::shared_ptr<NETCLASS>& netclass )
                 {
                     // If Eagle has a clearance matrix then we'll build custom rules from that.
-                    // Netclasses should just be the board minimum clearance.
-                    netclass->SetClearance( KiROUND( bds.m_MinClearance ) );
+                    // For classes with a clearance-to-default, use that; otherwise use board minimum.
+                    if( !netclass->HasClearance() )
+                    {
+                        netclass->SetClearance( KiROUND( bds.m_MinClearance ) );
+                    }
 
                     if( netclass->GetTrackWidth() == INT_MAX )
                         netclass->SetTrackWidth( defaults.GetTrackWidth() );
@@ -438,6 +440,17 @@ BOARD* PCB_IO_EAGLE::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
     // IO_ERROR exceptions are left uncaught, they pass upwards from here.
 
     m_board->SetCopperLayerCount( getMinimumCopperLayerCount() );
+
+    LSET enabledLayers = m_board->GetDesignSettings().GetEnabledLayers();
+
+    for( const auto& [eagleLayerName, layer] : m_layer_map )
+    {
+        if( layer >= 0 && layer < PCB_LAYER_ID_COUNT )
+            enabledLayers.set( layer );
+    }
+
+    m_board->GetDesignSettings().SetEnabledLayers( enabledLayers );
+
     centerBoard();
 
     deleter.release();
@@ -486,13 +499,14 @@ void PCB_IO_EAGLE::clear_cu_map()
 
 void PCB_IO_EAGLE::loadAllSections( wxXmlNode* aDoc )
 {
-    wxXmlNode* drawing       = MapChildren( aDoc )["drawing"];
-    NODE_MAP drawingChildren = MapChildren( drawing );
+    wxXmlNode* drawing         = MapChildren( aDoc )["drawing"];
+    NODE_MAP   drawingChildren = MapChildren( drawing );
 
-    wxXmlNode* board         = drawingChildren["board"];
-    NODE_MAP boardChildren   = MapChildren( board );
+    wxXmlNode* board           = drawingChildren["board"];
+    NODE_MAP   boardChildren   = MapChildren( board );
 
-    auto count_children = [this]( wxXmlNode* aNode )
+    auto count_children =
+            [this]( wxXmlNode* aNode )
             {
                 if( aNode )
                 {
@@ -575,7 +589,11 @@ void PCB_IO_EAGLE::loadDesignRules( wxXmlNode* aDesignRules )
     if( aDesignRules )
     {
         m_xpath->push( "designrules" );
-        m_rules->parse( aDesignRules, [this](){ checkpoint(); } );
+        m_rules->parse( aDesignRules,
+                        [this]()
+                        {
+                            checkpoint();
+                        } );
         m_xpath->pop();     // "designrules"
     }
 }
@@ -729,7 +747,7 @@ void PCB_IO_EAGLE::loadPlain( wxXmlNode* aGraphics )
                 pcbtxt->SetText( kicadText );
 
                 double ratio = t.ratio ? *t.ratio : 8;     // DTD says 8 is default
-                int textThickness = KiROUND( t.size.ToPcbUnits() * ratio / 100 );
+                int textThickness = KiROUND( t.size.ToPcbUnits() * ratio / 100.0 );
                 pcbtxt->SetTextThickness( textThickness );
                 pcbtxt->SetTextSize( kicad_fontsize( t.size, textThickness ) );
                 pcbtxt->SetKeepUpright( false );
@@ -1023,7 +1041,7 @@ void PCB_IO_EAGLE::loadPlain( wxXmlNode* aGraphics )
             if( d.textsize )
             {
                 double ratio = 8;     // DTD says 8 is default
-                textThickness = KiROUND( d.textsize->ToPcbUnits() * ratio / 100 );
+                textThickness = KiROUND( d.textsize->ToPcbUnits() * ratio / 100.0 );
                 textSize = kicad_fontsize( *d.textsize, textThickness );
             }
 
@@ -1153,9 +1171,7 @@ void PCB_IO_EAGLE::loadLibrary( wxXmlNode* aLib, const wxString* aLibName )
     wxString urnOrdinal;
 
     if( !urn.IsEmpty() )
-    {
         urnOrdinal = urn.AfterLast( ':' );
-    }
 
     // library will have <xmlattr> node, skip that and get the single packages node
     wxXmlNode* packages = MapChildren( aLib )["packages"];
@@ -1286,7 +1302,7 @@ void PCB_IO_EAGLE::loadElements( wxXmlNode* aElements )
             THROW_IO_ERROR( emsg );
         }
 
-        FOOTPRINT* footprint = static_cast<FOOTPRINT*>( it->second->Duplicate() );
+        FOOTPRINT* footprint = static_cast<FOOTPRINT*>( it->second->Duplicate( IGNORE_PARENT_GROUP ) );
 
         m_board->Add( footprint, ADD_MODE::APPEND );
 
@@ -1514,9 +1530,9 @@ ZONE* PCB_IO_EAGLE::loadPolygon( wxXmlNode* aPolyNode )
 
     if( layer == UNDEFINED_LAYER )
     {
-        wxLogMessage( wxString::Format( _( "Ignoring a polygon since Eagle layer '%s' (%d) "
-                                           "was not mapped" ),
-                                        eagle_layer_name( p.layer ), p.layer ) );
+        wxLogMessage( wxString::Format( _( "Ignoring a polygon since Eagle layer '%s' (%d) was not mapped" ),
+                                        eagle_layer_name( p.layer ),
+                                        p.layer ) );
         return nullptr;
     }
 
@@ -1566,20 +1582,17 @@ ZONE* PCB_IO_EAGLE::loadPolygon( wxXmlNode* aPolyNode )
         if( v1.curve )
         {
             EVERTEX  v2 = vertices[i + 1];
-            VECTOR2I center =
-                    ConvertArcCenter( VECTOR2I( kicad_x( v1.x ), kicad_y( v1.y ) ),
-                                      VECTOR2I( kicad_x( v2.x ), kicad_y( v2.y ) ), *v1.curve );
+            VECTOR2I center = ConvertArcCenter( VECTOR2I( kicad_x( v1.x ), kicad_y( v1.y ) ),
+                                                VECTOR2I( kicad_x( v2.x ), kicad_y( v2.y ) ), *v1.curve );
             double angle = DEG2RAD( *v1.curve );
-            double  end_angle = atan2( kicad_y( v2.y ) - center.y, kicad_x( v2.x ) - center.x );
-            double  radius = sqrt( pow( center.x - kicad_x( v1.x ), 2 )
-                                  + pow( center.y - kicad_y( v1.y ), 2 ) );
+            double end_angle = atan2( kicad_y( v2.y ) - center.y, kicad_x( v2.x ) - center.x );
+            double radius = sqrt( pow( center.x - kicad_x( v1.x ), 2 ) + pow( center.y - kicad_y( v1.y ), 2 ) );
 
-            int segCount = GetArcToSegmentCount( KiROUND( radius ), ARC_HIGH_DEF,
-                                                 EDA_ANGLE( *v1.curve, DEGREES_T ) );
+            int    segCount = GetArcToSegmentCount( KiROUND( radius ), ARC_HIGH_DEF,
+                                                    EDA_ANGLE( *v1.curve, DEGREES_T ) );
             double delta_angle = angle / segCount;
 
-            for( double a = end_angle + angle; fabs( a - end_angle ) > fabs( delta_angle );
-                 a -= delta_angle )
+            for( double a = end_angle + angle; fabs( a - end_angle ) > fabs( delta_angle ); a -= delta_angle )
             {
                 polygon.Append( KiROUND( radius * cos( a ) ) + center.x,
                                 KiROUND( radius * sin( a ) ) + center.y );
@@ -1590,16 +1603,13 @@ ZONE* PCB_IO_EAGLE::loadPolygon( wxXmlNode* aPolyNode )
     // Eagle traces the zone such that half of the pen width is outside the polygon.
     // We trace the zone such that the copper is completely inside.
     if( p.width.ToPcbUnits() > 0 )
-    {
-        polygon.Inflate( p.width.ToPcbUnits() / 2, CORNER_STRATEGY::ALLOW_ACUTE_CORNERS,
-                         ARC_HIGH_DEF, true );
-    }
+        polygon.Inflate( p.width.ToPcbUnits() / 2, CORNER_STRATEGY::ALLOW_ACUTE_CORNERS, ARC_HIGH_DEF, true );
 
     if( polygon.OutlineCount() != 1 )
     {
-        wxLogMessage( wxString::Format(
-                _( "Skipping a polygon on layer '%s' (%d): outline count is not 1" ),
-                eagle_layer_name( p.layer ), p.layer ) );
+        wxLogMessage( wxString::Format( _( "Skipping a polygon on layer '%s' (%d): outline count is not 1" ),
+                                        eagle_layer_name( p.layer ),
+                                        p.layer ) );
 
         return nullptr;
     }
@@ -1614,7 +1624,7 @@ ZONE* PCB_IO_EAGLE::loadPolygon( wxXmlNode* aPolyNode )
         zone->SetDoNotAllowTracks( false );
         zone->SetDoNotAllowPads( false );
         zone->SetDoNotAllowFootprints( false );
-        zone->SetDoNotAllowCopperPour( true );
+        zone->SetDoNotAllowZoneFills( true );
         zone->SetHatchStyle( ZONE_BORDER_DISPLAY_STYLE::NO_HATCH );
     }
     else if( p.pour == EPOLYGON::EHATCH )
@@ -1692,9 +1702,7 @@ void PCB_IO_EAGLE::orientFPText( FOOTPRINT* aFootprint, const EELEMENT& e, PCB_T
         const EATTR& a = *aAttr;
 
         if( a.value )
-        {
             aFPText->SetText( *a.value );
-        }
 
         if( a.x && a.y )    // std::optional
         {
@@ -1710,15 +1718,15 @@ void PCB_IO_EAGLE::orientFPText( FOOTPRINT* aFootprint, const EELEMENT& e, PCB_T
             ratio = *a.ratio;
 
         VECTOR2I fontz = aFPText->GetTextSize();
-        int      textThickness = KiROUND( fontz.y * ratio / 100 );
+        int      textThickness = KiROUND( fontz.y * ratio / 100.0 );
 
         aFPText->SetTextThickness( textThickness );
+
         if( a.size )
         {
             fontz = kicad_fontsize( *a.size, textThickness );
             aFPText->SetTextSize( fontz );
         }
-
 
         int align = ETEXT::BOTTOM_LEFT;     // bottom-left is eagle default
 
@@ -1730,7 +1738,6 @@ void PCB_IO_EAGLE::orientFPText( FOOTPRINT* aFootprint, const EELEMENT& e, PCB_T
         // package's text field.  If they did not want zero, they specify
         // what they want explicitly.
         double  degrees  = a.rot ? a.rot->degrees : 0.0;
-
         int     sign = 1;
         bool    spin = false;
 
@@ -1840,7 +1847,7 @@ void PCB_IO_EAGLE::orientFPText( FOOTPRINT* aFootprint, const EELEMENT& e, PCB_T
         aFPText->SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
         aFPText->SetVertJustify( GR_TEXT_V_ALIGN_BOTTOM );
 
-        if( !aFPText->IsMirrored() && abs( degrees ) <= -180 )
+        if( !aFPText->IsMirrored() && abs( degrees ) >= 180 )
         {
             aFPText->SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
             aFPText->SetVertJustify( GR_TEXT_V_ALIGN_TOP );
@@ -1908,9 +1915,9 @@ void PCB_IO_EAGLE::packageWire( FOOTPRINT* aFootprint, wxXmlNode* aTree ) const
 
     if( layer == UNDEFINED_LAYER )
     {
-        wxLogMessage( wxString::Format( _( "Ignoring a wire since Eagle layer '%s' (%d) "
-                                           "was not mapped" ),
-                                        eagle_layer_name( w.layer ), w.layer ) );
+        wxLogMessage( wxString::Format( _( "Ignoring a wire since Eagle layer '%s' (%d) was not mapped" ),
+                                        eagle_layer_name( w.layer ),
+                                        w.layer ) );
         return;
     }
 
@@ -1975,7 +1982,7 @@ void PCB_IO_EAGLE::packagePad( FOOTPRINT* aFootprint, wxXmlNode* aTree )
 {
     // this is thru hole technology here, no SMDs
     EPAD e( aTree );
-    int shape = EPAD::UNDEF;
+    int  shape = EPAD::UNDEF;
     int  eagleDrillz = e.drill ? e.drill->ToPcbUnits() : 0;
 
     std::unique_ptr<PAD> pad = std::make_unique<PAD>( aFootprint );
@@ -2044,7 +2051,7 @@ void PCB_IO_EAGLE::packagePad( FOOTPRINT* aFootprint, wxXmlNode* aTree )
         double annulus = drillz * m_rules->rvPadTop;   // copper annulus, eagle "restring"
         annulus = eagleClamp( m_rules->rlMinPadTop, annulus, m_rules->rlMaxPadTop );
         int diameter = KiROUND( drillz + 2 * annulus );
-        pad->SetSize( PADSTACK::ALL_LAYERS, VECTOR2I( KiROUND( diameter ), KiROUND( diameter ) ) );
+        pad->SetSize( PADSTACK::ALL_LAYERS, VECTOR2I( diameter, diameter ) );
     }
 
     if( pad->GetShape( PADSTACK::ALL_LAYERS ) == PAD_SHAPE::OVAL )
@@ -2090,9 +2097,9 @@ void PCB_IO_EAGLE::packageText( FOOTPRINT* aFootprint, wxXmlNode* aTree ) const
 
     if( layer == UNDEFINED_LAYER )
     {
-        wxLogMessage( wxString::Format( _( "Ignoring a text since Eagle layer '%s' (%d) "
-                                           "was not mapped" ),
-                                        eagle_layer_name( t.layer ), t.layer ) );
+        wxLogMessage( wxString::Format( _( "Ignoring a text since Eagle layer '%s' (%d) was not mapped" ),
+                                        eagle_layer_name( t.layer ),
+                                        t.layer ) );
         return;
     }
 
@@ -2124,7 +2131,7 @@ void PCB_IO_EAGLE::packageText( FOOTPRINT* aFootprint, wxXmlNode* aTree ) const
     textItem->SetLayer( layer );
 
     double ratio = t.ratio ? *t.ratio : 8;  // DTD says 8 is default
-    int    textThickness = KiROUND( t.size.ToPcbUnits() * ratio / 100 );
+    int    textThickness = KiROUND( t.size.ToPcbUnits() * ratio / 100.0 );
 
     textItem->SetTextThickness( textThickness );
     textItem->SetTextSize( kicad_fontsize( t.size, textThickness ) );
@@ -2228,9 +2235,9 @@ void PCB_IO_EAGLE::packageRectangle( FOOTPRINT* aFootprint, wxXmlNode* aTree ) c
 
         if( layer == UNDEFINED_LAYER )
         {
-            wxLogMessage( wxString::Format( _( "Ignoring a rectangle since Eagle layer '%s' (%d) "
-                                               "was not mapped" ),
-                                            eagle_layer_name( r.layer ), r.layer ) );
+            wxLogMessage( wxString::Format( _( "Ignoring a rectangle since Eagle layer '%s' (%d) was not mapped" ),
+                                            eagle_layer_name( r.layer ),
+                                            r.layer ) );
             return;
         }
 
@@ -2302,8 +2309,7 @@ void PCB_IO_EAGLE::packagePolygon( FOOTPRINT* aFootprint, wxXmlNode* aTree ) con
                                                 *v1.curve );
             double angle = DEG2RAD( *v1.curve );
             double end_angle = atan2( kicad_y( v2.y ) - center.y, kicad_x( v2.x ) - center.x );
-            double radius = sqrt( pow( center.x - kicad_x( v1.x ), 2 )
-                                  + pow( center.y - kicad_y( v1.y ), 2 ) );
+            double radius = sqrt( pow( center.x - kicad_x( v1.x ), 2 ) + pow( center.y - kicad_y( v1.y ), 2 ) );
 
             // Don't allow a zero-radius curve
             if( KiROUND( radius ) == 0 )
@@ -2344,8 +2350,7 @@ void PCB_IO_EAGLE::packagePolygon( FOOTPRINT* aFootprint, wxXmlNode* aTree ) con
     {
         if( layer == UNDEFINED_LAYER )
         {
-            wxLogMessage( wxString::Format( _( "Ignoring a polygon since Eagle layer '%s' (%d) "
-                                               "was not mapped" ),
+            wxLogMessage( wxString::Format( _( "Ignoring a polygon since Eagle layer '%s' (%d) was not mapped" ),
                                             eagle_layer_name( p.layer ),
                                             p.layer ) );
             return;
@@ -2421,8 +2426,7 @@ void PCB_IO_EAGLE::packageCircle( FOOTPRINT* aFootprint, wxXmlNode* aTree ) cons
 
         if( layer == UNDEFINED_LAYER )
         {
-            wxLogMessage( wxString::Format( _( "Ignoring a circle since Eagle layer '%s' (%d) "
-                                               "was not mapped" ),
+            wxLogMessage( wxString::Format( _( "Ignoring a circle since Eagle layer '%s' (%d) was not mapped" ),
                                             eagle_layer_name( e.layer ),
                                             e.layer ) );
             return;
@@ -2584,10 +2588,9 @@ void PCB_IO_EAGLE::transferPad( const EPAD_COMMON& aEaglePad, PAD* aPad ) const
     // Solder mask
     const VECTOR2I& padSize( aPad->GetSize( PADSTACK::ALL_LAYERS ) );
 
-    aPad->SetLocalSolderMaskMargin(
-            eagleClamp( m_rules->mlMinStopFrame,
-                        (int) ( m_rules->mvStopFrame * std::min( padSize.x, padSize.y ) ),
-                        m_rules->mlMaxStopFrame ) );
+    aPad->SetLocalSolderMaskMargin( eagleClamp( m_rules->mlMinStopFrame,
+                                                (int) ( m_rules->mvStopFrame * std::min( padSize.x, padSize.y ) ),
+                                                m_rules->mlMaxStopFrame ) );
 
     // Solid connection to copper zones
     if( aEaglePad.thermals && !*aEaglePad.thermals )
@@ -2649,6 +2652,14 @@ void PCB_IO_EAGLE::loadClasses( wxXmlNode* aClasses )
         eClasses.emplace_back( eClass );
         m_classMap[ eClass.number ] = netclass;
 
+        // Set netclass clearance to the clearance-to-default-class value
+        auto clearanceToDefaultIt = eClass.clearanceMap.find( wxT( "0" ) );
+
+        if( clearanceToDefaultIt != eClass.clearanceMap.end() )
+        {
+            netclass->SetClearance( clearanceToDefaultIt->second.ToPcbUnits() );
+        }
+
         // Get next class
         classNode = classNode->GetNext();
     }
@@ -2657,19 +2668,23 @@ void PCB_IO_EAGLE::loadClasses( wxXmlNode* aClasses )
 
     for( ECLASS& eClass : eClasses )
     {
-        for( std::pair<const wxString&, ECOORD> entry : eClass.clearanceMap )
+        for( const auto& [className, pt] : eClass.clearanceMap )
         {
-            if( m_classMap[ entry.first ] != nullptr )
+            // Skip clearances to default class (class "0") - these are handled via netclass clearances
+            if( className == wxT( "0" ) )
+                continue;
+
+            if( m_classMap[className] != nullptr )
             {
                 wxString rule;
                 rule.Printf( wxT( "(rule \"class %s:%s\"\n"
                                   "  (condition \"A.NetClass == '%s' && B.NetClass == '%s'\")\n"
                                   "  (constraint clearance (min %smm)))\n" ),
                              eClass.number,
-                             entry.first,
+                             className,
                              eClass.name,
-                             m_classMap[ entry.first ]->GetName(),
-                             EDA_UNIT_UTILS::UI::StringFromValue( pcbIUScale, EDA_UNITS::MM, entry.second.ToPcbUnits() ) );
+                             m_classMap[className]->GetName(),
+                             EDA_UNIT_UTILS::UI::StringFromValue( pcbIUScale, EDA_UNITS::MM, pt.ToPcbUnits() ) );
 
                 m_customRules += wxT( "\n" ) + rule;
             }
@@ -2685,6 +2700,8 @@ void PCB_IO_EAGLE::loadSignals( wxXmlNode* aSignals )
     // Eagle board DTD defines the "signals" element as 0 or 1.
     if( !aSignals )
         return;
+
+    BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
 
     ZONES zones;      // per net
     int   netCode = 1;
@@ -2712,8 +2729,7 @@ void PCB_IO_EAGLE::loadSignals( wxXmlNode* aSignals )
 
             if( netclassIt != m_classMap.end() )
             {
-                m_board->GetDesignSettings().m_NetSettings->SetNetclassPatternAssignment(
-                        netName, netclassIt->second->GetName() );
+                bds.m_NetSettings->SetNetclassPatternAssignment( netName, netclassIt->second->GetName() );
                 netInfo->SetNetClass( netclassIt->second );
                 netclass = netclassIt->second;
             }
@@ -2823,8 +2839,7 @@ void PCB_IO_EAGLE::loadSignals( wxXmlNode* aSignals )
                     else
                     {
                         double annulus = drillz * m_rules->rvViaOuter;  // eagle "restring"
-                        annulus = eagleClamp( m_rules->rlMinViaOuter, annulus,
-                                              m_rules->rlMaxViaOuter );
+                        annulus = eagleClamp( m_rules->rlMinViaOuter, annulus, m_rules->rlMaxViaOuter );
                         kidiam = KiROUND( drillz + 2 * annulus );
                         via->SetWidth( PADSTACK::ALL_LAYERS, kidiam );
                     }
@@ -2863,16 +2878,13 @@ void PCB_IO_EAGLE::loadSignals( wxXmlNode* aSignals )
                     {
                         via->SetViaType( VIATYPE::THROUGH );
                     }
-                    /// This is, at best, a guess.  Eagle doesn't seem to differentiate
-                    /// between blind/buried vias that only go one layer and micro vias
-                    /// so the user will need to clean up a bit
-                    else if( v.layer_back_most - v.layer_front_most == 1 )
+                    else if( layer_front_most == F_Cu || layer_back_most == B_Cu )
                     {
-                        via->SetViaType( VIATYPE::MICROVIA );
+                        via->SetViaType( VIATYPE::BLIND );
                     }
                     else
                     {
-                        via->SetViaType( VIATYPE::BLIND_BURIED );
+                        via->SetViaType( VIATYPE::BURIED );
                     }
 
                     VECTOR2I pos( kicad_x( v.x ), kicad_y( v.y ) );
@@ -2931,10 +2943,9 @@ void PCB_IO_EAGLE::loadSignals( wxXmlNode* aSignals )
 
             // therefore omit this signal/net.
         }
-        else
-        {
-            netCode++;
-        }
+
+        //Next signal needs a new netCode
+        netCode++;
 
         // Get next signal
         net = net->GetNext();
@@ -3175,38 +3186,33 @@ void PCB_IO_EAGLE::centerBoard()
 }
 
 
-wxDateTime PCB_IO_EAGLE::getModificationTime( const wxString& aPath )
+long long PCB_IO_EAGLE::GetLibraryTimestamp( const wxString& aPath ) const
 {
     // File hasn't been loaded yet.
     if( aPath.IsEmpty() )
-        return wxDateTime::Now();
+        return wxDateTime::Now().GetValue().GetValue();
 
     wxFileName  fn( aPath );
 
-    if( fn.IsFileReadable() )
-        return fn.GetModificationTime();
+    if( fn.IsFileReadable() && fn.GetModificationTime().IsValid() )
+        return fn.GetModificationTime().GetValue().GetValue();
     else
-        return wxDateTime( 0.0 );
+        return 0;
 }
 
 
 void PCB_IO_EAGLE::cacheLib( const wxString& aLibPath )
 {
-    fontconfig::FONTCONFIG::SetReporter( nullptr );
+    // Suppress font substitution warnings (RAII - automatically restored on scope exit)
+    FONTCONFIG_REPORTER_SCOPE fontconfigScope( nullptr );
 
     try
     {
-        wxDateTime  modtime = getModificationTime( aLibPath );
+        long long timestamp = GetLibraryTimestamp( aLibPath );
 
-        // Fixes assertions in wxWidgets debug builds for the wxDateTime object.  Refresh the
-        // cache if either of the wxDateTime objects are invalid or the last file modification
-        // time differs from the current file modification time.
-        bool load = !m_mod_time.IsValid() || !modtime.IsValid() || m_mod_time != modtime;
-
-        if( aLibPath != m_lib_path || load )
+        if( aLibPath != m_lib_path || m_timestamp != timestamp )
         {
             wxXmlNode*  doc;
-            LOCALE_IO   toggle;     // toggles on, then off, the C locale.
 
             deleteTemplates();
 
@@ -3226,10 +3232,7 @@ void PCB_IO_EAGLE::cacheLib( const wxString& aLibPath )
             wxXmlDocument xmlDocument;
 
             if( !stream.IsOk() || !xmlDocument.Load( stream ) )
-            {
-                THROW_IO_ERROR( wxString::Format( _( "Unable to read file '%s'." ),
-                                                  fn.GetFullPath() ) );
-            }
+                THROW_IO_ERROR( wxString::Format( _( "Unable to read file '%s'." ), fn.GetFullPath() ) );
 
             doc = xmlDocument.GetRoot();
 
@@ -3251,10 +3254,12 @@ void PCB_IO_EAGLE::cacheLib( const wxString& aLibPath )
             loadLibrary( library, nullptr );
             m_xpath->pop();
 
-            m_mod_time = modtime;
+            m_timestamp = timestamp;
         }
     }
-    catch(...){}
+    catch(...)
+    {
+    }
     // TODO: Handle exceptions
     // catch( file_parser_error fpe )
     // {
@@ -3304,9 +3309,8 @@ void PCB_IO_EAGLE::FootprintEnumerate( wxArrayString& aFootprintNames, const wxS
 }
 
 
-FOOTPRINT* PCB_IO_EAGLE::FootprintLoad( const wxString& aLibraryPath,
-                                        const wxString& aFootprintName, bool aKeepUUID,
-                                        const std::map<std::string, UTF8>* aProperties )
+FOOTPRINT* PCB_IO_EAGLE::FootprintLoad( const wxString& aLibraryPath, const wxString& aFootprintName,
+                                        bool aKeepUUID, const std::map<std::string, UTF8>* aProperties )
 {
     init( aProperties );
     cacheLib( aLibraryPath );
@@ -3316,7 +3320,7 @@ FOOTPRINT* PCB_IO_EAGLE::FootprintLoad( const wxString& aLibraryPath,
         return nullptr;
 
     // Return a copy of the template
-    FOOTPRINT* copy = (FOOTPRINT*) it->second->Duplicate();
+    FOOTPRINT* copy = (FOOTPRINT*) it->second->Duplicate( IGNORE_PARENT_GROUP );
     copy->SetParent( nullptr );
     return copy;
 }

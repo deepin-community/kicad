@@ -335,17 +335,98 @@ void RULER_ITEM::ViewDraw( int aLayer, KIGFX::VIEW* aView ) const
     VECTOR2D rulerVec( end - origin );
 
     wxArrayString cursorStrings = GetDimensionStrings();
-    DrawTextNextToCursor( aView, end, -rulerVec, cursorStrings, drawingDropShadows );
+
+    // Choose a text quadrant that keeps the measurement text on-screen while avoiding
+    // overlapping the ruler geometry.  Start with the preferred direction (away from the
+    // origin) and fall back to other quadrants as needed to keep the label visible.
+    int      prefX = rulerVec.y < 0.0 ? -1 : 1;
+    int      prefY = rulerVec.x < 0.0 ? 1 : -1;
+
+    double      scale = gal->GetWorldScale();
+
+    TEXT_DIMS     dims = GetConstantGlyphHeight( gal );
+    KIFONT::FONT* font = KIFONT::FONT::GetFont();
+    double        width = 0.0;
+
+    for( const wxString& s : cursorStrings )
+    {
+        VECTOR2I extents = font->StringBoundaryLimits( s, dims.GlyphSize, dims.StrokeWidth, false, false,
+                                                       KIFONT::METRICS::Default() );
+        width = std::max( width, (double) extents.x );
+    }
+
+    double height = dims.LinePitch * cursorStrings.size();
+
+    // Convert to screen coordinates for visibility checks
+    VECTOR2D cursorScreen = gal->ToScreen( end );
+    VECTOR2I screenSize = gal->GetScreenPixelSize();
+    double   offsetX = 15.0;                   // same as DrawTextNextToCursor()
+    double   offsetY = dims.LinePitch * scale; // vertical spacing from cursor
+
+    auto fits =
+            [&]( int sx, int sy )
+            {
+                double left, right, top, bottom;
+                double xStart = cursorScreen.x + ( sx < 0 ? offsetX : -offsetX );
+
+                if( sx < 0 )
+                {
+                    left = xStart;
+                    right = left + width * scale;
+                }
+                else
+                {
+                    right = xStart;
+                    left = right - width * scale;
+                }
+
+                if( sy > 0 ) // above cursor
+                {
+                    bottom = cursorScreen.y - offsetY;
+                    top = bottom - height * scale;
+                }
+                else // below cursor
+                {
+                    top = cursorScreen.y + offsetY;
+                    bottom = top + height * scale;
+                }
+
+                return left >= 0 && right <= screenSize.x && top >= 0 && bottom <= screenSize.y;
+            };
+
+    std::vector<VECTOR2I> candidates = { { prefX, prefY }, { -prefX, prefY },
+                                         { prefX, -prefY }, { -prefX, -prefY } };
+
+    VECTOR2I  chosen = candidates[0];
+    double    bestDot = -1.0;
+
+    for( const VECTOR2I& c : candidates )
+    {
+        double dot = c.x * prefX + c.y * prefY;
+
+        if( dot >= 0 && fits( c.x, c.y ) )
+        {
+            if( dot > bestDot )
+            {
+                bestDot = dot;
+                chosen = c;
+            }
+        }
+    }
+
+    VECTOR2D quadrant( chosen.x, chosen.y );
+    DrawTextNextToCursor( aView, end, quadrant, cursorStrings, drawingDropShadows );
 
     // basic tick size
-    const double minorTickLen = 5.0 / gal->GetWorldScale();
-    const double majorTickLen = minorTickLen * majorTickLengthFactor;
+    double minorTickLen = 5.0 / gal->GetWorldScale();
+    double majorTickLen = minorTickLen * majorTickLengthFactor;
+
+    minorTickLen = std::min( minorTickLen, (double) INT_MAX / 2.0 );
+    majorTickLen = std::min( majorTickLen, (double) INT_MAX / 2.0 );
 
     if( m_showTicks )
     {
-        drawTicksAlongLine( aView, origin, rulerVec, minorTickLen, m_iuScale, m_userUnits,
-                            drawingDropShadows );
-
+        drawTicksAlongLine( aView, origin, rulerVec, minorTickLen, m_iuScale, m_userUnits, drawingDropShadows );
         drawBacksideTicks( aView, origin, rulerVec, majorTickLen, 2, drawingDropShadows );
     }
 
@@ -388,11 +469,10 @@ wxArrayString RULER_ITEM::GetDimensionStrings() const
     cursorStrings.push_back( DimensionLabel( "x", temp.x, m_iuScale, m_userUnits ) );
     cursorStrings.push_back( DimensionLabel( "y", temp.y, m_iuScale, m_userUnits ) );
 
-    cursorStrings.push_back(
-            DimensionLabel( "r", rulerVec.EuclideanNorm(), m_iuScale, m_userUnits ) );
+    cursorStrings.push_back( DimensionLabel( "r", rulerVec.EuclideanNorm(), m_iuScale, m_userUnits ) );
 
     EDA_ANGLE angle = -EDA_ANGLE( rulerVec );
-    cursorStrings.push_back( DimensionLabel( wxString::FromUTF8( "θ" ), angle.AsDegrees(),
-                                             m_iuScale, EDA_UNITS::DEGREES ) );
+    cursorStrings.push_back( DimensionLabel( wxString::FromUTF8( "θ" ), angle.AsDegrees(), m_iuScale,
+                                             EDA_UNITS::DEGREES ) );
     return cursorStrings;
 }

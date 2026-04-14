@@ -108,7 +108,7 @@ void EASYEDA_PARSER_BASE::TransformTextToBaseline( EDA_TEXT*       textItem,
 
 
 std::vector<SHAPE_LINE_CHAIN>
-EASYEDA_PARSER_BASE::ParseLineChains( const wxString& data, int aArcMinSegLen, bool aForceClosed )
+EASYEDA_PARSER_BASE::ParseLineChains( const wxString& data, int aMaxError, bool aForceClosed )
 {
     std::vector<SHAPE_LINE_CHAIN> result;
 
@@ -211,41 +211,59 @@ EASYEDA_PARSER_BASE::ParseLineChains( const wxString& data, int aArcMinSegLen, b
         }
         else if( sym == 'A' )
         {
-            wxString radX, radY, unknown, farFlag, cwFlag, endX, endY;
+            // Arc command can have multiple consecutive arc parameter sets
+            while( true )
+            {
+                if( pos >= data.size() )
+                    break;
 
-            readNumber( radX );
-            readNumber( radY );
-            readNumber( unknown );
-            readNumber( farFlag );
-            readNumber( cwFlag );
-            readNumber( endX );
-            readNumber( endY );
+                wxUniChar ch = data[pos];
 
-            bool     isFar = farFlag == wxS( "1" );
-            bool     cw = cwFlag == wxS( "1" );
-            VECTOR2D rad( Convert( radX ), Convert( radY ) );
-            VECTOR2D end( Convert( endX ), Convert( endY ) );
+                while( ch == ' ' || ch == ',' )
+                {
+                    if( ++pos >= data.size() )
+                        break;
 
-            VECTOR2D start = prevPt;
-            VECTOR2D delta = end - start;
+                    ch = data[pos];
+                }
 
-            double d = delta.EuclideanNorm();
-            double h = sqrt( std::max( 0.0, rad.x * rad.x - d * d / 4 ) );
+                if( !isdigit( ch ) && ch != '-' )
+                    break;
 
-            //( !far && cw ) => h
-            //( far && cw ) => -h
-            //( !far && !cw ) => -h
-            //( far && !cw ) => h
-            VECTOR2D arcCenter =
-                    start + delta / 2 + delta.Perpendicular().Resize( ( isFar ^ cw ) ? h : -h );
+                wxString radX, radY, unknown, farFlag, cwFlag, endX, endY;
 
-            SHAPE_ARC arc;
-            arc.ConstructFromStartEndCenter( RelPos( start ), RelPos( end ), RelPos( arcCenter ),
-                                             !cw );
+                readNumber( radX );
+                readNumber( radY );
+                readNumber( unknown );
+                readNumber( farFlag );
+                readNumber( cwFlag );
+                readNumber( endX );
+                readNumber( endY );
 
-            chain.Append( arc, aArcMinSegLen );
+                bool     isFar = farFlag == wxS( "1" );
+                bool     cw = cwFlag == wxS( "1" );
+                VECTOR2D rad( Convert( radX ), Convert( radY ) );
+                VECTOR2D end( Convert( endX ), Convert( endY ) );
 
-            prevPt = end;
+                VECTOR2D start = prevPt;
+                VECTOR2D delta = end - start;
+
+                double d = delta.EuclideanNorm();
+                double h = sqrt( std::max( 0.0, rad.x * rad.x - d * d / 4 ) );
+
+                //( !far && cw ) => h
+                //( far && cw ) => -h
+                //( !far && !cw ) => -h
+                //( far && !cw ) => h
+                VECTOR2D arcCenter = start + delta / 2 + delta.Perpendicular().Resize( ( isFar ^ cw ) ? h : -h );
+
+                SHAPE_ARC arc;
+                arc.ConstructFromStartEndCenter( RelPos( start ), RelPos( end ), RelPos( arcCenter ), !cw );
+
+                chain.Append( arc, aMaxError );
+
+                prevPt = end;
+            }
         }
         else if( sym == 'C' )
         {
@@ -266,7 +284,7 @@ EASYEDA_PARSER_BASE::ParseLineChains( const wxString& data, int aArcMinSegLen, b
             BEZIER_POLY           converter( ctrlPoints );
 
             std::vector<VECTOR2I> bezierPoints;
-            converter.GetPoly( bezierPoints, aArcMinSegLen );
+            converter.GetPoly( bezierPoints, aMaxError );
 
             chain.Append( bezierPoints );
 

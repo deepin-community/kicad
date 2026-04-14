@@ -21,12 +21,17 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <advanced_config.h>
+#include <common.h>
 #include <pcb_edit_frame.h>
 #include <font/font.h>
 #include <widgets/msgpanel.h>
 #include <string_utils.h>
+#include <board.h>
 #include <pcb_table.h>
-#include <pcb_tablecell.h>
+#include <footprint.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 PCB_TABLECELL::PCB_TABLECELL( BOARD_ITEM* aParent ) :
@@ -34,8 +39,13 @@ PCB_TABLECELL::PCB_TABLECELL( BOARD_ITEM* aParent ) :
         m_colSpan( 1 ),
         m_rowSpan( 1 )
 {
-    if( IsBackLayer( aParent->GetLayer() ) )
-        SetMirrored( true );
+    if( BOARD* board = GetBoard() )
+        SetMirrored( board->IsBackLayer( aParent->GetLayer() ) );
+    else
+        SetMirrored( IsBackLayer( aParent->GetLayer() ) );
+
+    SetRectangleHeight( std::numeric_limits<int>::max() / 2 );
+    SetRectangleWidth( std::numeric_limits<int>::max() / 2 );
 }
 
 
@@ -43,13 +53,13 @@ void PCB_TABLECELL::swapData( BOARD_ITEM* aImage )
 {
     wxASSERT( aImage->Type() == PCB_TABLECELL_T );
 
-    std::swap( *((PCB_TABLECELL*) this), *((PCB_TABLECELL*) aImage) );
+    std::swap( *( (PCB_TABLECELL*) this ), *( (PCB_TABLECELL*) aImage ) );
 }
 
 
 wxString PCB_TABLECELL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Table Cell %s" ), GetAddr() );
+    return wxString::Format( _( "Table cell %s" ), GetAddr() );
 }
 
 
@@ -89,9 +99,99 @@ int PCB_TABLECELL::GetColumn() const
 
 wxString PCB_TABLECELL::GetAddr() const
 {
-    return wxString::Format( wxT( "%c%d" ),
-                             'A' + GetColumn() % 26,
-                             GetRow() + 1 );
+    return wxString::Format( wxT( "%c%d" ), 'A' + GetColumn() % 26, GetRow() + 1 );
+}
+
+
+wxString PCB_TABLECELL::GetShownText( bool aAllowExtraText, int aDepth ) const
+{
+    const FOOTPRINT* parentFootprint = GetParentFootprint();
+    const BOARD*     board = GetBoard();
+
+    std::function<bool( wxString* )> tableCellResolver = [&]( wxString* token ) -> bool
+    {
+        if( token->IsSameAs( wxT( "ROW" ) ) )
+        {
+            *token = wxString::Format( wxT( "%d" ), GetRow() + 1 ); // 1-based
+            return true;
+        }
+        else if( token->IsSameAs( wxT( "COL" ) ) )
+        {
+            *token = wxString::Format( wxT( "%d" ), GetColumn() + 1 ); // 1-based
+            return true;
+        }
+        else if( token->IsSameAs( wxT( "ADDR" ) ) )
+        {
+            *token = GetAddr();
+            return true;
+        }
+        else if( token->IsSameAs( wxT( "LAYER" ) ) )
+        {
+            *token = GetLayerName();
+            return true;
+        }
+
+        if( parentFootprint && parentFootprint->ResolveTextVar( token, aDepth + 1 ) )
+            return true;
+
+        if( board->ResolveTextVar( token, aDepth + 1 ) )
+            return true;
+
+        return false;
+    };
+
+    wxString text = EDA_TEXT::GetShownText( aAllowExtraText, aDepth );
+
+    if( HasTextVars() )
+        text = ResolveTextVars( text, &tableCellResolver, aDepth );
+
+    KIFONT::FONT*         font = GetDrawFont( nullptr );
+    EDA_ANGLE             drawAngle = GetDrawRotation();
+    std::vector<VECTOR2I> corners = GetCornersInSequence( drawAngle );
+    int                   colWidth = ( corners[1] - corners[0] ).EuclideanNorm();
+
+    if( GetTextAngle().IsHorizontal() )
+        colWidth -= ( GetMarginLeft() + GetMarginRight() );
+    else
+        colWidth -= ( GetMarginTop() + GetMarginBottom() );
+
+    font->LinebreakText( text, colWidth, GetTextSize(), GetEffectiveTextPenWidth(), IsBold(), IsItalic() );
+
+    // Convert escape markers back to literal ${} and @{} for final display
+    text.Replace( wxT( "<<<ESC_DOLLAR:" ), wxT( "${" ) );
+    text.Replace( wxT( "<<<ESC_AT:" ), wxT( "@{" ) );
+
+    return text;
+}
+
+
+int PCB_TABLECELL::GetColumnWidth() const
+{
+    return static_cast<PCB_TABLE*>( GetParent() )->GetColWidth( GetColumn() );
+}
+
+
+void PCB_TABLECELL::SetColumnWidth( int aWidth )
+{
+    PCB_TABLE* table = static_cast<PCB_TABLE*>( GetParent() );
+
+    table->SetColWidth( GetColumn(), aWidth );
+    table->Normalize();
+}
+
+
+int PCB_TABLECELL::GetRowHeight() const
+{
+    return static_cast<PCB_TABLE*>( GetParent() )->GetRowHeight( GetRow() );
+}
+
+
+void PCB_TABLECELL::SetRowHeight( int aHeight )
+{
+    PCB_TABLE* table = static_cast<PCB_TABLE*>( GetParent() );
+
+    table->SetRowHeight( GetRow(), aHeight );
+    table->Normalize();
 }
 
 
@@ -108,13 +208,16 @@ void PCB_TABLECELL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PAN
     aList.emplace_back( _( "Layer" ), GetLayerName() );
     aList.emplace_back( _( "Mirror" ), IsMirrored() ? _( "Yes" ) : _( "No" ) );
 
-    aList.emplace_back( _( "Cell Width" ),
-                        aFrame->MessageTextFromValue( std::abs( GetEnd().x - GetStart().x ) ) );
-    aList.emplace_back( _( "Cell Height" ),
-                        aFrame->MessageTextFromValue( std::abs( GetEnd().y - GetStart().y ) ) );
+    aList.emplace_back( _( "Cell Width" ), aFrame->MessageTextFromValue( std::abs( GetEnd().x - GetStart().x ) ) );
+    aList.emplace_back( _( "Cell Height" ), aFrame->MessageTextFromValue( std::abs( GetEnd().y - GetStart().y ) ) );
 
     aList.emplace_back( _( "Font" ), GetFont() ? GetFont()->GetName() : _( "Default" ) );
-    aList.emplace_back( _( "Text Thickness" ), aFrame->MessageTextFromValue( GetTextThickness() ) );
+
+    if( GetTextThickness() )
+        aList.emplace_back( _( "Text Thickness" ), aFrame->MessageTextFromValue( GetEffectiveTextPenWidth() ) );
+    else
+        aList.emplace_back( _( "Text Thickness" ), _( "Auto" ) );
+
     aList.emplace_back( _( "Text Width" ), aFrame->MessageTextFromValue( GetTextWidth() ) );
     aList.emplace_back( _( "Text Height" ), aFrame->MessageTextFromValue( GetTextHeight() ) );
 }
@@ -152,11 +255,8 @@ bool PCB_TABLECELL::operator==( const BOARD_ITEM& aBoardItem ) const
 
 bool PCB_TABLECELL::operator==( const PCB_TABLECELL& aOther ) const
 {
-    return     m_colSpan == aOther.m_colSpan
-            && m_rowSpan == aOther.m_rowSpan
-            && PCB_TEXTBOX::operator==( aOther );
+    return m_colSpan == aOther.m_colSpan && m_rowSpan == aOther.m_rowSpan && PCB_TEXTBOX::operator==( aOther );
 }
-
 
 
 static struct PCB_TABLECELL_DESC
@@ -182,6 +282,9 @@ static struct PCB_TABLECELL_DESC
         propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( BOARD_ITEM ), _HKI( "Position X" ) );
         propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( BOARD_ITEM ), _HKI( "Position Y" ) );
         propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( PCB_SHAPE ), _HKI( "Layer" ) );
+        propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( PCB_SHAPE ), _HKI( "Soldermask" ) );
+        propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( PCB_SHAPE ), _HKI( "Soldermask Margin Override" ) );
+        propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( EDA_SHAPE ), _HKI( "Corner Radius" ) );
 
         propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( BOARD_CONNECTED_ITEM ), _HKI( "Net" ) );
 
@@ -200,11 +303,20 @@ static struct PCB_TABLECELL_DESC
         propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( EDA_SHAPE ), _HKI( "Line Style" ) );
         propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( EDA_SHAPE ), _HKI( "Line Color" ) );
 
-        propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( EDA_TEXT ), _HKI( "Width" ) );
-        propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( EDA_TEXT ), _HKI( "Height" ) );
-        propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( EDA_TEXT ), _HKI( "Thickness" ) );
         propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( EDA_TEXT ), _HKI( "Orientation" ) );
         propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( EDA_TEXT ), _HKI( "Hyperlink" ) );
         propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( EDA_TEXT ), _HKI( "Color" ) );
+
+        const wxString tableProps = _( "Table" );
+
+        propMgr.AddProperty( new PROPERTY<PCB_TABLECELL, int>( _HKI( "Column Width" ), &PCB_TABLECELL::SetColumnWidth,
+                                                               &PCB_TABLECELL::GetColumnWidth,
+                                                               PROPERTY_DISPLAY::PT_SIZE ),
+                             tableProps );
+
+        propMgr.AddProperty( new PROPERTY<PCB_TABLECELL, int>( _HKI( "Row Height" ), &PCB_TABLECELL::SetRowHeight,
+                                                               &PCB_TABLECELL::GetRowHeight,
+                                                               PROPERTY_DISPLAY::PT_SIZE ),
+                             tableProps );
     }
 } _PCB_TABLECELL_DESC;

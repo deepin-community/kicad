@@ -19,8 +19,7 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _ERC_SETTINGS_H
-#define _ERC_SETTINGS_H
+#pragma once
 
 #include <erc/erc_item.h>
 #include <pin_type.h>
@@ -47,11 +46,11 @@ enum ERCE_T
     ERCE_HIERACHICAL_LABEL,       ///< Mismatch between hierarchical labels and pins sheets.
     ERCE_NOCONNECT_CONNECTED,     ///< A no connect symbol is connected to more than 1 pin.
     ERCE_NOCONNECT_NOT_CONNECTED, ///< A no connect symbol is not connected to anything.
-    ERCE_LABEL_NOT_CONNECTED,     ///< Label not connected to anything.
+    ERCE_LABEL_NOT_CONNECTED,     ///< Label not connected to any pins.
     ERCE_SIMILAR_LABELS,          ///< 2 labels are equal for case insensitive comparisons.
     ERCE_SIMILAR_POWER,           ///< 2 power pins are equal for case insensitive comparisons.
     ERCE_SIMILAR_LABEL_AND_POWER, ///< label and pin are equal for case insensitive comparisons.
-    ERCE_SINGLE_GLOBAL_LABEL,     ///< A global label only exists once in the schematic.
+    ERCE_SINGLE_GLOBAL_LABEL,            ///< A label only exists once in the schematic.
     ERCE_SAME_LOCAL_GLOBAL_LABEL, ///< 2 labels are equal for case insensitive comparisons.
     ERCE_DIFFERENT_UNIT_FP,       ///< Different units of the same symbol have different
                                   ///<   footprints assigned.
@@ -69,7 +68,8 @@ enum ERCE_T
                                   ///<   one net.
     ERCE_BUS_TO_NET_CONFLICT,     ///< A bus wire is graphically connected to a net port/pin
                                   ///<   (or vice versa).
-    ERCE_GLOBLABEL_DANGLING,      ///< A global label is dangling.
+    ERCE_GROUND_PIN_NOT_GROUND,   ///< A ground-labeled pin is not on a ground net while another pin is.
+    ERCE_LABEL_SINGLE_PIN,        ///< A label is connected only to a single pin
     ERCE_UNRESOLVED_VARIABLE,     ///< A text variable could not be resolved.
     ERCE_UNDEFINED_NETCLASS,      ///< A netclass was referenced but not defined.
     ERCE_SIMULATION_MODEL,        ///< An error was found in the simulation model.
@@ -87,11 +87,10 @@ enum ERCE_T
     ERCE_FOUR_WAY_JUNCTION,       ///< A four-way junction was found.
     ERCE_LABEL_MULTIPLE_WIRES,    ///< A label is connected to more than one wire.
     ERCE_UNCONNECTED_WIRE_ENDPOINT, ///< A label is connected to more than one wire.
+    ERCE_STACKED_PIN_SYNTAX,      ///< Pin name resembles stacked pin notation.
+    ERCE_FIELD_NAME_WHITESPACE,   ///< Field name has leading or trailing whitespace.
 
-
-    ERCE_LAST = ERCE_UNCONNECTED_WIRE_ENDPOINT,
-
-    // Errors after this point will not automatically appear in the Severities Panel
+    ERCE_LAST = ERCE_FIELD_NAME_WHITESPACE,
 
     ERCE_DUPLICATE_PIN_ERROR,
     ERCE_PIN_TO_PIN_WARNING,    // pin connected to an other pin: warning level
@@ -253,7 +252,14 @@ public:
             m_severities( 0 )
     { }
 
+    // We own at least one list of raw pointers.  Don't let the compiler fill in copy c'tors that
+    // will only land us in trouble.
+    SHEETLIST_ERC_ITEMS_PROVIDER( const SHEETLIST_ERC_ITEMS_PROVIDER& ) = delete;
+    SHEETLIST_ERC_ITEMS_PROVIDER& operator=( const SHEETLIST_ERC_ITEMS_PROVIDER& ) = delete;
+
     void SetSeverities( int aSeverities ) override;
+
+    int GetSeverities() const override;
 
     int GetCount( int aSeverity = -1 ) const override;
 
@@ -267,6 +273,3 @@ private:
 
     void visitMarkers( std::function<void( SCH_MARKER* )> aVisitor ) const;
 };
-
-
-#endif // _ERC_SETTINGS_H

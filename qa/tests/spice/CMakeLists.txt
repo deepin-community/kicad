@@ -86,7 +86,6 @@ target_link_libraries( qa_spice
 PRIVATE
     eeschema_kiface_objects
     common
-    pcbcommon
     scripting
     kimath
     qa_utils
@@ -117,3 +116,4 @@ target_compile_definitions( qa_spice
 
 kicad_add_boost_test( qa_spice qa_spice )
 
+setup_qa_env( qa_spice )

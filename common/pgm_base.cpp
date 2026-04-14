@@ -44,6 +44,7 @@
 #include <wx/tooltip.h>
 
 #include <advanced_config.h>
+#include <app_monitor.h>
 #include <background_jobs_monitor.h>
 #include <bitmaps.h>
 #include <build_version.h>
@@ -53,10 +54,12 @@
 #include <id.h>
 #include <kicad_curl/kicad_curl.h>
 #include <kiplatform/policy.h>
+#include <libraries/library_manager.h>
 #include <macros.h>
 #include <notifications_manager.h>
 #include <paths.h>
 #include <pgm_base.h>
+#include <design_block_library_adapter.h>
 #include <policy_keys.h>
 #include <python_scripting.h>
 #include <settings/common_settings.h>
@@ -66,14 +69,8 @@
 #include <thread_pool.h>
 #include <trace_helpers.h>
 
+#include <widgets/kistatusbar.h>
 #include <widgets/wx_splash.h>
-
-#ifdef KICAD_USE_SENTRY
-#include <boost/uuid/uuid_io.hpp>
-#include <boost/uuid/uuid_generators.hpp>
-#include <sentry.h>
-#include <build_version.h>
-#endif
 
 #ifdef KICAD_IPC_API
 #include <api/api_plugin_manager.h>
@@ -81,6 +78,9 @@
 #include <python_manager.h>
 #endif
 
+#ifdef _MSC_VER
+#include <winrt/base.h>
+#endif
 /**
  * Current list of languages supported by KiCad.
  *
@@ -95,35 +95,50 @@
 LANGUAGE_DESCR LanguagesList[] =
 {
     { wxLANGUAGE_DEFAULT,    ID_LANGUAGE_DEFAULT,    _( "Default" ),    false },
-    // { wxLANGUAGE_INDONESIAN, ID_LANGUAGE_INDONESIAN, wxT( "Bahasa Indonesia" ), true },
+    { wxLANGUAGE_ARABIC,     ID_LANGUAGE_ARABIC,     wxT( "العربية" ), true },
+    { wxLANGUAGE_FARSI,      ID_LANGUAGE_FARSI,      wxT( "فارسی" ), true },
+    { wxLANGUAGE_INDONESIAN, ID_LANGUAGE_INDONESIAN, wxT( "Bahasa Indonesia" ), true },
+    { wxLANGUAGE_BULGARIAN,  ID_LANGUAGE_BULGARIAN,  wxT( "Български" ), true },
+    { wxLANGUAGE_CATALAN,    ID_LANGUAGE_CATALAN,    wxT( "Català" ), true },
     { wxLANGUAGE_CZECH,      ID_LANGUAGE_CZECH,      wxT( "Čeština" ),  true },
-    // { wxLANGUAGE_DANISH,     ID_LANGUAGE_DANISH,     wxT( "Dansk" ),    true },
+    { wxLANGUAGE_DANISH,     ID_LANGUAGE_DANISH,     wxT( "Dansk" ),    true },
     { wxLANGUAGE_GERMAN,     ID_LANGUAGE_GERMAN,     wxT( "Deutsch" ),  true },
     { wxLANGUAGE_GREEK,      ID_LANGUAGE_GREEK,      wxT( "Ελληνικά" ), true },
+    { wxLANGUAGE_ESTONIAN,   ID_LANGUAGE_ESTONIAN,   wxT( "Eesti" ),    true },
     { wxLANGUAGE_ENGLISH,    ID_LANGUAGE_ENGLISH,    wxT( "English" ),  true },
     { wxLANGUAGE_SPANISH,    ID_LANGUAGE_SPANISH,    wxT( "Español" ),  true },
     { wxLANGUAGE_SPANISH_MEXICAN, ID_LANGUAGE_SPANISH_MEXICAN,
       wxT( "Español (Latinoamericano)" ),  true },
     { wxLANGUAGE_FRENCH,     ID_LANGUAGE_FRENCH,     wxT( "Français" ), true },
-    // { wxLANGUAGE_HEBREW,     ID_LANGUAGE_HEBREW,     wxT( "עברית" ), true },
+    { wxLANGUAGE_HEBREW,     ID_LANGUAGE_HEBREW,     wxT( "עברית" ), true },
+    { wxLANGUAGE_HINDI,      ID_LANGUAGE_HINDI,      wxT( "हिन्दी" ), true },
+    { wxLANGUAGE_CROATIAN,   ID_LANGUAGE_CROATIAN,   wxT( "Hrvatski" ), true },
     { wxLANGUAGE_KOREAN,     ID_LANGUAGE_KOREAN,     wxT( "한국어"),       true },
     { wxLANGUAGE_ITALIAN,    ID_LANGUAGE_ITALIAN,    wxT( "Italiano" ), true },
-    // { wxLANGUAGE_LITHUANIAN, ID_LANGUAGE_LITHUANIAN, wxT( "Lietuvių" ), true },
-    // { wxLANGUAGE_HUNGARIAN,  ID_LANGUAGE_HUNGARIAN,  wxT( "Magyar" ),   true },
+    { wxLANGUAGE_LATVIAN,    ID_LANGUAGE_LATVIAN,    wxT( "Latviešu" ), true },
+    { wxLANGUAGE_LITHUANIAN, ID_LANGUAGE_LITHUANIAN, wxT( "Lietuvių" ), true },
+    { wxLANGUAGE_HUNGARIAN,  ID_LANGUAGE_HUNGARIAN,  wxT( "Magyar" ),   true },
     { wxLANGUAGE_DUTCH,      ID_LANGUAGE_DUTCH,      wxT( "Nederlands" ), true },
+    { wxLANGUAGE_NORWEGIAN_BOKMAL, ID_LANGUAGE_NORWEGIAN_BOKMAL, wxT( "Norsk Bokmål" ), true },
     { wxLANGUAGE_JAPANESE,   ID_LANGUAGE_JAPANESE,   wxT( "日本語" ),    true },
+    { wxLANGUAGE_GEORGIAN,   ID_LANGUAGE_GEORGIAN,   wxT( "ქართული" ), true },
     { wxLANGUAGE_THAI,       ID_LANGUAGE_THAI,       wxT( "ภาษาไทย" ),    true },
     { wxLANGUAGE_POLISH,     ID_LANGUAGE_POLISH,     wxT( "Polski" ),   true },
     { wxLANGUAGE_PORTUGUESE, ID_LANGUAGE_PORTUGUESE, wxT( "Português" ),true },
     { wxLANGUAGE_PORTUGUESE_BRAZILIAN, ID_LANGUAGE_PORTUGUESE_BRAZILIAN,
       wxT( "Português (Brasil)" ), true },
+    { wxLANGUAGE_ROMANIAN,   ID_LANGUAGE_ROMANIAN,   wxT( "Română" ), true },
     { wxLANGUAGE_RUSSIAN,    ID_LANGUAGE_RUSSIAN,    wxT( "Русский" ),  true },
-    // { wxLANGUAGE_SERBIAN,    ID_LANGUAGE_SERBIAN,    wxT( "Српски" ),   true },
+    { wxLANGUAGE_SERBIAN,    ID_LANGUAGE_SERBIAN,    wxT( "Српски" ),   true },
+    { wxLANGUAGE_SLOVAK,     ID_LANGUAGE_SLOVAK,     wxT( "Slovenčina" ), true },
+    { wxLANGUAGE_SLOVENIAN,  ID_LANGUAGE_SLOVENIAN,  wxT( "Slovenščina" ), true },
     { wxLANGUAGE_FINNISH,    ID_LANGUAGE_FINNISH,    wxT( "Suomi" ),    true },
     { wxLANGUAGE_SWEDISH,    ID_LANGUAGE_SWEDISH,    wxT( "Svenska" ),  true },
-    // { wxLANGUAGE_VIETNAMESE, ID_LANGUAGE_VIETNAMESE, wxT( "Tiếng Việt" ), true },
-    // { wxLANGUAGE_TURKISH,    ID_LANGUAGE_TURKISH,    wxT( "Türkçe" ),   true },
-    { wxLANGUAGE_UKRAINIAN,  ID_LANGUAGE_UKRANIAN,   wxT( "Українська" ),   true },
+    { wxLANGUAGE_VIETNAMESE, ID_LANGUAGE_VIETNAMESE, wxT( "Tiếng Việt" ), true },
+    { wxLANGUAGE_TAMIL,      ID_LANGUAGE_TAMIL,      wxT( "தமிழ்" ), true },
+    { wxLANGUAGE_TELUGU,     ID_LANGUAGE_TELUGU,     wxT( "తెలుగు" ), true },
+    { wxLANGUAGE_TURKISH,    ID_LANGUAGE_TURKISH,    wxT( "Türkçe" ),   true },
+    { wxLANGUAGE_UKRAINIAN,  ID_LANGUAGE_UKRAINIAN,   wxT( "Українська" ),   true },
     { wxLANGUAGE_CHINESE_SIMPLIFIED, ID_LANGUAGE_CHINESE_SIMPLIFIED,
             wxT( "简体中文" ), true },
     { wxLANGUAGE_CHINESE_TRADITIONAL, ID_LANGUAGE_CHINESE_TRADITIONAL,
@@ -132,6 +147,12 @@ LANGUAGE_DESCR LanguagesList[] =
 };
 #undef _
 #define _(s) wxGetTranslation((s))
+
+
+BS::priority_thread_pool& PGM_BASE::GetThreadPool()
+{
+    return *m_singleton.m_ThreadPool;
+}
 
 
 PGM_BASE::PGM_BASE()
@@ -171,11 +192,20 @@ void PGM_BASE::Destroy()
 {
     KICAD_CURL::Cleanup();
 
-#ifdef KICAD_USE_SENTRY
-    sentry_close();
-#endif
+    APP_MONITOR::SENTRY::Instance()->Cleanup();
 
     m_pgm_checker.reset();
+
+#ifdef _MSC_VER
+    winrt::uninit_apartment();
+#endif
+
+    // Shut down the thread pool explicitly here, before static destruction begins.
+    // On macOS, if the thread pool destructor runs during static destruction
+    // (via __cxa_finalize_ranges), the condition variables may be in an invalid state,
+    // causing a crash. By destroying the thread pool here, we ensure it's cleaned up
+    // while the C++ runtime is still in a valid state.
+    m_singleton.Shutdown();
 }
 
 
@@ -250,163 +280,6 @@ const wxString PGM_BASE::AskUserForPreferredEditor( const wxString& aDefaultEdit
 }
 
 
-#ifdef KICAD_USE_SENTRY
-bool PGM_BASE::IsSentryOptedIn()
-{
-    KIPLATFORM::POLICY::PBOOL policyState =
-            KIPLATFORM::POLICY::GetPolicyBool( POLICY_KEY_DATACOLLECTION );
-    if( policyState != KIPLATFORM::POLICY::PBOOL::NOT_CONFIGURED )
-    {
-        return policyState == KIPLATFORM::POLICY::PBOOL::ENABLED;
-    }
-
-    return m_sentry_optin_fn.Exists();
-}
-
-
-void PGM_BASE::SetSentryOptIn( bool aOptIn )
-{
-    if( aOptIn )
-    {
-        if( !m_sentry_uid_fn.Exists() )
-        {
-            sentryCreateUid();
-        }
-
-        if( !m_sentry_optin_fn.Exists() )
-        {
-            wxFFile sentryInitFile( m_sentry_optin_fn.GetFullPath(), "w" );
-            sentryInitFile.Write( "" );
-            sentryInitFile.Close();
-        }
-    }
-    else
-    {
-        if( m_sentry_optin_fn.Exists() )
-        {
-            wxRemoveFile( m_sentry_optin_fn.GetFullPath() );
-            sentry_close();
-        }
-    }
-}
-
-
-wxString PGM_BASE::sentryCreateUid()
-{
-    boost::uuids::uuid uuid = boost::uuids::random_generator()();
-    wxString           userGuid = boost::uuids::to_string( uuid );
-
-    wxFFile sentryInitFile( m_sentry_uid_fn.GetFullPath(), "w" );
-    sentryInitFile.Write( userGuid );
-    sentryInitFile.Close();
-
-    return userGuid;
-}
-
-
-void PGM_BASE::ResetSentryId()
-{
-    m_sentryUid = sentryCreateUid();
-}
-
-
-const wxString& PGM_BASE::GetSentryId()
-{
-    return m_sentryUid;
-}
-
-
-void PGM_BASE::sentryInit()
-{
-    m_sentry_optin_fn = wxFileName( PATHS::GetUserCachePath(), "sentry-opt-in" );
-    m_sentry_uid_fn = wxFileName( PATHS::GetUserCachePath(), "sentry-uid" );
-
-    if( IsSentryOptedIn() )
-    {
-        wxFFile sentryInitFile( m_sentry_uid_fn.GetFullPath() );
-        sentryInitFile.ReadAll( &m_sentryUid );
-        sentryInitFile.Close();
-
-        if( m_sentryUid.IsEmpty() || m_sentryUid.length() != 36 )
-        {
-            m_sentryUid = sentryCreateUid();
-        }
-
-        sentry_options_t* options = sentry_options_new();
-
-#ifndef KICAD_SENTRY_DSN
-#   error "Project configuration error, missing KICAD_SENTRY_DSN"
-#endif
-
-        sentry_options_set_dsn( options, KICAD_SENTRY_DSN );
-
-        wxFileName tmp;
-        tmp.AssignDir( PATHS::GetUserCachePath() );
-        tmp.AppendDir( "sentry" );
-
-#ifdef __WINDOWS__
-        sentry_options_set_database_pathw( options, tmp.GetPathWithSep().wc_str() );
-#else
-        sentry_options_set_database_path( options, tmp.GetPathWithSep().c_str() );
-#endif
-        sentry_options_set_symbolize_stacktraces( options, true );
-        sentry_options_set_auto_session_tracking( options, false );
-
-        sentry_options_set_release( options, GetCommitHash().ToStdString().c_str() );
-
-        // This just gives us more filtering within sentry, issues still get grouped across
-        // environments.
-        sentry_options_set_environment( options, GetMajorMinorVersion().c_str() );
-
-        sentry_init( options );
-
-        sentry_value_t user = sentry_value_new_object();
-        sentry_value_set_by_key( user, "id", sentry_value_new_string( m_sentryUid.c_str() ) );
-        sentry_set_user( user );
-
-        sentry_set_tag( "kicad.version", GetBuildVersion().ToStdString().c_str() );
-    }
-}
-
-
-void PGM_BASE::sentryPrompt()
-{
-    if( !IsGUI() )
-        return;
-
-    KIPLATFORM::POLICY::PBOOL policyState = KIPLATFORM::POLICY::GetPolicyBool( POLICY_KEY_DATACOLLECTION );
-
-    if( policyState == KIPLATFORM::POLICY::PBOOL::NOT_CONFIGURED
-            && !m_settings_manager->GetCommonSettings()->m_DoNotShowAgain.data_collection_prompt )
-    {
-        wxMessageDialog optIn = wxMessageDialog(
-                nullptr,
-                _( "KiCad can anonymously report crashes and special event data to developers in order to "
-                   "aid identifying critical bugs and help profile functionality to guide improvements. \n"
-                   "If you choose to voluntarily participate, KiCad will automatically send said reports "
-                   "when crashes or events occur. \n"
-                   "Your design files such as schematic and PCB are not shared in this process." ),
-                _( "Data Collection Opt In" ), wxYES_NO | wxCENTRE );
-
-        optIn.SetYesNoLabels( _( "Opt In" ), _( "Decline" ) );
-        int result = optIn.ShowModal();
-
-        if( result == wxID_YES )
-        {
-            SetSentryOptIn( true );
-            sentryInit();
-        }
-        else
-        {
-            SetSentryOptIn( false );
-        }
-
-        m_settings_manager->GetCommonSettings()->m_DoNotShowAgain.data_collection_prompt = true;
-    }
-}
-#endif
-
-
 void PGM_BASE::BuildArgvUtf8()
 {
     const wxArrayString& argArray = App().argv.GetArguments();
@@ -467,9 +340,7 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
 
     KICAD_CURL::Init();
 
-#ifdef KICAD_USE_SENTRY
-    sentryInit();
-#endif
+    APP_MONITOR::SENTRY::Instance()->Init();
 
     // Initialize the singleton instance
     m_singleton.Init();
@@ -482,15 +353,15 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
     else
         pgm_name = wxFileName( App().argv[0] ).GetName().Lower();
 
-#ifdef KICAD_USE_SENTRY
-    sentry_set_tag( "kicad.app", pgm_name.c_str() );
-#endif
+    APP_MONITOR::SENTRY::Instance()->AddTag( "kicad.app", pgm_name );
 
     wxInitAllImageHandlers();
 
+#if !wxCHECK_VERSION( 3, 3, 0 )
     // Without this the wxPropertyGridManager segfaults on Windows.
     if( !wxPGGlobalVars )
         wxPGInitResourceModule();
+#endif
 
 #ifndef __WINDOWS__
     if( wxString( wxGetenv( "HOME" ) ).IsEmpty() )
@@ -535,18 +406,6 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
     App().SetVendorName(  wxT( "KiCad" ) );
     App().SetAppName( pgm_name );
 
-    // Install some image handlers, mainly for help
-    if( wxImage::FindHandler( wxBITMAP_TYPE_PNG ) == nullptr )
-        wxImage::AddHandler( new wxPNGHandler );
-
-    if( wxImage::FindHandler( wxBITMAP_TYPE_GIF ) == nullptr )
-        wxImage::AddHandler( new wxGIFHandler );
-
-    if( wxImage::FindHandler( wxBITMAP_TYPE_JPEG ) == nullptr )
-        wxImage::AddHandler( new wxJPEGHandler );
-
-    wxFileSystem::AddHandler( new wxZipFSHandler );
-
     // Analyze the command line & initialize the binary path
     wxString tmp;
     SetLanguagePath();
@@ -563,7 +422,12 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
     }
 #endif
 
-    m_settings_manager = std::make_unique<SETTINGS_MANAGER>( aHeadless );
+#ifdef _MSC_VER
+    winrt::init_apartment(winrt::apartment_type::single_threaded);
+#endif
+
+    m_settings_manager = std::make_unique<SETTINGS_MANAGER>();
+    m_library_manager = std::make_unique<LIBRARY_MANAGER>();
     m_background_jobs_monitor = std::make_unique<BACKGROUND_JOBS_MONITOR>();
     m_notifications_manager = std::make_unique<NOTIFICATIONS_MANAGER>();
 
@@ -606,10 +470,6 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
     WarnUserIfOperatingSystemUnsupported();
 
     loadCommonSettings();
-
-#ifdef KICAD_USE_SENTRY
-    sentryPrompt();
-#endif
 
     ReadPdfBrowserInfos();      // needs GetCommonSettings()
 
@@ -945,7 +805,7 @@ bool PGM_BASE::IsGUI()
 }
 
 
-void PGM_BASE::HandleException( std::exception_ptr aPtr )
+void PGM_BASE::HandleException( std::exception_ptr aPtr, bool aUnhandled )
 {
     try
     {
@@ -955,51 +815,31 @@ void PGM_BASE::HandleException( std::exception_ptr aPtr )
     catch( const IO_ERROR& ioe )
     {
         wxLogError( ioe.What() );
+
+        if( aUnhandled )
+        {
+            // Log this IO_ERROR escaped our usual uses (bad)
+            APP_MONITOR::SENTRY::Instance()->LogException( ioe.What(), aUnhandled );
+        }
     }
     catch( const std::exception& e )
     {
-#ifdef KICAD_USE_SENTRY
-        if( IsSentryOptedIn() )
-        {
-            sentry_value_t exc = sentry_value_new_exception( "exception", e.what() );
-            sentry_value_set_stacktrace( exc, NULL, 0 );
-
-            sentry_value_t sentryEvent = sentry_value_new_event();
-            sentry_event_add_exception( sentryEvent, exc );
-            sentry_capture_event( sentryEvent );
-        }
-#endif
+        APP_MONITOR::SENTRY::Instance()->LogException( e.what(), aUnhandled );
 
         wxLogError( wxT( "Unhandled exception class: %s  what: %s" ),
                     From_UTF8( typeid( e ).name() ), From_UTF8( e.what() ) );
     }
     catch( ... )
     {
+        // We really shouldn't have these but just in case...
         wxLogError( wxT( "Unhandled exception of unknown type" ) );
+
+        if( aUnhandled )
+        {
+            APP_MONITOR::SENTRY::Instance()->LogException( "Unhandled exception of unknown type", aUnhandled );
+        }
     }
 }
-
-
-#ifdef KICAD_USE_SENTRY
-struct SENTRY_ASSERT_CACHE_KEY
-{
-    wxString file;
-    int      line;
-    wxString func;
-    wxString cond;
-    wxString msg;
-};
-
-
-bool operator<( const SENTRY_ASSERT_CACHE_KEY& aKey1, const SENTRY_ASSERT_CACHE_KEY& aKey2 )
-{
-    return aKey1.file < aKey2.file ||
-        aKey1.line < aKey2.line ||
-        aKey1.func < aKey2.func ||
-        aKey1.cond < aKey2.cond ||
-        aKey1.msg < aKey2.msg;
-}
-#endif
 
 
 void PGM_BASE::HandleAssert( const wxString& aFile, int aLine, const wxString& aFunc,
@@ -1024,23 +864,8 @@ void PGM_BASE::HandleAssert( const wxString& aFile, int aLine, const wxString& a
 #endif
 
 #ifdef KICAD_USE_SENTRY
-    if( IsSentryOptedIn() )
-    {
-        static std::set<SENTRY_ASSERT_CACHE_KEY> assertCache;
-
-        SENTRY_ASSERT_CACHE_KEY key = { aFile, aLine, aFunc, aCond };
-
-        if( assertCache.find( key ) == assertCache.end() )
-        {
-            sentry_value_t exc = sentry_value_new_exception( "assert", assertStr );
-            sentry_value_set_stacktrace( exc, NULL, 0 );
-
-            sentry_value_t sentryEvent = sentry_value_new_event();
-            sentry_event_add_exception( sentryEvent, exc );
-            sentry_capture_event( sentryEvent );
-            assertCache.insert( key );
-        }
-    }
+    APP_MONITOR::ASSERT_CACHE_KEY key = { aFile, aLine, aFunc, aCond };
+    APP_MONITOR::SENTRY::Instance()->LogAssert( key, assertStr );
 #endif
 }
 
@@ -1062,6 +887,151 @@ void PGM_BASE::WritePdfBrowserInfos()
 {
     GetCommonSettings()->m_System.pdf_viewer_name = GetPdfBrowserName();
     GetCommonSettings()->m_System.use_system_pdf_viewer = m_use_system_pdf_browser;
+}
+
+
+void PGM_BASE::PreloadDesignBlockLibraries( KIWAY* aKiway )
+{
+    // TODO(JE) much of this code can be shared across the 3 preloads
+    constexpr static int interval = 150;
+    constexpr static int timeLimit = 120000;
+
+    if( m_libraryPreloadInProgress.load() )
+        return;
+
+    m_libraryPreloadBackgroundJob =
+            Pgm().GetBackgroundJobMonitor().Create( _( "Loading Design Block Libraries" ) );
+
+    auto preload =
+        [this, aKiway]() -> void
+        {
+            std::shared_ptr<BACKGROUND_JOB_REPORTER> reporter =
+                    m_libraryPreloadBackgroundJob->m_reporter;
+
+            DESIGN_BLOCK_LIBRARY_ADAPTER* adapter = aKiway->Prj().DesignBlockLibs();
+
+            int elapsed = 0;
+
+            reporter->Report( _( "Loading Design Block Libraries" ) );
+            adapter->AsyncLoad();
+
+            while( true )
+            {
+                if( m_libraryPreloadAbort.load() )
+                {
+                    m_libraryPreloadAbort.store( false );
+                    break;
+                }
+
+                std::this_thread::sleep_for( std::chrono::milliseconds( interval ) );
+
+                if( std::optional<float> loadStatus = adapter->AsyncLoadProgress() )
+                {
+                    float progress = *loadStatus;
+                    reporter->SetCurrentProgress( progress );
+
+                    if( progress >= 1 )
+                        break;
+                }
+                else
+                {
+                    reporter->SetCurrentProgress( 1 );
+                    break;
+                }
+
+                elapsed += interval;
+
+                if( elapsed > timeLimit )
+                    break;
+            }
+
+            adapter->BlockUntilLoaded();
+
+            Pgm().GetBackgroundJobMonitor().Remove( m_libraryPreloadBackgroundJob );
+            m_libraryPreloadBackgroundJob.reset();
+            m_libraryPreloadInProgress.store( false );
+
+            std::string payload = "";
+            aKiway->ExpressMail( FRAME_SCH, MAIL_RELOAD_LIB, payload, nullptr, true );
+            aKiway->ExpressMail( FRAME_PCB_EDITOR, MAIL_RELOAD_LIB, payload, nullptr, true );
+        };
+
+    thread_pool& tp = GetKiCadThreadPool();
+    m_libraryPreloadInProgress.store( true );
+    m_libraryPreloadReturn = tp.submit_task( preload );
+}
+
+
+void PGM_BASE::RegisterLibraryLoadStatusBar( KISTATUSBAR* aStatusBar )
+{
+    std::lock_guard<std::mutex> lock( m_libraryLoadStatusBarsMutex );
+
+    wxLogTrace( traceLibraries, "RegisterLibraryLoadStatusBar: statusBar=%p", aStatusBar );
+
+    if( std::find( m_libraryLoadStatusBars.begin(), m_libraryLoadStatusBars.end(), aStatusBar )
+        == m_libraryLoadStatusBars.end() )
+    {
+        m_libraryLoadStatusBars.push_back( aStatusBar );
+        wxLogTrace( traceLibraries, "  -> registered, total count=%zu",
+                    m_libraryLoadStatusBars.size() );
+    }
+    else
+    {
+        wxLogTrace( traceLibraries, "  -> already registered" );
+    }
+}
+
+
+void PGM_BASE::UnregisterLibraryLoadStatusBar( KISTATUSBAR* aStatusBar )
+{
+    std::lock_guard<std::mutex> lock( m_libraryLoadStatusBarsMutex );
+
+    wxLogTrace( traceLibraries, "UnregisterLibraryLoadStatusBar: statusBar=%p", aStatusBar );
+
+    m_libraryLoadStatusBars.erase(
+            std::remove( m_libraryLoadStatusBars.begin(), m_libraryLoadStatusBars.end(),
+                         aStatusBar ),
+            m_libraryLoadStatusBars.end() );
+
+    wxLogTrace( traceLibraries, "  -> remaining count=%zu", m_libraryLoadStatusBars.size() );
+}
+
+
+void PGM_BASE::AddLibraryLoadMessages( const std::vector<LOAD_MESSAGE>& aMessages )
+{
+    wxLogTrace( traceLibraries, "AddLibraryLoadMessages: message_count=%zu", aMessages.size() );
+
+    if( aMessages.empty() )
+        return;
+
+    std::lock_guard<std::mutex> lock( m_libraryLoadStatusBarsMutex );
+
+    wxLogTrace( traceLibraries, "  -> registered status bars=%zu",
+                m_libraryLoadStatusBars.size() );
+
+    for( KISTATUSBAR* statusBar : m_libraryLoadStatusBars )
+    {
+        if( statusBar )
+        {
+            wxLogTrace( traceLibraries, "  -> forwarding to statusBar=%p", statusBar );
+            statusBar->AddLoadWarningMessages( aMessages );
+        }
+    }
+}
+
+
+void PGM_BASE::ClearLibraryLoadMessages()
+{
+    std::lock_guard<std::mutex> lock( m_libraryLoadStatusBarsMutex );
+
+    wxLogTrace( traceLibraries, "ClearLibraryLoadMessages: status bars=%zu",
+                m_libraryLoadStatusBars.size() );
+
+    for( KISTATUSBAR* statusBar : m_libraryLoadStatusBars )
+    {
+        if( statusBar )
+            statusBar->ClearLoadWarningMessages();
+    }
 }
 
 
